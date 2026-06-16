@@ -1,5 +1,25 @@
-"""依赖注入（占位）。对应§8.2 app/dependencies.py。
+"""依赖注入。"""
+from __future__ import annotations
 
-后续在此提供：数据库会话、Neo4j driver、Chroma client、当前用户等依赖。
-W1 仅占位，避免空目录导致 import 失败。
-"""
+from collections.abc import AsyncIterator
+
+from fastapi import Request
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.services.resources import resources
+
+
+def get_neo4j_driver(request: Request):
+    return request.app.state.resources.neo4j_driver
+
+
+def get_redis_client(request: Request) -> Redis:
+    return request.app.state.resources.redis_client
+
+
+async def get_db_session() -> AsyncIterator[AsyncSession]:
+    if resources.pg_sessionmaker is None:
+        raise RuntimeError("PostgreSQL sessionmaker not initialized")
+    async with resources.pg_sessionmaker() as session:
+        yield session
