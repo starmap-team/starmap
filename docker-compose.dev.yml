@@ -92,7 +92,7 @@ services:
     image: postgres:16
     container_name: starmap-postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"   # Windows 宿主已有 Postgres 占用 5432，改用 5433
     environment:
       - POSTGRES_USER=starmap
       - POSTGRES_PASSWORD=starmap123456
