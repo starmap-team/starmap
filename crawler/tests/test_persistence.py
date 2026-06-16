@@ -6,6 +6,12 @@ from datetime import date
 # 端口绕开
 os.environ.setdefault("POSTGRES_PORT", "5433")
 
+# 跳过数据库测试（CI 中没有 PostgreSQL）
+pytestmark = pytest.mark.skipif(
+    os.environ.get("CI") == "true",
+    reason="Skipping database tests in CI environment"
+)
+
 from crawler.persistence import dao  # noqa: E402
 from crawler.persistence.models import JdStatus  # noqa: E402
 from crawler.dedup import hex64, simhash  # noqa: E402
