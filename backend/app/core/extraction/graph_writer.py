@@ -6,9 +6,10 @@ Spec §2.2: 8 relationship types — REQUIRES, PREREQUISITE, EVOLVES_TO, USES, B
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator
+from typing import Any
 
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
