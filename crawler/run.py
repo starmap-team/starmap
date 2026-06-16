@@ -44,34 +44,34 @@ def cmd_stats(_args):
     print(json.dumps({"total": total, "by_status": by_status}, ensure_ascii=False, indent=2))
 
 
-def cmd_crawl_lagou(args):
-    from crawler.spiders.lagou import LagouSpider
-    import scrapy
-    from scrapy.crawler import CrawlerProcess
-
-    process = CrawlerProcess(settings={
+def _scrapy_settings() -> dict:
+    """Scrapy 公共 settings（含入库 pipeline）。"""
+    return {
         "USER_AGENT": config.USER_AGENTS[0],
         "ROBOTSTXT_OBEY": True,
         "DOWNLOAD_DELAY": 2,
         "CONCURRENT_REQUESTS": 1,
         "LOG_LEVEL": "INFO",
-    })
+        "ITEM_PIPELINES": {
+            "crawler.pipelines.storage.JdStoragePipeline": 300,
+        },
+    }
+
+
+def cmd_crawl_lagou(args):
+    from crawler.spiders.lagou import LagouSpider
+    from scrapy.crawler import CrawlerProcess
+
+    process = CrawlerProcess(settings=_scrapy_settings())
     process.crawl(LagouSpider, max_per_site=args.max)
     process.start()
 
 
 def cmd_crawl_51job(args):
     from crawler.spiders.job51 import Job51Spider
-    import scrapy
     from scrapy.crawler import CrawlerProcess
 
-    process = CrawlerProcess(settings={
-        "USER_AGENT": config.USER_AGENTS[0],
-        "ROBOTSTXT_OBEY": True,
-        "DOWNLOAD_DELAY": 2,
-        "CONCURRENT_REQUESTS": 1,
-        "LOG_LEVEL": "INFO",
-    })
+    process = CrawlerProcess(settings=_scrapy_settings())
     process.crawl(Job51Spider, max_per_site=args.max)
     process.start()
 
@@ -82,7 +82,6 @@ def cmd_crawl_boss(args):
     log.info("BOSS 拿到 %d 条", len(items))
     inserted = 0
     for it in items:
-        from crawler.dedup import hex64
         rec = {
             "source_site": it["source_site"],
             "source_url": it["source_url"],
@@ -94,7 +93,7 @@ def cmd_crawl_boss(args):
             "salary_max": it["salary_max"],
             "location": it["location"],
             "publish_date": it["publish_date"],
-            "content_hash": hex64(0),  # 已计算
+            "content_hash": it["content_hash"],  # spider 已计算
             "status": JdStatus.raw,
         }
         r = dao.upsert_jd(rec)
