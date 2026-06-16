@@ -7,7 +7,6 @@ validated structurally at class-definition time.
 
 import uuid
 
-import pytest
 from sqlalchemy.orm import DeclarativeBase
 
 from app.models import (
