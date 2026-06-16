@@ -4,9 +4,9 @@ Pipeline: prompt filling -> LLM call -> JSON parsing -> pydantic validation
           -> skill normalization -> anti-hallucination check.
 """
 
+import re
 from dataclasses import dataclass, field
 from enum import StrEnum
-import re
 from typing import Any
 
 from loguru import logger
@@ -23,7 +23,6 @@ from app.core.extraction.normalize import (
     batch_normalize_skills,
 )
 from app.core.extraction.prompt import get_prompt
-
 
 # Chinese PII patterns
 _PII_PATTERNS: list[re.Pattern] = [
