@@ -113,20 +113,17 @@ jobs:
     name: 爬虫 compile + test
     runs-on: ubuntu-latest
     needs: contracts
-    defaults:
-      run:
-        working-directory: crawler
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: 安装依赖
-        run: pip install -r requirements.txt
+        run: pip install -r crawler/requirements.txt
       - name: 编译检查
-        run: python -m compileall . -q
+        run: python -m compileall crawler -q
       - name: Pytest
-        run: python -m pytest tests/ -v
+        run: python -m pytest crawler/tests/ -v
 
   # ---------- Docker 集成冒烟（手动触发，规范7 每日集成） ----------
   # W6 起演示就绪纪律生效后改为定时 + 推送触发
