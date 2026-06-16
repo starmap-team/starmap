@@ -81,9 +81,9 @@ const kpiCardsEnhanced = computed(() => {
     },
     {
       label: '待审核',
-      value: String(m.pending_count),
+      value: String(m.pending_review),
       sub: '条记录待处理',
-      trend: m.pending_count > 5 ? 'up' : 'down',
+      trend: m.pending_review > 5 ? 'up' : 'down',
       color: '#f56c6c',
       icon: 'Clock',
     },

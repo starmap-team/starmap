@@ -20,16 +20,20 @@ const resumeStore = useResumeStore()
 const matchStore = useMatchStore()
 
 const step = ref(0)
-const targetPosition = ref('')
+const targetPositionId = ref('')
+const targetPositionName = ref('')
 const radarData = ref<RadarItem[]>([])
 const radarLoading = ref(false)
+
+// 技能熟练度 → 数值映射（用于雷达图）
+const PROFICIENCY_MAP: Record<string, number> = { '精通': 0.9, '熟悉': 0.65, '了解': 0.35 }
 
 const stepTitles = ['上传简历', '选择目标岗位', '技能雷达对比', '差距分析报告', '学习路径规划']
 
 // ── Step 0: 上传简历 ──
 async function handleUpload(file: File) {
   await resumeStore.parseResume(file)
-  userStore.setResume(file.name, resumeStore.result?.skills.map(s => s.skill) ?? [])
+  userStore.setResume(file.name, resumeStore.result?.required_skills.map(s => s.skill) ?? [])
   ElMessage.success('简历解析完成，识别 ' + userStore.parsedSkills.length + ' 项技能')
   step.value = 1
 }
@@ -65,13 +69,29 @@ function confirmManualSkills() {
 }
 
 // ── Step 1: 选岗位 ──
-async function handlePositionSelect(pos: string) {
-  targetPosition.value = pos
+async function handlePositionSelect(pos: { position_id: string; name: string }) {
+  targetPositionId.value = pos.position_id
+  targetPositionName.value = pos.name
   radarLoading.value = true
   try {
-    const resp = await fetch(`/api/v1/position/${encodeURIComponent(pos)}/requirements`)
+    // 契约: GET /graph/position/{position_id}/skills
+    const resp = await fetch(`/api/v1/graph/position/${encodeURIComponent(pos.position_id)}/skills`)
     const data = await resp.json()
-    radarData.value = data.requirements ?? []
+    // 契约 SkillNode[] → 雷达图 RadarItem[]
+    const skills = data.skills ?? []
+    radarData.value = skills.map((s: any) => ({
+      skill: s.name,
+      required: PROFICIENCY_MAP[s.proficiency] ?? 0.5,
+      user: 0, // 用户水平从简历抽取结果填入
+    }))
+    // 填入用户技能水平
+    if (resumeStore.result?.required_skills) {
+      const userSkills = new Map(resumeStore.result.required_skills.map((s: any) => [s.skill, PROFICIENCY_MAP[s.proficiency] ?? 0.5]))
+      radarData.value = radarData.value.map(item => ({
+        ...item,
+        user: userSkills.get(item.skill) ?? 0,
+      }))
+    }
     step.value = 2
   } finally {
     radarLoading.value = false
@@ -82,8 +102,8 @@ async function handlePositionSelect(pos: string) {
 async function handleStartDiagnosis() {
   const skills = userStore.parsedSkills.length
     ? userStore.parsedSkills
-    : resumeStore.result?.skills.map(s => s.skill) ?? []
-  await matchStore.runMatch(targetPosition.value, skills)
+    : resumeStore.result?.required_skills.map(s => s.skill) ?? []
+  await matchStore.runMatch(targetPositionName.value, skills)
   step.value = 3
 }
 
@@ -114,7 +134,8 @@ function gapToColor(level: string) {
 // ── 重置 ──
 function handleReset() {
   step.value = 0
-  targetPosition.value = ''
+  targetPositionId.value = ''
+  targetPositionName.value = ''
   radarData.value = []
   manualSkills.value = []
   skillInput.value = ''
@@ -333,13 +354,13 @@ function handleReset() {
                   <el-icon size="20">
                     <DataAnalysis />
                   </el-icon>
-                  <span>第3步：技能雷达对比 — {{ targetPosition }}</span>
+                  <span>第3步：技能雷达对比 — {{ targetPositionName }}</span>
                 </div>
               </template>
 
               <SkillRadar
                 :data="radarData"
-                :position-name="targetPosition"
+                :position-name="targetPositionName"
               />
 
               <el-alert
@@ -465,14 +486,14 @@ function handleReset() {
                   class="skill-card missing-req"
                 >
                   <template #header>
-                    <span class="skill-card-title">🔴 缺失必备（{{ matchStore.result.missing_required.length }}）</span>
+                    <span class="skill-card-title">🔴 缺失必备（{{ (matchStore.result.missing_required ?? []).length }}）</span>
                   </template>
                   <div
-                    v-if="matchStore.result.missing_required.length"
+                    v-if="(matchStore.result.missing_required ?? []).length"
                     class="skill-tags-mini"
                   >
                     <el-tag
-                      v-for="s in matchStore.result.missing_required"
+                      v-for="s in (matchStore.result.missing_required ?? [])"
                       :key="s"
                       type="danger"
                       size="large"
@@ -498,14 +519,14 @@ function handleReset() {
                   class="skill-card missing-bonus"
                 >
                   <template #header>
-                    <span class="skill-card-title">🟡 缺失加分（{{ matchStore.result.missing_bonus.length }}）</span>
+                    <span class="skill-card-title">🟡 缺失加分（{{ (matchStore.result.missing_bonus ?? []).length }}）</span>
                   </template>
                   <div
-                    v-if="matchStore.result.missing_bonus.length"
+                    v-if="(matchStore.result.missing_bonus ?? []).length"
                     class="skill-tags-mini"
                   >
                     <el-tag
-                      v-for="s in matchStore.result.missing_bonus"
+                      v-for="s in (matchStore.result.missing_bonus ?? [])"
                       :key="s"
                       type="warning"
                       size="large"

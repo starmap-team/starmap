@@ -1,26 +1,26 @@
 <script setup lang="ts">
 /**
- * 岗位搜索下拉组件 — 支持搜索过滤 + 预设列表
- * 对应任务文档：匹配诊断第2步
+ * 岗位搜索下拉组件 — 对应契约 GET /positions?search=
  */
 import { ref, onMounted } from 'vue'
 
 const emit = defineEmits<{
-  select: [position: string]
+  select: [position: { position_id: string; name: string }]
 }>()
 
-const options = ref<{ label: string; value: string }[]>([])
+const options = ref<{ label: string; value: string; position_id: string }[]>([])
 const selected = ref('')
 const loading = ref(false)
 
 onMounted(async () => {
   loading.value = true
   try {
-    const resp = await fetch('/api/v1/positions/search?q=')
+    const resp = await fetch('/api/v1/positions')
     const data = await resp.json()
-    options.value = (data.items ?? []).map((p: { name: string }) => ({
+    options.value = (data.items ?? []).map((p: { position_id: string; name: string }) => ({
       label: p.name,
-      value: p.name,
+      value: p.position_id,
+      position_id: p.position_id,
     }))
   } finally {
     loading.value = false
@@ -30,11 +30,12 @@ onMounted(async () => {
 async function remoteMethod(q: string) {
   loading.value = true
   try {
-    const resp = await fetch(`/api/v1/positions/search?q=${encodeURIComponent(q)}`)
+    const resp = await fetch(`/api/v1/positions?search=${encodeURIComponent(q)}`)
     const data = await resp.json()
-    options.value = (data.items ?? []).map((p: { name: string }) => ({
+    options.value = (data.items ?? []).map((p: { position_id: string; name: string }) => ({
       label: p.name,
-      value: p.name,
+      value: p.position_id,
+      position_id: p.position_id,
     }))
   } finally {
     loading.value = false
@@ -42,7 +43,10 @@ async function remoteMethod(q: string) {
 }
 
 function handleChange(val: string) {
-  if (val) emit('select', val)
+  if (val) {
+    const opt = options.value.find(o => o.value === val)
+    if (opt) emit('select', { position_id: opt.position_id, name: opt.label })
+  }
 }
 </script>
 
@@ -56,8 +60,8 @@ function handleChange(val: string) {
       placeholder="请搜索并选择目标岗位"
       :remote-method="remoteMethod"
       :loading="loading"
-      style="width: 100%"
       size="large"
+      style="width: 100%"
       @change="handleChange"
     >
       <el-option
@@ -68,7 +72,7 @@ function handleChange(val: string) {
       />
     </el-select>
     <div class="hint">
-      输入岗位名称关键词搜索，如"数据分析"、"前端"、"Java"等
+      输入岗位名称关键词搜索，如"数据分析"、"前端"等
     </div>
   </div>
 </template>

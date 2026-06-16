@@ -1,7 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-/** 简历解析结果 store */
+/**
+ * 简历解析结果 store
+ * 对应契约：POST /extract/resume → ExtractionResult
+ */
 export interface ParsedSkill {
   skill: string
   category: 'hard_skill' | 'soft_skill'
@@ -9,10 +12,14 @@ export interface ParsedSkill {
 }
 
 export interface ResumeParseResult {
-  name: string
-  skills: ParsedSkill[]
-  experience_years: number
-  education: string
+  position_name: string
+  required_skills: ParsedSkill[]
+  preferred_skills: ParsedSkill[]
+  experience_required: number
+  education_required: string
+  confidence: number
+  hallucination_score: number | null
+  normalized_skills: { original: string; normalized: string; method: string; confidence: number }[]
 }
 
 export const useResumeStore = defineStore('resume', () => {
@@ -25,7 +32,7 @@ export const useResumeStore = defineStore('resume', () => {
     formData.append('file', file)
 
     try {
-      const resp = await fetch('/api/v1/resume/parse', { method: 'POST', body: formData })
+      const resp = await fetch('/api/v1/extract/resume', { method: 'POST', body: formData })
       const data = await resp.json()
       result.value = data as ResumeParseResult
     } finally {
