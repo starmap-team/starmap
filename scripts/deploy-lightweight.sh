@@ -57,6 +57,8 @@ elif [ -d "$DEPLOY_DIR" ] && [ "$(ls -A $DEPLOY_DIR 2>/dev/null)" ]; then
     BACKUP="${DEPLOY_DIR}.bak.$(date +%s)"
     mv "$DEPLOY_DIR" "$BACKUP"
     chown starmap:starmap "$BACKUP"
+    mkdir -p "$DEPLOY_DIR"
+    chown starmap:starmap "$DEPLOY_DIR"
     sudo -u starmap git clone https://github.com/Li3379/starmap.git "$DEPLOY_DIR" 2>&1 | tail -2
     cd "$DEPLOY_DIR"
     ok "克隆完成 (旧目录备份到 $BACKUP)"
