@@ -1,26 +1,33 @@
-"""FastAPI 应用入口。
+"""FastAPI 应用入口。"""
+from __future__ import annotations
 
-启动：uvicorn app.main:app --reload
-文档：http://localhost:8000/docs （Swagger，自动从路由生成，对应契约一致性校验）
-"""
 from contextlib import asynccontextmanager
+from pathlib import Path
+import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from app.api.v1.router import api_router
 from app.config import settings
+from app.services.resources import healthcheck_resources, init_resources, resources
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期：启动时初始化连接，关闭时释放。"""
     logger.info("StarMap 启动中... env={}", settings.app_env)
-    # TODO(W1-W2): 在此初始化 Neo4j/PG/Redis/Chroma 连接池
-    # TODO(W1-W2): 启动时校验 openapi 与 /contracts/openapi.yaml 一致（规范1）
-    yield
-    logger.info("StarMap 关闭中...")
+    app.state.resources = await init_resources()
+    try:
+        yield
+    finally:
+        await resources.close()
+        logger.info("StarMap 关闭中...")
 
 
 app = FastAPI(
@@ -30,7 +37,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS：允许前端开发端口
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -39,11 +45,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 挂载 v1 路由
 app.include_router(api_router, prefix="/api/v1")
+
+
+async def _health_payload() -> dict:
+    details = await healthcheck_resources()
+    return {"status": "ok", "version": "0.1.0", "env": settings.app_env, "services": details}
 
 
 @app.get("/health", tags=["系统"])
 async def health() -> dict:
-    """健康检查端点（§3.2 L1 日志监控要求）。"""
-    return {"status": "ok", "version": "0.1.0", "env": settings.app_env}
+    """根级健康检查端点。"""
+    return await _health_payload()
+
+
+@app.get("/api/v1/health", tags=["系统"], include_in_schema=False)
+async def health_v1() -> dict:
+    """契约兼容的 v1 健康检查端点。"""
+    return await _health_payload()

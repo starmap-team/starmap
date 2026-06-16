@@ -1,16 +1,20 @@
-"""岗位管理 API（占位）。对应模块A/B（§5.1/§5.2），W5-W8 流B 实现。"""
+"""岗位管理 API。"""
+from __future__ import annotations
+
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/positions", tags=["岗位管理"])
 
 
-@router.get("/")
+@router.get(
+    "/",
+    summary="岗位列表",
+    description="阶段2骨架接口。后续接入图谱/关系数据库查询。",
+)
 async def list_positions():
-    """岗位列表。"""
     return {"items": []}
 
 
-@router.post("/discover")
+@router.post("/discover", summary="触发岗位发现流程")
 async def discover_position():
-    """触发新岗位发现流程（模块A）。TODO(W7): 编排涌现检测→聚类→定义生成→幻觉防控。"""
     return {"message": "TODO"}
