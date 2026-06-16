@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     xunfei_api_secret: str = ""
     xunfei_app_id: str = ""
     qwen_model_path: str = ""
+    llm_timeout: int = 60
+    llm_max_retries: int = 3
 
 
 @lru_cache
