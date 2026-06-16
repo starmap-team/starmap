@@ -111,8 +111,6 @@ def main():
     sub.add_parser("stats", help="统计 jd_raw")
 
     for site, fn in (("lagou", cmd_crawl_lagou), ("51job", cmd_crawl_51job), ("bosszhipin", cmd_crawl_boss)):
-        sp = sub.add_parser(f"--site", help=site)
-        # 简化：实际命令用 -s
         sp = sub.add_parser(site, help=f"爬 {site}")
         sp.add_argument("--max", type=int, default=config.MAX_PER_SITE)
         if site == "bosszhipin":
@@ -126,9 +124,6 @@ def main():
         cmd_crawl_51job(argparse.Namespace(max=a.max)),
         cmd_crawl_boss(argparse.Namespace(max=a.max, keyword="python")),
     ))
-
-    sub.add_parser("init", help="建 jd_raw / compliance_log 表")
-    sub.add_parser("stats", help="统计 jd_raw")
 
     args = p.parse_args()
     if args.cmd == "init":
