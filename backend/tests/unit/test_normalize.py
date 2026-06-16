@@ -1,6 +1,5 @@
 """Unit tests for skill normalization pipeline."""
 
-import pytest
 
 from app.core.extraction.normalize import (
     NormalizationResult,
