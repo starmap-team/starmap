@@ -1,0 +1,7 @@
+{
+  "passed": false,
+  "avg_f1": 0.758,
+  "threshold": 0.9,
+  "status": "red",
+  "message": "Quality gate failed: F1 0.7580 < 0.90"
+}
