@@ -8,9 +8,9 @@ info:
   x-summary: "人才技能图谱知识系统全量 API"
 
 servers:
-  - url: "http://localhost:8000"
+  - url: "http://localhost:8000/api/v1"
     description: "本地开发环境"
-  - url: "https://api.starmap.dev"
+  - url: "https://api.starmap.dev/api/v1"
     description: "评审环境"
 
 paths:
@@ -41,7 +41,7 @@ paths:
                     example: "development"
 
   # ──────────────────────── 信息抽取 ────────────────────────
-  /api/v1/extract/jd:
+  /extract/jd:
     post:
       operationId: extractJd
       summary: "职位描述技能抽取"
@@ -79,7 +79,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/v1/extract/resume:
+  /extract/resume:
     post:
       operationId: extractResume
       summary: "简历技能抽取"
@@ -130,7 +130,7 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   # ──────────────────────── 岗位管理 ────────────────────────
-  /api/v1/positions:
+  /positions:
     get:
       operationId: listPositions
       summary: "岗位列表"
@@ -178,7 +178,7 @@ paths:
                   page_size:
                     type: integer
 
-  /api/v1/positions/{position_id}:
+  /positions/{position_id}:
     get:
       operationId: getPositionDetail
       summary: "岗位详情"
@@ -204,7 +204,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/v1/positions/discover:
+  /positions/discover:
     post:
       operationId: discoverPosition
       summary: "触发岗位发现"
@@ -247,7 +247,7 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   # ──────────────────────── 图谱查询 ────────────────────────
-  /api/v1/graph/query:
+  /graph/query:
     get:
       operationId: graphQuery
       summary: "Cypher 图谱查询"
@@ -283,7 +283,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/v1/graph/position/{position_id}/skills:
+  /graph/position/{position_id}/skills:
     get:
       operationId: getPositionSkills
       summary: "岗位技能图谱"
@@ -330,7 +330,7 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   # ──────────────────────── 匹配诊断 ────────────────────────
-  /api/v1/match/position:
+  /match/position:
     post:
       operationId: matchPosition
       summary: "人岗匹配"
@@ -357,7 +357,7 @@ paths:
                 $ref: "#/components/schemas/Error"
       x-llm-features: [skill_normalization, gap_analysis]
 
-  /api/v1/match/result/{match_id}:
+  /match/result/{match_id}:
     get:
       operationId: getMatchResult
       summary: "匹配结果详情"
@@ -385,7 +385,7 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   # ──────────────────────── 演化分析 ────────────────────────
-  /api/v1/evolution/trends:
+  /evolution/trends:
     get:
       operationId: getEvolutionTrends
       summary: "演化趋势"
@@ -419,7 +419,7 @@ paths:
                     items:
                       $ref: "#/components/schemas/EvolutionTrend"
 
-  /api/v1/evolution/analyze:
+  /evolution/analyze:
     post:
       operationId: triggerEvolutionAnalysis
       summary: "触发演化分析"
@@ -455,7 +455,7 @@ paths:
                     format: uuid
 
   # ──────────────────────── 质量监控 ────────────────────────
-  /api/v1/quality/evaluate:
+  /quality/evaluate:
     post:
       operationId: evaluateQuality
       summary: "质量评估"
@@ -492,7 +492,7 @@ paths:
                     type: string
                     format: uuid
 
-  /api/v1/quality/report:
+  /quality/report:
     get:
       operationId: getQualityReport
       summary: "质量报告"
@@ -520,7 +520,7 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   # ──────────────────────── 系统 ────────────────────────
-  /api/v1/admin/stats:
+  /admin/stats:
     get:
       operationId: getAdminStats
       summary: "系统统计"
