@@ -7,13 +7,7 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/admin", tags=["管理后台"])
 
 
-@router.get("/review-queue")
-async def get_review_queue():
-    """待人工审核的变更提案队列（§5.2、§7.2 防线）。"""
-    return {"items": []}
-
-
-@router.post("/seed/reset")
-async def reset_demo_data():
-    """重置为演示数据（§16.5 一键加载种子）。"""
+@router.get("/stats")
+async def get_admin_stats():
+    """后台统计概览。"""
     return {"message": "TODO"}

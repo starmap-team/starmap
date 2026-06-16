@@ -7,11 +7,11 @@ router = APIRouter(prefix="/graph", tags=["图谱查询"])
 
 
 @router.get(
-    "/panorama",
-    summary="全景图谱",
+    "/query",
+    summary="图谱查询",
     description="阶段2骨架接口。后续由图谱查询服务返回 AntV G6 nodes/edges。",
 )
-async def get_panorama(
+async def graph_query(
     tech_stack: str | None = Query(default=None, description="技术栈筛选"),
     level: str | None = Query(default=None, description="岗位级别筛选"),
 ):
@@ -24,9 +24,9 @@ async def get_panorama(
 
 
 @router.get(
-    "/position/{position_name}",
-    summary="岗位详情",
+    "/position/{position_id}/skills",
+    summary="岗位技能矩阵",
     description="阶段3前的占位接口。",
 )
-async def get_position_detail(position_name: str):
-    return {"message": "TODO", "position": position_name}
+async def get_position_skills(position_id: str):
+    return {"message": "TODO", "position_id": position_id, "skills": []}

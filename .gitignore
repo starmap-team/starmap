@@ -87,3 +87,8 @@ logs/
 # ---- 调试用临时文件 ----
 _backend*.txt
 _*.log
+
+# ---- 临时脚本 ----
+git_*.bat
+git_*.ps1
+cleanup.ps1

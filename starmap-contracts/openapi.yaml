@@ -1,0 +1,907 @@
+openapi: "3.0.3"
+info:
+  title: "星图 StarMap API"
+  description: "人才能力星云导航系统 - 后端 API 契约"
+  version: "1.0.0"
+  contact:
+    name: "StarMap Team"
+  x-summary: "人才技能图谱知识系统全量 API"
+
+servers:
+  - url: "http://localhost:8000/api/v1"
+    description: "本地开发环境"
+  - url: "https://api.starmap.dev/api/v1"
+    description: "评审环境"
+
+paths:
+  # ──────────────────────── 系统 ────────────────────────
+  /health:
+    get:
+      operationId: healthCheck
+      summary: "健康检查"
+      tags: [系统]
+      responses:
+        "200":
+          description: "服务正常"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version, env]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                    example: "ok"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  env:
+                    type: string
+                    example: "development"
+
+  # ──────────────────────── 信息抽取 ────────────────────────
+  /extract/jd:
+    post:
+      operationId: extractJd
+      summary: "职位描述技能抽取"
+      description: "从职位描述文本中提取技能图谱节点，含幻觉评分"
+      tags: [信息抽取]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExtractionRequest"
+      responses:
+        "200":
+          description: "抽取成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractionResult"
+        "422":
+          description: "校验失败（JD 内容为空或抽取 pipeline 报错）"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: "LLM 服务不可用"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: "内部错误"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /extract/resume:
+    post:
+      operationId: extractResume
+      summary: "简历技能抽取"
+      description: "上传简历文件（PDF/Word），从中抽取个人技能图谱"
+      tags: [信息抽取]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "简历文件（支持 .pdf, .docx, .doc）"
+      responses:
+        "200":
+          description: "抽取成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractionResult"
+        "400":
+          description: "文件类型不支持或读取失败"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: "校验失败（抽取 pipeline 报错）"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: "LLM 服务不可用"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: "内部错误"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ──────────────────────── 岗位管理 ────────────────────────
+  /positions:
+    get:
+      operationId: listPositions
+      summary: "岗位列表"
+      description: "返回系统中所有已发现的岗位"
+      tags: [岗位管理]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: industry
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "岗位列表"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, page, page_size]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PositionNode"
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  page_size:
+                    type: integer
+
+  /positions/{position_id}:
+    get:
+      operationId: getPositionDetail
+      summary: "岗位详情"
+      description: "获取单个岗位的完整信息，包含技能要求"
+      tags: [岗位管理]
+      parameters:
+        - name: position_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "岗位详情"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PositionNode"
+        "404":
+          description: "岗位不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /positions/discover:
+    post:
+      operationId: discoverPosition
+      summary: "触发岗位发现"
+      description: "触发自动化岗位发现流水线：涌现检测 → 聚类 → 定义生成 → 幻觉防控"
+      tags: [岗位管理]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source:
+                  type: string
+                  description: "数据源标识（留空则全量扫描）"
+                  example: "lagou"
+                force:
+                  type: boolean
+                  description: "是否强制重新发现"
+                  default: false
+      responses:
+        "202":
+          description: "发现流程已触发"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, task_id]
+                properties:
+                  message:
+                    type: string
+                    example: "discovery triggered"
+                  task_id:
+                    type: string
+                    format: uuid
+        "409":
+          description: "发现流程进行中"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ──────────────────────── 图谱查询 ────────────────────────
+  /graph/query:
+    get:
+      operationId: graphQuery
+      summary: "Cypher 图谱查询"
+      description: "直接执行 Cypher 查询语句（仅限读操作）"
+      tags: [图谱查询]
+      parameters:
+        - name: cypher
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "MATCH (s:Skill)-[r:REQUIRED_FOR]->(p:Position) RETURN s, r, p LIMIT 50"
+      responses:
+        "200":
+          description: "查询结果"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GraphNode"
+                  edges:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GraphEdge"
+        "400":
+          description: "查询语法错误或包含写操作"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /graph/position/{position_id}/skills:
+    get:
+      operationId: getPositionSkills
+      summary: "岗位技能图谱"
+      description: "获取指定岗位的技能依赖子图"
+      tags: [图谱查询]
+      parameters:
+        - name: position_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: depth
+          in: query
+          description: "递归查询深度（含技能先修关系）"
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+            maximum: 5
+      responses:
+        "200":
+          description: "技能子图"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [position, skills, edges]
+                properties:
+                  position:
+                    $ref: "#/components/schemas/PositionNode"
+                  skills:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SkillNode"
+                  edges:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GraphEdge"
+        "404":
+          description: "岗位不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ──────────────────────── 匹配诊断 ────────────────────────
+  /match/position:
+    post:
+      operationId: matchPosition
+      summary: "人岗匹配"
+      description: "将个人的技能集与目标岗位进行匹配度计算"
+      tags: [匹配诊断]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchRequest"
+      responses:
+        "200":
+          description: "匹配完成"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchResult"
+        "400":
+          description: "请求参数错误"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-llm-features: [skill_normalization, gap_analysis]
+
+  /match/result/{match_id}:
+    get:
+      operationId: getMatchResult
+      summary: "匹配结果详情"
+      description: "获取之前触发的匹配诊断完整结果"
+      tags: [匹配诊断]
+      parameters:
+        - name: match_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "匹配结果"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchResult"
+        "404":
+          description: "匹配记录不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ──────────────────────── 演化分析 ────────────────────────
+  /evolution/trends:
+    get:
+      operationId: getEvolutionTrends
+      summary: "演化趋势"
+      description: "技能热度趋势、岗位变迁时间线、新兴岗位预警"
+      tags: [演化分析]
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            description: "技能分类筛选"
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 90
+            minimum: 7
+            maximum: 730
+          description: "分析时间窗口（天）"
+      responses:
+        "200":
+          description: "趋势列表"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EvolutionTrend"
+
+  /evolution/analyze:
+    post:
+      operationId: triggerEvolutionAnalysis
+      summary: "触发演化分析"
+      description: "触发全量或增量演化分析流水线"
+      tags: [演化分析]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  enum: [full, incremental]
+                  default: incremental
+                category:
+                  type: string
+                  description: "限定分析领域"
+      responses:
+        "202":
+          description: "分析已触发"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, task_id]
+                properties:
+                  message:
+                    type: string
+                    example: "evolution analysis triggered"
+                  task_id:
+                    type: string
+                    format: uuid
+
+  # ──────────────────────── 质量监控 ────────────────────────
+  /quality/evaluate:
+    post:
+      operationId: evaluateQuality
+      summary: "质量评估"
+      description: "对当前图谱运行质量评估流水线，产出精度/召回率等指标"
+      tags: [质量监控]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope:
+                  type: string
+                  enum: [full, position, skill, edge]
+                  default: full
+                sample_ratio:
+                  type: number
+                  default: 1.0
+                  minimum: 0.01
+                  maximum: 1.0
+      responses:
+        "202":
+          description: "评估已触发"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, task_id]
+                properties:
+                  message:
+                    type: string
+                    example: "evaluation triggered"
+                  task_id:
+                    type: string
+                    format: uuid
+
+  /quality/report:
+    get:
+      operationId: getQualityReport
+      summary: "质量报告"
+      description: "获取最新或指定批次的质量评估报告"
+      tags: [质量监控]
+      parameters:
+        - name: batch_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: "指定批次（留空返回最新报告）"
+      responses:
+        "200":
+          description: "质量报告"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QualityReport"
+        "404":
+          description: "报告不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ──────────────────────── 系统 ────────────────────────
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      summary: "系统统计"
+      description: "系统运行核心统计指标"
+      tags: [系统]
+      responses:
+        "200":
+          description: "系统统计"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [total_nodes, total_edges, total_positions, total_skills, avg_confidence, hallucination_rate, pending_review]
+                properties:
+                  total_nodes:
+                    type: integer
+                  total_edges:
+                    type: integer
+                  total_positions:
+                    type: integer
+                  total_skills:
+                    type: integer
+                  avg_confidence:
+                    type: number
+                    format: float
+                    minimum: 0
+                    maximum: 1
+                  hallucination_rate:
+                    type: number
+                    format: float
+                    minimum: 0
+                    maximum: 1
+                  pending_review:
+                    type: integer
+
+components:
+  schemas:
+    ExtractionRequest:
+      type: object
+      required: [jd_content]
+      properties:
+        jd_content:
+          type: string
+          minLength: 1
+          description: "职位描述文本"
+          example: "负责后端服务架构设计与开发，精通 Python/Go，熟悉分布式系统..."
+        options:
+          type: object
+          nullable: true
+          description: "抽取选项（model, temperature 等）"
+          example:
+            model: "generalv3.5"
+            temperature: 0.1
+
+    ExtractionResult:
+      type: object
+      properties:
+        position_name:
+          type: string
+          description: "抽取的岗位名称"
+          example: "后端开发工程师"
+        required_skills:
+          type: array
+          description: "必需技能列表"
+          items:
+            type: object
+            properties:
+              skill:
+                type: string
+                example: "Python"
+              category:
+                type: string
+                example: "hard_skill"
+              proficiency:
+                type: string
+                example: "精通"
+          default: []
+        preferred_skills:
+          type: array
+          description: "加分技能列表"
+          items:
+            type: object
+            properties:
+              skill:
+                type: string
+                example: "Kubernetes"
+              category:
+                type: string
+                example: "hard_skill"
+              proficiency:
+                type: string
+                example: "熟悉"
+          default: []
+        experience_required:
+          type: integer
+          nullable: true
+          description: "要求经验年数"
+          example: 3
+        education_required:
+          type: string
+          nullable: true
+          description: "学历要求"
+          example: "本科"
+        responsibilities:
+          type: array
+          description: "岗位职责描述"
+          items:
+            type: string
+          example: ["负责后端服务架构设计", "核心模块开发"]
+          default: []
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: "抽取置信度"
+          example: 0.92
+        hallucination_score:
+          type: number
+          format: float
+          nullable: true
+          minimum: 0
+          maximum: 1
+          description: "幻觉风险评分（null 表示未触发幻觉检测）"
+          example: 0.08
+        normalized_skills:
+          type: array
+          description: "归一化后的技能列表"
+          items:
+            type: object
+            properties:
+              original:
+                type: string
+                example: "python3"
+              normalized:
+                type: string
+                example: "Python"
+              method:
+                type: string
+                example: "alias"
+              confidence:
+                type: number
+                example: 1.0
+          default: []
+
+    SkillNode:
+      type: object
+      required: [skill_id, name, category, proficiency, confidence, source_count]
+      properties:
+        skill_id:
+          type: string
+          description: "技能唯一标识（归一化后的 ID）"
+          example: "skill_python_3.x"
+        name:
+          type: string
+          description: "技能展示名称"
+          example: "Python"
+        category:
+          type: string
+          enum: [hard_skill, soft_skill, tool, certificate]
+          description: "技能分类"
+          example: "hard_skill"
+        proficiency:
+          type: string
+          enum: ["了解", "熟悉", "精通"]
+          description: "熟练度等级"
+          example: "精通"
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: "该技能节点置信度"
+          example: 0.95
+        source_count:
+          type: integer
+          minimum: 0
+          description: "来源文档计数"
+          example: 15
+
+    PositionNode:
+      type: object
+      required: [position_id, name, industry, description, skills_required]
+      properties:
+        position_id:
+          type: string
+          example: "pos_backend_engineer"
+        name:
+          type: string
+          example: "后端开发工程师"
+        industry:
+          type: string
+          example: "互联网/IT"
+        description:
+          type: string
+          example: "负责后端服务架构设计与核心模块开发"
+        skills_required:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillNode"
+        discovered_at:
+          type: string
+          format: date-time
+          description: "发现时间"
+
+    GraphNode:
+      type: object
+      required: [id, labels, properties]
+      properties:
+        id:
+          type: string
+          example: "skill_python_3.x"
+        labels:
+          type: array
+          items:
+            type: string
+          example: ["Skill", "HardSkill"]
+        properties:
+          type: object
+          description: "节点属性键值对"
+          additionalProperties: true
+          example:
+            name: "Python"
+            category: "hard_skill"
+            confidence: 0.95
+
+    GraphEdge:
+      type: object
+      required: [source_id, target_id, type]
+      properties:
+        source_id:
+          type: string
+          example: "skill_python_3.x"
+        target_id:
+          type: string
+          example: "pos_backend_engineer"
+        type:
+          type: string
+          example: "REQUIRED_FOR"
+        properties:
+          type: object
+          description: "边属性"
+          additionalProperties: true
+          example:
+            weight: 0.9
+
+    MatchRequest:
+      type: object
+      required: [person_skills, target_position]
+      properties:
+        person_skills:
+          type: array
+          description: "个人技能列表"
+          items:
+            $ref: "#/components/schemas/SkillNode"
+        target_position:
+          type: string
+          description: "目标岗位 ID 或名称"
+          example: "pos_backend_engineer"
+        options:
+          type: object
+          properties:
+            threshold:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+              default: 0.6
+              description: "匹配阈值，低于此值视为严重不匹配"
+
+    MatchResult:
+      type: object
+      required: [match_score, matched_skills, gap_skills, recommendations]
+      properties:
+        match_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: "总体匹配度"
+          example: 0.74
+        matched_skills:
+          type: array
+          description: "已匹配技能"
+          items:
+            type: string
+          example: ["Python", "FastAPI", "PostgreSQL"]
+        gap_skills:
+          type: array
+          description: "差距技能（缺失或不足）"
+          items:
+            type: string
+          example: ["Docker", "Kubernetes", "分布式系统设计"]
+        recommendations:
+          type: array
+          description: "学习路径建议"
+          items:
+            type: string
+          example: ["建议优先学习 Docker 容器化部署", "补充分布式系统理论知识"]
+
+    QualityReport:
+      type: object
+      required: [precision, recall, f1, warning_level, details]
+      properties:
+        precision:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.88
+        recall:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.82
+        f1:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.85
+        warning_level:
+          type: string
+          enum: [green, yellow, orange, red]
+          description: "警戒等级"
+          example: "yellow"
+        details:
+          type: array
+          description: "详细评估条目"
+          items:
+            type: object
+            properties:
+              dimension:
+                type: string
+                example: "skill_extraction"
+              value:
+                type: number
+              threshold:
+                type: number
+              status:
+                type: string
+                enum: [pass, warn, fail]
+
+    EvolutionTrend:
+      type: object
+      required: [skill_name, trend, confidence, related_positions]
+      properties:
+        skill_name:
+          type: string
+          example: "Python"
+        trend:
+          type: string
+          enum: [rising, stable, declining]
+          description: "趋势方向"
+          example: "rising"
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.89
+        related_positions:
+          type: array
+          items:
+            type: string
+          example: ["后端开发工程师", "数据工程师", "AI 工程师"]
+
+    Error:
+      type: object
+      required: [detail, code]
+      properties:
+        detail:
+          type: string
+          description: "错误描述"
+          example: "岗位不存在"
+        code:
+          type: string
+          description: "错误码"
+          example: "POSITION_NOT_FOUND"
+        timestamp:
+          type: string
+          format: date-time
+          description: "错误发生时间"

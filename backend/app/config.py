@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     secret_key: str = "dev_secret"
 
     # 数据库
-    neo4j_uri: str = "bolt://neo4j:starmap123456@localhost:7687"
+    neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = "starmap123456"
     postgres_uri: str = "postgresql+asyncpg://starmap:starmap123456@localhost:5432/starmap"

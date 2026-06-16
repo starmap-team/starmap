@@ -8,3 +8,9 @@ router = APIRouter(prefix="/evolution", tags=["演化分析"])
 async def get_trends():
     """技能热度趋势、岗位变迁时间线、新兴岗位预警（§8.3 演化看板）。"""
     return {"items": []}
+
+
+@router.post("/analyze")
+async def analyze_evolution():
+    """触发演化分析流程。"""
+    return {"message": "TODO"}
