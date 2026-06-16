@@ -5,7 +5,7 @@
 """
 from fastapi import APIRouter
 
-from app.api.v1 import admin, evolution, graph, match, position, quality, resume
+from app.api.v1 import admin, evolution, extract, graph, match, position, quality, resume
 
 api_router = APIRouter()
 api_router.include_router(graph.router, tags=["图谱查询"])
@@ -14,4 +14,5 @@ api_router.include_router(match.router, tags=["匹配诊断"])
 api_router.include_router(evolution.router, tags=["演化分析"])
 api_router.include_router(resume.router, tags=["简历解析"])
 api_router.include_router(quality.router, tags=["质量监控"])
+api_router.include_router(extract.router, tags=["信息抽取"])
 api_router.include_router(admin.router, tags=["管理后台"])
