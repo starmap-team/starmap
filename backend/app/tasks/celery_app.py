@@ -44,4 +44,4 @@ def batch_extract_jd(self, jd_text: str) -> str:
         return json.dumps({"status": "queued", "char_count": len(clean_text)}, ensure_ascii=False)
     except Exception as exc:
         logger.exception("batch_extract_jd failed")
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc

@@ -4,9 +4,9 @@ Pipeline: prompt filling -> LLM call -> JSON parsing -> pydantic validation
           -> skill normalization -> anti-hallucination check.
 """
 
-import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
+import re
 from typing import Any
 
 from loguru import logger
@@ -33,7 +33,7 @@ _PII_PATTERNS: list[re.Pattern] = [
 ]
 
 
-class SkillCategory(str, Enum):
+class SkillCategory(StrEnum):
     """Skill category enum matching ontology values."""
 
     hard_skill = "hard_skill"
