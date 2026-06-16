@@ -87,7 +87,7 @@ async def extract_jd(request: ExtractionRequest) -> dict[str, Any]:
 
 
 @router.post("/resume", response_model=ExtractionResult)
-async def extract_resume(file: UploadFile = File(...)) -> dict[str, Any]:
+async def extract_resume(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
     """从简历文件（PDF/Word）中提取技能信息。
 
     - 解析文件内容

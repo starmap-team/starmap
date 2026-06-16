@@ -1,7 +1,7 @@
 """Neo4j connection service with async context manager."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from loguru import logger
 from neo4j import AsyncGraphDatabase, AsyncManagedTransaction, AsyncSession

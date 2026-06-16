@@ -1,12 +1,12 @@
 """PostgreSQL SQLAlchemy models for extraction pipeline."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base
 
@@ -31,7 +31,7 @@ class JDExtractionRecord(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     status: Mapped[str] = mapped_column(
         String(20),
@@ -57,7 +57,7 @@ class RawJDRecord(Base):
     title_raw: Mapped[str | None] = mapped_column(String(255), nullable=True)
     company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     crawl_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
     )
     hash_dedup: Mapped[str] = mapped_column(String(64), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
@@ -77,7 +77,7 @@ class SkillAliasRecord(Base):
     alias: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     standard_name: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
     )
 
     def __repr__(self) -> str:
@@ -103,7 +103,7 @@ class ExtractionEvaluationRecord(Base):
     experience_error: Mapped[float | None] = mapped_column(Float, nullable=True)
     education_match: Mapped[bool | None] = mapped_column(sa.Boolean, nullable=True)
     evaluated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
     )
 
     def __repr__(self) -> str:
@@ -127,7 +127,7 @@ class PositionSkillRelation(Base):
     requirement_type: Mapped[str] = mapped_column(String(20), nullable=False, default="required")
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
     )
 
     def __repr__(self) -> str:
@@ -147,8 +147,8 @@ class SystemConfig(Base):
     config_type: Mapped[str] = mapped_column(String(20), nullable=False, default="string")
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     def __repr__(self) -> str:
@@ -171,13 +171,13 @@ class SkillRecord(Base):
     first_detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     last_detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     def __repr__(self) -> str:
@@ -200,7 +200,7 @@ class PositionRecord(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     def __repr__(self) -> str:

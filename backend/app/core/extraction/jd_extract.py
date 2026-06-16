@@ -4,7 +4,6 @@ Pipeline: prompt filling -> LLM call -> JSON parsing -> pydantic validation
           -> skill normalization -> anti-hallucination check.
 """
 
-import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -20,8 +19,6 @@ from app.core.extraction.llm_client import (
 )
 from app.core.extraction.normalize import (
     batch_normalize_skills,
-    normalize_skill,
-    NormalizationResult,
 )
 from app.core.extraction.prompt import get_prompt
 
@@ -97,7 +94,7 @@ class JDExtractionPipeline:
         # Step 1: Fill prompt
         logger.info("JD extraction pipeline starting ({} chars)", len(jd_content))
         try:
-            prompt = get_prompt("jd_extraction", jd_content=jd_content)
+            _ = get_prompt("jd_extraction", jd_content=jd_content)
         except (KeyError, ValueError) as e:
             result["error"] = f"Prompt error: {e}"
             return result
