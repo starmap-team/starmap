@@ -118,6 +118,11 @@ def fetch(
     limiter = rate_limiter or RateLimiter(min_interval=config.DEFAULT_SLEEP)
 
     allowed = is_allowed(url, ua)
+    if not allowed:
+        log.warning("[compliance] robots.txt 禁止抓取 %s，跳过", url)
+        log_request(source_site, url, False, ua, 0.0, 403, 0)
+        return FetchResult(text="", status_code=403, bytes_count=0, robots_allowed=False)
+
     t0 = time.monotonic()
     try:
         with httpx.Client(headers={"User-Agent": ua}, timeout=timeout, follow_redirects=True) as c:

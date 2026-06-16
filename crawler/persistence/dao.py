@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Iterable
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from .database import get_jd_raw_session, engine
@@ -38,7 +38,7 @@ def upsert_jd(record: dict) -> str:
 
 def count_jd() -> int:
     with get_jd_raw_session() as s:
-        return s.scalar(select(JdRaw.id).order_by(JdRaw.id.desc()).limit(1)) or 0
+        return s.scalar(select(func.count(JdRaw.id))) or 0
 
 
 def count_by_status() -> dict[str, int]:
