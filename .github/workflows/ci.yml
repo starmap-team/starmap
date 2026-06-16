@@ -124,6 +124,8 @@ jobs:
         run: python -m compileall crawler -q
       - name: Pytest
         run: python -m pytest crawler/tests/ -v
+        env:
+          CI: "true"
 
   # ---------- Docker 集成冒烟（手动触发，规范7 每日集成） ----------
   # W6 起演示就绪纪律生效后改为定时 + 推送触发
