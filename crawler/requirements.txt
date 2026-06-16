@@ -1,0 +1,11 @@
+scrapy>=2.11
+playwright>=1.40
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+alembic>=1.13
+simhash>=2.1
+python-dotenv>=1.0
+httpx>=0.27
+pydantic>=2.5
+beautifulsoup4>=4.12
+lxml>=5.0
