@@ -4,7 +4,13 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/quality", tags=["质量监控"])
 
 
-@router.get("/dashboard")
-async def get_dashboard():
-    """质量仪表盘：总节点数、平均信任度、幻觉率、待审核数。"""
+@router.post("/evaluate")
+async def evaluate_quality():
+    """触发质量评估流程。"""
+    return {"message": "TODO", "score": None}
+
+
+@router.get("/report")
+async def get_quality_report():
+    """质量报告：总节点数、平均信任度、幻觉率、待审核数。"""
     return {"total_nodes": 0, "avg_trust": 0.0, "hallucination_rate": 0.0, "pending_review": 0}
