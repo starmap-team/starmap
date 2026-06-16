@@ -129,8 +129,40 @@ services:
       - chroma_data:/chroma/chroma
     restart: unless-stopped
 
+  # ---------- 本地大模型 (Qwen2.5-7B) ----------
+  # 通过 Ollama 提供 OpenAI 兼容 API，供抽取 fallback 和本地评测使用
+  # 首次启动会自动拉取模型（~4.5GB），耗时取决于网络
+  # API 地址: http://localhost:11434/v1/chat/completions
+  ollama:
+    image: ollama/ollama:latest
+    container_name: starmap-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list 2>/dev/null | grep -q qwen2.5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s  # 首次拉取模型需要时间
+    restart: unless-stopped
+
+  # 模型初始化容器（拉取 Qwen2.5-7B 到 Ollama 卷中，一次性的）
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: starmap-ollama-pull
+    depends_on:
+      - ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: >
+      sh -c "sleep 5 && ollama pull qwen2.5:7b && echo 'Model ready'"
+    restart: "no"
+
 volumes:
   neo4j_data:
   postgres_data:
   redis_data:
   chroma_data:
+  ollama_data:

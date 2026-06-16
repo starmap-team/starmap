@@ -14,7 +14,7 @@ router = APIRouter(prefix="/extract", tags=["信息抽取"])
 class ExtractionRequest(BaseModel):
     """JD 内容 + 可选的抽取选项。"""
 
-    jd_content: str = Field(..., min_length=1, description="职位描述文本")
+    jd_content: str = Field(..., min_length=1, max_length=50000, description="职位描述文本")
     options: dict[str, Any] | None = Field(None, description="抽取选项（model, temperature 等）")
 
 
@@ -75,8 +75,8 @@ async def extract_jd(request: ExtractionRequest) -> dict[str, Any]:
         logger.error("LLM connection failed: {}", e)
         raise HTTPException(status_code=502, detail=f"LLM service unavailable: {e}") from e
     except Exception as e:
-        logger.opt(exception=True).error("Unexpected extraction error")
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {e}") from e
+        logger.opt(exception=True).error("Unexpected extraction error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal extraction error") from e
 
     if not pipeline_result.get("success"):
         error_msg = pipeline_result.get("error", "Unknown extraction error")
@@ -120,8 +120,8 @@ async def extract_resume(file: UploadFile = File(...)) -> dict[str, Any]:  # noq
     except ConnectionError as e:
         raise HTTPException(status_code=502, detail=f"LLM service unavailable: {e}") from e
     except Exception as e:
-        logger.opt(exception=True).error("Unexpected resume extraction error")
-        raise HTTPException(status_code=500, detail=f"Resume extraction failed: {e}") from e
+        logger.opt(exception=True).error("Unexpected resume extraction error: {}", e)
+        raise HTTPException(status_code=500, detail="Internal extraction error") from e
 
     if not pipeline_result.get("success"):
         error_msg = pipeline_result.get("error", "Unknown extraction error")
