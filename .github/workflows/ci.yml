@@ -120,6 +120,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: 生成默认 .env（CI 无此文件，docker compose 要求存在）
+        run: touch .env
       - name: 构建并启动全栈
         run: docker compose -f docker-compose.dev.yml up -d
       - name: 等待后端就绪
