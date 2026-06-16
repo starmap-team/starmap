@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.core.extraction.jd_extract import extract_from_jd
-from app.core.extraction.llm_client import parse_llm_json_response
+from app.core.extraction.llm_client import LLMResponseError, parse_llm_json_response
 from app.core.extraction.normalize import (
-    normalize_by_alias,
     batch_normalize_skills,
+    normalize_by_alias,
 )
 
 
@@ -86,7 +86,7 @@ def test_parse_llm_json_response():
     result = parse_llm_json_response(raw_with_fence_no_lang)
     assert result["name"] == "Rust"
 
-    with pytest.raises(Exception):
+    with pytest.raises(LLMResponseError):
         parse_llm_json_response("not json at all")
 
 
