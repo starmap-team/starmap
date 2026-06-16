@@ -112,14 +112,17 @@ jobs:
   # W6 起演示就绪纪律生效后改为定时 + 推送触发
   # 日常 PR 不跑：GitHub Actions 默认 runner 无 docker daemon 权限
   docker-smoke:
-    name: Docker 全栈冒烟（手动）
+    name: Docker 全栈冒烟
     runs-on: ubuntu-latest
     needs: [backend, frontend]
-    if: github.event_name == 'workflow_dispatch'
+    # 手动触发 或 定时触发 都跑 Docker 冒烟
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: 生成默认 .env（CI 无此文件，docker compose 要求存在）
+        run: touch .env
       - name: 构建并启动全栈
         run: docker compose -f docker-compose.dev.yml up -d
       - name: 等待后端就绪
