@@ -1,13 +1,14 @@
 """Alembic 迁移环境。"""
 from __future__ import annotations
 
-from logging.config import fileConfig
-from pathlib import Path
 import asyncio
 import sys
+from logging.config import fileConfig
+from pathlib import Path
+
+from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from sqlalchemy.ext.asyncio import async_engine_from_config
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:

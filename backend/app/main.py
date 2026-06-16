@@ -2,16 +2,10 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from pathlib import Path
-import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from app.api.v1.router import api_router
 from app.config import settings
