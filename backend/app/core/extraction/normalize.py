@@ -63,6 +63,155 @@ SKILL_ALIAS: dict[str, list[str]] = {
     "Test Automation": ["test automation", "automation testing", "e2e", "end to end", "selenium", "cypress", "playwright"],
     "System Design": ["system design", "system architecture", "architecture design", "software architecture", "distributed systems"],
     "API Design": ["api design", "api development", "api architecture", "rest api design", "api gateway"],
+    # ---- Frontend / UI ----
+    "HTML5": ["html5", "html 5", "html"],
+    "CSS3": ["css3", "css 3", "css", "cascading style sheets"],
+    "Webpack": ["webpack", "web pack", "webpack5"],
+    "Vite": ["vite", "vitejs", "vite.js", "vite build tool"],
+    "Next.js": ["next.js", "nextjs", "next", "next js"],
+    "Nuxt.js": ["nuxt.js", "nuxtjs", "nuxt"],
+    "Tailwind CSS": ["tailwind css", "tailwindcss", "tailwind"],
+    "Pinia": ["pinia", "pinia store", "pinia state management"],
+    "Storybook": ["storybook", "story book"],
+    "Three.js": ["three.js", "threejs", "three js", "webgl"],
+    "WebAssembly": ["webassembly", "wasm", "web assembly"],
+    # ---- Mobile ----
+    "Kotlin": ["kotlin", "kotlin lang", "kotlin language"],
+    "Swift": ["swift", "swift language", "swift programming"],
+    "SwiftUI": ["swiftui", "swift ui"],
+    "UIKit": ["uikit", "ui kit", "uikit framework"],
+    "Flutter": ["flutter", "flutter framework", "flutter ui", "flutter sdk"],
+    "Dart": ["dart", "dart lang", "dart language"],
+    "Jetpack Compose": ["jetpack compose", "compose", "android compose", "jetpack compose ui"],
+    "RxJava": ["rxjava", "rx java", "reactivex java"],
+    "RxSwift": ["rxswift", "rx swift", "reactivex swift"],
+    "Provider": ["provider", "provider state management", "flutter provider"],
+    "BLoC": ["bloc", "bloc pattern", "bloc state management", "flutter bloc"],
+    "Room": ["room", "room database", "android room"],
+    "Core Data": ["core data", "coredata", "apple core data"],
+    "Combine": ["combine", "apple combine", "combine framework"],
+    "Firebase": ["firebase", "google firebase", "firebase console", "firebase sdk"],
+    # ---- Big Data & Streaming ----
+    "Apache Spark": ["spark", "apache spark", "spark sql", "spark streaming", "pyspark"],
+    "Hadoop": ["hadoop", "apache hadoop", "hdfs", "mapreduce", "yarn"],
+    "Hive": ["hive", "apache hive", "hive sql", "hive data warehouse"],
+    "Apache Flink": ["flink", "apache flink", "flink sql", "flink streaming"],
+    "Airflow": ["airflow", "apache airflow", "airflow dag", "airflow pipeline"],
+    "Presto": ["presto", "prestodb", "trino", "presto sql"],
+    "HBase": ["hbase", "apache hbase", "hbase database"],
+    "Delta Lake": ["delta lake", "delta lakehouse", "delta table"],
+    "dbt": ["dbt", "dbt data build tool", "data build tool"],
+    "Snowflake": ["snowflake", "snowflake cloud", "snowflake warehouse"],
+    "ClickHouse": ["clickhouse", "click house", "clickhouse olap"],
+    "TiDB": ["tidb", "ti db", "tikv", "pd"],
+    # ---- ML / AI ----
+    "scikit-learn": ["scikit-learn", "sklearn", "scikit learn", "sk learn"],
+    "Transformers": ["transformers", "huggingface transformers", "hf transformers"],
+    "BERT": ["bert", "bert model", "google bert", "bert nlp"],
+    "spaCy": ["spacy", "spacy nlp", "spacy library"],
+    "NLTK": ["nltk", "natural language toolkit"],
+    "LangChain": ["langchain", "lang chain", "langchain framework"],
+    "RAG": ["rag", "retrieval augmented generation", "retrieval-augmented generation"],
+    "LLM": ["llm", "large language model", "large language models"],
+    "Prompt Engineering": ["prompt engineering", "prompt design", "prompt tuning", "prompt crafting", "prompt engineer"],
+    "MLflow": ["mlflow", "ml flow", "mlflow tracking", "mlflow model"],
+    "ONNX": ["onnx", "open neural network exchange", "onnx runtime"],
+    "TensorRT": ["tensorrt", "tensor rt", "nvidia tensorrt"],
+    "CUDA": ["cuda", "nvidia cuda", "cuda toolkit"],
+    "ChromaDB": ["chromadb", "chroma db", "chroma vector db"],
+    "Pinecone": ["pinecone", "pinecone vector db", "pinecone db"],
+    "OpenCV": ["opencv", "open cv", "open computer vision"],
+    # ---- Cloud / Service Mesh ----
+    "Istio": ["istio", "istio service mesh", "istio mesh"],
+    "Helm": ["helm", "helm chart", "helm charts", "helm package manager"],
+    "ArgoCD": ["argocd", "argo cd", "argo cd gitops"],
+    "Knative": ["knative", "knative serving", "knative eventing"],
+    "Vault": ["vault", "hashicorp vault", "vault secret"],
+    "Consul": ["consul", "hashicorp consul", "consul service discovery"],
+    "Envoy": ["envoy", "envoy proxy", "envoy gateway"],
+    "Kong": ["kong", "kong api gateway", "kong gateway"],
+    "Seldon": ["seldon", "seldon core", "seldon model serving"],
+    "Kubeflow": ["kubeflow", "kube flow", "kubeflow pipeline"],
+    "Yocto": ["yocto", "yocto project", "yocto build system"],
+    # ---- Languages ----
+    "Ruby": ["ruby", "ruby language", "ruby programming"],
+    "PHP": ["php", "php language", "php programming"],
+    "Scala": ["scala", "scala language", "scala programming"],
+    "ABAP": ["abap", "sap abap", "abap programming"],
+    "Shell": ["shell", "shell script", "shell scripting", "bash scripting"],
+    "Markdown": ["markdown", "md", "markdown documentation"],
+    # ---- Protocols & Hardware ----
+    "WebRTC": ["webrtc", "web rtc", "webrtc protocol"],
+    "SIP": ["sip", "sip protocol", "session initiation protocol"],
+    "UART": ["uart", "universal asynchronous receiver transmitter"],
+    "I2C": ["i2c", "i2c bus", "i2c protocol", "iic"],
+    "SPI": ["spi", "spi bus", "spi protocol", "serial peripheral interface"],
+    "ARM": ["arm", "arm architecture", "arm cortex", "arm mcu"],
+    "RTOS": ["rtos", "real time os", "real time operating system"],
+    "FreeRTOS": ["freertos", "free rtos", "free real time os"],
+    "Zephyr": ["zephyr", "zephyr os", "zephyr rtos"],
+    # ---- Blockchain ----
+    "Solidity": ["solidity", "solidity lang", "solidity contract"],
+    "Ethereum": ["ethereum", "eth", "ethereum blockchain"],
+    "Web3.js": ["web3.js", "web3js", "web3 js", "web3"],
+    "IPFS": ["ipfs", "interplanetary file system", "ipfs storage"],
+    "Hardhat": ["hardhat", "hardhat framework", "hardhat ethereum"],
+    "Substrate": ["substrate", "substrate framework", "parity substrate"],
+    "Zero-Knowledge": ["zero knowledge", "zk", "zero knowledge proof", "zkp"],
+    # ---- Testing ----
+    "Playwright": ["playwright", "playwright testing", "playwright automation"],
+    "Postman": ["postman", "postman api", "postman testing"],
+    "Locust": ["locust", "locust testing", "locust load testing"],
+    "Jest": ["jest", "jest testing", "jest framework"],
+    "pytest": ["pytest", "py test", "pytest testing"],
+    "Cypress": ["cypress", "cypress testing", "cypress e2e"],
+    # ---- Build & Tools ----
+    "Gradle": ["gradle", "gradle build", "gradle tool"],
+    "Xcode": ["xcode", "xcode ide", "xcode development"],
+    "Swagger": ["swagger", "swagger ui", "swagger openapi", "swagger api"],
+    "Sphinx": ["sphinx", "sphinx docs", "sphinx documentation"],
+    "Docusaurus": ["docusaurus", "docusaurus docs", "docusaurus documentation"],
+    "Cargo": ["cargo", "cargo build", "cargo rust", "cargo package manager"],
+    # ---- BI & Design ----
+    "Tableau": ["tableau", "tableau bi", "tableau visualization"],
+    "Power BI": ["power bi", "powerbi", "power bi dashboard"],
+    "Excel": ["excel", "microsoft excel", "ms excel", "excel spreadsheet"],
+    "Axure": ["axure", "axure rp", "axure prototype"],
+    "Figma": ["figma", "figma design", "figma prototyping"],
+    # ---- Game & 3D ----
+    "Unity": ["unity", "unity 3d", "unity engine", "unity game engine"],
+    "Unreal": ["unreal", "unreal engine", "unreal engine 4", "unreal engine 5"],
+    "OpenXR": ["openxr", "open xr", "openxr standard"],
+    "ARKit": ["arkit", "ar kit", "apple arkit"],
+    "ARCore": ["arcore", "ar core", "google arcore"],
+    "Blender": ["blender", "blender 3d", "blender modeling"],
+    "Qt": ["qt", "qt framework", "qt gui"],
+    "WPF": ["wpf", "wpf framework", "windows presentation foundation"],
+    # ---- Chinese skill names ----
+    "项目管理": ["项目管理", "项目 管理", "project management"],
+    "数据分析": ["数据分析", "数据 分析", "data analysis"],
+    "系统架构": ["系统架构", "系统 架构", "系统架构设计", "system architecture"],
+    "团队管理": ["团队管理", "团队 管理", "team management", "people management"],
+    "性能优化": ["性能优化", "性能 优化", "performance optimization", "performance tuning"],
+    "技术写作": ["技术写作", "技术 写作", "technical writing"],
+    "用户调研": ["用户调研", "用户 调研", "user research"],
+    "产品设计": ["产品设计", "产品 设计", "product design"],
+    "统计分析": ["统计分析", "统计 分析", "statistical analysis"],
+    "微服务": ["微服务", "微服务架构", "microservices"],
+    "微前端": ["微前端", "微前端架构", "micro frontend"],
+    "领域驱动设计": ["领域驱动设计", "ddd", "领域驱动"],
+    "异步编程": ["异步编程", "异步 编程", "async programming", "asynchronous programming"],
+    "多线程": ["多线程", "多线程编程", "multi threading", "multithreading"],
+    "前端工程化": ["前端工程化", "前端 工程化", "frontend engineering"],
+    "可视化编辑器": ["可视化编辑器", "可视化 编辑器", "visual editor", "visual builder"],
+    "推荐系统": ["推荐系统", "推荐 系统", "recommendation system", "recommender system"],
+    "渗透测试": ["渗透测试", "渗透 测试", "penetration testing", "pentest"],
+    "Web安全": ["web安全", "web安全", "web security"],
+    "智能合约": ["智能合约", "智能 合约", "smart contract"],
+    "嵌入式开发": ["嵌入式开发", "嵌入式", "embedded development", "embedded system"],
+    # ---- Education aliases ----
+    "计算机视觉": ["计算机视觉", "computer vision"],
+    "自然语言处理": ["自然语言处理", "natural language processing"],
 }
 
 _REVERSE_INDEX: dict[str, str] = {}
@@ -95,8 +244,15 @@ def normalize_by_alias(skill_name: str) -> str | None:
     return _REVERSE_INDEX.get(key)
 
 
+CHROMA_COLLECTION_NAME: str = "skill_embeddings"
+_SENTENCE_MODEL: Any = None
+_SENTENCE_MODEL_NAME: str = "all-MiniLM-L6-v2"
+
+
 def get_embedding(text: str) -> list[float]:
     """Get sentence embedding for text using sentence-transformers.
+
+    The SentenceTransformer model is lazily cached at module level.
 
     Args:
         text: Input text.
@@ -106,14 +262,17 @@ def get_embedding(text: str) -> list[float]:
 
     Note: Requires sentence-transformers package installed.
     """
+    global _SENTENCE_MODEL
     try:
         from sentence_transformers import SentenceTransformer
     except ImportError:
         logger.warning("sentence-transformers not installed, returning empty embedding")
         return []
 
-    model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
-    return model.encode(text, normalize_embeddings=True).tolist()
+    if _SENTENCE_MODEL is None:
+        logger.info("Loading SentenceTransformer model: {}", _SENTENCE_MODEL_NAME)
+        _SENTENCE_MODEL = SentenceTransformer(_SENTENCE_MODEL_NAME, device="cpu")
+    return _SENTENCE_MODEL.encode(text, normalize_embeddings=True).tolist()
 
 
 def normalize_by_vector(
@@ -138,9 +297,10 @@ def normalize_by_vector(
         return None
 
     if chroma_client is None:
-        chroma_client = chromadb.HttpClient(host="localhost", port=8001)
+        from app.config import settings
+        chroma_client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
 
-    collection_name = "skill_embeddings"
+    collection_name = CHROMA_COLLECTION_NAME
 
     try:
         collection = chroma_client.get_collection(collection_name)

@@ -4,7 +4,9 @@ Pipeline: prompt filling -> LLM call -> JSON parsing -> pydantic validation
           -> skill normalization -> anti-hallucination check.
 """
 
+import re
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
 
 from loguru import logger
@@ -22,12 +24,36 @@ from app.core.extraction.normalize import (
 )
 from app.core.extraction.prompt import get_prompt
 
+# Chinese PII patterns
+_PII_PATTERNS: list[re.Pattern] = [
+    re.compile(r"1[3-9]\d{9}"),           # Mobile phone
+    re.compile(r"\d{18}[\dXx]"),           # ID card number
+    re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"),  # Email
+]
+
+
+class SkillCategory(StrEnum):
+    """Skill category enum matching ontology values."""
+
+    hard_skill = "hard_skill"
+    soft_skill = "soft_skill"
+    tool = "tool"
+    certificate = "certificate"
+
+
+def mask_pii(text: str, replacement: str = "[REDACTED]") -> str:
+    """Mask Chinese PII (phone, ID, email) in text."""
+    for pattern in _PII_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
+
 
 class SkillEntry(BaseModel):
     """A single skill entry in extraction results."""
 
     name: str = Field(..., description="Skill name")
     level: str = Field(default="intermediate", description="Proficiency level")
+    category: str | None = Field(default=None, description="Skill category: hard_skill/soft_skill/tool/certificate")
     years_of_experience: float | None = Field(default=None, description="Years of experience")
 
 
@@ -91,20 +117,31 @@ class JDExtractionPipeline:
             result["error"] = "Empty JD content"
             return result
 
+        # PII masking before sending to LLM
+        jd_content_safe = mask_pii(jd_content)
+
         # Step 1: Fill prompt
-        logger.info("JD extraction pipeline starting ({} chars)", len(jd_content))
+        logger.info("JD extraction pipeline starting ({} chars)", len(jd_content_safe))
         try:
-            _ = get_prompt("jd_extraction", jd_content=jd_content)
+            _ = get_prompt("jd_extraction", jd_content=jd_content_safe)
         except (KeyError, ValueError) as e:
             result["error"] = f"Prompt error: {e}"
             return result
 
         # Step 2: Call LLM
         try:
-            raw = await self.llm_client.extract_from_jd(jd_content)
-        except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
-            logger.error("LLM call failed: {}", e)
-            result["error"] = f"LLM error: {e}"
+            raw = await self.llm_client.extract_from_jd(jd_content_safe)
+        except LLMConnectionError as e:
+            logger.error("LLM connection failed: {}", e)
+            result["error"] = f"LLM connection error: {e}"
+            return result
+        except LLMResponseError as e:
+            logger.error("LLM response error: {}", e)
+            result["error"] = f"LLM response error: {e}"
+            return result
+        except LLMTimeoutError as e:
+            logger.error("LLM timeout: {}", e)
+            result["error"] = f"LLM timeout: {e}"
             return result
 
         # Step 3: Parse JSON
@@ -117,7 +154,7 @@ class JDExtractionPipeline:
         # Step 4: Pydantic validation
         try:
             validated = JDExtractionResult(**parsed)
-        except Exception as e:
+        except (TypeError, ValueError) as e:
             logger.warning("Pydantic validation failed, using raw data: {}", e)
             result["warnings"].append(f"Pydantic validation issue: {e}")
             validated = JDExtractionResult()
@@ -125,12 +162,12 @@ class JDExtractionPipeline:
                 if key in parsed:
                     if key in ("required_skills", "preferred_skills"):
                         setattr(validated, key, [SkillEntry(**s) if isinstance(s, dict) else SkillEntry(name=s) for s in parsed[key]])
-                    elif key in ("experience_required",):
-                        setattr(validated, key, parsed.get(key))
-                    elif key == "responsibilities":
-                        setattr(validated, key, parsed.get(key, []))
-                    else:
-                        setattr(validated, key, parsed.get(key, ""))
+                elif key in ("experience_required",):
+                    setattr(validated, key, parsed.get(key))
+                elif key == "responsibilities":
+                    setattr(validated, key, parsed.get(key, []))
+                else:
+                    setattr(validated, key, parsed.get(key, ""))
 
         # Step 5: Normalize skills
         if self.normalize_skills_enabled:
@@ -165,7 +202,7 @@ class JDExtractionPipeline:
             try:
                 v = await self.llm_client.validate_extraction(
                     validated.model_dump(),
-                    jd_content,
+                    jd_content_safe,
                 )
                 validation = AntiHallucinationResult(**v)
                 result["validation"] = validation.model_dump()
@@ -175,7 +212,7 @@ class JDExtractionPipeline:
                     result["warnings"].append(msg)
                     logger.warning(msg)
 
-            except Exception as e:
+            except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
                 logger.warning("Anti-hallucination check failed: {}", e)
                 result["warnings"].append(f"Validation error: {e}")
 

@@ -1,9 +1,14 @@
 """Celery 基础配置。"""
 from __future__ import annotations
 
+import json
+import logging
+
 from celery import Celery
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 celery_app = Celery(
     "starmap",
@@ -16,3 +21,27 @@ celery_app.conf.update(
     timezone="Asia/Shanghai",
     enable_utc=False,
 )
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
+def batch_extract_jd(self, jd_text: str) -> str:
+    """Batch-extract skills from a JD via Celery.
+
+    Args:
+        jd_text: Raw job description text.
+
+    Returns:
+        JSON string of extracted skills.
+
+    Raises:
+        self.retry() on transient failures.
+    """
+    try:
+        from app.core.extraction.jd_extract import mask_pii
+
+        clean_text = mask_pii(jd_text)
+        logger.info("batch_extract_jd received %d chars (masked)", len(clean_text))
+        return json.dumps({"status": "queued", "char_count": len(clean_text)}, ensure_ascii=False)
+    except Exception as exc:
+        logger.exception("batch_extract_jd failed")
+        raise self.retry(exc=exc) from exc

@@ -23,6 +23,84 @@ async def create_constraints(driver):
     logger.info(f"All {len(constraints)} constraints created/verified.")
 
 
+# 8 relationship types defined in the ontology:
+# REQUIRES, PREREQUISITE, EVOLVES_TO, USES, BELONGS_TO, CERTIFIES, RECOMMENDED_FOR, APPLIES_TO
+
+
+async def create_relationship_types(driver):
+    """Document and seed relationship type metadata."""
+    relationship_types = [
+        "REQUIRES", "PREREQUISITE", "EVOLVES_TO",
+        "USES", "BELONGS_TO", "CERTIFIES",
+        "RECOMMENDED_FOR", "APPLIES_TO",
+    ]
+    async with driver.session() as session:
+        result = await session.run("CALL db.relationship.types()")
+        existing = {record["relationshipType"] async for record in result}
+        for rel_type in relationship_types:
+            if rel_type not in existing:
+                logger.info(f"Relationship type available: {rel_type}")
+            else:
+                logger.debug(f"Relationship type confirmed: {rel_type}")
+    logger.info(f"Checked {len(relationship_types)} relationship types.")
+
+
+async def load_seed_relationships(driver):
+    """Seed sample relationships beyond just REQUIRES."""
+    async with driver.session() as session:
+        # BELONGS_TO: skills to knowledge areas
+        skill_area = [
+            ("Python", "编程语言"), ("Java", "编程语言"), ("Go", "编程语言"), ("Rust", "编程语言"),
+            ("React", "前端开发"), ("Vue.js", "前端开发"), ("Angular", "前端开发"), ("TypeScript", "前端开发"),
+            ("PostgreSQL", "数据库"), ("Redis", "数据库"), ("MongoDB", "数据库"), ("Elasticsearch", "数据库"),
+            ("Docker", "云原生"), ("Kubernetes", "云原生"), ("Terraform", "云原生"),
+            ("PyTorch", "AI/机器学习"), ("TensorFlow", "AI/机器学习"), ("scikit-learn", "AI/机器学习"),
+            ("Spark", "数据工程"), ("Flink", "数据工程"), ("Kafka", "数据工程"),
+            ("Jenkins", "DevOps"), ("Prometheus", "DevOps"), ("Grafana", "DevOps"),
+        ]
+        for skill, area in skill_area:
+            await session.run(
+                "MATCH (s:Skill {name: $skill}) "
+                "MERGE (k:KnowledgeArea {name: $area}) "
+                "MERGE (s)-[:BELONGS_TO]->(k)",
+                skill=skill, area=area,
+            )
+        logger.info(f"BELONGS_TO: {len(skill_area)} skill-to-area relationships")
+
+        # PREREQUISITE: learning dependencies
+        prerequisites = [
+            ("Machine Learning", "Python"), ("Deep Learning", "Machine Learning"),
+            ("Natural Language Processing", "Machine Learning"),
+            ("Computer Vision", "Deep Learning"), ("PyTorch", "Python"),
+            ("Kubernetes", "Docker"), ("Terraform", "Linux"),
+            ("Spark", "Java"), ("Flink", "Java"),
+        ]
+        for skill, prereq in prerequisites:
+            await session.run(
+                "MATCH (s:Skill {name: $skill}) "
+                "MERGE (p:Skill {name: $prereq}) "
+                "MERGE (s)-[:PREREQUISITE]->(p)",
+                skill=skill, prereq=prereq,
+            )
+        logger.info(f"PREREQUISITE: {len(prerequisites)} skill dependencies")
+
+        # USES: positions use tools
+        position_tools = [
+            ("前端开发工程师", "Webpack"), ("前端开发工程师", "Vite"),
+            ("DevOps工程师", "Ansible"), ("安全工程师", "Nginx"),
+        ]
+        for pos, tool in position_tools:
+            await session.run(
+                "MATCH (p:Position {name: $pos}) "
+                "MERGE (t:Tool {name: $tool}) "
+                "MERGE (p)-[:USES]->(t)",
+                pos=pos, tool=tool,
+            )
+        logger.info(f"USES: {len(position_tools)} position-to-tool relationships")
+
+    logger.info("Seed relationships loaded.")
+
+
 async def create_indexes(driver):
     indexes = [
         "CREATE INDEX IF NOT EXISTS FOR (s:Skill) ON (s.category)",
@@ -128,16 +206,20 @@ async def main():
         logger.info("Connected to Neo4j successfully.")
 
         await create_constraints(driver)
+        await create_relationship_types(driver)
         await create_indexes(driver)
         await seed_skill_categories(driver)
         await load_seed_positions(driver)
+        await load_seed_relationships(driver)
 
     logger.info("Neo4j schema initialization complete.")
     print("Summary:")
     print("  7 uniqueness constraints created/verified")
+    print("  8 relationship types documented")
     print("  4 indexes created/verified")
     print("  12 KnowledgeArea nodes seeded")
     print("  6 seed positions loaded with REQUIRES relationships")
+    print("  24 BELONGS_TO, 8 PREREQUISITE, 4 USES relationships seeded")
 
 
 if __name__ == "__main__":

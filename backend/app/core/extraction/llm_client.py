@@ -47,14 +47,14 @@ _SPARK_MODELS: dict[str, str] = {
 async def call_xunfei_llm(
     prompt: str,
     model_version: str = "v3.5",
-    timeout: int = 60,
+    timeout: int | None = None,
 ) -> dict[str, Any]:
     """Call Xunfei Spark API (OpenAI-compatible HTTP endpoint).
 
     Args:
         prompt: Input prompt text.
         model_version: Spark model version key.
-        timeout: Request timeout in seconds.
+        timeout: Request timeout in seconds (default: settings.llm_timeout).
 
     Returns:
         Dict with 'role', 'content', 'model' keys.
@@ -64,6 +64,7 @@ async def call_xunfei_llm(
         LLMResponseError: On unexpected response.
         LLMTimeoutError: On timeout.
     """
+    actual_timeout = timeout if timeout is not None else settings.llm_timeout
     model = _SPARK_MODELS.get(model_version, "generalv3.5")
     api_key = settings.xunfei_api_key
     if not api_key:
@@ -83,12 +84,12 @@ async def call_xunfei_llm(
     logger.info("Calling Xunfei Spark {} ({})", model_version, model)
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
             response = await client.post(_SPARK_HTTP_URL, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
     except httpx.TimeoutException as e:
-        raise LLMTimeoutError(f"Xunfei API timeout after {timeout}s") from e
+        raise LLMTimeoutError(f"Xunfei API timeout after {actual_timeout}s") from e
     except httpx.HTTPStatusError as e:
         raise LLMResponseError(f"Xunfei API returned {e.response.status_code}: {e.response.text}") from e
     except httpx.RequestError as e:

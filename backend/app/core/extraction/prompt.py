@@ -7,28 +7,49 @@ from loguru import logger
 
 JD_EXTRACTION_PROMPT = """你是一个专业的技能提取专家。请从以下职位描述中提取所需的技能信息。
 
-职位描述：
+## 职位描述
 {jd_content}
 
-请提取以下信息并以JSON格式返回：
-1. position_name: 职位名称
-2. required_skills: 必需技能列表（每项包含 name 和 level 字段，level 为 "expert"、"advanced"、"intermediate" 或 "beginner"）
-3. preferred_skills: 优先技能列表（格式同上）
-4. experience_required: 所需经验年限（数字）
-5. education_required: 学历要求
-6. responsibilities: 主要职责列表
+## 提取要求
+请提取以下信息并以严格的JSON格式返回（不要包含任何其他文字或代码块标记）：
+
+1. position_name: 职位名称（如"高级Python后端工程师"）
+2. required_skills: 必需/必备技能列表。每项包含：
+   - name: 技能标准化名称（中文或英文，如"Python"、"FastAPI"）
+   - level: 熟练度，可选值"expert"、"advanced"、"intermediate"、"beginner"
+   - category: 类别，可选值"hard_skill"、"soft_skill"、"tool"、"certificate"
+3. preferred_skills: 加分/优先技能列表（格式同上，每项含name/level/category）
+4. experience_required: 所需经验年限（数字，无法确定则返回null）
+5. education_required: 学历要求（如"本科及以上"、"硕士及以上"，无法确定则返回null）
+6. responsibilities: 主要职责列表（如["开发API", "性能优化"]）
+
+## 分类规则
+- **required_skills**: 出现在"任职要求"、"岗位职责"中，描述为"精通"、"掌握"、"熟练使用"、"熟悉"的技能
+- **preferred_skills**: 出现在"加分项"、"优先"、"plus"、"bonus"、"nice to have"分类下的技能
+
+## 重要规则
+1. 技能名称使用标准名称：python3→Python, reactjs→React, golang→Go, k8s→Kubernetes
+2. 同时提取中文和英文技能名称
+3. 无法确认的字段返回null，禁止编造
+4. 仅提取信息技术相关技能，过滤无关描述
+5. 区分大小写，技能名称首字母大写
 
 仅返回JSON格式，不要包含其他文字。"""
 
 ANTI_HALLUCINATION_PROMPT = """你是一个严格的技能提取验证器。请检查以下从职位描述中提取的技能是否准确。
 
-提取结果：
+## 提取结果
 {extraction_json}
 
-原始职位描述：
+## 原始职位描述
 {jd_content}
 
-请验证每个技能是否在职位描述中有明确依据。返回JSON格式：
+## 验证规则
+1. 检查每个required_skills和preferred_skills是否在职位描述中有明确文本依据
+2. 检查是否有明显遗漏的关键技能
+3. 注意中文技能名称的匹配（如"项目管理"对应"project management"）
+
+返回JSON格式：
 {{
     "is_valid": true/false,
     "hallucinated_skills": [],
