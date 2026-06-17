@@ -5,13 +5,14 @@
  */
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Monitor, Connection, DataAnalysis, TrendCharts, Setting } from '@element-plus/icons-vue'
+import { Monitor, Connection, DataAnalysis, TrendCharts, Setting, Briefcase } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const mobileMenuOpen = ref(false)
 
 const navItems = [
   { path: '/',              title: '全景图谱', icon: Connection },
+  { path: '/positions',     title: '岗位列表', icon: Briefcase },
   { path: '/match',         title: '匹配诊断', icon: Monitor },
   { path: '/evolution',     title: '演化看板', icon: TrendCharts },
   { path: '/quality',       title: '图谱质量', icon: DataAnalysis },

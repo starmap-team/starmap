@@ -122,69 +122,126 @@ const MOCK_QUALITY = {
 }
 
 // 契约: EvolutionTrend[]
+// CII 时序曲线数据（9个季度，基准 100 = 2024-Q1）
 const MOCK_EVOLUTION = {
+  quarters: ['24-Q1', '24-Q2', '24-Q3', '24-Q4', '25-Q1', '25-Q2', '25-Q3', '25-Q4', '26-Q1'],
   items: [
-    { skill_name: 'Python', trend: 'rising', confidence: 0.95, related_positions: ['后端开发', '数据分析师', 'AI工程师'] },
-    { skill_name: 'Kubernetes', trend: 'rising', confidence: 0.91, related_positions: ['DevOps工程师', '云架构师'] },
-    { skill_name: '大模型应用', trend: 'rising', confidence: 0.87, related_positions: ['NLP工程师', '算法工程师'] },
-    { skill_name: 'Java', trend: 'stable', confidence: 0.93, related_positions: ['后端开发', '大数据开发'] },
-    { skill_name: 'PHP', trend: 'declining', confidence: 0.82, related_positions: ['后端开发'] },
+    { skill_name: '大模型应用', trend: 'rising',  confidence: 0.87, points: [100, 118, 130, 148, 160, 175, 185, 192, 198], related_positions: ['NLP工程师', '算法工程师'] },
+    { skill_name: 'Kubernetes',  trend: 'rising',  confidence: 0.91, points: [100, 108, 115, 125, 135, 142, 150, 158, 165], related_positions: ['DevOps工程师', '云架构师'] },
+    { skill_name: 'Python',      trend: 'rising',  confidence: 0.95, points: [100, 105, 112, 118, 125, 132, 140, 150, 158], related_positions: ['后端开发', '数据分析师', 'AI工程师'] },
+    { skill_name: 'Java',        trend: 'stable',  confidence: 0.93, points: [100, 102, 105, 108, 108, 110, 112, 112, 112], related_positions: ['后端开发', '大数据开发'] },
+    { skill_name: 'PHP',         trend: 'declining', confidence: 0.82, points: [100, 95, 90, 88, 82, 78, 75, 73, 72], related_positions: ['后端开发'] },
   ],
 }
 
-// 契约: 图谱子图
-const MOCK_POSITION_SKILLS: Record<string, object> = {
-  '数据分析师': {
-    position: { position_id: 'pos_data_analyst', name: '数据分析师', industry: '互联网/IT', description: '...' },
-    skills: [
-      { skill_id: 'skill_python', name: 'Python', category: 'hard_skill', proficiency: '精通', confidence: 0.95, source_count: 15 },
-      { skill_id: 'skill_sql', name: 'SQL', category: 'hard_skill', proficiency: '精通', confidence: 0.93, source_count: 18 },
-      { skill_id: 'skill_excel', name: 'Excel', category: 'hard_skill', proficiency: '熟悉', confidence: 0.90, source_count: 10 },
-      { skill_id: 'skill_stats', name: '统计学', category: 'hard_skill', proficiency: '熟悉', confidence: 0.88, source_count: 12 },
-      { skill_id: 'skill_pandas', name: 'Pandas', category: 'hard_skill', proficiency: '熟悉', confidence: 0.87, source_count: 8 },
-      { skill_id: 'skill_viz', name: '数据可视化', category: 'hard_skill', proficiency: '了解', confidence: 0.85, source_count: 7 },
-    ],
-    edges: [
-      { source_id: 'skill_python', target_id: 'pos_data_analyst', type: 'REQUIRED_FOR', properties: { weight: 0.9 } },
-      { source_id: 'skill_sql', target_id: 'pos_data_analyst', type: 'REQUIRED_FOR', properties: { weight: 0.85 } },
-    ],
-  },
-  '前端开发工程师': {
-    position: { position_id: 'pos_frontend', name: '前端开发工程师', industry: '互联网/IT', description: '...' },
-    skills: [
-      { skill_id: 'skill_js', name: 'JavaScript', category: 'hard_skill', proficiency: '精通', confidence: 0.96, source_count: 20 },
-      { skill_id: 'skill_vue', name: 'Vue.js', category: 'hard_skill', proficiency: '精通', confidence: 0.94, source_count: 16 },
-      { skill_id: 'skill_css', name: 'CSS', category: 'hard_skill', proficiency: '熟悉', confidence: 0.92, source_count: 14 },
-      { skill_id: 'skill_ts', name: 'TypeScript', category: 'hard_skill', proficiency: '熟悉', confidence: 0.90, source_count: 11 },
-      { skill_id: 'skill_node', name: 'Node.js', category: 'hard_skill', proficiency: '了解', confidence: 0.82, source_count: 8 },
-      { skill_id: 'skill_webpack', name: 'Webpack', category: 'tool', proficiency: '了解', confidence: 0.80, source_count: 6 },
-    ],
-    edges: [],
-  },
-  '后端开发工程师': {
-    position: { position_id: 'pos_backend', name: '后端开发工程师', industry: '互联网/IT', description: '...' },
-    skills: [
-      { skill_id: 'skill_java', name: 'Java', category: 'hard_skill', proficiency: '精通', confidence: 0.97, source_count: 22 },
-      { skill_id: 'skill_spring', name: 'Spring Boot', category: 'hard_skill', proficiency: '精通', confidence: 0.93, source_count: 17 },
-      { skill_id: 'skill_mysql', name: 'MySQL', category: 'hard_skill', proficiency: '熟悉', confidence: 0.91, source_count: 15 },
-      { skill_id: 'skill_redis', name: 'Redis', category: 'hard_skill', proficiency: '熟悉', confidence: 0.88, source_count: 12 },
-      { skill_id: 'skill_docker', name: 'Docker', category: 'tool', proficiency: '了解', confidence: 0.85, source_count: 10 },
-      { skill_id: 'skill_msa', name: '微服务', category: 'hard_skill', proficiency: '了解', confidence: 0.83, source_count: 9 },
-    ],
-    edges: [],
-  },
-  '算法工程师': {
-    position: { position_id: 'pos_algorithm', name: '算法工程师', industry: '互联网/IT', description: '...' },
-    skills: [
-      { skill_id: 'skill_py', name: 'Python', category: 'hard_skill', proficiency: '精通', confidence: 0.98, source_count: 20 },
-      { skill_id: 'skill_ml', name: '机器学习', category: 'hard_skill', proficiency: '精通', confidence: 0.95, source_count: 18 },
-      { skill_id: 'skill_dl', name: '深度学习', category: 'hard_skill', proficiency: '熟悉', confidence: 0.90, source_count: 14 },
-      { skill_id: 'skill_torch', name: 'PyTorch', category: 'hard_skill', proficiency: '熟悉', confidence: 0.88, source_count: 10 },
-      { skill_id: 'skill_math', name: '数学基础', category: 'hard_skill', proficiency: '精通', confidence: 0.92, source_count: 12 },
-      { skill_id: 'skill_dp', name: '数据处理', category: 'hard_skill', proficiency: '熟悉', confidence: 0.85, source_count: 8 },
-    ],
-    edges: [],
-  },
+// ═══════════════════════════════════════════
+// 图谱数据（唯一数据源，两个接口共用）
+// ═══════════════════════════════════════════
+const MOCK_GRAPH = {
+  nodes: [
+    // ── Position 岗位（4）──
+    { id: 'pos-algo', labels: ['Position'], properties: { name: '算法工程师', source_count: 18, trend: 'rising' } },
+    { id: 'pos-data', labels: ['Position'], properties: { name: '数据分析师', source_count: 14, trend: 'rising' } },
+    { id: 'pos-fe', labels: ['Position'], properties: { name: '前端开发工程师', source_count: 16, trend: 'stable' } },
+    { id: 'pos-be', labels: ['Position'], properties: { name: '后端开发工程师', source_count: 20, trend: 'stable' } },
+    // ── Skill 技能（9）──
+    { id: 'skill-py', labels: ['Skill'], properties: { name: 'Python', proficiency: '精通', source_count: 22, trend: 'rising', knowledge_points: ['基础语法', '面向对象', '装饰器/生成器', '异步编程', 'NumPy / Pandas', 'Flask / FastAPI'] } },
+    { id: 'skill-ml', labels: ['Skill'], properties: { name: '机器学习', proficiency: '精通', source_count: 18, trend: 'rising', knowledge_points: ['监督学习', '无监督学习', '特征工程', '模型评估', '集成方法', 'Scikit-learn'] } },
+    { id: 'skill-dl', labels: ['Skill'], properties: { name: '深度学习', proficiency: '熟悉', source_count: 15, trend: 'rising', knowledge_points: ['神经网络基础', 'CNN', 'RNN/Transformer', 'PyTorch', '迁移学习'] } },
+    { id: 'skill-sql', labels: ['Skill'], properties: { name: 'SQL', proficiency: '精通', source_count: 20, trend: 'stable', knowledge_points: ['增删改查', 'JOIN 多表查询', '索引优化', '窗口函数', '事务与锁'] } },
+    { id: 'skill-stats', labels: ['Skill'], properties: { name: '统计学', proficiency: '熟悉', source_count: 12, trend: 'stable', knowledge_points: ['描述统计', '概率分布', '假设检验', '回归分析', '贝叶斯方法'] } },
+    { id: 'skill-viz', labels: ['Skill'], properties: { name: '数据可视化', proficiency: '了解', source_count: 10, trend: 'rising', knowledge_points: ['Matplotlib', 'Seaborn', 'ECharts', '仪表盘设计'] } },
+    { id: 'skill-js', labels: ['Skill'], properties: { name: 'JavaScript', proficiency: '精通', source_count: 24, trend: 'stable', knowledge_points: ['ES6+ 语法', '异步 Promise/async', 'DOM/BOM', '模块化', '性能优化'] } },
+    { id: 'skill-ts', labels: ['Skill'], properties: { name: 'TypeScript', proficiency: '熟悉', source_count: 16, trend: 'rising', knowledge_points: ['类型系统', '泛型', '装饰器', '声明文件', '工程化配置'] } },
+    { id: 'skill-java', labels: ['Skill'], properties: { name: 'Java', proficiency: '精通', source_count: 21, trend: 'stable', knowledge_points: ['面向对象', '集合框架', '并发编程', 'JVM调优', 'Spring Boot', 'MyBatis'] } },
+    // ── Tool 工具（5）──
+    { id: 'tool-docker', labels: ['Tool'], properties: { name: 'Docker', proficiency: '熟悉', source_count: 18, trend: 'stable' } },
+    { id: 'tool-git', labels: ['Tool'], properties: { name: 'Git', proficiency: '精通', source_count: 26, trend: 'stable' } },
+    { id: 'tool-k8s', labels: ['Tool'], properties: { name: 'Kubernetes', proficiency: '了解', source_count: 14, trend: 'rising' } },
+    { id: 'tool-webpack', labels: ['Tool'], properties: { name: 'Webpack', proficiency: '熟悉', source_count: 10, trend: 'declining' } },
+    { id: 'tool-vscode', labels: ['Tool'], properties: { name: 'VS Code', proficiency: '精通', source_count: 23, trend: 'stable' } },
+    // ── KnowledgeArea 领域（5）──
+    { id: 'ka-ai', labels: ['KnowledgeArea'], properties: { name: '人工智能', source_count: 22, trend: 'rising' } },
+    { id: 'ka-data', labels: ['KnowledgeArea'], properties: { name: '数据科学', source_count: 16, trend: 'rising' } },
+    { id: 'ka-fe', labels: ['KnowledgeArea'], properties: { name: '前端工程', source_count: 14, trend: 'stable' } },
+    { id: 'ka-be', labels: ['KnowledgeArea'], properties: { name: '后端架构', source_count: 17, trend: 'stable' } },
+    { id: 'ka-cloud', labels: ['KnowledgeArea'], properties: { name: '云计算', source_count: 19, trend: 'rising' } },
+    // ── Certificate 证书（3）──
+    { id: 'cert-aws', labels: ['Certificate'], properties: { name: 'AWS认证', source_count: 5, trend: 'rising' } },
+    { id: 'cert-pmp', labels: ['Certificate'], properties: { name: 'PMP', source_count: 4, trend: 'stable' } },
+    { id: 'cert-ruankao', labels: ['Certificate'], properties: { name: '软考高级', source_count: 3, trend: 'declining' } },
+    // ── LearningResource 学习资源（4）──
+    { id: 'lr-docs', labels: ['LearningResource'], properties: { name: '官方文档', source_count: 20, trend: 'stable' } },
+    { id: 'lr-courses', labels: ['LearningResource'], properties: { name: '在线课程', source_count: 24, trend: 'rising' } },
+    { id: 'lr-blogs', labels: ['LearningResource'], properties: { name: '技术博客', source_count: 18, trend: 'stable' } },
+    { id: 'lr-oss', labels: ['LearningResource'], properties: { name: '开源项目', source_count: 16, trend: 'rising' } },
+    // ── Industry 行业（4）──
+    { id: 'ind-internet', labels: ['Industry'], properties: { name: '互联网', source_count: 28, trend: 'stable' } },
+    { id: 'ind-fintech', labels: ['Industry'], properties: { name: '金融科技', source_count: 16, trend: 'rising' } },
+    { id: 'ind-medical', labels: ['Industry'], properties: { name: '医疗健康', source_count: 8, trend: 'rising' } },
+    { id: 'ind-smart', labels: ['Industry'], properties: { name: '智能制造', source_count: 10, trend: 'stable' } },
+  ],
+  edges: [
+    // 技能 → 岗位（REQUIRED_FOR）
+    { source_id: 'skill-py', target_id: 'pos-algo', type: 'REQUIRED_FOR', properties: { weight: 0.95 } },
+    { source_id: 'skill-ml', target_id: 'pos-algo', type: 'REQUIRED_FOR', properties: { weight: 0.90 } },
+    { source_id: 'skill-dl', target_id: 'pos-algo', type: 'REQUIRED_FOR', properties: { weight: 0.85 } },
+    { source_id: 'skill-py', target_id: 'pos-data', type: 'REQUIRED_FOR', properties: { weight: 0.85 } },
+    { source_id: 'skill-sql', target_id: 'pos-data', type: 'REQUIRED_FOR', properties: { weight: 0.88 } },
+    { source_id: 'skill-stats', target_id: 'pos-data', type: 'REQUIRED_FOR', properties: { weight: 0.82 } },
+    { source_id: 'skill-viz', target_id: 'pos-data', type: 'REQUIRED_FOR', properties: { weight: 0.70 } },
+    { source_id: 'skill-js', target_id: 'pos-fe', type: 'REQUIRED_FOR', properties: { weight: 0.95 } },
+    { source_id: 'skill-ts', target_id: 'pos-fe', type: 'REQUIRED_FOR', properties: { weight: 0.85 } },
+    { source_id: 'skill-java', target_id: 'pos-be', type: 'REQUIRED_FOR', properties: { weight: 0.93 } },
+    { source_id: 'skill-sql', target_id: 'pos-be', type: 'REQUIRED_FOR', properties: { weight: 0.72 } },
+    // 技能 → 工具（USES）
+    { source_id: 'skill-py', target_id: 'tool-docker', type: 'USES', properties: { weight: 0.70 } },
+    { source_id: 'skill-js', target_id: 'tool-git', type: 'USES', properties: { weight: 0.85 } },
+    { source_id: 'skill-java', target_id: 'tool-git', type: 'USES', properties: { weight: 0.82 } },
+    { source_id: 'skill-py', target_id: 'tool-k8s', type: 'USES', properties: { weight: 0.55 } },
+    { source_id: 'skill-js', target_id: 'tool-webpack', type: 'USES', properties: { weight: 0.88 } },
+    { source_id: 'skill-js', target_id: 'tool-vscode', type: 'USES', properties: { weight: 0.78 } },
+    // 岗位 → 知识领域（BELONGS_TO）
+    { source_id: 'pos-algo', target_id: 'ka-ai', type: 'BELONGS_TO', properties: { weight: 0.95 } },
+    { source_id: 'pos-data', target_id: 'ka-data', type: 'BELONGS_TO', properties: { weight: 0.90 } },
+    { source_id: 'pos-fe', target_id: 'ka-fe', type: 'BELONGS_TO', properties: { weight: 0.92 } },
+    { source_id: 'pos-be', target_id: 'ka-be', type: 'BELONGS_TO', properties: { weight: 0.93 } },
+    { source_id: 'pos-be', target_id: 'ka-cloud', type: 'BELONGS_TO', properties: { weight: 0.72 } },
+    // 知识领域 → 技能（CONTAINS）── 下钻第1跳
+    { source_id: 'ka-ai', target_id: 'skill-py', type: 'CONTAINS', properties: { weight: 0.90 } },
+    { source_id: 'ka-ai', target_id: 'skill-ml', type: 'CONTAINS', properties: { weight: 0.95 } },
+    { source_id: 'ka-ai', target_id: 'skill-dl', type: 'CONTAINS', properties: { weight: 0.88 } },
+    { source_id: 'ka-data', target_id: 'skill-py', type: 'CONTAINS', properties: { weight: 0.85 } },
+    { source_id: 'ka-data', target_id: 'skill-sql', type: 'CONTAINS', properties: { weight: 0.90 } },
+    { source_id: 'ka-data', target_id: 'skill-stats', type: 'CONTAINS', properties: { weight: 0.82 } },
+    { source_id: 'ka-data', target_id: 'skill-viz', type: 'CONTAINS', properties: { weight: 0.75 } },
+    { source_id: 'ka-fe', target_id: 'skill-js', type: 'CONTAINS', properties: { weight: 0.95 } },
+    { source_id: 'ka-fe', target_id: 'skill-ts', type: 'CONTAINS', properties: { weight: 0.85 } },
+    { source_id: 'ka-be', target_id: 'skill-java', type: 'CONTAINS', properties: { weight: 0.90 } },
+    { source_id: 'ka-be', target_id: 'skill-sql', type: 'CONTAINS', properties: { weight: 0.75 } },
+    { source_id: 'ka-cloud', target_id: 'tool-docker', type: 'CONTAINS', properties: { weight: 0.88 } },
+    { source_id: 'ka-cloud', target_id: 'tool-k8s', type: 'CONTAINS', properties: { weight: 0.85 } },
+    // 岗位 → 证书（REQUIRES_CERT）
+    { source_id: 'pos-be', target_id: 'cert-aws', type: 'REQUIRES_CERT', properties: { weight: 0.40 } },
+    { source_id: 'pos-data', target_id: 'cert-pmp', type: 'REQUIRES_CERT', properties: { weight: 0.35 } },
+    { source_id: 'pos-fe', target_id: 'cert-ruankao', type: 'REQUIRES_CERT', properties: { weight: 0.25 } },
+    // 学习资源 → 技能（RELATED_TO）
+    { source_id: 'lr-docs', target_id: 'skill-py', type: 'RELATED_TO', properties: { weight: 0.85 } },
+    { source_id: 'lr-docs', target_id: 'skill-js', type: 'RELATED_TO', properties: { weight: 0.88 } },
+    { source_id: 'lr-courses', target_id: 'skill-ml', type: 'RELATED_TO', properties: { weight: 0.80 } },
+    { source_id: 'lr-courses', target_id: 'skill-java', type: 'RELATED_TO', properties: { weight: 0.78 } },
+    { source_id: 'lr-blogs', target_id: 'skill-js', type: 'RELATED_TO', properties: { weight: 0.82 } },
+    { source_id: 'lr-blogs', target_id: 'skill-ts', type: 'RELATED_TO', properties: { weight: 0.75 } },
+    { source_id: 'lr-oss', target_id: 'skill-py', type: 'RELATED_TO', properties: { weight: 0.72 } },
+    { source_id: 'lr-oss', target_id: 'skill-java', type: 'RELATED_TO', properties: { weight: 0.70 } },
+    // 岗位 → 行业（IN_INDUSTRY）
+    { source_id: 'pos-algo', target_id: 'ind-internet', type: 'IN_INDUSTRY', properties: { weight: 0.90 } },
+    { source_id: 'pos-data', target_id: 'ind-internet', type: 'IN_INDUSTRY', properties: { weight: 0.85 } },
+    { source_id: 'pos-data', target_id: 'ind-fintech', type: 'IN_INDUSTRY', properties: { weight: 0.78 } },
+    { source_id: 'pos-fe', target_id: 'ind-internet', type: 'IN_INDUSTRY', properties: { weight: 0.95 } },
+    { source_id: 'pos-be', target_id: 'ind-internet', type: 'IN_INDUSTRY', properties: { weight: 0.92 } },
+    { source_id: 'pos-be', target_id: 'ind-fintech', type: 'IN_INDUSTRY', properties: { weight: 0.70 } },
+  ],
 }
 
 // 管理后台（⚠️ 契约暂未覆盖，前端开发用，需后续补充到 openapi.yaml）
@@ -238,49 +295,50 @@ export const handlers = [
 
   // ────────── 图谱查询 ──────────
   // GET /graph/query — 全景图谱
-  http.get('/api/v1/graph/query', ({ request }) => {
-    const url = new URL(request.url)
-    const cypher = url.searchParams.get('cypher') ?? ''
-    // 忽略具体 cypher，返回固定全景数据
-    if (cypher) void 0
-    return HttpResponse.json({
-      nodes: [
-        { id: 'pos-algo', labels: ['Position'], properties: { name: '算法工程师', category: 'AI' } },
-        { id: 'pos-data', labels: ['Position'], properties: { name: '数据分析师', category: '数据' } },
-        { id: 'pos-fe', labels: ['Position'], properties: { name: '前端开发工程师', category: '前端' } },
-        { id: 'pos-be', labels: ['Position'], properties: { name: '后端开发工程师', category: '后端' } },
-        { id: 'skill-py', labels: ['Skill'], properties: { name: 'Python', category: 'hard_skill' } },
-        { id: 'skill-ml', labels: ['Skill'], properties: { name: '机器学习', category: 'hard_skill' } },
-        { id: 'skill-sql', labels: ['Skill'], properties: { name: 'SQL', category: 'hard_skill' } },
-        { id: 'skill-js', labels: ['Skill'], properties: { name: 'JavaScript', category: 'hard_skill' } },
-        { id: 'skill-java', labels: ['Skill'], properties: { name: 'Java', category: 'hard_skill' } },
-      ],
-      edges: [
-        { source_id: 'skill-py', target_id: 'pos-algo', type: 'REQUIRED_FOR', properties: { weight: 0.95 } },
-        { source_id: 'skill-ml', target_id: 'pos-algo', type: 'REQUIRED_FOR', properties: { weight: 0.9 } },
-        { source_id: 'skill-py', target_id: 'pos-data', type: 'REQUIRED_FOR', properties: { weight: 0.85 } },
-        { source_id: 'skill-sql', target_id: 'pos-data', type: 'REQUIRED_FOR', properties: { weight: 0.8 } },
-        { source_id: 'skill-js', target_id: 'pos-fe', type: 'REQUIRED_FOR', properties: { weight: 0.9 } },
-        { source_id: 'skill-java', target_id: 'pos-be', type: 'REQUIRED_FOR', properties: { weight: 0.9 } },
-      ],
-    })
-  }),
+  http.get('/api/v1/graph/query', () =>
+    HttpResponse.json(MOCK_GRAPH),
+  ),
 
-  // GET /graph/position/{position_id}/skills — 岗位技能子图（双层雷达数据源）
+  // GET /graph/position/{position_id}/skills — 从 MOCK_GRAPH 动态推导（唯一数据源）
   http.get('/api/v1/graph/position/:positionId/skills', ({ params }) => {
     const { positionId } = params
-    // 按名称匹配（positionId 格式为 pos_xxx 或直接用名称）
-    const match = MOCK_POSITION_SKILLS[positionId as string]
-      ?? Object.values(MOCK_POSITION_SKILLS).find(
-        v => (v as any).position?.name === positionId || (v as any).position?.position_id === positionId
-      )
-    return HttpResponse.json(match ?? {
-      position: { position_id: positionId, name: positionId, industry: '互联网/IT', description: '' },
-      skills: [
-        { skill_id: 'skill_0', name: 'Python', category: 'hard_skill', proficiency: '熟悉', confidence: 0.85, source_count: 5 },
-        { skill_id: 'skill_1', name: 'SQL', category: 'hard_skill', proficiency: '了解', confidence: 0.80, source_count: 4 },
-      ],
-      edges: [],
+    const name = positionId as string
+
+    // 找岗位节点
+    const posNode = MOCK_GRAPH.nodes.find(n =>
+      n.labels.includes('Position') && n.properties.name === name,
+    )
+    if (!posNode) {
+      return HttpResponse.json({ position: null, skills: [], edges: [] }, { status: 404 })
+    }
+
+    // 找所有指向该岗位的边（技能/工具/证书 → 岗位）
+    const relatedEdges = MOCK_GRAPH.edges.filter(e =>
+      e.target_id === posNode.id && ['REQUIRED_FOR', 'USES', 'REQUIRES_CERT'].includes(e.type),
+    )
+
+    // 拼技能列表
+    const skills = relatedEdges.map(e => {
+      const src = MOCK_GRAPH.nodes.find(n => n.id === e.source_id)
+      return {
+        skill_id: src?.id ?? e.source_id,
+        name: src?.properties.name ?? e.source_id,
+        category: src?.labels[0] === 'Tool' ? 'tool' : 'hard_skill',
+        proficiency: (src?.properties as any)?.proficiency ?? '了解',
+        confidence: e.properties.weight ?? 0.8,
+        source_count: (src?.properties as any)?.source_count ?? 0,
+      }
+    })
+
+    return HttpResponse.json({
+      position: {
+        position_id: posNode.id,
+        name: posNode.properties.name,
+        industry: '互联网/IT',
+        description: '',
+      },
+      skills,
+      edges: relatedEdges,
     })
   }),
 
