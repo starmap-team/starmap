@@ -1,0 +1,119 @@
+<script setup lang="ts">
+/**
+ * 双层技能雷达图组件 — 岗位要求 vs 我的技能
+ * 对应任务文档：匹配诊断第3步
+ */
+import { computed } from 'vue'
+import VChart from 'vue-echarts'
+import { use } from 'echarts/core'
+import { RadarChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent, RadarComponent } from 'echarts/components'
+
+// 确保雷达图相关组件已注册（main.ts 已注册，此处为组件独立使用补充）
+use([RadarChart, TooltipComponent, LegendComponent, RadarComponent])
+
+export interface RadarItem {
+  skill: string
+  required: number   // 岗位要求 0-1
+  user: number       // 用户掌握 0-1
+}
+
+const props = defineProps<{
+  data: RadarItem[]
+  positionName: string
+}>()
+
+const radarOption = computed(() => {
+  if (!props.data.length) return {}
+
+  const indicators = props.data.map(d => ({
+    name: d.skill,
+    max: 1,
+  }))
+
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: (p: any) => {
+        if (p.seriesName === '岗位要求') {
+          return `${p.name}<br/>岗位要求：${(p.value * 100).toFixed(0)}%`
+        }
+        return `${p.name}<br/>我的掌握：${(p.value * 100).toFixed(0)}%`
+      },
+    },
+    legend: {
+      data: ['岗位要求', '我的技能'],
+      bottom: 0,
+    },
+    radar: {
+      center: ['50%', '48%'],
+      radius: '65%',
+      indicator: indicators,
+      axisName: {
+        color: '#606266',
+        fontSize: 12,
+      },
+    },
+    series: [
+      {
+        type: 'radar',
+        name: '岗位要求',
+        data: [{
+          value: props.data.map(d => d.required),
+          name: '岗位要求',
+        }],
+        lineStyle: { color: '#f56c6c', width: 2 },
+        areaStyle: { color: 'rgba(245, 108, 108, 0.2)' },
+        itemStyle: { color: '#f56c6c' },
+        symbol: 'circle',
+        symbolSize: 5,
+      },
+      {
+        type: 'radar',
+        name: '我的技能',
+        data: [{
+          value: props.data.map(d => d.user),
+          name: '我的技能',
+        }],
+        lineStyle: { color: '#409eff', width: 2 },
+        areaStyle: { color: 'rgba(64, 158, 255, 0.2)' },
+        itemStyle: { color: '#409eff' },
+        symbol: 'circle',
+        symbolSize: 5,
+      },
+    ],
+  }
+})
+</script>
+
+<template>
+  <div class="skill-radar">
+    <div class="radar-title">
+      {{ positionName }} — 技能雷达对比
+    </div>
+    <VChart
+      v-if="data.length"
+      :option="radarOption"
+      style="height: 400px"
+      autoresize
+    />
+    <el-empty
+      v-else
+      description="暂无雷达图数据"
+    />
+  </div>
+</template>
+
+<style scoped>
+.skill-radar {
+  width: 100%;
+}
+
+.radar-title {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 8px;
+}
+</style>
