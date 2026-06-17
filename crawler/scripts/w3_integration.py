@@ -59,7 +59,6 @@ def call_extract_api(jd_content: str, backend_url: str) -> dict:
     if len(jd_content) > MAX_JD_CONTENT_LEN:
         log.warning("jd_content 长度 %d 超限，截断至 %d", len(jd_content), MAX_JD_CONTENT_LEN)
         jd_content = jd_content[:MAX_JD_CONTENT_LEN]
-
     endpoint = f"{backend_url}/api/v1/extract/jd"
     payload = {
         "jd_content": jd_content,
@@ -97,8 +96,16 @@ def fetch_pending_jd_raw(limit: int) -> list[dict]:
             }
             for r in rows
         ]
-
-
+    return [
+        {
+            "id": r.id,
+            "source_site": r.source_site,
+            "source_url": r.source_url,
+            "job_title": r.job_title,
+            "clean_text": r.clean_text,
+        }
+        for r in rows
+    ]
 def mark_jd_extracted(jd_raw_id: int, success: bool, error: str | None = None) -> None:
     """更新 jd_raw.status：成功=extracted，失败=failed。"""
     with get_jd_raw_session() as s:
