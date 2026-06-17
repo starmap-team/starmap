@@ -122,8 +122,11 @@ jobs:
         run: pip install -r crawler/requirements.txt
       - name: 编译检查
         run: python -m compileall crawler -q
-      - name: Pytest
-        run: python -m pytest crawler/tests/ -v
+      - name: Pytest（跳过需要 PostgreSQL 的集成测试）
+        run: >-
+          python -m pytest crawler/tests/ -v
+          --ignore=crawler/tests/test_persistence.py
+          --ignore=crawler/tests/test_w3_integration.py
         env:
           CI: "true"
 
