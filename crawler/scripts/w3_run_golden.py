@@ -137,14 +137,17 @@ def evaluate_golden(limit: int, backend_url: str) -> dict:
         aggregate["sum_f1"] += f1_req["f1"]
 
     n = aggregate["total"] or 1
+    macro_f1 = aggregate["sum_f1"] / n
+    has_errors = aggregate["errors"] > 0
+    f1_met = macro_f1 >= 0.80
     summary = {
         "total_evaluated": aggregate["total"],
         "errors": aggregate["errors"],
         "macro_precision": aggregate["sum_p"] / n,
         "macro_recall": aggregate["sum_r"] / n,
-        "macro_f1": aggregate["sum_f1"] / n,
+        "macro_f1": macro_f1,
         "target_f1": 0.80,  # M2 验收阈值
-        "passed": (aggregate["sum_f1"] / n) >= 0.80,
+        "passed": f1_met and not has_errors,
         "per_item": results,
     }
     return summary
