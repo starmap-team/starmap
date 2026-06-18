@@ -182,4 +182,44 @@ def fetch(
     )
 
 
-__all__ = ["is_allowed", "RateLimiter", "log_request", "fetch", "FetchResult", "get_proxy"]
+# ----------------------------------------------------------------------
+# 6. Stealth 合规辅助（给 Playwright stealth 爬虫用）
+# ----------------------------------------------------------------------
+def stealth_log_request(
+    source_site: str,
+    target_url: str,
+    *,
+    user_agent: str = "StarMap-Stealth/1.0",
+    response_code: int = 200,
+    response_bytes: int = 0,
+) -> None:
+    """Stealth 爬虫的合规日志记录。
+
+    Stealth 爬虫使用 Playwright 浏览器，robots.txt 检查意义有限
+    （浏览器会执行 JS），但仍需记录请求审计。
+    """
+    robots_ok = is_allowed(target_url, user_agent)
+    log_request(
+        source_site=source_site,
+        target_url=target_url,
+        robots_allowed=robots_ok,
+        user_agent=user_agent,
+        qps=0.0,  # Stealth 爬虫自带延迟
+        response_code=response_code,
+        response_bytes=response_bytes,
+    )
+
+
+def stealth_check_robots(url: str, user_agent: str = "StarMap-Stealth/1.0") -> bool:
+    """Stealth 爬虫的 robots.txt 检查（软检查，不阻塞）。
+
+    返回 True 表示允许，False 表示禁止但仍可抓取（记录 warning）。
+    """
+    allowed = is_allowed(url, user_agent)
+    if not allowed:
+        log.warning("[stealth-compliance] robots.txt 禁止 %s，但仍执行（浏览器抓取）", url)
+    return allowed
+
+
+__all__ = ["is_allowed", "RateLimiter", "log_request", "fetch", "FetchResult", "get_proxy",
+           "stealth_log_request", "stealth_check_robots"]

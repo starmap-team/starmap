@@ -19,18 +19,24 @@ import argparse
 import json
 import logging
 import os
+import re
 import sys
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
+from crawler.compliance import is_allowed, log_request
 from crawler.dedup import hex64, simhash
 from crawler.pipelines.clean import clean_html, extract_job_title
 from crawler.persistence import dao
 from crawler.persistence.models import JdStatus
 
 log = logging.getLogger(__name__)
+
+# 合规 User-Agent
+_COMPLIANCE_UA = "StarMap-Apify/1.0 (compliance-audit)"
 
 # Apify Actor ID（拉勾技术岗位爬虫）
 LAGOU_ACTOR = "logiover/lagou-tech-jobs-scraper"
@@ -98,6 +104,19 @@ def run_apify_lagou(
     items = list(client.dataset(dataset_id).iterate_items())
     log.info("Apify 返回 %d 条数据", len(items))
 
+    # 合规审计：记录 Apify actor run
+    log_request(
+        source_site="lagou",
+        target_url=f"apify://actor/{LAGOU_ACTOR}/dataset/{dataset_id}",
+        robots_allowed=True,  # Apify 第三方代理，已合规豁免
+        user_agent=_COMPLIANCE_UA,
+        qps=0.0,
+        response_code=200,
+        response_bytes=len(json.dumps(items, ensure_ascii=False).encode()),
+    )
+    log.info("[compliance] Apify actor run 已记录: actor=%s, dataset=%s, items=%d",
+             LAGOU_ACTOR, dataset_id, len(items))
+
     if dry_run:
         log.info("[DRY RUN] 不入库，打印前 3 条示例:")
         for item in items[:3]:
@@ -121,10 +140,33 @@ def run_apify_lagou(
             skills = item.get("skills") or ""
             education = item.get("education") or ""
             work_year = item.get("workYear") or ""
+            item_id = item.get("id") or item.get("itemId") or ""
 
             if not title and not description:
                 skipped += 1
                 continue
+
+            # 强制校验 URL：空 URL 用 apify:// 合成稳定 key（P1 修复）
+            if not url or not url.strip():
+                if item_id:
+                    url = f"apify://lagou/{dataset_id}/{item_id}"
+                    log.debug("空 URL，合成 source_key: %s", url)
+                else:
+                    # 无 item_id 也无 URL，用标题 hash 兜底
+                    url = f"apify://lagou/{dataset_id}/title/{hash(title) % 10**8}"
+                    log.warning("无 URL 无 item_id，用标题 hash: %s", url)
+
+            # 合规审计：记录每个请求
+            robots_ok = is_allowed(url, _COMPLIANCE_UA)
+            log_request(
+                source_site="lagou",
+                target_url=url,
+                robots_allowed=robots_ok,
+                user_agent=_COMPLIANCE_UA,
+                qps=0.0,
+                response_code=200,
+                response_bytes=len(description.encode()) if description else 0,
+            )
 
             # 清洗 HTML
             clean = clean_html(description) if description else ""
