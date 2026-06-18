@@ -1,0 +1,23 @@
+{
+  "eval_timestamp": "2026-06-17T10:38:48.991315+00:00",
+  "llm_provider": "xiaomi-mimo",
+  "llm_model": "mimo-v2.5",
+  "llm_api_base": "https://token-plan-cn.xiaomimimo.com/v1",
+  "golden_set": "50 entries with raw_jd (PR#18 version)",
+  "normalize_source": "hardcoded SKILL_ALIAS (191 groups in normalize.py)",
+  "pipeline_config": {
+    "anti_hallucination_enabled": true,
+    "normalize_skills_enabled": true,
+    "use_vector_normalization": false
+  },
+  "total_samples": 50,
+  "successful_extractions": 50,
+  "failed_extractions": 0,
+  "failures": [],
+  "results_summary": {
+    "avg_f1": 0.79,
+    "avg_precision": 0.818,
+    "avg_recall": 0.7721,
+    "weighted_score": 0.755
+  }
+}
