@@ -15,6 +15,13 @@ def test_graph_query_requires_cypher(client):
     assert resp.status_code == 422
 
 
+def test_graph_panorama_skeleton_response(client):
+    resp = client.get("/api/v1/graph/panorama")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"nodes": [], "edges": []}
+
+
 def test_positions_skeleton_response(client):
     resp = client.get("/api/v1/positions", params={"page": 2, "page_size": 10})
 
@@ -34,10 +41,14 @@ def test_stage2_openapi_schema(client):
     assert resp.status_code == 200
     schema = resp.json()
     graph_query = schema["paths"]["/api/v1/graph/query"]["get"]
+    graph_panorama = schema["paths"]["/api/v1/graph/panorama"]["get"]
     positions = schema["paths"]["/api/v1/positions"]["get"]
 
     assert graph_query["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/GraphQueryResponse"
+    )
+    assert graph_panorama["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/GraphPanoramaResponse"
     )
     assert positions["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/PositionListResponse"

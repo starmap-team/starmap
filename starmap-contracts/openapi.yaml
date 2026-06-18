@@ -283,6 +283,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /graph/panorama:
+    get:
+      operationId: getGraphPanorama
+      summary: "全景图谱"
+      description: "返回岗位-技能全景图谱，默认返回全图"
+      tags: [图谱查询]
+      responses:
+        "200":
+          description: "全景图谱"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [nodes, edges]
+                properties:
+                  nodes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GraphNode"
+                  edges:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GraphEdge"
+
   /graph/position/{position_id}/skills:
     get:
       operationId: getPositionSkills

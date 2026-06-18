@@ -33,6 +33,13 @@ class GraphQueryResponse(BaseModel):
     edges: list[GraphEdge] = Field(default_factory=list, description="图谱边列表")
 
 
+class GraphPanoramaResponse(BaseModel):
+    """全景图谱响应。"""
+
+    nodes: list[GraphNode] = Field(default_factory=list, description="图谱节点列表")
+    edges: list[GraphEdge] = Field(default_factory=list, description="图谱边列表")
+
+
 class PositionSkillGraphResponse(BaseModel):
     """岗位技能子图响应骨架。"""
 
@@ -58,6 +65,16 @@ async def graph_query(
 ) -> GraphQueryResponse:
     _ = cypher
     return GraphQueryResponse()
+
+
+@router.get(
+    "/panorama",
+    summary="全景图谱",
+    description="阶段2骨架接口。默认返回全图，阶段3接入图谱查询服务。",
+    response_model=GraphPanoramaResponse,
+)
+async def get_graph_panorama() -> GraphPanoramaResponse:
+    return GraphPanoramaResponse()
 
 
 @router.get(
