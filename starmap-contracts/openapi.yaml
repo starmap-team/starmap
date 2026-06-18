@@ -306,7 +306,6 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/GraphEdge"
-
   /graph/position/{position_id}/skills:
     get:
       operationId: getPositionSkills
