@@ -1,6 +1,7 @@
 scrapy>=2.11
 playwright>=1.40
 playwright-stealth>=2.0
+apify-client>=3.0
 sqlalchemy>=2.0
 psycopg2-binary>=2.9
 psycopg>=3.0

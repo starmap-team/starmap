@@ -2,13 +2,14 @@
 
 用法:
     python run.py init              # 建表
-    python run.py --site lagou      # 跑拉勾（HTTP）
-    python run.py --site lagou_stealth  # 跑拉勾（Playwright-stealth，反检测）
-    python run.py --site 51job      # 跑前程无忧（HTTP）
-    python run.py --site 51job_stealth # 跑前程无忧（Playwright-stealth）
-    python run.py --site bosszhipin # 跑 BOSS（Playwright-stealth）
-    python run.py --site all        # 跑 3 个站点（HTTP 版）
-    python run.py --site stealth_all    # 跑 3 个站点（stealth 版）
+    python run.py lagou             # 跑拉勾（HTTP）
+    python run.py lagou_stealth     # 跑拉勾（Playwright-stealth，反检测）
+    python run.py 51job             # 跑前程无忧（HTTP）
+    python run.py 51job_stealth     # 跑前程无忧（Playwright-stealth）
+    python run.py bosszhipin        # 跑 BOSS（Playwright-stealth）
+    python run.py apify_lagou       # 跑拉勾（Apify，自带住宅代理绕 WAF）
+    python run.py all               # 跑 3 个站点（HTTP 版）
+    python run.py stealth_all       # 跑 3 个站点（stealth 版）
     python run.py stats             # 统计
 """
 from __future__ import annotations
@@ -157,6 +158,15 @@ def cmd_crawl_51job_stealth(args):
     log.info("51job(stealth) 入库 %d 条", inserted)
 
 
+def cmd_apify_lagou(args):
+    from crawler.scripts.apify_lagou import run_apify_lagou
+    summary = run_apify_lagou(
+        max_items=args.max,
+        dry_run=args.dry_run,
+    )
+    log.info("Apify 拉勾: total=%d inserted=%d", summary.get("total", 0), summary.get("inserted", 0))
+
+
 def _add_common_args(sp):
     """给 spider 子命令加通用参数。"""
     sp.add_argument("--max", type=int, default=config.MAX_PER_SITE)
@@ -208,6 +218,12 @@ def main():
         cmd_crawl_51job_stealth(argparse.Namespace(max=a.max, keyword=a.keyword, proxy=a.proxy)),
         cmd_crawl_boss(argparse.Namespace(max=a.max, keyword=a.keyword, proxy=a.proxy)),
     ))
+
+    # Apify 拉勾（自带住宅代理绕 WAF）
+    sp_apify = sub.add_parser("apify_lagou", help="爬拉勾 (Apify，自带住宅代理)")
+    sp_apify.add_argument("--max", type=int, default=10, help="最大抓取条数")
+    sp_apify.add_argument("--dry-run", action="store_true", help="仅测试，不入库")
+    sp_apify.set_defaults(func=cmd_apify_lagou)
 
     args = p.parse_args()
     if args.cmd == "init":
