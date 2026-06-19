@@ -1,30 +1,30 @@
 {
   "total_samples": 50,
-  "avg_precision": 0.818,
-  "avg_recall": 0.7721,
-  "avg_f1": 0.79,
-  "weighted_score": 0.755,
+  "avg_precision": 0.8982,
+  "avg_recall": 0.8665,
+  "avg_f1": 0.8767,
+  "weighted_score": 0.88,
   "f1_distribution": {
-    "excellent": 14,
-    "good": 27,
-    "fair": 7,
+    "excellent": 34,
+    "good": 12,
+    "fair": 2,
     "poor": 2
   },
   "per_sample": [
     {
       "sample_id": "jd-001",
-      "precision": 0.8462,
-      "recall": 0.8462,
-      "f1": 0.8462,
+      "precision": 0.9231,
+      "recall": 0.9231,
+      "f1": 0.9231,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-002",
-      "precision": 0.8295,
-      "recall": 0.9091,
-      "f1": 0.8667,
+      "precision": 0.9205,
+      "recall": 1.0,
+      "f1": 0.9576,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -40,9 +40,9 @@
     },
     {
       "sample_id": "jd-004",
-      "precision": 0.8182,
-      "recall": 0.8182,
-      "f1": 0.8182,
+      "precision": 0.9091,
+      "recall": 0.9091,
+      "f1": 0.9091,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -61,63 +61,63 @@
     },
     {
       "sample_id": "jd-006",
-      "precision": 0.8214,
-      "recall": 0.75,
-      "f1": 0.7833,
+      "precision": 1.0,
+      "recall": 0.9167,
+      "f1": 0.9556,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-007",
-      "precision": 0.8333,
-      "recall": 0.8333,
-      "f1": 0.8333,
+      "precision": 0.9167,
+      "recall": 0.9167,
+      "f1": 0.9167,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-008",
-      "precision": 0.9091,
-      "recall": 0.9091,
-      "f1": 0.9091,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-009",
-      "precision": 0.9091,
-      "recall": 0.9091,
-      "f1": 0.9091,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-010",
-      "precision": 0.9167,
-      "recall": 0.8333,
-      "f1": 0.8718,
+      "precision": 1.0,
+      "recall": 0.9167,
+      "f1": 0.9551,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-011",
-      "precision": 0.7172,
+      "precision": 0.8182,
       "recall": 0.8182,
-      "f1": 0.7614,
+      "f1": 0.8182,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-012",
-      "precision": 0.6667,
-      "recall": 0.6667,
-      "f1": 0.6667,
+      "precision": 0.9167,
+      "recall": 0.9167,
+      "f1": 0.9167,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -142,9 +142,9 @@
     },
     {
       "sample_id": "jd-015",
-      "precision": 0.7273,
-      "recall": 0.7273,
-      "f1": 0.7273,
+      "precision": 0.9091,
+      "recall": 0.9091,
+      "f1": 0.9091,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -169,9 +169,9 @@
     },
     {
       "sample_id": "jd-018",
-      "precision": 0.7436,
-      "recall": 0.6154,
-      "f1": 0.6703,
+      "precision": 0.8205,
+      "recall": 0.6923,
+      "f1": 0.7473,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -179,53 +179,53 @@
     {
       "sample_id": "jd-019",
       "precision": 0.2917,
-      "recall": 0.25,
-      "f1": 0.2692,
+      "recall": 0.2917,
+      "f1": 0.2917,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-020",
-      "precision": 0.9091,
-      "recall": 0.7273,
-      "f1": 0.803,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-021",
-      "precision": 0.5909,
-      "recall": 0.5455,
-      "f1": 0.5664,
+      "precision": 0.7879,
+      "recall": 0.8727,
+      "f1": 0.8264,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-022",
-      "precision": 0.8542,
-      "recall": 0.6667,
-      "f1": 0.7348,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-023",
-      "precision": 0.75,
-      "recall": 0.75,
-      "f1": 0.75,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-024",
-      "precision": 0.9091,
-      "recall": 0.6364,
-      "f1": 0.7355,
+      "precision": 1.0,
+      "recall": 0.7273,
+      "f1": 0.8264,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -241,9 +241,9 @@
     },
     {
       "sample_id": "jd-026",
-      "precision": 0.8182,
-      "recall": 0.8182,
-      "f1": 0.8182,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -260,17 +260,17 @@
     {
       "sample_id": "jd-028",
       "precision": 0.8939,
-      "recall": 0.8182,
-      "f1": 0.8531,
+      "recall": 0.8939,
+      "f1": 0.8939,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-029",
-      "precision": 0.7273,
-      "recall": 0.7273,
-      "f1": 0.7273,
+      "precision": 0.9091,
+      "recall": 0.9091,
+      "f1": 0.9091,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -295,9 +295,9 @@
     },
     {
       "sample_id": "jd-032",
-      "precision": 0.75,
-      "recall": 0.75,
-      "f1": 0.75,
+      "precision": 0.8333,
+      "recall": 1.0,
+      "f1": 0.9088,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -313,36 +313,36 @@
     },
     {
       "sample_id": "jd-034",
-      "precision": 0.9091,
-      "recall": 0.9091,
-      "f1": 0.9091,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-035",
-      "precision": 0.9091,
-      "recall": 0.9091,
-      "f1": 0.9091,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-036",
-      "precision": 0.6667,
-      "recall": 0.6667,
-      "f1": 0.6667,
+      "precision": 0.9167,
+      "recall": 1.0,
+      "f1": 0.9556,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-037",
-      "precision": 0.75,
+      "precision": 0.9,
       "recall": 0.6,
-      "f1": 0.66,
+      "f1": 0.7,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -350,26 +350,26 @@
     {
       "sample_id": "jd-038",
       "precision": 1.0,
-      "recall": 0.8333,
-      "f1": 0.9028,
+      "recall": 0.9028,
+      "f1": 0.947,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-039",
-      "precision": 0.9091,
-      "recall": 0.8182,
-      "f1": 0.8601,
+      "precision": 1.0,
+      "recall": 0.9091,
+      "f1": 0.951,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-040",
-      "precision": 0.7879,
-      "recall": 0.7273,
-      "f1": 0.7552,
+      "precision": 1.0,
+      "recall": 0.9091,
+      "f1": 0.951,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -377,26 +377,26 @@
     {
       "sample_id": "jd-041",
       "precision": 0.8409,
-      "recall": 0.9091,
-      "f1": 0.8727,
+      "recall": 1.0,
+      "f1": 0.9091,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-042",
-      "precision": 0.8333,
-      "recall": 0.8333,
-      "f1": 0.8333,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-043",
-      "precision": 0.9091,
-      "recall": 0.8182,
-      "f1": 0.8601,
+      "precision": 1.0,
+      "recall": 0.8939,
+      "f1": 0.9421,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -422,8 +422,8 @@
     {
       "sample_id": "jd-046",
       "precision": 0.8333,
-      "recall": 0.8333,
-      "f1": 0.8333,
+      "recall": 0.9028,
+      "f1": 0.8654,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -431,8 +431,8 @@
     {
       "sample_id": "jd-047",
       "precision": 0.8409,
-      "recall": 0.6364,
-      "f1": 0.7107,
+      "recall": 0.8409,
+      "f1": 0.8409,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -457,9 +457,9 @@
     },
     {
       "sample_id": "jd-050",
-      "precision": 0.75,
-      "recall": 0.5455,
-      "f1": 0.6198,
+      "precision": 1.0,
+      "recall": 0.5152,
+      "f1": 0.6727,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
