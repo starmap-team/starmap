@@ -10,7 +10,7 @@ import { ref } from 'vue'
 export type NodeLabel = 'Position' | 'Skill' | 'Tool' | 'KnowledgeArea' | 'Certificate' | 'LearningResource' | 'Industry'
 
 // 视图模式
-export type ViewMode = 'tech' | 'level' | 'heat' | 'evolution'
+export type ViewMode = 'default' | 'tech' | 'level' | 'heat' | 'evolution'
 
 export interface GraphNode {
   id: string
@@ -37,7 +37,7 @@ export interface GraphEdge {
 export const useGraphStore = defineStore('graph', () => {
   const nodes = ref<GraphNode[]>([])
   const edges = ref<GraphEdge[]>([])
-  const viewMode = ref<ViewMode>('tech')
+  const viewMode = ref<ViewMode>('default')
   const loading = ref(false)
 
   async function fetchGraph() {

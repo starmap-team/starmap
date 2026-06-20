@@ -37,6 +37,35 @@ const LABEL_NAMES: Record<string, string> = {
   Industry: '行业',
 }
 
+// ── 技术栈视图：领域 → 颜色 ──
+const DOMAIN_COLORS: Record<string, string> = {
+  '人工智能': '#9B59B6',  // AI 紫
+  '数据科学': '#E6A23C',  // 数据 橙
+  '前端工程': '#409EFF',  // 前端 蓝
+  '后端架构': '#67C23A',  // 后端 绿
+  '云计算': '#36CFC9',    // 运维 青
+}
+
+// ── 通过 CONTAINS / BELONGS_TO 边推断每个节点所属领域 ──
+function buildDomainMap(): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const e of graphStore.edges) {
+    if (e.type === 'CONTAINS') {
+      const ka = graphStore.nodes.find(n => n.id === e.source_id)
+      if (ka && ka.labels.includes('KnowledgeArea') && !map.has(e.target_id)) {
+        map.set(e.target_id, ka.properties.name)
+      }
+    }
+    if (e.type === 'BELONGS_TO') {
+      const ka = graphStore.nodes.find(n => n.id === e.target_id)
+      if (ka && ka.labels.includes('KnowledgeArea') && !map.has(e.source_id)) {
+        map.set(e.source_id, ka.properties.name)
+      }
+    }
+  }
+  return map
+}
+
 // ── 筛选器 ──
 const techFilters = ['AI', '大数据', '物联网', '前端', '后端', '云计算']
 const selectedTech = ref<string[]>([])
@@ -59,8 +88,18 @@ const filteredNodeIds = computed(() => {
   return ids
 })
 
-// ── 视图模式选项 ──未完成
+// ── 技术栈图例（前端蓝/后端绿/AI紫/数据橙/运维青）──
+const techLegend = [
+  { name: '前端', color: '#409EFF' },
+  { name: '后端', color: '#67C23A' },
+  { name: 'AI', color: '#9B59B6' },
+  { name: '数据', color: '#E6A23C' },
+  { name: '运维', color: '#36CFC9' },
+]
+
+// ── 视图模式选项 ──
 const viewModeOptions = [
+  { label: '默认', value: 'default' as const },
   { label: '技术栈', value: 'tech' as const },
   { label: '级别', value: 'level' as const },
   { label: '热度', value: 'heat' as const },
@@ -82,6 +121,10 @@ const searchKeyword = ref('')
 // ── 选中节点（右侧面板 + 下钻） ──
 const selectedNode = ref<GraphNode | null>(null)
 const drillStack = ref<GraphNode[]>([])
+
+// ── 多跳展开状态 ──
+const expandedNodeId = ref<string | null>(null)
+const twoHopVisibleIds = ref<Set<string>>(new Set())
 
 // 选中节点的关联节点
 const relatedNodes = computed(() => {
@@ -160,8 +203,14 @@ function closeDetail() {
 // ── 高亮关联 ──
 function highlightRelated(nodeId: string) {
   if (!graph) return
+
+  // 技术栈视图：只高亮 REQUIRED_FOR 关联的 Position
+  const isTechView = graphStore.viewMode === 'tech'
+  const isHeatView = graphStore.viewMode === 'heat'
+
   const relatedIds = new Set<string>([nodeId])
   for (const e of graphStore.edges) {
+    if (isTechView && e.type !== 'REQUIRED_FOR') continue
     if (e.source_id === nodeId) relatedIds.add(e.target_id)
     if (e.target_id === nodeId) relatedIds.add(e.source_id)
   }
@@ -169,12 +218,13 @@ function highlightRelated(nodeId: string) {
   const updatedNodes = graphStore.nodes.map(n => {
     const isRelated = relatedIds.has(n.id)
     const isCenter = n.id === nodeId
+    const showLabel = isRelated || isCenter
     return {
       id: n.id,
       style: {
         size: isCenter ? 40 : isRelated ? 30 : 18,
         opacity: isRelated || isCenter ? 1 : 0.2,
-        labelText: isRelated || isCenter ? n.properties.name : '',
+        labelText: showLabel ? (isHeatView ? `${n.properties.name} (${n.properties.source_count ?? 0})` : n.properties.name) : '',
       },
     }
   })
@@ -196,20 +246,36 @@ function highlightRelated(nodeId: string) {
   graph.draw()
 }
 
-// ── 清除高亮，恢复默认样式 ──
+// ── 清除高亮，恢复当前视图默认样式 ──
 function clearHighlight() {
+  expandedNodeId.value = null
+  twoHopVisibleIds.value = new Set()
+  applyCurrentView()
+}
+
+// ── 多跳展开：双击节点展开 2 跳邻居 ──
+function expandTwoHops(nodeId: string) {
   if (!graph) return
-  const resetNodes = graphStore.nodes.map(n => ({
-    id: n.id,
-    style: { size: 28, opacity: 1, labelText: n.properties.name },
-  }))
-  const resetEdges = graphStore.edges.map(e => ({
-    id: `${e.source_id}-${e.target_id}-${e.type}`,
-    style: { stroke: '#d0d0d0', lineWidth: 1, opacity: 0.4 },
-  }))
-  graph.updateNodeData(resetNodes)
-  graph.updateEdgeData(resetEdges)
-  graph.draw()
+
+  // 第 1 跳
+  const hop1 = new Set<string>()
+  for (const e of graphStore.edges) {
+    if (e.source_id === nodeId) hop1.add(e.target_id)
+    if (e.target_id === nodeId) hop1.add(e.source_id)
+  }
+
+  // 第 2 跳
+  const hop2 = new Set<string>()
+  for (const e of graphStore.edges) {
+    if (hop1.has(e.source_id) && e.target_id !== nodeId && !hop1.has(e.target_id))
+      hop2.add(e.target_id)
+    if (hop1.has(e.target_id) && e.source_id !== nodeId && !hop1.has(e.source_id))
+      hop2.add(e.source_id)
+  }
+
+  expandedNodeId.value = nodeId
+  twoHopVisibleIds.value = new Set([nodeId, ...hop1, ...hop2])
+  applyCurrentView()
 }
 
 // ── 搜索节点 ──
@@ -220,6 +286,180 @@ function handleSearch() {
   if (found) {
     handleNodeClick(found.id)
   }
+}
+
+// ── 按当前布局模式重新排布 ──
+function relayout() {
+  if (!graph) return
+  if (currentLayout.value === 'force') {
+    graph.setLayout(getLayoutConfig('force'))
+    graph.layout()
+  } else if (currentLayout.value === 'dagre') {
+    applyDagreLayout()
+  } else {
+    applyRadialLayout()
+  }
+}
+
+// ── 统一应用当前视图模式的可视化编码 ──
+function applyCurrentView() {
+  if (!graph) return
+
+  const mode = graphStore.viewMode
+  const ids = filteredNodeIds.value
+  const expansionActive = twoHopVisibleIds.value.size > 0
+
+  if (mode === 'tech') {
+    // ── 技术栈视图：用 updateData 而非 setData，保留 G6 内部状态 ──
+    const visibleLabels = new Set(['Skill', 'Tool', 'Position'])
+    const visibleNodeIds = new Set(
+      graphStore.nodes
+        .filter(n => n.labels.some(l => visibleLabels.has(l)))
+        .map(n => n.id),
+    )
+    const domainMap = buildDomainMap()
+
+    // 过滤掉无领域归属的灰色节点（Git / VS Code / Webpack）
+    for (const id of visibleNodeIds) {
+      if (!domainMap.has(id)) visibleNodeIds.delete(id)
+    }
+
+    graph.updateNodeData(
+      graphStore.nodes.map(n => {
+        const isVisible = visibleNodeIds.has(n.id) && !ids.has(n.id) && (!expansionActive || twoHopVisibleIds.value.has(n.id))
+        const domainColor = DOMAIN_COLORS[domainMap.get(n.id) ?? ''] ?? '#909399'
+        const prof = n.properties.proficiency
+        const label = prof ? `${n.properties.name} · ${prof}` : n.properties.name
+
+        return {
+          id: n.id,
+          style: {
+            fill: domainColor,
+            size: 28,
+            opacity: isVisible ? 1 : 0,
+            labelText: isVisible ? label : '',
+            labelFill: '#1f1f1f',
+            labelFontSize: 11,
+            labelPlacement: 'bottom',
+            labelOffsetY: 6,
+          },
+        }
+      }),
+    )
+
+    // 先删掉涉及隐藏节点的边（G6 updateEdgeData 不能删边）
+    graph.removeEdgeData(
+      graphStore.edges
+        .filter(e => !visibleNodeIds.has(e.source_id) || !visibleNodeIds.has(e.target_id))
+        .map(e => `${e.source_id}-${e.target_id}-${e.type}`),
+    )
+
+    graph.updateEdgeData(
+      graphStore.edges
+        .filter(e => visibleNodeIds.has(e.source_id) && visibleNodeIds.has(e.target_id))
+        .map(e => {
+        const isVisible = !ids.has(e.source_id) && !ids.has(e.target_id) && (!expansionActive || (twoHopVisibleIds.value.has(e.source_id) && twoHopVisibleIds.value.has(e.target_id)))
+        const isCore = e.type === 'REQUIRED_FOR'
+
+        return {
+          id: `${e.source_id}-${e.target_id}-${e.type}`,
+          source: e.source_id,
+          target: e.target_id,
+          style: {
+            stroke: '#d0d0d0',
+            lineWidth: isCore ? 2 : 0.5,
+            opacity: isVisible ? (isCore ? 0.6 : 0.15) : 0,
+          },
+        }
+      }),
+    )
+
+    graph.draw()
+    return
+  }
+
+  // ── 热度视图：节点大小=source_count，着色=冷蓝→热红渐变 ──
+  if (mode === 'heat') {
+    const counts = graphStore.nodes.map(n => n.properties.source_count ?? 0)
+    const minCount = Math.min(...counts)
+    const maxCount = Math.max(...counts)
+    const countRange = maxCount - minCount || 1
+
+    // 冷蓝 → 热红 渐变色
+    const heatColor = (count: number) => {
+      const t = (count - minCount) / countRange // 0(冷) ~ 1(热)
+      const r = Math.round(64 + t * 182)   // 64 → 246
+      const g = Math.round(159 - t * 97)    // 159 → 62
+      const b = Math.round(255 - t * 179)  // 255 → 76
+      return `rgb(${r},${g},${b})`
+    }
+
+    // 大小映射
+    const minSize = 12
+    const maxSize = 60
+    const heatSize = (count: number) =>
+      minSize + ((count - minCount) / countRange) * (maxSize - minSize)
+
+    graph.setData({
+      nodes: graphStore.nodes.map(n => {
+        const count = n.properties.source_count ?? 0
+        const isDimmed = ids.has(n.id) || (expansionActive && !twoHopVisibleIds.value.has(n.id))
+        return {
+          id: n.id,
+          style: {
+            fill: heatColor(count),
+            size: isDimmed ? 8 : heatSize(count),
+            opacity: isDimmed ? 0.1 : 1,
+            labelText: isDimmed ? '' : `${n.properties.name} (${count})`,
+            labelFill: '#1f1f1f',
+            labelFontSize: 11,
+            labelPlacement: 'bottom',
+            labelOffsetY: 6,
+          },
+        }
+      }),
+      edges: graphStore.edges.map(e => ({
+        id: `${e.source_id}-${e.target_id}-${e.type}`,
+        source: e.source_id,
+        target: e.target_id,
+        style: {
+          stroke: '#d0d0d0',
+          lineWidth: 0.5,
+          opacity: ids.has(e.source_id) || ids.has(e.target_id) || (expansionActive && (!twoHopVisibleIds.value.has(e.source_id) || !twoHopVisibleIds.value.has(e.target_id))) ? 0.02 : 0.08,
+        },
+      })),
+    })
+    relayout()
+    return
+  }
+
+  // ── 默认视图：恢复全部节点 ──
+  graph.setData({
+    nodes: graphStore.nodes.map(n => ({
+      id: n.id,
+      style: {
+        fill: COLOR_MAP[n.labels[0]] ?? '#909399',
+        size: (ids.has(n.id) || (expansionActive && !twoHopVisibleIds.value.has(n.id))) ? 8 : 28,
+        opacity: (ids.has(n.id) || (expansionActive && !twoHopVisibleIds.value.has(n.id))) ? 0.1 : 1,
+        labelText: (ids.has(n.id) || (expansionActive && !twoHopVisibleIds.value.has(n.id))) ? '' : n.properties.name,
+        labelFill: '#1f1f1f',
+        labelFontSize: 11,
+        labelPlacement: 'bottom',
+        labelOffsetY: 6,
+      },
+    })),
+    edges: graphStore.edges.map(e => ({
+      id: `${e.source_id}-${e.target_id}-${e.type}`,
+      source: e.source_id,
+      target: e.target_id,
+      style: {
+        stroke: '#d0d0d0',
+        lineWidth: 1,
+        opacity: ids.has(e.source_id) || ids.has(e.target_id) || (expansionActive && (!twoHopVisibleIds.value.has(e.source_id) || !twoHopVisibleIds.value.has(e.target_id))) ? 0.04 : 0.4,
+      },
+    })),
+  })
+  relayout()
 }
 
 // ── 布局参数配置 ──
@@ -289,12 +529,27 @@ function initGraph() {
       type: 'click-select',
       onClick(event: any) {
         const id = event.target?.id
-        if (id) handleNodeClick(id)
+        if (!id) return
+        // 已选中的节点再次点击 → 展开 2 跳邻居
+        if (id === selectedNode.value?.id) {
+          expandTwoHops(id)
+        } else {
+          handleNodeClick(id)
+        }
       },
     }],
   })
 
   graph.render()
+
+  graph.on('click', (event: any) => {
+    // 点击空白区域恢复展开
+    if (!event.target?.id && expandedNodeId.value) {
+      clearHighlight()
+    }
+  })
+
+  applyCurrentView()
 }
 
 // ── 切换布局 ──
@@ -431,20 +686,9 @@ function zoomFit() {
   graph.fitView()
 }
 
-// ── 筛选变化 → 只更新样式 ──
-watch(filteredNodeIds, () => {
-  if (!graph) return
-  const ids = filteredNodeIds.value
-  const updatedNodes = graphStore.nodes.map(n => ({
-    id: n.id,
-    style: {
-      opacity: ids.has(n.id) ? 0.1 : 1,
-      size: ids.has(n.id) ? 8 : 28,
-      labelText: ids.has(n.id) ? '' : n.properties.name,
-    },
-  }))
-  graph.updateNodeData(updatedNodes)
-  graph.draw()
+// ── 筛选或视图变化 → 重新渲染 ──
+watch([filteredNodeIds, () => graphStore.viewMode], () => {
+  applyCurrentView()
 })
 
 // ── 窗口缩放时自适应画布尺寸 ──
@@ -498,12 +742,41 @@ onUnmounted(() => {
       <div class="graph-layout">
         <!-- ═══ 左侧面板：筛选器 ═══ -->
         <aside class="left-panel">
-          <!-- 图例 -->
+          <!-- 图例（按视图切换） -->
           <div class="panel-section">
             <div class="section-title">
               图例
             </div>
-            <div class="legend-list">
+            <!-- 技术栈：领域色 -->
+            <div v-if="graphStore.viewMode === 'tech'" class="legend-list">
+              <div
+                v-for="item in techLegend"
+                :key="item.name"
+                class="legend-row"
+              >
+                <span
+                  class="legend-dot"
+                  :style="{ background: item.color }"
+                />
+                <span>{{ item.name }}</span>
+              </div>
+            </div>
+            <!-- 热度：热力渐变 -->
+            <div v-else-if="graphStore.viewMode === 'heat'" class="heat-legend">
+              <div class="heat-gradient-bar" />
+              <div class="heat-gradient-labels">
+                <span>冷</span>
+                <span>热</span>
+              </div>
+              <div class="heat-size-hint">
+                <span class="hint-dot" style="width:6px;height:6px" />
+                <span>出现少</span>
+                <span class="hint-dot" style="width:16px;height:16px" />
+                <span>出现多</span>
+              </div>
+            </div>
+            <!-- 默认：节点类型 -->
+            <div v-else class="legend-list">
               <div
                 v-for="(color, label) in COLOR_MAP"
                 :key="label"
@@ -890,6 +1163,43 @@ onUnmounted(() => {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.heat-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.heat-gradient-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #409EFF, #F56C6C);
+}
+
+.heat-gradient-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #909399;
+}
+
+.heat-size-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #909399;
+  margin-top: 2px;
+}
+
+.hint-dot {
+  display: inline-block;
+  border-radius: 50%;
+  background: #C0C4CC;
   flex-shrink: 0;
 }
 
