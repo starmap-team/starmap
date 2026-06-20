@@ -41,6 +41,66 @@ _SPARK_MODELS: dict[str, str] = {
 
 @retry(
     stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=15),
+    reraise=True,
+)
+async def call_mimo_llm(
+    prompt: str,
+    timeout: int | None = None,
+) -> dict[str, Any]:
+    """Call Xiaomi MiMo API (OpenAI-compatible endpoint, reasoning model).
+
+    MiMo is a reasoning model: it uses reasoning_tokens before producing
+    output. max_tokens must cover both reasoning + output, so we use 8192.
+
+    Returns:
+        Dict with 'role', 'content', 'model' keys (content = final answer only,
+        reasoning_content discarded).
+    """
+    actual_timeout = timeout if timeout is not None else max(settings.llm_timeout, 30)
+    api_key = settings.mimo_api_key
+    if not api_key:
+        raise LLMConnectionError("MIMO_API_KEY is not configured")
+
+    base = settings.mimo_api_base.rstrip("/")
+    url = f"{base}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": settings.mimo_model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 8192,  # reasoning model: needs room for reasoning + output
+    }
+
+    logger.info("Calling MiMo {} at {}", settings.mimo_model, base)
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+    except httpx.TimeoutException as e:
+        raise LLMTimeoutError(f"MiMo API timeout after {actual_timeout}s") from e
+    except httpx.HTTPStatusError as e:
+        raise LLMResponseError(f"MiMo API returned {e.response.status_code}: {e.response.text}") from e
+    except httpx.RequestError as e:
+        raise LLMConnectionError(f"MiMo API connection failed: {e}") from e
+
+    choices = data.get("choices", [])
+    if not choices:
+        raise LLMResponseError("MiMo API returned empty choices")
+
+    message = choices[0].get("message", {})
+    content = message.get("content", "")
+    reasoning = message.get("reasoning_content", "")
+    logger.debug("MiMo response: {} output chars, {} reasoning chars", len(content), len(reasoning))
+    return {"role": "assistant", "content": content, "model": settings.mimo_model}
+
+
+@retry(
+    stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
     reraise=True,
 )
@@ -106,7 +166,7 @@ async def call_xunfei_llm(
 
 
 async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
-    """Call LLM with fallback: Xunfei primary, local Qwen fallback.
+    """Call LLM with fallback: MiMo primary, Xunfei secondary, Qwen tertiary.
 
     Args:
         prompt: Input prompt text.
@@ -114,11 +174,20 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
     Returns:
         Response dict with 'content' key.
     """
+    # Primary: MiMo (reasoning model)
+    if settings.mimo_api_key:
+        try:
+            return await call_mimo_llm(prompt)
+        except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
+            logger.warning("MiMo failed, trying Xunfei fallback: {}", e)
+
+    # Secondary: Xunfei Spark
     try:
         return await call_xunfei_llm(prompt)
     except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
-        logger.warning("Xunfei failed, trying fallback: {}", e)
+        logger.warning("Xunfei failed, trying Qwen fallback: {}", e)
 
+    # Tertiary: local Qwen
     fallback_endpoint = settings.qwen_model_path
     if not fallback_endpoint:
         raise LLMConnectionError("No fallback endpoint configured (qwen_model_path is empty)")

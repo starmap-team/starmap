@@ -1,6 +1,18 @@
 """阶段2接口骨架测试。"""
 from __future__ import annotations
 
+import pytest
+
+from app.dependencies import get_neo4j_driver
+from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def no_neo4j_driver():
+    app.dependency_overrides[get_neo4j_driver] = lambda: None
+    yield
+    app.dependency_overrides.pop(get_neo4j_driver, None)
+
 
 def test_graph_query_skeleton_response(client):
     resp = client.get("/api/v1/graph/query", params={"cypher": "MATCH (n) RETURN n LIMIT 1"})
@@ -13,6 +25,26 @@ def test_graph_query_requires_cypher(client):
     resp = client.get("/api/v1/graph/query")
 
     assert resp.status_code == 422
+
+
+def test_graph_query_rejects_write_cypher(client):
+    resp = client.get("/api/v1/graph/query", params={"cypher": "MATCH (n) SET n.name='x' RETURN n"})
+
+    assert resp.status_code == 400
+
+
+def test_graph_panorama_skeleton_response(client):
+    resp = client.get("/api/v1/graph/panorama")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"nodes": [], "edges": []}
+
+
+def test_graph_position_skeleton_response(client):
+    resp = client.get("/api/v1/graph/position/backend-engineer")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"position": None, "skills": [], "edges": []}
 
 
 def test_positions_skeleton_response(client):
@@ -34,10 +66,18 @@ def test_stage2_openapi_schema(client):
     assert resp.status_code == 200
     schema = resp.json()
     graph_query = schema["paths"]["/api/v1/graph/query"]["get"]
+    graph_panorama = schema["paths"]["/api/v1/graph/panorama"]["get"]
+    graph_position = schema["paths"]["/api/v1/graph/position/{position_name}"]["get"]
     positions = schema["paths"]["/api/v1/positions"]["get"]
 
     assert graph_query["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/GraphQueryResponse"
+    )
+    assert graph_panorama["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/GraphPanoramaResponse"
+    )
+    assert graph_position["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "/PositionSkillGraphResponse"
     )
     assert positions["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/PositionListResponse"

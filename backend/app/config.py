@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     llm_timeout: int = 60
     llm_max_retries: int = 3
 
+    # 小米 MiMo（实际使用的 OpenAI 兼容端点，推理模型）
+    mimo_api_base: str = "https://token-plan-cn.xiaomimimo.com/v1"
+    mimo_api_key: str = ""
+    mimo_model: str = "mimo-v2.5"
+
 
 @lru_cache
 def get_settings() -> Settings:
