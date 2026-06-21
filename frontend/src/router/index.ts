@@ -9,6 +9,12 @@ const routes = [
     meta: { title: '全景图谱' },
   },
   {
+    path: '/positions',
+    name: 'position-list',
+    component: () => import('@/pages/PositionList.vue'),
+    meta: { title: '岗位列表' },
+  },
+  {
     path: '/position/:name',
     name: 'position-detail',
     component: () => import('@/pages/PositionDetail.vue'),
