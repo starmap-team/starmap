@@ -415,8 +415,8 @@ def validate_skill_by_source_count(
         count = source_counts.get(standard, 0)
         return count >= min_sources
     # Fallback: alias existence check when no source_counts available
-    standard = normalize_by_alias(skill_name)
-    return standard is not None
+    matched = normalize_by_alias(skill_name)
+    return matched is not None
 
 
 @dataclass
