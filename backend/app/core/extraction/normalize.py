@@ -303,7 +303,7 @@ def normalize_by_alias(skill_name: str) -> str | None:
 
 CHROMA_COLLECTION_NAME: str = "skill_embeddings"
 _SENTENCE_MODEL: Any = None
-_SENTENCE_MODEL_NAME: str = "all-MiniLM-L6-v2"
+_SENTENCE_MODEL_NAME: str = "BAAI/bge-m3"
 
 
 def get_embedding(text: str) -> list[float]:
@@ -354,8 +354,12 @@ def normalize_by_vector(
         return None
 
     if chroma_client is None:
-        from app.config import settings
-        chroma_client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
+        try:
+            from app.config import settings
+            chroma_client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
+        except Exception:
+            logger.warning("ChromaDB not reachable, skipping vector normalization")
+            return None
 
     collection_name = CHROMA_COLLECTION_NAME
 
@@ -388,18 +392,29 @@ def normalize_by_vector(
     return None
 
 
-def validate_skill_by_source_count(skill_name: str, min_sources: int = 3) -> bool:
+def validate_skill_by_source_count(
+    skill_name: str,
+    min_sources: int = 3,
+    source_counts: dict[str, int] | None = None,
+) -> bool:
     """Validate a skill by checking if it appears in enough source documents.
 
     Args:
         skill_name: Skill name to validate.
         min_sources: Minimum number of sources required.
+        source_counts: Optional dict mapping skill name -> source count.
+            If provided, uses real counts instead of alias existence check.
 
     Returns:
         True if the skill meets the source count threshold.
     """
     if min_sources <= 1:
         return True
+    if source_counts is not None:
+        standard = normalize_by_alias(skill_name) or skill_name
+        count = source_counts.get(standard, 0)
+        return count >= min_sources
+    # Fallback: alias existence check when no source_counts available
     standard = normalize_by_alias(skill_name)
     return standard is not None
 
@@ -418,10 +433,11 @@ class NormalizationResult:
 
 def normalize_skill(
     skill_name: str,
-    use_vector: bool = False,
+    use_vector: bool = True,
     chroma_client: Any = None,
     vector_threshold: float = 0.85,
     min_sources: int = 3,
+    source_counts: dict[str, int] | None = None,
 ) -> NormalizationResult:
     """Normalize a skill name through a 3-step pipeline.
 
@@ -447,7 +463,7 @@ def normalize_skill(
         result.normalized = step
         result.method = "alias"
         result.confidence = 0.95
-        result.is_valid = validate_skill_by_source_count(step, min_sources)
+        result.is_valid = validate_skill_by_source_count(step, min_sources, source_counts)
         return result
 
     if use_vector:
@@ -456,7 +472,7 @@ def normalize_skill(
             result.normalized = vec
             result.method = "vector"
             result.confidence = vector_threshold
-            result.is_valid = validate_skill_by_source_count(vec, min_sources)
+            result.is_valid = validate_skill_by_source_count(vec, min_sources, source_counts)
             return result
 
     result.normalized = skill_name
@@ -470,10 +486,11 @@ def normalize_skill(
 
 def batch_normalize_skills(
     skill_names: list[str],
-    use_vector: bool = False,
+    use_vector: bool = True,
     chroma_client: Any = None,
     vector_threshold: float = 0.85,
     min_sources: int = 3,
+    source_counts: dict[str, int] | None = None,
 ) -> list[NormalizationResult]:
     """Normalize multiple skill names.
 
@@ -483,6 +500,8 @@ def batch_normalize_skills(
         chroma_client: ChromaDB client.
         vector_threshold: Vector similarity threshold.
         min_sources: Minimum source count.
+        source_counts: Optional dict mapping skill name -> source count
+            for validating source frequency requirements.
 
     Returns:
         List of NormalizationResult.
@@ -494,6 +513,7 @@ def batch_normalize_skills(
             chroma_client=chroma_client,
             vector_threshold=vector_threshold,
             min_sources=min_sources,
+            source_counts=source_counts,
         )
         for s in skill_names
     ]

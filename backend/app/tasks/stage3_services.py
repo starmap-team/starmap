@@ -167,12 +167,31 @@ async def persist_extraction_result(
     return record
 
 
+async def _load_source_counts(sessionmaker: async_sessionmaker) -> dict[str, int]:
+    """Load current source counts from SkillRecord table."""
+    try:
+        async with sessionmaker() as session:
+            rows = (
+                await session.execute(
+                    sa.select(SkillRecord.name, SkillRecord.source_count)
+                )
+            ).all()
+            return {row.name: row.source_count for row in rows if row.source_count}
+    except Exception:
+        logger.warning("Failed to load source counts, continuing without them")
+        return {}
+
+
 async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
     """Run extraction, persist it, and ingest the resulting triples into Neo4j."""
     engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     try:
-        result = await extract_from_jd(jd_text, options=options)
+        options_with_counts = dict(options or {})
+        source_counts = await _load_source_counts(sessionmaker)
+        if source_counts:
+            options_with_counts["source_counts"] = source_counts
+        result = await extract_from_jd(jd_text, options=options_with_counts)
         if not result.get("success"):
             return {"status": "failed", "error": result.get("error", "Unknown extraction error")}
 

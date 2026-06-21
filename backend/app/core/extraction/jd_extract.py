@@ -96,9 +96,10 @@ class JDExtractionPipeline:
     llm_client: LLMClient = field(default_factory=LLMClient)
     anti_hallucination_enabled: bool = True
     normalize_skills_enabled: bool = True
-    use_vector_normalization: bool = False
+    use_vector_normalization: bool = True
     vector_threshold: float = 0.85
     min_sources: int = 3
+    source_counts: dict[str, int] | None = None
 
     async def run(self, jd_content: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """Execute the full extraction pipeline.
@@ -231,6 +232,7 @@ class JDExtractionPipeline:
                 use_vector=self.use_vector_normalization,
                 vector_threshold=self.vector_threshold,
                 min_sources=self.min_sources,
+                source_counts=self.source_counts,
             )
 
             result["normalization"] = [nr.__dict__ for nr in normalized_results]
@@ -310,6 +312,7 @@ async def extract_from_jd(
             - use_vector_normalization (bool)
             - vector_threshold (float)
             - min_sources (int)
+            - source_counts (dict[str, int]): Skill name -> source count map
 
     Returns:
         Pipeline result dict with keys: success, data, warnings, normalization, validation, error.
