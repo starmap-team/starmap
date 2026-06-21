@@ -177,6 +177,8 @@ class JDExtractionPipeline:
                     setattr(validated, key, parsed.get(key))
                 elif key == "responsibilities":
                     setattr(validated, key, parsed.get(key, []))
+                elif key in ("required_skills", "preferred_skills"):
+                    pass  # keep default [] from JDExtractionResult()
                 else:
                     setattr(validated, key, parsed.get(key, ""))
 
@@ -185,14 +187,24 @@ class JDExtractionPipeline:
             "系统", "安全", "开发", "管理", "平台", "框架", "技术", "语言",
             "生态", "相关", "服务", "设计", "网络", "算法", "存储", "计算",
             "容器", "工具", "应用", "架构", "工程", "引擎", "协议", "自动化",
-            "编程", "部署", "监控", "测试", "运维", "研发", "分析",
+            "编程", "部署", "监控", "测试", "运维", "研发",
+            "运行时", "数据库", "环境", "桌面", "并行", "调优", "优化",
+            "设计规范", "部署经验", "模型转换", "模型加速", "内核", "源码",
+            # M2 low-F1 optimization: strip common Chinese suffixes that LLM appends
+            "方法论", "能力", "攻防", "漏洞", "竞赛经验", "认证", "证书",
         ]
         def _clean_skill_name(name: str) -> str:
-            for suffix in chinese_suffixes:
-                if len(name) > 3 and name.endswith(suffix) and not name.startswith(tuple("一二三四五六七八九十")):
-                    cleaned = name[:-len(suffix)]
-                    if cleaned:
-                        return cleaned
+            while True:
+                original = name
+                for suffix in chinese_suffixes:
+                    if len(name) > 3 and name.endswith(suffix):
+                        cleaned = name[:-len(suffix)]
+                        # Only apply strip if result is non-empty AND at least 3 chars
+                        # (prevents over-stripping like "系统架构"→"系统" or "渗透测试"→"渗透")
+                        if cleaned and len(cleaned) >= 3:
+                            name = cleaned
+                if name == original:
+                    break
             return name
 
         for skill in validated.required_skills:
