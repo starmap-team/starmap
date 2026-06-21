@@ -2,11 +2,10 @@
 
 import threading
 from dataclasses import dataclass, field
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 import yaml
-
 from loguru import logger
 
 SKILL_ALIAS: dict[str, list[str]] = {
@@ -236,7 +235,7 @@ def load_skill_aliases_from_yaml(path: Path = _TAXONOMY_PATH) -> dict[str, list[
         logger.warning("Skill taxonomy not found at {}", path)
         return {}
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     aliases: dict[str, list[str]] = {}
