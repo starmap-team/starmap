@@ -19,6 +19,9 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      - NO_PROXY=*
+      - no_proxy=*
     depends_on:
       neo4j:
         condition: service_healthy

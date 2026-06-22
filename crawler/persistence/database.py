@@ -4,13 +4,21 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Iterator
 from urllib.parse import quote_plus
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 log = logging.getLogger(__name__)
+
+# 加载 .env 文件（从项目根目录）
+_env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path)
+    log.debug("Loaded .env from %s", _env_path)
 
 # 同步引擎（爬虫是 IO 密集型，同步 psycopg2/psycopg3 足够）
 # Windows 上 `localhost` 会被解析为 IPv6 `::1`，而 Postgres 默认只监听 IPv4，

@@ -1,0 +1,955 @@
+description: ESCO → StarMap 技能映射
+mappings:
+  agile project management:
+    description: 'The agile project management approach is a methodology for planning,
+      managing and overseeing of ICT '
+    esco_label: Agile project management
+    esco_uri: http://data.europa.eu/esco/skill/0a9acb6b-1139-4be9-b431-3a80a959f2f4
+    starmap_skill: Agile Project Management
+  analyse big data:
+    description: Collect and evaluate numerical data in large quantities, especially
+      for the purpose of identifying p
+    esco_label: analyse big data
+    esco_uri: http://data.europa.eu/esco/skill/47a49cd6-097d-457a-9f7b-c290c14930d5
+    starmap_skill: Big Data
+  analyse data for aeronautical publications:
+    description: Collect, edit, and analyse data received from civil aviation authorities
+      and related services. Analy
+    esco_label: analyse data for aeronautical publications
+    esco_uri: http://data.europa.eu/esco/skill/807d89b5-3557-4259-8e2c-1b374d497fe8
+    starmap_skill: Data Analysis
+  analyse large-scale data in healthcare:
+    description: Carry out large-scale data gathering such as questionnaire surveys,
+      and analyse the obtained data.
+    esco_label: analyse large-scale data in healthcare
+    esco_uri: http://data.europa.eu/esco/skill/3e8e862d-2f1a-40c6-bb6d-d1d7eeb78854
+    starmap_skill: Big Data
+  analyse oil operations data:
+    description: Record and process oil operating data. Comprehend and analyse documents,
+      instruments and data result
+    esco_label: analyse oil operations data
+    esco_uri: http://data.europa.eu/esco/skill/4af2461d-02b4-4fca-a070-c6399a6f1fb4
+    starmap_skill: Data Analysis
+  angular:
+    description: The techniques and principles of software development, such as analysis,
+      algorithms, coding, testing
+    esco_label: Angular
+    esco_uri: http://data.europa.eu/esco/skill/1ffac4ac-fda7-407d-8ed1-ca8f4a8dc146
+    starmap_skill: Angular
+  ansible:
+    description: The tool Ansible is a software program to perform configuration identification,
+      control, status acco
+    esco_label: Ansible
+    esco_uri: http://data.europa.eu/esco/skill/6f8a40d6-f9ce-43ec-a72f-d4213a53f3ed
+    starmap_skill: Ansible
+  apply digital mapping:
+    description: 'Make maps by formatting compiled data into a virtual image that
+      gives a precise representation of a '
+    esco_label: apply digital mapping
+    esco_uri: http://data.europa.eu/esco/skill/9295d1c5-8d7d-423e-a6ce-dfbc1d991f88
+    starmap_skill: GIS
+  apply digital security measures:
+    description: Follow simple ways to protect digital devices and content.
+    esco_label: apply digital security measures
+    esco_uri: http://data.europa.eu/esco/skill/f4346299-e22a-4686-8e61-2c9b0cd51c7d
+    starmap_skill: Security
+  apply information security policies:
+    description: Implement policies, methods and regulations for data and information
+      security in order to respect co
+    esco_label: apply information security policies
+    esco_uri: http://data.europa.eu/esco/skill/86d2e2ea-1ba2-4aa6-b465-8a1f9abc81b8
+    starmap_skill: Information Security
+  asp.net:
+    description: The techniques and principles of software development, such as analysis,
+      algorithms, coding, testing
+    esco_label: ASP.NET
+    esco_uri: http://data.europa.eu/esco/skill/56a7f561-1d55-43c9-9cd7-36a0a9bc6c50
+    starmap_skill: ASP.NET
+  automate cloud tasks:
+    description: Automate manual or repeatable processes to minimize management overhead.
+      Evaluate cloud automation a
+    esco_label: automate cloud tasks
+    esco_uri: http://data.europa.eu/esco/skill/ce8ae6ca-61d8-4174-b457-641de96cbff4
+    starmap_skill: Cloud Computing
+  automation technology:
+    description: 'Set of technologies that make a process, system, or apparatus operate
+      automatically through the use '
+    esco_label: automation technology
+    esco_uri: http://data.europa.eu/esco/skill/f4a6e9f7-5cff-46c0-894c-59c20bb78694
+    starmap_skill: Automation
+  biotechnology:
+    description: The technology that uses, modifies or harnesses biological systems,
+      organisms and cellular component
+    esco_label: biotechnology
+    esco_uri: http://data.europa.eu/esco/skill/61bef658-d7f9-4759-b1b0-0f9cb3bc581a
+    starmap_skill: Biotechnology
+  browse, search and filter data, information and digital content:
+    description: Articulate information needs, search for data, information and content
+      in digital environments, acce
+    esco_label: browse, search and filter data, information and digital content
+    esco_uri: http://data.europa.eu/esco/skill/e439742d-558d-4f52-885e-afdc740b48cf
+    starmap_skill: Data Analysis
+  building automation:
+    description: 'Type of automatic control system where through a Building Managements
+      System or Building Automation '
+    esco_label: building automation
+    esco_uri: http://data.europa.eu/esco/skill/6709e92c-7546-46a4-aa57-5e951bd4cb0f
+    starmap_skill: Building Automation
+  business intelligence:
+    description: The tools used to transform large amounts of raw data into relevant
+      and helpful business information
+    esco_label: business intelligence
+    esco_uri: http://data.europa.eu/esco/skill/143769cb-b61e-47d8-a61e-eedfbec1016c
+    starmap_skill: Business Intelligence
+  c++:
+    description: The techniques and principles of software development, such as analysis,
+      algorithms, coding, testing
+    esco_label: C++
+    esco_uri: http://data.europa.eu/esco/skill/b633eb55-8f1f-4ae6-ab4c-2022ffe2cb7f
+    starmap_skill: C++
+  call-centre technologies:
+    description: The wide range of telecommunications hardware and software such as
+      automated phone systems and commu
+    esco_label: call-centre technologies
+    esco_uri: http://data.europa.eu/esco/skill/e13b734a-218c-434a-a7cc-febac6d24ef3
+    starmap_skill: Telecommunications
+  cloud monitoring and reporting:
+    description: The metrics and alarms utilizing cloud monitoring services, in particular
+      performance and availabili
+    esco_label: cloud monitoring and reporting
+    esco_uri: http://data.europa.eu/esco/skill/8efa6a7a-6556-4cb8-908d-59d3b5c58d2f
+    starmap_skill: Cloud Computing
+  cloud technologies:
+    description: The technologies which enable access to hardware, software, data
+      and services through remote servers
+    esco_label: cloud technologies
+    esco_uri: http://data.europa.eu/esco/skill/bd14968e-e409-45af-b362-3495ed7b10e0
+    starmap_skill: Cloud Computing
+  collaborate through digital technologies:
+    description: Use digital tools and technologies for collaborative processes, and
+      for co-construction and co-creat
+    esco_label: collaborate through digital technologies
+    esco_uri: http://data.europa.eu/esco/skill/2b34a99f-9813-4c91-9509-b6b9b8c3132e
+    starmap_skill: Collaboration Tools
+  computer engineering:
+    description: Engineering discipline that combines computer science with electrical
+      engineering to develop compute
+    esco_label: computer engineering
+    esco_uri: http://data.europa.eu/esco/skill/89f6560b-2194-45c9-9ece-d33049a73eef
+    starmap_skill: Computer Engineering
+  computer vision:
+    description: The definition and functioning of computer vision. Computer vision
+      tools to allow computers to extra
+    esco_label: computer vision
+    esco_uri: http://data.europa.eu/esco/skill/7b0d5000-00da-4864-b776-6de49a87a669
+    starmap_skill: Computer Vision
+  conduct ict code review:
+    description: Examine and review systematically computer source code to identify
+      errors in any stage of developmen
+    esco_label: conduct ICT code review
+    esco_uri: http://data.europa.eu/esco/skill/9d1b08b3-ba1e-41f6-a466-1ac1e62eb5f0
+    starmap_skill: Code Review
+  copyright and licenses related to digital content:
+    description: Understand how copyright and licences apply to data, information
+      and digital content.
+    esco_label: copyright and licenses related to digital content
+    esco_uri: http://data.europa.eu/esco/skill/a91732ce-988e-4105-9570-f425c6ffdc82
+    starmap_skill: Copyright
+  create digital files:
+    description: Create digital files in the computer system after quality checking
+      printing or scanned documents for
+    esco_label: create digital files
+    esco_uri: http://data.europa.eu/esco/skill/2e1888d8-97f7-4c91-8874-e2ef0e47f94f
+    starmap_skill: Digital Literacy
+  create digital images:
+    description: Create and process two-dimensional and three-dimensional digital
+      images depicting animated objects o
+    esco_label: create digital images
+    esco_uri: http://data.europa.eu/esco/skill/5f782745-6382-4873-b415-8fb91c705b03
+    starmap_skill: Graphic Design
+  creatively use digital technologies:
+    description: Use digital tools and technologies to create knowledge and to innovate
+      processes and products. Engag
+    esco_label: creatively use digital technologies
+    esco_uri: http://data.europa.eu/esco/skill/1a4cc54f-1e53-442b-a6d2-1682dc8ef8f9
+    starmap_skill: Digital Literacy
+  css:
+    description: The computer language CSS is a style sheet language that conveys
+      the presentation of structured docu
+    esco_label: CSS
+    esco_uri: http://data.europa.eu/esco/skill/e5d1f825-60ed-4bdd-872a-e748c387f777
+    starmap_skill: CSS
+  data extraction, transformation and loading tools:
+    description: The tools for integration of information from multiple applications,
+      created and maintained by organ
+    esco_label: data extraction, transformation and loading tools
+    esco_uri: http://data.europa.eu/esco/skill/9d0d89be-bffa-4393-b6f6-8d05bea49051
+    starmap_skill: ETL
+  data mining:
+    description: The methods of artificial intelligence, machine learning, statistics
+      and databases used to extract c
+    esco_label: data mining
+    esco_uri: http://data.europa.eu/esco/skill/25f0ea33-b4a2-4f31-b7b4-7d20e827b180
+    starmap_skill: Data Mining
+  database management systems:
+    description: The tools for creating, updating and managing databases, such as
+      Oracle, MySQL and Microsoft SQL Ser
+    esco_label: database management systems
+    esco_uri: http://data.europa.eu/esco/skill/ab1e97ed-2319-4293-a8b7-072d2648822f
+    starmap_skill: Database Design
+  db2:
+    description: The computer program IBM DB2 is a tool for creating, updating and
+      managing databases, developed by t
+    esco_label: DB2
+    esco_uri: http://data.europa.eu/esco/skill/3cee858e-79e8-4a4b-b99f-93c7f735d58b
+    starmap_skill: DB2
+  deep learning:
+    description: The principles, methods and algorithms of deep learning, a subfield
+      of artificial intelligence and m
+    esco_label: deep learning
+    esco_uri: http://data.europa.eu/esco/skill/ecc4552a-92c5-4222-b18d-faf5ac841080
+    starmap_skill: Deep Learning
+  define software architecture:
+    description: Create and document the structure of software products including
+      components, coupling and interfaces
+    esco_label: define software architecture
+    esco_uri: http://data.europa.eu/esco/skill/f7e2eb04-3e50-4561-bce1-7e51a1fec308
+    starmap_skill: Software Architecture
+  design automation components:
+    description: Design engineering parts, assemblies, products, or systems that contribute
+      to the automation of indu
+    esco_label: design automation components
+    esco_uri: http://data.europa.eu/esco/skill/f96f5aa5-6ed7-40dc-a431-68b0a09d6d4b
+    starmap_skill: Automation
+  design cloud architecture:
+    description: 'Design a multi-tier cloud architecture solution, which tolerates
+      faults and is fit for the workload '
+    esco_label: design cloud architecture
+    esco_uri: http://data.europa.eu/esco/skill/11430d93-c835-48ed-8e70-285fa69c9ae6
+    starmap_skill: Cloud Architecture
+  design database in the cloud:
+    description: Apply design principles for an adaptive, elastic, automated, loosely
+      coupled databases making use of
+    esco_label: design database in the cloud
+    esco_uri: http://data.europa.eu/esco/skill/7e796b51-49d7-4e73-95af-2e7323763f15
+    starmap_skill: Cloud Architecture
+  design digital call to action:
+    description: Appeal the audience in order to provoke their instant response. Use
+      imperative verb forms in the mes
+    esco_label: design digital call to action
+    esco_uri: http://data.europa.eu/esco/skill/5233e3f4-904a-4f68-9327-707f11d93374
+    starmap_skill: UX Design
+  design electrical systems:
+    description: Draft sketches and design electrical systems, products, and components
+      using Computer Aided Design (
+    esco_label: design electrical systems
+    esco_uri: http://data.europa.eu/esco/skill/05010f6c-0b40-4525-ac4a-057d46a2b6f4
+    starmap_skill: Electrical Engineering
+  design electromechanical systems:
+    description: Draft sketches and design electromechanical systems, products, and
+      components using Computer Aided D
+    esco_label: design electromechanical systems
+    esco_uri: http://data.europa.eu/esco/skill/c5422318-3218-4ce9-9bdd-f38b93ff63a3
+    starmap_skill: Electrical Engineering
+  design electronic systems:
+    description: Draft sketches and design electronic systems, products, and components
+      using Computer Aided Design (
+    esco_label: design electronic systems
+    esco_uri: http://data.europa.eu/esco/skill/feb717ff-fba6-4a91-aa10-ee11cf2da6b4
+    starmap_skill: Electronics
+  design enterprise architecture:
+    description: Analyse the business structure and provide a logical organisation
+      of business processes and informat
+    esco_label: design enterprise architecture
+    esco_uri: http://data.europa.eu/esco/skill/ee3c1d54-f46a-43c7-a0f9-0ba3648164d0
+    starmap_skill: Enterprise Architecture
+  design optical systems:
+    description: Design and develop optical and imaging systems, products, and components,
+      such as lasers, microscope
+    esco_label: design optical systems
+    esco_uri: http://data.europa.eu/esco/skill/b73bda36-9c32-4045-ad4b-168b81d44662
+    starmap_skill: Optics
+  design sprinkler systems:
+    description: Design sprinkler systems. Take into account issues of water conservation,
+      existing and proposed land
+    esco_label: design sprinkler systems
+    esco_uri: http://data.europa.eu/esco/skill/065ec709-e0f4-407f-91fe-9feab66942be
+    starmap_skill: Building Automation
+  develop digital content:
+    description: Create and edit digital content in different formats, express oneself
+      through digital means.
+    esco_label: develop digital content
+    esco_uri: http://data.europa.eu/esco/skill/5fd5c985-eaaa-47aa-8314-62359c54505a
+    starmap_skill: Content Creation
+  develop information security strategy:
+    description: Create company strategy related to the safety and security of information
+      in order to maximise infor
+    esco_label: develop information security strategy
+    esco_uri: http://data.europa.eu/esco/skill/3579208e-49b3-4ce4-98e7-20e41b1ce8d4
+    starmap_skill: Information Security
+  develop strategies for accessibility:
+    description: Create strategies for a business to enable optimum accessibility
+      for all clients.
+    esco_label: develop strategies for accessibility
+    esco_uri: http://data.europa.eu/esco/skill/e8ef317f-c880-4c7a-929f-e08053f976bb
+    starmap_skill: Accessibility
+  develop translation memory software:
+    description: Develop and improve translation memory software for retrieving equivalent
+      target texts in existing d
+    esco_label: develop translation memory software
+    esco_uri: http://data.europa.eu/esco/skill/2b24cbb7-f94e-43c1-8377-138f80ad5c19
+    starmap_skill: Translation Tools
+  devops:
+    description: The DevOps development approach is a methodology to design software
+      systems and applications focused
+    esco_label: DevOps
+    esco_uri: http://data.europa.eu/esco/skill/f0de4973-0a70-4644-8fd4-3a97080476f4
+    starmap_skill: DevOps
+  digital compositing:
+    description: The process and software for digitally assembling multiple images
+      to make one, final image.
+    esco_label: digital compositing
+    esco_uri: http://data.europa.eu/esco/skill/3cc1ee94-ab2c-4f35-8171-3cf4b5b664e4
+    starmap_skill: Video Editing
+  digital content creation:
+    description: Create and edit new content (from word processing to images and video);
+      integrate and re-elaborate p
+    esco_label: digital content creation
+    esco_uri: http://data.europa.eu/esco/skill/f5369f2f-e52b-43d8-8d31-79a6c11188d8
+    starmap_skill: Content Creation
+  digital data processing:
+    description: Identify, locate, retrieve, store, organise and analyse digital information,
+      judging its relevance a
+    esco_label: digital data processing
+    esco_uri: http://data.europa.eu/esco/skill/629685b8-5f9e-4522-8cff-b3e2c4ec625a
+    starmap_skill: Data Processing
+  digital marketing techniques:
+    description: The marketing techniques used on the web to reach and engage with
+      stakeholders, customers and client
+    esco_label: digital marketing techniques
+    esco_uri: http://data.europa.eu/esco/skill/43dfbe7f-9e10-4871-b171-e5076737b4cf
+    starmap_skill: Digital Marketing
+  edit digital moving images:
+    description: Use specialised software to edit video images for use in an artistic
+      production.
+    esco_label: edit digital moving images
+    esco_uri: http://data.europa.eu/esco/skill/9ce52938-fe28-4548-b38d-0c783933e19a
+    starmap_skill: Video Editing
+  embedded systems:
+    description: The computer systems and components with a specialised and autonomous
+      function within a larger syste
+    esco_label: embedded systems
+    esco_uri: http://data.europa.eu/esco/skill/2180bd8c-86de-4889-8165-adac902eee9d
+    starmap_skill: Embedded Systems
+  engage in citizenship through digital technologies:
+    description: Participate in society through the use of public and private digital
+      services. Seek opportunities fo
+    esco_label: engage in citizenship through digital technologies
+    esco_uri: http://data.europa.eu/esco/skill/16a00c69-9c74-4c37-96d7-6301d285e5ce
+    starmap_skill: Digital Literacy
+  ensure information security:
+    description: Ensure that the information gathered during surveillance or investigations
+      remains in the hands of t
+    esco_label: ensure information security
+    esco_uri: http://data.europa.eu/esco/skill/6833e58b-eceb-4599-9375-1b7e6ec64087
+    starmap_skill: Information Security
+  ensure infrastructure accessibility:
+    description: Consult designers, builders, and people with disabilities to determine
+      how best to provide accessibl
+    esco_label: ensure infrastructure accessibility
+    esco_uri: http://data.europa.eu/esco/skill/0332f526-6dc0-4f09-8a7c-2b9473c50736
+    starmap_skill: Accessibility
+  evaluate data, information and digital content:
+    description: Analyse, compare and critically evaluate the credibility and reliability
+      of sources of data, informa
+    esco_label: evaluate data, information and digital content
+    esco_uri: http://data.europa.eu/esco/skill/1d6c7de4-350e-4868-a47b-333b4b0d9650
+    starmap_skill: Data Analysis
+  execute integration testing:
+    description: 'Perform testing of system or software components grouped in multiple
+      ways to evaluate their ability '
+    esco_label: execute integration testing
+    esco_uri: http://data.europa.eu/esco/skill/ea412de3-9d7a-4943-8d8c-c6d3c7495d0e
+    starmap_skill: Integration Testing
+  graphics editor software:
+    description: The field of graphical ICT tools which enable digital editing and
+      composition of graphics, such as G
+    esco_label: graphics editor software
+    esco_uri: http://data.europa.eu/esco/skill/a71577b2-7550-4222-88ee-dcbd2d881516
+    starmap_skill: UI Design
+  hadoop:
+    description: The open-source data storing, analysis and processing framework which
+      consists mainly in the MapRedu
+    esco_label: Hadoop
+    esco_uri: http://data.europa.eu/esco/skill/e46291c7-52b9-4174-bd59-178884861038
+    starmap_skill: Hadoop
+  haskell:
+    description: The techniques and principles of software development, such as analysis,
+      algorithms, coding, testing
+    esco_label: Haskell
+    esco_uri: http://data.europa.eu/esco/skill/000f1d3d-220f-4789-9c0a-cc742521fb02
+    starmap_skill: Haskell
+  ict accessibility standards:
+    description: The recommendations for making ICT content and applications more
+      accessible to a wider range of peop
+    esco_label: ICT accessibility standards
+    esco_uri: http://data.europa.eu/esco/skill/3e23db60-0c3d-498a-a6ac-ffbed0ecb033
+    starmap_skill: Accessibility
+  ict encryption:
+    description: The conversion of electronic data into a format which is readable
+      only by authorized parties which u
+    esco_label: ICT encryption
+    esco_uri: http://data.europa.eu/esco/skill/d32db06e-bd06-4415-a7ab-1b0ee68caa9a
+    starmap_skill: Encryption
+  ict network security risks:
+    description: The security risk factors, such as hardware and software components,
+      devices, interfaces and policie
+    esco_label: ICT network security risks
+    esco_uri: http://data.europa.eu/esco/skill/2ddb1226-1117-4eb4-ae65-3a2f5a5a3c80
+    starmap_skill: Network Security
+  ict project management methodologies:
+    description: 'The methodologies or models for planning, managing and overseeing
+      of ICT resources in order to meet '
+    esco_label: ICT project management methodologies
+    esco_uri: http://data.europa.eu/esco/skill/bec4359e-cb92-468f-a997-8fb28e32fba9
+    starmap_skill: Project Management
+  identify digital competence gaps:
+    description: Understand where one’s own digital competence needs to be improved
+      or updated. Be able to support ot
+    esco_label: identify digital competence gaps
+    esco_uri: http://data.europa.eu/esco/skill/238343b1-7b51-42b3-a9ed-cf24d3a236e7
+    starmap_skill: Digital Literacy
+  implement a firewall:
+    description: 'Download, install and update a network security system designed
+      to prevent unauthorized access to a '
+    esco_label: implement a firewall
+    esco_uri: http://data.europa.eu/esco/skill/e5b5053e-0ef6-4c4e-a3f2-42f955f4322c
+    starmap_skill: Firewall
+  implement data warehousing techniques:
+    description: Apply models and tools such as online analytical processing (OLAP)
+      and Online transaction processing
+    esco_label: implement data warehousing techniques
+    esco_uri: http://data.europa.eu/esco/skill/fd6d2981-3d4a-4ce2-9741-cfc98c5b74bd
+    starmap_skill: Data Warehousing
+  install automation components:
+    description: Install the automation components according to the specifications
+      of the circuit diagram.
+    esco_label: install automation components
+    esco_uri: http://data.europa.eu/esco/skill/818c2b89-1335-4443-ada7-e1046862e273
+    starmap_skill: Automation
+  install electrical and electronic equipment:
+    description: Install equipment which is dependent on electric currents or electromagnetic
+      fields in order to work
+    esco_label: install electrical and electronic equipment
+    esco_uri: http://data.europa.eu/esco/skill/52797dce-911c-4e6d-b0cb-491f6469014f
+    starmap_skill: Electronics
+  install electrical mining machinery:
+    description: Assemble and disassemble electrical mining machinery. Requires hand
+      and eye coordination and spatial
+    esco_label: install electrical mining machinery
+    esco_uri: http://data.europa.eu/esco/skill/d3586c5c-e8a6-4fad-bf07-de7ca5072380
+    starmap_skill: Electronics
+  integrate and re-elaborate digital content:
+    description: 'Modify, refine, improve and integrate information and content into
+      an existing body of knowledge to '
+    esco_label: integrate and re-elaborate digital content
+    esco_uri: http://data.europa.eu/esco/skill/5af49836-2269-46d9-87b9-0d3140c6c22e
+    starmap_skill: Data Processing
+  integrated circuit types:
+    description: 'Types of integrated circuits (IC), such as analog integrated circuits,
+      digital integrated circuits, '
+    esco_label: integrated circuit types
+    esco_uri: http://data.europa.eu/esco/skill/61c81161-b732-4c47-aba5-9e554d9a853f
+    starmap_skill: Electronics
+  integrated development environment software:
+    description: The suite of software development tools for writing programs, such
+      as compiler, debugger, code edito
+    esco_label: integrated development environment software
+    esco_uri: http://data.europa.eu/esco/skill/925463a7-d51f-4d5b-9f79-4d28cf30acde
+    starmap_skill: IDE
+  interact through digital technologies:
+    description: 'Interact through a variety of digital technologies and understand
+      appropriate digital communication '
+    esco_label: interact through digital technologies
+    esco_uri: http://data.europa.eu/esco/skill/a12057b4-6d11-4a12-ab8e-15a028ef0a6d
+    starmap_skill: Digital Literacy
+  internet of things:
+    description: The general principles, categories, requirements, limitations and
+      vulnerabilities of smart connected
+    esco_label: Internet of Things
+    esco_uri: http://data.europa.eu/esco/skill/f049d050-12da-4e40-813a-2b5eb6df6b51
+    starmap_skill: IoT
+  keep up with digital transformation of industrial processes:
+    description: Keep up to date with digital innovations applicable to industrial
+      processes. Integrate these transfo
+    esco_label: keep up with digital transformation of industrial processes
+    esco_uri: http://data.europa.eu/esco/skill/0458f6a0-cb54-4ff5-a543-b2c5354e17c0
+    starmap_skill: Digital Transformation
+  keywords in digital content:
+    description: The digital tools to conduct keyword research. The information retrieval
+      systems identify the conten
+    esco_label: keywords in digital content
+    esco_uri: http://data.europa.eu/esco/skill/06f33d6a-f7a7-4a2b-baa5-8c3c53bd1a9c
+    starmap_skill: SEO
+  lay out digital written content:
+    description: Lay out pages by selecting sizes, styles and entering text and graphics
+      into computer systems.
+    esco_label: lay out digital written content
+    esco_uri: http://data.europa.eu/esco/skill/9b30c8fd-6467-4d16-99e0-32899a9ceec0
+    starmap_skill: Content Creation
+  machine learning:
+    description: The principles, methods and algorithms of machine learning, a subfield
+      of artificial intelligence. C
+    esco_label: machine learning
+    esco_uri: http://data.europa.eu/esco/skill/3a2d5b45-56e4-4f5a-a55a-4a4a65afdc43
+    starmap_skill: Machine Learning
+  maintain responsive design:
+    description: Ensure that the website runs on the latest technology and is multi-platform
+      compatible and mobile-fr
+    esco_label: maintain responsive design
+    esco_uri: http://data.europa.eu/esco/skill/6ad40ca3-dc34-4442-b23f-0b1b28936f56
+    starmap_skill: Responsive Design
+  maintain system logs:
+    description: Maintain system logs or manuals to document equipment testing and
+      operation.
+    esco_label: maintain system logs
+    esco_uri: http://data.europa.eu/esco/skill/6b222aac-688c-4c9d-acbc-7fe25d37565e
+    starmap_skill: Log Management
+  manage data, information and digital content:
+    description: Organise, store and retrieve data, information and content in digital
+      environments. Organise and pro
+    esco_label: manage data, information and digital content
+    esco_uri: http://data.europa.eu/esco/skill/4d97e3c3-f335-47cc-a4ee-0d779fd42222
+    starmap_skill: Data Management
+  manage digital archives:
+    description: Create and maintain computer archives and databases, incorporating
+      latest developments in electronic
+    esco_label: manage digital archives
+    esco_uri: http://data.europa.eu/esco/skill/fa3e5cec-703e-4d46-b3bb-e8a89540ab54
+    starmap_skill: Data Storage
+  manage digital documents:
+    description: Manage various data formats and files by naming, publishing, transforming
+      and sharing files and docu
+    esco_label: manage digital documents
+    esco_uri: http://data.europa.eu/esco/skill/b769f524-0f25-44d7-8538-5c46710a040e
+    starmap_skill: Documentation
+  manage digital identity:
+    description: 'Create and manage one or multiple digital identities, be able to
+      protect one''s own reputation, deal '
+    esco_label: manage digital identity
+    esco_uri: http://data.europa.eu/esco/skill/bc0b0b5d-f6be-405a-b224-b6902a4dbe97
+    starmap_skill: Digital Identity
+  manage system security:
+    description: Analyse the critical assets of a company and identify weaknesses
+      and vulnerabilities that lead to in
+    esco_label: manage system security
+    esco_uri: http://data.europa.eu/esco/skill/2a3a96a3-709e-4d60-81f6-d247d6933f13
+    starmap_skill: Security
+  matlab:
+    description: The techniques and principles of software development, such as analysis,
+      algorithms, coding, testing
+    esco_label: MATLAB
+    esco_uri: http://data.europa.eu/esco/skill/c3a03c5a-c260-4c26-9b9a-873abb396f4d
+    starmap_skill: MATLAB
+  mysql:
+    description: The computer program MySQL is a tool for creating, updating and managing
+      databases, currently develo
+    esco_label: MySQL
+    esco_uri: http://data.europa.eu/esco/skill/4da171e5-779c-4983-a76f-91c16751e99f
+    starmap_skill: MySQL
+  natural language processing:
+    description: The technologies which enable ICT devices to understand and interact
+      with users through human langua
+    esco_label: natural language processing
+    esco_uri: http://data.europa.eu/esco/skill/fff0e2cd-d0bd-4b02-9daf-158b79d9688a
+    starmap_skill: NLP
+  nosql:
+    description: The Not Only SQL non-relational database used for creating, updating
+      and managing large amounts of u
+    esco_label: NoSQL
+    esco_uri: http://data.europa.eu/esco/skill/76ef6ed3-1658-4a1a-9593-204d799c6d0c
+    starmap_skill: NoSQL
+  nuclear energy:
+    description: The generation of electrical energy through the use of nuclear reactors,
+      by converting the energy re
+    esco_label: nuclear energy
+    esco_uri: http://data.europa.eu/esco/skill/81d274bc-6dbf-4003-bcba-f76478d5d930
+    starmap_skill: Nuclear Energy
+  objective-c:
+    description: The techniques and principles of software development, such as analysis,
+      algorithms, coding, testing
+    esco_label: Objective-C
+    esco_uri: http://data.europa.eu/esco/skill/9973a5a2-7822-4161-99e9-95c781eb63f8
+    starmap_skill: Objective-C
+  operate digital hardware:
+    description: Use equipment such as monitor, mouse, keyboard, storage devices,
+      printers and scanners to perform op
+    esco_label: operate digital hardware
+    esco_uri: http://data.europa.eu/esco/skill/6b2f8802-0cbf-436e-a37f-ca55ede41bbc
+    starmap_skill: Digital Literacy
+  operate signal generator:
+    description: Use electronic devices or software tone generators that produce digital
+      or analog repeating or non-r
+    esco_label: operate signal generator
+    esco_uri: http://data.europa.eu/esco/skill/8682024b-2c8b-4de4-8cd7-23ea6169da57
+    starmap_skill: Electronics
+  penetration testing tool:
+    description: 'The specialised ICT tools which test security weaknesses of the
+      system for potentially unauthorised '
+    esco_label: penetration testing tool
+    esco_uri: http://data.europa.eu/esco/skill/de586dcf-d7e5-4340-bf5b-d59026f1b436
+    starmap_skill: Penetration Testing
+  perform calorimeter operation:
+    description: Analyse the heat capacity, physical changes and measure the heat
+      of chemical reactions.
+    esco_label: perform calorimeter operation
+    esco_uri: http://data.europa.eu/esco/skill/d92f5ca1-a56f-47e8-9a1f-88d84f72746a
+    starmap_skill: Data Analysis
+  perform data analysis:
+    description: Collect data and statistics to test and evaluate in order to generate
+      assertions and pattern predict
+    esco_label: perform data analysis
+    esco_uri: http://data.europa.eu/esco/skill/2b92a5b2-6758-4ee3-9fb4-b6387a55cc8f
+    starmap_skill: Data Analysis
+  perform data mining:
+    description: Explore large datasets to reveal patterns using statistics, database
+      systems or artificial intellige
+    esco_label: perform data mining
+    esco_uri: http://data.europa.eu/esco/skill/4216e465-7baa-4884-a241-54b197bb9278
+    starmap_skill: Data Mining
+  perform ict security testing:
+    description: Execute types of security testing, such as network penetration testing,
+      wireless testing, code revie
+    esco_label: perform ICT security testing
+    esco_uri: http://data.europa.eu/esco/skill/f4a85869-1855-45d5-a43c-7ee8cd451996
+    starmap_skill: Security Testing
+  perform online data analysis:
+    description: Analyse online experiences and online data for purposes of understanding
+      user behaviour, triggers of
+    esco_label: perform online data analysis
+    esco_uri: http://data.europa.eu/esco/skill/062320e5-79d1-45e8-8b7e-5deeb53279a2
+    starmap_skill: Data Analysis
+  perform safety data analysis:
+    description: Use different safety databases to perform analyses of information
+      on actual or potential safety thre
+    esco_label: perform safety data analysis
+    esco_uri: http://data.europa.eu/esco/skill/c2ce7fe9-203b-492a-961e-9698dce7de19
+    starmap_skill: Data Analysis
+  perform software unit testing:
+    description: Test single units of source code to determine whether or not they
+      are suitable for use by creating s
+    esco_label: perform software unit testing
+    esco_uri: http://data.europa.eu/esco/skill/7961413f-61d0-4722-9cd9-20a050a29899
+    starmap_skill: Unit Testing
+  physics:
+    description: The natural science involving the study of matter, motion,  energy,
+      force and related notions.
+    esco_label: physics
+    esco_uri: http://data.europa.eu/esco/skill/692ace70-7f97-4214-92bd-88f7637d8a44
+    starmap_skill: Physics
+  plan digital marketing:
+    description: Develop digital marketing strategies for both leisure and business
+      purposes, create websites and dea
+    esco_label: plan digital marketing
+    esco_uri: http://data.europa.eu/esco/skill/736ef286-fbd3-4e5c-a4b4-d1e2008c9898
+    starmap_skill: Digital Marketing
+  plan migration to cloud:
+    description: Select existing workloads and processes for potential migration to
+      the cloud and choose migration to
+    esco_label: plan migration to cloud
+    esco_uri: http://data.europa.eu/esco/skill/0a52bed5-fd29-45fb-aba6-e32bccfda1c1
+    starmap_skill: Cloud Migration
+  plan social media marketing campaigns:
+    description: 'Plan and implement a marketing campaign on social media. '
+    esco_label: plan social media marketing campaigns
+    esco_uri: http://data.europa.eu/esco/skill/74cb80c4-df6b-4d79-a153-cb7b3b3b6eb0
+    starmap_skill: Social Media Marketing
+  postgresql:
+    description: The computer program PostgreSQL is a free and open-source software
+      tool for creating, updating and m
+    esco_label: PostgreSQL
+    esco_uri: http://data.europa.eu/esco/skill/a8d07b5a-c1a1-42c6-9d53-db9c7a2ca996
+    starmap_skill: PostgreSQL
+  principles of artificial intelligence:
+    description: The artificial intelligence theories, applied principles, architectures
+      and systems, such as intelli
+    esco_label: principles of artificial intelligence
+    esco_uri: http://data.europa.eu/esco/skill/e465a154-93f7-4973-9ce1-31659fe16dd2
+    starmap_skill: Artificial Intelligence
+  problem-solving with digital tools:
+    description: Identify digital needs and resources, make informed decisions on
+      most appropriate digital tools acco
+    esco_label: problem-solving with digital tools
+    esco_uri: http://data.europa.eu/esco/skill/7e5147d1-60b1-4a68-804b-1f5cb0396b91
+    starmap_skill: Problem Solving
+  process collected survey data:
+    description: Analyse and interpret survey data acquired from a wide variety of
+      sources e.g. satellite surveys, ae
+    esco_label: process collected survey data
+    esco_uri: http://data.europa.eu/esco/skill/6b30644d-bdc5-4bca-b1af-edbf5c6b15ee
+    starmap_skill: Data Analysis
+  program lift controller:
+    description: Configure the lift controller to make sure the lift operates correctly
+      and efficiently. Set the desi
+    esco_label: program lift controller
+    esco_uri: http://data.europa.eu/esco/skill/daa56d49-d7d3-4ba4-9b41-8b542ecfaa27
+    starmap_skill: Automation
+  protect health and well-being while using digital technologies:
+    description: Be able to avoid health-risks and threats to physical and psychological
+      well-being while using digit
+    esco_label: protect health and well-being while using digital technologies
+    esco_uri: http://data.europa.eu/esco/skill/d1ed5b3a-cab5-4c5d-baf8-0214998b58fb
+    starmap_skill: Ergonomics
+  protect personal data and privacy:
+    description: Protect personal data and privacy in digital environments. Understand
+      how to use and share personall
+    esco_label: protect personal data and privacy
+    esco_uri: http://data.europa.eu/esco/skill/33a82b83-c838-4889-ae62-fae1317481eb
+    starmap_skill: Data Privacy
+  protect the environment from the impact of the digital technologies:
+    description: Be aware of the environmental impact of digital technologies and
+      their use.
+    esco_label: protect the environment from the impact of the digital technologies
+    esco_uri: http://data.europa.eu/esco/skill/c4ba12d1-4698-42fa-8abb-789462ea2586
+    starmap_skill: Sustainability
+  protect the health of others:
+    description: Prevent harm from and support recovery of family members, wards,
+      and fellow citizens, including adeq
+    esco_label: protect the health of others
+    esco_uri: http://data.europa.eu/esco/skill/4cde32b5-fc2f-4257-a8b9-5b15a67ee3e5
+    starmap_skill: Ergonomics
+  provide software testing documentation:
+    description: Describe software testing procedures to technical team and analysis
+      of test outcomes to users and cl
+    esco_label: provide software testing documentation
+    esco_uri: http://data.europa.eu/esco/skill/78a74fd1-efc6-49dc-adb1-1b0fbe35c22c
+    starmap_skill: Testing
+  provide technical documentation:
+    description: Prepare documentation for existing and upcoming products or services,
+      describing their functionality
+    esco_label: provide technical documentation
+    esco_uri: http://data.europa.eu/esco/skill/04dfd9fb-e0cf-40f6-96c6-9d2280c4347e
+    starmap_skill: Documentation
+  provide user documentation:
+    description: Develop and organise the distribution of structured documents to
+      assist people using a particular pr
+    esco_label: provide user documentation
+    esco_uri: http://data.europa.eu/esco/skill/385479b7-5da5-4367-9763-0d15b41bb65b
+    starmap_skill: Documentation
+  query languages:
+    description: The field of standardised computer languages for retrieval of information
+      from a database and of doc
+    esco_label: query languages
+    esco_uri: http://data.europa.eu/esco/skill/9cf681c7-89ec-470c-b651-7fe03786f586
+    starmap_skill: SQL
+  robotics:
+    description: The branch of engineering that involves the design, operation, manufacture,
+      and application of robot
+    esco_label: robotics
+    esco_uri: http://data.europa.eu/esco/skill/e87ec79a-c9ff-46f5-84fa-7a0f394cdf40
+    starmap_skill: Robotics
+  safeguard online privacy and identity:
+    description: Apply methods and procedures to secure private information in digital
+      spaces by limiting the sharing
+    esco_label: safeguard online privacy and identity
+    esco_uri: http://data.europa.eu/esco/skill/a4b2a278-2123-4450-8b43-be01c4f341da
+    starmap_skill: Data Privacy
+  sass:
+    description: The computer language Sass is a style sheet language that conveys
+      the presentation of structured doc
+    esco_label: Sass
+    esco_uri: http://data.europa.eu/esco/skill/1110c92f-3059-445a-9436-0f4200d365f5
+    starmap_skill: Sass
+  set up documentation control system:
+    description: Set up and maintain documentation control system
+    esco_label: set up documentation control system
+    esco_uri: http://data.europa.eu/esco/skill/5865c47c-cf1a-4dcb-8871-d4a1ea4b047b
+    starmap_skill: Documentation
+  share through digital technologies:
+    description: Share data, information and digital content with others through appropriate
+      digital technologies. Ac
+    esco_label: share through digital technologies
+    esco_uri: http://data.europa.eu/esco/skill/40001d93-8937-4859-89d5-2dca53290ff4
+    starmap_skill: Collaboration Tools
+  signal processing:
+    description: The algorithms, applications and implementations that deal with the
+      processing and transferring of i
+    esco_label: signal processing
+    esco_uri: http://data.europa.eu/esco/skill/cfa2be0d-96d5-4017-a866-962efb9c5070
+    starmap_skill: Signal Processing
+  software architecture models:
+    description: The set of structures and models needed to understand or describe
+      the software system, including the
+    esco_label: software architecture models
+    esco_uri: http://data.europa.eu/esco/skill/2450c3b3-e78e-435b-b84d-e05d984e71dc
+    starmap_skill: Software Architecture
+  software ui design patterns:
+    description: The reusable solutions and formalised best practices to solve common
+      user interface tasks in softwar
+    esco_label: software UI design patterns
+    esco_uri: http://data.europa.eu/esco/skill/1019423b-3368-4f83-b24f-19e5fa23e816
+    starmap_skill: Design Patterns
+  spark:
+    description: The Java micro framework software development environment which provide
+      specific features and compon
+    esco_label: SPARK
+    esco_uri: http://data.europa.eu/esco/skill/af7ae54f-4649-4c16-87c7-59ba41d4d57f
+    starmap_skill: Spark
+  sql:
+    description: The computer language SQL is a query language for retrieval of information
+      from a database and of do
+    esco_label: SQL
+    esco_uri: http://data.europa.eu/esco/skill/598de5b0-5b58-4ea7-8058-a4bc4d18c742
+    starmap_skill: SQL
+  sql server:
+    description: The computer program SQL Server is a tool for creating, updating
+      and managing databases, developed b
+    esco_label: SQL Server
+    esco_uri: http://data.europa.eu/esco/skill/c062bab3-3ea0-4291-9220-a2d8fef4bead
+    starmap_skill: SQL Server
+  statistics:
+    description: The study of statistical theory, methods and practices such as collection,
+      organisation, analysis, i
+    esco_label: statistics
+    esco_uri: http://data.europa.eu/esco/skill/7ee4c2ea-b349-4bd2-81a3-ec31475d4833
+    starmap_skill: Statistics
+  store digital data and systems:
+    description: Use software tools to archive data by copying and backing them up,
+      in order to ensure their integrit
+    esco_label: store digital data and systems
+    esco_uri: http://data.europa.eu/esco/skill/611ed16b-99bf-4840-9cab-f55d1d286e0a
+    starmap_skill: Data Storage
+  style sheet languages:
+    description: The field of computer language that conveys the presentation of structured
+      documents such as Cascadi
+    esco_label: style sheet languages
+    esco_uri: http://data.europa.eu/esco/skill/c2999f0c-eb37-4cdf-b9b0-82107b628794
+    starmap_skill: CSS
+  teach digital literacy:
+    description: Instruct students in the theory and practice of (basic) digital and
+      computer competency, such as typ
+    esco_label: teach digital literacy
+    esco_uri: http://data.europa.eu/esco/skill/c8fa4313-80b0-4f37-8b1b-1739707bc362
+    starmap_skill: Digital Literacy
+  teach electronics and automation principles:
+    description: Instruct students in the theory and practice of electronics and automation,
+      with the aim of assistin
+    esco_label: teach electronics and automation principles
+    esco_uri: http://data.europa.eu/esco/skill/7c455b13-bc86-40bc-bedb-4f7c35e685b4
+    starmap_skill: Electronics
+  test electronic units:
+    description: Test electronic units using appropriate equipment. Gather and analyse
+      data. Monitor and evaluate sys
+    esco_label: test electronic units
+    esco_uri: http://data.europa.eu/esco/skill/baf501a8-f0fe-4ad7-9b69-8e920fa1a87b
+    starmap_skill: Electronics
+  test mechatronic units:
+    description: Test mechatronic units using appropriate equipment. Gather and analyse
+      data. Monitor and evaluate sy
+    esco_label: test mechatronic units
+    esco_uri: http://data.europa.eu/esco/skill/6c65bbce-15ce-447e-9666-0fe928f5588c
+    starmap_skill: Mechatronics
+  test system accessibility for users with special needs:
+    description: Examine whether software interface complies with standards and regulations
+      so that the system can be
+    esco_label: test system accessibility for users with special needs
+    esco_uri: http://data.europa.eu/esco/skill/be64bb4c-84ac-4c83-8cc7-fc8593e15136
+    starmap_skill: Accessibility
+  tools for ict test automation:
+    description: The specialised software to execute or control tests and compare
+      predicted testing outputs with actu
+    esco_label: tools for ICT test automation
+    esco_uri: http://data.europa.eu/esco/skill/7557f0f4-b8bc-4ac0-b91e-222ab1ba744f
+    starmap_skill: Testing
+  tools for software configuration management:
+    description: The software programs to perform configuration identification, control,
+      status accounting and audit,
+    esco_label: tools for software configuration management
+    esco_uri: http://data.europa.eu/esco/skill/9d2e926f-53d9-41f5-98f3-19dfaa687f3f
+    starmap_skill: Version Control
+  types of digital badges:
+    description: The types and characteristics of digital badges such as open badges,
+      that store information about ac
+    esco_label: types of digital badges
+    esco_uri: http://data.europa.eu/esco/skill/d6b31d8d-2f47-425a-a2b2-a6dddb3d2b19
+    starmap_skill: Digital Literacy
+  use communication and collaboration software:
+    description: Use simple digital tools and technologies for communicating, interacting
+      and collaborating with othe
+    esco_label: use communication and collaboration software
+    esco_uri: http://data.europa.eu/esco/skill/b080a008-a35d-4bd0-92e9-edf3773bb2b7
+    starmap_skill: Collaboration Tools
+  use digital illustration techniques:
+    description: Create drawings using digital illustration programmes and techniques.
+    esco_label: use digital illustration techniques
+    esco_uri: http://data.europa.eu/esco/skill/8ff314a8-57d7-4b8c-bf41-79f9572fedd0
+    starmap_skill: Graphic Design
+  use markup languages:
+    description: 'Utilise computer languages that are syntactically distinguishable
+      from the text, to add annotations '
+    esco_label: use markup languages
+    esco_uri: http://data.europa.eu/esco/skill/0af062de-eb43-41e9-9b96-249e2cd22d26
+    starmap_skill: HTML
+  use methods of logistical data analysis:
+    description: Read and interpret supply chain and transportation data. Analyse
+      the reliability and availability of
+    esco_label: use methods of logistical data analysis
+    esco_uri: http://data.europa.eu/esco/skill/6f993130-082b-4732-b62f-52cdf2096ad9
+    starmap_skill: Data Analysis
+  use object-oriented programming:
+    description: Utilise specialised ICT tools for programming paradigm based on the
+      concept of objects, which can co
+    esco_label: use object-oriented programming
+    esco_uri: http://data.europa.eu/esco/skill/5b9cde20-f1b9-4adc-bfb3-dbf70b14138d
+    starmap_skill: Object-Oriented Programming
+  use online tools to collaborate:
+    description: Use online resources such as online meeting tools, VoIP conference
+      calling, concurrent file editing,
+    esco_label: use online tools to collaborate
+    esco_uri: http://data.europa.eu/esco/skill/580660a6-5d3a-421d-a54f-d85b706c2b2f
+    starmap_skill: Collaboration Tools
+  use presentation software:
+    description: Use software tools to create digital presentations which combine
+      various elements, such as graphs, i
+    esco_label: use presentation software
+    esco_uri: http://data.europa.eu/esco/skill/234aeb8d-56c3-4531-9193-1c5e6a8d16cb
+    starmap_skill: Presentation Tools
+  use software design patterns:
+    description: Utilise reusable solutions, formalised best practices, to solve common
+      ICT development tasks in soft
+    esco_label: use software design patterns
+    esco_uri: http://data.europa.eu/esco/skill/2b7a79e5-84d8-4880-be66-3d9bb05bea17
+    starmap_skill: Design Patterns
+  use specific data analysis software:
+    description: 'Use specific software for data analysis, including statistics, spreadsheets,
+      and databases. Explore '
+    esco_label: use specific data analysis software
+    esco_uri: http://data.europa.eu/esco/skill/c95c29fe-3971-46b7-80e9-1f7e75ba99b3
+    starmap_skill: Data Analysis
+  use spreadsheets software:
+    description: 'Use software tools to create and edit tabular data to carry out
+      mathematical calculations, organise '
+    esco_label: use spreadsheets software
+    esco_uri: http://data.europa.eu/esco/skill/1973c966-f236-40c9-b2d4-5d71a89019be
+    starmap_skill: Spreadsheet
+  utilise computer-aided software engineering tools:
+    description: Use software tools (CASE) to support the development lifecycle, design
+      and implementation of softwar
+    esco_label: utilise computer-aided software engineering tools
+    esco_uri: http://data.europa.eu/esco/skill/172020d1-e151-445b-8173-e2a5fb16fe51
+    starmap_skill: IDE
+  utilise machine learning:
+    description: Use techniques and algorithms that are able to extract mastery out
+      of data, learn from it and make p
+    esco_label: utilise machine learning
+    esco_uri: http://data.europa.eu/esco/skill/8369c2d6-c100-4cf6-bd83-9668d8678433
+    starmap_skill: Machine Learning
+  write database documentation:
+    description: Develop documentation containing information about the database that
+      is relevant to end users.
+    esco_label: write database documentation
+    esco_uri: http://data.europa.eu/esco/skill/64db87c7-2360-4e20-88d3-d222402e477c
+    starmap_skill: Documentation
+total_esco_skills: 505
+total_mapped: 159
+version: '1.0'
