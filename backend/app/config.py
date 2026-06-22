@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     xunfei_api_key: str = ""
     xunfei_api_secret: str = ""
     xunfei_app_id: str = ""
+    deepseek_api_key: str = ""
+    deepseek_model: str = "deepseek-chat"
     qwen_model_path: str = ""
     llm_timeout: int = 60
     llm_max_retries: int = 3

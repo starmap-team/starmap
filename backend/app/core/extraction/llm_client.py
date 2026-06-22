@@ -1,7 +1,11 @@
-"""Xunfei Spark API async LLM client with fallback support.
+"""Multi-provider LLM client with fallback support.
 
-Uses the OpenAI-compatible HTTP API: https://spark-api-open.xf-yun.com/v1/chat/completions
-Authentication: Bearer token via XUNFEI_API_KEY (APIPassword from console).
+Supports:
+- Xunfei Spark API: https://spark-api-open.xf-yun.com/v1/chat/completions
+- DeepSeek API: https://api.deepseek.com/chat/completions
+- Local Qwen fallback
+
+Authentication: Bearer token via API keys.
 """
 
 import json
@@ -26,8 +30,11 @@ class LLMTimeoutError(Exception):
     """Raised when the LLM API request times out."""
 
 
+# API endpoints
 _SPARK_HTTP_URL = "https://spark-api-open.xf-yun.com/v1/chat/completions"
+_DEEPSEEK_HTTP_URL = "https://api.deepseek.com/chat/completions"
 
+# Model mappings
 _SPARK_MODELS: dict[str, str] = {
     "lite": "lite",
     "v2.0": "generalv2",
@@ -165,8 +172,71 @@ async def call_xunfei_llm(
     return {"role": "assistant", "content": content, "model": model_version}
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True,
+)
+async def call_deepseek_llm(
+    prompt: str,
+    timeout: int | None = None,
+) -> dict[str, Any]:
+    """Call DeepSeek API (OpenAI-compatible HTTP endpoint).
+
+    Args:
+        prompt: Input prompt text.
+        timeout: Request timeout in seconds (default: settings.llm_timeout).
+
+    Returns:
+        Dict with 'role', 'content', 'model' keys.
+
+    Raises:
+        LLMConnectionError: On connection failure.
+        LLMResponseError: On unexpected response.
+        LLMTimeoutError: On timeout.
+    """
+    actual_timeout = timeout if timeout is not None else settings.llm_timeout
+    api_key = settings.deepseek_api_key
+    if not api_key:
+        raise LLMConnectionError("DEEPSEEK_API_KEY is not configured")
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": settings.deepseek_model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.5,
+        "max_tokens": 4096,
+    }
+
+    logger.info("Calling DeepSeek ({})", settings.deepseek_model)
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
+            response = await client.post(_DEEPSEEK_HTTP_URL, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+    except httpx.TimeoutException as e:
+        raise LLMTimeoutError(f"DeepSeek API timeout after {actual_timeout}s") from e
+    except httpx.HTTPStatusError as e:
+        raise LLMResponseError(f"DeepSeek API returned {e.response.status_code}: {e.response.text}") from e
+    except httpx.RequestError as e:
+        raise LLMConnectionError(f"DeepSeek API connection failed: {e}") from e
+
+    choices = data.get("choices", [])
+    if not choices:
+        raise LLMResponseError("DeepSeek API returned empty choices")
+
+    message = choices[0].get("message", {})
+    content = message.get("content", "")
+    logger.debug("DeepSeek response received ({} chars)", len(content))
+    return {"role": "assistant", "content": content, "model": settings.deepseek_model}
+
+
 async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
-    """Call LLM with fallback: MiMo primary, Xunfei secondary, Qwen tertiary.
+    """Call LLM with fallback: DeepSeek primary, Xunfei secondary, local Qwen fallback.
 
     Args:
         prompt: Input prompt text.
@@ -174,23 +244,24 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
     Returns:
         Response dict with 'content' key.
     """
-    # Primary: MiMo (reasoning model)
-    if settings.mimo_api_key:
+    # Try DeepSeek first (if configured)
+    if settings.deepseek_api_key:
         try:
-            return await call_mimo_llm(prompt)
+            return await call_deepseek_llm(prompt)
         except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
-            logger.warning("MiMo failed, trying Xunfei fallback: {}", e)
+            logger.warning("DeepSeek failed, trying Xunfei: {}", e)
 
-    # Secondary: Xunfei Spark
-    try:
-        return await call_xunfei_llm(prompt)
-    except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
-        logger.warning("Xunfei failed, trying Qwen fallback: {}", e)
+    # Try Xunfei second (if configured)
+    if settings.xunfei_api_key:
+        try:
+            return await call_xunfei_llm(prompt)
+        except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
+            logger.warning("Xunfei failed, trying local Qwen: {}", e)
 
-    # Tertiary: local Qwen
+    # Try local Qwen fallback
     fallback_endpoint = settings.qwen_model_path
     if not fallback_endpoint:
-        raise LLMConnectionError("No fallback endpoint configured (qwen_model_path is empty)")
+        raise LLMConnectionError("No LLM endpoint configured (deepseek/xunfei/qwen)")
 
     logger.info("Calling fallback Qwen at {}", fallback_endpoint)
     try:

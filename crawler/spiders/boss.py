@@ -1,50 +1,77 @@
-"""BOSS 直聘爬虫（Playwright 渲染，备用站点）。
+"""BOSS 直聘爬虫（Playwright-stealth + 代理，反检测版）。
 
-⚠️ BOSS 反爬最强，2026 年 6 月可能要求登录或验证码。
-本文件保留 PoC 代码，但 R1 在 M1 验收阶段**优先用 S1 拉勾 + S2 51job 各 100 条凑满 200 条**，
-BOSS 仅作 fallback。
+用法:
+    # 直连
+    python -m crawler.spiders.boss --max 10
+
+    # 带代理
+    PROXY_LIST=http://host:port python -m crawler.spiders.boss --max 10
+
+    # 或指定单个代理
+    python -m crawler.spiders.boss --max 10 --proxy http://host:port
 """
 from __future__ import annotations
 
+import argparse
 import asyncio
+import json
 import logging
+import sys
 from datetime import date
+from pathlib import Path
 
-from .. import config
-from ..compliance import RateLimiter
-from ..dedup import hex64, simhash
-from ..pipelines.clean import clean_html, extract_job_title
-from ..pipelines.items import JdItem
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from crawler import config
+from crawler.compliance import RateLimiter, get_proxy, stealth_check_robots, stealth_log_request
+from crawler.dedup import hex64, simhash
+from crawler.pipelines.clean import clean_html, extract_job_title
+from crawler.pipelines.items import JdItem
+from crawler.stealth import StealthConfig, create_stealth_context, stealth_goto
 
 log = logging.getLogger(__name__)
 
+# BOSS 直聘搜索 URL
+SEARCH_URL = "https://www.zhipin.com/web/geek/job?query={kw}&city=100010000"
 
-async def fetch_one(url: str, source_site: str = "bosszhipin", limiter: RateLimiter | None = None) -> dict | None:
-    """用 Playwright 抓单个详情页，返回 item 字典。"""
-    from playwright.async_api import async_playwright
 
+async def fetch_one(
+    url: str,
+    source_site: str = "bosszhipin",
+    limiter: RateLimiter | None = None,
+    config_: StealthConfig | None = None,
+) -> dict | None:
+    """用 Playwright-stealth 抓单个详情页。"""
     limiter = limiter or RateLimiter(min_interval=3.0)
     limiter.wait()
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        ctx = await browser.new_context(
-            user_agent=config.USER_AGENTS[0],
-            viewport={"width": 1280, "height": 800},
-        )
-        page = await ctx.new_page()
-        try:
-            resp = await page.goto(url, timeout=20000, wait_until="domcontentloaded")
-            if not resp or resp.status != 200:
-                log.warning("BOSS 详情非 200 %s", url)
-                return None
-            html = await page.content()
-        except Exception as e:  # noqa: BLE001
-            log.warning("BOSS 抓取异常 %s: %s", url, e)
+    p, browser, ctx = None, None, None
+    try:
+        p, browser, ctx = await create_stealth_context(config_)
+        stealth_check_robots(url)
+        page, status = await stealth_goto(ctx, url, timeout=20000)
+        if status != 200 or not page:
+            log.warning("BOSS 详情非 200 %s", url)
+            stealth_log_request(source_site, url, response_code=status)
             return None
-        finally:
-            await ctx.close()
+
+        # 等待内容渲染
+        try:
+            await page.wait_for_selector("div.job-detail, div.job-sec-text", timeout=10000)
+        except Exception:
+            pass
+
+        html = await page.content()
+        stealth_log_request(source_site, url, response_code=status, response_bytes=len(html))
+        await page.close()
+    except Exception as e:  # noqa: BLE001
+        log.warning("BOSS 抓取异常 %s: %s", url, e)
+        return None
+    finally:
+        if browser:
             await browser.close()
+        if p:
+            await p.stop()
 
     clean = clean_html(html)
     if len(clean) < 200:
@@ -65,45 +92,89 @@ async def fetch_one(url: str, source_site: str = "bosszhipin", limiter: RateLimi
     }
 
 
-async def run_boss(keyword: str, max_count: int = 100) -> list[dict]:
-    """公开列表页 + 详情页的简化版（PoC）。"""
-    # 搜索 URL
-    search_url = f"https://www.zhipin.com/web/geek/job?query={keyword}&city=100010000"
+async def run_boss(
+    keyword: str,
+    max_count: int = 100,
+    proxy: str | None = None,
+) -> list[dict]:
+    """公开列表页 + 详情页（Playwright-stealth 反检测版）。"""
+    search_url = SEARCH_URL.format(kw=keyword)
     log.info("BOSS 搜索: %s", search_url)
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        ctx = await browser.new_context(user_agent=config.USER_AGENTS[0])
-        page = await ctx.new_page()
-        try:
-            await page.goto(search_url, timeout=30000, wait_until="networkidle")
-            # 抓前 N 个详情链接
-            hrefs = await page.eval_on_selector_all(
-                "a[href*='/job_detail/']",
-                "els => els.slice(0, 20).map(e => e.href)",
-            )
-        except Exception as e:  # noqa: BLE001
-            log.warning("BOSS 列表抓取失败: %s", e)
-            hrefs = []
-        finally:
-            await ctx.close()
-            await browser.close()
+    proxy_user = None
+    proxy_pass = None
+    if proxy and "@" in proxy:
+        # 解析 http://user:pass@host:port
+        parts = proxy.split("@")
+        auth = parts[0].replace("http://", "").replace("https://", "")
+        if ":" in auth:
+            proxy_user, proxy_pass = auth.split(":", 1)
+        proxy = parts[1] if len(parts) > 1 else proxy
+        if not proxy.startswith("http"):
+            proxy = f"http://{proxy}"
 
+    cfg = StealthConfig(
+        proxy=proxy or get_proxy(),
+        proxy_user=proxy_user,
+        proxy_pass=proxy_pass,
+    )
+
+    p, browser, ctx = None, None, None
+    try:
+        p, browser, ctx = await create_stealth_context(cfg)
+        stealth_check_robots(search_url)
+        page, status = await stealth_goto(ctx, search_url, timeout=30000, wait_until="domcontentloaded")
+
+        if not page:
+            log.warning("BOSS 列表页加载失败")
+            stealth_log_request("bosszhipin", search_url, response_code=status)
+            return []
+
+        # 等待职位列表渲染
+        try:
+            await page.wait_for_selector("div.job-list-box li.job-card-wrapper", timeout=15000)
+        except Exception:
+            log.warning("BOSS 列表未渲染，尝试直接提取")
+
+        # 抓详情链接
+        hrefs = await page.eval_on_selector_all(
+            "a[href*='/job_detail/']",
+            "els => els.slice(0, 20).map(e => e.href)",
+        )
+        log.info("BOSS 列表拿到 %d 个详情链接", len(hrefs))
+        await page.close()
+    except Exception as e:  # noqa: BLE001
+        log.warning("BOSS 列表抓取失败: %s", e)
+        hrefs = []
+    finally:
+        if browser:
+            await browser.close()
+        if p:
+            await p.stop()
+
+    # 抓详情
     results: list[dict] = []
     for href in hrefs:
         if len(results) >= max_count:
             break
-        item = await fetch_one(href)
+        item = await fetch_one(href, config_=cfg)
         if item:
             results.append(item)
     return results
 
 
-def run_sync(keyword: str = "python", max_count: int = 100) -> list[dict]:
-    return asyncio.run(run_boss(keyword, max_count))
+def run_sync(keyword: str = "python", max_count: int = 100, proxy: str | None = None) -> list[dict]:
+    return asyncio.run(run_boss(keyword, max_count, proxy))
 
 
 if __name__ == "__main__":
-    import json, sys
-    items = run_sync("python", 5)
-    json.dump(items, sys.stdout, ensure_ascii=False, indent=2)
+    parser = argparse.ArgumentParser(description="BOSS 直聘爬虫 (Playwright-stealth)")
+    parser.add_argument("--keyword", default="python", help="搜索关键词")
+    parser.add_argument("--max", type=int, default=10, help="最多抓取条数")
+    parser.add_argument("--proxy", help="代理地址 (http://user:pass@host:port)")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+
+    items = run_sync(args.keyword, args.max, args.proxy)
+    print(json.dumps(items, ensure_ascii=False, indent=2))
