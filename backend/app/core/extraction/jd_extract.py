@@ -22,7 +22,7 @@ from app.core.extraction.llm_client import (
 from app.core.extraction.normalize import (
     batch_normalize_skills,
 )
-from app.core.extraction.prompt import get_prompt
+from app.core.extraction.prompt import get_prompt, get_active_version, get_ab_test
 
 # Chinese PII patterns
 _PII_PATTERNS: list[re.Pattern] = [
@@ -123,6 +123,8 @@ class JDExtractionPipeline:
             "normalization": [],
             "validation": None,
             "error": None,
+            "prompt_version_used": None,
+            "prompt_ab_test": False,
         }
 
         if not jd_content or not jd_content.strip():
@@ -139,6 +141,26 @@ class JDExtractionPipeline:
         except (KeyError, ValueError) as e:
             result["error"] = f"Prompt error: {e}"
             return result
+
+        # Track which prompt version was resolved (supports A/B test)
+        ab_cfg = get_ab_test("jd_extraction")
+        if ab_cfg:
+            # A/B test active: don't call select_version() again to avoid
+            # randomness mismatch with the earlier get_prompt() call.
+            # Record the test config; per-request version is random.
+            result["prompt_ab_test"] = True
+            result["prompt_version_used"] = (
+                f"ab_test(control={ab_cfg.control_version},"
+                f" canary={ab_cfg.canary_version},"
+                f" traffic={ab_cfg.traffic_fraction:.0%})"
+            )
+            logger.info(
+                "A/B test active: jd_extraction control={} canary={} traffic={:.0%}",
+                ab_cfg.control_version, ab_cfg.canary_version, ab_cfg.traffic_fraction,
+            )
+        else:
+            result["prompt_ab_test"] = False
+            result["prompt_version_used"] = get_active_version("jd_extraction") or "v1"
 
         # Step 2: Call LLM
         try:

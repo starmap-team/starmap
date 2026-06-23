@@ -3,14 +3,26 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Annotated
+from typing import Annotated, Any
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from loguru import logger
+
 from app.api.v1.quality import _build_quality_dashboard
+from app.core.extraction.prompt import (
+    get_ab_test,
+    get_active_version,
+    list_prompt_names,
+    list_prompt_versions,
+    set_ab_test,
+    set_active_version,
+    stop_ab_test,
+    ABTestConfig,
+)
 from app.dependencies import get_db_session
 from app.models.extraction_models import JDExtractionRecord, PositionRecord, PositionSkillRelation, SkillRecord
 
@@ -52,6 +64,20 @@ class AdminStatsResponse(BaseModel):
 class ResetDemoResponse(BaseModel):
     ok: bool = True
     review_items: int = Field(ge=0)
+
+
+class SetActiveRequest(BaseModel):
+    version: str = Field(..., description="要激活的版本号 (如 v1, v2)")
+
+
+class ABTestRequest(BaseModel):
+    canary_version: str = Field(..., description="候选版本号")
+    traffic_fraction: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=0.5,
+        description="分配到 canary 的流量比例 (0.0, 0.5]",
+    )
 
 
 _DEMO_SOURCES = [
@@ -156,3 +182,93 @@ async def reset_demo_seed() -> ResetDemoResponse:
     _demo_audit_queue.clear()
     _demo_audit_queue.extend(deepcopy(_DEMO_AUDIT_QUEUE_TEMPLATE))
     return ResetDemoResponse(ok=True, review_items=len(_demo_audit_queue))
+
+
+# ──────────────────────────────────────────────
+# Prompt 版本管理
+# ──────────────────────────────────────────────
+
+
+@router.get("/prompts")
+async def list_prompts() -> dict[str, Any]:
+    """列出所有 prompt 模板及其可用版本。"""
+    result: dict[str, Any] = {}
+    for name in list_prompt_names():
+        versions = list_prompt_versions(name)
+        active = get_active_version(name)
+        ab = get_ab_test(name)
+        result[name] = {
+            "versions": versions,
+            "active": active,
+            "ab_test": ab.to_dict() if ab else None,
+        }
+    return result
+
+
+@router.get("/prompts/{name}")
+async def get_prompt_info(name: str) -> dict[str, Any]:
+    """查看指定 prompt 模板的版本详情。"""
+    try:
+        versions = list_prompt_versions(name)
+        active = get_active_version(name)
+        ab = get_ab_test(name)
+        return {
+            "name": name,
+            "versions": versions,
+            "active": active,
+            "ab_test": ab.to_dict() if ab else None,
+        }
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.put("/prompts/{name}/active")
+async def change_active_version(name: str, req: SetActiveRequest) -> dict[str, str]:
+    """切换 prompt 模板的 active 版本。"""
+    try:
+        set_active_version(name, req.version)
+        logger.info("Admin: set active version '{}' -> '{}'", name, req.version)
+        return {"name": name, "active": req.version, "status": "updated"}
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+# ──────────────────────────────────────────────
+# A/B 测试管理
+# ──────────────────────────────────────────────
+
+
+@router.post("/prompts/{name}/ab")
+async def start_ab_test(name: str, req: ABTestRequest) -> dict[str, Any]:
+    """启动 A/B 测试：canary 版本按比例分流，与 active 版本对比。"""
+    try:
+        cfg = set_ab_test(
+            prompt_name=name,
+            canary_version=req.canary_version,
+            traffic_fraction=req.traffic_fraction,
+        )
+        logger.info(
+            "Admin: A/B test started '{}' -> canary={} traffic={:.0%}",
+            name, req.canary_version, req.traffic_fraction,
+        )
+        return {"status": "started", "config": cfg.to_dict()}
+    except (KeyError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.delete("/prompts/{name}/ab")
+async def remove_ab_test(name: str) -> dict[str, str]:
+    """停止 A/B 测试，恢复为全量 active 版本。"""
+    stop_ab_test(name)
+    logger.info("Admin: A/B test stopped for '{}'", name)
+    return {"name": name, "status": "stopped", "message": "Back to active version only"}
+
+
+@router.get("/prompts/{name}/ab")
+async def get_ab_test_config(name: str) -> dict[str, Any]:
+    """查看当前 A/B 测试配置（如无则返回 null ab_test）。"""
+    ab = get_ab_test(name)
+    return {
+        "name": name,
+        "ab_test": ab.to_dict() if ab else None,
+    }
