@@ -28,9 +28,16 @@ class Settings(BaseSettings):
     xunfei_api_key: str = ""
     xunfei_api_secret: str = ""
     xunfei_app_id: str = ""
+    deepseek_api_key: str = ""
+    deepseek_model: str = "deepseek-chat"
     qwen_model_path: str = ""
     llm_timeout: int = 60
     llm_max_retries: int = 3
+
+    # 小米 MiMo（实际使用的 OpenAI 兼容端点，推理模型）
+    mimo_api_base: str = "https://token-plan-cn.xiaomimimo.com/v1"
+    mimo_api_key: str = ""
+    mimo_model: str = "mimo-v2.5"
 
 
 @lru_cache
