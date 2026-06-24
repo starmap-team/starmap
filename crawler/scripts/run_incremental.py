@@ -46,34 +46,27 @@ def _crawl_site(site: str, max_count: int) -> list[dict]:
     """爬取单个站点，返回 item 列表（不入库）。"""
     items: list[dict] = []
 
-    if site == "lagou":
-        from crawler.spiders.lagou import LagouSpider
+    if site in ("lagou", "51job"):
         from scrapy.crawler import CrawlerProcess
+        from scrapy import signals
 
         collected: list[dict] = []
 
-        class _Collector:
-            def process_item(self, item, spider):
-                collected.append(dict(item))
-                return item
+        def item_scraped(item, response, spider):
+            """Signal handler to collect scraped items."""
+            collected.append(dict(item))
 
-        process = CrawlerProcess(settings={
-            **_scrapy_settings(),
-            "ITEM_PIPELINES": {"__main__._Collector": 300},
-        })
-        # 用简单方式收集
-        process.crawl(LagouSpider, max_per_site=max_count)
-        process.start()
-        items = collected
-
-    elif site == "51job":
-        from crawler.spiders.job51 import Job51Spider
-        from scrapy.crawler import CrawlerProcess
-
-        collected = []
+        if site == "lagou":
+            from crawler.spiders.lagou import LagouSpider
+            spider_cls = LagouSpider
+        else:
+            from crawler.spiders.job51 import Job51Spider
+            spider_cls = Job51Spider
 
         process = CrawlerProcess(settings=_scrapy_settings())
-        process.crawl(Job51Spider, max_per_site=max_count)
+        crawler = process.create_crawler(spider_cls)
+        crawler.signals.connect(item_scraped, signal=signals.item_scraped)
+        process.crawl(crawler, max_per_site=max_count)
         process.start()
         items = collected
 

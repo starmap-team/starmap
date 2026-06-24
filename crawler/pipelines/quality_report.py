@@ -32,42 +32,51 @@ def generate_quality_report(source_site: str | None = None) -> QualityReport:
     report = QualityReport()
 
     with get_jd_raw_session() as s:
-        # 总量
-        base_q = select(JdRaw)
+        # 构建基础过滤条件
+        base_filter = []
         if source_site:
-            base_q = base_q.where(JdRaw.source_site == source_site)
+            base_filter.append(JdRaw.source_site == source_site)
 
-        report.total = s.scalar(select(func.count(JdRaw.id))) or 0
-        if source_site:
-            report.total = (
-                s.scalar(
-                    select(func.count(JdRaw.id)).where(JdRaw.source_site == source_site)
-                )
-                or 0
-            )
+        # 总量
+        total_q = select(func.count(JdRaw.id))
+        if base_filter:
+            total_q = total_q.where(*base_filter)
+        report.total = s.scalar(total_q) or 0
 
         # 来源分布
         src_q = select(JdRaw.source_site, func.count(JdRaw.id)).group_by(JdRaw.source_site)
+        if base_filter:
+            src_q = src_q.where(*base_filter)
         for site, cnt in s.execute(src_q).all():
             report.by_source[site] = cnt
 
         # 状态分布
         stat_q = select(JdRaw.status, func.count(JdRaw.id)).group_by(JdRaw.status)
+        if base_filter:
+            stat_q = stat_q.where(*base_filter)
         for status, cnt in s.execute(stat_q).all():
             report.by_status[str(status)] = cnt
 
         # 时间分布（按日期）
         date_col = func.date(JdRaw.crawled_at)
         date_q = select(date_col, func.count(JdRaw.id)).group_by(date_col).order_by(date_col)
+        if base_filter:
+            date_q = date_q.where(*base_filter)
         for d, cnt in s.execute(date_q).all():
             key = str(d) if d else "unknown"
             report.by_date[key] = cnt
 
         # URL 去重率
-        report.unique_urls = s.scalar(select(func.count(func.distinct(JdRaw.source_url)))) or 0
+        url_q = select(func.count(func.distinct(JdRaw.source_url)))
+        if base_filter:
+            url_q = url_q.where(*base_filter)
+        report.unique_urls = s.scalar(url_q) or 0
 
         # Hash 去重率
-        report.unique_hashes = s.scalar(select(func.count(func.distinct(JdRaw.content_hash)))) or 0
+        hash_q = select(func.count(func.distinct(JdRaw.content_hash)))
+        if base_filter:
+            hash_q = hash_q.where(*base_filter)
+        report.unique_hashes = s.scalar(hash_q) or 0
 
     if report.total > 0:
         report.dedup_rate = round(1.0 - report.unique_hashes / report.total, 4)
