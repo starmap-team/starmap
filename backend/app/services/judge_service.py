@@ -13,33 +13,32 @@
 from __future__ import annotations
 
 import json
+import re as _re
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 from pydantic import BaseModel, Field
+
+from app.core.extraction.llm_client import (
+    LLMResponseError,
+    call_llm_with_fallback,
+    parse_llm_json_response,
+)
+from app.core.extraction.prompt import get_prompt, get_prompt_version
 
 # 技能归一化（可选，导入失败时退化为基础匹配）
 _BACKEND_DIR = str(Path(__file__).resolve().parent.parent)
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
+_HAS_NORMALIZE = False
 try:
     from app.core.extraction.normalize import normalize_by_alias
     _HAS_NORMALIZE = True
 except Exception:
-    _HAS_NORMALIZE = False
-
-from app.core.extraction.llm_client import (
-    LLMConnectionError,
-    LLMResponseError,
-    LLMTimeoutError,
-    call_llm_with_fallback,
-    parse_llm_json_response,
-)
-from app.core.extraction.prompt import get_prompt, get_prompt_version
+    normalize_by_alias = None  # type: ignore[assignment]
 
 
 # ──────────────────────────────────────────────
@@ -54,8 +53,8 @@ class SampleEvaluation(BaseModel):
     precision: float = 0.0
     recall: float = 0.0
     f1: float = 0.0
-    llm_score: Optional[float] = None
-    llm_reasoning: Optional[str] = None
+    llm_score: float | None = None
+    llm_reasoning: str | None = None
     errors: list[str] = Field(default_factory=list)
 
 
@@ -72,8 +71,8 @@ class ExtractionMetrics(BaseModel):
         default_factory=lambda: {"excellent": 0, "good": 0, "fair": 0, "poor": 0},
     )
     per_sample: list[SampleEvaluation] = Field(default_factory=list)
-    quality_gate: Optional[dict[str, Any]] = None
-    judge_prompt_version: Optional[str] = None
+    quality_gate: dict[str, Any] | None = None
+    judge_prompt_version: str | None = None
 
 
 # ──────────────────────────────────────────────
@@ -83,8 +82,6 @@ class ExtractionMetrics(BaseModel):
 
 def _normalize_skill(skill: str) -> str:
     """对技能名称做归一化，用于公平比对。"""
-    import re as _re
-
     s = (skill or "").strip()
     if not s:
         return ""

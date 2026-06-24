@@ -4,7 +4,7 @@
 作为流 D (QA) 的自动化评估基础。
 """
 from datetime import UTC, datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -39,7 +39,7 @@ class JudgeRequest(BaseModel):
         default=False,
         description="是否启用 LLM judge 进行多维度评分",
     )
-    judge_prompt_version: Optional[str] = Field(
+    judge_prompt_version: str | None = Field(
         default=None,
         description="Judge prompt 版本号 (v1/v2)，默认使用 active 版本",
     )
@@ -58,7 +58,7 @@ class BatchJudgeRequest(BaseModel):
     golden_file: str = Field(..., description="Golden set JSONL 文件路径")
     system_file: str = Field(..., description="System 输出 JSONL 文件路径")
     use_llm_judge: bool = False
-    judge_prompt_version: Optional[str] = None
+    judge_prompt_version: str | None = None
     threshold: float = Field(default=0.90, ge=0.0, le=1.0, description="质量门禁阈值")
 
 
@@ -72,8 +72,8 @@ class JudgeSampleResponse(BaseModel):
     precision: float = 0.0
     recall: float = 0.0
     f1: float = 0.0
-    llm_score: Optional[float] = None
-    llm_reasoning: Optional[str] = None
+    llm_score: float | None = None
+    llm_reasoning: str | None = None
     errors: list[str] = []
     evaluated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
@@ -95,9 +95,9 @@ class BatchJudgeResponse(BaseModel):
     avg_f1: float = 0.0
     weighted_score: float = 0.0
     f1_distribution: dict[str, int] = {}
-    quality_gate: Optional[dict[str, Any]] = None
+    quality_gate: dict[str, Any] | None = None
     per_sample: list[dict[str, Any]] = []
-    judge_prompt_version: Optional[str] = None
+    judge_prompt_version: str | None = None
 
 
 # ──────────────────────────────────────────────
