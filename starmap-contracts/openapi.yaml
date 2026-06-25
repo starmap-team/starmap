@@ -129,6 +129,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /resume/upload:
+    post:
+      operationId: uploadResume
+      summary: "简历上传解析"
+      description: "阶段4兼容端点：上传简历文件并返回结构化技能抽取结果"
+      tags: [简历解析]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "简历文件（支持 .pdf, .docx, .doc）"
+      responses:
+        "200":
+          description: "解析成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractionResult"
+        "400":
+          description: "文件类型不支持或读取失败"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: "抽取 pipeline 报错"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   # ──────────────────────── 岗位管理 ────────────────────────
   /positions:
     get:
@@ -283,29 +321,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /graph/panorama:
-    get:
-      operationId: getGraphPanorama
-      summary: "全景图谱"
-      description: "返回岗位-技能全景图谱，默认返回全图"
-      tags: [图谱查询]
-      responses:
-        "200":
-          description: "全景图谱"
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [nodes, edges]
-                properties:
-                  nodes:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/GraphNode"
-                  edges:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/GraphEdge"
   /graph/position/{position_id}/skills:
     get:
       operationId: getPositionSkills
@@ -379,6 +394,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
       x-llm-features: [skill_normalization, gap_analysis]
+
+  /match/diagnose:
+    post:
+      operationId: diagnoseMatch
+      summary: "人岗匹配诊断"
+      description: "阶段4兼容端点：简历技能到目标岗位的差距分析和学习路径"
+      tags: [匹配诊断]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchRequest"
+      responses:
+        "200":
+          description: "匹配完成"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchResult"
+        "400":
+          description: "请求参数错误"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /match/result/{match_id}:
     get:
@@ -578,6 +619,98 @@ paths:
                     maximum: 1
                   pending_review:
                     type: integer
+
+  /admin/sources:
+    get:
+      operationId: getAdminSources
+      summary: "数据源配置列表"
+      description: "管理后台展示数据源权威性与来源类型"
+      tags: [管理后台]
+      responses:
+        "200":
+          description: "数据源列表"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceList"
+
+  /admin/review-queue:
+    get:
+      operationId: getReviewQueue
+      summary: "人工审核队列"
+      description: "返回待人工审核的技能或岗位候选项"
+      tags: [管理后台]
+      responses:
+        "200":
+          description: "审核队列"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditQueue"
+
+  /admin/audit/{item_id}/approve:
+    post:
+      operationId: approveAuditItem
+      summary: "批准审核项"
+      tags: [管理后台]
+      parameters:
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "已批准"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditItem"
+        "404":
+          description: "审核项不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/audit/{item_id}/reject:
+    post:
+      operationId: rejectAuditItem
+      summary: "拒绝审核项"
+      tags: [管理后台]
+      parameters:
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "已拒绝"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditItem"
+        "404":
+          description: "审核项不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/seed/reset:
+    post:
+      operationId: resetDemoSeed
+      summary: "重置演示数据"
+      description: "重置管理后台演示审核队列，供演示环境恢复初始状态"
+      tags: [管理后台]
+      responses:
+        "200":
+          description: "重置成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetDemoResult"
 
 components:
   schemas:
@@ -816,8 +949,16 @@ components:
 
     MatchResult:
       type: object
-      required: [match_score, matched_skills, gap_skills, recommendations]
+      required: [match_id, target_position, match_score, matched_skills, gap_skills, recommendations]
       properties:
+        match_id:
+          type: string
+          format: uuid
+          description: "匹配结果 ID"
+        target_position:
+          type: string
+          description: "目标岗位"
+          example: "数据分析师"
         match_score:
           type: number
           format: float
@@ -843,6 +984,51 @@ components:
           items:
             type: string
           example: ["建议优先学习 Docker 容器化部署", "补充分布式系统理论知识"]
+        missing_required:
+          type: array
+          description: "缺失的必备技能"
+          items:
+            type: string
+          default: []
+        missing_bonus:
+          type: array
+          description: "缺失的加分技能"
+          items:
+            type: string
+          default: []
+        skill_gap_detail:
+          type: array
+          description: "技能差距明细，含学习路径"
+          items:
+            $ref: "#/components/schemas/SkillGapDetail"
+          default: []
+        overall_assessment:
+          type: string
+          description: "总体评估"
+          default: ""
+        estimated_learning_time:
+          type: string
+          description: "预计学习时长"
+          default: ""
+
+    SkillGapDetail:
+      type: object
+      required: [skill, importance, gap_level, learning_path]
+      properties:
+        skill:
+          type: string
+          example: "Pandas"
+        importance:
+          type: string
+          enum: [required, bonus]
+        gap_level:
+          type: string
+          enum: ["完全缺失", "部分掌握", "已掌握"]
+        learning_path:
+          type: array
+          items:
+            type: string
+          example: ["Python", "NumPy", "Pandas"]
 
     QualityReport:
       type: object
@@ -911,6 +1097,69 @@ components:
           items:
             type: string
           example: ["后端开发工程师", "数据工程师", "AI 工程师"]
+
+    SourceConfig:
+      type: object
+      required: [id, name, authority_score, source_type]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        authority_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        source_type:
+          type: string
+
+    SourceList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceConfig"
+
+    AuditItem:
+      type: object
+      required: [id, type, name, trust, status]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [position, skill]
+        name:
+          type: string
+        trust:
+          type: integer
+          minimum: 0
+          maximum: 100
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+
+    AuditQueue:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditItem"
+
+    ResetDemoResult:
+      type: object
+      required: [ok, review_items]
+      properties:
+        ok:
+          type: boolean
+        review_items:
+          type: integer
+          minimum: 0
 
     Error:
       type: object

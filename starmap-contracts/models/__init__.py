@@ -135,12 +135,26 @@ class MatchRequest(BaseModel):
 
 
 class MatchResult(BaseModel):
+    match_id: str = Field(description="匹配结果 ID")
+    target_position: str = Field(description="目标岗位")
     match_score: float = Field(
         ge=0.0, le=1.0, description="总体匹配度",
     )
     matched_skills: list[str] = Field(description="已匹配技能")
     gap_skills: list[str] = Field(description="差距技能")
     recommendations: list[str] = Field(description="学习路径建议")
+    missing_required: list[str] = Field(default_factory=list, description="缺失的必备技能")
+    missing_bonus: list[str] = Field(default_factory=list, description="缺失的加分技能")
+    skill_gap_detail: list["SkillGapDetail"] = Field(default_factory=list, description="技能差距明细")
+    overall_assessment: str = Field(default="", description="总体评估")
+    estimated_learning_time: str = Field(default="", description="预计学习时长")
+
+
+class SkillGapDetail(BaseModel):
+    skill: str = Field(description="技能名称")
+    importance: str = Field(description="required 或 bonus")
+    gap_level: str = Field(description="完全缺失、部分掌握或已掌握")
+    learning_path: list[str] = Field(description="学习路径")
 
 
 class QualityDetail(BaseModel):
@@ -192,6 +206,34 @@ class AdminStats(BaseModel):
         ge=0.0, le=1.0, description="幻觉率",
     )
     pending_review: int = Field(description="待审核数")
+
+
+class SourceConfig(BaseModel):
+    id: int = Field(description="数据源 ID")
+    name: str = Field(description="数据源名称")
+    authority_score: float = Field(ge=0.0, le=1.0, description="权威性分数")
+    source_type: str = Field(description="数据源类型")
+
+
+class SourceList(BaseModel):
+    items: list[SourceConfig] = Field(description="数据源列表")
+
+
+class AuditItem(BaseModel):
+    id: int = Field(description="审核项 ID")
+    type: str = Field(description="position 或 skill")
+    name: str = Field(description="审核对象名称")
+    trust: int = Field(ge=0, le=100, description="信任度百分比")
+    status: str = Field(description="pending、approved 或 rejected")
+
+
+class AuditQueue(BaseModel):
+    items: list[AuditItem] = Field(description="审核队列")
+
+
+class ResetDemoResult(BaseModel):
+    ok: bool = Field(description="是否重置成功")
+    review_items: int = Field(ge=0, description="重置后的审核项数量")
 
 
 class PaginatedPositions(BaseModel):

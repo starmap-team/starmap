@@ -78,10 +78,11 @@ class TestExtractJDEndpoint:
 
         all_skills = []
         for s in body["required_skills"]:
-            all_skills.append(s["name"])
+            all_skills.append(s["skill"])
         for s in body["preferred_skills"]:
-            all_skills.append(s["name"])
+            all_skills.append(s["skill"])
         assert set(all_skills) == EXPECTED_SKILL_NAMES
+        assert all(set(s) == {"skill", "category", "proficiency"} for s in body["required_skills"])
 
         assert body["confidence"] > 0
         assert isinstance(body["normalized_skills"], list)
