@@ -1,21 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import request from '@/api/request'
 
-/**
- * 图谱质量数据 store
- * 对应契约：GET /quality/report + GET /admin/stats（mock 合并为一个接口）
- * enrich 字段用于前端展示
- */
-
-// ── 契约 QualityReport 字段 ──
 export interface QualityMetrics {
-  // QualityReport
   precision: number
   recall: number
   f1: number
   warning_level: 'green' | 'yellow' | 'orange' | 'red'
   details: { dimension: string; value: number; threshold: number; status: 'pass' | 'warn' | 'fail' }[]
-  // AdminStats
   total_nodes: number
   total_edges: number
   total_positions: number
@@ -23,7 +15,6 @@ export interface QualityMetrics {
   avg_confidence: number
   hallucination_rate: number
   pending_review: number
-  // enrich: 前端展示额外字段
   avg_trust_score: number
   high_trust_ratio: number
   weekly_new_nodes: number
@@ -38,12 +29,12 @@ export const useQualityStore = defineStore('quality', () => {
   const metrics = ref<QualityMetrics | null>(null)
   const loading = ref(false)
 
+  /** 获取完整质量报告 GET /quality/report */
   async function fetchQuality() {
     loading.value = true
     try {
-      const resp = await fetch('/api/v1/quality/report')
-      const data = await resp.json()
-      metrics.value = data as QualityMetrics
+      const data = await request.get('/quality/report')
+      metrics.value = data as unknown as QualityMetrics
     } finally {
       loading.value = false
     }

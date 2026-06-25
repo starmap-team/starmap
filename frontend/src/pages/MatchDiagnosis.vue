@@ -74,11 +74,9 @@ async function handlePositionSelect(pos: { position_id: string; name: string }) 
   targetPositionName.value = pos.name
   radarLoading.value = true
   try {
-    // 契约: GET /graph/position/{position_id}/skills
-    const resp = await fetch(`/api/v1/graph/position/${encodeURIComponent(pos.position_id)}/skills`)
-    const data = await resp.json()
-    // 契约 SkillNode[] → 雷达图 RadarItem[]
-    const skills = data.skills ?? []
+    // 契约: GET /graph/position/{id}/skills
+    const data = await matchStore.fetchPositionSkills(pos.position_id)
+    const skills = data?.required_skills ?? []
     radarData.value = skills.map((s: any) => ({
       skill: s.name,
       required: PROFICIENCY_MAP[s.proficiency] ?? 0.5,
