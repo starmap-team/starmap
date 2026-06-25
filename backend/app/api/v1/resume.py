@@ -1,19 +1,42 @@
-"""简历解析 API（占位）。对应§5.4 简历解析 Pipeline，W9-W10 流B 实现。
+"""简历解析兼容 API。"""
 
-合规要点（§15）：上传简历必须经 PII 检测→脱敏→加密存储→脱敏内容传星火 API。
-"""
-from fastapi import APIRouter, File, UploadFile
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from loguru import logger
+
+from app.api.v1.extract import ExtractionResult, _build_result
+from app.services.resume_service import run_resume_extraction
 
 router = APIRouter(prefix="/resume", tags=["简历解析"])
 
 
-@router.post("/upload")
-async def upload_resume(file: UploadFile = File(...)):  # noqa: B008
-    """上传简历（PDF/Word）。返回解析后的技能列表。
+@router.post("/upload", response_model=ExtractionResult)
+async def upload_resume(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
+    """阶段 4 兼容端点：上传简历并返回结构化抽取结果。"""
+    logger.info("POST /resume/upload - filename={}", file.filename)
 
-    TODO(W9):
-      1. 文档解析（pdfplumber/docx），失败降级 OCR（§5.4）
-      2. PII 检测 + 脱敏（§15.2）
-      3. LLM 技能抽取 → 归一化
-    """
-    return {"filename": file.filename, "skills": [], "message": "TODO"}
+    if file.filename is None:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    try:
+        content_bytes = await file.read()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {exc}") from exc
+
+    try:
+        pipeline_result = await run_resume_extraction(file.filename, content_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ConnectionError as exc:
+        raise HTTPException(status_code=502, detail=f"LLM service unavailable: {exc}") from exc
+    except Exception as exc:
+        logger.opt(exception=True).error("Unexpected /resume/upload error: {}", exc)
+        raise HTTPException(status_code=500, detail="Internal extraction error") from exc
+
+    if not pipeline_result.get("success"):
+        raise HTTPException(status_code=422, detail=pipeline_result.get("error", "Unknown extraction error"))
+
+    return _build_result(pipeline_result)
