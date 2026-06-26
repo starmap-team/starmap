@@ -40,6 +40,9 @@ def test_build_triples_from_extraction_maps_core_ontology_edges():
     python_requires = next(t for t in triples if t.relationship == REL_REQUIRES and t.target.name == "Python")
     assert python_requires.properties["required"] is True
     assert python_requires.properties["level"] == "advanced"
+    assert python_requires.target.properties["proficiency"] == "精通"
+    assert python_requires.target.properties["source_count"] == 1
+    assert python_requires.target.properties["trend"] == "stable"
 
 
 def test_build_triples_from_extraction_rejects_missing_position_name():
@@ -89,5 +92,7 @@ async def test_merge_triple_uses_validated_labels_and_parameterized_properties()
     assert "MERGE (source)-[rel:REQUIRES]->(target)" in query
     assert params["source_name"] == "Backend"
     assert params["target_name"] == "Python"
+    assert params["target_props"]["proficiency"] == "精通"
+    assert params["target_count_increment"] == 1
     assert params["rel_props"]["level"] == "advanced"
     assert result["relationship"] == {"weight": 1.0}

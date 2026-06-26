@@ -120,6 +120,15 @@ def _skill_entry_level(entry: Any) -> str:
     return "intermediate"
 
 
+def _normalize_proficiency(value: Any) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in {"精通", "expert", "advanced", "senior", "high"}:
+        return "精通"
+    if raw in {"了解", "beginner", "basic", "junior", "low"}:
+        return "了解"
+    return "熟悉"
+
+
 def _skill_entry_category(entry: Any) -> str:
     if isinstance(entry, dict):
         return str(entry.get("category") or "skill").lower()
@@ -131,6 +140,53 @@ def _skill_entry_years(entry: Any) -> float | None:
         value = entry.get("years_of_experience")
         return float(value) if value is not None else None
     return None
+
+
+def _skill_entry_confidence(entry: Any) -> float:
+    if isinstance(entry, dict):
+        value = entry.get("confidence")
+        return float(value) if value is not None else 0.8
+    return 0.8
+
+
+def _skill_entry_source_count(entry: Any) -> int:
+    if isinstance(entry, dict):
+        value = entry.get("source_count")
+        return int(value) if value is not None else 1
+    return 1
+
+
+def _skill_entry_trend(entry: Any) -> str:
+    if isinstance(entry, dict):
+        trend = str(entry.get("trend") or "stable")
+        if trend in {"rising", "stable", "declining"}:
+            return trend
+    return "stable"
+
+
+def _skill_node_properties(entry: Any, category: str, level: str) -> dict[str, Any]:
+    return {
+        "category": category,
+        "source_category": category,
+        "proficiency": _normalize_proficiency(level),
+        "confidence": _skill_entry_confidence(entry),
+        "source_count": _skill_entry_source_count(entry),
+        "trend": _skill_entry_trend(entry),
+    }
+
+
+def _node_merge_properties(node: GraphNodeRef) -> dict[str, Any]:
+    props = _clean_properties(node.properties)
+    if node.label == NODE_SKILL:
+        props.pop("source_count", None)
+    return props
+
+
+def _skill_source_count_increment(node: GraphNodeRef) -> int:
+    if node.label != NODE_SKILL:
+        return 0
+    value = node.properties.get("source_count")
+    return int(value) if value is not None else 0
 
 
 def _append_unique(triples: list[GraphTriple], triple: GraphTriple) -> None:
@@ -205,7 +261,7 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
                     skill = _node_ref(NODE_SKILL, str(certifies))
                     _append_unique(triples, GraphTriple(certificate, REL_CERTIFIES, skill, {"weight": 1.0}))
             else:
-                target = _node_ref(NODE_SKILL, skill_name, {"source_category": category})
+                target = _node_ref(NODE_SKILL, skill_name, _skill_node_properties(entry, category, level))
                 _append_unique(triples, GraphTriple(position, REL_REQUIRES, target, rel_props))
 
     industry_name = extraction.get("industry")
@@ -277,6 +333,16 @@ async def merge_triple(driver: Any, triple: GraphTriple) -> dict[str, Any]:
     SET source += $source_props, source.updated_at = datetime()
     MERGE (target:{target_label} {{name: $target_name}})
     SET target += $target_props, target.updated_at = datetime()
+    FOREACH (_ IN CASE WHEN $source_label = 'Skill' THEN [1] ELSE [] END |
+        SET source.source_count = coalesce(source.source_count, 0) + $source_count_increment,
+            source.proficiency = coalesce(source.proficiency, '熟悉'),
+            source.trend = coalesce(source.trend, 'stable')
+    )
+    FOREACH (_ IN CASE WHEN $target_label = 'Skill' THEN [1] ELSE [] END |
+        SET target.source_count = coalesce(target.source_count, 0) + $target_count_increment,
+            target.proficiency = coalesce(target.proficiency, '熟悉'),
+            target.trend = coalesce(target.trend, 'stable')
+    )
     MERGE (source)-[rel:{relationship}]->(target)
     SET rel += $rel_props, rel.updated_at = datetime()
     RETURN source, rel, target
@@ -286,9 +352,13 @@ async def merge_triple(driver: Any, triple: GraphTriple) -> dict[str, Any]:
             result = await session.run(
                 query,
                 source_name=triple.source.name,
-                source_props=_clean_properties(triple.source.properties),
+                source_label=source_label,
+                source_props=_node_merge_properties(triple.source),
+                source_count_increment=_skill_source_count_increment(triple.source),
                 target_name=triple.target.name,
-                target_props=_clean_properties(triple.target.properties),
+                target_label=target_label,
+                target_props=_node_merge_properties(triple.target),
+                target_count_increment=_skill_source_count_increment(triple.target),
                 rel_props=_clean_properties(triple.properties),
             )
             record = await result.single()
@@ -424,14 +494,25 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
     """
     from neo4j.exceptions import Neo4jError
 
+    props = _clean_properties(
+        {
+            **(metadata or {}),
+            "proficiency": _normalize_proficiency((metadata or {}).get("proficiency") or (metadata or {}).get("level")),
+            "source_count": int((metadata or {}).get("source_count") or 1),
+            "trend": (metadata or {}).get("trend") or "stable",
+        }
+    )
+    merge_props = {key: value for key, value in props.items() if key != "source_count"}
     query = """
     MERGE (s:Skill {name: $name})
-    SET s.updated_at = datetime()
+    SET s += $props,
+        s.source_count = coalesce(s.source_count, 0) + $source_count,
+        s.updated_at = datetime()
     RETURN s
     """
     try:
         async with driver.session() as session:
-            result = await session.run(query, name=skill_name)
+            result = await session.run(query, name=skill_name, props=merge_props, source_count=props["source_count"])
             record = await result.single()
             if record is None:
                 raise ValueError(f"Failed to merge Skill: {skill_name}")
@@ -623,7 +704,12 @@ async def get_all_skills(driver: Any) -> list[dict[str, Any]]:
     """
     query = """
     MATCH (s:Skill)
-    RETURN s.name AS name, s.updated_at AS updated_at
+    RETURN s.name AS name,
+           s.category AS category,
+           s.proficiency AS proficiency,
+           s.source_count AS source_count,
+           s.trend AS trend,
+           s.updated_at AS updated_at
     ORDER BY s.name
     """
     skills: list[dict[str, Any]] = []
@@ -631,6 +717,15 @@ async def get_all_skills(driver: Any) -> list[dict[str, Any]]:
     async with driver.session() as session:
         result = await session.run(query)
         async for record in result:
-            skills.append({"name": record["name"], "updated_at": str(record.get("updated_at", ""))})
+            skills.append(
+                {
+                    "name": record["name"],
+                    "category": record.get("category") or "hard_skill",
+                    "proficiency": record.get("proficiency") or "熟悉",
+                    "source_count": int(record.get("source_count") or 0),
+                    "trend": record.get("trend") or "stable",
+                    "updated_at": str(record.get("updated_at", "")),
+                }
+            )
 
     return skills
