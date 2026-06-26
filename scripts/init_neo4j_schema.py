@@ -164,6 +164,14 @@ async def load_seed_positions(driver):
             "required_skills": ["Docker", "Kubernetes", "Terraform", "CI/CD", "Prometheus"],
         },
         {
+            "name": "大模型应用工程师",
+            "industry": "人工智能",
+            "description": "负责LLM应用落地，包括RAG系统搭建、Prompt工程、模型微调与部署。",
+            "required_skills": [
+                "Python", "LLM", "RAG", "Prompt Engineering", "LangChain", "Fine-tuning",
+            ],
+        },
+        {
             "name": "安全工程师",
             "industry": "网络安全",
             "description": "负责安全架构设计、渗透测试与安全运营。",
@@ -218,7 +226,7 @@ async def main():
     print("  8 relationship types documented")
     print("  4 indexes created/verified")
     print("  12 KnowledgeArea nodes seeded")
-    print("  6 seed positions loaded with REQUIRES relationships")
+    print("  7 seed positions loaded with REQUIRES relationships")
     print("  24 BELONGS_TO, 8 PREREQUISITE, 4 USES relationships seeded")
 
 

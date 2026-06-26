@@ -22,7 +22,7 @@ from app.core.extraction.llm_client import (
 from app.core.extraction.normalize import (
     batch_normalize_skills,
 )
-from app.core.extraction.prompt import get_prompt
+from app.core.extraction.prompt import get_ab_test, get_active_version, get_prompt
 
 # Chinese PII patterns
 _PII_PATTERNS: list[re.Pattern] = [
@@ -72,10 +72,21 @@ class AntiHallucinationResult(BaseModel):
     """Anti-hallucination validation result."""
 
     is_valid: bool = Field(default=True)
-    hallucinated_skills: list[str] = Field(default_factory=list)
-    missing_skills: list[str] = Field(default_factory=list)
+    hallucinated_skills: list[str | dict[str, Any]] = Field(default_factory=list)
+    missing_skills: list[str | dict[str, Any]] = Field(default_factory=list)
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     issues: list[str] = Field(default_factory=list)
+
+
+def _normalize_skill_list(skills: list[str | dict[str, Any]]) -> list[str]:
+    """Normalize skill list items to strings (extract 'name' key if dict)."""
+    result = []
+    for s in skills:
+        if isinstance(s, dict):
+            result.append(str(s.get("name", str(s))))
+        else:
+            result.append(str(s))
+    return result
 
 
 @dataclass
@@ -85,9 +96,10 @@ class JDExtractionPipeline:
     llm_client: LLMClient = field(default_factory=LLMClient)
     anti_hallucination_enabled: bool = True
     normalize_skills_enabled: bool = True
-    use_vector_normalization: bool = False
+    use_vector_normalization: bool = True
     vector_threshold: float = 0.85
     min_sources: int = 3
+    source_counts: dict[str, int] | None = None
 
     async def run(self, jd_content: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """Execute the full extraction pipeline.
@@ -111,6 +123,8 @@ class JDExtractionPipeline:
             "normalization": [],
             "validation": None,
             "error": None,
+            "prompt_version_used": None,
+            "prompt_ab_test": False,
         }
 
         if not jd_content or not jd_content.strip():
@@ -127,6 +141,26 @@ class JDExtractionPipeline:
         except (KeyError, ValueError) as e:
             result["error"] = f"Prompt error: {e}"
             return result
+
+        # Track which prompt version was resolved (supports A/B test)
+        ab_cfg = get_ab_test("jd_extraction")
+        if ab_cfg:
+            # A/B test active: don't call select_version() again to avoid
+            # randomness mismatch with the earlier get_prompt() call.
+            # Record the test config; per-request version is random.
+            result["prompt_ab_test"] = True
+            result["prompt_version_used"] = (
+                f"ab_test(control={ab_cfg.control_version},"
+                f" canary={ab_cfg.canary_version},"
+                f" traffic={ab_cfg.traffic_fraction:.0%})"
+            )
+            logger.info(
+                "A/B test active: jd_extraction control={} canary={} traffic={:.0%}",
+                ab_cfg.control_version, ab_cfg.canary_version, ab_cfg.traffic_fraction,
+            )
+        else:
+            result["prompt_ab_test"] = False
+            result["prompt_version_used"] = get_active_version("jd_extraction") or "v1"
 
         # Step 2: Call LLM
         try:
@@ -166,8 +200,46 @@ class JDExtractionPipeline:
                     setattr(validated, key, parsed.get(key))
                 elif key == "responsibilities":
                     setattr(validated, key, parsed.get(key, []))
+                elif key in ("required_skills", "preferred_skills"):
+                    pass  # keep default [] from JDExtractionResult()
                 else:
                     setattr(validated, key, parsed.get(key, ""))
+
+        # Step 4.5: Clean up Chinese suffixes from skill names
+        chinese_suffixes = [
+            "系统", "安全", "开发", "管理", "平台", "框架", "技术", "语言",
+            "生态", "相关", "服务", "设计", "网络", "算法", "存储", "计算",
+            "容器", "工具", "应用", "架构", "工程", "引擎", "协议", "自动化",
+            "编程", "部署", "监控", "测试", "运维", "研发",
+            "运行时", "数据库", "环境", "桌面", "并行", "调优", "优化",
+            "设计规范", "部署经验", "模型转换", "模型加速", "内核", "源码",
+            # M2 low-F1 optimization: strip common Chinese suffixes that LLM appends
+            "方法论", "能力", "攻防", "漏洞", "竞赛经验", "认证", "证书",
+        ]
+        def _clean_skill_name(name: str) -> str:
+            while True:
+                original = name
+                for suffix in chinese_suffixes:
+                    if len(name) > 3 and name.endswith(suffix):
+                        cleaned = name[:-len(suffix)]
+                        # Only apply strip if result is non-empty AND at least 3 chars
+                        # (prevents over-stripping like "系统架构"→"系统" or "渗透测试"→"渗透")
+                        if cleaned and len(cleaned) >= 3:
+                            name = cleaned
+                if name == original:
+                    break
+            return name
+
+        for skill in validated.required_skills:
+            cleaned = _clean_skill_name(skill.name)
+            if cleaned != skill.name:
+                logger.debug("Cleaned skill name: '{}' -> '{}'", skill.name, cleaned)
+                skill.name = cleaned
+        for skill in validated.preferred_skills:
+            cleaned = _clean_skill_name(skill.name)
+            if cleaned != skill.name:
+                logger.debug("Cleaned skill name: '{}' -> '{}'", skill.name, cleaned)
+                skill.name = cleaned
 
         # Step 5: Normalize skills
         if self.normalize_skills_enabled:
@@ -182,6 +254,7 @@ class JDExtractionPipeline:
                 use_vector=self.use_vector_normalization,
                 vector_threshold=self.vector_threshold,
                 min_sources=self.min_sources,
+                source_counts=self.source_counts,
             )
 
             result["normalization"] = [nr.__dict__ for nr in normalized_results]
@@ -225,7 +298,11 @@ class JDExtractionPipeline:
                 v["missing_skills"] = _normalize_str_list(v.get("missing_skills", []))
                 v["issues"] = _normalize_str_list(v.get("issues", []))
                 validation = AntiHallucinationResult(**v)
-                result["validation"] = validation.model_dump()
+                # Normalize dict items to strings for serialization
+                v_normalized = validation.model_dump()
+                v_normalized["hallucinated_skills"] = _normalize_skill_list(validation.hallucinated_skills)
+                v_normalized["missing_skills"] = _normalize_skill_list(validation.missing_skills)
+                result["validation"] = v_normalized
 
                 if not validation.is_valid:
                     msg = f"Anti-hallucination: {len(validation.hallucinated_skills)} hallucinated, {len(validation.missing_skills)} missing"
@@ -257,6 +334,7 @@ async def extract_from_jd(
             - use_vector_normalization (bool)
             - vector_threshold (float)
             - min_sources (int)
+            - source_counts (dict[str, int]): Skill name -> source count map
 
     Returns:
         Pipeline result dict with keys: success, data, warnings, normalization, validation, error.
