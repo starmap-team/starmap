@@ -579,6 +579,68 @@ paths:
                   pending_review:
                     type: integer
 
+  /admin/review-queue:
+    get:
+      operationId: getReviewQueue
+      summary: "审核队列"
+      description: "获取待人工审核的技能/岗位列表"
+      tags: [管理后台]
+      responses:
+        "200":
+          description: "审核队列"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditItem"
+
+  /admin/seed/reset:
+    post:
+      operationId: resetDemoData
+      summary: "重置演示数据"
+      description: "清空当前数据并重新加载种子数据"
+      tags: [管理后台]
+      responses:
+        "200":
+          description: "重置成功"
+
+  /admin/review/{id}/approve:
+    post:
+      operationId: approveReviewItem
+      summary: "审核通过"
+      description: "通过某条审核项"
+      tags: [管理后台]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "已通过"
+
+  /admin/review/{id}/reject:
+    post:
+      operationId: rejectReviewItem
+      summary: "审核驳回"
+      description: "驳回某条审核项"
+      tags: [管理后台]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "已驳回"
+
 components:
   schemas:
     ExtractionRequest:
@@ -911,6 +973,26 @@ components:
           items:
             type: string
           example: ["后端开发工程师", "数据工程师", "AI 工程师"]
+
+    AuditItem:
+      type: object
+      required: [id, type, name, trust, status]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [position, skill]
+        name:
+          type: string
+        trust:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        status:
+          type: string
+          enum: [pending, approved, rejected]
 
     Error:
       type: object
