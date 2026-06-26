@@ -5,7 +5,12 @@ import builtins
 
 import pytest
 
-from app.services.graph_service import ensure_readonly_cypher, fetch_position_graph, serialize_node, serialize_relationship
+from app.services.graph_service import (
+    ensure_readonly_cypher,
+    fetch_position_graph,
+    serialize_node,
+    serialize_relationship,
+)
 
 
 class FakeNode:
