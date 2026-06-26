@@ -51,6 +51,37 @@ class PositionSkillGraphResponse(BaseModel):
     edges: list[GraphEdge] = Field(default_factory=list, description="技能关系边列表")
 
 
+class PositionNode(BaseModel):
+    """岗位技能接口中的扁平岗位信息。"""
+
+    position_id: str = Field(default="", description="岗位唯一标识")
+    name: str = Field(default="", description="岗位名称")
+    industry: str = Field(default="", description="所属行业")
+    description: str = Field(default="", description="岗位描述")
+    skills_required: list[dict[str, Any]] = Field(default_factory=list, description="岗位所需技能")
+
+
+class SkillNode(BaseModel):
+    """岗位技能接口中的扁平技能信息。"""
+
+    skill_id: str = Field(..., description="技能唯一标识")
+    name: str = Field(..., description="技能名称")
+    category: str = Field(default="hard_skill", description="技能分类")
+    proficiency: str = Field(default="熟悉", description="熟练度")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="置信度")
+    source_count: int = Field(default=0, ge=0, description="来源文档计数")
+    trend: str = Field(default="stable", description="趋势方向")
+    importance: str = Field(default="required", description="required/bonus")
+
+
+class PositionSkillDetailResponse(BaseModel):
+    """岗位技能子图响应，skills 为合同 SkillNode 扁平列表。"""
+
+    position: PositionNode | None = Field(default=None, description="岗位信息")
+    skills: list[SkillNode] = Field(default_factory=list, description="技能节点列表")
+    edges: list[GraphEdge] = Field(default_factory=list, description="技能关系边列表")
+
+
 def _graph_nodes(items: list[dict[str, Any]]) -> list[GraphNode]:
     return [GraphNode(**item) for item in items]
 
@@ -120,16 +151,16 @@ async def get_position_graph(
 @router.get(
     "/position/{position_id}/skills",
     summary="岗位技能图谱",
-    description="阶段3前的占位接口。",
-    response_model=PositionSkillGraphResponse,
+    description="按岗位名称或节点 id 获取岗位技能子图；skills 返回扁平 SkillNode 字段。",
+    response_model=PositionSkillDetailResponse,
 )
 async def get_position_skills(
     position_id: str,
     driver: Annotated[Any, Depends(get_neo4j_driver)],
     depth: Annotated[int, Query(description="递归查询深度（含技能先修关系）", ge=1, le=5)] = 1,
-) -> PositionSkillGraphResponse:
+) -> PositionSkillDetailResponse:
     graph = await fetch_position_graph(driver, position_id, depth)
-    return PositionSkillGraphResponse(
+    return PositionSkillDetailResponse(
         position=graph["position"],
         skills=graph["skills"],
         edges=_graph_edges(graph["edges"]),
