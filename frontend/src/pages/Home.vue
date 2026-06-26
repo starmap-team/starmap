@@ -97,13 +97,6 @@ const techLegend = [
   { name: '运维', color: '#36CFC9' },
 ]
 
-const levelLegend = [
-  { name: '专家', color: 'rgb(29,78,216)', size: 16, label: '55px' },
-  { name: '高级', color: 'rgb(37,99,235)', size: 14, label: '42px' },
-  { name: '中级', color: 'rgb(59,130,246)', size: 12, label: '32px' },
-  { name: '初级', color: 'rgb(147,197,253)', size: 10, label: '24px' },
-]
-
 // ── 视图模式选项 ──
 const viewModeOptions = [
   { label: '默认', value: 'default' as const },
@@ -433,55 +426,6 @@ function applyCurrentView() {
           stroke: '#d0d0d0',
           lineWidth: 0.5,
           opacity: ids.has(e.source_id) || ids.has(e.target_id) || (expansionActive && (!twoHopVisibleIds.value.has(e.source_id) || !twoHopVisibleIds.value.has(e.target_id))) ? 0.02 : 0.08,
-        },
-      })),
-    })
-    relayout()
-    return
-  }
-
-  // ── 级别视图：仅显示 Position 节点，按 proficiency 渐变色 + 大小区分 ──
-  if (mode === 'level') {
-    const PROFICIENCY_SIZE: Record<string, number> = { '初级': 24, '中级': 32, '高级': 42, '专家': 55 }
-    const PROFICIENCY_COLOR: Record<string, [number,number,number]> = {
-      '初级': [147,197,253],  // 浅蓝
-      '中级': [59,130,246],   // 中蓝
-      '高级': [37,99,235],    // 深蓝
-      '专家': [29,78,216],    // 最深蓝
-    }
-    const visibleNodeIds = new Set(
-      graphStore.nodes.filter(n => n.labels.includes('Position')).map(n => n.id),
-    )
-
-    graph.setData({
-      nodes: graphStore.nodes.map(n => {
-        const prof = n.properties.proficiency ?? ''
-        const isPos = n.labels.includes('Position')
-        const c = PROFICIENCY_COLOR[prof] ?? [148,163,184]
-        const isDimmed = !isPos || ids.has(n.id) || (expansionActive && !twoHopVisibleIds.value.has(n.id))
-
-        return {
-          id: n.id,
-          style: {
-            fill: `rgb(${c[0]},${c[1]},${c[2]})`,
-            size: isDimmed ? 8 : (PROFICIENCY_SIZE[prof] ?? 28),
-            opacity: isDimmed ? 0.1 : 1,
-            labelText: isDimmed ? '' : (prof ? `${n.properties.name}` : n.properties.name),
-            labelFill: '#1f1f1f',
-            labelFontSize: 11,
-            labelPlacement: 'bottom',
-            labelOffsetY: 6,
-          },
-        }
-      }),
-      edges: graphStore.edges.map(e => ({
-        id: `${e.source_id}-${e.target_id}-${e.type}`,
-        source: e.source_id,
-        target: e.target_id,
-        style: {
-          stroke: '#d0d0d0',
-          lineWidth: 0.5,
-          opacity: (visibleNodeIds.has(e.source_id) && visibleNodeIds.has(e.target_id) && !ids.has(e.source_id) && !ids.has(e.target_id) && (!expansionActive || (twoHopVisibleIds.value.has(e.source_id) && twoHopVisibleIds.value.has(e.target_id)))) ? 0.3 : 0.02,
         },
       })),
     })
@@ -841,23 +785,6 @@ onUnmounted(() => {
                   style="width:16px;height:16px"
                 />
                 <span>出现多</span>
-              </div>
-            </div>
-            <!-- 级别：渐变色 + 大小 -->
-            <div
-              v-else-if="graphStore.viewMode === 'level'"
-              class="legend-list"
-            >
-              <div
-                v-for="item in levelLegend"
-                :key="item.name"
-                class="legend-row"
-              >
-                <span
-                  class="legend-dot"
-                  :style="{ background: item.color, width: item.size + 'px', height: item.size + 'px' }"
-                />
-                <span>{{ item.name }}（{{ item.label }}）</span>
               </div>
             </div>
             <!-- 默认：节点类型 -->

@@ -245,10 +245,10 @@ export const handlers = [
     if (cypher) void 0
     return HttpResponse.json({
       nodes: [
-        { id: 'pos-algo', labels: ['Position'], properties: { name: '算法工程师', category: 'AI', proficiency: '专家', source_count: 18, trend: 'rising' } },
-        { id: 'pos-data', labels: ['Position'], properties: { name: '数据分析师', category: '数据', proficiency: '高级', source_count: 14, trend: 'rising' } },
-        { id: 'pos-fe', labels: ['Position'], properties: { name: '前端开发工程师', category: '前端', proficiency: '中级', source_count: 16, trend: 'stable' } },
-        { id: 'pos-be', labels: ['Position'], properties: { name: '后端开发工程师', category: '后端', proficiency: '初级', source_count: 20, trend: 'stable' } },
+        { id: 'pos-algo', labels: ['Position'], properties: { name: '算法工程师', category: 'AI' } },
+        { id: 'pos-data', labels: ['Position'], properties: { name: '数据分析师', category: '数据' } },
+        { id: 'pos-fe', labels: ['Position'], properties: { name: '前端开发工程师', category: '前端' } },
+        { id: 'pos-be', labels: ['Position'], properties: { name: '后端开发工程师', category: '后端' } },
         { id: 'skill-py', labels: ['Skill'], properties: { name: 'Python', category: 'hard_skill' } },
         { id: 'skill-ml', labels: ['Skill'], properties: { name: '机器学习', category: 'hard_skill' } },
         { id: 'skill-sql', labels: ['Skill'], properties: { name: 'SQL', category: 'hard_skill' } },
