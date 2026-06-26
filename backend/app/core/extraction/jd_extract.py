@@ -204,6 +204,26 @@ class JDExtractionPipeline:
                     validated.model_dump(),
                     jd_content_safe,
                 )
+                # MiMo reasoning model may return dicts with {name, reasoning}
+                # instead of plain strings — normalize ALL list[str] fields
+                def _normalize_str_list(items):
+                    if not items:
+                        return []
+                    result = []
+                    for item in items:
+                        if isinstance(item, dict):
+                            # Extract most meaningful string value from dict
+                            result.append(item.get("name") or item.get("skill")
+                                          or item.get("issue") or str(item))
+                        elif isinstance(item, str):
+                            result.append(item)
+                        else:
+                            result.append(str(item))
+                    return result
+
+                v["hallucinated_skills"] = _normalize_str_list(v.get("hallucinated_skills", []))
+                v["missing_skills"] = _normalize_str_list(v.get("missing_skills", []))
+                v["issues"] = _normalize_str_list(v.get("issues", []))
                 validation = AntiHallucinationResult(**v)
                 result["validation"] = validation.model_dump()
 

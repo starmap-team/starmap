@@ -6,13 +6,18 @@ skill normalization, and Neo4j graph persistence.
 
 from app.core.extraction.graph_writer import (
     GraphConfig,
+    GraphNodeRef,
+    GraphTriple,
     batch_write_extractions,
+    build_triples_from_extraction,
     create_requires_relationship,
     get_all_skills,
     get_position_skills,
     merge_position,
     merge_skill,
+    merge_triple,
     write_extraction_to_graph,
+    write_triples_to_graph,
 )
 from app.core.extraction.jd_extract import (
     extract_from_jd,
@@ -70,6 +75,11 @@ __all__ = [
     "build_alias_reverse_index",
     "get_standard_skill_seeds",
     "GraphConfig",
+    "GraphNodeRef",
+    "GraphTriple",
+    "build_triples_from_extraction",
+    "merge_triple",
+    "write_triples_to_graph",
     "write_extraction_to_graph",
     "merge_position",
     "merge_skill",

@@ -1,11 +1,42 @@
 import json
 import os
-
+import re
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
 from loguru import logger
 from pydantic import BaseModel, Field
+
+# Import normalize module for skill alias resolution
+_BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+
+try:
+    from app.core.extraction.normalize import normalize_by_alias
+    _HAS_NORMALIZE = True
+except Exception:
+    _HAS_NORMALIZE = False
+    logger.warning("normalize module not available, using basic matching only")
+
+
+def _normalize_skill_for_eval(skill: str) -> str:
+    """Normalize a skill name for fair comparison.
+
+    Tries alias-based normalization first, then falls back to basic
+    case/dash/space normalization.
+    """
+    s = skill.strip()
+    if not s:
+        return ""
+    # Step 1: alias normalization (Kafka <-> Apache Kafka etc.)
+    if _HAS_NORMALIZE:
+        norm = normalize_by_alias(s)
+        if norm is not None:
+            return norm.lower()
+    # Step 2: basic normalization (remove non-alphanumeric, lowercase)
+    return re.sub(r'[^a-z0-9+#.]', '', s.lower())
 
 
 class SampleEvaluation(BaseModel):
@@ -29,8 +60,13 @@ class ExtractionMetrics(BaseModel):
 
 
 def compute_skill_f1(golden_skills: list[str], system_skills: list[str]) -> tuple[float, float, float]:
-    golden_set = set(s.strip().lower() for s in golden_skills if s.strip())
-    system_set = set(s.strip().lower() for s in system_skills if s.strip())
+    # Normalize both sides through alias + basic normalization for fair comparison
+    golden_set = set(_normalize_skill_for_eval(s) for s in golden_skills if s.strip())
+    system_set = set(_normalize_skill_for_eval(s) for s in system_skills if s.strip())
+
+    # Remove empty strings that may result from normalization
+    golden_set.discard("")
+    system_set.discard("")
 
     if not golden_set and not system_set:
         return 1.0, 1.0, 1.0

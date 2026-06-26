@@ -1,13 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import request from '@/api/request'
 
-/**
- * 匹配诊断结果 store
- * 对应契约：POST /match/position → MatchResult
- * enrich 字段用于前端展示，联调时需从 contract 字段拆解
- */
-
-// ── 契约 SkillNode（简化为匹配请求用）──
 export interface PersonSkill {
   skill_id: string
   name: string
@@ -16,7 +10,6 @@ export interface PersonSkill {
   confidence?: number
 }
 
-// ── enrich: 前端展示用差距详情 ──
 export interface SkillGap {
   skill: string
   importance: 'required' | 'bonus'
@@ -24,14 +17,11 @@ export interface SkillGap {
   learning_path: string[]
 }
 
-// ── 契约 MatchResult + enrich ──
 export interface MatchResult {
-  // 契约字段
   match_score: number
   matched_skills: string[]
   gap_skills: string[]
   recommendations: string[]
-  // enrich: 前端展示额外字段（mock 返回，联调时从 ↑ 拆解）
   target_position?: string
   missing_required?: string[]
   missing_bonus?: string[]
@@ -40,32 +30,45 @@ export interface MatchResult {
   estimated_learning_time?: string
 }
 
+export interface PositionSkills {
+  position_name: string
+  required_skills: { name: string; proficiency: string; importance: string }[]
+  bonus_skills: { name: string; proficiency: string }[]
+}
+
 export const useMatchStore = defineStore('match', () => {
   const result = ref<MatchResult | null>(null)
   const loading = ref(false)
 
+  /** 调用 POST /match/diagnose 执行匹配诊断 */
   async function runMatch(targetPosition: string, skillNames: string[]) {
     loading.value = true
     try {
-      // 将 string[] 转为契约 SkillNode[] 格式
-      const person_skills: PersonSkill[] = skillNames.map((name, _i) => ({
+      const person_skills: PersonSkill[] = skillNames.map((name) => ({
         skill_id: `skill_${name}`,
         name,
         category: 'hard_skill' as const,
         proficiency: '熟悉' as const,
       }))
-
-      const resp = await fetch('/api/v1/match/position', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ person_skills, target_position: targetPosition }),
+      const data = await request.post('/match/position', {
+        person_skills,
+        target_position: targetPosition,
       })
-      const data = await resp.json()
-      result.value = data as MatchResult
+      result.value = data as unknown as MatchResult
     } finally {
       loading.value = false
     }
   }
 
-  return { result, loading, runMatch }
+  /** 获取岗位要求的技能列表 GET /graph/position/{id}/skills */
+  async function fetchPositionSkills(positionId: string): Promise<PositionSkills | null> {
+    try {
+      const data = await request.get(`/graph/position/${positionId}/skills`)
+      return data as unknown as PositionSkills
+    } catch {
+      return null
+    }
+  }
+
+  return { result, loading, runMatch, fetchPositionSkills }
 })

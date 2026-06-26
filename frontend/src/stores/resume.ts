@@ -1,10 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import request from '@/api/request'
 
-/**
- * 简历解析结果 store
- * 对应契约：POST /extract/resume → ExtractionResult
- */
 export interface ParsedSkill {
   skill: string
   category: 'hard_skill' | 'soft_skill'
@@ -30,11 +27,11 @@ export const useResumeStore = defineStore('resume', () => {
     loading.value = true
     const formData = new FormData()
     formData.append('file', file)
-
     try {
-      const resp = await fetch('/api/v1/extract/resume', { method: 'POST', body: formData })
-      const data = await resp.json()
-      result.value = data as ResumeParseResult
+      const data = await request.post('/resume/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      result.value = data as unknown as ResumeParseResult
     } finally {
       loading.value = false
     }
