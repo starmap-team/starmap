@@ -4,6 +4,9 @@
 from app.core.extraction.normalize import (
     NormalizationResult,
     batch_normalize_skills,
+    build_alias_reverse_index,
+    get_standard_skill_seeds,
+    load_skill_aliases_from_yaml,
     normalize_by_alias,
     normalize_skill,
 )
@@ -127,3 +130,126 @@ class TestBatchNormalize:
         for r in results:
             assert r.normalized == r.original
             assert r.method == "alias"
+
+
+class TestYamlAliasLoading:
+    """Tests for YAML taxonomy alias loading (new in M2)."""
+
+    def test_load_from_nonexistent_path(self):
+        """Test returns empty dict when YAML file doesn't exist."""
+        from pathlib import Path
+        result = load_skill_aliases_from_yaml(Path("/tmp/_nonexistent_starmap_taxonomy.yaml"))
+        assert result == {}
+
+    def test_load_from_valid_yaml(self, tmp_path):
+        """Test parses valid taxonomy YAML correctly."""
+        import yaml
+        taxonomy = {
+            "ontology": {
+                "domains": [
+                    {
+                        "name": "Programming Languages",
+                        "subdomains": [
+                            {
+                                "name": "General",
+                                "skills": [
+                                    {"name": "Python", "aliases": ["py", "python3", "python37"]},
+                                    {"name": "Java", "aliases": ["java8", "java11", "java17"]},
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        }
+        p = tmp_path / "skill_taxonomy.yaml"
+        with open(p, "w", encoding="utf-8") as f:
+            yaml.dump(taxonomy, f)
+
+        result = load_skill_aliases_from_yaml(p)
+        assert "Python" in result
+        assert result["Python"] == ["py", "python3", "python37"]
+        assert "Java" in result
+        assert len(result) == 2
+
+    def test_load_empty_domains(self, tmp_path):
+        """Test returns empty dict when domains list is empty."""
+        import yaml
+        taxonomy = {"ontology": {"domains": []}}
+        p = tmp_path / "empty.yaml"
+        with open(p, "w", encoding="utf-8") as f:
+            yaml.dump(taxonomy, f)
+        result = load_skill_aliases_from_yaml(p)
+        assert result == {}
+
+
+class TestReverseIndexAndSeeds:
+    """Tests for reverse index builder and skill seed functions."""
+
+    def test_build_alias_reverse_index(self):
+        """Test reverse index maps all aliases to correct standard names."""
+        idx = build_alias_reverse_index()
+        assert isinstance(idx, dict)
+        assert len(idx) > 100  # should have hundreds of entries
+        assert idx["python"] == "Python"
+        assert idx["golang"] == "Go"
+        assert idx["reactjs"] == "React"
+        assert idx["typescript"] == "TypeScript"
+
+    def test_build_alias_reverse_index_preserves_standard(self):
+        """Test standard name maps to itself in the index."""
+        idx = build_alias_reverse_index()
+        assert idx["python"] == "Python"
+        assert idx["go"] == "Go"
+        assert idx["java"] == "Java"
+
+    def test_get_standard_skill_seeds(self):
+        """Test returns sorted list of canonical skill names."""
+        seeds = get_standard_skill_seeds()
+        assert isinstance(seeds, list)
+        assert len(seeds) > 50
+        assert seeds == sorted(seeds)
+        assert "Python" in seeds
+        assert "Java" in seeds
+        assert "React" in seeds
+
+    def test_get_standard_skill_seeds_includes_new_aliases(self):
+        """Test newly added M2 aliases appear in seeds."""
+        seeds = get_standard_skill_seeds()
+        assert "Element Plus" in seeds
+        assert "Celery" in seeds
+        assert "Matplotlib" in seeds
+
+
+class TestNewAliasesM2:
+    """Tests for the M2 extended alias library."""
+
+    def test_element_plus_alias(self):
+        """Test Element Plus aliases."""
+        for alias in ["element plus", "element-plus", "elementplus", "element ui", "element-ui"]:
+            result = normalize_by_alias(alias)
+            assert result == "Element Plus", f"Alias '{alias}' should map to Element Plus"
+
+    def test_celery_alias(self):
+        """Test Celery aliases."""
+        for alias in ["celery", "celery task", "celery queue"]:
+            result = normalize_by_alias(alias)
+            assert result == "Celery", f"Alias '{alias}' should map to Celery"
+
+    def test_sap_hana_alias(self):
+        """Test SAP HANA aliases."""
+        for alias in ["sap hana", "sap hana db", "hana", "hana db"]:
+            result = normalize_by_alias(alias)
+            assert result == "SAP HANA", f"Alias '{alias}' should map to SAP HANA"
+
+    def test_mybatis_alias(self):
+        """Test MyBatis aliases."""
+        for alias in ["mybatis", "mybatis plus", "mybatis-plus", "mybatis3"]:
+            result = normalize_by_alias(alias)
+            assert result == "MyBatis", f"Alias '{alias}' should map to MyBatis"
+
+    def test_matplotlib_alias(self):
+        """Test Matplotlib aliases."""
+        for alias in ["matplotlib", "matplotlib plot", "mpl"]:
+            result = normalize_by_alias(alias)
+            assert result == "Matplotlib", f"Alias '{alias}' should map to Matplotlib"

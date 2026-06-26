@@ -50,6 +50,7 @@ def batch_extract_jd(self, jd_text: str, options: dict[str, Any] | None = None) 
         raise self.retry(exc=exc) from exc
 
 
+
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=10)
 def build_graph_from_extractions(self, limit: int = 100) -> dict[str, Any]:
     """Build Neo4j graph triples from persisted extraction records."""
