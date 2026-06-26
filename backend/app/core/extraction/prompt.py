@@ -45,6 +45,8 @@ $jd_content
 4. experience_required: 所需经验年限（数字，无法确定则返回null）
 5. education_required: 学历要求（如"本科及以上"、"硕士及以上"，无法确定则返回null）
 6. responsibilities: 主要职责列表（如["开发API", "性能优化"]）
+7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"、"医疗健康"，无法确定则返回空字符串""）
+8. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
 
 ## 分类规则
 - **required_skills**: 出现在"任职要求"、"岗位职责"中，描述为"精通"、"掌握"、"熟练使用"、"熟悉"的技能
@@ -73,6 +75,65 @@ $jd_content
 - 输出必须以 { 开头，以 } 结尾（花括号包裹）
 - 必须是可以直接通过 json.loads() 解析的合法 JSON，无尾逗号、无注释
 - 错误的格式会导致解析失败，影响整个系统运行"""
+
+# v4: recall-optimized — exhaustive coverage check, implicit skills, Chinese name preservation
+JD_EXTRACTION_PROMPT_V4 = """你是一个专业的技能提取专家。请**完整且无遗漏**地从以下职位描述中提取所有技能信息。
+
+## 职位描述
+$jd_content
+
+## 提取要求
+请提取以下信息并以严格的JSON格式返回（不要包含任何其他文字或代码块标记）：
+
+1. position_name: 职位名称（如"高级Python后端工程师"）
+2. required_skills: 必需/必备技能列表。每项包含：
+    - name: 技能标准化名称（仅英文，首字母大写，不要加中文描述或后缀）
+   - level: 熟练度，可选值"expert"、"advanced"、"intermediate"、"beginner"
+   - category: 类别，可选值"hard_skill"、"soft_skill"、"tool"、"certificate"
+3. preferred_skills: 加分/优先技能列表（格式同上，每项含name/level/category）
+4. experience_required: 所需经验年限（数字，无法确定则返回null）
+5. education_required: 学历要求（如"本科及以上"、"硕士及以上"，无法确定则返回null）
+6. responsibilities: 主要职责列表（如["开发API", "性能优化"]）
+7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"、"医疗健康"，无法确定则返回空字符串""）
+8. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
+
+## 分类规则
+- **required_skills**: 出现在"任职要求"、"岗位职责"中，描述为"精通"、"掌握"、"熟练使用"、"熟悉"、"了解"的技能
+- **preferred_skills**: 出现在"加分项"、"优先"、"plus"、"bonus"、"nice to have"分类下的技能
+
+## 技能名称规范
+1. 技能名称使用标准英文名称，首字母大写：python3→Python, reactjs→React, golang→Go, k8s→Kubernetes
+2. 同时提取中文和英文技能名称，两种表达均保留
+3. 带版本号的归入主技能名："C++11"→"C++", "Python3"→"Python", "ES6"→"JavaScript"
+4. 不要添加中文描述后缀：
+   - "Linux系统" → "Linux"，"Docker容器技术" → "Docker"
+   - "CUDA并行编程" → "CUDA"，"SQL数据库" → "SQL"
+5. 中文技能名可原样保留（如"数据分析"、"项目管理"、"用户调研"）
+6. 无法确认的字段返回null，禁止编造
+
+## 完整性要求（极其重要）
+- **请完整提取职位描述中提到的所有技能和技术要求，不遗漏任何一项**
+- 包括但不限于：编程语言、框架、工具、平台、方法论、领域知识、证书、软技能
+- **隐式技能也要提取**（例如提到"构建CI/CD流水线" → 提取 CI/CD；"使用Git进行版本控制" → 提取 Git）
+- 同时提取中英文两种表述的技能
+- 提取后请做一次覆盖检查，确认没有遗漏
+
+## 覆盖检查（在输出前逐项确认）
+提取完成后，请逐项检查是否覆盖了职位描述中的以下类别：
+- 编程语言（Python, Java, Go, Rust, C++ 等）
+- Web框架（React, Vue, Django, Spring 等）
+- 数据库（SQL, NoSQL, Redis, MongoDB 等）
+- 云/DevOps（AWS, Docker, K8s, CI/CD, Terraform 等）
+- 工具链（Git, Jenkins, Gradle, Maven 等）
+- 软技能（项目管理、团队管理、沟通、产品设计 等）
+- 领域知识（安全、大数据、AI/ML、嵌入式 等）
+- 证书/资质（PMP, CPA, AWS认证 等）
+
+## 输出格式（严格遵循）
+- 仅返回纯 JSON，不要包含 markdown 代码块标记、不要包含任何说明文字
+- 输出必须以 { 开头，以 } 结尾（花括号包裹）
+- 必须是可以直接通过 json.loads() 解析的合法 JSON，无尾逗号、无注释"""
+
 
 # v2: added few-shot examples for better structured output
 JD_EXTRACTION_PROMPT_V2 = """你是一个专业的技能提取专家。请从以下职位描述中提取所需的技能信息。
@@ -285,6 +346,7 @@ _PROMPT_VERSIONS: dict[str, dict[str, str]] = {
         "v1": JD_EXTRACTION_PROMPT_V1,
         "v2": JD_EXTRACTION_PROMPT_V2,
         "v3": JD_EXTRACTION_PROMPT_V3,
+        "v4": JD_EXTRACTION_PROMPT_V4,
     },
     "anti_hallucination": {
         "v1": ANTI_HALLUCINATION_PROMPT_V1,
@@ -441,6 +503,31 @@ def list_prompt_versions(name: str) -> list[str]:
 def get_active_version(name: str) -> str | None:
     """Get the currently active version tag for a prompt template."""
     return _ACTIVE_VERSIONS.get(name)
+
+
+def get_prompt_template_raw(name: str, version: str | None = None) -> str:
+    """Get the raw prompt template string without filling placeholders.
+
+    Args:
+        name: Prompt template name.
+        version: Version tag. If None, returns the active version's template.
+
+    Returns:
+        The raw template string with placeholders intact.
+
+    Raises:
+        KeyError: If the prompt name or version does not exist.
+    """
+    if name not in _PROMPT_VERSIONS:
+        msg = f"Unknown prompt template: {name}"
+        raise KeyError(msg)
+    if version is None:
+        version = _ACTIVE_VERSIONS.get(name, "v1")
+    template = _PROMPT_VERSIONS[name].get(version)
+    if template is None:
+        msg = f"Unknown version '{version}' for prompt '{name}'. Available: {list(_PROMPT_VERSIONS[name].keys())}"
+        raise KeyError(msg)
+    return template
 
 
 def set_active_version(name: str, version: str) -> None:

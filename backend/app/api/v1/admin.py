@@ -15,8 +15,10 @@ from app.api.v1.quality import _build_quality_dashboard
 from app.core.extraction.prompt import (
     get_ab_test,
     get_active_version,
+    get_prompt_template_raw,
     list_prompt_names,
     list_prompt_versions,
+    register_prompt_version,
     set_ab_test,
     set_active_version,
     stop_ab_test,
@@ -25,6 +27,7 @@ from app.dependencies import get_db_session
 from app.models.extraction_models import JDExtractionRecord, PositionRecord, PositionSkillRelation, SkillRecord
 
 router = APIRouter(prefix="/admin", tags=["管理后台"])
+
 
 class SourceConfig(BaseModel):
     id: int
@@ -76,6 +79,12 @@ class ABTestRequest(BaseModel):
         le=0.5,
         description="分配到 canary 的流量比例 (0.0, 0.5]",
     )
+
+
+class RegisterVersionRequest(BaseModel):
+    template: str = Field(..., description="Prompt 模板内容（含占位符）")
+    version: str | None = Field(default=None, description="版本号，如 v4；不传则自动递增")
+    activate: bool = Field(default=False, description="是否激活为该 prompt 的当前版本")
 
 
 _DEMO_SOURCES = [
@@ -220,6 +229,32 @@ async def get_prompt_info(name: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
+@router.get("/prompts/{name}/versions/{version}")
+async def get_prompt_template_content(name: str, version: str) -> dict[str, Any]:
+    """查看 prompt 模板的原始内容。"""
+    try:
+        template = get_prompt_template_raw(name, version)
+        return {"name": name, "version": version, "template": template}
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.post("/prompts/{name}/versions")
+async def create_prompt_version(name: str, req: RegisterVersionRequest) -> dict[str, Any]:
+    """注册一个新的 prompt 版本。"""
+    try:
+        version = register_prompt_version(
+            name=name,
+            template=req.template,
+            version=req.version,
+            activate=req.activate,
+        )
+        logger.info("Admin: registered prompt '{}' version '{}'", name, version)
+        return {"name": name, "version": version, "activate": req.activate, "status": "created"}
+    except (KeyError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
 @router.put("/prompts/{name}/active")
 async def change_active_version(name: str, req: SetActiveRequest) -> dict[str, str]:
     """切换 prompt 模板的 active 版本。"""
@@ -247,7 +282,9 @@ async def start_ab_test(name: str, req: ABTestRequest) -> dict[str, Any]:
         )
         logger.info(
             "Admin: A/B test started '{}' -> canary={} traffic={:.0%}",
-            name, req.canary_version, req.traffic_fraction,
+            name,
+            req.canary_version,
+            req.traffic_fraction,
         )
         return {"status": "started", "config": cfg.to_dict()}
     except (KeyError, ValueError) as e:

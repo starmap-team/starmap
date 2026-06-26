@@ -1,0 +1,51 @@
+{
+  "success": true,
+  "data": {
+    "position_name": "大模型应用工程师",
+    "required_skills": [
+      { "name": "Python", "level": "advanced", "category": "hard_skill", "years_of_experience": 3 },
+      { "name": "PyTorch", "level": "advanced", "category": "tool", "years_of_experience": 2 },
+      { "name": "RAG", "level": "intermediate", "category": "hard_skill", "years_of_experience": 1 },
+      { "name": "Prompt Engineering", "level": "intermediate", "category": "hard_skill", "years_of_experience": 1 },
+      { "name": "Docker", "level": "intermediate", "category": "tool", "years_of_experience": 2 },
+      { "name": "Kubernetes", "level": "beginner", "category": "tool", "years_of_experience": null }
+    ],
+    "preferred_skills": [
+      { "name": "Java", "level": "intermediate", "category": "hard_skill", "years_of_experience": null },
+      { "name": "Spring Boot", "level": "intermediate", "category": "tool", "years_of_experience": null }
+    ],
+    "experience_required": 3,
+    "education_required": "本科",
+    "responsibilities": [
+      "负责大模型应用的架构设计和开发",
+      "基于 RAG 技术构建知识问答系统",
+      "优化 Prompt 策略提升模型输出质量",
+      "参与模型微调与评估 pipeline 建设"
+    ],
+    "industry": "互联网/IT",
+    "description": "参与企业级大模型应用平台开发，包括 RAG 系统、Prompt 管理与 A/B 测试、模型评估等模块"
+  },
+  "normalization": [
+    { "original": "Python", "normalized": "Python", "method": "identity", "confidence": 1.0, "is_valid": true, "metadata": {} },
+    { "original": "PyTorch", "normalized": "PyTorch", "method": "identity", "confidence": 1.0, "is_valid": true, "metadata": {} },
+    { "original": "RAG", "normalized": "RAG", "method": "identity", "confidence": 1.0, "is_valid": true, "metadata": {} },
+    { "original": "Prompt Engineering", "normalized": "Prompt Engineering", "method": "identity", "confidence": 1.0, "is_valid": true, "metadata": {} },
+    { "original": "Docker", "normalized": "Docker", "method": "identity", "confidence": 1.0, "is_valid": true, "metadata": {} },
+    { "original": "Kubernetes", "normalized": "Kubernetes", "method": "alias", "confidence": 0.8, "is_valid": true, "metadata": { "source_count": 15 } }
+  ],
+  "validation": {
+    "is_valid": true,
+    "hallucinated_skills": [],
+    "missing_skills": ["LangChain", "FastAPI"],
+    "confidence": 0.92,
+    "issues": [
+      "职位描述中明确提到 LangChain，但未在 required_skills 或 preferred_skills 中提取"
+    ]
+  },
+  "warnings": [
+    "Missing skills detected: LangChain, FastAPI"
+  ],
+  "error": null,
+  "prompt_version_used": "v2",
+  "prompt_ab_test": false
+}
