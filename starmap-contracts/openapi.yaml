@@ -579,6 +579,26 @@ paths:
                   pending_review:
                     type: integer
 
+  /admin/sources:
+    get:
+      operationId: listSources
+      summary: "数据源配置"
+      description: "获取所有数据源及其权威度评分"
+      tags: [管理后台]
+      responses:
+        "200":
+          description: "数据源列表"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SourceConfig"
+
   /admin/review-queue:
     get:
       operationId: getReviewQueue
@@ -609,14 +629,14 @@ paths:
         "200":
           description: "重置成功"
 
-  /admin/review/{id}/approve:
+  /admin/audit/{item_id}/approve:
     post:
-      operationId: approveReviewItem
+      operationId: approveAuditItem
       summary: "审核通过"
-      description: "通过某条审核项"
+      description: "批准某条审核项"
       tags: [管理后台]
       parameters:
-        - name: id
+        - name: item_id
           in: path
           required: true
           schema:
@@ -624,15 +644,19 @@ paths:
       responses:
         "200":
           description: "已通过"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditItem"
 
-  /admin/review/{id}/reject:
+  /admin/audit/{item_id}/reject:
     post:
-      operationId: rejectReviewItem
+      operationId: rejectAuditItem
       summary: "审核驳回"
       description: "驳回某条审核项"
       tags: [管理后台]
       parameters:
-        - name: id
+        - name: item_id
           in: path
           required: true
           schema:
@@ -640,6 +664,10 @@ paths:
       responses:
         "200":
           description: "已驳回"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditItem"
 
 components:
   schemas:
@@ -973,6 +1001,22 @@ components:
           items:
             type: string
           example: ["后端开发工程师", "数据工程师", "AI 工程师"]
+
+    SourceConfig:
+      type: object
+      required: [id, name, authority_score, source_type]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        authority_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        source_type:
+          type: string
 
     AuditItem:
       type: object
