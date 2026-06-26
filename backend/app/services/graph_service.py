@@ -101,6 +101,46 @@ def dedupe_graph(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> di
     return {"nodes": list(node_map.values()), "edges": list(edge_map.values())}
 
 
+def _proficiency_from_level(level: Any) -> str:
+    raw = str(level or "").strip().lower()
+    if raw in {"精通", "advanced", "expert", "senior", "high"}:
+        return "精通"
+    if raw in {"了解", "beginner", "basic", "junior", "low"}:
+        return "了解"
+    return "熟悉"
+
+
+def _position_item(node: dict[str, Any]) -> dict[str, Any]:
+    props = dict(node.get("properties") or {})
+    return {
+        "position_id": str(props.get("position_id") or node.get("id") or props.get("name") or ""),
+        "name": props.get("name") or node.get("id") or "",
+        "industry": props.get("industry") or "",
+        "description": props.get("description") or "",
+        "skills_required": props.get("skills_required") or [],
+    }
+
+
+def _skill_item(node: dict[str, Any], rel: dict[str, Any] | None = None) -> dict[str, Any]:
+    props = dict(node.get("properties") or {})
+    rel_props = dict((rel or {}).get("properties") or {})
+    level = rel_props.get("level")
+    required = rel_props.get("required", True)
+    category = props.get("category") or props.get("source_category") or "hard_skill"
+    if category == "Skill":
+        category = props.get("source_category") or "hard_skill"
+    return {
+        "skill_id": str(props.get("skill_id") or node.get("id") or props.get("name") or ""),
+        "name": props.get("name") or node.get("id") or "",
+        "category": category,
+        "proficiency": props.get("proficiency") or _proficiency_from_level(level),
+        "confidence": float(props.get("confidence") or rel_props.get("confidence") or 1.0),
+        "source_count": int(props.get("source_count") or 0),
+        "trend": props.get("trend") or "stable",
+        "importance": "required" if required is not False else "bonus",
+    }
+
+
 async def fetch_panorama(driver: Any, limit: int = 500) -> dict[str, list[dict[str, Any]]]:
     """Fetch the global graph view used by the frontend panorama page."""
     if driver is None:
@@ -166,12 +206,13 @@ async def fetch_position_graph(driver: Any, position_name: str, depth: int = 1) 
         result = await session.run(query, name=position_name, depth=depth)
         async for record in result:
             if record["position"] is not None and position is None:
-                position = serialize_node(record["position"])
+                position = _position_item(serialize_node(record["position"]))
             if record["skill"] is not None:
-                skill = serialize_node(record["skill"])
-                if skill["id"] not in skill_ids:
-                    skill_ids.add(skill["id"])
-                    skills.append(skill)
+                skill_node = serialize_node(record["skill"])
+                rel = serialize_relationship(record["rel"]) if record["rel"] is not None else None
+                if skill_node["id"] not in skill_ids:
+                    skill_ids.add(skill_node["id"])
+                    skills.append(_skill_item(skill_node, rel))
             if record["rel"] is not None:
                 edges.append(serialize_relationship(record["rel"]))
 
