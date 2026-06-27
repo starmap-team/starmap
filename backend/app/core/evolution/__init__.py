@@ -24,6 +24,7 @@ from app.core.evolution.hallucination_guard import (
     LLMJudgment,
     VerificationStatus,
 )
+from app.core.evolution.orchestrator import EvolutionOrchestrator, EvolutionResult
 from app.core.evolution.path_recommender import (
     EvolutionPath,
     PathRecommender,
@@ -49,7 +50,9 @@ __all__ = [
     "EmergenceLevel",
     "EmergenceReport",
     "EmergenceSignal",
+    "EvolutionOrchestrator",
     "EvolutionPath",
+    "EvolutionResult",
     "GuardResult",
     "HallucinationGuard",
     "LLMJudgment",
