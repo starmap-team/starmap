@@ -12,18 +12,38 @@ Modules:
 """
 
 from app.core.evolution.diff_engine import ChangeType, DiffEngine, DiffResult, SkillChange
+from app.core.evolution.hallucination_guard import (
+    GuardResult,
+    HallucinationGuard,
+    LLMJudgment,
+    VerificationStatus,
+)
 from app.core.evolution.snapshot_manager import (
     SkillProfile,
     SnapshotData,
     SnapshotManager,
+)
+from app.core.evolution.trust_integration import (
+    TrustFactors,
+    TrustLevel,
+    TrustResult,
+    TrustScorer,
 )
 
 __all__ = [
     "ChangeType",
     "DiffEngine",
     "DiffResult",
+    "GuardResult",
+    "HallucinationGuard",
+    "LLMJudgment",
     "SkillChange",
     "SkillProfile",
     "SnapshotData",
     "SnapshotManager",
+    "TrustFactors",
+    "TrustLevel",
+    "TrustResult",
+    "TrustScorer",
+    "VerificationStatus",
 ]
