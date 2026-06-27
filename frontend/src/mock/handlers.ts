@@ -353,27 +353,7 @@ export const handlers = [
     const cypher = url.searchParams.get('cypher') ?? ''
     // 忽略具体 cypher，返回固定全景数据
     if (cypher) void 0
-    return HttpResponse.json({
-      nodes: [
-        { id: 'pos-algo', labels: ['Position'], properties: { name: '算法工程师', category: 'AI' } },
-        { id: 'pos-data', labels: ['Position'], properties: { name: '数据分析师', category: '数据' } },
-        { id: 'pos-fe', labels: ['Position'], properties: { name: '前端开发工程师', category: '前端' } },
-        { id: 'pos-be', labels: ['Position'], properties: { name: '后端开发工程师', category: '后端' } },
-        { id: 'skill-py', labels: ['Skill'], properties: { name: 'Python', category: 'hard_skill' } },
-        { id: 'skill-ml', labels: ['Skill'], properties: { name: '机器学习', category: 'hard_skill' } },
-        { id: 'skill-sql', labels: ['Skill'], properties: { name: 'SQL', category: 'hard_skill' } },
-        { id: 'skill-js', labels: ['Skill'], properties: { name: 'JavaScript', category: 'hard_skill' } },
-        { id: 'skill-java', labels: ['Skill'], properties: { name: 'Java', category: 'hard_skill' } },
-      ],
-      edges: [
-        { source_id: 'skill-py', target_id: 'pos-algo', type: 'REQUIRED_FOR', properties: { weight: 0.95 } },
-        { source_id: 'skill-ml', target_id: 'pos-algo', type: 'REQUIRED_FOR', properties: { weight: 0.9 } },
-        { source_id: 'skill-py', target_id: 'pos-data', type: 'REQUIRED_FOR', properties: { weight: 0.85 } },
-        { source_id: 'skill-sql', target_id: 'pos-data', type: 'REQUIRED_FOR', properties: { weight: 0.8 } },
-        { source_id: 'skill-js', target_id: 'pos-fe', type: 'REQUIRED_FOR', properties: { weight: 0.9 } },
-        { source_id: 'skill-java', target_id: 'pos-be', type: 'REQUIRED_FOR', properties: { weight: 0.9 } },
-      ],
-    })
+    return HttpResponse.json(MOCK_GRAPH)
   }),
 
   // GET /graph/position/{position_id}/skills — 岗位技能子图（双层雷达数据源）
