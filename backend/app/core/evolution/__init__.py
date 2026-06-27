@@ -12,11 +12,22 @@ Modules:
 """
 
 from app.core.evolution.diff_engine import ChangeType, DiffEngine, DiffResult, SkillChange
+from app.core.evolution.emergence_finder import (
+    EmergenceFinder,
+    EmergenceLevel,
+    EmergenceReport,
+    EmergenceSignal,
+)
 from app.core.evolution.hallucination_guard import (
     GuardResult,
     HallucinationGuard,
     LLMJudgment,
     VerificationStatus,
+)
+from app.core.evolution.path_recommender import (
+    EvolutionPath,
+    PathRecommender,
+    PathReport,
 )
 from app.core.evolution.snapshot_manager import (
     SkillProfile,
@@ -34,9 +45,16 @@ __all__ = [
     "ChangeType",
     "DiffEngine",
     "DiffResult",
+    "EmergenceFinder",
+    "EmergenceLevel",
+    "EmergenceReport",
+    "EmergenceSignal",
+    "EvolutionPath",
     "GuardResult",
     "HallucinationGuard",
     "LLMJudgment",
+    "PathRecommender",
+    "PathReport",
     "SkillChange",
     "SkillProfile",
     "SnapshotData",
