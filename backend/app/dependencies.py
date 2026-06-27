@@ -1,4 +1,4 @@
-"""依赖注入。"""
+﻿"""Dependency injection."""
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -11,11 +11,17 @@ from app.services.resources import resources
 
 
 def get_neo4j_driver(request: Request):
-    return request.app.state.resources.neo4j_driver
+    res = getattr(request.app.state, "resources", None)
+    if res is None:
+        return None
+    return res.neo4j_driver
 
 
 def get_redis_client(request: Request) -> Redis:
-    return request.app.state.resources.redis_client
+    res = getattr(request.app.state, "resources", None)
+    if res is None:
+        return None
+    return res.redis_client
 
 
 async def get_db_session() -> AsyncIterator[AsyncSession]:
