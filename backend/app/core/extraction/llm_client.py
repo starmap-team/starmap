@@ -1,10 +1,12 @@
 """Multi-provider LLM client with fallback support.
 
 Supports:
-- Xunfei Spark API: https://spark-api-open.xf-yun.com/v1/chat/completions
+- MiMo API: https://token-plan-cn.xiaomimimo.com/v1 (reasoning model, primary)
 - DeepSeek API: https://api.deepseek.com/chat/completions
+- Xunfei Spark API: https://spark-api-open.xf-yun.com/v1/chat/completions
 - Local Qwen fallback
 
+Fallback chain: MiMo -> DeepSeek -> Xunfei -> Qwen
 Authentication: Bearer token via API keys.
 """
 
@@ -236,7 +238,7 @@ async def call_deepseek_llm(
 
 
 async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
-    """Call LLM with fallback: DeepSeek primary, Xunfei secondary, local Qwen fallback.
+    """Call LLM with fallback: MiMo -> DeepSeek -> Xunfei -> Qwen.
 
     Args:
         prompt: Input prompt text.
@@ -244,24 +246,41 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
     Returns:
         Response dict with 'content' key.
     """
-    # Try DeepSeek first (if configured)
+    errors: list[str] = []
+
+    # Try MiMo first (primary, reasoning model)
+    if settings.mimo_api_key:
+        try:
+            return await call_mimo_llm(prompt)
+        except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
+            msg = f"MiMo failed: {e}"
+            logger.warning(msg)
+            errors.append(msg)
+
+    # Try DeepSeek second
     if settings.deepseek_api_key:
         try:
             return await call_deepseek_llm(prompt)
         except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
-            logger.warning("DeepSeek failed, trying Xunfei: {}", e)
+            msg = f"DeepSeek failed: {e}"
+            logger.warning(msg)
+            errors.append(msg)
 
-    # Try Xunfei second (if configured)
+    # Try Xunfei third
     if settings.xunfei_api_key:
         try:
             return await call_xunfei_llm(prompt)
         except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
-            logger.warning("Xunfei failed, trying local Qwen: {}", e)
+            msg = f"Xunfei failed: {e}"
+            logger.warning(msg)
+            errors.append(msg)
 
     # Try local Qwen fallback
     fallback_endpoint = settings.qwen_model_path
     if not fallback_endpoint:
-        raise LLMConnectionError("No LLM endpoint configured (deepseek/xunfei/qwen)")
+        raise LLMConnectionError(
+            f"No LLM endpoint configured. Tried: {'; '.join(errors) if errors else 'no providers available'}"
+        )
 
     logger.info("Calling fallback Qwen at {}", fallback_endpoint)
     try:

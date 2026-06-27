@@ -1,12 +1,17 @@
-"""信息抽取 API：从 JD/简历中提取技能并归一化。"""
+"""信息抽取 API：从 JD/简历中提取技能并归一化。
+
+完成抽取后自动将结果写入 Neo4j 图数据库，打通 extract -> graph 数据链路。
+"""
 
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from app.core.extraction.graph_writer import write_extraction_to_graph
 from app.core.extraction.jd_extract import extract_from_jd
+from app.dependencies import get_neo4j_driver
 from app.services.resume_service import run_resume_extraction
 
 router = APIRouter(prefix="/extract", tags=["信息抽取"])
@@ -86,12 +91,44 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+async def _write_extraction_to_graph(
+    pipeline_result: dict[str, Any],
+    neo4j_driver: Any,
+) -> dict[str, int] | None:
+    """Write extraction result to Neo4j graph. Returns summary or None on failure.
+
+    This is the bridge that connects the extraction pipeline to the graph store,
+    solving the data pipeline break where extractions were never persisted to Neo4j.
+    """
+    data = pipeline_result.get("data")
+    if not data or not data.get("position_name"):
+        logger.debug("Skipping graph write: no extraction data or position_name")
+        return None
+
+    try:
+        summary = await write_extraction_to_graph(data, neo4j_driver)
+        logger.info(
+            "Graph write complete: {} triples merged, {} nodes touched for '{}'",
+            summary["triples_merged"],
+            summary["nodes_touched"],
+            data.get("position_name"),
+        )
+        return summary
+    except Exception as e:
+        logger.warning("Graph write failed (non-blocking): {}", e)
+        return None
+
+
 @router.post("/jd", response_model=ExtractionResult)
-async def extract_jd(request: ExtractionRequest) -> dict[str, Any]:
+async def extract_jd(
+    request: ExtractionRequest,
+    neo4j_driver: Any = Depends(get_neo4j_driver),  # noqa: B008
+) -> dict[str, Any]:
     """从职位描述中提取技能信息。
 
     - 调用 LLM 进行结构化抽取
     - 对技能名称做别名归一化
+    - 自动写入 Neo4j 图数据库（打通 extract -> graph 数据链路）
     - 返回结构化结果及置信度
     """
     logger.info("POST /extract/jd - jd_content={} chars", len(request.jd_content))
@@ -113,15 +150,24 @@ async def extract_jd(request: ExtractionRequest) -> dict[str, Any]:
         logger.error("Pipeline returned error: {}", error_msg)
         raise HTTPException(status_code=422, detail=error_msg)
 
+    # Write extraction to Neo4j graph (non-blocking: failure won't break the response)
+    graph_summary = await _write_extraction_to_graph(pipeline_result, neo4j_driver)
+    if graph_summary:
+        logger.info("Graph integration: {} triples written", graph_summary["triples_merged"])
+
     return _build_result(pipeline_result)
 
 
 @router.post("/resume", response_model=ExtractionResult)
-async def extract_resume(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
+async def extract_resume(
+    file: UploadFile = File(...),  # noqa: B008
+    neo4j_driver: Any = Depends(get_neo4j_driver),  # noqa: B008
+) -> dict[str, Any]:
     """从简历文件（PDF/Word）中提取技能信息。
 
     - 解析文件内容
     - 调用 LLM 进行结构化抽取
+    - 自动写入 Neo4j 图数据库
     - 返回结构化结果
     """
     logger.info("POST /extract/resume - filename={}", file.filename)
@@ -155,5 +201,10 @@ async def extract_resume(file: UploadFile = File(...)) -> dict[str, Any]:  # noq
     if not pipeline_result.get("success"):
         error_msg = pipeline_result.get("error", "Unknown extraction error")
         raise HTTPException(status_code=422, detail=error_msg)
+
+    # Write extraction to Neo4j graph
+    graph_summary = await _write_extraction_to_graph(pipeline_result, neo4j_driver)
+    if graph_summary:
+        logger.info("Graph integration: {} triples written", graph_summary["triples_merged"])
 
     return _build_result(pipeline_result)

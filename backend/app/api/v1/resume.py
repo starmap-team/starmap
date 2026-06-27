@@ -4,17 +4,21 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from loguru import logger
 
-from app.api.v1.extract import ExtractionResult, _build_result
+from app.api.v1.extract import ExtractionResult, _build_result, _write_extraction_to_graph
+from app.dependencies import get_neo4j_driver
 from app.services.resume_service import run_resume_extraction
 
 router = APIRouter(prefix="/resume", tags=["简历解析"])
 
 
 @router.post("/upload", response_model=ExtractionResult)
-async def upload_resume(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa: B008
+async def upload_resume(
+    file: UploadFile = File(...),  # noqa: B008
+    neo4j_driver: Any = Depends(get_neo4j_driver),  # noqa: B008
+) -> dict[str, Any]:
     """阶段 4 兼容端点：上传简历并返回结构化抽取结果。"""
     logger.info("POST /resume/upload - filename={}", file.filename)
 
@@ -38,5 +42,10 @@ async def upload_resume(file: UploadFile = File(...)) -> dict[str, Any]:  # noqa
 
     if not pipeline_result.get("success"):
         raise HTTPException(status_code=422, detail=pipeline_result.get("error", "Unknown extraction error"))
+
+    # Write extraction to Neo4j graph
+    graph_summary = await _write_extraction_to_graph(pipeline_result, neo4j_driver)
+    if graph_summary:
+        logger.info("Graph integration: {} triples written", graph_summary["triples_merged"])
 
     return _build_result(pipeline_result)
