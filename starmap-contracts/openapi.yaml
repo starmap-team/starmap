@@ -477,6 +477,173 @@ paths:
                     type: string
                     format: uuid
 
+  /evolution/changelog/{position}:
+    get:
+      operationId: getEvolutionChangelog
+      summary: "演化变更记录"
+      description: "获取指定岗位的技能变更历史"
+      tags: [演化分析]
+      parameters:
+        - name: position
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "岗位名称"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: "变更记录列表"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChangelogEntry"
+
+  /evolution/paths/{position}:
+    get:
+      operationId: getEvolutionPaths
+      summary: "演化路径推荐"
+      description: "获取指定岗位的演化路径（EVOLVES_TO关系）"
+      tags: [演化分析]
+      parameters:
+        - name: position
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "岗位名称"
+      responses:
+        "200":
+          description: "演化路径列表"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EvolutionPathEntry"
+
+  /evolution/emerging-skills:
+    get:
+      operationId: getEmergingSkills
+      summary: "涌现技能列表"
+      description: "获取通过Z-score检测的涌现/上升技能"
+      tags: [演化分析]
+      parameters:
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [emerging, rising]
+          description: "筛选级别"
+      responses:
+        "200":
+          description: "涌现技能列表"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EmergingSkill"
+
+  /evolution/snapshots:
+    get:
+      operationId: getEvolutionSnapshots
+      summary: "演化快照"
+      description: "获取岗位技能快照列表"
+      tags: [演化分析]
+      parameters:
+        - name: position
+          in: query
+          schema:
+            type: string
+          description: "岗位名称筛选"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: "快照列表"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EvolutionSnapshot"
+
+  /evolution/review-queue:
+    get:
+      operationId: getEvolutionReviewQueue
+      summary: "演化审核队列"
+      description: "获取低信任度的演化变更（需人工审核）"
+      tags: [演化分析]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+            default: pending
+      responses:
+        "200":
+          description: "审核队列"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewQueueItem"
+
+  /evolution/cii-history/{position}:
+    get:
+      operationId: getCIIHistory
+      summary: "CII通胀指数历史"
+      description: "获取指定岗位的能力通胀指数变化历史"
+      tags: [演化分析]
+      parameters:
+        - name: position
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "岗位名称"
+      responses:
+        "200":
+          description: "CII历史"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [position, history]
+                properties:
+                  position:
+                    type: string
+                  history:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        snapshot_date:
+                          type: string
+                          format: date-time
+                        cii:
+                          type: number
+                        total_skills:
+                          type: integer
+                        inflated_skills:
+                          type: integer
+
   # ──────────────────────── 质量监控 ────────────────────────
   /quality/evaluate:
     post:
@@ -1001,6 +1168,125 @@ components:
           items:
             type: string
           example: ["后端开发工程师", "数据工程师", "AI 工程师"]
+
+    ChangelogEntry:
+      type: object
+      required: [id, skill_name, change_type, trust_score, confidence, created_at]
+      properties:
+        id:
+          type: string
+        skill_name:
+          type: string
+        change_type:
+          type: string
+          enum: [added_required, added_preferred, removed, promoted, demoted, retained]
+        old_proficiency:
+          type: string
+          nullable: true
+        new_proficiency:
+          type: string
+          nullable: true
+        old_requirement:
+          type: string
+          nullable: true
+        new_requirement:
+          type: string
+          nullable: true
+        trust_score:
+          type: number
+        confidence:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+
+    EvolutionPathEntry:
+      type: object
+      required: [id, source_position, target_position, similarity, evidence_count, trust_score]
+      properties:
+        id:
+          type: string
+        source_position:
+          type: string
+        target_position:
+          type: string
+        similarity:
+          type: number
+        evidence_count:
+          type: integer
+        skill_overlap:
+          type: array
+          items:
+            type: string
+        key_gaps:
+          type: array
+          items:
+            type: string
+        trust_score:
+          type: number
+
+    EmergingSkill:
+      type: object
+      required: [skill_name, level, z_score, current_frequency, mean_frequency, source_count]
+      properties:
+        skill_name:
+          type: string
+        level:
+          type: string
+          enum: [emerging, rising, stable, declining]
+        z_score:
+          type: number
+        current_frequency:
+          type: integer
+        mean_frequency:
+          type: number
+        source_count:
+          type: integer
+        positions:
+          type: array
+          items:
+            type: string
+
+    EvolutionSnapshot:
+      type: object
+      required: [id, position_name, snapshot_date, required_skills, preferred_skills, source_count]
+      properties:
+        id:
+          type: string
+        position_name:
+          type: string
+        snapshot_date:
+          type: string
+          format: date-time
+        required_skills:
+          type: array
+          items:
+            type: object
+        preferred_skills:
+          type: array
+          items:
+            type: object
+        source_count:
+          type: integer
+
+    ReviewQueueItem:
+      type: object
+      required: [skill_name, position_name, change_type, trust_score, status, created_at]
+      properties:
+        skill_name:
+          type: string
+        position_name:
+          type: string
+        change_type:
+          type: string
+        trust_score:
+          type: number
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        created_at:
+          type: string
+          format: date-time
 
     SourceConfig:
       type: object
