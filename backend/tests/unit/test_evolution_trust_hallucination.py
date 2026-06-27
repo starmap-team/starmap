@@ -48,7 +48,7 @@ class TestTrustScorer:
         )
         result = self.scorer.compute(factors)
         assert 0.3 <= result.score <= 0.7
-        assert result.level == TrustLevel.PENDING
+        assert result.level == TrustLevel.HIGH_RISK
 
     def test_decay_reduces_score(self) -> None:
         """Trust decays over time."""

@@ -85,8 +85,12 @@ class EvolutionOrchestrator:
         logger.info("Step 1: Loading snapshots for '{}'", position_name)
         older, newer = await self._snapshot_mgr.get_snapshot_pair(position_name)
 
-        # Step 2: Compute diff
+        # Step 2: Compute diff (handle both-snapshots-missing gracefully)
         logger.info("Step 2: Computing diff")
+        if newer is None:
+            logger.info("No snapshots found for '{}', returning empty result", position_name)
+            result.duration_seconds = time.monotonic() - start
+            return result
         diff_result = self._diff_engine.diff(older, newer)
         result.diff_result = diff_result
 
@@ -119,6 +123,7 @@ class EvolutionOrchestrator:
 
         # Step 5: Detect emergence (from timeseries data)
         logger.info("Step 5: Detecting emergence signals")
+        emergence_report: EmergenceReport | None = None
         emergence_data = await self._load_timeseries(position_name)
         if emergence_data:
             emergence_report = self._emergence_finder.scan(emergence_data)

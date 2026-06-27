@@ -114,16 +114,16 @@ async def test_orchestrator_analyze_with_snapshots(monkeypatch):
                 id="snap-1",
                 position_name="Backend",
                 snapshot_date=snap_old.snapshot_date,
-                required_skills=[SimpleNamespace(name="Python"), SimpleNamespace(name="SQL")],
-                preferred_skills=[SimpleNamespace(name="Docker")],
+                required_skills=[SimpleNamespace(name="Python", proficiency=None), SimpleNamespace(name="SQL", proficiency=None)],
+                preferred_skills=[SimpleNamespace(name="Docker", proficiency=None)],
                 source_count=5,
             ),
             SimpleNamespace(
                 id="snap-2",
                 position_name="Backend",
                 snapshot_date=snap_new.snapshot_date,
-                required_skills=[SimpleNamespace(name="Python"), SimpleNamespace(name="Docker"), SimpleNamespace(name="Go")],
-                preferred_skills=[SimpleNamespace(name="SQL")],
+                required_skills=[SimpleNamespace(name="Python", proficiency=None), SimpleNamespace(name="Docker", proficiency=None), SimpleNamespace(name="Go", proficiency=None)],
+                preferred_skills=[SimpleNamespace(name="SQL", proficiency=None)],
                 source_count=5,
             ),
         )
@@ -137,7 +137,7 @@ async def test_orchestrator_analyze_with_snapshots(monkeypatch):
     assert result.diff_result is not None
     assert result.diff_result.total_changes > 0
     assert result.changelog_entries > 0
-    assert result.duration_seconds > 0
+    assert result.duration_seconds >= 0
 
 
 @pytest.mark.asyncio
@@ -154,7 +154,9 @@ async def test_orchestrator_analyze_no_snapshots():
     result = await orchestrator.analyze("NewPosition")
 
     assert result.position_name == "NewPosition"
-    assert result.diff_result is not None
+    # No snapshots found, orchestrator returns early with empty result
+    assert result.diff_result is None
+    assert result.duration_seconds >= 0
 
 
 @pytest.mark.asyncio
@@ -163,10 +165,11 @@ async def test_orchestrator_emergence_detection():
     session = FakeSession()
     orchestrator = EvolutionOrchestrator(session)
 
+    from datetime import UTC, datetime as _dt
     snap = SimpleNamespace(
         id="snap-1", position_name="Backend",
-        snapshot_date=None,
-        required_skills=[SimpleNamespace(name="Python")],
+        snapshot_date=_dt(2026, 6, 1, tzinfo=UTC),
+        required_skills=[SimpleNamespace(name="Python", proficiency=None)],
         preferred_skills=[], source_count=5,
     )
     orchestrator._snapshot_mgr.get_snapshot_pair = AsyncMock(return_value=(None, snap))

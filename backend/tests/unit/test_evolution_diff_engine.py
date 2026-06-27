@@ -142,7 +142,7 @@ class TestDiffEngineEdgeCases:
         added_pref = [c for c in result.changes if c.change_type == ChangeType.ADDED_PREFERRED]
         assert len(added_req) == 2  # Go, Kubernetes
         assert len(added_pref) == 1  # TypeScript
-        assert result.total_changes == 5  # 1+1+1+2+0 (non-retained)
+        assert result.total_changes == 6  # 2+1+1+1+1 (non-retained): 2 added_req, 1 added_pref, 1 removed, 1 promoted, 1 demoted
 
     def test_diff_result_summary(self) -> None:
         """Verify summary dict matches change counts."""
