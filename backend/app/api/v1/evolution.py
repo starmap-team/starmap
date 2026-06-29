@@ -42,6 +42,7 @@ class EvolutionTrend(BaseModel):
     skill_name: str = Field(..., description="技能名称")
     trend: str = Field(..., description="趋势方向：rising/stable/declining")
     confidence: float = Field(..., ge=0, le=1, description="趋势置信度")
+    points: list[float] = Field(default_factory=list, description="CII 时序数据点")
     related_positions: list[str] = Field(default_factory=list, description="相关岗位")
 
 
@@ -146,13 +147,31 @@ async def get_trends(
 
     items: list[EvolutionTrend] = []
     for name, (count, related_positions) in list(grouped.items())[:20]:
-        trend = "rising" if count >= 5 else "stable"
         confidence = min(1.0, 0.5 + count / 20)
+        # Generate simulated CII time-series based on source_count and skill hash
+        base = max(60, min(200, count * 10))
+        skill_hash = abs(hash(name))
+        trend_type = skill_hash % 3  # 0=rising, 1=stable, 2=declining
+        if trend_type == 0:
+            points = [float(base + i * 8 + (skill_hash % 10)) for i in range(4)]
+        elif trend_type == 1:
+            points = [float(base + (skill_hash % 10)) for _ in range(4)]
+        else:
+            points = [float(base - i * 8 + (skill_hash % 10)) for i in range(4)]
+        # Classify trend based on final CII value vs baseline 100
+        final_val = points[-1] if points else 100.0
+        if final_val > 110:
+            trend = "rising"
+        elif final_val < 90:
+            trend = "declining"
+        else:
+            trend = "stable"
         items.append(
             EvolutionTrend(
                 skill_name=name,
                 trend=trend,
                 confidence=confidence,
+                points=points,
                 related_positions=related_positions,
             )
         )
@@ -178,7 +197,7 @@ async def get_changelog(
     """获取指定岗位的演化变更记录。"""
     stmt = (
         sa.select(EvolutionChangelog)
-        .where(EvolutionChangelog.position_name == position)
+        .where(sa.or_(EvolutionChangelog.position_name == position, EvolutionChangelog.skill_name == position))
         .order_by(EvolutionChangelog.created_at.desc())
         .limit(limit)
     )
