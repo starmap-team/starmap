@@ -104,7 +104,7 @@ function toggleLayout() {
 
 // ── EVOLVES_TO 演化边 ──
 const showEvolution = ref(false)
-const maxNodesLimit = ref(200)
+const maxNodesLimit = ref(80)
 const proficiencyFilter = ref<string[]>(['精通', '熟悉', '了解'])
 
 function onMaxNodesChange(val: number) {
@@ -416,9 +416,21 @@ function renderPositionLayer() {
     })
   }
 
+  // Apply maxNodesLimit to positions (keep KA node + limit positions)
+  const maxPositionNodes = Math.max(maxNodesLimit.value - 1, 5)
+  const sortedPositions = [...positions].sort((a, b) => {
+    let aCount = 0, bCount = 0
+    for (const e of graphStore.allEdges) {
+      if (e.source_id === a.id && e.type === 'REQUIRES') aCount++
+      if (e.source_id === b.id && e.type === 'REQUIRES') bCount++
+    }
+    return bCount - aCount
+  })
+  const limitedPositions = sortedPositions.slice(0, maxPositionNodes)
+
   // Position 节点
   const posColor = POSITION_COLOR
-  for (const p of positions) {
+  for (const p of limitedPositions) {
     let skillCount = 0
     for (const e of graphStore.allEdges) { if (e.source_id === p.id && e.type === "REQUIRES") skillCount++ }
     const size = 28 + (skillCount / maxSkillCount) * 16
@@ -483,8 +495,8 @@ function renderPositionLayer() {
   // EVOLVES_TO 演化边（岗位层）
   if (showEvolution.value) {
     for (const ev of evolutionEdges.value) {
-      const src = positions.find(p => p.id === ev.source || p.properties.name === ev.source)
-      const tgt = positions.find(p => p.id === ev.target || p.properties.name === ev.target)
+      const src = limitedPositions.find(p => p.id === ev.source || p.properties.name === ev.source)
+      const tgt = limitedPositions.find(p => p.id === ev.target || p.properties.name === ev.target)
       if (src && tgt) {
         graphEdges.push({
           id: `evo-${src.id}-${tgt.id}`,
@@ -558,8 +570,11 @@ function renderDetailLayer() {
           },
   })
 
-  // Skill 节点
-  const posEdges = graphStore.visibleEdges.filter(e => e.source_id === posId)
+  // Skill 节点 — apply maxNodesLimit (reserve ~3 for KA + Position nodes)
+  const allPosEdges = graphStore.visibleEdges.filter(e => e.source_id === posId)
+  const maxSkillNodes = Math.max(maxNodesLimit.value - 3, 5)
+  const sortedEdges = [...allPosEdges].sort((a, b) => (b.properties?.weight ?? 0.5) - (a.properties?.weight ?? 0.5))
+  const posEdges = sortedEdges.slice(0, maxSkillNodes)
   const maxWeight = Math.max(...posEdges.map(e => e.properties?.weight ?? 0.5), 0.1)
 
   for (const e of posEdges) {

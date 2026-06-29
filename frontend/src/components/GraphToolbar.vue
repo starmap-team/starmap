@@ -1,4 +1,4 @@
-ï»¿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * GraphToolbar - floating zoom/layout/filter controls for the graph canvas
  * Enhanced with filtering, node limiting, and layout options
@@ -22,8 +22,8 @@ const emit = defineEmits<{
 }>()
 
 const showFilters = ref(false)
-const maxNodes = ref(200)
-const selectedProficiencies = ref<string[]>(['ç²¾é€š', 'ç†Ÿæ‚‰', 'äº†è§£'])
+const maxNodes = ref(80)
+const selectedProficiencies = ref<string[]>(['¾«Í¨', 'ÊìÏ¤', 'ÁË½â'])
 
 function onMaxNodesChange(val: number) {
   emit('maxNodesChange', val)
@@ -43,17 +43,17 @@ function toggleProficiency(level: string) {
 <template>
   <div class="graph-toolbar glass">
     <!-- Zoom controls -->
-    <el-tooltip content="æ”¾å¤§" placement="top">
+    <el-tooltip content="·Å´ó" placement="top">
       <button class="tb-btn" @click="emit('zoomIn')">
         <el-icon><ZoomIn /></el-icon>
       </button>
     </el-tooltip>
-    <el-tooltip content="ç¼©å°" placement="top">
+    <el-tooltip content="ËõĞ¡" placement="top">
       <button class="tb-btn" @click="emit('zoomOut')">
         <el-icon><ZoomOut /></el-icon>
       </button>
     </el-tooltip>
-    <el-tooltip content="å±…ä¸­é€‚é…" placement="top">
+    <el-tooltip content="¾ÓÖĞÊÊÅä" placement="top">
       <button class="tb-btn" @click="emit('zoomFit')">
         <el-icon><Aim /></el-icon>
       </button>
@@ -61,33 +61,33 @@ function toggleProficiency(level: string) {
     <span class="tb-divider" />
 
     <!-- Layout toggle -->
-    <el-tooltip :content="layoutMode === 'force' ? 'åˆ‡æ¢åˆ†å±‚å¸ƒå±€' : layoutMode === 'dagre' ? 'åˆ‡æ¢ç¯å½¢å¸ƒå±€' : 'åˆ‡æ¢åŠ›å¯¼å‘'" placement="top">
+    <el-tooltip :content="layoutMode === 'force' ? 'ÇĞ»»·Ö²ã²¼¾Ö' : layoutMode === 'dagre' ? 'ÇĞ»»»·ĞÎ²¼¾Ö' : 'ÇĞ»»Á¦µ¼Ïò'" placement="top">
       <button class="tb-btn" @click="emit('toggleLayout')">
-        <span class="tb-label">{{ layoutMode === 'force' ? 'åŠ›' : layoutMode === 'dagre' ? 'å±‚' : 'ç¯' }}</span>
+        <span class="tb-label">{{ layoutMode === 'force' ? 'Á¦' : layoutMode === 'dagre' ? '²ã' : '»·' }}</span>
       </button>
     </el-tooltip>
 
     <!-- Reset highlight -->
-    <el-tooltip content="é‡ç½®é«˜äº®" placement="top">
+    <el-tooltip content="ÖØÖÃ¸ßÁÁ" placement="top">
       <button class="tb-btn" @click="emit('resetHighlight')">
         <el-icon><RefreshRight /></el-icon>
       </button>
     </el-tooltip>
 
     <!-- Filter toggle -->
-    <el-tooltip content="ç­›é€‰å™¨" placement="top">
+    <el-tooltip content="É¸Ñ¡Æ÷" placement="top">
       <button class="tb-btn" :class="{ 'tb-btn--active': showFilters }" @click="showFilters = !showFilters">
         <el-icon><Filter /></el-icon>
       </button>
     </el-tooltip>
 
     <span class="tb-divider" />
-    <span class="tb-count">{{ nodeCount }} èŠ‚ç‚¹</span>
+    <span class="tb-count">{{ nodeCount }} ½Úµã</span>
 
     <!-- Expandable filter panel -->
     <div v-if="showFilters" class="filter-panel glass">
       <div class="filter-section">
-        <span class="filter-label">èŠ‚ç‚¹ä¸Šé™</span>
+        <span class="filter-label">½ÚµãÉÏÏŞ</span>
         <el-slider
           :model-value="maxNodes"
           :min="20"
@@ -98,10 +98,10 @@ function toggleProficiency(level: string) {
         />
       </div>
       <div class="filter-section">
-        <span class="filter-label">ç†Ÿç»ƒåº¦</span>
+        <span class="filter-label">ÊìÁ·¶È</span>
         <div class="prof-chips">
           <button
-            v-for="level in ['ç²¾é€š', 'ç†Ÿæ‚‰', 'äº†è§£']"
+            v-for="level in ['¾«Í¨', 'ÊìÏ¤', 'ÁË½â']"
             :key="level"
             class="prof-chip"
             :class="{ 'prof-chip--active': selectedProficiencies.includes(level) }"
