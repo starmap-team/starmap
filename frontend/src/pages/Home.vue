@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue"
 // G6 loaded dynamically below for code-splitting
 import { Collection, DataAnalysis, Upload, Document, TrendCharts } from "@element-plus/icons-vue"
@@ -94,16 +94,32 @@ function onOverviewModeChange(mode: string) {
 }
 
 // ── 布局模式切换（force / dagre 分层） ──
-type LayoutMode = 'force' | 'dagre'
+type LayoutMode = 'force' | 'dagre' | 'radial'
 const layoutMode = ref<LayoutMode>('force')
 
 function toggleLayout() {
-  layoutMode.value = layoutMode.value === 'force' ? 'dagre' : 'force'
+  layoutMode.value = layoutMode.value === 'force' ? 'dagre' : layoutMode.value === 'dagre' ? 'radial' : 'force'
   renderCurrentLayer()
 }
 
 // ── EVOLVES_TO 演化边 ──
 const showEvolution = ref(false)
+const maxNodesLimit = ref(200)
+const proficiencyFilter = ref<string[]>(['精通', '熟悉', '了解'])
+
+function onMaxNodesChange(val: number) {
+  maxNodesLimit.value = val
+  renderCurrentLayer()
+}
+
+function onProficiencyFilter(levels: string[]) {
+  proficiencyFilter.value = levels
+  renderCurrentLayer()
+}
+
+function resetHighlight() {
+  clearHighlight()
+}
 const evolutionEdges = ref<{ source: string; target: string; similarity: number }[]>([])
 
 async function fetchEvolutionEdges() {
@@ -903,6 +919,9 @@ onUnmounted(() => {
               @zoom-out="graph?.zoomBy(0.8)"
               @zoom-fit="graph?.fitView()"
               @toggle-layout="toggleLayout"
+              @reset-highlight="resetHighlight"
+              @max-nodes-change="onMaxNodesChange"
+              @proficiency-filter="onProficiencyFilter"
             />
           </div>
         </main>

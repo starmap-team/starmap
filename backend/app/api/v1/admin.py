@@ -1,4 +1,4 @@
-﻿"""Admin API.
+"""Admin API.
 
 This file was sanitized to ASCII-only because the original Chinese
 docstrings contained non-printable characters that caused runtime
@@ -118,17 +118,31 @@ async def _build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
     dashboard = await _build_quality_dashboard(session)
 
     try:
-        counts_stmt = sa.select(
-            sa.func.count(PositionRecord.id.distinct()),
-            sa.func.count(SkillRecord.id.distinct()),
-            sa.func.count(PositionSkillRelation.id.distinct()),
-            sa.func.coalesce(sa.func.avg(JDExtractionRecord.confidence), 0.0),
+        # Run separate queries to avoid cartesian product across 4 unrelated tables.
+        total_positions = int(
+            (await session.execute(
+                sa.select(sa.func.count()).select_from(PositionRecord)
+            )).scalar() or 0
         )
-        positions, skills, edges, avg_confidence = (await session.execute(counts_stmt)).one()
-        total_positions = int(positions or 0)
-        total_skills = int(skills or 0)
-        total_edges = int(edges or 0)
-        avg_value = float(avg_confidence or 0.0)
+        total_skills = int(
+            (await session.execute(
+                sa.select(sa.func.count()).select_from(SkillRecord)
+            )).scalar() or 0
+        )
+        total_edges = int(
+            (await session.execute(
+                sa.select(sa.func.count()).select_from(PositionSkillRelation)
+            )).scalar() or 0
+        )
+        avg_value = float(
+            (await session.execute(
+                sa.select(
+                    sa.func.coalesce(
+                        sa.func.avg(JDExtractionRecord.confidence), 0.0
+                    )
+                )
+            )).scalar() or 0.0
+        )
     except Exception:
         total_positions = len([item for item in _demo_audit_queue if item.type == "position"])
         total_skills = len(_DEMO_SOURCES) * 5
