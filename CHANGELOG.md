@@ -4,6 +4,30 @@
 
 ## [Unreleased]
 
+## [v0.7.0] - 2026-06-30 - 闭环优化 + 学习路径增强 + 节点降噪
+
+### Fixed - 后端 admin/stats (P0)
+- 拆分 4 表联合查询为独立 COUNT，修复笛卡尔积导致的 SQL 超时
+
+### Changed - 前端全景图谱 UX (R5)
+- 默认 maxNodes 从 200 降到 80，首次加载更轻快
+- position 层和 detail 层均应用 maxNodesLimit 限制
+- position 层按技能数降序排列，优先展示核心岗位
+- detail 层按权重降序排列，优先展示必备技能
+
+### Added - 匹配引擎学习路径增强 (Module D)
+- 从 Neo4j 动态加载 102 条 PREREQUISITE 关系
+- 学习路径从单步升级为多步（如: Excel -> 统计学 -> Machine Learning）
+- 清理 42 个临时脚本文件
+
+### Added - 演化 changelog 种子数据 (Module B)
+- 5 个岗位 x 3-4 条变更记录 = 15 条 changelog
+- 覆盖 AI算法/前端/数据/后端/运维 岗位
+
+### PR 合流记录
+- 待提交 PR
+
+
 ## [v0.6.0] - 2026-06-29 - 演化闭环 + 图谱UX优化 + 关键Bug修复
 
 ### Fixed - 种子数据脚本 (R0)
