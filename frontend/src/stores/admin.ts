@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 
@@ -33,17 +33,22 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function fetchAuditQueue() {
-    const data = await request.get('/admin/review-queue')
-    auditQueue.value = (data as any).items ?? []
+    try {
+      const data = await request.get('/admin/review-queue')
+      auditQueue.value = (data as any).items ?? []
+    } catch (e) {
+      console.error('[Admin] Failed to fetch audit queue:', e)
+      auditQueue.value = []
+    }
   }
 
   async function approveAudit(id: number) {
-    await request.post(`/admin/review/${id}/approve`)
+    await request.post(`/admin/audit/${id}/approve`)
     auditQueue.value = auditQueue.value.filter((i) => i.id !== id)
   }
 
   async function rejectAudit(id: number) {
-    await request.post(`/admin/review/${id}/reject`)
+    await request.post(`/admin/audit/${id}/reject`)
     auditQueue.value = auditQueue.value.filter((i) => i.id !== id)
   }
 

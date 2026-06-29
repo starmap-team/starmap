@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 
@@ -6,14 +6,14 @@ export interface PersonSkill {
   skill_id: string
   name: string
   category: 'hard_skill' | 'soft_skill' | 'tool' | 'certificate'
-  proficiency: '了解' | '熟悉' | '精通'
+  proficiency: string
   confidence?: number
 }
 
 export interface SkillGap {
   skill: string
   importance: 'required' | 'bonus'
-  gap_level: '完全缺失' | '部分掌握' | '已掌握'
+  gap_level: string
   learning_path: string[]
 }
 
@@ -40,7 +40,6 @@ export const useMatchStore = defineStore('match', () => {
   const result = ref<MatchResult | null>(null)
   const loading = ref(false)
 
-  /** 调用 POST /match/diagnose 执行匹配诊断 */
   async function runMatch(targetPosition: string, skillNames: string[]) {
     loading.value = true
     try {
@@ -48,7 +47,7 @@ export const useMatchStore = defineStore('match', () => {
         skill_id: `skill_${name}`,
         name,
         category: 'hard_skill' as const,
-        proficiency: '熟悉' as const,
+        proficiency: '熟悉',
       }))
       const data = await request.post('/match/position', {
         person_skills,
@@ -60,11 +59,10 @@ export const useMatchStore = defineStore('match', () => {
     }
   }
 
-  /** 获取岗位要求的技能列表 GET /graph/position/{id}/skills */
   async function fetchPositionSkills(positionId: string): Promise<PositionSkills | null> {
     try {
       const data = await request.get(`/graph/position/${positionId}/skills`)
-      return data as unknown as PositionSkills
+      return (data as any).skills ?? (data as unknown as PositionSkills)
     } catch {
       return null
     }

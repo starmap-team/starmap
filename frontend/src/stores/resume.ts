@@ -30,6 +30,7 @@ export const useResumeStore = defineStore('resume', () => {
     try {
       const data = await request.post('/resume/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000, // LLM 抽取需要更长时间，120秒超时
       })
       result.value = data as unknown as ResumeParseResult
     } finally {

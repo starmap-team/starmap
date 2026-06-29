@@ -1,4 +1,4 @@
-/**
+﻿/**
  * MSW Mock — 前端独立开发数据源（规范4：Mock优先）
  * 所有接口路径严格对应 starmap-contracts/openapi.yaml
  * ⚠️ 部分接口 enrich 了额外字段用于前端展示，已在注释中标明
@@ -238,6 +238,66 @@ export const handlers = [
 
   // ────────── 图谱查询 ──────────
   // GET /graph/query — 全景图谱
+  // GET /graph/overview — 领域概览（三层视图第 1 层）
+  http.get('/api/v1/graph/overview', () => {
+    return HttpResponse.json({
+      domains: [
+        { id: 'ka-ai', name: '人工智能', position_count: 25, skill_count: 120, color: '#9B59B6' },
+        { id: 'ka-data', name: '数据科学', position_count: 18, skill_count: 85, color: '#E6A23C' },
+        { id: 'ka-fe', name: '前端工程', position_count: 15, skill_count: 60, color: '#409EFF' },
+        { id: 'ka-be', name: '后端架构', position_count: 20, skill_count: 90, color: '#67C23A' },
+        { id: 'ka-cloud', name: '云计算', position_count: 12, skill_count: 45, color: '#36CFC9' },
+      ],
+      connections: [
+        { source_id: 'ka-ai', target_id: 'ka-data', type: 'SHARES_POSITION', properties: { weight: 0.5 } },
+        { source_id: 'ka-fe', target_id: 'ka-be', type: 'SHARES_POSITION', properties: { weight: 0.3 } },
+      ],
+      total_positions: 90,
+      total_skills: 400,
+    })
+  }),
+
+  // GET /graph/ka/:kaId/positions — KA 下的岗位（三层视图第 2 层）
+  http.get('/api/v1/graph/ka/:kaId/positions', ({ params }) => {
+    const { kaId } = params
+    const mockData: Record<string, any> = {
+      'ka-ai': {
+        ka_id: 'ka-ai', ka_name: '人工智能',
+        positions: [
+          { id: 'pos-algo', labels: ['Position'], properties: { name: '算法工程师', category: 'AI' } },
+          { id: 'pos-nlp', labels: ['Position'], properties: { name: 'NLP工程师', category: 'AI' } },
+          { id: 'pos-cv', labels: ['Position'], properties: { name: 'CV工程师', category: 'AI' } },
+          { id: 'pos-ml', labels: ['Position'], properties: { name: '机器学习工程师', category: 'AI' } },
+        ],
+        position_skill_edges: [
+          { source_id: 'pos-algo', target_id: 'skill-py', type: 'REQUIRES', properties: { weight: 0.95 } },
+          { source_id: 'pos-algo', target_id: 'skill-ml', type: 'REQUIRES', properties: { weight: 0.9 } },
+          { source_id: 'pos-nlp', target_id: 'skill-py', type: 'REQUIRES', properties: { weight: 0.9 } },
+          { source_id: 'pos-cv', target_id: 'skill-py', type: 'REQUIRES', properties: { weight: 0.85 } },
+          { source_id: 'pos-ml', target_id: 'skill-ml', type: 'REQUIRES', properties: { weight: 0.95 } },
+        ],
+      },
+      'ka-data': {
+        ka_id: 'ka-data', ka_name: '数据科学',
+        positions: [
+          { id: 'pos-data', labels: ['Position'], properties: { name: '数据分析师', category: '数据' } },
+          { id: 'pos-bi', labels: ['Position'], properties: { name: 'BI工程师', category: '数据' } },
+        ],
+        position_skill_edges: [
+          { source_id: 'pos-data', target_id: 'skill-py', type: 'REQUIRES', properties: { weight: 0.85 } },
+          { source_id: 'pos-data', target_id: 'skill-sql', type: 'REQUIRES', properties: { weight: 0.8 } },
+        ],
+      },
+    }
+    return HttpResponse.json(mockData[kaId as string] ?? {
+      ka_id: kaId, ka_name: kaId,
+      positions: [
+        { id: 'pos-generic', labels: ['Position'], properties: { name: '通用岗位', category: '其他' } },
+      ],
+      position_skill_edges: [],
+    })
+  }),
+
   http.get('/api/v1/graph/query', ({ request }) => {
     const url = new URL(request.url)
     const cypher = url.searchParams.get('cypher') ?? ''
