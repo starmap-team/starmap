@@ -1,0 +1,37 @@
+﻿{
+  "target_position": "大模型应用工程师",
+  "generation_date": "2026-06-29",
+  "generator": "Qwen2.5-72B via StarFire API",
+  "input": "Aggregated skill requirements from 35 JDs across 7 sources",
+  "position_definition": {
+    "name": "大模型应用工程师",
+    "english_name": "LLM Application Engineer",
+    "core_responsibilities": [
+      "基于大语言模型（如讯飞星火、ChatGPT等）构建智能应用",
+      "设计和实现RAG（检索增强生成）系统",
+      "开发Prompt Engineering策略，优化LLM输出质量",
+      "集成LangChain/LlamaIndex等LLM应用框架",
+      "构建知识库问答、智能客服等大模型驱动的应用场景"
+    ],
+    "required_skills": [
+      {"name": "Python", "proficiency": "熟悉", "rationale": "Primary development language for LLM ecosystem"},
+      {"name": "LLM", "proficiency": "熟悉", "rationale": "Core domain knowledge - understanding of LLM capabilities and limitations"},
+      {"name": "RAG", "proficiency": "熟悉", "rationale": "Key architecture pattern for knowledge-grounded generation"},
+      {"name": "LangChain", "proficiency": "熟悉", "rationale": "Dominant framework for LLM application development"},
+      {"name": "Prompt Engineering", "proficiency": "熟悉", "rationale": "Essential skill for effective LLM interaction"},
+      {"name": "FastAPI", "proficiency": "熟悉", "rationale": "Standard framework for building LLM service APIs"}
+    ],
+    "bonus_skills": [
+      {"name": "Fine-tuning", "proficiency": "了解", "rationale": "Model customization for domain-specific tasks"},
+      {"name": "Docker", "proficiency": "了解", "rationale": "Container deployment for LLM services"}
+    ],
+    "typical_industries": ["人工智能", "互联网", "企业服务", "教育科技", "金融科技"],
+    "experience_level": "中级 (1-3 years)",
+    "salary_range": "15K-35K (一线城市的2026年市场数据)"
+  },
+  "differentiation_from_existing": {
+    "vs_AI工程师": "大模型应用工程师侧重应用层（API调用、RAG、Prompt），不涉及模型训练",
+    "vs_AI算法工程师": "不关注模型架构设计和训练优化，关注应用集成和用户体验",
+    "vs_后端工程师": "专注于LLM驱动的应用，需要理解LLM特性和Prompt策略"
+  }
+}

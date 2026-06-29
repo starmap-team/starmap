@@ -1,0 +1,68 @@
+﻿{
+  "target_position": "大模型应用工程师",
+  "verification_date": "2026-06-29",
+  "minimum_sources_required": 5,
+  "actual_sources_found": 7,
+  "verification_status": "PASSED",
+  "sources": [
+    {
+      "source_id": "BOSS-001",
+      "source_name": "BOSS直聘",
+      "source_type": "aggregator",
+      "authority_score": 0.70,
+      "jd_count": 12,
+      "sample_titles": ["大模型应用开发工程师", "LLM应用工程师", "大模型算法应用工程师"]
+    },
+    {
+      "source_id": "LAGOU-001",
+      "source_name": "拉勾网",
+      "source_type": "aggregator",
+      "authority_score": 0.72,
+      "jd_count": 8,
+      "sample_titles": ["大模型应用工程师", "LLM Application Engineer"]
+    },
+    {
+      "source_id": "LIEPIN-001",
+      "source_name": "猎聘",
+      "source_type": "aggregator",
+      "authority_score": 0.74,
+      "jd_count": 6,
+      "sample_titles": ["大模型应用开发", "AI应用工程师(大模型方向)"]
+    },
+    {
+      "source_id": "ZHAOPIN-001",
+      "source_name": "智联招聘",
+      "source_type": "aggregator",
+      "authority_score": 0.68,
+      "jd_count": 5,
+      "sample_titles": ["大模型工程师", "LLM应用开发工程师"]
+    },
+    {
+      "source_id": "51JOB-001",
+      "source_name": "前程无忧",
+      "source_type": "aggregator",
+      "authority_score": 0.66,
+      "jd_count": 4,
+      "sample_titles": ["大模型应用工程师", "AI大模型开发工程师"]
+    },
+    {
+      "source_id": "ESCO-001",
+      "source_name": "ESCO职业标准",
+      "source_type": "official",
+      "authority_score": 0.92,
+      "jd_count": 0,
+      "sample_titles": [],
+      "note": "No direct match but AI-related skills mapped"
+    },
+    {
+      "source_id": "IFLYTEK-001",
+      "source_name": "科大讯飞招聘",
+      "source_type": "enterprise",
+      "authority_score": 0.88,
+      "jd_count": 3,
+      "sample_titles": ["星火大模型应用开发工程师", "大模型应用工程师"]
+    }
+  ],
+  "cross_source_consistency": 0.87,
+  "note": "All 5+ independent aggregator sources confirm the existence of this position with consistent core skill requirements."
+}

@@ -1,0 +1,41 @@
+﻿{
+  "target_position": "大模型应用工程师",
+  "guard_date": "2026-06-29",
+  "total_skills_checked": 8,
+  "passed": 8,
+  "flagged": 0,
+  "overall_status": "VERIFIED",
+  "defense_layers": [
+    {
+      "layer": 1,
+      "name": "本体白名单校验",
+      "description": "Check if extracted skills exist in the ESCO-aligned ontology",
+      "pass_rate": "8/8 (100%)",
+      "details": "All 8 skills (Python, LLM, RAG, LangChain, Prompt Engineering, FastAPI, Fine-tuning, Docker) are present in the ontology taxonomy"
+    },
+    {
+      "layer": 2,
+      "name": "多源交叉验证",
+      "description": "Verify each skill appears in >= 2 independent JD sources",
+      "pass_rate": "8/8 (100%)",
+      "details": "All skills verified across 3+ independent sources"
+    },
+    {
+      "layer": 3,
+      "name": "LLM-as-Judge 置信度评估",
+      "description": "Use LLM to assess whether each skill is a genuine requirement for this position",
+      "pass_rate": "8/8 (100%)",
+      "details": "LLM judgment: All skills are coherent with the LLM Application Engineer role definition"
+    }
+  ],
+  "per_skill_results": [
+    {"skill": "Python", "status": "verified", "overall_score": 0.95, "sources": 7},
+    {"skill": "LLM", "status": "verified", "overall_score": 0.92, "sources": 7},
+    {"skill": "RAG", "status": "verified", "overall_score": 0.90, "sources": 6},
+    {"skill": "LangChain", "status": "verified", "overall_score": 0.88, "sources": 5},
+    {"skill": "Prompt Engineering", "status": "verified", "overall_score": 0.91, "sources": 6},
+    {"skill": "FastAPI", "status": "verified", "overall_score": 0.85, "sources": 5},
+    {"skill": "Fine-tuning", "status": "verified", "overall_score": 0.82, "sources": 4},
+    {"skill": "Docker", "status": "verified", "overall_score": 0.80, "sources": 4}
+  ]
+}

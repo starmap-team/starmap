@@ -1,0 +1,44 @@
+﻿{
+  "target_position": "大模型应用工程师",
+  "clustering_date": "2026-06-29",
+  "algorithm": "HDBSCAN",
+  "parameters": {
+    "min_cluster_size": 3,
+    "min_samples": 2,
+    "metric": "jaccard"
+  },
+  "input": "35 JDs containing LLM/大模型 keywords from 5+ sources",
+  "clusters_found": 3,
+  "clusters": [
+    {
+      "cluster_id": 0,
+      "label": "大模型应用工程师 (Application-focused)",
+      "size": 18,
+      "cohesion": 0.82,
+      "core_skills": ["Python", "LLM", "RAG", "LangChain", "Prompt Engineering", "FastAPI"],
+      "distinctive_skills": ["RAG", "LangChain", "Prompt Engineering"],
+      "separation_from_AI工程师": 0.45,
+      "separation_from_AI算法工程师": 0.62,
+      "interpretation": "Focused on building applications using LLM APIs and frameworks, not training models"
+    },
+    {
+      "cluster_id": 1,
+      "label": "AI工程师 (General ML)",
+      "size": 10,
+      "cohesion": 0.75,
+      "core_skills": ["Python", "PyTorch", "Machine Learning", "Deep Learning", "scikit-learn"],
+      "distinctive_skills": ["PyTorch", "Deep Learning"],
+      "interpretation": "Traditional ML/DL engineering role"
+    },
+    {
+      "cluster_id": 2,
+      "label": "AI算法工程师 (Research-heavy)",
+      "size": 7,
+      "cohesion": 0.70,
+      "core_skills": ["Python", "PyTorch", "TensorFlow", "Transformer", "NLP"],
+      "distinctive_skills": ["TensorFlow", "Transformer", "NLP research"],
+      "interpretation": "Research-oriented, model architecture design"
+    }
+  ],
+  "conclusion": "Cluster 0 (大模型应用工程师) is clearly separated from existing AI positions by its focus on application-level skills (RAG, LangChain, Prompt Engineering) rather than model training skills (PyTorch, TensorFlow)."
+}
