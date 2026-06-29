@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue"
 import { useRouter } from "vue-router"
 import { Graph } from "@antv/g6"
@@ -282,6 +282,7 @@ function initGraph() {
         },
       },
       behaviors: ["drag-canvas", "zoom-canvas", "drag-element"],
+      plugins: ['minimap', { type: 'tooltip', enable: true, trigger: 'pointerenter', offset: [10, 10], style: { background: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', padding: '8px 12px', fontSize: '12px' } }],
     })
 
     graph.on("node:click", (event: any) => {
@@ -336,7 +337,8 @@ function renderDomainLayer() {
         labelFontWeight: "bold" as const,
         labelPlacement: "center" as const,
         shadowColor: "rgba(0,0,0,0.15)",
-        shadowBlur: 12,
+        shadowBlur: 16,
+        
               },
     }
   })
@@ -355,8 +357,12 @@ function renderDomainLayer() {
   }))
 
   graph.setData({ nodes: graphNodes, edges: graphEdges })
-  if (layoutMode.value === 'dagre') {
-    graph.setLayout({ type: 'dagre', rankdir: 'TB', nodesep: 60, ranksep: 80, preventOverlap: true, nodeSize: 80 })
+  const isLevel = overviewMode.value === 'level'
+  const isTechStack = overviewMode.value === 'tech_stack'
+  if (layoutMode.value === 'dagre' || isLevel) {
+    graph.setLayout({ type: 'dagre', rankdir: 'TB', nodesep: isLevel ? 100 : 60, ranksep: isLevel ? 120 : 80, preventOverlap: true, nodeSize: 80 })
+  } else if (isTechStack) {
+    graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 60, animate: true, clustering: true, clusterNodeStrength: 0.8, strength: 0.6 })
   } else {
     graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 40, animate: true, strength: 0.5 })
   }
@@ -452,10 +458,11 @@ function renderPositionLayer() {
           target: targetNode.id,
           style: {
             stroke: '#F56C6C',
-            lineWidth: 2 + ev.similarity * 2,
-            opacity: 0.7,
-            lineDash: [8, 4],
+            lineWidth: 2 + ev.similarity * 3,
+            opacity: 0.8,
+            lineDash: [12, 6],
             endArrow: true,
+            endArrowSize: 8,
           },
         })
       }
@@ -474,10 +481,11 @@ function renderPositionLayer() {
           target: tgt.id,
           style: {
             stroke: '#F56C6C',
-            lineWidth: 2 + ev.similarity * 2,
-            opacity: 0.7,
-            lineDash: [8, 4],
+            lineWidth: 2 + ev.similarity * 3,
+            opacity: 0.8,
+            lineDash: [12, 6],
             endArrow: true,
+            endArrowSize: 8,
           },
         })
       }
@@ -735,314 +743,463 @@ onUnmounted(() => {
 
 <template>
   <MainLayout>
-    <div class="graph-page">
-      <!-- KPI 卡片 -->
+    <div class="graph-page animate-fade-in">
+      <!-- ── KPI Strip ── -->
       <div class="kpi-strip">
-        <div class="kpi-card" style="border-left-color: #3B82F6">
-          <div class="kpi-icon" style="background: rgba(59,130,246,0.1); color: #3B82F6"><el-icon><DataAnalysis /></el-icon></div>
-          <div class="kpi-body"><div class="kpi-value">{{ totalDomains }}</div><div class="kpi-label">技术领域</div></div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background: var(--info-ghost); color: var(--info)">
+            <el-icon><DataAnalysis /></el-icon>
+          </div>
+          <div class="kpi-body">
+            <span class="kpi-value">{{ totalDomains }}</span>
+            <span class="kpi-label">技术领域</span>
+          </div>
         </div>
-        <div class="kpi-card" style="border-left-color: #409EFF">
-          <div class="kpi-icon" style="background: rgba(64,158,255,0.1); color: #409EFF"><el-icon><Collection /></el-icon></div>
-          <div class="kpi-body"><div class="kpi-value">{{ totalPositions }}</div><div class="kpi-label">岗位数</div></div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background: var(--primary-ghost); color: var(--primary)">
+            <el-icon><Collection /></el-icon>
+          </div>
+          <div class="kpi-body">
+            <span class="kpi-value">{{ totalPositions }}</span>
+            <span class="kpi-label">岗位数</span>
+          </div>
         </div>
-        <div class="kpi-card" style="border-left-color: #10B981">
-          <div class="kpi-icon" style="background: rgba(16,185,129,0.1); color: #10B981"><el-icon><TrendCharts /></el-icon></div>
-          <div class="kpi-body"><div class="kpi-value">{{ totalSkills }}</div><div class="kpi-label">技能数</div></div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background: var(--success-ghost); color: var(--success)">
+            <el-icon><TrendCharts /></el-icon>
+          </div>
+          <div class="kpi-body">
+            <span class="kpi-value">{{ totalSkills }}</span>
+            <span class="kpi-label">技能数</span>
+          </div>
         </div>
-        <div class="quick-actions">
-          <el-button type="primary" size="small" :icon="Upload" @click="$router.push('/match')">上传简历匹配</el-button>
-          <el-button type="success" size="small" :icon="Document" @click="$router.push('/extract')">粘贴JD抽取</el-button>
-          <el-button type="warning" size="small" :icon="TrendCharts" @click="$router.push('/evolution')">查看演化趋势</el-button>
+        <div class="kpi-actions">
+          <el-button size="small" :icon="Upload" @click="$router.push('/match')">简历匹配</el-button>
+          <el-button size="small" :icon="Document" @click="$router.push('/extract')">JD 抽取</el-button>
+          <el-button size="small" :icon="TrendCharts" @click="$router.push('/evolution')">演化趋势</el-button>
         </div>
       </div>
 
-      <!-- 视图模式切换 -->
-      <div v-if="graphStore.currentLayer === 'domain'" class="view-mode-tabs">
-        <el-radio-group v-model="overviewMode" size="small" @change="onOverviewModeChange">
-          <el-radio-button value="domain">领域概览</el-radio-button>
-          <el-radio-button value="tech_stack">技术栈视图</el-radio-button>
-          <el-radio-button value="level">级别视图</el-radio-button>
-        </el-radio-group>
-      </div>
+      <!-- ── Graph Controls Bar ── -->
+      <div class="graph-controls">
+        <div class="controls-left">
+          <!-- Graph breadcrumb -->
+          <nav class="graph-breadcrumb">
+            <template v-for="(item, i) in breadcrumb" :key="i">
+              <span
+                class="gb-item"
+                :class="{ active: i === breadcrumb.length - 1 }"
+                @click="i < breadcrumb.length - 1 && item.action?.()"
+              >{{ item.label }}</span>
+              <span v-if="i < breadcrumb.length - 1" class="gb-sep">›</span>
+            </template>
+          </nav>
 
-      <!-- 面包屑导航 -->
-      <div class="breadcrumb-nav">
-        <template v-for="(item, i) in breadcrumb" :key="i">
-          <span
-            class="breadcrumb-item"
-            :class="{ active: i === breadcrumb.length - 1 }"
-            @click="i < breadcrumb.length - 1 && item.action?.()"
+          <!-- View mode tabs -->
+          <el-radio-group
+            v-if="graphStore.currentLayer === 'domain'"
+            v-model="overviewMode"
+            size="small"
+            @change="onOverviewModeChange"
+            class="view-tabs"
           >
-            {{ item.label }}
-          </span>
-          <el-icon v-if="i < breadcrumb.length - 1" class="breadcrumb-sep"><ArrowRight /></el-icon>
-        </template>
+            <el-radio-button value="domain">领域</el-radio-button>
+            <el-radio-button value="tech_stack">技术栈</el-radio-button>
+            <el-radio-button value="level">级别</el-radio-button>
+          </el-radio-group>
+        </div>
+
+        <div class="controls-right">
+          <!-- Legend -->
+          <div class="graph-legend">
+            <span class="legend-item"><span class="ld-dot" style="background: var(--chart-3)"></span>领域</span>
+            <span class="legend-item"><span class="ld-dot" style="background: var(--chart-1)"></span>岗位</span>
+            <span class="legend-item"><span class="ld-dot" style="background: var(--success)"></span>技能</span>
+            <span v-if="showEvolution" class="legend-item"><span class="ld-line"></span>演化</span>
+          </div>
+
+          <!-- Evolution toggle -->
+          <el-button
+            size="small"
+            :type="showEvolution ? 'primary' : 'default'"
+            text
+            @click="toggleEvolution"
+          >
+            {{ showEvolution ? '隐藏演化' : '显示演化' }}
+          </el-button>
+        </div>
       </div>
 
-      <!-- 图谱主区域 -->
+      <!-- ── Graph Main Area ── -->
       <div class="graph-layout">
         <main class="graph-main">
           <div v-loading="graphStore.loading" class="graph-container">
             <div ref="graphRef" class="graph-canvas" />
-            <!-- 空状态提示 -->
             <div v-if="!graphStore.loading && graphStore.visibleNodes.length === 0" class="empty-hint">
-              <el-icon size="48" color="#c0c4cc"><Aim /></el-icon>
-              <p>暂无数据，请检查后端服务是否正常运行</p>
+              <el-icon size="40" color="var(--muted-foreground)"><Aim /></el-icon>
+              <p>暂无数据，请检查后端服务</p>
+            </div>
+
+            <!-- Floating toolbar -->
+            <div class="graph-toolbar glass">
+              <el-tooltip content="放大" placement="top">
+                <button class="tb-btn" @click="graph?.zoomBy(1.2)"><el-icon><ZoomIn /></el-icon></button>
+              </el-tooltip>
+              <el-tooltip content="缩小" placement="top">
+                <button class="tb-btn" @click="graph?.zoomBy(0.8)"><el-icon><ZoomOut /></el-icon></button>
+              </el-tooltip>
+              <el-tooltip content="居中" placement="top">
+                <button class="tb-btn" @click="graph?.fitView()"><el-icon><Aim /></el-icon></button>
+              </el-tooltip>
+              <span class="tb-divider"></span>
+              <el-tooltip :content="layoutMode === 'force' ? '切换分层' : '切换力导向'" placement="top">
+                <button class="tb-btn" @click="toggleLayout">
+                  <span style="font-size: 12px; font-weight: 600">{{ layoutMode === 'force' ? '力' : '层' }}</span>
+                </button>
+              </el-tooltip>
+              <span class="tb-divider"></span>
+              <span class="tb-count">{{ graphStore.visibleNodes.length }} 节点</span>
             </div>
           </div>
         </main>
 
-        <!-- 右侧详情面板 -->
+        <!-- ── Right Detail Panel ── -->
         <aside class="right-panel" :class="{ open: !!selectedNode }">
           <template v-if="selectedNode">
-            <div class="panel-section">
-              <div class="detail-header">
-                <div class="section-title">节点详情</div>
-                <el-button text size="small" type="danger" @click="closeDetail">关闭</el-button>
+            <div class="rp-header">
+              <div class="rp-type-badge" :style="{
+                background: selectedNode.labels.includes('KnowledgeArea')
+                  ? 'var(--chart-3)' : selectedNode.labels.includes('Position')
+                  ? 'var(--chart-1)' : 'var(--success)'
+              }">
+                {{ selectedNode.labels.includes('KnowledgeArea') ? 'KA' : selectedNode.labels.includes('Position') ? 'P' : 'S' }}
               </div>
-              <div class="detail-info">
-                <div class="detail-row">
-                  <span class="detail-dot" :style="{ background: selectedNode.labels.includes('KnowledgeArea') ? (KA_COLOR_MAP.get(selectedNode.id) ?? '#9B59B6') : selectedNode.labels.includes('Position') ? POSITION_COLOR : SKILL_COLOR }" />
-                  <strong>{{ selectedNode.properties.name }}</strong>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">类型</span>
-                  <el-tag size="small" effect="plain">{{ selectedNode.labels.includes('KnowledgeArea') ? '领域' : selectedNode.labels.includes('Position') ? '岗位' : '技能' }}</el-tag>
-                </div>
-                <div v-if="selectedNode.properties.position_count != null" class="detail-row">
-                  <span class="detail-label">岗位数</span>
-                  <span>{{ selectedNode.properties.position_count }}</span>
-                </div>
-                <div v-if="selectedNode.properties.skill_count != null" class="detail-row">
-                  <span class="detail-label">技能数</span>
-                  <span>{{ selectedNode.properties.skill_count }}</span>
-                </div>
-                <div v-if="selectedNode.properties.proficiency" class="detail-row">
-                  <span class="detail-label">熟练度</span>
-                  <span>{{ selectedNode.properties.proficiency }}</span>
-                </div>
-                <div v-if="selectedNode.properties.source_count" class="detail-row">
-                  <span class="detail-label">出现频率</span>
-                  <span>{{ selectedNode.properties.source_count }}</span>
-                </div>
-                <div v-if="selectedNode.properties.trend" class="detail-row">
-                  <span class="detail-label">趋势</span>
-                  <el-tag size="small" :type="selectedNode.properties.trend === 'rising' ? 'success' : selectedNode.properties.trend === 'declining' ? 'danger' : 'info'">
-                    {{ selectedNode.properties.trend === 'rising' ? '上升' : selectedNode.properties.trend === 'declining' ? '下降' : '稳定' }}
-                  </el-tag>
+              <div class="rp-title-group">
+                <h3 class="rp-title">{{ selectedNode.properties.name }}</h3>
+                <span class="rp-subtitle">
+                  {{ selectedNode.labels.includes('KnowledgeArea') ? '知识领域' : selectedNode.labels.includes('Position') ? '岗位' : '技能' }}
+                </span>
+              </div>
+              <button class="rp-close" @click="closeDetail">×</button>
+            </div>
+
+            <!-- Radar for Position nodes -->
+            <div v-if="positionRadarOption" class="rp-section">
+              <div class="rp-section-title">技能雷达</div>
+              <VChart :option="positionRadarOption" style="height: 200px" autoresize />
+            </div>
+
+            <!-- Properties -->
+            <div class="rp-section">
+              <div class="rp-section-title">属性</div>
+              <div class="rp-props">
+                <template v-if="selectedNode.labels.includes('Skill')">
+                  <div class="rp-prop-row">
+                    <span class="rp-prop-label">类别</span>
+                    <span class="rp-prop-value">{{ selectedNode.properties.category ?? '—' }}</span>
+                  </div>
+                  <div class="rp-prop-row">
+                    <span class="rp-prop-label">趋势</span>
+                    <el-tag
+                      v-if="selectedNode.properties.trend"
+                      size="small"
+                      :type="selectedNode.properties.trend === 'rising' ? 'success' : selectedNode.properties.trend === 'declining' ? 'danger' : 'info'"
+                    >{{ selectedNode.properties.trend === 'rising' ? '↑ 上升' : selectedNode.properties.trend === 'declining' ? '↓ 下降' : '→ 平稳' }}</el-tag>
+                    <span v-else class="rp-prop-value">—</span>
+                  </div>
+                  <div class="rp-prop-row">
+                    <span class="rp-prop-label">来源数</span>
+                    <span class="rp-prop-value">{{ selectedNode.properties.source_count ?? 0 }}</span>
+                  </div>
+                </template>
+                <template v-else-if="selectedNode.labels.includes('Position')">
+                  <div class="rp-prop-row">
+                    <span class="rp-prop-label">级别</span>
+                    <span class="rp-prop-value">{{ selectedNode.properties.level ?? '—' }}</span>
+                  </div>
+                  <div class="rp-prop-row">
+                    <span class="rp-prop-label">权重</span>
+                    <span class="rp-prop-value">{{ selectedNode.properties.weight ?? '—' }}</span>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="rp-prop-row">
+                    <span class="rp-prop-label">岗位数</span>
+                    <span class="rp-prop-value">{{ selectedNode.properties.position_count ?? 0 }}</span>
+                  </div>
+                  <div class="rp-prop-row">
+                    <span class="rp-prop-label">技能数</span>
+                    <span class="rp-prop-value">{{ selectedNode.properties.skill_count ?? 0 }}</span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- Related items -->
+            <div v-if="relatedPositions.length" class="rp-section">
+              <div class="rp-section-title">相似岗位</div>
+              <div class="rp-list">
+                <div
+                  v-for="r in relatedPositions"
+                  :key="r.node.id"
+                  class="rp-list-item"
+                  @click="graphStore.goToDetailLayer(r.node.id); selectedNode = r.node"
+                >
+                  <span class="rp-list-dot" style="background: var(--chart-1)"></span>
+                  <span class="rp-list-name">{{ r.node.properties.name }}</span>
+                  <span class="rp-list-meta">{{ r.sharedCount }} 共享技能</span>
                 </div>
               </div>
             </div>
 
-            <!-- Position 技能雷达图 -->
-            <template v-if="selectedNode.labels.includes('Position') && positionRadarOption">
-              <div class="panel-section">
-                <div class="section-title">📊 技能雷达</div>
-                <VChart :option="positionRadarOption" autoresize style="height: 200px; width: 100%" />
-              </div>
-            </template>
-
-            <!-- Position 关联岗位 -->
-            <template v-if="selectedNode.labels.includes('Position') && relatedPositions.length">
-              <div class="panel-section">
-                <div class="section-title">🔗 相似岗位 ({{ relatedPositions.length }})</div>
-                <div class="related-list">
-                  <div v-for="rp in relatedPositions" :key="rp.node.id" class="related-item" @click="handleNodeClick(rp.node.id)">
-                    <span class="related-dot" :style="{ background: POSITION_COLOR }" />
-                    <span class="related-name">{{ rp.node.properties.name }}</span>
-                    <el-tag size="small" type="warning" effect="plain">{{ rp.sharedCount }}共享</el-tag>
-                  </div>
+            <div v-if="kaRelatedPositions.length" class="rp-section">
+              <div class="rp-section-title">所属岗位</div>
+              <div class="rp-list">
+                <div
+                  v-for="p in kaRelatedPositions"
+                  :key="p.id"
+                  class="rp-list-item"
+                  @click="graphStore.goToDetailLayer(p.id); selectedNode = p"
+                >
+                  <span class="rp-list-dot" style="background: var(--chart-1)"></span>
+                  <span class="rp-list-name">{{ p.properties.name }}</span>
                 </div>
               </div>
-            </template>
-
-            <!-- KA 下的岗位列表 -->
-            <template v-if="selectedNode.labels.includes('KnowledgeArea') && kaRelatedPositions.length">
-              <div class="panel-section">
-                <div class="section-title">📋 包含岗位 ({{ kaRelatedPositions.length }})</div>
-                <div class="related-list">
-                  <div v-for="rp in kaRelatedPositions" :key="rp.id" class="related-item" @click="handleNodeClick(rp.id)">
-                    <span class="related-dot" :style="{ background: POSITION_COLOR }" />
-                    <span class="related-name">{{ rp.properties.name }}</span>
-                    <el-icon size="14"><ArrowRight /></el-icon>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <!-- Position 操作按钮 -->
-            <template v-if="selectedNode.labels.includes('Position')">
-              <div class="panel-section">
-                <el-button type="primary" size="small" :icon="DataAnalysis" @click="$router.push('/match')">用我的技能匹配此岗位</el-button>
-                <el-button size="small" @click="$router.push(`/position/${encodeURIComponent(selectedNode.properties.name)}`)">查看岗位详情</el-button>
-              </div>
-            </template>
+            </div>
           </template>
 
-          <!-- 空状态 -->
-          <div v-else class="panel-placeholder">
-            <el-icon size="36"><Aim /></el-icon>
+          <!-- Empty state -->
+          <div v-else class="rp-empty">
+            <el-icon size="28" color="var(--muted-foreground)"><Aim /></el-icon>
             <p>点击节点查看详情</p>
-            <p class="hint">
-              <template v-if="graphStore.currentLayer === 'domain'">点击气泡进入领域</template>
-              <template v-else-if="graphStore.currentLayer === 'position'">点击岗位查看技能</template>
-              <template v-else>点击节点查看详情</template>
-            </p>
           </div>
         </aside>
       </div>
 
-      <!-- 底部工具栏 -->
-      <footer class="bottom-toolbar">
-        <div class="toolbar-group">
-          <el-button-group>
-            <el-button size="small" :icon="ZoomOut" @click="zoomOut" />
-            <el-button size="small" :icon="Aim" @click="zoomFit" />
-            <el-button size="small" :icon="ZoomIn" @click="zoomIn" />
-          </el-button-group>
-          <el-button size="small" :type="layoutMode === 'dagre' ? 'primary' : 'default'" style="margin-left: 8px" @click="toggleLayout">
-            {{ layoutMode === 'dagre' ? '分层布局' : '力导向' }}
-          </el-button>
-          <el-button size="small" :type="showEvolution ? 'danger' : 'default'" @click="toggleEvolution">
-            {{ showEvolution ? '🔴 演化边' : '演化边' }}
-          </el-button>
-        </div>
-        <div class="toolbar-group layer-indicator">
-          <el-tag :type="graphStore.currentLayer === 'domain' ? 'primary' : graphStore.currentLayer === 'position' ? 'success' : 'warning'" size="small" effect="plain">
-            {{ graphStore.currentLayer === 'domain' ? '领域概览' : graphStore.currentLayer === 'position' ? '岗位视图' : '技能详情' }}
-          </el-tag>
-          <span class="node-count">{{ graphStore.visibleNodes.length }} 节点 · {{ graphStore.visibleEdges.length }} 关系</span>
-        </div>
-        <div class="toolbar-group search-group">
-          <div class="smart-search-wrapper">
-            <el-input
+      <!-- ── Bottom Search Bar ── -->
+      <div class="search-bar glass">
+        <div class="search-inner">
+          <el-icon size="16" color="var(--muted-foreground)"><Search /></el-icon>
+          <div class="search-input-wrapper">
+            <input
               v-model="searchKeyword"
-              size="small"
-              placeholder="搜索领域、岗位、技能... (↑↓导航, Enter选择, Esc清空)"
-              :prefix-icon="Search"
-              clearable
-              style="width: 340px"
+              class="search-input"
+              placeholder="搜索岗位、技能、领域..."
               @input="onSearchInput"
-              @clear="showSearchDropdown = false"
-              @keydown="onSearchKeydown"
-              @focus="onSearchInput"
+              @keydown.down.prevent="onSearchKeydown"
+              @keydown.up.prevent="onSearchKeydown"
+              @keydown.enter.prevent="onSearchKeydown"
               @blur="onSearchBlur"
+              @focus="onSearchInput"
             />
-            <div v-if="showSearchDropdown && searchResults.length > 0" class="search-dropdown">
-              <div
-                v-for="(result, idx) in searchResults"
-                :key="result.id"
-                class="search-result-item"
-                :class="{ highlighted: idx === searchHighlightIndex }"
-                @mousedown.prevent="selectSearchResult(result)"
-                @mouseenter="searchHighlightIndex = idx"
-              >
-                <span class="result-dot" :style="{ background: result.type === '领域' ? '#9B59B6' : result.type === '岗位' ? POSITION_COLOR : SKILL_COLOR }" />
-                <span class="result-name">{{ result.name }}</span>
-                <el-tag size="small" effect="plain" class="result-tag">{{ result.type }}</el-tag>
+            <transition name="fade">
+              <div v-if="showSearchDropdown" class="search-dropdown glass">
+                <div
+                  v-for="(r, idx) in searchResults"
+                  :key="r.id"
+                  class="search-item"
+                  :class="{ highlighted: idx === searchHighlightIndex }"
+                  @mousedown.prevent="selectSearchResult(r)"
+                >
+                  <span
+                    class="si-dot"
+                    :style="{ background: r.type === '领域' ? 'var(--chart-3)' : r.type === '岗位' ? 'var(--chart-1)' : 'var(--success)' }"
+                  ></span>
+                  <span class="si-name">{{ r.name }}</span>
+                  <span class="si-tag">{{ r.type }}</span>
+                </div>
               </div>
-            </div>
+            </transition>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   </MainLayout>
 </template>
 
 <style scoped>
+/* ── Page Container ── */
 .graph-page {
-  max-width: 100%;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  padding: 0 8px;
-  gap: 10px;
+  gap: var(--space-4);
+  min-height: calc(100vh - 180px);
 }
 
-/* KPI 卡片 */
+/* ── KPI Strip ── */
 .kpi-strip {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-4);
   flex-wrap: wrap;
 }
+
 .kpi-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-left: 4px solid;
-  border-radius: 8px;
-  padding: 10px 16px;
-  min-width: 120px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  min-width: 140px;
+  transition: all var(--duration-fast) var(--ease-out);
 }
-.kpi-icon {
-  width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px;
-}
-.kpi-body { display: flex; flex-direction: column; }
-.kpi-value { font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.2; }
-.kpi-label { font-size: 11px; color: #94a3b8; }
-.quick-actions { margin-left: auto; display: flex; gap: 8px; }
 
-/* 面包屑 */
-.breadcrumb-nav {
+.kpi-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+  box-shadow: var(--shadow-sm);
+}
+
+.kpi-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
-  font-size: 14px;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
 }
-.breadcrumb-item {
-  color: #64748b;
+
+.kpi-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-value {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.kpi-label {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}
+
+.kpi-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* ── Graph Controls Bar ── */
+.graph-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.controls-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.graph-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.gb-item {
+  color: var(--muted-foreground);
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 4px;
-  transition: all 0.15s;
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast);
 }
-.breadcrumb-item:hover:not(.active) {
-  color: #3B82F6;
-  background: #eff6ff;
+
+.gb-item:hover:not(.active) {
+  color: var(--primary);
+  background: var(--primary-ghost);
 }
-.breadcrumb-item.active {
-  color: #1e293b;
+
+.gb-item.active {
+  color: var(--foreground);
   font-weight: 600;
   cursor: default;
 }
-.breadcrumb-sep {
-  color: #cbd5e1;
+
+.gb-sep {
+  color: var(--border);
   font-size: 12px;
 }
 
-/* 图谱布局 */
+.view-tabs {
+  --el-radio-button-checked-bg-color: var(--primary);
+  --el-radio-button-checked-border-color: var(--primary);
+}
+
+.graph-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.ld-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ld-line {
+  width: 16px;
+  height: 0;
+  border-top: 2px dashed var(--destructive);
+}
+
+/* ── Graph Layout ── */
 .graph-layout {
   display: flex;
-  gap: 12px;
+  gap: var(--space-4);
   flex: 1;
   min-height: 0;
 }
+
 .graph-main {
   flex: 1;
   min-width: 0;
 }
+
 .graph-container {
   position: relative;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
   overflow: hidden;
   height: 100%;
+  min-height: 520px;
 }
+
 .graph-canvas {
   width: 100%;
   height: 100%;
   min-height: 520px;
 }
+
 .empty-hint {
   position: absolute;
   inset: 0;
@@ -1050,223 +1207,340 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  color: #94a3b8;
-  font-size: 14px;
+  gap: var(--space-2);
+  color: var(--muted-foreground);
+  font-size: var(--font-size-sm);
 }
 
-/* 右侧详情面板 */
+/* ── Floating Graph Toolbar ── */
+.graph-toolbar {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+
+.tb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.tb-btn:hover {
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+.tb-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 2px;
+}
+
+.tb-count {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  padding: 0 var(--space-2);
+}
+
+/* ── Right Detail Panel ── */
 .right-panel {
-  width: 280px;
+  width: 300px;
   flex-shrink: 0;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  transition: all var(--duration-slow) var(--ease-out);
 }
+
 .right-panel:not(.open) {
-  width: 140px;
-  padding: 12px;
+  width: 160px;
+  padding: var(--space-4);
 }
-.panel-placeholder {
+
+.rp-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.rp-type-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.rp-title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.rp-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+}
+
+.rp-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all var(--duration-fast);
+}
+
+.rp-close:hover {
+  color: var(--destructive);
+  background: var(--destructive-ghost);
+}
+
+.rp-section {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.rp-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.rp-section-title {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-2);
+}
+
+.rp-props {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rp-prop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+}
+
+.rp-prop-label {
+  color: var(--muted-foreground);
+}
+
+.rp-prop-value {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.rp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.rp-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background var(--duration-fast);
+}
+
+.rp-list-item:hover {
+  background: var(--accent);
+}
+
+.rp-list-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rp-list-name {
+  flex: 1;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-list-meta {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.rp-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 200px;
-  color: #94a3b8;
-  font-size: 13px;
-  gap: 6px;
+  gap: var(--space-2);
+  color: var(--muted-foreground);
+  font-size: var(--font-size-sm);
 }
-.panel-placeholder .hint {
-  font-size: 11px;
-  color: #cbd5e1;
+
+/* ── Bottom Search Bar ── */
+.search-bar {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-2) var(--space-4);
 }
-.panel-section {
-  margin-bottom: 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid #f1f5f9;
-}
-.panel-section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-.section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 8px;
-}
-.detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-.detail-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.detail-row {
+
+.search-inner {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #475569;
+  gap: var(--space-3);
 }
-.detail-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.detail-label {
-  color: #94a3b8;
-  min-width: 56px;
-}
-.related-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-.related-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.15s;
-}
-.related-item:hover {
-  background: #f8fafc;
-}
-.related-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.related-name {
+
+.search-input-wrapper {
   flex: 1;
-  color: #334155;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 底部工具栏 */
-.bottom-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 8px 16px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-}
-.toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.layer-indicator {
-  gap: 8px;
-}
-.node-count {
-  font-size: 12px;
-  color: #94a3b8;
-}
-.search-group {
-  margin-left: auto;
-}
-
-/* 搜索 */
-.smart-search-wrapper {
   position: relative;
 }
+
+.search-input {
+  width: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: var(--font-size-sm);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  padding: var(--space-2) 0;
+}
+
+.search-input::placeholder {
+  color: var(--muted-foreground);
+}
+
 .search-dropdown {
   position: absolute;
-  top: 100%;
+  bottom: calc(100% + var(--space-2));
   left: 0;
   right: 0;
-  z-index: 1000;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  margin-top: 4px;
-  max-height: 320px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  max-height: 280px;
   overflow-y: auto;
-  padding: 4px 0;
+  padding: var(--space-1) 0;
+  z-index: var(--z-dropdown);
 }
-.search-result-item {
+
+.search-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   cursor: pointer;
-  transition: background 0.12s;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
+  transition: background var(--duration-fast);
 }
-.search-result-item:hover,
-.search-result-item.highlighted {
-  background: #f0f5ff;
+
+.search-item:hover,
+.search-item.highlighted {
+  background: var(--primary-ghost);
 }
-.result-dot {
-  width: 8px;
-  height: 8px;
+
+.si-dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.result-name {
+
+.si-name {
   flex: 1;
-  color: #334155;
+  color: var(--foreground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.result-tag {
+
+.si-tag {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
   flex-shrink: 0;
 }
 
-/* 响应式 */
-@media (max-width: 1024px) {
-  .right-panel { width: 220px; }
-  .right-panel:not(.open) { width: 80px; }
-  .kpi-strip { gap: 8px; }
-  .kpi-card { min-width: 100px; padding: 8px 10px; }
-  .quick-actions { margin-left: 0; width: 100%; }
+/* ── Transitions ── */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--duration-fast);
 }
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .right-panel { width: 240px; }
+  .right-panel:not(.open) { width: 100px; }
+  .kpi-actions { margin-left: 0; width: 100%; }
+}
+
 @media (max-width: 768px) {
   .graph-layout { flex-direction: column; }
   .right-panel { width: 100%; max-height: 200px; }
   .right-panel:not(.open) { width: 100%; max-height: 60px; }
   .graph-canvas { min-height: 360px; }
-  .bottom-toolbar { flex-wrap: wrap; gap: 8px; }
-  .search-group { margin-left: 0; width: 100%; }
-  .search-group .el-input { width: 100% !important; }
+  .graph-container { min-height: 360px; }
   .kpi-strip { flex-direction: column; align-items: stretch; }
-  .quick-actions { flex-direction: column; }
+  .kpi-actions { flex-direction: column; }
+  .search-bar { margin: 0 calc(-1 * var(--space-4)); border-radius: 0; border-left: none; border-right: none; }
+  .controls-left, .controls-right { flex-wrap: wrap; }
 }
-
-/* 视图模式切换 */
-.view-mode-tabs {
-  display: flex;
-  justify-content: center;
-  padding: 8px 0;
-}
-
 </style>
-
-
-
-
-
-
