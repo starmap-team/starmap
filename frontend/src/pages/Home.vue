@@ -1,9 +1,7 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue"
-import { useRouter } from "vue-router"
-import { Graph } from "@antv/g6"
-import { Search, Aim, Collection, DataAnalysis, Upload, Document, TrendCharts } from "@element-plus/icons-vue"
-import VChart from "vue-echarts"
+// G6 loaded dynamically below for code-splitting
+import { Collection, DataAnalysis, Upload, Document, TrendCharts } from "@element-plus/icons-vue"
 import { use } from "echarts/core"
 import { RadarChart } from "echarts/charts"
 import { TooltipComponent, LegendComponent, RadarComponent } from "echarts/components"
@@ -12,8 +10,20 @@ use([RadarChart, TooltipComponent, LegendComponent, RadarComponent, CanvasRender
 import request from "@/api/request"
 import MainLayout from "@/layouts/MainLayout.vue"
 import GraphToolbar from "@/components/GraphToolbar.vue"
+import DetailPanel from "@/components/DetailPanel.vue"
+import GraphSearchBar from "@/components/GraphSearchBar.vue"
 import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from "@/stores/graph"
 import { chartColors, tooltipStyle } from "@/utils/chartTheme"
+
+// Dynamic import of @antv/g6 for code-splitting (saves ~553KB from initial bundle)
+let G6Graph: any = null
+async function ensureG6Loaded() {
+  if (!G6Graph) {
+    const g6 = await import("@antv/g6")
+    G6Graph = g6.Graph
+  }
+  return G6Graph
+}
 
 // Resolve CSS variable to actual color value for Canvas rendering
 function cv(name: string): string {
@@ -23,7 +33,7 @@ function cv(name: string): string {
 // router available via useRouter() if needed
 const graphStore = useGraphStore()
 const graphRef = ref<HTMLElement | null>(null)
-let graph: Graph | null = null
+let graph: any = null
 
 // ── 颜色常量 ──
 const KA_FALLBACK_COLORS = computed(() => {
@@ -72,7 +82,15 @@ const breadcrumb = computed<BreadcrumbItem[]>(() => {
 const overviewMode = ref<OverviewMode>('domain')
 
 function onOverviewModeChange(mode: string) {
-  graphStore.fetchOverview(mode as OverviewMode)
+  // Fade out current graph, fetch new data, fade in
+  if (graph) {
+    const nodes = graph.getNodeData().map((n: any) => ({ id: n.id, style: { fillOpacity: 0, scale: 0.5 } }))
+    graph.updateNodeData(nodes)
+    graph.draw()
+  }
+  graphStore.fetchOverview(mode as OverviewMode).then(() => {
+    nextTick(() => renderCurrentLayer())
+  })
 }
 
 // ── 布局模式切换（force / dagre 分层） ──
@@ -113,52 +131,15 @@ function toggleEvolution() {
 const selectedNode = ref<GraphNode | null>(null)
 
 // ── 搜索 ──
-const searchKeyword = ref("")
-const showSearchDropdown = ref(false)
-const searchHighlightIndex = ref(-1)
-const searchResults = computed(() => {
-  const kw = searchKeyword.value.trim().toLowerCase()
-  if (!kw) return []
-  // 搜索所有已加载节点 + 领域
-  const results: { id: string; name: string; type: string }[] = []
-  for (const d of graphStore.domains) {
-    if (d.name.toLowerCase().includes(kw)) results.push({ id: d.id, name: d.name, type: "领域" })
-  }
-  for (const n of graphStore.allNodes) {
-    if (n.properties.name.toLowerCase().includes(kw)) {
-      const label = n.labels[0] === "Position" ? "岗位" : n.labels[0] === "Skill" ? "技能" : n.labels[0]
-      results.push({ id: n.id, name: n.properties.name, type: label })
-    }
-  }
-  results.sort((a, b) => {
-    const ae = a.name.toLowerCase() === kw ? 0 : 1, be = b.name.toLowerCase() === kw ? 0 : 1
-    return ae - be
-  })
-  return results.slice(0, 10)
-})
 
-function onSearchInput() {
-  showSearchDropdown.value = searchResults.value.length > 0 && searchKeyword.value.trim().length > 0
-  searchHighlightIndex.value = -1
-}
-function onSearchKeydown(e: KeyboardEvent) {
-  if (e.key === "ArrowDown") { e.preventDefault(); searchHighlightIndex.value = searchHighlightIndex.value < searchResults.value.length - 1 ? searchHighlightIndex.value + 1 : 0 }
-  else if (e.key === "ArrowUp") { e.preventDefault(); searchHighlightIndex.value = searchHighlightIndex.value > 0 ? searchHighlightIndex.value - 1 : searchResults.value.length - 1 }
-  else if (e.key === "Enter") { e.preventDefault(); if (searchHighlightIndex.value >= 0) selectSearchResult(searchResults.value[searchHighlightIndex.value]); else if (searchResults.value.length) selectSearchResult(searchResults.value[0]) }
-  else if (e.key === "Escape") { searchKeyword.value = ""; showSearchDropdown.value = false }
-}
-function selectSearchResult(result: { id: string; name: string; type: string }) {
-  showSearchDropdown.value = false; searchHighlightIndex.value = -1; searchKeyword.value = ""
-  // 如果是领域，跳到 position 层
-  const domain = graphStore.domains.find(d => d.id === result.id)
+function handleSearchSelect(id: string, _name: string, _type: string) {
+  const domain = graphStore.domains.find(d => d.id === id)
   if (domain) {
     graphStore.goToPositionLayer(domain.id, domain.name)
     return
   }
-  // 如果是岗位，找到所属 KA 并跳到 detail 层
-  const node = graphStore.allNodes.find(n => n.id === result.id)
+  const node = graphStore.allNodes.find(n => n.id === id)
   if (node?.labels.includes("Position")) {
-    // 找到该 Position 属于哪个 KA
     const kaId = findKAForPosition(node.id)
     if (kaId) {
       const ka = graphStore.domains.find(d => d.id === kaId)
@@ -169,11 +150,9 @@ function selectSearchResult(result: { id: string; name: string; type: string }) 
     }
     return
   }
-  // 如果是技能，找到所属 Position
   if (node?.labels.includes("Skill")) {
-    // 找到哪个 Position 需要这个 Skill
     for (const e of graphStore.allEdges) {
-      if (e.target_id === result.id && e.type === "REQUIRES") {
+      if (e.target_id === id && e.type === "REQUIRES") {
         const posNode = graphStore.nodeMap.get(e.source_id)
         if (posNode) {
           const kaId = findKAForPosition(posNode.id)
@@ -190,8 +169,6 @@ function selectSearchResult(result: { id: string; name: string; type: string }) 
     }
   }
 }
-function onSearchBlur() { setTimeout(() => { showSearchDropdown.value = false }, 200) }
-
 function findKAForPosition(positionId: string): string | null {
   // 遍历缓存的 positionsByKA
   for (const [kaId, positions] of graphStore.positionsByKA) {
@@ -235,38 +212,8 @@ const positionRadarOption = computed(() => {
   }
 })
 
-// ── 关联岗位（相似岗位） ──
-const relatedPositions = computed(() => {
-  if (!selectedNode.value || !selectedNode.value.labels.includes("Position")) return []
-  const posId = selectedNode.value.id
-  const posSkillIds = new Set<string>()
-  for (const e of graphStore.allEdges) {
-    if (e.source_id === posId && e.type === "REQUIRES") posSkillIds.add(e.target_id)
-  }
-  if (!posSkillIds.size) return []
-  const similarity = new Map<string, number>()
-  for (const e of graphStore.allEdges) {
-    if (e.type === "REQUIRES" && posSkillIds.has(e.target_id) && e.source_id !== posId) {
-      similarity.set(e.source_id, (similarity.get(e.source_id) ?? 0) + 1)
-    }
-  }
-  const results: { node: GraphNode; sharedCount: number }[] = []
-  for (const [id, count] of similarity) {
-    const node = graphStore.nodeMap.get(id)
-    if (node) results.push({ node, sharedCount: count })
-  }
-  results.sort((a, b) => b.sharedCount - a.sharedCount)
-  return results.slice(0, 6)
-})
-
-// ── 相关技能（KA 详情面板） ──
-const kaRelatedPositions = computed(() => {
-  if (!selectedNode.value || !selectedNode.value.labels.includes("KnowledgeArea")) return []
-  return graphStore.positionsByKA.get(selectedNode.value.id) ?? []
-})
-
 // ── G6 图谱初始化 ──
-function initGraph() {
+async function initGraph() {
   if (!graphRef.value) return
   if (graph) { graph.destroy(); graph = null }
   const container = graphRef.value
@@ -274,7 +221,7 @@ function initGraph() {
   const height = container.clientHeight || 600
 
   try {
-    graph = new Graph({
+    const GraphClass = await ensureG6Loaded(); graph = new GraphClass({
       container,
       width,
       height,
@@ -295,8 +242,8 @@ function initGraph() {
           endArrow: true,
         },
       },
-      behaviors: ["drag-canvas", "zoom-canvas", "drag-element"],
-      plugins: ['minimap', { type: 'tooltip', enable: true, trigger: 'pointerenter', offset: [10, 10], style: { background: 'var(--card)', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '8px 12px', fontSize: '12px' } }],
+      behaviors: ["drag-canvas", "zoom-canvas", "drag-element", { type: "hover-activate", degree: 1, direction: "both" }],
+      plugins: ['minimap', { type: 'tooltip', enable: true, trigger: 'pointerenter', offset: [10, 10], style: { background: cv('--card'), borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 14px', fontSize: '12px', border: '1px solid ' + cv('--border'), color: cv('--foreground') } }],
     })
 
     graph.on("node:click", (event: any) => {
@@ -305,8 +252,15 @@ function initGraph() {
       handleNodeClick(nodeId)
     })
 
+    graph.on("node:dblclick", (event: any) => {
+      const nodeId = event.target?.id
+      if (!nodeId) return
+      expandTwoHop(nodeId)
+    })
+
     graph.on("canvas:click", () => {
       selectedNode.value = null
+      clearHighlight()
     })
 
     renderCurrentLayer()
@@ -379,17 +333,35 @@ function renderDomainLayer() {
   }))
 
   graph.setData({ nodes: graphNodes, edges: graphEdges })
+  // Staggered entrance: hide all nodes first, then reveal
+  const entranceNodes = graphNodes.map((n: any) => ({
+    id: n.id,
+    style: { fillOpacity: 0, scale: 0.3 }
+  }))
+  graph.updateNodeData(entranceNodes)
+
   const isLevel = overviewMode.value === 'level'
   const isTechStack = overviewMode.value === 'tech_stack'
   if (layoutMode.value === 'dagre' || isLevel) {
-    graph.setLayout({ type: 'dagre', rankdir: 'TB', nodesep: isLevel ? 100 : 60, ranksep: isLevel ? 120 : 80, preventOverlap: true, nodeSize: 80 })
+    graph.setLayout({ type: 'dagre', rankdir: 'TB', nodesep: isLevel ? 140 : 80, ranksep: isLevel ? 160 : 100, preventOverlap: true, nodeSize: 80, controlPoints: true })
   } else if (isTechStack) {
-    graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 60, animate: true, clustering: true, clusterNodeStrength: 0.8, strength: 0.6 })
+    graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 100, animate: true, clustering: true, clusterNodeStrength: 0.5, strength: 0.3, coulombDisScale: 0.008, gravity: 6 })
   } else {
-    graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 40, animate: true, strength: 0.5 })
+    graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 80, animate: true, strength: 0.3, coulombDisScale: 0.008, gravity: 8 })
   }
   graph.render()
-  setTimeout(() => graph?.fitView(), 300)
+  setTimeout(() => {
+    graph?.fitView()
+    // Animate entrance
+    if (graph) {
+      const finalNodes = graphNodes.map((n: any) => ({
+        id: n.id,
+        style: { fillOpacity: 0.85, scale: 1 }
+      }))
+      graph.updateNodeData(finalNodes)
+      graph.draw()
+    }
+  }, 100)
 }
 
 function renderPositionLayer() {
@@ -421,8 +393,9 @@ function renderPositionLayer() {
         labelFontSize: 13,
         labelFontWeight: "bold" as const,
         labelPlacement: "center" as const,
-        shadowColor: "rgba(0,0,0,0.12)",
-        shadowBlur: 8,
+        shadowColor: kaColor,
+        shadowBlur: 24,
+        shadowOffsetY: 3,
       },
     })
   }
@@ -459,9 +432,9 @@ function renderPositionLayer() {
         target: p.id,
         style: {
           stroke: kaColor,
-          lineWidth: 1.5,
-          opacity: 0.3,
-          lineDash: [4, 3],
+          lineWidth: 1,
+          opacity: 0.2,
+          lineDash: [6, 4],
           endArrow: false,
         },
       })
@@ -515,7 +488,7 @@ function renderPositionLayer() {
   }
 
   graph.setData({ nodes: graphNodes, edges: graphEdges })
-  graph.setLayout({ type: "radial", unitRadius: 120, preventOverlap: true, nodeSize: 48, focusNode: kaId || undefined, animate: true })
+  graph.setLayout({ type: "radial", unitRadius: 160, preventOverlap: true, nodeSize: 48, focusNode: kaId || undefined, animate: true })
   graph.render()
   setTimeout(() => graph?.fitView(), 300)
 }
@@ -612,13 +585,14 @@ function renderDetailLayer() {
   }
 
   graph.setData({ nodes: graphNodes, edges: graphEdges })
-  graph.setLayout({ type: "radial", unitRadius: 100, preventOverlap: true, nodeSize: 32, focusNode: posId, animate: true })
+  graph.setLayout({ type: "radial", unitRadius: 140, preventOverlap: true, nodeSize: 32, focusNode: posId, animate: true })
   graph.render()
   setTimeout(() => graph?.fitView(), 300)
 }
 
 // ── 节点点击处理 ──
 // ── 双击展开 2 跳子图 ──
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function expandTwoHop(nodeId: string) {
   if (!graph) return
   const oneHop = new Set<string>([nodeId])
@@ -713,8 +687,10 @@ function highlightNode(nodeId: string) {
     return {
       id: n.id,
       style: {
-        fillOpacity: isCenter ? 1 : isRelated ? 0.8 : 0.2,
-        lineWidth: isCenter ? 4 : isRelated ? 2 : 1,
+        fillOpacity: isCenter ? 1 : isRelated ? 0.85 : 0.12,
+        lineWidth: isCenter ? 4 : isRelated ? 2 : 0.5,
+        shadowColor: isCenter ? cv("--primary") : "transparent",
+        shadowBlur: isCenter ? 24 : 0,
       },
     }
   })
@@ -732,8 +708,11 @@ function closeDetail() {
 }
 
 // ── 缩放控制 ──
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function zoomIn() { graph?.zoomTo(graph!.getZoom() * 1.3) }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function zoomOut() { graph?.zoomTo(graph!.getZoom() * 0.7) }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function zoomFit() { graph?.fitView() }
 
 // ── 响应式 ──
@@ -929,210 +908,16 @@ onUnmounted(() => {
         </main>
 
         <!-- ── Right Detail Panel ── -->
-        <aside
-          class="right-panel hover-lift"
-          :class="{ open: !!selectedNode }"
-        >
-          <template v-if="selectedNode">
-            <div class="rp-header">
-              <div
-                class="rp-type-badge"
-                :style="{
-                  background: selectedNode.labels.includes('KnowledgeArea')
-                    ? 'var(--chart-3)' : selectedNode.labels.includes('Position')
-                      ? 'var(--chart-1)' : 'var(--success)'
-                }"
-              >
-                {{ selectedNode.labels.includes('KnowledgeArea') ? 'KA' : selectedNode.labels.includes('Position') ? 'P' : 'S' }}
-              </div>
-              <div class="rp-title-group">
-                <h3 class="rp-title">
-                  {{ selectedNode.properties.name }}
-                </h3>
-                <span class="rp-subtitle">
-                  {{ selectedNode.labels.includes('KnowledgeArea') ? '知识领域' : selectedNode.labels.includes('Position') ? '岗位' : '技能' }}
-                </span>
-              </div>
-              <button
-                class="rp-close"
-                @click="closeDetail"
-              >
-                ×
-              </button>
-            </div>
-
-            <!-- Radar for Position nodes -->
-            <div
-              v-if="positionRadarOption"
-              class="rp-section"
-            >
-              <div class="rp-section-title">
-                技能雷达
-              </div>
-              <VChart
-                :option="positionRadarOption"
-                class="radar-chart"
-                autoresize
-              />
-            </div>
-
-            <!-- Properties -->
-            <div class="rp-section">
-              <div class="rp-section-title">
-                属性
-              </div>
-              <div class="rp-props">
-                <template v-if="selectedNode.labels.includes('Skill')">
-                  <div class="rp-prop-row">
-                    <span class="rp-prop-label">类别</span>
-                    <span class="rp-prop-value">{{ selectedNode.properties.category ?? '—' }}</span>
-                  </div>
-                  <div class="rp-prop-row">
-                    <span class="rp-prop-label">趋势</span>
-                    <el-tag
-                      v-if="selectedNode.properties.trend"
-                      size="small"
-                      :type="selectedNode.properties.trend === 'rising' ? 'success' : selectedNode.properties.trend === 'declining' ? 'danger' : 'info'"
-                    >
-                      {{ selectedNode.properties.trend === 'rising' ? '↑ 上升' : selectedNode.properties.trend === 'declining' ? '↓ 下降' : '→ 平稳' }}
-                    </el-tag>
-                    <span
-                      v-else
-                      class="rp-prop-value"
-                    >—</span>
-                  </div>
-                  <div class="rp-prop-row">
-                    <span class="rp-prop-label">来源数</span>
-                    <span class="rp-prop-value">{{ selectedNode.properties.source_count ?? 0 }}</span>
-                  </div>
-                </template>
-                <template v-else-if="selectedNode.labels.includes('Position')">
-                  <div class="rp-prop-row">
-                    <span class="rp-prop-label">级别</span>
-                    <span class="rp-prop-value">{{ selectedNode.properties.level ?? '—' }}</span>
-                  </div>
-                  <div class="rp-prop-row">
-                    <span class="rp-prop-label">权重</span>
-                    <span class="rp-prop-value">{{ selectedNode.properties.weight ?? '—' }}</span>
-                  </div>
-                </template>
-                <template v-else>
-                  <div class="rp-prop-row">
-                    <span class="rp-prop-label">岗位数</span>
-                    <span class="rp-prop-value">{{ selectedNode.properties.position_count ?? 0 }}</span>
-                  </div>
-                  <div class="rp-prop-row">
-                    <span class="rp-prop-label">技能数</span>
-                    <span class="rp-prop-value">{{ selectedNode.properties.skill_count ?? 0 }}</span>
-                  </div>
-                </template>
-              </div>
-            </div>
-
-            <!-- Related items -->
-            <div
-              v-if="relatedPositions.length"
-              class="rp-section"
-            >
-              <div class="rp-section-title">
-                相似岗位
-              </div>
-              <div class="rp-list">
-                <div
-                  v-for="r in relatedPositions"
-                  :key="r.node.id"
-                  class="rp-list-item"
-                  @click="graphStore.goToDetailLayer(r.node.id); selectedNode = r.node"
-                >
-                  <span class="rp-list-dot" />
-                  <span class="rp-list-name">{{ r.node.properties.name }}</span>
-                  <span class="rp-list-meta">{{ r.sharedCount }} 共享技能</span>
-                </div>
-              </div>
-            </div>
-
-            <div
-              v-if="kaRelatedPositions.length"
-              class="rp-section"
-            >
-              <div class="rp-section-title">
-                所属岗位
-              </div>
-              <div class="rp-list">
-                <div
-                  v-for="p in kaRelatedPositions"
-                  :key="p.id"
-                  class="rp-list-item"
-                  @click="graphStore.goToDetailLayer(p.id); selectedNode = p"
-                >
-                  <span class="rp-list-dot" />
-                  <span class="rp-list-name">{{ p.properties.name }}</span>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <!-- Empty state -->
-          <div
-            v-else
-            class="rp-empty"
-          >
-            <el-icon
-              size="28"
-              color="var(--muted-foreground)"
-            >
-              <Aim />
-            </el-icon>
-            <p>点击节点查看详情</p>
-          </div>
-        </aside>
+        <DetailPanel
+          :selected-node="selectedNode"
+          :position-radar-option="positionRadarOption"
+          @close="closeDetail"
+          @navigate-to-detail="(n) => selectedNode = n"
+        />
       </div>
 
       <!-- ── Bottom Search Bar ── -->
-      <div class="search-bar glass border-glow">
-        <div class="search-inner">
-          <el-icon
-            size="16"
-            color="var(--muted-foreground)"
-          >
-            <Search />
-          </el-icon>
-          <div class="search-input-wrapper">
-            <input
-              v-model="searchKeyword"
-              class="search-input"
-              placeholder="搜索岗位、技能、领域..."
-              @input="onSearchInput"
-              @keydown.down.prevent="onSearchKeydown"
-              @keydown.up.prevent="onSearchKeydown"
-              @keydown.enter.prevent="onSearchKeydown"
-              @blur="onSearchBlur"
-              @focus="onSearchInput"
-            >
-            <transition name="fade">
-              <div
-                v-if="showSearchDropdown"
-                class="search-dropdown glass"
-              >
-                <div
-                  v-for="(r, idx) in searchResults"
-                  :key="r.id"
-                  class="search-item"
-                  :class="{ highlighted: idx === searchHighlightIndex }"
-                  @mousedown.prevent="selectSearchResult(r)"
-                >
-                  <span
-                    class="si-dot"
-                    :style="{ background: r.type === '领域' ? 'var(--chart-3)' : r.type === '岗位' ? 'var(--chart-1)' : 'var(--success)' }"
-                  />
-                  <span class="si-name">{{ r.name }}</span>
-                  <span class="si-tag">{{ r.type }}</span>
-                </div>
-              </div>
-            </transition>
-          </div>
-        </div>
-      </div>
+      <GraphSearchBar @node-selected="handleSearchSelect" />
     </div>
   </MainLayout>
 </template>
@@ -1176,7 +961,8 @@ onUnmounted(() => {
 }
 .kpi-card:hover {
   border-color: color-mix(in srgb, var(--primary) 20%, var(--border));
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 .kpi-card:hover::before { opacity: 1; }
 .kpi-icon {
@@ -1235,6 +1021,11 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-1);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-2) var(--space-4);
+  box-shadow: var(--shadow-xs);
 }
 .controls-left {
   display: flex;
@@ -1278,6 +1069,13 @@ onUnmounted(() => {
   --el-radio-button-checked-bg-color: var(--primary);
   --el-radio-button-checked-border-color: var(--primary);
 }
+.view-tabs .el-radio-button__inner {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 6px 14px;
+  transition: all var(--duration-normal) var(--ease-out);
+}
 .graph-legend {
   display: flex;
   align-items: center;
@@ -1310,6 +1108,7 @@ onUnmounted(() => {
   gap: var(--space-4);
   flex: 1;
   min-height: 0;
+  perspective: 1200px;
 }
 .graph-main {
   flex: 1;
@@ -1318,17 +1117,40 @@ onUnmounted(() => {
 .graph-container {
   position: relative;
   background: var(--card);
+  transform: rotateX(1deg);
+  transform-origin: center bottom;
   border: 1px solid var(--border);
   border-radius: var(--radius-2xl);
   overflow: hidden;
   height: 100%;
   min-height: 520px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-md);
+}
+.graph-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 50%, color-mix(in srgb, var(--background) 30%, transparent) 100%);
+  pointer-events: none;
+  z-index: 2;
+  border-radius: inherit;
+}
+.graph-container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--border) 50%, transparent) 1px, transparent 0);
+  background-size: 32px 32px;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: 0;
 }
 .graph-canvas {
   width: 100%;
   height: 100%;
   min-height: 520px;
+  position: relative;
+  z-index: 1;
 }
 .empty-hint {
   position: absolute;
@@ -1342,239 +1164,7 @@ onUnmounted(() => {
   font-size: var(--font-size-sm);
 }
 
-/* ── Right Detail Panel ── */
-.right-panel {
-  width: 300px;
-  flex-shrink: 0;
-  overflow-y: auto;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-2xl);
-  padding: var(--space-5);
-  transition: all var(--duration-slow) var(--ease-out);
-  box-shadow: var(--shadow-xs);
-}
-.right-panel:not(.open) {
-  width: 160px;
-  padding: var(--space-4);
-}
-.rp-header {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-.rp-type-badge {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  flex-shrink: 0;
-  letter-spacing: -0.02em;
-}
-.rp-title-group {
-  flex: 1;
-  min-width: 0;
-}
-.rp-title {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--foreground);
-  margin: 0;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  letter-spacing: var(--tracking-tight);
-}
-.rp-subtitle {
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-}
-.rp-close {
-  width: 26px;
-  height: 26px;
-  border: none;
-  background: none;
-  color: var(--muted-foreground);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-size-lg);
-  transition: all var(--duration-fast);
-}
-.rp-close:hover {
-  color: var(--destructive);
-  background: var(--destructive-ghost);
-}
-.rp-section {
-  margin-bottom: var(--space-4);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border);
-}
-.rp-section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-.rp-section-title {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: var(--space-2);
-}
-.rp-props {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.rp-prop-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: var(--font-size-sm);
-}
-.rp-prop-label { color: var(--muted-foreground); }
-.rp-prop-value { color: var(--foreground); font-weight: 500; font-variant-numeric: tabular-nums; }
-.rp-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 240px;
-  overflow-y: auto;
-}
-.rp-list-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  transition: all var(--duration-fast);
-}
-.rp-list-item:hover {
-  background: var(--primary-ghost);
-}
-.rp-list-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--chart-1);
-}
-.rp-list-name {
-  flex: 1;
-  color: var(--foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.rp-list-meta {
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-  flex-shrink: 0;
-}
-.rp-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  gap: var(--space-2);
-  color: var(--muted-foreground);
-  font-size: var(--font-size-sm);
-}
-.radar-chart { height: 200px; }
-
-/* ── Bottom Search Bar ── */
-.search-bar {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-2xl);
-  padding: var(--space-2-5) var(--space-4);
-  transition: all var(--duration-normal) var(--ease-out);
-  box-shadow: var(--shadow-xs);
-}
-.search-bar:focus-within {
-  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
-  box-shadow: var(--shadow-glow);
-}
-.search-inner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.search-input-wrapper {
-  flex: 1;
-  position: relative;
-}
-.search-input {
-  width: 100%;
-  border: none;
-  background: none;
-  outline: none;
-  font-size: var(--font-size-sm);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  padding: var(--space-2) 0;
-  letter-spacing: var(--tracking-normal);
-}
-.search-input::placeholder {
-  color: var(--muted-foreground);
-}
-.search-dropdown {
-  position: absolute;
-  bottom: calc(100% + var(--space-2));
-  left: 0;
-  right: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  max-height: 280px;
-  overflow-y: auto;
-  padding: var(--space-1) 0;
-  z-index: var(--z-dropdown);
-  box-shadow: var(--shadow-lg);
-}
-.search-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  transition: background var(--duration-fast);
-}
-.search-item:hover,
-.search-item.highlighted {
-  background: var(--primary-ghost);
-}
-.si-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.si-name {
-  flex: 1;
-  color: var(--foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.si-tag {
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-  flex-shrink: 0;
-}
+/* Right panel styles moved to DetailPanel.vue component */
 
 /* ── Transitions ── */
 .fade-enter-active, .fade-leave-active { transition: opacity var(--duration-fast); }
@@ -1594,7 +1184,6 @@ onUnmounted(() => {
   .graph-container { min-height: 360px; }
   .kpi-strip { flex-direction: column; align-items: stretch; }
   .kpi-actions { flex-direction: column; }
-  .search-bar { margin: 0 calc(-1 * var(--space-4)); border-radius: 0; border-left: none; border-right: none; }
-  .controls-left, .controls-right { flex-wrap: wrap; }
+    .controls-left, .controls-right { flex-wrap: wrap; }
 }
 </style>

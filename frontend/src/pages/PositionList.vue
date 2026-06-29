@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 岗位列表页 — 从后端 /positions 获取岗位数据
  */
@@ -117,7 +117,7 @@ onMounted(fetchPositions)
           :lg="6"
         >
           <el-card
-            class="position-card"
+            class="position-card card-interactive"
             shadow="hover"
             @click="goDetail(pos.name)"
           >
@@ -199,6 +199,9 @@ onMounted(fetchPositions)
 }
 
 .page-header h2 {
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  letter-spacing: var(--tracking-tight);
   margin: 0 0 4px;
   font-size: var(--font-size-2xl);
   color: var(--foreground);

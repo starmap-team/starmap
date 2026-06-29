@@ -204,7 +204,7 @@ a:hover { color: var(--primary-hover); }
 .el-card[shadow="hover"]:hover { box-shadow: var(--shadow-md) !important; border-color: color-mix(in srgb, var(--primary) 15%, var(--border)) !important; }
 .el-card__header { padding: var(--space-4) var(--space-5) !important; border-bottom: 1px solid var(--border) !important; font-weight: 600; font-size: var(--font-size-base); color: var(--card-foreground); letter-spacing: -0.01em; background: var(--card) !important; }
 .el-card__body { padding: var(--space-5) !important; }
-.el-button { border-radius: var(--radius-lg) !important; font-weight: 500; letter-spacing: -0.01em;  } el-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.el-button { border-radius: var(--radius-lg) !important; font-weight: 500; letter-spacing: -0.01em;  } .el-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .el-button--primary { --el-button-bg-color: var(--primary); --el-button-border-color: var(--primary); --el-button-hover-bg-color: var(--primary-hover); --el-button-hover-border-color: var(--primary-hover); --el-button-text-color: var(--primary-foreground); }
 .el-button--default { --el-button-bg-color: var(--card); --el-button-border-color: var(--border); --el-button-hover-bg-color: var(--accent); --el-button-hover-border-color: var(--primary); --el-button-text-color: var(--foreground); }
 .el-input__wrapper { border-radius: var(--radius-md) !important; box-shadow: 0 0 0 1px var(--input) !important; background: var(--card) !important; transition: box-shadow var(--duration-fast); }
@@ -212,6 +212,11 @@ a:hover { color: var(--primary-hover); }
 .el-input__wrapper.is-focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 25%, transparent) !important; }
 .el-textarea__inner { border-radius: var(--radius-md) !important; border-color: var(--input) !important; background: var(--card) !important; color: var(--foreground) !important; }
 .el-tag { border-radius: var(--radius-sm) !important; font-weight: 500; }
+/* Table polish */
+.el-table {
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden;
+}
 .el-table th.el-table__cell { background: var(--muted) !important; color: var(--muted-foreground) !important; font-weight: 600; font-size: var(--font-size-sm); text-transform: uppercase; letter-spacing: 0.04em; }
 .el-table { --el-table-border-color: var(--border); --el-table-tr-bg-color: var(--card); --el-table-row-hover-bg-color: var(--accent); } .el-table tr { transition: background var(--duration-fast); }
 .el-descriptions { --el-descriptions-item-bordered-label-background: var(--muted); }
@@ -224,6 +229,12 @@ a:hover { color: var(--primary-hover); }
 @media (max-width: 768px) { html { font-size: 14px; } .el-card__body { padding: var(--space-4) !important; } .el-card__header { padding: var(--space-3) var(--space-4) !important; } }
 
 /* ── Enhanced Element Plus Overrides ── */
+/* Button polish */
+.el-button {
+  font-weight: 500;
+  letter-spacing: var(--tracking-normal);
+  transition: all var(--duration-fast) var(--ease-out);
+}
 .el-button--primary:active { transform: scale(0.98); }
 .el-button--default:active { transform: scale(0.98); }
 .el-radio-button__inner { border-radius: var(--radius-md) !important; font-weight: 500; }
@@ -242,6 +253,17 @@ a:hover { color: var(--primary-hover); }
 .el-tag--danger { --el-tag-bg-color: var(--destructive-ghost); --el-tag-text-color: var(--destructive); --el-tag-border-color: transparent; }
 .el-tag--info { --el-tag-bg-color: var(--info-ghost); --el-tag-text-color: var(--info); --el-tag-border-color: transparent; }
 .el-tag--primary { --el-tag-bg-color: var(--primary-ghost); --el-tag-text-color: var(--primary); --el-tag-border-color: transparent; }
+/* Card depth */
+.el-card {
+  border-radius: var(--radius-xl) !important;
+  border-color: var(--border) !important;
+  box-shadow: var(--shadow-xs) !important;
+  transition: box-shadow var(--duration-normal) var(--ease-out), border-color var(--duration-normal) var(--ease-out);
+}
+.el-card:hover {
+  box-shadow: var(--shadow-sm) !important;
+}
+
 .el-loading-mask { background: color-mix(in srgb, var(--background) 80%, transparent) !important; }
 .el-message-box { border-radius: var(--radius-xl) !important; border: 1px solid var(--border) !important; }
 .el-notification { border-radius: var(--radius-xl) !important; border: 1px solid var(--border) !important; }

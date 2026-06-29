@@ -29,10 +29,12 @@ const pagedAuditQueue = computed(() => {
 // ── 数据源编辑 ──
 const editDialogVisible = ref(false)
 const editingSource = ref<{ id: number; name: string; authority_score: number } | null>(null)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function handleEditSource(row: any) {
   editingSource.value = { id: row.id, name: row.name, authority_score: row.authority_score }
   editDialogVisible.value = true
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function handleSaveSource() {
   if (!editingSource.value) return
   // Find and update in local state
