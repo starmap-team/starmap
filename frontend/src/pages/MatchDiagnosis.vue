@@ -190,148 +190,156 @@ function exportReport() {
 
 <template>
   <MainLayout>
-    <div class="match-page">
-      <!-- 顶部步骤条 -->
-      <el-steps :active="step" finish-status="success" align-center class="steps-bar">
+    <div class="match-page animate-fade-in">
+      <!-- Page header -->
+      <div class="page-header">
+        <h1 class="page-title">匹配诊断</h1>
+        <p class="page-desc">上传简历或输入技能，诊断与目标岗位的匹配度</p>
+      </div>
+
+      <!-- Steps -->
+      <el-steps :active="step" finish-status="success" class="steps-bar" align-center>
         <el-step v-for="title in stepTitles" :key="title" :title="title" />
       </el-steps>
 
-      <!-- Step 0: 上传简历 / 手动输入 -->
+      <!-- Step 0: Upload/Input -->
       <div v-if="step === 0" class="step-content">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <el-icon><Upload /></el-icon>
-              <span>上传简历或手动输入技能</span>
-            </div>
-          </template>
-          <ResumeUpload ref="resumeUploadRef" />
-          <el-divider>或</el-divider>
-          <el-button type="primary" plain @click="showManualInput = !showManualInput">
-            <el-icon><Edit /></el-icon>
-            手动输入技能
-          </el-button>
-          <div v-if="showManualInput" class="manual-input-area">
-            <el-input
-              v-model="skillInput"
-              placeholder="输入技能名称后回车添加"
-              size="large"
-              @keyup.enter="addManualSkill"
-            >
-              <template #append>
-                <el-button @click="addManualSkill"><el-icon><Plus /></el-icon></el-button>
-              </template>
-            </el-input>
-            <div class="skill-tags" v-if="manualSkills.length">
-              <el-tag
-                v-for="s in manualSkills"
-                :key="s"
-                closable
-                size="large"
-                @close="removeManualSkill(s)"
-              >{{ s }}</el-tag>
-            </div>
-            <el-button
-              type="success"
-              :disabled="!manualSkills.length"
-              @click="confirmManualSkills"
-              style="margin-top: 12px"
-            >
-              <el-icon><Check /></el-icon>
-              确认 {{ manualSkills.length }} 项技能
-            </el-button>
+        <div class="step-card">
+          <div class="sc-header">
+            <h2 class="sc-title">录入你的技能</h2>
+            <p class="sc-desc">上传简历自动解析，或手动输入技能标签</p>
           </div>
-        </el-card>
+
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <div class="input-section">
+                <h3 class="is-title">上传简历</h3>
+                <ResumeUpload ref="resumeUploadRef" />
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="input-section">
+                <h3 class="is-title">手动输入技能</h3>
+                <div class="manual-input">
+                  <el-input
+                    v-model="skillInput"
+                    placeholder="输入技能名称，回车添加"
+                    size="large"
+                    @keyup.enter="addManualSkill"
+                  >
+                    <template #append>
+                      <el-button :icon="Plus" @click="addManualSkill">添加</el-button>
+                    </template>
+                  </el-input>
+                  <div v-if="manualSkills.length" class="skill-tags">
+                    <el-tag
+                      v-for="s in manualSkills"
+                      :key="s"
+                      closable
+                      size="default"
+                      @close="removeManualSkill(s)"
+                    >{{ s }}</el-tag>
+                  </div>
+                  <el-button
+                    v-if="manualSkills.length"
+                    type="primary"
+                    style="margin-top: 16px"
+                    @click="confirmManualSkills"
+                  >
+                    确认 {{ manualSkills.length }} 项技能
+                  </el-button>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+        </div>
       </div>
 
-      <!-- Step 1: 选岗 -->
+      <!-- Step 1: Select position -->
       <div v-if="step === 1" class="step-content">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <el-icon><Search /></el-icon>
-              <span>选择目标岗位</span>
-              <el-button text @click="goBack"><el-icon><ArrowLeft /></el-icon>返回</el-button>
-            </div>
-          </template>
-          <PositionSearch @select="handlePositionSelect" />
-          <div v-if="radarLoading" style="text-align:center;margin-top:20px">
-            <el-icon class="is-loading" :size="24"><RefreshRight /></el-icon>
-            <span style="margin-left:8px">正在加载岗位技能数据...</span>
+        <div class="step-card">
+          <div class="sc-header">
+            <h2 class="sc-title">选择目标岗位</h2>
+            <p class="sc-desc">搜索并选择你要匹配的目标岗位</p>
           </div>
-        </el-card>
+          <PositionSearch @select="handlePositionSelect" />
+        </div>
       </div>
 
-      <!-- Step 2: 雷达图 -->
+      <!-- Step 2: Radar comparison -->
       <div v-if="step === 2" class="step-content">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <el-icon><DataAnalysis /></el-icon>
-              <span>技能雷达对比 — {{ targetPositionName }}</span>
-              <el-button text @click="goBack"><el-icon><ArrowLeft /></el-icon>返回</el-button>
+        <div class="step-card">
+          <div class="sc-header">
+            <div class="sc-header-row">
+              <div>
+                <h2 class="sc-title">技能雷达对比</h2>
+                <p class="sc-desc">你的技能 vs {{ targetPositionName }} 岗位要求</p>
+              </div>
+              <el-button text @click="step = 1">← 返回选岗</el-button>
             </div>
-          </template>
-          <SkillRadar :data="radarData" :position-name="targetPositionName" />
-          <div v-if="radarData.length === 0" class="empty-hint">暂无雷达图数据</div>
-          <div style="text-align:center;margin-top:20px">
-            <el-button type="primary" size="large" @click="handleStartDiagnosis" :loading="matchStore.loading">
-              <el-icon><Guide /></el-icon>
+          </div>
+          <div v-loading="radarLoading">
+            <SkillRadar :data="radarData" :position-name="targetPositionName" />
+          </div>
+          <div class="step-actions">
+            <el-button type="primary" size="large" :icon="DataAnalysis" @click="handleStartDiagnosis">
               开始诊断
             </el-button>
           </div>
-          <!-- 进度条 -->
-          <el-progress
-            v-if="matchStore.loading"
-            :percentage="Math.min(Math.round(matchProgress), 100)"
-            :stroke-width="10"
-            style="margin-top:16px"
-          />
-        </el-card>
+        </div>
       </div>
 
-      <!-- Step 3: 差距分析报告 -->
+      <!-- Step 3: Gap analysis report -->
       <div v-if="step === 3" class="step-content">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <el-icon><Document /></el-icon>
-              <span>差距分析报告</span>
-              <el-button text @click="goBack"><el-icon><ArrowLeft /></el-icon>返回</el-button>
+        <div class="step-card">
+          <div class="sc-header">
+            <div class="sc-header-row">
+              <div>
+                <h2 class="sc-title">差距分析报告</h2>
+                <p class="sc-desc">综合评估你的岗位匹配度</p>
+              </div>
+              <el-button text @click="goBack">← 返回</el-button>
             </div>
-          </template>
-          <div v-if="matchResult">
-            <el-descriptions :column="2" border>
-              <el-descriptions-item label="匹配度">
-                <el-tag :type="matchScore >= 0.7 ? 'success' : matchScore >= 0.4 ? 'warning' : 'danger'" size="large">
-                  {{ (matchScore * 100).toFixed(1) }}%
-                </el-tag>
-              </el-descriptions-item>
-              <el-descriptions-item label="目标岗位">{{ targetPositionName }}</el-descriptions-item>
-              <el-descriptions-item label="已匹配技能" :span="2">
-                <el-tag v-for="s in matchedSkills" :key="s" type="success" style="margin:2px">{{ s }}</el-tag>
-                <span v-if="!matchedSkills.length" style="color:#909399">无</span>
-              </el-descriptions-item>
-              <el-descriptions-item label="综合评估" :span="2">
-                {{ matchResult.overall_assessment ?? '暂无评估' }}
-              </el-descriptions-item>
-              <el-descriptions-item v-if="matchResult.estimated_learning_time" label="预计学习时间">
-                {{ matchResult.estimated_learning_time }}
-              </el-descriptions-item>
-            </el-descriptions>
+          </div>
 
-            <!-- 技能差距表格 -->
-            <h3 style="margin-top:20px">技能差距明细</h3>
-            <el-table :data="gapSkills" stripe border style="width:100%">
-              <el-table-column prop="skill" label="技能" width="180" />
-              <el-table-column prop="importance" label="重要性" width="100">
+          <div v-if="matchStore.result">
+            <!-- Summary -->
+            <div class="report-summary">
+              <div class="rs-score">
+                <span class="rs-value">{{ Math.round((matchStore.result.match_score ?? 0) * 100) }}</span>
+                <span class="rs-unit">%</span>
+              </div>
+              <div class="rs-detail">
+                <div class="rs-row">
+                  <span class="rs-label">匹配技能</span>
+                  <div class="rs-tags">
+                    <el-tag v-for="s in matchedSkills" :key="s" type="success" size="small">{{ s }}</el-tag>
+                    <span v-if="!matchedSkills.length" class="rs-empty">无</span>
+                  </div>
+                </div>
+                <div class="rs-row">
+                  <span class="rs-label">综合评估</span>
+                  <span class="rs-text">{{ matchResult?.overall_assessment ?? '暂无评估' }}</span>
+                </div>
+                <div v-if="matchResult?.estimated_learning_time" class="rs-row">
+                  <span class="rs-label">预计学习时间</span>
+                  <span class="rs-text">{{ matchResult?.estimated_learning_time }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Gap table -->
+            <h3 class="table-title">技能差距明细</h3>
+            <el-table :data="gapSkills" stripe style="width:100%">
+              <el-table-column prop="skill" label="技能" min-width="140" />
+              <el-table-column label="重要性" width="100">
                 <template #default="{ row }">
                   <el-tag :type="row.importance === 'required' ? 'danger' : 'info'" size="small">
                     {{ row.importance === 'required' ? '必备' : '加分' }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="gap_level" label="差距程度" width="120">
+              <el-table-column label="差距程度" width="120">
                 <template #default="{ row }">
                   <el-tag :type="row.gap_level === '完全缺失' ? 'danger' : row.gap_level === '部分掌握' ? 'warning' : 'success'" size="small">
                     {{ row.gap_level }}
@@ -345,56 +353,47 @@ function exportReport() {
               </el-table-column>
             </el-table>
 
-            <div style="text-align:center;margin-top:20px;display:flex;gap:12px;justify-content:center">
-              <el-button type="primary" size="large" @click="goToLearning">
-                <el-icon><Guide /></el-icon>
-                查看学习路径
-              </el-button>
-              <el-button size="large" @click="exportReport">
-                <el-icon><Download /></el-icon>
-                导出报告
-              </el-button>
+            <div class="step-actions">
+              <el-button type="primary" size="large" :icon="Guide" @click="goToLearning">查看学习路径</el-button>
+              <el-button size="large" :icon="Download" @click="exportReport">导出报告</el-button>
             </div>
           </div>
-          <div v-else class="empty-hint">暂无诊断结果</div>
-        </el-card>
+          <div v-else class="step-empty">暂无诊断结果</div>
+        </div>
       </div>
 
-      <!-- Step 4: 学习路径 -->
+      <!-- Step 4: Learning path -->
       <div v-if="step === 4" class="step-content">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <el-icon><ChatDotSquare /></el-icon>
-              <span>学习路径规划</span>
-              <el-button text @click="goBack"><el-icon><ArrowLeft /></el-icon>返回</el-button>
+        <div class="step-card">
+          <div class="sc-header">
+            <div class="sc-header-row">
+              <div>
+                <h2 class="sc-title">学习路径规划</h2>
+                <p class="sc-desc">基于技能差距的个性化学习建议</p>
+              </div>
+              <el-button text @click="goBack">← 返回</el-button>
             </div>
-          </template>
-          <el-table :data="learningPaths" stripe border style="width:100%">
-            <el-table-column prop="skill" label="技能" width="160" />
-            <el-table-column prop="importance" label="优先级" width="100">
+          </div>
+          <el-table :data="learningPaths" stripe style="width:100%">
+            <el-table-column prop="skill" label="技能" min-width="140" />
+            <el-table-column label="优先级" width="100">
               <template #default="{ row }">
                 <el-tag :type="row.importance === 'required' ? 'danger' : 'info'" size="small">
                   {{ row.importance === 'required' ? '必备' : '加分' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="gapLevel" label="差距" width="100">
+            <el-table-column label="差距" width="100">
               <template #default="{ row }">
-                <el-tag :type="row.gapLevel === '完全缺失' ? 'danger' : 'warning'" size="small">
-                  {{ row.gapLevel }}
-                </el-tag>
+                <el-tag :type="row.gapLevel === '完全缺失' ? 'danger' : 'warning'" size="small">{{ row.gapLevel }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="path" label="推荐学习路径" />
           </el-table>
-          <div style="text-align:center;margin-top:20px">
-            <el-button size="large" @click="resetAll">
-              <el-icon><RefreshRight /></el-icon>
-              重新开始
-            </el-button>
+          <div class="step-actions">
+            <el-button size="large" :icon="RefreshRight" @click="resetAll">重新开始</el-button>
           </div>
-        </el-card>
+        </div>
       </div>
     </div>
   </MainLayout>
@@ -404,41 +403,176 @@ function exportReport() {
 .match-page {
   max-width: 960px;
   margin: 0 auto;
-  padding: 24px;
 }
+
+.page-header {
+  margin-bottom: var(--space-6);
+}
+
+.page-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.page-desc {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  margin: var(--space-1) 0 0;
+}
+
 .steps-bar {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
+
 .step-content {
-  animation: fadeIn 0.3s ease;
+  animation: fade-in-up 0.3s var(--ease-out);
 }
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.card-header {
+
+.step-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+}
+
+.sc-header {
+  margin-bottom: var(--space-5);
+}
+
+.sc-header-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.sc-title {
+  font-size: var(--font-size-xl);
   font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
 }
-.card-header .el-button {
-  margin-left: auto;
+
+.sc-desc {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  margin: var(--space-1) 0 0;
 }
-.manual-input-area {
-  margin-top: 16px;
+
+.input-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
+
+.is-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.manual-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 .skill-tags {
-  margin-top: 12px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
-.empty-hint {
+
+.step-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  margin-top: var(--space-6);
+}
+
+.step-empty {
   text-align: center;
-  color: #909399;
-  padding: 40px 0;
-  font-size: 14px;
+  color: var(--muted-foreground);
+  padding: var(--space-10) 0;
+  font-size: var(--font-size-sm);
+}
+
+/* ── Report Summary ── */
+.report-summary {
+  display: flex;
+  gap: var(--space-6);
+  padding: var(--space-5);
+  background: var(--muted);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-5);
+}
+
+.rs-score {
+  display: flex;
+  align-items: baseline;
+  flex-shrink: 0;
+}
+
+.rs-value {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.rs-unit {
+  font-size: var(--font-size-xl);
+  color: var(--muted-foreground);
+  margin-left: 2px;
+}
+
+.rs-detail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rs-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.rs-label {
+  color: var(--muted-foreground);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.rs-text {
+  color: var(--foreground);
+}
+
+.rs-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.rs-empty {
+  color: var(--muted-foreground);
+}
+
+.table-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+  margin: var(--space-5) 0 var(--space-3);
 }
 </style>
