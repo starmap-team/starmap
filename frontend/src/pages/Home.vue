@@ -1063,7 +1063,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 18px;
+  font-size: var(--font-size-xl);
 }
 
 .kpi-body {
@@ -1082,7 +1082,7 @@ onUnmounted(() => {
 .kpi-label {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
-  margin-top: 2px;
+  margin-top: var(--space-1);
 }
 
 .kpi-actions {
@@ -1141,7 +1141,7 @@ onUnmounted(() => {
 
 .gb-sep {
   color: var(--border);
-  font-size: 12px;
+  font-size: var(--font-size-xs);
 }
 
 .view-tabs {
@@ -1287,7 +1287,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   transition: all var(--duration-fast);
 }
 
@@ -1342,7 +1342,7 @@ onUnmounted(() => {
 .rp-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   max-height: 240px;
   overflow-y: auto;
 }

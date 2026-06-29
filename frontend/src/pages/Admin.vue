@@ -449,11 +449,11 @@ async function handleReset() {
 }
 
 .page-header {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .page-header h2 {
-  font-size: 24px;
+  font-size: var(--font-size-3xl);
   font-weight: 600;
   color: var(--foreground);
   margin: 0 0 4px;
@@ -461,7 +461,7 @@ async function handleReset() {
 
 .page-desc {
   color: var(--muted-foreground);
-  font-size: 14px;
+  font-size: var(--font-size-base);
   margin: 0;
 }
 
@@ -471,7 +471,7 @@ async function handleReset() {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .action-left {
@@ -488,7 +488,7 @@ async function handleReset() {
 }
 
 .selected-count {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--primary);
   font-weight: 500;
 }

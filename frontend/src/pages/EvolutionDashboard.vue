@@ -311,26 +311,26 @@ onMounted(fetchTrends)
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .page-header h2 {
   margin: 0 0 4px;
-  font-size: 22px;
+  font-size: var(--font-size-2xl);
   color: var(--foreground);
 }
 
 .subtitle {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--muted-foreground);
 }
 
 /* KPI 行 */
 .kpi-row {
   display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .gauge-card {
@@ -363,10 +363,10 @@ onMounted(fetchTrends)
 }
 
 .emerging-name {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: var(--foreground);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 .emerging-meta {
@@ -376,7 +376,7 @@ onMounted(fetchTrends)
 }
 
 .emerging-cii {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   color: var(--success);
   font-weight: 500;
 }
@@ -392,22 +392,22 @@ onMounted(fetchTrends)
 }
 
 .chart-card {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 /* 技能对比 */
 .compare-card {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .compare-selectors {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .compare-vs {
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   font-weight: 700;
   color: var(--muted-foreground);
 }
@@ -416,16 +416,16 @@ onMounted(fetchTrends)
   text-align: center;
   padding: 40px;
   color: var(--muted-foreground);
-  font-size: 14px;
+  font-size: var(--font-size-base);
 }
 
 .table-card {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .related-tag {
-  margin-right: 6px;
-  margin-bottom: 4px;
+  margin-right: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 @media (max-width: 768px) {

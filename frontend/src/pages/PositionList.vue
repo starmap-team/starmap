@@ -163,25 +163,25 @@ onMounted(fetchPositions)
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .page-header h2 {
   margin: 0 0 4px;
-  font-size: 22px;
+  font-size: var(--font-size-2xl);
   color: var(--foreground);
 }
 
 .subtitle {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--muted-foreground);
 }
 
 .position-card {
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .position-card:hover {
@@ -195,7 +195,7 @@ onMounted(fetchPositions)
 
 .card-content h3 {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   color: var(--foreground);
 }
 
@@ -217,8 +217,8 @@ onMounted(fetchPositions)
 
 .empty-hint-text {
   color: var(--muted-foreground);
-  font-size: 14px;
-  margin-bottom: 16px;
+  font-size: var(--font-size-base);
+  margin-bottom: var(--space-4);
   line-height: 1.6;
 }
 

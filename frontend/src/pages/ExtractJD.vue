@@ -161,10 +161,10 @@ function handleClear() {
 
 <style scoped>
 .extract-page { max-width: 1200px; }
-.page-header { margin-bottom: 20px; }
-.page-header h2 { margin: 0 0 4px; font-size: 22px; }
+.page-header { margin-bottom: var(--space-5); }
+.page-header h2 { margin: 0 0 4px; font-size: var(--font-size-2xl); }
 .subtitle { color: var(--muted-foreground); margin: 0; font-size: 14px; }
-.input-footer { display: flex; justify-content: flex-end; margin-top: 4px; }
+.input-footer { display: flex; justify-content: flex-end; margin-top: var(--space-1); }
 .char-count { font-size: 12px; color: var(--muted-foreground); }
 .char-warn { color: var(--warning); }
 

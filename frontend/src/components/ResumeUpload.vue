@@ -195,15 +195,15 @@ function handleRemove() {
 }
 
 .upload-text {
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   color: var(--foreground);
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }
 
 .upload-hint {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--muted-foreground);
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 
 .upload-btn {
@@ -223,25 +223,25 @@ function handleRemove() {
 }
 
 .file-info {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .file-name {
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   font-weight: 500;
   color: var(--foreground);
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 
 .file-size {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--muted-foreground);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .file-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: center;
 }
 

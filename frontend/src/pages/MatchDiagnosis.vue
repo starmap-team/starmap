@@ -532,7 +532,7 @@ function exportReport() {
 .rs-unit {
   font-size: var(--font-size-xl);
   color: var(--muted-foreground);
-  margin-left: 2px;
+  margin-left: var(--space-1);
 }
 
 .rs-detail {

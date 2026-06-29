@@ -112,7 +112,7 @@ const radarOption = computed(() => {
 
 .radar-title {
   text-align: center;
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   font-weight: 500;
   color: var(--foreground);
   margin-bottom: var(--space-2);

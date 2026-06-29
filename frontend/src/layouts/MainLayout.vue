@@ -49,7 +49,7 @@ function closeMobileMenu() { mobileMenuOpen.value = false }
 .nav-actions { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
 .action-btn { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: none; background: none; border-radius: var(--radius-md); color: var(--muted-foreground); cursor: pointer; transition: all var(--duration-fast); }
 .action-btn:hover { color: var(--foreground); background: var(--accent); }
-.mobile-toggle { display: none; flex-direction: column; gap: 4px; padding: 6px; }
+.mobile-toggle { display: none; flex-direction: column; gap: var(--space-1); padding: 6px; }
 .mobile-toggle span { display: block; width: 18px; height: 2px; background: var(--foreground); border-radius: 1px; transition: all var(--duration-normal) var(--ease-out); }
 .mobile-toggle span.open:nth-child(1) { transform: translateY(6px) rotate(45deg); }
 .mobile-toggle span.open:nth-child(2) { opacity: 0; }
