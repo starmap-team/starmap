@@ -207,11 +207,11 @@ class DiffEngine:
 
         # --- Removed skills ---
         for name in old_all - new_all:
-            old_skill = old_req.get(name) or old_pref.get(name)
+            removed_skill = old_req.get(name) or old_pref.get(name)
             changes.append(SkillChange(
                 skill_name=name,
                 change_type=ChangeType.REMOVED,
-                old_proficiency=old_skill.proficiency if old_skill else None,
+                old_proficiency=removed_skill.proficiency if removed_skill else None,
                 old_requirement="required" if name in old_req else "preferred",
                 confidence=0.80,
             ))

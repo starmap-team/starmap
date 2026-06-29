@@ -66,12 +66,14 @@ class EmergenceFinder:
         otherwise → stable
     """
 
-    # Thresholds
-    EMERGING_Z = 2.0
-    RISING_Z = 1.5
-    DECLINING_Z = -1.5
-    MIN_FREQUENCY = 3
-    MIN_SOURCES = 3
+    def __init__(self) -> None:
+        from app.config import get_settings
+        cfg = get_settings()
+        self.EMERGING_Z = cfg.emergence_z_emerging
+        self.RISING_Z = cfg.emergence_z_rising
+        self.DECLINING_Z = cfg.emergence_z_declining
+        self.MIN_FREQUENCY = cfg.emergence_min_frequency
+        self.MIN_SOURCES = cfg.emergence_min_sources
 
     def detect(
         self,

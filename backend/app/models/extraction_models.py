@@ -205,3 +205,58 @@ class PositionRecord(Base):
 
     def __repr__(self) -> str:
         return f"<PositionRecord {self.name}>"
+
+
+class MatchResult(Base):
+    """Persisted match diagnosis results."""
+
+    __tablename__ = "match_results"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    match_id: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True
+    )
+    target_position: Mapped[str] = mapped_column(String(255), nullable=False)
+    person_skills: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    match_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    matched_skills: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    missing_required: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    missing_bonus: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    gap_report: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    learning_path: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    cii: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<MatchResult {self.match_id} position={self.target_position} score={self.match_score}>"
+
+
+class ReviewQueue(Base):
+    """审核队列条目（持久化存储）。"""
+
+    __tablename__ = "review_queue"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ReviewQueue {self.id} {self.entity_type}:{self.entity_name} status={self.status}>"

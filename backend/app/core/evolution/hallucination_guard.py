@@ -65,12 +65,14 @@ class HallucinationGuard:
     Extra: LLM-as-judge — optional LLM verification for ambiguous cases.
     """
 
-    # Thresholds (from design.md §4.3)
-    SEMANTIC_MATCH_THRESHOLD = 0.85
-    MIN_SOURCES = 3
-    MIN_SPAN_WEEKS = 4
-    VERIFIED_THRESHOLD = 0.8
-    PENDING_THRESHOLD = 0.5
+    def __init__(self) -> None:
+        from app.config import get_settings
+        cfg = get_settings()
+        self.SEMANTIC_MATCH_THRESHOLD = cfg.hallucination_semantic_threshold
+        self.MIN_SOURCES = cfg.hallucination_min_sources
+        self.MIN_SPAN_WEEKS = cfg.hallucination_min_span_weeks
+        self.VERIFIED_THRESHOLD = cfg.hallucination_verified_threshold
+        self.PENDING_THRESHOLD = cfg.hallucination_pending_threshold
 
     def check(
         self,
@@ -147,6 +149,65 @@ class HallucinationGuard:
             recommendations=recommendations,
         )
 
+
+    # Well-known IT skills that should always pass ontology check
+    WELL_KNOWN_SKILLS: set[str] = {
+        # Programming Languages
+        "python", "javascript", "typescript", "java", "go", "rust", "c++", "c#", "c",
+        "r", "matlab", "scala", "perl", "ruby", "php", "swift", "kotlin", "dart",
+        "groovy", "lua", "haskell", "elixir", "clojure", "objective-c",
+        # Web Frontend
+        "html", "css", "html5", "css3",
+        "react", "vue.js", "vue", "angular", "next.js", "nuxt.js", "svelte",
+        "jquery", "bootstrap", "tailwind css", "sass", "less", "webpack", "vite",
+        "redux", "vuex", "pinia", "element-ui", "element-plus", "ant design",
+        # Web Backend
+        "node.js", "express", "fastapi", "flask", "django", "spring boot",
+        "spring", "laravel", "rails", "gin", "echo", "actix", "nest.js",
+        "rest api", "graphql", "grpc", "websocket", "rpc",
+        # Databases
+        "sql", "nosql", "postgresql", "mysql", "mongodb", "redis", "elasticsearch",
+        "sqlite", "oracle", "sql server", "mariadb", "cassandra", "neo4j",
+        "dynamodb", "firebase", "supabase", "memcached",
+        # DevOps & Cloud
+        "docker", "kubernetes", "terraform", "ansible", "jenkins",
+        "aws", "azure", "gcp", "alibaba cloud", "tencent cloud", "huawei cloud",
+        "linux", "nginx", "apache", "ci/cd", "devops", "sre",
+        "prometheus", "grafana", "elk", "zabbix",
+        "github actions", "gitlab ci", "argocd", "helm",
+        # Version Control
+        "git", "github", "gitlab", "svn", "bitbucket",
+        # Data Science & ML
+        "machine learning", "deep learning", "pytorch", "tensorflow", "scikit-learn",
+        "pandas", "numpy", "matplotlib", "seaborn", "jupyter",
+        "keras", "xgboost", "lightgbm", "opencv", "yolo", "bert", "gpt",
+        "transformer", "llm", "rag", "nlp", "computer vision",
+        "data analysis", "data mining", "statistics", "probability",
+        "spark", "hadoop", "hive", "flink", "airflow", "kafka",
+        "tableau", "power bi", "excel", "google sheets",
+        # Message Queues
+        "rabbitmq", "celery", "rocketmq", "pulsar", "zeromq",
+        # Testing
+        "pytest", "jest", "selenium", "playwright", "cypress", "junit", "mocha",
+        # Auth & Security
+        "oauth", "jwt", "saml", "ldap", "cas", "ssl", "https",
+        "penetration testing", "web security", "owasp",
+        # Design
+        "figma", "sketch", "adobe xd", "photoshop", "illustrator",
+        # Mobile
+        "flutter", "react native", "ios", "android", "swiftui", "jetpack compose",
+        "uni-app", "taro", "weex",
+        # Blockchain
+        "solidity", "ethereum", "web3", "bitcoin", "smart contract",
+        # AI & Agents
+        "langchain", "openai", "hugging face", "chatgpt", "prompt engineering",
+        "stable diffusion", "midjourney",
+        # Methodologies
+        "agile", "scrum", "jira", "confluence", "trello",
+        "microservices", "system design", "design patterns", "clean architecture",
+        "ddd", "tdd", "bdd",
+    }
+
     def _check_ontology(
         self,
         skill_name: str,
@@ -160,6 +221,22 @@ class HallucinationGuard:
             return LayerResult(
                 layer=1, passed=True, score=1.0,
                 details="Exact match in ontology",
+            )
+
+        # Check if it's a well-known IT skill
+        normalized_name = skill_name.strip().lower()
+        if normalized_name in self.WELL_KNOWN_SKILLS:
+            return LayerResult(
+                layer=1, passed=True, score=0.95,
+                details=f"Well-known IT skill: {skill_name}",
+            )
+
+        # Check case-insensitive match in ontology
+        matches_lower = {m.lower() for m in matches}
+        if normalized_name in matches_lower:
+            return LayerResult(
+                layer=1, passed=True, score=0.95,
+                details="Case-insensitive match in ontology",
             )
 
         if semantic_score >= self.SEMANTIC_MATCH_THRESHOLD:

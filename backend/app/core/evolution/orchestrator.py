@@ -1,4 +1,4 @@
-"""Evolution Orchestrator — 8-step pipeline coordinating all evolution components.
+﻿"""Evolution Orchestrator — 8-step pipeline coordinating all evolution components.
 
 Pipeline (from design.md §7):
 1. Load snapshots (SnapshotManager)
@@ -61,6 +61,21 @@ class EvolutionOrchestrator:
         self._emergence_finder = EmergenceFinder()
         self._path_recommender = PathRecommender()
 
+    async def _get_previous_trust(self, skill_name: str) -> float | None:
+        """Retrieve the previous trust score for a skill from the changelog."""
+        from sqlalchemy import select as sa_select
+        from app.models.evolution_models import EvolutionChangelog
+        stmt = (
+            sa_select(EvolutionChangelog)
+            .where(EvolutionChangelog.skill_name == skill_name)
+            .order_by(EvolutionChangelog.created_at.desc())
+            .limit(1)
+        )
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+        return float(record.trust_score) if record is not None else None
+
+
     async def analyze(
         self,
         position_name: str,
@@ -106,15 +121,50 @@ class EvolutionOrchestrator:
                 change.trust_score = trust.score
         result.trust_results = trust_scores
 
+        # Also score trust for retained skills (to maintain decay/accumulation)
+        for change in diff_result.changes:
+            if change.change_type.value == "retained":
+                source_count = newer.source_count if newer else 1
+                previous_trust = await self._get_previous_trust(change.skill_name)
+                if previous_trust is not None:
+                    from app.core.evolution.trust_integration import TrustFactors
+                    retained_factors = TrustFactors(
+                        source_count=source_count,
+                        temporal_continuity=min(1.0, source_count / 8.0),
+                        cross_validation=min(1.0, source_count / 6.0),
+                    )
+                    retained_trust = self._trust_scorer.update_trust(
+                        current_score=previous_trust,
+                        new_evidence=retained_factors,
+                    )
+                    trust_scores[change.skill_name] = retained_trust.score
+                    change.trust_score = retained_trust.score
+
         # Step 4: Check hallucination for new skills
         logger.info("Step 4: Checking hallucination for new skills")
         guard_results: dict[str, GuardResult] = {}
         for change in diff_result.changes:
             if change.change_type.value in ("added_required", "added_preferred"):
+                # Compute semantic score against ontology if available
+                semantic_score = 0.0
+                if ontology_skills:
+                    from difflib import SequenceMatcher
+                    best = 0.0
+                    for ont_skill in ontology_skills:
+                        ratio = SequenceMatcher(
+                            a=change.skill_name.lower(),
+                            b=ont_skill.lower(),
+                        ).ratio()
+                        best = max(best, ratio)
+                    semantic_score = best
+
                 guard = self._halluc_guard.check(
                     skill_name=change.skill_name,
                     ontology_matches=list(ontology_skills) if ontology_skills else None,
+                    semantic_score=semantic_score,
                     source_count=newer.source_count if newer else 1,
+                    first_detected=(older.snapshot_date if older else newer.snapshot_date if newer else None),
+                    last_detected=newer.snapshot_date if newer else None,
                 )
                 guard_results[change.skill_name] = guard
                 if guard.status.value == "high_risk":
@@ -263,9 +313,12 @@ class EvolutionOrchestrator:
         return count
 
     async def _save_paths_to_db(self, path_report: PathReport | None) -> int:
-        """Save discovered evolution paths to PostgreSQL."""
+        """Save discovered evolution paths to PostgreSQL and Neo4j."""
         if not path_report:
+            logger.info("No path report to save (path_report is None)")
             return 0
+
+        logger.info("Saving {} discovered paths to DB and Neo4j", len(path_report.paths))
 
         count = 0
         for path in path_report.paths:
@@ -284,4 +337,43 @@ class EvolutionOrchestrator:
         if count > 0:
             await self._session.flush()
 
+        # Also write EVOLVES_TO relationships to Neo4j
+        await self._write_evolves_to_neo4j(path_report.paths)
+
         return count
+
+    async def _write_evolves_to_neo4j(self, paths: list) -> None:
+        """Write EVOLVES_TO relationships to Neo4j graph."""
+        try:
+            from app.services.resources import AppResources
+
+            driver = AppResources.neo4j_driver
+            if driver is None:
+                logger.warning("Neo4j driver not available, skipping EVOLVES_TO write")
+                return
+
+            async with driver.session() as session:
+                for path in paths:
+                    query = """
+                    MATCH (source:Position {name: })
+                    MATCH (target:Position {name: })
+                    MERGE (source)-[r:EVOLVES_TO]->(target)
+                    SET r.similarity = ,
+                        r.evidence_count = ,
+                        r.trust_score = ,
+                        r.skill_overlap = ,
+                        r.key_gaps = 
+                    """
+                    await session.run(
+                        query,
+                        source=path.source_position,
+                        target=path.target_position,
+                        similarity=path.similarity,
+                        evidence_count=path.evidence_count,
+                        trust_score=path.trust_score,
+                        skill_overlap=path.skill_overlap,
+                        key_gaps=path.key_gaps,
+                    )
+            logger.info("Wrote {} EVOLVES_TO relationships to Neo4j", len(paths))
+        except Exception as e:
+            logger.warning("Failed to write EVOLVES_TO to Neo4j: {}", e)

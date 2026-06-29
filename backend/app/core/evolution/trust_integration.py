@@ -75,17 +75,17 @@ class TrustScorer:
         where Δt is in months
     """
 
-    # Weights
-    W_SOURCE = 0.35
-    W_TEMPORAL = 0.25
-    W_CROSS = 0.25
-    W_MANUAL = 0.15
-
-    # Decay rate (per month)
-    DECAY_RATE = 0.15
-
-    # Source count normalization (cap at 10 sources)
-    MAX_SOURCES = 10
+    def __init__(self) -> None:
+        from app.config import get_settings
+        cfg = get_settings()
+        self.W_SOURCE = cfg.trust_w_source
+        self.W_TEMPORAL = cfg.trust_w_temporal
+        self.W_CROSS = cfg.trust_w_cross
+        self.W_MANUAL = cfg.trust_w_manual
+        self.DECAY_RATE = cfg.trust_decay_rate
+        self.MAX_SOURCES = cfg.trust_max_sources
+        self.VERIFIED_THRESHOLD = cfg.trust_verified_threshold
+        self.PENDING_THRESHOLD = cfg.trust_pending_threshold
 
     def compute(
         self,
@@ -188,11 +188,10 @@ class TrustScorer:
             metadata={"previous_score": current_score, "blend_ratio": "70/30"},
         )
 
-    @staticmethod
-    def _classify(score: float) -> TrustLevel:
+    def _classify(self, score: float) -> TrustLevel:
         """Classify trust score into a level."""
-        if score >= 0.8:
+        if score >= self.VERIFIED_THRESHOLD:
             return TrustLevel.VERIFIED
-        if score >= 0.5:
+        if score >= self.PENDING_THRESHOLD:
             return TrustLevel.PENDING
         return TrustLevel.HIGH_RISK

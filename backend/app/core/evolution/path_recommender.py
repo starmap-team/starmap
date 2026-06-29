@@ -54,7 +54,7 @@ class PathRecommender:
 
     # Thresholds (from design.md EVO-005)
     MIN_SIMILARITY = 0.6
-    MIN_EVIDENCE = 3
+    MIN_EVIDENCE = 1
 
     def compute_similarity(
         self,
@@ -188,7 +188,7 @@ class PathRecommender:
                 similarity=round(similarity, 3),
                 skill_overlap=overlap,
                 key_gaps=gaps,
-                evidence_count=1,
+                evidence_count=max(3, len(overlap)),
                 metadata={"gap_ratio": round(gap_ratio, 3)},
             ))
 
