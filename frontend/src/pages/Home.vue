@@ -12,6 +12,12 @@ use([RadarChart, TooltipComponent, LegendComponent, RadarComponent, CanvasRender
 import request from "@/api/request"
 import MainLayout from "@/layouts/MainLayout.vue"
 import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from "@/stores/graph"
+import { chartColors } from "@/utils/chartTheme"
+
+// Resolve CSS variable to actual color value for Canvas rendering
+function cv(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
 
 // router available via useRouter() if needed
 const graphStore = useGraphStore()
@@ -206,16 +212,16 @@ const positionRadarOption = computed(() => {
       center: ["50%", "50%"],
       radius: "60%",
       indicator: sliced.map(s => ({ name: s.name, max: 1 })),
-      axisName: { color: "var(--muted-foreground)", fontSize: 10 },
+      axisName: { color: cv("--muted-foreground"), fontSize: 10 },
     },
     series: [{
       type: "radar",
       data: [{
         value: sliced.map(s => s.value),
         name: "技能权重",
-        areaStyle: { color: "color-mix(in srgb, var(--primary) 15%, transparent)" },
-        lineStyle: { color: "var(--primary)", width: 2 },
-        itemStyle: { color: "var(--primary)" },
+        areaStyle: { color: `color-mix(in srgb, ${cv("--primary")} 15%, transparent)` },
+        lineStyle: { color: cv("--primary"), width: 2 },
+        itemStyle: { color: cv("--primary") },
       }],
     }],
   }
@@ -267,7 +273,7 @@ function initGraph() {
       layout: { type: "force", preventOverlap: true, nodeSize: 40, nodeSpacing: 20, animate: true },
       node: {
         style: {
-          labelFill: "var(--foreground)",
+          labelFill: cv("--foreground"),
           labelFontSize: 12,
           labelPlacement: "bottom" as const,
           labelOffsetY: 8,
@@ -275,7 +281,7 @@ function initGraph() {
       },
       edge: {
         style: {
-          stroke: "var(--border)",
+          stroke: cv("--border"),
           lineWidth: 1.5,
           opacity: 0.5,
           endArrow: true,
@@ -340,7 +346,7 @@ function renderDomainLayer() {
         stroke: color,
         lineWidth: importance > 100 ? 3 : 2,
         labelText: n.properties.name + "\n" + posCount + "岗 " + skillCount + "技",
-        labelFill: "var(--primary-foreground)",
+        labelFill: cv("--primary-foreground"),
         labelFontSize: importance > 100 ? 15 : 13,
         labelFontWeight: "bold" as const,
         labelPlacement: "center" as const,
@@ -356,7 +362,7 @@ function renderDomainLayer() {
     source: e.source_id,
     target: e.target_id,
     style: {
-      stroke: "var(--muted-foreground)",
+      stroke: cv("--muted-foreground"),
       lineWidth: 1.5,
       opacity: 0.3,
       lineDash: [6, 4],
@@ -381,7 +387,7 @@ function renderDomainLayer() {
 function renderPositionLayer() {
   if (!graph) return
   const kaId = graphStore.expandedKAId
-  const kaColor = kaId ? (KA_COLOR_MAP.value.get(kaId) ?? "var(--chart-3)") : "var(--chart-3)"
+  const kaColor = kaId ? (KA_COLOR_MAP.value.get(kaId) ?? cv("--chart-3")) : cv("--chart-3")
   const positions = graphStore.positionsByKA.get(kaId ?? "") ?? []
   const maxSkillCount = Math.max(...positions.map(p => {
     let count = 0
@@ -403,7 +409,7 @@ function renderPositionLayer() {
         stroke: kaColor,
         lineWidth: 3,
         labelText: graphStore.expandedKAName,
-        labelFill: "var(--primary-foreground)",
+        labelFill: cv("--primary-foreground"),
         labelFontSize: 13,
         labelFontWeight: "bold" as const,
         labelPlacement: "center" as const,
@@ -426,10 +432,10 @@ function renderPositionLayer() {
         size,
         fill: posColor,
         fillOpacity: 0.85,
-        stroke: "var(--primary-hover)",
+        stroke: cv("--primary-hover"),
         lineWidth: 1.5,
         labelText: p.properties.name,
-        labelFill: "var(--foreground)",
+        labelFill: cv("--foreground"),
         labelFontSize: 11,
         labelFontWeight: "normal" as const,
         labelPlacement: "bottom" as const,
@@ -465,7 +471,7 @@ function renderPositionLayer() {
           source: sourceNode.id,
           target: targetNode.id,
           style: {
-            stroke: "var(--destructive)",
+            stroke: cv("--destructive"),
             lineWidth: 2 + ev.similarity * 3,
             opacity: 0.8,
             lineDash: [12, 6],
@@ -488,7 +494,7 @@ function renderPositionLayer() {
           source: src.id,
           target: tgt.id,
           style: {
-            stroke: "var(--destructive)",
+            stroke: cv("--destructive"),
             lineWidth: 2 + ev.similarity * 3,
             opacity: 0.8,
             lineDash: [12, 6],
@@ -514,7 +520,7 @@ function renderDetailLayer() {
   const graphNodes: any[] = []
   const graphEdges: any[] = []
   const kaId = graphStore.expandedKAId
-  const kaColor = kaId ? (KA_COLOR_MAP.value.get(kaId) ?? "var(--chart-3)") : "var(--chart-3)"
+  const kaColor = kaId ? (KA_COLOR_MAP.value.get(kaId) ?? cv("--chart-3")) : cv("--chart-3")
 
   // KA 节点（远处，更小）
   if (kaId) {
@@ -527,7 +533,7 @@ function renderDetailLayer() {
         stroke: kaColor,
         lineWidth: 1,
         labelText: graphStore.expandedKAName,
-        labelFill: "var(--muted-foreground)",
+        labelFill: cv("--muted-foreground"),
         labelFontSize: 10,
         labelPlacement: "bottom" as const,
         labelOffsetY: 4,
@@ -543,10 +549,10 @@ function renderDetailLayer() {
       size: 50,
       fill: POSITION_COLOR,
       fillOpacity: 0.9,
-      stroke: "var(--primary-hover)",
+      stroke: cv("--primary-hover"),
       lineWidth: 3,
       labelText: posNode?.properties.name ?? "岗位",
-      labelFill: "var(--primary-foreground)",
+      labelFill: cv("--primary-foreground"),
       labelFontSize: 13,
       labelFontWeight: "bold" as const,
       labelPlacement: "center" as const,
@@ -572,10 +578,10 @@ function renderDetailLayer() {
         size,
         fill: isRequired ? SKILL_COLOR : SKILL_BONUS_COLOR,
         fillOpacity: 0.8,
-        stroke: isRequired ? "var(--success)" : "var(--warning)",
+        stroke: isRequired ? cv("--success") : cv("--warning"),
         lineWidth: 1,
         labelText: skillNode.properties.name,
-        labelFill: "var(--foreground)",
+        labelFill: cv("--foreground"),
         labelFontSize: 10,
         labelPlacement: "bottom" as const,
         labelOffsetY: 4,

@@ -61,7 +61,7 @@ const kpiCardsEnhanced = computed(() => {
       value: m.total_nodes.toLocaleString(),
       sub: `周新增 +${m.weekly_new_nodes}`,
       trend: 'up',
-      color: 'var(--primary)',
+      color: chartColors().primary,
       icon: 'Grid',
     },
     {
@@ -69,7 +69,7 @@ const kpiCardsEnhanced = computed(() => {
       value: (m.avg_trust_score * 100).toFixed(1) + '%',
       sub: `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
       trend: m.avg_trust_score >= 0.75 ? 'up' : 'down',
-      color: 'var(--success)',
+      color: chartColors().success,
       icon: 'DataLine',
     },
     {
@@ -77,7 +77,7 @@ const kpiCardsEnhanced = computed(() => {
       value: (m.hallucination_rate * 100).toFixed(1) + '%',
       sub: `审核通过率 ${(m.audit_pass_rate * 100).toFixed(0)}%`,
       trend: m.hallucination_rate <= 0.08 ? 'down' : 'up',
-      color: 'var(--warning)',
+      color: chartColors().warning,
       icon: 'WarningFilled',
     },
     {
@@ -85,7 +85,7 @@ const kpiCardsEnhanced = computed(() => {
       value: String(m.pending_review),
       sub: '条记录待处理',
       trend: m.pending_review > 5 ? 'up' : 'down',
-      color: 'var(--destructive)',
+      color: chartColors().danger,
       icon: 'Clock',
     },
   ]
@@ -150,9 +150,9 @@ const trendChartOption = computed(() => {
         value: +(t.rate * 100).toFixed(1),
       })),
       smooth: true,
-      areaStyle: { opacity: 0.12, color: 'var(--warning)' },
-      lineStyle: { color: 'var(--warning)', width: 2.5 },
-      itemStyle: { color: 'var(--warning)' },
+      areaStyle: { opacity: 0.12, color: chartColors().warning },
+      lineStyle: { color: chartColors().warning, width: 2.5 },
+      itemStyle: { color: chartColors().warning },
       symbolSize: 6,
       markLine: {
         silent: true,
@@ -160,7 +160,7 @@ const trendChartOption = computed(() => {
         data: [{
           yAxis: 10,
           label: { formatter: '预警线 10%', fontSize: 11 },
-          lineStyle: { color: 'var(--destructive)', type: 'dashed', width: 2 },
+          lineStyle: { color: chartColors().danger, type: 'dashed', width: 2 },
         }],
       },
     }],
