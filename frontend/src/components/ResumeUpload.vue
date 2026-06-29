@@ -116,14 +116,24 @@ function handleRemove() {
         <el-progress
           :percentage="Math.round(uploadProgress)"
           :status="uploadProgress === 100 ? 'success' : undefined"
-          style="margin-top: 12px"
+          class="progress-wrapper"
         />
       </template>
 
       <!-- 已选文件 -->
       <template v-else-if="file">
         <div class="file-info">
-          <span style="font-size: 36px">📄</span>
+          <svg
+            width="36"
+            height="36"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="color: var(--primary)"
+          ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></svg>
           <div class="file-name">
             {{ fileName }}
           </div>
@@ -147,8 +157,17 @@ function handleRemove() {
 
       <!-- 空状态 -->
       <template v-else>
-        <div style="font-size: 48px; color: #c0c4cc">
-          📂
+        <div class="upload-icon-wrapper">
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          ><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /><path d="M12 10v6" /><path d="m9 13 3-3 3 3" /></svg>
         </div>
         <div class="upload-text">
           将简历文件拖到此处
@@ -174,74 +193,96 @@ function handleRemove() {
 .resume-upload {
   width: 100%;
 }
-
 .upload-zone {
   border: 2px dashed var(--border);
-  border-radius: var(--radius-lg);
-  padding: 48px 24px;
+  border-radius: var(--radius-2xl);
+  padding: var(--space-12) var(--space-6);
   text-align: center;
-  transition: border-color 0.3s, background 0.3s;
+  transition: all var(--duration-normal) var(--ease-out);
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
-
+.upload-zone::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--primary-subtle), transparent);
+  opacity: 0;
+  transition: opacity var(--duration-normal);
+}
+.upload-zone:hover {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+  background: var(--primary-subtle);
+}
+.upload-zone:hover::before { opacity: 1; }
 .upload-zone.is-dragover {
   border-color: var(--primary);
-  background: rgba(64, 158, 255, 0.05);
+  background: var(--primary-ghost);
+  transform: scale(1.01);
 }
-
 .upload-zone.has-file {
   border-style: solid;
   border-color: var(--success);
+  border-width: 2px;
 }
-
 .upload-text {
-  font-size: 16px;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
   color: var(--foreground);
-  margin-top: 12px;
+  margin-top: var(--space-3);
+  position: relative;
 }
-
 .upload-hint {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--muted-foreground);
-  margin-top: 8px;
+  margin-top: var(--space-2);
+  position: relative;
 }
-
 .upload-btn {
-  display: inline-block;
-  margin-top: 16px;
-  padding: 8px 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: var(--space-2-5) var(--space-5);
   background: var(--primary);
-  color: #fff;
-  border-radius: 4px;
+  color: var(--primary-foreground);
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  font-size: 14px;
-  transition: background 0.3s;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: all var(--duration-fast) var(--ease-out);
+  position: relative;
+  border: none;
 }
-
 .upload-btn:hover {
   background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
-
+.upload-btn:active {
+  transform: translateY(0);
+}
 .file-info {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
-
 .file-name {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
   color: var(--foreground);
-  margin-top: 8px;
+  margin-top: var(--space-2);
+  letter-spacing: var(--tracking-tight);
 }
-
 .file-size {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--muted-foreground);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
-
 .file-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: center;
 }
+.progress-wrapper { margin-top: var(--space-3); }
+.upload-icon-wrapper { color: var(--muted-foreground); position: relative; }
 </style>

@@ -171,7 +171,7 @@ async def discover_position(
     """
     from app.core.evolution.emergence_finder import EmergenceFinder
     from app.models.evolution_models import SkillTimeseries
-    from app.models.extraction_models import SkillRecord, PositionSkillRelation, PositionRecord
+    from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
     try:
         # Step 1: Load timeseries data for frequency history
@@ -253,4 +253,4 @@ async def discover_position(
         }
     except Exception as e:
         from fastapi import HTTPException
-        raise HTTPException(status_code=500, detail=f"Discovery failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Discovery failed: {e}") from e

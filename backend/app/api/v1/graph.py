@@ -219,8 +219,7 @@ async def get_graph_overview(
         from app.services.graph_service import fetch_overview_by_level
         data = await fetch_overview_by_level(driver)
         return DomainOverviewResponse(**data)
-    from app.services.graph_service import serialize_node, serialize_relationship
-    DOMAIN_COLORS = {
+    _domain_colors = {
         "人工智能": "#9B59B6", "AI/机器学习": "#9B59B6",
         "数据科学": "#E6A23C", "数据工程": "#E6A23C",
         "前端工程": "#409EFF", "前端开发": "#409EFF",
@@ -249,8 +248,8 @@ async def get_graph_overview(
             pc = record["pos_count"]
             total_skill += sc
             total_pos += pc
-            color = DOMAIN_COLORS.get(name, "#909399")
-            for key, val in DOMAIN_COLORS.items():
+            color = _domain_colors.get(name, "#909399")
+            for key, val in _domain_colors.items():
                 if key in name:
                     color = val
                     break

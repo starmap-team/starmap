@@ -11,17 +11,17 @@ function cv(name: string): string {
 export function chartColors() {
   return {
     primary:   cv('--primary')   || '#4f46e5',
-    success:   cv('--success')   || '#10b981',
-    warning:   cv('--warning')   || '#f59e0b',
-    danger:    cv('--destructive') || '#ef4444',
-    info:      cv('--info')      || '#3b82f6',
-    muted:     cv('--muted-foreground') || '#64748b',
-    border:    cv('--border')    || '#e2e8f0',
-    foreground: cv('--foreground') || '#0f172a',
+    success:   cv('--success')   || '#059669',
+    warning:   cv('--warning')   || '#d97706',
+    danger:    cv('--destructive') || '#dc2626',
+    info:      cv('--info')      || '#2563eb',
+    muted:     cv('--muted-foreground') || '#6b7280',
+    border:    cv('--border')    || '#e5e7eb',
+    foreground: cv('--foreground') || '#0a0a0b',
     card:      cv('--card')      || '#ffffff',
     chart: [
       cv('--chart-1') || '#6366f1',
-      cv('--chart-2') || '#06b6d4',
+      cv('--chart-2') || '#0891b2',
       cv('--chart-3') || '#8b5cf6',
       cv('--chart-4') || '#f59e0b',
       cv('--chart-5') || '#10b981',
@@ -49,6 +49,11 @@ export function splitLineStyle() {
 /** Shared axis label style */
 export function axisLabelStyle() {
   return { color: chartColors().muted, fontSize: 11 }
+}
+
+/** Shared ECharts legend text config */
+export function legendStyle() {
+  return { color: chartColors().muted, fontSize: 11, fontFamily: 'inherit' }
 }
 
 /** Gauge color thresholds — returns color based on value ranges */

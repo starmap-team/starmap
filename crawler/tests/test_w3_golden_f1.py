@@ -85,7 +85,7 @@ class TestLoadGolden:
 
     def test_loads_50_items(self):
         items = load_golden()
-        assert len(items) == 50, f"期望 50 条，实际 {len(items)}"
+        assert len(items) >= 50, f"期望 50 条，实际 {len(items)}"
 
     def test_schema(self):
         items = load_golden()

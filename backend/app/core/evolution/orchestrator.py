@@ -64,6 +64,7 @@ class EvolutionOrchestrator:
     async def _get_previous_trust(self, skill_name: str) -> float | None:
         """Retrieve the previous trust score for a skill from the changelog."""
         from sqlalchemy import select as sa_select
+
         from app.models.evolution_models import EvolutionChangelog
         stmt = (
             sa_select(EvolutionChangelog)

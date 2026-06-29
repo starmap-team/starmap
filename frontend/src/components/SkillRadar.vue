@@ -6,6 +6,7 @@
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
+import { chartColors, legendStyle } from '@/utils/chartTheme'
 import { RadarChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent, RadarComponent } from 'echarts/components'
 
@@ -41,16 +42,13 @@ const radarOption = computed(() => {
         return `${p.name}<br/>我的掌握：${(p.value * 100).toFixed(0)}%`
       },
     },
-    legend: {
-      data: ['岗位要求', '我的技能'],
-      bottom: 0,
-    },
+    legend: { bottom: 0, textStyle: legendStyle() },
     radar: {
       center: ['50%', '48%'],
       radius: '65%',
       indicator: indicators,
       axisName: {
-        color: '#606266',
+        color: chartColors().muted,
         fontSize: 12,
       },
     },
@@ -62,9 +60,9 @@ const radarOption = computed(() => {
           value: props.data.map(d => d.required),
           name: '岗位要求',
         }],
-        lineStyle: { color: '#f56c6c', width: 2 },
-        areaStyle: { color: 'rgba(245, 108, 108, 0.2)' },
-        itemStyle: { color: '#f56c6c' },
+        lineStyle: { color: chartColors().danger, width: 2 },
+        areaStyle: { color: chartColors().danger + '33' },
+        itemStyle: { color: chartColors().danger },
         symbol: 'circle',
         symbolSize: 5,
       },
@@ -75,9 +73,9 @@ const radarOption = computed(() => {
           value: props.data.map(d => d.user),
           name: '我的技能',
         }],
-        lineStyle: { color: '#409eff', width: 2 },
-        areaStyle: { color: 'rgba(64, 158, 255, 0.2)' },
-        itemStyle: { color: '#409eff' },
+        lineStyle: { color: chartColors().primary, width: 2 },
+        areaStyle: { color: chartColors().primary + '33' },
+        itemStyle: { color: chartColors().primary },
         symbol: 'circle',
         symbolSize: 5,
       },
@@ -97,10 +95,24 @@ const radarOption = computed(() => {
       style="height: 400px"
       autoresize
     />
-    <el-empty
-      v-else
-      description="暂无雷达图数据"
-    />
+    <div class="custom-empty">
+      <div class="empty-icon-wrapper">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.2"
+        ><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+      </div>
+      <p class="empty-text">
+        雷达图数据不足
+      </p>
+      <p class="empty-hint-text">
+        需要至少 3 项技能才能生成雷达图
+      </p>
+    </div>
   </div>
 </template>
 
@@ -111,9 +123,15 @@ const radarOption = computed(() => {
 
 .radar-title {
   text-align: center;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
   color: var(--foreground);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-3);
+  letter-spacing: var(--tracking-tight);
 }
+
+.custom-empty { display: flex; flex-direction: column; align-items: center; padding: var(--space-8) var(--space-4); text-align: center; }
+.empty-icon-wrapper { color: var(--muted-foreground); opacity: 0.4; margin-bottom: var(--space-3); }
+.empty-text { font-size: var(--font-size-base); font-weight: 600; color: var(--foreground); margin: 0; }
+.empty-hint-text { font-size: var(--font-size-sm); color: var(--muted-foreground); margin: var(--space-1) 0 0; }
 </style>

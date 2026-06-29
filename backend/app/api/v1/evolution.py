@@ -409,7 +409,7 @@ async def get_cii_history(
 
     history: list[dict[str, Any]] = []
     for r in records:
-        required = r.required_skills or []
+        required = list(r.required_skills) if r.required_skills else []
         total = len(required)
         inflated = sum(1 for s in required if isinstance(s, dict) and s.get("source_count", 0) > 7)
         cii = inflated / total if total > 0 else 0.0

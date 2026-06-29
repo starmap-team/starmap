@@ -61,7 +61,7 @@ onMounted(fetchPositions)
 
 <template>
   <MainLayout>
-    <div class="position-list-page">
+    <div class="position-list-page animate-fade-in">
       <div class="page-header">
         <h2>岗位列表</h2>
         <p class="subtitle">
@@ -75,30 +75,34 @@ onMounted(fetchPositions)
         placeholder="搜索岗位名称或行业..."
         clearable
         size="large"
-        style="margin-bottom: 20px; max-width: 400px;"
+        class="search-input-wrapper"
         prefix-icon="Search"
       />
-      <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <div class="industry-tags">
         <el-tag
           :type="selectedIndustry === '' ? '' : 'info'"
           :effect="selectedIndustry === '' ? 'dark' : 'plain'"
-          style="cursor: pointer;"
+          class="clickable-tag"
           @click="selectedIndustry = ''"
-        >全部</el-tag>
+        >
+          全部
+        </el-tag>
         <el-tag
           v-for="ind in industries"
           :key="ind"
           :type="selectedIndustry === ind ? '' : 'info'"
           :effect="selectedIndustry === ind ? 'dark' : 'plain'"
-          style="cursor: pointer;"
+          class="clickable-tag"
           @click="selectedIndustry = selectedIndustry === ind ? '' : ind"
-        >{{ ind }}</el-tag>
+        >
+          {{ ind }}
+        </el-tag>
       </div>
-      <div style="margin-bottom: 16px; color: var(--muted-foreground); font-size: var(--font-size-sm);">
+      <div class="result-count">
         共 {{ filteredPositions.length }} 个岗位
       </div>
 
-            <!-- 有数据时 -->
+      <!-- 有数据时 -->
       <el-row
         v-if="filteredPositions.length || loading"
         v-loading="loading"
@@ -140,18 +144,46 @@ onMounted(fetchPositions)
       </el-row>
 
       <!-- 空状态引导 -->
-      <div v-else class="empty-guide">
-        <el-empty description="暂无岗位数据">
-          <template #image>
-            <div class="empty-icon">📭</div>
-          </template>
+      <div
+        v-else
+        class="empty-guide"
+      >
+        <div class="custom-empty">
+          <div class="empty-icon-wrapper">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ><circle
+              cx="11"
+              cy="11"
+              r="8"
+            /><path d="m21 21-4.35-4.35" /></svg>
+          </div>
+          <p class="empty-text">
+            未找到匹配的岗位
+          </p>
+          <p class="empty-hint-text">
+            尝试调整筛选条件或关键词
+          </p>
           <div class="empty-actions">
-            <p class="empty-hint-text">请先执行数据采集，或从 JD 中抽取岗位信息</p>
-            <el-button type="primary" :icon="Plus" @click="goExtract">
+            <p class="empty-hint-text">
+              请先执行数据采集，或从 JD 中抽取岗位信息
+            </p>
+            <el-button
+              type="primary"
+              :icon="Plus"
+              @click="goExtract"
+            >
               前往 JD 抽取
             </el-button>
           </div>
-        </el-empty>
+        </div>
       </div>
     </div>
   </MainLayout>
@@ -163,25 +195,25 @@ onMounted(fetchPositions)
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .page-header h2 {
   margin: 0 0 4px;
-  font-size: 22px;
+  font-size: var(--font-size-2xl);
   color: var(--foreground);
 }
 
 .subtitle {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   color: var(--muted-foreground);
 }
 
 .position-card {
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .position-card:hover {
@@ -190,12 +222,12 @@ onMounted(fetchPositions)
 
 .card-content {
   text-align: center;
-  padding: 12px 0;
+  padding: var(--space-3) 0;
 }
 
 .card-content h3 {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   color: var(--foreground);
 }
 
@@ -207,7 +239,7 @@ onMounted(fetchPositions)
 }
 
 .empty-icon {
-  font-size: 64px;
+  font-size: 4rem;
   line-height: 1;
 }
 
@@ -217,8 +249,43 @@ onMounted(fetchPositions)
 
 .empty-hint-text {
   color: var(--muted-foreground);
-  font-size: 14px;
-  margin-bottom: 16px;
+  font-size: var(--font-size-base);
+  margin-bottom: var(--space-4);
   line-height: 1.6;
+}
+
+.search-input-wrapper { margin-bottom: var(--space-5); max-width: 400px; }
+.industry-tags { margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.clickable-tag { cursor: pointer; }
+.result-count { margin-bottom: var(--space-4); color: var(--muted-foreground); font-size: var(--font-size-sm); }
+
+/* ── Custom Empty State ── */
+.custom-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+.empty-icon-wrapper {
+  color: var(--muted-foreground);
+  opacity: 0.4;
+  margin-bottom: var(--space-4);
+}
+.empty-text {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+  letter-spacing: var(--tracking-tight);
+}
+.empty-hint-text {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  margin: var(--space-1) 0 0;
+}
+.empty-slot {
+  margin-top: var(--space-4);
 }
 </style>

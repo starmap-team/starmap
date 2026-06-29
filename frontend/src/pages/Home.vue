@@ -1,8 +1,8 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue"
 import { useRouter } from "vue-router"
 import { Graph } from "@antv/g6"
-import { Search, ZoomIn, ZoomOut, Aim, Collection, DataAnalysis, Upload, Document, TrendCharts, ArrowRight } from "@element-plus/icons-vue"
+import { Search, Aim, Collection, DataAnalysis, Upload, Document, TrendCharts } from "@element-plus/icons-vue"
 import VChart from "vue-echarts"
 import { use } from "echarts/core"
 import { RadarChart } from "echarts/charts"
@@ -11,7 +11,14 @@ import { CanvasRenderer } from "echarts/renderers"
 use([RadarChart, TooltipComponent, LegendComponent, RadarComponent, CanvasRenderer])
 import request from "@/api/request"
 import MainLayout from "@/layouts/MainLayout.vue"
+import GraphToolbar from "@/components/GraphToolbar.vue"
 import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from "@/stores/graph"
+import { chartColors, tooltipStyle } from "@/utils/chartTheme"
+
+// Resolve CSS variable to actual color value for Canvas rendering
+function cv(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
 
 // router available via useRouter() if needed
 const graphStore = useGraphStore()
@@ -19,11 +26,18 @@ const graphRef = ref<HTMLElement | null>(null)
 let graph: Graph | null = null
 
 // ── 颜色常量 ──
-const KA_FALLBACK_COLORS = ["#9B59B6", "#E6A23C", "#409EFF", "#67C23A", "#36CFC9", "#F56C6C", "#E040FB", "#FF7043", "#00BCD4", "#8BC34A", "#FF5252", "#7C4DFF", "#009688", "#FF9800"]
+const KA_FALLBACK_COLORS = computed(() => {
+  const base = chartColors()
+  return [
+    base.primary, base.success, base.warning, base.info, base.chart[0],
+    base.chart[1], base.chart[2], base.chart[3], base.chart[4],
+    base.danger, base.primary, base.success, base.warning, base.info
+  ]
+})
 const KA_COLOR_MAP = computed(() => {
   const map = new Map<string, string>()
   graphStore.domains.forEach((d, i) => {
-    map.set(d.id, d.color || KA_FALLBACK_COLORS[i % KA_FALLBACK_COLORS.length])
+    map.set(d.id, d.color || KA_FALLBACK_COLORS.value[i % KA_FALLBACK_COLORS.value.length])
   })
   return map
 })
@@ -201,21 +215,21 @@ const positionRadarOption = computed(() => {
   if (!skills.length) return null
   const sliced = skills.slice(0, 8)
   return {
-    tooltip: { trigger: "item" },
+    tooltip: { ...tooltipStyle(), trigger: "item" },
     radar: {
       center: ["50%", "50%"],
       radius: "60%",
       indicator: sliced.map(s => ({ name: s.name, max: 1 })),
-      axisName: { color: "var(--muted-foreground)", fontSize: 10 },
+      axisName: { color: cv("--muted-foreground"), fontSize: 10 },
     },
     series: [{
       type: "radar",
       data: [{
         value: sliced.map(s => s.value),
         name: "技能权重",
-        areaStyle: { color: "color-mix(in srgb, var(--primary) 15%, transparent)" },
-        lineStyle: { color: "var(--primary)", width: 2 },
-        itemStyle: { color: "var(--primary)" },
+        areaStyle: { color: `color-mix(in srgb, ${cv("--primary")} 15%, transparent)` },
+        lineStyle: { color: cv("--primary"), width: 2 },
+        itemStyle: { color: cv("--primary") },
       }],
     }],
   }
@@ -267,7 +281,7 @@ function initGraph() {
       layout: { type: "force", preventOverlap: true, nodeSize: 40, nodeSpacing: 20, animate: true },
       node: {
         style: {
-          labelFill: "var(--foreground)",
+          labelFill: cv("--foreground"),
           labelFontSize: 12,
           labelPlacement: "bottom" as const,
           labelOffsetY: 8,
@@ -275,7 +289,7 @@ function initGraph() {
       },
       edge: {
         style: {
-          stroke: "var(--border)",
+          stroke: cv("--border"),
           lineWidth: 1.5,
           opacity: 0.5,
           endArrow: true,
@@ -330,7 +344,7 @@ function renderDomainLayer() {
     const posCount = domain?.position_count ?? 0
     const importance = skillCount + posCount * 2
     const size = minSize + (skillCount / maxSkill) * (maxSize - minSize)
-    const color = KA_COLOR_MAP.value.get(n.id) ?? KA_FALLBACK_COLORS[i % KA_FALLBACK_COLORS.length]
+    const color = KA_COLOR_MAP.value.get(n.id) ?? KA_FALLBACK_COLORS.value[i % KA_FALLBACK_COLORS.value.length]
     return {
       id: n.id,
       style: {
@@ -340,7 +354,7 @@ function renderDomainLayer() {
         stroke: color,
         lineWidth: importance > 100 ? 3 : 2,
         labelText: n.properties.name + "\n" + posCount + "岗 " + skillCount + "技",
-        labelFill: "#ffffff",
+        labelFill: cv("--primary-foreground"),
         labelFontSize: importance > 100 ? 15 : 13,
         labelFontWeight: "bold" as const,
         labelPlacement: "center" as const,
@@ -356,7 +370,7 @@ function renderDomainLayer() {
     source: e.source_id,
     target: e.target_id,
     style: {
-      stroke: "var(--muted-foreground)",
+      stroke: cv("--muted-foreground"),
       lineWidth: 1.5,
       opacity: 0.3,
       lineDash: [6, 4],
@@ -381,7 +395,7 @@ function renderDomainLayer() {
 function renderPositionLayer() {
   if (!graph) return
   const kaId = graphStore.expandedKAId
-  const kaColor = kaId ? (KA_COLOR_MAP.value.get(kaId) ?? "#9B59B6") : "#9B59B6"
+  const kaColor = kaId ? (KA_COLOR_MAP.value.get(kaId) ?? cv("--chart-3")) : cv("--chart-3")
   const positions = graphStore.positionsByKA.get(kaId ?? "") ?? []
   const maxSkillCount = Math.max(...positions.map(p => {
     let count = 0
@@ -403,7 +417,7 @@ function renderPositionLayer() {
         stroke: kaColor,
         lineWidth: 3,
         labelText: graphStore.expandedKAName,
-        labelFill: "#ffffff",
+        labelFill: cv("--primary-foreground"),
         labelFontSize: 13,
         labelFontWeight: "bold" as const,
         labelPlacement: "center" as const,
@@ -426,10 +440,10 @@ function renderPositionLayer() {
         size,
         fill: posColor,
         fillOpacity: 0.85,
-        stroke: "var(--primary-hover)",
+        stroke: cv("--primary-hover"),
         lineWidth: 1.5,
         labelText: p.properties.name,
-        labelFill: "var(--foreground)",
+        labelFill: cv("--foreground"),
         labelFontSize: 11,
         labelFontWeight: "normal" as const,
         labelPlacement: "bottom" as const,
@@ -465,7 +479,7 @@ function renderPositionLayer() {
           source: sourceNode.id,
           target: targetNode.id,
           style: {
-            stroke: '#F56C6C',
+            stroke: cv("--destructive"),
             lineWidth: 2 + ev.similarity * 3,
             opacity: 0.8,
             lineDash: [12, 6],
@@ -488,7 +502,7 @@ function renderPositionLayer() {
           source: src.id,
           target: tgt.id,
           style: {
-            stroke: '#F56C6C',
+            stroke: cv("--destructive"),
             lineWidth: 2 + ev.similarity * 3,
             opacity: 0.8,
             lineDash: [12, 6],
@@ -514,7 +528,7 @@ function renderDetailLayer() {
   const graphNodes: any[] = []
   const graphEdges: any[] = []
   const kaId = graphStore.expandedKAId
-  const kaColor = kaId ? (KA_COLOR_MAP.value.get(kaId) ?? "#9B59B6") : "#9B59B6"
+  const kaColor = kaId ? (KA_COLOR_MAP.value.get(kaId) ?? cv("--chart-3")) : cv("--chart-3")
 
   // KA 节点（远处，更小）
   if (kaId) {
@@ -527,7 +541,7 @@ function renderDetailLayer() {
         stroke: kaColor,
         lineWidth: 1,
         labelText: graphStore.expandedKAName,
-        labelFill: "var(--muted-foreground)",
+        labelFill: cv("--muted-foreground"),
         labelFontSize: 10,
         labelPlacement: "bottom" as const,
         labelOffsetY: 4,
@@ -543,10 +557,10 @@ function renderDetailLayer() {
       size: 50,
       fill: POSITION_COLOR,
       fillOpacity: 0.9,
-      stroke: "var(--primary-hover)",
+      stroke: cv("--primary-hover"),
       lineWidth: 3,
       labelText: posNode?.properties.name ?? "岗位",
-      labelFill: "#ffffff",
+      labelFill: cv("--primary-foreground"),
       labelFontSize: 13,
       labelFontWeight: "bold" as const,
       labelPlacement: "center" as const,
@@ -572,10 +586,10 @@ function renderDetailLayer() {
         size,
         fill: isRequired ? SKILL_COLOR : SKILL_BONUS_COLOR,
         fillOpacity: 0.8,
-        stroke: isRequired ? "var(--success)" : "var(--warning)",
+        stroke: isRequired ? cv("--success") : cv("--warning"),
         lineWidth: 1,
         labelText: skillNode.properties.name,
-        labelFill: "var(--foreground)",
+        labelFill: cv("--foreground"),
         labelFontSize: 10,
         labelPlacement: "bottom" as const,
         labelOffsetY: 4,
@@ -753,38 +767,59 @@ onUnmounted(() => {
   <MainLayout>
     <div class="graph-page animate-fade-in">
       <!-- ── KPI Strip ── -->
-      <div class="kpi-strip">
+      <div class="kpi-strip stagger">
         <div class="kpi-card">
-          <div class="kpi-icon" style="background: var(--info-ghost); color: var(--info)">
+          <div class="kpi-icon kpi-icon--info">
             <el-icon><DataAnalysis /></el-icon>
           </div>
           <div class="kpi-body">
-            <span class="kpi-value">{{ totalDomains }}</span>
             <span class="kpi-label">技术领域</span>
+            <span class="kpi-value">{{ totalDomains }}</span>
+            <span class="kpi-trend">知识图谱核心分类</span>
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon" style="background: var(--primary-ghost); color: var(--primary)">
+          <div class="kpi-icon kpi-icon--primary">
             <el-icon><Collection /></el-icon>
           </div>
           <div class="kpi-body">
-            <span class="kpi-value">{{ totalPositions }}</span>
             <span class="kpi-label">岗位数</span>
+            <span class="kpi-value">{{ totalPositions }}</span>
+            <span class="kpi-trend">IT 行业全覆盖</span>
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon" style="background: var(--success-ghost); color: var(--success)">
+          <div class="kpi-icon kpi-icon--success">
             <el-icon><TrendCharts /></el-icon>
           </div>
           <div class="kpi-body">
-            <span class="kpi-value">{{ totalSkills }}</span>
             <span class="kpi-label">技能数</span>
+            <span class="kpi-value">{{ totalSkills }}</span>
+            <span class="kpi-trend">持续增长中</span>
           </div>
         </div>
         <div class="kpi-actions">
-          <el-button size="small" :icon="Upload" @click="$router.push('/match')">简历匹配</el-button>
-          <el-button size="small" :icon="Document" @click="$router.push('/extract')">JD 抽取</el-button>
-          <el-button size="small" :icon="TrendCharts" @click="$router.push('/evolution')">演化趋势</el-button>
+          <el-button
+            size="small"
+            :icon="Upload"
+            @click="$router.push('/match')"
+          >
+            简历匹配
+          </el-button>
+          <el-button
+            size="small"
+            :icon="Document"
+            @click="$router.push('/extract')"
+          >
+            JD 抽取
+          </el-button>
+          <el-button
+            size="small"
+            :icon="TrendCharts"
+            @click="$router.push('/evolution')"
+          >
+            演化趋势
+          </el-button>
         </div>
       </div>
 
@@ -793,13 +828,19 @@ onUnmounted(() => {
         <div class="controls-left">
           <!-- Graph breadcrumb -->
           <nav class="graph-breadcrumb">
-            <template v-for="(item, i) in breadcrumb" :key="i">
+            <template
+              v-for="(item, i) in breadcrumb"
+              :key="i"
+            >
               <span
                 class="gb-item"
                 :class="{ active: i === breadcrumb.length - 1 }"
                 @click="i < breadcrumb.length - 1 && item.action?.()"
               >{{ item.label }}</span>
-              <span v-if="i < breadcrumb.length - 1" class="gb-sep">›</span>
+              <span
+                v-if="i < breadcrumb.length - 1"
+                class="gb-sep"
+              >›</span>
             </template>
           </nav>
 
@@ -808,22 +849,31 @@ onUnmounted(() => {
             v-if="graphStore.currentLayer === 'domain'"
             v-model="overviewMode"
             size="small"
-            @change="onOverviewModeChange"
             class="view-tabs"
+            @change="onOverviewModeChange"
           >
-            <el-radio-button value="domain">领域</el-radio-button>
-            <el-radio-button value="tech_stack">技术栈</el-radio-button>
-            <el-radio-button value="level">级别</el-radio-button>
+            <el-radio-button value="domain">
+              领域
+            </el-radio-button>
+            <el-radio-button value="tech_stack">
+              技术栈
+            </el-radio-button>
+            <el-radio-button value="level">
+              级别
+            </el-radio-button>
           </el-radio-group>
         </div>
 
         <div class="controls-right">
           <!-- Legend -->
           <div class="graph-legend">
-            <span class="legend-item"><span class="ld-dot" style="background: var(--chart-3)"></span>领域</span>
-            <span class="legend-item"><span class="ld-dot" style="background: var(--chart-1)"></span>岗位</span>
-            <span class="legend-item"><span class="ld-dot" style="background: var(--success)"></span>技能</span>
-            <span v-if="showEvolution" class="legend-item"><span class="ld-line"></span>演化</span>
+            <span class="legend-item"><span class="ld-dot ld-dot--domain" />领域</span>
+            <span class="legend-item"><span class="ld-dot ld-dot--position" />岗位</span>
+            <span class="legend-item"><span class="ld-dot ld-dot--skill" />技能</span>
+            <span
+              v-if="showEvolution"
+              class="legend-item"
+            ><span class="ld-line" />演化</span>
           </div>
 
           <!-- Evolution toggle -->
@@ -841,65 +891,96 @@ onUnmounted(() => {
       <!-- ── Graph Main Area ── -->
       <div class="graph-layout">
         <main class="graph-main">
-          <div v-loading="graphStore.loading" class="graph-container">
-            <div ref="graphRef" class="graph-canvas" />
-            <div v-if="!graphStore.loading && graphStore.visibleNodes.length === 0" class="empty-hint">
-              <el-icon size="40" color="var(--muted-foreground)"><Aim /></el-icon>
-              <p>暂无数据，请检查后端服务</p>
+          <div
+            v-loading="graphStore.loading"
+            class="graph-container grain"
+          >
+            <div
+              ref="graphRef"
+              class="graph-canvas"
+            />
+            <div
+              v-if="!graphStore.loading && graphStore.visibleNodes.length === 0"
+              class="empty-hint"
+            >
+              <el-icon
+                size="40"
+                color="var(--muted-foreground)"
+              >
+                <Aim />
+              </el-icon>
+              <p class="empty-text">
+                图谱数据为空
+              </p><p class="empty-hint-text">
+                请确认后端服务已启动并有数据接入
+              </p>
             </div>
 
             <!-- Floating toolbar -->
-            <div class="graph-toolbar glass">
-              <el-tooltip content="放大" placement="top">
-                <button class="tb-btn" @click="graph?.zoomBy(1.2)"><el-icon><ZoomIn /></el-icon></button>
-              </el-tooltip>
-              <el-tooltip content="缩小" placement="top">
-                <button class="tb-btn" @click="graph?.zoomBy(0.8)"><el-icon><ZoomOut /></el-icon></button>
-              </el-tooltip>
-              <el-tooltip content="居中" placement="top">
-                <button class="tb-btn" @click="graph?.fitView()"><el-icon><Aim /></el-icon></button>
-              </el-tooltip>
-              <span class="tb-divider"></span>
-              <el-tooltip :content="layoutMode === 'force' ? '切换分层' : '切换力导向'" placement="top">
-                <button class="tb-btn" @click="toggleLayout">
-                  <span style="font-size: 12px; font-weight: 600">{{ layoutMode === 'force' ? '力' : '层' }}</span>
-                </button>
-              </el-tooltip>
-              <span class="tb-divider"></span>
-              <span class="tb-count">{{ graphStore.visibleNodes.length }} 节点</span>
-            </div>
+            <GraphToolbar
+              :node-count="graphStore.visibleNodes.length"
+              :layout-mode="layoutMode"
+              @zoom-in="graph?.zoomBy(1.2)"
+              @zoom-out="graph?.zoomBy(0.8)"
+              @zoom-fit="graph?.fitView()"
+              @toggle-layout="toggleLayout"
+            />
           </div>
         </main>
 
         <!-- ── Right Detail Panel ── -->
-        <aside class="right-panel" :class="{ open: !!selectedNode }">
+        <aside
+          class="right-panel hover-lift"
+          :class="{ open: !!selectedNode }"
+        >
           <template v-if="selectedNode">
             <div class="rp-header">
-              <div class="rp-type-badge" :style="{
-                background: selectedNode.labels.includes('KnowledgeArea')
-                  ? 'var(--chart-3)' : selectedNode.labels.includes('Position')
-                  ? 'var(--chart-1)' : 'var(--success)'
-              }">
+              <div
+                class="rp-type-badge"
+                :style="{
+                  background: selectedNode.labels.includes('KnowledgeArea')
+                    ? 'var(--chart-3)' : selectedNode.labels.includes('Position')
+                      ? 'var(--chart-1)' : 'var(--success)'
+                }"
+              >
                 {{ selectedNode.labels.includes('KnowledgeArea') ? 'KA' : selectedNode.labels.includes('Position') ? 'P' : 'S' }}
               </div>
               <div class="rp-title-group">
-                <h3 class="rp-title">{{ selectedNode.properties.name }}</h3>
+                <h3 class="rp-title">
+                  {{ selectedNode.properties.name }}
+                </h3>
                 <span class="rp-subtitle">
                   {{ selectedNode.labels.includes('KnowledgeArea') ? '知识领域' : selectedNode.labels.includes('Position') ? '岗位' : '技能' }}
                 </span>
               </div>
-              <button class="rp-close" @click="closeDetail">×</button>
+              <button
+                class="rp-close"
+                @click="closeDetail"
+              >
+                ×
+              </button>
             </div>
 
             <!-- Radar for Position nodes -->
-            <div v-if="positionRadarOption" class="rp-section">
-              <div class="rp-section-title">技能雷达</div>
-              <VChart :option="positionRadarOption" style="height: 200px" autoresize />
+            <div
+              v-if="positionRadarOption"
+              class="rp-section"
+            >
+              <div class="rp-section-title">
+                技能雷达
+              </div>
+              <VChart
+                :option="positionRadarOption"
+                class="radar-chart"
+                autoresize
+              />
             </div>
 
             <!-- Properties -->
             <div class="rp-section">
-              <div class="rp-section-title">属性</div>
+              <div class="rp-section-title">
+                属性
+              </div>
               <div class="rp-props">
                 <template v-if="selectedNode.labels.includes('Skill')">
                   <div class="rp-prop-row">
@@ -912,8 +993,13 @@ onUnmounted(() => {
                       v-if="selectedNode.properties.trend"
                       size="small"
                       :type="selectedNode.properties.trend === 'rising' ? 'success' : selectedNode.properties.trend === 'declining' ? 'danger' : 'info'"
-                    >{{ selectedNode.properties.trend === 'rising' ? '↑ 上升' : selectedNode.properties.trend === 'declining' ? '↓ 下降' : '→ 平稳' }}</el-tag>
-                    <span v-else class="rp-prop-value">—</span>
+                    >
+                      {{ selectedNode.properties.trend === 'rising' ? '↑ 上升' : selectedNode.properties.trend === 'declining' ? '↓ 下降' : '→ 平稳' }}
+                    </el-tag>
+                    <span
+                      v-else
+                      class="rp-prop-value"
+                    >—</span>
                   </div>
                   <div class="rp-prop-row">
                     <span class="rp-prop-label">来源数</span>
@@ -944,8 +1030,13 @@ onUnmounted(() => {
             </div>
 
             <!-- Related items -->
-            <div v-if="relatedPositions.length" class="rp-section">
-              <div class="rp-section-title">相似岗位</div>
+            <div
+              v-if="relatedPositions.length"
+              class="rp-section"
+            >
+              <div class="rp-section-title">
+                相似岗位
+              </div>
               <div class="rp-list">
                 <div
                   v-for="r in relatedPositions"
@@ -953,15 +1044,20 @@ onUnmounted(() => {
                   class="rp-list-item"
                   @click="graphStore.goToDetailLayer(r.node.id); selectedNode = r.node"
                 >
-                  <span class="rp-list-dot" style="background: var(--chart-1)"></span>
+                  <span class="rp-list-dot" />
                   <span class="rp-list-name">{{ r.node.properties.name }}</span>
                   <span class="rp-list-meta">{{ r.sharedCount }} 共享技能</span>
                 </div>
               </div>
             </div>
 
-            <div v-if="kaRelatedPositions.length" class="rp-section">
-              <div class="rp-section-title">所属岗位</div>
+            <div
+              v-if="kaRelatedPositions.length"
+              class="rp-section"
+            >
+              <div class="rp-section-title">
+                所属岗位
+              </div>
               <div class="rp-list">
                 <div
                   v-for="p in kaRelatedPositions"
@@ -969,7 +1065,7 @@ onUnmounted(() => {
                   class="rp-list-item"
                   @click="graphStore.goToDetailLayer(p.id); selectedNode = p"
                 >
-                  <span class="rp-list-dot" style="background: var(--chart-1)"></span>
+                  <span class="rp-list-dot" />
                   <span class="rp-list-name">{{ p.properties.name }}</span>
                 </div>
               </div>
@@ -977,17 +1073,30 @@ onUnmounted(() => {
           </template>
 
           <!-- Empty state -->
-          <div v-else class="rp-empty">
-            <el-icon size="28" color="var(--muted-foreground)"><Aim /></el-icon>
+          <div
+            v-else
+            class="rp-empty"
+          >
+            <el-icon
+              size="28"
+              color="var(--muted-foreground)"
+            >
+              <Aim />
+            </el-icon>
             <p>点击节点查看详情</p>
           </div>
         </aside>
       </div>
 
       <!-- ── Bottom Search Bar ── -->
-      <div class="search-bar glass">
+      <div class="search-bar glass border-glow">
         <div class="search-inner">
-          <el-icon size="16" color="var(--muted-foreground)"><Search /></el-icon>
+          <el-icon
+            size="16"
+            color="var(--muted-foreground)"
+          >
+            <Search />
+          </el-icon>
           <div class="search-input-wrapper">
             <input
               v-model="searchKeyword"
@@ -999,9 +1108,12 @@ onUnmounted(() => {
               @keydown.enter.prevent="onSearchKeydown"
               @blur="onSearchBlur"
               @focus="onSearchInput"
-            />
+            >
             <transition name="fade">
-              <div v-if="showSearchDropdown" class="search-dropdown glass">
+              <div
+                v-if="showSearchDropdown"
+                class="search-dropdown glass"
+              >
                 <div
                   v-for="(r, idx) in searchResults"
                   :key="r.id"
@@ -1012,7 +1124,7 @@ onUnmounted(() => {
                   <span
                     class="si-dot"
                     :style="{ background: r.type === '领域' ? 'var(--chart-3)' : r.type === '岗位' ? 'var(--chart-1)' : 'var(--success)' }"
-                  ></span>
+                  />
                   <span class="si-name">{{ r.name }}</span>
                   <span class="si-tag">{{ r.type }}</span>
                 </div>
@@ -1030,7 +1142,7 @@ onUnmounted(() => {
 .graph-page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
   min-height: calc(100vh - 180px);
 }
 
@@ -1038,10 +1150,9 @@ onUnmounted(() => {
 .kpi-strip {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
-
 .kpi-card {
   display: flex;
   align-items: center;
@@ -1049,51 +1160,72 @@ onUnmounted(() => {
   padding: var(--space-3) var(--space-5);
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   min-width: 140px;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: all var(--duration-normal) var(--ease-out);
+  position: relative;
+  overflow: hidden;
 }
-
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 4%, transparent), transparent);
+  transition: opacity var(--duration-normal);
+}
 .kpi-card:hover {
-  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+  border-color: color-mix(in srgb, var(--primary) 20%, var(--border));
   box-shadow: var(--shadow-sm);
 }
-
+.kpi-card:hover::before { opacity: 1; }
 .kpi-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 18px;
+  font-size: var(--font-size-xl);
+  position: relative;
+  z-index: 1;
 }
-
 .kpi-body {
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
 }
-
 .kpi-value {
-  font-size: var(--font-size-xl);
-  font-weight: 700;
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
   color: var(--foreground);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: 1.1;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
 }
-
 .kpi-label {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.kpi-trend {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
-  margin-top: 2px;
+  margin-top: 1px;
+  opacity: 0.7;
 }
-
 .kpi-actions {
   display: flex;
   gap: var(--space-2);
   margin-left: auto;
 }
+.kpi-icon--info { background: var(--info-ghost); color: var(--info); }
+.kpi-icon--primary { background: var(--primary-ghost); color: var(--primary); }
+.kpi-icon--success { background: var(--success-ghost); color: var(--success); }
 
 /* ── Graph Controls Bar ── */
 .graph-controls {
@@ -1102,57 +1234,50 @@ onUnmounted(() => {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-3);
-  padding: var(--space-2) 0;
+  padding: var(--space-2) var(--space-1);
 }
-
 .controls-left {
   display: flex;
   align-items: center;
   gap: var(--space-4);
 }
-
 .controls-right {
   display: flex;
   align-items: center;
   gap: var(--space-3);
 }
-
 .graph-breadcrumb {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1-5);
   font-size: var(--font-size-sm);
 }
-
 .gb-item {
   color: var(--muted-foreground);
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: var(--radius-sm);
   transition: all var(--duration-fast);
+  font-weight: 500;
 }
-
 .gb-item:hover:not(.active) {
   color: var(--primary);
   background: var(--primary-ghost);
 }
-
 .gb-item.active {
   color: var(--foreground);
   font-weight: 600;
   cursor: default;
 }
-
 .gb-sep {
   color: var(--border);
-  font-size: 12px;
+  font-size: var(--font-size-xs);
+  margin: 0 2px;
 }
-
 .view-tabs {
   --el-radio-button-checked-bg-color: var(--primary);
   --el-radio-button-checked-border-color: var(--primary);
 }
-
 .graph-legend {
   display: flex;
   align-items: center;
@@ -1160,24 +1285,24 @@ onUnmounted(() => {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
 }
-
 .legend-item {
   display: flex;
   align-items: center;
   gap: var(--space-1);
 }
-
 .ld-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
-
 .ld-line {
   width: 16px;
   height: 0;
   border-top: 2px dashed var(--destructive);
 }
+.ld-dot--domain { background: var(--chart-3); }
+.ld-dot--position { background: var(--chart-1); }
+.ld-dot--skill { background: var(--success); }
 
 /* ── Graph Layout ── */
 .graph-layout {
@@ -1186,28 +1311,25 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
 }
-
 .graph-main {
   flex: 1;
   min-width: 0;
 }
-
 .graph-container {
   position: relative;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-2xl);
   overflow: hidden;
   height: 100%;
   min-height: 520px;
+  box-shadow: var(--shadow-xs);
 }
-
 .graph-canvas {
   width: 100%;
   height: 100%;
   min-height: 520px;
 }
-
 .empty-hint {
   position: absolute;
   inset: 0;
@@ -1220,51 +1342,6 @@ onUnmounted(() => {
   font-size: var(--font-size-sm);
 }
 
-/* ── Floating Graph Toolbar ── */
-.graph-toolbar {
-  position: absolute;
-  top: var(--space-3);
-  left: var(--space-3);
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-}
-
-.tb-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  background: none;
-  border-radius: var(--radius-md);
-  color: var(--muted-foreground);
-  cursor: pointer;
-  transition: all var(--duration-fast);
-}
-
-.tb-btn:hover {
-  color: var(--foreground);
-  background: var(--accent);
-}
-
-.tb-divider {
-  width: 1px;
-  height: 16px;
-  background: var(--border);
-  margin: 0 2px;
-}
-
-.tb-count {
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-  padding: 0 var(--space-2);
-}
-
 /* ── Right Detail Panel ── */
 .right-panel {
   width: 300px;
@@ -1272,27 +1349,25 @@ onUnmounted(() => {
   overflow-y: auto;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-2xl);
   padding: var(--space-5);
   transition: all var(--duration-slow) var(--ease-out);
+  box-shadow: var(--shadow-xs);
 }
-
 .right-panel:not(.open) {
   width: 160px;
   padding: var(--space-4);
 }
-
 .rp-header {
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
-
 .rp-type-badge {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1300,13 +1375,12 @@ onUnmounted(() => {
   font-size: var(--font-size-xs);
   font-weight: 700;
   flex-shrink: 0;
+  letter-spacing: -0.02em;
 }
-
 .rp-title-group {
   flex: 1;
   min-width: 0;
 }
-
 .rp-title {
   font-size: var(--font-size-base);
   font-weight: 600;
@@ -1316,16 +1390,15 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: var(--tracking-tight);
 }
-
 .rp-subtitle {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
 }
-
 .rp-close {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border: none;
   background: none;
   color: var(--muted-foreground);
@@ -1334,58 +1407,44 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   transition: all var(--duration-fast);
 }
-
 .rp-close:hover {
   color: var(--destructive);
   background: var(--destructive-ghost);
 }
-
 .rp-section {
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--border);
 }
-
 .rp-section:last-child {
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 0;
 }
-
 .rp-section-title {
-  font-size: var(--font-size-xs);
+  font-size: 10px;
   font-weight: 600;
   color: var(--muted-foreground);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   margin-bottom: var(--space-2);
 }
-
 .rp-props {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
-
 .rp-prop-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: var(--font-size-sm);
 }
-
-.rp-prop-label {
-  color: var(--muted-foreground);
-}
-
-.rp-prop-value {
-  color: var(--foreground);
-  font-weight: 500;
-}
-
+.rp-prop-label { color: var(--muted-foreground); }
+.rp-prop-value { color: var(--foreground); font-weight: 500; font-variant-numeric: tabular-nums; }
 .rp-list {
   display: flex;
   flex-direction: column;
@@ -1393,7 +1452,6 @@ onUnmounted(() => {
   max-height: 240px;
   overflow-y: auto;
 }
-
 .rp-list-item {
   display: flex;
   align-items: center;
@@ -1402,20 +1460,18 @@ onUnmounted(() => {
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: var(--font-size-sm);
-  transition: background var(--duration-fast);
+  transition: all var(--duration-fast);
 }
-
 .rp-list-item:hover {
-  background: var(--accent);
+  background: var(--primary-ghost);
 }
-
 .rp-list-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--chart-1);
 }
-
 .rp-list-name {
   flex: 1;
   color: var(--foreground);
@@ -1423,13 +1479,11 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .rp-list-meta {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
   flex-shrink: 0;
 }
-
 .rp-empty {
   display: flex;
   flex-direction: column;
@@ -1440,25 +1494,29 @@ onUnmounted(() => {
   color: var(--muted-foreground);
   font-size: var(--font-size-sm);
 }
+.radar-chart { height: 200px; }
 
 /* ── Bottom Search Bar ── */
 .search-bar {
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-2-5) var(--space-4);
+  transition: all var(--duration-normal) var(--ease-out);
+  box-shadow: var(--shadow-xs);
 }
-
+.search-bar:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+  box-shadow: var(--shadow-glow);
+}
 .search-inner {
   display: flex;
   align-items: center;
   gap: var(--space-3);
 }
-
 .search-input-wrapper {
   flex: 1;
   position: relative;
 }
-
 .search-input {
   width: 100%;
   border: none;
@@ -1468,25 +1526,24 @@ onUnmounted(() => {
   color: var(--foreground);
   font-family: var(--font-sans);
   padding: var(--space-2) 0;
+  letter-spacing: var(--tracking-normal);
 }
-
 .search-input::placeholder {
   color: var(--muted-foreground);
 }
-
 .search-dropdown {
   position: absolute;
   bottom: calc(100% + var(--space-2));
   left: 0;
   right: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   max-height: 280px;
   overflow-y: auto;
   padding: var(--space-1) 0;
   z-index: var(--z-dropdown);
+  box-shadow: var(--shadow-lg);
 }
-
 .search-item {
   display: flex;
   align-items: center;
@@ -1496,19 +1553,16 @@ onUnmounted(() => {
   font-size: var(--font-size-sm);
   transition: background var(--duration-fast);
 }
-
 .search-item:hover,
 .search-item.highlighted {
   background: var(--primary-ghost);
 }
-
 .si-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-
 .si-name {
   flex: 1;
   color: var(--foreground);
@@ -1516,7 +1570,6 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .si-tag {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
@@ -1524,14 +1577,8 @@ onUnmounted(() => {
 }
 
 /* ── Transitions ── */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity var(--duration-fast);
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+.fade-enter-active, .fade-leave-active { transition: opacity var(--duration-fast); }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* ── Responsive ── */
 @media (max-width: 1024px) {
@@ -1539,7 +1586,6 @@ onUnmounted(() => {
   .right-panel:not(.open) { width: 100px; }
   .kpi-actions { margin-left: 0; width: 100%; }
 }
-
 @media (max-width: 768px) {
   .graph-layout { flex-direction: column; }
   .right-panel { width: 100%; max-height: 200px; }

@@ -1,6 +1,6 @@
-﻿import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useGraphStore, type GraphNode, type GraphEdge } from '../graph'
+import { useGraphStore, type GraphNode } from '../graph'
 
 describe('useGraphStore', () => {
   beforeEach(() => {
