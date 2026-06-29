@@ -1,4 +1,4 @@
-# ==================== StarMap .gitignore ====================
+﻿# ==================== StarMap .gitignore ====================
 
 # ---- 环境变量（含密钥，绝不提交）----
 .env
@@ -92,3 +92,21 @@ _*.log
 git_*.bat
 git_*.ps1
 cleanup.ps1
+
+# ---- Codex / Agent 工具目录 ----
+.codegraph/
+.omc/
+.omo/
+graphify-out/
+screenshots/
+
+# ---- 一次性 patch 脚本 ----
+_patch_*.py
+_expand_*.py
+
+# ---- Windows NUL 设备误生成 ----
+nul
+
+# ---- 前端临时生成 ----
+frontend/gen_*.js
+frontend/src/pages/*.vue.new
