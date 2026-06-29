@@ -15,6 +15,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.config import settings  # noqa: E402
+from app.models import Base  # noqa: E402
+# Import all models so they are registered with Base.metadata
+import app.models.extraction_models  # noqa: E402, F401
+import app.models.evolution_models  # noqa: E402, F401
 
 config = context.config
 if config.config_file_name is not None:
@@ -22,7 +26,7 @@ if config.config_file_name is not None:
 
 config.set_main_option("sqlalchemy.url", settings.postgres_uri)
 
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

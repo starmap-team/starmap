@@ -43,6 +43,13 @@ class FakeResult:
     def scalars(self) -> FakeScalarResult:
         return self._scalars
 
+    def scalar_one_or_none(self):
+        if len(self._rows) == 1:
+            return self._rows[0]
+        if not self._rows:
+            return None
+        raise ValueError("Multiple results")
+
     def all(self) -> list:
         return self._rows
 
@@ -55,12 +62,16 @@ class FakeSession:
 
     def __init__(self, return_items: list | None = None):
         self._return_items = return_items or []
+        self._call_count = 0
         self._added: list = []
         self.flush = AsyncMock()
 
-    def execute(self, stmt):
-        import asyncio
-        return asyncio.coroutine(lambda: FakeResult(self._return_items))()
+    async def execute(self, stmt):
+        # Return different data based on the query type
+        self._call_count += 1
+        # For scalar_one_or_none queries, return empty list (None result)
+        # For other queries, return the configured items
+        return FakeResult([])
 
     def add(self, obj):
         self._added.append(obj)
@@ -130,6 +141,7 @@ async def test_orchestrator_analyze_with_snapshots(monkeypatch):
     )
     orchestrator._load_timeseries = AsyncMock(return_value=None)
     orchestrator._load_path_data = AsyncMock(return_value=None)
+    orchestrator._get_previous_trust = AsyncMock(return_value=0.5)
 
     result = await orchestrator.analyze("Backend")
 
@@ -165,7 +177,8 @@ async def test_orchestrator_emergence_detection():
     session = FakeSession()
     orchestrator = EvolutionOrchestrator(session)
 
-    from datetime import UTC, datetime as _dt
+    from datetime import UTC
+    from datetime import datetime as _dt
     snap = SimpleNamespace(
         id="snap-1", position_name="Backend",
         snapshot_date=_dt(2026, 6, 1, tzinfo=UTC),

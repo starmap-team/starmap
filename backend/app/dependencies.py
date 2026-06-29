@@ -17,7 +17,7 @@ def get_neo4j_driver(request: Request):
     return res.neo4j_driver
 
 
-def get_redis_client(request: Request) -> Redis:
+def get_redis_client(request: Request) -> Redis | None:
     res = getattr(request.app.state, "resources", None)
     if res is None:
         return None
