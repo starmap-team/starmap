@@ -52,9 +52,32 @@ class SkillEntry(BaseModel):
     """A single skill entry in extraction results."""
 
     name: str = Field(..., description="Skill name")
-    level: str = Field(default="intermediate", description="Proficiency level")
+    level: str | None = Field(default="intermediate", description="Proficiency level")
     category: str | None = Field(default=None, description="Skill category: hard_skill/soft_skill/tool/certificate")
     years_of_experience: float | None = Field(default=None, description="Years of experience")
+
+
+class PrerequisiteEntry(BaseModel):
+    """A prerequisite skill relationship."""
+
+    skill: str = Field(..., description="The skill that is a prerequisite")
+    required_by: str = Field(..., description="The skill that requires this prerequisite")
+
+
+class ToolEntry(BaseModel):
+    """A tool/technology entry."""
+
+    name: str = Field(..., description="Tool name")
+    category: str | None = Field(default=None, description="Tool category: ide/framework/platform/etc")
+
+
+class LearningResourceEntry(BaseModel):
+    """A learning resource entry."""
+
+    title: str = Field(..., description="Resource title")
+    type: str | None = Field(default=None, description="Resource type: book/course/tutorial/docs")
+    url: str | None = Field(default=None, description="Resource URL if available")
+    for_skill: str | None = Field(default=None, description="Primary skill this resource teaches")
 
 
 class JDExtractionResult(BaseModel):
@@ -66,6 +89,13 @@ class JDExtractionResult(BaseModel):
     experience_required: int | None = Field(default=None, description="Minimum years of experience")
     education_required: str | None = Field(default=None, description="Minimum education requirement")
     responsibilities: list[str] = Field(default_factory=list, description="Job responsibilities")
+    industry: str | None = Field(default=None, description="Industry sector")
+    description: str | None = Field(default=None, description="Brief position description")
+    knowledge_areas: list[str] = Field(default_factory=list, description="Knowledge domains/areas")
+    tools: list[ToolEntry] = Field(default_factory=list, description="Tools and technologies used")
+    prerequisites: list[PrerequisiteEntry] = Field(default_factory=list, description="Skill prerequisite relationships")
+    learning_resources: list[LearningResourceEntry] = Field(default_factory=list, description="Recommended learning resources")
+    evolves_to: list[str] = Field(default_factory=list, description="Related positions this role can evolve into")
 
 
 class AntiHallucinationResult(BaseModel):

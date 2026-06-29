@@ -47,6 +47,11 @@ $jd_content
 6. responsibilities: 主要职责列表（如["开发API", "性能优化"]）
 7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"、"医疗健康"，无法确定则返回空字符串""）
 8. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
+9. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习"]，无法确定则返回空列表[]）
+10. tools: 工具/技术平台列表。每项包含name和category（可选值"ide"/"framework"/"platform"/"database"/"devops"/"other"）
+11. prerequisites: 技能前置依赖关系列表。每项包含skill（被依赖技能）和required_by（依赖该技能的技能）
+12. learning_resources: 推荐学习资源列表。每项包含title、type（可选值"book"/"course"/"tutorial"/"docs"/"other"）和for_skill
+13. evolves_to: 该岗位可能演进的目标岗位列表（无法确定则返回空列表[]）
 
 ## 分类规则
 - **required_skills**: 出现在"任职要求"、"岗位职责"中，描述为"精通"、"掌握"、"熟练使用"、"熟悉"的技能
@@ -96,6 +101,18 @@ $jd_content
 6. responsibilities: 主要职责列表（如["开发API", "性能优化"]）
 7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"、"医疗健康"，无法确定则返回空字符串""）
 8. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
+9. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习", "网络安全"]，无法确定则返回空列表[]）
+10. tools: 工具/技术平台列表。每项包含：
+    - name: 工具名称（如"Docker"、"Jenkins"、"VS Code"）
+    - category: 工具类别，可选值"ide"、"framework"、"platform"、"database"、"devops"、"analytics"、"other"
+11. prerequisites: 技能前置依赖关系列表。每项包含：
+    - skill: 被依赖的技能（如"Python"）
+    - required_by: 依赖该技能的技能（如"Django"表示Django依赖Python）
+12. learning_resources: 推荐学习资源列表（如果职位描述中提到）。每项包含：
+    - title: 资源标题
+    - type: 资源类型，可选值"book"、"course"、"tutorial"、"docs"、"other"
+    - for_skill: 该资源主要教授的技能
+13. evolves_to: 该岗位可能演进的目标岗位列表（如["技术总监", "架构师"]，无法确定则返回空列表[]）
 
 ## 分类规则
 - **required_skills**: 出现在"任职要求"、"岗位职责"中，描述为"精通"、"掌握"、"熟练使用"、"熟悉"、"了解"的技能
