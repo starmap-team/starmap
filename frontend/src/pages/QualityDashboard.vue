@@ -65,9 +65,9 @@ const kpiCardsEnhanced = computed(() => {
     },
     {
       label: '平均信任度',
-      value: m.avg_trust_score.toFixed(1) + '%',
+      value: (m.avg_trust_score * 100).toFixed(1) + '%',
       sub: `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
-      trend: m.avg_trust_score >= 75 ? 'up' : 'down',
+      trend: m.avg_trust_score >= 0.75 ? 'up' : 'down',
       color: '#67c23a',
       icon: 'DataLine',
     },
@@ -368,6 +368,7 @@ const sourceChartOption = computed(() => {
               stripe
               size="small"
               max-height="310"
+              empty-text="暂无待审核数据"
             >
               <el-table-column
                 prop="id"

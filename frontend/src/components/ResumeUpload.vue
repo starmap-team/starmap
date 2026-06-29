@@ -10,6 +10,15 @@ const emit = defineEmits<{
   upload: [file: File]
 }>()
 
+// 接收父组件的异步上传函数
+const asyncUploadFn = ref<((file: File) => Promise<void>) | null>(null)
+
+defineExpose({
+  setAsyncUploader(fn: (file: File) => Promise<void>) {
+    asyncUploadFn.value = fn
+  }
+})
+
 const file = ref<File | null>(null)
 const uploading = ref(false)
 const uploadProgress = ref(0)
@@ -59,31 +68,25 @@ function validateAndSet(f: File) {
   file.value = f
 }
 
-// 模拟上传进度
+// 上传进度
 async function startUpload() {
   if (!file.value) return
   uploading.value = true
-  uploadProgress.value = 0
+  uploadProgress.value = 50
 
-  // 模拟进度条
-  const timer = setInterval(() => {
-    if (uploadProgress.value >= 90) {
-      clearInterval(timer)
-    } else {
-      uploadProgress.value += Math.random() * 20 + 5
-      if (uploadProgress.value > 90) uploadProgress.value = 90
-    }
-  }, 200)
-
-  // 实际调用（mock 或真实 API）
   try {
-    emit('upload', file.value)
+    if (asyncUploadFn.value) {
+      // 使用父组件提供的异步上传函数
+      await asyncUploadFn.value(file.value)
+    } else {
+      // 回退到 emit 模式
+      emit('upload', file.value)
+    }
     uploadProgress.value = 100
     ElMessage.success('简历上传成功')
   } catch {
     ElMessage.error('上传失败，请重试')
   } finally {
-    clearInterval(timer)
     uploading.value = false
   }
 }

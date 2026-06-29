@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 管理后台 — R6 曾洋涛
  * 审核队列（搜索/批量）+ 数据源配置 + 重置演示数据
@@ -19,6 +19,30 @@ onMounted(() => {
 // ── 搜索过滤 ──
 const searchKeyword = ref('')
 const typeFilter = ref('')
+const currentPage = ref(1)
+const pageSize = ref(10)
+const pagedAuditQueue = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredAuditQueue.value.slice(start, start + pageSize.value)
+})
+
+// ── 数据源编辑 ──
+const editDialogVisible = ref(false)
+const editingSource = ref<{ id: number; name: string; authority_score: number } | null>(null)
+function handleEditSource(row: any) {
+  editingSource.value = { id: row.id, name: row.name, authority_score: row.authority_score }
+  editDialogVisible.value = true
+}
+function handleSaveSource() {
+  if (!editingSource.value) return
+  // Find and update in local state
+  const idx = admin.sources.findIndex(s => s.id === editingSource.value!.id)
+  if (idx !== -1) {
+    admin.sources[idx] = { ...admin.sources[idx], name: editingSource.value.name, authority_score: editingSource.value.authority_score }
+  }
+  editDialogVisible.value = false
+  ElMessage.success('数据源已更新')
+}
 
 const filteredAuditQueue = computed(() => {
   let list = admin.auditQueue
@@ -221,7 +245,7 @@ async function handleReset() {
             <el-table
               ref="tableRef"
               v-loading="admin.loading"
-              :data="filteredAuditQueue"
+              :data="pagedAuditQueue"
               stripe
               size="default"
               @selection-change="() => {}"
@@ -258,7 +282,7 @@ async function handleReset() {
               >
                 <template #default="{ row }">
                   <el-tag
-                    :type="row.type === 'skill' ? 'success' : ''"
+                    :type="row.type === 'skill' ? 'success' : 'info'"
                     size="small"
                     effect="dark"
                   >
@@ -270,6 +294,7 @@ async function handleReset() {
                 prop="name"
                 label="名称"
                 min-width="140"
+                sortable
               />
               <el-table-column
                 label="信任度"
@@ -319,6 +344,16 @@ async function handleReset() {
               style="text-align: center; padding: 24px; color: #c0c4cc"
             >
               暂无匹配的审核项
+            </div>
+            <div v-if="filteredAuditQueue.length" style="margin-top: 16px; display: flex; justify-content: center;">
+              <el-pagination
+                v-model:current-page="currentPage"
+                v-model:page-size="pageSize"
+                :total="filteredAuditQueue.length"
+                :page-sizes="[10, 20, 50]"
+                layout="total, sizes, prev, pager, next"
+                small
+              />
             </div>
           </el-card>
         </el-col>
@@ -372,25 +407,16 @@ async function handleReset() {
                   />
                 </template>
               </el-table-column>
-              <el-table-column
-                label="操作"
-                width="70"
-                align="center"
-              >
-                <template #default>
-                  <el-button
-                    size="small"
-                    type="primary"
-                    link
-                  >
-                    编辑
-                  </el-button>
-                </template>
-              </el-table-column>
             </el-table>
           </el-card>
+        </el-col>
 
-          <!-- 重置数据说明 -->
+        <!-- 数据源配置 -->
+        <el-col
+          :lg="10"
+          :sm="24"
+          style="margin-bottom: 16px"
+        >
           <el-card
             shadow="never"
             style="margin-top: 16px"
