@@ -97,6 +97,7 @@ const histogramOption = computed(() => {
   const dist = quality.metrics.trust_distribution
   return {
     tooltip: {
+      ...tooltipStyle(),
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
     },
@@ -171,7 +172,7 @@ const trendChartOption = computed(() => {
 const sourceChartOption = computed(() => {
   if (!quality.metrics?.source_distribution) return {}
   return {
-    tooltip: { trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
+    tooltip: { ...tooltipStyle(), trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
     legend: { bottom: 0, textStyle: { fontSize: 12 } },
     series: [{
       type: 'pie',

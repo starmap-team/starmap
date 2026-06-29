@@ -142,7 +142,7 @@ const compareOption = computed(() => {
   const itemB = items.value.find(i => i.skill_name === compareSkillB.value)
   if (!itemA || !itemB) return null
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: { ...tooltipStyle(), trigger: 'axis' },
     legend: { data: [compareSkillA.value, compareSkillB.value], bottom: 0 },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: { type: 'category', data: quarters.value, boundaryGap: false },

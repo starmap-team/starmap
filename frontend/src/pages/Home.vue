@@ -12,7 +12,7 @@ use([RadarChart, TooltipComponent, LegendComponent, RadarComponent, CanvasRender
 import request from "@/api/request"
 import MainLayout from "@/layouts/MainLayout.vue"
 import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from "@/stores/graph"
-import { chartColors } from "@/utils/chartTheme"
+import { chartColors, tooltipStyle } from "@/utils/chartTheme"
 
 // Resolve CSS variable to actual color value for Canvas rendering
 function cv(name: string): string {
@@ -207,7 +207,7 @@ const positionRadarOption = computed(() => {
   if (!skills.length) return null
   const sliced = skills.slice(0, 8)
   return {
-    tooltip: { trigger: "item" },
+    tooltip: { ...tooltipStyle(), trigger: "item" },
     radar: {
       center: ["50%", "50%"],
       radius: "60%",
