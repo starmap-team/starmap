@@ -1,0 +1,107 @@
+{
+  "match_accuracy": 0.65,
+  "correct": 13,
+  "total": 20,
+  "details": [
+    {
+      "id": "match-001",
+      "score": 0.5459,
+      "correct": false
+    },
+    {
+      "id": "match-002",
+      "score": 0.3699,
+      "correct": false
+    },
+    {
+      "id": "match-003",
+      "score": 0.1532,
+      "correct": true
+    },
+    {
+      "id": "match-004",
+      "score": 0.0929,
+      "correct": true
+    },
+    {
+      "id": "match-005",
+      "score": 0.8615,
+      "correct": true
+    },
+    {
+      "id": "match-006",
+      "score": 0.4654,
+      "correct": false
+    },
+    {
+      "id": "match-007",
+      "score": 0.3079,
+      "correct": true
+    },
+    {
+      "id": "match-008",
+      "score": 0.0871,
+      "correct": true
+    },
+    {
+      "id": "match-009",
+      "score": 0.7503,
+      "correct": true
+    },
+    {
+      "id": "match-010",
+      "score": 0.4843,
+      "correct": false
+    },
+    {
+      "id": "match-011",
+      "score": 0.2785,
+      "correct": true
+    },
+    {
+      "id": "match-012",
+      "score": 0.0665,
+      "correct": true
+    },
+    {
+      "id": "match-013",
+      "score": 0.7317,
+      "correct": true
+    },
+    {
+      "id": "match-014",
+      "score": 0.4317,
+      "correct": false
+    },
+    {
+      "id": "match-015",
+      "score": 0.3347,
+      "correct": true
+    },
+    {
+      "id": "match-016",
+      "score": 0.0863,
+      "correct": true
+    },
+    {
+      "id": "match-017",
+      "score": 0.4728,
+      "correct": false
+    },
+    {
+      "id": "match-018",
+      "score": 0.2656,
+      "correct": false
+    },
+    {
+      "id": "match-019",
+      "score": 0.1926,
+      "correct": true
+    },
+    {
+      "id": "match-020",
+      "score": 0.19,
+      "correct": true
+    }
+  ]
+}
