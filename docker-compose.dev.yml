@@ -15,6 +15,7 @@ services:
     volumes:
       - ./backend:/app           # 代码挂载，支持热重载
       - ./starmap-contracts:/contracts:ro  # 契约只读挂载，启动校验一致性
+      - ./docs:/app/docs:ro      # 文档挂载（ontology/skill_taxonomy.yaml 等）
     ports:
       - "8000:8000"
     env_file:
@@ -41,8 +42,12 @@ services:
     container_name: starmap-celery-worker
     volumes:
       - ./backend:/app
+      - ./docs:/app/docs:ro      # 文档挂载（ontology/skill_taxonomy.yaml 等）
     env_file:
       - .env
+    environment:
+      - NO_PROXY=*
+      - no_proxy=*
     depends_on:
       redis:
         condition: service_started
@@ -65,7 +70,8 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_BASE_URL=http://localhost:8000
+      - VITE_API_BASE_URL=http://backend:8000   # Docker 内部网络，使用服务名
+      - VITE_USE_MSW=false   # 禁用 MSW mock，使用真实后端 API
     command: npm run dev -- --host 0.0.0.0
     depends_on:
       - backend
@@ -141,6 +147,14 @@ services:
     container_name: starmap-ollama
     ports:
       - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - http_proxy=
+      - https_proxy=
+      - NO_PROXY=*
+      - no_proxy=*
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:

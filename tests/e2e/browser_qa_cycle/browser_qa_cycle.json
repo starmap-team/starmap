@@ -1,0 +1,53 @@
+{
+  "entries": [
+    {
+      "tag": "home",
+      "url": "http://localhost:5173/",
+      "title": "全景图谱 | StarMap",
+      "screenshot": "tests/e2e/browser_qa_cycle/home.png"
+    },
+    {
+      "tag": "positions",
+      "url": "http://localhost:5173/positions",
+      "title": "岗位列表 | StarMap",
+      "screenshot": "tests/e2e/browser_qa_cycle/positions.png"
+    },
+    {
+      "tag": "position_detail",
+      "url": "http://localhost:5173/position/AI%20application%20engineer",
+      "title": "岗位详情 | StarMap",
+      "screenshot": "tests/e2e/browser_qa_cycle/position_detail.png"
+    },
+    {
+      "tag": "extract",
+      "url": "http://localhost:5173/extract",
+      "title": "JD 抽取 | StarMap",
+      "screenshot": "tests/e2e/browser_qa_cycle/extract.png"
+    },
+    {
+      "tag": "match",
+      "url": "http://localhost:5173/match",
+      "title": "匹配诊断 | StarMap",
+      "screenshot": "tests/e2e/browser_qa_cycle/match.png"
+    },
+    {
+      "tag": "evolution",
+      "url": "http://localhost:5173/evolution",
+      "title": "演化看板 | StarMap",
+      "screenshot": "tests/e2e/browser_qa_cycle/evolution.png"
+    },
+    {
+      "tag": "quality",
+      "url": "http://localhost:5173/quality",
+      "title": "图谱质量 | StarMap",
+      "screenshot": "tests/e2e/browser_qa_cycle/quality.png"
+    },
+    {
+      "tag": "admin",
+      "url": "http://localhost:5173/admin",
+      "title": "管理后台 | StarMap",
+      "screenshot": "tests/e2e/browser_qa_cycle/admin.png"
+    }
+  ],
+  "errors": []
+}

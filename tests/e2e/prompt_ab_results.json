@@ -1,0 +1,18 @@
+{
+  "test_date": "2026-06-28",
+  "llm_model": "mimo-v2.5",
+  "golden_samples": 3,
+  "sample_ids": [
+    "golden-1",
+    "golden-4",
+    "golden-8"
+  ],
+  "results": {
+    "v1": 0.963,
+    "v2": 0.963,
+    "v3": 0.963,
+    "v4": 0.963
+  },
+  "best_version": "v1",
+  "best_f1": 0.963
+}

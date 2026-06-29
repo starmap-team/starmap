@@ -1,0 +1,34 @@
+{
+  "test_date": "2026-06-28",
+  "base_url": "http://127.0.0.1:5173",
+  "screenshots": [
+    "C:\\Users\\LiShuai\\Desktop\\Agents\\starmap\\tests\\e2e\\browser_qa_screenshots\\01_home.png",
+    "C:\\Users\\LiShuai\\Desktop\\Agents\\starmap\\tests\\e2e\\browser_qa_screenshots\\02_positions.png",
+    "C:\\Users\\LiShuai\\Desktop\\Agents\\starmap\\tests\\e2e\\browser_qa_screenshots\\03_position_detail.png",
+    "C:\\Users\\LiShuai\\Desktop\\Agents\\starmap\\tests\\e2e\\browser_qa_screenshots\\04_match.png",
+    "C:\\Users\\LiShuai\\Desktop\\Agents\\starmap\\tests\\e2e\\browser_qa_screenshots\\05_admin.png",
+    "C:\\Users\\LiShuai\\Desktop\\Agents\\starmap\\tests\\e2e\\browser_qa_screenshots\\06_quality.png",
+    "C:\\Users\\LiShuai\\Desktop\\Agents\\starmap\\tests\\e2e\\browser_qa_screenshots\\07_evolution.png"
+  ],
+  "issues": [
+    {
+      "severity": "minor",
+      "page": "Positions",
+      "description": "No search input found",
+      "details": ""
+    },
+    {
+      "severity": "minor",
+      "page": "Match",
+      "description": "No position selector found",
+      "details": ""
+    },
+    {
+      "severity": "minor",
+      "page": "Admin",
+      "description": "No prompt management",
+      "details": ""
+    }
+  ],
+  "console_errors": []
+}
