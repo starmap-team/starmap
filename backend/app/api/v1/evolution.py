@@ -262,9 +262,14 @@ async def get_all_evolution_paths(
     records = result.scalars().all()
     return [
         EvolutionPathEntry(
-            id=str(r.id), source_position=r.source_position, target_position=r.target_position,
-            similarity=r.similarity, evidence_count=r.evidence_count,
-            skill_overlap=r.skill_overlap or [], key_gaps=r.key_gaps or [], trust_score=r.trust_score,
+            id=str(r.id),
+            source_position=r.source_position,
+            target_position=r.target_position,
+            similarity=r.similarity,
+            evidence_count=r.evidence_count,
+            skill_overlap=_string_list(r.skill_overlap),
+            key_gaps=_string_list(r.key_gaps),
+            trust_score=r.trust_score,
         )
         for r in records
     ]

@@ -586,44 +586,6 @@ function renderDetailLayer() {
 }
 
 // ── 节点点击处理 ──
-// ── 双击展开 2 跳子图 ──
-function expandTwoHop(nodeId: string) {
-  if (!graph) return
-  const oneHop = new Set<string>([nodeId])
-  const twoHop = new Set<string>([nodeId])
-
-  // 1 跳
-  for (const e of graphStore.allEdges) {
-    if (e.source_id === nodeId) oneHop.add(e.target_id)
-    if (e.target_id === nodeId) oneHop.add(e.source_id)
-  }
-  // 2 跳
-  for (const hopId of oneHop) {
-    if (hopId === nodeId) continue
-    for (const e of graphStore.allEdges) {
-      if (e.source_id === hopId) twoHop.add(e.target_id)
-      if (e.target_id === hopId) twoHop.add(e.source_id)
-    }
-  }
-
-  // 高亮 2 跳内的节点，淡化其余
-  if (graph) {
-    const updateNodes = graphStore.visibleNodes.map(n => ({
-      id: n.id,
-      style: {
-        fillOpacity: twoHop.has(n.id) ? 0.9 : 0.08,
-        lineWidth: twoHop.has(n.id) ? 2 : 0.5,
-      },
-    }))
-    graph.updateNodeData(updateNodes)
-    graph.draw()
-  }
-
-  // 选中中心节点
-  const node = graphStore.nodeMap.get(nodeId)
-  if (node) selectedNode.value = node
-}
-
 async function handleNodeClick(nodeId: string) {
   // Domain 层：点击 KA → 进入 Position 层
   if (graphStore.currentLayer === "domain") {
@@ -719,7 +681,7 @@ watch(() => graphStore.currentLayer, () => {
 // ── 生命周期 ──
 onMounted(async () => {
   await graphStore.fetchOverview()
-  graphStore.fetchEvolutionEdges() // Load in background, non-blocking
+  fetchEvolutionEdges() // Load in background, non-blocking
   await nextTick()
   initGraph()
   window.addEventListener("resize", handleResize)
@@ -1104,10 +1066,19 @@ onUnmounted(() => {
               @click="zoomIn"
             />
           </el-button-group>
-          <el-button size="small" :type="layoutMode === 'dagre' ? 'primary' : 'default'" style="margin-left: 8px" @click="toggleLayout">
+          <el-button
+            size="small"
+            :type="layoutMode === 'dagre' ? 'primary' : 'default'"
+            style="margin-left: 8px"
+            @click="toggleLayout"
+          >
             {{ layoutMode === 'dagre' ? '分层布局' : '力导向' }}
           </el-button>
-          <el-button size="small" :type="showEvolution ? 'danger' : 'default'" @click="toggleEvolution">
+          <el-button
+            size="small"
+            :type="showEvolution ? 'danger' : 'default'"
+            @click="toggleEvolution"
+          >
             {{ showEvolution ? '🔴 演化边' : '演化边' }}
           </el-button>
         </div>
