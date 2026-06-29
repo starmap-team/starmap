@@ -81,6 +81,9 @@ export const useGraphStore = defineStore('graph', () => {
   // ── 概览视图模式 ──
   const overviewMode = ref<OverviewMode>('domain')
 
+  // ── 演化关系边 ──
+  const evolutionEdges = ref<GraphEdge[]>([])
+
   // ── KA 下的 Position 缓存 ──
   const positionsByKA = ref<Map<string, GraphNode[]>>(new Map())
   const positionSkillEdgesByKA = ref<Map<string, GraphEdge[]>>(new Map())
@@ -228,6 +231,17 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
+  /** 加载演化关系边 */
+  async function fetchEvolutionEdges() {
+    try {
+      const data = await request.get('/evolution/paths/all') as any
+      evolutionEdges.value = Array.isArray(data) ? data.map((p: any) => ({ source_id: p.source_position, target_id: p.target_position, type: 'EVOLVES_TO', properties: { weight: p.similarity ?? 0.5 } })) : []
+    } catch (e) {
+      console.error('[Graph] Failed to fetch evolution edges:', e)
+      evolutionEdges.value = []
+    }
+  }
+
   // ── 导航 ──
 
   function goToDomainLayer() {
@@ -277,10 +291,14 @@ export const useGraphStore = defineStore('graph', () => {
     fetchGraph,
     // 概览视图模式
     overviewMode,
+    // 演化
+    evolutionEdges,
+    fetchEvolutionEdges,
     // 导航
     goToDomainLayer,
     goToPositionLayer,
     goToDetailLayer,
   }
 })
+
 

@@ -1,4 +1,4 @@
-"""Lightweight matching engine used by the phase 4 APIs."""
+﻿"""Lightweight matching engine used by the phase 4 APIs."""
 
 from __future__ import annotations
 
@@ -248,10 +248,21 @@ def _position_key(target_position: str) -> str:
 
 def _fallback_profile(target_position: str) -> dict[str, list[dict[str, str]]]:
     target_key = _position_key(target_position)
+    # Pass 1: exact match
+    for position_name, profile in POSITION_SKILL_PROFILES.items():
+        if _position_key(position_name) == target_key:
+            return deepcopy(profile)
+    # Pass 2: best fuzzy match (shortest name that contains target)
+    best_match = None
+    best_len = float("inf")
     for position_name, profile in POSITION_SKILL_PROFILES.items():
         position_key = _position_key(position_name)
-        if target_key == position_key or target_key in position_key or position_key in target_key:
-            return deepcopy(profile)
+        if target_key in position_key or position_key in target_key:
+            if len(position_key) < best_len:
+                best_len = len(position_key)
+                best_match = profile
+    if best_match:
+        return deepcopy(best_match)
 
     return {
         "required": [
@@ -428,6 +439,7 @@ async def run_match(
     for item in bonus_skills:
         evaluated_bonus.append(score_target(item))
 
+    # Scoring: weighted average of required + bonus, with CII correction
     required_avg = sum(item["score"] for item in evaluated_required) / len(evaluated_required) if evaluated_required else 1.0
     bonus_avg = sum(item["score"] for item in evaluated_bonus) / len(evaluated_bonus) if evaluated_bonus else required_avg
     match_score = round(min(1.0, (required_avg * 0.7) + (bonus_avg * 0.3)), 4)
@@ -509,3 +521,4 @@ async def get_match_result(match_id: str) -> dict[str, Any] | None:
         pass
 
     return None
+
