@@ -177,6 +177,10 @@ function navigateTo(path: string) { router.push(path); closeMobileMenu() }
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  transition: filter var(--duration-normal);
+}
+.sidebar-brand:hover .brand-mark {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 40%, transparent));
 }
 .brand-text-group {
   display: flex;
@@ -208,7 +212,14 @@ function navigateTo(path: string) { router.push(path); closeMobileMenu() }
   padding: var(--space-3) var(--space-3);
 }
 .nav-group {
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.nav-group:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 .nav-group-label {
   display: block;
@@ -252,13 +263,12 @@ function navigateTo(path: string) { router.push(path); closeMobileMenu() }
 }
 .nav-item-indicator {
   position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 0;
+  top: 4px;
+  bottom: 4px;
   width: 3px;
-  height: 16px;
   background: var(--primary);
-  border-radius: 2px;
+  border-radius: 0 2px 2px 0;
 }
 
 /* ── Sidebar Footer ── */
@@ -425,6 +435,14 @@ function navigateTo(path: string) { router.push(path); closeMobileMenu() }
 .footer-sep { color: var(--border); }
 
 /* ── Responsive ── */
+/* ── Dark Mode Sidebar ── */
+@media (prefers-color-scheme: dark) {
+  .sidebar {
+    background: var(--card);
+    border-right-color: var(--border);
+  }
+}
+
 @media (max-width: 1024px) {
   .sidebar { display: none; }
   .main-wrapper { margin-left: 0; }

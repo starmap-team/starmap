@@ -766,8 +766,9 @@ onUnmounted(() => {
             <el-icon><DataAnalysis /></el-icon>
           </div>
           <div class="kpi-body">
-            <span class="kpi-value">{{ totalDomains }}</span>
             <span class="kpi-label">技术领域</span>
+            <span class="kpi-value">{{ totalDomains }}</span>
+            <span class="kpi-trend">知识图谱核心分类</span>
           </div>
         </div>
         <div class="kpi-card">
@@ -775,8 +776,9 @@ onUnmounted(() => {
             <el-icon><Collection /></el-icon>
           </div>
           <div class="kpi-body">
-            <span class="kpi-value">{{ totalPositions }}</span>
             <span class="kpi-label">岗位数</span>
+            <span class="kpi-value">{{ totalPositions }}</span>
+            <span class="kpi-trend">IT 行业全覆盖</span>
           </div>
         </div>
         <div class="kpi-card">
@@ -784,8 +786,9 @@ onUnmounted(() => {
             <el-icon><TrendCharts /></el-icon>
           </div>
           <div class="kpi-body">
-            <span class="kpi-value">{{ totalSkills }}</span>
             <span class="kpi-label">技能数</span>
+            <span class="kpi-value">{{ totalSkills }}</span>
+            <span class="kpi-trend">持续增长中</span>
           </div>
         </div>
         <div class="kpi-actions">
@@ -1090,12 +1093,17 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums;
 }
 .kpi-label {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.kpi-trend {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
-  margin-top: 2px;
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  font-weight: 500;
+  margin-top: 1px;
+  opacity: 0.7;
 }
 .kpi-actions {
   display: flex;

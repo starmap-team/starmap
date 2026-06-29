@@ -62,7 +62,7 @@ function handleClear() {
 
 <template>
   <MainLayout>
-    <div class="extract-page">
+    <div class="extract-page animate-fade-in">
       <div class="page-header">
         <h2>JD 智能抽取</h2>
         <p class="subtitle">粘贴职位描述文本，AI 自动提取技能要求</p>

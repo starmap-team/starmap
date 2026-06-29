@@ -49,42 +49,45 @@ defineEmits<{
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-sm);
 }
-
 .tb-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border: none;
   background: none;
   border-radius: var(--radius-md);
   color: var(--muted-foreground);
   cursor: pointer;
-  transition: all var(--duration-fast);
+  transition: all var(--duration-fast) var(--ease-out);
 }
-
 .tb-btn:hover {
   color: var(--foreground);
   background: var(--accent);
 }
-
+.tb-btn:active {
+  transform: scale(0.92);
+}
 .tb-divider {
   width: 1px;
   height: 16px;
   background: var(--border);
   margin: 0 2px;
 }
-
 .tb-count {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
   padding: 0 var(--space-2);
+  font-variant-numeric: tabular-nums;
 }
-
 .tb-label {
   font-size: var(--font-size-xs);
   font-weight: 600;

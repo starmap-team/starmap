@@ -200,7 +200,7 @@ const sourceChartOption = computed(() => {
 
 <template>
   <MainLayout>
-    <div class="quality-page">
+    <div class="quality-page animate-fade-in">
       <div class="page-header">
         <div>
           <h2>图谱质量仪表盘</h2>

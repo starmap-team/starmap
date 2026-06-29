@@ -209,6 +209,11 @@ html { font-size: 16px; -webkit-font-smoothing: antialiased; }
 body { font-family: var(--font-sans); font-size: var(--font-size-base); color: var(--foreground); background: var(--background); line-height: 1.6; letter-spacing: -0.01em; }
 .page-fade-enter-active, .page-fade-leave-active { transition: opacity var(--duration-slow) var(--ease-out); }
 .page-fade-enter-from, .page-fade-leave-to { opacity: 0; }
+.page-slide-enter-active, .page-slide-leave-active {
+  transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out);
+}
+.page-slide-enter-from { opacity: 0; transform: translateY(12px); }
+.page-slide-leave-to { opacity: 0; transform: translateY(-8px); }
 a { color: var(--primary); text-decoration: none; transition: color var(--duration-fast); }
 a:hover { color: var(--primary-hover); }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -304,6 +309,11 @@ html { transition: background-color var(--duration-slow) var(--ease-in-out), col
   border-radius: inherit;
 }
 
+/* ── Content Width ── */
+.content-narrow { max-width: 720px; margin: 0 auto; }
+.content-medium { max-width: 960px; margin: 0 auto; }
+.content-wide { max-width: 1200px; margin: 0 auto; }
+
 /* ── Divider ── */
 .divider {
   height: 1px;
@@ -344,6 +354,26 @@ html { transition: background-color var(--duration-slow) var(--ease-in-out), col
   transform: scaleX(1);
 }
 
+/* ── Section Header ── */
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+}
+.section-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--foreground);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+.section-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  margin-top: var(--space-1);
+}
+
 /* ── Stagger Animation ── */
 @keyframes stagger-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -358,6 +388,21 @@ html { transition: background-color var(--duration-slow) var(--ease-in-out), col
 .stagger > *:nth-child(4) { animation-delay: 150ms; }
 .stagger > *:nth-child(5) { animation-delay: 200ms; }
 .stagger > *:nth-child(6) { animation-delay: 250ms; }
+
+/* ── Interactive Card ── */
+.card-interactive {
+  transition: all var(--duration-normal) var(--ease-out);
+  cursor: pointer;
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--primary) 15%, var(--border));
+}
+.card-interactive:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-xs);
+}
 
 /* ── Subtle Border Glow on Hover ── */
 .border-glow {

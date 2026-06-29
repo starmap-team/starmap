@@ -532,7 +532,10 @@ function exportReport() {
 .rs-value {
   font-size: 3.5rem;
   font-weight: 900;
-  color: var(--primary);
+  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 70%, var(--chart-2)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   line-height: 1;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;

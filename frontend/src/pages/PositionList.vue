@@ -61,7 +61,7 @@ onMounted(fetchPositions)
 
 <template>
   <MainLayout>
-    <div class="position-list-page">
+    <div class="position-list-page animate-fade-in">
       <div class="page-header">
         <h2>岗位列表</h2>
         <p class="subtitle">

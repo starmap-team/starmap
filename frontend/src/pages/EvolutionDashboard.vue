@@ -174,7 +174,7 @@ onMounted(fetchTrends)
 
 <template>
   <MainLayout>
-    <div class="evolution-page">
+    <div class="evolution-page animate-fade-in">
       <!-- 标题 -->
       <div class="page-header">
         <div>
@@ -190,17 +190,14 @@ onMounted(fetchTrends)
       <div class="kpi-row">
         <!-- CII 仪表盘 -->
         <el-card class="gauge-card" shadow="hover">
-          <template #header>CII 仪表盘</template>
+          <template #header><div class="card-header-row"><span>CII 仪表盘</span><span class="card-header-badge">实时</span></div></template>
           <VChart v-if="items.length" :option="ciiGaugeOption" autoresize class="chart-h-gauge" />
           <el-empty v-else description="暂无数据" />
         </el-card>
 
         <!-- 新兴技能卡片 -->
         <el-card class="emerging-card" shadow="hover">
-          <template #header>
-            <span>新兴技能</span>
-            <el-tag type="success" size="small" effect="plain" class="ml-2">rising</el-tag>
-          </template>
+          <template #header><div class="card-header-row"><span>新兴技能</span><el-tag type="success" size="small" effect="plain" class="ml-2">rising</el-tag></div></template>
           <div class="emerging-grid">
             <div v-for="skill in emergingSkills" :key="skill.skill_name" class="emerging-item" @click="fetchChangelog(skill.skill_name)">
               <div class="emerging-name">{{ skill.skill_name }}</div>
@@ -434,6 +431,21 @@ onMounted(fetchTrends)
 .cii-up { color: var(--success); font-weight: 600; font-variant-numeric: tabular-nums; }
 .cii-down { color: var(--destructive); font-weight: 600; font-variant-numeric: tabular-nums; }
 .trust-meta { color: var(--muted-foreground); font-size: var(--font-size-xs); }
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.card-header-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--success);
+  background: var(--success-ghost);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.04em;
+}
 .select-sm { width: 160px; }
 .select-md { width: 180px; }
 .chart-h-gauge { height: 240px; }

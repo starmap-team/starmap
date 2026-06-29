@@ -145,7 +145,7 @@ async function handleReset() {
 
 <template>
   <MainLayout>
-    <div class="admin-page">
+    <div class="admin-page animate-fade-in">
       <div class="page-header">
         <div>
           <h2>管理后台</h2>
