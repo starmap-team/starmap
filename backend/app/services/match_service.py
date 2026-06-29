@@ -5,6 +5,8 @@ from __future__ import annotations
 from copy import deepcopy
 from difflib import SequenceMatcher
 from math import ceil
+
+from loguru import logger
 from typing import Any
 from uuid import uuid4
 
@@ -71,6 +73,67 @@ POSITION_SKILL_PROFILES: dict[str, dict[str, list[dict[str, str]]]] = {
             {"skill": "Microservices", "category": "hard_skill", "proficiency": "了解"},
         ],
     },
+    "后端工程师": {
+        "required": [
+            {"skill": "Python", "category": "hard_skill", "proficiency": "精通"},
+            {"skill": "FastAPI", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "PostgreSQL", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Redis", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Docker", "category": "tool", "proficiency": "了解"},
+            {"skill": "REST API", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Git", "category": "tool", "proficiency": "熟悉"},
+        ],
+        "bonus": [
+            {"skill": "Linux", "category": "tool", "proficiency": "了解"},
+            {"skill": "Microservices", "category": "hard_skill", "proficiency": "了解"},
+        ],
+    },
+    "前端工程师": {
+        "required": [
+            {"skill": "JavaScript", "category": "hard_skill", "proficiency": "精通"},
+            {"skill": "Vue.js", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "HTML5", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "CSS3", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "TypeScript", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Git", "category": "tool", "proficiency": "熟悉"},
+        ],
+        "bonus": [
+            {"skill": "Node.js", "category": "hard_skill", "proficiency": "了解"},
+            {"skill": "Webpack", "category": "tool", "proficiency": "了解"},
+        ],
+    },
+    "DevOps工程师": {
+        "required": [
+            {"skill": "Docker", "category": "tool", "proficiency": "精通"},
+            {"skill": "Kubernetes", "category": "tool", "proficiency": "熟悉"},
+            {"skill": "Linux", "category": "tool", "proficiency": "精通"},
+            {"skill": "CI/CD", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Terraform", "category": "tool", "proficiency": "熟悉"},
+            {"skill": "Prometheus", "category": "tool", "proficiency": "了解"},
+            {"skill": "Grafana", "category": "tool", "proficiency": "了解"},
+        ],
+        "bonus": [
+            {"skill": "AWS", "category": "tool", "proficiency": "了解"},
+            {"skill": "Ansible", "category": "tool", "proficiency": "了解"},
+            {"skill": "Python", "category": "hard_skill", "proficiency": "熟悉"},
+        ],
+    },
+    "AI工程师": {
+        "required": [
+            {"skill": "Python", "category": "hard_skill", "proficiency": "精通"},
+            {"skill": "Machine Learning", "category": "hard_skill", "proficiency": "精通"},
+            {"skill": "Deep Learning", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "PyTorch", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "TensorFlow", "category": "hard_skill", "proficiency": "了解"},
+            {"skill": "NLP", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "scikit-learn", "category": "hard_skill", "proficiency": "熟悉"},
+        ],
+        "bonus": [
+            {"skill": "LLM", "category": "hard_skill", "proficiency": "了解"},
+            {"skill": "LangChain", "category": "hard_skill", "proficiency": "了解"},
+            {"skill": "Docker", "category": "tool", "proficiency": "了解"},
+        ],
+    },
 }
 
 PREREQUISITE_MAP: dict[str, list[str]] = {
@@ -94,9 +157,89 @@ PREREQUISITE_MAP: dict[str, list[str]] = {
 _MATCH_RESULTS: dict[str, dict[str, Any]] = {}
 
 
+# Common skill aliases for fuzzy matching
+_SKILL_ALIASES: dict[str, str] = {
+    "js": "JavaScript",
+    "ts": "TypeScript",
+    "py": "Python",
+    "golang": "Go",
+    "k8s": "Kubernetes",
+    "reactjs": "React",
+    "react.js": "React",
+    "vuejs": "Vue.js",
+    "vue": "Vue.js",
+    "nodejs": "Node.js",
+    "node": "Node.js",
+    "pg": "PostgreSQL",
+    "postgres": "PostgreSQL",
+    "tf": "TensorFlow",
+    "pt": "PyTorch",
+    "aws": "AWS",
+    "gcp": "GCP",
+    "ml": "Machine Learning",
+    "dl": "Deep Learning",
+    "nlp": "NLP",
+    "cv": "Computer Vision",
+    "llm": "LLM",
+    "ai agent": "AI Agent",
+    "spring boot": "Spring Boot",
+    "springboot": "Spring Boot",
+    "springboot框架": "Spring Boot",
+    "mybatis": "MyBatis",
+    "mybatis-plus": "MyBatis",
+    "linux操作系统": "Linux",
+    "centos": "Linux",
+    "ubuntu": "Linux",
+    "hadoop": "Hadoop",
+    "spark": "Spark",
+    "flink": "Flink",
+    "数据仓库": "Data Warehouse",
+    "数据建模": "Data Modeling",
+    "机器学习": "Machine Learning",
+    "深度学习": "Deep Learning",
+    "自然语言处理": "NLP",
+    "计算机视觉": "Computer Vision",
+    "大模型": "LLM",
+    "大语言模型": "LLM",
+    "transformer": "Transformer",
+    "bert": "BERT",
+    "gpt": "GPT",
+    "向量数据库": "Vector Database",
+    "chromadb": "ChromaDB",
+    "langchain": "LangChain",
+    "微服务": "Microservices",
+    "微服务架构": "Microservices",
+    "分布式系统": "Distributed Systems",
+    "消息队列": "Message Queue",
+    "rabbitmq": "RabbitMQ",
+    "nginx": "Nginx",
+    "jenkins": "Jenkins",
+    "git": "Git",
+    "github": "GitHub",
+    "gitlab": "GitLab",
+    "agile": "Agile",
+    "敏捷开发": "Agile",
+    "scrum": "Scrum",
+    "jira": "JIRA",
+    "figma": "Figma",
+    "sketch": "Sketch",
+    "photoshop": "Photoshop",
+    "ai": "AI",
+    "人工智能": "AI",
+}
+
+# Fuzzy match threshold (SequenceMatcher ratio)
+FUZZY_MATCH_THRESHOLD = 0.7
+
+
 def _canonical_skill_name(name: str) -> str:
-    normalized = normalize_skill(name).normalized
-    return normalized or name.strip()
+    normalized = normalize_skill(name, use_vector=False).normalized
+    result = (normalized or name.strip())
+    # Check alias map
+    lower = result.lower()
+    if lower in _SKILL_ALIASES:
+        return _SKILL_ALIASES[lower]
+    return result
 
 
 def _position_key(target_position: str) -> str:
@@ -122,20 +265,35 @@ def _fallback_profile(target_position: str) -> dict[str, list[dict[str, str]]]:
 
 
 async def _load_target_profile(driver: Any, target_position: str) -> dict[str, list[dict[str, str]]]:
+    """Load target position skills from Neo4j graph first, fallback to hardcoded profiles."""
     if driver is not None:
-        graph = await fetch_position_graph(driver, target_position, depth=3)
-        if graph.get("skills"):
-            return {
-                "required": [
-                    {
-                        "skill": item.get("properties", {}).get("name", item.get("name", "")),
-                        "category": item.get("properties", {}).get("category", item.get("category", "hard_skill")),
-                        "proficiency": item.get("properties", {}).get("proficiency", item.get("proficiency", "熟悉")),
+        try:
+            graph = await fetch_position_graph(driver, target_position, depth=3)
+            if graph.get("skills"):
+                required: list[dict[str, str]] = []
+                bonus: list[dict[str, str]] = []
+                for item in graph["skills"]:
+                    props = item.get("properties", {})
+                    skill_entry = {
+                        "skill": props.get("name", item.get("name", "")),
+                        "category": props.get("category", item.get("category", "hard_skill")),
+                        "proficiency": props.get("proficiency", item.get("proficiency", "熟悉")),
                     }
-                    for item in graph["skills"]
-                ],
-                "bonus": [],
-            }
+                    importance = props.get("importance", "required")
+                    if importance == "bonus":
+                        bonus.append(skill_entry)
+                    else:
+                        required.append(skill_entry)
+                if required or bonus:
+                    logger.info(
+                        "[Match] Loaded {} required + {} bonus skills from graph for \"{}\"",
+                        len(required), len(bonus), target_position,
+                    )
+                    return {"required": required, "bonus": bonus}
+        except Exception as exc:
+            logger.warning("[Match] Graph lookup failed for \"{}\": {}", target_position, exc)
+    # Fallback to hardcoded profiles
+    logger.info("[Match] Using fallback profile for \"{}\"", target_position)
     return _fallback_profile(target_position)
 
 
@@ -144,7 +302,11 @@ def _semantic_similarity(left: str, right: str) -> float:
     right_name = _canonical_skill_name(right).lower()
     if left_name == right_name:
         return 1.0
-    return SequenceMatcher(a=left_name, b=right_name).ratio()
+    ratio = SequenceMatcher(a=left_name, b=right_name).ratio()
+    # B16: Treat fuzzy match above threshold as strong match
+    if ratio >= FUZZY_MATCH_THRESHOLD:
+        return ratio
+    return ratio
 
 
 def _apply_inflation_correction(profile: dict[str, list[dict[str, str]]]) -> tuple[list[dict[str, str]], list[dict[str, str]], float]:
@@ -238,8 +400,10 @@ async def run_match(
         target_name = _canonical_skill_name(item["skill"])
         target_level = PROFICIENCY_SCORE.get(item.get("proficiency", "熟悉"), 0.65)
         exact = 1.0 if target_name in person_level_map else 0.0
-        semantic = max((_semantic_similarity(target_name, candidate) for candidate in person_name_map.values()), default=0.0)
-        recall_score = (0.7 * exact) + (0.3 * semantic)
+        best_semantic = max((_semantic_similarity(target_name, candidate) for candidate in person_name_map.values()), default=0.0)
+        # B16: Fuzzy match (SequenceMatcher > 0.7) counts as a strong match
+        fuzzy_match = 1.0 if best_semantic >= FUZZY_MATCH_THRESHOLD else best_semantic
+        recall_score = (0.5 * exact) + (0.3 * fuzzy_match) + (0.2 * best_semantic)
         user_level = person_level_map.get(target_name, 0.0)
         proficiency_coverage = min(1.0, user_level / target_level) if target_level else 1.0
         final_score = min(1.0, recall_score * (0.65 + (0.35 * proficiency_coverage)))
@@ -312,6 +476,36 @@ async def run_match(
     return result
 
 
-def get_match_result(match_id: str) -> dict[str, Any] | None:
-    """Return a previously computed match result."""
-    return _MATCH_RESULTS.get(match_id)
+async def get_match_result(match_id: str) -> dict[str, Any] | None:
+    """Return a previously computed match result (DB first, memory fallback)."""
+    # Try in-memory cache first (fast path)
+    if match_id in _MATCH_RESULTS:
+        return _MATCH_RESULTS[match_id]
+
+    # Try PostgreSQL
+    from sqlalchemy import text
+    from app.services.resources import AppResources
+
+    try:
+        async with AppResources.pg_sessionmaker() as session:
+            row = await session.execute(
+                text("SELECT * FROM match_results WHERE match_id = :match_id"),
+                {"match_id": match_id},
+            )
+            db_result = row.mappings().first()
+            if db_result:
+                return {
+                    "match_id": db_result["match_id"],
+                    "target_position": db_result["target_position"],
+                    "match_score": db_result["match_score"],
+                    "matched_skills": db_result["matched_skills"],
+                    "missing_required": db_result["missing_required"],
+                    "missing_bonus": db_result["missing_bonus"],
+                    "skill_gap_detail": db_result.get("gap_report", {}).get("skill_gap_detail", []),
+                    "recommendations": db_result.get("learning_path", []),
+                    "cii": db_result.get("cii", 1.0),
+                }
+    except Exception:
+        pass
+
+    return None

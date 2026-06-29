@@ -11,7 +11,7 @@ from loguru import logger
 
 from app.core.extraction.jd_extract import extract_from_jd
 
-SUPPORTED_RESUME_EXTENSIONS = {"pdf", "docx", "doc"}
+SUPPORTED_RESUME_EXTENSIONS = {"pdf", "docx"}
 
 
 def get_resume_extension(filename: str) -> str:

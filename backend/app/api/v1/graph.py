@@ -1,4 +1,4 @@
-"""图谱查询 API。"""
+﻿"""图谱查询 API。"""
 from __future__ import annotations
 
 from typing import Annotated, Any
@@ -125,7 +125,12 @@ async def graph_query(
 async def get_graph_panorama(
     driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> GraphPanoramaResponse:
-    graph = await fetch_panorama(driver)
+    try:
+        graph = await fetch_panorama(driver)
+    except Exception as exc:
+        from loguru import logger
+        logger.error("Panorama query failed: {}", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return GraphPanoramaResponse(nodes=_graph_nodes(graph["nodes"]), edges=_graph_edges(graph["edges"]))
 
 
@@ -160,8 +165,219 @@ async def get_position_skills(
     depth: Annotated[int, Query(description="递归查询深度（含技能先修关系）", ge=1, le=5)] = 1,
 ) -> PositionSkillDetailResponse:
     graph = await fetch_position_graph(driver, position_id, depth)
+    if graph["position"] is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Position '{position_id}' not found")
     return PositionSkillDetailResponse(
         position=graph["position"],
         skills=graph["skills"],
         edges=_graph_edges(graph["edges"]),
+    )
+
+class DomainOverviewItem(BaseModel):
+    """领域概览中的单个 KA 节点。"""
+    id: str
+    name: str
+    position_count: int = 0
+    skill_count: int = 0
+    color: str = ""
+
+
+class DomainOverviewResponse(BaseModel):
+    """领域概览响应：KA 节点 + KA 间关联。"""
+    domains: list[DomainOverviewItem] = Field(default_factory=list)
+    connections: list[GraphEdge] = Field(default_factory=list)
+    total_positions: int = 0
+    total_skills: int = 0
+
+
+class DomainDetailResponse(BaseModel):
+    """单个领域的详情：KA 下的 Position 列表。"""
+    domain_name: str = ""
+    positions: list[GraphNode] = Field(default_factory=list)
+    edges: list[GraphEdge] = Field(default_factory=list)
+
+
+@router.get(
+    "/overview",
+    summary="领域概览",
+    description="返回 KnowledgeArea 节点 + 聚合统计，用于第一层领域视图。",
+    response_model=DomainOverviewResponse,
+)
+async def get_graph_overview(
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    group_by: Annotated[str, Query(description="分组方式: domain(默认)/tech_stack/level")] = "domain",
+) -> DomainOverviewResponse:
+    if driver is None:
+        return DomainOverviewResponse()
+    # Dispatch to specialized queries
+    if group_by == "tech_stack":
+        from app.services.graph_service import fetch_overview_by_tech_stack
+        data = await fetch_overview_by_tech_stack(driver)
+        return DomainOverviewResponse(**data)
+    if group_by == "level":
+        from app.services.graph_service import fetch_overview_by_level
+        data = await fetch_overview_by_level(driver)
+        return DomainOverviewResponse(**data)
+    from app.services.graph_service import serialize_node, serialize_relationship
+    DOMAIN_COLORS = {
+        "人工智能": "#9B59B6", "AI/机器学习": "#9B59B6",
+        "数据科学": "#E6A23C", "数据工程": "#E6A23C",
+        "前端工程": "#409EFF", "前端开发": "#409EFF",
+        "后端架构": "#67C23A", "后端开发": "#67C23A",
+        "云计算": "#36CFC9", "DevOps": "#36CFC9",
+    }
+    async with driver.session() as session:
+        # Get all KA nodes with counts
+        ka_query = """
+        MATCH (ka:KnowledgeArea)
+        OPTIONAL MATCH (ka)<-[:BELONGS_TO]-(s:Skill)
+        OPTIONAL MATCH (s)<-[:REQUIRES]-(p:Position)
+        RETURN ka, count(DISTINCT s) AS skill_count, count(DISTINCT p) AS pos_count
+        """
+        result = await session.run(ka_query)
+        domains = []
+        total_pos = 0
+        total_skill = 0
+        async for record in result:
+            ka_node = record["ka"]
+            if ka_node is None:
+                continue
+            props = dict(ka_node)
+            name = props.get("name", "")
+            sc = record["skill_count"]
+            pc = record["pos_count"]
+            total_skill += sc
+            total_pos += pc
+            color = DOMAIN_COLORS.get(name, "#909399")
+            for key, val in DOMAIN_COLORS.items():
+                if key in name:
+                    color = val
+                    break
+            domains.append(DomainOverviewItem(
+                id=str(ka_node.element_id),
+                name=name,
+                position_count=pc,
+                skill_count=sc,
+                color=color,
+            ))
+
+        # Get KA-KA connections via shared positions
+        conn_query = """
+        MATCH (ka1:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[:REQUIRES]-(p:Position)-[:REQUIRES]->(s2:Skill)-[:BELONGS_TO]->(ka2:KnowledgeArea)
+        WHERE elementId(ka1) < elementId(ka2)
+        RETURN DISTINCT ka1, ka2
+        LIMIT 100
+        """
+        conn_result = await session.run(conn_query)
+        connections = []
+        async for record in conn_result:
+            ka1 = record["ka1"]
+            ka2 = record["ka2"]
+            if ka1 and ka2:
+                connections.append(GraphEdge(
+                    source_id=str(ka1.element_id),
+                    target_id=str(ka2.element_id),
+                    type="SHARES_POSITION",
+                    properties={"weight": 0.5},
+                ))
+
+    return DomainOverviewResponse(
+        domains=domains,
+        connections=connections,
+        total_positions=total_pos,
+        total_skills=total_skill,
+    )
+
+
+@router.get(
+    "/domain/{domain_name}",
+    summary="领域详情",
+    description="返回指定 KnowledgeArea 下的 Position 节点列表。",
+    response_model=DomainDetailResponse,
+)
+async def get_domain_detail(
+    domain_name: str,
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+) -> DomainDetailResponse:
+    if driver is None:
+        return DomainDetailResponse(domain_name=domain_name)
+    from app.services.graph_service import serialize_node, serialize_relationship
+    async with driver.session() as session:
+        query = """
+        MATCH (ka:KnowledgeArea)-[:CONTAINS]-(s:Skill)<-[r:REQUIRES]-(p:Position)
+        WHERE ka.name CONTAINS $name
+        RETURN DISTINCT p, r, s
+        """
+        result = await session.run(query, name=domain_name)
+        positions = {}
+        edges = []
+        async for record in result:
+            p = record["p"]
+            if p and p.element_id not in positions:
+                positions[p.element_id] = serialize_node(p)
+            r = record["r"]
+            if r:
+                edges.append(serialize_relationship(r))
+
+    return DomainDetailResponse(
+        domain_name=domain_name,
+        positions=list(positions.values()),
+        edges=edges,
+    )
+class KAPositionsResponse(BaseModel):
+    """单个 KA 下的 Position 列表 + 关联 Skill 边。"""
+    ka_id: str = ""
+    ka_name: str = ""
+    positions: list[GraphNode] = Field(default_factory=list)
+    position_skill_edges: list[GraphEdge] = Field(default_factory=list)
+
+
+@router.get(
+    "/ka/{ka_id}/positions",
+    summary="KA 下的岗位列表",
+    description="返回指定 KnowledgeArea 下的 Position 节点及其与 Skill 的 REQUIRES 关系。",
+    response_model=KAPositionsResponse,
+)
+async def get_ka_positions(
+    ka_id: str,
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+) -> KAPositionsResponse:
+    if driver is None:
+        return KAPositionsResponse(ka_id=ka_id)
+    from app.services.graph_service import serialize_node, serialize_relationship
+    async with driver.session() as session:
+        # Find KA name first
+        ka_query = """
+        MATCH (ka:KnowledgeArea)
+        WHERE elementId(ka) = $ka_id
+        RETURN ka.name AS name
+        LIMIT 1
+        """
+        ka_result = await session.run(ka_query, ka_id=ka_id)
+        ka_record = await ka_result.single()
+        ka_name = ka_record["name"] if ka_record and ka_record["name"] else ""
+
+        # Get positions under this KA via Skill BELONGS_TO
+        query = """
+        MATCH (ka:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[r:REQUIRES]-(p:Position)
+        WHERE elementId(ka) = $ka_id
+        RETURN DISTINCT p, r, s
+        """
+        result = await session.run(query, ka_id=ka_id)
+        positions: dict[str, dict[str, Any]] = {}
+        edges: list[dict[str, Any]] = []
+        async for record in result:
+            p = record["p"]
+            if p and p.element_id not in positions:
+                positions[p.element_id] = serialize_node(p)
+            r = record["r"]
+            if r:
+                edges.append(serialize_relationship(r))
+
+    return KAPositionsResponse(
+        ka_id=ka_id,
+        ka_name=ka_name,
+        positions=list(positions.values()),
+        position_skill_edges=edges,
     )
