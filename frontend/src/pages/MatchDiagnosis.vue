@@ -319,7 +319,7 @@ function exportReport() {
                 </div>
                 <div class="rs-row">
                   <span class="rs-label">综合评估</span>
-                  <span class="rs-text">{{ matchResult?.overall_assessment ?? '暂无评估' }}</span>
+                  <span class="rs-text">{{ matchResult?.overall_assessment ?? '等待评估结果生成' }}</span>
                 </div>
                 <div v-if="matchResult?.estimated_learning_time" class="rs-row">
                   <span class="rs-label">预计学习时间</span>
@@ -358,7 +358,7 @@ function exportReport() {
               <el-button size="large" :icon="Download" @click="exportReport">导出报告</el-button>
             </div>
           </div>
-          <div v-else class="step-empty">暂无诊断结果</div>
+          <div v-else class="step-empty">诊断尚未开始，请完成前序步骤</div>
         </div>
       </div>
 

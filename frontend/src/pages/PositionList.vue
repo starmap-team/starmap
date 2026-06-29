@@ -141,17 +141,17 @@ onMounted(fetchPositions)
 
       <!-- 空状态引导 -->
       <div v-else class="empty-guide">
-        <el-empty description="暂无岗位数据">
-          <template #image>
-            <div class="empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-          </template>
+        <div class="custom-empty">
+          <div class="empty-icon-wrapper"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
+          <p class="empty-text">未找到匹配的岗位</p>
+          <p class="empty-hint-text">尝试调整筛选条件或关键词</p>
           <div class="empty-actions">
             <p class="empty-hint-text">请先执行数据采集，或从 JD 中抽取岗位信息</p>
             <el-button type="primary" :icon="Plus" @click="goExtract">
               前往 JD 抽取
             </el-button>
           </div>
-        </el-empty>
+        </div>
       </div>
     </div>
   </MainLayout>
@@ -226,4 +226,34 @@ onMounted(fetchPositions)
 .industry-tags { margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .clickable-tag { cursor: pointer; }
 .result-count { margin-bottom: var(--space-4); color: var(--muted-foreground); font-size: var(--font-size-sm); }
+
+/* ── Custom Empty State ── */
+.custom-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+.empty-icon-wrapper {
+  color: var(--muted-foreground);
+  opacity: 0.4;
+  margin-bottom: var(--space-4);
+}
+.empty-text {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+  letter-spacing: var(--tracking-tight);
+}
+.empty-hint-text {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  margin: var(--space-1) 0 0;
+}
+.empty-slot {
+  margin-top: var(--space-4);
+}
 </style>

@@ -343,7 +343,7 @@ async function handleReset() {
               v-if="!filteredAuditQueue.length"
               class="empty-state"
             >
-              暂无匹配的审核项
+              当前筛选条件下无审核项
             </div>
             <div v-if="filteredAuditQueue.length" style="margin-top: 16px; display: flex; justify-content: center;">
               <el-pagination

@@ -855,7 +855,7 @@ onUnmounted(() => {
             <div ref="graphRef" class="graph-canvas" />
             <div v-if="!graphStore.loading && graphStore.visibleNodes.length === 0" class="empty-hint">
               <el-icon size="40" color="var(--muted-foreground)"><Aim /></el-icon>
-              <p>暂无数据，请检查后端服务</p>
+              <p class="empty-text">图谱数据为空</p><p class="empty-hint-text">请确认后端服务已启动并有数据接入</p>
             </div>
 
             <!-- Floating toolbar -->

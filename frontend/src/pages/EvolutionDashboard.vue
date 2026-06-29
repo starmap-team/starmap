@@ -192,7 +192,7 @@ onMounted(fetchTrends)
         <el-card class="gauge-card" shadow="hover">
           <template #header><div class="card-header-row"><span>CII 仪表盘</span><span class="card-header-badge">实时</span></div></template>
           <VChart v-if="items.length" :option="ciiGaugeOption" autoresize class="chart-h-gauge" />
-          <el-empty v-else description="暂无数据" />
+          <div v-else class="custom-empty"><div class="empty-icon-wrapper"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div><p class="empty-text">图表数据为空</p><p class="empty-hint-text">技能 CII 数据将在分析完成后展示</p></div>
         </el-card>
 
         <!-- 新兴技能卡片 -->
@@ -206,7 +206,7 @@ onMounted(fetchTrends)
                 <el-tag size="small" type="success" effect="plain" class="pulse-tag">↑ {{ ((skill.confidence ?? 0) * 100).toFixed(0) }}%</el-tag>
               </div>
             </div>
-            <el-empty v-if="!emergingSkills.length" description="暂无新兴技能" />
+            <div v-if="!emergingSkills.length" class="custom-empty"><div class="empty-icon-wrapper"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div><p class="empty-text">暂未检测到新兴技能</p><p class="empty-hint-text">当技能 CII 指数出现显著上升时会在此显示</p></div>
           </div>
         </el-card>
       </div>
@@ -215,7 +215,7 @@ onMounted(fetchTrends)
       <el-card v-loading="loading" class="chart-card">
         <template #header>CII 时序趋势</template>
         <VChart v-if="items.length" :option="chartOption" autoresize class="chart-h-lg" />
-        <el-empty v-else description="暂无演化数据" />
+        <div v-else class="custom-empty"><div class="empty-icon-wrapper"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg></div><p class="empty-text">演化数据待生成</p><p class="empty-hint-text">CII 时序分析运行后将自动填充</p></div>
       </el-card>
 
       <!-- Task 3: 技能对比 -->
@@ -280,7 +280,7 @@ onMounted(fetchTrends)
               </el-card>
             </el-timeline-item>
           </el-timeline>
-          <el-empty v-else description="暂无演化记录" />
+          <div v-else class="custom-empty"><div class="empty-icon-wrapper"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div><p class="empty-text">该技能暂无变更记录</p></div>
         </div>
       </el-drawer>
     </div>
@@ -453,4 +453,34 @@ onMounted(fetchTrends)
 .chart-h-md { height: 300px; }
 .ml-2 { margin-left: var(--space-2); }
 .mt-3 { margin-top: var(--space-3); }
+
+/* ── Custom Empty State ── */
+.custom-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+.empty-icon-wrapper {
+  color: var(--muted-foreground);
+  opacity: 0.4;
+  margin-bottom: var(--space-4);
+}
+.empty-text {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+  letter-spacing: var(--tracking-tight);
+}
+.empty-hint-text {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  margin: var(--space-1) 0 0;
+}
+.empty-slot {
+  margin-top: var(--space-4);
+}
 </style>

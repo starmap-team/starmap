@@ -151,7 +151,7 @@ function handleClear() {
                 </el-table-column>
               </el-table>
             </div>
-            <el-empty v-else description="请在左侧输入 JD 文本并点击抽取" />
+            <div v-else class="custom-empty"><div class="empty-icon-wrapper"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div><p class="empty-text">输入 JD 文本开始抽取</p><p class="empty-hint-text">粘贴职位描述后点击「开始抽取」</p></div>
           </el-card>
         </el-col>
       </el-row>
@@ -176,4 +176,34 @@ function handleClear() {
 .result-section-title:not(:first-child) { margin-top: var(--space-3); }
 .skill-tags-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .empty-text { color: var(--muted-foreground); font-size: var(--font-size-sm); }
+
+/* ── Custom Empty State ── */
+.custom-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+.empty-icon-wrapper {
+  color: var(--muted-foreground);
+  opacity: 0.4;
+  margin-bottom: var(--space-4);
+}
+.empty-text {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+  letter-spacing: var(--tracking-tight);
+}
+.empty-hint-text {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  margin: var(--space-1) 0 0;
+}
+.empty-slot {
+  margin-top: var(--space-4);
+}
 </style>

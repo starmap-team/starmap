@@ -98,10 +98,11 @@ const radarOption = computed(() => {
       style="height: 400px"
       autoresize
     />
-    <el-empty
-      v-else
-      description="暂无雷达图数据"
-    />
+    <div class="custom-empty">
+      <div class="empty-icon-wrapper"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+      <p class="empty-text">雷达图数据不足</p>
+      <p class="empty-hint-text">需要至少 3 项技能才能生成雷达图</p>
+    </div>
   </div>
 </template>
 
@@ -118,4 +119,9 @@ const radarOption = computed(() => {
   margin-bottom: var(--space-3);
   letter-spacing: var(--tracking-tight);
 }
+
+.custom-empty { display: flex; flex-direction: column; align-items: center; padding: var(--space-8) var(--space-4); text-align: center; }
+.empty-icon-wrapper { color: var(--muted-foreground); opacity: 0.4; margin-bottom: var(--space-3); }
+.empty-text { font-size: var(--font-size-base); font-weight: 600; color: var(--foreground); margin: 0; }
+.empty-hint-text { font-size: var(--font-size-sm); color: var(--muted-foreground); margin: var(--space-1) 0 0; }
 </style>

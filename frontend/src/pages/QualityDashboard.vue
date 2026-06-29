@@ -298,11 +298,11 @@ const sourceChartOption = computed(() => {
               class="chart-h-md"
               autoresize
             />
-            <el-empty
-              v-else
-              description="暂无数据"
-              :image-size="80"
-            />
+            <div class="custom-empty">
+              <div class="empty-icon-wrapper"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg></div>
+              <p class="empty-text">数据加载中</p>
+              <p class="empty-hint-text">图谱质量指标将在评估完成后展示</p>
+            </div>
           </el-card>
         </el-col>
         <el-col
@@ -321,11 +321,11 @@ const sourceChartOption = computed(() => {
               class="chart-h-md"
               autoresize
             />
-            <el-empty
-              v-else
-              description="暂无数据"
-              :image-size="80"
-            />
+            <div class="custom-empty">
+              <div class="empty-icon-wrapper"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg></div>
+              <p class="empty-text">数据加载中</p>
+              <p class="empty-hint-text">图谱质量指标将在评估完成后展示</p>
+            </div>
           </el-card>
         </el-col>
       </el-row>
@@ -348,11 +348,10 @@ const sourceChartOption = computed(() => {
               class="chart-h-sm"
               autoresize
             />
-            <el-empty
-              v-else
-              description="暂无数据源信息"
-              :image-size="80"
-            />
+            <div class="custom-empty">
+              <div class="empty-icon-wrapper"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+              <p class="empty-text">数据源信息待同步</p>
+            </div>
           </el-card>
         </el-col>
         <el-col
@@ -370,7 +369,7 @@ const sourceChartOption = computed(() => {
               stripe
               size="small"
               max-height="310"
-              empty-text="暂无待审核数据"
+              empty-text="队列为空，暂无待审核项"
             >
               <el-table-column
                 prop="id"
@@ -537,4 +536,9 @@ const sourceChartOption = computed(() => {
 .mb-4 { margin-bottom: var(--space-4); }
 .chart-h-md { height: 330px; }
 .chart-h-sm { height: 310px; }
+
+.custom-empty { display: flex; flex-direction: column; align-items: center; padding: var(--space-8) var(--space-4); text-align: center; }
+.empty-icon-wrapper { color: var(--muted-foreground); opacity: 0.4; margin-bottom: var(--space-3); }
+.empty-text { font-size: var(--font-size-base); font-weight: 600; color: var(--foreground); margin: 0; }
+.empty-hint-text { font-size: var(--font-size-sm); color: var(--muted-foreground); margin: var(--space-1) 0 0; }
 </style>
