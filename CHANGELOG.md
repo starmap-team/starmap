@@ -4,6 +4,28 @@
 
 ## [Unreleased]
 
+## [v0.6.0] - 2026-06-29 - 演化闭环 + 图谱UX优化 + 关键Bug修复
+
+### Fixed - 种子数据脚本 (R0)
+- seed_skill_timeseries.py: 3个bug修复(datetime isoformat→对象, str→json.dumps, SQL cast) → 96条时序记录
+- seed_evolution_snapshots.py: datetime isoformat修复 → 10条快照覆盖5岗位
+
+### Fixed - 后端演化闭环 (R0)
+- orchestrator _write_evolves_to_neo4j: Cypher参数绑定修复($source/$target/$similarity等)
+- stage3_services _extraction_payload_from_record: list/dict类型兼容修复
+- 演化分析端到端验证: 43条记录、250技能分析、61条EVOLVES_TO写入Neo4j
+
+### Added - 前端全景图谱UX优化 (R5)
+- 空域过滤: 移除position_count=0且skill_count=0的知识领域
+- 富标签: 域节点显示岗位数/技能数(如'AI/机器学习\n32岗 117技')
+- 技能趋势指示: detail层技能节点按趋势着色(上升=红色光晕, 稳定=绿色, 下降=灰色)
+- G6性能优化: autoFit视图、scroll-zoom行为、毛玻璃tooltip
+- 域层边过滤: 仅显示可见域之间的连接
+
+### PR 合流记录
+- PR #54: feat(R0) Loop2优化 — squash merge
+
+
 ## [v0.5.0] - 2026-06-29 - 全景图谱增强 + 证据链数据补齐
 
 ### Added - 全景图谱增强 (R5)
@@ -132,6 +154,28 @@
 - match_service.py 评分公式优化：0.5×exact + 0.3×fuzzy + 0.2×semantic
 
 ## [Unreleased]
+
+## [v0.6.0] - 2026-06-29 - 演化闭环 + 图谱UX优化 + 关键Bug修复
+
+### Fixed - 种子数据脚本 (R0)
+- seed_skill_timeseries.py: 3个bug修复(datetime isoformat→对象, str→json.dumps, SQL cast) → 96条时序记录
+- seed_evolution_snapshots.py: datetime isoformat修复 → 10条快照覆盖5岗位
+
+### Fixed - 后端演化闭环 (R0)
+- orchestrator _write_evolves_to_neo4j: Cypher参数绑定修复($source/$target/$similarity等)
+- stage3_services _extraction_payload_from_record: list/dict类型兼容修复
+- 演化分析端到端验证: 43条记录、250技能分析、61条EVOLVES_TO写入Neo4j
+
+### Added - 前端全景图谱UX优化 (R5)
+- 空域过滤: 移除position_count=0且skill_count=0的知识领域
+- 富标签: 域节点显示岗位数/技能数(如'AI/机器学习\n32岗 117技')
+- 技能趋势指示: detail层技能节点按趋势着色(上升=红色光晕, 稳定=绿色, 下降=灰色)
+- G6性能优化: autoFit视图、scroll-zoom行为、毛玻璃tooltip
+- 域层边过滤: 仅显示可见域之间的连接
+
+### PR 合流记录
+- PR #54: feat(R0) Loop2优化 — squash merge
+
 
 ### Added — 阶段0：环境与仓库搭建（W1）
 - 初始化 monorepo 结构（backend / frontend / crawler / evaluation / starmap-contracts）
