@@ -8,6 +8,7 @@ import { useRoute } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import SkillRadar, { type RadarItem } from '@/components/SkillRadar.vue'
+import request from '@/api/request'
 
 const route = useRoute()
 const positionName = computed(() => route.params.name as string)
@@ -64,10 +65,11 @@ const PROFICIENCY_TAG: Record<string, string> = {
 onMounted(async () => {
   loading.value = true
   try {
-    const resp = await fetch(`/api/v1/graph/position/${encodeURIComponent(positionName.value)}/skills`)
-    const json = await resp.json()
-    position.value = json.position as PositionInfo
-    skills.value = (json.skills ?? []) as SkillItem[]
+    const data = await request.get(`/graph/position/${encodeURIComponent(positionName.value)}/skills`)
+    position.value = (data as any).position as PositionInfo
+    skills.value = ((data as any).skills ?? []) as SkillItem[]
+  } catch (e) {
+    console.error('[PositionDetail] Failed to load:', e)
   } finally {
     loading.value = false
   }
@@ -86,7 +88,7 @@ onMounted(async () => {
           circle
           :icon="ArrowLeft"
           size="small"
-          @click="$router.push('/')"
+          @click="$router.push('/positions')"
         />
         <div>
           <h2>{{ position?.name ?? positionName }}</h2>
