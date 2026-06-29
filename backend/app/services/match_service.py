@@ -154,6 +154,26 @@ PREREQUISITE_MAP: dict[str, list[str]] = {
     "Webpack": ["JavaScript"],
 }
 
+async def _load_prerequisite_map(driver: Any) -> None:
+    """Load PREREQUISITE relationships from Neo4j into PREREQUISITE_MAP."""
+    global PREREQUISITE_MAP
+    if driver is None:
+        return
+    try:
+        with driver.session() as session:
+            cypher = "MATCH (a:Skill)-[:PREREQUISITE]->(b:Skill) RETURN a.name as src, b.name as tgt"
+            result = session.run(cypher)
+            for rec in result:
+                src = _canonical_skill_name(rec["src"])
+                tgt = _canonical_skill_name(rec["tgt"])
+                if src not in PREREQUISITE_MAP:
+                    PREREQUISITE_MAP[src] = []
+                if tgt not in PREREQUISITE_MAP[src]:
+                    PREREQUISITE_MAP[src].append(tgt)
+    except Exception as exc:
+        logger.warning("Failed to load PREREQUISITE map from Neo4j: {}", exc)
+
+
 _MATCH_RESULTS: dict[str, dict[str, Any]] = {}
 
 
@@ -390,6 +410,7 @@ async def run_match(
     driver: Any = None,
 ) -> dict[str, Any]:
     """Run the lightweight matching engine and store the result."""
+    await _load_prerequisite_map(driver)
     target_profile = await _load_target_profile(driver, target_position)
     required_skills, bonus_skills, cii = _apply_inflation_correction(target_profile)
 
