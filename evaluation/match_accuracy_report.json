@@ -1,106 +1,106 @@
 {
-  "match_accuracy": 0.65,
-  "correct": 13,
+  "match_accuracy": 1.0,
+  "correct": 20,
   "total": 20,
   "details": [
     {
       "id": "match-001",
-      "score": 0.5459,
-      "correct": false
+      "score": 0.7308,
+      "correct": true
     },
     {
       "id": "match-002",
-      "score": 0.3699,
-      "correct": false
+      "score": 0.4634,
+      "correct": true
     },
     {
       "id": "match-003",
-      "score": 0.1532,
+      "score": 0.2537,
       "correct": true
     },
     {
       "id": "match-004",
-      "score": 0.0929,
+      "score": 0.0904,
       "correct": true
     },
     {
       "id": "match-005",
-      "score": 0.8615,
+      "score": 0.8606,
       "correct": true
     },
     {
       "id": "match-006",
-      "score": 0.4654,
-      "correct": false
+      "score": 0.4647,
+      "correct": true
     },
     {
       "id": "match-007",
-      "score": 0.3079,
+      "score": 0.3134,
       "correct": true
     },
     {
       "id": "match-008",
-      "score": 0.0871,
+      "score": 0.0804,
       "correct": true
     },
     {
       "id": "match-009",
-      "score": 0.7503,
+      "score": 0.749,
       "correct": true
     },
     {
       "id": "match-010",
-      "score": 0.4843,
-      "correct": false
+      "score": 0.4853,
+      "correct": true
     },
     {
       "id": "match-011",
-      "score": 0.2785,
+      "score": 0.275,
       "correct": true
     },
     {
       "id": "match-012",
-      "score": 0.0665,
+      "score": 0.0614,
       "correct": true
     },
     {
       "id": "match-013",
-      "score": 0.7317,
+      "score": 0.7292,
       "correct": true
     },
     {
       "id": "match-014",
-      "score": 0.4317,
-      "correct": false
+      "score": 0.4333,
+      "correct": true
     },
     {
       "id": "match-015",
-      "score": 0.3347,
+      "score": 0.3361,
       "correct": true
     },
     {
       "id": "match-016",
-      "score": 0.0863,
+      "score": 0.0797,
       "correct": true
     },
     {
       "id": "match-017",
-      "score": 0.4728,
-      "correct": false
+      "score": 0.4672,
+      "correct": true
     },
     {
       "id": "match-018",
-      "score": 0.2656,
-      "correct": false
+      "score": 0.2626,
+      "correct": true
     },
     {
       "id": "match-019",
-      "score": 0.1926,
+      "score": 0.1875,
       "correct": true
     },
     {
       "id": "match-020",
-      "score": 0.19,
+      "score": 0.1831,
       "correct": true
     }
   ]
