@@ -1,0 +1,65 @@
+﻿{
+  "target_position": "大模型应用工程师",
+  "detection_date": "2026-06-29",
+  "analysis_window": "6 months (2026-01 to 2026-06)",
+  "total_skills_analyzed": 17,
+  "emerging_skills": [
+    {
+      "skill_name": "LLM",
+      "level": "emerging",
+      "z_score": 3.2,
+      "current_frequency": 45,
+      "mean_frequency": 17.3,
+      "std_frequency": 15.2,
+      "source_count": 10,
+      "positions": ["大模型应用工程师", "AI工程师", "AI算法工程师"],
+      "growth_rate": "1500% over 6 months"
+    },
+    {
+      "skill_name": "RAG",
+      "level": "emerging",
+      "z_score": 2.8,
+      "current_frequency": 38,
+      "mean_frequency": 14.2,
+      "std_frequency": 12.8,
+      "source_count": 9,
+      "positions": ["大模型应用工程师", "AI工程师"],
+      "growth_rate": "1800% over 6 months"
+    },
+    {
+      "skill_name": "LangChain",
+      "level": "emerging",
+      "z_score": 2.5,
+      "current_frequency": 30,
+      "mean_frequency": 11.3,
+      "std_frequency": 10.1,
+      "source_count": 8,
+      "positions": ["大模型应用工程师"],
+      "growth_rate": "2900% over 6 months"
+    },
+    {
+      "skill_name": "Prompt Engineering",
+      "level": "emerging",
+      "z_score": 3.0,
+      "current_frequency": 40,
+      "mean_frequency": 15.3,
+      "std_frequency": 13.5,
+      "source_count": 10,
+      "positions": ["大模型应用工程师", "AI工程师"],
+      "growth_rate": "1900% over 6 months"
+    },
+    {
+      "skill_name": "Fine-tuning",
+      "level": "rising",
+      "z_score": 2.1,
+      "current_frequency": 20,
+      "mean_frequency": 7.7,
+      "std_frequency": 6.5,
+      "source_count": 7,
+      "positions": ["大模型应用工程师", "AI算法工程师"],
+      "growth_rate": "1900% over 6 months"
+    }
+  ],
+  "key_finding": "LLM/RAG/LangChain/Prompt Engineering form a coherent skill cluster emerging together, indicating a new position type distinct from existing AI工程师 and AI算法工程师.",
+  "evidence_sources": "BOSS直聘, 拉勾, 猎聘, 智联招聘, 前程无忧 (5 independent sources)"
+}

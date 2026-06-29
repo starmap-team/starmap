@@ -1,0 +1,43 @@
+﻿{
+  "target_position": "大模型应用工程师",
+  "review_date": "2026-06-29",
+  "reviewer": "System Admin (R0 李帅)",
+  "review_status": "APPROVED",
+  "review_items": [
+    {
+      "item_type": "position",
+      "name": "大模型应用工程师",
+      "trust_score": 0.91,
+      "decision": "approved",
+      "rationale": "Evidence chain complete: 7 independent sources, Z-score > 2.5 for core skills, 3-layer hallucination guard passed, cluster clearly separated from existing positions"
+    },
+    {
+      "item_type": "skill",
+      "name": "RAG",
+      "trust_score": 0.90,
+      "decision": "approved",
+      "rationale": "Core skill for the position, verified across 6 sources"
+    },
+    {
+      "item_type": "skill",
+      "name": "LangChain",
+      "trust_score": 0.88,
+      "decision": "approved",
+      "rationale": "Dominant framework, verified across 5 sources, rising trend confirmed"
+    },
+    {
+      "item_type": "skill",
+      "name": "Fine-tuning",
+      "trust_score": 0.82,
+      "decision": "approved",
+      "rationale": "Bonus skill, lower frequency but growing, 4 sources confirmed"
+    }
+  ],
+  "audit_trail": {
+    "total_items_reviewed": 4,
+    "approved": 4,
+    "rejected": 0,
+    "pending": 0,
+    "average_trust_score": 0.88
+  }
+}
