@@ -215,7 +215,7 @@ async def main() -> None:
             snapshot_old = {
                 "id": str(uuid4()),
                 "position_name": position_name,
-                "snapshot_date": three_months_ago.isoformat(),
+                "snapshot_date": three_months_ago,
                 "required_skills": json.dumps(required_old, ensure_ascii=False),
                 "preferred_skills": json.dumps(preferred_old, ensure_ascii=False),
                 "source_count": max(1, len(required_old) + len(preferred_old)),
@@ -223,13 +223,13 @@ async def main() -> None:
                     {"window": "90d", "phase": "seed", "note": "3-months-ago baseline"},
                     ensure_ascii=False,
                 ),
-                "created_at": now.isoformat(),
+                "created_at": now,
             }
 
             snapshot_new = {
                 "id": str(uuid4()),
                 "position_name": position_name,
-                "snapshot_date": now.isoformat(),
+                "snapshot_date": now,
                 "required_skills": json.dumps(required_current, ensure_ascii=False),
                 "preferred_skills": json.dumps(preferred_current, ensure_ascii=False),
                 "source_count": max(1, len(required_current) + len(preferred_current)),
@@ -237,7 +237,7 @@ async def main() -> None:
                     {"window": "latest", "phase": "seed", "note": "current snapshot"},
                     ensure_ascii=False,
                 ),
-                "created_at": now.isoformat(),
+                "created_at": now,
             }
 
             for snap in [snapshot_old, snapshot_new]:

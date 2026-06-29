@@ -176,8 +176,8 @@ function handleRemove() {
 }
 
 .upload-zone {
-  border: 2px dashed #dcdfe6;
-  border-radius: 8px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
   padding: 48px 24px;
   text-align: center;
   transition: border-color 0.3s, background 0.3s;
@@ -185,24 +185,24 @@ function handleRemove() {
 }
 
 .upload-zone.is-dragover {
-  border-color: #409eff;
+  border-color: var(--primary);
   background: rgba(64, 158, 255, 0.05);
 }
 
 .upload-zone.has-file {
   border-style: solid;
-  border-color: #67c23a;
+  border-color: var(--success);
 }
 
 .upload-text {
   font-size: 16px;
-  color: #606266;
+  color: var(--foreground);
   margin-top: 12px;
 }
 
 .upload-hint {
   font-size: 13px;
-  color: #c0c4cc;
+  color: var(--muted-foreground);
   margin-top: 8px;
 }
 
@@ -210,7 +210,7 @@ function handleRemove() {
   display: inline-block;
   margin-top: 16px;
   padding: 8px 20px;
-  background: #409eff;
+  background: var(--primary);
   color: #fff;
   border-radius: 4px;
   cursor: pointer;
@@ -219,7 +219,7 @@ function handleRemove() {
 }
 
 .upload-btn:hover {
-  background: #66b1ff;
+  background: var(--primary-hover);
 }
 
 .file-info {
@@ -229,13 +229,13 @@ function handleRemove() {
 .file-name {
   font-size: 16px;
   font-weight: 500;
-  color: #303133;
+  color: var(--foreground);
   margin-top: 8px;
 }
 
 .file-size {
   font-size: 13px;
-  color: #909399;
+  color: var(--muted-foreground);
   margin-top: 4px;
 }
 

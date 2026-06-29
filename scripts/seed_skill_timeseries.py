@@ -155,13 +155,13 @@ async def main() -> None:
                 record = {
                     "id": str(uuid4()),
                     "skill_name": skill_name,
-                    "window_start": window_start.isoformat(),
-                    "window_end": window_end.isoformat(),
+                    "window_start": window_start,
+                    "window_end": window_end,
                     "frequency": freqs[i],
                     "source_count": sources[i],
-                    "positions": str(positions).replace("'", '"'),  # JSON array
+                    "positions": __import__('json').dumps(positions, ensure_ascii=False),  # JSON array
                     "category": category,
-                    "created_at": now.isoformat(),
+                    "created_at": now,
                 }
 
                 await session.execute(
@@ -172,7 +172,7 @@ async def main() -> None:
                          frequency, source_count, positions, category, created_at)
                         VALUES
                         (:id, :skill_name, :window_start, :window_end,
-                         :frequency, :source_count, :positions::jsonb, :category, :created_at)
+                         :frequency, :source_count, :positions, :category, :created_at)
                         """
                     ),
                     record,

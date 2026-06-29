@@ -47,7 +47,15 @@ def _skill_category(entry: Any) -> str:
 
 
 def _extraction_payload_from_record(record: JDExtractionRecord) -> dict[str, Any]:
-    payload = dict(record.extracted_skills or {})
+    raw = record.extracted_skills
+    if isinstance(raw, list):
+        # extracted_skills is a list of skill dicts -> wrap into expected dict format
+        skills_list = [s.get("name", s) if isinstance(s, dict) else s for s in raw]
+        payload: dict[str, Any] = {"required_skills": skills_list}
+    elif isinstance(raw, dict):
+        payload = dict(raw)
+    else:
+        payload = {}
     payload.setdefault("position_name", record.job_title)
     payload.setdefault("experience_required", record.experience_years)
     payload.setdefault("education_required", record.education)

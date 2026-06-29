@@ -11,6 +11,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import MainLayout from '@/layouts/MainLayout.vue'
 import request from '@/api/request'
+import { chartColors, tooltipStyle, splitLineStyle, gaugeColor } from '@/utils/chartTheme'
 
 use([CanvasRenderer, LineChart, BarChart, GaugeChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
 
@@ -39,7 +40,7 @@ const selectedSkillForDetail = ref('')
 
 const trendLabel: Record<string, string> = { rising: '↑ 上升', stable: '→ 平稳', declining: '↓ 下降' }
 const trendTagType: Record<string, string> = { rising: 'success', stable: 'info', declining: 'danger' }
-const SERIES_COLORS = ['#E040FB', '#36CFC9', '#409EFF', '#67C23A', '#F56C6C']
+const SERIES_COLORS = chartColors().chart
 
 async function fetchTrends() {
   loading.value = true
@@ -86,7 +87,7 @@ const chartOption = computed(() => {
       name: 'CII',
       min: 60,
       max: 220,
-      splitLine: { lineStyle: { type: 'dashed', color: '#e8e8e8' } },
+      splitLine: splitLineStyle(),
     },
     series: filtered.map(i => ({
       name: i.skill_name,
@@ -121,13 +122,13 @@ const ciiGaugeOption = computed(() => {
       endAngle: -20,
       min: 60,
       max: 200,
-      progress: { show: true, width: 18, itemStyle: { color: avgCii > 120 ? '#F56C6C' : avgCii > 100 ? '#E6A23C' : '#67C23A' } },
-      axisLine: { lineStyle: { width: 18, color: [[0.3, '#67C23A'], [0.7, '#E6A23C'], [1, '#F56C6C']] } },
+      progress: { show: true, width: 18, itemStyle: { color: gaugeColor(avgCii) } },
+      axisLine: { lineStyle: { width: 18, color: [[0.3, chartColors().success], [0.7, chartColors().warning], [1, chartColors().danger]] } },
       axisTick: { show: false },
-      splitLine: { length: 10, lineStyle: { width: 2, color: '#999' } },
-      axisLabel: { distance: 25, color: '#999', fontSize: 11 },
+      splitLine: { length: 10, lineStyle: { width: 2, color: chartColors().muted } },
+      axisLabel: { distance: 25, color: chartColors().muted, fontSize: 11 },
       pointer: { itemStyle: { color: 'auto' } },
-      title: { show: true, offsetCenter: [0, '70%'], fontSize: 14, color: '#606266' },
+      title: { show: true, offsetCenter: [0, '70%'], fontSize: 14, color: chartColors().muted },
       detail: { valueAnimation: true, formatter: '{value}', fontSize: 28, offsetCenter: [0, '40%'], color: 'inherit' },
       data: [{ value: Math.round(avgCii * 10) / 10, name: '平均 CII 指数' }],
     }],
@@ -145,10 +146,10 @@ const compareOption = computed(() => {
     legend: { data: [compareSkillA.value, compareSkillB.value], bottom: 0 },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: { type: 'category', data: quarters.value, boundaryGap: false },
-    yAxis: { type: 'value', name: 'CII', splitLine: { lineStyle: { type: 'dashed', color: '#e8e8e8' } } },
+    yAxis: { type: 'value', name: 'CII', splitLine: splitLineStyle() },
     series: [
-      { name: compareSkillA.value, type: 'line', data: itemA.points, smooth: true, lineStyle: { width: 3, color: '#409EFF' }, itemStyle: { color: '#409EFF' } },
-      { name: compareSkillB.value, type: 'line', data: itemB.points, smooth: true, lineStyle: { width: 3, color: '#F56C6C' }, itemStyle: { color: '#F56C6C' } },
+      { name: compareSkillA.value, type: 'line', data: itemA.points, smooth: true, lineStyle: { width: 3, color: chartColors().primary }, itemStyle: { color: chartColors().primary } },
+      { name: compareSkillB.value, type: 'line', data: itemB.points, smooth: true, lineStyle: { width: 3, color: chartColors().danger }, itemStyle: { color: chartColors().danger } },
     ],
   }
 })
@@ -177,8 +178,8 @@ onMounted(fetchTrends)
       <!-- 标题 -->
       <div class="page-header">
         <div>
-          <h2>演化趋势看板</h2>
-          <p class="subtitle">CII 时序曲线 — 技能需求通胀指数（基准 100 = 2024-Q1）</p>
+          <h2 class="page-title">演化趋势看板</h2>
+          <p class="page-subtitle">CII 时序曲线 — 技能需求通胀指数（基准 100 = 2024-Q1）</p>
         </div>
         <el-select v-model="selectedSkill" placeholder="全部技能" clearable size="small" style="width: 160px">
           <el-option v-for="item in items" :key="item.skill_name" :label="item.skill_name" :value="item.skill_name" />
@@ -189,7 +190,7 @@ onMounted(fetchTrends)
       <div class="kpi-row">
         <!-- CII 仪表盘 -->
         <el-card class="gauge-card" shadow="hover">
-          <template #header>📊 CII 仪表盘</template>
+          <template #header>CII 仪表盘</template>
           <VChart v-if="items.length" :option="ciiGaugeOption" autoresize style="height: 240px" />
           <el-empty v-else description="暂无数据" />
         </el-card>
@@ -197,7 +198,7 @@ onMounted(fetchTrends)
         <!-- 新兴技能卡片 -->
         <el-card class="emerging-card" shadow="hover">
           <template #header>
-            <span>🚀 新兴技能</span>
+            <span>新兴技能</span>
             <el-tag type="success" size="small" effect="plain" style="margin-left: 8px">rising</el-tag>
           </template>
           <div class="emerging-grid">
@@ -215,14 +216,14 @@ onMounted(fetchTrends)
 
       <!-- 曲线图 -->
       <el-card v-loading="loading" class="chart-card">
-        <template #header>📈 CII 时序趋势</template>
+        <template #header>CII 时序趋势</template>
         <VChart v-if="items.length" :option="chartOption" autoresize style="height: 420px" />
         <el-empty v-else description="暂无演化数据" />
       </el-card>
 
       <!-- Task 3: 技能对比 -->
       <el-card class="compare-card" shadow="hover">
-        <template #header>⚖️ 技能对比</template>
+        <template #header>技能对比</template>
         <div class="compare-selectors">
           <el-select v-model="compareSkillA" placeholder="选择技能 A" clearable size="small" style="width: 180px">
             <el-option v-for="item in items" :key="'A_' + item.skill_name" :label="item.skill_name" :value="item.skill_name" />
@@ -294,6 +295,18 @@ onMounted(fetchTrends)
   min-height: 400px;
 }
 
+.page-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+.page-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  margin: var(--space-1) 0 0;
+}
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -304,13 +317,13 @@ onMounted(fetchTrends)
 .page-header h2 {
   margin: 0 0 4px;
   font-size: 22px;
-  color: #303133;
+  color: var(--foreground);
 }
 
 .subtitle {
   margin: 0;
   font-size: 14px;
-  color: #909399;
+  color: var(--muted-foreground);
 }
 
 /* KPI 行 */
@@ -339,7 +352,7 @@ onMounted(fetchTrends)
   padding: 10px 12px;
   background: linear-gradient(135deg, #f0fff4 0%, #e8f5e9 100%);
   border: 1px solid #c8e6c9;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -352,7 +365,7 @@ onMounted(fetchTrends)
 .emerging-name {
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: var(--foreground);
   margin-bottom: 4px;
 }
 
@@ -364,7 +377,7 @@ onMounted(fetchTrends)
 
 .emerging-cii {
   font-size: 12px;
-  color: #67C23A;
+  color: var(--success);
   font-weight: 500;
 }
 
@@ -396,13 +409,13 @@ onMounted(fetchTrends)
 .compare-vs {
   font-size: 16px;
   font-weight: 700;
-  color: #909399;
+  color: var(--muted-foreground);
 }
 
 .compare-placeholder {
   text-align: center;
   padding: 40px;
-  color: #c0c4cc;
+  color: var(--muted-foreground);
   font-size: 14px;
 }
 

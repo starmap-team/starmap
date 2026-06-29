@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 管理后台 — R6 曾洋涛
  * 审核队列（搜索/批量）+ 数据源配置 + 重置演示数据
@@ -455,12 +455,12 @@ async function handleReset() {
 .page-header h2 {
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: var(--foreground);
   margin: 0 0 4px;
 }
 
 .page-desc {
-  color: #909399;
+  color: var(--muted-foreground);
   font-size: 14px;
   margin: 0;
 }
@@ -489,7 +489,7 @@ async function handleReset() {
 
 .selected-count {
   font-size: 13px;
-  color: #409eff;
+  color: var(--primary);
   font-weight: 500;
 }
 

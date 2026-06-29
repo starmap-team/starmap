@@ -178,26 +178,26 @@ onMounted(async () => {
 .page-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 
 .page-header h2 {
-  font-size: 22px;
+  font-size: var(--font-size-2xl);
   font-weight: 600;
-  color: #303133;
+  color: var(--foreground);
   margin: 0;
 }
 
 .header-sub {
-  color: #909399;
-  font-size: 13px;
-  margin: 2px 0 0;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-sm);
+  margin: var(--space-1) 0 0;
 }
 
 .detail-body {
   display: flex;
-  gap: 24px;
+  gap: var(--space-6);
 }
 
 .radar-section {
@@ -210,9 +210,9 @@ onMounted(async () => {
 }
 
 .section-title {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 500;
-  color: #303133;
-  margin: 0 0 12px;
+  color: var(--foreground);
+  margin: 0 0 var(--space-3);
 }
 </style>

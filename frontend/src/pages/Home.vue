@@ -206,16 +206,16 @@ const positionRadarOption = computed(() => {
       center: ["50%", "50%"],
       radius: "60%",
       indicator: sliced.map(s => ({ name: s.name, max: 1 })),
-      axisName: { color: "#606266", fontSize: 10 },
+      axisName: { color: "var(--muted-foreground)", fontSize: 10 },
     },
     series: [{
       type: "radar",
       data: [{
         value: sliced.map(s => s.value),
         name: "技能权重",
-        areaStyle: { color: "rgba(59,130,246,0.15)" },
-        lineStyle: { color: POSITION_COLOR, width: 2 },
-        itemStyle: { color: POSITION_COLOR },
+        areaStyle: { color: "color-mix(in srgb, var(--primary) 15%, transparent)" },
+        lineStyle: { color: "var(--primary)", width: 2 },
+        itemStyle: { color: "var(--primary)" },
       }],
     }],
   }
@@ -267,7 +267,7 @@ function initGraph() {
       layout: { type: "force", preventOverlap: true, nodeSize: 40, nodeSpacing: 20, animate: true },
       node: {
         style: {
-          labelFill: "#1f1f1f",
+          labelFill: "var(--foreground)",
           labelFontSize: 12,
           labelPlacement: "bottom" as const,
           labelOffsetY: 8,
@@ -275,14 +275,14 @@ function initGraph() {
       },
       edge: {
         style: {
-          stroke: "#d0d0d0",
+          stroke: "var(--border)",
           lineWidth: 1.5,
           opacity: 0.5,
           endArrow: true,
         },
       },
       behaviors: ["drag-canvas", "zoom-canvas", "drag-element"],
-      plugins: ['minimap', { type: 'tooltip', enable: true, trigger: 'pointerenter', offset: [10, 10], style: { background: '#fff', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', padding: '8px 12px', fontSize: '12px' } }],
+      plugins: ['minimap', { type: 'tooltip', enable: true, trigger: 'pointerenter', offset: [10, 10], style: { background: 'var(--card)', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: '8px 12px', fontSize: '12px' } }],
     })
 
     graph.on("node:click", (event: any) => {
@@ -318,9 +318,17 @@ function renderDomainLayer() {
   const maxSkill = Math.max(...graphStore.domains.map(d => d.skill_count), 1)
   const minSize = 50, maxSize = 100
 
-  const graphNodes = graphStore.visibleNodes.map((n, i) => {
+  // Filter out empty domains for cleaner view
+  const visibleFiltered = graphStore.visibleNodes.filter(n => {
+    const domain = graphStore.domains.find(d => d.id === n.id)
+    return domain && (domain.position_count > 0 || domain.skill_count > 0)
+  })
+  
+  const graphNodes = visibleFiltered.map((n, i) => {
     const domain = graphStore.domains.find(d => d.id === n.id)
     const skillCount = domain?.skill_count ?? 0
+    const posCount = domain?.position_count ?? 0
+    const importance = skillCount + posCount * 2
     const size = minSize + (skillCount / maxSkill) * (maxSize - minSize)
     const color = KA_COLOR_MAP.value.get(n.id) ?? KA_FALLBACK_COLORS[i % KA_FALLBACK_COLORS.length]
     return {
@@ -328,18 +336,18 @@ function renderDomainLayer() {
       style: {
         size,
         fill: color,
-        fillOpacity: 0.85,
+        fillOpacity: 0.9,
         stroke: color,
-        lineWidth: 2,
-        labelText: n.properties.name,
+        lineWidth: importance > 100 ? 3 : 2,
+        labelText: n.properties.name + "\n" + posCount + "岗 " + skillCount + "技",
         labelFill: "#ffffff",
-        labelFontSize: 14,
+        labelFontSize: importance > 100 ? 15 : 13,
         labelFontWeight: "bold" as const,
         labelPlacement: "center" as const,
-        shadowColor: "rgba(0,0,0,0.15)",
-        shadowBlur: 16,
-        
-              },
+        shadowColor: "rgba(0,0,0,0.2)",
+        shadowBlur: importance > 100 ? 20 : 12,
+        cursor: "pointer" as const,
+      },
     }
   })
 
@@ -348,7 +356,7 @@ function renderDomainLayer() {
     source: e.source_id,
     target: e.target_id,
     style: {
-      stroke: "#94a3b8",
+      stroke: "var(--muted-foreground)",
       lineWidth: 1.5,
       opacity: 0.3,
       lineDash: [6, 4],
@@ -418,10 +426,10 @@ function renderPositionLayer() {
         size,
         fill: posColor,
         fillOpacity: 0.85,
-        stroke: "#2563eb",
+        stroke: "var(--primary-hover)",
         lineWidth: 1.5,
         labelText: p.properties.name,
-        labelFill: "#1e293b",
+        labelFill: "var(--foreground)",
         labelFontSize: 11,
         labelFontWeight: "normal" as const,
         labelPlacement: "bottom" as const,
@@ -519,7 +527,7 @@ function renderDetailLayer() {
         stroke: kaColor,
         lineWidth: 1,
         labelText: graphStore.expandedKAName,
-        labelFill: "#94a3b8",
+        labelFill: "var(--muted-foreground)",
         labelFontSize: 10,
         labelPlacement: "bottom" as const,
         labelOffsetY: 4,
@@ -535,7 +543,7 @@ function renderDetailLayer() {
       size: 50,
       fill: POSITION_COLOR,
       fillOpacity: 0.9,
-      stroke: "#1d4ed8",
+      stroke: "var(--primary-hover)",
       lineWidth: 3,
       labelText: posNode?.properties.name ?? "岗位",
       labelFill: "#ffffff",
@@ -564,10 +572,10 @@ function renderDetailLayer() {
         size,
         fill: isRequired ? SKILL_COLOR : SKILL_BONUS_COLOR,
         fillOpacity: 0.8,
-        stroke: isRequired ? "#059669" : "#d97706",
+        stroke: isRequired ? "var(--success)" : "var(--warning)",
         lineWidth: 1,
         labelText: skillNode.properties.name,
-        labelFill: "#374151",
+        labelFill: "var(--foreground)",
         labelFontSize: 10,
         labelPlacement: "bottom" as const,
         labelOffsetY: 4,

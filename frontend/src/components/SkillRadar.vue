@@ -113,7 +113,7 @@ const radarOption = computed(() => {
   text-align: center;
   font-size: 16px;
   font-weight: 500;
-  color: #303133;
+  color: var(--foreground);
   margin-bottom: 8px;
 }
 </style>

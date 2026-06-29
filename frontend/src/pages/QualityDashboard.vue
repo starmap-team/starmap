@@ -8,6 +8,7 @@ import { ElMessage } from 'element-plus'
 import { RefreshRight } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useQualityStore } from '@/stores/quality'
+import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle } from '@/utils/chartTheme'
 
 const quality = useQualityStore()
 
@@ -60,7 +61,7 @@ const kpiCardsEnhanced = computed(() => {
       value: m.total_nodes.toLocaleString(),
       sub: `周新增 +${m.weekly_new_nodes}`,
       trend: 'up',
-      color: '#409eff',
+      color: 'var(--primary)',
       icon: 'Grid',
     },
     {
@@ -68,7 +69,7 @@ const kpiCardsEnhanced = computed(() => {
       value: (m.avg_trust_score * 100).toFixed(1) + '%',
       sub: `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
       trend: m.avg_trust_score >= 0.75 ? 'up' : 'down',
-      color: '#67c23a',
+      color: 'var(--success)',
       icon: 'DataLine',
     },
     {
@@ -76,7 +77,7 @@ const kpiCardsEnhanced = computed(() => {
       value: (m.hallucination_rate * 100).toFixed(1) + '%',
       sub: `审核通过率 ${(m.audit_pass_rate * 100).toFixed(0)}%`,
       trend: m.hallucination_rate <= 0.08 ? 'down' : 'up',
-      color: '#e6a23c',
+      color: 'var(--warning)',
       icon: 'WarningFilled',
     },
     {
@@ -84,7 +85,7 @@ const kpiCardsEnhanced = computed(() => {
       value: String(m.pending_review),
       sub: '条记录待处理',
       trend: m.pending_review > 5 ? 'up' : 'down',
-      color: '#f56c6c',
+      color: 'var(--destructive)',
       icon: 'Clock',
     },
   ]
@@ -115,7 +116,7 @@ const histogramOption = computed(() => {
       data: dist.map((d, i) => ({
         value: d.count,
         itemStyle: {
-          color: ['#f56c6c', '#f89898', '#e6a23c', '#67c23a', '#409eff', '#409eff'][i],
+          color: [chartColors().danger, '#f89898', chartColors().warning, chartColors().success, chartColors().primary, chartColors().primary][i],
           borderRadius: [4, 4, 0, 0],
         },
       })),
@@ -124,7 +125,7 @@ const histogramOption = computed(() => {
         show: true,
         position: 'top',
         fontSize: 11,
-        color: '#606266',
+        color: chartColors().muted,
       },
     }],
   }
@@ -149,9 +150,9 @@ const trendChartOption = computed(() => {
         value: +(t.rate * 100).toFixed(1),
       })),
       smooth: true,
-      areaStyle: { opacity: 0.12, color: '#e6a23c' },
-      lineStyle: { color: '#e6a23c', width: 2.5 },
-      itemStyle: { color: '#e6a23c' },
+      areaStyle: { opacity: 0.12, color: 'var(--warning)' },
+      lineStyle: { color: 'var(--warning)', width: 2.5 },
+      itemStyle: { color: 'var(--warning)' },
       symbolSize: 6,
       markLine: {
         silent: true,
@@ -159,7 +160,7 @@ const trendChartOption = computed(() => {
         data: [{
           yAxis: 10,
           label: { formatter: '预警线 10%', fontSize: 11 },
-          lineStyle: { color: '#f56c6c', type: 'dashed', width: 2 },
+          lineStyle: { color: 'var(--destructive)', type: 'dashed', width: 2 },
         }],
       },
     }],
@@ -446,12 +447,12 @@ const sourceChartOption = computed(() => {
 .page-header h2 {
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: var(--foreground);
   margin: 0 0 4px;
 }
 
 .page-desc {
-  color: #909399;
+  color: var(--muted-foreground);
   font-size: 14px;
   margin: 0;
 }
@@ -465,7 +466,7 @@ const sourceChartOption = computed(() => {
 
 .last-refresh {
   font-size: 12px;
-  color: #c0c4cc;
+  color: var(--muted-foreground);
 }
 
 /* ── KPI 卡片 ── */
@@ -487,7 +488,7 @@ const sourceChartOption = computed(() => {
 .kpi-icon {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -501,7 +502,7 @@ const sourceChartOption = computed(() => {
 
 .kpi-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--muted-foreground);
 }
 
 .kpi-value {
@@ -512,17 +513,17 @@ const sourceChartOption = computed(() => {
 
 .kpi-sub {
   font-size: 12px;
-  color: #909399;
+  color: var(--muted-foreground);
   margin-top: 2px;
 }
 
 .trend-up {
-  color: #67c23a;
+  color: var(--success);
   font-weight: bold;
 }
 
 .trend-down {
-  color: #f56c6c;
+  color: var(--destructive);
   font-weight: bold;
 }
 

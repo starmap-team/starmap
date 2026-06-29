@@ -355,14 +355,14 @@ class EvolutionOrchestrator:
             async with driver.session() as session:
                 for path in paths:
                     query = """
-                    MATCH (source:Position {name: })
-                    MATCH (target:Position {name: })
+                    MATCH (source:Position {name: $source})
+                    MATCH (target:Position {name: $target})
                     MERGE (source)-[r:EVOLVES_TO]->(target)
-                    SET r.similarity = ,
-                        r.evidence_count = ,
-                        r.trust_score = ,
-                        r.skill_overlap = ,
-                        r.key_gaps = 
+                    SET r.similarity = $similarity,
+                        r.evidence_count = $evidence_count,
+                        r.trust_score = $trust_score,
+                        r.skill_overlap = $skill_overlap,
+                        r.key_gaps = $key_gaps
                     """
                     await session.run(
                         query,

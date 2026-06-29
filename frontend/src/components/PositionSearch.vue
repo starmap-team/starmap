@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 岗位搜索下拉组件 — 使用图谱岗位名称作为 canonical 源
  */
@@ -79,6 +79,6 @@ function handleChange(val: string) {
 .hint {
   margin-top: 8px;
   font-size: 13px;
-  color: #c0c4cc;
+  color: var(--muted-foreground);
 }
 </style>

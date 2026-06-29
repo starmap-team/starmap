@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 岗位列表页 — 从后端 /positions 获取岗位数据
  */
@@ -94,7 +94,7 @@ onMounted(fetchPositions)
           @click="selectedIndustry = selectedIndustry === ind ? '' : ind"
         >{{ ind }}</el-tag>
       </div>
-      <div style="margin-bottom: 16px; color: #909399; font-size: 13px;">
+      <div style="margin-bottom: 16px; color: var(--muted-foreground); font-size: var(--font-size-sm);">
         共 {{ filteredPositions.length }} 个岗位
       </div>
 
@@ -169,13 +169,13 @@ onMounted(fetchPositions)
 .page-header h2 {
   margin: 0 0 4px;
   font-size: 22px;
-  color: #303133;
+  color: var(--foreground);
 }
 
 .subtitle {
   margin: 0;
   font-size: 14px;
-  color: #909399;
+  color: var(--muted-foreground);
 }
 
 .position-card {
@@ -196,7 +196,7 @@ onMounted(fetchPositions)
 .card-content h3 {
   margin: 0 0 8px;
   font-size: 16px;
-  color: #303133;
+  color: var(--foreground);
 }
 
 /* 空状态引导 */
@@ -216,7 +216,7 @@ onMounted(fetchPositions)
 }
 
 .empty-hint-text {
-  color: #909399;
+  color: var(--muted-foreground);
   font-size: 14px;
   margin-bottom: 16px;
   line-height: 1.6;
