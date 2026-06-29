@@ -221,6 +221,25 @@ async def get_changelog(
     ]
 
 
+@router.get("/paths/all", response_model=list[EvolutionPathEntry])
+async def get_all_evolution_paths(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[EvolutionPathEntry]:
+    """获取所有演化路径（用于图谱页渲染 EVOLVES_TO 边）。"""
+    stmt = sa.select(EvolutionPath).order_by(EvolutionPath.similarity.desc()).limit(limit)
+    result = await session.execute(stmt)
+    records = result.scalars().all()
+    return [
+        EvolutionPathEntry(
+            id=str(r.id), source_position=r.source_position, target_position=r.target_position,
+            similarity=r.similarity, evidence_count=r.evidence_count,
+            skill_overlap=r.skill_overlap or [], key_gaps=r.key_gaps or [], trust_score=r.trust_score,
+        )
+        for r in records
+    ]
+
+
 @router.get("/paths/{position}", response_model=list[EvolutionPathEntry])
 async def get_evolution_paths(
     position: str,

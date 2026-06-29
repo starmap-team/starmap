@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue"
 import { useRouter } from "vue-router"
 import { Graph } from "@antv/g6"
@@ -9,6 +9,7 @@ import { RadarChart } from "echarts/charts"
 import { TooltipComponent, LegendComponent, RadarComponent } from "echarts/components"
 import { CanvasRenderer } from "echarts/renderers"
 use([RadarChart, TooltipComponent, LegendComponent, RadarComponent, CanvasRenderer])
+import request from "@/api/request"
 import MainLayout from "@/layouts/MainLayout.vue"
 import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from "@/stores/graph"
 
@@ -58,6 +59,40 @@ const overviewMode = ref<OverviewMode>('domain')
 
 function onOverviewModeChange(mode: string) {
   graphStore.fetchOverview(mode as OverviewMode)
+}
+
+// ── 布局模式切换（force / dagre 分层） ──
+type LayoutMode = 'force' | 'dagre'
+const layoutMode = ref<LayoutMode>('force')
+
+function toggleLayout() {
+  layoutMode.value = layoutMode.value === 'force' ? 'dagre' : 'force'
+  renderCurrentLayer()
+}
+
+// ── EVOLVES_TO 演化边 ──
+const showEvolution = ref(false)
+const evolutionEdges = ref<{ source: string; target: string; similarity: number }[]>([])
+
+async function fetchEvolutionEdges() {
+  try {
+    const data = await request.get('/evolution/paths/all')
+    if (Array.isArray(data)) {
+      evolutionEdges.value = data.map((p: any) => ({
+        source: p.source_position,
+        target: p.target_position,
+        similarity: p.similarity ?? 0.5,
+      }))
+    }
+  } catch {
+    evolutionEdges.value = []
+  }
+}
+
+function toggleEvolution() {
+  showEvolution.value = !showEvolution.value
+  if (showEvolution.value && evolutionEdges.value.length === 0) fetchEvolutionEdges()
+  renderCurrentLayer()
 }
 
 // ── 选中的节点（详情面板） ──
@@ -320,7 +355,11 @@ function renderDomainLayer() {
   }))
 
   graph.setData({ nodes: graphNodes, edges: graphEdges })
-  graph.setLayout({ type: "force", preventOverlap: true, nodeSize: 80, nodeSpacing: 40, animate: true, strength: 0.5 })
+  if (layoutMode.value === 'dagre') {
+    graph.setLayout({ type: 'dagre', rankdir: 'TB', nodesep: 60, ranksep: 80, preventOverlap: true, nodeSize: 80 })
+  } else {
+    graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 40, animate: true, strength: 0.5 })
+  }
   graph.render()
   setTimeout(() => graph?.fitView(), 300)
 }
@@ -398,6 +437,50 @@ function renderPositionLayer() {
           endArrow: false,
         },
       })
+    }
+  }
+
+  // EVOLVES_TO 演化边（跨领域）
+  if (showEvolution.value) {
+    for (const ev of evolutionEdges.value) {
+      const sourceNode = graphStore.nodeMap.get(ev.source) || graphStore.allNodes.find(n => n.properties.name === ev.source)
+      const targetNode = graphStore.nodeMap.get(ev.target) || graphStore.allNodes.find(n => n.properties.name === ev.target)
+      if (sourceNode && targetNode) {
+        graphEdges.push({
+          id: `evo-${ev.source}-${ev.target}`,
+          source: sourceNode.id,
+          target: targetNode.id,
+          style: {
+            stroke: '#F56C6C',
+            lineWidth: 2 + ev.similarity * 2,
+            opacity: 0.7,
+            lineDash: [8, 4],
+            endArrow: true,
+          },
+        })
+      }
+    }
+  }
+
+  // EVOLVES_TO 演化边（岗位层）
+  if (showEvolution.value) {
+    for (const ev of evolutionEdges.value) {
+      const src = positions.find(p => p.id === ev.source || p.properties.name === ev.source)
+      const tgt = positions.find(p => p.id === ev.target || p.properties.name === ev.target)
+      if (src && tgt) {
+        graphEdges.push({
+          id: `evo-${src.id}-${tgt.id}`,
+          source: src.id,
+          target: tgt.id,
+          style: {
+            stroke: '#F56C6C',
+            lineWidth: 2 + ev.similarity * 2,
+            opacity: 0.7,
+            lineDash: [8, 4],
+            endArrow: true,
+          },
+        })
+      }
     }
   }
 
@@ -505,6 +588,44 @@ function renderDetailLayer() {
 }
 
 // ── 节点点击处理 ──
+// ── 双击展开 2 跳子图 ──
+function expandTwoHop(nodeId: string) {
+  if (!graph) return
+  const oneHop = new Set<string>([nodeId])
+  const twoHop = new Set<string>([nodeId])
+
+  // 1 跳
+  for (const e of graphStore.allEdges) {
+    if (e.source_id === nodeId) oneHop.add(e.target_id)
+    if (e.target_id === nodeId) oneHop.add(e.source_id)
+  }
+  // 2 跳
+  for (const hopId of oneHop) {
+    if (hopId === nodeId) continue
+    for (const e of graphStore.allEdges) {
+      if (e.source_id === hopId) twoHop.add(e.target_id)
+      if (e.target_id === hopId) twoHop.add(e.source_id)
+    }
+  }
+
+  // 高亮 2 跳内的节点，淡化其余
+  if (graph) {
+    const updateNodes = graphStore.visibleNodes.map(n => ({
+      id: n.id,
+      style: {
+        fillOpacity: twoHop.has(n.id) ? 0.9 : 0.08,
+        lineWidth: twoHop.has(n.id) ? 2 : 0.5,
+      },
+    }))
+    graph.updateNodeData(updateNodes)
+    graph.draw()
+  }
+
+  // 选中中心节点
+  const node = graphStore.nodeMap.get(nodeId)
+  if (node) selectedNode.value = node
+}
+
 async function handleNodeClick(nodeId: string) {
   // Domain 层：点击 KA → 进入 Position 层
   if (graphStore.currentLayer === "domain") {
@@ -600,6 +721,7 @@ watch(() => graphStore.currentLayer, () => {
 // ── 生命周期 ──
 onMounted(async () => {
   await graphStore.fetchOverview()
+  graphStore.fetchEvolutionEdges() // Load in background, non-blocking
   await nextTick()
   initGraph()
   window.addEventListener("resize", handleResize)
@@ -779,6 +901,12 @@ onUnmounted(() => {
             <el-button size="small" :icon="Aim" @click="zoomFit" />
             <el-button size="small" :icon="ZoomIn" @click="zoomIn" />
           </el-button-group>
+          <el-button size="small" :type="layoutMode === 'dagre' ? 'primary' : 'default'" style="margin-left: 8px" @click="toggleLayout">
+            {{ layoutMode === 'dagre' ? '分层布局' : '力导向' }}
+          </el-button>
+          <el-button size="small" :type="showEvolution ? 'danger' : 'default'" @click="toggleEvolution">
+            {{ showEvolution ? '🔴 演化边' : '演化边' }}
+          </el-button>
         </div>
         <div class="toolbar-group layer-indicator">
           <el-tag :type="graphStore.currentLayer === 'domain' ? 'primary' : graphStore.currentLayer === 'position' ? 'success' : 'warning'" size="small" effect="plain">

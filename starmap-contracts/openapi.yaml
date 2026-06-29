@@ -507,6 +507,25 @@ paths:
                 items:
                   $ref: "#/components/schemas/ChangelogEntry"
 
+  /evolution/paths/all:
+    get:
+      summary: 获取所有演化路径
+      operationId: getAllEvolutionPaths
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: 演化路径列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EvolutionPathEntry"
   /evolution/paths/{position}:
     get:
       operationId: getEvolutionPaths
