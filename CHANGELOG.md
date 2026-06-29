@@ -4,6 +4,31 @@
 
 ## [Unreleased]
 
+## [v0.5.0] - 2026-06-29 - 全景图谱增强 + 证据链数据补齐
+
+### Added - 全景图谱增强 (R5)
+- MiniMap 缩略图: 右下角 160x120 导航地图
+- Tooltip 悬浮提示: 鼠标悬停节点显示详细信息
+- 图谱图例: 顶部图例栏标注领域/岗位/技能/演化关系
+- 交互提示: 点击钻取/滚轮缩放/拖拽平移引导
+- 视图模式自动布局: 级别dagre分层, 技术栈聚类力导向
+- 演化边增强: 更粗线条、更明显虚线、更大箭头
+- 节点阴影增强: shadowBlur 12到16
+
+### Added - 证据链数据补齐 (R4)
+- skill_timeseries 种子脚本: 17技能x6月=102条时序记录
+- 证据链中间产物: 6份JSON覆盖设计文档证据链6要素
+- Rising skills: LLM/RAG/LangChain/Prompt Engineering等
+
+### Fixed - 前端修复 (R6)
+- MatchDiagnosis null安全修复(3处)
+- 搜索键盘导航统一为onSearchKeydown
+
+### PR 合流记录
+- PR #51: feat(R5/R6) 全景图谱增强 - squash merge
+- PR #52: feat(R4) 证据链数据补齐 - squash merge
+
+
 
 
 ## [v0.4.0] — 2026-06-28 — 全景图谱彻底重构（三层视图）
