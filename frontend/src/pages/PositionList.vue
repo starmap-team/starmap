@@ -190,7 +190,7 @@ onMounted(fetchPositions)
 
 .card-content {
   text-align: center;
-  padding: 12px 0;
+  padding: var(--space-3) 0;
 }
 
 .card-content h3 {
@@ -207,7 +207,7 @@ onMounted(fetchPositions)
 }
 
 .empty-icon {
-  font-size: 64px;
+  font-size: 4rem;
   line-height: 1;
 }
 

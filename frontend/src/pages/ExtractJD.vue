@@ -163,9 +163,9 @@ function handleClear() {
 .extract-page { max-width: 1200px; }
 .page-header { margin-bottom: var(--space-5); }
 .page-header h2 { margin: 0 0 4px; font-size: var(--font-size-2xl); }
-.subtitle { color: var(--muted-foreground); margin: 0; font-size: 14px; }
+.subtitle { color: var(--muted-foreground); margin: 0; font-size: var(--font-size-base); }
 .input-footer { display: flex; justify-content: flex-end; margin-top: var(--space-1); }
-.char-count { font-size: 12px; color: var(--muted-foreground); }
+.char-count { font-size: var(--font-size-xs); color: var(--muted-foreground); }
 .char-warn { color: var(--warning); }
 
 .card-header-row { display: flex; justify-content: space-between; align-items: center; }
