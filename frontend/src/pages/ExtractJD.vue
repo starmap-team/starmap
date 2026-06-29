@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * JD 抽取页 — 粘贴 JD 文本，触发 LLM 抽取
  * 路由：/extract
@@ -115,7 +115,7 @@ function handleClear() {
               <el-progress
                 :percentage="Math.round(extractProgress)"
                 :stroke-width="8"
-                :color="extractProgress >= 100 ? '#67c23a' : '#409eff'"
+                :color="extractProgress >= 100 ? 'var(--success)' : 'var(--primary)'"
               />
               <p class="extract-phase">
                 {{ extractPhase }}
@@ -261,7 +261,7 @@ function handleClear() {
 <style scoped>
 .extract-page { max-width: 1200px; }
 .page-header { margin-bottom: var(--space-5); }
-.page-header h2 { margin: 0 0 4px; font-size: var(--font-size-2xl); }
+.page-header h2 { margin: 0 0 var(--space-1); font-size: var(--font-size-2xl); font-weight: 800; letter-spacing: var(--tracking-tight); color: var(--foreground); }
 .subtitle { color: var(--muted-foreground); margin: 0; font-size: var(--font-size-base); }
 .input-footer { display: flex; justify-content: flex-end; margin-top: var(--space-1); }
 .char-count { font-size: var(--font-size-xs); color: var(--muted-foreground); }
@@ -271,7 +271,7 @@ function handleClear() {
 .extract-action { margin-top: var(--space-3); text-align: right; }
 .extract-progress { margin-top: var(--space-4); }
 .extract-phase { text-align: center; color: var(--muted-foreground); font-size: var(--font-size-sm); margin-top: var(--space-2); }
-.result-section-title { font-size: var(--font-size-base); font-weight: 600; color: var(--foreground); margin: var(--space-4) 0 var(--space-2); }
+.result-section-title { font-size: var(--font-size-xs); font-weight: 600; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.06em; margin: var(--space-5) 0 var(--space-3); }
 .result-section-title:not(:first-child) { margin-top: var(--space-3); }
 .skill-tags-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .empty-text { color: var(--muted-foreground); font-size: var(--font-size-sm); }

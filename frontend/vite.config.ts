@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+﻿import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
@@ -11,13 +11,26 @@ export default defineConfig({
     },
   },
   server: {
-    host: '0.0.0.0',  // 容器内需要监听 0.0.0.0 才能从宿主访问
+    host: '0.0.0.0',
     port: 5173,
     proxy: {
-      // 前端通过代理访问后端，避免 CORS（生产由 Nginx 反代）
       '/api': {
         target: process.env.VITE_API_BASE_URL || 'http://localhost:8000',
         changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          'vendor-echarts': ['echarts', 'vue-echarts'],
+          'vendor-element': ['element-plus', '@element-plus/icons-vue'],
+          'vendor-utils': ['axios', 'lodash-es', '@vueuse/core'],
+          'vendor-g6': ['@antv/g6'],
+        },
       },
     },
   },

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * GraphToolbar — floating zoom/layout controls for the graph canvas
- * Emits zoom/layout events; parent handles the actual graph operations.
+ * GraphToolbar - floating zoom/layout controls for the graph canvas
+ * Obsidian-style: clean, minimal, functional
  */
 import { ZoomIn, ZoomOut, Aim } from '@element-plus/icons-vue'
 
@@ -77,21 +77,21 @@ defineEmits<{
   left: var(--space-3);
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-0-5);
   padding: var(--space-1);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 90%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  backdrop-filter: blur(16px) saturate(1.8);
+  -webkit-backdrop-filter: blur(16px) saturate(1.8);
   box-shadow: var(--shadow-sm);
 }
 .tb-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border: none;
   background: none;
   border-radius: var(--radius-md);
@@ -101,14 +101,12 @@ defineEmits<{
 }
 .tb-btn:hover {
   color: var(--foreground);
-  background: var(--accent);
+  background: var(--sidebar-hover);
 }
-.tb-btn:active {
-  transform: scale(0.92);
-}
+.tb-btn:active { transform: scale(0.92); }
 .tb-divider {
   width: 1px;
-  height: 16px;
+  height: 14px;
   background: var(--border);
   margin: 0 2px;
 }
@@ -119,7 +117,8 @@ defineEmits<{
   font-variant-numeric: tabular-nums;
 }
 .tb-label {
-  font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 </style>

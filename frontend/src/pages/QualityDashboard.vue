@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 图谱质量仪表盘 — R6 曾洋涛
  * 4 指标卡（含趋势箭头）+ 信任度直方图 + 幻觉率趋势 + 数据源饼图 + 审核队列
@@ -8,7 +8,7 @@ import { ElMessage } from 'element-plus'
 import { RefreshRight } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useQualityStore } from '@/stores/quality'
-import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle, legendStyle } from '@/utils/chartTheme'
+import { chartColors, tooltipStyle, legendStyle } from '@/utils/chartTheme'
 
 const quality = useQualityStore()
 
@@ -117,7 +117,7 @@ const histogramOption = computed(() => {
       data: dist.map((d, i) => ({
         value: d.count,
         itemStyle: {
-          color: [chartColors().danger, '#f89898', chartColors().warning, chartColors().success, chartColors().primary, chartColors().primary][i],
+          color: [chartColors().danger, chartColors().warning + '88', chartColors().warning, chartColors().success, chartColors().primary, chartColors().primary][i],
           borderRadius: [4, 4, 0, 0],
         },
       })),
@@ -181,7 +181,7 @@ const sourceChartOption = computed(() => {
       avoidLabelOverlap: false,
       itemStyle: {
         borderRadius: 4,
-        borderColor: '#fff',
+        borderColor: chartColors().card,
         borderWidth: 2,
       },
       label: { show: false },
@@ -478,7 +478,7 @@ const sourceChartOption = computed(() => {
                   <el-progress
                     :percentage="row.trust"
                     :stroke-width="8"
-                    :color="row.trust >= 70 ? '#67c23a' : row.trust >= 50 ? '#e6a23c' : '#f56c6c'"
+                    :color="row.trust >= 70 ? chartColors().success : row.trust >= 50 ? chartColors().warning : chartColors().danger"
                   />
                 </template>
               </el-table-column>

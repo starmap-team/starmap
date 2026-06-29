@@ -197,9 +197,13 @@ export const useGraphStore = defineStore('graph', () => {
       // 缓存
       positionsByKA.value.set(kaId, positions)
       positionSkillEdgesByKA.value.set(kaId, psEdges)
-      // 合并到全局节点池
+      // 合并到全局节点池（O(1) 查重）
+      const existingNodeIds = new Set(allNodes.value.map(n => n.id))
       for (const p of positions) {
-        if (!allNodes.value.find(n => n.id === p.id)) allNodes.value.push(p)
+        if (!existingNodeIds.has(p.id)) {
+          existingNodeIds.add(p.id)
+          allNodes.value.push(p)
+        }
       }
       for (const e of psEdges) {
         const key = `${e.source_id}-${e.target_id}-${e.type}`

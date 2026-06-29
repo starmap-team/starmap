@@ -10,11 +10,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  Upload, Edit, Search, DataAnalysis, Document,
-  ChatDotSquare, Guide, ArrowLeft, Check, RefreshRight,
+  DataAnalysis, Guide, RefreshRight,
   Plus, Download
 } from '@element-plus/icons-vue'
-import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
@@ -63,7 +61,8 @@ onMounted(() => {
 // 手动输入技能
 const skillInput = ref('')
 const manualSkills = ref<string[]>([])
-const showManualInput = ref(true) 
+// showManualInput: reserved for future use
+// const showManualInput = ref(true)
 
 function addManualSkill() {
   const val = skillInput.value.trim()
@@ -220,7 +219,7 @@ function exportReport() {
         v-if="step === 0"
         class="step-content"
       >
-        <div class="step-card">
+        <div class="step-card grain">
           <div class="sc-header">
             <h2 class="sc-title">
               录入你的技能
@@ -615,7 +614,7 @@ function exportReport() {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 60%, var(--chart-2)));
+  background: linear-gradient(90deg, var(--primary), var(--chart-2));
   opacity: 0.8;
 }
 .sc-header {
@@ -677,7 +676,7 @@ function exportReport() {
   display: flex;
   gap: var(--space-6);
   padding: var(--space-6);
-  background: linear-gradient(135deg, var(--primary-ghost), var(--muted));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 4%, var(--card)), var(--card));
   border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
   border-radius: var(--radius-2xl);
   margin-bottom: var(--space-6);
@@ -699,9 +698,9 @@ function exportReport() {
   flex-shrink: 0;
 }
 .rs-value {
-  font-size: 3.5rem;
+  font-size: 3rem;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 70%, var(--chart-2)));
+  background: linear-gradient(135deg, var(--primary), var(--chart-1));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
