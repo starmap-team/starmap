@@ -1,31 +1,59 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 岗位列表页 — 从 MOCK_GRAPH 取 Position 节点
+ * 岗位列表页 — 从后端 /positions 获取岗位数据
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { Plus } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
+import request from '@/api/request'
 
 const router = useRouter()
 const positions = ref<{ id: string; name: string; industry: string }[]>([])
 const loading = ref(false)
+const searchQuery = ref('')
+const selectedIndustry = ref('')
+const industries = computed(() => {
+  const set = new Set(positions.value.map(p => p.industry))
+  return Array.from(set).sort()
+})
+const filteredPositions = computed(() => {
+  let list = positions.value
+  const q = searchQuery.value.trim().toLowerCase()
+  if (q) {
+    list = list.filter(p =>
+      p.name.toLowerCase().includes(q) || p.industry.toLowerCase().includes(q)
+    )
+  }
+  if (selectedIndustry.value) {
+    list = list.filter(p => p.industry === selectedIndustry.value)
+  }
+  return list
+})
 
 async function fetchPositions() {
   loading.value = true
-  const resp = await fetch('/api/v1/graph/query')
-  const data = await resp.json()
-  positions.value = data.nodes
-    .filter((n: any) => n.labels.includes('Position'))
-    .map((n: any) => ({
-      id: n.id,
-      name: n.properties.name,
-      industry: '互联网/IT',
+  try {
+    const data = await request.get('/positions', { params: { page_size: 100 } })
+    const items = (data as any).items ?? (data as any) ?? []
+    positions.value = items.map((p: any) => ({
+      id: p.position_id ?? p.id ?? '',
+      name: p.name ?? '',
+      industry: p.industry ?? '互联网 IT',
     }))
-  loading.value = false
+  } catch (e) {
+    console.error('[PositionList] Failed to fetch:', e)
+  } finally {
+    loading.value = false
+  }
 }
 
 function goDetail(name: string) {
   router.push(`/position/${encodeURIComponent(name)}`)
+}
+
+function goExtract() {
+  router.push('/extract')
 }
 
 onMounted(fetchPositions)
@@ -41,12 +69,43 @@ onMounted(fetchPositions)
         </p>
       </div>
 
+
+      <el-input
+        v-model="searchQuery"
+        placeholder="搜索岗位名称或行业..."
+        clearable
+        size="large"
+        style="margin-bottom: 20px; max-width: 400px;"
+        prefix-icon="Search"
+      />
+      <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <el-tag
+          :type="selectedIndustry === '' ? '' : 'info'"
+          :effect="selectedIndustry === '' ? 'dark' : 'plain'"
+          style="cursor: pointer;"
+          @click="selectedIndustry = ''"
+        >全部</el-tag>
+        <el-tag
+          v-for="ind in industries"
+          :key="ind"
+          :type="selectedIndustry === ind ? '' : 'info'"
+          :effect="selectedIndustry === ind ? 'dark' : 'plain'"
+          style="cursor: pointer;"
+          @click="selectedIndustry = selectedIndustry === ind ? '' : ind"
+        >{{ ind }}</el-tag>
+      </div>
+      <div style="margin-bottom: 16px; color: #909399; font-size: 13px;">
+        共 {{ filteredPositions.length }} 个岗位
+      </div>
+
+            <!-- 有数据时 -->
       <el-row
+        v-if="filteredPositions.length || loading"
         v-loading="loading"
         :gutter="20"
       >
         <el-col
-          v-for="pos in positions"
+          v-for="pos in filteredPositions"
           :key="pos.id"
           :xs="24"
           :sm="12"
@@ -79,6 +138,21 @@ onMounted(fetchPositions)
           </el-card>
         </el-col>
       </el-row>
+
+      <!-- 空状态引导 -->
+      <div v-else class="empty-guide">
+        <el-empty description="暂无岗位数据">
+          <template #image>
+            <div class="empty-icon">📭</div>
+          </template>
+          <div class="empty-actions">
+            <p class="empty-hint-text">请先执行数据采集，或从 JD 中抽取岗位信息</p>
+            <el-button type="primary" :icon="Plus" @click="goExtract">
+              前往 JD 抽取
+            </el-button>
+          </div>
+        </el-empty>
+      </div>
     </div>
   </MainLayout>
 </template>
@@ -119,14 +193,32 @@ onMounted(fetchPositions)
   padding: 12px 0;
 }
 
-.card-icon {
-  font-size: 36px;
-  margin-bottom: 8px;
-}
-
 .card-content h3 {
   margin: 0 0 8px;
   font-size: 16px;
   color: #303133;
+}
+
+/* 空状态引导 */
+.empty-guide {
+  display: flex;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  line-height: 1;
+}
+
+.empty-actions {
+  text-align: center;
+}
+
+.empty-hint-text {
+  color: #909399;
+  font-size: 14px;
+  margin-bottom: 16px;
+  line-height: 1.6;
 }
 </style>

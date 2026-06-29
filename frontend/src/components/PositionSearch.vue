@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 岗位搜索下拉组件 — 对应契约 GET /positions?search=
+ * 岗位搜索下拉组件 — 使用图谱岗位名称作为 canonical 源
  */
 import { ref, onMounted } from 'vue'
 
@@ -12,34 +12,28 @@ const options = ref<{ label: string; value: string; position_id: string }[]>([])
 const selected = ref('')
 const loading = ref(false)
 
-onMounted(async () => {
+async function loadPositions(keyword?: string) {
   loading.value = true
   try {
-    const resp = await fetch('/api/v1/positions')
+    const resp = await fetch('/api/v1/positions?page_size=100')
     const data = await resp.json()
-    options.value = (data.items ?? []).map((p: { position_id: string; name: string }) => ({
-      label: p.name,
-      value: p.position_id,
-      position_id: p.position_id,
-    }))
+    const q = (keyword ?? '').trim().toLowerCase()
+    options.value = (data.items ?? [])
+      .filter((p: { name: string }) => !q || (p.name ?? '').toLowerCase().includes(q))
+      .map((p: { position_id: string; name: string }) => ({
+        label: p.name,
+        value: p.name,
+        position_id: p.name,
+      }))
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(() => loadPositions())
 
 async function remoteMethod(q: string) {
-  loading.value = true
-  try {
-    const resp = await fetch(`/api/v1/positions?search=${encodeURIComponent(q)}`)
-    const data = await resp.json()
-    options.value = (data.items ?? []).map((p: { position_id: string; name: string }) => ({
-      label: p.name,
-      value: p.position_id,
-      position_id: p.position_id,
-    }))
-  } finally {
-    loading.value = false
-  }
+  await loadPositions(q)
 }
 
 function handleChange(val: string) {

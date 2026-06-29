@@ -1,713 +1,612 @@
-<script setup lang="ts">
-/**
- * 全景图谱页 — AntV G6 力导向图
- * 左侧面板：技术栈筛选 + 级别筛选
- * 右侧面板：节点详情
- * 底部工具栏：布局切换 / 缩放 / 搜索
- * 支持技能粒度下钻
- */
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { Graph } from '@antv/g6'
-import { Search, ZoomIn, ZoomOut, Aim, Collection } from '@element-plus/icons-vue'
-import MainLayout from '@/layouts/MainLayout.vue'
-import { useGraphStore, type GraphNode, type ViewMode } from '@/stores/graph'
+﻿<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue"
+import { useRouter } from "vue-router"
+import { Graph } from "@antv/g6"
+import { Search, ZoomIn, ZoomOut, Aim, Collection, DataAnalysis, Upload, Document, TrendCharts, ArrowRight } from "@element-plus/icons-vue"
+import VChart from "vue-echarts"
+import { use } from "echarts/core"
+import { RadarChart } from "echarts/charts"
+import { TooltipComponent, LegendComponent, RadarComponent } from "echarts/components"
+import { CanvasRenderer } from "echarts/renderers"
+use([RadarChart, TooltipComponent, LegendComponent, RadarComponent, CanvasRenderer])
+import MainLayout from "@/layouts/MainLayout.vue"
+import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from "@/stores/graph"
 
+// router available via useRouter() if needed
 const graphStore = useGraphStore()
 const graphRef = ref<HTMLElement | null>(null)
 let graph: Graph | null = null
 
-// ── 7 类节点颜色 ──
-const COLOR_MAP: Record<string, string> = {
-  Position: '#409EFF',
-  Skill: '#67C23A',
-  Tool: '#E6A23C',
-  KnowledgeArea: '#9B59B6',
-  Certificate: '#36CFC9',
-  LearningResource: '#E040FB',
-  Industry: '#FF7043',
-}
-
-const LABEL_NAMES: Record<string, string> = {
-  Position: '岗位',
-  Skill: '技能',
-  Tool: '工具',
-  KnowledgeArea: '领域',
-  Certificate: '证书',
-  LearningResource: '学习资源',
-  Industry: '行业',
-}
-
-// ── 技术栈视图：领域 → 颜色 ──
-const DOMAIN_COLORS: Record<string, string> = {
-  '人工智能': '#9B59B6',  // AI 紫
-  '数据科学': '#E6A23C',  // 数据 橙
-  '前端工程': '#409EFF',  // 前端 蓝
-  '后端架构': '#67C23A',  // 后端 绿
-  '云计算': '#36CFC9',    // 运维 青
-}
-
-// ── 通过 CONTAINS / BELONGS_TO 边推断每个节点所属领域 ──
-function buildDomainMap(): Map<string, string> {
+// ── 颜色常量 ──
+const KA_FALLBACK_COLORS = ["#9B59B6", "#E6A23C", "#409EFF", "#67C23A", "#36CFC9", "#F56C6C", "#E040FB", "#FF7043", "#00BCD4", "#8BC34A", "#FF5252", "#7C4DFF", "#009688", "#FF9800"]
+const KA_COLOR_MAP = computed(() => {
   const map = new Map<string, string>()
-  for (const e of graphStore.edges) {
-    if (e.type === 'CONTAINS') {
-      const ka = graphStore.nodes.find(n => n.id === e.source_id)
-      if (ka && ka.labels.includes('KnowledgeArea') && !map.has(e.target_id)) {
-        map.set(e.target_id, ka.properties.name)
-      }
-    }
-    if (e.type === 'BELONGS_TO') {
-      const ka = graphStore.nodes.find(n => n.id === e.target_id)
-      if (ka && ka.labels.includes('KnowledgeArea') && !map.has(e.source_id)) {
-        map.set(e.source_id, ka.properties.name)
-      }
-    }
-  }
+  graphStore.domains.forEach((d, i) => {
+    map.set(d.id, d.color || KA_FALLBACK_COLORS[i % KA_FALLBACK_COLORS.length])
+  })
   return map
+})
+const POSITION_COLOR = "#3B82F6"
+const SKILL_COLOR = "#10B981"
+const SKILL_BONUS_COLOR = "#F59E0B"
+
+// ── KPI ──
+const totalPositions = computed(() => graphStore.domains.reduce((s, d) => s + d.position_count, 0))
+const totalSkills = computed(() => graphStore.domains.reduce((s, d) => s + d.skill_count, 0))
+const totalDomains = computed(() => graphStore.domains.length)
+
+// ── 面包屑导航 ──
+interface BreadcrumbItem {
+  label: string
+  layer: ViewLayer
+  action?: () => void
 }
-
-// ── 筛选器 ──
-const techFilters = ['AI', '大数据', '物联网', '前端', '后端', '云计算']
-const selectedTech = ref<string[]>([])
-
-function toggleFilter(arr: string[], val: string) {
-  const idx = arr.indexOf(val)
-  if (idx >= 0) arr.splice(idx, 1)
-  else arr.push(val)
-}
-
-// ── 被筛选掉的节点 ID 集合 ──
-const filteredNodeIds = computed(() => {
-  const ids = new Set<string>()
-  for (const n of graphStore.nodes) {
-    const name = n.properties.name
-    if (selectedTech.value.length && !selectedTech.value.some(t => name.includes(t))) {
-      ids.add(n.id)
-    }
+const breadcrumb = computed<BreadcrumbItem[]>(() => {
+  const items: BreadcrumbItem[] = [{ label: "领域概览", layer: "domain", action: () => graphStore.goToDomainLayer() }]
+  if (graphStore.expandedKAName) {
+    items.push({ label: graphStore.expandedKAName, layer: "position", action: () => { graphStore.expandedPositionId = null; graphStore.currentLayer = "position" } })
   }
-  return ids
-})
-
-// ── 技术栈图例（前端蓝/后端绿/AI紫/数据橙/运维青）──
-const techLegend = [
-  { name: '前端', color: '#409EFF' },
-  { name: '后端', color: '#67C23A' },
-  { name: 'AI', color: '#9B59B6' },
-  { name: '数据', color: '#E6A23C' },
-  { name: '运维', color: '#36CFC9' },
-]
-
-// ── 视图模式选项 ──
-const viewModeOptions = [
-  { label: '默认', value: 'default' as const },
-  { label: '技术栈', value: 'tech' as const },
-  { label: '级别', value: 'level' as const },
-  { label: '热度', value: 'heat' as const },
-  { label: '演化', value: 'evolution' as const },
-]
-
-// ── 布局模式 ──
-type LayoutType = 'force' | 'dagre' | 'radial'
-const currentLayout = ref<LayoutType>('force')
-const layoutOptions = [
-  { label: '力导向', value: 'force' as const },
-  { label: '层次', value: 'dagre' as const },
-  { label: '辐射', value: 'radial' as const },
-]
-
-// ── 搜索 ──
-const searchKeyword = ref('')
-
-// ── 选中节点（右侧面板 + 下钻） ──
-const selectedNode = ref<GraphNode | null>(null)
-const drillStack = ref<GraphNode[]>([])
-
-// ── 多跳展开状态 ──
-const expandedNodeId = ref<string | null>(null)
-const twoHopVisibleIds = ref<Set<string>>(new Set())
-
-// 选中节点的关联节点
-const relatedNodes = computed(() => {
-  if (!selectedNode.value) return []
-  const nodeId = selectedNode.value.id
-  const relatedIds = new Set<string>()
-  for (const e of graphStore.edges) {
-    if (e.source_id === nodeId) relatedIds.add(e.target_id)
-    if (e.target_id === nodeId) relatedIds.add(e.source_id)
-  }
-  return graphStore.nodes.filter(n => relatedIds.has(n.id))
-})
-
-// 知识领域 → 关联的技能节点（下钻第1跳用）
-const relatedSkills = computed(() => {
-  if (!selectedNode.value) return []
-  return relatedNodes.value.filter(n => n.labels.includes('Skill') || n.labels.includes('Tool'))
-})
-
-// 技能 → 知识点列表（下钻第2跳用）
-const knowledgePoints = computed(() => {
-  if (!selectedNode.value) return []
-  return selectedNode.value.properties.knowledge_points ?? []
-})
-
-// 是否是领域节点 —— 决定右侧面板展示模式
-const isKnowledgeArea = computed(() =>
-  selectedNode.value?.labels.includes('KnowledgeArea') ?? false
-)
-
-// 是否是技能节点
-const isSkill = computed(() =>
-  selectedNode.value?.labels.includes('Skill') ?? false
-)
-// ── 下钻面包屑 ──
-const drillBreadcrumb = computed(() => {
-  const items = drillStack.value.map(n => ({ id: n.id, name: n.properties.name }))
-  if (selectedNode.value) {
-    items.push({ id: selectedNode.value.id, name: selectedNode.value.properties.name })
+  if (graphStore.expandedPositionId) {
+    const posNode = graphStore.nodeMap.get(graphStore.expandedPositionId)
+    items.push({ label: posNode?.properties.name ?? "岗位", layer: "detail" })
   }
   return items
 })
 
-// ── 节点点击 → 选中并高亮关联 ──
-function handleNodeClick(nodeId: string) {
-  const node = graphStore.nodes.find(n => n.id === nodeId)
-  if (!node) return
-  if (selectedNode.value && selectedNode.value.id !== nodeId) {
-    drillStack.value = [...drillStack.value, selectedNode.value]
-  }
-  selectedNode.value = node
-  highlightRelated(nodeId)
+// ── 视图模式切换 ──
+const overviewMode = ref<OverviewMode>('domain')
+
+function onOverviewModeChange(mode: string) {
+  graphStore.fetchOverview(mode as OverviewMode)
 }
 
-// ── 下钻面包屑回退 ──
-function goDrillBack(index: number) {
-  if (index === -1) {
-    selectedNode.value = null
-    drillStack.value = []
-    clearHighlight()
-    return
-  }
-  const target = drillStack.value[index]
-  drillStack.value = drillStack.value.slice(0, index)
-  selectedNode.value = target
-  highlightRelated(target.id)
-}
+// ── 选中的节点（详情面板） ──
+const selectedNode = ref<GraphNode | null>(null)
 
-// ── 关闭右侧详情面板 ──
-function closeDetail() {
-  selectedNode.value = null
-  drillStack.value = []
-  clearHighlight()
-}
-
-// ── 高亮关联 ──
-function highlightRelated(nodeId: string) {
-  if (!graph) return
-
-  // 技术栈视图：只高亮 REQUIRED_FOR 关联的 Position
-  const isTechView = graphStore.viewMode === 'tech'
-  const isHeatView = graphStore.viewMode === 'heat'
-
-  const relatedIds = new Set<string>([nodeId])
-  for (const e of graphStore.edges) {
-    if (isTechView && e.type !== 'REQUIRED_FOR') continue
-    if (e.source_id === nodeId) relatedIds.add(e.target_id)
-    if (e.target_id === nodeId) relatedIds.add(e.source_id)
-  }
-
-  const updatedNodes = graphStore.nodes.map(n => {
-    const isRelated = relatedIds.has(n.id)
-    const isCenter = n.id === nodeId
-    const showLabel = isRelated || isCenter
-    return {
-      id: n.id,
-      style: {
-        size: isCenter ? 40 : isRelated ? 30 : 18,
-        opacity: isRelated || isCenter ? 1 : 0.2,
-        labelText: showLabel ? (isHeatView ? `${n.properties.name} (${n.properties.source_count ?? 0})` : n.properties.name) : '',
-      },
-    }
-  })
-
-  const updatedEdges = graphStore.edges.map(e => {
-    const isRelated = e.source_id === nodeId || e.target_id === nodeId
-    return {
-      id: `${e.source_id}-${e.target_id}-${e.type}`,
-      style: {
-        stroke: isRelated ? '#409EFF' : '#d0d0d0',
-        lineWidth: isRelated ? 2 : 0.5,
-        opacity: isRelated ? 0.8 : 0.08,
-      },
-    }
-  })
-
-  graph.updateNodeData(updatedNodes)
-  graph.updateEdgeData(updatedEdges)
-  graph.draw()
-}
-
-// ── 清除高亮，恢复当前视图默认样式 ──
-function clearHighlight() {
-  expandedNodeId.value = null
-  twoHopVisibleIds.value = new Set()
-  applyCurrentView()
-}
-
-// ── 多跳展开：双击节点展开 2 跳邻居 ──
-function expandTwoHops(nodeId: string) {
-  if (!graph) return
-
-  // 第 1 跳
-  const hop1 = new Set<string>()
-  for (const e of graphStore.edges) {
-    if (e.source_id === nodeId) hop1.add(e.target_id)
-    if (e.target_id === nodeId) hop1.add(e.source_id)
-  }
-
-  // 第 2 跳
-  const hop2 = new Set<string>()
-  for (const e of graphStore.edges) {
-    if (hop1.has(e.source_id) && e.target_id !== nodeId && !hop1.has(e.target_id))
-      hop2.add(e.target_id)
-    if (hop1.has(e.target_id) && e.source_id !== nodeId && !hop1.has(e.source_id))
-      hop2.add(e.source_id)
-  }
-
-  expandedNodeId.value = nodeId
-  twoHopVisibleIds.value = new Set([nodeId, ...hop1, ...hop2])
-  applyCurrentView()
-}
-
-// ── 搜索节点 ──
-function handleSearch() {
-  if (!searchKeyword.value.trim() || !graph) return
+// ── 搜索 ──
+const searchKeyword = ref("")
+const showSearchDropdown = ref(false)
+const searchHighlightIndex = ref(-1)
+const searchResults = computed(() => {
   const kw = searchKeyword.value.trim().toLowerCase()
-  const found = graphStore.nodes.find(n => n.properties.name.toLowerCase().includes(kw))
-  if (found) {
-    handleNodeClick(found.id)
+  if (!kw) return []
+  // 搜索所有已加载节点 + 领域
+  const results: { id: string; name: string; type: string }[] = []
+  for (const d of graphStore.domains) {
+    if (d.name.toLowerCase().includes(kw)) results.push({ id: d.id, name: d.name, type: "领域" })
   }
-}
-
-// ── 按当前布局模式重新排布 ──
-function relayout() {
-  if (!graph) return
-  if (currentLayout.value === 'force') {
-    graph.setLayout(getLayoutConfig('force'))
-    graph.layout()
-  } else if (currentLayout.value === 'dagre') {
-    applyDagreLayout()
-  } else {
-    applyRadialLayout()
-  }
-}
-
-// ── 统一应用当前视图模式的可视化编码 ──
-function applyCurrentView() {
-  if (!graph) return
-
-  const mode = graphStore.viewMode
-  const ids = filteredNodeIds.value
-  const expansionActive = twoHopVisibleIds.value.size > 0
-
-  if (mode === 'tech') {
-    // ── 技术栈视图：用 updateData 而非 setData，保留 G6 内部状态 ──
-    const visibleLabels = new Set(['Skill', 'Tool', 'Position'])
-    const visibleNodeIds = new Set(
-      graphStore.nodes
-        .filter(n => n.labels.some(l => visibleLabels.has(l)))
-        .map(n => n.id),
-    )
-    const domainMap = buildDomainMap()
-
-    // 过滤掉无领域归属的灰色节点（Git / VS Code / Webpack）
-    for (const id of visibleNodeIds) {
-      if (!domainMap.has(id)) visibleNodeIds.delete(id)
+  for (const n of graphStore.allNodes) {
+    if (n.properties.name.toLowerCase().includes(kw)) {
+      const label = n.labels[0] === "Position" ? "岗位" : n.labels[0] === "Skill" ? "技能" : n.labels[0]
+      results.push({ id: n.id, name: n.properties.name, type: label })
     }
+  }
+  results.sort((a, b) => {
+    const ae = a.name.toLowerCase() === kw ? 0 : 1, be = b.name.toLowerCase() === kw ? 0 : 1
+    return ae - be
+  })
+  return results.slice(0, 10)
+})
 
-    graph.updateNodeData(
-      graphStore.nodes.map(n => {
-        const isVisible = visibleNodeIds.has(n.id) && !ids.has(n.id) && (!expansionActive || twoHopVisibleIds.value.has(n.id))
-        const domainColor = DOMAIN_COLORS[domainMap.get(n.id) ?? ''] ?? '#909399'
-        const prof = n.properties.proficiency
-        const label = prof ? `${n.properties.name} · ${prof}` : n.properties.name
-
-        return {
-          id: n.id,
-          style: {
-            fill: domainColor,
-            size: 28,
-            opacity: isVisible ? 1 : 0,
-            labelText: isVisible ? label : '',
-            labelFill: '#1f1f1f',
-            labelFontSize: 11,
-            labelPlacement: 'bottom',
-            labelOffsetY: 6,
-          },
-        }
-      }),
-    )
-
-    // 先删掉涉及隐藏节点的边（G6 updateEdgeData 不能删边）
-    graph.removeEdgeData(
-      graphStore.edges
-        .filter(e => !visibleNodeIds.has(e.source_id) || !visibleNodeIds.has(e.target_id))
-        .map(e => `${e.source_id}-${e.target_id}-${e.type}`),
-    )
-
-    graph.updateEdgeData(
-      graphStore.edges
-        .filter(e => visibleNodeIds.has(e.source_id) && visibleNodeIds.has(e.target_id))
-        .map(e => {
-        const isVisible = !ids.has(e.source_id) && !ids.has(e.target_id) && (!expansionActive || (twoHopVisibleIds.value.has(e.source_id) && twoHopVisibleIds.value.has(e.target_id)))
-        const isCore = e.type === 'REQUIRED_FOR'
-
-        return {
-          id: `${e.source_id}-${e.target_id}-${e.type}`,
-          source: e.source_id,
-          target: e.target_id,
-          style: {
-            stroke: '#d0d0d0',
-            lineWidth: isCore ? 2 : 0.5,
-            opacity: isVisible ? (isCore ? 0.6 : 0.15) : 0,
-          },
-        }
-      }),
-    )
-
-    graph.draw()
+function onSearchInput() {
+  showSearchDropdown.value = searchResults.value.length > 0 && searchKeyword.value.trim().length > 0
+  searchHighlightIndex.value = -1
+}
+function onSearchKeydown(e: KeyboardEvent) {
+  if (e.key === "ArrowDown") { e.preventDefault(); searchHighlightIndex.value = searchHighlightIndex.value < searchResults.value.length - 1 ? searchHighlightIndex.value + 1 : 0 }
+  else if (e.key === "ArrowUp") { e.preventDefault(); searchHighlightIndex.value = searchHighlightIndex.value > 0 ? searchHighlightIndex.value - 1 : searchResults.value.length - 1 }
+  else if (e.key === "Enter") { e.preventDefault(); if (searchHighlightIndex.value >= 0) selectSearchResult(searchResults.value[searchHighlightIndex.value]); else if (searchResults.value.length) selectSearchResult(searchResults.value[0]) }
+  else if (e.key === "Escape") { searchKeyword.value = ""; showSearchDropdown.value = false }
+}
+function selectSearchResult(result: { id: string; name: string; type: string }) {
+  showSearchDropdown.value = false; searchHighlightIndex.value = -1; searchKeyword.value = ""
+  // 如果是领域，跳到 position 层
+  const domain = graphStore.domains.find(d => d.id === result.id)
+  if (domain) {
+    graphStore.goToPositionLayer(domain.id, domain.name)
     return
   }
-
-  // ── 热度视图：节点大小=source_count，着色=冷蓝→热红渐变 ──
-  if (mode === 'heat') {
-    const counts = graphStore.nodes.map(n => n.properties.source_count ?? 0)
-    const minCount = Math.min(...counts)
-    const maxCount = Math.max(...counts)
-    const countRange = maxCount - minCount || 1
-
-    // 冷蓝 → 热红 渐变色
-    const heatColor = (count: number) => {
-      const t = (count - minCount) / countRange // 0(冷) ~ 1(热)
-      const r = Math.round(64 + t * 182)   // 64 → 246
-      const g = Math.round(159 - t * 97)    // 159 → 62
-      const b = Math.round(255 - t * 179)  // 255 → 76
-      return `rgb(${r},${g},${b})`
+  // 如果是岗位，找到所属 KA 并跳到 detail 层
+  const node = graphStore.allNodes.find(n => n.id === result.id)
+  if (node?.labels.includes("Position")) {
+    // 找到该 Position 属于哪个 KA
+    const kaId = findKAForPosition(node.id)
+    if (kaId) {
+      const ka = graphStore.domains.find(d => d.id === kaId)
+      graphStore.goToPositionLayer(kaId, ka?.name ?? "").then(() => {
+        graphStore.goToDetailLayer(node.id)
+        selectedNode.value = node
+      })
     }
-
-    // 大小映射
-    const minSize = 12
-    const maxSize = 60
-    const heatSize = (count: number) =>
-      minSize + ((count - minCount) / countRange) * (maxSize - minSize)
-
-    graph.setData({
-      nodes: graphStore.nodes.map(n => {
-        const count = n.properties.source_count ?? 0
-        const isDimmed = ids.has(n.id) || (expansionActive && !twoHopVisibleIds.value.has(n.id))
-        return {
-          id: n.id,
-          style: {
-            fill: heatColor(count),
-            size: isDimmed ? 8 : heatSize(count),
-            opacity: isDimmed ? 0.1 : 1,
-            labelText: isDimmed ? '' : `${n.properties.name} (${count})`,
-            labelFill: '#1f1f1f',
-            labelFontSize: 11,
-            labelPlacement: 'bottom',
-            labelOffsetY: 6,
-          },
+    return
+  }
+  // 如果是技能，找到所属 Position
+  if (node?.labels.includes("Skill")) {
+    // 找到哪个 Position 需要这个 Skill
+    for (const e of graphStore.allEdges) {
+      if (e.target_id === result.id && e.type === "REQUIRES") {
+        const posNode = graphStore.nodeMap.get(e.source_id)
+        if (posNode) {
+          const kaId = findKAForPosition(posNode.id)
+          if (kaId) {
+            const ka = graphStore.domains.find(d => d.id === kaId)
+            graphStore.goToPositionLayer(kaId, ka?.name ?? "").then(() => {
+              graphStore.goToDetailLayer(posNode.id)
+              selectedNode.value = node
+            })
+          }
+          return
         }
-      }),
-      edges: graphStore.edges.map(e => ({
-        id: `${e.source_id}-${e.target_id}-${e.type}`,
-        source: e.source_id,
-        target: e.target_id,
+      }
+    }
+  }
+}
+function onSearchBlur() { setTimeout(() => { showSearchDropdown.value = false }, 200) }
+
+function findKAForPosition(positionId: string): string | null {
+  // 遍历缓存的 positionsByKA
+  for (const [kaId, positions] of graphStore.positionsByKA) {
+    if (positions.some(p => p.id === positionId)) return kaId
+  }
+  return null
+}
+
+// ── 雷达图 ──
+const positionRadarOption = computed(() => {
+  if (!selectedNode.value || !selectedNode.value.labels.includes("Position")) return null
+  const posId = selectedNode.value.id
+  const skills: { name: string; value: number }[] = []
+  for (const e of graphStore.allEdges) {
+    if (e.source_id === posId && e.type === "REQUIRES") {
+      const skillNode = graphStore.nodeMap.get(e.target_id)
+      if (!skillNode) continue
+      skills.push({ name: skillNode.properties.name, value: Math.min(e.properties?.weight ?? 0.5, 1) })
+    }
+  }
+  if (!skills.length) return null
+  const sliced = skills.slice(0, 8)
+  return {
+    tooltip: { trigger: "item" },
+    radar: {
+      center: ["50%", "50%"],
+      radius: "60%",
+      indicator: sliced.map(s => ({ name: s.name, max: 1 })),
+      axisName: { color: "#606266", fontSize: 10 },
+    },
+    series: [{
+      type: "radar",
+      data: [{
+        value: sliced.map(s => s.value),
+        name: "技能权重",
+        areaStyle: { color: "rgba(59,130,246,0.15)" },
+        lineStyle: { color: POSITION_COLOR, width: 2 },
+        itemStyle: { color: POSITION_COLOR },
+      }],
+    }],
+  }
+})
+
+// ── 关联岗位（相似岗位） ──
+const relatedPositions = computed(() => {
+  if (!selectedNode.value || !selectedNode.value.labels.includes("Position")) return []
+  const posId = selectedNode.value.id
+  const posSkillIds = new Set<string>()
+  for (const e of graphStore.allEdges) {
+    if (e.source_id === posId && e.type === "REQUIRES") posSkillIds.add(e.target_id)
+  }
+  if (!posSkillIds.size) return []
+  const similarity = new Map<string, number>()
+  for (const e of graphStore.allEdges) {
+    if (e.type === "REQUIRES" && posSkillIds.has(e.target_id) && e.source_id !== posId) {
+      similarity.set(e.source_id, (similarity.get(e.source_id) ?? 0) + 1)
+    }
+  }
+  const results: { node: GraphNode; sharedCount: number }[] = []
+  for (const [id, count] of similarity) {
+    const node = graphStore.nodeMap.get(id)
+    if (node) results.push({ node, sharedCount: count })
+  }
+  results.sort((a, b) => b.sharedCount - a.sharedCount)
+  return results.slice(0, 6)
+})
+
+// ── 相关技能（KA 详情面板） ──
+const kaRelatedPositions = computed(() => {
+  if (!selectedNode.value || !selectedNode.value.labels.includes("KnowledgeArea")) return []
+  return graphStore.positionsByKA.get(selectedNode.value.id) ?? []
+})
+
+// ── G6 图谱初始化 ──
+function initGraph() {
+  if (!graphRef.value) return
+  if (graph) { graph.destroy(); graph = null }
+  const container = graphRef.value
+  const width = container.clientWidth || 800
+  const height = container.clientHeight || 600
+
+  try {
+    graph = new Graph({
+      container,
+      width,
+      height,
+      layout: { type: "force", preventOverlap: true, nodeSize: 40, nodeSpacing: 20, animate: true },
+      node: {
         style: {
-          stroke: '#d0d0d0',
-          lineWidth: 0.5,
-          opacity: ids.has(e.source_id) || ids.has(e.target_id) || (expansionActive && (!twoHopVisibleIds.value.has(e.source_id) || !twoHopVisibleIds.value.has(e.target_id))) ? 0.02 : 0.08,
+          labelFill: "#1f1f1f",
+          labelFontSize: 12,
+          labelPlacement: "bottom" as const,
+          labelOffsetY: 8,
+                  },
+      },
+      edge: {
+        style: {
+          stroke: "#d0d0d0",
+          lineWidth: 1.5,
+          opacity: 0.5,
+          endArrow: true,
         },
-      })),
+      },
+      behaviors: ["drag-canvas", "zoom-canvas", "drag-element"],
     })
-    relayout()
-    return
-  }
 
-  // ── 默认视图：恢复全部节点 ──
-  graph.setData({
-    nodes: graphStore.nodes.map(n => ({
+    graph.on("node:click", (event: any) => {
+      const nodeId = event.target?.id
+      if (!nodeId) return
+      handleNodeClick(nodeId)
+    })
+
+    graph.on("canvas:click", () => {
+      selectedNode.value = null
+    })
+
+    renderCurrentLayer()
+  } catch (err) {
+    console.error("[Home] Failed to initialize graph:", err)
+  }
+}
+
+// ── 渲染当前层 ──
+function renderCurrentLayer() {
+  if (!graph) return
+  if (graphStore.currentLayer === "domain") {
+    renderDomainLayer()
+  } else if (graphStore.currentLayer === "position") {
+    renderPositionLayer()
+  } else {
+    renderDetailLayer()
+  }
+}
+
+function renderDomainLayer() {
+  if (!graph) return
+  const maxSkill = Math.max(...graphStore.domains.map(d => d.skill_count), 1)
+  const minSize = 50, maxSize = 100
+
+  const graphNodes = graphStore.visibleNodes.map((n, i) => {
+    const domain = graphStore.domains.find(d => d.id === n.id)
+    const skillCount = domain?.skill_count ?? 0
+    const size = minSize + (skillCount / maxSkill) * (maxSize - minSize)
+    const color = KA_COLOR_MAP.value.get(n.id) ?? KA_FALLBACK_COLORS[i % KA_FALLBACK_COLORS.length]
+    return {
       id: n.id,
       style: {
-        fill: COLOR_MAP[n.labels[0]] ?? '#909399',
-        size: (ids.has(n.id) || (expansionActive && !twoHopVisibleIds.value.has(n.id))) ? 8 : 28,
-        opacity: (ids.has(n.id) || (expansionActive && !twoHopVisibleIds.value.has(n.id))) ? 0.1 : 1,
-        labelText: (ids.has(n.id) || (expansionActive && !twoHopVisibleIds.value.has(n.id))) ? '' : n.properties.name,
-        labelFill: '#1f1f1f',
-        labelFontSize: 11,
-        labelPlacement: 'bottom',
-        labelOffsetY: 6,
-      },
-    })),
-    edges: graphStore.edges.map(e => ({
-      id: `${e.source_id}-${e.target_id}-${e.type}`,
-      source: e.source_id,
-      target: e.target_id,
-      style: {
-        stroke: '#d0d0d0',
-        lineWidth: 1,
-        opacity: ids.has(e.source_id) || ids.has(e.target_id) || (expansionActive && (!twoHopVisibleIds.value.has(e.source_id) || !twoHopVisibleIds.value.has(e.target_id))) ? 0.04 : 0.4,
-      },
-    })),
-  })
-  relayout()
-}
-
-// ── 布局参数配置 ──
-function getLayoutConfig(type: LayoutType) {
-  if (type === 'force') {
-    return {
-      type: 'force' as const,
-      linkDistance: 180,
-      nodeStrength: -80,//排斥力
-      edgeStrength: 80,//边拉力
-      preventOverlap: true,
-      nodeSize: 28,
-      collideStrength: 2,//碰撞检测
-      nodeSpacing: 15,//球大小
-      gravity: 1,//中心引力
-      damping: 0.3,//收敛，多迭代
-      animate: true,
+        size,
+        fill: color,
+        fillOpacity: 0.85,
+        stroke: color,
+        lineWidth: 2,
+        labelText: n.properties.name,
+        labelFill: "#ffffff",
+        labelFontSize: 14,
+        labelFontWeight: "bold" as const,
+        labelPlacement: "center" as const,
+        shadowColor: "rgba(0,0,0,0.15)",
+        shadowBlur: 12,
+              },
     }
-  }
-  if (type === 'dagre') return { type: 'dagre' as const, rankdir: 'TB' as const, nodesep: 30, ranksep: 50, animate: true }
-  return { type: 'radial' as const, unitRadius: 80, preventOverlap: true, nodeSize: 28, focusNode: graphStore.nodes[0]?.id ?? '', animate: true }
-}
-
-// ── 初始化 G6 图谱实例 ──
-function initGraph() {
-  if (!graphRef.value || !graphStore.nodes.length) return
-  if (graph) { graph.destroy(); graph = null }
-
-  graph = new Graph({
-    container: graphRef.value,
-    width: graphRef.value.clientWidth,
-    height: graphRef.value.clientHeight,
-    data: {
-      nodes: graphStore.nodes.map(n => ({
-        id: n.id,
-        style: {
-          size: 28,
-          fill: COLOR_MAP[n.labels[0]] ?? '#909399',
-          labelText: n.properties.name,
-          labelFill: '#1f1f1f',
-          labelFontSize: 11,
-          labelPlacement: 'bottom',
-          labelOffsetY: 6,
-        },
-      })),
-      edges: graphStore.edges.map(e => ({
-        id: `${e.source_id}-${e.target_id}-${e.type}`,
-        source: e.source_id,
-        target: e.target_id,
-      })),
-    } as any,
-    layout: getLayoutConfig('force'),
-    node: {
-      type: 'circle',
-      style: {
-        labelFill: '#1f1f1f',
-        labelFontSize: 11,
-        labelPlacement: 'bottom',
-        labelOffsetY: 6,
-      },
-    },
-    edge: {
-      type: 'line',
-      style: { stroke: '#d0d0d0', lineWidth: 1, opacity: 0.4 },
-    },
-    behaviors: ['drag-canvas', 'zoom-canvas', 'drag-element', {
-      type: 'click-select',
-      onClick(event: any) {
-        const id = event.target?.id
-        if (!id) return
-        // 已选中的节点再次点击 → 展开 2 跳邻居
-        if (id === selectedNode.value?.id) {
-          expandTwoHops(id)
-        } else {
-          handleNodeClick(id)
-        }
-      },
-    }],
   })
 
+  const graphEdges = graphStore.visibleEdges.map(e => ({
+    id: `${e.source_id}-${e.target_id}-${e.type}`,
+    source: e.source_id,
+    target: e.target_id,
+    style: {
+      stroke: "#94a3b8",
+      lineWidth: 1.5,
+      opacity: 0.3,
+      lineDash: [6, 4],
+      endArrow: false,
+    },
+  }))
+
+  graph.setData({ nodes: graphNodes, edges: graphEdges })
+  graph.setLayout({ type: "force", preventOverlap: true, nodeSize: 80, nodeSpacing: 40, animate: true, strength: 0.5 })
   graph.render()
-
-  graph.on('click', (event: any) => {
-    // 点击空白区域恢复展开
-    if (!event.target?.id && expandedNodeId.value) {
-      clearHighlight()
-    }
-  })
-
-  applyCurrentView()
+  setTimeout(() => graph?.fitView(), 300)
 }
 
-// ── 切换布局 ──
-function switchLayout(type: LayoutType) {
-  currentLayout.value = type
+function renderPositionLayer() {
   if (!graph) return
-  if (type === 'radial') {
-    applyRadialLayout()
-    return
+  const kaId = graphStore.expandedKAId
+  const kaColor = kaId ? (KA_COLOR_MAP.value.get(kaId) ?? "#9B59B6") : "#9B59B6"
+  const positions = graphStore.positionsByKA.get(kaId ?? "") ?? []
+  const maxSkillCount = Math.max(...positions.map(p => {
+    let count = 0
+    for (const e of graphStore.allEdges) { if (e.source_id === p.id && e.type === "REQUIRES") count++ }
+    return count
+  }), 1)
+
+  const graphNodes: any[] = []
+  const graphEdges: any[] = []
+
+  // KA 节点（中心，缩小）
+  if (kaId) {
+    graphNodes.push({
+      id: kaId,
+      style: {
+        size: 60,
+        fill: kaColor,
+        fillOpacity: 0.7,
+        stroke: kaColor,
+        lineWidth: 3,
+        labelText: graphStore.expandedKAName,
+        labelFill: "#ffffff",
+        labelFontSize: 13,
+        labelFontWeight: "bold" as const,
+        labelPlacement: "center" as const,
+        shadowColor: "rgba(0,0,0,0.12)",
+        shadowBlur: 8,
+      },
+    })
   }
-  if (type === 'dagre') {
-    applyDagreLayout()
-    return
-  }
-  graph.setLayout(getLayoutConfig(type))
-  graph.layout()
-}
 
-// ── 辐射布局：按节点类型分层、手动计算同心圆坐标 ──
-function applyRadialLayout() {
-  if (!graph || !graphRef.value) return
+  // Position 节点
+  const posColor = POSITION_COLOR
+  for (const p of positions) {
+    let skillCount = 0
+    for (const e of graphStore.allEdges) { if (e.source_id === p.id && e.type === "REQUIRES") skillCount++ }
+    const size = 28 + (skillCount / maxSkillCount) * 16
 
-  const width = graphRef.value.clientWidth
-  const height = graphRef.value.clientHeight
-  const cx = width / 2
-  const cy = height / 2
+    graphNodes.push({
+      id: p.id,
+      style: {
+        size,
+        fill: posColor,
+        fillOpacity: 0.85,
+        stroke: "#2563eb",
+        lineWidth: 1.5,
+        labelText: p.properties.name,
+        labelFill: "#1e293b",
+        labelFontSize: 11,
+        labelFontWeight: "normal" as const,
+        labelPlacement: "bottom" as const,
+        labelOffsetY: 6,
+              },
+    })
 
-  // 按 label 分类
-  const groups: Record<string, GraphNode[]> = { Position: [], Skill: [], Tool: [], _other: [] }
-  for (const n of graphStore.nodes) {
-    const label = n.labels[0]
-    if (label === 'Position') groups.Position.push(n)
-    else if (label === 'Skill') groups.Skill.push(n)
-    else if (label === 'Tool') groups.Tool.push(n)
-    else groups._other.push(n)
-  }
-
-  const rings: { nodes: GraphNode[]; radius: number }[] = [
-    { nodes: groups.Position, radius: 50 },
-    { nodes: groups.Skill,    radius: 180 },
-    { nodes: groups.Tool,     radius: 310 },
-    { nodes: groups._other,   radius: 440 },
-  ]
-
-  const posMap = new Map<string, { x: number; y: number }>()
-  for (const ring of rings) {
-    const count = ring.nodes.length
-    if (count === 0) continue
-    for (let i = 0; i < count; i++) {
-      const angle = (2 * Math.PI * i) / count - Math.PI / 2 // 从12点钟方向开始
-      posMap.set(ring.nodes[i].id, {
-        x: cx + ring.radius * Math.cos(angle),
-        y: cy + ring.radius * Math.sin(angle),
+    // KA → Position 边
+    if (kaId) {
+      graphEdges.push({
+        id: `${kaId}-${p.id}-CONTAINS`,
+        source: kaId,
+        target: p.id,
+        style: {
+          stroke: kaColor,
+          lineWidth: 1.5,
+          opacity: 0.3,
+          lineDash: [4, 3],
+          endArrow: false,
+        },
       })
     }
   }
 
-  const updatedNodes = graphStore.nodes.map(n => {
-    const pos = posMap.get(n.id)
-    return {
-      id: n.id,
-      style: {
-        x: pos?.x ?? cx,
-        y: pos?.y ?? cy,
-      },
-    }
-  })
-
-  graph.updateNodeData(updatedNodes)
-  graph.draw()
+  graph.setData({ nodes: graphNodes, edges: graphEdges })
+  graph.setLayout({ type: "radial", unitRadius: 120, preventOverlap: true, nodeSize: 48, focusNode: kaId || undefined, animate: true })
+  graph.render()
+  setTimeout(() => graph?.fitView(), 300)
 }
 
-// ── 层次布局：按节点类型分层，手动计算行列坐标 ──
-function applyDagreLayout() {
-  if (!graph || !graphRef.value) return
+function renderDetailLayer() {
+  if (!graph) return
+  const posId = graphStore.expandedPositionId
+  if (!posId) return
 
-  const width = graphRef.value.clientWidth
-  const height = graphRef.value.clientHeight
+  const graphNodes: any[] = []
+  const graphEdges: any[] = []
+  const kaId = graphStore.expandedKAId
+  const kaColor = kaId ? (KA_COLOR_MAP.value.get(kaId) ?? "#9B59B6") : "#9B59B6"
 
-  // 从上到下的层级顺序
-  const layerOrder: string[][] = [
-    ['KnowledgeArea'],
-    ['Position'],
-    ['Skill'],
-    ['Tool'],
-    ['Certificate', 'LearningResource', 'Industry'],
-  ]
-
-  const numLayers = layerOrder.length
-  const topPad = 60
-  const bottomPad = 60
-  const usableH = height - topPad - bottomPad
-  const layerGap = numLayers > 1 ? usableH / (numLayers - 1) : 0
-
-  const leftPad = 80
-  const rightPad = 80
-  const usableW = width - leftPad - rightPad
-
-  const posMap = new Map<string, { x: number; y: number }>()
-
-  for (let li = 0; li < layerOrder.length; li++) {
-    const layerNodes = graphStore.nodes.filter(n => layerOrder[li].includes(n.labels[0]))
-    const count = layerNodes.length
-    const y = topPad + li * layerGap
-
-    for (let i = 0; i < count; i++) {
-      const x = count > 1
-        ? leftPad + (i * usableW) / (count - 1)
-        : width / 2
-      posMap.set(layerNodes[i].id, { x, y })
-    }
+  // KA 节点（远处，更小）
+  if (kaId) {
+    graphNodes.push({
+      id: kaId,
+      style: {
+        size: 36,
+        fill: kaColor,
+        fillOpacity: 0.35,
+        stroke: kaColor,
+        lineWidth: 1,
+        labelText: graphStore.expandedKAName,
+        labelFill: "#94a3b8",
+        labelFontSize: 10,
+        labelPlacement: "bottom" as const,
+        labelOffsetY: 4,
+      },
+    })
   }
 
-  const updatedNodes = graphStore.nodes.map(n => {
-    const pos = posMap.get(n.id)
+  // Position 节点（中心）
+  const posNode = graphStore.nodeMap.get(posId)
+  graphNodes.push({
+    id: posId,
+    style: {
+      size: 50,
+      fill: POSITION_COLOR,
+      fillOpacity: 0.9,
+      stroke: "#1d4ed8",
+      lineWidth: 3,
+      labelText: posNode?.properties.name ?? "岗位",
+      labelFill: "#ffffff",
+      labelFontSize: 13,
+      labelFontWeight: "bold" as const,
+      labelPlacement: "center" as const,
+      shadowColor: "rgba(59,130,246,0.3)",
+      shadowBlur: 12,
+          },
+  })
+
+  // Skill 节点
+  const posEdges = graphStore.visibleEdges.filter(e => e.source_id === posId)
+  const maxWeight = Math.max(...posEdges.map(e => e.properties?.weight ?? 0.5), 0.1)
+
+  for (const e of posEdges) {
+    const skillNode = graphStore.nodeMap.get(e.target_id)
+    if (!skillNode) continue
+    const weight = e.properties?.weight ?? 0.5
+    const isRequired = weight >= 0.6
+    const size = 14 + (weight / maxWeight) * 14
+
+    graphNodes.push({
+      id: e.target_id,
+      style: {
+        size,
+        fill: isRequired ? SKILL_COLOR : SKILL_BONUS_COLOR,
+        fillOpacity: 0.8,
+        stroke: isRequired ? "#059669" : "#d97706",
+        lineWidth: 1,
+        labelText: skillNode.properties.name,
+        labelFill: "#374151",
+        labelFontSize: 10,
+        labelPlacement: "bottom" as const,
+        labelOffsetY: 4,
+      },
+    })
+
+    // Position → Skill 边
+    graphEdges.push({
+      id: `${posId}-${e.target_id}-REQUIRES`,
+      source: posId,
+      target: e.target_id,
+      style: {
+        stroke: isRequired ? SKILL_COLOR : SKILL_BONUS_COLOR,
+        lineWidth: isRequired ? 2 : 1.5,
+        opacity: 0.6,
+        lineDash: isRequired ? [] : [5, 3],
+        endArrow: !isRequired,
+      },
+    })
+  }
+
+  graph.setData({ nodes: graphNodes, edges: graphEdges })
+  graph.setLayout({ type: "radial", unitRadius: 100, preventOverlap: true, nodeSize: 32, focusNode: posId, animate: true })
+  graph.render()
+  setTimeout(() => graph?.fitView(), 300)
+}
+
+// ── 节点点击处理 ──
+async function handleNodeClick(nodeId: string) {
+  // Domain 层：点击 KA → 进入 Position 层
+  if (graphStore.currentLayer === "domain") {
+    const domain = graphStore.domains.find(d => d.id === nodeId)
+    if (domain) {
+      selectedNode.value = {
+        id: domain.id,
+        labels: ["KnowledgeArea"],
+        properties: { name: domain.name, position_count: domain.position_count, skill_count: domain.skill_count },
+      }
+      await graphStore.goToPositionLayer(domain.id, domain.name)
+      renderCurrentLayer()
+    }
+    return
+  }
+
+  // Position 层：点击 Position → 进入 Detail 层；点击 KA → 选中
+  if (graphStore.currentLayer === "position") {
+    if (nodeId === graphStore.expandedKAId) {
+      const domain = graphStore.domains.find(d => d.id === nodeId)
+      selectedNode.value = domain ? {
+        id: domain.id,
+        labels: ["KnowledgeArea"],
+        properties: { name: domain.name, position_count: domain.position_count, skill_count: domain.skill_count },
+      } : null
+      return
+    }
+    const node = graphStore.nodeMap.get(nodeId)
+    if (node?.labels.includes("Position")) {
+      selectedNode.value = node
+      graphStore.goToDetailLayer(nodeId)
+      renderCurrentLayer()
+    }
+    return
+  }
+
+  // Detail 层：点击 Skill → 选中；点击 Position → 选中
+  if (graphStore.currentLayer === "detail") {
+    const node = graphStore.nodeMap.get(nodeId)
+    if (node) selectedNode.value = node
+    if (graph) highlightNode(nodeId)
+  }
+}
+
+function highlightNode(nodeId: string) {
+  if (!graph) return
+  const relatedIds = new Set<string>([nodeId])
+  for (const e of graphStore.visibleEdges) {
+    if (e.source_id === nodeId) relatedIds.add(e.target_id)
+    if (e.target_id === nodeId) relatedIds.add(e.source_id)
+  }
+    const updateNodes = graphStore.visibleNodes.map(n => {
+    const isRelated = relatedIds.has(n.id)
+    const isCenter = n.id === nodeId
     return {
       id: n.id,
       style: {
-        x: pos?.x ?? width / 2,
-        y: pos?.y ?? height / 2,
+        fillOpacity: isCenter ? 1 : isRelated ? 0.8 : 0.2,
+        lineWidth: isCenter ? 4 : isRelated ? 2 : 1,
       },
     }
   })
-
-  graph.updateNodeData(updatedNodes)
+  graph.updateNodeData(updateNodes)
   graph.draw()
 }
 
-// ── 缩放 ──
-function zoomIn() { graph?.zoomTo(graph.getZoom() * 1.3) }
-function zoomOut() { graph?.zoomTo(graph.getZoom() * 0.7) }
-function zoomFit() {
-  if (!graph) return
-  graph.fitView()
+function clearHighlight() {
+  renderCurrentLayer()
 }
 
-// ── 筛选或视图变化 → 重新渲染 ──
-watch([filteredNodeIds, () => graphStore.viewMode], () => {
-  applyCurrentView()
-})
+function closeDetail() {
+  selectedNode.value = null
+  clearHighlight()
+}
 
-// ── 窗口缩放时自适应画布尺寸 ──
+// ── 缩放控制 ──
+function zoomIn() { graph?.zoomTo(graph!.getZoom() * 1.3) }
+function zoomOut() { graph?.zoomTo(graph!.getZoom() * 0.7) }
+function zoomFit() { graph?.fitView() }
+
+// ── 响应式 ──
 function handleResize() {
   if (!graph || !graphRef.value) return
   graph.setSize(graphRef.value.clientWidth, graphRef.value.clientHeight)
 }
 
-// ── 挂载：拉取数据 → 初始化图谱 → 监听窗口缩放 ──
-onMounted(async () => {
-  await graphStore.fetchGraph()
-  await nextTick()
-  initGraph()
-  window.addEventListener('resize', handleResize)
+// ── Watch 层级变化 → 重新渲染 ──
+watch(() => graphStore.currentLayer, () => {
+  selectedNode.value = null
+  renderCurrentLayer()
 })
 
-// ── 卸载：移除监听 → 销毁图谱实例 ──
+// ── 生命周期 ──
+onMounted(async () => {
+  await graphStore.fetchOverview()
+  await nextTick()
+  initGraph()
+  window.addEventListener("resize", handleResize)
+})
+
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
+  window.removeEventListener("resize", handleResize)
   if (graph) { graph.destroy(); graph = null }
 })
 </script>
@@ -715,379 +614,208 @@ onUnmounted(() => {
 <template>
   <MainLayout>
     <div class="graph-page">
-      <div class="page-header">
-        <h2>全景图谱</h2>
-        <p class="page-desc">
-          {{ graphStore.nodes.length }} 节点 · {{ graphStore.edges.length }} 关联
-        </p>
+      <!-- KPI 卡片 -->
+      <div class="kpi-strip">
+        <div class="kpi-card" style="border-left-color: #3B82F6">
+          <div class="kpi-icon" style="background: rgba(59,130,246,0.1); color: #3B82F6"><el-icon><DataAnalysis /></el-icon></div>
+          <div class="kpi-body"><div class="kpi-value">{{ totalDomains }}</div><div class="kpi-label">技术领域</div></div>
+        </div>
+        <div class="kpi-card" style="border-left-color: #409EFF">
+          <div class="kpi-icon" style="background: rgba(64,158,255,0.1); color: #409EFF"><el-icon><Collection /></el-icon></div>
+          <div class="kpi-body"><div class="kpi-value">{{ totalPositions }}</div><div class="kpi-label">岗位数</div></div>
+        </div>
+        <div class="kpi-card" style="border-left-color: #10B981">
+          <div class="kpi-icon" style="background: rgba(16,185,129,0.1); color: #10B981"><el-icon><TrendCharts /></el-icon></div>
+          <div class="kpi-body"><div class="kpi-value">{{ totalSkills }}</div><div class="kpi-label">技能数</div></div>
+        </div>
+        <div class="quick-actions">
+          <el-button type="primary" size="small" :icon="Upload" @click="$router.push('/match')">上传简历匹配</el-button>
+          <el-button type="success" size="small" :icon="Document" @click="$router.push('/extract')">粘贴JD抽取</el-button>
+          <el-button type="warning" size="small" :icon="TrendCharts" @click="$router.push('/evolution')">查看演化趋势</el-button>
+        </div>
       </div>
 
-      <!-- ═══ 视图切换 Tab ═══ -->
-      <div class="view-tabs">
-        <el-radio-group
-          :model-value="graphStore.viewMode"
-          size="small"
-          @change="(val: string) => graphStore.setViewMode(val as ViewMode)"
-        >
-          <el-radio-button
-            v-for="vm in viewModeOptions"
-            :key="vm.value"
-            :value="vm.value"
-          >
-            {{ vm.label }}
-          </el-radio-button>
+      <!-- 视图模式切换 -->
+      <div v-if="graphStore.currentLayer === 'domain'" class="view-mode-tabs">
+        <el-radio-group v-model="overviewMode" size="small" @change="onOverviewModeChange">
+          <el-radio-button value="domain">领域概览</el-radio-button>
+          <el-radio-button value="tech_stack">技术栈视图</el-radio-button>
+          <el-radio-button value="level">级别视图</el-radio-button>
         </el-radio-group>
       </div>
 
-      <div class="graph-layout">
-        <!-- ═══ 左侧面板：筛选器 ═══ -->
-        <aside class="left-panel">
-          <!-- 图例（按视图切换） -->
-          <div class="panel-section">
-            <div class="section-title">
-              图例
-            </div>
-            <!-- 技术栈：领域色 -->
-            <div
-              v-if="graphStore.viewMode === 'tech'"
-              class="legend-list"
-            >
-              <div
-                v-for="item in techLegend"
-                :key="item.name"
-                class="legend-row"
-              >
-                <span
-                  class="legend-dot"
-                  :style="{ background: item.color }"
-                />
-                <span>{{ item.name }}</span>
-              </div>
-            </div>
-            <!-- 热度：热力渐变 -->
-            <div
-              v-else-if="graphStore.viewMode === 'heat'"
-              class="heat-legend"
-            >
-              <div class="heat-gradient-bar" />
-              <div class="heat-gradient-labels">
-                <span>冷</span>
-                <span>热</span>
-              </div>
-              <div class="heat-size-hint">
-                <span
-                  class="hint-dot"
-                  style="width:6px;height:6px"
-                />
-                <span>出现少</span>
-                <span
-                  class="hint-dot"
-                  style="width:16px;height:16px"
-                />
-                <span>出现多</span>
-              </div>
-            </div>
-            <!-- 默认：节点类型 -->
-            <div
-              v-else
-              class="legend-list"
-            >
-              <div
-                v-for="(color, label) in COLOR_MAP"
-                :key="label"
-                class="legend-row"
-              >
-                <span
-                  class="legend-dot"
-                  :style="{ background: color }"
-                />
-                <span>{{ LABEL_NAMES[label] }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 技术栈筛选 -->
-          <div class="panel-section">
-            <div class="section-title">
-              技术栈
-            </div>
-            <div class="filter-chips">
-              <el-checkbox
-                v-for="tech in techFilters"
-                :key="tech"
-                :model-value="selectedTech.includes(tech)"
-                size="small"
-                border
-                @change="toggleFilter(selectedTech, tech)"
-              >
-                {{ tech }}
-              </el-checkbox>
-            </div>
-          </div>
-        </aside>
-
-        <!-- ═══ 中间：图谱 ═══ -->
-        <main class="graph-main">
-          <div
-            v-loading="graphStore.loading"
-            class="graph-container"
+      <!-- 面包屑导航 -->
+      <div class="breadcrumb-nav">
+        <template v-for="(item, i) in breadcrumb" :key="i">
+          <span
+            class="breadcrumb-item"
+            :class="{ active: i === breadcrumb.length - 1 }"
+            @click="i < breadcrumb.length - 1 && item.action?.()"
           >
-            <div
-              ref="graphRef"
-              class="graph-canvas"
-            />
+            {{ item.label }}
+          </span>
+          <el-icon v-if="i < breadcrumb.length - 1" class="breadcrumb-sep"><ArrowRight /></el-icon>
+        </template>
+      </div>
+
+      <!-- 图谱主区域 -->
+      <div class="graph-layout">
+        <main class="graph-main">
+          <div v-loading="graphStore.loading" class="graph-container">
+            <div ref="graphRef" class="graph-canvas" />
+            <!-- 空状态提示 -->
+            <div v-if="!graphStore.loading && graphStore.visibleNodes.length === 0" class="empty-hint">
+              <el-icon size="48" color="#c0c4cc"><Aim /></el-icon>
+              <p>暂无数据，请检查后端服务是否正常运行</p>
+            </div>
           </div>
         </main>
 
-        <!-- ═══ 右侧面板：节点详情 ═══ -->
-        <aside
-          class="right-panel"
-          :class="{ open: !!selectedNode }"
-        >
+        <!-- 右侧详情面板 -->
+        <aside class="right-panel" :class="{ open: !!selectedNode }">
           <template v-if="selectedNode">
             <div class="panel-section">
               <div class="detail-header">
-                <div class="section-title">
-                  节点详情
-                </div>
-                <el-button
-                  text
-                  size="small"
-                  type="danger"
-                  @click="closeDetail"
-                >
-                  关闭
-                </el-button>
+                <div class="section-title">节点详情</div>
+                <el-button text size="small" type="danger" @click="closeDetail">关闭</el-button>
               </div>
-
-              <!-- 下钻面包屑 -->
-              <div
-                v-if="drillBreadcrumb.length > 1"
-                class="drill-crumb"
-              >
-                <el-breadcrumb separator="→">
-                  <el-breadcrumb-item
-                    v-for="(item, idx) in drillBreadcrumb"
-                    :key="item.id"
-                  >
-                    <a
-                      href="#"
-                      @click.prevent="goDrillBack(idx === drillBreadcrumb.length - 1 ? idx : idx)"
-                    >{{ item.name }}</a>
-                  </el-breadcrumb-item>
-                </el-breadcrumb>
-              </div>
-
-              <!-- 节点基本信息 -->
               <div class="detail-info">
                 <div class="detail-row">
-                  <span
-                    class="detail-dot"
-                    :style="{ background: COLOR_MAP[selectedNode.labels[0]] ?? '#909399' }"
-                  />
+                  <span class="detail-dot" :style="{ background: selectedNode.labels.includes('KnowledgeArea') ? (KA_COLOR_MAP.get(selectedNode.id) ?? '#9B59B6') : selectedNode.labels.includes('Position') ? POSITION_COLOR : SKILL_COLOR }" />
                   <strong>{{ selectedNode.properties.name }}</strong>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">类型</span>
-                  <el-tag
-                    size="small"
-                    effect="plain"
-                  >
-                    {{ LABEL_NAMES[selectedNode.labels[0]] }}
-                  </el-tag>
+                  <el-tag size="small" effect="plain">{{ selectedNode.labels.includes('KnowledgeArea') ? '领域' : selectedNode.labels.includes('Position') ? '岗位' : '技能' }}</el-tag>
                 </div>
-                <div
-                  v-if="selectedNode.properties.proficiency"
-                  class="detail-row"
-                >
+                <div v-if="selectedNode.properties.position_count != null" class="detail-row">
+                  <span class="detail-label">岗位数</span>
+                  <span>{{ selectedNode.properties.position_count }}</span>
+                </div>
+                <div v-if="selectedNode.properties.skill_count != null" class="detail-row">
+                  <span class="detail-label">技能数</span>
+                  <span>{{ selectedNode.properties.skill_count }}</span>
+                </div>
+                <div v-if="selectedNode.properties.proficiency" class="detail-row">
                   <span class="detail-label">熟练度</span>
                   <span>{{ selectedNode.properties.proficiency }}</span>
                 </div>
-                <div
-                  v-if="selectedNode.properties.source_count"
-                  class="detail-row"
-                >
-                  <span class="detail-label">出现频次</span>
+                <div v-if="selectedNode.properties.source_count" class="detail-row">
+                  <span class="detail-label">出现频率</span>
                   <span>{{ selectedNode.properties.source_count }}</span>
                 </div>
-                <div
-                  v-if="selectedNode.properties.trend"
-                  class="detail-row"
-                >
+                <div v-if="selectedNode.properties.trend" class="detail-row">
                   <span class="detail-label">趋势</span>
-                  <el-tag
-                    size="small"
-                    :type="selectedNode.properties.trend === 'rising' ? 'success' : selectedNode.properties.trend === 'declining' ? 'danger' : 'info'"
-                  >
+                  <el-tag size="small" :type="selectedNode.properties.trend === 'rising' ? 'success' : selectedNode.properties.trend === 'declining' ? 'danger' : 'info'">
                     {{ selectedNode.properties.trend === 'rising' ? '上升' : selectedNode.properties.trend === 'declining' ? '下降' : '稳定' }}
                   </el-tag>
                 </div>
               </div>
             </div>
 
-            <!-- 岗位节点：跳转详情 -->
-            <div
-              v-if="selectedNode.labels.includes('Position')"
-              class="panel-section"
-            >
-              <el-button
-                type="primary"
-                size="small"
-                @click="$router.push(`/position/${encodeURIComponent(selectedNode.properties.name)}`)"
-              >
-                查看岗位详情
-              </el-button>
-            </div>
-
-            <!-- 下钻区：领域 → 技能列表 -->
-            <div
-              v-if="isKnowledgeArea && relatedSkills.length"
-              class="panel-section"
-            >
-              <div class="section-title">
-                📋 包含技能 ({{ relatedSkills.length }})
+            <!-- Position 技能雷达图 -->
+            <template v-if="selectedNode.labels.includes('Position') && positionRadarOption">
+              <div class="panel-section">
+                <div class="section-title">📊 技能雷达</div>
+                <VChart :option="positionRadarOption" autoresize style="height: 200px; width: 100%" />
               </div>
-              <div class="related-list">
-                <div
-                  v-for="rn in relatedSkills"
-                  :key="rn.id"
-                  class="related-item"
-                  @click="handleNodeClick(rn.id)"
-                >
-                  <span
-                    class="legend-dot"
-                    :style="{ background: COLOR_MAP[rn.labels[0]] ?? '#909399' }"
-                  />
-                  <span class="related-name">{{ rn.properties.name }}</span>
-                  <el-tag
-                    size="small"
-                    effect="plain"
-                  >
-                    {{ LABEL_NAMES[rn.labels[0]] }}
-                  </el-tag>
+            </template>
+
+            <!-- Position 关联岗位 -->
+            <template v-if="selectedNode.labels.includes('Position') && relatedPositions.length">
+              <div class="panel-section">
+                <div class="section-title">🔗 相似岗位 ({{ relatedPositions.length }})</div>
+                <div class="related-list">
+                  <div v-for="rp in relatedPositions" :key="rp.node.id" class="related-item" @click="handleNodeClick(rp.node.id)">
+                    <span class="related-dot" :style="{ background: POSITION_COLOR }" />
+                    <span class="related-name">{{ rp.node.properties.name }}</span>
+                    <el-tag size="small" type="warning" effect="plain">{{ rp.sharedCount }}共享</el-tag>
+                  </div>
                 </div>
               </div>
-            </div>
+            </template>
 
-            <!-- 下钻区：技能 → 知识点 -->
-            <div
-              v-if="isSkill && knowledgePoints.length"
-              class="panel-section"
-            >
-              <div class="section-title">
-                知识点 ({{ knowledgePoints.length }})
-              </div>
-              <div class="kp-list">
-                <div
-                  v-for="kp in knowledgePoints"
-                  :key="kp"
-                  class="kp-item"
-                >
-                  <el-icon size="14">
-                    <Collection />
-                  </el-icon>
-                  <span>{{ kp }}</span>
+            <!-- KA 下的岗位列表 -->
+            <template v-if="selectedNode.labels.includes('KnowledgeArea') && kaRelatedPositions.length">
+              <div class="panel-section">
+                <div class="section-title">📋 包含岗位 ({{ kaRelatedPositions.length }})</div>
+                <div class="related-list">
+                  <div v-for="rp in kaRelatedPositions" :key="rp.id" class="related-item" @click="handleNodeClick(rp.id)">
+                    <span class="related-dot" :style="{ background: POSITION_COLOR }" />
+                    <span class="related-name">{{ rp.properties.name }}</span>
+                    <el-icon size="14"><ArrowRight /></el-icon>
+                  </div>
                 </div>
               </div>
-            </div>
+            </template>
 
-            <!-- 通用：其他节点 → 全部关联 -->
-            <div
-              v-if="!isKnowledgeArea && !isSkill && relatedNodes.length"
-              class="panel-section"
-            >
-              <div class="section-title">
-                关联 ({{ relatedNodes.length }})
+            <!-- Position 操作按钮 -->
+            <template v-if="selectedNode.labels.includes('Position')">
+              <div class="panel-section">
+                <el-button type="primary" size="small" :icon="DataAnalysis" @click="$router.push('/match')">用我的技能匹配此岗位</el-button>
+                <el-button size="small" @click="$router.push(`/position/${encodeURIComponent(selectedNode.properties.name)}`)">查看岗位详情</el-button>
               </div>
-              <div class="related-list">
-                <div
-                  v-for="rn in relatedNodes"
-                  :key="rn.id"
-                  class="related-item"
-                  @click="handleNodeClick(rn.id)"
-                >
-                  <span
-                    class="legend-dot"
-                    :style="{ background: COLOR_MAP[rn.labels[0]] ?? '#909399' }"
-                  />
-                  <span class="related-name">{{ rn.properties.name }}</span>
-                  <el-tag
-                    size="small"
-                    effect="plain"
-                  >
-                    {{ LABEL_NAMES[rn.labels[0]] }}
-                  </el-tag>
-                </div>
-              </div>
-            </div>
+            </template>
           </template>
 
-          <div
-            v-else
-            class="panel-placeholder"
-          >
-            <el-icon size="36">
-              <Aim />
-            </el-icon>
+          <!-- 空状态 -->
+          <div v-else class="panel-placeholder">
+            <el-icon size="36"><Aim /></el-icon>
             <p>点击节点查看详情</p>
             <p class="hint">
-              支持技能粒度下钻
+              <template v-if="graphStore.currentLayer === 'domain'">点击气泡进入领域</template>
+              <template v-else-if="graphStore.currentLayer === 'position'">点击岗位查看技能</template>
+              <template v-else>点击节点查看详情</template>
             </p>
           </div>
         </aside>
       </div>
 
-      <!-- ═══ 底部工具栏 ═══ -->
+      <!-- 底部工具栏 -->
       <footer class="bottom-toolbar">
-        <!-- 布局切换 -->
-        <div class="toolbar-group">
-          <el-radio-group
-            :model-value="currentLayout"
-            size="small"
-            @change="switchLayout"
-          >
-            <el-radio-button
-              v-for="lo in layoutOptions"
-              :key="lo.value"
-              :value="lo.value"
-            >
-              {{ lo.label }}
-            </el-radio-button>
-          </el-radio-group>
-        </div>
-
-        <!-- 缩放控制 -->
         <div class="toolbar-group">
           <el-button-group>
-            <el-button
-              size="small"
-              :icon="ZoomOut"
-              @click="zoomOut"
-            />
-            <el-button
-              size="small"
-              :icon="Aim"
-              @click="zoomFit"
-            />
-            <el-button
-              size="small"
-              :icon="ZoomIn"
-              @click="zoomIn"
-            />
+            <el-button size="small" :icon="ZoomOut" @click="zoomOut" />
+            <el-button size="small" :icon="Aim" @click="zoomFit" />
+            <el-button size="small" :icon="ZoomIn" @click="zoomIn" />
           </el-button-group>
         </div>
-
-        <!-- 搜索 -->
+        <div class="toolbar-group layer-indicator">
+          <el-tag :type="graphStore.currentLayer === 'domain' ? 'primary' : graphStore.currentLayer === 'position' ? 'success' : 'warning'" size="small" effect="plain">
+            {{ graphStore.currentLayer === 'domain' ? '领域概览' : graphStore.currentLayer === 'position' ? '岗位视图' : '技能详情' }}
+          </el-tag>
+          <span class="node-count">{{ graphStore.visibleNodes.length }} 节点 · {{ graphStore.visibleEdges.length }} 关系</span>
+        </div>
         <div class="toolbar-group search-group">
-          <el-input
-            v-model="searchKeyword"
-            size="small"
-            placeholder="搜索节点名称"
-            :prefix-icon="Search"
-            clearable
-            style="width: 220px"
-            @keyup.enter="handleSearch"
-          />
+          <div class="smart-search-wrapper">
+            <el-input
+              v-model="searchKeyword"
+              size="small"
+              placeholder="搜索领域、岗位、技能... (↑↓导航, Enter选择, Esc清空)"
+              :prefix-icon="Search"
+              clearable
+              style="width: 340px"
+              @input="onSearchInput"
+              @clear="showSearchDropdown = false"
+              @keydown="onSearchKeydown"
+              @focus="onSearchInput"
+              @blur="onSearchBlur"
+            />
+            <div v-if="showSearchDropdown && searchResults.length > 0" class="search-dropdown">
+              <div
+                v-for="(result, idx) in searchResults"
+                :key="result.id"
+                class="search-result-item"
+                :class="{ highlighted: idx === searchHighlightIndex }"
+                @mousedown.prevent="selectSearchResult(result)"
+                @mouseenter="searchHighlightIndex = idx"
+              >
+                <span class="result-dot" :style="{ background: result.type === '领域' ? '#9B59B6' : result.type === '岗位' ? POSITION_COLOR : SKILL_COLOR }" />
+                <span class="result-name">{{ result.name }}</span>
+                <el-tag size="small" effect="plain" class="result-tag">{{ result.type }}</el-tag>
+              </div>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
@@ -1100,225 +828,177 @@ onUnmounted(() => {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 80px);
-}
-
-.page-header {
-  margin-bottom: 10px;
-  padding: 0 8px;
-}
-
-.page-header h2 {
-  font-size: 22px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 2px;
-}
-
-.page-desc {
-  color: #909399;
-  font-size: 13px;
-  margin: 0;
-}
-
-/* ── 视图切换 Tab ── */
-.view-tabs {
-  padding: 0 8px 10px;
-}
-
-/* ── 三栏布局 ── */
-.graph-layout {
-  display: flex;
-  flex: 1;
-  gap: 10px;
   min-height: 0;
   padding: 0 8px;
+  gap: 10px;
 }
 
-/* ── 左侧面板 ── */
-.left-panel {
-  width: 180px;
-  flex-shrink: 0;
-  overflow-y: auto;
+/* KPI 卡片 */
+.kpi-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-left: 4px solid;
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-width: 120px;
+}
+.kpi-icon {
+  width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.kpi-body { display: flex; flex-direction: column; }
+.kpi-value { font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.2; }
+.kpi-label { font-size: 11px; color: #94a3b8; }
+.quick-actions { margin-left: auto; display: flex; gap: 8px; }
+
+/* 面包屑 */
+.breadcrumb-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
   background: #fff;
   border: 1px solid #ebeef5;
   border-radius: 8px;
-  padding: 12px;
+  font-size: 14px;
 }
-
-.panel-section {
-  margin-bottom: 16px;
-}
-
-.section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.legend-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.legend-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #606266;
-}
-
-.legend-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.heat-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 4px 0;
-}
-
-.heat-gradient-bar {
-  width: 100%;
-  height: 8px;
+.breadcrumb-item {
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px 6px;
   border-radius: 4px;
-  background: linear-gradient(to right, #409EFF, #F56C6C);
+  transition: all 0.15s;
 }
-
-.heat-gradient-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #909399;
+.breadcrumb-item:hover:not(.active) {
+  color: #3B82F6;
+  background: #eff6ff;
 }
-
-.heat-size-hint {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: #909399;
-  margin-top: 2px;
+.breadcrumb-item.active {
+  color: #1e293b;
+  font-weight: 600;
+  cursor: default;
 }
-
-.hint-dot {
-  display: inline-block;
-  border-radius: 50%;
-  background: #C0C4CC;
-  flex-shrink: 0;
-}
-
-.filter-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.filter-chips .el-checkbox {
-  margin-right: 0;
+.breadcrumb-sep {
+  color: #cbd5e1;
   font-size: 12px;
 }
 
-/* ── 中间图谱 ── */
+/* 图谱布局 */
+.graph-layout {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
 .graph-main {
   flex: 1;
   min-width: 0;
 }
-
 .graph-container {
   position: relative;
-  background: #fafbfc;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   overflow: hidden;
   height: 100%;
 }
-
 .graph-canvas {
   width: 100%;
   height: 100%;
-  min-height: 500px;
+  min-height: 520px;
+}
+.empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 14px;
 }
 
-/* ── 右侧面板 ── */
+/* 右侧详情面板 */
 .right-panel {
-  width: 240px;
+  width: 280px;
   flex-shrink: 0;
   overflow-y: auto;
   background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
-  padding: 12px;
-  transition: all 0.3s;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .right-panel:not(.open) {
-  width: 120px;
+  width: 140px;
+  padding: 12px;
 }
-
 .panel-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 200px;
-  color: #c0c4cc;
+  color: #94a3b8;
   font-size: 13px;
-  gap: 4px;
+  gap: 6px;
 }
-
 .panel-placeholder .hint {
   font-size: 11px;
-  color: #dcdfe6;
+  color: #cbd5e1;
 }
-
+.panel-section {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.panel-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
 .detail-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
 }
-
-.drill-crumb {
-  margin-bottom: 10px;
-  font-size: 12px;
-}
-
 .detail-info {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
-
 .detail-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
-  color: #606266;
+  color: #475569;
 }
-
 .detail-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-
 .detail-label {
-  color: #909399;
-  min-width: 50px;
+  color: #94a3b8;
+  min-width: 56px;
 }
-
 .related-list {
   display: flex;
   flex-direction: column;
@@ -1326,117 +1006,139 @@ onUnmounted(() => {
   max-height: 300px;
   overflow-y: auto;
 }
-
 .related-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
   transition: background 0.15s;
 }
-
 .related-item:hover {
-  background: #f5f7fa;
+  background: #f8fafc;
 }
-
+.related-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 .related-name {
   flex: 1;
-  color: #303133;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 知识点列表 */
-.kp-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 260px;
-  overflow-y: auto;
-}
-
-.kp-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #606266;
-  background: #f5f7fa;
-}
-
-/* ── 底部工具栏 ── */
+/* 底部工具栏 */
 .bottom-toolbar {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 8px 16px;
-  margin: 8px 8px 0;
   background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
 }
-
 .toolbar-group {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
-
+.layer-indicator {
+  gap: 8px;
+}
+.node-count {
+  font-size: 12px;
+  color: #94a3b8;
+}
 .search-group {
   margin-left: auto;
 }
 
-/* ── 响应式 ── */
+/* 搜索 */
+.smart-search-wrapper {
+  position: relative;
+}
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  margin-top: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.12s;
+  font-size: 13px;
+}
+.search-result-item:hover,
+.search-result-item.highlighted {
+  background: #f0f5ff;
+}
+.result-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.result-name {
+  flex: 1;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.result-tag {
+  flex-shrink: 0;
+}
+
+/* 响应式 */
 @media (max-width: 1024px) {
-  .left-panel {
-    width: 140px;
-    padding: 8px;
-  }
-
-  .right-panel {
-    width: 200px;
-  }
-
-  .right-panel:not(.open) {
-    width: 60px;
-  }
+  .right-panel { width: 220px; }
+  .right-panel:not(.open) { width: 80px; }
+  .kpi-strip { gap: 8px; }
+  .kpi-card { min-width: 100px; padding: 8px 10px; }
+  .quick-actions { margin-left: 0; width: 100%; }
 }
-
 @media (max-width: 768px) {
-  .graph-layout {
-    flex-direction: column;
-  }
-
-  .left-panel,
-  .right-panel {
-    width: 100%;
-    flex-shrink: 1;
-    max-height: 160px;
-  }
-
-  .right-panel:not(.open) {
-    width: 100%;
-    max-height: 60px;
-  }
-
-  .graph-canvas {
-    min-height: 360px;
-  }
-
-  .bottom-toolbar {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .search-group {
-    margin-left: 0;
-    width: 100%;
-  }
-
-  .search-group .el-input {
-    width: 100% !important;
-  }
+  .graph-layout { flex-direction: column; }
+  .right-panel { width: 100%; max-height: 200px; }
+  .right-panel:not(.open) { width: 100%; max-height: 60px; }
+  .graph-canvas { min-height: 360px; }
+  .bottom-toolbar { flex-wrap: wrap; gap: 8px; }
+  .search-group { margin-left: 0; width: 100%; }
+  .search-group .el-input { width: 100% !important; }
+  .kpi-strip { flex-direction: column; align-items: stretch; }
+  .quick-actions { flex-direction: column; }
 }
+
+/* 视图模式切换 */
+.view-mode-tabs {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
 </style>
+
+
+
+
+
+
