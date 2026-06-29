@@ -4,9 +4,9 @@ Supports:
 - MiMo API: https://token-plan-cn.xiaomimimo.com/v1 (reasoning model, primary)
 - DeepSeek API: https://api.deepseek.com/chat/completions
 - Xunfei Spark API: https://spark-api-open.xf-yun.com/v1/chat/completions
-- Local Qwen fallback
+- Local Qwen/Ollama fallback: /api/chat endpoint
 
-Fallback chain: MiMo -> DeepSeek -> Xunfei -> Qwen
+Fallback chain: MiMo -> DeepSeek -> Xunfei -> Qwen/Ollama
 Authentication: Bearer token via API keys.
 """
 
@@ -238,7 +238,7 @@ async def call_deepseek_llm(
 
 
 async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
-    """Call LLM with fallback: MiMo -> DeepSeek -> Xunfei -> Qwen.
+    """Call LLM with fallback: MiMo -> DeepSeek -> Xunfei -> Qwen/Ollama.
 
     Args:
         prompt: Input prompt text.
@@ -275,29 +275,35 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
             logger.warning(msg)
             errors.append(msg)
 
-    # Try local Qwen fallback
+    # Try local Qwen/Ollama fallback
     fallback_endpoint = settings.qwen_model_path
     if not fallback_endpoint:
         raise LLMConnectionError(
             f"No LLM endpoint configured. Tried: {'; '.join(errors) if errors else 'no providers available'}"
         )
 
-    logger.info("Calling fallback Qwen at {}", fallback_endpoint)
+    base = fallback_endpoint.rstrip("/")
+    # Ollama uses /api/chat, not /v1/chat/completions
+    ollama_url = f"{base}/api/chat"
+    logger.info("Calling fallback Qwen/Ollama at {}", ollama_url)
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(120)) as client:
             resp = await client.post(
-                f"{fallback_endpoint}/v1/chat/completions",
+                ollama_url,
                 json={
-                    "model": "qwen",
+                    "model": "qwen2.5:7b",
                     "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.5,
-                    "max_tokens": 4096,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.5,
+                        "num_predict": 4096,
+                    },
                 },
             )
             resp.raise_for_status()
             data = resp.json()
-            content = data["choices"][0]["message"]["content"]
-            return {"role": "assistant", "content": content, "model": "qwen-fallback"}
+            content = data["message"]["content"]
+            return {"role": "assistant", "content": content, "model": "qwen2.5-7b-fallback"}
     except httpx.TimeoutException as e:
         raise LLMTimeoutError("Fallback LLM timeout") from e
     except (httpx.RequestError, KeyError, IndexError) as e:

@@ -227,7 +227,14 @@ SKILL_ALIAS: dict[str, list[str]] = {
 }
 
 
-_TAXONOMY_PATH = Path(__file__).resolve().parent.parent.parent.parent.parent / "docs" / "ontology" / "skill_taxonomy.yaml"
+# Try multiple paths: Docker container, host, and env override
+_TAXONOMY_CANDIDATES = [
+    Path(__file__).resolve().parent.parent.parent.parent.parent / "docs" / "ontology" / "skill_taxonomy.yaml",
+    Path(__file__).resolve().parents[4] / "docs" / "ontology" / "skill_taxonomy.yaml",
+    Path("/app/docs/ontology/skill_taxonomy.yaml"),
+    Path(__file__).resolve().parents[3] / "docs" / "ontology" / "skill_taxonomy.yaml",
+]
+_TAXONOMY_PATH = next((p for p in _TAXONOMY_CANDIDATES if p.exists()), _TAXONOMY_CANDIDATES[0])
 
 
 def load_skill_aliases_from_yaml(path: Path = _TAXONOMY_PATH) -> dict[str, list[str]]:
