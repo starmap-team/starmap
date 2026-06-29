@@ -1,0 +1,10 @@
+﻿{"id":"golden-1","job_title":"AI 应用工程师","required_skills":["Python","PyTorch","RAG","Prompt Engineering","Docker","Kubernetes"],"bonus_skills":["LangChain","FastAPI"]}
+{"id":"golden-2","job_title":"数据分析师","required_skills":["Python","SQL","Pandas","统计学","数据可视化"],"bonus_skills":["Tableau","机器学习"]}
+{"id":"golden-3","job_title":"前端开发工程师","required_skills":["JavaScript","Vue.js","CSS3","HTML5","TypeScript"],"bonus_skills":["Node.js","Webpack"]}
+{"id":"golden-4","job_title":"后端开发工程师","required_skills":["Python","FastAPI","PostgreSQL","Redis","Docker"],"bonus_skills":["Kubernetes","Microservices"]}
+{"id":"golden-5","job_title":"机器学习工程师","required_skills":["Python","PyTorch","TensorFlow","scikit-learn","MLOps"],"bonus_skills":["Kubeflow","MLflow","CUDA"]}
+{"id":"golden-6","job_title":"大数据开发工程师","required_skills":["Java","Spark","Hadoop","Hive","Kafka","SQL"],"bonus_skills":["Flink","Scala","Airflow"]}
+{"id":"golden-7","job_title":"DevOps工程师","required_skills":["Docker","Kubernetes","Linux","CI/CD","Terraform","Ansible"],"bonus_skills":["Prometheus","Grafana","AWS"]}
+{"id":"golden-8","job_title":"自然语言处理工程师","required_skills":["Python","PyTorch","Transformers","NLP","BERT","GPT"],"bonus_skills":["spaCy","LangChain","RAG"]}
+{"id":"golden-9","job_title":"Android开发工程师","required_skills":["Kotlin","Java","Android Studio","Android SDK","Jetpack Compose"],"bonus_skills":["Firebase","Gradle","SQLite"]}
+{"id":"golden-10","job_title":"信息安全工程师","required_skills":["Python","渗透测试","SIEM","Kubernetes","Cloud Security","OWASP"],"bonus_skills":["Burp Suite","Nmap","Linux"]}

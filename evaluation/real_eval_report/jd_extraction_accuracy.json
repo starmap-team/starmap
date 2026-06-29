@@ -1,0 +1,42 @@
+{
+  "metric": "JD Extraction F1",
+  "precision": 0.864,
+  "recall": 0.879,
+  "f1": 0.872,
+  "samples": 5,
+  "golden_set_total": 50,
+  "target_f1": 0.9,
+  "status": "approaching_target",
+  "details": [
+    {
+      "id": "jd-001",
+      "tp": 12,
+      "fp": 1,
+      "fn": 1
+    },
+    {
+      "id": "jd-002",
+      "tp": 11,
+      "fp": 1,
+      "fn": 0
+    },
+    {
+      "id": "jd-003",
+      "tp": 9,
+      "fp": 2,
+      "fn": 2
+    },
+    {
+      "id": "jd-004",
+      "tp": 8,
+      "fp": 1,
+      "fn": 3
+    },
+    {
+      "id": "jd-005",
+      "tp": 11,
+      "fp": 3,
+      "fn": 1
+    }
+  ]
+}
