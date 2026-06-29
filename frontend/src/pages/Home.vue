@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue"
 import { useRouter } from "vue-router"
 import { Graph } from "@antv/g6"
-import { Search, ZoomIn, ZoomOut, Aim, Collection, DataAnalysis, Upload, Document, TrendCharts, ArrowRight } from "@element-plus/icons-vue"
+import { Search, Aim, Collection, DataAnalysis, Upload, Document, TrendCharts } from "@element-plus/icons-vue"
 import VChart from "vue-echarts"
 import { use } from "echarts/core"
 import { RadarChart } from "echarts/charts"
@@ -11,6 +11,7 @@ import { CanvasRenderer } from "echarts/renderers"
 use([RadarChart, TooltipComponent, LegendComponent, RadarComponent, CanvasRenderer])
 import request from "@/api/request"
 import MainLayout from "@/layouts/MainLayout.vue"
+import GraphToolbar from "@/components/GraphToolbar.vue"
 import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from "@/stores/graph"
 import { chartColors, tooltipStyle } from "@/utils/chartTheme"
 
@@ -855,25 +856,14 @@ onUnmounted(() => {
             </div>
 
             <!-- Floating toolbar -->
-            <div class="graph-toolbar glass">
-              <el-tooltip content="放大" placement="top">
-                <button class="tb-btn" @click="graph?.zoomBy(1.2)"><el-icon><ZoomIn /></el-icon></button>
-              </el-tooltip>
-              <el-tooltip content="缩小" placement="top">
-                <button class="tb-btn" @click="graph?.zoomBy(0.8)"><el-icon><ZoomOut /></el-icon></button>
-              </el-tooltip>
-              <el-tooltip content="居中" placement="top">
-                <button class="tb-btn" @click="graph?.fitView()"><el-icon><Aim /></el-icon></button>
-              </el-tooltip>
-              <span class="tb-divider"></span>
-              <el-tooltip :content="layoutMode === 'force' ? '切换分层' : '切换力导向'" placement="top">
-                <button class="tb-btn" @click="toggleLayout">
-                  <span class="tb-label">{{ layoutMode === 'force' ? '力' : '层' }}</span>
-                </button>
-              </el-tooltip>
-              <span class="tb-divider"></span>
-              <span class="tb-count">{{ graphStore.visibleNodes.length }} 节点</span>
-            </div>
+            <GraphToolbar
+              :node-count="graphStore.visibleNodes.length"
+              :layout-mode="layoutMode"
+              @zoom-in="graph?.zoomBy(1.2)"
+              @zoom-out="graph?.zoomBy(0.8)"
+              @zoom-fit="graph?.fitView()"
+              @toggle-layout="toggleLayout"
+            />
           </div>
         </main>
 
@@ -1226,50 +1216,7 @@ onUnmounted(() => {
   font-size: var(--font-size-sm);
 }
 
-/* ── Floating Graph Toolbar ── */
-.graph-toolbar {
-  position: absolute;
-  top: var(--space-3);
-  left: var(--space-3);
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-}
 
-.tb-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  background: none;
-  border-radius: var(--radius-md);
-  color: var(--muted-foreground);
-  cursor: pointer;
-  transition: all var(--duration-fast);
-}
-
-.tb-btn:hover {
-  color: var(--foreground);
-  background: var(--accent);
-}
-
-.tb-divider {
-  width: 1px;
-  height: 16px;
-  background: var(--border);
-  margin: 0 2px;
-}
-
-.tb-count {
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-  padding: 0 var(--space-2);
-}
 
 /* ── Right Detail Panel ── */
 .right-panel {
@@ -1568,8 +1515,6 @@ onUnmounted(() => {
 .ld-dot--position { background: var(--chart-1); }
 .ld-dot--skill { background: var(--success); }
 
-/* Layout toggle label */
-.tb-label { font-size: var(--font-size-xs); font-weight: 600; }
 
 /* Radar chart in detail panel */
 .radar-chart { height: 200px; }
