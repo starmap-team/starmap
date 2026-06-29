@@ -77,8 +77,8 @@ function handleChange(val: string) {
 }
 
 .hint {
-  margin-top: 8px;
-  font-size: 13px;
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
   color: var(--muted-foreground);
 }
 </style>

@@ -8,7 +8,7 @@ import { ElMessage } from 'element-plus'
 import { RefreshRight } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useQualityStore } from '@/stores/quality'
-import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle } from '@/utils/chartTheme'
+import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle, legendStyle } from '@/utils/chartTheme'
 
 const quality = useQualityStore()
 
@@ -61,7 +61,7 @@ const kpiCardsEnhanced = computed(() => {
       value: m.total_nodes.toLocaleString(),
       sub: `周新增 +${m.weekly_new_nodes}`,
       trend: 'up',
-      color: 'var(--primary)',
+      color: chartColors().primary,
       icon: 'Grid',
     },
     {
@@ -69,7 +69,7 @@ const kpiCardsEnhanced = computed(() => {
       value: (m.avg_trust_score * 100).toFixed(1) + '%',
       sub: `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
       trend: m.avg_trust_score >= 0.75 ? 'up' : 'down',
-      color: 'var(--success)',
+      color: chartColors().success,
       icon: 'DataLine',
     },
     {
@@ -77,7 +77,7 @@ const kpiCardsEnhanced = computed(() => {
       value: (m.hallucination_rate * 100).toFixed(1) + '%',
       sub: `审核通过率 ${(m.audit_pass_rate * 100).toFixed(0)}%`,
       trend: m.hallucination_rate <= 0.08 ? 'down' : 'up',
-      color: 'var(--warning)',
+      color: chartColors().warning,
       icon: 'WarningFilled',
     },
     {
@@ -85,7 +85,7 @@ const kpiCardsEnhanced = computed(() => {
       value: String(m.pending_review),
       sub: '条记录待处理',
       trend: m.pending_review > 5 ? 'up' : 'down',
-      color: 'var(--destructive)',
+      color: chartColors().danger,
       icon: 'Clock',
     },
   ]
@@ -97,6 +97,7 @@ const histogramOption = computed(() => {
   const dist = quality.metrics.trust_distribution
   return {
     tooltip: {
+      ...tooltipStyle(),
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
     },
@@ -150,9 +151,9 @@ const trendChartOption = computed(() => {
         value: +(t.rate * 100).toFixed(1),
       })),
       smooth: true,
-      areaStyle: { opacity: 0.12, color: 'var(--warning)' },
-      lineStyle: { color: 'var(--warning)', width: 2.5 },
-      itemStyle: { color: 'var(--warning)' },
+      areaStyle: { opacity: 0.12, color: chartColors().warning },
+      lineStyle: { color: chartColors().warning, width: 2.5 },
+      itemStyle: { color: chartColors().warning },
       symbolSize: 6,
       markLine: {
         silent: true,
@@ -160,7 +161,7 @@ const trendChartOption = computed(() => {
         data: [{
           yAxis: 10,
           label: { formatter: '预警线 10%', fontSize: 11 },
-          lineStyle: { color: 'var(--destructive)', type: 'dashed', width: 2 },
+          lineStyle: { color: chartColors().danger, type: 'dashed', width: 2 },
         }],
       },
     }],
@@ -171,8 +172,8 @@ const trendChartOption = computed(() => {
 const sourceChartOption = computed(() => {
   if (!quality.metrics?.source_distribution) return {}
   return {
-    tooltip: { trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
-    legend: { bottom: 0, textStyle: { fontSize: 12 } },
+    tooltip: { ...tooltipStyle(), trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
+    legend: { bottom: 0, textStyle: legendStyle() },
     series: [{
       type: 'pie',
       radius: ['48%', '75%'],
@@ -199,7 +200,7 @@ const sourceChartOption = computed(() => {
 
 <template>
   <MainLayout>
-    <div class="quality-page">
+    <div class="quality-page animate-fade-in">
       <div class="page-header">
         <div>
           <h2>图谱质量仪表盘</h2>
@@ -231,7 +232,7 @@ const sourceChartOption = computed(() => {
       <!-- 4 指标卡（含趋势） -->
       <el-row
         :gutter="16"
-        style="margin-bottom: 16px"
+        class="mb-4"
       >
         <el-col
           v-for="card in kpiCardsEnhanced"
@@ -239,7 +240,7 @@ const sourceChartOption = computed(() => {
           :lg="6"
           :md="12"
           :sm="24"
-          style="margin-bottom: 16px"
+          class="mb-4"
         >
           <el-card
             shadow="hover"
@@ -279,12 +280,12 @@ const sourceChartOption = computed(() => {
       <!-- 直方图 + 趋势 -->
       <el-row
         :gutter="16"
-        style="margin-bottom: 16px"
+        class="mb-4"
       >
         <el-col
           :lg="12"
           :sm="24"
-          style="margin-bottom: 16px"
+          class="mb-4"
         >
           <el-card
             v-loading="quality.loading"
@@ -294,20 +295,40 @@ const sourceChartOption = computed(() => {
             <v-chart
               v-if="quality.metrics?.trust_distribution"
               :option="histogramOption"
-              style="height: 330px"
+              class="chart-h-md"
               autoresize
             />
-            <el-empty
-              v-else
-              description="暂无数据"
-              :image-size="80"
-            />
+            <div class="custom-empty">
+              <div class="empty-icon-wrapper">
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ><ellipse
+                  cx="12"
+                  cy="5"
+                  rx="9"
+                  ry="3"
+                /><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" /><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" /></svg>
+              </div>
+              <p class="empty-text">
+                数据加载中
+              </p>
+              <p class="empty-hint-text">
+                图谱质量指标将在评估完成后展示
+              </p>
+            </div>
           </el-card>
         </el-col>
         <el-col
           :lg="12"
           :sm="24"
-          style="margin-bottom: 16px"
+          class="mb-4"
         >
           <el-card
             v-loading="quality.loading"
@@ -317,14 +338,34 @@ const sourceChartOption = computed(() => {
             <v-chart
               v-if="quality.metrics?.hallucination_trend"
               :option="trendChartOption"
-              style="height: 330px"
+              class="chart-h-md"
               autoresize
             />
-            <el-empty
-              v-else
-              description="暂无数据"
-              :image-size="80"
-            />
+            <div class="custom-empty">
+              <div class="empty-icon-wrapper">
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ><ellipse
+                  cx="12"
+                  cy="5"
+                  rx="9"
+                  ry="3"
+                /><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" /><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" /></svg>
+              </div>
+              <p class="empty-text">
+                数据加载中
+              </p>
+              <p class="empty-hint-text">
+                图谱质量指标将在评估完成后展示
+              </p>
+            </div>
           </el-card>
         </el-col>
       </el-row>
@@ -334,7 +375,7 @@ const sourceChartOption = computed(() => {
         <el-col
           :lg="12"
           :sm="24"
-          style="margin-bottom: 16px"
+          class="mb-4"
         >
           <el-card
             v-loading="quality.loading"
@@ -344,20 +385,62 @@ const sourceChartOption = computed(() => {
             <v-chart
               v-if="quality.metrics?.source_distribution"
               :option="sourceChartOption"
-              style="height: 310px"
+              class="chart-h-sm"
               autoresize
             />
-            <el-empty
-              v-else
-              description="暂无数据源信息"
-              :image-size="80"
-            />
+            <div class="custom-empty">
+              <div class="empty-icon-wrapper">
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ><line
+                  x1="8"
+                  y1="6"
+                  x2="21"
+                  y2="6"
+                /><line
+                  x1="8"
+                  y1="12"
+                  x2="21"
+                  y2="12"
+                /><line
+                  x1="8"
+                  y1="18"
+                  x2="21"
+                  y2="18"
+                /><line
+                  x1="3"
+                  y1="6"
+                  x2="3.01"
+                  y2="6"
+                /><line
+                  x1="3"
+                  y1="12"
+                  x2="3.01"
+                  y2="12"
+                /><line
+                  x1="3"
+                  y1="18"
+                  x2="3.01"
+                  y2="18"
+                /></svg>
+              </div>
+              <p class="empty-text">
+                数据源信息待同步
+              </p>
+            </div>
           </el-card>
         </el-col>
         <el-col
           :lg="12"
           :sm="24"
-          style="margin-bottom: 16px"
+          class="mb-4"
         >
           <el-card
             v-loading="quality.loading"
@@ -369,7 +452,7 @@ const sourceChartOption = computed(() => {
               stripe
               size="small"
               max-height="310"
-              empty-text="暂无待审核数据"
+              empty-text="队列为空，暂无待审核项"
             >
               <el-table-column
                 prop="id"
@@ -434,57 +517,62 @@ const sourceChartOption = computed(() => {
   max-width: 1200px;
   margin: 0 auto;
 }
-
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
 }
-
 .page-header h2 {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
   color: var(--foreground);
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
+  letter-spacing: var(--tracking-tight);
 }
-
 .page-desc {
   color: var(--muted-foreground);
-  font-size: 14px;
+  font-size: var(--font-size-sm);
   margin: 0;
 }
-
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
-
 .last-refresh {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   color: var(--muted-foreground);
 }
-
-/* ── KPI 卡片 ── */
 .kpi-card {
   cursor: default;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all var(--duration-normal) var(--ease-out);
+  position: relative;
+  overflow: hidden;
 }
-
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 4%, transparent), transparent);
+  transition: opacity var(--duration-normal);
+}
 .kpi-card:hover {
   transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
-
+.kpi-card:hover::before { opacity: 1; }
 .kpi-inner {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-3);
+  position: relative;
+  z-index: 1;
 }
-
 .kpi-icon {
   width: 48px;
   height: 48px;
@@ -494,52 +582,46 @@ const sourceChartOption = computed(() => {
   justify-content: center;
   flex-shrink: 0;
 }
-
 .kpi-body {
   flex: 1;
   min-width: 0;
 }
-
 .kpi-label {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--muted-foreground);
+  font-weight: 500;
 }
-
 .kpi-value {
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.3;
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
 }
-
 .kpi-sub {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   color: var(--muted-foreground);
-  margin-top: 2px;
+  margin-top: var(--space-1);
 }
-
 .trend-up {
   color: var(--success);
-  font-weight: bold;
+  font-weight: 600;
 }
-
 .trend-down {
   color: var(--destructive);
-  font-weight: bold;
+  font-weight: 600;
 }
-
-/* ── 响应式 ── */
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-  }
-
-  .header-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .kpi-value {
-    font-size: 22px;
-  }
+  .page-header { flex-direction: column; }
+  .header-actions { width: 100%; justify-content: flex-start; }
+  .kpi-value { font-size: var(--font-size-2xl); }
 }
+.mb-4 { margin-bottom: var(--space-4); }
+.chart-h-md { height: 330px; }
+.chart-h-sm { height: 310px; }
+
+.custom-empty { display: flex; flex-direction: column; align-items: center; padding: var(--space-8) var(--space-4); text-align: center; }
+.empty-icon-wrapper { color: var(--muted-foreground); opacity: 0.4; margin-bottom: var(--space-3); }
+.empty-text { font-size: var(--font-size-base); font-weight: 600; color: var(--foreground); margin: 0; }
+.empty-hint-text { font-size: var(--font-size-sm); color: var(--muted-foreground); margin: var(--space-1) 0 0; }
 </style>

@@ -9,8 +9,6 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pathlib import Path
-
 from app.dependencies import get_db_session
 from app.models.extraction_models import ExtractionEvaluationRecord, JDExtractionRecord
 

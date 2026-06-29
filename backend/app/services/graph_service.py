@@ -1,7 +1,7 @@
 ﻿"""Neo4j-backed graph query helpers for API v1."""
 from __future__ import annotations
-import asyncio
 
+import asyncio
 from typing import Any
 
 WRITE_CYPHER_KEYWORDS = {
@@ -532,7 +532,6 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
 
 async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
     """Overview grouped by level (初级/中级/高级)."""
-    from collections import defaultdict
     groups: dict[str, dict] = {}
     for level, color in LEVEL_COLORS.items():
         groups[level] = {"positions": [], "skills": set(), "color": color}
