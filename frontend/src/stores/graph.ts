@@ -190,6 +190,7 @@ export const useGraphStore = defineStore('graph', () => {
   async function fetchKAPositions(kaId: string) {
     loading.value = true
     try {
+      const edgeKeys = new Set(allEdges.value.map(x => `${x.source_id}-${x.target_id}-${x.type}`))
       const data = await request.get(`/graph/ka/${kaId}/positions`) as any
       const positions: GraphNode[] = data.positions ?? []
       const psEdges: GraphEdge[] = data.position_skill_edges ?? []
@@ -202,7 +203,8 @@ export const useGraphStore = defineStore('graph', () => {
       }
       for (const e of psEdges) {
         const key = `${e.source_id}-${e.target_id}-${e.type}`
-        if (!allEdges.value.find(x => `${x.source_id}-${x.target_id}-${x.type}` === key)) {
+        if (!edgeKeys.has(key)) {
+          edgeKeys.add(key)
           allEdges.value.push(e)
         }
       }
