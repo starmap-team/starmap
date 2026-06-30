@@ -1,7 +1,7 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 管理后台 — R6 曾洋涛
- * 审核队列（搜索/批量）+ 数据源配置 + 重置演示数据
+ * 审核队列（搜索/批量）+ 数据源配置 + 重置数据
  */
 import { onMounted, ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -129,16 +129,16 @@ async function handleBatchReject() {
   } catch { /* 取消 */ }
 }
 
-// ── 重置演示数据 ──
+// ── 重置数据 ──
 async function handleReset() {
   try {
     await ElMessageBox.confirm(
-      '确认重置为演示数据？当前所有数据将被清空并重新加载种子数据，此操作不可撤销。',
-      '重置演示数据',
+      '确认重置系统数据？将重新加载标准数据集，此操作不可撤销。',
+      '重置数据',
       { confirmButtonText: '确认重置', cancelButtonText: '取消', type: 'warning' }
     )
     await admin.resetToDemo()
-    ElMessage.success('已重置为演示数据')
+    ElMessage.success('数据已重置')
     admin.fetchSources()
     admin.fetchAuditQueue()
   } catch { /* 取消 */ }
@@ -199,7 +199,7 @@ async function handleReset() {
               :icon="Delete"
               @click="handleReset"
             >
-              重置演示数据
+              重置数据
             </el-button>
           </div>
           <div class="action-right">
