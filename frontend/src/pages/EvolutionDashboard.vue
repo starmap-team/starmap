@@ -40,6 +40,14 @@ const selectedSkillForDetail = ref('')
 
 const trendLabel: Record<string, string> = { rising: '↑ 上升', stable: '→ 平稳', declining: '↓ 下降' }
 const trendTagType: Record<string, string> = { rising: 'success', stable: 'info', declining: 'danger' }
+const changeTypeLabel: Record<string, string> = {
+  proficiency_change: '熟练度变更',
+  requirement_change: '需求等级变更',
+  new_skill: '新增技能',
+  removed_skill: '移除技能',
+  trend_change: '趋势变更',
+  confidence_change: '置信度变更',
+}
 const SERIES_COLORS = chartColors().chart
 
 async function fetchTrends() {
@@ -498,14 +506,35 @@ onMounted(fetchTrends)
               :timestamp="item.date ?? item.created_at ?? ''"
               placement="top"
             >
-              <el-card shadow="never">
-                <p><b>{{ item.change_type ?? '变更' }}</b>: {{ item.description ?? item.detail ?? '' }}</p>
-                <p
-                  v-if="item.trust_score"
-                  class="trust-meta"
-                >
-                  信任度: {{ (item.trust_score * 100).toFixed(0) }}%
-                </p>
+              <el-card shadow="never" class="changelog-card">
+                <div class="changelog-header">
+                  <el-tag size="small" effect="plain" type="primary">
+                    {{ changeTypeLabel[item.change_type] ?? item.change_type ?? '变更' }}
+                  </el-tag>
+                </div>
+                <div v-if="item.old_proficiency || item.new_proficiency" class="changelog-detail">
+                  <span class="changelog-label">熟练度:</span>
+                  <span>{{ item.old_proficiency ?? '-' }}</span>
+                  <span class="changelog-arrow">→</span>
+                  <span class="changelog-new">{{ item.new_proficiency ?? '-' }}</span>
+                </div>
+                <div v-if="item.old_requirement || item.new_requirement" class="changelog-detail">
+                  <span class="changelog-label">需求等级:</span>
+                  <span>{{ item.old_requirement ?? '-' }}</span>
+                  <span class="changelog-arrow">→</span>
+                  <span class="changelog-new">{{ item.new_requirement ?? '-' }}</span>
+                </div>
+                <div v-if="item.description" class="changelog-detail">
+                  <span>{{ item.description }}</span>
+                </div>
+                <div class="changelog-meta">
+                  <span v-if="item.trust_score" class="trust-meta">
+                    信任度 {{ (item.trust_score * 100).toFixed(0) }}%
+                  </span>
+                  <span v-if="item.confidence" class="trust-meta">
+                    置信度 {{ (item.confidence * 100).toFixed(0) }}%
+                  </span>
+                </div>
               </el-card>
             </el-timeline-item>
           </el-timeline>
@@ -739,5 +768,36 @@ onMounted(fetchTrends)
 }
 .empty-slot {
   margin-top: var(--space-4);
+}
+/* ── Changelog Card ── */
+.changelog-card { margin-bottom: var(--space-2); }
+.changelog-header { margin-bottom: var(--space-2); }
+.changelog-detail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--foreground);
+  margin-bottom: var(--space-1);
+}
+.changelog-label {
+  color: var(--muted-foreground);
+  font-weight: 500;
+  min-width: 60px;
+}
+.changelog-arrow {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-xs);
+}
+.changelog-new {
+  color: var(--primary);
+  font-weight: 600;
+}
+.changelog-meta {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
 }
 </style>
