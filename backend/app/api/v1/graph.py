@@ -1,4 +1,4 @@
-﻿"""图谱查询 API。"""
+"""图谱查询 API。"""
 from __future__ import annotations
 
 from typing import Annotated, Any
@@ -232,7 +232,9 @@ async def get_graph_overview(
         MATCH (ka:KnowledgeArea)
         OPTIONAL MATCH (ka)<-[:BELONGS_TO]-(s:Skill)
         OPTIONAL MATCH (s)<-[:REQUIRES]-(p:Position)
-        RETURN ka, count(DISTINCT s) AS skill_count, count(DISTINCT p) AS pos_count
+        WITH ka, count(DISTINCT s) AS skill_count, count(DISTINCT p) AS pos_count
+        WHERE skill_count > 0 OR pos_count > 0
+        RETURN ka, skill_count, pos_count
         """
         result = await session.run(ka_query)
         domains = []
@@ -304,7 +306,7 @@ async def get_domain_detail(
     from app.services.graph_service import serialize_node, serialize_relationship
     async with driver.session() as session:
         query = """
-        MATCH (ka:KnowledgeArea)-[:CONTAINS]-(s:Skill)<-[r:REQUIRES]-(p:Position)
+        MATCH (ka:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[r:REQUIRES]-(p:Position)
         WHERE ka.name CONTAINS $name
         RETURN DISTINCT p, r, s
         """
@@ -380,3 +382,246 @@ async def get_ka_positions(
         positions=list(positions.values()),
         position_skill_edges=edges,
     )
+
+
+# ─── Sprint 2.3: Domain Switching ───
+
+
+class DomainItem(BaseModel):
+    """A single domain available for switching."""
+
+    name: str = Field(..., description="领域名称")
+    label: str = Field(default="", description="领域显示标签")
+    position_count: int = 0
+    skill_count: int = 0
+    color: str = ""
+
+
+class DomainListResponse(BaseModel):
+    """List of all domains for the domain switcher dropdown."""
+
+    domains: list[DomainItem] = Field(default_factory=list)
+    total: int = 0
+
+
+class DomainSubgraphResponse(BaseModel):
+    """Domain-specific subgraph with positions and skills."""
+
+    domain_name: str = ""
+    positions: list[GraphNode] = Field(default_factory=list)
+    skills: list[GraphNode] = Field(default_factory=list)
+    edges: list[GraphEdge] = Field(default_factory=list)
+    total_positions: int = 0
+    total_skills: int = 0
+
+
+# Pre-defined domains for IT/AI/BigData/IoT switching
+SWITCHABLE_DOMAINS = [
+    {"name": "IT", "label": "IT / 信息技术", "color": "#409EFF"},
+    {"name": "AI", "label": "AI / 人工智能", "color": "#9B59B6"},
+    {"name": "BigData", "label": "大数据", "color": "#E6A23C"},
+    {"name": "IoT", "label": "物联网 / IoT", "color": "#67C23A"},
+]
+
+
+@router.get(
+    "/domains",
+    summary="领域列表",
+    description="返回所有可供切换的领域列表（IT/AI/大数据/IoT），含统计信息。",
+    response_model=DomainListResponse,
+)
+async def get_domains(
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+) -> DomainListResponse:
+    """获取所有可切换领域列表，用于前端领域切换下拉。"""
+    from app.services.graph_service import TECH_STACK_KEYWORDS, _classify_tech_stack
+
+    if driver is None:
+        # Return predefined domains even without Neo4j
+        return DomainListResponse(
+            domains=[DomainItem(**d) for d in SWITCHABLE_DOMAINS],
+            total=len(SWITCHABLE_DOMAINS),
+        )
+
+    # Count positions and skills per domain from Neo4j
+    domain_stats: dict[str, dict[str, int]] = {}
+    for d in SWITCHABLE_DOMAINS:
+        domain_stats[d["name"]] = {"positions": 0, "skills": set()}
+
+    try:
+        async with driver.session() as session:
+            result = await session.run("MATCH (p:Position) RETURN p.name AS name, p.industry AS industry")
+            async for record in result:
+                pos_name = record["name"] or ""
+                pos_industry = record["industry"] or ""
+                stack = _classify_tech_stack(pos_industry, pos_name)
+                # Map TECH_STACK to our domain names
+                domain_map = {
+                    "人工智能": "AI",
+                    "大数据": "BigData",
+                    "物联网": "IoT",
+                    "智能系统": "IT",
+                    "云计算/DevOps": "IT",
+                    "网络安全": "IT",
+                    "其他": "IT",
+                }
+                domain = domain_map.get(stack, "IT")
+                if domain in domain_stats:
+                    domain_stats[domain]["positions"] += 1
+
+            # Count skills per domain
+            skill_result = await session.run(
+                "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
+                "RETURN p.name AS pos_name, p.industry AS pos_industry, s.name AS skill_name"
+            )
+            async for record in skill_result:
+                pos_name = record["pos_name"] or ""
+                pos_industry = record["pos_industry"] or ""
+                skill_name = record["skill_name"] or ""
+                stack = _classify_tech_stack(pos_industry, pos_name)
+                domain_map = {
+                    "人工智能": "AI",
+                    "大数据": "BigData",
+                    "物联网": "IoT",
+                    "智能系统": "IT",
+                    "云计算/DevOps": "IT",
+                    "网络安全": "IT",
+                    "其他": "IT",
+                }
+                domain = domain_map.get(stack, "IT")
+                if domain in domain_stats:
+                    domain_stats[domain]["skills"].add(skill_name)
+
+    except Exception as exc:
+        from loguru import logger
+        logger.warning("Domain stats query failed, using defaults: {}", exc)
+
+    domains: list[DomainItem] = []
+    for d in SWITCHABLE_DOMAINS:
+        stats = domain_stats.get(d["name"], {"positions": 0, "skills": set()})
+        domains.append(DomainItem(
+            name=d["name"],
+            label=d["label"],
+            position_count=stats["positions"],
+            skill_count=len(stats["skills"]) if isinstance(stats["skills"], set) else stats["skills"],
+            color=d["color"],
+        ))
+
+    return DomainListResponse(domains=domains, total=len(domains))
+
+
+@router.get(
+    "/domain-switch/{domain_name}",
+    summary="领域子图",
+    description="按领域名称获取子图：IT/AI/BigData/IoT，返回该领域下的岗位、技能和关系。",
+    response_model=DomainSubgraphResponse,
+)
+async def get_domain_subgraph(
+    domain_name: str,
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    limit: Annotated[int, Query(ge=1, le=500, description="最大节点数")] = 100,
+) -> DomainSubgraphResponse:
+    """获取指定领域的子图，支持 IT/AI/BigData/IoT 领域切换。"""
+    from app.services.graph_service import (
+        TECH_STACK_KEYWORDS,
+        _classify_tech_stack,
+        serialize_node,
+        serialize_relationship,
+    )
+
+    if driver is None:
+        return DomainSubgraphResponse(domain_name=domain_name)
+
+    # Map domain_name to tech stack keywords for matching
+    domain_keyword_map: dict[str, list[str]] = {
+        "IT": ["IT", "信息技术", "前端", "后端", "全栈", "云计算", "DevOps", "安全"],
+        "AI": ["人工智能", "AI", "机器学习", "深度学习", "NLP", "CV", "算法", "大模型"],
+        "BigData": ["大数据", "数据", "Hadoop", "Spark", "Flink", "ETL", "数据仓库"],
+        "IoT": ["物联网", "IoT", "嵌入式", "边缘计算", "传感器", "智能制造"],
+    }
+    keywords = domain_keyword_map.get(domain_name.upper(), [domain_name])
+
+    try:
+        positions: dict[str, dict[str, Any]] = {}
+        skills: dict[str, dict[str, Any]] = []
+        edges: list[dict[str, Any]] = []
+
+        async with driver.session() as session:
+            # Get positions that match domain keywords
+            for kw in keywords:
+                query = """
+                MATCH (p:Position)
+                WHERE p.name CONTAINS $kw OR p.industry CONTAINS $kw
+                RETURN p
+                LIMIT $limit
+                """
+                result = await session.run(query, kw=kw, limit=limit)
+                async for record in result:
+                    node = record["p"]
+                    if node and node.element_id not in positions:
+                        positions[node.element_id] = serialize_node(node)
+
+            # Also classify by tech stack for positions already found
+            all_pos_result = await session.run("MATCH (p:Position) RETURN p")
+            async for record in all_pos_result:
+                node = record["p"]
+                if node is None:
+                    continue
+                props = dict(node)
+                name = props.get("name", "")
+                industry = props.get("industry", "")
+                stack = _classify_tech_stack(industry, name)
+                domain_map = {
+                    "人工智能": "AI",
+                    "大数据": "BigData",
+                    "物联网": "IoT",
+                    "智能系统": "IT",
+                    "云计算/DevOps": "IT",
+                    "网络安全": "IT",
+                    "其他": "IT",
+                }
+                matched_domain = domain_map.get(stack, "IT")
+                if matched_domain.upper() == domain_name.upper():
+                    if node.element_id not in positions:
+                        positions[node.element_id] = serialize_node(node)
+
+            positions = dict(list(positions.items())[:limit])
+
+            if not positions:
+                return DomainSubgraphResponse(
+                    domain_name=domain_name,
+                    total_positions=0,
+                    total_skills=0,
+                )
+
+            # Get skills for these positions
+            pos_ids = list(positions.keys())
+            skill_query = """
+            MATCH (p:Position)-[r:REQUIRES]->(s:Skill)
+            WHERE elementId(p) IN $pos_ids
+            RETURN p, r, s
+            """
+            skill_result = await session.run(skill_query, pos_ids=pos_ids)
+            skill_nodes: dict[str, dict[str, Any]] = {}
+            async for record in skill_result:
+                p_node = record["p"]
+                r = record["r"]
+                s_node = record["s"]
+                if s_node and s_node.element_id not in skill_nodes:
+                    skill_nodes[s_node.element_id] = serialize_node(s_node)
+                if r:
+                    edges.append(serialize_relationship(r))
+
+            return DomainSubgraphResponse(
+                domain_name=domain_name,
+                positions=list(positions.values()),
+                skills=list(skill_nodes.values()),
+                edges=_graph_edges(edges),
+                total_positions=len(positions),
+                total_skills=len(skill_nodes),
+            )
+
+    except Exception as exc:
+        from loguru import logger
+        logger.error("Domain subgraph query failed for '{}': {}", domain_name, exc)
+        raise HTTPException(status_code=500, detail=f"领域子图查询失败: {exc}") from exc

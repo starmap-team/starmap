@@ -1,10 +1,10 @@
-"""Match API."""
+﻿"""Match API."""
 
 from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -133,10 +133,8 @@ async def diagnose_match(
     driver: Annotated[Any, Depends(get_neo4j_driver)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> MatchResponse:
-    """Alias for /match/position kept for compatibility."""
-    if not body.person_skills:
-        raise HTTPException(status_code=400, detail="person_skills cannot be empty.")
-    return await _run_match_request(body, driver, session)
+    """Alias for /match/position — delegates to match_position."""
+    return await match_position(body, driver, session)
 
 
 @router.get("/result/{match_id}", response_model=MatchResponse)
@@ -146,3 +144,35 @@ async def get_match_result_detail(match_id: str) -> MatchResponse:
     if result is None:
         raise HTTPException(status_code=404, detail="Match result not found")
     return MatchResponse(**result)
+
+
+@router.get("/history")
+async def match_history(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    limit: int = Query(10, ge=1, le=50),
+) -> dict[str, Any]:
+    """Return recent match results."""
+    try:
+        result = await session.execute(
+            text("""
+                SELECT match_id, target_position, match_score, matched_skills, created_at
+                FROM match_results
+                ORDER BY created_at DESC
+                LIMIT :limit
+            """),
+            {"limit": limit},
+        )
+        rows = result.fetchall()
+        items = []
+        for row in rows:
+            items.append({
+                "match_id": row[0],
+                "target_position": row[1],
+                "match_score": float(row[2] or 0),
+                "matched_skills": row[3] if isinstance(row[3], list) else [],
+                "created_at": str(row[4]) if row[4] else None,
+            })
+        return {"items": items}
+    except Exception as exc:
+        logger.warning("Failed to fetch match history: {}", exc)
+        return {"items": []}

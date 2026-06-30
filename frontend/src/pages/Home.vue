@@ -1,7 +1,8 @@
 ﻿<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue"
+import { ElMessage } from 'element-plus'
 // G6 loaded dynamically below for code-splitting
-import { Collection, DataAnalysis, Upload, Document, TrendCharts } from "@element-plus/icons-vue"
+import { Collection, DataAnalysis, Upload, Document, TrendCharts, Aim } from "@element-plus/icons-vue"
 import { use } from "echarts/core"
 import { RadarChart } from "echarts/charts"
 import { TooltipComponent, LegendComponent, RadarComponent } from "echarts/components"
@@ -10,24 +11,22 @@ use([RadarChart, TooltipComponent, LegendComponent, RadarComponent, CanvasRender
 import request from "@/api/request"
 import MainLayout from "@/layouts/MainLayout.vue"
 import GraphToolbar from "@/components/GraphToolbar.vue"
+import Graph3D from "@/components/Graph3D.vue"
 import DetailPanel from "@/components/DetailPanel.vue"
 import GraphSearchBar from "@/components/GraphSearchBar.vue"
 import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from "@/stores/graph"
 import { chartColors, tooltipStyle } from "@/utils/chartTheme"
+import { loadG6Graph, cv } from "@/composables/useG6Graph"
+import { useGraphColors } from "@/composables/useGraphColors"
+import { useKPIMetrics } from "@/composables/useKPIMetrics"
 
 // Dynamic import of @antv/g6 for code-splitting (saves ~553KB from initial bundle)
 let G6Graph: any = null
 async function ensureG6Loaded() {
   if (!G6Graph) {
-    const g6 = await import("@antv/g6")
-    G6Graph = g6.Graph
+    G6Graph = await loadG6Graph()
   }
   return G6Graph
-}
-
-// Resolve CSS variable to actual color value for Canvas rendering
-function cv(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 
 // router available via useRouter() if needed
@@ -35,30 +34,10 @@ const graphStore = useGraphStore()
 const graphRef = ref<HTMLElement | null>(null)
 let graph: any = null
 
-// ── 颜色常量 ──
-const KA_FALLBACK_COLORS = computed(() => {
-  const base = chartColors()
-  return [
-    base.primary, base.success, base.warning, base.info, base.chart[0],
-    base.chart[1], base.chart[2], base.chart[3], base.chart[4],
-    base.danger, base.primary, base.success, base.warning, base.info
-  ]
-})
-const KA_COLOR_MAP = computed(() => {
-  const map = new Map<string, string>()
-  graphStore.domains.forEach((d, i) => {
-    map.set(d.id, d.color || KA_FALLBACK_COLORS.value[i % KA_FALLBACK_COLORS.value.length])
-  })
-  return map
-})
-const POSITION_COLOR = "#3B82F6"
-const SKILL_COLOR = "#10B981"
-const SKILL_BONUS_COLOR = "#F59E0B"
-
-// ── KPI ──
-const totalPositions = computed(() => graphStore.domains.reduce((s, d) => s + d.position_count, 0))
-const totalSkills = computed(() => graphStore.domains.reduce((s, d) => s + d.skill_count, 0))
-const totalDomains = computed(() => graphStore.domains.length)
+// ── Composables ──
+const { POSITION_COLOR, SKILL_COLOR, SKILL_BONUS_COLOR, KA_COLOR_MAP } = useGraphColors()
+const { totalPositions, totalSkills, totalDomains } = useKPIMetrics()
+const KA_FALLBACK_COLORS = ref(['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'])
 
 // ── 面包屑导航 ──
 interface BreadcrumbItem {
@@ -78,9 +57,7 @@ const breadcrumb = computed<BreadcrumbItem[]>(() => {
   return items
 })
 
-// ── 视图模式切换 ──
-const overviewMode = ref<OverviewMode>('domain')
-
+// ── 视图模式切换（使用 store 中的 overviewMode） ──
 function onOverviewModeChange(mode: string) {
   // Fade out current graph, fetch new data, fade in
   if (graph) {
@@ -102,9 +79,65 @@ function toggleLayout() {
   renderCurrentLayer()
 }
 
+// ── 2D/3D 视图切换 ──
+type ViewMode = '2d' | '3d'
+const viewMode = ref<ViewMode>('3d')
+const graph3DRef = ref<InstanceType<typeof Graph3D> | null>(null)
+const autoRotate = ref(false)
+
+function toggleViewMode() {
+  viewMode.value = viewMode.value === '2d' ? '3d' : '2d'
+}
+
+// ── 3D camera presets ──
+function onCameraPreset(preset: 'overview' | 'domain' | 'position') {
+  graph3DRef.value?.setCameraPreset(preset)
+}
+
+function onResetCamera() {
+  graph3DRef.value?.resetCamera()
+}
+
+function onToggleAutoRotate() {
+  graph3DRef.value?.toggleAutoRotate()
+  autoRotate.value = !autoRotate.value
+}
+
+// ── 3D node click handler ──
+function on3DNodeClick(node: any) {
+  const nodeId = node.id
+  // Reuse existing handleNodeClick logic
+  handleNodeClick(nodeId)
+}
+
+// ── Prepare 3D graph data (transform visible nodes/edges) ──
+const graph3DNodes = computed(() => {
+  return graphStore.visibleNodes.map(n => ({
+    id: n.id,
+    labels: n.labels,
+    properties: {
+      name: n.properties.name,
+      category: (n.properties as any).category,
+      proficiency: (n.properties as any).proficiency,
+      position_count: (n.properties as any).position_count,
+      skill_count: (n.properties as any).skill_count,
+      weight: (n.properties as any).weight,
+    },
+  }))
+})
+
+const graph3DLinks = computed(() => {
+  return graphStore.visibleEdges.map(e => ({
+    source: e.source_id,
+    target: e.target_id,
+    type: e.type,
+    properties: e.properties,
+  }))
+})
+
 // ── EVOLVES_TO 演化边 ──
 const showEvolution = ref(false)
-const maxNodesLimit = ref(80)
+const maxNodesLimit = ref(50)
 const proficiencyFilter = ref<string[]>(['精通', '熟悉', '了解'])
 
 function onMaxNodesChange(val: number) {
@@ -282,6 +315,7 @@ async function initGraph() {
     renderCurrentLayer()
   } catch (err) {
     console.error("[Home] Failed to initialize graph:", err)
+    ElMessage.error('图谱加载失败，请确认后端服务已启动')
   }
 }
 
@@ -356,14 +390,14 @@ function renderDomainLayer() {
   }))
   graph.updateNodeData(entranceNodes)
 
-  const isLevel = overviewMode.value === 'level'
-  const isTechStack = overviewMode.value === 'tech_stack'
+  const isLevel = graphStore.overviewMode === 'level'
+  const isTechStack = graphStore.overviewMode === 'tech_stack'
   if (layoutMode.value === 'dagre' || isLevel) {
     graph.setLayout({ type: 'dagre', rankdir: 'TB', nodesep: isLevel ? 140 : 80, ranksep: isLevel ? 160 : 100, preventOverlap: true, nodeSize: 80, controlPoints: true })
   } else if (isTechStack) {
-    graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 100, animate: true, clustering: true, clusterNodeStrength: 0.5, strength: 0.3, coulombDisScale: 0.008, gravity: 6 })
+    graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 60, animate: true, clustering: true, clusterNodeStrength: 0.5, strength: 0.4, coulombDisScale: 0.005, gravity: 8, maxSpeed: 200, maxIteration: 100 })
   } else {
-    graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 80, animate: true, strength: 0.3, coulombDisScale: 0.008, gravity: 8 })
+    graph.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 60, animate: true, strength: 0.4, coulombDisScale: 0.005, gravity: 10, maxSpeed: 200, maxIteration: 100 })
   }
   graph.render()
   setTimeout(() => {
@@ -570,10 +604,22 @@ function renderDetailLayer() {
           },
   })
 
-  // Skill 节点 — apply maxNodesLimit (reserve ~3 for KA + Position nodes)
+  // Skill 节点 — apply maxNodesLimit + proficiency filter (reserve ~3 for KA + Position nodes)
   const allPosEdges = graphStore.visibleEdges.filter(e => e.source_id === posId)
+
+  // Apply proficiency filter: when all 3 levels are selected, show everything
+  const hasActiveFilter = proficiencyFilter.value.length < 3
+  const filteredEdges = hasActiveFilter
+    ? allPosEdges.filter(e => {
+        const skillNode = graphStore.nodeMap.get(e.target_id)
+        if (!skillNode) return false
+        const prof = skillNode.properties.proficiency || (e.properties as any)?.level || ''
+        return prof ? proficiencyFilter.value.includes(prof) : true
+      })
+    : allPosEdges
+
   const maxSkillNodes = Math.max(maxNodesLimit.value - 3, 5)
-  const sortedEdges = [...allPosEdges].sort((a, b) => (b.properties?.weight ?? 0.5) - (a.properties?.weight ?? 0.5))
+  const sortedEdges = [...filteredEdges].sort((a, b) => (b.properties?.weight ?? 0.5) - (a.properties?.weight ?? 0.5))
   const posEdges = sortedEdges.slice(0, maxSkillNodes)
   const maxWeight = Math.max(...posEdges.map(e => e.properties?.weight ?? 0.5), 0.1)
 
@@ -740,16 +786,16 @@ function closeDetail() {
 
 // ── 缩放控制 ──
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function zoomIn() { graph?.zoomTo(graph!.getZoom() * 1.3) }
+function zoomIn() { const g = graph as any; g?.zoomTo(g.getZoom() * 1.3) }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function zoomOut() { graph?.zoomTo(graph!.getZoom() * 0.7) }
+function zoomOut() { const g = graph as any; g?.zoomTo(g.getZoom() * 0.7) }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function zoomFit() { graph?.fitView() }
+function zoomFit() { (graph as any)?.fitView() }
 
 // ── 响应式 ──
 function handleResize() {
   if (!graph || !graphRef.value) return
-  graph.setSize(graphRef.value.clientWidth, graphRef.value.clientHeight)
+  (graph as any).setSize(graphRef.value.clientWidth, graphRef.value.clientHeight)
 }
 
 // ── Watch 层级变化 → 重新渲染 ──
@@ -758,10 +804,16 @@ watch(() => graphStore.currentLayer, () => {
   renderCurrentLayer()
 })
 
+// ── Watch viewMode → re-render G6 when switching back to 2D ──
+watch(viewMode, (mode) => {
+  if (mode === '2d' && graph) {
+    nextTick(() => renderCurrentLayer())
+  }
+})
+
 // ── 生命周期 ──
 onMounted(async () => {
   await graphStore.fetchOverview()
-  graphStore.fetchEvolutionEdges() // Load in background, non-blocking
   await nextTick()
   initGraph()
   window.addEventListener("resize", handleResize)
@@ -857,7 +909,7 @@ onUnmounted(() => {
           <!-- View mode tabs -->
           <el-radio-group
             v-if="graphStore.currentLayer === 'domain'"
-            v-model="overviewMode"
+            :model-value="graphStore.overviewMode"
             size="small"
             class="view-tabs"
             @change="onOverviewModeChange"
@@ -875,6 +927,21 @@ onUnmounted(() => {
         </div>
 
         <div class="controls-right">
+          <!-- 2D / 3D Toggle -->
+          <div class="view-mode-toggle">
+            <button
+              class="vm-btn"
+              :class="{ 'vm-btn--active': viewMode === '2d' }"
+              @click="viewMode = '2d'"
+            >2D</button>
+            <button
+              class="vm-btn"
+              :class="{ 'vm-btn--active': viewMode === '3d' }"
+              @click="viewMode = '3d'"
+            >3D</button>
+            <span class="vm-indicator" :class="{ 'vm-indicator--3d': viewMode === '3d' }" />
+          </div>
+
           <!-- Legend -->
           <div class="graph-legend">
             <span class="legend-item"><span class="ld-dot ld-dot--domain" />领域</span>
@@ -905,10 +972,22 @@ onUnmounted(() => {
             v-loading="graphStore.loading"
             class="graph-container grain"
           >
+            <!-- 2D Graph (G6) — shown when viewMode === '2d' -->
             <div
+              v-show="viewMode === '2d'"
               ref="graphRef"
               class="graph-canvas"
             />
+
+            <!-- 3D Graph — shown when viewMode === '3d' -->
+            <Graph3D
+              v-show="viewMode === '3d'"
+              ref="graph3DRef"
+              :nodes="graph3DNodes"
+              :links="graph3DLinks"
+              @node-click="on3DNodeClick"
+            />
+
             <div
               v-if="!graphStore.loading && graphStore.visibleNodes.length === 0"
               class="empty-hint"
@@ -930,6 +1009,8 @@ onUnmounted(() => {
             <GraphToolbar
               :node-count="graphStore.visibleNodes.length"
               :layout-mode="layoutMode"
+              :is3-d="viewMode === '3d'"
+              :auto-rotate="autoRotate"
               @zoom-in="graph?.zoomBy(1.2)"
               @zoom-out="graph?.zoomBy(0.8)"
               @zoom-fit="graph?.fitView()"
@@ -937,6 +1018,9 @@ onUnmounted(() => {
               @reset-highlight="resetHighlight"
               @max-nodes-change="onMaxNodesChange"
               @proficiency-filter="onProficiencyFilter"
+              @camera-preset="onCameraPreset"
+              @reset-camera="onResetCamera"
+              @toggle-auto-rotate="onToggleAutoRotate"
             />
           </div>
         </main>
@@ -1103,6 +1187,49 @@ onUnmounted(() => {
   --el-radio-button-checked-bg-color: var(--primary);
   --el-radio-button-checked-border-color: var(--primary);
 }
+
+/* ── 2D / 3D View Mode Toggle ── */
+.view-mode-toggle {
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: color-mix(in srgb, var(--muted-foreground) 8%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2px;
+}
+.vm-btn {
+  position: relative;
+  z-index: 2;
+  padding: 4px 14px;
+  border: none;
+  background: none;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.vm-btn--active {
+  color: var(--primary-foreground);
+}
+.vm-indicator {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  background: var(--primary);
+  border-radius: var(--radius-md);
+  transition: transform var(--duration-normal) var(--ease-out);
+  z-index: 1;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--primary) 40%, transparent);
+}
+.vm-indicator--3d {
+  transform: translateX(100%);
+}
 .view-tabs .el-radio-button__inner {
   font-size: var(--font-size-xs);
   font-weight: 500;
@@ -1159,6 +1286,7 @@ onUnmounted(() => {
   height: 100%;
   min-height: 520px;
   box-shadow: var(--shadow-md);
+  perspective: 1200px;
 }
 .graph-container::before {
   content: '';
