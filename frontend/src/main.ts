@@ -1,6 +1,8 @@
-import { createApp } from 'vue'
+﻿import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
+// @ts-expect-error - element-plus locale module types
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import 'element-plus/dist/index.css'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -22,7 +24,7 @@ async function bootstrap() {
   const app = createApp(App)
   app.use(createPinia())
   app.use(router)
-  app.use(ElementPlus)
+  app.use(ElementPlus, { locale: zhCn })
 
   // 全局注册 vue-echarts 组件，页面中直接用 <v-chart>
   app.component('VChart', VChart)

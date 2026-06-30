@@ -1,5 +1,9 @@
-# 前端 Dockerfile（开发，HMR）
+﻿# 前端 Dockerfile（开发，HMR）
 FROM node:20-alpine
+
+# 设置 UTF-8 locale，确保中文正确处理
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
 WORKDIR /app
 

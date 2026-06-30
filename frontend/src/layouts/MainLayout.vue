@@ -14,25 +14,25 @@ function toggleDarkMode() {
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
 }
 const navItems = [
-  { path: '/', title: '鍏ㄦ櫙鍥捐氨', icon: Connection, group: 'data' },
-  { path: '/positions', title: '宀椾綅鍒楄〃', icon: User, group: 'data' },
-  { path: '/match', title: '鍖归厤璇婃柇', icon: DataAnalysis, group: 'tools' },
-  { path: '/extract', title: 'JD 鎶藉彇', icon: Document, group: 'tools' },
-  { path: '/evolution', title: '婕斿寲鐪嬫澘', icon: TrendCharts, group: 'insight' },
-  { path: '/quality', title: '鍥捐氨璐ㄩ噺', icon: DataAnalysis, group: 'insight' },
-  { path: '/admin', title: '绠＄悊鍚庡彴', icon: Setting, group: 'system' },
+  { path: '/', title: '全景图谱', icon: Connection, group: 'data' },
+  { path: '/positions', title: '岗位列表', icon: User, group: 'data' },
+  { path: '/match', title: '匹配诊断', icon: DataAnalysis, group: 'tools' },
+  { path: '/extract', title: 'JD 抽取', icon: Document, group: 'tools' },
+  { path: '/evolution', title: '演化看板', icon: TrendCharts, group: 'insight' },
+  { path: '/quality', title: '图谱质量', icon: DataAnalysis, group: 'insight' },
+  { path: '/admin', title: '管理后台', icon: Setting, group: 'system' },
 ]
 const navGroups = [
-  { key: 'data', label: '鏁版嵁' },
-  { key: 'tools', label: '宸ュ叿' },
-  { key: 'insight', label: '娲炲療' },
-  { key: 'system', label: '绯荤粺' },
+  { key: 'data', label: '数据' },
+  { key: 'tools', label: '工具' },
+  { key: 'insight', label: '洞察' },
+  { key: 'system', label: '系统' },
 ]
-const currentTitle = computed(() => navItems.find(i => i.path === route.path)?.title ?? '鏄熷浘')
+const currentTitle = computed(() => navItems.find(i => i.path === route.path)?.title ?? '星图')
 const breadcrumbs = computed(() => {
   const meta = route.meta as Record<string, any>
   if (meta?.breadcrumb?.length) return meta.breadcrumb as string[]
-  return ['棣栭〉', currentTitle.value]
+  return ['首页', currentTitle.value]
 })
 function closeMobileMenu() { mobileMenuOpen.value = false }
 function navigateTo(path: string) { router.push(path); closeMobileMenu() }
@@ -111,7 +111,7 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
             class="brand-text-group"
           >
             <span class="brand-text">StarMap</span>
-            <span class="brand-badge">鏄熷浘</span>
+            <span class="brand-badge">星图</span>
           </div>
         </router-link>
       </div>
@@ -177,7 +177,7 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
     <header class="mobile-header">
       <button
         class="mobile-toggle"
-        aria-label="鑿滃崟"
+        aria-label="菜单"
         @click="mobileMenuOpen = !mobileMenuOpen"
       >
         <span :class="{ open: mobileMenuOpen }" /><span :class="{ open: mobileMenuOpen }" /><span :class="{ open: mobileMenuOpen }" />
@@ -263,7 +263,7 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
         <slot />
       </main>
       <footer class="layout-footer">
-        <span>StarMap 路 浜烘墠鑳藉姏鏄熶簯瀵艰埅绯荤粺</span>
+        <span>StarMap · 人才能力星云导航系统</span>
         <span class="footer-sep">|</span>
         <span>XH-202621</span>
       </footer>

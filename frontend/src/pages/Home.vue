@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue"
 // G6 loaded dynamically below for code-splitting
 import { Collection, DataAnalysis, Upload, Document, TrendCharts } from "@element-plus/icons-vue"
@@ -213,7 +213,7 @@ const positionRadarOption = computed(() => {
       center: ["50%", "50%"],
       radius: "60%",
       indicator: sliced.map(s => ({ name: s.name, max: 1 })),
-      axisName: { color: cv("--muted-foreground"), fontSize: 10 },
+      axisName: { color: cv("--muted-foreground"), fontSize: 10, fontFamily: `'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', 'Noto Sans SC', sans-serif` },
     },
     series: [{
       type: "radar",
