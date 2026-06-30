@@ -50,9 +50,29 @@ function defaultMetrics(): QualityMetrics {
   }
 }
 
+export interface QualityTrendPoint {
+  date: string
+  trust_score: number
+  hallucination_rate: number
+  review_count: number
+}
+
+export interface QualityAlert {
+  id: string | number
+  level: 'info' | 'warning' | 'error' | 'critical'
+  type: string
+  message: string
+  created_at: string
+  status: 'pending' | 'processing' | 'resolved' | 'ignored'
+}
+
 export const useQualityStore = defineStore('quality', () => {
   const metrics = ref<QualityMetrics | null>(null)
   const loading = ref(false)
+  const trends = ref<QualityTrendPoint[]>([])
+  const trendsPeriod = ref<'7d' | '30d' | '90d'>('7d')
+  const alerts = ref<QualityAlert[]>([])
+  const alertsLoading = ref(false)
 
   async function fetchQuality() {
     loading.value = true
@@ -93,5 +113,34 @@ export const useQualityStore = defineStore('quality', () => {
     ]
   })
 
-  return { metrics, loading, kpiCards, fetchQuality }
+  async function fetchTrends(period: '7d' | '30d' | '90d' = '7d') {
+    trendsPeriod.value = period
+    loading.value = true
+    try {
+      const data = await request.get('/quality/trends', { params: { period } }) as QualityTrendPoint[]
+      trends.value = data
+    } catch {
+      trends.value = []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchAlerts() {
+    alertsLoading.value = true
+    try {
+      const resp = await request.get('/quality/alerts') as any
+      alerts.value = resp?.alerts ?? resp ?? []
+    } catch {
+      alerts.value = []
+    } finally {
+      alertsLoading.value = false
+    }
+  }
+
+  return {
+    metrics, loading, kpiCards, fetchQuality,
+    trends, trendsPeriod, alerts, alertsLoading,
+    fetchTrends, fetchAlerts,
+  }
 })

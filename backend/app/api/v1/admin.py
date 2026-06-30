@@ -11,7 +11,7 @@ from copy import deepcopy
 from typing import Annotated, Any
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +28,7 @@ from app.core.extraction.prompt import (
     set_active_version,
     stop_ab_test,
 )
-from app.dependencies import get_db_session
+from app.dependencies import get_db_session, get_neo4j_driver
 from app.models.extraction_models import (
     JDExtractionRecord,
     PositionRecord,
@@ -44,6 +44,7 @@ class SourceConfig(BaseModel):
     name: str
     authority_score: float = Field(ge=0.0, le=1.0)
     source_type: str
+    record_count: int = 0
 
 
 class SourceListResponse(BaseModel):
@@ -144,10 +145,10 @@ async def _build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
             )).scalar() or 0.0
         )
     except Exception:
-        total_positions = len([item for item in _demo_audit_queue if item.type == "position"])
-        total_skills = len(_DEMO_SOURCES) * 5
-        total_edges = total_skills * 2
-        avg_value = 0.78
+        total_positions = 0
+        total_skills = 0
+        total_edges = 0
+        avg_value = 0.0
 
     return AdminStatsResponse(
         total_nodes=total_positions + total_skills,
@@ -176,9 +177,32 @@ async def get_admin_stats(
 
 
 @router.get("/sources", response_model=SourceListResponse)
-async def get_sources() -> SourceListResponse:
-    """Return configured data sources."""
-    return SourceListResponse(items=_DEMO_SOURCES)
+async def get_sources(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> SourceListResponse:
+    """Return data sources from actual crawl data."""
+    try:
+        result = await session.execute(
+            sa.text("SELECT source_platform, COUNT(*) as cnt FROM raw_jd_records GROUP BY source_platform ORDER BY cnt DESC")
+        )
+        rows = result.fetchall()
+        sources = []
+        platform_scores = {
+            "lagou": 0.75, "zhaopin": 0.72, "indeed": 0.68, "linkedin": 0.85,
+            "sap": 0.90, "talent": 0.70, "freelancer": 0.65, "bosszhipin": 0.73,
+            "51job": 0.71, "liepin": 0.74, "test_real_crawl": 0.50, "seed": 0.50,
+        }
+        for idx, (platform, cnt) in enumerate(rows, 1):
+            score = platform_scores.get(platform, 0.60)
+            stype = "official" if score >= 0.85 else "aggregator"
+            sources.append(SourceConfig(
+                id=idx, name=platform, authority_score=score,
+                source_type=stype, record_count=cnt,
+            ))
+        return SourceListResponse(items=sources)
+    except Exception as exc:
+        logger.warning("Failed to query data sources: {}", exc)
+        return SourceListResponse(items=[])
 
 
 @router.get("/review-queue", response_model=AuditQueueResponse)
@@ -214,7 +238,7 @@ async def get_review_queue(
     except Exception:
         pass
 
-    return AuditQueueResponse(items=[item for item in _demo_audit_queue if item.status == "pending"])
+    return AuditQueueResponse(items=[])
 
 
 @router.post("/audit/{item_id}/approve", response_model=AuditItem)
@@ -415,3 +439,171 @@ async def get_ab_test_config(name: str) -> dict[str, Any]:
         "prompt": name,
         "ab_test": ab.to_dict() if ab else None,
     }
+
+# ── Graph Node CRUD (for Admin panel) ──
+
+
+class GraphNodeItem(BaseModel):
+    id: str = Field(default="")
+    type: str = Field(..., description="Node label: Position, Skill, Tool, KnowledgeArea")
+    name: str = Field(..., min_length=1)
+    properties: dict[str, Any] = Field(default_factory=dict)
+    status: str = Field(default="approved")
+    created_at: str | None = None
+
+
+class GraphNodeListResponse(BaseModel):
+    items: list[GraphNodeItem] = Field(default_factory=list)
+    total: int = 0
+
+
+@router.get("/graph/nodes", response_model=GraphNodeListResponse)
+async def list_graph_nodes(
+    driver: Any = Depends(get_neo4j_driver),
+    limit: int = Query(200, ge=1, le=1000),
+) -> GraphNodeListResponse:
+    if driver is None:
+        return GraphNodeListResponse(items=[], total=0)
+    nodes: list[GraphNodeItem] = []
+    try:
+        async with driver.session() as session:
+            result = await session.run(
+                "MATCH (n) RETURN n LIMIT " + str(limit),
+            )
+            async for record in result:
+                node = record["n"]
+                if node is None:
+                    continue
+                labels = list(node.labels)
+                props = dict(node)
+                props = {k: str(v) if not isinstance(v, (str, int, float, bool, list, dict, type(None))) else v for k, v in props.items()}
+                node_type = labels[0] if labels else "Unknown"
+                nodes.append(GraphNodeItem(
+                    id=str(node.element_id),
+                    type=node_type,
+                    name=props.get("name", ""),
+                    properties=props,
+                    status="approved",
+                ))
+    except Exception as exc:
+        logger.error("Failed to list graph nodes: {}", exc)
+    return GraphNodeListResponse(items=nodes, total=len(nodes))
+
+
+@router.post("/graph/nodes", response_model=GraphNodeItem)
+async def create_graph_node(
+    body: GraphNodeItem,
+    driver: Any = Depends(get_neo4j_driver),
+) -> GraphNodeItem:
+    if driver is None:
+        raise HTTPException(status_code=503, detail="Neo4j not available")
+    label = body.type if body.type in ("Position", "Skill", "Tool", "KnowledgeArea", "Industry") else "Skill"
+    props = {**body.properties, "name": body.name}
+    try:
+        async with driver.session() as session:
+            query = f"CREATE (n:{label} {{name: \}}) SET n += \ RETURN elementId(n) as eid"
+            result = await session.run(query, name=body.name, props=props)
+            record = await result.single()
+            eid = str(record["eid"]) if record else ""
+            logger.info("Created graph node: {} ({})", body.name, label)
+            return GraphNodeItem(
+                id=eid, type=label, name=body.name,
+                properties=props, status="pending",
+            )
+    except Exception as exc:
+        logger.error("Failed to create graph node: {}", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.put("/graph/nodes/{node_id:path}", response_model=GraphNodeItem)
+async def update_graph_node(
+    node_id: str,
+    body: GraphNodeItem,
+    driver: Any = Depends(get_neo4j_driver),
+) -> GraphNodeItem:
+    if driver is None:
+        raise HTTPException(status_code=503, detail="Neo4j not available")
+    props = {**body.properties, "name": body.name}
+    try:
+        async with driver.session() as session:
+            query = "MATCH (n) WHERE elementId(n) = \ SET n += \ RETURN n"
+            result = await session.run(query, eid=node_id, props=props)
+            record = await result.single()
+            if not record:
+                raise HTTPException(status_code=404, detail="Node not found")
+            logger.info("Updated graph node: {}", node_id)
+            return GraphNodeItem(
+                id=node_id, type=body.type, name=body.name,
+                properties=props, status="approved",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to update graph node {}: {}", node_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.delete("/graph/nodes/{node_id:path}")
+async def delete_graph_node(
+    node_id: str,
+    driver: Any = Depends(get_neo4j_driver),
+) -> dict[str, Any]:
+    if driver is None:
+        raise HTTPException(status_code=503, detail="Neo4j not available")
+    try:
+        async with driver.session() as session:
+            query = "MATCH (n) WHERE elementId(n) = \ DETACH DELETE n RETURN count(n) as deleted"
+            result = await session.run(query, eid=node_id)
+            record = await result.single()
+            deleted = record["deleted"] if record else 0
+            if deleted == 0:
+                raise HTTPException(status_code=404, detail="Node not found")
+            logger.info("Deleted graph node: {}", node_id)
+            return {"ok": True, "deleted": deleted}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to delete graph node {}: {}", node_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/graph/nodes/{node_id:path}/approve")
+async def approve_graph_node(
+    node_id: str,
+    driver: Any = Depends(get_neo4j_driver),
+) -> dict[str, Any]:
+    if driver is None:
+        raise HTTPException(status_code=503, detail="Neo4j not available")
+    try:
+        async with driver.session() as session:
+            query = "MATCH (n) WHERE elementId(n) = \ SET n.review_status = 'approved' RETURN n"
+            result = await session.run(query, eid=node_id)
+            record = await result.single()
+            if not record:
+                raise HTTPException(status_code=404, detail="Node not found")
+            return {"ok": True, "status": "approved"}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/graph/nodes/{node_id:path}/reject")
+async def reject_graph_node(
+    node_id: str,
+    driver: Any = Depends(get_neo4j_driver),
+) -> dict[str, Any]:
+    if driver is None:
+        raise HTTPException(status_code=503, detail="Neo4j not available")
+    try:
+        async with driver.session() as session:
+            query = "MATCH (n) WHERE elementId(n) = \ SET n.review_status = 'rejected' RETURN n"
+            result = await session.run(query, eid=node_id)
+            record = await result.single()
+            if not record:
+                raise HTTPException(status_code=404, detail="Node not found")
+            return {"ok": True, "status": "rejected"}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
