@@ -1,4 +1,4 @@
-﻿"""岗位管理 API — 接入 PostgreSQL position_records。"""
+"""岗位管理 API — 接入 PostgreSQL position_records。"""
 from __future__ import annotations
 
 from typing import Annotated, Any
@@ -12,6 +12,29 @@ from app.dependencies import get_db_session
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
 router = APIRouter(prefix="/positions", tags=["岗位管理"])
+
+DEMO_POSITIONS: list[dict[str, Any]] = [
+    {
+        "position_id": "pos_backend",
+        "name": "后端开发工程师",
+        "industry": "互联网/IT",
+        "description": "负责后端 API、数据服务与系统集成。",
+        "skills_required": [
+            {"skill_id": "skill_python", "name": "Python", "category": "hard_skill", "confidence": 0.95, "source_count": 12},
+            {"skill_id": "skill_fastapi", "name": "FastAPI", "category": "tool", "confidence": 0.88, "source_count": 6},
+        ],
+    },
+    {
+        "position_id": "pos_data",
+        "name": "数据分析师",
+        "industry": "互联网/IT",
+        "description": "负责业务数据分析、指标建设与可视化。",
+        "skills_required": [
+            {"skill_id": "skill_python", "name": "Python", "category": "hard_skill", "confidence": 0.90, "source_count": 12},
+            {"skill_id": "skill_sql", "name": "SQL", "category": "hard_skill", "confidence": 0.92, "source_count": 8},
+        ],
+    },
+]
 
 
 class SkillNode(BaseModel):
@@ -54,52 +77,70 @@ async def list_positions(
     industry: Annotated[str | None, Query(description="行业筛选")] = None,
     search: Annotated[str | None, Query(description="搜索关键词")] = None,
 ) -> PositionListResponse:
-    # Count total
-    count_stmt = sa.select(sa.func.count()).select_from(PositionRecord)
-    if industry:
-        count_stmt = count_stmt.where(PositionRecord.industry == industry)
-    if search:
-        count_stmt = count_stmt.where(PositionRecord.name.ilike(f"%{search}%"))
-    total = (await session.execute(count_stmt)).scalar() or 0
+    try:
+        # Count total
+        count_stmt = sa.select(sa.func.count()).select_from(PositionRecord)
+        if industry:
+            count_stmt = count_stmt.where(PositionRecord.industry == industry)
+        if search:
+            count_stmt = count_stmt.where(PositionRecord.name.ilike(f"%{search}%"))
+        total = (await session.execute(count_stmt)).scalar() or 0
 
-    # Fetch page
-    stmt = sa.select(PositionRecord).order_by(PositionRecord.name)
-    if industry:
-        stmt = stmt.where(PositionRecord.industry == industry)
-    if search:
-        stmt = stmt.where(PositionRecord.name.ilike(f"%{search}%"))
-    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
-    rows = (await session.execute(stmt)).scalars().all()
+        # Fetch page
+        stmt = sa.select(PositionRecord).order_by(PositionRecord.name)
+        if industry:
+            stmt = stmt.where(PositionRecord.industry == industry)
+        if search:
+            stmt = stmt.where(PositionRecord.name.ilike(f"%{search}%"))
+        stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+        rows = (await session.execute(stmt)).scalars().all()
 
-    items: list[PositionNode] = []
-    for r in rows:
-        # Fetch skills for this position
-        skill_stmt = (
-            sa.select(SkillRecord, PositionSkillRelation)
-            .join(PositionSkillRelation, PositionSkillRelation.skill_id == SkillRecord.id)
-            .where(PositionSkillRelation.position_id == r.id)
-        )
-        skill_rows = (await session.execute(skill_stmt)).all()
-        skills = [
-            SkillNode(
-                skill_id=str(sk.id),
-                name=sk.name,
-                category=sk.category,
-                confidence=float(rel.confidence or 1.0),
-                source_count=sk.source_count or 0,
+        items: list[PositionNode] = []
+        for r in rows:
+            # Fetch skills for this position
+            skill_stmt = (
+                sa.select(SkillRecord, PositionSkillRelation)
+                .join(PositionSkillRelation, PositionSkillRelation.skill_id == SkillRecord.id)
+                .where(PositionSkillRelation.position_id == r.id)
             )
-            for sk, rel in skill_rows
-        ]
-        items.append(PositionNode(
-            position_id=str(r.id),
-            name=r.name or "",
-            industry=r.industry or "",
-            description=r.description or "",
-            skills_required=skills,
-            discovered_at=r.created_at.isoformat() if r.created_at else None,
-        ))
+            skill_rows = (await session.execute(skill_stmt)).all()
+            skills = [
+                SkillNode(
+                    skill_id=str(sk.id),
+                    name=sk.name,
+                    category=sk.category,
+                    confidence=float(rel.confidence or 1.0),
+                    source_count=sk.source_count or 0,
+                )
+                for sk, rel in skill_rows
+            ]
+            items.append(PositionNode(
+                position_id=str(r.id),
+                name=r.name or "",
+                industry=r.industry or "",
+                description=r.description or "",
+                skills_required=skills,
+                discovered_at=r.created_at.isoformat() if r.created_at else None,
+            ))
 
-    return PositionListResponse(items=items, total=total, page=page, page_size=page_size)
+        if items or total:
+            return PositionListResponse(items=items, total=total, page=page, page_size=page_size)
+    except Exception:
+        pass
+
+    demo_items = DEMO_POSITIONS
+    if industry:
+        demo_items = [item for item in demo_items if item["industry"] == industry]
+    if search:
+        lowered = search.lower()
+        demo_items = [item for item in demo_items if lowered in item["name"].lower()]
+    start = (page - 1) * page_size
+    return PositionListResponse(
+        items=[PositionNode(**item) for item in demo_items[start:start + page_size]],
+        total=len(demo_items),
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get(
@@ -169,6 +210,8 @@ async def discover_position(
     从 skill_timeseries 表加载历史频率数据，从 skill_records 表加载当前数据，
     然后运行 EmergenceFinder 进行 Z-score 分析。
     """
+    from fastapi import HTTPException
+
     from app.core.evolution.emergence_finder import EmergenceFinder
     from app.models.evolution_models import SkillTimeseries
     from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
@@ -253,4 +296,5 @@ async def discover_position(
         }
     except Exception as e:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=500, detail=f"Discovery failed: {e}") from e

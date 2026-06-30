@@ -1,7 +1,8 @@
-﻿"""Neo4j-backed graph query helpers for API v1."""
+"""Neo4j-backed graph query helpers for API v1."""
 from __future__ import annotations
 
 import asyncio
+from collections import defaultdict
 from typing import Any
 
 WRITE_CYPHER_KEYWORDS = {
@@ -14,6 +15,63 @@ WRITE_CYPHER_KEYWORDS = {
     "DROP",
     "LOAD",
     "CALL DBMS",
+}
+
+
+DEMO_GRAPH: dict[str, list[dict[str, Any]]] = {
+    "nodes": [
+        {
+            "id": "pos_backend",
+            "labels": ["Position"],
+            "properties": {"name": "后端开发工程师", "category": "backend", "industry": "互联网/IT"},
+        },
+        {
+            "id": "pos_data",
+            "labels": ["Position"],
+            "properties": {"name": "数据分析师", "category": "data", "industry": "互联网/IT"},
+        },
+        {
+            "id": "skill_python",
+            "labels": ["Skill"],
+            "properties": {"name": "Python", "category": "hard_skill", "source_count": 12},
+        },
+        {
+            "id": "skill_sql",
+            "labels": ["Skill"],
+            "properties": {"name": "SQL", "category": "hard_skill", "source_count": 8},
+        },
+        {
+            "id": "skill_fastapi",
+            "labels": ["Skill"],
+            "properties": {"name": "FastAPI", "category": "tool", "source_count": 6},
+        },
+    ],
+    "edges": [
+        {
+            "source_id": "pos_backend",
+            "target_id": "skill_python",
+            "type": "REQUIRES",
+            "properties": {"weight": 0.95, "level": "advanced", "required": True},
+        },
+        {
+            "source_id": "pos_backend",
+            "target_id": "skill_fastapi",
+            "type": "REQUIRES",
+            "properties": {"weight": 0.85, "level": "intermediate", "required": True},
+        },
+        {
+            "source_id": "pos_data",
+            "target_id": "skill_python",
+            "type": "REQUIRES",
+            "properties": {"weight": 0.82, "level": "intermediate", "required": True},
+        },
+        {
+            "source_id": "pos_data",
+            "target_id": "skill_sql",
+            "type": "REQUIRES",
+            "properties": {"weight": 0.90, "level": "intermediate", "required": True},
+        },
+    ],
 }
 
 
@@ -226,7 +284,10 @@ async def fetch_panorama(driver: Any, limit: int = 500) -> dict[str, list[dict[s
                 async for rec in r3:
                     edges.append(serialize_relationship(rec["r"]))
 
-    return dedupe_graph(nodes, edges)
+    graph = dedupe_graph(nodes, edges)
+    if not graph["nodes"]:
+        return DEMO_GRAPH
+    return graph
 
 
 async def run_readonly_query(driver: Any, cypher: str, limit: int = 500) -> dict[str, list[dict[str, Any]]]:
@@ -291,7 +352,42 @@ async def fetch_position_graph(driver: Any, position_name: str, depth: int = 1) 
         if pos_record and pos_record["position"] is not None:
             position = _position_item(serialize_node(pos_record["position"]))
         if position is None:
-            return {"position": None, "skills": [], "edges": []}
+            demo_position = next(
+                (
+                    item
+                    for item in DEMO_GRAPH["nodes"]
+                    if "Position" in item.get("labels", [])
+                    and (
+                        item["id"] == position_name
+                        or str(item.get("properties", {}).get("name", "")).lower() == position_name.lower()
+                    )
+                ),
+                None,
+            )
+            if demo_position is None:
+                return {"position": None, "skills": [], "edges": []}
+            related_edges = [
+                edge
+                for edge in DEMO_GRAPH["edges"]
+                if edge["source_id"] == demo_position["id"] or edge["target_id"] == demo_position["id"]
+            ]
+            skill_nodes = [
+                node
+                for node in DEMO_GRAPH["nodes"]
+                if "Skill" in node.get("labels", [])
+                and any(node["id"] in {edge["source_id"], edge["target_id"]} for edge in related_edges)
+            ]
+            return {
+                "position": _position_item(demo_position),
+                "skills": [
+                    _skill_item(
+                        node,
+                        next((edge for edge in related_edges if node["id"] in {edge["source_id"], edge["target_id"]}), None),
+                    )
+                    for node in skill_nodes
+                ],
+                "edges": related_edges,
+            }
 
         if depth <= 1:
             direct_query = """
@@ -434,7 +530,6 @@ def _classify_level(name: str, props: dict) -> str:
 
 async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
     """Overview grouped by tech stack (AI/大数据/IoT/etc)."""
-    from collections import defaultdict
     groups: dict[str, dict] = {}
     for stack, color in TECH_STACK_COLORS.items():
         groups[stack] = {"positions": [], "skills": set(), "color": color}

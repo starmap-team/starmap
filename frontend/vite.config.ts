@@ -1,4 +1,4 @@
-﻿import { defineConfig } from 'vite'
+import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 import charsetPlugin from './plugins/charset-plugin'
@@ -14,6 +14,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    allowedHosts: ['localhost', '127.0.0.1', 'frontend', 'starmap-frontend', 'host.docker.internal'],
     proxy: {
       '/api': {
         target: process.env.VITE_API_BASE_URL || 'http://localhost:8000',

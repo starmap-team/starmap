@@ -1,11 +1,11 @@
 
 """Seed changelog entries into PostgreSQL for evolution demo."""
 import asyncio
-import json
 from datetime import datetime, timedelta
+
 from app.core.config import settings
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 CHANGELOG_ENTRIES = [
     {

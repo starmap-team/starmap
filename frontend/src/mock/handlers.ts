@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MSW Mock — 前端独立开发数据源（规范4：Mock优先）
  * 所有接口路径严格对应 starmap-contracts/openapi.yaml
  * ⚠️ 部分接口 enrich 了额外字段用于前端展示，已在注释中标明
@@ -187,7 +187,7 @@ const MOCK_POSITION_SKILLS: Record<string, object> = {
   },
 }
 
-// 管理后台（⚠️ 契约暂未覆盖，前端开发用，需后续补充到 openapi.yaml）
+// 管理后台
 const MOCK_SOURCES = [
   { id: 1, name: 'BOSS直聘', authority_score: 0.7, source_type: 'aggregator' },
   { id: 2, name: '拉勾', authority_score: 0.7, source_type: 'aggregator' },
@@ -371,9 +371,12 @@ export const handlers = [
     return HttpResponse.json({ total_nodes, total_edges, total_positions, total_skills, avg_confidence, hallucination_rate, pending_review })
   }),
 
-  // ────────── 管理后台（⚠️ 契约暂未覆盖，需补充）──────────
+  // ────────── 管理后台 ──────────
   http.get('/api/v1/admin/sources', () =>
     HttpResponse.json({ items: MOCK_SOURCES }),
+  ),
+  http.get('/api/v1/admin/review-queue', () =>
+    HttpResponse.json({ items: MOCK_AUDIT }),
   ),
   http.get('/api/v1/admin/audit-queue', () =>
     HttpResponse.json({ items: MOCK_AUDIT }),
@@ -383,6 +386,9 @@ export const handlers = [
   ),
   http.post('/api/v1/admin/audit/:id/reject', () =>
     HttpResponse.json({ ok: true }),
+  ),
+  http.post('/api/v1/admin/seed/reset', () =>
+    HttpResponse.json({ ok: true, review_items: MOCK_AUDIT.length }),
   ),
   http.post('/api/v1/admin/reset-demo', () =>
     HttpResponse.json({ ok: true }),
