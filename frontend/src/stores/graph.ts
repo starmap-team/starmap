@@ -86,7 +86,6 @@ export const useGraphStore = defineStore('graph', () => {
 
   // ── KA 下的 Position 缓存 ──
   const positionsByKA = ref<Map<string, GraphNode[]>>(new Map())
-  const positionSkillEdgesByKA = ref<Map<string, GraphEdge[]>>(new Map())
 
   // ── 节点/边索引（O(1) 查找） ──
   const nodeMap = computed(() => {
@@ -196,7 +195,6 @@ export const useGraphStore = defineStore('graph', () => {
       const psEdges: GraphEdge[] = data.position_skill_edges ?? []
       // 缓存
       positionsByKA.value.set(kaId, positions)
-      positionSkillEdgesByKA.value.set(kaId, psEdges)
       // 合并到全局节点池（O(1) 查重）
       const existingNodeIds = new Set(allNodes.value.map(n => n.id))
       for (const p of positions) {
@@ -216,22 +214,6 @@ export const useGraphStore = defineStore('graph', () => {
     } catch (e) {
       console.error('[Graph] Failed to fetch KA positions:', e)
       return []
-    } finally {
-      loading.value = false
-    }
-  }
-
-  /** 全量数据（保留兼容，用于搜索等） */
-  async function fetchGraph() {
-    loading.value = true
-    try {
-      const data = await request.get('/graph/panorama') as any
-      allNodes.value = data.nodes ?? []
-      allEdges.value = data.edges ?? []
-    } catch (e) {
-      console.error('[Graph] Failed to fetch panorama:', e)
-      allNodes.value = []
-      allEdges.value = []
     } finally {
       loading.value = false
     }
@@ -294,7 +276,6 @@ export const useGraphStore = defineStore('graph', () => {
     // API
     fetchOverview,
     fetchKAPositions,
-    fetchGraph,
     // 概览视图模式
     overviewMode,
     // 演化
