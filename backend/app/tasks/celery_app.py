@@ -11,6 +11,7 @@ from typing import Any
 from celery import Celery
 
 from app.config import settings
+from app.core.pipeline.orchestrator import StageName
 from app.tasks.stage3_services import (
     run_analyze_evolution_trends,
     run_async,
@@ -93,7 +94,11 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
 
     start = time.monotonic()
     try:
-        result = executor(run_id, run_type="full")
+        # ponytail: only crawl accepts run_type; others take run_id only
+        if stage_name == StageName.CRAWL.value:
+            result = executor(run_id, run_type="full")  # type: ignore[operator]
+        else:
+            result = executor(run_id)  # type: ignore[operator]
         duration_ms = int((time.monotonic() - start) * 1000)
 
         # Update stage status

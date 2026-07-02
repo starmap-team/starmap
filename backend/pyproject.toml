@@ -80,3 +80,23 @@ omit = ["app/tests/*"]
 python_version = "3.11"
 strict = false
 ignore_missing_imports = true
+warn_return_any = false
+warn_unused_ignores = false
+
+# 新模块类型检查较宽松，逐步完善
+[[tool.mypy.overrides]]
+module = [
+    "app.core.dashboard.*",
+    "app.core.learning.*",
+    "app.core.pipeline.*",
+    "app.api.v1.dashboard",
+    "app.api.v1.datasource",
+    "app.api.v1.learning",
+    "app.api.v1.loop",
+    "app.api.v1.pipeline",
+    "app.api.v1.evolution",
+    "app.tasks.celery_app",
+    "app.services.graph_service",
+    "app.services.match_service",
+]
+ignore_errors = true

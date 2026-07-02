@@ -16,3 +16,11 @@ def test_health_ok():
     body = resp.json()
     assert body["status"] == "ok"
     assert "version" in body
+
+
+def test_health_v1_ok():
+    resp = client.get("/api/v1/health")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert "version" in body

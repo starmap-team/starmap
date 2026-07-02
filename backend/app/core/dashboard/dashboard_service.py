@@ -11,7 +11,7 @@ import asyncio
 import json
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import sqlalchemy as sa
 from loguru import logger
@@ -87,6 +87,11 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         count_edges_neo4j(neo4j_driver),
         return_exceptions=True,
     )
+
+    # Handle return_exceptions=True: values may be int or BaseException
+    neo4j_pos = neo4j_pos if isinstance(neo4j_pos, int) else 0
+    neo4j_skill = neo4j_skill if isinstance(neo4j_skill, int) else 0
+    neo4j_edge = neo4j_edge if isinstance(neo4j_edge, int) else 0
 
     total_nodes = max(int(pos_count) + int(skill_count), int(neo4j_pos or 0) + int(neo4j_skill or 0))
     total_edges = max(int(edge_count), int(neo4j_edge or 0))
@@ -408,7 +413,7 @@ async def get_distribution(
             .order_by(sa.func.count().desc())
         )
         platform_rows = fallback_result.all()
-        total_raw = sum(int(r.count) for r in platform_rows) or 1
+        total_raw = sum(int(cast(int, r.count)) for r in platform_rows) or 1
         platform_names = {
             "lagou": "拉勾网", "zhaopin": "智联招聘", "indeed": "Indeed",
             "sap": "SAP", "talent": "猎聘", "freelancer": "Freelancer",
@@ -419,10 +424,10 @@ async def get_distribution(
             {
                 "name": platform_names.get(row.source_platform, row.source_platform),
                 "source_type": "crawl",
-                "count": int(row.count),
-                "total_records": int(row.count),
-                "valid_records": int(row.count),
-                "percentage": round(int(row.count) / total_raw * 100, 1),
+                "count": int(cast(int, row.count)),
+                "total_records": int(cast(int, row.count)),
+                "valid_records": int(cast(int, row.count)),
+                "percentage": round(int(cast(int, row.count)) / total_raw * 100, 1),
                 "authority_score": 0.8,
                 "duplicate_rate": 0.0,
             }
@@ -441,7 +446,7 @@ async def get_distribution(
         .limit(15)
     )
     domain_distribution = [
-        {"name": row.industry or "unknown", "count": int(row.count)}
+        {"name": row.industry or "unknown", "count": int(cast(int, row.count))}
         for row in domain_result.all()
     ]
 
@@ -459,7 +464,7 @@ async def get_distribution(
     skill_category_distribution = [
         {
             "name": row.category or "unknown",
-            "count": int(row.count),
+            "count": int(cast(int, row.count)),
             "avg_source_count": round(float(row.avg_source_count or 0), 2),
         }
         for row in cat_result.all()

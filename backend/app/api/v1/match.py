@@ -11,7 +11,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver
-from app.services import match_service
 from app.services.match_service import get_match_result, run_match
 
 router = APIRouter(prefix="/match", tags=["match"])
@@ -189,10 +188,9 @@ async def batch_match(
     results = []
     for item in items[:20]:
         try:
-            result = await match_service.match_position(
-                session,
-                skills=item.get("skills", []),
-                position_name=item.get("position_name", ""),
+            result = await run_match(
+                target_position=item.get("position_name", ""),
+                person_skills=item.get("skills", []),
             )
             results.append({"position_name": item.get("position_name", ""), "result": result})
         except Exception as e:

@@ -409,6 +409,7 @@ async def create_schedule(
     )
     session.add(schedule)
     await session.flush()
+    await session.commit()  # ponytail: flush-only leaves uncommitted; commit so subsequent GET sees it
     await session.refresh(schedule)
     return _serialize_schedule(schedule)
 
@@ -430,6 +431,7 @@ async def update_schedule(
     schedule.selected_stages = body.selected_stages
     schedule.enabled = body.enabled
     await session.flush()
+    await session.commit()  # ponytail: flush-only leaves the row at the old version
     await session.refresh(schedule)
     return _serialize_schedule(schedule)
 
@@ -445,6 +447,7 @@ async def delete_schedule(
     if schedule is None:
         raise HTTPException(status_code=404, detail="Schedule not found")
     await session.delete(schedule)
+    await session.commit()  # ponytail: flush-only leaves the row; commit so DELETE is visible
     return {"status": "deleted"}
 
 
