@@ -7,7 +7,7 @@
     python run.py 51job             # 跑前程无忧（HTTP）
     python run.py 51job_stealth     # 跑前程无忧（Playwright-stealth）
     python run.py bosszhipin        # 跑 BOSS（Playwright-stealth）
-    python run.py apify_lagou       # 跑拉勾（Apify，自带住宅代理绕 WAF）
+    python run.py apify_lagou       # 跑拉勾(Apify, 免费层)
     python run.py all               # 跑 3 个站点（HTTP 版）
     python run.py stealth_all       # 跑 3 个站点（stealth 版）
     python run.py stats             # 统计
@@ -167,6 +167,18 @@ def cmd_apify_lagou(args):
     log.info("Apify 拉勾: total=%d inserted=%d", summary.get("total", 0), summary.get("inserted", 0))
 
 
+def cmd_apify_liepin(args):
+    from crawler.scripts.apify_liepin import run_apify_liepin
+    summary = run_apify_liepin(max_items=args.max, dry_run=args.dry_run, force_paid=args.force_paid)
+    log.info('Apify liepin: total=%d inserted=%d', summary.get('total', 0), summary.get('inserted', 0))
+
+
+def cmd_apify_zhaopin(args):
+    from crawler.scripts.apify_zhaopin import run_apify_zhaopin
+    summary = run_apify_zhaopin(max_items=args.max, dry_run=args.dry_run, force_paid=args.force_paid)
+    log.info('Apify zhaopin: total=%d inserted=%d', summary.get('total', 0), summary.get('inserted', 0))
+
+
 def _add_common_args(sp):
     """给 spider 子命令加通用参数。"""
     sp.add_argument("--max", type=int, default=config.MAX_PER_SITE)
@@ -224,6 +236,20 @@ def main():
     sp_apify.add_argument("--max", type=int, default=10, help="最大抓取条数")
     sp_apify.add_argument("--dry-run", action="store_true", help="仅测试，不入库")
     sp_apify.set_defaults(func=cmd_apify_lagou)
+
+    # Apify liepin
+    sp_liepin = sub.add_parser('apify_liepin', help='liepin via Apify (paid)')
+    sp_liepin.add_argument('--max', type=int, default=50)
+    sp_liepin.add_argument('--dry-run', action='store_true')
+    sp_liepin.add_argument('--force-paid', action='store_true')
+    sp_liepin.set_defaults(func=cmd_apify_liepin)
+
+    # Apify zhaopin
+    sp_zhaopin = sub.add_parser('apify_zhaopin', help='zhaopin/51job via Apify (paid)')
+    sp_zhaopin.add_argument('--max', type=int, default=100)
+    sp_zhaopin.add_argument('--dry-run', action='store_true')
+    sp_zhaopin.add_argument('--force-paid', action='store_true')
+    sp_zhaopin.set_defaults(func=cmd_apify_zhaopin)
 
     args = p.parse_args()
     if args.cmd == "init":
