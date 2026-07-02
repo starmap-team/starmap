@@ -166,8 +166,14 @@ defineExpose({ play, stop, reset })
       >
         <span class="sm-skill-icon">
           <template v-if="idx < revealedCount">
-            <span v-if="skill.matched" class="sm-icon-match">&#10003;</span>
-            <span v-else class="sm-icon-miss">&#10007;</span>
+            <span
+              v-if="skill.matched"
+              class="sm-icon-match"
+            >&#10003;</span>
+            <span
+              v-else
+              class="sm-icon-miss"
+            >&#10007;</span>
           </template>
           <template v-else>
             <span class="sm-icon-pending">&bull;</span>

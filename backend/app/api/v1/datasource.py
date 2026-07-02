@@ -16,7 +16,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session
@@ -258,7 +258,6 @@ async def trigger_source_sync(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> SyncTriggerResponse:
     """触发单源同步（创建一条 source_sync 类型的流水线运行记录）。"""
-    from app.core.pipeline.orchestrator import trigger_full_pipeline
 
     result = await session.execute(
         select(DataSourceRecord).where(DataSourceRecord.id == source_id)

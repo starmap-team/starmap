@@ -9,14 +9,12 @@ Usage:
 Exit code: 0 = all healthy, 1 = at least one failure
 """
 
-import sys
-import json
-import time
 import argparse
-import urllib.request
+import json
+import sys
+import time
 import urllib.error
-from typing import Optional
-
+import urllib.request
 
 # ═══════════════════════════════════════════════
 # Configuration
@@ -101,7 +99,7 @@ API_ENDPOINTS = [
 # Check Functions
 # ═══════════════════════════════════════════════
 
-def check_http(url: str, method: str = "GET", body: Optional[dict] = None,
+def check_http(url: str, method: str = "GET", body: dict | None = None,
                expect_html: bool = False, expect_status_range: tuple = (200, 399)) -> tuple[bool, str]:
     """Check HTTP endpoint. Returns (success, message)."""
     try:
@@ -135,7 +133,7 @@ def check_port(port: int, host: str = "localhost") -> tuple[bool, str]:
     try:
         with socket.create_connection((host, port), timeout=5):
             return True, f"Port {port} open"
-    except (ConnectionRefusedError, socket.timeout, OSError) as e:
+    except (TimeoutError, ConnectionRefusedError, OSError) as e:
         return False, f"Port {port} closed: {e}"
 
 

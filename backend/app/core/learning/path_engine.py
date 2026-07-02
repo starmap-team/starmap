@@ -151,7 +151,7 @@ def _topological_sort(graph: dict[str, list[str]]) -> list[str]:
     Raises ValueError if the graph contains cycles.
     """
     # Compute in-degrees
-    in_degree: dict[str, int] = {skill: 0 for skill in graph}
+    in_degree: dict[str, int] = dict.fromkeys(graph, 0)
     dependents: dict[str, list[str]] = defaultdict(list)
 
     for skill, prereqs in graph.items():

@@ -508,32 +508,54 @@ onMounted(fetchTrends)
               :timestamp="item.date ?? item.created_at ?? ''"
               placement="top"
             >
-              <el-card shadow="never" class="changelog-card">
+              <el-card
+                shadow="never"
+                class="changelog-card"
+              >
                 <div class="changelog-header">
-                  <el-tag size="small" effect="plain" type="primary">
+                  <el-tag
+                    size="small"
+                    effect="plain"
+                    type="primary"
+                  >
                     {{ changeTypeLabel[item.change_type] ?? item.change_type ?? '变更' }}
                   </el-tag>
                 </div>
-                <div v-if="item.old_proficiency || item.new_proficiency" class="changelog-detail">
+                <div
+                  v-if="item.old_proficiency || item.new_proficiency"
+                  class="changelog-detail"
+                >
                   <span class="changelog-label">熟练度:</span>
                   <span>{{ item.old_proficiency ?? '-' }}</span>
                   <span class="changelog-arrow">→</span>
                   <span class="changelog-new">{{ item.new_proficiency ?? '-' }}</span>
                 </div>
-                <div v-if="item.old_requirement || item.new_requirement" class="changelog-detail">
+                <div
+                  v-if="item.old_requirement || item.new_requirement"
+                  class="changelog-detail"
+                >
                   <span class="changelog-label">需求等级:</span>
                   <span>{{ item.old_requirement ?? '-' }}</span>
                   <span class="changelog-arrow">→</span>
                   <span class="changelog-new">{{ item.new_requirement ?? '-' }}</span>
                 </div>
-                <div v-if="item.description" class="changelog-detail">
+                <div
+                  v-if="item.description"
+                  class="changelog-detail"
+                >
                   <span>{{ item.description }}</span>
                 </div>
                 <div class="changelog-meta">
-                  <span v-if="item.trust_score" class="trust-meta">
+                  <span
+                    v-if="item.trust_score"
+                    class="trust-meta"
+                  >
                     信任度 {{ (item.trust_score * 100).toFixed(0) }}%
                   </span>
-                  <span v-if="item.confidence" class="trust-meta">
+                  <span
+                    v-if="item.confidence"
+                    class="trust-meta"
+                  >
                     置信度 {{ (item.confidence * 100).toFixed(0) }}%
                   </span>
                 </div>

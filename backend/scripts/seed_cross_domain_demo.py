@@ -345,7 +345,7 @@ async def seed() -> None:
             edge_inserted += 1
 
         await session.commit()
-        print(f"Seeded cross-domain demo data:")
+        print("Seeded cross-domain demo data:")
         print(f"  - Timeseries records: {ts_inserted}")
         print(f"  - Evolution paths: {edge_inserted}")
         print(f"  - Cross-domain skills: {len(CROSS_DOMAIN_SKILLS)}")

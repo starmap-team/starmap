@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import func, select, update
@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
 
-class StageName(str, Enum):
+class StageName(StrEnum):
     CRAWL = "crawl"
     DEDUP = "dedup"
     CLEAN = "clean"
@@ -35,7 +35,7 @@ class StageName(str, Enum):
     GRAPH_SYNC = "graph_sync"
 
 
-class StageStatus(str, Enum):
+class StageStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -43,7 +43,7 @@ class StageStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-class RunStatus(str, Enum):
+class RunStatus(StrEnum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"

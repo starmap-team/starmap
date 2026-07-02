@@ -25,8 +25,8 @@ from app.core.learning.progress_tracker import (
     update_progress,
 )
 from app.dependencies import get_db_session
-from app.models.learning_models import LearningPlan, LearningProgress, SkillPrerequisite
-from app.services.match_service import PREREQUISITE_MAP, _build_learning_path
+from app.models.learning_models import LearningPlan, LearningProgress
+from app.services.match_service import PREREQUISITE_MAP
 
 router = APIRouter(prefix="/learning", tags=["学习中心"])
 
@@ -181,8 +181,8 @@ async def get_learning_plan(
     """Get learning plan details with current progress."""
     try:
         pid = uuid.UUID(plan_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid plan_id format")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
 
     progress_data = await get_progress(session, plan_id=pid)
     if "error" in progress_data:
@@ -236,8 +236,8 @@ async def update_skill_progress(
     """Update learning progress for a specific skill."""
     try:
         pid = uuid.UUID(plan_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid plan_id format")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
 
     progress = await update_progress(
         session,
@@ -283,8 +283,8 @@ async def get_recommendations(
     if plan_id:
         try:
             pid = uuid.UUID(plan_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid plan_id format")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
 
         # Get plan's gap skills sorted by priority
         stmt = (

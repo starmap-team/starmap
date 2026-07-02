@@ -14,14 +14,13 @@ import time
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request
-from loguru import logger
 from pydantic import BaseModel, Field
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
 from app.core.dashboard.dashboard_service import get_distribution, get_overview, get_trends
-from app.core.dashboard.sse_broadcaster import get_recent_events, event_stream
+from app.core.dashboard.sse_broadcaster import event_stream, get_recent_events
 from app.dependencies import get_db_session, get_neo4j_driver, get_redis_client
 
 router = APIRouter(prefix="/dashboard", tags=["数据大屏"])

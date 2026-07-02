@@ -166,7 +166,7 @@ def evaluate_f1(
     total_fn = 0
     f1_values: list[float] = []
 
-    for i, (pred_set, sample) in enumerate(zip(predictions, golden)):
+    for _i, (pred_set, sample) in enumerate(zip(predictions, golden, strict=False)):
         expected = sample.expected_skill_names
 
         # True positives: predicted skills that match expected

@@ -9,16 +9,11 @@ The resulting scores are written back to the data_sources table.
 """
 from __future__ import annotations
 
-import statistics
-from datetime import UTC, datetime
-from typing import Any
-
 from loguru import logger
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.pipeline_models import DataSourceRecord, PipelineRun
-
+from app.models.pipeline_models import DataSourceRecord
 
 # ---------------------------------------------------------------------------
 # Per-source scoring

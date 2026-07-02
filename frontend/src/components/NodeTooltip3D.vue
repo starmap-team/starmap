@@ -47,23 +47,38 @@ const stats = computed(() => {
         :style="{ left: `${x + 16}px`, top: `${y - 8}px` }"
       >
         <!-- Type badge -->
-        <div class="tt-badge" :style="{ background: typeInfo.color + '22', color: typeInfo.color, borderColor: typeInfo.color + '44' }">
+        <div
+          class="tt-badge"
+          :style="{ background: typeInfo.color + '22', color: typeInfo.color, borderColor: typeInfo.color + '44' }"
+        >
           {{ typeInfo.label }}
         </div>
 
         <!-- Node name -->
-        <div class="tt-name">{{ node.name }}</div>
+        <div class="tt-name">
+          {{ node.name }}
+        </div>
 
         <!-- Stats row -->
-        <div v-if="stats.length" class="tt-stats">
-          <div v-for="s in stats" :key="s.label" class="tt-stat">
+        <div
+          v-if="stats.length"
+          class="tt-stats"
+        >
+          <div
+            v-for="s in stats"
+            :key="s.label"
+            class="tt-stat"
+          >
             <span class="tt-stat-label">{{ s.label }}</span>
             <span class="tt-stat-value">{{ s.value }}</span>
           </div>
         </div>
 
         <!-- Glow accent line -->
-        <div class="tt-glow-line" :style="{ background: `linear-gradient(90deg, ${typeInfo.color}, transparent)` }" />
+        <div
+          class="tt-glow-line"
+          :style="{ background: `linear-gradient(90deg, ${typeInfo.color}, transparent)` }"
+        />
       </div>
     </Transition>
   </Teleport>

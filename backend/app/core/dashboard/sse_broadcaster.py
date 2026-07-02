@@ -22,7 +22,8 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from loguru import logger
 from redis.asyncio import Redis
@@ -142,7 +143,7 @@ async def event_stream(
                     pubsub.get_message(ignore_subscribe_messages=True),
                     timeout=POLL_INTERVAL,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 message = None
             except Exception as exc:
                 logger.debug("pubsub.get_message error: {}", exc)

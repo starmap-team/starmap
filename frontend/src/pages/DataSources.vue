@@ -223,14 +223,18 @@ const summaryStats = computed(() => {
                 </el-icon>
               </div>
               <div class="kpi-body">
-                <div class="kpi-label">数据源总数</div>
+                <div class="kpi-label">
+                  数据源总数
+                </div>
                 <div
                   class="kpi-value"
                   :style="{ color: chartColors().primary }"
                 >
                   {{ summaryStats.total }}
                 </div>
-                <div class="kpi-sub">{{ summaryStats.active }} 个活跃</div>
+                <div class="kpi-sub">
+                  {{ summaryStats.active }} 个活跃
+                </div>
               </div>
             </div>
           </el-card>
@@ -255,14 +259,18 @@ const summaryStats = computed(() => {
                 </el-icon>
               </div>
               <div class="kpi-body">
-                <div class="kpi-label">总记录量</div>
+                <div class="kpi-label">
+                  总记录量
+                </div>
                 <div
                   class="kpi-value"
                   :style="{ color: chartColors().success }"
                 >
                   {{ formatRecords(summaryStats.totalRecords) }}
                 </div>
-                <div class="kpi-sub">条已入库</div>
+                <div class="kpi-sub">
+                  条已入库
+                </div>
               </div>
             </div>
           </el-card>
@@ -287,7 +295,9 @@ const summaryStats = computed(() => {
                 </el-icon>
               </div>
               <div class="kpi-body">
-                <div class="kpi-label">平均质量分</div>
+                <div class="kpi-label">
+                  平均质量分
+                </div>
                 <div
                   class="kpi-value"
                   :style="{ color: summaryStats.avgQuality >= 0.8 ? chartColors().success : chartColors().warning }"
@@ -324,7 +334,9 @@ const summaryStats = computed(() => {
                 </el-icon>
               </div>
               <div class="kpi-body">
-                <div class="kpi-label">异常数据源</div>
+                <div class="kpi-label">
+                  异常数据源
+                </div>
                 <div
                   class="kpi-value"
                   :style="{ color: summaryStats.total - summaryStats.active > 0 ? chartColors().danger : chartColors().success }"
@@ -479,13 +491,22 @@ const summaryStats = computed(() => {
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <ellipse cx="12" cy="5" rx="9" ry="3" />
+                  <ellipse
+                    cx="12"
+                    cy="5"
+                    rx="9"
+                    ry="3"
+                  />
                   <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
                   <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
                 </svg>
               </div>
-              <p class="empty-text">数据源待加载</p>
-              <p class="empty-hint-text">数据源信息将在首次同步后展示</p>
+              <p class="empty-text">
+                数据源待加载
+              </p>
+              <p class="empty-hint-text">
+                数据源信息将在首次同步后展示
+              </p>
             </div>
           </el-card>
         </el-col>

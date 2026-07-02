@@ -18,14 +18,12 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.config import settings
 from app.core.extraction.graph_writer import (
     GraphConfig,
+    create_requires_relationship,
     merge_position,
     merge_skill,
-    create_requires_relationship,
 )
-
 
 # ─────────────────────────────────────────────────────────────────────
 # Supplementary domains (to reach 100+)
@@ -365,7 +363,7 @@ async def seed_expansion_demo(dry_run: bool = False) -> dict[str, Any]:
     print("StarMap Demo Expansion Seed (_demo)")
     print("=" * 60)
     print(f"Timestamp: {datetime.now(UTC).isoformat()}")
-    print(f"WARNING: This is demo data (_demo suffix, excluded from production)")
+    print("WARNING: This is demo data (_demo suffix, excluded from production)")
     print()
 
     # Pre-compute stats
@@ -373,7 +371,7 @@ async def seed_expansion_demo(dry_run: bool = False) -> dict[str, Any]:
     all_demo_positions = EXTRA_POSITIONS
     all_demo_domains = EXTRA_DOMAINS
 
-    print(f"Demo data to seed:")
+    print("Demo data to seed:")
     print(f"  Extra domains:    {len(all_demo_domains)}")
     print(f"  Extra skills:     {len(all_demo_skills)}")
     print(f"  Extra positions:  {len(all_demo_positions)}")

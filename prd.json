@@ -1,0 +1,203 @@
+{
+  "task": "StarMap 全景图谱 2D/3D 面板优化",
+  "plan": ".omc/plans/graph-panel-optimization.md",
+  "iteration": 0,
+  "maxIterations": 15,
+  "stories": [
+    {
+      "id": "G-000",
+      "title": "提取 Graph3DPanel 包装组件",
+      "priority": 1,
+      "description": "将 Home.vue 中 3D 相关逻辑提取到 Graph3DPanel.vue",
+      "files": [
+        "frontend/src/components/Graph3DPanel.vue",
+        "frontend/src/pages/Home.vue"
+      ],
+      "acceptanceCriteria": [
+        "Graph3DPanel.vue 包含 graph3DNodes/Links computeds、camera presets、auto-rotate",
+        "Home.vue 通过 <Graph3DPanel v-if=\"viewMode==='3d'\" /> 使用",
+        "Home.vue 行数减少约 100 行",
+        "3D 视图功能无回归（vite build 成功）"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-001",
+      "title": "3D v-if 切换 + skeleton + camera 缓存",
+      "priority": 2,
+      "description": "Graph3DPanel 用 v-if 控制，卸载释放 WebGL，重载显示 skeleton，缓存 camera",
+      "files": [
+        "frontend/src/components/Graph3DPanel.vue"
+      ],
+      "acceptanceCriteria": [
+        "3D 组件通过 v-if 控制挂载/卸载",
+        "2D 保持 v-show 不变",
+        "卸载时释放 WebGL（renderer.info.memory 归零）",
+        "重载时显示 skeleton 占位",
+        "camera position 缓存到 sessionStorage"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-002",
+      "title": "3D LOD + 力仿真优化",
+      "priority": 3,
+      "description": "根据节点距离切换渲染精度，>300节点时优化力仿真",
+      "files": [
+        "frontend/src/components/Graph3D.vue"
+      ],
+      "acceptanceCriteria": [
+        "使用 Three.js LOD 对象管理多级细节",
+        "远距离(>200)：简单球体无 glow",
+        "近距离(<100)：精细球体完整 glow",
+        "节点>300 时减少 charge strength",
+        "500 节点渲染 ≥ 30fps"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-003",
+      "title": "Glow 纹理缓存（key=hexColor）",
+      "priority": 4,
+      "description": "缓存 createGlowTexture 结果，key 为 hexColor 非 nodeType",
+      "files": [
+        "frontend/src/components/Graph3D.vue"
+      ],
+      "acceptanceCriteria": [
+        "glow 纹理缓存到 Map<hexColor, Texture>",
+        "相同颜色节点共享纹理实例",
+        "Graph3D 卸载时释放纹理",
+        "createGlowTexture 调用次数 === 不同颜色数"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-004",
+      "title": "cv() CSS 变量缓存",
+      "priority": 5,
+      "description": "缓存 getComputedStyle 结果",
+      "files": [
+        "frontend/src/composables/useG6Graph.ts"
+      ],
+      "acceptanceCriteria": [
+        "CSS 变量解析结果缓存到 Map",
+        "cv() 调用 100 次只触发 1 次 getComputedStyle",
+        "提供 clearCvCache() 方法"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-005",
+      "title": "搜索：后台预加载名称索引",
+      "priority": 6,
+      "description": "后台加载节点名称索引，搜索覆盖全图谱",
+      "files": [
+        "frontend/src/stores/graph.ts",
+        "frontend/src/components/GraphSearchBar.vue"
+      ],
+      "acceptanceCriteria": [
+        "页面加载后后台预加载节点名称/ID 索引",
+        "搜索结果包含未访问的 KA/Position/Skill",
+        "索引大小 < 200KB",
+        "搜索无 loading 延迟"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-006",
+      "title": "3D 双击展开详情",
+      "priority": 7,
+      "description": "实现 3D 节点双击检测和层级钻取",
+      "files": [
+        "frontend/src/components/Graph3D.vue",
+        "frontend/src/pages/Home.vue"
+      ],
+      "acceptanceCriteria": [
+        "双击检测（两次 click 间隔 < 300ms）",
+        "双击 KA 节点进入 position 层",
+        "双击 position 节点进入 detail 层",
+        "单击不受影响"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-007",
+      "title": "maxNodes 默认值统一",
+      "priority": 8,
+      "description": "GraphToolbar 和 Home.vue 的 maxNodes 默认值统一为 80",
+      "files": [
+        "frontend/src/components/GraphToolbar.vue",
+        "frontend/src/pages/Home.vue"
+      ],
+      "acceptanceCriteria": [
+        "Home.vue maxNodesLimit 初始值 = 80",
+        "GraphToolbar 滑块初始值 = 80",
+        "页面加载后两者一致"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-008",
+      "title": "DetailPanel 可调大小",
+      "priority": 9,
+      "description": "添加拖拽 handle 调整面板宽度",
+      "files": [
+        "frontend/src/components/DetailPanel.vue"
+      ],
+      "acceptanceCriteria": [
+        "左侧有拖拽 handle",
+        "拖拽可调整宽度",
+        "宽度限制 200px-500px",
+        "cursor: col-resize 样式"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-008.5",
+      "title": "expandTwoHop 邻接表优化",
+      "priority": 10,
+      "description": "构建邻接表索引，O(1) 替代 O(E) 遍历",
+      "files": [
+        "frontend/src/stores/graph.ts",
+        "frontend/src/pages/Home.vue"
+      ],
+      "acceptanceCriteria": [
+        "graph store 构建 adjacencyMap",
+        "expandTwoHop 使用邻接表查询",
+        "1000 边时双击展开延迟 < 50ms"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-009",
+      "title": "3D 加载指示器",
+      "priority": 11,
+      "description": "力仿真 warmup 期间显示 loading",
+      "files": [
+        "frontend/src/components/Graph3D.vue"
+      ],
+      "acceptanceCriteria": [
+        "warmup 期间显示 loading 遮罩",
+        "warmup 完成后淡出"
+      ],
+      "passes": true
+    },
+    {
+      "id": "G-010",
+      "title": "tooltip 完善 + 2D 动画",
+      "priority": 12,
+      "description": "3D tooltip 信息完整 + 2D 入场动画统一",
+      "files": [
+        "frontend/src/components/NodeTooltip3D.vue",
+        "frontend/src/pages/Home.vue"
+      ],
+      "acceptanceCriteria": [
+        "3D tooltip 全类型（KA/Position/Skill）信息完整",
+        "2D 层级切换有平滑入场动画",
+        "vue-tsc 无新增错误",
+        "vite build 成功"
+      ],
+      "passes": true
+    }
+  ]
+}

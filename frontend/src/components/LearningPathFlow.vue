@@ -237,15 +237,24 @@ onBeforeUnmount(() => {
       class="flow-legend"
     >
       <span class="legend-item">
-        <span class="legend-dot" style="background: #94a3b8" />
+        <span
+          class="legend-dot"
+          style="background: #94a3b8"
+        />
         未开始
       </span>
       <span class="legend-item">
-        <span class="legend-dot" style="background: #d97706" />
+        <span
+          class="legend-dot"
+          style="background: #d97706"
+        />
         学习中
       </span>
       <span class="legend-item">
-        <span class="legend-dot" style="background: #16a34a" />
+        <span
+          class="legend-dot"
+          style="background: #16a34a"
+        />
         已掌握
       </span>
     </div>

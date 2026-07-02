@@ -12,14 +12,13 @@ Progress is broadcast via Redis pub/sub for SSE consumption.
 from __future__ import annotations
 
 import asyncio
-import json
-import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.config import settings
 from app.core.dashboard.sse_broadcaster import publish_event
@@ -37,7 +36,6 @@ from app.core.pipeline.orchestrator import (
 )
 from app.models.pipeline_models import PipelineRun
 from app.services.resources import resources as app_resources
-
 
 # ---------------------------------------------------------------------------
 # SSE progress helpers
@@ -80,9 +78,9 @@ def _run_async(coro: Any) -> Any:
 
 def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     """Execute the crawl stage: run spiders and upsert JDs into jd_raw."""
-    from crawler.spiders.boss import run_sync as boss_sync
     from crawler.persistence import dao
     from crawler.persistence.models import JdStatus
+    from crawler.spiders.boss import run_sync as boss_sync
 
     keyword = "python"
     max_count = 50 if run_type == "incremental" else 200
@@ -119,9 +117,9 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
 
 def execute_dedup(run_id: str) -> dict[str, Any]:
     """Execute dedup stage: SimHash-based dedup on jd_raw records."""
+    from crawler.dedup import is_near_duplicate, simhash
     from crawler.persistence.database import get_jd_raw_session
     from crawler.persistence.models import JdRaw, JdStatus
-    from crawler.dedup import simhash, is_near_duplicate
 
     processed = 0
     duplicates = 0

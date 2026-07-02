@@ -307,6 +307,7 @@ async def _load_target_profile(
     if db_session is not None:
         try:
             import sqlalchemy as sa
+
             from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
             stmt = (
@@ -635,7 +636,7 @@ async def get_match_result(match_id: str) -> dict[str, Any] | None:
                 learning_paths = list(raw_lp) if isinstance(raw_lp, (list, tuple)) else []
                 recommendations = [
                     f"优先补齐 {gap.get('skill', '?')}：{' → '.join(path[:3])}"
-                    for gap, path in zip(skill_gap_detail, learning_paths)
+                    for gap, path in zip(skill_gap_detail, learning_paths, strict=False)
                     if gap.get("gap_level") != "已掌握"
                 ] if skill_gap_detail else []
 

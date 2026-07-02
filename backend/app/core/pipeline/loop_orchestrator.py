@@ -19,20 +19,19 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from loguru import logger
 
 
-class StepStatus(str, Enum):
+class StepStatus(StrEnum):
     SUCCESS = "success"
     DEGRADED = "degraded"
     FAILED = "failed"
 
 
-class LoopRunStatus(str, Enum):
+class LoopRunStatus(StrEnum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -311,7 +310,7 @@ class LoopOrchestrator:
         """Step 3: Sync extracted skills/positions into Neo4j graph."""
         start = time.monotonic()
         try:
-            from app.services.graph_service import add_node, sync_from_pipeline
+            from app.services.graph_service import sync_from_pipeline
             from app.services.resources import AppResources
 
             driver = AppResources.neo4j_driver

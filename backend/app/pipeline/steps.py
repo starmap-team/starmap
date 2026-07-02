@@ -11,8 +11,7 @@ from typing import Any
 from loguru import logger
 
 from app.core.extraction.jd_extract import extract_from_jd
-from app.core.extraction.normalize import normalize_skill
-from app.pipeline.contracts import ExtractedSkill, PipelineContext, PipelineEvent
+from app.pipeline.contracts import ExtractedSkill, PipelineContext
 from app.repositories.position_repository import PositionRepository
 from app.services.match_service import run_match
 from app.services.recommendation_service import PositionRecommender
@@ -194,7 +193,7 @@ class LearningPathStep:
         from app.services.match_service import enrich_learning_paths
 
         # 为每个岗位的差距详情附加学习资源
-        for pos_name, result in ctx.match_results.items():
+        for _pos_name, result in ctx.match_results.items():
             gap_details = result.get("skill_gap_detail", [])
             if gap_details:
                 enriched = await enrich_learning_paths(gap_details, self._driver)

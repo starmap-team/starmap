@@ -124,9 +124,12 @@ async function initGraph() {
 
   // ── Force engine tuning（节点多时增大排斥力防止黏连） ──
   const nodeCount = props.nodes.length
-  const chargeStrength = nodeCount > 200 ? -80 : nodeCount > 100 ? -60 : -40
-  const linkDist = nodeCount > 100 ? 60 : 40
-  const linkStrength = nodeCount > 100 ? 0.3 : 0.5
+  // charge: 排斥力（负值），节点多时更负防止黏连
+  const chargeStrength = nodeCount > 200 ? -120 : nodeCount > 100 ? -80 : -50
+  // link: 连线距离
+  const linkDist = nodeCount > 100 ? 80 : 50
+  // link strength: 连线弹簧强度
+  const linkStrength = nodeCount > 100 ? 0.2 : 0.4
 
   const graph = new ForceGraph3D(container)
     .width(w)
@@ -168,23 +171,20 @@ async function initGraph() {
     .linkDirectionalArrowRelPos(1)
     .linkCurvature(0.1)
 
-    // ── Force charge & link tuning ──
-    .d3Force('charge', () => chargeStrength)
-    .d3Force('link', () => linkDist)
+    // ── Force tuning（增大排斥力、增大间距、降低 center 引力） ──
     .d3AlphaDecay(nodeCount > 300 ? 0.05 : 0.02)
     .d3VelocityDecay(nodeCount > 300 ? 0.4 : 0.3)
     .warmupTicks(nodeCount > 300 ? 30 : 50)
     .cooldownTicks(nodeCount > 300 ? 100 : 200)
 
-  // 额外调优：link 距离和强度 + center 引力
-  try {
-    const linkForce = (graph as any).d3Force('link')
-    if (linkForce) { linkForce.distance(linkDist); linkForce.strength(linkStrength) }
-    const center = (graph as any).d3Force('center')
-    if (center) center.strength(0.15)
-  } catch (_) {
-    // d3Force may not be available in all versions
-  }
+  // 调优：修改默认的 charge / link / center force，不要替换 link force
+  // （3d-force-graph 内部持有 _forceLink 引用，替换后 graphData() 写入旧实例，模拟器用新实例 → 失效）
+  const chargeForce = (graph as any).d3Force('charge')
+  if (chargeForce) chargeForce.strength(chargeStrength).distanceMax(400)
+  const linkForce = (graph as any).d3Force('link')
+  if (linkForce) { linkForce.distance(linkDist); linkForce.strength(linkStrength) }
+  const center = (graph as any).d3Force('center')
+  if (center) center.strength(0.05)  // 大幅降低 center 引力
 
   // ── Interactions ──
   graph.onNodeHover((node: any, _prevNode: any) => {
@@ -456,7 +456,21 @@ function measureFPS() {
 watch(() => [props.nodes, props.links], () => {
   const graph = graphInstance.value
   if (!graph) return
+  const nodeCount = props.nodes.length
+
+  // Replace graph data — this resets the d3-force simulation internally
   graph.graphData({ nodes: props.nodes, links: props.links })
+
+  // Re-apply custom forces — graphData() may have reset them to defaults
+  const chargeStrength = nodeCount > 200 ? -120 : nodeCount > 100 ? -80 : -50
+  const linkDist = nodeCount > 100 ? 80 : 50
+  const linkStrength = nodeCount > 100 ? 0.2 : 0.4
+  const sim = (graph as any).d3Force('charge')
+  if (sim) { sim.strength(chargeStrength); sim.distanceMax(400) }
+  const linkSim = (graph as any).d3Force('link')
+  if (linkSim) { linkSim.distance(linkDist); linkSim.strength(linkStrength) }
+  const centerSim = (graph as any).d3Force('center')
+  if (centerSim) centerSim.strength(0.05)
 }, { deep: false })
 
 // ── Resize handling ──
