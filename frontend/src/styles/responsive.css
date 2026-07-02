@@ -1,0 +1,470 @@
+/**
+ * StarMap — Responsive Design Optimization
+ * Sprint 4.3: Multi-breakpoint responsive system
+ *
+ * Breakpoints:
+ *   >= 1920px  — Full layout, generous spacing (desktop 4K / ultra-wide)
+ *   >= 1440px  — Slightly compressed, reduced padding (standard desktop)
+ *   >= 1024px  — Tablet landscape, sidebar collapses
+ *   < 1024px   — Mobile/tablet, sidebar hidden, single column
+ *   < 768px    — Mobile, fully stacked layout
+ *
+ * Import after App.vue global styles and design-tokens.css.
+ * Usage: @import './styles/responsive.css';
+ */
+
+
+/* ═══════════════════════════════════════════════
+   Base — >= 1920px: Ultra-wide / 4K desktop
+   Full layout, generous spacing
+   ═══════════════════════════════════════════════ */
+@media (min-width: 1920px) {
+  :root {
+    --layout-content-max: 1600px;
+    --layout-gutter: var(--space-8);
+    --layout-page-padding: var(--space-8);
+  }
+
+  /* Sidebar: wider at ultra-wide */
+  .sidebar {
+    width: 280px;
+  }
+  .sidebar-collapsed .sidebar {
+    width: var(--sidebar-width-collapsed);
+  }
+  .main-wrapper {
+    margin-left: 280px;
+  }
+  .sidebar-collapsed .main-wrapper {
+    margin-left: var(--sidebar-width-collapsed);
+  }
+
+  /* Wider content area */
+  .layout-main {
+    padding: var(--space-8);
+    max-width: 1600px;
+  }
+
+  /* KPI cards: allow more space */
+  .kpi-strip {
+    gap: var(--space-4);
+  }
+  .kpi-card {
+    padding: var(--space-4) var(--space-6);
+  }
+
+  /* Graph container taller */
+  .graph-container,
+  .graph-canvas {
+    min-height: 600px;
+  }
+
+  /* Dashboard grid: 6-column KPI */
+  .kpi-row {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+  }
+
+  /* Table rows more spacious */
+  .el-table td.el-table__cell {
+    padding: 14px 0;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
+   >= 1440px: Standard desktop
+   Slightly compressed, reduced padding
+   ═══════════════════════════════════════════════ */
+@media (min-width: 1440px) and (max-width: 1919px) {
+  :root {
+    --layout-content-max: 1400px;
+    --layout-gutter: var(--space-6);
+    --layout-page-padding: var(--space-6);
+  }
+
+  .layout-main {
+    padding: var(--space-6);
+    max-width: 1400px;
+  }
+
+  /* Graph layout slightly tighter */
+  .graph-container,
+  .graph-canvas {
+    min-height: 540px;
+  }
+
+  /* Dashboard: 6-column KPI at 1440+ */
+  .kpi-row {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+  }
+
+  /* Controls bar: compact spacing */
+  .graph-controls {
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
+   >= 1024px and < 1440px: Small desktop / large tablet
+   ═══════════════════════════════════════════════ */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  :root {
+    --layout-content-max: 1200px;
+    --layout-gutter: var(--space-4);
+    --layout-page-padding: var(--space-5);
+  }
+
+  .layout-main {
+    padding: var(--space-5);
+    max-width: 1200px;
+  }
+
+  /* KPI strip: wrap gracefully */
+  .kpi-strip {
+    gap: var(--space-3);
+  }
+  .kpi-card {
+    padding: var(--space-3) var(--space-4);
+    min-width: 130px;
+  }
+  .kpi-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  /* Graph layout */
+  .graph-container,
+  .graph-canvas {
+    min-height: 480px;
+  }
+
+  /* Detail panel: smaller */
+  .right-panel {
+    width: 260px;
+  }
+
+  /* Dashboard: 3-col KPI */
+  .kpi-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Middle / bottom rows: 2-col */
+  .middle-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .middle-right {
+    grid-column: 1 / -1;
+  }
+  .bottom-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .bottom-right {
+    grid-column: 1 / -1;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
+   < 1024px: Tablet / Mobile
+   Sidebar hidden, mobile header visible
+   ═══════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  :root {
+    --layout-gutter: var(--space-4);
+    --layout-page-padding: var(--space-4);
+  }
+
+  /* Sidebar hidden, show mobile header */
+  .sidebar {
+    display: none !important;
+  }
+  .main-wrapper {
+    margin-left: 0 !important;
+  }
+  .mobile-header {
+    display: flex !important;
+  }
+
+  /* Breadcrumb compact */
+  .breadcrumb-bar {
+    padding: var(--space-2) var(--space-4);
+  }
+
+  /* Layout main compact */
+  .layout-main {
+    padding: var(--space-5);
+    max-width: 100%;
+  }
+
+  /* KPI strip: 2-col grid */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+  .kpi-actions {
+    grid-column: 1 / -1;
+    margin-left: 0;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  /* Graph layout: stack */
+  .graph-layout {
+    flex-direction: column;
+  }
+  .graph-container,
+  .graph-canvas {
+    min-height: 400px;
+  }
+
+  /* Detail panel: full width below graph */
+  .right-panel {
+    width: 100% !important;
+    max-height: 240px;
+  }
+  .right-panel:not(.open) {
+    width: 100% !important;
+    max-height: 60px;
+  }
+
+  /* Dashboard: 2-col KPI, stacked charts */
+  .kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .middle-row,
+  .bottom-row {
+    grid-template-columns: 1fr;
+  }
+  .middle-right,
+  .bottom-right {
+    grid-column: auto;
+  }
+  .dashboard-grid {
+    height: auto;
+  }
+  .middle-row,
+  .bottom-row {
+    flex: none;
+  }
+  .panel {
+    min-height: 260px;
+  }
+
+  /* Stat cards */
+  .stat-card {
+    padding: var(--space-4);
+  }
+
+  /* Controls wrap */
+  .graph-controls {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .controls-left,
+  .controls-right {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  /* View tabs: scroll on small */
+  .view-tabs {
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
+   < 768px: Mobile
+   Single column, stacked layout
+   ═══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  :root {
+    --layout-gutter: var(--space-3);
+    --layout-page-padding: var(--space-3);
+  }
+
+  html {
+    font-size: 14px;
+  }
+
+  .layout-main {
+    padding: var(--space-4);
+  }
+  .layout-footer {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  /* Breadcrumb: hide intermediate items */
+  .breadcrumb-bar {
+    padding: var(--space-2) var(--space-3);
+  }
+  .breadcrumbs {
+    font-size: var(--font-size-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* KPI strip: full-width stacked */
+  .kpi-strip {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .kpi-card {
+    padding: var(--space-3);
+  }
+  .kpi-actions {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  /* Graph container: reduced height */
+  .graph-container,
+  .graph-canvas {
+    min-height: 320px;
+  }
+
+  /* Controls: stacked */
+  .graph-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .controls-left,
+  .controls-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* Legend: wrap */
+  .graph-legend {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  /* Stat cards: single column */
+  .stat-card {
+    padding: var(--space-3);
+  }
+  .stat-value {
+    font-size: var(--font-size-2xl);
+  }
+
+  /* Section header: stacked */
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+  .page-title {
+    font-size: var(--font-size-2xl);
+  }
+
+  /* El card adjustments */
+  .el-card__body {
+    padding: var(--space-4) !important;
+  }
+  .el-card__header {
+    padding: var(--space-3) var(--space-4) !important;
+  }
+
+  /* Dashboard KPI: single column on small phones */
+  .kpi-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* Table: horizontal scroll */
+  .el-table {
+    overflow-x: auto;
+  }
+
+  /* Grid: auto-fill single column */
+  .grid-responsive {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
+   < 480px: Small phones
+   Extra compact spacing
+   ═══════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .layout-main {
+    padding: var(--space-3);
+  }
+
+  .mobile-header {
+    padding: 0 var(--space-3);
+  }
+
+  .el-button + .el-button {
+    margin-left: 0;
+    margin-top: var(--space-2);
+  }
+
+  .view-tabs .el-radio-button__inner {
+    padding: 4px 10px;
+    font-size: var(--font-size-xs);
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
+   Grid Utility Classes
+   Responsive grid helpers for page layouts
+   ═══════════════════════════════════════════════ */
+.grid-1 { display: grid; grid-template-columns: 1fr; gap: var(--gap-lg); }
+.grid-2 { display: grid; grid-template-columns: var(--grid-2col); gap: var(--gap-lg); }
+.grid-3 { display: grid; grid-template-columns: var(--grid-3col); gap: var(--gap-lg); }
+.grid-4 { display: grid; grid-template-columns: var(--grid-4col); gap: var(--gap-lg); }
+.grid-auto { display: grid; grid-template-columns: var(--grid-auto-fill); gap: var(--gap-lg); }
+
+@media (max-width: 1024px) {
+  .grid-4 { grid-template-columns: var(--grid-2col); }
+  .grid-3 { grid-template-columns: var(--grid-2col); }
+}
+
+@media (max-width: 768px) {
+  .grid-4,
+  .grid-3,
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
+   Overflow Safety
+   Prevent horizontal overflow at all sizes
+   ═══════════════════════════════════════════════ */
+html, body {
+  overflow-x: hidden;
+}
+
+.layout-main {
+  overflow-x: hidden;
+}
+
+/* Ensure tables don't overflow */
+.el-table {
+  max-width: 100%;
+}
+
+/* Long text wrapping */
+.word-break {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

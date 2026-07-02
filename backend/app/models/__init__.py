@@ -23,18 +23,34 @@ from app.models.extraction_models import (  # noqa: E402, F401
     SkillRecord,
     SystemConfig,
 )
+from app.models.learning_models import (  # noqa: E402, F401
+    LearningPlan,
+    LearningProgress,
+    SkillPrerequisite,
+)
+from app.models.pipeline_models import (  # noqa: E402, F401
+    DataSourceRecord,
+    PipelineRun,
+    PipelineSchedule,
+)
 
 __all__ = [
     "Base",
+    "DataSourceRecord",
     "EvolutionChangelog",
     "EvolutionPath",
     "EvolutionSnapshot",
     "ExtractionEvaluationRecord",
     "JDExtractionRecord",
+    "LearningPlan",
+    "LearningProgress",
+    "PipelineRun",
+    "PipelineSchedule",
     "PositionRecord",
     "PositionSkillRelation",
     "RawJDRecord",
     "SkillAliasRecord",
+    "SkillPrerequisite",
     "SkillRecord",
     "SkillTimeseries",
     "SystemConfig",

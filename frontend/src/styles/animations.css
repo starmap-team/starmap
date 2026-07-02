@@ -1,0 +1,315 @@
+/**
+ * StarMap — Global Animation System
+ * Sprint 4.2: Animation system and page transitions
+ *
+ * Performance: uses transform + opacity only (GPU-composited)
+ * Accessibility: respects prefers-reduced-motion
+ */
+
+/* ═══════════════════════════════════════════════
+   Page Transitions
+   ═══════════════════════════════════════════════ */
+
+/* Slide Left — forward navigation */
+.page-slide-left-enter-active,
+.page-slide-left-leave-active {
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out);
+}
+.page-slide-left-enter-from {
+  opacity: 0;
+  transform: translateX(30px);
+}
+.page-slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+/* Slide Right — backward navigation */
+.page-slide-right-enter-active,
+.page-slide-right-leave-active {
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out);
+}
+.page-slide-right-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+.page-slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+/* Slide Up — modal / overlay style */
+.page-slide-up-enter-active,
+.page-slide-up-leave-active {
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out);
+}
+.page-slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.page-slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
+
+/* ═══════════════════════════════════════════════
+   Element Entrance Animations
+   ═══════════════════════════════════════════════ */
+
+/* fadeInUp — default entrance */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.anim-fade-in-up {
+  animation: fadeInUp 0.45s var(--ease-out) both;
+}
+
+/* fadeInLeft — from left */
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.anim-fade-in-left {
+  animation: fadeInLeft 0.45s var(--ease-out) both;
+}
+
+/* fadeInRight — from right */
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.anim-fade-in-right {
+  animation: fadeInRight 0.45s var(--ease-out) both;
+}
+
+/* scaleIn — pop-in effect */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.anim-scale-in {
+  animation: scaleIn 0.4s var(--ease-spring) both;
+}
+
+/* fadeIn — pure opacity */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.anim-fade-in {
+  animation: fadeIn 0.4s var(--ease-out) both;
+}
+
+
+/* ═══════════════════════════════════════════════
+   Data Update Flash (pulse glow on value change)
+   ═══════════════════════════════════════════════ */
+@keyframes pulseGlow {
+  0% {
+    text-shadow: 0 0 0 transparent;
+  }
+  30% {
+    text-shadow: 0 0 12px currentColor;
+  }
+  100% {
+    text-shadow: 0 0 0 transparent;
+  }
+}
+.anim-pulse-glow {
+  animation: pulseGlow 0.7s var(--ease-out) both;
+}
+
+/* Subtle highlight flash on card/value update */
+@keyframes highlightFlash {
+  0% {
+    background-color: transparent;
+  }
+  30% {
+    background-color: color-mix(in srgb, var(--primary) 8%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.anim-highlight-flash {
+  animation: highlightFlash 0.6s var(--ease-out) both;
+}
+
+
+/* ═══════════════════════════════════════════════
+   Skeleton Loading
+   ═══════════════════════════════════════════════ */
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.anim-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    color-mix(in srgb, var(--accent) 60%, transparent) 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Skeleton line variants */
+.anim-skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+}
+.anim-skeleton-text:last-child {
+  width: 70%;
+}
+.anim-skeleton-circle {
+  border-radius: 50%;
+}
+.anim-skeleton-rect {
+  border-radius: var(--radius-md);
+}
+
+
+/* ═══════════════════════════════════════════════
+   Stagger Delay Utilities (.stagger-1 … .stagger-10)
+   Apply to children inside a .stagger container
+   ═══════════════════════════════════════════════ */
+.stagger > .stagger-1,
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > .stagger-2,
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > .stagger-3,
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > .stagger-4,
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > .stagger-5,
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > .stagger-6,
+.stagger > *:nth-child(6) { animation-delay: 300ms; }
+.stagger > .stagger-7,
+.stagger > *:nth-child(7) { animation-delay: 360ms; }
+.stagger > .stagger-8,
+.stagger > *:nth-child(8) { animation-delay: 420ms; }
+.stagger > .stagger-9,
+.stagger > *:nth-child(9) { animation-delay: 480ms; }
+.stagger > .stagger-10,
+.stagger > *:nth-child(10) { animation-delay: 540ms; }
+
+/* Standalone delay utilities (combine with anim-* classes) */
+.delay-1 { animation-delay: 60ms !important; }
+.delay-2 { animation-delay: 120ms !important; }
+.delay-3 { animation-delay: 180ms !important; }
+.delay-4 { animation-delay: 240ms !important; }
+.delay-5 { animation-delay: 300ms !important; }
+.delay-6 { animation-delay: 360ms !important; }
+.delay-7 { animation-delay: 420ms !important; }
+.delay-8 { animation-delay: 480ms !important; }
+.delay-9 { animation-delay: 540ms !important; }
+.delay-10 { animation-delay: 600ms !important; }
+
+
+/* ═══════════════════════════════════════════════
+   Celebration / Confetti Effect (subtle)
+   ═══════════════════════════════════════════════ */
+@keyframes celebratePulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--success) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.anim-celebrate {
+  animation: celebratePulse 0.7s var(--ease-out) both;
+}
+
+
+/* ═══════════════════════════════════════════════
+   Progress Bar Animation
+   ═══════════════════════════════════════════════ */
+@keyframes progressFill {
+  from { width: 0%; }
+}
+.anim-progress-fill {
+  animation: progressFill 1s var(--ease-out) both;
+}
+
+
+/* ═══════════════════════════════════════════════
+   Particle Burst (used for match success)
+   ═══════════════════════════════════════════════ */
+@keyframes particleBurst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--px, 20px), var(--py, -20px)) scale(0);
+  }
+}
+.particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: particleBurst 0.6s var(--ease-out) forwards;
+}
+
+
+/* ═══════════════════════════════════════════════
+   prefers-reduced-motion — disable all animations
+   ═══════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

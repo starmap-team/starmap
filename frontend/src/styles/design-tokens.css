@@ -1,0 +1,166 @@
+/**
+ * StarMap — Design Token Refinement
+ * Sprint 4.3: Comprehensive design token system
+ *
+ * This file extends the base tokens defined in App.vue with
+ * additional semantic tokens, refined scales, and competitive
+ * breakpoint utilities. Import after App.vue global styles.
+ *
+ * Usage: @import './styles/design-tokens.css';
+ */
+
+/* ═══════════════════════════════════════════════
+   Spacing Scale (--space-xs through --space-3xl)
+   Extends existing --space-* tokens with larger sizes
+   ═══════════════════════════════════════════════ */
+:root {
+  /* Semantic aliases for spacing */
+  --space-xs: var(--space-1);       /*  4px */
+  --space-sm: var(--space-2);       /*  8px */
+  --space-md: var(--space-4);       /* 16px */
+  --space-lg: var(--space-6);       /* 24px */
+  --space-xl: var(--space-8);       /* 32px */
+  --space-2xl: var(--space-12);     /* 48px */
+  --space-3xl: var(--space-16);     /* 64px */
+
+  /* Additional gap tokens for grid layouts */
+  --gap-xs: 4px;
+  --gap-sm: 8px;
+  --gap-md: 12px;
+  --gap-lg: 16px;
+  --gap-xl: 24px;
+  --gap-2xl: 32px;
+
+  /* ═══════════════════════════════════════════════
+     Border Radius Scale
+     Consolidates existing --radius-* into named tiers
+     ═══════════════════════════════════════════════ */
+  --radius-pill: 9999px;        /* pill / tag shapes */
+  --radius-button: var(--radius-lg);
+  --radius-card: var(--radius-xl);
+  --radius-panel: var(--radius-2xl);
+  --radius-modal: calc(var(--radius) * 2.5);
+
+  /* ═══════════════════════════════════════════════
+     Shadow Scale (subtle / medium / prominent)
+     Refines existing --shadow-* with semantic names
+     ═══════════════════════════════════════════════ */
+  --shadow-subtle: var(--shadow-xs);
+  --shadow-medium: var(--shadow-md);
+  --shadow-prominent: var(--shadow-xl);
+  --shadow-float: 0 24px 48px -12px rgba(0, 0, 0, 0.12);
+  --shadow-card-hover: var(--shadow-md);
+  --shadow-sidebar: 2px 0 12px rgba(0, 0, 0, 0.04);
+
+  /* Elevation scale for z-indexed surfaces */
+  --elevation-0: none;
+  --elevation-1: var(--shadow-xs);
+  --elevation-2: var(--shadow-sm);
+  --elevation-3: var(--shadow-md);
+  --elevation-4: var(--shadow-lg);
+  --elevation-5: var(--shadow-xl);
+  --elevation-float: var(--shadow-float);
+
+  /* ═══════════════════════════════════════════════
+     Typography Scale
+     Adds display + body + label semantic tokens
+     ═══════════════════════════════════════════════ */
+  --text-display-xl: 2.25rem;    /* 36px — hero */
+  --text-display-lg: 1.875rem;   /* 30px — page hero */
+  --text-display: var(--font-size-4xl);    /* 32px */
+  --text-heading-lg: var(--font-size-3xl); /* 24px */
+  --text-heading: var(--font-size-2xl);    /* 20px */
+  --text-subheading: var(--font-size-xl);  /* 18px */
+  --text-body-lg: var(--font-size-lg);     /* 16px */
+  --text-body: var(--font-size-base);      /* 14px */
+  --text-body-sm: var(--font-size-sm);     /* 13px */
+  --text-caption: var(--font-size-xs);     /* 11px */
+  --text-micro: 0.625rem;       /* 10px */
+
+  /* Font weight scale */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  /* Line height scale */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 1.8;
+
+  /* ═══════════════════════════════════════════════
+     Color Palette (Light + Dark)
+     Semantic aliases for common use cases
+     ═══════════════════════════════════════════════ */
+  /* Surface layers */
+  --surface-0: var(--background);
+  --surface-1: var(--card);
+  --surface-2: var(--muted);
+  --surface-3: var(--accent);
+  --surface-overlay: color-mix(in srgb, var(--background) 80%, transparent);
+
+  /* Text hierarchy */
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --text-tertiary: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
+  --text-inverse: var(--primary-foreground);
+  --text-link: var(--primary);
+  --text-link-hover: var(--primary-hover);
+
+  /* Semantic status colors */
+  --status-success: var(--success);
+  --status-warning: var(--warning);
+  --status-error: var(--destructive);
+  --status-info: var(--info);
+
+  /* Interactive states */
+  --interactive-default: var(--primary);
+  --interactive-hover: var(--primary-hover);
+  --interactive-active: color-mix(in srgb, var(--primary) 90%, black);
+  --interactive-disabled: color-mix(in srgb, var(--muted-foreground) 40%, transparent);
+  --interactive-focus-ring: var(--ring);
+
+  /* ═══════════════════════════════════════════════
+     Layout Tokens
+     Responsive-aware layout measurements
+     ═══════════════════════════════════════════════ */
+  --layout-sidebar-width: var(--sidebar-width);
+  --layout-sidebar-collapsed: var(--sidebar-width-collapsed);
+  --layout-content-max: var(--content-max-width);
+  --layout-gutter: var(--space-6);
+  --layout-page-padding: var(--space-6);
+
+  /* Grid column templates */
+  --grid-2col: repeat(2, 1fr);
+  --grid-3col: repeat(3, 1fr);
+  --grid-4col: repeat(4, 1fr);
+  --grid-6col: repeat(6, 1fr);
+  --grid-auto-fill: repeat(auto-fill, minmax(280px, 1fr));
+  --grid-auto-fit: repeat(auto-fit, minmax(240px, 1fr));
+
+  /* ═══════════════════════════════════════════════
+     Transition Tokens
+     Named transitions for consistency
+     ═══════════════════════════════════════════════ */
+  --transition-fast: all var(--duration-fast) var(--ease-out);
+  --transition-normal: all var(--duration-normal) var(--ease-out);
+  --transition-slow: all var(--duration-slow) var(--ease-out);
+  --transition-sidebar: width var(--duration-slow) var(--ease-out),
+                        margin-left var(--duration-slow) var(--ease-out);
+  --transition-color: background-color var(--duration-normal) var(--ease-in-out),
+                      color var(--duration-normal) var(--ease-in-out),
+                      border-color var(--duration-normal) var(--ease-in-out);
+}
+
+/* ═══════════════════════════════════════════════
+   Dark Theme Overrides for Semantic Tokens
+   ═══════════════════════════════════════════════ */
+html.dark {
+  --shadow-sidebar: 2px 0 16px rgba(0, 0, 0, 0.2);
+  --shadow-float: 0 24px 48px -12px rgba(0, 0, 0, 0.35);
+  --surface-overlay: color-mix(in srgb, var(--background) 85%, transparent);
+}
