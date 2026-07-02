@@ -76,6 +76,47 @@ async def main():
         r = await c.post("/api/v1/evolution/analyze")
         checks.append(("Evolution analyze", r.status_code == 200, f"{r.status_code}"))
 
+        # 18. Pipeline analyze (SSE) — 使用测试简历
+        import pathlib
+        resume_path = pathlib.Path(__file__).parent.parent / "backend" / "tests" / "fixtures" / "test_resume_backend.txt"
+        if resume_path.exists():
+            resume_bytes = resume_path.read_bytes()
+            files = {"resume_file": ("test_resume.txt", resume_bytes, "text/plain")}
+            r = await c.post("/api/v1/pipeline/analyze", files=files, timeout=120)
+            checks.append(("Pipeline analyze SSE", r.status_code == 200, f"{r.status_code}"))
+            # 验证 SSE 事件流包含 progress 和 result 事件
+            body = r.text
+            has_progress = "event: progress" in body
+            has_result = "event: result" in body
+            checks.append(("Pipeline SSE has progress events", has_progress, str(has_progress)))
+            checks.append(("Pipeline SSE has result event", has_result, str(has_result)))
+            # 验证 result 包含4个核心问题的答案
+            if has_result:
+                import re
+                result_match = re.search(r'event: result\ndata: ({.*?})\n', body, re.DOTALL)
+                if result_match:
+                    result_data = json.loads(result_match.group(1))
+                    has_skills = len(result_data.get("extracted_skills", [])) > 0
+                    has_matches = len(result_data.get("top_matches", [])) > 0
+                    has_recs = len(result_data.get("recommended_positions", [])) > 0
+                    has_gaps = len(result_data.get("skill_gaps", [])) > 0
+                    checks.append(("Pipeline result has skills", has_skills, str(has_skills)))
+                    checks.append(("Pipeline result has matches", has_matches, str(has_matches)))
+                    checks.append(("Pipeline result has recommendations", has_recs, str(has_recs)))
+                    checks.append(("Pipeline result has gaps", has_gaps, str(has_gaps)))
+        else:
+            checks.append(("Pipeline analyze SSE", False, "test resume not found"))
+
+        # 19. Pipeline export (JSON)
+        if resume_path.exists():
+            files = {"resume_file": ("test_resume.txt", resume_bytes, "text/plain")}
+            r = await c.post("/api/v1/pipeline/export", files=files, timeout=120)
+            checks.append(("Pipeline export JSON", r.status_code == 200, f"{r.status_code}"))
+            if r.status_code == 200:
+                export_data = r.json()
+                checks.append(("Pipeline export has skills", len(export_data.get("extracted_skills", [])) > 0, str(len(export_data.get("extracted_skills", [])))))
+                checks.append(("Pipeline export has matches", len(export_data.get("top_matches", [])) > 0, str(len(export_data.get("top_matches", [])))))
+
     passed = sum(1 for _, ok, _ in checks if ok)
     total = len(checks)
     print(f"\n=== StarMap E2E Verification ===")
