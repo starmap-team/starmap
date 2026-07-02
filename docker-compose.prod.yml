@@ -1,0 +1,342 @@
+# =============================================================================
+# 星图(StarMap) Production Docker Compose
+# Sprint 4.3: Production-ready deployment for competition submission
+# 启动：docker compose -f docker-compose.prod.yml up -d
+# =============================================================================
+
+name: starmap-prod
+
+x-common-env: &common-env
+  NO_PROXY: "*"
+  no_proxy: "*"
+
+services:
+  # ---------- Backend API ----------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - ENVIRONMENT=production
+    container_name: starmap-backend-prod
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      <<: *common-env
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://starmap:${POSTGRES_PASSWORD:-starmap123456}@postgres:5432/starmap
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-starmap123456}
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_URL=http://chroma:8000
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 4
+      --access-log
+      --no-use-colors
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    restart: unless-stopped
+    networks:
+      - starmap-net
+
+  # ---------- Celery Worker ----------
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - ENVIRONMENT=production
+    container_name: starmap-celery-worker-prod
+    env_file:
+      - .env
+    environment:
+      <<: *common-env
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://starmap:${POSTGRES_PASSWORD:-starmap123456}@postgres:5432/starmap
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-starmap123456}
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_URL=http://chroma:8000
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    command: >
+      celery -A app.tasks.celery_app.celery_app worker
+      --loglevel=warning
+      --concurrency=4
+      --max-tasks-per-child=200
+      -Q default,extraction,matching,graph
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app.celery_app inspect ping --timeout 5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    restart: unless-stopped
+    networks:
+      - starmap-net
+
+  # ---------- Frontend (Nginx static) ----------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=/api
+    container_name: starmap-frontend-prod
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    restart: unless-stopped
+    networks:
+      - starmap-net
+
+  # ---------- Neo4j (Graph Database) ----------
+  neo4j:
+    image: neo4j:5-community
+    container_name: starmap-neo4j-prod
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-starmap123456}
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=1G
+      - NEO4J_server_memory_pagecache_size=512m
+    volumes:
+      - neo4j_data_prod:/data
+      - neo4j_logs_prod:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+    restart: unless-stopped
+    networks:
+      - starmap-net
+
+  # ---------- PostgreSQL (Relational Database) ----------
+  postgres:
+    image: postgres:16
+    container_name: starmap-postgres-prod
+    environment:
+      - POSTGRES_USER=starmap
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-starmap123456}
+      - POSTGRES_DB=starmap
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U starmap -d starmap"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    restart: unless-stopped
+    networks:
+      - starmap-net
+
+  # ---------- Redis (Cache / Message Queue) ----------
+  redis:
+    image: redis:7-alpine
+    container_name: starmap-redis-prod
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis_data_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    restart: unless-stopped
+    networks:
+      - starmap-net
+
+  # ---------- ChromaDB (Vector Database) ----------
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: starmap-chroma-prod
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=FALSE
+    volumes:
+      - chroma_data_prod:/chroma/chroma
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/heartbeat || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    restart: unless-stopped
+    networks:
+      - starmap-net
+
+  # ---------- Ollama (Local LLM) ----------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: starmap-ollama-prod
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+      - http_proxy=
+      - https_proxy=
+      - NO_PROXY=*
+      - no_proxy=*
+    volumes:
+      - ollama_data_prod:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8G
+        reservations:
+          cpus: "1.0"
+          memory: 2G
+    restart: unless-stopped
+    networks:
+      - starmap-net
+
+  # ---------- Model Init (one-shot pull) ----------
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: starmap-ollama-pull-prod
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ollama_data_prod:/root/.ollama
+    entrypoint: >
+      sh -c "sleep 5 && ollama pull qwen2.5:7b && echo 'Model ready'"
+    restart: "no"
+    networks:
+      - starmap-net
+
+# ═══════════════════════════════════════════════
+# Volumes — named for data persistence
+# ═══════════════════════════════════════════════
+volumes:
+  neo4j_data_prod:
+    driver: local
+  neo4j_logs_prod:
+    driver: local
+  postgres_data_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+  chroma_data_prod:
+    driver: local
+  ollama_data_prod:
+    driver: local
+
+# ═══════════════════════════════════════════════
+# Network
+# ═══════════════════════════════════════════════
+networks:
+  starmap-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
