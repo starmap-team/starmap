@@ -1,23 +1,25 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
- * 数据流水线监控页 — Sprint 1.1
- * 展示 ETL 全链路：爬虫采集 → SimHash去重 → 清洗标准化 → 入库 → 图谱构建
- * 顶部 KPI + 中部时间线 + 左下数据源 + 右下质量监控
+ * 数据流水线监控页 — 完整批量爬虫流
+ * 展示 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → 入库 → 图谱构建
+ * 支持：阶段选择触发、实时SSE进度、失败重试/断点续跑、定时调度、配置调整
  */
 import { onMounted, onUnmounted, ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
-import { RefreshRight } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { RefreshRight, Setting, Timer, VideoPlay } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { TooltipComponent, GridComponent, MarkLineComponent } from 'echarts/components'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { usePipelineStore } from '@/stores/pipeline'
-import type { PipelineStage } from '@/stores/pipeline'
+import type { PipelineStage, PipelineSchedule } from '@/stores/pipeline'
+import { STAGE_LABELS, ALL_STAGE_NAMES } from '@/stores/pipeline'
 import PipelineStageCard from '@/components/PipelineStageCard.vue'
 import DataSourceCard from '@/components/DataSourceCard.vue'
 import DataQualityGauge from '@/components/DataQualityGauge.vue'
 import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle } from '@/utils/chartTheme'
+import { useSSE } from '@/composables/useSSE'
 
 use([LineChart, TooltipComponent, GridComponent, MarkLineComponent])
 
@@ -25,7 +27,7 @@ const pipeline = usePipelineStore()
 
 // ── 自动刷新 ──
 const autoRefresh = ref(true)
-const refreshInterval = ref(30)
+const refreshInterval = ref(10) // 10s for real-time feel
 let timer: ReturnType<typeof setInterval> | null = null
 const lastRefresh = ref('')
 
@@ -49,10 +51,13 @@ function startAutoRefresh() {
 onMounted(() => {
   loadAll()
   startAutoRefresh()
+  pipeline.fetchSchedules()
+  pipeline.fetchConfig()
 })
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  sseDisconnect()
 })
 
 function toggleAutoRefresh(val: boolean) {
@@ -66,6 +71,23 @@ function toggleAutoRefresh(val: boolean) {
   }
 }
 
+// ── SSE 实时进度 ──
+const { connected: sseConnected, mode: sseMode, disconnect: sseDisconnect } = useSSE(
+  '/api/v1/pipeline/events',
+  {
+    onMessage: (event: MessageEvent) => {
+      // SSE events from sse_broadcaster come as named events
+      // pipeline_update events contain stage progress data
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'pipeline_update' && data.data) {
+          pipeline.handlePipelineEvent(data.data)
+        }
+      } catch { /* ignore parse errors */ }
+    },
+  },
+)
+
 // ── KPI 卡片 ──
 const kpiCards = computed(() => {
   const s = pipeline.pipelineStatus
@@ -73,30 +95,30 @@ const kpiCards = computed(() => {
   return [
     {
       label: '今日采集量',
-      value: s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume.toLocaleString() : '--',
+      value: s && s.last_run ? s.last_run.total_records.toLocaleString() : '--',
       sub: '条记录',
       color: colors.primary,
       icon: 'Download',
     },
     {
       label: '处理成功率',
-      value: s ? `${(s.success_rate * 100).toFixed(1)}%` : '--',
-      sub: s && s.success_rate >= 0.95 ? '运行正常' : '需关注',
-      color: s && s.success_rate >= 0.95 ? colors.success : colors.warning,
+      value: s && typeof s.success_rate === 'number' ? `${(s.success_rate * 100).toFixed(1)}%` : '--',
+      sub: s && s.success_rate && s.success_rate >= 0.95 ? '运行正常' : '需关注',
+      color: s && s.success_rate && s.success_rate >= 0.95 ? colors.success : colors.warning,
       icon: 'CircleCheck',
-      trend: s && s.success_rate >= 0.95 ? 'up' : 'down',
+      trend: s && s.success_rate && s.success_rate >= 0.95 ? 'up' : 'down',
     },
     {
       label: '数据质量分',
-      value: s ? s.avg_quality_score.toFixed(1) : '--',
-      sub: s && s.avg_quality_score >= 80 ? '质量优秀' : '有提升空间',
-      color: s && s.avg_quality_score >= 80 ? colors.success : colors.warning,
+      value: s && s.last_run && typeof s.last_run.quality_score === 'number' ? (s.last_run.quality_score * 100).toFixed(1) : '--',
+      sub: s && s.avg_quality_score && s.avg_quality_score >= 80 ? '质量优秀' : '有提升空间',
+      color: s && s.avg_quality_score && s.avg_quality_score >= 80 ? colors.success : colors.warning,
       icon: 'DataLine',
-      trend: s && s.avg_quality_score >= 80 ? 'up' : 'down',
+      trend: s && s.avg_quality_score && s.avg_quality_score >= 80 ? 'up' : 'down',
     },
     {
       label: '活跃数据源',
-      value: s ? String(s.active_sources) : '--',
+      value: s && typeof s.active_data_sources === 'number' ? String(s.active_data_sources) : '--',
       sub: '个数据源',
       color: colors.info,
       icon: 'Connection',
@@ -105,17 +127,19 @@ const kpiCards = computed(() => {
   ]
 })
 
-// ── 流水线阶段时间线 ──
+// ── 流水线阶段时间线 (DAG) ──
 const timelineStages = computed<PipelineStage[]>(() => {
   if (pipeline.stages.length > 0) return pipeline.stages
-  // 默认5阶段骨架（无数据时展示）
-  return [
-    { name: '爬虫采集', status: 'waiting', duration_ms: 0, records_processed: 0, errors: 0, progress: 0 },
-    { name: 'SimHash去重', status: 'waiting', duration_ms: 0, records_processed: 0, errors: 0, progress: 0 },
-    { name: '清洗标准化', status: 'waiting', duration_ms: 0, records_processed: 0, errors: 0, progress: 0 },
-    { name: '数据入库', status: 'waiting', duration_ms: 0, records_processed: 0, errors: 0, progress: 0 },
-    { name: '图谱构建', status: 'waiting', duration_ms: 0, records_processed: 0, errors: 0, progress: 0 },
-  ]
+  return ALL_STAGE_NAMES.map(name => ({
+    name,
+    status: 'waiting' as const,
+    duration_ms: 0,
+    records_processed: 0,
+    errors: 0,
+    progress: 0,
+    retry_count: 0,
+    depends_on: [],
+  }))
 })
 
 const stageColorMap: Record<string, string> = {
@@ -123,6 +147,115 @@ const stageColorMap: Record<string, string> = {
   completed: chartColors().success,
   failed: chartColors().danger,
   waiting: chartColors().muted,
+  pending: chartColors().muted,
+  skipped: '#d1d5db',
+}
+
+// DAG 分支指示：去重和清洗并行
+const isDagBranch = (idx: number) => idx === 1 || idx === 2 // dedup, clean
+const isDagMerge = (idx: number) => idx === 3 // import
+
+// ── 阶段选择触发 ──
+const selectedStages = ref<string[]>(ALL_STAGE_NAMES)
+const triggerDialogVisible = ref(false)
+const triggerRunType = ref<'full' | 'incremental'>('full')
+
+function openTriggerDialog() {
+  selectedStages.value = ALL_STAGE_NAMES
+  triggerRunType.value = 'full'
+  triggerDialogVisible.value = true
+}
+
+async function handleTrigger() {
+  try {
+    await pipeline.triggerPipeline(triggerRunType.value, selectedStages.value)
+    triggerDialogVisible.value = false
+    ElMessage.success('流水线已触发')
+    // Switch to faster refresh during execution
+    refreshInterval.value = 5
+    startAutoRefresh()
+  } catch {
+    ElMessage.error('触发失败，请稍后重试')
+  }
+}
+
+// ── 失败重试/断点续跑 ──
+const currentRunId = computed(() => pipeline.pipelineStatus?.current_run?.id)
+
+async function handleRetryStage(stageName: string) {
+  if (!currentRunId.value) return
+  try {
+    await pipeline.retryStage(currentRunId.value, stageName)
+    ElMessage.success(`阶段 ${STAGE_LABELS[stageName] || stageName} 已重试`)
+  } catch {
+    ElMessage.error('重试失败')
+  }
+}
+
+async function handleResume() {
+  if (!currentRunId.value) return
+  try {
+    await pipeline.resumeRun(currentRunId.value)
+    ElMessage.success('断点续跑已启动')
+  } catch {
+    ElMessage.error('断点续跑失败')
+  }
+}
+
+// ── 定时调度 ──
+const scheduleDialogVisible = ref(false)
+const scheduleForm = ref({
+  name: '',
+  cron_expression: '0 2 * * *',
+  run_type: 'incremental' as 'full' | 'incremental',
+  selected_stages: null as string[] | null,
+  enabled: true,
+})
+
+function openScheduleDialog() {
+  scheduleForm.value = { name: '', cron_expression: '0 2 * * *', run_type: 'incremental', selected_stages: null, enabled: true }
+  scheduleDialogVisible.value = true
+}
+
+async function handleCreateSchedule() {
+  try {
+    await pipeline.createSchedule(scheduleForm.value)
+    scheduleDialogVisible.value = false
+    ElMessage.success('定时调度已创建')
+  } catch {
+    ElMessage.error('创建失败')
+  }
+}
+
+async function handleDeleteSchedule(id: string) {
+  try {
+    await ElMessageBox.confirm('确定删除此定时调度？', '确认')
+    await pipeline.deleteSchedule(id)
+    ElMessage.success('已删除')
+  } catch { /* cancelled */ }
+}
+
+async function handleToggleSchedule(schedule: PipelineSchedule) {
+  await pipeline.updateSchedule(schedule.id, { ...schedule, enabled: !schedule.enabled })
+}
+
+// ── 配置弹窗 ──
+const configDialogVisible = ref(false)
+
+function openConfigDialog() {
+  pipeline.fetchConfig()
+  configDialogVisible.value = true
+}
+
+async function handleSaveConfig() {
+  if (!pipeline.config) return
+  try {
+    await pipeline.updateConfig(pipeline.config)
+    configDialogVisible.value = false
+    ElMessage.success('配置已更新')
+  } catch {
+    ElMessage.error('更新配置失败')
+  }
 }
 
 // ── 数据质量趋势折线图 ──
@@ -150,10 +283,7 @@ const qualityTrendOption = computed(() => {
       type: 'line',
       data: trend.map(t => t.score),
       smooth: true,
-      areaStyle: {
-        opacity: 0.15,
-        color: colors.primary,
-      },
+      areaStyle: { opacity: 0.15, color: colors.primary },
       lineStyle: { color: colors.primary, width: 2.5 },
       itemStyle: { color: colors.primary },
       symbolSize: 6,
@@ -174,7 +304,6 @@ const qualityTrendOption = computed(() => {
   }
 })
 
-// ── 趋势方向 ──
 const qualityTrendDir = computed<'up' | 'down' | 'stable'>(() => {
   const trend = pipeline.dataQuality?.trend
   if (!trend || trend.length < 2) return 'stable'
@@ -184,16 +313,6 @@ const qualityTrendDir = computed<'up' | 'down' | 'stable'>(() => {
   if (last < prev - 1) return 'down'
   return 'stable'
 })
-
-// ── 触发流水线 ──
-async function handleTrigger() {
-  try {
-    await pipeline.triggerPipeline()
-    ElMessage.success('流水线已触发')
-  } catch {
-    ElMessage.error('触发失败，请稍后重试')
-  }
-}
 </script>
 
 <template>
@@ -204,7 +323,16 @@ async function handleTrigger() {
         <div>
           <h2>数据流水线监控</h2>
           <p class="page-desc">
-            实时监控 ETL 全链路：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建
+            ETL DAG 全链路：爬虫采集 → (去重 ∥ 清洗) → 入库 → 图谱构建
+            <el-tag
+              v-if="sseConnected"
+              size="small"
+              type="success"
+              effect="plain"
+              class="ml-2"
+            >
+              SSE 实时
+            </el-tag>
           </p>
         </div>
         <div class="header-actions">
@@ -221,10 +349,33 @@ async function handleTrigger() {
           <el-button
             size="small"
             type="primary"
+            :icon="VideoPlay"
             :loading="pipeline.loading"
-            @click="handleTrigger"
+            @click="openTriggerDialog"
           >
             触发流水线
+          </el-button>
+          <el-button
+            v-if="pipeline.pipelineStatus?.current_run?.status === 'failed'"
+            size="small"
+            type="warning"
+            @click="handleResume"
+          >
+            断点续跑
+          </el-button>
+          <el-button
+            size="small"
+            :icon="Timer"
+            @click="openScheduleDialog"
+          >
+            定时调度
+          </el-button>
+          <el-button
+            size="small"
+            :icon="Setting"
+            @click="openConfigDialog"
+          >
+            配置
           </el-button>
           <el-button
             size="small"
@@ -283,27 +434,88 @@ async function handleTrigger() {
         </el-col>
       </el-row>
 
-      <!-- 流水线时间线视图 -->
+      <!-- 流水线 DAG 时间线视图 -->
       <el-card
         v-loading="pipeline.loading"
         shadow="never"
         class="mb-4 timeline-card"
-        header="流水线时间线"
       >
-        <div class="pipeline-timeline">
-          <div
-            v-for="(stage, idx) in timelineStages"
-            :key="stage.name"
-            class="timeline-node"
-          >
-            <PipelineStageCard :stage="stage" />
-            <div
-              v-if="idx < timelineStages.length - 1"
-              class="timeline-arrow"
-              :style="{ color: stageColorMap[stage.status] || chartColors().muted }"
+        <template #header>
+          <div class="panel-header">
+            <span>流水线时间线 (DAG)</span>
+            <el-tag
+              v-if="pipeline.pipelineStatus?.is_running"
+              size="small"
+              type="warning"
+              effect="plain"
             >
+              执行中
+            </el-tag>
+          </div>
+        </template>
+        <div class="pipeline-dag">
+          <!-- Row 1: crawl -->
+          <div class="dag-row dag-row-center">
+            <div class="timeline-node">
+              <PipelineStageCard
+                :stage="timelineStages[0]"
+                @retry="handleRetryStage(timelineStages[0].name)"
+              />
+            </div>
+          </div>
+          <!-- Arrow: crawl → (dedup + clean) -->
+          <div class="dag-row dag-row-center">
+            <div class="dag-fork">
+              <div class="fork-line fork-left" />
+              <div class="fork-line fork-right" />
+            </div>
+          </div>
+          <!-- Row 2: dedup ∥ clean (parallel) -->
+          <div class="dag-row dag-row-parallel">
+            <div class="timeline-node">
+              <PipelineStageCard
+                :stage="timelineStages[1]"
+                @retry="handleRetryStage(timelineStages[1].name)"
+              />
+            </div>
+            <div class="parallel-label">并行</div>
+            <div class="timeline-node">
+              <PipelineStageCard
+                :stage="timelineStages[2]"
+                @retry="handleRetryStage(timelineStages[2].name)"
+              />
+            </div>
+          </div>
+          <!-- Arrow: (dedup + clean) → import -->
+          <div class="dag-row dag-row-center">
+            <div class="dag-merge">
+              <div class="merge-line merge-left" />
+              <div class="merge-line merge-right" />
+            </div>
+          </div>
+          <!-- Row 3: import -->
+          <div class="dag-row dag-row-center">
+            <div class="timeline-node">
+              <PipelineStageCard
+                :stage="timelineStages[3]"
+                @retry="handleRetryStage(timelineStages[3].name)"
+              />
+            </div>
+          </div>
+          <!-- Arrow: import → graph_sync -->
+          <div class="dag-row dag-row-center">
+            <div class="dag-arrow-down">
               <span class="arrow-line" />
               <span class="arrow-head">›</span>
+            </div>
+          </div>
+          <!-- Row 4: graph_sync -->
+          <div class="dag-row dag-row-center">
+            <div class="timeline-node">
+              <PipelineStageCard
+                :stage="timelineStages[4]"
+                @retry="handleRetryStage(timelineStages[4].name)"
+              />
             </div>
           </div>
         </div>
@@ -390,13 +602,11 @@ async function handleTrigger() {
             <template #header>
               <span>数据质量监控</span>
             </template>
-            <!-- 仪表盘 -->
             <DataQualityGauge
               :score="pipeline.dataQuality?.overall_score ?? 0"
               label="综合质量"
               :trend="qualityTrendDir"
             />
-            <!-- 趋势折线图 -->
             <div class="quality-trend-section">
               <div class="section-title">
                 质量趋势
@@ -416,7 +626,6 @@ async function handleTrigger() {
                 </p>
               </div>
             </div>
-            <!-- 质量子指标 -->
             <div
               v-if="pipeline.dataQuality"
               class="quality-dimensions"
@@ -444,6 +653,244 @@ async function handleTrigger() {
           </el-card>
         </el-col>
       </el-row>
+
+      <!-- 定时调度列表 -->
+      <el-card
+        v-if="pipeline.schedules.length"
+        shadow="never"
+        class="mb-4"
+      >
+        <template #header>
+          <div class="panel-header">
+            <span>定时调度</span>
+            <el-button
+              size="small"
+              :icon="Timer"
+              @click="openScheduleDialog"
+            >
+              新增
+            </el-button>
+          </div>
+        </template>
+        <el-table
+          :data="pipeline.schedules"
+          size="small"
+          stripe
+        >
+          <el-table-column
+            prop="name"
+            label="名称"
+            width="140"
+          />
+          <el-table-column
+            prop="cron_expression"
+            label="Cron 表达式"
+            width="140"
+          />
+          <el-table-column
+            prop="run_type"
+            label="类型"
+            width="100"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.run_type === 'full' ? '' : 'info'"
+                size="small"
+              >
+                {{ row.run_type === 'full' ? '全量' : '增量' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="启用"
+            width="80"
+          >
+            <template #default="{ row }">
+              <el-switch
+                :model-value="row.enabled"
+                size="small"
+                @change="handleToggleSchedule(row)"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="上次运行"
+            width="160"
+          >
+            <template #default="{ row }">
+              {{ row.last_run_at ? new Date(row.last_run_at).toLocaleString() : '--' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="80"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="danger"
+                link
+                @click="handleDeleteSchedule(row.id)"
+              >
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
+
+      <!-- ── 触发流水线弹窗 ── -->
+      <el-dialog
+        v-model="triggerDialogVisible"
+        title="触发流水线"
+        width="480px"
+      >
+        <el-form label-width="80px">
+          <el-form-item label="运行类型">
+            <el-radio-group v-model="triggerRunType">
+              <el-radio value="full">
+                全量
+              </el-radio>
+              <el-radio value="incremental">
+                增量
+              </el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="执行阶段">
+            <el-checkbox-group v-model="selectedStages">
+              <el-checkbox
+                v-for="name in ALL_STAGE_NAMES"
+                :key="name"
+                :value="name"
+              >
+                {{ STAGE_LABELS[name] || name }}
+              </el-checkbox>
+            </el-checkbox-group>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="triggerDialogVisible = false">
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            :disabled="selectedStages.length === 0"
+            @click="handleTrigger"
+          >
+            启动
+          </el-button>
+        </template>
+      </el-dialog>
+
+      <!-- ── 定时调度弹窗 ── -->
+      <el-dialog
+        v-model="scheduleDialogVisible"
+        title="创建定时调度"
+        width="480px"
+      >
+        <el-form
+          :model="scheduleForm"
+          label-width="100px"
+        >
+          <el-form-item label="名称">
+            <el-input
+              v-model="scheduleForm.name"
+              placeholder="如：每日增量爬取"
+            />
+          </el-form-item>
+          <el-form-item label="Cron 表达式">
+            <el-input
+              v-model="scheduleForm.cron_expression"
+              placeholder="0 2 * * * (每天凌晨2点)"
+            />
+          </el-form-item>
+          <el-form-item label="运行类型">
+            <el-radio-group v-model="scheduleForm.run_type">
+              <el-radio value="full">
+                全量
+              </el-radio>
+              <el-radio value="incremental">
+                增量
+              </el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="启用">
+            <el-switch v-model="scheduleForm.enabled" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="scheduleDialogVisible = false">
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            @click="handleCreateSchedule"
+          >
+            创建
+          </el-button>
+        </template>
+      </el-dialog>
+
+      <!-- ── 配置弹窗 ── -->
+      <el-dialog
+        v-model="configDialogVisible"
+        title="流水线配置"
+        width="480px"
+      >
+        <el-form
+          v-if="pipeline.config"
+          label-width="120px"
+        >
+          <el-form-item label="阶段超时(秒)">
+            <el-input-number
+              v-model="pipeline.config.stage_timeout"
+              :min="60"
+              :max="7200"
+              :step="60"
+            />
+          </el-form-item>
+          <el-form-item label="Worker并发数">
+            <el-input-number
+              v-model="pipeline.config.worker_concurrency"
+              :min="1"
+              :max="16"
+            />
+          </el-form-item>
+          <el-form-item label="爬取并发数">
+            <el-input-number
+              v-model="pipeline.config.crawl_concurrency"
+              :min="1"
+              :max="20"
+            />
+          </el-form-item>
+          <el-form-item label="最大重试次数">
+            <el-input-number
+              v-model="pipeline.config.retry_max"
+              :min="0"
+              :max="10"
+            />
+          </el-form-item>
+          <el-form-item label="重试间隔(秒)">
+            <el-input-number
+              v-model="pipeline.config.retry_backoff"
+              :min="5"
+              :max="300"
+              :step="5"
+            />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="configDialogVisible = false">
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            @click="handleSaveConfig"
+          >
+            保存
+          </el-button>
+        </template>
+      </el-dialog>
     </div>
   </MainLayout>
 </template>
@@ -474,6 +921,9 @@ async function handleTrigger() {
   color: var(--muted-foreground);
   font-size: var(--font-size-sm);
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .header-actions {
   display: flex;
@@ -552,44 +1002,92 @@ async function handleTrigger() {
   font-weight: 600;
 }
 
-/* 流水线时间线 */
+/* DAG 时间线 */
 .timeline-card :deep(.el-card__header) {
   font-weight: 600;
 }
-.pipeline-timeline {
+.pipeline-dag {
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
+  align-items: center;
   gap: 0;
-  overflow-x: auto;
-  padding: var(--space-2) 0;
+  padding: var(--space-4) 0;
 }
-.timeline-node {
+.dag-row {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
+  justify-content: center;
+  width: 100%;
+}
+.dag-row-center {
+  justify-content: center;
+}
+.dag-row-parallel {
+  justify-content: center;
+  gap: var(--space-8);
 }
 .timeline-node :deep(.stage-card) {
   min-width: 180px;
   max-width: 200px;
 }
-.timeline-arrow {
+.parallel-label {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  font-weight: 600;
+  align-self: center;
+}
+
+/* DAG fork/merge arrows */
+.dag-fork,
+.dag-merge {
   display: flex;
+  justify-content: center;
+  width: 400px;
+  height: 24px;
+  position: relative;
+}
+.fork-line,
+.merge-line {
+  width: 2px;
+  height: 24px;
+  background: var(--muted-foreground);
+  opacity: 0.4;
+  position: absolute;
+}
+.fork-line.fork-left,
+.merge-line.merge-left {
+  left: 30%;
+  transform: rotate(15deg);
+}
+.fork-line.fork-right,
+.merge-line.merge-right {
+  right: 30%;
+  transform: rotate(-15deg);
+}
+.merge-line.merge-left {
+  transform: rotate(-15deg);
+}
+.merge-line.merge-right {
+  transform: rotate(15deg);
+}
+.dag-arrow-down {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 0 var(--space-1);
-  flex-shrink: 0;
 }
-.arrow-line {
+.dag-arrow-down .arrow-line {
   display: block;
-  width: 24px;
-  height: 2px;
-  background: currentColor;
-  opacity: 0.5;
+  width: 2px;
+  height: 16px;
+  background: var(--muted-foreground);
+  opacity: 0.4;
 }
-.arrow-head {
-  font-size: 18px;
+.dag-arrow-down .arrow-head {
+  font-size: 14px;
   font-weight: 700;
-  line-height: 1;
-  opacity: 0.5;
+  color: var(--muted-foreground);
+  opacity: 0.4;
+  transform: rotate(90deg);
 }
 
 /* 面板头部 */
@@ -658,13 +1156,15 @@ async function handleTrigger() {
 }
 
 .mb-4 { margin-bottom: var(--space-4); }
+.ml-2 { margin-left: var(--space-2); }
 
 @media (max-width: 768px) {
   .page-header { flex-direction: column; }
   .header-actions { width: 100%; justify-content: flex-start; }
   .kpi-value { font-size: var(--font-size-2xl); }
-  .pipeline-timeline { flex-wrap: wrap; gap: var(--space-2); }
-  .timeline-arrow { display: none; }
+  .dag-row-parallel { flex-direction: column; gap: var(--space-2); }
+  .parallel-label { display: none; }
+  .dag-fork, .dag-merge { display: none; }
   .timeline-node :deep(.stage-card) { min-width: 100%; max-width: 100%; }
 }
 </style>
