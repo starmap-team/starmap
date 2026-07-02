@@ -855,6 +855,356 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuditItem"
 
+  # ──────────────────────── 数据流水线 ────────────────────────
+  /pipeline/status:
+    get:
+      operationId: getPipelineStatus
+      summary: "流水线状态概览"
+      description: "获取全局流水线运行状态、成功率、各阶段统计"
+      tags: [数据流水线]
+      responses:
+        "200":
+          description: "流水线状态"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineStatus"
+
+  /pipeline/runs:
+    get:
+      operationId: listPipelineRuns
+      summary: "流水线运行记录"
+      description: "分页查询流水线运行历史"
+      tags: [数据流水线]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [running, success, failed, pending]
+      responses:
+        "200":
+          description: "运行记录列表"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PipelineRun"
+                  total:
+                    type: integer
+
+  /pipeline/runs/{run_id}:
+    get:
+      operationId: getPipelineRunDetail
+      summary: "流水线运行详情"
+      description: "获取单次流水线运行的完整详情，包含各阶段状态"
+      tags: [数据流水线]
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "运行详情"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRun"
+        "404":
+          description: "运行记录不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /pipeline/trigger:
+    post:
+      operationId: triggerPipeline
+      summary: "触发流水线"
+      description: "手动触发一次数据流水线运行"
+      tags: [数据流水线]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source:
+                  type: string
+                  description: "数据源标识（留空则全量）"
+                  example: "lagou"
+                stages:
+                  type: array
+                  items:
+                    type: string
+                    enum: [crawl, dedup, clean, normalize, store, graph_sync]
+                  description: "指定执行阶段（留空则全阶段）"
+      responses:
+        "202":
+          description: "流水线已触发"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, task_id]
+                properties:
+                  message:
+                    type: string
+                    example: "pipeline triggered"
+                  task_id:
+                    type: string
+                    format: uuid
+
+  # ──────────────────────── 数据看板 ────────────────────────
+  /dashboard/overview:
+    get:
+      operationId: getDashboardOverview
+      summary: "数据看板概览"
+      description: "获取系统数据看板的KPI概览指标"
+      tags: [数据看板]
+      responses:
+        "200":
+          description: "看板概览"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardOverview"
+
+  /dashboard/metrics:
+    get:
+      operationId: getDashboardMetrics
+      summary: "实时指标数据"
+      description: "获取实时更新的系统指标数据（SSE或轮询）"
+      tags: [数据看板]
+      parameters:
+        - name: metric_type
+          in: query
+          schema:
+            type: string
+            enum: [all, extraction, matching, evolution, quality]
+            default: all
+      responses:
+        "200":
+          description: "指标数据"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardMetrics"
+
+  # ──────────────────────── 学习路径 ────────────────────────
+  /learning/paths:
+    get:
+      operationId: listLearningPaths
+      summary: "学习路径列表"
+      description: "获取所有可用的学习路径"
+      tags: [学习路径]
+      parameters:
+        - name: target_position
+          in: query
+          schema:
+            type: string
+          description: "目标岗位筛选"
+        - name: skill
+          in: query
+          schema:
+            type: string
+          description: "技能筛选"
+      responses:
+        "200":
+          description: "学习路径列表"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LearningPath"
+
+  /learning/paths/{path_id}:
+    get:
+      operationId: getLearningPathDetail
+      summary: "学习路径详情"
+      description: "获取指定学习路径的完整详情"
+      tags: [学习路径]
+      parameters:
+        - name: path_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "路径详情"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningPath"
+        "404":
+          description: "路径不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /learning/progress:
+    get:
+      operationId: getLearningProgress
+      summary: "学习进度"
+      description: "获取当前用户的学习进度"
+      tags: [学习路径]
+      responses:
+        "200":
+          description: "学习进度"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningProgress"
+
+  # ──────────────────────── 数据源管理 ────────────────────────
+  /datasources:
+    get:
+      operationId: listDatasources
+      summary: "数据源列表"
+      description: "获取所有数据源配置"
+      tags: [数据源管理]
+      responses:
+        "200":
+          description: "数据源列表"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DatasourceConfig"
+
+  /datasources/{datasource_id}:
+    get:
+      operationId: getDatasourceDetail
+      summary: "数据源详情"
+      description: "获取指定数据源的详细配置和统计"
+      tags: [数据源管理]
+      parameters:
+        - name: datasource_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "数据源详情"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasourceConfig"
+        "404":
+          description: "数据源不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      operationId: updateDatasource
+      summary: "更新数据源"
+      description: "更新数据源的权威度评分等配置"
+      tags: [数据源管理]
+      parameters:
+        - name: datasource_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DatasourceConfig"
+      responses:
+        "200":
+          description: "更新成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasourceConfig"
+        "404":
+          description: "数据源不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ──────────────────────── 反馈循环 ────────────────────────
+  /loop/status:
+    get:
+      operationId: getLoopStatus
+      summary: "反馈循环状态"
+      description: "获取反馈循环的当前状态和统计"
+      tags: [反馈循环]
+      responses:
+        "200":
+          description: "循环状态"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoopStatus"
+
+  /loop/feedback:
+    post:
+      operationId: submitFeedback
+      summary: "提交反馈"
+      description: "提交用户对技能/岗位的反馈，用于闭环优化"
+      tags: [反馈循环]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackRequest"
+      responses:
+        "200":
+          description: "反馈已接收"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, feedback_id]
+                properties:
+                  message:
+                    type: string
+                    example: "feedback received"
+                  feedback_id:
+                    type: string
+                    format: uuid
+
 components:
   schemas:
     ExtractionRequest:
@@ -1359,3 +1709,281 @@ components:
           type: string
           format: date-time
           description: "错误发生时间"
+
+    # ──────────────────────── 数据流水线 ────────────────────────
+    PipelineStatus:
+      type: object
+      required: [overall_status, total_runs, success_rate, stages]
+      properties:
+        overall_status:
+          type: string
+          enum: [healthy, warning, critical]
+          description: "整体健康状态"
+        total_runs:
+          type: integer
+          description: "总运行次数"
+        success_rate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: "成功率"
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "crawl"
+              status:
+                type: string
+                enum: [running, success, failed, idle]
+              processed_count:
+                type: integer
+              error_count:
+                type: integer
+
+    PipelineRun:
+      type: object
+      required: [id, status, started_at, stages]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [running, success, failed, pending]
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        source:
+          type: string
+          nullable: true
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+              processed:
+                type: integer
+              errors:
+                type: integer
+              duration_ms:
+                type: integer
+        error_message:
+          type: string
+          nullable: true
+
+    # ──────────────────────── 数据看板 ────────────────────────
+    DashboardOverview:
+      type: object
+      required: [kpi_cards, recent_activity, alerts]
+      properties:
+        kpi_cards:
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                type: string
+              value:
+                type: number
+              unit:
+                type: string
+              trend:
+                type: number
+                description: "环比变化百分比"
+        recent_activity:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              action:
+                type: string
+              entity:
+                type: string
+        alerts:
+          type: array
+          items:
+            type: object
+            properties:
+              level:
+                type: string
+                enum: [info, warning, critical]
+              message:
+                type: string
+
+    DashboardMetrics:
+      type: object
+      required: [timestamp, metrics]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        metrics:
+          type: object
+          additionalProperties:
+            type: number
+
+    # ──────────────────────── 学习路径 ────────────────────────
+    LearningPath:
+      type: object
+      required: [id, name, target_position, steps, estimated_duration_days]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        target_position:
+          type: string
+        description:
+          type: string
+          nullable: true
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              order:
+                type: integer
+              skill_name:
+                type: string
+              description:
+                type: string
+              estimated_days:
+                type: integer
+              prerequisites:
+                type: array
+                items:
+                  type: string
+        estimated_duration_days:
+          type: integer
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        completion_rate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    LearningProgress:
+      type: object
+      required: [user_id, overall_progress, paths]
+      properties:
+        user_id:
+          type: string
+        overall_progress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        paths:
+          type: array
+          items:
+            type: object
+            properties:
+              path_id:
+                type: string
+              path_name:
+                type: string
+              progress:
+                type: number
+              completed_steps:
+                type: integer
+              total_steps:
+                type: integer
+
+    # ──────────────────────── 数据源 ────────────────────────
+    DatasourceConfig:
+      type: object
+      required: [id, name, source_type, authority_score, status]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        source_type:
+          type: string
+          enum: [crawler, api, manual, import]
+        url:
+          type: string
+          nullable: true
+        authority_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        status:
+          type: string
+          enum: [active, inactive, error]
+        last_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        total_records:
+          type: integer
+        error_rate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        config:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    # ──────────────────────── 反馈循环 ────────────────────────
+    LoopStatus:
+      type: object
+      required: [is_active, total_feedback, processed_feedback, pending_feedback]
+      properties:
+        is_active:
+          type: boolean
+        total_feedback:
+          type: integer
+        processed_feedback:
+          type: integer
+        pending_feedback:
+          type: integer
+        last_processed_at:
+          type: string
+          format: date-time
+          nullable: true
+        accuracy_improvement:
+          type: number
+          format: float
+          description: "反馈带来的准确率提升"
+
+    FeedbackRequest:
+      type: object
+      required: [entity_type, entity_id, feedback_type, user_id]
+      properties:
+        entity_type:
+          type: string
+          enum: [skill, position, match_result, extraction]
+        entity_id:
+          type: string
+        feedback_type:
+          type: string
+          enum: [correct, incorrect, missing, redundant]
+        user_id:
+          type: string
+        comment:
+          type: string
+          nullable: true
+        suggested_value:
+          type: string
+          nullable: true
