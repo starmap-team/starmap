@@ -1,0 +1,585 @@
+openapi: 3.0.3
+info:
+  title: StarMap 增强 API - 新增端点
+  description: Phase 1-4 新增的 API 端点 OpenAPI 契约
+  version: 2.0.0
+
+servers:
+  - url: http://localhost:8000/api/v1
+
+tags:
+  - name: 数据流水线
+    description: ETL 流水线监控与管理
+  - name: 数据源管理
+    description: 多源数据采集管理
+  - name: 闭环验证
+    description: 端到端闭环演示
+  - name: 学习中心
+    description: 个性化学习路径
+  - name: 数据大屏
+    description: 实时数据大盘与 SSE
+  - name: 匹配增强
+    description: 批量匹配与竞争力分析
+  - name: 演化增强
+    description: 职业路径与行业趋势
+  - name: 图谱增强
+    description: 3D 布局与领域切换
+
+paths:
+  # ── 数据流水线 ──
+  /pipeline/status:
+    get:
+      tags: [数据流水线]
+      summary: 全局流水线状态概览
+      responses:
+        '200':
+          description: 流水线状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineStatus'
+
+  /pipeline/runs:
+    get:
+      tags: [数据流水线]
+      summary: 历史运行记录列表
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: 运行记录列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PipelineRun'
+
+  /pipeline/runs/{run_id}:
+    get:
+      tags: [数据流水线]
+      summary: 单次运行详情
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 运行详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineRun'
+
+  /pipeline/trigger:
+    post:
+      tags: [数据流水线]
+      summary: 手动触发流水线
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                run_type:
+                  type: string
+                  enum: [full, incremental, source_sync]
+                  default: full
+      responses:
+        '200':
+          description: 触发成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineRun'
+
+  /pipeline/stages:
+    get:
+      tags: [数据流水线]
+      summary: 各阶段实时状态
+      responses:
+        '200':
+          description: 阶段状态列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PipelineStage'
+
+  /pipeline/data-quality:
+    get:
+      tags: [数据流水线]
+      summary: 数据质量实时指标
+      responses:
+        '200':
+          description: 质量指标
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataQualityMetrics'
+
+  /pipeline/datasources:
+    get:
+      tags: [数据流水线]
+      summary: 数据源列表及状态
+      responses:
+        '200':
+          description: 数据源列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DataSource'
+
+  # ── 数据源管理 ──
+  /datasources:
+    get:
+      tags: [数据源管理]
+      summary: 数据源列表
+      responses:
+        '200':
+          description: 数据源列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DataSource'
+
+  /datasources/{source_id}:
+    get:
+      tags: [数据源管理]
+      summary: 单个数据源详情
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 数据源详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSource'
+    put:
+      tags: [数据源管理]
+      summary: 更新数据源配置
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                config:
+                  type: object
+                status:
+                  type: string
+                  enum: [active, paused, error]
+      responses:
+        '200':
+          description: 更新成功
+
+  /datasources/{source_id}/stats:
+    get:
+      tags: [数据源管理]
+      summary: 数据源统计
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: period
+          in: query
+          schema: { type: string, enum: [7d, 30d, 90d], default: 7d }
+      responses:
+        '200':
+          description: 统计数据
+
+  /datasources/{source_id}/sync:
+    post:
+      tags: [数据源管理]
+      summary: 触发单源同步
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 同步已触发
+
+  # ── 闭环验证 ──
+  /loop/run:
+    post:
+      tags: [闭环验证]
+      summary: 触发端到端闭环
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jd_text]
+              properties:
+                jd_text:
+                  type: string
+                  description: JD 文本内容
+                target_position:
+                  type: string
+                  description: 目标岗位名称
+      responses:
+        '200':
+          description: 闭环运行结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoopResult'
+
+  /loop/status/{run_id}:
+    get:
+      tags: [闭环验证]
+      summary: 闭环运行状态
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 运行状态
+
+  /loop/history:
+    get:
+      tags: [闭环验证]
+      summary: 闭环运行历史
+      responses:
+        '200':
+          description: 历史记录
+
+  # ── 学习中心 ──
+  /learning/plan:
+    post:
+      tags: [学习中心]
+      summary: 创建学习计划
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                position:
+                  type: string
+                skills:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      current_level: { type: string }
+                      target_level: { type: string }
+      responses:
+        '200':
+          description: 学习计划
+
+  /learning/plan/{plan_id}:
+    get:
+      tags: [学习中心]
+      summary: 获取学习计划详情
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 计划详情
+
+  /learning/plan/{plan_id}/progress:
+    put:
+      tags: [学习中心]
+      summary: 更新学习进度
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                skill_name: { type: string }
+                status: { type: string, enum: [not_started, in_progress, mastered] }
+                progress_pct: { type: number, minimum: 0, maximum: 100 }
+      responses:
+        '200':
+          description: 更新成功
+
+  /learning/recommendations:
+    get:
+      tags: [学习中心]
+      summary: 个性化学习推荐
+      responses:
+        '200':
+          description: 推荐列表
+
+  # ── 数据大屏 ──
+  /dashboard/overview:
+    get:
+      tags: [数据大屏]
+      summary: KPI 聚合概览
+      responses:
+        '200':
+          description: KPI 数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardOverview'
+
+  /dashboard/trends:
+    get:
+      tags: [数据大屏]
+      summary: 时间序列趋势数据
+      parameters:
+        - name: period
+          in: query
+          schema: { type: string, enum: [7d, 30d, 90d], default: 7d }
+      responses:
+        '200':
+          description: 趋势数据
+
+  /dashboard/distribution:
+    get:
+      tags: [数据大屏]
+      summary: 数据分布（来源/领域/技能类别）
+      responses:
+        '200':
+          description: 分布数据
+
+  /dashboard/realtime:
+    get:
+      tags: [数据大屏]
+      summary: SSE 实时事件流
+      responses:
+        '200':
+          description: SSE 事件流
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /dashboard/realtime-poll:
+    get:
+      tags: [数据大屏]
+      summary: 轮询降级端点
+      parameters:
+        - name: since
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: 最近事件列表
+
+  # ── 匹配增强 ──
+  /match/batch:
+    post:
+      tags: [匹配增强]
+      summary: 批量匹配
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resumes:
+                  type: array
+                  items: { type: string }
+                positions:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: 匹配结果矩阵
+
+  /match/competitiveness/{position}:
+    get:
+      tags: [匹配增强]
+      summary: 市场竞争力分析
+      parameters:
+        - name: position
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 竞争力分析
+
+  # ── 演化增强 ──
+  /evolution/emerging-alerts:
+    get:
+      tags: [演化增强]
+      summary: 新兴技能预警
+      parameters:
+        - name: level
+          in: query
+          schema: { type: string, enum: [emerging, rising, declining] }
+        - name: domain
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: 预警列表
+
+  /evolution/portability/{skill}:
+    get:
+      tags: [演化增强]
+      summary: 技能可迁移性分析
+      parameters:
+        - name: skill
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 可迁移性详情
+
+  /evolution/career-path/{position}:
+    get:
+      tags: [演化增强]
+      summary: 职业路径规划
+      parameters:
+        - name: position
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 职业路径
+
+  /evolution/industry-report:
+    get:
+      tags: [演化增强]
+      summary: 行业趋势报告
+      responses:
+        '200':
+          description: 行业报告
+
+  # ── 图谱增强 ──
+  /graph/domains:
+    get:
+      tags: [图谱增强]
+      summary: 领域列表（支持领域切换）
+      responses:
+        '200':
+          description: 领域列表
+
+  /graph/domain-switch/{domain_name}:
+    get:
+      tags: [图谱增强]
+      summary: 领域子图
+      parameters:
+        - name: domain_name
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 领域子图数据
+
+components:
+  schemas:
+    PipelineStatus:
+      type: object
+      properties:
+        total_runs: { type: integer }
+        active_runs: { type: integer }
+        success_rate: { type: number }
+        last_run_at: { type: string, format: date-time }
+
+    PipelineRun:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        run_type: { type: string, enum: [full, incremental, source_sync] }
+        status: { type: string, enum: [running, completed, failed, cancelled] }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time, nullable: true }
+        stages: { type: array, items: { $ref: '#/components/schemas/PipelineStage' } }
+        total_records: { type: integer }
+        new_records: { type: integer }
+        quality_score: { type: number }
+
+    PipelineStage:
+      type: object
+      properties:
+        name: { type: string }
+        status: { type: string, enum: [waiting, running, completed, failed] }
+        duration_ms: { type: integer }
+        records_processed: { type: integer }
+        errors: { type: integer }
+
+    DataSource:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        source_type: { type: string, enum: [crawler, api, manual, import] }
+        authority_score: { type: number }
+        status: { type: string, enum: [active, paused, error] }
+        last_crawl_at: { type: string, format: date-time }
+        total_records: { type: integer }
+        valid_records: { type: integer }
+        duplicate_rate: { type: number }
+        avg_quality_score: { type: number }
+
+    DataQualityMetrics:
+      type: object
+      properties:
+        overall_score: { type: number }
+        trust_score: { type: number }
+        hallucination_rate: { type: number }
+        duplicate_rate: { type: number }
+        completeness: { type: number }
+
+    LoopResult:
+      type: object
+      properties:
+        run_id: { type: string }
+        status: { type: string }
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              step: { type: integer }
+              name: { type: string }
+              status: { type: string, enum: [success, degraded, failed] }
+              duration_ms: { type: integer }
+              result: { type: object }
+              note: { type: string, nullable: true }
+
+    DashboardOverview:
+      type: object
+      properties:
+        total_nodes: { type: integer }
+        total_edges: { type: integer }
+        total_domains: { type: integer }
+        total_positions: { type: integer }
+        total_skills: { type: integer }
+        trust_score: { type: number }
+        hallucination_rate: { type: number }
+        data_volume: { type: integer }
+        pipeline_status: { type: string }
+        stale: { type: boolean, nullable: true }
