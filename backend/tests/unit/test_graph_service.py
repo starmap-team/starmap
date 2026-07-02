@@ -6,7 +6,6 @@ import builtins
 import pytest
 
 from app.services.graph_service import (
-    ensure_readonly_cypher,
     fetch_position_graph,
     serialize_node,
     serialize_relationship,
@@ -120,15 +119,6 @@ def test_serialize_relationship_adds_edge_contract():
         "type": "REQUIRES",
         "properties": {"weight": 0.9},
     }
-
-
-def test_readonly_cypher_rejects_write_keywords():
-    with pytest.raises(ValueError):
-        ensure_readonly_cypher("MATCH (n) SET n.name = 'x' RETURN n")
-
-
-def test_readonly_cypher_allows_match_return():
-    ensure_readonly_cypher("MATCH (n) RETURN n LIMIT 10")
 
 
 @pytest.mark.asyncio

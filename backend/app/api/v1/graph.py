@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.dependencies import get_neo4j_driver
-from app.services.graph_service import fetch_panorama, fetch_position_graph, run_readonly_query
+from app.services.graph_service import fetch_position_graph
 
 router = APIRouter(prefix="/graph", tags=["图谱查询"])
 
@@ -27,28 +27,6 @@ class GraphEdge(BaseModel):
     target_id: str = Field(..., description="目标节点 id")
     type: str = Field(..., description="关系类型")
     properties: dict[str, Any] = Field(default_factory=dict, description="边属性")
-
-
-class GraphQueryResponse(BaseModel):
-    """图谱查询响应。"""
-
-    nodes: list[GraphNode] = Field(default_factory=list, description="图谱节点列表")
-    edges: list[GraphEdge] = Field(default_factory=list, description="图谱边列表")
-
-
-class GraphPanoramaResponse(BaseModel):
-    """全景图谱响应，供前端图谱组件消费。"""
-
-    nodes: list[GraphNode] = Field(default_factory=list, description="图谱节点列表")
-    edges: list[GraphEdge] = Field(default_factory=list, description="图谱边列表")
-
-
-class PositionSkillGraphResponse(BaseModel):
-    """岗位技能子图响应。"""
-
-    position: dict[str, Any] | None = Field(default=None, description="岗位信息")
-    skills: list[dict[str, Any]] = Field(default_factory=list, description="技能节点列表")
-    edges: list[GraphEdge] = Field(default_factory=list, description="技能关系边列表")
 
 
 class PositionNode(BaseModel):
@@ -82,75 +60,8 @@ class PositionSkillDetailResponse(BaseModel):
     edges: list[GraphEdge] = Field(default_factory=list, description="技能关系边列表")
 
 
-def _graph_nodes(items: list[dict[str, Any]]) -> list[GraphNode]:
-    return [GraphNode(**item) for item in items]
-
-
 def _graph_edges(items: list[dict[str, Any]]) -> list[GraphEdge]:
     return [GraphEdge(**item) for item in items]
-
-
-@router.get(
-    "/query",
-    summary="Cypher 图谱查询",
-    description="阶段2骨架接口。按契约接收只读 Cypher，阶段3接入图谱查询服务。",
-    response_model=GraphQueryResponse,
-)
-async def graph_query(
-    cypher: Annotated[
-        str,
-        Query(
-            description="只读 Cypher 查询语句",
-            examples=["MATCH (s:Skill)-[r:REQUIRED_FOR]->(p:Position) RETURN s, r, p LIMIT 50"],
-        ),
-    ],
-    driver: Annotated[Any, Depends(get_neo4j_driver)],
-) -> GraphQueryResponse:
-    try:
-        graph = await run_readonly_query(driver, cypher)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return GraphQueryResponse(nodes=_graph_nodes(graph["nodes"]), edges=_graph_edges(graph["edges"]))
-
-
-@router.get(
-    "/panorama",
-    summary="全景图谱",
-    description=(
-        "返回全量岗位-技能全景图谱。节点 properties 至少包含 name、category，"
-        "边 properties 至少包含 weight。"
-    ),
-    response_model=GraphPanoramaResponse,
-)
-async def get_graph_panorama(
-    driver: Annotated[Any, Depends(get_neo4j_driver)],
-) -> GraphPanoramaResponse:
-    try:
-        graph = await fetch_panorama(driver)
-    except Exception as exc:
-        from loguru import logger
-        logger.error("Panorama query failed: {}", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return GraphPanoramaResponse(nodes=_graph_nodes(graph["nodes"]), edges=_graph_edges(graph["edges"]))
-
-
-@router.get(
-    "/position/{position_name}",
-    summary="岗位图谱",
-    description="按岗位名称或节点 id 获取岗位技能子图；阶段3前端兼容端点。",
-    response_model=PositionSkillGraphResponse,
-)
-async def get_position_graph(
-    position_name: str,
-    driver: Annotated[Any, Depends(get_neo4j_driver)],
-    depth: Annotated[int, Query(description="递归查询深度（含技能先修关系）", ge=1, le=5)] = 1,
-) -> PositionSkillGraphResponse:
-    graph = await fetch_position_graph(driver, position_name, depth)
-    return PositionSkillGraphResponse(
-        position=graph["position"],
-        skills=graph["skills"],
-        edges=_graph_edges(graph["edges"]),
-    )
 
 
 @router.get(
@@ -166,13 +77,13 @@ async def get_position_skills(
 ) -> PositionSkillDetailResponse:
     graph = await fetch_position_graph(driver, position_id, depth)
     if graph["position"] is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"Position '{position_id}' not found")
     return PositionSkillDetailResponse(
         position=graph["position"],
         skills=graph["skills"],
         edges=_graph_edges(graph["edges"]),
     )
+
 
 class DomainOverviewItem(BaseModel):
     """领域概览中的单个 KA 节点。"""
@@ -189,13 +100,6 @@ class DomainOverviewResponse(BaseModel):
     connections: list[GraphEdge] = Field(default_factory=list)
     total_positions: int = 0
     total_skills: int = 0
-
-
-class DomainDetailResponse(BaseModel):
-    """单个领域的详情：KA 下的 Position 列表。"""
-    domain_name: str = ""
-    positions: list[GraphNode] = Field(default_factory=list)
-    edges: list[GraphEdge] = Field(default_factory=list)
 
 
 @router.get(
@@ -291,41 +195,6 @@ async def get_graph_overview(
     )
 
 
-@router.get(
-    "/domain/{domain_name}",
-    summary="领域详情",
-    description="返回指定 KnowledgeArea 下的 Position 节点列表。",
-    response_model=DomainDetailResponse,
-)
-async def get_domain_detail(
-    domain_name: str,
-    driver: Annotated[Any, Depends(get_neo4j_driver)],
-) -> DomainDetailResponse:
-    if driver is None:
-        return DomainDetailResponse(domain_name=domain_name)
-    from app.services.graph_service import serialize_node, serialize_relationship
-    async with driver.session() as session:
-        query = """
-        MATCH (ka:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[r:REQUIRES]-(p:Position)
-        WHERE ka.name CONTAINS $name
-        RETURN DISTINCT p, r, s
-        """
-        result = await session.run(query, name=domain_name)
-        positions = {}
-        edges = []
-        async for record in result:
-            p = record["p"]
-            if p and p.element_id not in positions:
-                positions[p.element_id] = serialize_node(p)
-            r = record["r"]
-            if r:
-                edges.append(serialize_relationship(r))
-
-    return DomainDetailResponse(
-        domain_name=domain_name,
-        positions=list(positions.values()),
-        edges=edges,
-    )
 class KAPositionsResponse(BaseModel):
     """单个 KA 下的 Position 列表 + 关联 Skill 边。"""
     ka_id: str = ""
@@ -382,246 +251,3 @@ async def get_ka_positions(
         positions=list(positions.values()),
         position_skill_edges=edges,
     )
-
-
-# ─── Sprint 2.3: Domain Switching ───
-
-
-class DomainItem(BaseModel):
-    """A single domain available for switching."""
-
-    name: str = Field(..., description="领域名称")
-    label: str = Field(default="", description="领域显示标签")
-    position_count: int = 0
-    skill_count: int = 0
-    color: str = ""
-
-
-class DomainListResponse(BaseModel):
-    """List of all domains for the domain switcher dropdown."""
-
-    domains: list[DomainItem] = Field(default_factory=list)
-    total: int = 0
-
-
-class DomainSubgraphResponse(BaseModel):
-    """Domain-specific subgraph with positions and skills."""
-
-    domain_name: str = ""
-    positions: list[GraphNode] = Field(default_factory=list)
-    skills: list[GraphNode] = Field(default_factory=list)
-    edges: list[GraphEdge] = Field(default_factory=list)
-    total_positions: int = 0
-    total_skills: int = 0
-
-
-# Pre-defined domains for IT/AI/BigData/IoT switching
-SWITCHABLE_DOMAINS = [
-    {"name": "IT", "label": "IT / 信息技术", "color": "#409EFF"},
-    {"name": "AI", "label": "AI / 人工智能", "color": "#9B59B6"},
-    {"name": "BigData", "label": "大数据", "color": "#E6A23C"},
-    {"name": "IoT", "label": "物联网 / IoT", "color": "#67C23A"},
-]
-
-
-@router.get(
-    "/domains",
-    summary="领域列表",
-    description="返回所有可供切换的领域列表（IT/AI/大数据/IoT），含统计信息。",
-    response_model=DomainListResponse,
-)
-async def get_domains(
-    driver: Annotated[Any, Depends(get_neo4j_driver)],
-) -> DomainListResponse:
-    """获取所有可切换领域列表，用于前端领域切换下拉。"""
-    from app.services.graph_service import TECH_STACK_KEYWORDS, _classify_tech_stack
-
-    if driver is None:
-        # Return predefined domains even without Neo4j
-        return DomainListResponse(
-            domains=[DomainItem(**d) for d in SWITCHABLE_DOMAINS],
-            total=len(SWITCHABLE_DOMAINS),
-        )
-
-    # Count positions and skills per domain from Neo4j
-    domain_stats: dict[str, dict[str, int]] = {}
-    for d in SWITCHABLE_DOMAINS:
-        domain_stats[d["name"]] = {"positions": 0, "skills": set()}
-
-    try:
-        async with driver.session() as session:
-            result = await session.run("MATCH (p:Position) RETURN p.name AS name, p.industry AS industry")
-            async for record in result:
-                pos_name = record["name"] or ""
-                pos_industry = record["industry"] or ""
-                stack = _classify_tech_stack(pos_industry, pos_name)
-                # Map TECH_STACK to our domain names
-                domain_map = {
-                    "人工智能": "AI",
-                    "大数据": "BigData",
-                    "物联网": "IoT",
-                    "智能系统": "IT",
-                    "云计算/DevOps": "IT",
-                    "网络安全": "IT",
-                    "其他": "IT",
-                }
-                domain = domain_map.get(stack, "IT")
-                if domain in domain_stats:
-                    domain_stats[domain]["positions"] += 1
-
-            # Count skills per domain
-            skill_result = await session.run(
-                "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
-                "RETURN p.name AS pos_name, p.industry AS pos_industry, s.name AS skill_name"
-            )
-            async for record in skill_result:
-                pos_name = record["pos_name"] or ""
-                pos_industry = record["pos_industry"] or ""
-                skill_name = record["skill_name"] or ""
-                stack = _classify_tech_stack(pos_industry, pos_name)
-                domain_map = {
-                    "人工智能": "AI",
-                    "大数据": "BigData",
-                    "物联网": "IoT",
-                    "智能系统": "IT",
-                    "云计算/DevOps": "IT",
-                    "网络安全": "IT",
-                    "其他": "IT",
-                }
-                domain = domain_map.get(stack, "IT")
-                if domain in domain_stats:
-                    domain_stats[domain]["skills"].add(skill_name)
-
-    except Exception as exc:
-        from loguru import logger
-        logger.warning("Domain stats query failed, using defaults: {}", exc)
-
-    domains: list[DomainItem] = []
-    for d in SWITCHABLE_DOMAINS:
-        stats = domain_stats.get(d["name"], {"positions": 0, "skills": set()})
-        domains.append(DomainItem(
-            name=d["name"],
-            label=d["label"],
-            position_count=stats["positions"],
-            skill_count=len(stats["skills"]) if isinstance(stats["skills"], set) else stats["skills"],
-            color=d["color"],
-        ))
-
-    return DomainListResponse(domains=domains, total=len(domains))
-
-
-@router.get(
-    "/domain-switch/{domain_name}",
-    summary="领域子图",
-    description="按领域名称获取子图：IT/AI/BigData/IoT，返回该领域下的岗位、技能和关系。",
-    response_model=DomainSubgraphResponse,
-)
-async def get_domain_subgraph(
-    domain_name: str,
-    driver: Annotated[Any, Depends(get_neo4j_driver)],
-    limit: Annotated[int, Query(ge=1, le=500, description="最大节点数")] = 100,
-) -> DomainSubgraphResponse:
-    """获取指定领域的子图，支持 IT/AI/BigData/IoT 领域切换。"""
-    from app.services.graph_service import (
-        TECH_STACK_KEYWORDS,
-        _classify_tech_stack,
-        serialize_node,
-        serialize_relationship,
-    )
-
-    if driver is None:
-        return DomainSubgraphResponse(domain_name=domain_name)
-
-    # Map domain_name to tech stack keywords for matching
-    domain_keyword_map: dict[str, list[str]] = {
-        "IT": ["IT", "信息技术", "前端", "后端", "全栈", "云计算", "DevOps", "安全"],
-        "AI": ["人工智能", "AI", "机器学习", "深度学习", "NLP", "CV", "算法", "大模型"],
-        "BigData": ["大数据", "数据", "Hadoop", "Spark", "Flink", "ETL", "数据仓库"],
-        "IoT": ["物联网", "IoT", "嵌入式", "边缘计算", "传感器", "智能制造"],
-    }
-    keywords = domain_keyword_map.get(domain_name.upper(), [domain_name])
-
-    try:
-        positions: dict[str, dict[str, Any]] = {}
-        skills: dict[str, dict[str, Any]] = []
-        edges: list[dict[str, Any]] = []
-
-        async with driver.session() as session:
-            # Get positions that match domain keywords
-            for kw in keywords:
-                query = """
-                MATCH (p:Position)
-                WHERE p.name CONTAINS $kw OR p.industry CONTAINS $kw
-                RETURN p
-                LIMIT $limit
-                """
-                result = await session.run(query, kw=kw, limit=limit)
-                async for record in result:
-                    node = record["p"]
-                    if node and node.element_id not in positions:
-                        positions[node.element_id] = serialize_node(node)
-
-            # Also classify by tech stack for positions already found
-            all_pos_result = await session.run("MATCH (p:Position) RETURN p")
-            async for record in all_pos_result:
-                node = record["p"]
-                if node is None:
-                    continue
-                props = dict(node)
-                name = props.get("name", "")
-                industry = props.get("industry", "")
-                stack = _classify_tech_stack(industry, name)
-                domain_map = {
-                    "人工智能": "AI",
-                    "大数据": "BigData",
-                    "物联网": "IoT",
-                    "智能系统": "IT",
-                    "云计算/DevOps": "IT",
-                    "网络安全": "IT",
-                    "其他": "IT",
-                }
-                matched_domain = domain_map.get(stack, "IT")
-                if matched_domain.upper() == domain_name.upper():
-                    if node.element_id not in positions:
-                        positions[node.element_id] = serialize_node(node)
-
-            positions = dict(list(positions.items())[:limit])
-
-            if not positions:
-                return DomainSubgraphResponse(
-                    domain_name=domain_name,
-                    total_positions=0,
-                    total_skills=0,
-                )
-
-            # Get skills for these positions
-            pos_ids = list(positions.keys())
-            skill_query = """
-            MATCH (p:Position)-[r:REQUIRES]->(s:Skill)
-            WHERE elementId(p) IN $pos_ids
-            RETURN p, r, s
-            """
-            skill_result = await session.run(skill_query, pos_ids=pos_ids)
-            skill_nodes: dict[str, dict[str, Any]] = {}
-            async for record in skill_result:
-                p_node = record["p"]
-                r = record["r"]
-                s_node = record["s"]
-                if s_node and s_node.element_id not in skill_nodes:
-                    skill_nodes[s_node.element_id] = serialize_node(s_node)
-                if r:
-                    edges.append(serialize_relationship(r))
-
-            return DomainSubgraphResponse(
-                domain_name=domain_name,
-                positions=list(positions.values()),
-                skills=list(skill_nodes.values()),
-                edges=_graph_edges(edges),
-                total_positions=len(positions),
-                total_skills=len(skill_nodes),
-            )
-
-    except Exception as exc:
-        from loguru import logger
-        logger.error("Domain subgraph query failed for '{}': {}", domain_name, exc)
-        raise HTTPException(status_code=500, detail=f"领域子图查询失败: {exc}") from exc

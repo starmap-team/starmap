@@ -11,7 +11,7 @@ from loguru import logger
 
 from app.core.extraction.jd_extract import extract_from_jd
 
-SUPPORTED_RESUME_EXTENSIONS = {"pdf", "docx"}
+SUPPORTED_RESUME_EXTENSIONS = {"pdf", "docx", "doc"}
 
 
 def get_resume_extension(filename: str) -> str:
@@ -84,6 +84,11 @@ def extract_resume_text(filename: str, content_bytes: bytes) -> str:
         text = _extract_pdf_text(content_bytes)
     elif ext == "docx":
         text = _extract_docx_text(content_bytes)
+    elif ext == "doc":
+        # Try docx parser first (some .doc are actually docx), then raw fallback
+        text = _extract_docx_text(content_bytes)
+        if not text:
+            text = _decode_text(content_bytes).strip()
     else:
         text = _decode_text(content_bytes).strip()
 

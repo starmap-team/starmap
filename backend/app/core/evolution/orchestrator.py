@@ -1,4 +1,4 @@
-﻿"""Evolution Orchestrator — 8-step pipeline coordinating all evolution components.
+"""Evolution Orchestrator — 8-step pipeline coordinating all evolution components.
 
 Pipeline (from design.md §7):
 1. Load snapshots (SnapshotManager)
