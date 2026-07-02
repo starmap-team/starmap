@@ -74,3 +74,12 @@ export function axisStyle() {
     axisLabel: axisLabelStyle(),
   }
 }
+
+/** ECharts animation configuration for smooth transitions */
+export function chartAnimationConfig() {
+  return {
+    animationDuration: 1000,
+    animationEasing: 'cubicOut' as const,
+    animationDelay: (idx: number) => idx * 50,
+  }
+}

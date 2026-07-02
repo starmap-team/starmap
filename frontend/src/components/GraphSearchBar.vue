@@ -15,16 +15,26 @@ const searchHighlightIndex = ref(-1)
 const searchResults = computed(() => {
   const kw = searchKeyword.value.trim().toLowerCase()
   if (!kw) return []
+  const seen = new Set<string>()
   const results: { id: string; name: string; type: string }[] = []
+
+  // 1. 搜索已加载的领域
   for (const d of graphStore.domains) {
-    if (d.name.toLowerCase().includes(kw)) results.push({ id: d.id, name: d.name, type: "领域" })
+    if (d.name.toLowerCase().includes(kw) && !seen.has(d.id)) {
+      seen.add(d.id)
+      results.push({ id: d.id, name: d.name, type: "领域" })
+    }
   }
+
+  // 2. 搜索已加载的节点（allNodes 已通过 fetchKAPositions 逐步加载）
   for (const n of graphStore.allNodes) {
-    if (n.properties.name.toLowerCase().includes(kw)) {
+    if (n.properties.name.toLowerCase().includes(kw) && !seen.has(n.id)) {
+      seen.add(n.id)
       const label = n.labels[0] === "Position" ? "岗位" : n.labels[0] === "Skill" ? "技能" : n.labels[0]
       results.push({ id: n.id, name: n.properties.name, type: label })
     }
   }
+
   results.sort((a, b) => {
     const ae = a.name.toLowerCase() === kw ? 0 : 1, be = b.name.toLowerCase() === kw ? 0 : 1
     return ae - be

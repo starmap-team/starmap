@@ -4,6 +4,7 @@
  * Task 3 增强: 技能趋势时间线、新兴技能卡片、CII仪表盘、技能对比
  */
 import { ref, onMounted, computed } from 'vue'
+import { ElMessage } from 'element-plus'
 import { use } from 'echarts/core'
 import { LineChart, BarChart, GaugeChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
@@ -58,6 +59,7 @@ async function fetchTrends() {
     items.value = (data as any).items ?? []
   } catch (e) {
     console.error('[Evolution] Failed to fetch trends:', e)
+    ElMessage.error('演化趋势数据加载失败')
   } finally {
     loading.value = false
   }

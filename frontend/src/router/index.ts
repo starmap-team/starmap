@@ -38,16 +38,52 @@ const routes = [
     meta: { title: '图谱质量', icon: 'DataAnalysis', breadcrumb: ['首页', '图谱质量'], transition: 'page-slide' },
   },
   {
+    path: '/pipeline',
+    name: 'pipeline',
+    component: () => import('@/pages/PipelineMonitor.vue'),
+    meta: { title: '数据流水线', icon: 'DataLine', breadcrumb: ['首页', '数据流水线'], transition: 'page-slide' },
+  },
+  {
+    path: '/datasources',
+    name: 'datasources',
+    component: () => import('@/pages/DataSources.vue'),
+    meta: { title: '数据源管理', icon: 'Coin', breadcrumb: ['首页', '数据源管理'], transition: 'page-slide' },
+  },
+  {
+    path: '/analysis',
+    name: 'jobseeker-analysis',
+    component: () => import('@/pages/PipelineAnalysis.vue'),
+    meta: { title: '求职者分析', icon: 'User', breadcrumb: ['首页', '求职者分析'], transition: 'page-slide' },
+  },
+  {
     path: '/extract',
     name: 'extract',
     component: () => import('@/pages/ExtractJD.vue'),
     meta: { title: 'JD 抽取', icon: 'Document', breadcrumb: ['首页', 'JD 抽取'], transition: 'page-slide' },
   },
   {
+    path: '/loop',
+    name: 'loop-demo',
+    component: () => import('@/pages/LoopDemo.vue'),
+    meta: { title: '闭环演示', icon: 'Refresh', breadcrumb: ['首页', '闭环演示'], transition: 'page-slide' },
+  },
+  {
     path: '/admin',
     name: 'admin',
     component: () => import('@/pages/Admin.vue'),
     meta: { title: '管理后台', icon: 'Setting', breadcrumb: ['首页', '管理后台'], transition: 'page-slide' },
+  },
+  {
+    path: '/dashboard',
+    name: 'data-dashboard',
+    component: () => import('@/pages/DataDashboard.vue'),
+    meta: { title: '数据大屏', icon: 'Odometer', breadcrumb: ['首页', '数据大屏'], transition: 'page-slide' },
+  },
+  {
+    path: '/learning',
+    name: 'learning',
+    component: () => import('@/pages/LearningCenter.vue'),
+    meta: { title: '学习中心', icon: 'Reading', breadcrumb: ['首页', '学习中心'], transition: 'page-slide' },
   },
 ]
 

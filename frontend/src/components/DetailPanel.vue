@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref, onMounted, onUnmounted } from "vue"
 import VChart from "vue-echarts"
 import { Aim } from "@element-plus/icons-vue"
 import { useGraphStore, type GraphNode } from "@/stores/graph"
@@ -15,6 +15,34 @@ const emit = defineEmits<{
 }>()
 
 const graphStore = useGraphStore()
+
+// ── 面板可调大小 ──
+const panelWidth = ref(300)
+const isResizing = ref(false)
+
+function onResizeStart(e: MouseEvent) {
+  isResizing.value = true
+  const startX = e.clientX
+  const startWidth = panelWidth.value
+
+  function onMouseMove(e: MouseEvent) {
+    const delta = startX - e.clientX
+    panelWidth.value = Math.max(200, Math.min(500, startWidth + delta))
+  }
+
+  function onMouseUp() {
+    isResizing.value = false
+    document.removeEventListener('mousemove', onMouseMove)
+    document.removeEventListener('mouseup', onMouseUp)
+  }
+
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+}
+
+onUnmounted(() => {
+  isResizing.value = false
+})
 
 const nodeType = computed(() => {
   if (!props.selectedNode) return ""
@@ -72,8 +100,13 @@ function navigateToDetail(node: GraphNode) {
 <template>
   <aside
     class="detail-panel hover-lift"
-    :class="{ open: !!selectedNode }"
+    :class="{ open: !!selectedNode, resizing: isResizing }"
+    :style="{ width: panelWidth + 'px' }"
   >
+    <div
+      class="dp-resize-handle"
+      @mousedown.prevent="onResizeStart"
+    />
     <template v-if="selectedNode">
       <div class="dp-header">
         <div
@@ -216,7 +249,7 @@ function navigateToDetail(node: GraphNode) {
 
 <style scoped>
 .detail-panel {
-  width: 300px;
+  position: relative;
   flex-shrink: 0;
   overflow-y: auto;
   background: var(--card);
@@ -227,8 +260,27 @@ function navigateToDetail(node: GraphNode) {
   box-shadow: var(--shadow-xs);
 }
 .detail-panel:not(.open) {
-  width: 160px;
+  width: 160px !important;
   padding: var(--space-4);
+}
+.detail-panel.resizing {
+  transition: none;
+  user-select: none;
+}
+.dp-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background var(--duration-fast);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.dp-resize-handle:hover {
+  background: var(--primary);
+  opacity: 0.3;
 }
 .dp-header {
   display: flex;

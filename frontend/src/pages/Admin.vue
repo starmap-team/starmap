@@ -1,132 +1,180 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
- * 管理后台 — R6 曾洋涛
- * 审核队列（搜索/批量）+ 数据源配置 + 重置数据
+ * 管理后台 — 增强版
+ * Tabs: 审核队列 | 图谱节点管理 | 数据源配置 | 演示数据管理
+ * 新增: 图谱节点 CRUD + ReviewQueuePanel 集成
  */
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Delete } from '@element-plus/icons-vue'
+import { Search, Delete, Plus, Edit } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ReviewQueuePanel from '@/components/ReviewQueuePanel.vue'
+import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
 import { useAdminStore } from '@/stores/admin'
+import request from '@/api/request'
 
 const admin = useAdminStore()
+
+// ── Tab 导航 ──
+const activeTab = ref('audit')
 
 onMounted(() => {
   admin.fetchSources()
   admin.fetchAuditQueue()
+  fetchGraphNodes()
 })
 
-// ── 搜索过滤 ──
-const searchKeyword = ref('')
-const typeFilter = ref('')
-const currentPage = ref(1)
-const pageSize = ref(10)
-const pagedAuditQueue = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  return filteredAuditQueue.value.slice(start, start + pageSize.value)
+// ════════════════════════════════════════════════
+// 图谱节点管理
+// ════════════════════════════════════════════════
+
+interface GraphNodeItem {
+  id: string
+  type: string
+  name: string
+  properties: Record<string, any>
+  status: 'pending' | 'approved' | 'rejected'
+  created_at?: string
+}
+
+const graphNodes = ref<GraphNodeItem[]>([])
+const graphNodesLoading = ref(false)
+const nodeSearchKeyword = ref('')
+const nodeTypeFilter = ref('')
+const nodeCurrentPage = ref(1)
+const nodePageSize = ref(10)
+
+const filteredGraphNodes = computed(() => {
+  let list = graphNodes.value
+  if (nodeSearchKeyword.value) {
+    const kw = nodeSearchKeyword.value.toLowerCase()
+    list = list.filter(n => n.name.toLowerCase().includes(kw))
+  }
+  if (nodeTypeFilter.value) {
+    list = list.filter(n => n.type === nodeTypeFilter.value)
+  }
+  return list
 })
 
-// ── 数据源编辑 ──
+const pagedGraphNodes = computed(() => {
+  const start = (nodeCurrentPage.value - 1) * nodePageSize.value
+  return filteredGraphNodes.value.slice(start, start + nodePageSize.value)
+})
+
+async function fetchGraphNodes() {
+  graphNodesLoading.value = true
+  try {
+    const data = await request.get('/admin/graph/nodes') as any
+    graphNodes.value = data.items ?? []
+  } catch {
+    graphNodes.value = []
+  } finally {
+    graphNodesLoading.value = false
+  }
+}
+
+// Node editor
+const editorVisible = ref(false)
+const editingNode = ref<{ id?: string; type: string; name: string; properties: Record<string, any> } | null>(null)
+
+function handleCreateNode() {
+  editingNode.value = null
+  editorVisible.value = true
+}
+
+function handleEditNode(node: GraphNodeItem) {
+  editingNode.value = {
+    id: node.id,
+    type: node.type,
+    name: node.name,
+    properties: { ...node.properties },
+  }
+  editorVisible.value = true
+}
+
+async function handleNodeSubmit(data: any) {
+  try {
+    if (data.id) {
+      // Update
+      await request.put(`/admin/graph/nodes/${data.id}`, data)
+      ElMessage.success('节点已更新')
+    } else {
+      // Create
+      await request.post('/admin/graph/nodes', data)
+      ElMessage.success('节点已提交审核')
+    }
+    fetchGraphNodes()
+  } catch (e: any) {
+    ElMessage.error(e?.message ?? '操作失败')
+  }
+}
+
+async function handleDeleteNode(node: GraphNodeItem) {
+  try {
+    await ElMessageBox.confirm(`确认删除节点「${node.name}」？`, '删除确认', {
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await request.delete(`/admin/graph/nodes/${node.id}`)
+    ElMessage.success('节点已删除')
+    fetchGraphNodes()
+  } catch { /* 取消或失败 */ }
+}
+
+async function handleApproveNode(node: GraphNodeItem) {
+  try {
+    await request.post(`/admin/graph/nodes/${node.id}/approve`)
+    ElMessage.success('节点已审核通过')
+    fetchGraphNodes()
+  } catch (e: any) {
+    ElMessage.error(e?.message ?? '审核失败')
+  }
+}
+
+async function handleRejectNode(node: GraphNodeItem) {
+  try {
+    await request.post(`/admin/graph/nodes/${node.id}/reject`)
+    ElMessage.warning('节点已拒绝')
+    fetchGraphNodes()
+  } catch (e: any) {
+    ElMessage.error(e?.message ?? '拒绝失败')
+  }
+}
+
+function nodeTypeLabel(type: string): string {
+  const map: Record<string, string> = { Skill: '技能', Position: '岗位', Domain: '领域', Tool: '工具', Certificate: '证书' }
+  return map[type] ?? type
+}
+
+function nodeStatusType(status: string): string {
+  const map: Record<string, string> = { approved: 'success', rejected: 'danger', pending: 'warning' }
+  return map[status] ?? 'info'
+}
+
+function nodeStatusLabel(status: string): string {
+  const map: Record<string, string> = { approved: '已通过', rejected: '已拒绝', pending: '待审核' }
+  return map[status] ?? status
+}
+
+// ════════════════════════════════════════════════
+// 数据源编辑（原有逻辑保留）
+// ════════════════════════════════════════════════
+
 const editDialogVisible = ref(false)
 const editingSource = ref<{ id: number; name: string; authority_score: number } | null>(null)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function handleEditSource(row: any) {
   editingSource.value = { id: row.id, name: row.name, authority_score: row.authority_score }
   editDialogVisible.value = true
 }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function handleSaveSource() {
   if (!editingSource.value) return
-  // Find and update in local state
   const idx = admin.sources.findIndex(s => s.id === editingSource.value!.id)
   if (idx !== -1) {
     admin.sources[idx] = { ...admin.sources[idx], name: editingSource.value.name, authority_score: editingSource.value.authority_score }
   }
   editDialogVisible.value = false
   ElMessage.success('数据源已更新')
-}
-
-const filteredAuditQueue = computed(() => {
-  let list = admin.auditQueue
-  if (searchKeyword.value) {
-    const kw = searchKeyword.value.toLowerCase()
-    list = list.filter(i => i.name.toLowerCase().includes(kw))
-  }
-  if (typeFilter.value) {
-    list = list.filter(i => i.type === typeFilter.value)
-  }
-  return list
-})
-
-// ── 批量选择 ──
-const selectedIds = ref<Set<number>>(new Set())
-const isAllSelected = computed(() =>
-  filteredAuditQueue.value.length > 0 &&
-  filteredAuditQueue.value.every(i => selectedIds.value.has(i.id))
-)
-
-function toggleSelectAll() {
-  if (isAllSelected.value) {
-    selectedIds.value = new Set()
-  } else {
-    selectedIds.value = new Set(filteredAuditQueue.value.map(i => i.id))
-  }
-}
-
-function toggleSelect(id: number) {
-  const next = new Set(selectedIds.value)
-  if (next.has(id)) next.delete(id)
-  else next.add(id)
-  selectedIds.value = next
-}
-
-// ── 审核操作 ──
-async function handleApprove(id: number) {
-  await admin.approveAudit(id)
-  selectedIds.value.delete(id)
-  ElMessage.success('已批准')
-}
-
-async function handleReject(id: number) {
-  await admin.rejectAudit(id)
-  selectedIds.value.delete(id)
-  ElMessage.warning('已拒绝')
-}
-
-async function handleBatchApprove() {
-  if (!selectedIds.value.size) {
-    ElMessage.warning('请先选择审核项')
-    return
-  }
-  try {
-    await ElMessageBox.confirm(`确认批量批准 ${selectedIds.value.size} 条？`, '批量操作', {
-      confirmButtonText: '确认批准',
-      type: 'warning',
-    })
-    for (const id of selectedIds.value) {
-      await admin.approveAudit(id)
-    }
-    selectedIds.value = new Set()
-    ElMessage.success('批量批准完成')
-  } catch { /* 取消 */ }
-}
-
-async function handleBatchReject() {
-  if (!selectedIds.value.size) {
-    ElMessage.warning('请先选择审核项')
-    return
-  }
-  try {
-    await ElMessageBox.confirm(`确认批量拒绝 ${selectedIds.value.size} 条？`, '批量操作', {
-      confirmButtonText: '确认拒绝',
-      type: 'warning',
-    })
-    for (const id of selectedIds.value) {
-      await admin.rejectAudit(id)
-    }
-    selectedIds.value = new Set()
-    ElMessage.warning('批量拒绝完成')
-  } catch { /* 取消 */ }
 }
 
 // ── 重置数据 ──
@@ -141,6 +189,7 @@ async function handleReset() {
     ElMessage.success('数据已重置')
     admin.fetchSources()
     admin.fetchAuditQueue()
+    fetchGraphNodes()
   } catch { /* 取消 */ }
 }
 </script>
@@ -152,143 +201,117 @@ async function handleReset() {
         <div>
           <h2>管理后台</h2>
           <p class="page-desc">
-            人工审核、数据源配置与演示数据管理
+            人工审核、图谱节点管理、数据源配置与演示数据管理
           </p>
         </div>
       </div>
 
-      <!-- 操作栏 -->
-      <el-card
-        shadow="never"
-        class="action-bar"
+      <!-- Tab 导航 -->
+      <el-tabs
+        v-model="activeTab"
+        class="admin-tabs"
       >
-        <div class="action-bar-inner">
-          <div class="action-left">
-            <el-input
-              v-model="searchKeyword"
-              placeholder="搜索技能或岗位名..."
-              :prefix-icon="Search"
-              clearable
-              class="input-search"
-              size="default"
-            />
-            <el-select
-              v-model="typeFilter"
-              placeholder="按类型过滤"
-              clearable
-              class="select-filter"
-              size="default"
-            >
-              <el-option
-                label="全部"
-                value=""
-              />
-              <el-option
-                label="技能"
-                value="skill"
-              />
-              <el-option
-                label="岗位"
-                value="position"
-              />
-            </el-select>
-            <el-button
-              type="danger"
-              plain
-              size="default"
-              :icon="Delete"
-              @click="handleReset"
-            >
-              重置数据
-            </el-button>
-          </div>
-          <div class="action-right">
-            <span
-              v-if="selectedIds.size"
-              class="selected-count"
-            >
-              已选 {{ selectedIds.size }} 条
-            </span>
-            <el-button
-              size="default"
-              type="success"
-              :disabled="!selectedIds.size"
-              @click="handleBatchApprove"
-            >
-              批量通过
-            </el-button>
-            <el-button
-              size="default"
-              type="danger"
-              :disabled="!selectedIds.size"
-              @click="handleBatchReject"
-            >
-              批量拒绝
-            </el-button>
-          </div>
-        </div>
-      </el-card>
-
-      <!-- 审核 + 数据源 -->
-      <el-row
-        :gutter="16"
-        class="mt-4"
-      >
-        <!-- 审核队列 -->
-        <el-col
-          :lg="14"
-          :sm="24"
-          class="mb-4"
+        <!-- ════════ Tab 1: 审核队列 ════════ -->
+        <el-tab-pane
+          label="审核队列"
+          name="audit"
         >
           <el-card
             shadow="never"
-            header="人工审核队列"
+            class="tab-card"
           >
+            <ReviewQueuePanel />
+          </el-card>
+        </el-tab-pane>
+
+        <!-- ════════ Tab 2: 图谱节点管理 ════════ -->
+        <el-tab-pane
+          label="图谱节点管理"
+          name="nodes"
+        >
+          <el-card
+            shadow="never"
+            class="tab-card"
+          >
+            <template #header>
+              <div class="tab-card-header">
+                <span class="section-label">图谱节点 CRUD</span>
+                <el-button
+                  type="primary"
+                  size="small"
+                  :icon="Plus"
+                  @click="handleCreateNode"
+                >
+                  新建节点
+                </el-button>
+              </div>
+            </template>
+
+            <!-- 搜索 + 过滤 -->
+            <div class="node-toolbar">
+              <el-input
+                v-model="nodeSearchKeyword"
+                placeholder="搜索节点名称..."
+                :prefix-icon="Search"
+                clearable
+                class="node-search-input"
+                size="default"
+              />
+              <el-select
+                v-model="nodeTypeFilter"
+                placeholder="按类型过滤"
+                clearable
+                class="node-type-filter"
+                size="default"
+              >
+                <el-option
+                  label="全部"
+                  value=""
+                />
+                <el-option
+                  label="技能"
+                  value="Skill"
+                />
+                <el-option
+                  label="岗位"
+                  value="Position"
+                />
+                <el-option
+                  label="领域"
+                  value="Domain"
+                />
+              </el-select>
+            </div>
+
+            <!-- 节点表格 -->
             <el-table
-              ref="tableRef"
-              v-loading="admin.loading"
-              :data="pagedAuditQueue"
+              v-loading="graphNodesLoading"
+              :data="pagedGraphNodes"
               stripe
               size="default"
-              @selection-change="() => {}"
             >
-              <el-table-column
-                width="50"
-                align="center"
-              >
-                <template #header>
-                  <el-checkbox
-                    :model-value="isAllSelected"
-                    :indeterminate="selectedIds.size > 0 && !isAllSelected"
-                    @change="toggleSelectAll"
-                  />
-                </template>
-                <template #default="{ row }">
-                  <el-checkbox
-                    :model-value="selectedIds.has(row.id)"
-                    @change="toggleSelect(row.id)"
-                  />
-                </template>
-              </el-table-column>
               <el-table-column
                 prop="id"
                 label="ID"
-                width="60"
+                width="120"
                 align="center"
-              />
+              >
+                <template #default="{ row }">
+                  <span class="node-id">{{ row.id }}</span>
+                </template>
+              </el-table-column>
               <el-table-column
-                prop="type"
                 label="类型"
                 width="85"
                 align="center"
               >
                 <template #default="{ row }">
                   <el-tag
-                    :type="row.type === 'skill' ? 'success' : 'info'"
+                    :type="row.type === 'Skill' ? 'success' : row.type === 'Position' ? 'info' : 'warning'"
                     size="small"
                     effect="dark"
                   >
-                    {{ row.type === 'skill' ? '技能' : '岗位' }}
+                    {{ nodeTypeLabel(row.type) }}
                   </el-tag>
                 </template>
               </el-table-column>
@@ -299,80 +322,123 @@ async function handleReset() {
                 sortable
               />
               <el-table-column
-                label="信任度"
-                width="130"
+                label="状态"
+                width="90"
                 align="center"
               >
                 <template #default="{ row }">
-                  <div style="display: flex; align-items: center; gap: 8px">
-                    <el-progress
-                      :percentage="row.trust"
-                      :stroke-width="6"
-                      :color="row.trust >= 70 ? '#67c23a' : row.trust >= 50 ? '#e6a23c' : '#f56c6c'"
-                      class="flex-1"
-                    />
-                    <span class="trust-pct">{{ row.trust }}%</span>
-                  </div>
+                  <el-tag
+                    :type="nodeStatusType(row.status)"
+                    size="small"
+                    effect="plain"
+                  >
+                    {{ nodeStatusLabel(row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="属性"
+                min-width="160"
+              >
+                <template #default="{ row }">
+                  <span class="node-props">
+                    <template v-if="row.properties?.category">
+                      {{ row.properties.category }}
+                    </template>
+                    <template v-if="row.properties?.proficiency">
+                      · {{ row.properties.proficiency }}
+                    </template>
+                    <template v-if="row.properties?.level">
+                      · {{ row.properties.level }}
+                    </template>
+                    <template v-if="!row.properties?.category && !row.properties?.proficiency && !row.properties?.level">
+                      —
+                    </template>
+                  </span>
                 </template>
               </el-table-column>
               <el-table-column
                 label="操作"
-                width="160"
+                width="240"
                 align="center"
                 fixed="right"
               >
                 <template #default="{ row }">
                   <el-button
                     size="small"
+                    :icon="Edit"
+                    plain
+                    @click="handleEditNode(row)"
+                  >
+                    编辑
+                  </el-button>
+                  <el-button
+                    v-if="row.status === 'pending'"
+                    size="small"
                     type="success"
                     plain
-                    @click="handleApprove(row.id)"
+                    @click="handleApproveNode(row)"
                   >
                     通过
+                  </el-button>
+                  <el-button
+                    v-if="row.status === 'pending'"
+                    size="small"
+                    type="warning"
+                    plain
+                    @click="handleRejectNode(row)"
+                  >
+                    拒绝
                   </el-button>
                   <el-button
                     size="small"
                     type="danger"
                     plain
-                    @click="handleReject(row.id)"
+                    @click="handleDeleteNode(row)"
                   >
-                    拒绝
+                    删除
                   </el-button>
                 </template>
               </el-table-column>
             </el-table>
+
+            <!-- 空状态 -->
             <div
-              v-if="!filteredAuditQueue.length"
+              v-if="!filteredGraphNodes.length && !graphNodesLoading"
               class="empty-state"
             >
-              当前筛选条件下无审核项
+              无图谱节点数据
             </div>
+
+            <!-- 分页 -->
             <div
-              v-if="filteredAuditQueue.length"
-              style="margin-top: 16px; display: flex; justify-content: center;"
+              v-if="filteredGraphNodes.length"
+              class="node-pagination"
             >
               <el-pagination
-                v-model:current-page="currentPage"
-                v-model:page-size="pageSize"
-                :total="filteredAuditQueue.length"
+                v-model:current-page="nodeCurrentPage"
+                v-model:page-size="nodePageSize"
+                :total="filteredGraphNodes.length"
                 :page-sizes="[10, 20, 50]"
                 layout="total, sizes, prev, pager, next"
                 small
               />
             </div>
           </el-card>
-        </el-col>
+        </el-tab-pane>
 
-        <!-- 数据源配置 -->
-        <el-col
-          :lg="10"
-          :sm="24"
-          class="mb-4"
+        <!-- ════════ Tab 3: 数据源配置 ════════ -->
+        <el-tab-pane
+          label="数据源配置"
+          name="sources"
         >
           <el-card
             shadow="never"
-            header="数据源配置"
+            class="tab-card"
           >
+            <template #header>
+              <span class="section-label">数据源配置</span>
+            </template>
             <el-table
               :data="admin.sources"
               stripe
@@ -412,19 +478,66 @@ async function handleReset() {
                   />
                 </template>
               </el-table-column>
+              <el-table-column
+                label="操作"
+                width="100"
+                align="center"
+              >
+                <template #default="{ row }">
+                  <el-button
+                    size="small"
+                    plain
+                    @click="handleEditSource(row)"
+                  >
+                    编辑
+                  </el-button>
+                </template>
+              </el-table-column>
             </el-table>
-          </el-card>
-        </el-col>
 
-        <!-- 数据源配置 -->
-        <el-col
-          :lg="10"
-          :sm="24"
-          class="mb-4"
+            <!-- 编辑对话框 -->
+            <el-dialog
+              v-model="editDialogVisible"
+              title="编辑数据源"
+              width="400px"
+            >
+              <el-form
+                v-if="editingSource"
+                label-width="80px"
+              >
+                <el-form-item label="名称">
+                  <el-input v-model="editingSource.name" />
+                </el-form-item>
+                <el-form-item label="权威分">
+                  <el-slider
+                    v-model="editingSource.authority_score"
+                    :min="0"
+                    :max="100"
+                    :step="1"
+                  />
+                </el-form-item>
+              </el-form>
+              <template #footer>
+                <el-button @click="editDialogVisible = false">取消</el-button>
+                <el-button
+                  type="primary"
+                  @click="handleSaveSource"
+                >
+                  保存
+                </el-button>
+              </template>
+            </el-dialog>
+          </el-card>
+        </el-tab-pane>
+
+        <!-- ════════ Tab 4: 演示数据管理 ════════ -->
+        <el-tab-pane
+          label="演示数据管理"
+          name="demo"
         >
           <el-card
             shadow="never"
-            class="mt-4"
+            class="tab-card"
           >
             <template #header>
               <span class="section-label">演示数据管理</span>
@@ -441,8 +554,15 @@ async function handleReset() {
               重置为演示数据
             </el-button>
           </el-card>
-        </el-col>
-      </el-row>
+        </el-tab-pane>
+      </el-tabs>
+
+      <!-- Graph Node Editor Dialog -->
+      <GraphNodeEditor
+        v-model:visible="editorVisible"
+        :edit-data="editingNode"
+        @submit="handleNodeSubmit"
+      />
     </div>
   </MainLayout>
 </template>
@@ -470,58 +590,73 @@ async function handleReset() {
   margin: 0;
 }
 
-/* ── 操作栏 ── */
-.action-bar-inner {
+/* ── Tabs ── */
+.admin-tabs {
+  margin-top: var(--space-2);
+}
+
+.tab-card {
+  border-radius: var(--radius-xl);
+}
+
+.tab-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
 }
 
-.action-left {
+.section-label {
+  font-weight: 600;
+  font-size: var(--font-size-base);
+}
+
+/* ── Node management toolbar ── */
+.node-toolbar {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-bottom: var(--space-4);
   flex-wrap: wrap;
 }
 
-.action-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.node-search-input {
+  width: 240px;
 }
 
-.selected-count {
+.node-type-filter {
+  width: 130px;
+}
+
+.node-id {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+}
+
+.node-props {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+}
+
+.node-pagination {
+  margin-top: var(--space-4);
+  display: flex;
+  justify-content: center;
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-6);
+  color: var(--muted-foreground);
+}
+
+.demo-desc {
+  color: var(--muted-foreground);
   font-size: var(--font-size-sm);
-  color: var(--primary);
-  font-weight: 500;
+  line-height: 1.8;
+  margin: 0;
 }
-
-@media (max-width: 768px) {
-  .action-bar-inner {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .action-left,
-  .action-right {
-    flex-wrap: wrap;
-  }
-}
-
-/* Inline style replacements */
-.trust-pct { font-size: var(--font-size-xs); color: var(--muted-foreground); width: 32px; }
-.empty-state { text-align: center; padding: var(--space-6); color: var(--muted-foreground); }
-.demo-desc { color: var(--muted-foreground); font-size: var(--font-size-sm); line-height: 1.8; margin: 0; }
-.section-label { font-weight: 600; }
 
 /* Layout utilities */
-.input-search { width: 240px; }
-.select-filter { width: 130px; }
-.mt-4 { margin-top: var(--space-4); }
 .mt-3 { margin-top: var(--space-3); }
-.mb-4 { margin-bottom: var(--space-4); }
-.flex-1 { flex: 1; }
-.fw-600 { font-weight: 600; }
 </style>

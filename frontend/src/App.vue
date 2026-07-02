@@ -1,11 +1,38 @@
 <script setup lang="ts">
 // StarMap root component
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import '@/styles/animations.css'
+
+const router = useRouter()
+
+// Track navigation direction for slide transitions
+const routeOrder = ref<string[]>([])
+const transitionName = ref('page-fade')
+
+router.beforeEach((to, from) => {
+  const toPath = to.path
+  const fromPath = from.path
+
+  // Determine direction based on route depth or custom ordering
+  const navRoutes = router.getRoutes().map(r => r.path)
+  const toIdx = navRoutes.indexOf(toPath)
+  const fromIdx = navRoutes.indexOf(fromPath)
+
+  if (toIdx > fromIdx) {
+    transitionName.value = 'page-slide-left'
+  } else if (toIdx < fromIdx) {
+    transitionName.value = 'page-slide-right'
+  } else {
+    transitionName.value = (to.meta?.transition as string) || 'page-fade'
+  }
+})
 </script>
 
 <template>
   <router-view v-slot="{ Component, route }">
     <transition
-      :name="(route.meta?.transition as string) || 'page-fade'"
+      :name="transitionName"
       mode="out-in"
     >
       <component
@@ -66,7 +93,7 @@
   --chart-5: #059669;
 
   /* ── Typography ── */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-sans: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
   --font-size-xs: 0.6875rem;
   --font-size-sm: 0.8125rem;
@@ -185,7 +212,8 @@ html.dark {
 }
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
-body { font-family: var(--font-sans); font-size: var(--font-size-base); color: var(--foreground); background: var(--background); line-height: 1.6; letter-spacing: -0.01em; }
+* { font-family: var(--font-sans) !important; }
+body { font-family: var(--font-sans) !important; font-size: var(--font-size-base); color: var(--foreground); background: var(--background); line-height: 1.6; letter-spacing: -0.01em; }
 .page-fade-enter-active, .page-fade-leave-active { transition: opacity var(--duration-slow) var(--ease-out); }
 .page-fade-enter-from, .page-fade-leave-to { opacity: 0; }
 .page-slide-enter-active, .page-slide-leave-active {
@@ -193,6 +221,18 @@ body { font-family: var(--font-sans); font-size: var(--font-size-base); color: v
 }
 .page-slide-enter-from { opacity: 0; transform: translateY(12px); }
 .page-slide-leave-to { opacity: 0; transform: translateY(-8px); }
+/* Slide Left — forward navigation */
+.page-slide-left-enter-active, .page-slide-left-leave-active {
+  transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out);
+}
+.page-slide-left-enter-from { opacity: 0; transform: translateX(30px); }
+.page-slide-left-leave-to { opacity: 0; transform: translateX(-30px); }
+/* Slide Right — backward navigation */
+.page-slide-right-enter-active, .page-slide-right-leave-active {
+  transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out);
+}
+.page-slide-right-enter-from { opacity: 0; transform: translateX(-30px); }
+.page-slide-right-leave-to { opacity: 0; transform: translateX(30px); }
 a { color: var(--primary); text-decoration: none; transition: color var(--duration-fast); }
 a:hover { color: var(--primary-hover); }
 ::-webkit-scrollbar { width: 5px; height: 5px; }

@@ -91,12 +91,15 @@ const radarOption = computed(() => {
       {{ positionName }} — 技能雷达对比
     </div>
     <VChart
-      v-if="data.length"
+      v-if="data.length >= 3"
       :option="radarOption"
       style="height: 400px"
       autoresize
     />
-    <div class="custom-empty">
+    <div
+      v-else
+      class="custom-empty"
+    >
       <div class="empty-icon-wrapper">
         <svg
           width="48"

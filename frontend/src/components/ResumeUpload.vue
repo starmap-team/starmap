@@ -21,7 +21,6 @@ defineExpose({
 
 const file = ref<File | null>(null)
 const uploading = ref(false)
-const uploadProgress = ref(0)
 
 const fileName = computed(() => file.value?.name ?? '')
 const fileSize = computed(() => {
@@ -56,8 +55,11 @@ function handleFileChange(e: Event) {
 
 // 校验文件
 function validateAndSet(f: File) {
-  const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword']
-  if (!allowed.includes(f.type)) {
+  const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword']
+  const allowedExts = ['.pdf', '.docx', '.doc']
+  const fileName = f.name.toLowerCase()
+  const hasValidExt = allowedExts.some(ext => fileName.endsWith(ext))
+  if (!allowedTypes.includes(f.type) && !hasValidExt) {
     ElMessage.error('仅支持 PDF / Word 格式')
     return
   }
@@ -72,20 +74,17 @@ function validateAndSet(f: File) {
 async function startUpload() {
   if (!file.value) return
   uploading.value = true
-  uploadProgress.value = 50
 
   try {
     if (asyncUploadFn.value) {
-      // 使用父组件提供的异步上传函数
       await asyncUploadFn.value(file.value)
     } else {
-      // 回退到 emit 模式
       emit('upload', file.value)
     }
-    uploadProgress.value = 100
-    ElMessage.success('简历上传成功')
-  } catch {
-    ElMessage.error('上传失败，请重试')
+  } catch (e) {
+    if (!(e as any)?.response) {
+      ElMessage.error('上传失败，请检查文件或重试')
+    }
   } finally {
     uploading.value = false
   }
@@ -93,7 +92,6 @@ async function startUpload() {
 
 function handleRemove() {
   file.value = null
-  uploadProgress.value = 0
 }
 </script>
 
@@ -114,10 +112,14 @@ function handleRemove() {
           animated
         />
         <el-progress
-          :percentage="Math.round(uploadProgress)"
-          :status="uploadProgress === 100 ? 'success' : undefined"
+          :percentage="100"
+          :indeterminate="true"
+          :duration="3"
           class="progress-wrapper"
         />
+        <p class="upload-hint">
+          正在解析简历，请稍候...
+        </p>
       </template>
 
       <!-- 已选文件 -->
@@ -199,7 +201,6 @@ function handleRemove() {
   padding: var(--space-12) var(--space-6);
   text-align: center;
   transition: all var(--duration-normal) var(--ease-out);
-  cursor: pointer;
   position: relative;
   overflow: hidden;
 }
@@ -210,6 +211,7 @@ function handleRemove() {
   background: linear-gradient(135deg, var(--primary-subtle), transparent);
   opacity: 0;
   transition: opacity var(--duration-normal);
+  pointer-events: none;
 }
 .upload-zone:hover {
   border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
@@ -265,6 +267,8 @@ function handleRemove() {
 }
 .file-info {
   margin-bottom: var(--space-4);
+  position: relative;
+  z-index: 1;
 }
 .file-name {
   font-size: var(--font-size-lg);
@@ -282,6 +286,8 @@ function handleRemove() {
   display: flex;
   gap: var(--space-3);
   justify-content: center;
+  position: relative;
+  z-index: 1;
 }
 .progress-wrapper { margin-top: var(--space-3); }
 .upload-icon-wrapper { color: var(--muted-foreground); position: relative; }

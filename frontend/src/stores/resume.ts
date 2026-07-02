@@ -4,7 +4,7 @@ import request from '@/api/request'
 
 export interface ParsedSkill {
   skill: string
-  category: 'hard_skill' | 'soft_skill'
+  category: 'hard_skill' | 'soft_skill' | 'tool'
   proficiency: '了解' | '熟悉' | '精通'
 }
 
@@ -29,10 +29,13 @@ export const useResumeStore = defineStore('resume', () => {
     formData.append('file', file)
     try {
       const data = await request.post('/resume/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 120000, // LLM 抽取需要更长时间，120秒超时
+        timeout: 60000, // 60秒超时（LLM 抽取需要时间）
       })
       result.value = data as unknown as ResumeParseResult
+    } catch (e: any) {
+      console.error('[Resume] Parse failed:', e)
+      result.value = null
+      throw e // 向上传播错误，让调用方处理
     } finally {
       loading.value = false
     }

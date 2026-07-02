@@ -7,7 +7,7 @@
  * Step 3: 差距分析报告
  * Step 4: 学习路径规划
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   DataAnalysis, Guide, RefreshRight,
@@ -22,14 +22,24 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import ResumeUpload from '@/components/ResumeUpload.vue'
 import PositionSearch from '@/components/PositionSearch.vue'
 import SkillRadar from '@/components/SkillRadar.vue'
+import CompetitivenessChart from '@/components/CompetitivenessChart.vue'
+import SkillMatchAnimation from '@/components/SkillMatchAnimation.vue'
+import LoadingPulse from '@/components/LoadingPulse.vue'
+import type { SkillMatchItem } from '@/components/SkillMatchAnimation.vue'
 import { useUserStore } from '@/stores/user'
 import { useResumeStore } from '@/stores/resume'
 import { useMatchStore } from '@/stores/match'
+import { useLearningStore } from '@/stores/learning'
+import request from '@/api/request'
 import type { RadarItem } from '@/components/SkillRadar.vue'
 
 const userStore = useUserStore()
 const resumeStore = useResumeStore()
 const matchStore = useMatchStore()
+const learningStore = useLearningStore()
+
+// ── Page mode: single or batch ──
+const pageMode = ref('single')
 
 const resumeUploadRef = ref<InstanceType<typeof ResumeUpload> | null>(null)
 
@@ -40,6 +50,9 @@ const radarLoading = ref(false)
 
 const matchProgress = ref(0)
 const matchProgressTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const matchAnimating = ref(false)
+const matchAnimSkills = ref<SkillMatchItem[]>([])
+const matchAnimComplete = ref(false)
 
 const PROFICIENCY_MAP: Record<string, number> = { '精通': 0.9, '熟悉': 0.65, '了解': 0.35 }
 const stepTitles = ['上传简历', '选择目标岗位', '技能雷达对比', '差距分析报告', '学习路径规划']
@@ -47,16 +60,44 @@ const stepTitles = ['上传简历', '选择目标岗位', '技能雷达对比', 
 // ── Step 0: 上传简历 ──
 async function handleUpload(file: File) {
   await resumeStore.parseResume(file)
-  userStore.setResume(file.name, resumeStore.result?.required_skills.map(s => s.skill) ?? [])
+  if (!resumeStore.result) {
+    throw new Error('解析结果为空')
+  }
+  userStore.setResume(file.name, resumeStore.result.required_skills.map(s => s.skill) ?? [])
+  // 短暂停留让用户看到"解析完成"状态，再切换步骤
+  await new Promise(resolve => setTimeout(resolve, 600))
   ElMessage.success('简历解析完成，识别 ' + userStore.parsedSkills.length + ' 项技能')
   step.value = 1
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await nextTick()
+  setAsyncUploader()
+})
+
+// 当用户返回 Step 0（如点击"重新开始"）时重新挂载上传函数
+// 当进入 Step 3 时加载诊断历史
+watch(() => step.value, async (newStep) => {
+  if (newStep === 0) {
+    await nextTick()
+    setAsyncUploader()
+  }
+  if (newStep === 3) {
+    matchStore.fetchHistory()
+  }
+})
+
+function setAsyncUploader() {
   if (resumeUploadRef.value) {
     resumeUploadRef.value.setAsyncUploader(handleUpload)
   }
-})
+}
+
+// 备用：通过 emit 事件处理上传
+function handleUploadEvent(file: File) {
+  // 不 catch 错误，让 startUpload 处理
+  handleUpload(file)
+}
 
 // 手动输入技能
 const skillInput = ref('')
@@ -86,12 +127,8 @@ async function handlePositionSelect(pos: { position_id: string; name: string }) 
   targetPositionName.value = pos.name
   radarLoading.value = true
   try {
-    const skillRes = await fetch(`/api/v1/graph/position/${encodeURIComponent(pos.position_id)}/skills`)
-    if (!skillRes.ok) {
-      ElMessage.warning(`岗位技能请求失败 (${skillRes.status})`)
-      return
-    }
-    const skillJson = await skillRes.json()
+    // Use position name for Neo4j lookup (Neo4j identifies positions by name)
+    const skillJson = await request.get(`/graph/position/${encodeURIComponent(pos.name)}/skills`) as any
     const skills: any[] = skillJson?.skills ?? []
     if (skills.length === 0) {
       ElMessage.warning('未获取到岗位技能数据')
@@ -108,26 +145,62 @@ async function handlePositionSelect(pos: { position_id: string; name: string }) 
       radarData.value = radarData.value.map(item => ({ ...item, user: userSkills.get(item.skill) ?? 0 }))
     }
     step.value = 2
+  } catch (e: any) {
+    ElMessage.warning(`岗位技能请求失败: ${e?.message ?? '未知错误'}`)
   } finally {
     radarLoading.value = false
   }
 }
 
-// ── Step 2: 开始诊断（带进度动画） ──
+// ── Step 2: 开始诊断（带进度动画 + 技能匹配动画） ──
 async function handleStartDiagnosis() {
   matchProgress.value = 0
+  matchAnimating.value = true
+  matchAnimComplete.value = false
+  matchAnimSkills.value = []
+
   if (matchProgressTimer.value) clearInterval(matchProgressTimer.value)
   matchProgressTimer.value = setInterval(() => {
-    if (matchProgress.value < 90) matchProgress.value += Math.random() * 15
+    if (matchProgress.value < 85) matchProgress.value += Math.random() * 12
   }, 300)
 
   try {
     const skillNames = userStore.parsedSkills
-    await matchStore.runMatch(targetPositionName.value, skillNames)
+    // Build proficiency map from resume result if available
+    const profMap: Record<string, string> = {}
+    if (resumeStore.result?.required_skills) {
+      for (const s of resumeStore.result.required_skills) {
+        profMap[s.skill] = s.proficiency ?? '熟悉'
+      }
+    }
+    await matchStore.runMatch(targetPositionName.value, skillNames, profMap)
     matchProgress.value = 100
+
+    // Build animation skills from result
+    const result = matchStore.result
+    if (result) {
+      const matchedSet = new Set(result.matched_skills ?? [])
+      const gapSet = new Set((result.skill_gap_detail ?? []).map((g: any) => g.skill))
+      const allSkills = [
+        ...skillNames.map((s: string) => ({
+          name: s,
+          matched: matchedSet.has(s),
+          score: matchedSet.has(s) ? result.match_score ?? 0.85 : 0,
+        })),
+      ]
+      // Add gap skills not in user skills
+      for (const g of (result.skill_gap_detail ?? [])) {
+        if (!skillNames.includes(g.skill)) {
+          allSkills.push({ name: g.skill, matched: false, score: 0 })
+        }
+      }
+      matchAnimSkills.value = allSkills
+    }
+
     step.value = 3
   } catch (e: any) {
     ElMessage.error('诊断请求失败: ' + (e?.message ?? '未知错误'))
+    matchAnimating.value = false
   } finally {
     if (matchProgressTimer.value) {
       clearInterval(matchProgressTimer.value)
@@ -172,18 +245,64 @@ function resetAll() {
 
 function exportReport() {
   const report = {
-    position: targetPositionName.value,
-    score: matchScore.value,
-    matched: matchedSkills.value,
-    gaps: gapSkills.value,
-    learning: learningPaths.value,
-    assessment: matchResult.value?.overall_assessment ?? '',
+    match_id: matchResult.value?.match_id,
+    target_position: targetPositionName.value,
+    match_score: matchScore.value,
+    matched_skills: matchedSkills.value,
+    missing_required: matchResult.value?.missing_required ?? [],
+    missing_bonus: matchResult.value?.missing_bonus ?? [],
+    gap_skills: gapSkills.value,
+    skill_gap_detail: matchResult.value?.skill_gap_detail ?? [],
+    recommendations: matchResult.value?.recommendations ?? [],
+    learning_paths: learningPaths.value,
+    overall_assessment: matchResult.value?.overall_assessment ?? '',
+    estimated_learning_time: matchResult.value?.estimated_learning_time ?? '',
+    exported_at: new Date().toISOString(),
   }
   const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url; a.download = `match-report-${targetPositionName.value}.json`; a.click()
   URL.revokeObjectURL(url)
+}
+
+// ── 批量匹配 ──
+const batchPositions = ref('')
+const batchResumes = ref('')
+const batchCompetitivenessPosition = ref('')
+
+async function handleBatchMatch() {
+  const positions = batchPositions.value.split('\n').map(s => s.trim()).filter(Boolean)
+  const resumes = batchResumes.value.split('\n').map(s => s.trim()).filter(Boolean)
+  if (!positions.length || !resumes.length) {
+    ElMessage.warning('请输入至少一个简历技能组和一个目标岗位')
+    return
+  }
+  try {
+    await learningStore.runBatchMatch(
+      resumes.map((r, i) => ({
+        skills: r.split(',').map(s => s.trim()),
+        position: positions[i % positions.length],
+      }))
+    )
+    ElMessage.success(`批量匹配完成，共 ${learningStore.batchResults.length} 条结果`)
+  } catch {
+    // error handled by store
+  }
+}
+
+// ── 竞争力分析 ──
+async function handleCompetitiveness() {
+  const pos = batchCompetitivenessPosition.value.trim()
+  if (!pos) {
+    ElMessage.warning('请输入目标岗位名称')
+    return
+  }
+  try {
+    await learningStore.fetchCompetitiveness(pos)
+  } catch {
+    // error handled by store
+  }
 }
 </script>
 
@@ -200,6 +319,23 @@ function exportReport() {
         </p>
       </div>
 
+      <!-- Mode Tabs -->
+      <el-tabs
+        v-model="pageMode"
+        class="mode-tabs"
+      >
+        <el-tab-pane
+          label="单次匹配"
+          name="single"
+        />
+        <el-tab-pane
+          label="批量匹配"
+          name="batch"
+        />
+      </el-tabs>
+
+      <!-- Single Match (existing wizard) -->
+      <template v-if="pageMode === 'single'">
       <!-- Steps -->
       <el-steps
         :active="step"
@@ -235,7 +371,7 @@ function exportReport() {
                 <h3 class="is-title">
                   上传简历
                 </h3>
-                <ResumeUpload ref="resumeUploadRef" />
+                <ResumeUpload ref="resumeUploadRef" @upload="handleUploadEvent" />
               </div>
             </el-col>
             <el-col :span="12">
@@ -346,6 +482,23 @@ function exportReport() {
               开始诊断
             </el-button>
           </div>
+
+          <!-- Match Animation Overlay -->
+          <div
+            v-if="matchAnimating && matchAnimSkills.length > 0"
+            class="match-anim-section"
+          >
+            <h3 class="match-anim-title">
+              <LoadingPulse size="small" />
+              技能匹配中...
+            </h3>
+            <SkillMatchAnimation
+              :skills="matchAnimSkills"
+              :auto-play="true"
+              :interval="350"
+              @complete="matchAnimComplete = true"
+            />
+          </div>
         </div>
       </div>
 
@@ -375,8 +528,8 @@ function exportReport() {
           </div>
 
           <div v-if="matchStore.result">
-            <!-- Summary -->
-            <div class="report-summary">
+            <!-- Summary — with reveal animation -->
+            <div class="report-summary anim-scale-in">
               <div class="rs-score">
                 <span class="rs-value">{{ Math.round((matchStore.result.match_score ?? 0) * 100) }}</span>
                 <span class="rs-unit">%</span>
@@ -384,12 +537,13 @@ function exportReport() {
               <div class="rs-detail">
                 <div class="rs-row">
                   <span class="rs-label">匹配技能</span>
-                  <div class="rs-tags">
+                  <div class="rs-tags stagger">
                     <el-tag
                       v-for="s in matchedSkills"
                       :key="s"
                       type="success"
                       size="small"
+                      class="anim-fade-in-up"
                     >
                       {{ s }}
                     </el-tag>
@@ -487,6 +641,69 @@ function exportReport() {
         </div>
       </div>
 
+      <!-- 历史记录面板（在 Step 3 下方） -->
+      <div
+        v-if="step === 3 && matchStore.historyList.length > 0"
+        class="step-content"
+      >
+        <div class="step-card">
+          <div class="sc-header">
+            <h2 class="sc-title">
+              诊断历史
+            </h2>
+            <p class="sc-desc">
+              最近的匹配诊断记录
+            </p>
+          </div>
+          <el-table
+            :data="matchStore.historyList"
+            stripe
+            size="small"
+            class="full-width-table"
+          >
+            <el-table-column
+              prop="target_position"
+              label="目标岗位"
+              min-width="140"
+            />
+            <el-table-column
+              label="匹配分数"
+              width="100"
+            >
+              <template #default="{ row }">
+                <span :class="row.match_score >= 0.7 ? 'score-high' : row.match_score >= 0.4 ? 'score-mid' : 'score-low'">
+                  {{ Math.round(row.match_score * 100) }}%
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="匹配技能"
+              min-width="200"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  v-for="s in row.matched_skills?.slice(0, 5)"
+                  :key="s"
+                  size="small"
+                  type="success"
+                  class="mr-1"
+                >
+                  {{ s }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="时间"
+              width="160"
+            >
+              <template #default="{ row }">
+                {{ row.created_at ? new Date(row.created_at).toLocaleString() : '—' }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </div>
+
       <!-- Step 4: Learning path -->
       <div
         v-if="step === 4"
@@ -563,6 +780,173 @@ function exportReport() {
           </div>
         </div>
       </div>
+      </template>
+
+      <!-- Batch Match -->
+      <template v-if="pageMode === 'batch'">
+        <div class="step-content">
+          <div class="step-card">
+            <div class="sc-header">
+              <h2 class="sc-title">
+                批量匹配
+              </h2>
+              <p class="sc-desc">
+                多简历 vs 多岗位，批量评估匹配度
+              </p>
+            </div>
+
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <div class="batch-input-group">
+                  <h3 class="is-title">
+                    简历技能（每行一个，逗号分隔技能）
+                  </h3>
+                  <el-input
+                    v-model="batchResumes"
+                    type="textarea"
+                    :rows="5"
+                    placeholder="JavaScript, TypeScript, Vue 3&#10;Python, Django, PostgreSQL&#10;Java, Spring Boot, MySQL"
+                  />
+                </div>
+              </el-col>
+              <el-col :span="12">
+                <div class="batch-input-group">
+                  <h3 class="is-title">
+                    目标岗位（每行一个，与简历一一对应）
+                  </h3>
+                  <el-input
+                    v-model="batchPositions"
+                    type="textarea"
+                    :rows="5"
+                    placeholder="前端工程师&#10;后端工程师&#10;全栈工程师"
+                  />
+                </div>
+              </el-col>
+            </el-row>
+
+            <div class="step-actions">
+              <el-button
+                type="primary"
+                size="large"
+                :icon="DataAnalysis"
+                :loading="learningStore.batchLoading"
+                @click="handleBatchMatch"
+              >
+                开始批量匹配
+              </el-button>
+            </div>
+
+            <!-- Batch Results -->
+            <div
+              v-if="learningStore.batchResults.length"
+              class="batch-results"
+            >
+              <h3 class="table-title">
+                批量匹配结果
+              </h3>
+              <el-table
+                :data="learningStore.batchResults"
+                stripe
+                class="full-width-table"
+              >
+                <el-table-column
+                  prop="resume_name"
+                  label="简历"
+                  min-width="120"
+                />
+                <el-table-column
+                  prop="position_name"
+                  label="目标岗位"
+                  min-width="140"
+                />
+                <el-table-column
+                  label="匹配分数"
+                  width="120"
+                >
+                  <template #default="{ row }">
+                    <span :class="row.match_score >= 0.7 ? 'score-high' : row.match_score >= 0.4 ? 'score-mid' : 'score-low'">
+                      {{ Math.round(row.match_score * 100) }}%
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  label="匹配技能"
+                  min-width="200"
+                >
+                  <template #default="{ row }">
+                    <el-tag
+                      v-for="s in row.matched_skills?.slice(0, 4)"
+                      :key="s"
+                      size="small"
+                      type="success"
+                      class="mr-1"
+                    >
+                      {{ s }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  label="缺失技能"
+                  min-width="200"
+                >
+                  <template #default="{ row }">
+                    <el-tag
+                      v-for="s in row.gap_skills?.slice(0, 4)"
+                      :key="s"
+                      size="small"
+                      type="danger"
+                      class="mr-1"
+                    >
+                      {{ s }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 竞争力分析 -->
+        <div class="step-content">
+          <div class="step-card">
+            <div class="sc-header">
+              <h2 class="sc-title">
+                竞争力分析
+              </h2>
+              <p class="sc-desc">
+                查看你的技能在市场中的竞争力水平
+              </p>
+            </div>
+
+            <div class="competitiveness-input">
+              <el-input
+                v-model="batchCompetitivenessPosition"
+                placeholder="输入目标岗位名称，如：前端工程师"
+                size="large"
+                clearable
+                @keyup.enter="handleCompetitiveness"
+              >
+                <template #append>
+                  <el-button
+                    :icon="DataAnalysis"
+                    :loading="learningStore.competitivenessLoading"
+                    @click="handleCompetitiveness"
+                  >
+                    分析
+                  </el-button>
+                </template>
+              </el-input>
+            </div>
+
+            <div
+              v-if="learningStore.competitiveness.length"
+              class="competitiveness-result"
+            >
+              <CompetitivenessChart :data="learningStore.competitiveness" />
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
   </MainLayout>
 </template>
@@ -753,4 +1137,58 @@ function exportReport() {
 }
 .skill-confirm-action { margin-top: var(--space-4); }
 .full-width-table { width: 100%; }
+.mr-1 { margin-right: var(--space-1); }
+.score-high { color: var(--success); font-weight: 700; }
+.score-mid { color: var(--warning); font-weight: 700; }
+.score-low { color: var(--danger); font-weight: 700; }
+
+/* ── Mode Tabs ── */
+.mode-tabs {
+  margin-bottom: var(--space-5);
+}
+.mode-tabs :deep(.el-tabs__header) {
+  margin-bottom: 0;
+}
+
+/* ── Batch Match ── */
+.batch-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.batch-results {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+/* ── Competitiveness ── */
+.competitiveness-input {
+  max-width: 500px;
+  margin-bottom: var(--space-6);
+}
+.competitiveness-result {
+  margin-top: var(--space-4);
+}
+
+/* ── Match Animation Section ── */
+.match-anim-section {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  animation: fadeInUp 0.4s var(--ease-out);
+}
+.match-anim-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 768px) {
+  .match-page { max-width: 100%; }
+}
 </style>
