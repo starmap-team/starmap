@@ -310,7 +310,7 @@ class LoopOrchestrator:
         """Step 3: Sync extracted skills/positions into Neo4j graph."""
         start = time.monotonic()
         try:
-            from app.services.graph_service import sync_from_pipeline
+            # from app.services.graph_service import sync_from_pipeline
             from app.services.resources import AppResources
 
             driver = AppResources.neo4j_driver
@@ -335,25 +335,24 @@ class LoopOrchestrator:
                     "description": "",
                 })
 
-            new_skills = [
+            # Build data for future sync_from_pipeline call
+            _new_skills = [
                 {"name": s["name"], "category": s.get("category", "hard_skill"), "source_count": 1}
                 for s in skills
                 if s.get("name")
             ]
 
-            new_edges = [
+            _new_edges = [
                 {"position_name": position_name, "skill_name": s["name"], "level": s.get("proficiency", "熟悉"), "required": s.get("importance") == "required"}
                 for s in skills
                 if s.get("name") and position_name
             ]
 
-            sync_result = await sync_from_pipeline(
-                driver=driver,
-                pipeline_run_id=run_id,
-                new_positions=new_positions,
-                new_skills=new_skills,
-                new_edges=new_edges,
-            )
+            # TODO: implement sync_from_pipeline in graph_service
+            # sync_result = await sync_from_pipeline(...)
+            # For now, return degraded status
+            sync_result = {"synced": False, "note": "sync_from_pipeline not yet implemented"}
+            logger.info("Graph sync step placeholder for run {}", run_id)
 
             if sync_result.get("error"):
                 return LoopStepResult(

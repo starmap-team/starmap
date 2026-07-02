@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.config import settings
 
 
-@dataclass(slots=True)
+@dataclass
 class AppResources:
     """应用运行时资源句柄。"""
 

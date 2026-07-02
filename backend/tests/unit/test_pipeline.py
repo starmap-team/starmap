@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -13,6 +14,13 @@ from app.pipeline.contracts import (
     PositionProfile,
 )
 from app.pipeline.engine import PipelineEngine, _build_result, _sse_event
+from app.pipeline.steps import (
+    LearningPathStep,
+    MatchStep,
+    RecommendStep,
+    ResumeParseStep,
+    SkillExtractStep,
+)
 
 # ── contracts 测试 ─────────────────────────────────────────
 
@@ -193,3 +201,64 @@ class TestPipelineEngine:
         # fail 步骤的错误被记录，ok 步骤继续执行
         assert any("test error" in e for e in ctx.errors)
         assert ctx.resume_text == "recovered"
+
+
+class TestResumeParseStep:
+    @pytest.mark.asyncio
+    async def test_skip_when_text_exists(self):
+        step = ResumeParseStep()
+        ctx = PipelineContext(resume_text="already parsed")
+        result = await step.execute(ctx)
+        assert result.resume_text == "already parsed"
+
+    @pytest.mark.asyncio
+    async def test_no_file_content(self):
+        step = ResumeParseStep()
+        ctx = PipelineContext()
+        result = await step.execute(ctx)
+        assert "无文件内容" in result.errors[-1]
+
+
+class TestSkillExtractStep:
+    @pytest.mark.asyncio
+    async def test_no_resume_text(self):
+        step = SkillExtractStep()
+        ctx = PipelineContext()
+        result = await step.execute(ctx)
+        assert "无简历文本" in result.errors[-1]
+
+    @pytest.mark.asyncio
+    async def test_empty_text(self):
+        step = SkillExtractStep()
+        ctx = PipelineContext(resume_text="")
+        result = await step.execute(ctx)
+        assert "无简历文本" in result.errors[-1]
+
+
+class TestMatchStep:
+    @pytest.mark.asyncio
+    async def test_no_skills(self):
+        repo = MagicMock()
+        step = MatchStep(repo=repo)
+        ctx = PipelineContext()
+        result = await step.execute(ctx)
+        assert "无技能数据" in result.errors[-1]
+
+
+class TestLearningPathStep:
+    @pytest.mark.asyncio
+    async def test_no_match_results(self):
+        step = LearningPathStep()
+        ctx = PipelineContext()
+        result = await step.execute(ctx)
+        assert "无匹配结果" in result.errors[-1]
+
+
+class TestRecommendStep:
+    @pytest.mark.asyncio
+    async def test_no_skills(self):
+        repo = MagicMock()
+        step = RecommendStep(repo=repo)
+        ctx = PipelineContext()
+        result = await step.execute(ctx)
+        assert "无技能数据" in result.errors[-1]

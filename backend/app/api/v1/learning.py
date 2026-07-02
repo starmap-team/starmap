@@ -196,7 +196,7 @@ async def get_learning_plan(
         raise HTTPException(status_code=404, detail="Plan not found")
 
     # Reconstruct phases from skill data
-    skill_gaps = plan.skills if isinstance(plan.skills, list) else []
+    skill_gaps: list[Any] = plan.skills if isinstance(plan.skills, list) else []
     if skill_gaps:
         path = await generate_learning_path(
             match_gaps=skill_gaps,
@@ -360,24 +360,24 @@ async def get_recommendations(
         try:
             from app.models.extraction_models import SkillRecord
 
-            stmt = (
+            trending_stmt = (
                 sa.select(SkillRecord)
                 .where(SkillRecord.source_count > 3)
                 .order_by(SkillRecord.source_count.desc())
                 .limit(10)
             )
-            result = await session.execute(stmt)
-            records = result.scalars().all()
+            trending_result = await session.execute(trending_stmt)
+            trending_records = trending_result.scalars().all()
 
-            for r in records:
-                prereqs = PREREQUISITE_MAP.get(r.name, [])
+            for tr in trending_records:
+                prereqs = PREREQUISITE_MAP.get(tr.name, [])
                 items.append(RecommendationItem(
-                    skill=r.name,
+                    skill=tr.name,
                     importance="bonus",
                     gap_level="完全缺失",
                     estimated_hours=20.0,
                     prerequisites=prereqs,
-                    reason=f"市场热门技能（出现 {r.source_count} 次）",
+                    reason=f"市场热门技能（出现 {tr.source_count} 次）",
                 ))
         except Exception as exc:
             logger.warning("Failed to load trending skills: {}", exc)

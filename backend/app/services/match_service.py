@@ -311,7 +311,7 @@ async def _load_target_profile(
             from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
             stmt = (
-                sa.select(SkillRecord.name, SkillRecord.category, PositionSkillRelation.proficiency, PositionSkillRelation.importance)
+                sa.select(SkillRecord.name, SkillRecord.category, PositionSkillRelation.requirement_type)
                 .select_from(PositionRecord)
                 .join(PositionSkillRelation, PositionSkillRelation.position_id == PositionRecord.id)
                 .join(SkillRecord, SkillRecord.id == PositionSkillRelation.skill_id)
@@ -321,13 +321,13 @@ async def _load_target_profile(
             if rows:
                 required = []
                 bonus = []
-                for name, category, proficiency, importance in rows:
+                for name, category, requirement_type in rows:
                     entry = {
                         "skill": name,
                         "category": category or "hard_skill",
-                        "proficiency": proficiency or "熟悉",
+                        "proficiency": "熟悉",
                     }
-                    if importance == "bonus":
+                    if requirement_type == "bonus":
                         bonus.append(entry)
                     else:
                         required.append(entry)

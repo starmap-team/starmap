@@ -507,9 +507,11 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
 
     connections = []
     for conn in level_connections:
+        source = str(conn.get("source", ""))
+        target = str(conn.get("target", ""))
         connections.append({
-            "source_id": level_id.get(conn["source"], f"lv-{conn['source']}"),
-            "target_id": level_id.get(conn["target"], f"lv-{conn['target']}"),
+            "source_id": level_id.get(source, f"lv-{source}"),
+            "target_id": level_id.get(target, f"lv-{target}"),
             "type": "EVOLVES_TO",
             "properties": {"weight": conn["weight"]},
         })

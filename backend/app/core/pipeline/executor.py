@@ -270,7 +270,8 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
                 if run is None:
                     return
 
-                stages = run.stages or []
+                raw_stages = run.stages or []
+                stages: list[dict[str, Any]] = raw_stages if isinstance(raw_stages, list) else []
 
                 # Skip optional stages whose deps failed
                 for s in stages:

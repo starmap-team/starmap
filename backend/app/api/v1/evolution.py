@@ -231,7 +231,7 @@ async def get_trends(
             positions.append(position_name)
         grouped[skill_name] = (count, positions)
 
-    items: list[EvolutionTrend] = []
+    fallback_items: list[EvolutionTrend] = []
     for name, (count, related_positions) in list(grouped.items())[:20]:
         confidence = min(1.0, 0.5 + count / 20)
         # Generate simulated CII time-series based on source_count
@@ -244,7 +244,7 @@ async def get_trends(
         else:
             points = [float(base) for _ in range(4)]
 
-        items.append(EvolutionTrend(
+        fallback_items.append(EvolutionTrend(
             skill_name=name,
             trend=trend,
             confidence=confidence,
@@ -252,7 +252,7 @@ async def get_trends(
             related_positions=related_positions,
         ))
 
-    return EvolutionTrendsResponse(items=items)
+    return EvolutionTrendsResponse(items=fallback_items)
 
 
 @router.post("/analyze")
