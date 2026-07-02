@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver
+from app.services import match_service
 from app.services.match_service import get_match_result, run_match
 
 router = APIRouter(prefix="/match", tags=["match"])

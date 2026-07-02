@@ -5,17 +5,29 @@
 """
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import json
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db_session
+from app.dependencies import get_db_session, get_neo4j_driver
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
+from app.pipeline.contracts import PipelineContext
+from app.pipeline.engine import PipelineEngine
+from app.pipeline.steps import (
+    LearningPathStep,
+    MatchStep,
+    RecommendStep,
+    ResumeParseStep,
+    SkillExtractStep,
+)
+from app.repositories.position_repository import PositionRepository
+from app.services.match_service import _load_prerequisite_map
 
 router = APIRouter(prefix="/pipeline", tags=["数据流水线"])
 
@@ -357,6 +369,7 @@ async def get_datasources(
 async def pipeline_events() -> Any:
     """SSE 实时流水线进度事件流。"""
     from fastapi.responses import StreamingResponse
+
     from app.core.dashboard.sse_broadcaster import event_stream
     from app.services.resources import resources as app_resources
 
@@ -484,29 +497,12 @@ async def update_pipeline_config(
 # 求职者业务闭环 Pipeline
 # ---------------------------------------------------------------------------
 
-from fastapi import File, Form, UploadFile
-from fastapi.responses import StreamingResponse
-from typing import Any as _Any
-
-from app.dependencies import get_neo4j_driver as _get_neo4j_driver
-from app.pipeline.contracts import PipelineContext
-from app.pipeline.engine import PipelineEngine
-from app.pipeline.steps import (
-    LearningPathStep,
-    MatchStep,
-    RecommendStep,
-    ResumeParseStep,
-    SkillExtractStep,
-)
-from app.repositories.position_repository import PositionRepository
-from app.services.match_service import _load_prerequisite_map
-
 
 @router.post("/analyze")
 async def analyze_pipeline(
     resume_file: UploadFile = File(..., description="求职者简历文件（PDF/DOCX）"),
     target_positions: str | None = Form(None, description="目标岗位列表，逗号分隔（可选）"),
-    driver: _Any = Depends(_get_neo4j_driver),
+    driver: Any = Depends(get_neo4j_driver),
     session: Annotated[AsyncSession, Depends(get_db_session)] = None,  # type: ignore[assignment]
 ) -> StreamingResponse:
     """上传简历，执行完整的6步求职者分析 Pipeline。"""
@@ -546,9 +542,9 @@ async def analyze_pipeline(
 async def export_analysis(
     resume_file: UploadFile = File(..., description="求职者简历文件（PDF/DOCX）"),
     target_positions: str | None = Form(None, description="目标岗位列表，逗号分隔（可选）"),
-    driver: _Any = Depends(_get_neo4j_driver),
+    driver: Any = Depends(get_neo4j_driver),
     session: Annotated[AsyncSession, Depends(get_db_session)] = None,  # type: ignore[assignment]
-) -> _Any:
+) -> Any:
     """上传简历并返回 JSON 格式的完整分析结果。"""
     from fastapi.responses import JSONResponse
 
@@ -577,9 +573,8 @@ async def export_analysis(
 
     async for event_str in engine.run(ctx):
         if event_str.startswith("event: result"):
-            data_line = [l for l in event_str.split("\n") if l.startswith("data:")][0]
-            import json as _json
-            result = _json.loads(data_line[6:])
+            data_line = [line for line in event_str.split("\n") if line.startswith("data:")][0]
+            result = json.loads(data_line[6:])
             return JSONResponse(content=result)
 
     return JSONResponse(content=_build_result(ctx))

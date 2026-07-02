@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
-
 # ---------------------------------------------------------------------------
 # Quality scoring
 # ---------------------------------------------------------------------------

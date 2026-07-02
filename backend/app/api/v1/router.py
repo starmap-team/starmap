@@ -5,7 +5,22 @@
 """
 from fastapi import APIRouter
 
-from app.api.v1 import admin, dashboard, datasource, evolution, extract, graph, judge, learning, loop, match, pipeline, position, quality, resume
+from app.api.v1 import (
+    admin,
+    dashboard,
+    datasource,
+    evolution,
+    extract,
+    graph,
+    judge,
+    learning,
+    loop,
+    match,
+    pipeline,
+    position,
+    quality,
+    resume,
+)
 
 api_router = APIRouter()
 api_router.include_router(graph.router, tags=["图谱查询"])

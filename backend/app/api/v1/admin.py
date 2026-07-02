@@ -501,7 +501,7 @@ async def create_graph_node(
     props = {**body.properties, "name": body.name}
     try:
         async with driver.session() as session:
-            query = f"CREATE (n:{label} {{name: \}}) SET n += \ RETURN elementId(n) as eid"
+            query = rf"CREATE (n:{label} {{name: \}}) SET n += \ RETURN elementId(n) as eid"
             result = await session.run(query, name=body.name, props=props)
             record = await result.single()
             eid = str(record["eid"]) if record else ""
@@ -526,7 +526,7 @@ async def update_graph_node(
     props = {**body.properties, "name": body.name}
     try:
         async with driver.session() as session:
-            query = "MATCH (n) WHERE elementId(n) = \ SET n += \ RETURN n"
+            query = r"MATCH (n) WHERE elementId(n) = \ SET n += \ RETURN n"
             result = await session.run(query, eid=node_id, props=props)
             record = await result.single()
             if not record:
@@ -552,7 +552,7 @@ async def delete_graph_node(
         raise HTTPException(status_code=503, detail="Neo4j not available")
     try:
         async with driver.session() as session:
-            query = "MATCH (n) WHERE elementId(n) = \ DETACH DELETE n RETURN count(n) as deleted"
+            query = r"MATCH (n) WHERE elementId(n) = \ DETACH DELETE n RETURN count(n) as deleted"
             result = await session.run(query, eid=node_id)
             record = await result.single()
             deleted = record["deleted"] if record else 0
@@ -576,7 +576,7 @@ async def approve_graph_node(
         raise HTTPException(status_code=503, detail="Neo4j not available")
     try:
         async with driver.session() as session:
-            query = "MATCH (n) WHERE elementId(n) = \ SET n.review_status = 'approved' RETURN n"
+            query = r"MATCH (n) WHERE elementId(n) = \ SET n.review_status = 'approved' RETURN n"
             result = await session.run(query, eid=node_id)
             record = await result.single()
             if not record:
@@ -597,7 +597,7 @@ async def reject_graph_node(
         raise HTTPException(status_code=503, detail="Neo4j not available")
     try:
         async with driver.session() as session:
-            query = "MATCH (n) WHERE elementId(n) = \ SET n.review_status = 'rejected' RETURN n"
+            query = r"MATCH (n) WHERE elementId(n) = \ SET n.review_status = 'rejected' RETURN n"
             result = await session.run(query, eid=node_id)
             record = await result.single()
             if not record:

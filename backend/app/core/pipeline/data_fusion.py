@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # SimHash-based deduplication
@@ -220,7 +218,7 @@ def fuse_crawl_results(
 
     fused: list[dict[str, Any]] = []
     cross_validated_count = 0
-    for key, group in groups.items():
+    for _key, group in groups.items():
         sources_in_group = {r.get("source", "unknown") for r in group}
         is_confirmed = len(sources_in_group) >= min_cross_confirm
         if is_confirmed:

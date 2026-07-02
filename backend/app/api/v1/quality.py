@@ -630,25 +630,19 @@ async def get_comprehensive_report(
     # Generate recommendations
     recommendations: list[str] = []
     if jd_report.precision < 0.80:
-        recommendations.append("JD 抽取精度偏低 ({}), 建议优化抽取 prompt 或增加 anti-hallucination 检查".format(
-            round(jd_report.precision, 2)
-        ))
+        recommendations.append(f"JD 抽取精度偏低 ({round(jd_report.precision, 2)}), 建议优化抽取 prompt 或增加 anti-hallucination 检查")
     if jd_report.recall < 0.80:
-        recommendations.append("JD 抽取召回率偏低 ({}), 建议检查技能归一化词表覆盖率".format(
-            round(jd_report.recall, 2)
-        ))
+        recommendations.append(f"JD 抽取召回率偏低 ({round(jd_report.recall, 2)}), 建议检查技能归一化词表覆盖率")
     if dashboard.hallucination_rate > 0.10:
-        recommendations.append("幻觉率偏高 ({:.1%}), 建议加强 LLM 输出验证规则".format(dashboard.hallucination_rate))
+        recommendations.append(f"幻觉率偏高 ({dashboard.hallucination_rate:.1%}), 建议加强 LLM 输出验证规则")
     if dashboard.pending_review > 20:
-        recommendations.append("待审核记录过多 ({}), 建议优先处理审核队列".format(dashboard.pending_review))
+        recommendations.append(f"待审核记录过多 ({dashboard.pending_review}), 建议优先处理审核队列")
     if not resume_response.success:
         recommendations.append("简历抽取评估未运行，请执行 POST /quality/evaluate/resume")
     elif resume_response.f1 < 0.70:
-        recommendations.append("简历抽取 F1 偏低 ({}), 建议增加 golden set 样本量并优化 prompt".format(
-            round(resume_response.f1, 2)
-        ))
+        recommendations.append(f"简历抽取 F1 偏低 ({round(resume_response.f1, 2)}), 建议增加 golden set 样本量并优化 prompt")
     if dashboard.total_skills < 100:
-        recommendations.append("图谱技能数偏少 ({}), 建议运行 seed_expansion_data_demo.py 扩充".format(dashboard.total_skills))
+        recommendations.append(f"图谱技能数偏少 ({dashboard.total_skills}), 建议运行 seed_expansion_data_demo.py 扩充")
     if not recommendations:
         recommendations.append("各项指标正常，质量体系运行良好")
 

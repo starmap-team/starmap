@@ -21,12 +21,11 @@ from typing import Any
 # Ensure project root is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.config import settings
 from app.core.extraction.graph_writer import (
     GraphConfig,
+    create_requires_relationship,
     merge_position,
     merge_skill,
-    create_requires_relationship,
 )
 
 # ─────────────────────────────────────────────────────────────────────

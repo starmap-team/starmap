@@ -424,8 +424,14 @@ const qualityTrendDir = computed<'up' | 'down' | 'stable'>(() => {
                   {{ card.value }}
                 </div>
                 <div class="kpi-sub">
-                  <span v-if="card.trend === 'up'" class="trend-up">▲</span>
-                  <span v-else-if="card.trend === 'down'" class="trend-down">▼</span>
+                  <span
+                    v-if="card.trend === 'up'"
+                    class="trend-up"
+                  >▲</span>
+                  <span
+                    v-else-if="card.trend === 'down'"
+                    class="trend-down"
+                  >▼</span>
                   {{ card.sub }}
                 </div>
               </div>
@@ -478,7 +484,9 @@ const qualityTrendDir = computed<'up' | 'down' | 'stable'>(() => {
                 @retry="handleRetryStage(timelineStages[1].name)"
               />
             </div>
-            <div class="parallel-label">并行</div>
+            <div class="parallel-label">
+              并行
+            </div>
             <div class="timeline-node">
               <PipelineStageCard
                 :stage="timelineStages[2]"
@@ -577,13 +585,22 @@ const qualityTrendDir = computed<'up' | 'down' | 'stable'>(() => {
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <ellipse cx="12" cy="5" rx="9" ry="3" />
+                  <ellipse
+                    cx="12"
+                    cy="5"
+                    rx="9"
+                    ry="3"
+                  />
                   <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
                   <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
                 </svg>
               </div>
-              <p class="empty-text">数据源待加载</p>
-              <p class="empty-hint-text">数据源信息将在首次同步后展示</p>
+              <p class="empty-text">
+                数据源待加载
+              </p>
+              <p class="empty-hint-text">
+                数据源信息将在首次同步后展示
+              </p>
             </div>
           </el-card>
         </el-col>

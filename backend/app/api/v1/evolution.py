@@ -736,7 +736,7 @@ async def get_industry_report(
         fallback_result = await session.execute(fallback_stmt)
         fallback_records = fallback_result.all()
 
-        for name, source_count, cat in fallback_records:
+        for name, source_count, _cat in fallback_records:
             # Get positions for this skill
             pos_stmt = (
                 sa.select(PositionRecord.name)

@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -81,7 +82,6 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
     On failure: retries with backoff; after max retries, marks stage failed and advances.
     """
     from app.core.pipeline.executor import STAGE_EXECUTORS, advance_pipeline
-    from app.core.pipeline.orchestrator import StageStatus
 
     logger.info("execute_pipeline_stage run_id=%s stage=%s attempt=%d", run_id, stage_name, self.request.retries)
 
@@ -121,6 +121,7 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
 def advance_pipeline_task(run_id: str) -> None:
     """Async advance_pipeline wrapper for Celery dispatch."""
     import uuid
+
     from app.core.pipeline.executor import advance_pipeline
     _run_async(advance_pipeline(uuid.UUID(run_id)))
 
@@ -128,7 +129,6 @@ def advance_pipeline_task(run_id: str) -> None:
 @celery_app.task
 def scheduled_pipeline_run(schedule_id: str) -> None:
     """Trigger a pipeline run from a cron schedule."""
-    import uuid
     from app.core.pipeline.executor import trigger_and_start
 
     # ponytail: load schedule config from DB, run with those params
@@ -152,6 +152,7 @@ async def _mark_stage_completed(
     *, duration_ms: int = 0, records_processed: int = 0, errors: list[str] | None = None,
 ) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
     from app.core.pipeline.orchestrator import update_stage_status
     engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
     sm = async_sessionmaker(engine, expire_on_commit=False)
@@ -173,6 +174,7 @@ async def _mark_stage_failed(
     run_id: str, stage_name: str, errors: list[str],
 ) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
     from app.core.pipeline.orchestrator import update_stage_status
     engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
     sm = async_sessionmaker(engine, expire_on_commit=False)

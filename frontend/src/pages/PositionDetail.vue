@@ -106,122 +106,145 @@ async function loadFromPostgres() {
 }
 </script>
 
-	<template>
-	  <MainLayout>
-	    <div class="position-detail">
-	      <!-- 骨架屏加载态 -->
-	      <template v-if="loading">
-	        <div class="page-header">
-	          <el-skeleton :rows="0" animated style="width: 200px">
-	            <template #template>
-	              <el-skeleton-item variant="circle" style="width: 32px; height: 32px" />
-	              <el-skeleton-item variant="text" style="width: 150px; height: 28px; margin-left: 12px" />
-	            </template>
-	          </el-skeleton>
-	        </div>
-	        <div class="detail-body">
-	          <div class="radar-section">
-	            <el-skeleton animated :count="1">
-	              <el-skeleton-item variant="rect" style="width: 100%; height: 360px; border-radius: 12px" />
-	            </el-skeleton>
-	          </div>
-	          <div class="skills-section">
-	            <el-skeleton animated :count="6" style="margin-bottom: 8px">
-	              <el-skeleton-item variant="text" style="width: 100%; height: 32px" />
-	            </el-skeleton>
-	          </div>
-	        </div>
-	      </template>
+<template>
+  <MainLayout>
+    <div class="position-detail">
+      <!-- 骨架屏加载态 -->
+      <template v-if="loading">
+        <div class="page-header">
+          <el-skeleton
+            :rows="0"
+            animated
+            style="width: 200px"
+          >
+            <template #template>
+              <el-skeleton-item
+                variant="circle"
+                style="width: 32px; height: 32px"
+              />
+              <el-skeleton-item
+                variant="text"
+                style="width: 150px; height: 28px; margin-left: 12px"
+              />
+            </template>
+          </el-skeleton>
+        </div>
+        <div class="detail-body">
+          <div class="radar-section">
+            <el-skeleton
+              animated
+              :count="1"
+            >
+              <el-skeleton-item
+                variant="rect"
+                style="width: 100%; height: 360px; border-radius: 12px"
+              />
+            </el-skeleton>
+          </div>
+          <div class="skills-section">
+            <el-skeleton
+              animated
+              :count="6"
+              style="margin-bottom: 8px"
+            >
+              <el-skeleton-item
+                variant="text"
+                style="width: 100%; height: 32px"
+              />
+            </el-skeleton>
+          </div>
+        </div>
+      </template>
 
-	      <!-- 真实内容 -->
-	      <template v-else>
-	      <!-- 返回 + 标题 -->
-	      <div class="page-header">
-	        <el-button
-	          circle
-	          :icon="ArrowLeft"
-	          size="small"
-	          @click="$router.push('/positions')"
-	        />
-	        <div>
-	          <h2>{{ position?.name ?? positionName }}</h2>
-	          <p class="header-sub">
-	            {{ position?.industry ?? '' }}
-	          </p>
-	        </div>
-	      </div>
+      <!-- 真实内容 -->
+      <template v-else>
+        <!-- 返回 + 标题 -->
+        <div class="page-header">
+          <el-button
+            circle
+            :icon="ArrowLeft"
+            size="small"
+            @click="$router.push('/positions')"
+          />
+          <div>
+            <h2>{{ position?.name ?? positionName }}</h2>
+            <p class="header-sub">
+              {{ position?.industry ?? '' }}
+            </p>
+          </div>
+        </div>
 
-	      <div class="detail-body">
-	        <!-- 左侧：雷达图 -->
-	        <section class="radar-section">
-	          <SkillRadar
-	            :data="radarData"
-	            :position-name="positionName"
-	          />
-	        </section>
+        <div class="detail-body">
+          <!-- 左侧：雷达图 -->
+          <section class="radar-section">
+            <SkillRadar
+              :data="radarData"
+              :position-name="positionName"
+            />
+          </section>
 
-	        <!-- 右侧：技能列表 -->
-	        <section class="skills-section">
-	          <h3 class="section-title">
-	            技能要求 ({{ skills.length }})
-	          </h3>
-	          <el-table
-	            :data="skills"
-	            stripe
-	            size="small"
-	            style="width: 100%"
-	          >
-	            <el-table-column
-	              prop="name"
-	              label="技能"
-	              min-width="120"
-	            />
-	            <el-table-column
-	              label="类别"
-	              width="100"
-	            >
-	              <template #default="{ row }">
-	                <el-tag size="small">
-	                  {{ CATEGORY_LABELS[row.category] ?? row.category }}
-	                </el-tag>
-	              </template>
-	            </el-table-column>
-	            <el-table-column
-	              label="熟练度"
-	              width="80"
-	            >
-	              <template #default="{ row }">
-	                <el-tag
-	                  :type="PROFICIENCY_TAG[row.proficiency] ?? ''"
-	                  size="small"
-	                >
-	                  {{ row.proficiency }}
-	                </el-tag>
-	              </template>
-	            </el-table-column>
-	            <el-table-column
-	              label="置信度"
-	              width="90"
-	            >
-	              <template #default="{ row }">
-	                {{ (row.confidence * 100).toFixed(0) }}%
-	              </template>
-	            </el-table-column>
-	            <el-table-column
-	              label="热度"
-	              width="60"
-	            >
-	              <template #default="{ row }">
-	                {{ row.source_count }}
-	              </template>
-	            </el-table-column>
-	          </el-table>
-	        </section>
-	      </div>
-	      </template>
-	    </div>
-	  </MainLayout>
-	</template>
+          <!-- 右侧：技能列表 -->
+          <section class="skills-section">
+            <h3 class="section-title">
+              技能要求 ({{ skills.length }})
+            </h3>
+            <el-table
+              :data="skills"
+              stripe
+              size="small"
+              style="width: 100%"
+            >
+              <el-table-column
+                prop="name"
+                label="技能"
+                min-width="120"
+              />
+              <el-table-column
+                label="类别"
+                width="100"
+              >
+                <template #default="{ row }">
+                  <el-tag size="small">
+                    {{ CATEGORY_LABELS[row.category] ?? row.category }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="熟练度"
+                width="80"
+              >
+                <template #default="{ row }">
+                  <el-tag
+                    :type="PROFICIENCY_TAG[row.proficiency] ?? ''"
+                    size="small"
+                  >
+                    {{ row.proficiency }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="置信度"
+                width="90"
+              >
+                <template #default="{ row }">
+                  {{ (row.confidence * 100).toFixed(0) }}%
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="热度"
+                width="60"
+              >
+                <template #default="{ row }">
+                  {{ row.source_count }}
+                </template>
+              </el-table-column>
+            </el-table>
+          </section>
+        </div>
+      </template>
+    </div>
+  </MainLayout>
+</template>
 
 <style scoped>
 .position-detail {

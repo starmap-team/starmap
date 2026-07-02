@@ -518,7 +518,9 @@ async function handleReset() {
                 </el-form-item>
               </el-form>
               <template #footer>
-                <el-button @click="editDialogVisible = false">取消</el-button>
+                <el-button @click="editDialogVisible = false">
+                  取消
+                </el-button>
                 <el-button
                   type="primary"
                   @click="handleSaveSource"

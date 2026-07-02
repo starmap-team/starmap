@@ -247,7 +247,10 @@ onBeforeUnmount(() => {
           </div>
           <div class="step-meta">
             <span>{{ step.estimated_time }}</span>
-            <span class="step-prob" :style="{ color: getProbabilityColor(step.probability) }">
+            <span
+              class="step-prob"
+              :style="{ color: getProbabilityColor(step.probability) }"
+            >
               {{ (step.probability * 100).toFixed(0) }}%
             </span>
           </div>

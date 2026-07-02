@@ -168,8 +168,12 @@ const chartOption = computed(() => {
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
       </div>
-      <p class="empty-text">暂无趋势数据</p>
-      <p class="empty-hint-text">质量趋势将在数据采集后展示</p>
+      <p class="empty-text">
+        暂无趋势数据
+      </p>
+      <p class="empty-hint-text">
+        质量趋势将在数据采集后展示
+      </p>
     </div>
   </div>
 </template>

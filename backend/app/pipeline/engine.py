@@ -7,11 +7,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from loguru import logger
 
-from app.pipeline.contracts import PipelineContext, PipelineEvent, PipelineStep
+from app.pipeline.contracts import PipelineContext, PipelineStep
 
 
 class PipelineEngine:
@@ -49,7 +50,7 @@ class PipelineEngine:
                     "step": step.name,
                     "status": "done",
                 })
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 ctx.errors.append(f"{step.name} timeout ({step.timeout}s)")
                 ctx.progress[step.name] = "timeout"
                 yield _sse_event("progress", {

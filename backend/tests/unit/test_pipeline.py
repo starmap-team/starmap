@@ -4,19 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.pipeline.contracts import (
     ExtractedSkill,
     PipelineContext,
-    PipelineEvent,
-    PipelineStep,
     PositionProfile,
 )
 from app.pipeline.engine import PipelineEngine, _build_result, _sse_event
-
 
 # ── contracts 测试 ─────────────────────────────────────────
 
@@ -76,7 +72,7 @@ class TestSSEEvent:
 
     def test_json_content(self):
         event = _sse_event("result", {"skills": ["Python", "SQL"]})
-        data_line = [l for l in event.split("\n") if l.startswith("data:")][0]
+        data_line = [line for line in event.split("\n") if line.startswith("data:")][0]
         data = json.loads(data_line[6:])
         assert data["skills"] == ["Python", "SQL"]
 
