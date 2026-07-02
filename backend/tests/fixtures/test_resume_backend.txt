@@ -1,0 +1,34 @@
+张三
+后端开发工程师 | 5年经验
+电话：138-0000-0000 | 邮箱：zhangsan@example.com
+
+【教育背景】
+北京大学 计算机科学与技术 本科 2015-2019
+
+【专业技能】
+- 精通 Python，3年以上后端开发经验
+- 熟悉 Django、FastAPI 框架
+- 熟悉 PostgreSQL、Redis 数据库
+- 熟悉 Docker、Linux 运维
+- 了解 Kubernetes、CI/CD 流程
+- 熟悉 REST API 设计
+- 了解消息队列（RabbitMQ、Kafka）
+
+【工作经历】
+某科技公司 | 后端开发工程师 | 2019-至今
+- 负责公司核心业务系统的设计与开发
+- 使用 Python + FastAPI 构建高性能 API 服务
+- 设计并实现 PostgreSQL 数据库方案
+- 使用 Docker 容器化部署，配合 CI/CD 自动化流程
+- 优化系统性能，QPS 从 500 提升至 2000
+
+【项目经历】
+1. 电商平台后端
+   - 技术栈：Python, FastAPI, PostgreSQL, Redis, Docker
+   - 负责订单系统、支付系统的核心开发
+   - 实现了分布式缓存方案，降低数据库压力 60%
+
+2. 数据分析平台
+   - 技术栈：Python, Pandas, NumPy, PostgreSQL
+   - 开发数据清洗和ETL流程
+   - 构建数据可视化API接口
