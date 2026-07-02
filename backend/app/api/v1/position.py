@@ -1,4 +1,4 @@
-﻿"""岗位管理 API — 接入 PostgreSQL position_records。"""
+"""岗位管理 API — 接入 PostgreSQL position_records。"""
 from __future__ import annotations
 
 from typing import Annotated, Any

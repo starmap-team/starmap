@@ -176,3 +176,24 @@ async def match_history(
     except Exception as exc:
         logger.warning("Failed to fetch match history: {}", exc)
         return {"items": []}
+
+
+@router.post("/batch")
+async def batch_match(
+    body: dict,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, Any]:
+    """Batch match: run match for multiple items at once."""
+    items = body.get("items", [])
+    results = []
+    for item in items[:20]:
+        try:
+            result = await match_service.match_position(
+                session,
+                skills=item.get("skills", []),
+                position_name=item.get("position_name", ""),
+            )
+            results.append({"position_name": item.get("position_name", ""), "result": result})
+        except Exception as e:
+            results.append({"position_name": item.get("position_name", ""), "error": str(e)})
+    return {"results": results, "total": len(results)}

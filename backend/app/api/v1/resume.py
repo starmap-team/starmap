@@ -13,6 +13,8 @@ from app.services.resume_service import run_resume_extraction
 
 router = APIRouter(prefix="/resume", tags=["简历解析"])
 
+MAX_RESUME_SIZE = 10 * 1024 * 1024  # 10MB
+
 
 @router.post("/upload", response_model=ExtractionResult)
 async def upload_resume(
@@ -29,6 +31,12 @@ async def upload_resume(
         content_bytes = await file.read()
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Failed to read file: {exc}") from exc
+
+    if len(content_bytes) > MAX_RESUME_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({len(content_bytes)} bytes). Maximum: {MAX_RESUME_SIZE} bytes (10MB)",
+        )
 
     try:
         pipeline_result = await run_resume_extraction(file.filename, content_bytes)

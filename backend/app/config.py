@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     quality_hallucination_rate_threshold: float = 0.10
     quality_high_trust_confidence: float = 0.8
 
+    # ── 流水线配置 ──
+    pipeline_stage_timeout: int = 1800  # 单阶段超时(秒), 默认30分钟
+    pipeline_worker_concurrency: int = 2
+    pipeline_crawl_concurrency: int = 5
+    pipeline_retry_max: int = 3
+    pipeline_retry_backoff: int = 10  # 秒, 指数递增基数
+
 
 @lru_cache
 def get_settings() -> Settings:

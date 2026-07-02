@@ -1,29 +1,7 @@
 ﻿"""Neo4j-backed graph query helpers for API v1."""
 from __future__ import annotations
 
-import asyncio
 from typing import Any
-
-WRITE_CYPHER_KEYWORDS = {
-    "CREATE",
-    "MERGE",
-    "SET",
-    "DELETE",
-    "DETACH",
-    "REMOVE",
-    "DROP",
-    "LOAD",
-    "CALL DBMS",
-}
-
-
-def ensure_readonly_cypher(cypher: str) -> None:
-    """Reject obvious write/admin Cypher before executing user supplied queries."""
-    normalized = " ".join(cypher.upper().split())
-    for keyword in WRITE_CYPHER_KEYWORDS:
-        if keyword in normalized:
-            raise ValueError(f"Cypher contains forbidden keyword: {keyword}")
-
 
 
 async def count_positions_neo4j(driver: Any) -> int:
@@ -66,17 +44,11 @@ async def count_edges_neo4j(driver: Any) -> int:
 
 
 def _safe_properties(value: Any) -> dict[str, Any]:
+    # ponytail: dict() works for Neo4j ≥5.x; iso_format guard for temporal types
     try:
-        d = dict(value)
+        return {k: (v.iso_format() if hasattr(v, 'iso_format') else v) for k, v in dict(value).items()}
     except Exception:
         return {}
-    # Convert Neo4j temporal types to ISO strings for JSON serialization
-    for k, v in d.items():
-        if hasattr(v, 'iso_format'):
-            d[k] = v.iso_format()
-        elif isinstance(v, (list, tuple)):
-            d[k] = [item.iso_format() if hasattr(item, 'iso_format') else item for item in v]
-    return d
 
 
 def _node_id(node: Any) -> str:
@@ -188,67 +160,6 @@ def _skill_item(node: dict[str, Any], rel: dict[str, Any] | None = None) -> dict
         "trend": props.get("trend") or "stable",
         "importance": "required" if required is not False else "bonus",
     }
-
-
-async def fetch_panorama(driver: Any, limit: int = 500) -> dict[str, list[dict[str, Any]]]:
-    """Fetch the global graph view used by the frontend panorama page."""
-    if driver is None:
-        return {"nodes": [], "edges": []}
-
-    query = """
-    MATCH (source)-[rel]->(target)
-    RETURN source, rel, target
-    LIMIT $limit
-    """
-    nodes: list[dict[str, Any]] = []
-    edges: list[dict[str, Any]] = []
-    try:
-        async with asyncio.timeout(25):
-            async with driver.session() as session:
-                result = await session.run(query, limit=limit)
-                async for record in result:
-                    nodes.append(serialize_node(record["source"]))
-                    nodes.append(serialize_node(record["target"]))
-                    edges.append(serialize_relationship(record["rel"]))
-    except Exception:
-        # Fallback: fetch nodes and relationships separately
-        nodes.clear()
-        edges.clear()
-        async with asyncio.timeout(15):
-            async with driver.session() as session:
-                r1 = await session.run("MATCH (n:Position) RETURN n LIMIT 100")
-                async for rec in r1:
-                    nodes.append(serialize_node(rec["n"]))
-                r2 = await session.run("MATCH (n:Skill) RETURN n LIMIT 200")
-                async for rec in r2:
-                    nodes.append(serialize_node(rec["n"]))
-                r3 = await session.run("MATCH (s)-[r]->(t) RETURN s, r, t LIMIT 500")
-                async for rec in r3:
-                    edges.append(serialize_relationship(rec["r"]))
-
-    return dedupe_graph(nodes, edges)
-
-
-async def run_readonly_query(driver: Any, cypher: str, limit: int = 500) -> dict[str, list[dict[str, Any]]]:
-    """Run a read-only Cypher query and serialize any node/relationship results."""
-    ensure_readonly_cypher(cypher)
-    if driver is None:
-        return {"nodes": [], "edges": []}
-
-    nodes: list[dict[str, Any]] = []
-    edges: list[dict[str, Any]] = []
-    async with driver.session() as session:
-        result = await session.run(cypher, limit=limit)
-        async for record in result:
-            for value in record.values():
-                labels = getattr(value, "labels", None)
-                rel_type = getattr(value, "type", None)
-                if labels is not None:
-                    nodes.append(serialize_node(value))
-                elif rel_type is not None:
-                    edges.append(serialize_relationship(value))
-
-    return dedupe_graph(nodes, edges)
 
 
 async def _resolve_position_name(driver: Any, position_name: str) -> str:
@@ -491,7 +402,9 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
         return {"domains": [], "connections": [], "total_positions": 0, "total_skills": 0}
 
     # Build response
-    import hashlib
+    # ponytail: literal IDs instead of hashlib.md5 — deterministic, readable, no import
+    stack_id_prefix = {"人工智能": "ts-ai", "大数据": "ts-bigdata", "智能系统": "ts-sys",
+                       "物联网": "ts-iot", "云计算/DevOps": "ts-cloud", "网络安全": "ts-sec", "其他": "ts-other"}
     domains = []
     total_pos = 0
     total_skill = 0
@@ -502,9 +415,8 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
         sc = len(data["skills"])
         total_pos += pc
         total_skill += sc
-        domain_id = hashlib.md5(stack.encode()).hexdigest()[:16]
         domains.append({
-            "id": domain_id,
+            "id": stack_id_prefix.get(stack, f"ts-{stack}"),
             "name": stack,
             "position_count": pc,
             "skill_count": sc,
@@ -513,11 +425,9 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
 
     connections = []
     for (s1, s2), weight in stack_connections.items():
-        id1 = hashlib.md5(s1.encode()).hexdigest()[:16]
-        id2 = hashlib.md5(s2.encode()).hexdigest()[:16]
         connections.append({
-            "source_id": id1,
-            "target_id": id2,
+            "source_id": stack_id_prefix.get(s1, f"ts-{s1}"),
+            "target_id": stack_id_prefix.get(s2, f"ts-{s2}"),
             "type": "SHARES_SKILLS",
             "properties": {"weight": min(1.0, weight / 20.0)},
         })
@@ -575,7 +485,8 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
         logger.error("Level overview failed: {}", exc)
         return {"domains": [], "connections": [], "total_positions": 0, "total_skills": 0}
 
-    import hashlib
+    # ponytail: literal IDs instead of hashlib.md5
+    level_id = {"初级": "lv-junior", "中级": "lv-mid", "高级": "lv-senior"}
     domains = []
     total_pos = 0
     total_skill = 0
@@ -586,9 +497,8 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
         sc = len(data["skills"])
         total_pos += pc
         total_skill += sc
-        domain_id = hashlib.md5(level.encode()).hexdigest()[:16]
         domains.append({
-            "id": domain_id,
+            "id": level_id.get(level, f"lv-{level}"),
             "name": level,
             "position_count": pc,
             "skill_count": sc,
@@ -597,11 +507,9 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
 
     connections = []
     for conn in level_connections:
-        id1 = hashlib.md5(conn["source"].encode()).hexdigest()[:16]
-        id2 = hashlib.md5(conn["target"].encode()).hexdigest()[:16]
         connections.append({
-            "source_id": id1,
-            "target_id": id2,
+            "source_id": level_id.get(conn["source"], f"lv-{conn['source']}"),
+            "target_id": level_id.get(conn["target"], f"lv-{conn['target']}"),
             "type": "EVOLVES_TO",
             "properties": {"weight": conn["weight"]},
         })

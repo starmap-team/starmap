@@ -44,12 +44,13 @@ async def test_quality_dashboard_builder_aggregates_metrics():
             (10, 2, 1),        # 2. total_extractions, hallucination_count, pending_review
             (36,),             # 3. pos_count
             (201,),            # 4. skill_count
-            (0.87,),           # 5. avg_confidence
-            (8.0,),            # 6. avg_source
-            (5,),              # 7. high_trust_count
-            (10,),             # 8. high_source_count
-            (5,), (3,), (2,), (1,), (0,),  # 9-13. trust_distribution
-            [("general", 100), ("hard_skill", 80)],  # 14. source_distribution
+            (0,),              # 5. edge_count
+            (0.87,),           # 6. avg_confidence
+            (8.0,),            # 7. avg_source
+            (5,),              # 8. high_trust_count
+            (10,),             # 9. high_source_count
+            (5,), (3,), (2,), (1,), (0,),  # 10-14. trust_distribution
+            [("general", 100), ("hard_skill", 80)],  # 15. source_distribution
         ]
     )
 
@@ -67,7 +68,7 @@ async def test_quality_dashboard_builder_aggregates_metrics():
 
 def test_quality_dashboard_endpoint_contract(client):
     async def override_session():
-        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0.0,), (0,), (0,), (0,), (0,), (0,), (0,), []])
+        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0.0,), (0,), (0,), (0,), (0,), (0,), (0,), []])
 
     app.dependency_overrides[get_db_session] = override_session
     try:

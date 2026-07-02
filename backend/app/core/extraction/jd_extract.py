@@ -222,18 +222,20 @@ class JDExtractionPipeline:
             logger.warning("Pydantic validation failed, using raw data: {}", e)
             result["warnings"].append(f"Pydantic validation issue: {e}")
             validated = JDExtractionResult()
-            for key in ("position_name", "required_skills", "preferred_skills", "experience_required", "education_required", "responsibilities"):
+            # Position/experience/education — set from parsed if available
+            for key in ("position_name", "experience_required", "education_required"):
                 if key in parsed:
-                    if key in ("required_skills", "preferred_skills"):
-                        setattr(validated, key, [SkillEntry(**s) if isinstance(s, dict) else SkillEntry(name=s) for s in parsed[key]])
-                elif key in ("experience_required",):
-                    setattr(validated, key, parsed.get(key))
-                elif key == "responsibilities":
-                    setattr(validated, key, parsed.get(key, []))
-                elif key in ("required_skills", "preferred_skills"):
-                    pass  # keep default [] from JDExtractionResult()
-                else:
                     setattr(validated, key, parsed.get(key, ""))
+            # Required/preferred skills — parse SkillEntry objects
+            for key in ("required_skills", "preferred_skills"):
+                if key in parsed and parsed[key]:
+                    setattr(validated, key, [
+                        SkillEntry(**s) if isinstance(s, dict) else SkillEntry(name=s)
+                        for s in parsed[key]
+                    ])
+            # Responsibilities
+            if "responsibilities" in parsed:
+                validated.responsibilities = parsed["responsibilities"]
 
         # Step 4.5: Clean up Chinese suffixes from skill names
         chinese_suffixes = [
