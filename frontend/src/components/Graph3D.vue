@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * Graph3D — 3D force-directed graph visualization using 3d-force-graph
  * The visual centrepiece of StarMap's panoramic knowledge graph.
@@ -14,17 +14,18 @@ import { ref, onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue'
 import {
   nodeColor,
   edgeColor,
-  glowColor,
   withAlpha,
   SCENE_PALETTE,
   toThreeHex,
 } from '@/utils/graphColors'
 import NodeTooltip3D from './NodeTooltip3D.vue'
+import { Loading } from '@element-plus/icons-vue'
 
 // ── Types ──
 interface GraphNode3D {
   id: string
   labels?: string[]
+  color?: string            // Precomputed by parent (Home.vue) for consistent 2D/3D coloring
   properties: {
     name: string
     category?: string
@@ -61,8 +62,8 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  nodeClick: [node: GraphNode3D]
-  nodeDblClick: [node: GraphNode3D]
+  nodeClick: [nodeId: string]
+  nodeDblClick: [nodeId: string]
 }>()
 
 // ── Refs ──
@@ -71,8 +72,6 @@ const webglSupported = ref(true)
 const fps = ref(0)
 const autoRotate = ref(false)
 const isReady = ref(false)
-
-// Tooltip state
 const tooltipNode = ref<{
   id: string; name: string; type: string;
   position_count?: number; skill_count?: number;
@@ -84,17 +83,6 @@ const tooltipVisible = ref(false)
 
 // Graph instance (shallow to avoid Vue reactivity overhead)
 const graphInstance = shallowRef<any>(null)
-
-// ── WebGL Detection ──
-function checkWebGL(): boolean {
-  try {
-    const canvas = document.createElement('canvas')
-    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
-    return !!gl
-  } catch {
-    return false
-  }
-}
 
 // ── Node helpers ──
 function getNodeLabel(node: GraphNode3D): string {
@@ -124,10 +112,21 @@ async function initGraph() {
   // Dynamic import to keep 3d-force-graph out of the main bundle
   const ForceGraphModule = await import('3d-force-graph')
   const ForceGraph3D = ForceGraphModule.default
+  // Attach THREE to window for nodeThreeObject custom rendering
+  if (!(window as any).__THREE) {
+    const THREE_MOD = await import('three')
+    ;(window as any).__THREE = THREE_MOD
+  }
 
   const container = containerRef.value
   const w = container.clientWidth || props.width
   const h = container.clientHeight || props.height
+
+  // ── Force engine tuning（节点多时增大排斥力防止黏连） ──
+  const nodeCount = props.nodes.length
+  const chargeStrength = nodeCount > 200 ? -80 : nodeCount > 100 ? -60 : -40
+  const linkDist = nodeCount > 100 ? 60 : 40
+  const linkStrength = nodeCount > 100 ? 0.3 : 0.5
 
   const graph = new ForceGraph3D(container)
     .width(w)
@@ -138,9 +137,8 @@ async function initGraph() {
     // ── Node configuration ──
     .nodeVal((node: any) => getNodeRadius(node))
     .nodeColor((node: any) => {
-      const label = getNodeLabel(node)
-      const id = node.id
-      return nodeColor(label, id)
+      // Use precomputed color (from Home.vue) or fall back to type color
+      return node.color ?? nodeColor(getNodeLabel(node))
     })
     .nodeResolution(16)  // Sphere segments (smoother spheres)
     .nodeOpacity(0.92)
@@ -170,36 +168,44 @@ async function initGraph() {
     .linkDirectionalArrowRelPos(1)
     .linkCurvature(0.1)
 
-    // ── Force engine tuning ──
-    .d3AlphaDecay(0.02)
-    .d3VelocityDecay(0.3)
-    .warmupTicks(50)
-    .cooldownTicks(200)
+    // ── Force charge & link tuning ──
+    .d3Force('charge', () => chargeStrength)
+    .d3Force('link', () => linkDist)
+    .d3AlphaDecay(nodeCount > 300 ? 0.05 : 0.02)
+    .d3VelocityDecay(nodeCount > 300 ? 0.4 : 0.3)
+    .warmupTicks(nodeCount > 300 ? 30 : 50)
+    .cooldownTicks(nodeCount > 300 ? 100 : 200)
 
-    // ── Interactions ──
-    .onNodeClick((node: any) => {
-      emit('nodeClick', node as GraphNode3D)
-    })
-    .onNodeHover((node: any, _prevNode: any) => {
-      if (node) {
-        const typed = node as GraphNode3D
-        const label = getNodeLabel(typed)
-        tooltipNode.value = {
-          id: typed.id,
-          name: typed.properties.name,
-          type: label,
-          position_count: typed.properties.position_count,
-          skill_count: typed.properties.skill_count,
-          proficiency: typed.properties.proficiency,
-          category: typed.properties.category,
-        }
-        tooltipVisible.value = true
-        // Update tooltip position on next mouse move
-      } else {
-        tooltipVisible.value = false
-        tooltipNode.value = null
+  // 额外调优：link 距离和强度 + center 引力
+  try {
+    (graph as any).d3Force('link').distance(linkDist)
+    (graph as any).d3Force('link').strength(linkStrength)
+    const center = (graph as any).d3Force('center')
+    if (center) center.strength(0.15)
+  } catch (_) {
+    // d3Force may not be available in all versions
+  }
+
+  // ── Interactions ──
+  graph.onNodeHover((node: any, _prevNode: any) => {
+    if (node) {
+      const typed = node as GraphNode3D
+      const label = getNodeLabel(typed)
+      tooltipNode.value = {
+        id: typed.id,
+        name: typed.properties.name,
+        type: label,
+        position_count: typed.properties.position_count,
+        skill_count: typed.properties.skill_count,
+        proficiency: typed.properties.proficiency,
+        category: typed.properties.category,
       }
-    })
+      tooltipVisible.value = true
+    } else {
+      tooltipVisible.value = false
+      tooltipNode.value = null
+    }
+  })
 
   // Track mouse for tooltip positioning
   container.addEventListener('mousemove', (e: MouseEvent) => {
@@ -207,26 +213,29 @@ async function initGraph() {
     tooltipY.value = e.clientY
   })
 
-  // Double-click to focus/zoom on node
+  // Double-click detection via onNodeClick + timestamp
   let lastClickTime = 0
   let lastClickId = ''
-  container.addEventListener('click', (e: MouseEvent) => {
+
+  graph.onNodeClick((node: any) => {
     const now = Date.now()
-    // Check if this is a double-click on a node (from the nodeClick event)
-    // We use a simple timer-based approach since onNodeClick fires before this
+    if (node.id === lastClickId && now - lastClickTime < 300) {
+      // Double-click: emit nodeDblClick for drill-down
+      emit('nodeDblClick', node.id)
+      lastClickTime = 0
+      lastClickId = ''
+    } else {
+      // Single click
+      lastClickTime = now
+      lastClickId = node.id
+      emit('nodeClick', node.id)
+    }
   })
 
   graphInstance.value = graph
 
   // Set graph data
   graph.graphData({ nodes: props.nodes, links: props.links })
-
-  // Configure force simulation
-  graph.d3Force('charge')?.strength(-120)?.distanceMax(300)
-  graph.d3Force('link')?.distance((link: GraphLink3D) => {
-    const w = link.properties?.weight ?? 0.5
-    return 40 + (1 - w) * 80
-  })
 
   // Setup glow post-processing for domain nodes
   setupGlowEffect(graph)
@@ -240,12 +249,11 @@ function setupGlowEffect(graph: any) {
   graph.nodeThreeObject((node: GraphNode3D) => {
     const label = getNodeLabel(node)
     const radius = getNodeRadius(node)
-    const color = toThreeHex(nodeColor(label, node.id))
+    const color = toThreeHex(node.color ?? nodeColor(label))
 
     // Dynamic import three lazily
     // We use the THREE namespace that 3d-force-graph already has internally
-    let THREE = (window as any).__THREE__
-    if (!THREE) { try { THREE = await import('three') } catch { return } }
+    const THREE = (window as any).__THREE
     if (!THREE) {
       // Fallback: no custom object, use default sphere
       return null
@@ -311,8 +319,19 @@ function setupGlowEffect(graph: any) {
   })
 }
 
-// ── Glow texture generator (canvas-based) ──
+// ── Glow texture cache (key = hexColor) ──
+const _glowCache = new Map<number, any>()
+
+/** 释放 glow 纹理缓存（组件卸载时调用）。 */
+function disposeGlowCache() {
+  _glowCache.clear()
+}
+
+// ── Glow texture generator (canvas-based, with cache) ──
 function createGlowTexture(hexColor: number, THREE: any): any {
+  const cached = _glowCache.get(hexColor)
+  if (cached) return cached
+
   const size = 128
   const canvas = document.createElement('canvas')
   canvas.width = size
@@ -334,6 +353,7 @@ function createGlowTexture(hexColor: number, THREE: any): any {
 
   const texture = new THREE.CanvasTexture(canvas)
   texture.needsUpdate = true
+  _glowCache.set(hexColor, texture)
   return texture
 }
 
@@ -450,11 +470,14 @@ function handleResize() {
 
 // ── Lifecycle ──
 onMounted(async () => {
-  webglSupported.value = checkWebGL()
-  if (!webglSupported.value) return
-
   await nextTick()
-  await initGraph()
+  try {
+    await initGraph()
+  } catch {
+    // ponytail: 3d-force-graph / Three.js will throw if WebGL unavailable
+    webglSupported.value = false
+    return
+  }
   measureFPS()
   window.addEventListener('resize', handleResize)
 })
@@ -462,6 +485,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   cancelAnimationFrame(fpsRafId)
+  disposeGlowCache()
   if (graphInstance.value) {
     graphInstance.value._destructor?.()
     graphInstance.value = null
@@ -481,14 +505,28 @@ defineExpose({
 <template>
   <div class="graph3d-wrapper">
     <!-- WebGL not supported fallback -->
-    <div v-if="!webglSupported" class="webgl-fallback">
+    <div
+      v-if="!webglSupported"
+      class="webgl-fallback"
+    >
       <div class="fallback-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
           <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
         </svg>
       </div>
-      <p class="fallback-title">WebGL 不可用</p>
-      <p class="fallback-text">您的浏览器或设备不支持 WebGL 3D 渲染。<br>请使用最新版 Chrome / Edge / Firefox 浏览器，或切换到 2D 视图。</p>
+      <p class="fallback-title">
+        WebGL 不可用
+      </p>
+      <p class="fallback-text">
+        您的浏览器或设备不支持 WebGL 3D 渲染。<br>请使用最新版 Chrome / Edge / Firefox 浏览器，或切换到 2D 视图。
+      </p>
     </div>
 
     <!-- 3D Graph container -->
@@ -498,8 +536,25 @@ defineExpose({
       class="graph3d-container"
     />
 
+    <!-- Loading indicator during force simulation warmup -->
+    <div
+      v-if="webglSupported && !isReady"
+      class="graph3d-loading"
+    >
+      <el-icon
+        class="is-loading"
+        :size="24"
+      >
+        <Loading />
+      </el-icon>
+      <span>力导向布局计算中...</span>
+    </div>
+
     <!-- FPS counter overlay -->
-    <div v-if="webglSupported && isReady" class="fps-counter">
+    <div
+      v-if="webglSupported && isReady"
+      class="fps-counter"
+    >
       {{ fps }} FPS
     </div>
 
@@ -532,6 +587,22 @@ defineExpose({
 
 .graph3d-container :deep(canvas) {
   border-radius: inherit;
+}
+
+/* Loading indicator */
+.graph3d-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(10, 14, 26, 0.6);
+  backdrop-filter: blur(4px);
+  color: #94a3b8;
+  font-size: 14px;
+  z-index: 10;
 }
 
 /* FPS counter */

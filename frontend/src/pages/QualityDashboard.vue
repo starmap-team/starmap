@@ -8,15 +8,23 @@ import { ElMessage } from 'element-plus'
 import { RefreshRight } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useQualityStore } from '@/stores/quality'
+import { useAdminStore } from '@/stores/admin'
 import { chartColors, tooltipStyle, legendStyle } from '@/utils/chartTheme'
+import QualityTrendChart from '@/components/QualityTrendChart.vue'
+import AlertList from '@/components/AlertList.vue'
 
 const quality = useQualityStore()
+const admin = useAdminStore()
 
 // 自动刷新
 const autoRefresh = ref(true)
 const refreshInterval = ref(30) // 秒
 let timer: ReturnType<typeof setInterval> | null = null
 const lastRefresh = ref('')
+
+// ── Sprint 1.2: Tab 状态 ──
+const activeTab = ref('overview')
+const trendPeriod = ref<'7d' | '30d' | '90d'>('7d')
 
 function startAutoRefresh() {
   if (timer) clearInterval(timer)
@@ -33,6 +41,8 @@ onMounted(() => {
   quality.fetchQuality().then(() => {
     lastRefresh.value = new Date().toLocaleTimeString()
   })
+  quality.fetchTrends('7d')
+  quality.fetchAlerts()
   startAutoRefresh()
 })
 
@@ -196,6 +206,29 @@ const sourceChartOption = computed(() => {
     }],
   }
 })
+
+// ── Sprint 1.2: 趋势周期切换 ──
+function handleTrendPeriodChange(period: '7d' | '30d' | '90d') {
+  trendPeriod.value = period
+  quality.fetchTrends(period)
+}
+
+// ── Sprint 1.2: 告警操作 ──
+function handleResolveAlert(id: string | number) {
+  const alert = quality.alerts.find(a => a.id === id)
+  if (alert) {
+    alert.status = 'resolved'
+    ElMessage.success('告警已标记为解决')
+  }
+}
+
+function handleIgnoreAlert(id: string | number) {
+  const alert = quality.alerts.find(a => a.id === id)
+  if (alert) {
+    alert.status = 'ignored'
+    ElMessage.info('告警已忽略')
+  }
+}
 </script>
 
 <template>
@@ -487,11 +520,12 @@ const sourceChartOption = computed(() => {
                 width="150"
                 align="center"
               >
-                <template #default>
+                <template #default="{ row }">
                   <el-button
                     size="small"
                     type="success"
                     plain
+                    @click="admin.approveAudit(row.id).catch(() => ElMessage.error('审批失败'))"
                   >
                     通过
                   </el-button>
@@ -499,6 +533,7 @@ const sourceChartOption = computed(() => {
                     size="small"
                     type="danger"
                     plain
+                    @click="admin.rejectAudit(row.id).catch(() => ElMessage.error('拒绝失败'))"
                   >
                     拒绝
                   </el-button>
@@ -508,6 +543,82 @@ const sourceChartOption = computed(() => {
           </el-card>
         </el-col>
       </el-row>
+
+      <!-- Sprint 1.2: 质量趋势 + 异常告警 Tabs -->
+      <el-card
+        shadow="never"
+        class="mb-4 tabs-card"
+      >
+        <el-tabs
+          v-model="activeTab"
+          class="quality-tabs"
+        >
+          <!-- 质量趋势 Tab -->
+          <el-tab-pane
+            label="质量趋势"
+            name="trend"
+          >
+            <div class="trend-controls">
+              <el-radio-group
+                v-model="trendPeriod"
+                size="small"
+                @change="handleTrendPeriodChange"
+              >
+                <el-radio-button value="7d">
+                  7天
+                </el-radio-button>
+                <el-radio-button value="30d">
+                  30天
+                </el-radio-button>
+                <el-radio-button value="90d">
+                  90天
+                </el-radio-button>
+              </el-radio-group>
+            </div>
+            <div v-loading="quality.loading">
+              <QualityTrendChart
+                :data="quality.trends"
+                :period="trendPeriod"
+              />
+            </div>
+          </el-tab-pane>
+
+          <!-- 异常告警 Tab -->
+          <el-tab-pane
+            label="异常告警"
+            name="alert"
+          >
+            <div
+              v-loading="quality.alertsLoading"
+              class="alert-section"
+            >
+              <div class="alert-summary">
+                <el-tag
+                  :type="quality.alerts.filter(a => a.status === 'pending').length > 0 ? 'danger' : 'success'"
+                  size="small"
+                  effect="light"
+                  round
+                >
+                  {{ quality.alerts.filter(a => a.status === 'pending').length }} 条待处理
+                </el-tag>
+                <el-tag
+                  type="info"
+                  size="small"
+                  effect="plain"
+                  round
+                >
+                  共 {{ quality.alerts.length }} 条告警
+                </el-tag>
+              </div>
+              <AlertList
+                :alerts="quality.alerts"
+                @resolve="handleResolveAlert"
+                @ignore="handleIgnoreAlert"
+              />
+            </div>
+          </el-tab-pane>
+        </el-tabs>
+      </el-card>
     </div>
   </MainLayout>
 </template>
@@ -624,4 +735,27 @@ const sourceChartOption = computed(() => {
 .empty-icon-wrapper { color: var(--muted-foreground); opacity: 0.4; margin-bottom: var(--space-3); }
 .empty-text { font-size: var(--font-size-base); font-weight: 600; color: var(--foreground); margin: 0; }
 .empty-hint-text { font-size: var(--font-size-sm); color: var(--muted-foreground); margin: var(--space-1) 0 0; }
+
+/* Sprint 1.2: Tabs */
+.tabs-card :deep(.el-card__body) {
+  padding-top: 0;
+}
+.quality-tabs :deep(.el-tabs__header) {
+  margin-bottom: var(--space-4);
+}
+.trend-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+.alert-section {
+  min-height: 200px;
+}
+.alert-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
 </style>

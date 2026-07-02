@@ -3,7 +3,6 @@ import { ref } from 'vue'
 
 /** 用户信息 store — 存储简历上传与解析状态 */
 export const useUserStore = defineStore('user', () => {
-  const name = ref('')
   const resumeFile = ref<string | null>(null)
   const parsedSkills = ref<string[]>([])
 
@@ -13,10 +12,9 @@ export const useUserStore = defineStore('user', () => {
   }
 
   function clearResume() {
-    name.value = ''
     resumeFile.value = null
     parsedSkills.value = []
   }
 
-  return { name, resumeFile, parsedSkills, setResume, clearResume }
+  return { resumeFile, parsedSkills, setResume, clearResume }
 })

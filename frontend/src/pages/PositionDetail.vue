@@ -6,6 +6,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import SkillRadar, { type RadarItem } from '@/components/SkillRadar.vue'
 import request from '@/api/request'
@@ -61,113 +62,166 @@ const PROFICIENCY_TAG: Record<string, string> = {
   '了解': 'info',
 }
 
-// ── 加载 ──
+// ── 加载（Neo4j 优先，PostgreSQL 回退） ──
 onMounted(async () => {
   loading.value = true
   try {
     const data = await request.get(`/graph/position/${encodeURIComponent(positionName.value)}/skills`)
-    position.value = (data as any).position as PositionInfo
-    skills.value = ((data as any).skills ?? []) as SkillItem[]
+    if ((data as any)?.skills?.length || (data as any)?.position) {
+      position.value = (data as any).position as PositionInfo
+      skills.value = ((data as any).skills ?? []) as SkillItem[]
+    } else {
+      // Neo4j 无数据，回退到 PostgreSQL
+      await loadFromPostgres()
+    }
   } catch (e) {
-    console.error('[PositionDetail] Failed to load:', e)
+    // Neo4j 查询失败（如 404），回退到 PostgreSQL
+    console.warn('[PositionDetail] Neo4j lookup failed, trying PostgreSQL:', e)
+    await loadFromPostgres()
   } finally {
     loading.value = false
   }
 })
+
+async function loadFromPostgres() {
+  try {
+    const pgData = await request.get(`/positions/${encodeURIComponent(positionName.value)}`)
+    position.value = {
+      name: (pgData as any).name ?? positionName.value,
+      industry: (pgData as any).industry ?? '',
+      description: (pgData as any).description ?? '',
+    }
+    skills.value = ((pgData as any).skills_required ?? []).map((s: any) => ({
+      skill_id: s.skill_id ?? '',
+      name: s.name ?? '',
+      category: s.category ?? 'hard_skill',
+      proficiency: s.proficiency ?? '熟悉',
+      confidence: s.confidence ?? 1.0,
+      source_count: s.source_count ?? 0,
+    }))
+  } catch (pgErr) {
+    console.error('[PositionDetail] PostgreSQL fallback also failed:', pgErr)
+    ElMessage.error('岗位详情加载失败，请确认该岗位存在')
+  }
+}
 </script>
 
-<template>
-  <MainLayout>
-    <div
-      v-loading="loading"
-      class="position-detail"
-    >
-      <!-- 返回 + 标题 -->
-      <div class="page-header">
-        <el-button
-          circle
-          :icon="ArrowLeft"
-          size="small"
-          @click="$router.push('/positions')"
-        />
-        <div>
-          <h2>{{ position?.name ?? positionName }}</h2>
-          <p class="header-sub">
-            {{ position?.industry ?? '' }}
-          </p>
-        </div>
-      </div>
+	<template>
+	  <MainLayout>
+	    <div class="position-detail">
+	      <!-- 骨架屏加载态 -->
+	      <template v-if="loading">
+	        <div class="page-header">
+	          <el-skeleton :rows="0" animated style="width: 200px">
+	            <template #template>
+	              <el-skeleton-item variant="circle" style="width: 32px; height: 32px" />
+	              <el-skeleton-item variant="text" style="width: 150px; height: 28px; margin-left: 12px" />
+	            </template>
+	          </el-skeleton>
+	        </div>
+	        <div class="detail-body">
+	          <div class="radar-section">
+	            <el-skeleton animated :count="1">
+	              <el-skeleton-item variant="rect" style="width: 100%; height: 360px; border-radius: 12px" />
+	            </el-skeleton>
+	          </div>
+	          <div class="skills-section">
+	            <el-skeleton animated :count="6" style="margin-bottom: 8px">
+	              <el-skeleton-item variant="text" style="width: 100%; height: 32px" />
+	            </el-skeleton>
+	          </div>
+	        </div>
+	      </template>
 
-      <div class="detail-body">
-        <!-- 左侧：雷达图 -->
-        <section class="radar-section">
-          <SkillRadar
-            :data="radarData"
-            :position-name="positionName"
-          />
-        </section>
+	      <!-- 真实内容 -->
+	      <template v-else>
+	      <!-- 返回 + 标题 -->
+	      <div class="page-header">
+	        <el-button
+	          circle
+	          :icon="ArrowLeft"
+	          size="small"
+	          @click="$router.push('/positions')"
+	        />
+	        <div>
+	          <h2>{{ position?.name ?? positionName }}</h2>
+	          <p class="header-sub">
+	            {{ position?.industry ?? '' }}
+	          </p>
+	        </div>
+	      </div>
 
-        <!-- 右侧：技能列表 -->
-        <section class="skills-section">
-          <h3 class="section-title">
-            技能要求 ({{ skills.length }})
-          </h3>
-          <el-table
-            :data="skills"
-            stripe
-            size="small"
-            style="width: 100%"
-          >
-            <el-table-column
-              prop="name"
-              label="技能"
-              min-width="120"
-            />
-            <el-table-column
-              label="类别"
-              width="100"
-            >
-              <template #default="{ row }">
-                <el-tag size="small">
-                  {{ CATEGORY_LABELS[row.category] ?? row.category }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column
-              label="熟练度"
-              width="80"
-            >
-              <template #default="{ row }">
-                <el-tag
-                  :type="PROFICIENCY_TAG[row.proficiency] ?? ''"
-                  size="small"
-                >
-                  {{ row.proficiency }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column
-              label="置信度"
-              width="90"
-            >
-              <template #default="{ row }">
-                {{ (row.confidence * 100).toFixed(0) }}%
-              </template>
-            </el-table-column>
-            <el-table-column
-              label="热度"
-              width="60"
-            >
-              <template #default="{ row }">
-                {{ row.source_count }}
-              </template>
-            </el-table-column>
-          </el-table>
-        </section>
-      </div>
-    </div>
-  </MainLayout>
-</template>
+	      <div class="detail-body">
+	        <!-- 左侧：雷达图 -->
+	        <section class="radar-section">
+	          <SkillRadar
+	            :data="radarData"
+	            :position-name="positionName"
+	          />
+	        </section>
+
+	        <!-- 右侧：技能列表 -->
+	        <section class="skills-section">
+	          <h3 class="section-title">
+	            技能要求 ({{ skills.length }})
+	          </h3>
+	          <el-table
+	            :data="skills"
+	            stripe
+	            size="small"
+	            style="width: 100%"
+	          >
+	            <el-table-column
+	              prop="name"
+	              label="技能"
+	              min-width="120"
+	            />
+	            <el-table-column
+	              label="类别"
+	              width="100"
+	            >
+	              <template #default="{ row }">
+	                <el-tag size="small">
+	                  {{ CATEGORY_LABELS[row.category] ?? row.category }}
+	                </el-tag>
+	              </template>
+	            </el-table-column>
+	            <el-table-column
+	              label="熟练度"
+	              width="80"
+	            >
+	              <template #default="{ row }">
+	                <el-tag
+	                  :type="PROFICIENCY_TAG[row.proficiency] ?? ''"
+	                  size="small"
+	                >
+	                  {{ row.proficiency }}
+	                </el-tag>
+	              </template>
+	            </el-table-column>
+	            <el-table-column
+	              label="置信度"
+	              width="90"
+	            >
+	              <template #default="{ row }">
+	                {{ (row.confidence * 100).toFixed(0) }}%
+	              </template>
+	            </el-table-column>
+	            <el-table-column
+	              label="热度"
+	              width="60"
+	            >
+	              <template #default="{ row }">
+	                {{ row.source_count }}
+	              </template>
+	            </el-table-column>
+	          </el-table>
+	        </section>
+	      </div>
+	      </template>
+	    </div>
+	  </MainLayout>
+	</template>
 
 <style scoped>
 .position-detail {

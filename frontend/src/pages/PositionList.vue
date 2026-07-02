@@ -5,6 +5,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import request from '@/api/request'
 
@@ -13,6 +14,9 @@ const positions = ref<{ id: string; name: string; industry: string }[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
 const selectedIndustry = ref('')
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(24)
 const industries = computed(() => {
   const set = new Set(positions.value.map(p => p.industry))
   return Array.from(set).sort()
@@ -34,18 +38,30 @@ const filteredPositions = computed(() => {
 async function fetchPositions() {
   loading.value = true
   try {
-    const data = await request.get('/positions', { params: { page_size: 100 } })
-    const items = (data as any).items ?? (data as any) ?? []
+    const data = await request.get('/positions', { params: { page: page.value, page_size: pageSize.value } }) as any
+    const items = data.items ?? data ?? []
     positions.value = items.map((p: any) => ({
       id: p.position_id ?? p.id ?? '',
       name: p.name ?? '',
       industry: p.industry ?? '互联网 IT',
     }))
+    total.value = data.total ?? items.length
   } catch (e) {
     console.error('[PositionList] Failed to fetch:', e)
+    ElMessage.error('岗位列表加载失败，请确认后端服务已启动')
   } finally {
     loading.value = false
   }
+}
+
+function onPageChange(newPage: number) {
+  page.value = newPage
+  fetchPositions()
+}
+
+function onSearch() {
+  page.value = 1
+  fetchPositions()
 }
 
 function goDetail(name: string) {
@@ -142,6 +158,20 @@ onMounted(fetchPositions)
           </el-card>
         </el-col>
       </el-row>
+
+      <!-- 分页 -->
+      <div
+        v-if="total > pageSize"
+        class="pagination-wrapper"
+      >
+        <el-pagination
+          v-model:current-page="page"
+          :page-size="pageSize"
+          :total="total"
+          layout="prev, pager, next"
+          @current-change="onPageChange"
+        />
+      </div>
 
       <!-- 空状态引导 -->
       <div
@@ -289,6 +319,12 @@ onMounted(fetchPositions)
   margin: var(--space-1) 0 0;
 }
 .empty-slot {
-  margin-top: var(--space-4);
+	margin-top: var(--space-4);
+}
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-6);
+  padding: var(--space-4) 0;
 }
 </style>

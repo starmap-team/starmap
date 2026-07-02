@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DataAnalysis, Connection, TrendCharts, Document, Setting, User, Sunny, MoonNight, Fold, Expand } from '@element-plus/icons-vue'
+import { DataAnalysis, DataLine, Connection, TrendCharts, Document, Setting, User, Sunny, MoonNight, Fold, Expand, Coin, Refresh, Odometer, Reading } from '@element-plus/icons-vue'
 const route = useRoute()
 const router = useRouter()
 const mobileMenuOpen = ref(false)
@@ -16,8 +16,13 @@ function toggleDarkMode() {
 const navItems = [
   { path: '/', title: '全景图谱', icon: Connection, group: 'data' },
   { path: '/positions', title: '岗位列表', icon: User, group: 'data' },
+  { path: '/pipeline', title: '数据流水线', icon: DataLine, group: 'data' },
+  { path: '/datasources', title: '数据源管理', icon: Coin, group: 'data' },
   { path: '/match', title: '匹配诊断', icon: DataAnalysis, group: 'tools' },
   { path: '/extract', title: 'JD 抽取', icon: Document, group: 'tools' },
+  { path: '/loop', title: '闭环演示', icon: Refresh, group: 'tools' },
+  { path: '/learning', title: '学习中心', icon: Reading, group: 'tools' },
+  { path: '/dashboard', title: '数据大屏', icon: Odometer, group: 'insight' },
   { path: '/evolution', title: '演化看板', icon: TrendCharts, group: 'insight' },
   { path: '/quality', title: '图谱质量', icon: DataAnalysis, group: 'insight' },
   { path: '/admin', title: '管理后台', icon: Setting, group: 'system' },
@@ -282,8 +287,9 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
   display: flex;
   flex-direction: column;
   z-index: var(--z-sticky);
-  transition: width var(--duration-slow) var(--ease-out), background var(--duration-normal);
+  transition: width var(--duration-slow) var(--ease-out), background var(--duration-normal), box-shadow var(--duration-normal);
   overflow: hidden;
+  box-shadow: var(--shadow-sidebar, 2px 0 12px rgba(0,0,0,0.04));
 }
 .sidebar-collapsed .sidebar { width: var(--sidebar-width-collapsed); }
 
@@ -342,12 +348,22 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
 .nav-group-label {
   display: block;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--muted-foreground);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: var(--space-1) var(--space-3);
+  letter-spacing: 0.1em;
+  padding: var(--space-2) var(--space-3) var(--space-1);
   margin-bottom: var(--space-1);
+  position: relative;
+}
+.nav-group-label::after {
+  content: '';
+  display: block;
+  width: 16px;
+  height: 2px;
+  background: color-mix(in srgb, var(--muted-foreground) 25%, transparent);
+  border-radius: 1px;
+  margin-top: 4px;
 }
 .nav-item {
   display: flex;
@@ -359,15 +375,26 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
   color: var(--muted-foreground);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  transition: all var(--duration-fast);
+  transition: all var(--duration-normal) var(--ease-out);
   position: relative;
   white-space: nowrap;
+  margin-bottom: 2px;
 }
 .nav-item:hover { color: var(--foreground); background: var(--sidebar-hover); }
+.nav-item:hover .nav-item-icon {
+  transform: scale(1.12);
+  color: var(--foreground);
+}
 .nav-item.active {
   color: var(--primary);
   background: var(--sidebar-active);
   font-weight: 600;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent),
+              inset 0 0 12px color-mix(in srgb, var(--primary) 4%, transparent);
+}
+.nav-item.active .nav-item-icon {
+  color: var(--primary);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--primary) 40%, transparent));
 }
 .nav-item-icon {
   display: flex;
@@ -375,6 +402,9 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
   justify-content: center;
   width: 20px;
   flex-shrink: 0;
+  transition: transform var(--duration-fast) var(--ease-spring),
+              color var(--duration-fast),
+              filter var(--duration-fast);
 }
 .nav-item-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .nav-item-indicator {
@@ -383,9 +413,21 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
   top: 50%;
   transform: translateY(-50%);
   width: 3px;
-  height: 16px;
+  height: 20px;
   background: var(--primary);
-  border-radius: 0 2px 2px 0;
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 50%, transparent);
+  animation: indicator-enter 0.25s var(--ease-spring) both;
+}
+@keyframes indicator-enter {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: 20px;
+    opacity: 1;
+  }
 }
 
 /* Footer */
@@ -549,9 +591,34 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
 /* Collapsed sidebar */
 .sidebar-collapsed .sidebar-nav { padding: var(--space-1) var(--space-1); }
 .sidebar-collapsed .nav-item { justify-content: center; padding: var(--space-2); }
+.sidebar-collapsed .nav-item:hover .nav-item-icon { transform: scale(1.18); }
+.sidebar-collapsed .nav-item.active { box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent); }
 .sidebar-collapsed .nav-group-label { display: none; }
-.sidebar-collapse-btn { display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;background:none;border-radius:var(--radius-sm);color:var(--muted-foreground);cursor:pointer;transition:all var(--duration-fast);flex-shrink:0;opacity:0.6 }
-.sidebar-collapse-btn:hover { opacity:1;color:var(--foreground);background:var(--sidebar-hover) }
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  flex-shrink: 0;
+  opacity: 0.5;
+  margin: 0 var(--space-3) var(--space-2) auto;
+}
+.sidebar-collapse-btn:hover {
+  opacity: 1;
+  color: var(--foreground);
+  background: var(--sidebar-hover);
+  transform: scale(1.08);
+}
+.sidebar-collapse-btn:active {
+  transform: scale(0.95);
+}
 
 html.dark .sidebar { background: var(--card); }
 

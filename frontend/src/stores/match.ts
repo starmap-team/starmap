@@ -18,6 +18,7 @@ export interface SkillGap {
 }
 
 export interface MatchResult {
+  match_id?: string
   match_score: number
   matched_skills: string[]
   gap_skills: string[]
@@ -39,23 +40,45 @@ export interface PositionSkills {
 export const useMatchStore = defineStore('match', () => {
   const result = ref<MatchResult | null>(null)
   const loading = ref(false)
+  const history = ref<Map<string, MatchResult>>(new Map())
 
-  async function runMatch(targetPosition: string, skillNames: string[]) {
+  async function runMatch(targetPosition: string, skillNames: string[], skillProficiencies?: Record<string, string>) {
     loading.value = true
     try {
       const person_skills: PersonSkill[] = skillNames.map((name) => ({
         skill_id: `skill_${name}`,
         name,
         category: 'hard_skill' as const,
-        proficiency: '熟悉',
+        proficiency: skillProficiencies?.[name] ?? '熟悉',
       }))
       const data = await request.post('/match/position', {
         person_skills,
         target_position: targetPosition,
       })
-      result.value = data as unknown as MatchResult
+      const matchResult = data as unknown as MatchResult
+      result.value = matchResult
+      // 缓存到历史记录
+      if (matchResult.match_id) {
+        history.value.set(matchResult.match_id, matchResult)
+      }
     } finally {
       loading.value = false
+    }
+  }
+
+  async function fetchMatchResult(matchId: string): Promise<MatchResult | null> {
+    // 先查本地缓存
+    if (history.value.has(matchId)) {
+      return history.value.get(matchId) ?? null
+    }
+    // 再查后端
+    try {
+      const data = await request.get(`/match/result/${matchId}`)
+      const matchResult = data as unknown as MatchResult
+      history.value.set(matchId, matchResult)
+      return matchResult
+    } catch {
+      return null
     }
   }
 
@@ -68,5 +91,24 @@ export const useMatchStore = defineStore('match', () => {
     }
   }
 
-  return { result, loading, runMatch, fetchPositionSkills }
+  interface MatchHistoryItem {
+    match_id: string
+    target_position: string
+    match_score: number
+    matched_skills: string[]
+    created_at?: string
+  }
+
+  const historyList = ref<MatchHistoryItem[]>([])
+
+  async function fetchHistory() {
+    try {
+      const data = await request.get('/match/history', { params: { limit: 10 } }) as any
+      historyList.value = data.items ?? []
+    } catch {
+      historyList.value = []
+    }
+  }
+
+  return { result, loading, history, historyList, runMatch, fetchMatchResult, fetchPositionSkills, fetchHistory }
 })
