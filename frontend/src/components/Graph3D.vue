@@ -174,12 +174,12 @@ async function initGraph() {
     .d3AlphaDecay(nodeCount > 300 ? 0.05 : 0.02)
     .d3VelocityDecay(nodeCount > 300 ? 0.4 : 0.3)
     .warmupTicks(nodeCount > 300 ? 30 : 50)
-    .cooldownTicks(nodeCount > 300 ? 100 : 200);
+    .cooldownTicks(nodeCount > 300 ? 100 : 200)
 
   // 额外调优：link 距离和强度 + center 引力
   try {
-    (graph as any).d3Force('link').distance(linkDist)
-    (graph as any).d3Force('link').strength(linkStrength)
+    const linkForce = (graph as any).d3Force('link')
+    if (linkForce) { linkForce.distance(linkDist); linkForce.strength(linkStrength) }
     const center = (graph as any).d3Force('center')
     if (center) center.strength(0.15)
   } catch (_) {
