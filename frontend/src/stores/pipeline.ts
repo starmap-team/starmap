@@ -4,7 +4,7 @@
  * 支持：DAG并行、阶段选择、失败重试/断点续跑、定时调度、SSE实时进度
  */
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import request from '@/api/request'
 
 // ── 类型定义 ──
