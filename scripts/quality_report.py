@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 StarMap 质量仪表盘生成器
 
@@ -28,7 +27,7 @@ def _load_jsonl(filepath):
     if not path.exists():
         return []
     data = []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -88,7 +87,7 @@ def evaluate_jd_extraction(golden_file, system_file):
             "detail": "Golden set not found or empty",
         }
 
-    WEIGHTS = {
+    weights = {
         "position_name": 0.10,
         "required_skills": 0.30,
         "preferred_skills": 0.15,
@@ -113,19 +112,19 @@ def evaluate_jd_extraction(golden_file, system_file):
         gn = _normalize_name(golden.get("position_name", ""))
         sn = _normalize_name(system.get("position_name", ""))
         pos_score = 1.0 if gn == sn else (0.5 if gn in sn or sn in gn else 0.0)
-        total_weighted_score += pos_score * WEIGHTS["position_name"]
+        total_weighted_score += pos_score * weights["position_name"]
 
         # Required skills: F1 on skill names
         g_req_set = _extract_skill_names(golden.get("required_skills", []))
         s_req_set = _extract_skill_names(system.get("required_skills", []))
         _, _, f1_req = _compute_f1(g_req_set, s_req_set)
-        total_weighted_score += f1_req * WEIGHTS["required_skills"]
+        total_weighted_score += f1_req * weights["required_skills"]
 
         # Preferred skills: F1
         g_pref_set = _extract_skill_names(golden.get("preferred_skills", []))
         s_pref_set = _extract_skill_names(system.get("preferred_skills", []))
         _, _, f1_pref = _compute_f1(g_pref_set, s_pref_set)
-        total_weighted_score += f1_pref * WEIGHTS["preferred_skills"]
+        total_weighted_score += f1_pref * weights["preferred_skills"]
 
         # Experience: within ±1 year
         g_exp = golden.get("experience_required")
@@ -136,39 +135,39 @@ def evaluate_jd_extraction(golden_file, system_file):
             exp_score = 1.0
         else:
             exp_score = 0.5
-        total_weighted_score += exp_score * WEIGHTS["experience_required"]
+        total_weighted_score += exp_score * weights["experience_required"]
 
         # Education
         g_edu = _normalize_name(golden.get("education_required", ""))
         s_edu = _normalize_name(system.get("education_required", ""))
         edu_score = 1.0 if g_edu == s_edu else (0.5 if g_edu in s_edu or s_edu in g_edu else 0.0)
-        total_weighted_score += edu_score * WEIGHTS["education_required"]
+        total_weighted_score += edu_score * weights["education_required"]
 
         # Industry
         g_ind = _normalize_name(golden.get("industry", ""))
         s_ind = _normalize_name(system.get("industry", ""))
         ind_score = 1.0 if g_ind == s_ind else 0.0
-        total_weighted_score += ind_score * WEIGHTS["industry"]
+        total_weighted_score += ind_score * weights["industry"]
 
         # Responsibilities: F1 on description overlap
-        g_resp = set(_normalize_name(r) for r in golden.get("responsibilities", []) if r)
-        s_resp = set(_normalize_name(r) for r in system.get("responsibilities", []) if r)
+        g_resp = {_normalize_name(r) for r in golden.get("responsibilities", []) if r}
+        s_resp = {_normalize_name(r) for r in system.get("responsibilities", []) if r}
         _, _, f1_resp = _compute_f1(g_resp, s_resp)
-        total_weighted_score += f1_resp * WEIGHTS["responsibilities"]
+        total_weighted_score += f1_resp * weights["responsibilities"]
 
         # Description
         g_desc = _normalize_name(golden.get("description", ""))
         s_desc = _normalize_name(system.get("description", ""))
         desc_score = 1.0 if g_desc == s_desc else (0.5 if g_desc in s_desc or s_desc in g_desc else 0.0)
-        total_weighted_score += desc_score * WEIGHTS["description"]
+        total_weighted_score += desc_score * weights["description"]
 
         # Knowledge areas
-        g_ka = set(_normalize_name(k) for k in golden.get("knowledge_areas", []) if k)
-        s_ka = set(_normalize_name(k) for k in system.get("knowledge_areas", []) if k)
+        g_ka = {_normalize_name(k) for k in golden.get("knowledge_areas", []) if k}
+        s_ka = {_normalize_name(k) for k in system.get("knowledge_areas", []) if k}
         _, _, f1_ka = _compute_f1(g_ka, s_ka)
-        total_weighted_score += f1_ka * WEIGHTS["knowledge_areas"]
+        total_weighted_score += f1_ka * weights["knowledge_areas"]
 
-        total_weight += sum(WEIGHTS.values())
+        total_weight += sum(weights.values())
 
     avg_score = round(total_weighted_score / total_weight, 4) if total_weight > 0 else 0.0
     passed = avg_score >= 0.90
@@ -381,28 +380,28 @@ def main():
 
     # Markdown 报告
     md_lines = [
-        f"# StarMap 质量报告",
-        f"",
+        "# StarMap 质量报告",
+        "",
         f"生成时间：{report['generated_at']}",
     ]
     if args.ci and report.get("git_head"):
         md_lines.append(f"> CI Run: {report['git_head']}")
     md_lines.extend([
-        f"",
-        f"| 指标 | 目标 | 当前 | 状态 |",
-        f"|------|------|------|------|",
+        "",
+        "| 指标 | 目标 | 当前 | 状态 |",
+        "|------|------|------|------|",
     ])
     for m in report["metrics"]:
         current = m["current"] if m["current"] is not None else "-"
         status_icon = {"pending": "⬜", "pass": "✅", "fail": "❌"}.get(m["status"], "⬜")
         md_lines.append(f"| {m['metric']} | {m['target']} | {current} | {status_icon} |")
 
-    md_lines.append(f"")
+    md_lines.append("")
     md_lines.append(f"**预警级别**：{report['warning_level']}")
     md_path = output_dir / "quality_report.md"
     md_path.write_text("\n".join(md_lines), encoding="utf-8")
 
-    print(f"质量报告已生成：")
+    print("质量报告已生成：")
     print(f"  JSON: {json_path}")
     print(f"  Markdown: {md_path}")
     if args.ci:

@@ -1,10 +1,8 @@
 import asyncio
 import json
-import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Optional
 
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -29,7 +27,7 @@ try:
     )
     from app.core.extraction.prompt import get_prompt
     _HAS_LLM = True
-except Exception as exc:
+except Exception:
     _HAS_LLM = False
     logger.warning("LLM client not available for judge evaluation: {}")
 
@@ -57,8 +55,8 @@ class SampleEvaluation(BaseModel):
     precision: float = 0.0
     recall: float = 0.0
     f1: float = 0.0
-    llm_score: Optional[float] = None
-    llm_reasoning: Optional[str] = None
+    llm_score: float | None = None
+    llm_reasoning: str | None = None
     errors: list[str] = Field(default_factory=list)
 
 
@@ -74,8 +72,8 @@ class ExtractionMetrics(BaseModel):
 
 def compute_skill_f1(golden_skills: list[str], system_skills: list[str]) -> tuple[float, float, float]:
     # Normalize both sides through alias + basic normalization for fair comparison
-    golden_set = set(_normalize_skill_for_eval(s) for s in golden_skills if s.strip())
-    system_set = set(_normalize_skill_for_eval(s) for s in system_skills if s.strip())
+    golden_set = {_normalize_skill_for_eval(s) for s in golden_skills if s.strip()}
+    system_set = {_normalize_skill_for_eval(s) for s in system_skills if s.strip()}
 
     # Remove empty strings that may result from normalization
     golden_set.discard("")
@@ -182,7 +180,7 @@ async def evaluate_single_sample(golden: dict, system: dict, use_llm_judge: bool
     return eval_result
 
 
-async def evaluate_batch(golden_file: str, system_file: str, output_file: Optional[str] = None, use_llm_judge: bool = False) -> ExtractionMetrics:
+async def evaluate_batch(golden_file: str, system_file: str, output_file: str | None = None, use_llm_judge: bool = False) -> ExtractionMetrics:
     """Evaluate system output against golden standard in batch.
 
     Args:
@@ -312,7 +310,7 @@ def _load_jsonl(filepath: str) -> list[dict]:
         logger.warning(f"File not found: {filepath}, returning empty list")
         return []
     data = []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
