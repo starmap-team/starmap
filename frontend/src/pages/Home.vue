@@ -540,7 +540,9 @@ onMounted(async () => {
               v-if="showEvolution && viewMode === '3d' && graphStore.currentLayer === 'position' && !graphStore.focusedPositionName"
               class="evolution-hint"
             >
-              <el-icon :size="18"><TrendCharts /></el-icon>
+              <el-icon :size="18">
+                <TrendCharts />
+              </el-icon>
               <span>点击岗位查看演化路径</span>
             </div>
             <div
@@ -598,10 +600,18 @@ onMounted(async () => {
         direction="rtl"
         @close="closeEvolutionDrawer"
       >
-        <div v-if="selectedEvolutionEdge" class="evo-drawer-body">
+        <div
+          v-if="selectedEvolutionEdge"
+          class="evo-drawer-body"
+        >
           <div class="evo-title-row">
             <span class="evo-pos">{{ selectedEvolutionEdge.source_id }}</span>
-            <el-icon :size="20" color="var(--primary)"><Connection /></el-icon>
+            <el-icon
+              :size="20"
+              color="var(--primary)"
+            >
+              <Connection />
+            </el-icon>
             <span class="evo-pos">{{ selectedEvolutionEdge.target_id }}</span>
           </div>
           <el-tag
