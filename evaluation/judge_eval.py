@@ -110,9 +110,11 @@ async def _call_llm_judge(golden: dict, system: dict) -> tuple[float | None, str
         golden_json = json.dumps(golden, ensure_ascii=False, indent=2)
         system_json = json.dumps(system, ensure_ascii=False, indent=2)
         prompt = get_prompt("llm_judge", golden_json=golden_json, system_json=system_json)
-        response = await call_llm_with_fallback(prompt)
+        response = await asyncio.wait_for(call_llm_with_fallback(prompt), timeout=10.0)
         content = response.get("content", "") if isinstance(response, dict) else str(response)
         result = parse_llm_json_response(content)
+    except TimeoutError:
+        return None, "LLM judge timed out after 10s"
     except Exception as exc:
         return None, f"LLM judge call failed: {exc}"
 
@@ -174,6 +176,8 @@ async def evaluate_single_sample(golden: dict, system: dict, use_llm_judge: bool
         llm_score, llm_reasoning = await _call_llm_judge(golden, system)
         eval_result.llm_score = llm_score
         eval_result.llm_reasoning = llm_reasoning
+        if llm_score is None:
+            logger.info("LLM judge unavailable for sample {}, using F1 only", sid)
 
     return eval_result
 
@@ -314,3 +318,18 @@ def _load_jsonl(filepath: str) -> list[dict]:
             if line:
                 data.append(json.loads(line))
     return data
+
+
+if __name__ == "__main__":
+    # Self-check: verify F1 fallback works when LLM unavailable
+    async def _self_check() -> None:
+        golden = {"id": "test-1", "required_skills": ["Python", "FastAPI"], "bonus_skills": ["Docker"]}
+        system = {"id": "test-1", "required_skills": ["Python", "FastAPI", "Redis"], "bonus_skills": ["Docker"]}
+        result = await evaluate_single_sample(golden, system, use_llm_judge=True)
+        assert result.f1 > 0, f"F1 should be > 0, got {result.f1}"
+        if result.llm_score is None:
+            print(f"F1 fallback OK -- f1={result.f1:.4f}, llm_score=None (LLM unavailable)")
+        else:
+            print(f"LLM judge OK -- f1={result.f1:.4f}, llm_score={result.llm_score}")
+
+    asyncio.run(_self_check())
