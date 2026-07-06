@@ -171,6 +171,14 @@ class LoopOrchestrator:
         await self._update_steps_json(db_record, result, session=session)
 
         # ---- Step 3: Graph Update ----
+        # Obtain Neo4j driver for step 3 and step 4
+        driver = None
+        try:
+            from app.services.resources import resources as app_resources
+            driver = app_resources.neo4j_driver
+        except Exception:
+            pass
+
         step3 = await self._step3_graph_update(run_id, extraction_data)
         result.steps.append(step3)
         graph_ok = step3.status == StepStatus.SUCCESS
@@ -182,6 +190,8 @@ class LoopOrchestrator:
             target_position=target_position,
             extracted_skills=result.extracted_skills,
             graph_available=graph_ok,
+            driver=driver,
+            db_session=session,
         )
         result.steps.append(step4)
         if step4.status == StepStatus.SUCCESS:
@@ -402,6 +412,8 @@ class LoopOrchestrator:
         target_position: str,
         extracted_skills: list[dict[str, Any]],
         graph_available: bool,
+        driver: Any = None,
+        db_session: Any = None,
     ) -> LoopStepResult:
         """Step 4: Run match diagnosis with extracted skills vs target position."""
         start = time.monotonic()
@@ -431,6 +443,8 @@ class LoopOrchestrator:
             match_result = await run_match(
                 target_position=target_position,
                 person_skills=person_skills,
+                driver=driver,
+                db_session=db_session,
             )
 
             return LoopStepResult(
