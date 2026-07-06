@@ -135,16 +135,6 @@ export const handlers = [
     }),
   ),
 
-  // Graph panorama
-  http.get('/api/v1/graph/panorama', () =>
-    HttpResponse.json({
-      nodes: [
-        { id: 'ka-1', labels: ['KnowledgeArea'], properties: { name: '前端开发', position_count: 25, skill_count: 43, color: '#409EFF' } },
-      ],
-      edges: [],
-    }),
-  ),
-
   // Quality report
   http.get('/api/v1/quality/report', () =>
     HttpResponse.json({

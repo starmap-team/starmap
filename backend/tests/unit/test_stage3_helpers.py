@@ -128,14 +128,18 @@ class TestHallucinationScore:
 # ---------------------------------------------------------------------------
 class TestRunAsync:
     def test_executes_coroutine(self) -> None:
+        from app.utils.async_helpers import run_async
+
         async def coro() -> int:
             await asyncio.sleep(0)
             return 42
 
-        assert s.run_async(coro()) == 42
+        assert run_async(coro()) == 42
 
     def test_returns_none_for_none_coroutine(self) -> None:
+        from app.utils.async_helpers import run_async
+
         async def coro() -> None:
             await asyncio.sleep(0)
 
-        assert s.run_async(coro()) is None
+        assert run_async(coro()) is None

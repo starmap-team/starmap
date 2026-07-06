@@ -1,7 +1,8 @@
-# =============================================================================
+﻿# =============================================================================
 # 星图(StarMap) 开发环境 Docker Compose
 # 规范3（§17.4）：开发也用 Docker，依赖精确锁定。
-# 启动：docker-compose -f docker-compose.dev.yml up
+# 启动：docker compose -f docker-compose.dev.yml up -d
+# 停止：docker compose -f docker-compose.dev.yml stop
 # =============================================================================
 name: starmap-dev
 
@@ -32,8 +33,17 @@ services:
         condition: service_started
       chroma:
         condition: service_started
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/app --reload-exclude 'tests/*'
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
+    # 开发模式：容器停止后保留，不自动删除
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   celery-worker:
     build:
@@ -42,12 +52,14 @@ services:
     container_name: starmap-celery-worker
     volumes:
       - ./backend:/app
+      - ./crawler:/app/crawler  # Phase 2 UAT 修复: crawler 挂载到 /app 下
       - ./docs:/app/docs:ro      # 文档挂载（ontology/skill_taxonomy.yaml 等）
     env_file:
       - .env
     environment:
       - NO_PROXY=*
       - no_proxy=*
+      - PYTHONPATH=/app  # 让 Python 能找到 /app 下的模块（包括 /app/crawler）
     depends_on:
       redis:
         condition: service_started
@@ -57,6 +69,9 @@ services:
         condition: service_healthy
     command: celery -A app.tasks.celery_app.celery_app worker --loglevel=info
     restart: unless-stopped
+    # 开发模式：容器停止后保留，不自动删除
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
 
   # ---------- 前端（Vite HMR） ----------
   frontend:
@@ -70,12 +85,15 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_BASE_URL=http://backend:8000   # Docker 内部网络，使用服务名
+      - VITE_API_BASE_URL=http://starmap-backend:8000   # Docker 内部网络，使用服务名
       - VITE_USE_MSW=false   # 禁用 MSW mock，使用真实后端 API
     command: npm run dev -- --host 0.0.0.0
     depends_on:
       - backend
     restart: unless-stopped
+    # 开发模式：容器停止后保留，不自动删除
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
 
   # ---------- 图数据库 ----------
   neo4j:
@@ -95,6 +113,9 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
+    # 开发模式：容器停止后保留，不自动删除
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
 
   # ---------- 关系数据库 ----------
   postgres:
@@ -114,6 +135,9 @@ services:
       timeout: 3s
       retries: 10
     restart: unless-stopped
+    # 开发模式：容器停止后保留，不自动删除
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
 
   # ---------- 缓存 / 消息队列 ----------
   redis:
@@ -124,6 +148,9 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    # 开发模式：容器停止后保留，不自动删除
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
 
   # ---------- 向量数据库 ----------
   chroma:
@@ -137,6 +164,9 @@ services:
     volumes:
       - chroma_data:/chroma/chroma
     restart: unless-stopped
+    # 开发模式：容器停止后保留，不自动删除
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
 
   # ---------- 本地大模型 (Qwen2.5-7B) ----------
   # 通过 Ollama 提供 OpenAI 兼容 API，供抽取 fallback 和本地评测使用
@@ -164,17 +194,32 @@ services:
       retries: 5
       start_period: 120s  # 首次拉取模型需要时间
     restart: unless-stopped
+    # 开发模式：容器停止后保留，不自动删除
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
 
   # 模型初始化容器（拉取 Qwen2.5-7B 到 Ollama 卷中，一次性的）
   ollama-pull:
     image: ollama/ollama:latest
     container_name: starmap-ollama-pull
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     volumes:
       - ollama_data:/root/.ollama
     entrypoint: >
-      sh -c "sleep 5 && ollama pull qwen2.5:7b && echo 'Model ready'"
+      sh -c "
+        echo '等待 Ollama 服务就绪...'
+        for i in 1 2 3 4 5; do
+          if ollama list >/dev/null 2>&1; then
+            echo 'Ollama 就绪，开始拉取模型...'
+            break
+          fi
+          echo '等待 Ollama... 重试 #'\$i
+          sleep 10
+        done
+        ollama pull qwen2.5:7b && echo '模型就绪' || echo '模型拉取失败，将在下次启动时重试'
+      "
     restart: "no"
 
 volumes:
@@ -183,3 +228,4 @@ volumes:
   redis_data:
   chroma_data:
   ollama_data:
+

@@ -26,6 +26,12 @@ export interface UseSSEOptions {
   pollInterval?: number
   /** URL for polling fallback (defaults to url + '-poll') */
   pollUrl?: string
+  /**
+   * Phase 1 D-09: Optional event-type-specific handlers map.
+   * If provided, useSSE will dispatch event to matching handler based on event.type
+   * before falling back to onMessage.
+   */
+  storeHandlers?: Record<string, (data: any) => void>
 }
 
 export function useSSE(url: string, options: UseSSEOptions) {
@@ -38,6 +44,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
     pollThreshold = 3,
     pollInterval = 5000,
     pollUrl,
+    storeHandlers,  // Phase 1 D-09: optional event-type dispatch
   } = options
 
   const connected = ref(false)
@@ -74,6 +81,16 @@ export function useSSE(url: string, options: UseSSEOptions) {
       eventSource.onmessage = (event: MessageEvent) => {
         connected.value = true
         consecutiveFailures = 0
+        // Phase 1 D-09: dispatch to storeHandlers if event has type field
+        if (storeHandlers) {
+          try {
+            const data = JSON.parse(event.data)
+            const handler = storeHandlers[data?.type]
+            if (handler) {
+              handler(data?.data ?? data)
+            }
+          } catch { /* ignore parse errors */ }
+        }
         onMessage(event)
       }
 
@@ -82,6 +99,28 @@ export function useSSE(url: string, options: UseSSEOptions) {
       eventSource.addEventListener('match_event', onMessage)
       eventSource.addEventListener('graph_update', onMessage)
       eventSource.addEventListener('pipeline_event', onMessage)
+
+      // Phase 1 SSE-01/02/03: 监听新增的 3 种 named events
+      if (storeHandlers) {
+        eventSource.addEventListener('quality_alert', (e: MessageEvent) => {
+          try {
+            const data = JSON.parse(e.data)
+            storeHandlers.quality_alert?.(data?.data ?? data)
+          } catch { /* ignore */ }
+        })
+        eventSource.addEventListener('data_milestone', (e: MessageEvent) => {
+          try {
+            const data = JSON.parse(e.data)
+            storeHandlers.data_milestone?.(data?.data ?? data)
+          } catch { /* ignore */ }
+        })
+        eventSource.addEventListener('extraction_complete', (e: MessageEvent) => {
+          try {
+            const data = JSON.parse(e.data)
+            storeHandlers.extraction_complete?.(data?.data ?? data)
+          } catch { /* ignore */ }
+        })
+      }
 
       eventSource.onerror = (err: Event) => {
         connected.value = false

@@ -1,10 +1,13 @@
-"""Hallucination Guard — Three-layer defense against skill hallucination.
+"""Hallucination Guard — 反幻觉守卫：三层防御体系防止 LLM 产生虚假技能。
 
-Implements the three-layer defense from design.md §4.3:
-- Layer 1: Ontology whitelist (exact match + semantic match >= 0.85)
-- Layer 2: Multi-source verification (>= 3 independent sources, span >= 4 weeks)
-- Layer 3: Confidence grading (>= 0.8 → verified, >= 0.5 → pending, < 0.5 → high_risk)
-- Extra: LLM-as-judge (SUPPORTED/UNSUPPORTED/AMBIGUOUS)
+实现原理（design.md §4.3）：
+- 第一层：本体白名单（精确匹配 + 语义相似度 >= 0.85）
+- 第二层：多源验证（>= 3 个独立来源，时间跨度 >= 4 周）
+- 第三层：置信度分级（>= 0.8 → 已验证, >= 0.5 → 待验证, < 0.5 → 高风险）
+- 额外：LLM-as-judge（支持/不支持/模糊）
+
+业务价值：
+  确保从 JD 抽取的技能真实存在，避免 LLM 幻觉导致数据污染。
 """
 
 from __future__ import annotations

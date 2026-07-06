@@ -7,7 +7,6 @@ SyntaxError during uvicorn reload.
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import Annotated, Any
 
 import sqlalchemy as sa
@@ -105,14 +104,15 @@ _DEMO_SOURCES = [
     SourceConfig(id=4, name="ESCO", authority_score=0.92, source_type="official"),
 ]
 
-_DEMO_AUDIT_QUEUE_TEMPLATE = [
-    AuditItem(id=1, type="skill", name="AI Agent Dev", trust=58, status="pending"),
-    AuditItem(id=2, type="position", name="LLM Application Engineer", trust=64, status="pending"),
-    AuditItem(id=3, type="skill", name="Spring AI", trust=72, status="pending"),
-    AuditItem(id=4, type="skill", name="RAG", trust=45, status="pending"),
+_DEMO_REVIEW_SEED = [
+    {"entity_type": "skill", "entity_name": "AI Agent Dev", "status": "pending", "payload": {"trust": 58}},
+    {"entity_type": "position", "entity_name": "LLM Application Engineer", "status": "pending", "payload": {"trust": 64}},
+    {"entity_type": "skill", "entity_name": "Spring AI", "status": "pending", "payload": {"trust": 72}},
+    {"entity_type": "skill", "entity_name": "RAG", "status": "pending", "payload": {"trust": 45}},
 ]
 
-_demo_audit_queue = deepcopy(_DEMO_AUDIT_QUEUE_TEMPLATE)
+# Whitelist of allowed Neo4j node labels to prevent Cypher injection
+_ALLOWED_LABELS = frozenset({"Position", "Skill", "Tool", "KnowledgeArea", "Industry", "Domain"})
 
 
 async def _build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
@@ -144,11 +144,22 @@ async def _build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
                 )
             )).scalar() or 0.0
         )
+
+        # Count pending review items from DB
+        from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+
+        pending_count = int(
+            (await session.execute(
+                sa.select(sa.func.count()).select_from(ReviewQueueModel)
+                .where(ReviewQueueModel.status == "pending")
+            )).scalar() or 0
+        )
     except Exception:
         total_positions = 0
         total_skills = 0
         total_edges = 0
         avg_value = 0.0
+        pending_count = 0
 
     return AdminStatsResponse(
         total_nodes=total_positions + total_skills,
@@ -157,15 +168,8 @@ async def _build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
         total_skills=total_skills,
         avg_confidence=avg_value,
         hallucination_rate=dashboard.hallucination_rate,
-        pending_review=len([item for item in _demo_audit_queue if item.status == "pending"]),
+        pending_review=pending_count,
     )
-
-
-def _find_audit_item(item_id: int) -> AuditItem | None:
-    for item in _demo_audit_queue:
-        if item.id == item_id:
-            return item
-    return None
 
 
 @router.get("/stats", response_model=AdminStatsResponse)
@@ -210,9 +214,22 @@ async def get_sources(
 async def get_review_queue(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditQueueResponse:
-    """Return pending review items from DB when available, otherwise demo queue."""
+    """Return pending review items from DB; auto-seed if table is empty."""
+    from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+
     try:
-        from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+        # Check if there are any rows at all in the review_queue table
+        total_count = int(
+            (await session.execute(
+                sa.select(sa.func.count()).select_from(ReviewQueueModel)
+            )).scalar() or 0
+        )
+
+        if total_count == 0:
+            # Auto-seed from template data (only once, when table is empty)
+            for seed in _DEMO_REVIEW_SEED:
+                session.add(ReviewQueueModel(**seed))
+            await session.commit()
 
         stmt = (
             sa.select(ReviewQueueModel)
@@ -221,24 +238,21 @@ async def get_review_queue(
         )
         result = await session.execute(stmt)
         rows = result.scalars().all()
-        if rows:
-            items = []
-            for r in rows:
-                trust = int((r.payload or {}).get("trust", 50))
-                items.append(
-                    AuditItem(
-                        id=r.id,
-                        type=r.entity_type,
-                        name=r.entity_name,
-                        trust=trust,
-                        status=r.status,
-                    )
+        items = []
+        for r in rows:
+            trust = int((r.payload or {}).get("trust", 50))
+            items.append(
+                AuditItem(
+                    id=r.id,
+                    type=r.entity_type,
+                    name=r.entity_name,
+                    trust=trust,
+                    status=r.status,
                 )
-            return AuditQueueResponse(items=items)
+            )
+        return AuditQueueResponse(items=items)
     except Exception:
-        pass
-
-    return AuditQueueResponse(items=[])
+        return AuditQueueResponse(items=[])
 
 
 @router.post("/audit/{item_id}/approve", response_model=AuditItem)
@@ -247,32 +261,24 @@ async def approve_audit(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditItem:
     """Approve a review queue item."""
-    try:
-        from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+    from app.models.extraction_models import ReviewQueue as ReviewQueueModel
 
-        result = await session.execute(
-            sa.select(ReviewQueueModel).where(ReviewQueueModel.id == item_id)
-        )
-        row = result.scalar_one_or_none()
-        if row:
-            row.status = "approved"
-            await session.commit()
-            trust = int((row.payload or {}).get("trust", 50))
-            return AuditItem(
-                id=row.id,
-                type=row.entity_type,
-                name=row.entity_name,
-                trust=trust,
-                status="approved",
-            )
-    except Exception:
-        pass
-
-    item = _find_audit_item(item_id)
-    if item is None:
+    result = await session.execute(
+        sa.select(ReviewQueueModel).where(ReviewQueueModel.id == item_id)
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
         raise HTTPException(status_code=404, detail="Audit item not found")
-    item.status = "approved"
-    return item
+    row.status = "approved"
+    await session.commit()
+    trust = int((row.payload or {}).get("trust", 50))
+    return AuditItem(
+        id=row.id,
+        type=row.entity_type,
+        name=row.entity_name,
+        trust=trust,
+        status="approved",
+    )
 
 
 @router.post("/audit/{item_id}/reject", response_model=AuditItem)
@@ -281,41 +287,46 @@ async def reject_audit(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditItem:
     """Reject a review queue item."""
-    try:
-        from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+    from app.models.extraction_models import ReviewQueue as ReviewQueueModel
 
-        result = await session.execute(
-            sa.select(ReviewQueueModel).where(ReviewQueueModel.id == item_id)
-        )
-        row = result.scalar_one_or_none()
-        if row:
-            row.status = "rejected"
-            await session.commit()
-            trust = int((row.payload or {}).get("trust", 50))
-            return AuditItem(
-                id=row.id,
-                type=row.entity_type,
-                name=row.entity_name,
-                trust=trust,
-                status="rejected",
-            )
-    except Exception:
-        pass
-
-    item = _find_audit_item(item_id)
-    if item is None:
+    result = await session.execute(
+        sa.select(ReviewQueueModel).where(ReviewQueueModel.id == item_id)
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
         raise HTTPException(status_code=404, detail="Audit item not found")
-    item.status = "rejected"
-    return item
+    row.status = "rejected"
+    await session.commit()
+    trust = int((row.payload or {}).get("trust", 50))
+    return AuditItem(
+        id=row.id,
+        type=row.entity_type,
+        name=row.entity_name,
+        trust=trust,
+        status="rejected",
+    )
 
 
 @router.post("/seed/reset", response_model=ResetDemoResponse)
 @router.post("/reset-demo", response_model=ResetDemoResponse, include_in_schema=False)
-async def reset_demo_seed() -> ResetDemoResponse:
-    """Reset demo review queue state."""
-    _demo_audit_queue.clear()
-    _demo_audit_queue.extend(deepcopy(_DEMO_AUDIT_QUEUE_TEMPLATE))
-    return ResetDemoResponse(ok=True, review_items=len(_demo_audit_queue))
+async def reset_demo_seed(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ResetDemoResponse:
+    """Reset demo review queue state — re-seed the review_queue table."""
+    from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+
+    # Clear existing pending review items
+    await session.execute(
+        sa.delete(ReviewQueueModel).where(ReviewQueueModel.status == "pending")
+    )
+
+    # Seed default demo items from shared template
+    demo_items = [ReviewQueueModel(**seed) for seed in _DEMO_REVIEW_SEED]
+    for item in demo_items:
+        session.add(item)
+    await session.commit()
+
+    return ResetDemoResponse(ok=True, review_items=len(demo_items))
 
 
 # Prompt management
@@ -468,16 +479,21 @@ async def list_graph_nodes(
     try:
         async with driver.session() as session:
             result = await session.run(
-                "MATCH (n) RETURN n LIMIT " + str(limit),
+                "MATCH (n) RETURN n LIMIT $limit",
+                {"limit": limit},
             )
             async for record in result:
                 node = record["n"]
                 if node is None:
                     continue
                 labels = list(node.labels)
+                # Only include nodes with whitelisted labels
+                valid_labels = [lb for lb in labels if lb in _ALLOWED_LABELS]
+                if not valid_labels:
+                    continue
                 props = dict(node)
                 props = {k: str(v) if not isinstance(v, (str, int, float, bool, list, dict, type(None))) else v for k, v in props.items()}
-                node_type = labels[0] if labels else "Unknown"
+                node_type = valid_labels[0]
                 nodes.append(GraphNodeItem(
                     id=str(node.element_id),
                     type=node_type,
@@ -497,12 +513,22 @@ async def create_graph_node(
 ) -> GraphNodeItem:
     if driver is None:
         raise HTTPException(status_code=503, detail="Neo4j not available")
-    label = body.type if body.type in ("Position", "Skill", "Tool", "KnowledgeArea", "Industry") else "Skill"
+    # Whitelist allowed node labels to prevent Cypher injection
+    if body.type not in _ALLOWED_LABELS:
+        raise HTTPException(status_code=400, detail=f"Invalid label: {body.type}. Allowed: {sorted(_ALLOWED_LABELS)}")
+    label = body.type
     props = {**body.properties, "name": body.name}
     try:
         async with driver.session() as session:
-            query = rf"CREATE (n:{label} {{name: \}}) SET n += \ RETURN elementId(n) as eid"
-            result = await session.run(query, name=body.name, props=props)
+            # Label is safe (validated against whitelist above).
+            # Neo4j does not support parameterized labels, so we use
+            # f-string for the label only after strict whitelist check.
+            # All property values use parameterized queries.
+            query = (
+                f"CREATE (n:{label} {{name: $name}}) SET n += $props "
+                "RETURN elementId(n) AS eid"
+            )
+            result = await session.run(query, {"name": body.name, "props": props})
             record = await result.single()
             eid = str(record["eid"]) if record else ""
             logger.info("Created graph node: {} ({})", body.name, label)
@@ -523,11 +549,18 @@ async def update_graph_node(
 ) -> GraphNodeItem:
     if driver is None:
         raise HTTPException(status_code=503, detail="Neo4j not available")
+    # Validate label against whitelist
+    if body.type not in _ALLOWED_LABELS:
+        raise HTTPException(status_code=400, detail=f"Invalid label: {body.type}. Allowed: {sorted(_ALLOWED_LABELS)}")
     props = {**body.properties, "name": body.name}
     try:
         async with driver.session() as session:
-            query = r"MATCH (n) WHERE elementId(n) = \ SET n += \ RETURN n"
-            result = await session.run(query, eid=node_id, props=props)
+            query = (
+                "MATCH (n) WHERE elementId(n) = $eid "
+                "SET n += $props "
+                "RETURN n"
+            )
+            result = await session.run(query, {"eid": node_id, "props": props})
             record = await result.single()
             if not record:
                 raise HTTPException(status_code=404, detail="Node not found")
@@ -552,8 +585,11 @@ async def delete_graph_node(
         raise HTTPException(status_code=503, detail="Neo4j not available")
     try:
         async with driver.session() as session:
-            query = r"MATCH (n) WHERE elementId(n) = \ DETACH DELETE n RETURN count(n) as deleted"
-            result = await session.run(query, eid=node_id)
+            query = (
+                "MATCH (n) WHERE elementId(n) = $eid "
+                "DETACH DELETE n RETURN count(n) AS deleted"
+            )
+            result = await session.run(query, {"eid": node_id})
             record = await result.single()
             deleted = record["deleted"] if record else 0
             if deleted == 0:
@@ -576,8 +612,12 @@ async def approve_graph_node(
         raise HTTPException(status_code=503, detail="Neo4j not available")
     try:
         async with driver.session() as session:
-            query = r"MATCH (n) WHERE elementId(n) = \ SET n.review_status = 'approved' RETURN n"
-            result = await session.run(query, eid=node_id)
+            query = (
+                "MATCH (n) WHERE elementId(n) = $eid "
+                "SET n.review_status = $status "
+                "RETURN n"
+            )
+            result = await session.run(query, {"eid": node_id, "status": "approved"})
             record = await result.single()
             if not record:
                 raise HTTPException(status_code=404, detail="Node not found")
@@ -597,8 +637,12 @@ async def reject_graph_node(
         raise HTTPException(status_code=503, detail="Neo4j not available")
     try:
         async with driver.session() as session:
-            query = r"MATCH (n) WHERE elementId(n) = \ SET n.review_status = 'rejected' RETURN n"
-            result = await session.run(query, eid=node_id)
+            query = (
+                "MATCH (n) WHERE elementId(n) = $eid "
+                "SET n.review_status = $status "
+                "RETURN n"
+            )
+            result = await session.run(query, {"eid": node_id, "status": "rejected"})
             record = await result.single()
             if not record:
                 raise HTTPException(status_code=404, detail="Node not found")

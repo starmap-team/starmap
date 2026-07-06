@@ -1,14 +1,19 @@
-"""Personalized learning path generation engine.
+"""Learning Path Engine — 个性化学习路径生成引擎。
 
-Builds ordered learning paths from match gap analysis by:
-1. Constructing a prerequisite DAG from skill dependency data
-2. Topologically sorting skills respecting prerequisite order
-3. Estimating learning time per skill based on current/target proficiency
-4. Allocating available weekly hours across the path
+核心流程：
+1. 从技能依赖数据构建前置条件 DAG（有向无环图）
+2. 拓扑排序技能，确保前置技能优先学习
+3. 基于当前/目标熟练度估算每个技能的学习时长
+4. 按可用周学时分配学习路径
+
+业务价值：
+  根据用户技能差距诊断，生成个性化的学习路径和阶段性学习计划，
+  帮助用户系统性地补齐技能短板，实现从当前能力到目标岗位的有序进阶。
 """
 
 from __future__ import annotations
 
+import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from math import ceil
@@ -26,8 +31,8 @@ _BASE_HOURS: dict[str, float] = {
     "已掌握": 2.0,
 }
 
-# Default prerequisite relationships (same source as match_service.PREREQUISITE_MAP)
-DEFAULT_PREREQUISITES: dict[str, list[str]] = {
+# Fallback prerequisite relationships (used when Neo4j is unavailable)
+_FALLBACK_PREREQUISITES: dict[str, list[str]] = {
     "Pandas": ["Python", "NumPy"],
     "NumPy": ["Python"],
     "数据可视化": ["Python", "Pandas"],
@@ -51,6 +56,119 @@ DEFAULT_PREREQUISITES: dict[str, list[str]] = {
     "LangChain": ["Python", "LLM"],
     "LLM": ["Machine Learning", "Python"],
 }
+
+
+# ---------------------------------------------------------------------------
+# Neo4j data loaders with TTL cache
+# ---------------------------------------------------------------------------
+
+_CACHE_TTL_SECONDS: float = 300.0  # 5 minutes
+
+# Cache state: (timestamp, data)
+_prereqs_cache: tuple[float, dict[str, list[str]]] | None = None
+_skill_hours_cache: tuple[float, dict[str, float]] | None = None
+
+
+async def _load_prerequisites_from_neo4j() -> dict[str, list[str]]:
+    """Load PREREQUISITE relationships from Neo4j Skill nodes.
+
+    Results are cached for 5 minutes to avoid hammering Neo4j on every call.
+
+    Returns a dict mapping each skill to its list of prerequisite skills.
+    Returns empty dict if Neo4j is unavailable, so callers fall back to
+    ``_FALLBACK_PREREQUISITES``.
+    """
+    global _prereqs_cache
+
+    # Return cached result if still valid
+    if _prereqs_cache is not None:
+        cached_at, cached_data = _prereqs_cache
+        if time.monotonic() - cached_at < _CACHE_TTL_SECONDS:
+            return cached_data
+
+    from app.services.resources import resources
+
+    driver = resources.neo4j_driver
+    if driver is None:
+        logger.debug("Neo4j driver not available — skipping prerequisite load")
+        return {}
+
+    try:
+        prereqs: dict[str, list[str]] = {}
+        async with driver.session() as session:
+            cypher = (
+                "MATCH (a:Skill)-[:PREREQUISITE]->(b:Skill) "
+                "RETURN a.name AS src, b.name AS tgt"
+            )
+            result = await session.run(cypher)
+            async for rec in result:
+                src = rec["src"]
+                tgt = rec["tgt"]
+                if src not in prereqs:
+                    prereqs[src] = []
+                if tgt not in prereqs[src]:
+                    prereqs[src].append(tgt)
+        logger.debug("Loaded {} prerequisite rules from Neo4j", len(prereqs))
+        _prereqs_cache = (time.monotonic(), prereqs)
+        return prereqs
+    except Exception as exc:
+        logger.warning("Failed to load PREREQUISITE map from Neo4j: {}", exc)
+        return {}
+
+
+async def _load_skill_hours_from_neo4j(
+    skill_names: set[str],
+) -> dict[str, float]:
+    """Load ``learning_hours`` from Neo4j Skill nodes.
+
+    Results are cached for 5 minutes.  The cache key is the *sorted* set of
+    requested skill names; a different set triggers a fresh query.
+
+    Args:
+        skill_names: Set of skill names to look up.
+
+    Returns:
+        Dict mapping skill name → learning hours.  Empty if Neo4j is
+        unavailable or no Skill nodes carry that property.
+    """
+    global _skill_hours_cache
+
+    # Return cached result if still valid and the skill set matches
+    cache_key = frozenset(skill_names)
+    if _skill_hours_cache is not None:
+        cached_at, cached_key, cached_data = _skill_hours_cache
+        if cached_key == cache_key and time.monotonic() - cached_at < _CACHE_TTL_SECONDS:
+            return cached_data
+
+    from app.services.resources import resources
+
+    driver = resources.neo4j_driver
+    if driver is None or not skill_names:
+        return {}
+
+    try:
+        hours_map: dict[str, float] = {}
+        async with driver.session() as session:
+            cypher = (
+                "MATCH (s:Skill) WHERE s.name IN $names "
+                "RETURN s.name AS name, "
+                "       COALESCE(s.learning_hours, s.base_hours, NULL) AS hours"
+            )
+            result = await session.run(cypher, names=list(skill_names))
+            async for rec in result:
+                name = rec["name"]
+                h = rec.get("hours")
+                if h is not None:
+                    hours_map[name] = float(h)
+        logger.debug(
+            "Loaded learning hours for {}/{} skills from Neo4j",
+            len(hours_map), len(skill_names),
+        )
+        _skill_hours_cache = (time.monotonic(), cache_key, hours_map)
+        return hours_map
+    except Exception as exc:
+        logger.warning("Failed to load skill hours from Neo4j: {}", exc)
+        return {}
 
 
 @dataclass
@@ -85,6 +203,7 @@ def estimate_learning_time(
     current_level: str | None = None,
     target_level: str = "熟悉",
     gap_level: str = "完全缺失",
+    skill_hours_map: dict[str, float] | None = None,
 ) -> float:
     """Estimate learning hours for a single skill.
 
@@ -93,11 +212,19 @@ def estimate_learning_time(
         current_level: User's current proficiency (了解/熟悉/精通).
         target_level: Target proficiency level.
         gap_level: Gap level from match diagnosis.
+        skill_hours_map: Optional per-skill base hours loaded from Neo4j.
+            When provided for the given skill, that value is used as the
+            base instead of the gap-level-based ``_BASE_HOURS`` dict.
 
     Returns:
         Estimated learning hours.
     """
-    base = _BASE_HOURS.get(gap_level, 40.0)
+    # 1) Per-skill base hours from Neo4j (most accurate)
+    if skill_hours_map and skill in skill_hours_map:
+        base = skill_hours_map[skill]
+    # 2) Fallback to gap-level-based dict
+    else:
+        base = _BASE_HOURS.get(gap_level, 40.0)
 
     # Adjust based on proficiency gap
     current_score = PROFICIENCY_SCORE.get(current_level or "了解", 0.0)
@@ -109,14 +236,15 @@ def estimate_learning_time(
     return round(base * multiplier, 1)
 
 
-def build_prerequisite_graph(
+async def build_prerequisite_graph(
     skills: list[str],
     extra_prerequisites: dict[str, list[str]] | None = None,
 ) -> dict[str, list[str]]:
     """Build a prerequisite DAG for the given skills.
 
-    Combines default prerequisites with any DB-loaded extras,
-    then filters to only include edges relevant to the given skill set.
+    Attempts to load prerequisite relationships from Neo4j first;
+    falls back to ``_FALLBACK_PREREQUISITES`` when Neo4j is unavailable.
+    Any caller-supplied ``extra_prerequisites`` are layered on top.
 
     Args:
         skills: List of skill names to include in the graph.
@@ -128,16 +256,23 @@ def build_prerequisite_graph(
     """
     skill_set = set(skills)
 
-    # Merge prerequisite sources (extra takes precedence)
-    all_prereqs: dict[str, list[str]] = dict(DEFAULT_PREREQUISITES)
+    # 1) Try Neo4j first
+    neo4j_prereqs = await _load_prerequisites_from_neo4j()
+
+    # 2) Merge: Neo4j as primary, fallback for anything Neo4j doesn't cover
+    all_prereqs: dict[str, list[str]] = (
+        neo4j_prereqs if neo4j_prereqs else dict(_FALLBACK_PREREQUISITES)
+    )
+
+    # 3) Caller-supplied extras take highest precedence
     if extra_prerequisites:
         for skill, prereqs in extra_prerequisites.items():
             all_prereqs[skill] = prereqs
 
+    # 4) Filter to only include skills in our set
     graph: dict[str, list[str]] = {}
     for skill in skills:
         prereqs = all_prereqs.get(skill, [])
-        # Only keep prerequisites that are in our skill set
         filtered = [p for p in prereqs if p in skill_set]
         graph[skill] = filtered
 
@@ -255,13 +390,16 @@ async def generate_learning_path(
     # Step 1: Build skill list with time estimates
     skill_names = [g["skill"] for g in match_gaps]
 
-    # Step 2: Build prerequisite graph
-    prereq_graph = build_prerequisite_graph(skill_names, prerequisites)
+    # Step 2: Load per-skill learning hours from Neo4j (best-effort)
+    skill_hours_map = await _load_skill_hours_from_neo4j(set(skill_names))
 
-    # Step 3: Topological sort
+    # Step 3: Build prerequisite graph (Neo4j → fallback → extras)
+    prereq_graph = await build_prerequisite_graph(skill_names, prerequisites)
+
+    # Step 4: Topological sort
     ordered_names = _topological_sort(prereq_graph)
 
-    # Step 4: Build SkillNodes in topo order
+    # Step 5: Build SkillNodes in topo order
     gap_map = {g["skill"]: g for g in match_gaps}
     skill_nodes: list[SkillNode] = []
 
@@ -277,6 +415,7 @@ async def generate_learning_path(
             current_level=current,
             target_level=target,
             gap_level=gap_level,
+            skill_hours_map=skill_hours_map,
         )
 
         node = SkillNode(
@@ -295,7 +434,7 @@ async def generate_learning_path(
     for i, node in enumerate(skill_nodes):
         node.order = i
 
-    # Step 5: Calculate totals
+    # Step 6: Calculate totals
     total_hours = sum(n.estimated_hours for n in skill_nodes if n.gap_level != "已掌握")
     total_weeks = ceil(total_hours / available_time) if available_time > 0 else 0
 

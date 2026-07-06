@@ -121,6 +121,64 @@ class RecommendationsResponse(BaseModel):
 # ─── Endpoints ───
 
 
+@router.get("/plans", response_model=list[PlanResponse])
+async def list_learning_plans(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    limit: int = Query(20, ge=1, le=100),
+) -> list[PlanResponse]:
+    """List all learning plans for the current user, newest first."""
+    stmt = (
+        sa.select(LearningPlan)
+        .where(LearningPlan.user_id == "anonymous")
+        .order_by(LearningPlan.created_at.desc())
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    plans = result.scalars().all()
+
+    responses: list[PlanResponse] = []
+    for plan in plans:
+        progress_data = await get_progress(session, plan_id=plan.id)
+
+        skill_gaps: list[Any] = plan.skills if isinstance(plan.skills, list) else []
+        if skill_gaps:
+            try:
+                path = await generate_learning_path(
+                    match_gaps=skill_gaps,
+                    available_time=10.0,
+                )
+                total_hours = path.total_hours
+                total_weeks = path.total_weeks
+                phases = [PhaseInfo(**p) for p in path.phases]
+                phase_count = path.phase_count
+            except Exception:
+                total_hours = plan.estimated_hours
+                total_weeks = 0
+                phases = []
+                phase_count = 0
+        else:
+            total_hours = plan.estimated_hours
+            total_weeks = 0
+            phases = []
+            phase_count = 0
+
+        responses.append(PlanResponse(
+            plan_id=str(plan.id),
+            position=plan.position,
+            status=plan.status,
+            match_score_at_creation=plan.match_score_at_creation,
+            overall_pct=progress_data.get("overall_pct", 0.0),
+            total_hours=total_hours,
+            total_weeks=total_weeks,
+            phase_count=phase_count,
+            phases=phases,
+            skills=[SkillProgressItem(**s) for s in progress_data.get("skills", [])],
+            stats=progress_data.get("stats", {}),
+        ))
+
+    return responses
+
+
 @router.post("/plan", response_model=PlanResponse)
 async def create_learning_plan(
     body: CreatePlanRequest,
@@ -266,6 +324,92 @@ async def update_skill_progress(
     )
 
 
+class AddSkillRequest(BaseModel):
+    """Request to add a new skill to an existing plan."""
+
+    skill_name: str = Field(..., min_length=1)
+    importance: str = Field(default="bonus", description="required | bonus")
+    estimated_hours: float = Field(default=20.0, ge=0.0)
+
+
+@router.post("/plan/{plan_id}/skills", response_model=SkillProgressItem)
+async def add_skill_to_plan(
+    plan_id: str,
+    body: AddSkillRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> SkillProgressItem:
+    """Add a new skill to an existing learning plan."""
+    try:
+        pid = uuid.UUID(plan_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
+
+    # Fetch the plan
+    plan_stmt = sa.select(LearningPlan).where(LearningPlan.id == pid)
+    plan_result = await session.execute(plan_stmt)
+    plan = plan_result.scalar_one_or_none()
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    # Check if skill already exists in plan
+    existing_stmt = sa.select(LearningProgress).where(
+        LearningProgress.plan_id == pid,
+        LearningProgress.skill_name == body.skill_name,
+    )
+    existing_result = await session.execute(existing_stmt)
+    existing = existing_result.scalar_one_or_none()
+    if existing is not None:
+        # Skill already in plan — return existing progress
+        return SkillProgressItem(
+            skill_name=existing.skill_name,
+            status=existing.status,
+            progress_pct=round(existing.progress_pct, 1),
+            importance=existing.importance,
+            estimated_hours=existing.estimated_hours,
+            started_at=existing.started_at.isoformat() if existing.started_at else None,
+            completed_at=existing.completed_at.isoformat() if existing.completed_at else None,
+            notes=existing.notes,
+        )
+
+    # Create new progress record
+    progress = LearningProgress(
+        plan_id=pid,
+        skill_name=body.skill_name,
+        status="not_started",
+        progress_pct=0.0,
+        importance=body.importance,
+        estimated_hours=body.estimated_hours,
+    )
+    session.add(progress)
+
+    # Also add skill to plan's skills JSON
+    skills_list: list[Any] = plan.skills if isinstance(plan.skills, list) else []
+    skills_list.append({
+        "skill": body.skill_name,
+        "importance": body.importance,
+        "gap_level": "完全缺失",
+        "learning_path": [],
+        "estimated_hours": body.estimated_hours,
+    })
+    plan.skills = skills_list
+
+    await session.commit()
+    await session.refresh(progress)
+
+    logger.info("Added skill '{}' to plan {}", body.skill_name, plan_id)
+
+    return SkillProgressItem(
+        skill_name=progress.skill_name,
+        status=progress.status,
+        progress_pct=round(progress.progress_pct, 1),
+        importance=progress.importance,
+        estimated_hours=progress.estimated_hours,
+        started_at=None,
+        completed_at=None,
+        notes=None,
+    )
+
+
 @router.get("/recommendations", response_model=RecommendationsResponse)
 async def get_recommendations(
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -318,21 +462,37 @@ async def get_recommendations(
             ))
 
     elif position:
-        # Generate recommendations based on position requirements
-        from app.services.match_service import POSITION_SKILL_PROFILES, _position_key
+        # Generate recommendations based on position requirements from graph
+        from app.services.graph_service import fetch_position_graph
+        from app.services.resources import resources as app_resources
 
+        driver = app_resources.neo4j_driver
         profile = None
-        for pos_name, prof in POSITION_SKILL_PROFILES.items():
-            if _position_key(pos_name) == _position_key(position):
-                profile = prof
-                break
+
+        if driver is not None:
+            try:
+                graph = await fetch_position_graph(driver, position, depth=1)
+                skills = graph.get("skills", [])
+                if skills:
+                    required_skills = []
+                    bonus_skills = []
+                    for item in skills:
+                        props = item.get("properties", {})
+                        skill_name = props.get("name", item.get("name", ""))
+                        importance = props.get("importance", "required")
+                        if importance == "bonus":
+                            bonus_skills.append(skill_name)
+                        else:
+                            required_skills.append(skill_name)
+                    profile = {"required": required_skills, "bonus": bonus_skills}
+            except Exception as exc:
+                logger.warning("Failed to load position profile from graph for \"{}\": {}", position, exc)
 
         if profile is None:
             # Fallback: return empty with message
             return RecommendationsResponse(items=[], total_items=0)
 
-        for skill_data in profile.get("required", []):
-            skill_name = skill_data["skill"]
+        for skill_name in profile.get("required", []):
             prereqs = PREREQUISITE_MAP.get(skill_name, [])
             items.append(RecommendationItem(
                 skill=skill_name,
@@ -343,8 +503,7 @@ async def get_recommendations(
                 reason=f"「{position}」岗位的必备技能",
             ))
 
-        for skill_data in profile.get("bonus", []):
-            skill_name = skill_data["skill"]
+        for skill_name in profile.get("bonus", []):
             prereqs = PREREQUISITE_MAP.get(skill_name, [])
             items.append(RecommendationItem(
                 skill=skill_name,

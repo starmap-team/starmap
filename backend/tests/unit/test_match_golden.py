@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -14,6 +15,67 @@ from app.services.match_service import run_match
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 GOLDEN_MATCH = FIXTURE_DIR / "golden_match_sample.jsonl"
+
+
+# Target profiles used by golden tests
+_GOLDEN_PROFILES = {
+    "数据分析师": {
+        "required": [
+            {"skill": "Python", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "SQL", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Excel", "category": "tool", "proficiency": "熟悉"},
+            {"skill": "统计学", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Pandas", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "数据可视化", "category": "hard_skill", "proficiency": "熟悉"},
+        ],
+        "bonus": [
+            {"skill": "Tableau", "category": "tool", "proficiency": "了解"},
+            {"skill": "Machine Learning", "category": "hard_skill", "proficiency": "了解"},
+        ],
+    },
+    "前端开发工程师": {
+        "required": [
+            {"skill": "JavaScript", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Vue.js", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "CSS3", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "HTML5", "category": "hard_skill", "proficiency": "熟悉"},
+        ],
+        "bonus": [],
+    },
+    "后端开发工程师": {
+        "required": [
+            {"skill": "Python", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "FastAPI", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "PostgreSQL", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Redis", "category": "hard_skill", "proficiency": "了解"},
+        ],
+        "bonus": [
+            {"skill": "Docker", "category": "tool", "proficiency": "了解"},
+        ],
+    },
+    "高级后端工程师": {
+        "required": [
+            {"skill": "Python", "category": "hard_skill", "proficiency": "精通"},
+            {"skill": "FastAPI", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "PostgreSQL", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Redis", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Docker", "category": "tool", "proficiency": "熟悉"},
+            {"skill": "Kubernetes", "category": "tool", "proficiency": "了解"},
+            {"skill": "System Design", "category": "hard_skill", "proficiency": "熟悉"},
+        ],
+        "bonus": [],
+    },
+}
+
+
+def _mock_load_target_profile(driver, target_position, db_session=None, repo=None):
+    """Return a profile for known positions, or None for unknown.
+
+    _load_target_profile now returns None (not raises) when position is not found.
+    The HTTPException(404) is raised by run_match.
+    """
+    profile = _GOLDEN_PROFILES.get(target_position)
+    return profile
 
 
 def _load_golden():
@@ -30,12 +92,13 @@ def _load_golden():
 @pytest.mark.parametrize("sample", _load_golden(), ids=[s["id"] for s in _load_golden()])
 async def test_match_golden_set(sample):
     """Each golden sample should produce the expected match decision."""
-    result = await run_match(
-        target_position=sample["target_position"],
-        person_skills=sample["person_skills"],
-        threshold=0.6,
-        driver=None,
-    )
+    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+        result = await run_match(
+            target_position=sample["target_position"],
+            person_skills=sample["person_skills"],
+            threshold=0.6,
+            driver=None,
+        )
 
     score = result["match_score"]
     expected_match = sample["expected_match"]
@@ -61,12 +124,13 @@ async def test_match_golden_set(sample):
 @pytest.mark.asyncio
 async def test_match_empty_skills():
     """Empty skills should produce a low match score."""
-    result = await run_match(
-        target_position="数据分析师",
-        person_skills=[],
-        threshold=0.6,
-        driver=None,
-    )
+    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+        result = await run_match(
+            target_position="数据分析师",
+            person_skills=[],
+            threshold=0.6,
+            driver=None,
+        )
     assert result["match_score"] < 0.5
     assert len(result["missing_required"]) > 0
 
@@ -74,21 +138,22 @@ async def test_match_empty_skills():
 @pytest.mark.asyncio
 async def test_match_perfect_overlap():
     """All required + bonus skills at mastery should produce high score."""
-    result = await run_match(
-        target_position="数据分析师",
-        person_skills=[
-            {"name": "Python", "proficiency": "精通"},
-            {"name": "SQL", "proficiency": "精通"},
-            {"name": "Excel", "proficiency": "精通"},
-            {"name": "统计学", "proficiency": "精通"},
-            {"name": "Pandas", "proficiency": "精通"},
-            {"name": "数据可视化", "proficiency": "精通"},
-            {"name": "Tableau", "proficiency": "精通"},
-            {"name": "Machine Learning", "proficiency": "精通"},
-        ],
-        threshold=0.6,
-        driver=None,
-    )
+    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+        result = await run_match(
+            target_position="数据分析师",
+            person_skills=[
+                {"name": "Python", "proficiency": "精通"},
+                {"name": "SQL", "proficiency": "精通"},
+                {"name": "Excel", "proficiency": "精通"},
+                {"name": "统计学", "proficiency": "精通"},
+                {"name": "Pandas", "proficiency": "精通"},
+                {"name": "数据可视化", "proficiency": "精通"},
+                {"name": "Tableau", "proficiency": "精通"},
+                {"name": "Machine Learning", "proficiency": "精通"},
+            ],
+            threshold=0.6,
+            driver=None,
+        )
     assert result["match_score"] >= 0.85
     assert len(result["missing_required"]) == 0
 
@@ -98,12 +163,13 @@ async def test_match_result_persisted():
     """Match results should be retrievable by match_id."""
     from app.services.match_service import get_match_result
 
-    result = await run_match(
-        target_position="前端开发工程师",
-        person_skills=[{"name": "JavaScript", "proficiency": "精通"}],
-        threshold=0.6,
-        driver=None,
-    )
+    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+        result = await run_match(
+            target_position="前端开发工程师",
+            person_skills=[{"name": "JavaScript", "proficiency": "精通"}],
+            threshold=0.6,
+            driver=None,
+        )
     match_id = result["match_id"]
     retrieved = await get_match_result(match_id)
     assert retrieved is not None

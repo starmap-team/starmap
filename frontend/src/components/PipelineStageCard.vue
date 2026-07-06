@@ -10,17 +10,21 @@ import { STAGE_LABELS } from '@/stores/pipeline'
 
 export interface StageData {
   name: string
-  status: 'waiting' | 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled'
   duration_ms: number
   records_processed: number
-  errors: number
+  errors: string[]
   progress: number
   retry_count?: number
   depends_on?: string[]
+  started_at?: string | null
+  completed_at?: string | null
+  errors_count?: number
 }
 
 const props = defineProps<{
   stage: StageData
+  retrying?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -40,7 +44,8 @@ const statusConfig = computed(() => {
       return { color: '#d1d5db', label: '已跳过', icon: '—' }
     case 'pending':
       return { color: colors.muted, label: '待执行', icon: '○' }
-    case 'waiting':
+    case 'cancelled':
+      return { color: '#f59e0b', label: '已取消', icon: '⊘' }
     default:
       return { color: colors.muted, label: '等待中', icon: '○' }
   }
@@ -105,9 +110,10 @@ const formattedRecords = computed(() => {
         size="small"
         type="warning"
         link
+        :loading="retrying"
         @click="emit('retry', stage.name)"
       >
-        重试
+        {{ retrying ? '重试中' : '重试' }}
       </el-button>
     </div>
 
@@ -134,14 +140,14 @@ const formattedRecords = computed(() => {
         <span class="metric-value">{{ formattedRecords }}</span>
       </div>
       <div
-        v-if="stage.errors > 0"
+        v-if="stage.errors.length > 0"
         class="metric metric-error"
       >
         <span class="metric-label">错误</span>
         <span
           class="metric-value"
           :style="{ color: chartColors().danger }"
-        >{{ stage.errors }}</span>
+        >{{ stage.errors_count ?? stage.errors.length }}</span>
       </div>
     </div>
   </el-card>
@@ -165,7 +171,13 @@ const formattedRecords = computed(() => {
   border-left: 3px solid var(--success);
 }
 .stage-failed {
-  border-left: 3px solid var(--destructive);
+  border: 2px solid var(--destructive);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--destructive) 30%, transparent);
+  animation: failed-pulse 2s ease-in-out infinite;
+}
+@keyframes failed-pulse {
+  0%, 100% { box-shadow: 0 0 12px color-mix(in srgb, var(--destructive) 30%, transparent); }
+  50% { box-shadow: 0 0 20px color-mix(in srgb, var(--destructive) 50%, transparent); }
 }
 .stage-pending {
   border-left: 3px solid var(--muted-foreground);

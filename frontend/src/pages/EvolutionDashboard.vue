@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 演化看板页 — CII 时序曲线（技能需求通胀指数）
  * Task 3 增强: 技能趋势时间线、新兴技能卡片、CII仪表盘、技能对比
@@ -22,6 +22,16 @@ interface TrendItem {
   confidence: number
   points: number[]
   related_positions: string[]
+}
+
+
+// Format CII change percentage with rounding to 1 decimal to avoid float-precision noise
+function formatChange(points: number[] | undefined): string {
+  if (!points?.length) return '-'
+  const last = points[points.length - 1]
+  const delta = last - 100
+  const sign = delta >= 0 ? '+' : ''
+  return sign + delta.toFixed(1) + '%'
 }
 
 const loading = ref(false)
@@ -464,7 +474,7 @@ onMounted(fetchTrends)
                 v-if="row.points?.length"
                 :class="row.points.at(-1)! >= 100 ? 'cii-up' : 'cii-down'"
               >
-                {{ row.points.at(-1)! >= 100 ? '+' : '' }}{{ row.points.at(-1)! - 100 }}%
+                {{ formatChange(row.points) }}
               </span>
             </template>
           </el-table-column>
@@ -825,3 +835,5 @@ onMounted(fetchTrends)
   border-top: 1px solid var(--border);
 }
 </style>
+
+

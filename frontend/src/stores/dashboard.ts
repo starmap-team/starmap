@@ -157,13 +157,39 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   async function fetchDistribution() {
     try {
+      // Backend source_distribution: {name, source_type, total_records, valid_records, authority_score, duplicate_rate}
+      // Backend domain_distribution: {name, count}
+      // Frontend SourceDistribution: {name, count, percentage, trust, color?}
+      // Frontend SkillDomain: {name, value, children?, trend?}
       const data = await request.get('/dashboard/distribution') as {
-        source_distribution: SourceDistribution[]
-        domain_distribution: SkillDomain[]
+        source_distribution: Array<{
+          name: string
+          source_type?: string
+          total_records?: number
+          valid_records?: number
+          count?: number
+          percentage?: number
+          authority_score?: number
+          trust?: number
+          duplicate_rate?: number
+        }>
+        domain_distribution: Array<{ name: string; count?: number; value?: number }>
         skill_category_distribution: { name: string; count: number; percentage?: number }[]
       }
-      sourceDistribution.value = data.source_distribution || []
-      skillDomains.value = data.domain_distribution || []
+      const srcs = data.source_distribution || []
+      const totalSrcCount = srcs.reduce((s, x) => s + (x.total_records ?? x.count ?? 0), 0) || 1
+      sourceDistribution.value = srcs.map(s => ({
+        name: s.name,
+        count: s.total_records ?? s.count ?? 0,
+        percentage: s.percentage ?? Math.round(((s.total_records ?? s.count ?? 0) / totalSrcCount) * 1000) / 10,
+        trust: s.authority_score ?? s.trust ?? 0,
+        color: undefined,
+      }))
+      const domains = data.domain_distribution || []
+      skillDomains.value = domains.map(d => ({
+        name: d.name,
+        value: d.count ?? d.value ?? 0,
+      }))
     } catch {
       sourceDistribution.value = []
     }
@@ -245,3 +271,4 @@ export const useDashboardStore = defineStore('dashboard', () => {
     addRealtimeEvent,
   }
 })
+

@@ -96,7 +96,7 @@ onMounted(fetchPositions)
       />
       <div class="industry-tags">
         <el-tag
-          :type="selectedIndustry === '' ? '' : 'info'"
+          :type="selectedIndustry === '' ? 'primary' : 'info'"
           :effect="selectedIndustry === '' ? 'dark' : 'plain'"
           class="clickable-tag"
           @click="selectedIndustry = ''"
@@ -106,7 +106,7 @@ onMounted(fetchPositions)
         <el-tag
           v-for="ind in industries"
           :key="ind"
-          :type="selectedIndustry === ind ? '' : 'info'"
+          :type="selectedIndustry === ind ? 'primary' : 'info'"
           :effect="selectedIndustry === ind ? 'dark' : 'plain'"
           class="clickable-tag"
           @click="selectedIndustry = selectedIndustry === ind ? '' : ind"

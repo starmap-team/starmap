@@ -1,6 +1,7 @@
 """FastAPI 应用入口。"""
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -17,9 +18,17 @@ async def lifespan(app: FastAPI):
     """应用生命周期：启动时初始化连接，关闭时释放。"""
     logger.info("StarMap 启动中... env={}", settings.app_env)
     app.state.resources = await init_resources()
+    # Phase 2 CRON-03: 启动 cron scanner 后台任务
+    cron_task = None
     try:
+        from app.core.pipeline.cron_scheduler import cron_scanner_loop
+        cron_task = asyncio.create_task(cron_scanner_loop(interval_seconds=60))
+        logger.info("Cron scanner loop started")
         yield
     finally:
+        if cron_task is not None:
+            cron_task.cancel()
+            logger.info("Cron scanner loop stopped")
         await resources.close()
         logger.info("StarMap 关闭中...")
 

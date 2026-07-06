@@ -35,7 +35,7 @@ describe('useAdminStore', () => {
   it('should store source configs', () => {
     const store = useAdminStore()
     const mockSources: SourceConfig[] = [
-      { id: 1, name: 'BOSS直聘', authority_score: 0.8, source_type: 'platform' },
+      { id: '1', name: 'BOSS直聘', authority_score: 0.8, source_type: 'platform', status: 'active', total_records: 0, valid_records: 0, duplicate_rate: 0, avg_quality_score: 0, config: {} },
     ]
     store.sources = mockSources
     expect(store.sources).toHaveLength(1)

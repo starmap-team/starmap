@@ -21,8 +21,11 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+from fastapi import HTTPException
+from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
@@ -203,7 +206,11 @@ async def complete_run(
     quality_score: float = 0.0,
     error_log: str | None = None,
 ) -> PipelineRun | None:
-    """Mark a pipeline run as completed (or failed)."""
+    """Mark a pipeline run as completed (or failed).
+
+    Phase 2 AUTHORITY-01: Run completion triggers authority score update
+    and auto-pauses sources with quality < 0.3.
+    """
     await session.execute(
         update(PipelineRun)
         .where(PipelineRun.id == run_id)
@@ -218,6 +225,30 @@ async def complete_run(
         )
     )
     await session.flush()
+
+    # Phase 2 AUTHORITY-01: 更新所有数据源权威分
+    try:
+        from app.core.pipeline.source_authority import update_authority_scores
+        await update_authority_scores(session)
+    except Exception as exc:
+        logger.warning(f"update_authority_scores failed (non-fatal): {exc}")
+
+    # Phase 2 AUTHORITY-02: quality < 0.3 的数据源标记 paused
+    try:
+        from sqlalchemy import select as sa_select
+        ds_result = await session.execute(
+            sa_select(DataSourceRecord)
+            .where(DataSourceRecord.authority_score < 0.3)
+            .where(DataSourceRecord.status == "active")
+        )
+        low_quality_sources = ds_result.scalars().all()
+        for ds in low_quality_sources:
+            ds.status = "paused"
+            logger.warning("Auto-paused source '{}' (authority_score={})", ds.name, ds.authority_score)
+        if low_quality_sources:
+            await session.flush()
+    except Exception as exc:
+        logger.warning(f"auto-pause failed (non-fatal): {exc}")
 
     result = await session.execute(
         select(PipelineRun).where(PipelineRun.id == run_id)
@@ -264,6 +295,27 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
     }
 
 
+def _normalize_stages(stages: Any) -> list[dict[str, Any]]:
+    """Normalize pipeline stages to a list of StageInfo-compatible dicts.
+
+    Pipeline runs store stages as list[dict] (each dict has name/status/duration/etc).
+    Loop runs store stages as a single dict with result metadata (no 'name' field).
+    Handle both by wrapping dicts and returning empty list for unknown shapes.
+    """
+    if stages is None:
+        return []
+    if isinstance(stages, list):
+        # Pipeline run: list of stage dicts
+        return stages
+    if isinstance(stages, dict):
+        # Loop run: single dict with result metadata — wrap as a single stage
+        # Check if it looks like a loop result (no 'name' key or has 'run_id' key)
+        if "name" not in stages and "run_id" in stages:
+            return []
+        return [stages]
+    return []
+
+
 async def get_run_history(
     session: AsyncSession,
     *,
@@ -289,7 +341,7 @@ def _serialize_run(run: PipelineRun | None) -> dict[str, Any] | None:
         "status": run.status,
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "completed_at": run.completed_at.isoformat() if run.completed_at else None,
-        "stages": run.stages or [],
+        "stages": _normalize_stages(run.stages),
         "total_records": run.total_records,
         "new_records": run.new_records,
         "updated_records": run.updated_records,
@@ -297,3 +349,109 @@ def _serialize_run(run: PipelineRun | None) -> dict[str, Any] | None:
         "error_log": run.error_log,
         "selected_stages": run.selected_stages,
     }
+
+
+# ---------------------------------------------------------------------------
+# Phase 1: Cancel run (D-04: 软取消 + STOP flag + Celery 阶段开始时检查)
+# ---------------------------------------------------------------------------
+
+class RunCancelResult:
+    """Result of cancel_run for the API layer."""
+
+    def __init__(
+        self,
+        run_id: uuid.UUID,
+        status: str,
+        cancelled_at: datetime,
+        stopped_stage_names: list[str],
+    ):
+        self.run_id = run_id
+        self.status = status
+        self.cancelled_at = cancelled_at
+        self.stopped_stage_names = stopped_stage_names
+
+
+async def cancel_run(
+    session: AsyncSession,
+    redis_client: Any | None,
+    run_id: uuid.UUID,
+) -> RunCancelResult:
+    """Cancel a running pipeline (D-04).
+
+    Steps in a single transaction:
+    1. UPDATE pipeline_runs SET status='cancelled', completed_at=now(), error_log='cancelled by user'
+    2. UPDATE stages[] 中所有 status='running' -> 'cancelled'
+    3. Redis SET pipeline:stop:{run_id} = '1' (TTL 1 hour)
+    4. Invalidate status cache
+
+    Raises:
+        HTTPException(404) if run not found
+        HTTPException(409) if run already in terminal state
+    """
+    result = await session.execute(select(PipelineRun).where(PipelineRun.id == run_id))
+    run = result.scalar_one_or_none()
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Pipeline run {run_id} not found")
+
+    terminal_states = {
+        RunStatus.COMPLETED.value,
+        RunStatus.FAILED.value,
+        "cancelled",
+    }
+    if run.status in terminal_states:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Run already in terminal state: {run.status}",
+        )
+
+    cancelled_at = _now()
+
+    # 1. UPDATE pipeline_runs
+    run.status = "cancelled"
+    run.completed_at = cancelled_at
+    run.error_log = "cancelled by user"
+
+    # 2. UPDATE stages[] - 将所有 status='running' 的 stage 标记为 'cancelled'
+    stopped_stage_names: list[str] = []
+    if run.stages:
+        for stage in run.stages:
+            if stage.get("status") == StageStatus.RUNNING.value:
+                stage["status"] = "cancelled"
+                stage["completed_at"] = cancelled_at.isoformat()
+                stopped_stage_names.append(stage.get("name", "unknown"))
+        # SQLAlchemy 需要标记 JSONB 字段变更
+        flag_modified(run, "stages")
+
+    await session.commit()
+
+    # 3. Redis STOP flag (best-effort, 不影响 cancel 本身)
+    if redis_client is not None:
+        try:
+            await redis_client.setex(f"pipeline:stop:{run_id}", 3600, "1")
+        except Exception:
+            pass
+
+        # 4. Invalidate status cache
+        try:
+            from app.core.pipeline.status_aggregator import invalidate_status_cache
+            await invalidate_status_cache(redis_client)
+        except Exception:
+            pass
+
+    return RunCancelResult(
+        run_id=run.id,
+        status=run.status,
+        cancelled_at=cancelled_at,
+        stopped_stage_names=stopped_stage_names,
+    )
+
+
+async def is_run_cancelled(redis_client: Any | None, run_id: uuid.UUID) -> bool:
+    """Check Redis STOP flag. Returns True if run was cancelled."""
+    if redis_client is None:
+        return False
+    try:
+        flag = await redis_client.get(f"pipeline:stop:{run_id}")
+        return flag == b"1" or flag == "1"
+    except Exception:
+        return False

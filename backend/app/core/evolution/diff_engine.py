@@ -1,9 +1,10 @@
-"""Diff Engine — Compute skill changes between two position snapshots.
+"""Diff Engine — 技能差异引擎：计算两个职位快照之间的技能变化。
 
-Implements set-difference logic for required/preferred skills across time
-snapshots, detecting: new/deleted/retained/promoted/demoted skills.
+实现原理：
+  通过集合差集算法（set-difference）对比两个时间点的 required/preferred 技能集合，
+  检测以下六类变化：新增必备、新增优先、删除、晋升、降级、保留。
 
-Design reference: docs/evolution/design.md §4.1
+设计参考: docs/evolution/design.md §4.1
 """
 
 from __future__ import annotations

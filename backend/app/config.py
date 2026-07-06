@@ -1,7 +1,14 @@
 """集中配置管理（基于 pydantic-settings，从环境变量/.env 读取）。"""
+import logging
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
+
+# 占位符：表示密码尚未在 .env 中配置，必须修改后才能用于生产环境
+_UNCONFIGURED = "CHANGE_ME_IN_ENV"
 
 
 class Settings(BaseSettings):
@@ -13,13 +20,20 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_debug: bool = True
     app_log_level: str = "INFO"
-    secret_key: str = "dev_secret"
+    secret_key: str = _UNCONFIGURED
 
     # 数据库
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
-    neo4j_password: str = "starmap123456"
-    postgres_uri: str = "postgresql+asyncpg://starmap:starmap123456@localhost:5432/starmap"
+    neo4j_password: str = _UNCONFIGURED
+    # PostgreSQL 连接拆分为组件，避免在默认值中硬编码密码
+    postgres_user: str = "starmap"
+    postgres_password: str = _UNCONFIGURED
+    postgres_host: str = "localhost"
+    postgres_port: int = 5432
+    postgres_db: str = "starmap"
+    # 完整 URI：若通过环境变量 POSTGRES_URI 传入则优先使用，否则由组件拼接
+    postgres_uri: str | None = None
     redis_uri: str = "redis://localhost:6379/0"
     chroma_host: str = "localhost"
     chroma_port: int = 8001
@@ -86,6 +100,40 @@ class Settings(BaseSettings):
     pipeline_crawl_concurrency: int = 5
     pipeline_retry_max: int = 3
     pipeline_retry_backoff: int = 10  # 秒, 指数递增基数
+
+    # ------------------------------------------------------------------
+    # 校验：合成 postgres_uri & 检测未配置密码
+    # ------------------------------------------------------------------
+    @model_validator(mode="after")
+    def _resolve_postgres_uri_and_warn(self) -> "Settings":
+        # 若未通过 POSTGRES_URI 环境变量传入完整 URI，则由组件拼接
+        if self.postgres_uri is None:
+            object.__setattr__(self, "postgres_uri", (
+                f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+                f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            ))
+
+        # 检测仍为占位值的密码字段
+        sensitive_fields = {
+            "secret_key": self.secret_key,
+            "neo4j_password": self.neo4j_password,
+            "postgres_password": self.postgres_password,
+        }
+        unconfigured = [
+            name for name, value in sensitive_fields.items()
+            if value == _UNCONFIGURED
+        ]
+        if unconfigured:
+            msg = (
+                f"⚠️  以下配置仍为默认占位值 {_UNCONFIGURED!r}，"
+                f"请在 .env 中设置真实值：{', '.join(unconfigured)}"
+            )
+            if self.app_env == "production":
+                logger.error(msg + "（生产环境必须修改！）")
+            else:
+                logger.warning(msg)
+
+        return self
 
 
 @lru_cache

@@ -1,11 +1,10 @@
 """Celery task entrypoints for extraction, graph building, evolution analysis, and pipeline stages."""
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 from typing import Any
 
 from celery import Celery
@@ -14,10 +13,10 @@ from app.config import settings
 from app.core.pipeline.orchestrator import StageName
 from app.tasks.stage3_services import (
     run_analyze_evolution_trends,
-    run_async,
     run_batch_extract_jd,
     run_build_graph_from_extractions,
 )
+from app.utils.async_helpers import run_async
 
 logger = logging.getLogger(__name__)
 
@@ -81,15 +80,33 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
 
     On success: marks stage completed, then calls advance_pipeline to dispatch next stages.
     On failure: retries with backoff; after max retries, marks stage failed and advances.
+
+    Phase 1 D-04: STOP flag 检查 — if Redis flag `pipeline:stop:{run_id}` is set,
+    raise PipelineCancelled to gracefully skip this stage (no retry).
     """
     from app.core.pipeline.executor import STAGE_EXECUTORS, advance_pipeline
+
+    # Phase 1 D-04: Check STOP flag at the START of each stage execution
+    try:
+        from app.core.pipeline.orchestrator import is_run_cancelled
+        from app.services.resources import resources as app_resources
+        redis_client = app_resources.redis_client
+        if run_async(is_run_cancelled(redis_client, uuid.UUID(run_id))):
+            logger.info(
+                "execute_pipeline_stage run_id=%s stage=%s: STOP flag detected, marking cancelled",
+                run_id, stage_name,
+            )
+            run_async(_mark_stage_cancelled(run_id, stage_name))
+            return {"status": "cancelled", "stage": stage_name, "reason": "STOP flag set"}
+    except Exception as exc:
+        logger.warning("STOP flag check failed (continuing): %s", exc)
 
     logger.info("execute_pipeline_stage run_id=%s stage=%s attempt=%d", run_id, stage_name, self.request.retries)
 
     executor = STAGE_EXECUTORS.get(stage_name)
     if executor is None:
         logger.error("No executor for stage %s", stage_name)
-        _run_async(_mark_stage_failed(run_id, stage_name, [f"Unknown stage: {stage_name}"]))
+        run_async(_mark_stage_failed(run_id, stage_name, [f"Unknown stage: {stage_name}"]))
         return {"status": "failed", "error": f"Unknown stage: {stage_name}"}
 
     start = time.monotonic()
@@ -102,7 +119,7 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
         duration_ms = int((time.monotonic() - start) * 1000)
 
         # Update stage status
-        _run_async(_mark_stage_completed(
+        run_async(_mark_stage_completed(
             run_id, stage_name,
             duration_ms=duration_ms,
             records_processed=result.get("records_processed", 0),
@@ -110,8 +127,7 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
         ))
 
         # Advance DAG — dispatch next ready stages
-        import uuid
-        _run_async(advance_pipeline(uuid.UUID(run_id)))
+        run_async(advance_pipeline(uuid.UUID(run_id)))
 
         return {"status": "completed", "stage": stage_name, **result}
 
@@ -122,36 +138,126 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
         raise self.retry(exc=exc, countdown=retry_delay) from exc
 
 
+async def _mark_stage_cancelled(run_id: str, stage_name: str) -> None:
+    """Mark a stage as cancelled in the pipeline_runs.stages JSONB (Phase 1 D-04)."""
+    from sqlalchemy import select
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from app.core.pipeline.orchestrator import StageStatus
+    from app.models.pipeline_models import PipelineRun
+    from app.services.resources import resources as app_resources
+
+    pg_engine = app_resources.pg_engine
+    if pg_engine is None:
+        return
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    async with AsyncSession(pg_engine) as session:
+        result = await session.execute(
+            select(PipelineRun).where(PipelineRun.id == uuid.UUID(run_id))
+        )
+        run = result.scalar_one_or_none()
+        if run is None or not run.stages:
+            return
+        for stage in run.stages:
+            if stage.get("name") == stage_name and stage.get("status") in (
+                StageStatus.RUNNING.value,
+                StageStatus.PENDING.value,
+            ):
+                stage["status"] = "cancelled"
+                stage["completed_at"] = datetime.now(UTC).isoformat()
+                flag_modified(run, "stages")
+                break
+        await session.commit()
+
+
 @celery_app.task
 def advance_pipeline_task(run_id: str) -> None:
     """Async advance_pipeline wrapper for Celery dispatch."""
     import uuid
 
     from app.core.pipeline.executor import advance_pipeline
-    _run_async(advance_pipeline(uuid.UUID(run_id)))
+    run_async(advance_pipeline(uuid.UUID(run_id)))
 
 
 @celery_app.task
 def scheduled_pipeline_run(schedule_id: str) -> None:
-    """Trigger a pipeline run from a cron schedule."""
-    from app.core.pipeline.executor import trigger_and_start
+    """Phase 2 CRON-04: 读取 schedule 并触发 pipeline。"""
+    run_async(_execute_scheduled_run(schedule_id))
 
-    # ponytail: load schedule config from DB, run with those params
-    _run_async(trigger_and_start(run_type="incremental"))
+
+async def _execute_scheduled_run(schedule_id: str) -> None:
+    """读取 schedule → trigger → 更新 last/next_run_at。"""
+    from datetime import timedelta
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.models.pipeline_models import PipelineSchedule
+
+    engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+    try:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+            result = await session.execute(
+                select(PipelineSchedule).where(PipelineSchedule.id == uuid.UUID(schedule_id))
+            )
+            schedule = result.scalar_one_or_none()
+            if schedule is None:
+                logger.warning("Schedule %s not found", schedule_id)
+                return
+
+            from app.core.pipeline.executor import trigger_and_start
+            await trigger_and_start(run_type=schedule.run_type, selected_stages=schedule.selected_stages)
+
+            schedule.last_run_at = datetime.now(UTC)
+            try:
+                from app.core.pipeline.cron_scheduler import compute_next_cron
+                schedule.next_run_at = compute_next_cron(schedule.cron_expression, schedule.last_run_at)
+            except Exception:
+                schedule.next_run_at = schedule.last_run_at + timedelta(hours=1)
+            await session.commit()
+    finally:
+        await engine.dispose()
+
+
+@celery_app.task(bind=True, max_retries=0)
+def sweep_orphan_runs(self) -> dict[str, Any]:
+    """Phase 2 WATCHDOG: 清理超过 stage_timeout*2 仍 running 的任务。"""
+    run_async(_sweep_orphan_runs_async())
+    return {"status": "completed"}
+
+
+async def _sweep_orphan_runs_async() -> dict[str, Any]:
+    from datetime import timedelta
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.core.pipeline.orchestrator import RunStatus
+    from app.models.pipeline_models import PipelineRun
+
+    engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+    try:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+            threshold = datetime.now(UTC) - timedelta(seconds=settings.pipeline_stage_timeout * 2)
+            result = await session.execute(
+                select(PipelineRun)
+                .where(PipelineRun.status == RunStatus.RUNNING.value)
+                .where(PipelineRun.started_at < threshold)
+            )
+            orphans = list(result.scalars().all())
+            for run in orphans:
+                run.status = RunStatus.FAILED.value
+                run.completed_at = datetime.now(UTC)
+                run.error_log = "orphaned by watchdog"
+                logger.warning("Watchdog: orphaned run {} (started={})", run.id, run.started_at)
+            await session.commit()
+            return {"orphans_found": len(orphans)}
+    finally:
+        await engine.dispose()
 
 
 # ── Helpers ──
-
-def _run_async(coro: Any) -> Any:
-    """Run an async coroutine from a Celery worker."""
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        return executor.submit(asyncio.run, coro).result()
-
-
 async def _mark_stage_completed(
     run_id: str, stage_name: str,
     *, duration_ms: int = 0, records_processed: int = 0, errors: list[str] | None = None,

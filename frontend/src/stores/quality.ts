@@ -117,8 +117,25 @@ export const useQualityStore = defineStore('quality', () => {
     trendsPeriod.value = period
     loading.value = true
     try {
-      const data = await request.get('/quality/trends', { params: { period } }) as QualityTrendPoint[]
-      trends.value = data
+      // Backend returns { period, data_points, summary }
+      // data_points use { date, quality_score, ... } not { date, trust_score, ... }
+      const data = await request.get('/quality/trends', { params: { period } }) as {
+        period: string
+        data_points: Array<{
+          date: string
+          overall_score?: number
+          quality_score?: number
+          total_records?: number
+        }>
+        summary?: Record<string, unknown>
+      }
+      const points = data.data_points || []
+      trends.value = points.map(p => ({
+        date: p.date,
+        trust_score: p.overall_score ?? p.quality_score ?? 0,
+        hallucination_rate: 0,  // Not exposed in /quality/trends
+        review_count: p.total_records ?? 0,
+      }))
     } catch {
       trends.value = []
     } finally {

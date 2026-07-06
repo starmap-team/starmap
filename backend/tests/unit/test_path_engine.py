@@ -11,6 +11,7 @@ from app.core.learning.path_engine import (
     _topological_sort,
     build_prerequisite_graph,
     estimate_learning_time,
+    generate_learning_path,
 )
 
 
@@ -65,25 +66,29 @@ class TestEstimateLearningTime:
 
 
 class TestBuildPrerequisiteGraph:
-    def test_empty_skills(self):
-        graph = build_prerequisite_graph([])
+    @pytest.mark.asyncio
+    async def test_empty_skills(self):
+        graph = await build_prerequisite_graph([])
         assert graph == {}
 
-    def test_known_prerequisite(self):
-        graph = build_prerequisite_graph(["Python", "NumPy"])
+    @pytest.mark.asyncio
+    async def test_known_prerequisite(self):
+        graph = await build_prerequisite_graph(["Python", "NumPy"])
         assert "NumPy" in graph
         assert "Python" in graph
         assert graph["NumPy"] == ["Python"]
 
-    def test_extra_prerequisites_override(self):
-        graph = build_prerequisite_graph(
+    @pytest.mark.asyncio
+    async def test_extra_prerequisites_override(self):
+        graph = await build_prerequisite_graph(
             ["Python", "Custom"],
             extra_prerequisites={"Custom": ["Python"]},
         )
         assert graph["Custom"] == ["Python"]
 
-    def test_filters_unrelated_prerequisites(self):
-        graph = build_prerequisite_graph(["Python"])
+    @pytest.mark.asyncio
+    async def test_filters_unrelated_prerequisites(self):
+        graph = await build_prerequisite_graph(["Python"])
         # Pandas has prereqs but is not in the list
         assert "Pandas" not in graph
 
@@ -153,3 +158,68 @@ class TestBuildPhases:
             phase_skills.extend(p["skills"])
         assert "Python" not in phase_skills
         assert "NumPy" in phase_skills
+
+
+# ---------------------------------------------------------------------------
+# Tests for generate_learning_path
+# ---------------------------------------------------------------------------
+class TestGenerateLearningPath:
+    @pytest.mark.asyncio
+    async def test_empty_gaps(self):
+        """Empty gaps returns empty learning path."""
+        path = await generate_learning_path([])
+        assert path.skills == []
+        assert path.total_hours == 0.0
+
+    @pytest.mark.asyncio
+    async def test_single_gap(self):
+        """Single gap returns a learning path with one skill."""
+        gaps = [
+            {"skill": "Python", "importance": "required", "gap_level": "完全缺失", "learning_path": ["Python"]},
+        ]
+        path = await generate_learning_path(gaps)
+        assert len(path.skills) == 1
+        assert path.skills[0].name == "Python"
+        assert path.skills[0].gap_level == "完全缺失"
+        assert path.total_hours > 0
+
+    @pytest.mark.asyncio
+    async def test_multiple_gaps_with_prerequisites(self):
+        """Multiple gaps with prerequisites are ordered correctly."""
+        gaps = [
+            {"skill": "Pandas", "importance": "required", "gap_level": "完全缺失", "learning_path": ["Python", "NumPy", "Pandas"]},
+            {"skill": "Python", "importance": "required", "gap_level": "完全缺失", "learning_path": ["Python"]},
+            {"skill": "NumPy", "importance": "required", "gap_level": "完全缺失", "learning_path": ["Python", "NumPy"]},
+        ]
+        path = await generate_learning_path(gaps)
+        skill_names = [s.name for s in path.skills]
+        assert "Python" in skill_names
+        assert "NumPy" in skill_names
+        assert "Pandas" in skill_names
+        # Python should come before NumPy, NumPy before Pandas
+        assert skill_names.index("Python") < skill_names.index("NumPy")
+        assert skill_names.index("NumPy") < skill_names.index("Pandas")
+
+    @pytest.mark.asyncio
+    async def test_mastered_skills_excluded_from_hours(self):
+        """Mastered skills don't contribute to total hours."""
+        gaps = [
+            {"skill": "Python", "importance": "required", "gap_level": "已掌握", "learning_path": ["Python"]},
+            {"skill": "NumPy", "importance": "required", "gap_level": "完全缺失", "learning_path": ["Python", "NumPy"]},
+        ]
+        path = await generate_learning_path(gaps)
+        # NumPy contributes hours, Python doesn't (已掌握)
+        assert path.total_hours > 0
+        assert path.skills[0].name == "Python"  # still in the list
+        assert path.skills[0].gap_level == "已掌握"
+
+    @pytest.mark.asyncio
+    async def test_with_extra_prerequisites(self):
+        """Extra prerequisites override fallback prerequisites."""
+        gaps = [
+            {"skill": "Custom", "importance": "required", "gap_level": "完全缺失", "learning_path": ["Custom"]},
+            {"skill": "Python", "importance": "required", "gap_level": "完全缺失", "learning_path": ["Python"]},
+        ]
+        path = await generate_learning_path(gaps, prerequisites={"Custom": ["Python"]})
+        skill_names = [s.name for s in path.skills]
+        assert skill_names.index("Python") < skill_names.index("Custom")

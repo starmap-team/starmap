@@ -1,12 +1,12 @@
 {
   "mode": "yolo",
   "parallelization": true,
-  "depth": "quick",
+  "depth": "deep",
   "workflow": {
-    "research": true,
+    "research": false,
     "plan_checker": true,
     "verifier": true,
     "auto_advance": true,
-    "skip_discuss": false
+    "skip_discuss": true
   }
 }

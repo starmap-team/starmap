@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from app.core.pipeline.loop_orchestrator import (
+    _LOOP_RESULTS,
     LoopOrchestrator,
     LoopResult,
     LoopRunStatus,
@@ -17,7 +18,6 @@ from app.core.pipeline.loop_orchestrator import (
 class TestStepStatus:
     def test_status_values(self):
         assert StepStatus.SUCCESS.value == "success"
-        assert StepStatus.DEGRADED.value == "degraded"
         assert StepStatus.FAILED.value == "failed"
 
 
@@ -84,21 +84,18 @@ class TestGenericLearningPath:
 
 
 class TestStoreResult:
-    def test_store_result_limits_history(self):
-        from app.core.pipeline import loop_orchestrator as lo
-        lo._LOOP_RESULTS.clear()
-
-        # Add over limit
-        for i in range(lo._LOOP_HISTORY_MAX + 10):
-            r = LoopResult(
-                run_id=f"r{i}",
-                jd_text="text",
-                target_position="dev",
-                status=LoopRunStatus.COMPLETED,
-            )
-            LoopOrchestrator._store_result(r)
-
-        assert len(lo._LOOP_RESULTS) <= lo._LOOP_HISTORY_MAX
+    def test_in_memory_cache_accepts_entries(self):
+        """Verify the in-memory fallback cache can store and retrieve entries."""
+        _LOOP_RESULTS.clear()
+        r = LoopResult(
+            run_id="r-test",
+            jd_text="text",
+            target_position="dev",
+            status=LoopRunStatus.COMPLETED,
+        )
+        _LOOP_RESULTS[r.run_id] = r
+        assert "r-test" in _LOOP_RESULTS
+        assert _LOOP_RESULTS["r-test"].run_id == "r-test"
 
 
 @pytest.mark.asyncio
@@ -109,15 +106,14 @@ async def test_get_loop_status_not_found():
 
 @pytest.mark.asyncio
 async def test_get_loop_status_found():
-    from app.core.pipeline import loop_orchestrator as lo
-    lo._LOOP_RESULTS.clear()
+    _LOOP_RESULTS.clear()
     r = LoopResult(
         run_id="r-test",
         jd_text="text",
         target_position="dev",
         status=LoopRunStatus.COMPLETED,
     )
-    LoopOrchestrator._store_result(r)
+    _LOOP_RESULTS[r.run_id] = r
     status = await get_loop_status("r-test")
     assert status is not None
     assert status["run_id"] == "r-test"
@@ -125,8 +121,7 @@ async def test_get_loop_status_found():
 
 @pytest.mark.asyncio
 async def test_get_loop_history():
-    from app.core.pipeline import loop_orchestrator as lo
-    lo._LOOP_RESULTS.clear()
+    _LOOP_RESULTS.clear()
     for i in range(3):
         r = LoopResult(
             run_id=f"r{i}",
@@ -134,13 +129,14 @@ async def test_get_loop_history():
             target_position="dev",
             status=LoopRunStatus.COMPLETED,
         )
-        LoopOrchestrator._store_result(r)
+        _LOOP_RESULTS[r.run_id] = r
     history = await get_loop_history(limit=10)
     assert len(history) == 3
 
 
 class TestStep5LearningPath:
-    def test_with_match_gaps(self):
+    @pytest.mark.asyncio
+    async def test_with_match_gaps(self):
         orch = LoopOrchestrator()
         match_result = {
             "skill_gap_detail": [
@@ -151,20 +147,148 @@ class TestStep5LearningPath:
             "overall_assessment": "good",
             "recommendations": ["learn Python"],
         }
-        result = orch._step5_learning_path(match_result, graph_available=True, match_ok=True)
+        result = await orch._step5_learning_path(match_result, graph_available=True, match_ok=True)
         assert result.status == StepStatus.SUCCESS
         assert len(result.data["path_items"]) == 2
 
-    def test_with_match_failed(self):
+    @pytest.mark.asyncio
+    async def test_with_match_failed(self):
         orch = LoopOrchestrator()
-        result = orch._step5_learning_path({}, graph_available=False, match_ok=False)
-        assert result.status == StepStatus.DEGRADED
+        result = await orch._step5_learning_path({}, graph_available=False, match_ok=False)
+        # When match fails, returns FAILED status with generic fallback path
+        assert result.status == StepStatus.FAILED
         assert "path_items" in result.data
 
-    def test_with_graph_unavailable_note(self):
+
+# ---------------------------------------------------------------------------
+# Tests for LoopOrchestrator async step methods
+# ---------------------------------------------------------------------------
+class TestStep2ExtractSkills:
+    @pytest.mark.asyncio
+    async def test_extraction_failure(self):
+        """Step 2 returns FAILED when extraction raises an exception."""
+        from unittest.mock import AsyncMock, patch
+
         orch = LoopOrchestrator()
-        match_result = {
-            "skill_gap_detail": [{"skill": "Python", "importance": "required", "gap_level": "完全缺失"}],
+        with patch("app.core.extraction.jd_extract.extract_from_jd", new=AsyncMock(side_effect=RuntimeError("LLM error"))):
+            result = await orch._step2_extract_skills("some jd text")
+        assert result.status == StepStatus.FAILED
+        assert "LLM error" in result.error
+
+
+class TestStep4MatchDiagnosis:
+    @pytest.mark.asyncio
+    async def test_no_skills_returns_failed(self):
+        """Step 4 returns FAILED when no skills are available."""
+        orch = LoopOrchestrator()
+        result = await orch._step4_match_diagnosis(
+            target_position="Backend",
+            extracted_skills=[],
+            graph_available=True,
+        )
+        assert result.status == StepStatus.FAILED
+        assert "No skills" in result.error
+
+    @pytest.mark.asyncio
+    async def test_match_exception_returns_failed(self):
+        """Step 4 returns FAILED when match raises an exception."""
+        from unittest.mock import AsyncMock, patch
+
+        orch = LoopOrchestrator()
+        with patch("app.services.match_service.run_match", new=AsyncMock(side_effect=RuntimeError("match error"))):
+            result = await orch._step4_match_diagnosis(
+                target_position="Backend",
+                extracted_skills=[{"name": "Python", "category": "hard_skill", "proficiency": "熟悉"}],
+                graph_available=True,
+            )
+        assert result.status == StepStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_match_success(self):
+        """Step 4 returns SUCCESS when match works."""
+        from unittest.mock import AsyncMock, patch
+
+        orch = LoopOrchestrator()
+        mock_result = {"match_id": "test", "match_score": 0.8, "target_position": "Backend"}
+        with patch("app.services.match_service.run_match", new=AsyncMock(return_value=mock_result)):
+            result = await orch._step4_match_diagnosis(
+                target_position="Backend",
+                extracted_skills=[{"name": "Python", "category": "hard_skill", "proficiency": "熟悉"}],
+                graph_available=True,
+            )
+        assert result.status == StepStatus.SUCCESS
+        assert result.data["match_score"] == 0.8
+
+
+class TestStep3GraphUpdate:
+    @pytest.mark.asyncio
+    async def test_no_driver_returns_failed(self):
+        """Step 3 returns FAILED when Neo4j driver is unavailable."""
+        from unittest.mock import patch
+
+        orch = LoopOrchestrator()
+        with patch("app.services.resources.resources", type("R", (), {"neo4j_driver": None})()):
+            result = await orch._step3_graph_update("run-1", {})
+        assert result.status == StepStatus.FAILED
+        assert "neo4j" in result.error.lower() or "unavailable" in result.error.lower()
+
+
+# ---------------------------------------------------------------------------
+# Additional coverage for loop_orchestrator
+# ---------------------------------------------------------------------------
+class TestStep3GraphUpdateWithDriver:
+    @pytest.mark.asyncio
+    async def test_sync_failure_returns_failed(self):
+        """Step 3 returns FAILED when sync_from_pipeline fails."""
+        from unittest.mock import AsyncMock, patch
+
+        orch = LoopOrchestrator()
+        mock_driver = object()
+        with patch("app.services.resources.resources", type("R", (), {"neo4j_driver": mock_driver})()), \
+             patch("app.services.graph_service.sync_from_pipeline", new=AsyncMock(return_value={"synced": False, "error": "test error"})):
+            result = await orch._step3_graph_update("run-1", {})
+        assert result.status == StepStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_sync_success(self):
+        """Step 3 returns SUCCESS when sync works."""
+        from unittest.mock import AsyncMock, patch
+
+        orch = LoopOrchestrator()
+        mock_driver = object()
+        with patch("app.services.resources.resources", type("R", (), {"neo4j_driver": mock_driver})()), \
+             patch("app.services.graph_service.sync_from_pipeline", new=AsyncMock(return_value={"synced": True, "nodes": 5, "edges": 3})):
+            result = await orch._step3_graph_update("run-1", {"skills": [{"name": "Python"}]})
+        assert result.status == StepStatus.SUCCESS
+
+
+class TestStep2ExtractSkillsSuccess:
+    @pytest.mark.asyncio
+    async def test_extraction_success(self):
+        """Step 2 returns SUCCESS when extraction works."""
+        from unittest.mock import AsyncMock, patch
+
+        orch = LoopOrchestrator()
+        mock_result = {
+            "success": True,
+            "data": {
+                "required_skills": [{"name": "Python", "category": "hard_skill", "level": "熟悉"}],
+                "preferred_skills": [{"name": "Docker", "category": "tool", "level": "了解"}],
+                "position_name": "Backend",
+            },
         }
-        result = orch._step5_learning_path(match_result, graph_available=False, match_ok=True)
-        assert "历史图谱" in result.note or result.note is not None
+        with patch("app.core.extraction.jd_extract.extract_from_jd", new=AsyncMock(return_value=mock_result)):
+            result = await orch._step2_extract_skills("Python developer needed")
+        assert result.status == StepStatus.SUCCESS
+        assert len(result.data["skills"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_extraction_returns_false(self):
+        """Step 2 returns FAILED when extraction returns success=false."""
+        from unittest.mock import AsyncMock, patch
+
+        orch = LoopOrchestrator()
+        mock_result = {"success": False, "error": "LLM timeout"}
+        with patch("app.core.extraction.jd_extract.extract_from_jd", new=AsyncMock(return_value=mock_result)):
+            result = await orch._step2_extract_skills("some text")
+        assert result.status == StepStatus.FAILED

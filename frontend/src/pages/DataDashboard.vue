@@ -55,6 +55,7 @@ const kpiCards = computed(() => [
     icon: '⬡',
     color: '#00d4ff',
     glow: 'rgba(0, 212, 255, 0.25)',
+    route: '/',
   },
   {
     label: '总关系数',
@@ -64,6 +65,7 @@ const kpiCards = computed(() => [
     icon: '◇',
     color: '#7b61ff',
     glow: 'rgba(123, 97, 255, 0.25)',
+    route: '/',
   },
   {
     label: '技能域',
@@ -73,6 +75,7 @@ const kpiCards = computed(() => [
     icon: '◈',
     color: '#00ff88',
     glow: 'rgba(0, 255, 136, 0.25)',
+    route: '/learning',
   },
   {
     label: '岗位数',
@@ -82,6 +85,7 @@ const kpiCards = computed(() => [
     icon: '◉',
     color: '#ff6b6b',
     glow: 'rgba(255, 107, 107, 0.25)',
+    route: '/positions',
   },
   {
     label: '技能数',
@@ -91,6 +95,7 @@ const kpiCards = computed(() => [
     icon: '◆',
     color: '#ffd93d',
     glow: 'rgba(255, 217, 61, 0.25)',
+    route: '/quality',
   },
   {
     label: '信任评分',
@@ -100,6 +105,7 @@ const kpiCards = computed(() => [
     icon: '★',
     color: '#6bcbff',
     glow: 'rgba(107, 203, 255, 0.25)',
+    route: '/quality',
   },
 ])
 
@@ -499,6 +505,15 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 const clockTick = ref(0)
 let clockTimer: ReturnType<typeof setInterval> | null = null
 
+// Debounced overview refresh for SSE-driven KPI updates
+let sseRefreshTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleSSEOverviewRefresh() {
+  if (sseRefreshTimer) clearTimeout(sseRefreshTimer)
+  sseRefreshTimer = setTimeout(() => {
+    store.fetchOverview()
+  }, 500) // debounce 500ms to batch rapid events
+}
+
 onMounted(async () => {
   // Initial load
   await store.fetchAll()
@@ -511,6 +526,10 @@ onMounted(async () => {
         const data = JSON.parse(event.data) as RealtimeEvent
         if (data?.type) {
           store.addRealtimeEvent(data)
+          // Refresh KPI overview on data-changing events
+          if (['skill_update', 'graph_update', 'pipeline_event', 'extraction'].includes(data.type)) {
+            scheduleSSEOverviewRefresh()
+          }
         }
       } catch {
         // Heartbeat or non-JSON message, ignore
@@ -540,6 +559,7 @@ onMounted(async () => {
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
   if (clockTimer) clearInterval(clockTimer)
+  if (sseRefreshTimer) clearTimeout(sseRefreshTimer)
 })
 </script>
 
@@ -551,9 +571,10 @@ onUnmounted(() => {
     <div class="dashboard-grid">
       <!-- ══════════════ TOP ROW: 6 KPI CARDS ══════════════ -->
       <div class="kpi-row">
-        <div
+        <router-link
           v-for="card in kpiCards"
           :key="card.label"
+          :to="card.route"
           class="kpi-card"
           :style="{
             '--kpi-color': card.color,
@@ -578,7 +599,7 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="kpi-border-bottom" />
-        </div>
+        </router-link>
       </div>
 
       <!-- ══════════════ MIDDLE ROW ══════════════ -->
@@ -771,6 +792,9 @@ onUnmounted(() => {
   gap: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
 }
 
 .kpi-card:hover {

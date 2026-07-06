@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 岗位详情页 — 能力雷达图 + 技能列表
  * 路由：/position/:name
@@ -54,12 +54,26 @@ const CATEGORY_LABELS: Record<string, string> = {
   hard_skill: '硬技能',
   soft_skill: '软技能',
   tool: '工具',
+  project_management: '项目管理',
+  design: '设计',
+  domain: '领域知识',
+  language: '语言',
+  certification: '认证',
+  methodology: '方法论',
 }
 
 const PROFICIENCY_TAG: Record<string, string> = {
   '精通': 'danger',
   '熟悉': 'warning',
   '了解': 'info',
+}
+
+// ── Hotness color: higher = greener, lower = grayer ──
+function hotnessColor(count: number): string {
+  if (count >= 8) return '#22c55e'  // green-500
+  if (count >= 5) return '#86efac'  // green-300
+  if (count >= 3) return '#a3a3a3'  // neutral-400
+  return '#d4d4d4'                   // neutral-300
 }
 
 // ── 加载（Neo4j 优先，PostgreSQL 回退） ──
@@ -232,10 +246,24 @@ async function loadFromPostgres() {
               </el-table-column>
               <el-table-column
                 label="热度"
-                width="60"
+                width="120"
               >
                 <template #default="{ row }">
-                  {{ row.source_count }}
+                  <div class="hotness-cell">
+                    <el-progress
+                      :percentage="Math.min(row.source_count / 10 * 100, 100)"
+                      :stroke-width="8"
+                      :color="hotnessColor(row.source_count)"
+                      :show-text="false"
+                      class="hotness-bar"
+                    />
+                    <span
+                      class="hotness-badge"
+                      :style="{ background: hotnessColor(row.source_count), color: '#fff' }"
+                    >
+                      {{ row.source_count }}
+                    </span>
+                  </div>
                 </template>
               </el-table-column>
             </el-table>
@@ -291,5 +319,28 @@ async function loadFromPostgres() {
   font-weight: 500;
   color: var(--foreground);
   margin: 0 0 var(--space-3);
+}
+
+/* ── Hotness Cell ── */
+.hotness-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.hotness-bar {
+  flex: 1;
+  min-width: 40px;
+}
+.hotness-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 5px;
+  font-variant-numeric: tabular-nums;
 }
 </style>

@@ -1,0 +1,44 @@
+# =============================================================================
+# 星图(StarMap) 前端 生产镜像
+# 多阶段构建：Node 构建 → Nginx 静态服务
+# =============================================================================
+
+# ── 阶段 1：构建 ─────────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+
+# 设置 UTF-8 locale
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+WORKDIR /app
+
+# 先拷依赖文件利用层缓存
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# 复制源码并构建
+COPY . .
+
+# 构建参数：API 基础 URL（生产环境通过反向代理）
+ARG VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_USE_MSW=false
+
+RUN npm run build
+
+# ── 阶段 2：Nginx 静态服务 ───────────────────────────────────────────────────
+FROM nginx:alpine AS production
+
+# 复制构建产物到 Nginx 默认目录
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# 复制 Nginx 配置
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 健康检查
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O - http://localhost:80/ || exit 1
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

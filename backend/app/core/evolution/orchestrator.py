@@ -338,14 +338,28 @@ class EvolutionOrchestrator:
         if count > 0:
             await self._session.flush()
 
-        # Also write EVOLVES_TO relationships to Neo4j
-        await self._write_evolves_to_neo4j(path_report.paths)
+        # Write EVOLVES_TO relationships to Neo4j via graph writer
+        await self._write_evolves_to_graph(path_report.paths)
 
         return count
 
-    async def _write_evolves_to_neo4j(self, paths: list) -> None:
-        """Write EVOLVES_TO relationships to Neo4j graph."""
+    async def _write_evolves_to_graph(self, paths: list) -> None:
+        """Write EVOLVES_TO relationships to Neo4j via graph_writer.
+
+        Builds an EVOLVES_TO triple for each discovered path with properties:
+        direction, skill_overlap (float ratio), key_gaps, evidence_count, trust_score.
+
+        Neo4j write failure is caught and logged — it must NOT break the
+        PostgreSQL write that already completed in _save_paths_to_db().
+        """
         try:
+            from app.core.extraction.graph_writer import (
+                NODE_POSITION,
+                REL_EVOLVES_TO,
+                GraphNodeRef,
+                GraphTriple,
+                write_triples_to_graph,
+            )
             from app.services.resources import AppResources
 
             driver = AppResources.neo4j_driver
@@ -353,28 +367,42 @@ class EvolutionOrchestrator:
                 logger.warning("Neo4j driver not available, skipping EVOLVES_TO write")
                 return
 
-            async with driver.session() as session:
-                for path in paths:
-                    query = """
-                    MATCH (source:Position {name: $source})
-                    MATCH (target:Position {name: $target})
-                    MERGE (source)-[r:EVOLVES_TO]->(target)
-                    SET r.similarity = $similarity,
-                        r.evidence_count = $evidence_count,
-                        r.trust_score = $trust_score,
-                        r.skill_overlap = $skill_overlap,
-                        r.key_gaps = $key_gaps
-                    """
-                    await session.run(
-                        query,
-                        source=path.source_position,
-                        target=path.target_position,
-                        similarity=path.similarity,
-                        evidence_count=path.evidence_count,
-                        trust_score=path.trust_score,
-                        skill_overlap=path.skill_overlap,
-                        key_gaps=path.key_gaps,
-                    )
-            logger.info("Wrote {} EVOLVES_TO relationships to Neo4j", len(paths))
+            triples: list[GraphTriple] = []
+            for path in paths:
+                source = GraphNodeRef(
+                    label=NODE_POSITION,
+                    name=path.source_position,
+                )
+                target = GraphNodeRef(
+                    label=NODE_POSITION,
+                    name=path.target_position,
+                )
+                # Compute skill_overlap as a float ratio (overlap / target skills)
+                overlap_count = len(path.skill_overlap) if path.skill_overlap else 0
+                gap_count = len(path.key_gaps) if path.key_gaps else 0
+                target_total = overlap_count + gap_count
+                skill_overlap_ratio = (
+                    overlap_count / target_total if target_total > 0 else 0.0
+                )
+                props = {
+                    "direction": "forward",
+                    "skill_overlap": round(skill_overlap_ratio, 3),
+                    "key_gaps": path.key_gaps,
+                    "evidence_count": path.evidence_count,
+                    "trust_score": path.trust_score,
+                    "similarity": path.similarity,
+                }
+                triples.append(GraphTriple(
+                    source=source,
+                    relationship=REL_EVOLVES_TO,
+                    target=target,
+                    properties=props,
+                ))
+
+            summary = await write_triples_to_graph(driver, triples)
+            logger.info(
+                "Wrote {} EVOLVES_TO relationships to Neo4j ({} triples merged)",
+                len(paths), summary["triples_merged"],
+            )
         except Exception as e:
             logger.warning("Failed to write EVOLVES_TO to Neo4j: {}", e)

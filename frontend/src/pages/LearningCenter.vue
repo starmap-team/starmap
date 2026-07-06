@@ -6,90 +6,88 @@
  * 右侧：技能进度卡片列表（每个技能的状态、进度、时间、前置）
  * 底部：个性化推荐（基于差距的下一批推荐学习技能）
  */
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Guide, DataAnalysis, Clock, Trophy } from '@element-plus/icons-vue'
-import MainLayout from '@/layouts/MainLayout.vue'
-import LearningPathFlow from '@/components/LearningPathFlow.vue'
-import SkillProgressCard from '@/components/SkillProgressCard.vue'
-import { useLearningStore } from '@/stores/learning'
-import type { LearningPlan, SkillProgress } from '@/stores/learning'
 
+// 技术说明：引入 Vue 3 组合式 API 核心函数
+import { ref, onMounted, computed } from 'vue'
+// 技术说明：引入 Vue Router 用于页面导航
+import { useRouter } from 'vue-router'
+// 技术说明：引入 Element Plus 消息提示组件
+import { ElMessage } from 'element-plus'
+// 技术说明：引入 Element Plus 图标组件
+import { Guide, DataAnalysis, Clock, Trophy } from '@element-plus/icons-vue'
+// 业务说明：主布局组件，提供统一的页面导航和侧边栏
+import MainLayout from '@/layouts/MainLayout.vue'
+// 业务说明：学习路径可视化组件，展示技能之间的依赖关系图
+import LearningPathFlow from '@/components/LearningPathFlow.vue'
+// 业务说明：技能进度卡片组件，展示单个技能的学习状态和进度
+import SkillProgressCard from '@/components/SkillProgressCard.vue'
+// 业务说明：学习中心状态管理 Store，处理学习计划数据、进度更新和推荐逻辑
+import { useLearningStore } from '@/stores/learning'
+// 技术说明：引入 SkillProgress 类型定义
+import type { SkillProgress } from '@/stores/learning'
+
+// 技术说明：初始化路由实例，用于跳转到匹配诊断页面
 const router = useRouter()
+// 业务说明：获取学习中心状态管理实例，统一管理学习计划、推荐和数据加载状态
 const learningStore = useLearningStore()
 
+// 业务说明：当前选中的技能筛选标签，控制右侧技能列表的显示范围
+// 可选值：'all'(全部)、'in_progress'(学习中)、'not_started'(未开始)
 const activeTab = ref('all')
 
-// ── Filtered skills based on activeTab ──
+// 业务说明：根据当前选中的标签筛选技能列表
+// 当用户切换标签时，实时过滤显示对应状态的技能卡片
 const filteredSkills = computed<SkillProgress[]>(() => {
+  if (!currentPlan.value) return []
   if (activeTab.value === 'all') return currentPlan.value.skills
   return currentPlan.value.skills.filter(s => s.status === activeTab.value)
 })
 
-// ── Demo data for initial display ──
-const demoPlan: LearningPlan = {
-  plan_id: 'demo-plan-1',
-  position: '高级前端工程师',
-  overall_progress: 35,
-  estimated_completion: '约 3 个月',
-  skills: [
-    { skill: 'TypeScript', status: 'mastered', progress_pct: 100, estimated_hours: 0, prerequisites: ['JavaScript'], current_level: 4, target_level: 4 },
-    { skill: 'Vue 3', status: 'mastered', progress_pct: 100, estimated_hours: 0, prerequisites: ['TypeScript'], current_level: 4, target_level: 4 },
-    { skill: 'React', status: 'in_progress', progress_pct: 60, estimated_hours: 40, prerequisites: ['JavaScript', 'TypeScript'], current_level: 3, target_level: 4 },
-    { skill: 'Node.js', status: 'in_progress', progress_pct: 45, estimated_hours: 60, prerequisites: ['JavaScript'], current_level: 2, target_level: 4 },
-    { skill: 'GraphQL', status: 'not_started', progress_pct: 0, estimated_hours: 30, prerequisites: ['Node.js'], current_level: 1, target_level: 3 },
-    { skill: 'Docker', status: 'not_started', progress_pct: 0, estimated_hours: 25, prerequisites: ['Node.js'], current_level: 0, target_level: 3 },
-    { skill: 'CI/CD', status: 'not_started', progress_pct: 0, estimated_hours: 20, prerequisites: ['Docker'], current_level: 0, target_level: 3 },
-    { skill: '微前端', status: 'not_started', progress_pct: 0, estimated_hours: 35, prerequisites: ['Vue 3', 'React'], current_level: 0, target_level: 3 },
-  ],
-  path: [
-    { skill: 'JavaScript', status: 'mastered', prerequisites: [], estimated_hours: 0, progress_pct: 100 },
-    { skill: 'TypeScript', status: 'mastered', prerequisites: ['JavaScript'], estimated_hours: 0, progress_pct: 100 },
-    { skill: 'Vue 3', status: 'mastered', prerequisites: ['TypeScript'], estimated_hours: 0, progress_pct: 100 },
-    { skill: 'React', status: 'in_progress', prerequisites: ['TypeScript'], estimated_hours: 40, progress_pct: 60 },
-    { skill: 'Node.js', status: 'in_progress', prerequisites: ['JavaScript'], estimated_hours: 60, progress_pct: 45 },
-    { skill: 'GraphQL', status: 'not_started', prerequisites: ['Node.js'], estimated_hours: 30, progress_pct: 0 },
-    { skill: 'Docker', status: 'not_started', prerequisites: ['Node.js'], estimated_hours: 25, progress_pct: 0 },
-    { skill: 'CI/CD', status: 'not_started', prerequisites: ['Docker'], estimated_hours: 20, progress_pct: 0 },
-    { skill: '微前端', status: 'not_started', prerequisites: ['Vue 3', 'React'], estimated_hours: 35, progress_pct: 0 },
-  ],
-  created_at: '2026-06-01T10:00:00Z',
-  updated_at: '2026-06-25T14:30:00Z',
-}
-
-const demoRecommendations = [
-  { skill: 'React', reason: '岗位必备技能，你已有基础，建议优先提升', priority: 'high' as const, estimated_hours: 40, market_demand: 92 },
-  { skill: 'GraphQL', reason: '市场需求上升，与现有 Node.js 技能互补', priority: 'high' as const, estimated_hours: 30, market_demand: 78 },
-  { skill: 'Docker', reason: '现代开发必备，DevOps 基础', priority: 'medium' as const, estimated_hours: 25, market_demand: 85 },
-  { skill: 'CI/CD', reason: '工程化能力体现，建议在 Docker 后学习', priority: 'medium' as const, estimated_hours: 20, market_demand: 70 },
-  { skill: '微前端', reason: '大型项目架构能力，加分项', priority: 'low' as const, estimated_hours: 35, market_demand: 55 },
-]
-
-// Use real plan if available, otherwise demo
-const currentPlan = computed(() => learningStore.currentPlan ?? demoPlan)
-const recommendations = computed(() => learningStore.recommendations.length ? learningStore.recommendations : demoRecommendations)
+// 业务说明：当前激活的学习计划，包含岗位信息、技能列表、整体进度等
+// 从 Store 中获取，支持响应式更新
+const currentPlan = computed(() => learningStore.currentPlan)
+// 业务说明：基于差距分析生成的个性化技能推荐列表
+const recommendations = computed(() => learningStore.recommendations)
+// 业务说明：数据加载状态，控制骨架屏和加载动画的显示
 const isLoading = computed(() => learningStore.loading)
 
-// Stats
-const masteredCount = computed(() => currentPlan.value.skills.filter(s => s.status === 'mastered').length)
-const inProgressCount = computed(() => currentPlan.value.skills.filter(s => s.status === 'in_progress').length)
-const totalHours = computed(() => currentPlan.value.skills.reduce((sum, s) => sum + s.estimated_hours, 0))
+// 业务说明：学习进度统计指标 —— 已掌握技能数量
+// 统计当前计划中状态为 'mastered' 的技能个数
+const masteredCount = computed(() => currentPlan.value?.skills.filter(s => s.status === 'mastered').length ?? 0)
+// 业务说明：学习进度统计指标 —— 学习中技能数量
+// 统计当前计划中状态为 'in_progress' 的技能个数
+const inProgressCount = computed(() => currentPlan.value?.skills.filter(s => s.status === 'in_progress').length ?? 0)
+// 业务说明：学习进度统计指标 —— 计划总学时
+// 累加所有技能的预计学习时长
+const totalHours = computed(() => currentPlan.value?.skills.reduce((sum, s) => sum + s.estimated_hours, 0) ?? 0)
+// 业务说明：学习进度统计指标 —— 剩余学时
+// 根据未掌握技能的进度百分比，计算还需投入的学习时间
 const remainingHours = computed(() => {
+  if (!currentPlan.value) return 0
   return currentPlan.value.skills
     .filter(s => s.status !== 'mastered')
     .reduce((sum, s) => sum + Math.round(s.estimated_hours * (1 - s.progress_pct / 100)), 0)
 })
 
-// Priority tag type
+// 业务说明：优先级标签样式映射
+// 将优先级字符串转换为 Element Plus 标签的显示类型（颜色）
 function priorityType(p: string): string {
   return p === 'high' ? 'danger' : p === 'medium' ? 'warning' : 'info'
 }
+// 业务说明：优先级标签文本映射
+// 将优先级字符串转换为中文显示文本
 function priorityLabel(p: string): string {
   return p === 'high' ? '高优先' : p === 'medium' ? '中优先' : '低优先'
 }
 
+// 业务说明：更新技能学习状态
+// 用户点击技能卡片上的状态按钮时触发，将技能标记为已掌握/学习中/未开始
+// 参数 skill: 技能名称，status: 目标状态
 async function handleUpdateStatus(skill: string, status: string) {
+  if (!currentPlan.value) {
+    ElMessage.warning('请先创建学习计划')
+    return
+  }
   try {
     await learningStore.updateProgress(currentPlan.value.plan_id, skill, status)
     ElMessage.success(`已更新「${skill}」状态为 ${status === 'mastered' ? '已掌握' : status === 'in_progress' ? '学习中' : '未开始'}`)
@@ -98,19 +96,41 @@ async function handleUpdateStatus(skill: string, status: string) {
   }
 }
 
+// 业务说明：将推荐技能加入当前学习计划
+// 用户点击推荐卡片上的"加入计划"按钮时触发
+// 参数 rec: 包含技能名称和优先级的推荐对象
+async function handleAddToPlan(rec: { skill: string; priority: string }) {
+  if (!currentPlan.value) {
+    ElMessage.warning('请先创建学习计划')
+    return
+  }
+  try {
+    await learningStore.addSkillToPlan(rec.skill, currentPlan.value.position)
+    ElMessage.success(`「${rec.skill}」已加入学习计划`)
+  } catch (e: any) {
+    ElMessage.error(e?.message ?? '加入计划失败')
+  }
+}
+
+// 业务说明：页面初始化 —— 并行加载学习计划和推荐数据
+// 组件挂载时自动发起数据请求，确保页面打开即有数据展示
 onMounted(async () => {
   try {
-    await learningStore.fetchRecommendations()
+    await Promise.all([
+      learningStore.fetchPlans(),
+      learningStore.fetchRecommendations(),
+    ])
   } catch {
-    // use demo data
+    // fetch errors handled by store
   }
 })
 </script>
 
 <template>
   <MainLayout>
+    <!-- 业务说明：学习中心页面根容器，包含页面头部、计划概览、主内容区和推荐区域 -->
     <div class="learning-page animate-fade-in">
-      <!-- Page header -->
+      <!-- 业务说明：页面头部区域，展示页面标题、功能描述和快捷操作按钮 -->
       <div class="page-header">
         <div>
           <h1 class="page-title">
@@ -121,6 +141,7 @@ onMounted(async () => {
           </p>
         </div>
         <div class="header-actions">
+          <!-- 业务说明：快捷入口 —— 跳转到匹配诊断页面生成新的学习计划 -->
           <el-button
             type="primary"
             :icon="Guide"
@@ -132,163 +153,219 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Plan Summary (Top) -->
-      <el-card
-        class="plan-summary"
-        shadow="hover"
-      >
-        <div class="summary-grid">
-          <!-- Position & Progress -->
-          <div class="summary-main">
-            <div class="summary-position">
-              <h2 class="position-name">
-                {{ currentPlan.position }}
-              </h2>
-              <el-tag
-                effect="plain"
-                size="small"
-              >
-                学习计划
-              </el-tag>
-            </div>
-            <div class="progress-row">
-              <el-progress
-                :percentage="currentPlan.overall_progress"
-                :stroke-width="14"
-                :color="currentPlan.overall_progress >= 80 ? 'var(--success)' : currentPlan.overall_progress >= 40 ? 'var(--warning)' : 'var(--primary)'"
-                class="main-progress"
-              />
-              <span class="progress-label">总进度</span>
-            </div>
-            <div class="summary-meta">
-              <span class="meta-item">
-                <el-icon><Clock /></el-icon>
-                预计完成：{{ currentPlan.estimated_completion }}
-              </span>
-              <span
-                v-if="currentPlan.updated_at"
-                class="meta-item"
-              >
-                最后更新：{{ new Date(currentPlan.updated_at).toLocaleDateString() }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Stats -->
-          <div class="summary-stats">
-            <div class="stat-card">
-              <div class="stat-value">
-                {{ masteredCount }}
-              </div>
-              <div class="stat-label">
-                已掌握
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value stat-warn">
-                {{ inProgressCount }}
-              </div>
-              <div class="stat-label">
-                学习中
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value stat-info">
-                {{ currentPlan.skills.length - masteredCount - inProgressCount }}
-              </div>
-              <div class="stat-label">
-                未开始
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value stat-accent">
-                {{ remainingHours }}
-              </div>
-              <div class="stat-label">
-                剩余小时
-              </div>
-            </div>
-          </div>
-        </div>
-      </el-card>
-
-      <!-- Main Content: Left (Path) + Right (Cards) -->
-      <el-row
-        :gutter="20"
-        class="main-content"
-      >
-        <!-- Left: Learning Path DAG -->
-        <el-col
-          :xs="24"
-          :lg="10"
+      <!-- 业务说明：学习计划概览卡片 —— 展示当前岗位、整体进度、预计完成时间和关键统计数据 -->
+      <!-- 当有活跃学习计划时显示详细概览，无计划时显示空状态引导 -->
+      <template v-if="currentPlan">
+        <el-card
+          class="plan-summary"
+          shadow="hover"
         >
-          <el-card
-            class="path-card"
-            shadow="hover"
-          >
-            <template #header>
-              <div class="card-header-row">
-                <span class="card-title">学习路径图</span>
+          <div class="summary-grid">
+            <!-- 业务说明：概览左侧 —— 岗位信息、总进度条和预计完成时间 -->
+            <div class="summary-main">
+              <div class="summary-position">
+                <h2 class="position-name">
+                  {{ currentPlan.position }}
+                </h2>
                 <el-tag
-                  size="small"
                   effect="plain"
-                  type="info"
+                  size="small"
                 >
-                  DAG
+                  学习计划
                 </el-tag>
               </div>
-            </template>
-            <LearningPathFlow :path="currentPlan.path" />
-          </el-card>
-        </el-col>
-
-        <!-- Right: Skill Progress Cards -->
-        <el-col
-          :xs="24"
-          :lg="14"
-        >
-          <el-card
-            class="skills-card"
-            shadow="hover"
-          >
-            <template #header>
-              <div class="card-header-row">
-                <span class="card-title">技能进度</span>
-                <el-segmented
-                  v-model="activeTab"
-                  :options="[
-                    { label: '全部', value: 'all' },
-                    { label: '学习中', value: 'in_progress' },
-                    { label: '未开始', value: 'not_started' },
-                  ]"
-                  size="small"
+              <div class="progress-row">
+                <!-- 业务说明：总进度可视化 —— 根据进度值动态调整颜色（>=80%绿色，>=40%黄色，<40%蓝色） -->
+                <el-progress
+                  :percentage="currentPlan.overall_progress"
+                  :stroke-width="14"
+                  :color="currentPlan.overall_progress >= 80 ? 'var(--success)' : currentPlan.overall_progress >= 40 ? 'var(--warning)' : 'var(--primary)'"
+                  class="main-progress"
                 />
+                <span class="progress-label">总进度</span>
               </div>
-            </template>
-            <div
-              v-loading="isLoading"
-              class="skills-grid"
-            >
-              <SkillProgressCard
-                v-for="skill in filteredSkills"
-                :key="skill.skill"
-                :skill="skill"
-                @update-status="handleUpdateStatus"
-              />
-              <div
-                v-if="!filteredSkills.length"
-                class="custom-empty"
-              >
-                <p class="empty-text">
-                  暂无匹配的技能
-                </p>
+              <div class="summary-meta">
+                <span class="meta-item">
+                  <el-icon><Clock /></el-icon>
+                  预计完成：{{ currentPlan.estimated_completion }}
+                </span>
+                <span
+                  v-if="currentPlan.updated_at"
+                  class="meta-item"
+                >
+                  最后更新：{{ new Date(currentPlan.updated_at).toLocaleDateString() }}
+                </span>
               </div>
             </div>
-          </el-card>
-        </el-col>
-      </el-row>
 
-      <!-- Recommendations (Bottom) -->
+            <!-- 业务说明：概览右侧 —— 四项关键统计数据展示（已掌握/学习中/未开始/剩余小时） -->
+            <div class="summary-stats">
+              <div class="stat-card">
+                <div class="stat-value">
+                  {{ masteredCount }}
+                </div>
+                <div class="stat-label">
+                  已掌握
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value stat-warn">
+                  {{ inProgressCount }}
+                </div>
+                <div class="stat-label">
+                  学习中
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value stat-info">
+                  {{ currentPlan.skills.length - masteredCount - inProgressCount }}
+                </div>
+                <div class="stat-label">
+                  未开始
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value stat-accent">
+                  {{ remainingHours }}
+                </div>
+                <div class="stat-label">
+                  剩余小时
+                </div>
+              </div>
+            </div>
+          </div>
+        </el-card>
+      </template>
+      <!-- 业务说明：空状态 —— 当用户尚未创建学习计划时，引导用户前往匹配诊断页面生成计划 -->
+      <template v-else>
+        <el-card
+          class="plan-summary"
+          shadow="hover"
+        >
+          <div class="empty-state-wrapper">
+            <p class="empty-main-text">
+              暂无学习计划
+            </p>
+            <p class="empty-hint-text">
+              前往「匹配诊断」生成个性化学习计划
+            </p>
+            <el-button
+              type="primary"
+              @click="router.push('/match')"
+            >
+              从匹配诊断生成
+            </el-button>
+          </div>
+        </el-card>
+      </template>
+
+      <!-- 业务说明：主内容区 —— 左右分栏布局，左侧展示学习路径 DAG 图，右侧展示技能进度卡片列表 -->
+      <template v-if="currentPlan">
+        <el-row
+          :gutter="20"
+          class="main-content"
+        >
+          <!-- 业务说明：左侧 —— 学习路径 DAG 可视化图
+               以有向无环图形式展示技能之间的前置依赖关系，帮助用户理解学习顺序 -->
+          <el-col
+            :xs="24"
+            :lg="10"
+          >
+            <el-card
+              class="path-card"
+              shadow="hover"
+            >
+              <template #header>
+                <div class="card-header-row">
+                  <span class="card-title">学习路径图</span>
+                  <el-tag
+                    size="small"
+                    effect="plain"
+                    type="info"
+                  >
+                    DAG
+                  </el-tag>
+                </div>
+              </template>
+              <!-- 业务说明：学习路径图组件，接收当前计划的路径数据渲染技能节点和依赖连线 -->
+              <LearningPathFlow :path="currentPlan.path" />
+            </el-card>
+          </el-col>
+
+          <!-- 业务说明：右侧 —— 技能进度卡片列表
+               支持按状态筛选（全部/学习中/未开始），每张卡片展示单个技能的详细进度信息 -->
+          <el-col
+            :xs="24"
+            :lg="14"
+          >
+            <el-card
+              class="skills-card"
+              shadow="hover"
+            >
+              <template #header>
+                <div class="card-header-row">
+                  <span class="card-title">技能进度</span>
+                  <!-- 业务说明：分段控制器 —— 切换技能筛选条件，实时过滤显示对应状态的技能 -->
+                  <el-segmented
+                    v-model="activeTab"
+                    :options="[
+                      { label: '全部', value: 'all' },
+                      { label: '学习中', value: 'in_progress' },
+                      { label: '未开始', value: 'not_started' },
+                    ]"
+                    size="small"
+                  />
+                </div>
+              </template>
+              <div
+                v-loading="isLoading"
+                class="skills-grid"
+              >
+                <!-- 业务说明：遍历筛选后的技能列表，渲染技能进度卡片
+                     每张卡片支持状态更新操作（标记为已掌握/学习中/未开始） -->
+                <SkillProgressCard
+                  v-for="skill in filteredSkills"
+                  :key="skill.skill"
+                  :skill="skill"
+                  @update-status="handleUpdateStatus"
+                />
+                <!-- 业务说明：空状态 —— 当筛选结果为空时显示提示信息 -->
+                <div
+                  v-if="!filteredSkills.length"
+                  class="custom-empty"
+                >
+                  <p class="empty-text">
+                    暂无匹配的技能
+                  </p>
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </template>
+      <!-- 业务说明：空状态 —— 主内容区在无学习计划时的占位提示 -->
+      <template v-else>
+        <el-row
+          :gutter="20"
+          class="main-content"
+        >
+          <el-col :span="24">
+            <el-card shadow="hover">
+              <div class="empty-state-wrapper">
+                <p class="empty-main-text">
+                  暂无学习计划
+                </p>
+                <p class="empty-hint-text">
+                  请先通过「匹配诊断」创建学习计划，或在下方推荐中选择技能加入计划
+                </p>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </template>
+
+      <!-- 业务说明：个性化推荐区域 —— 基于差距分析算法生成下一批推荐学习技能
+           展示技能名称、优先级、推荐理由、预计学时和市场需求，支持一键加入计划 -->
       <el-card
         class="recommendations-card"
         shadow="hover"
@@ -310,7 +387,11 @@ onMounted(async () => {
             </el-tag>
           </div>
         </template>
-        <div class="recommendations-grid">
+        <!-- 业务说明：推荐列表 —— 当存在推荐数据时展示网格卡片 -->
+        <div
+          v-if="recommendations.length"
+          class="recommendations-grid"
+        >
           <div
             v-for="rec in recommendations"
             :key="rec.skill"
@@ -318,6 +399,7 @@ onMounted(async () => {
           >
             <div class="rec-top">
               <span class="rec-skill">{{ rec.skill }}</span>
+              <!-- 业务说明：优先级标签 —— 高/中/低优先级用不同颜色区分，帮助用户决策学习顺序 -->
               <el-tag
                 :type="priorityType(rec.priority) as any"
                 size="small"
@@ -326,6 +408,7 @@ onMounted(async () => {
                 {{ priorityLabel(rec.priority) }}
               </el-tag>
             </div>
+            <!-- 业务说明：推荐理由 —— 解释为什么推荐该技能（如岗位差距、市场需求等） -->
             <p class="rec-reason">
               {{ rec.reason }}
             </p>
@@ -343,15 +426,30 @@ onMounted(async () => {
               </span>
             </div>
             <div class="rec-action">
+              <!-- 业务说明：加入计划按钮 —— 将推荐技能添加到当前学习计划中，无计划时禁用 -->
               <el-button
                 size="small"
                 type="primary"
                 plain
+                :disabled="!currentPlan"
+                @click="handleAddToPlan(rec)"
               >
                 加入计划
               </el-button>
             </div>
           </div>
+        </div>
+        <!-- 业务说明：空状态 —— 当无推荐数据时显示引导信息 -->
+        <div
+          v-else
+          class="empty-state-wrapper"
+        >
+          <p class="empty-main-text">
+            暂无推荐
+          </p>
+          <p class="empty-hint-text">
+            创建学习计划后将基于差距分析生成个性化推荐
+          </p>
         </div>
       </el-card>
     </div>
@@ -608,6 +706,28 @@ onMounted(async () => {
   font-size: var(--font-size-base);
   font-weight: 600;
   color: var(--foreground);
+  margin: 0;
+}
+
+/* Empty state wrapper */
+.empty-state-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  gap: var(--space-3);
+}
+.empty-main-text {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0;
+}
+.empty-hint-text {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
   margin: 0;
 }
 

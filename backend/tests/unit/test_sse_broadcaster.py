@@ -29,13 +29,13 @@ class TestFormatSSE:
         assert "data:" in result
         assert result.endswith("\n\n")
         # Extract and verify JSON data
-        data_line = [l for l in result.split("\n") if l.startswith("data:")][0]
+        data_line = [line for line in result.split("\n") if line.startswith("data:")][0]
         data = json.loads(data_line[5:])
         assert data["key"] == "value"
 
     def test_empty_data(self):
         result = _format_sse("ping", {})
-        data_line = [l for l in result.split("\n") if l.startswith("data:")][0]
+        data_line = [line for line in result.split("\n") if line.startswith("data:")][0]
         data = json.loads(data_line[5:])
         assert data == {}
 

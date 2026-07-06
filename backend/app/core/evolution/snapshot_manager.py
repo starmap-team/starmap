@@ -1,7 +1,11 @@
-"""Snapshot Manager — Create, store, and retrieve position skill snapshots.
+"""Snapshot Manager — 快照管理器：创建、存储和查询职位技能快照。
 
-Snapshots capture the full skill profile (required + preferred) of a position
-at a specific point in time, enabling DiffEngine to compute changes.
+核心功能：
+  快照捕获某一时刻职位的完整技能画像（required + preferred），
+  为 DiffEngine 提供时间维度上的对比数据，支撑技能演化分析。
+
+数据流：
+  抽取结果 → 创建快照 → 存入 PostgreSQL → DiffEngine 对比 → 生成演化报告
 """
 
 from __future__ import annotations

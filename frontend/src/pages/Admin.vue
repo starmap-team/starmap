@@ -162,19 +162,29 @@ function nodeStatusLabel(status: string): string {
 // ════════════════════════════════════════════════
 
 const editDialogVisible = ref(false)
-const editingSource = ref<{ id: number; name: string; authority_score: number } | null>(null)
+const editSaving = ref(false)
+const editingSource = ref<{ id: string; name: string; authority_score: number; status: string } | null>(null)
 function handleEditSource(row: any) {
-  editingSource.value = { id: row.id, name: row.name, authority_score: row.authority_score }
+  editingSource.value = { id: row.id, name: row.name, authority_score: Math.round(row.authority_score * 100), status: row.status }
   editDialogVisible.value = true
 }
-function handleSaveSource() {
+async function handleSaveSource() {
   if (!editingSource.value) return
-  const idx = admin.sources.findIndex(s => s.id === editingSource.value!.id)
-  if (idx !== -1) {
-    admin.sources[idx] = { ...admin.sources[idx], name: editingSource.value.name, authority_score: editingSource.value.authority_score }
+  editSaving.value = true
+  try {
+    // authority_score slider is 0-100, backend stores 0-1
+    const payload = {
+      authority_score: editingSource.value.authority_score / 100,
+    }
+    await admin.updateSource(editingSource.value.id, payload)
+    editDialogVisible.value = false
+    ElMessage.success('数据源已更新')
+    await admin.fetchSources()
+  } catch (e: any) {
+    ElMessage.error(e?.message ?? '更新数据源失败')
+  } finally {
+    editSaving.value = false
   }
-  editDialogVisible.value = false
-  ElMessage.success('数据源已更新')
 }
 
 // ── 重置数据 ──
@@ -479,6 +489,30 @@ async function handleReset() {
                 </template>
               </el-table-column>
               <el-table-column
+                label="状态"
+                width="80"
+                align="center"
+              >
+                <template #default="{ row }">
+                  <el-tag
+                    :type="row.status === 'active' ? 'success' : row.status === 'paused' ? 'warning' : 'danger'"
+                    size="small"
+                    effect="plain"
+                  >
+                    {{ row.status === 'active' ? '活跃' : row.status === 'paused' ? '暂停' : '异常' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="记录数"
+                width="90"
+                align="center"
+              >
+                <template #default="{ row }">
+                  {{ row.total_records ?? 0 }}
+                </template>
+              </el-table-column>
+              <el-table-column
                 label="操作"
                 width="100"
                 align="center"
@@ -506,7 +540,10 @@ async function handleReset() {
                 label-width="80px"
               >
                 <el-form-item label="名称">
-                  <el-input v-model="editingSource.name" />
+                  <el-input
+                    :model-value="editingSource.name"
+                    disabled
+                  />
                 </el-form-item>
                 <el-form-item label="权威分">
                   <el-slider
@@ -523,6 +560,7 @@ async function handleReset() {
                 </el-button>
                 <el-button
                   type="primary"
+                  :loading="editSaving"
                   @click="handleSaveSource"
                 >
                   保存

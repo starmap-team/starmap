@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * 鏁版嵁璐ㄩ噺浠〃鐩樼粍浠? * ECharts gauge 浠〃鐩橈紝甯﹂鑹插尯闂村拰瓒嬪娍绠ご
+ * 数据质量仪表盘组件
+ * ECharts gauge 仪表盘，带颜色区间和趋势箭头
  */
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
@@ -16,7 +17,7 @@ const props = withDefaults(defineProps<{
   label?: string
   trend?: 'up' | 'down' | 'stable'
 }>(), {
-  label: '鏁版嵁璐ㄩ噺',
+  label: '数据质量',
   trend: 'stable',
 })
 
@@ -92,7 +93,7 @@ const gaugeOption = computed(() => {
       left: 'center',
       bottom: '5%',
       style: {
-        text: props.trend === 'up' ? '鈫?涓婂崌' : props.trend === 'down' ? '鈫?涓嬮檷' : '鈫?骞崇ǔ',
+        text: props.trend === 'up' ? '↑ 上升' : props.trend === 'down' ? '↓ 下降' : '→ 平稳',
         fill: trendColor,
         fontSize: 12,
         fontWeight: 600,

@@ -56,9 +56,11 @@ const props = withDefaults(defineProps<{
   links: GraphLink3D[]
   width?: number
   height?: number
+  currentLayer?: 'domain' | 'position' | 'detail'
 }>(), {
   width: 800,
   height: 600,
+  currentLayer: 'domain',
 })
 
 const emit = defineEmits<{
@@ -108,6 +110,12 @@ function getNodeRadius(node: GraphNode3D): number {
 // ── Initialize 3D graph (async, dynamic import) ──
 async function initGraph() {
   if (!containerRef.value || !webglSupported.value) return
+
+  // Don't initialize if no data yet — wait for data to arrive
+  if (props.nodes.length === 0) {
+    isReady.value = false
+    return
+  }
 
   // Dynamic import to keep 3d-force-graph out of the main bundle
   const ForceGraphModule = await import('3d-force-graph')
@@ -455,7 +463,15 @@ function measureFPS() {
 // ── Update data when props change ──
 watch(() => [props.nodes, props.links], () => {
   const graph = graphInstance.value
-  if (!graph) return
+  
+  // If graph not initialized but data arrived, initialize now
+  if (!graph) {
+    if (props.nodes.length > 0) {
+      initGraph()
+    }
+    return
+  }
+  
   const nodeCount = props.nodes.length
 
   // Replace graph data — this resets the d3-force simulation internally
@@ -472,6 +488,24 @@ watch(() => [props.nodes, props.links], () => {
   const centerSim = (graph as any).d3Force('center')
   if (centerSim) centerSim.strength(0.05)
 }, { deep: false })
+
+// ── Watch: layer changes → auto-adjust camera ──
+watch(() => props.currentLayer, (newLayer) => {
+  if (!graphInstance.value || props.nodes.length === 0) return
+  
+  // Auto-adjust camera based on layer
+  switch (newLayer) {
+    case 'domain':
+      setCameraPreset('overview')
+      break
+    case 'position':
+      setCameraPreset('domain')
+      break
+    case 'detail':
+      setCameraPreset('position')
+      break
+  }
+})
 
 // ── Resize handling ──
 function handleResize() {

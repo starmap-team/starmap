@@ -1,7 +1,6 @@
-"""数据流水线监控 API。
+﻿"""数据流水线监控 API — endpoint handlers.
 
-对应 Sprint 1.1：ETL 全链路监控（爬虫采集 → SimHash去重 → 清洗标准化 → 入库 → 图谱构建）。
-扩展：DAG并行执行、阶段选择、失败重试/断点续跑、定时调度、SSE实时进度。
+Split from pipeline.py in Phase 6 architecture refactor.
 """
 from __future__ import annotations
 
@@ -9,12 +8,35 @@ import json
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.pipeline.schemas import (
+    CancelResponse,
+    DataQualityMetrics,
+    DataQualityResponse,
+    DataSourceResponse,
+    PipelineConfigResponse,
+    PipelineConfigUpdateRequest,
+    PipelineRunResponse,
+    PipelineStatusResponse,
+    QualityAlertItem,
+    RetryStageRequest,
+    ScheduleCreateRequest,
+    ScheduleResponse,
+    StageStatusResponse,
+    TriggerRequest,
+    TriggerResponse,
+)
+from app.api.v1.pipeline.serializers import (
+    serialize_datasource,
+    serialize_run,
+    serialize_schedule,
+)
+from app.core.matching import MatchService
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 from app.pipeline.contracts import PipelineContext
@@ -27,192 +49,11 @@ from app.pipeline.steps import (
     SkillExtractStep,
 )
 from app.repositories.position_repository import PositionRepository
-from app.services.match_service import _load_prerequisite_map
+
+# 创建全局 MatchService 实例
+_match_service = MatchService()
 
 router = APIRouter(prefix="/pipeline", tags=["数据流水线"])
-
-
-# ---------------------------------------------------------------------------
-# Pydantic schemas
-# ---------------------------------------------------------------------------
-
-class StageInfo(BaseModel):
-    """Single pipeline stage details."""
-    name: str = Field(..., description="Stage name")
-    status: str = Field(..., description="pending/running/completed/failed/skipped")
-    started_at: str | None = Field(None, description="ISO timestamp")
-    completed_at: str | None = Field(None, description="ISO timestamp")
-    duration_ms: int = Field(0, ge=0)
-    records_processed: int = Field(0, ge=0)
-    errors: list[str] = Field(default_factory=list)
-    retry_count: int = Field(0, ge=0)
-    depends_on: list[str] = Field(default_factory=list)
-
-
-class PipelineRunResponse(BaseModel):
-    """Pipeline run details."""
-    id: str
-    run_type: str
-    status: str
-    started_at: str | None = None
-    completed_at: str | None = None
-    stages: list[StageInfo] = Field(default_factory=list)
-    total_records: int = 0
-    new_records: int = 0
-    updated_records: int = 0
-    quality_score: float = 0.0
-    error_log: str | None = None
-    selected_stages: list[str] | None = None
-
-
-class PipelineStatusResponse(BaseModel):
-    """Global pipeline status overview."""
-    is_running: bool = False
-    current_run: PipelineRunResponse | None = None
-    last_run: PipelineRunResponse | None = None
-    run_counts: dict[str, int] = Field(default_factory=dict)
-    active_data_sources: int = 0
-
-
-class TriggerRequest(BaseModel):
-    """Request body for manually triggering a pipeline run."""
-    run_type: str = Field(default="full", description="'full' | 'incremental'")
-    selected_stages: list[str] | None = Field(
-        None, description="Stages to execute; null = all stages",
-        examples=[["crawl", "dedup", "import"]],
-    )
-
-
-class TriggerResponse(BaseModel):
-    """Response after triggering a pipeline run."""
-    run_id: str
-    run_type: str
-    status: str
-    message: str
-
-
-class RetryStageRequest(BaseModel):
-    """Request body for retrying a failed stage."""
-    stage_name: str = Field(..., description="Stage name to retry")
-
-
-class DataSourceResponse(BaseModel):
-    """Data source information."""
-    id: str
-    name: str
-    source_type: str
-    authority_score: float
-    status: str
-    last_crawl_at: str | None = None
-    total_records: int = 0
-    valid_records: int = 0
-    duplicate_rate: float = 0.0
-    avg_quality_score: float = 0.0
-    config: dict[str, Any] = Field(default_factory=dict)
-
-
-class StageStatusResponse(BaseModel):
-    """Real-time stage status across recent runs."""
-    stages: list[dict[str, Any]] = Field(default_factory=list)
-
-
-class DataQualityResponse(BaseModel):
-    """Data quality metrics and alerts."""
-    metrics: dict[str, Any] = Field(default_factory=dict)
-    source_scores: dict[str, float] = Field(default_factory=dict)
-    alerts: list[dict[str, Any]] = Field(default_factory=list)
-    alert_count: int = 0
-
-
-class ScheduleCreateRequest(BaseModel):
-    """Create a new pipeline schedule."""
-    name: str = Field(..., description="Schedule name")
-    cron_expression: str = Field(..., description="cron expression, e.g. '0 2 * * *'")
-    run_type: str = Field(default="incremental", description="'full' | 'incremental'")
-    selected_stages: list[str] | None = Field(None)
-    enabled: bool = Field(default=True)
-
-
-class ScheduleResponse(BaseModel):
-    """Pipeline schedule details."""
-    id: str
-    name: str
-    cron_expression: str
-    run_type: str
-    selected_stages: list[str] | None = None
-    enabled: bool = True
-    last_run_at: str | None = None
-    next_run_at: str | None = None
-    created_at: str | None = None
-
-
-class PipelineConfigResponse(BaseModel):
-    """Current pipeline configuration from SystemConfig / settings."""
-    stage_timeout: int
-    worker_concurrency: int
-    crawl_concurrency: int
-    retry_max: int
-    retry_backoff: int
-
-
-class PipelineConfigUpdateRequest(BaseModel):
-    """Update pipeline configuration."""
-    stage_timeout: int | None = None
-    worker_concurrency: int | None = None
-    crawl_concurrency: int | None = None
-    retry_max: int | None = None
-    retry_backoff: int | None = None
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _serialize_run(run: PipelineRun) -> PipelineRunResponse:
-    return PipelineRunResponse(
-        id=str(run.id),
-        run_type=run.run_type,
-        status=run.status,
-        started_at=run.started_at.isoformat() if run.started_at else None,
-        completed_at=run.completed_at.isoformat() if run.completed_at else None,
-        stages=[StageInfo(**s) for s in (run.stages or [])],
-        total_records=run.total_records,
-        new_records=run.new_records,
-        updated_records=run.updated_records,
-        quality_score=run.quality_score,
-        error_log=run.error_log,
-        selected_stages=run.selected_stages,
-    )
-
-
-def _serialize_datasource(ds: DataSourceRecord) -> DataSourceResponse:
-    return DataSourceResponse(
-        id=str(ds.id),
-        name=ds.name,
-        source_type=ds.source_type,
-        authority_score=ds.authority_score,
-        status=ds.status,
-        last_crawl_at=ds.last_crawl_at.isoformat() if ds.last_crawl_at else None,
-        total_records=ds.total_records,
-        valid_records=ds.valid_records,
-        duplicate_rate=ds.duplicate_rate,
-        avg_quality_score=ds.avg_quality_score,
-        config=ds.config or {},
-    )
-
-
-def _serialize_schedule(s: PipelineSchedule) -> ScheduleResponse:
-    return ScheduleResponse(
-        id=str(s.id),
-        name=s.name,
-        cron_expression=s.cron_expression,
-        run_type=s.run_type,
-        selected_stages=s.selected_stages,
-        enabled=s.enabled,
-        last_run_at=s.last_run_at.isoformat() if s.last_run_at else None,
-        next_run_at=s.next_run_at.isoformat() if s.next_run_at else None,
-        created_at=s.created_at.isoformat() if s.created_at else None,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -221,18 +62,57 @@ def _serialize_schedule(s: PipelineSchedule) -> ScheduleResponse:
 
 @router.get("/status", response_model=PipelineStatusResponse)
 async def get_pipeline_status(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> PipelineStatusResponse:
     """全局流水线状态概览。"""
     from app.core.pipeline.orchestrator import get_status
+    from app.core.pipeline.status_aggregator import read_or_compute_status_aggregates
 
     data = await get_status(session)
+    redis_client = getattr(request.app.state.resources, "redis_client", None) if request else None
+    aggregates = await read_or_compute_status_aggregates(redis_client, session)
+
+    try:
+        from app.core.pipeline.quality_monitor import generate_alerts
+        quality_alerts_raw = await generate_alerts(session)
+        quality_alerts: list[QualityAlertItem] = [
+            QualityAlertItem(
+                level=a.level,
+                dimension=a.dimension,
+                message=a.message,
+                source=a.source,
+                value=a.value,
+                threshold=a.threshold,
+                timestamp=a.timestamp,
+            )
+            for a in quality_alerts_raw
+        ]
+        if quality_alerts_raw and redis_client:
+            from app.core.dashboard.sse_broadcaster import publish_event
+            for alert in quality_alerts_raw:
+                if alert.level == "error" or alert.level == "critical":
+                    await publish_event(redis_client, "quality_alert", {
+                        "level": alert.level,
+                        "dimension": alert.dimension,
+                        "message": alert.message,
+                        "source": alert.source,
+                        "timestamp": alert.timestamp,
+                    })
+    except Exception as exc:
+        logger.warning("quality_alerts generation failed (non-fatal): {}", exc)
+        quality_alerts = []
+
     return PipelineStatusResponse(
         is_running=data["is_running"],
         current_run=PipelineRunResponse(**data["current_run"]) if data["current_run"] else None,
         last_run=PipelineRunResponse(**data["last_run"]) if data["last_run"] else None,
         run_counts=data["run_counts"],
         active_data_sources=data["active_data_sources"],
+        today_crawl_volume=aggregates["today_crawl_volume"],
+        success_rate=aggregates["success_rate"],
+        avg_quality_score=aggregates["avg_quality_score"],
+        quality_alerts=quality_alerts,
     )
 
 
@@ -247,7 +127,7 @@ async def get_pipeline_runs(
     from app.core.pipeline.orchestrator import get_run_history
 
     runs = await get_run_history(session, limit=limit, offset=offset, status_filter=status)
-    return [_serialize_run(r) for r in runs]
+    return [serialize_run(r) for r in runs]
 
 
 @router.get("/runs/{run_id}", response_model=PipelineRunResponse)
@@ -260,20 +140,43 @@ async def get_pipeline_run(
     run = result.scalar_one_or_none()
     if run is None:
         raise HTTPException(status_code=404, detail="Pipeline run not found")
-    return _serialize_run(run)
+    return serialize_run(run)
+
+
+@router.post("/runs/{run_id}/cancel", response_model=CancelResponse)
+async def cancel_pipeline_run(
+    run_id: UUID,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> CancelResponse:
+    """Phase 1 D-04: 软取消 + Redis STOP flag + Celery 阶段开始时检查。"""
+    from app.core.pipeline.orchestrator import cancel_run
+
+    redis_client = getattr(request.app.state.resources, "redis_client", None)
+    result = await cancel_run(session, redis_client, run_id)
+    return CancelResponse(
+        run_id=str(result.run_id),
+        status=result.status,
+        cancelled_at=result.cancelled_at.isoformat(),
+        stopped_stage_names=result.stopped_stage_names,
+    )
 
 
 @router.post("/trigger", response_model=TriggerResponse)
 async def trigger_pipeline(
+    request: Request,
     body: TriggerRequest,
 ) -> TriggerResponse:
     """手动触发流水线（DAG执行，支持阶段选择）。"""
     from app.core.pipeline.executor import trigger_and_start
+    from app.core.pipeline.status_aggregator import invalidate_status_cache
 
     run = await trigger_and_start(
         run_type=body.run_type,
         selected_stages=body.selected_stages,
     )
+    redis_client = getattr(request.app.state.resources, "redis_client", None)
+    await invalidate_status_cache(redis_client)
     return TriggerResponse(
         run_id=str(run.id),
         run_type=run.run_type,
@@ -293,7 +196,7 @@ async def retry_stage(
     run = await _retry(run_id, body.stage_name)
     if run is None:
         raise HTTPException(status_code=404, detail="Pipeline run not found")
-    return _serialize_run(run)
+    return serialize_run(run)
 
 
 @router.post("/runs/{run_id}/resume", response_model=PipelineRunResponse)
@@ -306,7 +209,7 @@ async def resume_run(
     run = await _resume(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Pipeline run not found")
-    return _serialize_run(run)
+    return serialize_run(run)
 
 
 @router.get("/stages", response_model=StageStatusResponse)
@@ -322,7 +225,16 @@ async def get_pipeline_stages(
         return StageStatusResponse(stages=[])
 
     stage_list = []
-    for stage in (run.stages or []):
+    # Defensive: some legacy rows store stages as a dict (e.g. {"steps": [...]})
+    # instead of a list. Normalize to a list to keep the API contract stable.
+    raw_stages = run.stages
+    if isinstance(raw_stages, dict):
+        raw_stages = raw_stages.get("steps") or raw_stages.get("stages") or []
+    if not isinstance(raw_stages, list):
+        raw_stages = []
+    for stage in raw_stages:
+        if not isinstance(stage, dict):
+            continue
         stage_list.append({
             "name": stage.get("name"),
             "status": stage.get("status"),
@@ -345,8 +257,35 @@ async def get_data_quality(
 ) -> DataQualityResponse:
     """数据质量实时指标。"""
     from app.core.pipeline.quality_monitor import get_quality_snapshot
+    from app.core.pipeline.status_aggregator import compute_data_quality_aggregates
+
     snapshot = await get_quality_snapshot(session)
-    return DataQualityResponse(**snapshot)
+    extra = await compute_data_quality_aggregates(
+        session, existing_metrics=snapshot.get("metrics", {})
+    )
+    metrics_dict = {**snapshot.get("metrics", {}), **extra}
+
+    alerts_raw = snapshot.get("alerts", [])
+    alerts: list[QualityAlertItem] = []
+    for a in alerts_raw:
+        alerts.append(
+            QualityAlertItem(
+                level=a.get("level", "info"),
+                dimension=a.get("dimension"),
+                message=a.get("message", ""),
+                source=a.get("source"),
+                value=a.get("value"),
+                threshold=a.get("threshold"),
+                timestamp=a.get("timestamp", ""),
+            )
+        )
+
+    return DataQualityResponse(
+        metrics=DataQualityMetrics(**metrics_dict),
+        source_scores=snapshot.get("source_scores", {}),
+        alerts=alerts,
+        alert_count=len(alerts),
+    )
 
 
 @router.get("/datasources", response_model=list[DataSourceResponse])
@@ -358,7 +297,7 @@ async def get_datasources(
         select(DataSourceRecord).order_by(DataSourceRecord.authority_score.desc())
     )
     sources = list(result.scalars().all())
-    return [_serialize_datasource(ds) for ds in sources]
+    return [serialize_datasource(ds) for ds in sources]
 
 
 # ---------------------------------------------------------------------------
@@ -381,6 +320,21 @@ async def pipeline_events() -> Any:
     )
 
 
+@router.get("/events-poll", response_model=list[dict[str, Any]])
+async def poll_pipeline_events(
+    since: float = Query(0.0, description="Unix timestamp filter"),
+) -> list[dict[str, Any]]:
+    """Phase 2 POLL-01: SSE polling fallback — 返回最近事件数组。"""
+    from app.core.dashboard.sse_broadcaster import get_recent_events
+    from app.services.resources import resources as app_resources
+
+    redis = app_resources.redis_client
+    if redis is None:
+        return []
+    events = await get_recent_events(redis, since=since, limit=50)
+    return events
+
+
 # ---------------------------------------------------------------------------
 # 定时调度 CRUD
 # ---------------------------------------------------------------------------
@@ -391,7 +345,7 @@ async def list_schedules(
 ) -> list[ScheduleResponse]:
     """列出所有定时调度。"""
     result = await session.execute(select(PipelineSchedule).order_by(PipelineSchedule.created_at.desc()))
-    return [_serialize_schedule(s) for s in result.scalars().all()]
+    return [serialize_schedule(s) for s in result.scalars().all()]
 
 
 @router.post("/schedules", response_model=ScheduleResponse)
@@ -399,7 +353,7 @@ async def create_schedule(
     body: ScheduleCreateRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ScheduleResponse:
-    """创建定时调度。"""
+    """创建定时调度（Phase 2 CRON-02: 创建时计算 next_run_at）。"""
     schedule = PipelineSchedule(
         name=body.name,
         cron_expression=body.cron_expression,
@@ -407,11 +361,16 @@ async def create_schedule(
         selected_stages=body.selected_stages,
         enabled=body.enabled,
     )
+    try:
+        from app.core.pipeline.cron_scheduler import compute_next_cron
+        schedule.next_run_at = compute_next_cron(schedule.cron_expression)
+    except Exception as exc:
+        logger.warning("Failed to compute next_run_at: {}", exc)
     session.add(schedule)
     await session.flush()
-    await session.commit()  # ponytail: flush-only leaves uncommitted; commit so subsequent GET sees it
+    await session.commit()
     await session.refresh(schedule)
-    return _serialize_schedule(schedule)
+    return serialize_schedule(schedule)
 
 
 @router.put("/schedules/{schedule_id}", response_model=ScheduleResponse)
@@ -431,9 +390,9 @@ async def update_schedule(
     schedule.selected_stages = body.selected_stages
     schedule.enabled = body.enabled
     await session.flush()
-    await session.commit()  # ponytail: flush-only leaves the row at the old version
+    await session.commit()
     await session.refresh(schedule)
-    return _serialize_schedule(schedule)
+    return serialize_schedule(schedule)
 
 
 @router.delete("/schedules/{schedule_id}")
@@ -447,7 +406,7 @@ async def delete_schedule(
     if schedule is None:
         raise HTTPException(status_code=404, detail="Schedule not found")
     await session.delete(schedule)
-    await session.commit()  # ponytail: flush-only leaves the row; commit so DELETE is visible
+    await session.commit()
     return {"status": "deleted"}
 
 
@@ -472,10 +431,7 @@ async def get_pipeline_config() -> PipelineConfigResponse:
 async def update_pipeline_config(
     body: PipelineConfigUpdateRequest,
 ) -> PipelineConfigResponse:
-    """更新流水线配置（写入 .env 或运行时覆盖）。
-
-    ponytail: runtime override via settings object; .env write is optional future work.
-    """
+    """更新流水线配置（写入 .env 或运行时覆盖）。"""
     from app.config import settings
     if body.stage_timeout is not None:
         settings.pipeline_stage_timeout = body.stage_timeout
@@ -500,7 +456,6 @@ async def update_pipeline_config(
 # 求职者业务闭环 Pipeline
 # ---------------------------------------------------------------------------
 
-
 @router.post("/analyze")
 async def analyze_pipeline(
     resume_file: UploadFile = File(..., description="求职者简历文件（PDF/DOCX）"),
@@ -520,7 +475,7 @@ async def analyze_pipeline(
     repo = PositionRepository(driver)
 
     try:
-        await _load_prerequisite_map(driver)
+        await _match_service._load_prerequisite_map(driver)
     except Exception as exc:
         _logger.warning("[Pipeline] Failed to preload prerequisite map: {}", exc)
 
@@ -560,7 +515,7 @@ async def export_analysis(
     repo = PositionRepository(driver)
 
     try:
-        await _load_prerequisite_map(driver)
+        await _match_service._load_prerequisite_map(driver)
     except Exception:
         pass
 
@@ -581,3 +536,4 @@ async def export_analysis(
             return JSONResponse(content=result)
 
     return JSONResponse(content=_build_result(ctx))
+
