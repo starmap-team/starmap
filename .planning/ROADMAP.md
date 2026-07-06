@@ -109,9 +109,16 @@ Plans:
 
 ---
 
-## Phase 4: 数据流贯通
+## Phase 4: 数据流贯通 ✓
 
 **Goal:** 端到端数据流贯通，从JD抽取到图谱写入到匹配诊断到演化分析到质量监控，全链路真实执行。
+
+**Plans:** 3/3 plans complete
+
+Plans:
+- [x] 04-01-PLAN.md — EVAL-02 LLM Judge 超时降级 (EVAL-02) — committed 5d163ad/3551f0f
+- [x] 04-02-PLAN.md — quality_report.py --ci 子命令 (EVAL-01/03/04) — committed a68cb9a/3551f0f
+- [x] 04-03-PLAN.md — E2E 闭环 5 步验证 (LOOP-FLOW-02) — committed 5772056
 
 **Requirements:**
 - EXTRACT-FLOW-01 ~ EXTRACT-FLOW-03 (3) — 抽取→图谱链路
