@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: 全系统功能闭环
-status: in_progress
-last_updated: "2026-07-06T17:50:00.000Z"
-last_activity: 2026-07-06 — Phase 3 Plan 02 (演化视图 + 快照时间线) 完成
+status: executing
+last_updated: "2026-07-06T09:53:15.587Z"
+last_activity: 2026-07-06
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 2
-  percent: 28
+  completed_plans: 5
+  percent: 29
 ---
 
 # Project State
@@ -18,10 +18,10 @@ progress:
 ## Current Position
 
 Phase: 3 of 6 (P3 前端功能闭环)
-Plan: 2 of 4 complete (P3-01 Admin + LearningCenter 闭环, P3-02 演化视图闭环)
-Status: P3-02 闭环已完成 (f06cb60, dea76d2, 53aa0b0, 7e98851) — type-check pass / 0 lint errors
-Next: P3-03 / P3-04
-Last activity: 2026-07-06 — Phase 3 Plan 02 (演化视图 + 快照时间线) 执行完成
+Plan: 4 of 4 complete (P3-01 Admin + LearningCenter 闭环, P3-02 演化视图闭环, P3-03 匹配诊断 + Pipeline + Dashboard 增强)
+Status: Ready to execute
+Next: P3-04
+Last activity: 2026-07-06
 
 ## Accumulated Context
 
@@ -35,6 +35,7 @@ Last activity: 2026-07-06 — Phase 3 Plan 02 (演化视图 + 快照时间线) �
 - DEC-006: Home.vue重构延后到Phase 6 — 先确保功能可用，再优化架构
 - DEC-007: P3-01 — el-drawer 统一编辑形态 (per D-12)
 - DEC-008: P3-01 — 单计划模式 + localStorage plan_id (per D-06/D-07/D-08)
+- DEC-009: P3-03 — MATCH-FE-02 score hero 保留 gradient % 而非 el-progress；MATCH-FE-02 描述对应"岗位详情页"，MatchDiagnosis 无对应列
 
 ### Blockers
 
