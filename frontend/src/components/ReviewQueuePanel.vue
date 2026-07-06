@@ -109,18 +109,40 @@ async function handleBatchReject() {
   } catch { /* 取消 */ }
 }
 
-async function handleEditName(row: { id: number; name: string }) {
+// ── 编辑弹窗（D-12: 统一用 el-drawer） ──
+interface AuditItem {
+  id: number
+  type: string
+  name: string
+  trust: number
+  status: string
+}
+
+const editDrawerVisible = ref(false)
+const editingAuditItem = ref<AuditItem | null>(null)
+const editSaving = ref(false)
+
+function openEditDrawer(row: AuditItem) {
+  editingAuditItem.value = { ...row }
+  editDrawerVisible.value = true
+}
+
+async function handleSaveEdit() {
+  if (!editingAuditItem.value) return
+  editSaving.value = true
   try {
-    const { value } = await ElMessageBox.prompt('编辑名称', '编辑审核项', {
-      confirmButtonText: '保存',
-      cancelButtonText: '取消',
-      inputValue: row.name,
-      inputPattern: /.+/,
-      inputErrorMessage: '名称不能为空',
+    await admin.updateAuditItem(editingAuditItem.value.id, {
+      name: editingAuditItem.value.name,
+      trust: editingAuditItem.value.trust,
     })
-    await admin.updateAuditItem(row.id, { name: value })
-    ElMessage.success('名称已更新')
-  } catch { /* 取消或失败 */ }
+    ElMessage.success('保存成功')
+    editDrawerVisible.value = false
+    await admin.fetchAuditQueue()
+  } catch (e: any) {
+    ElMessage.error(e?.message ?? '保存失败，请重试')
+  } finally {
+    editSaving.value = false
+  }
 }
 </script>
 
@@ -269,7 +291,7 @@ async function handleEditName(row: { id: number; name: string }) {
             size="small"
             :icon="Edit"
             plain
-            @click="handleEditName(row)"
+            @click="openEditDrawer(row)"
           >
             编辑
           </el-button>
@@ -315,6 +337,56 @@ async function handleEditName(row: { id: number; name: string }) {
         small
       />
     </div>
+
+    <!-- 编辑抽屉 (D-12) -->
+    <el-drawer
+      v-model="editDrawerVisible"
+      title="编辑审核项"
+      direction="rtl"
+      size="420px"
+    >
+      <el-form
+        v-if="editingAuditItem"
+        label-width="80px"
+      >
+        <el-form-item label="类型">
+          <el-tag
+            :type="editingAuditItem.type === 'skill' ? 'success' : 'info'"
+            size="small"
+            effect="dark"
+          >
+            {{ editingAuditItem.type === 'skill' ? '技能' : '岗位' }}
+          </el-tag>
+        </el-form-item>
+        <el-form-item label="名称">
+          <el-input
+            v-model="editingAuditItem.name"
+            placeholder="请输入名称"
+          />
+        </el-form-item>
+        <el-form-item label="信任度">
+          <el-slider
+            v-model="editingAuditItem.trust"
+            :min="0"
+            :max="100"
+            :step="1"
+            show-input
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDrawerVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="editSaving"
+          @click="handleSaveEdit"
+        >
+          保存
+        </el-button>
+      </template>
+    </el-drawer>
   </div>
 </template>
 

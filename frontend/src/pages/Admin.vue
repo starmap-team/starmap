@@ -178,10 +178,10 @@ async function handleSaveSource() {
     }
     await admin.updateSource(editingSource.value.id, payload)
     editDialogVisible.value = false
-    ElMessage.success('数据源已更新')
+    ElMessage.success('保存成功')
     await admin.fetchSources()
   } catch (e: any) {
-    ElMessage.error(e?.message ?? '更新数据源失败')
+    ElMessage.error(e?.message ?? '保存失败，请重试')
   } finally {
     editSaving.value = false
   }
@@ -529,11 +529,12 @@ async function handleReset() {
               </el-table-column>
             </el-table>
 
-            <!-- 编辑对话框 -->
-            <el-dialog
+            <!-- 编辑抽屉 (D-12: 统一用 el-drawer) -->
+            <el-drawer
               v-model="editDialogVisible"
               title="编辑数据源"
-              width="400px"
+              direction="rtl"
+              size="400px"
             >
               <el-form
                 v-if="editingSource"
@@ -566,7 +567,7 @@ async function handleReset() {
                   保存
                 </el-button>
               </template>
-            </el-dialog>
+            </el-drawer>
           </el-card>
         </el-tab-pane>
 
