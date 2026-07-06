@@ -31,14 +31,18 @@ class Colors:
 
 def log(level, msg):
     icons = {
-        "pass": f"{Colors.GREEN}✅",
-        "fail": f"{Colors.RED}❌",
-        "warn": f"{Colors.YELLOW}⚠️",
-        "info": "ℹ️",
+        "pass": f"{Colors.GREEN}[PASS]",
+        "fail": f"{Colors.RED}[FAIL]",
+        "warn": f"{Colors.YELLOW}[WARN]",
+        "info": "[INFO]",
     }
-    icon = icons.get(level, "ℹ️")
+    icon = icons.get(level, "[INFO]")
     reset = Colors.RESET if level in ("pass", "fail", "warn") else ""
-    print(f"  {icon} {msg}{reset}")
+    try:
+        print(f"  {icon} {msg}{reset}")
+    except UnicodeEncodeError:
+        safe = f"  {icon} {msg}{reset}".encode("ascii", errors="replace").decode("ascii", errors="replace")
+        print(safe)
 
 
 def check(name, condition, detail=""):
@@ -51,21 +55,8 @@ def check(name, condition, detail=""):
 
 
 # Sample JD text for testing
-SAMPLE_JD = """
-高级Python开发工程师
-
-岗位职责：
-1. 负责后端API的设计与开发
-2. 参与系统架构设计与优化
-3. 编写高质量的单元测试和集成测试
-
-任职要求：
-1. 3年以上Python开发经验
-2. 熟悉FastAPI/Django等Web框架
-3. 熟悉PostgreSQL、Redis等数据库
-4. 了解Docker容器化部署
-5. 良好的团队协作能力
-"""
+SAMPLE_JD = """高级后端工程师 岗位职责：负责核心API设计与系统架构 任职要求：3年以上Python开发经验 熟悉FastAPI 熟悉PostgreSQL和Redis"""
+SAMPLE_TARGET = "高级后端工程师"
 
 
 def test_loop_5steps(base_url):
@@ -82,7 +73,7 @@ def test_loop_5steps(base_url):
             f"{base_url}/api/v1/loop/run",
             json={
                 "jd_text": SAMPLE_JD,
-                "target_position": "高级Python开发工程师",
+                "target_position": SAMPLE_TARGET,
             },
             timeout=120,
         )
@@ -136,7 +127,7 @@ def test_loop_5steps(base_url):
             step_status = step.get("status", "")
             step_error = step.get("error", "")
 
-            if step_status == "SUCCESS":
+            if step_status.upper() == "SUCCESS":
                 results.append(check(
                     f"Step {step_num}: {step_name}",
                     True,
@@ -267,9 +258,9 @@ def main():
 
     print(f"\n{'='*60}")
     if all_passed:
-        print(f"  {Colors.GREEN}{Colors.BOLD}✅ 闭环 5 步验证通过{Colors.RESET}")
+        print(f"  {Colors.GREEN}{Colors.BOLD}[PASS] 闭环 5 步验证通过{Colors.RESET}")
     else:
-        print(f"  {Colors.RED}{Colors.BOLD}❌ 闭环 5 步验证失败{Colors.RESET}")
+        print(f"  {Colors.RED}{Colors.BOLD}[FAIL] 闭环 5 步验证失败{Colors.RESET}")
     print(f"{'='*60}\n")
 
     sys.exit(0 if all_passed else 1)
