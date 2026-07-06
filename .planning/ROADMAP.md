@@ -76,6 +76,13 @@
 
 **Goal:** 所有14个页面功能完整闭环，无死按钮、无空功能、演化视图实现。
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Admin + LearningCenter 功能闭环 (ADMIN-01~03, LEARN-FE-01~04)
+- [ ] 03-02-PLAN.md — 演化视图 3D 渲染 + 时间线滑块 (EVOLVE-FE-01~04)
+- [ ] 03-03-PLAN.md — 匹配诊断增强 + Pipeline 闭环 + Dashboard (MATCH-FE-01~02, PIPE-FE-01~05, DASH-FE-01~02)
+
 **Requirements:**
 - ADMIN-01 ~ ADMIN-03 (3) — Admin功能闭环
 - LEARN-FE-01 ~ LEARN-FE-04 (4) — LearningCenter功能闭环
