@@ -58,6 +58,13 @@ class AuditItem(BaseModel):
     status: str
 
 
+class AuditUpdateRequest(BaseModel):
+    """Partial update for a review-queue item."""
+
+    name: str | None = Field(default=None, min_length=1)
+    trust: int | None = Field(default=None, ge=0, le=100)
+
+
 class AuditQueueResponse(BaseModel):
     items: list[AuditItem] = Field(default_factory=list)
 
@@ -304,6 +311,42 @@ async def reject_audit(
         name=row.entity_name,
         trust=trust,
         status="rejected",
+    )
+
+
+@router.put("/review-queue/{item_id}", response_model=AuditItem)
+@router.patch("/review-queue/{item_id}", response_model=AuditItem, include_in_schema=False)
+async def update_review_queue_item(
+    item_id: int,
+    body: AuditUpdateRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AuditItem:
+    """Update name and/or trust of a review queue item (ADMIN-02 save loop)."""
+    from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+
+    result = await session.execute(
+        sa.select(ReviewQueueModel).where(ReviewQueueModel.id == item_id)
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Audit item not found")
+
+    if body.name is not None:
+        row.entity_name = body.name
+    if body.trust is not None:
+        # ponytail: reassign dict so SQLAlchemy JSON dirty-tracking fires
+        payload = dict(row.payload or {})
+        payload["trust"] = body.trust
+        row.payload = payload
+    await session.commit()
+
+    trust = int((row.payload or {}).get("trust", 50))
+    return AuditItem(
+        id=row.id,
+        type=row.entity_type,
+        name=row.entity_name,
+        trust=trust,
+        status=row.status,
     )
 
 

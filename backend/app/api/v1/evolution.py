@@ -23,7 +23,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db_session
+from app.dependencies import get_db_session, get_neo4j_driver
 from app.models.evolution_models import (
     EvolutionChangelog,
     EvolutionPath,
@@ -264,9 +264,44 @@ async def get_changelog(
 @router.get("/paths/all", response_model=list[EvolutionPathEntry])
 async def get_all_evolution_paths(
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[EvolutionPathEntry]:
     """获取所有演化路径（用于图谱页渲染 EVOLVES_TO 边）。"""
+    # 优先从 Neo4j 读取（真实 EVOLVES_TO 关系 — phase 2 orchestrator 写入）
+    if driver is not None:
+        try:
+            async with driver.session() as neo4j_session:
+                cypher = (
+                    "MATCH (a:Position)-[r:EVOLVES_TO]->(b:Position) "
+                    "RETURN elementId(r) AS id, a.name AS src, b.name AS tgt, "
+                    "       coalesce(r.similarity, 0.5) AS similarity, "
+                    "       coalesce(r.trust_score, 0.5) AS trust_score, "
+                    "       coalesce(r.skill_overlap, []) AS skill_overlap, "
+                    "       coalesce(r.key_gaps, []) AS key_gaps "
+                    "ORDER BY trust_score DESC, similarity DESC LIMIT $limit"
+                )
+                result = await neo4j_session.run(cypher, limit=limit)
+                entries = []
+                async for r in result:
+                    entries.append(
+                        EvolutionPathEntry(
+                            id=str(r["id"]),
+                            source_position=r["src"] or "Unknown",
+                            target_position=r["tgt"] or "Unknown",
+                            similarity=float(r["similarity"] or 0.5),
+                            evidence_count=0,
+                            skill_overlap=list(r["skill_overlap"] or []),
+                            key_gaps=list(r["key_gaps"] or []),
+                            trust_score=float(r["trust_score"] or 0.5),
+                        )
+                    )
+                if entries:
+                    return entries
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Neo4j EVOLVES_TO read failed, falling back to PG: {}", e)
+
+    # Fallback: PostgreSQL evolution_paths 表
     stmt = sa.select(EvolutionPath).order_by(EvolutionPath.similarity.desc()).limit(limit)
     result = await session.execute(stmt)
     records = result.scalars().all()
@@ -284,8 +319,44 @@ async def get_all_evolution_paths(
 async def get_evolution_paths(
     position: str,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> list[EvolutionPathEntry]:
     """获取指定岗位的演化路径推荐。"""
+    # 优先从 Neo4j 读取
+    if driver is not None:
+        try:
+            async with driver.session() as neo4j_session:
+                cypher = (
+                    "MATCH (a:Position)-[r:EVOLVES_TO]->(b:Position) "
+                    "WHERE a.name = $position OR b.name = $position "
+                    "RETURN elementId(r) AS id, a.name AS src, b.name AS tgt, "
+                    "       coalesce(r.similarity, 0.5) AS similarity, "
+                    "       coalesce(r.trust_score, 0.5) AS trust_score, "
+                    "       coalesce(r.skill_overlap, []) AS skill_overlap, "
+                    "       coalesce(r.key_gaps, []) AS key_gaps "
+                    "ORDER BY trust_score DESC, similarity DESC LIMIT 20"
+                )
+                result = await neo4j_session.run(cypher, position=position)
+                entries = []
+                async for r in result:
+                    entries.append(
+                        EvolutionPathEntry(
+                            id=str(r["id"]),
+                            source_position=r["src"] or "Unknown",
+                            target_position=r["tgt"] or "Unknown",
+                            similarity=float(r["similarity"] or 0.5),
+                            evidence_count=0,
+                            skill_overlap=list(r["skill_overlap"] or []),
+                            key_gaps=list(r["key_gaps"] or []),
+                            trust_score=float(r["trust_score"] or 0.5),
+                        )
+                    )
+                if entries:
+                    return entries
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Neo4j EVOLVES_TO read failed, falling back to PG: {}", e)
+
+    # Fallback: PostgreSQL
     stmt = (
         sa.select(EvolutionPath)
         .where(

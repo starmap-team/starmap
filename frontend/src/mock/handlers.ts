@@ -172,6 +172,18 @@ export const handlers = [
       ],
     }),
   ),
+  // Admin review queue update (ADMIN-02 save loop) — round-trip the mock item
+  http.put('/api/v1/admin/review-queue/:id', async ({ params, request: req }) => {
+    const id = Number(params.id)
+    const body = (await req.json()) as { name?: string; trust?: number }
+    return HttpResponse.json({
+      id,
+      type: 'skill',
+      name: body.name ?? 'AI Agent Dev',
+      trust: body.trust ?? 58,
+      status: 'pending',
+    })
+  }),
 
   // Resume upload (match diagnosis step 0)
   http.post('/api/v1/resume/upload', () =>
