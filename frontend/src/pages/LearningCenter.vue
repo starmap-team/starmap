@@ -109,13 +109,13 @@ async function handleAddToPlan(rec: { skill: string; priority: string }) {
       )
       await learningStore.createPlan({
         position: rec.skill,
-        skills: [rec.skill],
+        skills: [{ skill: rec.skill, importance: 'required', gap_level: '完全缺失' }],
       })
       ElMessage.success('已创建新学习计划')
     } else {
       await learningStore.createPlan({
         position: rec.skill,
-        skills: [rec.skill],
+        skills: [{ skill: rec.skill, importance: 'required', gap_level: '完全缺失' }],
       })
       ElMessage.success(`「${rec.skill}」已加入学习计划`)
     }
