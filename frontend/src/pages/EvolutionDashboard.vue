@@ -24,6 +24,15 @@ interface TrendItem {
   related_positions: string[]
 }
 
+interface SnapshotEntry {
+  id: string
+  position_name: string
+  snapshot_date: string
+  required_skills: any[]
+  preferred_skills?: any[]
+  source_count: number
+}
+
 
 // Format CII change percentage with rounding to 1 decimal to avoid float-precision noise
 function formatChange(points: number[] | undefined): string {
@@ -38,6 +47,22 @@ const loading = ref(false)
 const quarters = ref<string[]>([])
 const items = ref<TrendItem[]>([])
 const selectedSkill = ref('')
+
+// 快照时间线 (EVOLVE-FE-04 / D-10)
+const snapshots = ref<SnapshotEntry[]>([])
+const snapshotsLoading = ref(false)
+const selectedSnapshotDate = ref<string>('')
+const snapshotIndex = ref<number>(0)
+const sliderMarks = computed<Record<number, string>>(() => {
+  const marks: Record<number, string> = {}
+  const step = Math.max(1, Math.floor(snapshots.value.length / 6))
+  snapshots.value.forEach((s, i) => {
+    if (i % step === 0 || i === snapshots.value.length - 1) {
+      marks[i] = s.snapshot_date.slice(0, 7)
+    }
+  })
+  return marks
+})
 
 // 技能对比
 const compareSkillA = ref('')
@@ -73,6 +98,35 @@ async function fetchTrends() {
   } finally {
     loading.value = false
   }
+}
+
+// EVOLVE-FE-04/D-10: 快照列表（驱动时间线滑块）
+async function fetchSnapshots() {
+  snapshotsLoading.value = true
+  try {
+    const data = await request.get('/evolution/snapshots?limit=50')
+    const list = Array.isArray(data) ? data : []
+    snapshots.value = [...list].sort((a, b) =>
+      String(a.snapshot_date).localeCompare(String(b.snapshot_date))
+    )
+    if (snapshots.value.length > 0) {
+      snapshotIndex.value = snapshots.value.length - 1
+      selectedSnapshotDate.value = snapshots.value[snapshots.value.length - 1].snapshot_date
+    }
+  } catch (e) {
+    console.error('[Evolution] Failed to fetch snapshots:', e)
+    snapshots.value = []
+  } finally {
+    snapshotsLoading.value = false
+  }
+}
+
+function onSnapshotChange(idx: number | number[]) {
+  const i = Array.isArray(idx) ? idx[0] : idx
+  const snap = snapshots.value[i]
+  if (!snap) return
+  selectedSnapshotDate.value = snap.snapshot_date
+  ElMessage.info(`已切换到快照 ${snap.snapshot_date}（${snap.position_name}）`)
 }
 
 // Top 10 CII 时序曲线
@@ -189,7 +243,10 @@ async function fetchChangelog(skillName: string) {
   }
 }
 
-onMounted(fetchTrends)
+onMounted(() => {
+  fetchTrends()
+  fetchSnapshots()
+})
 </script>
 
 <template>
@@ -220,6 +277,56 @@ onMounted(fetchTrends)
           />
         </el-select>
       </div>
+
+      <!-- EVOLVE-FE-04/D-10: 快照时间线滑块 -->
+      <el-card
+        v-if="snapshots.length"
+        class="timeline-card"
+        shadow="hover"
+      >
+        <template #header>
+          <div class="card-header-row">
+            <span>快照时间线</span>
+            <el-tag
+              v-if="selectedSnapshotDate"
+              size="small"
+              effect="plain"
+              type="primary"
+              class="ml-2"
+            >
+              {{ selectedSnapshotDate }}
+            </el-tag>
+          </div>
+        </template>
+        <div class="timeline-row">
+          <span class="timeline-label">快照</span>
+          <el-slider
+            v-model="snapshotIndex"
+            :min="0"
+            :max="Math.max(0, snapshots.length - 1)"
+            :marks="sliderMarks"
+            :show-tooltip="true"
+            :format-tooltip="(idx: number) => snapshots[idx]?.snapshot_date ?? ''"
+            class="timeline-slider"
+            @change="onSnapshotChange"
+          />
+          <span class="timeline-current">{{ selectedSnapshotDate || '—' }}</span>
+        </div>
+      </el-card>
+      <el-card
+        v-else-if="!snapshotsLoading"
+        class="timeline-card"
+        shadow="never"
+      >
+        <div class="custom-empty">
+          <p class="empty-text">
+            暂无快照数据
+          </p>
+          <p class="empty-hint-text">
+            演化快照生成后将显示时间线滑块
+          </p>
+        </div>
+      </el-card>
 
       <!-- KPI 区域: CII 仪表盘 + 新兴技能卡片 -->
       <div class="kpi-row">
@@ -647,6 +754,36 @@ onMounted(fetchTrends)
   display: flex;
   gap: var(--space-4);
   margin-bottom: var(--space-5);
+}
+.timeline-card { margin-bottom: var(--space-4); }
+.timeline-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-2);
+}
+.timeline-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--muted-foreground);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  min-width: 36px;
+}
+.timeline-slider { flex: 1; margin: 0 var(--space-3); }
+.timeline-current {
+  font-size: var(--font-size-sm);
+  color: var(--primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 90px;
+  text-align: right;
+}
+@media (max-width: 768px) {
+  .timeline-row { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+  .timeline-current { text-align: left; }
 }
 .gauge-card {
   flex: 0 0 320px;
