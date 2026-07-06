@@ -10,6 +10,7 @@ StarMap 质量仪表盘生成器
 """
 import argparse
 import json
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -331,6 +332,7 @@ def main():
     parser.add_argument("--golden", default="data/golden/", help="Golden Set 目录")
     parser.add_argument("--system", default="data/output/", help="系统输出目录")
     parser.add_argument("--output", default="reports/", help="报告输出目录")
+    parser.add_argument("--ci", action="store_true", help="CI 模式：输出 git HEAD + 三方准确率，fail 时 exit 1")
     args = parser.parse_args()
 
     output_dir = Path(args.output)
@@ -357,19 +359,39 @@ def main():
         "warning_level": check_warning_level([]),
     }
 
+    # CI mode: add git HEAD
+    if args.ci:
+        try:
+            git_head = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True, text=True, check=False,
+            ).stdout.strip()
+        except Exception:
+            git_head = "unknown"
+        report["git_head"] = git_head
+
     # JSON 报告
     json_path = output_dir / "quality_report.json"
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # CI mode: also write CI-specific JSON
+    if args.ci:
+        ci_json_path = output_dir / "quality_report_ci.json"
+        ci_json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # Markdown 报告
     md_lines = [
         f"# StarMap 质量报告",
         f"",
         f"生成时间：{report['generated_at']}",
+    ]
+    if args.ci and report.get("git_head"):
+        md_lines.append(f"> CI Run: {report['git_head']}")
+    md_lines.extend([
         f"",
         f"| 指标 | 目标 | 当前 | 状态 |",
         f"|------|------|------|------|",
-    ]
+    ])
     for m in report["metrics"]:
         current = m["current"] if m["current"] is not None else "-"
         status_icon = {"pending": "⬜", "pass": "✅", "fail": "❌"}.get(m["status"], "⬜")
@@ -383,9 +405,20 @@ def main():
     print(f"质量报告已生成：")
     print(f"  JSON: {json_path}")
     print(f"  Markdown: {md_path}")
+    if args.ci:
+        print(f"  CI JSON: {output_dir / 'quality_report_ci.json'}")
     print()
     for line in md_lines:
-        print(line)
+        safe = line.replace("✅", "[PASS]").replace("❌", "[FAIL]").replace("⬜", "[?]")
+        try:
+            print(safe)
+        except UnicodeEncodeError:
+            print(safe.encode("ascii", errors="replace").decode("ascii", errors="replace"))
+
+    # CI mode: exit 1 if any metric failed
+    if args.ci:
+        any_failed = any(m["status"] == "fail" for m in report["metrics"])
+        sys.exit(1 if any_failed else 0)
 
 
 if __name__ == "__main__":
