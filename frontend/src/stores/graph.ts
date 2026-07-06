@@ -89,6 +89,12 @@ export const useGraphStore = defineStore('graph', () => {
   // ── 演化关系边 ──
   const evolutionEdges = ref<GraphEdge[]>([])
 
+  // ── 演化图层状态（D-02 聚焦当前岗位） ──
+  const focusedPositionId = ref<string | null>(null)
+  const focusedPositionName = ref<string>('')
+  const evolutionPaths = ref<GraphEdge[]>([])
+  const evolutionPathsLoading = ref(false)
+
   // ── KA 下的 Position 缓存 ──
   const positionsByKA = ref<Map<string, GraphNode[]>>(new Map())
 
@@ -253,6 +259,40 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
+  /**
+   * D-02: 获取聚焦岗位的演化路径（仅当前岗位的上下游）。
+   * Returns a promise so callers can await before reading evolutionPaths.
+   */
+  async function fetchEvolutionPathsForPosition(positionName: string) {
+    if (!positionName) {
+      evolutionPaths.value = []
+      return
+    }
+    evolutionPathsLoading.value = true
+    try {
+      const data = await request.get(`/evolution/paths/${encodeURIComponent(positionName)}`) as any[]
+      const paths = Array.isArray(data) ? data : []
+      evolutionPaths.value = paths.map((p: any) => ({
+        source_id: p.source_position,
+        target_id: p.target_position,
+        type: 'EVOLVES_TO',
+        properties: {
+          weight: p.similarity ?? 0.5,
+          similarity: p.similarity ?? 0.5,
+          trend: (p.trend ?? p.similarity >= 0.6 ? 'rising' : p.similarity >= 0.3 ? 'stable' : 'declining') as 'rising' | 'stable' | 'declining',
+          skill_overlap: p.skill_overlap ?? [],
+          key_gaps: p.key_gaps ?? [],
+          evidence_count: p.evidence_count ?? 0,
+        },
+      }))
+    } catch (e) {
+      console.error('[Graph] Failed to fetch evolution paths for position:', e)
+      evolutionPaths.value = []
+    } finally {
+      evolutionPathsLoading.value = false
+    }
+  }
+
   // ── 导航 ──
 
   function goToDomainLayer() {
@@ -304,6 +344,12 @@ export const useGraphStore = defineStore('graph', () => {
     // 演化
     evolutionEdges,
     fetchEvolutionEdges,
+    // 演化图层聚焦（D-02）
+    focusedPositionId,
+    focusedPositionName,
+    evolutionPaths,
+    evolutionPathsLoading,
+    fetchEvolutionPathsForPosition,
     // 导航
     goToDomainLayer,
     goToPositionLayer,

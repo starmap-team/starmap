@@ -45,7 +45,14 @@ interface GraphLink3D {
   source: string | GraphNode3D
   target: string | GraphNode3D
   type?: string
-  properties?: { weight?: number }
+  properties?: {
+    weight?: number
+    trend?: 'rising' | 'stable' | 'declining'
+    similarity?: number
+    skill_overlap?: string[]
+    key_gaps?: string[]
+    evidence_count?: number
+  }
 }
 
 export type CameraPreset = 'overview' | 'domain' | 'position'
@@ -57,15 +64,26 @@ const props = withDefaults(defineProps<{
   width?: number
   height?: number
   currentLayer?: 'domain' | 'position' | 'detail'
+  /** EVOLVE-FE-01: 是否叠加演化图层 */
+  showEvolution?: boolean
+  /** EVOLVE-FE-01/D-02: 演化图层边数据（来自 /evolution/paths/{position}） */
+  evolutionPaths?: GraphLink3D[]
+  /** D-04: 当前领域 ID，用于过滤跨领域演化边 */
+  currentDomainId?: string | null
 }>(), {
   width: 800,
   height: 600,
   currentLayer: 'domain',
+  showEvolution: false,
+  evolutionPaths: () => [],
+  currentDomainId: null,
 })
 
 const emit = defineEmits<{
   nodeClick: [nodeId: string]
   nodeDblClick: [nodeId: string]
+  /** EVOLVE-FE-03/D-11: 点击 EVOLVES_TO 边 */
+  evolutionEdgeClick: [edge: GraphLink3D]
 }>()
 
 // ── Refs ──
@@ -108,6 +126,22 @@ function getNodeRadius(node: GraphNode3D): number {
 }
 
 // ── Initialize 3D graph (async, dynamic import) ──
+// ── Evolution edge color (D-05) ──
+const EVOLUTION_TREND_COLOR: Record<string, string> = {
+  rising: '#22c55e',
+  stable: '#94a3b8',
+  declining: '#ef4444',
+}
+
+function evolutionColor(link: any): string {
+  const trend = link.properties?.trend ?? 'stable'
+  const base = EVOLUTION_TREND_COLOR[trend] ?? EVOLUTION_TREND_COLOR.stable
+  // trust_score (0..1) maps to opacity 0.3..1.0
+  const trust = link.properties?.similarity ?? link.properties?.weight ?? 0.5
+  const alpha = 0.3 + Math.max(0, Math.min(1, trust)) * 0.7
+  return withAlpha(base, alpha)
+}
+
 async function initGraph() {
   if (!containerRef.value || !webglSupported.value) return
 
@@ -168,13 +202,19 @@ async function initGraph() {
 
     // ── Edge configuration ──
     .linkColor((link: any) => {
+      if (link.type === 'EVOLVES_TO') return evolutionColor(link)
       return withAlpha(edgeColor(link.type ?? 'DEFAULT'), 0.35)
     })
     .linkWidth((link: any) => {
+      if (link.type === 'EVOLVES_TO') {
+        // Evolution edges: thinner & dashed-feel via width reduction
+        const trust = link.properties?.similarity ?? link.properties?.weight ?? 0.5
+        return 0.6 + trust * 1.2
+      }
       const w = link.properties?.weight ?? 0.5
       return 0.5 + w * 1.5
     })
-    .linkOpacity(0.3)
+    .linkOpacity(0.4)
     .linkDirectionalArrowLength(3.5)
     .linkDirectionalArrowRelPos(1)
     .linkCurvature(0.1)
@@ -237,6 +277,13 @@ async function initGraph() {
       lastClickTime = now
       lastClickId = node.id
       emit('nodeClick', node.id)
+    }
+  })
+
+  // EVOLVE-FE-03/D-11: Click on evolution edge → drawer
+  graph.onLinkClick((link: any) => {
+    if (link?.type === 'EVOLVES_TO') {
+      emit('evolutionEdgeClick', link as GraphLink3D)
     }
   })
 
@@ -461,9 +508,9 @@ function measureFPS() {
 }
 
 // ── Update data when props change ──
-watch(() => [props.nodes, props.links], () => {
+watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths, props.currentDomainId], () => {
   const graph = graphInstance.value
-  
+
   // If graph not initialized but data arrived, initialize now
   if (!graph) {
     if (props.nodes.length > 0) {
@@ -471,11 +518,31 @@ watch(() => [props.nodes, props.links], () => {
     }
     return
   }
-  
+
   const nodeCount = props.nodes.length
 
+  // Compose links: base + filtered evolution paths (D-04: only same domain)
+  const composedLinks: GraphLink3D[] = [...props.links]
+  if (props.showEvolution && props.evolutionPaths?.length) {
+    const visibleNodeIds = new Set(props.nodes.map(n => n.id))
+    // D-04: filter cross-domain by visible nodes (only render edges whose both endpoints are visible in current view)
+    const filtered = props.evolutionPaths.filter(ev => {
+      const srcOk = visibleNodeIds.has(String(ev.source)) || visibleNodeIds.has((ev.source as any)?.id ?? '')
+      const tgtOk = visibleNodeIds.has(String(ev.target)) || visibleNodeIds.has((ev.target as any)?.id ?? '')
+      return srcOk && tgtOk
+    })
+    for (const ev of filtered) {
+      composedLinks.push({
+        source: ev.source,
+        target: ev.target,
+        type: 'EVOLVES_TO',
+        properties: ev.properties,
+      })
+    }
+  }
+
   // Replace graph data — this resets the d3-force simulation internally
-  graph.graphData({ nodes: props.nodes, links: props.links })
+  graph.graphData({ nodes: props.nodes, links: composedLinks })
 
   // Re-apply custom forces — graphData() may have reset them to defaults
   const chargeStrength = nodeCount > 200 ? -120 : nodeCount > 100 ? -80 : -50

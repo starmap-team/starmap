@@ -88,6 +88,50 @@ const graph3DLinks = computed(() =>
   }))
 )
 
+// 演化图层 3D link 数据 (D-02: 聚焦当前岗位，D-04: 仅当前领域)
+const graph3DEvolutionLinks = computed(() => {
+  if (!showEvolution.value || graphStore.currentLayer !== 'position') return []
+  const sourceName = graphStore.expandedKAName
+  const posNodes = graphStore.positionsByKA.get(graphStore.expandedKAId ?? '') ?? []
+  const positionNames = new Set(posNodes.map(p => p.properties.name))
+  return graphStore.evolutionPaths
+    .filter(e => {
+      // D-04: keep edges whose source or target is a Position in the current domain
+      const src = String(e.source_id)
+      const tgt = String(e.target_id)
+      return positionNames.has(src) || positionNames.has(tgt) ||
+             src === sourceName || tgt === sourceName
+    })
+    .map(e => ({
+      source: e.source_id,
+      target: e.target_id,
+      type: 'EVOLVES_TO' as const,
+      properties: e.properties,
+    }))
+})
+
+// 演化详情抽屉 (D-11/D-12)
+const evolutionDrawerVisible = ref(false)
+const selectedEvolutionEdge = ref<typeof graphStore.evolutionPaths[number] | null>(null)
+
+const evolutionTrendLabel: Record<string, string> = { rising: '↑ 上升', stable: '→ 平稳', declining: '↓ 下降' }
+const evolutionTrendType: Record<string, string> = { rising: 'success', stable: 'info', declining: 'danger' }
+
+function openEvolutionDrawer(edge: { source: string | { id: string }; target: string | { id: string }; type?: string; properties?: any }) {
+  // edge may have source/target as string id or as node object after graph layout
+  const sId = typeof edge.source === 'string' ? edge.source : edge.source?.id ?? ''
+  const tId = typeof edge.target === 'string' ? edge.target : edge.target?.id ?? ''
+  const match = graphStore.evolutionPaths.find(e => e.source_id === sId && e.target_id === tId)
+    ?? graphStore.evolutionPaths.find(e => (e.source_id === sId && e.target_id === tId) || (e.source_id === tId && e.target_id === sId))
+  selectedEvolutionEdge.value = match ?? null
+  evolutionDrawerVisible.value = true
+}
+
+function closeEvolutionDrawer() {
+  evolutionDrawerVisible.value = false
+  selectedEvolutionEdge.value = null
+}
+
 // ── Breadcrumb ──
 interface BreadcrumbItem {
   label: string
@@ -151,9 +195,31 @@ function resetHighlight() {
 }
 
 // ── Evolution toggle ──
-function toggleEvolution() {
+async function toggleEvolution() {
   showEvolution.value = !showEvolution.value
-  if (showEvolution.value && graphStore.evolutionEdges.length === 0) graphStore.fetchEvolutionEdges()
+  if (showEvolution.value) {
+    if (graphStore.evolutionEdges.length === 0) {
+      await graphStore.fetchEvolutionEdges()
+    }
+    // D-02: focus on selected position (if any) and fetch its evolution paths
+    if (selectedNode.value?.labels?.includes('Position') && selectedNode.value.properties.name) {
+      graphStore.focusedPositionId = selectedNode.value.id
+      graphStore.focusedPositionName = selectedNode.value.properties.name
+      await graphStore.fetchEvolutionPathsForPosition(selectedNode.value.properties.name)
+    } else if (graphStore.expandedKAId) {
+      // Fallback: aggregate by current domain — use first position's name
+      const positions = graphStore.positionsByKA.get(graphStore.expandedKAId) ?? []
+      const firstName = positions[0]?.properties.name
+      if (firstName) {
+        graphStore.focusedPositionName = firstName
+        await graphStore.fetchEvolutionPathsForPosition(firstName)
+      }
+    }
+  } else {
+    graphStore.evolutionPaths = []
+    graphStore.focusedPositionId = null
+    graphStore.focusedPositionName = ''
+  }
 }
 
 function closeDetail() {
@@ -463,9 +529,20 @@ onMounted(async () => {
               :nodes="graph3DNodes"
               :links="graph3DLinks"
               :current-layer="graphStore.currentLayer"
+              :show-evolution="showEvolution"
+              :evolution-paths="graph3DEvolutionLinks"
+              :current-domain-id="graphStore.expandedKAId"
               @node-click="handleNodeClick"
               @node-dbl-click="onNodeDblClick"
+              @evolution-edge-click="openEvolutionDrawer"
             />
+            <div
+              v-if="showEvolution && viewMode === '3d' && graphStore.currentLayer === 'position' && !graphStore.focusedPositionName"
+              class="evolution-hint"
+            >
+              <el-icon :size="18"><TrendCharts /></el-icon>
+              <span>点击岗位查看演化路径</span>
+            </div>
             <div
               v-if="!graphStore.loading && graphStore.visibleNodes.length === 0"
               class="empty-hint"
@@ -512,6 +589,89 @@ onMounted(async () => {
       </div>
 
       <GraphSearchBar @node-selected="handleSearchSelect" />
+
+      <!-- 演化详情抽屉 (D-11/D-12) -->
+      <el-drawer
+        v-model="evolutionDrawerVisible"
+        title="演化路径详情"
+        size="420px"
+        direction="rtl"
+        @close="closeEvolutionDrawer"
+      >
+        <div v-if="selectedEvolutionEdge" class="evo-drawer-body">
+          <div class="evo-title-row">
+            <span class="evo-pos">{{ selectedEvolutionEdge.source_id }}</span>
+            <el-icon :size="20" color="var(--primary)"><Connection /></el-icon>
+            <span class="evo-pos">{{ selectedEvolutionEdge.target_id }}</span>
+          </div>
+          <el-tag
+            :type="(evolutionTrendType[selectedEvolutionEdge.properties?.trend ?? 'stable'] ?? 'info') as any"
+            effect="plain"
+            size="default"
+          >
+            {{ evolutionTrendLabel[selectedEvolutionEdge.properties?.trend ?? 'stable'] ?? selectedEvolutionEdge.properties?.trend }}
+          </el-tag>
+          <el-descriptions
+            :column="1"
+            border
+            class="evo-desc"
+          >
+            <el-descriptions-item label="相似度">
+              {{ ((selectedEvolutionEdge.properties?.similarity ?? 0) * 100).toFixed(0) }}%
+            </el-descriptions-item>
+            <el-descriptions-item label="证据数">
+              {{ selectedEvolutionEdge.properties?.evidence_count ?? 0 }}
+            </el-descriptions-item>
+            <el-descriptions-item label="信任度">
+              {{ ((selectedEvolutionEdge.properties?.similarity ?? 0) * 100).toFixed(0) }}%
+            </el-descriptions-item>
+          </el-descriptions>
+          <div
+            v-if="selectedEvolutionEdge.properties?.skill_overlap?.length"
+            class="evo-section"
+          >
+            <div class="evo-section-title">
+              技能重叠 ({{ selectedEvolutionEdge.properties.skill_overlap.length }})
+            </div>
+            <div class="evo-tags">
+              <el-tag
+                v-for="s in selectedEvolutionEdge.properties.skill_overlap"
+                :key="s"
+                size="small"
+                effect="plain"
+                type="success"
+              >
+                {{ s }}
+              </el-tag>
+            </div>
+          </div>
+          <div
+            v-if="selectedEvolutionEdge.properties?.key_gaps?.length"
+            class="evo-section"
+          >
+            <div class="evo-section-title">
+              关键差距 ({{ selectedEvolutionEdge.properties.key_gaps.length }})
+            </div>
+            <div class="evo-tags">
+              <el-tag
+                v-for="g in selectedEvolutionEdge.properties.key_gaps"
+                :key="g"
+                size="small"
+                effect="plain"
+                type="danger"
+              >
+                {{ g }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+        <div
+          v-else
+          class="evo-empty"
+        >
+          未选中演化边
+        </div>
+      </el-drawer>
     </div>
   </MainLayout>
 </template>
@@ -586,5 +746,66 @@ onMounted(async () => {
   .kpi-actions { flex-direction: column; }
   .controls-left, .controls-right { flex-wrap: wrap; }
   .graph-container { min-height: 360px; }
+}
+
+/* ── Evolution Layer Hint ── */
+.evolution-hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: color-mix(in srgb, var(--primary) 12%, rgba(10, 14, 26, 0.85));
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
+  border-radius: var(--radius-full);
+  color: var(--primary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  z-index: 20;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
+/* ── Evolution Drawer ── */
+.evo-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+.evo-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--foreground);
+}
+.evo-pos {
+  padding: 6px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  letter-spacing: var(--tracking-tight);
+}
+.evo-desc { margin-top: var(--space-2); }
+.evo-section { display: flex; flex-direction: column; gap: var(--space-2); }
+.evo-section-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.evo-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.evo-empty {
+  padding: var(--space-10);
+  text-align: center;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-sm);
 }
 </style>
