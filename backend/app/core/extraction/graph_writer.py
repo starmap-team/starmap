@@ -276,30 +276,42 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
         if industry is not None:
             _append_unique(triples, GraphTriple(area, REL_APPLIES_TO, industry, {"weight": 1.0}))
 
-    for tool_name in extraction.get("tools", []) or []:
-        tool = _node_ref(NODE_TOOL, str(tool_name))
+    for tool_entry in extraction.get("tools", []) or []:
+        if isinstance(tool_entry, dict):
+            tool_name = str(tool_entry.get("name") or "").strip()
+            tool_category = str(tool_entry.get("category") or "other").strip()
+        else:
+            tool_name = str(tool_entry).strip()
+            tool_category = "other"
+        if not tool_name:
+            continue
+        tool = _node_ref(NODE_TOOL, tool_name, {"category": tool_category})
         _append_unique(triples, GraphTriple(position, REL_USES, tool, {"weight": 0.8}))
 
     for prerequisite in extraction.get("prerequisites", []) or []:
         if not isinstance(prerequisite, dict):
             continue
-        skill_name = str(prerequisite.get("skill") or "").strip()
-        prerequisite_name = str(prerequisite.get("prerequisite") or "").strip()
-        if not skill_name or not prerequisite_name:
+        # Prompt schema: skill = prerequisite skill, required_by = skill that depends on it
+        # e.g. {"skill": "Python", "required_by": "Django"} means Django requires Python
+        # Graph relationship: required_by -[PREREQUISITE]-> skill (Django PREREQUISITE Python)
+        prereq_name = str(prerequisite.get("skill") or prerequisite.get("prerequisite") or "").strip()
+        dependent_name = str(prerequisite.get("required_by") or prerequisite.get("skill_name") or "").strip()
+        if not prereq_name or not dependent_name:
             continue
-        skill = _node_ref(NODE_SKILL, skill_name)
-        required_skill = _node_ref(NODE_SKILL, prerequisite_name)
+        dependent = _node_ref(NODE_SKILL, dependent_name)
+        prereq_skill = _node_ref(NODE_SKILL, prereq_name)
         strength = float(prerequisite.get("strength") or 0.5)
-        _append_unique(triples, GraphTriple(skill, REL_PREREQUISITE, required_skill, {"strength": strength}))
+        _append_unique(triples, GraphTriple(dependent, REL_PREREQUISITE, prereq_skill, {"strength": strength}))
 
     for resource in extraction.get("learning_resources", []) or []:
         if not isinstance(resource, dict):
             continue
         resource_name = str(resource.get("title") or resource.get("name") or "").strip()
-        skill_name = str(resource.get("skill") or "").strip()
+        skill_name = str(resource.get("for_skill") or resource.get("skill") or "").strip()
         if not resource_name or not skill_name:
             continue
-        learning_resource = _node_ref(NODE_LEARNING_RESOURCE, resource_name, {"url": resource.get("url")})
+        resource_type = str(resource.get("type") or "other").strip()
+        learning_resource = _node_ref(NODE_LEARNING_RESOURCE, resource_name, {"url": resource.get("url"), "type": resource_type})
         skill = _node_ref(NODE_SKILL, skill_name)
         rank = float(resource.get("rank") or 0.5)
         _append_unique(triples, GraphTriple(learning_resource, REL_RECOMMENDED_FOR, skill, {"rank": rank}))
@@ -587,9 +599,10 @@ async def write_extraction_to_graph(
     """Write a full extraction result to Neo4j (§2.1/§2.2).
 
     Creates/merges:
-        - Position node
-        - Skill nodes (required + preferred)
-        - REQUIRES relationships (Position -> Skill)
+        - Position node via merge_position (with retry)
+        - Skill nodes via merge_skill (with retry)
+        - REQUIRES relationships via create_requires_relationship (with retry)
+        - PREREQUISITE, EVOLVES_TO, USES, BELONGS_TO, RECOMMENDED_FOR via triples
 
     Args:
         extraction: Extraction dict from jd_extract pipeline.
@@ -598,47 +611,75 @@ async def write_extraction_to_graph(
     Returns:
         Summary dict with counts of created nodes/relationships.
     """
-    triples = build_triples_from_extraction(extraction)
-    triple_summary = await write_triples_to_graph(driver, triples)
+    position_name = str(extraction.get("position_name") or extraction.get("name") or "").strip()
+    if not position_name:
+        raise ValueError("Extraction result is missing position_name")
 
-    touched_positions = {
-        (triple.source.label, triple.source.name)
-        for triple in triples
-        if triple.source.label == NODE_POSITION
-    } | {
-        (triple.target.label, triple.target.name)
-        for triple in triples
-        if triple.target.label == NODE_POSITION
-    }
-    touched_skills = {
-        (triple.source.label, triple.source.name)
-        for triple in triples
-        if triple.source.label == NODE_SKILL
-    } | {
-        (triple.target.label, triple.target.name)
-        for triple in triples
-        if triple.target.label == NODE_SKILL
-    }
-    requires_count = sum(1 for triple in triples if triple.relationship == REL_REQUIRES)
+    # Step 1: Merge Position node using standalone retry-enabled function
+    try:
+        await merge_position(driver, extraction)
+        positions_merged = 1
+    except Exception as exc:
+        logger.error("merge_position failed for '{}': {}", position_name, exc)
+        raise
+
+    # Step 2: Merge Skill nodes and create REQUIRES relationships using standalone functions
+    skills_merged = 0
+    requires_created = 0
+    for required_flag, skills_list in (
+        (True, extraction.get("required_skills", [])),
+        (False, extraction.get("preferred_skills", [])),
+    ):
+        for entry in skills_list or []:
+            skill_name = _skill_entry_name(entry)
+            if not skill_name:
+                continue
+            level = _skill_entry_level(entry)
+            metadata = {
+                "level": level,
+                "category": _skill_entry_category(entry),
+                "source_count": _skill_entry_source_count(entry),
+                "trend": _skill_entry_trend(entry),
+            }
+            try:
+                await merge_skill(driver, skill_name, metadata)
+                skills_merged += 1
+            except Exception as exc:
+                logger.warning("merge_skill failed for '{}': {}", skill_name, exc)
+                continue
+            try:
+                await create_requires_relationship(
+                    driver, position_name, skill_name,
+                    level=level, required=required_flag,
+                    weight=1.0 if required_flag else 0.6,
+                )
+                requires_created += 1
+            except Exception as exc:
+                logger.warning("create_requires failed: Position '{}' -> Skill '{}': {}", position_name, skill_name, exc)
+
+    # Step 3: Build and write ontology triples for extended relationships
+    # (tools → USES, prerequisites → PREREQUISITE, etc.)
+    triples = build_triples_from_extraction(extraction)
+
+    # Deduplicate triples that were already created above (REQUIRES and Position/Skill nodes)
+    extended_triples = [t for t in triples if t.relationship != REL_REQUIRES]
+    extended_summary = await write_triples_to_graph(driver, extended_triples)
 
     summary: dict[str, int] = {
-        "positions_merged": 0,
-        "skills_merged": 0,
-        "requires_created": 0,
-        "triples_merged": triple_summary["triples_merged"],
-        "nodes_touched": triple_summary["nodes_touched"],
-        "relationships_touched": triple_summary["relationships_touched"],
+        "positions_merged": positions_merged,
+        "skills_merged": skills_merged,
+        "requires_created": requires_created,
+        "triples_merged": (requires_created + extended_summary["triples_merged"]),
+        "nodes_touched": (skills_merged + positions_merged + extended_summary["nodes_touched"]),
+        "relationships_touched": (requires_created + extended_summary["relationships_touched"]),
     }
-    summary["positions_merged"] = len(touched_positions)
-    summary["skills_merged"] = len(touched_skills)
-    summary["requires_created"] = requires_count
 
     logger.info(
-        "Graph write complete: {} positions, {} skills, {} requires, {} triples",
+        "Graph write complete: {} positions, {} skills, {} requires, {} extended triples",
         summary["positions_merged"],
         summary["skills_merged"],
         summary["requires_created"],
-        summary["triples_merged"],
+        extended_summary["triples_merged"],
     )
     return summary
 

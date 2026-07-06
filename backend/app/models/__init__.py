@@ -30,6 +30,7 @@ from app.models.learning_models import (  # noqa: E402, F401
 )
 from app.models.pipeline_models import (  # noqa: E402, F401
     DataSourceRecord,
+    LoopResultRecord,
     PipelineRun,
     PipelineSchedule,
 )
@@ -44,6 +45,7 @@ __all__ = [
     "JDExtractionRecord",
     "LearningPlan",
     "LearningProgress",
+    "LoopResultRecord",
     "PipelineRun",
     "PipelineSchedule",
     "PositionRecord",

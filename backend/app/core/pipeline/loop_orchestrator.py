@@ -7,11 +7,8 @@ Pipeline:
   Step 4: Match diagnosis — run match engine against target position
   Step 5: Learning path  — derive personalised learning path from match gaps
 
-Error Isolation Strategy (degraded mode):
-  - Each step wrapped in independent try/except
-  - Step 3 failure  -> Steps 4-5 use existing graph data (marked "based on historical graph")
-  - Step 4 failure  -> Step 5 uses generic learning path
-  - LoopStepResult.status: "success" | "degraded" | "failed"
+All 5 steps execute for real; there is no degraded mode.
+LoopStepResult.status: "success" | "failed"
 """
 
 from __future__ import annotations
@@ -19,15 +16,20 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from app.models.pipeline_models import LoopResultRecord
 
 
 class StepStatus(StrEnum):
     SUCCESS = "success"
-    DEGRADED = "degraded"
     FAILED = "failed"
 
 
@@ -100,7 +102,7 @@ class LoopResult:
         }
 
 
-# In-memory history storage (matches the pattern of match_service._MATCH_RESULTS)
+# Fallback in-memory history storage (used only when no DB session is provided)
 _LOOP_RESULTS: dict[str, LoopResult] = {}
 _LOOP_HISTORY_MAX = 200
 
@@ -120,12 +122,18 @@ class LoopOrchestrator:
         )
     """
 
-    async def run_loop(self, jd_text: str, target_position: str) -> LoopResult:
+    async def run_loop(
+        self,
+        jd_text: str,
+        target_position: str,
+        session: AsyncSession | None = None,
+    ) -> LoopResult:
         """Execute the full 5-step closed-loop pipeline.
 
         Args:
             jd_text: Raw job description text.
             target_position: Target position name for match diagnosis.
+            session: Optional async DB session for persisting the result.
 
         Returns:
             LoopResult with all step outputs and aggregate results.
@@ -140,13 +148,17 @@ class LoopOrchestrator:
             status=LoopRunStatus.RUNNING,
         )
 
+        # Insert initial running record into loop_results
+        db_record = await self._insert_loop_run(run_id, session=session)
+
         # ---- Step 1: JD Input (validation) ----
         step1 = self._step1_validate_input(jd_text, target_position)
         result.steps.append(step1)
+        await self._update_steps_json(db_record, result, session=session)
         if step1.status == StepStatus.FAILED:
             result.status = LoopRunStatus.FAILED
             result.total_duration_seconds = time.monotonic() - start
-            self._store_result(result)
+            await self._complete_loop_run(db_record, result, session=session)
             return result
 
         # ---- Step 2: Skill Extraction ----
@@ -156,12 +168,14 @@ class LoopOrchestrator:
         if step2.status == StepStatus.SUCCESS:
             extraction_data = step2.data
             result.extracted_skills = extraction_data.get("skills", [])
+        await self._update_steps_json(db_record, result, session=session)
 
         # ---- Step 3: Graph Update ----
         step3 = await self._step3_graph_update(run_id, extraction_data)
         result.steps.append(step3)
         graph_ok = step3.status == StepStatus.SUCCESS
         result.graph_update = step3.data
+        await self._update_steps_json(db_record, result, session=session)
 
         # ---- Step 4: Match Diagnosis ----
         step4 = await self._step4_match_diagnosis(
@@ -172,31 +186,31 @@ class LoopOrchestrator:
         result.steps.append(step4)
         if step4.status == StepStatus.SUCCESS:
             result.match_result = step4.data
+        await self._update_steps_json(db_record, result, session=session)
 
         # ---- Step 5: Learning Path ----
-        step5 = self._step5_learning_path(
+        step5 = await self._step5_learning_path(
             match_result=result.match_result,
             graph_available=graph_ok,
             match_ok=step4.status != StepStatus.FAILED,
+            session=session,
+            target_position=target_position,
         )
         result.steps.append(step5)
         result.learning_path = step5.data
 
         # Determine overall status
         failed_steps = [s for s in result.steps if s.status == StepStatus.FAILED]
-        degraded_steps = [s for s in result.steps if s.status == StepStatus.DEGRADED]
         if failed_steps and all(s.step in (4, 5) for s in failed_steps):
-            # Only path/match failed — pipeline is still degraded
+            # Only path/match failed — pipeline still completed
             result.status = LoopRunStatus.COMPLETED
         elif len(failed_steps) >= 3:
             result.status = LoopRunStatus.FAILED
-        elif degraded_steps or failed_steps:
-            result.status = LoopRunStatus.COMPLETED
         else:
             result.status = LoopRunStatus.COMPLETED
 
         result.total_duration_seconds = time.monotonic() - start
-        self._store_result(result)
+        await self._complete_loop_run(db_record, result, session=session)
 
         logger.info(
             "Loop {} completed: status={} steps=[{}] duration={:.2f}s",
@@ -287,6 +301,14 @@ class LoopOrchestrator:
                     "skills": skills,
                     "position_name": data.get("position_name", ""),
                     "industry": data.get("industry", ""),
+                    "description": data.get("description", ""),
+                    "knowledge_areas": data.get("knowledge_areas", []),
+                    "experience_required": data.get("experience_required"),
+                    "education_required": data.get("education_required"),
+                    "tools": data.get("tools", []),
+                    "prerequisites": data.get("prerequisites", []),
+                    "learning_resources": data.get("learning_resources", []),
+                    "evolves_to": data.get("evolves_to", []),
                     "validation": raw.get("validation"),
                     "prompt_version": raw.get("prompt_version_used"),
                 },
@@ -310,57 +332,50 @@ class LoopOrchestrator:
         """Step 3: Sync extracted skills/positions into Neo4j graph."""
         start = time.monotonic()
         try:
-            # from app.services.graph_service import sync_from_pipeline
-            from app.services.resources import AppResources
+            from app.services.graph_service import sync_from_pipeline
 
-            driver = AppResources.neo4j_driver
+            driver = None
+            try:
+                from app.services.resources import resources as app_resources
+                driver = app_resources.neo4j_driver
+            except Exception:
+                pass
+
             if driver is None:
                 return LoopStepResult(
                     step=3,
                     name=STEP_NAMES[3],
-                    status=StepStatus.DEGRADED,
+                    status=StepStatus.FAILED,
                     data={"error": "neo4j_driver_unavailable"},
-                    note="Neo4j driver not available, using historical graph data",
+                    error="Neo4j driver not available",
                     duration_seconds=time.monotonic() - start,
                 )
 
-            skills = extraction_data.get("skills", [])
-            position_name = extraction_data.get("position_name", "")
+            # Phase 2 SYNC-02: Pass extraction_data for DB-query + graph_writer mode
+            try:
+                sync_result = await sync_from_pipeline(
+                    run_id=run_id,
+                    extraction_data=extraction_data,
+                )
+            except Exception as exc:
+                logger.warning("sync_from_pipeline failed: {}", exc)
+                sync_result = {"synced": False, "error": str(exc)}
 
-            new_positions = []
-            if position_name:
-                new_positions.append({
-                    "name": position_name,
-                    "industry": extraction_data.get("industry", ""),
-                    "description": "",
-                })
+            logger.info(
+                "Graph sync step for run {}: synced={}, nodes={}, edges={}",
+                run_id,
+                sync_result.get("synced", False),
+                sync_result.get("nodes_written", sync_result.get("nodes", 0)),
+                sync_result.get("edges_written", sync_result.get("edges", 0)),
+            )
 
-            # Build data for future sync_from_pipeline call
-            _new_skills = [
-                {"name": s["name"], "category": s.get("category", "hard_skill"), "source_count": 1}
-                for s in skills
-                if s.get("name")
-            ]
-
-            _new_edges = [
-                {"position_name": position_name, "skill_name": s["name"], "level": s.get("proficiency", "熟悉"), "required": s.get("importance") == "required"}
-                for s in skills
-                if s.get("name") and position_name
-            ]
-
-            # TODO: implement sync_from_pipeline in graph_service
-            # sync_result = await sync_from_pipeline(...)
-            # For now, return degraded status
-            sync_result = {"synced": False, "note": "sync_from_pipeline not yet implemented"}
-            logger.info("Graph sync step placeholder for run {}", run_id)
-
-            if sync_result.get("error"):
+            if not sync_result.get("synced"):
                 return LoopStepResult(
                     step=3,
                     name=STEP_NAMES[3],
-                    status=StepStatus.DEGRADED,
+                    status=StepStatus.FAILED,
                     data=sync_result,
-                    note="Graph sync had errors, using historical graph data",
+                    error=sync_result.get("error") or "Graph sync failed",
                     duration_seconds=time.monotonic() - start,
                 )
 
@@ -376,9 +391,9 @@ class LoopOrchestrator:
             return LoopStepResult(
                 step=3,
                 name=STEP_NAMES[3],
-                status=StepStatus.DEGRADED,
+                status=StepStatus.FAILED,
                 data={"error": str(exc)},
-                note="Graph update failed, using historical graph data",
+                error=str(exc),
                 duration_seconds=time.monotonic() - start,
             )
 
@@ -390,9 +405,6 @@ class LoopOrchestrator:
     ) -> LoopStepResult:
         """Step 4: Run match diagnosis with extracted skills vs target position."""
         start = time.monotonic()
-        note = None
-        if not graph_available:
-            note = "基于历史图谱，新增节点未纳入"
 
         if not extracted_skills:
             return LoopStepResult(
@@ -400,7 +412,6 @@ class LoopOrchestrator:
                 name=STEP_NAMES[4],
                 status=StepStatus.FAILED,
                 error="No skills available for matching",
-                note=note,
                 duration_seconds=time.monotonic() - start,
             )
 
@@ -422,13 +433,11 @@ class LoopOrchestrator:
                 person_skills=person_skills,
             )
 
-            status = StepStatus.SUCCESS if not note else StepStatus.DEGRADED
             return LoopStepResult(
                 step=4,
                 name=STEP_NAMES[4],
-                status=status,
+                status=StepStatus.SUCCESS,
                 data=match_result,
-                note=note,
                 duration_seconds=time.monotonic() - start,
             )
         except Exception as exc:
@@ -438,22 +447,19 @@ class LoopOrchestrator:
                 name=STEP_NAMES[4],
                 status=StepStatus.FAILED,
                 error=str(exc),
-                note=note,
                 duration_seconds=time.monotonic() - start,
             )
 
-    def _step5_learning_path(
+    async def _step5_learning_path(
         self,
         match_result: dict[str, Any],
         graph_available: bool,
         match_ok: bool,
+        session: AsyncSession | None = None,
+        target_position: str = "",
     ) -> LoopStepResult:
-        """Step 5: Derive learning path from match gaps."""
+        """Step 5: Derive learning path from match gaps and auto-create learning plan."""
         start = time.monotonic()
-        note_parts: list[str] = []
-        if not graph_available:
-            note_parts.append("基于历史图谱，新增节点未纳入")
-        note = "; ".join(note_parts) if note_parts else None
 
         # If match diagnosis succeeded, derive path from match gaps
         if match_ok and match_result:
@@ -470,30 +476,54 @@ class LoopOrchestrator:
                         "learning_path": gap.get("learning_path", []),
                     })
 
+                learning_path_data: dict[str, Any] = {
+                    "path_items": path_items,
+                    "estimated_learning_time": match_result.get("estimated_learning_time", ""),
+                    "overall_assessment": match_result.get("overall_assessment", ""),
+                    "recommendations": match_result.get("recommendations", []),
+                    "source": "match_gaps",
+                }
+
+                # Auto-create learning plan in DB when session is available
+                plan_info = None
+                if session is not None and target_position and match_result:
+                    try:
+                        from app.services.learning_service import create_plan_from_match
+
+                        plan_info = await create_plan_from_match(
+                            session,
+                            target_position=target_position,
+                            match_result=match_result,
+                        )
+                        if plan_info and plan_info.get("plan_id"):
+                            learning_path_data["plan_id"] = plan_info["plan_id"]
+                            logger.info(
+                                "Auto-created learning plan {} for target '{}'",
+                                plan_info["plan_id"], target_position,
+                            )
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to auto-create learning plan for '{}': {}",
+                            target_position, exc,
+                        )
+
                 return LoopStepResult(
                     step=5,
                     name=STEP_NAMES[5],
-                    status=StepStatus.DEGRADED if note else StepStatus.SUCCESS,
-                    data={
-                        "path_items": path_items,
-                        "estimated_learning_time": match_result.get("estimated_learning_time", ""),
-                        "overall_assessment": match_result.get("overall_assessment", ""),
-                        "recommendations": match_result.get("recommendations", []),
-                        "source": "match_gaps",
-                    },
-                    note=note,
+                    status=StepStatus.SUCCESS,
+                    data=learning_path_data,
                     duration_seconds=time.monotonic() - start,
                 )
             except Exception as exc:
-                logger.warning("Step 5 path derivation from match failed, using generic: {}", exc)
+                logger.warning("Step 5 path derivation from match failed: {}", exc)
 
         # Fallback: generic learning path
         return LoopStepResult(
             step=5,
             name=STEP_NAMES[5],
-            status=StepStatus.DEGRADED,
+            status=StepStatus.FAILED,
+            error="Match diagnosis not available for learning path generation",
             data=self._generic_learning_path(),
-            note="匹配诊断不可用，使用通用学习路径",
             duration_seconds=time.monotonic() - start,
         )
 
@@ -528,11 +558,81 @@ class LoopOrchestrator:
         }
 
     # ------------------------------------------------------------------
-    # History / status helpers
+    # PostgreSQL persistence helpers
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _store_result(result: LoopResult) -> None:
+    async def _insert_loop_run(
+        run_id: str,
+        session: AsyncSession | None = None,
+    ) -> LoopResultRecord | None:
+        """INSERT a new running loop_results row; return the ORM object or None."""
+        if session is None:
+            return None
+        try:
+            from app.models.pipeline_models import LoopResultRecord
+
+            record = LoopResultRecord(
+                run_id=run_id,
+                steps_json={},
+                status=LoopRunStatus.RUNNING.value,
+            )
+            session.add(record)
+            await session.commit()
+            return record
+        except Exception as exc:
+            logger.warning("Failed to insert loop run to DB: {}", exc)
+            return None
+
+    @staticmethod
+    async def _update_steps_json(
+        db_record: LoopResultRecord | None,
+        result: LoopResult,
+        session: AsyncSession | None = None,
+    ) -> None:
+        """UPDATE steps_json after each step completes."""
+        if db_record is None or session is None:
+            return
+        try:
+            from app.models.pipeline_models import LoopResultRecord
+
+            # Re-fetch to avoid detached-instance issues
+            db_record = await session.get(LoopResultRecord, db_record.id)
+            if db_record is None:
+                return
+            db_record.steps_json = result.to_dict()
+            await session.commit()
+        except Exception as exc:
+            logger.warning("Failed to update loop steps_json in DB: {}", exc)
+
+    @staticmethod
+    async def _complete_loop_run(
+        db_record: LoopResultRecord | None,
+        result: LoopResult,
+        session: AsyncSession | None = None,
+    ) -> None:
+        """UPDATE status and completed_at when the loop finishes; fall back to in-memory."""
+        if db_record is not None and session is not None:
+            try:
+                from app.models.pipeline_models import LoopResultRecord
+
+                db_record = await session.get(LoopResultRecord, db_record.id)
+                if db_record is not None:
+                    db_record.status = result.status.value
+                    db_record.steps_json = result.to_dict()
+                    db_record.completed_at = datetime.now(UTC)
+                    if result.status == LoopRunStatus.FAILED:
+                        errors = [s.error for s in result.steps if s.error]
+                        db_record.error_log = "; ".join(errors) if errors else None
+                    await session.commit()
+                    return
+            except Exception as exc:
+                logger.warning(
+                    "Failed to complete loop run in DB, falling back to in-memory: {}",
+                    exc,
+                )
+
+        # Fallback: in-memory history storage
         _LOOP_RESULTS[result.run_id] = result
         if len(_LOOP_RESULTS) > _LOOP_HISTORY_MAX:
             excess = len(_LOOP_RESULTS) - _LOOP_HISTORY_MAX
@@ -540,17 +640,103 @@ class LoopOrchestrator:
                 del _LOOP_RESULTS[old_key]
 
 
-async def get_loop_status(run_id: str) -> dict[str, Any] | None:
-    """Return status of a loop run by ID."""
+async def get_loop_status(
+    run_id: str,
+    session: AsyncSession | None = None,
+) -> dict[str, Any] | None:
+    """Return status of a loop run by ID, querying loop_results first, then pipeline_runs, then in-memory fallback."""
+    if session is not None:
+        # Primary: query loop_results table
+        try:
+            from app.models.pipeline_models import LoopResultRecord
+
+            result = await session.execute(
+                select(LoopResultRecord).where(LoopResultRecord.run_id == run_id)
+            )
+            row = result.scalar_one_or_none()
+            if row is not None:
+                data = dict(row.steps_json) if row.steps_json else {}
+                data["run_id"] = row.run_id
+                data["status"] = row.status
+                return data
+        except Exception as exc:
+            logger.warning("Failed to read loop status from loop_results, trying pipeline_runs: {}", exc)
+
+        # Secondary: query pipeline_runs table (legacy)
+        try:
+            from app.models.pipeline_models import PipelineRun
+
+            result = await session.execute(
+                select(PipelineRun).where(PipelineRun.id == uuid.UUID(run_id))
+            )
+            row = result.scalar_one_or_none()
+            if row is not None and row.stages is not None:
+                data = dict(row.stages)
+                data["run_id"] = str(row.id)
+                data["status"] = row.status
+                if "steps" not in data:
+                    data["steps"] = row.stages.get("steps", [])
+                return data
+        except Exception as exc:
+            logger.warning("Failed to read loop status from pipeline_runs, falling back to in-memory: {}", exc)
+
+    # Fallback: in-memory
     result = _LOOP_RESULTS.get(run_id)
     if result is None:
         return None
     return result.to_dict()
 
 
-async def get_loop_history(limit: int = 50) -> list[dict[str, Any]]:
-    """Return recent loop run history."""
+async def get_loop_history(
+    limit: int = 50,
+    session: AsyncSession | None = None,
+) -> list[dict[str, Any]]:
+    """Return recent loop run history, querying loop_results first, then pipeline_runs, then in-memory fallback."""
+    if session is not None:
+        # Primary: query loop_results table
+        try:
+            from app.models.pipeline_models import LoopResultRecord
+
+            result = await session.execute(
+                select(LoopResultRecord)
+                .order_by(LoopResultRecord.created_at.desc())
+                .limit(limit)
+            )
+            rows = result.scalars().all()
+            if rows:
+                items = []
+                for row in rows:
+                    data = dict(row.steps_json) if row.steps_json else {}
+                    data["run_id"] = row.run_id
+                    data["status"] = row.status
+                    items.append(data)
+                return items
+        except Exception as exc:
+            logger.warning("Failed to read loop history from loop_results, trying pipeline_runs: {}", exc)
+
+        # Secondary: query pipeline_runs table (legacy)
+        try:
+            from app.models.pipeline_models import PipelineRun
+
+            result = await session.execute(
+                select(PipelineRun)
+                .where(PipelineRun.run_type == "loop")
+                .order_by(PipelineRun.started_at.desc())
+                .limit(limit)
+            )
+            rows = result.scalars().all()
+            if rows:
+                items = []
+                for row in rows:
+                    data = dict(row.stages) if row.stages else {}
+                    data["run_id"] = str(row.id)
+                    data["status"] = row.status
+                    items.append(data)
+                return items
+        except Exception as exc:
+            logger.warning("Failed to read loop history from pipeline_runs, falling back to in-memory: {}", exc)
+
+    # Fallback: in-memory
     items = list(_LOOP_RESULTS.values())
     items.sort(key=lambda r: r.total_duration_seconds, reverse=False)
-    # Return most recent first (insertion order in dict preserves recency)
     return [r.to_dict() for r in list(_LOOP_RESULTS.values())[-limit:]][::-1]

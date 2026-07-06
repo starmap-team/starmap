@@ -1,7 +1,7 @@
 """Tests for trust integration and path recommender edge cases."""
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from app.core.evolution.path_recommender import PathRecommender
 from app.core.evolution.trust_integration import TrustFactors, TrustScorer

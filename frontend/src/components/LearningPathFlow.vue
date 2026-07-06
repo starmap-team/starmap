@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 学习路径流程图组件 — DAG 可视化
  * 展示技能前置关系和学习进度
@@ -115,11 +115,15 @@ async function initGraph() {
       container,
       width,
       height,
+      autoFit: {
+        type: 'view',
+        options: { when: 'always', padding: [24, 24, 24, 24] },
+      },
       layout: {
         type: 'dagre',
         rankdir: 'LR',
-        nodesep: 30,
-        ranksep: 80,
+        nodesepFunc: () => 36,
+        ranksepFunc: () => 100,
         controlPoints: true,
       },
       node: {
@@ -169,6 +173,10 @@ async function initGraph() {
     const graphData = buildGraphData()
     graph.setData(graphData)
     graph.render()
+    // Ensure dagre layout fits viewport (defensive: small graphs may not trigger autoFit)
+    if (typeof graph.fitView === 'function') {
+      try { await graph.fitView() } catch (_) { /* ignore */ }
+    }
   } catch (err) {
     console.error('[LearningPathFlow] Failed to initialize graph:', err)
   }
@@ -318,3 +326,4 @@ onBeforeUnmount(() => {
   margin: var(--space-1) 0 0;
 }
 </style>
+

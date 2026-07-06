@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from io import BytesIO
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from docx import Document
@@ -33,6 +33,45 @@ class FakeAsyncSession:
         return FakeResult(self.results.pop(0))
 
 
+# Target profiles used by stage 4 match tests
+_STAGE4_PROFILES = {
+    "数据分析师": {
+        "required": [
+            {"skill": "Python", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "SQL", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Excel", "category": "tool", "proficiency": "熟悉"},
+            {"skill": "统计学", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Pandas", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "数据可视化", "category": "hard_skill", "proficiency": "熟悉"},
+        ],
+        "bonus": [
+            {"skill": "Tableau", "category": "tool", "proficiency": "了解"},
+            {"skill": "Machine Learning", "category": "hard_skill", "proficiency": "了解"},
+        ],
+    },
+    "后端开发工程师": {
+        "required": [
+            {"skill": "Python", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "FastAPI", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "PostgreSQL", "category": "hard_skill", "proficiency": "熟悉"},
+            {"skill": "Redis", "category": "hard_skill", "proficiency": "了解"},
+        ],
+        "bonus": [
+            {"skill": "Docker", "category": "tool", "proficiency": "了解"},
+        ],
+    },
+}
+
+
+def _mock_load_target_profile(driver, target_position, db_session=None, repo=None):
+    from fastapi import HTTPException
+
+    profile = _STAGE4_PROFILES.get(target_position)
+    if profile is None:
+        raise HTTPException(status_code=404, detail=f'Position "{target_position}" not found in any data source')
+    return profile
+
+
 @pytest.fixture(autouse=True)
 def no_neo4j_driver():
     app.dependency_overrides[get_neo4j_driver] = lambda: None
@@ -50,7 +89,8 @@ def test_match_position_returns_enriched_contract(client):
         ],
     }
 
-    resp = client.post("/api/v1/match/position", json=payload)
+    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+        resp = client.post("/api/v1/match/position", json=payload)
 
     assert resp.status_code == 200
     body = resp.json()
@@ -83,7 +123,8 @@ def test_match_diagnose_alias_matches_position(client):
         "person_skills": [{"name": "Python", "proficiency": "精通"}],
     }
 
-    resp = client.post("/api/v1/match/diagnose", json=payload)
+    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+        resp = client.post("/api/v1/match/diagnose", json=payload)
 
     assert resp.status_code == 200
     assert resp.json()["target_position"] == "后端开发工程师"

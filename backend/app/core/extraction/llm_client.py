@@ -1,13 +1,17 @@
-"""Multi-provider LLM client with fallback support.
+"""LLM Client — 多供应商 LLM 客户端，支持自动降级。
 
-Supports:
-- MiMo API: https://token-plan-cn.xiaomimimo.com/v1 (reasoning model, primary)
+支持的模型（按优先级排序）：
+- MiMo API: https://token-plan-cn.xiaomimimo.com/v1 (推理模型，主用)
 - DeepSeek API: https://api.deepseek.com/chat/completions
 - Xunfei Spark API: https://spark-api-open.xf-yun.com/v1/chat/completions
-- Local Qwen/Ollama fallback: /api/chat endpoint
+- 本地 Qwen/Ollama 降级: /api/chat 端点
 
-Fallback chain: MiMo -> DeepSeek -> Xunfei -> Qwen/Ollama
-Authentication: Bearer token via API keys.
+降级链：MiMo → DeepSeek → Xunfei → Qwen/Ollama
+认证：通过 API Key 的 Bearer Token。
+
+业务价值：
+  确保技能抽取服务的高可用性，当主用模型不可用时自动切换备用模型，
+  避免单点故障导致整个抽取流程中断。
 """
 
 import json

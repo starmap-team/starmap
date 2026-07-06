@@ -1,9 +1,13 @@
-"""Trust Scorer — Weighted trust model with exponential decay.
+"""Trust Scorer — 信任度评分：加权信任模型 + 指数衰减。
 
-Implements the trust scoring model from design.md §4.2:
-    TrustChange(C) = w1*SourceCount + w2*TemporalContinuity + w3*CrossValidation + w4*ManualReview
+实现原理（design.md §4.2）：
+    信任变化 = w1×来源数 + w2×时间连续性 + w3×交叉验证 + w4×人工审核
     w1=0.35, w2=0.25, w3=0.25, w4=0.15
-    TrustDecay(T) = Trust(T0) * exp(-0.15 * Δt)
+    信任衰减 = Trust(T0) × exp(-0.15 × Δt)  （Δt 单位为月）
+
+业务价值：
+  为每个技能赋予动态信任分数，随时间推移自动衰减，
+  确保数据新鲜度，支撑匹配引擎的可靠性决策。
 """
 
 from __future__ import annotations

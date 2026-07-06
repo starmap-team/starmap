@@ -1,10 +1,25 @@
-﻿"""Neo4j-backed graph query helpers for API v1."""
+﻿"""Neo4j-backed graph query helpers for API v1.
+
+业务说明：
+    本模块封装了所有与 Neo4j 图数据库交互的查询、序列化、统计及同步逻辑，
+    是 StarMap 后端服务中图谱数据层的核心组件。职责包括：
+    1. 提供职位（Position）与技能（Skill）节点的统计查询；
+    2. 将 Neo4j 原生节点/关系对象序列化为前端图可视化所需的统一数据结构；
+    3. 按技术栈（Tech Stack）和职级（Level）聚合生成数据概览；
+    4. 支持从 Pipeline 提取结果向 Neo4j 进行幂等同步（MERGE），
+       兼容 Inline 直接写入与 DB-Query 批量写入两种模式。
+"""
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 async def count_positions_neo4j(driver: Any) -> int:
+    # 业务说明：统计 Neo4j 图谱中职位（Position）节点的总数量，用于仪表盘或健康检查。
+    # 技术说明：当 driver 未初始化或查询异常时返回 0，保证服务降级不中断。
     """Count Position nodes in Neo4j."""
     if driver is None:
         return 0
@@ -18,6 +33,7 @@ async def count_positions_neo4j(driver: Any) -> int:
 
 
 async def count_skills_neo4j(driver: Any) -> int:
+    # 业务说明：统计 Neo4j 图谱中技能（Skill）节点的总数量，作为技能库规模的权威来源。
     """Count Skill nodes in Neo4j (source of truth)."""
     if driver is None:
         return 0
@@ -31,6 +47,7 @@ async def count_skills_neo4j(driver: Any) -> int:
 
 
 async def count_edges_neo4j(driver: Any) -> int:
+    # 业务说明：统计职位与技能之间 REQUIRES 关系的总数量，反映图谱连接密度。
     """Count REQUIRES relationships in Neo4j."""
     if driver is None:
         return 0
@@ -44,6 +61,8 @@ async def count_edges_neo4j(driver: Any) -> int:
 
 
 def _safe_properties(value: Any) -> dict[str, Any]:
+    # 技术说明：Neo4j 节点/关系的属性字典化辅助函数，兼容 Neo4j ≥5.x 的 temporal 类型（如 DateTime），
+    # 通过 iso_format() 将时间对象转为字符串，避免 JSON 序列化异常。
     # ponytail: dict() works for Neo4j ≥5.x; iso_format guard for temporal types
     try:
         return {k: (v.iso_format() if hasattr(v, 'iso_format') else v) for k, v in dict(value).items()}
@@ -52,6 +71,8 @@ def _safe_properties(value: Any) -> dict[str, Any]:
 
 
 def _node_id(node: Any) -> str:
+    # 技术说明：从 Neo4j 节点中提取唯一标识符的降级策略：
+    # 优先 element_id（Neo4j ≥5.x），其次 id（旧版），最后从属性中回退 name。
     element_id = getattr(node, "element_id", None)
     if element_id is not None:
         return str(element_id)
@@ -63,6 +84,7 @@ def _node_id(node: Any) -> str:
 
 
 def _relationship_type(rel: Any) -> str:
+    # 技术说明：从 Neo4j 关系对象中提取关系类型名称，兼容不同驱动版本。
     rel_type = getattr(rel, "type", None)
     if rel_type is not None:
         return str(rel_type)
@@ -70,6 +92,7 @@ def _relationship_type(rel: Any) -> str:
 
 
 def _relationship_endpoint(rel: Any, attr: str) -> str:
+    # 技术说明：获取关系的起点或终点节点 ID，支持 start_node / end_node 两种属性名。
     node = getattr(rel, attr, None)
     if node is not None:
         return _node_id(node)
@@ -78,6 +101,8 @@ def _relationship_endpoint(rel: Any, attr: str) -> str:
 
 
 def serialize_node(node: Any) -> dict[str, Any]:
+    # 业务说明：将 Neo4j 节点对象转换为前端图可视化组件（如 D3 / ECharts）所需的统一节点数据结构。
+    # 技术说明：提取 labels、category、name 等字段，确保前端渲染时节点样式和分组正确。
     """Convert a Neo4j Node-like object to the frontend graph node contract."""
     props = _safe_properties(node)
     labels = list(getattr(node, "labels", []) or [])
@@ -93,6 +118,8 @@ def serialize_node(node: Any) -> dict[str, Any]:
 
 
 def serialize_relationship(rel: Any) -> dict[str, Any]:
+    # 业务说明：将 Neo4j 关系对象转换为前端图可视化组件所需的统一边（edge/relationship）数据结构。
+    # 技术说明：包含 source_id、target_id、type 及属性（如 weight），用于前端连线渲染和交互。
     """Convert a Neo4j Relationship-like object to the frontend graph edge contract."""
     props = _safe_properties(rel)
     props.setdefault("weight", 1.0)
@@ -105,6 +132,8 @@ def serialize_relationship(rel: Any) -> dict[str, Any]:
 
 
 def dedupe_graph(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    # 业务说明：对图谱节点和边进行去重，保留首次出现的元素，避免前端渲染时出现重叠或重复数据。
+    # 技术说明：节点以 id 为键去重，边以 (source_id, target_id, type) 三元组为键去重。
     """Remove duplicate graph elements while preserving first-seen order."""
     node_map: dict[str, dict[str, Any]] = {}
     for node in nodes:
@@ -122,6 +151,8 @@ def dedupe_graph(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> di
 
 
 def _proficiency_from_level(level: Any) -> str:
+    # 业务说明：将多种来源的熟练度/等级描述统一映射为中文三档标准：精通、熟悉、了解。
+    # 技术说明：支持中英文及简写输入，统一小写匹配，未命中时默认返回 "熟悉"。
     raw = str(level or "").strip().lower()
     if raw in {"精通", "advanced", "expert", "senior", "high"}:
         return "精通"
@@ -131,6 +162,8 @@ def _proficiency_from_level(level: Any) -> str:
 
 
 def _position_item(node: dict[str, Any]) -> dict[str, Any]:
+    # 业务说明：将图谱中的 Position 节点转换为 API 响应中职位列表的标准数据结构。
+    # 技术说明：从 node.properties 中提取职位 ID、名称、行业、描述及所需技能列表。
     props = dict(node.get("properties") or {})
     return {
         "position_id": str(props.get("position_id") or node.get("id") or props.get("name") or ""),
@@ -142,6 +175,8 @@ def _position_item(node: dict[str, Any]) -> dict[str, Any]:
 
 
 def _skill_item(node: dict[str, Any], rel: dict[str, Any] | None = None) -> dict[str, Any]:
+    # 业务说明：将图谱中的 Skill 节点（及可选的关联关系）转换为 API 响应中技能列表的标准数据结构。
+    # 技术说明：结合节点属性与关系属性（如 level、required）生成 proficiency、importance 等字段。
     props = dict(node.get("properties") or {})
     rel_props = dict((rel or {}).get("properties") or {})
     level = rel_props.get("level")
@@ -163,6 +198,8 @@ def _skill_item(node: dict[str, Any], rel: dict[str, Any] | None = None) -> dict
 
 
 async def _resolve_position_name(driver: Any, position_name: str) -> str:
+    # 业务说明：根据用户输入的职位名称，在 Neo4j 中模糊匹配最接近的正式职位名称，
+    # 支持精确匹配、子串匹配和双向包含匹配，提升搜索容错率。
     """Resolve the closest Neo4j Position name."""
     async with driver.session() as session:
         exact = await session.run("MATCH (p:Position) WHERE p.name = $name RETURN p.name AS name LIMIT 1", name=position_name)
@@ -179,6 +216,11 @@ async def _resolve_position_name(driver: Any, position_name: str) -> str:
 
 
 async def fetch_position_graph(driver: Any, position_name: str, depth: int = 1) -> dict[str, Any]:
+    # 业务说明：以指定职位为中心，按深度（depth）向外抓取子图，包含职位节点、关联技能节点及边关系。
+    # 技术说明：
+    #   - depth=1 时仅抓取直接 REQUIRES 关系；
+    #   - depth>1 时支持可变长度路径（REQUIRES*1..depth），并递归抓取 PREREQUISITE 和 EVOLVES_TO 关系；
+    #   - depth 被限制在 [1, 5] 范围内，防止查询爆炸。
     """Fetch a position and its required skills as a subgraph."""
     if driver is None:
         return {"position": None, "skills": [], "edges": []}
@@ -289,6 +331,8 @@ async def fetch_position_graph(driver: Any, position_name: str, depth: int = 1) 
 
 
 # ── 技术栈分组映射 ──
+# 业务说明：定义技术栈关键词映射表，用于将职位名称/行业自动分类到对应的技术领域（如人工智能、大数据等）。
+# 技术说明：每个技术栈对应一组关键词，匹配时采用大小写不敏感的子串匹配。
 TECH_STACK_KEYWORDS: dict[str, list[str]] = {
     "人工智能": ["AI", "人工智能", "机器学习", "深度学习", "NLP", "CV", "算法", "大模型", "LLM", "MLOps"],
     "大数据": ["大数据", "数据", "Hadoop", "Spark", "Flink", "ETL", "数据仓库", "数据分析师"],
@@ -298,6 +342,7 @@ TECH_STACK_KEYWORDS: dict[str, list[str]] = {
     "网络安全": ["安全", "网络安全", "渗透测试", "安全工程师", "密码学"],
 }
 
+# 业务说明：为每个技术栈分配固定的展示颜色，用于前端图可视化中的分类着色。
 TECH_STACK_COLORS = {
     "人工智能": "#9B59B6",
     "大数据": "#E6A23C",
@@ -316,6 +361,8 @@ LEVEL_COLORS = {
 
 
 def _classify_tech_stack(industry: str, name: str) -> str:
+    # 业务说明：根据职位所属行业和职位名称，自动判定其所属技术栈分类。
+    # 技术说明：将行业与职位名称拼接后进行关键词子串匹配，未命中时归入 "其他"。
     """Classify a position into a tech stack group."""
     text = f"{industry} {name}".lower()
     for stack, keywords in TECH_STACK_KEYWORDS.items():
@@ -326,6 +373,8 @@ def _classify_tech_stack(industry: str, name: str) -> str:
 
 
 def _classify_level(name: str, props: dict) -> str:
+    # 业务说明：根据职位属性或名称中的关键词，将职位划分为初级、中级、高级三档。
+    # 技术说明：优先读取 props 中的 level 字段，若不存在则从职位名称中推断。
     """Classify a position into a level group."""
     level = str(props.get("level", "")).strip()
     if level in ("初级", "junior", "entry"):
@@ -344,6 +393,8 @@ def _classify_level(name: str, props: dict) -> str:
 
 
 async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
+    # 业务说明：按技术栈维度聚合统计职位与技能分布，并计算不同技术栈之间基于共享技能的关联强度，
+    # 为前端技术栈概览视图提供数据支撑。
     """Overview grouped by tech stack (AI/大数据/IoT/etc)."""
     from collections import defaultdict
     groups: dict[str, dict] = {}
@@ -441,6 +492,8 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
 
 
 async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
+    # 业务说明：按职级（初级/中级/高级）维度聚合统计职位与技能分布，并构建职级间的晋升路径关系，
+    # 为前端技能成长路径视图提供数据支撑。
     """Overview grouped by level (初级/中级/高级)."""
     groups: dict[str, dict] = {}
     for level, color in LEVEL_COLORS.items():
@@ -522,3 +575,250 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
         "total_positions": total_pos,
         "total_skills": total_skill,
     }
+
+
+# Phase 2 SYNC-02: sync_from_pipeline
+async def sync_from_pipeline(
+    run_id: str,
+    new_skills: list[dict[str, Any]] | None = None,
+    new_edges: list[dict[str, Any]] | None = None,
+    new_positions: list[dict[str, Any]] | None = None,
+    extraction_data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    # 业务说明：将 Pipeline（如 JD 解析流水线）提取出的职位、技能及关系数据同步写入 Neo4j 图谱，
+    # 采用 MERGE 语义保证幂等性，支持两种写入模式：
+    #   1. Inline 模式（遗留）：直接传入 new_skills / new_edges / new_positions 进行逐条 MERGE；
+    #   2. DB-Query 模式（推荐）：传入 extraction_data，函数会查询 PostgreSQL 中的 JDExtractionRecord，
+    #      并通过 graph_writer.batch_write_extractions 使用完整的本体（7 节点类型、8 关系类型）批量写入。
+    """将 pipeline 提取结果写入 Neo4j 图谱（MERGE 幂等）。
+
+    Supports two modes:
+      1. **Inline mode** (legacy): pass new_skills / new_edges / new_positions directly.
+      2. **DB-query mode** (preferred): pass extraction_data from Step 2, and optionally
+         query JDExtractionRecord from PostgreSQL for richer ontology triples via
+         graph_writer.batch_write_extractions.
+
+    When extraction_data is provided, the function queries completed JDExtractionRecords
+    created within the pipeline run timeframe and writes them using the full ontology
+    (7 node types, 8 relationship types) with retry logic.
+    """
+    from app.services.resources import resources as app_resources
+
+    driver = app_resources.neo4j_driver
+    if driver is None:
+        return {"synced": False, "error": "neo4j_driver_unavailable", "count": 0}
+
+    # ── DB-query mode: use graph_writer.batch_write_extractions ──
+    if extraction_data is not None:
+        return await _sync_via_graph_writer(run_id, driver, app_resources, extraction_data)
+
+    # ── Inline mode (legacy): direct MERGE of skills / edges / positions ──
+    total_nodes = 0
+    total_edges = 0
+    errors: list[str] = []
+
+    try:
+        async with driver.session() as session:
+            for pos in (new_positions or []):
+                try:
+                    await session.run(
+                        "MERGE (p:Position {name: $name}) SET p.industry = $industry, p.updated_at = datetime()",
+                        name=pos.get("name", ""), industry=pos.get("industry", ""),
+                    )
+                    total_nodes += 1
+                except Exception as exc:
+                    errors.append(f"position '{pos.get('name')}': {exc}")
+
+            for skill in (new_skills or []):
+                try:
+                    await session.run(
+                        "MERGE (s:Skill {name: $name}) SET s.category = $category, s.source_count = coalesce(s.source_count, 0) + 1",
+                        name=skill.get("name", ""), category=skill.get("category", "hard_skill"),
+                    )
+                    total_nodes += 1
+                except Exception as exc:
+                    errors.append(f"skill '{skill.get('name')}': {exc}")
+
+            for edge in (new_edges or []):
+                try:
+                    await session.run(
+                        "MATCH (p:Position {name: $pos_name}) MATCH (s:Skill {name: $skill_name}) "
+                        "MERGE (p)-[r:REQUIRES]->(s) SET r.level = $level, r.required = $required",
+                        pos_name=edge.get("position_name", ""), skill_name=edge.get("skill_name", ""),
+                        level=edge.get("level", "熟悉"), required=edge.get("required", True),
+                    )
+                    total_edges += 1
+                except Exception as exc:
+                    errors.append(f"edge: {exc}")
+
+        logger.info("sync_from_pipeline (inline): {} nodes, {} edges (run_id={})", total_nodes, total_edges, run_id)
+        return {"synced": len(errors) == 0, "count": total_nodes + total_edges, "nodes": total_nodes, "edges": total_edges, "errors": errors}
+    except Exception as exc:
+        logger.error("sync_from_pipeline failed: {}", exc)
+        return {"synced": False, "error": str(exc), "count": total_nodes + total_edges}
+
+
+async def _sync_via_graph_writer(
+    run_id: str,
+    driver: Any,
+    app_resources: Any,
+    extraction_data: dict[str, Any],
+) -> dict[str, Any]:
+    # 业务说明：DB-Query 模式的核心实现，通过 graph_writer 批量将提取结果写入 Neo4j。
+    # 技术说明：
+    #   1. 先从当前 pipeline 的 extraction_data 构建提取字典；
+    #   2. 再查询近 5 分钟内的 JDExtractionRecord 补充更多数据；
+    #   3. 最后调用 batch_write_extractions 使用完整本体（7 节点 + 8 关系）批量写入，
+    #      内置 MERGE + 重试机制，避免重复写入。
+    """Query JDExtractionRecord from PostgreSQL and write to Neo4j via graph_writer.
+
+    Strategy:
+      1. Build an extraction dict from the Step 2 extraction_data for immediate write.
+      2. Query JDExtractionRecords created during the pipeline run timeframe
+         (last 5 minutes) for additional records that may have been persisted
+         by the batch pipeline executor.
+      3. Write all collected extractions via graph_writer.batch_write_extractions
+         which uses the full 7-node / 8-relationship ontology with MERGE + retry.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from loguru import logger as loguru_logger
+
+    from app.core.extraction.graph_writer import batch_write_extractions
+    from app.models.extraction_models import JDExtractionRecord
+
+    extractions: list[dict[str, Any]] = []
+    nodes_written = 0
+    edges_written = 0
+
+    try:
+        # ── 1. Build extraction from the current pipeline run's Step 2 data ──
+        position_name = extraction_data.get("position_name", "")
+        skills = extraction_data.get("skills", [])
+
+        if position_name:
+            required_skills = []
+            preferred_skills = []
+            for s in skills:
+                entry = {
+                    "name": s.get("name", ""),
+                    "category": s.get("category", "hard_skill"),
+                    "level": s.get("proficiency", "熟悉"),
+                }
+                if s.get("importance") == "required":
+                    required_skills.append(entry)
+                else:
+                    preferred_skills.append(entry)
+
+            current_extraction: dict[str, Any] = {
+                "position_name": position_name,
+                "industry": extraction_data.get("industry", ""),
+                "description": extraction_data.get("description", ""),
+                "experience_required": extraction_data.get("experience_required"),
+                "education_required": extraction_data.get("education_required"),
+                "knowledge_areas": extraction_data.get("knowledge_areas", []),
+                "required_skills": required_skills,
+                "preferred_skills": preferred_skills,
+                "tools": extraction_data.get("tools", []),
+                "prerequisites": extraction_data.get("prerequisites", []),
+                "learning_resources": extraction_data.get("learning_resources", []),
+                "evolves_to": extraction_data.get("evolves_to", []),
+            }
+            extractions.append(current_extraction)
+
+        # ── 2. Query JDExtractionRecords from PostgreSQL ──
+        pg_sessionmaker = app_resources.pg_sessionmaker
+        if pg_sessionmaker is not None:
+            try:
+                import sqlalchemy as sa
+
+                # Look for records created within the pipeline run timeframe
+                since = datetime.now(UTC) - timedelta(minutes=5)
+                async with pg_sessionmaker() as session:
+                    rows = (
+                        await session.execute(
+                            sa.select(JDExtractionRecord)
+                            .where(
+                                JDExtractionRecord.status == "completed",
+                                JDExtractionRecord.created_at >= since,
+                            )
+                            .order_by(JDExtractionRecord.created_at.desc())
+                            .limit(200)
+                        )
+                    ).scalars().all()
+
+                for record in rows:
+                    payload = _extraction_payload_from_record(record)
+                    # Avoid duplicating the current run's extraction
+                    if position_name and payload.get("position_name") == position_name:
+                        # Check if skills overlap significantly — skip if same extraction
+                        existing_names = {s.get("name") for s in current_extraction.get("required_skills", []) if s.get("name")}
+                        existing_names |= {s.get("name") for s in current_extraction.get("preferred_skills", []) if s.get("name")}
+                        payload_names = set()
+                        for entries in (payload.get("required_skills", []), payload.get("preferred_skills", [])):
+                            for entry in entries or []:
+                                name = entry.get("name") if isinstance(entry, dict) else str(entry)
+                                if name:
+                                    payload_names.add(name)
+                        if existing_names and payload_names and existing_names == payload_names:
+                            continue
+                    extractions.append(payload)
+
+                loguru_logger.info(
+                    "sync_from_pipeline: found {} DB records for run_id={}",
+                    len(rows), run_id,
+                )
+            except Exception as exc:
+                loguru_logger.warning(
+                    "sync_from_pipeline: DB query failed (non-fatal, using inline data): {}", exc,
+                )
+        else:
+            loguru_logger.debug("sync_from_pipeline: pg_sessionmaker not available, using inline data only")
+
+        # ── 3. Write all extractions to Neo4j via graph_writer ──
+        if not extractions:
+            return {"synced": True, "nodes_written": 0, "edges_written": 0, "extractions_processed": 0}
+
+        summaries = await batch_write_extractions(extractions, driver)
+
+        # Aggregate counts from all summaries
+        for summary in summaries:
+            nodes_written += int(summary.get("nodes_touched", 0))
+            edges_written += int(summary.get("relationships_touched", 0))
+
+        loguru_logger.info(
+            "sync_from_pipeline (graph_writer): {} extractions, {} nodes, {} edges (run_id={})",
+            len(extractions), nodes_written, edges_written, run_id,
+        )
+        return {
+            "synced": True,
+            "nodes_written": nodes_written,
+            "edges_written": edges_written,
+            "extractions_processed": len(extractions),
+        }
+    except Exception as exc:
+        loguru_logger.error("sync_from_pipeline (graph_writer) failed: {}", exc)
+        return {"synced": False, "error": str(exc), "nodes_written": nodes_written, "edges_written": edges_written}
+
+
+def _extraction_payload_from_record(record: Any) -> dict[str, Any]:
+    # 业务说明：将 PostgreSQL 中的 JDExtractionRecord 记录转换为 graph_writer 所需的提取字典格式，
+    # 统一字段命名，确保与批量写入接口兼容。
+    # 技术说明：兼容 extracted_skills 为 list 或 dict 的两种存储形式，缺失字段使用默认值填充。
+    """Convert a JDExtractionRecord to the extraction dict format expected by graph_writer.
+
+    Mirrors stage3_services._extraction_payload_from_record but kept local to avoid
+    circular imports.
+    """
+    raw = record.extracted_skills
+    if isinstance(raw, list):
+        skills_list = [s.get("name", s) if isinstance(s, dict) else s for s in raw]
+        payload: dict[str, Any] = {"required_skills": skills_list}
+    elif isinstance(raw, dict):
+        payload = dict(raw)
+    else:
+        payload = {}
+    payload.setdefault("position_name", record.job_title)
+    payload.setdefault("experience_required", record.experience_years)
+    payload.setdefault("education_required", record.education)
+    return payload

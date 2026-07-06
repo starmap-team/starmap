@@ -1,14 +1,14 @@
-"""Emergence Finder — Z-score based emerging skill detection.
+"""Emergence Finder — 新兴技能检测器：基于 Z-score 统计方法发现新兴技能。
 
-Implements the emergence detection algorithm from design.md §4.5:
+核心算法（design.md §4.5）：
     z = (f(t) - μ) / σ
-    if z > 2.0 AND f(t) > 3 AND independent sources >= 3: mark as emerging
-    elif z > 1.5: mark as rising
+    if z > 2.0 AND f(t) > 3 AND 独立来源 >= 3: 标记为 emerging（新兴）
+    elif z > 1.5: 标记为 rising（上升）
 
-Sprint 2.3 enhancements:
-    - Cross-domain skill analysis (skills appearing in multiple domains)
-    - Portability score (how transferable a skill is across domains)
-    - Enhanced categorization with domain metadata
+Sprint 2.3 增强功能：
+    - 跨领域技能分析（技能在多个领域中出现）
+    - 可迁移性评分（技能跨领域转移的难易程度）
+    - 基于领域元数据的增强分类
 """
 
 from __future__ import annotations

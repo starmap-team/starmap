@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import re
@@ -19,6 +20,18 @@ try:
 except Exception:
     _HAS_NORMALIZE = False
     logger.warning("normalize module not available, using basic matching only")
+
+# Import LLM client for judge evaluation
+try:
+    from app.core.extraction.llm_client import (
+        call_llm_with_fallback,
+        parse_llm_json_response,
+    )
+    from app.core.extraction.prompt import get_prompt
+    _HAS_LLM = True
+except Exception as exc:
+    _HAS_LLM = False
+    logger.warning("LLM client not available for judge evaluation: {}")
 
 
 def _normalize_skill_for_eval(skill: str) -> str:
@@ -80,7 +93,52 @@ def compute_skill_f1(golden_skills: list[str], system_skills: list[str]) -> tupl
     return precision, recall, f1
 
 
-def evaluate_single_sample(golden: dict, system: dict, use_llm_judge: bool = False) -> SampleEvaluation:
+async def _call_llm_judge(golden: dict, system: dict) -> tuple[float | None, str | None]:
+    """Call LLM-as-judge to evaluate extraction quality.
+
+    Uses the llm_judge prompt from prompt.py and call_llm_with_fallback
+    to obtain multi-dimensional quality scores from the LLM.
+
+    Returns:
+        Tuple of (score, reasoning). score is f1_score or overall accuracy from LLM.
+        Returns (None, error_message) on failure.
+    """
+    if not _HAS_LLM:
+        return None, "LLM client not available"
+
+    try:
+        golden_json = json.dumps(golden, ensure_ascii=False, indent=2)
+        system_json = json.dumps(system, ensure_ascii=False, indent=2)
+        prompt = get_prompt("llm_judge", golden_json=golden_json, system_json=system_json)
+        response = await call_llm_with_fallback(prompt)
+        content = response.get("content", "") if isinstance(response, dict) else str(response)
+        result = parse_llm_json_response(content)
+    except Exception as exc:
+        return None, f"LLM judge call failed: {exc}"
+
+    if not isinstance(result, dict):
+        return None, f"LLM returned non-dict result: {str(result)[:200]}"
+
+    score = result.get("f1_score") or result.get("accuracy") or result.get("precision")
+    reasoning = result.get("details") or result.get("reasoning") or ""
+    return (float(score) if score is not None else None), str(reasoning)
+
+
+async def evaluate_single_sample(golden: dict, system: dict, use_llm_judge: bool = False) -> SampleEvaluation:
+    """Evaluate a single system output against golden standard.
+
+    Supports two modes:
+      - use_llm_judge=False (default): Compute F1 from skill name overlap.
+      - use_llm_judge=True: Also call LLM judge for multi-dimensional scoring.
+
+    Args:
+        golden: Golden standard dict.
+        system: System output dict.
+        use_llm_judge: Whether to also call the LLM judge.
+
+    Returns:
+        SampleEvaluation with F1 metrics and optional LLM scores.
+    """
     sid = golden.get("id", system.get("id", "unknown"))
 
     golden_required = golden.get("required_skills", [])
@@ -113,13 +171,25 @@ def evaluate_single_sample(golden: dict, system: dict, use_llm_judge: bool = Fal
     eval_result.errors = errors
 
     if use_llm_judge:
-        eval_result.llm_score = round(f1, 4)
-        eval_result.llm_reasoning = "LLM judge not yet implemented, using F1 as proxy"
+        llm_score, llm_reasoning = await _call_llm_judge(golden, system)
+        eval_result.llm_score = llm_score
+        eval_result.llm_reasoning = llm_reasoning
 
     return eval_result
 
 
-def evaluate_batch(golden_file: str, system_file: str, output_file: Optional[str] = None) -> ExtractionMetrics:
+async def evaluate_batch(golden_file: str, system_file: str, output_file: Optional[str] = None, use_llm_judge: bool = False) -> ExtractionMetrics:
+    """Evaluate system output against golden standard in batch.
+
+    Args:
+        golden_file: Path to golden JSONL file.
+        system_file: Path to system output JSONL file.
+        output_file: Optional output path for the metrics JSON.
+        use_llm_judge: Whether to use LLM judge for evaluation.
+
+    Returns:
+        ExtractionMetrics with aggregate scores.
+    """
     golden_data = _load_jsonl(golden_file)
     system_data = _load_jsonl(system_file)
     system_map = {s.get("id", s.get("job_title", "")): s for s in system_data}
@@ -131,7 +201,7 @@ def evaluate_batch(golden_file: str, system_file: str, output_file: Optional[str
         if not system:
             logger.warning(f"No system output for sample {sid}, treating as empty")
             system = {}
-        eval_result = evaluate_single_sample(golden, system)
+        eval_result = await evaluate_single_sample(golden, system, use_llm_judge=use_llm_judge)
         evaluations.append(eval_result)
 
     if not evaluations:

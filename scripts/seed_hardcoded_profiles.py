@@ -1,7 +1,11 @@
-"""将 match_service 中的8个硬编码岗位画像写入 Neo4j。
+"""Seed position profiles into Neo4j from the graph data pipeline.
 
-运行后，PositionRepository 可以从图谱加载这些画像，
-逐步替代硬编码 fallback。
+This script was originally used to write 8 hardcoded position profiles
+from match_service.POSITION_SKILL_PROFILES into Neo4j. Since the refactoring
+to a fully graph-driven architecture, POSITION_SKILL_PROFILES has been removed.
+
+This script now serves as a utility to verify that position profiles
+exist in Neo4j and can be loaded by the match service.
 
 用法：
     python scripts/seed_hardcoded_profiles.py [--neo4j-uri bolt://localhost:7687]
@@ -18,101 +22,58 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
 from neo4j import AsyncGraphDatabase
 
-# 从 match_service 导入硬编码画像
-from app.services.match_service import POSITION_SKILL_PROFILES
 
-
-async def seed(uri: str, user: str, password: str) -> dict:
-    """将硬编码画像写入 Neo4j。"""
+async def verify(uri: str, user: str, password: str) -> dict:
+    """Verify that position profiles exist in Neo4j and can be loaded."""
     driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
-    stats = {"positions_created": 0, "skills_created": 0, "relationships_created": 0}
+    stats: dict[str, int | list[str]] = {
+        "positions_found": 0,
+        "positions_with_skills": 0,
+        "total_skills": 0,
+        "position_names": [],
+    }
 
     async with driver.session() as session:
-        for pos_name, profile in POSITION_SKILL_PROFILES.items():
-            # MERGE Position 节点
-            await session.run(
-                "MERGE (p:Position {name: $name}) "
-                "SET p.source = 'hardcoded_seed', p.seeded_at = datetime()",
-                name=pos_name,
-            )
-            stats["positions_created"] += 1
+        # Count positions
+        result = await session.run("MATCH (p:Position) RETURN p.name AS name")
+        async for record in result:
+            stats["positions_found"] += 1
+            name = record["name"]
+            if name:
+                stats["position_names"].append(name)  # type: ignore[union-attr]
 
-            # 处理 required 和 bonus 技能
-            for skill_info in profile.get("required", []):
-                skill_name = skill_info["skill"]
-                category = skill_info.get("category", "hard_skill")
-                proficiency = skill_info.get("proficiency", "熟悉")
-
-                # MERGE Skill 节点
-                await session.run(
-                    "MERGE (s:Skill {name: $name}) "
-                    "ON CREATE SET s.category = $category, s.source_count = 1 "
-                    "ON MATCH SET s.source_count = COALESCE(s.source_count, 0) + 1",
-                    name=skill_name, category=category,
-                )
-                stats["skills_created"] += 1
-
-                # MERGE REQUIRES 关系
-                await session.run(
-                    "MATCH (p:Position {name: $pos_name}) "
-                    "MATCH (s:Skill {name: $skill_name}) "
-                    "MERGE (p)-[r:REQUIRES]->(s) "
-                    "SET r.level = $proficiency, r.required = true, r.source = 'hardcoded_seed'",
-                    pos_name=pos_name, skill_name=skill_name, proficiency=proficiency,
-                )
-                stats["relationships_created"] += 1
-
-            for skill_info in profile.get("bonus", []):
-                skill_name = skill_info["skill"]
-                category = skill_info.get("category", "hard_skill")
-                proficiency = skill_info.get("proficiency", "了解")
-
-                await session.run(
-                    "MERGE (s:Skill {name: $name}) "
-                    "ON CREATE SET s.category = $category, s.source_count = 1 "
-                    "ON MATCH SET s.source_count = COALESCE(s.source_count, 0) + 1",
-                    name=skill_name, category=category,
-                )
-                stats["skills_created"] += 1
-
-                await session.run(
-                    "MATCH (p:Position {name: $pos_name}) "
-                    "MATCH (s:Skill {name: $skill_name}) "
-                    "MERGE (p)-[r:REQUIRES]->(s) "
-                    "SET r.level = $proficiency, r.required = false, r.source = 'hardcoded_seed'",
-                    pos_name=pos_name, skill_name=skill_name, proficiency=proficiency,
-                )
-                stats["relationships_created"] += 1
+        # Count positions with at least one REQUIRES relationship
+        skill_result = await session.run(
+            "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
+            "RETURN p.name AS pos_name, count(s) AS skill_count"
+        )
+        async for record in skill_result:
+            if record["skill_count"] > 0:
+                stats["positions_with_skills"] += 1
+                stats["total_skills"] += record["skill_count"]  # type: ignore[union-attr]
 
     await driver.close()
     return stats
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description="将硬编码画像写入 Neo4j")
+    parser = argparse.ArgumentParser(description="Verify position profiles in Neo4j")
     parser.add_argument("--neo4j-uri", default="bolt://localhost:7687")
     parser.add_argument("--neo4j-user", default="neo4j")
     parser.add_argument("--neo4j-password", default="password")
-    parser.add_argument("--dry-run", action="store_true", help="仅打印，不写入")
     args = parser.parse_args()
 
-    print(f"📌 将写入 {len(POSITION_SKILL_PROFILES)} 个岗位画像:")
-    for name, profile in POSITION_SKILL_PROFILES.items():
-        req = len(profile.get("required", []))
-        bon = len(profile.get("bonus", []))
-        print(f"  {name}: {req} required + {bon} bonus")
+    print(f"🔗 连接 Neo4j: {args.neo4j_uri}")
+    stats = await verify(args.neo4j_uri, args.neo4j_user, args.neo4j_password)
 
-    if args.dry_run:
-        print("\n[dry-run] 未写入任何数据")
-        return
-
-    print(f"\n🔗 连接 Neo4j: {args.neo4j_uri}")
-    stats = await seed(args.neo4j_uri, args.neo4j_user, args.neo4j_password)
-
-    print(f"\n✅ 完成:")
-    print(f"  岗位节点: {stats['positions_created']}")
-    print(f"  技能节点: {stats['skills_created']}")
-    print(f"  REQUIRES 关系: {stats['relationships_created']}")
+    print("\n✅ Neo4j 图谱状态:")
+    print(f"  岗位节点: {stats['positions_found']}")
+    print(f"  有技能要求的岗位: {stats['positions_with_skills']}")
+    print(f"  总技能关联: {stats['total_skills']}")
+    if stats["position_names"]:
+        print("\n📋 岗位列表:")
+        for name in sorted(stats["position_names"]):  # type: ignore[union-attr]
+            print(f"  - {name}")
 
 
 if __name__ == "__main__":

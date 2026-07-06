@@ -85,7 +85,11 @@ const kaRelatedPositions = computed(() => {
   const kaId = props.selectedNode.id
   return graphStore.allNodes.filter(n => {
     if (!n.labels.includes("Position")) return false
-    return graphStore.allEdges.some(e => e.source_id === n.id && e.target_id === kaId && e.type === "BELONGS_TO")
+    // Check both BELONGS_TO and CONTAINS edge types
+    return graphStore.allEdges.some(e => 
+      (e.source_id === n.id && e.target_id === kaId && (e.type === "BELONGS_TO" || e.type === "CONTAINS")) ||
+      (e.source_id === kaId && e.target_id === n.id && (e.type === "CONTAINS"))
+    )
   })
 })
 

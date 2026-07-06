@@ -11,11 +11,14 @@ import request from '@/api/request'
 
 export interface PipelineStage {
   name: string
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'waiting'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled'
+  started_at: string | null
+  completed_at: string | null
+  progress: number
   duration_ms: number
   records_processed: number
-  errors: number
-  progress: number
+  errors: string[]
+  errors_count: number
   retry_count: number
   depends_on: string[]
 }
@@ -24,7 +27,7 @@ export interface PipelineRun {
   id: string
   run_type: 'full' | 'incremental' | 'source_sync'
   status: 'running' | 'completed' | 'failed' | 'cancelled'
-  started_at: string
+  started_at: string | null
   completed_at: string | null
   stages: PipelineStage[]
   total_records: number
@@ -55,19 +58,62 @@ export interface PipelineStatus {
   last_run: PipelineRun | null
   run_counts: Record<string, number>
   active_data_sources: number
-  today_crawl_volume?: number
-  success_rate?: number
-  avg_quality_score?: number
+  today_crawl_volume: number
+  success_rate: number
+  avg_quality_score: number
 }
 
 export interface DataQualityMetrics {
   overall_score: number
   completeness: number
   accuracy: number
+  freshness_hours: number
+  duplicate_rate: number
+  total_records: number
+  valid_records: number
   consistency: number
   timeliness: number
   trend: Array<{ date: string; score: number }>
-  alerts: Array<{ level: 'info' | 'warning' | 'error'; message: string; time: string }>
+  alerts: Array<{
+    level: 'info' | 'warning' | 'error'
+    dimension?: string
+    message: string
+    source?: string
+    value?: number
+    threshold?: number
+    timestamp: string
+    time: string  // Pydantic alias of timestamp
+  }>
+}
+
+// ── Phase 1 SSE 事件类型 (D-10) ──
+
+export interface QualityAlert {
+  level: 'info' | 'warning' | 'error'
+  message: string
+  source: string
+  timestamp: string
+  dimension?: string
+  value?: number
+  threshold?: number
+  time: string
+}
+
+export interface DataMilestone {
+  type: string
+  count: number
+  source: string
+  message: string
+  timestamp: string
+}
+
+export interface ExtractionComplete {
+  jd_id: string
+  source: string
+  skills_count: number
+  duration_ms: number
+  quality_score: number
+  timestamp: string
 }
 
 export interface PipelineSchedule {
@@ -116,6 +162,11 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   // SSE 实时进度事件
   const liveEvents = ref<Array<{ stage: string; status: string; progress: number; message: string }>>([])
+
+  // Phase 1 SSE-04 / SSE-05: 3 个新事件类型 state（D-07）
+  const qualityAlerts = ref<QualityAlert[]>([])
+  const milestones = ref<DataMilestone[]>([])
+  const recentExtractions = ref<ExtractionComplete[]>([])
 
   async function fetchStatus() {
     loading.value = true
@@ -218,8 +269,13 @@ export const usePipelineStore = defineStore('pipeline', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get('/pipeline/data-quality') as DataQualityMetrics
-      dataQuality.value = data
+      const raw = await request.get('/pipeline/data-quality') as any
+      // Phase 1: API 返回嵌套 { metrics: {...}, alerts: [...] } 结构
+      // 需要解包 metrics + 合并 alerts 到顶层
+      const metrics = (raw && raw.metrics) ? raw.metrics : raw
+      const alerts = (raw && raw.alerts) ? raw.alerts : []
+      const result = { ...metrics, alerts } as DataQualityMetrics
+      dataQuality.value = result
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '获取数据质量失败'
     } finally {
@@ -292,6 +348,20 @@ export const usePipelineStore = defineStore('pipeline', () => {
     }
   }
 
+  async function triggerSchedule(id: string) {
+    loading.value = true
+    error.value = null
+    try {
+      await request.post(`/pipeline/schedules/${id}/trigger`)
+      await fetchSchedules()
+      await fetchStatus()
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '执行调度失败'
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchConfig() {
     loading.value = true
     error.value = null
@@ -330,6 +400,50 @@ export const usePipelineStore = defineStore('pipeline', () => {
     }
   }
 
+  // Phase 1 SSE-04 / SSE-05: 3 个新事件 handler（D-07）
+  function handleQualityAlert(data: QualityAlert) {
+    // 自动用 timestamp 填充 time 别名（如缺失）
+    if (!data.time && data.timestamp) {
+      data.time = data.timestamp
+    }
+    qualityAlerts.value.push(data)
+    // Keep only last 50 (FIFO)
+    if (qualityAlerts.value.length > 50) {
+      qualityAlerts.value = qualityAlerts.value.slice(-50)
+    }
+  }
+
+  function handleMilestone(data: DataMilestone) {
+    milestones.value.push(data)
+    if (milestones.value.length > 50) {
+      milestones.value = milestones.value.slice(-50)
+    }
+  }
+
+  function handleExtractionComplete(data: ExtractionComplete) {
+    recentExtractions.value.push(data)
+    if (recentExtractions.value.length > 50) {
+      recentExtractions.value = recentExtractions.value.slice(-50)
+    }
+  }
+
+  // Phase 1 CANCEL-02: cancelRun action
+  async function cancelRun(runId: string): Promise<boolean> {
+    loading.value = true
+    error.value = null
+    try {
+      await request.post(`/pipeline/runs/${runId}/cancel`)
+      // Refresh status after successful cancel
+      await fetchStatus()
+      return true
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '取消流水线失败'
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     pipelineStatus,
     runs,
@@ -341,6 +455,10 @@ export const usePipelineStore = defineStore('pipeline', () => {
     loading,
     error,
     liveEvents,
+    // Phase 1 SSE-04/05 新增 state
+    qualityAlerts,
+    milestones,
+    recentExtractions,
     fetchStatus,
     fetchRuns,
     fetchRunDetail,
@@ -354,8 +472,15 @@ export const usePipelineStore = defineStore('pipeline', () => {
     createSchedule,
     updateSchedule,
     deleteSchedule,
+    triggerSchedule,
     fetchConfig,
     updateConfig,
     handlePipelineEvent,
+    // Phase 1 SSE-04/05 新增 actions
+    handleQualityAlert,
+    handleMilestone,
+    handleExtractionComplete,
+    // Phase 1 CANCEL-02
+    cancelRun,
   }
 })

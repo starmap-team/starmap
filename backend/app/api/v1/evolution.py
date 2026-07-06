@@ -19,6 +19,7 @@ from typing import Annotated, Any
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
+from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -126,133 +127,96 @@ async def get_trends(
     days: Annotated[int, Query(ge=7, le=730, description="分析时间窗口（天）")] = 90,
 ) -> EvolutionTrendsResponse:
     """技能热度趋势、岗位变迁时间线、新兴岗位预警（§8.3 演化看板）。"""
-    _ = days
+    from datetime import UTC, datetime, timedelta
 
-    # Load real timeseries data first
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+
+    # Load real timeseries data filtered by days parameter
     ts_stmt = (
         sa.select(SkillTimeseries)
+        .where(SkillTimeseries.window_start >= cutoff)
         .order_by(SkillTimeseries.skill_name, SkillTimeseries.window_start.asc())
     )
     ts_result = await session.execute(ts_stmt)
     ts_records = ts_result.scalars().all()
 
-    # If we have timeseries data, use it for real trends
-    if ts_records:
-        from app.core.evolution.emergence_finder import EmergenceFinder
+    # If no timeseries data, return empty array with helpful message
+    if not ts_records:
+        logger.info("No timeseries data found for trends in the last {} days", days)
+        return EvolutionTrendsResponse(items=[])
 
-        # Build skill_data from timeseries
-        skill_data: dict[str, dict[str, Any]] = {}
-        for r in ts_records:
-            name = r.skill_name
-            if name not in skill_data:
-                skill_data[name] = {
-                    "frequencies": [],
-                    "current": 0,
-                    "sources": r.source_count,
-                    "positions": r.positions or [],
-                }
-            skill_data[name]["frequencies"].append(r.frequency)
+    from app.core.evolution.emergence_finder import EmergenceFinder
 
-        for data in skill_data.values():
-            freqs = data["frequencies"]
-            if freqs:
-                data["current"] = freqs[-1]
-                data["frequencies"] = freqs[:-1]
+    # Build skill_data from timeseries
+    skill_data: dict[str, dict[str, Any]] = {}
+    for r in ts_records:
+        name = r.skill_name
+        if name not in skill_data:
+            skill_data[name] = {
+                "frequencies": [],
+                "current": 0,
+                "sources": r.source_count,
+                "positions": r.positions or [],
+            }
+        skill_data[name]["frequencies"].append(r.frequency)
 
-        # Run emergence detection for trend classification
-        finder = EmergenceFinder()
-        report = finder.scan(skill_data)
+    for data in skill_data.values():
+        freqs = data["frequencies"]
+        if freqs:
+            data["current"] = freqs[-1]
+            data["frequencies"] = freqs[:-1]
 
-        # Build signals lookup
-        signals_by_name: dict[str, Any] = {}
-        for s in report.emerging + report.rising + report.declining:
-            signals_by_name[s.skill_name] = s
-        for s in report.stable:
-            signals_by_name[s.skill_name] = s
+    # Run emergence detection for trend classification
+    finder = EmergenceFinder()
+    report = finder.scan(skill_data)
 
-        # Also load position relations
-        rel_stmt = (
-            sa.select(SkillRecord.name, PositionRecord.name)
-            .select_from(SkillRecord)
-            .outerjoin(PositionSkillRelation, PositionSkillRelation.skill_id == SkillRecord.id)
-            .outerjoin(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
-        )
-        rel_rows = (await session.execute(rel_stmt)).all()
-        skill_positions: dict[str, list[str]] = {}
-        for skill_name, pos_name in rel_rows:
-            if skill_name:
-                skill_positions.setdefault(skill_name, [])
-                if pos_name and pos_name not in skill_positions[skill_name]:
-                    skill_positions[skill_name].append(pos_name)
+    # Build signals lookup
+    signals_by_name: dict[str, Any] = {}
+    for s in report.emerging + report.rising + report.declining:
+        signals_by_name[s.skill_name] = s
+    for s in report.stable:
+        signals_by_name[s.skill_name] = s
 
-        items: list[EvolutionTrend] = []
-        for name, data in list(skill_data.items())[:20]:
-            signal = signals_by_name.get(name)
-            trend = signal.level.value if signal else "stable"
-            confidence = min(1.0, 0.5 + (signal.z_score / 10) if signal else 0.5)
-            # Use all frequencies as CII points
-            all_freqs = list(data["frequencies"])
-            if data["current"]:
-                all_freqs.append(data["current"])
-            # Normalize to CII scale (baseline = mean of first half)
-            if len(all_freqs) >= 2:
-                baseline = sum(all_freqs[:max(1, len(all_freqs)//2)]) / max(1, len(all_freqs)//2)
-                cii_points = [(f / baseline * 100) if baseline > 0 else 100.0 for f in all_freqs]
-            else:
-                cii_points = [100.0]
-
-            items.append(EvolutionTrend(
-                skill_name=name,
-                trend=trend,
-                confidence=round(confidence, 3),
-                points=[round(p, 1) for p in cii_points],
-                related_positions=skill_positions.get(name, []),
-            ))
-
-        return EvolutionTrendsResponse(items=items)
-
-    # Fallback: use SkillRecord source_count (legacy path)
-    stmt = (
-        sa.select(SkillRecord.name, SkillRecord.source_count, PositionRecord.name)
+    # Also load position relations
+    rel_stmt = (
+        sa.select(SkillRecord.name, PositionRecord.name)
         .select_from(SkillRecord)
         .outerjoin(PositionSkillRelation, PositionSkillRelation.skill_id == SkillRecord.id)
         .outerjoin(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
-        .order_by(SkillRecord.source_count.desc(), SkillRecord.name.asc())
-        .limit(200)
     )
-    if category:
-        stmt = stmt.where(SkillRecord.category == category)
+    rel_rows = (await session.execute(rel_stmt)).all()
+    skill_positions: dict[str, list[str]] = {}
+    for skill_name, pos_name in rel_rows:
+        if skill_name:
+            skill_positions.setdefault(skill_name, [])
+            if pos_name and pos_name not in skill_positions[skill_name]:
+                skill_positions[skill_name].append(pos_name)
 
-    rows = (await session.execute(stmt)).all()
-    grouped: dict[str, tuple[int, list[str]]] = {}
-    for skill_name, source_count, position_name in rows:
-        count, positions = grouped.setdefault(skill_name, (int(source_count or 0), []))
-        if position_name and position_name not in positions:
-            positions.append(position_name)
-        grouped[skill_name] = (count, positions)
-
-    fallback_items: list[EvolutionTrend] = []
-    for name, (count, related_positions) in list(grouped.items())[:20]:
-        confidence = min(1.0, 0.5 + count / 20)
-        # Generate simulated CII time-series based on source_count
-        base = max(60, min(200, count * 10))
-        trend = "rising" if count > 5 else "declining" if count < 2 else "stable"
-        if trend == "rising":
-            points = [float(base + i * 8) for i in range(4)]
-        elif trend == "declining":
-            points = [float(base - i * 8) for i in range(4)]
+    items: list[EvolutionTrend] = []
+    for name, data in list(skill_data.items())[:20]:
+        signal = signals_by_name.get(name)
+        trend = signal.level.value if signal else "stable"
+        confidence = min(1.0, 0.5 + (signal.z_score / 10) if signal else 0.5)
+        # Use all frequencies as CII points
+        all_freqs = list(data["frequencies"])
+        if data["current"]:
+            all_freqs.append(data["current"])
+        # Normalize to CII scale (baseline = mean of first half)
+        if len(all_freqs) >= 2:
+            baseline = sum(all_freqs[:max(1, len(all_freqs)//2)]) / max(1, len(all_freqs)//2)
+            cii_points = [(f / baseline * 100) if baseline > 0 else 100.0 for f in all_freqs]
         else:
-            points = [float(base) for _ in range(4)]
+            cii_points = [100.0]
 
-        fallback_items.append(EvolutionTrend(
+        items.append(EvolutionTrend(
             skill_name=name,
             trend=trend,
-            confidence=confidence,
-            points=points,
-            related_positions=related_positions,
+            confidence=round(confidence, 3),
+            points=[round(p, 1) for p in cii_points],
+            related_positions=skill_positions.get(name, []),
         ))
 
-    return EvolutionTrendsResponse(items=fallback_items)
+    return EvolutionTrendsResponse(items=items)
 
 
 @router.post("/analyze")

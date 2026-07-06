@@ -15,6 +15,9 @@ from typing import Any
 from loguru import logger
 
 
+from app.config import settings
+
+
 @dataclass
 class EvolutionPath:
     """A discovered evolution path between two positions."""
@@ -52,9 +55,9 @@ class PathRecommender:
     - Identify key gaps (skills the target requires but source doesn't)
     """
 
-    # Thresholds (from design.md EVO-005)
-    MIN_SIMILARITY = 0.6
-    MIN_EVIDENCE = 1
+    # Thresholds from config (was hardcoded, now centralized)
+    MIN_SIMILARITY = settings.path_min_similarity
+    MIN_EVIDENCE = settings.path_min_evidence
 
     def compute_similarity(
         self,

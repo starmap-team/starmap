@@ -1,4 +1,4 @@
-﻿"""Match API."""
+"""Match API."""
 
 from __future__ import annotations
 
@@ -59,60 +59,19 @@ class MatchResponse(BaseModel):
 
 
 async def _run_match_request(body: MatchRequestInput, driver: Any, session: AsyncSession) -> MatchResponse:
+    """Execute match and persist result via the service layer.
+
+    The service's run_match() now handles PostgreSQL persistence internally,
+    so no duplicate INSERT is needed here.
+    """
     result = await run_match(
         target_position=body.target_position,
         person_skills=[item.model_dump() for item in body.person_skills],
         threshold=body.options.threshold,
         driver=driver,
+        db_session=session,
     )
-    response = MatchResponse(**result)
-
-    try:
-        await session.execute(
-            text(
-                """
-                INSERT INTO match_results (
-                    match_id,
-                    target_position,
-                    person_skills,
-                    match_score,
-                    matched_skills,
-                    missing_required,
-                    missing_bonus,
-                    gap_report,
-                    learning_path,
-                    created_at
-                ) VALUES (
-                    :match_id,
-                    :target_position,
-                    CAST(:person_skills AS jsonb),
-                    :match_score,
-                    CAST(:matched_skills AS jsonb),
-                    CAST(:missing_required AS jsonb),
-                    CAST(:missing_bonus AS jsonb),
-                    CAST(:gap_report AS jsonb),
-                    CAST(:learning_path AS jsonb),
-                    now()
-                )
-                """
-            ),
-            {
-                "match_id": response.match_id,
-                "target_position": response.target_position,
-                "person_skills": __import__("json").dumps([item.model_dump() for item in body.person_skills]),
-                "match_score": response.match_score,
-                "matched_skills": __import__("json").dumps(response.matched_skills),
-                "missing_required": __import__("json").dumps(response.missing_required),
-                "missing_bonus": __import__("json").dumps(response.missing_bonus),
-                "gap_report": __import__("json").dumps([d.model_dump() for d in response.skill_gap_detail]),
-                "learning_path": __import__("json").dumps([d.learning_path for d in response.skill_gap_detail]),
-            },
-        )
-        await session.commit()
-    except Exception as exc:
-        logger.exception("Failed to persist match result: %s", exc)
-
-    return response
+    return MatchResponse(**result)
 
 
 @router.post("/position", response_model=MatchResponse)
@@ -181,18 +140,29 @@ async def match_history(
 @router.post("/batch")
 async def batch_match(
     body: dict,
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, Any]:
-    """Batch match: run match for multiple items at once."""
+    """Batch match: run match for multiple items at once.
+
+    Payload compatibility: accepts both ``position`` (frontend learning store)
+    and ``position_name`` (legacy contract) as the target position field.
+    Each item: ``{ "skills": [...], "position": "..." }``.
+    """
     items = body.get("items", [])
     results = []
     for item in items[:20]:
+        # 兼容前端 {position} 与历史契约 {position_name} 两种字段命名
+        position = item.get("position_name") or item.get("position") or ""
+        skills = item.get("skills", [])
         try:
             result = await run_match(
-                target_position=item.get("position_name", ""),
-                person_skills=item.get("skills", []),
+                target_position=position,
+                person_skills=skills,
+                driver=driver,
+                db_session=session,
             )
-            results.append({"position_name": item.get("position_name", ""), "result": result})
+            results.append({"position_name": position, "result": result})
         except Exception as e:
-            results.append({"position_name": item.get("position_name", ""), "error": str(e)})
+            results.append({"position_name": position, "error": str(e)})
     return {"results": results, "total": len(results)}

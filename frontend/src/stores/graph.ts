@@ -43,6 +43,11 @@ export interface GraphEdge {
   properties: {
     weight: number
     required?: boolean
+    trend?: 'rising' | 'stable' | 'declining'
+    skill_overlap?: string[]
+    key_gaps?: string[]
+    similarity?: number
+    evidence_count?: number
   }
 }
 
@@ -170,12 +175,17 @@ export const useGraphStore = defineStore('graph', () => {
 
   /** 第 1 层：获取领域概览 */
   async function fetchOverview(mode: OverviewMode = 'domain') {
-    overviewMode.value = mode
     loading.value = true
     try {
       const data = await request.get(`/graph/overview?group_by=${mode}`) as any
       domains.value = data.domains ?? []
       domainConnections.value = data.connections ?? []
+      // 延迟设置 overviewMode 直到数据就绪，避免 Graph3D watch 被触发两次：
+      // 1) overviewMode 变了但 nodes/links 还是旧数据（力配置错配）
+      // 2) API 返回后 nodes/links 更新（再次触发）
+      // Vue 的批处理会在同一微任务中合并 domains/domainConnections/overviewMode 的更新，
+      // 确保 computed 属性只触发一次 watch
+      overviewMode.value = mode
     } catch (e) {
       console.error('[Graph] Failed to fetch overview:', e)
       domains.value = []
@@ -219,11 +229,24 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
-  /** 加载演化关系边 */
+  /** 加载演化关系边（含趋势、技能重叠、差距等详情） */
   async function fetchEvolutionEdges() {
     try {
-      const data = await request.get('/evolution/paths/all') as any
-      evolutionEdges.value = Array.isArray(data) ? data.map((p: any) => ({ source_id: p.source_position, target_id: p.target_position, type: 'EVOLVES_TO', properties: { weight: p.similarity ?? 0.5 } })) : []
+      const data = await request.get('/evolution/paths/all') as any[]
+      const paths = Array.isArray(data) ? data : []
+      evolutionEdges.value = paths.map((p: any) => ({
+        source_id: p.source_position,
+        target_id: p.target_position,
+        type: 'EVOLVES_TO',
+        properties: {
+          weight: p.similarity ?? 0.5,
+          similarity: p.similarity ?? 0.5,
+          trend: (p.trend ?? p.similarity >= 0.6 ? 'rising' : p.similarity >= 0.3 ? 'stable' : 'declining') as 'rising' | 'stable' | 'declining',
+          skill_overlap: p.skill_overlap ?? [],
+          key_gaps: p.key_gaps ?? [],
+          evidence_count: p.evidence_count ?? 0,
+        },
+      }))
     } catch (e) {
       console.error('[Graph] Failed to fetch evolution edges:', e)
       evolutionEdges.value = []

@@ -462,6 +462,7 @@ onMounted(async () => {
               ref="graph3DRef"
               :nodes="graph3DNodes"
               :links="graph3DLinks"
+              :current-layer="graphStore.currentLayer"
               @node-click="handleNodeClick"
               @node-dbl-click="onNodeDblClick"
             />

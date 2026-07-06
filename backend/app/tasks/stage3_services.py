@@ -1,9 +1,7 @@
 """Stage 3 task services for extraction, graph ingestion, and evolution analysis."""
 from __future__ import annotations
 
-import asyncio
 from collections import Counter, defaultdict
-from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -21,17 +19,6 @@ from app.models.extraction_models import (
     PositionSkillRelation,
     SkillRecord,
 )
-
-
-def run_async(coro: Any) -> Any:
-    """Run an async coroutine from a Celery worker process."""
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        return executor.submit(asyncio.run, coro).result()
 
 
 def _skill_name(entry: Any) -> str:

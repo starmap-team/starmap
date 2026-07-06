@@ -1,4 +1,12 @@
-"""Skill name normalization: alias, vector, and source-count validation."""
+"""Normalize — 技能标准化：别名映射、向量相似度和来源数验证。
+
+核心流程（三步标准化管道）：
+1. 别名查找（快速精确匹配）→ 2. 向量相似度（模糊匹配）→ 3. 来源数验证
+
+业务价值：
+  将 JD 中各种变体写法（如 "py", "python3", "Python 编程"）统一为标准技能名，
+  确保后续匹配、分析、统计的准确性，避免同一技能因写法不同而被重复计数。
+"""
 
 import threading
 from dataclasses import dataclass, field
@@ -312,6 +320,39 @@ CHROMA_COLLECTION_NAME: str = "skill_embeddings"
 _SENTENCE_MODEL: Any = None
 _SENTENCE_MODEL_NAME: str = "BAAI/bge-m3"
 
+# 业务说明：ChromaDB 不可用负缓存。当 ChromaDB 连接失败或 collection 不存在时，
+# 在 _CHROMA_NEGATIVE_CACHE_TTL 秒内直接快速返回，避免每次调用都重新建连/查询。
+# 技术说明：匹配引擎的 _chroma_similarity 会在 O(目标技能×候选技能) 的嵌套循环中
+# 调用 normalize_by_vector，若每次都重新尝试连接，单次匹配会触发数百次失败重试，
+# 导致 /match/position 接口长时间无响应（前端表现为"点击开始诊断无反馈"）。
+# 负缓存 TTL 60s 平衡了"故障快速失败"与"恢复后自动重试"两个诉求。
+_CHROMA_NEGATIVE_CACHE_TTL: float = 60.0
+_chroma_unavailable_until: float = 0.0
+_chroma_unavailable_reason: str = ""
+
+
+def _is_chroma_marked_unavailable() -> bool:
+    """Return True if ChromaDB is marked unavailable within the negative-cache window."""
+    import time
+
+    return time.monotonic() < _chroma_unavailable_until
+
+
+def _mark_chroma_unavailable(reason: str) -> None:
+    """Mark ChromaDB as unavailable for the negative-cache TTL window."""
+    import time
+
+    global _chroma_unavailable_until, _chroma_unavailable_reason
+    _chroma_unavailable_until = time.monotonic() + _CHROMA_NEGATIVE_CACHE_TTL
+    _chroma_unavailable_reason = reason
+
+
+def reset_chroma_cache() -> None:
+    """Reset the ChromaDB negative cache (for tests / manual recovery)."""
+    global _chroma_unavailable_until, _chroma_unavailable_reason
+    _chroma_unavailable_until = 0.0
+    _chroma_unavailable_reason = ""
+
 
 def get_embedding(text: str) -> list[float]:
     """Get sentence embedding for text using sentence-transformers.
@@ -353,11 +394,22 @@ def normalize_by_vector(
 
     Returns:
         Matched standard skill name, or None.
+
+    Note: When ChromaDB is unreachable or the collection is missing, the failure
+    is cached for ``_CHROMA_NEGATIVE_CACHE_TTL`` seconds to avoid hammering the
+    service from hot loops (e.g. the match engine's O(N×M) chroma fallback).
     """
+    # 负缓存快速失败：若 ChromaDB 近期被标记为不可用，直接返回 None，
+    # 避免在匹配引擎嵌套循环中重复触发连接/查询失败。
+    # 注意：显式传入 chroma_client 的调用（如管理脚本）跳过负缓存，以便即时验证。
+    if chroma_client is None and _is_chroma_marked_unavailable():
+        return None
+
     try:
         import chromadb
     except ImportError:
         logger.warning("chromadb not installed, skipping vector normalization")
+        _mark_chroma_unavailable("chromadb-not-installed")
         return None
 
     if chroma_client is None:
@@ -366,6 +418,7 @@ def normalize_by_vector(
             chroma_client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
         except Exception:
             logger.warning("ChromaDB not reachable, skipping vector normalization")
+            _mark_chroma_unavailable("client-unreachable")
             return None
 
     collection_name = CHROMA_COLLECTION_NAME
@@ -373,7 +426,10 @@ def normalize_by_vector(
     try:
         collection = chroma_client.get_collection(collection_name)
     except Exception:
-        logger.warning("Chroma collection '{}' not found, skipping vector norm", collection_name)
+        # 仅在首次失败时记录 warning + 标记不可用；负缓存窗口内后续调用静默返回 None。
+        if not _is_chroma_marked_unavailable():
+            logger.warning("Chroma collection '{}' not found, skipping vector norm", collection_name)
+            _mark_chroma_unavailable(f"collection-missing:{collection_name}")
         return None
 
     query_embedding = get_embedding(skill_name)

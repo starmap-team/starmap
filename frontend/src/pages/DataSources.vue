@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 数据源管理页 — Sprint 1.2
  * 网格卡片布局展示5个数据源（BOSS/拉勾/51Job/GitHub/ESCO）
@@ -6,7 +6,7 @@
  */
 import { onMounted, ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { RefreshRight, Loading as LoadingIcon } from '@element-plus/icons-vue'
+import { Connection, Coin, DataLine, RefreshRight, Loading as LoadingIcon, WarningFilled } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { GaugeChart, BarChart } from 'echarts/charts'
@@ -754,3 +754,5 @@ const summaryStats = computed(() => {
   .card-stats { width: 100%; }
 }
 </style>
+
+

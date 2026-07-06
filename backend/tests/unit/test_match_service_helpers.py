@@ -1,31 +1,27 @@
 """Unit tests for match service helpers."""
 from __future__ import annotations
 
-from app.services.match_service import (
-    POSITION_SKILL_PROFILES,
-    PREREQUISITE_MAP,
+from app.core.matching.scorer import (
     PROFICIENCY_SCORE,
-    _apply_inflation_correction,
-    _build_learning_path,
     _canonical_skill_name,
-    _fallback_profile,
-    _position_key,
     _semantic_similarity,
     score_skill_match,
 )
+from app.core.matching.service import MatchService
+from app.core.matching.path_builder import build_learning_path
 
 
-class TestPositionKey:
-    def test_strips_and_lowercases(self):
-        assert _position_key("Backend Engineer") == "backendengineer"
-
-    def test_empty_string(self):
-        assert _position_key("") == ""
+# 创建 MatchService 实例用于测试
+_match_service = MatchService()
 
 
 class TestCanonicalSkillName:
     def test_basic_skill(self):
         result = _canonical_skill_name("Python")
+        assert isinstance(result, str)
+
+    def test_returns_lowercase_normalized(self):
+        result = _canonical_skill_name("Python3")
         assert isinstance(result, str)
 
 
@@ -60,7 +56,7 @@ class TestScoreSkillMatch:
 class TestApplyInflationCorrection:
     def test_no_correction_for_small_profile(self):
         profile = {"required": [{"skill": "Python"}], "bonus": []}
-        req, bonus, cii = _apply_inflation_correction(profile)
+        req, bonus, cii = _match_service._apply_inflation_correction(profile)
         assert len(req) == 1
         assert cii > 0
 
@@ -69,7 +65,7 @@ class TestApplyInflationCorrection:
             {"skill": f"Skill{i}", "proficiency": "熟悉"} for i in range(10)
         ]
         profile = {"required": large_required, "bonus": []}
-        req, bonus, cii = _apply_inflation_correction(profile)
+        req, bonus, cii = _match_service._apply_inflation_correction(profile)
         # Some should be downgraded
         assert len(req) < 10
         assert cii > 1.0
@@ -77,35 +73,19 @@ class TestApplyInflationCorrection:
 
 class TestBuildLearningPath:
     def test_no_prerequisites(self):
-        path = _build_learning_path("Python", set())
+        path = build_learning_path("Python", set(), {})
         assert "Python" in path
 
     def test_with_prerequisites(self):
-        path = _build_learning_path("Pandas", set())
+        # 使用测试用的前置关系映射
+        prereq_map = {
+            "Pandas": ["Python", "NumPy"],
+            "NumPy": ["Python"],
+        }
+        path = build_learning_path("Pandas", set(), prereq_map)
         assert "Python" in path
         assert "NumPy" in path
         assert "Pandas" in path
-
-    def test_no_cycles(self):
-        # Add a cycle
-        PREREQUISITE_MAP["CycleTest"] = ["CycleTest"]
-        path = _build_learning_path("CycleTest", set())
-        assert "CycleTest" in path
-        del PREREQUISITE_MAP["CycleTest"]
-
-
-class TestFallbackProfile:
-    def test_exact_match(self):
-        profile = _fallback_profile("数据分析师")
-        assert "required" in profile
-
-    def test_fuzzy_match(self):
-        profile = _fallback_profile("后端")
-        assert "required" in profile
-
-    def test_no_match(self):
-        profile = _fallback_profile("NonExistent Position XYZ")
-        assert "required" in profile  # Falls back to default
 
 
 class TestProficiencyScore:

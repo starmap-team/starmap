@@ -1,10 +1,6 @@
 """Tests for judge service helper functions."""
 from __future__ import annotations
 
-from unittest.mock import patch
-
-import pytest
-
 from app.services.judge_service import (
     ExtractionMetrics,
     SampleEvaluation,

@@ -10,6 +10,34 @@ from app.dependencies import get_db_session
 from app.main import app
 
 
+class FakeRow:
+    """A row that supports both index and named-attribute access (like SQLAlchemy Row)."""
+
+    def __init__(self, values, labels=None):
+        self._values = values if isinstance(values, (list, tuple)) else (values,)
+        self._labels = labels or []
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._values[key]
+        if key in self._labels:
+            return self._values[self._labels.index(key)]
+        raise KeyError(key)
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        if name in self._labels:
+            return self._values[self._labels.index(name)]
+        raise AttributeError(name)
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self):
+        return len(self._values)
+
+
 class FakeResult:
     def __init__(self, value):
         self.value = value
@@ -50,7 +78,8 @@ async def test_quality_dashboard_builder_aggregates_metrics():
             (5,),              # 8. high_trust_count
             (10,),             # 9. high_source_count
             (5,), (3,), (2,), (1,), (0,),  # 10-14. trust_distribution
-            [("general", 100), ("hard_skill", 80)],  # 15. source_distribution
+            [],                # 15. ts_rows (hallucination trend — empty)
+            [("general", 100), ("hard_skill", 80)],  # 16. source_distribution
         ]
     )
 
@@ -68,7 +97,7 @@ async def test_quality_dashboard_builder_aggregates_metrics():
 
 def test_quality_dashboard_endpoint_contract(client):
     async def override_session():
-        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0.0,), (0,), (0,), (0,), (0,), (0,), (0,), []])
+        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0.0,), (0,), (0,), (0,), (0,), (0,), (0,), [], []])
 
     app.dependency_overrides[get_db_session] = override_session
     try:

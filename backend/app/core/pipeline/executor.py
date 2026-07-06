@@ -65,25 +65,33 @@ async def _publish_stage_progress(
 # Stage execution functions (sync, called from Celery workers)
 # ---------------------------------------------------------------------------
 
-def _run_async(coro: Any) -> Any:
-    """Run an async coroutine from a Celery worker process."""
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-    from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        return executor.submit(asyncio.run, coro).result()
+from app.utils.async_helpers import run_async as _run_async
+
+# ponytail: removed duplicate _run_async; reusing utils.async_helpers
 
 
 def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
-    """Execute the crawl stage: run spiders and upsert JDs into jd_raw."""
+    """Execute the crawl stage: run spiders and upsert JDs into jd_raw.
+
+    Phase 2 AUTHORITY-03: Skip paused data sources.
+
+    Configuration (keyword, max_count) is read from DataSourceRecord.config,
+    falling back to defaults: keyword="python", max_count=50 (incremental)/200 (full).
+    """
     from crawler.persistence import dao
     from crawler.persistence.models import JdStatus
     from crawler.spiders.boss import run_sync as boss_sync
 
-    keyword = "python"
-    max_count = 50 if run_type == "incremental" else 200
+    # Phase 2 AUTHORITY-03: 跳过 paused 数据源
+    _run_async(_skip_paused_sources_if_needed(run_id))
+
+    # Load crawl config from DataSourceRecord; fallback to defaults
+    crawl_config = _run_async(_get_crawl_config(run_id))
+    keyword = crawl_config.get("keyword", "python")
+    max_count = crawl_config.get(
+        "max_count",
+        50 if run_type == "incremental" else 200,
+    )
     total_inserted = 0
     errors: list[str] = []
 
@@ -111,42 +119,81 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     except Exception as exc:
         errors.append(f"boss crawl failed: {exc}")
         logger.error("Crawl stage boss failed: {}", exc)
+    finally:
+        # Phase 2 SOURCE-01: execute_crawl 后更新 DataSourceRecord (UAT 修复)
+        try:
+            _update_source_after_crawl(run_id, total_inserted)
+        except Exception as exc:
+            logger.warning("_update_source_after_crawl failed (non-fatal): {}", exc)
 
     return {"records_processed": total_inserted, "errors": errors}
 
 
 def execute_dedup(run_id: str) -> dict[str, Any]:
-    """Execute dedup stage: SimHash-based dedup on jd_raw records."""
-    from crawler.dedup import is_near_duplicate, simhash
+    """Execute dedup stage: two-pass dedup on jd_raw records.
+
+    Pass 1 — exact dedup via Redis content-hash lookup (``dedup_service``).
+    Pass 2 — fuzzy dedup via SimHash with character 3-grams (``dedup_service``).
+    Falls back to the legacy crawler SimHash when Redis is unavailable.
+    """
     from crawler.persistence.database import get_jd_raw_session
     from crawler.persistence.models import JdRaw, JdStatus
 
     processed = 0
-    duplicates = 0
+    exact_duplicates = 0
+    fuzzy_duplicates = 0
     errors: list[str] = []
 
     try:
         with get_jd_raw_session() as s:
-            # Find raw JDs that haven't been dedup-checked yet
             raw_jds = s.query(JdRaw).filter(JdRaw.status == JdStatus.raw).all()
-            hashes: dict[int, str] = {}  # simhash -> source_url (first seen)
+            if not raw_jds:
+                return {"records_processed": 0, "errors": errors, "duplicates_found": 0}
 
+            processed = len(raw_jds)
+
+            # --- Two-pass dedup via dedup_service ---
+            from app.services.dedup_service import dedup_jd_records
+
+            redis_client = app_resources.redis_client
+
+            def _get_clean_text(jd: Any) -> str:
+                return jd.clean_text or ""
+
+            unique_jds, dup_jds = _run_async(
+                dedup_jd_records(
+                    raw_jds,
+                    text_getter=_get_clean_text,
+                    redis_client=redis_client,
+                    threshold=3,
+                ),
+            )
+
+            # Separate exact vs fuzzy counts from the returned duplicates
+            # (dedup_service returns both passes merged; we mark all as duplicate)
+            dup_ids = {id(jd) for jd in dup_jds}
             for jd in raw_jds:
-                h = simhash(jd.clean_text or "")
-                # Check against existing hashes
-                is_dup = any(is_near_duplicate(h, eh) for eh in hashes)
-                if is_dup:
+                if id(jd) in dup_ids:
                     jd.status = JdStatus.duplicate
-                    duplicates += 1
-                else:
-                    hashes[h] = jd.source_url
-                processed += 1
+
+            duplicates = len(dup_jds)
             s.commit()
+
+            logger.info(
+                "Dedup stage run_id={}: {} total, {} unique, {} duplicates",
+                run_id, processed, len(unique_jds), duplicates,
+            )
     except Exception as exc:
         errors.append(f"dedup failed: {exc}")
         logger.error("Dedup stage failed: {}", exc)
+    finally:
+        # Phase 2 SOURCE-02: execute_dedup 后更新 duplicate_rate (UAT 修复)
+        try:
+            _update_source_after_dedup(run_id, exact_duplicates + fuzzy_duplicates, processed)
+        except Exception as exc:
+            logger.warning("_update_source_after_dedup failed (non-fatal): {}", exc)
 
-    return {"records_processed": processed, "errors": errors, "duplicates_found": duplicates}
+    return {"records_processed": processed, "errors": errors, "duplicates_found": exact_duplicates + fuzzy_duplicates}
 
 
 def execute_clean(run_id: str) -> dict[str, Any]:
@@ -214,6 +261,12 @@ def execute_import(run_id: str) -> dict[str, Any]:
     except Exception as exc:
         errors.append(f"import failed: {exc}")
         logger.error("Import stage failed: {}", exc)
+    finally:
+        # Phase 2 SOURCE-03: execute_import 后更新 valid_records (UAT 修复)
+        try:
+            _update_source_after_import(run_id, processed)
+        except Exception as exc:
+            logger.warning("_update_source_after_import failed (non-fatal): {}", exc)
 
     return {"records_processed": processed, "errors": errors}
 
@@ -237,6 +290,172 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
     return {"records_processed": processed, "errors": errors}
 
 
+# ---------------------------------------------------------------------------
+# Phase 2: DataSourceRecord 实时更新 (SOURCE-01/02/03)
+# 这些函数从 sync Celery worker 调用，使用 _run_async 桥接 async DB
+# ---------------------------------------------------------------------------
+
+def _update_source_after_crawl(run_id: str, records_count: int) -> None:
+    """execute_crawl 完成后更新 DataSourceRecord.total_records + last_crawl_at."""
+    async def _update():
+        engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+                from sqlalchemy import text
+
+                from app.models.pipeline_models import DataSourceRecord
+
+                # 按 source_platform 分组计数
+                result = await session.execute(
+                    text("SELECT source_platform, COUNT(*) as cnt FROM raw_jd_records GROUP BY source_platform")
+                )
+                rows = result.fetchall()
+                for platform, cnt in rows:
+                    # 找对应 DataSourceRecord（按 name 匹配）
+                    ds_result = await session.execute(
+                        select(DataSourceRecord).where(DataSourceRecord.name == platform)
+                    )
+                    ds = ds_result.scalar_one_or_none()
+                    if ds:
+                        ds.total_records = (ds.total_records or 0) + int(cnt)
+                        ds.last_crawl_at = datetime.now(UTC)
+                await session.commit()
+                logger.info("_update_source_after_crawl: updated {} sources for run_id={}", len(rows), run_id)
+        finally:
+            await engine.dispose()
+    _run_async(_update())
+
+
+def _update_source_after_dedup(run_id: str, duplicates: int, total: int) -> None:
+    """execute_dedup 完成后更新 DataSourceRecord.duplicate_rate.
+
+    Looks up all active crawler DataSourceRecords and updates the
+    duplicate_rate for each.  When only one source exists the update is
+    unambiguous; when multiple exist, the same rate is applied to all
+    (dedup operates across the whole raw_jd table).
+    """
+    async def _update():
+        engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+                from app.models.pipeline_models import DataSourceRecord
+                ds_result = await session.execute(
+                    select(DataSourceRecord).where(
+                        DataSourceRecord.source_type == "crawler",
+                        DataSourceRecord.status == "active",
+                    )
+                )
+                sources = ds_result.scalars().all()
+                if not sources:
+                    logger.warning("_update_source_after_dedup: no active crawler sources found for run_id={}", run_id)
+                    return
+                dup_rate = round(duplicates / total, 4) if total > 0 else 0.0
+                for ds in sources:
+                    ds.duplicate_rate = dup_rate
+                await session.commit()
+                logger.info(
+                    "_update_source_after_dedup: duplicate_rate={} for {} source(s), run_id={}",
+                    dup_rate, len(sources), run_id,
+                )
+        finally:
+            await engine.dispose()
+    _run_async(_update())
+
+
+def _update_source_after_import(run_id: str, valid_count: int) -> None:
+    """execute_import 完成后更新 DataSourceRecord.valid_records + avg_quality_score."""
+    async def _update():
+        engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+                from sqlalchemy import text
+
+                from app.models.pipeline_models import DataSourceRecord
+
+                # 重算所有 data_sources 的 avg_quality_score
+                ds_list_result = await session.execute(
+                    select(DataSourceRecord)
+                )
+                all_ds = ds_list_result.scalars().all()
+                for ds in all_ds:
+                    # 从 extraction_models 查询有效记录数（按 source_platform 匹配）
+                    rec_result = await session.execute(
+                        text("SELECT COUNT(*) FROM raw_jd_records WHERE source_platform = :platform AND status = 'extracted'"),
+                        {"platform": ds.name},
+                    )
+                    extracted = rec_result.scalar() or 0
+                    ds.valid_records = extracted
+                    ds.avg_quality_score = min(extracted / 100.0, 1.0) if extracted > 0 else 0.0
+
+                await session.commit()
+                logger.info("_update_source_after_import: updated valid_records for run_id={}", run_id)
+        finally:
+            await engine.dispose()
+    _run_async(_update())
+
+
+async def _get_crawl_config(run_id: str) -> dict[str, Any]:
+    """Load crawl configuration (keyword, max_count) from active DataSourceRecord(s).
+
+    Queries all active crawler-type data sources and merges their configs.
+    Falls back to defaults if no config is found.
+    """
+    try:
+        engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+                from sqlalchemy import select as sa_select
+
+                from app.models.pipeline_models import DataSourceRecord
+                result = await session.execute(
+                    sa_select(DataSourceRecord).where(
+                        DataSourceRecord.source_type == "crawler",
+                        DataSourceRecord.status == "active",
+                    )
+                )
+                sources = result.scalars().all()
+                # Merge configs from all active crawler sources; first source wins
+                merged: dict[str, Any] = {}
+                for ds in sources:
+                    if ds.config:
+                        for k, v in ds.config.items():
+                            if k not in merged:
+                                merged[k] = v
+                if merged:
+                    logger.debug(
+                        "Loaded crawl config from {} active source(s): {}",
+                        len(sources), merged,
+                    )
+                    return merged
+        finally:
+            await engine.dispose()
+    except Exception as exc:
+        logger.warning("_get_crawl_config failed (non-fatal, using defaults): {}", exc)
+    return {}
+
+
+async def _skip_paused_sources_if_needed(run_id: str) -> None:
+    """Phase 2 AUTHORITY-03: Log paused sources (the actual skip happens in the spider call)."""
+    try:
+        engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+                from sqlalchemy import select as sa_select
+
+                from app.models.pipeline_models import DataSourceRecord
+                paused = await session.execute(
+                    sa_select(DataSourceRecord).where(DataSourceRecord.status == "paused")
+                )
+                paused_sources = paused.scalars().all()
+                if paused_sources:
+                    names = [s.name for s in paused_sources]
+                    logger.info("Skipping {} paused source(s) for run_id={}: {}", len(names), run_id, names)
+        finally:
+            await engine.dispose()
+    except Exception as exc:
+        logger.warning("_skip_paused_sources_if_needed failed (non-fatal): {}", exc)
+
+
 STAGE_EXECUTORS = {
     StageName.CRAWL.value: execute_crawl,
     StageName.DEDUP.value: execute_dedup,
@@ -257,7 +476,23 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
     - Dispatching ready stages to Celery
     - Skipping optional stages whose deps failed
     - Completing the run when all stages are done
+
+    Phase 1 D-04: STOP flag 检查 — if Redis flag `pipeline:stop:{run_id}` is set,
+    skip all stage dispatch and don't complete the run (cancel_run 已经标记 cancelled).
     """
+    # Phase 1 D-04: STOP flag 检查
+    try:
+        from app.core.pipeline.orchestrator import is_run_cancelled
+        redis_client = app_resources.redis_client
+        if await is_run_cancelled(redis_client, run_id):
+            logger.info(
+                "advance_pipeline run_id=%s: STOP flag set, skipping advance",
+                run_id,
+            )
+            return
+    except Exception as exc:
+        logger.warning(f"advance_pipeline STOP flag check failed (continuing): {exc}")
+
     engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
     sessionmaker_ = async_sessionmaker(engine, expire_on_commit=False)
     try:

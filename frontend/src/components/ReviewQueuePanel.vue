@@ -5,7 +5,7 @@
  */
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Delete } from '@element-plus/icons-vue'
+import { Search, Delete, Edit } from '@element-plus/icons-vue'
 import { useAdminStore } from '@/stores/admin'
 
 const props = defineProps<{
@@ -107,6 +107,20 @@ async function handleBatchReject() {
     selectedIds.value = new Set()
     ElMessage.warning('批量拒绝完成')
   } catch { /* 取消 */ }
+}
+
+async function handleEditName(row: { id: number; name: string }) {
+  try {
+    const { value } = await ElMessageBox.prompt('编辑名称', '编辑审核项', {
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+      inputValue: row.name,
+      inputPattern: /.+/,
+      inputErrorMessage: '名称不能为空',
+    })
+    await admin.updateAuditItem(row.id, { name: value })
+    ElMessage.success('名称已更新')
+  } catch { /* 取消或失败 */ }
 }
 </script>
 
@@ -251,6 +265,14 @@ async function handleBatchReject() {
         fixed="right"
       >
         <template #default="{ row }">
+          <el-button
+            size="small"
+            :icon="Edit"
+            plain
+            @click="handleEditName(row)"
+          >
+            编辑
+          </el-button>
           <el-button
             size="small"
             type="success"
