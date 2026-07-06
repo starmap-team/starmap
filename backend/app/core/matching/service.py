@@ -139,6 +139,42 @@ class MatchService:
             except Exception as exc:
                 logger.warning("[MatchService] Graph lookup failed: {}", exc)
 
+        # 从 PostgreSQL position_records 回退
+        if db_session is not None:
+            try:
+                from sqlalchemy import select
+
+                from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
+
+                pos_stmt = select(PositionRecord).where(PositionRecord.name == target_position)
+                pos_row = (await db_session.execute(pos_stmt)).scalar_one_or_none()
+                if pos_row is not None:
+                    rel_stmt = (
+                        select(PositionSkillRelation, SkillRecord)
+                        .join(SkillRecord, PositionSkillRelation.skill_id == SkillRecord.id)
+                        .where(PositionSkillRelation.position_id == pos_row.id)
+                    )
+                    rel_rows = (await db_session.execute(rel_stmt)).all()
+                    required_db: list[dict[str, str]] = []
+                    bonus_db: list[dict[str, str]] = []
+                    for rel, skill in rel_rows:
+                        entry = {
+                            "skill": skill.name,
+                            "category": skill.category or "hard_skill",
+                            "proficiency": "熟悉",
+                            "source_count": str(skill.source_count or 0),
+                        }
+                        if rel.requirement_type == "preferred":
+                            bonus_db.append(entry)
+                        else:
+                            required_db.append(entry)
+                    if required_db or bonus_db:
+                        result = {"required": required_db, "bonus": bonus_db}
+                        self._cache.set_profile(target_position, result)
+                        return result
+            except Exception as exc:
+                logger.debug("[MatchService] DB fallback lookup failed: {}", exc)
+
         return None
 
     def _apply_inflation_correction(
