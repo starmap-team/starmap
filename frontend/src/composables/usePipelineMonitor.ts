@@ -268,7 +268,7 @@ export function usePipelineMonitor() {
     try {
       await pipeline.updateConfig(pipeline.config)
       configDialogVisible.value = false
-      ElMessage.success('配置已更新，下一个 run 生效')
+      ElMessage.success('保存成功，下一个 run 生效')
     } catch {
       ElMessage.error('更新配置失败')
     }
