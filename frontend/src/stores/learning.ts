@@ -2,6 +2,25 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 
+const LOCAL_STORAGE_KEY = 'starmap_learning_plan_id'
+
+function readStoredPlanId(): string | null {
+  try {
+    return localStorage.getItem(LOCAL_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeStoredPlanId(planId: string | null): void {
+  try {
+    if (planId) localStorage.setItem(LOCAL_STORAGE_KEY, planId)
+    else localStorage.removeItem(LOCAL_STORAGE_KEY)
+  } catch {
+    // localStorage unavailable — silent
+  }
+}
+
 export interface SkillProgress {
   skill: string
   status: 'not_started' | 'in_progress' | 'mastered'
@@ -138,6 +157,7 @@ export const useLearningStore = defineStore('learning', () => {
       const plan = mapPlanResponse(data)
       currentPlan.value = plan
       plans.value.unshift(plan)
+      writeStoredPlanId(plan.plan_id)
       return plan
     } catch (e: any) {
       error.value = e?.message ?? '创建学习计划失败'
@@ -154,12 +174,29 @@ export const useLearningStore = defineStore('learning', () => {
       const data = await request.get(`/learning/plan/${planId}`) as any
       const plan = mapPlanResponse(data)
       currentPlan.value = plan
+      writeStoredPlanId(plan.plan_id)
       return plan
     } catch (e: any) {
       error.value = e?.message ?? '获取学习计划失败'
+      // D-07: invalid stored plan_id cleared on next restore
       throw e
     } finally {
       loading.value = false
+    }
+  }
+
+  /** D-06/D-07: restore plan from localStorage on page open.
+   * Validates stored plan_id by fetching; clears on 404/invalid.
+   */
+  async function restorePlanFromLocalStorage(): Promise<LearningPlan | null> {
+    const storedId = readStoredPlanId()
+    if (!storedId) return null
+    try {
+      return await fetchPlan(storedId)
+    } catch {
+      writeStoredPlanId(null)
+      currentPlan.value = null
+      return null
     }
   }
 
@@ -344,6 +381,7 @@ export const useLearningStore = defineStore('learning', () => {
     addSkillToPlan,
     updateProgress,
     fetchRecommendations,
+    restorePlanFromLocalStorage,
     // Batch match
     batchResults,
     batchLoading,

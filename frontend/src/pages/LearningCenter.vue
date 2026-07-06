@@ -12,7 +12,7 @@ import { ref, onMounted, computed } from 'vue'
 // 技术说明：引入 Vue Router 用于页面导航
 import { useRouter } from 'vue-router'
 // 技术说明：引入 Element Plus 消息提示组件
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 // 技术说明：引入 Element Plus 图标组件
 import { Guide, DataAnalysis, Clock, Trophy } from '@element-plus/icons-vue'
 // 业务说明：主布局组件，提供统一的页面导航和侧边栏
@@ -96,32 +96,45 @@ async function handleUpdateStatus(skill: string, status: string) {
   }
 }
 
-// 业务说明：将推荐技能加入当前学习计划
-// 用户点击推荐卡片上的"加入计划"按钮时触发
-// 参数 rec: 包含技能名称和优先级的推荐对象
+// 业务说明：将推荐技能加入当前学习计划（或创建新计划）
+// D-08: 单计划模式；已有计划时覆盖前确认
+// D-09: "加入计划"调用 POST /learning/plan；plan_id 写入 localStorage (D-06)
 async function handleAddToPlan(rec: { skill: string; priority: string }) {
-  if (!currentPlan.value) {
-    ElMessage.warning('请先创建学习计划')
-    return
-  }
   try {
-    await learningStore.addSkillToPlan(rec.skill, currentPlan.value.position)
-    ElMessage.success(`「${rec.skill}」已加入学习计划`)
+    if (currentPlan.value) {
+      await ElMessageBox.confirm(
+        `已有学习计划「${currentPlan.value.position}」，是否用「${rec.skill}」覆盖？`,
+        '覆盖学习计划',
+        { confirmButtonText: '确认覆盖', cancelButtonText: '取消', type: 'warning' }
+      )
+      await learningStore.createPlan({
+        position: rec.skill,
+        skills: [rec.skill],
+      })
+      ElMessage.success('已创建新学习计划')
+    } else {
+      await learningStore.createPlan({
+        position: rec.skill,
+        skills: [rec.skill],
+      })
+      ElMessage.success(`「${rec.skill}」已加入学习计划`)
+    }
   } catch (e: any) {
+    if (e === 'cancel' || e === 'close') return
     ElMessage.error(e?.message ?? '加入计划失败')
   }
 }
 
-// 业务说明：页面初始化 —— 并行加载学习计划和推荐数据
-// 组件挂载时自动发起数据请求，确保页面打开即有数据展示
+// 业务说明：页面初始化 —— 恢复 localStorage 计划 + 并行加载推荐
+// D-07: 每次打开 LearningCenter 验证 plan_id 有效性
 onMounted(async () => {
   try {
     await Promise.all([
-      learningStore.fetchPlans(),
+      learningStore.restorePlanFromLocalStorage(),
       learningStore.fetchRecommendations(),
     ])
   } catch {
-    // fetch errors handled by store
+    // errors handled by store
   }
 })
 </script>
@@ -247,7 +260,7 @@ onMounted(async () => {
               暂无学习计划
             </p>
             <p class="empty-hint-text">
-              前往「匹配诊断」生成个性化学习计划
+              在下方推荐中选择技能创建学习计划，或前往「匹配诊断」基于差距分析生成个性化学习路径
             </p>
             <el-button
               type="primary"
@@ -431,10 +444,9 @@ onMounted(async () => {
                 size="small"
                 type="primary"
                 plain
-                :disabled="!currentPlan"
                 @click="handleAddToPlan(rec)"
               >
-                加入计划
+                {{ currentPlan ? '加入计划' : '创建计划' }}
               </el-button>
             </div>
           </div>
