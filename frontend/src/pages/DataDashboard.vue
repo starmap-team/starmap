@@ -358,7 +358,7 @@ function getPlaceholderTrend() {
     xAxis: {
       type: 'category',
       data: days,
-      axisLine: { lineStyle: { color: 'rgba(224, 230, 237, 0.15)' } },
+      axisLine: { lineStyle: { color: cc.foreground + '26' } },
       axisLabel: { color: cc.foreground + '4D', fontSize: 10 },
       axisTick: { show: false },
     },
@@ -444,15 +444,15 @@ function getPlaceholderRadar() {
       axisName: { color: cc.foreground + '4D', fontSize: 10 },
       splitLine: { lineStyle: { color: cc.foreground + '0F' } },
       splitArea: { show: false },
-      axisLine: { lineStyle: { color: 'rgba(224, 230, 237, 0.08)' } },
+      axisLine: { lineStyle: { color: cc.foreground + '14' } },
     },
     series: [{
       type: 'radar',
       data: [{
         value: [0, 0, 0, 0, 0, 0],
-        lineStyle: { color: 'rgba(0, 212, 255, 0.2)' },
-        itemStyle: { color: 'rgba(0, 212, 255, 0.2)' },
-        areaStyle: { color: 'rgba(0, 212, 255, 0.05)' },
+        lineStyle: { color: cc.chart[0] + '33' },
+        itemStyle: { color: cc.chart[0] + '33' },
+        areaStyle: { color: cc.chart[0] + '0D' },
       }],
     }],
   }
@@ -487,10 +487,10 @@ const eventIcon: Record<string, string> = {
 }
 
 const eventSeverityColor: Record<string, string> = {
-  info: 'rgba(0, 212, 255, 0.6)',
-  success: 'rgba(0, 255, 136, 0.6)',
-  warning: 'rgba(255, 217, 61, 0.6)',
-  error: 'rgba(255, 107, 107, 0.6)',
+  info: cc.chart[0] + '99',
+  success: cc.success + '99',
+  warning: cc.warning + '99',
+  error: cc.danger + '99',
 }
 
 function formatTime(ts: string) {
