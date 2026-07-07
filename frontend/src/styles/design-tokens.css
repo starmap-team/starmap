@@ -171,3 +171,39 @@ html.dark {
   --shadow-float: 0 24px 48px -12px rgba(0, 0, 0, 0.35);
   --surface-overlay: color-mix(in srgb, var(--background) 85%, transparent);
 }
+
+/* ═══════════════════════════════════════════════
+   Dashboard Tokens (m8/m9 — replaces hardcoded rgba)
+   Derived from base tokens via color-mix so they
+   adapt automatically to light/dark theme.
+   ═══════════════════════════════════════════════ */
+:root {
+  /* Accent — derived from --chart-1 (cyan in dark) */
+  --dash-accent-5:  color-mix(in srgb, var(--chart-1) 5%,  transparent);
+  --dash-accent-6:  color-mix(in srgb, var(--chart-1) 6%,  transparent);
+  --dash-accent-8:  color-mix(in srgb, var(--chart-1) 8%,  transparent);
+  --dash-accent-10: color-mix(in srgb, var(--chart-1) 10%, transparent);
+  --dash-accent-15: color-mix(in srgb, var(--chart-1) 15%, transparent);
+  --dash-accent-20: color-mix(in srgb, var(--chart-1) 20%, transparent);
+  --dash-accent-30: color-mix(in srgb, var(--chart-1) 30%, transparent);
+  --dash-accent-40: color-mix(in srgb, var(--chart-1) 40%, transparent);
+
+  /* Text hierarchy — derived from --foreground */
+  --dash-text-85: color-mix(in srgb, var(--foreground) 85%, transparent);
+  --dash-text-80: color-mix(in srgb, var(--foreground) 80%, transparent);
+  --dash-text-70: color-mix(in srgb, var(--foreground) 70%, transparent);
+  --dash-text-60: color-mix(in srgb, var(--foreground) 60%, transparent);
+  --dash-text-50: color-mix(in srgb, var(--foreground) 50%, transparent);
+  --dash-text-40: color-mix(in srgb, var(--foreground) 40%, transparent);
+  --dash-text-30: color-mix(in srgb, var(--foreground) 30%, transparent);
+  --dash-text-04: color-mix(in srgb, var(--foreground) 4%,  transparent);
+
+  /* Surface — deeper than --card for immersive dashboard */
+  --dash-surface:      color-mix(in srgb, var(--card) 60%, transparent);
+  --dash-header-start: color-mix(in srgb, var(--card) 95%, transparent);
+  --dash-header-end:   color-mix(in srgb, var(--card) 70%, transparent);
+
+  /* Status indicators */
+  --dash-connected:    var(--success);
+  --dash-disconnected: var(--destructive);
+}

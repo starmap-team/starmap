@@ -12,7 +12,6 @@ import ReviewQueuePanel from '@/components/ReviewQueuePanel.vue'
 import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
 import { useAdminStore } from '@/stores/admin'
 import { chartColors } from '@/utils/chartTheme'
-import request from '@/api/request'
 
 const cc = chartColors()
 
@@ -24,7 +23,7 @@ const activeTab = ref('audit')
 onMounted(() => {
   admin.fetchSources()
   admin.fetchAuditQueue()
-  fetchGraphNodes()
+  admin.fetchGraphNodes()
 })
 
 // ════════════════════════════════════════════════
@@ -40,8 +39,8 @@ interface GraphNodeItem {
   created_at?: string
 }
 
-const graphNodes = ref<GraphNodeItem[]>([])
-const graphNodesLoading = ref(false)
+const graphNodes = computed(() => admin.graphNodes)
+const graphNodesLoading = computed(() => admin.graphNodesLoading)
 const nodeSearchKeyword = ref('')
 const nodeTypeFilter = ref('')
 const nodeCurrentPage = ref(1)
@@ -63,18 +62,6 @@ const pagedGraphNodes = computed(() => {
   const start = (nodeCurrentPage.value - 1) * nodePageSize.value
   return filteredGraphNodes.value.slice(start, start + nodePageSize.value)
 })
-
-async function fetchGraphNodes() {
-  graphNodesLoading.value = true
-  try {
-    const data = await request.get('/admin/graph/nodes') as any
-    graphNodes.value = data.items ?? []
-  } catch {
-    graphNodes.value = []
-  } finally {
-    graphNodesLoading.value = false
-  }
-}
 
 // Node editor
 const editorVisible = ref(false)
@@ -98,15 +85,12 @@ function handleEditNode(node: GraphNodeItem) {
 async function handleNodeSubmit(data: any) {
   try {
     if (data.id) {
-      // Update
-      await request.put(`/admin/graph/nodes/${data.id}`, data)
+      await admin.updateGraphNode(data.id, data)
       ElMessage.success('节点已更新')
     } else {
-      // Create
-      await request.post('/admin/graph/nodes', data)
+      await admin.createGraphNode(data)
       ElMessage.success('节点已提交审核')
     }
-    fetchGraphNodes()
   } catch (e: any) {
     ElMessage.error(e?.message ?? '操作失败')
   }
@@ -119,17 +103,15 @@ async function handleDeleteNode(node: GraphNodeItem) {
       cancelButtonText: '取消',
       type: 'warning',
     })
-    await request.delete(`/admin/graph/nodes/${node.id}`)
+    await admin.deleteGraphNode(node.id)
     ElMessage.success('节点已删除')
-    fetchGraphNodes()
   } catch { /* 取消或失败 */ }
 }
 
 async function handleApproveNode(node: GraphNodeItem) {
   try {
-    await request.post(`/admin/graph/nodes/${node.id}/approve`)
+    await admin.approveGraphNode(node.id)
     ElMessage.success('节点已审核通过')
-    fetchGraphNodes()
   } catch (e: any) {
     ElMessage.error(e?.message ?? '审核失败')
   }
@@ -137,9 +119,8 @@ async function handleApproveNode(node: GraphNodeItem) {
 
 async function handleRejectNode(node: GraphNodeItem) {
   try {
-    await request.post(`/admin/graph/nodes/${node.id}/reject`)
+    await admin.rejectGraphNode(node.id)
     ElMessage.warning('节点已拒绝')
-    fetchGraphNodes()
   } catch (e: any) {
     ElMessage.error(e?.message ?? '拒绝失败')
   }
@@ -202,7 +183,7 @@ async function handleReset() {
     ElMessage.success('数据已重置')
     admin.fetchSources()
     admin.fetchAuditQueue()
-    fetchGraphNodes()
+    admin.fetchGraphNodes()
   } catch { /* 取消 */ }
 }
 </script>

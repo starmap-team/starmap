@@ -785,8 +785,8 @@ onUnmounted(() => {
 
 .kpi-card {
   position: relative;
-  background: rgba(15, 15, 35, 0.6);
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-accent-10);
   border-radius: 8px;
   padding: 14px 16px;
   display: flex;
@@ -845,7 +845,7 @@ onUnmounted(() => {
 
 .kpi-label {
   font-size: 11px;
-  color: rgba(224, 230, 237, 0.5);
+  color: var(--dash-text-50);
   font-weight: 500;
   margin-bottom: 2px;
 }
@@ -882,8 +882,8 @@ onUnmounted(() => {
    Panel (shared card style)
    ═══════════════════════════════════════════ */
 .panel {
-  background: rgba(15, 15, 35, 0.6);
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-accent-10);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -895,22 +895,22 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+  border-bottom: 1px solid var(--dash-accent-8);
   flex-shrink: 0;
 }
 
 .panel-title {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(224, 230, 237, 0.85);
+  color: var(--dash-text-85);
   letter-spacing: 0.02em;
 }
 
 .panel-badge {
   font-size: 9px;
   font-weight: 600;
-  color: rgba(0, 212, 255, 0.6);
-  background: rgba(0, 212, 255, 0.08);
+  color: var(--chart-1);
+  background: var(--dash-accent-8);
   padding: 2px 6px;
   border-radius: 4px;
   letter-spacing: 0.05em;
@@ -930,11 +930,11 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 10px;
-  color: rgba(255, 107, 107, 0.7);
+  color: var(--dash-disconnected);
 }
 
 .sse-indicator.connected {
-  color: rgba(0, 255, 136, 0.7);
+  color: var(--dash-connected);
 }
 
 .sse-dot {
@@ -955,8 +955,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulse-dot-green {
-  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px rgba(0, 255, 136, 0.3); }
-  50% { opacity: 1; box-shadow: 0 0 8px rgba(0, 255, 136, 0.6); }
+  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px color-mix(in srgb, var(--success) 30%, transparent); }
+  50% { opacity: 1; box-shadow: 0 0 8px color-mix(in srgb, var(--success) 60%, transparent); }
 }
 
 .event-stream {
@@ -973,7 +973,7 @@ onUnmounted(() => {
   background: transparent;
 }
 .event-stream::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.15);
+  background: var(--dash-accent-15);
   border-radius: 2px;
 }
 
@@ -982,7 +982,7 @@ onUnmounted(() => {
   align-items: flex-start;
   gap: 8px;
   padding: 6px 0;
-  border-bottom: 1px solid rgba(224, 230, 237, 0.04);
+  border-bottom: 1px solid var(--dash-text-04);
   animation: event-in 0.3s ease-out;
 }
 
@@ -1014,7 +1014,7 @@ onUnmounted(() => {
 .event-title {
   font-size: 11px;
   font-weight: 600;
-  color: rgba(224, 230, 237, 0.8);
+  color: var(--dash-text-80);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1022,7 +1022,7 @@ onUnmounted(() => {
 
 .event-detail {
   font-size: 10px;
-  color: rgba(224, 230, 237, 0.4);
+  color: var(--dash-text-40);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1042,7 +1042,7 @@ onUnmounted(() => {
   justify-content: center;
   height: 100%;
   gap: 10px;
-  color: rgba(224, 230, 237, 0.3);
+  color: var(--dash-text-30);
   font-size: 12px;
 }
 
@@ -1050,7 +1050,7 @@ onUnmounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: rgba(0, 212, 255, 0.4);
+  background: var(--dash-accent-40);
   animation: pulse-ring 2s ease-in-out infinite;
 }
 
@@ -1097,7 +1097,7 @@ onUnmounted(() => {
 .stage-node {
   width: 52px;
   height: 52px;
-  border: 2px solid rgba(224, 230, 237, 0.2);
+  border: 2px solid var(--dash-accent-20);
   border-radius: 50%;
   position: relative;
   display: flex;
@@ -1119,7 +1119,7 @@ onUnmounted(() => {
 .stage-label {
   font-size: 10px;
   font-weight: 600;
-  color: rgba(224, 230, 237, 0.8);
+  color: var(--dash-text-80);
   position: relative;
   z-index: 1;
 }
@@ -1134,14 +1134,14 @@ onUnmounted(() => {
   display: block;
   width: 16px;
   height: 2px;
-  background: rgba(224, 230, 237, 0.15);
+  background: var(--dash-accent-15);
   border-radius: 1px;
 }
 
 .connector-arrow {
   font-size: 14px;
   font-weight: 700;
-  color: rgba(224, 230, 237, 0.2);
+  color: var(--dash-accent-20);
   line-height: 1;
 }
 
@@ -1149,7 +1149,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-around;
   padding: 8px 12px;
-  border-top: 1px solid rgba(0, 212, 255, 0.06);
+  border-top: 1px solid var(--dash-accent-6);
   flex: 1;
 }
 
@@ -1163,13 +1163,13 @@ onUnmounted(() => {
 .stat-value {
   font-size: 14px;
   font-weight: 700;
-  color: rgba(224, 230, 237, 0.85);
+  color: var(--dash-text-85);
   font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
   font-size: 9px;
-  color: rgba(224, 230, 237, 0.4);
+  color: var(--dash-text-40);
 }
 
 /* ═══════════════════════════════════════════

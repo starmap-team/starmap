@@ -85,8 +85,8 @@ function goBack() {
 .dashboard-layout {
   min-height: 100vh;
   width: 100%;
-  background: var(--card, #0a0a1a);
-  color: var(--foreground, #e0e6ed);
+  background: var(--card);
+  color: var(--foreground);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -98,8 +98,8 @@ function goBack() {
   align-items: center;
   justify-content: space-between;
   padding: 12px 24px;
-  background: linear-gradient(180deg, rgba(10, 10, 26, 0.95) 0%, rgba(10, 10, 26, 0.7) 100%);
-  border-bottom: 1px solid color-mix(in srgb, var(--chart-1, #00d4ff) 15%, transparent);
+  background: linear-gradient(180deg, var(--dash-header-start) 0%, var(--dash-header-end) 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--chart-1) 15%, transparent);
   backdrop-filter: blur(12px);
   z-index: 10;
   flex-shrink: 0;
@@ -125,17 +125,17 @@ function goBack() {
 }
 
 .title-glow {
-  background: linear-gradient(135deg, var(--chart-1, #00d4ff) 0%, var(--chart-3, #7b61ff) 50%, var(--success, #00ff88) 100%);
+  background: linear-gradient(135deg, var(--chart-1) 0%, var(--chart-3) 50%, var(--success) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   text-shadow: none;
-  filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.3));
+  filter: drop-shadow(0 0 8px var(--dash-accent-30));
 }
 
 .header-subtitle {
   font-size: 12px;
-  color: rgba(224, 230, 237, 0.5);
+  color: var(--dash-text-50);
 }
 
 .header-right {
@@ -147,7 +147,7 @@ function goBack() {
 .header-time {
   font-size: 13px;
   font-variant-numeric: tabular-nums;
-  color: rgba(224, 230, 237, 0.6);
+  color: var(--dash-text-60);
   font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
 }
 
@@ -157,19 +157,19 @@ function goBack() {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid var(--dash-accent-20);
+  background: var(--dash-accent-5);
   border-radius: 6px;
-  color: rgba(224, 230, 237, 0.7);
+  color: var(--dash-text-70);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .header-btn:hover {
-  background: rgba(0, 212, 255, 0.15);
-  border-color: rgba(0, 212, 255, 0.4);
-  color: var(--chart-1, #00d4ff);
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+  background: var(--dash-accent-15);
+  border-color: var(--dash-accent-40);
+  color: var(--chart-1);
+  box-shadow: 0 0 12px var(--dash-accent-20);
 }
 
 .back-btn {
@@ -193,10 +193,10 @@ function goBack() {
   background: transparent;
 }
 .dashboard-main::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.2);
+  background: var(--dash-accent-20);
   border-radius: 3px;
 }
 .dashboard-main::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 212, 255, 0.4);
+  background: var(--dash-accent-40);
 }
 </style>

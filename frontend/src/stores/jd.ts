@@ -75,5 +75,21 @@ export const useJdStore = defineStore('jd', () => {
     }))
   }
 
-  return { list, loading, fetchList, fetchPositionSkills, fetchPositionDetail, fetchPositions, searchPositions }
+  // ── JD Extraction (migrated from ExtractJD.vue — M23) ──
+  const extractResult = ref<any>(null)
+  const extractLoading = ref(false)
+
+  async function extractJd(jdContent: string) {
+    extractLoading.value = true
+    extractResult.value = null
+    try {
+      const data = await request.post('/extract/jd', { jd_content: jdContent }, { timeout: 120000 })
+      extractResult.value = data
+      return data
+    } finally {
+      extractLoading.value = false
+    }
+  }
+
+  return { list, loading, fetchList, fetchPositionSkills, fetchPositionDetail, fetchPositions, searchPositions, extractResult, extractLoading, extractJd }
 })

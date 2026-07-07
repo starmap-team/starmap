@@ -30,7 +30,6 @@ import { useUserStore } from '@/stores/user'
 import { useResumeStore } from '@/stores/resume'
 import { useMatchStore } from '@/stores/match'
 import { useLearningStore } from '@/stores/learning'
-import request from '@/api/request'
 import type { RadarItem } from '@/components/SkillRadar.vue'
 
 // 业务说明：初始化各业务模块的 Pinia Store，用于管理用户数据、简历解析、匹配诊断和学习路径
@@ -144,8 +143,8 @@ async function handlePositionSelect(pos: { position_id: string; name: string }) 
   radarLoading.value = true
   try {
     // 技术说明：使用岗位名称进行 Neo4j 图数据库查询（Neo4j 通过名称标识岗位）
-    const skillJson = await request.get(`/graph/position/${encodeURIComponent(pos.name)}/skills`) as any
-    const skills: any[] = skillJson?.skills ?? []
+    const skillData = await matchStore.fetchPositionSkills(pos.name)
+    const skills: any[] = skillData?.required_skills ?? []
     // 业务说明：岗位技能为空时不再阻塞流程——降级为空雷达并提示用户，
     // 用户仍可进入下一步（SkillRadar 组件自身有"数据不足"占位）。
     // 这样避免选岗后卡死、无法继续诊断的体验问题（B05）。

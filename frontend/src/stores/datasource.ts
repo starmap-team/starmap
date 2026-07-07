@@ -151,6 +151,48 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
+  // ── Graph node management (migrated from Admin.vue — M23) ──
+
+  const graphNodes = ref<any[]>([])
+  const graphNodesLoading = ref(false)
+
+  async function fetchGraphNodes() {
+    graphNodesLoading.value = true
+    try {
+      const data = await request.get('/admin/graph/nodes') as any
+      graphNodes.value = data.items ?? []
+    } catch {
+      graphNodes.value = []
+    } finally {
+      graphNodesLoading.value = false
+    }
+  }
+
+  async function createGraphNode(payload: Record<string, unknown>) {
+    await request.post('/admin/graph/nodes', payload)
+    await fetchGraphNodes()
+  }
+
+  async function updateGraphNode(id: string, payload: Record<string, unknown>) {
+    await request.put(`/admin/graph/nodes/${id}`, payload)
+    await fetchGraphNodes()
+  }
+
+  async function deleteGraphNode(id: string) {
+    await request.delete(`/admin/graph/nodes/${id}`)
+    await fetchGraphNodes()
+  }
+
+  async function approveGraphNode(id: string) {
+    await request.post(`/admin/graph/nodes/${id}/approve`)
+    await fetchGraphNodes()
+  }
+
+  async function rejectGraphNode(id: string) {
+    await request.post(`/admin/graph/nodes/${id}/reject`)
+    await fetchGraphNodes()
+  }
+
   async function resetToDemo() {
     await request.post('/admin/seed/reset')
   }
@@ -162,6 +204,8 @@ export const useDataSourceStore = defineStore('datasource', () => {
     auditQueue,
     loading,
     error,
+    graphNodes,
+    graphNodesLoading,
     fetchSources,
     fetchSourceDetail,
     updateSource,
@@ -171,6 +215,12 @@ export const useDataSourceStore = defineStore('datasource', () => {
     approveAudit,
     rejectAudit,
     updateAuditItem,
+    fetchGraphNodes,
+    createGraphNode,
+    updateGraphNode,
+    deleteGraphNode,
+    approveGraphNode,
+    rejectGraphNode,
     resetToDemo,
   }
 })

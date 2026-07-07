@@ -6,13 +6,15 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
-import request from '@/api/request'
+import { useJdStore } from '@/stores/jd'
+
+const jd = useJdStore()
 
 const jdText = ref('')
 const charCount = computed(() => jdText.value.length)
 const charLimit = 10000
-const loading = ref(false)
-const result = ref<any>(null)
+const result = computed(() => jd.extractResult)
+const loading = computed(() => jd.extractLoading)
 
 const extractProgress = ref(0)
 const extractPhase = ref('')
@@ -23,8 +25,6 @@ async function handleExtract() {
     ElMessage.warning('请输入 JD 文本')
     return
   }
-  loading.value = true
-  result.value = null
   extractProgress.value = 0
   extractPhase.value = '正在调用 AI 分析 JD 文本...'
   progressTimer = setInterval(() => {
@@ -35,14 +35,9 @@ async function handleExtract() {
     }
   }, 500)
   try {
-    const data = await request.post('/extract/jd', {
-      jd_content: jdText.value,
-    }, {
-      timeout: 120000,
-    })
+    await jd.extractJd(jdText.value)
     extractProgress.value = 100
     extractPhase.value = '抽取完成！'
-    result.value = data
     ElMessage.success('抽取完成')
   } catch (e: any) {
     console.error('[ExtractJD] Failed:', e)
@@ -50,13 +45,12 @@ async function handleExtract() {
     extractPhase.value = '抽取失败'
   } finally {
     if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
-    loading.value = false
   }
 }
 
 function handleClear() {
   jdText.value = ''
-  result.value = null
+  jd.extractResult = null
 }
 </script>
 
