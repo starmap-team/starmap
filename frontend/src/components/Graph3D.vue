@@ -11,6 +11,8 @@
  * - Hover tooltip via NodeTooltip3D
  */
 import { ref, onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue'
+import type * as THREE from 'three'
+import type { NodeObject, LinkObject } from '3d-force-graph'
 import {
   nodeColor,
   edgeColor,
@@ -23,10 +25,10 @@ import NodeTooltip3D from './NodeTooltip3D.vue'
 import { Loading } from '@element-plus/icons-vue'
 
 // ── Types ──
-interface GraphNode3D {
-  id: string
+// ponytail: extend 3d-force-graph's NodeObject to carry our domain fields
+interface GraphNode3D extends NodeObject {
   labels?: string[]
-  color?: string            // Precomputed by parent (Home.vue) for consistent 2D/3D coloring
+  color?: string
   properties: {
     name: string
     category?: string
@@ -34,17 +36,11 @@ interface GraphNode3D {
     position_count?: number
     skill_count?: number
     weight?: number
-    [key: string]: any
+    [key: string]: unknown
   }
-  // Populated by 3d-force-graph after layout
-  x?: number
-  y?: number
-  z?: number
 }
 
-interface GraphLink3D {
-  source: string | GraphNode3D
-  target: string | GraphNode3D
+interface GraphLink3D extends LinkObject<GraphNode3D> {
   type?: string
   properties?: {
     weight?: number
@@ -102,7 +98,8 @@ const tooltipX = ref(0)
 const tooltipY = ref(0)
 const tooltipVisible = ref(false)
 
-// Graph instance (shallow to avoid Vue reactivity overhead)
+// ponytail: use 3d-force-graph's own ForceGraph3DInstance generic type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any — 3d-force-graph chainable pattern requires default generics
 const graphInstance = shallowRef<any>(null)
 
 // ── Node helpers ──
@@ -136,7 +133,7 @@ const EVOLUTION_TREND_COLOR: Record<string, string> = {
   declining: cc.danger,
 }
 
-function evolutionColor(link: any): string {
+function evolutionColor(link: GraphLink3D): string {
   const trend = link.properties?.trend ?? 'stable'
   const base = EVOLUTION_TREND_COLOR[trend] ?? EVOLUTION_TREND_COLOR.stable
   // trust_score (0..1) maps to opacity 0.3..1.0
@@ -158,9 +155,9 @@ async function initGraph() {
   const ForceGraphModule = await import('3d-force-graph')
   const ForceGraph3D = ForceGraphModule.default
   // Attach THREE to window for nodeThreeObject custom rendering
-  if (!(window as any).__THREE) {
+  if (!(window as unknown as Record<string, unknown>).__THREE) {
     const THREE_MOD = await import('three')
-    ;(window as any).__THREE = THREE_MOD
+    ;(window as unknown as Record<string, unknown>).__THREE = THREE_MOD
   }
 
   const container = containerRef.value
@@ -183,16 +180,19 @@ async function initGraph() {
     .showNavInfo(false)
 
     // ── Node configuration ──
-    .nodeVal((node: any) => getNodeRadius(node))
-    .nodeColor((node: any) => {
-      // Use precomputed color (from Home.vue) or fall back to type color
-      return node.color ?? nodeColor(getNodeLabel(node))
+    // ponytail: 3d-force-graph uses NodeObject in callback signatures;
+    // cast to GraphNode3D inside the callbacks where we need domain fields.
+    .nodeVal((node) => getNodeRadius(node as GraphNode3D))
+    .nodeColor((node) => {
+      const n = node as GraphNode3D
+      return n.color ?? nodeColor(getNodeLabel(n))
     })
     .nodeResolution(16)  // Sphere segments (smoother spheres)
     .nodeOpacity(0.92)
 
     // ── Node label (3D text sprite) ──
-    .nodeLabel((node: any) => {
+    .nodeLabel((node) => {
+      const n = node as GraphNode3D
       return `<div style="
         font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
         font-size: 12px; font-weight: 600; color: ${SCENE_PALETTE.textColor};
@@ -200,21 +200,23 @@ async function initGraph() {
         border-radius: 8px; border: 1px solid ${withAlpha(SCENE_PALETTE.mutedText, 0.3)};
         backdrop-filter: blur(8px); white-space: nowrap;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      ">${node.properties.name}</div>`
+      ">${n.properties.name}</div>`
     })
 
     // ── Edge configuration ──
-    .linkColor((link: any) => {
-      if (link.type === 'EVOLVES_TO') return evolutionColor(link)
-      return withAlpha(edgeColor(link.type ?? 'DEFAULT'), 0.35)
+    .linkColor((link) => {
+      const l = link as GraphLink3D
+      if (l.type === 'EVOLVES_TO') return evolutionColor(l)
+      return withAlpha(edgeColor(l.type ?? 'DEFAULT'), 0.35)
     })
-    .linkWidth((link: any) => {
-      if (link.type === 'EVOLVES_TO') {
+    .linkWidth((link) => {
+      const l = link as GraphLink3D
+      if (l.type === 'EVOLVES_TO') {
         // Evolution edges: thinner & dashed-feel via width reduction
-        const trust = link.properties?.similarity ?? link.properties?.weight ?? 0.5
+        const trust = l.properties?.similarity ?? l.properties?.weight ?? 0.5
         return 0.6 + trust * 1.2
       }
-      const w = link.properties?.weight ?? 0.5
+      const w = l.properties?.weight ?? 0.5
       return 0.5 + w * 1.5
     })
     .linkOpacity(0.4)
@@ -230,20 +232,21 @@ async function initGraph() {
 
   // 调优：修改默认的 charge / link / center force，不要替换 link force
   // （3d-force-graph 内部持有 _forceLink 引用，替换后 graphData() 写入旧实例，模拟器用新实例 → 失效）
-  const chargeForce = (graph as any).d3Force('charge')
-  if (chargeForce) chargeForce.strength(chargeStrength).distanceMax(400)
-  const linkForce = (graph as any).d3Force('link')
+  // ponytail: d3Force returns d3-force internals — narrow via unknown cast
+  const chargeForce = graph.d3Force('charge') as unknown as { strength(v: number): unknown; distanceMax(v: number): unknown } | null
+  if (chargeForce) { chargeForce.strength(chargeStrength); chargeForce.distanceMax(400) }
+  const linkForce = graph.d3Force('link') as unknown as { distance(v: number): unknown; strength(v: number): unknown } | null
   if (linkForce) { linkForce.distance(linkDist); linkForce.strength(linkStrength) }
-  const center = (graph as any).d3Force('center')
-  if (center) center.strength(0.05)  // 大幅降低 center 引力
+  const centerForce = graph.d3Force('center') as unknown as { strength(v: number): unknown } | null
+  if (centerForce) centerForce.strength(0.05)
 
   // ── Interactions ──
-  graph.onNodeHover((node: any, _prevNode: any) => {
+  graph.onNodeHover((node, _prevNode) => {
     if (node) {
       const typed = node as GraphNode3D
       const label = getNodeLabel(typed)
       tooltipNode.value = {
-        id: typed.id,
+        id: String(typed.id),
         name: typed.properties.name,
         type: label,
         position_count: typed.properties.position_count,
@@ -268,24 +271,25 @@ async function initGraph() {
   let lastClickTime = 0
   let lastClickId = ''
 
-  graph.onNodeClick((node: any) => {
+  graph.onNodeClick((node) => {
     const now = Date.now()
-    if (node.id === lastClickId && now - lastClickTime < 300) {
+    const nodeId = String(node.id)
+    if (nodeId === lastClickId && now - lastClickTime < 300) {
       // Double-click: emit nodeDblClick for drill-down
-      emit('nodeDblClick', node.id)
+      emit('nodeDblClick', nodeId)
       lastClickTime = 0
       lastClickId = ''
     } else {
       // Single click
       lastClickTime = now
-      lastClickId = node.id
-      emit('nodeClick', node.id)
+      lastClickId = nodeId
+      emit('nodeClick', nodeId)
     }
   })
 
   // EVOLVE-FE-03/D-11: Click on evolution edge → drawer
-  graph.onLinkClick((link: any) => {
-    if (link?.type === 'EVOLVES_TO') {
+  graph.onLinkClick((link) => {
+    if ((link as GraphLink3D).type === 'EVOLVES_TO') {
       emit('evolutionEdgeClick', link as GraphLink3D)
     }
   })
@@ -302,16 +306,18 @@ async function initGraph() {
 }
 
 // ── Glow effect for large nodes (domain spheres) ──
-function setupGlowEffect(graph: any) {
+// ponytail: graph param uses 3d-force-graph's chainable generic — `any` is the pragmatic choice
+function setupGlowEffect(graph: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
   // Custom node rendering with glow for KnowledgeArea nodes
-  graph.nodeThreeObject((node: GraphNode3D) => {
-    const label = getNodeLabel(node)
-    const radius = getNodeRadius(node)
-    const color = toThreeHex(node.color ?? nodeColor(label))
+  graph.nodeThreeObject((node: NodeObject) => {
+    const n = node as GraphNode3D
+    const label = getNodeLabel(n)
+    const radius = getNodeRadius(n)
+    const color = toThreeHex(n.color ?? nodeColor(label))
 
     // Dynamic import three lazily
     // We use the THREE namespace that 3d-force-graph already has internally
-    const THREE = (window as any).__THREE
+    const THREE = (window as unknown as Record<string, unknown>).__THREE as typeof import('three') | undefined
     if (!THREE) {
       // Fallback: no custom object, use default sphere
       return null
@@ -378,7 +384,7 @@ function setupGlowEffect(graph: any) {
 }
 
 // ── Glow texture cache (key = hexColor) ──
-const _glowCache = new Map<number, any>()
+const _glowCache = new Map<number, THREE.Texture>()
 
 /** 释放 glow 纹理缓存（组件卸载时调用）。 */
 function disposeGlowCache() {
@@ -386,7 +392,7 @@ function disposeGlowCache() {
 }
 
 // ── Glow texture generator (canvas-based, with cache) ──
-function createGlowTexture(hexColor: number, THREE: any): any {
+function createGlowTexture(hexColor: number, THREE_NS: typeof import('three')): THREE.Texture {
   const cached = _glowCache.get(hexColor)
   if (cached) return cached
 
@@ -409,7 +415,7 @@ function createGlowTexture(hexColor: number, THREE: any): any {
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, size, size)
 
-  const texture = new THREE.CanvasTexture(canvas)
+  const texture = new THREE_NS.CanvasTexture(canvas)
   texture.needsUpdate = true
   _glowCache.set(hexColor, texture)
   return texture
@@ -530,8 +536,8 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
     const visibleNodeIds = new Set(props.nodes.map(n => n.id))
     // D-04: filter cross-domain by visible nodes (only render edges whose both endpoints are visible in current view)
     const filtered = props.evolutionPaths.filter(ev => {
-      const srcOk = visibleNodeIds.has(String(ev.source)) || visibleNodeIds.has((ev.source as any)?.id ?? '')
-      const tgtOk = visibleNodeIds.has(String(ev.target)) || visibleNodeIds.has((ev.target as any)?.id ?? '')
+      const srcOk = visibleNodeIds.has(String(ev.source)) || visibleNodeIds.has(typeof ev.source === 'object' ? ev.source.id : '')
+      const tgtOk = visibleNodeIds.has(String(ev.target)) || visibleNodeIds.has(typeof ev.target === 'object' ? ev.target.id : '')
       return srcOk && tgtOk
     })
     for (const ev of filtered) {
@@ -551,11 +557,11 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   const chargeStrength = nodeCount > 200 ? -120 : nodeCount > 100 ? -80 : -50
   const linkDist = nodeCount > 100 ? 80 : 50
   const linkStrength = nodeCount > 100 ? 0.2 : 0.4
-  const sim = (graph as any).d3Force('charge')
+  const sim = graph.d3Force('charge') as unknown as { strength(v: number): unknown; distanceMax(v: number): unknown } | null
   if (sim) { sim.strength(chargeStrength); sim.distanceMax(400) }
-  const linkSim = (graph as any).d3Force('link')
+  const linkSim = graph.d3Force('link') as unknown as { distance(v: number): unknown; strength(v: number): unknown } | null
   if (linkSim) { linkSim.distance(linkDist); linkSim.strength(linkStrength) }
-  const centerSim = (graph as any).d3Force('center')
+  const centerSim = graph.d3Force('center') as unknown as { strength(v: number): unknown } | null
   if (centerSim) centerSim.strength(0.05)
 }, { deep: false })
 

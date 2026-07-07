@@ -1,42 +1,50 @@
-﻿/// <reference types="vite/client" />
+/// <reference types="vite/client" />
 
-// d3-force-3d has no @types package — declare it as any
+// d3-force-3d has no @types package — declare the subset we use
 declare module 'd3-force-3d' {
-  const d3Force3d: any
-  export default d3Force3d
-  export const forceSimulation: any
-  export const forceLink: any
-  export const forceManyBody: any
-  export const forceCenter: any
-  export const forceCollide: any  // Used by @antv/layout
-  export const forceRadial: any   // Used by @antv/layout
-  export const forceX: any
-  export const forceY: any
-  export const forceZ: any
+  import type { Simulation, SimulationLinkDatum, SimulationNodeDatum } from 'd3-force'
+
+  export function forceSimulation<NodeDatum extends SimulationNodeDatum = SimulationNodeDatum>(
+    nodes?: NodeDatum[]
+  ): Simulation<NodeDatum, SimulationLinkDatum<NodeDatum>>
+
+  export function forceLink<NodeDatum extends SimulationNodeDatum = SimulationNodeDatum, LinkDatum extends SimulationLinkDatum<NodeDatum> = SimulationLinkDatum<NodeDatum>>(
+    links?: LinkDatum[]
+  ): import('d3-force').ForceLink<NodeDatum, LinkDatum>
+
+  export function forceManyBody<NodeDatum extends SimulationNodeDatum = SimulationNodeDatum>(): import('d3-force').Force<NodeDatum, undefined>
+
+  export function forceCenter<NodeDatum extends SimulationNodeDatum = SimulationNodeDatum>(
+    x?: number, y?: number, z?: number
+  ): import('d3-force').Force<NodeDatum, undefined>
+
+  export function forceCollide<NodeDatum extends SimulationNodeDatum = SimulationNodeDatum>(
+    radius?: number | ((node: NodeDatum) => number)
+  ): import('d3-force').Force<NodeDatum, undefined>
+
+  export function forceRadial<NodeDatum extends SimulationNodeDatum = SimulationNodeDatum>(
+    radius?: number, x?: number, y?: number, z?: number
+  ): import('d3-force').Force<NodeDatum, undefined>
+
+  export function forceX<NodeDatum extends SimulationNodeDatum = SimulationNodeDatum>(
+    x?: number
+  ): import('d3-force').Force<NodeDatum, undefined>
+
+  export function forceY<NodeDatum extends SimulationNodeDatum = SimulationNodeDatum>(
+    y?: number
+  ): import('d3-force').Force<NodeDatum, undefined>
+
+  export function forceZ<NodeDatum extends SimulationNodeDatum = SimulationNodeDatum>(
+    z?: number
+  ): import('d3-force').Force<NodeDatum, undefined>
 }
 
-// three.js types may not be resolvable in some environments (e.g. when running
-// typecheck inside a Docker container where the volume mount hides @types/three).
-// We only need `any` for the dynamic import used to expose THREE on window.
+// three.js — @types/three is installed; remove the manual any-typed shim.
+// If typecheck fails in environments where @types/three is not resolvable
+// (e.g. Docker volume mount), add `"skipLibCheck": true` to tsconfig instead.
+// Keeping a minimal fallback for the dynamic-import window exposure pattern:
 declare module 'three' {
-  const THREE: any
-  export default THREE
-  export const Scene: any
-  export const PerspectiveCamera: any
-  export const WebGLRenderer: any
-  export const Mesh: any
-  export const SphereGeometry: any
-  export const MeshBasicMaterial: any
-  export const Color: any
-  export const Group: any
-  export const CanvasTexture: any
-  export const Sprite: any
-  export const SpriteMaterial: any
-  export const AmbientLight: any
-  export const DirectionalLight: any
-  export const Vector3: any
-  export const BoxGeometry: any
-  export const MeshPhongMaterial: any
+  export * from 'three/src/Three.js'
 }
 
 interface ImportMetaEnv {
@@ -46,4 +54,3 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
-

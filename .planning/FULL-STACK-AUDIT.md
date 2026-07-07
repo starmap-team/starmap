@@ -3,7 +3,7 @@
 **日期:** 2026-07-07
 **范围:** 前端 (79 文件, ~26,500 行) + 后端 (Python/FastAPI)
 **触发:** `/gsd-verify-work --all 同时进行代码质量评审及复用性审计`
-**状态:** 56 findings → 22 已修复, 34 剩余 (6 commits)
+**状态:** 56 findings → 45+ 已修复, ~11 剩余 (10 commits)
 
 ---
 
@@ -13,18 +13,18 @@
 
 | # | 问题 | 文件 | 修复 |
 |---|------|------|------|
-| B1 | `PROFICIENCY_SCORE` dict 在 4 处重复定义 | scorer.py:14, service.py:27, path_engine.py:25, match_service_legacy.py:36 | 统一到 `matching/constants.py` |
-| B2 | `_extraction_payload_from_record` 在 2 处逐字复制 | graph_service.py:837, stage3_services.py:36 | 提取为 `JDExtractionRecord` class method |
-| B3 | `ALLOWED_LABELS` 在 2 处定义且集合不一致 | admin.py:122 (缺 Certificate/LearningResource), graph_writer.py:38 (缺 Domain) | 统一 `ALLOWED_NODE_LABELS` in graph_writer.py |
+| B1 | `PROFICIENCY_SCORE` dict 在 4 处重复定义 | scorer.py:14, service.py:27, path_engine.py:25, match_service_legacy.py:36 | ✅ 统一到 `matching/constants.py` |
+| B2 | `_extraction_payload_from_record` 在 2 处逐字复制 | graph_service.py:837, stage3_services.py:36 | ✅ 提取为 `JDExtractionRecord` class method |
+| B3 | `ALLOWED_LABELS` 在 2 处定义且集合不一致 | admin.py:122 (缺 Certificate/LearningResource), graph_writer.py:38 (缺 Domain) | ✅ 统一 `ALLOWED_NODE_LABELS` in graph_writer.py |
 
 ### 前端
 
 | # | 问题 | 文件 | 修复 |
 |---|------|------|------|
-| B4 | `api/schema.ts` 1228 行从未被 import — 57 个 `as any` 类型转换无依据 | 25 个文件 | 创建 `api/client.ts` 用 `schema.paths` 做类型化调用 |
-| B5 | 3 个页面绕过 store 直接 `request` 调用 | PositionDetail.vue, PositionList.vue, EvolutionDashboard.vue | 将 fetch 移入 store |
-| B6 | `admin.ts` 和 `datasource.ts` store 重复 fetch `/datasources` | admin.ts:34, datasource.ts:50 | 统一为 `datasource.ts` 单一真相源 |
-| B7 | `LearningPathItem` interface 在 2 个 store 中完全相同定义 | learning.ts:34, loop.ts:62 | 提取到 `types/learning.ts` |
+| B4 | `api/schema.ts` 1228 行从未被 import — 57 个 `as any` 类型转换无依据 | 25 个文件 | ✅ 创建 `api/client.ts` 用 `schema.paths` 做类型化调用 |
+| B5 | 3 个页面绕过 store 直接 `request` 调用 | PositionDetail.vue, PositionList.vue, EvolutionDashboard.vue | ✅ 将 fetch 移入 store (evolution/jd/datasource) |
+| B6 | `admin.ts` 和 `datasource.ts` store 重复 fetch `/datasources` | admin.ts:34, datasource.ts:50 | ✅ 统一为 `datasource.ts` 单一真相源 |
+| B7 | `LearningPathItem` interface 在 2 个 store 中完全相同定义 | learning.ts:34, loop.ts:62 | ✅ loop.ts 已改用 `LoopPathItem`，重复消除 |
 
 ---
 
@@ -86,14 +86,14 @@
 |---|------|------|------|
 | m8 | DataDashboard.vue 20+ 硬编码 `rgba(...)` 不引用 tokens | DataDashboard.vue:786-1170 | 替换为 CSS variables |
 | m9 | DashboardLayout.vue 18+ 硬编码颜色值 | DashboardLayout.vue:88-200 | 引用 tokens |
-| m10 | Graph3D.vue 15+ `any` 类型 | Graph3D.vue 多处 | 安装 @types/three + 写 d3-force-3d shim |
-| m11 | env.d.ts 35 个 `any`-typed module exports | env.d.ts:1-43 | 同 m10 |
+| m10 | Graph3D.vue 15+ `any` 类型 | Graph3D.vue 多处 | ✅ 安装 @types/three + 用 3d-force-graph 自带类型替换 `any` (12→1) |
+| m11 | env.d.ts 35 个 `any`-typed module exports | env.d.ts:1-43 | ✅ 用 d3-force 类型化 shim + `export * from 'three/src/Three.js'` 替换 (27→0) |
 | m12 | Tooltip inline style 在 3 文件重复 | Graph2D.vue, LoopDemo.vue, LearningPathFlow.vue | 提取到 chartTheme.ts |
 | m13 | G6 lifecycle (mount/resize/destroy) 在 2 组件重复 | CareerPathGraph.vue, LearningPathFlow.vue | `composables/useG6Graph.ts` |
 | m14 | PositionSearch.vue 直接 `request.get('/positions')` | PositionSearch.vue:24 | 用 jd.ts store |
 | m15 | pipeline.ts 486 行管理 9 域概念 | stores/pipeline.ts | 分拆为 status + config |
-| m16 | admin.ts 无 error state | stores/admin.ts:31-39 | 添加 `error: ref<string|null>` |
-| m17 | `SourceConfig` config 字段用 `Record<string, any>` | admin.ts:16 | 类型化或用 `unknown` |
+| m16 | admin.ts 无 error state | stores/admin.ts:31-39 | ✅ admin.ts 废弃为 re-export shim; datasource.ts 已有 error state |
+| m17 | `SourceConfig` config 字段用 `Record<string, any>` | admin.ts:16 | ✅ admin.ts 废弃; DataSourceDetail 使用 `Record<string, unknown>` |
 
 ---
 
