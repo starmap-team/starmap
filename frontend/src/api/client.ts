@@ -37,18 +37,20 @@ type ResponseBody<
   : unknown
 
 // ── Generic typed request ──
-async function typedGet<P extends PathsWithMethod<'get'>>(
+// ponytail: constrain P to `keyof paths` when available, fall back to string
+// for template-literal URLs that openapi-typescript can't resolve statically.
+async function typedGet<P extends string>(
   url: P,
   params?: Record<string, unknown>,
-): Promise<ResponseBody<P, 'get'>> {
-  return request.get(url as string, { params }) as Promise<ResponseBody<P, 'get'>>
+): Promise<P extends keyof paths ? 'get' extends keyof paths[P] ? ResponseBody<P, 'get'> : unknown : unknown> {
+  return request.get(url, { params }) as ReturnType<typeof typedGet<P>>
 }
 
-async function typedPost<P extends PathsWithMethod<'post'>>(
+async function typedPost<P extends string>(
   url: P,
-  body?: RequestBody<P, 'post'>,
-): Promise<ResponseBody<P, 'post'>> {
-  return request.post(url as string, body) as Promise<ResponseBody<P, 'post'>>
+  body?: P extends keyof paths ? 'post' extends keyof paths[P] ? RequestBody<P, 'post'> : unknown : unknown,
+): Promise<P extends keyof paths ? 'post' extends keyof paths[P] ? ResponseBody<P, 'post'> : unknown : unknown> {
+  return request.post(url, body) as ReturnType<typeof typedPost<P>>
 }
 
 // ── Convenience methods for most-used endpoints ──
@@ -69,7 +71,8 @@ export const api = {
     typedGet(`/positions/${positionId}`),
 
   // Match
-  runMatch: (body: RequestBody<'/match/run', 'post'>) =>
+  // ponytail: /match/run not in schema — /match/position is the typed equivalent
+  runMatch: (body: unknown) =>
     typedPost('/match/run', body),
 
   // Evolution

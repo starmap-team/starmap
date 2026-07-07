@@ -101,9 +101,9 @@ onMounted(async () => {
               :show-evolution="showEvolution"
               :max-nodes-limit="maxNodesLimit"
               :proficiency-filter="proficiencyFilter"
-              @node-click="handleNodeClick"
+              @node-click="onHandleNodeClick"
               @node-dbl-click="onNodeDblClick"
-              @canvas-click="onCanvasClick"
+              @canvas-click="onCanvasClickWithClear"
             />
             <Graph3D
               v-if="viewMode === '3d'"
@@ -114,7 +114,7 @@ onMounted(async () => {
               :show-evolution="showEvolution"
               :evolution-paths="graph3DEvolutionLinks"
               :current-domain-id="graphStore.expandedKAId"
-              @node-click="handleNodeClick"
+              @node-click="onHandleNodeClick"
               @node-dbl-click="onNodeDblClick"
               @evolution-edge-click="onOpenEvolutionDrawer"
             />
@@ -167,12 +167,12 @@ onMounted(async () => {
         <DetailPanel
           :selected-node="selectedNode"
           :position-radar-option="positionRadarOption"
-          @close="closeDetail"
+          @close="onCloseDetail"
           @navigate-to-detail="(n) => selectedNode = n"
         />
       </div>
 
-      <GraphSearchBar @node-selected="handleSearchSelect" />
+      <GraphSearchBar @node-selected="onHandleSearchSelect" />
 
       <!-- 演化详情抽屉 -->
       <HomeEvolutionDrawer ref="evolutionDrawer" />
