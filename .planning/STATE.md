@@ -3,24 +3,24 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: 全系统功能闭环
 status: executing
-last_updated: "2026-07-07T11:50:00.000Z"
+last_updated: "2026-07-07T11:55:00.000Z"
 last_activity: 2026-07-07
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 7
   completed_plans: 8
-  percent: 50
+  percent: 67
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 2 of 6 (后端硬编码消除)
+Phase: 5 of 6 (样式统一与体验优化)
 Plan: 0 plans created
 Status: Ready to plan
-Next: /gsd-plan-phase 2
+Next: /gsd-plan-phase 5
 Last activity: 2026-07-07
 
 ## Accumulated Context
@@ -41,46 +41,45 @@ Last activity: 2026-07-07
 
 (none)
 
-### P1 Status (All Closed ✅)
-
-| ID | Description | Status | Commit |
-|----|-------------|--------|--------|
-| P1-001 | status_aggregator snapshot_at → snapshot_date | ✅ Already fixed | — |
-| P1-002 | graph_service.sync_from_pipeline() | ✅ Fixed | eb4650a |
-| P1-003 | match_service __import__("json") | ✅ Fixed (seed scripts) | a6897bf |
-| P1-004 | match_results 内存缓存 → PostgreSQL | ✅ Fixed (PG fallback read) | a6897bf |
-| P1-005 | loop_results 内存存储 → PostgreSQL | ✅ Already DB-first read | — |
-| P1-006 | review_queue 内存存储 → PostgreSQL | ✅ Already ORM-based | — |
-| P1-007 | admin.py Cypher注入 → 参数化查询 | ✅ Already whitelist + param | — |
-| P1-008 | config.py 默认密码移至 .env | ✅ Already sentinel defaults | — |
-
-## Active Requirements
-
-See `.planning/REQUIREMENTS.md`
-
 ## Phase Progress
 
 | Phase | Name | Status | Verified |
 |-------|------|--------|----------|
 | 1 | 核心Bug修复 | ✅ completed | 8/8 todos closed |
-| 2 | 后端硬编码消除 | pending | — |
+| 2 | 后端硬编码消除 | ✅ completed | 5/5 criteria met (code-level) |
 | 3 | 前端功能闭环 | ✅ completed | 3/3 |
 | 4 | 数据流贯通 | ✅ completed | 4/4 (GAP-04-01 closed) |
-| 5 | 样式统一与体验优化 | pending | — |
-| 6 | 架构重构 | pending | — |
+| 5 | 样式统一与体验优化 | ⏳ pending | — |
+| 6 | 架构重构 | ⏳ pending | — |
 
-## Baseline Metrics (2026-07-02)
+## P1 Summary (Completed 2026-07-07)
+
+All 8 bug items closed:
+- P1-001/003/006/007/008: Already fixed in prior iterations
+- P1-002: sync_from_pipeline Position node fix (eb4650a)
+- P1-004: get_match_result PG fallback read (a6897bf)
+- P1-005: loop_results already DB-first read
+
+## P2 Summary (Completed 2026-07-07)
+
+All 5 success criteria verified (code-level):
+1. POSITION_SKILL_PROFILES removed → 3-tier dynamic load
+2. EVOLVES_TO writes via orchestrator step 8 + graph_writer
+3. /evolution/trends reads SkillTimeseries (real data)
+4. /quality/dashboard hallucination trend from SkillTimeseries
+5. Crawl keyword from DataSourceRecord (DB-first, "python" fallback only)
+
+## P4 Summary (Completed 2026-07-07)
+
+GAP-04-01 closed (eb4650a): target_position Position node + scorer learning_path key.
+E2E verified: all 5 steps SUCCESS.
+
+## Baseline Metrics (2026-07-07)
 
 | Metric | Value |
 |--------|-------|
-| 后端测试覆盖率 | 65.43% |
-| Ruff lint errors | 0 |
-| Mypy errors | 0 |
-| TypeScript errors | 0 |
-| ESLint warnings | 18 |
-| CI jobs | 4/4 pass |
-| 运行时Bug | 0 ✅ (was 3) |
-| 内存存储 | 0 ✅ (was 3) |
-| 硬编码Profile | 8 岗位 |
+| 运行时Bug | 0 ✅ |
+| 内存存储 | 0 ✅ |
+| 硬编码Profile | 0 ✅ |
 | 死端点 | 6 |
 | Home.vue行数 | 1316 |
