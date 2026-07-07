@@ -117,6 +117,13 @@
   --status-error: var(--destructive);
   --status-info: var(--info);
 
+  /* ═══════════════════════════════════════════════
+     Slate scale (Tailwind-compatible)
+     ═══════════════════════════════════════════════ */
+  --slate-200: #e2e8f0;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+
   /* Interactive states */
   --interactive-default: var(--primary);
   --interactive-hover: var(--primary-hover);
