@@ -103,7 +103,6 @@ def score_skill_match(
             str(item.get("proficiency", "熟悉")), 0.65
         )
 
-    set(person_level_map)
     candidate_canonical_set = set(person_level_map.keys())
 
     def _score_one(item: dict[str, str]) -> dict[str, Any]:

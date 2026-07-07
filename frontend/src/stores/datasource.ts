@@ -6,23 +6,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
+import type { DataSourceDetail } from '@/types/datasource'
 
 // ── 类型定义 ──
 
-export interface DataSourceDetail {
-  id: string
-  name: string
-  source_type: 'crawler' | 'api' | 'manual' | 'import'
-  authority_score: number
-  status: 'active' | 'paused' | 'error'
-  last_crawl_at: string
-  total_records: number
-  valid_records: number
-  duplicate_rate: number
-  avg_quality_score: number
-  daily_crawl_volume: number[]
-  config?: Record<string, unknown>
-}
+// ponytail: DataSourceDetail removed — canonical type in types/datasource.ts
 
 export interface DataSourceStats {
   source_id: string

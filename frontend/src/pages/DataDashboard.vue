@@ -536,6 +536,7 @@ onMounted(async () => {
       }
     },
     onError: () => {
+      // keep: records SSE→polling fallback for ops debugging
       console.warn('[Dashboard] SSE connection failed, using polling fallback')
     },
     pollUrl: '/api/v1/dashboard/realtime-poll',

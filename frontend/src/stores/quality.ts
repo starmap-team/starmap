@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import request from '@/api/request'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'
+import type { QualityAlert } from '@/types/quality'
 
 export interface QualityMetrics {
   precision: number
@@ -58,14 +59,7 @@ export interface QualityTrendPoint {
   review_count: number
 }
 
-export interface QualityAlert {
-  id: string | number
-  level: 'info' | 'warning' | 'error' | 'critical'
-  type: string
-  message: string
-  created_at: string
-  status: 'pending' | 'processing' | 'resolved' | 'ignored'
-}
+// ponytail: QualityAlert removed — canonical type in types/quality.ts
 
 export const useQualityStore = defineStore('quality', () => {
   const metrics = ref<QualityMetrics | null>(null)

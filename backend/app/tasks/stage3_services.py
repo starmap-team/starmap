@@ -10,7 +10,7 @@ from loguru import logger
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.extraction.graph_writer import GraphConfig, batch_write_extractions
+from app.core.extraction.graph_writer import GraphConfig, batch_write_extractions, skill_entry_category, skill_entry_name
 from app.core.extraction.jd_extract import extract_from_jd, mask_pii
 from app.db.session import get_async_engine
 from app.models.extraction_models import (
@@ -19,18 +19,6 @@ from app.models.extraction_models import (
     PositionSkillRelation,
     SkillRecord,
 )
-
-
-def _skill_name(entry: Any) -> str:
-    if isinstance(entry, dict):
-        return str(entry.get("name") or entry.get("skill") or "").strip()
-    return str(entry).strip()
-
-
-def _skill_category(entry: Any) -> str:
-    if isinstance(entry, dict):
-        return str(entry.get("category") or "general")
-    return "general"
 
 
 def _confidence_from_result(result: dict[str, Any]) -> float:
@@ -132,7 +120,7 @@ async def persist_extraction_result(
         ("preferred", data.get("preferred_skills", [])),
     ):
         for entry in entries:
-            skill_name = _skill_name(entry)
+            skill_name = skill_entry_name(entry)
             if not skill_name:
                 continue
             skill = await _upsert_skill(session, skill_name, _skill_category(entry))
@@ -257,7 +245,7 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
                 position_name = str(payload.get("position_name") or record.job_title)
                 for entries in (payload.get("required_skills", []), payload.get("preferred_skills", [])):
                     for entry in entries or []:
-                        skill_name = _skill_name(entry)
+                        skill_name = skill_entry_name(entry)
                         if not skill_name:
                             continue
                         skill_counts[skill_name] += 1

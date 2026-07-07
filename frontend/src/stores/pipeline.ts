@@ -6,6 +6,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
+import type { QualityAlert } from '@/types/quality'
+import type { DataSourceDetail } from '@/types/datasource'
 
 // ── 类型定义 ──
 
@@ -38,19 +40,7 @@ export interface PipelineRun {
   selected_stages: string[] | null
 }
 
-export interface DataSource {
-  id: string
-  name: string
-  source_type: 'crawler' | 'api' | 'manual' | 'import'
-  authority_score: number
-  status: 'active' | 'paused' | 'error'
-  last_crawl_at: string
-  total_records: number
-  valid_records: number
-  duplicate_rate: number
-  avg_quality_score: number
-  config?: Record<string, unknown>
-}
+// ponytail: DataSource removed — canonical type is DataSourceDetail in types/datasource.ts
 
 export interface PipelineStatus {
   is_running: boolean
@@ -88,16 +78,7 @@ export interface DataQualityMetrics {
 
 // ── Phase 1 SSE 事件类型 (D-10) ──
 
-export interface QualityAlert {
-  level: 'info' | 'warning' | 'error'
-  message: string
-  source: string
-  timestamp: string
-  dimension?: string
-  value?: number
-  threshold?: number
-  time: string
-}
+// ponytail: QualityAlert removed — canonical type in types/quality.ts
 
 export interface DataMilestone {
   type: string
@@ -154,7 +135,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
   const runs = ref<PipelineRun[]>([])
   const stages = ref<PipelineStage[]>([])
   const dataQuality = ref<DataQualityMetrics | null>(null)
-  const dataSources = ref<DataSource[]>([])
+  const dataSources = ref<DataSourceDetail[]>([])
   const schedules = ref<PipelineSchedule[]>([])
   const config = ref<PipelineConfig | null>(null)
   const loading = ref(false)
@@ -287,7 +268,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get('/pipeline/datasources') as DataSource[]
+      const data = await request.get('/pipeline/datasources') as DataSourceDetail[]
       dataSources.value = data
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '获取数据源列表失败'

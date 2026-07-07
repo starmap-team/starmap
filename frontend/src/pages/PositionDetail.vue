@@ -88,7 +88,8 @@ onMounted(async () => {
     }
   } catch (e) {
     // Neo4j 查询失败（如 404），回退到 PostgreSQL
-    console.warn('[PositionDetail] Neo4j lookup failed, trying PostgreSQL:', e)
+      // keep: records Neo4j→PostgreSQL fallback for ops debugging
+      console.warn('[PositionDetail] Neo4j lookup failed, trying PostgreSQL:', e)
     await loadFromPostgres()
   } finally {
     loading.value = false

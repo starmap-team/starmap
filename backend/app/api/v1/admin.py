@@ -33,6 +33,7 @@ from app.models.extraction_models import (
     JDExtractionRecord,
     PositionRecord,
     PositionSkillRelation,
+    ReviewQueue,
     SkillRecord,
 )
 
@@ -153,12 +154,10 @@ async def _build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
         )
 
         # Count pending review items from DB
-        from app.models.extraction_models import ReviewQueue as ReviewQueueModel
-
         pending_count = int(
             (await session.execute(
-                sa.select(sa.func.count()).select_from(ReviewQueueModel)
-                .where(ReviewQueueModel.status == "pending")
+                sa.select(sa.func.count()).select_from(ReviewQueue)
+                .where(ReviewQueue.status == "pending")
             )).scalar() or 0
         )
     except Exception:
@@ -222,26 +221,26 @@ async def get_review_queue(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditQueueResponse:
     """Return pending review items from DB; auto-seed if table is empty."""
-    from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+
 
     try:
         # Check if there are any rows at all in the review_queue table
         total_count = int(
             (await session.execute(
-                sa.select(sa.func.count()).select_from(ReviewQueueModel)
+                sa.select(sa.func.count()).select_from(ReviewQueue)
             )).scalar() or 0
         )
 
         if total_count == 0:
             # Auto-seed from template data (only once, when table is empty)
             for seed in _DEMO_REVIEW_SEED:
-                session.add(ReviewQueueModel(**seed))
+                session.add(ReviewQueue(**seed))
             await session.commit()
 
         stmt = (
-            sa.select(ReviewQueueModel)
-            .where(ReviewQueueModel.status == "pending")
-            .order_by(ReviewQueueModel.id.desc())
+            sa.select(ReviewQueue)
+            .where(ReviewQueue.status == "pending")
+            .order_by(ReviewQueue.id.desc())
         )
         result = await session.execute(stmt)
         rows = result.scalars().all()
@@ -268,10 +267,10 @@ async def approve_audit(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditItem:
     """Approve a review queue item."""
-    from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+
 
     result = await session.execute(
-        sa.select(ReviewQueueModel).where(ReviewQueueModel.id == item_id)
+        sa.select(ReviewQueue).where(ReviewQueue.id == item_id)
     )
     row = result.scalar_one_or_none()
     if row is None:
@@ -294,10 +293,10 @@ async def reject_audit(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditItem:
     """Reject a review queue item."""
-    from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+
 
     result = await session.execute(
-        sa.select(ReviewQueueModel).where(ReviewQueueModel.id == item_id)
+        sa.select(ReviewQueue).where(ReviewQueue.id == item_id)
     )
     row = result.scalar_one_or_none()
     if row is None:
@@ -322,10 +321,10 @@ async def update_review_queue_item(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditItem:
     """Update name and/or trust of a review queue item (ADMIN-02 save loop)."""
-    from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+
 
     result = await session.execute(
-        sa.select(ReviewQueueModel).where(ReviewQueueModel.id == item_id)
+        sa.select(ReviewQueue).where(ReviewQueue.id == item_id)
     )
     row = result.scalar_one_or_none()
     if row is None:
@@ -356,15 +355,15 @@ async def reset_demo_seed(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ResetDemoResponse:
     """Reset demo review queue state — re-seed the review_queue table."""
-    from app.models.extraction_models import ReviewQueue as ReviewQueueModel
+
 
     # Clear existing pending review items
     await session.execute(
-        sa.delete(ReviewQueueModel).where(ReviewQueueModel.status == "pending")
+        sa.delete(ReviewQueue).where(ReviewQueue.status == "pending")
     )
 
     # Seed default demo items from shared template
-    demo_items = [ReviewQueueModel(**seed) for seed in _DEMO_REVIEW_SEED]
+    demo_items = [ReviewQueue(**seed) for seed in _DEMO_REVIEW_SEED]
     for item in demo_items:
         session.add(item)
     await session.commit()

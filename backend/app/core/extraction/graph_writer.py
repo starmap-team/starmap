@@ -100,22 +100,31 @@ def _node_ref(label: str, name: str, properties: dict[str, Any] | None = None) -
     return GraphNodeRef(label=label, name=name, properties=props)
 
 
-def _skill_entry_name(entry: Any) -> str:
+def skill_entry_name(entry: Any) -> str:
+    """Extract a skill name from a dict entry or plain string.
+
+    Dict entries are checked in order: name, skill, title.
+    Shared by graph_writer and stage3_services.
+    """
     if isinstance(entry, dict):
         return str(entry.get("name") or entry.get("skill") or entry.get("title") or "").strip()
     return str(entry).strip()
+
+
+def skill_entry_category(entry: Any, default: str = "skill") -> str:
+    """Extract a skill category from a dict entry, with configurable default.
+
+    Shared by graph_writer (default='skill') and stage3_services (default='general').
+    """
+    if isinstance(entry, dict):
+        return str(entry.get("category") or default).lower()
+    return default
 
 
 def _skill_entry_level(entry: Any) -> str:
     if isinstance(entry, dict):
         return str(entry.get("level") or entry.get("proficiency") or "intermediate")
     return "intermediate"
-
-
-def _skill_entry_category(entry: Any) -> str:
-    if isinstance(entry, dict):
-        return str(entry.get("category") or "skill").lower()
-    return "skill"
 
 
 def _skill_entry_years(entry: Any) -> float | None:
@@ -220,12 +229,12 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
         (False, extraction.get("preferred_skills", [])),
     ):
         for entry in skills or []:
-            skill_name = _skill_entry_name(entry)
+            skill_name = skill_entry_name(entry)
             if not skill_name:
                 continue
 
             level = _skill_entry_level(entry)
-            category = _skill_entry_category(entry)
+            category = skill_entry_category(entry)
             years = _skill_entry_years(entry)
             rel_props = {
                 "required": required,
@@ -614,13 +623,13 @@ async def write_extraction_to_graph(
         (False, extraction.get("preferred_skills", [])),
     ):
         for entry in skills_list or []:
-            skill_name = _skill_entry_name(entry)
+            skill_name = skill_entry_name(entry)
             if not skill_name:
                 continue
             level = _skill_entry_level(entry)
             metadata = {
                 "level": level,
-                "category": _skill_entry_category(entry),
+                "category": skill_entry_category(entry),
                 "source_count": _skill_entry_source_count(entry),
                 "trend": _skill_entry_trend(entry),
             }
