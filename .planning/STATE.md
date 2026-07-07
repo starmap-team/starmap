@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: 全系统功能闭环
 status: milestone_complete
-last_updated: 2026-07-07T07:29:07.445Z
-last_activity: 2026-07-07 -- Phase 06 planning complete
+last_updated: 2026-07-07T08:50:00.000Z
+last_activity: 2026-07-07 -- Phase 06 verified + UAT complete (12/12 pass)
 progress:
-  total_phases: 7
-  completed_phases: 4
+  total_phases: 6
+  completed_phases: 6
   total_plans: 15
   completed_plans: 16
-  percent: 57
-stopped_at: Milestone complete (Phase 6 was final phase)
+  percent: 100
+stopped_at: Milestone complete (all 6 phases verified)
 ---
 
 # Project State
@@ -19,9 +19,9 @@ stopped_at: Milestone complete (Phase 6 was final phase)
 ## Current Position
 
 Phase: 6 of 6 (arch refactor)
-Plan: Not started
+Plan: All complete
 Status: Milestone complete
-Next: Plan Phase 6 (架构重构)
+Next: Milestone v2.0 已完成
 Last activity: 2026-07-07
 
 ## Accumulated Context
@@ -49,26 +49,27 @@ Last activity: 2026-07-07
 | 3 | 前端功能闭环 | ✅ completed | 3/3 |
 | 4 | 数据流贯通 | ✅ completed | 4/4 |
 | 5 | 样式统一与体验优化 | ✅ completed | 6/6 |
-| 6 | 架构重构 | ⏳ pending | — |
+| 6 | 架构重构 | ✅ completed | 12/12 |
 
-## P5 Status Detail
+## P6 Status Detail
 
 | Criterion | Status | Note |
 |-----------|--------|------|
-| Design tokens usage | ✅ | Migrated to graphColors.ts ECHARTS_PALETTE + design-tokens slate tokens (Plans 01-02) |
-| Single color source (graphColors.ts) | ✅ | useGraphColors.ts deleted |
-| GraphToolbar controlled | ✅ | showFilters is appropriate UI-local state |
-| Backend dead endpoints deleted | ✅ | All 6 already gone |
-| console.log cleanup | ✅ | Only 2 legitimate console.warn |
-| 2D/3D KA color consistency | ✅ | Playwright harness in tests/e2e/test_2d_3d_color_consistency.py (Plan 03), ±5 RGB tolerance |
+| Home.vue ≤ 350 行 | ✅ | 226 行 (515→226 via HomeKpiStrip/HomeGraphControls/HomeEvolutionDrawer wiring) |
+| Home.vue script ≤ 60 行 | ✅ | 59 行 |
+| pipeline 三文件拆分 | ✅ | routes.py(539)/schemas.py(184)/serializers.py(57) — 之前 Phase 5 已拆 |
+| SimHash 仅 1 模块 | ✅ | simhash.py canon; data_fusion.py thin re-export |
+| create_async_engine 仅 1 处 | ✅ | db/session.py:28 唯一定义 |
+| run_async 仅 1 处定义 | ✅ | async_helpers.py:13 |
+| ruff check 全绿 | ✅ | All checks passed! |
 
 ## Baseline Metrics (2026-07-07)
 
-| Metric | Value |
-|--------|-------|
-| 运行时Bug | 0 ✅ |
-| 内存存储 | 0 ✅ |
-| 硬编码Profile | 0 ✅ |
-| 硬编码颜色 | ~307 (in 28 files) |
-| 死端点 | 0 ✅ |
-| Home.vue行数 | 1316 |
+| Metric | Before | After |
+|--------|--------|-------|
+| 运行时Bug | 0 ✅ | 0 ✅ |
+| 内存存储 | 0 ✅ | 0 ✅ |
+| 硬编码Profile | 0 ✅ | 0 ✅ |
+| 硬编码颜色 | ~307 (in 28 files) | 0 (migrated to tokens) |
+| 死端点 | 0 ✅ | 0 ✅ |
+| Home.vue行数 | 1316→821 | 226 ✅ |
