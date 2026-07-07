@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: 全系统功能闭环
 status: executing
-last_updated: "2026-07-07T11:55:00.000Z"
+last_updated: "2026-07-07T12:05:00.000Z"
 last_activity: 2026-07-07
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 7
   completed_plans: 8
-  percent: 67
+  percent: 75
 ---
 
 # Project State
@@ -18,9 +18,8 @@ progress:
 ## Current Position
 
 Phase: 5 of 6 (样式统一与体验优化)
-Plan: 0 plans created
-Status: Ready to plan
-Next: /gsd-plan-phase 5
+Status: Partially done — 4/6 criteria met, remaining: hardcoded color migration
+Next: Migrate hardcoded colors in Vue/TS files to design tokens
 Last activity: 2026-07-07
 
 ## Accumulated Context
@@ -33,9 +32,7 @@ Last activity: 2026-07-07
 - DEC-004: API/DB仅允许追加字段，不删不改类型（死端点除外）
 - DEC-005: 赛题核心功能优先 — 5大功能+2创新点必须可演示
 - DEC-006: Home.vue重构延后到Phase 6 — 先确保功能可用，再优化架构
-- DEC-007: P3-01 — el-drawer 统一编辑形态 (per D-12)
-- DEC-008: P3-01 — 单计划模式 + localStorage plan_id (per D-06/D-07/D-08)
-- DEC-009: P3-03 — MATCH-FE-02 score hero 保留 gradient % 而非 el-progress；MATCH-FE-02 描述对应"岗位详情页"，MatchDiagnosis 无对应列
+- DEC-010: P5颜色迁移 — ~307处硬编码颜色值需迁移至 design tokens，DataDashboard.vue 最严重(112处)
 
 ### Blockers
 
@@ -45,34 +42,23 @@ Last activity: 2026-07-07
 
 | Phase | Name | Status | Verified |
 |-------|------|--------|----------|
-| 1 | 核心Bug修复 | ✅ completed | 8/8 todos closed |
-| 2 | 后端硬编码消除 | ✅ completed | 5/5 criteria met (code-level) |
+| 1 | 核心Bug修复 | ✅ completed | 8/8 |
+| 2 | 后端硬编码消除 | ✅ completed | 5/5 |
 | 3 | 前端功能闭环 | ✅ completed | 3/3 |
-| 4 | 数据流贯通 | ✅ completed | 4/4 (GAP-04-01 closed) |
-| 5 | 样式统一与体验优化 | ⏳ pending | — |
+| 4 | 数据流贯通 | ✅ completed | 4/4 |
+| 5 | 样式统一与体验优化 | ⏳ 4/6 criteria | 2 remaining |
 | 6 | 架构重构 | ⏳ pending | — |
 
-## P1 Summary (Completed 2026-07-07)
+## P5 Status Detail
 
-All 8 bug items closed:
-- P1-001/003/006/007/008: Already fixed in prior iterations
-- P1-002: sync_from_pipeline Position node fix (eb4650a)
-- P1-004: get_match_result PG fallback read (a6897bf)
-- P1-005: loop_results already DB-first read
-
-## P2 Summary (Completed 2026-07-07)
-
-All 5 success criteria verified (code-level):
-1. POSITION_SKILL_PROFILES removed → 3-tier dynamic load
-2. EVOLVES_TO writes via orchestrator step 8 + graph_writer
-3. /evolution/trends reads SkillTimeseries (real data)
-4. /quality/dashboard hallucination trend from SkillTimeseries
-5. Crawl keyword from DataSourceRecord (DB-first, "python" fallback only)
-
-## P4 Summary (Completed 2026-07-07)
-
-GAP-04-01 closed (eb4650a): target_position Position node + scorer learning_path key.
-E2E verified: all 5 steps SUCCESS.
+| Criterion | Status | Note |
+|-----------|--------|------|
+| Design tokens usage | ⏳ | ~307 hardcoded colors remain |
+| Single color source (graphColors.ts) | ✅ | useGraphColors.ts deleted |
+| GraphToolbar controlled | ✅ | showFilters is appropriate UI-local state |
+| Backend dead endpoints deleted | ✅ | All 6 already gone |
+| console.log cleanup | ✅ | Only 2 legitimate console.warn |
+| 2D/3D KA color consistency | ⏳ | Needs verification |
 
 ## Baseline Metrics (2026-07-07)
 
@@ -81,5 +67,6 @@ E2E verified: all 5 steps SUCCESS.
 | 运行时Bug | 0 ✅ |
 | 内存存储 | 0 ✅ |
 | 硬编码Profile | 0 ✅ |
-| 死端点 | 6 |
+| 硬编码颜色 | ~307 (in 28 files) |
+| 死端点 | 0 ✅ |
 | Home.vue行数 | 1316 |
