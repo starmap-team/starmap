@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 演化看板页 — CII 时序曲线（技能需求通胀指数）
  * Task 3 增强: 技能趋势时间线、新兴技能卡片、CII仪表盘、技能对比
@@ -12,7 +12,9 @@ import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useEvolutionStore } from '@/stores/evolution'
-import { chartColors, tooltipStyle, splitLineStyle, gaugeColor, legendStyle } from '@/utils/chartTheme'
+import type { TrendItem } from '@/stores/evolution'
+import { useEvolutionCharts } from '@/composables/useEvolutionCharts'
+import EvolutionChangelogDrawer from '@/components/EvolutionChangelogDrawer.vue'
 
 use([CanvasRenderer, LineChart, BarChart, GaugeChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
 
@@ -60,26 +62,21 @@ const selectedSkillForDetail = ref('')
 
 const trendLabel: Record<string, string> = { rising: '↑ 上升', stable: '→ 平稳', declining: '↓ 下降' }
 const trendTagType: Record<string, string> = { rising: 'success', stable: 'info', declining: 'danger' }
-const changeTypeLabel: Record<string, string> = {
-  proficiency_change: '熟练度变更',
-  requirement_change: '需求等级变更',
-  new_skill: '新增技能',
-  removed_skill: '移除技能',
-  trend_change: '趋势变更',
-  confidence_change: '置信度变更',
-}
-const SERIES_COLORS = chartColors().chart
+
+// Chart options — extracted to composable
+const { chartOption, emergingSkills, ciiGaugeOption, compareOption } = useEvolutionCharts(
+  items, quarters, selectedSkill, compareSkillA, compareSkillB
+)
 
 async function fetchTrends() {
   try {
     await evo.fetchTrends()
   } catch (e) {
-    console.error('[Evolution] Failed to fetch trends:', e)
+    console.error('[Evolution] Failed to fetch trends:', e) // ponytail: error logging before user-facing message
     ElMessage.error('演化趋势数据加载失败')
   }
 }
 
-// EVOLVE-FE-04/D-10: 快照列表（驱动时间线滑块）
 async function fetchSnapshots() {
   try {
     await evo.fetchSnapshots()
@@ -99,105 +96,6 @@ function onSnapshotChange(idx: number | number[]) {
   selectedSnapshotDate.value = snap.snapshot_date
   ElMessage.info(`已切换到快照 ${snap.snapshot_date}（${snap.position_name}）`)
 }
-
-// Top 10 CII 时序曲线
-const chartOption = computed(() => {
-  const filtered = selectedSkill.value
-    ? items.value.filter(i => i.skill_name === selectedSkill.value)
-    : items.value.slice(0, 10)
-
-  return {
-    color: SERIES_COLORS,
-    tooltip: {
-      trigger: 'axis',
-      formatter: (params: any[]) => {
-        return params.map(p =>
-          `${p.marker} ${p.seriesName}: <b>${p.value}</b>`
-        ).join('<br/>')
-      },
-    },
-    legend: {
-      bottom: 0,
-      data: filtered.map(i => i.skill_name),
-      textStyle: { fontSize: 13 },
-    },
-    grid: { left: 50, right: 30, top: 30, bottom: 50 },
-    xAxis: {
-      type: 'category',
-      data: quarters.value,
-      boundaryGap: false,
-    },
-    yAxis: {
-      type: 'value',
-      name: 'CII',
-      min: 60,
-      max: 220,
-      splitLine: splitLineStyle(),
-    },
-    series: filtered.map(i => ({
-      name: i.skill_name,
-      type: 'line',
-      data: i.points,
-      smooth: true,
-      symbol: 'circle',
-      symbolSize: 6,
-      lineStyle: { width: 3 },
-      emphasis: { focus: 'series' },
-    })),
-  }
-})
-
-// 新兴技能 (rising + high confidence)
-const emergingSkills = computed(() => {
-  return items.value
-    .filter(i => i.trend === 'rising')
-    .sort((a, b) => b.confidence - a.confidence)
-    .slice(0, 6)
-})
-
-// CII 仪表盘 (取全部 rising 技能的平均 CII)
-const ciiGaugeOption = computed(() => {
-  if (!items.value.length) return {}
-  const latestValues = items.value.map(i => i.points?.[i.points.length - 1] ?? 100)
-  const avgCii = latestValues.reduce((s, v) => s + v, 0) / latestValues.length
-  return {
-    series: [{
-      type: 'gauge',
-      startAngle: 200,
-      endAngle: -20,
-      min: 60,
-      max: 200,
-      progress: { show: true, width: 18, itemStyle: { color: gaugeColor(avgCii) } },
-      axisLine: { lineStyle: { width: 18, color: [[0.3, chartColors().success], [0.7, chartColors().warning], [1, chartColors().danger]] } },
-      axisTick: { show: false },
-      splitLine: { length: 10, lineStyle: { width: 2, color: chartColors().muted } },
-      axisLabel: { distance: 25, color: chartColors().muted, fontSize: 11 },
-      pointer: { itemStyle: { color: 'auto' } },
-      title: { show: true, offsetCenter: [0, '70%'], fontSize: 14, color: chartColors().muted },
-      detail: { valueAnimation: true, formatter: '{value}', fontSize: 28, offsetCenter: [0, '40%'], color: 'inherit' },
-      data: [{ value: Math.round(avgCii * 10) / 10, name: '平均 CII 指数' }],
-    }],
-  }
-})
-
-// 技能对比图
-const compareOption = computed(() => {
-  if (!compareSkillA.value || !compareSkillB.value) return null
-  const itemA = items.value.find(i => i.skill_name === compareSkillA.value)
-  const itemB = items.value.find(i => i.skill_name === compareSkillB.value)
-  if (!itemA || !itemB) return null
-  return {
-    tooltip: { ...tooltipStyle(), trigger: 'axis' },
-    legend: { data: [compareSkillA.value, compareSkillB.value], bottom: 0, textStyle: legendStyle() },
-    grid: { left: 50, right: 30, top: 30, bottom: 40 },
-    xAxis: { type: 'category', data: quarters.value, boundaryGap: false },
-    yAxis: { type: 'value', name: 'CII', splitLine: splitLineStyle() },
-    series: [
-      { name: compareSkillA.value, type: 'line', data: itemA.points, smooth: true, lineStyle: { width: 3, color: chartColors().primary }, itemStyle: { color: chartColors().primary } },
-      { name: compareSkillB.value, type: 'line', data: itemB.points, smooth: true, lineStyle: { width: 3, color: chartColors().danger }, itemStyle: { color: chartColors().danger } },
-    ],
-  }
-})
 
 async function fetchChangelog(skillName: string) {
   selectedSkillForDetail.value = skillName
@@ -441,7 +339,7 @@ onMounted(() => {
         </div>
       </el-card>
 
-      <!-- Task 3: 技能对比 -->
+      <!-- 技能对比 -->
       <el-card
         class="compare-card"
         shadow="hover"
@@ -503,7 +401,7 @@ onMounted(() => {
           :data="items"
           size="small"
           stripe
-          @row-click="(row: any) => fetchChangelog(row.skill_name)"
+          @row-click="(row: TrendItem) => fetchChangelog(row.skill_name)"
         >
           <el-table-column
             prop="skill_name"
@@ -577,105 +475,13 @@ onMounted(() => {
         </el-table>
       </el-card>
 
-      <!-- 演化详情抽屉 -->
-      <el-drawer
+      <!-- 演化详情抽屉 — extracted to EvolutionChangelogDrawer.vue -->
+      <EvolutionChangelogDrawer
         v-model="drawerVisible"
-        :title="`${selectedSkillForDetail} 演化历史`"
-        size="400px"
-      >
-        <div v-loading="changelogLoading">
-          <el-timeline v-if="changelogData.length">
-            <el-timeline-item
-              v-for="(item, idx) in changelogData"
-              :key="idx"
-              :timestamp="item.date ?? item.created_at ?? ''"
-              placement="top"
-            >
-              <el-card
-                shadow="never"
-                class="changelog-card"
-              >
-                <div class="changelog-header">
-                  <el-tag
-                    size="small"
-                    effect="plain"
-                    type="primary"
-                  >
-                    {{ changeTypeLabel[item.change_type] ?? item.change_type ?? '变更' }}
-                  </el-tag>
-                </div>
-                <div
-                  v-if="item.old_proficiency || item.new_proficiency"
-                  class="changelog-detail"
-                >
-                  <span class="changelog-label">熟练度:</span>
-                  <span>{{ item.old_proficiency ?? '-' }}</span>
-                  <span class="changelog-arrow">→</span>
-                  <span class="changelog-new">{{ item.new_proficiency ?? '-' }}</span>
-                </div>
-                <div
-                  v-if="item.old_requirement || item.new_requirement"
-                  class="changelog-detail"
-                >
-                  <span class="changelog-label">需求等级:</span>
-                  <span>{{ item.old_requirement ?? '-' }}</span>
-                  <span class="changelog-arrow">→</span>
-                  <span class="changelog-new">{{ item.new_requirement ?? '-' }}</span>
-                </div>
-                <div
-                  v-if="item.description"
-                  class="changelog-detail"
-                >
-                  <span>{{ item.description }}</span>
-                </div>
-                <div class="changelog-meta">
-                  <span
-                    v-if="item.trust_score"
-                    class="trust-meta"
-                  >
-                    信任度 {{ (item.trust_score * 100).toFixed(0) }}%
-                  </span>
-                  <span
-                    v-if="item.confidence"
-                    class="trust-meta"
-                  >
-                    置信度 {{ (item.confidence * 100).toFixed(0) }}%
-                  </span>
-                </div>
-              </el-card>
-            </el-timeline-item>
-          </el-timeline>
-          <div
-            v-else
-            class="custom-empty"
-          >
-            <div class="empty-icon-wrapper">
-              <svg
-                width="48"
-                height="48"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line
-                x1="16"
-                y1="13"
-                x2="8"
-                y2="13"
-              /><line
-                x1="16"
-                y1="17"
-                x2="8"
-                y2="17"
-              /><polyline points="10 9 9 9 8 9" /></svg>
-            </div><p class="empty-text">
-              该技能暂无变更记录
-            </p>
-          </div>
-        </div>
-      </el-drawer>
+        :skill-name="selectedSkillForDetail"
+        :data="changelogData"
+        :loading="changelogLoading"
+      />
     </div>
   </MainLayout>
 </template>
@@ -694,249 +500,113 @@ onMounted(() => {
 .page-subtitle {
   font-size: var(--font-size-sm);
   color: var(--muted-foreground);
-  margin: var(--space-1) 0 0;
+  margin: 0;
 }
 .page-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-6);
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
 }
-.page-header h2 {
-  margin: 0 0 4px;
-  font-size: var(--font-size-3xl);
-  color: var(--foreground);
-  font-weight: 800;
-  letter-spacing: var(--tracking-tight);
-}
-.subtitle {
-  margin: 0;
-  font-size: var(--font-size-base);
-  color: var(--muted-foreground);
-}
+.select-sm { width: 180px; }
+.select-md { width: 240px; }
+.ml-2 { margin-left: 8px; }
 
-/* KPI 行 */
-.kpi-row {
-  display: flex;
-  gap: var(--space-4);
-  margin-bottom: var(--space-5);
-}
-.timeline-card { margin-bottom: var(--space-4); }
-.timeline-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: 0 var(--space-2);
-}
-.timeline-label {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--muted-foreground);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  flex-shrink: 0;
-  min-width: 36px;
-}
-.timeline-slider { flex: 1; margin: 0 var(--space-3); }
-.timeline-current {
-  font-size: var(--font-size-sm);
-  color: var(--primary);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-  min-width: 90px;
-  text-align: right;
-}
-@media (max-width: 768px) {
-  .timeline-row { flex-direction: column; align-items: stretch; gap: var(--space-2); }
-  .timeline-current { text-align: left; }
-}
-.gauge-card {
-  flex: 0 0 320px;
-}
-.emerging-card {
-  flex: 1;
-  min-width: 0;
-}
-.emerging-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--space-3);
-}
-.emerging-item {
-  padding: var(--space-3) var(--space-4);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  cursor: pointer;
-  transition: all var(--duration-normal) var(--ease-out);
-  position: relative;
-  overflow: hidden;
-}
-.emerging-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--success);
-  border-radius: 0 2px 2px 0;
-  opacity: 0;
-  transition: opacity var(--duration-fast);
-}
-.emerging-item:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
-}
-.emerging-item:hover::before { opacity: 1; }
-.emerging-name {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--foreground);
-  margin-bottom: var(--space-1);
-  letter-spacing: var(--tracking-tight);
-}
-.emerging-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.emerging-cii {
-  font-size: var(--font-size-xs);
-  color: var(--success);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.pulse-tag {
-  animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-.chart-card {
-  margin-bottom: var(--space-5);
-}
-.compare-card {
-  margin-bottom: var(--space-5);
-}
-.compare-selectors {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.compare-vs {
-  font-size: var(--font-size-lg);
-  font-weight: 800;
-  color: var(--muted-foreground);
-  letter-spacing: var(--tracking-tight);
-}
-.compare-placeholder {
-  text-align: center;
-  padding: var(--space-10);
-  color: var(--muted-foreground);
-  font-size: var(--font-size-base);
-}
-.table-card {
-  margin-bottom: var(--space-5);
-}
-.related-tag {
-  margin-right: var(--space-2);
-  margin-bottom: var(--space-1);
-}
-@media (max-width: 768px) {
-  .kpi-row { flex-direction: column; }
-  .gauge-card { flex: 1; }
-  .compare-selectors { flex-direction: column; align-items: stretch; }
-}
-.cii-up { color: var(--success); font-weight: 600; font-variant-numeric: tabular-nums; }
-.cii-down { color: var(--destructive); font-weight: 600; font-variant-numeric: tabular-nums; }
-.trust-meta { color: var(--muted-foreground); font-size: var(--font-size-xs); }
+/* ── Cards ── */
 .card-header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
+  gap: 8px;
+  font-weight: 600;
 }
 .card-header-badge {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--success);
-  background: var(--success-ghost);
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  color: var(--success, #67c23a);
+  background: rgba(103, 194, 83, 0.12);
+  padding: 2px 6px;
+  border-radius: 6px;
 }
-.select-sm { width: 160px; }
-.select-md { width: 180px; }
+.gauge-card, .emerging-card { min-height: 260px; }
 .chart-h-gauge { height: 240px; }
-.chart-h-lg { height: 420px; }
-.chart-h-md { height: 300px; }
-.ml-2 { margin-left: var(--space-2); }
-.mt-3 { margin-top: var(--space-3); }
+.chart-h-lg { height: 380px; }
+.chart-h-md { height: 280px; }
 
-/* ── Custom Empty State ── */
+/* ── KPI Row ── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 16px;
+}
+
+/* ── Timeline ── */
+.timeline-card { margin-bottom: 16px; }
+.timeline-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.timeline-label { font-size: 13px; color: var(--muted-foreground); white-space: nowrap; }
+.timeline-slider { flex: 1; }
+.timeline-current { font-size: 13px; color: var(--muted-foreground); white-space: nowrap; }
+
+/* ── Emerging skills ── */
+.emerging-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.emerging-item {
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--muted, rgba(148,163,184,0.08));
+  transition: background 0.2s;
+}
+.emerging-item:hover { background: var(--muted, rgba(148,163,184,0.16)); }
+.emerging-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.emerging-meta { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+.emerging-cii { color: var(--muted-foreground); }
+.pulse-tag { animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.7; } }
+
+/* ── Compare ── */
+.compare-card { margin-top: 16px; }
+.compare-selectors {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.compare-vs {
+  font-weight: 700;
+  color: var(--muted-foreground);
+}
+.compare-placeholder {
+  text-align: center;
+  padding: 40px;
+  color: var(--muted-foreground);
+}
+
+/* ── Table ── */
+.table-card { margin-top: 16px; }
+.related-tag { margin: 2px 4px; }
+
+/* ── CII indicators ── */
+.cii-up { color: var(--success, #67c23a); }
+.cii-down { color: var(--danger, #f56c6c); }
+
+/* ── Empty state ── */
 .custom-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--space-10) var(--space-6);
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--muted-foreground);
   text-align: center;
 }
-.empty-icon-wrapper {
-  color: var(--muted-foreground);
-  opacity: 0.4;
-  margin-bottom: var(--space-4);
-}
-.empty-text {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--foreground);
-  margin: 0;
-  letter-spacing: var(--tracking-tight);
-}
-.empty-hint-text {
-  font-size: var(--font-size-sm);
-  color: var(--muted-foreground);
-  margin: var(--space-1) 0 0;
-}
-.empty-slot {
-  margin-top: var(--space-4);
-}
-/* ── Changelog Card ── */
-.changelog-card { margin-bottom: var(--space-2); }
-.changelog-header { margin-bottom: var(--space-2); }
-.changelog-detail {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-sm);
-  color: var(--foreground);
-  margin-bottom: var(--space-1);
-}
-.changelog-label {
-  color: var(--muted-foreground);
-  font-weight: 500;
-  min-width: 60px;
-}
-.changelog-arrow {
-  color: var(--muted-foreground);
-  font-size: var(--font-size-xs);
-}
-.changelog-new {
-  color: var(--primary);
-  font-weight: 600;
-}
-.changelog-meta {
-  display: flex;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border);
-}
+.empty-icon-wrapper { opacity: 0.4; }
+.empty-text { font-size: 14px; margin: 0; }
+.empty-hint-text { font-size: 12px; opacity: 0.7; margin: 0; }
 </style>
-
-
