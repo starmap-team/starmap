@@ -118,7 +118,7 @@ const stats = computed(() => {
 .tt-name {
   font-size: 13px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: var(--slate-200);
   line-height: 1.3;
   margin-bottom: 6px;
 }
@@ -139,13 +139,13 @@ const stats = computed(() => {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--slate-500);
 }
 
 .tt-stat-value {
   font-size: 13px;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--slate-400);
   font-variant-numeric: tabular-nums;
 }
 
