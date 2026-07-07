@@ -1,6 +1,7 @@
 ﻿import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import request from '@/api/request'
+import { ECHARTS_PALETTE } from '@/utils/graphColors'
 
 export interface QualityMetrics {
   precision: number
@@ -106,10 +107,10 @@ export const useQualityStore = defineStore('quality', () => {
     if (!metrics.value) return []
     const m = metrics.value
     return [
-      { label: '节点总数', value: m.total_nodes.toLocaleString(), color: '#409eff' },
-      { label: '平均信任度', value: m.avg_trust_score.toFixed(1), color: '#67c23a' },
-      { label: '幻觉率', value: (m.hallucination_rate * 100).toFixed(1) + '%', color: '#e6a23c' },
-      { label: '待审核', value: m.pending_review, color: '#f56c6c' },
+      { label: '节点总数', value: m.total_nodes.toLocaleString(), color: ECHARTS_PALETTE.KPI[0] },
+      { label: '平均信任度', value: m.avg_trust_score.toFixed(1), color: ECHARTS_PALETTE.KPI[1] },
+      { label: '幻觉率', value: (m.hallucination_rate * 100).toFixed(1) + '%', color: ECHARTS_PALETTE.KPI[2] },
+      { label: '待审核', value: m.pending_review, color: ECHARTS_PALETTE.KPI[3] },
     ]
   })
 

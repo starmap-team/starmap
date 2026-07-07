@@ -129,6 +129,14 @@ export const SCENE_PALETTE = {
   selectionGlow: '#f59e0b',   // amber selection glow
 } as const
 
+// Consumed by frontend/src/pages/DataDashboard.vue (PIE_BORDER/LABEL) and frontend/src/stores/quality.ts (KPI).
+// KPI index mapping: 0=节点总数 blue, 1=平均信任度 green, 2=幻觉率 amber, 3=待审核 red.
+export const ECHARTS_PALETTE = {
+  PIE_BORDER: '#0a0a1a',
+  LABEL:      '#ffffff',
+  KPI:        ['#409eff', '#67c23a', '#e6a23c', '#f56c6c'],
+} as const
+
 /**
  * Returns a THREE.js-compatible hex integer from a CSS hex color string.
  */

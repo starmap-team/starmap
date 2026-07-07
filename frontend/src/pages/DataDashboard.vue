@@ -27,6 +27,7 @@ import CountUpNumber from '@/components/CountUpNumber.vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useSSE } from '@/composables/useSSE'
 import { chartAnimationConfig, chartColors, tooltipStyle } from '@/utils/chartTheme'
+import { ECHARTS_PALETTE } from '@/utils/graphColors'
 import type { RealtimeEvent, EmergingSkill } from '@/stores/dashboard'
 
 use([
@@ -139,7 +140,7 @@ const darkPieOption = computed(() => {
       avoidLabelOverlap: false,
       itemStyle: {
         borderRadius: 4,
-        borderColor: '#0a0a1a',
+        borderColor: ECHARTS_PALETTE.PIE_BORDER,
         borderWidth: 2,
       },
       label: { show: false },
@@ -201,18 +202,18 @@ const treemapOption = computed(() => {
         show: true,
         formatter: '{b}',
         fontSize: 11,
-        color: '#fff',
+        color: ECHARTS_PALETTE.LABEL,
         textShadowColor: 'rgba(0,0,0,0.6)',
         textShadowBlur: 4,
       },
       itemStyle: {
-        borderColor: '#0a0a1a',
+        borderColor: ECHARTS_PALETTE.PIE_BORDER,
         borderWidth: 2,
         gapWidth: 2,
       },
       levels: [{
         itemStyle: {
-          borderColor: '#0a0a1a',
+          borderColor: ECHARTS_PALETTE.PIE_BORDER,
           borderWidth: 3,
           gapWidth: 3,
         },
@@ -244,7 +245,7 @@ function getPlaceholderTreemap() {
       nodeClick: false,
       breadcrumb: { show: false },
       label: { show: true, color: 'rgba(255,255,255,0.3)', fontSize: 11 },
-      itemStyle: { borderColor: '#0a0a1a', borderWidth: 2 },
+      itemStyle: { borderColor: ECHARTS_PALETTE.PIE_BORDER, borderWidth: 2 },
       color: [cc.chart[0] + '26', cc.chart[2] + '26', cc.success + '26', cc.danger + '26', cc.warning + '26'],
     }],
   }
