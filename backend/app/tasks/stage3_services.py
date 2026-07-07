@@ -33,22 +33,6 @@ def _skill_category(entry: Any) -> str:
     return "general"
 
 
-def _extraction_payload_from_record(record: JDExtractionRecord) -> dict[str, Any]:
-    raw = record.extracted_skills
-    if isinstance(raw, list):
-        # extracted_skills is a list of skill dicts -> wrap into expected dict format
-        skills_list = [s.get("name", s) if isinstance(s, dict) else s for s in raw]
-        payload: dict[str, Any] = {"required_skills": skills_list}
-    elif isinstance(raw, dict):
-        payload = dict(raw)
-    else:
-        payload = {}
-    payload.setdefault("position_name", record.job_title)
-    payload.setdefault("experience_required", record.experience_years)
-    payload.setdefault("education_required", record.education)
-    return payload
-
-
 def _confidence_from_result(result: dict[str, Any]) -> float:
     validation = result.get("validation") or {}
     return float(validation.get("confidence") or 0.85)
@@ -232,7 +216,7 @@ async def run_build_graph_from_extractions(limit: int = 100) -> dict[str, Any]:
                 )
             ).scalars().all()
 
-        extractions = [_extraction_payload_from_record(record) for record in rows]
+        extractions = [record.to_extraction_payload() for record in rows]
         config = GraphConfig()
         async with config.get_driver() as driver:
             summaries = await batch_write_extractions(extractions, driver)
@@ -269,7 +253,7 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
             related_positions: dict[str, set[str]] = defaultdict(set)
 
             for record in records:
-                payload = _extraction_payload_from_record(record)
+                payload = record.to_extraction_payload()
                 position_name = str(payload.get("position_name") or record.job_title)
                 for entries in (payload.get("required_skills", []), payload.get("preferred_skills", [])):
                     for entry in entries or []:

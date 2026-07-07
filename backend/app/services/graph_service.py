@@ -11,10 +11,11 @@
 """
 from __future__ import annotations
 
-import logging
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from loguru import logger
+
+from app.core.extraction.normalize import normalize_proficiency
 
 
 async def count_positions_neo4j(driver: Any) -> int:
@@ -150,17 +151,6 @@ def dedupe_graph(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> di
     return {"nodes": list(node_map.values()), "edges": list(edge_map.values())}
 
 
-def _proficiency_from_level(level: Any) -> str:
-    # 业务说明：将多种来源的熟练度/等级描述统一映射为中文三档标准：精通、熟悉、了解。
-    # 技术说明：支持中英文及简写输入，统一小写匹配，未命中时默认返回 "熟悉"。
-    raw = str(level or "").strip().lower()
-    if raw in {"精通", "advanced", "expert", "senior", "high"}:
-        return "精通"
-    if raw in {"了解", "beginner", "basic", "junior", "low"}:
-        return "了解"
-    return "熟悉"
-
-
 def _position_item(node: dict[str, Any]) -> dict[str, Any]:
     # 业务说明：将图谱中的 Position 节点转换为 API 响应中职位列表的标准数据结构。
     # 技术说明：从 node.properties 中提取职位 ID、名称、行业、描述及所需技能列表。
@@ -189,7 +179,7 @@ def _skill_item(node: dict[str, Any], rel: dict[str, Any] | None = None) -> dict
         "skill_id": str(props.get("skill_id") or node.get("id") or props.get("name") or ""),
         "name": props.get("name") or node.get("id") or "",
         "category": category,
-        "proficiency": props.get("proficiency") or _proficiency_from_level(level),
+        "proficiency": props.get("proficiency") or normalize_proficiency(level),
         "confidence": float(props.get("confidence") or rel_props.get("confidence") or 1.0),
         "source_count": int(props.get("source_count") or 0),
         "trend": props.get("trend") or "stable",
@@ -781,7 +771,7 @@ async def _sync_via_graph_writer(
                     ).scalars().all()
 
                 for record in rows:
-                    payload = _extraction_payload_from_record(record)
+                    payload = record.to_extraction_payload()
                     # Avoid duplicating the current run's extraction
                     if position_name and payload.get("position_name") == position_name:
                         # Check if skills overlap significantly — skip if same extraction
@@ -834,24 +824,4 @@ async def _sync_via_graph_writer(
         return {"synced": False, "error": str(exc), "nodes_written": nodes_written, "edges_written": edges_written}
 
 
-def _extraction_payload_from_record(record: Any) -> dict[str, Any]:
-    # 业务说明：将 PostgreSQL 中的 JDExtractionRecord 记录转换为 graph_writer 所需的提取字典格式，
-    # 统一字段命名，确保与批量写入接口兼容。
-    # 技术说明：兼容 extracted_skills 为 list 或 dict 的两种存储形式，缺失字段使用默认值填充。
-    """Convert a JDExtractionRecord to the extraction dict format expected by graph_writer.
 
-    Mirrors stage3_services._extraction_payload_from_record but kept local to avoid
-    circular imports.
-    """
-    raw = record.extracted_skills
-    if isinstance(raw, list):
-        skills_list = [s.get("name", s) if isinstance(s, dict) else s for s in raw]
-        payload: dict[str, Any] = {"required_skills": skills_list}
-    elif isinstance(raw, dict):
-        payload = dict(raw)
-    else:
-        payload = {}
-    payload.setdefault("position_name", record.job_title)
-    payload.setdefault("experience_required", record.experience_years)
-    payload.setdefault("education_required", record.education)
-    return payload

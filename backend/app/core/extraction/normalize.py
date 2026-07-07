@@ -1,4 +1,4 @@
-"""Normalize — 技能标准化：别名映射、向量相似度和来源数验证。
+"""Normalize — 技能标准化：别名映射、向量相似度、来源数验证和熟练度归一化。
 
 核心流程（三步标准化管道）：
 1. 别名查找（快速精确匹配）→ 2. 向量相似度（模糊匹配）→ 3. 来源数验证
@@ -597,3 +597,22 @@ def get_standard_skill_seeds() -> list[str]:
     Useful for seeding ChromaDB collections or building UI dropdowns.
     """
     return sorted(SKILL_ALIAS.keys())
+
+
+# ── Proficiency normalization ──
+_EXPERT_TERMS = frozenset({"精通", "expert", "advanced", "senior", "high"})
+_BEGINNER_TERMS = frozenset({"了解", "beginner", "basic", "junior", "low"})
+
+
+def normalize_proficiency(value: Any) -> str:
+    """Normalize proficiency/level descriptions to canonical Chinese: 精通/熟悉/了解.
+
+    Handles Chinese and English terms from JD extraction and Neo4j node properties.
+    Default falls to '熟悉' (intermediate).
+    """
+    raw = str(value or "").strip().lower()
+    if raw in _EXPERT_TERMS:
+        return "精通"
+    if raw in _BEGINNER_TERMS:
+        return "了解"
+    return "熟悉"

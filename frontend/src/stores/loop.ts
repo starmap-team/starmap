@@ -59,7 +59,7 @@ export interface MatchDiagnosisResult {
   radar_data?: { skill: string; required: number; matched: number }[]
 }
 
-export interface LearningPathItem {
+export interface LoopPathItem {
   skill: string
   sequence: number
   estimated_hours: number

@@ -10,16 +10,14 @@ Uses croniter for cron expression parsing (pure Python, no new service dependenc
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import UTC, datetime, timedelta
 
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.session import get_async_engine
 from app.models.pipeline_models import PipelineSchedule
-
-logger = logging.getLogger(__name__)
 
 # Try to use croniter; fall back to simple interval parser if not installed
 try:
@@ -42,7 +40,7 @@ def compute_next_cron(cron_expression: str, base: datetime | None = None) -> dat
             cron = croniter(cron_expression, base)
             return cron.get_next(datetime)
         except (ValueError, KeyError) as exc:
-            logger.warning("Failed to parse cron expression '%s': %s", cron_expression, exc)
+            logger.warning("Failed to parse cron expression '{}': {}", cron_expression, exc)
             return None
     else:
         # Fallback: parse "0 */N * * *" or "*/N * * * *" style
@@ -54,7 +52,7 @@ def compute_next_cron(cron_expression: str, base: datetime | None = None) -> dat
             # Simple fallback: return base + 1 hour
             return base + timedelta(hours=1)
         except Exception as exc:
-            logger.warning("Fallback cron parse failed: %s", exc)
+            logger.warning("Fallback cron parse failed: {}", exc)
             return None
 
 
@@ -90,12 +88,12 @@ async def trigger_schedule(
 
         await session.flush()
         logger.info(
-            "Triggered schedule '%s' (id=%s). Next run at: %s",
+            "Triggered schedule '{}' (id={}). Next run at: {}",
             schedule.name, schedule.id, schedule.next_run_at,
         )
         return True
     except Exception as exc:
-        logger.error("Failed to trigger schedule '%s': %s", schedule.name, exc)
+        logger.error("Failed to trigger schedule '{}': {}", schedule.name, exc)
         return False
 
 
@@ -119,7 +117,7 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
 
     Registered in app.main.py lifespan as a background task.
     """
-    logger.info("Cron scanner loop started (interval=%ss)", interval_seconds)
+    logger.info("Cron scanner loop started (interval={}s)", interval_seconds)
     engine = get_async_engine()
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     while True:
@@ -127,7 +125,7 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
             async with session_factory() as session:
                 triggered = await cron_scanner_once(session)
                 if triggered:
-                    logger.info("Cron scanner triggered %d schedule(s)", triggered)
+                    logger.info("Cron scanner triggered {} schedule(s)", triggered)
         except Exception as exc:
-            logger.error("Cron scanner iteration failed: %s", exc)
+            logger.error("Cron scanner iteration failed: {}", exc)
         await asyncio.sleep(interval_seconds)

@@ -1,13 +1,13 @@
 """Celery task entrypoints for extraction, graph building, evolution analysis, and pipeline stages."""
 from __future__ import annotations
 
-import logging
 import time
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from celery import Celery
+from loguru import logger
 
 from app.config import settings
 from app.core.pipeline.orchestrator import StageName
@@ -17,8 +17,6 @@ from app.tasks.stage3_services import (
     run_build_graph_from_extractions,
 )
 from app.utils.async_helpers import run_async
-
-logger = logging.getLogger(__name__)
 
 celery_app = Celery(
     "starmap",
@@ -39,7 +37,7 @@ celery_app.conf.update(
 def batch_extract_jd(self, jd_text: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
     """Batch-extract skills from a JD via Celery."""
     try:
-        logger.info("batch_extract_jd started chars=%d", len(jd_text))
+        logger.info("batch_extract_jd started chars={}", len(jd_text))
         return run_async(run_batch_extract_jd(jd_text, options=options))
     except Exception as exc:
         logger.exception("batch_extract_jd failed")
@@ -50,7 +48,7 @@ def batch_extract_jd(self, jd_text: str, options: dict[str, Any] | None = None) 
 def build_graph_from_extractions(self, limit: int = 100) -> dict[str, Any]:
     """Build Neo4j graph triples from persisted extraction records."""
     try:
-        logger.info("build_graph_from_extractions started limit=%d", limit)
+        logger.info("build_graph_from_extractions started limit={}", limit)
         return run_async(run_build_graph_from_extractions(limit))
     except Exception as exc:
         logger.exception("build_graph_from_extractions failed")
@@ -61,7 +59,7 @@ def build_graph_from_extractions(self, limit: int = 100) -> dict[str, Any]:
 def analyze_evolution_trends(self, days: int = 90) -> dict[str, Any]:
     """Analyze skill and position evolution from recent extraction records."""
     try:
-        logger.info("analyze_evolution_trends started days=%d", days)
+        logger.info("analyze_evolution_trends started days={}", days)
         return run_async(run_analyze_evolution_trends(days))
     except Exception as exc:
         logger.exception("analyze_evolution_trends failed")
@@ -93,19 +91,19 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
         redis_client = app_resources.redis_client
         if run_async(is_run_cancelled(redis_client, uuid.UUID(run_id))):
             logger.info(
-                "execute_pipeline_stage run_id=%s stage=%s: STOP flag detected, marking cancelled",
+                "execute_pipeline_stage run_id={} stage={}: STOP flag detected, marking cancelled",
                 run_id, stage_name,
             )
             run_async(_mark_stage_cancelled(run_id, stage_name))
             return {"status": "cancelled", "stage": stage_name, "reason": "STOP flag set"}
     except Exception as exc:
-        logger.warning("STOP flag check failed (continuing): %s", exc)
+        logger.warning("STOP flag check failed (continuing): {}", exc)
 
-    logger.info("execute_pipeline_stage run_id=%s stage=%s attempt=%d", run_id, stage_name, self.request.retries)
+    logger.info("execute_pipeline_stage run_id={} stage={} attempt={}", run_id, stage_name, self.request.retries)
 
     executor = STAGE_EXECUTORS.get(stage_name)
     if executor is None:
-        logger.error("No executor for stage %s", stage_name)
+        logger.error("No executor for stage {}", stage_name)
         run_async(_mark_stage_failed(run_id, stage_name, [f"Unknown stage: {stage_name}"]))
         return {"status": "failed", "error": f"Unknown stage: {stage_name}"}
 
@@ -132,7 +130,7 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
         return {"status": "completed", "stage": stage_name, **result}
 
     except Exception as exc:
-        logger.exception("Stage %s failed for run %s: %s", stage_name, run_id, exc)
+        logger.exception("Stage {} failed for run {}: {}", stage_name, run_id, exc)
         # Retry with backoff
         retry_delay = settings.pipeline_retry_backoff * (2 ** self.request.retries)
         raise self.retry(exc=exc, countdown=retry_delay) from exc
@@ -204,7 +202,7 @@ async def _execute_scheduled_run(schedule_id: str) -> None:
             )
             schedule = result.scalar_one_or_none()
             if schedule is None:
-                logger.warning("Schedule %s not found", schedule_id)
+                logger.warning("Schedule {} not found", schedule_id)
                 return
 
             from app.core.pipeline.executor import trigger_and_start

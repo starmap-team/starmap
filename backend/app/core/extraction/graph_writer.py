@@ -15,6 +15,7 @@ from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.core.extraction.normalize import normalize_proficiency
 from app.core.matching.constants import ALLOWED_NODE_LABELS
 
 # ---- Node type labels (§2.1: 7类节点) ----
@@ -111,15 +112,6 @@ def _skill_entry_level(entry: Any) -> str:
     return "intermediate"
 
 
-def _normalize_proficiency(value: Any) -> str:
-    raw = str(value or "").strip().lower()
-    if raw in {"精通", "expert", "advanced", "senior", "high"}:
-        return "精通"
-    if raw in {"了解", "beginner", "basic", "junior", "low"}:
-        return "了解"
-    return "熟悉"
-
-
 def _skill_entry_category(entry: Any) -> str:
     if isinstance(entry, dict):
         return str(entry.get("category") or "skill").lower()
@@ -159,7 +151,7 @@ def _skill_node_properties(entry: Any, category: str, level: str) -> dict[str, A
     return {
         "category": category,
         "source_category": category,
-        "proficiency": _normalize_proficiency(level),
+        "proficiency": normalize_proficiency(level),
         "confidence": _skill_entry_confidence(entry),
         "source_count": _skill_entry_source_count(entry),
         "trend": _skill_entry_trend(entry),
@@ -500,7 +492,7 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
     props = _clean_properties(
         {
             **(metadata or {}),
-            "proficiency": _normalize_proficiency((metadata or {}).get("proficiency") or (metadata or {}).get("level")),
+            "proficiency": normalize_proficiency((metadata or {}).get("proficiency") or (metadata or {}).get("level")),
             "source_count": int((metadata or {}).get("source_count") or 1),
             "trend": (metadata or {}).get("trend") or "stable",
         }

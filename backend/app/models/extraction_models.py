@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, Float, Integer, String, Text
@@ -62,6 +63,27 @@ class JDExtractionRecord(Base):
 
     def __repr__(self) -> str:
         return f"<JDExtractionRecord {self.id} job_title={self.job_title} status={self.status}>"
+
+    def to_extraction_payload(self) -> dict[str, Any]:
+        """Convert this record to the dict format expected by graph_writer and pipeline sync.
+
+        Handles the `extracted_skills` JSON field which may be a list of skill dicts
+        or a dict with required/preferred keys, normalizing into a consistent shape.
+        """
+        from typing import Any as _Any  # noqa: F811 — local alias for readability
+
+        raw = self.extracted_skills
+        if isinstance(raw, list):
+            skills_list = [s.get("name", s) if isinstance(s, dict) else s for s in raw]
+            payload: dict[str, _Any] = {"required_skills": skills_list}
+        elif isinstance(raw, dict):
+            payload = dict(raw)
+        else:
+            payload = {}
+        payload.setdefault("position_name", self.job_title)
+        payload.setdefault("experience_required", self.experience_years)
+        payload.setdefault("education_required", self.education)
+        return payload
 
 
 class RawJDRecord(Base):

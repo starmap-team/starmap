@@ -14,15 +14,13 @@
 from __future__ import annotations
 
 import json
-import logging
 import statistics
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-logger = logging.getLogger(__name__)
 
 CACHE_KEY = "pipeline:status:agg"
 CACHE_TTL_SECONDS = 600  # 10 分钟

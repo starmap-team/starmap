@@ -1,11 +1,9 @@
 """集中配置管理（基于 pydantic-settings，从环境变量/.env 读取）。"""
-import logging
 from functools import lru_cache
 
+from loguru import logger
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-logger = logging.getLogger(__name__)
 
 # 占位符：表示密码尚未在 .env 中配置，必须修改后才能用于生产环境
 _UNCONFIGURED = "CHANGE_ME_IN_ENV"
