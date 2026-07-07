@@ -53,9 +53,43 @@ async def run_match(
     )
 
 
-async def get_match_result(match_id: str) -> dict[str, Any] | None:
-    """获取匹配结果（向后兼容）。"""
-    return _match_service._cache.get_match_result(match_id)
+async def get_match_result(match_id: str, db_session: Any = None) -> dict[str, Any] | None:
+    """获取匹配结果（向后兼容，缓存 miss 回读 PostgreSQL）。"""
+    cached = _match_service._cache.get_match_result(match_id)
+    if cached is not None:
+        return cached
+
+    # Fallback: query PostgreSQL when cache miss
+    if db_session is not None:
+        try:
+            from sqlalchemy import select
+
+            from app.models.extraction_models import MatchResult
+
+            row = (
+                await db_session.execute(
+                    select(MatchResult).where(MatchResult.match_id == match_id)
+                )
+            ).scalar_one_or_none()
+            if row is not None:
+                result = {
+                    "match_id": row.match_id,
+                    "target_position": row.target_position,
+                    "match_score": row.match_score,
+                    "matched_skills": row.matched_skills or [],
+                    "missing_required": row.missing_required or [],
+                    "missing_bonus": row.missing_bonus or [],
+                    "skill_gap_detail": row.gap_report or [],
+                    "learning_path": row.learning_path or [],
+                    "cii": row.cii,
+                }
+                _match_service._cache.set_match_result(match_id, result)
+                return result
+        except Exception as exc:
+            from loguru import logger
+            logger.debug("[get_match_result] DB fallback failed: {}", exc)
+
+    return None
 
 
 async def enrich_learning_paths(

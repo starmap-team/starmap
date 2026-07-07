@@ -6,6 +6,7 @@ Usage:
     cd backend && python -m scripts.seed_datasources_demo
 """
 import asyncio
+import json
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -143,7 +144,7 @@ async def seed() -> None:
                     "valid_records": src["valid_records"],
                     "duplicate_rate": src["duplicate_rate"],
                     "avg_quality_score": src["avg_quality_score"],
-                    "config": __import__("json").dumps(src["config"]),
+                    "config": json.dumps(src["config"]),
                 },
             )
 

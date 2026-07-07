@@ -9,6 +9,7 @@ Usage:
     cd backend && python -m scripts.seed_cross_domain_demo
 """
 import asyncio
+import json
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -256,7 +257,7 @@ async def seed() -> None:
                         "window_end": w["window_end"],
                         "frequency": w["frequency"],
                         "source_count": source_count,
-                        "positions": __import__("json").dumps(all_positions),
+                        "positions": json.dumps(all_positions),
                         "category": category,
                     },
                 )
@@ -302,7 +303,7 @@ async def seed() -> None:
                         "window_end": w["window_end"],
                         "frequency": w["frequency"],
                         "source_count": skill["source_count"],
-                        "positions": __import__("json").dumps(skill["positions"]),
+                        "positions": json.dumps(skill["positions"]),
                         "category": skill["category"],
                     },
                 )
@@ -338,7 +339,7 @@ async def seed() -> None:
                     "tgt": tgt,
                     "sim": sim,
                     "evidence": 3,
-                    "overlap": __import__("json").dumps(overlap),
+                    "overlap": json.dumps(overlap),
                     "trust": 0.7,
                 },
             )

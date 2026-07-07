@@ -97,9 +97,12 @@ async def diagnose_match(
 
 
 @router.get("/result/{match_id}", response_model=MatchResponse)
-async def get_match_result_detail(match_id: str) -> MatchResponse:
+async def get_match_result_detail(
+    match_id: str,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MatchResponse:
     """Return a previously generated match result."""
-    result = await get_match_result(match_id)
+    result = await get_match_result(match_id, db_session=session)
     if result is None:
         raise HTTPException(status_code=404, detail="Match result not found")
     return MatchResponse(**result)
