@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue"
+import { onMounted } from "vue"
 import { Collection, DataAnalysis, Upload, Document, TrendCharts, Aim, Connection } from "@element-plus/icons-vue"
 import { use } from "echarts/core"
 import { RadarChart } from "echarts/charts"
@@ -12,345 +12,39 @@ import Graph2D from "@/components/Graph2D.vue"
 import Graph3D from "@/components/Graph3D.vue"
 import DetailPanel from "@/components/DetailPanel.vue"
 import GraphSearchBar from "@/components/GraphSearchBar.vue"
-import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from "@/stores/graph"
-import { tooltipStyle } from "@/utils/chartTheme"
-import { KA_FALLBACK_COLORS, nodeColor } from "@/utils/graphColors"
+import { useGraphStore } from "@/stores/graph"
 import { useKPIMetrics } from "@/composables/useKPIMetrics"
+import {
+  useGraphToolbarState,
+  useHomeLayout,
+  useEvolutionPanel,
+  useNodeSelection,
+  useHomeInteractions,
+} from "@/composables/home"
 
 const graphStore = useGraphStore()
 const { totalPositions, totalSkills, totalDomains, totalRelations } = useKPIMetrics()
+const { layoutMode, maxNodesLimit, proficiencyFilter, toggleLayout, onMaxNodesChange, onProficiencyFilter } = useGraphToolbarState()
+const { viewMode, autoRotate3D } = useHomeLayout()
+const { showEvolution, graph3DEvolutionLinks } = useEvolutionPanel()
+const { selectedNode, clearSelection } = useNodeSelection()
+const interactions = useHomeInteractions(() => graphStore)
 
-// ── CSS variable resolver (for ECharts radar — Canvas/WebGL uses Graph2D's own cv) ──
-const _cvCache = new Map<string, string>()
-function cv(name: string): string {
-  let value = _cvCache.get(name)
-  if (value === undefined) {
-    value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-    _cvCache.set(name, value)
-  }
-  return value
-}
+// Re-export bindings the <template> references under stable names.
+const { graph2DRef, graph3DRef, evolutionDrawerVisible, selectedEvolutionEdge,
+  evolutionTrendLabel, evolutionTrendType, breadcrumb, positionRadarOption,
+  onOverviewModeChange, onCameraPreset, onResetCamera, onNodeDblClick,
+  resetHighlight, toggleEvolution, closeDetail, handleNodeClick,
+  onCanvasClick, handleSearchSelect, openEvolutionDrawer, closeEvolutionDrawer } = interactions
 
-// ── Template refs ──
-const graph2DRef = ref<InstanceType<typeof Graph2D> | null>(null)
-const graph3DRef = ref<InstanceType<typeof Graph3D> | null>(null)
+const onToggleAutoRotate = () => interactions.onToggleAutoRotate(autoRotate3D)
+const onToggleEvolution = () => toggleEvolution(showEvolution, selectedNode)
+const onCloseDetail = () => closeDetail(clearSelection)
+const onCanvasClickWithClear = () => onCanvasClick(clearSelection)
+const onHandleNodeClick = async (id: string) => handleNodeClick(id, selectedNode)
+const onHandleSearchSelect = (id: string, name: string, type: string) =>
+  handleSearchSelect(id, name, type, selectedNode)
 
-// ── KA color map (built from store domains + fallback palette) ──
-const kaColorMap = computed(() => {
-  const map = new Map<string, string>()
-  graphStore.domains.forEach((d, i) => {
-    map.set(d.id, d.color || KA_FALLBACK_COLORS[i % KA_FALLBACK_COLORS.length])
-  })
-  return map
-})
-
-// ── UI state (page-level) ──
-type LayoutMode = 'force' | 'dagre' | 'radial'
-type ViewMode = '2d' | '3d'
-const layoutMode = ref<LayoutMode>('force')
-const viewMode = ref<ViewMode>('3d')
-const autoRotate3D = ref(false)
-const showEvolution = ref(false)
-const maxNodesLimit = ref(80)
-const proficiencyFilter = ref<string[]>(['精通', '熟悉', '了解'])
-const selectedNode = ref<GraphNode | null>(null)
-
-// ── 3D data with precomputed colors ──
-const graph3DNodes = computed(() =>
-  graphStore.visibleNodes.map(n => {
-    const props = n.properties as Record<string, any>
-    let color = nodeColor(n.labels[0])
-    if (n.labels[0] === 'KnowledgeArea') {
-      color = kaColorMap.value.get(n.id) ?? KA_FALLBACK_COLORS[0]
-    }
-    return {
-      id: n.id,
-      labels: n.labels,
-      color,
-      properties: {
-        name: props.name,
-        category: props.category,
-        proficiency: props.proficiency,
-        position_count: props.position_count,
-        skill_count: props.skill_count,
-        weight: props.weight,
-      },
-    }
-  })
-)
-
-const graph3DLinks = computed(() =>
-  graphStore.visibleEdges.map(e => ({
-    source: e.source_id,
-    target: e.target_id,
-    type: e.type,
-    properties: e.properties,
-  }))
-)
-
-// 演化图层 3D link 数据 (D-02: 聚焦当前岗位，D-04: 仅当前领域)
-const graph3DEvolutionLinks = computed(() => {
-  if (!showEvolution.value || graphStore.currentLayer !== 'position') return []
-  const sourceName = graphStore.expandedKAName
-  const posNodes = graphStore.positionsByKA.get(graphStore.expandedKAId ?? '') ?? []
-  const positionNames = new Set(posNodes.map(p => p.properties.name))
-  return graphStore.evolutionPaths
-    .filter(e => {
-      // D-04: keep edges whose source or target is a Position in the current domain
-      const src = String(e.source_id)
-      const tgt = String(e.target_id)
-      return positionNames.has(src) || positionNames.has(tgt) ||
-             src === sourceName || tgt === sourceName
-    })
-    .map(e => ({
-      source: e.source_id,
-      target: e.target_id,
-      type: 'EVOLVES_TO' as const,
-      properties: e.properties,
-    }))
-})
-
-// 演化详情抽屉 (D-11/D-12)
-const evolutionDrawerVisible = ref(false)
-const selectedEvolutionEdge = ref<typeof graphStore.evolutionPaths[number] | null>(null)
-
-const evolutionTrendLabel: Record<string, string> = { rising: '↑ 上升', stable: '→ 平稳', declining: '↓ 下降' }
-const evolutionTrendType: Record<string, string> = { rising: 'success', stable: 'info', declining: 'danger' }
-
-function openEvolutionDrawer(edge: { source: string | { id: string }; target: string | { id: string }; type?: string; properties?: any }) {
-  // edge may have source/target as string id or as node object after graph layout
-  const sId = typeof edge.source === 'string' ? edge.source : edge.source?.id ?? ''
-  const tId = typeof edge.target === 'string' ? edge.target : edge.target?.id ?? ''
-  const match = graphStore.evolutionPaths.find(e => e.source_id === sId && e.target_id === tId)
-    ?? graphStore.evolutionPaths.find(e => (e.source_id === sId && e.target_id === tId) || (e.source_id === tId && e.target_id === sId))
-  selectedEvolutionEdge.value = match ?? null
-  evolutionDrawerVisible.value = true
-}
-
-function closeEvolutionDrawer() {
-  evolutionDrawerVisible.value = false
-  selectedEvolutionEdge.value = null
-}
-
-// ── Breadcrumb ──
-interface BreadcrumbItem {
-  label: string
-  layer: ViewLayer
-  action?: () => void
-}
-const breadcrumb = computed<BreadcrumbItem[]>(() => {
-  const items: BreadcrumbItem[] = [{ label: "领域概览", layer: "domain", action: () => graphStore.goToDomainLayer() }]
-  if (graphStore.expandedKAName) {
-    items.push({ label: graphStore.expandedKAName, layer: "position", action: () => { graphStore.expandedPositionId = null; graphStore.currentLayer = "position" } })
-  }
-  if (graphStore.expandedPositionId) {
-    const posNode = graphStore.nodeMap.get(graphStore.expandedPositionId)
-    items.push({ label: posNode?.properties.name ?? "岗位", layer: "detail" })
-  }
-  return items
-})
-
-// ── Overview mode / layout / view mode ──
-function onOverviewModeChange(mode: string) {
-  graphStore.fetchOverview(mode as OverviewMode)
-}
-
-function toggleLayout() {
-  layoutMode.value = layoutMode.value === 'force' ? 'dagre' : layoutMode.value === 'dagre' ? 'radial' : 'force'
-}
-
-// ── 3D camera controls ──
-function onCameraPreset(preset: 'overview' | 'domain' | 'position') {
-  graph3DRef.value?.setCameraPreset(preset)
-}
-function onResetCamera() {
-  graph3DRef.value?.resetCamera()
-}
-function onToggleAutoRotate() {
-  graph3DRef.value?.toggleAutoRotate()
-  autoRotate3D.value = !autoRotate3D.value
-}
-
-// ── Node click / dblclick (shared by 2D + 3D — both emit nodeId: string) ──
-function onNodeDblClick(nodeId: string) {
-  const n = graphStore.nodeMap.get(nodeId)
-  if (!n) return
-  const label = n.labels[0]
-  if (label === 'KnowledgeArea') {
-    graphStore.goToPositionLayer(n.id, n.properties.name)
-  } else if (label === 'Position') {
-    graphStore.goToDetailLayer(n.id)
-  }
-}
-
-// ── Filters (Graph2D watches these props) ──
-function onMaxNodesChange(val: number) {
-  maxNodesLimit.value = val
-}
-function onProficiencyFilter(levels: string[]) {
-  proficiencyFilter.value = levels
-}
-function resetHighlight() {
-  graph2DRef.value?.clearHighlight()
-}
-
-// ── Evolution toggle ──
-async function toggleEvolution() {
-  showEvolution.value = !showEvolution.value
-  if (showEvolution.value) {
-    if (graphStore.evolutionEdges.length === 0) {
-      await graphStore.fetchEvolutionEdges()
-    }
-    // D-02: focus on selected position (if any) and fetch its evolution paths
-    if (selectedNode.value?.labels?.includes('Position') && selectedNode.value.properties.name) {
-      graphStore.focusedPositionId = selectedNode.value.id
-      graphStore.focusedPositionName = selectedNode.value.properties.name
-      await graphStore.fetchEvolutionPathsForPosition(selectedNode.value.properties.name)
-    } else if (graphStore.expandedKAId) {
-      // Fallback: aggregate by current domain — use first position's name
-      const positions = graphStore.positionsByKA.get(graphStore.expandedKAId) ?? []
-      const firstName = positions[0]?.properties.name
-      if (firstName) {
-        graphStore.focusedPositionName = firstName
-        await graphStore.fetchEvolutionPathsForPosition(firstName)
-      }
-    }
-  } else {
-    graphStore.evolutionPaths = []
-    graphStore.focusedPositionId = null
-    graphStore.focusedPositionName = ''
-  }
-}
-
-function closeDetail() {
-  selectedNode.value = null
-  graph2DRef.value?.clearHighlight()
-}
-
-// ── Node click handler (shared by 2D + 3D) ──
-async function handleNodeClick(nodeId: string) {
-  if (graphStore.currentLayer === "domain") {
-    const domain = graphStore.domains.find(d => d.id === nodeId)
-    if (domain) {
-      selectedNode.value = {
-        id: domain.id,
-        labels: ["KnowledgeArea"],
-        properties: { name: domain.name, position_count: domain.position_count, skill_count: domain.skill_count },
-      }
-      await graphStore.goToPositionLayer(domain.id, domain.name)
-    }
-    return
-  }
-  if (graphStore.currentLayer === "position") {
-    if (nodeId === graphStore.expandedKAId) {
-      const domain = graphStore.domains.find(d => d.id === nodeId)
-      selectedNode.value = domain ? {
-        id: domain.id,
-        labels: ["KnowledgeArea"],
-        properties: { name: domain.name, position_count: domain.position_count, skill_count: domain.skill_count },
-      } : null
-      return
-    }
-    const node = graphStore.nodeMap.get(nodeId)
-    if (node?.labels.includes("Position")) {
-      selectedNode.value = node
-      graphStore.goToDetailLayer(nodeId)
-    }
-    return
-  }
-  // Detail layer
-  const node = graphStore.nodeMap.get(nodeId)
-  if (node) selectedNode.value = node
-  graph2DRef.value?.highlightNode(nodeId)
-}
-
-function onCanvasClick() {
-  selectedNode.value = null
-  graph2DRef.value?.clearHighlight()
-}
-
-// ── Search ──
-function handleSearchSelect(id: string, _name: string, _type: string) {
-  const domain = graphStore.domains.find(d => d.id === id)
-  if (domain) {
-    graphStore.goToPositionLayer(domain.id, domain.name)
-    return
-  }
-  const node = graphStore.allNodes.find(n => n.id === id)
-  if (node?.labels.includes("Position")) {
-    const kaId = findKAForPosition(node.id)
-    if (kaId) {
-      const ka = graphStore.domains.find(d => d.id === kaId)
-      graphStore.goToPositionLayer(kaId, ka?.name ?? "").then(() => {
-        graphStore.goToDetailLayer(node.id)
-        selectedNode.value = node
-      })
-    }
-    return
-  }
-  if (node?.labels.includes("Skill")) {
-    for (const e of graphStore.allEdges) {
-      if (e.target_id === id && e.type === "REQUIRES") {
-        const posNode = graphStore.nodeMap.get(e.source_id)
-        if (posNode) {
-          const kaId = findKAForPosition(posNode.id)
-          if (kaId) {
-            const ka = graphStore.domains.find(d => d.id === kaId)
-            graphStore.goToPositionLayer(kaId, ka?.name ?? "").then(() => {
-              graphStore.goToDetailLayer(posNode.id)
-              selectedNode.value = node
-            })
-          }
-          return
-        }
-      }
-    }
-  }
-}
-
-function findKAForPosition(positionId: string): string | null {
-  for (const [kaId, positions] of graphStore.positionsByKA) {
-    if (positions.some(p => p.id === positionId)) return kaId
-  }
-  return null
-}
-
-// ── Radar chart ──
-const positionRadarOption = computed(() => {
-  if (!selectedNode.value || !selectedNode.value.labels.includes("Position")) return null
-  const posId = selectedNode.value.id
-  const skills: { name: string; value: number }[] = []
-  for (const e of graphStore.allEdges) {
-    if (e.source_id === posId && e.type === "REQUIRES") {
-      const skillNode = graphStore.nodeMap.get(e.target_id)
-      if (!skillNode) continue
-      skills.push({ name: skillNode.properties.name, value: Math.min(e.properties?.weight ?? 0.5, 1) })
-    }
-  }
-  if (!skills.length) return null
-  const sliced = skills.slice(0, 8)
-  return {
-    tooltip: { ...tooltipStyle(), trigger: "item" },
-    radar: {
-      center: ["50%", "50%"],
-      radius: "60%",
-      indicator: sliced.map(s => ({ name: s.name, max: 1 })),
-      axisName: { color: cv("--muted-foreground"), fontSize: 10, fontFamily: `'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', 'Noto Sans SC', sans-serif` },
-    },
-    series: [{
-      type: "radar",
-      data: [{
-        value: sliced.map(s => s.value),
-        name: "技能权重",
-        areaStyle: { color: `color-mix(in srgb, ${cv("--primary")} 15%, transparent)` },
-        lineStyle: { color: cv("--primary"), width: 2 },
-        itemStyle: { color: cv("--primary") },
-      }],
-    }],
-  }
-})
-
-// ── Lifecycle ──
 onMounted(async () => {
   await graphStore.fetchOverview()
 })
