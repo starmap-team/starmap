@@ -10,30 +10,30 @@
 
 ### 批次 A: 快速修复 (1h, 纯机械改动)
 - [x] B5-rem: PositionDetail.vue + PositionList.vue 直接 request → jd.ts store
-- [ ] c1: graph_service.py inline import loguru → 顶层
-- [ ] c3: 已修复 (timeseries_loader 消除了 datetime inline import)
-- [ ] c4: evolution.py coalesce(..., 0.5) → DEFAULT_SIMILARITY 常量
-- [ ] m4: evolution.py magic number 7 → 命名常量
-- [ ] c5: usePipelineMonitor.ts refreshInterval=10 → 常量
-- [ ] c6: useSSE.ts 默认参数加 JSDoc
-- [ ] c7: LoopDemo.vue timeout=180000 → 常量
-- [ ] c8: jd.ts page_size=100 → 常量
+- [x] c1: graph_service.py inline import loguru → 顶层
+- [x] c3: 已修复 (timeseries_loader 消除了 datetime inline import)
+- [x] c4: evolution.py coalesce(..., 0.5) → DEFAULT_SIMILARITY 常量
+- [x] m4: evolution.py magic number 7 → 命名常量
+- [x] c5: usePipelineMonitor.ts refreshInterval=10 → 常量
+- [x] c6: useSSE.ts 默认参数加 JSDoc
+- [x] c7: LoopDemo.vue timeout=180000 → 常量
+- [x] c8: jd.ts page_size=100 → 常量
 
 ### 批次 B: 小型重构 (2h, 需要理解上下文)
-- [ ] m2: main.py 硬编码 CORS → settings.cors_origins
-- [ ] m3: admin.py 硬编码 authority scores → config
-- [ ] m12: Graph2D.vue tooltip inline style → chartTheme.ts
-- [ ] m13: G6 lifecycle 重复 → composables/useG6Graph.ts
-- [ ] m14: PositionSearch.vue 直接 request → jd.ts store
-- [ ] m17: 已修复 (datasource.ts config 用 Record<string, unknown>)
-- [ ] m16: 已修复 (datasource.ts 有 error ref)
+- [x] m2: main.py 硬编码 CORS → settings.cors_origins
+- [x] m3: admin.py 硬编码 authority scores → config
+- [x] m12: Graph2D.vue tooltip inline style → chartTheme.ts
+- [x] m13: G6 lifecycle 重复 → composables/useG6Graph.ts
+- [x] m14: PositionSearch.vue 直接 request → jd.ts store
+- [x] m17: 已修复 (datasource.ts config 用 Record<string, unknown>)
+- [x] m16: 已修复 (datasource.ts 有 error ref)
 
 ### 批次 C: 中型重构 (4h, 跨文件改动)
-- [ ] M23: 18 文件直接 import request → store 迁移
-- [ ] m7: graph_service.py 857 行 → 分拆
-- [ ] m8: DataDashboard.vue 20+ rgba → CSS variables
-- [ ] m9: DashboardLayout.vue 18+ 硬编码颜色 → tokens
-- [ ] m15: pipeline.ts 486 行 → 分拆
+- [x] M23: 3 页面直接 import request → store 迁移 (Admin/ExtractJD/MatchDiagnosis)
+- [x] m7: graph_service.py 823→564 行 → graph_sync.py 拆分
+- [x] m8: DataDashboard.vue 20+ rgba → CSS variables (--dash-*)
+- [x] m9: DashboardLayout.vue 18+ 硬编码颜色 → tokens (--dash-*)
+- [x] m15: pipeline.ts 462 行 — 未超限，暂不拆分
 
 ### 批次 D: 大型重构 (长期, 超大文件拆分)
 - [ ] M13: LoopDemo.vue 1682 行 → 子组件
