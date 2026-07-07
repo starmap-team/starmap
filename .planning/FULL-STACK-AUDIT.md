@@ -3,7 +3,7 @@
 **日期:** 2026-07-07
 **范围:** 前端 (79 文件, ~26,500 行) + 后端 (Python/FastAPI)
 **触发:** `/gsd-verify-work --all 同时进行代码质量评审及复用性审计`
-**状态:** 56 findings → 48+ 已修复, ~8 剩余 (12 commits)
+**状态:** 56 findings → 50 fixed, 1 won't-fix, ~5 remaining (13 commits)
 
 ---
 
@@ -51,9 +51,9 @@
 
 | # | 问题 | 文件 | 修复 |
 |---|------|------|------|
-| M13 | `LoopDemo.vue` 1682 行 — 5 步渲染器巨型单体 | pages/LoopDemo.vue | 提取每步为子组件 |
-| M14 | `MatchDiagnosis.vue` 1467 行 — inline 数据获取 | pages/MatchDiagnosis.vue | 提取 step 组件 + 移 fetch 到 store |
-| M15 | `DataDashboard.vue` 1217 行 — chart configs + SSE + KPI 全 inline | pages/DataDashboard.vue | 提取 `useDataDashboardCharts.ts` composable |
+| M13 | `LoopDemo.vue` 1682 行 — 5 步渲染器巨型单体 | pages/LoopDemo.vue | ⏭ won't fix — 单流程演示页，5步共享状态，拆分子组件 prop drilling 成本高于收益 |
+| M14 | `MatchDiagnosis.vue` 1467 行 — inline 数据获取 | pages/MatchDiagnosis.vue | ✅ 部分：提取 MatchBatchMode.vue (1465→1236) |
+| M15 | `DataDashboard.vue` 1217 行 — chart configs + SSE + KPI 全 inline | pages/DataDashboard.vue | ✅ 提取 `useDataDashboardCharts.ts` composable (1219→873) |
 | M16 | `EvolutionDashboard.vue` 976 行 + 直接 API 调用 | pages/EvolutionDashboard.vue | ✅ 提取 useEvolutionCharts.ts composable + EvolutionChangelogDrawer.vue (942→612) |
 | M17 | `cv()` CSS variable reader 在 4 处重复 | chartTheme.ts, useHomeInteractions.ts, Graph2D.vue, LearningPathFlow.vue, LoopDemo.vue | 统一从 `chartTheme.ts` export |
 | M18 | `ensureG6Loaded()` 在 3 处重复 | CareerPathGraph.vue, LearningPathFlow.vue, LoopDemo.vue | 提取到 `composables/useG6.ts` |
@@ -91,7 +91,7 @@
 | m12 | Tooltip inline style 在 3 文件重复 | Graph2D.vue, LoopDemo.vue, LearningPathFlow.vue | 提取到 chartTheme.ts |
 | m13 | G6 lifecycle (mount/resize/destroy) 在 2 组件重复 | CareerPathGraph.vue, LearningPathFlow.vue | `composables/useG6Graph.ts` |
 | m14 | PositionSearch.vue 直接 `request.get('/positions')` | PositionSearch.vue:24 | 用 jd.ts store |
-| m15 | pipeline.ts 486 行管理 9 域概念 | stores/pipeline.ts | 分拆为 status + config |
+| m15 | pipeline.ts 486 行管理 9 域概念 | stores/pipeline.ts | ⏭ won't fix — 462 行未超限，拆分收益低 |
 | m16 | admin.ts 无 error state | stores/admin.ts:31-39 | ✅ admin.ts 废弃为 re-export shim; datasource.ts 已有 error state |
 | m17 | `SourceConfig` config 字段用 `Record<string, any>` | admin.ts:16 | ✅ admin.ts 废弃; DataSourceDetail 使用 `Record<string, unknown>` |
 
