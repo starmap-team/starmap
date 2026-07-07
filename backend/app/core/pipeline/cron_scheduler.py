@@ -14,9 +14,9 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.config import settings
+from app.db.session import get_async_engine
 from app.models.pipeline_models import PipelineSchedule
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
     Registered in app.main.py lifespan as a background task.
     """
     logger.info("Cron scanner loop started (interval=%ss)", interval_seconds)
-    engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+    engine = get_async_engine()
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     while True:
         try:

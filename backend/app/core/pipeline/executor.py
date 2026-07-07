@@ -17,9 +17,8 @@ from typing import Any
 
 from loguru import logger
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.config import settings
 from app.core.dashboard.sse_broadcaster import publish_event
 from app.core.pipeline.orchestrator import (
     OPTIONAL_STAGES,
@@ -33,6 +32,7 @@ from app.core.pipeline.orchestrator import (
     get_ready_stages,
     update_stage_status,
 )
+from app.db.session import get_async_engine
 from app.models.pipeline_models import PipelineRun
 from app.services.resources import resources as app_resources
 
@@ -297,7 +297,7 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
 def _update_source_after_crawl(run_id: str, records_count: int) -> None:
     """execute_crawl 完成后更新 DataSourceRecord.total_records + last_crawl_at."""
     async def _update():
-        engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+        engine = get_async_engine()
         try:
             async with async_sessionmaker(engine, expire_on_commit=False)() as session:
                 from sqlalchemy import text
@@ -334,7 +334,7 @@ def _update_source_after_dedup(run_id: str, duplicates: int, total: int) -> None
     (dedup operates across the whole raw_jd table).
     """
     async def _update():
-        engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+        engine = get_async_engine()
         try:
             async with async_sessionmaker(engine, expire_on_commit=False)() as session:
                 from app.models.pipeline_models import DataSourceRecord
@@ -364,7 +364,7 @@ def _update_source_after_dedup(run_id: str, duplicates: int, total: int) -> None
 def _update_source_after_import(run_id: str, valid_count: int) -> None:
     """execute_import 完成后更新 DataSourceRecord.valid_records + avg_quality_score."""
     async def _update():
-        engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+        engine = get_async_engine()
         try:
             async with async_sessionmaker(engine, expire_on_commit=False)() as session:
                 from sqlalchemy import text
@@ -400,7 +400,7 @@ async def _get_crawl_config(run_id: str) -> dict[str, Any]:
     Falls back to defaults if no config is found.
     """
     try:
-        engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+        engine = get_async_engine()
         try:
             async with async_sessionmaker(engine, expire_on_commit=False)() as session:
                 from sqlalchemy import select as sa_select
@@ -436,7 +436,7 @@ async def _get_crawl_config(run_id: str) -> dict[str, Any]:
 async def _skip_paused_sources_if_needed(run_id: str) -> None:
     """Phase 2 AUTHORITY-03: Log paused sources (the actual skip happens in the spider call)."""
     try:
-        engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+        engine = get_async_engine()
         try:
             async with async_sessionmaker(engine, expire_on_commit=False)() as session:
                 from sqlalchemy import select as sa_select
@@ -492,7 +492,7 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
     except Exception as exc:
         logger.warning(f"advance_pipeline STOP flag check failed (continuing): {exc}")
 
-    engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
+    engine = get_async_engine()
     sessionmaker_ = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with sessionmaker_() as session:
@@ -575,7 +575,7 @@ async def trigger_and_start(
     selected_stages: list[str] | None = None,
 ) -> PipelineRun:
     """Create a pipeline run and start executing the first ready stage(s)."""
-    engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
+    engine = get_async_engine()
     sessionmaker_ = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with sessionmaker_() as session:
@@ -598,7 +598,7 @@ async def trigger_and_start(
 
 async def retry_stage(run_id: uuid.UUID, stage_name: str) -> PipelineRun | None:
     """Reset a failed stage to PENDING and advance the pipeline."""
-    engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
+    engine = get_async_engine()
     sessionmaker_ = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with sessionmaker_() as session:
@@ -622,7 +622,7 @@ async def retry_stage(run_id: uuid.UUID, stage_name: str) -> PipelineRun | None:
 
 async def resume_run(run_id: uuid.UUID) -> PipelineRun | None:
     """Resume a failed pipeline run by resetting all failed stages and advancing."""
-    engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
+    engine = get_async_engine()
     sessionmaker_ = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with sessionmaker_() as session:

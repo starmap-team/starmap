@@ -8,11 +8,11 @@ from typing import Any
 import sqlalchemy as sa
 from loguru import logger
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.config import settings
 from app.core.extraction.graph_writer import GraphConfig, batch_write_extractions
 from app.core.extraction.jd_extract import extract_from_jd, mask_pii
+from app.db.session import get_async_engine
 from app.models.extraction_models import (
     JDExtractionRecord,
     PositionRecord,
@@ -180,7 +180,7 @@ async def _load_source_counts(sessionmaker: async_sessionmaker) -> dict[str, int
 
 async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
     """Run extraction, persist it, and ingest the resulting triples into Neo4j."""
-    engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
+    engine = get_async_engine()
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     try:
         options_with_counts = dict(options or {})
@@ -219,7 +219,7 @@ async def write_single_extraction_to_graph(extraction: dict[str, Any]) -> dict[s
 async def run_build_graph_from_extractions(limit: int = 100) -> dict[str, Any]:
     """Load persisted extraction records and ingest their triples into Neo4j."""
     bounded_limit = max(1, min(int(limit), 1000))
-    engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
+    engine = get_async_engine()
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with sessionmaker() as session:
@@ -251,7 +251,7 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
     """Analyze recent extraction records and refresh skill source counts."""
     bounded_days = min(max(int(days), 7), 730)
     since = datetime.now(UTC) - timedelta(days=bounded_days)
-    engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, future=True)
+    engine = get_async_engine()
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with sessionmaker() as session:

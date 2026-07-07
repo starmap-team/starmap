@@ -6,9 +6,10 @@ from typing import Any
 
 from neo4j import AsyncGraphDatabase
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.config import settings
+from app.db.session import get_async_engine
 
 
 @dataclass
@@ -39,11 +40,7 @@ resources = AppResources()
 async def init_resources() -> AppResources:
     """初始化 PostgreSQL、Neo4j 与 Redis 客户端。"""
     if resources.pg_engine is None:
-        engine = create_async_engine(
-            settings.postgres_uri,
-            pool_pre_ping=True,
-            future=True,
-        )
+        engine = get_async_engine()
         resources.pg_engine = engine
         resources.pg_sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 

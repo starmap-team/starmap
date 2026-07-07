@@ -7,50 +7,44 @@ Provides:
 """
 from __future__ import annotations
 
-import hashlib
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
 # ---------------------------------------------------------------------------
 # SimHash-based deduplication
+#
+# Phase 6 D-08: this module used to ship its own SimHash implementation side-by-side
+# with ``app.core.pipeline.simhash``. Per D-08..D-10 the canonical implementation lives in
+# ``app.core.pipeline.simhash``; this file is now a thin re-export layer that preserves the
+# historical 5-name public surface (``_tokenize`` / ``_simhash`` / ``compute_simhash``
+# / ``is_near_duplicate`` / ``deduplicate_records`` / ``_hamming_distance``) used by
+# downstream callers (executor, dedup_service). Signature compatibility:
+# - ``_simhash(tokens, hash_bits=64)`` here wraps simhash._simhash_raw(tokens) with the
+#   default 64-bit width preserved so callers that pass hash_bits=64 get the same result.
+# - ``is_near_duplicate(text_a, text_b, threshold=6)`` takes two strings here (legacy
+#   pre-D-08 behavior), so we hash each before delegating.
 # ---------------------------------------------------------------------------
-
-def _tokenize(text: str) -> list[str]:
-    """Simple whitespace + punctuation tokenizer for Chinese/English mixed text."""
-    text = re.sub(r"[^\w\u4e00-\u9fff]+", " ", text)
-    return text.lower().split()
+from app.core.pipeline.simhash import (
+    _hamming_distance,
+    _simhash_raw,
+    _tokenize,
+)
 
 
 def _simhash(tokens: list[str], hash_bits: int = 64) -> int:
-    """Compute SimHash fingerprint for a list of tokens.
+    """Thin wrapper around ``simhash._simhash_raw`` honoring the historic ``hash_bits`` kwarg.
 
-    Each token is hashed to *hash_bits* bits; the final fingerprint is the
-    sign of the component-wise sum of {+1, -1} vectors.
+    simhash._simhash_raw always operates at the canonical 64-bit width; callers passing
+    hash_bits != 64 get the 64-bit result rather than a wrong-width fingerprint.
     """
-    v = [0] * hash_bits
-    for token in tokens:
-        h = int(hashlib.md5(token.encode("utf-8")).hexdigest(), 16)
-        for i in range(hash_bits):
-            if h & (1 << i):
-                v[i] += 1
-            else:
-                v[i] -= 1
-    fingerprint = 0
-    for i in range(hash_bits):
-        if v[i] >= 0:
-            fingerprint |= 1 << i
-    return fingerprint
-
-
-def _hamming_distance(a: int, b: int) -> int:
-    """Count differing bits between two integers."""
-    return bin(a ^ b).count("1")
+    del hash_bits  # shim kwarg kept for backwards compatibility
+    return _simhash_raw(tokens)
 
 
 def compute_simhash(text: str) -> int:
     """Public helper: return SimHash fingerprint for *text*."""
-    return _simhash(_tokenize(text))
+    return _simhash_raw(_tokenize(text))
 
 
 def is_near_duplicate(
@@ -78,7 +72,7 @@ def deduplicate_records(
 
     for rec in records:
         text = rec.get(text_key, "")
-        h = _simhash(_tokenize(text))
+        h = _simhash_raw(_tokenize(text))
         dup = False
         for seen in seen_hashes:
             if _hamming_distance(h, seen) <= threshold:
