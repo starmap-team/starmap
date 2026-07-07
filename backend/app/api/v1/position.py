@@ -170,34 +170,13 @@ async def discover_position(
     然后运行 EmergenceFinder 进行 Z-score 分析。
     """
     from app.core.evolution.emergence_finder import EmergenceFinder
-    from app.models.evolution_models import SkillTimeseries
     from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
     try:
         # Step 1: Load timeseries data for frequency history
-        ts_stmt = sa.select(SkillTimeseries).order_by(SkillTimeseries.window_start.asc())
-        ts_result = await db.execute(ts_stmt)
-        ts_records = ts_result.scalars().all()
+        from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 
-        # Build skill_data with historical frequencies
-        skill_data: dict[str, dict[str, Any]] = {}
-        for r in ts_records:
-            name = r.skill_name
-            if name not in skill_data:
-                skill_data[name] = {
-                    "frequencies": [],
-                    "current": 0,
-                    "sources": r.source_count,
-                    "positions": r.positions or [],
-                }
-            skill_data[name]["frequencies"].append(r.frequency)
-
-        # Set current = last frequency, rest = history
-        for data in skill_data.values():
-            freqs = data["frequencies"]
-            if freqs:
-                data["current"] = freqs[-1]
-                data["frequencies"] = freqs[:-1]
+        skill_data = await load_skill_timeseries_data(db)
 
         # Step 2: For skills without timeseries, use source_count as fallback
         skill_stmt = sa.select(SkillRecord)

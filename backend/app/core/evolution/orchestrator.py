@@ -25,7 +25,7 @@ from app.core.evolution.hallucination_guard import GuardResult, HallucinationGua
 from app.core.evolution.path_recommender import PathRecommender, PathReport
 from app.core.evolution.snapshot_manager import SnapshotManager
 from app.core.evolution.trust_integration import TrustScorer
-from app.models.evolution_models import EvolutionChangelog, EvolutionPath, SkillTimeseries
+from app.models.evolution_models import EvolutionChangelog, EvolutionPath
 
 
 @dataclass
@@ -222,39 +222,13 @@ class EvolutionOrchestrator:
         self, position_name: str,
     ) -> dict[str, dict[str, Any]] | None:
         """Load skill timeseries data for emergence detection."""
-        from sqlalchemy import select
+        from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 
-        stmt = (
-            select(SkillTimeseries)
-            .where(SkillTimeseries.positions.contains([position_name]))
-            .order_by(SkillTimeseries.window_start.asc())
+        skill_data = await load_skill_timeseries_data(
+            self._session, position_name=position_name,
         )
-        db_result = await self._session.execute(stmt)
-        records = list(db_result.scalars().all())
-
-        if not records:
+        if not skill_data:
             return None
-
-        # Group by skill name
-        skill_data: dict[str, dict[str, Any]] = {}
-        for record in records:
-            name = record.skill_name
-            if name not in skill_data:
-                skill_data[name] = {
-                    "frequencies": [],
-                    "current": 0,
-                    "sources": record.source_count,
-                    "positions": record.positions or [],
-                }
-            skill_data[name]["frequencies"].append(record.frequency)
-
-        # Set current = last frequency
-        for _name, data in skill_data.items():
-            freqs = data["frequencies"]
-            if freqs:
-                data["current"] = freqs[-1]
-                data["frequencies"] = freqs[:-1]
-
         return skill_data
 
     async def _load_path_data(self) -> dict[str, set[str]] | None:

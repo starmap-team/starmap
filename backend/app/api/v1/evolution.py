@@ -23,12 +23,12 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.models.evolution_models import (
     EvolutionChangelog,
     EvolutionPath,
     EvolutionSnapshot,
-    SkillTimeseries,
 )
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 from app.tasks.celery_app import analyze_evolution_trends
@@ -127,44 +127,15 @@ async def get_trends(
     days: Annotated[int, Query(ge=7, le=730, description="分析时间窗口（天）")] = 90,
 ) -> EvolutionTrendsResponse:
     """技能热度趋势、岗位变迁时间线、新兴岗位预警（§8.3 演化看板）。"""
-    from datetime import UTC, datetime, timedelta
-
-    cutoff = datetime.now(UTC) - timedelta(days=days)
-
     # Load real timeseries data filtered by days parameter
-    ts_stmt = (
-        sa.select(SkillTimeseries)
-        .where(SkillTimeseries.window_start >= cutoff)
-        .order_by(SkillTimeseries.skill_name, SkillTimeseries.window_start.asc())
-    )
-    ts_result = await session.execute(ts_stmt)
-    ts_records = ts_result.scalars().all()
+    skill_data = await load_skill_timeseries_data(session, days=days)
 
     # If no timeseries data, return empty array with helpful message
-    if not ts_records:
+    if not skill_data:
         logger.info("No timeseries data found for trends in the last {} days", days)
         return EvolutionTrendsResponse(items=[])
 
     from app.core.evolution.emergence_finder import EmergenceFinder
-
-    # Build skill_data from timeseries
-    skill_data: dict[str, dict[str, Any]] = {}
-    for r in ts_records:
-        name = r.skill_name
-        if name not in skill_data:
-            skill_data[name] = {
-                "frequencies": [],
-                "current": 0,
-                "sources": r.source_count,
-                "positions": r.positions or [],
-            }
-        skill_data[name]["frequencies"].append(r.frequency)
-
-    for data in skill_data.values():
-        freqs = data["frequencies"]
-        if freqs:
-            data["current"] = freqs[-1]
-            data["frequencies"] = freqs[:-1]
 
     # Run emergence detection for trend classification
     finder = EmergenceFinder()
@@ -393,35 +364,10 @@ async def get_emerging_skills(
     from app.core.evolution.emergence_finder import EmergenceFinder
 
     # Load timeseries data
-    stmt = (
-        sa.select(SkillTimeseries)
-        .order_by(SkillTimeseries.window_start.asc())
-    )
-    result = await session.execute(stmt)
-    records = result.scalars().all()
+    skill_data = await load_skill_timeseries_data(session)
 
-    if not records:
+    if not skill_data:
         return []
-
-    # Group by skill
-    skill_data: dict[str, dict[str, Any]] = {}
-    for r in records:
-        name = r.skill_name
-        if name not in skill_data:
-            skill_data[name] = {
-                "frequencies": [],
-                "current": 0,
-                "sources": r.source_count,
-                "positions": r.positions or [],
-            }
-        skill_data[name]["frequencies"].append(r.frequency)
-
-    # Set current = last
-    for data in skill_data.values():
-        freqs = data["frequencies"]
-        if freqs:
-            data["current"] = freqs[-1]
-            data["frequencies"] = freqs[:-1]
 
     # Run emergence detection
     finder = EmergenceFinder()
@@ -686,26 +632,7 @@ async def get_industry_report(
     requirements to provide a comprehensive industry overview.
     """
     # Get skill trends from timeseries data
-    ts_stmt = sa.select(SkillTimeseries).order_by(
-        SkillTimeseries.skill_name,
-        SkillTimeseries.window_start.asc(),
-    )
-    if category:
-        ts_stmt = ts_stmt.where(SkillTimeseries.category == category)
-    ts_result = await session.execute(ts_stmt)
-    ts_records = ts_result.scalars().all()
-
-    # Build skill data grouped by name
-    skill_data: dict[str, dict[str, Any]] = {}
-    for r in ts_records:
-        name = r.skill_name
-        if name not in skill_data:
-            skill_data[name] = {
-                "frequencies": [],
-                "source_count": r.source_count,
-                "positions": r.positions or [],
-            }
-        skill_data[name]["frequencies"].append(r.frequency)
+    skill_data = await load_skill_timeseries_data(session, category=category)
 
     # If we have timeseries data, use emergence detection
     rising: list[SkillTrendItem] = []
@@ -715,22 +642,11 @@ async def get_industry_report(
     if skill_data:
         from app.core.evolution.emergence_finder import EmergenceFinder
 
-        # Prepare for emergence finder (current = last, history = rest)
-        finder_input: dict[str, dict[str, Any]] = {}
-        for name, data in skill_data.items():
-            freqs = data["frequencies"]
-            finder_input[name] = {
-                "frequencies": freqs[:-1] if len(freqs) > 1 else [],
-                "current": freqs[-1] if freqs else 0,
-                "sources": data["source_count"],
-                "positions": data["positions"],
-            }
-
+        # skill_data already has the right shape for EmergenceFinder
         finder = EmergenceFinder()
-        report = finder.scan(finder_input)
+        report = finder.scan(skill_data)
 
         for signal in report.rising:
-            data = skill_data.get(signal.skill_name, {})
             rising.append(SkillTrendItem(
                 skill_name=signal.skill_name,
                 trend="rising",
@@ -740,7 +656,6 @@ async def get_industry_report(
             ))
 
         for signal in report.declining:
-            data = skill_data.get(signal.skill_name, {})
             declining.append(SkillTrendItem(
                 skill_name=signal.skill_name,
                 trend="declining",
@@ -872,36 +787,10 @@ async def get_emerging_alerts(
     from app.core.evolution.emergence_finder import EmergenceFinder
 
     # Load timeseries data
-    stmt = (
-        sa.select(SkillTimeseries)
-        .order_by(SkillTimeseries.window_start.asc())
-    )
-    result = await session.execute(stmt)
-    records = result.scalars().all()
+    skill_data = await load_skill_timeseries_data(session, include_category=True)
 
-    if not records:
+    if not skill_data:
         return EmergingAlertsResponse(alerts=[], total=0, summary="暂无时序数据")
-
-    # Group by skill
-    skill_data: dict[str, dict[str, Any]] = {}
-    for r in records:
-        name = r.skill_name
-        if name not in skill_data:
-            skill_data[name] = {
-                "frequencies": [],
-                "current": 0,
-                "sources": r.source_count,
-                "positions": r.positions or [],
-                "category": r.category,
-            }
-        skill_data[name]["frequencies"].append(r.frequency)
-
-    # Set current = last
-    for data in skill_data.values():
-        freqs = data["frequencies"]
-        if freqs:
-            data["current"] = freqs[-1]
-            data["frequencies"] = freqs[:-1]
 
     # Run emergence detection
     finder = EmergenceFinder()
@@ -1001,35 +890,10 @@ async def get_skill_portability(
     from app.core.evolution.emergence_finder import EmergenceFinder
 
     # Load timeseries data
-    stmt = (
-        sa.select(SkillTimeseries)
-        .order_by(SkillTimeseries.window_start.asc())
-    )
-    result = await session.execute(stmt)
-    records = result.scalars().all()
+    skill_data = await load_skill_timeseries_data(session, include_category=True)
 
-    if not records:
+    if not skill_data:
         raise HTTPException(status_code=404, detail=f"无时序数据，无法分析技能 '{skill}' 的可迁移性")
-
-    # Group by skill
-    skill_data: dict[str, dict[str, Any]] = {}
-    for r in records:
-        name = r.skill_name
-        if name not in skill_data:
-            skill_data[name] = {
-                "frequencies": [],
-                "current": 0,
-                "sources": r.source_count,
-                "positions": r.positions or [],
-                "category": r.category,
-            }
-        skill_data[name]["frequencies"].append(r.frequency)
-
-    for data in skill_data.values():
-        freqs = data["frequencies"]
-        if freqs:
-            data["current"] = freqs[-1]
-            data["frequencies"] = freqs[:-1]
 
     finder = EmergenceFinder()
     analysis = finder.get_portability_analysis(skill, skill_data)
