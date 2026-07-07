@@ -5,7 +5,8 @@
  * 使用 G6 v5 的 antdag DAG 布局
  */
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { chartColors } from '@/utils/chartTheme'
+import { chartColors, cv } from '@/utils/chartTheme'
+import { ensureG6Loaded } from '@/composables/useG6'
 
 interface PathNode {
   skill: string
@@ -21,7 +22,6 @@ const props = defineProps<{
 
 const containerRef = ref<HTMLElement | null>(null)
 let graph: any = null
-let G6Graph: any = null
 
 const cc = chartColors()
 
@@ -41,18 +41,6 @@ const STATUS_LABELS: Record<string, string> = {
   not_started: '未开始',
   in_progress: '学习中',
   mastered: '已掌握',
-}
-
-async function ensureG6Loaded() {
-  if (!G6Graph) {
-    const g6 = await import('@antv/g6')
-    G6Graph = g6.Graph
-  }
-  return G6Graph
-}
-
-function cv(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 
 function buildGraphData() {

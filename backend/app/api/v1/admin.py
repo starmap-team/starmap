@@ -27,6 +27,7 @@ from app.core.extraction.prompt import (
     set_active_version,
     stop_ab_test,
 )
+from app.core.matching.constants import ALLOWED_NODE_LABELS
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.models.extraction_models import (
     JDExtractionRecord,
@@ -118,8 +119,7 @@ _DEMO_REVIEW_SEED = [
     {"entity_type": "skill", "entity_name": "RAG", "status": "pending", "payload": {"trust": 45}},
 ]
 
-# Whitelist of allowed Neo4j node labels to prevent Cypher injection
-_ALLOWED_LABELS = frozenset({"Position", "Skill", "Tool", "KnowledgeArea", "Industry", "Domain"})
+_ALLOWED_LABELS = ALLOWED_NODE_LABELS
 
 
 async def _build_admin_stats(session: AsyncSession) -> AdminStatsResponse:

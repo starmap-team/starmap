@@ -4,8 +4,15 @@
  * Enhanced with Obsidian-inspired styling.
  */
 
-function cv(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+/** Read a CSS custom property value from :root. Cached for performance. Shared across all chart/theme consumers. */
+const _cvCache = new Map<string, string>()
+export function cv(name: string): string {
+  let value = _cvCache.get(name)
+  if (value === undefined) {
+    value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+    _cvCache.set(name, value)
+  }
+  return value
 }
 
 /** Primary palette - maps to --chart-1..5 + semantic colors */

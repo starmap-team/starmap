@@ -52,15 +52,8 @@ watch(() => loopStore.currentRun?.steps?.map(s => s.status), (statuses) => {
   })
 }, { deep: true })
 
-// ── G6 动态导入 ──
-let G6Graph: any = null
-async function ensureG6Loaded() {
-  if (!G6Graph) {
-    const g6 = await import('@antv/g6')
-    G6Graph = g6.Graph
-  }
-  return G6Graph
-}
+// ── G6 dynamic import (shared) ──
+import { ensureG6Loaded } from '@/composables/useG6'
 
 // ── JD 输入 ──
 const jdText = ref('')
@@ -166,9 +159,7 @@ function handleReset() {
 const graphContainerRef = ref<HTMLElement | null>(null)
 let graphInstance: any = null
 
-function cv(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-}
+import { cv } from '@/utils/chartTheme'
 
 async function renderMiniGraph() {
   if (!graphContainerRef.value) return

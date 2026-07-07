@@ -37,12 +37,7 @@ const position = ref<PositionInfo | null>(null)
 const skills = ref<SkillItem[]>([])
 const loading = ref(false)
 
-// ── 熟练度 → 0-1 映射 ──
-const PROFICIENCY_MAP: Record<string, number> = {
-  '精通': 1.0,
-  '熟悉': 0.66,
-  '了解': 0.33,
-}
+import { PROFICIENCY_MAP } from '@/utils/proficiency'
 
 // ── 雷达图数据 ──
 const radarData = computed<RadarItem[]>(() =>

@@ -15,6 +15,7 @@ from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.core.matching.constants import ALLOWED_NODE_LABELS
 
 # ---- Node type labels (§2.1: 7类节点) ----
 NODE_POSITION = "Position"
@@ -34,16 +35,6 @@ REL_BELONGS_TO = "BELONGS_TO"       # Position -> Industry
 REL_CERTIFIES = "CERTIFIES"         # Certificate -> Skill
 REL_RECOMMENDED_FOR = "RECOMMENDED_FOR"  # LearningResource -> Skill (rank:float)
 REL_APPLIES_TO = "APPLIES_TO"       # KnowledgeArea -> Industry
-
-ALLOWED_NODE_LABELS = {
-    NODE_POSITION,
-    NODE_SKILL,
-    NODE_KNOWLEDGE_AREA,
-    NODE_TOOL,
-    NODE_CERTIFICATE,
-    NODE_LEARNING_RESOURCE,
-    NODE_INDUSTRY,
-}
 
 ALLOWED_RELATIONSHIP_TYPES = {
     REL_REQUIRES,

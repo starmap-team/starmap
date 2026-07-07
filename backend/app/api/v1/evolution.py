@@ -598,9 +598,9 @@ async def get_career_path(
         seen_positions.add(target)
 
         # Classify direction heuristically based on title keywords
-        senior_keywords = {"高级", "资深", "专家", "主管", "经理", "总监", "架构师", "senior", "lead", "principal"}
+        from app.core.matching.constants import SENIOR_KEYWORDS
         target_lower = target.lower()
-        if any(kw in target_lower for kw in senior_keywords):
+        if any(kw in target_lower for kw in SENIOR_KEYWORDS):
             direction = "up"
 
         nodes.append(CareerPathNode(
@@ -631,8 +631,7 @@ async def get_career_path(
                     continue
                 seen_positions.add(target2)
 
-                senior_keywords = {"高级", "资深", "专家", "主管", "经理", "总监", "架构师", "senior", "lead", "principal"}
-                direction2 = "up" if any(kw in target2.lower() for kw in senior_keywords) else "forward"
+                direction2 = "up" if any(kw in target2.lower() for kw in SENIOR_KEYWORDS) else "forward"
 
                 second_hop_nodes.append(CareerPathNode(
                     position=target2,

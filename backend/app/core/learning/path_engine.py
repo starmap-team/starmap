@@ -21,8 +21,7 @@ from typing import Any
 
 from loguru import logger
 
-# Proficiency level → numeric score (shared with match_service)
-PROFICIENCY_SCORE: dict[str, float] = {"了解": 0.35, "熟悉": 0.65, "精通": 0.9}
+from app.core.matching.constants import PROFICIENCY_SCORE
 
 # Base learning hours per skill at different gap levels
 _BASE_HOURS: dict[str, float] = {

@@ -62,8 +62,7 @@ const matchAnimating = ref(false)
 const matchAnimSkills = ref<SkillMatchItem[]>([])
 const matchAnimComplete = ref(false)
 
-// 技术说明：技能熟练度映射表，将中文描述映射为数值，用于雷达图和匹配计算
-const PROFICIENCY_MAP: Record<string, number> = { '精通': 0.9, '熟悉': 0.65, '了解': 0.35 }
+import { PROFICIENCY_MAP } from '@/utils/proficiency'
 // 业务说明：5步向导的标题数组，用于 el-steps 步骤条展示
 const stepTitles = ['上传简历', '选择目标岗位', '技能雷达对比', '差距分析报告', '学习路径规划']
 

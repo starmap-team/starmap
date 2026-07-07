@@ -5,6 +5,7 @@
  */
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { chartColors } from '@/utils/chartTheme'
+import { ensureG6Loaded } from '@/composables/useG6'
 
 const cc = chartColors()
 
@@ -21,15 +22,6 @@ const props = defineProps<{
 
 const containerRef = ref<HTMLElement | null>(null)
 let graph: any = null
-let G6Graph: any = null
-
-async function ensureG6Loaded() {
-  if (!G6Graph) {
-    const g6 = await import('@antv/g6')
-    G6Graph = g6.Graph
-  }
-  return G6Graph
-}
 
 function getProbabilityColor(prob: number): string {
   if (prob >= 0.7) return cc.success

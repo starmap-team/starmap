@@ -60,19 +60,8 @@ async function loadG6Graph(): Promise<any> {
   return _G6GraphClass
 }
 
-// ── CSS variable cache ──
-// 技术说明：缓存 CSS 自定义属性值，避免每次渲染都重复调用 getComputedStyle，提升性能
-const _cvCache = new Map<string, string>()
-
-// 技术说明：根据 CSS 变量名获取当前主题下的实际颜色值，优先读取缓存
-function cv(name: string): string {
-  let value = _cvCache.get(name)
-  if (value === undefined) {
-    value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-    _cvCache.set(name, value)
-  }
-  return value
-}
+// ── CSS variable reader (shared from chartTheme) ──
+import { cv } from '@/utils/chartTheme'
 
 // ── Template refs & G6 instance ──
 // 技术说明：模板引用，指向承载 G6 画布的真实 DOM 容器节点

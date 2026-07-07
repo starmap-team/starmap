@@ -9,9 +9,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from app.core.extraction.normalize import normalize_skill
-
-# 技能熟练度量化映射表
-PROFICIENCY_SCORE = {"了解": 0.35, "熟悉": 0.65, "精通": 0.9}
+from app.core.matching.constants import PROFICIENCY_SCORE
 
 # 模糊匹配阈值
 FUZZY_MATCH_THRESHOLD = 0.7

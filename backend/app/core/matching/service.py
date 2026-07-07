@@ -17,14 +17,12 @@ from fastapi import HTTPException
 from loguru import logger
 
 from app.core.matching.cache import get_match_cache
+from app.core.matching.constants import PROFICIENCY_SCORE
 from app.core.matching.scorer import score_skill_match
 from app.services.graph_service import fetch_position_graph
 
 # CII 基线
 DEFAULT_REQUIRED_SKILL_BASELINE = 6.0
-
-# 熟练度映射
-PROFICIENCY_SCORE = {"了解": 0.35, "熟悉": 0.65, "精通": 0.9}
 
 
 class MatchService:

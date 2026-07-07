@@ -1,18 +1,6 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from '@/stores/graph'
-import { tooltipStyle } from '@/utils/chartTheme'
-
-// CSS variable cache (used by the ECharts radar in Home.vue; G6/Three.js read CSS via
-// Graph2D.vue's own cv() — Home.vue's cv is intentionally separate so we don't reach into
-// child-component internals).
-const _cvCache = new Map<string, string>()
-function cv(name: string): string {
-  let value = _cvCache.get(name)
-  if (value === undefined) {
-    value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-    _cvCache.set(name, value)
-  }
-  return value
+import { cv, tooltipStyle } from '@/utils/chartTheme'
 }
 
 export interface BreadcrumbItem {
