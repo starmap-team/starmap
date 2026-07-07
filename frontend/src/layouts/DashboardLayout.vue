@@ -85,8 +85,8 @@ function goBack() {
 .dashboard-layout {
   min-height: 100vh;
   width: 100%;
-  background: #0a0a1a;
-  color: #e0e6ed;
+  background: var(--card, #0a0a1a);
+  color: var(--foreground, #e0e6ed);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -99,7 +99,7 @@ function goBack() {
   justify-content: space-between;
   padding: 12px 24px;
   background: linear-gradient(180deg, rgba(10, 10, 26, 0.95) 0%, rgba(10, 10, 26, 0.7) 100%);
-  border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+  border-bottom: 1px solid color-mix(in srgb, var(--chart-1, #00d4ff) 15%, transparent);
   backdrop-filter: blur(12px);
   z-index: 10;
   flex-shrink: 0;
@@ -125,7 +125,7 @@ function goBack() {
 }
 
 .title-glow {
-  background: linear-gradient(135deg, #00d4ff 0%, #7b61ff 50%, #00ff88 100%);
+  background: linear-gradient(135deg, var(--chart-1, #00d4ff) 0%, var(--chart-3, #7b61ff) 50%, var(--success, #00ff88) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -168,7 +168,7 @@ function goBack() {
 .header-btn:hover {
   background: rgba(0, 212, 255, 0.15);
   border-color: rgba(0, 212, 255, 0.4);
-  color: #00d4ff;
+  color: var(--chart-1, #00d4ff);
   box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
 }
 

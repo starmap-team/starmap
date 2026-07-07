@@ -26,7 +26,7 @@ import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import CountUpNumber from '@/components/CountUpNumber.vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useSSE } from '@/composables/useSSE'
-import { chartAnimationConfig } from '@/utils/chartTheme'
+import { chartAnimationConfig, chartColors, tooltipStyle } from '@/utils/chartTheme'
 import type { RealtimeEvent, EmergingSkill } from '@/stores/dashboard'
 
 use([
@@ -44,6 +44,7 @@ use([
 ])
 
 const store = useDashboardStore()
+const cc = chartColors()
 
 // ── KPI card definitions (raw targets for CountUpNumber) ──
 const kpiCards = computed(() => [
@@ -53,8 +54,8 @@ const kpiCards = computed(() => [
     suffix: '',
     decimals: 0,
     icon: '⬡',
-    color: '#00d4ff',
-    glow: 'rgba(0, 212, 255, 0.25)',
+    color: cc.chart[0],
+    glow: cc.chart[0] + '40',
     route: '/',
   },
   {
@@ -63,8 +64,8 @@ const kpiCards = computed(() => [
     suffix: '',
     decimals: 0,
     icon: '◇',
-    color: '#7b61ff',
-    glow: 'rgba(123, 97, 255, 0.25)',
+    color: cc.chart[2],
+    glow: cc.chart[2] + '40',
     route: '/',
   },
   {
@@ -73,8 +74,8 @@ const kpiCards = computed(() => [
     suffix: '',
     decimals: 0,
     icon: '◈',
-    color: '#00ff88',
-    glow: 'rgba(0, 255, 136, 0.25)',
+    color: cc.success,
+    glow: cc.success + '40',
     route: '/learning',
   },
   {
@@ -83,8 +84,8 @@ const kpiCards = computed(() => [
     suffix: '',
     decimals: 0,
     icon: '◉',
-    color: '#ff6b6b',
-    glow: 'rgba(255, 107, 107, 0.25)',
+    color: cc.danger,
+    glow: cc.danger + '40',
     route: '/positions',
   },
   {
@@ -93,8 +94,8 @@ const kpiCards = computed(() => [
     suffix: '',
     decimals: 0,
     icon: '◆',
-    color: '#ffd93d',
-    glow: 'rgba(255, 217, 61, 0.25)',
+    color: cc.warning,
+    glow: cc.warning + '40',
     route: '/quality',
   },
   {
@@ -103,8 +104,8 @@ const kpiCards = computed(() => [
     suffix: '%',
     decimals: 1,
     icon: '★',
-    color: '#6bcbff',
-    glow: 'rgba(107, 203, 255, 0.25)',
+    color: cc.info,
+    glow: cc.info + '40',
     route: '/quality',
   },
 ])
@@ -115,18 +116,16 @@ const darkPieOption = computed(() => {
   if (!data?.length) {
     return getPlaceholderPie()
   }
-  const palette = ['#00d4ff', '#7b61ff', '#00ff88', '#ff6b6b', '#ffd93d', '#6bcbff', '#ff9f43', '#a29bfe']
+  const palette = [cc.chart[0], cc.chart[2], cc.success, cc.danger, cc.warning, cc.info, cc.primary, cc.chart[4]]
   return {
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(15, 15, 35, 0.9)',
-      borderColor: 'rgba(0, 212, 255, 0.3)',
-      textStyle: { color: '#e0e6ed', fontSize: 12 },
+      ...tooltipStyle(),
       formatter: '{b}: {c} 条 ({d}%)',
     },
     legend: {
       bottom: 4,
-      textStyle: { color: 'rgba(224, 230, 237, 0.6)', fontSize: 10 },
+      textStyle: { color: cc.muted, fontSize: 10 },
       itemWidth: 10,
       itemHeight: 10,
     },
@@ -145,10 +144,10 @@ const darkPieOption = computed(() => {
       },
       label: { show: false },
       emphasis: {
-        label: { show: true, fontSize: 13, fontWeight: 'bold', color: '#e0e6ed' },
+        label: { show: true, fontSize: 13, fontWeight: 'bold', color: cc.foreground },
         itemStyle: {
           shadowBlur: 20,
-          shadowColor: 'rgba(0, 212, 255, 0.4)',
+          shadowColor: cc.chart[0] + '66',
         },
       },
       data: data.map((s, i) => ({
@@ -167,7 +166,7 @@ function getPlaceholderPie() {
       radius: ['40%', '70%'],
       center: ['50%', '44%'],
       label: { show: false },
-      data: [{ value: 1, itemStyle: { color: 'rgba(0, 212, 255, 0.1)' } }],
+      data: [{ value: 1, itemStyle: { color: cc.chart[0] + '1A' } }],
     }],
   }
 }
@@ -180,9 +179,9 @@ const treemapOption = computed(() => {
   }
   return {
     tooltip: {
-      backgroundColor: 'rgba(15, 15, 35, 0.9)',
-      borderColor: 'rgba(0, 212, 255, 0.3)',
-      textStyle: { color: '#e0e6ed', fontSize: 12 },
+      backgroundColor: cc.card + 'E6',
+      borderColor: cc.chart[0] + '4D',
+      textStyle: { color: cc.foreground, fontSize: 12 },
       formatter: '{b}: {c}',
     },
     series: [{
@@ -225,7 +224,7 @@ const treemapOption = computed(() => {
           borderWidth: 1,
         },
       }],
-      color: ['#00d4ff', '#7b61ff', '#00ff88', '#ff6b6b', '#ffd93d', '#6bcbff', '#a29bfe', '#ff9f43'],
+      color: [cc.chart[0], cc.chart[2], cc.success, cc.danger, cc.warning, cc.info, cc.primary, cc.chart[4]],
     }],
   }
 })
@@ -246,7 +245,7 @@ function getPlaceholderTreemap() {
       breadcrumb: { show: false },
       label: { show: true, color: 'rgba(255,255,255,0.3)', fontSize: 11 },
       itemStyle: { borderColor: '#0a0a1a', borderWidth: 2 },
-      color: ['rgba(0,212,255,0.15)', 'rgba(123,97,255,0.15)', 'rgba(0,255,136,0.15)', 'rgba(255,107,107,0.15)', 'rgba(255,217,61,0.15)'],
+      color: [cc.chart[0] + '26', cc.chart[2] + '26', cc.success + '26', cc.danger + '26', cc.warning + '26'],
     }],
   }
 }
@@ -258,14 +257,14 @@ const trendOption = computed(() => {
   return {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(15, 15, 35, 0.9)',
-      borderColor: 'rgba(0, 212, 255, 0.3)',
-      textStyle: { color: '#e0e6ed', fontSize: 12 },
+      backgroundColor: cc.card + 'E6',
+      borderColor: cc.chart[0] + '4D',
+      textStyle: { color: cc.foreground, fontSize: 12 },
     },
     legend: {
       top: 0,
       right: 0,
-      textStyle: { color: 'rgba(224, 230, 237, 0.6)', fontSize: 10 },
+      textStyle: { color: cc.muted, fontSize: 10 },
       itemWidth: 12,
       itemHeight: 2,
     },
@@ -273,23 +272,23 @@ const trendOption = computed(() => {
     xAxis: {
       type: 'category',
       data: trends.map(t => t.date.slice(5)),
-      axisLine: { lineStyle: { color: 'rgba(224, 230, 237, 0.15)' } },
-      axisLabel: { color: 'rgba(224, 230, 237, 0.5)', fontSize: 10 },
+      axisLine: { lineStyle: { color: cc.foreground + '26' } },
+      axisLabel: { color: cc.muted, fontSize: 10 },
       axisTick: { show: false },
     },
     yAxis: [
       {
         type: 'value',
         name: '分值',
-        nameTextStyle: { color: 'rgba(224, 230, 237, 0.4)', fontSize: 10 },
-        axisLabel: { color: 'rgba(224, 230, 237, 0.4)', fontSize: 10 },
-        splitLine: { lineStyle: { color: 'rgba(224, 230, 237, 0.06)' } },
+        nameTextStyle: { color: cc.muted, fontSize: 10 },
+        axisLabel: { color: cc.muted, fontSize: 10 },
+        splitLine: { lineStyle: { color: cc.foreground + '0F' } },
       },
       {
         type: 'value',
         name: '采集量',
-        nameTextStyle: { color: 'rgba(224, 230, 237, 0.4)', fontSize: 10 },
-        axisLabel: { color: 'rgba(224, 230, 237, 0.4)', fontSize: 10 },
+        nameTextStyle: { color: cc.muted, fontSize: 10 },
+        axisLabel: { color: cc.muted, fontSize: 10 },
         splitLine: { show: false },
       },
     ],
@@ -300,15 +299,15 @@ const trendOption = computed(() => {
         smooth: true,
         symbol: 'circle',
         symbolSize: 4,
-        lineStyle: { color: '#00d4ff', width: 2 },
-        itemStyle: { color: '#00d4ff' },
+        lineStyle: { color: cc.chart[0], width: 2 },
+        itemStyle: { color: cc.chart[0] },
         areaStyle: {
           color: {
             type: 'linear',
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(0, 212, 255, 0.2)' },
-              { offset: 1, color: 'rgba(0, 212, 255, 0)' },
+              { offset: 0, color: cc.chart[0] + '33' },
+              { offset: 1, color: cc.chart[0] + '00' },
             ],
           },
         },
@@ -320,15 +319,15 @@ const trendOption = computed(() => {
         smooth: true,
         symbol: 'circle',
         symbolSize: 4,
-        lineStyle: { color: '#00ff88', width: 2 },
-        itemStyle: { color: '#00ff88' },
+        lineStyle: { color: cc.success, width: 2 },
+        itemStyle: { color: cc.success },
         areaStyle: {
           color: {
             type: 'linear',
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(0, 255, 136, 0.15)' },
-              { offset: 1, color: 'rgba(0, 255, 136, 0)' },
+              { offset: 0, color: cc.success + '26' },
+              { offset: 1, color: cc.success + '00' },
             ],
           },
         },
@@ -340,8 +339,8 @@ const trendOption = computed(() => {
         yAxisIndex: 1,
         smooth: true,
         symbol: 'none',
-        lineStyle: { color: '#ffd93d', width: 1.5, type: 'dashed' },
-        itemStyle: { color: '#ffd93d' },
+        lineStyle: { color: cc.warning, width: 1.5, type: 'dashed' },
+        itemStyle: { color: cc.warning },
         data: trends.map(t => t.crawl_volume),
       },
     ],
@@ -386,9 +385,9 @@ const radarOption = computed(() => {
   const top = skills.slice(0, 6)
   return {
     tooltip: {
-      backgroundColor: 'rgba(15, 15, 35, 0.9)',
-      borderColor: 'rgba(0, 212, 255, 0.3)',
-      textStyle: { color: '#e0e6ed', fontSize: 12 },
+      backgroundColor: cc.card + 'E6',
+      borderColor: cc.chart[0] + '4D',
+      textStyle: { color: cc.foreground, fontSize: 12 },
     },
     radar: {
       indicator: top.map(s => ({
