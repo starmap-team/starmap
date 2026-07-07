@@ -3,7 +3,7 @@
 **日期:** 2026-07-07
 **范围:** 前端 (79 文件, ~26,500 行) + 后端 (Python/FastAPI)
 **触发:** `/gsd-verify-work --all 同时进行代码质量评审及复用性审计`
-**状态:** 56 findings → 45+ 已修复, ~11 剩余 (10 commits)
+**状态:** 56 findings → 48+ 已修复, ~8 剩余 (12 commits)
 
 ---
 
@@ -34,13 +34,13 @@
 
 | # | 问题 | 文件 | 修复 |
 |---|------|------|------|
-| M1 | Skill timeseries 加载模式在 7+ 处重复 (~15行块) | evolution.py 5处, orchestrator.py, position.py | 提取 `_load_skill_timeseries_data()` |
-| M2 | `match_service_legacy.py` 1036 行是已重构模块的死亡副本 | services/match_service_legacy.py | **删除** |
-| M3 | `_load_target_profile` 实现 3 次 | legacy, service.py, match_service.py wrapper | 仅保留 MatchService 公开方法 |
-| M4 | `_apply_inflation_correction` 实现 2 次 | legacy:408, service.py:180 | 仅保留 service.py 版本 |
-| M5 | `enrich_learning_paths` 实现 2 次（相同 Neo4j 查询） | legacy:492, match_service.py:95 | 单一实现 in core/matching/ |
-| M6 | `compute_competitiveness` 实现 2 次（相同公式） | legacy:924, match_service.py:191 | 单一实现 |
-| M7 | `run_batch_match` 实现 2 次（相同结构） | legacy:843, match_service.py:132 | 单一实现 |
+| M1 | Skill timeseries 加载模式在 7+ 处重复 (~15行块) | evolution.py 5处, orchestrator.py, position.py | ✅ 提取 `_load_skill_timeseries_data()` 到 timeseries_loader.py |
+| M2 | `match_service_legacy.py` 1036 行是已重构模块的死亡副本 | services/match_service_legacy.py | ✅ 已删除 |
+| M3 | `_load_target_profile` 实现 3 次 | legacy, service.py, match_service.py wrapper | ✅ legacy 删除后自动消除 |
+| M4 | `_apply_inflation_correction` 实现 2 次 | legacy:408, service.py:180 | ✅ legacy 删除后自动消除 |
+| M5 | `enrich_learning_paths` 实现 2 次（相同 Neo4j 查询） | legacy:492, match_service.py:95 | ✅ legacy 删除后自动消除 |
+| M6 | `compute_competitiveness` 实现 2 次（相同公式） | legacy:924, match_service.py:191 | ✅ legacy 删除后自动消除 |
+| M7 | `run_batch_match` 实现 2 次（相同结构） | legacy:843, match_service.py:132 | ✅ legacy 删除后自动消除 |
 | M8 | `_normalize_proficiency` 在 2 处重复且关键词集略有不同 | graph_writer.py:123, graph_service.py:153 | 统一到 `normalize.py` |
 | M9 | `senior_keywords` 硬编码集合在同一文件定义 2 次 | evolution.py:601, :634 | 提取为 module-level constant |
 | M10 | `_skill_entry_name` / `_skill_name` 在 2 模块重复 | graph_writer.py:111, stage3_services.py:24 | 共享 utility function |
@@ -54,7 +54,7 @@
 | M13 | `LoopDemo.vue` 1682 行 — 5 步渲染器巨型单体 | pages/LoopDemo.vue | 提取每步为子组件 |
 | M14 | `MatchDiagnosis.vue` 1467 行 — inline 数据获取 | pages/MatchDiagnosis.vue | 提取 step 组件 + 移 fetch 到 store |
 | M15 | `DataDashboard.vue` 1217 行 — chart configs + SSE + KPI 全 inline | pages/DataDashboard.vue | 提取 `useDataDashboardCharts.ts` composable |
-| M16 | `EvolutionDashboard.vue` 976 行 + 直接 API 调用 | pages/EvolutionDashboard.vue | 添加 evolution store |
+| M16 | `EvolutionDashboard.vue` 976 行 + 直接 API 调用 | pages/EvolutionDashboard.vue | ✅ 提取 useEvolutionCharts.ts composable + EvolutionChangelogDrawer.vue (942→612) |
 | M17 | `cv()` CSS variable reader 在 4 处重复 | chartTheme.ts, useHomeInteractions.ts, Graph2D.vue, LearningPathFlow.vue, LoopDemo.vue | 统一从 `chartTheme.ts` export |
 | M18 | `ensureG6Loaded()` 在 3 处重复 | CareerPathGraph.vue, LearningPathFlow.vue, LoopDemo.vue | 提取到 `composables/useG6.ts` |
 | M19 | `PROFICIENCY_MAP` 在 2 页面独立定义且标准化不一致 | MatchDiagnosis.vue:66, PositionDetail.vue:41 | `utils/proficiency.ts` 单一规范 |
@@ -76,7 +76,7 @@
 | m2 | 硬编码 CORS origins | main.py:45 | 移到 `settings.cors_origins` |
 | m3 | 硬编码 authority scores | admin.py:201-205 | 移到 config 或 DB |
 | m4 | Magic number 7 (CII source threshold) | evolution.py:525 | 提取为命名常量 |
-| m5 | `_save_match_result` 原始 SQL 在 legacy 和 service 重复 | legacy:585, service.py:385 | 单一 repository method |
+| m5 | `_save_match_result` 原始 SQL 在 legacy 和 service 重复 | legacy:585, service.py:385 | ✅ legacy 删除后自动消除 |
 | m6 | `ReviewQueue` 在 admin.py 函数体内 6 次 inline import | admin.py:156,225,271,297,325,359 | 加入顶层 import |
 | m7 | `graph_service.py` 857 行超限 | services/graph_service.py | 分拆为 serializers/queries/sync |
 
