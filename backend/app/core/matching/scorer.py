@@ -155,6 +155,7 @@ def score_skill_match(
             "importance": item["importance"],
             "gap_level": gap_level,
             "score": round(final_score, 4),
+            "learning_path": [target_name],
         }
 
     evaluated = [_score_one(item) for item in target_skills]

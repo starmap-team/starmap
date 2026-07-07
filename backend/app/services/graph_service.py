@@ -584,6 +584,7 @@ async def sync_from_pipeline(
     new_edges: list[dict[str, Any]] | None = None,
     new_positions: list[dict[str, Any]] | None = None,
     extraction_data: dict[str, Any] | None = None,
+    target_position: str = "",
 ) -> dict[str, Any]:
     # 业务说明：将 Pipeline（如 JD 解析流水线）提取出的职位、技能及关系数据同步写入 Neo4j 图谱，
     # 采用 MERGE 语义保证幂等性，支持两种写入模式：
@@ -610,7 +611,7 @@ async def sync_from_pipeline(
 
     # ── DB-query mode: use graph_writer.batch_write_extractions ──
     if extraction_data is not None:
-        return await _sync_via_graph_writer(run_id, driver, app_resources, extraction_data)
+        return await _sync_via_graph_writer(run_id, driver, app_resources, extraction_data, target_position=target_position)
 
     # ── Inline mode (legacy): direct MERGE of skills / edges / positions ──
     total_nodes = 0
@@ -663,6 +664,7 @@ async def _sync_via_graph_writer(
     driver: Any,
     app_resources: Any,
     extraction_data: dict[str, Any],
+    target_position: str = "",
 ) -> dict[str, Any]:
     # 业务说明：DB-Query 模式的核心实现，通过 graph_writer 批量将提取结果写入 Neo4j。
     # 技术说明：
@@ -725,6 +727,37 @@ async def _sync_via_graph_writer(
                 "evolves_to": extraction_data.get("evolves_to", []),
             }
             extractions.append(current_extraction)
+
+        # If target_position differs from position_name, also create a Position node
+        # with the target_position name so Step 4 match diagnosis can find it.
+        if target_position and target_position != position_name and skills:
+            required_skills_alt = []
+            preferred_skills_alt = []
+            for s in skills:
+                entry = {
+                    "name": s.get("name", ""),
+                    "category": s.get("category", "hard_skill"),
+                    "level": s.get("proficiency", "熟悉"),
+                }
+                if s.get("importance") == "required":
+                    required_skills_alt.append(entry)
+                else:
+                    preferred_skills_alt.append(entry)
+            target_extraction: dict[str, Any] = {
+                "position_name": target_position,
+                "industry": extraction_data.get("industry", ""),
+                "description": extraction_data.get("description", ""),
+                "experience_required": extraction_data.get("experience_required"),
+                "education_required": extraction_data.get("education_required"),
+                "knowledge_areas": extraction_data.get("knowledge_areas", []),
+                "required_skills": required_skills_alt,
+                "preferred_skills": preferred_skills_alt,
+                "tools": extraction_data.get("tools", []),
+                "prerequisites": extraction_data.get("prerequisites", []),
+                "learning_resources": extraction_data.get("learning_resources", []),
+                "evolves_to": extraction_data.get("evolves_to", []),
+            }
+            extractions.append(target_extraction)
 
         # ── 2. Query JDExtractionRecords from PostgreSQL ──
         pg_sessionmaker = app_resources.pg_sessionmaker

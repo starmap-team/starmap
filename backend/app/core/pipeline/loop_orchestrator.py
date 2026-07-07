@@ -179,7 +179,7 @@ class LoopOrchestrator:
         except Exception:
             pass
 
-        step3 = await self._step3_graph_update(run_id, extraction_data)
+        step3 = await self._step3_graph_update(run_id, extraction_data, target_position=target_position)
         result.steps.append(step3)
         graph_ok = step3.status == StepStatus.SUCCESS
         result.graph_update = step3.data
@@ -338,6 +338,7 @@ class LoopOrchestrator:
         self,
         run_id: str,
         extraction_data: dict[str, Any],
+        target_position: str = "",
     ) -> LoopStepResult:
         """Step 3: Sync extracted skills/positions into Neo4j graph."""
         start = time.monotonic()
@@ -366,6 +367,7 @@ class LoopOrchestrator:
                 sync_result = await sync_from_pipeline(
                     run_id=run_id,
                     extraction_data=extraction_data,
+                    target_position=target_position,
                 )
             except Exception as exc:
                 logger.warning("sync_from_pipeline failed: {}", exc)
