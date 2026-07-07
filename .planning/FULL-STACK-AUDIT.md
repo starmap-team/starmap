@@ -3,7 +3,7 @@
 **日期:** 2026-07-07
 **范围:** 前端 (79 文件, ~26,500 行) + 后端 (Python/FastAPI)
 **触发:** `/gsd-verify-work --all 同时进行代码质量评审及复用性审计`
-**状态:** 56 findings → 50 fixed, 1 won't-fix, ~5 remaining (13 commits)
+**状态:** 56 findings → 52 fixed, 2 won't-fix, 2 remaining (15 commits)
 
 ---
 
@@ -52,8 +52,8 @@
 | # | 问题 | 文件 | 修复 |
 |---|------|------|------|
 | M13 | `LoopDemo.vue` 1682 行 — 5 步渲染器巨型单体 | pages/LoopDemo.vue | ⏭ won't fix — 单流程演示页，5步共享状态，拆分子组件 prop drilling 成本高于收益 |
-| M14 | `MatchDiagnosis.vue` 1467 行 — inline 数据获取 | pages/MatchDiagnosis.vue | ✅ 部分：提取 MatchBatchMode.vue (1465→1236) |
-| M15 | `DataDashboard.vue` 1217 行 — chart configs + SSE + KPI 全 inline | pages/DataDashboard.vue | ✅ 提取 `useDataDashboardCharts.ts` composable (1219→873) |
+| M14 | `MatchDiagnosis.vue` 1467 行 — inline 数据获取 | pages/MatchDiagnosis.vue | ✅ 提取 MatchBatchMode.vue + GapAnalysisReport.vue + LearningPathPlan.vue (1465→455) |
+| M15 | `DataDashboard.vue` 1217 行 — chart configs + SSE + KPI 全 inline | pages/DataDashboard.vue | ✅ 提取 `useDataDashboardCharts.ts` composable (1219→873); any 清理 131→56 |
 | M16 | `EvolutionDashboard.vue` 976 行 + 直接 API 调用 | pages/EvolutionDashboard.vue | ✅ 提取 useEvolutionCharts.ts composable + EvolutionChangelogDrawer.vue (942→612) |
 | M17 | `cv()` CSS variable reader 在 4 处重复 | chartTheme.ts, useHomeInteractions.ts, Graph2D.vue, LearningPathFlow.vue, LoopDemo.vue | 统一从 `chartTheme.ts` export |
 | M18 | `ensureG6Loaded()` 在 3 处重复 | CareerPathGraph.vue, LearningPathFlow.vue, LoopDemo.vue | 提取到 `composables/useG6.ts` |
