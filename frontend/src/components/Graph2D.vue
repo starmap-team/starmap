@@ -61,7 +61,7 @@ async function loadG6Graph(): Promise<any> {
 }
 
 // ── CSS variable reader (shared from chartTheme) ──
-import { cv } from '@/utils/chartTheme'
+import { cv, g6TooltipStyle } from '@/utils/chartTheme'
 
 // ── Template refs & G6 instance ──
 // 技术说明：模板引用，指向承载 G6 画布的真实 DOM 容器节点
@@ -154,7 +154,7 @@ async function initGraph() {
       // 业务说明：配置交互行为：画布拖拽、滚轮缩放、节点拖拽、悬停高亮一度邻居（双向）
       behaviors: ['drag-canvas', 'zoom-canvas', 'drag-element', { type: 'hover-activate', degree: 1, direction: 'both' }],
       // 业务说明：配置插件：缩略图(minimap)与悬浮提示框(tooltip)，提示框样式跟随当前主题
-      plugins: ['minimap', { type: 'tooltip', enable: true, trigger: 'pointerenter', offset: [10, 10], style: { background: cv('--card'), borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 14px', fontSize: '12px', border: '1px solid ' + cv('--border'), color: cv('--foreground') } }],
+      plugins: ['minimap', { type: 'tooltip', enable: true, trigger: 'pointerenter', offset: [10, 10], style: { ...g6TooltipStyle(), borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 14px' } }],
     })
 
     // 业务说明：监听节点单击事件，向上层抛出 nodeClick 事件，供父组件处理节点选中/下钻

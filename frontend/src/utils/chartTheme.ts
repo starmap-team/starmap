@@ -82,6 +82,20 @@ export function axisStyle() {
   }
 }
 
+/** Shared G6 tooltip plugin style — mirrors ECharts tooltipStyle for G6's CSS-like property names */
+export function g6TooltipStyle() {
+  const c = chartColors()
+  return {
+    background: c.card,
+    borderRadius: '10px',
+    boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
+    padding: '8px 12px',
+    fontSize: '12px',
+    border: '1px solid ' + c.border,
+    color: c.foreground,
+  }
+}
+
 /** ECharts animation configuration for smooth transitions */
 export function chartAnimationConfig() {
   return {

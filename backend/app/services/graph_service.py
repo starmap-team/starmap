@@ -438,7 +438,6 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
                     key = tuple(sorted([s1, s2]))
                     stack_connections[key] += record["shared"] or 0
     except Exception as exc:
-        from loguru import logger
         logger.error("Tech stack overview failed: {}", exc)
         return {"domains": [], "connections": [], "total_positions": 0, "total_skills": 0}
 
@@ -524,7 +523,6 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
                 {"source": "中级", "target": "高级", "weight": 0.8},
             ]
     except Exception as exc:
-        from loguru import logger
         logger.error("Level overview failed: {}", exc)
         return {"domains": [], "connections": [], "total_positions": 0, "total_skills": 0}
 
@@ -674,8 +672,6 @@ async def _sync_via_graph_writer(
     """
     from datetime import UTC, datetime, timedelta
 
-    from loguru import logger as loguru_logger
-
     from app.core.extraction.graph_writer import batch_write_extractions
     from app.models.extraction_models import JDExtractionRecord
 
@@ -787,16 +783,16 @@ async def _sync_via_graph_writer(
                             continue
                     extractions.append(payload)
 
-                loguru_logger.info(
+                logger.info(
                     "sync_from_pipeline: found {} DB records for run_id={}",
                     len(rows), run_id,
                 )
             except Exception as exc:
-                loguru_logger.warning(
+                logger.warning(
                     "sync_from_pipeline: DB query failed (non-fatal, using inline data): {}", exc,
                 )
         else:
-            loguru_logger.debug("sync_from_pipeline: pg_sessionmaker not available, using inline data only")
+            logger.debug("sync_from_pipeline: pg_sessionmaker not available, using inline data only")
 
         # ── 3. Write all extractions to Neo4j via graph_writer ──
         if not extractions:
@@ -809,7 +805,7 @@ async def _sync_via_graph_writer(
             nodes_written += int(summary.get("nodes_touched", 0))
             edges_written += int(summary.get("relationships_touched", 0))
 
-        loguru_logger.info(
+        logger.info(
             "sync_from_pipeline (graph_writer): {} extractions, {} nodes, {} edges (run_id={})",
             len(extractions), nodes_written, edges_written, run_id,
         )
@@ -820,7 +816,7 @@ async def _sync_via_graph_writer(
             "extractions_processed": len(extractions),
         }
     except Exception as exc:
-        loguru_logger.error("sync_from_pipeline (graph_writer) failed: {}", exc)
+        logger.error("sync_from_pipeline (graph_writer) failed: {}", exc)
         return {"synced": False, "error": str(exc), "nodes_written": nodes_written, "edges_written": edges_written}
 
 

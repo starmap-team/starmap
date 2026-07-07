@@ -7,7 +7,9 @@ import { useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
-import request from '@/api/request'
+import { useJdStore } from '@/stores/jd'
+
+const jdStore = useJdStore()
 
 const router = useRouter()
 const positions = ref<{ id: string; name: string; industry: string }[]>([])
@@ -38,7 +40,7 @@ const filteredPositions = computed(() => {
 async function fetchPositions() {
   loading.value = true
   try {
-    const data = await request.get('/positions', { params: { page: page.value, page_size: pageSize.value } }) as any
+    const data = await jdStore.fetchPositions({ page: page.value, page_size: pageSize.value }) as any
     const items = data.items ?? data ?? []
     positions.value = items.map((p: any) => ({
       id: p.position_id ?? p.id ?? '',

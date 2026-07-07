@@ -20,6 +20,25 @@ class Settings(BaseSettings):
     app_log_level: str = "INFO"
     secret_key: str = _UNCONFIGURED
 
+    # CORS
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5176",
+        "http://127.0.0.1:5176",
+        "http://localhost:5174",
+        "http://localhost:5175",
+    ]
+
+    # 数据来源权威度评分 (admin.py source management)
+    authority_scores: dict[str, float] = {
+        "lagou": 0.75, "zhaopin": 0.72, "indeed": 0.68, "linkedin": 0.85,
+        "sap": 0.90, "talent": 0.70, "freelancer": 0.65, "bosszhipin": 0.73,
+        "51job": 0.71, "liepin": 0.74, "test_real_crawl": 0.50, "seed": 0.50,
+        "boss": 0.70, "esco": 0.92,
+    }
+    authority_default_score: float = 0.60
+
     # 数据库
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"

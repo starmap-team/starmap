@@ -3,9 +3,9 @@
  * 职业路径规划图组件 — G6 DAG 可视化
  * 展示从当前岗位到目标岗位的职业晋升路径
  */
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { chartColors } from '@/utils/chartTheme'
-import { ensureG6Loaded } from '@/composables/useG6'
+import { ref, onMounted, watch, nextTick } from 'vue'
+import { chartColors, g6TooltipStyle } from '@/utils/chartTheme'
+import { useG6Graph } from '@/composables/useG6Graph'
 
 const cc = chartColors()
 
@@ -21,7 +21,7 @@ const props = defineProps<{
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
-let graph: any = null
+const { createGraph } = useG6Graph(containerRef)
 
 function getProbabilityColor(prob: number): string {
   if (prob >= 0.7) return cc.success
@@ -85,83 +85,55 @@ function buildGraphData() {
 }
 
 async function initGraph() {
-  if (!containerRef.value) return
-  if (graph) { graph.destroy(); graph = null }
-
-  const container = containerRef.value
-  const width = container.clientWidth || 700
-  const height = container.clientHeight || 300
-
-  try {
-    const GraphClass = await ensureG6Loaded()
-    graph = new GraphClass({
-      container,
-      width,
-      height,
-      layout: {
-        type: 'dagre',
-        rankdir: 'LR',
-        nodesep: 25,
-        ranksep: 100,
-        controlPoints: true,
+  const g = await createGraph({
+    layout: {
+      type: 'dagre',
+      rankdir: 'LR',
+      nodesep: 25,
+      ranksep: 100,
+      controlPoints: true,
+    },
+    node: {
+      style: {
+        labelFill: cc.foreground,
+        labelFontSize: 11,
+        labelPlacement: 'center' as const,
       },
-      node: {
-        style: {
-          labelFill: cc.foreground,
-          labelFontSize: 11,
-          labelPlacement: 'center' as const,
+    },
+    edge: {
+      style: {
+        stroke: cc.border,
+        lineWidth: 2,
+        endArrow: true,
+        endArrowSize: 8,
+        strokeOpacity: 0.7,
+      },
+    },
+    behaviors: ['drag-canvas', 'zoom-canvas'],
+    plugins: [
+      {
+        type: 'tooltip',
+        enable: true,
+        trigger: 'pointerenter',
+        offset: [10, 10],
+        style: g6TooltipStyle(),
+        getContent: (_event: any, items: any[]) => {
+          if (!items?.length) return ''
+          const d = items[0].data
+          const skills = d.skills_required?.slice(0, 5).join('、') ?? '-'
+          return `<div style="font-weight:600;margin-bottom:4px">${d.position}</div>
+            <div>预计时间：${d.estimated_time}</div>
+            <div>晋升概率：${(d.probability * 100).toFixed(0)}%</div>
+            <div>核心技能：${skills}</div>`
         },
       },
-      edge: {
-        style: {
-          stroke: cc.border,
-          lineWidth: 2,
-          endArrow: true,
-          endArrowSize: 8,
-          strokeOpacity: 0.7,
-        },
-      },
-      behaviors: ['drag-canvas', 'zoom-canvas'],
-      plugins: [
-        {
-          type: 'tooltip',
-          enable: true,
-          trigger: 'pointerenter',
-          offset: [10, 10],
-          style: {
-            background: cc.card,
-            borderRadius: '10px',
-            boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
-            padding: '8px 12px',
-            fontSize: '12px',
-            border: '1px solid ' + cc.border,
-            color: cc.foreground,
-          },
-          getContent: (_event: any, items: any[]) => {
-            if (!items?.length) return ''
-            const d = items[0].data
-            const skills = d.skills_required?.slice(0, 5).join('、') ?? '-'
-            return `<div style="font-weight:600;margin-bottom:4px">${d.position}</div>
-              <div>预计时间：${d.estimated_time}</div>
-              <div>晋升概率：${(d.probability * 100).toFixed(0)}%</div>
-              <div>核心技能：${skills}</div>`
-          },
-        },
-      ],
-    })
+    ],
+  })
+  if (!g) return
 
-    const graphData = buildGraphData()
-    graph.setData(graphData)
-    graph.render()
-  } catch (err) {
-    console.error('[CareerPathGraph] Failed to initialize graph:', err)
-  }
-}
-
-function handleResize() {
-  if (graph && containerRef.value) {
-    graph.setSize(containerRef.value.clientWidth, containerRef.value.clientHeight)
-  }
+  const graphData = buildGraphData()
+  g.setData(graphData)
+  g.render()
 }
 
 watch(() => props.path, async () => {
@@ -171,12 +143,6 @@ watch(() => props.path, async () => {
 
 onMounted(() => {
   if (props.path.length) initGraph()
-  window.addEventListener('resize', handleResize)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-  if (graph) { graph.destroy(); graph = null }
 })
 </script>
 

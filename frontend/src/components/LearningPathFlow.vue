@@ -4,9 +4,9 @@
  * 展示技能前置关系和学习进度
  * 使用 G6 v5 的 antdag DAG 布局
  */
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { chartColors, cv } from '@/utils/chartTheme'
-import { ensureG6Loaded } from '@/composables/useG6'
+import { ref, onMounted, watch, nextTick } from 'vue'
+import { chartColors, cv, g6TooltipStyle } from '@/utils/chartTheme'
+import { useG6Graph } from '@/composables/useG6Graph'
 
 interface PathNode {
   skill: string
@@ -21,7 +21,7 @@ const props = defineProps<{
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
-let graph: any = null
+const { createGraph } = useG6Graph(containerRef)
 
 const cc = chartColors()
 
@@ -93,91 +93,61 @@ function buildGraphData() {
 }
 
 async function initGraph() {
-  if (!containerRef.value) return
-  if (graph) { graph.destroy(); graph = null }
-
-  const container = containerRef.value
-  const width = container.clientWidth || 700
-  const height = container.clientHeight || 400
-
-  try {
-    const GraphClass = await ensureG6Loaded()
-    graph = new GraphClass({
-      container,
-      width,
-      height,
-      autoFit: {
-        type: 'view',
-        options: { when: 'always', padding: [24, 24, 24, 24] },
+  const g = await createGraph({
+    autoFit: {
+      type: 'view',
+      options: { when: 'always', padding: [24, 24, 24, 24] },
+    },
+    layout: {
+      type: 'dagre',
+      rankdir: 'LR',
+      nodesepFunc: () => 36,
+      ranksepFunc: () => 100,
+      controlPoints: true,
+    },
+    node: {
+      style: {
+        labelFill: cv('--foreground') || '#1c1917',
+        labelFontSize: 11,
+        labelPlacement: 'center' as const,
       },
-      layout: {
-        type: 'dagre',
-        rankdir: 'LR',
-        nodesepFunc: () => 36,
-        ranksepFunc: () => 100,
-        controlPoints: true,
+    },
+    edge: {
+      style: {
+        stroke: cv('--border') || '#e7e5e4',
+        lineWidth: 1.5,
+        endArrow: true,
+        endArrowSize: 6,
+        strokeOpacity: 0.6,
       },
-      node: {
-        style: {
-          labelFill: cv('--foreground') || '#1c1917',
-          labelFontSize: 11,
-          labelPlacement: 'center' as const,
+    },
+    behaviors: ['drag-canvas', 'zoom-canvas'],
+    plugins: [
+      {
+        type: 'tooltip',
+        enable: true,
+        trigger: 'pointerenter',
+        offset: [10, 10],
+        style: g6TooltipStyle(),
+        getContent: (_event: any, items: any[]) => {
+          if (!items?.length) return ''
+          const d = items[0].data
+          return `<div style="font-weight:600;margin-bottom:4px">${d.skill}</div>
+            <div>状态：${d.statusLabel}</div>
+            <div>进度：${d.progress_pct}%</div>
+            <div>预计：${d.estimated_hours}h</div>`
         },
       },
-      edge: {
-        style: {
-          stroke: cv('--border') || '#e7e5e4',
-          lineWidth: 1.5,
-          endArrow: true,
-          endArrowSize: 6,
-          strokeOpacity: 0.6,
-        },
-      },
-      behaviors: ['drag-canvas', 'zoom-canvas'],
-      plugins: [
-        {
-          type: 'tooltip',
-          enable: true,
-          trigger: 'pointerenter',
-          offset: [10, 10],
-          style: {
-            background: cv('--card') || '#ffffff',
-            borderRadius: '10px',
-            boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
-            padding: '8px 12px',
-            fontSize: '12px',
-            border: '1px solid ' + (cv('--border') || '#e7e5e4'),
-            color: cv('--foreground') || '#1c1917',
-          },
-          getContent: (_event: any, items: any[]) => {
-            if (!items?.length) return ''
-            const d = items[0].data
-            return `<div style="font-weight:600;margin-bottom:4px">${d.skill}</div>
-              <div>状态：${d.statusLabel}</div>
-              <div>进度：${d.progress_pct}%</div>
-              <div>预计：${d.estimated_hours}h</div>`
-          },
-        },
-      ],
-    })
+    ],
+  })
+  if (!g) return
 
-    const graphData = buildGraphData()
-    graph.setData(graphData)
-    graph.render()
-    // Ensure dagre layout fits viewport (defensive: small graphs may not trigger autoFit)
-    if (typeof graph.fitView === 'function') {
-      try { await graph.fitView() } catch (_) { /* ignore */ }
-    }
-  } catch (err) {
-    console.error('[LearningPathFlow] Failed to initialize graph:', err)
-  }
-}
-
-function handleResize() {
-  if (graph && containerRef.value) {
-    const w = containerRef.value.clientWidth
-    const h = containerRef.value.clientHeight
-    graph.setSize(w, h)
+  const graphData = buildGraphData()
+  g.setData(graphData)
+  g.render()
+  // Ensure dagre layout fits viewport (defensive: small graphs may not trigger autoFit)
+  if (typeof g.fitView === 'function') {
+    try { await g.fitView() } catch (_) { /* ignore */ }
   }
 }
 
@@ -188,12 +158,6 @@ watch(() => props.path, async () => {
 
 onMounted(() => {
   if (props.path.length) initGraph()
-  window.addEventListener('resize', handleResize)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-  if (graph) { graph.destroy(); graph = null }
 })
 </script>
 

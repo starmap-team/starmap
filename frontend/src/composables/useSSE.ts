@@ -38,9 +38,9 @@ export function useSSE(url: string, options: UseSSEOptions) {
   const {
     onMessage,
     onError,
-    baseDelay = 1000,
+    baseDelay = 1000, // initial backoff delay in ms — doubled on each retry
     maxDelay = 30000,
-    maxRetries = 10,
+    maxRetries = 10, // max SSE reconnect attempts before polling fallback
     pollThreshold = 3,
     pollInterval = 5000,
     pollUrl,

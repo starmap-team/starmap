@@ -4,7 +4,9 @@
  */
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import request from '@/api/request'
+import { useJdStore } from '@/stores/jd'
+
+const jdStore = useJdStore()
 
 const emit = defineEmits<{
   select: [position: { position_id: string; name: string }]
@@ -17,16 +19,7 @@ const loading = ref(false)
 async function loadPositions(keyword?: string) {
   loading.value = true
   try {
-    const params: Record<string, string | number> = { page_size: 100 }
-    if (keyword?.trim()) {
-      params.search = keyword.trim()
-    }
-    const data = await request.get('/positions', { params }) as any
-    options.value = (data.items ?? []).map((p: { position_id: string; name: string }) => ({
-      label: p.name,
-      value: p.name,
-      position_id: p.position_id,
-    }))
+    options.value = await jdStore.searchPositions(keyword)
   } catch (e) {
     console.error('[PositionSearch] Failed to load positions:', e)
     ElMessage.error('岗位列表加载失败')

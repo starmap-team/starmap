@@ -15,6 +15,9 @@ export interface JdRaw {
   publish_date: string
 }
 
+/** Default page size for position list queries */
+const DEFAULT_PAGE_SIZE = 100
+
 export const useJdStore = defineStore('jd', () => {
   const list = ref<JdRaw[]>([])
   const loading = ref(false)
@@ -23,7 +26,7 @@ export const useJdStore = defineStore('jd', () => {
     loading.value = true
     try {
       // 使用真实后端 /positions 端点（JD 数据已导入 position_records）
-      const data = await request.get('/positions', { params: { page_size: 100 } })
+      const data = await request.get('/positions', { params: { page_size: DEFAULT_PAGE_SIZE } })
       const items = (data as any).items ?? (data as any) ?? []
       list.value = items.map((p: any) => ({
         id: p.position_id ?? p.id ?? 0,
@@ -41,5 +44,36 @@ export const useJdStore = defineStore('jd', () => {
     }
   }
 
-  return { list, loading, fetchList }
+  /** Fetch position skills from Neo4j (with PostgreSQL fallback) */
+  async function fetchPositionSkills(positionName: string) {
+    return request.get(`/graph/position/${encodeURIComponent(positionName)}/skills`)
+  }
+
+  /** Fetch position detail from PostgreSQL */
+  async function fetchPositionDetail(positionName: string) {
+    return request.get(`/positions/${encodeURIComponent(positionName)}`)
+  }
+
+  /** Fetch paginated positions list */
+  async function fetchPositions(params: { page?: number; page_size?: number } = {}) {
+    return request.get('/positions', {
+      params: { page: params.page ?? 1, page_size: params.page_size ?? DEFAULT_PAGE_SIZE },
+    })
+  }
+
+  /** Search positions by keyword, returns dropdown-ready items */
+  async function searchPositions(keyword?: string) {
+    const params: Record<string, string | number> = { page_size: DEFAULT_PAGE_SIZE }
+    if (keyword?.trim()) {
+      params.search = keyword.trim()
+    }
+    const data = await request.get('/positions', { params }) as any
+    return (data.items ?? []).map((p: { position_id: string; name: string }) => ({
+      label: p.name,
+      value: p.name,
+      position_id: p.position_id,
+    }))
+  }
+
+  return { list, loading, fetchList, fetchPositionSkills, fetchPositionDetail, fetchPositions, searchPositions }
 })

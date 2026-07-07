@@ -14,6 +14,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import request from '@/api/request'
 
+/** Timeout for the loop run API call (LLM extraction can take ~3 minutes) */
+const LOOP_RUN_TIMEOUT_MS = 180_000
+
 // ── 类型定义 ──
 
 export type StepStatus = 'waiting' | 'running' | 'success' | 'degraded' | 'failed'
@@ -156,7 +159,7 @@ export const useLoopStore = defineStore('loop', () => {
       const data = await request.post('/loop/run', {
         jd_content: jdText,
         target_position: targetPosition,
-      }, { timeout: 180000 }) as any
+      }, { timeout: LOOP_RUN_TIMEOUT_MS }) as any
 
       const totalTime = Date.now() - startTime
 

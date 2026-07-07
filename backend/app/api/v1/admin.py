@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.quality import _build_quality_dashboard
+from app.config import settings
 from app.core.extraction.prompt import (
     get_ab_test,
     get_active_version,
@@ -106,13 +107,6 @@ class RegisterVersionRequest(BaseModel):
     activate: bool = Field(default=False, description="Activate this version immediately")
 
 
-_DEMO_SOURCES = [
-    SourceConfig(id=1, name="BOSS", authority_score=0.70, source_type="aggregator"),
-    SourceConfig(id=2, name="Lagou", authority_score=0.72, source_type="aggregator"),
-    SourceConfig(id=3, name="Liepin", authority_score=0.74, source_type="aggregator"),
-    SourceConfig(id=4, name="ESCO", authority_score=0.92, source_type="official"),
-]
-
 _DEMO_REVIEW_SEED = [
     {"entity_type": "skill", "entity_name": "AI Agent Dev", "status": "pending", "payload": {"trust": 58}},
     {"entity_type": "position", "entity_name": "LLM Application Engineer", "status": "pending", "payload": {"trust": 64}},
@@ -197,13 +191,9 @@ async def get_sources(
         )
         rows = result.fetchall()
         sources = []
-        platform_scores = {
-            "lagou": 0.75, "zhaopin": 0.72, "indeed": 0.68, "linkedin": 0.85,
-            "sap": 0.90, "talent": 0.70, "freelancer": 0.65, "bosszhipin": 0.73,
-            "51job": 0.71, "liepin": 0.74, "test_real_crawl": 0.50, "seed": 0.50,
-        }
+        platform_scores = settings.authority_scores
         for idx, (platform, cnt) in enumerate(rows, 1):
-            score = platform_scores.get(platform, 0.60)
+            score = platform_scores.get(platform, settings.authority_default_score)
             stype = "official" if score >= 0.85 else "aggregator"
             sources.append(SourceConfig(
                 id=idx, name=platform, authority_score=score,

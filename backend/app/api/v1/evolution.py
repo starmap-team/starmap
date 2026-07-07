@@ -35,6 +35,14 @@ from app.tasks.celery_app import analyze_evolution_trends
 
 router = APIRouter(prefix="/evolution", tags=["演化分析"])
 
+# ─── Named Constants ───
+
+DEFAULT_SIMILARITY = 0.5
+"""Default similarity score when no relationship property exists."""
+
+CII_SOURCE_THRESHOLD = 7
+"""Source count threshold for classifying a skill as 'inflated' in CII calculation."""
+
 
 # ─── Response Models ───
 
@@ -246,8 +254,8 @@ async def get_all_evolution_paths(
                 cypher = (
                     "MATCH (a:Position)-[r:EVOLVES_TO]->(b:Position) "
                     "RETURN elementId(r) AS id, a.name AS src, b.name AS tgt, "
-                    "       coalesce(r.similarity, 0.5) AS similarity, "
-                    "       coalesce(r.trust_score, 0.5) AS trust_score, "
+                    f"       coalesce(r.similarity, {DEFAULT_SIMILARITY}) AS similarity, "
+                    f"       coalesce(r.trust_score, {DEFAULT_SIMILARITY}) AS trust_score, "
                     "       coalesce(r.skill_overlap, []) AS skill_overlap, "
                     "       coalesce(r.key_gaps, []) AS key_gaps "
                     "ORDER BY trust_score DESC, similarity DESC LIMIT $limit"
@@ -260,11 +268,11 @@ async def get_all_evolution_paths(
                             id=str(r["id"]),
                             source_position=r["src"] or "Unknown",
                             target_position=r["tgt"] or "Unknown",
-                            similarity=float(r["similarity"] or 0.5),
+                            similarity=float(r["similarity"] or DEFAULT_SIMILARITY),
                             evidence_count=0,
                             skill_overlap=list(r["skill_overlap"] or []),
                             key_gaps=list(r["key_gaps"] or []),
-                            trust_score=float(r["trust_score"] or 0.5),
+                            trust_score=float(r["trust_score"] or DEFAULT_SIMILARITY),
                         )
                     )
                 if entries:
@@ -301,8 +309,8 @@ async def get_evolution_paths(
                     "MATCH (a:Position)-[r:EVOLVES_TO]->(b:Position) "
                     "WHERE a.name = $position OR b.name = $position "
                     "RETURN elementId(r) AS id, a.name AS src, b.name AS tgt, "
-                    "       coalesce(r.similarity, 0.5) AS similarity, "
-                    "       coalesce(r.trust_score, 0.5) AS trust_score, "
+                    f"       coalesce(r.similarity, {DEFAULT_SIMILARITY}) AS similarity, "
+                    f"       coalesce(r.trust_score, {DEFAULT_SIMILARITY}) AS trust_score, "
                     "       coalesce(r.skill_overlap, []) AS skill_overlap, "
                     "       coalesce(r.key_gaps, []) AS key_gaps "
                     "ORDER BY trust_score DESC, similarity DESC LIMIT 20"
@@ -315,11 +323,11 @@ async def get_evolution_paths(
                             id=str(r["id"]),
                             source_position=r["src"] or "Unknown",
                             target_position=r["tgt"] or "Unknown",
-                            similarity=float(r["similarity"] or 0.5),
+                            similarity=float(r["similarity"] or DEFAULT_SIMILARITY),
                             evidence_count=0,
                             skill_overlap=list(r["skill_overlap"] or []),
                             key_gaps=list(r["key_gaps"] or []),
-                            trust_score=float(r["trust_score"] or 0.5),
+                            trust_score=float(r["trust_score"] or DEFAULT_SIMILARITY),
                         )
                     )
                 if entries:
@@ -468,7 +476,7 @@ async def get_cii_history(
     for r in records:
         required = list(r.required_skills) if r.required_skills else []
         total = len(required)
-        inflated = sum(1 for s in required if isinstance(s, dict) and s.get("source_count", 0) > 7)
+        inflated = sum(1 for s in required if isinstance(s, dict) and s.get("source_count", 0) > CII_SOURCE_THRESHOLD)
         cii = inflated / total if total > 0 else 0.0
         history.append({
             "snapshot_date": r.snapshot_date.isoformat(),

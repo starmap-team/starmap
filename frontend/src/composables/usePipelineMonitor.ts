@@ -10,12 +10,15 @@ import { STAGE_LABELS, ALL_STAGE_NAMES } from '@/stores/pipeline'
 import { useSSE } from '@/composables/useSSE'
 import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle } from '@/utils/chartTheme'
 
+/** Default auto-refresh interval in seconds */
+const DEFAULT_REFRESH_INTERVAL_SEC = 10
+
 export function usePipelineMonitor() {
   const pipeline = usePipelineStore()
 
   // ── 自动刷新 ──
   const autoRefresh = ref(true)
-  const refreshInterval = ref(10) // 10s for real-time feel
+  const refreshInterval = ref(DEFAULT_REFRESH_INTERVAL_SEC)
   let timer: ReturnType<typeof setInterval> | null = null
   const lastRefresh = ref('')
 

@@ -9,8 +9,10 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import SkillRadar, { type RadarItem } from '@/components/SkillRadar.vue'
-import request from '@/api/request'
+import { useJdStore } from '@/stores/jd'
 import { chartColors } from '@/utils/chartTheme'
+
+const jdStore = useJdStore()
 
 const cc = chartColors()
 
@@ -78,7 +80,7 @@ function hotnessColor(count: number): string {
 onMounted(async () => {
   loading.value = true
   try {
-    const data = await request.get(`/graph/position/${encodeURIComponent(positionName.value)}/skills`)
+    const data = await jdStore.fetchPositionSkills(positionName.value)
     if ((data as any)?.skills?.length || (data as any)?.position) {
       position.value = (data as any).position as PositionInfo
       skills.value = ((data as any).skills ?? []) as SkillItem[]
@@ -98,7 +100,7 @@ onMounted(async () => {
 
 async function loadFromPostgres() {
   try {
-    const pgData = await request.get(`/positions/${encodeURIComponent(positionName.value)}`)
+    const pgData = await jdStore.fetchPositionDetail(positionName.value)
     position.value = {
       name: (pgData as any).name ?? positionName.value,
       industry: (pgData as any).industry ?? '',
