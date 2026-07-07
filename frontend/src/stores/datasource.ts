@@ -34,12 +34,21 @@ export interface DataSourceStats {
   total_count: number
 }
 
+export interface AuditItem {
+  id: number
+  type: 'position' | 'skill'
+  name: string
+  trust: number
+  status: 'pending' | 'approved' | 'rejected'
+}
+
 // ── Store 定义 ──
 
 export const useDataSourceStore = defineStore('datasource', () => {
   const sources = ref<DataSourceDetail[]>([])
   const selectedSource = ref<DataSourceDetail | null>(null)
   const stats = ref<DataSourceStats | null>(null)
+  const auditQueue = ref<AuditItem[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -120,10 +129,46 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
+  // ── Audit queue (migrated from admin.ts) ──
+
+  async function fetchAuditQueue() {
+    try {
+      const data = await request.get('/admin/review-queue')
+      auditQueue.value = (data as any).items ?? []
+    } catch (e) {
+      console.error('[DataSource] Failed to fetch audit queue:', e)
+      auditQueue.value = []
+    }
+  }
+
+  async function approveAudit(id: number) {
+    await request.post(`/admin/audit/${id}/approve`)
+    auditQueue.value = auditQueue.value.filter((i) => i.id !== id)
+  }
+
+  async function rejectAudit(id: number) {
+    await request.post(`/admin/audit/${id}/reject`)
+    auditQueue.value = auditQueue.value.filter((i) => i.id !== id)
+  }
+
+  async function updateAuditItem(id: number, data: { name?: string; trust?: number }) {
+    await request.put(`/admin/review-queue/${id}`, data)
+    const item = auditQueue.value.find(i => i.id === id)
+    if (item) {
+      if (data.name !== undefined) item.name = data.name
+      if (data.trust !== undefined) item.trust = data.trust
+    }
+  }
+
+  async function resetToDemo() {
+    await request.post('/admin/seed/reset')
+  }
+
   return {
     sources,
     selectedSource,
     stats,
+    auditQueue,
     loading,
     error,
     fetchSources,
@@ -131,5 +176,10 @@ export const useDataSourceStore = defineStore('datasource', () => {
     updateSource,
     fetchStats,
     triggerSync,
+    fetchAuditQueue,
+    approveAudit,
+    rejectAudit,
+    updateAuditItem,
+    resetToDemo,
   }
 })
