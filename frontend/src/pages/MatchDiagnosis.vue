@@ -9,8 +9,7 @@
  */
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import {
-  DataAnalysis, Guide, RefreshRight,
+import { DataAnalysis, Guide, RefreshRight,
   Plus, Download, ArrowRight
 } from '@element-plus/icons-vue'
 import { use } from 'echarts/core'
@@ -22,9 +21,9 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import ResumeUpload from '@/components/ResumeUpload.vue'
 import PositionSearch from '@/components/PositionSearch.vue'
 import SkillRadar from '@/components/SkillRadar.vue'
-import CompetitivenessChart from '@/components/CompetitivenessChart.vue'
 import SkillMatchAnimation from '@/components/SkillMatchAnimation.vue'
 import LoadingPulse from '@/components/LoadingPulse.vue'
+import MatchBatchMode from '@/components/MatchBatchMode.vue'
 import type { SkillMatchItem } from '@/components/SkillMatchAnimation.vue'
 import { useUserStore } from '@/stores/user'
 import { useResumeStore } from '@/stores/resume'
@@ -299,48 +298,6 @@ function exportReport() {
   const a = document.createElement('a')
   a.href = url; a.download = `match-report-${targetPositionName.value}.json`; a.click()
   URL.revokeObjectURL(url)
-}
-
-// ── 批量匹配 ──
-// 业务说明：批量匹配模式的数据绑定，支持多简历与多岗位的一次性匹配评估
-const batchPositions = ref('')
-const batchResumes = ref('')
-const batchCompetitivenessPosition = ref('')
-
-// 业务说明：处理批量匹配请求，将输入的多行文本解析为简历技能组和岗位列表，调用批量匹配服务
-async function handleBatchMatch() {
-  const positions = batchPositions.value.split('\n').map(s => s.trim()).filter(Boolean)
-  const resumes = batchResumes.value.split('\n').map(s => s.trim()).filter(Boolean)
-  if (!positions.length || !resumes.length) {
-    ElMessage.warning('请输入至少一个简历技能组和一个目标岗位')
-    return
-  }
-  try {
-    await learningStore.runBatchMatch(
-      resumes.map((r, i) => ({
-        skills: r.split(',').map(s => s.trim()),
-        position: positions[i % positions.length],
-      }))
-    )
-    ElMessage.success(`批量匹配完成，共 ${learningStore.batchResults.length} 条结果`)
-  } catch {
-    // error handled by store
-  }
-}
-
-// ── 竞争力分析 ──
-// 业务说明：根据输入的目标岗位名称，获取该岗位在市场中的竞争力分析数据
-async function handleCompetitiveness() {
-  const pos = batchCompetitivenessPosition.value.trim()
-  if (!pos) {
-    ElMessage.warning('请输入目标岗位名称')
-    return
-  }
-  try {
-    await learningStore.fetchCompetitiveness(pos)
-  } catch {
-    // error handled by store
-  }
 }
 </script>
 
@@ -895,175 +852,8 @@ async function handleCompetitiveness() {
         </div>
       </template>
 
-      <!-- Batch Match -->
-      <!-- 业务说明：批量匹配模式，支持多简历与多岗位的批量匹配评估和竞争力分析 -->
-      <template v-if="pageMode === 'batch'">
-        <div class="step-content">
-          <div class="step-card">
-            <div class="sc-header">
-              <h2 class="sc-title">
-                批量匹配
-              </h2>
-              <p class="sc-desc">
-                多简历 vs 多岗位，批量评估匹配度
-              </p>
-            </div>
-
-            <!-- 业务说明：批量匹配输入区域，左侧输入简历技能（每行一组，逗号分隔），右侧输入目标岗位 -->
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <div class="batch-input-group">
-                  <h3 class="is-title">
-                    简历技能（每行一个，逗号分隔技能）
-                  </h3>
-                  <el-input
-                    v-model="batchResumes"
-                    type="textarea"
-                    :rows="5"
-                    placeholder="JavaScript, TypeScript, Vue 3&#10;Python, Django, PostgreSQL&#10;Java, Spring Boot, MySQL"
-                  />
-                </div>
-              </el-col>
-              <el-col :span="12">
-                <div class="batch-input-group">
-                  <h3 class="is-title">
-                    目标岗位（每行一个，与简历一一对应）
-                  </h3>
-                  <el-input
-                    v-model="batchPositions"
-                    type="textarea"
-                    :rows="5"
-                    placeholder="前端工程师&#10;后端工程师&#10;全栈工程师"
-                  />
-                </div>
-              </el-col>
-            </el-row>
-
-            <div class="step-actions">
-              <el-button
-                type="primary"
-                size="large"
-                :icon="DataAnalysis"
-                :loading="learningStore.batchLoading"
-                @click="handleBatchMatch"
-              >
-                开始批量匹配
-              </el-button>
-            </div>
-
-            <!-- 业务说明：批量匹配结果表格，展示每条简历与对应岗位的匹配分数、匹配技能和缺失技能 -->
-            <div
-              v-if="learningStore.batchResults.length"
-              class="batch-results"
-            >
-              <h3 class="table-title">
-                批量匹配结果
-              </h3>
-              <el-table
-                :data="learningStore.batchResults"
-                stripe
-                class="full-width-table"
-              >
-                <el-table-column
-                  prop="resume_name"
-                  label="简历"
-                  min-width="120"
-                />
-                <el-table-column
-                  prop="position_name"
-                  label="目标岗位"
-                  min-width="140"
-                />
-                <el-table-column
-                  label="匹配分数"
-                  width="120"
-                >
-                  <template #default="{ row }">
-                    <span :class="row.match_score >= 0.7 ? 'score-high' : row.match_score >= 0.4 ? 'score-mid' : 'score-low'">
-                      {{ Math.round(row.match_score * 100) }}%
-                    </span>
-                  </template>
-                </el-table-column>
-                <el-table-column
-                  label="匹配技能"
-                  min-width="200"
-                >
-                  <template #default="{ row }">
-                    <el-tag
-                      v-for="s in row.matched_skills?.slice(0, 4)"
-                      :key="s"
-                      size="small"
-                      type="success"
-                      class="mr-1"
-                    >
-                      {{ s }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column
-                  label="缺失技能"
-                  min-width="200"
-                >
-                  <template #default="{ row }">
-                    <el-tag
-                      v-for="s in row.gap_skills?.slice(0, 4)"
-                      :key="s"
-                      size="small"
-                      type="danger"
-                      class="mr-1"
-                    >
-                      {{ s }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-          </div>
-        </div>
-
-        <!-- 业务说明：竞争力分析模块，输入目标岗位后获取该岗位在市场中的竞争力分析数据 -->
-        <div class="step-content">
-          <div class="step-card">
-            <div class="sc-header">
-              <h2 class="sc-title">
-                竞争力分析
-              </h2>
-              <p class="sc-desc">
-                查看你的技能在市场中的竞争力水平
-              </p>
-            </div>
-
-            <!-- 业务说明：竞争力分析输入框，输入岗位名称后触发分析 -->
-            <div class="competitiveness-input">
-              <el-input
-                v-model="batchCompetitivenessPosition"
-                placeholder="输入目标岗位名称，如：前端工程师"
-                size="large"
-                clearable
-                @keyup.enter="handleCompetitiveness"
-              >
-                <template #append>
-                  <el-button
-                    :icon="DataAnalysis"
-                    :loading="learningStore.competitivenessLoading"
-                    @click="handleCompetitiveness"
-                  >
-                    分析
-                  </el-button>
-                </template>
-              </el-input>
-            </div>
-
-            <!-- 业务说明：竞争力分析结果展示，使用 CompetitivenessChart 组件可视化展示 -->
-            <div
-              v-if="learningStore.competitiveness.length"
-              class="competitiveness-result"
-            >
-              <CompetitivenessChart :data="learningStore.competitiveness" />
-            </div>
-          </div>
-        </div>
-      </template>
+      <!-- Batch Match — extracted to MatchBatchMode.vue (audit M14) -->
+      <MatchBatchMode v-if="pageMode === 'batch'" />
     </div>
   </MainLayout>
 </template>
@@ -1268,25 +1058,6 @@ async function handleCompetitiveness() {
 }
 
 /* ── Batch Match ── */
-.batch-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-.batch-results {
-  margin-top: var(--space-6);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
-}
-
-/* ── Competitiveness ── */
-.competitiveness-input {
-  max-width: 500px;
-  margin-bottom: var(--space-6);
-}
-.competitiveness-result {
-  margin-top: var(--space-4);
-}
 
 /* ── Match Animation Section ── */
 .match-anim-section {
