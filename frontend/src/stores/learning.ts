@@ -88,11 +88,51 @@ export interface IndustryTrendItem {
   avg_salary?: number
 }
 
+// ── Backend response shapes (untyped API → narrow at boundary) ──
+
+interface PlanSkillRaw {
+  skill_name?: string
+  skill?: string
+  status?: string
+  progress_pct?: number
+  estimated_hours?: number
+  prerequisites?: string[]
+  importance?: string
+}
+
+interface PlanPhaseRaw {
+  skills?: string[]
+}
+
+interface PlanResponseRaw {
+  plan_id: string
+  position: string
+  overall_pct?: number
+  total_weeks?: number
+  skills?: PlanSkillRaw[]
+  phases?: PlanPhaseRaw[]
+  stats?: { created_at?: string; updated_at?: string }
+}
+
+interface RecommendationRaw {
+  skill: string
+  reason?: string
+  importance?: string
+  estimated_hours?: number
+}
+
+/** Extract error message from unknown catch value */
+function getErrorMsg(e: unknown): string {
+  if (e instanceof Error) return e.message
+  if (typeof e === 'string') return e
+  return '未知错误'
+}
+
 /** Map backend PlanResponse to frontend LearningPlan */
-function mapPlanResponse(data: any): LearningPlan {
-  const skills: SkillProgress[] = (data.skills ?? []).map((s: any) => ({
+function mapPlanResponse(data: PlanResponseRaw): LearningPlan {
+  const skills: SkillProgress[] = (data.skills ?? []).map((s) => ({
     skill: s.skill_name ?? s.skill ?? '',
-    status: s.status ?? 'not_started',
+    status: (s.status as SkillProgress['status']) ?? 'not_started',
     progress_pct: s.progress_pct ?? 0,
     estimated_hours: s.estimated_hours ?? 0,
     prerequisites: s.prerequisites ?? [],
@@ -100,8 +140,8 @@ function mapPlanResponse(data: any): LearningPlan {
     target_level: s.importance === 'required' ? 5 : 3,
   }))
 
-  const path: LearningPathItem[] = (data.phases ?? []).flatMap((phase: any) =>
-    (phase.skills ?? []).map((skillName: string) => {
+  const path: LearningPathItem[] = (data.phases ?? []).flatMap((phase) =>
+    (phase.skills ?? []).map((skillName) => {
       const skillData = skills.find(sk => sk.skill === skillName)
       return {
         skill: skillName,
@@ -132,7 +172,7 @@ function mapPlanResponse(data: any): LearningPlan {
 }
 
 /** Map backend RecommendationItem to frontend Recommendation */
-function mapRecommendation(rec: any): Recommendation {
+function mapRecommendation(rec: RecommendationRaw): Recommendation {
   return {
     skill: rec.skill,
     reason: rec.reason ?? '',
@@ -142,6 +182,15 @@ function mapRecommendation(rec: any): Recommendation {
   }
 }
 
+/** Narrow unknown API response to a typed object */
+function asRecord(data: unknown): Record<string, unknown> {
+  return (data && typeof data === 'object') ? data as Record<string, unknown> : {}
+}
+
+function asArray(data: unknown): unknown[] {
+  return Array.isArray(data) ? data : []
+}
+
 export const useLearningStore = defineStore('learning', () => {
   const plans = ref<LearningPlan[]>([])
   const currentPlan = ref<LearningPlan | null>(null)
@@ -149,18 +198,18 @@ export const useLearningStore = defineStore('learning', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function createPlan(matchResult: any) {
+  async function createPlan(matchResult: Record<string, unknown>) {
     loading.value = true
     error.value = null
     try {
-      const data = await request.post('/learning/plan', matchResult) as any
-      const plan = mapPlanResponse(data)
+      const data = await request.post('/learning/plan', matchResult)
+      const plan = mapPlanResponse(asRecord(data) as unknown as PlanResponseRaw)
       currentPlan.value = plan
       plans.value.unshift(plan)
       writeStoredPlanId(plan.plan_id)
       return plan
-    } catch (e: any) {
-      error.value = e?.message ?? '创建学习计划失败'
+    } catch (e: unknown) {
+      error.value = `创建学习计划失败: ${getErrorMsg(e)}`
       throw e
     } finally {
       loading.value = false
@@ -171,14 +220,13 @@ export const useLearningStore = defineStore('learning', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get(`/learning/plan/${planId}`) as any
-      const plan = mapPlanResponse(data)
+      const data = await request.get(`/learning/plan/${planId}`)
+      const plan = mapPlanResponse(asRecord(data) as unknown as PlanResponseRaw)
       currentPlan.value = plan
       writeStoredPlanId(plan.plan_id)
       return plan
-    } catch (e: any) {
-      error.value = e?.message ?? '获取学习计划失败'
-      // D-07: invalid stored plan_id cleared on next restore
+    } catch (e: unknown) {
+      error.value = `获取学习计划失败: ${getErrorMsg(e)}`
       throw e
     } finally {
       loading.value = false
@@ -205,7 +253,6 @@ export const useLearningStore = defineStore('learning', () => {
     error.value = null
     try {
       await request.put(`/learning/plan/${planId}/progress`, { skill_name: skill, status })
-      // Update local state
       if (currentPlan.value?.plan_id === planId) {
         const skillItem = currentPlan.value.skills.find(s => s.skill === skill)
         if (skillItem) {
@@ -213,7 +260,6 @@ export const useLearningStore = defineStore('learning', () => {
           if (status === 'mastered') skillItem.progress_pct = 100
           else if (status === 'in_progress' && skillItem.progress_pct === 0) skillItem.progress_pct = 10
         }
-        // Recalculate overall progress
         const total = currentPlan.value.skills.length
         const mastered = currentPlan.value.skills.filter(s => s.status === 'mastered').length
         const inProgress = currentPlan.value.skills.filter(s => s.status === 'in_progress').length
@@ -221,8 +267,8 @@ export const useLearningStore = defineStore('learning', () => {
           ? Math.round(((mastered + inProgress * 0.5) / total) * 100)
           : 0
       }
-    } catch (e: any) {
-      error.value = e?.message ?? '更新进度失败'
+    } catch (e: unknown) {
+      error.value = `更新进度失败: ${getErrorMsg(e)}`
       throw e
     } finally {
       loading.value = false
@@ -233,11 +279,11 @@ export const useLearningStore = defineStore('learning', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get('/learning/recommendations') as any
-      const items = data.items ?? data.recommendations ?? []
-      recommendations.value = items.map(mapRecommendation)
-    } catch (e: any) {
-      error.value = e?.message ?? '获取推荐失败'
+      const data = asRecord(await request.get('/learning/recommendations'))
+      const items = asArray(data.items ?? data.recommendations)
+      recommendations.value = items.map((r) => mapRecommendation(r as RecommendationRaw))
+    } catch (e: unknown) {
+      error.value = `获取推荐失败: ${getErrorMsg(e)}`
       recommendations.value = []
     } finally {
       loading.value = false
@@ -248,15 +294,15 @@ export const useLearningStore = defineStore('learning', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get('/learning/plans') as any
-      const items: any[] = Array.isArray(data) ? data : (data.items ?? data.plans ?? [])
-      plans.value = items.map(mapPlanResponse)
+      const data = asRecord(await request.get('/learning/plans'))
+      const items = asArray(data.items ?? data.plans)
+      plans.value = items.map((p) => mapPlanResponse(p as PlanResponseRaw))
       if (plans.value.length > 0 && !currentPlan.value) {
         currentPlan.value = plans.value[0]
       }
       return plans.value
-    } catch (e: any) {
-      error.value = e?.message ?? '获取学习计划失败'
+    } catch (e: unknown) {
+      error.value = `获取学习计划失败: ${getErrorMsg(e)}`
       plans.value = []
       currentPlan.value = null
       return []
@@ -272,18 +318,15 @@ export const useLearningStore = defineStore('learning', () => {
     loading.value = true
     error.value = null
     try {
-      // Add skill to existing plan via dedicated endpoint
       await request.post(`/learning/plan/${currentPlan.value.plan_id}/skills`, {
         skill_name: skillId,
         importance: 'bonus',
         estimated_hours: 20,
       })
-      // Refresh the plan to get updated data
       await fetchPlan(currentPlan.value.plan_id)
-      // Also refresh recommendations
       await fetchRecommendations()
-    } catch (e: any) {
-      error.value = e?.message ?? '添加技能到计划失败'
+    } catch (e: unknown) {
+      error.value = `添加技能到计划失败: ${getErrorMsg(e)}`
       throw e
     } finally {
       loading.value = false
@@ -298,13 +341,12 @@ export const useLearningStore = defineStore('learning', () => {
     batchLoading.value = true
     error.value = null
     try {
-      // 兼容后端：同时发送 position 和 position_name，避免字段不匹配导致 target_position 恒为空
       const payload = items.map(it => ({ skills: it.skills, position: it.position, position_name: it.position }))
-      const data = await request.post('/match/batch', { items: payload }) as any
-      batchResults.value = data.results ?? data.items ?? []
+      const data = asRecord(await request.post('/match/batch', { items: payload }))
+      batchResults.value = (asArray(data.results ?? data.items)) as BatchMatchItem[]
       return batchResults.value
-    } catch (e: any) {
-      error.value = e?.message ?? '批量匹配失败'
+    } catch (e: unknown) {
+      error.value = `批量匹配失败: ${getErrorMsg(e)}`
       throw e
     } finally {
       batchLoading.value = false
@@ -319,11 +361,11 @@ export const useLearningStore = defineStore('learning', () => {
     competitivenessLoading.value = true
     error.value = null
     try {
-      const data = await request.get(`/match/competitiveness/${encodeURIComponent(position)}`) as any
-      competitiveness.value = data.items ?? data.skills ?? []
+      const data = asRecord(await request.get(`/match/competitiveness/${encodeURIComponent(position)}`))
+      competitiveness.value = (asArray(data.items ?? data.skills)) as CompetitivenessData[]
       return competitiveness.value
-    } catch (e: any) {
-      error.value = e?.message ?? '获取竞争力数据失败'
+    } catch (e: unknown) {
+      error.value = `获取竞争力数据失败: ${getErrorMsg(e)}`
       competitiveness.value = []
     } finally {
       competitivenessLoading.value = false
@@ -338,11 +380,11 @@ export const useLearningStore = defineStore('learning', () => {
     careerPathLoading.value = true
     error.value = null
     try {
-      const data = await request.get(`/evolution/career-path/${encodeURIComponent(position)}`) as any
-      careerPath.value = data.path ?? data.steps ?? []
+      const data = asRecord(await request.get(`/evolution/career-path/${encodeURIComponent(position)}`))
+      careerPath.value = (asArray(data.path ?? data.steps)) as CareerPathStep[]
       return careerPath.value
-    } catch (e: any) {
-      error.value = e?.message ?? '获取职业路径失败'
+    } catch (e: unknown) {
+      error.value = `获取职业路径失败: ${getErrorMsg(e)}`
       careerPath.value = []
     } finally {
       careerPathLoading.value = false
@@ -357,11 +399,11 @@ export const useLearningStore = defineStore('learning', () => {
     industryTrendsLoading.value = true
     error.value = null
     try {
-      const data = await request.get('/evolution/industry-report') as any
-      industryTrends.value = data.items ?? data.trends ?? []
+      const data = asRecord(await request.get('/evolution/industry-report'))
+      industryTrends.value = (asArray(data.items ?? data.trends)) as IndustryTrendItem[]
       return industryTrends.value
-    } catch (e: any) {
-      error.value = e?.message ?? '获取行业趋势失败'
+    } catch (e: unknown) {
+      error.value = `获取行业趋势失败: ${getErrorMsg(e)}`
       industryTrends.value = []
     } finally {
       industryTrendsLoading.value = false

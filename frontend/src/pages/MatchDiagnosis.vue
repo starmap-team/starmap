@@ -119,26 +119,26 @@ async function handlePositionSelect(pos: { position_id: string; name: string }) 
   radarLoading.value = true
   try {
     const skillData = await matchStore.fetchPositionSkills(pos.name)
-    const skills: any[] = skillData?.required_skills ?? []
+    const skills: { name: string; proficiency: string }[] = skillData?.required_skills ?? []
     if (skills.length === 0) {
       ElMessage.warning('未获取到岗位技能数据，仍可继续但雷达图将为空')
       radarData.value = []
       step.value = 2
       return
     }
-    radarData.value = skills.map((s: any) => ({
+    radarData.value = skills.map((s) => ({
       skill: s.name,
       required: PROFICIENCY_MAP[s.proficiency] ?? 0.5,
       user: 0,
     }))
     const userSkillSource = resumeStore.result?.required_skills ?? userStore.parsedSkills.map(s => ({ skill: s, proficiency: '熟悉' }))
     if (userSkillSource.length) {
-      const userSkills = new Map(userSkillSource.map((s: any) => [s.skill, PROFICIENCY_MAP[s.proficiency] ?? 0.5]))
+      const userSkills = new Map(userSkillSource.map((s: { skill: string; proficiency: string }) => [s.skill, PROFICIENCY_MAP[s.proficiency] ?? 0.5]))
       radarData.value = radarData.value.map(item => ({ ...item, user: userSkills.get(item.skill) ?? 0 }))
     }
     step.value = 2
-  } catch (e: any) {
-    ElMessage.warning(`岗位技能请求失败: ${e?.message ?? '未知错误'}`)
+  } catch (e: unknown) {
+    ElMessage.warning(`岗位技能请求失败: ${e instanceof Error ? e.message : '未知错误'}`)
   } finally {
     radarLoading.value = false
   }
@@ -186,8 +186,8 @@ async function handleStartDiagnosis() {
     }
 
     step.value = 3
-  } catch (e: any) {
-    ElMessage.error('诊断请求失败: ' + (e?.message ?? '未知错误'))
+  } catch (e: unknown) {
+    ElMessage.error('诊断请求失败: ' + (e instanceof Error ? e.message : '未知错误'))
     matchAnimating.value = false
   } finally {
     if (matchProgressTimer.value) {
