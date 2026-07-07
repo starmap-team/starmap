@@ -1,7 +1,6 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from '@/stores/graph'
 import { cv, tooltipStyle } from '@/utils/chartTheme'
-}
 
 export interface BreadcrumbItem {
   label: string
