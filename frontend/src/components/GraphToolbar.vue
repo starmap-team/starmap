@@ -263,11 +263,11 @@ function toggleProficiency(level: string) {
   background: var(--primary-ghost);
 }
 .tb-btn--3d {
-  color: #22d3ee;
+  color: var(--cyan-400, #22d3ee);
 }
 .tb-btn--3d:hover {
-  color: #67e8f9;
-  background: rgba(34, 211, 238, 0.1);
+  color: var(--cyan-300, #67e8f9);
+  background: var(--cyan-ghost, rgba(34, 211, 238, 0.1));
 }
 .tb-divider {
   width: 1px;
