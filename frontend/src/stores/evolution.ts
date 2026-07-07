@@ -31,6 +31,15 @@ export interface ChangelogEntry {
   after_value: string | null
   confidence: number
   detected_at: string
+  // Optional fields returned by some API endpoints / used in UI
+  date?: string
+  created_at?: string
+  old_proficiency?: string
+  new_proficiency?: string
+  old_requirement?: string
+  new_requirement?: string
+  description?: string
+  trust_score?: number
 }
 
 export const useEvolutionStore = defineStore('evolution', () => {
@@ -48,9 +57,9 @@ export const useEvolutionStore = defineStore('evolution', () => {
     loading.value = true
     try {
       const params = days ? { days } : undefined
-      const data = await request.get('/evolution/trends', { params })
-      quarters.value = (data as Record<string, unknown>).quarters as string[] ?? []
-      trendItems.value = (data as Record<string, unknown>).items as TrendItem[] ?? []
+      const data = await request.get('/evolution/trends', { params }) as unknown as Record<string, unknown>
+      quarters.value = data.quarters as string[] ?? []
+      trendItems.value = data.items as TrendItem[] ?? []
     } finally {
       loading.value = false
     }
@@ -74,10 +83,11 @@ export const useEvolutionStore = defineStore('evolution', () => {
   async function fetchChangelog(skillName: string) {
     changelogLoading.value = true
     try {
-      const data = await request.get(`/evolution/changelog/${encodeURIComponent(skillName)}`)
-      changelogData.value = (Array.isArray(data)
-        ? data
-        : (data as Record<string, unknown>).changelog ?? (data as Record<string, unknown>).items ?? []) as ChangelogEntry[]
+      const raw = await request.get(`/evolution/changelog/${encodeURIComponent(skillName)}`) as unknown
+      const data = raw as Record<string, unknown>
+      changelogData.value = (Array.isArray(raw)
+        ? raw
+        : data.changelog ?? data.items ?? []) as ChangelogEntry[]
     } finally {
       changelogLoading.value = false
     }
