@@ -5,6 +5,9 @@
  */
 import { computed } from 'vue'
 import { TYPE_INFO } from '@/utils/graphColors'
+import { chartColors } from '@/utils/chartTheme'
+
+const cc = chartColors()
 
 interface TooltipNode {
   id: string
@@ -24,7 +27,7 @@ const props = defineProps<{
 }>()
 
 const typeInfo = computed(() =>
-  TYPE_INFO[props.node?.type ?? ''] ?? { label: props.node?.type ?? '', color: '#64748b' }
+  TYPE_INFO[props.node?.type ?? ''] ?? { label: props.node?.type ?? '', color: cc.muted }
 )
 
 const stats = computed(() => {
@@ -95,10 +98,10 @@ const stats = computed(() => {
   background: rgba(10, 14, 26, 0.92);
   backdrop-filter: blur(16px) saturate(1.5);
   -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  border: 1px solid rgba(100, 116, 139, 0.25);
+  border: 1px solid color-mix(in srgb, var(--muted-foreground, #64748b) 25%, transparent);
   border-radius: 12px;
   box-shadow:
-    0 0 20px rgba(34, 211, 238, 0.08),
+    0 0 20px color-mix(in srgb, var(--chart-2, #0891b2) 8%, transparent),
     0 8px 24px rgba(0, 0, 0, 0.4);
   font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   transform: translateY(0);
@@ -118,7 +121,7 @@ const stats = computed(() => {
 .tt-name {
   font-size: 13px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: var(--foreground, #e2e8f0);
   line-height: 1.3;
   margin-bottom: 6px;
 }
@@ -139,13 +142,13 @@ const stats = computed(() => {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--muted-foreground, #64748b);
 }
 
 .tt-stat-value {
   font-size: 13px;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--muted-foreground, #94a3b8);
   font-variant-numeric: tabular-nums;
 }
 

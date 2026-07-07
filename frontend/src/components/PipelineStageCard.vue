@@ -41,11 +41,11 @@ const statusConfig = computed(() => {
     case 'failed':
       return { color: colors.danger, label: '失败', icon: '✕' }
     case 'skipped':
-      return { color: '#d1d5db', label: '已跳过', icon: '—' }
+      return { color: colors.muted, label: '已跳过', icon: '—' }
     case 'pending':
       return { color: colors.muted, label: '待执行', icon: '○' }
     case 'cancelled':
-      return { color: '#f59e0b', label: '已取消', icon: '⊘' }
+      return { color: colors.warning, label: '已取消', icon: '⊘' }
     default:
       return { color: colors.muted, label: '等待中', icon: '○' }
   }
@@ -184,7 +184,7 @@ const formattedRecords = computed(() => {
   opacity: 0.8;
 }
 .stage-skipped {
-  border-left: 3px solid #d1d5db;
+  border-left: 3px solid var(--muted-foreground, #d1d5db);
   opacity: 0.5;
 }
 .stage-waiting {

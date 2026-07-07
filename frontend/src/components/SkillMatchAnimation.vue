@@ -5,6 +5,8 @@
  * and a particle burst on successful match.
  */
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
+import { chartColors } from '@/utils/chartTheme'
+import { withAlpha } from '@/utils/graphColors'
 
 export interface SkillMatchItem {
   name: string
@@ -54,9 +56,10 @@ function spawnParticles(el: HTMLElement, matched: boolean) {
   const cx = rect.left - containerRect.left + rect.width / 2
   const cy = rect.top - containerRect.top + rect.height / 2
 
+  const cc = chartColors()
   const colors = matched
-    ? ['#22c55e', '#059669', '#34d399', '#a7f3d0']
-    : ['#dc2626', '#f87171', '#ef4444']
+    ? [cc.success, withAlpha(cc.success, 0.8), withAlpha(cc.success, 0.6), withAlpha(cc.success, 0.4)]
+    : [cc.danger, withAlpha(cc.danger, 0.8), withAlpha(cc.danger, 0.6)]
 
   const count = matched ? 8 : 4
   for (let i = 0; i < count; i++) {

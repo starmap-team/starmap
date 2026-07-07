@@ -10,6 +10,9 @@ import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import SkillRadar, { type RadarItem } from '@/components/SkillRadar.vue'
 import request from '@/api/request'
+import { chartColors } from '@/utils/chartTheme'
+
+const cc = chartColors()
 
 const route = useRoute()
 const positionName = computed(() => route.params.name as string)
@@ -70,10 +73,10 @@ const PROFICIENCY_TAG: Record<string, string> = {
 
 // ── Hotness color: higher = greener, lower = grayer ──
 function hotnessColor(count: number): string {
-  if (count >= 8) return '#22c55e'  // green-500
-  if (count >= 5) return '#86efac'  // green-300
-  if (count >= 3) return '#a3a3a3'  // neutral-400
-  return '#d4d4d4'                   // neutral-300
+  if (count >= 8) return cc.success
+  if (count >= 5) return cc.chart[4]   // lighter green from chart palette
+  if (count >= 3) return cc.muted
+  return cc.border
 }
 
 // ── 加载（Neo4j 优先，PostgreSQL 回退） ──

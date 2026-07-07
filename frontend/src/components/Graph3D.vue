@@ -18,6 +18,7 @@ import {
   SCENE_PALETTE,
   toThreeHex,
 } from '@/utils/graphColors'
+import { chartColors } from '@/utils/chartTheme'
 import NodeTooltip3D from './NodeTooltip3D.vue'
 import { Loading } from '@element-plus/icons-vue'
 
@@ -126,11 +127,13 @@ function getNodeRadius(node: GraphNode3D): number {
 }
 
 // ── Initialize 3D graph (async, dynamic import) ──
+const cc = chartColors()
+
 // ── Evolution edge color (D-05) ──
 const EVOLUTION_TREND_COLOR: Record<string, string> = {
-  rising: '#22c55e',
-  stable: '#94a3b8',
-  declining: '#ef4444',
+  rising: cc.success,
+  stable: cc.muted,
+  declining: cc.danger,
 }
 
 function evolutionColor(link: any): string {
@@ -192,9 +195,9 @@ async function initGraph() {
     .nodeLabel((node: any) => {
       return `<div style="
         font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-        font-size: 12px; font-weight: 600; color: #e2e8f0;
+        font-size: 12px; font-weight: 600; color: ${SCENE_PALETTE.textColor};
         background: rgba(10,14,26,0.85); padding: 4px 10px;
-        border-radius: 8px; border: 1px solid rgba(100,116,139,0.3);
+        border-radius: 8px; border: 1px solid ${withAlpha(SCENE_PALETTE.mutedText, 0.3)};
         backdrop-filter: blur(8px); white-space: nowrap;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       ">${node.properties.name}</div>`
@@ -691,7 +694,7 @@ defineExpose({
   min-height: 520px;
   overflow: hidden;
   border-radius: inherit;
-  background: #0a0e1a;
+  background: var(--scene-bg, #0a0e1a);
 }
 
 .graph3d-container {
@@ -715,7 +718,7 @@ defineExpose({
   gap: 12px;
   background: rgba(10, 14, 26, 0.6);
   backdrop-filter: blur(4px);
-  color: #94a3b8;
+  color: var(--muted-foreground, #94a3b8);
   font-size: 14px;
   z-index: 10;
 }
@@ -728,7 +731,7 @@ defineExpose({
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 11px;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--muted-foreground, #94a3b8);
   background: rgba(10, 14, 26, 0.7);
   backdrop-filter: blur(8px);
   padding: 3px 10px;
@@ -749,27 +752,27 @@ defineExpose({
   height: 100%;
   min-height: 520px;
   gap: 12px;
-  color: #64748b;
+  color: var(--muted-foreground, #64748b);
   text-align: center;
   padding: 40px;
 }
 
 .fallback-icon {
-  color: #f59e0b;
+  color: var(--warning, #f59e0b);
   opacity: 0.7;
 }
 
 .fallback-title {
   font-size: 18px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: var(--foreground, #e2e8f0);
   margin: 0;
 }
 
 .fallback-text {
   font-size: 13px;
   line-height: 1.6;
-  color: #94a3b8;
+  color: var(--muted-foreground, #94a3b8);
   margin: 0;
   max-width: 360px;
 }

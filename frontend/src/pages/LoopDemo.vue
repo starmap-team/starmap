@@ -28,6 +28,9 @@ import SkillRadar from '@/components/SkillRadar.vue'
 import LoadingPulse from '@/components/LoadingPulse.vue'
 import { useLoopStore } from '@/stores/loop'
 import { chartColors, legendStyle } from '@/utils/chartTheme'
+import { withAlpha } from '@/utils/graphColors'
+
+const cc = chartColors()
 
 const loopStore = useLoopStore()
 
@@ -233,13 +236,13 @@ async function renderMiniGraph() {
     id: n.id ?? n.name,
     style: {
       size: 28,
-      fill: '#22c55e',
+      fill: cc.success,
       fillOpacity: 0.9,
-      stroke: '#16a34a',
+      stroke: cc.success,
       lineWidth: 2,
       labelText: n.name ?? n.id,
       labelFill: cv('--foreground'),
-      shadowColor: 'rgba(34,197,94,0.4)',
+      shadowColor: withAlpha(cc.success, 0.4),
       shadowBlur: 12,
       cursor: 'pointer' as const,
     },
@@ -266,7 +269,7 @@ async function renderMiniGraph() {
       source: e.source,
       target: e.target,
       style: {
-        stroke: '#22c55e',
+        stroke: cc.success,
         lineWidth: 2,
         opacity: 0.7,
         lineDash: [4, 4],
@@ -294,13 +297,13 @@ async function renderMiniGraph() {
         id: `skill_${i}`,
         style: {
           size: s.is_new ? 28 : 24,
-          fill: s.is_new ? '#22c55e' : cv('--primary'),
+          fill: s.is_new ? cc.success : cv('--primary'),
           fillOpacity: s.is_new ? 0.9 : 0.7,
-          stroke: s.is_new ? '#16a34a' : cv('--primary'),
+          stroke: s.is_new ? cc.success : cv('--primary'),
           lineWidth: s.is_new ? 2 : 1.5,
           labelText: s.skill,
           labelFill: cv('--foreground'),
-          shadowColor: s.is_new ? 'rgba(34,197,94,0.4)' : undefined,
+          shadowColor: s.is_new ? withAlpha(cc.success, 0.4) : undefined,
           shadowBlur: s.is_new ? 12 : 0,
           cursor: 'pointer' as const,
         },
@@ -321,7 +324,7 @@ async function renderMiniGraph() {
           labelFill: cv('--foreground'),
           labelFontSize: 12,
           labelFontWeight: 'bold' as const,
-          shadowColor: 'rgba(37,99,235,0.3)',
+          shadowColor: withAlpha(cv('--info'), 0.3),
           shadowBlur: 12,
           cursor: 'pointer' as const,
         },
@@ -423,7 +426,6 @@ function buildRadarData() {
 
 const radarOption = computed(() => {
   if (radarData.value.length < 3) return {}
-  const colors = chartColors()
   const indicators = radarData.value.map(d => ({ name: d.skill, max: 1 }))
   return {
     tooltip: { trigger: 'item' },
@@ -432,22 +434,22 @@ const radarOption = computed(() => {
       center: ['50%', '46%'],
       radius: '62%',
       indicator: indicators,
-      axisName: { color: colors.muted, fontSize: 11 },
+      axisName: { color: cc.muted, fontSize: 11 },
     },
     series: [{
       type: 'radar',
       name: '岗位要求',
       data: [{ value: radarData.value.map(d => d.required), name: '岗位要求' }],
-      lineStyle: { color: colors.danger, width: 2 },
-      areaStyle: { color: colors.danger + '33' },
-      itemStyle: { color: colors.danger },
+      lineStyle: { color: cc.danger, width: 2 },
+      areaStyle: { color: cc.danger + '33' },
+      itemStyle: { color: cc.danger },
     }, {
       type: 'radar',
       name: '匹配程度',
       data: [{ value: radarData.value.map(d => d.matched), name: '匹配程度' }],
-      lineStyle: { color: colors.primary, width: 2 },
-      areaStyle: { color: colors.primary + '33' },
-      itemStyle: { color: colors.primary },
+      lineStyle: { color: cc.primary, width: 2 },
+      areaStyle: { color: cc.primary + '33' },
+      itemStyle: { color: cc.primary },
     }],
   }
 })
@@ -1346,9 +1348,9 @@ onUnmounted(() => {
   transition: all 0.3s var(--ease-out);
 }
 .skill-new {
-  background: color-mix(in srgb, #22c55e 12%, var(--card));
-  border: 1px solid color-mix(in srgb, #22c55e 30%, var(--border));
-  color: #16a34a;
+  background: color-mix(in srgb, var(--success, #22c55e) 12%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--success, #22c55e) 30%, var(--border));
+  color: var(--success, #16a34a);
 }
 .skill-existing {
   background: color-mix(in srgb, var(--primary) 8%, var(--card));
@@ -1389,8 +1391,8 @@ onUnmounted(() => {
   border-radius: 50%;
 }
 .legend-new {
-  background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  background: var(--success, #22c55e);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--success, #22c55e) 50%, transparent);
 }
 .legend-existing {
   background: var(--primary);
@@ -1643,9 +1645,9 @@ onUnmounted(() => {
   transition: width 0.6s var(--ease-out);
   min-width: 4px;
 }
-.dur-success { background: linear-gradient(90deg, var(--success), #22c55e); }
-.dur-degraded { background: linear-gradient(90deg, var(--warning), #f59e0b); }
-.dur-failed { background: linear-gradient(90deg, var(--danger), #ef4444); }
+.dur-success { background: linear-gradient(90deg, var(--success), var(--success, #22c55e)); }
+.dur-degraded { background: linear-gradient(90deg, var(--warning), var(--warning, #f59e0b)); }
+.dur-failed { background: linear-gradient(90deg, var(--destructive), var(--destructive, #ef4444)); }
 .dur-running { background: linear-gradient(90deg, var(--primary), var(--chart-2)); }
 .dur-waiting { background: var(--border); }
 .dur-value {

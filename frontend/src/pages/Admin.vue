@@ -11,7 +11,10 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import ReviewQueuePanel from '@/components/ReviewQueuePanel.vue'
 import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
 import { useAdminStore } from '@/stores/admin'
+import { chartColors } from '@/utils/chartTheme'
 import request from '@/api/request'
+
+const cc = chartColors()
 
 const admin = useAdminStore()
 
@@ -484,7 +487,7 @@ async function handleReset() {
                   <el-progress
                     :percentage="Math.round(row.authority_score * 100)"
                     :stroke-width="8"
-                    :color="row.authority_score >= 0.8 ? '#67c23a' : row.authority_score >= 0.6 ? '#e6a23c' : '#f56c6c'"
+                    :color="row.authority_score >= 0.8 ? cc.success : row.authority_score >= 0.6 ? cc.warning : cc.danger"
                   />
                 </template>
               </el-table-column>

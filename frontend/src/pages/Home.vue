@@ -14,7 +14,7 @@ import DetailPanel from "@/components/DetailPanel.vue"
 import GraphSearchBar from "@/components/GraphSearchBar.vue"
 import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from "@/stores/graph"
 import { tooltipStyle } from "@/utils/chartTheme"
-import { NODE_TYPE_COLORS, KA_FALLBACK_COLORS } from "@/utils/graphColors"
+import { KA_FALLBACK_COLORS, nodeColor } from "@/utils/graphColors"
 import { useKPIMetrics } from "@/composables/useKPIMetrics"
 
 const graphStore = useGraphStore()
@@ -59,7 +59,7 @@ const selectedNode = ref<GraphNode | null>(null)
 const graph3DNodes = computed(() =>
   graphStore.visibleNodes.map(n => {
     const props = n.properties as Record<string, any>
-    let color = NODE_TYPE_COLORS[n.labels[0]] ?? '#64748b'
+    let color = nodeColor(n.labels[0])
     if (n.labels[0] === 'KnowledgeArea') {
       color = kaColorMap.value.get(n.id) ?? KA_FALLBACK_COLORS[0]
     }

@@ -5,6 +5,7 @@
  * 使用 G6 v5 的 antdag DAG 布局
  */
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { chartColors } from '@/utils/chartTheme'
 
 interface PathNode {
   skill: string
@@ -22,10 +23,12 @@ const containerRef = ref<HTMLElement | null>(null)
 let graph: any = null
 let G6Graph: any = null
 
+const cc = chartColors()
+
 const STATUS_COLORS: Record<string, string> = {
-  not_started: '#94a3b8',
-  in_progress: '#d97706',
-  mastered: '#16a34a',
+  not_started: cc.muted,
+  in_progress: cc.warning,
+  mastered: cc.success,
 }
 
 const STATUS_FILLS: Record<string, string> = {
@@ -247,21 +250,21 @@ onBeforeUnmount(() => {
       <span class="legend-item">
         <span
           class="legend-dot"
-          style="background: #94a3b8"
+          :style="{ background: cc.muted }"
         />
         未开始
       </span>
       <span class="legend-item">
         <span
           class="legend-dot"
-          style="background: #d97706"
+          :style="{ background: cc.warning }"
         />
         学习中
       </span>
       <span class="legend-item">
         <span
           class="legend-dot"
-          style="background: #16a34a"
+          :style="{ background: cc.success }"
         />
         已掌握
       </span>

@@ -4,6 +4,9 @@
  * 展示从当前岗位到目标岗位的职业晋升路径
  */
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { chartColors } from '@/utils/chartTheme'
+
+const cc = chartColors()
 
 interface CareerStep {
   position: string
@@ -28,20 +31,16 @@ async function ensureG6Loaded() {
   return G6Graph
 }
 
-function cv(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-}
-
 function getProbabilityColor(prob: number): string {
-  if (prob >= 0.7) return '#16a34a'
-  if (prob >= 0.4) return '#d97706'
-  return '#dc2626'
+  if (prob >= 0.7) return cc.success
+  if (prob >= 0.4) return cc.warning
+  return cc.danger
 }
 
 function getProbabilityFill(prob: number): string {
-  if (prob >= 0.7) return '#dcfce7'
-  if (prob >= 0.4) return '#fef3c7'
-  return '#fee2e2'
+  if (prob >= 0.7) return 'var(--chart-5-light, #dcfce7)'
+  if (prob >= 0.4) return 'var(--chart-4-light, #fef3c7)'
+  return 'var(--danger-light, #fee2e2)'
 }
 
 function buildGraphData() {
@@ -62,13 +61,13 @@ function buildGraphData() {
         index: i,
       },
       style: {
-        fill: isStart ? '#dbeafe' : isEnd ? '#dcfce7' : probFill,
-        stroke: isStart ? '#3b82f6' : isEnd ? '#16a34a' : probColor,
+        fill: isStart ? 'var(--info-light, #dbeafe)' : isEnd ? 'var(--chart-5-light, #dcfce7)' : probFill,
+        stroke: isStart ? cc.info : isEnd ? cc.success : probColor,
         lineWidth: isStart || isEnd ? 3 : 2,
         radius: 10,
         size: [160, 60],
         labelText: `${step.position}\n${step.estimated_time} · ${(step.probability * 100).toFixed(0)}%`,
-        labelFill: cv('--foreground') || '#1c1917',
+        labelFill: cc.foreground,
         labelFontSize: 11,
         labelPlacement: 'center' as const,
         labelLineHeight: 16,
@@ -80,7 +79,7 @@ function buildGraphData() {
         source: `step-${i - 1}`,
         target: `step-${i}`,
         style: {
-          stroke: cv('--border') || '#e7e5e4',
+          stroke: cc.border,
           lineWidth: 2,
           endArrow: true,
           endArrowSize: 8,
@@ -116,14 +115,14 @@ async function initGraph() {
       },
       node: {
         style: {
-          labelFill: cv('--foreground') || '#1c1917',
+          labelFill: cc.foreground,
           labelFontSize: 11,
           labelPlacement: 'center' as const,
         },
       },
       edge: {
         style: {
-          stroke: cv('--border') || '#e7e5e4',
+          stroke: cc.border,
           lineWidth: 2,
           endArrow: true,
           endArrowSize: 8,
@@ -138,13 +137,13 @@ async function initGraph() {
           trigger: 'pointerenter',
           offset: [10, 10],
           style: {
-            background: cv('--card') || '#ffffff',
+            background: cc.card,
             borderRadius: '10px',
             boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
             padding: '8px 12px',
             fontSize: '12px',
-            border: '1px solid ' + (cv('--border') || '#e7e5e4'),
-            color: cv('--foreground') || '#1c1917',
+            border: '1px solid ' + cc.border,
+            color: cc.foreground,
           },
           getContent: (_event: any, items: any[]) => {
             if (!items?.length) return ''

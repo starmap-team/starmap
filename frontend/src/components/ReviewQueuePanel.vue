@@ -7,6 +7,9 @@ import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Delete, Edit } from '@element-plus/icons-vue'
 import { useAdminStore } from '@/stores/admin'
+import { chartColors } from '@/utils/chartTheme'
+
+const cc = chartColors()
 
 const props = defineProps<{
   /** 是否显示操作栏（搜索 + 批量） */
@@ -273,7 +276,7 @@ async function handleSaveEdit() {
             <el-progress
               :percentage="row.trust"
               :stroke-width="6"
-              :color="row.trust >= 70 ? '#67c23a' : row.trust >= 50 ? '#e6a23c' : '#f56c6c'"
+              :color="row.trust >= 70 ? cc.success : row.trust >= 50 ? cc.warning : cc.danger"
               class="flex-1"
             />
             <span class="rq-trust-pct">{{ row.trust }}%</span>
