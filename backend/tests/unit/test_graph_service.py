@@ -247,7 +247,7 @@ async def test_fetch_position_graph_with_none_driver():
 @pytest.mark.asyncio
 async def test_fetch_position_graph_returns_flat_skill_contract():
     """业务说明：测试职位图查询返回扁平化技能数据结构。
-    
+
     技术说明：该测试需要更新FakeDriver以支持多查询Neo4j会话模式，
     目前通过E2E测试验证此功能。
     """

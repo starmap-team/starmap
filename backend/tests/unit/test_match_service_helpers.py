@@ -1,6 +1,7 @@
 """Unit tests for match service helpers."""
 from __future__ import annotations
 
+from app.core.matching.path_builder import build_learning_path
 from app.core.matching.scorer import (
     PROFICIENCY_SCORE,
     _canonical_skill_name,
@@ -8,8 +9,6 @@ from app.core.matching.scorer import (
     score_skill_match,
 )
 from app.core.matching.service import MatchService
-from app.core.matching.path_builder import build_learning_path
-
 
 # 创建 MatchService 实例用于测试
 _match_service = MatchService()

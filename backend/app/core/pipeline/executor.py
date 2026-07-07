@@ -11,7 +11,6 @@ Progress is broadcast via Redis pub/sub for SSE consumption.
 """
 from __future__ import annotations
 
-import asyncio
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -65,7 +64,7 @@ async def _publish_stage_progress(
 # Stage execution functions (sync, called from Celery workers)
 # ---------------------------------------------------------------------------
 
-from app.utils.async_helpers import run_async as _run_async
+from app.utils.async_helpers import run_async as _run_async  # noqa: E402
 
 # ponytail: removed duplicate _run_async; reusing utils.async_helpers
 

@@ -131,7 +131,7 @@ class TestHallucinationGuard:
 
     def test_pending_semantic_match(self) -> None:
         """业务说明：测试语义匹配但来源不足的场景，预期状态为PENDING或VERIFIED。
-        
+
         场景描述：技能名称有拼写错误（Pythn），但语义上与Python匹配，
         由于来源数量不足，无法完全确认。
         """

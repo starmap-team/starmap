@@ -118,7 +118,7 @@ class TestDiffEngineEdgeCases:
 
     def test_complex_mixed_changes(self) -> None:
         """业务说明：测试复杂混合变更场景，模拟真实业务中多种变更类型同时发生的情况。
-        
+
         场景描述：
         - 老快照：required=[Python, SQL, Java], preferred=[Docker, Redis]
         - 新快照：required=[Python, Docker, Go, Kubernetes], preferred=[SQL, Redis, TypeScript]
