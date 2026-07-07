@@ -3,24 +3,24 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: 全系统功能闭环
 status: executing
-last_updated: "2026-07-07T00:00:00.000Z"
+last_updated: "2026-07-07T02:15:00.000Z"
 last_activity: 2026-07-07
 progress:
-  total_phases: 7
+  total_phases: 6
   completed_phases: 3
   total_plans: 7
   completed_plans: 8
-  percent: 43
+  percent: 50
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 05 of 6 (样式统一与体验优化)
+Phase: 1 of 6 (核心Bug修复)
 Plan: 0 plans created
-Status: Pending
-Next: discuss phase 5
+Status: Ready to plan
+Next: /gsd-plan-phase 1
 Last activity: 2026-07-07
 
 ## Accumulated Context
@@ -44,7 +44,7 @@ Last activity: 2026-07-07
 ### Pending Todos
 
 - P1-001: 修复 status_aggregator.py snapshot_at → snapshot_date
-- P1-002: 实现 graph_service.sync_from_pipeline()
+- P1-002: ~~实现 graph_service.sync_from_pipeline()~~ ✅ DONE (committed eb4650a)
 - P1-003: 修复 match_service __import__("json")
 - P1-004: match_results 内存缓存 → PostgreSQL 持久化
 - P1-005: loop_results 内存存储 → PostgreSQL 持久化
@@ -60,14 +60,20 @@ See `.planning/REQUIREMENTS.md`
 
 | Phase | Name | Status | Verified |
 |-------|------|--------|----------|
-| 1 | 核心Bug修复 | pending | — |
+| 1 | 核心Bug修复 | pending (7/8 todos open) | — |
 | 2 | 后端硬编码消除 | pending | — |
 | 3 | 前端功能闭环 | completed | 3/3 |
-| 4 | 数据流贯通 | completed | 3/3 |
+| 4 | 数据流贯通 | completed | 4/4 (GAP-04-01 closed) |
 | 5 | 样式统一与体验优化 | pending | — |
 | 6 | 架构重构 | pending | — |
 
-## Phase 4 Context (Discussed 2026-07-06)
+## Phase 4 Context (Completed 2026-07-07)
+
+**GAP-04-01 CLOSED** (committed eb4650a):
+- Root cause 1: sync_from_pipeline wrote Position with LLM-extracted name, match queried with target_position → 404
+- Root cause 2: score_skill_match._score_one missing `learning_path` key → KeyError in run_match
+- Fix: target_position param in sync_from_pipeline + learning_path in scorer output
+- E2E verified: all 5 steps SUCCESS
 
 **Decisions (see `.planning/phases/04-dataflow/04-CONTEXT.md`):**
 - D-01~04: 严苛闭环策略 + E2E 集成测试验证（LOOP-FLOW-02）
