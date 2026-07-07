@@ -1,0 +1,142 @@
+- generic [ref=f3e3]:
+  - banner [ref=f3e4]:
+    - button "菜单" [ref=f3e5] [cursor=pointer]
+    - link "StarMap" [ref=f3e9] [cursor=pointer]:
+      - /url: /
+      - img [ref=f3e10]
+      - generic [ref=f3e13]: StarMap
+    - button [ref=f3e14] [cursor=pointer]:
+      - img [ref=f3e16]
+  - generic [ref=f3e19]:
+    - generic [ref=f3e21]:
+      - generic [ref=f3e22]: 首页
+      - generic [ref=f3e23]: /
+      - generic [ref=f3e24]: 学习中心
+    - main [ref=f3e25]:
+      - generic [ref=f3e26]:
+        - generic [ref=f3e27]:
+          - generic [ref=f3e28]:
+            - heading "学习中心" [level=1] [ref=f3e29]
+            - paragraph [ref=f3e30]: 个性化学习计划管理 — 基于匹配诊断的技能提升路径
+          - button "从匹配诊断生成" [ref=f3e32] [cursor=pointer]:
+            - img [ref=f3e34]
+            - generic [ref=f3e37]: 从匹配诊断生成
+        - generic [ref=f3e40]:
+          - paragraph [ref=f3e41]: 暂无学习计划
+          - paragraph [ref=f3e42]: 在下方推荐中选择技能创建学习计划，或前往「匹配诊断」基于差距分析生成个性化学习路径
+          - button "从匹配诊断生成" [ref=f3e43] [cursor=pointer]:
+            - generic [ref=f3e44]: 从匹配诊断生成
+        - generic [ref=f3e49]:
+          - paragraph [ref=f3e50]: 暂无学习计划
+          - paragraph [ref=f3e51]: 请先通过「匹配诊断」创建学习计划，或在下方推荐中选择技能加入计划
+        - generic [ref=f3e52]:
+          - generic [ref=f3e54]:
+            - generic [ref=f3e55]:
+              - img [ref=f3e57]
+              - text: 个性化推荐
+            - generic [ref=f3e60]: 基于差距分析
+          - generic [ref=f3e62]:
+            - generic [ref=f3e63]:
+              - generic [ref=f3e64]:
+                - generic [ref=f3e65]: Docker
+                - generic [ref=f3e67]: 低优先
+              - paragraph [ref=f3e68]: 市场热门技能（出现 35 次）
+              - generic [ref=f3e70]:
+                - img [ref=f3e72]
+                - text: 20h
+              - button "创建计划" [ref=f3e77] [cursor=pointer]:
+                - generic [ref=f3e78]: 创建计划
+            - generic [ref=f3e79]:
+              - generic [ref=f3e80]:
+                - generic [ref=f3e81]: Git
+                - generic [ref=f3e83]: 低优先
+              - paragraph [ref=f3e84]: 市场热门技能（出现 33 次）
+              - generic [ref=f3e86]:
+                - img [ref=f3e88]
+                - text: 20h
+              - button "创建计划" [ref=f3e93] [cursor=pointer]:
+                - generic [ref=f3e94]: 创建计划
+            - generic [ref=f3e95]:
+              - generic [ref=f3e96]:
+                - generic [ref=f3e97]: Python
+                - generic [ref=f3e99]: 低优先
+              - paragraph [ref=f3e100]: 市场热门技能（出现 29 次）
+              - generic [ref=f3e102]:
+                - img [ref=f3e104]
+                - text: 20h
+              - button "创建计划" [ref=f3e109] [cursor=pointer]:
+                - generic [ref=f3e110]: 创建计划
+            - generic [ref=f3e111]:
+              - generic [ref=f3e112]:
+                - generic [ref=f3e113]: Linux
+                - generic [ref=f3e115]: 低优先
+              - paragraph [ref=f3e116]: 市场热门技能（出现 24 次）
+              - generic [ref=f3e118]:
+                - img [ref=f3e120]
+                - text: 20h
+              - button "创建计划" [ref=f3e125] [cursor=pointer]:
+                - generic [ref=f3e126]: 创建计划
+            - generic [ref=f3e127]:
+              - generic [ref=f3e128]:
+                - generic [ref=f3e129]: PostgreSQL
+                - generic [ref=f3e131]: 低优先
+              - paragraph [ref=f3e132]: 市场热门技能（出现 16 次）
+              - generic [ref=f3e134]:
+                - img [ref=f3e136]
+                - text: 20h
+              - button "创建计划" [ref=f3e141] [cursor=pointer]:
+                - generic [ref=f3e142]: 创建计划
+            - generic [ref=f3e143]:
+              - generic [ref=f3e144]:
+                - generic [ref=f3e145]: Kubernetes
+                - generic [ref=f3e147]: 低优先
+              - paragraph [ref=f3e148]: 市场热门技能（出现 14 次）
+              - generic [ref=f3e150]:
+                - img [ref=f3e152]
+                - text: 20h
+              - button "创建计划" [ref=f3e157] [cursor=pointer]:
+                - generic [ref=f3e158]: 创建计划
+            - generic [ref=f3e159]:
+              - generic [ref=f3e160]:
+                - generic [ref=f3e161]: REST API
+                - generic [ref=f3e163]: 低优先
+              - paragraph [ref=f3e164]: 市场热门技能（出现 11 次）
+              - generic [ref=f3e166]:
+                - img [ref=f3e168]
+                - text: 20h
+              - button "创建计划" [ref=f3e173] [cursor=pointer]:
+                - generic [ref=f3e174]: 创建计划
+            - generic [ref=f3e175]:
+              - generic [ref=f3e176]:
+                - generic [ref=f3e177]: Redis
+                - generic [ref=f3e179]: 低优先
+              - paragraph [ref=f3e180]: 市场热门技能（出现 11 次）
+              - generic [ref=f3e182]:
+                - img [ref=f3e184]
+                - text: 20h
+              - button "创建计划" [ref=f3e189] [cursor=pointer]:
+                - generic [ref=f3e190]: 创建计划
+            - generic [ref=f3e191]:
+              - generic [ref=f3e192]:
+                - generic [ref=f3e193]: SQL
+                - generic [ref=f3e195]: 低优先
+              - paragraph [ref=f3e196]: 市场热门技能（出现 10 次）
+              - generic [ref=f3e198]:
+                - img [ref=f3e200]
+                - text: 20h
+              - button "创建计划" [ref=f3e205] [cursor=pointer]:
+                - generic [ref=f3e206]: 创建计划
+            - generic [ref=f3e207]:
+              - generic [ref=f3e208]:
+                - generic [ref=f3e209]: CI/CD
+                - generic [ref=f3e211]: 低优先
+              - paragraph [ref=f3e212]: 市场热门技能（出现 9 次）
+              - generic [ref=f3e214]:
+                - img [ref=f3e216]
+                - text: 20h
+              - button "创建计划" [ref=f3e221] [cursor=pointer]:
+                - generic [ref=f3e222]: 创建计划
+    - contentinfo [ref=f3e223]:
+      - generic [ref=f3e224]: StarMap · 人才能力星云导航系统
+      - generic [ref=f3e225]: "|"
+      - generic [ref=f3e226]: XH-202621

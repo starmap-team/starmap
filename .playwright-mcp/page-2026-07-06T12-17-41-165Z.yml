@@ -1,0 +1,114 @@
+- generic [ref=f3e3]:
+  - banner [ref=f3e4]:
+    - button "菜单" [ref=f3e5] [cursor=pointer]
+    - link "StarMap" [ref=f3e9] [cursor=pointer]:
+      - /url: /
+      - img [ref=f3e10]
+      - generic [ref=f3e13]: StarMap
+    - button [ref=f3e14] [cursor=pointer]:
+      - img [ref=f3e16]
+  - generic [ref=f3e19]:
+    - generic [ref=f3e21]:
+      - generic [ref=f3e22]: 首页
+      - generic [ref=f3e23]: /
+      - generic [ref=f3e24]: 管理后台
+    - main [ref=f3e25]:
+      - generic [ref=f3e26]:
+        - generic [ref=f3e28]:
+          - heading "管理后台" [level=2] [ref=f3e29]
+          - paragraph [ref=f3e30]: 人工审核、图谱节点管理、数据源配置与演示数据管理
+        - generic [ref=f3e31]:
+          - tablist [ref=f3e35]:
+            - tab "审核队列" [selected] [ref=f3e37]
+            - tab "图谱节点管理" [ref=f3e38]
+            - tab "数据源配置" [ref=f3e39]
+            - tab "演示数据管理" [ref=f3e40]
+          - tabpanel "审核队列" [ref=f3e42]:
+            - generic [ref=f3e45]:
+              - generic [ref=f3e47]:
+                - table [ref=f3e49]:
+                  - rowgroup [ref=f3e56]:
+                    - row "ID 类型 名称 按 名称 排序 信任度 操作" [ref=f3e57]:
+                      - columnheader "ID" [ref=f3e58]:
+                        - generic [ref=f3e59]: ID
+                      - columnheader "类型" [ref=f3e60]:
+                        - generic [ref=f3e61]: 类型
+                      - columnheader "名称 按 名称 排序" [ref=f3e62] [cursor=pointer]:
+                        - generic [ref=f3e63]:
+                          - text: 名称
+                          - button "按 名称 排序" [ref=f3e64]
+                      - columnheader "信任度" [ref=f3e67]:
+                        - generic [ref=f3e68]: 信任度
+                      - columnheader "操作" [ref=f3e69]:
+                        - generic [ref=f3e70]: 操作
+                - table [ref=f3e75]:
+                  - rowgroup [ref=f3e82]:
+                    - row "1 技能 AI Agent Dev 58 58% 编辑 通过 拒绝" [ref=f3e83]:
+                      - cell "1" [ref=f3e84]:
+                        - generic [ref=f3e85]: "1"
+                      - cell "技能" [ref=f3e86]:
+                        - generic [ref=f3e89]: 技能
+                      - cell "AI Agent Dev" [ref=f3e90]:
+                        - generic [ref=f3e91]: AI Agent Dev
+                      - cell "58 58%" [ref=f3e92]:
+                        - generic [ref=f3e94]:
+                          - progressbar [ref=f3e95]:
+                            - generic [ref=f3e99]: 58%
+                          - generic [ref=f3e100]: 58%
+                      - cell "编辑 通过 拒绝" [ref=f3e101]:
+                        - generic [ref=f3e102]:
+                          - button "编辑" [ref=f3e103] [cursor=pointer]:
+                            - img [ref=f3e105]
+                            - generic [ref=f3e108]: 编辑
+                          - button "通过" [ref=f3e109] [cursor=pointer]:
+                            - generic [ref=f3e110]: 通过
+                          - button "拒绝" [ref=f3e111] [cursor=pointer]:
+                            - generic [ref=f3e112]: 拒绝
+              - generic [ref=f3e114]:
+                - generic [ref=f3e115]: 共 1 条
+                - generic [ref=f3e118] [cursor=pointer]:
+                  - generic:
+                    - combobox [ref=f3e120]
+                    - generic [ref=f3e121]: 10条/页
+                  - img [ref=f3e124]
+                - button "上一页" [disabled] [ref=f3e126]:
+                  - generic:
+                    - img
+                - list [ref=f3e127]:
+                  - listitem "第 1 页" [ref=f3e128]: "1"
+                - button "下一页" [disabled] [ref=f3e129]:
+                  - generic:
+                    - img
+              - dialog "编辑审核项" [ref=f3e135]:
+                - generic [ref=f3e136]:
+                  - heading "编辑审核项" [level=2] [ref=f3e137]
+                  - button "关闭此对话框" [ref=f3e138] [cursor=pointer]:
+                    - img [ref=f3e140]
+                - generic [ref=f3e143]:
+                  - group "类型" [ref=f3e144]:
+                    - generic [ref=f3e145]: 类型
+                    - generic [ref=f3e148]: 技能
+                  - generic [ref=f3e149]:
+                    - generic [ref=f3e150]: 名称
+                    - textbox "名称" [ref=f3e154]:
+                      - /placeholder: 请输入名称
+                      - text: AI Agent Dev
+                  - group "信任度" [ref=f3e155]:
+                    - generic [ref=f3e156]: 信任度
+                    - generic [ref=f3e158]:
+                      - slider "滑块介于 0 至 100" [ref=f3e161] [cursor=pointer]
+                      - generic [ref=f3e163]:
+                        - button "减少数值" [ref=f3e164] [cursor=pointer]:
+                          - img [ref=f3e166]
+                        - button "增加数值" [ref=f3e168] [cursor=pointer]:
+                          - img [ref=f3e170]
+                        - spinbutton [ref=f3e174]: "58"
+                - generic [ref=f3e175]:
+                  - button "取消" [ref=f3e176] [cursor=pointer]:
+                    - generic [ref=f3e177]: 取消
+                  - button "保存" [ref=f3e178] [cursor=pointer]:
+                    - generic [ref=f3e179]: 保存
+    - contentinfo [ref=f3e130]:
+      - generic [ref=f3e131]: StarMap · 人才能力星云导航系统
+      - generic [ref=f3e132]: "|"
+      - generic [ref=f3e133]: XH-202621

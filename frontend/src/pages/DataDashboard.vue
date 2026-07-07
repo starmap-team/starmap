@@ -359,20 +359,20 @@ function getPlaceholderTrend() {
       type: 'category',
       data: days,
       axisLine: { lineStyle: { color: 'rgba(224, 230, 237, 0.15)' } },
-      axisLabel: { color: 'rgba(224, 230, 237, 0.3)', fontSize: 10 },
+      axisLabel: { color: cc.foreground + '4D', fontSize: 10 },
       axisTick: { show: false },
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: 'rgba(224, 230, 237, 0.3)', fontSize: 10 },
-      splitLine: { lineStyle: { color: 'rgba(224, 230, 237, 0.06)' } },
+      axisLabel: { color: cc.foreground + '4D', fontSize: 10 },
+      splitLine: { lineStyle: { color: cc.foreground + '0F' } },
     },
     series: [{
       type: 'line',
       smooth: true,
       symbol: 'none',
-      lineStyle: { color: 'rgba(0, 212, 255, 0.3)', width: 2 },
-      areaStyle: { color: 'rgba(0, 212, 255, 0.05)' },
+      lineStyle: { color: cc.chart[0] + '4D', width: 2 },
+      areaStyle: { color: cc.chart[0] + '0D' },
       data: [0, 0, 0, 0, 0, 0, 0],
     }],
   }
@@ -397,19 +397,19 @@ const radarOption = computed(() => {
       shape: 'polygon',
       splitNumber: 4,
       axisName: {
-        color: 'rgba(224, 230, 237, 0.6)',
+        color: cc.muted,
         fontSize: 10,
       },
       splitLine: {
-        lineStyle: { color: 'rgba(224, 230, 237, 0.08)' },
+        lineStyle: { color: cc.foreground + '14' },
       },
       splitArea: {
         areaStyle: {
-          color: ['rgba(0, 212, 255, 0.02)', 'rgba(0, 212, 255, 0.04)', 'rgba(0, 212, 255, 0.02)', 'rgba(0, 212, 255, 0.04)'],
+          color: [cc.chart[0] + '05', cc.chart[0] + '0A', cc.chart[0] + '05', cc.chart[0] + '0A'],
         },
       },
       axisLine: {
-        lineStyle: { color: 'rgba(224, 230, 237, 0.1)' },
+        lineStyle: { color: cc.foreground + '1A' },
       },
     },
     series: [{
@@ -418,16 +418,16 @@ const radarOption = computed(() => {
         {
           value: top.map(s => Math.round(s.growth_rate * 100)),
           name: '增长率',
-          lineStyle: { color: '#00d4ff', width: 2 },
-          itemStyle: { color: '#00d4ff' },
-          areaStyle: { color: 'rgba(0, 212, 255, 0.15)' },
+          lineStyle: { color: cc.chart[0], width: 2 },
+          itemStyle: { color: cc.chart[0] },
+          areaStyle: { color: cc.chart[0] + '26' },
         },
         {
           value: top.map(s => Math.round(s.relevance * 100)),
           name: '相关度',
-          lineStyle: { color: '#7b61ff', width: 2 },
-          itemStyle: { color: '#7b61ff' },
-          areaStyle: { color: 'rgba(123, 97, 255, 0.12)' },
+          lineStyle: { color: cc.chart[2], width: 2 },
+          itemStyle: { color: cc.chart[2] },
+          areaStyle: { color: cc.chart[2] + '1F' },
         },
       ],
     }],
@@ -441,8 +441,8 @@ function getPlaceholderRadar() {
       indicator: indicators,
       shape: 'polygon',
       splitNumber: 4,
-      axisName: { color: 'rgba(224, 230, 237, 0.3)', fontSize: 10 },
-      splitLine: { lineStyle: { color: 'rgba(224, 230, 237, 0.06)' } },
+      axisName: { color: cc.foreground + '4D', fontSize: 10 },
+      splitLine: { lineStyle: { color: cc.foreground + '0F' } },
       splitArea: { show: false },
       axisLine: { lineStyle: { color: 'rgba(224, 230, 237, 0.08)' } },
     },
@@ -471,10 +471,10 @@ const pipelineStages = computed(() => {
 })
 
 const statusColor: Record<string, string> = {
-  running: '#00d4ff',
-  completed: '#00ff88',
-  failed: '#ff6b6b',
-  waiting: 'rgba(224, 230, 237, 0.2)',
+  running: cc.info,
+  completed: cc.success,
+  failed: cc.danger,
+  waiting: cc.muted + '33',
 }
 
 // ── Event stream display ──
