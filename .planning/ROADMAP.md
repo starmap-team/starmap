@@ -143,9 +143,17 @@ Plans:
 
 ---
 
-## Phase 5: 样式统一与体验优化
+## Phase 5: 样式统一与体验优化 ✓
 
 **Goal:** 统一设计系统，合并颜色源，清理死代码，提升用户体验一致性。
+
+**Plans:** 4/4 plans complete
+
+Plans:
+- [x] 05-01-PLAN.md — ECHARTS_PALETTE + DataDashboard 迁移 (COLOR-01~04, STYLE-01)
+- [x] 05-02-PLAN.md — NodeTooltip3D Slate 替换 + design-tokens 补全 (COLOR-03, STYLE-04)
+- [x] 05-03-PLAN.md — 2D/3D KA 一致性 Playwright harness (COLOR-04)
+- [x] 05-04-PLAN.md — P5 收尾验证 + STATE 更新
 
 **Requirements:**
 - STYLE-01 ~ STYLE-04 (4) — Design Tokens统一
@@ -170,6 +178,7 @@ Plans:
 - `frontend/src/components/Graph3D.vue` — console.log
 - `backend/app/api/v1/graph.py` — 死端点删除
 - `frontend/src/pages/PipelineAnalysis.vue` — design tokens
+- `tests/e2e/test_2d_3d_color_consistency.py` — Playwright harness
 
 ---
 
