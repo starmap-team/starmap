@@ -11,28 +11,12 @@ import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import MainLayout from '@/layouts/MainLayout.vue'
-import request from '@/api/request'
+import { useEvolutionStore } from '@/stores/evolution'
 import { chartColors, tooltipStyle, splitLineStyle, gaugeColor, legendStyle } from '@/utils/chartTheme'
 
 use([CanvasRenderer, LineChart, BarChart, GaugeChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
 
-interface TrendItem {
-  skill_name: string
-  trend: string
-  confidence: number
-  points: number[]
-  related_positions: string[]
-}
-
-interface SnapshotEntry {
-  id: string
-  position_name: string
-  snapshot_date: string
-  required_skills: any[]
-  preferred_skills?: any[]
-  source_count: number
-}
-
+const evo = useEvolutionStore()
 
 // Format CII change percentage with rounding to 1 decimal to avoid float-precision noise
 function formatChange(points: number[] | undefined): string {
@@ -43,16 +27,18 @@ function formatChange(points: number[] | undefined): string {
   return sign + delta.toFixed(1) + '%'
 }
 
-const loading = ref(false)
-const quarters = ref<string[]>([])
-const items = ref<TrendItem[]>([])
 const selectedSkill = ref('')
-
-// 快照时间线 (EVOLVE-FE-04 / D-10)
-const snapshots = ref<SnapshotEntry[]>([])
-const snapshotsLoading = ref(false)
 const selectedSnapshotDate = ref<string>('')
 const snapshotIndex = ref<number>(0)
+
+// Aliases for template binding (store-backed)
+const items = computed(() => evo.trendItems)
+const quarters = computed(() => evo.quarters)
+const snapshots = computed(() => evo.snapshots)
+const snapshotsLoading = computed(() => evo.snapshotsLoading)
+const changelogData = computed(() => evo.changelogData)
+const changelogLoading = computed(() => evo.changelogLoading)
+const loading = computed(() => evo.loading)
 const sliderMarks = computed<Record<number, string>>(() => {
   const marks: Record<number, string> = {}
   const step = Math.max(1, Math.floor(snapshots.value.length / 6))
@@ -70,8 +56,6 @@ const compareSkillB = ref('')
 
 // 演化详情面板
 const drawerVisible = ref(false)
-const changelogLoading = ref(false)
-const changelogData = ref<any[]>([])
 const selectedSkillForDetail = ref('')
 
 const trendLabel: Record<string, string> = { rising: '↑ 上升', stable: '→ 平稳', declining: '↓ 下降' }
@@ -87,37 +71,24 @@ const changeTypeLabel: Record<string, string> = {
 const SERIES_COLORS = chartColors().chart
 
 async function fetchTrends() {
-  loading.value = true
   try {
-    const data = await request.get('/evolution/trends')
-    quarters.value = (data as any).quarters ?? []
-    items.value = (data as any).items ?? []
+    await evo.fetchTrends()
   } catch (e) {
     console.error('[Evolution] Failed to fetch trends:', e)
     ElMessage.error('演化趋势数据加载失败')
-  } finally {
-    loading.value = false
   }
 }
 
 // EVOLVE-FE-04/D-10: 快照列表（驱动时间线滑块）
 async function fetchSnapshots() {
-  snapshotsLoading.value = true
   try {
-    const data = await request.get('/evolution/snapshots?limit=50')
-    const list = Array.isArray(data) ? data : []
-    snapshots.value = [...list].sort((a, b) =>
-      String(a.snapshot_date).localeCompare(String(b.snapshot_date))
-    )
-    if (snapshots.value.length > 0) {
-      snapshotIndex.value = snapshots.value.length - 1
-      selectedSnapshotDate.value = snapshots.value[snapshots.value.length - 1].snapshot_date
+    await evo.fetchSnapshots()
+    if (evo.snapshots.length > 0) {
+      snapshotIndex.value = evo.snapshots.length - 1
+      selectedSnapshotDate.value = evo.snapshots[evo.snapshots.length - 1].snapshot_date
     }
   } catch (e) {
     console.error('[Evolution] Failed to fetch snapshots:', e)
-    snapshots.value = []
-  } finally {
-    snapshotsLoading.value = false
   }
 }
 
@@ -231,15 +202,10 @@ const compareOption = computed(() => {
 async function fetchChangelog(skillName: string) {
   selectedSkillForDetail.value = skillName
   drawerVisible.value = true
-  changelogLoading.value = true
   try {
-    const data = await request.get(`/evolution/changelog/${encodeURIComponent(skillName)}`)
-    changelogData.value = Array.isArray(data) ? data : ((data as any).changelog ?? (data as any).items ?? [])
+    await evo.fetchChangelog(skillName)
   } catch (e) {
     console.error('[Evolution] Failed to fetch changelog:', e)
-    changelogData.value = []
-  } finally {
-    changelogLoading.value = false
   }
 }
 

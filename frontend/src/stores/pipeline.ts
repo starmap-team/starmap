@@ -9,6 +9,10 @@ import request from '@/api/request'
 import type { QualityAlert } from '@/types/quality'
 import type { DataSourceDetail } from '@/types/datasource'
 
+// Re-export for backward compatibility
+export type { QualityAlert } from '@/types/quality'
+export type { DataSourceDetail as DataSource } from '@/types/datasource'
+
 // ── 类型定义 ──
 
 export interface PipelineStage {
@@ -64,16 +68,7 @@ export interface DataQualityMetrics {
   consistency: number
   timeliness: number
   trend: Array<{ date: string; score: number }>
-  alerts: Array<{
-    level: 'info' | 'warning' | 'error'
-    dimension?: string
-    message: string
-    source?: string
-    value?: number
-    threshold?: number
-    timestamp: string
-    time: string  // Pydantic alias of timestamp
-  }>
+  alerts: QualityAlert[]
 }
 
 // ── Phase 1 SSE 事件类型 (D-10) ──

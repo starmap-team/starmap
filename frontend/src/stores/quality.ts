@@ -4,6 +4,9 @@ import request from '@/api/request'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'
 import type { QualityAlert } from '@/types/quality'
 
+// Re-export for backward compatibility
+export type { QualityAlert } from '@/types/quality'
+
 export interface QualityMetrics {
   precision: number
   recall: number

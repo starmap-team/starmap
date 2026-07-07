@@ -6,50 +6,60 @@ import types
 
 import pytest
 
+from app.core.extraction.graph_writer import skill_entry_category, skill_entry_name
 from app.tasks import stage3_services as s
 
 
 # ---------------------------------------------------------------------------
-# _skill_name
+# skill_entry_name (shared from graph_writer)
 # ---------------------------------------------------------------------------
 class TestSkillName:
     def test_plain_string(self) -> None:
-        assert s._skill_name("Python") == "Python"
+        assert skill_entry_name("Python") == "Python"
 
     def test_dict_with_name(self) -> None:
-        assert s._skill_name({"name": "Go"}) == "Go"
+        assert skill_entry_name({"name": "Go"}) == "Go"
 
     def test_dict_with_skill_key(self) -> None:
-        assert s._skill_name({"skill": "Rust"}) == "Rust"
+        assert skill_entry_name({"skill": "Rust"}) == "Rust"
+
+    def test_dict_with_title_key(self) -> None:
+        assert skill_entry_name({"title": "Kubernetes"}) == "Kubernetes"
 
     def test_dict_unknown_key_returns_empty(self) -> None:
-        assert s._skill_name({"unknown": None}) == ""
+        assert skill_entry_name({"unknown": None}) == ""
 
     def test_whitespace_stripped(self) -> None:
-        assert s._skill_name("  Docker  ") == "Docker"
+        assert skill_entry_name("  Docker  ") == "Docker"
 
     def test_empty_dict(self) -> None:
-        assert s._skill_name({}) == ""
+        assert skill_entry_name({}) == ""
 
     def test_int_coerced_to_string(self) -> None:
-        assert s._skill_name(42) == "42"
+        assert skill_entry_name(42) == "42"
 
 
 # ---------------------------------------------------------------------------
-# _skill_category
+# skill_entry_category (shared from graph_writer, default='general' for stage3)
 # ---------------------------------------------------------------------------
 class TestSkillCategory:
     def test_string_returns_general(self) -> None:
-        assert s._skill_category("x") == "general"
+        assert skill_entry_category("x", default="general") == "general"
 
     def test_dict_with_category(self) -> None:
-        assert s._skill_category({"category": "backend"}) == "backend"
+        assert skill_entry_category({"category": "backend"}, default="general") == "backend"
 
     def test_dict_without_category(self) -> None:
-        assert s._skill_category({"name": "Go"}) == "general"
+        assert skill_entry_category({"name": "Go"}, default="general") == "general"
 
     def test_none_returns_general(self) -> None:
-        assert s._skill_category(None) == "general"
+        assert skill_entry_category(None, default="general") == "general"
+
+    def test_default_skill(self) -> None:
+        assert skill_entry_category("x") == "skill"
+
+    def test_category_lowered(self) -> None:
+        assert skill_entry_category({"category": "Hard_Skill"}, default="general") == "hard_skill"
 
 
 # ---------------------------------------------------------------------------

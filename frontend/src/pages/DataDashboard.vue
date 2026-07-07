@@ -28,7 +28,8 @@ import { useDashboardStore } from '@/stores/dashboard'
 import { useSSE } from '@/composables/useSSE'
 import { chartAnimationConfig, chartColors, tooltipStyle } from '@/utils/chartTheme'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'
-import type { RealtimeEvent, EmergingSkill } from '@/stores/dashboard'
+import type { RealtimeEvent } from '@/stores/dashboard'
+import type { EmergingSkill } from '@/types/evolution'
 
 use([
   PieChart,

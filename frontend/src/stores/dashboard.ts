@@ -5,6 +5,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
+import type { EmergingSkill } from '@/types/evolution'
+
+// Re-export for backward compatibility
+export type { EmergingSkill } from '@/types/evolution'
 
 // ── 类型定义 ──
 
@@ -71,14 +75,7 @@ export interface PipelineTimelineItem {
   progress: number
 }
 
-export interface EmergingSkill {
-  name: string
-  frequency: number
-  growth_rate: number
-  relevance: number
-  novelty: number
-  domain: string
-}
+// ponytail: EmergingSkill removed — canonical type in types/evolution.ts
 
 // ── Store 定义 ──
 

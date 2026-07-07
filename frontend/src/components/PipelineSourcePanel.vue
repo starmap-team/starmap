@@ -4,10 +4,10 @@
  * 展示数据源卡片列表或空状态
  */
 import DataSourceCard from '@/components/DataSourceCard.vue'
-import type { DataSource } from '@/stores/pipeline'
+import type { DataSourceDetail } from '@/types/datasource'
 
 defineProps<{
-  dataSources: DataSource[]
+  dataSources: DataSourceDetail[]
   loading: boolean
 }>()
 </script>

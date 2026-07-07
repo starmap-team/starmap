@@ -8,6 +8,9 @@ import { ref } from 'vue'
 import request from '@/api/request'
 import type { DataSourceDetail } from '@/types/datasource'
 
+// Re-export for backward compatibility
+export type { DataSourceDetail } from '@/types/datasource'
+
 // ── 类型定义 ──
 
 // ponytail: DataSourceDetail removed — canonical type in types/datasource.ts

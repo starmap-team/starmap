@@ -10,7 +10,12 @@ from loguru import logger
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.extraction.graph_writer import GraphConfig, batch_write_extractions, skill_entry_category, skill_entry_name
+from app.core.extraction.graph_writer import (
+    GraphConfig,
+    batch_write_extractions,
+    skill_entry_category,
+    skill_entry_name,
+)
 from app.core.extraction.jd_extract import extract_from_jd, mask_pii
 from app.db.session import get_async_engine
 from app.models.extraction_models import (
@@ -123,7 +128,7 @@ async def persist_extraction_result(
             skill_name = skill_entry_name(entry)
             if not skill_name:
                 continue
-            skill = await _upsert_skill(session, skill_name, _skill_category(entry))
+            skill = await _upsert_skill(session, skill_name, skill_entry_category(entry, default="general"))
             await _ensure_position_skill_relation(
                 session,
                 position.id,
@@ -249,7 +254,7 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
                         if not skill_name:
                             continue
                         skill_counts[skill_name] += 1
-                        skill_categories.setdefault(skill_name, _skill_category(entry))
+                        skill_categories.setdefault(skill_name, skill_entry_category(entry, default="general"))
                         related_positions[skill_name].add(position_name)
 
             for skill_name, count in skill_counts.items():
