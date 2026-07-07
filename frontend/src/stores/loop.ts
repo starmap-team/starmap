@@ -1,6 +1,14 @@
 /**
  * 闭环演示 Pinia Store
  * 管理闭环运行状态、步骤结果、历史记录
+ *
+ * Phase 6 D-13 disposition: this store stays as its own file rather than being
+ * mechanically merged into `pipeline.ts`. The two stores cover different state domains
+ * (DAG scheduling vs 闭环 5-step pipeline) and the only overlap is the underlying
+ * axios `request` import. A mechanical merge would couple unrelated domains and force
+ * store-level refactor of every consumer (`pages/LoopDemo.vue`, `pages/PipelineMonitor.vue`).
+ * When pipeline orchestration and closed-loop orchestration actually share state
+ * (Phase 7+), revisit — until then this is the cheaper cut.
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'

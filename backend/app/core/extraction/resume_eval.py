@@ -10,6 +10,11 @@ Pipeline:
 
 Usage:
     from app.core.extraction.resume_eval import build_golden_set, evaluate_f1, run_resume_evaluation
+
+Phase 6 D-15 disposition: ``run_resume_evaluation`` is still imported on the main-path
+by ``backend/app/api/v1/quality.py:517`` (the `/quality/dashboard` route), so this module
+stays in place. When quality.py moves to ``evaluation/`` (Phase 7+), this module should
+travel with it. Do not delete without auditing all callers first.
 """
 
 from __future__ import annotations
