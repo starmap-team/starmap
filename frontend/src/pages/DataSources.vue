@@ -4,8 +4,7 @@
  * 网格卡片布局展示5个数据源（BOSS/拉勾/51Job/GitHub/ESCO）
  * 每个卡片含：权威度评分环形图、日采集量柱状图、数据质量评分、最后同步时间、一键同步按钮
  */
-import { onMounted, ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { onMounted, computed } from 'vue'
 import { Connection, Coin, DataLine, RefreshRight, Loading as LoadingIcon, WarningFilled } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -13,7 +12,6 @@ import { GaugeChart, BarChart } from 'echarts/charts'
 import { TooltipComponent, GridComponent } from 'echarts/components'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useDataSourceStore } from '@/stores/datasource'
-import type { DataSourceDetail } from '@/stores/datasource'
 import { chartColors } from '@/utils/chartTheme'
 import {
   getAuthorityGaugeOption,
@@ -23,6 +21,7 @@ import {
   formatLastCrawl,
   formatRecords,
 } from '@/composables/useDataSourceCharts'
+import { useDataSourceSync } from '@/composables/useDataSourceActions'
 
 use([GaugeChart, BarChart, TooltipComponent, GridComponent])
 
@@ -30,29 +29,11 @@ const dsStore = useDataSourceStore()
 // ponytail: chartColors re-exported for template KPI card :style bindings
 const cc = chartColors()
 
-const syncingIds = ref<Set<string>>(new Set())
+const { syncingIds, handleSync } = useDataSourceSync(dsStore)
 
 onMounted(() => {
   dsStore.fetchSources()
 })
-
-// ── 一键同步 ──
-async function handleSync(source: DataSourceDetail) {
-  if (syncingIds.value.has(source.id)) return
-  syncingIds.value.add(source.id)
-  try {
-    const ok = await dsStore.triggerSync(source.id)
-    if (ok) {
-      ElMessage.success(`${source.name} 同步已触发`)
-    } else {
-      ElMessage.error(`${source.name} 同步失败`)
-    }
-  } catch {
-    ElMessage.error(`${source.name} 同步失败`)
-  } finally {
-    syncingIds.value.delete(source.id)
-  }
-}
 
 // ── 汇总统计 ──
 const summaryStats = computed(() => {
