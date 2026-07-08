@@ -11,7 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver
-from app.services.match_service import get_match_result, run_match
+from app.services.match_service import compute_competitiveness, get_match_result, run_match
 
 router = APIRouter(prefix="/match", tags=["match"])
 
@@ -138,6 +138,20 @@ async def match_history(
     except Exception as exc:
         logger.warning("Failed to fetch match history: {}", exc)
         return {"items": []}
+
+
+@router.get("/competitiveness/{position}")
+async def get_competitiveness(
+    position: str,
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, Any]:
+    """Return competitiveness analysis for a target position."""
+    return await compute_competitiveness(
+        target_position=position,
+        driver=driver,
+        db_session=session,
+    )
 
 
 @router.post("/batch")

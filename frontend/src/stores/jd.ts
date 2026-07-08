@@ -15,6 +15,22 @@ export interface JdRaw {
   publish_date: string
 }
 
+/** JD extraction result from /extract/jd */
+interface JDExtractResult {
+  position_name?: string
+  required_skills?: { skill?: string; name?: string; category?: string; proficiency?: string }[]
+  preferred_skills?: { skill?: string; name?: string; category?: string; proficiency?: string }[]
+  experience_required?: number | null
+  education_required?: string | null
+  responsibilities?: string[]
+  confidence?: number
+  hallucination_score?: number | null
+  normalized_skills?: { skill?: string; method?: string; confidence?: number }[]
+  skills?: { name: string; category: string; confidence: number; is_new: boolean }[]
+  position?: string
+  [key: string]: unknown
+}
+
 /** Default page size for position list queries */
 const DEFAULT_PAGE_SIZE = 100
 
@@ -76,15 +92,14 @@ export const useJdStore = defineStore('jd', () => {
   }
 
   // ── JD Extraction (migrated from ExtractJD.vue — M23) ──
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const extractResult = ref<any>(null)
+  const extractResult = ref<JDExtractResult | null>(null)
   const extractLoading = ref(false)
 
   async function extractJd(jdContent: string) {
     extractLoading.value = true
     extractResult.value = null
     try {
-      const data = await request.post('/extract/jd', { jd_content: jdContent }, { timeout: 120000 })
+      const data = await request.post('/extract/jd', { jd_content: jdContent }, { timeout: 120000 }) as JDExtractResult
       extractResult.value = data
       return data
     } finally {

@@ -84,8 +84,8 @@ export const useMatchStore = defineStore('match', () => {
 
   async function fetchPositionSkills(positionId: string): Promise<PositionSkills | null> {
     try {
-      const data = await request.get(`/graph/position/${positionId}/skills`)
-      return (data as any).skills ?? (data as unknown as PositionSkills)
+      const data = await request.get(`/graph/position/${positionId}/skills`) as PositionSkillsResponse
+      return data.skills ?? (data as unknown as PositionSkills)
     } catch {
       return null
     }
@@ -99,11 +99,20 @@ export const useMatchStore = defineStore('match', () => {
     created_at?: string
   }
 
+  interface PositionSkillsResponse {
+    skills?: PositionSkills
+    position?: { name: string; industry: string; description: string }
+  }
+
+  interface MatchHistoryResponse {
+    items: MatchHistoryItem[]
+  }
+
   const historyList = ref<MatchHistoryItem[]>([])
 
   async function fetchHistory() {
     try {
-      const data = await request.get('/match/history', { params: { limit: 10 } }) as any
+      const data = await request.get('/match/history', { params: { limit: 10 } }) as MatchHistoryResponse
       historyList.value = data.items ?? []
     } catch {
       historyList.value = []

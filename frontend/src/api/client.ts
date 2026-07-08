@@ -71,9 +71,11 @@ export const api = {
     typedGet(`/positions/${positionId}`),
 
   // Match
-  // ponytail: /match/run not in schema — /match/position is the typed equivalent
-  runMatch: (body: unknown) =>
-    typedPost('/match/run', body),
+  // ponytail: body cast to match schema type; store callers use varying shapes
+  // migrate to direct RequestBody<'/match/position','post'> when stores align
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  runMatch: (body: any) =>
+    typedPost('/match/position', body),
 
   // Evolution
   getEvolutionTrends: (params?: Record<string, unknown>) =>
