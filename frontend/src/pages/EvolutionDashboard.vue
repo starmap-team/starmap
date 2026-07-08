@@ -4,7 +4,6 @@
  * Task 3 增强: 技能趋势时间线、新兴技能卡片、CII仪表盘、技能对比
  */
 import { ref, onMounted, computed } from 'vue'
-import { ElMessage } from 'element-plus'
 import { use } from 'echarts/core'
 import { LineChart, BarChart, GaugeChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
@@ -14,24 +13,16 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import { useEvolutionStore } from '@/stores/evolution'
 import type { TrendItem } from '@/stores/evolution'
 import { useEvolutionCharts } from '@/composables/useEvolutionCharts'
+import { useEvolutionActions } from '@/composables/useEvolutionActions'
+import { formatChange, TREND_LABEL, TREND_TAG_TYPE } from '@/composables/useEvolutionFormatters'
+// ponytail: alias uppercase constants to camelCase for template binding without renaming template
+const trendLabel = TREND_LABEL
+const trendTagType = TREND_TAG_TYPE
 import EvolutionChangelogDrawer from '@/components/EvolutionChangelogDrawer.vue'
 
 use([CanvasRenderer, LineChart, BarChart, GaugeChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
 
 const evo = useEvolutionStore()
-
-// Format CII change percentage with rounding to 1 decimal to avoid float-precision noise
-function formatChange(points: number[] | undefined): string {
-  if (!points?.length) return '-'
-  const last = points[points.length - 1]
-  const delta = last - 100
-  const sign = delta >= 0 ? '+' : ''
-  return sign + delta.toFixed(1) + '%'
-}
-
-const selectedSkill = ref('')
-const selectedSnapshotDate = ref<string>('')
-const snapshotIndex = ref<number>(0)
 
 // Aliases for template binding (store-backed)
 const items = computed(() => evo.trendItems)
@@ -52,64 +43,32 @@ const sliderMarks = computed<Record<number, string>>(() => {
   return marks
 })
 
+const selectedSkill = ref('')
+
 // 技能对比
 const compareSkillA = ref('')
 const compareSkillB = ref('')
 
-// 演化详情面板
-const drawerVisible = ref(false)
-const selectedSkillForDetail = ref('')
-
-const trendLabel: Record<string, string> = { rising: '↑ 上升', stable: '→ 平稳', declining: '↓ 下降' }
-const trendTagType: Record<string, string> = { rising: 'success', stable: 'info', declining: 'danger' }
-
 // Chart options — extracted to composable
 const { chartOption, emergingSkills, ciiGaugeOption, compareOption } = useEvolutionCharts(
-  items, quarters, selectedSkill, compareSkillA, compareSkillB
+  items, quarters, selectedSkill, compareSkillA, compareSkillB,
 )
 
-async function fetchTrends() {
-  try {
-    await evo.fetchTrends()
-  } catch (e) {
-    console.error('[Evolution] Failed to fetch trends:', e) // ponytail: error logging before user-facing message
-    ElMessage.error('演化趋势数据加载失败')
-  }
-}
-
-async function fetchSnapshots() {
-  try {
-    await evo.fetchSnapshots()
-    if (evo.snapshots.length > 0) {
-      snapshotIndex.value = evo.snapshots.length - 1
-      selectedSnapshotDate.value = evo.snapshots[evo.snapshots.length - 1].snapshot_date
-    }
-  } catch (e) {
-    console.error('[Evolution] Failed to fetch snapshots:', e)
-  }
-}
-
-function onSnapshotChange(idx: number | number[]) {
-  const i = Array.isArray(idx) ? idx[0] : idx
-  const snap = snapshots.value[i]
-  if (!snap) return
-  selectedSnapshotDate.value = snap.snapshot_date
-  ElMessage.info(`已切换到快照 ${snap.snapshot_date}（${snap.position_name}）`)
-}
-
-async function fetchChangelog(skillName: string) {
-  selectedSkillForDetail.value = skillName
-  drawerVisible.value = true
-  try {
-    await evo.fetchChangelog(skillName)
-  } catch (e) {
-    console.error('[Evolution] Failed to fetch changelog:', e)
-  }
-}
+// Drawer / fetch handlers / snapshot state (extracted — Phase 7 D round 8)
+const {
+  drawerVisible,
+  selectedSkillForDetail,
+  snapshotIndex,
+  selectedSnapshotDate,
+  fetchTrends,
+  fetchSnapshots,
+  fetchChangelog,
+  onSnapshotChange,
+} = useEvolutionActions(evo)
 
 onMounted(() => {
-  fetchTrends()
-  fetchSnapshots()
+  void fetchTrends()
+  void fetchSnapshots()
 })
 </script>
 
