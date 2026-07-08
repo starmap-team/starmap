@@ -4,7 +4,7 @@
  * 网格卡片布局展示5个数据源（BOSS/拉勾/51Job/GitHub/ESCO）
  * 每个卡片含：权威度评分环形图、日采集量柱状图、数据质量评分、最后同步时间、一键同步按钮
  */
-import { onMounted, computed } from 'vue'
+import { onMounted } from 'vue'
 import { Connection, Coin, DataLine, RefreshRight, Loading as LoadingIcon, WarningFilled } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -22,6 +22,7 @@ import {
   formatRecords,
 } from '@/composables/useDataSourceCharts'
 import { useDataSourceSync } from '@/composables/useDataSourceActions'
+import { useDataSourceSummary } from '@/composables/useDataSourceSummary'
 
 use([GaugeChart, BarChart, TooltipComponent, GridComponent])
 
@@ -30,22 +31,10 @@ const dsStore = useDataSourceStore()
 const cc = chartColors()
 
 const { syncingIds, handleSync } = useDataSourceSync(dsStore)
+const summaryStats = useDataSourceSummary(dsStore)
 
 onMounted(() => {
   dsStore.fetchSources()
-})
-
-// ── 汇总统计 ──
-const summaryStats = computed(() => {
-  const src = dsStore.sources
-  return {
-    total: src.length,
-    active: src.filter(s => s.status === 'active').length,
-    totalRecords: src.reduce((sum, s) => sum + s.total_records, 0),
-    avgQuality: src.length
-      ? (src.reduce((sum, s) => sum + s.avg_quality_score, 0) / src.length)
-      : 0,
-  }
 })
 </script>
 
