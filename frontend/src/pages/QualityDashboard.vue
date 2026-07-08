@@ -3,214 +3,59 @@
  * 图谱质量仪表盘 — R6 曾洋涛
  * 4 指标卡（含趋势箭头）+ 信任度直方图 + 幻觉率趋势 + 数据源饼图 + 审核队列
  */
-import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RefreshRight } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useQualityStore } from '@/stores/quality'
 import { useAdminStore } from '@/stores/admin'
-import { chartColors, tooltipStyle, legendStyle } from '@/utils/chartTheme'
+import { chartColors } from '@/utils/chartTheme'
 import QualityTrendChart from '@/components/QualityTrendChart.vue'
 import AlertList from '@/components/AlertList.vue'
+import { useQualityDashboardCharts, useQualityAutoRefresh } from '@/composables/useQualityDashboardCharts'
 
 const quality = useQualityStore()
 const admin = useAdminStore()
+// ponytail: chartColors re-exported for template el-progress :color binding
+const cc = chartColors()
+const {
+  kpiCardsEnhanced,
+  histogramOption,
+  trendChartOption,
+  sourceChartOption,
+} = useQualityDashboardCharts(quality)
 
 // 自动刷新
 const autoRefresh = ref(true)
 const refreshInterval = ref(30) // 秒
-let timer: ReturnType<typeof setInterval> | null = null
-const lastRefresh = ref('')
+const { lastRefresh, start: startAutoRefresh } = useQualityAutoRefresh(quality, refreshInterval, autoRefresh)
 
 // ── Sprint 1.2: Tab 状态 ──
 const activeTab = ref('overview')
 const trendPeriod = ref<'7d' | '30d' | '90d'>('7d')
 
-function startAutoRefresh() {
-  if (timer) clearInterval(timer)
-  if (autoRefresh.value) {
-    timer = setInterval(() => {
-      quality.fetchQuality().then(() => {
-        lastRefresh.value = new Date().toLocaleTimeString()
-      })
-    }, refreshInterval.value * 1000)
-  }
-}
-
 onMounted(() => {
-  quality.fetchQuality().then(() => {
+  void quality.fetchQuality().then(() => {
     lastRefresh.value = new Date().toLocaleTimeString()
   })
-  quality.fetchTrends('7d')
-  quality.fetchAlerts()
+  void quality.fetchTrends('7d')
+  void quality.fetchAlerts()
   startAutoRefresh()
-})
-
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
 })
 
 function toggleAutoRefresh(val: boolean) {
   autoRefresh.value = val
   if (val) {
-    startAutoRefresh()
     ElMessage.success(`已开启自动刷新（每${refreshInterval.value}秒）`)
   } else {
-    if (timer) clearInterval(timer)
     ElMessage.info('已关闭自动刷新')
   }
 }
 
-// ── KPI 卡片（含趋势箭头）──
-const kpiCardsEnhanced = computed(() => {
-  if (!quality.metrics) return []
-  const m = quality.metrics
-  return [
-    {
-      label: '总节点数',
-      value: m.total_nodes.toLocaleString(),
-      sub: `周新增 +${m.weekly_new_nodes}`,
-      trend: 'up',
-      color: chartColors().primary,
-      icon: 'Grid',
-    },
-    {
-      label: '平均信任度',
-      value: (m.avg_trust_score * 100).toFixed(1) + '%',
-      sub: `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
-      trend: m.avg_trust_score >= 0.75 ? 'up' : 'down',
-      color: chartColors().success,
-      icon: 'DataLine',
-    },
-    {
-      label: '幻觉率',
-      value: (m.hallucination_rate * 100).toFixed(1) + '%',
-      sub: `审核通过率 ${(m.audit_pass_rate * 100).toFixed(0)}%`,
-      trend: m.hallucination_rate <= 0.08 ? 'down' : 'up',
-      color: chartColors().warning,
-      icon: 'WarningFilled',
-    },
-    {
-      label: '待审核',
-      value: String(m.pending_review),
-      sub: '条记录待处理',
-      trend: m.pending_review > 5 ? 'up' : 'down',
-      color: chartColors().danger,
-      icon: 'Clock',
-    },
-  ]
-})
-
-// ── 信任度分布直方图 ──
-const histogramOption = computed(() => {
-  if (!quality.metrics?.trust_distribution) return {}
-  const dist = quality.metrics.trust_distribution
-  return {
-    tooltip: {
-      ...tooltipStyle(),
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-    },
-    grid: { top: 16, bottom: 36, left: 48, right: 16 },
-    xAxis: {
-      type: 'category',
-      name: '信任度区间',
-      data: dist.map(d => d.range),
-      axisLabel: { fontSize: 11 },
-    },
-    yAxis: {
-      type: 'value',
-      name: '节点数',
-    },
-    series: [{
-      type: 'bar',
-      data: dist.map((d, i) => ({
-        value: d.count,
-        itemStyle: {
-          color: [chartColors().danger, chartColors().warning + '88', chartColors().warning, chartColors().success, chartColors().primary, chartColors().primary][i],
-          borderRadius: [4, 4, 0, 0],
-        },
-      })),
-      barWidth: '65%',
-      label: {
-        show: true,
-        position: 'top',
-        fontSize: 11,
-        color: chartColors().muted,
-      },
-    }],
-  }
-})
-
-// ── 幻觉趋势 + 预警线 ──
-const trendChartOption = computed(() => {
-  if (!quality.metrics?.hallucination_trend) return {}
-  return {
-    tooltip: { trigger: 'axis' },
-    grid: { top: 20, bottom: 28, left: 50, right: 20 },
-    xAxis: { type: 'category', data: quality.metrics.hallucination_trend.map(t => t.date) },
-    yAxis: {
-      type: 'value',
-      name: '幻觉率 (%)',
-      min: 0,
-      max: 20,
-    },
-    series: [{
-      type: 'line',
-      data: quality.metrics.hallucination_trend.map(t => ({
-        value: +(t.rate * 100).toFixed(1),
-      })),
-      smooth: true,
-      areaStyle: { opacity: 0.12, color: chartColors().warning },
-      lineStyle: { color: chartColors().warning, width: 2.5 },
-      itemStyle: { color: chartColors().warning },
-      symbolSize: 6,
-      markLine: {
-        silent: true,
-        symbol: 'none',
-        data: [{
-          yAxis: 10,
-          label: { formatter: '预警线 10%', fontSize: 11 },
-          lineStyle: { color: chartColors().danger, type: 'dashed', width: 2 },
-        }],
-      },
-    }],
-  }
-})
-
-// ── 数据源饼图 ──
-const sourceChartOption = computed(() => {
-  if (!quality.metrics?.source_distribution) return {}
-  return {
-    tooltip: { ...tooltipStyle(), trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
-    legend: { bottom: 0, textStyle: legendStyle() },
-    series: [{
-      type: 'pie',
-      radius: ['48%', '75%'],
-      center: ['50%', '45%'],
-      avoidLabelOverlap: false,
-      itemStyle: {
-        borderRadius: 4,
-        borderColor: chartColors().card,
-        borderWidth: 2,
-      },
-      label: { show: false },
-      emphasis: {
-        label: { show: true, fontSize: 14, fontWeight: 'bold' },
-        itemStyle: { shadowBlur: 12, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.25)' },
-      },
-      data: quality.metrics.source_distribution.map(s => ({
-        name: s.name,
-        value: s.count,
-      })),
-    }],
-  }
-})
-
 // ── Sprint 1.2: 趋势周期切换 ──
 function handleTrendPeriodChange(period: '7d' | '30d' | '90d') {
   trendPeriod.value = period
-  quality.fetchTrends(period)
+  void quality.fetchTrends(period)
 }
 
 // ── Sprint 1.2: 告警操作 ──
@@ -520,7 +365,7 @@ function handleIgnoreAlert(id: string | number) {
                   <el-progress
                     :percentage="row.trust"
                     :stroke-width="8"
-                    :color="row.trust >= 70 ? chartColors().success : row.trust >= 50 ? chartColors().warning : chartColors().danger"
+                    :color="row.trust >= 70 ? cc.success : row.trust >= 50 ? cc.warning : cc.danger"
                   />
                 </template>
               </el-table-column>
