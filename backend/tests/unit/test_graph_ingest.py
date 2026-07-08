@@ -98,6 +98,13 @@ async def test_run_build_graph_from_extractions(monkeypatch: pytest.MonkeyPatch)
         experience_years=5,
         education="BS",
         created_at=SimpleNamespace(),
+        to_extraction_payload=lambda: {
+            "position_name": "SRE",
+            "required_skills": [],
+            "preferred_skills": [],
+            "experience_required": 5,
+            "education_required": "BS",
+        },
     )
     fake_session = FakeSession(records=[fake_record])
 
@@ -105,9 +112,8 @@ async def test_run_build_graph_from_extractions(monkeypatch: pytest.MonkeyPatch)
         return fake_session
 
     monkeypatch.setattr(
-        s,
-        "create_async_engine",
-        lambda *_a, **_kw: SimpleNamespace(dispose=AsyncMock()),
+        "app.db.session.get_async_engine",
+        lambda: SimpleNamespace(dispose=AsyncMock()),
     )
     monkeypatch.setattr(
         s,
@@ -141,9 +147,8 @@ async def test_run_build_graph_clamps_limit(monkeypatch: pytest.MonkeyPatch) -> 
         return fake_session
 
     monkeypatch.setattr(
-        s,
-        "create_async_engine",
-        lambda *_a, **_kw: SimpleNamespace(dispose=AsyncMock()),
+        "app.db.session.get_async_engine",
+        lambda: SimpleNamespace(dispose=AsyncMock()),
     )
     monkeypatch.setattr(
         s,

@@ -89,7 +89,7 @@ def test_match_position_returns_enriched_contract(client):
         ],
     }
 
-    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+    with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
         resp = client.post("/api/v1/match/position", json=payload)
 
     assert resp.status_code == 200
@@ -123,7 +123,7 @@ def test_match_diagnose_alias_matches_position(client):
         "person_skills": [{"name": "Python", "proficiency": "精通"}],
     }
 
-    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+    with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
         resp = client.post("/api/v1/match/diagnose", json=payload)
 
     assert resp.status_code == 200

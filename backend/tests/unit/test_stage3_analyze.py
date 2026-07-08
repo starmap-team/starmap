@@ -50,6 +50,10 @@ def _make_record(
         "experience_required": experience_years,
         "education_required": education,
     }
+
+    def to_extraction_payload() -> dict:
+        return extracted_skills
+
     return SimpleNamespace(
         id=1,
         job_title=job_title,
@@ -57,6 +61,7 @@ def _make_record(
         experience_years=experience_years,
         education=education,
         created_at=SimpleNamespace(),
+        to_extraction_payload=to_extraction_payload,
     )
 
 
@@ -72,8 +77,7 @@ async def test_analyze_basic(monkeypatch: pytest.MonkeyPatch) -> None:
         return fake_session
 
     monkeypatch.setattr(
-        s,
-        "create_async_engine",
+        "app.db.session.get_async_engine",
         lambda *_a, **_kw: SimpleNamespace(dispose=AsyncMock()),
     )
     monkeypatch.setattr(
@@ -97,8 +101,7 @@ async def test_analyze_empty_records(monkeypatch: pytest.MonkeyPatch) -> None:
         return fake_session
 
     monkeypatch.setattr(
-        s,
-        "create_async_engine",
+        "app.db.session.get_async_engine",
         lambda *_a, **_kw: SimpleNamespace(dispose=AsyncMock()),
     )
     monkeypatch.setattr(
@@ -123,8 +126,7 @@ async def test_analyze_clamps_days(monkeypatch: pytest.MonkeyPatch) -> None:
         return fake_session
 
     monkeypatch.setattr(
-        s,
-        "create_async_engine",
+        "app.db.session.get_async_engine",
         lambda *_a, **_kw: SimpleNamespace(dispose=AsyncMock()),
     )
     monkeypatch.setattr(
@@ -154,8 +156,7 @@ async def test_analyze_trend_labels(monkeypatch: pytest.MonkeyPatch) -> None:
         return fake_session
 
     monkeypatch.setattr(
-        s,
-        "create_async_engine",
+        "app.db.session.get_async_engine",
         lambda *_a, **_kw: SimpleNamespace(dispose=AsyncMock()),
     )
     monkeypatch.setattr(

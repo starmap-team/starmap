@@ -92,7 +92,7 @@ def _load_golden():
 @pytest.mark.parametrize("sample", _load_golden(), ids=[s["id"] for s in _load_golden()])
 async def test_match_golden_set(sample):
     """Each golden sample should produce the expected match decision."""
-    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+    with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
         result = await run_match(
             target_position=sample["target_position"],
             person_skills=sample["person_skills"],
@@ -124,7 +124,7 @@ async def test_match_golden_set(sample):
 @pytest.mark.asyncio
 async def test_match_empty_skills():
     """Empty skills should produce a low match score."""
-    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+    with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
         result = await run_match(
             target_position="数据分析师",
             person_skills=[],
@@ -138,7 +138,7 @@ async def test_match_empty_skills():
 @pytest.mark.asyncio
 async def test_match_perfect_overlap():
     """All required + bonus skills at mastery should produce high score."""
-    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+    with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
         result = await run_match(
             target_position="数据分析师",
             person_skills=[
@@ -163,7 +163,7 @@ async def test_match_result_persisted():
     """Match results should be retrievable by match_id."""
     from app.services.match_service import get_match_result
 
-    with patch("app.services.match_service._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+    with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
         result = await run_match(
             target_position="前端开发工程师",
             person_skills=[{"name": "JavaScript", "proficiency": "精通"}],
