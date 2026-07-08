@@ -5,7 +5,7 @@ Focuses on edge cases: empty input, None values, exception handling.
 """
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -30,6 +30,58 @@ from app.services.graph_serializers import (
     skill_item,
 )
 from app.services.graph_sync import sync_from_pipeline
+
+# ── Helpers for mocking Neo4j async sessions ─────────────────────────────
+
+
+class FakeAsyncResult:
+    """Mimics a Neo4j async result with async iteration and .single()."""
+
+    def __init__(self, records):
+        self._records = list(records)
+
+    def __aiter__(self):
+        self._idx = 0
+        return self
+
+    async def __anext__(self):
+        if self._idx >= len(self._records):
+            raise StopAsyncIteration
+        rec = self._records[self._idx]
+        self._idx += 1
+        return rec
+
+    async def single(self):
+        return self._records[0] if self._records else None
+
+
+class FakeAsyncSession:
+    """Async context manager session that returns self on __aenter__."""
+
+    def __init__(self, run_side_effect=None):
+        self._run_side_effect = run_side_effect
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    async def run(self, *args, **kwargs):
+        if self._run_side_effect is not None:
+            if callable(self._run_side_effect):
+                return self._run_side_effect(*args, **kwargs)
+            return self._run_side_effect
+        return FakeAsyncResult([])
+
+
+class FakeDriver:
+    def __init__(self, session):
+        self._session = session
+
+    def session(self):
+        return self._session
+
 
 # ── graph_serializers: _safe_properties ──────────────────────────────────
 
@@ -377,7 +429,6 @@ class TestSkillItem:
 # ── graph_serializers: count_*_neo4j ─────────────────────────────────────
 
 
-@pytest.mark.xfail(reason="Neo4j async session mock needs refinement", strict=False)
 class TestCountNeo4j:
     @pytest.mark.asyncio
     async def test_count_positions_none_driver(self):
@@ -393,30 +444,22 @@ class TestCountNeo4j:
 
     @pytest.mark.asyncio
     async def test_count_positions_query_error(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock(side_effect=Exception("connection lost"))
-        driver.session = MagicMock(return_value=session)
+        session = FakeAsyncSession(run_side_effect=Exception("connection lost"))
+        driver = FakeDriver(session)
         assert await count_positions_neo4j(driver) == 0
 
     @pytest.mark.asyncio
     async def test_count_positions_success(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        result = AsyncMock()
-        result.single = AsyncMock(return_value={"cnt": 42})
-        session.run = AsyncMock(return_value=result)
-        driver.session = MagicMock(return_value=session)
+        result = FakeAsyncResult([{"cnt": 42}])
+        session = FakeAsyncSession(run_side_effect=result)
+        driver = FakeDriver(session)
         assert await count_positions_neo4j(driver) == 42
 
     @pytest.mark.asyncio
     async def test_count_positions_no_record(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        result = AsyncMock()
-        result.single = AsyncMock(return_value=None)
-        session.run = AsyncMock(return_value=result)
-        driver.session = MagicMock(return_value=session)
+        result = FakeAsyncResult([])
+        session = FakeAsyncSession(run_side_effect=result)
+        driver = FakeDriver(session)
         assert await count_positions_neo4j(driver) == 0
 
 
@@ -505,14 +548,11 @@ class TestClassifyLevel:
 # ── graph_overview: fetch_overview_by_tech_stack ─────────────────────────
 
 
-@pytest.mark.xfail(reason="Neo4j async session mock needs refinement", strict=False)
 class TestFetchOverviewByTechStack:
     @pytest.mark.asyncio
     async def test_driver_exception_returns_empty(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock(side_effect=Exception("neo4j down"))
-        driver.session = MagicMock(return_value=session)
+        session = FakeAsyncSession(run_side_effect=Exception("neo4j down"))
+        driver = FakeDriver(session)
         result = await fetch_overview_by_tech_stack(driver)
         assert result["domains"] == []
         assert result["connections"] == []
@@ -520,24 +560,22 @@ class TestFetchOverviewByTechStack:
 
     @pytest.mark.asyncio
     async def test_empty_graph(self):
-        driver = MagicMock()
-        session = AsyncMock()
+        pos_result = FakeAsyncResult([])
+        skill_result = FakeAsyncResult([])
+        conn_result = FakeAsyncResult([])
+        call_count = 0
 
-        # First query: positions
-        pos_result = AsyncMock()
-        pos_result.__aiter__ = MagicMock(return_value=iter([]))
-        pos_result.single = AsyncMock(return_value=None)
+        class MultiQuerySession(FakeAsyncSession):
+            async def run(self, *args, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    return pos_result
+                if call_count == 2:
+                    return skill_result
+                return conn_result
 
-        # Second query: skills
-        skill_result = AsyncMock()
-        skill_result.__aiter__ = MagicMock(return_value=iter([]))
-
-        # Third query: connections
-        conn_result = AsyncMock()
-        conn_result.__aiter__ = MagicMock(return_value=iter([]))
-
-        session.run = AsyncMock(side_effect=[pos_result, skill_result, conn_result])
-        driver.session = MagicMock(return_value=session)
+        driver = FakeDriver(MultiQuerySession())
         result = await fetch_overview_by_tech_stack(driver)
         assert result["total_positions"] == 0
         assert result["total_skills"] == 0
@@ -545,10 +583,6 @@ class TestFetchOverviewByTechStack:
 
     @pytest.mark.asyncio
     async def test_with_positions_and_skills(self):
-        driver = MagicMock()
-        session = AsyncMock()
-
-        # Position node
         class PosNode:
             element_id = "p-1"
             labels = ["Position"]
@@ -556,21 +590,24 @@ class TestFetchOverviewByTechStack:
             def __iter__(self):
                 return iter({"name": "AI Engineer", "industry": "人工智能"}.items())
 
-        pos_record = {"p": PosNode()}
-        pos_result = AsyncMock()
-        pos_result.__aiter__ = MagicMock(return_value=iter([pos_record]))
+        pos_result = FakeAsyncResult([{"p": PosNode()}])
+        skill_result = FakeAsyncResult(
+            [{"pos_name": "AI Engineer", "pos_industry": "人工智能", "skills": ["Python", "TensorFlow"]}]
+        )
+        conn_result = FakeAsyncResult([])
+        call_count = 0
 
-        # Skill result
-        skill_record = {"pos_name": "AI Engineer", "pos_industry": "人工智能", "skills": ["Python", "TensorFlow"]}
-        skill_result = AsyncMock()
-        skill_result.__aiter__ = MagicMock(return_value=iter([skill_record]))
+        class MultiQuerySession(FakeAsyncSession):
+            async def run(self, *args, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    return pos_result
+                if call_count == 2:
+                    return skill_result
+                return conn_result
 
-        # Connection result
-        conn_result = AsyncMock()
-        conn_result.__aiter__ = MagicMock(return_value=iter([]))
-
-        session.run = AsyncMock(side_effect=[pos_result, skill_result, conn_result])
-        driver.session = MagicMock(return_value=session)
+        driver = FakeDriver(MultiQuerySession())
         result = await fetch_overview_by_tech_stack(driver)
         assert result["total_positions"] == 1
         assert result["total_skills"] == 2
@@ -579,21 +616,22 @@ class TestFetchOverviewByTechStack:
 
     @pytest.mark.asyncio
     async def test_null_node_skipped(self):
-        driver = MagicMock()
-        session = AsyncMock()
+        pos_result = FakeAsyncResult([{"p": None}])
+        skill_result = FakeAsyncResult([])
+        conn_result = FakeAsyncResult([])
+        call_count = 0
 
-        pos_record = {"p": None}
-        pos_result = AsyncMock()
-        pos_result.__aiter__ = MagicMock(return_value=iter([pos_record]))
+        class MultiQuerySession(FakeAsyncSession):
+            async def run(self, *args, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    return pos_result
+                if call_count == 2:
+                    return skill_result
+                return conn_result
 
-        skill_result = AsyncMock()
-        skill_result.__aiter__ = MagicMock(return_value=iter([]))
-
-        conn_result = AsyncMock()
-        conn_result.__aiter__ = MagicMock(return_value=iter([]))
-
-        session.run = AsyncMock(side_effect=[pos_result, skill_result, conn_result])
-        driver.session = MagicMock(return_value=session)
+        driver = FakeDriver(MultiQuerySession())
         result = await fetch_overview_by_tech_stack(driver)
         assert result["total_positions"] == 0
 
@@ -601,23 +639,17 @@ class TestFetchOverviewByTechStack:
 # ── graph_overview: fetch_overview_by_level ──────────────────────────────
 
 
-@pytest.mark.xfail(reason="Neo4j async session mock needs refinement", strict=False)
 class TestFetchOverviewByLevel:
     @pytest.mark.asyncio
     async def test_driver_exception_returns_empty(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock(side_effect=Exception("neo4j down"))
-        driver.session = MagicMock(return_value=session)
+        session = FakeAsyncSession(run_side_effect=Exception("neo4j down"))
+        driver = FakeDriver(session)
         result = await fetch_overview_by_level(driver)
         assert result["domains"] == []
         assert result["total_positions"] == 0
 
     @pytest.mark.asyncio
     async def test_with_positions(self):
-        driver = MagicMock()
-        session = AsyncMock()
-
         class SeniorNode:
             element_id = "p-1"
             labels = ["Position"]
@@ -625,16 +657,21 @@ class TestFetchOverviewByLevel:
             def __iter__(self):
                 return iter({"name": "高级工程师", "level": "高级"}.items())
 
-        pos_record = {"p": SeniorNode()}
-        pos_result = AsyncMock()
-        pos_result.__aiter__ = MagicMock(return_value=iter([pos_record]))
+        pos_result = FakeAsyncResult([{"p": SeniorNode()}])
+        skill_result = FakeAsyncResult(
+            [{"pos_name": "高级工程师", "pos_level": "高级", "skills": ["Python"]}]
+        )
+        call_count = 0
 
-        skill_record = {"pos_name": "高级工程师", "pos_level": "高级", "skills": ["Python"]}
-        skill_result = AsyncMock()
-        skill_result.__aiter__ = MagicMock(return_value=iter([skill_record]))
+        class MultiQuerySession(FakeAsyncSession):
+            async def run(self, *args, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    return pos_result
+                return skill_result
 
-        session.run = AsyncMock(side_effect=[pos_result, skill_result])
-        driver.session = MagicMock(return_value=session)
+        driver = FakeDriver(MultiQuerySession())
         result = await fetch_overview_by_level(driver)
         assert result["total_positions"] == 1
         assert result["total_skills"] == 1
@@ -644,17 +681,19 @@ class TestFetchOverviewByLevel:
 
     @pytest.mark.asyncio
     async def test_evolution_connections_always_present(self):
-        driver = MagicMock()
-        session = AsyncMock()
+        pos_result = FakeAsyncResult([])
+        skill_result = FakeAsyncResult([])
+        call_count = 0
 
-        pos_result = AsyncMock()
-        pos_result.__aiter__ = MagicMock(return_value=iter([]))
+        class MultiQuerySession(FakeAsyncSession):
+            async def run(self, *args, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    return pos_result
+                return skill_result
 
-        skill_result = AsyncMock()
-        skill_result.__aiter__ = MagicMock(return_value=iter([]))
-
-        session.run = AsyncMock(side_effect=[pos_result, skill_result])
-        driver.session = MagicMock(return_value=session)
+        driver = FakeDriver(MultiQuerySession())
         result = await fetch_overview_by_level(driver)
         # Even with no data, evolution connections are hardcoded
         assert len(result["connections"]) == 2
@@ -663,11 +702,10 @@ class TestFetchOverviewByLevel:
 # ── graph_sync: sync_from_pipeline ───────────────────────────────────────
 
 
-@pytest.mark.xfail(reason="graph_sync mock chain too complex for unit tests", strict=False)
 class TestSyncFromPipeline:
     @pytest.mark.asyncio
     async def test_no_driver_returns_error(self):
-        with patch("app.services.graph_sync.app_resources") as mock_res:
+        with patch("app.services.resources.resources") as mock_res:
             mock_res.neo4j_driver = None
             result = await sync_from_pipeline("run-1")
             assert result["synced"] is False
@@ -675,12 +713,10 @@ class TestSyncFromPipeline:
 
     @pytest.mark.asyncio
     async def test_inline_mode_empty_lists(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock()
-        driver.session = MagicMock(return_value=session)
+        session = FakeAsyncSession()
+        driver = FakeDriver(session)
 
-        with patch("app.services.graph_sync.app_resources") as mock_res:
+        with patch("app.services.resources.resources") as mock_res:
             mock_res.neo4j_driver = driver
             result = await sync_from_pipeline("run-1", new_skills=[], new_edges=[], new_positions=[])
             assert result["synced"] is True
@@ -690,12 +726,10 @@ class TestSyncFromPipeline:
 
     @pytest.mark.asyncio
     async def test_inline_mode_with_positions(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock()
-        driver.session = MagicMock(return_value=session)
+        session = FakeAsyncSession()
+        driver = FakeDriver(session)
 
-        with patch("app.services.graph_sync.app_resources") as mock_res:
+        with patch("app.services.resources.resources") as mock_res:
             mock_res.neo4j_driver = driver
             result = await sync_from_pipeline(
                 "run-1",
@@ -707,12 +741,10 @@ class TestSyncFromPipeline:
 
     @pytest.mark.asyncio
     async def test_inline_mode_with_skills(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock()
-        driver.session = MagicMock(return_value=session)
+        session = FakeAsyncSession()
+        driver = FakeDriver(session)
 
-        with patch("app.services.graph_sync.app_resources") as mock_res:
+        with patch("app.services.resources.resources") as mock_res:
             mock_res.neo4j_driver = driver
             result = await sync_from_pipeline(
                 "run-1",
@@ -723,12 +755,10 @@ class TestSyncFromPipeline:
 
     @pytest.mark.asyncio
     async def test_inline_mode_with_edges(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock()
-        driver.session = MagicMock(return_value=session)
+        session = FakeAsyncSession()
+        driver = FakeDriver(session)
 
-        with patch("app.services.graph_sync.app_resources") as mock_res:
+        with patch("app.services.resources.resources") as mock_res:
             mock_res.neo4j_driver = driver
             result = await sync_from_pipeline(
                 "run-1",
@@ -739,21 +769,19 @@ class TestSyncFromPipeline:
 
     @pytest.mark.asyncio
     async def test_inline_mode_position_error_continues(self):
-        driver = MagicMock()
-        session = AsyncMock()
         call_count = 0
 
-        async def mock_run(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise Exception("write failed")
-            return AsyncMock()
+        class ErrorThenOkSession(FakeAsyncSession):
+            async def run(self, *args, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    raise Exception("write failed")
+                return FakeAsyncResult([])
 
-        session.run = mock_run
-        driver.session = MagicMock(return_value=session)
+        driver = FakeDriver(ErrorThenOkSession())
 
-        with patch("app.services.graph_sync.app_resources") as mock_res:
+        with patch("app.services.resources.resources") as mock_res:
             mock_res.neo4j_driver = driver
             result = await sync_from_pipeline(
                 "run-1",
@@ -766,14 +794,17 @@ class TestSyncFromPipeline:
 
     @pytest.mark.asyncio
     async def test_inline_mode_session_error(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock(side_effect=Exception("session error"))
-        session.__aenter__ = AsyncMock(return_value=session)
-        session.__aexit__ = AsyncMock(return_value=False)
-        driver.session = MagicMock(return_value=session)
+        # Session itself raises on __aenter__ — the outer try/except catches it
+        class BrokenSession:
+            async def __aenter__(self):
+                raise Exception("session error")
 
-        with patch("app.services.graph_sync.app_resources") as mock_res:
+            async def __aexit__(self, *args):
+                return False
+
+        driver = FakeDriver(BrokenSession())
+
+        with patch("app.services.resources.resources") as mock_res:
             mock_res.neo4j_driver = driver
             result = await sync_from_pipeline("run-1", new_positions=[{"name": "Dev"}])
             assert result["synced"] is False
@@ -781,12 +812,10 @@ class TestSyncFromPipeline:
 
     @pytest.mark.asyncio
     async def test_db_query_mode_no_extraction_data(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock()
-        driver.session = MagicMock(return_value=session)
+        session = FakeAsyncSession()
+        driver = FakeDriver(session)
 
-        with patch("app.services.graph_sync.app_resources") as mock_res:
+        with patch("app.services.resources.resources") as mock_res:
             mock_res.neo4j_driver = driver
             # extraction_data is not None but empty position_name
             result = await sync_from_pipeline("run-1", extraction_data={})
@@ -796,16 +825,13 @@ class TestSyncFromPipeline:
 
     @pytest.mark.asyncio
     async def test_db_query_mode_with_extraction_data(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock()
-        driver.session = MagicMock(return_value=session)
-
+        session = FakeAsyncSession()
+        driver = FakeDriver(session)
         mock_batch = AsyncMock(return_value=[{"nodes_touched": 5, "relationships_touched": 3}])
 
         with (
-            patch("app.services.graph_sync.app_resources") as mock_res,
-            patch("app.services.graph_sync.batch_write_extractions", mock_batch),
+            patch("app.services.resources.resources") as mock_res,
+            patch("app.core.extraction.graph_writer.batch_write_extractions", mock_batch),
         ):
             mock_res.neo4j_driver = driver
             mock_res.pg_sessionmaker = None
@@ -825,16 +851,13 @@ class TestSyncFromPipeline:
 
     @pytest.mark.asyncio
     async def test_db_query_mode_with_target_position(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock()
-        driver.session = MagicMock(return_value=session)
-
+        session = FakeAsyncSession()
+        driver = FakeDriver(session)
         mock_batch = AsyncMock(return_value=[{"nodes_touched": 10, "relationships_touched": 6}])
 
         with (
-            patch("app.services.graph_sync.app_resources") as mock_res,
-            patch("app.services.graph_sync.batch_write_extractions", mock_batch),
+            patch("app.services.resources.resources") as mock_res,
+            patch("app.core.extraction.graph_writer.batch_write_extractions", mock_batch),
         ):
             mock_res.neo4j_driver = driver
             mock_res.pg_sessionmaker = None
@@ -854,16 +877,13 @@ class TestSyncFromPipeline:
 
     @pytest.mark.asyncio
     async def test_db_query_mode_graph_writer_failure(self):
-        driver = MagicMock()
-        session = AsyncMock()
-        session.run = AsyncMock()
-        driver.session = MagicMock(return_value=session)
-
+        session = FakeAsyncSession()
+        driver = FakeDriver(session)
         mock_batch = AsyncMock(side_effect=Exception("write failed"))
 
         with (
-            patch("app.services.graph_sync.app_resources") as mock_res,
-            patch("app.services.graph_sync.batch_write_extractions", mock_batch),
+            patch("app.services.resources.resources") as mock_res,
+            patch("app.core.extraction.graph_writer.batch_write_extractions", mock_batch),
         ):
             mock_res.neo4j_driver = driver
             mock_res.pg_sessionmaker = None
