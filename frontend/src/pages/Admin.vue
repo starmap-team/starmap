@@ -5,7 +5,7 @@
  * 新增: 图谱节点 CRUD + ReviewQueuePanel 集成
  */
 import { onMounted, ref, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Search, Delete, Plus, Edit } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ReviewQueuePanel from '@/components/ReviewQueuePanel.vue'
@@ -14,6 +14,7 @@ import { useAdminStore } from '@/stores/admin'
 import { chartColors } from '@/utils/chartTheme'
 import { useGraphNodeList, type GraphNodeItem } from '@/composables/useGraphNodeList'
 import { useGraphNodeEditor } from '@/composables/useGraphNodeEditor'
+import { useAdminReset } from '@/composables/useAdminReset'
 import { nodeTypeLabel, nodeStatusType, nodeStatusLabel } from '@/composables/useGraphNodeLabels'
 
 const cc = chartColors()
@@ -56,7 +57,7 @@ const {
 } = useGraphNodeEditor(admin)
 
 // ════════════════════════════════════════════════
-// 数据源编辑（原有逻辑保留）
+// 数据源编辑 (D-12: el-drawer; state + handlers stay inline — coupled to template refs)
 // ════════════════════════════════════════════════
 
 const editDialogVisible = ref(false)
@@ -71,9 +72,7 @@ async function handleSaveSource() {
   editSaving.value = true
   try {
     // authority_score slider is 0-100, backend stores 0-1
-    const payload = {
-      authority_score: editingSource.value.authority_score / 100,
-    }
+    const payload = { authority_score: editingSource.value.authority_score / 100 }
     await admin.updateSource(editingSource.value.id, payload)
     editDialogVisible.value = false
     ElMessage.success('保存成功')
@@ -85,21 +84,8 @@ async function handleSaveSource() {
   }
 }
 
-// ── 重置数据 ──
-async function handleReset() {
-  try {
-    await ElMessageBox.confirm(
-      '确认重置系统数据？将重新加载标准数据集，此操作不可撤销。',
-      '重置数据',
-      { confirmButtonText: '确认重置', cancelButtonText: '取消', type: 'warning' }
-    )
-    await admin.resetToDemo()
-    ElMessage.success('数据已重置')
-    admin.fetchSources()
-    admin.fetchAuditQueue()
-    admin.fetchGraphNodes()
-  } catch { /* 取消 */ }
-}
+// 重置数据 (Phase 7 D round 12)
+const { handleReset } = useAdminReset(admin)
 </script>
 
 <template>
