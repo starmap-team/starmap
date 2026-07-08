@@ -287,6 +287,8 @@ export function useDashboardCharts(store: DashboardStore) {
     const skills = store.emergingSkills
     if (!skills?.length) return getPlaceholderRadar()
     const top = skills.slice(0, 6)
+    // Map backend field names to display names for radar indicators
+    const displayNames = top.map((s: EmergingSkill) => s.skill_name ?? s.name ?? 'unknown')
     return {
       tooltip: {
         backgroundColor: cc.card + 'E6',
@@ -294,8 +296,8 @@ export function useDashboardCharts(store: DashboardStore) {
         textStyle: { color: cc.foreground, fontSize: 12 },
       },
       radar: {
-        indicator: top.map((s: EmergingSkill) => ({
-          name: s.name,
+        indicator: displayNames.map((name: string) => ({
+          name,
           max: 100,
         })),
         shape: 'polygon',
@@ -320,15 +322,17 @@ export function useDashboardCharts(store: DashboardStore) {
         type: 'radar',
         data: [
           {
-            value: top.map((s: EmergingSkill) => Math.round(s.growth_rate * 100)),
-            name: '增长率',
+            // z_score normalized to 0-100 scale; fallback to growth_rate
+            value: top.map((s: EmergingSkill) => Math.round(Math.min(100, Math.abs(s.z_score ?? (s.growth_rate ?? 0)) * 20))),
+            name: 'Z-score',
             lineStyle: { color: cc.chart[0], width: 2 },
             itemStyle: { color: cc.chart[0] },
             areaStyle: { color: cc.chart[0] + '26' },
           },
           {
-            value: top.map((s: EmergingSkill) => Math.round(s.relevance * 100)),
-            name: '相关度',
+            // source_count normalized; fallback to relevance
+            value: top.map((s: EmergingSkill) => Math.round(Math.min(100, ((s.source_count ?? 0) / 10) * 100 || (s.relevance ?? 0) * 100))),
+            name: '来源数',
             lineStyle: { color: cc.chart[2], width: 2 },
             itemStyle: { color: cc.chart[2] },
             areaStyle: { color: cc.chart[2] + '1F' },

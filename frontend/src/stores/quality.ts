@@ -17,7 +17,6 @@ export interface QualityMetrics {
   total_edges: number
   total_positions: number
   total_skills: number
-  avg_confidence: number
   hallucination_rate: number
   pending_review: number
   avg_trust_score: number
@@ -41,7 +40,6 @@ function defaultMetrics(): QualityMetrics {
     total_edges: 0,
     total_positions: 0,
     total_skills: 0,
-    avg_confidence: 0,
     hallucination_rate: 0,
     pending_review: 0,
     avg_trust_score: 0,
@@ -128,6 +126,7 @@ export const useQualityStore = defineStore('quality', () => {
           date: string
           overall_score?: number
           quality_score?: number
+          hallucination_rate?: number
           total_records?: number
         }>
         summary?: Record<string, unknown>
@@ -136,7 +135,7 @@ export const useQualityStore = defineStore('quality', () => {
       trends.value = points.map(p => ({
         date: p.date,
         trust_score: p.overall_score ?? p.quality_score ?? 0,
-        hallucination_rate: 0,  // Not exposed in /quality/trends
+        hallucination_rate: p.hallucination_rate ?? 0,
         review_count: p.total_records ?? 0,
       }))
     } catch {

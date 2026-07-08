@@ -8,7 +8,6 @@ import type { TrendItem } from '@/stores/evolution'
 
 export function useEvolutionCharts(
   items: ComputedRef<TrendItem[]>,
-  quarters: ComputedRef<string[]>,
   selectedSkill: Ref<string>,
   compareSkillA: Ref<string>,
   compareSkillB: Ref<string>,
@@ -20,6 +19,9 @@ export function useEvolutionCharts(
     const filtered = selectedSkill.value
       ? items.value.filter(i => i.skill_name === selectedSkill.value)
       : items.value.slice(0, 10)
+    // ponytail: derive x-axis labels from point count; backend no longer returns quarters
+    const maxLen = Math.max(0, ...filtered.map(i => i.points?.length ?? 0))
+    const xLabels = Array.from({ length: maxLen }, (_, i) => `Q${i + 1}`)
 
     return {
       color: SERIES_COLORS,
@@ -39,7 +41,7 @@ export function useEvolutionCharts(
       grid: { left: 50, right: 30, top: 30, bottom: 50 },
       xAxis: {
         type: 'category',
-        data: quarters.value,
+        data: xLabels,
         boundaryGap: false,
       },
       yAxis: {
@@ -62,10 +64,10 @@ export function useEvolutionCharts(
     }
   })
 
-  // Emerging skills (rising + high confidence)
+  // Emerging skills (emerging + rising, high confidence first)
   const emergingSkills = computed(() => {
     return items.value
-      .filter(i => i.trend === 'rising')
+      .filter(i => i.trend === 'rising' || i.trend === 'emerging')
       .sort((a, b) => b.confidence - a.confidence)
       .slice(0, 6)
   })
@@ -101,11 +103,13 @@ export function useEvolutionCharts(
     const itemA = items.value.find(i => i.skill_name === compareSkillA.value)
     const itemB = items.value.find(i => i.skill_name === compareSkillB.value)
     if (!itemA || !itemB) return null
+    const maxLen = Math.max(itemA.points?.length ?? 0, itemB.points?.length ?? 0)
+    const xLabels = Array.from({ length: maxLen }, (_, i) => `Q${i + 1}`)
     return {
       tooltip: { ...tooltipStyle(), trigger: 'axis' },
       legend: { data: [compareSkillA.value, compareSkillB.value], bottom: 0, textStyle: legendStyle() },
       grid: { left: 50, right: 30, top: 30, bottom: 40 },
-      xAxis: { type: 'category', data: quarters.value, boundaryGap: false },
+      xAxis: { type: 'category', data: xLabels, boundaryGap: false },
       yAxis: { type: 'value', name: 'CII', splitLine: splitLineStyle() },
       series: [
         { name: compareSkillA.value, type: 'line', data: itemA.points, smooth: true, lineStyle: { width: 3, color: chartColors().primary }, itemStyle: { color: chartColors().primary } },

@@ -44,7 +44,6 @@ export interface ChangelogEntry {
 
 export const useEvolutionStore = defineStore('evolution', () => {
   const loading = ref(false)
-  const quarters = ref<string[]>([])
   const trendItems = ref<TrendItem[]>([])
 
   const snapshotsLoading = ref(false)
@@ -58,12 +57,12 @@ export const useEvolutionStore = defineStore('evolution', () => {
     try {
       const params = days ? { days } : undefined
       const data = await request.get('/evolution/trends', { params }) as unknown as Record<string, unknown>
-      quarters.value = data.quarters as string[] ?? []
+      // Backend EvolutionTrendsResponse has {items}, no quarters field
       trendItems.value = data.items as TrendItem[] ?? []
     } finally {
       loading.value = false
     }
-    return { quarters: quarters.value, items: trendItems.value }
+    return { items: trendItems.value }
   }
 
   async function fetchSnapshots(limit = 50) {
@@ -96,7 +95,6 @@ export const useEvolutionStore = defineStore('evolution', () => {
 
   return {
     loading,
-    quarters,
     trendItems,
     snapshotsLoading,
     snapshots,

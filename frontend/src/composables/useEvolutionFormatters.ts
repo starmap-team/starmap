@@ -14,12 +14,14 @@ export function formatChange(points: number[] | undefined): string {
 
 export const TREND_LABEL: Record<string, string> = {
   rising: '↑ 上升',
+  emerging: '★ 涌现',
   stable: '→ 平稳',
   declining: '↓ 下降',
 }
 
 export const TREND_TAG_TYPE: Record<string, string> = {
   rising: 'success',
+  emerging: 'warning',
   stable: 'info',
   declining: 'danger',
 }

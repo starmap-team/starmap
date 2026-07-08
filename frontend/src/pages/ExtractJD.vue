@@ -12,7 +12,7 @@ const jd = useJdStore()
 
 const jdText = ref('')
 const charCount = computed(() => jdText.value.length)
-const charLimit = 10000
+const charLimit = 50000
 const result = computed(() => jd.extractResult)
 const loading = computed(() => jd.extractLoading)
 
@@ -83,7 +83,7 @@ function handleClear() {
               type="textarea"
               :rows="15"
               placeholder="粘贴职位描述文本..."
-              maxlength="10000"
+              maxlength="50000"
               show-word-limit
             />
             <div class="input-footer">

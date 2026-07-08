@@ -25,14 +25,14 @@ const containerRef = ref<HTMLElement | null>(null)
 const { createGraph } = useG6Graph(containerRef)
 
 function getProbabilityColor(prob: number): string {
-  if (prob >= 0.7) return cc.success
-  if (prob >= 0.4) return cc.warning
+  if (prob >= 0.75) return cc.success
+  if (prob >= 0.5) return cc.warning
   return cc.danger
 }
 
 function getProbabilityFill(prob: number): string {
-  if (prob >= 0.7) return 'var(--chart-5-light, #dcfce7)'
-  if (prob >= 0.4) return 'var(--chart-4-light, #fef3c7)'
+  if (prob >= 0.75) return 'var(--chart-5-light, #dcfce7)'
+  if (prob >= 0.5) return 'var(--chart-4-light, #fef3c7)'
   return 'var(--danger-light, #fee2e2)'
 }
 

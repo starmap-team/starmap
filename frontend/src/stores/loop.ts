@@ -13,6 +13,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import request from '@/api/request'
+import type { GapLevel } from '@/stores/match'
 
 /** Timeout for the loop run API call (LLM extraction can take ~3 minutes) */
 const LOOP_RUN_TIMEOUT_MS = 180_000
@@ -63,7 +64,7 @@ export interface MatchDiagnosisResult {
   match_score: number
   matched_skills: string[]
   missing_skills: string[]
-  gap_analysis: { skill: string; gap_level: string; importance: string }[]
+  gap_analysis: { skill: string; gap_level: GapLevel; importance: string }[]
   radar_data?: { skill: string; required: number; matched: number }[]
 }
 
@@ -162,7 +163,7 @@ export const useLoopStore = defineStore('loop', () => {
       // Step 2-5: 调用后端闭环 API
       const startTime = Date.now()
       const data = await request.post('/loop/run', {
-        jd_content: jdText,
+        jd_text: jdText,
         target_position: targetPosition,
       }, { timeout: LOOP_RUN_TIMEOUT_MS }) as LoopRunResponse
 

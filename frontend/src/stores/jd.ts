@@ -25,7 +25,7 @@ interface JDExtractResult {
   responsibilities?: string[]
   confidence?: number
   hallucination_score?: number | null
-  normalized_skills?: { skill?: string; method?: string; confidence?: number }[]
+  normalized_skills?: { original?: string; normalized?: string; method?: string; confidence?: number }[]
   skills?: { name: string; category: string; confidence: number; is_new: boolean }[]
   position?: string
   [key: string]: unknown

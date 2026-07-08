@@ -253,7 +253,7 @@ function handleExport() {
           width="100"
         >
           <template #default="{ row }">
-            <span :class="row.match_score >= 0.7 ? 'score-high' : row.match_score >= 0.4 ? 'score-mid' : 'score-low'">
+            <span :class="row.match_score >= 0.75 ? 'score-high' : row.match_score >= 0.5 ? 'score-mid' : 'score-low'">
               {{ Math.round(row.match_score * 100) }}%
             </span>
           </template>

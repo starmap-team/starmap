@@ -1695,7 +1695,7 @@ components:
 
     Error:
       type: object
-      required: [detail, code]
+      required: [detail]
       properties:
         detail:
           type: string
@@ -1703,12 +1703,12 @@ components:
           example: "岗位不存在"
         code:
           type: string
-          description: "错误码"
+          description: "错误码（可选，部分端点返回）"
           example: "POSITION_NOT_FOUND"
         timestamp:
           type: string
           format: date-time
-          description: "错误发生时间"
+          description: "错误发生时间（可选）"
 
     # ──────────────────────── 数据流水线 ────────────────────────
     PipelineStatus:

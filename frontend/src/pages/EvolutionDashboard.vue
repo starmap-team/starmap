@@ -26,7 +26,6 @@ const evo = useEvolutionStore()
 
 // Aliases for template binding (store-backed)
 const items = computed(() => evo.trendItems)
-const quarters = computed(() => evo.quarters)
 const snapshots = computed(() => evo.snapshots)
 const snapshotsLoading = computed(() => evo.snapshotsLoading)
 const changelogData = computed(() => evo.changelogData)
@@ -51,7 +50,7 @@ const compareSkillB = ref('')
 
 // Chart options — extracted to composable
 const { chartOption, emergingSkills, ciiGaugeOption, compareOption } = useEvolutionCharts(
-  items, quarters, selectedSkill, compareSkillA, compareSkillB,
+  items, selectedSkill, compareSkillA, compareSkillB,
 )
 
 // Drawer / fetch handlers / snapshot state (extracted — Phase 7 D round 8)

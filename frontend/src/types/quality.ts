@@ -18,5 +18,4 @@ export interface QualityAlert {
   dimension?: string
   value?: number
   threshold?: number
-  time: string  // Pydantic alias of timestamp
 }

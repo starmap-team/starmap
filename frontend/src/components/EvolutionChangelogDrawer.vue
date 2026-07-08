@@ -16,6 +16,14 @@ const emit = defineEmits<{
 }>()
 
 const changeTypeLabel: Record<string, string> = {
+  // Backend enum values (EvolutionChangelog.change_type)
+  added_required: '新增必需',
+  added_preferred: '新增优先',
+  removed: '移除技能',
+  promoted: '升级',
+  demoted: '降级',
+  retained: '保留',
+  // Legacy frontend values (kept for backward compat)
   proficiency_change: '熟练度变更',
   requirement_change: '需求等级变更',
   new_skill: '新增技能',

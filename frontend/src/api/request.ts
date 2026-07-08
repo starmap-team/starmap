@@ -108,8 +108,14 @@ request.interceptors.response.use(
       message = ERROR_MESSAGES[status] ?? `请求失败 (${status})`
     }
 
-    // 仅非 401 的错误显示提示（避免重复弹窗）
-    if (status !== 401) {
+    // 仅非 401 的错误显示通用提示；401 单独处理
+    if (status === 401) {
+      ElMessage.warning({
+        message: '登录已过期，请重新登录',
+        duration: 5000,
+        showClose: true,
+      })
+    } else {
       ElMessage.error({
         message,
         duration: 4000,

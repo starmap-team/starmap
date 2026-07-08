@@ -2,6 +2,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import type { GapLevel } from '@/stores/match'
+
 export interface ExtractedSkill {
   name: string
   raw_name: string
@@ -34,7 +36,7 @@ export interface LearningResource {
 export interface SkillGap {
   skill: string
   importance: string
-  gap_level: string
+  gap_level: GapLevel
   learning_path: string[]
   learning_resources: LearningResource[]
   score: number

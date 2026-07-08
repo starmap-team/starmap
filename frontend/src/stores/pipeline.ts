@@ -384,9 +384,9 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   // Phase 1 SSE-04 / SSE-05: 3 个新事件 handler（D-07）
   function handleQualityAlert(data: QualityAlert) {
-    // 自动用 timestamp 填充 time 别名（如缺失）
-    if (!data.time && data.timestamp) {
-      data.time = data.timestamp
+    // Ensure created_at is populated from timestamp if missing
+    if (!data.created_at && data.timestamp) {
+      data.created_at = data.timestamp
     }
     qualityAlerts.value.push(data)
     // Keep only last 50 (FIFO)

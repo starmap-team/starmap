@@ -98,7 +98,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     error.value = null
     try {
       const raw = await request.get('/dashboard/overview') as Record<string, unknown>
-      // Map backend fields to frontend DashboardOverview
+      // Map backend OverviewResponse fields to frontend DashboardOverview
       overview.value = {
         total_nodes: (raw.total_nodes as number) ?? 0,
         total_edges: (raw.total_edges as number) ?? 0,
@@ -112,7 +112,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         active_sources: (raw.active_data_sources as number) ?? 0,
         pipeline_status: (raw.pipeline_status as string) ?? 'idle',
         quality_score: (raw.trust_score as number) ?? 0,
-        weekly_new_nodes: 0,
+        weekly_new_nodes: (raw.weekly_new_nodes as number) ?? 0,
         weekly_new_edges: 0,
         hallucination_rate: (raw.hallucination_rate as number) ?? 0,
         stale: (raw.stale as boolean) ?? false,

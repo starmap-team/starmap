@@ -10,7 +10,7 @@ import request from '@/api/request'
  */
 
 // ── 节点类型 ──
-export type NodeLabel = 'Position' | 'Skill' | 'Tool' | 'KnowledgeArea' | 'Certificate' | 'LearningResource' | 'Industry'
+export type NodeLabel = 'Position' | 'Skill' | 'Tool' | 'KnowledgeArea' | 'Certificate' | 'LearningResource' | 'Industry' | 'Domain'
 
 // ── 视图层级 ──
 export type ViewLayer = 'domain' | 'position' | 'detail'

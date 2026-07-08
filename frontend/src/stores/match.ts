@@ -3,17 +3,22 @@ import { ref } from 'vue'
 import request from '@/api/request'
 
 export interface PersonSkill {
-  skill_id: string
+  skill_id?: string
   name: string
-  category: 'hard_skill' | 'soft_skill' | 'tool' | 'certificate'
+  category?: 'hard_skill' | 'soft_skill' | 'tool' | 'certificate'
   proficiency: string
   confidence?: number
+  source_count?: number
 }
+
+export type Importance = 'required' | 'bonus'
+
+export type GapLevel = '完全缺失' | '部分掌握' | '已掌握'
 
 export interface SkillGap {
   skill: string
-  importance: 'required' | 'bonus'
-  gap_level: string
+  importance: Importance
+  gap_level: GapLevel
   learning_path: string[]
 }
 
@@ -29,11 +34,12 @@ export interface MatchResult {
   skill_gap_detail?: SkillGap[]
   overall_assessment?: string
   estimated_learning_time?: string
+  cii?: number | null
 }
 
 export interface PositionSkills {
   position_name: string
-  required_skills: { name: string; proficiency: string; importance: string }[]
+  required_skills: { name: string; proficiency: string; importance: Importance }[]
   bonus_skills: { name: string; proficiency: string }[]
 }
 
@@ -48,7 +54,6 @@ export const useMatchStore = defineStore('match', () => {
       const person_skills: PersonSkill[] = skillNames.map((name) => ({
         skill_id: `skill_${name}`,
         name,
-        category: 'hard_skill' as const,
         proficiency: skillProficiencies?.[name] ?? '熟悉',
       }))
       const data = await request.post('/match/position', {
@@ -84,11 +89,33 @@ export const useMatchStore = defineStore('match', () => {
 
   async function fetchPositionSkills(positionId: string): Promise<PositionSkills | null> {
     try {
-      const data = await request.get(`/graph/position/${positionId}/skills`) as PositionSkillsResponse
-      return data.skills ?? (data as unknown as PositionSkills)
+      const data = await request.get(`/graph/position/${positionId}/skills`) as PositionSkillDetailResponse
+      // Backend returns PositionSkillDetailResponse {position, skills, edges}
+      if (data.skills && Array.isArray(data.skills)) {
+        const positionName = data.position?.name ?? positionId
+        const required = data.skills.filter((s: SkillNodeRaw) => s.importance === 'required')
+        const bonus = data.skills.filter((s: SkillNodeRaw) => s.importance === 'bonus')
+        return {
+          position_name: positionName,
+          required_skills: required.map((s: SkillNodeRaw) => ({ name: s.name, proficiency: s.proficiency, importance: s.importance })),
+          bonus_skills: bonus.map((s: SkillNodeRaw) => ({ name: s.name, proficiency: s.proficiency })),
+        }
+      }
+      return null
     } catch {
       return null
     }
+  }
+
+  interface SkillNodeRaw {
+    skill_id: string
+    name: string
+    category: string
+    proficiency: string
+    confidence: number
+    source_count: number
+    trend: string
+    importance: Importance
   }
 
   interface MatchHistoryItem {
@@ -99,9 +126,10 @@ export const useMatchStore = defineStore('match', () => {
     created_at?: string
   }
 
-  interface PositionSkillsResponse {
-    skills?: PositionSkills
-    position?: { name: string; industry: string; description: string }
+  interface PositionSkillDetailResponse {
+    position: { position_id: string; name: string; industry: string; description: string; skills_required: unknown[] } | null
+    skills: SkillNodeRaw[]
+    edges: { source_id: string; target_id: string; type: string; properties: Record<string, unknown> }[]
   }
 
   interface MatchHistoryResponse {
