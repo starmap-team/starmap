@@ -4,7 +4,7 @@
  * Tabs: 审核队列 | 图谱节点管理 | 数据源配置 | 演示数据管理
  * 新增: 图谱节点 CRUD + ReviewQueuePanel 集成
  */
-import { onMounted, ref, computed, reactive } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Delete, Plus, Edit } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -12,6 +12,8 @@ import ReviewQueuePanel from '@/components/ReviewQueuePanel.vue'
 import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
 import { useAdminStore } from '@/stores/admin'
 import { chartColors } from '@/utils/chartTheme'
+import { useGraphNodeList, type GraphNodeItem } from '@/composables/useGraphNodeList'
+import { nodeTypeLabel, nodeStatusType, nodeStatusLabel } from '@/composables/useGraphNodeLabels'
 
 const cc = chartColors()
 
@@ -30,38 +32,15 @@ onMounted(() => {
 // 图谱节点管理
 // ════════════════════════════════════════════════
 
-interface GraphNodeItem {
-  id: string
-  type: string
-  name: string
-  properties: Record<string, unknown>
-  status: 'pending' | 'approved' | 'rejected'
-  created_at?: string
-}
-
-const graphNodes = computed(() => admin.graphNodes)
 const graphNodesLoading = computed(() => admin.graphNodesLoading)
-const nodeSearchKeyword = ref('')
-const nodeTypeFilter = ref('')
-const nodeCurrentPage = ref(1)
-const nodePageSize = ref(10)
-
-const filteredGraphNodes = computed(() => {
-  let list = graphNodes.value
-  if (nodeSearchKeyword.value) {
-    const kw = nodeSearchKeyword.value.toLowerCase()
-    list = list.filter(n => n.name.toLowerCase().includes(kw))
-  }
-  if (nodeTypeFilter.value) {
-    list = list.filter(n => n.type === nodeTypeFilter.value)
-  }
-  return list
-})
-
-const pagedGraphNodes = computed(() => {
-  const start = (nodeCurrentPage.value - 1) * nodePageSize.value
-  return filteredGraphNodes.value.slice(start, start + nodePageSize.value)
-})
+const {
+  searchKeyword: nodeSearchKeyword,
+  typeFilter: nodeTypeFilter,
+  currentPage: nodeCurrentPage,
+  pageSize: nodePageSize,
+  filtered: filteredGraphNodes,
+  paged: pagedGraphNodes,
+} = useGraphNodeList(computed(() => admin.graphNodes as GraphNodeItem[]))
 
 // Node editor
 const editorVisible = ref(false)
@@ -124,21 +103,6 @@ async function handleRejectNode(node: GraphNodeItem) {
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : '拒绝失败')
   }
-}
-
-function nodeTypeLabel(type: string): string {
-  const map: Record<string, string> = { Skill: '技能', Position: '岗位', Domain: '领域', Tool: '工具', Certificate: '证书' }
-  return map[type] ?? type
-}
-
-function nodeStatusType(status: string): string {
-  const map: Record<string, string> = { approved: 'success', rejected: 'danger', pending: 'warning' }
-  return map[status] ?? 'info'
-}
-
-function nodeStatusLabel(status: string): string {
-  const map: Record<string, string> = { approved: '已通过', rejected: '已拒绝', pending: '待审核' }
-  return map[status] ?? status
 }
 
 // ════════════════════════════════════════════════
