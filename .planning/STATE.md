@@ -3,26 +3,26 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: 全系统功能闭环
 status: milestone_complete
-last_updated: 2026-07-07T08:50:00.000Z
-last_activity: 2026-07-07 -- Phase 06 verified + UAT complete (12/12 pass)
+last_updated: 2026-07-08T12:00:00.000Z
+last_activity: 2026-07-08 -- Phase 7 audit closure complete (56 findings → 54 fixed, 2 won't-fix, 96%)
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 15
+  total_phases: 7
+  completed_phases: 7
+  total_plans: 16
   completed_plans: 16
   percent: 100
-stopped_at: Milestone complete (all 6 phases verified)
+stopped_at: Milestone v2.0 + Phase 7 audit closure complete
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 6 of 6 (arch refactor)
+Phase: 7 of 7 (audit closure)
 Plan: All complete
-Status: Milestone complete
-Next: Milestone v2.0 已完成
-Last activity: 2026-07-07
+Status: Milestone complete + Audit closed
+Next: Project in maintenance mode; no pending phases
+Last activity: 2026-07-08
 
 ## Accumulated Context
 
@@ -50,26 +50,29 @@ Last activity: 2026-07-07
 | 4 | 数据流贯通 | ✅ completed | 4/4 |
 | 5 | 样式统一与体验优化 | ✅ completed | 6/6 |
 | 6 | 架构重构 | ✅ completed | 12/12 |
+| 7 | 审计闭环 | ✅ completed | A/B/C/D/E all done |
 
-## P6 Status Detail
+## Final Baseline (2026-07-08)
 
-| Criterion | Status | Note |
-|-----------|--------|------|
-| Home.vue ≤ 350 行 | ✅ | 226 行 (515→226 via HomeKpiStrip/HomeGraphControls/HomeEvolutionDrawer wiring) |
-| Home.vue script ≤ 60 行 | ✅ | 59 行 |
-| pipeline 三文件拆分 | ✅ | routes.py(539)/schemas.py(184)/serializers.py(57) — 之前 Phase 5 已拆 |
-| SimHash 仅 1 模块 | ✅ | simhash.py canon; data_fusion.py thin re-export |
-| create_async_engine 仅 1 处 | ✅ | db/session.py:28 唯一定义 |
-| run_async 仅 1 处定义 | ✅ | async_helpers.py:13 |
-| ruff check 全绿 | ✅ | All checks passed! |
+| Metric | Value |
+|--------|-------|
+| vue-tsc errors | **0** |
+| eslint errors | **0** |
+| ruff check | **All passed** |
+| pytest | **529 passed / 62% coverage** |
+| 前端 any | **4** (library boundaries) |
+| 后端 max file | **551 lines** (evolution.py) |
+| 前端 max page | **1673 lines** (LoopDemo, won't-fix) |
+| 硬编码颜色 | **0** |
+| 运行时Bug | **0** |
+| 内存存储 | **0** |
 
-## Baseline Metrics (2026-07-07)
+## Audit Summary (Phase 7)
 
-| Metric | Before | After |
-|--------|--------|-------|
-| 运行时Bug | 0 ✅ | 0 ✅ |
-| 内存存储 | 0 ✅ | 0 ✅ |
-| 硬编码Profile | 0 ✅ | 0 ✅ |
-| 硬编码颜色 | ~307 (in 28 files) | 0 (migrated to tokens) |
-| 死端点 | 0 ✅ | 0 ✅ |
-| Home.vue行数 | 1316→821 | 226 ✅ |
+56 findings → 54 fixed, 2 won't-fix (96% resolved)
+
+- Batch A (quick fixes): 8/8 ✅
+- Batch B (small refactors): 7/7 ✅
+- Batch C (medium refactors): 5/5 ✅
+- Batch D (large refactors): 4/4 ✅ (M13 won't-fix)
+- Batch E (type safety): ✅ any 49→4 (-92%)
