@@ -25,12 +25,12 @@ services:
       - .env
     environment:
       <<: *common-env
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-starmap_redis_2024}@redis:6379/0
       - DATABASE_URL=postgresql://starmap:${POSTGRES_PASSWORD:-starmap123456}@postgres:5432/starmap
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:-starmap123456}
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-starmap_redis_2024}@redis:6379/0
       - CHROMA_URL=http://chroma:8000
       - OLLAMA_BASE_URL=http://ollama:11434
     depends_on:
@@ -79,12 +79,12 @@ services:
       - .env
     environment:
       <<: *common-env
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-starmap_redis_2024}@redis:6379/0
       - DATABASE_URL=postgresql://starmap:${POSTGRES_PASSWORD:-starmap123456}@postgres:5432/starmap
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:-starmap123456}
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-starmap_redis_2024}@redis:6379/0
       - CHROMA_URL=http://chroma:8000
       - OLLAMA_BASE_URL=http://ollama:11434
     depends_on:
@@ -215,6 +215,7 @@ services:
     container_name: starmap-redis-prod
     command: >
       redis-server
+      --requirepass ${REDIS_PASSWORD:-starmap_redis_2024}
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
       --appendonly yes
@@ -241,7 +242,7 @@ services:
 
   # ---------- ChromaDB (Vector Database) ----------
   chroma:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.5.3
     container_name: starmap-chroma-prod
     environment:
       - IS_PERSISTENT=TRUE
@@ -269,7 +270,7 @@ services:
 
   # ---------- Ollama (Local LLM) ----------
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.5
     container_name: starmap-ollama-prod
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
@@ -301,7 +302,7 @@ services:
 
   # ---------- Model Init (one-shot pull) ----------
   ollama-pull:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.5
     container_name: starmap-ollama-pull-prod
     depends_on:
       ollama:

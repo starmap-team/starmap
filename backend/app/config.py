@@ -151,6 +151,13 @@ class Settings(BaseSettings):
             else:
                 logger.warning(msg)
 
+        # P1 修复 (DATA-04): 生产环境 Redis 必须有密码
+        if self.app_env == "production" and "@" not in self.redis_uri:
+            raise RuntimeError(
+                "Redis URI 缺少密码认证（生产环境必须配置 REDIS_URL 含密码），"
+                "格式：redis://:password@host:port/db"
+            )
+
         # P1 修复 (SEC-02): 生产环境 SECRET_KEY 必须足够长
         if self.app_env == "production" and len(self.secret_key) < 32:
             raise RuntimeError(
