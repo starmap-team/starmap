@@ -143,3 +143,46 @@ def dedupe_graph(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> di
             edge_map.setdefault(key, edge)
 
     return {"nodes": list(node_map.values()), "edges": list(edge_map.values())}
+
+
+# ── Position/Skill item formatters (extracted from graph_service.py — m7) ──
+
+def position_item(node: dict[str, Any]) -> dict[str, Any]:
+    # 业务说明：将图谱中的 Position 节点转换为 API 响应中职位列表的标准数据结构。
+    # 技术说明：从 node.properties 中提取职位 ID、名称、行业、描述及所需技能列表。
+    """Format a position node dict into the API position-item contract."""
+    props = dict(node.get("properties") or {})
+    return {
+        "position_id": str(props.get("position_id") or node.get("id") or props.get("name") or ""),
+        "name": props.get("name") or node.get("id") or "",
+        "industry": props.get("industry") or "",
+        "description": props.get("description") or "",
+        "skills_required": props.get("skills_required") or [],
+    }
+
+
+def skill_item(node: dict[str, Any], rel: dict[str, Any] | None = None) -> dict[str, Any]:
+    # 业务说明：将图谱中的 Skill 节点（及可选的关联关系）转换为 API 响应中技能列表的标准数据结构。
+    # 技术说明：结合节点属性与关系属性（如 level、required）生成 proficiency、importance 等字段。
+    """Format a skill node dict (+ optional relationship) into the API skill-item contract."""
+    # Lazy import to avoid circular dependency with graph_service re-exports.
+    from app.core.extraction.normalize import normalize_proficiency
+
+    props = dict(node.get("properties") or {})
+    rel_props = dict((rel or {}).get("properties") or {})
+    level = rel_props.get("level")
+    # Default to False (bonus) when no explicit required property exists
+    required = rel_props.get("required", False)
+    category = props.get("category") or props.get("source_category") or "hard_skill"
+    if category == "Skill":
+        category = props.get("source_category") or "hard_skill"
+    return {
+        "skill_id": str(props.get("skill_id") or node.get("id") or props.get("name") or ""),
+        "name": props.get("name") or node.get("id") or "",
+        "category": category,
+        "proficiency": props.get("proficiency") or normalize_proficiency(level),
+        "confidence": float(props.get("confidence") or rel_props.get("confidence") or 1.0),
+        "source_count": int(props.get("source_count") or 0),
+        "trend": props.get("trend") or "stable",
+        "importance": "required" if required is not False else "bonus",
+    }
