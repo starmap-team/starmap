@@ -10,138 +10,31 @@ import { Connection, Coin, DataLine, RefreshRight, Loading as LoadingIcon, Warni
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { GaugeChart, BarChart } from 'echarts/charts'
-import {
-  TooltipComponent,
-  GridComponent,
-} from 'echarts/components'
+import { TooltipComponent, GridComponent } from 'echarts/components'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useDataSourceStore } from '@/stores/datasource'
 import type { DataSourceDetail } from '@/stores/datasource'
-import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle } from '@/utils/chartTheme'
+import { chartColors } from '@/utils/chartTheme'
+import {
+  getAuthorityGaugeOption,
+  getDailyVolumeOption,
+  getStatusBadge,
+  getSourceTypeLabel,
+  formatLastCrawl,
+  formatRecords,
+} from '@/composables/useDataSourceCharts'
 
 use([GaugeChart, BarChart, TooltipComponent, GridComponent])
 
 const dsStore = useDataSourceStore()
+// ponytail: chartColors re-exported for template KPI card :style bindings
+const cc = chartColors()
 
 const syncingIds = ref<Set<string>>(new Set())
 
 onMounted(() => {
   dsStore.fetchSources()
 })
-
-// ── 权威度环形图配置 ──
-function getAuthorityGaugeOption(score: number) {
-  const colors = chartColors()
-  const pct = Math.round(score * 100)
-  let color = colors.danger
-  if (pct >= 80) color = colors.success
-  else if (pct >= 60) color = colors.warning
-
-  return {
-    series: [{
-      type: 'gauge',
-      startAngle: 220,
-      endAngle: -40,
-      radius: '90%',
-      center: ['50%', '55%'],
-      min: 0,
-      max: 100,
-      progress: { show: true, width: 10, roundCap: true, itemStyle: { color } },
-      axisLine: { lineStyle: { width: 10, color: [[1, colors.border]] } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-      axisLabel: { show: false },
-      pointer: { show: false },
-      detail: {
-        valueAnimation: true,
-        formatter: '{value}',
-        fontSize: 20,
-        fontWeight: 700,
-        color: colors.foreground,
-        offsetCenter: [0, '10%'],
-      },
-      title: {
-        show: true,
-        offsetCenter: [0, '40%'],
-        fontSize: 10,
-        color: colors.muted,
-      },
-      data: [{ value: pct, name: '权威度' }],
-    }],
-  }
-}
-
-// ── 日采集量柱状图配置 ──
-function getDailyVolumeOption(volumes: number[]) {
-  const colors = chartColors()
-  const days = ['一', '二', '三', '四', '五', '六', '日']
-  return {
-    tooltip: {
-      ...tooltipStyle(),
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-    },
-    grid: { top: 8, bottom: 20, left: 28, right: 8 },
-    xAxis: {
-      type: 'category',
-      data: volumes.map((_, i) => days[i] ?? `D${i + 1}`),
-      axisLabel: { ...axisLabelStyle(), fontSize: 10 },
-      axisLine: { show: false },
-      axisTick: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      splitLine: splitLineStyle(),
-      axisLabel: { ...axisLabelStyle(), fontSize: 9 },
-    },
-    series: [{
-      type: 'bar',
-      data: volumes.map((v, i) => ({
-        value: v,
-        itemStyle: {
-          color: i === volumes.length - 1 ? colors.primary : colors.primary + '60',
-          borderRadius: [3, 3, 0, 0],
-        },
-      })),
-      barWidth: '55%',
-    }],
-  }
-}
-
-// ── 数据源状态映射 ──
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'active':  return { type: 'success', label: '运行中' }
-    case 'paused':  return { type: 'warning', label: '已暂停' }
-    case 'error':   return { type: 'danger',  label: '异常' }
-    default:        return { type: 'info',    label: '未知' }
-  }
-}
-
-function getSourceTypeLabel(type: string) {
-  const map: Record<string, string> = { crawler: '爬虫', api: 'API', manual: '手动', import: '导入' }
-  return map[type] ?? type
-}
-
-function formatLastCrawl(dateStr: string) {
-  if (!dateStr) return '--'
-  const d = new Date(dateStr)
-  const now = new Date()
-  const diff = now.getTime() - d.getTime()
-  const min = Math.floor(diff / 60000)
-  if (min < 1) return '刚刚'
-  if (min < 60) return `${min}分钟前`
-  const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr}小时前`
-  const day = Math.floor(hr / 24)
-  return `${day}天前`
-}
-
-function formatRecords(n: number) {
-  if (n >= 10000) return `${(n / 10000).toFixed(1)}万`
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
-  return String(n)
-}
 
 // ── 一键同步 ──
 async function handleSync(source: DataSourceDetail) {
@@ -216,7 +109,7 @@ const summaryStats = computed(() => {
             <div class="kpi-inner">
               <div
                 class="kpi-icon"
-                :style="{ background: chartColors().primary + '18', color: chartColors().primary }"
+                :style="{ background: cc.primary + '18', color: cc.primary }"
               >
                 <el-icon size="22">
                   <Connection />
@@ -228,7 +121,7 @@ const summaryStats = computed(() => {
                 </div>
                 <div
                   class="kpi-value"
-                  :style="{ color: chartColors().primary }"
+                  :style="{ color: cc.primary }"
                 >
                   {{ summaryStats.total }}
                 </div>
@@ -252,7 +145,7 @@ const summaryStats = computed(() => {
             <div class="kpi-inner">
               <div
                 class="kpi-icon"
-                :style="{ background: chartColors().success + '18', color: chartColors().success }"
+                :style="{ background: cc.success + '18', color: cc.success }"
               >
                 <el-icon size="22">
                   <Coin />
@@ -264,7 +157,7 @@ const summaryStats = computed(() => {
                 </div>
                 <div
                   class="kpi-value"
-                  :style="{ color: chartColors().success }"
+                  :style="{ color: cc.success }"
                 >
                   {{ formatRecords(summaryStats.totalRecords) }}
                 </div>
@@ -288,7 +181,7 @@ const summaryStats = computed(() => {
             <div class="kpi-inner">
               <div
                 class="kpi-icon"
-                :style="{ background: chartColors().info + '18', color: chartColors().info }"
+                :style="{ background: cc.info + '18', color: cc.info }"
               >
                 <el-icon size="22">
                   <DataLine />
@@ -300,7 +193,7 @@ const summaryStats = computed(() => {
                 </div>
                 <div
                   class="kpi-value"
-                  :style="{ color: summaryStats.avgQuality >= 0.8 ? chartColors().success : chartColors().warning }"
+                  :style="{ color: summaryStats.avgQuality >= 0.8 ? cc.success : cc.warning }"
                 >
                   {{ (summaryStats.avgQuality * 100).toFixed(1) }}%
                 </div>
@@ -327,7 +220,7 @@ const summaryStats = computed(() => {
             <div class="kpi-inner">
               <div
                 class="kpi-icon"
-                :style="{ background: chartColors().warning + '18', color: chartColors().warning }"
+                :style="{ background: cc.warning + '18', color: cc.warning }"
               >
                 <el-icon size="22">
                   <WarningFilled />
@@ -339,7 +232,7 @@ const summaryStats = computed(() => {
                 </div>
                 <div
                   class="kpi-value"
-                  :style="{ color: summaryStats.total - summaryStats.active > 0 ? chartColors().danger : chartColors().success }"
+                  :style="{ color: summaryStats.total - summaryStats.active > 0 ? cc.danger : cc.success }"
                 >
                   {{ summaryStats.total - summaryStats.active }}
                 </div>
@@ -406,7 +299,7 @@ const summaryStats = computed(() => {
                   <span class="stat-label">数据质量</span>
                   <span
                     class="stat-value"
-                    :style="{ color: source.avg_quality_score >= 0.8 ? chartColors().success : chartColors().warning }"
+                    :style="{ color: source.avg_quality_score >= 0.8 ? cc.success : cc.warning }"
                   >{{ (source.avg_quality_score * 100).toFixed(0) }}%</span>
                 </div>
                 <div class="stat-row">
@@ -421,7 +314,7 @@ const summaryStats = computed(() => {
                   <span class="stat-label">重复率</span>
                   <span
                     class="stat-value"
-                    :style="{ color: source.duplicate_rate > 0.2 ? chartColors().danger : chartColors().success }"
+                    :style="{ color: source.duplicate_rate > 0.2 ? cc.danger : cc.success }"
                   >{{ (source.duplicate_rate * 100).toFixed(1) }}%</span>
                 </div>
               </div>
