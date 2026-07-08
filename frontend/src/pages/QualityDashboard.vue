@@ -3,7 +3,6 @@
  * 图谱质量仪表盘 — R6 曾洋涛
  * 4 指标卡（含趋势箭头）+ 信任度直方图 + 幻觉率趋势 + 数据源饼图 + 审核队列
  */
-import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RefreshRight } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -12,8 +11,9 @@ import { useAdminStore } from '@/stores/admin'
 import { chartColors } from '@/utils/chartTheme'
 import QualityTrendChart from '@/components/QualityTrendChart.vue'
 import AlertList from '@/components/AlertList.vue'
-import { useQualityDashboardCharts, useQualityAutoRefresh } from '@/composables/useQualityDashboardCharts'
+import { useQualityDashboardCharts } from '@/composables/useQualityDashboardCharts'
 import { useQualityActions } from '@/composables/useQualityActions'
+import { useQualityDashboard } from '@/composables/useQualityDashboard'
 
 const quality = useQualityStore()
 const admin = useAdminStore()
@@ -26,36 +26,21 @@ const {
   sourceChartOption,
 } = useQualityDashboardCharts(quality)
 
-// 自动刷新
-const autoRefresh = ref(true)
-const refreshInterval = ref(30) // 秒
-const { lastRefresh, start: startAutoRefresh } = useQualityAutoRefresh(quality, refreshInterval, autoRefresh)
+// Page-level orchestration (activeTab + auto-refresh + initial fetch — Phase 7 D round 11)
+const {
+  activeTab,
+  autoRefresh,
+  lastRefresh,
+  toggleAutoRefresh,
+} = useQualityDashboard(quality)
 
-// ── Sprint 1.2: Tab 状态 ──
-const activeTab = ref('overview')
-
-// ── Sprint 1.2: 趋势周期 / 告警 / 自动刷新 切换 ──
+// 趋势周期 / 告警 操作
 const {
   trendPeriod,
   handleTrendPeriodChange,
   handleResolveAlert,
   handleIgnoreAlert,
-  toggleAutoRefresh: rawToggleAutoRefresh,
 } = useQualityActions(quality)
-
-function toggleAutoRefresh(val: boolean) {
-  autoRefresh.value = val
-  rawToggleAutoRefresh(val, refreshInterval.value)
-}
-
-onMounted(() => {
-  void quality.fetchQuality().then(() => {
-    lastRefresh.value = new Date().toLocaleTimeString()
-  })
-  void quality.fetchTrends('7d')
-  void quality.fetchAlerts()
-  startAutoRefresh()
-})
 </script>
 
 <template>
