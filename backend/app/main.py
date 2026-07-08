@@ -16,6 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.api.v1.router import api_router
 from app.config import settings
 from app.services.resources import healthcheck_resources, init_resources, resources
+from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 # AP-10: Structured JSON logging for production (enables ELK/Loki querying)
 # Remove loguru's default handler and add JSON-serialized sink in production
@@ -105,6 +106,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         bucket = _rate_buckets[client_ip]
         _rate_buckets[client_ip] = [t for t in bucket if now - t < _RATE_LIMIT_WINDOW]
         if len(_rate_buckets[client_ip]) >= _RATE_LIMIT_MAX:
+            audit_log(AuditEntry(
+                event=AuditEvent.RATE_LIMITED,
+                actor=client_ip,
+                action=f"{request.method} {request.url.path}",
+                detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s",
+                ip=client_ip,
+            ))
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Try again later."},

@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.services.resources import resources
+from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 # ── Bearer token scheme ──
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -99,6 +100,13 @@ async def get_current_user(
     if credentials is None:
         if settings.app_env != "production":
             return {"sub": "dev", "role": "admin", "username": "developer"}
+        audit_log(AuditEntry(
+            event=AuditEvent.AUTH_FAILURE,
+            actor="anonymous",
+            action="missing_token",
+            detail="No Bearer token provided in production",
+            ip="",
+        ))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
@@ -114,7 +122,16 @@ async def get_current_user(
     # JWT 验证
     try:
         payload = _decode_token(token)
-    except (ValueError, Exception) as e:
+    except ValueError as e:
+        err_msg = str(e)
+        event = AuditEvent.TOKEN_EXPIRED if "expired" in err_msg else AuditEvent.TOKEN_INVALID
+        audit_log(AuditEntry(
+            event=event,
+            actor="anonymous",
+            action="jwt_validate",
+            detail=err_msg,
+            ip="",
+        ))
         logger.warning("JWT validation failed: {}", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -134,6 +151,13 @@ async def require_admin(
     生产环境: JWT payload 中 role 必须为 "admin"。
     """
     if user.get("role") != "admin":
+        audit_log(AuditEntry(
+            event=AuditEvent.AUTHZ_DENIED,
+            actor=user.get("sub", "unknown"),
+            action="require_admin",
+            detail=f"User role={user.get('role')} attempted admin action",
+            ip="",
+        ))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
