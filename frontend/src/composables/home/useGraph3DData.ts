@@ -1,6 +1,6 @@
 /** 3D graph data derivation (graph3DNodes / graph3DLinks) using precomputed KA colors. */
 import { computed } from 'vue'
-import { useGraphStore } from '@/stores/graph'
+import { useGraphStore, type GraphNode } from '@/stores/graph'
 import { KA_FALLBACK_COLORS, nodeColor } from '@/utils/graphColors'
 import { useGraph2DData } from './useGraph2DData'
 
@@ -10,7 +10,7 @@ export function useGraph3DData() {
 
   const graph3DNodes = computed(() =>
     graphStore.visibleNodes.map(n => {
-      const props = n.properties as Record<string, any>
+      const props = n.properties as GraphNode['properties']
       let color = nodeColor(n.labels[0])
       if (n.labels[0] === 'KnowledgeArea') {
         color = kaColorMap.value.get(n.id) ?? KA_FALLBACK_COLORS[0]

@@ -13,6 +13,7 @@ import { TooltipComponent, GridComponent } from 'echarts/components'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useDataSourceStore } from '@/stores/datasource'
 import { chartColors } from '@/utils/chartTheme'
+import { asTagType } from '@/utils/element'
 import {
   getAuthorityGaugeOption,
   getDailyVolumeOption,
@@ -238,7 +239,7 @@ onMounted(() => {
               <div class="card-title-group">
                 <span class="card-name">{{ source.name }}</span>
                 <el-tag
-                  :type="getStatusBadge(source.status).type as any"
+                  :type="asTagType(getStatusBadge(source.status).type)"
                   size="small"
                   effect="light"
                   round

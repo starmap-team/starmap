@@ -31,8 +31,7 @@ export interface UseSSEOptions {
    * If provided, useSSE will dispatch event to matching handler based on event.type
    * before falling back to onMessage.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  storeHandlers?: Record<string, (data: any) => void>
+  storeHandlers?: Record<string, (data: unknown) => void>
 }
 
 export function useSSE(url: string, options: UseSSEOptions) {

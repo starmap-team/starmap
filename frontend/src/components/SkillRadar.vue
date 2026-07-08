@@ -35,7 +35,7 @@ const radarOption = computed(() => {
   return {
     tooltip: {
       trigger: 'item',
-      formatter: (p: any) => {
+      formatter: (p: { seriesName: string; name: string; value: number }) => {
         if (p.seriesName === '岗位要求') {
           return `${p.name}<br/>岗位要求：${(p.value * 100).toFixed(0)}%`
         }

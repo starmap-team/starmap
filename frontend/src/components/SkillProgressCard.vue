@@ -5,6 +5,7 @@
  */
 import { computed } from 'vue'
 import { Clock, Checked, Loading as LoadingIcon } from '@element-plus/icons-vue'
+import { asTagType } from '@/utils/element'
 
 interface SkillData {
   skill: string
@@ -65,7 +66,7 @@ function handleStatusChange(status: string) {
       <div class="sc-name">
         <span class="sc-skill-name">{{ skill.skill }}</span>
         <el-tag
-          :type="statusConfig.type as any"
+          :type="asTagType(statusConfig.type)"
           size="small"
           effect="plain"
           class="sc-status-tag"

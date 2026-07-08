@@ -35,6 +35,11 @@ interface PositionInfo {
   description: string
 }
 
+interface PositionSkillsResponse {
+  skills?: SkillItem[]
+  position?: PositionInfo
+}
+
 const position = ref<PositionInfo | null>(null)
 const skills = ref<SkillItem[]>([])
 const loading = ref(false)
@@ -80,10 +85,10 @@ function hotnessColor(count: number): string {
 onMounted(async () => {
   loading.value = true
   try {
-    const data = await jdStore.fetchPositionSkills(positionName.value)
-    if ((data as any)?.skills?.length || (data as any)?.position) {
-      position.value = (data as any).position as PositionInfo
-      skills.value = ((data as any).skills ?? []) as SkillItem[]
+    const data = await jdStore.fetchPositionSkills(positionName.value) as unknown as PositionSkillsResponse
+    if (data?.skills?.length || data?.position) {
+      position.value = data.position as PositionInfo
+      skills.value = (data.skills ?? []) as SkillItem[]
     } else {
       // Neo4j 无数据，回退到 PostgreSQL
       await loadFromPostgres()

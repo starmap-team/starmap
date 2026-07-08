@@ -2,6 +2,7 @@
 import { ref } from "vue"
 import { Connection } from "@element-plus/icons-vue"
 import { useGraphStore } from "@/stores/graph"
+import { asTagType } from "@/utils/element"
 
 const graphStore = useGraphStore()
 
@@ -51,7 +52,7 @@ defineExpose({ open, close })
         <span class="evo-pos">{{ selectedEdge.target_id }}</span>
       </div>
       <el-tag
-        :type="(trendType[selectedEdge.properties?.trend ?? 'stable'] ?? 'info') as any"
+        :type="asTagType(trendType[selectedEdge.properties?.trend ?? 'stable'])"
         effect="plain"
         size="default"
       >

@@ -1,14 +1,15 @@
 import { onMounted, onBeforeUnmount, type Ref } from 'vue'
 import { ensureG6Loaded } from './useG6'
+import type { Graph, GraphOptions } from '@/types/g6'
 
 /**
  * Shared G6 graph lifecycle: create, resize, destroy.
  * ponytail: replaces duplicated mount/resize/destroy in CareerPathGraph & LearningPathFlow.
  */
 export function useG6Graph(containerRef: Ref<HTMLElement | null>) {
-  let graph: any = null
+  let graph: Graph | null = null
 
-  async function createGraph(options: Record<string, any>) {
+  async function createGraph(options: GraphOptions) {
     if (!containerRef.value) return
     if (graph) { graph.destroy(); graph = null }
 

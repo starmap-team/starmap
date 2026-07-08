@@ -35,8 +35,9 @@ const navGroups = [
 ]
 const currentTitle = computed(() => navItems.find(i => i.path === route.path)?.title ?? '星图')
 const breadcrumbs = computed(() => {
-  const meta = route.meta as Record<string, any>
-  if (meta?.breadcrumb?.length) return meta.breadcrumb as string[]
+  const meta = route.meta as Record<string, unknown>
+  const bc = meta?.breadcrumb
+  if (Array.isArray(bc) && bc.length) return bc as string[]
   return ['首页', currentTitle.value]
 })
 function closeMobileMenu() { mobileMenuOpen.value = false }

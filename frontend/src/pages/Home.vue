@@ -53,8 +53,11 @@ const onCanvasClickWithClear = () => onCanvasClick(clearSelection)
 const onHandleNodeClick = async (id: string) => handleNodeClick(id, selectedNode)
 const onHandleSearchSelect = (id: string, name: string, type: string) =>
   handleSearchSelect(id, name, type, selectedNode)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const onOpenEvolutionDrawer = (edge: any) => evolutionDrawer.value?.open(edge)
+const onOpenEvolutionDrawer = (edge: { source?: string | number | { id?: string | number }; target?: string | number | { id?: string | number } }) => {
+  const resolveId = (v: string | number | { id?: string | number } | undefined): string =>
+    typeof v === 'object' ? String(v?.id ?? '') : v == null ? '' : String(v)
+  evolutionDrawer.value?.open({ source: resolveId(edge.source), target: resolveId(edge.target) })
+}
 const onNavigate = (path: string) => router.push(path)
 
 onMounted(async () => {

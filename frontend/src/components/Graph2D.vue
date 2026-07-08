@@ -16,6 +16,7 @@ import { ElMessage } from 'element-plus'
 import { useGraphStore } from '@/stores/graph'
 // 业务说明：引入节点颜色映射常量，用于根据节点类型（领域/岗位/技能）分配可视化颜色
 import { NODE_TYPE_COLORS, KA_FALLBACK_COLORS } from '@/utils/graphColors'
+import type { Graph, G6GraphClass, G6ElementEvent, NodeData, EdgeData, EvolutionEdgeClickPayload } from '@/types/g6'
 
 // ── Props (UI state owned by parent) ──
 // 业务说明：定义组件对外暴露的属性接口，父组件通过 props 控制图谱的展示模式与筛选条件
@@ -39,7 +40,7 @@ const emit = defineEmits<{
   nodeClick: [nodeId: string]                        // 业务说明：用户单击节点时触发，携带节点唯一标识
   nodeDblClick: [nodeId: string]                     // 业务说明：用户双击节点时触发，常用于下钻或打开详情
   canvasClick: []                                     // 业务说明：用户点击空白画布时触发，用于取消选中/高亮
-  edgeClick: [edgeData: { source: string; target: string; type: string; properties: any }]
+  edgeClick: [edgeData: EvolutionEdgeClickPayload]
                                                     // 业务说明：用户点击演进边时触发，携带边的完整业务数据
 }>()
 
@@ -49,10 +50,10 @@ const graphStore = useGraphStore()
 
 // ── G6 dynamic loader ──
 // 技术说明：缓存 G6 Graph 类，避免重复动态导入，减少网络请求与初始化耗时
-let _G6GraphClass: any = null
+let _G6GraphClass: G6GraphClass | null = null
 
 // 技术说明：按需异步加载 @antv/g6 库，返回 Graph 构造函数；首次调用时执行导入并缓存
-async function loadG6Graph(): Promise<any> {
+async function loadG6Graph(): Promise<G6GraphClass> {
   if (!_G6GraphClass) {
     const g6 = await import('@antv/g6')
     _G6GraphClass = g6.Graph
@@ -67,7 +68,7 @@ import { cv, g6TooltipStyle } from '@/utils/chartTheme'
 // 技术说明：模板引用，指向承载 G6 画布的真实 DOM 容器节点
 const containerRef = ref<HTMLElement | null>(null)
 // 技术说明：使用 shallowRef 持有 G6 实例，避免 Vue 对 G6 内部庞大对象进行深度响应式代理，降低内存与性能开销
-const graph = shallowRef<any>(null)
+const graph = shallowRef<Graph | null>(null)
 
 // ── Exposed methods ──
 // 业务说明：对外暴露的缩放方法，父组件可通过 ref 调用以控制画布缩放级别
@@ -158,13 +159,13 @@ async function initGraph() {
     })
 
     // 业务说明：监听节点单击事件，向上层抛出 nodeClick 事件，供父组件处理节点选中/下钻
-    graph.value.on('node:click', (event: any) => {
+    graph.value.on('node:click', (event: G6ElementEvent) => {
       const nodeId = event.target?.id
       if (nodeId) emit('nodeClick', nodeId)
     })
 
     // 业务说明：监听节点双击事件，向上层抛出 nodeDblClick 事件，常用于打开节点详情面板
-    graph.value.on('node:dblclick', (event: any) => {
+    graph.value.on('node:dblclick', (event: G6ElementEvent) => {
       const nodeId = event.target?.id
       if (nodeId) emit('nodeDblClick', nodeId)
     })
@@ -175,7 +176,7 @@ async function initGraph() {
     })
 
     // 业务说明：监听边单击事件，仅处理演进边（ID 以 evo- 开头），解析源目标并抛出 edgeClick 事件
-    graph.value.on('edge:click', (event: any) => {
+    graph.value.on('edge:click', (event: G6ElementEvent) => {
       const edgeId = event.target?.id
       if (edgeId && edgeId.startsWith('evo-')) {
         // 技术说明：从边 ID 中解析 source 与 target：格式为 evo-{src}-{tgt}
@@ -197,7 +198,7 @@ async function initGraph() {
 
 // ── Render dispatch ──
 // 业务说明：根据当前 Store 中的图层层级（domain/position/detail），分发到对应的渲染函数
-let _renderTimer: any = null
+let _renderTimer: ReturnType<typeof setTimeout> | null = null
 function renderCurrentLayer() {
   if (!graph.value) return
   if (_renderTimer) clearTimeout(_renderTimer)
@@ -280,7 +281,7 @@ function renderDomainLayer() {
   // 技术说明：向 G6 注入节点与边数据
   graph.value.setData({ nodes: graphNodes, edges: graphEdges })
   // 技术说明：设置初始入场动画状态：节点透明度 0、缩放 0.3，为后续动画做准备（当前已注释掉动画完成逻辑）
-  const entranceNodes = graphNodes.map((n: any) => ({
+  const entranceNodes = graphNodes.map((n: NodeData) => ({
     id: n.id,
     style: { fillOpacity: 0, scale: 0.3 },
   }))
@@ -330,8 +331,8 @@ function renderPositionLayer() {
     return count
   }), 1)
 
-  const graphNodes: any[] = []
-  const graphEdges: any[] = []
+  const graphNodes: NodeData[] = []
+  const graphEdges: EdgeData[] = []
 
   // 业务说明：构建中心领域节点，尺寸较小（60px），半透明填充，作为 radial 布局的焦点
   if (kaId) {
@@ -442,7 +443,7 @@ function renderPositionLayer() {
             labelFontSize: 9,
             labelFontWeight: 'bold' as const,
             labelOffsetY: -6,
-            labelPlacement: 'top' as const,
+            labelPlacement: 'center' as const,
           },
         })
       }
@@ -464,8 +465,8 @@ function renderDetailLayer() {
   const posId = graphStore.expandedPositionId
   if (!posId) return
 
-  const graphNodes: any[] = []
-  const graphEdges: any[] = []
+  const graphNodes: NodeData[] = []
+  const graphEdges: EdgeData[] = []
   // 业务说明：获取当前岗位所属领域 ID 及颜色，用于构建领域背景节点与配色统一
   const kaId = graphStore.expandedKAId
   const kaColor = kaId ? (props.kaColorMap.get(kaId) ?? cv('--chart-3')) : cv('--chart-3')
@@ -519,7 +520,8 @@ function renderDetailLayer() {
         const skillNode = graphStore.nodeMap.get(e.target_id)
         if (!skillNode) return false
         // 业务说明：优先读取技能节点属性中的 proficiency，其次读取边属性中的 level
-        const prof = skillNode.properties.proficiency || (e.properties as any)?.level || ''
+        const level = (e.properties as Record<string, unknown>)?.level
+        const prof = skillNode.properties.proficiency || (typeof level === 'string' ? level : '') || ''
         return prof ? props.proficiencyFilter.includes(prof) : true
       })
     : allPosEdges

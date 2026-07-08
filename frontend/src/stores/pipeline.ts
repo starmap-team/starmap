@@ -71,6 +71,12 @@ export interface DataQualityMetrics {
   alerts: QualityAlert[]
 }
 
+interface DataQualityResponse {
+  metrics?: Omit<DataQualityMetrics, 'alerts'>
+  alerts?: QualityAlert[]
+  [key: string]: unknown
+}
+
 // ── Phase 1 SSE 事件类型 (D-10) ──
 
 // ponytail: QualityAlert removed — canonical type in types/quality.ts
@@ -245,7 +251,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     loading.value = true
     error.value = null
     try {
-      const raw = await request.get('/pipeline/data-quality') as any
+      const raw = await request.get('/pipeline/data-quality') as DataQualityResponse
       // Phase 1: API 返回嵌套 { metrics: {...}, alerts: [...] } 结构
       // 需要解包 metrics + 合并 alerts 到顶层
       const metrics = (raw && raw.metrics) ? raw.metrics : raw

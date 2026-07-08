@@ -5,6 +5,7 @@
  */
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
+import { asTagType } from '@/utils/element'
 import { use } from 'echarts/core'
 import { GaugeChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
@@ -123,7 +124,7 @@ const gaugeOption = computed(() => {
       <div class="source-title-group">
         <span class="source-name">{{ source.name }}</span>
         <el-tag
-          :type="statusBadge.type as any"
+          :type="asTagType(statusBadge.type)"
           size="small"
           effect="light"
           round

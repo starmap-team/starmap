@@ -5,6 +5,7 @@
  */
 import { computed } from 'vue'
 import { chartColors } from '@/utils/chartTheme'
+import { asTagType } from '@/utils/element'
 
 export interface AlertItem {
   id: string | number
@@ -142,7 +143,7 @@ function formatRelativeTime(dateStr: string): string {
       >
         <template #default="{ row }">
           <el-tag
-            :type="(statusConfig[row.status]?.type ?? 'info') as any"
+            :type="asTagType(statusConfig[row.status]?.type)"
             size="small"
             effect="plain"
             round

@@ -7,6 +7,7 @@ import GraphToolbar from '@/components/GraphToolbar.vue'
 import HomeEvolutionPopup from '@/components/HomeEvolutionPopup.vue'
 import type { OverviewMode } from '@/stores/graph'
 import type { EvolutionEdgeDetail } from '@/components/HomeEvolutionPopup.vue'
+import type { EvolutionEdgeClickPayload } from '@/types/g6'
 
 type LayoutMode = 'force' | 'dagre' | 'radial'
 
@@ -20,8 +21,8 @@ defineProps<{
   loading: boolean
   visibleNodeCount: number
   /** 3D graph data — must match Graph3D's GraphNode3D / GraphLink3D interfaces */
-  graph3DNodes: { id: string; labels?: string[]; color?: string; properties: { name: string; category?: string; proficiency?: string; position_count?: number; skill_count?: number; weight?: number; [key: string]: any }; x?: number; y?: number; z?: number }[]
-  graph3DLinks: { source: string; target: string; type?: string; properties?: any }[]
+  graph3DNodes: { id: string; labels?: string[]; color?: string; properties: { name: string; category?: string; proficiency?: string; position_count?: number; skill_count?: number; weight?: number; [key: string]: unknown }; x?: number; y?: number; z?: number }[]
+  graph3DLinks: { source: string; target: string; type?: string; properties?: Record<string, unknown> }[]
   overviewMode: OverviewMode
   /** KA color map for 2D */
   kaColorMap: Map<string, string>
@@ -33,7 +34,7 @@ const emit = defineEmits<{
   nodeClick: [nodeId: string]
   nodeDblClick: [nodeId: string]
   canvasClick: []
-  evolutionEdgeClick: [edgeData: { source: string; target: string; type: string; properties: any }]
+  evolutionEdgeClick: [edgeData: EvolutionEdgeClickPayload]
   closeEvolutionDetail: []
   toggleLayout: []
   resetHighlight: []
@@ -89,7 +90,7 @@ defineExpose({ highlightNode, clearHighlight })
           @node-click="(id: string) => emit('nodeClick', id)"
           @node-dbl-click="(id: string) => emit('nodeDblClick', id)"
           @canvas-click="() => emit('canvasClick')"
-          @edge-click="(data: any) => emit('evolutionEdgeClick', data)"
+          @edge-click="(data: EvolutionEdgeClickPayload) => emit('evolutionEdgeClick', data)"
         />
         <Graph3D
           v-if="viewMode === '3d'"

@@ -64,6 +64,11 @@ export interface QualityTrendPoint {
 
 // ponytail: QualityAlert removed — canonical type in types/quality.ts
 
+interface QualityAlertsResponse {
+  alerts?: QualityAlert[]
+  [key: string]: unknown
+}
+
 export const useQualityStore = defineStore('quality', () => {
   const metrics = ref<QualityMetrics | null>(null)
   const loading = ref(false)
@@ -144,8 +149,8 @@ export const useQualityStore = defineStore('quality', () => {
   async function fetchAlerts() {
     alertsLoading.value = true
     try {
-      const resp = await request.get('/quality/alerts') as any
-      alerts.value = resp?.alerts ?? resp ?? []
+      const resp = await request.get('/quality/alerts') as QualityAlertsResponse
+      alerts.value = resp?.alerts ?? []
     } catch {
       alerts.value = []
     } finally {

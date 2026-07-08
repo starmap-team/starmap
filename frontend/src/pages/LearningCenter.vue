@@ -24,6 +24,7 @@ import { useLearningStore } from '@/stores/learning'
 // 业务说明：拆分到独立 composable 的指标计算与优先级映射
 import { useLearningMetrics } from '@/composables/useLearningMetrics'
 import { priorityType, priorityLabel } from '@/composables/useLearningPriority'
+import { asTagType } from '@/utils/element'
 import { useLearningActions } from '@/composables/useLearningActions'
 import { useLearningFilters } from '@/composables/useLearningFilters'
 
@@ -337,7 +338,7 @@ onMounted(async () => {
               <span class="rec-skill">{{ rec.skill }}</span>
               <!-- 业务说明：优先级标签 —— 高/中/低优先级用不同颜色区分，帮助用户决策学习顺序 -->
               <el-tag
-                :type="priorityType(rec.priority) as any"
+                :type="asTagType(priorityType(rec.priority))"
                 size="small"
                 effect="plain"
               >

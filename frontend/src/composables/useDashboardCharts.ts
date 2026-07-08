@@ -6,7 +6,8 @@ import { computed } from 'vue'
 import type { ComputedRef } from 'vue'
 import { chartColors, tooltipStyle } from '@/utils/chartTheme'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'
-import type { useDashboardStore } from '@/stores/dashboard'
+import type { useDashboardStore, SkillDomain, QualityTrend } from '@/stores/dashboard'
+import type { EmergingSkill } from '@/types/evolution'
 
 type DashboardStore = ReturnType<typeof useDashboardStore>
 
@@ -89,10 +90,10 @@ export function useDashboardCharts(store: DashboardStore) {
       },
       series: [{
         type: 'treemap',
-        data: data.map((d: any) => ({
+        data: data.map((d: SkillDomain) => ({
           name: d.name,
           value: d.value,
-          children: d.children?.map((c: any) => ({
+          children: d.children?.map((c: SkillDomain) => ({
             name: c.name,
             value: c.value,
           })),
@@ -174,7 +175,7 @@ export function useDashboardCharts(store: DashboardStore) {
       grid: { top: 30, bottom: 24, left: 40, right: 40 },
       xAxis: {
         type: 'category',
-        data: trends.map((t: any) => t.date.slice(5)),
+        data: trends.map((t: QualityTrend) => t.date.slice(5)),
         axisLine: { lineStyle: { color: cc.foreground + '26' } },
         axisLabel: { color: cc.muted, fontSize: 10 },
         axisTick: { show: false },
@@ -214,7 +215,7 @@ export function useDashboardCharts(store: DashboardStore) {
               ],
             },
           },
-          data: trends.map((t: any) => t.quality_score),
+          data: trends.map((t: QualityTrend) => t.quality_score),
         },
         {
           name: '信任分',
@@ -234,7 +235,7 @@ export function useDashboardCharts(store: DashboardStore) {
               ],
             },
           },
-          data: trends.map((t: any) => t.trust_score),
+          data: trends.map((t: QualityTrend) => t.trust_score),
         },
         {
           name: '采集量',
@@ -244,7 +245,7 @@ export function useDashboardCharts(store: DashboardStore) {
           symbol: 'none',
           lineStyle: { color: cc.warning, width: 1.5, type: 'dashed' },
           itemStyle: { color: cc.warning },
-          data: trends.map((t: any) => t.crawl_volume),
+          data: trends.map((t: QualityTrend) => t.crawl_volume),
         },
       ],
     }
@@ -293,7 +294,7 @@ export function useDashboardCharts(store: DashboardStore) {
         textStyle: { color: cc.foreground, fontSize: 12 },
       },
       radar: {
-        indicator: top.map((s: any) => ({
+        indicator: top.map((s: EmergingSkill) => ({
           name: s.name,
           max: 100,
         })),
@@ -319,14 +320,14 @@ export function useDashboardCharts(store: DashboardStore) {
         type: 'radar',
         data: [
           {
-            value: top.map((s: any) => Math.round(s.growth_rate * 100)),
+            value: top.map((s: EmergingSkill) => Math.round(s.growth_rate * 100)),
             name: '增长率',
             lineStyle: { color: cc.chart[0], width: 2 },
             itemStyle: { color: cc.chart[0] },
             areaStyle: { color: cc.chart[0] + '26' },
           },
           {
-            value: top.map((s: any) => Math.round(s.relevance * 100)),
+            value: top.map((s: EmergingSkill) => Math.round(s.relevance * 100)),
             name: '相关度',
             lineStyle: { color: cc.chart[2], width: 2 },
             itemStyle: { color: cc.chart[2] },

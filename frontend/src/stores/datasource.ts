@@ -7,6 +7,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 import type { DataSourceDetail } from '@/types/datasource'
+import type { GraphNodeItem } from '@/composables/useGraphNodeList'
 
 // Re-export for backward compatibility
 export type { DataSourceDetail } from '@/types/datasource'
@@ -31,6 +32,14 @@ export interface AuditItem {
   name: string
   trust: number
   status: 'pending' | 'approved' | 'rejected'
+}
+
+interface AuditQueueResponse {
+  items: AuditItem[]
+}
+
+interface AdminGraphNodesResponse {
+  items: GraphNodeItem[]
 }
 
 // ── Store 定义 ──
@@ -124,8 +133,8 @@ export const useDataSourceStore = defineStore('datasource', () => {
 
   async function fetchAuditQueue() {
     try {
-      const data = await request.get('/admin/review-queue')
-      auditQueue.value = (data as any).items ?? []
+      const data = await request.get('/admin/review-queue') as AuditQueueResponse
+      auditQueue.value = data.items ?? []
     } catch (e) {
       console.error('[DataSource] Failed to fetch audit queue:', e)
       auditQueue.value = []
@@ -153,13 +162,13 @@ export const useDataSourceStore = defineStore('datasource', () => {
 
   // ── Graph node management (migrated from Admin.vue — M23) ──
 
-  const graphNodes = ref<any[]>([])
+  const graphNodes = ref<GraphNodeItem[]>([])
   const graphNodesLoading = ref(false)
 
   async function fetchGraphNodes() {
     graphNodesLoading.value = true
     try {
-      const data = await request.get('/admin/graph/nodes') as any
+      const data = await request.get('/admin/graph/nodes') as AdminGraphNodesResponse
       graphNodes.value = data.items ?? []
     } catch {
       graphNodes.value = []

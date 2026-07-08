@@ -3,11 +3,11 @@ import { computed, ref, onMounted, onUnmounted } from "vue"
 import VChart from "vue-echarts"
 import { Aim } from "@element-plus/icons-vue"
 import { useGraphStore, type GraphNode } from "@/stores/graph"
+import type { RadarChartOption } from "@/composables/home/useHomeInteractions"
 
 const props = defineProps<{
   selectedNode: GraphNode | null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  positionRadarOption: any
+  positionRadarOption: RadarChartOption | null
 }>()
 
 const emit = defineEmits<{

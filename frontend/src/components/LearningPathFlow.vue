@@ -7,6 +7,7 @@
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { chartColors, cv, g6TooltipStyle } from '@/utils/chartTheme'
 import { useG6Graph } from '@/composables/useG6Graph'
+import type { NodeData, EdgeData, G6ElementEvent, G6ElementDatum } from '@/types/g6'
 
 interface PathNode {
   skill: string
@@ -44,8 +45,8 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 function buildGraphData() {
-  const nodes: any[] = []
-  const edges: any[] = []
+  const nodes: NodeData[] = []
+  const edges: EdgeData[] = []
   const skillSet = new Set(props.path.map(p => p.skill))
 
   for (const item of props.path) {
@@ -96,8 +97,9 @@ async function initGraph() {
   const g = await createGraph({
     autoFit: {
       type: 'view',
-      options: { when: 'always', padding: [24, 24, 24, 24] },
+      options: { when: 'always' },
     },
+    padding: [24, 24, 24, 24],
     layout: {
       type: 'dagre',
       rankdir: 'LR',
@@ -129,9 +131,9 @@ async function initGraph() {
         trigger: 'pointerenter',
         offset: [10, 10],
         style: g6TooltipStyle(),
-        getContent: (_event: any, items: any[]) => {
+        getContent: async (_event: G6ElementEvent, items: G6ElementDatum[]) => {
           if (!items?.length) return ''
-          const d = items[0].data
+          const d = items[0].data as unknown as PathNode & { statusLabel: string }
           return `<div style="font-weight:600;margin-bottom:4px">${d.skill}</div>
             <div>状态：${d.statusLabel}</div>
             <div>进度：${d.progress_pct}%</div>

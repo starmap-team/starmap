@@ -82,7 +82,8 @@ async function startUpload() {
       emit('upload', file.value)
     }
   } catch (e) {
-    if (!(e as any)?.response) {
+    const err = e as { response?: unknown }
+    if (!err?.response) {
       ElMessage.error('上传失败，请检查文件或重试')
     }
   } finally {

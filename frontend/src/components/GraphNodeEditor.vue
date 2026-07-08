@@ -14,7 +14,7 @@ const props = defineProps<{
     id?: string
     type: string
     name: string
-    properties: Record<string, any>
+    properties: Record<string, unknown>
   } | null
 }>()
 
@@ -62,12 +62,13 @@ const proficiencyOptions = [
 // Reset form when dialog opens/closes or editData changes
 watch(() => props.visible, (val) => {
   if (val && props.editData) {
+    const p = props.editData.properties as Record<string, string | undefined>
     form.type = props.editData.type || 'Skill'
     form.name = props.editData.name || ''
-    form.category = props.editData.properties?.category || ''
-    form.proficiency = props.editData.properties?.proficiency || ''
-    form.level = props.editData.properties?.level || ''
-    form.description = props.editData.properties?.description || ''
+    form.category = p?.category || ''
+    form.proficiency = p?.proficiency || ''
+    form.level = p?.level || ''
+    form.description = p?.description || ''
   } else if (val) {
     resetForm()
   }

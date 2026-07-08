@@ -6,6 +6,7 @@
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { chartColors, g6TooltipStyle } from '@/utils/chartTheme'
 import { useG6Graph } from '@/composables/useG6Graph'
+import type { NodeData, EdgeData, G6ElementEvent, G6ElementDatum } from '@/types/g6'
 
 const cc = chartColors()
 
@@ -36,8 +37,8 @@ function getProbabilityFill(prob: number): string {
 }
 
 function buildGraphData() {
-  const nodes: any[] = []
-  const edges: any[] = []
+  const nodes: NodeData[] = []
+  const edges: EdgeData[] = []
 
   for (let i = 0; i < props.path.length; i++) {
     const step = props.path[i]
@@ -117,9 +118,9 @@ async function initGraph() {
         trigger: 'pointerenter',
         offset: [10, 10],
         style: g6TooltipStyle(),
-        getContent: (_event: any, items: any[]) => {
+        getContent: async (_event: G6ElementEvent, items: G6ElementDatum[]) => {
           if (!items?.length) return ''
-          const d = items[0].data
+          const d = items[0].data as unknown as CareerStep & { index: number }
           const skills = d.skills_required?.slice(0, 5).join('、') ?? '-'
           return `<div style="font-weight:600;margin-bottom:4px">${d.position}</div>
             <div>预计时间：${d.estimated_time}</div>

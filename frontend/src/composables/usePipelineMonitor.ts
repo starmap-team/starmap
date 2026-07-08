@@ -5,7 +5,8 @@
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { usePipelineStore } from '@/stores/pipeline'
-import type { PipelineStage, PipelineSchedule } from '@/stores/pipeline'
+import type { PipelineStage, PipelineSchedule, DataMilestone, ExtractionComplete } from '@/stores/pipeline'
+import type { QualityAlert } from '@/types/quality'
 import { STAGE_LABELS, ALL_STAGE_NAMES } from '@/stores/pipeline'
 import { useSSE } from '@/composables/useSSE'
 import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle } from '@/utils/chartTheme'
@@ -56,10 +57,10 @@ export function usePipelineMonitor() {
     '/api/v1/pipeline/events',
     {
       storeHandlers: {
-        pipeline_update: (data) => pipeline.handlePipelineEvent(data),
-        quality_alert: (data) => pipeline.handleQualityAlert(data),
-        data_milestone: (data) => pipeline.handleMilestone(data),
-        extraction_complete: (data) => pipeline.handleExtractionComplete(data),
+        pipeline_update: (data) => pipeline.handlePipelineEvent(data as { stage: string; status: string; progress: number; message: string }),
+        quality_alert: (data) => pipeline.handleQualityAlert(data as QualityAlert),
+        data_milestone: (data) => pipeline.handleMilestone(data as DataMilestone),
+        extraction_complete: (data) => pipeline.handleExtractionComplete(data as ExtractionComplete),
       },
       onMessage: (event: MessageEvent) => {
         // SSE events from sse_broadcaster come as named events

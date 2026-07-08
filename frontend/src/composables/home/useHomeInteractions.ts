@@ -1,5 +1,5 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
-import { useGraphStore, type GraphNode, type ViewLayer, type OverviewMode } from '@/stores/graph'
+import { useGraphStore, type GraphNode, type GraphEdge, type ViewLayer, type OverviewMode } from '@/stores/graph'
 import { cv, tooltipStyle } from '@/utils/chartTheme'
 
 export interface BreadcrumbItem {
@@ -16,17 +16,33 @@ export interface EvolutionEdgeArg {
 }
 
 export interface RadarChartOption {
+  [key: string]: unknown
   tooltip: unknown
   radar: unknown
   series: unknown[]
 }
 
+/** Methods exposed by Graph2D via defineExpose */
+interface Graph2DExposed {
+  zoomBy: (factor: number) => void
+  fitView: () => void
+  highlightNode: (nodeId: string) => void
+  clearHighlight: () => void
+}
+
+/** Methods exposed by Graph3D via defineExpose */
+interface Graph3DExposed {
+  setCameraPreset: (preset: 'overview' | 'domain' | 'position') => void
+  resetCamera: () => void
+  toggleAutoRotate: () => void
+}
+
 export interface UseHomeInteractions {
   // refs
-  graph2DRef: Ref<any>
-  graph3DRef: Ref<any>
+  graph2DRef: Ref<Graph2DExposed | null>
+  graph3DRef: Ref<Graph3DExposed | null>
   evolutionDrawerVisible: Ref<boolean>
-  selectedEvolutionEdge: Ref<any>
+  selectedEvolutionEdge: Ref<GraphEdge | null>
   // constants
   evolutionTrendLabel: Record<string, string>
   evolutionTrendType: Record<string, string>
@@ -42,19 +58,19 @@ export interface UseHomeInteractions {
   resetHighlight: () => void
   toggleEvolution: (
     showEvolutionRef: Ref<boolean>,
-    selectedNodeRef: Ref<any>,
+    selectedNodeRef: Ref<GraphNode | null>,
   ) => Promise<void>
   closeDetail: (clearSelection: () => void) => void
   handleNodeClick: (
     nodeId: string,
-    selectedNodeRef: Ref<any>,
+    selectedNodeRef: Ref<GraphNode | null>,
   ) => Promise<void>
   onCanvasClick: (clearSelection: () => void) => void
   handleSearchSelect: (
     id: string,
     _name: string,
     _type: string,
-    selectedNodeRef: Ref<any>,
+    selectedNodeRef: Ref<GraphNode | null>,
   ) => void
   openEvolutionDrawer: (edge: EvolutionEdgeArg) => void
   closeEvolutionDrawer: () => void
@@ -73,14 +89,12 @@ export function useHomeInteractions(
   const graphStore = getGraphStore()
 
   // Template refs
-  const graph2DRef = ref<any>(null)
-  const graph3DRef = ref<any>(null)
+  const graph2DRef = ref<Graph2DExposed | null>(null)
+  const graph3DRef = ref<Graph3DExposed | null>(null)
 
   // Evolution drawer state
   const evolutionDrawerVisible = ref(false)
-  const selectedEvolutionEdge = ref<typeof graphStore.evolutionPaths[number] | null>(
-    null,
-  )
+  const selectedEvolutionEdge = ref<GraphEdge | null>(null)
 
   const evolutionTrendLabel: Record<string, string> = {
     rising: '↑ 上升',
@@ -169,7 +183,7 @@ export function useHomeInteractions(
 
   async function toggleEvolution(
     showEvolutionRef: Ref<boolean>,
-    selectedNodeRef: Ref<any>,
+    selectedNodeRef: Ref<GraphNode | null>,
   ) {
     showEvolutionRef.value = !showEvolutionRef.value
     if (showEvolutionRef.value) {
@@ -205,7 +219,7 @@ export function useHomeInteractions(
 
   async function handleNodeClick(
     nodeId: string,
-    selectedNodeRef: Ref<any>,
+    selectedNodeRef: Ref<GraphNode | null>,
   ) {
     if (graphStore.currentLayer === 'domain') {
       const domain = graphStore.domains.find(d => d.id === nodeId)
@@ -267,7 +281,7 @@ export function useHomeInteractions(
     id: string,
     _name: string,
     _type: string,
-    selectedNodeRef: Ref<any>,
+    selectedNodeRef: Ref<GraphNode | null>,
   ) {
     const domain = graphStore.domains.find(d => d.id === id)
     if (domain) {
