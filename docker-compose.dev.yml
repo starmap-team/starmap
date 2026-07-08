@@ -154,7 +154,7 @@ services:
 
   # ---------- 向量数据库 ----------
   chroma:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.5.3
     container_name: starmap-chroma
     ports:
       - "8001:8000"
@@ -173,7 +173,7 @@ services:
   # 首次启动会自动拉取模型（~4.5GB），耗时取决于网络
   # API 地址: http://localhost:11434/v1/chat/completions
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.5
     container_name: starmap-ollama
     ports:
       - "11434:11434"
@@ -200,7 +200,7 @@ services:
 
   # 模型初始化容器（拉取 Qwen2.5-7B 到 Ollama 卷中，一次性的）
   ollama-pull:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.5
     container_name: starmap-ollama-pull
     depends_on:
       ollama:
