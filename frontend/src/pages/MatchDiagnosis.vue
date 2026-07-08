@@ -221,37 +221,73 @@ function resetAll() {
   <MainLayout>
     <div class="match-page animate-fade-in">
       <div class="page-header">
-        <h1 class="page-title">匹配诊断</h1>
-        <p class="page-desc">上传简历或输入技能，诊断与目标岗位的匹配度</p>
+        <h1 class="page-title">
+          匹配诊断
+        </h1>
+        <p class="page-desc">
+          上传简历或输入技能，诊断与目标岗位的匹配度
+        </p>
       </div>
 
-      <el-tabs v-model="pageMode" class="mode-tabs">
-        <el-tab-pane label="单次匹配" name="single" />
-        <el-tab-pane label="批量匹配" name="batch" />
+      <el-tabs
+        v-model="pageMode"
+        class="mode-tabs"
+      >
+        <el-tab-pane
+          label="单次匹配"
+          name="single"
+        />
+        <el-tab-pane
+          label="批量匹配"
+          name="batch"
+        />
       </el-tabs>
 
       <template v-if="pageMode === 'single'">
-        <el-steps :active="step" finish-status="success" class="steps-bar" align-center>
-          <el-step v-for="title in stepTitles" :key="title" :title="title" />
+        <el-steps
+          :active="step"
+          finish-status="success"
+          class="steps-bar"
+          align-center
+        >
+          <el-step
+            v-for="title in stepTitles"
+            :key="title"
+            :title="title"
+          />
         </el-steps>
 
         <!-- Step 0: Upload/Input -->
-        <div v-if="step === 0" class="step-content">
+        <div
+          v-if="step === 0"
+          class="step-content"
+        >
           <div class="step-card grain">
             <div class="sc-header">
-              <h2 class="sc-title">录入你的技能</h2>
-              <p class="sc-desc">上传简历自动解析，或手动输入技能标签</p>
+              <h2 class="sc-title">
+                录入你的技能
+              </h2>
+              <p class="sc-desc">
+                上传简历自动解析，或手动输入技能标签
+              </p>
             </div>
             <el-row :gutter="20">
               <el-col :span="12">
                 <div class="input-section">
-                  <h3 class="is-title">上传简历</h3>
-                  <ResumeUpload ref="resumeUploadRef" @upload="handleUploadEvent" />
+                  <h3 class="is-title">
+                    上传简历
+                  </h3>
+                  <ResumeUpload
+                    ref="resumeUploadRef"
+                    @upload="handleUploadEvent"
+                  />
                 </div>
               </el-col>
               <el-col :span="12">
                 <div class="input-section">
-                  <h3 class="is-title">手动输入技能</h3>
+                  <h3 class="is-title">
+                    手动输入技能
+                  </h3>
                   <div class="manual-input">
                     <el-input
                       v-model="skillInput"
@@ -260,24 +296,36 @@ function resetAll() {
                       @keyup.enter="addManualSkill"
                     >
                       <template #append>
-                        <el-button :icon="Plus" @click="addManualSkill">添加</el-button>
+                        <el-button
+                          :icon="Plus"
+                          @click="addManualSkill"
+                        >
+                          添加
+                        </el-button>
                       </template>
                     </el-input>
-                    <div v-if="manualSkills.length" class="skill-tags">
+                    <div
+                      v-if="manualSkills.length"
+                      class="skill-tags"
+                    >
                       <el-tag
                         v-for="s in manualSkills"
                         :key="s"
                         closable
                         size="default"
                         @close="removeManualSkill(s)"
-                      >{{ s }}</el-tag>
+                      >
+                        {{ s }}
+                      </el-tag>
                     </div>
                     <el-button
                       v-if="manualSkills.length"
                       type="primary"
                       class="skill-confirm-action"
                       @click="confirmManualSkills"
-                    >确认 {{ manualSkills.length }} 项技能</el-button>
+                    >
+                      确认 {{ manualSkills.length }} 项技能
+                    </el-button>
                   </div>
                 </div>
               </el-col>
@@ -286,37 +334,67 @@ function resetAll() {
         </div>
 
         <!-- Step 1: Select position -->
-        <div v-if="step === 1" class="step-content">
+        <div
+          v-if="step === 1"
+          class="step-content"
+        >
           <div class="step-card">
             <div class="sc-header">
-              <h2 class="sc-title">选择目标岗位</h2>
-              <p class="sc-desc">搜索并选择你要匹配的目标岗位</p>
+              <h2 class="sc-title">
+                选择目标岗位
+              </h2>
+              <p class="sc-desc">
+                搜索并选择你要匹配的目标岗位
+              </p>
             </div>
             <PositionSearch @select="handlePositionSelect" />
           </div>
         </div>
 
         <!-- Step 2: Radar comparison -->
-        <div v-if="step === 2" class="step-content">
+        <div
+          v-if="step === 2"
+          class="step-content"
+        >
           <div class="step-card">
             <div class="sc-header">
               <div class="sc-header-row">
                 <div>
-                  <h2 class="sc-title">技能雷达对比</h2>
-                  <p class="sc-desc">你的技能 vs {{ targetPositionName }} 岗位要求</p>
+                  <h2 class="sc-title">
+                    技能雷达对比
+                  </h2>
+                  <p class="sc-desc">
+                    你的技能 vs {{ targetPositionName }} 岗位要求
+                  </p>
                 </div>
-                <el-button text @click="step = 1">← 返回选岗</el-button>
+                <el-button
+                  text
+                  @click="step = 1"
+                >
+                  ← 返回选岗
+                </el-button>
               </div>
             </div>
             <div v-loading="radarLoading">
-              <SkillRadar :data="radarData" :position-name="targetPositionName" />
+              <SkillRadar
+                :data="radarData"
+                :position-name="targetPositionName"
+              />
             </div>
             <div class="step-actions">
-              <el-button type="primary" size="large" :icon="DataAnalysis" @click="handleStartDiagnosis">
+              <el-button
+                type="primary"
+                size="large"
+                :icon="DataAnalysis"
+                @click="handleStartDiagnosis"
+              >
                 开始诊断
               </el-button>
             </div>
-            <div v-if="matchAnimating && matchAnimSkills.length > 0" class="match-anim-section">
+            <div
+              v-if="matchAnimating && matchAnimSkills.length > 0"
+              class="match-anim-section"
+            >
               <h3 class="match-anim-title">
                 <LoadingPulse size="small" />
                 技能匹配中...

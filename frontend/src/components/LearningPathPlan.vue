@@ -36,10 +36,19 @@ const learningPaths = computed(() => {
       <div class="sc-header">
         <div class="sc-header-row">
           <div>
-            <h2 class="sc-title">学习路径规划</h2>
-            <p class="sc-desc">基于技能差距的个性化学习建议</p>
+            <h2 class="sc-title">
+              学习路径规划
+            </h2>
+            <p class="sc-desc">
+              基于技能差距的个性化学习建议
+            </p>
           </div>
-          <el-button text @click="emit('goBack')">← 返回</el-button>
+          <el-button
+            text
+            @click="emit('goBack')"
+          >
+            ← 返回
+          </el-button>
         </div>
       </div>
 
@@ -79,9 +88,14 @@ const learningPaths = computed(() => {
                 size="small"
                 effect="dark"
                 class="lp-item-tag"
-              >{{ item.importance === 'required' ? '必备' : '加分' }}</el-tag>
+              >
+                {{ item.importance === 'required' ? '必备' : '加分' }}
+              </el-tag>
             </div>
-            <div v-if="item.pathArray.length > 0" class="lp-item-steps">
+            <div
+              v-if="item.pathArray.length > 0"
+              class="lp-item-steps"
+            >
               <el-steps
                 :active="item.pathArray.length - 1"
                 finish-status="success"
@@ -96,7 +110,10 @@ const learningPaths = computed(() => {
                 />
               </el-steps>
             </div>
-            <div v-else class="lp-item-path lp-path-empty">
+            <div
+              v-else
+              class="lp-item-path lp-path-empty"
+            >
               <span class="lp-path-label">无前置依赖，可直接学习</span>
             </div>
           </div>
@@ -104,7 +121,11 @@ const learningPaths = computed(() => {
       </el-timeline>
 
       <div class="step-actions">
-        <el-button size="large" :icon="RefreshRight" @click="emit('resetAll')">
+        <el-button
+          size="large"
+          :icon="RefreshRight"
+          @click="emit('resetAll')"
+        >
           重新开始
         </el-button>
       </div>

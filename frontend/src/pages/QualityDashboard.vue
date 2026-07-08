@@ -331,7 +331,10 @@ function handleIgnoreAlert(id: string | number) {
               class="chart-h-md"
               autoresize
             />
-            <div v-if="quality.loading || !quality.metrics" class="custom-empty">
+            <div
+              v-if="quality.loading || !quality.metrics"
+              class="custom-empty"
+            >
               <div class="empty-icon-wrapper">
                 <svg
                   width="48"
@@ -349,7 +352,9 @@ function handleIgnoreAlert(id: string | number) {
                   ry="3"
                 /><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" /><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" /></svg>
               </div>
-              <p class="empty-text">{{ quality.loading ? '数据加载中' : '暂无数据' }}</p>
+              <p class="empty-text">
+                {{ quality.loading ? '数据加载中' : '暂无数据' }}
+              </p>
               <p class="empty-hint-text">
                 图谱质量指标将在评估完成后展示
               </p>
@@ -372,7 +377,10 @@ function handleIgnoreAlert(id: string | number) {
               class="chart-h-md"
               autoresize
             />
-            <div v-if="quality.loading || !quality.metrics" class="custom-empty">
+            <div
+              v-if="quality.loading || !quality.metrics"
+              class="custom-empty"
+            >
               <div class="empty-icon-wrapper">
                 <svg
                   width="48"
@@ -390,7 +398,9 @@ function handleIgnoreAlert(id: string | number) {
                   ry="3"
                 /><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" /><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" /></svg>
               </div>
-              <p class="empty-text">{{ quality.loading ? '数据加载中' : '暂无数据' }}</p>
+              <p class="empty-text">
+                {{ quality.loading ? '数据加载中' : '暂无数据' }}
+              </p>
               <p class="empty-hint-text">
                 图谱质量指标将在评估完成后展示
               </p>
@@ -417,7 +427,10 @@ function handleIgnoreAlert(id: string | number) {
               class="chart-h-sm"
               autoresize
             />
-            <div v-if="quality.loading || !quality.metrics" class="custom-empty">
+            <div
+              v-if="quality.loading || !quality.metrics"
+              class="custom-empty"
+            >
               <div class="empty-icon-wrapper">
                 <svg
                   width="48"

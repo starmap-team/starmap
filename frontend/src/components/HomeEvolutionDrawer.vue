@@ -36,36 +36,87 @@ defineExpose({ open, close })
     direction="rtl"
     @close="close"
   >
-    <div v-if="selectedEdge" class="evo-drawer-body">
+    <div
+      v-if="selectedEdge"
+      class="evo-drawer-body"
+    >
       <div class="evo-title-row">
         <span class="evo-pos">{{ selectedEdge.source_id }}</span>
-        <el-icon :size="20" color="var(--primary)"><Connection /></el-icon>
+        <el-icon
+          :size="20"
+          color="var(--primary)"
+        >
+          <Connection />
+        </el-icon>
         <span class="evo-pos">{{ selectedEdge.target_id }}</span>
       </div>
       <el-tag
         :type="(trendType[selectedEdge.properties?.trend ?? 'stable'] ?? 'info') as any"
         effect="plain"
         size="default"
-      >{{ trendLabel[selectedEdge.properties?.trend ?? 'stable'] ?? selectedEdge.properties?.trend }}</el-tag>
-      <el-descriptions :column="1" border class="evo-desc">
-        <el-descriptions-item label="相似度">{{ ((selectedEdge.properties?.similarity ?? 0) * 100).toFixed(0) }}%</el-descriptions-item>
-        <el-descriptions-item label="证据数">{{ selectedEdge.properties?.evidence_count ?? 0 }}</el-descriptions-item>
-        <el-descriptions-item label="信任度">{{ ((selectedEdge.properties?.similarity ?? 0) * 100).toFixed(0) }}%</el-descriptions-item>
+      >
+        {{ trendLabel[selectedEdge.properties?.trend ?? 'stable'] ?? selectedEdge.properties?.trend }}
+      </el-tag>
+      <el-descriptions
+        :column="1"
+        border
+        class="evo-desc"
+      >
+        <el-descriptions-item label="相似度">
+          {{ ((selectedEdge.properties?.similarity ?? 0) * 100).toFixed(0) }}%
+        </el-descriptions-item>
+        <el-descriptions-item label="证据数">
+          {{ selectedEdge.properties?.evidence_count ?? 0 }}
+        </el-descriptions-item>
+        <el-descriptions-item label="信任度">
+          {{ ((selectedEdge.properties?.similarity ?? 0) * 100).toFixed(0) }}%
+        </el-descriptions-item>
       </el-descriptions>
-      <div v-if="selectedEdge.properties?.skill_overlap?.length" class="evo-section">
-        <div class="evo-section-title">技能重叠 ({{ selectedEdge.properties.skill_overlap.length }})</div>
+      <div
+        v-if="selectedEdge.properties?.skill_overlap?.length"
+        class="evo-section"
+      >
+        <div class="evo-section-title">
+          技能重叠 ({{ selectedEdge.properties.skill_overlap.length }})
+        </div>
         <div class="evo-tags">
-          <el-tag v-for="s in selectedEdge.properties.skill_overlap" :key="s" size="small" effect="plain" type="success">{{ s }}</el-tag>
+          <el-tag
+            v-for="s in selectedEdge.properties.skill_overlap"
+            :key="s"
+            size="small"
+            effect="plain"
+            type="success"
+          >
+            {{ s }}
+          </el-tag>
         </div>
       </div>
-      <div v-if="selectedEdge.properties?.key_gaps?.length" class="evo-section">
-        <div class="evo-section-title">关键差距 ({{ selectedEdge.properties.key_gaps.length }})</div>
+      <div
+        v-if="selectedEdge.properties?.key_gaps?.length"
+        class="evo-section"
+      >
+        <div class="evo-section-title">
+          关键差距 ({{ selectedEdge.properties.key_gaps.length }})
+        </div>
         <div class="evo-tags">
-          <el-tag v-for="g in selectedEdge.properties.key_gaps" :key="g" size="small" effect="plain" type="danger">{{ g }}</el-tag>
+          <el-tag
+            v-for="g in selectedEdge.properties.key_gaps"
+            :key="g"
+            size="small"
+            effect="plain"
+            type="danger"
+          >
+            {{ g }}
+          </el-tag>
         </div>
       </div>
     </div>
-    <div v-else class="evo-empty">未选中演化边</div>
+    <div
+      v-else
+      class="evo-empty"
+    >
+      未选中演化边
+    </div>
   </el-drawer>
 </template>
 

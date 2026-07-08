@@ -56,9 +56,27 @@ const emit = defineEmits<{
       </div>
     </div>
     <div class="kpi-actions">
-      <el-button size="small" :icon="Upload" @click="emit('navigate', '/match')">简历匹配</el-button>
-      <el-button size="small" :icon="Document" @click="emit('navigate', '/extract')">JD 抽取</el-button>
-      <el-button size="small" :icon="TrendCharts" @click="emit('navigate', '/evolution')">演化趋势</el-button>
+      <el-button
+        size="small"
+        :icon="Upload"
+        @click="emit('navigate', '/match')"
+      >
+        简历匹配
+      </el-button>
+      <el-button
+        size="small"
+        :icon="Document"
+        @click="emit('navigate', '/extract')"
+      >
+        JD 抽取
+      </el-button>
+      <el-button
+        size="small"
+        :icon="TrendCharts"
+        @click="emit('navigate', '/evolution')"
+      >
+        演化趋势
+      </el-button>
     </div>
   </div>
 </template>

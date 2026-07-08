@@ -21,13 +21,19 @@ const emit = defineEmits<{
   <div class="graph-controls">
     <div class="controls-left">
       <nav class="graph-breadcrumb">
-        <template v-for="(item, i) in breadcrumb" :key="i">
+        <template
+          v-for="(item, i) in breadcrumb"
+          :key="i"
+        >
           <span
             class="gb-item"
             :class="{ active: i === breadcrumb.length - 1 }"
             @click="i < breadcrumb.length - 1 && item.action?.()"
           >{{ item.label }}</span>
-          <span v-if="i < breadcrumb.length - 1" class="gb-sep">></span>
+          <span
+            v-if="i < breadcrumb.length - 1"
+            class="gb-sep"
+          >></span>
         </template>
       </nav>
       <el-radio-group
@@ -37,9 +43,15 @@ const emit = defineEmits<{
         class="view-tabs"
         @change="(mode: string) => emit('overviewModeChange', mode)"
       >
-        <el-radio-button value="domain">领域</el-radio-button>
-        <el-radio-button value="tech_stack">技术栈</el-radio-button>
-        <el-radio-button value="level">级别</el-radio-button>
+        <el-radio-button value="domain">
+          领域
+        </el-radio-button>
+        <el-radio-button value="tech_stack">
+          技术栈
+        </el-radio-button>
+        <el-radio-button value="level">
+          级别
+        </el-radio-button>
       </el-radio-group>
     </div>
     <div class="controls-right">
@@ -48,26 +60,38 @@ const emit = defineEmits<{
           class="vm-btn"
           :class="{ 'vm-btn--active': viewMode === '2d' }"
           @click="emit('setViewMode', '2d')"
-        >2D</button>
+        >
+          2D
+        </button>
         <button
           class="vm-btn"
           :class="{ 'vm-btn--active': viewMode === '3d' }"
           @click="emit('setViewMode', '3d')"
-        >3D</button>
-        <span class="vm-indicator" :class="{ 'vm-indicator--3d': viewMode === '3d' }" />
+        >
+          3D
+        </button>
+        <span
+          class="vm-indicator"
+          :class="{ 'vm-indicator--3d': viewMode === '3d' }"
+        />
       </div>
       <div class="graph-legend">
         <span class="legend-item"><span class="ld-dot ld-dot--domain" />领域</span>
         <span class="legend-item"><span class="ld-dot ld-dot--position" />岗位</span>
         <span class="legend-item"><span class="ld-dot ld-dot--skill" />技能</span>
-        <span v-if="showEvolution" class="legend-item"><span class="ld-line" />演化</span>
+        <span
+          v-if="showEvolution"
+          class="legend-item"
+        ><span class="ld-line" />演化</span>
       </div>
       <el-button
         size="small"
         :type="showEvolution ? 'primary' : 'default'"
         text
         @click="emit('toggleEvolution')"
-      >{{ showEvolution ? '隐藏演化' : '显示演化' }}</el-button>
+      >
+        {{ showEvolution ? '隐藏演化' : '显示演化' }}
+      </el-button>
     </div>
   </div>
 </template>

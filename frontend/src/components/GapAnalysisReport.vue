@@ -69,10 +69,19 @@ function handleExport() {
       <div class="sc-header">
         <div class="sc-header-row">
           <div>
-            <h2 class="sc-title">差距分析报告</h2>
-            <p class="sc-desc">综合评估你的岗位匹配度</p>
+            <h2 class="sc-title">
+              差距分析报告
+            </h2>
+            <p class="sc-desc">
+              综合评估你的岗位匹配度
+            </p>
           </div>
-          <el-button text @click="emit('goBack')">← 返回</el-button>
+          <el-button
+            text
+            @click="emit('goBack')"
+          >
+            ← 返回
+          </el-button>
         </div>
       </div>
 
@@ -93,15 +102,23 @@ function handleExport() {
                   type="success"
                   size="small"
                   class="anim-fade-in-up"
-                >{{ s }}</el-tag>
-                <span v-if="!matchedSkills.length" class="rs-empty">无</span>
+                >
+                  {{ s }}
+                </el-tag>
+                <span
+                  v-if="!matchedSkills.length"
+                  class="rs-empty"
+                >无</span>
               </div>
             </div>
             <div class="rs-row">
               <span class="rs-label">综合评估</span>
               <span class="rs-text">{{ matchResult?.overall_assessment ?? '等待评估结果生成' }}</span>
             </div>
-            <div v-if="matchResult?.estimated_learning_time" class="rs-row">
+            <div
+              v-if="matchResult?.estimated_learning_time"
+              class="rs-row"
+            >
               <span class="rs-label">预计学习时间</span>
               <span class="rs-text">{{ matchResult?.estimated_learning_time }}</span>
             </div>
@@ -109,72 +126,142 @@ function handleExport() {
         </div>
 
         <!-- Gap table -->
-        <h3 class="table-title">技能差距明细</h3>
-        <el-table :data="gapSkills" stripe class="full-width-table">
-          <el-table-column prop="skill" label="技能" min-width="140" />
-          <el-table-column label="重要性" width="100">
+        <h3 class="table-title">
+          技能差距明细
+        </h3>
+        <el-table
+          :data="gapSkills"
+          stripe
+          class="full-width-table"
+        >
+          <el-table-column
+            prop="skill"
+            label="技能"
+            min-width="140"
+          />
+          <el-table-column
+            label="重要性"
+            width="100"
+          >
             <template #default="{ row }">
               <el-tag
                 :type="row.importance === 'required' ? 'danger' : 'info'"
                 size="small"
-              >{{ row.importance === 'required' ? '必备' : '加分' }}</el-tag>
+              >
+                {{ row.importance === 'required' ? '必备' : '加分' }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="差距程度" width="120">
+          <el-table-column
+            label="差距程度"
+            width="120"
+          >
             <template #default="{ row }">
               <el-tag
                 :type="row.gap_level === '完全缺失' ? 'danger' : row.gap_level === '部分掌握' ? 'warning' : 'success'"
                 size="small"
-              >{{ row.gap_level }}</el-tag>
+              >
+                {{ row.gap_level }}
+              </el-tag>
             </template>
           </el-table-column>
           <el-table-column label="推荐学习路径">
             <template #default="{ row }">
-              <div v-if="Array.isArray(row.learning_path) && row.learning_path.length > 0" class="lp-cell">
-                <div v-for="(step, si) in row.learning_path" :key="si" class="lp-cell-step">
-                  <span class="lp-cell-dot" :class="{ 'lp-cell-dot--final': si === row.learning_path.length - 1 }" />
+              <div
+                v-if="Array.isArray(row.learning_path) && row.learning_path.length > 0"
+                class="lp-cell"
+              >
+                <div
+                  v-for="(step, si) in row.learning_path"
+                  :key="si"
+                  class="lp-cell-step"
+                >
+                  <span
+                    class="lp-cell-dot"
+                    :class="{ 'lp-cell-dot--final': si === row.learning_path.length - 1 }"
+                  />
                   <span class="lp-cell-text">{{ step }}</span>
-                  <span v-if="si < row.learning_path.length - 1" class="lp-cell-arrow">→</span>
+                  <span
+                    v-if="si < row.learning_path.length - 1"
+                    class="lp-cell-arrow"
+                  >→</span>
                 </div>
               </div>
-              <span v-else class="lp-cell-empty">—</span>
+              <span
+                v-else
+                class="lp-cell-empty"
+              >—</span>
             </template>
           </el-table-column>
         </el-table>
 
         <div class="step-actions">
-          <el-button type="primary" size="large" :icon="Guide" @click="emit('goLearning')">
+          <el-button
+            type="primary"
+            size="large"
+            :icon="Guide"
+            @click="emit('goLearning')"
+          >
             查看学习路径
           </el-button>
-          <el-button size="large" :icon="Download" @click="handleExport">
+          <el-button
+            size="large"
+            :icon="Download"
+            @click="handleExport"
+          >
             导出报告
           </el-button>
         </div>
       </div>
 
-      <div v-else class="step-empty">
+      <div
+        v-else
+        class="step-empty"
+      >
         诊断尚未开始，请完成前序步骤
       </div>
     </div>
   </div>
 
   <!-- 历史记录面板 -->
-  <div v-if="matchStore.historyList.length > 0" class="step-content">
+  <div
+    v-if="matchStore.historyList.length > 0"
+    class="step-content"
+  >
     <div class="step-card">
       <div class="sc-header">
-        <h2 class="sc-title">诊断历史</h2>
-        <p class="sc-desc">最近的匹配诊断记录</p>
+        <h2 class="sc-title">
+          诊断历史
+        </h2>
+        <p class="sc-desc">
+          最近的匹配诊断记录
+        </p>
       </div>
-      <el-table :data="matchStore.historyList" stripe size="small" class="full-width-table">
-        <el-table-column prop="target_position" label="目标岗位" min-width="140" />
-        <el-table-column label="匹配分数" width="100">
+      <el-table
+        :data="matchStore.historyList"
+        stripe
+        size="small"
+        class="full-width-table"
+      >
+        <el-table-column
+          prop="target_position"
+          label="目标岗位"
+          min-width="140"
+        />
+        <el-table-column
+          label="匹配分数"
+          width="100"
+        >
           <template #default="{ row }">
             <span :class="row.match_score >= 0.7 ? 'score-high' : row.match_score >= 0.4 ? 'score-mid' : 'score-low'">
               {{ Math.round(row.match_score * 100) }}%
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="匹配技能" min-width="200">
+        <el-table-column
+          label="匹配技能"
+          min-width="200"
+        >
           <template #default="{ row }">
             <el-tag
               v-for="s in row.matched_skills?.slice(0, 5)"
@@ -182,10 +269,15 @@ function handleExport() {
               size="small"
               type="success"
               class="mr-1"
-            >{{ s }}</el-tag>
+            >
+              {{ s }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="时间" width="160">
+        <el-table-column
+          label="时间"
+          width="160"
+        >
           <template #default="{ row }">
             {{ row.created_at ? new Date(row.created_at).toLocaleString() : '—' }}
           </template>
