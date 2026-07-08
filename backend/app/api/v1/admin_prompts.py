@@ -72,7 +72,10 @@ async def list_prompts() -> dict[str, Any]:
 @router.get("/prompts/{name}")
 async def get_prompt_info(name: str) -> dict[str, Any]:
     """Return prompt metadata for a specific template."""
-    versions = list_prompt_versions(name)
+    try:
+        versions = list_prompt_versions(name)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Prompt '{name}' not found") from None
     if not versions:
         raise HTTPException(status_code=404, detail=f"Prompt '{name}' not found")
     active = get_active_version(name)
@@ -88,7 +91,10 @@ async def get_prompt_info(name: str) -> dict[str, Any]:
 @router.get("/prompts/{name}/template")
 async def get_prompt_template_content(name: str) -> dict[str, Any]:
     """Return raw prompt template content."""
-    raw = get_prompt_template_raw(name)
+    try:
+        raw = get_prompt_template_raw(name)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Prompt template '{name}' not found") from None
     if raw is None:
         raise HTTPException(status_code=404, detail=f"Prompt template '{name}' not found")
     return {"name": name, "template": raw}
@@ -101,7 +107,7 @@ async def create_prompt_version(
 ) -> dict[str, Any]:
     """Register a new prompt version."""
     version = register_prompt_version(
-        prompt_name=name,
+        name=name,
         template=req.template,
         version=req.version,
         activate=req.activate,
@@ -125,7 +131,10 @@ async def change_active_version(
     req: SetActiveRequest,
 ) -> dict[str, Any]:
     """Change the active prompt version."""
-    set_active_version(name, req.version)
+    try:
+        set_active_version(name, req.version)
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from None
     logger.info("Prompt '{}' active version set to {}", name, req.version)
     return {
         "prompt": name,
