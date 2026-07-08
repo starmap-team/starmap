@@ -63,19 +63,9 @@ _FALLBACK_PREREQUISITES: dict[str, list[str]] = {
 
 _CACHE_TTL_SECONDS: float = 300.0  # 5 minutes
 
-# AP-01 TODO: Migrate these process-level caches to Redis for multi-worker sharing.
-# Current limitation: each uvicorn worker maintains its own cache copy, causing:
-#   1. Duplicate Neo4j queries across workers
-#   2. Cache loss on worker restart
-#   3. Inconsistent cache state between workers
-# Migration path: Replace _prereqs_cache/_skill_hours_cache with Redis-backed
-# cache using app.services.resources.redis_client, keyed by "learning:prereqs"
-# and "learning:skill_hours:{hash(skill_names)}".
-_CACHE_TTL_SECONDS: float = 300.0  # 5 minutes
-
-# Cache state: (timestamp, data)
+# Cache state: (timestamp, cache_key, data)
 _prereqs_cache: tuple[float, dict[str, list[str]]] | None = None
-_skill_hours_cache: tuple[float, dict[str, float]] | None = None
+_skill_hours_cache: tuple[float, frozenset[str], dict[str, float]] | None = None
 
 
 async def _load_prerequisites_from_neo4j() -> dict[str, list[str]]:

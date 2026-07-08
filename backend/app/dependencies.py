@@ -23,7 +23,7 @@ from app.utils.audit import AuditEntry, AuditEvent, audit_log
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def get_neo4j_driver(request: Request):
+def get_neo4j_driver(request: Request) -> Any:
     res = getattr(request.app.state, "resources", None)
     if res is None:
         return None

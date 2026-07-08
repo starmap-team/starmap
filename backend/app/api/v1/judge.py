@@ -104,7 +104,7 @@ class BatchJudgeResponse(BaseModel):
 
 
 @router.post("/evaluate", response_model=JudgeSampleResponse)
-async def evaluate_sample(req: JudgeRequest):
+async def evaluate_sample(req: JudgeRequest) -> Any:
     """§7.2 单样本评估：golden vs system，计算 F1 并可启用 LLM judge。"""
     try:
         result = await evaluate_sample_async(
@@ -129,7 +129,7 @@ async def evaluate_sample(req: JudgeRequest):
 
 
 @router.post("/pairwise", response_model=PairwiseResponse)
-async def pairwise_compare(req: PairwiseRequest):
+async def pairwise_compare(req: PairwiseRequest) -> Any:
     """两两对比：无 golden 参考，直接比较 output_b 相对 output_a 的 F1。"""
     try:
         result = await evaluate_pair_async(
@@ -147,7 +147,7 @@ async def pairwise_compare(req: PairwiseRequest):
 
 
 @router.post("/batch", response_model=BatchJudgeResponse)
-async def batch_evaluate(req: BatchJudgeRequest):
+async def batch_evaluate(req: BatchJudgeRequest) -> Any:
     """批量评估：读取 golden/system JSONL 文件，返回汇总指标和质检门禁。"""
     try:
         metrics = await evaluate_batch_async(

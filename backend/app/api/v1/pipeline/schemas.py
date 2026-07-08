@@ -123,7 +123,7 @@ class QualityAlertItem(BaseModel):
     timestamp: str
     time: str = ""
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: Any) -> None:
         if not self.time and self.timestamp:
             object.__setattr__(self, "time", self.timestamp)
 

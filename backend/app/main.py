@@ -7,6 +7,7 @@ import time
 from collections import defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -82,7 +83,7 @@ app.add_middleware(
 
 # P1 修复 (API-04): 安全响应头中间件
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: Any) -> Response:
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -101,7 +102,7 @@ _rate_buckets: dict[str, list[float]] = defaultdict(list)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: Any) -> Response:
         client_ip = request.client.host if request.client else "unknown"
         now = time.time()
         # Sliding window: keep only timestamps within the window

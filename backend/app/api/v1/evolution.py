@@ -202,7 +202,7 @@ async def get_trends(
 @router.post("/analyze")
 async def analyze_evolution(
     days: Annotated[int, Query(ge=7, le=730, description="分析时间窗口（天）")] = 90,
-):
+) -> dict[str, Any]:
     """触发演化分析流程。"""
     task = analyze_evolution_trends.delay(days)
     return {"message": "queued", "task_id": task.id, "days": days}

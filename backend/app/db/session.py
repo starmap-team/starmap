@@ -32,7 +32,7 @@ def get_async_engine() -> AsyncEngine:
     - pool_recycle=3600: recycle connections hourly to avoid stale sockets
     """
     return create_async_engine(
-        settings.postgres_uri,
+        settings.postgres_uri or "",
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=20,
