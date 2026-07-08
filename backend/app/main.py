@@ -5,6 +5,7 @@ import asyncio
 import sys
 import time
 from collections import defaultdict
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -12,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from app.api.v1.router import api_router
 from app.config import settings
@@ -37,7 +39,7 @@ else:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """应用生命周期：启动时初始化连接，关闭时释放。"""
     logger.info("StarMap 启动中... env={}", settings.app_env)
     app.state.resources = await init_resources()
@@ -80,7 +82,7 @@ app.add_middleware(
 
 # P1 修复 (API-04): 安全响应头中间件
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next) -> Response:
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -99,7 +101,7 @@ _rate_buckets: dict[str, list[float]] = defaultdict(list)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next) -> Response:
         client_ip = request.client.host if request.client else "unknown"
         now = time.time()
         # Sliding window: keep only timestamps within the window

@@ -108,8 +108,11 @@ async def fetch_position_graph(driver: Any, position_name: str, depth: int = 1) 
                 if record["rel"] is not None:
                     edges.append(serialize_relationship(record["rel"]))
         else:
+            # INJ-04: depth is int, clamped to [1,5] by API validator + max/min guard.
+            # str(int) cannot inject Cypher syntax; assert for defense-in-depth.
+            assert isinstance(depth, int) and 1 <= depth <= 5, f"depth must be int in [1,5], got {depth!r}"
             multi_query = (
-                "MATCH (position:Position)-[rel:REQUIRES*1.." + str(depth) + "]->(skill:Skill) "
+                f"MATCH (position:Position)-[rel:REQUIRES*1..{depth}]->(skill:Skill) "
                 "WHERE position.name = $name RETURN position, rel, skill"
             )
             multi_result = await session.run(multi_query, name=position_name)
