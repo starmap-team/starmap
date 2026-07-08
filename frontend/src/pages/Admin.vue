@@ -13,6 +13,7 @@ import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
 import { useAdminStore } from '@/stores/admin'
 import { chartColors } from '@/utils/chartTheme'
 import { useGraphNodeList, type GraphNodeItem } from '@/composables/useGraphNodeList'
+import { useGraphNodeEditor } from '@/composables/useGraphNodeEditor'
 import { nodeTypeLabel, nodeStatusType, nodeStatusLabel } from '@/composables/useGraphNodeLabels'
 
 const cc = chartColors()
@@ -42,68 +43,17 @@ const {
   paged: pagedGraphNodes,
 } = useGraphNodeList(computed(() => admin.graphNodes as GraphNodeItem[]))
 
-// Node editor
-const editorVisible = ref(false)
-const editingNode = ref<{ id?: string; type: string; name: string; properties: Record<string, unknown> } | null>(null)
-
-function handleCreateNode() {
-  editingNode.value = null
-  editorVisible.value = true
-}
-
-function handleEditNode(node: GraphNodeItem) {
-  editingNode.value = {
-    id: node.id,
-    type: node.type,
-    name: node.name,
-    properties: { ...node.properties },
-  }
-  editorVisible.value = true
-}
-
-async function handleNodeSubmit(data: { id?: string; type: string; name: string; properties: Record<string, unknown> }) {
-  try {
-    if (data.id) {
-      await admin.updateGraphNode(data.id, data)
-      ElMessage.success('节点已更新')
-    } else {
-      await admin.createGraphNode(data)
-      ElMessage.success('节点已提交审核')
-    }
-  } catch (e: unknown) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
-  }
-}
-
-async function handleDeleteNode(node: GraphNodeItem) {
-  try {
-    await ElMessageBox.confirm(`确认删除节点「${node.name}」？`, '删除确认', {
-      confirmButtonText: '确认删除',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-    await admin.deleteGraphNode(node.id)
-    ElMessage.success('节点已删除')
-  } catch { /* 取消或失败 */ }
-}
-
-async function handleApproveNode(node: GraphNodeItem) {
-  try {
-    await admin.approveGraphNode(node.id)
-    ElMessage.success('节点已审核通过')
-  } catch (e: unknown) {
-    ElMessage.error(e instanceof Error ? e.message : '审核失败')
-  }
-}
-
-async function handleRejectNode(node: GraphNodeItem) {
-  try {
-    await admin.rejectGraphNode(node.id)
-    ElMessage.warning('节点已拒绝')
-  } catch (e: unknown) {
-    ElMessage.error(e instanceof Error ? e.message : '拒绝失败')
-  }
-}
+// Node editor + CRUD actions (extracted — Phase 7 D round 6)
+const {
+  editorVisible,
+  editingNode,
+  handleCreateNode,
+  handleEditNode,
+  handleNodeSubmit,
+  handleDeleteNode,
+  handleApproveNode,
+  handleRejectNode,
+} = useGraphNodeEditor(admin)
 
 // ════════════════════════════════════════════════
 // 数据源编辑（原有逻辑保留）
