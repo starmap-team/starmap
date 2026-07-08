@@ -4,7 +4,7 @@
  * 全屏暗色主题，6 KPI 卡片 + 数据来源饼图 + 技能域 Treemap + 质量趋势
  * + 实时事件流 + 流水线状态 + 新兴技能雷达
  */
-import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import {
@@ -25,11 +25,10 @@ import { CanvasRenderer } from 'echarts/renderers'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import CountUpNumber from '@/components/CountUpNumber.vue'
 import { useDashboardStore } from '@/stores/dashboard'
-import { useSSE } from '@/composables/useSSE'
 import { chartColors } from '@/utils/chartTheme'
 import { useDashboardCharts } from '@/composables/useDashboardCharts'
 import { useDashboardKpiCards } from '@/composables/useDashboardKpiCards'
-import type { RealtimeEvent } from '@/stores/dashboard'
+import { useDashboardRealtimeSync } from '@/composables/useDashboardRealtimeSync'
 
 use([
   PieChart,
@@ -95,68 +94,12 @@ function formatTime(ts: string) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
 }
 
-// ── Auto-refresh timer ──
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-const clockTick = ref(0)
-let clockTimer: ReturnType<typeof setInterval> | null = null
-
-// Debounced overview refresh for SSE-driven KPI updates
-let sseRefreshTimer: ReturnType<typeof setTimeout> | null = null
-function scheduleSSEOverviewRefresh() {
-  if (sseRefreshTimer) clearTimeout(sseRefreshTimer)
-  sseRefreshTimer = setTimeout(() => {
-    store.fetchOverview()
-  }, 500) // debounce 500ms to batch rapid events
-}
-
-onMounted(async () => {
-  // Initial load
-  await store.fetchAll()
-
-  // SSE connection
-  const sseUrl = '/api/v1/dashboard/realtime'
-  const { connected } = useSSE(sseUrl, {
-    onMessage: (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data) as RealtimeEvent
-        if (data?.type) {
-          store.addRealtimeEvent(data)
-          // Refresh KPI overview on data-changing events
-          if (['skill_update', 'graph_update', 'pipeline_event', 'extraction'].includes(data.type)) {
-            scheduleSSEOverviewRefresh()
-          }
-        }
-      } catch {
-        // Heartbeat or non-JSON message, ignore
-      }
-    },
-    onError: () => {
-      // keep: records SSE→polling fallback for ops debugging
-      console.warn('[Dashboard] SSE connection failed, using polling fallback')
-    },
-    pollUrl: '/api/v1/dashboard/realtime-poll',
-  })
-
-  watch(connected, (val) => {
-    store.sseConnected = val
-  }, { immediate: true })
-
-  // Periodic full refresh (30s)
-  refreshTimer = setInterval(() => {
-    store.fetchOverview()
-  }, 30000)
-
-  // Clock update
-  clockTimer = setInterval(() => {
-    clockTick.value++
-  }, 1000)
-})
-
-onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer)
-  if (clockTimer) clearInterval(clockTimer)
-  if (sseRefreshTimer) clearTimeout(sseRefreshTimer)
-})
+// ── Realtime sync (SSE + periodic refresh + clock) — Phase 7 D round 3 ──
+useDashboardRealtimeSync(
+  store,
+  '/api/v1/dashboard/realtime',
+  '/api/v1/dashboard/realtime-poll',
+)
 </script>
 
 <template>
