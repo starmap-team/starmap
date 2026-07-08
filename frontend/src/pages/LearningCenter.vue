@@ -25,6 +25,9 @@ import SkillProgressCard from '@/components/SkillProgressCard.vue'
 import { useLearningStore } from '@/stores/learning'
 // 技术说明：引入 SkillProgress 类型定义
 import type { SkillProgress } from '@/stores/learning'
+// 业务说明：拆分到独立 composable 的指标计算与优先级映射
+import { useLearningMetrics } from '@/composables/useLearningMetrics'
+import { priorityType, priorityLabel } from '@/composables/useLearningPriority'
 
 // 技术说明：初始化路由实例，用于跳转到匹配诊断页面
 const router = useRouter()
@@ -51,34 +54,8 @@ const recommendations = computed(() => learningStore.recommendations)
 // 业务说明：数据加载状态，控制骨架屏和加载动画的显示
 const isLoading = computed(() => learningStore.loading)
 
-// 业务说明：学习进度统计指标 —— 已掌握技能数量
-// 统计当前计划中状态为 'mastered' 的技能个数
-const masteredCount = computed(() => currentPlan.value?.skills.filter(s => s.status === 'mastered').length ?? 0)
-// 业务说明：学习进度统计指标 —— 学习中技能数量
-// 统计当前计划中状态为 'in_progress' 的技能个数
-const inProgressCount = computed(() => currentPlan.value?.skills.filter(s => s.status === 'in_progress').length ?? 0)
-// 业务说明：学习进度统计指标 —— 计划总学时
-// 累加所有技能的预计学习时长
-const totalHours = computed(() => currentPlan.value?.skills.reduce((sum, s) => sum + s.estimated_hours, 0) ?? 0)
-// 业务说明：学习进度统计指标 —— 剩余学时
-// 根据未掌握技能的进度百分比，计算还需投入的学习时间
-const remainingHours = computed(() => {
-  if (!currentPlan.value) return 0
-  return currentPlan.value.skills
-    .filter(s => s.status !== 'mastered')
-    .reduce((sum, s) => sum + Math.round(s.estimated_hours * (1 - s.progress_pct / 100)), 0)
-})
-
-// 业务说明：优先级标签样式映射
-// 将优先级字符串转换为 Element Plus 标签的显示类型（颜色）
-function priorityType(p: string): string {
-  return p === 'high' ? 'danger' : p === 'medium' ? 'warning' : 'info'
-}
-// 业务说明：优先级标签文本映射
-// 将优先级字符串转换为中文显示文本
-function priorityLabel(p: string): string {
-  return p === 'high' ? '高优先' : p === 'medium' ? '中优先' : '低优先'
-}
+// 业务说明：学习进度统计指标（已掌握/学习中/剩余学时；总学时在 composable 内部保留)
+const { masteredCount, inProgressCount, remainingHours } = useLearningMetrics(currentPlan)
 
 // 业务说明：更新技能学习状态
 // 用户点击技能卡片上的状态按钮时触发，将技能标记为已掌握/学习中/未开始
