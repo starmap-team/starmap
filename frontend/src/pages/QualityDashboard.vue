@@ -13,6 +13,7 @@ import { chartColors } from '@/utils/chartTheme'
 import QualityTrendChart from '@/components/QualityTrendChart.vue'
 import AlertList from '@/components/AlertList.vue'
 import { useQualityDashboardCharts, useQualityAutoRefresh } from '@/composables/useQualityDashboardCharts'
+import { useQualityActions } from '@/composables/useQualityActions'
 
 const quality = useQualityStore()
 const admin = useAdminStore()
@@ -32,7 +33,20 @@ const { lastRefresh, start: startAutoRefresh } = useQualityAutoRefresh(quality, 
 
 // ── Sprint 1.2: Tab 状态 ──
 const activeTab = ref('overview')
-const trendPeriod = ref<'7d' | '30d' | '90d'>('7d')
+
+// ── Sprint 1.2: 趋势周期 / 告警 / 自动刷新 切换 ──
+const {
+  trendPeriod,
+  handleTrendPeriodChange,
+  handleResolveAlert,
+  handleIgnoreAlert,
+  toggleAutoRefresh: rawToggleAutoRefresh,
+} = useQualityActions(quality)
+
+function toggleAutoRefresh(val: boolean) {
+  autoRefresh.value = val
+  rawToggleAutoRefresh(val, refreshInterval.value)
+}
 
 onMounted(() => {
   void quality.fetchQuality().then(() => {
@@ -42,38 +56,6 @@ onMounted(() => {
   void quality.fetchAlerts()
   startAutoRefresh()
 })
-
-function toggleAutoRefresh(val: boolean) {
-  autoRefresh.value = val
-  if (val) {
-    ElMessage.success(`已开启自动刷新（每${refreshInterval.value}秒）`)
-  } else {
-    ElMessage.info('已关闭自动刷新')
-  }
-}
-
-// ── Sprint 1.2: 趋势周期切换 ──
-function handleTrendPeriodChange(period: '7d' | '30d' | '90d') {
-  trendPeriod.value = period
-  void quality.fetchTrends(period)
-}
-
-// ── Sprint 1.2: 告警操作 ──
-function handleResolveAlert(id: string | number) {
-  const alert = quality.alerts.find(a => a.id === id)
-  if (alert) {
-    alert.status = 'resolved'
-    ElMessage.success('告警已标记为解决')
-  }
-}
-
-function handleIgnoreAlert(id: string | number) {
-  const alert = quality.alerts.find(a => a.id === id)
-  if (alert) {
-    alert.status = 'ignored'
-    ElMessage.info('告警已忽略')
-  }
-}
 </script>
 
 <template>
