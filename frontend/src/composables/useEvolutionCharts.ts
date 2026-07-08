@@ -25,7 +25,8 @@ export function useEvolutionCharts(
       color: SERIES_COLORS,
       tooltip: {
         trigger: 'axis',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any — echarts callback type
+        // echarts callback type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         formatter: (params: any[]) => {
           return params.map(p =>
             `${p.marker} ${p.seriesName}: <b>${p.value}</b>`

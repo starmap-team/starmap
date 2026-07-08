@@ -99,7 +99,8 @@ const tooltipY = ref(0)
 const tooltipVisible = ref(false)
 
 // ponytail: use 3d-force-graph's own ForceGraph3DInstance generic type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any — 3d-force-graph chainable pattern requires default generics
+// 3d-force-graph chainable pattern requires default generics
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const graphInstance = shallowRef<any>(null)
 
 // ── Node helpers ──
