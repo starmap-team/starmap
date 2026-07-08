@@ -63,6 +63,16 @@ _FALLBACK_PREREQUISITES: dict[str, list[str]] = {
 
 _CACHE_TTL_SECONDS: float = 300.0  # 5 minutes
 
+# AP-01 TODO: Migrate these process-level caches to Redis for multi-worker sharing.
+# Current limitation: each uvicorn worker maintains its own cache copy, causing:
+#   1. Duplicate Neo4j queries across workers
+#   2. Cache loss on worker restart
+#   3. Inconsistent cache state between workers
+# Migration path: Replace _prereqs_cache/_skill_hours_cache with Redis-backed
+# cache using app.services.resources.redis_client, keyed by "learning:prereqs"
+# and "learning:skill_hours:{hash(skill_names)}".
+_CACHE_TTL_SECONDS: float = 300.0  # 5 minutes
+
 # Cache state: (timestamp, data)
 _prereqs_cache: tuple[float, dict[str, list[str]]] | None = None
 _skill_hours_cache: tuple[float, dict[str, float]] | None = None
@@ -282,7 +292,9 @@ def _topological_sort(graph: dict[str, list[str]]) -> list[str]:
     """Topological sort of the prerequisite DAG.
 
     Returns skills in learning order (prerequisites first).
-    Raises ValueError if the graph contains cycles.
+    BL-04: If the graph contains cycles, use SCC (Tarjan's algorithm)
+    to compress cyclic nodes into super-nodes, then topologically sort
+    the compressed DAG instead of falling back to arbitrary order.
     """
     # Compute in-degrees
     in_degree: dict[str, int] = dict.fromkeys(graph, 0)
@@ -308,12 +320,97 @@ def _topological_sort(graph: dict[str, list[str]]) -> list[str]:
             if in_degree[dependent] == 0:
                 queue.append(dependent)
 
-    if len(order) != len(graph):
-        logger.warning("Cycle detected in prerequisite graph — using fallback order")
-        # Fallback: return all skills in original order
-        return list(graph.keys())
+    if len(order) == len(graph):
+        return order
 
-    return order
+    # BL-04: Cycle detected — use Tarjan's SCC to compress cycles
+    logger.warning("Cycle detected in prerequisite graph — using SCC compression")
+    sccs = _tarjan_scc(graph)
+    # Build compressed graph: each SCC becomes a single node
+    node_to_scc: dict[str, int] = {}
+    for idx, scc in enumerate(sccs):
+        for node in scc:
+            node_to_scc[node] = idx
+
+    compressed: dict[int, set[int]] = defaultdict(set)
+    for skill, prereqs in graph.items():
+        s = node_to_scc[skill]
+        for prereq in prereqs:
+            if prereq in node_to_scc:
+                p = node_to_scc[prereq]
+                if p != s:
+                    compressed[p].add(s)
+
+    # Topological sort of compressed graph (Kahn's algorithm)
+    comp_in_degree: dict[int, int] = defaultdict(int)
+    all_sccs = set(range(len(sccs)))
+    for _s, deps in compressed.items():
+        for d in deps:
+            comp_in_degree[d] += 1
+
+    comp_queue: deque[int] = deque(
+        s for s in all_sccs if comp_in_degree.get(s, 0) == 0
+    )
+    scc_order: list[int] = []
+    while comp_queue:
+        s = comp_queue.popleft()
+        scc_order.append(s)
+        for d in all_sccs:
+            if s in compressed.get(d, set()):
+                comp_in_degree[d] -= 1
+                if comp_in_degree.get(d, 0) == 0:
+                    comp_queue.append(d)
+
+    # Flatten SCC order back to skill order
+    result: list[str] = []
+    for scc_idx in scc_order:
+        result.extend(sccs[scc_idx])
+    return result
+
+
+def _tarjan_scc(graph: dict[str, list[str]]) -> list[list[str]]:
+    """Tarjan's algorithm for finding strongly connected components.
+
+    Returns SCCs in reverse topological order (sinks first).
+    BL-04: Used to compress cycles in prerequisite graphs.
+    """
+    index_counter = [0]
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    index: dict[str, int] = {}
+    lowlink: dict[str, int] = {}
+    sccs: list[list[str]] = []
+
+    def strongconnect(v: str) -> None:
+        index[v] = lowlink[v] = index_counter[0]
+        index_counter[0] += 1
+        stack.append(v)
+        on_stack.add(v)
+
+        for w in graph.get(v, []):
+            if w not in graph:
+                continue  # skip nodes not in our set
+            if w not in index:
+                strongconnect(w)
+                lowlink[v] = min(lowlink[v], lowlink[w])
+            elif w in on_stack:
+                lowlink[v] = min(lowlink[v], index[w])
+
+        if lowlink[v] == index[v]:
+            scc: list[str] = []
+            while True:
+                w = stack.pop()
+                on_stack.discard(w)
+                scc.append(w)
+                if w == v:
+                    break
+            sccs.append(scc)
+
+    for v in graph:
+        if v not in index:
+            strongconnect(v)
+
+    return sccs
 
 
 def _build_phases(

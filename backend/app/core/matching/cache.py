@@ -29,49 +29,35 @@ class MatchCache:
         """
         self._ttl = ttl
         self._max_size = max_size
+        # BL-13: per-key TTL for profile cache (avoids cache avalanche)
         self._profile_cache: dict[str, dict[str, list[dict[str, str]]]] = {}
-        self._profile_cache_ts: float | None = None
+        self._profile_cache_ts: dict[str, float] = {}  # per-key timestamps
         self._match_results: dict[str, dict[str, Any]] = {}
         self._prerequisite_map: dict[str, list[str]] = {}
         self._prereq_cache_ts: float | None = None
         self._lock = threading.Lock()
 
     def get_profile(self, target_position: str) -> dict[str, list[dict[str, str]]] | None:
-        """获取岗位技能画像缓存。
-
-        Args:
-            target_position: 目标岗位名称
-
-        Returns:
-            缓存的技能画像，或 None（已过期/不存在）
-        """
+        """获取岗位技能画像缓存（BL-13: per-key TTL，避免雪崩）。"""
         with self._lock:
-            if self._profile_cache_ts is None:
+            ts = self._profile_cache_ts.get(target_position)
+            if ts is None:
                 return None
             now = time.monotonic()
-            if (now - self._profile_cache_ts) >= self._ttl:
-                # TTL 过期，清空缓存
-                self._profile_cache.clear()
-                self._profile_cache_ts = None
+            if (now - ts) >= self._ttl:
+                # Per-key TTL expired: remove only this key
+                self._profile_cache.pop(target_position, None)
+                self._profile_cache_ts.pop(target_position, None)
                 return None
             return self._profile_cache.get(target_position)
 
     def set_profile(
         self, target_position: str, profile: dict[str, list[dict[str, str]]]
     ) -> None:
-        """设置岗位技能画像缓存。
-
-        Args:
-            target_position: 目标岗位名称
-            profile: 技能画像数据
-        """
+        """设置岗位技能画像缓存（BL-13: per-key TTL）。"""
         with self._lock:
-            now = time.monotonic()
-            if self._profile_cache_ts is None or (now - self._profile_cache_ts) >= self._ttl:
-                # 首次设置或 TTL 过期，重置缓存
-                self._profile_cache.clear()
-                self._profile_cache_ts = now
             self._profile_cache[target_position] = profile
+            self._profile_cache_ts[target_position] = time.monotonic()
 
     def get_prerequisite_map(self) -> dict[str, list[str]] | None:
         """获取技能前置关系缓存。
@@ -130,7 +116,7 @@ class MatchCache:
         """清空所有缓存。"""
         with self._lock:
             self._profile_cache.clear()
-            self._profile_cache_ts = None
+            self._profile_cache_ts.clear()
             self._match_results.clear()
             self._prerequisite_map.clear()
             self._prereq_cache_ts = None

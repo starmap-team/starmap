@@ -27,6 +27,7 @@ class TrendPoint(BaseModel):
     total_records: int = 0
     new_records: int = 0
     quality_score: float = 0.0
+    hallucination_rate: float = 0.0
 
 
 class QualityTrendsResponse(BaseModel):
@@ -40,6 +41,8 @@ class QualityTrendsResponse(BaseModel):
 class AlertItem(BaseModel):
     """单条异常告警。"""
 
+    id: str = Field(default="", description="告警唯一标识")
+    type: str = Field(default="quality", description="告警类型")
     level: str = Field(..., description="'info' | 'warning' | 'critical'")
     dimension: str
     message: str
@@ -47,6 +50,8 @@ class AlertItem(BaseModel):
     value: float = 0.0
     threshold: float = 0.0
     timestamp: str = ""
+    status: str = Field(default="active", description="'active' | 'handled' | 'dismissed'")
+    created_at: str = Field(default="", description="告警创建时间")
     handled: bool = False
 
 
@@ -106,12 +111,27 @@ async def get_quality_trends(
             hours = (now - last).total_seconds() / 3600.0
             avg_freshness = max(avg_freshness, hours)
 
+    # Also get hallucination rate from extraction records
+    from app.models.extraction_models import JDExtractionRecord
+
+    ext_result = await session.execute(
+        sa.select(JDExtractionRecord)
+        .where(JDExtractionRecord.created_at >= cutoff)
+    )
+    daily_halluc: dict[str, list[float]] = {}
+    for ext in ext_result.scalars().all():
+        day_key = ext.created_at.strftime("%Y-%m-%d")
+        if ext.hallucination_score is not None:
+            daily_halluc.setdefault(day_key, []).append(ext.hallucination_score)
+
     # Build data points with gap filling
     data_points: list[TrendPoint] = []
     for i in range(days):
         day = (now - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
         scores = daily_quality.get(day, [])
         avg_score = sum(scores) / len(scores) if scores else 0.0
+        halluc_scores = daily_halluc.get(day, [])
+        avg_halluc = sum(halluc_scores) / len(halluc_scores) if halluc_scores else 0.0
         data_points.append(TrendPoint(
             date=day,
             overall_score=round(avg_score, 4),
@@ -120,6 +140,7 @@ async def get_quality_trends(
             total_records=daily_records.get(day, 0),
             new_records=daily_new.get(day, 0),
             quality_score=round(avg_score, 4),
+            hallucination_rate=round(avg_halluc, 4),
         ))
 
     # Summary
@@ -153,10 +174,12 @@ async def get_quality_alerts(
 
     # Convert to serializable items
     items: list[AlertItem] = []
-    for a in raw_alerts:
+    for idx, a in enumerate(raw_alerts):
         if level and a.level != level:
             continue
         items.append(AlertItem(
+            id=f"alert_{idx}_{a.dimension}",
+            type="quality",
             level=a.level,
             dimension=a.dimension,
             message=a.message,
@@ -164,6 +187,8 @@ async def get_quality_alerts(
             value=a.value,
             threshold=a.threshold,
             timestamp=a.timestamp,
+            status="active",
+            created_at=a.timestamp,
             handled=False,
         ))
 

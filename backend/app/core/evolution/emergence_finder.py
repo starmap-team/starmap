@@ -93,7 +93,9 @@ class PortabilityAnalysis:
     recommendation: str = ""
 
 
-# Domain keywords used to classify skills into domains
+# BL-15: Domain keywords used to classify skills into domains.
+# TODO: Move to configuration file or database table for runtime updates
+# without code changes. Current hardcoded approach requires redeployment.
 DOMAIN_KEYWORDS: dict[str, list[str]] = {
     "IT": [
         "java", "python", "c++", "c#", ".net", "go", "rust", "javascript",
@@ -186,17 +188,33 @@ class EmergenceFinder:
         """
         # Compute statistics from historical data
         if len(frequencies) < 2:
-            # Insufficient history — can't compute meaningful z-score
+            # BL-07: Insufficient history — use Wilson score interval
+            # for a more conservative estimate than returning STABLE blindly
+            if current_frequency > 0 and source_count >= self.MIN_SOURCES:
+                # Wilson score for binomial proportion (observed = current vs baseline 0)
+                # Lower bound of confidence interval
+                n = current_frequency + 10  # pseudocount to avoid division by zero
+                p_hat = current_frequency / n
+                z = 1.96  # 95% confidence
+                denominator = 1 + z ** 2 / n
+                centre = (p_hat + z ** 2 / (2 * n)) / denominator
+                wilson_lower = centre - z * math.sqrt(p_hat * (1 - p_hat) / n + z ** 2 / (4 * n ** 2)) / denominator
+                if wilson_lower > 0.3:
+                    level = EmergenceLevel.RISING
+                else:
+                    level = EmergenceLevel.STABLE
+            else:
+                level = EmergenceLevel.STABLE
             return EmergenceSignal(
                 skill_name=skill_name,
-                level=EmergenceLevel.STABLE,
+                level=level,
                 z_score=0.0,
                 current_frequency=current_frequency,
                 mean_frequency=float(current_frequency),
                 std_frequency=0.0,
                 source_count=source_count,
                 positions=positions or [],
-                metadata={"note": "insufficient_history", "history_len": len(frequencies)},
+                metadata={"note": "insufficient_history_wilson_fallback", "history_len": len(frequencies)},
             )
 
         mean = sum(frequencies) / len(frequencies)

@@ -174,9 +174,9 @@ async def run_batch_match(
         "avg_score": round(sum(all_scores) / len(all_scores), 4) if all_scores else 0.0,
         "max_score": round(max(all_scores), 4) if all_scores else 0.0,
         "min_score": round(min(all_scores), 4) if all_scores else 0.0,
-        "high_match_count": sum(1 for s in all_scores if s >= 0.7),
-        "medium_match_count": sum(1 for s in all_scores if 0.4 <= s < 0.7),
-        "low_match_count": sum(1 for s in all_scores if s < 0.4),
+        "high_match_count": sum(1 for s in all_scores if s >= 0.75),
+        "medium_match_count": sum(1 for s in all_scores if 0.5 <= s < 0.75),
+        "low_match_count": sum(1 for s in all_scores if s < 0.5),
     }
 
     return {

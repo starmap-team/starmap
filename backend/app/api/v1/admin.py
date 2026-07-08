@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.quality import _build_quality_dashboard
 from app.config import settings
-from app.dependencies import get_db_session
+from app.dependencies import get_db_session, require_admin
 from app.models.extraction_models import (
     JDExtractionRecord,
     PositionRecord,
@@ -26,7 +26,7 @@ from app.models.extraction_models import (
     SkillRecord,
 )
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
 
 class SourceConfig(BaseModel):

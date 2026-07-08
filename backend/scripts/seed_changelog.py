@@ -1,7 +1,7 @@
 
 """Seed changelog entries into PostgreSQL for evolution demo."""
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from app.core.config import settings
 from sqlalchemy import text
@@ -55,7 +55,7 @@ async def seed():
     engine = create_async_engine(settings.DATABASE_URL)
     async with AsyncSession(engine) as session:
         for entry in CHANGELOG_ENTRIES:
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             for i, change in enumerate(entry["changes"]):
                 ts = now - timedelta(days=len(entry["changes"]) - i)
                 await session.execute(

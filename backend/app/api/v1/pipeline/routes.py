@@ -37,7 +37,7 @@ from app.api.v1.pipeline.serializers import (
     serialize_schedule,
 )
 from app.core.matching import MatchService
-from app.dependencies import get_db_session, get_neo4j_driver
+from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 from app.pipeline.contracts import PipelineContext
 from app.pipeline.engine import PipelineEngine
@@ -348,7 +348,7 @@ async def list_schedules(
     return [serialize_schedule(s) for s in result.scalars().all()]
 
 
-@router.post("/schedules", response_model=ScheduleResponse)
+@router.post("/schedules", response_model=ScheduleResponse, dependencies=[Depends(require_admin)])
 async def create_schedule(
     body: ScheduleCreateRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -373,7 +373,7 @@ async def create_schedule(
     return serialize_schedule(schedule)
 
 
-@router.put("/schedules/{schedule_id}", response_model=ScheduleResponse)
+@router.put("/schedules/{schedule_id}", response_model=ScheduleResponse, dependencies=[Depends(require_admin)])
 async def update_schedule(
     schedule_id: UUID,
     body: ScheduleCreateRequest,
@@ -395,7 +395,7 @@ async def update_schedule(
     return serialize_schedule(schedule)
 
 
-@router.delete("/schedules/{schedule_id}")
+@router.delete("/schedules/{schedule_id}", dependencies=[Depends(require_admin)])
 async def delete_schedule(
     schedule_id: UUID,
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -408,6 +408,41 @@ async def delete_schedule(
     await session.delete(schedule)
     await session.commit()
     return {"status": "deleted"}
+
+
+@router.post("/schedules/{schedule_id}/trigger", response_model=TriggerResponse)
+async def trigger_schedule(
+    schedule_id: UUID,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> TriggerResponse:
+    """手动触发定时调度：读取调度配置，调用 trigger_pipeline。"""
+    result = await session.execute(select(PipelineSchedule).where(PipelineSchedule.id == schedule_id))
+    schedule = result.scalar_one_or_none()
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+
+    from app.core.pipeline.executor import trigger_and_start
+    from app.core.pipeline.status_aggregator import invalidate_status_cache
+
+    run = await trigger_and_start(
+        run_type=schedule.run_type,
+        selected_stages=schedule.selected_stages,
+    )
+    # ponytail: update last_run_at on the schedule row
+    schedule.last_run_at = run.started_at
+    await session.flush()
+    await session.commit()
+
+    redis_client = getattr(request.app.state.resources, "redis_client", None)
+    await invalidate_status_cache(redis_client)
+
+    return TriggerResponse(
+        run_id=str(run.id),
+        run_type=run.run_type,
+        status=run.status,
+        message=f"Schedule '{schedule.name}' triggered (id={run.id})",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -427,7 +462,7 @@ async def get_pipeline_config() -> PipelineConfigResponse:
     )
 
 
-@router.put("/config", response_model=PipelineConfigResponse)
+@router.put("/config", response_model=PipelineConfigResponse, dependencies=[Depends(require_admin)])
 async def update_pipeline_config(
     body: PipelineConfigUpdateRequest,
 ) -> PipelineConfigResponse:

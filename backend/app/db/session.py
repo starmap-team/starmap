@@ -24,8 +24,20 @@ from app.config import settings
 
 @lru_cache(maxsize=1)
 def get_async_engine() -> AsyncEngine:
-    """Return the process-wide async SQLAlchemy engine. First call creates it."""
-    return create_async_engine(settings.postgres_uri, pool_pre_ping=True)
+    """Return the process-wide async SQLAlchemy engine. First call creates it.
+
+    AP-06: Explicit pool sizing to match typical uvicorn worker counts.
+    - pool_size=10: baseline connections kept open
+    - max_overflow=20: allow burst up to 30 total connections
+    - pool_recycle=3600: recycle connections hourly to avoid stale sockets
+    """
+    return create_async_engine(
+        settings.postgres_uri,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=3600,
+    )
 
 
 @lru_cache(maxsize=1)

@@ -51,6 +51,9 @@ class QualityDashboard(BaseModel):
     trust_distribution: list[dict] = Field(default_factory=list)
     hallucination_trend: list[dict] = Field(default_factory=list)
     source_distribution: list[dict] = Field(default_factory=list)
+    weekly_new_nodes: int = Field(default=0, ge=0, description="本周新增节点数")
+    audit_pass_rate: float = Field(default=0.0, ge=0, le=1, description="审核通过率")
+    audit_queue: int = Field(default=0, ge=0, description="待审核队列数")
 
 
 def _status(value: float, threshold: float) -> str:
@@ -228,6 +231,47 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         for cat, cnt in source_rows
     ]
 
+    # H9: weekly_new_nodes — count skills/positions created in the last 7 days
+    from datetime import UTC, datetime, timedelta
+    week_ago = datetime.now(UTC) - timedelta(days=7)
+    weekly_new_skills = (
+        await session.execute(
+            sa.select(sa.func.count()).select_from(SkillRecord)
+            .where(SkillRecord.first_detected_at >= week_ago)
+        )
+    ).scalar() or 0
+    weekly_new_positions = (
+        await session.execute(
+            sa.select(sa.func.count()).select_from(PositionRecord)
+            .where(PositionRecord.created_at >= week_ago)
+        )
+    ).scalar() or 0
+    weekly_new_nodes = int(weekly_new_skills) + int(weekly_new_positions)
+
+    # H9: audit_pass_rate — ratio of approved vs total reviewed extractions
+    approved_count = (
+        await session.execute(
+            sa.select(sa.func.count()).select_from(JDExtractionRecord)
+            .where(JDExtractionRecord.status == "completed")
+        )
+    ).scalar() or 0
+    total_reviewed = approved_count + pending_review
+    audit_pass_rate = (int(approved_count) / total_reviewed) if total_reviewed > 0 else 0.0
+
+    # H11: audit_queue — count low-trust records needing review
+    low_trust_count = (
+        await session.execute(
+            sa.select(sa.func.count()).select_from(JDExtractionRecord)
+            .where(
+                sa.and_(
+                    JDExtractionRecord.confidence < 0.5,
+                    JDExtractionRecord.status != "completed",
+                )
+            )
+        )
+    ).scalar() or 0
+    audit_queue = int(low_trust_count)
+
     return QualityDashboard(
         report=report,
         total_nodes=int(pos_count) + int(skill_count),
@@ -242,6 +286,9 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         trust_distribution=trust_distribution,
         hallucination_trend=hallucination_trend,
         source_distribution=source_distribution,
+        weekly_new_nodes=weekly_new_nodes,
+        audit_pass_rate=round(audit_pass_rate, 4),
+        audit_queue=audit_queue,
     )
 
 
@@ -349,6 +396,8 @@ async def evaluate_resume_extraction(
 
     加载 data/resume_golden_set.json 中的黄金样本，运行简历抽取 pipeline，
     并与期望技能对比计算 F1 分数。
+
+    x-audit-note: L3 — Internal API, no frontend consumer. Used by backend quality pipelines.
     """
     try:
         from app.core.extraction.resume_eval import run_resume_evaluation
@@ -418,6 +467,8 @@ async def get_comprehensive_report(
     2. 简历抽取质量 (from latest resume evaluation)
     3. 图谱统计 (positions, skills, edges)
     4. 综合评分与改进建议
+
+    x-audit-note: L4 — Internal API, no frontend consumer. Used by backend quality pipelines.
     """
     # 1. Build JD quality report (reuse existing dashboard logic)
     dashboard = await _build_quality_dashboard(session)

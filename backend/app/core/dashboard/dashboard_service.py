@@ -112,8 +112,13 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
 
 
 async def _fetch_quality_stats(session: AsyncSession) -> dict[str, Any]:
-    """Fetch quality / trust / hallucination metrics from DB."""
-    # Extraction stats
+    """Fetch quality / trust / hallucination metrics — delegates to quality_monitor for metrics."""
+    from app.core.pipeline.quality_monitor import compute_source_quality
+
+    # Use the quality module as single source of truth for quality metrics
+    metrics = await compute_source_quality(session)
+
+    # Extraction-specific stats still need direct queries
     ext_stmt = sa.select(
         sa.func.count(JDExtractionRecord.id),
         sa.func.count(JDExtractionRecord.id).filter(JDExtractionRecord.status == "completed"),
@@ -128,26 +133,8 @@ async def _fetch_quality_stats(session: AsyncSession) -> dict[str, Any]:
     total_extractions = int(total_ext or 0)
     hallucination_rate = (int(hallucinated or 0) / total_extractions) if total_extractions else 0.0
 
-    # Average trust from extraction confidence + skill source_count proxy
-    avg_confidence = 0.0
-    if total_extractions > 0:
-        avg_confidence = (
-            await session.execute(
-                sa.select(sa.func.coalesce(sa.func.avg(JDExtractionRecord.confidence), 0.0))
-                .where(JDExtractionRecord.confidence > 0)
-            )
-        ).scalar() or 0.0
-
-    avg_source = (
-        await session.execute(
-            sa.select(sa.func.coalesce(sa.func.avg(SkillRecord.source_count), 0.0))
-        )
-    ).scalar() or 0.0
-    source_trust = min(1.0, float(avg_source) / 10.0) if float(avg_source) > 0 else 0.0
-    avg_trust_score = max(float(avg_confidence), source_trust)
-
     return {
-        "trust_score": round(float(avg_trust_score), 4),
+        "trust_score": round(metrics.overall_score, 4),
         "hallucination_rate": round(hallucination_rate, 4),
         "total_extractions": total_extractions,
     }
@@ -157,6 +144,7 @@ async def _fetch_pipeline_stats(session: AsyncSession) -> dict[str, Any]:
     """Fetch pipeline processing metrics."""
     now = datetime.now(UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_ago = now - timedelta(days=7)
 
     # Total data volume (all records across runs)
     total_volume = (
@@ -172,6 +160,21 @@ async def _fetch_pipeline_stats(session: AsyncSession) -> dict[str, Any]:
             .where(JDExtractionRecord.created_at >= today_start)
         )
     ).scalar() or 0
+
+    # Weekly new nodes (skills + positions created in last 7 days)
+    weekly_new_skills = (
+        await session.execute(
+            sa.select(sa.func.count()).select_from(SkillRecord)
+            .where(SkillRecord.first_detected_at >= week_ago)
+        )
+    ).scalar() or 0
+    weekly_new_positions = (
+        await session.execute(
+            sa.select(sa.func.count()).select_from(PositionRecord)
+            .where(PositionRecord.created_at >= week_ago)
+        )
+    ).scalar() or 0
+    weekly_new_nodes = int(weekly_new_skills) + int(weekly_new_positions)
 
     # Latest pipeline run status
     latest_run = (
@@ -199,6 +202,7 @@ async def _fetch_pipeline_stats(session: AsyncSession) -> dict[str, Any]:
         "today_extractions": int(today_extractions),
         "pipeline_status": pipeline_status,
         "active_data_sources": int(active_sources),
+        "weekly_new_nodes": weekly_new_nodes,
     }
 
 

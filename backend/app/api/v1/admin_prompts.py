@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+import time
+from collections import defaultdict
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -22,6 +24,10 @@ from app.core.extraction.prompt import (
     set_active_version,
     stop_ab_test,
 )
+
+# FE-02: A/B test result tracking (in-memory, process-local)
+_ab_results: dict[str, list[dict[str, Any]]] = defaultdict(list)
+_MAX_RESULTS_PER_PROMPT = 10000
 
 
 class SetActiveRequest(BaseModel):
@@ -167,3 +173,68 @@ async def get_ab_test_config(name: str) -> dict[str, Any]:
         "prompt": name,
         "ab_test": ab.to_dict() if ab else None,
     }
+
+
+# ── FE-02: A/B test result tracking ──
+
+
+class ABResultRequest(BaseModel):
+    """Record an A/B test result for aggregation."""
+    version: str = Field(..., description="Prompt version used for this request")
+    success: bool = Field(default=True, description="Whether the extraction succeeded")
+    f1: float | None = Field(default=None, ge=0.0, le=1.0, description="F1 score if evaluated")
+    latency_ms: float | None = Field(default=None, ge=0.0, description="Request latency in ms")
+
+
+@router.post("/prompts/{name}/ab-results")
+async def record_ab_result(name: str, req: ABResultRequest) -> dict[str, Any]:
+    """Record an A/B test result for later analysis."""
+    entry = {
+        "version": req.version,
+        "success": req.success,
+        "f1": req.f1,
+        "latency_ms": req.latency_ms,
+        "timestamp": time.time(),
+    }
+    _ab_results[name].append(entry)
+    # Cap results to prevent unbounded memory
+    if len(_ab_results[name]) > _MAX_RESULTS_PER_PROMPT:
+        _ab_results[name] = _ab_results[name][-_MAX_RESULTS_PER_PROMPT:]
+    return {"prompt": name, "recorded": True}
+
+
+@router.get("/prompts/{name}/ab-results")
+async def get_ab_results(name: str) -> dict[str, Any]:
+    """Get aggregated A/B test results for a prompt."""
+    results = _ab_results.get(name, [])
+    if not results:
+        return {"prompt": name, "total": 0, "versions": {}}
+
+    # Aggregate by version
+    by_version: dict[str, dict[str, Any]] = defaultdict(lambda: {
+        "count": 0, "success_count": 0, "f1_sum": 0.0, "f1_count": 0,
+        "latency_sum": 0.0, "latency_count": 0,
+    })
+    for r in results:
+        v = r["version"]
+        by_version[v]["count"] += 1
+        if r["success"]:
+            by_version[v]["success_count"] += 1
+        if r["f1"] is not None:
+            by_version[v]["f1_sum"] += r["f1"]
+            by_version[v]["f1_count"] += 1
+        if r["latency_ms"] is not None:
+            by_version[v]["latency_sum"] += r["latency_ms"]
+            by_version[v]["latency_count"] += 1
+
+    # Compute averages
+    summary = {}
+    for v, stats in by_version.items():
+        summary[v] = {
+            "count": stats["count"],
+            "success_rate": round(stats["success_count"] / stats["count"], 4),
+            "avg_f1": round(stats["f1_sum"] / stats["f1_count"], 4) if stats["f1_count"] else None,
+            "avg_latency_ms": round(stats["latency_sum"] / stats["latency_count"], 1) if stats["latency_count"] else None,
+        }
+
+    return {"prompt": name, "total": len(results), "versions": summary}

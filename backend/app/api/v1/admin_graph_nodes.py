@@ -105,7 +105,7 @@ async def create_graph_node(
             )
     except Exception as exc:
         logger.error("Failed to create graph node: {}", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Failed to create graph node") from exc
 
 
 @router.put("/graph/nodes/{node_id:path}", response_model=GraphNodeItem)
@@ -140,7 +140,7 @@ async def update_graph_node(
         raise
     except Exception as exc:
         logger.error("Failed to update graph node {}: {}", node_id, exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Failed to update graph node") from exc
 
 
 @router.delete("/graph/nodes/{node_id:path}")
@@ -167,7 +167,7 @@ async def delete_graph_node(
         raise
     except Exception as exc:
         logger.error("Failed to delete graph node {}: {}", node_id, exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Failed to delete graph node") from exc
 
 
 @router.post("/graph/nodes/{node_id:path}/approve")
@@ -192,7 +192,8 @@ async def approve_graph_node(
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.error("Failed to approve graph node {}: {}", node_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to approve graph node") from exc
 
 
 @router.post("/graph/nodes/{node_id:path}/reject")
@@ -217,4 +218,5 @@ async def reject_graph_node(
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.error("Failed to reject graph node {}: {}", node_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to reject graph node") from exc

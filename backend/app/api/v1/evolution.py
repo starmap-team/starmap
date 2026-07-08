@@ -89,6 +89,7 @@ class EvolutionPathEntry(BaseModel):
     skill_overlap: list[str]
     key_gaps: list[str]
     trust_score: float
+    trend: str = "stable"
 
 
 class EmergingSkill(BaseModel):
@@ -247,6 +248,20 @@ async def get_all_evolution_paths(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[EvolutionPathEntry]:
     """获取所有演化路径（用于图谱页渲染 EVOLVES_TO 边）。"""
+    # Load emergence signals to enrich trend field (graceful degradation)
+    from app.core.evolution.emergence_finder import EmergenceFinder
+
+    signals_by_name: dict[str, Any] = {}
+    try:
+        skill_data = await load_skill_timeseries_data(session)
+        if skill_data:
+            finder = EmergenceFinder()
+            report = finder.scan(skill_data)
+            for s in report.all_signals:
+                signals_by_name.setdefault(s.skill_name, s)
+    except Exception as exc:
+        logger.debug("Emergence enrichment skipped for /paths/all: {}", exc)
+
     # 优先从 Neo4j 读取（真实 EVOLVES_TO 关系 — phase 2 orchestrator 写入）
     if driver is not None:
         try:
@@ -257,12 +272,19 @@ async def get_all_evolution_paths(
                     f"       coalesce(r.similarity, {DEFAULT_SIMILARITY}) AS similarity, "
                     f"       coalesce(r.trust_score, {DEFAULT_SIMILARITY}) AS trust_score, "
                     "       coalesce(r.skill_overlap, []) AS skill_overlap, "
-                    "       coalesce(r.key_gaps, []) AS key_gaps "
+                    "       coalesce(r.key_gaps, []) AS key_gaps, "
+                    "       coalesce(r.trend, 'stable') AS trend "
                     "ORDER BY trust_score DESC, similarity DESC LIMIT $limit"
                 )
                 result = await neo4j_session.run(cypher, limit=limit)
                 entries = []
                 async for r in result:
+                    raw_trend = r.get("trend", "stable") or "stable"
+                    # If Neo4j trend is default, try enrichment from emergence signals
+                    if raw_trend == "stable":
+                        sig = signals_by_name.get(r["src"] or "")
+                        if sig:
+                            raw_trend = sig.level.value
                     entries.append(
                         EvolutionPathEntry(
                             id=str(r["id"]),
@@ -273,6 +295,7 @@ async def get_all_evolution_paths(
                             skill_overlap=list(r["skill_overlap"] or []),
                             key_gaps=list(r["key_gaps"] or []),
                             trust_score=float(r["trust_score"] or DEFAULT_SIMILARITY),
+                            trend=raw_trend,
                         )
                     )
                 if entries:
@@ -301,6 +324,20 @@ async def get_evolution_paths(
     driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> list[EvolutionPathEntry]:
     """获取指定岗位的演化路径推荐。"""
+    # Load emergence signals to enrich trend field (graceful degradation)
+    from app.core.evolution.emergence_finder import EmergenceFinder
+
+    signals_by_name: dict[str, Any] = {}
+    try:
+        skill_data = await load_skill_timeseries_data(session)
+        if skill_data:
+            finder = EmergenceFinder()
+            report = finder.scan(skill_data)
+            for s in report.all_signals:
+                signals_by_name.setdefault(s.skill_name, s)
+    except Exception as exc:
+        logger.debug("Emergence enrichment skipped for /paths/{{position}}: {}", exc)
+
     # 优先从 Neo4j 读取
     if driver is not None:
         try:
@@ -312,12 +349,18 @@ async def get_evolution_paths(
                     f"       coalesce(r.similarity, {DEFAULT_SIMILARITY}) AS similarity, "
                     f"       coalesce(r.trust_score, {DEFAULT_SIMILARITY}) AS trust_score, "
                     "       coalesce(r.skill_overlap, []) AS skill_overlap, "
-                    "       coalesce(r.key_gaps, []) AS key_gaps "
+                    "       coalesce(r.key_gaps, []) AS key_gaps, "
+                    "       coalesce(r.trend, 'stable') AS trend "
                     "ORDER BY trust_score DESC, similarity DESC LIMIT 20"
                 )
                 result = await neo4j_session.run(cypher, position=position)
                 entries = []
                 async for r in result:
+                    raw_trend = r.get("trend", "stable") or "stable"
+                    if raw_trend == "stable":
+                        sig = signals_by_name.get(r["src"] or "")
+                        if sig:
+                            raw_trend = sig.level.value
                     entries.append(
                         EvolutionPathEntry(
                             id=str(r["id"]),
@@ -328,6 +371,7 @@ async def get_evolution_paths(
                             skill_overlap=list(r["skill_overlap"] or []),
                             key_gaps=list(r["key_gaps"] or []),
                             trust_score=float(r["trust_score"] or DEFAULT_SIMILARITY),
+                            trend=raw_trend,
                         )
                     )
                 if entries:
@@ -512,7 +556,10 @@ async def get_skill_portability(
     skill: str,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> PortabilityDetail:
-    """获取指定技能的可迁移性分析。"""
+    """获取指定技能的可迁移性分析。
+
+    x-audit-note: L2 — Internal API, no frontend consumer. Used by backend analysis pipelines.
+    """
     from app.core.evolution.emergence_finder import EmergenceFinder
 
     # Load timeseries data

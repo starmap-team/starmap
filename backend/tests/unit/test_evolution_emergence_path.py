@@ -62,14 +62,15 @@ class TestEmergenceFinder:
         assert signal.level == EmergenceLevel.DECLINING
 
     def test_insufficient_history(self) -> None:
-        """Too few data points → stable with note."""
+        """Too few data points → stable with note (BL-07: Wilson fallback)."""
         signal = self.finder.detect(
             skill_name="NewSkill",
             frequencies=[1],
             current_frequency=3,
         )
         assert signal.level == EmergenceLevel.STABLE
-        assert signal.metadata.get("note") == "insufficient_history"
+        # BL-07: note changed from "insufficient_history" to "insufficient_history_wilson_fallback"
+        assert "insufficient_history" in signal.metadata.get("note", "")
 
     def test_emerging_needs_min_frequency(self) -> None:
         """z > 2.0 but frequency < 3 → not emerging."""

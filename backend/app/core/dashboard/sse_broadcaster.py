@@ -37,6 +37,7 @@ HEARTBEAT_INTERVAL = 15  # seconds
 POLL_INTERVAL = 0.5  # seconds between checks
 EVENT_TTL = 300  # seconds to keep events in Redis list for polling fallback
 POLL_LIST_KEY = "dashboard:recent_events"
+MAX_SSE_CLIENTS = 50  # AP-07: connection limit to prevent resource exhaustion
 
 # Valid event types (informational; not enforced on publish)
 VALID_EVENT_TYPES = frozenset({
@@ -45,6 +46,9 @@ VALID_EVENT_TYPES = frozenset({
     "data_milestone",
     "extraction_complete",
 })
+
+# AP-07: Active SSE connection counter (process-local)
+_active_sse_clients = 0
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +123,13 @@ async def event_stream(
         yield _format_sse("error", {"message": "Redis not available"})
         return
 
+    # AP-07: Enforce connection limit
+    global _active_sse_clients
+    if _active_sse_clients >= MAX_SSE_CLIENTS:
+        yield _format_sse("error", {"message": f"Max SSE clients ({MAX_SSE_CLIENTS}) reached"})
+        return
+    _active_sse_clients += 1
+
     pubsub = redis.pubsub()
     try:
         await pubsub.subscribe(CHANNEL)
@@ -167,6 +178,7 @@ async def event_stream(
     except Exception as exc:
         logger.warning("SSE stream error: {}", exc)
     finally:
+        _active_sse_clients = max(0, _active_sse_clients - 1)
         try:
             await pubsub.unsubscribe(CHANNEL)
             await pubsub.aclose()
