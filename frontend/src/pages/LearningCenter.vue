@@ -11,8 +11,6 @@
 import { ref, onMounted, computed } from 'vue'
 // 技术说明：引入 Vue Router 用于页面导航
 import { useRouter } from 'vue-router'
-// 技术说明：引入 Element Plus 消息提示组件
-import { ElMessage, ElMessageBox } from 'element-plus'
 // 技术说明：引入 Element Plus 图标组件
 import { Guide, DataAnalysis, Clock, Trophy } from '@element-plus/icons-vue'
 // 业务说明：主布局组件，提供统一的页面导航和侧边栏
@@ -28,6 +26,7 @@ import type { SkillProgress } from '@/stores/learning'
 // 业务说明：拆分到独立 composable 的指标计算与优先级映射
 import { useLearningMetrics } from '@/composables/useLearningMetrics'
 import { priorityType, priorityLabel } from '@/composables/useLearningPriority'
+import { useLearningActions } from '@/composables/useLearningActions'
 
 // 技术说明：初始化路由实例，用于跳转到匹配诊断页面
 const router = useRouter()
@@ -57,50 +56,8 @@ const isLoading = computed(() => learningStore.loading)
 // 业务说明：学习进度统计指标（已掌握/学习中/剩余学时；总学时在 composable 内部保留)
 const { masteredCount, inProgressCount, remainingHours } = useLearningMetrics(currentPlan)
 
-// 业务说明：更新技能学习状态
-// 用户点击技能卡片上的状态按钮时触发，将技能标记为已掌握/学习中/未开始
-// 参数 skill: 技能名称，status: 目标状态
-async function handleUpdateStatus(skill: string, status: string) {
-  if (!currentPlan.value) {
-    ElMessage.warning('请先创建学习计划')
-    return
-  }
-  try {
-    await learningStore.updateProgress(currentPlan.value.plan_id, skill, status)
-    ElMessage.success(`已更新「${skill}」状态为 ${status === 'mastered' ? '已掌握' : status === 'in_progress' ? '学习中' : '未开始'}`)
-  } catch {
-    // error handled by store
-  }
-}
-
-// 业务说明：将推荐技能加入当前学习计划（或创建新计划）
-// D-08: 单计划模式；已有计划时覆盖前确认
-// D-09: "加入计划"调用 POST /learning/plan；plan_id 写入 localStorage (D-06)
-async function handleAddToPlan(rec: { skill: string; priority: string }) {
-  try {
-    if (currentPlan.value) {
-      await ElMessageBox.confirm(
-        `已有学习计划「${currentPlan.value.position}」，是否用「${rec.skill}」覆盖？`,
-        '覆盖学习计划',
-        { confirmButtonText: '确认覆盖', cancelButtonText: '取消', type: 'warning' }
-      )
-      await learningStore.createPlan({
-        position: rec.skill,
-        skills: [{ skill: rec.skill, importance: 'required', gap_level: '完全缺失' }],
-      })
-      ElMessage.success('已创建新学习计划')
-    } else {
-      await learningStore.createPlan({
-        position: rec.skill,
-        skills: [{ skill: rec.skill, importance: 'required', gap_level: '完全缺失' }],
-      })
-      ElMessage.success(`「${rec.skill}」已加入学习计划`)
-    }
-  } catch (e: unknown) {
-    if (e === 'cancel' || e === 'close') return
-    ElMessage.error(e instanceof Error ? e.message : '加入计划失败')
-  }
-}
+// 业务说明：用户操作（更新状态 / 加入计划）
+const { handleUpdateStatus, handleAddToPlan } = useLearningActions(learningStore, currentPlan)
 
 // 业务说明：页面初始化 —— 恢复 localStorage 计划 + 并行加载推荐
 // D-07: 每次打开 LearningCenter 验证 plan_id 有效性
