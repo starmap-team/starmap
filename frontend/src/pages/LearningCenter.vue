@@ -119,9 +119,9 @@ async function handleAddToPlan(rec: { skill: string; priority: string }) {
       })
       ElMessage.success(`「${rec.skill}」已加入学习计划`)
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e === 'cancel' || e === 'close') return
-    ElMessage.error(e?.message ?? '加入计划失败')
+    ElMessage.error(e instanceof Error ? e.message : '加入计划失败')
   }
 }
 

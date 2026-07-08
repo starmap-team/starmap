@@ -26,9 +26,9 @@ export const useJdStore = defineStore('jd', () => {
     loading.value = true
     try {
       // 使用真实后端 /positions 端点（JD 数据已导入 position_records）
-      const data = await request.get('/positions', { params: { page_size: DEFAULT_PAGE_SIZE } })
-      const items = (data as any).items ?? (data as any) ?? []
-      list.value = items.map((p: any) => ({
+      const data = await request.get('/positions', { params: { page_size: DEFAULT_PAGE_SIZE } }) as { items?: { position_id?: number; id?: number; name?: string; title?: string; description?: string; created_at?: string }[] }
+      const items = data.items ?? []
+      list.value = items.map((p: { position_id?: number; id?: number; name?: string; title?: string; description?: string; created_at?: string }) => ({
         id: p.position_id ?? p.id ?? 0,
         source: 'database',
         title: p.name ?? p.title ?? '',
@@ -67,7 +67,7 @@ export const useJdStore = defineStore('jd', () => {
     if (keyword?.trim()) {
       params.search = keyword.trim()
     }
-    const data = await request.get('/positions', { params }) as any
+    const data = await request.get('/positions', { params }) as { items?: { position_id: string; name: string }[] }
     return (data.items ?? []).map((p: { position_id: string; name: string }) => ({
       label: p.name,
       value: p.name,
@@ -76,6 +76,7 @@ export const useJdStore = defineStore('jd', () => {
   }
 
   // ── JD Extraction (migrated from ExtractJD.vue — M23) ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extractResult = ref<any>(null)
   const extractLoading = ref(false)
 

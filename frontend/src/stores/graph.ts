@@ -183,7 +183,7 @@ export const useGraphStore = defineStore('graph', () => {
   async function fetchOverview(mode: OverviewMode = 'domain') {
     loading.value = true
     try {
-      const data = await request.get(`/graph/overview?group_by=${mode}`) as any
+      const data = await request.get(`/graph/overview?group_by=${mode}`) as { domains?: DomainOverviewItem[]; connections?: DomainConnection[] }
       domains.value = data.domains ?? []
       domainConnections.value = data.connections ?? []
       // 延迟设置 overviewMode 直到数据就绪，避免 Graph3D watch 被触发两次：
@@ -206,7 +206,7 @@ export const useGraphStore = defineStore('graph', () => {
     loading.value = true
     try {
       const edgeKeys = new Set(allEdges.value.map(x => `${x.source_id}-${x.target_id}-${x.type}`))
-      const data = await request.get(`/graph/ka/${kaId}/positions`) as any
+      const data = await request.get(`/graph/ka/${kaId}/positions`) as { positions?: GraphNode[]; position_skill_edges?: GraphEdge[] }
       const positions: GraphNode[] = data.positions ?? []
       const psEdges: GraphEdge[] = data.position_skill_edges ?? []
       // 缓存
@@ -238,16 +238,16 @@ export const useGraphStore = defineStore('graph', () => {
   /** 加载演化关系边（含趋势、技能重叠、差距等详情） */
   async function fetchEvolutionEdges() {
     try {
-      const data = await request.get('/evolution/paths/all') as any[]
+      const data = await request.get('/evolution/paths/all') as unknown as Array<{ source_position: string; target_position: string; similarity?: number; trend?: 'rising' | 'stable' | 'declining'; skill_overlap?: string[]; key_gaps?: string[]; evidence_count?: number }>
       const paths = Array.isArray(data) ? data : []
-      evolutionEdges.value = paths.map((p: any) => ({
+      evolutionEdges.value = paths.map((p: { source_position: string; target_position: string; similarity?: number; trend?: 'rising' | 'stable' | 'declining'; skill_overlap?: string[]; key_gaps?: string[]; evidence_count?: number }) => ({
         source_id: p.source_position,
         target_id: p.target_position,
         type: 'EVOLVES_TO',
         properties: {
           weight: p.similarity ?? 0.5,
           similarity: p.similarity ?? 0.5,
-          trend: (p.trend ?? p.similarity >= 0.6 ? 'rising' : p.similarity >= 0.3 ? 'stable' : 'declining') as 'rising' | 'stable' | 'declining',
+          trend: (p.trend ?? (p.similarity ?? 0) >= 0.6 ? 'rising' : (p.similarity ?? 0) >= 0.3 ? 'stable' : 'declining') as 'rising' | 'stable' | 'declining',
           skill_overlap: p.skill_overlap ?? [],
           key_gaps: p.key_gaps ?? [],
           evidence_count: p.evidence_count ?? 0,
@@ -270,16 +270,16 @@ export const useGraphStore = defineStore('graph', () => {
     }
     evolutionPathsLoading.value = true
     try {
-      const data = await request.get(`/evolution/paths/${encodeURIComponent(positionName)}`) as any[]
+      const data = await request.get(`/evolution/paths/${encodeURIComponent(positionName)}`) as unknown as Array<{ source_position: string; target_position: string; similarity?: number; trend?: 'rising' | 'stable' | 'declining'; skill_overlap?: string[]; key_gaps?: string[]; evidence_count?: number }>
       const paths = Array.isArray(data) ? data : []
-      evolutionPaths.value = paths.map((p: any) => ({
+      evolutionPaths.value = paths.map((p: { source_position: string; target_position: string; similarity?: number; trend?: 'rising' | 'stable' | 'declining'; skill_overlap?: string[]; key_gaps?: string[]; evidence_count?: number }) => ({
         source_id: p.source_position,
         target_id: p.target_position,
         type: 'EVOLVES_TO',
         properties: {
           weight: p.similarity ?? 0.5,
           similarity: p.similarity ?? 0.5,
-          trend: (p.trend ?? p.similarity >= 0.6 ? 'rising' : p.similarity >= 0.3 ? 'stable' : 'declining') as 'rising' | 'stable' | 'declining',
+          trend: (p.trend ?? (p.similarity ?? 0) >= 0.6 ? 'rising' : (p.similarity ?? 0) >= 0.3 ? 'stable' : 'declining') as 'rising' | 'stable' | 'declining',
           skill_overlap: p.skill_overlap ?? [],
           key_gaps: p.key_gaps ?? [],
           evidence_count: p.evidence_count ?? 0,

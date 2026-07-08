@@ -6,6 +6,7 @@ import { useGraphStore, type GraphNode } from "@/stores/graph"
 
 const props = defineProps<{
   selectedNode: GraphNode | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   positionRadarOption: any
 }>()
 

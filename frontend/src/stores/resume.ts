@@ -32,7 +32,7 @@ export const useResumeStore = defineStore('resume', () => {
         timeout: 60000, // 60秒超时（LLM 抽取需要时间）
       })
       result.value = data as unknown as ResumeParseResult
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[Resume] Parse failed:', e)
       result.value = null
       throw e // 向上传播错误，让调用方处理

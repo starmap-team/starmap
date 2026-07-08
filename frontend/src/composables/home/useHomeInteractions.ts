@@ -12,7 +12,7 @@ export interface EvolutionEdgeArg {
   source: string | { id: string }
   target: string | { id: string }
   type?: string
-  properties?: any
+  properties?: Record<string, unknown>
 }
 
 export interface RadarChartOption {

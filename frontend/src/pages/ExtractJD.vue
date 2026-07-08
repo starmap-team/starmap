@@ -39,9 +39,9 @@ async function handleExtract() {
     extractProgress.value = 100
     extractPhase.value = '抽取完成！'
     ElMessage.success('抽取完成')
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('[ExtractJD] Failed:', e)
-    ElMessage.error(e?.message ?? '抽取失败')
+    ElMessage.error(e instanceof Error ? e.message : '抽取失败')
     extractPhase.value = '抽取失败'
   } finally {
     if (progressTimer) { clearInterval(progressTimer); progressTimer = null }

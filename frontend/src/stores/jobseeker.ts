@@ -119,8 +119,8 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
           }
         }
       }
-    } catch (e: any) {
-      error.value = e.message || '分析失败'
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '分析失败'
     } finally {
       loading.value = false
     }

@@ -389,7 +389,7 @@ const activeStep = computed(() => {
   return (stepMap[store.currentStep] ?? 0) + 1
 })
 
-function handleFileChange(file: any) {
+function handleFileChange(file: { raw: File }) {
   selectedFile.value = file.raw
 }
 

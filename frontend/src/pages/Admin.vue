@@ -34,7 +34,7 @@ interface GraphNodeItem {
   id: string
   type: string
   name: string
-  properties: Record<string, any>
+  properties: Record<string, unknown>
   status: 'pending' | 'approved' | 'rejected'
   created_at?: string
 }
@@ -65,7 +65,7 @@ const pagedGraphNodes = computed(() => {
 
 // Node editor
 const editorVisible = ref(false)
-const editingNode = ref<{ id?: string; type: string; name: string; properties: Record<string, any> } | null>(null)
+const editingNode = ref<{ id?: string; type: string; name: string; properties: Record<string, unknown> } | null>(null)
 
 function handleCreateNode() {
   editingNode.value = null
@@ -82,7 +82,7 @@ function handleEditNode(node: GraphNodeItem) {
   editorVisible.value = true
 }
 
-async function handleNodeSubmit(data: any) {
+async function handleNodeSubmit(data: { id?: string; type: string; name: string; properties: Record<string, unknown> }) {
   try {
     if (data.id) {
       await admin.updateGraphNode(data.id, data)
@@ -91,8 +91,8 @@ async function handleNodeSubmit(data: any) {
       await admin.createGraphNode(data)
       ElMessage.success('节点已提交审核')
     }
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '操作失败')
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '操作失败')
   }
 }
 
@@ -112,8 +112,8 @@ async function handleApproveNode(node: GraphNodeItem) {
   try {
     await admin.approveGraphNode(node.id)
     ElMessage.success('节点已审核通过')
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '审核失败')
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '审核失败')
   }
 }
 
@@ -121,8 +121,8 @@ async function handleRejectNode(node: GraphNodeItem) {
   try {
     await admin.rejectGraphNode(node.id)
     ElMessage.warning('节点已拒绝')
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '拒绝失败')
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '拒绝失败')
   }
 }
 
@@ -148,7 +148,7 @@ function nodeStatusLabel(status: string): string {
 const editDialogVisible = ref(false)
 const editSaving = ref(false)
 const editingSource = ref<{ id: string; name: string; authority_score: number; status: string } | null>(null)
-function handleEditSource(row: any) {
+function handleEditSource(row: { id: string; name: string; authority_score: number; status: string }) {
   editingSource.value = { id: row.id, name: row.name, authority_score: Math.round(row.authority_score * 100), status: row.status }
   editDialogVisible.value = true
 }
@@ -164,8 +164,8 @@ async function handleSaveSource() {
     editDialogVisible.value = false
     ElMessage.success('保存成功')
     await admin.fetchSources()
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '保存失败，请重试')
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '保存失败，请重试')
   } finally {
     editSaving.value = false
   }

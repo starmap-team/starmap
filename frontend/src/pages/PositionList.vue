@@ -40,14 +40,14 @@ const filteredPositions = computed(() => {
 async function fetchPositions() {
   loading.value = true
   try {
-    const data = await jdStore.fetchPositions({ page: page.value, page_size: pageSize.value }) as any
-    const items = data.items ?? data ?? []
-    positions.value = items.map((p: any) => ({
+    const data = (await jdStore.fetchPositions({ page: page.value, page_size: pageSize.value })) as unknown as Record<string, unknown>
+    const items = (Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : []) as { position_id?: string; id?: string; name?: string; industry?: string }[]
+    positions.value = items.map((p) => ({
       id: p.position_id ?? p.id ?? '',
       name: p.name ?? '',
       industry: p.industry ?? '互联网 IT',
     }))
-    total.value = data.total ?? items.length
+    total.value = (data.total as number) ?? items.length
   } catch (e) {
     console.error('[PositionList] Failed to fetch:', e)
     ElMessage.error('岗位列表加载失败，请确认后端服务已启动')

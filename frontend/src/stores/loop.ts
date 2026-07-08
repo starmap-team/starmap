@@ -26,6 +26,8 @@ export interface StepResult {
   name: string
   status: StepStatus
   duration_ms?: number
+  // ponytail: data shape varies by step; LoopDemo accesses dynamic fields
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any
   error?: string
   warning?: string
@@ -159,7 +161,7 @@ export const useLoopStore = defineStore('loop', () => {
       const data = await request.post('/loop/run', {
         jd_content: jdText,
         target_position: targetPosition,
-      }, { timeout: LOOP_RUN_TIMEOUT_MS }) as any
+      }, { timeout: LOOP_RUN_TIMEOUT_MS }) as LoopRunResponse
 
       const totalTime = Date.now() - startTime
 
@@ -183,8 +185,8 @@ export const useLoopStore = defineStore('loop', () => {
       currentRun.value.status = data.status ?? 'completed'
       currentRun.value.total_duration_ms = totalTime
       currentRun.value.run_id = data.run_id ?? currentRun.value.run_id
-    } catch (e: any) {
-      error.value = e?.message ?? '闭环执行失败'
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '闭环执行失败'
       // 标记当前运行的步骤为失败
       if (currentRun.value) {
         const runningStep = currentRun.value.steps.find(s => s.status === 'running')
@@ -200,7 +202,58 @@ export const useLoopStore = defineStore('loop', () => {
   }
 
   /** 兼容解析：后端返回扁平结果时分配到各步骤 */
-  function parseFlatResult(data: any, totalTime: number) {
+  // ponytail: response shape from /loop/run; expand if contract changes
+  interface LoopRunResponse {
+    steps?: { step: number; status?: StepStatus; duration_ms?: number; data?: Record<string, unknown>; error?: string; warning?: string }[]
+    status?: 'running' | 'completed' | 'partial'
+    run_id?: string
+    extracted_skills?: unknown[]
+    required_skills?: unknown[]
+    confidence?: number
+    hallucination_score?: number
+    graph_update?: Record<string, unknown>
+    new_nodes?: unknown[]
+    existing_nodes?: unknown[]
+    new_edges?: unknown[]
+    graph_degraded?: boolean
+    match_result?: Record<string, unknown>
+    match_score?: number
+    matched_skills?: string[]
+    missing_skills?: string[]
+    gap_analysis?: unknown[]
+    radar_data?: unknown[]
+    match_degraded?: boolean
+    learning_path?: unknown[]
+    learning_paths?: unknown[]
+    estimated_learning_hours?: number
+    learning_degraded?: boolean
+  }
+
+  // ponytail: single interface for the flat backend response shape; expand if contract changes
+  interface FlatLoopResult {
+    extracted_skills?: unknown[]
+    required_skills?: unknown[]
+    confidence?: number
+    hallucination_score?: number
+    graph_update?: Record<string, unknown>
+    new_nodes?: unknown[]
+    existing_nodes?: unknown[]
+    new_edges?: unknown[]
+    graph_degraded?: boolean
+    match_result?: Record<string, unknown>
+    match_score?: number
+    matched_skills?: string[]
+    missing_skills?: string[]
+    gap_analysis?: unknown[]
+    radar_data?: unknown[]
+    match_degraded?: boolean
+    learning_path?: unknown[]
+    learning_paths?: unknown[]
+    estimated_learning_hours?: number
+    learning_degraded?: boolean
+  }
+
+  function parseFlatResult(data: FlatLoopResult, totalTime: number) {
     if (!currentRun.value) return
     const steps = currentRun.value.steps
 
@@ -256,7 +309,7 @@ export const useLoopStore = defineStore('loop', () => {
   /** 获取运行状态 */
   async function getStatus(runId: string) {
     try {
-      const data = await request.get(`/loop/status/${runId}`) as any
+      const data = await request.get(`/loop/status/${runId}`) as Record<string, unknown>
       return data
     } catch {
       return null
@@ -266,7 +319,7 @@ export const useLoopStore = defineStore('loop', () => {
   /** 获取历史记录 */
   async function fetchHistory() {
     try {
-      const data = await request.get('/loop/history', { params: { limit: 20 } }) as any
+      const data = await request.get('/loop/history', { params: { limit: 20 } }) as { items?: LoopHistoryItem[] }
       history.value = data.items ?? []
     } catch {
       history.value = []

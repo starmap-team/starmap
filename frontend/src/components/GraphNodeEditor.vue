@@ -20,7 +20,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:visible', val: boolean): void
-  (e: 'submit', data: any): void
+  (e: 'submit', data: { id?: string; type: string; name: string; properties: Record<string, unknown> }): void
   (e: 'close'): void
 }>()
 

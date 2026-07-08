@@ -100,13 +100,14 @@ onMounted(async () => {
 
 async function loadFromPostgres() {
   try {
-    const pgData = await jdStore.fetchPositionDetail(positionName.value)
+    const pgData = (await jdStore.fetchPositionDetail(positionName.value)) as unknown as Record<string, unknown>
+    const pgRecord = pgData as { name?: string; industry?: string; description?: string; skills_required?: { skill_id?: string; name?: string; category?: string; proficiency?: string; confidence?: number; source_count?: number }[] }
     position.value = {
-      name: (pgData as any).name ?? positionName.value,
-      industry: (pgData as any).industry ?? '',
-      description: (pgData as any).description ?? '',
+      name: pgRecord.name ?? positionName.value,
+      industry: pgRecord.industry ?? '',
+      description: pgRecord.description ?? '',
     }
-    skills.value = ((pgData as any).skills_required ?? []).map((s: any) => ({
+    skills.value = (pgRecord.skills_required ?? []).map((s) => ({
       skill_id: s.skill_id ?? '',
       name: s.name ?? '',
       category: s.category ?? 'hard_skill',

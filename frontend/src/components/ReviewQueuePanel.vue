@@ -141,8 +141,8 @@ async function handleSaveEdit() {
     ElMessage.success('保存成功')
     editDrawerVisible.value = false
     await admin.fetchAuditQueue()
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '保存失败，请重试')
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '保存失败，请重试')
   } finally {
     editSaving.value = false
   }
