@@ -44,14 +44,17 @@ results_log: list[dict] = []
 
 def log(level: str, msg: str) -> None:
     icons = {
-        "pass": f"{Colors.GREEN}✅",
-        "fail": f"{Colors.RED}❌",
-        "warn": f"{Colors.YELLOW}⚠️",
-        "info": f"{Colors.CYAN}ℹ️",
+        "pass": f"{Colors.GREEN}[PASS]",
+        "fail": f"{Colors.RED}[FAIL]",
+        "warn": f"{Colors.YELLOW}[WARN]",
+        "info": f"{Colors.CYAN}[INFO]",
     }
-    icon = icons.get(level, "ℹ️")
+    icon = icons.get(level, "[INFO]")
     reset = Colors.RESET if level in ("pass", "fail", "warn") else ""
-    print(f"  {icon} {msg}{reset}")
+    try:
+        print(f"  {icon} {msg}{reset}")
+    except UnicodeEncodeError:
+        print(f"  {level.upper()} {msg}")
 
 
 def check(name: str, condition: bool, detail: str = "") -> bool:
@@ -811,9 +814,9 @@ def main():
     print(f"  {Colors.GREEN}通过: {passed}{Colors.RESET}")
     print(f"  {Colors.RED}失败: {failed}{Colors.RESET}")
     if all_passed:
-        print(f"  {Colors.GREEN}{Colors.BOLD}✅ 全部通过{Colors.RESET}")
+        print(f"  {Colors.GREEN}{Colors.BOLD}[PASS] ALL PASSED{Colors.RESET}")
     else:
-        print(f"  {Colors.RED}{Colors.BOLD}❌ 存在失败{Colors.RESET}")
+        print(f"  {Colors.RED}{Colors.BOLD}[FAIL] SOME FAILURES{Colors.RESET}")
     print(f"{'='*60}\n")
 
     # 写入结果文件
