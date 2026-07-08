@@ -8,7 +8,7 @@
  */
 
 // 技术说明：引入 Vue 3 组合式 API 核心函数
-import { ref, onMounted, computed } from 'vue'
+import { onMounted, computed } from 'vue'
 // 技术说明：引入 Vue Router 用于页面导航
 import { useRouter } from 'vue-router'
 // 技术说明：引入 Element Plus 图标组件
@@ -21,37 +21,26 @@ import LearningPathFlow from '@/components/LearningPathFlow.vue'
 import SkillProgressCard from '@/components/SkillProgressCard.vue'
 // 业务说明：学习中心状态管理 Store，处理学习计划数据、进度更新和推荐逻辑
 import { useLearningStore } from '@/stores/learning'
-// 技术说明：引入 SkillProgress 类型定义
-import type { SkillProgress } from '@/stores/learning'
 // 业务说明：拆分到独立 composable 的指标计算与优先级映射
 import { useLearningMetrics } from '@/composables/useLearningMetrics'
 import { priorityType, priorityLabel } from '@/composables/useLearningPriority'
 import { useLearningActions } from '@/composables/useLearningActions'
+import { useLearningFilters } from '@/composables/useLearningFilters'
 
 // 技术说明：初始化路由实例，用于跳转到匹配诊断页面
 const router = useRouter()
 // 业务说明：获取学习中心状态管理实例，统一管理学习计划、推荐和数据加载状态
 const learningStore = useLearningStore()
 
-// 业务说明：当前选中的技能筛选标签，控制右侧技能列表的显示范围
-// 可选值：'all'(全部)、'in_progress'(学习中)、'not_started'(未开始)
-const activeTab = ref('all')
-
-// 业务说明：根据当前选中的标签筛选技能列表
-// 当用户切换标签时，实时过滤显示对应状态的技能卡片
-const filteredSkills = computed<SkillProgress[]>(() => {
-  if (!currentPlan.value) return []
-  if (activeTab.value === 'all') return currentPlan.value.skills
-  return currentPlan.value.skills.filter(s => s.status === activeTab.value)
-})
-
 // 业务说明：当前激活的学习计划，包含岗位信息、技能列表、整体进度等
-// 从 Store 中获取，支持响应式更新
 const currentPlan = computed(() => learningStore.currentPlan)
 // 业务说明：基于差距分析生成的个性化技能推荐列表
 const recommendations = computed(() => learningStore.recommendations)
-// 业务说明：数据加载状态，控制骨架屏和加载动画的显示
+// 业务说明：数据加载状态
 const isLoading = computed(() => learningStore.loading)
+
+// 业务说明：技能筛选 Tab + 过滤后的技能列表 (Phase 7 D round 10)
+const { activeTab, filteredSkills } = useLearningFilters(currentPlan)
 
 // 业务说明：学习进度统计指标（已掌握/学习中/剩余学时；总学时在 composable 内部保留)
 const { masteredCount, inProgressCount, remainingHours } = useLearningMetrics(currentPlan)
