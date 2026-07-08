@@ -17,12 +17,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
+from app.core.matching import service as matching_service
 from app.services import match_service
 from app.services.match_service import (
-    _load_target_profile,
+    _match_service,
     run_match,
     score_skill_match,
 )
+
+# Shorthand for the migrated _load_target_profile (now a MatchService method)
+_load_target_profile = _match_service._load_target_profile
 
 
 # ---------------------------------------------------------------------------
@@ -99,11 +103,9 @@ class TestB23ImportanceFromFlatDict:
 
     @pytest.fixture(autouse=True)
     def _clear_cache(self):
-        match_service._PROFILE_CACHE.clear()
-        match_service._PROFILE_CACHE_TS = None
+        _match_service._cache.clear()
         yield
-        match_service._PROFILE_CACHE.clear()
-        match_service._PROFILE_CACHE_TS = None
+        _match_service._cache.clear()
 
     @pytest.mark.asyncio
     async def test_bonus_skills_preserved_from_flat_dict(self):
@@ -123,7 +125,7 @@ class TestB23ImportanceFromFlatDict:
             "edges": [],
         }
         driver = MagicMock()
-        with patch.object(match_service, "fetch_position_graph", new=AsyncMock(return_value=mock_graph)):
+        with patch.object(matching_service, "fetch_position_graph", new=AsyncMock(return_value=mock_graph)):
             profile = await _load_target_profile(driver, "后端工程师")
 
         assert profile is not None
@@ -148,7 +150,7 @@ class TestB23ImportanceFromFlatDict:
             "edges": [],
         }
         driver = MagicMock()
-        with patch.object(match_service, "fetch_position_graph", new=AsyncMock(return_value=mock_graph)):
+        with patch.object(matching_service, "fetch_position_graph", new=AsyncMock(return_value=mock_graph)):
             profile = await _load_target_profile(driver, "前端工程师")
 
         assert profile is not None
@@ -251,13 +253,10 @@ class TestRunMatchIntegration:
 
     @pytest.fixture(autouse=True)
     def _clear_cache(self):
-        match_service._PROFILE_CACHE.clear()
-        match_service._PROFILE_CACHE_TS = None
+        _match_service._cache.clear()
         match_service.PREREQUISITE_MAP.clear()
-        match_service._PREREQ_CACHE_TS = None
         yield
-        match_service._PROFILE_CACHE.clear()
-        match_service._PROFILE_CACHE_TS = None
+        _match_service._cache.clear()
 
     @pytest.mark.asyncio
     async def test_bonus_skills_do_not_inflate_missing_required(self):
@@ -271,8 +270,8 @@ class TestRunMatchIntegration:
             "edges": [],
         }
         driver = MagicMock()
-        with patch.object(match_service, "fetch_position_graph", new=AsyncMock(return_value=mock_graph)), \
-             patch.object(match_service, "save_match_result", new=AsyncMock()):
+        with patch.object(matching_service, "fetch_position_graph", new=AsyncMock(return_value=mock_graph)), \
+             patch.object(_match_service, "_save_match_result", new=AsyncMock()):
             result = await run_match(
                 target_position="后端工程师",
                 person_skills=[{"name": "Python", "proficiency": "精通"}],
@@ -289,7 +288,7 @@ class TestRunMatchIntegration:
     async def test_position_not_found_raises_404(self):
         """岗位画像不存在时应抛 404（B05 相关：明确错误而非静默）。"""
         driver = MagicMock()
-        with patch.object(match_service, "fetch_position_graph", new=AsyncMock(return_value={"position": None, "skills": [], "edges": []})):
+        with patch.object(matching_service, "fetch_position_graph", new=AsyncMock(return_value={"position": None, "skills": [], "edges": []})):
             with pytest.raises(HTTPException) as exc_info:
                 await run_match(
                     target_position="不存在的岗位",

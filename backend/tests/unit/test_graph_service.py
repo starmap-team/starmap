@@ -9,7 +9,6 @@ from app.services.graph_service import (
     _classify_level,
     _classify_tech_stack,
     _node_id,
-    _proficiency_from_level,
     _safe_properties,
     count_edges_neo4j,
     count_positions_neo4j,
@@ -182,13 +181,6 @@ def test_node_id_from_properties():
     """业务说明：测试节点ID提取功能，当无ID属性时使用name属性作为备选。"""
     assert _node_id({"name": "foo"}) == "foo"
 
-
-def test_proficiency_from_level():
-    """业务说明：测试技能熟练度映射功能，将英文等级转换为中文描述。"""
-    assert _proficiency_from_level("advanced") == "精通"
-    assert _proficiency_from_level("beginner") == "了解"
-    assert _proficiency_from_level("mid") == "熟悉"
-    assert _proficiency_from_level(None) == "熟悉"
 
 
 def test_dedupe_graph():

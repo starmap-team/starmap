@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from app.services.graph_service import (
-    _extraction_payload_from_record,
     _position_item,
     _relationship_endpoint,
     _relationship_type,
@@ -100,41 +99,3 @@ class TestSkillItem:
         assert result["importance"] == "required"
         assert result["confidence"] == 0.9
 
-
-class TestExtractionPayloadFromRecord:
-    def test_list_skills(self):
-        from unittest.mock import MagicMock
-
-        record = MagicMock()
-        record.extracted_skills = [{"name": "Python"}, {"name": "SQL"}]
-        record.job_title = "Backend Engineer"
-        record.experience_years = 3
-        record.education = "Bachelor"
-        result = _extraction_payload_from_record(record)
-        assert result["position_name"] == "Backend Engineer"
-        assert result["required_skills"] == ["Python", "SQL"]
-        assert result["experience_required"] == 3
-
-    def test_dict_skills(self):
-        from unittest.mock import MagicMock
-
-        record = MagicMock()
-        record.extracted_skills = {"required_skills": [{"name": "Go"}]}
-        record.job_title = "Go Dev"
-        record.experience_years = None
-        record.education = None
-        result = _extraction_payload_from_record(record)
-        assert result["required_skills"] == [{"name": "Go"}]
-        assert result["position_name"] == "Go Dev"
-
-    def test_other_type(self):
-        from unittest.mock import MagicMock
-
-        record = MagicMock()
-        record.extracted_skills = "invalid"
-        record.job_title = "Unknown"
-        record.experience_years = None
-        record.education = None
-        result = _extraction_payload_from_record(record)
-        assert result["position_name"] == "Unknown"
-        assert "required_skills" not in result or result.get("required_skills") is None
