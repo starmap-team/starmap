@@ -14,6 +14,12 @@ from app.models.extraction_models import PositionRecord, PositionSkillRelation, 
 router = APIRouter(prefix="/positions", tags=["岗位管理"])
 
 
+# P2 修复 (INJ-03): 转义 SQL LIKE 通配符，防止通配符注入
+def _escape_like(value: str) -> str:
+    """Escape SQL LIKE wildcards (% and _) in user input."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 class SkillNode(BaseModel):
     """岗位所需技能骨架。"""
     skill_id: str = Field(..., description="技能唯一标识")
@@ -59,7 +65,7 @@ async def list_positions(
     if industry:
         count_stmt = count_stmt.where(PositionRecord.industry == industry)
     if search:
-        count_stmt = count_stmt.where(PositionRecord.name.ilike(f"%{search}%"))
+        count_stmt = count_stmt.where(PositionRecord.name.ilike(f"%{_escape_like(search)}%", escape="\\"))
     total = (await session.execute(count_stmt)).scalar() or 0
 
     # Fetch page
@@ -67,7 +73,7 @@ async def list_positions(
     if industry:
         stmt = stmt.where(PositionRecord.industry == industry)
     if search:
-        stmt = stmt.where(PositionRecord.name.ilike(f"%{search}%"))
+        stmt = stmt.where(PositionRecord.name.ilike(f"%{_escape_like(search)}%", escape="\\"))
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     rows = (await session.execute(stmt)).scalars().all()
 

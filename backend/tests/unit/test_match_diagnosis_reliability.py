@@ -187,12 +187,10 @@ class TestBatchMatchEndpoint:
 
         driver = MagicMock()
         session = AsyncMock()
-        body = {
-            "items": [
-                {"skills": [{"name": "Python"}], "position": "后端工程师"},
-                {"skills": [{"name": "Java"}], "position_name": "Java工程师"},
-            ]
-        }
+        body = match_api.BatchMatchRequest(items=[
+            match_api.BatchMatchItem(skills=[match_api.PersonSkillInput(name="Python")], position="后端工程师"),
+            match_api.BatchMatchItem(skills=[match_api.PersonSkillInput(name="Java")], position_name="Java工程师"),
+        ])
         # 注意：run_match 被 from-import 到 match_api 命名空间，需 patch 模块属性
         with patch.object(match_api, "run_match", side_effect=fake_run_match):
             result = await match_api.batch_match(body, driver=driver, session=session)
@@ -231,12 +229,10 @@ class TestBatchMatchEndpoint:
 
         driver = MagicMock()
         session = AsyncMock()
-        body = {
-            "items": [
-                {"skills": [], "position": "不存在的岗位"},
-                {"skills": [{"name": "Python"}], "position": "后端工程师"},
-            ]
-        }
+        body = match_api.BatchMatchRequest(items=[
+            match_api.BatchMatchItem(skills=[], position="不存在的岗位"),
+            match_api.BatchMatchItem(skills=[match_api.PersonSkillInput(name="Python")], position="后端工程师"),
+        ])
         with patch.object(match_api, "run_match", side_effect=fake_run_match):
             result = await match_api.batch_match(body, driver=driver, session=session)
 

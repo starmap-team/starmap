@@ -2,8 +2,11 @@
 
 每个业务模块一个路由文件，全部挂在 /api/v1 前缀下。
 模块对应文档 §3.1 L7 交互层与 §8.2 后端结构。
+
+P0 修复 (AUTH-01): api_router 层统一添加 get_current_user 依赖，
+所有端点默认需要认证；admin 子路由额外叠加 require_admin。
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.v1 import (
     admin,
@@ -21,8 +24,9 @@ from app.api.v1 import (
     quality,
     resume,
 )
+from app.dependencies import get_current_user
 
-api_router = APIRouter()
+api_router = APIRouter(dependencies=[Depends(get_current_user)])
 api_router.include_router(graph.router, tags=["图谱查询"])
 api_router.include_router(position.router, tags=["岗位管理"])
 api_router.include_router(match.router, tags=["匹配诊断"])

@@ -24,7 +24,7 @@ from app.core.learning.progress_tracker import (
     get_progress,
     update_progress,
 )
-from app.dependencies import get_db_session
+from app.dependencies import get_current_user, get_db_session
 from app.models.learning_models import LearningPlan, LearningProgress
 from app.services.match_service import PREREQUISITE_MAP
 
@@ -124,12 +124,14 @@ class RecommendationsResponse(BaseModel):
 @router.get("/plans", response_model=list[PlanResponse])
 async def list_learning_plans(
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
     limit: int = Query(20, ge=1, le=100),
 ) -> list[PlanResponse]:
     """List all learning plans for the current user, newest first."""
+    user_id = user.get("sub", "anonymous")
     stmt = (
         sa.select(LearningPlan)
-        .where(LearningPlan.user_id == "anonymous")
+        .where(LearningPlan.user_id == user_id)
         .order_by(LearningPlan.created_at.desc())
         .limit(limit)
     )
@@ -183,12 +185,14 @@ async def list_learning_plans(
 async def create_learning_plan(
     body: CreatePlanRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> PlanResponse:
     """Create a learning plan from match diagnosis results.
 
     Accepts skill gap data from a match diagnosis and generates a
     personalized, prerequisite-aware learning path with time estimates.
     """
+    user_id = user.get("sub", "anonymous")
     # Generate learning path
     skill_gaps = [s.model_dump() for s in body.skills]
     learning_path = await generate_learning_path(
@@ -211,6 +215,7 @@ async def create_learning_plan(
         skills=enriched_skills,
         match_score=body.match_score,
         estimated_hours=learning_path.total_hours,
+        user_id=user_id,
     )
 
     # Fetch full progress data
@@ -235,8 +240,10 @@ async def create_learning_plan(
 async def get_learning_plan(
     plan_id: str,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> PlanResponse:
     """Get learning plan details with current progress."""
+    user_id = user.get("sub", "anonymous")
     try:
         pid = uuid.UUID(plan_id)
     except ValueError as exc:
@@ -252,6 +259,9 @@ async def get_learning_plan(
     plan = plan_result.scalar_one_or_none()
     if plan is None:
         raise HTTPException(status_code=404, detail="Plan not found")
+    # P1 修复 (AUTHZ-02): IDOR 校验 — 用户只能访问自己的计划
+    if plan.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this plan")
 
     # Reconstruct phases from skill data
     skill_gaps: list[Any] = plan.skills if isinstance(plan.skills, list) else []

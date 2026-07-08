@@ -2,15 +2,37 @@
 from __future__ import annotations
 
 import asyncio
+import sys
+import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from loguru import logger
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1.router import api_router
 from app.config import settings
 from app.services.resources import healthcheck_resources, init_resources, resources
+
+# AP-10: Structured JSON logging for production (enables ELK/Loki querying)
+# Remove loguru's default handler and add JSON-serialized sink in production
+logger.remove()
+if _is_prod := (settings.app_env == "production"):
+    logger.add(
+        sys.stderr,
+        serialize=True,  # JSON-structured output
+        level=settings.app_log_level,
+        format="{time:YYYY-MM-DDTHH:mm:ssZ} | {level} | {name}:{function}:{line} | {message}",
+    )
+else:
+    logger.add(
+        sys.stderr,
+        level=settings.app_log_level,
+        format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <level>{message}</level>",
+    )
 
 
 @asynccontextmanager
@@ -33,25 +55,83 @@ async def lifespan(app: FastAPI):
         logger.info("StarMap 关闭中...")
 
 
+# P0 修复 (API-03): 生产环境禁用 Swagger/ReDoc/OpenAPI
+_is_prod = settings.app_env == "production"
+
 app = FastAPI(
     title="星图 StarMap API",
     description="人才能力星云导航系统 - 后端 API",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
+    openapi_url=None if _is_prod else "/openapi.json",
 )
 
+# P0 修复 (AUTH-04): CORS 收紧 methods/headers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
 )
+
+# P1 修复 (API-04): 安全响应头中间件
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+# P1 修复 (API-02): 内存速率限制中间件
+# ponytail: stdlib sliding-window, per-IP, no external deps.
+# Upgrade to Redis-backed (slowapi) if multi-process or distributed.
+_RATE_LIMIT_WINDOW = 60  # seconds
+_RATE_LIMIT_MAX = 120  # requests per window per IP
+_rate_buckets: dict[str, list[float]] = defaultdict(list)
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        # Sliding window: keep only timestamps within the window
+        bucket = _rate_buckets[client_ip]
+        _rate_buckets[client_ip] = [t for t in bucket if now - t < _RATE_LIMIT_WINDOW]
+        if len(_rate_buckets[client_ip]) >= _RATE_LIMIT_MAX:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded. Try again later."},
+                headers={"Retry-After": str(_RATE_LIMIT_WINDOW)},
+            )
+        _rate_buckets[client_ip].append(now)
+        return await call_next(request)
+
+
+app.add_middleware(RateLimitMiddleware)
 
 app.include_router(api_router, prefix="/api/v1")
 
 
+# M17: Global exception handler — catches unhandled exceptions, logs them,
+# and returns a generic 500 without leaking internals.
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.opt(exception=True).error("Unhandled exception on {} {}: {}", request.method, request.url.path, exc)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
+# P0 修复 (SEC-10): 健康检查不暴露版本号和服务详情
 async def _health_payload() -> dict:
+    if _is_prod:
+        # 生产环境：仅返回状态，不暴露内部细节
+        return {"status": "ok"}
     details = await healthcheck_resources()
     return {"status": "ok", "version": "0.1.0", "env": settings.app_env, "services": details}
 

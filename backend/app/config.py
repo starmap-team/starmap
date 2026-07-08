@@ -146,9 +146,18 @@ class Settings(BaseSettings):
                 f"请在 .env 中设置真实值：{', '.join(unconfigured)}"
             )
             if self.app_env == "production":
-                logger.error(msg + "（生产环境必须修改！）")
+                # P1 修复 (SEC-02/SEC-03): 生产环境必须配置真实密钥/密码
+                raise RuntimeError(msg + "（生产环境必须修改！）")
             else:
                 logger.warning(msg)
+
+        # P1 修复 (SEC-02): 生产环境 SECRET_KEY 必须足够长
+        if self.app_env == "production" and len(self.secret_key) < 32:
+            raise RuntimeError(
+                f"SECRET_KEY 长度不足（当前 {len(self.secret_key)} 字符），"
+                f"生产环境至少需要 32 字符。"
+                f"生成方式：python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+            )
 
         return self
 
