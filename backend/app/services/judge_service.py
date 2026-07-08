@@ -21,6 +21,7 @@ from typing import Any
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.core.extraction.llm_client import (
     LLMResponseError,
     call_llm_with_fallback,
@@ -142,9 +143,34 @@ async def _call_llm_judge_async(
     return (float(score) if score is not None else None, str(reasoning))
 
 
+# P0 修复 (INJ-01): 限制 JSONL 文件读取目录，防止路径遍历
+_EVAL_DATA_DIR = Path(_BACKEND_DIR) / "data" / "evaluation"
+
+
+def _safe_resolve_jsonl_path(filepath: str | Path) -> Path:
+    """验证文件路径在允许的目录内，防止路径遍历攻击。"""
+    path = Path(filepath).resolve()
+    allowed_dir = _EVAL_DATA_DIR.resolve()
+    # 也允许 evaluation/ 目录（项目根目录下）
+    eval_dir = Path(__file__).resolve().parent.parent.parent / "evaluation"
+    allowed_dirs = [allowed_dir, eval_dir.resolve()]
+
+    # 开发/测试环境：也允许临时目录 (pytest 使用 tmp_path)
+    import tempfile
+    if settings.app_env != "production":
+        allowed_dirs.append(Path(tempfile.gettempdir()).resolve())
+
+    if not any(str(path).startswith(str(d)) for d in allowed_dirs):
+        raise ValueError(
+            f"File path must be within allowed directories: "
+            f"{', '.join(str(d) for d in allowed_dirs)}. Got: {path}"
+        )
+    return path
+
+
 def _load_jsonl(filepath: str | Path) -> list[dict[str, Any]]:
     """读取 JSONL 文件，忽略空行和非法 JSON。"""
-    path = Path(filepath)
+    path = _safe_resolve_jsonl_path(filepath)
     if not path.exists():
         logger.warning("JSONL file not found: {}", path)
         return []
@@ -200,8 +226,9 @@ async def evaluate_sample_async(
     system_bon_set = {_normalize_skill(s) for s in _skill_names(system_bonus)} - {""}
 
     def _f1(gs: set[str], ss: set[str]) -> tuple[float, float, float]:
+        # BL-01: both empty → skip (return 0 so it doesn't inflate avg)
         if not gs and not ss:
-            return 1.0, 1.0, 1.0
+            return 0.0, 0.0, 0.0
         if not gs or not ss:
             return 0.0, 0.0, 0.0
         tp = len(gs & ss)
@@ -275,7 +302,9 @@ async def evaluate_batch_async(
         sid = golden.get("id", "")
         system = system_map.get(sid, {})
         if not system:
-            logger.debug("No system output for sample '{}', treating as empty", sid)
+            # BL-11: Skip missing samples instead of treating as F1=0
+            logger.debug("No system output for sample '{}', skipping", sid)
+            continue
         eval_result = await evaluate_sample_async(
             golden, system,
             use_llm_judge=use_llm_judge,

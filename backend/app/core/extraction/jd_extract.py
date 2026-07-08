@@ -31,6 +31,18 @@ _PII_PATTERNS: list[re.Pattern] = [
     re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"),  # Email
 ]
 
+# P0 修复 (DATA-01): 中文姓名脱敏模式
+# 匹配 "姓名：张三" / "联系人：李四" / "name：王五" 等常见格式
+# 以及独立的中文名（2-4个中文字符，前面有常见前缀词）
+_NAME_PREFIX_PATTERN = re.compile(
+    r"(?:姓名|名字|联系人|候选人|求职者|name|Name)[:\s：：]+"
+    r"([一-鿿]{2,4})"
+)
+# 简历开头常见格式："张三 | 男 | ..." 或 "姓名：张三"
+_RESUME_HEADER_NAME = re.compile(
+    r"^([一-鿿]{2,4})\s*[|｜｜]"
+)
+
 
 class SkillCategory(StrEnum):
     """Skill category enum matching ontology values."""
@@ -42,9 +54,23 @@ class SkillCategory(StrEnum):
 
 
 def mask_pii(text: str, replacement: str = "[REDACTED]") -> str:
-    """Mask Chinese PII (phone, ID, email) in text."""
+    """Mask Chinese PII (phone, ID, email, name) in text.
+
+    P0 修复 (DATA-01): 增加中文姓名脱敏，防止简历姓名发送至第三方 LLM。
+    """
+    # 先脱敏手机号、身份证、邮箱
     for pattern in _PII_PATTERNS:
         text = pattern.sub(replacement, text)
+    # 脱敏带前缀的姓名
+    text = _NAME_PREFIX_PATTERN.sub(
+        lambda m: m.group(0)[: m.start(1) - m.start(0)] + replacement,
+        text,
+    )
+    # 脱敏简历开头格式的姓名
+    text = _RESUME_HEADER_NAME.sub(
+        lambda m: replacement + m.group(0)[len(m.group(1)):],
+        text,
+    )
     return text
 
 
@@ -222,20 +248,35 @@ class JDExtractionPipeline:
             logger.warning("Pydantic validation failed, using raw data: {}", e)
             result["warnings"].append(f"Pydantic validation issue: {e}")
             validated = JDExtractionResult()
-            # Position/experience/education — set from parsed if available
-            for key in ("position_name", "experience_required", "education_required"):
+            # BL-02: Complete fallback for ALL fields, not just a subset
+            for key in ("position_name", "experience_required", "education_required",
+                        "industry", "description"):
                 if key in parsed:
                     setattr(validated, key, parsed.get(key, ""))
-            # Required/preferred skills — parse SkillEntry objects
             for key in ("required_skills", "preferred_skills"):
                 if key in parsed and parsed[key]:
                     setattr(validated, key, [
                         SkillEntry(**s) if isinstance(s, dict) else SkillEntry(name=s)
                         for s in parsed[key]
                     ])
-            # Responsibilities
-            if "responsibilities" in parsed:
-                validated.responsibilities = parsed["responsibilities"]
+            for key in ("responsibilities", "knowledge_areas", "evolves_to"):
+                if key in parsed and isinstance(parsed[key], list):
+                    setattr(validated, key, parsed[key])
+            if "tools" in parsed and isinstance(parsed["tools"], list):
+                validated.tools = [
+                    ToolEntry(**t) if isinstance(t, dict) else ToolEntry(name=str(t))
+                    for t in parsed["tools"]
+                ]
+            if "prerequisites" in parsed and isinstance(parsed["prerequisites"], list):
+                validated.prerequisites = [
+                    PrerequisiteEntry(**p) if isinstance(p, dict) else PrerequisiteEntry(skill=str(p), required_by="")
+                    for p in parsed["prerequisites"]
+                ]
+            if "learning_resources" in parsed and isinstance(parsed["learning_resources"], list):
+                validated.learning_resources = [
+                    LearningResourceEntry(**lr) if isinstance(lr, dict) else LearningResourceEntry(title=str(lr))
+                    for lr in parsed["learning_resources"]
+                ]
 
         # Step 4.5: Clean up Chinese suffixes from skill names
         chinese_suffixes = [
@@ -249,14 +290,16 @@ class JDExtractionPipeline:
             "方法论", "能力", "攻防", "漏洞", "竞赛经验", "认证", "证书",
         ]
         def _clean_skill_name(name: str) -> str:
+            # BL-08: raise min length to 4 to prevent over-stripping
+            # (e.g. "分布式系统" → "分布式" at len=3 was valid but too aggressive)
             while True:
                 original = name
                 for suffix in chinese_suffixes:
-                    if len(name) > 3 and name.endswith(suffix):
+                    if len(name) > 4 and name.endswith(suffix):
                         cleaned = name[:-len(suffix)]
-                        # Only apply strip if result is non-empty AND at least 3 chars
-                        # (prevents over-stripping like "系统架构"→"系统" or "渗透测试"→"渗透")
-                        if cleaned and len(cleaned) >= 3:
+                        # Only apply strip if result is non-empty AND at least 4 chars
+                        # BL-08: prevents over-stripping like "分布式系统架构"→"分布式"
+                        if cleaned and len(cleaned) >= 4:
                             name = cleaned
                 if name == original:
                     break
