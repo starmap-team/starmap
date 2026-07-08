@@ -3,7 +3,7 @@
 **日期:** 2026-07-07
 **范围:** 前端 (79 文件, ~26,500 行) + 后端 (Python/FastAPI)
 **触发:** `/gsd-verify-work --all 同时进行代码质量评审及复用性审计`
-**状态:** 56 findings → 52 fixed, 2 won't-fix, 2 remaining (15 commits)
+**状态:** 56 findings → 54 fixed, 2 won't-fix (96% resolved)
 
 ---
 
@@ -41,11 +41,11 @@
 | M5 | `enrich_learning_paths` 实现 2 次（相同 Neo4j 查询） | legacy:492, match_service.py:95 | ✅ legacy 删除后自动消除 |
 | M6 | `compute_competitiveness` 实现 2 次（相同公式） | legacy:924, match_service.py:191 | ✅ legacy 删除后自动消除 |
 | M7 | `run_batch_match` 实现 2 次（相同结构） | legacy:843, match_service.py:132 | ✅ legacy 删除后自动消除 |
-| M8 | `_normalize_proficiency` 在 2 处重复且关键词集略有不同 | graph_writer.py:123, graph_service.py:153 | 统一到 `normalize.py` |
-| M9 | `senior_keywords` 硬编码集合在同一文件定义 2 次 | evolution.py:601, :634 | 提取为 module-level constant |
+| M8 | `_normalize_proficiency` 在 2 处重复且关键词集略有不同 | graph_writer.py:123, graph_service.py:153 | ✅ 统一到 `normalize.py` |
+| M9 | `senior_keywords` 硬编码集合在同一文件定义 2 次 | evolution.py:601, :634 | ✅ 提取为 module-level constant (已删除重复) |
 | M10 | `_skill_entry_name` / `_skill_name` 在 2 模块重复 | graph_writer.py:111, stage3_services.py:24 | 共享 utility function |
 | M11 | `_skill_entry_category` / `_skill_category` 在 2 模块重复 | graph_writer.py:132, stage3_services.py:30 | 共享 utility function |
-| M12 | 混合 logging 框架 (`logging` vs `loguru`) | graph_service.py, config.py, cron_scheduler.py, celery_app.py 等 6 文件 | 统一到 loguru |
+| M12 | 混合 logging 框架 (`logging` vs `loguru`) | graph_service.py, config.py, cron_scheduler.py, celery_app.py 等 6 文件 | ✅ 全部统一到 loguru |
 
 ### 前端 (12)
 
