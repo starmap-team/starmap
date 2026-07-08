@@ -1,0 +1,145 @@
+"""Neo4j node/edge count helpers + serializers — extracted from graph_service.py (m7).
+
+业务说明：
+    节点/关系计数、序列化、去重等纯函数逻辑；与 Neo4j 交互的查询逻辑仍保留在 graph_service.py。
+    graph_service.py 重新导出本模块的公共符号以保持向后兼容。
+"""
+from __future__ import annotations
+
+from typing import Any
+
+# ── Count helpers ─────────────────────────────────────────────────────────
+
+async def count_positions_neo4j(driver: Any) -> int:
+    # 业务说明：统计 Neo4j 图谱中职位（Position）节点的总数量，用于仪表盘或健康检查。
+    # 技术说明：当 driver 未初始化或查询异常时返回 0，保证服务降级不中断。
+    """Count Position nodes in Neo4j."""
+    if driver is None:
+        return 0
+    try:
+        async with driver.session() as session:
+            result = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
+            record = await result.single()
+            return int(record["cnt"]) if record else 0
+    except Exception:
+        return 0
+
+
+async def count_skills_neo4j(driver: Any) -> int:
+    # 业务说明：统计 Neo4j 图谱中技能（Skill）节点的总数量，作为技能库规模的权威来源。
+    """Count Skill nodes in Neo4j (source of truth)."""
+    if driver is None:
+        return 0
+    try:
+        async with driver.session() as session:
+            result = await session.run("MATCH (s:Skill) RETURN count(s) AS cnt")
+            record = await result.single()
+            return int(record["cnt"]) if record else 0
+    except Exception:
+        return 0
+
+
+async def count_edges_neo4j(driver: Any) -> int:
+    # 业务说明：统计职位与技能之间 REQUIRES 关系的总数量，反映图谱连接密度。
+    """Count REQUIRES relationships in Neo4j."""
+    if driver is None:
+        return 0
+    try:
+        async with driver.session() as session:
+            result = await session.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS cnt")
+            record = await result.single()
+            return int(record["cnt"]) if record else 0
+    except Exception:
+        return 0
+
+
+# ── Serialization helpers ─────────────────────────────────────────────────
+
+def _safe_properties(value: Any) -> dict[str, Any]:
+    # 技术说明：Neo4j 节点/关系的属性字典化辅助函数，兼容 Neo4j ≥5.x 的 temporal 类型（如 DateTime），
+    # 通过 iso_format() 将时间对象转为字符串，避免 JSON 序列化异常。
+    # ponytail: dict() works for Neo4j ≥5.x; iso_format guard for temporal types
+    try:
+        return {k: (v.iso_format() if hasattr(v, 'iso_format') else v) for k, v in dict(value).items()}
+    except Exception:
+        return {}
+
+
+def _node_id(node: Any) -> str:
+    # 技术说明：从 Neo4j 节点中提取唯一标识符的降级策略：
+    # 优先 element_id（Neo4j ≥5.x），其次 id（旧版），最后从属性中回退 name。
+    element_id = getattr(node, "element_id", None)
+    if element_id is not None:
+        return str(element_id)
+    node_id = getattr(node, "id", None)
+    if node_id is not None:
+        return str(node_id)
+    props = _safe_properties(node)
+    return str(props.get("id") or props.get("name") or "")
+
+
+def _relationship_type(rel: Any) -> str:
+    # 技术说明：从 Neo4j 关系对象中提取关系类型名称，兼容不同驱动版本。
+    rel_type = getattr(rel, "type", None)
+    if rel_type is not None:
+        return str(rel_type)
+    return rel.__class__.__name__
+
+
+def _relationship_endpoint(rel: Any, attr: str) -> str:
+    # 技术说明：获取关系的起点或终点节点 ID，支持 start_node / end_node 两种属性名。
+    node = getattr(rel, attr, None)
+    if node is not None:
+        return _node_id(node)
+    value = getattr(rel, f"{attr}_node_id", None)
+    return "" if value is None else str(value)
+
+
+def serialize_node(node: Any) -> dict[str, Any]:
+    # 业务说明：将 Neo4j 节点对象转换为前端图可视化组件（如 D3 / ECharts）所需的统一节点数据结构。
+    # 技术说明：提取 labels、category、name 等字段，确保前端渲染时节点样式和分组正确。
+    """Convert a Neo4j Node-like object to the frontend graph node contract."""
+    props = _safe_properties(node)
+    labels = list(getattr(node, "labels", []) or [])
+    category = props.get("category") or (labels[0] if labels else "unknown")
+    name = props.get("name") or props.get("title") or _node_id(node)
+    props.setdefault("name", name)
+    props.setdefault("category", category)
+    return {
+        "id": _node_id(node),
+        "labels": labels,
+        "properties": props,
+    }
+
+
+def serialize_relationship(rel: Any) -> dict[str, Any]:
+    # 业务说明：将 Neo4j 关系对象转换为前端图可视化组件所需的统一边（edge/relationship）数据结构。
+    # 技术说明：包含 source_id、target_id、type 及属性（如 weight），用于前端连线渲染和交互。
+    """Convert a Neo4j Relationship-like object to the frontend graph edge contract."""
+    props = _safe_properties(rel)
+    props.setdefault("weight", 1.0)
+    return {
+        "source_id": _relationship_endpoint(rel, "start_node"),
+        "target_id": _relationship_endpoint(rel, "end_node"),
+        "type": _relationship_type(rel),
+        "properties": props,
+    }
+
+
+def dedupe_graph(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    # 业务说明：对图谱节点和边进行去重，保留首次出现的元素，避免前端渲染时出现重叠或重复数据。
+    # 技术说明：节点以 id 为键去重，边以 (source_id, target_id, type) 三元组为键去重。
+    """Remove duplicate graph elements while preserving first-seen order."""
+    node_map: dict[str, dict[str, Any]] = {}
+    for node in nodes:
+        node_id = str(node.get("id", ""))
+        if node_id:
+            node_map.setdefault(node_id, node)
+
+    edge_map: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for edge in edges:
+        key = (str(edge.get("source_id", "")), str(edge.get("target_id", "")), str(edge.get("type", "")))
+        if all(key):
+            edge_map.setdefault(key, edge)
+
+    return {"nodes": list(node_map.values()), "edges": list(edge_map.values())}
