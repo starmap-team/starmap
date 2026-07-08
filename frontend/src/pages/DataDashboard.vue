@@ -4,7 +4,6 @@
  * 全屏暗色主题，6 KPI 卡片 + 数据来源饼图 + 技能域 Treemap + 质量趋势
  * + 实时事件流 + 流水线状态 + 新兴技能雷达
  */
-import { computed } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import {
@@ -25,10 +24,10 @@ import { CanvasRenderer } from 'echarts/renderers'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import CountUpNumber from '@/components/CountUpNumber.vue'
 import { useDashboardStore } from '@/stores/dashboard'
-import { chartColors } from '@/utils/chartTheme'
 import { useDashboardCharts } from '@/composables/useDashboardCharts'
 import { useDashboardKpiCards } from '@/composables/useDashboardKpiCards'
 import { useDashboardRealtimeSync } from '@/composables/useDashboardRealtimeSync'
+import { useDashboardDisplay } from '@/composables/useDashboardDisplay'
 
 use([
   PieChart,
@@ -45,7 +44,6 @@ use([
 ])
 
 const store = useDashboardStore()
-const cc = chartColors()
 
 // ── KPI card definitions (extracted to composable — Phase 7 D round 2) ──
 const kpiCards = useDashboardKpiCards(store)
@@ -53,46 +51,8 @@ const kpiCards = useDashboardKpiCards(store)
 // ── Chart options (extracted to composable — M15) ──
 const { darkPieOption, treemapOption, trendOption, radarOption } = useDashboardCharts(store)
 
-// ── Pipeline mini timeline ──
-const pipelineStages = computed(() => {
-  if (store.pipelineTimeline.length) return store.pipelineTimeline
-  return [
-    { stage: '采集', status: 'waiting' as const, started_at: '', completed_at: null, records_processed: 0, progress: 0 },
-    { stage: '去重', status: 'waiting' as const, started_at: '', completed_at: null, records_processed: 0, progress: 0 },
-    { stage: '清洗', status: 'waiting' as const, started_at: '', completed_at: null, records_processed: 0, progress: 0 },
-    { stage: '入库', status: 'waiting' as const, started_at: '', completed_at: null, records_processed: 0, progress: 0 },
-    { stage: '图谱', status: 'waiting' as const, started_at: '', completed_at: null, records_processed: 0, progress: 0 },
-  ]
-})
-
-const statusColor: Record<string, string> = {
-  running: cc.info,
-  completed: cc.success,
-  failed: cc.danger,
-  waiting: cc.muted + '33',
-}
-
-// ── Event stream display ──
-const eventIcon: Record<string, string> = {
-  skill_update: '💡',
-  match_event: '🎯',
-  graph_update: '🔗',
-  pipeline_event: '⚙️',
-  extraction: '📄',
-}
-
-const eventSeverityColor: Record<string, string> = {
-  info: cc.chart[0] + '99',
-  success: cc.success + '99',
-  warning: cc.warning + '99',
-  error: cc.danger + '99',
-}
-
-function formatTime(ts: string) {
-  if (!ts) return ''
-  const d = new Date(ts)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
-}
+// ── Display maps + pipeline defaults + time formatter (Phase 7 D round 9) ──
+const { pipelineStages, statusColor, eventIcon, eventSeverityColor, formatTime } = useDashboardDisplay(store)
 
 // ── Realtime sync (SSE + periodic refresh + clock) — Phase 7 D round 3 ──
 useDashboardRealtimeSync(
