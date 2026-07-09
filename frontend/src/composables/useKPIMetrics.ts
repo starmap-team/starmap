@@ -16,9 +16,13 @@ export function useKPIMetrics() {
 
   const totalDomains = computed(() => graphStore.domains.length)
 
-  const totalRelations = computed(() =>
-    graphStore.allEdges?.length ?? 0,
-  )
+  const totalRelations = computed(() => {
+    // domain 层用 domainConnections，更深层用 allEdges
+    if (graphStore.currentLayer === 'domain') {
+      return graphStore.domainConnections?.length ?? 0
+    }
+    return graphStore.allEdges?.length ?? 0
+  })
 
   const totalNodes = computed(() =>
     totalPositions.value + totalSkills.value + totalDomains.value,
