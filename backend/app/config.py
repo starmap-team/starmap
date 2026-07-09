@@ -166,6 +166,22 @@ class Settings(BaseSettings):
                 f"生成方式：python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
 
+        # D-04/D-08: LLM key 启动校验 — 仅 WARNING 不阻止启动
+        # Ollama 本地模型始终可作降级（docker-compose 已含），无云端 key 不致命
+        llm_keys = {
+            "MIMO_API_KEY": self.mimo_api_key,
+            "DEEPSEEK_API_KEY": self.deepseek_api_key,
+            "XUNFEI_API_KEY": self.xunfei_api_key,
+        }
+        missing_llm = [name for name, value in llm_keys.items() if not value]
+        if len(missing_llm) == len(llm_keys):
+            logger.warning(
+                "⚠️  以下 LLM 供应商未配置 API key：{}。"
+                "将降级使用本地 Ollama（质量较低）。"
+                "如需高质量抽取，请在 .env 中配置至少一个云端 LLM key。",
+                ", ".join(missing_llm),
+            )
+
         return self
 
 
