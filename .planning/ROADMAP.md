@@ -9,7 +9,7 @@
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 8 | 后端清理与配置 | 4/4 | Complete   | 2026-07-09 |
+| 8 | 后端清理与配置 | 4/4 | Complete    | 2026-07-09 |
 | 9 | 前端关闭 Mock | 关闭 MSW、删除 placeholder、清理 mock 文件、配置 Vite 代理 | MSW-01~04 (4) | 0 MSW 拦截、0 placeholder 图表、Vite proxy 到后端、无 mock 目录 |
 | 10 | Pipeline 端到端验证 | 确保 Playwright 可用、代理可配、Pipeline 可触发、数据端到端贯通 | PIPE-01~04 (4) | pipeline run 成功完成、Neo4j 有真实数据、前端展示真实数据 |
 
