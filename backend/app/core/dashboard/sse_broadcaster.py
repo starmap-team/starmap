@@ -23,7 +23,7 @@ import asyncio
 import json
 import time
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, Awaitable, cast
 
 from loguru import logger
 from redis.asyncio import Redis
@@ -91,8 +91,8 @@ async def publish_event(
         message = json.dumps(payload, default=str)
         await redis.publish(CHANNEL, message)
         # Append to polling fallback list (LPUSH + LTRIM for capped list)
-        await redis.lpush(POLL_LIST_KEY, message)
-        await redis.ltrim(POLL_LIST_KEY, 0, 99)  # keep latest 100
+        await cast(Awaitable[Any], redis.lpush(POLL_LIST_KEY, message))
+        await cast(Awaitable[Any], redis.ltrim(POLL_LIST_KEY, 0, 99))  # keep latest 100
         await redis.expire(POLL_LIST_KEY, EVENT_TTL)
         return True
     except Exception as exc:
@@ -218,7 +218,7 @@ async def get_recent_events(
         return []
 
     try:
-        raw_events = await redis.lrange(POLL_LIST_KEY, 0, limit - 1)
+        raw_events = await cast(Awaitable[list[Any]], redis.lrange(POLL_LIST_KEY, 0, limit - 1))
     except Exception as exc:
         logger.debug("Polling fallback read failed: {}", exc)
         return []
