@@ -734,15 +734,6 @@ class TestGetMatchResultDBFallback:
 
 
 # ---------------------------------------------------------------------------
-# Tests for _get_pg_session
-# ---------------------------------------------------------------------------
-# TODO: update after MatchService refactor — _get_pg_session was removed,
-# get_match_result now takes db_session as an explicit parameter.
-# class TestGetPgSession:
-#     ...
-
-
-# ---------------------------------------------------------------------------
 # Tests for compute_competitiveness high difficulty
 # ---------------------------------------------------------------------------
 class TestComputeCompetitivenessHigh:
@@ -765,11 +756,7 @@ class TestComputeCompetitivenessHigh:
         assert result["competitiveness_score"] >= 0.75
 
 
-# ---------------------------------------------------------------------------
-# Tests for get_match_result LRU eviction in DB fallback
-# ---------------------------------------------------------------------------
-# TODO: update after MatchService refactor — _MATCH_RESULTS_MAX_SIZE and
-# AppResources.pg_sessionmaker-based injection no longer exist. Cache eviction
-# is now handled by MatchCache._max_size. Rewrite using _match_service._cache.
-# class TestGetMatchResultLRUEviction:
-#     ...
+# Tests for _get_pg_session and get_match_result LRU eviction were removed
+# (C1, C2). _get_pg_session no longer exists post-MatchService refactor;
+# cache eviction is now handled by MatchCache._max_size and tested in
+# tests/unit/test_matching_cache.py.
