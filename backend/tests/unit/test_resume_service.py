@@ -62,15 +62,20 @@ class TestEnsureSupportedResume:
     def test_docx_supported(self):
         assert ensure_supported_resume("test.docx") == "docx"
 
-    def test_doc_supported(self):
-        assert ensure_supported_resume("test.doc") == "doc"
+    def test_doc_rejected_b24(self) -> None:
+        # B24: legacy .doc binary format cannot be parsed reliably
+        # without antiword/LibreOffice; ensure_supported_resume must reject
+        # it so callers get a clear 4xx instead of garbage.
+        with pytest.raises(ValueError, match="Unsupported file type: .doc"):
+            ensure_supported_resume("test.doc")
 
     def test_unsupported_raises(self):
         with pytest.raises(ValueError, match="Unsupported file type: .xyz"):
             ensure_supported_resume("test.xyz")
 
     def test_unsupported_shows_supported_list(self):
-        with pytest.raises(ValueError, match=r"\.doc.*\.docx.*\.pdf"):
+        # B24: .doc removed — list is now .docx, .pdf only
+        with pytest.raises(ValueError, match=r"\.docx.*\.pdf"):
             ensure_supported_resume("test.png")
 
 
@@ -223,9 +228,12 @@ class TestExtractResumeText:
         text = extract_resume_text("test.docx", b"Plain DOCX content")
         assert "Plain DOCX content" in text
 
-    def test_doc_fallback(self):
-        text = extract_resume_text("test.doc", b"Plain DOC content")
-        assert "Plain DOC content" in text
+    def test_doc_rejected_b24(self) -> None:
+        # B24: legacy .doc binary format is no longer accepted. The
+        # ValueError raised by ensure_supported_resume() carries through
+        # from extract_resume_text — no silent garbage fallback.
+        with pytest.raises(ValueError, match="Unsupported file type: .doc"):
+            extract_resume_text("test.doc", b"Plain DOC content")
 
     def test_empty_content_raises(self):
         with pytest.raises(ValueError, match="contains no extractable text"):
@@ -240,17 +248,21 @@ class TestExtractResumeText:
         text = extract_resume_text("test.docx", "简历内容".encode("gbk"))
         assert "简历内容" in text
 
-    def test_doc_try_docx_first_then_decode(self):
-        """For .doc extension, try docx parser first, then raw decode."""
-        text = extract_resume_text("test.doc", b"Some doc content here")
-        assert "Some doc content" in text
+    def test_doc_rejected_extract_b24(self) -> None:
+        """B24: ensure_supported_resume now rejects .doc up-front.
 
-    def test_doc_when_docx_returns_empty_falls_back_to_decode(self):
-        """For .doc extension, when docx parser returns empty, fall back to raw decode."""
-        with patch("app.services.resume_service._extract_docx_text", return_value=""), \
-             patch("app.services.resume_service._decode_text", return_value="Fallback text"):
-            text = extract_resume_text("test.doc", b"some bytes")
-        assert text == "Fallback text"
+        Both legacy test inputs are exercised here to lock down the new
+        contract: callers receive a ValueError instead of silently garbage.
+        """
+        with pytest.raises(ValueError, match="Unsupported file type: .doc"):
+            extract_resume_text("test.doc", b"Some doc content here")
+        with pytest.raises(ValueError, match="Unsupported file type: .doc"):
+            with patch(
+                "app.services.resume_service._extract_docx_text", return_value=""
+            ), patch(
+                "app.services.resume_service._decode_text", return_value="Fallback text"
+            ):
+                extract_resume_text("test.doc", b"some bytes")
 
     def test_unknown_extension_bypassing_validation(self):
         """The else-branch (fallback decode) via mock bypass of ensure_supported_resume."""
@@ -340,7 +352,8 @@ class TestRunResumeExtraction:
 # ---------------------------------------------------------------------------
 
 
-def test_supported_extensions_contains_all_three():
+def test_supported_extensions_drops_doc_b24():
+    # B24: .doc binary format is no longer in the whitelist.
     assert "pdf" in SUPPORTED_RESUME_EXTENSIONS
     assert "docx" in SUPPORTED_RESUME_EXTENSIONS
-    assert "doc" in SUPPORTED_RESUME_EXTENSIONS
+    assert "doc" not in SUPPORTED_RESUME_EXTENSIONS

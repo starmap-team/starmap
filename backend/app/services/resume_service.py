@@ -11,7 +11,15 @@ from loguru import logger
 
 from app.core.extraction.jd_extract import extract_from_jd
 
-SUPPORTED_RESUME_EXTENSIONS = {"pdf", "docx", "doc"}
+SUPPORTED_RESUME_EXTENSIONS = {"pdf", "docx"}
+"""Whitelist of resume file extensions the backend can parse.
+
+The legacy Microsoft Word ``.doc`` binary format (pre-2007 OLE compound file)
+cannot be reliably extracted without third-party tools such as
+``antiword``/``wvText``/LibreOffice — none of which are part of the project
+runtime. B24: stop accepting ``.doc`` here so callers get a clear 4xx error
+instead of garbage output.
+"""
 
 
 def get_resume_extension(filename: str) -> str:
@@ -84,12 +92,11 @@ def extract_resume_text(filename: str, content_bytes: bytes) -> str:
         text = _extract_pdf_text(content_bytes)
     elif ext == "docx":
         text = _extract_docx_text(content_bytes)
-    elif ext == "doc":
-        # Try docx parser first (some .doc are actually docx), then raw fallback
-        text = _extract_docx_text(content_bytes)
-        if not text:
-            text = _decode_text(content_bytes).strip()
     else:
+        # Defensive — ensure_supported_resume() already rejects unsupported
+        # extensions (including legacy ".doc" — see B24). Reaching here means
+        # a future maintainer added an extension to the router without
+        # wiring a parser; fall back to plain text decode rather than guess.
         text = _decode_text(content_bytes).strip()
 
     if not text:
