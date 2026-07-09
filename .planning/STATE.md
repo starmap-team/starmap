@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 真实数据切换
-status: ready_to_plan
-last_updated: 2026-07-10T10:00:00.000Z
-last_activity: 2026-07-10 -- Phase 9 context gathered
+status: ready_to_execute
+last_updated: 2026-07-10T11:00:00.000Z
+last_activity: 2026-07-10 -- Phase 9 planned (2 plans)
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 4
+  total_plans: 6
   completed_plans: 20
   percent: 0
-stopped_at: Phase 9 context gathered — ready to plan
+stopped_at: Phase 9 planned (2/2) — ready to execute
 ---
 
 # Project State
@@ -45,7 +45,7 @@ Last activity: 2026-07-10
 | Phase | Name | Status | Verified |
 |-------|------|--------|----------|
 | 8 | 后端清理与配置 | ✅ complete | — |
-| 9 | 前端关闭 Mock | 📝 context gathered | — |
+| 9 | 前端关闭 Mock | 📋 planned | — |
 | 10 | Pipeline 端到端验证 | ⏳ not started | — |
 
 ## v2.0 Baseline (2026-07-08)
