@@ -9,7 +9,7 @@
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 8 | 后端清理与配置 | 移除 demo 数据逻辑、配置 LLM/DB 校验、确保后端无假数据残留 | DEMO-01~04, CFG-01~04 (8) | 0 auto-seed、0 demo 端点、启动时校验 LLM key + DB 密码、/health/detail 可用 |
+| 8 | 后端清理与配置 | 4/4 | Complete   | 2026-07-09 |
 | 9 | 前端关闭 Mock | 关闭 MSW、删除 placeholder、清理 mock 文件、配置 Vite 代理 | MSW-01~04 (4) | 0 MSW 拦截、0 placeholder 图表、Vite proxy 到后端、无 mock 目录 |
 | 10 | Pipeline 端到端验证 | 确保 Playwright 可用、代理可配、Pipeline 可触发、数据端到端贯通 | PIPE-01~04 (4) | pipeline run 成功完成、Neo4j 有真实数据、前端展示真实数据 |
 
@@ -26,13 +26,13 @@
 - CFG-01 ~ CFG-04 (4) — LLM + DB 配置校验
 
 
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 Plans:
-- [ ] 08-01-PLAN.md - 后端 demo 清理（auto-seed 移除、reset-demo 端点删除、seed 引用清理、脚本归档）
-- [ ] 08-02-PLAN.md - LLM/DB 配置校验（model_validator LLM key warning、.env.example 补全）
-- [ ] 08-03-PLAN.md - 健康检查增强（/health/detail 端点：4 服务 ping + 3 LLM key 布尔 + demo 指示）
-- [ ] 08-04-PLAN.md - 前端 demo 协调清理（删 useAdminReset.ts、datasource.ts resetToDemo、schema.ts resetDemoData、Admin.vue 按钮）
+- [x] 08-01-PLAN.md - 后端 demo 清理（auto-seed 移除、reset-demo 端点删除、seed 引用清理、脚本归档）
+- [x] 08-02-PLAN.md - LLM/DB 配置校验（model_validator LLM key warning、.env.example 补全）
+- [x] 08-03-PLAN.md - 健康检查增强（/health/detail 端点：4 服务 ping + 3 LLM key 布尔 + demo 指示）
+- [x] 08-04-PLAN.md - 前端 demo 协调清理（删 useAdminReset.ts、datasource.ts resetToDemo、schema.ts resetDemoData、Admin.vue 按钮）
 
 **Success criteria:**
 1. `admin.py` 中无 `_DEMO_REVIEW_SEED` 常量和 auto-seed 逻辑
