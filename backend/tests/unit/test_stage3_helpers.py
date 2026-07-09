@@ -62,20 +62,84 @@ class TestSkillCategory:
 
 
 # ---------------------------------------------------------------------------
-# _extraction_payload_from_record
+# JDExtractionRecord.to_extraction_payload (replaces removed
+# _extraction_payload_from_record — see TODO comment that previously lived here).
 # ---------------------------------------------------------------------------
-# TODO: _extraction_payload_from_record was removed during audit M2.
-# The logic now lives in JDExtractionRecord.to_extraction_payload().
-# These tests should be rewritten to test the class method directly.
-# Skipping for now to unblock CI.
 class TestExtractionPayload:
-    @pytest.mark.skip(reason="_extraction_payload_from_record removed in M2; use JDExtractionRecord.to_extraction_payload")
-    def test_minimal_record(self) -> None:
-        pass
+    def _make(self, **kw):
+        """Build an in-memory JDExtractionRecord without touching the DB."""
+        import uuid
+        from datetime import UTC, datetime
 
-    @pytest.mark.skip(reason="_extraction_payload_from_record removed in M2; use JDExtractionRecord.to_extraction_payload")
+        from app.models.extraction_models import JDExtractionRecord
+
+        defaults: dict = {
+            "jd_content": "Stub JD content",
+            "job_title": kw.pop("job_title", "数据工程师"),
+            "extracted_skills": kw.pop("extracted_skills", []),
+            "experience_years": kw.pop("experience_years", None),
+            "education": kw.pop("education", None),
+            "confidence": kw.pop("confidence", 0.85),
+            "hallucination_score": kw.pop("hallucination_score", None),
+            "status": kw.pop("status", "completed"),
+        }
+        defaults.update(kw)
+        rec = JDExtractionRecord(id=uuid.uuid4(), created_at=datetime.now(UTC), **defaults)
+        return rec
+
+    def test_minimal_record(self) -> None:
+        rec = self._make(extracted_skills=[])
+        payload = rec.to_extraction_payload()
+        assert payload["position_name"] == "数据工程师"
+        assert payload["required_skills"] == []
+        assert payload["experience_required"] is None
+        assert payload["education_required"] is None
+
     def test_record_with_existing_skills(self) -> None:
-        pass
+        skills = [
+            {"name": "Python", "level": "advanced"},
+            {"name": "SQL", "level": "intermediate"},
+        ]
+        rec = self._make(
+            job_title="后端工程师",
+            extracted_skills=skills,
+            experience_years=3,
+            education="本科",
+        )
+        payload = rec.to_extraction_payload()
+        assert payload["position_name"] == "后端工程师"
+        assert payload["experience_required"] == 3
+        assert payload["education_required"] == "本科"
+        # raw list of skill dicts is normalized into required_skills — only the
+        # ``name`` field is preserved (level/category stripped at this layer;
+        # downstream callers enrich again via normalize.py).
+        assert payload["required_skills"] == ["Python", "SQL"]
+
+    def test_record_with_dict_shaped_skills(self) -> None:
+        """When extracted_skills already has required/bonus keys, keep that shape."""
+        rec = self._make(
+            extracted_skills={
+                "required_skills": ["Python", "FastAPI"],
+                "preferred_skills": ["Docker"],
+            }
+        )
+        payload = rec.to_extraction_payload()
+        assert payload["required_skills"] == ["Python", "FastAPI"]
+        assert payload["preferred_skills"] == ["Docker"]
+
+    def test_record_with_string_list_skills(self) -> None:
+        """When extracted_skills is a flat list of strings, wrap into required_skills."""
+        rec = self._make(extracted_skills=["Python", "SQL"])
+        payload = rec.to_extraction_payload()
+        assert payload["required_skills"] == ["Python", "SQL"]
+
+    def test_record_with_invalid_skills_type(self) -> None:
+        """When extracted_skills is None, payload stays empty (no required_skills key)."""
+        rec = self._make(extracted_skills=None)
+        payload = rec.to_extraction_payload()
+        assert payload.get("required_skills") is None
+        # setdefault still applies for position_name etc.
+        assert payload["position_name"] == "数据工程师"
 
 
 # ---------------------------------------------------------------------------
