@@ -121,3 +121,13 @@ None. No stub patterns introduced.
 ## Threat Flags
 
 None. The threat model for T-08-03 (LLM key warning logs only provider names, not key values) is satisfied: the WARNING message uses `missing_llm` which contains only env var names like `MIMO_API_KEY`, never the key values. T-08-04 (.env.example empty values only) and T-08-SC (no package installs) are both `accept` disposition and hold.
+
+## Self-Check: PASSED
+
+- FOUND: backend/app/config.py
+- FOUND: backend/tests/unit/test_config.py
+- FOUND: .env.example
+- FOUND: .planning/phases/08-backend-cleanup/08-02-SUMMARY.md
+- FOUND: c70eda8 (Task 1 feat commit)
+- FOUND: 182ee10 (Task 2 chore commit)
+- FOUND: 69008ec (SUMMARY docs commit)
