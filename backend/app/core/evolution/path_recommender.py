@@ -112,9 +112,19 @@ class PathRecommender:
                 if similarity < self.MIN_SIMILARITY:
                     continue
 
-                # Check evidence count
+                # Check evidence count. B20: when callers don't supply explicit
+                # evidence_counts (most paths in practice), use the Jaccard overlap
+                # magnitude itself as evidence so the path isn't filtered out
+                # solely due to missing DB records.
                 edge_key = f"{source}->{target}"
-                ev_count = evidence.get(edge_key, 1)
+                if evidence:
+                    ev_count = evidence.get(edge_key, 1)
+                else:
+                    # Heuristic: overlap size acts as a proxy for evidence count.
+                    # Overlap >= MIN_EVIDENCE passes; smaller overlaps are
+                    # demoted to evidence=1 (still below gate) so we err on the
+                    # safe side for noisy pairs.
+                    ev_count = max(len(overlap), 1)
 
                 if ev_count < self.MIN_EVIDENCE:
                     continue
