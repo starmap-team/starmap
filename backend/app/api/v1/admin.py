@@ -70,19 +70,6 @@ class AdminStatsResponse(BaseModel):
     pending_review: int = Field(ge=0)
 
 
-class ResetDemoResponse(BaseModel):
-    ok: bool = True
-    review_items: int = Field(ge=0)
-
-
-_DEMO_REVIEW_SEED = [
-    {"entity_type": "skill", "entity_name": "AI Agent Dev", "status": "pending", "payload": {"trust": 58}},
-    {"entity_type": "position", "entity_name": "LLM Application Engineer", "status": "pending", "payload": {"trust": 64}},
-    {"entity_type": "skill", "entity_name": "Spring AI", "status": "pending", "payload": {"trust": 72}},
-    {"entity_type": "skill", "entity_name": "RAG", "status": "pending", "payload": {"trust": 45}},
-]
-
-
 async def _build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
     dashboard = await _build_quality_dashboard(session)
 
@@ -176,23 +163,10 @@ async def get_sources(
 async def get_review_queue(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditQueueResponse:
-    """Return pending review items from DB; auto-seed if table is empty."""
+    """Return pending review items from DB; returns empty list when table is empty."""
 
 
     try:
-        # Check if there are any rows at all in the review_queue table
-        total_count = int(
-            (await session.execute(
-                sa.select(sa.func.count()).select_from(ReviewQueue)
-            )).scalar() or 0
-        )
-
-        if total_count == 0:
-            # Auto-seed from template data (only once, when table is empty)
-            for seed in _DEMO_REVIEW_SEED:
-                session.add(ReviewQueue(**seed))
-            await session.commit()
-
         stmt = (
             sa.select(ReviewQueue)
             .where(ReviewQueue.status == "pending")
@@ -303,28 +277,6 @@ async def update_review_queue_item(
         trust=trust,
         status=row.status,
     )
-
-
-@router.post("/seed/reset", response_model=ResetDemoResponse)
-@router.post("/reset-demo", response_model=ResetDemoResponse, include_in_schema=False)
-async def reset_demo_seed(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> ResetDemoResponse:
-    """Reset demo review queue state — re-seed the review_queue table."""
-
-
-    # Clear existing pending review items
-    await session.execute(
-        sa.delete(ReviewQueue).where(ReviewQueue.status == "pending")
-    )
-
-    # Seed default demo items from shared template
-    demo_items = [ReviewQueue(**seed) for seed in _DEMO_REVIEW_SEED]
-    for item in demo_items:
-        session.add(item)
-    await session.commit()
-
-    return ResetDemoResponse(ok=True, review_items=len(demo_items))
 
 
 # ── Graph Node CRUD (for Admin panel) ──

@@ -1,7 +1,7 @@
 """Unit tests for admin API endpoints.
 
-Covers all 26 endpoints across:
-- admin.py (10 endpoints)
+Covers all 24 endpoints across:
+- admin.py (8 endpoints)
 - admin_prompts.py (10 endpoints)
 - admin_graph_nodes.py (6 endpoints)
 
@@ -180,7 +180,7 @@ def _reset_ab_results():
 
 
 # ══════════════════════════════════════════════════════════════
-# admin.py — 10 endpoints
+# admin.py — 8 endpoints
 # ══════════════════════════════════════════════════════════════
 
 
@@ -237,7 +237,6 @@ class TestAdminReviewQueue:
     def test_review_queue_returns_200(self, client, admin_headers, db_override):
         row = FakeReviewQueueRow(id=1, entity_type="skill", entity_name="Python", status="pending", payload={"trust": 80})
         session = FakeAsyncSession([
-            FakeResult(0),          # total_count
             FakeResult([row]),      # pending rows
         ])
         db_override(session)
@@ -247,20 +246,19 @@ class TestAdminReviewQueue:
         assert "items" in body
 
     def test_audit_queue_alias(self, client, admin_headers, db_override):
-        session = FakeAsyncSession([FakeResult(0), FakeResult([])])
+        session = FakeAsyncSession([FakeResult([])])
         db_override(session)
         resp = client.get("/api/v1/admin/audit-queue", headers=admin_headers)
         assert resp.status_code == 200
 
-    def test_review_queue_auto_seeds_when_empty(self, client, admin_headers, db_override):
+    def test_review_queue_returns_empty_when_table_empty(self, client, admin_headers, db_override):
         session = FakeAsyncSession([
-            FakeResult(0),      # total_count == 0 triggers auto-seed
-            FakeResult([]),     # pending rows after seed
+            FakeResult([]),     # pending rows query returns empty
         ])
         db_override(session)
         resp = client.get("/api/v1/admin/review-queue", headers=admin_headers)
         assert resp.status_code == 200
-        assert len(session._added) == 4  # _DEMO_REVIEW_SEED has 4 items
+        assert resp.json()["items"] == []
 
     def test_review_queue_requires_admin(self, client, non_admin_override):
         resp = client.get("/api/v1/admin/review-queue")
@@ -346,29 +344,6 @@ class TestAdminUpdateReviewQueue:
 
     def test_update_requires_admin(self, client, non_admin_override):
         resp = client.put("/api/v1/admin/review-queue/1", json={"name": "X"})
-        assert resp.status_code == 403
-
-
-class TestAdminResetDemo:
-    """POST /api/v1/admin/seed/reset and /api/v1/admin/reset-demo"""
-
-    def test_reset_demo_returns_200(self, client, admin_headers, db_override):
-        session = FakeAsyncSession()
-        db_override(session)
-        resp = client.post("/api/v1/admin/seed/reset", headers=admin_headers)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["ok"] is True
-        assert body["review_items"] == 4
-
-    def test_reset_demo_alias(self, client, admin_headers, db_override):
-        session = FakeAsyncSession()
-        db_override(session)
-        resp = client.post("/api/v1/admin/reset-demo", headers=admin_headers)
-        assert resp.status_code == 200
-
-    def test_reset_demo_requires_admin(self, client, non_admin_override):
-        resp = client.post("/api/v1/admin/seed/reset")
         assert resp.status_code == 403
 
 
