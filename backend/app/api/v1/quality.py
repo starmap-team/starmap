@@ -554,7 +554,7 @@ async def get_comprehensive_report(
     elif resume_response.f1 < 0.70:
         recommendations.append(f"简历抽取 F1 偏低 ({round(resume_response.f1, 2)}), 建议增加 golden set 样本量并优化 prompt")
     if dashboard.total_skills < 100:
-        recommendations.append(f"图谱技能数偏少 ({dashboard.total_skills}), 建议运行 seed_expansion_data_demo.py 扩充")
+        recommendations.append(f"图谱技能数偏少 ({dashboard.total_skills}), 建议触发 pipeline run 采集真实数据")
     if not recommendations:
         recommendations.append("各项指标正常，质量体系运行良好")
 

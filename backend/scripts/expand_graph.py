@@ -716,7 +716,7 @@ async def expand_graph(dry_run: bool = False) -> dict[str, Any]:
         print("  Targets NOT MET:")
         for t in targets_missed:
             print(f"    ✗ {t}")
-        print("  (Run seed_expansion_data_demo.py to fill remaining gaps)")
+        print("  (Trigger a pipeline run to fill remaining gaps)")
 
     print()
     print("Done.")
