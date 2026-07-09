@@ -25,6 +25,15 @@
 - DEMO-01 ~ DEMO-04 (4) — 后端清理 Demo
 - CFG-01 ~ CFG-04 (4) — LLM + DB 配置校验
 
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 08-01-PLAN.md - 后端 demo 清理（auto-seed 移除、reset-demo 端点删除、seed 引用清理、脚本归档）
+- [ ] 08-02-PLAN.md - LLM/DB 配置校验（model_validator LLM key warning、.env.example 补全）
+- [ ] 08-03-PLAN.md - 健康检查增强（/health/detail 端点：4 服务 ping + 3 LLM key 布尔 + demo 指示）
+- [ ] 08-04-PLAN.md - 前端 demo 协调清理（删 useAdminReset.ts、datasource.ts resetToDemo、schema.ts resetDemoData、Admin.vue 按钮）
+
 **Success criteria:**
 1. `admin.py` 中无 `_DEMO_REVIEW_SEED` 常量和 auto-seed 逻辑
 2. `/admin/seed/reset` 和 `/reset-demo` 端点已删除，`ResetDemoResponse` 模型已删除
