@@ -14,6 +14,7 @@ Usage:
   cd starmap
   python scripts/seed_demo_data.py
 """
+# ARCHIVE: 非生产用，仅开发演示。v2.1 真实数据切换后不再推荐运行。
 from __future__ import annotations
 
 import asyncio

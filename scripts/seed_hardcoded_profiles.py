@@ -10,6 +10,7 @@ exist in Neo4j and can be loaded by the match service.
 用法：
     python scripts/seed_hardcoded_profiles.py [--neo4j-uri bolt://localhost:7687]
 """
+# ARCHIVE: 非生产用，仅开发演示。v2.1 真实数据切换后不再推荐运行。
 
 from __future__ import annotations
 

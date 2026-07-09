@@ -5,6 +5,7 @@ Sources: BOSS直聘, 拉勾网, 51Job, GitHub, ESCO
 Usage:
     cd backend && python -m scripts.seed_datasources_demo
 """
+# ARCHIVE: 非生产用，仅开发演示。v2.1 真实数据切换后不再推荐运行。
 import asyncio
 import json
 import uuid

@@ -8,6 +8,7 @@ Run after expand_graph.py to fill the gap to targets.
 Usage:
     cd backend && python -m scripts.seed_expansion_data_demo
 """
+# ARCHIVE: 非生产用，仅开发演示。v2.1 真实数据切换后不再推荐运行。
 from __future__ import annotations
 
 import asyncio
