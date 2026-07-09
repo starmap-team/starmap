@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
+from sqlalchemy import bindparam, text
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
@@ -157,3 +158,59 @@ async def health() -> dict:
 async def health_v1() -> dict:
     """契约兼容的 v1 健康检查端点。"""
     return await _health_payload()
+
+
+# D-05/CFG-04: 详细健康检查 — 4 服务 ping + 3 LLM key 布尔（不泄露值）+ demo 数据指示
+# ponytail: 硬编码 demo 实体名集合用于检测 auto-seed 残留；SEC-03 auth 属未来范畴
+_DEMO_ENTITY_NAMES = ("AI Agent Dev", "LLM Application Engineer", "Spring AI", "RAG")
+
+
+async def _detailed_health_payload() -> dict:
+    """详细健康检查：服务 ping + LLM key 配置布尔 + demo 数据指示。
+
+    生产环境也返回完整详情（per D-05；与现有 /health 一致无 auth 保护）。
+    """
+    services = await healthcheck_resources()
+
+    # llm_keys: 仅返回布尔，永不返回 key 值（T-08-05 信息泄露防护）
+    llm_keys = {
+        "mimo": bool(settings.mimo_api_key),
+        "deepseek": bool(settings.deepseek_api_key),
+        "xunfei": bool(settings.xunfei_api_key),
+    }
+
+    # demo_data: 查询 review_queue 是否含 auto-seed 行 + pipeline_runs 总数
+    demo_data: dict[str, Any] = {"review_queue_seeded": False, "pipeline_runs_count": 0}
+    if resources.pg_engine is not None:
+        try:
+            async with resources.pg_engine.begin() as conn:
+                seeded = await conn.execute(
+                    text(
+                        "SELECT COUNT(*) FROM review_queue "
+                        "WHERE status = 'pending' AND entity_name IN :names"
+                    ).bindparams(bindparam("names", expanding=True)),
+                    {"names": list(_DEMO_ENTITY_NAMES)},
+                )
+                review_count = seeded.scalar() or 0
+                runs = await conn.execute(text("SELECT COUNT(*) FROM pipeline_runs"))
+                runs_count = runs.scalar() or 0
+                demo_data = {
+                    "review_queue_seeded": review_count > 0,
+                    "pipeline_runs_count": int(runs_count),
+                }
+        except Exception as exc:  # pragma: no cover - defensive runtime check
+            logger.warning("demo_data health query failed: {}", exc)
+
+    return {"services": services, "llm_keys": llm_keys, "demo_data": demo_data}
+
+
+@app.get("/health/detail", tags=["系统"])
+async def health_detail() -> dict:
+    """详细健康检查端点：服务状态 + LLM key 配置布尔 + demo 数据指示。"""
+    return await _detailed_health_payload()
+
+
+@app.get("/api/v1/health/detail", tags=["系统"], include_in_schema=False)
+async def health_detail_v1() -> dict:
+    """契约兼容的 v1 详细健康检查端点。"""
+    return await _detailed_health_payload()

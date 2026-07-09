@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import httpx
 from neo4j import AsyncGraphDatabase
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -88,5 +89,17 @@ async def healthcheck_resources() -> dict[str, str]:
             result["redis"] = f"error:{exc.__class__.__name__}"
     else:
         result["redis"] = "not_initialized"
+
+    # Ollama ping (settings.qwen_model_path 为 Ollama 基址，如 http://ollama:11434)
+    ollama_url = settings.qwen_model_path
+    if ollama_url:
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(f"{ollama_url}/api/tags")
+            result["ollama"] = "ok" if resp.status_code == 200 else f"error:HTTP{resp.status_code}"
+        except Exception as exc:  # pragma: no cover - defensive runtime check
+            result["ollama"] = f"error:{exc.__class__.__name__}"
+    else:
+        result["ollama"] = "not_configured"
 
     return result
