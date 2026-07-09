@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
  * 管理后台 — 增强版
- * Tabs: 审核队列 | 图谱节点管理 | 数据源配置 | 演示数据管理
+ * Tabs: 审核队列 | 图谱节点管理 | 数据源配置
  * 新增: 图谱节点 CRUD + ReviewQueuePanel 集成
  */
 import { onMounted, ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search, Delete, Plus, Edit } from '@element-plus/icons-vue'
+import { Search, Plus, Edit } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ReviewQueuePanel from '@/components/ReviewQueuePanel.vue'
 import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
@@ -14,7 +14,6 @@ import { useAdminStore } from '@/stores/admin'
 import { chartColors } from '@/utils/chartTheme'
 import { useGraphNodeList, type GraphNodeItem } from '@/composables/useGraphNodeList'
 import { useGraphNodeEditor } from '@/composables/useGraphNodeEditor'
-import { useAdminReset } from '@/composables/useAdminReset'
 import { nodeTypeLabel, nodeStatusType, nodeStatusLabel } from '@/composables/useGraphNodeLabels'
 
 const cc = chartColors()
@@ -83,9 +82,6 @@ async function handleSaveSource() {
     editSaving.value = false
   }
 }
-
-// 重置数据 (Phase 7 D round 12)
-const { handleReset } = useAdminReset(admin)
 </script>
 
 <template>
@@ -95,7 +91,7 @@ const { handleReset } = useAdminReset(admin)
         <div>
           <h2>管理后台</h2>
           <p class="page-desc">
-            人工审核、图谱节点管理、数据源配置与演示数据管理
+            人工审核、图谱节点管理、数据源配置
           </p>
         </div>
       </div>
@@ -454,32 +450,6 @@ const { handleReset } = useAdminReset(admin)
             </el-drawer>
           </el-card>
         </el-tab-pane>
-
-        <!-- ════════ Tab 4: 演示数据管理 ════════ -->
-        <el-tab-pane
-          label="演示数据管理"
-          name="demo"
-        >
-          <el-card
-            shadow="never"
-            class="tab-card"
-          >
-            <template #header>
-              <span class="section-label">演示数据管理</span>
-            </template>
-            <p class="demo-desc">
-              重置审核队列为演示种子数据（不影响已入库的岗位、技能、图谱节点与关系）。此功能用于演示场景重置（§16.5）。
-            </p>
-            <el-button
-              type="danger"
-              class="mt-3"
-              :icon="Delete"
-              @click="handleReset"
-            >
-              重置为演示数据
-            </el-button>
-          </el-card>
-        </el-tab-pane>
       </el-tabs>
 
       <!-- Graph Node Editor Dialog -->
@@ -573,13 +543,6 @@ const { handleReset } = useAdminReset(admin)
   text-align: center;
   padding: var(--space-6);
   color: var(--muted-foreground);
-}
-
-.demo-desc {
-  color: var(--muted-foreground);
-  font-size: var(--font-size-sm);
-  line-height: 1.8;
-  margin: 0;
 }
 
 /* Layout utilities */

@@ -202,10 +202,6 @@ export const useDataSourceStore = defineStore('datasource', () => {
     await fetchGraphNodes()
   }
 
-  async function resetToDemo() {
-    await request.post('/admin/seed/reset')
-  }
-
   return {
     sources,
     selectedSource,
@@ -230,6 +226,5 @@ export const useDataSourceStore = defineStore('datasource', () => {
     deleteGraphNode,
     approveGraphNode,
     rejectGraphNode,
-    resetToDemo,
   }
 })
