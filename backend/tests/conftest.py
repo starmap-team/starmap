@@ -2,7 +2,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app, _rate_buckets
+from app.main import _rate_buckets, app
 
 
 @pytest.fixture(autouse=True)

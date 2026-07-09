@@ -7,21 +7,17 @@ All LLM calls are mocked at the call_llm_with_fallback boundary.
 """
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.core.extraction.llm_client import LLMResponseError
 from app.services.judge_service import (
-    ExtractionMetrics,
-    SampleEvaluation,
     _call_llm_judge_async,
     evaluate_batch_async,
     evaluate_pair_async,
     evaluate_sample_async,
 )
-from app.core.extraction.llm_client import LLMResponseError
-
 
 # ──────────────────────────────────────────────
 # evaluate_sample_async

@@ -81,7 +81,7 @@ class TestEnsureSupportedResume:
 
 class TestDecodeText:
     def test_utf8(self):
-        text = _decode_text("Hello World".encode("utf-8"))
+        text = _decode_text(b"Hello World")
         assert text == "Hello World"
 
     def test_gbk(self):

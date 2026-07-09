@@ -113,8 +113,10 @@ def _mock_dashboard(
     total_nodes=200, total_edges=300,
     total_positions=80, total_skills=120,
     avg_trust_score=0.82, high_trust_ratio=0.6,
-    weekly_new_nodes=10, audit_pass_rate=0.9, audit_queue=2,
+    weekly_new_nodes=10, audit_pass_rate=0.9, audit_queue=None,
 ):
+    if audit_queue is None:
+        audit_queue = []
     report = QualityReport(
         precision=precision, recall=recall, f1=f1,
         warning_level=warning_level, details=[],
@@ -278,7 +280,7 @@ class TestGetQualityDashboard:
             warning_level="gray", total_extractions=0,
             total_nodes=0, total_edges=0, total_positions=0, total_skills=0,
             avg_trust_score=0.0, high_trust_ratio=0.0,
-            weekly_new_nodes=0, audit_pass_rate=0.0, audit_queue=0,
+            weekly_new_nodes=0, audit_pass_rate=0.0, audit_queue=[],
         )
         with patch("app.api.v1.quality._build_quality_dashboard", new_callable=AsyncMock, return_value=dashboard):
             resp = client.get("/api/v1/quality/dashboard")
@@ -615,7 +617,7 @@ class TestBuildQualityDashboard:
             total_extractions=0, total_nodes=0, total_edges=0,
             total_positions=0, total_skills=0,
             avg_trust_score=0.0, high_trust_ratio=0.0,
-            weekly_new_nodes=0, audit_pass_rate=0.0, audit_queue=0,
+            weekly_new_nodes=0, audit_pass_rate=0.0, audit_queue=[],
         )
         with patch("app.api.v1.quality._build_quality_dashboard", new_callable=AsyncMock, return_value=dashboard):
             resp = client.get("/api/v1/quality/dashboard")

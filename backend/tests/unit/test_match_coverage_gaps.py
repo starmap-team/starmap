@@ -21,11 +21,9 @@ import pytest
 
 from app.core.matching.cache import MatchCache, get_match_cache, reset_match_cache
 from app.core.matching.scorer import (
-    FUZZY_MATCH_THRESHOLD,
     _chroma_match_against_candidates,
     score_skill_match,
 )
-from app.core.matching.service import MatchService
 from app.services.match_service import (
     _match_service,
     compute_competitiveness,

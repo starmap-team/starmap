@@ -3,7 +3,6 @@ helpers, and DB-backed get_loop_status / get_loop_history.
 """
 from __future__ import annotations
 
-import time
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -380,7 +379,6 @@ class TestGetLoopStatusWithSession:
     @pytest.mark.asyncio
     async def test_falls_through_to_pipeline_runs(self):
         """When loop_results is empty, query pipeline_runs (legacy)."""
-        loop_row = MagicMock(run_id=None)  # not present
         legacy_row = MagicMock()
         legacy_row.id = "uuid-as-string"  # string id (we use uuid.UUID in query)
         legacy_row.status = "completed"

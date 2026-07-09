@@ -53,6 +53,9 @@ class FakeResult:
             return self.value[0]
         return self.value
 
+    def scalars(self):
+        return self
+
 
 class FakeAsyncSession:
     def __init__(self, results):
@@ -83,7 +86,7 @@ async def test_quality_dashboard_builder_aggregates_metrics():
             (5,),              # 17. weekly_new_skills
             (3,),              # 18. weekly_new_positions
             (8,),              # 19. approved_count
-            (2,),              # 20. low_trust_count (audit_queue)
+            [],                # 20. low_trust records (audit_queue — now a list)
         ]
     )
 
@@ -101,7 +104,7 @@ async def test_quality_dashboard_builder_aggregates_metrics():
 
 def test_quality_dashboard_endpoint_contract(client):
     async def override_session():
-        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0.0,), (0,), (0,), (0,), (0,), (0,), (0,), [], [], (0,), (0,), (0,), (0,)])
+        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0.0,), (0,), (0,), (0,), (0,), (0,), (0,), [], [], (0,), (0,), (0,), []])
 
     app.dependency_overrides[get_db_session] = override_session
     try:

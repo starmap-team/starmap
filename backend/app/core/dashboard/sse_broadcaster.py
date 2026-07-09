@@ -22,8 +22,8 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from collections.abc import AsyncIterator
-from typing import Any, Awaitable, cast
+from collections.abc import AsyncIterator, Awaitable
+from typing import Any, cast
 
 from loguru import logger
 from redis.asyncio import Redis

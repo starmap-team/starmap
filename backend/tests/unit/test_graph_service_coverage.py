@@ -12,7 +12,6 @@ import pytest
 
 from app.services.graph_service import _resolve_position_name, fetch_position_graph
 
-
 # ── Fake Neo4j objects (same shapes as test_graph_services.py) ────────────
 
 
