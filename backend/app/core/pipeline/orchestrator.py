@@ -274,6 +274,15 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
     )
     last_run = last_result.scalar_one_or_none()
 
+    # Recent failed run (for resume/retry button — only if nothing currently running)
+    failed_result = await session.execute(
+        select(PipelineRun)
+        .where(PipelineRun.status == RunStatus.FAILED.value)
+        .order_by(PipelineRun.started_at.desc())
+        .limit(1)
+    )
+    failed_run = failed_result.scalar_one_or_none() if running_run is None else None
+
     counts_result = await session.execute(
         select(PipelineRun.status, func.count()).group_by(PipelineRun.status)
     )
@@ -290,6 +299,7 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
         "is_running": running_run is not None,
         "current_run": _serialize_run(running_run) if running_run else None,
         "last_run": _serialize_run(last_run) if last_run else None,
+        "recent_failed_run": _serialize_run(failed_run) if failed_run else None,
         "run_counts": run_counts,
         "active_data_sources": active_sources,
     }

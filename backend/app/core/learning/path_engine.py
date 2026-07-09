@@ -345,11 +345,10 @@ def _topological_sort(graph: dict[str, list[str]]) -> list[str]:
     while comp_queue:
         s = comp_queue.popleft()
         scc_order.append(s)
-        for d in all_sccs:
-            if s in compressed.get(d, set()):
-                comp_in_degree[d] -= 1
-                if comp_in_degree.get(d, 0) == 0:
-                    comp_queue.append(d)
+        for d in compressed.get(s, set()):
+            comp_in_degree[d] -= 1
+            if comp_in_degree[d] == 0:
+                comp_queue.append(d)
 
     # Flatten SCC order back to skill order
     result: list[str] = []
@@ -426,7 +425,7 @@ def _build_phases(
                 "phase": len(phases) + 1,
                 "skills": [s.name for s in current_phase],
                 "estimated_hours": round(current_hours, 1),
-                "estimated_weeks": round(current_hours / weekly_hours, 1),
+                "estimated_weeks": round(current_hours / weekly_hours, 1) if weekly_hours else 0,
             })
             current_phase = []
             current_hours = 0.0
@@ -440,7 +439,7 @@ def _build_phases(
             "phase": len(phases) + 1,
             "skills": [s.name for s in current_phase],
             "estimated_hours": round(current_hours, 1),
-            "estimated_weeks": round(current_hours / weekly_hours, 1),
+            "estimated_weeks": round(current_hours / weekly_hours, 1) if weekly_hours else 0,
         })
 
     return phases

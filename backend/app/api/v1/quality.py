@@ -53,7 +53,7 @@ class QualityDashboard(BaseModel):
     source_distribution: list[dict] = Field(default_factory=list)
     weekly_new_nodes: int = Field(default=0, ge=0, description="本周新增节点数")
     audit_pass_rate: float = Field(default=0.0, ge=0, le=1, description="审核通过率")
-    audit_queue: int = Field(default=0, ge=0, description="待审核队列数")
+    audit_queue: list[dict] = Field(default_factory=list, description="待审核队列项（id/position/skill/trust）")
 
 
 def _status(value: float, threshold: float) -> str:
@@ -258,19 +258,28 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     total_reviewed = approved_count + pending_review
     audit_pass_rate = (int(approved_count) / total_reviewed) if total_reviewed > 0 else 0.0
 
-    # H11: audit_queue — count low-trust records needing review
-    low_trust_count = (
+    # H11: audit_queue — low-trust records needing review (as list for frontend table)
+    low_trust_records = (
         await session.execute(
-            sa.select(sa.func.count()).select_from(JDExtractionRecord)
+            sa.select(JDExtractionRecord)
             .where(
                 sa.and_(
                     JDExtractionRecord.confidence < 0.5,
                     JDExtractionRecord.status != "completed",
                 )
             )
+            .limit(20)
         )
-    ).scalar() or 0
-    audit_queue = int(low_trust_count)
+    ).scalars().all()
+    audit_queue = [
+        {
+            "id": int(r.id) if r.id is not None else 0,
+            "position": r.job_title or "",
+            "skill": "",
+            "trust": int((r.confidence or 0) * 100),
+        }
+        for r in low_trust_records
+    ]
 
     return QualityDashboard(
         report=report,

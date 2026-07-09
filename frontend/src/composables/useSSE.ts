@@ -98,10 +98,16 @@ export function useSSE(url: string, options: UseSSEOptions) {
       eventSource.addEventListener('skill_update', onMessage)
       eventSource.addEventListener('match_event', onMessage)
       eventSource.addEventListener('graph_update', onMessage)
-      eventSource.addEventListener('pipeline_event', onMessage)
+      eventSource.addEventListener('pipeline_update', onMessage)
 
       // Phase 1 SSE-01/02/03: 监听新增的 3 种 named events
       if (storeHandlers) {
+        eventSource.addEventListener('pipeline_update', (e: MessageEvent) => {
+          try {
+            const data = JSON.parse(e.data)
+            storeHandlers['pipeline_update']?.(data?.data ?? data)
+          } catch { /* ignore */ }
+        })
         eventSource.addEventListener('quality_alert', (e: MessageEvent) => {
           try {
             const data = JSON.parse(e.data)
@@ -171,11 +177,18 @@ export function useSSE(url: string, options: UseSSEOptions) {
         // Wrap as MessageEvent-like for consistency
         if (Array.isArray(data)) {
           for (const item of data) {
+            // Dispatch to storeHandlers by item.type (mimics SSE named event behavior)
+            if (storeHandlers && item?.type && storeHandlers[item.type]) {
+              storeHandlers[item.type](item?.data ?? item)
+            }
             onMessage(new MessageEvent('message', {
               data: JSON.stringify(item),
             }))
           }
         } else if (data && typeof data === 'object') {
+          if (storeHandlers && data?.type && storeHandlers[data.type]) {
+            storeHandlers[data.type](data?.data ?? data)
+          }
           onMessage(new MessageEvent('message', {
             data: JSON.stringify(data),
           }))

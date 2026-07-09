@@ -42,6 +42,7 @@ class PipelineStatusResponse(BaseModel):
     is_running: bool = False
     current_run: PipelineRunResponse | None = None
     last_run: PipelineRunResponse | None = None
+    recent_failed_run: PipelineRunResponse | None = None
     run_counts: dict[str, int] = Field(default_factory=dict)
     active_data_sources: int = 0
     today_crawl_volume: int = Field(0, ge=0, description="JDs crawled since 00:00 today")

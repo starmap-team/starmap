@@ -66,7 +66,7 @@ async def list_graph_nodes(
                     type=node_type,
                     name=props.get("name", ""),
                     properties=props,
-                    status="approved",
+                    status=props.get("review_status", "pending"),
                 ))
     except Exception as exc:
         logger.error("Failed to list graph nodes: {}", exc)

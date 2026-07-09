@@ -50,7 +50,7 @@ class AlertItem(BaseModel):
     value: float = 0.0
     threshold: float = 0.0
     timestamp: str = ""
-    status: str = Field(default="active", description="'active' | 'handled' | 'dismissed'")
+    status: str = Field(default="pending", description="'pending' | 'resolved' | 'ignored'")
     created_at: str = Field(default="", description="告警创建时间")
     handled: bool = False
 
@@ -187,7 +187,7 @@ async def get_quality_alerts(
             value=a.value,
             threshold=a.threshold,
             timestamp=a.timestamp,
-            status="active",
+            status="pending",
             created_at=a.timestamp,
             handled=False,
         ))

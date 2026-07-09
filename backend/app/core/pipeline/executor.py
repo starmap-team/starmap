@@ -574,12 +574,31 @@ async def trigger_and_start(
     run_type: str = "full",
     selected_stages: list[str] | None = None,
 ) -> PipelineRun:
-    """Create a pipeline run and start executing the first ready stage(s)."""
+    """Create a pipeline run and start executing the first ready stage(s).
+
+    Before creating a new run, cancels any existing runs stuck in 'running'
+    status (older than 30 minutes) to prevent accumulation of orphan runs.
+    """
     engine = get_async_engine()
     sessionmaker_ = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with sessionmaker_() as session:
             async with session.begin():
+                # Cancel any stuck running runs older than 30 minutes
+                from datetime import timedelta
+                stuck = await session.execute(
+                    select(PipelineRun)
+                    .where(PipelineRun.status == "running")
+                    .where(PipelineRun.started_at < datetime.now(UTC) - timedelta(minutes=30))
+                )
+                for old_run in stuck.scalars().all():
+                    old_run.status = "cancelled"
+                    old_run.completed_at = datetime.now(UTC)
+                    logger.warning(
+                        "Cancelled stuck pipeline run {} (started at {}, {:.1f}h old)",
+                        old_run.id, old_run.started_at,
+                        (datetime.now(UTC) - old_run.started_at).total_seconds() / 3600,
+                    )
                 run = await create_run(session, run_type=run_type, selected_stages=selected_stages)
                 run_id = run.id
 

@@ -468,7 +468,7 @@ const { handleReset } = useAdminReset(admin)
               <span class="section-label">演示数据管理</span>
             </template>
             <p class="demo-desc">
-              重置为演示种子数据将覆盖当前所有数据，包括岗位、技能、图谱节点与关系。此功能用于演示场景重置（§16.5）。
+              重置审核队列为演示种子数据（不影响已入库的岗位、技能、图谱节点与关系）。此功能用于演示场景重置（§16.5）。
             </p>
             <el-button
               type="danger"
