@@ -1,8 +1,8 @@
 # StarMap Project — 全系统二次开发
 
-**Last updated:** 2026-07-02
-**Branch:** fix/all-26-bugs
-**Status:** Active development — 全系统功能闭环
+**Last updated:** 2026-07-09
+**Branch:** main
+**Status:** Active development — 真实数据切换
 
 ## What This Is
 
@@ -13,25 +13,23 @@ StarMap（星图）是一个**人才能力星云导航系统**，面向IT岗位�
 - **反幻觉**：仅采纳 ≥3 个独立来源、≥4 周时间跨度、跨源一致的技能作为"已验证"
 - **可演化**：跟踪技能/岗位的兴衰周期，识别新兴技能（emerging/rising/declining）
 
-## Current Milestone: v2.0 全系统功能闭环
+## Current Milestone: v2.1 真实数据切换
 
-**Goal:** 将StarMap从"半成品状态"演进为"所有模块功能闭环、页面样式统一、业务流程完整"的可交付系统。
+**Goal:** 将 StarMap 从演示/假数据模式切换为真实数据模式，确保前端展示和后端处理全部使用真实 API 和数据库数据。
 
 **核心问题诊断：**
-1. **后端硬编码**：匹配引擎8个岗位Profile硬编码、学习路径20+前置依赖硬编码、演化趋势模拟数据
-2. **前端功能断裂**：Admin编辑不调API、LearningCenter按钮无handler、演化视图仅有radio button
-3. **数据流断裂**：sync_from_pipeline未实现、EVOLVES_TO仅写PG不写Neo4j、闭环Step3永远降级
-4. **运行时Bug**：snapshot_at列名错误、内存存储重启丢失、Cypher注入风险
-5. **架构债务**：Home.vue 1316行上帝页面、3套颜色系统、6个死端点
+1. **前端全量 Mock**：MSW 拦截所有 API 请求返回硬编码假数据，默认启用；图表无数据时显示 placeholder
+2. **后端 Demo 种子**：6+ 个 `seed_*_demo.py` 脚本填充假数据；Review Queue 为空时 auto-seed；`/reset-demo` 端点重置为假数据
+3. **LLM 未配置**：MiMo/DeepSeek/星火 API Key 全部为空，LLM 降级链无可用供应商
+4. **爬虫未实跑**：Pipeline 从未被触发真实采集，数据库中无爬取数据
 
 **Target capabilities:**
-- 所有14个页面功能完整闭环，无死按钮/空状态/模拟数据
-- 后端所有API返回真实数据，无硬编码Profile/模拟趋势
-- 数据流端到端贯通：抽取→图谱→匹配→演化→质量→管理
-- 前端样式统一，使用design tokens
-- 赛题5大核心功能+2项创新点全部可演示
+- 前端所有页面走真实后端 API，无 MSW 拦截、无 placeholder 图表
+- 后端无 demo/auto-seed 逻辑，所有数据来自真实爬取或 LLM 抽取
+- 至少一个 LLM 供应商可用，降级链正常工作
+- Pipeline 可触发端到端真实数据采集（crawl → dedup → clean → import → graph_sync）
 
-## Validated Capabilities (v1.0 baseline)
+## Validated Capabilities (v2.0 baseline)
 
 - 后端 FastAPI + Pydantic + SQLAlchemy(异步) + Neo4j + Chroma + Redis
 - 5 阶段 DAG 流水线架构（crawl → dedup ∥ clean → import → graph_sync）
@@ -41,7 +39,9 @@ StarMap（星图）是一个**人才能力星云导航系统**，面向IT岗位�
 - 前端 Vue 3 + Element Plus + Pinia + ECharts + G6 + 3D Force Graph
 - 14 个页面路由，8 个核心页面浏览器QA通过
 - JD抽取F1=92.06%，匹配准确率100%(20/20 Golden Set)
-- 后端测试覆盖率65.43%，CI 4/4全绿
+- 后端测试覆盖率62%，CI 4/4全绿
+- vue-tsc 0 errors, eslint 0 errors, ruff all passed
+- 硬编码颜色 0, 运行时Bug 0, 内存存储 0
 
 ## Key Decisions
 

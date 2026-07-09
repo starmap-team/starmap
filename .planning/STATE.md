@@ -1,28 +1,27 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: 全系统功能闭环
-status: milestone_complete
-last_updated: 2026-07-08T12:00:00.000Z
-last_activity: 2026-07-08 -- Phase 7 audit closure complete (56 findings → 54 fixed, 2 won't-fix, 96%)
+milestone: v2.1
+milestone_name: 真实数据切换
+status: planning
+last_updated: 2026-07-09T00:00:00.000Z
+last_activity: 2026-07-09 -- Milestone v2.1 started
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 16
-  completed_plans: 16
-  percent: 100
-stopped_at: Milestone v2.0 + Phase 7 audit closure complete
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+stopped_at: ''
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 7 of 7 (audit closure)
-Plan: All complete
-Status: Milestone complete + Audit closed
-Next: Project in maintenance mode; no pending phases
-Last activity: 2026-07-08
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-09 — Milestone v2.1 started
 
 ## Accumulated Context
 
@@ -34,7 +33,8 @@ Last activity: 2026-07-08
 - DEC-004: API/DB仅允许追加字段，不删不改类型（死端点除外）
 - DEC-005: 赛题核心功能优先 — 5大功能+2创新点必须可演示
 - DEC-006: Home.vue重构延后到Phase 6 — 先确保功能可用，再优化架构
-- DEC-010: P5颜色迁移 — ~307处硬编码颜色值需迁移至 design tokens，DataDashboard.vue 最严重(112处)
+- DEC-010: P5颜色迁移 — ~307处硬编码颜色值需迁移至 design tokens
+- DEC-011: v2.1 真实数据优先 — 先关闭Mock/清理Demo，再验证Pipeline
 
 ### Blockers
 
@@ -44,15 +44,11 @@ Last activity: 2026-07-08
 
 | Phase | Name | Status | Verified |
 |-------|------|--------|----------|
-| 1 | 核心Bug修复 | ✅ completed | 8/8 |
-| 2 | 后端硬编码消除 | ✅ completed | 5/5 |
-| 3 | 前端功能闭环 | ✅ completed | 3/3 |
-| 4 | 数据流贯通 | ✅ completed | 4/4 |
-| 5 | 样式统一与体验优化 | ✅ completed | 6/6 |
-| 6 | 架构重构 | ✅ completed | 12/12 |
-| 7 | 审计闭环 | ✅ completed | A/B/C/D/E all done |
+| 8 | 后端清理与配置 | ⏳ not started | — |
+| 9 | 前端关闭 Mock | ⏳ not started | — |
+| 10 | Pipeline 端到端验证 | ⏳ not started | — |
 
-## Final Baseline (2026-07-08)
+## v2.0 Baseline (2026-07-08)
 
 | Metric | Value |
 |--------|-------|
@@ -61,18 +57,6 @@ Last activity: 2026-07-08
 | ruff check | **All passed** |
 | pytest | **529 passed / 62% coverage** |
 | 前端 any | **4** (library boundaries) |
-| 后端 max file | **551 lines** (evolution.py) |
-| 前端 max page | **1673 lines** (LoopDemo, won't-fix) |
 | 硬编码颜色 | **0** |
 | 运行时Bug | **0** |
 | 内存存储 | **0** |
-
-## Audit Summary (Phase 7)
-
-56 findings → 54 fixed, 2 won't-fix (96% resolved)
-
-- Batch A (quick fixes): 8/8 ✅
-- Batch B (small refactors): 7/7 ✅
-- Batch C (medium refactors): 5/5 ✅
-- Batch D (large refactors): 4/4 ✅ (M13 won't-fix)
-- Batch E (type safety): ✅ any 49→4 (-92%)
