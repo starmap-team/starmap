@@ -1,0 +1,26 @@
+# StarMap celery-worker 镜像（Playwright + 反检测浏览器）
+# PIPE-01: 使用 Playwright 官方镜像免去 Chromium 重复安装
+FROM mcr.microsoft.com/playwright/python:v1.49.0-jammy
+
+# 系统依赖（与 backend/Dockerfile.dev 对齐 — psycopg build / 编译工具）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ENV POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache \
+    PYTHONUNBUFFERED=1
+
+RUN pip install --no-cache-dir poetry==2.4.1
+
+COPY pyproject.toml poetry.lock* ./
+RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
+
+# 拷贝 crawler 包（Playwright-stealth BOSS 爬虫依赖）
+COPY crawler/ ./crawler/
+
+# 默认启动 celery worker（具体 queues / beat 由 docker-compose 决定）
+CMD ["celery", "-A", "app.tasks.celery_app.celery_app", "worker", "--loglevel=info"]

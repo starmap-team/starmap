@@ -48,7 +48,7 @@ services:
   celery-worker:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.celery
     container_name: starmap-celery-worker
     volumes:
       - ./backend:/app
