@@ -126,10 +126,19 @@ useDashboardRealtimeSync(
           </div>
           <div class="chart-container">
             <VChart
+              v-if="treemapOption"
               :option="treemapOption"
               autoresize
               :style="{ height: '100%' }"
             />
+            <div
+              v-else
+              class="chart-empty"
+            >
+              <span class="chart-empty-icon">🧭</span>
+              <p class="chart-empty-text">暂无数据</p>
+              <p class="chart-empty-hint">数据加载中或暂无记录</p>
+            </div>
           </div>
         </div>
 
@@ -141,10 +150,19 @@ useDashboardRealtimeSync(
           </div>
           <div class="chart-container">
             <VChart
+              v-if="trendOption"
               :option="trendOption"
               autoresize
               :style="{ height: '100%' }"
             />
+            <div
+              v-else
+              class="chart-empty"
+            >
+              <span class="chart-empty-icon">📈</span>
+              <p class="chart-empty-text">暂无数据</p>
+              <p class="chart-empty-hint">数据加载中或暂无记录</p>
+            </div>
           </div>
         </div>
       </div>
@@ -249,10 +267,19 @@ useDashboardRealtimeSync(
           </div>
           <div class="chart-container">
             <VChart
+              v-if="radarOption"
               :option="radarOption"
               autoresize
               :style="{ height: '100%' }"
             />
+            <div
+              v-else
+              class="chart-empty"
+            >
+              <span class="chart-empty-icon">🛰️</span>
+              <p class="chart-empty-text">暂无数据</p>
+              <p class="chart-empty-hint">数据加载中或暂无记录</p>
+            </div>
           </div>
         </div>
       </div>
@@ -417,6 +444,39 @@ useDashboardRealtimeSync(
   flex: 1;
   min-height: 0;
   padding: 4px;
+}
+
+/* ═══════════════════════════════════════════
+   Chart Empty State (Phase 9 D-02: custom-empty for charts)
+   Dark-theme adapted using --dash-* tokens.
+   ═══════════════════════════════════════════ */
+.chart-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 8px;
+}
+
+.chart-empty-icon {
+  font-size: 28px;
+  opacity: 0.3;
+  line-height: 1;
+}
+
+.chart-empty-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dash-text-50);
+  margin: 0;
+}
+
+.chart-empty-hint {
+  font-size: 11px;
+  color: var(--dash-text-30);
+  margin: 0;
 }
 
 /* ═══════════════════════════════════════════
