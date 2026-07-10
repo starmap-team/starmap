@@ -61,21 +61,32 @@ Plans:
 **Requirements:**
 - MSW-01 ~ MSW-04 (4) — 前端关闭 Mock
 
+**Status:** ✅ Complete (2026-07-10) — 2/2 plans executed
+
+**Plans:** 2/2 plans complete
+
+Plans:
+- [x] 09-01-PLAN.md — MSW 关闭 + Mock 文件清理 + 环境变量配置 (commit 722d53e, 9b211e6, bf42d71, 13c9e62)
+- [x] 09-02-PLAN.md — Placeholder 删除 + 空状态展示 (commit b14ac7f, 67861fa, a27aca5)
+
 **Success criteria:**
-1. `main.ts` 中 `enableMocking()` 已注释或移除
-2. `VITE_USE_MSW=false` 为默认行为（Docker Compose + 本地开发）
-3. `useDashboardCharts.ts` 中无 `getPlaceholder*` 函数，后端无数据时显示空状态
-4. `vite.config.ts` 有 `/api/v1` 代理到 `http://localhost:8000`
-5. `frontend/src/mock/` 目录和 `frontend/public/mockServiceWorker.js` 已删除
-6. `vue-tsc --noEmit` 和 `eslint` 通过
+1. ✅ `main.ts` 中 `enableMocking()` 已注释或移除
+2. ✅ `VITE_USE_MSW=false` 为默认行为（Docker Compose + 本地开发）
+3. ✅ `useDashboardCharts.ts` 中无 `getPlaceholder*` 函数，后端无数据时显示空状态
+4. ✅ `vite.config.ts` 有 `/api/v1` 代理到 `http://localhost:8000`
+5. ✅ `frontend/src/mock/` 目录和 `frontend/public/mockServiceWorker.js` 已删除
+6. ✅ `vue-tsc --noEmit` 和 `eslint` 通过
 
 **Key files:**
-- `frontend/src/main.ts` — enableMocking()
-- `frontend/src/mock/msw-browser.ts` — MSW 初始化
-- `frontend/src/mock/handlers.ts` — mock 数据
-- `frontend/src/composables/useDashboardCharts.ts` — placeholder 函数
+- `frontend/src/main.ts` — enableMocking() ✅ (已移除)
+- `frontend/src/mock/msw-browser.ts` — MSW 初始化 ✅ (已删除)
+- `frontend/src/mock/handlers.ts` — mock 数据 ✅ (已删除)
+- `frontend/src/composables/useDashboardCharts.ts` — placeholder 函数 ✅ (4 个已删除)
 - `frontend/vite.config.ts` — proxy 配置
-- `frontend/public/mockServiceWorker.js` — MSW worker
+- `frontend/public/mockServiceWorker.js` — MSW worker ✅ (已删除)
+- `frontend/.env.development` — 新增 (VITE_USE_MSW=false, VITE_API_BASE_URL=http://localhost:8000)
+- `frontend/src/env.d.ts` — 新增 VITE_USE_MSW 类型声明
+- `frontend/src/pages/DataDashboard.vue` — v-if/v-else 空状态 + chart-empty CSS
 
 ---
 
@@ -105,6 +116,6 @@ Plans:
 
 ## ▶ Next Up
 
-**Phase 8: 后端清理与配置** — 移除 demo 数据逻辑、配置 LLM/DB 校验
+**Phase 10: Pipeline 端到端验证** — 确保 Playwright 可用、代理可配、Pipeline 可触发、数据端到端贯通
 
-执行命令: `/gsd-discuss-phase 8` 或 `/gsd-plan-phase 8`
+执行命令: `/gsd-discuss-phase 10` 或 `/gsd-plan-phase 10`

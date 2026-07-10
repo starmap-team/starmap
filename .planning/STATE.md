@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 真实数据切换
-status: ready_to_execute
-last_updated: 2026-07-10T11:00:00.000Z
-last_activity: 2026-07-10 -- Phase 9 planned (2 plans)
+status: ready_for_phase_10
+last_updated: 2026-07-10T11:55:00.000Z
+last_activity: 2026-07-10 -- Phase 9 executed (2/2 plans complete)
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 20
-  percent: 0
-stopped_at: Phase 9 planned (2/2) — ready to execute
+  completed_plans: 22
+  percent: 67
+stopped_at: Phase 9 complete (2/2 plans) — Phase 10 not started
 ---
 
 # Project State
@@ -19,8 +19,8 @@ stopped_at: Phase 9 planned (2/2) — ready to execute
 ## Current Position
 
 Phase: 9
-Plan: Not started
-Status: Ready to plan
+Plan: All complete
+Status: ✅ Phase 9 executed (awaiting verification before Phase 10)
 Last activity: 2026-07-10
 
 ## Accumulated Context
@@ -35,6 +35,7 @@ Last activity: 2026-07-10
 - DEC-006: Home.vue重构延后到Phase 6 — 先确保功能可用，再优化架构
 - DEC-010: P5颜色迁移 — ~307处硬编码颜色值需迁移至 design tokens
 - DEC-011: v2.1 真实数据优先 — 先关闭Mock/清理Demo，再验证Pipeline
+- DEC-012: 空状态返回 undefined 而非 null（09-02 修正）— vue-echarts 的 option prop 类型为 ECBasicOption | undefined，与设计意图等价
 
 ### Blockers
 
@@ -45,7 +46,7 @@ Last activity: 2026-07-10
 | Phase | Name | Status | Verified |
 |-------|------|--------|----------|
 | 8 | 后端清理与配置 | ✅ complete | — |
-| 9 | 前端关闭 Mock | 📋 planned | — |
+| 9 | 前端关闭 Mock | ✅ complete | pending gsd-verifier |
 | 10 | Pipeline 端到端验证 | ⏳ not started | — |
 
 ## v2.0 Baseline (2026-07-08)
@@ -60,3 +61,14 @@ Last activity: 2026-07-10
 | 硬编码颜色 | **0** |
 | 运行时Bug | **0** |
 | 内存存储 | **0** |
+
+## v2.1 Post-Phase-9 State (2026-07-10)
+
+| Metric | Value |
+|--------|-------|
+| vue-tsc errors | **0** |
+| eslint errors | **0** |
+| MSW 拦截 | **0** (main.ts 无 enableMocking 调用) |
+| mock 目录 | **0** (frontend/src/mock/ 已删除) |
+| placeholder 图表函数 | **0** (4 个 getPlaceholder* 已删除) |
+| VITE_USE_MSW 默认值 | **false** (固化于 .env.development + docker-compose) |
