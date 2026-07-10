@@ -18,7 +18,7 @@ export function useDashboardCharts(store: DashboardStore) {
   const darkPieOption = computed(() => {
     const data = store.sourceDistribution
     if (!data?.length) {
-      return getPlaceholderPie()
+      return undefined
     }
     const palette = [cc.chart[0], cc.chart[2], cc.success, cc.danger, cc.warning, cc.info, cc.primary, cc.chart[4]]
     return {
@@ -63,23 +63,11 @@ export function useDashboardCharts(store: DashboardStore) {
     }
   })
 
-  function getPlaceholderPie() {
-    return {
-      series: [{
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['50%', '44%'],
-        label: { show: false },
-        data: [{ value: 1, itemStyle: { color: cc.chart[0] + '1A' } }],
-      }],
-    }
-  }
-
   // ── Skill domain treemap ──
   const treemapOption = computed(() => {
     const data = store.skillDomains
     if (!data?.length) {
-      return getPlaceholderTreemap()
+      return undefined
     }
     return {
       tooltip: {
@@ -133,31 +121,10 @@ export function useDashboardCharts(store: DashboardStore) {
     }
   })
 
-  function getPlaceholderTreemap() {
-    return {
-      series: [{
-        type: 'treemap',
-        data: [
-          { name: 'AI/ML', value: 30 },
-          { name: '前端', value: 25 },
-          { name: '后端', value: 20 },
-          { name: '数据', value: 15 },
-          { name: '运维', value: 10 },
-        ],
-        roam: false,
-        nodeClick: false,
-        breadcrumb: { show: false },
-        label: { show: true, color: 'rgba(255,255,255,0.3)', fontSize: 11 },
-        itemStyle: { borderColor: ECHARTS_PALETTE.PIE_BORDER, borderWidth: 2 },
-        color: [cc.chart[0] + '26', cc.chart[2] + '26', cc.success + '26', cc.danger + '26', cc.warning + '26'],
-      }],
-    }
-  }
-
   // ── Quality trend dual-axis line chart ──
   const trendOption = computed(() => {
     const trends = store.qualityTrends
-    if (!trends?.length) return getPlaceholderTrend()
+    if (!trends?.length) return undefined
     return {
       tooltip: {
         trigger: 'axis',
@@ -251,41 +218,10 @@ export function useDashboardCharts(store: DashboardStore) {
     }
   })
 
-  function getPlaceholderTrend() {
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date()
-      d.setDate(d.getDate() - (6 - i))
-      return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    })
-    return {
-      grid: { top: 30, bottom: 24, left: 40, right: 40 },
-      xAxis: {
-        type: 'category',
-        data: days,
-        axisLine: { lineStyle: { color: cc.foreground + '26' } },
-        axisLabel: { color: cc.foreground + '4D', fontSize: 10 },
-        axisTick: { show: false },
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { color: cc.foreground + '4D', fontSize: 10 },
-        splitLine: { lineStyle: { color: cc.foreground + '0F' } },
-      },
-      series: [{
-        type: 'line',
-        smooth: true,
-        symbol: 'none',
-        lineStyle: { color: cc.chart[0] + '4D', width: 2 },
-        areaStyle: { color: cc.chart[0] + '0D' },
-        data: [0, 0, 0, 0, 0, 0, 0],
-      }],
-    }
-  }
-
   // ── Emerging skills radar ──
   const radarOption = computed(() => {
     const skills = store.emergingSkills
-    if (!skills?.length) return getPlaceholderRadar()
+    if (!skills?.length) return undefined
     const top = skills.slice(0, 6)
     // Map backend field names to display names for radar indicators
     const displayNames = top.map((s: EmergingSkill) => s.skill_name ?? s.name ?? 'unknown')
@@ -341,30 +277,6 @@ export function useDashboardCharts(store: DashboardStore) {
       }],
     }
   })
-
-  function getPlaceholderRadar() {
-    const indicators = ['React', 'Go', 'K8s', 'LLM', 'Rust', 'Vue'].map(n => ({ name: n, max: 100 }))
-    return {
-      radar: {
-        indicator: indicators,
-        shape: 'polygon',
-        splitNumber: 4,
-        axisName: { color: cc.foreground + '4D', fontSize: 10 },
-        splitLine: { lineStyle: { color: cc.foreground + '0F' } },
-        splitArea: { show: false },
-        axisLine: { lineStyle: { color: cc.foreground + '14' } },
-      },
-      series: [{
-        type: 'radar',
-        data: [{
-          value: [0, 0, 0, 0, 0, 0],
-          lineStyle: { color: cc.chart[0] + '33' },
-          itemStyle: { color: cc.chart[0] + '33' },
-          areaStyle: { color: cc.chart[0] + '0D' },
-        }],
-      }],
-    }
-  }
 
   return { darkPieOption, treemapOption, trendOption, radarOption }
 }
