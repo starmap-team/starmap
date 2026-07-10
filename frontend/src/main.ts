@@ -12,15 +12,11 @@ import { TitleComponent, TooltipComponent, LegendComponent, GridComponent, Radar
 
 import App from './App.vue'
 import router from './router'
-import { enableMocking } from './mock/msw-browser'
 
 // ECharts 按需注册
 use([CanvasRenderer, PieChart, LineChart, RadarChart, BarChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, RadarComponent])
 
 async function bootstrap() {
-  // 开发环境启用 MSW mock，联调时注释掉此行
-  await enableMocking()
-
   const app = createApp(App)
   app.use(createPinia())
   app.use(router)
