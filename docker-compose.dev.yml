@@ -60,6 +60,9 @@ services:
       - NO_PROXY=*
       - no_proxy=*
       - PYTHONPATH=/app  # 让 Python 能找到 /app 下的模块（包括 /app/crawler）
+      # Phase 10 PIPE-03 (c) D-03: 启动时若 PIPELINE_BOOTSTRAP=true → 30s 后入队一次 pipeline run
+      # 默认 false（不触发）；开发者本地 .env 中可以 uncomment 改为 true 调试
+      - PIPELINE_BOOTSTRAP=${PIPELINE_BOOTSTRAP:-false}
     depends_on:
       redis:
         condition: service_started

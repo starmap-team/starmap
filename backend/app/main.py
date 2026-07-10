@@ -45,6 +45,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """应用生命周期：启动时初始化连接，关闭时释放。"""
     logger.info("StarMap 启动中... env={}", settings.app_env)
     app.state.resources = await init_resources()
+    # Phase 10 PIPE-03 (c) D-03: 启动时若 PIPELINE_BOOTSTRAP=true,30 秒后入队一次 pipeline run
+    # 该调用是 no-op（直接 return）如果环境变量未设置
+    from app.core.pipeline.bootstrap import schedule_bootstrap_if_enabled
+    schedule_bootstrap_if_enabled()
     # Phase 2 CRON-03: 启动 cron scanner 后台任务
     cron_task = None
     try:

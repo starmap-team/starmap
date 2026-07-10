@@ -33,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from crawler import config  # noqa: E402
 from crawler.persistence import dao  # noqa: E402
 from crawler.persistence.models import JdStatus  # noqa: E402
+from crawler.pipeline_bridge import trigger_pipeline_run  # noqa: E402
 
 # 业务说明：配置根日志记录器，设置日志级别和格式。
 # 技术说明：format 包含时间戳、日志级别、记录器名称和消息内容。
@@ -215,6 +216,19 @@ def cmd_apify_zhaopin(args):
     log.info('Apify zhaopin: total=%d inserted=%d', summary.get('total', 0), summary.get('inserted', 0))
 
 
+def cmd_run_pipeline(args):
+    """PIPE-03 (b) D-03: CLI 子命令触发一次完整 pipeline run."""
+    # 业务说明：通过 pipeline_bridge 调用后端 executor.trigger_and_start，
+    # 与 main API 等价的调用路径（CLI 与后端同进程内）。
+    # 技术说明：trigger_pipeline_run 内部用 asyncio.run 跑异步 trigger_and_start，
+    # 返回 0 / 1 作为子命令退出码（成功 / 失败）。
+    log.info("CLI run-pipeline 触发: source=%s, limit=%s", args.source, args.limit)
+    rc = trigger_pipeline_run(source=args.source, limit=args.limit)
+    if rc != 0:
+        log.error("Pipeline trigger 退出码 %d", rc)
+    return rc
+
+
 def _add_common_args(sp):
     """给 spider 子命令加通用参数。"""
     # 业务说明：为所有爬虫子命令添加通用参数，避免重复定义。
@@ -302,6 +316,23 @@ def main():
     sp_zhaopin.add_argument('--dry-run', action='store_true')
     sp_zhaopin.add_argument('--force-paid', action='store_true')
     sp_zhaopin.set_defaults(func=cmd_apify_zhaopin)
+
+    # Phase 10 PIPE-03 (b) D-03: CLI 触发完整 pipeline run
+    # 业务说明：注册 run-pipeline 子命令，触发一次完整流水线
+    # (crawl → dedup → clean → extract → graph_sync)
+    sp_pipeline = sub.add_parser(
+        "run-pipeline",
+        help="触发一次完整 pipeline run（与 POST /api/v1/pipeline/trigger 等价）",
+    )
+    sp_pipeline.add_argument(
+        "--source", default="boss", choices=["boss", "lagou", "51job"],
+        help="爬虫源（v2.1 仅 boss 走通完整链路）",
+    )
+    sp_pipeline.add_argument(
+        "--limit", type=int, default=20,
+        help="最大抓取条数（信息性，调用透传给 trigger_and_start）",
+    )
+    sp_pipeline.set_defaults(func=cmd_run_pipeline)
 
     # 业务说明：解析命令行参数并执行对应的处理函数。
     args = p.parse_args()
