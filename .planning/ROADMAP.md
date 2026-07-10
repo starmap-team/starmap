@@ -97,12 +97,34 @@ Plans:
 **Requirements:**
 - PIPE-01 ~ PIPE-04 (4) — 爬虫 Pipeline 可用
 
+**Status:** 📋 Planned (4/4 plans across 3 waves)
+
+**Plans:** 4/4 plans complete (planning)
+
+Plans:
+- [x] 10-01-PLAN.md — Playwright 官方镜像 + Celery Worker 容器化 (D-01, PIPE-01, Wave 1)
+- [x] 10-02-PLAN.md — PROXY_LIST 逐项试用 + 失败熔断中间件 (D-02, PIPE-02, Wave 1)
+- [x] 10-03-PLAN.md — Pipeline 触发 API/CLI/Bootstrap (D-03, PIPE-03, Wave 2)
+- [x] 10-04-PLAN.md — E2E 冒烟测试 8 断言含边界 + 负向 (D-04, PIPE-04, Wave 3)
+
 **Success criteria:**
-1. `backend/Dockerfile.dev` 安装了 playwright + chromium
-2. `PROXY_LIST` 环境变量可配置，boss 爬虫通过代理抓取
+1. `backend/Dockerfile.celery` 安装了 Playwright Chromium（官方镜像 base）
+2. `PROXY_LIST` 环境变量可配置，boss 爬虫通过代理抓取（含熔断）
 3. 一次 pipeline run 可成功完成（crawl → dedup → clean → import → graph_sync）
 4. Neo4j 中有真实爬取的技能/岗位数据
 5. 前端图谱页面展示真实数据节点（非 mock 硬编码的 5 个职位）
+
+**Wave dependency notes:**
+- Wave 1 *(no deps)* — 10-01 + 10-02 parallel (Playwright image + PROXY middleware)
+- Wave 2 *(blocked on Wave 1 completion)* — 10-03 (API/CLI/bootstrap trigger, depends on 10-01 image + 10-02 proxy modules)
+- Wave 3 *(blocked on Wave 2 completion)* — 10-04 (E2E test, depends on 10-03 trigger entry point)
+
+**Key files:**
+- `backend/Dockerfile.celery` — new (D-01 Playwright 官方镜像)
+- `crawler/middleware/proxy_middleware.py` — new (D-02 PROXY_LIST + 熔断)
+- `backend/app/core/pipeline/bootstrap.py` — new (D-03 启动 cron)
+- `crawler/pipeline_bridge.py` — new (D-03 CLI 桥接)
+- `tests/e2e/pipeline_smoke_test.py` — new (D-04 E2E 8 断言)
 6. `pytest` 全部通过（无回归）
 
 **Key files:**
