@@ -71,6 +71,10 @@ ignore = ["E501", "B008"]   # E501: 行长由 formatter 管; B008: FastAPI 依�
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "--cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=60"
+markers = [
+    "smoke: marks tests as smoke suite (run on demand for pipeline E2E validation, Phase 10 PIPE-04)",
+    "e2e: marks tests as full end-to-end (slow, run separately)",
+]
 
 [tool.coverage.run]
 source = ["app"]
