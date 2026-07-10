@@ -71,7 +71,7 @@ const routes = [
     path: '/admin',
     name: 'admin',
     component: () => import('@/pages/Admin.vue'),
-    meta: { title: '管理后台', icon: 'Setting', breadcrumb: ['首页', '管理后台'], transition: 'page-slide' },
+    meta: { title: '管理后台', icon: 'Setting', breadcrumb: ['首页', '管理后台'], transition: 'page-slide', requiresAuth: true },
   },
   {
     path: '/dashboard',
@@ -94,6 +94,49 @@ const router = createRouter({
 
 router.afterEach((to) => {
   document.title = `${to.meta.title ?? '星图'} | StarMap`
+})
+
+// ---------------------------------------------------------------------------
+// Auth guard (Phase 8 — frontend UX fix 3)
+// ---------------------------------------------------------------------------
+// Routes can declare `meta: { requiresAuth: true }` to enforce that the
+// requesting session is authenticated. Currently only `/admin` needs the
+// guard — other routes degrade gracefully (login prompts surface via the
+// global ElMessage in request.ts).
+// ---------------------------------------------------------------------------
+const PUBLIC_PATHS = new Set<string>(['/', '/login'])
+
+// Pinia store import is deferred to avoid Pinia<->router cycle: the auth
+// bootstrap evaluates localStorage at module load time, which precedes
+// Pinia install. We read a small "auth hint" synchronously here.
+
+function isAuthed(): boolean {
+  try {
+    return Boolean(localStorage.getItem('starmap_token')) ||
+      Boolean(localStorage.getItem('token')) ||
+      document.cookie.includes('session=')
+  } catch {
+    return false
+  }
+}
+
+router.beforeEach((to) => {
+  // Skip guard for public paths
+  if (PUBLIC_PATHS.has(to.path) || to.path.startsWith('/login')) {
+    return true
+  }
+  const requiresAuth = (to.meta as { requiresAuth?: boolean }).requiresAuth === true
+  if (requiresAuth && !isAuthed()) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  return true
+})
+
+// Listen for 401 events emitted by api/request.ts and route to /login.
+window.addEventListener('auth:unauthorized', () => {
+  if (router.currentRoute.value.path !== '/login') {
+    router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
+  }
 })
 
 export default router

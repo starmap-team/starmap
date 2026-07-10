@@ -18,6 +18,10 @@ let loadingEl: HTMLElement | null = null
 
 function showLoading() {
   if (loadingCount === 0) {
+    // Phase 8 — frontend UX fix 5: defend against a stale DOM node
+    // (e.g. router navigation mid-flight) by removing any existing
+    // orphan before appending a fresh one.
+    document.querySelectorAll('.global-loading-bar').forEach((el) => el.remove())
     loadingEl = document.createElement('div')
     loadingEl.className = 'global-loading-bar'
     document.body.appendChild(loadingEl)
@@ -30,6 +34,11 @@ function hideLoading() {
   if (loadingCount === 0 && loadingEl) {
     loadingEl.remove()
     loadingEl = null
+  }
+  // Safety: if an orphan DOM node somehow survived (eg. an unhandled
+  // rejection path between show/hide), clean it up.
+  if (loadingCount === 0) {
+    document.querySelectorAll('.global-loading-bar').forEach((el) => el.remove())
   }
 }
 
@@ -110,11 +119,16 @@ request.interceptors.response.use(
 
     // 仅非 401 的错误显示通用提示；401 单独处理
     if (status === 401) {
+      // Emit a window-level event so the router layer can redirect to /login.
+      // Each request() failure surfaces synchronously, so a single event bus
+      // decouples axios from vue-router without pulling useRouter() into this
+      // module (which would force Pinia/router cycle).
       ElMessage.warning({
         message: '登录已过期，请重新登录',
         duration: 5000,
         showClose: true,
       })
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'))
     } else {
       ElMessage.error({
         message,
