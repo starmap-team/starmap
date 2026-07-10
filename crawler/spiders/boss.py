@@ -25,6 +25,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from crawler import config
 from crawler.compliance import RateLimiter, get_proxy, stealth_check_robots, stealth_log_request
 from crawler.dedup import hex64, simhash
+from crawler.middleware.proxy_middleware import (
+    pick_proxy,
+    record_proxy_failure,
+    record_proxy_success,
+)
 from crawler.pipelines.clean import clean_html, extract_job_title
 from crawler.pipelines.items import JdItem
 from crawler.stealth import StealthConfig, create_stealth_context, stealth_goto
@@ -53,6 +58,9 @@ async def fetch_one(
         if status != 200 or not page:
             log.warning("BOSS 详情非 200 %s", url)
             stealth_log_request(source_site, url, response_code=status)
+            # PIPE-02 D-02: 记录失败计数（如果当前有代理配置）
+            if config_ and config_.proxy:
+                record_proxy_failure(config_.proxy)
             return None
 
         # 等待内容渲染
@@ -64,8 +72,14 @@ async def fetch_one(
         html = await page.content()
         stealth_log_request(source_site, url, response_code=status, response_bytes=len(html))
         await page.close()
+        # PIPE-02 D-02: 记录成功（重置失败计数）
+        if config_ and config_.proxy:
+            record_proxy_success(config_.proxy)
     except Exception as e:  # noqa: BLE001
         log.warning("BOSS 抓取异常 %s: %s", url, e)
+        # PIPE-02 D-02: 异常也算连接失败
+        if config_ and config_.proxy:
+            record_proxy_failure(config_.proxy)
         return None
     finally:
         if browser:
@@ -114,7 +128,7 @@ async def run_boss(
             proxy = f"http://{proxy}"
 
     cfg = StealthConfig(
-        proxy=proxy or get_proxy(),
+        proxy=proxy or pick_proxy() or get_proxy(),
         proxy_user=proxy_user,
         proxy_pass=proxy_pass,
     )
