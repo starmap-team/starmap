@@ -232,6 +232,7 @@ const {
           <div class="panel-header">
             <span>定时调度</span>
             <el-button
+              v-if="isAdmin"
               size="small"
               :icon="Timer"
               @click="openScheduleDialog"
