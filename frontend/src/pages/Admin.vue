@@ -179,6 +179,7 @@ async function handleSaveSource() {
               :data="pagedGraphNodes"
               stripe
               size="default"
+              empty-text="暂无数据"
             >
               <el-table-column
                 prop="id"
@@ -333,6 +334,7 @@ async function handleSaveSource() {
               :data="admin.sources"
               stripe
               size="default"
+              empty-text="暂无数据"
             >
               <el-table-column
                 prop="name"

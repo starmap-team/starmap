@@ -1,165 +1,108 @@
-# Technology Stack
+# Tech Stack — StarMap
 
-**Analysis Date:** 2026-07-05
+**Analysis Date:** 2026-07-12
 
-## Languages
+## Backend
 
-**Primary:**
-- **Python 3.11** — Backend API, data pipelines, graph algorithms, ML/NLP processing
-- **TypeScript** — Frontend application (Vue 3 + Vite)
-- **Cypher** — Neo4j graph database queries
+| Component | Technology | Version | Purpose |
+|---|---|---|---|
+| Web Framework | FastAPI | >=0.110,<0.120 | Async REST API server |
+| ASGI Server | Uvicorn | >=0.27,<0.30 | Production ASGI runner |
+| Data Validation | Pydantic | >=2.6,<3.0 | Request/response schemas |
+| Settings | pydantic-settings | >=2.2,<3.0 | Environment config management |
+| ORM | SQLAlchemy (async) | >=2.0,<2.1 | PostgreSQL async ORM |
+| DB Driver | asyncpg | >=0.29,<0.30 | PostgreSQL async driver |
+| Migrations | Alembic | >=1.13,<1.14 | Schema migrations |
+| Graph DB Driver | neo4j | >=5.17,<6.0 | Neo4j graph operations |
+| Vector DB | chromadb | >=0.5,<0.6 | Skill vector similarity |
+| Cache/Queue | Redis | >=5.0,<6.0 | Caching + Celery broker |
+| Task Queue | Celery[redis] | >=5.3,<5.4 | Async pipeline execution |
+| LLM Client | httpx | >=0.27,<0.28 | Xunfei Spark API calls |
+| LLM Client | openai | >=1.30,<2.0 | OpenAI-compatible (Qwen/MiMo) |
+| NLP | spaCy | >=3.7,<3.8 | Skill NER |
+| NLP | jieba | >=0.42 | Chinese tokenization |
+| PDF Parsing | pdfplumber | >=0.10 | Resume PDF extraction |
+| DOCX Parsing | python-docx | >=1.1 | Resume Word extraction |
+| ML | scikit-learn | >=1.4,<1.5 | F1/precision/recall metrics |
+| Clustering | hdbscan | >=0.8.33 | Emerging skill clustering |
+| Logging | loguru | >=0.7 | Structured logging |
+| Retry | tenacity | >=8.2,<9.0 | LLM call retry logic |
+| Config | pyyaml | >=6.0 | skill_taxonomy.yaml parsing |
+| File Upload | python-multipart | >=0.0.9 | Resume file upload |
+| Env | python-dotenv | >=1.0 | .env loading |
 
-**Secondary:**
-- **SQL** — PostgreSQL schema definitions, Alembic migrations
-- **SCSS/CSS** — Frontend styling with CSS custom properties
-- **YAML** — Docker Compose, OpenAPI contracts, configuration
-- **Shell** — Deployment scripts (`scripts/`, `crawler/`)
+**Python Version:** >=3.11,<3.13
 
-## Runtime
+## Frontend
 
-**Environment:**
-- Python 3.11 (slim Docker base image)
-- Node.js 20 (Alpine base image for frontend build)
+| Component | Technology | Version | Purpose |
+|---|---|---|---|
+| Framework | Vue 3 | ^3.4.0 | SPA framework (Composition API) |
+| Build Tool | Vite | ^5.2.0 | Dev server + bundler |
+| Type System | TypeScript | ^5.4.0 | Static typing |
+| State Management | Pinia | ^2.1.0 | Centralized stores |
+| Router | vue-router | ^4.3.0 | Client-side routing |
+| UI Library | Element Plus | ^2.6.0 | Component library |
+| Icons | @element-plus/icons-vue | ^2.3.2 | UI icons |
+| Charts | ECharts | ^5.5.0 | Data visualization |
+| Vue-ECharts | vue-echarts | ^6.6.0 | ECharts Vue wrapper |
+| 3D Graph | 3d-force-graph | ^1.80.0 | 3D skill graph visualization |
+| 2D Graph | @antv/g6 | ^5.0.0 | 2D graph layout |
+| 3D Engine | three.js | ^0.185.1 | WebGL rendering |
+| HTTP Client | axios | ^1.6.0 | API requests |
+| API Types | openapi-typescript | ^6.7.0 | OpenAPI -> TS type generation |
+| Mock | MSW | ^2.2.0 | API mocking for tests |
+| Unit Test | Vitest | ^1.4.0 | Unit testing |
+| E2E Test | Playwright | ^1.61.1 | End-to-end testing |
+| Lint | ESLint | ^8.57.0 | Code quality |
+| CSS | Sass | ^1.72.0 | Styling preprocessor |
 
-**Package Manager:**
-- **Poetry 2.4.1** — Python dependency management with lockfile (`backend/poetry.lock`)
-- **npm** — Node.js package management with lockfile (`frontend/package-lock.json`)
-- Lockfiles committed to version control (enforced by project discipline)
+## Infrastructure
 
-## Frameworks
+| Component | Technology | Purpose |
+|---|---|---|
+| Graph Database | Neo4j 5.x | Skill/Position knowledge graph |
+| Relational DB | PostgreSQL | Position records, pipeline runs, learning plans |
+| Cache/Broker | Redis | Caching, Celery broker, SSE event bus, pipeline stop flags |
+| Vector Store | ChromaDB | Skill embedding similarity search |
+| Task Queue | Celery | Async pipeline execution (crawl, dedup, clean, import, graph_sync) |
+| Containerization | Docker | Multi-service deployment (docker-compose) |
 
-**Backend Core:**
-- **FastAPI 0.110+** — Async web framework, OpenAPI auto-generation, dependency injection
-- **Pydantic v2** — Data validation, settings management, request/response schemas
-- **Uvicorn** — ASGI server with standard extras (websockets, httptools)
+## LLM Integration
 
-**Database & Storage:**
-- **SQLAlchemy 2.0+** — Async ORM with PostgreSQL dialect
-- **asyncpg 0.29+** — Native async PostgreSQL driver
-- **Neo4j Python Driver 5.17+** — Graph database client (Bolt protocol)
-- **Redis 5.0+** — Cache, message broker, pub/sub for SSE
-- **ChromaDB 0.5+** — Vector database for semantic skill matching
-- **Alembic 1.13+** — Database migration tool
+| Provider | Config Key | Model | Purpose |
+|---|---|---|---|
+| Xiaomi MiMo | `MIMO_API_KEY`, `MIMO_API_BASE` | mimo-v2.5 | Primary LLM (OpenAI-compatible endpoint) |
+| DeepSeek | `DEEPSEEK_API_KEY` | deepseek-chat | Alternative LLM |
+| Xunfei Spark | `XUNFEI_API_KEY/SECRET/APP_ID` | generalv3.5 | JD/resume skill extraction |
+| Local Ollama | (auto-fallback) | — | Degraded fallback when no cloud keys configured |
 
-**Task Queue:**
-- **Celery 5.3+** — Distributed task queue with Redis broker/backend
-
-**Frontend:**
-- **Vue 3.4+** — Progressive JavaScript framework (Composition API)
-- **Vue Router 4.3+** — SPA routing with history mode
-- **Pinia 2.1+** — State management (composable API pattern)
-- **Vite 5.2+** — Build tool and dev server with HMR
-- **Element Plus 2.6+** — UI component library (Chinese locale)
-- **ECharts 5.5+** — Data visualization (charts, radar, bar, pie)
-- **vue-echarts 6.6+** — Vue wrapper for ECharts
-- **@antv/g6 5.0+** — Graph visualization engine (2D force-directed layouts)
-- **3d-force-graph 1.80+** — 3D force-directed graph visualization (WebGL/Three.js)
-- **Three.js 0.185+** — 3D graphics library
-- **Axios 1.6+** — HTTP client for API requests
-
-**Testing:**
-- **pytest 8.0+** — Python test framework with async support
-- **pytest-cov** — Coverage reporting (60% threshold enforced)
-- **pytest-asyncio** — Async test support
-- **Vitest 1.4+** — Frontend unit testing
-- **Playwright 1.61+** — E2E testing (browser automation)
-- **MSW 2.2+** — Mock Service Worker for frontend development
-
-**Dev Tools:**
-- **Ruff 0.3+** — Python linting and formatting (line-length 120)
-- **mypy 1.9+** — Static type checking (Python 3.11 target)
-- **ESLint 8.57+** — TypeScript/Vue linting
-- **vue-tsc 2.0+** — Vue SFC type checking
-- **Sass 1.72+** — CSS preprocessor
-
-## Key Dependencies
-
-**Critical Backend:**
-- `fastapi` (0.110-0.120) — Web framework
-- `sqlalchemy[asyncio]` (2.0-2.1) — Async ORM
-- `asyncpg` (0.29-0.30) — PostgreSQL async driver
-- `neo4j` (5.17-6.0) — Graph database driver
-- `redis` (5.0-6.0) — Cache and message broker
-- `celery[redis]` (5.3-5.4) — Task queue
-- `chromadb` (0.5-0.6) — Vector database
-- `pydantic` (2.6-3.0) — Data validation
-- `pydantic-settings` (2.2-3.0) — Environment configuration
-- `loguru` (0.7+) — Structured logging
-- `tenacity` (8.2-9.0) — Retry logic with exponential backoff
-
-**LLM/NLP:**
-- `httpx` (0.27-0.28) — Async HTTP client for LLM APIs
-- `openai` (1.30-2.0) — OpenAI-compatible API client (for local Qwen/Ollama)
-- `spacy` (3.7-3.8) — NLP processing
-- `jieba` (0.42+) — Chinese text segmentation
-
-**Document Parsing:**
-- `pdfplumber` (0.10+) — PDF resume parsing
-- `python-docx` (1.1+) — Word document parsing
-- `python-multipart` (0.0.9+) — File upload handling
-
-**ML/Analytics:**
-- `scikit-learn` (1.4-1.5) — Clustering, metrics (F1, precision, recall)
-- `hdbscan` (0.8.33+) — Emerging skill clustering
-
-**Frontend:**
-- `vue` (3.4+) — Framework
-- `vue-router` (4.3+) — Routing
-- `pinia` (2.1+) — State management
-- `element-plus` (2.6+) — UI components
-- `echarts` (5.5+) — Charts
-- `@antv/g6` (5.0+) — 2D graph visualization
-- `3d-force-graph` (1.80+) — 3D graph visualization
-- `three` (0.185+) — 3D rendering
-- `axios` (1.6+) — HTTP client
-- `msw` (2.2+) — Mock service worker
+**LLM Usage Points:**
+- JD skill extraction (`backend/app/api/v1/extract.py`)
+- Resume skill extraction (`backend/app/api/v1/extract.py`, `backend/app/api/v1/resume.py`)
+- Closed-loop pipeline step 2 (skill extraction via `backend/app/api/v1/loop.py`)
+- Jobseeker analysis pipeline (`backend/app/api/v1/pipeline/routes.py` `/pipeline/analyze`)
+- Judge evaluation with LLM judge (`backend/app/api/v1/judge.py`)
 
 ## Configuration
 
 **Environment:**
-- `.env` — Local development environment variables
-- `.env.example` — Template with all required variables
-- `.env.docker` — Docker-specific overrides
-- `backend/app/config.py` — Pydantic Settings with validation
+- Backend config: `backend/app/config.py` (pydantic-settings, reads from `.env`)
+- Frontend config: `VITE_API_BASE_URL` env var (defaults to `/api/v1`)
+- `.env` files present at project root and `backend/` (contain secrets — never read)
 
-**Key Environment Variables:**
-- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` — Graph database
-- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_DB` — Relational database
-- `REDIS_URI` — Cache and message broker
-- `XUNFEI_API_KEY`, `XUNFEI_API_SECRET` — Xunfei Spark API
-- `DEEPSEEK_API_KEY` — DeepSeek API
-- `MIMO_API_KEY`, `MIMO_API_BASE` — Xiaomi MiMo API
-- `CHROMA_HOST`, `CHROMA_PORT` — Vector database
+**Key Config Files:**
+- `backend/app/config.py` — All settings with defaults and validation
+- `starmap-contracts/openapi.yaml` — API contract (source of truth)
+- `frontend/vite.config.ts` — Vite build config
+- `frontend/tsconfig.json` — TypeScript config
 
-**Build:**
-- `backend/pyproject.toml` — Poetry dependencies, Ruff config, pytest config, mypy config
-- `frontend/package.json` — npm dependencies and scripts
-- `frontend/vite.config.ts` — Vite build configuration with manual chunks
-- `frontend/tsconfig.json` — TypeScript compiler options
-
-## Platform Requirements
-
-**Development:**
-- Docker & Docker Compose (development and production environments)
-- Python 3.11 (via Docker or local)
-- Node.js 20+ (for frontend build)
-- Git (trunk-based workflow)
-
-**Production:**
-- Docker Compose deployment
-- Multi-service architecture: backend, frontend (Nginx), Neo4j, PostgreSQL, Redis, ChromaDB, Ollama
-- Resource limits: Backend 2 CPU / 2GB RAM, Celery worker 1 CPU / 1GB RAM
-
-**Services Architecture (Docker Compose):**
-- `starmap-backend` — FastAPI application (port 8000)
-- `starmap-frontend` — Nginx serving built Vue app (port 80)
-- `starmap-neo4j` — Graph database (ports 7474, 7687)
-- `starmap-postgres` — PostgreSQL (port 5433 on host)
-- `starmap-redis` — Cache and message broker (port 6379)
-- `starmap-chroma` — Vector database (port 8001)
-- `starmap-celery-worker` — Background task worker
-- `starmap-ollama` — Local LLM inference (port 11434)
+**Auth:**
+- JWT Bearer tokens (HMAC-SHA256, `settings.secret_key`)
+- Dev mode: accepts `dev-token` or returns default dev user
+- Production: strict JWT validation with expiry check
+- Admin role check via `require_admin` dependency
 
 ---
 
-*Stack analysis: 2026-07-05*
+*Stack analysis: 2026-07-12*

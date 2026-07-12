@@ -1,245 +1,345 @@
-# Architecture
+# Architecture — StarMap
 
-**Analysis Date:** 2026-07-05
+**Analysis Date:** 2026-07-12
 
 ## System Overview
 
-StarMap is a talent competency knowledge graph system with a multi-layer architecture:
-
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           Frontend Layer                                 │
-│  Vue 3 + Pinia + Element Plus + ECharts + G6 + 3D-Force-Graph          │
-│  `frontend/src/`                                                         │
-├─────────────────────────────────────────────────────────────────────────┤
-│                           API Gateway Layer                              │
-│  FastAPI + Pydantic + CORS + Dependency Injection                      │
-│  `backend/app/main.py`, `backend/app/api/v1/`                          │
-├─────────────────────────────────────────────────────────────────────────┤
-│                           Service Layer                                  │
-│  Graph Service | Match Service | Resume Service | Learning Service       │
-│  `backend/app/services/`                                                 │
-├─────────────────────────────────────────────────────────────────────────┤
-│                           Core Engine Layer                              │
-│  Extraction | Evolution | Pipeline | Graph Engine | Matching | Trust    │
-│  `backend/app/core/`                                                     │
-├─────────────────────────────────────────────────────────────────────────┤
-│                           Data Access Layer                              │
-│  Neo4j (Graph) | PostgreSQL (Relational) | Redis (Cache/Queue)          │
-│  ChromaDB (Vector) | Celery (Task Queue)                                │
-│  `backend/app/models/`, `backend/app/repositories/`                     │
-├─────────────────────────────────────────────────────────────────────────┤
-│                           External Services                              │
-│  MiMo API | DeepSeek API | Xunfei Spark | Ollama (Local Qwen)           │
-│  `backend/app/core/extraction/llm_client.py`                            │
-└─────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        Frontend (Vue 3 + Pinia)                         │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐     │
+│  │ Home.vue │ │ExtractJD │ │MatchDiag │ │Evolution │ │Learning  │     │
+│  │  +Graph  │ │  .vue    │ │  .vue    │ │Dashboard │ │Center    │     │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘     │
+│       │            │            │            │            │             │
+│  ┌────┴────────────┴────────────┴────────────┴────────────┴──────┐     │
+│  │              Pinia Stores (18 stores)                         │     │
+│  │  graph | jd | match | evolution | learning | pipeline | ...  │     │
+│  └──────────────────────┬───────────────────────────────────────┘     │
+│                         │ axios (request.ts)                          │
+│  ┌──────────────────────┴───────────────────────────────────────┐     │
+│  │              SSE (useSSE.ts) — realtime events               │     │
+│  └──────────────────────────────────────────────────────────────┘     │
+└────────────────────────────────┬─────────────────────────────────────┘
+                                 │ HTTP / SSE
+┌────────────────────────────────┴─────────────────────────────────────┐
+│                     FastAPI Backend (/api/v1)                         │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  API Layer (app/api/v1/) — 14 route modules                   │  │
+│  │  extract | match | evolution | learning | pipeline | admin    │  │
+│  │  graph | position | resume | quality | judge | datasource     │  │
+│  │  dashboard | loop                                              │  │
+│  └───────────────────────┬────────────────────────────────────────┘  │
+│                          │                                           │
+│  ┌───────────────────────┴────────────────────────────────────────┐  │
+│  │  Service Layer (app/services/) — 16 service modules            │  │
+│  │  match_service | graph_service | learning_service | neo4j_*    │  │
+│  │  resume_service | judge_service | admin_* | dedup_service      │  │
+│  └───────────────────────┬────────────────────────────────────────┘  │
+│                          │                                           │
+│  ┌───────────────────────┴────────────────────────────────────────┐  │
+│  │  Core Layer (app/core/) — 8 domain modules                    │  │
+│  │  extraction/ | matching/ | learning/ | evolution/ | pipeline/  │  │
+│  │  dashboard/ | hallucination/ | trust/                          │  │
+│  └───────────────────────┬────────────────────────────────────────┘  │
+│                          │                                           │
+│  ┌───────────────────────┴────────────────────────────────────────┐  │
+│  │  Models (app/models/) — 4 ORM modules                         │  │
+│  │  extraction_models | evolution_models | learning_models        │  │
+│  │  pipeline_models                                               │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
+         │                    │                    │
+    ┌────┴─────┐        ┌────┴─────┐        ┌────┴─────┐
+    │PostgreSQL│        │  Neo4j   │        │  Redis   │
+    │(asyncpg) │        │(py2neo)  │        │(pub/sub) │
+    └──────────┘        └──────────┘        └──────────┘
 ```
 
-## Component Responsibilities
+## Backend Architecture
 
-| Component | Responsibility | File |
-|-----------|----------------|------|
-| FastAPI App | HTTP server, lifecycle management, CORS | `backend/app/main.py` |
-| API Router v1 | Route aggregation for 14 business modules | `backend/app/api/v1/router.py` |
-| Graph Service | Neo4j queries, node/edge serialization | `backend/app/services/graph_service.py` |
-| Match Service | Person-position matching, skill gap analysis | `backend/app/services/match_service.py` |
-| Resume Service | PDF/Word parsing, skill extraction | `backend/app/services/resume_service.py` |
-| Extraction Core | JD skill extraction, LLM client, normalization | `backend/app/core/extraction/` |
-| Evolution Core | Skill trend analysis, diff engine, emergence | `backend/app/core/evolution/` |
-| Pipeline Core | DAG orchestration, stage execution, cron | `backend/app/core/pipeline/` |
-| Graph Engine | Neo4j graph operations, Cypher queries | `backend/app/core/graph_engine/` |
-| Trust Integration | Trust scoring, hallucination guard | `backend/app/core/trust/` |
-| Celery Tasks | Background job dispatch, retry logic | `backend/app/tasks/celery_app.py` |
-| Graph Store (Pinia) | Three-layer graph view state (domain/position/detail) | `frontend/src/stores/graph.ts` |
-| Match Store (Pinia) | Match results, history, skill gaps | `frontend/src/stores/match.ts` |
-| Graph3D Component | WebGL 3D force-directed graph | `frontend/src/components/Graph3D.vue` |
-| Graph2D Component | G6 2D graph with layout switching | `frontend/src/components/Graph2D.vue` |
+### Layered Architecture: API -> Service -> Core -> Models
 
-## Pattern Overview
+**API Layer** (`backend/app/api/v1/`):
+- Thin HTTP handlers: request parsing, dependency injection, domain-exception to HTTP-exception mapping, response serialization
+- All routes aggregated in `router.py` under `/api/v1` prefix with `get_current_user` dependency
+- Sub-routers split by domain in Phase 7 (e.g., `evolution_career_path.py`, `admin_graph_nodes.py`, `admin_prompts.py`)
 
-**Overall:** Layered Architecture with Domain-Driven Design (DDD) boundaries
+**Service Layer** (`backend/app/services/`):
+- Business logic orchestration: `match_service.py`, `graph_service.py`, `learning_service.py`, `neo4j_service.py`
+- Admin services: `admin_audit_service.py`, `admin_graph_service.py`, `admin_ab_service.py`
+- Infrastructure: `resources.py` (PostgreSQL/Neo4j/Redis connection lifecycle), `dedup_service.py`, `graph_sync.py`
 
-**Key Characteristics:**
-- **Contract-First:** OpenAPI 3.0 spec in `starmap-contracts/openapi.yaml` serves as single source of truth
-- **Async-First:** All I/O operations use async/await (asyncpg, neo4j async driver, httpx)
-- **Dependency Injection:** FastAPI `Depends()` for DB sessions, Neo4j drivers, Redis clients
-- **Repository Pattern:** Data access abstracted behind repository interfaces
-- **CQRS-Lite:** Separate read/write models for graph queries vs. pipeline state
+**Core Layer** (`backend/app/core/`):
+- Domain logic isolated from HTTP concerns:
+  - `extraction/`: JD extraction pipeline, LLM client, normalization, graph writer, hallucination guard
+  - `matching/`: match scoring, prerequisite path builder, caching
+  - `learning/`: path engine, progress tracker
+  - `evolution/`: emergence finder, diff engine, snapshot manager, timeseries loader, trust integration
+  - `pipeline/`: orchestrator, executor, loop orchestrator, quality monitor, cron scheduler, bootstrap
+  - `dashboard/`: dashboard service, SSE broadcaster
 
-## Layers
+**Models Layer** (`backend/app/models/`):
+- SQLAlchemy ORM models: `extraction_models.py` (PositionRecord, SkillRecord, JDExtractionRecord, ReviewQueue), `evolution_models.py` (EvolutionChangelog, EvolutionPath, EvolutionSnapshot, SkillTimeseries), `learning_models.py` (LearningPlan, LearningProgress), `pipeline_models.py` (PipelineRun, PipelineSchedule, DataSourceRecord)
 
-**Frontend Layer:**
-- Purpose: SPA with 3D/2D graph visualization, admin dashboards, matching UI
-- Location: `frontend/src/`
-- Contains: Vue components, Pinia stores, composables, API client, mock handlers
-- Depends on: Backend REST API (`/api/v1`), MSW (dev mode)
-- Used by: End users via browser
+### Key Modules and Responsibilities
 
-**API Gateway Layer:**
-- Purpose: HTTP request handling, validation, routing, CORS
-- Location: `backend/app/api/v1/`
-- Contains: FastAPI routers, Pydantic schemas, dependency injection
-- Depends on: Service layer, Core engines
-- Used by: Frontend, external integrations
+| Module | Responsibility | File |
+|--------|----------------|------|
+| Router Aggregator | Mounts all API sub-routers under /api/v1 | `backend/app/api/v1/router.py` |
+| Auth Dependencies | JWT validation, admin role check | `backend/app/dependencies.py` |
+| App Entry | FastAPI app, lifespan, middleware (CORS, rate-limit, security headers) | `backend/app/main.py` |
+| Resource Init | PostgreSQL/Neo4j/Redis connection lifecycle | `backend/app/services/resources.py` |
+| Config | Centralized settings from env vars | `backend/app/config.py` |
+| Pipeline Engine | DAG execution with step isolation | `backend/app/pipeline/engine.py` |
+| Loop Orchestrator | 5-step closed-loop (extract->graph->match->learn) | `backend/app/core/pipeline/loop_orchestrator.py` |
+| SSE Broadcaster | Redis pub/sub to SSE event stream | `backend/app/core/dashboard/sse_broadcaster.py` |
+| Celery Tasks | Async evolution analysis | `backend/app/tasks/celery_app.py` |
 
-**Service Layer:**
-- Purpose: Business logic orchestration, cross-cutting concerns
-- Location: `backend/app/services/`
-- Contains: Graph service, match service, resume service, learning service, Neo4j service
-- Depends on: Core engines, repositories, external APIs
-- Used by: API layer
+## Frontend Architecture
 
-**Core Engine Layer:**
-- Purpose: Domain-specific algorithms (NLP, graph analysis, evolution detection)
-- Location: `backend/app/core/`
-- Contains: Extraction, evolution, pipeline, graph engine, matching, trust, hallucination guard
-- Depends on: Data access layer, LLM APIs
-- Used by: Service layer
+### Vue 3 + Pinia + Vue Router
 
-**Data Access Layer:**
-- Purpose: Persistence and caching abstraction
-- Location: `backend/app/models/`, `backend/app/repositories/`
-- Contains: SQLAlchemy models, repository classes, connection management
-- Depends on: PostgreSQL, Neo4j, Redis, ChromaDB
-- Used by: Service layer, Core engines
+**Page Layer** (`frontend/src/pages/`):
+- 15 page components, each consuming Pinia stores and composables
+- Key pages: `Home.vue` (graph), `ExtractJD.vue`, `MatchDiagnosis.vue`, `EvolutionDashboard.vue`, `LearningCenter.vue`, `PipelineMonitor.vue`, `Admin.vue`, `PipelineAnalysis.vue`, `LoopDemo.vue`
 
-## Data Flow
+**Component Layer** (`frontend/src/components/`):
+- 40+ shared components: `SkillRadar.vue`, `GapAnalysisReport.vue`, `LearningPathPlan.vue`, `LearningPathFlow.vue`, `Graph2D.vue`, `Graph3D.vue`, `PipelineDag.vue`, `PromptManager.vue`, `ResumeUpload.vue`, etc.
 
-### Primary Request Path (Graph Query)
+**Composable Layer** (`frontend/src/composables/`):
+- 25+ composables extracting reusable logic from pages
+- SSE: `useSSE.ts` (exponential backoff + polling fallback)
+- Graph: `useG6.ts`, `useG6Graph.ts`, `useGraphNodeEditor.ts`, `useGraphNodeList.ts`, `useGraphNodeLabels.ts`
+- Dashboard: `useDashboardCharts.ts`, `useDashboardKpiCards.ts`, `useDashboardRealtimeSync.ts`
+- Domain-specific: `useEvolutionCharts.ts`, `useEvolutionActions.ts`, `useLearningActions.ts`, `useLearningFilters.ts`, `useLearningMetrics.ts`, `usePipelineMonitor.ts`, `useQualityDashboard.ts`
 
-1. **Browser** sends GET `/api/v1/graph/position/{id}/skills`
-2. **FastAPI Router** (`backend/app/api/v1/graph.py:73`) validates params, injects Neo4j driver
-3. **Graph Service** (`backend/app/services/graph_service.py:fetch_position_graph`) builds Cypher query
-4. **Neo4j Driver** executes query, returns nodes and relationships
-5. **Graph Service** serializes to `PositionSkillDetailResponse` schema
-6. **FastAPI** returns JSON to frontend
-7. **Pinia Store** (`frontend/src/stores/graph.ts`) updates reactive state
-8. **Vue Component** (`frontend/src/components/Graph3D.vue` or `Graph2D.vue`) renders graph
+**Store Layer** (`frontend/src/stores/`):
+- 18 Pinia stores, each wrapping axios calls to specific backend API prefixes
+- All stores use `request.ts` (axios instance with auth token injection, loading bar, error toasts)
 
-### Pipeline Execution Flow
+**API Client Layer** (`frontend/src/api/`):
+- `request.ts`: axios instance with baseURL `/api/v1`, 30s timeout, auth interceptor, 401->login redirect
+- `request.improved.ts`: alternative client (not primary)
+- `client.ts`, `schema.ts`: supplementary
 
-1. **Trigger** — API POST `/api/v1/pipeline/trigger` creates `PipelineRun` record
-2. **Orchestrator** (`backend/app/core/pipeline/orchestrator.py`) builds DAG stages
-3. **Celery Task** (`backend/app/tasks/celery_app.py:execute_pipeline_stage`) dispatches ready stages
-4. **Executor** (`backend/app/core/pipeline/executor.py`) runs stage logic (crawl → dedup → clean → import → graph_sync)
-5. **Progress** — SSE events broadcast via Redis pub/sub (`backend/app/core/dashboard/sse_broadcaster.py`)
-6. **Completion** — Stage status updated, next stages dispatched, run marked complete/failed
+**Router** (`frontend/src/router/index.ts`):
+- 15 routes with lazy-loaded page components
+- Auth guard: `requiresAuth` meta, `requiresAdmin` meta, 401 event listener redirects to `/login`
 
-### Skill Extraction Flow
+## Data Flow Architecture
 
-1. **Upload** — Resume/JD uploaded via `/api/v1/extract/resume` or `/api/v1/extract/jd`
-2. **Parse** — `pdfplumber`/`python-docx` extracts raw text
-3. **LLM Call** — `backend/app/core/extraction/llm_client.py` calls MiMo → DeepSeek → Xunfei → Ollama (fallback chain)
-4. **Normalize** — `backend/app/core/extraction/normalize.py` canonicalizes skill names
-5. **Hallucination Guard** — `backend/app/core/evolution/hallucination_guard.py` validates against ontology
-6. **Persist** — Results stored in PostgreSQL (`JDExtractionRecord`, `SkillRecord`)
-7. **Graph Sync** — MERGE operations write to Neo4j
+### Primary Request Path: JD Extraction to Learning Plan
 
-## Key Abstractions
+1. User pastes JD text in `ExtractJD.vue` (`frontend/src/pages/ExtractJD.vue`)
+2. `useJdStore.extractJd()` calls `POST /extract/jd` (`frontend/src/stores/jd.ts:98`)
+3. Backend `extract_jd()` invokes `extract_from_jd()` LLM pipeline (`backend/app/api/v1/extract.py:122`)
+4. `_write_extraction_to_graph()` persists skills to Neo4j (`backend/app/api/v1/extract.py:94`)
+5. Returns `ExtractionResult` with `normalized_skills`, `required_skills`, `confidence`
+6. Frontend displays extracted skills in tags and normalized table
 
-**GraphNode / GraphEdge:**
-- Purpose: Unified data structure for frontend graph visualization
-- Location: `frontend/src/stores/graph.ts`, `backend/app/api/v1/graph.py`
-- Pattern: Shared contract between backend API and frontend stores
+### Match Diagnosis Flow
 
-**PipelineRun / Stage:**
-- Purpose: Track ETL pipeline execution state
-- Location: `backend/app/models/pipeline_models.py`
-- Pattern: State machine with DAG dependency resolution
+1. User uploads resume in `MatchDiagnosis.vue` step 0 (`frontend/src/pages/MatchDiagnosis.vue:58`)
+2. `useResumeStore.parseResume()` calls `POST /resume/upload` (`frontend/src/stores/resume.ts:26`)
+3. User selects target position in step 1, `useMatchStore.fetchPositionSkills()` calls `GET /graph/position/{id}/skills`
+4. User triggers diagnosis in step 2, `useMatchStore.runMatch()` calls `POST /match/position` (`frontend/src/stores/match.ts:51`)
+5. Backend `run_match()` computes match score, gap analysis, persists to PostgreSQL (`backend/app/services/match_service.py`)
+6. Frontend displays radar chart, gap analysis, and learning path plan in steps 3-4
 
-**EvolutionResult:**
-- Purpose: Container for 8-step evolution analysis output
-- Location: `backend/app/core/evolution/orchestrator.py`
-- Pattern: Dataclass aggregator for multi-step pipeline results
+### Pipeline Data Flow
 
-**AppResources:**
-- Purpose: Singleton holding database connections (PostgreSQL, Neo4j, Redis)
-- Location: `backend/app/services/resources.py`
-- Pattern: Application-level resource lifecycle management
+1. `PipelineMonitor.vue` fetches status via `GET /pipeline/status` (`frontend/src/stores/pipeline.ts:153`)
+2. SSE stream at `GET /pipeline/events` pushes real-time stage updates (`backend/app/api/v1/pipeline/routes.py:322`)
+3. Admin triggers pipeline via `POST /pipeline/trigger` (requires admin role)
+4. Pipeline engine executes DAG: crawl -> dedup -> clean -> import -> graph_sync (`backend/app/pipeline/engine.py`)
+5. Each stage updates `PipelineRun` in PostgreSQL and publishes SSE events via Redis
 
-## Entry Points
+### Closed-Loop Flow (LoopDemo)
 
-**Backend API:**
-- Location: `backend/app/main.py`
-- Triggers: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
-- Responsibilities: Initialize AppResources, mount API routers, health checks
-
-**Celery Worker:**
-- Location: `backend/app/tasks/celery_app.py`
-- Triggers: `celery -A app.tasks.celery_app.celery_app worker --loglevel=info`
-- Responsibilities: Execute background tasks (extraction, graph build, evolution analysis)
-
-**Frontend Dev:**
-- Location: `frontend/src/main.ts`
-- Triggers: `npm run dev` (Vite dev server)
-- Responsibilities: Bootstrap Vue app, register Pinia, Element Plus, ECharts, router
-
-**Crawler CLI:**
-- Location: `crawler/run.py`
-- Triggers: `python run.py <command>`
-- Responsibilities: Spider execution, data ingestion, stats
-
-## Architectural Constraints
-
-**Threading:**
-- Single-threaded async event loop (FastAPI + Uvicorn)
-- Celery workers run in separate processes (multi-processing for CPU-bound tasks)
-- ThreadPoolExecutor used sparingly for sync-to-async bridges in Celery tasks
-
-**Global State:**
-- `AppResources` singleton (`backend/app/services/resources.py`) holds database connections
-- `PREREQUISITE_MAP` module-level cache in `match_service.py` (5-minute TTL)
-- `_PROFILE_CACHE` module-level cache in `match_service.py` (5-minute TTL)
-
-**Circular Imports:**
-- Mitigated by lazy imports within functions in pipeline executor and Celery tasks
-- `__init__.py` model imports use noqa comments to manage dependency order
-
-## Anti-Patterns
-
-### Module-Level Mutable Caches
-
-**What happens:** Global dictionaries (`PREREQUISITE_MAP`, `_PROFILE_CACHE`) in `match_service.py` store cached data without proper invalidation mechanisms.
-**Why it's wrong:** Cache invalidation is ad-hoc (5-minute TTL based on monotonic time), leading to stale data under concurrent access.
-**Do this instead:** Use Redis for distributed caching with explicit TTLs, or implement a proper cache abstraction layer.
-
-### Sync-to-Async Bridge in Celery
-
-**What happens:** Celery tasks use `_run_async()` helper with `ThreadPoolExecutor` to run async coroutines.
-**Why it's wrong:** Creates unnecessary thread overhead and potential event loop conflicts.
-**Do this instead:** Use `asyncio.run()` directly in Celery task bodies where no running loop exists; consider `celery[async]` or `asgiref` for cleaner integration.
-
-## Error Handling
-
-**Strategy:** Structured exception hierarchy with FastAPI HTTPException mapping
-
-**Patterns:**
-- Custom exceptions: `LLMConnectionError`, `LLMResponseError`, `LLMTimeoutError` in `llm_client.py`
-- Retry logic: `tenacity.retry` with exponential backoff on LLM calls
-- Graceful degradation: Return 0/fallback when Neo4j queries fail
-- HTTP status mapping: 400 validation, 404 not found, 502 LLM unavailable, 500 internal
+1. `LoopDemo.vue` triggers `POST /loop/run` with JD text + target position (`frontend/src/stores/loop.ts:146`)
+2. Backend `LoopOrchestrator.run_loop()` executes 5 steps: JD input -> skill extraction -> graph update -> match diagnosis -> learning path (`backend/app/core/pipeline/loop_orchestrator.py`)
+3. Each step degrades independently on failure (partial results returned)
+4. Frontend displays step-by-step timeline with status indicators
 
 ## Cross-Cutting Concerns
 
-**Logging:**
-- `loguru` for structured logging across all backend modules
-- Log level controlled via `app_log_level` setting
-- Celery tasks include run_id and stage_name in log context
+### Authentication Flow
 
-**Validation:**
-- Pydantic v2 models for request/response validation
-- Environment variable validation via `pydantic-settings` (`backend/app/config.py`)
-- Hallucination guard validates extracted skills against ontology
+- **Backend**: JWT HMAC-SHA256 validation in `get_current_user()` (`backend/app/dependencies.py:91`)
+  - Dev mode: accepts `dev-token` or returns default dev user
+  - Production: requires valid JWT with `sub`, `role`, `username` claims
+  - `require_admin()` checks `role == "admin"`
+- **Frontend**: Token stored in `localStorage` as `starmap_token` or `token` (`frontend/src/api/request.ts:49`)
+  - Axios interceptor attaches `Authorization: Bearer {token}` to every request
+  - 401 response clears token and dispatches `auth:unauthorized` event -> router redirects to `/login`
+  - `useUserStore` decodes JWT client-side for role checks (`frontend/src/stores/user.ts:19`)
+- **Gap**: No dedicated login page -- `/login` route renders `Home.vue`. No registration or token refresh endpoints.
 
-**Authentication:**
-- Not fully implemented (placeholder in config)
-- CORS configured for localhost development
+### Error Handling Strategy
 
-**Real-time Updates:**
-- Redis pub/sub for SSE event broadcasting
-- `dashboard:events` channel for pipeline progress, quality alerts
-- Frontend consumes via `EventSource` API
+- **Backend**: Global exception handler returns generic 500 without internals (`backend/app/main.py:149`)
+  - Domain exceptions mapped to HTTP status in API layer (e.g., `AuditItemNotFound` -> 404)
+  - LLM failures: `ValueError` -> 422, `ConnectionError` -> 502
+  - Audit logging for auth failures, rate limits (`backend/app/utils/audit.py`)
+- **Frontend**: Axios response interceptor maps HTTP status to Chinese error messages (`frontend/src/api/request.ts:88`)
+  - 401 -> clear token + redirect, 403 -> permission error toast, others -> generic error toast
+  - Stores catch errors and set `error` ref for component-level display
+
+### Real-Time Updates (SSE)
+
+- **Backend**: `SSEBroadcaster` publishes events to Redis pub/sub (`backend/app/core/dashboard/sse_broadcaster.py`)
+  - Event types: `pipeline_update`, `quality_alert`, `data_milestone`, `extraction_complete`
+  - Two SSE endpoints: `/dashboard/realtime` and `/pipeline/events`
+  - Polling fallbacks: `/dashboard/realtime-poll` and `/pipeline/events-poll`
+- **Frontend**: `useSSE` composable with exponential backoff and automatic polling fallback (`frontend/src/composables/useSSE.ts`)
+  - Named event listeners for `pipeline_update`, `quality_alert`, `data_milestone`, `extraction_complete`
+  - `storeHandlers` map dispatches events to appropriate Pinia store actions
+
+## Feature Loop Completeness (功能闭环分析)
+
+### 1. JD 抽取闭环 (JD Extraction Loop)
+
+**Frontend**: `ExtractJD.vue` -> `useJdStore.extractJd()` -> `POST /extract/jd`
+**Backend**: `extract.py:extract_jd()` -> `extract_from_jd()` -> `_write_extraction_to_graph()` -> Neo4j
+**Result**: Frontend displays `position_name`, `required_skills`, `preferred_skills`, `normalized_skills`, `confidence`
+
+**Gap Analysis:**
+- **CLOSED**: Extraction -> graph write is implemented. `_write_extraction_to_graph()` persists to Neo4j (non-blocking).
+- **GAP 1 -- No navigation from extraction result to next step**: After extraction completes, there is no "Go to Match Diagnosis" or "Go to Graph View" button. The user must manually navigate. The extracted position is not auto-linked to the match flow.
+- **GAP 2 -- Resume extraction has no dedicated page**: `POST /extract/resume` and `POST /resume/upload` exist but the only entry point is inside `MatchDiagnosis.vue` step 0. There is no standalone resume extraction page.
+- **GAP 3 -- Extraction history not surfaced**: Backend stores `JDExtractionRecord` in PostgreSQL but there is no frontend list/history view for past extractions.
+
+### 2. 匹配诊断闭环 (Match Diagnosis Loop)
+
+**Frontend**: `MatchDiagnosis.vue` (5-step wizard) -> `useMatchStore.runMatch()` -> `POST /match/position`
+**Backend**: `match.py:match_position()` -> `run_match()` -> PostgreSQL + Neo4j
+**Result**: `MatchResponse` with `match_score`, `matched_skills`, `gap_skills`, `skill_gap_detail`, `recommendations`
+
+**Gap Analysis:**
+- **CLOSED**: Resume upload -> skill extraction -> position selection -> match diagnosis -> gap analysis -> learning path plan. The 5-step wizard in `MatchDiagnosis.vue` covers the full flow.
+- **GAP 1 -- Learning plan creation is not auto-triggered**: Step 4 shows `LearningPathPlan.vue` but does not call `useLearningStore.createPlan()`. The user must navigate to `/learning` and manually create a plan. The `skill_gap_detail` from match is not automatically passed to the learning store.
+- **GAP 2 -- Match history is shallow**: `GET /match/history` returns basic info (match_id, position, score) but the frontend `MatchDiagnosis.vue` only fetches history in step 3 and does not display it prominently. No "re-view past diagnosis" flow.
+- **GAP 3 -- Reverse match (`/match/recommend`) has no frontend consumer**: Backend implements `POST /match/recommend` (skills -> position recommendations) but no frontend page or store action calls it.
+- **GAP 4 -- Competitiveness analysis partially connected**: `GET /match/competitiveness/{position}` is called by `useLearningStore.fetchCompetitiveness()` but the result is only used in the learning store, not in the match diagnosis page itself.
+
+### 3. 演化追踪闭环 (Evolution Tracking Loop)
+
+**Frontend**: `EvolutionDashboard.vue` -> `useEvolutionStore.fetchTrends()` -> `GET /evolution/trends`
+**Backend**: `evolution.py:get_trends()` -> `load_skill_timeseries_data()` -> `EmergenceFinder.scan()`
+**Result**: `EvolutionTrendsResponse` with trend items (skill_name, trend, confidence, CII points, related_positions)
+
+**Gap Analysis:**
+- **CLOSED**: Trends display, emerging skills, changelog, snapshots, CII history all have backend endpoints and frontend consumers.
+- **GAP 1 -- Evolution analysis trigger is fire-and-forget**: `POST /evolution/analyze` queues a Celery task but the frontend has no UI to trigger it or check task status. The `EvolutionDashboard.vue` only reads data, never triggers analysis.
+- **GAP 2 -- Review queue not connected to admin**: `GET /evolution/review-queue` returns low-trust changes but the admin panel (`Admin.vue`) uses a separate audit queue from `admin_audit_service`. The evolution review queue and admin audit queue are disconnected.
+- **GAP 3 -- Skill portability has no frontend**: `GET /evolution/portability/{skill}` is marked "L2 -- Internal API, no frontend consumer" in the backend audit note.
+- **GAP 4 -- Career path and industry report consumed only by learning store**: `GET /evolution/career-path/{position}` and `GET /evolution/industry-report` are called by `useLearningStore` but not by `EvolutionDashboard.vue`. The evolution page does not show career paths or industry reports.
+- **GAP 5 -- Emerging alerts sub-router exists but frontend integration unclear**: `evolution_emerging_alerts.py` is included in the evolution router but the frontend `EvolutionDashboard.vue` does not have a dedicated alerts section.
+
+### 4. 数据管线闭环 (Pipeline Loop)
+
+**Frontend**: `PipelineMonitor.vue` -> `usePipelineStore.fetchStatus()` -> `GET /pipeline/status`
+**Backend**: `pipeline/routes.py:get_pipeline_status()` -> orchestrator + status aggregator + quality monitor
+**Result**: `PipelineStatusResponse` with run status, stage progress, quality alerts, data source count
+
+**Gap Analysis:**
+- **CLOSED**: Pipeline monitoring, triggering, stage status, data quality, schedules, config, SSE events, cancel, retry, resume all have both backend endpoints and frontend store actions.
+- **GAP 1 -- Pipeline analysis (jobseeker) uses raw fetch, not axios**: `useJobseekerStore.analyzeResume()` uses `fetch('/api/v1/pipeline/analyze')` directly instead of the `request.ts` axios instance (`frontend/src/stores/jobseeker.ts:82`). This bypasses auth token injection and error handling.
+- **GAP 2 -- Pipeline export endpoint has no frontend consumer**: `POST /pipeline/export` returns JSON analysis result but no frontend page or store calls it.
+- **GAP 3 -- Cron scheduler runs but schedule management is admin-only**: Schedule CRUD requires `require_admin` dependency. Regular users can view schedules but cannot create/modify them. The frontend `PipelineMonitor.vue` exposes schedule management but the auth guard may block non-admin users.
+
+### 5. 学习路径闭环 (Learning Path Loop)
+
+**Frontend**: `LearningCenter.vue` -> `useLearningStore.createPlan()` -> `POST /learning/plan`
+**Backend**: `learning.py:create_learning_plan()` -> `generate_learning_path()` -> `create_plan()` -> PostgreSQL
+**Result**: `PlanResponse` with plan_id, phases, skills, progress, total hours/weeks
+
+**Gap Analysis:**
+- **CLOSED**: Plan creation, listing, detail, progress update, skill addition, recommendations all have backend endpoints and frontend store actions.
+- **GAP 1 -- No auto-creation from match diagnosis**: The match diagnosis page (step 4) shows a learning path plan component but does not call `useLearningStore.createPlan()`. The user must manually navigate to `/learning` and create a plan. The `skill_gap_detail` from the match result is not automatically forwarded.
+- **GAP 2 -- Progress update lacks validation**: `PUT /learning/plan/{plan_id}/progress` accepts any status/progress_pct combination. The frontend optimistically updates local state without re-fetching, which can drift from backend state.
+- **GAP 3 -- Recommendations do not use match context**: `GET /learning/recommendations` accepts optional `plan_id` or `position` but the learning center page does not pass the match result context. Recommendations default to trending skills rather than gap-based suggestions.
+- **GAP 4 -- No learning completion/graduation flow**: There is no endpoint or UI to mark a plan as "completed" or to trigger a re-match after learning progress. The loop from "learn" back to "re-diagnose" is not closed.
+
+### 6. 管理后台闭环 (Admin Loop)
+
+**Frontend**: `Admin.vue` -> `useAuditStore`, `useGraphNodeStore`, `useDataSourceStore`, `usePromptStore`
+**Backend**: `admin.py` + sub-routers -> `admin_audit_service`, `admin_graph_service`, `admin_ab_service`
+**Result**: Audit queue CRUD, graph node CRUD, prompt version management, A/B testing, data source config
+
+**Gap Analysis:**
+- **CLOSED**: Audit queue (fetch, approve, reject, batch, update), graph node CRUD (list, create, update, delete, approve, reject), prompt management (list, template, version, activate, A/B test, results), data source management (list, detail, update, stats, sync, health).
+- **GAP 1 -- Admin stats not displayed**: `GET /admin/stats` returns `AdminStatsResponse` but `Admin.vue` does not have a stats dashboard section. The admin page focuses on audit queue, graph nodes, data sources, and prompts.
+- **GAP 2 -- Pipeline management in admin is redundant**: `GET /admin/pipeline/status` and `POST /admin/pipeline/trigger-full` duplicate functionality from `/pipeline/status` and `/pipeline/trigger`. The admin page does not use these endpoints.
+- **GAP 3 -- Judge evaluation has no admin UI**: `POST /judge/evaluate`, `POST /judge/pairwise`, `POST /judge/batch` are internal APIs with no frontend consumer. Quality evaluation must be triggered via API directly.
+- **GAP 4 -- Comprehensive quality report not surfaced**: `GET /quality/comprehensive-report` aggregates JD + resume + graph quality but has no frontend page. The `QualityDashboard.vue` only calls `/quality/dashboard` instead.
+
+### 7. 闭环演示闭环 (Loop Demo)
+
+**Frontend**: `LoopDemo.vue` -> `useLoopStore.runLoop()` -> `POST /loop/run`
+**Backend**: `loop.py:run_loop()` -> `LoopOrchestrator.run_loop()` -> 5-step pipeline
+**Result**: `LoopRunResponse` with step-by-step results, extracted skills, graph update, match result, learning path
+
+**Gap Analysis:**
+- **CLOSED**: The loop demo page triggers the full 5-step pipeline and displays step-by-step results with timeline visualization.
+- **GAP 1 -- Loop results not persisted to learning center**: The learning path generated in step 5 of the loop is displayed in the loop demo but not forwarded to `useLearningStore`. The user cannot continue the learning journey from the loop demo.
+- **GAP 2 -- Loop history is minimal**: `GET /loop/history` returns basic info but the loop demo page does not prominently display past runs or allow re-viewing them.
+
+### 8. 数据大屏闭环 (Data Dashboard Loop)
+
+**Frontend**: `DataDashboard.vue` -> `useDashboardStore.fetchAll()` -> multiple GET endpoints
+**Backend**: `dashboard.py` -> `dashboard_service.py` + `sse_broadcaster.py`
+**Result**: Overview KPIs, trends, distributions, emerging skills, pipeline timeline, realtime events
+
+**Gap Analysis:**
+- **CLOSED**: All dashboard data endpoints have frontend consumers. SSE realtime events are consumed via `useSSE`.
+- **GAP 1 -- Dashboard data is read-only**: No write operations from the dashboard. Users cannot trigger actions (e.g., start pipeline, approve audit items) directly from the dashboard view.
+
+## Architectural Constraints
+
+- **Threading**: Single-threaded async event loop (FastAPI + asyncio). Celery workers for long-running tasks (evolution analysis).
+- **Global state**: `resources` singleton in `backend/app/services/resources.py:38` holds PostgreSQL/Neo4j/Redis connections. `_rate_buckets` dict in `main.py:107` for in-memory rate limiting. `_ab_results` defaultdict in `admin_prompts.py:35` for A/B test tracking (process-local, not shared across workers).
+- **Circular imports**: Sub-routers imported at module bottom with `# noqa: E402` (e.g., `evolution.py:590-598`, `admin.py:228-231`). These are deferred imports to avoid circular dependency at module load time.
+- **Dual data stores**: PostgreSQL for structured data (positions, skills, match results, pipeline runs, learning plans) and Neo4j for graph data (Position/Skill nodes, REQUIRES/EVOLVES_TO edges). Some data is duplicated (e.g., evolution paths exist in both PG `evolution_paths` table and Neo4j EVOLVES_TO relationships). Neo4j is primary for graph queries; PG is fallback.
+
+## Anti-Patterns
+
+### Store-Page Coupling Without Cross-Store Communication
+
+**What happens**: `MatchDiagnosis.vue` produces match results in `useMatchStore` but `LearningCenter.vue` consumes `useLearningStore`. There is no programmatic bridge between the two stores. The user must manually navigate and re-enter data.
+**Why it is wrong**: The core business flow (match -> learn) is broken at the store boundary. Users lose context when navigating between pages.
+**Do this instead**: After match diagnosis completes, auto-populate `useLearningStore.createPlan()` with the match result's `skill_gap_detail`. Add a "Create Learning Plan" button in `MatchDiagnosis.vue` step 4 that calls `learningStore.createPlan()` with the match result.
+
+### Raw Fetch Bypassing Axios Interceptors
+
+**What happens**: `useJobseekerStore.analyzeResume()` uses `fetch('/api/v1/pipeline/analyze')` directly instead of the `request.ts` axios instance (`frontend/src/stores/jobseeker.ts:82`).
+**Why it is wrong**: This bypasses auth token injection, loading bar, error toast, and 401 redirect handling. If the token expires, the request will fail silently with a 401 instead of redirecting to login.
+**Do this instead**: Use the `request.ts` axios instance for all API calls. For SSE/streaming responses, use the axios instance with `responseType: 'stream'` or keep raw fetch but manually inject the auth header from localStorage.
+
+### Backend-Only APIs Without Frontend Consumers
+
+**What happens**: Several backend endpoints are marked "Internal API, no frontend consumer" in audit notes: `/evolution/portability/{skill}`, `/quality/evaluate/resume`, `/quality/comprehensive-report`, `/judge/*`, `/match/recommend`, `/pipeline/export`.
+**Why it is wrong**: These represent implemented backend capabilities that users cannot access. They increase maintenance burden without delivering user value.
+**Do this instead**: Either build frontend UI for these features or remove the endpoints if they are truly internal-only. At minimum, document them in an internal API reference separate from the user-facing API.
+
+## Error Handling
+
+**Strategy**: Layered error handling with domain-specific exceptions at the core, HTTP mapping at the API layer, and user-friendly messages at the frontend.
+
+**Patterns:**
+- Backend: Domain exceptions (e.g., `AuditItemNotFound`, `RunNotFoundError`) raised in services, caught and mapped to HTTP status in API handlers
+- Backend: Global exception handler catches unhandled exceptions, logs with stack trace, returns generic 500
+- Frontend: Axios interceptor maps HTTP status codes to Chinese error messages, shows ElMessage/ElNotification
+- Frontend: Stores catch errors, set `error` ref, and re-throw for component-level handling
+- Frontend: SSE composable handles connection errors with exponential backoff and polling fallback
+
+## Cross-Cutting Concerns
+
+**Logging**: Loguru with JSON-structured output in production, colored output in development (`backend/app/main.py:28-41`)
+**Validation**: Pydantic models for all request/response schemas at the API layer. SQLAlchemy models for database constraints.
+**Authentication**: JWT HMAC-SHA256 with role-based access control. All API routes require authentication by default. Admin routes require `role == "admin"`.
 
 ---
 
-*Architecture analysis: 2026-07-05*
+*Architecture analysis: 2026-07-12*

@@ -240,6 +240,7 @@ const {
           :data="pipeline.schedules"
           size="small"
           stripe
+              empty-text="暂无数据"
         >
           <el-table-column
             prop="name"

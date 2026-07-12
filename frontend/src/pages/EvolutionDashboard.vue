@@ -360,6 +360,7 @@ onMounted(() => {
           size="small"
           stripe
           @row-click="(row: TrendItem) => fetchChangelog(row.skill_name)"
+              empty-text="暂无数据"
         >
           <el-table-column
             prop="skill_name"

@@ -1,546 +1,152 @@
-# StarMap 代码规范文档
+# Conventions — StarMap
 
-> 本规范提取自项目实际配置文件与代码实践，覆盖后端（Python/FastAPI）与前端（Vue 3 + TypeScript）双栈。
-> 生成日期：2026-07-05
+**Analysis Date:** 2026-07-12
 
----
+## Backend Conventions
 
-## 1. 命名规范
+### Python Style
+- **Naming:** snake_case for files, variables, and functions; PascalCase for classes
+- **Line width:** 120 characters (Ruff config `line-length = 120`)
+- **Formatter/Linter:** Ruff (`ruff check .` + `ruff format .`)
+- **Target version:** Python 3.11 (`target-version = "py311"`)
+- **Ruff rule set:** E, F, W, I, N, UP, B, C4; E501 and B008 ignored
+- **Type hints:** `from __future__ import annotations` at top of every module; mypy for type checking
+- **mypy strictness:** `strict = false`, `ignore_missing_imports = true`, `disallow_incomplete_defs = true`
+- **Docstrings:** Chinese business description comments (`业务说明：`) and technical comments (`技术说明：`) on model fields and test classes; module-level docstrings in Chinese
 
-### 1.1 文件命名
+### API Patterns
+- **Framework:** FastAPI with APIRouter per domain module
+- **Router registration:** Each module exports `router = APIRouter(...)` with prefix and tags; all routers aggregated in `backend/app/api/v1/router.py`
+- **Pydantic models:** Request/response schemas defined inline in route files using `BaseModel` + `Field(..., description=...)`; no separate schemas directory for most modules (exception: `backend/app/api/v1/pipeline/schemas.py`)
+- **Dependency injection:** FastAPI `Depends()` for DB sessions, Neo4j driver, Redis client, and auth (`backend/app/dependencies.py`)
+- **Auth:** `get_current_user` dependency on all v1 routes; `require_admin` for admin-only endpoints
+- **API field naming:** snake_case throughout (e.g., `match_score`, `skill_name`, `source_count`); no camelCase conversion
 
-#### Python（后端 `backend/app/`）
+### Error Handling
+- **API layer:** `HTTPException` with status code and `detail` string
+- **Service layer:** Domain-specific exceptions; let them propagate to API layer
+- **Global handler:** `@app.exception_handler(Exception)` in `backend/app/main.py` catches unhandled exceptions, logs them, returns generic 500
+- **LLM failures:** Return 502 with `"LLM service unavailable"` detail
+- **Validation errors:** FastAPI auto-returns 422 for Pydantic validation failures
 
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| 模块文件 | `snake_case.py` | `graph_service.py`, `evolution_models.py` |
-| 测试文件 | `test_<module>.py` | `test_graph_service.py` |
-| 路由文件 | `<feature>.py` | `graph.py`, `position.py` |
-| 模型文件 | `<feature>_models.py` | `evolution_models.py`, `extraction_models.py` |
-| 配置文件 | `config.py`（单数） | `config.py`, `dependencies.py` |
-| 入口文件 | `main.py` | `main.py` |
-| Alembic 迁移 | `XXX_<description>.py`（3位数字） | `003_add_evolution_tables.py` |
+### Logging
+- **Framework:** loguru (`from loguru import logger`)
+- **Production:** JSON-structured output (`serialize=True`) for ELK/Loki ingestion
+- **Development:** Colored human-readable format
+- **Audit logging:** Structured `AuditEntry` dataclass via `backend/app/utils/audit.py` with event types from `AuditEvent` StrEnum
+- **Pattern:** `logger.info("StarMap 启动中... env={}", settings.app_env)` — brace-style formatting, not f-strings
 
-#### TypeScript / Vue（前端 `frontend/src/`）
+### Configuration
+- **Settings class:** `pydantic-settings` `BaseSettings` in `backend/app/config.py`; reads from `.env`
+- **Singleton:** `@lru_cache` on `get_settings()`; module-level `settings = get_settings()`
+- **Validation:** `@model_validator(mode="after")` checks for unconfigured passwords, production constraints
 
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| Vue 组件 | `PascalCase.vue` | `Graph2D.vue`, `DetailPanel.vue` |
-| 页面组件 | `PascalCase.vue`（语义化） | `HomeGraphSection.vue` |
-| Store 文件 | `<feature>.ts`（kebab-case） | `graph.ts`, `dashboard.ts` |
-| Composable | `use<Feature>.ts`（camelCase） | `useKPIMetrics.ts`, `useSSE.ts` |
-| API 请求 | `request.ts`, `schema.ts` | `request.ts` |
-| 工具函数 | `<feature>.ts` | `graphColors.ts` |
-| 样式文件 | `*.css` / `*.scss` | `animations.css` |
+### Module Organization
+- **API routes:** `backend/app/api/v1/` — one file per domain (e.g., `graph.py`, `match.py`, `evolution.py`)
+- **Core business logic:** `backend/app/core/` — subpackages by domain (`extraction/`, `evolution/`, `matching/`, `learning/`, `dashboard/`, `pipeline/`)
+- **Services:** `backend/app/services/` — data access and external integration (Neo4j, graph queries, matching)
+- **Models:** `backend/app/models/` — SQLAlchemy ORM models, one file per domain
+- **Repositories:** `backend/app/repositories/` — data access layer (currently only `position_repository.py`)
+- **Tasks:** `backend/app/tasks/` — Celery async tasks
+- **Utilities:** `backend/app/utils/` — shared helpers (`audit.py`, `async_helpers.py`)
 
-### 1.2 类命名
-
-#### Python
-
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| Pydantic 模型 | `PascalCase`，语义化 | `GraphNode`, `PositionNode`, `SkillNode` |
-| SQLAlchemy 模型 | `PascalCase`，表名复数 | `EvolutionSnapshot`, `EvolutionChangelog` |
-| 异常类 | `PascalCase` + `Error` / `Exception` | `HTTPException`（FastAPI 内置） |
-| 服务类 | 无强制类封装，函数式为主 | — |
-
-#### TypeScript
-
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| 接口 / 类型 | `PascalCase` | `GraphNode`, `GraphEdge`, `ViewLayer` |
-| Store 类型 | `PascalCase` + 后缀 | `DomainOverviewItem` |
-| Props 类型 | 内联 `defineProps<{}>` 或单独接口 | — |
-
-### 1.3 函数命名
-
-#### Python
-
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| 公共 API 函数 | `snake_case`，动词开头 | `fetch_position_graph()`, `sync_from_pipeline()` |
-| 私有辅助函数 | `_snake_case`（单下划线） | `_safe_properties()`, `_node_id()` |
-| 异步函数 | `async def` + `snake_case` | `async def count_positions_neo4j(...)` |
-| 生命周期 / 回调 | `snake_case`，语义化 | `lifespan()`, `healthcheck_resources()` |
-
-#### TypeScript / Vue
-
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| Composable | `use<Feature>()`（camelCase） | `useKPIMetrics()`, `useGraphStore()` |
-| Store Actions | `camelCase`，动词开头 | `fetchOverview()`, `goToDomainLayer()` |
-| 组件方法 | `camelCase` | `highlightNode()`, `renderCurrentLayer()` |
-| 事件处理 | `handle<Event>` 或 `on<Event>` | `handleResize()` |
-| 工具函数 | `camelCase` | `cv()`, `loadG6Graph()` |
-
-### 1.4 变量命名
-
-#### Python
-
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| 常量 | `UPPER_SNAKE_CASE` | `TECH_STACK_KEYWORDS`, `LEVEL_COLORS` |
-| 模块级变量 | `snake_case` | `api_router = APIRouter()` |
-| 局部变量 | `snake_case`，语义化 | `position_name`, `skill_count` |
-| 类型注解变量 | 使用 `Mapped[...]` 声明 | `id: Mapped[uuid.UUID]` |
-| 私有变量 | 单下划线前缀 | `_domain_colors` |
-
-#### TypeScript
-
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| 响应式变量 | `camelCase` + `ref` | `const loading = ref(false)` |
-| 计算属性 | `camelCase` + `computed` | `const visibleNodes = computed(...)` |
-| 常量 | `UPPER_SNAKE_CASE` | `NODE_TYPE_COLORS`, `KA_FALLBACK_COLORS` |
-| 模板引用 | `camelCase` + `Ref` | `const containerRef = ref<HTMLElement>()` |
-| 全局状态 | 使用 Pinia `defineStore` | `const graphStore = useGraphStore()` |
+### Import Conventions
+- `from __future__ import annotations` always first
+- stdlib imports
+- third-party imports (fastapi, sqlalchemy, pydantic, loguru)
+- local app imports
+- Re-exports use `# noqa: F401` comments for backward compatibility (see `backend/app/services/graph_service.py`)
 
 ---
 
-## 2. 代码风格
+## Frontend Conventions
 
-### 2.1 Python（Ruff + MyPy）
+### Vue Component Style
+- **Framework:** Vue 3 Composition API with `<script setup lang="ts">`
+- **Component naming:** PascalCase files and components (e.g., `SkillRadar.vue`, `DataSourceCard.vue`)
+- **Variable naming:** camelCase for variables and functions (e.g., `radarOption`, `fetchOverview`)
+- **Props:** Typed with `defineProps<{ ... }>()` using TypeScript interface
+- **Emits:** Typed with `defineEmits<{ ... }>()`
+- **Exports:** `export interface` for prop types co-located in the same `<script setup>` block
 
-#### Ruff 配置（`backend/pyproject.toml`）
+### Pinia Stores
+- **Pattern:** `defineStore('name', () => { ... })` — setup function syntax, not options API
+- **File naming:** One store per file in `frontend/src/stores/`, named by domain (e.g., `graph.ts`, `match.ts`, `evolution.ts`)
+- **State:** `ref<T>()` for reactive state; `computed()` for derived state
+- **Actions:** Regular async functions within the setup function
+- **Return:** Explicit return object listing all exposed state, computed, and actions
+- **API calls:** Use `request.get/post/put/delete` from `frontend/src/api/request.ts`
 
-```toml
-[tool.ruff]
-line-length = 120
-target-version = "py311"
+### API Client
+- **Base client:** Axios instance in `frontend/src/api/request.ts` with interceptors for auth token, loading bar, error messages
+- **Typed client:** `frontend/src/api/client.ts` wraps `request` with OpenAPI-generated types from `frontend/src/api/schema.ts`
+- **Schema generation:** `npm run gen:api` runs `openapi-typescript ../starmap-contracts/openapi.yaml -o src/api/schema.ts`
+- **Migration path:** New code should use `api.*` from `client.ts`; existing `request.get/post` + `as any` casts can be migrated incrementally
 
-[tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
-ignore = ["E501", "B008"]  # E501: 行长由 formatter 管; B008: FastAPI 依赖注入标准模式
-```
+### Styling
+- **UI library:** Element Plus with Chinese locale (`zhCn`)
+- **Charts:** ECharts via `vue-echarts` (registered globally as `<VChart>`)
+- **Graph visualization:** @antv/G6 for 2D, 3d-force-graph + Three.js for 3D
+- **CSS:** Scoped styles with CSS custom properties (e.g., `var(--font-size-lg)`, `var(--foreground)`, `var(--space-3)`)
+- **Theme:** Chart theme utilities in `frontend/src/utils/chartTheme.ts`
 
-#### 启用的规则集
+### TypeScript
+- **Strict mode:** `strict: true` in `tsconfig.json`
+- **Known debt:** `@typescript-eslint/no-explicit-any` is `off` in ESLint; some stores use `as any` casts
+- **Path alias:** `@/` maps to `src/`
+- **Type check:** `vue-tsc --noEmit` via `npm run typecheck`
+- **Build gate:** `npm run build` runs `vue-tsc --noEmit && vite build`
 
-| 规则集 | 说明 |
-|--------|------|
-| `E` | pycodestyle 错误 |
-| `F` | Pyflakes（未使用导入等） |
-| `W` | pycodestyle 警告 |
-| `I` | isort（导入排序） |
-| `N` | pep8-naming（命名规范） |
-| `UP` | pyupgrade（Python 升级提示） |
-| `B` | flake8-bugbear（潜在 bug） |
-| `C4` | flake8-comprehensions（列表/字典推导优化） |
+### Routing
+- **Router:** Vue Router 4 with `createWebHistory`
+- **Route meta:** `{ title, icon, breadcrumb, transition, requiresAuth, requiresAdmin }`
+- **Lazy loading:** All page components use `() => import('@/pages/...')`
+- **Auth guard:** `router.beforeEach` checks `requiresAuth` and `requiresAdmin` meta fields
+- **401 handling:** `window` custom event `auth:unauthorized` dispatched by axios interceptor, caught by router
 
-#### MyPy 配置
-
-```toml
-[tool.mypy]
-python_version = "3.11"
-strict = false
-ignore_missing_imports = true
-warn_return_any = false
-warn_unused_ignores = false
-```
-
-- `strict = false`：新模块类型检查较宽松，逐步完善
-- 特定模块可配置 `ignore_errors = true`（如 `app.core.dashboard.*` 等）
-
-#### Python 代码风格要点
-
-- **行长度**：120 字符（Ruff formatter 管理）
-- **导入排序**：Ruff `I` 规则自动排序，标准库 → 第三方 → 本地
-- **类型注解**：函数参数和返回值必须标注类型
-- **字符串引号**：模块 docstring 使用 `"""`，内部字符串使用单引号或双引号一致
-- **注释风格**：
-  - 模块级 docstring：三引号，中英文混合，包含业务说明和技术说明
-  - 行内注释：`# 业务说明：...` / `# 技术说明：...`
-  - 分隔注释：`# ── 标题 ──`
-
-### 2.2 TypeScript / Vue（ESLint + TypeScript）
-
-#### ESLint 配置（来自 `frontend/package.json`）
-
-```json
-{
-  "lint": "eslint . --ext .vue,.ts,.tsx --max-warnings 50",
-  "lint:fix": "eslint . --ext .vue,.ts,.tsx --fix"
-}
-```
-
-#### 依赖的 ESLint 插件
-
-| 包 | 版本 | 用途 |
-|----|------|------|
-| `eslint` | ^8.57.0 | 核心 |
-| `@typescript-eslint/eslint-plugin` | ^7.3.0 | TypeScript 规则 |
-| `@typescript-eslint/parser` | ^7.3.0 | TypeScript 解析 |
-| `eslint-plugin-vue` | ^9.23.0 | Vue 规则 |
-| `vue-eslint-parser` | ^9.4.0 | Vue 单文件解析 |
-
-#### TypeScript / Vue 代码风格要点
-
-- **行长度**：无显式限制，建议 120 字符
-- **缩进**：2 空格（Vue SFC 中 `<script>` 和 `<style>` 块）
-- **分号**：使用分号（JavaScript 标准）
-- **引号**：单引号（`'...'`）
-- **类型注解**：
-  - Props 使用 `defineProps<{}>()` 显式声明
-  - Emits 使用 `defineEmits<{}>()` 显式声明
-  - 模板引用使用 `ref<HTMLElement>()`
-- **Vue SFC 结构**：
-  ```vue
-  <script setup lang="ts">
-  // 导入
-  // 类型定义
-  // Props / Emits
-  // 状态
-  // 计算属性
-  // 方法
-  // 生命周期
-  </script>
-
-  <template>
-  <!-- 模板 -->
-  </template>
-
-  <style scoped>
-  /* 样式 */
-  </style>
-  ```
-- **注释风格**：
-  - 文件头部 JSDoc 注释说明组件职责
-  - 使用 `// ── 标题 ──` 分隔代码区块
-  - 行内注释：`// 业务说明：...` / `// 技术说明：...`
+### Composables
+- **Location:** `frontend/src/composables/` — domain-grouped in `home/` subdirectory for home-page composables
+- **Naming:** `use` prefix (e.g., `useSSE`, `useG6`, `useDashboardCharts`)
+- **Pattern:** Standard Vue composable pattern with `ref`, `computed`, `onUnmounted` lifecycle
 
 ---
 
-## 3. 导入规范
+## API Contract Conventions
 
-### 3.1 Python
-
-#### 导入排序（Ruff `I` 规则自动处理）
-
-```python
-from __future__ import annotations  # 第一行（如需要）
-
-import asyncio          # 标准库
-import uuid
-from datetime import UTC, datetime
-
-from fastapi import FastAPI, APIRouter    # 第三方库
-from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, Float
-
-from app.models import Base               # 本地模块
-from app.services.graph_service import fetch_position_graph
-from app.dependencies import get_neo4j_driver
-```
-
-#### 导入规范要点
-
-- **绝对导入**：优先使用绝对导入（`from app.models import Base`）
-- **相对导入**：仅在模块内部使用相对导入（如 `from . import ...`）
-- **避免循环导入**：通过延迟导入（`from app.core.pipeline.cron_scheduler import cron_scanner_loop` 放在函数内部）解决
-- **类型检查导入**：使用 `from __future__ import annotations` 支持 PEP 563
-
-### 3.2 TypeScript / Vue
-
-#### 导入排序
-
-```typescript
-// 1. Vue / 框架核心
-import { ref, onMounted, watch } from 'vue'
-import { defineStore } from 'pinia'
-
-// 2. 第三方库
-import axios, { type AxiosError } from 'axios'
-import { ElMessage, ElNotification } from 'element-plus'
-
-// 3. 本地模块（使用 @/ 别名）
-import request from '@/api/request'
-import { useGraphStore } from '@/stores/graph'
-import { NODE_TYPE_COLORS } from '@/utils/graphColors'
-```
-
-#### 导入规范要点
-
-- **别名导入**：使用 `@/` 别名引用本地模块
-- **类型导入**：使用 `import type { ... }` 或 `type` 关键字明确类型导入
-- **按需导入**：Element Plus 组件按需导入
-- **避免 `*` 导入**：除非必要，避免使用 `import * as ...`
+- **Spec:** OpenAPI 3.0.3 in `starmap-contracts/openapi.yaml`
+- **Truth source:** `starmap-contracts/` is the cross-team source of truth
+- **Field naming:** snake_case throughout (e.g., `match_score`, `skill_name`, `source_count`)
+- **Frontend sync:** `cd frontend && npm run gen:api` generates `src/api/schema.ts`
+- **Contract-first development:** API changes must update `openapi.yaml` before implementation
+- **Backward compatibility:** `tests/contract/diff_openapi.py` checks for breaking changes against baseline
 
 ---
 
-## 4. 错误处理模式
+## Git Conventions
 
-### 4.1 Python（FastAPI）
-
-#### 标准模式
-
-```python
-from fastapi import HTTPException
-
-# 路由层抛出 HTTP 异常
-async def get_position_skills(...):
-    graph = await fetch_position_graph(driver, position_id, depth)
-    if graph["position"] is None:
-        raise HTTPException(status_code=404, detail=f"Position '{position_id}' not found")
-    return PositionSkillDetailResponse(...)
-```
-
-#### 服务层降级模式
-
-```python
-async def count_positions_neo4j(driver: Any) -> int:
-    if driver is None:
-        return 0  # 服务降级，不中断
-    try:
-        async with driver.session() as session:
-            result = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
-            record = await result.single()
-            return int(record["cnt"]) if record else 0
-    except Exception:
-        return 0  # 异常降级
-```
-
-#### 错误处理要点
-
-- **路由层**：使用 `HTTPException` 返回标准 HTTP 错误码
-- **服务层**：异常时返回默认值（如 `0`），避免级联故障
-- **日志记录**：使用 `loguru` 记录错误日志
-- **重试机制**：使用 `tenacity` 库实现自动重试
-
-### 4.2 TypeScript / Vue
-
-#### Axios 拦截器模式
-
-```typescript
-// 请求拦截器：显示 loading
-request.interceptors.request.use(
-  (config) => { showLoading(); return config; },
-  (error) => { hideLoading(); return Promise.reject(error); }
-);
-
-// 响应拦截器：错误友好提示
-request.interceptors.response.use(
-  (resp) => { hideLoading(); return resp.data; },
-  (error: AxiosError) => {
-    hideLoading();
-    const status = error.response?.status;
-    let message = '未知错误，请稍后重试';
-    if (!error.response) {
-      message = navigator.onLine ? '无法连接到服务器' : '网络连接已断开';
-    } else if (status) {
-      message = ERROR_MESSAGES[status] ?? `请求失败 (${status})`;
-    }
-    if (status !== 401) {
-      ElMessage.error({ message, duration: 4000, showClose: true });
-    }
-    return Promise.reject(error);
-  }
-);
-```
-
-#### 错误处理要点
-
-- **HTTP 状态码映射**：定义 `ERROR_MESSAGES` 常量，将状态码映射为中文友好提示
-- **网络状态监听**：监听 `online` / `offline` 事件
-- **401 特殊处理**：不弹窗提示，避免重复弹窗
-- **Store 层**：使用 `try...catch...finally` 包裹 API 调用，设置 `loading` 状态
+- **Branches:** `fix/*`, `feat/*`, `chore/*`, `docs/*`
+- **Commit format:** `type(scope): description (#PR)`
+- **PR merge:** Squash merge
+- **Linting gate:** Backend: `ruff check . && mypy app`; Frontend: `npm run lint && npm run typecheck`
 
 ---
 
-## 5. 注释规范
+## Known Deviations
 
-### 5.1 Python
-
-#### 模块级 Docstring
-
-```python
-"""FastAPI 应用入口。
-
-业务说明：
-    本模块是 StarMap 后端应用的入口文件，负责：
-    1. 创建 FastAPI 应用实例；
-    2. 配置 CORS 中间件；
-    3. 注册 API 路由；
-    4. 管理应用生命周期（启动/关闭）。
-"""
-```
-
-#### 类级 Docstring
-
-```python
-class EvolutionSnapshot(Base):
-    """业务说明：职位技能快照表。
-
-    记录特定时间点某个职位的完整技能画像...
-    """
-```
-
-#### 行内注释
-
-```python
-# 业务说明：统计 Neo4j 图谱中职位节点的总数量
-# 技术说明：当 driver 未初始化或查询异常时返回 0，保证服务降级不中断
-```
-
-#### 注释规范要点
-
-- **双语注释**：模块/类/函数级注释使用中文，技术细节可夹杂英文术语
-- **业务说明 vs 技术说明**：明确区分业务意图和技术实现
-- **分隔线**：使用 `# ── 标题 ──` 分隔代码区块
-
-### 5.2 TypeScript / Vue
-
-#### 文件头部 JSDoc
-
-```typescript
-/**
- * Graph2D — G6 v5 force-directed graph visualization (2D counterpart to Graph3D).
- *
- * Owns all G6 lifecycle: dynamic import, instance creation, three-layer rendering,
- * layout switching, node highlighting, and resize handling.
- */
-```
-
-#### 行内注释
-
-```typescript
-// 业务说明：定义组件对外暴露的属性接口
-// 技术说明：使用 shallowRef 持有 G6 实例，避免 Vue 深度响应式代理
-```
-
-#### 注释规范要点
-
-- **JSDoc 格式**：文件头部使用 JSDoc 说明组件/模块职责
-- **区块分隔**：使用 `// ── 标题 ──` 分隔代码区块
-- **双语注释**：与 Python 一致，业务说明 + 技术说明分离
+### Backend
+1. **mypy per-module overrides:** 12+ modules have `ignore_errors = true` in `pyproject.toml` `[tool.mypy.overrides]`, including `app.core.dashboard.*`, `app.core.pipeline.*`, `app.api.v1.dashboard`, `app.api.v1.learning`, `app.api.v1.loop`, `app.api.v1.pipeline`, `app.api.v1.evolution`, `app.tasks.celery_app`, `app.services.graph_service`, `app.services.match_service`. These modules bypass type checking entirely.
+2. **mypy.ini disable_error_code:** 14+ specific modules have individual error codes disabled (e.g., `app.api.v1.graph` disables `arg-type`, `app.services.graph_overview` disables `index`). This indicates accumulated type-safety debt.
+3. **Re-exports with noqa:** `backend/app/services/graph_service.py` re-exports symbols from `graph_serializers.py` and `graph_overview.py` with `# noqa: F401` for backward compatibility rather than updating import sites.
+4. **Inline Cypher in route handlers:** `backend/app/api/v1/graph.py` contains raw Cypher queries directly in route handler functions (lines 139-209) instead of delegating to the service layer.
+5. **Global mutable state:** `_rate_buckets` dict in `backend/app/main.py` is module-level mutable state for rate limiting; `_rate_buckets.clear()` in conftest.py is required to prevent test pollution.
+6. **ESLint `no-explicit-any: off`:** Frontend ESLint disables `@typescript-eslint/no-explicit-any`, allowing untyped code. The typed API client in `client.ts` still uses `any` for `runMatch` body.
+7. **Test files outside pytest scope:** `tests/unit/` at repo root contains Playwright-based UI tests (e.g., `test_config_management.py`) that are not discovered by `pytest` (which uses `backend/tests/`).
+8. **Dual E2E frameworks:** Both Playwright (`frontend/e2e/*.spec.ts`) and Cypress (`frontend/e2e/*.cy.ts`) exist; Cypress tests appear to be legacy and may not be actively maintained.
+9. **Missing store tests:** 9 of 16 Pinia stores lack test files: `dashboard`, `datasource`, `evolution`, `jd`, `jobseeker`, `learning`, `loop`, `pipeline`, `user`.
+10. **Missing composable tests:** None of the 31 composables have dedicated test files.
+11. **Missing component tests:** 33 of 39 Vue components lack test files; only 6 have specs.
+12. **`as unknown as` type casts:** Stores like `match.ts` use `data as unknown as MatchResult` instead of proper type narrowing through the typed API client.
 
 ---
 
-## 6. Git 提交规范
-
-### 6.1 提交消息格式
-
-项目采用 **Conventional Commits** 风格，格式如下：
-
-```
-<type>(<scope>): <subject>
-
-<body>
-```
-
-### 6.2 类型（Type）
-
-| 类型 | 说明 | 示例 |
-|------|------|------|
-| `feat` | 新功能 | `feat(backend): add Dashboard module` |
-| `fix` | Bug 修复 | `fix(frontend): resolve lint errors` |
-| `docs` | 文档更新 | `docs: update CHANGELOG to v1.2.0` |
-| `test` | 测试相关 | `test(frontend): add E2E test specs` |
-| `chore` | 构建/工具/杂项 | `chore: update .gitignore` |
-| `perf` | 性能优化 | `perf(frontend): code-split vendor chunks` |
-| `refactor` | 重构 | `refactor: extract graph rendering logic` |
-| `style` | 代码格式（不影响功能） | `style: format with ruff` |
-
-### 6.3 范围（Scope）
-
-| 范围 | 说明 |
-|------|------|
-| `backend` | 后端代码 |
-| `frontend` | 前端代码 |
-| `crawler` | 爬虫模块 |
-| `contracts` | API 契约 |
-| `scripts` | 脚本工具 |
-| `admin` | 管理后台 |
-| `*` 或无 | 全局变更 |
-
-### 6.4 提交消息示例
-
-```
-feat(backend): add Pipeline module — ETL orchestration, data fusion, quality monitor
-
-fix(frontend): resolve lint errors — remove unused import, suppress warning
-
-docs(contracts): update CHANGELOG to v1.2.0 — 5 new API modules, 14 new schemas
-
-test(frontend): add E2E test specs — functional interaction, panoramic graph
-
-perf(frontend): code-split vendor chunks and lazy-load @antv/g6
-```
-
-### 6.5 提交规范要点
-
-- **英文类型 + 中文描述**：类型使用英文，描述使用中文
-- **详细描述**：在 body 中补充变更细节和影响范围
-- **关联 Issue**：如有相关 Issue，在消息中引用（如 `#53`）
-- **CI 门禁**：提交前确保 `ruff check`, `mypy`, `pytest`, `eslint` 均通过
-
----
-
-## 7. CI / CD 规范
-
-### 7.1 CI 流水线（`.github/workflows/ci.yml`）
-
-| 阶段 | 说明 |
-|------|------|
-| **契约校验** | 最先执行，校验 `starmap-contracts/openapi.yaml` |
-| **后端 lint** | `ruff check .` + `mypy app` + `pytest`（覆盖率门禁 60%） |
-| **前端 lint** | `eslint` + `vue-tsc --noEmit` + `npm run build` |
-| **爬虫编译** | `python -m compileall` + `pytest`（跳过集成测试） |
-| **Docker 冒烟** | 手动/定时触发，全栈构建并健康检查 |
-
-### 7.2 门禁规则
-
-- **Ruff**：`E`, `F`, `W`, `I`, `N`, `UP`, `B`, `C4` 规则集
-- **MyPy**：`python_version = "3.11"`，`strict = false`
-- **Pytest**：覆盖率门禁 **60%**，`--cov-fail-under=60`
-- **ESLint**：`--max-warnings 50`
-- **TypeScript**：`vue-tsc --noEmit` 无类型错误
-
----
-
-## 8. 目录结构规范
-
-### 8.1 后端（`backend/app/`）
-
-```
-backend/app/
-├── api/v1/           # API 路由（按业务模块划分）
-├── core/             # 核心业务逻辑（pipeline, extraction, dashboard 等）
-├── models/           # SQLAlchemy / Pydantic 模型
-├── services/         # 服务层（业务逻辑封装）
-├── tasks/            # Celery 异步任务
-├── utils/            # 工具函数
-├── config.py         # 配置管理
-├── dependencies.py   # FastAPI 依赖注入
-└── main.py           # 应用入口
-```
-
-### 8.2 前端（`frontend/src/`）
-
-```
-frontend/src/
-├── api/              # API 请求封装
-├── components/       # Vue 组件（PascalCase）
-├── composables/      # Vue Composables（useXxx.ts）
-├── layouts/          # 布局组件
-├── pages/            # 页面组件
-├── router/           # Vue Router 配置
-├── stores/           # Pinia Store（<feature>.ts）
-├── styles/           # 全局样式
-└── utils/            # 工具函数
-```
-
----
-
-## 9. 关键约定总结
-
-| 维度 | Python | TypeScript / Vue |
-|------|--------|------------------|
-| **文件命名** | `snake_case.py` | `PascalCase.vue`, `camelCase.ts` |
-| **类命名** | `PascalCase` | `PascalCase`（接口/类型） |
-| **函数命名** | `snake_case` | `camelCase` |
-| **变量命名** | `snake_case` | `camelCase` |
-| **常量** | `UPPER_SNAKE_CASE` | `UPPER_SNAKE_CASE` |
-| **私有** | `_prefix` | `_prefix`（约定） |
-| **注释语言** | 中文（业务+技术） | 中文（业务+技术） |
-| **行长度** | 120 | 120（建议） |
-| **导入排序** | Ruff `I` 规则 | 标准库 → 第三方 → 本地 |
-| **类型检查** | MyPy | TypeScript (`vue-tsc`) |
+*Convention analysis: 2026-07-12*

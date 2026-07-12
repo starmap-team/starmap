@@ -190,6 +190,7 @@ function handleClear() {
                 size="small"
                 stripe
                 max-height="200"
+              empty-text="暂无数据"
               >
                 <el-table-column
                   prop="original"

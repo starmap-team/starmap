@@ -896,6 +896,7 @@ onUnmounted(() => {
                       size="small"
                       stripe
                       max-height="200"
+              empty-text="暂无数据"
                     >
                       <el-table-column
                         prop="skill"
@@ -1119,6 +1120,7 @@ onUnmounted(() => {
             :data="loopStore.history"
             stripe
             size="small"
+              empty-text="暂无数据"
           >
             <el-table-column
               prop="run_id"

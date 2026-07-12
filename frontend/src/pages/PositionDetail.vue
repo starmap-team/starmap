@@ -214,6 +214,7 @@ async function loadFromPostgres() {
               stripe
               size="small"
               style="width: 100%"
+              empty-text="暂无数据"
             >
               <el-table-column
                 prop="name"
