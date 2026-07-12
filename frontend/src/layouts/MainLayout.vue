@@ -2,6 +2,11 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { DataAnalysis, DataLine, Connection, TrendCharts, Document, Setting, User, Sunny, MoonNight, Fold, Expand, Coin, Refresh, Odometer, Reading } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+userStore.initUser()
+
 const route = useRoute()
 const router = useRouter()
 const mobileMenuOpen = ref(false)
@@ -13,7 +18,7 @@ function toggleDarkMode() {
   document.documentElement.classList.toggle('dark', isDark.value)
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
 }
-const navItems = [
+const baseNavItems = [
   { path: '/', title: '全景图谱', icon: Connection, group: 'data' },
   { path: '/positions', title: '岗位列表', icon: User, group: 'data' },
   { path: '/pipeline', title: '数据流水线', icon: DataLine, group: 'data' },
@@ -25,15 +30,23 @@ const navItems = [
   { path: '/dashboard', title: '数据大屏', icon: Odometer, group: 'insight' },
   { path: '/evolution', title: '演化看板', icon: TrendCharts, group: 'insight' },
   { path: '/quality', title: '图谱质量', icon: DataAnalysis, group: 'insight' },
+]
+const adminNavItems = [
   { path: '/admin', title: '管理后台', icon: Setting, group: 'system' },
 ]
+const navItems = computed(() => {
+  if (userStore.isAdmin) {
+    return [...baseNavItems, ...adminNavItems]
+  }
+  return baseNavItems
+})
 const navGroups = [
   { key: 'data', label: '数据' },
   { key: 'tools', label: '工具' },
   { key: 'insight', label: '洞察' },
   { key: 'system', label: '系统' },
 ]
-const currentTitle = computed(() => navItems.find(i => i.path === route.path)?.title ?? '星图')
+const currentTitle = computed(() => navItems.value.find(i => i.path === route.path)?.title ?? '星图')
 const breadcrumbs = computed(() => {
   const meta = route.meta as Record<string, unknown>
   const bc = meta?.breadcrumb

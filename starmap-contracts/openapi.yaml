@@ -13,6 +13,9 @@ servers:
   - url: "https://api.starmap.dev/api/v1"
     description: "评审环境"
 
+security:
+  - BearerAuth: []
+
 paths:
   # ──────────────────────── 系统 ────────────────────────
   /health:
@@ -1288,9 +1291,9 @@ paths:
           in: query
           schema:
             type: integer
-            default: 200
+            default: 20
             minimum: 1
-            maximum: 1000
+            maximum: 100
       responses:
         "200":
           description: "节点列表"
@@ -2776,6 +2779,12 @@ paths:
                 additionalProperties: true
 
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT Bearer token obtained from authentication endpoint"
   schemas:
     ExtractionRequest:
       type: object

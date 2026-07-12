@@ -7,7 +7,7 @@ import { ElMessage } from 'element-plus'
 import { RefreshRight } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useQualityStore } from '@/stores/quality'
-import { useAdminStore } from '@/stores/admin'
+import { useAuditStore } from '@/stores/audit'
 import { chartColors } from '@/utils/chartTheme'
 import QualityTrendChart from '@/components/QualityTrendChart.vue'
 import AlertList from '@/components/AlertList.vue'
@@ -16,7 +16,7 @@ import { useQualityActions } from '@/composables/useQualityActions'
 import { useQualityDashboard } from '@/composables/useQualityDashboard'
 
 const quality = useQualityStore()
-const admin = useAdminStore()
+const audit = useAuditStore()
 // ponytail: chartColors re-exported for template el-progress :color binding
 const cc = chartColors()
 const {
@@ -346,7 +346,7 @@ const {
                     size="small"
                     type="success"
                     plain
-                    @click="admin.approveAudit(row.id).catch(() => ElMessage.error('审批失败'))"
+                    @click="audit.approveAudit(row.id).catch(() => ElMessage.error('审批失败'))"
                   >
                     通过
                   </el-button>
@@ -354,7 +354,7 @@ const {
                     size="small"
                     type="danger"
                     plain
-                    @click="admin.rejectAudit(row.id).catch(() => ElMessage.error('拒绝失败'))"
+                    @click="audit.rejectAudit(row.id).catch(() => ElMessage.error('拒绝失败'))"
                   >
                     拒绝
                   </el-button>

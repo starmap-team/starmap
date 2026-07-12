@@ -5,24 +5,26 @@ Sprint 1.2 新增端点：
   GET  /datasources/{id}       — 单个数据源详情
   PUT  /datasources/{id}       — 更新数据源配置
   GET  /datasources/{id}/stats — 数据源统计（日/周/月采集量、质量趋势）
-  POST /datasources/{id}/sync  — 触发单源同步
+  POST /datasources/{id}/sync  — 触发单源同步（执行完整管线）
+  GET  /datasources/health     — 数据源健康检查汇总
 """
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from loguru import logger
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db_session
+from app.dependencies import get_db_session, require_admin
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
 router = APIRouter(prefix="/datasources", tags=["数据源管理"])
+admin_router = APIRouter(prefix="/datasources", tags=["数据源管理"], dependencies=[Depends(require_admin)])
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +51,7 @@ class DataSourceUpdateRequest(BaseModel):
     """数据源更新请求。"""
 
     authority_score: float | None = Field(None, ge=0, le=1)
-    status: str | None = Field(None, description="'active' | 'paused' | 'error'")
+    status: Literal["active", "paused", "error"] | None = Field(None, description="数据源状态")
     config: dict[str, Any] | None = None
 
 
@@ -78,6 +80,26 @@ class DataSourceStatsResponse(BaseModel):
     successful_runs: int = 0
     failed_runs: int = 0
     avg_records_per_run: float = 0.0
+
+
+class SourceHealthEntry(BaseModel):
+    """单个数据源健康状态。"""
+
+    id: str
+    name: str
+    status: str
+    last_crawl_at: str | None = None
+    total_records: int = 0
+    recent_run_status: str | None = None
+
+
+class DatasourcesHealthResponse(BaseModel):
+    """数据源健康检查汇总。"""
+
+    sources: list[SourceHealthEntry] = Field(default_factory=list)
+    total_sources: int = 0
+    active_sources: int = 0
+    error_sources: int = 0
 
 
 class SyncTriggerResponse(BaseModel):
@@ -124,6 +146,58 @@ async def list_datasources(
     return [_serialize(ds) for ds in result.scalars().all()]
 
 
+# ---------------------------------------------------------------------------
+# Health check (must be before /{source_id} to avoid route shadowing)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/health", response_model=DatasourcesHealthResponse, dependencies=[Depends(require_admin)])
+async def get_datasources_health(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> DatasourcesHealthResponse:
+    """数据源健康检查汇总 — 各源状态 + 最近管线运行状态。"""
+    result = await session.execute(
+        select(DataSourceRecord).order_by(DataSourceRecord.name.asc())
+    )
+    sources = list(result.scalars().all())
+
+    entries: list[SourceHealthEntry] = []
+    active_count = 0
+    error_count = 0
+
+    for ds in sources:
+        if ds.status == "active":
+            active_count += 1
+        elif ds.status == "error":
+            error_count += 1
+
+        # Find most recent pipeline run for this source
+        recent_run = await session.execute(
+            select(PipelineRun)
+            .where(PipelineRun.run_type == "source_sync")
+            .order_by(PipelineRun.started_at.desc())
+            .limit(1)
+        )
+        run = recent_run.scalar_one_or_none()
+        recent_status = run.status if run else None
+
+        entries.append(SourceHealthEntry(
+            id=str(ds.id),
+            name=ds.name,
+            status=ds.status,
+            last_crawl_at=ds.last_crawl_at.isoformat() if ds.last_crawl_at else None,
+            total_records=ds.total_records,
+            recent_run_status=recent_status,
+        ))
+
+    return DatasourcesHealthResponse(
+        sources=entries,
+        total_sources=len(sources),
+        active_sources=active_count,
+        error_sources=error_count,
+    )
+
+
 @router.get("/{source_id}", response_model=DataSourceResponse)
 async def get_datasource(
     source_id: UUID,
@@ -139,7 +213,7 @@ async def get_datasource(
     return _serialize(ds)
 
 
-@router.put("/{source_id}", response_model=DataSourceResponse)
+@admin_router.put("/{source_id}", response_model=DataSourceResponse)
 async def update_datasource(
     source_id: UUID,
     body: DataSourceUpdateRequest,
@@ -183,7 +257,7 @@ async def update_datasource(
 async def get_datasource_stats(
     source_id: UUID,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    period: Annotated[str, Query(description="'7d' | '30d' | '90d'")] = "30d",
+    period: Annotated[Literal["7d", "30d", "90d"], Query(description="统计周期")] = "30d",
 ) -> DataSourceStatsResponse:
     """数据源统计：日采集量、质量趋势、运行计数。"""
     result = await session.execute(
@@ -252,12 +326,12 @@ async def get_datasource_stats(
     )
 
 
-@router.post("/{source_id}/sync", response_model=SyncTriggerResponse)
+@admin_router.post("/{source_id}/sync", response_model=SyncTriggerResponse)
 async def trigger_source_sync(
     source_id: UUID,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> SyncTriggerResponse:
-    """触发单源同步（创建一条 source_sync 类型的流水线运行记录）。"""
+    """触发单源同步 — 执行完整管线 (crawl -> dedup -> clean -> import -> graph_sync)。"""
 
     result = await session.execute(
         select(DataSourceRecord).where(DataSourceRecord.id == source_id)
@@ -266,66 +340,17 @@ async def trigger_source_sync(
     if ds is None:
         raise HTTPException(status_code=404, detail="Data source not found")
 
-    # Create a source_sync pipeline run
-    run = PipelineRun(
-        id=uuid.uuid4(),
-        run_type="source_sync",
-        status="running",
-        started_at=datetime.now(UTC),
-        stages=[
-            {
-                "name": "crawl",
-                "status": "pending",
-                "started_at": None,
-                "completed_at": None,
-                "duration_ms": 0,
-                "records_processed": 0,
-                "errors": [],
-            },
-            {
-                "name": "dedup",
-                "status": "pending",
-                "started_at": None,
-                "completed_at": None,
-                "duration_ms": 0,
-                "records_processed": 0,
-                "errors": [],
-            },
-            {
-                "name": "clean",
-                "status": "pending",
-                "started_at": None,
-                "completed_at": None,
-                "duration_ms": 0,
-                "records_processed": 0,
-                "errors": [],
-            },
-            {
-                "name": "import",
-                "status": "pending",
-                "started_at": None,
-                "completed_at": None,
-                "duration_ms": 0,
-                "records_processed": 0,
-                "errors": [],
-            },
-            {
-                "name": "graph_sync",
-                "status": "pending",
-                "started_at": None,
-                "completed_at": None,
-                "duration_ms": 0,
-                "records_processed": 0,
-                "errors": [],
-            },
-        ],
-    )
-    session.add(run)
-    await session.flush()
+    # Delegate to pipeline executor so stages actually run (previously a no-op)
+    from app.core.pipeline.executor import trigger_and_start
+
+    run = await trigger_and_start(run_type="source_sync")
 
     return SyncTriggerResponse(
         run_id=str(run.id),
         source_name=ds.name,
-        status="running",
+        status=run.status,
         message=f"Source sync triggered for '{ds.name}' (run_id={run.id})",
     )
+
+
+__all__ = ["router", "admin_router"]

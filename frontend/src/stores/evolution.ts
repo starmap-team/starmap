@@ -42,6 +42,19 @@ export interface ChangelogEntry {
   trust_score?: number
 }
 
+// LOOP-06: Emerging alert type for evolution alerts
+export interface EmergingAlert {
+  skill_name: string
+  category: string
+  level: string  // emerging | rising | declining
+  z_score: number
+  current_frequency: number
+  mean_frequency: number
+  domains: string[]
+  positions: string[]
+  alert_message: string
+}
+
 export const useEvolutionStore = defineStore('evolution', () => {
   const loading = ref(false)
   const trendItems = ref<TrendItem[]>([])
@@ -51,6 +64,10 @@ export const useEvolutionStore = defineStore('evolution', () => {
 
   const changelogLoading = ref(false)
   const changelogData = ref<ChangelogEntry[]>([])
+
+  // LOOP-06: Emerging alerts state
+  const emergingAlerts = ref<EmergingAlert[]>([])
+  const alertsLoading = ref(false)
 
   async function fetchTrends(days?: number) {
     loading.value = true
@@ -93,6 +110,21 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return changelogData.value
   }
 
+  // LOOP-06: Fetch emerging skill alerts
+  async function fetchEmergingAlerts(level?: string) {
+    alertsLoading.value = true
+    try {
+      const params = level ? { level } : {}
+      const data = await request.get('/evolution/emerging-alerts', { params }) as { alerts: EmergingAlert[]; total: number; summary: string }
+      emergingAlerts.value = data.alerts ?? []
+    } catch (e: unknown) {
+      if (import.meta.env.DEV) console.error('[Evolution] Failed to fetch alerts:', e)
+      emergingAlerts.value = []
+    } finally {
+      alertsLoading.value = false
+    }
+  }
+
   return {
     loading,
     trendItems,
@@ -100,8 +132,11 @@ export const useEvolutionStore = defineStore('evolution', () => {
     snapshots,
     changelogLoading,
     changelogData,
+    emergingAlerts,
+    alertsLoading,
     fetchTrends,
     fetchSnapshots,
     fetchChangelog,
+    fetchEmergingAlerts,
   }
 })

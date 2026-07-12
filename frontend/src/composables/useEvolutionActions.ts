@@ -59,13 +59,13 @@ export function useEvolutionActions(store: EvolutionStore): EvolutionActionsApi 
     ElMessage.info(`已切换到快照 ${snap.snapshot_date}（${snap.position_name}）`)
   }
 
-  async function fetchChangelog(skillName: string): Promise<void> {
-    selectedSkillForDetail.value = skillName
+  async function fetchChangelog(identifier: string): Promise<void> {
+    selectedSkillForDetail.value = identifier
     drawerVisible.value = true
     try {
-      await store.fetchChangelog(skillName)
+      await store.fetchChangelog(identifier)
     } catch (e) {
-      console.error('[Evolution] Failed to fetch changelog:', e)
+      if (import.meta.env.DEV) console.error('[Evolution] Failed to fetch changelog:', e)
     }
   }
 

@@ -6,6 +6,7 @@
 import { computed } from 'vue'
 import { chartColors } from '@/utils/chartTheme'
 import { asTagType } from '@/utils/element'
+import { formatRelativeTime } from '@/utils/formatTime'
 
 export interface AlertItem {
   id: string | number
@@ -16,7 +17,7 @@ export interface AlertItem {
   status: 'pending' | 'processing' | 'resolved' | 'ignored'
 }
 
-const props = defineProps<{
+defineProps<{
   alerts: AlertItem[]
 }>()
 
@@ -59,19 +60,6 @@ const typeIconMap: Record<string, string> = {
   system:     'Monitor',
 }
 
-function formatRelativeTime(dateStr: string): string {
-  if (!dateStr) return '--'
-  const d = new Date(dateStr)
-  const now = new Date()
-  const diff = now.getTime() - d.getTime()
-  const min = Math.floor(diff / 60000)
-  if (min < 1) return '刚刚'
-  if (min < 60) return `${min}分钟前`
-  const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr}小时前`
-  const day = Math.floor(hr / 24)
-  return `${day}天前`
-}
 </script>
 
 <template>

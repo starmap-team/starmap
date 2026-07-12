@@ -152,7 +152,7 @@
           :data="store.result.top_matches.slice(0, 5)"
           stripe
           size="small"
-              empty-text="暂无数据"
+          empty-text="暂无数据"
         >
           <el-table-column
             prop="position"
@@ -187,7 +187,7 @@
           :data="store.result.skill_gaps.filter(g => g.gap_level !== '已掌握').slice(0, 10)"
           stripe
           size="small"
-              empty-text="暂无数据"
+          empty-text="暂无数据"
         >
           <el-table-column
             prop="skill"
@@ -272,6 +272,7 @@
                 v-if="res.url"
                 :href="res.url"
                 target="_blank"
+                rel="noopener noreferrer"
               >{{ res.name }}</a>
               <span v-else>{{ res.name }}</span>
               <el-tag
@@ -292,7 +293,7 @@
           :data="store.result.recommended_positions.slice(0, 5)"
           stripe
           size="small"
-              empty-text="暂无数据"
+          empty-text="暂无数据"
         >
           <el-table-column
             prop="position"

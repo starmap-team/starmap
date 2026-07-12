@@ -3,7 +3,6 @@
  * All chart options are pure computeds reading from the dashboard store.
  */
 import { computed } from 'vue'
-import type { ComputedRef } from 'vue'
 import { chartColors, tooltipStyle } from '@/utils/chartTheme'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'
 import type { useDashboardStore, SkillDomain, QualityTrend } from '@/stores/dashboard'

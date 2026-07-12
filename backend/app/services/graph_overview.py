@@ -165,11 +165,31 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
             "properties": {"weight": min(1.0, weight / 20.0)},
         })
 
+    # Query actual Neo4j independent counts (same across all group_by modes)
+    try:
+        async with driver.session() as session:
+            pos_rec = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
+            async for r in pos_rec:
+                independent_pos = r["cnt"]
+            skill_rec = await session.run("MATCH (s:Skill) RETURN count(s) AS cnt")
+            async for r in skill_rec:
+                independent_skill = r["cnt"]
+            edge_rec = await session.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS cnt")
+            async for r in edge_rec:
+                independent_edge = r["cnt"]
+    except Exception:
+        independent_pos = total_pos
+        independent_skill = total_skill
+        independent_edge = len(connections)
+
     return {
         "domains": domains,
         "connections": connections,
         "total_positions": total_pos,
         "total_skills": total_skill,
+        "independent_positions": independent_pos,
+        "independent_skills": independent_skill,
+        "independent_edges": independent_edge,
     }
 
 
@@ -250,9 +270,29 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
             "properties": {"weight": conn["weight"]},
         })
 
+    # Query actual Neo4j independent counts (same across all group_by modes)
+    try:
+        async with driver.session() as session:
+            pos_rec = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
+            async for r in pos_rec:
+                independent_pos = r["cnt"]
+            skill_rec = await session.run("MATCH (s:Skill) RETURN count(s) AS cnt")
+            async for r in skill_rec:
+                independent_skill = r["cnt"]
+            edge_rec = await session.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS cnt")
+            async for r in edge_rec:
+                independent_edge = r["cnt"]
+    except Exception:
+        independent_pos = total_pos
+        independent_skill = total_skill
+        independent_edge = len(connections)
+
     return {
         "domains": domains,
         "connections": connections,
         "total_positions": total_pos,
         "total_skills": total_skill,
+        "independent_positions": independent_pos,
+        "independent_skills": independent_skill,
+        "independent_edges": independent_edge,
     }

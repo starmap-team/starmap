@@ -1,4 +1,4 @@
-﻿"""数据流水线监控 API — endpoint handlers.
+"""数据流水线监控 API — endpoint handlers.
 
 Split from pipeline.py in Phase 6 architecture refactor.
 """
@@ -37,7 +37,7 @@ from app.api.v1.pipeline.serializers import (
     serialize_schedule,
 )
 from app.core.matching import MatchService
-from app.dependencies import get_db_session, get_neo4j_driver, require_admin
+from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, require_admin
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 from app.pipeline.contracts import PipelineContext
 from app.pipeline.engine import PipelineEngine
@@ -49,6 +49,14 @@ from app.pipeline.steps import (
     SkillExtractStep,
 )
 from app.repositories.position_repository import PositionRepository
+
+# File upload security: size limit and allowed MIME types
+_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+_ALLOWED_UPLOAD_MIMES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/msword",
+}
 
 # 创建全局 MatchService 实例
 _match_service = MatchService()
@@ -150,10 +158,15 @@ async def cancel_pipeline_run(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CancelResponse:
     """Phase 1 D-04: 软取消 + Redis STOP flag + Celery 阶段开始时检查。"""
-    from app.core.pipeline.orchestrator import cancel_run
+    from app.core.pipeline.orchestrator import RunNotFoundError, RunAlreadyTerminalError, cancel_run
 
     redis_client = getattr(request.app.state.resources, "redis_client", None)
-    result = await cancel_run(session, redis_client, run_id)
+    try:
+        result = await cancel_run(session, redis_client, run_id)
+    except RunNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except RunAlreadyTerminalError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     return CancelResponse(
         run_id=str(result.run_id),
         status=result.status,
@@ -162,7 +175,7 @@ async def cancel_pipeline_run(
     )
 
 
-@router.post("/trigger", response_model=TriggerResponse)
+@router.post("/trigger", response_model=TriggerResponse, dependencies=[Depends(require_admin)])
 async def trigger_pipeline(
     request: Request,
     body: TriggerRequest,
@@ -185,7 +198,7 @@ async def trigger_pipeline(
     )
 
 
-@router.post("/runs/{run_id}/retry", response_model=PipelineRunResponse)
+@router.post("/runs/{run_id}/retry", response_model=PipelineRunResponse, dependencies=[Depends(require_admin)])
 async def retry_stage(
     run_id: UUID,
     body: RetryStageRequest,
@@ -199,7 +212,7 @@ async def retry_stage(
     return serialize_run(run)
 
 
-@router.post("/runs/{run_id}/resume", response_model=PipelineRunResponse)
+@router.post("/runs/{run_id}/resume", response_model=PipelineRunResponse, dependencies=[Depends(require_admin)])
 async def resume_run(
     run_id: UUID,
 ) -> PipelineRunResponse:
@@ -307,8 +320,14 @@ async def get_datasources(
 # ---------------------------------------------------------------------------
 
 @router.get("/events")
-async def pipeline_events() -> Any:
-    """SSE 实时流水线进度事件流。"""
+async def pipeline_events(
+    _user: Annotated[dict[str, Any], Depends(get_current_user_sse)],
+) -> Any:
+    """SSE 实时流水线进度事件流。
+
+    Auth: accepts JWT via query param ``?token=xxx`` (for EventSource)
+    or standard ``Authorization: Bearer xxx`` header.
+    """
     from fastapi.responses import StreamingResponse
 
     from app.core.dashboard.sse_broadcaster import event_stream
@@ -324,9 +343,13 @@ async def pipeline_events() -> Any:
 
 @router.get("/events-poll", response_model=list[dict[str, Any]])
 async def poll_pipeline_events(
+    _user: Annotated[dict[str, Any], Depends(get_current_user_sse)],
     since: float = Query(0.0, description="Unix timestamp filter"),
 ) -> list[dict[str, Any]]:
-    """Phase 2 POLL-01: SSE polling fallback — 返回最近事件数组。"""
+    """Phase 2 POLL-01: SSE polling fallback — 返回最近事件数组。
+
+    Auth: accepts JWT via query param or Authorization header.
+    """
     from app.core.dashboard.sse_broadcaster import get_recent_events
     from app.services.resources import resources as app_resources
 
@@ -412,7 +435,7 @@ async def delete_schedule(
     return {"status": "deleted"}
 
 
-@router.post("/schedules/{schedule_id}/trigger", response_model=TriggerResponse)
+@router.post("/schedules/{schedule_id}/trigger", response_model=TriggerResponse, dependencies=[Depends(require_admin)])
 async def trigger_schedule(
     schedule_id: UUID,
     request: Request,
@@ -501,6 +524,15 @@ async def analyze_pipeline(
     session: Annotated[AsyncSession, Depends(get_db_session)] = None,  # type: ignore[assignment]
 ) -> StreamingResponse:
     """上传简历，执行完整的6步求职者分析 Pipeline。"""
+    # Validate file upload: size and MIME type
+    content_bytes = await resume_file.read(_MAX_UPLOAD_SIZE + 1)
+    if len(content_bytes) > _MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+    if resume_file.content_type and resume_file.content_type not in _ALLOWED_UPLOAD_MIMES:
+        raise HTTPException(status_code=415, detail=f"Unsupported file type: {resume_file.content_type}")
+    # Reset file position for downstream reading
+    await resume_file.seek(0)
+
     from loguru import logger as _logger
 
     positions: list[str] = []
@@ -541,6 +573,15 @@ async def export_analysis(
     session: Annotated[AsyncSession, Depends(get_db_session)] = None,  # type: ignore[assignment]
 ) -> Any:
     """上传简历并返回 JSON 格式的完整分析结果。"""
+    # Validate file upload: size and MIME type
+    content_bytes = await resume_file.read(_MAX_UPLOAD_SIZE + 1)
+    if len(content_bytes) > _MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+    if resume_file.content_type and resume_file.content_type not in _ALLOWED_UPLOAD_MIMES:
+        raise HTTPException(status_code=415, detail=f"Unsupported file type: {resume_file.content_type}")
+    # Reset file position for downstream reading
+    await resume_file.seek(0)
+
     from fastapi.responses import JSONResponse
 
     positions: list[str] = []

@@ -2,19 +2,36 @@
  * 数据源管理 Store — Sprint 1.2
  * 管理多源数据融合：BOSS/拉勾/51Job/GitHub/ESCO
  * 提供数据源 CRUD、统计查询、同步触发
+ *
+ * Phase 7 refactor: audit queue and graph node management have been
+ * extracted to useAuditStore and useGraphNodeStore respectively.
+ * This store now focuses solely on data source operations.
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 import type { DataSourceDetail } from '@/types/datasource'
-import type { GraphNodeItem } from '@/composables/useGraphNodeList'
 
 // Re-export for backward compatibility
 export type { DataSourceDetail } from '@/types/datasource'
 
 // ── 类型定义 ──
 
-// ponytail: DataSourceDetail removed — canonical type in types/datasource.ts
+export interface SourceHealthEntry {
+  id: string
+  name: string
+  status: string
+  last_crawl_at: string | null
+  total_records: number
+  recent_run_status: string | null
+}
+
+export interface DatasourcesHealthResponse {
+  sources: SourceHealthEntry[]
+  total_sources: number
+  active_sources: number
+  error_sources: number
+}
 
 export interface DataSourceStats {
   source_id: string
@@ -26,31 +43,15 @@ export interface DataSourceStats {
   total_count: number
 }
 
-export interface AuditItem {
-  id: number
-  type: 'position' | 'skill'
-  name: string
-  trust: number
-  status: 'pending' | 'approved' | 'rejected'
-}
-
-interface AuditQueueResponse {
-  items: AuditItem[]
-}
-
-interface AdminGraphNodesResponse {
-  items: GraphNodeItem[]
-}
-
 // ── Store 定义 ──
 
 export const useDataSourceStore = defineStore('datasource', () => {
   const sources = ref<DataSourceDetail[]>([])
   const selectedSource = ref<DataSourceDetail | null>(null)
   const stats = ref<DataSourceStats | null>(null)
-  const auditQueue = ref<AuditItem[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const health = ref<DatasourcesHealthResponse | null>(null)
 
   async function fetchSources() {
     loading.value = true
@@ -129,102 +130,33 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
-  // ── Audit queue (migrated from admin.ts) ──
-
-  async function fetchAuditQueue() {
+  async function fetchHealth() {
+    loading.value = true
+    error.value = null
     try {
-      const data = await request.get('/admin/review-queue') as AuditQueueResponse
-      auditQueue.value = data.items ?? []
-    } catch (e) {
-      console.error('[DataSource] Failed to fetch audit queue:', e)
-      auditQueue.value = []
-    }
-  }
-
-  async function approveAudit(id: number) {
-    await request.post(`/admin/audit/${id}/approve`)
-    auditQueue.value = auditQueue.value.filter((i) => i.id !== id)
-  }
-
-  async function rejectAudit(id: number) {
-    await request.post(`/admin/audit/${id}/reject`)
-    auditQueue.value = auditQueue.value.filter((i) => i.id !== id)
-  }
-
-  async function updateAuditItem(id: number, data: { name?: string; trust?: number }) {
-    await request.put(`/admin/review-queue/${id}`, data)
-    const item = auditQueue.value.find(i => i.id === id)
-    if (item) {
-      if (data.name !== undefined) item.name = data.name
-      if (data.trust !== undefined) item.trust = data.trust
-    }
-  }
-
-  // ── Graph node management (migrated from Admin.vue — M23) ──
-
-  const graphNodes = ref<GraphNodeItem[]>([])
-  const graphNodesLoading = ref(false)
-
-  async function fetchGraphNodes() {
-    graphNodesLoading.value = true
-    try {
-      const data = await request.get('/admin/graph/nodes') as AdminGraphNodesResponse
-      graphNodes.value = data.items ?? []
-    } catch {
-      graphNodes.value = []
+      const data = await request.get('/datasources/health') as DatasourcesHealthResponse
+      health.value = data
+      return data
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '获取健康检查失败'
+      return null
     } finally {
-      graphNodesLoading.value = false
+      loading.value = false
     }
-  }
-
-  async function createGraphNode(payload: Record<string, unknown>) {
-    await request.post('/admin/graph/nodes', payload)
-    await fetchGraphNodes()
-  }
-
-  async function updateGraphNode(id: string, payload: Record<string, unknown>) {
-    await request.put(`/admin/graph/nodes/${id}`, payload)
-    await fetchGraphNodes()
-  }
-
-  async function deleteGraphNode(id: string) {
-    await request.delete(`/admin/graph/nodes/${id}`)
-    await fetchGraphNodes()
-  }
-
-  async function approveGraphNode(id: string) {
-    await request.post(`/admin/graph/nodes/${id}/approve`)
-    await fetchGraphNodes()
-  }
-
-  async function rejectGraphNode(id: string) {
-    await request.post(`/admin/graph/nodes/${id}/reject`)
-    await fetchGraphNodes()
   }
 
   return {
     sources,
     selectedSource,
     stats,
-    auditQueue,
+    health,
     loading,
     error,
-    graphNodes,
-    graphNodesLoading,
     fetchSources,
     fetchSourceDetail,
     updateSource,
     fetchStats,
     triggerSync,
-    fetchAuditQueue,
-    approveAudit,
-    rejectAudit,
-    updateAuditItem,
-    fetchGraphNodes,
-    createGraphNode,
-    updateGraphNode,
-    deleteGraphNode,
-    approveGraphNode,
-    rejectGraphNode,
+    fetchHealth,
   }
 })

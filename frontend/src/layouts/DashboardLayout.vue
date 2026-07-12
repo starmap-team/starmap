@@ -3,9 +3,9 @@
  * 数据大屏专用布局 — 全屏暗色主题
  * 无侧边栏，无面包屑，深色背景，沉浸式体验
  */
-import { ref } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { FullScreen, RefreshRight, Back } from '@element-plus/icons-vue'
+import { FullScreen, Back } from '@element-plus/icons-vue'
 
 defineProps<{
   title?: string
@@ -25,8 +25,13 @@ function toggleFullscreen() {
   }
 }
 
-document.addEventListener('fullscreenchange', () => {
-  isFullscreen.value = !!document.fullscreenElement
+const _fullscreenHandler = () => {
+  isFullscreen.value = Boolean(document.fullscreenElement)
+}
+document.addEventListener('fullscreenchange', _fullscreenHandler)
+
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', _fullscreenHandler)
 })
 
 function goBack() {

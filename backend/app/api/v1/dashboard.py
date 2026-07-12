@@ -21,7 +21,7 @@ from starlette.responses import StreamingResponse
 
 from app.core.dashboard.dashboard_service import get_distribution, get_overview, get_trends
 from app.core.dashboard.sse_broadcaster import event_stream, get_recent_events
-from app.dependencies import get_db_session, get_neo4j_driver, get_redis_client
+from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, get_redis_client
 
 router = APIRouter(prefix="/dashboard", tags=["数据大屏"])
 
@@ -137,12 +137,16 @@ async def dashboard_distribution(
 async def dashboard_realtime(
     request: Request,
     redis: Annotated[Redis | None, Depends(get_redis_client)],
+    _user: Annotated[dict[str, Any], Depends(get_current_user_sse)],
 ) -> StreamingResponse:
     """SSE endpoint for real-time dashboard events.
 
     Streams events from Redis pub/sub with a 15-second heartbeat.
     Event types: ``pipeline_update``, ``quality_alert``,
     ``data_milestone``, ``extraction_complete``.
+
+    Auth: accepts JWT via query param ``?token=xxx`` (for EventSource)
+    or standard ``Authorization: Bearer xxx`` header.
 
     If Redis is unavailable, the client should fall back to
     ``GET /dashboard/realtime-poll``.
@@ -161,6 +165,7 @@ async def dashboard_realtime(
 @router.get("/realtime-poll", response_model=RealtimePollResponse)
 async def dashboard_realtime_poll(
     redis: Annotated[Redis | None, Depends(get_redis_client)],
+    _user: Annotated[dict[str, Any], Depends(get_current_user_sse)],
     since: Annotated[
         float | None,
         Query(description="Unix timestamp — only return events after this time"),

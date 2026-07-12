@@ -12,10 +12,6 @@ import type { paths } from '@/api/schema'
 import request from '@/api/request'
 
 // ── Type helpers ──
-type PathsWithMethod<M extends keyof paths[keyof paths]> = {
-  [P in keyof paths]: M extends keyof paths[P] ? P : never
-}[keyof paths]
-
 type OpForPath<P extends keyof paths, M extends keyof paths[P]> = paths[P][M]
 
 type RequestBody<

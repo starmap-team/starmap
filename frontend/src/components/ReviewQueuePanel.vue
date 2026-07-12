@@ -5,8 +5,8 @@
  */
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Delete, Edit } from '@element-plus/icons-vue'
-import { useAdminStore } from '@/stores/admin'
+import { Search, Edit } from '@element-plus/icons-vue'
+import { useAuditStore } from '@/stores/audit'
 import { chartColors } from '@/utils/chartTheme'
 
 const cc = chartColors()
@@ -16,7 +16,7 @@ const props = defineProps<{
   showActionBar?: boolean
 }>()
 
-const admin = useAdminStore()
+const audit = useAuditStore()
 
 // ── 搜索过滤 ──
 const searchKeyword = ref('')
@@ -25,7 +25,7 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 
 const filteredAuditQueue = computed(() => {
-  let list = admin.auditQueue
+  let list = audit.auditQueue
   if (searchKeyword.value) {
     const kw = searchKeyword.value.toLowerCase()
     list = list.filter(i => i.name.toLowerCase().includes(kw))
@@ -65,15 +65,23 @@ function toggleSelect(id: number) {
 
 // ── 审核操作 ──
 async function handleApprove(id: number) {
-  await admin.approveAudit(id)
-  selectedIds.value.delete(id)
-  ElMessage.success('已批准')
+  try {
+    await audit.approveAudit(id)
+    selectedIds.value.delete(id)
+    ElMessage.success('已批准')
+  } catch (e: unknown) {
+    ElMessage.error('审核失败: ' + (e instanceof Error ? e.message : '未知错误'))
+  }
 }
 
 async function handleReject(id: number) {
-  await admin.rejectAudit(id)
-  selectedIds.value.delete(id)
-  ElMessage.warning('已拒绝')
+  try {
+    await audit.rejectAudit(id)
+    selectedIds.value.delete(id)
+    ElMessage.warning('已拒绝')
+  } catch (e: unknown) {
+    ElMessage.error('审核失败: ' + (e instanceof Error ? e.message : '未知错误'))
+  }
 }
 
 async function handleBatchApprove() {
@@ -87,7 +95,7 @@ async function handleBatchApprove() {
       type: 'warning',
     })
     for (const id of selectedIds.value) {
-      await admin.approveAudit(id)
+      await audit.approveAudit(id)
     }
     selectedIds.value = new Set()
     ElMessage.success('批量批准完成')
@@ -105,7 +113,7 @@ async function handleBatchReject() {
       type: 'warning',
     })
     for (const id of selectedIds.value) {
-      await admin.rejectAudit(id)
+      await audit.rejectAudit(id)
     }
     selectedIds.value = new Set()
     ElMessage.warning('批量拒绝完成')
@@ -134,13 +142,13 @@ async function handleSaveEdit() {
   if (!editingAuditItem.value) return
   editSaving.value = true
   try {
-    await admin.updateAuditItem(editingAuditItem.value.id, {
+    await audit.updateAuditItem(editingAuditItem.value.id, {
       name: editingAuditItem.value.name,
       trust: editingAuditItem.value.trust,
     })
     ElMessage.success('保存成功')
     editDrawerVisible.value = false
-    await admin.fetchAuditQueue()
+    await audit.fetchAuditQueue()
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : '保存失败，请重试')
   } finally {
@@ -214,7 +222,7 @@ async function handleSaveEdit() {
 
     <!-- 表格 -->
     <el-table
-      v-loading="admin.loading"
+      v-loading="audit.loading"
       :data="pagedAuditQueue"
       stripe
       size="default"

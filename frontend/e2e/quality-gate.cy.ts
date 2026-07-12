@@ -9,7 +9,7 @@
  * Run: npx cypress run --spec e2e/quality-gate.cy.ts
  */
 
-const BASE_URL = 'http://localhost:5173'
+const BASE_URL = Cypress.config('baseUrl') || 'http://localhost:5173'
 
 // All 10 new/enhanced pages from the sprint (subset of all 13 routes)
 const QUALITY_GATE_PAGES = [
@@ -25,15 +25,7 @@ const QUALITY_GATE_PAGES = [
   { path: '/admin', name: '管理后台 (Admin)', selector: '.layout-main, main' },
 ]
 
-// Additional pages not in the "new" list but still in the system
-const ADDITIONAL_PAGES = [
-  { path: '/dashboard', name: '数据大屏 (DataDashboard)', selector: '.dashboard-grid, .layout-main, main' },
-  { path: '/analysis', name: '求职者分析 (PipelineAnalysis)', selector: '.layout-main, main' },
-  { path: '/position/Frontend%20Engineer', name: '岗位详情 (PositionDetail)', selector: '.layout-main, main' },
-]
-
 describe('Quality Gate — Page Rendering', () => {
-  const results: { name: string; path: string; passed: boolean; errorCount: number; errors: string[] }[] = []
 
   QUALITY_GATE_PAGES.forEach((page) => {
     it(`${page.name} — 0 console.error`, () => {

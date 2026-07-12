@@ -5,35 +5,42 @@
  * 新增: 图谱节点 CRUD + ReviewQueuePanel 集成
  */
 import { onMounted, ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Search, Plus, Edit } from '@element-plus/icons-vue'
+import { Search, Plus, Edit, DataAnalysis } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ReviewQueuePanel from '@/components/ReviewQueuePanel.vue'
 import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
-import { useAdminStore } from '@/stores/admin'
+import { useDataSourceStore } from '@/stores/datasource'
+import { useAuditStore } from '@/stores/audit'
+import { useGraphNodeStore } from '@/stores/graphNode'
+import PromptManager from '@/components/PromptManager.vue'
 import { chartColors } from '@/utils/chartTheme'
 import { useGraphNodeList, type GraphNodeItem } from '@/composables/useGraphNodeList'
 import { useGraphNodeEditor } from '@/composables/useGraphNodeEditor'
 import { nodeTypeLabel, nodeStatusType, nodeStatusLabel } from '@/composables/useGraphNodeLabels'
 
 const cc = chartColors()
+const router = useRouter()
 
-const admin = useAdminStore()
+const datasource = useDataSourceStore()
+const audit = useAuditStore()
+const graphNode = useGraphNodeStore()
 
 // ── Tab 导航 ──
 const activeTab = ref('audit')
 
 onMounted(() => {
-  admin.fetchSources()
-  admin.fetchAuditQueue()
-  admin.fetchGraphNodes()
+  datasource.fetchSources()
+  audit.fetchAuditQueue()
+  graphNode.fetchGraphNodes()
 })
 
 // ════════════════════════════════════════════════
 // 图谱节点管理
 // ════════════════════════════════════════════════
 
-const graphNodesLoading = computed(() => admin.graphNodesLoading)
+const graphNodesLoading = computed(() => graphNode.loading)
 const {
   searchKeyword: nodeSearchKeyword,
   typeFilter: nodeTypeFilter,
@@ -41,7 +48,7 @@ const {
   pageSize: nodePageSize,
   filtered: filteredGraphNodes,
   paged: pagedGraphNodes,
-} = useGraphNodeList(computed(() => admin.graphNodes as GraphNodeItem[]))
+} = useGraphNodeList(computed(() => graphNode.graphNodes as GraphNodeItem[]))
 
 // Node editor + CRUD actions (extracted — Phase 7 D round 6)
 const {
@@ -53,7 +60,7 @@ const {
   handleDeleteNode,
   handleApproveNode,
   handleRejectNode,
-} = useGraphNodeEditor(admin)
+} = useGraphNodeEditor(graphNode)
 
 // ════════════════════════════════════════════════
 // 数据源编辑 (D-12: el-drawer; state + handlers stay inline — coupled to template refs)
@@ -72,10 +79,10 @@ async function handleSaveSource() {
   try {
     // authority_score slider is 0-100, backend stores 0-1
     const payload = { authority_score: editingSource.value.authority_score / 100 }
-    await admin.updateSource(editingSource.value.id, payload)
+    await datasource.updateSource(editingSource.value.id, payload)
     editDialogVisible.value = false
     ElMessage.success('保存成功')
-    await admin.fetchSources()
+    await datasource.fetchSources()
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : '保存失败，请重试')
   } finally {
@@ -91,9 +98,17 @@ async function handleSaveSource() {
         <div>
           <h2>管理后台</h2>
           <p class="page-desc">
-            人工审核、图谱节点管理、数据源配置
+            人工审核、图谱节点管理、数据源配置、Prompt管理
           </p>
         </div>
+        <el-button
+          type="info"
+          plain
+          :icon="DataAnalysis"
+          @click="router.push('/quality')"
+        >
+          查看质量报告
+        </el-button>
       </div>
 
       <!-- Tab 导航 -->
@@ -331,7 +346,7 @@ async function handleSaveSource() {
               <span class="section-label">数据源配置</span>
             </template>
             <el-table
-              :data="admin.sources"
+              :data="datasource.sources"
               stripe
               size="default"
               empty-text="暂无数据"
@@ -452,6 +467,19 @@ async function handleSaveSource() {
             </el-drawer>
           </el-card>
         </el-tab-pane>
+
+        <!-- ════════ Tab 4: Prompt 管理 ════════ -->
+        <el-tab-pane
+          label="Prompt 管理"
+          name="prompts"
+        >
+          <el-card
+            shadow="never"
+            class="tab-card"
+          >
+            <PromptManager />
+          </el-card>
+        </el-tab-pane>
       </el-tabs>
 
       <!-- Graph Node Editor Dialog -->
@@ -471,6 +499,9 @@ async function handleSaveSource() {
 }
 
 .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: var(--space-5);
 }
 

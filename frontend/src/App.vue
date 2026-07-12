@@ -7,7 +7,6 @@ import '@/styles/animations.css'
 const router = useRouter()
 
 // Track navigation direction for slide transitions
-const routeOrder = ref<string[]>([])
 const transitionName = ref('page-fade')
 
 router.beforeEach((to, from) => {

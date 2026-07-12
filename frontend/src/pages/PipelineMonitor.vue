@@ -42,6 +42,7 @@ const {
   handleSaveConfig,
   qualityTrendOption,
   qualityTrendDir,
+  isAdmin,
 } = usePipelineMonitor()
 </script>
 
@@ -76,47 +77,50 @@ const {
             size="small"
             @change="toggleAutoRefresh"
           />
-          <el-button
-            size="small"
-            type="primary"
-            :icon="VideoPlay"
-            :loading="pipeline.loading"
-            @click="openTriggerDialog"
-          >
-            触发流水线
-          </el-button>
-          <el-button
-            v-if="pipeline.pipelineStatus?.current_run?.status === 'failed'"
-            size="small"
-            type="warning"
-            @click="handleResume"
-          >
-            断点续跑
-          </el-button>
-          <!-- Phase 1 CANCEL-03: 取消当前 running 流水线 -->
-          <el-button
-            v-if="pipeline.pipelineStatus?.current_run?.status === 'running'"
-            size="small"
-            type="danger"
-            plain
-            @click="handleCancelRun"
-          >
-            取消运行
-          </el-button>
-          <el-button
-            size="small"
-            :icon="Timer"
-            @click="openScheduleDialog"
-          >
-            定时调度
-          </el-button>
-          <el-button
-            size="small"
-            :icon="Setting"
-            @click="openConfigDialog"
-          >
-            配置
-          </el-button>
+          <!-- LOOP-08: admin-only management controls -->
+          <template v-if="isAdmin">
+            <el-button
+              size="small"
+              type="primary"
+              :icon="VideoPlay"
+              :loading="pipeline.loading"
+              @click="openTriggerDialog"
+            >
+              触发流水线
+            </el-button>
+            <el-button
+              v-if="pipeline.pipelineStatus?.current_run?.status === 'failed'"
+              size="small"
+              type="warning"
+              @click="handleResume"
+            >
+              断点续跑
+            </el-button>
+            <!-- Phase 1 CANCEL-03: 取消当前 running 流水线 -->
+            <el-button
+              v-if="pipeline.pipelineStatus?.current_run?.status === 'running'"
+              size="small"
+              type="danger"
+              plain
+              @click="handleCancelRun"
+            >
+              取消运行
+            </el-button>
+            <el-button
+              size="small"
+              :icon="Timer"
+              @click="openScheduleDialog"
+            >
+              定时调度
+            </el-button>
+            <el-button
+              size="small"
+              :icon="Setting"
+              @click="openConfigDialog"
+            >
+              配置
+            </el-button>
+          </template>
           <el-button
             size="small"
             :icon="RefreshRight"
@@ -240,7 +244,7 @@ const {
           :data="pipeline.schedules"
           size="small"
           stripe
-              empty-text="暂无数据"
+          empty-text="暂无数据"
         >
           <el-table-column
             prop="name"

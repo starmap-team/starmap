@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 岗位列表页 — 从后端 /positions 获取岗位数据
  */
@@ -49,7 +49,7 @@ async function fetchPositions() {
     }))
     total.value = (data.total as number) ?? items.length
   } catch (e) {
-    console.error('[PositionList] Failed to fetch:', e)
+    if (import.meta.env.DEV) console.error('[PositionList] Failed to fetch:', e)
     ElMessage.error('岗位列表加载失败，请确认后端服务已启动')
   } finally {
     loading.value = false
@@ -58,11 +58,6 @@ async function fetchPositions() {
 
 function onPageChange(newPage: number) {
   page.value = newPage
-  fetchPositions()
-}
-
-function onSearch() {
-  page.value = 1
   fetchPositions()
 }
 
@@ -231,11 +226,10 @@ onMounted(fetchPositions)
 }
 
 .page-header h2 {
-  font-size: var(--font-size-3xl);
+  font-size: var(--font-size-2xl);
   font-weight: 800;
   letter-spacing: var(--tracking-tight);
   margin: 0 0 4px;
-  font-size: var(--font-size-2xl);
   color: var(--foreground);
 }
 

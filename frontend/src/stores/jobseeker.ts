@@ -79,9 +79,17 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
         formData.append('target_positions', targetPositions.join(','))
       }
 
-      const response = await fetch('/api/v1/pipeline/analyze', {
+      // LOOP-02: Add Authorization header + fix hardcoded URL
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+      const token = localStorage.getItem('starmap_token') || localStorage.getItem('token')
+      const headers: Record<string, string> = {}
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      const response = await fetch(`${baseUrl}/pipeline/analyze`, {
         method: 'POST',
         body: formData,
+        headers,
       })
 
       if (!response.ok) {

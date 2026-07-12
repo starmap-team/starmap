@@ -1,5 +1,7 @@
 import { test, expect, Page } from '@playwright/test'
 
+const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000'
+
 /**
  * 功能交互 E2E 测试 — 实际点击、表单提交、反馈验证
  * 覆盖：按钮点击反馈、表单输入提交、API 响应验证、状态变更
@@ -41,8 +43,8 @@ test.describe('全景图谱 — 节点点击交互', () => {
       // 检查搜索结果下拉
       const results = page.locator('[class*="search-result"], [class*="dropdown"], [class*="autocomplete"]')
       const count = await results.count()
-      // 应该有搜索反馈
-      expect(count).toBeGreaterThanOrEqual(0)
+      // 搜索应产生反馈（结果或提示）
+      expect(count).toBeGreaterThanOrEqual(0) // TODO: strengthen to count > 0 once search is stable
       // 清空搜索
       await searchInput.clear()
       await page.waitForTimeout(500)
@@ -120,9 +122,8 @@ test.describe('匹配诊断 — 向导交互', () => {
   })
 
   test('输入岗位后触发匹配 API', async ({ page }) => {
-    let matchApiCalled = false
     page.on('response', (resp) => {
-      if (resp.url().includes('/match')) matchApiCalled = true
+      void resp.url().includes('/match')
     })
     await page.goto('/match')
     await waitForReady(page)
@@ -138,8 +139,9 @@ test.describe('匹配诊断 — 向导交互', () => {
         await page.waitForTimeout(2000)
       }
     }
-    // API 调用可能已触发
-    expect(true).toBeTruthy()
+    // 验证匹配 API 请求已被触发
+    const matchTriggered = matchResponses.length > 0
+    expect(matchTriggered).toBeTruthy()
   })
 })
 
@@ -198,8 +200,8 @@ test.describe('求职者分析 — 简历上传', () => {
     if (await startBtn.count() > 0) {
       // 按钮应该存在（未上传文件时可能禁用）
       const isDisabled = await startBtn.first().getAttribute('disabled')
-      // 未上传文件时按钮应禁用或提示
-      expect(isDisabled !== null || true).toBeTruthy()
+      // 未上传文件时按钮应禁用
+      expect(isDisabled).not.toBeNull()
     }
   })
 })
@@ -323,7 +325,7 @@ test.describe('全页面导航 — 路由跳转', () => {
 // ═══════════════════════════════════════════════
 test.describe('API 响应数据验证', () => {
   test('/graph/overview 返回有效图谱数据', async ({ request }) => {
-    const resp = await request.get('http://localhost:8000/api/v1/graph/overview')
+    const resp = await request.get(`${API_BASE}/api/v1/graph/overview`)
     expect(resp.status()).toBe(200)
     const data = await resp.json()
     expect(data).toBeTruthy()
@@ -332,28 +334,28 @@ test.describe('API 响应数据验证', () => {
   })
 
   test('/positions 返回岗位列表', async ({ request }) => {
-    const resp = await request.get('http://localhost:8000/api/v1/positions')
+    const resp = await request.get(`${API_BASE}/api/v1/positions`)
     expect(resp.status()).toBe(200)
     const data = await resp.json()
     expect(data).toBeTruthy()
   })
 
   test('/quality/dashboard 返回质量数据', async ({ request }) => {
-    const resp = await request.get('http://localhost:8000/api/v1/quality/dashboard')
+    const resp = await request.get(`${API_BASE}/api/v1/quality/dashboard`)
     expect(resp.status()).toBe(200)
     const data = await resp.json()
     expect(data).toBeTruthy()
   })
 
   test('/evolution/trends 返回趋势数据', async ({ request }) => {
-    const resp = await request.get('http://localhost:8000/api/v1/evolution/trends')
+    const resp = await request.get(`${API_BASE}/api/v1/evolution/trends`)
     expect(resp.status()).toBe(200)
     const data = await resp.json()
     expect(data).toBeTruthy()
   })
 
   test('/admin/stats 返回统计数据', async ({ request }) => {
-    const resp = await request.get('http://localhost:8000/api/v1/admin/stats')
+    const resp = await request.get(`${API_BASE}/api/v1/admin/stats`)
     expect(resp.status()).toBe(200)
     const data = await resp.json()
     expect(data).toBeTruthy()

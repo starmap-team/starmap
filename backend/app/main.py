@@ -9,15 +9,16 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
-from sqlalchemy import bindparam, text
+from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from app.api.v1.router import api_router
+from app.dependencies import get_current_user
+from app.api.v1.router import api_router, auth_router
 from app.config import settings
 from app.services.resources import healthcheck_resources, init_resources, resources
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
@@ -83,7 +84,7 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allow_headers=["Content-Type", "Authorization", "Accept"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
 )
 
 # P1 修复 (API-04): 安全响应头中间件
@@ -113,6 +114,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Sliding window: keep only timestamps within the window
         bucket = _rate_buckets[client_ip]
         _rate_buckets[client_ip] = [t for t in bucket if now - t < _RATE_LIMIT_WINDOW]
+        # Periodic cleanup: cap total buckets to prevent unbounded memory growth
+        if len(_rate_buckets) > 10000:
+            stale_keys = [
+                k for k, v in _rate_buckets.items()
+                if not v or now - v[-1] > _RATE_LIMIT_WINDOW
+            ]
+            for k in stale_keys:
+                del _rate_buckets[k]
         if len(_rate_buckets[client_ip]) >= _RATE_LIMIT_MAX:
             audit_log(AuditEntry(
                 event=AuditEvent.RATE_LIMITED,
@@ -133,6 +142,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 app.add_middleware(RateLimitMiddleware)
 
 app.include_router(api_router, prefix="/api/v1")
+# Auth routes don't require authentication (login endpoint)
+app.include_router(auth_router, prefix="/api/v1")
 
 
 # M17: Global exception handler — catches unhandled exceptions, logs them,
@@ -164,13 +175,11 @@ async def health_v1() -> dict:
     return await _health_payload()
 
 
-# D-05/CFG-04: 详细健康检查 — 4 服务 ping + 3 LLM key 布尔（不泄露值）+ demo 数据指示
-# ponytail: 硬编码 demo 实体名集合用于检测 auto-seed 残留；SEC-03 auth 属未来范畴
-_DEMO_ENTITY_NAMES = ("AI Agent Dev", "LLM Application Engineer", "Spring AI", "RAG")
+# D-05/CFG-04: 详细健康检查 — 4 服务 ping + 3 LLM key 布尔（不泄露值）+ data stats
 
 
 async def _detailed_health_payload() -> dict:
-    """详细健康检查：服务 ping + LLM key 配置布尔 + demo 数据指示。
+    """详细健康检查：服务 ping + LLM key 配置布尔 + data stats。
 
     生产环境也返回完整详情（per D-05；与现有 /health 一致无 auth 保护）。
     """
@@ -183,38 +192,35 @@ async def _detailed_health_payload() -> dict:
         "xunfei": bool(settings.xunfei_api_key),
     }
 
-    # demo_data: 查询 review_queue 是否含 auto-seed 行 + pipeline_runs 总数
-    demo_data: dict[str, Any] = {"review_queue_seeded": False, "pipeline_runs_count": 0}
+    # data_stats: 查询业务数据量概览（替代旧的 seed 检测逻辑）
+    data_stats: dict[str, Any] = {"positions": 0, "skills": 0, "pipeline_runs": 0}
     if resources.pg_engine is not None:
         try:
             async with resources.pg_engine.begin() as conn:
-                seeded = await conn.execute(
-                    text(
-                        "SELECT COUNT(*) FROM review_queue "
-                        "WHERE status = 'pending' AND entity_name IN :names"
-                    ).bindparams(bindparam("names", expanding=True)),
-                    {"names": list(_DEMO_ENTITY_NAMES)},
-                )
-                review_count = seeded.scalar() or 0
+                pos = await conn.execute(text("SELECT COUNT(*) FROM position_records"))
+                positions = pos.scalar() or 0
+                skl = await conn.execute(text("SELECT COUNT(*) FROM skill_records"))
+                skills = skl.scalar() or 0
                 runs = await conn.execute(text("SELECT COUNT(*) FROM pipeline_runs"))
                 runs_count = runs.scalar() or 0
-                demo_data = {
-                    "review_queue_seeded": review_count > 0,
-                    "pipeline_runs_count": int(runs_count),
+                data_stats = {
+                    "positions": int(positions),
+                    "skills": int(skills),
+                    "pipeline_runs": int(runs_count),
                 }
         except Exception as exc:  # pragma: no cover - defensive runtime check
-            logger.warning("demo_data health query failed: {}", exc)
+            logger.warning("data_stats health query failed: {}", exc)
 
-    return {"services": services, "llm_keys": llm_keys, "demo_data": demo_data}
+    return {"services": services, "llm_keys": llm_keys, "data_stats": data_stats}
 
 
-@app.get("/health/detail", tags=["系统"])
+@app.get("/health/detail", tags=["系统"], dependencies=[Depends(get_current_user)])
 async def health_detail() -> dict:
     """详细健康检查端点：服务状态 + LLM key 配置布尔 + demo 数据指示。"""
     return await _detailed_health_payload()
 
 
-@app.get("/api/v1/health/detail", tags=["系统"], include_in_schema=False)
+@app.get("/api/v1/health/detail", tags=["系统"], include_in_schema=False, dependencies=[Depends(get_current_user)])
 async def health_detail_v1() -> dict:
     """契约兼容的 v1 详细健康检查端点。"""
     return await _detailed_health_payload()

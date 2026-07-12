@@ -1,11 +1,11 @@
-"""Admin graph node CRUD endpoints — extracted from admin.py (Phase 7 admin domain split).
+"""Admin graph node CRUD endpoints — thin HTTP layer over admin_graph_service.
 
-业务说明：图谱节点管理 API（CRUD + 审核），依赖 Neo4j driver。
-注册到 admin.py 的主 router（prefix="/admin"），最终路径形如 /admin/graph/nodes/{id}。
+Extracted from admin.py (Phase 7 admin domain split).
+Registered to admin.py's main router (prefix="/admin"), final paths like /admin/graph/nodes/{id}.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
@@ -13,15 +13,15 @@ from pydantic import BaseModel, Field
 
 from app.core.matching.constants import ALLOWED_NODE_LABELS
 from app.dependencies import get_neo4j_driver
+from app.services.admin_graph_service import GraphNodeService
 
-# ponytail: alias matches the pre-existing local name used in admin.py
 _ALLOWED_LABELS = ALLOWED_NODE_LABELS
 
 
 class GraphNodeItem(BaseModel):
     id: str = Field(default="")
-    type: str = Field(..., description="Node label: Position, Skill, Tool, KnowledgeArea")
-    name: str = Field(..., min_length=1)
+    type: Literal["Position", "Skill", "Tool", "KnowledgeArea", "Domain", "Industry", "Certificate", "LearningResource"] = Field(..., description="Node label")
+    name: str = Field(..., min_length=1, max_length=200)
     properties: dict[str, Any] = Field(default_factory=dict)
     status: str = Field(default="approved")
     created_at: str | None = None
@@ -35,42 +35,38 @@ class GraphNodeListResponse(BaseModel):
 router = APIRouter(tags=["graph-nodes"])
 
 
+def _item_from_dict(data: dict[str, Any]) -> GraphNodeItem:
+    return GraphNodeItem(
+        id=data.get("id", ""),
+        type=data.get("type", ""),
+        name=data.get("name", ""),
+        properties=data.get("properties", {}),
+        status=data.get("status", "approved"),
+    )
+
+
 @router.get("/graph/nodes", response_model=GraphNodeListResponse)
 async def list_graph_nodes(
     driver: Any = Depends(get_neo4j_driver),
-    limit: int = Query(200, ge=1, le=1000),
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    search: Annotated[str, Query(max_length=200)] = "",
+    node_type: str = "",
 ) -> GraphNodeListResponse:
+    """List graph nodes with pagination and optional filtering."""
     if driver is None:
         return GraphNodeListResponse(items=[], total=0)
-    nodes: list[GraphNodeItem] = []
+
+    service = GraphNodeService(driver)
     try:
-        async with driver.session() as session:
-            result = await session.run(
-                "MATCH (n) RETURN n LIMIT $limit",
-                {"limit": limit},
-            )
-            async for record in result:
-                node = record["n"]
-                if node is None:
-                    continue
-                labels = list(node.labels)
-                # Only include nodes with whitelisted labels
-                valid_labels = [lb for lb in labels if lb in _ALLOWED_LABELS]
-                if not valid_labels:
-                    continue
-                props = dict(node)
-                props = {k: str(v) if not isinstance(v, (str, int, float, bool, list, dict, type(None))) else v for k, v in props.items()}
-                node_type = valid_labels[0]
-                nodes.append(GraphNodeItem(
-                    id=str(node.element_id),
-                    type=node_type,
-                    name=props.get("name", ""),
-                    properties=props,
-                    status=props.get("review_status", "pending"),
-                ))
+        result = await service.list_nodes(
+            offset=offset, limit=limit, search=search, node_type=node_type
+        )
+        items = [_item_from_dict(n) for n in result["items"]]
+        return GraphNodeListResponse(items=items, total=result["total"])
     except Exception as exc:
         logger.error("Failed to list graph nodes: {}", exc)
-    return GraphNodeListResponse(items=nodes, total=len(nodes))
+        raise HTTPException(status_code=500, detail="Failed to list graph nodes") from exc
 
 
 @router.post("/graph/nodes", response_model=GraphNodeItem)
@@ -78,31 +74,22 @@ async def create_graph_node(
     body: GraphNodeItem,
     driver: Any = Depends(get_neo4j_driver),
 ) -> GraphNodeItem:
+    """Create a new graph node."""
     if driver is None:
         raise HTTPException(status_code=503, detail="Neo4j not available")
-    # Whitelist allowed node labels to prevent Cypher injection
+
     if body.type not in _ALLOWED_LABELS:
-        raise HTTPException(status_code=400, detail=f"Invalid label: {body.type}. Allowed: {sorted(_ALLOWED_LABELS)}")
-    label = body.type
-    props = {**body.properties, "name": body.name}
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid label: {body.type}. Allowed: {sorted(_ALLOWED_LABELS)}",
+        )
+
+    service = GraphNodeService(driver)
     try:
-        async with driver.session() as session:
-            # Label is safe (validated against whitelist above).
-            # Neo4j does not support parameterized labels, so we use
-            # f-string for the label only after strict whitelist check.
-            # All property values use parameterized queries.
-            query = (
-                f"CREATE (n:{label} {{name: $name}}) SET n += $props "
-                "RETURN elementId(n) AS eid"
-            )
-            result = await session.run(query, {"name": body.name, "props": props})
-            record = await result.single()
-            eid = str(record["eid"]) if record else ""
-            logger.info("Created graph node: {} ({})", body.name, label)
-            return GraphNodeItem(
-                id=eid, type=label, name=body.name,
-                properties=props, status="pending",
-            )
+        result = await service.create_node(
+            node_type=body.type, name=body.name, properties=body.properties
+        )
+        return _item_from_dict(result)
     except Exception as exc:
         logger.error("Failed to create graph node: {}", exc)
         raise HTTPException(status_code=500, detail="Failed to create graph node") from exc
@@ -114,30 +101,24 @@ async def update_graph_node(
     body: GraphNodeItem,
     driver: Any = Depends(get_neo4j_driver),
 ) -> GraphNodeItem:
+    """Update an existing graph node."""
     if driver is None:
         raise HTTPException(status_code=503, detail="Neo4j not available")
-    # Validate label against whitelist
+
     if body.type not in _ALLOWED_LABELS:
-        raise HTTPException(status_code=400, detail=f"Invalid label: {body.type}. Allowed: {sorted(_ALLOWED_LABELS)}")
-    props = {**body.properties, "name": body.name}
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid label: {body.type}. Allowed: {sorted(_ALLOWED_LABELS)}",
+        )
+
+    service = GraphNodeService(driver)
     try:
-        async with driver.session() as session:
-            query = (
-                "MATCH (n) WHERE elementId(n) = $eid "
-                "SET n += $props "
-                "RETURN n"
-            )
-            result = await session.run(query, {"eid": node_id, "props": props})
-            record = await result.single()
-            if not record:
-                raise HTTPException(status_code=404, detail="Node not found")
-            logger.info("Updated graph node: {}", node_id)
-            return GraphNodeItem(
-                id=node_id, type=body.type, name=body.name,
-                properties=props, status="approved",
-            )
-    except HTTPException:
-        raise
+        result = await service.update_node(
+            node_id, node_type=body.type, name=body.name, properties=body.properties
+        )
+        return _item_from_dict(result)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Node not found") from None
     except Exception as exc:
         logger.error("Failed to update graph node {}: {}", node_id, exc)
         raise HTTPException(status_code=500, detail="Failed to update graph node") from exc
@@ -148,23 +129,16 @@ async def delete_graph_node(
     node_id: str,
     driver: Any = Depends(get_neo4j_driver),
 ) -> dict[str, Any]:
+    """Delete a graph node and its relationships."""
     if driver is None:
         raise HTTPException(status_code=503, detail="Neo4j not available")
+
+    service = GraphNodeService(driver)
     try:
-        async with driver.session() as session:
-            query = (
-                "MATCH (n) WHERE elementId(n) = $eid "
-                "DETACH DELETE n RETURN count(n) AS deleted"
-            )
-            result = await session.run(query, {"eid": node_id})
-            record = await result.single()
-            deleted = record["deleted"] if record else 0
-            if deleted == 0:
-                raise HTTPException(status_code=404, detail="Node not found")
-            logger.info("Deleted graph node: {}", node_id)
-            return {"ok": True, "deleted": deleted}
-    except HTTPException:
-        raise
+        deleted = await service.delete_node(node_id)
+        return {"ok": True, "deleted": deleted}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Node not found") from None
     except Exception as exc:
         logger.error("Failed to delete graph node {}: {}", node_id, exc)
         raise HTTPException(status_code=500, detail="Failed to delete graph node") from exc
@@ -175,22 +149,15 @@ async def approve_graph_node(
     node_id: str,
     driver: Any = Depends(get_neo4j_driver),
 ) -> dict[str, Any]:
+    """Approve a graph node (set review_status to 'approved')."""
     if driver is None:
         raise HTTPException(status_code=503, detail="Neo4j not available")
+
+    service = GraphNodeService(driver)
     try:
-        async with driver.session() as session:
-            query = (
-                "MATCH (n) WHERE elementId(n) = $eid "
-                "SET n.review_status = $status "
-                "RETURN n"
-            )
-            result = await session.run(query, {"eid": node_id, "status": "approved"})
-            record = await result.single()
-            if not record:
-                raise HTTPException(status_code=404, detail="Node not found")
-            return {"ok": True, "status": "approved"}
-    except HTTPException:
-        raise
+        return await service.set_review_status(node_id, "approved")
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Node not found") from None
     except Exception as exc:
         logger.error("Failed to approve graph node {}: {}", node_id, exc)
         raise HTTPException(status_code=500, detail="Failed to approve graph node") from exc
@@ -201,22 +168,15 @@ async def reject_graph_node(
     node_id: str,
     driver: Any = Depends(get_neo4j_driver),
 ) -> dict[str, Any]:
+    """Reject a graph node (set review_status to 'rejected')."""
     if driver is None:
         raise HTTPException(status_code=503, detail="Neo4j not available")
+
+    service = GraphNodeService(driver)
     try:
-        async with driver.session() as session:
-            query = (
-                "MATCH (n) WHERE elementId(n) = $eid "
-                "SET n.review_status = $status "
-                "RETURN n"
-            )
-            result = await session.run(query, {"eid": node_id, "status": "rejected"})
-            record = await result.single()
-            if not record:
-                raise HTTPException(status_code=404, detail="Node not found")
-            return {"ok": True, "status": "rejected"}
-    except HTTPException:
-        raise
+        return await service.set_review_status(node_id, "rejected")
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Node not found") from None
     except Exception as exc:
         logger.error("Failed to reject graph node {}: {}", node_id, exc)
         raise HTTPException(status_code=500, detail="Failed to reject graph node") from exc

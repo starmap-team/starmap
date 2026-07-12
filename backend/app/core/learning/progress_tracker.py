@@ -119,6 +119,10 @@ async def update_progress(
     Returns:
         Updated LearningProgress, or None if not found.
     """
+    # Validate status against allowed values
+    _VALID_STATUSES = {"not_started", "in_progress", "mastered"}
+    if status is not None and status not in _VALID_STATUSES:
+        raise ValueError(f"Invalid status: {status!r}. Must be one of {sorted(_VALID_STATUSES)}")
     stmt = (
         sa.select(LearningProgress)
         .where(
@@ -143,7 +147,8 @@ async def update_progress(
         if status == "in_progress" and progress.started_at is None:
             progress.started_at = now
         elif status == "mastered":
-            progress.completed_at = now
+            if progress.completed_at is None:
+                progress.completed_at = now
             progress.progress_pct = 100.0
 
     if progress_pct is not None:

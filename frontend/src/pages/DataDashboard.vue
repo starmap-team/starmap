@@ -121,8 +121,12 @@ useDashboardRealtimeSync(
               class="chart-empty"
             >
               <span class="chart-empty-icon">📊</span>
-              <p class="chart-empty-text">暂无数据</p>
-              <p class="chart-empty-hint">数据加载中或暂无记录</p>
+              <p class="chart-empty-text">
+                暂无数据
+              </p>
+              <p class="chart-empty-hint">
+                数据加载中或暂无记录
+              </p>
             </div>
           </div>
         </div>
@@ -145,8 +149,12 @@ useDashboardRealtimeSync(
               class="chart-empty"
             >
               <span class="chart-empty-icon">🧭</span>
-              <p class="chart-empty-text">暂无数据</p>
-              <p class="chart-empty-hint">数据加载中或暂无记录</p>
+              <p class="chart-empty-text">
+                暂无数据
+              </p>
+              <p class="chart-empty-hint">
+                数据加载中或暂无记录
+              </p>
             </div>
           </div>
         </div>
@@ -169,8 +177,12 @@ useDashboardRealtimeSync(
               class="chart-empty"
             >
               <span class="chart-empty-icon">📈</span>
-              <p class="chart-empty-text">暂无数据</p>
-              <p class="chart-empty-hint">数据加载中或暂无记录</p>
+              <p class="chart-empty-text">
+                暂无数据
+              </p>
+              <p class="chart-empty-hint">
+                数据加载中或暂无记录
+              </p>
             </div>
           </div>
         </div>
@@ -286,8 +298,12 @@ useDashboardRealtimeSync(
               class="chart-empty"
             >
               <span class="chart-empty-icon">🛰️</span>
-              <p class="chart-empty-text">暂无数据</p>
-              <p class="chart-empty-hint">数据加载中或暂无记录</p>
+              <p class="chart-empty-text">
+                暂无数据
+              </p>
+              <p class="chart-empty-hint">
+                数据加载中或暂无记录
+              </p>
             </div>
           </div>
         </div>

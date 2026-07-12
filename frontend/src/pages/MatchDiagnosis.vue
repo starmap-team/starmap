@@ -7,7 +7,7 @@
  * Step 3: 差距分析报告 → GapAnalysisReport.vue
  * Step 4: 学习路径规划 → LearningPathPlan.vue
  */
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { DataAnalysis, Plus } from '@element-plus/icons-vue'
 import { use } from 'echarts/core'
@@ -28,12 +28,15 @@ import type { SkillMatchItem } from '@/components/SkillMatchAnimation.vue'
 import { useUserStore } from '@/stores/user'
 import { useResumeStore } from '@/stores/resume'
 import { useMatchStore } from '@/stores/match'
-import type { SkillGap } from '@/stores/match'
+import { useLearningStore } from '@/stores/learning'
+import { useRouter } from 'vue-router'
 import type { RadarItem } from '@/components/SkillRadar.vue'
 
 const userStore = useUserStore()
 const resumeStore = useResumeStore()
 const matchStore = useMatchStore()
+const learningStore = useLearningStore()
+const router = useRouter()
 
 // ── Page mode: single or batch ──
 const pageMode = ref('single')
@@ -210,11 +213,32 @@ function resetAll() {
   step.value = 0
   targetPositionName.value = ''
   radarData.value = []
-  matchStore.result = null
+  matchStore.clearResult()
   matchProgress.value = 0
   manualSkills.value = []
   userStore.clearResume()
 }
+
+// LOOP-04: 创建学习计划并跳转学习中心
+async function handleCreatePlan() {
+  if (!matchStore.result) {
+    ElMessage.warning('暂无匹配结果，无法创建学习计划')
+    return
+  }
+  try {
+    const plan = await learningStore.createPlan(matchStore.result as unknown as Record<string, unknown>)
+    if (plan) {
+      ElMessage.success('学习计划已创建')
+      router.push('/learning')
+    }
+  } catch (e: unknown) {
+    ElMessage.error('创建学习计划失败: ' + (e instanceof Error ? e.message : '未知错误'))
+  }
+}
+
+onUnmounted(() => {
+  if (matchProgressTimer.value) clearInterval(matchProgressTimer.value)
+})
 </script>
 
 <template>
@@ -423,6 +447,7 @@ function resetAll() {
           :gap-skills="gapSkills"
           @go-back="goBack"
           @reset-all="resetAll"
+          @create-plan="handleCreatePlan"
         />
       </template>
 

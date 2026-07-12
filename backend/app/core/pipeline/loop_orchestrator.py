@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 class StepStatus(StrEnum):
     SUCCESS = "success"
     FAILED = "failed"
+    SKIPPED = "skipped"
 
 
 class LoopRunStatus(StrEnum):
@@ -67,7 +68,7 @@ class LoopResult:
 
     run_id: str
     jd_text: str
-    target_position: str
+    target_position: str | None
     status: LoopRunStatus
     steps: list[LoopStepResult] = field(default_factory=list)
     extracted_skills: list[dict[str, Any]] = field(default_factory=list)
@@ -125,7 +126,7 @@ class LoopOrchestrator:
     async def run_loop(
         self,
         jd_text: str,
-        target_position: str,
+        target_position: str | None,
         session: AsyncSession | None = None,
     ) -> LoopResult:
         """Execute the full 5-step closed-loop pipeline.
@@ -185,32 +186,47 @@ class LoopOrchestrator:
         result.graph_update = step3.data
         await self._update_steps_json(db_record, result, session=session)
 
-        # ---- Step 4: Match Diagnosis ----
-        step4 = await self._step4_match_diagnosis(
-            target_position=target_position,
-            extracted_skills=result.extracted_skills,
-            graph_available=graph_ok,
-            driver=driver,
-            db_session=session,
-        )
-        result.steps.append(step4)
-        if step4.status == StepStatus.SUCCESS:
-            result.match_result = step4.data
+        # ---- Step 4: Match Diagnosis (LOOP-09: skip if no target_position) ----
+        if target_position:
+            step4 = await self._step4_match_diagnosis(
+                target_position=target_position,
+                extracted_skills=result.extracted_skills,
+                graph_available=graph_ok,
+                driver=driver,
+                db_session=session,
+            )
+            result.steps.append(step4)
+            if step4.status == StepStatus.SUCCESS:
+                result.match_result = step4.data
+        else:
+            step4 = LoopStep(
+                step=4, name="Match Diagnosis", status=StepStatus.SKIPPED,
+                data={}, note="Skipped: no target_position provided",
+            )
+            result.steps.append(step4)
         await self._update_steps_json(db_record, result, session=session)
 
-        # ---- Step 5: Learning Path ----
-        step5 = await self._step5_learning_path(
-            match_result=result.match_result,
-            graph_available=graph_ok,
-            match_ok=step4.status != StepStatus.FAILED,
-            session=session,
-            target_position=target_position,
-        )
-        result.steps.append(step5)
-        result.learning_path = step5.data
+        # ---- Step 5: Learning Path (LOOP-09: skip if no target_position) ----
+        if target_position and step4.status != StepStatus.SKIPPED:
+            step5 = await self._step5_learning_path(
+                match_result=result.match_result,
+                graph_available=graph_ok,
+                match_ok=step4.status != StepStatus.FAILED,
+                session=session,
+                target_position=target_position,
+            )
+            result.steps.append(step5)
+            result.learning_path = step5.data
+        else:
+            step5 = LoopStep(
+                step=5, name="Learning Path", status=StepStatus.SKIPPED,
+                data={}, note="Skipped: no target_position or match skipped",
+            )
+            result.steps.append(step5)
 
         # Determine overall status
         failed_steps = [s for s in result.steps if s.status == StepStatus.FAILED]
+        skipped_ok = [s for s in result.steps if s.status == StepStatus.SKIPPED]
         if failed_steps and all(s.step in (4, 5) for s in failed_steps):
             # Only path/match failed — pipeline still completed
             result.status = LoopRunStatus.COMPLETED

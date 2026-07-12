@@ -191,6 +191,42 @@ function asArray(data: unknown): unknown[] {
   return Array.isArray(data) ? data : []
 }
 
+// ── CreatePlanRequest: 前端→后端请求体类型安全映射 ──
+
+/** 后端 CreatePlanRequest 对应的前端类型 */
+export interface CreatePlanRequestBody {
+  position: string
+  match_score: number
+  skills: Array<{
+    skill: string
+    importance: string
+    gap_level: string
+    learning_path: string[]
+    target_proficiency?: string
+  }>
+  available_hours_per_week?: number
+}
+
+/** 从匹配结果构造 CreatePlanRequest 请求体 (LOOP-03) */
+export function buildCreatePlanRequest(matchResult: Record<string, unknown>): CreatePlanRequestBody {
+  const position = (matchResult.position_name ?? matchResult.position ?? '') as string
+  const matchScore = (matchResult.match_score ?? 0) as number
+  const gapDetail = (matchResult.skill_gap_detail ?? []) as Array<Record<string, unknown>>
+  const skills = gapDetail.map((gap) => ({
+    skill: (gap.skill ?? gap.skill_name ?? '') as string,
+    importance: (gap.importance ?? 'required') as string,
+    gap_level: (gap.gap_level ?? '完全缺失') as string,
+    learning_path: (Array.isArray(gap.learning_path) ? gap.learning_path : []) as string[],
+    target_proficiency: (gap.target_proficiency ?? '熟悉') as string,
+  }))
+  return {
+    position: position || '未知岗位',
+    match_score: matchScore,
+    skills: skills.length > 0 ? skills : [{ skill: '通用技能', importance: 'required', gap_level: '完全缺失', learning_path: [] }],
+    available_hours_per_week: 10.0,
+  }
+}
+
 export const useLearningStore = defineStore('learning', () => {
   const plans = ref<LearningPlan[]>([])
   const currentPlan = ref<LearningPlan | null>(null)
@@ -202,7 +238,8 @@ export const useLearningStore = defineStore('learning', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.post('/learning/plan', matchResult)
+      const payload = buildCreatePlanRequest(matchResult)
+      const data = await request.post('/learning/plan', payload)
       const plan = mapPlanResponse(asRecord(data) as unknown as PlanResponseRaw)
       currentPlan.value = plan
       plans.value.unshift(plan)

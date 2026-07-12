@@ -2,7 +2,7 @@
 from functools import lru_cache
 
 from loguru import logger
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # 占位符：表示密码尚未在 .env 中配置，必须修改后才能用于生产环境
@@ -30,11 +30,21 @@ class Settings(BaseSettings):
         "http://localhost:5175",
     ]
 
+    # 认证
+    auth_users: str = Field(
+        default="",
+        description="用户列表，格式: username:password:role,username2:password2:role2",
+    )
+    token_expire_hours: int = Field(
+        default=24, ge=1, le=720,
+        description="JWT token 有效期（小时）",
+    )
+
     # 数据来源权威度评分 (admin.py source management)
     authority_scores: dict[str, float] = {
         "lagou": 0.75, "zhaopin": 0.72, "indeed": 0.68, "linkedin": 0.85,
         "sap": 0.90, "talent": 0.70, "freelancer": 0.65, "bosszhipin": 0.73,
-        "51job": 0.71, "liepin": 0.74, "test_real_crawl": 0.50, "seed": 0.50,
+        "51job": 0.71, "liepin": 0.74, "test_real_crawl": 0.50,
         "boss": 0.70, "esco": 0.92,
     }
     authority_default_score: float = 0.60
@@ -151,6 +161,12 @@ class Settings(BaseSettings):
             else:
                 logger.warning(msg)
 
+        # P1 fix: production environment must have debug mode disabled
+        if self.app_env == "production" and self.app_debug:
+            raise RuntimeError(
+                "Debug mode (APP_DEBUG=True) must be disabled in production environment"
+            )
+
         # P1 修复 (DATA-04): 生产环境 Redis 必须有密码
         if self.app_env == "production" and "@" not in self.redis_uri:
             raise RuntimeError(
@@ -183,6 +199,23 @@ class Settings(BaseSettings):
             )
 
         return self
+
+    # ── 认证用户解析 ──
+    @property
+    def parsed_users(self) -> list[dict[str, str]]:
+        """解析 AUTH_USERS 环境变量为用户列表。
+
+        格式: username:password:role,username2:password2:role2
+        示例: AUTH_USERS=admin:starmap2024:admin,demo:demo123:user
+        """
+        if not self.auth_users:
+            return []
+        users: list[dict[str, str]] = []
+        for entry in self.auth_users.split(","):
+            parts = entry.strip().split(":")
+            if len(parts) == 3:
+                users.append({"username": parts[0], "password": parts[1], "role": parts[2]})
+        return users
 
 
 @lru_cache

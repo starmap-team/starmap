@@ -43,10 +43,6 @@ const matchedCount = computed(() => {
   return props.skills.slice(0, revealedCount.value).filter(s => s.matched).length
 })
 
-const revealedSkills = computed(() => {
-  return props.skills.slice(0, revealedCount.value)
-})
-
 function spawnParticles(el: HTMLElement, matched: boolean) {
   const rect = el.getBoundingClientRect()
   const container = el.closest('.skill-match-animation')
@@ -147,7 +143,13 @@ defineExpose({ play, stop, reset })
 <template>
   <div class="skill-match-animation">
     <!-- Progress bar -->
-    <div class="sm-progress-bar">
+    <div
+      class="sm-progress-bar"
+      role="progressbar"
+      :aria-valuenow="progressPercent"
+      aria-valuemin="0"
+      aria-valuemax="100"
+    >
       <div
         class="sm-progress-fill"
         :style="{ width: progressPercent + '%' }"

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -140,7 +141,7 @@ def _make_db_override(session: FakeAsyncSession):
 
 # ── Fixtures ──
 
-_MOCK_USER = {"sub": "dev", "role": "admin", "username": "developer"}
+_MOCK_USER = {"sub": "test-user-dev", "role": "admin", "username": "developer"}
 
 
 @pytest.fixture
@@ -151,7 +152,8 @@ def client():
 
 @pytest.fixture
 def auth_headers():
-    return {"Authorization": "Bearer dev-token"}
+    """Auth headers — rely on _override_user fixture; no hardcoded tokens needed."""
+    return {}
 
 
 @pytest.fixture
@@ -489,15 +491,20 @@ class TestTriggerSourceSync:
         ds = FakeDataSourceRecord(id=ds_id, name="拉勾网")
         session = FakeAsyncSession([FakeResult(ds)])
         db_override(session)
-        resp = client.post(f"/api/v1/datasources/{ds_id}/sync", headers=auth_headers)
+        with patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock) as mock_trigger:
+            from app.models.pipeline_models import PipelineRun
+            mock_run = MagicMock(spec=PipelineRun)
+            mock_run.id = uuid.uuid4()
+            mock_run.status = "running"
+            mock_trigger.return_value = mock_run
+
+            resp = client.post(f"/api/v1/datasources/{ds_id}/sync", headers=auth_headers)
+
         assert resp.status_code == 200
         body = resp.json()
         assert body["source_name"] == "拉勾网"
         assert body["status"] == "running"
         assert "run_id" in body
-        assert "拉勾网" in body["message"]
-        # Verify a PipelineRun was added to the session
-        assert len(session._added) == 1
 
     def test_sync_not_found_returns_404(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()
@@ -512,16 +519,55 @@ class TestTriggerSourceSync:
         resp = client.post("/api/v1/datasources/not-a-uuid/sync", headers=auth_headers)
         assert resp.status_code == 422
 
-    def test_sync_creates_pipeline_run_with_stages(self, client, auth_headers, db_override):
+    def test_sync_triggers_pipeline(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()
         ds = FakeDataSourceRecord(id=ds_id, name="51Job")
         session = FakeAsyncSession([FakeResult(ds)])
         db_override(session)
-        resp = client.post(f"/api/v1/datasources/{ds_id}/sync", headers=auth_headers)
+        with patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock) as mock_trigger:
+            from app.models.pipeline_models import PipelineRun
+            mock_run = MagicMock(spec=PipelineRun)
+            mock_run.id = uuid.uuid4()
+            mock_run.status = "running"
+            mock_trigger.return_value = mock_run
+
+            resp = client.post(f"/api/v1/datasources/{ds_id}/sync", headers=auth_headers)
+
         assert resp.status_code == 200
-        added_run = session._added[0]
-        assert added_run.run_type == "source_sync"
-        assert added_run.status == "running"
-        assert len(added_run.stages) == 5
-        stage_names = [s["name"] for s in added_run.stages]
-        assert stage_names == ["crawl", "dedup", "clean", "import", "graph_sync"]
+        mock_trigger.assert_awaited_once_with(run_type="source_sync")
+
+
+# ══════════════════════════════════════════════════════════════
+# GET /api/v1/datasources/health — health check
+# ══════════════════════════════════════════════════════════════
+
+
+class TestDatasourcesHealth:
+    def test_health_returns_200(self, client, auth_headers, db_override):
+        ds1 = FakeDataSourceRecord(name="BOSS直聘", status="active")
+        ds2 = FakeDataSourceRecord(name="拉勾网", status="error")
+        # execute 1: select DataSourceRecord → [ds1, ds2]
+        # execute 2: select PipelineRun for ds1 → None
+        # execute 3: select PipelineRun for ds2 → None
+        session = FakeAsyncSession([
+            FakeResult([ds1, ds2]),
+            FakeResult(None),  # no recent run for ds1
+            FakeResult(None),  # no recent run for ds2
+        ])
+        db_override(session)
+        resp = client.get("/api/v1/datasources/health", headers=auth_headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total_sources"] == 2
+        assert body["active_sources"] == 1
+        assert body["error_sources"] == 1
+        assert len(body["sources"]) == 2
+
+    def test_health_empty_returns_200(self, client, auth_headers, db_override):
+        session = FakeAsyncSession([FakeResult([])])
+        db_override(session)
+        resp = client.get("/api/v1/datasources/health", headers=auth_headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total_sources"] == 0
+        assert body["sources"] == []

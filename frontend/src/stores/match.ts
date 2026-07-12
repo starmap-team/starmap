@@ -147,5 +147,9 @@ export const useMatchStore = defineStore('match', () => {
     }
   }
 
-  return { result, loading, history, historyList, runMatch, fetchMatchResult, fetchPositionSkills, fetchHistory }
+  function clearResult() {
+    result.value = null
+  }
+
+  return { result, loading, history, historyList, runMatch, fetchMatchResult, fetchPositionSkills, fetchHistory, clearResult }
 })

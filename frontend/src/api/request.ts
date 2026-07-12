@@ -8,7 +8,7 @@ import axios, { type AxiosError } from 'axios'
 import { ElMessage, ElNotification } from 'element-plus'
 
 const request = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 30000,
 })
 
@@ -45,6 +45,11 @@ function hideLoading() {
 request.interceptors.request.use(
   (config) => {
     showLoading()
+    // Attach auth token from localStorage to every request
+    const token = localStorage.getItem('starmap_token') || localStorage.getItem('token')
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   (error) => {
@@ -83,7 +88,7 @@ window.addEventListener('online', () => {
 const ERROR_MESSAGES: Record<number, string> = {
   400: '请求参数有误，请检查后重试',
   401: '登录已过期，请重新登录',
-  403: '没有权限执行此操作',
+  403: '没有权限执行此操作，请联系管理员',
   404: '请求的资源不存在',
   408: '请求超时，请稍后重试',
   409: '数据存在冲突，请刷新后重试',
@@ -119,6 +124,9 @@ request.interceptors.response.use(
 
     // 仅非 401 的错误显示通用提示；401 单独处理
     if (status === 401) {
+      // Clear stale token and user state on 401
+      localStorage.removeItem('starmap_token')
+      localStorage.removeItem('token')
       // Emit a window-level event so the router layer can redirect to /login.
       // Each request() failure surfaces synchronously, so a single event bus
       // decouples axios from vue-router without pulling useRouter() into this
@@ -129,6 +137,12 @@ request.interceptors.response.use(
         showClose: true,
       })
       window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+    } else if (status === 403) {
+      ElMessage.error({
+        message: '您没有权限执行此操作',
+        duration: 4000,
+        showClose: true,
+      })
     } else {
       ElMessage.error({
         message,
@@ -137,7 +151,9 @@ request.interceptors.response.use(
       })
     }
 
-    console.error(`[API] ${status ?? 'Network'}: ${error.message}`)
+    if (import.meta.env.DEV) {
+      console.error(`[API] ${status ?? 'Network'}: ${error.message}`)
+    }
     return Promise.reject(error)
   },
 )

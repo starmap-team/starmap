@@ -2,26 +2,26 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 真实数据切换
-status: ready_to_verify
-last_updated: 2026-07-10T15:30:00.000Z
-last_activity: 2026-07-10 -- Phase 10 executed (4/4 plans complete)
+status: planning
+last_updated: 2026-07-12T12:00:00.000Z
+last_activity: 2026-07-12 -- Phase 11 planned (9/9 plans across 3 waves)
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 1
-  total_plans: 10
+  total_plans: 19
   completed_plans: 26
-  percent: 87
-stopped_at: Phase 10 executed (4 plans: 10-01..10-04) — ready for /gsd:verify-work
+  percent: 90
+stopped_at: Phase 11 planned (9 plans: 11-01..11-09) — ready for /gsd:execute-phase
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: 10
-Plan: All executed (4/4)
-Status: ✅ Phase 10 executed (awaiting verification)
-Last activity: 2026-07-10
+Phase: 11
+Plan: All planned (9/9)
+Status: 📋 Phase 11 planned (3 waves, 9 plans)
+Last activity: 2026-07-12
 
 ## Accumulated Context
 
@@ -36,6 +36,10 @@ Last activity: 2026-07-10
 - DEC-010: P5颜色迁移 — ~307处硬编码颜色值需迁移至 design tokens
 - DEC-011: v2.1 真实数据优先 — 先关闭Mock/清理Demo，再验证Pipeline
 - DEC-012: 空状态返回 undefined 而非 null（09-02 修正）— vue-echarts 的 option prop 类型为 ECBasicOption | undefined，与设计意图等价
+- DEC-013: Phase 11 功能闭环补全 — 3 P0阻断 + 4 P1核心闭环 + 5 P2数据一致性/UX
+- DEC-014: AUTH_USERS 格式 — username:password:role 逗号分隔（避免 JSON 环境变量转义问题）
+- DEC-015: SSE 鉴权方案 — EventSource 用 query-param token，fetch 用 Authorization header
+- DEC-016: LoopRunRequest.target_position — 改为 Optional[str] = None，允许不指定目标岗位
 
 ### Blockers
 
@@ -48,6 +52,7 @@ Last activity: 2026-07-10
 | 8 | 后端清理与配置 | ✅ complete | — |
 | 9 | 前端关闭 Mock | ✅ complete (UAT 7/7) | verified 2026-07-10 |
 | 10 | Pipeline 端到端验证 | ✅ executed (4/4 plans) | ready for /gsd:verify-work |
+| 11 | 功能闭环补全 | 📋 planned (9/9 plans, 3 waves) | — |
 
 ## v2.0 Baseline (2026-07-08)
 

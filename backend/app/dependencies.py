@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 from redis.asyncio import Redis
@@ -163,3 +163,41 @@ async def require_admin(
             detail="Admin access required",
         )
     return user
+
+
+async def get_current_user_sse(
+    token: str | None = Query(None, description="JWT token (EventSource fallback)"),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+) -> dict[str, Any]:
+    """SSE-friendly auth: accept token via query param OR Authorization header (LOOP-02).
+
+    EventSource API doesn't support custom headers, so the frontend passes
+    the JWT token as a ``?token=xxx`` query parameter. This dependency checks
+    the query param first, then falls back to the standard Bearer header.
+    """
+    # Try query-param token first (for EventSource connections)
+    if token:
+        # 开发环境：接受固定 dev token
+        if settings.app_env != "production" and token == "dev-token":
+            return {"sub": "dev", "role": "admin", "username": "developer"}
+        try:
+            payload = _decode_token(token)
+            return payload
+        except ValueError as e:
+            err_msg = str(e)
+            event = AuditEvent.TOKEN_EXPIRED if "expired" in err_msg else AuditEvent.TOKEN_INVALID
+            audit_log(AuditEntry(
+                event=event,
+                actor="anonymous",
+                action="jwt_validate_sse",
+                detail=err_msg,
+                ip="",
+            ))
+            logger.warning("SSE JWT validation failed: {}", e)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
+            ) from e
+
+    # Fall back to standard Bearer header auth
+    return await get_current_user(credentials)

@@ -1,17 +1,22 @@
-"""Admin prompts management endpoints — extracted from admin.py (Phase 7 admin domain split).
+"""Admin prompts management endpoints — thin HTTP layer.
 
-业务说明：提示词模板与 A/B 测试管理 API。
-注册到 admin.py 的主 router（prefix="/admin"），最终路径形如 /admin/prompts/{name}。
+Business logic for A/B aggregation lives in app.services.admin_ab_service.
+Prompt version management delegates to app.core.extraction.prompt.
+This file only handles: request parsing, storage routing (Redis vs in-memory),
+domain-exception → HTTP-exception mapping, and response serialization.
 """
 from __future__ import annotations
 
+import json
 import time
 from collections import defaultdict
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 from pydantic import BaseModel, Field
+
+from app.dependencies import get_redis_client
 
 from app.core.extraction.prompt import (
     get_ab_test,
@@ -24,6 +29,7 @@ from app.core.extraction.prompt import (
     set_active_version,
     stop_ab_test,
 )
+from app.services.admin_ab_service import aggregate_ab_results
 
 # FE-02: A/B test result tracking (in-memory, process-local)
 _ab_results: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -189,6 +195,7 @@ async def get_ab_test_config(name: str) -> dict[str, Any]:
 
 class ABResultRequest(BaseModel):
     """Record an A/B test result for aggregation."""
+
     version: str = Field(..., description="Prompt version used for this request")
     success: bool = Field(default=True, description="Whether the extraction succeeded")
     f1: float | None = Field(default=None, ge=0.0, le=1.0, description="F1 score if evaluated")
@@ -196,7 +203,7 @@ class ABResultRequest(BaseModel):
 
 
 @router.post("/prompts/{name}/ab-results")
-async def record_ab_result(name: str, req: ABResultRequest) -> dict[str, Any]:
+async def record_ab_result(name: str, req: ABResultRequest, redis: Any = Depends(get_redis_client)) -> dict[str, Any]:
     """Record an A/B test result for later analysis."""
     entry = {
         "version": req.version,
@@ -205,45 +212,34 @@ async def record_ab_result(name: str, req: ABResultRequest) -> dict[str, Any]:
         "latency_ms": req.latency_ms,
         "timestamp": time.time(),
     }
-    _ab_results[name].append(entry)
-    # Cap results to prevent unbounded memory
-    if len(_ab_results[name]) > _MAX_RESULTS_PER_PROMPT:
-        _ab_results[name] = _ab_results[name][-_MAX_RESULTS_PER_PROMPT:]
+
+    if redis is not None:
+        key = f"ab:results:{name}"
+        await redis.lpush(key, json.dumps(entry))
+        await redis.ltrim(key, 0, _MAX_RESULTS_PER_PROMPT - 1)
+    else:
+        _ab_results[name].append(entry)
+        if len(_ab_results[name]) > _MAX_RESULTS_PER_PROMPT:
+            _ab_results[name] = _ab_results[name][-_MAX_RESULTS_PER_PROMPT:]
+
     return {"prompt": name, "recorded": True}
 
 
 @router.get("/prompts/{name}/ab-results")
-async def get_ab_results(name: str) -> dict[str, Any]:
+async def get_ab_results(name: str, redis: Any = Depends(get_redis_client)) -> dict[str, Any]:
     """Get aggregated A/B test results for a prompt."""
-    results = _ab_results.get(name, [])
-    if not results:
-        return {"prompt": name, "total": 0, "versions": {}}
+    results: list[dict[str, Any]] = []
 
-    # Aggregate by version
-    by_version: dict[str, dict[str, Any]] = defaultdict(lambda: {
-        "count": 0, "success_count": 0, "f1_sum": 0.0, "f1_count": 0,
-        "latency_sum": 0.0, "latency_count": 0,
-    })
-    for r in results:
-        v = r["version"]
-        by_version[v]["count"] += 1
-        if r["success"]:
-            by_version[v]["success_count"] += 1
-        if r["f1"] is not None:
-            by_version[v]["f1_sum"] += r["f1"]
-            by_version[v]["f1_count"] += 1
-        if r["latency_ms"] is not None:
-            by_version[v]["latency_sum"] += r["latency_ms"]
-            by_version[v]["latency_count"] += 1
+    if redis is not None:
+        key = f"ab:results:{name}"
+        raw_results = await redis.lrange(key, 0, -1)
+        for raw in raw_results:
+            try:
+                results.append(json.loads(raw))
+            except json.JSONDecodeError:
+                continue
+    else:
+        results = _ab_results.get(name, [])
 
-    # Compute averages
-    summary = {}
-    for v, stats in by_version.items():
-        summary[v] = {
-            "count": stats["count"],
-            "success_rate": round(stats["success_count"] / stats["count"], 4),
-            "avg_f1": round(stats["f1_sum"] / stats["f1_count"], 4) if stats["f1_count"] else None,
-            "avg_latency_ms": round(stats["latency_sum"] / stats["latency_count"], 1) if stats["latency_count"] else None,
-        }
-
-    return {"prompt": name, "total": len(results), "versions": summary}
+    aggregated = aggregate_ab_results(results)
+    return {"prompt": name, **aggregated}

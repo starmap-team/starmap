@@ -1,7 +1,7 @@
 """图谱查询 API。"""
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -95,11 +95,15 @@ class DomainOverviewItem(BaseModel):
 
 
 class DomainOverviewResponse(BaseModel):
-    """领域概览响应：KA 节点 + KA 间关联。"""
+    """领域概览响应：KA 节点 + KA 间关联 + 独立节点统计。"""
     domains: list[DomainOverviewItem] = Field(default_factory=list)
     connections: list[GraphEdge] = Field(default_factory=list)
     total_positions: int = 0
     total_skills: int = 0
+    # 独立节点计数（去重，与 Neo4j 实际节点数一致）
+    independent_positions: int = Field(0, description="独立 Position 节点数（去重）")
+    independent_skills: int = Field(0, description="独立 Skill 节点数（去重）")
+    independent_edges: int = Field(0, description="独立 REQUIRES 关系数（去重）")
 
 
 @router.get(
@@ -109,9 +113,9 @@ class DomainOverviewResponse(BaseModel):
     response_model=DomainOverviewResponse,
 )
 async def get_graph_overview(
-    driver: Annotated[Any, Depends(get_neo4j_driver)],
-    group_by: Annotated[str, Query(description="分组方式: domain(默认)/tech_stack/level")] = "domain",
-) -> DomainOverviewResponse:
+	    driver: Annotated[Any, Depends(get_neo4j_driver)],
+	    group_by: Annotated[Literal["domain", "tech_stack", "level"], Query(description="分组方式: domain(默认)/tech_stack/level")] = "domain",
+	) -> DomainOverviewResponse:
     if driver is None:
         return DomainOverviewResponse()
     # Dispatch to specialized queries
@@ -167,6 +171,23 @@ async def get_graph_overview(
                 color=color,
             ))
 
+        # Get independent counts (actual Neo4j node/edge counts, no duplication)
+        # Use separate queries to avoid UNION ALL column name mismatch
+        pos_result = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
+        independent_pos = 0
+        async for record in pos_result:
+            independent_pos = record["cnt"]
+
+        skill_result = await session.run("MATCH (s:Skill) RETURN count(s) AS cnt")
+        independent_skill = 0
+        async for record in skill_result:
+            independent_skill = record["cnt"]
+
+        edge_result = await session.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS cnt")
+        independent_edge = 0
+        async for record in edge_result:
+            independent_edge = record["cnt"]
+
         # Get KA-KA connections via shared positions
         conn_query = """
         MATCH (ka1:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[:REQUIRES]-(p:Position)-[:REQUIRES]->(s2:Skill)-[:BELONGS_TO]->(ka2:KnowledgeArea)
@@ -192,6 +213,9 @@ async def get_graph_overview(
         connections=connections,
         total_positions=total_pos,
         total_skills=total_skill,
+        independent_positions=independent_pos,
+        independent_skills=independent_skill,
+        independent_edges=independent_edge,
     )
 
 

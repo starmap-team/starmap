@@ -172,11 +172,11 @@ async def discover_position(
 ) -> dict[str, Any]:
     """触发新兴岗位发现：基于技能频率 Z-score 检测。
 
-    从 skill_timeseries 表加载历史频率数据，从 skill_records 表加载当前数据，
+    从 skill_timeseries 表加载历史频率数据，
     然后运行 EmergenceFinder 进行 Z-score 分析。
+    若无时序数据则返回"数据不足"提示。
     """
     from app.core.evolution.emergence_finder import EmergenceFinder
-    from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
     try:
         # Step 1: Load timeseries data for frequency history
@@ -184,39 +184,16 @@ async def discover_position(
 
         skill_data = await load_skill_timeseries_data(db)
 
-        # Step 2: For skills without timeseries, use source_count as fallback
-        skill_stmt = sa.select(SkillRecord)
-        skill_result = await db.execute(skill_stmt)
-        all_skills = skill_result.scalars().all()
+        if not skill_data:
+            return {
+                "status": "insufficient_data",
+                "emerging_skills": [],
+                "count": 0,
+                "skills_analyzed": 0,
+                "message": "时序数据不足，请先执行管线以生成技能频率统计",
+            }
 
-        # Load position-skill relations for position mapping
-        rel_stmt = (
-            sa.select(SkillRecord.name, PositionRecord.name)
-            .select_from(SkillRecord)
-            .outerjoin(PositionSkillRelation, PositionSkillRelation.skill_id == SkillRecord.id)
-            .outerjoin(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
-        )
-        rel_result = await db.execute(rel_stmt)
-        rel_rows = rel_result.all()
-
-        skill_positions: dict[str, list[str]] = {}
-        for skill_name, pos_name in rel_rows:
-            if skill_name not in skill_positions:
-                skill_positions[skill_name] = []
-            if pos_name and pos_name not in skill_positions[skill_name]:
-                skill_positions[skill_name].append(pos_name)
-
-        for s in all_skills:
-            if s.name not in skill_data:
-                source_count = int(s.source_count or 0)
-                skill_data[s.name] = {
-                    "frequencies": [max(0, source_count - 2), max(0, source_count - 1)],
-                    "current": source_count,
-                    "sources": source_count,
-                    "positions": skill_positions.get(s.name, []),
-                }
-
-        # Step 3: Run emergence detection
+        # Step 2: Run emergence detection
         finder = EmergenceFinder()
         report = finder.scan(skill_data)
 

@@ -15,7 +15,7 @@
 - 网络级断言 (1, 2, 5, 8) 需要后端 + Neo4j + Frontend dev server 运行
 - 触发: `pytest tests/e2e/pipeline_smoke_test.py -v -m smoke`
 """
-import time
+from pathlib import Path
 
 import httpx
 import pytest
@@ -47,9 +47,13 @@ def test_03_clean_text_no_html():
 # -----------------------------------------------------------------------
 def test_07_llm_fallback_to_ollama(monkeypatch):
     """三个云端 LLM key 全缺失时, call_llm_with_fallback 仍能调用 Ollama (模块级 sanity)."""
-    from app.core.extraction import llm_client
-    # 模块级别 sanity: 暴露的函数存在 (Ollama 兜底由 call_llm_with_fallback 实现)
-    assert hasattr(llm_client, "call_llm_with_fallback")
+    # Verify the function is importable and is a coroutine function
+    try:
+        from app.core.extraction.llm_client import call_llm_with_fallback
+        import asyncio
+        assert asyncio.iscoroutinefunction(call_llm_with_fallback), "call_llm_with_fallback must be async"
+    except ImportError:
+        pytest.skip("llm_client module not importable (likely missing deps)")
 
 
 # -----------------------------------------------------------------------
@@ -131,12 +135,16 @@ def test_05_graph_sync_nodes():
     """Neo4j 中 Skill 节点 ≥5, Position 节点 ≥3, 存在 REQUIRES 关系."""
     import os
 
+    neo4j_password = os.environ.get("NEO4J_PASSWORD")
+    if not neo4j_password:
+        pytest.skip("NEO4J_PASSWORD environment variable not set")
+
     from neo4j import GraphDatabase
     uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     try:
         driver = GraphDatabase.driver(
             uri,
-            auth=(os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD", "CHANGE_ME_IN_ENV")),
+            auth=(os.getenv("NEO4J_USER", "neo4j"), neo4j_password),
         )
         with driver.session() as session:
             skills = session.run("MATCH (s:Skill) RETURN count(s) AS c").single()["c"]

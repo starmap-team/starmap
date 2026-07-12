@@ -24,6 +24,13 @@ import { chartColors } from '@/utils/chartTheme'
 import NodeTooltip3D from './NodeTooltip3D.vue'
 import { Loading } from '@element-plus/icons-vue'
 
+// ── Security ──
+function escapeHtml(s: string): string {
+  const d = document.createElement('div')
+  d.textContent = s
+  return d.innerHTML
+}
+
 // ── Types ──
 // ponytail: extend 3d-force-graph's NodeObject to carry our domain fields
 interface GraphNode3D extends NodeObject {
@@ -108,19 +115,23 @@ function getNodeLabel(node: GraphNode3D): string {
   return node.labels?.[0] ?? 'Unknown'
 }
 
+/** 节点间距因子：用于在 force 模拟中预留额外空间，防止 3D 球体边界粘连 */
+const NODE_COLLISION_PADDING = 1.6
+
 function getNodeRadius(node: GraphNode3D): number {
   const label = getNodeLabel(node)
   switch (label) {
     case 'KnowledgeArea': {
       const skills = node.properties.skill_count ?? 1
-      return 6 + Math.sqrt(skills) * 2.5
+      // Cap radius growth to prevent oversized nodes that overlap and stick together
+      return 6 + Math.min(Math.sqrt(skills) * 2, 14)
     }
     case 'Position':
-      return 3.5 + (node.properties.weight ?? 0.5) * 3
+      return 4 + (node.properties.weight ?? 0.5) * 3.5
     case 'Skill':
-      return 2 + (node.properties.weight ?? 0.5) * 2
+      return 2.5 + (node.properties.weight ?? 0.5) * 2.5
     default:
-      return 2.5
+      return 3
   }
 }
 
@@ -168,11 +179,11 @@ async function initGraph() {
   // ── Force engine tuning（节点多时增大排斥力防止黏连） ──
   const nodeCount = props.nodes.length
   // charge: 排斥力（负值），节点多时更负防止黏连
-  const chargeStrength = nodeCount > 200 ? -120 : nodeCount > 100 ? -80 : -50
+  const chargeStrength = nodeCount > 200 ? -400 : nodeCount > 100 ? -250 : -150
   // link: 连线距离
-  const linkDist = nodeCount > 100 ? 80 : 50
-  // link strength: 连线弹簧强度
-  const linkStrength = nodeCount > 100 ? 0.2 : 0.4
+  const linkDist = nodeCount > 100 ? 180 : 120
+  // link strength: 连线弹簧强度（更弱 = 节点更自由）
+  const linkStrength = nodeCount > 100 ? 0.03 : 0.08
 
   const graph = new ForceGraph3D(container)
     .width(w)
@@ -189,19 +200,27 @@ async function initGraph() {
       return n.color ?? nodeColor(getNodeLabel(n))
     })
     .nodeResolution(16)  // Sphere segments (smoother spheres)
-    .nodeOpacity(0.92)
+    .nodeOpacity(0.75)
+    .nodeThreeObject(buildNodeThreeObject)
 
     // ── Node label (3D text sprite) ──
     .nodeLabel((node) => {
       const n = node as GraphNode3D
+      const label = getNodeLabel(n)
+      const isDomain = label === 'KnowledgeArea'
+      const fontSize = isDomain ? 14 : 11
+      const padding = isDomain ? '6px 14px' : '4px 10px'
       return `<div style="
         font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-        font-size: 12px; font-weight: 600; color: ${SCENE_PALETTE.textColor};
-        background: rgba(10,14,26,0.85); padding: 4px 10px;
-        border-radius: 8px; border: 1px solid ${withAlpha(SCENE_PALETTE.mutedText, 0.3)};
-        backdrop-filter: blur(8px); white-space: nowrap;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      ">${n.properties.name}</div>`
+        font-size: ${fontSize}px; font-weight: 700; color: ${SCENE_PALETTE.textColor};
+        background: rgba(10,14,26,0.92); padding: ${padding};
+        border-radius: 10px; border: 1px solid ${withAlpha(SCENE_PALETTE.mutedText, 0.4)};
+        backdrop-filter: blur(12px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        text-shadow: 0 0 8px rgba(0,0,0,0.6);
+        letter-spacing: 0.5px;
+        max-width: 200px; white-space: normal; word-break: break-word; line-height: 1.35;
+      ">${escapeHtml(n.properties.name)}</div>`
     })
 
     // ── Edge configuration ──
@@ -226,20 +245,36 @@ async function initGraph() {
     .linkCurvature(0.1)
 
     // ── Force tuning（增大排斥力、增大间距、降低 center 引力） ──
-    .d3AlphaDecay(nodeCount > 300 ? 0.05 : 0.02)
-    .d3VelocityDecay(nodeCount > 300 ? 0.4 : 0.3)
-    .warmupTicks(nodeCount > 300 ? 30 : 50)
-    .cooldownTicks(nodeCount > 300 ? 100 : 200)
+    .d3AlphaDecay(nodeCount > 300 ? 0.08 : 0.04)
+    .d3VelocityDecay(nodeCount > 300 ? 0.5 : 0.35)
+    .warmupTicks(nodeCount > 300 ? 50 : 80)
+    .cooldownTicks(nodeCount > 300 ? 150 : 300)
 
   // 调优：修改默认的 charge / link / center force，不要替换 link force
   // （3d-force-graph 内部持有 _forceLink 引用，替换后 graphData() 写入旧实例，模拟器用新实例 → 失效）
   // ponytail: d3Force returns d3-force internals — narrow via unknown cast
   const chargeForce = graph.d3Force('charge') as unknown as { strength(v: number): unknown; distanceMax(v: number): unknown } | null
-  if (chargeForce) { chargeForce.strength(chargeStrength); chargeForce.distanceMax(400) }
+  if (chargeForce) { chargeForce.strength(chargeStrength); chargeForce.distanceMax(1200) }
   const linkForce = graph.d3Force('link') as unknown as { distance(v: number): unknown; strength(v: number): unknown } | null
   if (linkForce) { linkForce.distance(linkDist); linkForce.strength(linkStrength) }
   const centerForce = graph.d3Force('center') as unknown as { strength(v: number): unknown } | null
-  if (centerForce) centerForce.strength(0.05)
+  if (centerForce) centerForce.strength(0.008)
+
+  // ── Collision detection: prevent sphere overlap ──
+  // Use a custom force to push overlapping nodes apart based on their radii
+  const collisionForce = graph.d3Force('collision') as unknown as {
+    strength(v: number): unknown
+    radius(v: (node: unknown) => number): unknown
+    iterations(v: number): unknown
+  } | null
+  if (collisionForce) {
+    collisionForce.strength(1.2)
+    collisionForce.radius((node: unknown) => {
+      const n = node as GraphNode3D
+      return getNodeRadius(n) * NODE_COLLISION_PADDING * 1.5
+    })
+    collisionForce.iterations(3)
+  }
 
   // ── Interactions ──
   graph.onNodeHover((node, _prevNode) => {
@@ -263,10 +298,11 @@ async function initGraph() {
   })
 
   // Track mouse for tooltip positioning
-  container.addEventListener('mousemove', (e: MouseEvent) => {
+  const _mouseMoveHandler = (e: MouseEvent) => {
     tooltipX.value = e.clientX
     tooltipY.value = e.clientY
-  })
+  }
+  container.addEventListener('mousemove', _mouseMoveHandler)
 
   // Double-click detection via onNodeClick + timestamp
   let lastClickTime = 0
@@ -300,88 +336,132 @@ async function initGraph() {
   // Set graph data
   graph.graphData({ nodes: props.nodes, links: props.links })
 
-  // Setup glow post-processing for domain nodes
-  setupGlowEffect(graph)
-
   isReady.value = true
 }
 
-// ── Glow effect for large nodes (domain spheres) ──
-// ponytail: graph param uses 3d-force-graph's chainable generic — `any` is the pragmatic choice
-function setupGlowEffect(graph: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-  // Custom node rendering with glow for KnowledgeArea nodes
-  graph.nodeThreeObject((node: NodeObject) => {
-    const n = node as GraphNode3D
-    const label = getNodeLabel(n)
-    const radius = getNodeRadius(n)
-    const color = toThreeHex(n.color ?? nodeColor(label))
+// ── Build custom Three.js object for a node (sphere + glow + text label) ──
+function buildNodeThreeObject(node: NodeObject): import('three').Object3D {
+  const n = node as GraphNode3D
+  const label = getNodeLabel(n)
+  const radius = getNodeRadius(n)
+  const color = toThreeHex(n.color ?? nodeColor(label))
 
-    // Dynamic import three lazily
-    // We use the THREE namespace that 3d-force-graph already has internally
-    const THREE = (window as unknown as Record<string, unknown>).__THREE as typeof import('three') | undefined
-    if (!THREE) {
-      // Fallback: no custom object, use default sphere
-      return null
+  const THREE = (window as unknown as Record<string, unknown>).__THREE as typeof import('three') | undefined
+  if (!THREE) {
+    // Fallback: return undefined to use default sphere rendering
+    return undefined as unknown as import('three').Object3D
+  }
+
+  const geometry = new THREE.SphereGeometry(radius, 32, 32)
+
+  if (label === 'KnowledgeArea') {
+    const material = new THREE.MeshPhysicalMaterial({
+      color,
+      emissive: color,
+      emissiveIntensity: 0.35,
+      transparent: true,
+      opacity: 0.75,
+      roughness: 0.25,
+      metalness: 0.6,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.1,
+    })
+    const mesh = new THREE.Mesh(geometry, material)
+
+    const haloGeometry = new THREE.SphereGeometry(radius * 1.4, 24, 24)
+    const haloMaterial = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.12,
+      depthWrite: false,
+      side: THREE.BackSide,
+    })
+    mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
+
+    const spriteMaterial = new THREE.SpriteMaterial({
+      map: createGlowTexture(color, THREE),
+      transparent: true,
+      opacity: 0.25,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    const sprite = new THREE.Sprite(spriteMaterial)
+    sprite.scale.set(radius * 5, radius * 5, 1)
+    mesh.add(sprite)
+
+    const textSprite = createTextSprite(n.properties.name, radius, 'domain', THREE)
+    textSprite.position.y = radius + 2
+    mesh.add(textSprite)
+
+    return mesh as unknown as import('three').Object3D
+  }
+
+  if (label === 'Position') {
+    const material = new THREE.MeshPhysicalMaterial({
+      color,
+      emissive: color,
+      emissiveIntensity: 0.2,
+      transparent: true,
+      opacity: 0.85,
+      roughness: 0.3,
+      metalness: 0.5,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.15,
+    })
+    const mesh = new THREE.Mesh(geometry, material)
+
+    const haloGeometry = new THREE.SphereGeometry(radius * 1.3, 24, 24)
+    const haloMaterial = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.08,
+      depthWrite: false,
+      side: THREE.BackSide,
+    })
+    mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
+
+    const textSprite = createTextSprite(n.properties.name, radius, 'position', THREE)
+    textSprite.position.y = radius + 1.5
+    mesh.add(textSprite)
+
+    return mesh as unknown as import('three').Object3D
+  }
+
+  if (label === 'Skill') {
+    const material = new THREE.MeshPhysicalMaterial({
+      color,
+      emissive: color,
+      emissiveIntensity: 0.15,
+      transparent: true,
+      opacity: 0.9,
+      roughness: 0.4,
+      metalness: 0.35,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.2,
+    })
+    const mesh = new THREE.Mesh(geometry, material)
+
+    const haloGeometry = new THREE.SphereGeometry(radius * 1.2, 24, 24)
+    const haloMaterial = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.05,
+      depthWrite: false,
+      side: THREE.BackSide,
+    })
+    mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
+
+    if (radius >= 3) {
+      const textSprite = createTextSprite(n.properties.name, radius, 'skill', THREE)
+      textSprite.position.y = radius + 1.2
+      mesh.add(textSprite)
     }
 
-    // Create sphere with custom material
-    const geometry = new THREE.SphereGeometry(radius, 24, 24)
+    return mesh as unknown as import('three').Object3D
+  }
 
-    if (label === 'KnowledgeArea') {
-      // Glowing domain sphere
-      const material = new THREE.MeshPhongMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: 0.4,
-        transparent: true,
-        opacity: 0.92,
-        shininess: 80,
-      })
-      const mesh = new THREE.Mesh(geometry, material)
-
-      // Add glow sprite
-      const spriteMaterial = new THREE.SpriteMaterial({
-        map: createGlowTexture(color, THREE),
-        transparent: true,
-        opacity: 0.3,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      })
-      const sprite = new THREE.Sprite(spriteMaterial)
-      sprite.scale.set(radius * 4, radius * 4, 1)
-      mesh.add(sprite)
-
-      return mesh
-    }
-
-    if (label === 'Position') {
-      // Solid blue sphere with subtle emissive
-      const material = new THREE.MeshPhongMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: 0.2,
-        transparent: true,
-        opacity: 0.88,
-        shininess: 60,
-      })
-      return new THREE.Mesh(geometry, material)
-    }
-
-    if (label === 'Skill') {
-      // Smaller, slightly emissive sphere
-      const material = new THREE.MeshPhongMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: 0.15,
-        transparent: true,
-        opacity: 0.85,
-        shininess: 40,
-      })
-      return new THREE.Mesh(geometry, material)
-    }
-
-    return null // Use default for other types
-  })
+  // Default fallback for unknown node types
+  return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color })) as unknown as import('three').Object3D
 }
 
 // ── Glow texture cache (key = hexColor) ──
@@ -389,6 +469,7 @@ const _glowCache = new Map<number, THREE.Texture>()
 
 /** 释放 glow 纹理缓存（组件卸载时调用）。 */
 function disposeGlowCache() {
+  for (const texture of _glowCache.values()) texture.dispose()
   _glowCache.clear()
 }
 
@@ -422,7 +503,132 @@ function createGlowTexture(hexColor: number, THREE_NS: typeof import('three')): 
   return texture
 }
 
+// ── Text label cache (key = "name|type") ──
+const _textCache = new Map<string, THREE.Texture>()
+
+/** 释放文字纹理缓存（组件卸载时调用）。 */
+function disposeTextCache() {
+  for (const texture of _textCache.values()) texture.dispose()
+  _textCache.clear()
+}
+
+// ── Text sprite generator (canvas-based, with cache) ──
+function createTextSprite(
+  text: string,
+  nodeRadius: number,
+  nodeType: 'domain' | 'position' | 'skill',
+  THREE_NS: typeof import('three'),
+): import('three').Sprite {
+  const cacheKey = `${text}|${nodeType}`
+  let texture = _textCache.get(cacheKey)
+
+  if (!texture) {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')!
+
+    // Font sizing based on node type
+    const fontSize = nodeType === 'domain' ? 28 : nodeType === 'position' ? 22 : 18
+    const lineHeight = fontSize * 1.4
+    const maxWidth = nodeType === 'domain' ? 280 : nodeType === 'position' ? 220 : 180
+    const paddingX = 16
+    const paddingY = 10
+
+    ctx.font = `700 ${fontSize}px 'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif`
+
+    // Word-wrap long text
+    const words = text.split('')
+    const lines: string[] = []
+    let currentLine = ''
+    for (const ch of words) {
+      const testLine = currentLine + ch
+      const metrics = ctx.measureText(testLine)
+      if (metrics.width > maxWidth && currentLine.length > 0) {
+        lines.push(currentLine)
+        currentLine = ch
+      } else {
+        currentLine = testLine
+      }
+    }
+    if (currentLine) lines.push(currentLine)
+    if (lines.length === 0) lines.push(text)
+
+    const canvasWidth = maxWidth + paddingX * 2
+    const canvasHeight = lines.length * lineHeight + paddingY * 2
+    canvas.width = canvasWidth
+    canvas.height = canvasHeight
+
+    // Re-apply font after resize
+    ctx.font = `700 ${fontSize}px 'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    // Draw background pill
+    const cornerRadius = 10
+    ctx.fillStyle = 'rgba(10, 14, 26, 0.85)'
+    roundRect(ctx, 0, 0, canvasWidth, canvasHeight, cornerRadius)
+    ctx.fill()
+
+    // Draw border
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)'
+    ctx.lineWidth = 1.5
+    roundRect(ctx, 0.5, 0.5, canvasWidth - 1, canvasHeight - 1, cornerRadius)
+    ctx.stroke()
+
+    // Draw text with shadow for readability
+    ctx.fillStyle = '#e2e8f0'
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)'
+    ctx.shadowBlur = 4
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 1
+
+    const startY = (canvasHeight - (lines.length - 1) * lineHeight) / 2
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], canvasWidth / 2, startY + i * lineHeight)
+    }
+
+    texture = new THREE_NS.CanvasTexture(canvas)
+    texture.needsUpdate = true
+    _textCache.set(cacheKey, texture)
+  }
+
+  const spriteMaterial = new THREE_NS.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false,
+  })
+  const sprite = new THREE_NS.Sprite(spriteMaterial)
+
+  // Scale sprite to match node size — larger nodes get proportionally larger labels
+  const scaleFactor = nodeType === 'domain' ? 0.18 : nodeType === 'position' ? 0.14 : 0.1
+  const img = texture.image as HTMLCanvasElement | undefined
+  const aspect = img ? img.width / img.height : 2
+  sprite.scale.set(nodeRadius * scaleFactor * aspect, nodeRadius * scaleFactor, 1)
+
+  return sprite
+}
+
+/** Canvas roundRect helper for pill-shaped label backgrounds */
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+}
+
 // ── Camera presets ──
+let _autoRotateTimer: ReturnType<typeof setTimeout> | null = null
+
 function setCameraPreset(preset: CameraPreset) {
   const graph = graphInstance.value
   if (!graph) return
@@ -439,26 +645,26 @@ function setCameraPreset(preset: CameraPreset) {
   switch (preset) {
     case 'overview':
       // Pull camera far back for panoramic view
-      distance = Math.max(300, props.nodes.length * 2.5)
-      dist.x = distance * 0.6
+      distance = Math.max(400, props.nodes.length * 3.5)
+      dist.x = distance * 0.7
       dist.y = distance * 0.5
-      dist.z = distance * 0.7
+      dist.z = distance * 0.9
       break
 
     case 'domain':
       // Closer, angled view focusing on domain clusters
-      distance = Math.max(150, props.nodes.length * 1.2)
-      dist.x = distance * 0.4
-      dist.y = distance * 0.6
-      dist.z = distance * 0.5
+      distance = Math.max(250, props.nodes.length * 1.8)
+      dist.x = distance * 0.5
+      dist.y = distance * 0.7
+      dist.z = distance * 0.6
       break
 
     case 'position':
       // Tight view for position-skill networks
-      distance = Math.max(100, props.nodes.length * 0.8)
-      dist.x = distance * 0.3
-      dist.y = distance * 0.3
-      dist.z = distance * 0.8
+      distance = Math.max(180, props.nodes.length * 1.2)
+      dist.x = distance * 0.4
+      dist.y = distance * 0.4
+      dist.z = distance * 0.9
       break
   }
 
@@ -471,7 +677,7 @@ function setCameraPreset(preset: CameraPreset) {
 
   // Restore auto-rotate after transition
   if (autoRotate.value) {
-    setTimeout(() => {
+    _autoRotateTimer = setTimeout(() => {
       if (controls) controls.autoRotate = true
     }, 1600)
   }
@@ -481,9 +687,9 @@ function setCameraPreset(preset: CameraPreset) {
 function resetCamera() {
   const graph = graphInstance.value
   if (!graph) return
-  const dist = Math.max(250, props.nodes.length * 2)
+  const dist = Math.max(350, props.nodes.length * 2.5)
   graph.cameraPosition(
-    { x: dist * 0.5, y: dist * 0.4, z: dist * 0.6 },
+    { x: dist * 0.6, y: dist * 0.5, z: dist * 0.8 },
     { x: 0, y: 0, z: 0 },
     1200
   )
@@ -554,16 +760,34 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   // Replace graph data — this resets the d3-force simulation internally
   graph.graphData({ nodes: props.nodes, links: composedLinks })
 
+  // Re-apply nodeThreeObject after data update (graphData resets custom renderers)
+  graph.nodeThreeObject(buildNodeThreeObject)
+
   // Re-apply custom forces — graphData() may have reset them to defaults
-  const chargeStrength = nodeCount > 200 ? -120 : nodeCount > 100 ? -80 : -50
-  const linkDist = nodeCount > 100 ? 80 : 50
-  const linkStrength = nodeCount > 100 ? 0.2 : 0.4
+  const chargeStrength = nodeCount > 200 ? -400 : nodeCount > 100 ? -250 : -150
+  const linkDist = nodeCount > 100 ? 180 : 120
+  const linkStrength = nodeCount > 100 ? 0.03 : 0.08
   const sim = graph.d3Force('charge') as unknown as { strength(v: number): unknown; distanceMax(v: number): unknown } | null
-  if (sim) { sim.strength(chargeStrength); sim.distanceMax(400) }
+  if (sim) { sim.strength(chargeStrength); sim.distanceMax(600) }
   const linkSim = graph.d3Force('link') as unknown as { distance(v: number): unknown; strength(v: number): unknown } | null
   if (linkSim) { linkSim.distance(linkDist); linkSim.strength(linkStrength) }
   const centerSim = graph.d3Force('center') as unknown as { strength(v: number): unknown } | null
-  if (centerSim) centerSim.strength(0.05)
+  if (centerSim) centerSim.strength(0.02)
+
+  // Re-apply collision force on data update
+  const collisionSim = graph.d3Force('collision') as unknown as {
+    strength(v: number): unknown
+    radius(v: (node: unknown) => number): unknown
+    iterations(v: number): unknown
+  } | null
+  if (collisionSim) {
+    collisionSim.strength(0.8)
+    collisionSim.radius((node: unknown) => {
+      const n = node as GraphNode3D
+      return getNodeRadius(n) * NODE_COLLISION_PADDING
+    })
+    collisionSim.iterations(2)
+  }
 }, { deep: false })
 
 // ── Watch: layer changes → auto-adjust camera ──
@@ -610,7 +834,12 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   cancelAnimationFrame(fpsRafId)
+  if (_autoRotateTimer) clearTimeout(_autoRotateTimer)
+  if (containerRef.value && _mouseMoveHandler) {
+    containerRef.value.removeEventListener('mousemove', _mouseMoveHandler)
+  }
   disposeGlowCache()
+  disposeTextCache()
   if (graphInstance.value) {
     graphInstance.value._destructor?.()
     graphInstance.value = null

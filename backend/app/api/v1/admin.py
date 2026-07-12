@@ -1,52 +1,36 @@
-"""Admin API.
+"""Admin API — thin HTTP layer over admin_audit_service.
 
-This file was sanitized to ASCII-only because the original Chinese
-docstrings contained non-printable characters that caused runtime
-SyntaxError during uvicorn reload.
+Business logic lives in app.services.admin_audit_service.
+This file only handles: request parsing, dependency injection,
+domain-exception → HTTP-exception mapping, and response serialization.
 """
-
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any, Literal
 
-import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.quality import _build_quality_dashboard
-from app.config import settings
-from app.dependencies import get_db_session, require_admin
-from app.models.extraction_models import (
-    JDExtractionRecord,
-    PositionRecord,
-    PositionSkillRelation,
-    ReviewQueue,
-    SkillRecord,
+from app.dependencies import get_db_session, get_neo4j_driver, require_admin
+from app.services.admin_audit_service import (
+    AdminStatsResponse,
+    AuditItem,
+    AuditItemNotFound,
+    approve_audit as svc_approve_audit,
+    batch_audit as svc_batch_audit,
+    build_admin_stats,
+    get_review_queue,
+    reject_audit as svc_reject_audit,
+    update_review_queue_item as svc_update_review_queue_item,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
 
-class SourceConfig(BaseModel):
-    id: int
-    name: str
-    authority_score: float = Field(ge=0.0, le=1.0)
-    source_type: str
-    record_count: int = 0
-
-
-class SourceListResponse(BaseModel):
-    items: list[SourceConfig] = Field(default_factory=list)
-
-
-class AuditItem(BaseModel):
-    id: int
-    type: str
-    name: str
-    trust: int = Field(ge=0, le=100)
-    status: str
+# ── Request / Response models (HTTP-layer only) ──
 
 
 class AuditUpdateRequest(BaseModel):
@@ -56,73 +40,25 @@ class AuditUpdateRequest(BaseModel):
     trust: int | None = Field(default=None, ge=0, le=100)
 
 
+class BatchAuditRequest(BaseModel):
+    """Batch approve or reject multiple review queue items."""
+
+    item_ids: list[int] = Field(..., min_length=1, max_length=100)
+    action: Literal["approve", "reject"]
+
+
 class AuditQueueResponse(BaseModel):
     items: list[AuditItem] = Field(default_factory=list)
 
 
-class AdminStatsResponse(BaseModel):
-    total_nodes: int = Field(ge=0)
-    total_edges: int = Field(ge=0)
-    total_positions: int = Field(ge=0)
-    total_skills: int = Field(ge=0)
-    avg_confidence: float = Field(ge=0.0, le=1.0)
-    hallucination_rate: float = Field(ge=0.0, le=1.0)
-    pending_review: int = Field(ge=0)
+# ── Helper: domain exception → HTTP ──
 
 
-async def _build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
-    dashboard = await _build_quality_dashboard(session)
+def _map_not_found(exc: AuditItemNotFound) -> HTTPException:
+    return HTTPException(status_code=404, detail=str(exc))
 
-    try:
-        # Run separate queries to avoid cartesian product across 4 unrelated tables.
-        total_positions = int(
-            (await session.execute(
-                sa.select(sa.func.count()).select_from(PositionRecord)
-            )).scalar() or 0
-        )
-        total_skills = int(
-            (await session.execute(
-                sa.select(sa.func.count()).select_from(SkillRecord)
-            )).scalar() or 0
-        )
-        total_edges = int(
-            (await session.execute(
-                sa.select(sa.func.count()).select_from(PositionSkillRelation)
-            )).scalar() or 0
-        )
-        avg_value = float(
-            (await session.execute(
-                sa.select(
-                    sa.func.coalesce(
-                        sa.func.avg(JDExtractionRecord.confidence), 0.0
-                    )
-                )
-            )).scalar() or 0.0
-        )
 
-        # Count pending review items from DB
-        pending_count = int(
-            (await session.execute(
-                sa.select(sa.func.count()).select_from(ReviewQueue)
-                .where(ReviewQueue.status == "pending")
-            )).scalar() or 0
-        )
-    except Exception:
-        total_positions = 0
-        total_skills = 0
-        total_edges = 0
-        avg_value = 0.0
-        pending_count = 0
-
-    return AdminStatsResponse(
-        total_nodes=total_positions + total_skills,
-        total_edges=total_edges,
-        total_positions=total_positions,
-        total_skills=total_skills,
-        avg_confidence=avg_value,
-        hallucination_rate=dashboard.hallucination_rate,
-        pending_review=pending_count,
-    )
+# ── Endpoints ──
 
 
 @router.get("/stats", response_model=AdminStatsResponse)
@@ -130,159 +66,166 @@ async def get_admin_stats(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AdminStatsResponse:
     """Admin overview stats."""
-    return await _build_admin_stats(session)
-
-
-@router.get("/sources", response_model=SourceListResponse)
-async def get_sources(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> SourceListResponse:
-    """Return data sources from actual crawl data."""
-    try:
-        result = await session.execute(
-            sa.text("SELECT source_platform, COUNT(*) as cnt FROM raw_jd_records GROUP BY source_platform ORDER BY cnt DESC")
-        )
-        rows = result.fetchall()
-        sources = []
-        platform_scores = settings.authority_scores
-        for idx, (platform, cnt) in enumerate(rows, 1):
-            score = platform_scores.get(platform, settings.authority_default_score)
-            stype = "official" if score >= 0.85 else "aggregator"
-            sources.append(SourceConfig(
-                id=idx, name=platform, authority_score=score,
-                source_type=stype, record_count=cnt,
-            ))
-        return SourceListResponse(items=sources)
-    except Exception as exc:
-        logger.warning("Failed to query data sources: {}", exc)
-        return SourceListResponse(items=[])
+    return await build_admin_stats(session)
 
 
 @router.get("/review-queue", response_model=AuditQueueResponse)
 @router.get("/audit-queue", response_model=AuditQueueResponse, include_in_schema=False)
-async def get_review_queue(
+async def get_review_queue_endpoint(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditQueueResponse:
     """Return pending review items from DB; returns empty list when table is empty."""
-
-
     try:
-        stmt = (
-            sa.select(ReviewQueue)
-            .where(ReviewQueue.status == "pending")
-            .order_by(ReviewQueue.id.desc())
-        )
-        result = await session.execute(stmt)
-        rows = result.scalars().all()
-        items = []
-        for r in rows:
-            trust = int((r.payload or {}).get("trust", 50))
-            items.append(
-                AuditItem(
-                    id=r.id,
-                    type=r.entity_type,
-                    name=r.entity_name,
-                    trust=trust,
-                    status=r.status,
-                )
-            )
+        items = await get_review_queue(session)
         return AuditQueueResponse(items=items)
-    except Exception:
-        return AuditQueueResponse(items=[])
+    except SQLAlchemyError as exc:
+        logger.error("Database error in get_review_queue: {}", exc)
+        raise HTTPException(status_code=500, detail="Database query failed") from exc
 
 
 @router.post("/audit/{item_id}/approve", response_model=AuditItem)
-async def approve_audit(
+async def approve_audit_endpoint(
     item_id: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> AuditItem:
-    """Approve a review queue item."""
-
-
-    result = await session.execute(
-        sa.select(ReviewQueue).where(ReviewQueue.id == item_id)
-    )
-    row = result.scalar_one_or_none()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Audit item not found")
-    row.status = "approved"
-    await session.commit()
-    trust = int((row.payload or {}).get("trust", 50))
-    return AuditItem(
-        id=row.id,
-        type=row.entity_type,
-        name=row.entity_name,
-        trust=trust,
-        status="approved",
-    )
+    """Approve a review queue item and sync to Neo4j (LOOP-07)."""
+    try:
+        return await svc_approve_audit(item_id, session, neo4j_driver=neo4j_driver)
+    except AuditItemNotFound as exc:
+        raise _map_not_found(exc) from exc
 
 
 @router.post("/audit/{item_id}/reject", response_model=AuditItem)
-async def reject_audit(
+async def reject_audit_endpoint(
     item_id: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> AuditItem:
-    """Reject a review queue item."""
-
-
-    result = await session.execute(
-        sa.select(ReviewQueue).where(ReviewQueue.id == item_id)
-    )
-    row = result.scalar_one_or_none()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Audit item not found")
-    row.status = "rejected"
-    await session.commit()
-    trust = int((row.payload or {}).get("trust", 50))
-    return AuditItem(
-        id=row.id,
-        type=row.entity_type,
-        name=row.entity_name,
-        trust=trust,
-        status="rejected",
-    )
+    """Reject a review queue item and sync to Neo4j (LOOP-07)."""
+    try:
+        return await svc_reject_audit(item_id, session, neo4j_driver=neo4j_driver)
+    except AuditItemNotFound as exc:
+        raise _map_not_found(exc) from exc
 
 
 @router.put("/review-queue/{item_id}", response_model=AuditItem)
 @router.patch("/review-queue/{item_id}", response_model=AuditItem, include_in_schema=False)
-async def update_review_queue_item(
+async def update_review_queue_item_endpoint(
     item_id: int,
     body: AuditUpdateRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditItem:
     """Update name and/or trust of a review queue item (ADMIN-02 save loop)."""
+    try:
+        return await svc_update_review_queue_item(
+            item_id, name=body.name, trust=body.trust, session=session,
+        )
+    except AuditItemNotFound as exc:
+        raise _map_not_found(exc) from exc
 
 
-    result = await session.execute(
-        sa.select(ReviewQueue).where(ReviewQueue.id == item_id)
+@router.post("/audit/batch", response_model=list[AuditItem])
+async def batch_audit_endpoint(
+    body: BatchAuditRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> list[AuditItem]:
+    """Batch approve or reject multiple review queue items."""
+    try:
+        return await svc_batch_audit(body.item_ids, body.action, session)
+    except AuditItemNotFound as exc:
+        raise _map_not_found(exc) from exc
+
+
+# ── Pipeline management ──
+
+
+class PipelineStatusResponse(BaseModel):
+    """Pipeline status + data health summary."""
+
+    recent_runs: list[dict[str, object]] = Field(default_factory=list)
+    data_stats: dict[str, object] = Field(default_factory=dict)
+
+
+class PipelineTriggerResponse(BaseModel):
+    """Full pipeline trigger response."""
+
+    run_id: str
+    status: str
+    message: str
+
+
+@router.get("/pipeline/status", response_model=PipelineStatusResponse)
+async def get_pipeline_status(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PipelineStatusResponse:
+    """Pipeline status — recent runs + data health stats."""
+    import sqlalchemy as sa
+
+    from app.models.extraction_models import (
+        JDExtractionRecord,
+        PositionRecord,
+        ReviewQueue,
+        SkillRecord,
     )
-    row = result.scalar_one_or_none()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Audit item not found")
+    from app.models.pipeline_models import PipelineRun as PR
 
-    if body.name is not None:
-        row.entity_name = body.name
-    if body.trust is not None:
-        # ponytail: reassign dict so SQLAlchemy JSON dirty-tracking fires
-        payload = dict(row.payload or {})
-        payload["trust"] = body.trust
-        row.payload = payload
-    await session.commit()
+    # Recent 5 runs
+    runs_result = await session.execute(
+        sa.select(PR).order_by(PR.started_at.desc()).limit(5)
+    )
+    recent_runs = [
+        {
+            "id": str(r.id),
+            "run_type": r.run_type,
+            "status": r.status,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+        }
+        for r in runs_result.scalars().all()
+    ]
 
-    trust = int((row.payload or {}).get("trust", 50))
-    return AuditItem(
-        id=row.id,
-        type=row.entity_type,
-        name=row.entity_name,
-        trust=trust,
-        status=row.status,
+    # Data stats
+    jd_count = int((await session.execute(
+        sa.select(sa.func.count()).select_from(JDExtractionRecord)
+    )).scalar() or 0)
+    pos_count = int((await session.execute(
+        sa.select(sa.func.count()).select_from(PositionRecord)
+    )).scalar() or 0)
+    skill_count = int((await session.execute(
+        sa.select(sa.func.count()).select_from(SkillRecord)
+    )).scalar() or 0)
+    pending_review = int((await session.execute(
+        sa.select(sa.func.count()).select_from(ReviewQueue)
+        .where(ReviewQueue.status == "pending")
+    )).scalar() or 0)
+
+    data_stats = {
+        "jd_count": jd_count,
+        "position_count": pos_count,
+        "skill_count": skill_count,
+        "pending_review": pending_review,
+    }
+
+    return PipelineStatusResponse(recent_runs=recent_runs, data_stats=data_stats)
+
+
+@router.post("/pipeline/trigger-full", response_model=PipelineTriggerResponse)
+async def trigger_full_pipeline(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PipelineTriggerResponse:
+    """Trigger a full pipeline run: crawl -> dedup -> clean -> import -> graph_sync."""
+    from app.core.pipeline.executor import trigger_and_start
+
+    run = await trigger_and_start(run_type="full")
+
+    return PipelineTriggerResponse(
+        run_id=str(run.id),
+        status=run.status,
+        message=f"Full pipeline triggered (run_id={run.id})",
     )
 
 
-# ── Graph Node CRUD (for Admin panel) ──
-
-
-# ── Sub-routers (Phase 7 admin domain split) ──
 # ── Sub-routers (Phase 7 admin domain split) ──
 from app.api.v1.admin_graph_nodes import router as graph_nodes_router  # noqa: E402
 from app.api.v1.admin_prompts import router as prompts_router  # noqa: E402

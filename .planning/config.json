@@ -7,6 +7,7 @@
     "plan_checker": true,
     "verifier": true,
     "auto_advance": true,
-    "skip_discuss": true
+    "skip_discuss": true,
+    "_auto_chain_active": false
   }
 }

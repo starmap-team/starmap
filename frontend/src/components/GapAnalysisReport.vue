@@ -6,7 +6,6 @@
 import { computed } from 'vue'
 import { Guide, Download } from '@element-plus/icons-vue'
 import { useMatchStore } from '@/stores/match'
-import type { MatchResult, SkillGap } from '@/stores/match'
 
 const props = defineProps<{
   targetPosition: string

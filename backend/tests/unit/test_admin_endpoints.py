@@ -1,164 +1,60 @@
-"""Unit tests for admin API endpoints.
+"""Unit tests for admin business logic — service layer only.
 
-Covers all 24 endpoints across:
-- admin.py (8 endpoints)
-- admin_prompts.py (10 endpoints)
-- admin_graph_nodes.py (6 endpoints)
-
-Uses FastAPI TestClient with dependency_overrides for db session and neo4j driver.
+Directly calls service/core functions — no TestClient, no HTTP layer.
+Covers:
+- admin_audit_service: build_admin_stats, approve_audit, reject_audit,
+  update_review_queue_item, batch_audit, get_review_queue
+- admin_ab_service: aggregate_ab_results
+- admin_graph_nodes: _item_from_dict
+- admin_graph_service: GraphNodeService (list_nodes, create_node, update_node, delete_node, set_review_status)
+- core/extraction/prompt: versioned prompt management + A/B test config
 """
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
 
-from app.dependencies import get_db_session, get_neo4j_driver, require_admin
-from app.main import app
-
-# ── Fake DB primitives ──
-
-
-class FakeResult:
-    def __init__(self, value):
-        self.value = value
-
-    def scalar(self):
-        v = self.value
-        if isinstance(v, (list, tuple)) and len(v) == 1:
-            return v[0]
-        return v
-
-    def scalar_one_or_none(self):
-        return self.value
-
-    def scalars(self):
-        return self
-
-    def all(self):
-        return self.value if isinstance(self.value, list) else [self.value]
-
-    def fetchall(self):
-        return self.value if isinstance(self.value, list) else [self.value]
-
-    def single(self):
-        return self.value
-
-    def one(self):
-        if isinstance(self.value, (list, tuple)):
-            if len(self.value) == 1:
-                return self.value[0]
-            return self.value
-        return self.value
+from app.api.v1.admin_graph_nodes import GraphNodeItem, _item_from_dict
+from app.core.extraction.prompt import (
+    ABTestConfig,
+    get_ab_test,
+    get_active_version,
+    get_prompt,
+    get_prompt_template_raw,
+    get_prompt_version,
+    list_prompt_names,
+    list_prompt_versions,
+    register_prompt_version,
+    set_ab_test,
+    set_active_version,
+    stop_ab_test,
+)
+from app.services.admin_ab_service import aggregate_ab_results
+from app.services.admin_audit_service import (
+    AdminStatsResponse,
+    AuditItem,
+    AuditItemNotFound,
+    approve_audit,
+    batch_audit,
+    build_admin_stats,
+    get_review_queue,
+    reject_audit,
+    update_review_queue_item,
+)
+from app.services.admin_graph_service import GraphNodeService
 
 
-class FakeReviewQueueRow:
-    """Mimics a ReviewQueue ORM instance."""
-
-    def __init__(self, id=1, entity_type="skill", entity_name="Python", status="pending", payload=None):
-        self.id = id
-        self.entity_type = entity_type
-        self.entity_name = entity_name
-        self.status = status
-        self.payload = payload or {"trust": 75}
-
-
-class FakeAsyncSession:
-    """Minimal async session that returns pre-configured results per execute call."""
-
-    def __init__(self, results=None):
-        self._results = list(results or [])
-        self._idx = 0
-        self._added = []
-        self._committed = False
-
-    async def execute(self, _stmt):
-        if self._idx < len(self._results):
-            r = self._results[self._idx]
-            self._idx += 1
-            return r
-        # Default: return a zero scalar for any unconfigured query.
-        # For .one() calls that unpack multiple values, return a tuple of zeros.
-        return FakeResult((0.0, 0.0, 0.0))
-
-    def add(self, obj):
-        self._added.append(obj)
-
-    async def commit(self):
-        self._committed = True
-
-
-def _make_db_override(session: FakeAsyncSession):
-    """Create an async generator that yields the given session (for dependency_overrides)."""
-    async def _override():
-        yield session
-    return _override
-
-
-# ── Fixtures ──
-
-
-@pytest.fixture
-def client():
-    with TestClient(app, raise_server_exceptions=False) as c:
-        yield c
-
-
-@pytest.fixture
-def admin_headers():
-    """Dev-mode admin auth header."""
-    return {"Authorization": "Bearer dev-token"}
-
-
-@pytest.fixture
-def non_admin_override():
-    """Override require_admin to raise 403."""
-    async def _deny():
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    app.dependency_overrides[require_admin] = _deny
-    yield
-    app.dependency_overrides.pop(require_admin, None)
-
-
-@pytest.fixture
-def db_override():
-    """Override get_db_session, yielding control to the test via the returned setter.
-
-    Usage:  set_session = db_override(); set_session(my_session); ...; set_session(None)
-    """
-    def _set(session: FakeAsyncSession | None):
-        if session is None:
-            app.dependency_overrides.pop(get_db_session, None)
-        else:
-            app.dependency_overrides[get_db_session] = _make_db_override(session)
-
-    yield _set
-    app.dependency_overrides.pop(get_db_session, None)
-
-
-@pytest.fixture
-def neo4j_override():
-    """Override get_neo4j_driver. Returns a setter function."""
-    def _set(driver):
-        if driver is _SENTINEL:
-            app.dependency_overrides.pop(get_neo4j_driver, None)
-        else:
-            app.dependency_overrides[get_neo4j_driver] = lambda: driver
-
-    yield _set
-    app.dependency_overrides.pop(get_neo4j_driver, None)
-
-
-_SENTINEL = object()
+# ══════════════════════════════════════════════════════════════
+# Fixtures
+# ══════════════════════════════════════════════════════════════
 
 
 @pytest.fixture(autouse=True)
 def _reset_prompt_state():
-    """Reset in-memory prompt/A/B state between tests to avoid cross-contamination."""
+    """Reset in-memory prompt/A/B state between tests."""
     from app.core.extraction.prompt import _AB_TESTS, _ACTIVE_VERSIONS, _PROMPT_VERSIONS
+
     orig_versions = dict(_PROMPT_VERSIONS)
     orig_active = dict(_ACTIVE_VERSIONS)
     orig_ab = dict(_AB_TESTS)
@@ -175,457 +71,352 @@ def _reset_prompt_state():
 def _reset_ab_results():
     """Clear in-memory A/B results between tests."""
     from app.api.v1.admin_prompts import _ab_results
+
     _ab_results.clear()
     yield
 
 
 # ══════════════════════════════════════════════════════════════
-# admin.py — 8 endpoints
+# admin_audit_service — build_admin_stats
 # ══════════════════════════════════════════════════════════════
 
 
-class TestAdminStats:
-    """GET /api/v1/admin/stats"""
+class TestBuildAdminStats:
+    """build_admin_stats(session) — aggregates DB counts + quality dashboard."""
 
-    def test_stats_returns_200(self, client, admin_headers, db_override):
-        session = FakeAsyncSession()
-        db_override(session)
+    async def test_returns_stats_with_counts(self):
+        """When DB queries succeed, stats reflect the returned counts."""
         dashboard_mock = MagicMock(
             hallucination_rate=0.05,
             report=MagicMock(precision=0.9, recall=0.8, f1=0.85, warning_level="green", details=[]),
         )
-        with patch("app.api.v1.admin._build_quality_dashboard", new_callable=AsyncMock, return_value=dashboard_mock):
-            resp = client.get("/api/v1/admin/stats", headers=admin_headers)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert "total_nodes" in body
-        assert "hallucination_rate" in body
+        session = AsyncMock()
+        # 5 sequential execute calls: positions, skills, edges, avg_confidence, pending_review
+        session.execute = AsyncMock(side_effect=[
+            MagicMock(scalar=MagicMock(return_value=10)),
+            MagicMock(scalar=MagicMock(return_value=25)),
+            MagicMock(scalar=MagicMock(return_value=40)),
+            MagicMock(scalar=MagicMock(return_value=0.75)),
+            MagicMock(scalar=MagicMock(return_value=3)),
+        ])
+        with patch("app.services.admin_audit_service._build_quality_dashboard", new_callable=AsyncMock, return_value=dashboard_mock):
+            result = await build_admin_stats(session)
 
-    def test_stats_requires_admin(self, client, non_admin_override):
-        resp = client.get("/api/v1/admin/stats")
-        assert resp.status_code == 403
+        assert isinstance(result, AdminStatsResponse)
+        assert result.total_nodes == 35  # 10 + 25
+        assert result.total_edges == 40
+        assert result.total_positions == 10
+        assert result.total_skills == 25
+        assert result.hallucination_rate == 0.05
+        assert result.pending_review == 3
+        # Verify session.execute was called 5 times (5 separate count queries)
+        assert session.execute.call_count == 5
 
-
-class TestAdminSources:
-    """GET /api/v1/admin/sources"""
-
-    def test_sources_returns_200(self, client, admin_headers, db_override):
-        rows = [("lagou", 100)]
-        session = FakeAsyncSession([FakeResult(rows)])
-        db_override(session)
-        resp = client.get("/api/v1/admin/sources", headers=admin_headers)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert "items" in body
-
-    def test_sources_empty_on_db_error(self, client, admin_headers, db_override):
-        session = FakeAsyncSession()
+    async def test_returns_zeros_on_db_error(self):
+        """When DB queries raise, stats degrade to zeros gracefully."""
+        dashboard_mock = MagicMock(
+            hallucination_rate=0.0,
+            report=MagicMock(precision=0.0, recall=0.0, f1=0.0, warning_level="gray", details=[]),
+        )
+        session = AsyncMock()
         session.execute = AsyncMock(side_effect=Exception("db down"))
-        db_override(session)
-        resp = client.get("/api/v1/admin/sources", headers=admin_headers)
-        assert resp.status_code == 200
-        assert resp.json()["items"] == []
+        with patch("app.services.admin_audit_service._build_quality_dashboard", new_callable=AsyncMock, return_value=dashboard_mock):
+            result = await build_admin_stats(session)
 
-    def test_sources_requires_admin(self, client, non_admin_override):
-        resp = client.get("/api/v1/admin/sources")
-        assert resp.status_code == 403
+        assert result.total_positions == 0
+        assert result.total_skills == 0
+        assert result.total_edges == 0
 
 
-class TestAdminReviewQueue:
-    """GET /api/v1/admin/review-queue and /api/v1/admin/audit-queue"""
+# ══════════════════════════════════════════════════════════════
+# admin_audit_service — approve_audit
+# ══════════════════════════════════════════════════════════════
 
-    def test_review_queue_returns_200(self, client, admin_headers, db_override):
-        row = FakeReviewQueueRow(id=1, entity_type="skill", entity_name="Python", status="pending", payload={"trust": 80})
-        session = FakeAsyncSession([
-            FakeResult([row]),      # pending rows
+
+class TestApproveAudit:
+    """approve_audit(item_id, session) — marks item approved, syncs to skill/position tables."""
+
+    async def test_approve_skill_creates_skill_record(self):
+        """Approving a skill-type item should add a SkillRecord when none exists."""
+        row = MagicMock(
+            id=5, entity_type="skill", entity_name="Go",
+            status="pending", payload={"trust": 60},
+        )
+        # execute call 1: select ReviewQueue → returns row
+        # execute call 2: select SkillRecord → returns None (no existing)
+        session = AsyncMock()
+        session.execute = AsyncMock(side_effect=[
+            MagicMock(scalar_one_or_none=MagicMock(return_value=row)),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
         ])
-        db_override(session)
-        resp = client.get("/api/v1/admin/review-queue", headers=admin_headers)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert "items" in body
+        session.add = MagicMock()
+        session.commit = AsyncMock()
 
-    def test_audit_queue_alias(self, client, admin_headers, db_override):
-        session = FakeAsyncSession([FakeResult([])])
-        db_override(session)
-        resp = client.get("/api/v1/admin/audit-queue", headers=admin_headers)
-        assert resp.status_code == 200
+        result = await approve_audit(5, session)
 
-    def test_review_queue_returns_empty_when_table_empty(self, client, admin_headers, db_override):
-        session = FakeAsyncSession([
-            FakeResult([]),     # pending rows query returns empty
+        assert isinstance(result, AuditItem)
+        assert result.status == "approved"
+        assert result.id == 5
+        assert result.name == "Go"
+        session.commit.assert_awaited_once()
+        session.add.assert_called_once()
+
+    async def test_approve_position_creates_position_record(self):
+        """Approving a position-type item should add a PositionRecord when none exists."""
+        row = MagicMock(
+            id=6, entity_type="position", entity_name="Engineer",
+            status="pending", payload={"trust": 70},
+        )
+        session = AsyncMock()
+        session.execute = AsyncMock(side_effect=[
+            MagicMock(scalar_one_or_none=MagicMock(return_value=row)),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
         ])
-        db_override(session)
-        resp = client.get("/api/v1/admin/review-queue", headers=admin_headers)
-        assert resp.status_code == 200
-        assert resp.json()["items"] == []
+        session.add = MagicMock()
+        session.commit = AsyncMock()
 
-    def test_review_queue_requires_admin(self, client, non_admin_override):
-        resp = client.get("/api/v1/admin/review-queue")
-        assert resp.status_code == 403
+        result = await approve_audit(6, session)
 
+        assert result.status == "approved"
+        assert result.name == "Engineer"
+        session.add.assert_called_once()
 
-class TestAdminAuditApprove:
-    """POST /api/v1/admin/audit/{id}/approve"""
+    async def test_approve_skill_skips_when_existing(self):
+        """Approving a skill that already exists should NOT add a new record."""
+        row = MagicMock(
+            id=7, entity_type="skill", entity_name="Python",
+            status="pending", payload={"trust": 80},
+        )
+        existing_skill = MagicMock()
+        session = AsyncMock()
+        session.execute = AsyncMock(side_effect=[
+            MagicMock(scalar_one_or_none=MagicMock(return_value=row)),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=existing_skill)),
+        ])
+        session.add = MagicMock()
+        session.commit = AsyncMock()
 
-    def test_approve_returns_200(self, client, admin_headers, db_override):
-        row = FakeReviewQueueRow(id=5, entity_type="skill", entity_name="Go", status="pending", payload={"trust": 60})
-        session = FakeAsyncSession([FakeResult(row)])
-        db_override(session)
-        resp = client.post("/api/v1/admin/audit/5/approve", headers=admin_headers)
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "approved"
-        assert resp.json()["id"] == 5
+        result = await approve_audit(7, session)
 
-    def test_approve_404_when_not_found(self, client, admin_headers, db_override):
-        session = FakeAsyncSession([FakeResult(None)])
-        db_override(session)
-        resp = client.post("/api/v1/admin/audit/999/approve", headers=admin_headers)
-        assert resp.status_code == 404
+        assert result.status == "approved"
+        session.add.assert_not_called()
 
-    def test_approve_requires_admin(self, client, non_admin_override):
-        resp = client.post("/api/v1/admin/audit/1/approve")
-        assert resp.status_code == 403
+    async def test_approve_raises_not_found_when_missing(self):
+        """Approving a non-existent item should raise AuditItemNotFound."""
+        session = AsyncMock()
+        session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
 
-
-class TestAdminAuditReject:
-    """POST /api/v1/admin/audit/{id}/reject"""
-
-    def test_reject_returns_200(self, client, admin_headers, db_override):
-        row = FakeReviewQueueRow(id=3, entity_type="position", entity_name="Engineer", status="pending", payload={"trust": 40})
-        session = FakeAsyncSession([FakeResult(row)])
-        db_override(session)
-        resp = client.post("/api/v1/admin/audit/3/reject", headers=admin_headers)
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "rejected"
-
-    def test_reject_404_when_not_found(self, client, admin_headers, db_override):
-        session = FakeAsyncSession([FakeResult(None)])
-        db_override(session)
-        resp = client.post("/api/v1/admin/audit/999/reject", headers=admin_headers)
-        assert resp.status_code == 404
-
-    def test_reject_requires_admin(self, client, non_admin_override):
-        resp = client.post("/api/v1/admin/audit/1/reject")
-        assert resp.status_code == 403
-
-
-class TestAdminUpdateReviewQueue:
-    """PUT/PATCH /api/v1/admin/review-queue/{id}"""
-
-    def test_update_name_returns_200(self, client, admin_headers, db_override):
-        row = FakeReviewQueueRow(id=2, entity_name="Old Name", payload={"trust": 50})
-        session = FakeAsyncSession([FakeResult(row)])
-        db_override(session)
-        resp = client.put("/api/v1/admin/review-queue/2", headers=admin_headers, json={"name": "New Name"})
-        assert resp.status_code == 200
-        assert resp.json()["name"] == "New Name"
-
-    def test_update_trust_returns_200(self, client, admin_headers, db_override):
-        row = FakeReviewQueueRow(id=2, entity_name="Python", payload={"trust": 50})
-        session = FakeAsyncSession([FakeResult(row)])
-        db_override(session)
-        resp = client.put("/api/v1/admin/review-queue/2", headers=admin_headers, json={"trust": 90})
-        assert resp.status_code == 200
-        assert resp.json()["trust"] == 90
-
-    def test_update_404_when_not_found(self, client, admin_headers, db_override):
-        session = FakeAsyncSession([FakeResult(None)])
-        db_override(session)
-        resp = client.put("/api/v1/admin/review-queue/999", headers=admin_headers, json={"name": "X"})
-        assert resp.status_code == 404
-
-    def test_patch_alias_works(self, client, admin_headers, db_override):
-        row = FakeReviewQueueRow(id=2, entity_name="Python", payload={"trust": 50})
-        session = FakeAsyncSession([FakeResult(row)])
-        db_override(session)
-        resp = client.patch("/api/v1/admin/review-queue/2", headers=admin_headers, json={"trust": 70})
-        assert resp.status_code == 200
-
-    def test_update_requires_admin(self, client, non_admin_override):
-        resp = client.put("/api/v1/admin/review-queue/1", json={"name": "X"})
-        assert resp.status_code == 403
+        with pytest.raises(AuditItemNotFound):
+            await approve_audit(999, session)
 
 
 # ══════════════════════════════════════════════════════════════
-# admin_prompts.py — 10 endpoints
+# admin_audit_service — reject_audit
 # ══════════════════════════════════════════════════════════════
 
 
-class TestListPrompts:
-    """GET /api/v1/admin/prompts"""
+class TestRejectAudit:
+    """reject_audit(item_id, session) — marks item rejected."""
 
-    def test_list_prompts_returns_200(self, client, admin_headers):
-        resp = client.get("/api/v1/admin/prompts", headers=admin_headers)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert "jd_extraction" in body
-
-    def test_list_prompts_requires_admin(self, client, non_admin_override):
-        resp = client.get("/api/v1/admin/prompts")
-        assert resp.status_code == 403
-
-
-class TestGetPromptInfo:
-    """GET /api/v1/admin/prompts/{name}"""
-
-    def test_get_prompt_info_returns_200(self, client, admin_headers):
-        resp = client.get("/api/v1/admin/prompts/jd_extraction", headers=admin_headers)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["name"] == "jd_extraction"
-        assert "versions" in body
-
-    def test_get_prompt_info_404_for_unknown(self, client, admin_headers):
-        resp = client.get("/api/v1/admin/prompts/nonexistent_prompt", headers=admin_headers)
-        assert resp.status_code == 404
-
-    def test_get_prompt_info_requires_admin(self, client, non_admin_override):
-        resp = client.get("/api/v1/admin/prompts/jd_extraction")
-        assert resp.status_code == 403
-
-
-class TestGetPromptTemplate:
-    """GET /api/v1/admin/prompts/{name}/template"""
-
-    def test_get_template_returns_200(self, client, admin_headers):
-        resp = client.get("/api/v1/admin/prompts/jd_extraction/template", headers=admin_headers)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert "template" in body
-        assert "$jd_content" in body["template"]
-
-    def test_get_template_404_for_unknown(self, client, admin_headers):
-        resp = client.get("/api/v1/admin/prompts/nonexistent/template", headers=admin_headers)
-        assert resp.status_code == 404
-
-    def test_get_template_requires_admin(self, client, non_admin_override):
-        resp = client.get("/api/v1/admin/prompts/jd_extraction/template")
-        assert resp.status_code == 403
-
-
-class TestCreatePromptVersion:
-    """POST /api/v1/admin/prompts/{name}/versions"""
-
-    def test_create_version_returns_200(self, client, admin_headers):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/versions",
-            headers=admin_headers,
-            json={"template": "Test template $jd_content", "version": "v_test", "activate": False},
+    async def test_reject_returns_rejected_item(self):
+        row = MagicMock(
+            id=3, entity_type="position", entity_name="Engineer",
+            status="pending", payload={"trust": 40},
         )
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["registered_version"] == "v_test"
-        assert body["prompt"] == "jd_extraction"
+        session = AsyncMock()
+        session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=row)))
+        session.commit = AsyncMock()
 
-    def test_create_version_auto_increment(self, client, admin_headers):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/versions",
-            headers=admin_headers,
-            json={"template": "Auto version template $jd_content"},
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        # jd_extraction starts with v1-v4, auto increments from there
-        assert body["registered_version"].startswith("v")
+        result = await reject_audit(3, session)
 
-    def test_create_version_with_activate(self, client, admin_headers):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/versions",
-            headers=admin_headers,
-            json={"template": "Activated template $jd_content", "version": "v_act", "activate": True},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["active"] == "v_act"
+        assert result.status == "rejected"
+        assert result.id == 3
+        session.commit.assert_awaited_once()
 
-    def test_create_version_requires_admin(self, client, non_admin_override):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/versions",
-            json={"template": "test"},
-        )
-        assert resp.status_code == 403
+    async def test_reject_raises_not_found_when_missing(self):
+        session = AsyncMock()
+        session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
 
-
-class TestChangeActiveVersion:
-    """PUT /api/v1/admin/prompts/{name}/active"""
-
-    def test_change_active_returns_200(self, client, admin_headers):
-        resp = client.put(
-            "/api/v1/admin/prompts/jd_extraction/active",
-            headers=admin_headers,
-            json={"version": "v2"},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["active"] == "v2"
-
-    def test_change_active_invalid_version_raises(self, client, admin_headers):
-        resp = client.put(
-            "/api/v1/admin/prompts/jd_extraction/active",
-            headers=admin_headers,
-            json={"version": "v_nonexistent"},
-        )
-        assert resp.status_code == 400
-
-    def test_change_active_requires_admin(self, client, non_admin_override):
-        resp = client.put(
-            "/api/v1/admin/prompts/jd_extraction/active",
-            json={"version": "v1"},
-        )
-        assert resp.status_code == 403
-
-
-class TestStartABTest:
-    """POST /api/v1/admin/prompts/{name}/ab-test"""
-
-    def test_start_ab_test_returns_200(self, client, admin_headers):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/ab-test",
-            headers=admin_headers,
-            json={"canary_version": "v2", "traffic_fraction": 0.2},
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["ab_test"]["canary_version"] == "v2"
-        assert body["ab_test"]["traffic_fraction"] == 0.2
-
-    def test_start_ab_test_default_traffic(self, client, admin_headers):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/ab-test",
-            headers=admin_headers,
-            json={"canary_version": "v3"},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["ab_test"]["traffic_fraction"] == 0.1
-
-    def test_start_ab_test_invalid_traffic(self, client, admin_headers):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/ab-test",
-            headers=admin_headers,
-            json={"canary_version": "v2", "traffic_fraction": 0.9},
-        )
-        assert resp.status_code == 422  # Pydantic validation
-
-    def test_start_ab_test_requires_admin(self, client, non_admin_override):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/ab-test",
-            json={"canary_version": "v2"},
-        )
-        assert resp.status_code == 403
-
-
-class TestDeleteABTest:
-    """DELETE /api/v1/admin/prompts/{name}/ab-test"""
-
-    def test_delete_ab_test_returns_200(self, client, admin_headers):
-        from app.core.extraction.prompt import set_ab_test
-        set_ab_test("jd_extraction", "v2", 0.1)
-        resp = client.delete("/api/v1/admin/prompts/jd_extraction/ab-test", headers=admin_headers)
-        assert resp.status_code == 200
-        assert resp.json()["ab_test"] is None
-
-    def test_delete_ab_test_idempotent(self, client, admin_headers):
-        resp = client.delete("/api/v1/admin/prompts/jd_extraction/ab-test", headers=admin_headers)
-        assert resp.status_code == 200
-
-    def test_delete_ab_test_requires_admin(self, client, non_admin_override):
-        resp = client.delete("/api/v1/admin/prompts/jd_extraction/ab-test")
-        assert resp.status_code == 403
-
-
-class TestGetABTestConfig:
-    """GET /api/v1/admin/prompts/{name}/ab-test"""
-
-    def test_get_ab_test_config_none(self, client, admin_headers):
-        resp = client.get("/api/v1/admin/prompts/jd_extraction/ab-test", headers=admin_headers)
-        assert resp.status_code == 200
-        assert resp.json()["ab_test"] is None
-
-    def test_get_ab_test_config_active(self, client, admin_headers):
-        from app.core.extraction.prompt import set_ab_test
-        set_ab_test("jd_extraction", "v2", 0.15)
-        resp = client.get("/api/v1/admin/prompts/jd_extraction/ab-test", headers=admin_headers)
-        assert resp.status_code == 200
-        assert resp.json()["ab_test"]["canary_version"] == "v2"
-
-    def test_get_ab_test_config_requires_admin(self, client, non_admin_override):
-        resp = client.get("/api/v1/admin/prompts/jd_extraction/ab-test")
-        assert resp.status_code == 403
-
-
-class TestRecordABResult:
-    """POST /api/v1/admin/prompts/{name}/ab-results"""
-
-    def test_record_ab_result_returns_200(self, client, admin_headers):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/ab-results",
-            headers=admin_headers,
-            json={"version": "v1", "success": True, "f1": 0.85, "latency_ms": 120.0},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["recorded"] is True
-
-    def test_record_ab_result_minimal(self, client, admin_headers):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/ab-results",
-            headers=admin_headers,
-            json={"version": "v2"},
-        )
-        assert resp.status_code == 200
-
-    def test_record_ab_result_requires_admin(self, client, non_admin_override):
-        resp = client.post(
-            "/api/v1/admin/prompts/jd_extraction/ab-results",
-            json={"version": "v1"},
-        )
-        assert resp.status_code == 403
-
-
-class TestGetABResults:
-    """GET /api/v1/admin/prompts/{name}/ab-results"""
-
-    def test_get_ab_results_empty(self, client, admin_headers):
-        resp = client.get("/api/v1/admin/prompts/jd_extraction/ab-results", headers=admin_headers)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["total"] == 0
-        assert body["versions"] == {}
-
-    def test_get_ab_results_with_data(self, client, admin_headers):
-        from app.api.v1.admin_prompts import _ab_results
-        _ab_results["jd_extraction"] = [
-            {"version": "v1", "success": True, "f1": 0.8, "latency_ms": 100.0, "timestamp": 1.0},
-            {"version": "v1", "success": False, "f1": 0.6, "latency_ms": 150.0, "timestamp": 2.0},
-            {"version": "v2", "success": True, "f1": 0.9, "latency_ms": 90.0, "timestamp": 3.0},
-        ]
-        resp = client.get("/api/v1/admin/prompts/jd_extraction/ab-results", headers=admin_headers)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["total"] == 3
-        assert "v1" in body["versions"]
-        assert "v2" in body["versions"]
-        assert body["versions"]["v1"]["success_rate"] == 0.5
-        assert body["versions"]["v2"]["success_rate"] == 1.0
-
-    def test_get_ab_results_requires_admin(self, client, non_admin_override):
-        resp = client.get("/api/v1/admin/prompts/jd_extraction/ab-results")
-        assert resp.status_code == 403
+        with pytest.raises(AuditItemNotFound):
+            await reject_audit(999, session)
 
 
 # ══════════════════════════════════════════════════════════════
-# admin_graph_nodes.py — 6 endpoints
+# admin_audit_service — update_review_queue_item
 # ══════════════════════════════════════════════════════════════
 
 
-def _make_neo4j_driver(run_return=None, run_side_effect=None):
-    """Build a fake neo4j driver with a session that returns run_return or raises run_side_effect."""
+class TestUpdateReviewQueueItem:
+    """update_review_queue_item(item_id, name, trust, session) — partial update."""
+
+    async def test_update_name(self):
+        row = MagicMock(
+            id=2, entity_name="Old Name", entity_type="skill",
+            payload={"trust": 50}, status="pending",
+        )
+        session = AsyncMock()
+        session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=row)))
+        session.commit = AsyncMock()
+
+        result = await update_review_queue_item(2, name="New Name", session=session)
+
+        assert result.name == "New Name"
+        assert row.entity_name == "New Name"
+        session.commit.assert_awaited_once()
+
+    async def test_update_trust(self):
+        row = MagicMock(
+            id=2, entity_name="Python", entity_type="skill",
+            payload={"trust": 50}, status="pending",
+        )
+        session = AsyncMock()
+        session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=row)))
+        session.commit = AsyncMock()
+
+        result = await update_review_queue_item(2, trust=90, session=session)
+
+        assert result.trust == 90
+        # payload dict should be reassigned (SQLAlchemy JSON dirty-tracking)
+        assert row.payload["trust"] == 90
+
+    async def test_update_404_when_not_found(self):
+        session = AsyncMock()
+        session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
+
+        with pytest.raises(AuditItemNotFound):
+            await update_review_queue_item(999, name="X", session=session)
+
+
+# ══════════════════════════════════════════════════════════════
+# admin_audit_service — batch_audit
+# ══════════════════════════════════════════════════════════════
+
+
+class TestBatchAudit:
+    """batch_audit(item_ids, action, session) — batch approve/reject."""
+
+    async def test_batch_approve_creates_skill_records(self):
+        row1 = MagicMock(id=1, entity_type="skill", entity_name="Python", status="pending", payload={"trust": 50})
+        row2 = MagicMock(id=2, entity_type="skill", entity_name="Go", status="pending", payload={"trust": 50})
+        session = AsyncMock()
+        # execute call 1: select ReviewQueue where id in (1,2)
+        # execute call 2: select SkillRecord for Python → None
+        # execute call 3: select SkillRecord for Go → None
+        session.execute = AsyncMock(side_effect=[
+            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[row1, row2])))),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+            MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+        ])
+        session.add = MagicMock()
+        session.commit = AsyncMock()
+
+        result = await batch_audit([1, 2], "approve", session)
+
+        assert len(result) == 2
+        assert result[0].status == "approved"
+        assert result[1].status == "approved"
+        assert session.add.call_count == 2
+
+    async def test_batch_reject(self):
+        row = MagicMock(id=3, entity_type="position", entity_name="Engineer", status="pending", payload={"trust": 40})
+        session = AsyncMock()
+        session.execute = AsyncMock(side_effect=[
+            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[row])))),
+        ])
+        session.commit = AsyncMock()
+
+        result = await batch_audit([3], "reject", session)
+
+        assert result[0].status == "rejected"
+
+    async def test_batch_audit_no_items_raises_not_found(self):
+        session = AsyncMock()
+        session.execute = AsyncMock(side_effect=[
+            MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+        ])
+
+        with pytest.raises(AuditItemNotFound):
+            await batch_audit([999], "approve", session)
+
+
+# ══════════════════════════════════════════════════════════════
+# admin_audit_service — get_review_queue
+# ══════════════════════════════════════════════════════════════
+
+
+class TestGetReviewQueue:
+    """get_review_queue(session) — returns pending review items."""
+
+    async def test_returns_items_from_db(self):
+        row = MagicMock(
+            id=1, entity_type="skill", entity_name="Python",
+            status="pending", payload={"trust": 80},
+        )
+        session = AsyncMock()
+        # Build proper scalars().all() chain
+        session.execute = AsyncMock(return_value=MagicMock(
+            scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[row]))),
+        ))
+
+        result = await get_review_queue(session)
+
+        assert len(result) == 1
+        assert result[0].name == "Python"
+        assert result[0].trust == 80
+
+    async def test_returns_empty_when_no_pending(self):
+        session = AsyncMock()
+        session.execute = AsyncMock(return_value=MagicMock(
+            scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[]))),
+        ))
+
+        result = await get_review_queue(session)
+
+        assert result == []
+
+
+# ══════════════════════════════════════════════════════════════
+# admin_graph_nodes.py — _item_from_dict
+# ══════════════════════════════════════════════════════════════
+
+
+class TestItemFromDict:
+    """_item_from_dict — dict→GraphNodeItem converter."""
+
+    def test_status_defaults_to_approved_when_missing(self):
+        result = _item_from_dict({"id": "1", "type": "Skill", "name": "X", "properties": {}})
+        assert result.status == "approved"
+
+    def test_status_preserves_pending_from_service(self):
+        result = _item_from_dict({
+            "id": "4:new", "type": "Skill", "name": "Rust",
+            "properties": {"name": "Rust"}, "status": "pending",
+        })
+        assert result.status == "pending"
+
+    def test_properties_default_to_empty_dict(self):
+        result = _item_from_dict({"id": "1", "type": "Skill", "name": "X"})
+        assert result.properties == {}
+
+
+# ══════════════════════════════════════════════════════════════
+# admin_graph_service — GraphNodeService
+# ══════════════════════════════════════════════════════════════
+
+
+def _make_neo4j_session(run_return=None, run_side_effect=None, records=None):
+    """Build a fake neo4j async session for GraphNodeService tests."""
     fake_result = AsyncMock()
     if run_side_effect:
         fake_result.single = AsyncMock(side_effect=run_side_effect)
     else:
         fake_result.single = AsyncMock(return_value=run_return)
 
+    if records is not None:
+        fake_result.__aiter__ = lambda s: iter(records)
+
     fake_session = AsyncMock()
-    if run_side_effect and not run_return:
+    if run_side_effect and run_return is None:
         fake_session.run = AsyncMock(side_effect=run_side_effect)
     else:
         fake_session.run = AsyncMock(return_value=fake_result)
@@ -634,220 +425,420 @@ def _make_neo4j_driver(run_return=None, run_side_effect=None):
 
     fake_driver = MagicMock()
     fake_driver.session = MagicMock(return_value=fake_session)
-    return fake_driver
+    return fake_driver, fake_session
 
 
-class TestListGraphNodes:
-    """GET /api/v1/admin/graph/nodes"""
+class TestGraphNodeServiceListNodes:
+    """GraphNodeService.list_nodes — paginated node listing."""
 
-    def test_list_nodes_no_driver_returns_empty(self, client, admin_headers, neo4j_override):
-        neo4j_override(None)
-        resp = client.get("/api/v1/admin/graph/nodes", headers=admin_headers)
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["items"] == []
-        assert body["total"] == 0
+    async def test_returns_empty_when_no_driver(self):
+        service = GraphNodeService(driver=None)
+        result = await service.list_nodes()
+        assert result == {"items": [], "total": 0}
 
-    def test_list_nodes_with_driver_returns_200(self, client, admin_headers, neo4j_override):
+    async def test_returns_nodes_from_neo4j(self):
         fake_node = MagicMock()
         fake_node.labels = ["Skill"]
         fake_node.element_id = "4:abc"
-        # dict(node) must work
-        fake_node_dict = {"name": "Python"}
-        fake_node.__iter__ = lambda s: iter(fake_node_dict.items())
+        # dict(node) calls keys() then __getitem__(), not __iter__
+        fake_node_dict = {"name": "Python", "review_status": "approved"}
+        fake_node.keys = MagicMock(return_value=fake_node_dict.keys())
+        fake_node.__getitem__ = MagicMock(side_effect=lambda k: fake_node_dict[k])
+        fake_node.__contains__ = MagicMock(side_effect=lambda k: k in fake_node_dict)
 
         record = {"n": fake_node}
-        fake_result = AsyncMock()
-        fake_result.__aiter__ = lambda s: iter([record])
+        # count query returns total=1
+        count_result = AsyncMock()
+        count_result.single = AsyncMock(return_value={"total": 1})
+        # list query returns records — need a proper async iterable
+        list_result = MagicMock()
+
+        def _make_async_iter(items):
+            async def _gen():
+                for item in items:
+                    yield item
+            return _gen()
+
+        list_result.__aiter__ = lambda s: _make_async_iter([record])
 
         fake_session = AsyncMock()
-        fake_session.run = AsyncMock(return_value=fake_result)
+        fake_session.run = AsyncMock(side_effect=[count_result, list_result])
         fake_session.__aenter__ = AsyncMock(return_value=fake_session)
         fake_session.__aexit__ = AsyncMock(return_value=False)
+        driver = MagicMock()
+        driver.session = MagicMock(return_value=fake_session)
 
-        fake_driver = MagicMock()
-        fake_driver.session = MagicMock(return_value=fake_session)
+        service = GraphNodeService(driver)
+        result = await service.list_nodes()
 
-        neo4j_override(fake_driver)
-        resp = client.get("/api/v1/admin/graph/nodes", headers=admin_headers)
-        assert resp.status_code == 200
-
-    def test_list_nodes_requires_admin(self, client, non_admin_override):
-        resp = client.get("/api/v1/admin/graph/nodes")
-        assert resp.status_code == 403
+        assert result["total"] == 1
+        assert len(result["items"]) == 1
+        assert result["items"][0]["name"] == "Python"
+        assert result["items"][0]["type"] == "Skill"
+        assert result["items"][0]["status"] == "approved"
 
 
-class TestCreateGraphNode:
-    """POST /api/v1/admin/graph/nodes"""
+class TestGraphNodeServiceCreateNode:
+    """GraphNodeService.create_node — creates node with pending status."""
 
-    def test_create_node_no_driver_returns_503(self, client, admin_headers, neo4j_override):
-        neo4j_override(None)
-        resp = client.post(
-            "/api/v1/admin/graph/nodes",
-            headers=admin_headers,
-            json={"type": "Skill", "name": "Python"},
+    async def test_raises_when_no_driver(self):
+        service = GraphNodeService(driver=None)
+        with pytest.raises(RuntimeError, match="Neo4j driver not available"):
+            await service.create_node(node_type="Skill", name="Python", properties={})
+
+    async def test_raises_on_invalid_label(self):
+        driver, _ = _make_neo4j_session()
+        service = GraphNodeService(driver)
+        with pytest.raises(ValueError, match="Invalid label"):
+            await service.create_node(node_type="HackerLabel", name="Evil", properties={})
+
+    async def test_creates_node_with_pending_status(self):
+        driver, _ = _make_neo4j_session(run_return={"eid": "4:new123"})
+        service = GraphNodeService(driver)
+        result = await service.create_node(
+            node_type="Skill", name="Rust", properties={"category": "hard_skill"},
         )
-        assert resp.status_code == 503
 
-    def test_create_node_invalid_label_returns_400(self, client, admin_headers, neo4j_override):
-        neo4j_override(MagicMock())
-        resp = client.post(
-            "/api/v1/admin/graph/nodes",
-            headers=admin_headers,
-            json={"type": "HackerLabel", "name": "Evil"},
-        )
-        assert resp.status_code == 400
-        assert "Invalid label" in resp.json()["detail"]
+        assert result["type"] == "Skill"
+        assert result["name"] == "Rust"
+        assert result["status"] == "pending"
+        assert result["properties"]["category"] == "hard_skill"
 
-    def test_create_node_success(self, client, admin_headers, neo4j_override):
-        driver = _make_neo4j_driver(run_return={"eid": "4:new123"})
-        neo4j_override(driver)
-        resp = client.post(
-            "/api/v1/admin/graph/nodes",
-            headers=admin_headers,
-            json={"type": "Skill", "name": "Rust", "properties": {"category": "hard_skill"}},
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["type"] == "Skill"
-        assert body["name"] == "Rust"
-        assert body["status"] == "pending"
+    async def test_properties_include_name(self):
+        driver, _ = _make_neo4j_session(run_return={"eid": "4:new456"})
+        service = GraphNodeService(driver)
+        result = await service.create_node(node_type="Skill", name="Go", properties={})
 
-    def test_create_node_db_error_returns_500(self, client, admin_headers, neo4j_override):
-        driver = _make_neo4j_driver(run_side_effect=Exception("neo4j down"))
-        neo4j_override(driver)
-        resp = client.post(
-            "/api/v1/admin/graph/nodes",
-            headers=admin_headers,
-            json={"type": "Skill", "name": "Fail"},
-        )
-        assert resp.status_code == 500
-
-    def test_create_node_requires_admin(self, client, non_admin_override):
-        resp = client.post("/api/v1/admin/graph/nodes", json={"type": "Skill", "name": "X"})
-        assert resp.status_code == 403
+        assert result["properties"]["name"] == "Go"
 
 
-class TestUpdateGraphNode:
-    """PUT /api/v1/admin/graph/nodes/{id}"""
+class TestGraphNodeServiceUpdateNode:
+    """GraphNodeService.update_node — updates node, preserves review_status."""
 
-    def test_update_node_no_driver_returns_503(self, client, admin_headers, neo4j_override):
-        neo4j_override(None)
-        resp = client.put(
-            "/api/v1/admin/graph/nodes/4:abc",
-            headers=admin_headers,
-            json={"type": "Skill", "name": "Updated"},
-        )
-        assert resp.status_code == 503
+    async def test_raises_when_no_driver(self):
+        service = GraphNodeService(driver=None)
+        with pytest.raises(RuntimeError, match="Neo4j driver not available"):
+            await service.update_node("4:abc", node_type="Skill", name="X", properties={})
 
-    def test_update_node_invalid_label_returns_400(self, client, admin_headers, neo4j_override):
-        neo4j_override(MagicMock())
-        resp = client.put(
-            "/api/v1/admin/graph/nodes/4:abc",
-            headers=admin_headers,
-            json={"type": "BadLabel", "name": "X"},
-        )
-        assert resp.status_code == 400
+    async def test_raises_on_invalid_label(self):
+        driver, _ = _make_neo4j_session()
+        service = GraphNodeService(driver)
+        with pytest.raises(ValueError, match="Invalid label"):
+            await service.update_node("4:abc", node_type="BadLabel", name="X", properties={})
 
-    def test_update_node_success(self, client, admin_headers, neo4j_override):
-        driver = _make_neo4j_driver(run_return={"n": MagicMock()})
-        neo4j_override(driver)
-        resp = client.put(
-            "/api/v1/admin/graph/nodes/4:abc",
-            headers=admin_headers,
-            json={"type": "Skill", "name": "Updated Name"},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["name"] == "Updated Name"
+    async def test_updates_and_preserves_status(self):
+        fake_node = MagicMock()
+        fake_node.get = MagicMock(return_value="pending")
+        driver, _ = _make_neo4j_session(run_return={"n": fake_node})
+        service = GraphNodeService(driver)
+        result = await service.update_node("4:abc", node_type="Skill", name="Updated Name", properties={})
 
-    def test_update_node_not_found_returns_404(self, client, admin_headers, neo4j_override):
-        driver = _make_neo4j_driver(run_return=None)
-        neo4j_override(driver)
-        resp = client.put(
-            "/api/v1/admin/graph/nodes/4:missing",
-            headers=admin_headers,
-            json={"type": "Skill", "name": "X"},
-        )
-        assert resp.status_code == 404
+        assert result["name"] == "Updated Name"
+        assert result["status"] == "pending"
 
-    def test_update_node_requires_admin(self, client, non_admin_override):
-        resp = client.put("/api/v1/admin/graph/nodes/1", json={"type": "Skill", "name": "X"})
-        assert resp.status_code == 403
+    async def test_raises_key_error_when_not_found(self):
+        driver, _ = _make_neo4j_session(run_return=None)
+        service = GraphNodeService(driver)
+        with pytest.raises(KeyError, match="not found"):
+            await service.update_node("4:missing", node_type="Skill", name="X", properties={})
 
 
-class TestDeleteGraphNode:
-    """DELETE /api/v1/admin/graph/nodes/{id}"""
+class TestGraphNodeServiceDeleteNode:
+    """GraphNodeService.delete_node — deletes node, returns count."""
 
-    def test_delete_node_no_driver_returns_503(self, client, admin_headers, neo4j_override):
-        neo4j_override(None)
-        resp = client.delete("/api/v1/admin/graph/nodes/4:abc", headers=admin_headers)
-        assert resp.status_code == 503
+    async def test_deletes_and_returns_count(self):
+        driver, _ = _make_neo4j_session(run_return={"deleted": 1})
+        service = GraphNodeService(driver)
+        result = await service.delete_node("4:abc")
 
-    def test_delete_node_success(self, client, admin_headers, neo4j_override):
-        driver = _make_neo4j_driver(run_return={"deleted": 1})
-        neo4j_override(driver)
-        resp = client.delete("/api/v1/admin/graph/nodes/4:abc", headers=admin_headers)
-        assert resp.status_code == 200
-        assert resp.json()["ok"] is True
+        assert result == 1
 
-    def test_delete_node_not_found_returns_404(self, client, admin_headers, neo4j_override):
-        driver = _make_neo4j_driver(run_return={"deleted": 0})
-        neo4j_override(driver)
-        resp = client.delete("/api/v1/admin/graph/nodes/4:missing", headers=admin_headers)
-        assert resp.status_code == 404
-
-    def test_delete_node_requires_admin(self, client, non_admin_override):
-        resp = client.delete("/api/v1/admin/graph/nodes/1")
-        assert resp.status_code == 403
+    async def test_raises_key_error_when_not_found(self):
+        driver, _ = _make_neo4j_session(run_return={"deleted": 0})
+        service = GraphNodeService(driver)
+        with pytest.raises(KeyError, match="not found"):
+            await service.delete_node("4:missing")
 
 
-class TestApproveGraphNode:
-    """POST /api/v1/admin/graph/nodes/{id}/approve"""
+class TestGraphNodeServiceSetReviewStatus:
+    """GraphNodeService.set_review_status — approve/reject a node."""
 
-    def test_approve_node_no_driver_returns_503(self, client, admin_headers, neo4j_override):
-        neo4j_override(None)
-        resp = client.post("/api/v1/admin/graph/nodes/4:abc/approve", headers=admin_headers)
-        assert resp.status_code == 503
+    async def test_approve_returns_ok(self):
+        driver, _ = _make_neo4j_session(run_return={"n": MagicMock()})
+        service = GraphNodeService(driver)
+        result = await service.set_review_status("4:abc", "approved")
 
-    def test_approve_node_success(self, client, admin_headers, neo4j_override):
-        driver = _make_neo4j_driver(run_return={"n": MagicMock()})
-        neo4j_override(driver)
-        resp = client.post("/api/v1/admin/graph/nodes/4:abc/approve", headers=admin_headers)
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "approved"
+        assert result == {"ok": True, "status": "approved"}
 
-    def test_approve_node_not_found_returns_404(self, client, admin_headers, neo4j_override):
-        driver = _make_neo4j_driver(run_return=None)
-        neo4j_override(driver)
-        resp = client.post("/api/v1/admin/graph/nodes/4:missing/approve", headers=admin_headers)
-        assert resp.status_code == 404
+    async def test_reject_returns_ok(self):
+        driver, _ = _make_neo4j_session(run_return={"n": MagicMock()})
+        service = GraphNodeService(driver)
+        result = await service.set_review_status("4:abc", "rejected")
 
-    def test_approve_node_requires_admin(self, client, non_admin_override):
-        resp = client.post("/api/v1/admin/graph/nodes/1/approve")
-        assert resp.status_code == 403
+        assert result == {"ok": True, "status": "rejected"}
+
+    async def test_raises_key_error_when_not_found(self):
+        driver, _ = _make_neo4j_session(run_return=None)
+        service = GraphNodeService(driver)
+        with pytest.raises(KeyError, match="not found"):
+            await service.set_review_status("4:missing", "approved")
 
 
-class TestRejectGraphNode:
-    """POST /api/v1/admin/graph/nodes/{id}/reject"""
+# ══════════════════════════════════════════════════════════════
+# core/extraction/prompt — versioned prompt management
+# ══════════════════════════════════════════════════════════════
 
-    def test_reject_node_no_driver_returns_503(self, client, admin_headers, neo4j_override):
-        neo4j_override(None)
-        resp = client.post("/api/v1/admin/graph/nodes/4:abc/reject", headers=admin_headers)
-        assert resp.status_code == 503
 
-    def test_reject_node_success(self, client, admin_headers, neo4j_override):
-        driver = _make_neo4j_driver(run_return={"n": MagicMock()})
-        neo4j_override(driver)
-        resp = client.post("/api/v1/admin/graph/nodes/4:abc/reject", headers=admin_headers)
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "rejected"
+class TestListPromptNames:
+    """list_prompt_names() — returns all registered prompt template names."""
 
-    def test_reject_node_not_found_returns_404(self, client, admin_headers, neo4j_override):
-        driver = _make_neo4j_driver(run_return=None)
-        neo4j_override(driver)
-        resp = client.post("/api/v1/admin/graph/nodes/4:missing/reject", headers=admin_headers)
-        assert resp.status_code == 404
+    def test_returns_known_names(self):
+        names = list_prompt_names()
+        assert "jd_extraction" in names
+        assert "anti_hallucination" in names
+        assert "llm_judge" in names
 
-    def test_reject_node_requires_admin(self, client, non_admin_override):
-        resp = client.post("/api/v1/admin/graph/nodes/1/reject")
-        assert resp.status_code == 403
+
+class TestListPromptVersions:
+    """list_prompt_versions(name) — returns sorted version tags."""
+
+    def test_returns_versions_for_known_prompt(self):
+        versions = list_prompt_versions("jd_extraction")
+        assert "v1" in versions
+        assert "v4" in versions
+
+    def test_raises_for_unknown_prompt(self):
+        with pytest.raises(KeyError):
+            list_prompt_versions("nonexistent_prompt")
+
+
+class TestGetPrompt:
+    """get_prompt(name, **kwargs) — fills template with active version."""
+
+    def test_fills_jd_extraction_template(self):
+        result = get_prompt("jd_extraction", jd_content="Test JD content")
+        assert "Test JD content" in result
+        assert "$jd_content" not in result
+
+    def test_raises_for_unknown_name(self):
+        with pytest.raises(KeyError):
+            get_prompt("nonexistent", x="y")
+
+    def test_raises_for_missing_placeholder(self):
+        with pytest.raises(ValueError, match="Missing required placeholders"):
+            get_prompt("jd_extraction")  # missing jd_content
+
+
+class TestGetPromptVersion:
+    """get_prompt_version(name, version, **kwargs) — specific version."""
+
+    def test_returns_v1_template(self):
+        result = get_prompt_version("jd_extraction", "v1", jd_content="Hello")
+        assert "Hello" in result
+
+    def test_raises_for_unknown_version(self):
+        with pytest.raises(KeyError):
+            get_prompt_version("jd_extraction", "v_nonexistent", jd_content="x")
+
+
+class TestGetPromptTemplateRaw:
+    """get_prompt_template_raw(name) — raw template without substitution."""
+
+    def test_returns_raw_template(self):
+        raw = get_prompt_template_raw("jd_extraction")
+        assert "$jd_content" in raw
+
+    def test_raises_for_unknown_name(self):
+        with pytest.raises(KeyError):
+            get_prompt_template_raw("nonexistent_prompt")
+
+
+class TestGetActiveVersion:
+    """get_active_version(name) — returns current active version tag."""
+
+    def test_returns_default_active(self):
+        assert get_active_version("jd_extraction") == "v4"
+
+    def test_returns_none_for_unknown(self):
+        assert get_active_version("nonexistent") is None
+
+
+class TestSetActiveVersion:
+    """set_active_version(name, version) — changes active version."""
+
+    def test_changes_active_version(self):
+        set_active_version("jd_extraction", "v2")
+        assert get_active_version("jd_extraction") == "v2"
+
+    def test_raises_for_unknown_prompt(self):
+        with pytest.raises(KeyError):
+            set_active_version("nonexistent", "v1")
+
+    def test_raises_for_unknown_version(self):
+        with pytest.raises(KeyError):
+            set_active_version("jd_extraction", "v_nonexistent")
+
+
+class TestRegisterPromptVersion:
+    """register_prompt_version — prompt registration with auto-increment."""
+
+    def test_register_with_explicit_version(self):
+        version = register_prompt_version("jd_extraction", "Test template $jd_content", version="v_test", activate=False)
+        assert version == "v_test"
+        assert "v_test" in list_prompt_versions("jd_extraction")
+
+    def test_register_auto_increment(self):
+        version = register_prompt_version("jd_extraction", "Auto version template $jd_content")
+        assert version.startswith("v")
+
+    def test_register_with_activate(self):
+        register_prompt_version("jd_extraction", "Activated template $jd_content", version="v_act", activate=True)
+        assert get_active_version("jd_extraction") == "v_act"
+
+
+# ══════════════════════════════════════════════════════════════
+# core/extraction/prompt — ABTestConfig
+# ══════════════════════════════════════════════════════════════
+
+
+class TestABTestConfig:
+    """ABTestConfig — traffic fraction validation and version selection."""
+
+    def test_valid_config(self):
+        cfg = ABTestConfig(prompt_name="jd_extraction", canary_version="v2", traffic_fraction=0.2)
+        assert cfg.canary_version == "v2"
+        assert cfg.traffic_fraction == 0.2
+        assert cfg.control_version == "v4"  # default active for jd_extraction
+
+    def test_default_traffic_fraction(self):
+        cfg = ABTestConfig(prompt_name="jd_extraction", canary_version="v2")
+        assert cfg.traffic_fraction == 0.1
+
+    def test_invalid_traffic_fraction_raises(self):
+        with pytest.raises(ValueError, match="traffic_fraction"):
+            ABTestConfig(prompt_name="jd_extraction", canary_version="v2", traffic_fraction=0.9)
+
+    def test_zero_traffic_fraction_raises(self):
+        with pytest.raises(ValueError, match="traffic_fraction"):
+            ABTestConfig(prompt_name="jd_extraction", canary_version="v2", traffic_fraction=0.0)
+
+    def test_to_dict(self):
+        cfg = ABTestConfig(prompt_name="jd_extraction", canary_version="v2", traffic_fraction=0.15)
+        d = cfg.to_dict()
+        assert d["canary_version"] == "v2"
+        assert d["traffic_fraction"] == 0.15
+        assert d["prompt_name"] == "jd_extraction"
+
+    def test_select_version_distribution(self):
+        """select_version should return canary or control based on traffic_fraction."""
+        cfg = ABTestConfig(prompt_name="jd_extraction", canary_version="v2", traffic_fraction=0.5)
+        results = {cfg.select_version() for _ in range(200)}
+        assert "v2" in results
+        assert cfg.control_version in results
+
+
+class TestSetABTest:
+    """set_ab_test / get_ab_test / stop_ab_test — A/B test lifecycle."""
+
+    def test_set_and_get_ab_test(self):
+        cfg = set_ab_test("jd_extraction", "v2", 0.2)
+        assert cfg.canary_version == "v2"
+        assert cfg.traffic_fraction == 0.2
+
+        retrieved = get_ab_test("jd_extraction")
+        assert retrieved is not None
+        assert retrieved.canary_version == "v2"
+
+    def test_get_ab_test_returns_none_when_not_set(self):
+        assert get_ab_test("jd_extraction") is None
+
+    def test_stop_ab_test(self):
+        set_ab_test("jd_extraction", "v2", 0.1)
+        stop_ab_test("jd_extraction")
+        assert get_ab_test("jd_extraction") is None
+
+    def test_stop_ab_test_idempotent(self):
+        stop_ab_test("jd_extraction")  # no error even if not set
+        assert get_ab_test("jd_extraction") is None
+
+
+class TestABTestVersionSelection:
+    """When A/B test is active, get_prompt should route to canary or control."""
+
+    def test_ab_test_affects_get_prompt(self):
+        set_active_version("jd_extraction", "v1")
+        set_ab_test("jd_extraction", "v2", traffic_fraction=0.5)
+
+        # Force canary selection by mocking random to return 0 (below 0.5 threshold)
+        with patch("app.core.extraction.prompt.random.random", return_value=0.0):
+            result = get_prompt("jd_extraction", jd_content="AB test content")
+        # v2 template contains "示例输出" (few-shot examples)
+        assert "示例输出" in result
+
+
+# ══════════════════════════════════════════════════════════════
+# admin_ab_service — aggregate_ab_results (pure function, no mock needed)
+# ══════════════════════════════════════════════════════════════
+
+
+class TestAggregateABResults:
+    """aggregate_ab_results — pure aggregation math, directly testable."""
+
+    def test_empty_results(self):
+        result = aggregate_ab_results([])
+        assert result["total"] == 0
+        assert result["versions"] == {}
+
+    def test_single_version_results(self):
+        results = [
+            {"version": "v1", "success": True, "f1": 0.8, "latency_ms": 100.0},
+            {"version": "v1", "success": False, "f1": 0.6, "latency_ms": 150.0},
+        ]
+        result = aggregate_ab_results(results)
+
+        assert result["total"] == 2
+        assert result["versions"]["v1"]["count"] == 2
+        assert result["versions"]["v1"]["success_rate"] == 0.5
+        assert result["versions"]["v1"]["avg_f1"] == 0.7
+        assert result["versions"]["v1"]["avg_latency_ms"] == 125.0
+
+    def test_multi_version_results(self):
+        results = [
+            {"version": "v1", "success": True, "f1": 0.8, "latency_ms": 100.0, "timestamp": 1.0},
+            {"version": "v1", "success": False, "f1": 0.6, "latency_ms": 150.0, "timestamp": 2.0},
+            {"version": "v2", "success": True, "f1": 0.9, "latency_ms": 90.0, "timestamp": 3.0},
+        ]
+        result = aggregate_ab_results(results)
+
+        assert result["total"] == 3
+        assert "v1" in result["versions"]
+        assert "v2" in result["versions"]
+        assert result["versions"]["v1"]["success_rate"] == 0.5
+        assert result["versions"]["v2"]["success_rate"] == 1.0
+        assert result["versions"]["v2"]["avg_f1"] == 0.9
+
+    def test_results_without_optional_fields(self):
+        results = [
+            {"version": "v1", "success": True},
+            {"version": "v2", "success": False},
+        ]
+        result = aggregate_ab_results(results)
+
+        assert result["versions"]["v1"]["avg_f1"] is None
+        assert result["versions"]["v1"]["avg_latency_ms"] is None
+        assert result["versions"]["v2"]["success_rate"] == 0.0
+
+    def test_in_memory_ab_results_storage(self):
+        """Verify the in-memory _ab_results dict works with aggregate_ab_results."""
+        from app.api.v1.admin_prompts import _ab_results
+
+        _ab_results["jd_extraction"] = [
+            {"version": "v1", "success": True, "f1": 0.8, "latency_ms": 100.0, "timestamp": 1.0},
+            {"version": "v1", "success": False, "f1": 0.6, "latency_ms": 150.0, "timestamp": 2.0},
+            {"version": "v2", "success": True, "f1": 0.9, "latency_ms": 90.0, "timestamp": 3.0},
+        ]
+        result = aggregate_ab_results(_ab_results["jd_extraction"])
+
+        assert result["total"] == 3
+        assert result["versions"]["v1"]["success_rate"] == 0.5
+        assert result["versions"]["v2"]["success_rate"] == 1.0

@@ -2,8 +2,8 @@
 
 **Created:** 2026-07-09
 **Milestone:** v2.1 — 真实数据切换
-**Total phases:** 3
-**Total requirements:** 16
+**Total phases:** 4
+**Total requirements:** 28
 
 ## Phase Summary
 
@@ -12,8 +12,9 @@
 | 8 | 后端清理与配置 | 4/4 | Complete    | 2026-07-09 |
 | 9 | 前端关闭 Mock | 关闭 MSW、删除 placeholder、清理 mock 文件、配置 Vite 代理 | MSW-01~04 (4) | 0 MSW 拦截、0 placeholder 图表、Vite proxy 到后端、无 mock 目录 |
 | 10 | Pipeline 端到端验证 | 确保 Playwright 可用、代理可配、Pipeline 可触发、数据端到端贯通 | PIPE-01~04 (4) | pipeline run 成功完成、Neo4j 有真实数据、前端展示真实数据 |
+| 11 | 功能闭环补全 | 修复 3 个生产阻断问题 + 闭合 6 大功能循环，确保核心业务端到端可用 | LOOP-01~12 (12) | 登录可用、SSE鉴权通、匹配→学习计划贯通、管理审核闭环 |
 
-**Coverage:** 100% (16/16 requirements mapped across 3 phases)
+**Coverage:** 100% (28/28 requirements mapped across 4 phases)
 
 ---
 
@@ -138,6 +139,79 @@ Plans:
 
 ## ▶ Next Up
 
-**Phase 10: Pipeline 端到端验证** — 确保 Playwright 可用、代理可配、Pipeline 可触发、数据端到端贯通
+**Phase 11: 功能闭环补全** — 9/9 plans ready, 3 waves. Execute with `/gsd:execute-phase 11`
 
-执行命令: `/gsd-discuss-phase 10` 或 `/gsd-plan-phase 10`
+执行命令: `/gsd:execute-phase 11`
+
+---
+
+## Phase 11: 功能闭环补全
+
+**Goal:** 修复 3 个生产阻断问题（无登录端点、SSE 绕过鉴权、学习计划请求结构不匹配），闭合 6 大核心功能循环（匹配→学习、JD→岗位记录、演化告警→前端、管理审核→Neo4j、Pipeline 权限→前端、学习进度→重新匹配），确保 StarMap 核心业务端到端可用。
+
+**Requirements:**
+- LOOP-01 — 认证登录端点 + 登录页面 (P0 阻断)
+- LOOP-02 — SSE 连接鉴权修复 (P0 阻断)
+- LOOP-03 — 学习计划 createPlan 请求结构修复 (P0 阻断)
+- LOOP-04 — 匹配诊断 Step4 → 学习中心贯通 (P1 核心闭环)
+- LOOP-05 — JD 抽取 → PositionRecord 自动创建 (P1 核心闭环)
+- LOOP-06 — 演化告警前端消费 + 定时分析触发 (P1 核心闭环)
+- LOOP-07 — 管理审核 approve/reject → Neo4j 同步 (P2 数据一致性)
+- LOOP-08 — Pipeline 管理权限前端适配 (P2 UX)
+- LOOP-09 — LoopDemo target_position 可选/必填修复 (P2 UX)
+- LOOP-10 — 学习进度 → 用户技能更新 + 重新匹配 (P2 闭环)
+- LOOP-11 — Dashboard/Pipeline SSE 实时连接接通 (P1 核心闭环)
+- LOOP-12 — Evolution changelog 参数语义修复 (P2 数据一致性)
+
+**Status:** 📋 Planned (9/9 plans across 3 waves)
+
+**Plans:** 9/9 plans complete (planning)
+
+Plans:
+- [x] 11-01-PLAN.md — 认证登录端点 + Login.vue 页面 (LOOP-01, Wave 1)
+- [x] 11-02-PLAN.md — createPlan 请求结构修复 + 映射函数 (LOOP-03, Wave 1)
+- [x] 11-03-PLAN.md — JD 抽取 → PositionRecord 自动创建 (LOOP-05, Wave 1)
+- [x] 11-04-PLAN.md — SSE 连接鉴权修复 (LOOP-02, Wave 2)
+- [x] 11-05-PLAN.md — 匹配诊断 → 学习中心贯通 (LOOP-04, Wave 2)
+- [x] 11-06-PLAN.md — 演化告警前端消费 + 定时分析 (LOOP-06, Wave 2)
+- [x] 11-07-PLAN.md — Dashboard/Pipeline SSE 实时连接接通 (LOOP-11, Wave 3)
+- [x] 11-08-PLAN.md — 审核Neo4j同步 + Pipeline权限 + LoopDemo修复 (LOOP-07/08/09, Wave 3)
+- [x] 11-09-PLAN.md — 学习进度技能同步 + Changelog参数修复 (LOOP-10/12, Wave 3)
+
+**Wave dependency notes:**
+- Wave 1 *(no deps)* — 11-01 + 11-02 + 11-03 parallel (Auth + createPlan + JD→PG)
+- Wave 2 *(blocked on Wave 1)* — 11-04 depends on 11-01 (token flow); 11-05 depends on 11-02 (mapping fn); 11-06 independent
+- Wave 3 *(blocked on Wave 2)* — 11-07 depends on 11-04 (SSE auth); 11-08 + 11-09 independent
+
+**Success criteria:**
+1. `POST /auth/login` 端点存在，返回 JWT token；`Login.vue` 页面可登录并存储 token
+2. 所有 SSE/fetch 调用携带 Authorization header；EventSource 通过 query-param 传递 token
+3. `createPlan()` 发送完整 `CreatePlanRequest`（含 `match_score`、`SkillGapInput` 全字段），后端 200
+4. `MatchDiagnosis.vue` Step 4 有"创建学习计划"按钮，点击后自动跳转 `/learning` 并预填数据
+5. `POST /extract/jd` 成功后自动创建/更新 `PositionRecord`，`/positions` 可查到抽取的岗位
+6. `EvolutionDashboard.vue` 展示 emerging alerts；Celery beat 定时触发 evolution analysis
+7. Admin approve/reject 同步更新 Neo4j 节点 trust_score/status
+8. Pipeline Monitor 页面非 admin 用户隐藏 trigger/config/schedule 控件
+9. `LoopDemo.vue` 在 `target_position` 为空时前端校验提示，或后端 `LoopRunRequest.target_position` 改为 Optional
+10. 学习计划中 skill 标记 mastered 后 `userStore.parsedSkills` 更新，重新匹配反映进步
+11. Dashboard 和 Pipeline 页面 SSE 实时连接建立，live events 正常推送
+12. Evolution changelog 调用使用 position 参数而非 skill 参数
+
+**Key files:**
+- `backend/app/api/v1/auth.py` — new (LOOP-01 登录端点)
+- `frontend/src/pages/Login.vue` — new (LOOP-01 登录页面)
+- `frontend/src/stores/user.ts` — 修改 (LOOP-01 登录流程 + LOOP-10 技能更新)
+- `frontend/src/composables/useSSE.ts` — 修改 (LOOP-02 SSE 鉴权)
+- `frontend/src/stores/jobseeker.ts` — 修改 (LOOP-02 fetch 鉴权)
+- `frontend/src/stores/learning.ts` — 修改 (LOOP-03 createPlan 请求结构)
+- `frontend/src/composables/useLearningActions.ts` — 修改 (LOOP-03 + LOOP-04)
+- `frontend/src/components/LearningPathPlan.vue` — 修改 (LOOP-04 创建计划按钮)
+- `backend/app/api/v1/extract.py` — 修改 (LOOP-05 PositionRecord 创建)
+- `frontend/src/stores/evolution.ts` — 修改 (LOOP-06 alerts 消费)
+- `backend/app/tasks/celery_app.py` — 修改 (LOOP-06 定时分析)
+- `backend/app/services/admin_audit_service.py` — 修改 (LOOP-07 Neo4j 同步)
+- `frontend/src/pages/PipelineMonitor.vue` — 修改 (LOOP-08 权限适配)
+- `frontend/src/pages/LoopDemo.vue` — 修改 (LOOP-09 校验)
+- `frontend/src/stores/dashboard.ts` — 修改 (LOOP-11 SSE 接通)
+- `frontend/src/stores/pipeline.ts` — 修改 (LOOP-11 SSE 接通)
+- `frontend/src/stores/evolution.ts` — 修改 (LOOP-12 changelog 参数)

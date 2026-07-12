@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from "vue"
+import { computed, ref, onUnmounted } from "vue"
 import VChart from "vue-echarts"
 import { Aim } from "@element-plus/icons-vue"
 import { useGraphStore, type GraphNode } from "@/stores/graph"
@@ -20,29 +20,33 @@ const graphStore = useGraphStore()
 // ── 面板可调大小 ──
 const panelWidth = ref(300)
 const isResizing = ref(false)
+let _activeMouseMove: ((e: MouseEvent) => void) | null = null
+let _activeMouseUp: (() => void) | null = null
 
 function onResizeStart(e: MouseEvent) {
   isResizing.value = true
   const startX = e.clientX
   const startWidth = panelWidth.value
 
-  function onMouseMove(e: MouseEvent) {
+  _activeMouseMove = (e: MouseEvent) => {
     const delta = startX - e.clientX
     panelWidth.value = Math.max(200, Math.min(500, startWidth + delta))
   }
 
-  function onMouseUp() {
+  _activeMouseUp = () => {
     isResizing.value = false
-    document.removeEventListener('mousemove', onMouseMove)
-    document.removeEventListener('mouseup', onMouseUp)
+    document.removeEventListener('mousemove', _activeMouseMove!)
+    document.removeEventListener('mouseup', _activeMouseUp!)
   }
 
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
+  document.addEventListener('mousemove', _activeMouseMove)
+  document.addEventListener('mouseup', _activeMouseUp)
 }
 
 onUnmounted(() => {
   isResizing.value = false
+  if (_activeMouseMove) document.removeEventListener('mousemove', _activeMouseMove)
+  if (_activeMouseUp) document.removeEventListener('mouseup', _activeMouseUp)
 })
 
 const nodeType = computed(() => {
@@ -128,6 +132,7 @@ function navigateToDetail(node: GraphNode) {
         </div>
         <button
           class="dp-close"
+          aria-label="关闭详情面板"
           @click="close"
         >
           ×
@@ -209,6 +214,8 @@ function navigateToDetail(node: GraphNode) {
             v-for="r in relatedPositions"
             :key="r.node.id"
             class="dp-list-item"
+            role="button"
+            tabindex="0"
             @click="navigateToDetail(r.node)"
           >
             <span class="dp-list-dot" />
@@ -229,6 +236,8 @@ function navigateToDetail(node: GraphNode) {
             v-for="p in kaRelatedPositions"
             :key="p.id"
             class="dp-list-item"
+            role="button"
+            tabindex="0"
             @click="navigateToDetail(p)"
           >
             <span class="dp-list-dot" />

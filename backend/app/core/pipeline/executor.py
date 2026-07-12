@@ -17,7 +17,6 @@ from typing import Any
 
 from loguru import logger
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.dashboard.sse_broadcaster import publish_event
 from app.core.pipeline.orchestrator import (
@@ -32,7 +31,7 @@ from app.core.pipeline.orchestrator import (
     get_ready_stages,
     update_stage_status,
 )
-from app.db.session import get_async_engine
+from app.db.session import get_session_factory
 from app.models.pipeline_models import PipelineRun
 from app.services.resources import resources as app_resources
 
@@ -289,6 +288,38 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
     return {"records_processed": processed, "errors": errors}
 
 
+def execute_timeseries(run_id: str) -> dict[str, Any]:
+    """Execute timeseries stage: aggregate skill frequencies from extraction records."""
+    from app.services.timeseries_service import refresh_skill_timeseries
+
+    processed = 0
+    errors: list[str] = []
+
+    try:
+        result = _run_async(_run_timeseries_refresh())
+        processed = result.get("windows_created", 0)
+        skills_updated = result.get("skills_updated", 0)
+        logger.info(
+            "Timeseries stage: {} skills updated, {} windows created",
+            skills_updated, processed,
+        )
+    except Exception as exc:
+        errors.append(f"timeseries failed: {exc}")
+        logger.error("Timeseries stage failed: {}", exc)
+
+    return {"records_processed": processed, "errors": errors}
+
+
+async def _run_timeseries_refresh() -> dict[str, Any]:
+    """Async bridge for execute_timeseries to call refresh_skill_timeseries."""
+    from app.services.timeseries_service import refresh_skill_timeseries
+
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        async with session.begin():
+            return await refresh_skill_timeseries(session)
+
+
 # ---------------------------------------------------------------------------
 # Phase 2: DataSourceRecord 实时更新 (SOURCE-01/02/03)
 # 这些函数从 sync Celery worker 调用，使用 _run_async 桥接 async DB
@@ -297,31 +328,28 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
 def _update_source_after_crawl(run_id: str, records_count: int) -> None:
     """execute_crawl 完成后更新 DataSourceRecord.total_records + last_crawl_at."""
     async def _update():
-        engine = get_async_engine()
-        try:
-            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-                from sqlalchemy import text
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            from sqlalchemy import text
 
-                from app.models.pipeline_models import DataSourceRecord
+            from app.models.pipeline_models import DataSourceRecord
 
-                # 按 source_platform 分组计数
-                result = await session.execute(
-                    text("SELECT source_platform, COUNT(*) as cnt FROM raw_jd_records GROUP BY source_platform")
+            # 按 source_platform 分组计数
+            result = await session.execute(
+                text("SELECT source_platform, COUNT(*) as cnt FROM raw_jd_records GROUP BY source_platform")
+            )
+            rows = result.fetchall()
+            for platform, cnt in rows:
+                # 找对应 DataSourceRecord（按 name 匹配）
+                ds_result = await session.execute(
+                    select(DataSourceRecord).where(DataSourceRecord.name == platform)
                 )
-                rows = result.fetchall()
-                for platform, cnt in rows:
-                    # 找对应 DataSourceRecord（按 name 匹配）
-                    ds_result = await session.execute(
-                        select(DataSourceRecord).where(DataSourceRecord.name == platform)
-                    )
-                    ds = ds_result.scalar_one_or_none()
-                    if ds:
-                        ds.total_records = (ds.total_records or 0) + int(cnt)
-                        ds.last_crawl_at = datetime.now(UTC)
-                await session.commit()
-                logger.info("_update_source_after_crawl: updated {} sources for run_id={}", len(rows), run_id)
-        finally:
-            await engine.dispose()
+                ds = ds_result.scalar_one_or_none()
+                if ds:
+                    ds.total_records = (ds.total_records or 0) + int(cnt)
+                    ds.last_crawl_at = datetime.now(UTC)
+            await session.commit()
+            logger.info("_update_source_after_crawl: updated {} sources for run_id={}", len(rows), run_id)
     _run_async(_update())
 
 
@@ -334,62 +362,56 @@ def _update_source_after_dedup(run_id: str, duplicates: int, total: int) -> None
     (dedup operates across the whole raw_jd table).
     """
     async def _update():
-        engine = get_async_engine()
-        try:
-            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-                from app.models.pipeline_models import DataSourceRecord
-                ds_result = await session.execute(
-                    select(DataSourceRecord).where(
-                        DataSourceRecord.source_type == "crawler",
-                        DataSourceRecord.status == "active",
-                    )
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            from app.models.pipeline_models import DataSourceRecord
+            ds_result = await session.execute(
+                select(DataSourceRecord).where(
+                    DataSourceRecord.source_type == "crawler",
+                    DataSourceRecord.status == "active",
                 )
-                sources = ds_result.scalars().all()
-                if not sources:
-                    logger.warning("_update_source_after_dedup: no active crawler sources found for run_id={}", run_id)
-                    return
-                dup_rate = round(duplicates / total, 4) if total > 0 else 0.0
-                for ds in sources:
-                    ds.duplicate_rate = dup_rate
-                await session.commit()
-                logger.info(
-                    "_update_source_after_dedup: duplicate_rate={} for {} source(s), run_id={}",
-                    dup_rate, len(sources), run_id,
-                )
-        finally:
-            await engine.dispose()
+            )
+            sources = ds_result.scalars().all()
+            if not sources:
+                logger.warning("_update_source_after_dedup: no active crawler sources found for run_id={}", run_id)
+                return
+            dup_rate = round(duplicates / total, 4) if total > 0 else 0.0
+            for ds in sources:
+                ds.duplicate_rate = dup_rate
+            await session.commit()
+            logger.info(
+                "_update_source_after_dedup: duplicate_rate={} for {} source(s), run_id={}",
+                dup_rate, len(sources), run_id,
+            )
     _run_async(_update())
 
 
 def _update_source_after_import(run_id: str, valid_count: int) -> None:
     """execute_import 完成后更新 DataSourceRecord.valid_records + avg_quality_score."""
     async def _update():
-        engine = get_async_engine()
-        try:
-            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-                from sqlalchemy import text
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            from sqlalchemy import text
 
-                from app.models.pipeline_models import DataSourceRecord
+            from app.models.pipeline_models import DataSourceRecord
 
-                # 重算所有 data_sources 的 avg_quality_score
-                ds_list_result = await session.execute(
-                    select(DataSourceRecord)
+            # 重算所有 data_sources 的 avg_quality_score
+            ds_list_result = await session.execute(
+                select(DataSourceRecord)
+            )
+            all_ds = ds_list_result.scalars().all()
+            for ds in all_ds:
+                # 从 extraction_models 查询有效记录数（按 source_platform 匹配）
+                rec_result = await session.execute(
+                    text("SELECT COUNT(*) FROM raw_jd_records WHERE source_platform = :platform AND status = 'extracted'"),
+                    {"platform": ds.name},
                 )
-                all_ds = ds_list_result.scalars().all()
-                for ds in all_ds:
-                    # 从 extraction_models 查询有效记录数（按 source_platform 匹配）
-                    rec_result = await session.execute(
-                        text("SELECT COUNT(*) FROM raw_jd_records WHERE source_platform = :platform AND status = 'extracted'"),
-                        {"platform": ds.name},
-                    )
-                    extracted = rec_result.scalar() or 0
-                    ds.valid_records = extracted
-                    ds.avg_quality_score = min(extracted / 100.0, 1.0) if extracted > 0 else 0.0
+                extracted = rec_result.scalar() or 0
+                ds.valid_records = extracted
+                ds.avg_quality_score = min(extracted / 100.0, 1.0) if extracted > 0 else 0.0
 
-                await session.commit()
-                logger.info("_update_source_after_import: updated valid_records for run_id={}", run_id)
-        finally:
-            await engine.dispose()
+            await session.commit()
+            logger.info("_update_source_after_import: updated valid_records for run_id={}", run_id)
     _run_async(_update())
 
 
@@ -400,34 +422,31 @@ async def _get_crawl_config(run_id: str) -> dict[str, Any]:
     Falls back to defaults if no config is found.
     """
     try:
-        engine = get_async_engine()
-        try:
-            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-                from sqlalchemy import select as sa_select
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            from sqlalchemy import select as sa_select
 
-                from app.models.pipeline_models import DataSourceRecord
-                result = await session.execute(
-                    sa_select(DataSourceRecord).where(
-                        DataSourceRecord.source_type == "crawler",
-                        DataSourceRecord.status == "active",
-                    )
+            from app.models.pipeline_models import DataSourceRecord
+            result = await session.execute(
+                sa_select(DataSourceRecord).where(
+                    DataSourceRecord.source_type == "crawler",
+                    DataSourceRecord.status == "active",
                 )
-                sources = result.scalars().all()
-                # Merge configs from all active crawler sources; first source wins
-                merged: dict[str, Any] = {}
-                for ds in sources:
-                    if ds.config:
-                        for k, v in ds.config.items():
-                            if k not in merged:
-                                merged[k] = v
-                if merged:
-                    logger.debug(
-                        "Loaded crawl config from {} active source(s): {}",
-                        len(sources), merged,
-                    )
-                    return merged
-        finally:
-            await engine.dispose()
+            )
+            sources = result.scalars().all()
+            # Merge configs from all active crawler sources; first source wins
+            merged: dict[str, Any] = {}
+            for ds in sources:
+                if ds.config:
+                    for k, v in ds.config.items():
+                        if k not in merged:
+                            merged[k] = v
+            if merged:
+                logger.debug(
+                    "Loaded crawl config from {} active source(s): {}",
+                    len(sources), merged,
+                )
+                return merged
     except Exception as exc:
         logger.warning("_get_crawl_config failed (non-fatal, using defaults): {}", exc)
     return {}
@@ -436,21 +455,18 @@ async def _get_crawl_config(run_id: str) -> dict[str, Any]:
 async def _skip_paused_sources_if_needed(run_id: str) -> None:
     """Phase 2 AUTHORITY-03: Log paused sources (the actual skip happens in the spider call)."""
     try:
-        engine = get_async_engine()
-        try:
-            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-                from sqlalchemy import select as sa_select
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            from sqlalchemy import select as sa_select
 
-                from app.models.pipeline_models import DataSourceRecord
-                paused = await session.execute(
-                    sa_select(DataSourceRecord).where(DataSourceRecord.status == "paused")
-                )
-                paused_sources = paused.scalars().all()
-                if paused_sources:
-                    names = [s.name for s in paused_sources]
-                    logger.info("Skipping {} paused source(s) for run_id={}: {}", len(names), run_id, names)
-        finally:
-            await engine.dispose()
+            from app.models.pipeline_models import DataSourceRecord
+            paused = await session.execute(
+                sa_select(DataSourceRecord).where(DataSourceRecord.status == "paused")
+            )
+            paused_sources = paused.scalars().all()
+            if paused_sources:
+                names = [s.name for s in paused_sources]
+                logger.info("Skipping {} paused source(s) for run_id={}: {}", len(names), run_id, names)
     except Exception as exc:
         logger.warning("_skip_paused_sources_if_needed failed (non-fatal): {}", exc)
 
@@ -461,6 +477,7 @@ STAGE_EXECUTORS = {
     StageName.CLEAN.value: execute_clean,
     StageName.IMPORT.value: execute_import,
     StageName.GRAPH_SYNC.value: execute_graph_sync,
+    StageName.TIMESERIES.value: execute_timeseries,
 }
 
 
@@ -492,82 +509,77 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
     except Exception as exc:
         logger.warning(f"advance_pipeline STOP flag check failed (continuing): {exc}")
 
-    engine = get_async_engine()
-    sessionmaker_ = async_sessionmaker(engine, expire_on_commit=False)
-    try:
-        async with sessionmaker_() as session:
-            async with session.begin():
-                result = await session.execute(
-                    select(PipelineRun).where(PipelineRun.id == run_id)
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        async with session.begin():
+            result = await session.execute(
+                select(PipelineRun).where(PipelineRun.id == run_id)
+            )
+            run = result.scalar_one_or_none()
+            if run is None:
+                return
+
+            raw_stages = run.stages or []
+            stages: list[dict[str, Any]] = raw_stages if isinstance(raw_stages, list) else []
+
+            # Skip optional stages whose deps failed
+            for s in stages:
+                if s["status"] != StageStatus.PENDING.value:
+                    continue
+                deps = STAGE_DEPS.get(s["name"], [])
+                any_dep_failed = any(
+                    any(ds["name"] == d and ds["status"] == StageStatus.FAILED.value for ds in stages)
+                    for d in deps
                 )
-                run = result.scalar_one_or_none()
-                if run is None:
-                    return
+                if any_dep_failed and s["name"] in OPTIONAL_STAGES:
+                    s["status"] = StageStatus.SKIPPED.value
+                    s["completed_at"] = datetime.now(UTC).isoformat()
+                elif any_dep_failed and s["name"] not in OPTIONAL_STAGES:
+                    # Required dep failed -> mark run as failed
+                    pass  # handled below when we check all_stages_done
 
-                raw_stages = run.stages or []
-                stages: list[dict[str, Any]] = raw_stages if isinstance(raw_stages, list) else []
-
-                # Skip optional stages whose deps failed
-                for s in stages:
-                    if s["status"] != StageStatus.PENDING.value:
-                        continue
-                    deps = STAGE_DEPS.get(s["name"], [])
-                    any_dep_failed = any(
-                        any(ds["name"] == d and ds["status"] == StageStatus.FAILED.value for ds in stages)
-                        for d in deps
-                    )
-                    if any_dep_failed and s["name"] in OPTIONAL_STAGES:
-                        s["status"] = StageStatus.SKIPPED.value
-                        s["completed_at"] = datetime.now(UTC).isoformat()
-                    elif any_dep_failed and s["name"] not in OPTIONAL_STAGES:
-                        # Required dep failed -> mark run as failed
-                        pass  # handled below when we check all_stages_done
-
-                # Check if all stages are done
-                if all_stages_done(stages):
-                    failed = get_failed_stages(stages)
-                    total_records = sum(s.get("records_processed", 0) for s in stages)
-                    run_status = RunStatus.FAILED.value if failed else RunStatus.COMPLETED.value
-                    error_log = f"Failed stages: {failed}" if failed else None
-                    await session.execute(
-                        update(PipelineRun)
-                        .where(PipelineRun.id == run_id)
-                        .values(
-                            stages=stages,
-                            status=run_status,
-                            completed_at=datetime.now(UTC),
-                            total_records=total_records,
-                            error_log=error_log,
-                        )
-                    )
-                    # Broadcast completion
-                    await _publish_stage_progress(
-                        str(run_id), "pipeline", run_status,
-                        progress=1.0 if run_status == RunStatus.COMPLETED.value else 0.0,
-                        message=f"Pipeline {run_status}",
-                    )
-                    return
-
-                # Write back any skipped stage updates
+            # Check if all stages are done
+            if all_stages_done(stages):
+                failed = get_failed_stages(stages)
+                total_records = sum(s.get("records_processed", 0) for s in stages)
+                run_status = RunStatus.FAILED.value if failed else RunStatus.COMPLETED.value
+                error_log = f"Failed stages: {failed}" if failed else None
                 await session.execute(
-                    update(PipelineRun).where(PipelineRun.id == run_id).values(stages=stages)
+                    update(PipelineRun)
+                    .where(PipelineRun.id == run_id)
+                    .values(
+                        stages=stages,
+                        status=run_status,
+                        completed_at=datetime.now(UTC),
+                        total_records=total_records,
+                        error_log=error_log,
+                    )
                 )
-
-            # Dispatch ready stages (outside transaction so each dispatch is independent)
-            ready = get_ready_stages(stages)
-            for stage_name in ready:
-                # Mark as running
-                await update_stage_status(session, run_id, stage_name, status=StageStatus.RUNNING.value)
+                # Broadcast completion
                 await _publish_stage_progress(
-                    str(run_id), stage_name, StageStatus.RUNNING.value,
-                    progress=0.0, message=f"Stage {stage_name} started",
+                    str(run_id), "pipeline", run_status,
+                    progress=1.0 if run_status == RunStatus.COMPLETED.value else 0.0,
+                    message=f"Pipeline {run_status}",
                 )
-                # Dispatch Celery task
-                from app.tasks.celery_app import execute_pipeline_stage
-                execute_pipeline_stage.delay(str(run_id), stage_name)
+                return
 
-    finally:
-        await engine.dispose()
+            # Write back any skipped stage updates
+            await session.execute(
+                update(PipelineRun).where(PipelineRun.id == run_id).values(stages=stages)
+            )
+
+        # Dispatch ready stages (outside transaction so each dispatch is independent)
+        ready = get_ready_stages(stages)
+        for stage_name in ready:
+            # Mark as running
+            await update_stage_status(session, run_id, stage_name, status=StageStatus.RUNNING.value)
+            await _publish_stage_progress(
+                str(run_id), stage_name, StageStatus.RUNNING.value,
+                progress=0.0, message=f"Stage {stage_name} started",
+            )
+            # Dispatch Celery task
+            from app.tasks.celery_app import execute_pipeline_stage
+            execute_pipeline_stage.delay(str(run_id), stage_name)
 
 
 async def trigger_and_start(
@@ -579,103 +591,91 @@ async def trigger_and_start(
     Before creating a new run, cancels any existing runs stuck in 'running'
     status (older than 30 minutes) to prevent accumulation of orphan runs.
     """
-    engine = get_async_engine()
-    sessionmaker_ = async_sessionmaker(engine, expire_on_commit=False)
-    try:
-        async with sessionmaker_() as session:
-            async with session.begin():
-                # Cancel any stuck running runs older than 30 minutes
-                from datetime import timedelta
-                stuck = await session.execute(
-                    select(PipelineRun)
-                    .where(PipelineRun.status == "running")
-                    .where(PipelineRun.started_at < datetime.now(UTC) - timedelta(minutes=30))
-                )
-                for old_run in stuck.scalars().all():
-                    old_run.status = "cancelled"
-                    old_run.completed_at = datetime.now(UTC)
-                    logger.warning(
-                        "Cancelled stuck pipeline run {} (started at {}, {:.1f}h old)",
-                        old_run.id, old_run.started_at,
-                        (datetime.now(UTC) - old_run.started_at).total_seconds() / 3600,
-                    )
-                run = await create_run(session, run_type=run_type, selected_stages=selected_stages)
-                run_id = run.id
-
-        # Advance the DAG — dispatches first stage(s)
-        await advance_pipeline(run_id)
-
-        # Re-fetch and return
-        async with sessionmaker_() as session:
-            result = await session.execute(
-                select(PipelineRun).where(PipelineRun.id == run_id)
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        async with session.begin():
+            # Cancel any stuck running runs older than 30 minutes
+            from datetime import timedelta
+            stuck = await session.execute(
+                select(PipelineRun)
+                .where(PipelineRun.status == "running")
+                .where(PipelineRun.started_at < datetime.now(UTC) - timedelta(minutes=30))
             )
-            return result.scalar_one()
-    finally:
-        await engine.dispose()
+            for old_run in stuck.scalars().all():
+                old_run.status = "cancelled"
+                old_run.completed_at = datetime.now(UTC)
+                logger.warning(
+                    "Cancelled stuck pipeline run {} (started at {}, {:.1f}h old)",
+                    old_run.id, old_run.started_at,
+                    (datetime.now(UTC) - old_run.started_at).total_seconds() / 3600,
+                )
+            run = await create_run(session, run_type=run_type, selected_stages=selected_stages)
+            run_id = run.id
+
+    # Advance the DAG — dispatches first stage(s)
+    await advance_pipeline(run_id)
+
+    # Re-fetch and return
+    async with session_factory() as session:
+        result = await session.execute(
+            select(PipelineRun).where(PipelineRun.id == run_id)
+        )
+        return result.scalar_one()
 
 
 async def retry_stage(run_id: uuid.UUID, stage_name: str) -> PipelineRun | None:
     """Reset a failed stage to PENDING and advance the pipeline."""
-    engine = get_async_engine()
-    sessionmaker_ = async_sessionmaker(engine, expire_on_commit=False)
-    try:
-        async with sessionmaker_() as session:
-            # Reset the stage
-            await update_stage_status(
-                session, run_id, stage_name,
-                status=StageStatus.PENDING.value,
-                errors=[],
-                retry_count=0,
-            )
-        # Re-advance
-        await advance_pipeline(run_id)
-        async with sessionmaker_() as session:
-            result = await session.execute(
-                select(PipelineRun).where(PipelineRun.id == run_id)
-            )
-            return result.scalar_one_or_none()
-    finally:
-        await engine.dispose()
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        # Reset the stage
+        await update_stage_status(
+            session, run_id, stage_name,
+            status=StageStatus.PENDING.value,
+            errors=[],
+            retry_count=0,
+        )
+    # Re-advance
+    await advance_pipeline(run_id)
+    async with session_factory() as session:
+        result = await session.execute(
+            select(PipelineRun).where(PipelineRun.id == run_id)
+        )
+        return result.scalar_one_or_none()
 
 
 async def resume_run(run_id: uuid.UUID) -> PipelineRun | None:
     """Resume a failed pipeline run by resetting all failed stages and advancing."""
-    engine = get_async_engine()
-    sessionmaker_ = async_sessionmaker(engine, expire_on_commit=False)
-    try:
-        async with sessionmaker_() as session:
-            result = await session.execute(
-                select(PipelineRun).where(PipelineRun.id == run_id)
-            )
-            run = result.scalar_one_or_none()
-            if run is None:
-                return None
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        result = await session.execute(
+            select(PipelineRun).where(PipelineRun.id == run_id)
+        )
+        run = result.scalar_one_or_none()
+        if run is None:
+            return None
 
-            stages = list(run.stages or [])
-            for s in stages:
-                if s["status"] == StageStatus.FAILED.value:
-                    s["status"] = StageStatus.PENDING.value
-                    s["errors"] = []
-                    s["retry_count"] = 0
-                    s["started_at"] = None
-                    s["completed_at"] = None
+        stages = list(run.stages or [])
+        for s in stages:
+            if s["status"] == StageStatus.FAILED.value:
+                s["status"] = StageStatus.PENDING.value
+                s["errors"] = []
+                s["retry_count"] = 0
+                s["started_at"] = None
+                s["completed_at"] = None
 
-            # Reset run status to running
-            run.status = RunStatus.RUNNING.value
-            run.completed_at = None
-            await session.execute(
-                update(PipelineRun)
-                .where(PipelineRun.id == run_id)
-                .values(stages=stages, status=RunStatus.RUNNING.value, completed_at=None)
-            )
+        # Reset run status to running
+        run.status = RunStatus.RUNNING.value
+        run.completed_at = None
+        await session.execute(
+            update(PipelineRun)
+            .where(PipelineRun.id == run_id)
+            .values(stages=stages, status=RunStatus.RUNNING.value, completed_at=None)
+        )
 
-        await advance_pipeline(run_id)
+    await advance_pipeline(run_id)
 
-        async with sessionmaker_() as session:
-            result = await session.execute(
-                select(PipelineRun).where(PipelineRun.id == run_id)
-            )
-            return result.scalar_one_or_none()
-    finally:
-        await engine.dispose()
+    async with session_factory() as session:
+        result = await session.execute(
+            select(PipelineRun).where(PipelineRun.id == run_id)
+        )
+        return result.scalar_one_or_none()

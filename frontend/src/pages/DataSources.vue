@@ -1,11 +1,11 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 数据源管理页 — Sprint 1.2
  * 网格卡片布局展示5个数据源（BOSS/拉勾/51Job/GitHub/ESCO）
  * 每个卡片含：权威度评分环形图、日采集量柱状图、数据质量评分、最后同步时间、一键同步按钮
  */
 import { onMounted } from 'vue'
-import { Connection, Coin, DataLine, RefreshRight, Loading as LoadingIcon, WarningFilled } from '@element-plus/icons-vue'
+import { Connection, Coin, DataLine, RefreshRight, WarningFilled } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { GaugeChart, BarChart } from 'echarts/charts'

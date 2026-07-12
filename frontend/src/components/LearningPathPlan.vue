@@ -14,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   goBack: []
   resetAll: []
+  createPlan: []  // LOOP-04: 创建学习计划并跳转学习中心
 }>()
 
 const learningPaths = computed(() => {
@@ -127,6 +128,13 @@ const learningPaths = computed(() => {
           @click="emit('resetAll')"
         >
           重新开始
+        </el-button>
+        <el-button
+          type="primary"
+          size="large"
+          @click="emit('createPlan')"
+        >
+          创建学习计划
         </el-button>
       </div>
     </div>

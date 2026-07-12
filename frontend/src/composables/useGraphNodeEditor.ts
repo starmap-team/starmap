@@ -5,10 +5,10 @@
  */
 import { ref, type Ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { useAdminStore } from '@/stores/admin'
+import type { useGraphNodeStore } from '@/stores/graphNode'
 import type { GraphNodeItem } from '@/composables/useGraphNodeList'
 
-type AdminStore = ReturnType<typeof useAdminStore>
+type GraphNodeStore = ReturnType<typeof useGraphNodeStore>
 
 export interface NodeEditorData {
   id?: string
@@ -28,7 +28,7 @@ export interface GraphNodeEditorApi {
   handleRejectNode: (node: GraphNodeItem) => Promise<void>
 }
 
-export function useGraphNodeEditor(store: AdminStore): GraphNodeEditorApi {
+export function useGraphNodeEditor(store: GraphNodeStore): GraphNodeEditorApi {
   const editorVisible: Ref<boolean> = ref(false)
   const editingNode: Ref<NodeEditorData | null> = ref(null)
 

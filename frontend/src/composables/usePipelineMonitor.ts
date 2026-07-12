@@ -5,6 +5,7 @@
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { usePipelineStore } from '@/stores/pipeline'
+import { useUserStore } from '@/stores/user'
 import type { PipelineStage, PipelineSchedule, DataMilestone, ExtractionComplete } from '@/stores/pipeline'
 import type { QualityAlert } from '@/types/quality'
 import { STAGE_LABELS, ALL_STAGE_NAMES } from '@/stores/pipeline'
@@ -16,6 +17,7 @@ const DEFAULT_REFRESH_INTERVAL_SEC = 10
 
 export function usePipelineMonitor() {
   const pipeline = usePipelineStore()
+  const userStore = useUserStore()
 
   // ── 自动刷新 ──
   const autoRefresh = ref(true)
@@ -350,6 +352,8 @@ export function usePipelineMonitor() {
   return {
     // Store
     pipeline,
+    // User role (LOOP-08: admin check for Pipeline management controls)
+    isAdmin: userStore.isAdmin,
     // 自动刷新
     autoRefresh,
     refreshInterval,

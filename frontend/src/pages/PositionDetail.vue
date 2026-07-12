@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 岗位详情页 — 能力雷达图 + 技能列表
  * 路由：/position/:name
@@ -96,7 +96,7 @@ onMounted(async () => {
   } catch (e) {
     // Neo4j 查询失败（如 404），回退到 PostgreSQL
       // keep: records Neo4j→PostgreSQL fallback for ops debugging
-      console.warn('[PositionDetail] Neo4j lookup failed, trying PostgreSQL:', e)
+      if (import.meta.env.DEV) console.warn('[PositionDetail] Neo4j lookup failed, trying PostgreSQL:', e)
     await loadFromPostgres()
   } finally {
     loading.value = false
@@ -121,7 +121,7 @@ async function loadFromPostgres() {
       source_count: s.source_count ?? 0,
     }))
   } catch (pgErr) {
-    console.error('[PositionDetail] PostgreSQL fallback also failed:', pgErr)
+    if (import.meta.env.DEV) console.error('[PositionDetail] PostgreSQL fallback also failed:', pgErr)
     ElMessage.error('岗位详情加载失败，请确认该岗位存在')
   }
 }

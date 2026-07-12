@@ -4,9 +4,8 @@
  * 支持创建/编辑 Skill / Position / Domain 节点
  * 提交后进入审核队列
  */
-import { ref, reactive, watch, computed } from 'vue'
+import { reactive, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Edit } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   visible: boolean

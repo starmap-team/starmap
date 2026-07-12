@@ -1,6 +1,7 @@
 """信息抽取 API：从 JD/简历中提取技能并归一化。
 
 完成抽取后自动将结果写入 Neo4j 图数据库，打通 extract -> graph 数据链路。
+同时写入 PostgreSQL PositionRecord/SkillRecord，打通 extract -> positions 数据链路 (LOOP-05)。
 """
 
 from typing import Any
@@ -8,10 +9,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from loguru import logger
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.extraction.graph_writer import write_extraction_to_graph
 from app.core.extraction.jd_extract import extract_from_jd
-from app.dependencies import get_neo4j_driver
+from app.dependencies import get_db_session, get_neo4j_driver
 from app.services.resume_service import run_resume_extraction
 
 router = APIRouter(prefix="/extract", tags=["信息抽取"])
@@ -119,16 +121,87 @@ async def _write_extraction_to_graph(
         return None
 
 
+async def _write_extraction_to_pg(
+    pipeline_result: dict[str, Any],
+    session: AsyncSession,
+) -> bool | None:
+    """Write extraction result to PostgreSQL PositionRecord + SkillRecord (LOOP-05).
+
+    Returns True on success, None on failure (non-blocking).
+    """
+    import sqlalchemy as sa
+
+    data = pipeline_result.get("data")
+    if not data or not data.get("position_name"):
+        logger.debug("Skipping PG write: no extraction data or position_name")
+        return None
+
+    position_name = data["position_name"]
+
+    try:
+        # Upsert PositionRecord
+        await session.execute(
+            sa.text("""
+                INSERT INTO position_records (id, name, industry, description, created_at)
+                VALUES (gen_random_uuid(), :name, :industry, :description, NOW())
+                ON CONFLICT (name) DO UPDATE SET industry = COALESCE(EXCLUDED.industry, position_records.industry)
+            """),
+            {
+                "name": position_name,
+                "industry": data.get("industry"),
+                "description": data.get("description") or data.get("responsibilities_text"),
+            },
+        )
+
+        # Collect all skill names from required + preferred
+        all_skills: list[str] = []
+        for s in data.get("required_skills", []):
+            name = s.get("skill") or s.get("name") if isinstance(s, dict) else str(s)
+            if name:
+                all_skills.append(name)
+        for s in data.get("preferred_skills", []):
+            name = s.get("skill") or s.get("name") if isinstance(s, dict) else str(s)
+            if name:
+                all_skills.append(name)
+
+        # Upsert SkillRecords
+        for skill_name in set(all_skills):
+            await session.execute(
+                sa.text("""
+                    INSERT INTO skill_records (id, name, category, source_count, first_detected_at, last_detected_at)
+                    VALUES (gen_random_uuid(), :name, 'hard_skill', 1, NOW(), NOW())
+                    ON CONFLICT (name) DO UPDATE SET
+                        source_count = skill_records.source_count + 1,
+                        last_detected_at = NOW()
+                """),
+                {"name": skill_name},
+            )
+
+        await session.commit()
+        logger.info(
+            "PG write complete: PositionRecord '{}' + {} skills upserted",
+            position_name,
+            len(set(all_skills)),
+        )
+        return True
+    except Exception as e:
+        await session.rollback()
+        logger.warning("PG write failed (non-blocking): {}", e)
+        return None
+
+
 @router.post("/jd", response_model=ExtractionResult)
 async def extract_jd(
     request: ExtractionRequest,
     neo4j_driver: Any = Depends(get_neo4j_driver),  # noqa: B008
+    session: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> dict[str, Any]:
     """从职位描述中提取技能信息。
 
     - 调用 LLM 进行结构化抽取
     - 对技能名称做别名归一化
     - 自动写入 Neo4j 图数据库（打通 extract -> graph 数据链路）
+    - 自动写入 PostgreSQL PositionRecord/SkillRecord（打通 extract -> positions 数据链路）
     - 返回结构化结果及置信度
     """
     logger.info("POST /extract/jd - jd_content={} chars", len(request.jd_content))
@@ -155,6 +228,11 @@ async def extract_jd(
     if graph_summary:
         logger.info("Graph integration: {} triples written", graph_summary["triples_merged"])
 
+    # Write extraction to PostgreSQL (non-blocking: failure won't break the response) (LOOP-05)
+    pg_result = await _write_extraction_to_pg(pipeline_result, session)
+    if pg_result:
+        logger.info("PG integration: PositionRecord created")
+
     return _build_result(pipeline_result)
 
 
@@ -162,12 +240,14 @@ async def extract_jd(
 async def extract_resume(
     file: UploadFile = File(...),  # noqa: B008
     neo4j_driver: Any = Depends(get_neo4j_driver),  # noqa: B008
+    session: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> dict[str, Any]:
     """从简历文件（PDF/Word）中提取技能信息。
 
     - 解析文件内容
     - 调用 LLM 进行结构化抽取
     - 自动写入 Neo4j 图数据库
+    - 自动写入 PostgreSQL PositionRecord/SkillRecord (LOOP-05)
     - 返回结构化结果
     """
     logger.info("POST /extract/resume - filename={}", file.filename)
@@ -206,5 +286,10 @@ async def extract_resume(
     graph_summary = await _write_extraction_to_graph(pipeline_result, neo4j_driver)
     if graph_summary:
         logger.info("Graph integration: {} triples written", graph_summary["triples_merged"])
+
+    # Write extraction to PostgreSQL (LOOP-05)
+    pg_result = await _write_extraction_to_pg(pipeline_result, session)
+    if pg_result:
+        logger.info("PG integration: PositionRecord created")
 
     return _build_result(pipeline_result)

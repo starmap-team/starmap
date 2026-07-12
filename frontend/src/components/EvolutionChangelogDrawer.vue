@@ -4,7 +4,7 @@
  */
 import type { ChangelogEntry } from '@/stores/evolution'
 
-const props = defineProps<{
+defineProps<{
   modelValue: boolean
   skillName: string
   data: ChangelogEntry[]

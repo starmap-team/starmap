@@ -21,7 +21,6 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from fastapi import HTTPException
 from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,12 +29,23 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
 
+# ── Domain exceptions (decoupled from HTTP layer) ──
+
+class RunNotFoundError(Exception):
+    """Raised when a pipeline run is not found."""
+
+
+class RunAlreadyTerminalError(Exception):
+    """Raised when attempting to modify a run already in terminal state."""
+
+
 class StageName(StrEnum):
     CRAWL = "crawl"
     DEDUP = "dedup"
     CLEAN = "clean"
     IMPORT = "import"
     GRAPH_SYNC = "graph_sync"
+    TIMESERIES = "timeseries"
 
 
 class StageStatus(StrEnum):
@@ -62,10 +72,11 @@ STAGE_DEPS: dict[str, list[str]] = {
     StageName.CLEAN.value: [StageName.CRAWL.value],
     StageName.IMPORT.value: [StageName.DEDUP.value, StageName.CLEAN.value],
     StageName.GRAPH_SYNC.value: [StageName.IMPORT.value],
+    StageName.TIMESERIES.value: [StageName.GRAPH_SYNC.value],
 }
 
 # Stages that can be skipped without blocking downstream
-OPTIONAL_STAGES = frozenset({StageName.GRAPH_SYNC.value})
+OPTIONAL_STAGES = frozenset({StageName.GRAPH_SYNC.value, StageName.TIMESERIES.value})
 
 
 def _now() -> datetime:
@@ -131,6 +142,10 @@ async def create_run(
     selected_stages: list[str] | None = None,
 ) -> PipelineRun:
     """Create a new PipelineRun record with DAG-aware stage initialization."""
+    # Validate run_type
+    _VALID_RUN_TYPES = {"full", "incremental"}
+    if run_type not in _VALID_RUN_TYPES:
+        raise ValueError(f"Invalid run_type: {run_type!r}. Must be one of {sorted(_VALID_RUN_TYPES)}")
     run = PipelineRun(
         id=uuid.uuid4(),
         run_type=run_type,
@@ -395,13 +410,13 @@ async def cancel_run(
     4. Invalidate status cache
 
     Raises:
-        HTTPException(404) if run not found
-        HTTPException(409) if run already in terminal state
+        RunNotFoundError if run not found
+        RunAlreadyTerminalError if run already in terminal state
     """
     result = await session.execute(select(PipelineRun).where(PipelineRun.id == run_id))
     run = result.scalar_one_or_none()
     if run is None:
-        raise HTTPException(status_code=404, detail=f"Pipeline run {run_id} not found")
+        raise RunNotFoundError(f"Pipeline run {run_id} not found")
 
     terminal_states = {
         RunStatus.COMPLETED.value,
@@ -409,10 +424,7 @@ async def cancel_run(
         "cancelled",
     }
     if run.status in terminal_states:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Run already in terminal state: {run.status}",
-        )
+        raise RunAlreadyTerminalError(f"Run already in terminal state: {run.status}")
 
     cancelled_at = _now()
 

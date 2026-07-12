@@ -208,16 +208,19 @@ async def analyze_evolution(
     return {"message": "queued", "task_id": task.id, "days": days}
 
 
-@router.get("/changelog/{position}", response_model=list[ChangelogEntry])
+@router.get("/changelog/{identifier}", response_model=list[ChangelogEntry])
 async def get_changelog(
-    position: str,
+    identifier: str,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[ChangelogEntry]:
-    """获取指定岗位的演化变更记录。"""
+    """获取指定技能或岗位的演化变更记录 (LOOP-12)。
+
+    identifier 可以是技能名或岗位名，同时查询两种匹配。
+    """
     stmt = (
         sa.select(EvolutionChangelog)
-        .where(sa.or_(EvolutionChangelog.position_name == position, EvolutionChangelog.skill_name == position))
+        .where(sa.or_(EvolutionChangelog.position_name == identifier, EvolutionChangelog.skill_name == identifier))
         .order_by(EvolutionChangelog.created_at.desc())
         .limit(limit)
     )

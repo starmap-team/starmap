@@ -107,5 +107,9 @@ export const useJdStore = defineStore('jd', () => {
     }
   }
 
-  return { list, loading, fetchList, fetchPositionSkills, fetchPositionDetail, fetchPositions, searchPositions, extractResult, extractLoading, extractJd }
+  function clearResult() {
+    extractResult.value = null
+  }
+
+  return { list, loading, fetchList, fetchPositionSkills, fetchPositionDetail, fetchPositions, searchPositions, extractResult, extractLoading, extractJd, clearResult }
 })

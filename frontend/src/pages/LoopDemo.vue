@@ -14,7 +14,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  VideoPlay, RefreshRight, Document, Download
+  VideoPlay, RefreshRight, Download
 } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -24,8 +24,6 @@ import { CanvasRenderer } from 'echarts/renderers'
 use([RadarChart, TooltipComponent, LegendComponent, RadarComponent, CanvasRenderer])
 import MainLayout from '@/layouts/MainLayout.vue'
 import LoopTimeline from '@/components/LoopTimeline.vue'
-import SkillRadar from '@/components/SkillRadar.vue'
-import LoadingPulse from '@/components/LoadingPulse.vue'
 import { useLoopStore } from '@/stores/loop'
 import { chartColors, legendStyle } from '@/utils/chartTheme'
 import { withAlpha } from '@/utils/graphColors'
@@ -158,6 +156,8 @@ function handleReset() {
 // ── Step 3: G6 迷你图谱 ──
 const graphContainerRef = ref<HTMLElement | null>(null)
 let graphInstance: any = null
+let _enterIntervalId: ReturnType<typeof setInterval> | null = null
+let _blinkIntervalId: ReturnType<typeof setInterval> | null = null
 
 import { cv } from '@/utils/chartTheme'
 
@@ -350,9 +350,9 @@ async function renderMiniGraph() {
 
   // Staggered node entrance animation
   let enterIdx = 0
-  const enterInterval = setInterval(() => {
+  _enterIntervalId = setInterval(() => {
     if (!graphInstance || enterIdx >= allGraphNodes.length) {
-      clearInterval(enterInterval)
+      if (_enterIntervalId) clearInterval(_enterIntervalId)
       return
     }
     const node = allGraphNodes[enterIdx]
@@ -371,8 +371,8 @@ async function renderMiniGraph() {
   // Blink animation for new nodes (starts after entrance completes)
   if (newNodes.length > 0) {
     let blinkOn = true
-    const blinkInterval = setInterval(() => {
-      if (!graphInstance) { clearInterval(blinkInterval); return }
+    _blinkIntervalId = setInterval(() => {
+      if (!graphInstance) { if (_blinkIntervalId) clearInterval(_blinkIntervalId); return }
       blinkOn = !blinkOn
       for (const n of newNodes) {
         graphInstance.updateNodeData([{
@@ -521,6 +521,8 @@ onUnmounted(() => {
     graphInstance.destroy()
     graphInstance = null
   }
+  if (_enterIntervalId) clearInterval(_enterIntervalId)
+  if (_blinkIntervalId) clearInterval(_blinkIntervalId)
 })
 </script>
 
@@ -896,7 +898,7 @@ onUnmounted(() => {
                       size="small"
                       stripe
                       max-height="200"
-              empty-text="暂无数据"
+                      empty-text="暂无数据"
                     >
                       <el-table-column
                         prop="skill"
@@ -1120,7 +1122,7 @@ onUnmounted(() => {
             :data="loopStore.history"
             stripe
             size="small"
-              empty-text="暂无数据"
+            empty-text="暂无数据"
           >
             <el-table-column
               prop="run_id"

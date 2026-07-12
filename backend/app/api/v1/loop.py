@@ -31,8 +31,8 @@ class LoopRunRequest(BaseModel):
     """Request body for POST /loop/run."""
 
     jd_text: str = Field(..., min_length=1, description="Raw JD text to process")
-    target_position: str = Field(
-        ..., min_length=1, description="Target position name for match diagnosis"
+    target_position: str | None = Field(
+        default=None, description="Target position name for match diagnosis (optional, LOOP-09)"
     )
 
 
@@ -53,7 +53,7 @@ class LoopRunResponse(BaseModel):
 
     run_id: str
     jd_text: str
-    target_position: str
+    target_position: str | None
     status: str
     steps: list[LoopStepResponse] = Field(default_factory=list)
     extracted_skills: list[dict] = Field(default_factory=list)

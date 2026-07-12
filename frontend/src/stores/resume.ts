@@ -33,7 +33,7 @@ export const useResumeStore = defineStore('resume', () => {
       })
       result.value = data as unknown as ResumeParseResult
     } catch (e: unknown) {
-      console.error('[Resume] Parse failed:', e)
+      if (import.meta.env.DEV) console.error('[Resume] Parse failed:', e)
       result.value = null
       throw e // 向上传播错误，让调用方处理
     } finally {

@@ -4,10 +4,9 @@
  * 5步流程：JD输入 → 技能提取 → 图谱更新 → 匹配诊断 → 学习路径
  * 状态：waiting=灰, running=蓝动画, success=绿, degraded=黄, failed=红
  */
-import { computed } from 'vue'
 import type { StepResult } from '@/stores/loop'
 
-const props = defineProps<{
+defineProps<{
   steps: StepResult[]
   activeStep: number
 }>()
@@ -45,6 +44,9 @@ function formatDuration(ms?: number): string {
         statusClass(step.status),
         { 'tl-active': idx === activeStep, 'tl-clickable': step.status !== 'waiting' }
       ]"
+      role="button"
+      tabindex="0"
+      :aria-label="step.name || '步骤'"
       @click="step.status !== 'waiting' && emit('step-click', idx)"
     >
       <!-- Connector line -->

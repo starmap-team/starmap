@@ -22,7 +22,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from crawler import config
 from crawler.compliance import RateLimiter, get_proxy, stealth_check_robots, stealth_log_request
 from crawler.dedup import hex64, simhash
 from crawler.middleware.proxy_middleware import (
@@ -31,7 +30,6 @@ from crawler.middleware.proxy_middleware import (
     record_proxy_success,
 )
 from crawler.pipelines.clean import clean_html, extract_job_title
-from crawler.pipelines.items import JdItem
 from crawler.stealth import StealthConfig, create_stealth_context, stealth_goto
 
 log = logging.getLogger(__name__)

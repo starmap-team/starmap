@@ -68,6 +68,7 @@ const {
 onMounted(() => {
   void fetchTrends()
   void fetchSnapshots()
+  void evo.fetchEmergingAlerts()  // LOOP-06: fetch alerts on mount
 })
 </script>
 
@@ -253,9 +254,33 @@ onMounted(() => {
             </div>
           </div>
         </el-card>
-      </div>
+	      </div>
 
-      <!-- 曲线图 -->
+	      <!-- LOOP-06: 新兴技能预警 -->
+	      <el-card
+	        v-if="evo.emergingAlerts.length > 0"
+	        class="alerts-card"
+	        v-loading="evo.alertsLoading"
+	      >
+	        <template #header>
+	          <div class="card-header">
+	            <span>新兴技能预警</span>
+	            <el-tag type="danger">{{ evo.emergingAlerts.length }}</el-tag>
+	          </div>
+	        </template>
+	        <el-table :data="evo.emergingAlerts" size="small" stripe>
+	          <el-table-column prop="skill_name" label="技能" />
+	          <el-table-column prop="level" label="级别" width="100">
+	            <template #default="{ row }">
+	              <el-tag :type="row.level === 'emerging' ? 'danger' : row.level === 'rising' ? 'warning' : 'info'" size="small">{{ row.level }}</el-tag>
+	            </template>
+	          </el-table-column>
+	          <el-table-column prop="z_score" label="Z-score" width="80" />
+	          <el-table-column prop="alert_message" label="预警信息" show-overflow-tooltip />
+	        </el-table>
+	      </el-card>
+
+	      <!-- 曲线图 -->
       <el-card
         v-loading="loading"
         class="chart-card"
@@ -359,8 +384,8 @@ onMounted(() => {
           :data="items"
           size="small"
           stripe
+          empty-text="暂无数据"
           @row-click="(row: TrendItem) => fetchChangelog(row.skill_name)"
-              empty-text="暂无数据"
         >
           <el-table-column
             prop="skill_name"

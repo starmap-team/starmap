@@ -3,7 +3,7 @@
  * JD 抽取页 — 粘贴 JD 文本，触发 LLM 抽取
  * 路由：/extract
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useJdStore } from '@/stores/jd'
@@ -40,7 +40,7 @@ async function handleExtract() {
     extractPhase.value = '抽取完成！'
     ElMessage.success('抽取完成')
   } catch (e: unknown) {
-    console.error('[ExtractJD] Failed:', e)
+    if (import.meta.env.DEV) console.error('[ExtractJD] Failed:', e)
     ElMessage.error(e instanceof Error ? e.message : '抽取失败')
     extractPhase.value = '抽取失败'
   } finally {
@@ -50,8 +50,12 @@ async function handleExtract() {
 
 function handleClear() {
   jdText.value = ''
-  jd.extractResult = null
+  jd.clearResult()
 }
+
+onUnmounted(() => {
+  if (progressTimer) clearInterval(progressTimer)
+})
 </script>
 
 <template>
@@ -190,7 +194,7 @@ function handleClear() {
                 size="small"
                 stripe
                 max-height="200"
-              empty-text="暂无数据"
+                empty-text="暂无数据"
               >
                 <el-table-column
                   prop="original"

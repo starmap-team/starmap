@@ -179,8 +179,6 @@ async function initGraph() {
     graph.value.on('edge:click', (event: G6ElementEvent) => {
       const edgeId = event.target?.id
       if (edgeId && edgeId.startsWith('evo-')) {
-        // 技术说明：从边 ID 中解析 source 与 target：格式为 evo-{src}-{tgt}
-        const parts = edgeId.replace('evo-', '').split('-')
         // 业务说明：在 Store 中查找匹配的演进边，提取完整业务数据后向上层抛出
         const evEdge = graphStore.evolutionEdges.find(e => edgeId === `evo-${e.source_id}-${e.target_id}`)
         if (evEdge) {
@@ -191,7 +189,7 @@ async function initGraph() {
 
     renderCurrentLayer()
   } catch (err) {
-    console.error('[Graph2D] Failed to initialize graph:', err)
+    if (import.meta.env.DEV) console.error('[Graph2D] Failed to initialize graph:', err)
     ElMessage.error('图谱加载失败，请确认后端服务已启动')
   }
 }

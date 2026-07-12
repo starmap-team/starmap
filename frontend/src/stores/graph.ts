@@ -1,4 +1,4 @@
-﻿import { defineStore } from 'pinia'
+import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import request from '@/api/request'
 
@@ -82,6 +82,11 @@ export const useGraphStore = defineStore('graph', () => {
   // ── 领域概览数据 ──
   const domains = ref<DomainOverviewItem[]>([])
   const domainConnections = ref<DomainConnection[]>([])
+
+  // ── 独立节点计数（来自后端 /graph/overview 的独立统计，避免重复计数） ──
+  const independentPositions = ref<number>(0)
+  const independentSkills = ref<number>(0)
+  const independentEdges = ref<number>(0)
 
   // ── 概览视图模式 ──
   const overviewMode = ref<OverviewMode>('domain')
@@ -183,9 +188,19 @@ export const useGraphStore = defineStore('graph', () => {
   async function fetchOverview(mode: OverviewMode = 'domain') {
     loading.value = true
     try {
-      const data = await request.get(`/graph/overview?group_by=${mode}`) as { domains?: DomainOverviewItem[]; connections?: DomainConnection[] }
+      const data = await request.get(`/graph/overview?group_by=${mode}`) as {
+        domains?: DomainOverviewItem[]
+        connections?: DomainConnection[]
+        independent_positions?: number
+        independent_skills?: number
+        independent_edges?: number
+      }
       domains.value = data.domains ?? []
       domainConnections.value = data.connections ?? []
+      // 独立节点计数（去重，与 Neo4j 实际节点数一致）
+      independentPositions.value = data.independent_positions ?? 0
+      independentSkills.value = data.independent_skills ?? 0
+      independentEdges.value = data.independent_edges ?? 0
       // 延迟设置 overviewMode 直到数据就绪，避免 Graph3D watch 被触发两次：
       // 1) overviewMode 变了但 nodes/links 还是旧数据（力配置错配）
       // 2) API 返回后 nodes/links 更新（再次触发）
@@ -193,9 +208,12 @@ export const useGraphStore = defineStore('graph', () => {
       // 确保 computed 属性只触发一次 watch
       overviewMode.value = mode
     } catch (e) {
-      console.error('[Graph] Failed to fetch overview:', e)
+      if (import.meta.env.DEV) console.error('[Graph] Failed to fetch overview:', e)
       domains.value = []
       domainConnections.value = []
+      independentPositions.value = 0
+      independentSkills.value = 0
+      independentEdges.value = 0
     } finally {
       loading.value = false
     }
@@ -228,7 +246,7 @@ export const useGraphStore = defineStore('graph', () => {
       }
       return positions
     } catch (e) {
-      console.error('[Graph] Failed to fetch KA positions:', e)
+      if (import.meta.env.DEV) console.error('[Graph] Failed to fetch KA positions:', e)
       return []
     } finally {
       loading.value = false
@@ -254,7 +272,7 @@ export const useGraphStore = defineStore('graph', () => {
         },
       }))
     } catch (e) {
-      console.error('[Graph] Failed to fetch evolution edges:', e)
+      if (import.meta.env.DEV) console.error('[Graph] Failed to fetch evolution edges:', e)
       evolutionEdges.value = []
     }
   }
@@ -286,7 +304,7 @@ export const useGraphStore = defineStore('graph', () => {
         },
       }))
     } catch (e) {
-      console.error('[Graph] Failed to fetch evolution paths for position:', e)
+      if (import.meta.env.DEV) console.error('[Graph] Failed to fetch evolution paths for position:', e)
       evolutionPaths.value = []
     } finally {
       evolutionPathsLoading.value = false
@@ -336,6 +354,10 @@ export const useGraphStore = defineStore('graph', () => {
     visibleEdges,
     // 加载
     loading,
+    // 独立节点计数
+    independentPositions,
+    independentSkills,
+    independentEdges,
     // API
     fetchOverview,
     fetchKAPositions,

@@ -9,7 +9,8 @@ import { asTagType } from '@/utils/element'
 import { use } from 'echarts/core'
 import { GaugeChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
-import { chartColors, tooltipStyle } from '@/utils/chartTheme'
+import { chartColors } from '@/utils/chartTheme'
+import { formatRelativeTime } from '@/utils/formatTime'
 
 use([GaugeChart, TooltipComponent])
 
@@ -54,16 +55,7 @@ const sourceTypeLabel = computed(() => {
 
 const formattedLastCrawl = computed(() => {
   if (!props.source.last_crawl_at) return '--'
-  const d = new Date(props.source.last_crawl_at)
-  const now = new Date()
-  const diff = now.getTime() - d.getTime()
-  const min = Math.floor(diff / 60000)
-  if (min < 1) return '刚刚'
-  if (min < 60) return `${min}分钟前`
-  const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr}小时前`
-  const day = Math.floor(hr / 24)
-  return `${day}天前`
+  return formatRelativeTime(props.source.last_crawl_at)
 })
 
 const formattedRecords = computed(() => {

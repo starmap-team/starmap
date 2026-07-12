@@ -313,3 +313,44 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Global request loading bar (emitted by frontend/src/api/request.ts)
+ * Phase 8 — frontend UX fix 5: previously created without CSS, so the
+ * element existed in DOM but was invisible. The animation/positioning
+ * below gives the global progress bar proper z-index and a clear
+ * indeterminate loading animation.
+ * --------------------------------------------------------------------------- */
+.global-loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(64, 158, 255, 0) 0%,
+    rgba(64, 158, 255, 0.7) 50%,
+    rgba(64, 158, 255, 0) 100%
+  );
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  z-index: 9999;
+  pointer-events: none;
+  animation: global-loading-bar-progress 1.4s ease-in-out infinite;
+}
+
+@keyframes global-loading-bar-progress {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .global-loading-bar {
+    animation: none;
+  }
+}

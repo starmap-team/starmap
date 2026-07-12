@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 from app.dependencies import get_db_session
-from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
+from app.models.extraction_models import PositionRecord, PositionSkillRelation
 
 
 class SkillTrendItem(BaseModel):
@@ -93,45 +93,9 @@ async def get_industry_report(
                 related_positions=signal.positions,
             ))
     else:
-        # Fallback: use SkillRecord for basic stats
-        fallback_stmt = (
-            sa.select(SkillRecord.name, SkillRecord.source_count, SkillRecord.category)
-            .order_by(SkillRecord.source_count.desc())
-            .limit(50)
-        )
-        if category:
-            fallback_stmt = fallback_stmt.where(SkillRecord.category == category)
-
-        fallback_result = await session.execute(fallback_stmt)
-        fallback_records = fallback_result.all()
-
-        for name, source_count, _cat in fallback_records:
-            # Get positions for this skill
-            pos_stmt = (
-                sa.select(PositionRecord.name)
-                .select_from(PositionSkillRelation)
-                .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
-                .join(SkillRecord, SkillRecord.id == PositionSkillRelation.skill_id)
-                .where(SkillRecord.name == name)
-                .limit(10)
-            )
-            pos_result = await session.execute(pos_stmt)
-            positions = [row[0] for row in pos_result.all()]
-
-            trend = "rising" if source_count > 5 else "declining" if source_count < 2 else "stable"
-            item = SkillTrendItem(
-                skill_name=name,
-                trend=trend,
-                frequency=source_count,
-                source_count=source_count,
-                related_positions=positions,
-            )
-            if trend == "rising":
-                rising.append(item)
-            elif trend == "declining":
-                declining.append(item)
-            else:
-                stable.append(item)
+        # No timeseries data — return empty trends rather than fabricating from source_count.
+        # The pipeline's timeseries stage must run first to generate real frequency data.
+        pass
 
     # Top positions by skill count
     top_pos_stmt = (
@@ -139,7 +103,7 @@ async def get_industry_report(
         .select_from(PositionRecord)
         .join(PositionSkillRelation, PositionSkillRelation.position_id == PositionRecord.id)
         .group_by(PositionRecord.name)
-        .order_by(sa.text("skill_count DESC"))
+        .order_by(sa.func.count(PositionSkillRelation.skill_id).desc())
         .limit(10)
     )
     top_pos_result = await session.execute(top_pos_stmt)

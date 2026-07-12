@@ -301,3 +301,17 @@ async def _mark_stage_failed(
                 )
     finally:
         await engine.dispose()
+
+
+# ── Beat schedule (LOOP-06: 定时演化分析) ──
+
+from celery.schedules import crontab
+
+celery_app.conf.beat_schedule = {
+    **getattr(celery_app.conf, "beat_schedule", {}),
+    "evolution-analyze": {
+        "task": "app.tasks.celery_app.analyze_evolution_trends",
+        "schedule": crontab(hour="*/6", minute=0),  # 每6小时
+        "kwargs": {"days": 90},
+    },
+}

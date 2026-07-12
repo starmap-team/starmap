@@ -5,6 +5,8 @@
  */
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { useLearningStore } from '@/stores/learning'
+import { buildCreatePlanRequest } from '@/stores/learning'
+import { useUserStore } from '@/stores/user'
 
 type LearningStore = ReturnType<typeof useLearningStore>
 
@@ -30,30 +32,36 @@ export function useLearningActions(
       await store.updateProgress(currentPlan.value.plan_id, skill, status)
       const statusLabel = status === 'mastered' ? '已掌握' : status === 'in_progress' ? '学习中' : '未开始'
       ElMessage.success(`已更新「${skill}」状态为 ${statusLabel}`)
+
+      // LOOP-10: When mastered, add to user's parsed skills for re-match
+      if (status === 'mastered') {
+        const userStore = useUserStore()
+        userStore.addParsedSkill(skill)
+        ElMessage.success({ message: '技能已掌握！可前往匹配诊断查看提升效果', duration: 5000 })
+      }
     } catch {
       // error handled by store
     }
   }
 
   // ponytail: D-08 single-plan; D-09 POST /learning/plan; D-06 plan_id→localStorage
+  // LOOP-03: 使用 buildCreatePlanRequest 构造完整请求体（含 match_score）
   async function handleAddToPlan(rec: { skill: string; priority: string }): Promise<void> {
     try {
+      const payload = buildCreatePlanRequest({
+        position: rec.skill,
+        skill_gap_detail: [{ skill: rec.skill, importance: rec.priority || 'required', gap_level: '完全缺失' }],
+      })
       if (currentPlan.value) {
         await ElMessageBox.confirm(
           `已有学习计划「${currentPlan.value.position}」，是否用「${rec.skill}」覆盖？`,
           '覆盖学习计划',
           { confirmButtonText: '确认覆盖', cancelButtonText: '取消', type: 'warning' },
         )
-        await store.createPlan({
-          position: rec.skill,
-          skills: [{ skill: rec.skill, importance: 'required', gap_level: '完全缺失' }],
-        })
+        await store.createPlan(payload as unknown as Record<string, unknown>)
         ElMessage.success('已创建新学习计划')
       } else {
-        await store.createPlan({
-          position: rec.skill,
-          skills: [{ skill: rec.skill, importance: 'required', gap_level: '完全缺失' }],
-        })
+        await store.createPlan(payload as unknown as Record<string, unknown>)
         ElMessage.success(`「${rec.skill}」已加入学习计划`)
       }
     } catch (e: unknown) {

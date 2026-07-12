@@ -1,4 +1,4 @@
-﻿"""Dashboard aggregation service.
+"""Dashboard aggregation service.
 
 Aggregates data from multiple subsystems (graph stats, data sources,
 quality metrics, pipeline processing) with graceful degradation.

@@ -69,7 +69,12 @@ export function useSSE(url: string, options: UseSSEOptions) {
     }
 
     try {
-      eventSource = new EventSource(url)
+      // LOOP-02: Append JWT token as query parameter for SSE auth
+      // EventSource API doesn't support custom headers, so token goes in URL
+      const token = localStorage.getItem('starmap_token') || localStorage.getItem('token')
+      const separator = url.includes('?') ? '&' : '?'
+      const authedUrl = token ? `${url}${separator}token=${encodeURIComponent(token)}` : url
+      eventSource = new EventSource(authedUrl)
       mode.value = 'sse'
 
       eventSource.onopen = () => {
@@ -167,9 +172,15 @@ export function useSSE(url: string, options: UseSSEOptions) {
   async function pollOnce() {
     if (disposed) return
     try {
-      const response = await fetch(pollUrl || `${url}-poll`, {
-        headers: { 'Accept': 'application/json' },
-      })
+      // LOOP-02: Add Authorization header for polling fetch auth
+      const token = localStorage.getItem('starmap_token') || localStorage.getItem('token')
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      const response = await fetch(pollUrl || `${url}-poll`, { headers })
       if (response.ok) {
         const data = await response.json()
         connected.value = true
