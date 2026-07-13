@@ -19,6 +19,7 @@ import { formatChange, TREND_LABEL, TREND_TAG_TYPE } from '@/composables/useEvol
 const trendLabel = TREND_LABEL
 const trendTagType = TREND_TAG_TYPE
 import EvolutionChangelogDrawer from '@/components/EvolutionChangelogDrawer.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 use([CanvasRenderer, LineChart, BarChart, GaugeChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
 
@@ -141,14 +142,10 @@ onMounted(() => {
         class="timeline-card"
         shadow="never"
       >
-        <div class="custom-empty">
-          <p class="empty-text">
-            暂无快照数据
-          </p>
-          <p class="empty-hint-text">
-            演化快照生成后将显示时间线滑块
-          </p>
-        </div>
+        <EmptyState
+          title="暂无快照数据"
+          description="演化快照生成后将显示时间线滑块"
+        />
       </el-card>
 
       <!-- KPI 区域: CII 仪表盘 + 新兴技能卡片 -->
@@ -170,26 +167,11 @@ onMounted(() => {
             class="chart-h-gauge"
           />
           <div
-            v-else
-            class="custom-empty"
-          >
-            <div class="empty-icon-wrapper">
-              <svg
-                width="48"
-                height="48"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              ><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></svg>
-            </div><p class="empty-text">
-              图表数据为空
-            </p><p class="empty-hint-text">
-              技能 CII 数据将在分析完成后展示
-            </p>
-          </div>
+            <EmptyState
+              v-else
+              title="图表数据为空"
+              description="技能 CII 数据将在分析完成后展示"
+            />
         </el-card>
 
         <!-- 新兴技能卡片 -->
@@ -231,27 +213,11 @@ onMounted(() => {
                 </el-tag>
               </div>
             </div>
-            <div
+            <EmptyState
               v-if="!emergingSkills.length"
-              class="custom-empty"
-            >
-              <div class="empty-icon-wrapper">
-                <svg
-                  width="48"
-                  height="48"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                ><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></svg>
-              </div><p class="empty-text">
-                暂未检测到新兴技能
-              </p><p class="empty-hint-text">
-                当技能 CII 指数出现显著上升时会在此显示
-              </p>
-            </div>
+              title="暂未检测到新兴技能"
+              description="当技能 CII 指数出现显著上升时会在此显示"
+            />
           </div>
         </el-card>
 	      </div>
@@ -294,32 +260,11 @@ onMounted(() => {
           autoresize
           class="chart-h-lg"
         />
-        <div
+        <EmptyState
           v-else
-          class="custom-empty"
-        >
-          <div class="empty-icon-wrapper">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            ><ellipse
-              cx="12"
-              cy="5"
-              rx="9"
-              ry="3"
-            /><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" /><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" /></svg>
-          </div><p class="empty-text">
-            演化数据待生成
-          </p><p class="empty-hint-text">
-            CII 时序分析运行后将自动填充
-          </p>
-        </div>
+          title="演化数据待生成"
+          description="CII 时序分析运行后将自动填充"
+        />
       </el-card>
 
       <!-- 技能对比 -->

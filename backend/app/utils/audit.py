@@ -2,12 +2,11 @@
 
 记录关键安全事件：认证失败、权限拒绝、速率限制触发、敏感操作。
 使用 loguru 结构化日志，生产环境 JSON 输出可直接接入 ELK/Loki。
-
-ponytail: 最小实现 — loguru + 结构化 dict，无额外存储。
-升级路径: 写入 PostgreSQL audit_log 表或外发 SIEM。
+同时异步双写到 PostgreSQL audit_events 表（fire-and-forget，不阻塞调用方）。
 """
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -41,10 +40,34 @@ class AuditEntry:
     extra: dict[str, Any] = field(default_factory=dict)
 
 
+async def _persist_to_db(entry: AuditEntry) -> None:
+    """Fire-and-forget async DB persist. Silently catches all errors."""
+    try:
+        from app.db.session import get_session_factory
+
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            from app.models.audit_models import AuditEventRecord
+
+            record = AuditEventRecord(
+                event=entry.event.value,
+                actor=entry.actor,
+                action=entry.action,
+                detail=entry.detail[:500] if entry.detail else "",
+                ip=entry.ip,
+            )
+            session.add(record)
+            await session.commit()
+    except Exception as e:
+        # DB failures must NEVER block the caller — log and move on
+        logger.debug("Audit DB persist failed (non-blocking): {}", e)
+
+
 def audit_log(entry: AuditEntry) -> None:
     """写入审计日志。
 
     使用 loguru structured binding，生产环境 JSON 输出自动包含所有字段。
+    同时异步双写到 PostgreSQL audit_events 表（fire-and-forget）。
     """
     logger.bind(
         audit_event=entry.event.value,
@@ -54,3 +77,11 @@ def audit_log(entry: AuditEntry) -> None:
         audit_ip=entry.ip,
         **entry.extra,
     ).warning("AUDIT: {} actor={} action={} detail={}", entry.event.value, entry.actor, entry.action, entry.detail)
+
+    # Fire-and-forget DB persist — never blocks the caller
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_persist_to_db(entry))
+    except RuntimeError:
+        # No running event loop (e.g. sync context) — skip DB persist silently
+        pass

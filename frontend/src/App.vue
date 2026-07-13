@@ -2,6 +2,7 @@
 // StarMap root component
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import '@/styles/animations.css'
 
 const router = useRouter()
@@ -29,17 +30,19 @@ router.beforeEach((to, from) => {
 </script>
 
 <template>
-  <router-view v-slot="{ Component, route }">
-    <transition
-      :name="transitionName"
-      mode="out-in"
-    >
-      <component
-        :is="Component"
-        :key="route.path"
-      />
-    </transition>
-  </router-view>
+  <ErrorBoundary>
+    <router-view v-slot="{ Component, route }">
+      <transition
+        :name="transitionName"
+        mode="out-in"
+      >
+        <component
+          :is="Component"
+          :key="route.path"
+        />
+      </transition>
+    </router-view>
+  </ErrorBoundary>
 </template>
 
 <style>

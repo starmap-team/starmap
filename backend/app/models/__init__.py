@@ -34,9 +34,13 @@ from app.models.pipeline_models import (  # noqa: E402, F401
     PipelineRun,
     PipelineSchedule,
 )
+from app.models.audit_models import (  # noqa: E402, F401
+    AuditEventRecord,
+)
 
 __all__ = [
     "Base",
+    "AuditEventRecord",
     "DataSourceRecord",
     "EvolutionChangelog",
     "EvolutionPath",

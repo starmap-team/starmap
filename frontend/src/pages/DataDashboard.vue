@@ -23,6 +23,7 @@ import {
 import { CanvasRenderer } from 'echarts/renderers'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import CountUpNumber from '@/components/CountUpNumber.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useDashboardCharts } from '@/composables/useDashboardCharts'
 import { useDashboardKpiCards } from '@/composables/useDashboardKpiCards'
@@ -117,18 +118,12 @@ useDashboardRealtimeSync(
               autoresize
               :style="{ height: '100%' }"
             />
-            <div
+            <EmptyState
               v-else
-              class="chart-empty"
-            >
-              <span class="chart-empty-icon">📊</span>
-              <p class="chart-empty-text">
-                暂无数据
-              </p>
-              <p class="chart-empty-hint">
-                数据加载中或暂无记录
-              </p>
-            </div>
+              title="暂无数据"
+              description="数据加载中或暂无记录"
+              icon="📊"
+            />
           </div>
         </div>
 
@@ -145,18 +140,12 @@ useDashboardRealtimeSync(
               autoresize
               :style="{ height: '100%' }"
             />
-            <div
+            <EmptyState
               v-else
-              class="chart-empty"
-            >
-              <span class="chart-empty-icon">🧭</span>
-              <p class="chart-empty-text">
-                暂无数据
-              </p>
-              <p class="chart-empty-hint">
-                数据加载中或暂无记录
-              </p>
-            </div>
+              title="暂无数据"
+              description="数据加载中或暂无记录"
+              icon="🧭"
+            />
           </div>
         </div>
 
@@ -173,18 +162,12 @@ useDashboardRealtimeSync(
               autoresize
               :style="{ height: '100%' }"
             />
-            <div
+            <EmptyState
               v-else
-              class="chart-empty"
-            >
-              <span class="chart-empty-icon">📈</span>
-              <p class="chart-empty-text">
-                暂无数据
-              </p>
-              <p class="chart-empty-hint">
-                数据加载中或暂无记录
-              </p>
-            </div>
+              title="暂无数据"
+              description="数据加载中或暂无记录"
+              icon="📈"
+            />
           </div>
         </div>
       </div>
@@ -294,18 +277,12 @@ useDashboardRealtimeSync(
               autoresize
               :style="{ height: '100%' }"
             />
-            <div
+            <EmptyState
               v-else
-              class="chart-empty"
-            >
-              <span class="chart-empty-icon">🛰️</span>
-              <p class="chart-empty-text">
-                暂无数据
-              </p>
-              <p class="chart-empty-hint">
-                数据加载中或暂无记录
-              </p>
-            </div>
+              title="暂无数据"
+              description="数据加载中或暂无记录"
+              icon="🛰️"
+            />
           </div>
         </div>
       </div>
