@@ -232,6 +232,15 @@ class LoopResultRecord(Base):
     run_id: Mapped[str] = mapped_column(
         String(100), unique=True, index=True, nullable=False,
     )
+    # 业务说明：触发此闭环运行的用户标识 (SEC-04)
+    # 技术说明：nullable=True 兼容历史数据，server_default='system' 用于迁移回填
+    user_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+        server_default="system",
+        comment="User who triggered this loop run (null for legacy data)",
+    )
     # 业务说明：各步骤的序列化结果，以JSONB格式存储
     # 技术说明：使用JSONB类型支持高效查询和索引，默认空字典
     steps_json: Mapped[dict | None] = mapped_column(

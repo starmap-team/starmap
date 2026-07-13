@@ -128,6 +128,7 @@ class LoopOrchestrator:
         jd_text: str,
         target_position: str | None,
         session: AsyncSession | None = None,
+        user_id: str = "system",  # SEC-04: defaults to "system" for backward compat
     ) -> LoopResult:
         """Execute the full 5-step closed-loop pipeline.
 
@@ -135,6 +136,7 @@ class LoopOrchestrator:
             jd_text: Raw job description text.
             target_position: Target position name for match diagnosis.
             session: Optional async DB session for persisting the result.
+            user_id: Authenticated user's sub claim (SEC-04).
 
         Returns:
             LoopResult with all step outputs and aggregate results.
@@ -150,7 +152,7 @@ class LoopOrchestrator:
         )
 
         # Insert initial running record into loop_results
-        db_record = await self._insert_loop_run(run_id, session=session)
+        db_record = await self._insert_loop_run(run_id, session=session, user_id=user_id)
 
         # ---- Step 1: JD Input (validation) ----
         step1 = self._step1_validate_input(jd_text, target_position)
@@ -597,6 +599,7 @@ class LoopOrchestrator:
     async def _insert_loop_run(
         run_id: str,
         session: AsyncSession | None = None,
+        user_id: str = "system",  # SEC-04
     ) -> LoopResultRecord | None:
         """INSERT a new running loop_results row; return the ORM object or None."""
         if session is None:
@@ -606,6 +609,7 @@ class LoopOrchestrator:
 
             record = LoopResultRecord(
                 run_id=run_id,
+                user_id=user_id,  # SEC-04
                 steps_json={},
                 status=LoopRunStatus.RUNNING.value,
             )
@@ -675,6 +679,8 @@ class LoopOrchestrator:
 async def get_loop_status(
     run_id: str,
     session: AsyncSession | None = None,
+    user_id: str = "system",      # SEC-04
+    is_admin: bool = False,        # SEC-04
 ) -> dict[str, Any] | None:
     """Return status of a loop run by ID, querying loop_results first, then pipeline_runs, then in-memory fallback."""
     if session is not None:
@@ -682,9 +688,14 @@ async def get_loop_status(
         try:
             from app.models.pipeline_models import LoopResultRecord
 
-            result = await session.execute(
-                select(LoopResultRecord).where(LoopResultRecord.run_id == run_id)
+            query = select(LoopResultRecord).where(
+                LoopResultRecord.run_id == run_id,
             )
+            # SEC-04: IDOR guard — non-admin users only see their own runs
+            if not is_admin:
+                query = query.where(LoopResultRecord.user_id == user_id)
+
+            result = await session.execute(query)
             row = result.scalar_one_or_none()
             if row is not None:
                 data = dict(row.steps_json) if row.steps_json else {}
@@ -722,6 +733,8 @@ async def get_loop_status(
 async def get_loop_history(
     limit: int = 50,
     session: AsyncSession | None = None,
+    user_id: str = "system",      # SEC-04
+    is_admin: bool = False,        # SEC-04
 ) -> list[dict[str, Any]]:
     """Return recent loop run history, querying loop_results first, then pipeline_runs, then in-memory fallback."""
     if session is not None:
@@ -729,11 +742,15 @@ async def get_loop_history(
         try:
             from app.models.pipeline_models import LoopResultRecord
 
-            result = await session.execute(
-                select(LoopResultRecord)
-                .order_by(LoopResultRecord.created_at.desc())
-                .limit(limit)
+            query = select(LoopResultRecord).order_by(
+                LoopResultRecord.created_at.desc()
             )
+            # SEC-04: IDOR guard — non-admin users only see their own runs
+            if not is_admin:
+                query = query.where(LoopResultRecord.user_id == user_id)
+
+            query = query.limit(limit)
+            result = await session.execute(query)
             rows = result.scalars().all()
             if rows:
                 items = []
