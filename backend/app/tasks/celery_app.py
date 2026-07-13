@@ -191,32 +191,29 @@ async def _execute_scheduled_run(schedule_id: str) -> None:
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
-    from app.db.session import get_async_engine
+    from app.db.session import get_session_factory
     from app.models.pipeline_models import PipelineSchedule
 
-    engine = get_async_engine()
-    try:
-        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-            result = await session.execute(
-                select(PipelineSchedule).where(PipelineSchedule.id == uuid.UUID(schedule_id))
-            )
-            schedule = result.scalar_one_or_none()
-            if schedule is None:
-                logger.warning("Schedule {} not found", schedule_id)
-                return
+    sm = get_session_factory()
+    async with sm() as session:
+        result = await session.execute(
+            select(PipelineSchedule).where(PipelineSchedule.id == uuid.UUID(schedule_id))
+        )
+        schedule = result.scalar_one_or_none()
+        if schedule is None:
+            logger.warning("Schedule {} not found", schedule_id)
+            return
 
-            from app.core.pipeline.executor import trigger_and_start
-            await trigger_and_start(run_type=schedule.run_type, selected_stages=schedule.selected_stages)
+        from app.core.pipeline.executor import trigger_and_start
+        await trigger_and_start(run_type=schedule.run_type, selected_stages=schedule.selected_stages)
 
-            schedule.last_run_at = datetime.now(UTC)
-            try:
-                from app.core.pipeline.cron_scheduler import compute_next_cron
-                schedule.next_run_at = compute_next_cron(schedule.cron_expression, schedule.last_run_at)
-            except Exception:
-                schedule.next_run_at = schedule.last_run_at + timedelta(hours=1)
-            await session.commit()
-    finally:
-        await engine.dispose()
+        schedule.last_run_at = datetime.now(UTC)
+        try:
+            from app.core.pipeline.cron_scheduler import compute_next_cron
+            schedule.next_run_at = compute_next_cron(schedule.cron_expression, schedule.last_run_at)
+        except Exception:
+            schedule.next_run_at = schedule.last_run_at + timedelta(hours=1)
+        await session.commit()
 
 
 @celery_app.task(bind=True, max_retries=0)
@@ -233,28 +230,25 @@ async def _sweep_orphan_runs_async() -> dict[str, Any]:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.core.pipeline.orchestrator import RunStatus
-    from app.db.session import get_async_engine
+    from app.db.session import get_session_factory
     from app.models.pipeline_models import PipelineRun
 
-    engine = get_async_engine()
-    try:
-        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-            threshold = datetime.now(UTC) - timedelta(seconds=settings.pipeline_stage_timeout * 2)
-            result = await session.execute(
-                select(PipelineRun)
-                .where(PipelineRun.status == RunStatus.RUNNING.value)
-                .where(PipelineRun.started_at < threshold)
-            )
-            orphans = list(result.scalars().all())
-            for run in orphans:
-                run.status = RunStatus.FAILED.value
-                run.completed_at = datetime.now(UTC)
-                run.error_log = "orphaned by watchdog"
-                logger.warning("Watchdog: orphaned run {} (started={})", run.id, run.started_at)
-            await session.commit()
-            return {"orphans_found": len(orphans)}
-    finally:
-        await engine.dispose()
+    sm = get_session_factory()
+    async with sm() as session:
+        threshold = datetime.now(UTC) - timedelta(seconds=settings.pipeline_stage_timeout * 2)
+        result = await session.execute(
+            select(PipelineRun)
+            .where(PipelineRun.status == RunStatus.RUNNING.value)
+            .where(PipelineRun.started_at < threshold)
+        )
+        orphans = list(result.scalars().all())
+        for run in orphans:
+            run.status = RunStatus.FAILED.value
+            run.completed_at = datetime.now(UTC)
+            run.error_log = "orphaned by watchdog"
+            logger.warning("Watchdog: orphaned run {} (started={})", run.id, run.started_at)
+        await session.commit()
+        return {"orphans_found": len(orphans)}
 
 
 # ── Helpers ──
@@ -262,45 +256,33 @@ async def _mark_stage_completed(
     run_id: str, stage_name: str,
     *, duration_ms: int = 0, records_processed: int = 0, errors: list[str] | None = None,
 ) -> None:
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-
     from app.core.pipeline.orchestrator import update_stage_status
-    from app.db.session import get_async_engine
-    engine = get_async_engine()
-    sm = async_sessionmaker(engine, expire_on_commit=False)
-    try:
-        async with sm() as session:
-            async with session.begin():
-                await update_stage_status(
-                    session, uuid.UUID(run_id), stage_name,
-                    status="completed",
-                    duration_ms=duration_ms,
-                    records_processed=records_processed,
-                    errors=errors,
-                )
-    finally:
-        await engine.dispose()
+    from app.db.session import get_session_factory
+    sm = get_session_factory()
+    async with sm() as session:
+        async with session.begin():
+            await update_stage_status(
+                session, uuid.UUID(run_id), stage_name,
+                status="completed",
+                duration_ms=duration_ms,
+                records_processed=records_processed,
+                errors=errors,
+            )
 
 
 async def _mark_stage_failed(
     run_id: str, stage_name: str, errors: list[str],
 ) -> None:
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-
     from app.core.pipeline.orchestrator import update_stage_status
-    from app.db.session import get_async_engine
-    engine = get_async_engine()
-    sm = async_sessionmaker(engine, expire_on_commit=False)
-    try:
-        async with sm() as session:
-            async with session.begin():
-                await update_stage_status(
-                    session, uuid.UUID(run_id), stage_name,
-                    status="failed",
-                    errors=errors,
-                )
-    finally:
-        await engine.dispose()
+    from app.db.session import get_session_factory
+    sm = get_session_factory()
+    async with sm() as session:
+        async with session.begin():
+            await update_stage_status(
+                session, uuid.UUID(run_id), stage_name,
+                status="failed",
+                errors=errors,
+            )
 
 
 # ── Beat schedule (LOOP-06: 定时演化分析) ──
