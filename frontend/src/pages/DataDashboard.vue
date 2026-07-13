@@ -75,6 +75,7 @@ useDashboardRealtimeSync(
           :key="card.label"
           :to="card.route"
           class="kpi-card"
+          :aria-label="`${card.label}: ${card.target}${card.suffix || ''}`"
           :style="{
             '--kpi-color': card.color,
             '--kpi-glow': card.glow,

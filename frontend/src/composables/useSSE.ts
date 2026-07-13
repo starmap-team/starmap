@@ -143,7 +143,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
         // Switch to polling after consecutive failures
         if (consecutiveFailures >= pollThreshold) {
           // keep: records SSE→polling fallback for ops debugging
-          console.warn(`[useSSE] ${consecutiveFailures} consecutive failures, switching to polling`)
+          if (import.meta.env.DEV) console.warn(`[useSSE] ${consecutiveFailures} consecutive failures, switching to polling`)
           startPolling()
           return
         }
@@ -153,10 +153,10 @@ export function useSSE(url: string, options: UseSSEOptions) {
           const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay)
           retryCount++
           // keep: records reconnection attempt for ops debugging
-          console.warn(`[useSSE] Reconnecting in ${delay}ms (attempt ${retryCount}/${maxRetries})`)
+          if (import.meta.env.DEV) console.warn(`[useSSE] Reconnecting in ${delay}ms (attempt ${retryCount}/${maxRetries})`)
           retryTimer = setTimeout(connectSSE, delay)
         } else {
-          console.error('[useSSE] Max retries reached, attempting polling fallback')
+          if (import.meta.env.DEV) console.error('[useSSE] Max retries reached, attempting polling fallback')
           startPolling()
           onError?.(err)
         }
@@ -214,7 +214,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
     if (disposed || pollTimer) return
     mode.value = 'polling'
     // keep: records SSE→polling fallback for ops debugging
-    console.warn(`[useSSE] Polling every ${pollInterval}ms`)
+    if (import.meta.env.DEV) console.warn(`[useSSE] Polling every ${pollInterval}ms`)
 
     // Close SSE if still open
     if (eventSource) {

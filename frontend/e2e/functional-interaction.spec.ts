@@ -425,7 +425,7 @@ test.describe('页面间导航 — 实际路由跳转', () => {
       await homeLink.click()
       await waitForReady(page)
       const url = page.url()
-      expect(url.endsWith('/') || url.includes('localhost')).toBeTruthy()
+      expect(url.endsWith('/') || url.includes('localhost') || url.includes('127.0.0.1')).toBeTruthy()
     }
   })
 })

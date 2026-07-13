@@ -13,6 +13,33 @@ import request from '@/api/request'
 export type NodeLabel = 'Position' | 'Skill' | 'Tool' | 'KnowledgeArea' | 'Certificate' | 'LearningResource' | 'Industry' | 'Domain'
 
 // ── 视图层级 ──
+
+/** DRY helper: map raw evolution path API data to internal GraphEdge format */
+interface RawEvolutionPath {
+  source_position: string
+  target_position: string
+  similarity?: number
+  trend?: 'rising' | 'stable' | 'declining'
+  skill_overlap?: string[]
+  key_gaps?: string[]
+  evidence_count?: number
+}
+
+function mapEvolutionPath(p: RawEvolutionPath) {
+  return {
+    source_id: p.source_position,
+    target_id: p.target_position,
+    type: 'EVOLVES_TO' as const,
+    properties: {
+      weight: p.similarity ?? 0.5,
+      similarity: p.similarity ?? 0.5,
+      trend: (p.trend ?? (p.similarity ?? 0) >= 0.6 ? 'rising' : (p.similarity ?? 0) >= 0.3 ? 'stable' : 'declining') as 'rising' | 'stable' | 'declining',
+      skill_overlap: p.skill_overlap ?? [],
+      key_gaps: p.key_gaps ?? [],
+      evidence_count: p.evidence_count ?? 0,
+    },
+  }
+}
 export type ViewLayer = 'domain' | 'position' | 'detail'
 
 // ── 概览视图模式 ──
@@ -256,21 +283,9 @@ export const useGraphStore = defineStore('graph', () => {
   /** 加载演化关系边（含趋势、技能重叠、差距等详情） */
   async function fetchEvolutionEdges() {
     try {
-      const data = await request.get('/evolution/paths/all') as unknown as Array<{ source_position: string; target_position: string; similarity?: number; trend?: 'rising' | 'stable' | 'declining'; skill_overlap?: string[]; key_gaps?: string[]; evidence_count?: number }>
+      const data = await request.get('/evolution/paths/all') as unknown as RawEvolutionPath[]
       const paths = Array.isArray(data) ? data : []
-      evolutionEdges.value = paths.map((p: { source_position: string; target_position: string; similarity?: number; trend?: 'rising' | 'stable' | 'declining'; skill_overlap?: string[]; key_gaps?: string[]; evidence_count?: number }) => ({
-        source_id: p.source_position,
-        target_id: p.target_position,
-        type: 'EVOLVES_TO',
-        properties: {
-          weight: p.similarity ?? 0.5,
-          similarity: p.similarity ?? 0.5,
-          trend: (p.trend ?? (p.similarity ?? 0) >= 0.6 ? 'rising' : (p.similarity ?? 0) >= 0.3 ? 'stable' : 'declining') as 'rising' | 'stable' | 'declining',
-          skill_overlap: p.skill_overlap ?? [],
-          key_gaps: p.key_gaps ?? [],
-          evidence_count: p.evidence_count ?? 0,
-        },
-      }))
+      evolutionEdges.value = paths.map(mapEvolutionPath)
     } catch (e) {
       if (import.meta.env.DEV) console.error('[Graph] Failed to fetch evolution edges:', e)
       evolutionEdges.value = []
@@ -288,21 +303,9 @@ export const useGraphStore = defineStore('graph', () => {
     }
     evolutionPathsLoading.value = true
     try {
-      const data = await request.get(`/evolution/paths/${encodeURIComponent(positionName)}`) as unknown as Array<{ source_position: string; target_position: string; similarity?: number; trend?: 'rising' | 'stable' | 'declining'; skill_overlap?: string[]; key_gaps?: string[]; evidence_count?: number }>
+      const data = await request.get(`/evolution/paths/${encodeURIComponent(positionName)}`) as unknown as RawEvolutionPath[]
       const paths = Array.isArray(data) ? data : []
-      evolutionPaths.value = paths.map((p: { source_position: string; target_position: string; similarity?: number; trend?: 'rising' | 'stable' | 'declining'; skill_overlap?: string[]; key_gaps?: string[]; evidence_count?: number }) => ({
-        source_id: p.source_position,
-        target_id: p.target_position,
-        type: 'EVOLVES_TO',
-        properties: {
-          weight: p.similarity ?? 0.5,
-          similarity: p.similarity ?? 0.5,
-          trend: (p.trend ?? (p.similarity ?? 0) >= 0.6 ? 'rising' : (p.similarity ?? 0) >= 0.3 ? 'stable' : 'declining') as 'rising' | 'stable' | 'declining',
-          skill_overlap: p.skill_overlap ?? [],
-          key_gaps: p.key_gaps ?? [],
-          evidence_count: p.evidence_count ?? 0,
-        },
-      }))
+      evolutionPaths.value = paths.map(mapEvolutionPath)
     } catch (e) {
       if (import.meta.env.DEV) console.error('[Graph] Failed to fetch evolution paths for position:', e)
       evolutionPaths.value = []

@@ -63,8 +63,7 @@ export function useDashboardRealtimeSync(
         }
       },
       onError: () => {
-        // ponytail: keep console.warn for ops debugging of SSE→polling fallback
-        console.warn('[Dashboard] SSE connection failed, using polling fallback')
+        if (import.meta.env.DEV) console.warn('[Dashboard] SSE connection failed, using polling fallback')
       },
       pollUrl,
     })

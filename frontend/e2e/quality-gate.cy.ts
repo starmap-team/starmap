@@ -59,11 +59,10 @@ describe('Quality Gate — Page Rendering', () => {
         timeout: 15000,
       })
 
-      // Wait for page to settle (give Vue time to mount and render)
-      cy.wait(2000)
-
-      // Verify page rendered (not blank)
+      // Wait for page to settle — use conditional wait instead of fixed delay
       cy.get('body', { timeout: 10000 }).should('not.be.empty')
+      // Give Vue a brief moment to fully render after body appears
+      cy.wait(500)
 
       // Verify no console errors
       cy.then(() => {

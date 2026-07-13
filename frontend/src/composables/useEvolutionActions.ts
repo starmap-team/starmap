@@ -32,7 +32,7 @@ export function useEvolutionActions(store: EvolutionStore): EvolutionActionsApi 
       await store.fetchTrends()
     } catch (e) {
       // ponytail: error logging before user-facing message
-      console.error('[Evolution] Failed to fetch trends:', e)
+      if (import.meta.env.DEV) console.error('[Evolution] Failed to fetch trends:', e)
       ElMessage.error('演化趋势数据加载失败')
     }
   }
@@ -47,7 +47,7 @@ export function useEvolutionActions(store: EvolutionStore): EvolutionActionsApi 
         if (lastSnap) selectedSnapshotDate.value = lastSnap.snapshot_date
       }
     } catch (e) {
-      console.error('[Evolution] Failed to fetch snapshots:', e)
+      if (import.meta.env.DEV) console.error('[Evolution] Failed to fetch snapshots:', e)
     }
   }
 

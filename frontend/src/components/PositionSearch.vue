@@ -21,7 +21,7 @@ async function loadPositions(keyword?: string) {
   try {
     options.value = await jdStore.searchPositions(keyword)
   } catch (e) {
-    console.error('[PositionSearch] Failed to load positions:', e)
+    if (import.meta.env.DEV) console.error('[PositionSearch] Failed to load positions:', e)
     ElMessage.error('岗位列表加载失败')
     options.value = []
   } finally {

@@ -211,8 +211,7 @@ html.dark {
 }
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
-* { font-family: var(--font-sans) !important; }
-body { font-family: var(--font-sans) !important; font-size: var(--font-size-base); color: var(--foreground); background: var(--background); line-height: 1.6; letter-spacing: -0.01em; }
+body { font-family: var(--font-sans); font-size: var(--font-size-base); color: var(--foreground); background: var(--background); line-height: 1.6; letter-spacing: -0.01em; }
 .page-fade-enter-active, .page-fade-leave-active { transition: opacity var(--duration-slow) var(--ease-out); }
 .page-fade-enter-from, .page-fade-leave-to { opacity: 0; }
 .page-slide-enter-active, .page-slide-leave-active {

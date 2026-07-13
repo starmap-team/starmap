@@ -138,6 +138,9 @@ function getNodeRadius(node: GraphNode3D): number {
 // ── Initialize 3D graph (async, dynamic import) ──
 const cc = chartColors()
 
+// ── Mouse move handler (component-scoped for cleanup) ──
+let _mouseMoveHandler: ((e: MouseEvent) => void) | null = null
+
 // ── Evolution edge color (D-05) ──
 const EVOLUTION_TREND_COLOR: Record<string, string> = {
   rising: cc.success,
@@ -298,7 +301,7 @@ async function initGraph() {
   })
 
   // Track mouse for tooltip positioning
-  const _mouseMoveHandler = (e: MouseEvent) => {
+  _mouseMoveHandler = (e: MouseEvent) => {
     tooltipX.value = e.clientX
     tooltipY.value = e.clientY
   }

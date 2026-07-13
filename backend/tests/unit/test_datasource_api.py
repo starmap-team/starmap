@@ -323,7 +323,7 @@ class TestUpdateDatasource:
         assert resp.status_code == 200
         assert resp.json()["config"] == {"new": True}
 
-    def test_update_invalid_status_returns_400(self, client, auth_headers, db_override):
+    def test_update_invalid_status_returns_422(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()
         ds = FakeDataSourceRecord(id=ds_id)
         session = FakeAsyncSession([FakeResult(ds)])
@@ -333,8 +333,8 @@ class TestUpdateDatasource:
             headers=auth_headers,
             json={"status": "invalid_status"},
         )
-        assert resp.status_code == 400
-        assert "Invalid status" in resp.json()["detail"]
+        # Literal type validation rejects at Pydantic layer (422)
+        assert resp.status_code == 422
 
     def test_update_not_found_returns_404(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()
@@ -438,14 +438,14 @@ class TestGetDatasourceStats:
         body = resp.json()
         assert len(body["crawl_volume"]) == 90
 
-    def test_stats_invalid_period_defaults_30d(self, client, auth_headers, db_override):
+    def test_stats_invalid_period_returns_422(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()
         ds = FakeDataSourceRecord(id=ds_id)
         session = FakeAsyncSession([FakeResult(ds), FakeResult([])])
         db_override(session)
         resp = client.get(f"/api/v1/datasources/{ds_id}/stats?period=1y", headers=auth_headers)
-        assert resp.status_code == 200
-        assert len(resp.json()["crawl_volume"]) == 30
+        # Literal type validation rejects at Pydantic layer (422)
+        assert resp.status_code == 422
 
     def test_stats_not_found_returns_404(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()

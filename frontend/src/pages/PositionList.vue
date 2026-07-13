@@ -96,6 +96,9 @@ onMounted(fetchPositions)
           :type="selectedIndustry === '' ? 'primary' : 'info'"
           :effect="selectedIndustry === '' ? 'dark' : 'plain'"
           class="clickable-tag"
+          role="button"
+          tabindex="0"
+          aria-label="筛选全部行业"
           @click="selectedIndustry = ''"
         >
           全部
@@ -106,6 +109,9 @@ onMounted(fetchPositions)
           :type="selectedIndustry === ind ? 'primary' : 'info'"
           :effect="selectedIndustry === ind ? 'dark' : 'plain'"
           class="clickable-tag"
+          role="button"
+          tabindex="0"
+          :aria-label="`筛选行业: ${ind}`"
           @click="selectedIndustry = selectedIndustry === ind ? '' : ind"
         >
           {{ ind }}
