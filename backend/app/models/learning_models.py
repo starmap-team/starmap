@@ -9,7 +9,7 @@ Tables:
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Float, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -96,9 +96,9 @@ class LearningProgress(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
     # 业务说明：关联的学习计划ID，指向LearningPlan
-    # 技术说明：建立索引支持按计划快速查询所有技能进度
+    # 技术说明：建立索引支持按计划快速查询所有技能进度，FK CASCADE (SEC-05)
     plan_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True,
+        UUID(as_uuid=True), ForeignKey("learning_plans.id", ondelete="CASCADE"), nullable=False, index=True,
     )
     # 业务说明：当前进度对应的技能名称
     # 技术说明：与SkillRecord.name关联，但不做外键约束以支持自定义技能

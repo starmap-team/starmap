@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import sqlalchemy as sa
-from sqlalchemy import DateTime, Float, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -169,9 +169,9 @@ class ExtractionEvaluationRecord(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
     # 业务说明：关联的提取记录ID，建立评估与提取结果的关联
-    # 技术说明：nullable=True允许独立评估，index加速关联查询
+    # 技术说明：nullable=True允许独立评估，index加速关联查询，FK SET NULL (SEC-05)
     extraction_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True, index=True,
+        UUID(as_uuid=True), ForeignKey("jd_extraction_records.id", ondelete="SET NULL"), nullable=True, index=True,
     )
     # 业务说明：黄金标准样本ID，指向人工标注的参考数据
     golden_id: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -215,14 +215,14 @@ class PositionSkillRelation(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
     # 业务说明：关联的职位ID，指向职位主数据表
-    # 技术说明：建立索引支持按职位快速查询所需技能
+    # 技术说明：建立索引支持按职位快速查询所需技能，FK CASCADE (SEC-05)
     position_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True,
+        UUID(as_uuid=True), ForeignKey("position_records.id", ondelete="CASCADE"), nullable=False, index=True,
     )
     # 业务说明：关联的技能ID，指向技能主数据表
-    # 技术说明：建立索引支持按技能快速查询相关职位
+    # 技术说明：建立索引支持按技能快速查询相关职位，FK CASCADE (SEC-05)
     skill_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True,
+        UUID(as_uuid=True), ForeignKey("skill_records.id", ondelete="CASCADE"), nullable=False, index=True,
     )
     # 业务说明：技能要求类型，区分必需技能和加分技能
     # 技术说明：默认"required"，可选值：required | preferred | optional

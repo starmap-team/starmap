@@ -1,5 +1,6 @@
 """集中配置管理（基于 pydantic-settings，从环境变量/.env 读取）。"""
 from functools import lru_cache
+from typing import Any, ClassVar
 
 from loguru import logger
 from pydantic import Field, model_validator
@@ -139,6 +140,70 @@ class Settings(BaseSettings):
     pipeline_crawl_concurrency: int = 5
     pipeline_retry_max: int = 3
     pipeline_retry_backoff: int = 10  # 秒, 指数递增基数
+
+    # ── Runtime-mutable config whitelist (SEC-06) ──
+    _mutable_config_keys: ClassVar[set[str]] = {
+        "pipeline_stage_timeout",
+        "pipeline_worker_concurrency",
+        "pipeline_crawl_concurrency",
+        "pipeline_retry_max",
+        "pipeline_retry_backoff",
+    }
+
+    def safe_update(self, updates: dict[str, Any], actor: str) -> dict[str, tuple[Any, Any]]:
+        """Update mutable config fields with validation and audit logging.
+
+        Args:
+            updates: Dict of {field_name: new_value}. Only whitelisted fields are accepted.
+            actor: Username of the user making the change (for audit log).
+
+        Returns:
+            Dict of {field_name: (old_value, new_value)} for changed fields.
+
+        Raises:
+            ValueError: If a field is not runtime-mutable or a value fails validation.
+        """
+        from app.utils.audit import AuditEntry, AuditEvent, audit_log
+
+        changes: dict[str, tuple[Any, Any]] = {}
+        for key, value in updates.items():
+            if key not in self._mutable_config_keys:
+                raise ValueError(
+                    f"Field '{key}' is not runtime-mutable. "
+                    f"Mutable fields: {sorted(self._mutable_config_keys)}"
+                )
+            if value is None:
+                continue
+
+            # Validate using the field's own constraints
+            field_info = type(self).model_fields.get(key)
+            if field_info is not None:
+                try:
+                    validated = type(self).model_validate({key: value, "app_env": self.app_env})
+                    validated_value = getattr(validated, key)
+                except Exception as e:
+                    raise ValueError(f"Invalid value for '{key}': {e}") from e
+            else:
+                validated_value = value
+
+            old_value = getattr(self, key)
+            if old_value != validated_value:
+                object.__setattr__(self, key, validated_value)
+                changes[key] = (old_value, validated_value)
+
+        if changes:
+            change_summary = "; ".join(
+                f"{k}: {v[0]} -> {v[1]}" for k, v in changes.items()
+            )
+            audit_log(AuditEntry(
+                event=AuditEvent.SENSITIVE_WRITE,
+                actor=actor,
+                action="update_pipeline_config",
+                detail=change_summary,
+                ip="",
+            ))
+
+        return changes
 
     # ------------------------------------------------------------------
     # 校验：合成 postgres_uri & 检测未配置密码

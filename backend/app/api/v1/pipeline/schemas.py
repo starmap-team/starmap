@@ -169,12 +169,38 @@ class PipelineConfigResponse(BaseModel):
 
 
 class PipelineConfigUpdateRequest(BaseModel):
-    """Update pipeline configuration."""
-    stage_timeout: int | None = None
-    worker_concurrency: int | None = None
-    crawl_concurrency: int | None = None
-    retry_max: int | None = None
-    retry_backoff: int | None = None
+    """Update pipeline configuration (SEC-06: all fields have range constraints)."""
+
+    stage_timeout: int | None = Field(
+        None,
+        ge=60,
+        le=7200,
+        description="Stage timeout in seconds (60-7200)",
+    )
+    worker_concurrency: int | None = Field(
+        None,
+        ge=1,
+        le=10,
+        description="Worker concurrency (1-10)",
+    )
+    crawl_concurrency: int | None = Field(
+        None,
+        ge=1,
+        le=20,
+        description="Crawl concurrency (1-20)",
+    )
+    retry_max: int | None = Field(
+        None,
+        ge=0,
+        le=10,
+        description="Max retries (0-10)",
+    )
+    retry_backoff: int | None = Field(
+        None,
+        ge=1,
+        le=300,
+        description="Retry backoff base in seconds (1-300)",
+    )
 
 
 class CancelResponse(BaseModel):

@@ -10,7 +10,7 @@ Tables:
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Float, Integer, String
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -127,14 +127,14 @@ class EvolutionChangelog(Base):
         comment="required | preferred | null (if removed)",
     )
     # 业务说明：变更前快照ID，指向演化前的技能画像
-    # 技术说明：nullable=True兼容首次快照，index加速关联查询
+    # 技术说明：nullable=True兼容首次快照，index加速关联查询，FK SET NULL (SEC-05)
     snapshot_from_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True, index=True,
+        UUID(as_uuid=True), ForeignKey("evolution_snapshots.id", ondelete="SET NULL"), nullable=True, index=True,
     )
     # 业务说明：变更后快照ID，指向演化后的技能画像
-    # 技术说明：nullable=True兼容最新快照，index加速关联查询
+    # 技术说明：nullable=True兼容最新快照，index加速关联查询，FK SET NULL (SEC-05)
     snapshot_to_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True, index=True,
+        UUID(as_uuid=True), ForeignKey("evolution_snapshots.id", ondelete="SET NULL"), nullable=True, index=True,
     )
     # 业务说明：TrustScorer计算的可信度分数，评估变更的可靠性
     # 技术说明：默认0.5，范围0.0-1.0，值越高变更越可信，低分变更需人工复核

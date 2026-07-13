@@ -8,7 +8,7 @@ import json
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import select
@@ -487,22 +487,32 @@ async def get_pipeline_config() -> PipelineConfigResponse:
     )
 
 
-@router.put("/config", response_model=PipelineConfigResponse, dependencies=[Depends(require_admin)])
+@router.put("/config", response_model=PipelineConfigResponse)
 async def update_pipeline_config(
     body: PipelineConfigUpdateRequest,
+    user: Annotated[dict[str, Any], Depends(require_admin)],
 ) -> PipelineConfigResponse:
-    """更新流水线配置（写入 .env 或运行时覆盖）。"""
+    """更新流水线配置（通过 safe_update 防护，不直接修改 settings 单例）。"""
     from app.config import settings
-    if body.stage_timeout is not None:
-        settings.pipeline_stage_timeout = body.stage_timeout
-    if body.worker_concurrency is not None:
-        settings.pipeline_worker_concurrency = body.worker_concurrency
-    if body.crawl_concurrency is not None:
-        settings.pipeline_crawl_concurrency = body.crawl_concurrency
-    if body.retry_max is not None:
-        settings.pipeline_retry_max = body.retry_max
-    if body.retry_backoff is not None:
-        settings.pipeline_retry_backoff = body.retry_backoff
+
+    # Map schema field names to Settings attribute names
+    _SCHEMA_TO_SETTINGS = {
+        "stage_timeout": "pipeline_stage_timeout",
+        "worker_concurrency": "pipeline_worker_concurrency",
+        "crawl_concurrency": "pipeline_crawl_concurrency",
+        "retry_max": "pipeline_retry_max",
+        "retry_backoff": "pipeline_retry_backoff",
+    }
+    raw = body.model_dump(exclude_none=True)
+    updates = {_SCHEMA_TO_SETTINGS[k]: v for k, v in raw.items()}
+    try:
+        settings.safe_update(updates, actor=user.get("sub", "unknown"))
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        ) from e
+
     return PipelineConfigResponse(
         stage_timeout=settings.pipeline_stage_timeout,
         worker_concurrency=settings.pipeline_worker_concurrency,
