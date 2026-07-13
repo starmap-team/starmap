@@ -2,24 +2,24 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: 质量加固与架构优化
-status: ready_to_verify
-last_updated: 2026-07-13T00:00:00.000Z
-last_activity: 2026-07-13 -- Phase 12 executed (3 waves, 4 commits, 39 new tests)
+status: context_gathered
+last_updated: 2026-07-13T20:30:00.000Z
+last_activity: 2026-07-13 -- Phase 13 context gathered (4 decisions)
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 3
   completed_plans: 3
   percent: 17
-stopped_at: Phase 12 executed — ready for /gsd:verify-work 12
+stopped_at: Phase 13 context gathered — ready for /gsd:plan-phase 13
 ---
 # Project State
 
 ## Current Position
 
-Phase: 12 (executed)
-Plan: 3/3 plans completed
-Status: ✅ Executed — ready for verification
+Phase: 13 (context gathered)
+Plan: 0/0 plans
+Status: 📋 Context gathered — 4 decisions locked
 Last activity: 2026-07-13
 
 ## Prior Milestone (v2.1) — Complete
@@ -64,6 +64,11 @@ v2.1 真实数据切换 100% complete (4/4 phases, 35/35 plans, UAT 18/18 pass)
 - DEC-018: v2.2 渐进拆分 — 先拆大文件 (Phase 14)，再解锁类型 (Phase 15)
 - DEC-019: 领域异常模式 — 服务层抛 StarMapError 子类，API 层映射 HTTP (已在 5d4d919 实现)
 - DEC-020: JWT Phase A claims — 新 token 包含 aud/iss/nbf/jti，decode 仅要求 exp/iat/sub (Phase B 在 token_expire_hours 后执行)
+- DEC-021: 测试失败=项目bug — 从项目代码和架构入手修复，不为通过测试而修测试
+- DEC-022: Bug-fix + fill gaps — 先修 41 个失败测试背后的代码 bug，再补零测试模块
+- DEC-023: 深度优先覆盖 — 后端集中火力给核心业务链路写深度测试
+- DEC-024: Store + 3 composable 全写 — 前端 5 个核心 Store + useSSE/useLearning*/useG6*
+- DEC-025: CI 门禁 70% — --cov-fail-under=70，比 78% 低 8% 留缓冲
 
 ### Blockers
 
@@ -73,8 +78,8 @@ v2.1 真实数据切换 100% complete (4/4 phases, 35/35 plans, UAT 18/18 pass)
 
 | Phase | Name | Status | Verified |
 |-------|------|--------|----------|
-| 12 | 安全加固 | ✅ Executed | — |
-| 13 | 测试覆盖率提升 | 📋 Ready to plan | — |
+| 12 | 安全加固 | ✅ Verified | ✅ 12/12 UAT |
+| 13 | 测试覆盖率提升 | 📋 Context gathered | — |
 | 14 | 大文件拆分与重构 | 📋 Ready to plan | — |
 | 15 | 类型安全与代码质量 | 📋 Ready to plan | — |
 | 16 | 依赖升级与性能优化 | 📋 Ready to plan | — |
