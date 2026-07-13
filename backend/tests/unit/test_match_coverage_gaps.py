@@ -554,19 +554,18 @@ async def test_compute_competitiveness_inflation_guard():
 
 @pytest.mark.asyncio
 async def test_compute_competitiveness_unknown_position():
-    """compute_competitiveness raises 404 when position not found.
+    """compute_competitiveness raises PositionNotFoundError when position not found.
 
-    Coverage target: match_service.py:203-204 (HTTPException raise path).
+    Coverage target: match_service.py:203-204 (PositionNotFoundError raise path).
     """
-    from fastapi import HTTPException
+    from app.exceptions import PositionNotFoundError
 
     with patch(
         "app.core.matching.service.MatchService._load_target_profile",
         new=AsyncMock(return_value=None),
     ):
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(PositionNotFoundError):
             await compute_competitiveness(target_position="不存在的岗位")
-    assert exc_info.value.status_code == 404
 
 
 # ===========================================================================

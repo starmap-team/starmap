@@ -6,6 +6,8 @@ maps them to appropriate HTTP responses.
 """
 from __future__ import annotations
 
+import uuid
+
 
 class StarMapError(Exception):
     """Base exception for all StarMap domain errors."""
@@ -34,3 +36,19 @@ class PlanOwnershipError(StarMapError):
         self.plan_id = plan_id
         self.user_id = user_id
         super().__init__(f"User {user_id} does not own plan {plan_id}")
+
+
+class RunNotFoundError(StarMapError):
+    """Raised when a pipeline run is not found."""
+
+    def __init__(self, run_id: str | uuid.UUID) -> None:
+        self.run_id = run_id
+        super().__init__(f"Pipeline run {run_id} not found")
+
+
+class RunAlreadyTerminalError(StarMapError):
+    """Raised when attempting to modify a run already in terminal state."""
+
+    def __init__(self, status: str) -> None:
+        self.status = status
+        super().__init__(f"Run already in terminal state: {status}")

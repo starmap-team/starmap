@@ -263,10 +263,11 @@ class TestUpdateDatasource:
             assert body.status == status
 
     def test_invalid_status_not_in_model(self):
-        """Pydantic will accept any string for status; the endpoint validates at runtime."""
-        body = DataSourceUpdateRequest(status="invalid_status")
-        # The endpoint checks `body.status not in ("active", "paused", "error")`
-        assert body.status not in ("active", "paused", "error")
+        """Pydantic V2 validates Literal at model construction time."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            DataSourceUpdateRequest(status="invalid_status")
 
     def test_authority_score_range(self):
         # Valid

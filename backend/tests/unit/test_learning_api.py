@@ -439,8 +439,9 @@ class TestGetPlan:
 class TestUpdateProgress:
     def test_update_progress_returns_200(self, client, auth_headers, db_override):
         plan_id = uuid.uuid4()
+        plan = FakePlanRow(plan_id=plan_id, user_id="dev")
         progress = FakeProgressRow(plan_id=plan_id, skill_name="Python", status="in_progress", progress_pct=50.0)
-        session = FakeAsyncSession()
+        session = FakeAsyncSession([FakeResult(plan)])
         db_override(session)
         with patch("app.api.v1.learning.update_progress", new=AsyncMock(return_value=progress)):
             resp = client.put(
@@ -466,7 +467,8 @@ class TestUpdateProgress:
 
     def test_update_progress_skill_not_found_returns_404(self, client, auth_headers, db_override):
         plan_id = uuid.uuid4()
-        session = FakeAsyncSession()
+        plan = FakePlanRow(plan_id=plan_id, user_id="dev")
+        session = FakeAsyncSession([FakeResult(plan)])
         db_override(session)
         with patch("app.api.v1.learning.update_progress", new=AsyncMock(return_value=None)):
             resp = client.put(
@@ -479,10 +481,11 @@ class TestUpdateProgress:
 
     def test_update_progress_with_notes(self, client, auth_headers, db_override):
         plan_id = uuid.uuid4()
+        plan = FakePlanRow(plan_id=plan_id, user_id="dev")
         progress = FakeProgressRow(
             plan_id=plan_id, skill_name="Python", status="in_progress", progress_pct=30.0, notes="studying"
         )
-        session = FakeAsyncSession()
+        session = FakeAsyncSession([FakeResult(plan)])
         db_override(session)
         with patch("app.api.v1.learning.update_progress", new=AsyncMock(return_value=progress)):
             resp = client.put(
@@ -495,9 +498,10 @@ class TestUpdateProgress:
 
     def test_update_progress_mastered_skill(self, client, auth_headers, db_override):
         plan_id = uuid.uuid4()
+        plan = FakePlanRow(plan_id=plan_id, user_id="dev")
         progress = FakeProgressRow(plan_id=plan_id, skill_name="Python", status="mastered", progress_pct=100.0)
         progress.completed_at = datetime.now(UTC)
-        session = FakeAsyncSession()
+        session = FakeAsyncSession([FakeResult(plan)])
         db_override(session)
         with patch("app.api.v1.learning.update_progress", new=AsyncMock(return_value=progress)):
             resp = client.put(

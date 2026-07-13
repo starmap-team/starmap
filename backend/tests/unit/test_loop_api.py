@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.v1.loop import router
-from app.dependencies import get_db_session
+from app.dependencies import get_current_user, get_db_session
 
 app = FastAPI()
 app.include_router(router)
@@ -31,6 +31,9 @@ async def _mock_db_session():
 
 
 app.dependency_overrides[get_db_session] = _mock_db_session
+
+_MOCK_USER = {"sub": "dev", "role": "admin", "username": "developer"}
+app.dependency_overrides[get_current_user] = lambda: _MOCK_USER
 
 client = TestClient(app)
 

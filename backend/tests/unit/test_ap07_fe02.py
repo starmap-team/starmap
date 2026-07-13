@@ -69,13 +69,13 @@ class TestFE02ABTestResults:
         prompt_name = "test_prompt_fe02"
         _ab_results.pop(prompt_name, None)
 
-        # Record two results for v1 and one for v2
-        await record_ab_result(prompt_name, ABResultRequest(version="v1", success=True, f1=0.85, latency_ms=100.0))
-        await record_ab_result(prompt_name, ABResultRequest(version="v1", success=False, f1=0.70, latency_ms=150.0))
-        await record_ab_result(prompt_name, ABResultRequest(version="v2", success=True, f1=0.92, latency_ms=80.0))
+        # Record two results for v1 and one for v2 (redis=None to use in-memory storage)
+        await record_ab_result(prompt_name, ABResultRequest(version="v1", success=True, f1=0.85, latency_ms=100.0), redis=None)
+        await record_ab_result(prompt_name, ABResultRequest(version="v1", success=False, f1=0.70, latency_ms=150.0), redis=None)
+        await record_ab_result(prompt_name, ABResultRequest(version="v2", success=True, f1=0.92, latency_ms=80.0), redis=None)
 
-        # Retrieve aggregated results
-        result = await get_ab_results(prompt_name)
+        # Retrieve aggregated results (redis=None to use in-memory storage)
+        result = await get_ab_results(prompt_name, redis=None)
 
         assert result["total"] == 3
         assert "v1" in result["versions"]
@@ -97,6 +97,6 @@ class TestFE02ABTestResults:
         prompt_name = "nonexistent_prompt_fe02"
         _ab_results.pop(prompt_name, None)
 
-        result = await get_ab_results(prompt_name)
+        result = await get_ab_results(prompt_name, redis=None)
         assert result["total"] == 0
         assert result["versions"] == {}

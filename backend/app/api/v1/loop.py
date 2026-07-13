@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.pipeline.loop_orchestrator import (
@@ -34,6 +34,13 @@ class LoopRunRequest(BaseModel):
     target_position: str | None = Field(
         default=None, description="Target position name for match diagnosis (optional, LOOP-09)"
     )
+
+    @field_validator("target_position")
+    @classmethod
+    def reject_empty_string(cls, v: str | None) -> str | None:
+        if v is not None and not v.strip():
+            raise ValueError("target_position must be non-empty if provided")
+        return v
 
 
 class LoopStepResponse(BaseModel):

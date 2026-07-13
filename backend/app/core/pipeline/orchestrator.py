@@ -26,17 +26,10 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.exceptions import RunAlreadyTerminalError, RunNotFoundError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
-
-# ── Domain exceptions (decoupled from HTTP layer) ──
-
-class RunNotFoundError(Exception):
-    """Raised when a pipeline run is not found."""
-
-
-class RunAlreadyTerminalError(Exception):
-    """Raised when attempting to modify a run already in terminal state."""
+# ── Domain exceptions (imported from app.exceptions for global handler mapping) ──
 
 
 class StageName(StrEnum):

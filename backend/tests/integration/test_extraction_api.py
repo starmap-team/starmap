@@ -6,9 +6,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.dependencies import get_current_user, get_db_session
 from app.main import app
-
-client = TestClient(app)
 
 SAMPLE_JD = """
 岗位名称：高级后端工程师
@@ -53,6 +52,26 @@ MOCK_LLM_RESPONSE = {
 
 EXPECTED_SKILL_NAMES = {"Python", "FastAPI", "PostgreSQL", "Docker", "Kubernetes", "Redis"}
 
+_MOCK_USER = {"sub": "dev", "role": "admin", "username": "developer"}
+
+
+@pytest.fixture(autouse=True)
+def override_deps():
+    """Override get_db_session and get_current_user for all extraction tests."""
+    mock_session = AsyncMock()
+    mock_session.execute = AsyncMock(return_value=AsyncMock(scalar_one_or_none=AsyncMock(return_value=None)))
+    mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()
+
+    async def _override_db():
+        yield mock_session
+
+    app.dependency_overrides[get_db_session] = _override_db
+    app.dependency_overrides[get_current_user] = lambda: _MOCK_USER
+    yield
+    app.dependency_overrides.pop(get_db_session, None)
+    app.dependency_overrides.pop(get_current_user, None)
+
 
 @pytest.fixture(autouse=True)
 def mock_llm():
@@ -62,10 +81,16 @@ def mock_llm():
         yield mock
 
 
+@pytest.fixture
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
 class TestExtractJDEndpoint:
     """Tests for POST /api/v1/extract/jd."""
 
-    def test_extract_jd_success(self, mock_llm):
+    def test_extract_jd_success(self, client, mock_llm):
         """Test successful JD extraction returns expected structure."""
         resp = client.post("/api/v1/extract/jd", json={"jd_content": SAMPLE_JD})
         assert resp.status_code == 200
@@ -87,17 +112,17 @@ class TestExtractJDEndpoint:
         assert body["confidence"] > 0
         assert isinstance(body["normalized_skills"], list)
 
-    def test_extract_jd_empty_content_returns_422(self, mock_llm):
+    def test_extract_jd_empty_content_returns_422(self, client, mock_llm):
         """Test empty JD content returns 422 validation error."""
         resp = client.post("/api/v1/extract/jd", json={"jd_content": ""})
         assert resp.status_code == 422
 
-    def test_extract_jd_missing_content_returns_422(self, mock_llm):
+    def test_extract_jd_missing_content_returns_422(self, client, mock_llm):
         """Test missing jd_content field returns 422."""
         resp = client.post("/api/v1/extract/jd", json={})
         assert resp.status_code == 422
 
-    def test_extract_jd_with_options(self, mock_llm):
+    def test_extract_jd_with_options(self, client, mock_llm):
         """Test extraction with custom options."""
         resp = client.post(
             "/api/v1/extract/jd",
@@ -106,7 +131,7 @@ class TestExtractJDEndpoint:
         assert resp.status_code == 200
         assert resp.json()["position_name"] == "高级后端工程师"
 
-    def test_extract_jd_response_model_matches(self, mock_llm):
+    def test_extract_jd_response_model_matches(self, client, mock_llm):
         """Test response matches the ExtractionResult schema."""
         resp = client.post("/api/v1/extract/jd", json={"jd_content": SAMPLE_JD})
         body = resp.json()
@@ -120,7 +145,7 @@ class TestExtractJDEndpoint:
         assert body["education_required"] is None or isinstance(body["education_required"], str)
         assert isinstance(body["confidence"], (int, float))
 
-    def test_extract_jd_llm_failure_returns_502(self, mock_llm):
+    def test_extract_jd_llm_failure_returns_502(self, client, mock_llm):
         """Test LLM connection failure returns 502."""
         from app.core.extraction.jd_extract import JDExtractionPipeline
 
@@ -130,7 +155,7 @@ class TestExtractJDEndpoint:
             assert resp.status_code == 502
             assert "LLM service unavailable" in resp.json()["detail"]
 
-    def test_extract_jd_unexpected_error_returns_500(self, mock_llm):
+    def test_extract_jd_unexpected_error_returns_500(self, client, mock_llm):
         """Test unexpected errors return 500."""
         from app.core.extraction.jd_extract import JDExtractionPipeline
 

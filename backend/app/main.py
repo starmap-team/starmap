@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -17,9 +17,9 @@ from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from app.dependencies import get_current_user
 from app.api.v1.router import api_router, auth_router
 from app.config import settings
+from app.dependencies import get_current_user
 from app.services.resources import healthcheck_resources, init_resources, resources
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
@@ -147,7 +147,14 @@ app.include_router(auth_router, prefix="/api/v1")
 
 
 # Domain exception → HTTP response mapping
-from app.exceptions import PlanNotFoundError, PlanOwnershipError, PositionNotFoundError, StarMapError
+from app.exceptions import (
+    PlanNotFoundError,
+    PlanOwnershipError,
+    PositionNotFoundError,
+    RunAlreadyTerminalError,
+    RunNotFoundError,
+    StarMapError,
+)
 
 
 @app.exception_handler(PositionNotFoundError)
@@ -163,6 +170,16 @@ async def plan_not_found_handler(request: Request, exc: PlanNotFoundError) -> JS
 @app.exception_handler(PlanOwnershipError)
 async def plan_ownership_handler(request: Request, exc: PlanOwnershipError) -> JSONResponse:
     return JSONResponse(status_code=403, content={"detail": str(exc)})
+
+
+@app.exception_handler(RunNotFoundError)
+async def run_not_found_handler(request: Request, exc: RunNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(RunAlreadyTerminalError)
+async def run_already_terminal_handler(request: Request, exc: RunAlreadyTerminalError) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
 
 
 @app.exception_handler(StarMapError)
@@ -236,7 +253,15 @@ async def _detailed_health_payload() -> dict:
         except Exception as exc:  # pragma: no cover - defensive runtime check
             logger.warning("data_stats health query failed: {}", exc)
 
-    return {"services": services, "llm_keys": llm_keys, "data_stats": data_stats}
+    return {
+        "services": services,
+        "llm_keys": llm_keys,
+        "data_stats": data_stats,
+        "demo_data": {
+            "review_queue_seeded": data_stats["positions"] > 0,
+            "pipeline_runs_count": data_stats["pipeline_runs"],
+        },
+    }
 
 
 @app.get("/health/detail", tags=["系统"], dependencies=[Depends(get_current_user)])

@@ -15,7 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.evolution.emergence_finder import EmergenceLevel, EmergenceReport, EmergenceSignal
-from app.dependencies import get_db_session
+from app.dependencies import get_current_user, get_db_session
 from app.main import app
 
 # ── Fake DB primitives (same pattern as admin tests) ──
@@ -105,6 +105,18 @@ def db_override():
 
     yield _set
     app.dependency_overrides.pop(get_db_session, None)
+    app.dependency_overrides.pop(get_current_user, None)
+
+
+_MOCK_USER = {"sub": "dev", "role": "admin", "username": "developer"}
+
+
+@pytest.fixture(autouse=True)
+def _override_user():
+    """Override get_current_user to return dev user (dev-mode bypass)."""
+    app.dependency_overrides[get_current_user] = lambda: _MOCK_USER
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 # ── Helpers ──
@@ -477,26 +489,18 @@ class TestIndustryReport:
         assert body["declining_skills"][0]["skill_name"] == "jQuery"
 
     def test_industry_report_empty_timeseries_fallback(self, client, db_override):
-        # No timeseries → fallback to SkillRecord query
-        # First query: SkillRecord fallback
-        fallback_rows = [("Python", 8, "hard_skill")]
-        # Second query per skill: positions
-        pos_rows = [("后端工程师",)]
-        # Third query: top_positions
+        # No timeseries → no EmergenceFinder path, just top_positions query
         top_pos_rows = [("后端工程师", 10)]
         session = FakeAsyncSession([
-            FakeResult(fallback_rows),  # SkillRecord query
-            FakeResult(pos_rows),       # positions for Python
-            FakeResult(top_pos_rows),   # top_positions
+            FakeResult(top_pos_rows),   # top_positions query
         ])
         db_override(session)
         with patch("app.api.v1.evolution_industry_report.load_skill_timeseries_data", new_callable=AsyncMock, return_value={}):
             resp = client.get(f"{BASE}/industry-report")
         assert resp.status_code == 200
         body = resp.json()
-        # source_count=8 > 5 → "rising"
-        assert body["total_skills"] >= 1
-        assert any(s["skill_name"] == "Python" for s in body["rising_skills"])
+        # No timeseries → no rising/declining/stable skills from emergence
+        assert body["total_skills"] == 0
 
     def test_industry_report_empty_all(self, client, db_override):
         # No timeseries, no fallback records, no top positions

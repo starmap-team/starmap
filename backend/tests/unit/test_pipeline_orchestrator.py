@@ -39,7 +39,7 @@ class TestRunStatus:
 
 class TestConstants:
     def test_all_stages(self):
-        assert len(ALL_STAGES) == 5
+        assert len(ALL_STAGES) == 6
         assert StageName.CRAWL in ALL_STAGES
 
     def test_optional_stages(self):
@@ -54,7 +54,7 @@ class TestConstants:
 class TestBuildInitialStages:
     def test_all_stages_pending_by_default(self):
         stages = _build_initial_stages()
-        assert len(stages) == 5
+        assert len(stages) == 6
         for s in stages:
             assert s["status"] == StageStatus.PENDING.value
 

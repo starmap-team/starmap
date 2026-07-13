@@ -868,43 +868,40 @@ class TestAdminAuthGuards:
         assert admin_user.get("role") == "admin"
 
     def test_decode_token_rejects_expired_token(self):
-        """_decode_token should raise ValueError for expired JWT tokens."""
-        from app.dependencies import _decode_token
+        """decode_token should raise ValueError for expired JWT tokens."""
+        from app.services.auth_service import decode_token
+
         import time
-        import json
-        import base64
-        import hmac
-        import hashlib
+        import jwt
         from app.config import settings
 
-        # Build an expired JWT (exp in the past)
-        header = base64.urlsafe_b64encode(
-            json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
-        ).rstrip(b"=").decode()
-
-        payload_b64 = base64.urlsafe_b64encode(
-            json.dumps({"sub": "test", "role": "admin", "exp": time.time() - 3600}).encode()
-        ).rstrip(b"=").decode()
-
-        signing_input = f"{header}.{payload_b64}".encode()
-        sig = hmac.new(settings.secret_key.encode(), signing_input, hashlib.sha256).digest()
-        signature = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()
-
-        expired_token = f"{header}.{payload_b64}.{signature}"
-        with pytest.raises(ValueError, match="expired"):
-            _decode_token(expired_token)
+        # Build an expired JWT using PyJWT
+        payload = {"sub": "test", "role": "admin", "exp": time.time() - 3600, "iat": time.time() - 7200}
+        expired_token = jwt.encode(payload, settings.secret_key, algorithm="HS256")
+        with patch("app.services.auth_service.settings") as mock_settings:
+            mock_settings.secret_key = settings.secret_key
+            mock_settings.jwt_leeway_seconds = 0
+            mock_settings.jwt_audience = None
+            mock_settings.jwt_issuer = None
+            with pytest.raises(ValueError, match="expired"):
+                decode_token(expired_token)
 
     def test_decode_token_rejects_invalid_signature(self):
-        """_decode_token should raise ValueError for tokens with wrong signatures."""
-        from app.dependencies import _decode_token
+        """decode_token should raise ValueError for tokens with wrong signatures."""
+        from app.services.auth_service import decode_token
 
         fake_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0Iiwicm9sZSI6ImFkbWluIn0.invalidsig"
-        with pytest.raises(ValueError, match="signature"):
-            _decode_token(fake_token)
+        with patch("app.services.auth_service.settings") as mock_settings:
+            mock_settings.secret_key = "test-secret-key"
+            mock_settings.jwt_leeway_seconds = 0
+            mock_settings.jwt_audience = None
+            mock_settings.jwt_issuer = None
+            with pytest.raises(ValueError, match="signature"):
+                decode_token(fake_token)
 
     def test_decode_token_rejects_malformed_token(self):
-        """_decode_token should raise ValueError for malformed JWT strings."""
-        from app.dependencies import _decode_token
+        """decode_token should raise ValueError for malformed JWT strings."""
+        from app.services.auth_service import decode_token
 
         with pytest.raises(ValueError, match="Invalid JWT format"):
-            _decode_token("not-a-jwt")
+            decode_token("not-a-jwt")

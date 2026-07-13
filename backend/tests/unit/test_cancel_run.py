@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.core.pipeline.orchestrator import cancel_run, is_run_cancelled
+from app.exceptions import RunAlreadyTerminalError, RunNotFoundError
 
 
 @pytest.mark.asyncio
@@ -63,9 +64,7 @@ async def test_cancel_running_run_returns_cancelled_status():
 
 @pytest.mark.asyncio
 async def test_cancel_completed_run_returns_409():
-    """Test D-06: cancelling a completed run raises 409."""
-    from fastapi import HTTPException
-
+    """Test D-06: cancelling a completed run raises RunAlreadyTerminalError."""
     run_id = uuid.uuid4()
     mock_run = MagicMock()
     mock_run.id = run_id
@@ -78,17 +77,14 @@ async def test_cancel_completed_run_returns_409():
 
     mock_redis = AsyncMock()
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(RunAlreadyTerminalError) as exc_info:
         await cancel_run(mock_session, mock_redis, run_id)
-    assert exc_info.value.status_code == 409
-    assert "completed" in str(exc_info.value.detail)
+    assert "completed" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
 async def test_cancel_nonexistent_run_returns_404():
-    """Test D-06: cancelling a non-existent run raises 404."""
-    from fastapi import HTTPException
-
+    """Test D-06: cancelling a non-existent run raises RunNotFoundError."""
     run_id = uuid.uuid4()
     mock_session = AsyncMock()
     mock_result = MagicMock()
@@ -97,16 +93,13 @@ async def test_cancel_nonexistent_run_returns_404():
 
     mock_redis = AsyncMock()
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(RunNotFoundError):
         await cancel_run(mock_session, mock_redis, run_id)
-    assert exc_info.value.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_cancel_already_cancelled_run_returns_409():
-    """Test D-06: re-cancelling returns 409."""
-    from fastapi import HTTPException
-
+    """Test D-06: re-cancelling raises RunAlreadyTerminalError."""
     run_id = uuid.uuid4()
     mock_run = MagicMock()
     mock_run.id = run_id
@@ -119,9 +112,9 @@ async def test_cancel_already_cancelled_run_returns_409():
 
     mock_redis = AsyncMock()
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(RunAlreadyTerminalError) as exc_info:
         await cancel_run(mock_session, mock_redis, run_id)
-    assert exc_info.value.status_code == 409
+    assert "cancelled" in str(exc_info.value)
 
 
 @pytest.mark.asyncio

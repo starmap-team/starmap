@@ -3,17 +3,51 @@
 验证：应用能启动、/health 返回 200。
 这是 CI 的最基本门禁（§17.8 每日集成）。
 """
-import json
+from __future__ import annotations
 
+import json
+from unittest.mock import AsyncMock
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
+from app.dependencies import get_current_user, get_db_session
 from app.main import app
 
-client = TestClient(app)
+# ── Fake session for DB override ──
+
+_mock_session = AsyncMock()
+_mock_session.execute = AsyncMock(return_value=AsyncMock(
+    scalar=AsyncMock(return_value=0),
+    scalars=AsyncMock(return_value=AsyncMock(all=AsyncMock(return_value=[]))),
+))
 
 
-def test_health_ok():
+async def _override_db():
+    yield _mock_session
+
+
+_MOCK_USER = {"sub": "dev", "role": "admin", "username": "developer"}
+
+
+@pytest.fixture(autouse=True)
+def _setup_overrides():
+    """Override auth + DB for all health tests."""
+    app.dependency_overrides[get_current_user] = lambda: _MOCK_USER
+    app.dependency_overrides[get_db_session] = _override_db
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_db_session, None)
+
+
+@pytest.fixture
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+def test_health_ok(client):
     resp = client.get("/health")
     assert resp.status_code == 200
     body = resp.json()
@@ -21,7 +55,7 @@ def test_health_ok():
     assert "version" in body
 
 
-def test_health_v1_ok():
+def test_health_v1_ok(client):
     resp = client.get("/api/v1/health")
     assert resp.status_code == 200
     body = resp.json()
@@ -29,7 +63,7 @@ def test_health_v1_ok():
     assert "version" in body
 
 
-def test_health_detail_ok():
+def test_health_detail_ok(client):
     """D-09: /health/detail 返回 200 含 services(4) + llm_keys(3 bool) + demo_data。"""
     resp = client.get("/health/detail")
     assert resp.status_code == 200
@@ -52,7 +86,7 @@ def test_health_detail_ok():
     assert isinstance(body["demo_data"]["pipeline_runs_count"], int)
 
 
-def test_health_detail_no_key_leak():
+def test_health_detail_no_key_leak(client):
     """D-05/T-08-05: /health/detail 不得泄露任何 API key 实际值。"""
     resp = client.get("/health/detail")
     assert resp.status_code == 200

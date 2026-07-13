@@ -166,6 +166,10 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
         })
 
     # Query actual Neo4j independent counts (same across all group_by modes)
+    # Initialize fallbacks before try block to prevent UnboundLocalError when async for yields 0 records
+    independent_pos = total_pos
+    independent_skill = total_skill
+    independent_edge = len(connections)
     try:
         async with driver.session() as session:
             pos_rec = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
@@ -178,9 +182,7 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
             async for r in edge_rec:
                 independent_edge = r["cnt"]
     except Exception:
-        independent_pos = total_pos
-        independent_skill = total_skill
-        independent_edge = len(connections)
+        pass  # fallback values already set above
 
     return {
         "domains": domains,
@@ -271,6 +273,10 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
         })
 
     # Query actual Neo4j independent counts (same across all group_by modes)
+    # Initialize fallbacks before try block to prevent UnboundLocalError when async for yields 0 records
+    independent_pos = total_pos
+    independent_skill = total_skill
+    independent_edge = len(connections)
     try:
         async with driver.session() as session:
             pos_rec = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
@@ -283,9 +289,7 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
             async for r in edge_rec:
                 independent_edge = r["cnt"]
     except Exception:
-        independent_pos = total_pos
-        independent_skill = total_skill
-        independent_edge = len(connections)
+        pass  # fallback values already set above
 
     return {
         "domains": domains,

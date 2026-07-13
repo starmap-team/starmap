@@ -214,7 +214,8 @@ class TestBatchMatchEndpoint:
         async def fake_run_match(**kwargs):
             call_count["n"] += 1
             if call_count["n"] == 1:
-                raise HTTPException(status_code=404, detail="Position not found")
+                from app.exceptions import PositionNotFoundError
+                raise PositionNotFoundError(kwargs.get("target_position", "unknown"))
             return {
                 "match_id": "ok",
                 "target_position": kwargs["target_position"],
@@ -282,17 +283,18 @@ class TestRunMatchIntegration:
 
     @pytest.mark.asyncio
     async def test_position_not_found_raises_404(self):
-        """岗位画像不存在时应抛 404（B05 相关：明确错误而非静默）。"""
+        """岗位画像不存在时应抛 PositionNotFoundError（B05 相关：明确错误而非静默）。"""
+        from app.exceptions import PositionNotFoundError
+
         driver = MagicMock()
         with patch.object(matching_service, "fetch_position_graph", new=AsyncMock(return_value={"position": None, "skills": [], "edges": []})):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(PositionNotFoundError):
                 await run_match(
                     target_position="不存在的岗位",
                     person_skills=[{"name": "Python"}],
                     driver=driver,
                     db_session=None,
                 )
-        assert exc_info.value.status_code == 404
 
 
 # ---------------------------------------------------------------------------

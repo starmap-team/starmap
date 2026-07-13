@@ -110,14 +110,13 @@ async def test_run_match_no_skills():
 @pytest.mark.asyncio
 async def test_run_match_unknown_position():
     with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
-        from fastapi import HTTPException
+        from app.exceptions import PositionNotFoundError
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(PositionNotFoundError):
             await run_match(
                 target_position="UnknownXYZ Position",
                 person_skills=[{"skill": "Python", "proficiency": "熟悉"}],
             )
-        assert exc_info.value.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -303,7 +302,7 @@ class TestRunBatchMatch:
                 resumes=[{"resume_id": "r1", "person_skills": [{"name": "Python", "proficiency": "精通"}]}],
                 positions=["UnknownPosition"],
             )
-        # Unknown position causes HTTPException, which is caught and scored as 0
+        # Unknown position causes PositionNotFoundError, which is caught and scored as 0
         assert len(result["results"]) == 0  # failed matches are not added to results
         assert result["matrix"][0][0] == 0.0  # unknown position → score 0
 
