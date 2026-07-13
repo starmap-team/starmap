@@ -1,10 +1,12 @@
 /**
- * Pipeline store tests — covers fetchStatus, fetchRuns, triggerPipeline,
- * cancelRun, SSE event handlers, initial state, error handling, and loading state
+ * PipelineRun store tests — covers fetchStatus, fetchRuns, fetchRunDetail,
+ * triggerPipeline, retryStage, resumeRun, cancelRun, fetchStages,
+ * fetchDataQuality, fetchDataSources, SSE event handlers, initial state,
+ * error handling, and loading state
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { usePipelineStore } from '../pipeline'
+import { usePipelineRunStore } from '../pipelineRun'
 
 vi.mock('@/api/request', () => ({
   default: {
@@ -15,7 +17,7 @@ vi.mock('@/api/request', () => ({
   },
 }))
 
-describe('usePipelineStore', () => {
+describe('usePipelineRunStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
@@ -23,14 +25,12 @@ describe('usePipelineStore', () => {
   // ── 1. Initial state ──
 
   it('should have correct initial state', () => {
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     expect(store.pipelineStatus).toBeNull()
     expect(store.runs).toEqual([])
     expect(store.stages).toEqual([])
     expect(store.dataQuality).toBeNull()
     expect(store.dataSources).toEqual([])
-    expect(store.schedules).toEqual([])
-    expect(store.config).toBeNull()
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
     expect(store.liveEvents).toEqual([])
@@ -55,7 +55,7 @@ describe('usePipelineStore', () => {
     }
     vi.mocked(request.get).mockResolvedValueOnce(mockStatus)
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     await store.fetchStatus()
 
     expect(store.pipelineStatus).toBeTruthy()
@@ -74,7 +74,7 @@ describe('usePipelineStore', () => {
     ]
     vi.mocked(request.get).mockResolvedValueOnce(mockRuns)
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     await store.fetchRuns()
 
     expect(store.runs).toHaveLength(1)
@@ -93,7 +93,7 @@ describe('usePipelineStore', () => {
     // fetchStages after trigger
     vi.mocked(request.get).mockResolvedValueOnce({ stages: [] })
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     await store.triggerPipeline('full')
 
     expect(request.post).toHaveBeenCalledWith('/pipeline/trigger', { run_type: 'full' })
@@ -106,7 +106,7 @@ describe('usePipelineStore', () => {
     vi.mocked(request.get).mockResolvedValueOnce({ is_running: false, current_run: null, last_run: null, run_counts: {}, active_data_sources: 0, today_crawl_volume: 0, success_rate: 0, avg_quality_score: 0 })
     vi.mocked(request.get).mockResolvedValueOnce({ stages: [] })
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     await store.triggerPipeline('incremental', ['crawl', 'clean'])
 
     expect(request.post).toHaveBeenCalledWith('/pipeline/trigger', {
@@ -123,7 +123,7 @@ describe('usePipelineStore', () => {
     // fetchStatus after cancel
     vi.mocked(request.get).mockResolvedValueOnce({ is_running: false, current_run: null, last_run: null, run_counts: {}, active_data_sources: 0, today_crawl_volume: 0, success_rate: 0, avg_quality_score: 0 })
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     const result = await store.cancelRun('run-1')
 
     expect(result).toBe(true)
@@ -135,7 +135,7 @@ describe('usePipelineStore', () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.post).mockRejectedValueOnce(new Error('Cancel failed'))
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     const result = await store.cancelRun('run-1')
 
     expect(result).toBe(false)
@@ -150,7 +150,7 @@ describe('usePipelineStore', () => {
     vi.mocked(request.get).mockResolvedValueOnce({ stages: [] }) // fetchStages
     vi.mocked(request.get).mockResolvedValueOnce({ is_running: true, current_run: null, last_run: null, run_counts: {}, active_data_sources: 0, today_crawl_volume: 0, success_rate: 0, avg_quality_score: 0 }) // fetchStatus
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     store.handlePipelineEvent({ stage: 'crawl', status: 'running', progress: 0.5, message: 'Crawling...' })
 
     expect(store.liveEvents).toHaveLength(1)
@@ -160,7 +160,7 @@ describe('usePipelineStore', () => {
   })
 
   it('should cap liveEvents at 50', () => {
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     for (let i = 0; i < 55; i++) {
       store.handlePipelineEvent({ stage: `stage-${i}`, status: 'completed', progress: 1, message: `Done ${i}` })
     }
@@ -168,7 +168,7 @@ describe('usePipelineStore', () => {
   })
 
   it('should handle quality alert events', () => {
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     store.handleQualityAlert({ id: 'qa-1', severity: 'warning', message: 'Low quality', metric: 'completeness', value: 0.5, threshold: 0.8, timestamp: '2024-01-01T00:00:00Z' })
 
     expect(store.qualityAlerts).toHaveLength(1)
@@ -176,14 +176,14 @@ describe('usePipelineStore', () => {
   })
 
   it('should populate created_at from timestamp in quality alert', () => {
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     store.handleQualityAlert({ id: 'qa-2', severity: 'error', message: 'Bad data', metric: 'accuracy', value: 0.3, threshold: 0.7, timestamp: '2024-01-01T12:00:00Z' })
 
     expect(store.qualityAlerts[0].created_at).toBe('2024-01-01T12:00:00Z')
   })
 
   it('should cap qualityAlerts at 50', () => {
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     for (let i = 0; i < 55; i++) {
       store.handleQualityAlert({ id: `qa-${i}`, severity: 'warning', message: `Alert ${i}`, metric: 'test', value: 0.5, threshold: 0.8, timestamp: '2024-01-01' })
     }
@@ -191,7 +191,7 @@ describe('usePipelineStore', () => {
   })
 
   it('should handle milestone events', () => {
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     store.handleMilestone({ type: 'records', count: 1000, source: 'crawl', message: '1000 records processed', timestamp: '2024-01-01' })
 
     expect(store.milestones).toHaveLength(1)
@@ -199,7 +199,7 @@ describe('usePipelineStore', () => {
   })
 
   it('should handle extraction complete events', () => {
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     store.handleExtractionComplete({ jd_id: 'jd-1', source: 'boss', skills_count: 10, duration_ms: 500, quality_score: 0.9, timestamp: '2024-01-01' })
 
     expect(store.recentExtractions).toHaveLength(1)
@@ -212,7 +212,7 @@ describe('usePipelineStore', () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.get).mockRejectedValueOnce(new Error('Server error'))
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     await store.fetchStatus()
 
     expect(store.error).toBe('Server error')
@@ -223,7 +223,7 @@ describe('usePipelineStore', () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.get).mockRejectedValueOnce(new Error('Network error'))
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     await store.fetchRuns()
 
     expect(store.error).toBe('Network error')
@@ -234,7 +234,7 @@ describe('usePipelineStore', () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.post).mockRejectedValueOnce(new Error('Trigger failed'))
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     await store.triggerPipeline()
 
     expect(store.error).toBe('Trigger failed')
@@ -249,7 +249,7 @@ describe('usePipelineStore', () => {
     const pendingPromise = new Promise(resolve => { resolvePromise = resolve })
     vi.mocked(request.get).mockReturnValueOnce(pendingPromise as any)
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     const actionPromise = store.fetchStatus()
 
     expect(store.loading).toBe(true)
@@ -267,7 +267,7 @@ describe('usePipelineStore', () => {
     const mockRun = { id: 'run-1', run_type: 'full', status: 'completed', started_at: '2024-01-01', completed_at: '2024-01-01', stages: [], total_records: 100, new_records: 50, updated_records: 50, quality_score: 0.9, error_log: null, selected_stages: null }
     vi.mocked(request.get).mockResolvedValueOnce(mockRun)
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     const result = await store.fetchRunDetail('run-1')
 
     expect(result).toBeTruthy()
@@ -279,7 +279,7 @@ describe('usePipelineStore', () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.get).mockRejectedValueOnce(new Error('Not found'))
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     const result = await store.fetchRunDetail('nonexistent')
 
     expect(result).toBeNull()
@@ -296,42 +296,12 @@ describe('usePipelineStore', () => {
     }
     vi.mocked(request.get).mockResolvedValueOnce(mockQuality)
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     await store.fetchDataQuality()
 
     expect(store.dataQuality).toBeTruthy()
     expect(store.dataQuality!.overall_score).toBe(0.85)
     expect(store.dataQuality!.alerts).toHaveLength(1)
-  })
-
-  // ── fetchSchedules ──
-
-  it('should fetch schedules', async () => {
-    const request = (await import('@/api/request')).default
-    const mockSchedules = [
-      { id: 'sch-1', name: 'Daily Crawl', cron_expression: '0 2 * * *', run_type: 'incremental', selected_stages: null, enabled: true, last_run_at: null, next_run_at: '2024-01-02T02:00:00Z', created_at: '2024-01-01' },
-    ]
-    vi.mocked(request.get).mockResolvedValueOnce(mockSchedules)
-
-    const store = usePipelineStore()
-    await store.fetchSchedules()
-
-    expect(store.schedules).toHaveLength(1)
-    expect(store.schedules[0].name).toBe('Daily Crawl')
-  })
-
-  // ── fetchConfig ──
-
-  it('should fetch pipeline config', async () => {
-    const request = (await import('@/api/request')).default
-    const mockConfig = { stage_timeout: 300, worker_concurrency: 4, crawl_concurrency: 2, retry_max: 3, retry_backoff: 30 }
-    vi.mocked(request.get).mockResolvedValueOnce(mockConfig)
-
-    const store = usePipelineStore()
-    await store.fetchConfig()
-
-    expect(store.config).toBeTruthy()
-    expect(store.config!.stage_timeout).toBe(300)
   })
 
   // ── retryStage ──
@@ -342,7 +312,7 @@ describe('usePipelineStore', () => {
     vi.mocked(request.get).mockResolvedValueOnce({ stages: [] }) // fetchStages
     vi.mocked(request.get).mockResolvedValueOnce({ is_running: false, current_run: null, last_run: null, run_counts: {}, active_data_sources: 0, today_crawl_volume: 0, success_rate: 0, avg_quality_score: 0 }) // fetchStatus
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     await store.retryStage('run-1', 'crawl')
 
     expect(request.post).toHaveBeenCalledWith('/pipeline/runs/run-1/retry', { stage_name: 'crawl' })
@@ -356,7 +326,7 @@ describe('usePipelineStore', () => {
     vi.mocked(request.get).mockResolvedValueOnce({ stages: [] }) // fetchStages
     vi.mocked(request.get).mockResolvedValueOnce({ is_running: true, current_run: null, last_run: null, run_counts: {}, active_data_sources: 0, today_crawl_volume: 0, success_rate: 0, avg_quality_score: 0 }) // fetchStatus
 
-    const store = usePipelineStore()
+    const store = usePipelineRunStore()
     await store.resumeRun('run-1')
 
     expect(request.post).toHaveBeenCalledWith('/pipeline/runs/run-1/resume')
