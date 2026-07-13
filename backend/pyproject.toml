@@ -94,6 +94,7 @@ warn_return_any = false
 warn_unused_ignores = false
 
 # 新模块类型检查较宽松，逐步完善
+# Phase 15: core matching, graph_service, match_service, celery_app unlocked
 [[tool.mypy.overrides]]
 module = [
     "app.core.dashboard.*",
@@ -105,8 +106,5 @@ module = [
     "app.api.v1.loop",
     "app.api.v1.pipeline",
     "app.api.v1.evolution",
-    "app.tasks.celery_app",
-    "app.services.graph_service",
-    "app.services.match_service",
 ]
 ignore_errors = true

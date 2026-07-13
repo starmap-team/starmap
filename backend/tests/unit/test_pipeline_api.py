@@ -26,7 +26,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies import get_db_session, get_neo4j_driver, require_admin
+from app.dependencies import get_current_user, get_db_session, get_neo4j_driver, require_admin
 from app.main import app
 
 # ── Fake DB primitives (reused from test_admin_endpoints.py pattern) ──
@@ -223,6 +223,14 @@ def non_admin_override():
 
 @pytest.fixture
 def db_override():
+    # Override auth to avoid _get_dev_user hitting the fake session
+    _fake_user = {"sub": "test_user", "role": "admin", "username": "test_user", "type": "access"}
+
+    async def _override_current_user():
+        return _fake_user
+
+    app.dependency_overrides[get_current_user] = _override_current_user
+
     def _set(session: FakeAsyncSession | None):
         if session is None:
             app.dependency_overrides.pop(get_db_session, None)
@@ -230,6 +238,7 @@ def db_override():
             app.dependency_overrides[get_db_session] = _make_db_override(session)
     yield _set
     app.dependency_overrides.pop(get_db_session, None)
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest.fixture

@@ -6,7 +6,7 @@ from unittest.mock import Mock
 import pytest
 
 from app.api.v1.quality import _build_quality_dashboard
-from app.dependencies import get_db_session
+from app.dependencies import get_current_user, get_db_session
 from app.main import app
 
 
@@ -103,6 +103,14 @@ async def test_quality_dashboard_builder_aggregates_metrics():
 
 
 def test_quality_dashboard_endpoint_contract(client):
+    # Override auth to avoid _get_dev_user hitting the fake session
+    _fake_user = {"sub": "test_user", "role": "admin", "username": "test_user", "type": "access"}
+
+    async def _override_current_user():
+        return _fake_user
+
+    app.dependency_overrides[get_current_user] = _override_current_user
+
     async def override_session():
         yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0.0,), (0,), (0,), (0,), (0,), (0,), (0,), [], [], (0,), (0,), (0,), []])
 
@@ -111,6 +119,7 @@ def test_quality_dashboard_endpoint_contract(client):
         resp = client.get("/api/v1/quality/dashboard")
     finally:
         app.dependency_overrides.pop(get_db_session, None)
+        app.dependency_overrides.pop(get_current_user, None)
 
     assert resp.status_code == 200
     body = resp.json()

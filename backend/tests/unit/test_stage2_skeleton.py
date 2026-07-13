@@ -3,15 +3,23 @@ from __future__ import annotations
 
 import pytest
 
-from app.dependencies import get_neo4j_driver
+from app.dependencies import get_current_user, get_neo4j_driver
 from app.main import app
 
 
 @pytest.fixture(autouse=True)
 def no_neo4j_driver():
     app.dependency_overrides[get_neo4j_driver] = lambda: None
+    # Override auth to avoid _get_dev_user hitting the fake session
+    _fake_user = {"sub": "test_user", "role": "admin", "username": "test_user", "type": "access"}
+
+    async def _override_current_user():
+        return _fake_user
+
+    app.dependency_overrides[get_current_user] = _override_current_user
     yield
     app.dependency_overrides.pop(get_neo4j_driver, None)
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 def test_positions_skeleton_response(client):
