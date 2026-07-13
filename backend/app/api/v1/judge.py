@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from loguru import logger
 from pydantic import BaseModel, Field
 
 from app.core.extraction.llm_client import (
@@ -123,9 +124,11 @@ async def evaluate_sample(req: JudgeRequest) -> Any:
             errors=result.errors,
         )
     except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
-        raise HTTPException(status_code=502, detail=f"LLM service error: {e}") from e
+        logger.error("LLM service error in judge: {}", e)
+        raise HTTPException(status_code=502, detail="LLM service temporarily unavailable") from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Evaluation failed: {e}") from e
+        logger.exception("Evaluation failed: {}", e)
+        raise HTTPException(status_code=500, detail="Evaluation failed, please try again later") from e
 
 
 @router.post("/pairwise", response_model=PairwiseResponse)
@@ -143,7 +146,8 @@ async def pairwise_compare(req: PairwiseRequest) -> Any:
             errors=result.errors,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Pairwise comparison failed: {e}") from e
+        logger.exception("Pairwise comparison failed: {}", e)
+        raise HTTPException(status_code=500, detail="Comparison failed, please try again later") from e
 
 
 @router.post("/batch", response_model=BatchJudgeResponse)
@@ -170,6 +174,8 @@ async def batch_evaluate(req: BatchJudgeRequest) -> Any:
             judge_prompt_version=metrics.judge_prompt_version,
         )
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+        logger.warning("File not found in batch judge: {}", e)
+        raise HTTPException(status_code=404, detail="Requested evaluation file not found") from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Batch evaluation failed: {e}") from e
+        logger.exception("Batch evaluation failed: {}", e)
+        raise HTTPException(status_code=500, detail="Batch evaluation failed, please try again later") from e
