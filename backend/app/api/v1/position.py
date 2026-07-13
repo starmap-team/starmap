@@ -77,31 +77,33 @@ async def list_positions(
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     rows = (await session.execute(stmt)).scalars().all()
 
-    items: list[PositionNode] = []
-    for r in rows:
-        # Fetch skills for this position
+    # Batch-fetch skills for all positions on this page (avoids N+1)
+    position_ids = [r.id for r in rows]
+    skill_map: dict[Any, list[SkillNode]] = {}
+    if position_ids:
         skill_stmt = (
             sa.select(SkillRecord, PositionSkillRelation)
             .join(PositionSkillRelation, PositionSkillRelation.skill_id == SkillRecord.id)
-            .where(PositionSkillRelation.position_id == r.id)
+            .where(PositionSkillRelation.position_id.in_(position_ids))
         )
         skill_rows = (await session.execute(skill_stmt)).all()
-        skills = [
-            SkillNode(
+        for sk, rel in skill_rows:
+            skill_map.setdefault(rel.position_id, []).append(SkillNode(
                 skill_id=str(sk.id),
                 name=sk.name,
                 category=sk.category,
                 confidence=float(rel.confidence or 1.0),
                 source_count=sk.source_count or 0,
-            )
-            for sk, rel in skill_rows
-        ]
+            ))
+
+    items: list[PositionNode] = []
+    for r in rows:
         items.append(PositionNode(
             position_id=str(r.id),
             name=r.name or "",
             industry=r.industry or "",
             description=r.description or "",
-            skills_required=skills,
+            skills_required=skill_map.get(r.id, []),
             discovered_at=r.created_at.isoformat() if r.created_at else None,
         ))
 
@@ -215,4 +217,6 @@ async def discover_position(
         }
     except Exception as e:
         from fastapi import HTTPException
-        raise HTTPException(status_code=500, detail=f"Discovery failed: {e}") from e
+        from loguru import logger
+        logger.exception("Position discovery failed: {}", e)
+        raise HTTPException(status_code=500, detail="Position discovery failed, please try again later") from e
