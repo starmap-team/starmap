@@ -368,14 +368,11 @@ class TestCallLlmWithFallback:
     async def test_mimo_fails_deepseek_succeeds(self):
         """MiMo fails, DeepSeek succeeds."""
         with patch("app.core.extraction.llm_client.call_mimo_llm", new_callable=AsyncMock) as mock_mimo, \
-             patch("app.core.extraction.llm_client.call_xingchen_llm", new_callable=AsyncMock) as mock_xc, \
              patch("app.core.extraction.llm_client.call_deepseek_llm", new_callable=AsyncMock) as mock_ds, \
              patch("app.core.extraction.llm_client.settings") as mock_settings:
             mock_mimo.side_effect = LLMConnectionError("MiMo down")
-            mock_xc.side_effect = LLMConnectionError("XingChen down")
             mock_ds.return_value = {"role": "assistant", "content": "ds result", "model": "ds"}
             mock_settings.mimo_api_key = "key"
-            mock_settings.xingchen_api_key = "key"
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = ""
             mock_settings.qwen_model_path = ""
@@ -390,16 +387,13 @@ class TestCallLlmWithFallback:
     async def test_mimo_deepseek_fail_xunfei_succeeds(self):
         """MiMo and DeepSeek fail, Xunfei succeeds."""
         with patch("app.core.extraction.llm_client.call_mimo_llm", new_callable=AsyncMock) as mock_mimo, \
-             patch("app.core.extraction.llm_client.call_xingchen_llm", new_callable=AsyncMock) as mock_xc, \
              patch("app.core.extraction.llm_client.call_deepseek_llm", new_callable=AsyncMock) as mock_ds, \
              patch("app.core.extraction.llm_client.call_xunfei_llm", new_callable=AsyncMock) as mock_xf, \
              patch("app.core.extraction.llm_client.settings") as mock_settings:
             mock_mimo.side_effect = LLMConnectionError("MiMo down")
-            mock_xc.side_effect = LLMResponseError("XingChen error")
             mock_ds.side_effect = LLMResponseError("DS error")
             mock_xf.return_value = {"role": "assistant", "content": "xf result", "model": "xf"}
             mock_settings.mimo_api_key = "key"
-            mock_settings.xingchen_api_key = "key"
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = "key"
             mock_settings.qwen_model_path = ""
@@ -412,16 +406,13 @@ class TestCallLlmWithFallback:
     async def test_all_providers_fail_raises(self):
         """All LLM calls fail — LLMConnectionError propagated."""
         with patch("app.core.extraction.llm_client.call_mimo_llm", new_callable=AsyncMock) as mock_mimo, \
-             patch("app.core.extraction.llm_client.call_xingchen_llm", new_callable=AsyncMock) as mock_xc, \
              patch("app.core.extraction.llm_client.call_deepseek_llm", new_callable=AsyncMock) as mock_ds, \
              patch("app.core.extraction.llm_client.call_xunfei_llm", new_callable=AsyncMock) as mock_xf, \
              patch("app.core.extraction.llm_client.settings") as mock_settings:
             mock_mimo.side_effect = LLMConnectionError("MiMo down")
-            mock_xc.side_effect = LLMConnectionError("XingChen down")
             mock_ds.side_effect = LLMConnectionError("DS down")
             mock_xf.side_effect = LLMConnectionError("XF down")
             mock_settings.mimo_api_key = "key"
-            mock_settings.xingchen_api_key = "key"
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = "key"
             mock_settings.qwen_model_path = ""
@@ -433,14 +424,11 @@ class TestCallLlmWithFallback:
     async def test_timeout_triggers_fallback(self):
         """MiMo timeout triggers fallback to DeepSeek."""
         with patch("app.core.extraction.llm_client.call_mimo_llm", new_callable=AsyncMock) as mock_mimo, \
-             patch("app.core.extraction.llm_client.call_xingchen_llm", new_callable=AsyncMock) as mock_xc, \
              patch("app.core.extraction.llm_client.call_deepseek_llm", new_callable=AsyncMock) as mock_ds, \
              patch("app.core.extraction.llm_client.settings") as mock_settings:
             mock_mimo.side_effect = LLMTimeoutError("MiMo timeout")
-            mock_xc.side_effect = LLMConnectionError("XingChen down")
             mock_ds.return_value = {"role": "assistant", "content": "ds result", "model": "ds"}
             mock_settings.mimo_api_key = "key"
-            mock_settings.xingchen_api_key = "key"
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = ""
             mock_settings.qwen_model_path = ""
@@ -454,7 +442,6 @@ class TestCallLlmWithFallback:
         """No API keys configured — skips providers, raises error."""
         with patch("app.core.extraction.llm_client.settings") as mock_settings:
             mock_settings.mimo_api_key = ""
-            mock_settings.xingchen_api_key = ""
             mock_settings.deepseek_api_key = ""
             mock_settings.xunfei_api_key = ""
             mock_settings.qwen_model_path = ""
@@ -470,13 +457,11 @@ class TestCallLlmWithFallback:
         mock_response.raise_for_status = MagicMock()
 
         with patch("app.core.extraction.llm_client.call_mimo_llm", new_callable=AsyncMock) as mock_mimo, \
-             patch("app.core.extraction.llm_client.call_xingchen_llm", new_callable=AsyncMock) as mock_xc, \
              patch("app.core.extraction.llm_client.call_deepseek_llm", new_callable=AsyncMock) as mock_ds, \
              patch("app.core.extraction.llm_client.call_xunfei_llm", new_callable=AsyncMock) as mock_xf, \
              patch("app.core.extraction.llm_client.httpx.AsyncClient") as mock_client_cls, \
              patch("app.core.extraction.llm_client.settings") as mock_settings:
             mock_mimo.side_effect = LLMConnectionError("MiMo down")
-            mock_xc.side_effect = LLMConnectionError("XingChen down")
             mock_ds.side_effect = LLMConnectionError("DS down")
             mock_xf.side_effect = LLMConnectionError("XF down")
 
@@ -487,7 +472,6 @@ class TestCallLlmWithFallback:
             mock_client_cls.return_value = mock_client
 
             mock_settings.mimo_api_key = "key"
-            mock_settings.xingchen_api_key = "key"
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = "key"
             mock_settings.qwen_model_path = "http://localhost:11434"
