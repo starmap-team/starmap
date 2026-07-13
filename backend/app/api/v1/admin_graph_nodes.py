@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
+import neo4j.exceptions
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -64,7 +66,7 @@ async def list_graph_nodes(
         )
         items = [_item_from_dict(n) for n in result["items"]]
         return GraphNodeListResponse(items=items, total=result["total"])
-    except (ValueError, KeyError, RuntimeError) as exc:
+    except (ValueError, KeyError, RuntimeError, neo4j.exceptions.Neo4jError) as exc:
         logger.error("Failed to list graph nodes: {}", exc)
         raise HTTPException(status_code=500, detail="Failed to list graph nodes") from exc
 
@@ -90,7 +92,7 @@ async def create_graph_node(
             node_type=body.type, name=body.name, properties=body.properties
         )
         return _item_from_dict(result)
-    except (ValueError, KeyError, RuntimeError) as exc:
+    except (ValueError, KeyError, RuntimeError, neo4j.exceptions.Neo4jError) as exc:
         logger.error("Failed to create graph node: {}", exc)
         raise HTTPException(status_code=500, detail="Failed to create graph node") from exc
 
@@ -119,7 +121,7 @@ async def update_graph_node(
         return _item_from_dict(result)
     except KeyError:
         raise HTTPException(status_code=404, detail="Node not found") from None
-    except (ValueError, RuntimeError) as exc:
+    except (ValueError, RuntimeError, neo4j.exceptions.Neo4jError) as exc:
         logger.error("Failed to update graph node {}: {}", node_id, exc)
         raise HTTPException(status_code=500, detail="Failed to update graph node") from exc
 
@@ -139,7 +141,7 @@ async def delete_graph_node(
         return {"ok": True, "deleted": deleted}
     except KeyError:
         raise HTTPException(status_code=404, detail="Node not found") from None
-    except (ValueError, RuntimeError) as exc:
+    except (ValueError, RuntimeError, neo4j.exceptions.Neo4jError) as exc:
         logger.error("Failed to delete graph node {}: {}", node_id, exc)
         raise HTTPException(status_code=500, detail="Failed to delete graph node") from exc
 
@@ -158,7 +160,7 @@ async def approve_graph_node(
         return await service.set_review_status(node_id, "approved")
     except KeyError:
         raise HTTPException(status_code=404, detail="Node not found") from None
-    except (ValueError, RuntimeError) as exc:
+    except (ValueError, RuntimeError, neo4j.exceptions.Neo4jError) as exc:
         logger.error("Failed to approve graph node {}: {}", node_id, exc)
         raise HTTPException(status_code=500, detail="Failed to approve graph node") from exc
 
@@ -177,6 +179,6 @@ async def reject_graph_node(
         return await service.set_review_status(node_id, "rejected")
     except KeyError:
         raise HTTPException(status_code=404, detail="Node not found") from None
-    except (ValueError, RuntimeError) as exc:
+    except (ValueError, RuntimeError, neo4j.exceptions.Neo4jError) as exc:
         logger.error("Failed to reject graph node {}: {}", node_id, exc)
         raise HTTPException(status_code=500, detail="Failed to reject graph node") from exc
