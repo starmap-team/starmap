@@ -9,13 +9,11 @@ Covers:
 """
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
 import json
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import jwt as _jwt
 import pytest
 
 from app.dependencies import _decode_token, get_current_user, require_admin
@@ -26,23 +24,17 @@ from app.config import settings
 
 
 def _encode_jwt(payload: dict, secret: str | None = None) -> str:
-    """Create a valid JWT token for testing."""
+    """Create a valid JWT token for testing (PyJWT)."""
     secret = secret or settings.secret_key
-    header = {"alg": "HS256", "typ": "JWT"}
-    header_b64 = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(b"=").decode()
-    payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
-    signing_input = f"{header_b64}.{payload_b64}".encode()
-    sig = hmac.new(secret.encode(), signing_input, hashlib.sha256).digest()
-    sig_b64 = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()
-    return f"{header_b64}.{payload_b64}.{sig_b64}"
+    return _jwt.encode(payload, secret, algorithm="HS256")
 
 
 def _encode_jwt_bad_sig(payload: dict) -> str:
     """Create a JWT with wrong signature."""
-    header = {"alg": "HS256", "typ": "JWT"}
-    header_b64 = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(b"=").decode()
-    payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
-    return f"{header_b64}.{payload_b64}.bad_signature"
+    token = _encode_jwt(payload, secret="wrong-secret-for-testing")
+    # Tamper the signature part
+    parts = token.split(".")
+    return f"{parts[0]}.{parts[1]}.bad_signature"
 
 
 # ══════════════════════════════════════════════════════════════
@@ -54,48 +46,49 @@ class TestDecodeToken:
     """_decode_token — JWT parsing, signature verification, expiry."""
 
     def test_valid_token_decodes_payload(self):
-        payload = {"sub": "user1", "role": "admin", "username": "Alice"}
+        payload = {"sub": "user1", "role": "admin", "username": "Alice", "exp": time.time() + 3600, "iat": time.time()}
         token = _encode_jwt(payload)
         decoded = _decode_token(token)
         assert decoded["sub"] == "user1"
         assert decoded["role"] == "admin"
 
     def test_invalid_format_raises(self):
-        with pytest.raises(ValueError, match="Invalid JWT format"):
-            _decode_token("not.a.valid.jwt.format")  # 5 parts instead of 3
+        with pytest.raises(ValueError, match="Invalid JWT"):
+            _decode_token("not-a-jwt")
 
     def test_two_part_token_raises(self):
-        with pytest.raises(ValueError, match="Invalid JWT format"):
+        with pytest.raises(ValueError, match="Invalid JWT"):
             _decode_token("only.two")
 
     def test_bad_signature_raises(self):
-        payload = {"sub": "attacker"}
+        payload = {"sub": "attacker", "exp": time.time() + 3600, "iat": time.time()}
         token = _encode_jwt_bad_sig(payload)
-        with pytest.raises(ValueError, match="Invalid JWT signature"):
+        with pytest.raises(ValueError, match="Invalid JWT"):
             _decode_token(token)
 
     def test_expired_token_raises(self):
-        payload = {"sub": "user1", "exp": time.time() - 3600}  # expired 1h ago
+        payload = {"sub": "user1", "exp": time.time() - 3600, "iat": time.time() - 4000}  # expired 1h ago
         token = _encode_jwt(payload)
         with pytest.raises(ValueError, match="JWT expired"):
             _decode_token(token)
 
     def test_future_exp_is_valid(self):
-        payload = {"sub": "user1", "exp": time.time() + 3600}  # expires in 1h
+        payload = {"sub": "user1", "exp": time.time() + 3600, "iat": time.time()}  # expires in 1h
         token = _encode_jwt(payload)
         decoded = _decode_token(token)
         assert decoded["sub"] == "user1"
 
-    def test_no_exp_field_is_valid(self):
-        payload = {"sub": "user1"}  # no exp
+    def test_no_exp_field_raises(self):
+        """PyJWT requires 'exp' claim — tokens without exp are rejected."""
+        payload = {"sub": "user1", "iat": time.time()}  # no exp
         token = _encode_jwt(payload)
-        decoded = _decode_token(token)
-        assert decoded["sub"] == "user1"
+        with pytest.raises(ValueError, match="Invalid JWT"):
+            _decode_token(token)
 
     def test_wrong_secret_fails(self):
-        payload = {"sub": "user1"}
+        payload = {"sub": "user1", "exp": time.time() + 3600, "iat": time.time()}
         token = _encode_jwt(payload, secret="wrong-secret")
-        with pytest.raises(ValueError, match="Invalid JWT signature"):
+        with pytest.raises(ValueError, match="Invalid JWT"):
             _decode_token(token)
 
 
@@ -147,7 +140,7 @@ class TestGetCurrentUser:
 
     async def test_valid_jwt_returns_payload(self):
         """Valid JWT → payload as user dict."""
-        payload = {"sub": "user42", "role": "viewer", "username": "Bob"}
+        payload = {"sub": "user42", "role": "viewer", "username": "Bob", "exp": time.time() + 3600, "iat": time.time()}
         token = _encode_jwt(payload)
         creds = MagicMock()
         creds.credentials = token
