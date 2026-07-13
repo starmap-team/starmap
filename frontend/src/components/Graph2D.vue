@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * Graph2D — G6 v5 force-directed graph visualization (2D counterpart to Graph3D).
  *
@@ -14,9 +14,11 @@ import { ref, onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue'
 import { ElMessage } from 'element-plus'
 // 业务说明：引入图谱数据 Store，提供节点、边、领域、岗位等全局状态数据
 import { useGraphStore } from '@/stores/graph'
-// 业务说明：引入节点颜色映射常量，用于根据节点类型（领域/岗位/技能）分配可视化颜色
-import { NODE_TYPE_COLORS, KA_FALLBACK_COLORS } from '@/utils/graphColors'
-import type { Graph, G6GraphClass, G6ElementEvent, NodeData, EdgeData, EvolutionEdgeClickPayload } from '@/types/g6'
+import type { Graph, G6GraphClass, G6ElementEvent, EvolutionEdgeClickPayload } from '@/types/g6'
+// 业务说明：引入图层渲染 composables
+import { renderDomainLayer, type DomainLayerDeps } from '@/composables/useDomainLayer'
+import { renderPositionLayer, type PositionLayerDeps } from '@/composables/usePositionLayer'
+import { renderDetailLayer, type DetailLayerDeps } from '@/composables/useDetailLayer'
 
 // ── Props (UI state owned by parent) ──
 // 业务说明：定义组件对外暴露的属性接口，父组件通过 props 控制图谱的展示模式与筛选条件
@@ -69,6 +71,25 @@ import { cv, g6TooltipStyle } from '@/utils/chartTheme'
 const containerRef = ref<HTMLElement | null>(null)
 // 技术说明：使用 shallowRef 持有 G6 实例，避免 Vue 对 G6 内部庞大对象进行深度响应式代理，降低内存与性能开销
 const graph = shallowRef<Graph | null>(null)
+
+// ── Layer dependency accessors (lazy-read current props/store state) ──
+const domainDeps: DomainLayerDeps = {
+  graph: () => graph.value,
+  kaColorMap: () => props.kaColorMap,
+  layoutMode: () => props.layoutMode,
+}
+const positionDeps: PositionLayerDeps = {
+  graph: () => graph.value,
+  kaColorMap: () => props.kaColorMap,
+  showEvolution: () => props.showEvolution,
+  maxNodesLimit: () => props.maxNodesLimit,
+}
+const detailDeps: DetailLayerDeps = {
+  graph: () => graph.value,
+  kaColorMap: () => props.kaColorMap,
+  maxNodesLimit: () => props.maxNodesLimit,
+  proficiencyFilter: () => props.proficiencyFilter,
+}
 
 // ── Exposed methods ──
 // 业务说明：对外暴露的缩放方法，父组件可通过 ref 调用以控制画布缩放级别
@@ -203,381 +224,13 @@ function renderCurrentLayer() {
   _renderTimer = setTimeout(() => {
     _renderTimer = null
     if (graphStore.currentLayer === 'domain') {
-      renderDomainLayer()
+      renderDomainLayer(domainDeps)
     } else if (graphStore.currentLayer === 'position') {
-      renderPositionLayer()
+      renderPositionLayer(positionDeps)
     } else {
-      renderDetailLayer()
+      renderDetailLayer(detailDeps)
     }
   }, 50)
-}
-
-// ── Layer 1: Domain (KA islands) ──
-// 业务说明：渲染第一层「领域概览」图层，展示所有知识领域(KA)节点及其关联，节点大小反映技能数量
-function renderDomainLayer() {
-  if (!graph.value) return
-  // 业务说明：计算所有领域中最大的技能数量，用于后续节点大小的归一化映射
-  const maxSkill = Math.max(...graphStore.domains.map(d => d.skill_count), 1)
-  // 技术说明：节点尺寸映射范围：最小 50px，最大 100px，基于技能数量线性插值
-  const minSize = 50, maxSize = 100
-
-  // 业务说明：过滤掉无岗位且无技能的空领域节点，避免渲染无业务意义的孤立节点
-  const visibleFiltered = graphStore.visibleNodes.filter(n => {
-    const domain = graphStore.domains.find(d => d.id === n.id)
-    return domain && (domain.position_count > 0 || domain.skill_count > 0)
-  })
-
-  // 业务说明：将领域数据映射为 G6 节点对象，设置大小、颜色、标签、阴影等视觉属性
-  const graphNodes = visibleFiltered.map((n, i) => {
-    const domain = graphStore.domains.find(d => d.id === n.id)
-    const skillCount = domain?.skill_count ?? 0
-    const posCount = domain?.position_count ?? 0
-    // 业务说明：重要性评分 = 技能数 + 岗位数×2，岗位权重更高
-    const importance = skillCount + posCount * 2
-    // 业务说明：节点大小基于技能数量在 [minSize, maxSize] 范围内线性映射
-    const size = minSize + (skillCount / maxSkill) * (maxSize - minSize)
-    // 业务说明：颜色优先使用父组件传入的 kaColorMap，未命中则使用兜底调色板循环分配
-    const color = props.kaColorMap.get(n.id) ?? KA_FALLBACK_COLORS[i % KA_FALLBACK_COLORS.length]
-    return {
-      id: n.id,
-      style: {
-        size,
-        fill: color,
-        fillOpacity: 0.9,
-        stroke: color,
-        // 业务说明：重要性高的领域使用更粗的描边，增强视觉层级
-        lineWidth: importance > 100 ? 3 : 2,
-        // 业务说明：标签展示领域名称及岗位/技能数量，换行显示
-        labelText: n.properties.name + '\n' + posCount + '岗 ' + skillCount + '技',
-        labelFill: cv('--primary-foreground'),
-        // 业务说明：重要性高的领域使用更大字号，突出核心领域
-        labelFontSize: importance > 100 ? 15 : 13,
-        labelFontWeight: 'bold' as const,
-        labelPlacement: 'center' as const,
-        shadowColor: 'rgba(0,0,0,0.2)',
-        // 业务说明：重要性高的领域投射更大阴影，营造视觉深度
-        shadowBlur: importance > 100 ? 20 : 12,
-        cursor: 'pointer' as const,
-      },
-    }
-  })
-
-  // 业务说明：将领域间关联边映射为 G6 边对象，使用虚线、低透明度表现弱关联
-  const graphEdges = graphStore.visibleEdges.map(e => ({
-    id: `${e.source_id}-${e.target_id}-${e.type}`,
-    source: e.source_id,
-    target: e.target_id,
-    style: {
-      stroke: cv('--muted-foreground'),
-      lineWidth: 1.5,
-      opacity: 0.3,
-      lineDash: [6, 4],
-      endArrow: false,
-    },
-  }))
-
-  // 技术说明：向 G6 注入节点与边数据
-  graph.value.setData({ nodes: graphNodes, edges: graphEdges })
-  // 技术说明：设置初始入场动画状态：节点透明度 0、缩放 0.3，为后续动画做准备（当前已注释掉动画完成逻辑）
-  const entranceNodes = graphNodes.map((n: NodeData) => ({
-    id: n.id,
-    style: { fillOpacity: 0, scale: 0.3 },
-  }))
-  graph.value.updateNodeData(entranceNodes)
-
-  // 业务说明：根据概览模式与布局模式选择不同的布局算法
-  const isLevel = graphStore.overviewMode === 'level'
-  const isTechStack = graphStore.overviewMode === 'tech_stack'
-  if (props.layoutMode === 'dagre' || isLevel) {
-    // 业务说明：层级概览或手动选择 dagre 时，使用层次布局，自上而下排列，节点/层间距根据模式调整
-    graph.value.setLayout({ type: 'dagre', rankdir: 'TB', nodesep: isLevel ? 140 : 80, ranksep: isLevel ? 160 : 100, preventOverlap: true, nodeSize: 80, controlPoints: true })
-  } else if (isTechStack) {
-    // 业务说明：技术栈模式使用力导向布局并开启聚类，使相关领域自然聚集成群落
-    graph.value.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 60, animate: false, clustering: true, clusterNodeStrength: 0.5, strength: 0.4, coulombDisScale: 0.005, gravity: 8, maxSpeed: 200, maxIteration: 100 })
-  } else {
-    // 业务说明：默认力导向布局，通过 coulombDisScale、gravity、strength 等参数调节斥力与引力平衡
-    graph.value.setLayout({ type: 'force', preventOverlap: true, nodeSize: 80, nodeSpacing: 60, animate: false, strength: 0.4, coulombDisScale: 0.005, gravity: 10, maxSpeed: 200, maxIteration: 100 })
-  }
-  graph.value.render()
-  // 技术说明：以下 setTimeout 动画逻辑已移除，避免视觉抖动；保留注释供后续参考
-  // Removed setTimeout to prevent visual jitter
-  // graph.value?.fitView()
-  // if (graph.value) {
-  //   const finalNodes = graphNodes.map((n: any) => ({
-  //     id: n.id,
-  //     style: { fillOpacity: 0.85, scale: 1 },
-  //   }))
-  //   graph.value.updateNodeData(finalNodes)
-  //   graph.value.draw()
-  // }
-  // }, 100)
-}
-
-// ── Layer 2: Position (KA + its positions) ──
-// 业务说明：渲染第二层「岗位分布」图层，以当前展开的领域(KA)为中心，辐射展示其下属岗位节点
-function renderPositionLayer() {
-  if (!graph.value) return
-  // 业务说明：获取当前展开的领域 ID 及其主题色，用于中心节点与关联边的统一配色
-  const kaId = graphStore.expandedKAId
-  const kaColor = kaId ? (props.kaColorMap.get(kaId) ?? cv('--chart-3')) : cv('--chart-3')
-  // 业务说明：从 Store 中获取该领域下的所有岗位列表
-  const positions = graphStore.positionsByKA.get(kaId ?? '') ?? []
-  // 业务说明：计算岗位下最大技能需求量，用于后续岗位节点大小的归一化
-  const maxSkillCount = Math.max(...positions.map(p => {
-    let count = 0
-    for (const e of graphStore.allEdges) { if (e.source_id === p.id && e.type === 'REQUIRES') count++ }
-    return count
-  }), 1)
-
-  const graphNodes: NodeData[] = []
-  const graphEdges: EdgeData[] = []
-
-  // 业务说明：构建中心领域节点，尺寸较小（60px），半透明填充，作为 radial 布局的焦点
-  if (kaId) {
-    graphNodes.push({
-      id: kaId,
-      style: {
-        size: 60,
-        fill: kaColor,
-        fillOpacity: 0.7,
-        stroke: kaColor,
-        lineWidth: 3,
-        labelText: graphStore.expandedKAName,
-        labelFill: cv('--primary-foreground'),
-        labelFontSize: 13,
-        labelFontWeight: 'bold' as const,
-        labelPlacement: 'center' as const,
-        shadowColor: kaColor,
-        shadowBlur: 24,
-        shadowOffsetY: 3,
-      },
-    })
-  }
-
-  // 业务说明：应用 maxNodesLimit 限制岗位节点数量，保留核心岗位（技能需求多的优先）
-  const maxPositionNodes = Math.max(props.maxNodesLimit - 1, 5)
-  // 业务说明：按岗位所需技能数量降序排序，确保高价值岗位优先渲染
-  const sortedPositions = [...positions].sort((a, b) => {
-    let aCount = 0, bCount = 0
-    for (const e of graphStore.allEdges) {
-      if (e.source_id === a.id && e.type === 'REQUIRES') aCount++
-      if (e.source_id === b.id && e.type === 'REQUIRES') bCount++
-    }
-    return bCount - aCount
-  })
-  const limitedPositions = sortedPositions.slice(0, maxPositionNodes)
-
-  // 业务说明：构建岗位节点，大小基于技能需求量在 [28px, 44px] 范围内映射，使用固定岗位色
-  const posColor = NODE_TYPE_COLORS.Position
-  for (const p of limitedPositions) {
-    let skillCount = 0
-    for (const e of graphStore.allEdges) { if (e.source_id === p.id && e.type === 'REQUIRES') skillCount++ }
-    const size = 28 + (skillCount / maxSkillCount) * 16
-
-    graphNodes.push({
-      id: p.id,
-      style: {
-        size,
-        fill: posColor,
-        fillOpacity: 0.85,
-        stroke: cv('--primary-hover'),
-        lineWidth: 1.5,
-        labelText: p.properties.name,
-        labelFill: cv('--foreground'),
-        labelFontSize: 11,
-        labelFontWeight: 'normal' as const,
-        labelPlacement: 'bottom' as const,
-        labelOffsetY: 6,
-      },
-    })
-
-    // 业务说明：构建领域到岗位的包含关系边（CONTAINS），使用虚线、低透明度表现层级从属
-    if (kaId) {
-      graphEdges.push({
-        id: `${kaId}-${p.id}-CONTAINS`,
-        source: kaId,
-        target: p.id,
-        style: {
-          stroke: kaColor,
-          lineWidth: 1,
-          opacity: 0.2,
-          lineDash: [6, 4],
-          endArrow: false,
-        },
-      })
-    }
-  }
-
-  // 业务说明：当 showEvolution 为 true 时，渲染岗位间的演进关系边（EVOLVES_TO），颜色随趋势变化
-  if (props.showEvolution) {
-    // 业务说明：定义趋势到颜色的映射：上升-绿色、稳定-灰色、下降-红色
-    const trendColors: Record<string, string> = {
-      rising: cv('--success'),
-      stable: cv('--muted-foreground'),
-      declining: cv('--destructive'),
-    }
-    for (const ev of graphStore.evolutionEdges) {
-      // 业务说明：在已截断的岗位列表中查找演进边的源节点与目标节点，仅渲染两端均存在的边
-      const src = limitedPositions.find(p => p.id === ev.source_id || p.properties.name === ev.source_id)
-      const tgt = limitedPositions.find(p => p.id === ev.target_id || p.properties.name === ev.target_id)
-      if (src && tgt) {
-        const trend = ev.properties.trend ?? 'stable'
-        const color = trendColors[trend] ?? cv('--muted-foreground')
-        graphEdges.push({
-          id: `evo-${src.id}-${tgt.id}`,
-          source: src.id,
-          target: tgt.id,
-          style: {
-            stroke: color,
-            // 业务说明：边粗细基于相似度权重映射，权重越高线条越粗
-            lineWidth: 2 + (ev.properties.weight ?? 0.5) * 3,
-            opacity: 0.85,
-            lineDash: [12, 6],
-            endArrow: true,
-            endArrowSize: 8,
-            // 业务说明：边标签展示趋势箭头与相似度百分比，如 "↑ 85%"
-            labelText: `${trend === 'rising' ? '↑' : trend === 'declining' ? '↓' : '→'} ${Math.round((ev.properties.similarity ?? 0) * 100)}%`,
-            labelFill: color,
-            labelFontSize: 9,
-            labelFontWeight: 'bold' as const,
-            labelOffsetY: -6,
-            labelPlacement: 'center' as const,
-          },
-        })
-      }
-    }
-  }
-
-  // 技术说明：注入节点与边数据，使用 radial 布局以领域节点为中心辐射排列岗位
-  graph.value.setData({ nodes: graphNodes, edges: graphEdges })
-  graph.value.setLayout({ type: 'radial', unitRadius: 160, preventOverlap: true, nodeSize: 48, focusNode: kaId || undefined, animate: false })
-  graph.value.render()
-  // 技术说明：延迟 300ms 后自适应视图，确保 radial 布局计算完成后再调整视口
-  setTimeout(() => graph.value?.fitView(), 300)
-}
-
-// ── Layer 3: Detail (Position + its Skills) ──
-// 业务说明：渲染第三层「技能详情」图层，以当前展开的岗位为中心，辐射展示其所需技能节点
-function renderDetailLayer() {
-  if (!graph.value) return
-  const posId = graphStore.expandedPositionId
-  if (!posId) return
-
-  const graphNodes: NodeData[] = []
-  const graphEdges: EdgeData[] = []
-  // 业务说明：获取当前岗位所属领域 ID 及颜色，用于构建领域背景节点与配色统一
-  const kaId = graphStore.expandedKAId
-  const kaColor = kaId ? (props.kaColorMap.get(kaId) ?? cv('--chart-3')) : cv('--chart-3')
-
-  // 业务说明：构建领域背景节点，尺寸较小（36px）、低透明度，作为上下文参照
-  if (kaId) {
-    graphNodes.push({
-      id: kaId,
-      style: {
-        size: 36,
-        fill: kaColor,
-        fillOpacity: 0.35,
-        stroke: kaColor,
-        lineWidth: 1,
-        labelText: graphStore.expandedKAName,
-        labelFill: cv('--muted-foreground'),
-        labelFontSize: 10,
-        labelPlacement: 'bottom' as const,
-        labelOffsetY: 4,
-      },
-    })
-  }
-
-  // 业务说明：构建中心岗位节点，尺寸 50px，使用岗位固定色，高透明度与阴影突出中心地位
-  const posNode = graphStore.nodeMap.get(posId)
-  graphNodes.push({
-    id: posId,
-    style: {
-      size: 50,
-      fill: NODE_TYPE_COLORS.Position,
-      fillOpacity: 0.9,
-      stroke: cv('--primary-hover'),
-      lineWidth: 3,
-      labelText: posNode?.properties.name ?? '岗位',
-      labelFill: cv('--primary-foreground'),
-      labelFontSize: 13,
-      labelFontWeight: 'bold' as const,
-      labelPlacement: 'center' as const,
-      shadowColor: 'rgba(59,130,246,0.3)',
-      shadowBlur: 12,
-    },
-  })
-
-  // 业务说明：获取当前岗位的所有技能关联边，并按熟练度筛选条件过滤
-  const allPosEdges = graphStore.visibleEdges.filter(e => e.source_id === posId)
-
-  // 业务说明：判断是否存在非全选的熟练度筛选，若筛选条件不足 3 项则认为有激活过滤
-  const hasActiveFilter = props.proficiencyFilter.length < 3
-  const filteredEdges = hasActiveFilter
-    ? allPosEdges.filter(e => {
-        const skillNode = graphStore.nodeMap.get(e.target_id)
-        if (!skillNode) return false
-        // 业务说明：优先读取技能节点属性中的 proficiency，其次读取边属性中的 level
-        const level = (e.properties as Record<string, unknown>)?.level
-        const prof = skillNode.properties.proficiency || (typeof level === 'string' ? level : '') || ''
-        return prof ? props.proficiencyFilter.includes(prof) : true
-      })
-    : allPosEdges
-
-  // 业务说明：应用 maxNodesLimit 截断技能节点数量，优先保留权重高的技能（核心技能优先展示）
-  const maxSkillNodes = Math.max(props.maxNodesLimit - 3, 5)
-  const sortedEdges = [...filteredEdges].sort((a, b) => (b.properties?.weight ?? 0.5) - (a.properties?.weight ?? 0.5))
-  const posEdges = sortedEdges.slice(0, maxSkillNodes)
-  const maxWeight = Math.max(...posEdges.map(e => e.properties?.weight ?? 0.5), 0.1)
-
-  // 业务说明：遍历筛选后的技能边，构建技能节点与岗位到技能的 REQUIRES 边
-  for (const e of posEdges) {
-    const skillNode = graphStore.nodeMap.get(e.target_id)
-    if (!skillNode) continue
-    const weight = e.properties?.weight ?? 0.5
-    // 业务说明：权重 ≥ 0.6 判定为必需技能，使用技能主色；否则判定为工具/辅助技能，使用辅助色
-    const isRequired = weight >= 0.6
-    const size = 14 + (weight / maxWeight) * 14
-    const skillColor = isRequired ? NODE_TYPE_COLORS.Skill : NODE_TYPE_COLORS.Tool
-
-    graphNodes.push({
-      id: e.target_id,
-      style: {
-        size,
-        fill: skillColor,
-        fillOpacity: 0.8,
-        // 业务说明：必需技能使用成功色描边，辅助技能使用警告色描边，形成视觉区分
-        stroke: isRequired ? cv('--success') : cv('--warning'),
-        lineWidth: 1,
-        labelText: skillNode.properties.name,
-        labelFill: cv('--foreground'),
-        labelFontSize: 10,
-        labelPlacement: 'bottom' as const,
-        labelOffsetY: 4,
-      },
-    })
-
-    // 业务说明：构建岗位到技能的 REQUIRES 边，必需技能使用实线+无箭头，辅助技能使用虚线+箭头
-    graphEdges.push({
-      id: `${posId}-${e.target_id}-REQUIRES`,
-      source: posId,
-      target: e.target_id,
-      style: {
-        stroke: skillColor,
-        lineWidth: isRequired ? 2 : 1.5,
-        opacity: 0.6,
-        lineDash: isRequired ? [] : [5, 3],
-        endArrow: !isRequired,
-      },
-    })
-  }
-
-  // 技术说明：注入节点与边数据，使用 radial 布局以岗位节点为中心辐射排列技能
-  graph.value.setData({ nodes: graphNodes, edges: graphEdges })
-  graph.value.setLayout({ type: 'radial', unitRadius: 140, preventOverlap: true, nodeSize: 32, focusNode: posId, animate: false })
-  graph.value.render()
-  // 技术说明：延迟 300ms 自适应视图，确保 radial 布局稳定后再调整视口
-  setTimeout(() => graph.value?.fitView(), 300)
 }
 
 // ── Resize handler ──

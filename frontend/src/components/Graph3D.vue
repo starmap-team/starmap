@@ -11,18 +11,26 @@
  * - Hover tooltip via NodeTooltip3D
  */
 import { ref, onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue'
-import type * as THREE from 'three'
-import type { NodeObject, LinkObject } from '3d-force-graph'
+import type { LinkObject } from '3d-force-graph'
 import {
   nodeColor,
   edgeColor,
   withAlpha,
   SCENE_PALETTE,
-  toThreeHex,
 } from '@/utils/graphColors'
 import { chartColors } from '@/utils/chartTheme'
 import NodeTooltip3D from './NodeTooltip3D.vue'
 import { Loading } from '@element-plus/icons-vue'
+import {
+  type GraphNode3D,
+  getNodeLabel,
+  getNodeRadius,
+  NODE_COLLISION_PADDING,
+  buildNodeThreeObject,
+} from '@/composables/useNodeThreeObject'
+import { disposeGlowCache } from '@/composables/useGlowTexture'
+import { disposeTextCache } from '@/composables/useTextSprite'
+import { useCameraPresets, type CameraPreset } from '@/composables/useCameraPresets'
 
 // ── Security ──
 function escapeHtml(s: string): string {
@@ -32,21 +40,6 @@ function escapeHtml(s: string): string {
 }
 
 // ── Types ──
-// ponytail: extend 3d-force-graph's NodeObject to carry our domain fields
-interface GraphNode3D extends NodeObject {
-  labels?: string[]
-  color?: string
-  properties: {
-    name: string
-    category?: string
-    proficiency?: string
-    position_count?: number
-    skill_count?: number
-    weight?: number
-    [key: string]: unknown
-  }
-}
-
 interface GraphLink3D extends LinkObject<GraphNode3D> {
   type?: string
   properties?: {
@@ -58,8 +51,6 @@ interface GraphLink3D extends LinkObject<GraphNode3D> {
     evidence_count?: number
   }
 }
-
-export type CameraPreset = 'overview' | 'domain' | 'position'
 
 // ── Props ──
 const props = withDefaults(defineProps<{
@@ -94,7 +85,6 @@ const emit = defineEmits<{
 const containerRef = ref<HTMLElement | null>(null)
 const webglSupported = ref(true)
 const fps = ref(0)
-const autoRotate = ref(false)
 const isReady = ref(false)
 const tooltipNode = ref<{
   id: string; name: string; type: string;
@@ -110,30 +100,11 @@ const tooltipVisible = ref(false)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const graphInstance = shallowRef<any>(null)
 
-// ── Node helpers ──
-function getNodeLabel(node: GraphNode3D): string {
-  return node.labels?.[0] ?? 'Unknown'
-}
-
-/** 节点间距因子：用于在 force 模拟中预留额外空间，防止 3D 球体边界粘连 */
-const NODE_COLLISION_PADDING = 1.6
-
-function getNodeRadius(node: GraphNode3D): number {
-  const label = getNodeLabel(node)
-  switch (label) {
-    case 'KnowledgeArea': {
-      const skills = node.properties.skill_count ?? 1
-      // Cap radius growth to prevent oversized nodes that overlap and stick together
-      return 6 + Math.min(Math.sqrt(skills) * 2, 14)
-    }
-    case 'Position':
-      return 4 + (node.properties.weight ?? 0.5) * 3.5
-    case 'Skill':
-      return 2.5 + (node.properties.weight ?? 0.5) * 2.5
-    default:
-      return 3
-  }
-}
+// ── Camera presets composable ──
+const { autoRotate, setCameraPreset, resetCamera, toggleAutoRotate, clearAutoRotateTimer } = useCameraPresets(
+  graphInstance,
+  () => props.nodes,
+)
 
 // ── Initialize 3D graph (async, dynamic import) ──
 const cc = chartColors()
@@ -213,7 +184,7 @@ async function initGraph() {
       const isDomain = label === 'KnowledgeArea'
       const fontSize = isDomain ? 14 : 11
       const padding = isDomain ? '6px 14px' : '4px 10px'
-      return `<div style="
+      return `<div style="\
         font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
         font-size: ${fontSize}px; font-weight: 700; color: ${SCENE_PALETTE.textColor};
         background: rgba(10,14,26,0.92); padding: ${padding};
@@ -340,374 +311,6 @@ async function initGraph() {
   graph.graphData({ nodes: props.nodes, links: props.links })
 
   isReady.value = true
-}
-
-// ── Build custom Three.js object for a node (sphere + glow + text label) ──
-function buildNodeThreeObject(node: NodeObject): import('three').Object3D {
-  const n = node as GraphNode3D
-  const label = getNodeLabel(n)
-  const radius = getNodeRadius(n)
-  const color = toThreeHex(n.color ?? nodeColor(label))
-
-  const THREE = (window as unknown as Record<string, unknown>).__THREE as typeof import('three') | undefined
-  if (!THREE) {
-    // Fallback: return undefined to use default sphere rendering
-    return undefined as unknown as import('three').Object3D
-  }
-
-  const geometry = new THREE.SphereGeometry(radius, 32, 32)
-
-  if (label === 'KnowledgeArea') {
-    const material = new THREE.MeshPhysicalMaterial({
-      color,
-      emissive: color,
-      emissiveIntensity: 0.35,
-      transparent: true,
-      opacity: 0.75,
-      roughness: 0.25,
-      metalness: 0.6,
-      clearcoat: 0.8,
-      clearcoatRoughness: 0.1,
-    })
-    const mesh = new THREE.Mesh(geometry, material)
-
-    const haloGeometry = new THREE.SphereGeometry(radius * 1.4, 24, 24)
-    const haloMaterial = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.12,
-      depthWrite: false,
-      side: THREE.BackSide,
-    })
-    mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
-
-    const spriteMaterial = new THREE.SpriteMaterial({
-      map: createGlowTexture(color, THREE),
-      transparent: true,
-      opacity: 0.25,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    })
-    const sprite = new THREE.Sprite(spriteMaterial)
-    sprite.scale.set(radius * 5, radius * 5, 1)
-    mesh.add(sprite)
-
-    const textSprite = createTextSprite(n.properties.name, radius, 'domain', THREE)
-    textSprite.position.y = radius + 2
-    mesh.add(textSprite)
-
-    return mesh as unknown as import('three').Object3D
-  }
-
-  if (label === 'Position') {
-    const material = new THREE.MeshPhysicalMaterial({
-      color,
-      emissive: color,
-      emissiveIntensity: 0.2,
-      transparent: true,
-      opacity: 0.85,
-      roughness: 0.3,
-      metalness: 0.5,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.15,
-    })
-    const mesh = new THREE.Mesh(geometry, material)
-
-    const haloGeometry = new THREE.SphereGeometry(radius * 1.3, 24, 24)
-    const haloMaterial = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.08,
-      depthWrite: false,
-      side: THREE.BackSide,
-    })
-    mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
-
-    const textSprite = createTextSprite(n.properties.name, radius, 'position', THREE)
-    textSprite.position.y = radius + 1.5
-    mesh.add(textSprite)
-
-    return mesh as unknown as import('three').Object3D
-  }
-
-  if (label === 'Skill') {
-    const material = new THREE.MeshPhysicalMaterial({
-      color,
-      emissive: color,
-      emissiveIntensity: 0.15,
-      transparent: true,
-      opacity: 0.9,
-      roughness: 0.4,
-      metalness: 0.35,
-      clearcoat: 0.4,
-      clearcoatRoughness: 0.2,
-    })
-    const mesh = new THREE.Mesh(geometry, material)
-
-    const haloGeometry = new THREE.SphereGeometry(radius * 1.2, 24, 24)
-    const haloMaterial = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.05,
-      depthWrite: false,
-      side: THREE.BackSide,
-    })
-    mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
-
-    if (radius >= 3) {
-      const textSprite = createTextSprite(n.properties.name, radius, 'skill', THREE)
-      textSprite.position.y = radius + 1.2
-      mesh.add(textSprite)
-    }
-
-    return mesh as unknown as import('three').Object3D
-  }
-
-  // Default fallback for unknown node types
-  return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color })) as unknown as import('three').Object3D
-}
-
-// ── Glow texture cache (key = hexColor) ──
-const _glowCache = new Map<number, THREE.Texture>()
-
-/** 释放 glow 纹理缓存（组件卸载时调用）。 */
-function disposeGlowCache() {
-  for (const texture of _glowCache.values()) texture.dispose()
-  _glowCache.clear()
-}
-
-// ── Glow texture generator (canvas-based, with cache) ──
-function createGlowTexture(hexColor: number, THREE_NS: typeof import('three')): THREE.Texture {
-  const cached = _glowCache.get(hexColor)
-  if (cached) return cached
-
-  const size = 128
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d')!
-
-  // Extract RGB from hex
-  const r = (hexColor >> 16) & 0xff
-  const g = (hexColor >> 8) & 0xff
-  const b = hexColor & 0xff
-
-  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
-  gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.6)`)
-  gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.25)`)
-  gradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, 0.08)`)
-  gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`)
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, size, size)
-
-  const texture = new THREE_NS.CanvasTexture(canvas)
-  texture.needsUpdate = true
-  _glowCache.set(hexColor, texture)
-  return texture
-}
-
-// ── Text label cache (key = "name|type") ──
-const _textCache = new Map<string, THREE.Texture>()
-
-/** 释放文字纹理缓存（组件卸载时调用）。 */
-function disposeTextCache() {
-  for (const texture of _textCache.values()) texture.dispose()
-  _textCache.clear()
-}
-
-// ── Text sprite generator (canvas-based, with cache) ──
-function createTextSprite(
-  text: string,
-  nodeRadius: number,
-  nodeType: 'domain' | 'position' | 'skill',
-  THREE_NS: typeof import('three'),
-): import('three').Sprite {
-  const cacheKey = `${text}|${nodeType}`
-  let texture = _textCache.get(cacheKey)
-
-  if (!texture) {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')!
-
-    // Font sizing based on node type
-    const fontSize = nodeType === 'domain' ? 28 : nodeType === 'position' ? 22 : 18
-    const lineHeight = fontSize * 1.4
-    const maxWidth = nodeType === 'domain' ? 280 : nodeType === 'position' ? 220 : 180
-    const paddingX = 16
-    const paddingY = 10
-
-    ctx.font = `700 ${fontSize}px 'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif`
-
-    // Word-wrap long text
-    const words = text.split('')
-    const lines: string[] = []
-    let currentLine = ''
-    for (const ch of words) {
-      const testLine = currentLine + ch
-      const metrics = ctx.measureText(testLine)
-      if (metrics.width > maxWidth && currentLine.length > 0) {
-        lines.push(currentLine)
-        currentLine = ch
-      } else {
-        currentLine = testLine
-      }
-    }
-    if (currentLine) lines.push(currentLine)
-    if (lines.length === 0) lines.push(text)
-
-    const canvasWidth = maxWidth + paddingX * 2
-    const canvasHeight = lines.length * lineHeight + paddingY * 2
-    canvas.width = canvasWidth
-    canvas.height = canvasHeight
-
-    // Re-apply font after resize
-    ctx.font = `700 ${fontSize}px 'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-
-    // Draw background pill
-    const cornerRadius = 10
-    ctx.fillStyle = 'rgba(10, 14, 26, 0.85)'
-    roundRect(ctx, 0, 0, canvasWidth, canvasHeight, cornerRadius)
-    ctx.fill()
-
-    // Draw border
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)'
-    ctx.lineWidth = 1.5
-    roundRect(ctx, 0.5, 0.5, canvasWidth - 1, canvasHeight - 1, cornerRadius)
-    ctx.stroke()
-
-    // Draw text with shadow for readability
-    ctx.fillStyle = '#e2e8f0'
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)'
-    ctx.shadowBlur = 4
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 1
-
-    const startY = (canvasHeight - (lines.length - 1) * lineHeight) / 2
-    for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], canvasWidth / 2, startY + i * lineHeight)
-    }
-
-    texture = new THREE_NS.CanvasTexture(canvas)
-    texture.needsUpdate = true
-    _textCache.set(cacheKey, texture)
-  }
-
-  const spriteMaterial = new THREE_NS.SpriteMaterial({
-    map: texture,
-    transparent: true,
-    opacity: 0.95,
-    depthWrite: false,
-  })
-  const sprite = new THREE_NS.Sprite(spriteMaterial)
-
-  // Scale sprite to match node size — larger nodes get proportionally larger labels
-  const scaleFactor = nodeType === 'domain' ? 0.18 : nodeType === 'position' ? 0.14 : 0.1
-  const img = texture.image as HTMLCanvasElement | undefined
-  const aspect = img ? img.width / img.height : 2
-  sprite.scale.set(nodeRadius * scaleFactor * aspect, nodeRadius * scaleFactor, 1)
-
-  return sprite
-}
-
-/** Canvas roundRect helper for pill-shaped label backgrounds */
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number, r: number,
-) {
-  ctx.beginPath()
-  ctx.moveTo(x + r, y)
-  ctx.lineTo(x + w - r, y)
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
-  ctx.lineTo(x + w, y + h - r)
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-  ctx.lineTo(x + r, y + h)
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
-  ctx.lineTo(x, y + r)
-  ctx.quadraticCurveTo(x, y, x + r, y)
-  ctx.closePath()
-}
-
-// ── Camera presets ──
-let _autoRotateTimer: ReturnType<typeof setTimeout> | null = null
-
-function setCameraPreset(preset: CameraPreset) {
-  const graph = graphInstance.value
-  if (!graph) return
-
-  // Stop auto-rotate during transition
-  const controls = graph.controls()
-  if (controls) {
-    controls.autoRotate = false
-  }
-
-  const dist = { x: 0, y: 0, z: 0 }
-  let distance = 0
-
-  switch (preset) {
-    case 'overview':
-      // Pull camera far back for panoramic view
-      distance = Math.max(400, props.nodes.length * 3.5)
-      dist.x = distance * 0.7
-      dist.y = distance * 0.5
-      dist.z = distance * 0.9
-      break
-
-    case 'domain':
-      // Closer, angled view focusing on domain clusters
-      distance = Math.max(250, props.nodes.length * 1.8)
-      dist.x = distance * 0.5
-      dist.y = distance * 0.7
-      dist.z = distance * 0.6
-      break
-
-    case 'position':
-      // Tight view for position-skill networks
-      distance = Math.max(180, props.nodes.length * 1.2)
-      dist.x = distance * 0.4
-      dist.y = distance * 0.4
-      dist.z = distance * 0.9
-      break
-  }
-
-  // Animate camera position
-  graph.cameraPosition(
-    { x: dist.x, y: dist.y, z: dist.z },
-    { x: 0, y: 0, z: 0 },  // lookAt center
-    1500  // transition duration ms
-  )
-
-  // Restore auto-rotate after transition
-  if (autoRotate.value) {
-    _autoRotateTimer = setTimeout(() => {
-      if (controls) controls.autoRotate = true
-    }, 1600)
-  }
-}
-
-// ── Reset camera to initial position ──
-function resetCamera() {
-  const graph = graphInstance.value
-  if (!graph) return
-  const dist = Math.max(350, props.nodes.length * 2.5)
-  graph.cameraPosition(
-    { x: dist * 0.6, y: dist * 0.5, z: dist * 0.8 },
-    { x: 0, y: 0, z: 0 },
-    1200
-  )
-}
-
-// ── Toggle auto-rotate ──
-function toggleAutoRotate() {
-  autoRotate.value = !autoRotate.value
-  const graph = graphInstance.value
-  if (!graph) return
-  const controls = graph.controls()
-  if (controls) {
-    controls.autoRotate = autoRotate.value
-    controls.autoRotateSpeed = 0.8
-  }
 }
 
 // ── FPS monitoring ──
@@ -837,7 +440,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   cancelAnimationFrame(fpsRafId)
-  if (_autoRotateTimer) clearTimeout(_autoRotateTimer)
+  clearAutoRotateTimer()
   if (containerRef.value && _mouseMoveHandler) {
     containerRef.value.removeEventListener('mousemove', _mouseMoveHandler)
   }
