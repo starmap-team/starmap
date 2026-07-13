@@ -300,12 +300,23 @@ async def update_skill_progress(
     plan_id: str,
     body: UpdateProgressRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> SkillProgressItem:
     """Update learning progress for a specific skill."""
+    user_id = user.get("sub", "anonymous")
     try:
         pid = uuid.UUID(plan_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
+
+    # IDOR guard: verify plan ownership before allowing mutation
+    plan_stmt = sa.select(LearningPlan).where(LearningPlan.id == pid)
+    plan_result = await session.execute(plan_stmt)
+    plan = plan_result.scalar_one_or_none()
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    if plan.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to modify this plan")
 
     progress = await update_progress(
         session,
@@ -347,8 +358,10 @@ async def add_skill_to_plan(
     plan_id: str,
     body: AddSkillRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> SkillProgressItem:
     """Add a new skill to an existing learning plan."""
+    user_id = user.get("sub", "anonymous")
     try:
         pid = uuid.UUID(plan_id)
     except ValueError as exc:
@@ -360,6 +373,9 @@ async def add_skill_to_plan(
     plan = plan_result.scalar_one_or_none()
     if plan is None:
         raise HTTPException(status_code=404, detail="Plan not found")
+    # IDOR guard: verify plan ownership
+    if plan.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to modify this plan")
 
     # Check if skill already exists in plan
     existing_stmt = sa.select(LearningProgress).where(

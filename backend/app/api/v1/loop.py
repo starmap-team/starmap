@@ -8,7 +8,7 @@ Endpoints:
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -19,7 +19,7 @@ from app.core.pipeline.loop_orchestrator import (
     get_loop_history,
     get_loop_status,
 )
-from app.dependencies import get_db_session
+from app.dependencies import get_current_user, get_db_session
 
 router = APIRouter(prefix="/loop", tags=["loop"])
 
@@ -73,6 +73,7 @@ class LoopHistoryResponse(BaseModel):
 async def run_loop(
     req: LoopRunRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    _user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> LoopRunResponse:
     """Trigger the closed-loop end-to-end pipeline.
 
@@ -98,6 +99,7 @@ async def run_loop(
 async def loop_status(
     run_id: str,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    _user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> dict:
     """Get the status and result of a specific loop run."""
     status = await get_loop_status(run_id, session=session)
@@ -109,6 +111,7 @@ async def loop_status(
 @router.get("/history", response_model=LoopHistoryResponse)
 async def loop_history(
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    _user: Annotated[dict[str, Any], Depends(get_current_user)],
     limit: int = 50,
 ) -> LoopHistoryResponse:
     """Get the history of loop runs."""
