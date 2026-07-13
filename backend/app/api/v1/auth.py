@@ -1,12 +1,11 @@
 """认证 API：用户登录、JWT token 签发。"""
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
-import json
 import time
+import uuid
 
+import bcrypt
+import jwt
 from fastapi import APIRouter, HTTPException, status
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -31,24 +30,23 @@ class LoginResponse(BaseModel):
 
 
 def _encode_jwt(payload: dict[str, str | int | float]) -> str:
-    """手动签发 JWT（HMAC-SHA256），与 dependencies.py _decode_token 验证逻辑一致。
+    """签发 JWT（PyJWT），与 dependencies.py _decode_token 验证逻辑一致。"""
+    return jwt.encode(
+        payload,
+        settings.secret_key,
+        algorithm="HS256",
+    )
 
-    JWT 格式: header.payload.signature
-    签名算法: HMAC-SHA256(settings.secret_key, header.payload)
+
+def _verify_password(plain: str, stored: str) -> bool:
+    """验证密码。支持 bcrypt hash 和明文（过渡期）。
+
+    bcrypt hash 以 $2b$ 或 $2a$ 开头，否则视为明文。
     """
-    header = base64.urlsafe_b64encode(
-        json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
-    ).rstrip(b"=").decode()
-
-    payload_b64 = base64.urlsafe_b64encode(
-        json.dumps(payload).encode()
-    ).rstrip(b"=").decode()
-
-    signing_input = f"{header}.{payload_b64}".encode()
-    sig = hmac.new(settings.secret_key.encode(), signing_input, hashlib.sha256).digest()
-    signature = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()
-
-    return f"{header}.{payload_b64}.{signature}"
+    if stored.startswith(("$2b$", "$2a$")):
+        return bcrypt.checkpw(plain.encode(), stored.encode())
+    # Legacy plaintext fallback (transition period)
+    return plain == stored
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -57,9 +55,10 @@ async def login(request: LoginRequest) -> dict:
     users = settings.parsed_users
     matched = None
     for u in users:
-        if u["username"] == request.username and u["password"] == request.password:
-            matched = u
-            break
+        if u["username"] == request.username:
+            if _verify_password(request.password, u["password"]):
+                matched = u
+            break  # Only one entry per username; stop after finding the match
 
     if not matched:
         logger.warning("Login failed for username: {}", request.username)
@@ -75,6 +74,10 @@ async def login(request: LoginRequest) -> dict:
         "username": matched["username"],
         "exp": now + settings.token_expire_hours * 3600,
         "iat": now,
+        "nbf": now,                          # SEC-03: not valid before issuance
+        "iss": settings.jwt_issuer,          # SEC-03: issuer identifier
+        "aud": settings.jwt_audience,        # SEC-03: audience identifier
+        "jti": str(uuid.uuid4()),            # SEC-03: unique token ID for revocation
     }
     token = _encode_jwt(payload)
 

@@ -50,41 +50,25 @@ async def get_db_session() -> AsyncIterator[AsyncSession]:
 
 
 def _decode_token(token: str) -> dict[str, Any]:
-    """解码 JWT token。使用 HMAC-SHA256，密钥来自 settings.secret_key。"""
-    import base64
-    import hashlib
-    import hmac
-    import json
+    """解码 JWT token。使用 PyJWT，密钥来自 settings.secret_key。"""
+    import jwt as _jwt
+    from datetime import timedelta
 
-    parts = token.split(".")
-    if len(parts) != 3:
-        raise ValueError("Invalid JWT format")
-
-    # 验证签名
-    signing_input = f"{parts[0]}.{parts[1]}".encode()
-    sig = hmac.new(
-        settings.secret_key.encode(), signing_input, hashlib.sha256
-    ).digest()
-    expected_sig = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()
-
-    if not hmac.compare_digest(expected_sig, parts[2]):
-        raise ValueError("Invalid JWT signature")
-
-    # 解码 payload
-    payload_b64 = parts[1]
-    # 补齐 padding
-    padding = 4 - len(payload_b64) % 4
-    if padding != 4:
-        payload_b64 += "=" * padding
-    payload_bytes = base64.urlsafe_b64decode(payload_b64)
-    payload = json.loads(payload_bytes)
-
-    # 检查过期
-    import time
-    exp = payload.get("exp")
-    if exp and exp < time.time():
-        raise ValueError("JWT expired")
-
+    try:
+        payload = _jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=["HS256"],
+            leeway=timedelta(seconds=settings.jwt_leeway_seconds),
+            options={
+                "require": ["exp", "iat", "sub"],
+                "verify_aud": False,  # Phase A: don't enforce aud claim yet
+            },
+        )
+    except _jwt.ExpiredSignatureError as e:
+        raise ValueError("JWT expired") from e
+    except _jwt.InvalidTokenError as e:
+        raise ValueError(f"Invalid JWT: {e}") from e
     return payload
 
 

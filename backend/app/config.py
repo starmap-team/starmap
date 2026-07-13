@@ -39,6 +39,18 @@ class Settings(BaseSettings):
         default=24, ge=1, le=720,
         description="JWT token 有效期（小时）",
     )
+    jwt_audience: str = Field(
+        default="starmap-api",
+        description="JWT audience claim (aud)",
+    )
+    jwt_issuer: str = Field(
+        default="starmap",
+        description="JWT issuer claim (iss)",
+    )
+    jwt_leeway_seconds: int = Field(
+        default=30, ge=0,
+        description="JWT clock skew tolerance (seconds)",
+    )
 
     # 数据来源权威度评分 (admin.py source management)
     authority_scores: dict[str, float] = {
@@ -181,6 +193,28 @@ class Settings(BaseSettings):
                 f"生产环境至少需要 32 字符。"
                 f"生成方式：python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
+
+        # SEC-02: 生产环境禁止明文密码
+        if self.app_env == "production":
+            plaintext_users = [
+                u["username"] for u in self.parsed_users
+                if not u["password"].startswith(("$2b$", "$2a$"))
+            ]
+            if plaintext_users:
+                raise RuntimeError(
+                    f"Plaintext passwords not allowed in production for users: {plaintext_users}. "
+                    f"Use bcrypt hash: python -m app.utils.hash_password <password>"
+                )
+        else:
+            plaintext_users = [
+                u["username"] for u in self.parsed_users
+                if not u["password"].startswith(("$2b$", "$2a$"))
+            ]
+            if plaintext_users:
+                logger.warning(
+                    "⚠️  以下用户使用明文密码（建议迁移到 bcrypt hash）：{}",
+                    ", ".join(plaintext_users),
+                )
 
         # D-04/D-08: LLM key 启动校验 — 仅 WARNING 不阻止启动
         # Ollama 本地模型始终可作降级（docker-compose 已含），无云端 key 不致命
