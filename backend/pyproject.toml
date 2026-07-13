@@ -76,7 +76,7 @@ testpaths = ["tests"]
 # 与 tests/unit/test_proxy_breaker.py 引用）。crawler 与 app 在容器内为同级目录，
 # 本地测试通过 pythonpath 模拟同样的布局，无需改动测试源码。
 pythonpath = [".", ".."]
-addopts = "--cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=60"
+addopts = "--cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=70"
 markers = [
     "smoke: marks tests as smoke suite (run on demand for pipeline E2E validation, Phase 10 PIPE-04)",
     "e2e: marks tests as full end-to-end (slow, run separately)",
