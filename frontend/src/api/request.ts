@@ -1,4 +1,4 @@
-﻿/**
+/**
  * axios 实例封装
  * - 全局 loading 条
  * - 友好错误提示（ElMessage）
@@ -127,16 +127,17 @@ request.interceptors.response.use(
       // Clear stale token and user state on 401
       localStorage.removeItem('starmap_token')
       localStorage.removeItem('token')
-      // Emit a window-level event so the router layer can redirect to /login.
-      // Each request() failure surfaces synchronously, so a single event bus
-      // decouples axios from vue-router without pulling useRouter() into this
-      // module (which would force Pinia/router cycle).
-      ElMessage.warning({
-        message: '登录已过期，请重新登录',
-        duration: 5000,
-        showClose: true,
-      })
-      window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+      // /auth/login 的 401 表示「用户名/密码错误」，不属于 token 过期，
+      // 不要在此处弹"登录已过期"，由 Login.vue 的 catch 显示具体错误
+      const _isLoginEndpoint = (error.config?.url ?? '').includes('/auth/login')
+      if (!_isLoginEndpoint) {
+        ElMessage.warning({
+          message: '登录已过期，请重新登录',
+          duration: 5000,
+          showClose: true,
+        })
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+      }
     } else if (status === 403) {
       ElMessage.error({
         message: '您没有权限执行此操作',

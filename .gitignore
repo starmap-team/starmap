@@ -74,6 +74,7 @@ logs/
 # ---- 调试用临时文件 ----
 _backend*.txt
 _*.log
+debug-*.log
 # ---- 临时脚本 ----
 git_*.bat
 git_*.ps1
@@ -87,6 +88,11 @@ cleanup.ps1
 .omo/
 graphify-out/
 screenshots/
+# ---- Playwright 测试产物 ----
+playwright-report/
+test-results/
+frontend/playwright-report/
+frontend/test-results/
 # ---- coverage 报告（CI 产物，不提交） ----
 
 # ---- 一次性 patch 脚本 ----
@@ -126,3 +132,5 @@ starmap.zip
 # Environment backups
 .env.bak
 # OS files
+# ---- 根目录临时文件 ----
+req.json

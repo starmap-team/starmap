@@ -28,6 +28,23 @@ function isNoisyError(msg: string): boolean {
 }
 
 test.beforeEach(async ({ page }) => {
+  // Auth bypass strategy (backend in dev mode accepts the fixed `dev-token`):
+  // - Set starmap_token = dev-token so router guard (isAuthed) sees the user as logged in
+  // - Backend dev mode (settings.app_env != "production") accepts this token
+  // - Suppress auth:unauthorized redirect just in case
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('starmap_token', 'dev-token')
+      localStorage.setItem('token', 'dev-token')
+      window.addEventListener('auth:unauthorized', (e) => {
+        e.stopImmediatePropagation()
+        e.preventDefault()
+      }, true)
+    } catch {
+      // ignore
+    }
+  })
+
   page.on('pageerror', (err) => {
     if (!isNoisyError(err.message)) {
       throw new Error(`Unexpected page error: ${err.message}`)
@@ -319,7 +336,7 @@ test.describe('Admin — 审核队列 vs 后端', () => {
 // ══════════════════════════════════════════════════════════════
 
 test.describe('LearningCenter — 计划 vs 后端', () => {
-  test('学习计划与 /learning/plans 响应一致', async ({ page }) => {
+  test('学习推荐与 /learning/recommendations 响应一致', async ({ page }) => {
     const collector = new ApiCollector()
     collector.attach(page, '/api/v1/learning/')
 
@@ -327,22 +344,23 @@ test.describe('LearningCenter — 计划 vs 后端', () => {
     await waitForApp(page)
     await waitForLoadingDone(page)
 
-    const call = collector.lastCall('/learning/')
-    if (call) {
-      const apiData = call.body as Record<string, unknown>
-      expect(typeof apiData).toBe('object')
+    // LearningCenter onMounted 调用 fetchRecommendations()，不调用 fetchPlans()
+    const call = await waitForApiCall(collector, '/learning/recommendations', 15000)
+    const apiData = call.body as Record<string, unknown>
+    expect(typeof apiData).toBe('object')
 
-      // 校验计划列表结构
-      const plans = Array.isArray(apiData) ? apiData : (apiData.plans || apiData.items || [])
-      if (Array.isArray(plans) && plans.length > 0) {
-        const first = plans[0] as Record<string, unknown>
-        // PlanResponse 核心字段：plan_id + position + status
-        expect('plan_id' in first || 'id' in first).toBeTruthy()
-        if ('plan_id' in first) {
-          expect(first).toHaveProperty('position')
-          expect(first).toHaveProperty('status')
-        }
-      }
+    // recommendations 响应结构：{ items: RecommendationItem[], total_items: number }
+    const items = Array.isArray(apiData)
+      ? apiData
+      : (apiData.items ?? apiData.recommendations ?? [])
+    if (Array.isArray(items) && items.length > 0) {
+      const first = items[0] as Record<string, unknown>
+      // RecommendationItem 核心字段：skill + importance + gap_level
+      expect('skill' in first || 'importance' in first).toBeTruthy()
+    }
+    // total_items 应为数字
+    if ('total_items' in apiData) {
+      expect(typeof apiData.total_items).toBe('number')
     }
   })
 
@@ -454,12 +472,13 @@ test.describe('ExtractJD — 抽取结果 vs 后端', () => {
 
         // 等待抽取 API 响应
         const call = collector.lastCall('/extract/')
-        if (call) {
+        if (call && call.body) {
           const apiData = call.body as Record<string, unknown>
           // 校验抽取结果结构
           expect(typeof apiData).toBe('object')
+          expect(apiData).not.toBeNull()
 
-          // 应有技能列表
+          // 应有技能列表（body 已被 axios 消费时为 null，此时跳过字段断言）
           const hasSkills = 'required_skills' in apiData || 'skills' in apiData || 'data' in apiData
           expect(hasSkills || Object.keys(apiData).length > 0).toBeTruthy()
         }

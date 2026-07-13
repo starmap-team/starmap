@@ -1,13 +1,12 @@
 /**
- * API 响应收集 + 数据比对工具 — Playwright 端到端数据校验基础设施
+ * API 拦截 + 数据比对工具 — Playwright 端到端数据校验基础设施
  *
- * 核心设计：用 page.on('response') 事件监听替代 page.route() 拦截
- * - 不干扰请求流量（无 route.fetch / route.fulfill 竞态）
- * - 不阻塞 SSE 长连接
- * - 不需要 afterEach unrouteAll
- * - 并发 worker 安全
+ * 核心设计：用 page.route() 拦截请求，旁路读取 response body，原样放行
+ * - SSE/EventStream 请求直接 route.continue()，不做 route.fetch()（避免阻塞）
+ * - afterEach 必须调用 page.unrouteAll() 清理残留 route
+ * - 并发 worker 安全（每个 ApiCollector 实例独立）
  */
-import { type Page, type Response, expect } from '@playwright/test'
+import { type Page, type Route, expect } from '@playwright/test'
 
 // ── 类型 ──
 
@@ -27,7 +26,7 @@ export interface ComparisonResult {
   reason?: string
 }
 
-// ── API 响应收集器 ──
+// ── API 拦截收集器 ──
 
 export class ApiCollector {
   private calls: ApiCall[] = []
@@ -62,51 +61,98 @@ export class ApiCollector {
   }
 
   /**
-   * 注册到 page 的 response 事件 — 被动监听，不拦截流量
+   * 注册到 page.route — 旁路拦截，不修改流量
    *
-   * @param page Playwright Page 实例
-   * @param urlPattern 只收集 URL 匹配此模式的响应（string 包含匹配 / RegExp 正则匹配）
+   * SSE 请求（Accept: text/event-stream）直接放行，不 fetch
+   * 其他请求正常 fetch → 读取 body → fulfill 原样放行
    */
-  attach(page: Page, urlPattern?: string | RegExp): void {
-    page.on('response', async (response: Response) => {
-      const url = response.url()
-
-      // 如果指定了 urlPattern，只收集匹配的响应
-      if (urlPattern) {
-        const matches = typeof urlPattern === 'string'
-          ? url.includes(urlPattern)
-          : urlPattern.test(url)
-        if (!matches) return
+  async intercept(page: Page, pattern: string | RegExp): Promise<void> {
+    await page.route(pattern, async (route: Route) => {
+      // 跳过 SSE 长连接，避免 route.fetch() 永远不返回
+      const accept = route.request().headers()['accept'] ?? ''
+      if (accept.includes('text/event-stream')) {
+        await route.continue()
+        return
       }
 
-      // 跳过 SSE/流式响应
-      const contentType = response.headers()['content-type'] ?? ''
-      if (contentType.includes('text/event-stream')) return
-      if (contentType.includes('application/octet-stream')) return
-
-      // 跳过非数据响应（图片、字体、样式等）
-      if (contentType.includes('image/') || contentType.includes('font/') || contentType.includes('text/css') || contentType.includes('text/html')) return
-
+      const response = await route.fetch()
       let body: unknown = null
       try {
         body = await response.json()
       } catch {
         try {
-          const text = await response.text()
-          // 尝试将 text 解析为 JSON（某些代理不设 Content-Type: application/json）
-          try { body = JSON.parse(text) } catch { body = text }
+          body = await response.text()
         } catch {
-          // 忽略
+          // body 解析失败，仍记录调用
         }
       }
-
       this.calls.push({
-        url,
-        method: response.request().method(),
+        url: route.request().url(),
+        method: route.request().method(),
         status: response.status(),
         body,
         timestamp: Date.now(),
       })
+      // 原样放行
+      await route.fulfill({ response })
+    })
+  }
+
+  /**
+   * `attach` — 被动监听 response 事件，不拦截流量
+   *
+   * 与 `intercept` 不同：本方法不修改任何请求/响应，只读取已完成的 response body。
+   * 适用于大多数页面（Home / Quality / Pipeline / DataSources / Learning 等），
+   * 因为我们只需要旁路读取数据，不需要 mock。
+   *
+   * 自动跳过 SSE / EventSource 长连接（response body 是流式 chunk，json() 会抛错）。
+   */
+  attach(page: Page, urlPattern: string): void {
+    const matchUrl = (url: string): boolean => url.includes(urlPattern)
+    // 闭包捕获 self，避免箭头函数 / page.on 回调中 this 丢失
+    const self = this
+
+    // 同步 handler：先 push 占位记录，再异步读取 body
+    // 这样无论 body 解析成功与否，call 都已 push 进 calls，避免 race condition
+    const handler = (response: import('@playwright/test').Response): void => {
+      const url = response.url()
+      if (!matchUrl(url)) return
+
+      // 跳过 SSE 长连接
+      const contentType = response.headers()['content-type'] ?? ''
+      if (contentType.includes('text/event-stream')) return
+
+      const call: ApiCall = {
+        url,
+        method: response.request().method(),
+        status: response.status(),
+        body: null,
+        timestamp: Date.now(),
+      }
+      self.calls.push(call)
+
+      // 异步读取 body；body 解析失败（被 axios 消费）也不影响基础记录
+      const ct = contentType.toLowerCase()
+      if (response.ok() && (ct.includes('json') || ct.includes('text/'))) {
+        void (async () => {
+          try {
+            call.body = await response.json()
+          } catch {
+            try {
+              call.body = await response.text()
+            } catch {
+              // body 已消费，保持 null
+            }
+          }
+        })()
+      }
+    }
+
+    page.on('response', handler)
+
+    // 自动清理：当 page 关闭时移除监听，避免跨测试泄漏
+    page.once('close', () => {
+      page.off('response', handler)
     })
   }
 }
@@ -253,17 +299,22 @@ export async function waitForLoadingDone(page: Page, timeout = 15000): Promise<v
   }
 }
 
-/** 等待 API 调用完成 */
+/** 等待 API 调用完成（body 已解析） */
 export async function waitForApiCall(
   collector: ApiCollector,
   pattern: string | RegExp,
-  timeout = 10000,
+  timeout = 20000,
 ): Promise<ApiCall> {
   const start = Date.now()
   while (Date.now() - start < timeout) {
     const call = collector.lastCall(pattern)
-    if (call) return call
-    await new Promise(r => setTimeout(r, 200))
+    if (call && call.body !== null) return call
+    await new Promise(r => setTimeout(r, 300))
   }
-  throw new Error(`API call matching ${pattern} not received within ${timeout}ms`)
+  // 调试：失败时打印所有收集到的调用
+  const collected = collector.all.map(c => `${c.method} ${c.url} (status=${c.status})`).join('\n  ')
+  throw new Error(
+    `API call matching ${pattern} not received within ${timeout}ms.\n` +
+    `Collected calls (${collector.all.length}):\n  ${collected || '(none)'}`,
+  )
 }

@@ -33,7 +33,17 @@ async function handleLogin() {
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
   } catch (e: unknown) {
-    ElMessage.error('登录失败: ' + (e instanceof Error ? e.message : '用户名或密码错误'))
+    // 401 由后端 detail 携带"用户名或密码错误"，其它状态码走兜底文案。
+    // 避免直接拼接 axios.message（会暴露"Request failed with status code 401"等非业务信息）。
+    const err = e as { response?: { status?: number; data?: { detail?: string } } }
+    const status = err?.response?.status
+    const detail = err?.response?.data?.detail
+    let msg = '登录失败，请稍后重试'
+    if (status === 401) msg = detail || '用户名或密码错误'
+    else if (status === 422) msg = '请输入有效的用户名和密码'
+    else if (status === 429) msg = '尝试次数过多，请稍后再试'
+    else if (status && status >= 500) msg = '服务暂不可用，请稍后重试'
+    ElMessage.error(msg)
   } finally {
     loading.value = false
   }
