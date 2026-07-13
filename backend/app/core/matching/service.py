@@ -13,7 +13,6 @@ from math import ceil
 from typing import Any
 from uuid import uuid4
 
-from fastapi import HTTPException
 from loguru import logger
 
 from app.core.matching.cache import get_match_cache
@@ -234,10 +233,8 @@ class MatchService:
         await self._load_prerequisite_map(driver)
         target_profile = await self._load_target_profile(driver, target_position, db_session, repo)
         if target_profile is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f'Position "{target_position}" not found in graph',
-            )
+            from app.exceptions import PositionNotFoundError
+            raise PositionNotFoundError(target_position)
 
         required_skills, bonus_skills, cii = self._apply_inflation_correction(target_profile)
 

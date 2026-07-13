@@ -200,11 +200,8 @@ async def compute_competitiveness(
 
     profile = await _match_service._load_target_profile(driver, target_position, db_session)
     if profile is None:
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=404,
-            detail=f'Position "{target_position}" not found in graph',
-        )
+        from app.exceptions import PositionNotFoundError
+        raise PositionNotFoundError(target_position)
 
     required_skills = profile.get("required", [])
     bonus_skills = profile.get("bonus", [])

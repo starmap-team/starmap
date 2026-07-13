@@ -146,6 +146,31 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 
 
+# Domain exception → HTTP response mapping
+from app.exceptions import PlanNotFoundError, PlanOwnershipError, PositionNotFoundError, StarMapError
+
+
+@app.exception_handler(PositionNotFoundError)
+async def position_not_found_handler(request: Request, exc: PositionNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(PlanNotFoundError)
+async def plan_not_found_handler(request: Request, exc: PlanNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.exception_handler(PlanOwnershipError)
+async def plan_ownership_handler(request: Request, exc: PlanOwnershipError) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detail": str(exc)})
+
+
+@app.exception_handler(StarMapError)
+async def starmap_error_handler(request: Request, exc: StarMapError) -> JSONResponse:
+    logger.opt(exception=True).error("Domain error on {} {}: {}", request.method, request.url.path, exc)
+    return JSONResponse(status_code=500, content={"detail": "Internal domain error"})
+
+
 # M17: Global exception handler — catches unhandled exceptions, logs them,
 # and returns a generic 500 without leaking internals.
 @app.exception_handler(Exception)
