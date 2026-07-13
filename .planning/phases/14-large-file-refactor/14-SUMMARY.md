@@ -63,3 +63,16 @@
 1. `ba340a4` — refactor(14-01): split LoopDemo into 6 sub-components + extract composables from Graph3D/Graph2D
 2. `2afca90` — refactor(14-02): split learning store into 3 + pipeline store into 2
 3. `61e99fa` — refactor(14-03): add useAsyncAction + useExport shared composables with tests
+
+## Santa Adversarial Verification: PASS
+
+All 6 checks passed:
+- File size reduction verified (exact match with claims)
+- All 20+ new files exist with non-trivial content
+- Barrel re-exports preserve full API
+- 226 unit tests pass
+- No broken import paths
+- Sub-components properly wired in LoopDemo
+
+### Post-verification fix
+- Pipeline barrel `usePipelineStore()` changed from naive spread to computed merge for `loading`/`error` — both sub-stores define `error`, spread would shadow one. Now uses `computed(() => run.runError || config.configError)` like the learning barrel.
