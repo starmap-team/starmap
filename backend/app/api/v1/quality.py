@@ -193,30 +193,8 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         trust_distribution.append({"range": label, "count": int(cnt)})
 
     # Build hallucination trend from skill_timeseries data (real data only)
-    from app.models.evolution_models import SkillTimeseries
-    ts_stmt = (
-        sa.select(
-            sa.func.date_trunc("month", SkillTimeseries.window_start).label("month"),
-            sa.func.count().label("total"),
-            sa.func.sum(sa.case((SkillTimeseries.source_count < 3, 1), else_=0)).label("low_source"),
-        )
-        .select_from(SkillTimeseries)
-        .group_by(sa.text("month"))
-        .order_by(sa.text("month"))
-    )
-    ts_rows = (await session.execute(ts_stmt)).all()
-    hallucination_trend: list[dict[str, Any]] = []
-    if ts_rows:
-        for row in ts_rows:
-            total = int(row.total)
-            low_source = int(row.low_source)
-            rate = low_source / total if total > 0 else 0.0
-            hallucination_trend.append({
-                "date": str(row.month)[:7],
-                "rate": round(rate, 3),
-            })
-    else:
-        logger.info("No timeseries data available for hallucination trend calculation")
+    from app.repositories.quality_repo import fetch_hallucination_trend
+    hallucination_trend = await fetch_hallucination_trend(session)
 
     # Generate source distribution from skill categories
     source_dist_stmt = (

@@ -127,67 +127,17 @@ async def _write_extraction_to_pg(
 ) -> bool | None:
     """Write extraction result to PostgreSQL PositionRecord + SkillRecord (LOOP-05).
 
+    Delegates to the extract repository — no raw SQL in the API layer.
     Returns True on success, None on failure (non-blocking).
     """
-    import sqlalchemy as sa
+    from app.repositories.extract_repo import write_extraction_to_pg
 
     data = pipeline_result.get("data")
     if not data or not data.get("position_name"):
         logger.debug("Skipping PG write: no extraction data or position_name")
         return None
 
-    position_name = data["position_name"]
-
-    try:
-        # Upsert PositionRecord
-        await session.execute(
-            sa.text("""
-                INSERT INTO position_records (id, name, industry, description, created_at)
-                VALUES (gen_random_uuid(), :name, :industry, :description, NOW())
-                ON CONFLICT (name) DO UPDATE SET industry = COALESCE(EXCLUDED.industry, position_records.industry)
-            """),
-            {
-                "name": position_name,
-                "industry": data.get("industry"),
-                "description": data.get("description") or data.get("responsibilities_text"),
-            },
-        )
-
-        # Collect all skill names from required + preferred
-        all_skills: list[str] = []
-        for s in data.get("required_skills", []):
-            name = s.get("skill") or s.get("name") if isinstance(s, dict) else str(s)
-            if name:
-                all_skills.append(name)
-        for s in data.get("preferred_skills", []):
-            name = s.get("skill") or s.get("name") if isinstance(s, dict) else str(s)
-            if name:
-                all_skills.append(name)
-
-        # Upsert SkillRecords
-        for skill_name in set(all_skills):
-            await session.execute(
-                sa.text("""
-                    INSERT INTO skill_records (id, name, category, source_count, first_detected_at, last_detected_at)
-                    VALUES (gen_random_uuid(), :name, 'hard_skill', 1, NOW(), NOW())
-                    ON CONFLICT (name) DO UPDATE SET
-                        source_count = skill_records.source_count + 1,
-                        last_detected_at = NOW()
-                """),
-                {"name": skill_name},
-            )
-
-        await session.commit()
-        logger.info(
-            "PG write complete: PositionRecord '{}' + {} skills upserted",
-            position_name,
-            len(set(all_skills)),
-        )
-        return True
-    except Exception as e:
-        await session.rollback()
-        logger.warning("PG write failed (non-blocking): {}", e)
-        return None
+    return await write_extraction_to_pg(session, pipeline_data=data)
 
 
 @router.post("/jd", response_model=ExtractionResult)
