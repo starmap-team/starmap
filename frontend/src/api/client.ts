@@ -5,8 +5,8 @@
  *   import { api } from '@/api/client'
  *   const data = await api.extractJd({ body: { jd_text: "..." } })
  *
- * New code should use `api.*` instead of `request.get/post` + `as any`.
- * Existing `as any` casts can be migrated incrementally.
+ * New code should use `api.*` instead of `request.get/post` + manual casts.
+ * All endpoints are now fully typed via OpenAPI schema types.
  */
 import type { paths } from '@/api/schema'
 import request from '@/api/request'
@@ -66,11 +66,9 @@ export const api = {
   getPositionDetail: (positionId: string) =>
     typedGet(`/positions/${positionId}`),
 
-  // Match
-  // ponytail: body cast to match schema type; store callers use varying shapes
-  // migrate to direct RequestBody<'/match/position','post'> when stores align
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  runMatch: (body: any) =>
+  // Match — typed with OpenAPI schema; stores that pass varying shapes
+  // should normalize before calling, or use typedPost directly.
+  runMatch: (body: RequestBody<'/match/position', 'post'>) =>
     typedPost('/match/position', body),
 
   // Evolution
