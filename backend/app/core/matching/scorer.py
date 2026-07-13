@@ -44,11 +44,114 @@ def _semantic_similarity(left: str, right: str) -> float:
     return ratio
 
 
+def _batch_chroma_match(
+    target_names: list[str],
+    candidate_canonical_names: set[str],
+) -> dict[str, float]:
+    """Query ChromaDB in a single batch for multiple target names.
+
+    Replaces per-skill calls to normalize_by_vector with one batch query,
+    reducing N ChromaDB round-trips to 1.
+
+    Args:
+        target_names: List of target skill canonical names needing ChromaDB fallback.
+        candidate_canonical_names: Set of candidate canonical names to match against.
+
+    Returns:
+        Dict mapping target_name -> chroma_match_score for matched skills.
+    """
+    if not target_names or not candidate_canonical_names:
+        return {}
+
+    try:
+        from app.core.extraction.normalize import (
+            CHROMA_COLLECTION_NAME,
+            _is_chroma_marked_unavailable,
+            _mark_chroma_unavailable,
+        )
+        from app.core.extraction.normalize import get_embedding
+    except ImportError:
+        return {}
+
+    # Negative-cache fast-fail
+    if _is_chroma_marked_unavailable():
+        return {}
+
+    try:
+        import chromadb
+    except ImportError:
+        _mark_chroma_unavailable("chromadb-not-installed")
+        return {}
+
+    # Connect to ChromaDB
+    try:
+        from app.config import settings
+
+        chroma_client = chromadb.HttpClient(
+            host=settings.chroma_host, port=settings.chroma_port,
+        )
+    except Exception:
+        _mark_chroma_unavailable("client-unreachable")
+        return {}
+
+    collection_name = CHROMA_COLLECTION_NAME
+    try:
+        collection = chroma_client.get_collection(collection_name)
+    except Exception:
+        if not _is_chroma_marked_unavailable():
+            _mark_chroma_unavailable(f"collection-missing:{collection_name}")
+        return {}
+
+    # Batch embed all target names
+    query_embeddings: list[list[float]] = []
+    valid_targets: list[str] = []
+    for name in target_names:
+        emb = get_embedding(name)
+        if emb:
+            query_embeddings.append(emb)
+            valid_targets.append(name)
+
+    if not query_embeddings:
+        return {}
+
+    # Single batch query
+    try:
+        results = collection.query(
+            query_embeddings=query_embeddings,
+            n_results=1,
+            include=["distances", "metadatas"],
+        )
+    except Exception:
+        _mark_chroma_unavailable("batch-query-failed")
+        return {}
+
+    # Parse batch results
+    matches: dict[str, float] = {}
+    distances = results.get("distances", [])
+    metadatas = results.get("metadatas", [])
+
+    for i, target in enumerate(valid_targets):
+        if i >= len(distances) or not distances[i]:
+            continue
+        distance = distances[i][0]
+        similarity = 1.0 - distance
+        if similarity >= CHROMA_SIMILARITY_THRESHOLD:
+            metadata = metadatas[i][0] if i < len(metadatas) and metadatas[i] else {}
+            matched_name = metadata.get("standard_name") if metadata else None
+            if matched_name and matched_name in candidate_canonical_names:
+                matches[target] = CHROMA_SIMILARITY_THRESHOLD
+
+    return matches
+
+
 def _chroma_match_against_candidates(
     target_name: str,
     candidate_canonical_names: set[str],
 ) -> float | None:
-    """Query ChromaDB once for target_name and check against all candidates.
+    """Query ChromaDB for a single target name against candidate set.
+
+    Kept for backward compatibility with existing tests. Internally delegates
+    to _batch_chroma_match for single-item queries.
 
     Args:
         target_name: Target skill canonical name.
@@ -57,19 +160,9 @@ def _chroma_match_against_candidates(
     Returns:
         CHROMA_SIMILARITY_THRESHOLD if match found, None otherwise.
     """
-    if not candidate_canonical_names:
-        return None
     try:
-        from app.core.extraction.normalize import normalize_by_vector
-
-        result = normalize_by_vector(
-            target_name,
-            chroma_client=None,
-            threshold=CHROMA_SIMILARITY_THRESHOLD,
-        )
-        if result is not None and result in candidate_canonical_names:
-            return CHROMA_SIMILARITY_THRESHOLD
-        return None
+        result = _batch_chroma_match([target_name], candidate_canonical_names)
+        return result.get(target_name)
     except Exception:
         return None
 
@@ -105,8 +198,11 @@ def score_skill_match(
 
     candidate_canonical_set = set(person_level_map.keys())
 
-    def _score_one(item: dict[str, str]) -> dict[str, Any]:
-        """Score a single target skill."""
+    # Phase 1: compute exact + semantic scores; collect ChromaDB fallback targets
+    intermediate: list[dict[str, Any]] = []
+    chroma_targets: list[str] = []
+
+    for item in target_skills:
         target_name = _canonical_skill_name(item["skill"])
         target_level = PROFICIENCY_SCORE.get(item.get("proficiency", "熟悉"), 0.65)
 
@@ -119,12 +215,36 @@ def score_skill_match(
             default=0.0,
         )
 
-        # ChromaDB fallback
+        # Track whether ChromaDB fallback is needed
+        needs_chroma = exact == 0.0 and best_semantic < FUZZY_MATCH_THRESHOLD
+        if needs_chroma:
+            chroma_targets.append(target_name)
+
+        intermediate.append({
+            "item": item,
+            "target_name": target_name,
+            "target_level": target_level,
+            "exact": exact,
+            "best_semantic": best_semantic,
+            "needs_chroma": needs_chroma,
+        })
+
+    # Phase 2: single batch ChromaDB query for all fallback targets
+    chroma_results = _batch_chroma_match(chroma_targets, candidate_canonical_set)
+
+    # Phase 3: compute final scores with ChromaDB results
+    evaluated: list[dict[str, Any]] = []
+    for entry in intermediate:
+        target_name = entry["target_name"]
+        target_level = entry["target_level"]
+        exact = entry["exact"]
+        best_semantic = entry["best_semantic"]
+        item = entry["item"]
+
+        # ChromaDB match (from batch results)
         chroma_match = 0.0
-        if exact == 0.0 and best_semantic < FUZZY_MATCH_THRESHOLD:
-            chroma_sim = _chroma_match_against_candidates(target_name, candidate_canonical_set)
-            if chroma_sim is not None and chroma_sim > chroma_match:
-                chroma_match = chroma_sim
+        if entry["needs_chroma"] and target_name in chroma_results:
+            chroma_match = chroma_results[target_name]
 
         # Fuzzy match
         fuzzy_match = 1.0 if best_semantic >= FUZZY_MATCH_THRESHOLD else best_semantic
@@ -147,13 +267,12 @@ def score_skill_match(
         else:
             gap_level = "完全缺失"
 
-        return {
+        evaluated.append({
             "skill": target_name,
             "importance": item["importance"],
             "gap_level": gap_level,
             "score": round(final_score, 4),
             "learning_path": [target_name],
-        }
+        })
 
-    evaluated = [_score_one(item) for item in target_skills]
     return {"evaluated": evaluated}

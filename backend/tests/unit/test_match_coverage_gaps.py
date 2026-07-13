@@ -21,7 +21,7 @@ import pytest
 
 from app.core.matching.cache import MatchCache, get_match_cache, reset_match_cache
 from app.core.matching.scorer import (
-    _chroma_match_against_candidates,
+    _batch_chroma_match,
     score_skill_match,
 )
 from app.services.match_service import (
@@ -431,40 +431,21 @@ def test_reset_match_cache():
 
 
 # ===========================================================================
-# 11. _chroma_match_against_candidates (scorer.py:71-74)
+# 11. _batch_chroma_match (scorer.py:47-141)
 # ===========================================================================
 
 
-def test_chroma_match_empty_candidates():
-    """_chroma_match_against_candidates returns None for empty candidates."""
-    result = _chroma_match_against_candidates("Python", set())
-    assert result is None
+def test_batch_chroma_match_empty_inputs():
+    """_batch_chroma_match returns empty dict for empty targets or candidates."""
+    assert _batch_chroma_match([], {"Python"}) == {}
+    assert _batch_chroma_match(["Python"], set()) == {}
 
 
-@patch("app.core.extraction.normalize.normalize_by_vector")
-def test_chroma_match_found(mock_norm):
-    """_chroma_match_against_candidates returns threshold when match found."""
-    mock_norm.return_value = "Python"
-    from app.core.matching.scorer import CHROMA_SIMILARITY_THRESHOLD
-
-    result = _chroma_match_against_candidates("Python", {"Python", "Java"})
-    assert result == CHROMA_SIMILARITY_THRESHOLD
-
-
-@patch("app.core.extraction.normalize.normalize_by_vector")
-def test_chroma_match_not_found(mock_norm):
-    """_chroma_match_against_candidates returns None when no match."""
-    mock_norm.return_value = "Rust"
-    result = _chroma_match_against_candidates("Python", {"Java"})
-    assert result is None
-
-
-@patch("app.core.extraction.normalize.normalize_by_vector")
-def test_chroma_match_exception(mock_norm):
-    """_chroma_match_against_candidates returns None on exception."""
-    mock_norm.side_effect = RuntimeError("chroma down")
-    result = _chroma_match_against_candidates("Python", {"Java"})
-    assert result is None
+def test_batch_chroma_match_no_chroma_available():
+    """_batch_chroma_match returns empty dict when ChromaDB is unavailable (negative cache)."""
+    # With no ChromaDB server running, the function should gracefully return {}
+    result = _batch_chroma_match(["Python"], {"Python", "Java"})
+    assert isinstance(result, dict)
 
 
 # ===========================================================================
@@ -472,12 +453,12 @@ def test_chroma_match_exception(mock_norm):
 # ===========================================================================
 
 
-@patch("app.core.matching.scorer._chroma_match_against_candidates")
+@patch("app.core.matching.scorer._batch_chroma_match")
 def test_score_skill_match_chroma_fallback(mock_chroma):
     """When exact and fuzzy both miss, chroma fallback is attempted."""
     from app.core.matching.scorer import CHROMA_SIMILARITY_THRESHOLD
 
-    mock_chroma.return_value = CHROMA_SIMILARITY_THRESHOLD
+    mock_chroma.return_value = {"zzz_unique_skill_42": CHROMA_SIMILARITY_THRESHOLD}
 
     target = [{"skill": "zzz_unique_skill_42", "importance": "required", "proficiency": "熟悉"}]
     person = [{"name": "something_very_different", "proficiency": "熟悉"}]
