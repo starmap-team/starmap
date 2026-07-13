@@ -1,0 +1,39 @@
+# StarMap pre-commit hooks
+# Install:  pre-commit install
+# Run all:  pre-commit run --all-files
+# Manual:   pre-commit run <hook-id> --all-files
+#
+# Phase 15: ruff auto-runs on commit; eslint + vue-tsc are manual gates
+# (CI runs them in full — local pre-commit keeps commit latency low).
+
+repos:
+  # ── Python: ruff lint + format ──
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.0
+    hooks:
+      - id: ruff
+        name: ruff (lint)
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^backend/
+      - id: ruff-format
+        name: ruff (format)
+        files: ^backend/
+
+  # ── JS/TS: eslint (manual) ──
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: bash -c 'cd frontend && npx eslint src/ --max-warnings=0'
+        language: system
+        types_or: [javascript, jsx, ts, tsx, vue]
+        files: ^frontend/src/
+        stages: [manual]
+
+      - id: vue-tsc
+        name: vue-tsc type-check
+        entry: bash -c 'cd frontend && npx vue-tsc --noEmit'
+        language: system
+        types_or: [ts, tsx, vue]
+        files: ^frontend/src/
+        stages: [manual]
