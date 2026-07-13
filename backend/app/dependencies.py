@@ -40,19 +40,13 @@ def get_redis_client(request: Request) -> Redis | None:
 async def get_db_session() -> AsyncIterator[AsyncSession]:
     """Yield an async DB session that auto-commits on success and auto-rolls back on exception.
 
-    Without this wrapper, callers must remember to commit manually; a missed commit
-    silently loses writes, and an unhandled exception leaves the transaction dangling.
-    The try/except ensures every request path either commits or rolls back explicitly.
+    Delegates to app.db.session.get_db_session which provides the commit/rollback
+    guarantee. Kept here as a FastAPI dependency injection point.
     """
-    if resources.pg_sessionmaker is None:
-        raise RuntimeError("PostgreSQL sessionmaker not initialized")
-    async with resources.pg_sessionmaker() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+    from app.db.session import get_db_session as _get_db_session
+
+    async with _get_db_session() as session:
+        yield session
 
 
 # ══════════════════════════════════════════════════════════

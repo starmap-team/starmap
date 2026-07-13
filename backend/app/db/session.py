@@ -15,8 +15,11 @@ get_async_engine() rather than re-introducing inline `create_async_engine` call 
 """
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from functools import lru_cache
 
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
@@ -44,3 +47,28 @@ def get_async_engine() -> AsyncEngine:
 def get_session_factory() -> async_sessionmaker[AsyncSession]:
     """Return a sessionmaker bound to the shared engine."""
     return async_sessionmaker(get_async_engine(), expire_on_commit=False)
+
+
+@asynccontextmanager
+async def get_db_session() -> AsyncIterator[AsyncSession]:
+    """Yield an async DB session that auto-commits on success and auto-rolls back on exception.
+
+    This is the recommended way to obtain a session for any code path (FastAPI routes,
+    Celery tasks, pipeline executor, etc.). It ensures every call site either commits
+    or rolls back explicitly, preventing silently-lost writes or dangling transactions.
+
+    Usage::
+
+        async with get_db_session() as session:
+            result = await session.execute(...)
+            # session.commit() is called automatically on clean exit
+            # session.rollback() is called automatically on exception
+    """
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

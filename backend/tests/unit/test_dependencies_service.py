@@ -9,7 +9,7 @@ Covers:
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -103,10 +103,17 @@ class TestGetRedisClient:
 
 
 class TestGetDbSession:
-    """get_db_session() — async generator, raises when not initialized."""
+    """get_db_session() — async generator with auto-commit/rollback."""
 
-    async def test_raises_when_sessionmaker_not_initialized(self):
-        """When resources.pg_sessionmaker is None, should raise RuntimeError."""
-        with pytest.raises(RuntimeError, match="PostgreSQL sessionmaker not initialized"):
-            async for _ in get_db_session():
-                pass
+    async def test_auto_rollback_on_exception(self):
+        """When an exception occurs in the caller, session.rollback() is invoked."""
+        from app.db.session import get_db_session as _get_db_session
+
+        with patch("app.db.session.get_session_factory") as mock_factory:
+            mock_session = AsyncMock()
+            mock_factory.return_value.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_factory.return_value.return_value.__aexit__ = AsyncMock(return_value=False)
+            with pytest.raises(ValueError):
+                async with _get_db_session() as session:
+                    raise ValueError("test error")
+            mock_session.rollback.assert_awaited_once()
