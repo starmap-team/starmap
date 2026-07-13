@@ -83,7 +83,7 @@ async def healthcheck_resources() -> dict[str, str]:
 
     if resources.redis_client is not None:
         try:
-            await resources.redis_client.ping()
+            await resources.redis_client.ping()  # type: ignore[misc]
             result["redis"] = "ok"
         except Exception as exc:  # pragma: no cover - defensive runtime check
             result["redis"] = f"error:{exc.__class__.__name__}"
