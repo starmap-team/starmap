@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
+import { useUserStore } from '@/stores/user'
 
 const LOCAL_STORAGE_KEY = 'starmap_learning_plan_id'
 
@@ -151,9 +152,22 @@ export interface CreatePlanRequestBody {
   available_hours_per_week?: number
 }
 
-/** 从匹配结果构造 CreatePlanRequest 请求体 (LOOP-03) */
+/** 从匹配结果构造 CreatePlanRequest 请求体 (LOOP-03)
+ *  Accepts either a raw MatchResult from the match store or a pre-built
+ *  CreatePlanRequestBody (idempotent — returns as-is if already shaped).
+ */
 export function buildCreatePlanRequest(matchResult: Record<string, unknown>): CreatePlanRequestBody {
-  const position = (matchResult.position_name ?? matchResult.position ?? '') as string
+  // Idempotent: if the caller already built a proper request, pass it through
+  if (
+    typeof matchResult.position === 'string' &&
+    typeof matchResult.match_score === 'number' &&
+    Array.isArray(matchResult.skills)
+  ) {
+    return matchResult as unknown as CreatePlanRequestBody
+  }
+
+  // MatchResult uses `target_position`; also accept `position_name` / `position`
+  const position = (matchResult.target_position ?? matchResult.position_name ?? matchResult.position ?? '') as string
   const matchScore = (matchResult.match_score ?? 0) as number
   const gapDetail = (matchResult.skill_gap_detail ?? []) as Array<Record<string, unknown>>
   const skills = gapDetail.map((gap) => ({
@@ -237,7 +251,12 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
         const skillItem = currentPlan.value.skills.find(s => s.skill === skill)
         if (skillItem) {
           skillItem.status = status as SkillProgress['status']
-          if (status === 'mastered') skillItem.progress_pct = 100
+          if (status === 'mastered') {
+            skillItem.progress_pct = 100
+            // FLOW-03: 同步已掌握技能到用户技能列表，重新匹配可反映进步
+            const userStore = useUserStore()
+            userStore.addParsedSkill(skill)
+          }
           else if (status === 'in_progress' && skillItem.progress_pct === 0) skillItem.progress_pct = 10
         }
         const total = currentPlan.value.skills.length

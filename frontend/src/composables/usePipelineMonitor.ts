@@ -55,8 +55,10 @@ export function usePipelineMonitor() {
 
   // ── SSE 实时进度 ──
   // Phase 1 D-09: 多事件类型分发到 pipeline store actions
+  // SSE-05: Use VITE_API_BASE_URL for SSE URLs (Docker + local compatibility)
+  const sseBase = import.meta.env.VITE_API_BASE_URL || '/api/v1'
   const { connected: sseConnected, mode: sseMode, disconnect: sseDisconnect } = useSSE(
-    '/api/v1/pipeline/events',
+    `${sseBase}/pipeline/events`,
     {
       storeHandlers: {
         pipeline_update: (data) => pipeline.handlePipelineEvent(data as { stage: string; status: string; progress: number; message: string }),

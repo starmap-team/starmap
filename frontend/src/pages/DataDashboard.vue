@@ -56,10 +56,12 @@ const { darkPieOption, treemapOption, trendOption, radarOption } = useDashboardC
 const { pipelineStages, statusColor, eventIcon, eventSeverityColor, formatTime } = useDashboardDisplay(store)
 
 // ── Realtime sync (SSE + periodic refresh + clock) — Phase 7 D round 3 ──
+// SSE-05: Use VITE_API_BASE_URL for SSE URLs (Docker + local compatibility)
+const sseBase = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 useDashboardRealtimeSync(
   store,
-  '/api/v1/dashboard/realtime',
-  '/api/v1/dashboard/realtime-poll',
+  `${sseBase}/dashboard/realtime`,
+  `${sseBase}/dashboard/realtime-poll`,
 )
 </script>
 
@@ -249,14 +251,14 @@ useDashboardRealtimeSync(
             </div>
           </div>
           <div class="pipeline-stats">
-            <div class="stat-item">
-              <span class="stat-value">{{ store.overview?.today_crawl_volume?.toLocaleString() ?? '--' }}</span>
-              <span class="stat-label">今日采集</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value">{{ store.overview?.today_matches?.toLocaleString() ?? '--' }}</span>
-              <span class="stat-label">今日匹配</span>
-            </div>
+	            <div class="stat-item">
+	              <span class="stat-value">{{ store.overview?.today_extractions?.toLocaleString() ?? '--' }}</span>
+	              <span class="stat-label">今日抽取</span>
+	            </div>
+	            <div class="stat-item">
+	              <span class="stat-value">{{ store.overview?.data_volume?.toLocaleString() ?? '--' }}</span>
+	              <span class="stat-label">数据总量</span>
+	            </div>
             <div class="stat-item">
               <span class="stat-value">{{ store.overview?.pipeline_status ?? '--' }}</span>
               <span class="stat-label">状态</span>
