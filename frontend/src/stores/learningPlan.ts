@@ -43,6 +43,7 @@ export interface LearningPathItem {
 export interface LearningPlan {
   plan_id: string
   position: string
+  /** Mapped from backend overall_pct (0-100, importance-weighted) */
   overall_progress: number
   estimated_completion: string
   skills: SkillProgress[]
@@ -247,24 +248,15 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
     planError.value = null
     try {
       await request.put(`/learning/plan/${planId}/progress`, { skill_name: skill, status })
+      // FLOW-03: 同步已掌握技能到用户技能列表，重新匹配可反映进步
+      if (status === 'mastered') {
+        const userStore = useUserStore()
+        userStore.addParsedSkill(skill)
+      }
+      // Re-fetch plan to get authoritative overall_pct from backend
+      // (avoid local drift — backend uses importance-weighted calculation)
       if (currentPlan.value?.plan_id === planId) {
-        const skillItem = currentPlan.value.skills.find(s => s.skill === skill)
-        if (skillItem) {
-          skillItem.status = status as SkillProgress['status']
-          if (status === 'mastered') {
-            skillItem.progress_pct = 100
-            // FLOW-03: 同步已掌握技能到用户技能列表，重新匹配可反映进步
-            const userStore = useUserStore()
-            userStore.addParsedSkill(skill)
-          }
-          else if (status === 'in_progress' && skillItem.progress_pct === 0) skillItem.progress_pct = 10
-        }
-        const total = currentPlan.value.skills.length
-        const mastered = currentPlan.value.skills.filter(s => s.status === 'mastered').length
-        const inProgress = currentPlan.value.skills.filter(s => s.status === 'in_progress').length
-        currentPlan.value.overall_progress = total > 0
-          ? Math.round(((mastered + inProgress * 0.5) / total) * 100)
-          : 0
+        await fetchPlan(planId)
       }
     } catch (e: unknown) {
       planError.value = `更新进度失败: ${getErrorMsg(e)}`
@@ -278,8 +270,9 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
     planLoading.value = true
     planError.value = null
     try {
-      const data = asRecord(await request.get('/learning/plans'))
-      const items = asArray(data.items ?? data.plans)
+      // Backend returns list[PlanResponse] — a plain JSON array
+      const data = await request.get('/learning/plans')
+      const items = asArray(data)
       plans.value = items.map((p) => mapPlanResponse(p as PlanResponseRaw))
       if (plans.value.length > 0 && !currentPlan.value) {
         currentPlan.value = plans.value[0]

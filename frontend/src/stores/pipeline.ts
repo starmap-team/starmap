@@ -18,7 +18,7 @@ export type {
   ExtractionComplete,
 } from './pipelineRun'
 export type { QualityAlert } from './pipelineRun'
-export type { DataSourceDetail as DataSource } from './pipelineRun'
+export type { DataSource as DataSourceDetail } from './pipelineRun'
 
 // ── Re-export types from pipelineConfig ──
 export type { PipelineSchedule, PipelineConfig } from './pipelineConfig'
@@ -30,38 +30,48 @@ export { STAGE_LABELS, ALL_STAGE_NAMES } from './pipelineConfig'
 // Merges both sub-stores so existing consumers using usePipelineStore() continue to work
 import { usePipelineRunStore } from './pipelineRun'
 import { usePipelineConfigStore } from './pipelineConfig'
-import { computed } from 'vue'
 
 export const usePipelineStore = () => {
   const run = usePipelineRunStore()
   const config = usePipelineConfigStore()
 
-  // Merge loading/error with OR logic to avoid spread shadowing
-  // (both sub-stores define `error`, naive spread would lose one)
-  const loading = computed(() => run.runLoading || config.configLoading)
-  const error = computed(() => run.runError || config.configError)
-
   return {
     // Run store
     runs: run.runs,
     pipelineStatus: run.pipelineStatus,
-    currentRun: run.currentRun,
-    runLoading: run.runLoading,
-    runError: run.runError,
+    currentRun: run.pipelineStatus?.current_run ?? null,
+    runLoading: run.loading,
+    runError: run.error,
+    stages: run.stages,
+    dataQuality: run.dataQuality,
+    dataSources: run.dataSources,
     fetchRuns: run.fetchRuns,
     fetchStatus: run.fetchStatus,
+    fetchStages: run.fetchStages,
+    fetchDataQuality: run.fetchDataQuality,
+    fetchDataSources: run.fetchDataSources,
     triggerPipeline: run.triggerPipeline,
     cancelRun: run.cancelRun,
+    retryStage: run.retryStage,
+    resumeRun: run.resumeRun,
+    handlePipelineEvent: run.handlePipelineEvent,
+    handleQualityAlert: run.handleQualityAlert,
+    handleMilestone: run.handleMilestone,
+    handleExtractionComplete: run.handleExtractionComplete,
     // Config store
     schedules: config.schedules,
+    config: config.config,
     configLoading: config.configLoading,
-    configError: config.configError,
+    configError: config.error,
     fetchSchedules: config.fetchSchedules,
     createSchedule: config.createSchedule,
     updateSchedule: config.updateSchedule,
     deleteSchedule: config.deleteSchedule,
-    // Combined loading/error
-    loading,
-    error,
+    triggerSchedule: config.triggerSchedule,
+    fetchConfig: config.fetchConfig,
+    updateConfig: config.updateConfig,
+    // Combined loading/error (unwrapped to plain boolean/string for template binding)
+    loading: run.loading || config.configLoading,
+    error: run.error || config.error,
   }
 }

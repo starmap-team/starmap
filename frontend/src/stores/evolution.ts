@@ -96,10 +96,10 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return snapshots.value
   }
 
-  async function fetchChangelog(skillName: string) {
+  async function fetchChangelog(positionName: string) {
     changelogLoading.value = true
     try {
-      const raw = await request.get(`/evolution/changelog/${encodeURIComponent(skillName)}`) as unknown
+      const raw = await request.get(`/evolution/changelog/${encodeURIComponent(positionName)}`) as unknown
       const data = raw as Record<string, unknown>
       changelogData.value = (Array.isArray(raw)
         ? raw

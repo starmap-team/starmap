@@ -17,7 +17,7 @@ export interface EvolutionActionsApi {
   selectedSnapshotDate: Ref<string>
   fetchTrends: () => Promise<void>
   fetchSnapshots: () => Promise<void>
-  fetchChangelog: (skillName: string) => Promise<void>
+  fetchChangelog: (positionName: string) => Promise<void>
   onSnapshotChange: (idx: number | number[]) => void
 }
 
