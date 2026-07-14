@@ -1,11 +1,12 @@
 """Admin API — thin HTTP layer over admin_audit_service.
 
-Business logic lives in app.services.admin_audit_service.
+Business logic lives in app.services.admin_audit_service and app.services.review_service.
 This file only handles: request parsing, dependency injection,
 domain-exception → HTTP-exception mapping, and response serialization.
 """
 from __future__ import annotations
 
+import uuid as uuid_mod
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver, require_admin
+from app.services import review_service
 from app.services.admin_audit_service import (
     AdminStatsResponse,
     AuditItem,
@@ -135,6 +137,182 @@ async def batch_audit_endpoint(
         return await svc_batch_audit(body.item_ids, body.action, session)
     except AuditItemNotFound as exc:
         raise _map_not_found(exc) from exc
+
+
+# ══════════════════════════════════════════════════════════════
+# Review workflow endpoints (Phase 23 — D-tier redesign)
+# ══════════════════════════════════════════════════════════════
+
+
+class ReviewListResponse(BaseModel):
+    """Unified review queue: position + skill entities, with status filter."""
+
+    items: list[dict[str, Any]] = Field(default_factory=list)
+    total: int = Field(default=0, ge=0)
+
+
+class ReviewActionRequest(BaseModel):
+    """Body for submit/approve/reject/unpublish actions."""
+
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+# entity_type → (service module, "skill"|"position")
+_REVIEW_TYPE_MAP = {
+    "position": "position",
+    "skill": "skill",
+}
+
+
+@router.get("/review-items", response_model=ReviewListResponse)
+async def list_review_items(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    entity_type: Annotated[Literal["position", "skill"] | None, "过滤实体类型"] = None,
+    status: Annotated[Literal["draft", "pending_review", "approved", "rejected"] | None, "审核状态"] = None,
+    limit: Annotated[int, "返回数量上限"] = 50,
+) -> ReviewListResponse:
+    """Unified review queue combining position + skill entities.
+
+    Default: returns all `pending_review` items (the active admin queue).
+    Use `?entity_type=position|skill` to narrow; use `?status=...` to view
+    a different lifecycle state.
+    """
+    items = await review_service.list_by_status(
+        session,
+        entity_type=entity_type,  # type: ignore[arg-type]
+        status=status,  # type: ignore[arg-type]
+        limit=limit,
+    )
+    return ReviewListResponse(
+        items=[i.to_dict() for i in items],
+        total=len(items),
+    )
+
+
+@router.post("/review/{entity_type}/{entity_id}/submit")
+async def submit_for_review_endpoint(
+    entity_type: Literal["position", "skill"],
+    entity_id: str,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> dict[str, Any]:
+    """Submit a draft or rejected entity for admin review."""
+    try:
+        uid = uuid_mod.UUID(entity_id)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="entity_id must be a UUID") from exc
+    try:
+        item = await review_service.submit_for_review(
+            session,
+            entity_type=entity_type,  # type: ignore[arg-type]
+            entity_id=uid,
+            actor=user.get("sub", "admin"),
+        )
+    except review_service.ReviewNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except review_service.InvalidStateTransition as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return item.to_dict()
+
+
+@router.post("/review/{entity_type}/{entity_id}/approve")
+async def approve_review_item_endpoint(
+    entity_type: Literal["position", "skill"],
+    entity_id: str,
+    body: ReviewActionRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> dict[str, Any]:
+    """Approve a pending_review entity. Idempotent for already-approved."""
+    try:
+        uid = uuid_mod.UUID(entity_id)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="entity_id must be a UUID") from exc
+    try:
+        item = await review_service.approve(
+            session,
+            entity_type=entity_type,  # type: ignore[arg-type]
+            entity_id=uid,
+            actor=user.get("sub", "admin"),
+            reason=body.reason,
+        )
+    except review_service.ReviewNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except review_service.InvalidStateTransition as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return item.to_dict()
+
+
+@router.post("/review/{entity_type}/{entity_id}/reject")
+async def reject_review_item_endpoint(
+    entity_type: Literal["position", "skill"],
+    entity_id: str,
+    body: ReviewActionRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> dict[str, Any]:
+    """Reject a pending_review entity. Reason is required."""
+    if not body.reason or not body.reason.strip():
+        raise HTTPException(status_code=422, detail="reason is required for reject")
+    try:
+        uid = uuid_mod.UUID(entity_id)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="entity_id must be a UUID") from exc
+    try:
+        item = await review_service.reject(
+            session,
+            entity_type=entity_type,  # type: ignore[arg-type]
+            entity_id=uid,
+            actor=user.get("sub", "admin"),
+            reason=body.reason,
+        )
+    except review_service.ReviewNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except review_service.InvalidStateTransition as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except review_service.MissingRejectionReason as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return item.to_dict()
+
+
+@router.post("/review/{entity_type}/{entity_id}/unpublish")
+async def unpublish_review_item_endpoint(
+    entity_type: Literal["position", "skill"],
+    entity_id: str,
+    body: ReviewActionRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> dict[str, Any]:
+    """Unpublish an approved entity (admin override) — moves it back to draft."""
+    if not body.reason or not body.reason.strip():
+        raise HTTPException(status_code=422, detail="reason is required for unpublish")
+    try:
+        uid = uuid_mod.UUID(entity_id)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="entity_id must be a UUID") from exc
+    try:
+        item = await review_service.unpublish(
+            session,
+            entity_type=entity_type,  # type: ignore[arg-type]
+            entity_id=uid,
+            actor=user.get("sub", "admin"),
+            reason=body.reason,
+        )
+    except review_service.ReviewNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except review_service.InvalidStateTransition as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except review_service.MissingRejectionReason as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return item.to_dict()
+
+
+@router.get("/review-stats")
+async def get_review_stats(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, int]:
+    """Aggregate count of entities by entity_type × review_status."""
+    return await review_service.count_by_status(session)
 
 
 # ── Pipeline management ──

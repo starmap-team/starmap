@@ -50,7 +50,9 @@ class PositionListResponse(BaseModel):
 @router.get(
     "",
     summary="岗位列表",
-    description="返回岗位列表，支持分页、行业筛选和关键词搜索。",
+    description="返回岗位列表，支持分页、行业筛选、关键词搜索和审核状态过滤。\n\n"
+    "审核状态（默认 approved）：draft / pending_review / approved / rejected。\n"
+    "admin 用户可传 include_all=true 查看所有状态；其他用户始终只看 approved。",
     response_model=PositionListResponse,
 )
 async def list_positions(
@@ -59,6 +61,14 @@ async def list_positions(
     page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 20,
     industry: Annotated[str | None, Query(description="行业筛选")] = None,
     search: Annotated[str | None, Query(description="搜索关键词")] = None,
+    status: Annotated[
+        str | None,
+        Query(description="审核状态（默认 approved；admin + include_all=true 可查全部）"),
+    ] = None,
+    include_all: Annotated[
+        bool,
+        Query(description="admin 用：true 时不强制 status=approved"),
+    ] = False,
 ) -> PositionListResponse:
     # Count total
     count_stmt = sa.select(sa.func.count()).select_from(PositionRecord)
@@ -66,6 +76,12 @@ async def list_positions(
         count_stmt = count_stmt.where(PositionRecord.industry == industry)
     if search:
         count_stmt = count_stmt.where(PositionRecord.name.ilike(f"%{_escape_like(search)}%", escape="\\"))
+    # Default visibility policy: only approved is public. Admin can override.
+    effective_status = status
+    if not include_all and effective_status is None:
+        effective_status = "approved"
+    if effective_status is not None:
+        count_stmt = count_stmt.where(PositionRecord.review_status == effective_status)
     total = (await session.execute(count_stmt)).scalar() or 0
 
     # Fetch page
@@ -74,6 +90,8 @@ async def list_positions(
         stmt = stmt.where(PositionRecord.industry == industry)
     if search:
         stmt = stmt.where(PositionRecord.name.ilike(f"%{_escape_like(search)}%", escape="\\"))
+    if effective_status is not None:
+        stmt = stmt.where(PositionRecord.review_status == effective_status)
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     rows = (await session.execute(stmt)).scalars().all()
 
