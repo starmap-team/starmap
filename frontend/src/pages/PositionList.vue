@@ -1,6 +1,13 @@
 <script setup lang="ts">
 /**
  * 岗位列表页 — 从后端 /positions 获取岗位数据
+ *
+ * Phase 23: review-workflow awareness —
+ * - Default view shows only approved positions (public).
+ * - Admin can switch to "All" or specific status (pending_review, etc.)
+ *   to see positions awaiting review.
+ * - Each card displays a status badge so the workflow state is visible
+ *   at a glance.
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -8,55 +15,139 @@ import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useJdStore } from '@/stores/jd'
+import { useUserStore } from '@/stores/user'
 
 const jdStore = useJdStore()
+const userStore = useUserStore()
 
 const router = useRouter()
-const positions = ref<{ id: string; name: string; industry: string }[]>([])
+const isAdmin = computed(() => userStore.isAdmin)
+
+interface PositionRow {
+  id: string
+  name: string
+  industry: string
+  review_status?: 'draft' | 'pending_review' | 'approved' | 'rejected'
+  reviewed_by?: string | null
+  rejection_reason?: string | null
+}
+
+const positions = ref<PositionRow[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
 const selectedIndustry = ref('')
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(24)
+
+// Phase 23: status filter. 'approved' (default) is what the public sees.
+// Admins can switch to 'pending_review' to triage the review queue.
+const statusFilter = ref<'approved' | 'pending_review' | 'rejected' | 'all'>('approved')
+
 const industries = computed(() => {
-  const set = new Set(positions.value.map(p => p.industry))
+  const set = new Set(positions.value.map(p => p.industry).filter(Boolean))
   return Array.from(set).sort()
 })
+
 const filteredPositions = computed(() => {
   let list = positions.value
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
-    list = list.filter(p =>
-      p.name.toLowerCase().includes(q) || p.industry.toLowerCase().includes(q)
+    list = list.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) || (p.industry ?? '').toLowerCase().includes(q),
     )
   }
   if (selectedIndustry.value) {
-    list = list.filter(p => p.industry === selectedIndustry.value)
+    list = list.filter((p) => p.industry === selectedIndustry.value)
   }
   return list
 })
 
-async function fetchPositions() {
-  loading.value = true
-  try {
-    const data = await jdStore.fetchPositions({ page: page.value, page_size: pageSize.value })
-    positions.value = data.items.map(p => ({
-      id: p.position_id,
-      name: p.name,
-      industry: p.industry,
-    }))
-    total.value = data.total
-  } catch (e) {
-    if (import.meta.env.DEV) console.error('[PositionList] Failed to fetch:', e)
-    ElMessage.error('岗位列表加载失败，请确认后端服务已启动')
-  } finally {
-    loading.value = false
+const showAdminFilters = computed(() => isAdmin.value)
+
+const statusOptions: { value: typeof statusFilter.value; label: string }[] = [
+  { value: 'approved', label: '已发布' },
+  { value: 'pending_review', label: '待审核' },
+  { value: 'rejected', label: '已拒绝' },
+  { value: 'all', label: '全部' },
+]
+
+function statusBadgeType(status: PositionRow['review_status'] | undefined) {
+  switch (status) {
+    case 'approved':
+      return 'success'
+    case 'pending_review':
+      return 'warning'
+    case 'rejected':
+      return 'danger'
+    case 'draft':
+      return 'info'
+    default:
+      return 'info'
   }
 }
 
+function statusLabel(status: PositionRow['review_status'] | undefined) {
+  switch (status) {
+    case 'approved':
+      return '已发布'
+    case 'pending_review':
+      return '待审核'
+    case 'rejected':
+      return '已拒绝'
+    case 'draft':
+      return '草稿'
+    default:
+      return status ?? ''
+  }
+}
+
+  async function fetchPositions() {
+    loading.value = true
+    try {
+      const params: {
+        page: number
+        page_size: number
+        status?: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'all'
+        include_all?: boolean
+      } = {
+        page: page.value,
+        page_size: pageSize.value,
+      }
+      if (statusFilter.value !== 'approved') {
+        // Admin viewing non-public states: tell backend to skip the default filter
+        // and explicitly request the chosen state (or all).
+        if (statusFilter.value !== 'all') {
+          params.status = statusFilter.value
+        }
+        params.include_all = true
+      }
+      const data = await jdStore.fetchPositions(params)
+      positions.value = data.items.map((p) => ({
+        id: p.position_id,
+        name: p.name,
+        industry: p.industry,
+        review_status: p.review_status ?? 'approved',
+        reviewed_by: p.reviewed_by ?? null,
+        rejection_reason: p.rejection_reason ?? null,
+      }))
+      total.value = data.total
+    } catch (e) {
+      if (import.meta.env.DEV) console.error('[PositionList] Failed to fetch:', e)
+      ElMessage.error('岗位列表加载失败，请确认后端服务已启动')
+    } finally {
+      loading.value = false
+    }
+  }
+
 function onPageChange(newPage: number) {
   page.value = newPage
+  fetchPositions()
+}
+
+function onStatusFilterChange() {
+  page.value = 1
   fetchPositions()
 }
 
@@ -81,7 +172,6 @@ onMounted(fetchPositions)
         </p>
       </div>
 
-
       <el-input
         v-model="searchQuery"
         placeholder="搜索岗位名称或行业..."
@@ -90,6 +180,27 @@ onMounted(fetchPositions)
         class="search-input-wrapper"
         prefix-icon="Search"
       />
+
+      <!-- Admin: review-status filter chips -->
+      <div
+        v-if="showAdminFilters"
+        class="status-filter-row"
+      >
+        <span class="filter-label">审核状态:</span>
+        <el-tag
+          v-for="opt in statusOptions"
+          :key="opt.value"
+          :type="statusFilter === opt.value ? 'primary' : 'info'"
+          :effect="statusFilter === opt.value ? 'dark' : 'plain'"
+          class="clickable-tag"
+          role="button"
+          tabindex="0"
+          @click="statusFilter = opt.value; onStatusFilterChange()"
+        >
+          {{ opt.label }}
+        </el-tag>
+      </div>
+
       <div class="industry-tags">
         <el-tag
           :type="selectedIndustry === '' ? 'primary' : 'info'"
@@ -141,12 +252,30 @@ onMounted(fetchPositions)
           >
             <div class="card-content">
               <h3>{{ pos.name }}</h3>
-              <el-tag
-                size="small"
-                type="info"
+              <div class="card-meta">
+                <el-tag
+                  size="small"
+                  type="info"
+                >
+                  {{ pos.industry }}
+                </el-tag>
+                <el-tag
+                  v-if="showAdminFilters"
+                  :type="statusBadgeType(pos.review_status)"
+                  size="small"
+                  effect="plain"
+                  class="status-badge"
+                  :title="`审核人: ${pos.reviewed_by ?? '—'}`"
+                >
+                  {{ statusLabel(pos.review_status) }}
+                </el-tag>
+              </div>
+              <p
+                v-if="pos.review_status === 'rejected' && pos.rejection_reason"
+                class="rejection-reason"
               >
-                {{ pos.industry }}
-              </el-tag>
+                拒绝原因: {{ pos.rejection_reason }}
+              </p>
             </div>
             <template #footer>
               <el-button
@@ -201,11 +330,16 @@ onMounted(fetchPositions)
             未找到匹配的岗位
           </p>
           <p class="empty-hint-text">
-            尝试调整筛选条件或关键词
+            {{ statusFilter === 'pending_review'
+              ? '没有待审核的岗位'
+              : '尝试调整筛选条件或关键词' }}
           </p>
-          <div class="empty-actions">
+          <div
+            v-if="statusFilter === 'pending_review'"
+            class="empty-actions"
+          >
             <p class="empty-hint-text">
-              请先执行数据采集，或从 JD 中抽取岗位信息
+              请到管理后台审核，或从 JD 中抽取新岗位
             </p>
             <el-button
               type="primary"
@@ -265,6 +399,29 @@ onMounted(fetchPositions)
   color: var(--foreground);
 }
 
+.card-meta {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.status-badge {
+  font-weight: 500;
+}
+
+.rejection-reason {
+  margin: 8px 0 0;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  color: var(--destructive);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  text-align: left;
+}
+
 /* 空状态引导 */
 .empty-guide {
   display: flex;
@@ -289,6 +446,19 @@ onMounted(fetchPositions)
 }
 
 .search-input-wrapper { margin-bottom: var(--space-5); max-width: 400px; }
+.status-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+.filter-label {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  font-weight: 500;
+  margin-right: 4px;
+}
 .industry-tags { margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .clickable-tag { cursor: pointer; }
 .result-count { margin-bottom: var(--space-4); color: var(--muted-foreground); font-size: var(--font-size-sm); }
@@ -320,7 +490,7 @@ onMounted(fetchPositions)
   margin: var(--space-1) 0 0;
 }
 .empty-slot {
-	margin-top: var(--space-4);
+  margin-top: var(--space-4);
 }
 .pagination-wrapper {
   display: flex;

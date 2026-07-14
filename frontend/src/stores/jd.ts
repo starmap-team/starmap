@@ -46,7 +46,17 @@ interface PositionItem {
   description: string
   skills_required: { skill_id: string; name: string; category: string; confidence: number; source_count: number }[]
   discovered_at: string | null
+  // Phase 23: review workflow — these fields are only populated when the
+  // caller requests `?include_all=true` (admin). Public /positions endpoint
+  // filters to approved only and may omit these.
+  review_status?: 'draft' | 'pending_review' | 'approved' | 'rejected'
+  created_by?: string | null
+  reviewed_by?: string | null
+  reviewed_at?: string | null
+  rejection_reason?: string | null
 }
+
+export type ReviewStatusFilter = 'draft' | 'pending_review' | 'approved' | 'rejected' | 'all'
 
 /** Default page size for position list queries */
 const DEFAULT_PAGE_SIZE = 100
@@ -85,11 +95,22 @@ export const useJdStore = defineStore('jd', () => {
     return request.get(`/positions/${encodeURIComponent(positionName)}`)
   }
 
-  /** Fetch paginated positions list */
-  async function fetchPositions(params: { page?: number; page_size?: number } = {}): Promise<PositionListResponse> {
-    return request.get('/positions', {
-      params: { page: params.page ?? 1, page_size: params.page_size ?? DEFAULT_PAGE_SIZE },
-    }) as Promise<PositionListResponse>
+  /** Fetch paginated positions list
+   *
+   * Phase 23: `status` is forwarded to the backend. Public callers leave
+   * it undefined and receive only approved positions. Admin can pass
+   * `status: 'pending_review'` etc. to view other lifecycle states.
+   */
+  async function fetchPositions(
+    params: { page?: number; page_size?: number; status?: ReviewStatusFilter; include_all?: boolean } = {},
+  ): Promise<PositionListResponse> {
+    const query: Record<string, string | number | boolean> = {
+      page: params.page ?? 1,
+      page_size: params.page_size ?? DEFAULT_PAGE_SIZE,
+    }
+    if (params.include_all) query.include_all = true
+    if (params.status && params.status !== 'all') query.status = params.status
+    return request.get('/positions', { params: query }) as Promise<PositionListResponse>
   }
 
   /** Search positions by keyword, returns dropdown-ready items */

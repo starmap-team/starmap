@@ -1,0 +1,483 @@
+<script setup lang="ts">
+/**
+ * ContentReviewPanel — Phase 23 review workflow for position + skill entities.
+ *
+ * Replaces the legacy "review_queue" workflow (which only stored evolution
+ * changelog items) with a unified admin queue that shows ALL pending
+ * positions and skills awaiting approval. Each row can be approved
+ * (with optional reason) or rejected (reason required).
+ *
+ * State machine: draft → pending_review → approved | rejected
+ * (see app.services.review_service on the backend)
+ */
+import { onMounted, ref, computed, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Check, Close, RefreshRight } from '@element-plus/icons-vue'
+import { useReviewStore, type ReviewEntityType, type ReviewItem, type ReviewStatus } from '@/stores/review'
+
+const reviewStore = useReviewStore()
+
+const entityTypeFilter = ref<'' | ReviewEntityType>('')
+const statusFilter = ref<'' | ReviewStatus>('pending_review')
+const searchKeyword = ref('')
+const currentPage = ref(1)
+const pageSize = ref(20)
+
+const filteredItems = computed<ReviewItem[]>(() => {
+  let list = reviewStore.items
+  if (entityTypeFilter.value) {
+    list = list.filter((i) => i.entity_type === entityTypeFilter.value)
+  }
+  if (statusFilter.value) {
+    list = list.filter((i) => i.review_status === statusFilter.value)
+  }
+  const q = searchKeyword.value.trim().toLowerCase()
+  if (q) {
+    list = list.filter((i) => i.name.toLowerCase().includes(q))
+  }
+  return list
+})
+
+const pagedItems = computed<ReviewItem[]>(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredItems.value.slice(start, start + pageSize.value)
+})
+
+const totalFiltered = computed(() => filteredItems.value.length)
+
+const STATUS_OPTIONS: { value: '' | ReviewStatus; label: string }[] = [
+  { value: '', label: '全部' },
+  { value: 'pending_review', label: '待审核' },
+  { value: 'approved', label: '已发布' },
+  { value: 'rejected', label: '已拒绝' },
+  { value: 'draft', label: '草稿' },
+]
+
+const TYPE_OPTIONS: { value: '' | ReviewEntityType; label: string }[] = [
+  { value: '', label: '全部类型' },
+  { value: 'position', label: '岗位' },
+  { value: 'skill', label: '技能' },
+]
+
+const statusTagType = (status: ReviewStatus) => {
+  switch (status) {
+    case 'approved': return 'success'
+    case 'pending_review': return 'warning'
+    case 'rejected': return 'danger'
+    case 'draft': return 'info'
+  }
+}
+
+const statusLabel = (status: ReviewStatus) => {
+  switch (status) {
+    case 'approved': return '已发布'
+    case 'pending_review': return '待审核'
+    case 'rejected': return '已拒绝'
+    case 'draft': return '草稿'
+  }
+}
+
+async function refresh() {
+  await reviewStore.fetchItems(
+    entityTypeFilter.value || undefined,
+    statusFilter.value || undefined,
+    200,
+  )
+  await reviewStore.fetchStats()
+}
+
+onMounted(refresh)
+
+// Re-fetch when filters change
+watch([entityTypeFilter, statusFilter], () => {
+  currentPage.value = 1
+  refresh()
+})
+
+async function handleApprove(item: ReviewItem) {
+  try {
+    const { value: reason } = await ElMessageBox.prompt(
+      '批准原因 (可选)',
+      `批准「${item.name}」`,
+      { confirmButtonText: '确认批准', cancelButtonText: '取消', inputPlaceholder: '可选填写备注' },
+    ).catch(() => ({ value: null }))
+    if (reason === null) return  // user cancelled
+    await reviewStore.approve(item.entity_type, item.entity_id, reason || undefined)
+    ElMessage.success('已批准')
+    reviewStore.removeLocal(item.entity_id)
+    await reviewStore.fetchStats()
+  } catch (e) {
+    ElMessage.error('批准失败: ' + (e instanceof Error ? e.message : '未知错误'))
+  }
+}
+
+async function handleReject(item: ReviewItem) {
+  try {
+    const { value: reason } = await ElMessageBox.prompt(
+      '拒绝原因 (必填)',
+      `拒绝「${item.name}」`,
+      {
+        confirmButtonText: '确认拒绝',
+        cancelButtonText: '取消',
+        inputType: 'textarea',
+        inputValidator: (val) => (val && val.trim() ? true : '请填写拒绝原因'),
+      },
+    )
+    if (!reason || !reason.trim()) return
+    await reviewStore.reject(item.entity_type, item.entity_id, reason.trim())
+    ElMessage.success('已拒绝')
+    reviewStore.removeLocal(item.entity_id)
+    await reviewStore.fetchStats()
+  } catch (e) {
+    // ElMessageBox.prompt throws when cancelled — suppress that.
+    if (e instanceof Error && !e.message.includes('cancel')) {
+      ElMessage.error('拒绝失败: ' + e.message)
+    }
+  }
+}
+
+async function handleUnpublish(item: ReviewItem) {
+  try {
+    const { value: reason } = await ElMessageBox.prompt(
+      '下架原因 (必填)',
+      `下架「${item.name}」`,
+      {
+        confirmButtonText: '确认下架',
+        cancelButtonText: '取消',
+        inputType: 'textarea',
+        inputValidator: (val) => (val && val.trim() ? true : '请填写下架原因'),
+      },
+    )
+    if (!reason || !reason.trim()) return
+    await reviewStore.unpublish(item.entity_type, item.entity_id, reason.trim())
+    ElMessage.success('已下架')
+    reviewStore.removeLocal(item.entity_id)
+    await refresh()
+  } catch (e) {
+    if (e instanceof Error && !e.message.includes('cancel')) {
+      ElMessage.error('下架失败: ' + e.message)
+    }
+  }
+}
+
+function formatDate(s: string | null) {
+  if (!s) return '—'
+  try {
+    return new Date(s).toLocaleString()
+  } catch {
+    return s
+  }
+}
+</script>
+
+<template>
+  <div class="content-review-panel">
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-item">
+        <span class="stat-value">{{ reviewStore.stats.position_approved ?? 0 }}</span>
+        <span class="stat-label">已发布岗位</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value warn">{{ reviewStore.stats.position_pending_review ?? 0 }}</span>
+        <span class="stat-label">待审岗位</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value danger">{{ reviewStore.stats.position_rejected ?? 0 }}</span>
+        <span class="stat-label">已拒岗位</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">{{ reviewStore.stats.skill_approved ?? 0 }}</span>
+        <span class="stat-label">已发布技能</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value warn">{{ reviewStore.stats.skill_pending_review ?? 0 }}</span>
+        <span class="stat-label">待审技能</span>
+      </div>
+      <el-button
+        :icon="RefreshRight"
+        plain
+        size="small"
+        class="refresh-btn"
+        @click="refresh"
+      >
+        刷新
+      </el-button>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-row">
+      <el-input
+        v-model="searchKeyword"
+        placeholder="按名称搜索..."
+        clearable
+        size="default"
+        class="search-input"
+      />
+      <el-select
+        v-model="entityTypeFilter"
+        size="default"
+        class="type-select"
+      >
+        <el-option
+          v-for="opt in TYPE_OPTIONS"
+          :key="opt.value"
+          :label="opt.label"
+          :value="opt.value"
+        />
+      </el-select>
+      <el-select
+        v-model="statusFilter"
+        size="default"
+        class="status-select"
+      >
+        <el-option
+          v-for="opt in STATUS_OPTIONS"
+          :key="opt.value"
+          :label="opt.label"
+          :value="opt.value"
+        />
+      </el-select>
+    </div>
+
+    <!-- Table -->
+    <el-table
+      v-loading="reviewStore.loading"
+      :data="pagedItems"
+      stripe
+      size="default"
+      empty-text="暂无审核项"
+      class="review-table"
+    >
+      <el-table-column
+        label="类型"
+        width="80"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.entity_type === 'position' ? 'primary' : 'success'"
+            size="small"
+            effect="plain"
+          >
+            {{ row.entity_type === 'position' ? '岗位' : '技能' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="名称"
+        min-width="200"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          <span class="entity-name">{{ row.name }}</span>
+          <span
+            v-if="row.industry"
+            class="industry-tag"
+          >{{ row.industry }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="statusTagType(row.review_status)"
+            size="small"
+            effect="plain"
+          >
+            {{ statusLabel(row.review_status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="创建人"
+        min-width="120"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          {{ row.created_by ?? '—' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="审核人"
+        min-width="120"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          {{ row.reviewed_by ?? '—' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="提交时间"
+        min-width="160"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.submitted_at) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="拒绝原因"
+        min-width="200"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          <span
+            v-if="row.review_status === 'rejected' && row.rejection_reason"
+            class="rejection-reason"
+          >
+            {{ row.rejection_reason }}
+          </span>
+          <span
+            v-else
+            class="muted"
+          >—</span>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="220"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            v-if="row.review_status === 'pending_review'"
+            type="success"
+            size="small"
+            :icon="Check"
+            @click="handleApprove(row)"
+          >
+            批准
+          </el-button>
+          <el-button
+            v-if="row.review_status === 'pending_review'"
+            type="danger"
+            size="small"
+            :icon="Close"
+            plain
+            @click="handleReject(row)"
+          >
+            拒绝
+          </el-button>
+          <el-button
+            v-if="row.review_status === 'approved'"
+            type="warning"
+            size="small"
+            plain
+            @click="handleUnpublish(row)"
+          >
+            下架
+          </el-button>
+          <span
+            v-if="row.review_status === 'rejected'"
+            class="muted"
+          >已拒绝</span>
+          <span
+            v-if="row.review_status === 'draft'"
+            class="muted"
+          >草稿</span>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <div
+      v-if="totalFiltered > pageSize"
+      class="pagination-row"
+    >
+      <el-pagination
+        v-model:current-page="currentPage"
+        :page-size="pageSize"
+        :total="totalFiltered"
+        layout="prev, pager, next"
+      />
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.content-review-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.stats-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in srgb, var(--primary) 3%, var(--card));
+  border-radius: var(--radius-lg);
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+
+.stat-value {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--foreground);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-value.warn { color: var(--warning); }
+.stat-value.danger { color: var(--destructive); }
+
+.stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}
+
+.refresh-btn { margin-left: auto; }
+
+.filter-row {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.search-input { flex: 1; min-width: 200px; }
+.type-select { width: 130px; }
+.status-select { width: 130px; }
+
+.review-table { border-radius: var(--radius-lg); overflow: hidden; }
+
+.entity-name {
+  font-weight: 500;
+  color: var(--foreground);
+  margin-right: var(--space-2);
+}
+
+.industry-tag {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  padding: 1px 6px;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+}
+
+.rejection-reason {
+  color: var(--destructive);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.muted {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-sm);
+}
+
+.pagination-row {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3) 0;
+}
+</style>

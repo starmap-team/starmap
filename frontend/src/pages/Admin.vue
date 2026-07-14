@@ -10,6 +10,7 @@ import { ElMessage } from 'element-plus'
 import { Search, Plus, Edit, DataAnalysis } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ReviewQueuePanel from '@/components/ReviewQueuePanel.vue'
+import ContentReviewPanel from '@/components/ContentReviewPanel.vue'
 import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
 import { useDataSourceStore } from '@/stores/datasource'
 import { useAuditStore } from '@/stores/audit'
@@ -119,7 +120,7 @@ async function handleSaveSource() {
         v-model="activeTab"
         class="admin-tabs"
       >
-        <!-- ════════ Tab 1: 审核队列 ════════ -->
+        <!-- ════════ Tab 1: 审核队列 (legacy evolution-changelog items) ════════ -->
         <el-tab-pane
           label="审核队列"
           name="audit"
@@ -132,7 +133,20 @@ async function handleSaveSource() {
           </el-card>
         </el-tab-pane>
 
-        <!-- ════════ Tab 2: 图谱节点管理 ════════ -->
+        <!-- ════════ Tab 2: 内容审核 (Phase 23 position/skill review) ════════ -->
+        <el-tab-pane
+          label="内容审核"
+          name="content-review"
+        >
+          <el-card
+            shadow="never"
+            class="tab-card"
+          >
+            <ContentReviewPanel />
+          </el-card>
+        </el-tab-pane>
+
+        <!-- ════════ Tab 3: 图谱节点管理 ════════ -->
         <el-tab-pane
           label="图谱节点管理"
           name="nodes"
