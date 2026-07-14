@@ -160,18 +160,17 @@ onMounted(() => {
               <span>CII 仪表盘</span><span class="card-header-badge">实时</span>
             </div>
           </template>
-	          <VChart
-	            v-if="items.length"
-	            :option="ciiGaugeOption"
-	            autoresize
-	            class="chart-h-gauge"
-	          />
-	          <EmptyState
-	            v-else
-	            title="图表数据为空"
-	            description="技能 CII 数据将在分析完成后展示"
-	          />
-	        </div>
+          <VChart
+            v-if="items.length"
+            :option="ciiGaugeOption"
+            autoresize
+            class="chart-h-gauge"
+          />
+          <EmptyState
+            v-else
+            title="图表数据为空"
+            description="技能 CII 数据将在分析完成后展示"
+          />
         </el-card>
 
         <!-- 新兴技能卡片 -->
@@ -196,7 +195,7 @@ onMounted(() => {
               v-for="skill in emergingSkills"
               :key="skill.skill_name"
               class="emerging-item"
-		              @click="skill.related_positions?.length ? fetchChangelog(skill.related_positions[0]) : undefined"
+		              @click="fetchChangelog(skill.related_positions?.[0] ?? skill.skill_name)"
             >
               <div class="emerging-name">
                 {{ skill.skill_name }}
@@ -330,7 +329,7 @@ onMounted(() => {
           size="small"
           stripe
           empty-text="暂无数据"
-		          @row-click="(row: TrendItem) => row.related_positions?.length ? fetchChangelog(row.related_positions[0]) : undefined"
+		          @row-click="(row: TrendItem) => fetchChangelog(row.related_positions?.[0] ?? row.skill_name)"
         >
           <el-table-column
             prop="skill_name"
