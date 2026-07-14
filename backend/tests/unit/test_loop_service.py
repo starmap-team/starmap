@@ -265,10 +265,10 @@ class TestLoopRunRequestValidation:
             LoopRunRequest(jd_text="", target_position="Backend")
 
     def test_empty_target_fails_validation(self):
+        # API-03: empty target_position is coerced to None (optional), not rejected
         from app.api.v1.loop import LoopRunRequest
-        from pydantic import ValidationError
-        with pytest.raises(ValidationError):
-            LoopRunRequest(jd_text="Python dev", target_position="")
+        req = LoopRunRequest(jd_text="Python dev", target_position="")
+        assert req.target_position is None  # empty string coerced to None
 
 
 # ══════════════════════════════════════════════════════════════
