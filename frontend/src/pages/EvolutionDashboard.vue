@@ -196,7 +196,7 @@ onMounted(() => {
               v-for="skill in emergingSkills"
               :key="skill.skill_name"
               class="emerging-item"
-              @click="fetchChangelog(skill.skill_name)"
+		              @click="skill.related_positions?.length ? fetchChangelog(skill.related_positions[0]) : undefined"
             >
               <div class="emerging-name">
                 {{ skill.skill_name }}
@@ -330,7 +330,7 @@ onMounted(() => {
           size="small"
           stripe
           empty-text="暂无数据"
-          @row-click="(row: TrendItem) => fetchChangelog(row.skill_name)"
+		          @row-click="(row: TrendItem) => row.related_positions?.length ? fetchChangelog(row.related_positions[0]) : undefined"
         >
           <el-table-column
             prop="skill_name"
