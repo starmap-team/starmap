@@ -313,9 +313,25 @@ class SkillRecord(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+    # ── Review workflow (Phase 23 enterprise design) ──
+    # 业务说明：审核状态：draft | pending_review | approved | rejected
+    # 技术说明：默认 'pending_review'（新创建），'approved' 表示可对外发布
+    review_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending_review", server_default="pending_review",
+    )
+    # 业务说明：创建人 username（admin 或 system:extraction 等）
+    created_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # 业务说明：审核人 username
+    reviewed_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # 业务说明：审核时间
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # 业务说明：拒绝原因（仅 rejected 状态填写）
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 业务说明：提交审核时间（draft → pending_review 时记录）
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self) -> str:
-        return f"<SkillRecord {self.name} category={self.category}>"
+        return f"<SkillRecord {self.name} status={self.review_status}>"
 
 
 class PositionRecord(Base):
@@ -347,9 +363,25 @@ class PositionRecord(Base):
         nullable=False,
         default=lambda: datetime.now(UTC),
     )
+    # ── Review workflow (Phase 23 enterprise design) ──
+    # 业务说明：审核状态：draft | pending_review | approved | rejected
+    # 技术说明：默认 'pending_review'（新创建），'approved' 表示可对外发布
+    review_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending_review", server_default="pending_review",
+    )
+    # 业务说明：创建人 username（admin 或 system:extraction 等）
+    created_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # 业务说明：审核人 username
+    reviewed_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # 业务说明：审核时间
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # 业务说明：拒绝原因（仅 rejected 状态填写）
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 业务说明：提交审核时间
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self) -> str:
-        return f"<PositionRecord {self.name}>"
+        return f"<PositionRecord {self.name} status={self.review_status}>"
 
 
 class MatchResult(Base):
