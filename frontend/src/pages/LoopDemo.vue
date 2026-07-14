@@ -129,10 +129,16 @@ function exportReport() {
 }
 
 // ── Step visibility helpers ──
-const showStep2 = computed(() => loopStore.currentRun?.steps[1]?.status !== 'waiting')
-const showStep3 = computed(() => loopStore.currentRun?.steps[2]?.status !== 'waiting')
-const showStep4 = computed(() => loopStore.currentRun?.steps[3]?.status !== 'waiting')
-const showStep5 = computed(() => loopStore.currentRun?.steps[4]?.status !== 'waiting')
+// Important: each showStepN must check that currentRun EXISTS first.
+// Without the `currentRun != null` guard, `currentRun?.steps[N]?.status`
+// evaluates to `undefined` when currentRun is null, and
+// `undefined !== 'waiting'` is true — which causes v-if to render the
+// step and then crash on `currentRun!.steps[N]` (the non-null assertion
+// is unsafe in the template when currentRun is null).
+const showStep2 = computed(() => loopStore.currentRun != null && loopStore.currentRun.steps[1]?.status !== 'waiting')
+const showStep3 = computed(() => loopStore.currentRun != null && loopStore.currentRun.steps[2]?.status !== 'waiting')
+const showStep4 = computed(() => loopStore.currentRun != null && loopStore.currentRun.steps[3]?.status !== 'waiting')
+const showStep5 = computed(() => loopStore.currentRun != null && loopStore.currentRun.steps[4]?.status !== 'waiting')
 </script>
 
 <template>

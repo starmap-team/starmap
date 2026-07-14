@@ -144,7 +144,7 @@ function formatDuration(ms?: number): string {
           align="center"
         >
           <template #default="{ row }">
-            {{ row.success_count }}/{{ row.step_count }}
+            {{ (row.steps ?? []).filter((s: any) => s.status === 'success').length }}/{{ (row.steps ?? []).length }}
           </template>
         </el-table-column>
         <el-table-column
@@ -153,7 +153,7 @@ function formatDuration(ms?: number): string {
           align="center"
         >
           <template #default="{ row }">
-            {{ formatDuration(row.total_duration_ms) }}
+            {{ formatDuration((row.total_duration_seconds ?? 0) * 1000) }}
           </template>
         </el-table-column>
         <el-table-column

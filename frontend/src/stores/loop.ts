@@ -85,14 +85,16 @@ export interface LoopRun {
   created_at?: string
 }
 
+// /loop/history returns full LoopResult dicts (from LoopResult.to_dict()),
+// not a slim summary. We keep just the fields the table template needs;
+// everything else is present on the item and ignored by el-table.
 export interface LoopHistoryItem {
   run_id: string
-  target_position: string
+  target_position?: string | null
   status: string
-  step_count: number
-  success_count: number
-  total_duration_ms: number
-  created_at: string
+  steps?: { step: number; name: string; status: string; duration_seconds?: number; data?: Record<string, unknown>; error?: string | null; note?: string | null }[]
+  total_duration_seconds?: number
+  created_at?: string
 }
 
 // ── Store ──
@@ -175,7 +177,13 @@ export const useLoopStore = defineStore('loop', () => {
           const idx = stepData.step - 1
           if (idx >= 0 && idx < currentRun.value.steps.length) {
             currentRun.value.steps[idx].status = stepData.status ?? 'success'
-            currentRun.value.steps[idx].duration_ms = stepData.duration_ms
+            // Backend returns `duration_seconds`; convert to ms for the UI.
+            // (Backwards-compat: fall back to `duration_ms` if some other
+            // payload still uses the old field name.)
+            const durSec = (stepData as { duration_seconds?: number }).duration_seconds
+            const durMs = (stepData as { duration_ms?: number }).duration_ms
+            currentRun.value.steps[idx].duration_ms =
+              durMs ?? (durSec != null ? Math.round(durSec * 1000) : undefined)
             currentRun.value.steps[idx].data = stepData.data
             currentRun.value.steps[idx].error = stepData.error
             currentRun.value.steps[idx].warning = stepData.warning
@@ -208,7 +216,7 @@ export const useLoopStore = defineStore('loop', () => {
   /** 兼容解析：后端返回扁平结果时分配到各步骤 */
   // ponytail: response shape from /loop/run; expand if contract changes
   interface LoopRunResponse {
-    steps?: { step: number; status?: StepStatus; duration_ms?: number; data?: Record<string, unknown>; error?: string; warning?: string }[]
+    steps?: { step: number; status?: StepStatus; duration_ms?: number; duration_seconds?: number; data?: Record<string, unknown>; error?: string; warning?: string }[]
     status?: 'running' | 'completed' | 'partial'
     run_id?: string
     extracted_skills?: unknown[]
