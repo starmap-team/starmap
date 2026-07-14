@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: 前后端对齐与功能闭环
-status: verified
-last_updated: 2026-07-14T16:00:00.000Z
-last_activity: 2026-07-14 -- All phases 18-23 verified
+status: complete
+last_updated: 2026-07-14T17:00:00.000Z
+last_activity: 2026-07-14 -- UAT verified: production build passes, 20/20 API endpoints return valid data
 progress:
   total_phases: 6
   completed_phases: 6
@@ -80,22 +80,27 @@ Last activity: 2026-07-14
 ### Phase 23: UAT 全链路验证 ✅
 
 - vue-tsc: **0** 生产代码错误
+- vite build: **✅ passes** (319 modules, 0 errors)
 - vitest: **226 passed / 0 failures**
-- pytest: **1689 passed / 0 failures / 79.23% coverage**
+- pytest: **1726 passed / 0 failures / 80.42% coverage**
+- API endpoints: **20/20 return valid data** (auth, dashboard, positions, evolution, learning, pipeline, quality, admin, datasources)
+- Vite proxy: **✅ working** (login via proxy confirmed)
+- EvolutionDashboard: **orphan `</div>` removed — production build now passes**
 
 ## Current Baseline (2026-07-14)
 
 | Metric | Value |
 |--------|-------|
 | vue-tsc production errors | **0** |
+| vite build | **✅ passes** (319 modules) |
 | vitest | **226 passed / 0 failures** |
-| pytest | **1689 passed / 0 failures** |
-| CI coverage | **79.23%** (>70% gate) |
+| pytest | **1726 passed / 0 failures / 80.42% coverage** |
+| API endpoints verified | **20/20 return valid data** |
 | SSE token key | **starmap_access_token** (primary) |
 | DashboardOverview | **1:1 match with backend OverviewResponse** |
 | positions response | **PositionListResponse typed** |
 | learning plan | **fetchPlan for authoritative values** |
 | Home page auth | **requiresAuth: true** |
 | Login default creds | **DEV mode only** |
-| EvolutionDashboard | **Template valid, CII gauge renders** |
+| EvolutionDashboard | **Template valid, production build passes** |
 | Admin.vue | **6 tabs render correctly** |
