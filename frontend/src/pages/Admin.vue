@@ -15,6 +15,9 @@ import { useDataSourceStore } from '@/stores/datasource'
 import { useAuditStore } from '@/stores/audit'
 import { useGraphNodeStore } from '@/stores/graphNode'
 import PromptManager from '@/components/PromptManager.vue'
+import UserManagement from '@/pages/UserManagement.vue'
+import AuditLog from '@/pages/AuditLog.vue'
+
 import { chartColors } from '@/utils/chartTheme'
 import { useGraphNodeList, type GraphNodeItem } from '@/composables/useGraphNodeList'
 import { useGraphNodeEditor } from '@/composables/useGraphNodeEditor'
@@ -478,6 +481,20 @@ async function handleSaveSource() {
             class="tab-card"
           >
             <PromptManager />
+          </el-card>
+	        </el-tab-pane>
+
+	        <!-- Tab 5: 用户管理 -->
+        <el-tab-pane label="用户管理" name="users">
+          <el-card shadow="never" class="tab-card">
+            <UserManagement />
+          </el-card>
+        </el-tab-pane>
+
+        <!-- Tab 6: 审计日志 -->
+        <el-tab-pane label="审计日志" name="audit-log">
+          <el-card shadow="never" class="tab-card">
+            <AuditLog />
           </el-card>
         </el-tab-pane>
       </el-tabs>

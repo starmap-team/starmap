@@ -1,7 +1,10 @@
 <script setup lang="ts">
 /**
- * 登录页面 — 用户名/密码表单，登录成功后存储 JWT token 并跳转首页。
- * Phase 11 LOOP-01: 认证登录闭环。
+ * 登录页面 — Phase DB-AUTH 双 token 登录
+ *
+ * POST /auth/login → { access_token, refresh_token, expires_in, user }
+ *  - access_token 短期 (15 min)，refresh_token 长期 (7 d)
+ *  - 401 = 用户名/密码错误；423 = 锁定；403 = 禁用
  */
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -16,6 +19,15 @@ const username = ref('')
 const password = ref('')
 const loading = ref(false)
 
+const ERROR_MAP: Record<number, string> = {
+  400: '请求格式有误',
+  401: '用户名或密码错误',
+  403: '账号已被停用，请联系管理员',
+  422: '请输入有效的用户名和密码',
+  423: '登录失败次数过多，账号已被临时锁定，请稍后再试',
+  429: '尝试次数过多，请稍后再试',
+}
+
 async function handleLogin() {
   if (!username.value || !password.value) {
     ElMessage.warning('请输入用户名和密码')
@@ -23,26 +35,43 @@ async function handleLogin() {
   }
   loading.value = true
   try {
-    const data = await request.post('/auth/login', {
+    const data = (await request.post('/auth/login', {
       username: username.value,
       password: password.value,
-    }) as { token: string; user: { sub: string; role: string; username: string } }
-    localStorage.setItem('starmap_token', data.token)
-    userStore.initUser()
+    })) as {
+      access_token: string
+      refresh_token: string
+      user: {
+        id: string
+        username: string
+        role: string
+        must_change_password?: boolean
+      }
+    }
+    userStore.setTokens(data.access_token, data.refresh_token)
+    userStore.setUser({
+      id: data.user.id,
+      sub: data.user.username,
+      username: data.user.username,
+      role: data.user.role,
+      must_change_password: data.user.must_change_password ?? false,
+    })
     ElMessage.success('登录成功')
+
+    // Special UX: if password rotation required, force to a /change-password page.
+    if (data.user.must_change_password) {
+      router.push('/change-password?forced=1')
+      return
+    }
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
   } catch (e: unknown) {
-    // 401 由后端 detail 携带"用户名或密码错误"，其它状态码走兜底文案。
-    // 避免直接拼接 axios.message（会暴露"Request failed with status code 401"等非业务信息）。
     const err = e as { response?: { status?: number; data?: { detail?: string } } }
     const status = err?.response?.status
     const detail = err?.response?.data?.detail
-    let msg = '登录失败，请稍后重试'
-    if (status === 401) msg = detail || '用户名或密码错误'
-    else if (status === 422) msg = '请输入有效的用户名和密码'
-    else if (status === 429) msg = '尝试次数过多，请稍后再试'
-    else if (status && status >= 500) msg = '服务暂不可用，请稍后重试'
+    const msg = detail && status === 401
+      ? detail
+      : ERROR_MAP[status ?? 0] ?? '登录失败，请稍后重试'
     ElMessage.error(msg)
   } finally {
     loading.value = false
@@ -62,6 +91,7 @@ async function handleLogin() {
             placeholder="用户名"
             prefix-icon="User"
             size="large"
+            autocomplete="username"
           />
         </el-form-item>
         <el-form-item>
@@ -72,6 +102,7 @@ async function handleLogin() {
             prefix-icon="Lock"
             size="large"
             show-password
+            autocomplete="current-password"
             @keyup.enter="handleLogin"
           />
         </el-form-item>
@@ -86,6 +117,9 @@ async function handleLogin() {
             登 录
           </el-button>
         </el-form-item>
+	        <div v-if="import.meta.env.DEV" class="login-hint">
+	          默认管理员: <code>admin / starmap2024</code>
+	        </div>
       </el-form>
     </div>
   </div>
@@ -117,5 +151,16 @@ async function handleLogin() {
   margin-bottom: 32px;
   color: var(--el-text-color-secondary);
   font-size: 14px;
+}
+.login-hint {
+  text-align: center;
+  color: var(--el-text-color-placeholder);
+  font-size: 12px;
+  margin-top: -8px;
+}
+.login-hint code {
+  background: var(--el-fill-color-light);
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 </style>

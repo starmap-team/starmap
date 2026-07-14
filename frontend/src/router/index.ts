@@ -6,7 +6,7 @@ const routes = [
     path: '/',
     name: 'home',
     component: () => import('@/pages/Home.vue'),
-    meta: { title: '全景图谱', icon: 'Connection', breadcrumb: ['首页', '全景图谱'], transition: 'page-slide' },
+    meta: { title: '全景图谱', icon: 'Connection', breadcrumb: ['首页', '全景图谱'], transition: 'page-slide', requiresAuth: true },
   },
   {
     path: '/positions',
@@ -75,6 +75,12 @@ const routes = [
     meta: { title: '登录', transition: 'page-slide' },
   },
   {
+    path: '/change-password',
+    name: 'change-password',
+    component: () => import('@/components/ProfileMenu.vue'),
+    meta: { title: '修改密码', transition: 'page-slide', requiresAuth: true },
+  },
+  {
     path: '/admin',
     name: 'admin',
     component: () => import('@/pages/Admin.vue'),
@@ -119,8 +125,12 @@ const PUBLIC_PATHS = new Set<string>(['/', '/login'])
 
 function isAuthed(): boolean {
   try {
-    return Boolean(localStorage.getItem('starmap_token')) ||
+    return (
+      Boolean(localStorage.getItem('starmap_access_token')) ||
+      Boolean(localStorage.getItem('starmap_refresh_token')) ||
+      Boolean(localStorage.getItem('starmap_token')) ||
       Boolean(localStorage.getItem('token'))
+    )
   } catch {
     return false
   }
@@ -155,9 +165,11 @@ router.beforeEach((to) => {
 
 // Listen for 401 events emitted by api/request.ts and route to /login.
 window.addEventListener('auth:unauthorized', () => {
-  // Clear user state on 401
+  // Clear user state on 401. We use clearUser (local-only) instead of logout
+  // because refresh-token revocation requires an extra round-trip and the user
+  // is being redirected away anyway.
   const userStore = useUserStore()
-  userStore.logout()
+  userStore.clearUser()
   if (router.currentRoute.value.path !== '/login') {
     router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
   }
