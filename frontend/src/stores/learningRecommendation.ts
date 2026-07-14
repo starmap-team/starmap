@@ -61,8 +61,9 @@ export const useLearningRecommendationStore = defineStore('learningRecommendatio
     recLoading.value = true
     recError.value = null
     try {
+      // Backend returns RecommendationsResponse: { items: [...], total_items: number }
       const data = asRecord(await request.get('/learning/recommendations'))
-      const items = asArray(data.items ?? data.recommendations)
+      const items = asArray(data.items)
       recommendations.value = items.map((r) => mapRecommendation(r as RecommendationRaw))
     } catch (e: unknown) {
       recError.value = `获取推荐失败: ${getErrorMsg(e)}`

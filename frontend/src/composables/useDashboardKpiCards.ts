@@ -75,7 +75,7 @@ export function useDashboardKpiCards(store: DashboardStore): ComputedRef<KpiCard
       },
       {
         label: '信任评分',
-        target: (store.overview?.avg_trust_score ?? 0) * 100,
+        target: (store.overview?.trust_score ?? 0) * 100,
         suffix: '%',
         decimals: 1,
         icon: '★',

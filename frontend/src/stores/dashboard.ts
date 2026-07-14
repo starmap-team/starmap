@@ -18,18 +18,17 @@ export interface DashboardOverview {
   total_domains: number
   total_positions: number
   total_skills: number
-  avg_trust_score: number
-  today_crawl_volume: number
-  today_matches: number
-  today_extractions: number
-  active_sources: number
-  pipeline_status: string
-  quality_score: number
-  weekly_new_nodes: number
-  weekly_new_edges: number
+  trust_score: number
   hallucination_rate: number
-  stale?: boolean
-  stale_since?: string | null
+  total_extractions: number
+  data_volume: number
+  today_extractions: number
+  pipeline_status: string
+  active_data_sources: number
+  weekly_new_nodes: number
+  stale: boolean
+  stale_since: number | null
+  timestamp: number
 }
 
 export interface SourceDistribution {
@@ -98,25 +97,24 @@ export const useDashboardStore = defineStore('dashboard', () => {
     error.value = null
     try {
       const raw = await request.get('/dashboard/overview') as Record<string, unknown>
-      // Map backend OverviewResponse fields to frontend DashboardOverview
+      // Direct mapping — frontend DashboardOverview matches backend OverviewResponse 1:1
       overview.value = {
         total_nodes: (raw.total_nodes as number) ?? 0,
         total_edges: (raw.total_edges as number) ?? 0,
         total_domains: (raw.total_domains as number) ?? 0,
         total_positions: (raw.total_positions as number) ?? 0,
         total_skills: (raw.total_skills as number) ?? 0,
-        avg_trust_score: (raw.trust_score as number) ?? 0,
-        today_crawl_volume: (raw.data_volume as number) ?? 0,
-        today_matches: 0,
-        today_extractions: (raw.today_extractions as number) ?? 0,
-        active_sources: (raw.active_data_sources as number) ?? 0,
-        pipeline_status: (raw.pipeline_status as string) ?? 'idle',
-        quality_score: (raw.trust_score as number) ?? 0,
-        weekly_new_nodes: (raw.weekly_new_nodes as number) ?? 0,
-        weekly_new_edges: 0,
+        trust_score: (raw.trust_score as number) ?? 0,
         hallucination_rate: (raw.hallucination_rate as number) ?? 0,
+        total_extractions: (raw.total_extractions as number) ?? 0,
+        data_volume: (raw.data_volume as number) ?? 0,
+        today_extractions: (raw.today_extractions as number) ?? 0,
+        pipeline_status: (raw.pipeline_status as string) ?? 'idle',
+        active_data_sources: (raw.active_data_sources as number) ?? 0,
+        weekly_new_nodes: (raw.weekly_new_nodes as number) ?? 0,
         stale: (raw.stale as boolean) ?? false,
-        stale_since: raw.stale_since as string | null ?? null,
+        stale_since: (raw.stale_since as number | null) ?? null,
+        timestamp: (raw.timestamp as number) ?? 0,
       }
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '获取概览数据失败'

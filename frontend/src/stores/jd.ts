@@ -31,6 +31,23 @@ interface JDExtractResult {
   [key: string]: unknown
 }
 
+/** Backend PositionListResponse shape — matches /positions endpoint */
+interface PositionListResponse {
+  items: PositionItem[]
+  total: number
+  page: number
+  page_size: number
+}
+
+interface PositionItem {
+  position_id: string
+  name: string
+  industry: string
+  description: string
+  skills_required: { skill_id: string; name: string; category: string; confidence: number; source_count: number }[]
+  discovered_at: string | null
+}
+
 /** Default page size for position list queries */
 const DEFAULT_PAGE_SIZE = 100
 
@@ -41,19 +58,17 @@ export const useJdStore = defineStore('jd', () => {
   async function fetchList() {
     loading.value = true
     try {
-      // 使用真实后端 /positions 端点（JD 数据已导入 position_records）
-      const data = await request.get('/positions', { params: { page_size: DEFAULT_PAGE_SIZE } }) as { items?: { position_id?: number; id?: number; name?: string; title?: string; description?: string; created_at?: string }[] }
-      const items = data.items ?? []
-      list.value = items.map((p: { position_id?: number; id?: number; name?: string; title?: string; description?: string; created_at?: string }) => ({
-        id: p.position_id ?? p.id ?? 0,
+      const data = await request.get('/positions', { params: { page_size: DEFAULT_PAGE_SIZE } }) as PositionListResponse
+      list.value = data.items.map(p => ({
+        id: 0, // position_id is a UUID string, not a numeric id
         source: 'database',
-        title: p.name ?? p.title ?? '',
-        company: '',
+        title: p.name ?? '',
+        company: p.industry ?? '',
         content: p.description ?? '',
         city: '',
         salary_min: 0,
         salary_max: 0,
-        publish_date: p.created_at ?? '',
+        publish_date: p.discovered_at ?? '',
       }))
     } finally {
       loading.value = false
@@ -71,10 +86,10 @@ export const useJdStore = defineStore('jd', () => {
   }
 
   /** Fetch paginated positions list */
-  async function fetchPositions(params: { page?: number; page_size?: number } = {}) {
+  async function fetchPositions(params: { page?: number; page_size?: number } = {}): Promise<PositionListResponse> {
     return request.get('/positions', {
       params: { page: params.page ?? 1, page_size: params.page_size ?? DEFAULT_PAGE_SIZE },
-    })
+    }) as Promise<PositionListResponse>
   }
 
   /** Search positions by keyword, returns dropdown-ready items */
@@ -83,8 +98,8 @@ export const useJdStore = defineStore('jd', () => {
     if (keyword?.trim()) {
       params.search = keyword.trim()
     }
-    const data = await request.get('/positions', { params }) as { items?: { position_id: string; name: string }[] }
-    return (data.items ?? []).map((p: { position_id: string; name: string }) => ({
+    const data = await request.get('/positions', { params }) as PositionListResponse
+    return data.items.map(p => ({
       label: p.name,
       value: p.name,
       position_id: p.position_id,
