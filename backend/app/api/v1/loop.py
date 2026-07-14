@@ -37,9 +37,10 @@ class LoopRunRequest(BaseModel):
 
     @field_validator("target_position")
     @classmethod
-    def reject_empty_string(cls, v: str | None) -> str | None:
+    def coerce_empty_string(cls, v: str | None) -> str | None:
+        """Convert empty/whitespace-only strings to None so the field is truly optional."""
         if v is not None and not v.strip():
-            raise ValueError("target_position must be non-empty if provided")
+            return None
         return v
 
 
