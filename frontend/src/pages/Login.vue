@@ -19,6 +19,8 @@ const username = ref('')
 const password = ref('')
 const loading = ref(false)
 
+const isDev = import.meta.env.DEV
+
 const ERROR_MAP: Record<number, string> = {
   400: '请求格式有误',
   401: '用户名或密码错误',
@@ -117,9 +119,9 @@ async function handleLogin() {
             登 录
           </el-button>
         </el-form-item>
-	        <div v-if="import.meta.env.DEV" class="login-hint">
-	          默认管理员: <code>admin / starmap2024</code>
-	        </div>
+        <div v-if="isDev" class="login-hint">
+          默认管理员: <code>admin / starmap2024</code>
+        </div>
       </el-form>
     </div>
   </div>
