@@ -24,6 +24,8 @@ import LoadingPulse from '@/components/LoadingPulse.vue'
 import MatchBatchMode from '@/components/MatchBatchMode.vue'
 import GapAnalysisReport from '@/components/GapAnalysisReport.vue'
 import LearningPathPlan from '@/components/LearningPathPlan.vue'
+import MatchFlow from '@/components/MatchFlow.vue'
+import MatchTrustGuide from '@/components/MatchTrustGuide.vue'
 import type { SkillMatchItem } from '@/components/SkillMatchAnimation.vue'
 import { useUserStore } from '@/stores/user'
 import { useResumeStore } from '@/stores/resume'
@@ -219,6 +221,18 @@ function resetAll() {
   userStore.clearResume()
 }
 
+// Phase 25: MatchFlow navigation handler — jumps the wizard to the
+// step associated with the business concept the user clicked.
+function onFlowNavigate(targetStep: number) {
+  step.value = targetStep
+  // Reset transient state that wouldn't make sense when jumping
+  // backwards / forwards across the wizard.
+  if (targetStep === 0) {
+    userStore.clearResume()
+    manualSkills.value = []
+  }
+}
+
 // LOOP-04: 创建学习计划并跳转学习中心
 async function handleCreatePlan() {
   if (!matchStore.result) {
@@ -252,6 +266,32 @@ onUnmounted(() => {
           上传简历或输入技能，诊断与目标岗位的匹配度
         </p>
       </div>
+
+      <!-- Phase 25: §5.2 module-D 业务说明横幅 -->
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        class="tab-description"
+      >
+        <template #title>§5.2 模块D — 人岗匹配度诊断与差距分析</template>
+        <p>本流程对应设计文档的"匹配诊断全流程"：上传简历 → 文档解析 → LLM 技能提取 →
+        技能归一化 → 与目标岗位技能对比 → 差距分析报告 → 学习路径生成。</p>
+        <p class="tab-meta">后端: <code>/match/*</code> · 信任度驱动 (§7.1) · 通胀指数参考 (§7.5)</p>
+      </el-alert>
+
+      <!-- Phase 25: 业务流程图 — 让新用户秒懂 6 步骤数据流 -->
+      <el-card
+        shadow="never"
+        class="flow-card"
+      >
+        <template #header>
+          <h3 class="flow-title">
+            匹配诊断业务流
+          </h3>
+        </template>
+        <MatchFlow @navigate="onFlowNavigate" />
+      </el-card>
 
       <el-tabs
         v-model="pageMode"
@@ -434,12 +474,19 @@ onUnmounted(() => {
         </div>
 
         <!-- Step 3: Gap analysis report (extracted) -->
-        <GapAnalysisReport
-          v-if="step === 3"
-          :target-position="targetPositionName"
-          @go-learning="goToLearning"
-          @go-back="goBack"
-        />
+        <div v-if="step === 3">
+          <!-- Phase 25: 信任度解读 + §7.4 质量说明 -->
+          <MatchTrustGuide
+            :match-score="matchStore.result?.match_score"
+            :trust-score="matchStore.result?.match_score"
+            class="mb-4"
+          />
+          <GapAnalysisReport
+            :target-position="targetPositionName"
+            @go-learning="goToLearning"
+            @go-back="goBack"
+          />
+        </div>
 
         <!-- Step 4: Learning path (extracted) -->
         <LearningPathPlan
@@ -462,6 +509,42 @@ onUnmounted(() => {
   max-width: 960px;
   margin: 0 auto;
 }
+
+/* ── Phase 25: 业务说明横幅 + 流程图 ── */
+.tab-description {
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-lg);
+}
+.tab-description :deep(p) {
+  margin: 4px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--foreground);
+  line-height: 1.5;
+}
+.tab-description .tab-meta {
+  margin-top: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+}
+.tab-description code {
+  background: var(--muted);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+}
+
+.flow-card {
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-xl);
+}
+.flow-title {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--foreground);
+}
+
 .page-header {
   margin-bottom: var(--space-6);
 }
