@@ -207,3 +207,73 @@ html.dark {
   --dash-connected:    var(--success);
   --dash-disconnected: var(--destructive);
 }
+
+/* ═══════════════════════════════════════════════
+   Global Component Classes
+   Reusable utility classes that replace per-page
+   scoped duplicates. Import via design-tokens.css.
+   ═══════════════════════════════════════════════ */
+
+/* ── Empty State ──
+   Used when a section has no data to display.
+   Replaces 6+ scoped .empty-text definitions. */
+.starmap-empty {
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  margin: 0;
+  text-align: center;
+}
+.starmap-empty--sm {
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+}
+.starmap-empty--hint {
+  font-size: var(--text-body-sm);
+  color: var(--text-tertiary);
+  margin: var(--space-xs) 0 0;
+}
+
+/* ── KPI Card ──
+   Unified KPI metric card for dashboard pages. */
+.starmap-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  transition: var(--transition-fast);
+}
+.starmap-kpi:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+.starmap-kpi__label {
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+.starmap-kpi__value {
+  font-size: var(--text-display);
+  font-weight: var(--weight-extrabold);
+  color: var(--text-primary);
+  line-height: var(--leading-none);
+}
+.starmap-kpi__trend {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+}
+
+/* ── Card Wrapper ──
+   Unified card surface for page-level containers. */
+.starmap-card {
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-subtle);
+  transition: var(--transition-fast);
+}
+.starmap-card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
