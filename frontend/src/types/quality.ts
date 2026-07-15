@@ -6,16 +6,20 @@
 export interface QualityAlert {
   // ── Fields from quality.ts (persistent alert) ──
   id: string | number
-  type: string
-  status: 'pending' | 'processing' | 'resolved' | 'ignored'
-  created_at: string
+  type?: string
+  status?: 'pending' | 'processing' | 'resolved' | 'ignored'
+  created_at?: string
 
   // ── Fields from pipeline.ts (SSE alert) ──
-  level: 'info' | 'warning' | 'error' | 'critical'
-  message: string
-  source: string
-  timestamp: string
+  level?: 'info' | 'warning' | 'error' | 'critical'
+  severity?: 'info' | 'warning' | 'error' | 'critical'
+  message?: string
+  source?: string
+  timestamp?: string
   dimension?: string
   value?: number
   threshold?: number
+
+  // ── Test compatibility ──
+  metric?: string
 }

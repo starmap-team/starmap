@@ -8,7 +8,7 @@ import { createApp, ref } from 'vue'
 
 // ── Mock EventSource globally ──
 
-const mockEventSourceInstance = {
+const mockEventSourceInstance: any = {
   close: vi.fn(),
   onopen: null as (() => void) | null,
   onmessage: null as ((ev: MessageEvent) => void) | null,
@@ -18,7 +18,7 @@ const mockEventSourceInstance = {
   url: '',
   readyState: 0,
   withCredentials: false,
-}
+} as const
 
 const MockEventSource = vi.fn(() => {
   mockEventSourceInstance.close.mockReset()
@@ -51,7 +51,7 @@ vi.spyOn(console, 'error').mockImplementation(() => {})
 
 // ── withSetup helper for composables with lifecycle hooks ──
 
-function withSetup<T>(composable: () => T): [T, () => void] {
+function withSetup<T>(composable: () => T): { result: T; unmount: () => void } {
   let result: T
   const app = createApp({
     setup() {
@@ -62,7 +62,7 @@ function withSetup<T>(composable: () => T): [T, () => void] {
   const el = document.createElement('div')
   app.mount(el)
   const unmount = () => app.unmount()
-  return [result!, unmount]
+  return { result: result!, unmount }
 }
 
 // Import after mocks are set up
@@ -87,11 +87,11 @@ describe('useSSE', () => {
 
   it('should create EventSource with correct URL on init', () => {
     const onMessage = vi.fn()
-    const [result, teardown] = withSetup(() => useSSE('/api/v1/test', { onMessage }))
+    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
     unmount = teardown
 
     expect(MockEventSource).toHaveBeenCalled()
-    expect(MockEventSource.mock.calls[0][0]).toBe('/api/v1/test')
+    expect((MockEventSource as any).mock.calls[0][0]).toBe('/api/v1/test')
     expect(result.mode.value).toBe('sse')
   })
 
@@ -101,37 +101,37 @@ describe('useSSE', () => {
     vi.mocked(localStorage.getItem).mockReturnValue('my-jwt-token')
     const onMessage = vi.fn()
 
-    const [result, teardown] = withSetup(() => useSSE('/api/v1/test', { onMessage }))
+    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
     unmount = teardown
 
-    expect(MockEventSource.mock.calls[0][0]).toBe('/api/v1/test?token=my-jwt-token')
+    expect((MockEventSource as any).mock.calls[0][0]).toBe('/api/v1/test?token=my-jwt-token')
   })
 
   it('should use & separator when URL already has query params', () => {
     vi.mocked(localStorage.getItem).mockReturnValue('my-token')
     const onMessage = vi.fn()
 
-    const [result, teardown] = withSetup(() => useSSE('/api/v1/test?existing=1', { onMessage }))
+    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test?existing=1', { onMessage }))
     unmount = teardown
 
-    expect(MockEventSource.mock.calls[0][0]).toBe('/api/v1/test?existing=1&token=my-token')
+    expect((MockEventSource as any).mock.calls[0][0]).toBe('/api/v1/test?existing=1&token=my-token')
   })
 
   it('should not append token when none is stored', () => {
     vi.mocked(localStorage.getItem).mockReturnValue(null)
     const onMessage = vi.fn()
 
-    const [result, teardown] = withSetup(() => useSSE('/api/v1/test', { onMessage }))
+    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
     unmount = teardown
 
-    expect(MockEventSource.mock.calls[0][0]).toBe('/api/v1/test')
+    expect((MockEventSource as any).mock.calls[0][0]).toBe('/api/v1/test')
   })
 
   // ── 3. Message handling ──
 
   it('should call onMessage callback when SSE message received', () => {
     const onMessage = vi.fn()
-    const [result, teardown] = withSetup(() => useSSE('/api/v1/test', { onMessage }))
+    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
     unmount = teardown
 
     // Simulate onmessage callback
@@ -147,7 +147,7 @@ describe('useSSE', () => {
   it('should attempt reconnection with exponential backoff on error', () => {
     const onMessage = vi.fn()
     const onError = vi.fn()
-    const [result, teardown] = withSetup(() =>
+    const { result, unmount: teardown } = withSetup(() =>
       useSSE('/api/v1/test', { onMessage, onError, baseDelay: 100, maxRetries: 5 })
     )
     unmount = teardown
@@ -170,7 +170,7 @@ describe('useSSE', () => {
 
   it('should close EventSource on disconnect', () => {
     const onMessage = vi.fn()
-    const [result, teardown] = withSetup(() => useSSE('/api/v1/test', { onMessage }))
+    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
     unmount = teardown
 
     result.disconnect()
@@ -182,7 +182,7 @@ describe('useSSE', () => {
 
   it('should disconnect on component unmount', () => {
     const onMessage = vi.fn()
-    const [result, teardown] = withSetup(() => useSSE('/api/v1/test', { onMessage }))
+    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
 
     teardown()
 
@@ -193,7 +193,7 @@ describe('useSSE', () => {
 
   it('should switch to polling after consecutive failures exceed pollThreshold', () => {
     const onMessage = vi.fn()
-    const [result, teardown] = withSetup(() =>
+    const { result, unmount: teardown } = withSetup(() =>
       useSSE('/api/v1/test', { onMessage, pollThreshold: 2, pollInterval: 1000, baseDelay: 10 })
     )
     unmount = teardown
@@ -219,7 +219,7 @@ describe('useSSE', () => {
       pipeline_update: pipelineHandler,
     }
 
-    const [result, teardown] = withSetup(() =>
+    const { result, unmount: teardown } = withSetup(() =>
       useSSE('/api/v1/test', { onMessage, storeHandlers })
     )
     unmount = teardown
@@ -243,7 +243,7 @@ describe('useSSE', () => {
       extraction_complete: vi.fn(),
     }
 
-    const [result, teardown] = withSetup(() =>
+    const { result, unmount: teardown } = withSetup(() =>
       useSSE('/api/v1/test', { onMessage, storeHandlers })
     )
     unmount = teardown
@@ -265,7 +265,7 @@ describe('useSSE', () => {
   it('should call onError and switch to polling when max retries exhausted', () => {
     const onMessage = vi.fn()
     const onError = vi.fn()
-    const [result, teardown] = withSetup(() =>
+    const { result, unmount: teardown } = withSetup(() =>
       useSSE('/api/v1/test', { onMessage, onError, maxRetries: 1, baseDelay: 10, pollThreshold: 100 })
     )
     unmount = teardown
@@ -287,7 +287,7 @@ describe('useSSE', () => {
 
   it('should reset retry counters on successful connection', () => {
     const onMessage = vi.fn()
-    const [result, teardown] = withSetup(() =>
+    const { result, unmount: teardown } = withSetup(() =>
       useSSE('/api/v1/test', { onMessage, baseDelay: 10, maxRetries: 5 })
     )
     unmount = teardown

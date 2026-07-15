@@ -57,6 +57,7 @@ const emit = defineEmits<{
   nodeClick: [nodeId: string]
   nodeDblClick: [nodeId: string]
   evolutionEdgeClick: [edge: GraphLink3D]
+  autoRotateChange: [value: boolean]
 }>()
 
 // ── Refs ──
@@ -325,7 +326,15 @@ onUnmounted(() => {
 })
 
 // ── Expose methods for parent ──
-defineExpose({ setCameraPreset, resetCamera, toggleAutoRotate, autoRotate, fps })
+// 新增 autoRotateChange 事件，用于同步 autoRotate 状态到父组件
+// 注意：这里不能重复 defineEmits，因为上面已经定义了 emit
+// 包装 toggleAutoRotate，在切换后 emit 事件
+function _toggleAutoRotate() {
+  toggleAutoRotate()
+  emit('autoRotateChange', autoRotate.value)
+}
+
+defineExpose({ setCameraPreset, resetCamera, toggleAutoRotate: _toggleAutoRotate, autoRotate, fps })
 </script>
 
 <template>

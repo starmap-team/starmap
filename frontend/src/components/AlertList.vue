@@ -10,11 +10,11 @@ import { formatRelativeTime } from '@/utils/formatTime'
 
 export interface AlertItem {
   id: string | number
-  level: 'info' | 'warning' | 'error' | 'critical'
-  type: string
-  message: string
-  created_at: string
-  status: 'pending' | 'processing' | 'resolved' | 'ignored'
+  level?: 'info' | 'warning' | 'error' | 'critical'
+  type?: string
+  message?: string
+  created_at?: string
+  status?: 'pending' | 'processing' | 'resolved' | 'ignored'
 }
 
 defineProps<{

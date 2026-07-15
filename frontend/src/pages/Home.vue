@@ -47,6 +47,7 @@ const { graph2DRef, graph3DRef, breadcrumb, positionRadarOption,
   onCanvasClick, handleSearchSelect } = interactions
 
 const onToggleAutoRotate = () => interactions.onToggleAutoRotate(autoRotate3D)
+
 const onToggleEvolution = () => toggleEvolution(showEvolution, selectedNode)
 const onCloseDetail = () => closeDetail(clearSelection)
 const onCanvasClickWithClear = () => onCanvasClick(clearSelection)
@@ -121,6 +122,7 @@ onMounted(async () => {
               @node-click="onHandleNodeClick"
               @node-dbl-click="onNodeDblClick"
               @evolution-edge-click="onOpenEvolutionDrawer"
+              @auto-rotate-change="autoRotate3D = $event"
             />
             <div
               v-if="showEvolution && viewMode === '3d' && graphStore.currentLayer === 'position' && !graphStore.focusedPositionName"
@@ -155,11 +157,11 @@ onMounted(async () => {
               :auto-rotate="autoRotate3D"
               :max-nodes="maxNodesLimit"
               :selected-proficiencies="proficiencyFilter"
-              @zoom-in="graph2DRef?.zoomBy(1.2)"
-              @zoom-out="graph2DRef?.zoomBy(0.8)"
-              @zoom-fit="graph2DRef?.fitView()"
+              @zoom-in="viewMode === '2d' ? graph2DRef?.zoomBy(1.2) : graph3DRef?.setCameraPreset('overview')"
+              @zoom-out="viewMode === '2d' ? graph2DRef?.zoomBy(0.8) : graph3DRef?.setCameraPreset('position')"
+              @zoom-fit="viewMode === '2d' ? graph2DRef?.fitView() : graph3DRef?.resetCamera()"
               @toggle-layout="toggleLayout"
-              @reset-highlight="resetHighlight"
+              @reset-highlight="viewMode === '2d' ? resetHighlight() : null"
               @max-nodes-change="onMaxNodesChange"
               @proficiency-filter="onProficiencyFilter"
               @camera-preset="onCameraPreset"
