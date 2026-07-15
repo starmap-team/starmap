@@ -42,6 +42,19 @@ onMounted(() => {
 <template>
   <MainLayout>
     <div class="datasources-page animate-fade-in">
+      <!-- Phase 26: §3.2 L2 业务说明横幅 -->
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        class="business-banner"
+      >
+        <template #title>§3.2 多源异构数据融合 — 数据源管理</template>
+        <p>StarMap 融合三类异构数据源：结构化（ESCO 职业标准）、半结构化（招聘 JD 爬虫）、
+        非结构化（技术博客）。权威性评分直接影响 §7.1 信任度驱动的图谱构建策略。</p>
+        <p class="banner-meta">后端: <code>/datasources</code> · 数据源: <code>datasources</code> 表 · 采集 → 归一化 → 信任度评分</p>
+      </el-alert>
+
       <!-- 页面头部 -->
       <div class="page-header">
         <div>
@@ -383,6 +396,30 @@ onMounted(() => {
 .datasources-page {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* Phase 26: 业务说明横幅 */
+.business-banner {
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-lg);
+}
+.business-banner :deep(p) {
+  margin: 4px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--foreground);
+  line-height: 1.5;
+}
+.business-banner .banner-meta {
+  margin-top: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+}
+.business-banner code {
+  background: var(--muted);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
 }
 
 /* 页面头部 */
