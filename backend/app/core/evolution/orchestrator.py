@@ -26,6 +26,12 @@ from app.core.evolution.path_recommender import PathRecommender, PathReport
 from app.core.evolution.snapshot_manager import SnapshotManager
 from app.core.evolution.trust_integration import TrustScorer
 from app.models.evolution_models import EvolutionChangelog, EvolutionPath
+from app.models.extraction_models import ReviewQueue
+
+# Phase 24: §5.2 design-doc intent — trust-score threshold for the review queue.
+# trust_score < REVIEW_QUEUE_THRESHOLD → write to review_queue for human review.
+# 0.6 matches §7.1 "trust-driven graph construction strategy".
+REVIEW_QUEUE_THRESHOLD = 0.6
 
 
 @dataclass
@@ -259,8 +265,16 @@ class EvolutionOrchestrator:
         return {row[0]: set(row[1]) for row in rows}
 
     async def _save_changelog(self, diff_result: DiffResult) -> int:
-        """Save diff changes to the evolution_changelog table."""
+        """Save diff changes to the evolution_changelog table.
+
+        Phase 24 (§5.2 + §7.1 design-doc intent): when a change has
+        trust_score below REVIEW_QUEUE_THRESHOLD, we ALSO write a
+        ReviewQueue row so the admin can manually approve / reject the
+        change from the management console. This is the missing INSERT
+        path that the legacy review-queue tab has always needed.
+        """
         count = 0
+        review_count = 0
         for change in diff_result.changes:
             if change.change_type.value == "retained":
                 continue
@@ -282,8 +296,46 @@ class EvolutionOrchestrator:
             self._session.add(record)
             count += 1
 
+            # Phase 24: low-trust changes go into the review queue so an
+            # admin can accept or reject them (§5.2 + §7.1).
+            if change.trust_score < REVIEW_QUEUE_THRESHOLD:
+                # Map change_type → entity_type so the admin UI knows
+                # what to render. "added_*" → new_skill, "modified_*" /
+                # "removed" → skill, anything else → skill (fallback).
+                if change.change_type.value in ("added_required", "added_preferred"):
+                    entity_type = "new_skill"
+                else:
+                    entity_type = "skill"
+                review_row = ReviewQueue(
+                    entity_type=entity_type,
+                    entity_name=change.skill_name,
+                    status="pending",
+                    payload={
+                        "trust": int(change.trust_score * 100),
+                        "change_type": change.change_type.value,
+                        "position": diff_result.position_name,
+                        "old_proficiency": change.old_proficiency,
+                        "new_proficiency": change.new_proficiency,
+                        "old_requirement": change.old_requirement,
+                        "new_requirement": change.new_requirement,
+                        "confidence": change.confidence,
+                        "evidence": change.evidence,
+                        "snapshot_from_id": str(diff_result.snapshot_from_id) if diff_result.snapshot_from_id else None,
+                        "snapshot_to_id": str(diff_result.snapshot_to_id) if diff_result.snapshot_to_id else None,
+                    },
+                )
+                self._session.add(review_row)
+                review_count += 1
+
         if count > 0:
             await self._session.flush()
+
+        if review_count > 0:
+            logger.info(
+                "Queued {} low-trust changes (trust < {}) for human review (§5.2)",
+                review_count,
+                REVIEW_QUEUE_THRESHOLD,
+            )
 
         return count
 

@@ -21,11 +21,19 @@ from app.services.admin_audit_service import (
     AdminStatsResponse,
     AuditItem,
     AuditItemNotFound,
-    approve_audit as svc_approve_audit,
-    batch_audit as svc_batch_audit,
     build_admin_stats,
     get_review_queue,
+)
+from app.services.admin_audit_service import (
+    approve_audit as svc_approve_audit,
+)
+from app.services.admin_audit_service import (
+    batch_audit as svc_batch_audit,
+)
+from app.services.admin_audit_service import (
     reject_audit as svc_reject_audit,
+)
+from app.services.admin_audit_service import (
     update_review_queue_item as svc_update_review_queue_item,
 )
 
@@ -90,10 +98,14 @@ async def approve_audit_endpoint(
     item_id: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
 ) -> AuditItem:
     """Approve a review queue item and sync to Neo4j (LOOP-07)."""
     try:
-        return await svc_approve_audit(item_id, session, neo4j_driver=neo4j_driver)
+        actor = user.get("sub") or user.get("username") or "admin"
+        return await svc_approve_audit(
+            item_id, session, neo4j_driver=neo4j_driver, actor=f"admin:{actor}",
+        )
     except AuditItemNotFound as exc:
         raise _map_not_found(exc) from exc
 
@@ -131,10 +143,12 @@ async def update_review_queue_item_endpoint(
 async def batch_audit_endpoint(
     body: BatchAuditRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
 ) -> list[AuditItem]:
     """Batch approve or reject multiple review queue items."""
     try:
-        return await svc_batch_audit(body.item_ids, body.action, session)
+        actor = user.get("sub") or user.get("username") or "admin"
+        return await svc_batch_audit(body.item_ids, body.action, session, actor=f"admin:{actor}")
     except AuditItemNotFound as exc:
         raise _map_not_found(exc) from exc
 
