@@ -25,6 +25,11 @@ async function handleExtract() {
     ElMessage.warning('请输入 JD 文本')
     return
   }
+  // Phase 26 / BUG-004: clear any prior progress interval before
+  // starting a new one. Without this, double-clicking "抽取" left
+  // two intervals racing — the second one would advance the bar past
+  // 85% and the random increments produced visually-jumpy progress.
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
   extractProgress.value = 0
   extractPhase.value = '正在调用 AI 分析 JD 文本...'
   progressTimer = setInterval(() => {

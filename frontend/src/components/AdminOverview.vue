@@ -13,7 +13,7 @@
  * from a single existing store so the overview never goes stale relative
  * to its underlying data source.
  */
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Grid, Connection, DataLine, Warning, Clock, Promotion } from '@element-plus/icons-vue'
@@ -25,13 +25,29 @@ const router = useRouter()
 const dashboard = useDashboardStore()
 const review = useReviewStore()
 
-onMounted(async () => {
-  // Best-effort refresh; do not block the page if any single source fails.
-  await Promise.allSettled([
-    dashboard.fetchOverview().catch(() => null),
-    review.fetchStats().catch(() => null),
+// Phase 26 / BUG-005: surface load failures so the user can retry
+// instead of staring at a row of "0" KPIs.
+const loadError = ref<string | null>(null)
+const loading = ref(false)
+
+async function refresh() {
+  loading.value = true
+  loadError.value = null
+  const results = await Promise.allSettled([
+    dashboard.fetchOverview(),
+    review.fetchStats(),
   ])
-})
+  const failures = results
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => r.status === 'rejected')
+  if (failures.length > 0) {
+    const names = ['总览数据', '审核统计']
+    loadError.value = `部分数据加载失败：${failures.map(f => names[f.i]).join('、')}`
+  }
+  loading.value = false
+}
+
+onMounted(refresh)
 
 const overview = computed(() => dashboard.overview)
 
@@ -129,6 +145,30 @@ const tabCards = [
 
 <template>
   <div class="admin-overview">
+    <!-- Phase 26 / BUG-005: surface load failures with a retry button
+         instead of silently rendering all KPIs as 0. -->
+    <el-alert
+      v-if="loadError"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="load-error"
+    >
+      <template #title>
+        {{ loadError }}
+      </template>
+      <p>系统可能返回了部分数据 — 仍可点击重试刷新。</p>
+      <el-button
+        size="small"
+        type="primary"
+        plain
+        :loading="loading"
+        @click="refresh"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <!-- ─── 业务流可视化 ─── -->
     <el-card
       shadow="never"
@@ -241,6 +281,15 @@ const tabCards = [
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+}
+
+.load-error {
+  border-radius: var(--radius-lg);
+}
+.load-error :deep(p) {
+  margin: 4px 0 8px;
+  font-size: var(--font-size-sm);
+  color: var(--foreground);
 }
 
 .flow-card-header {

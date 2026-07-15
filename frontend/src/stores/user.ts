@@ -137,6 +137,23 @@ export const useUserStore = defineStore('user', () => {
     }
     clearUser()
     clearResume()
+    // Phase 26 / BUG-003: clear cached per-user data in every store so
+    // the next user logging in on the same browser cannot see the
+    // previous user's skill gaps, match results, or extracted positions.
+    // Lazy-load to avoid a circular-import at module-evaluation time.
+    try {
+      const { useMatchStore } = await import('@/stores/match')
+      const { useJdStore } = await import('@/stores/jd')
+      const { useJobseekerStore } = await import('@/stores/jobseeker')
+      const { useLoopStore } = await import('@/stores/loop')
+      useMatchStore().clearResult()
+      useJdStore().clearResult()
+      useJobseekerStore().reset()
+      useLoopStore().resetRun()
+    } catch {
+      // best-effort — if any store fails to import we still want logout
+      // to complete; stale data is preferable to a stuck session.
+    }
   }
 
   // ── Resume-related state (kept for backward compat with match-diagnosis flow) ──

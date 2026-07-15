@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue"
+import { ref, computed, onUnmounted } from "vue"
 import { Search } from "@element-plus/icons-vue"
 import { useGraphStore } from "@/stores/graph"
 
@@ -11,6 +11,16 @@ const graphStore = useGraphStore()
 const searchKeyword = ref("")
 const showSearchDropdown = ref(false)
 const searchHighlightIndex = ref(-1)
+// Phase 26 / BUG-007: capture the blur-hide timer so we can cancel
+// it on unmount. Without this, a fast unmount during the 200ms
+// grace window would fire the callback into a dead ref.
+let blurHideTimer: ReturnType<typeof setTimeout> | null = null
+onUnmounted(() => {
+  if (blurHideTimer) {
+    clearTimeout(blurHideTimer)
+    blurHideTimer = null
+  }
+})
 
 const searchResults = computed(() => {
   const kw = searchKeyword.value.trim().toLowerCase()
@@ -58,7 +68,14 @@ function selectResult(r: { id: string; name: string; type: string }) {
   searchKeyword.value = ""
   emit("nodeSelected", r.id, r.name, r.type)
 }
-function onSearchBlur() { setTimeout(() => { showSearchDropdown.value = false }, 200) }
+function onSearchBlur() {
+  // BUG-007: store the timer id so onUnmounted can cancel it.
+  if (blurHideTimer) clearTimeout(blurHideTimer)
+  blurHideTimer = setTimeout(() => {
+    showSearchDropdown.value = false
+    blurHideTimer = null
+  }, 200)
+}
 </script>
 
 <template>

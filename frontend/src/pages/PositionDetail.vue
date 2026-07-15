@@ -82,30 +82,38 @@ function hotnessColor(count: number): string {
 }
 
 // ── 加载（Neo4j 优先，PostgreSQL 回退） ──
+// Phase 26 / BUG-002: capture the positionName at fetch-start so a
+// slow response for /position/A can't overwrite the freshly-mounted
+// response for /position/B when the user navigates rapidly.
+let fetchToken = 0
+
 onMounted(async () => {
   loading.value = true
+  const myToken = ++fetchToken
   try {
     const data = await jdStore.fetchPositionSkills(positionName.value) as unknown as PositionSkillsResponse
+    if (myToken !== fetchToken) return  // a newer fetch has started
     if (data?.skills?.length || data?.position) {
       position.value = data.position as PositionInfo
       skills.value = (data.skills ?? []) as SkillItem[]
     } else {
       // Neo4j 无数据，回退到 PostgreSQL
-      await loadFromPostgres()
+      await loadFromPostgres(myToken)
     }
   } catch (e) {
+    if (myToken !== fetchToken) return
     // Neo4j 查询失败（如 404），回退到 PostgreSQL
-      // keep: records Neo4j→PostgreSQL fallback for ops debugging
-      if (import.meta.env.DEV) console.warn('[PositionDetail] Neo4j lookup failed, trying PostgreSQL:', e)
-    await loadFromPostgres()
+    if (import.meta.env.DEV) console.warn('[PositionDetail] Neo4j lookup failed, trying PostgreSQL:', e)
+    await loadFromPostgres(myToken)
   } finally {
-    loading.value = false
+    if (myToken === fetchToken) loading.value = false
   }
 })
 
-async function loadFromPostgres() {
+async function loadFromPostgres(token: number) {
   try {
     const pgData = (await jdStore.fetchPositionDetail(positionName.value)) as unknown as Record<string, unknown>
+    if (token !== fetchToken) return  // stale response, ignore
     const pgRecord = pgData as { name?: string; industry?: string; description?: string; skills_required?: { skill_id?: string; name?: string; category?: string; proficiency?: string; confidence?: number; source_count?: number }[] }
     position.value = {
       name: pgRecord.name ?? positionName.value,
@@ -121,6 +129,7 @@ async function loadFromPostgres() {
       source_count: s.source_count ?? 0,
     }))
   } catch (pgErr) {
+    if (token !== fetchToken) return
     if (import.meta.env.DEV) console.error('[PositionDetail] PostgreSQL fallback also failed:', pgErr)
     ElMessage.error('岗位详情加载失败，请确认该岗位存在')
   }

@@ -190,6 +190,17 @@ async function handleStartDiagnosis() {
       matchAnimSkills.value = allSkills
     }
 
+    // Phase 26 / BUG-006: don't advance to step 3 (gap analysis) when
+    // the match result is empty — that would leave the wizard stuck on
+    // a blank GapAnalysisReport with no recovery path. Stay on step 2,
+    // show a warning, and let the user retry with a different position.
+    if (!result || (result.matched_skills?.length === 0 && (result.skill_gap_detail?.length ?? 0) === 0)) {
+      ElMessage.warning('诊断未产生结果，请检查简历技能或尝试其他岗位')
+      matchAnimating.value = false
+      matchAnimComplete.value = false
+      return
+    }
+
     step.value = 3
   } catch (e: unknown) {
     ElMessage.error('诊断请求失败: ' + (e instanceof Error ? e.message : '未知错误'))
