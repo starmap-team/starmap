@@ -158,7 +158,7 @@ async def cancel_pipeline_run(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CancelResponse:
     """Phase 1 D-04: 软取消 + Redis STOP flag + Celery 阶段开始时检查。"""
-    from app.core.pipeline.orchestrator import RunNotFoundError, RunAlreadyTerminalError, cancel_run
+    from app.core.pipeline.orchestrator import RunAlreadyTerminalError, RunNotFoundError, cancel_run
 
     redis_client = getattr(request.app.state.resources, "redis_client", None)
     try:

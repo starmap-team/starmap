@@ -24,8 +24,16 @@ from app.config import settings
 
 
 def _encode_jwt(payload: dict, secret: str | None = None) -> str:
-    """Create a valid JWT token for testing (PyJWT)."""
+    """Create a valid JWT token for testing (PyJWT).
+
+    Injects iss/aud defaults to match the configured decoder policy
+    (Phase DB-AUTH enforces both claims). Tests that intentionally
+    exercise missing-claim rejection must use raw `_jwt.encode` instead.
+    """
     secret = secret or settings.secret_key
+    payload = dict(payload)
+    payload.setdefault("iss", settings.jwt_issuer)
+    payload.setdefault("aud", settings.jwt_audience)
     return _jwt.encode(payload, secret, algorithm="HS256")
 
 

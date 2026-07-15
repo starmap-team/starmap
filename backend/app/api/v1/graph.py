@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.dependencies import get_neo4j_driver
+from app.services.graph_serializers import _safe_properties
 from app.services.graph_service import fetch_position_graph
 
 router = APIRouter(prefix="/graph", tags=["图谱查询"])
@@ -113,9 +114,9 @@ class DomainOverviewResponse(BaseModel):
     response_model=DomainOverviewResponse,
 )
 async def get_graph_overview(
-	    driver: Annotated[Any, Depends(get_neo4j_driver)],
-	    group_by: Annotated[Literal["domain", "tech_stack", "level"], Query(description="分组方式: domain(默认)/tech_stack/level")] = "domain",
-	) -> DomainOverviewResponse:
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    group_by: Annotated[Literal["domain", "tech_stack", "level"], Query(description="分组方式: domain(默认)/tech_stack/level")] = "domain",
+) -> DomainOverviewResponse:
     if driver is None:
         return DomainOverviewResponse()
     # Dispatch to specialized queries
@@ -225,12 +226,13 @@ class KAPositionsResponse(BaseModel):
     ka_name: str = ""
     positions: list[GraphNode] = Field(default_factory=list)
     position_skill_edges: list[GraphEdge] = Field(default_factory=list)
+    skills: list[GraphNode] = Field(default_factory=list, description="关联的 Skill 节点")
 
 
 @router.get(
     "/ka/{ka_id}/positions",
     summary="KA 下的岗位列表",
-    description="返回指定 KnowledgeArea 下的 Position 节点及其与 Skill 的 REQUIRES 关系。",
+    description="返回指定 KnowledgeArea 下的 Position 节点及其与 Skill 的 REQUIRES 关系。支持 domain/tech_stack/level 三种模式。",
     response_model=KAPositionsResponse,
 )
 async def get_ka_positions(
@@ -240,6 +242,84 @@ async def get_ka_positions(
     if driver is None:
         return KAPositionsResponse(ka_id=ka_id)
     from app.services.graph_service import serialize_node, serialize_relationship
+
+    # ── Dispatch by ID prefix ──
+    # domain mode: ka_id is Neo4j elementId (e.g. "4:xxx:123")
+    # tech_stack mode: ka_id is literal like "ts-ai", "ts-bigdata"
+    # level mode: ka_id is literal like "lv-junior", "lv-mid"
+    if ka_id.startswith("ts-") or ka_id.startswith("lv-"):
+        # Build a synthetic category filter — reuse the same classifiers
+        # from graph_overview.py to find matching positions.
+        from app.services.graph_overview import (
+            _classify_level,
+            _classify_tech_stack,
+        )
+        # Reverse-lookup the category name from the literal ID
+        stack_id_prefix = {"人工智能": "ts-ai", "大数据": "ts-bigdata", "智能系统": "ts-sys",
+                           "物联网": "ts-iot", "云计算/DevOps": "ts-cloud", "网络安全": "ts-sec", "其他": "ts-other"}
+        level_id = {"初级": "lv-junior", "中级": "lv-mid", "高级": "lv-senior"}
+        is_tech_stack = ka_id.startswith("ts-")
+        ka_name = ""
+        if is_tech_stack:
+            for name, lid in stack_id_prefix.items():
+                if lid == ka_id:
+                    ka_name = name
+                    break
+        else:
+            for name, lid in level_id.items():
+                if lid == ka_id:
+                    ka_name = name
+                    break
+
+        async with driver.session() as session:
+            # Phase 1: fetch all Positions and filter in-application
+            result = await session.run("MATCH (p:Position) RETURN p")
+            matched_element_ids: list[str] = []
+            positions: dict[str, dict[str, Any]] = {}
+            async for record in result:
+                p_node = record["p"]
+                if p_node is None:
+                    continue
+                props = _safe_properties(p_node)
+                name = props.get("name", "")
+                industry = props.get("industry", "")
+                if is_tech_stack:
+                    matched = _classify_tech_stack(industry, name) == ka_name
+                else:
+                    matched = _classify_level(name, props) == ka_name
+                if not matched:
+                    continue
+                pos_data = serialize_node(p_node)
+                if pos_data["id"] not in positions:
+                    positions[pos_data["id"]] = pos_data
+                    matched_element_ids.append(p_node.element_id)
+
+            # Phase 2: batch-fetch REQUIRES edges + Skill nodes for all matched positions
+            skills: dict[str, dict[str, Any]] = {}
+            edges: list[dict[str, Any]] = []
+            if matched_element_ids:
+                edge_result = await session.run(
+                    "MATCH (p:Position)-[r:REQUIRES]->(s:Skill) "
+                    "WHERE elementId(p) IN $pids RETURN r, s",
+                    pids=matched_element_ids,
+                )
+                async for e_record in edge_result:
+                    r = e_record["r"]
+                    s = e_record["s"]
+                    if r:
+                        edges.append(serialize_relationship(r))
+                    if s and s.element_id not in skills:
+                        skills[s.element_id] = serialize_node(s)
+
+        return KAPositionsResponse(
+            ka_id=ka_id,
+            ka_name=ka_name,
+            positions=list(positions.values()),
+            position_skill_edges=edges,
+            skills=list(skills.values()),
+        )
+
+    # ── domain mode: match by Neo4j elementId ──
     async with driver.session() as session:
         # Find KA name first
         ka_query = """
@@ -260,11 +340,15 @@ async def get_ka_positions(
         """
         result = await session.run(query, ka_id=ka_id)
         positions: dict[str, dict[str, Any]] = {}
+        skills: dict[str, dict[str, Any]] = {}
         edges: list[dict[str, Any]] = []
         async for record in result:
             p = record["p"]
             if p and p.element_id not in positions:
                 positions[p.element_id] = serialize_node(p)
+            s = record["s"]
+            if s and s.element_id not in skills:
+                skills[s.element_id] = serialize_node(s)
             r = record["r"]
             if r:
                 edges.append(serialize_relationship(r))
@@ -274,4 +358,5 @@ async def get_ka_positions(
         ka_name=ka_name,
         positions=list(positions.values()),
         position_skill_edges=edges,
+        skills=list(skills.values()),
     )

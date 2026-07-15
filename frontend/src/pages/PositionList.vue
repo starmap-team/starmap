@@ -326,10 +326,10 @@ onMounted(fetchPositions)
               r="8"
             /><path d="m21 21-4.35-4.35" /></svg>
           </div>
-          <p class="empty-text">
+          <p class="starmap-empty">
             未找到匹配的岗位
           </p>
-          <p class="empty-hint-text">
+          <p class="starmap-empty--hint">
             {{ statusFilter === 'pending_review'
               ? '没有待审核的岗位'
               : '尝试调整筛选条件或关键词' }}
@@ -338,7 +338,7 @@ onMounted(fetchPositions)
             v-if="statusFilter === 'pending_review'"
             class="empty-actions"
           >
-            <p class="empty-hint-text">
+            <p class="starmap-empty--hint">
               请到管理后台审核，或从 JD 中抽取新岗位
             </p>
             <el-button
@@ -476,18 +476,6 @@ onMounted(fetchPositions)
   color: var(--muted-foreground);
   opacity: 0.4;
   margin-bottom: var(--space-4);
-}
-.empty-text {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--foreground);
-  margin: 0;
-  letter-spacing: var(--tracking-tight);
-}
-.empty-hint-text {
-  font-size: var(--font-size-sm);
-  color: var(--muted-foreground);
-  margin: var(--space-1) 0 0;
 }
 .empty-slot {
   margin-top: var(--space-4);

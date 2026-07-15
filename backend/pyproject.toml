@@ -13,6 +13,7 @@ dependencies = [
     "uvicorn[standard] (>=0.27,<0.30)",
     "pydantic (>=2.6,<3.0)",
     "pydantic-settings (>=2.2,<3.0)",
+    "email-validator (>=2.0)",            # Pydantic EmailStr support
     "python-multipart (>=0.0.9)",        # 文件上传（简历）
     # 数据库
     "sqlalchemy[asyncio] (>=2.0,<2.1)",

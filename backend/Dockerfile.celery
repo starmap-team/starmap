@@ -22,5 +22,9 @@ RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
 # 拷贝 crawler 包（Playwright-stealth BOSS 爬虫依赖）
 COPY crawler/ ./crawler/
 
+# entrypoint: bootstrap (alembic upgrade ensures schema), then exec CMD
+RUN chmod +x entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]
+
 # 默认启动 celery worker（具体 queues / beat 由 docker-compose 决定）
 CMD ["celery", "-A", "app.tasks.celery_app.celery_app", "worker", "--loglevel=info"]

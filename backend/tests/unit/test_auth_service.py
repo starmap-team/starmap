@@ -32,7 +32,7 @@ class TestDecodeToken:
     """decode_token — JWT structure, signature, and expiry validation."""
 
     def test_valid_token_decodes(self):
-        user = User(username="user1", password_hash=hash_password("test"), role="admin")
+        user = User(username="user1", password_hash=hash_password("testX123"), role="admin")
         token = create_access_token(user)
         result = decode_token(token)
         assert result["sub"] == "user1"
@@ -76,7 +76,7 @@ class TestPasswordHashing:
         assert verify_password("wrongpassword", hashed) is False
 
     def test_hash_is_bcrypt_format(self):
-        hashed = hash_password("test")
+        hashed = hash_password("testX123")
         assert hashed.startswith(("$2b$", "$2a$"))
 
     def test_different_hashes_for_same_password(self):
@@ -85,7 +85,7 @@ class TestPasswordHashing:
         assert h1 != h2  # Different salts
 
     def test_cost_factor_12(self):
-        hashed = hash_password("test")
+        hashed = hash_password("testX123")
         assert "$12$" in hashed
 
 
@@ -98,7 +98,7 @@ class TestCreateAccessToken:
     """create_access_token — proper claims and format."""
 
     def test_token_contains_required_claims(self):
-        user = User(username="testuser", password_hash=hash_password("test"), role="admin")
+        user = User(username="testuser", password_hash=hash_password("testX123"), role="admin")
         token = create_access_token(user)
         decoded = decode_token(token)
         assert decoded["sub"] == "testuser"
@@ -111,7 +111,7 @@ class TestCreateAccessToken:
         assert "iat" in decoded
 
     def test_token_expiry_is_15_minutes(self):
-        user = User(username="testuser", password_hash=hash_password("test"), role="user")
+        user = User(username="testuser", password_hash=hash_password("testX123"), role="user")
         token = create_access_token(user)
         decoded = decode_token(token)
         # exp - iat should be ~900 seconds (15 min)

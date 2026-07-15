@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # 星图(StarMap) 开发环境 Docker Compose
 # 规范3（§17.4）：开发也用 Docker，依赖精确锁定。
 # 启动：docker compose -f docker-compose.dev.yml up -d
@@ -33,7 +33,7 @@ services:
         condition: service_started
       chroma:
         condition: service_started
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-exclude='tests/*' --reload-exclude='docs/*' --reload-exclude='graphify-out/*'
+    command: ["./entrypoint.sh", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-exclude=tests/*", "--reload-exclude=docs/*", "--reload-exclude=graphify-out/*"]
     restart: unless-stopped
     # 开发模式：容器停止后保留，不自动删除
     stop_signal: SIGTERM
@@ -70,7 +70,7 @@ services:
         condition: service_healthy
       neo4j:
         condition: service_healthy
-    command: celery -A app.tasks.celery_app.celery_app worker --loglevel=info
+    command: ["./entrypoint.sh", "celery", "-A", "app.tasks.celery_app.celery_app", "worker", "--loglevel=info"]
     restart: unless-stopped
     # 开发模式：容器停止后保留，不自动删除
     stop_signal: SIGTERM
@@ -88,11 +88,19 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_BASE_URL=http://starmap-backend:8000   # Docker 内部网络，使用服务名
-      - VITE_USE_MSW=false   # 禁用 MSW mock，使用真实后端 API
+      # Browser hits http://localhost:5173 → axios baseURL = http://localhost:8000/api/v1 → CORS → backend container :8000
+      - VITE_API_BASE_URL=http://localhost:8000/api/v1
+      - VITE_USE_MSW=false
     command: npm run dev -- --host 0.0.0.0
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:5173 > /dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
     # 开发模式：容器停止后保留，不自动删除
     stop_signal: SIGTERM

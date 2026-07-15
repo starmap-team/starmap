@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import Annotated, Any, Literal
 
 import neo4j.exceptions
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field

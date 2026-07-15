@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 
 from app.api.v1 import (
     admin,
+    admin_users,
     auth,
     dashboard,
     evolution,
@@ -24,7 +25,8 @@ from app.api.v1 import (
     quality,
     resume,
 )
-from app.api.v1.datasource import router as datasource_router, admin_router as datasource_admin_router
+from app.api.v1.datasource import admin_router as datasource_admin_router
+from app.api.v1.datasource import router as datasource_router
 from app.dependencies import get_current_user
 
 # Auth router 不需要认证依赖（登录端点本身不需要 token）
@@ -40,6 +42,7 @@ api_router.include_router(resume.router, tags=["简历解析"])
 api_router.include_router(quality.router, tags=["质量监控"])
 api_router.include_router(extract.router, tags=["信息抽取"])
 api_router.include_router(admin.router, tags=["管理后台"])
+api_router.include_router(admin_users.router)
 api_router.include_router(judge.router, tags=["Judge 评估"])
 api_router.include_router(pipeline.router, tags=["数据流水线"])
 api_router.include_router(datasource_router, tags=["数据源管理"])

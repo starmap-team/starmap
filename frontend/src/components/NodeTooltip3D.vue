@@ -57,10 +57,8 @@ const stats = computed(() => {
           {{ typeInfo.label }}
         </div>
 
-        <!-- Node name -->
-        <div class="tt-name">
-          {{ node.name }}
-        </div>
+        <!-- Node name: shown in tooltip when textSprite is hidden on hover -->
+        <div class="tt-name">{{ node.name }}</div>
 
         <!-- Stats row -->
         <div

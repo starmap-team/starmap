@@ -42,13 +42,18 @@ services:
         condition: service_healthy
       chroma:
         condition: service_started
-    command: >
-      uvicorn app.main:app
-      --host 0.0.0.0
-      --port 8000
-      --workers 4
-      --access-log
-      --no-use-colors
+    command:
+      - ./entrypoint.sh
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "4"
+      - --access-log
+      - --no-use-colors
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 15s
@@ -94,12 +99,17 @@ services:
         condition: service_healthy
       neo4j:
         condition: service_healthy
-    command: >
-      celery -A app.tasks.celery_app.celery_app worker
-      --loglevel=warning
-      --concurrency=4
-      --max-tasks-per-child=200
-      -Q default,extraction,matching,graph
+    command:
+      - ./entrypoint.sh
+      - celery
+      - -A
+      - app.tasks.celery_app.celery_app
+      - worker
+      - --loglevel=warning
+      - --concurrency=4
+      - --max-tasks-per-child=200
+      - -Q
+      - default,extraction,matching,graph
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.tasks.celery_app.celery_app inspect ping --timeout 5 || exit 1"]
       interval: 30s

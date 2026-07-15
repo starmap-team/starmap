@@ -118,14 +118,10 @@ async function initGraph() {
     .nodeOpacity(0.75)
     .nodeThreeObject(buildNodeThreeObject)
     // ── Node label (3D text sprite) ──
-    .nodeLabel((node) => {
-      const n = node as GraphNode3D
-      const label = getNodeLabel(n)
-      const isDomain = label === 'KnowledgeArea'
-      const fontSize = isDomain ? 14 : 11
-      const padding = isDomain ? '6px 14px' : '4px 10px'
-      return `<div style="font-family:'PingFang SC','Microsoft YaHei',sans-serif;font-size:${fontSize}px;font-weight:700;color:${SCENE_PALETTE.textColor};background:rgba(10,14,26,0.92);padding:${padding};border-radius:10px;border:1px solid ${withAlpha(SCENE_PALETTE.mutedText, 0.4)};backdrop-filter:blur(12px);box-shadow:0 4px 16px rgba(0,0,0,0.4);text-shadow:0 0 8px rgba(0,0,0,0.6);letter-spacing:0.5px;max-width:200px;white-space:normal;word-break:break-word;line-height:1.35;">${escapeHtml(n.properties.name)}</div>`
-    })
+    // Disable 3d-force-graph's default HTML tooltip — textSprite (via
+    // buildNodeThreeObject) already provides a persistent 3D label above
+    // each node, and NodeTooltip3D handles hover details.
+    .nodeLabel(() => '')
     // ── Edge configuration ──
     .linkColor((link) => {
       const l = link as GraphLink3D
@@ -155,9 +151,33 @@ async function initGraph() {
   applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, true)
 
   // ── Interactions ──
+  // Track previously hovered node to restore its textSprite visibility
+  let _prevHoveredNode: GraphNode3D | null = null
+
+  function _setTextSpriteVisible(nodeObj: GraphNode3D, visible: boolean) {
+    // nodeObj.__threeObj is the Three.js Object3D created by buildNodeThreeObject
+    // textSprite is the last Sprite child added in buildNodeThreeObject
+    const threeObj = (nodeObj as unknown as { __threeObj?: import('three').Object3D }).__threeObj
+    if (!threeObj) return
+    threeObj.traverse((child) => {
+      // Sprites added by createTextSprite carry a userData flag
+      if (child.type === 'Sprite' && child.userData.isTextSprite) {
+        child.visible = visible
+      }
+    })
+  }
+
   graph.onNodeHover((node) => {
+    // Restore previous node's textSprite
+    if (_prevHoveredNode) {
+      _setTextSpriteVisible(_prevHoveredNode, true)
+      _prevHoveredNode = null
+    }
     if (node) {
       const typed = node as GraphNode3D
+      // Hide textSprite on hover — NodeTooltip3D already shows the name
+      _setTextSpriteVisible(typed, false)
+      _prevHoveredNode = typed
       tooltipNode.value = {
         id: String(typed.id), name: typed.properties.name, type: getNodeLabel(typed),
         position_count: typed.properties.position_count, skill_count: typed.properties.skill_count,
@@ -219,6 +239,15 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   graph.graphData({ nodes: props.nodes, links: composedLinks })
   graph.nodeThreeObject(buildNodeThreeObject)
   applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, false)
+  // Reheat force simulation so new nodes spread out instead of stacking
+  graph.d3ReheatSimulation()
+  // Re-center camera on the new data after a short delay for layout to settle
+  setTimeout(() => {
+    if (graphInstance.value) {
+      const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
+      setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
+    }
+  }, 600)
 }, { deep: false })
 
 // ── Watch: layer changes → auto-adjust camera ──

@@ -290,7 +290,6 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
 
 def execute_timeseries(run_id: str) -> dict[str, Any]:
     """Execute timeseries stage: aggregate skill frequencies from extraction records."""
-    from app.services.timeseries_service import refresh_skill_timeseries
 
     processed = 0
     errors: list[str] = []

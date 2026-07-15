@@ -43,12 +43,16 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
+COPY scripts/ ./scripts/
+COPY entrypoint.sh ./
 
 # 创建非 root 用户运行应用
-RUN useradd -m -s /bin/bash starmap && chown -R starmap:starmap /app
+RUN useradd -m -s /bin/bash starmap && chown -R starmap:starmap /app && chmod +x entrypoint.sh
 USER starmap
 
 EXPOSE 8000
 
+# Bootstrap runs alembic upgrade + admin seed; docker-compose overrides CMD.
+ENTRYPOINT ["./entrypoint.sh"]
 # 生产环境使用 4 个 worker，禁用热重载
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--access-log", "--no-use-colors"]

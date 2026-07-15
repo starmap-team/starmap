@@ -110,6 +110,9 @@ export function createTextSprite(
   })
   const sprite = new THREE_NS.Sprite(spriteMaterial)
 
+  // Mark as text sprite so hover handler can toggle visibility
+  sprite.userData.isTextSprite = true
+
   // Scale sprite to match node size — larger nodes get proportionally larger labels
   const scaleFactor = nodeType === 'domain' ? 0.18 : nodeType === 'position' ? 0.14 : 0.1
   const img = texture.image as HTMLCanvasElement | undefined

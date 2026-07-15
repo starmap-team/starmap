@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { DataAnalysis, DataLine, Connection, TrendCharts, Document, Setting, User, Sunny, MoonNight, Fold, Expand, Coin, Refresh, Odometer, Reading } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import ProfileMenu from '@/components/ProfileMenu.vue'
 
 const userStore = useUserStore()
 userStore.initUser()
@@ -264,6 +265,10 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
 
     <!-- Main Content -->
     <div class="main-wrapper">
+      <div class="topbar">
+        <div class="topbar-spacer" />
+        <ProfileMenu v-if="userStore.isLoggedIn" />
+      </div>
       <div class="breadcrumb-bar">
         <div class="breadcrumbs">
           <template
@@ -647,5 +652,13 @@ html.dark .sidebar { background: var(--card); }
   .layout-main { padding: var(--space-4); }
   .layout-footer { padding: var(--space-3) var(--space-4); }
 }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 24px 0;
+}
+.topbar-spacer { flex: 1; }
 </style>
 

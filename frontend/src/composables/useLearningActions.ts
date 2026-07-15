@@ -5,7 +5,6 @@
  */
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { useLearningStore } from '@/stores/learning'
-import { buildCreatePlanRequest } from '@/stores/learning'
 import { useUserStore } from '@/stores/user'
 
 type LearningStore = ReturnType<typeof useLearningStore>
@@ -45,23 +44,25 @@ export function useLearningActions(
   }
 
   // ponytail: D-08 single-plan; D-09 POST /learning/plan; D-06 plan_id→localStorage
-  // LOOP-03: 使用 buildCreatePlanRequest 构造完整请求体（含 match_score）
+  // LOOP-03: buildCreatePlanRequest is called inside store.createPlan — pass raw data
   async function handleAddToPlan(rec: { skill: string; priority: string }): Promise<void> {
     try {
-      const payload = buildCreatePlanRequest({
+      // Construct raw match-result-like data; store.createPlan will call
+      // buildCreatePlanRequest internally to shape it for the backend.
+      const rawData: Record<string, unknown> = {
         position: rec.skill,
         skill_gap_detail: [{ skill: rec.skill, importance: rec.priority || 'required', gap_level: '完全缺失' }],
-      })
+      }
       if (currentPlan.value) {
         await ElMessageBox.confirm(
           `已有学习计划「${currentPlan.value.position}」，是否用「${rec.skill}」覆盖？`,
           '覆盖学习计划',
           { confirmButtonText: '确认覆盖', cancelButtonText: '取消', type: 'warning' },
         )
-        await store.createPlan(payload as unknown as Record<string, unknown>)
+        await store.createPlan(rawData)
         ElMessage.success('已创建新学习计划')
       } else {
-        await store.createPlan(payload as unknown as Record<string, unknown>)
+        await store.createPlan(rawData)
         ElMessage.success(`「${rec.skill}」已加入学习计划`)
       }
     } catch (e: unknown) {

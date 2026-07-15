@@ -68,8 +68,8 @@ def _batch_chroma_match(
             CHROMA_COLLECTION_NAME,
             _is_chroma_marked_unavailable,
             _mark_chroma_unavailable,
+            get_embedding,
         )
-        from app.core.extraction.normalize import get_embedding
     except ImportError:
         return {}
 

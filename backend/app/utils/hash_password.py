@@ -4,8 +4,9 @@ Usage:
     python -m app.utils.hash_password <plaintext_password>
     # Output: $2b$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
 """
-import bcrypt
 import sys
+
+import bcrypt
 
 
 def hash_password(plain: str) -> str:

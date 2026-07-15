@@ -535,6 +535,4 @@ onMounted(() => {
   text-align: center;
 }
 .empty-icon-wrapper { opacity: 0.4; }
-.empty-text { font-size: 14px; margin: 0; }
-.empty-hint-text { font-size: 12px; opacity: 0.7; margin: 0; }
 </style>

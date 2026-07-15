@@ -136,8 +136,12 @@ export function useHomeInteractions(
         label: graphStore.expandedKAName,
         layer: 'position',
         action: () => {
-          graphStore.expandedPositionId = null
-          graphStore.currentLayer = 'position'
+          // 使用 store 方法保持状态一致性，而非直接赋值
+          if (graphStore.expandedKAId) {
+            graphStore.goToPositionLayer(graphStore.expandedKAId, graphStore.expandedKAName)
+          } else {
+            graphStore.goToDomainLayer()
+          }
         },
       })
     }

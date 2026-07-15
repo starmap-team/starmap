@@ -25,7 +25,11 @@ RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
 # 再拷源码（挂载会覆盖，这里仅为镜像构建）
 COPY . .
 
+# entrypoint: bootstrap.py (alembic upgrade + seed) then exec CMD
+RUN chmod +x entrypoint.sh
+
 EXPOSE 8000
 
-# 默认命令由 docker-compose.dev.yml 指定（uvicorn --reload）
+# Bootstrap runs alembic upgrade + admin seed; docker-compose overrides CMD.
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

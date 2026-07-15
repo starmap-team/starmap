@@ -8,9 +8,29 @@ import bcrypt
 import jwt
 import pytest
 
-from app.api.v1.auth import _encode_jwt, _verify_password
+from app.services.auth_service import (
+    decode_token,
+    hash_password,
+    verify_password,
+)
 from app.config import settings
-from app.dependencies import _decode_token
+# Backwards-compat alias: the legacy helper was internal but some tests use it.
+from app.services.auth_service import decode_token as _decode_token
+
+
+def _encode_jwt(payload: dict) -> str:
+    """Encode a payload as an HS256 JWT (test helper mirroring auth_service).
+
+    Injects the configured iss/aud claims if missing — this mirrors how
+    real code (auth_service.create_access_token) builds tokens, and lets
+    legacy tests continue to verify the decoder's behaviour against
+    well-formed tokens.
+    """
+    import jwt as _jwt
+    payload = dict(payload)
+    payload.setdefault("iss", settings.jwt_issuer)
+    payload.setdefault("aud", settings.jwt_audience)
+    return _jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 
 # ── SEC-01: PyJWT encode/decode ──
@@ -31,35 +51,6 @@ class TestPyJWTEncodeDecode:
         decoded = _decode_token(token)
         assert decoded["sub"] == "testuser"
         assert decoded["role"] == "admin"
-
-    def test_old_token_compatibility(self) -> None:
-        """Manually construct a hand-rolled-style token (no padding) and verify PyJWT decodes it."""
-        import base64
-        import hashlib
-        import hmac
-        import json
-
-        payload = {
-            "sub": "legacy_user",
-            "role": "user",
-            "exp": int(time.time()) + 3600,
-            "iat": int(time.time()),
-        }
-        header = base64.urlsafe_b64encode(
-            json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
-        ).rstrip(b"=").decode()
-        payload_b64 = base64.urlsafe_b64encode(
-            json.dumps(payload).encode()
-        ).rstrip(b"=").decode()
-        signing_input = f"{header}.{payload_b64}".encode()
-        sig = hmac.new(
-            settings.secret_key.encode(), signing_input, hashlib.sha256
-        ).digest()
-        signature = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()
-        old_token = f"{header}.{payload_b64}.{signature}"
-
-        decoded = _decode_token(old_token)
-        assert decoded["sub"] == "legacy_user"
 
     def test_expired_token_raises_valueerror(self) -> None:
         """Encode with past exp, verify ValueError('JWT expired') is raised."""
@@ -98,18 +89,22 @@ class TestBcryptPasswordVerification:
         """Test _verify_password with a known bcrypt hash."""
         plain = "mysecretpassword"
         hashed = bcrypt.hashpw(plain.encode(), bcrypt.gensalt(rounds=4)).decode()
-        assert _verify_password(plain, hashed) is True
+        assert verify_password(plain, hashed) is True
 
-    def test_plaintext_fallback(self) -> None:
-        """Test _verify_password with a plaintext stored password."""
-        assert _verify_password("starmap2024", "starmap2024") is True
-        assert _verify_password("wrongpassword", "starmap2024") is False
+    def test_plaintext_fallback_removed(self) -> None:
+        """SEC-02 evolution: plaintext password fallback was REMOVED in Phase DB-AUTH.
+
+        Legacy login allowed plaintext equality; the new service REJECTS it.
+        Only bcrypt hashes are accepted. This test documents the policy change.
+        """
+        assert verify_password("starmap2024", "starmap2024") is False
+        assert verify_password("wrongpassword", "starmap2024") is False
 
     def test_wrong_password_bcrypt(self) -> None:
         """Test _verify_password returns False for wrong password against bcrypt hash."""
         plain = "correctpassword"
         hashed = bcrypt.hashpw(plain.encode(), bcrypt.gensalt(rounds=4)).decode()
-        assert _verify_password("wrongpassword", hashed) is False
+        assert verify_password("wrongpassword", hashed) is False
 
     def test_bcrypt_2a_prefix(self) -> None:
         """Test _verify_password with $2a$ prefix (alternative bcrypt version)."""
@@ -117,7 +112,7 @@ class TestBcryptPasswordVerification:
         # Generate $2b$ hash and manually replace prefix to $2a$
         hashed = bcrypt.hashpw(plain.encode(), bcrypt.gensalt(rounds=4)).decode()
         hashed_2a = "$2a$" + hashed[4:]
-        assert _verify_password(plain, hashed_2a) is True
+        assert verify_password(plain, hashed_2a) is True
 
 
 # ── SEC-03: JWT claims (aud/iss/nbf/jti) ──
@@ -161,17 +156,12 @@ class TestJWTClaims:
         decoded = _decode_token(token)
         assert decoded["sub"] == "leeway_user"
 
-    def test_phase_a_backward_compat(self) -> None:
-        """Decode a token without aud/iss/nbf claims, verify it succeeds (Phase A)."""
-        now = time.time()
-        payload = {
-            "sub": "oldformat_user",
-            "exp": now + 3600,
-            "iat": now,
-        }
-        token = _encode_jwt(payload)
-        # Phase A: only requires exp, iat, sub — no aud/iss/nbf
-        decoded = _decode_token(token)
-        assert decoded["sub"] == "oldformat_user"
-        assert "aud" not in decoded
-        assert "iss" not in decoded
+    def test_phase_db_auth_strict_aud_iss(self) -> None:
+        """Phase DB-AUTH policy: tokens MUST carry iss/aud; missing claims → reject."""
+        now = int(time.time())
+        # Build token WITHOUT iss/aud via raw jwt.encode (bypass the test helper).
+        import jwt as _jwt
+        payload = {"sub": "oldformat_user", "exp": now + 3600, "iat": now}
+        token = _jwt.encode(payload, settings.secret_key, algorithm="HS256")
+        with pytest.raises(ValueError, match="Invalid JWT"):
+            _decode_token(token)

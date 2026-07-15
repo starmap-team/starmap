@@ -1,8 +1,13 @@
-"""Dependency injection + 认证依赖。
+"""Dependency injection + 认证依赖.
 
-P0 修复 (AUTH-01/AUTHZ-01): 添加 JWT 认证基础设施。
+P0 修复 (AUTH-01/AUTHZ-01): JWT 认证基础设施。
 - 生产环境 (app_env=production): 强制 JWT 验证
 - 开发环境: 使用 Bearer token 或默认 dev 用户（宽松模式，便于调试）
+
+Phase DB-AUTH:
+- Token decode now goes through app.services.auth_service.decode_token
+  (which enforces aud/iss + leeway uniformly).
+- AUTH_USERS env-var bypass removed.
 """
 from __future__ import annotations
 
@@ -16,7 +21,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.services.resources import resources
+from app.services.auth_service import decode_token
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 # ── Bearer token scheme ──
@@ -54,27 +59,33 @@ async def get_db_session() -> AsyncIterator[AsyncSession]:
 # ══════════════════════════════════════════════════════════
 
 
-def _decode_token(token: str) -> dict[str, Any]:
-    """解码 JWT token。使用 PyJWT，密钥来自 settings.secret_key。"""
-    import jwt as _jwt
-    from datetime import timedelta
+def _decode_token_payload(token: str) -> dict[str, Any]:
+    """Decode and validate a JWT token.
 
+    Routes through auth_service.decode_token so we keep one
+    aud/iss/leeway policy across all entry points (HTTP, SSE).
+    """
     try:
-        payload = _jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=["HS256"],
-            leeway=timedelta(seconds=settings.jwt_leeway_seconds),
-            options={
-                "require": ["exp", "iat", "sub"],
-                "verify_aud": False,  # Phase A: don't enforce aud claim yet
-            },
-        )
-    except _jwt.ExpiredSignatureError as e:
-        raise ValueError("JWT expired") from e
-    except _jwt.InvalidTokenError as e:
-        raise ValueError(f"Invalid JWT: {e}") from e
-    return payload
+        return decode_token(token)
+    except Exception as exc:  # auth_service.InvalidTokenError is the only expected one
+        raise ValueError(str(exc)) from exc
+
+
+# Backwards-compat alias — legacy code (and tests) imported `_decode_token`
+# from this module. Phase DB-AUTH moved the implementation to
+# app.services.auth_service.decode_token but we keep the old name to avoid
+# breaking importers; it raises ValueError on failure, matching the
+# historical behaviour.
+def _decode_token(token: str) -> dict[str, Any]:
+    """Deprecated alias — prefer app.services.auth_service.decode_token.
+
+    Raises ValueError (not InvalidTokenError) to preserve legacy callers
+    that catch ValueError specifically.
+    """
+    try:
+        return decode_token(token)
+    except Exception as exc:
+        raise ValueError(str(exc)) from exc
 
 
 async def get_current_user(
@@ -110,7 +121,7 @@ async def get_current_user(
 
     # JWT 验证
     try:
-        payload = _decode_token(token)
+        payload = _decode_token_payload(token)
     except ValueError as e:
         err_msg = str(e)
         event = AuditEvent.TOKEN_EXPIRED if "expired" in err_msg else AuditEvent.TOKEN_INVALID
@@ -170,7 +181,7 @@ async def get_current_user_sse(
         if settings.app_env != "production" and token == "dev-token":
             return {"sub": "dev", "role": "admin", "username": "developer"}
         try:
-            payload = _decode_token(token)
+            payload = _decode_token_payload(token)
             return payload
         except ValueError as e:
             err_msg = str(e)

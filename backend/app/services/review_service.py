@@ -26,7 +26,6 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 
 import sqlalchemy as sa
-from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.extraction_models import PositionRecord, SkillRecord
@@ -73,7 +72,7 @@ class ReviewItem:
     reviewed_at: datetime | None
     submitted_at: datetime | None
     rejection_reason: str | None
-    created_at: datetime
+    created_at: datetime | None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -306,6 +305,8 @@ async def unpublish(
 
 
 def _to_item(entity_type: EntityType, row) -> ReviewItem:
+    # SkillRecord has no created_at — fall back to first_detected_at.
+    created_at = getattr(row, "created_at", None) or getattr(row, "first_detected_at", None)
     return ReviewItem(
         entity_type=entity_type,
         entity_id=row.id,
@@ -317,7 +318,7 @@ def _to_item(entity_type: EntityType, row) -> ReviewItem:
         reviewed_at=row.reviewed_at,
         submitted_at=row.submitted_at,
         rejection_reason=row.rejection_reason,
-        created_at=row.created_at,
+        created_at=created_at,
     )
 
 
@@ -347,8 +348,8 @@ async def list_by_status(
         result = await session.execute(stmt)
         for row in result.scalars().all():
             out.append(_to_item(et, row))
-    # Re-sort merged result by created_at desc.
-    out.sort(key=lambda r: r.created_at, reverse=True)
+    # Re-sort merged result by created_at desc (None values go last).
+    out.sort(key=lambda r: r.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)
     return out[:limit]
 
 

@@ -3,24 +3,24 @@
  * - 全局 loading 条
  * - 友好错误提示（ElMessage）
  * - 网络断开重连提示
+ * - Phase DB-AUTH: 双 token + 401 静默 refresh
  */
 import axios, { type AxiosError } from 'axios'
 import { ElMessage, ElNotification } from 'element-plus'
+
+const ACCESS_KEY = 'starmap_access_token'
 
 const request = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 30000,
 })
 
-// ── 请求拦截器：显示 loading 条 ──
+// ── 请求拦截器 ──
 let loadingCount = 0
 let loadingEl: HTMLElement | null = null
 
 function showLoading() {
   if (loadingCount === 0) {
-    // Phase 8 — frontend UX fix 5: defend against a stale DOM node
-    // (e.g. router navigation mid-flight) by removing any existing
-    // orphan before appending a fresh one.
     document.querySelectorAll('.global-loading-bar').forEach((el) => el.remove())
     loadingEl = document.createElement('div')
     loadingEl.className = 'global-loading-bar'
@@ -35,8 +35,6 @@ function hideLoading() {
     loadingEl.remove()
     loadingEl = null
   }
-  // Safety: if an orphan DOM node somehow survived (eg. an unhandled
-  // rejection path between show/hide), clean it up.
   if (loadingCount === 0) {
     document.querySelectorAll('.global-loading-bar').forEach((el) => el.remove())
   }
@@ -45,8 +43,12 @@ function hideLoading() {
 request.interceptors.request.use(
   (config) => {
     showLoading()
-    // Attach auth token from localStorage to every request
-    const token = localStorage.getItem('starmap_token') || localStorage.getItem('token')
+    // Attach access token (Phase DB-AUTH): stored under starmap_access_token.
+    // Falls back to the legacy keys for backward compat with old localStorage data.
+    const token =
+      localStorage.getItem(ACCESS_KEY) ||
+      localStorage.getItem('starmap_token') ||
+      localStorage.getItem('token')
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -57,6 +59,36 @@ request.interceptors.request.use(
     return Promise.reject(error)
   },
 )
+
+// ── Refresh-token dedupe ──
+// If many parallel calls hit 401, we MUST refresh exactly once.
+let refreshInFlight: Promise<string | null> | null = null
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight
+  const rt = localStorage.getItem('starmap_refresh_token')
+  if (!rt) return null
+  refreshInFlight = (async () => {
+    try {
+      const resp = await axios.post(
+        (import.meta.env.VITE_API_BASE_URL || '/api/v1') + '/auth/refresh',
+        { refresh_token: rt },
+        { timeout: 10000 },
+      )
+      const data = resp.data as { access_token: string }
+      if (data?.access_token) {
+        localStorage.setItem(ACCESS_KEY, data.access_token)
+        return data.access_token
+      }
+    } catch {
+      // fall through — refresh failed
+    } finally {
+      refreshInFlight = null
+    }
+    return null
+  })()
+  return refreshInFlight
+}
 
 // ── 网络状态监听 ──
 let hasShownOffline = false
@@ -70,7 +102,6 @@ window.addEventListener('offline', () => {
     position: 'top-right',
   })
 })
-
 window.addEventListener('online', () => {
   if (hasShownOffline) {
     ElNotification({
@@ -105,14 +136,46 @@ request.interceptors.response.use(
     hideLoading()
     return resp.data
   },
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     hideLoading()
 
     const status = error.response?.status
-    let message = '未知错误，请稍后重试'
+    const originalRequest = error.config as
+      | (typeof error.config & { _retried?: boolean })
+      | undefined
+    const requestUrl = originalRequest?.url ?? ''
+    const isLogin = requestUrl.includes('/auth/login')
+    const isRefresh = requestUrl.includes('/auth/refresh')
 
+    // ── Silent refresh attempt on 401 ──
+    if (status === 401 && !originalRequest?._retried && !isLogin && !isRefresh) {
+      const newAccess = await refreshAccessToken()
+      if (newAccess && originalRequest) {
+        originalRequest._retried = true
+        originalRequest.headers = originalRequest.headers ?? {}
+        ;(originalRequest.headers as Record<string, string>)['Authorization'] =
+          `Bearer ${newAccess}`
+        return request(originalRequest)
+      }
+      // Refresh failed → clear and force re-login
+      localStorage.removeItem(ACCESS_KEY)
+      localStorage.removeItem('starmap_refresh_token')
+      localStorage.removeItem('starmap_user')
+      localStorage.removeItem('starmap_token')
+      localStorage.removeItem('token')
+      if (!isLogin) {
+        ElMessage.warning({
+          message: '登录已过期，请重新登录',
+          duration: 5000,
+          showClose: true,
+        })
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+      }
+      return Promise.reject(error)
+    }
+
+    let message = '未知错误，请稍后重试'
     if (!error.response) {
-      // 网络错误
       if (!navigator.onLine) {
         message = '网络连接已断开，请检查网络设置'
       } else {
@@ -122,22 +185,13 @@ request.interceptors.response.use(
       message = ERROR_MESSAGES[status] ?? `请求失败 (${status})`
     }
 
-    // 仅非 401 的错误显示通用提示；401 单独处理
-    if (status === 401) {
-      // Clear stale token and user state on 401
-      localStorage.removeItem('starmap_token')
-      localStorage.removeItem('token')
-      // /auth/login 的 401 表示「用户名/密码错误」，不属于 token 过期，
-      // 不要在此处弹"登录已过期"，由 Login.vue 的 catch 显示具体错误
-      const _isLoginEndpoint = (error.config?.url ?? '').includes('/auth/login')
-      if (!_isLoginEndpoint) {
-        ElMessage.warning({
-          message: '登录已过期，请重新登录',
-          duration: 5000,
-          showClose: true,
-        })
-        window.dispatchEvent(new CustomEvent('auth:unauthorized'))
-      }
+    if (status === 401 && !isLogin) {
+      ElMessage.warning({
+        message: '登录已过期，请重新登录',
+        duration: 5000,
+        showClose: true,
+      })
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'))
     } else if (status === 403) {
       ElMessage.error({
         message: '您没有权限执行此操作',

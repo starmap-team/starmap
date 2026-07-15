@@ -189,7 +189,6 @@ async def _execute_scheduled_run(schedule_id: str) -> None:
     from datetime import timedelta
 
     from sqlalchemy import select
-    from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.db.session import get_session_factory
     from app.models.pipeline_models import PipelineSchedule
@@ -227,7 +226,6 @@ async def _sweep_orphan_runs_async() -> dict[str, Any]:
     from datetime import timedelta
 
     from sqlalchemy import select
-    from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.core.pipeline.orchestrator import RunStatus
     from app.db.session import get_session_factory

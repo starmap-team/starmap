@@ -14,6 +14,12 @@ vi.mock('@/api/request', () => ({
   },
 }))
 
+vi.mock('@/stores/user', () => ({
+  useUserStore: vi.fn(() => ({
+    addParsedSkill: vi.fn(),
+  })),
+}))
+
 const mockPlanResponse = {
   plan_id: 'plan-123',
   position: 'Backend Developer',
@@ -88,56 +94,77 @@ describe('useLearningPlanStore', () => {
   // ── 4. fetchPlans action ──
 
   it('should fetch plans and populate plans list', async () => {
-    const request = (await import('@/api/request')).default
-    vi.mocked(request.get).mockResolvedValueOnce({ items: [mockPlanResponse] })
+	    const request = (await import('@/api/request')).default
+	    // Backend returns list[PlanResponse] — a plain JSON array
+	    vi.mocked(request.get).mockResolvedValueOnce([mockPlanResponse])
 
-    const store = useLearningPlanStore()
-    const plans = await store.fetchPlans()
+	    const store = useLearningPlanStore()
+	    const plans = await store.fetchPlans()
 
-    expect(plans).toHaveLength(1)
-    expect(store.plans).toHaveLength(1)
-    expect(store.plans[0].plan_id).toBe('plan-123')
-    // Should set currentPlan to first plan when none is set
-    expect(store.currentPlan).toBeTruthy()
-    expect(store.currentPlan!.plan_id).toBe('plan-123')
-  })
+	    expect(plans).toHaveLength(1)
+	    expect(store.plans).toHaveLength(1)
+	    expect(store.plans[0].plan_id).toBe('plan-123')
+	    // Should set currentPlan to first plan when none is set
+	    expect(store.currentPlan).toBeTruthy()
+	    expect(store.currentPlan!.plan_id).toBe('plan-123')
+	  })
 
   // ── 5. updateProgress action ──
 
-  it('should update progress and modify skill status', async () => {
-    const request = (await import('@/api/request')).default
-    vi.mocked(request.get).mockResolvedValueOnce(mockPlanResponse)
-    vi.mocked(request.put).mockResolvedValueOnce({})
+  it('should update progress and re-fetch plan for authoritative overall_pct', async () => {
+	    const request = (await import('@/api/request')).default
+	    vi.mocked(request.get).mockResolvedValueOnce(mockPlanResponse)
+	    vi.mocked(request.put).mockResolvedValueOnce({})
+	    // updateProgress re-fetches the plan to get authoritative overall_pct
+	    const updatedResponse = {
+	      ...mockPlanResponse,
+	      skills: mockPlanResponse.skills.map(s =>
+	        s.skill_name === 'Docker' ? { ...s, status: 'mastered', progress_pct: 100 } : s
+	      ),
+	      overall_pct: 66.7,
+	    }
+	    vi.mocked(request.get).mockResolvedValueOnce(updatedResponse)
 
-    const store = useLearningPlanStore()
-    await store.fetchPlan('plan-123')
-    expect(store.currentPlan).toBeTruthy()
+	    const store = useLearningPlanStore()
+	    await store.fetchPlan('plan-123')
+	    expect(store.currentPlan).toBeTruthy()
 
-    await store.updateProgress('plan-123', 'Docker', 'mastered')
+	    await store.updateProgress('plan-123', 'Docker', 'mastered')
 
-    const skillItem = store.currentPlan!.skills.find(s => s.skill === 'Docker')
-    expect(skillItem!.status).toBe('mastered')
-    expect(skillItem!.progress_pct).toBe(100)
-    expect(request.put).toHaveBeenCalledWith('/learning/plan/plan-123/progress', {
-      skill_name: 'Docker',
-      status: 'mastered',
-    })
-  })
+	    // After re-fetch, skill status comes from backend response
+	    const skillItem = store.currentPlan!.skills.find(s => s.skill === 'Docker')
+	    expect(skillItem!.status).toBe('mastered')
+	    expect(skillItem!.progress_pct).toBe(100)
+	    expect(request.put).toHaveBeenCalledWith('/learning/plan/plan-123/progress', {
+	      skill_name: 'Docker',
+	      status: 'mastered',
+	    })
+	    // Re-fetch was called to get authoritative data
+	    expect(request.get).toHaveBeenCalledWith('/learning/plan/plan-123')
+	  })
 
-  it('should set progress_pct to 10 when status changes to in_progress from 0', async () => {
-    const request = (await import('@/api/request')).default
-    vi.mocked(request.get).mockResolvedValueOnce(mockPlanResponse)
-    vi.mocked(request.put).mockResolvedValueOnce({})
+	  it('should re-fetch plan when status changes to in_progress', async () => {
+	    const request = (await import('@/api/request')).default
+	    vi.mocked(request.get).mockResolvedValueOnce(mockPlanResponse)
+	    vi.mocked(request.put).mockResolvedValueOnce({})
+	    // updateProgress re-fetches the plan
+	    const updatedResponse = {
+	      ...mockPlanResponse,
+	      skills: mockPlanResponse.skills.map(s =>
+	        s.skill_name === 'K8s' ? { ...s, status: 'in_progress', progress_pct: 10 } : s
+	      ),
+	    }
+	    vi.mocked(request.get).mockResolvedValueOnce(updatedResponse)
 
-    const store = useLearningPlanStore()
-    await store.fetchPlan('plan-123')
+	    const store = useLearningPlanStore()
+	    await store.fetchPlan('plan-123')
 
-    await store.updateProgress('plan-123', 'K8s', 'in_progress')
+	    await store.updateProgress('plan-123', 'K8s', 'in_progress')
 
-    const skillItem = store.currentPlan!.skills.find(s => s.skill === 'K8s')
-    expect(skillItem!.status).toBe('in_progress')
-    expect(skillItem!.progress_pct).toBe(10)
-  })
+	    const skillItem = store.currentPlan!.skills.find(s => s.skill === 'K8s')
+	    expect(skillItem!.status).toBe('in_progress')
+	    expect(skillItem!.progress_pct).toBe(10)
+	  })
 
   // ── 6. addSkillToPlan action ──
 

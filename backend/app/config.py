@@ -29,13 +29,13 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5176",
         "http://localhost:5174",
         "http://localhost:5175",
+        # Docker-internal service names (dev compose / prod compose)
+        "http://frontend:5173",
+        "http://starmap-frontend:5173",
+        "http://starmap-frontend-prod:80",
     ]
 
-    # 认证
-    auth_users: str = Field(
-        default="",
-        description="用户列表，格式: username:password:role,username2:password2:role2",
-    )
+    # 认证（仅保留 token 寿命；用户表已迁移至 PostgreSQL）
     token_expire_hours: int = Field(
         default=24, ge=1, le=720,
         description="JWT token 有效期（小时）",
@@ -51,6 +51,18 @@ class Settings(BaseSettings):
     jwt_leeway_seconds: int = Field(
         default=30, ge=0,
         description="JWT clock skew tolerance (seconds)",
+    )
+
+    # ── Bootstrap (DB seed) ──
+    # Initial admin credentials seeded by scripts/bootstrap.py on first run.
+    # Set BOOTSTRAP_SEED_ADMIN=true in dev/internal environments only.
+    bootstrap_seed_admin: bool = Field(
+        default=False,
+        description="If true, ensure an admin user exists on startup (dev only)",
+    )
+    bootstrap_admin_username: str = Field(default="admin", min_length=1, max_length=64)
+    bootstrap_admin_password: str = Field(
+        default="starmap2024", min_length=8, max_length=128
     )
 
     # 数据来源权威度评分 (admin.py source management)
@@ -259,27 +271,8 @@ class Settings(BaseSettings):
                 f"生成方式：python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
 
-        # SEC-02: 生产环境禁止明文密码
-        if self.app_env == "production":
-            plaintext_users = [
-                u["username"] for u in self.parsed_users
-                if not u["password"].startswith(("$2b$", "$2a$"))
-            ]
-            if plaintext_users:
-                raise RuntimeError(
-                    f"Plaintext passwords not allowed in production for users: {plaintext_users}. "
-                    f"Use bcrypt hash: python -m app.utils.hash_password <password>"
-                )
-        else:
-            plaintext_users = [
-                u["username"] for u in self.parsed_users
-                if not u["password"].startswith(("$2b$", "$2a$"))
-            ]
-            if plaintext_users:
-                logger.warning(
-                    "⚠️  以下用户使用明文密码（建议迁移到 bcrypt hash）：{}",
-                    ", ".join(plaintext_users),
-                )
+        # Phase DB-AUTH: 密码策略由 PostgreSQL users 表的 bcrypt hash 保证
+        # 这里不再做 AUTH_USERS plaintext 校验（该 env 已废弃）
 
         # D-04/D-08: LLM key 启动校验 — 仅 WARNING 不阻止启动
         # Ollama 本地模型始终可作降级（docker-compose 已含），无云端 key 不致命
@@ -298,24 +291,6 @@ class Settings(BaseSettings):
             )
 
         return self
-
-    # ── 认证用户解析 ──
-    @property
-    def parsed_users(self) -> list[dict[str, str]]:
-        """解析 AUTH_USERS 环境变量为用户列表。
-
-        格式: username:password:role,username2:password2:role2
-        示例: AUTH_USERS=admin:starmap2024:admin,demo:demo123:user
-        """
-        if not self.auth_users:
-            return []
-        users: list[dict[str, str]] = []
-        for entry in self.auth_users.split(","):
-            parts = entry.strip().split(":")
-            if len(parts) == 3:
-                users.append({"username": parts[0], "password": parts[1], "role": parts[2]})
-        return users
-
 
 @lru_cache
 def get_settings() -> Settings:

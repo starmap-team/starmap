@@ -16,8 +16,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from app.dependencies import get_redis_client
-
 from app.core.extraction.prompt import (
     get_ab_test,
     get_active_version,
@@ -29,6 +27,7 @@ from app.core.extraction.prompt import (
     set_active_version,
     stop_ab_test,
 )
+from app.dependencies import get_redis_client
 from app.services.admin_ab_service import aggregate_ab_results
 
 # FE-02: A/B test result tracking (in-memory, process-local)

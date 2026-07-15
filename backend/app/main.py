@@ -217,6 +217,64 @@ async def health_v1() -> dict:
     return await _health_payload()
 
 
+@app.get("/ready", tags=["系统"])
+@app.get("/api/v1/ready", tags=["系统"], include_in_schema=False)
+async def ready() -> dict:
+    """Readiness probe — returns 200 only when the app is fully bootstrapped."""
+    checks: dict[str, str] = {}
+
+    # DB ping
+    db_ok = False
+    try:
+        from sqlalchemy import text as _text
+        if resources.pg_engine is not None:
+            async with resources.pg_engine.begin() as conn:
+                db_ok = (await conn.execute(_text("SELECT 1"))).scalar() == 1
+        checks["postgres"] = "ok" if db_ok else "unreachable"
+    except Exception as exc:
+        checks["postgres"] = f"error: {exc}"
+
+    # users table populated
+    users_ok = False
+    try:
+        if resources.pg_engine is not None:
+            from sqlalchemy import text as _text
+            async with resources.pg_engine.begin() as conn:
+                cnt = (await conn.execute(_text("SELECT COUNT(*) FROM users"))).scalar()
+                users_ok = (cnt or 0) >= 1
+        checks["users_seeded"] = "ok" if users_ok else "no users"
+    except Exception as exc:
+        checks["users_seeded"] = f"error: {exc}"
+
+    # alembic migration applied
+    alembic_ok = False
+    try:
+        if resources.pg_engine is not None:
+            from sqlalchemy import text as _text
+            async with resources.pg_engine.begin() as conn:
+                alembic_ok = (
+                    await conn.execute(_text("SELECT version_num FROM alembic_version LIMIT 1"))
+                ).scalar() is not None
+        checks["alembic"] = "ok" if alembic_ok else "no migration record"
+    except Exception as exc:
+        checks["alembic"] = f"error: {exc}"
+
+    if resources.redis_client is not None:
+        try:
+            checks["redis"] = "ok" if await resources.redis_client.ping() else "ping failed"
+        except Exception as exc:
+            checks["redis"] = f"error: {exc}"
+    else:
+        checks["redis"] = "not initialised"
+
+    all_ok = all(v == "ok" for v in checks.values() if v != "not initialised")
+    payload = {"status": "ready" if all_ok else "not_ready", "checks": checks}
+    if not all_ok:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=503, content=payload)
+    return payload
+
+
 # D-05/CFG-04: 详细健康检查 — 4 服务 ping + 3 LLM key 布尔（不泄露值）+ data stats
 
 

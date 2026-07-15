@@ -365,10 +365,10 @@ onMounted(() => {
                   <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
                 </svg>
               </div>
-              <p class="empty-text">
+              <p class="starmap-empty">
                 数据源待加载
               </p>
-              <p class="empty-hint-text">
+              <p class="starmap-empty--hint">
                 数据源信息将在首次同步后展示
               </p>
             </div>

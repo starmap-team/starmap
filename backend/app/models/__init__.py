@@ -7,6 +7,9 @@ class Base(DeclarativeBase):
     """Declarative base for all ORM models."""
 
 
+from app.models.audit_models import (  # noqa: E402, F401
+    AuditEventRecord,
+)
 from app.models.evolution_models import (  # noqa: E402, F401
     EvolutionChangelog,
     EvolutionPath,
@@ -34,11 +37,17 @@ from app.models.pipeline_models import (  # noqa: E402, F401
     PipelineRun,
     PipelineSchedule,
 )
-from app.models.audit_models import (  # noqa: E402, F401
-    AuditEventRecord,
+from app.models.user import (  # noqa: E402, F401
+    ALLOWED_ROLES,
+    ROLE_ADMIN,
+    ROLE_USER,
+    User,
 )
 
 __all__ = [
+    "ALLOWED_ROLES",
+    "ROLE_ADMIN",
+    "ROLE_USER",
     "Base",
     "AuditEventRecord",
     "DataSourceRecord",
@@ -60,4 +69,5 @@ __all__ = [
     "SkillRecord",
     "SkillTimeseries",
     "SystemConfig",
+    "User",
 ]

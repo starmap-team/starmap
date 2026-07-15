@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+from fastapi import Request
 from fastapi.testclient import TestClient
 
 
@@ -56,20 +57,31 @@ class TestPublicEndpoints:
     def test_login_no_auth_returns_response(self):
         """POST /auth/login does not require a Bearer token — it's the login endpoint."""
         app = _make_app()
-        # Override get_db_session to avoid DB dependency
-        from app.dependencies import get_db_session
+        from app.api.v1.auth import get_client_ip
+        from app.dependencies import get_db_session, get_redis_client
         mock_session = AsyncMock()
+        mock_redis = AsyncMock()
         app.dependency_overrides[get_db_session] = lambda: mock_session
+        def _fake_redis(_request: Request):  # noqa: ARG001
+            return mock_redis
+        app.dependency_overrides[get_redis_client] = _fake_redis
+        def _fake_client_ip(_request: Request):  # noqa: ARG001
+            return "127.0.0.1"
+        app.dependency_overrides[get_client_ip] = _fake_client_ip
         client = TestClient(app)
         try:
-            # Mock auth_service.authenticate to return None (bad creds)
-            with patch("app.services.auth_service.authenticate", new_callable=AsyncMock, return_value=None):
+            # Mock auth_service.authenticate to raise InvalidCredentialsError
+            from app.services.auth_service import InvalidCredentialsError
+            with patch(
+                "app.services.auth_service.authenticate",
+                new_callable=AsyncMock,
+                side_effect=InvalidCredentialsError("bad"),
+            ):
                 response = client.post(
                     "/api/v1/auth/login",
                     json={"username": "testuser", "password": "testpass"},
                 )
             # Login returns 401 for bad creds, but NOT 401 for missing token
-            # The key assertion: it's 401 for bad credentials, not 401 for missing auth
             assert response.status_code == 401
         finally:
             _cleanup_app(app)

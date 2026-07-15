@@ -1,63 +1,145 @@
 /**
- * 用户状态管理 — 存储当前用户信息和权限
+ * 用户状态管理 — 存储当前用户信息和权限。
+ *
+ * Phase DB-AUTH:
+ * - access + refresh 双 token；refresh 存在 localStorage，access 在内存中
+ * - 401 拦截器通过 useAuthBootstrap 拉 silent refresh
+ * - 用户信息优先从 /auth/me 服务端真相获取
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export interface UserInfo {
+  id?: string
   sub: string
-  role: string
   username: string
+  role: string
+  must_change_password?: boolean
 }
+
+const ACCESS_KEY = 'starmap_access_token'
+const REFRESH_KEY = 'starmap_refresh_token'
+const USER_KEY = 'starmap_user'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref<UserInfo | null>(null)
-  const isAdmin = computed(() => user.value?.role === 'admin')
-  const isLoggedIn = computed(() => user.value !== null)
+  const accessToken = ref<string | null>(null)
+  const refreshToken = ref<string | null>(null)
 
-  // 从 JWT token 解码用户信息
-  function decodeToken(token: string): UserInfo | null {
+  const isAdmin = computed(() => user.value?.role === 'admin')
+  const isLoggedIn = computed(() => user.value !== null && accessToken.value !== null)
+  const mustChangePassword = computed(
+    () => user.value?.must_change_password === true
+  )
+
+  /**
+   * Decode a JWT token payload (client-side; signature is verified server-side).
+   * Returns null if token is malformed or expired.
+   */
+  function decodeToken(token: string): { exp?: number } | null {
     try {
       const parts = token.split('.')
       if (parts.length !== 3) return null
       const payload = JSON.parse(atob(parts[1]))
-      // Check token expiry — reject expired tokens on the client side
       if (payload.exp && payload.exp * 1000 < Date.now()) return null
-      return {
-        sub: payload.sub || '',
-        role: payload.role || '',
-        username: payload.username || '',
-      }
+      return payload
     } catch {
       return null
     }
   }
 
-  // 初始化用户（从 localStorage 读取 token）
-  function initUser() {
-    const token = localStorage.getItem('starmap_token') || localStorage.getItem('token')
-    if (token) {
-      const userInfo = decodeToken(token)
-      if (userInfo) {
-        user.value = userInfo
-      }
+  function persist() {
+    if (accessToken.value) {
+      localStorage.setItem(ACCESS_KEY, accessToken.value)
+    } else {
+      localStorage.removeItem(ACCESS_KEY)
+    }
+    if (refreshToken.value) {
+      localStorage.setItem(REFRESH_KEY, refreshToken.value)
+    } else {
+      localStorage.removeItem(REFRESH_KEY)
+    }
+    if (user.value) {
+      localStorage.setItem(USER_KEY, JSON.stringify(user.value))
+    } else {
+      localStorage.removeItem(USER_KEY)
     }
   }
 
-  // 清除用户信息（同时清除 localStorage 中的 token）
+  /**
+   * Initialise from localStorage. Returns true if a usable session was found.
+   */
+  function initUser(): boolean {
+    const access = localStorage.getItem(ACCESS_KEY)
+    const refresh = localStorage.getItem(REFRESH_KEY)
+    const cached = localStorage.getItem(USER_KEY)
+    if (access && decodeToken(access)) {
+      accessToken.value = access
+      refreshToken.value = refresh
+      if (cached) {
+        try {
+          user.value = JSON.parse(cached)
+        } catch {
+          user.value = null
+        }
+      }
+      return true
+    }
+    // access expired but refresh present → caller should run silent refresh
+    if (refresh) {
+      refreshToken.value = refresh
+      accessToken.value = access
+      if (cached) {
+        try {
+          user.value = JSON.parse(cached)
+        } catch {
+          user.value = null
+        }
+      }
+      return false
+    }
+    clearUser()
+    return false
+  }
+
+  function setTokens(access: string, refresh: string) {
+    accessToken.value = access
+    refreshToken.value = refresh
+    persist()
+  }
+
+  function setUser(u: UserInfo) {
+    user.value = u
+    persist()
+  }
+
   function clearUser() {
     user.value = null
+    accessToken.value = null
+    refreshToken.value = null
+    localStorage.removeItem(ACCESS_KEY)
+    localStorage.removeItem(REFRESH_KEY)
+    localStorage.removeItem(USER_KEY)
+    // Backward-compat cleanup
     localStorage.removeItem('starmap_token')
     localStorage.removeItem('token')
   }
 
-  // 登出：清除用户 + 简历状态
-  function logout() {
+  async function logout() {
+    const rt = refreshToken.value
+    if (rt) {
+      try {
+        const api = (await import('@/api/request')).default
+        await api.post('/auth/logout', { refresh_token: rt })
+      } catch {
+        /* ignore — best-effort revoke */
+      }
+    }
     clearUser()
     clearResume()
   }
 
-  // 简历相关状态（用于匹配诊断）
+  // ── Resume-related state (kept for backward compat with match-diagnosis flow) ──
   const resumeName = ref('')
   const parsedSkills = ref<string[]>([])
 
@@ -71,12 +153,28 @@ export const useUserStore = defineStore('user', () => {
     parsedSkills.value = []
   }
 
-  // LOOP-10: Add a skill to parsedSkills when mastered in learning plan
   function addParsedSkill(skill: string) {
     if (!parsedSkills.value.includes(skill)) {
       parsedSkills.value = [...parsedSkills.value, skill]
     }
   }
 
-  return { user, isAdmin, isLoggedIn, initUser, clearUser, logout, resumeName, parsedSkills, setResume, clearResume, addParsedSkill }
+  return {
+    user,
+    accessToken,
+    refreshToken,
+    isAdmin,
+    isLoggedIn,
+    mustChangePassword,
+    initUser,
+    setTokens,
+    setUser,
+    clearUser,
+    logout,
+    resumeName,
+    parsedSkills,
+    setResume,
+    clearResume,
+    addParsedSkill,
+  }
 })

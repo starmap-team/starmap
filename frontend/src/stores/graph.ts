@@ -228,12 +228,14 @@ export const useGraphStore = defineStore('graph', () => {
       independentPositions.value = data.independent_positions ?? 0
       independentSkills.value = data.independent_skills ?? 0
       independentEdges.value = data.independent_edges ?? 0
-      // 延迟设置 overviewMode 直到数据就绪，避免 Graph3D watch 被触发两次：
-      // 1) overviewMode 变了但 nodes/links 还是旧数据（力配置错配）
-      // 2) API 返回后 nodes/links 更新（再次触发）
-      // Vue 的批处理会在同一微任务中合并 domains/domainConnections/overviewMode 的更新，
-      // 确保 computed 属性只触发一次 watch
       overviewMode.value = mode
+      // 切换视图模式 = 重新从顶层导航，必须重置层级状态
+      // 否则 expandedKAId/expandedPositionId 指向旧数据，导致图谱混乱
+      currentLayer.value = 'domain'
+      expandedKAId.value = null
+      expandedKAName.value = ''
+      expandedPositionId.value = null
+      positionsByKA.value = new Map()
     } catch (e) {
       if (import.meta.env.DEV) console.error('[Graph] Failed to fetch overview:', e)
       domains.value = []
@@ -251,9 +253,14 @@ export const useGraphStore = defineStore('graph', () => {
     loading.value = true
     try {
       const edgeKeys = new Set(allEdges.value.map(x => `${x.source_id}-${x.target_id}-${x.type}`))
-      const data = await request.get(`/graph/ka/${kaId}/positions`) as { positions?: GraphNode[]; position_skill_edges?: GraphEdge[] }
+      const data = await request.get(`/graph/ka/${kaId}/positions`) as {
+        positions?: GraphNode[]
+        position_skill_edges?: GraphEdge[]
+        skills?: GraphNode[]
+      }
       const positions: GraphNode[] = data.positions ?? []
       const psEdges: GraphEdge[] = data.position_skill_edges ?? []
+      const skillsData: GraphNode[] = data.skills ?? []
       // 缓存
       positionsByKA.value.set(kaId, positions)
       // 合并到全局节点池（O(1) 查重）
@@ -262,6 +269,12 @@ export const useGraphStore = defineStore('graph', () => {
         if (!existingNodeIds.has(p.id)) {
           existingNodeIds.add(p.id)
           allNodes.value.push(p)
+        }
+      }
+      for (const s of skillsData) {
+        if (!existingNodeIds.has(s.id)) {
+          existingNodeIds.add(s.id)
+          allNodes.value.push(s)
         }
       }
       for (const e of psEdges) {

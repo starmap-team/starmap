@@ -26,6 +26,16 @@ class AuditEvent(StrEnum):
     SENSITIVE_WRITE = "sensitive_write"
     FILE_UPLOAD = "file_upload"
     ADMIN_ACTION = "admin_action"
+    # ── User lifecycle (Phase DB-AUTH) ──
+    LOGIN_LOCKED = "login_locked"
+    LOGIN_SUCCESS = "login_success"
+    PASSWORD_CHANGED = "password_changed"
+    PASSWORD_RESET = "password_reset"
+    USER_CREATED = "user_created"
+    USER_UPDATED = "user_updated"
+    USER_DISABLED = "user_disabled"
+    USER_UNLOCKED = "user_unlocked"
+    ACCOUNT_DELETED = "account_deleted"
 
 
 @dataclass(frozen=True)

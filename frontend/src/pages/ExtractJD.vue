@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * JD 抽取页 — 粘贴 JD 文本，触发 LLM 抽取
  * 路由：/extract
@@ -164,7 +164,7 @@ onUnmounted(() => {
                 </el-tag>
                 <span
                   v-if="!(result.required_skills?.length)"
-                  class="empty-text"
+                  class="starmap-empty--sm"
                 >无</span>
               </div>
 
@@ -182,7 +182,7 @@ onUnmounted(() => {
                 </el-tag>
                 <span
                   v-if="!(result.preferred_skills?.length)"
-                  class="empty-text"
+                  class="starmap-empty--sm"
                 >无</span>
               </div>
 
@@ -244,7 +244,7 @@ onUnmounted(() => {
                   x2="8"
                   y2="17"
                 /><polyline points="10 9 9 9 8 9" /></svg>
-              </div><p class="empty-text">
+              </div><p class="starmap-empty--sm">
                 输入 JD 文本开始抽取
               </p><p class="empty-hint-text">
                 粘贴职位描述后点击「开始抽取」
@@ -273,7 +273,7 @@ onUnmounted(() => {
 .result-section-title { font-size: var(--font-size-xs); font-weight: 600; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.06em; margin: var(--space-5) 0 var(--space-3); }
 .result-section-title:not(:first-child) { margin-top: var(--space-3); }
 .skill-tags-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.empty-text { color: var(--muted-foreground); font-size: var(--font-size-sm); }
+
 
 /* ── Custom Empty State ── */
 .custom-empty {

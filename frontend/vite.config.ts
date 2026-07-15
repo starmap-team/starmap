@@ -15,12 +15,10 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     proxy: {
-      // 默认指向 8002（dev 端口：当前激活的 FastAPI 后端）。
-      // 8000 是 docker-compose 默认端口，可能与 IDE 启动的开发后端并存；
-      // 8002 是 docker-compose.dev.yml 中 backend-dev 服务的映射端口。
-      // 可通过环境变量 VITE_API_BASE_URL 覆盖。
+      // Default → http://localhost:8000 (matches docker-compose.dev.yml backend mapping 8000:8000).
+      // Override via VITE_API_BASE_URL when running backend on a different host/port.
       '/api': {
-        target: process.env.VITE_API_BASE_URL || 'http://localhost:8002',
+        target: process.env.VITE_API_BASE_URL || 'http://localhost:8000',
         changeOrigin: true,
       },
     },
