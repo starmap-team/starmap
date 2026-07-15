@@ -236,7 +236,8 @@ function measureFPS() {
 }
 
 // ── Update data when props change ──
-watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths, props.currentDomainId], () => {
+// 单一 watch 合并数据+层级变化，避免两个 watch 同时触发 setCameraPreset 导致双重渲染
+watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths, props.currentDomainId, props.currentLayer] as const, ([_n, _l, _evo, _evoP, _domId, newLayer], _old) => {
   const graph = graphInstance.value
   if (!graph) { if (props.nodes.length > 0) initGraph(); return }
 
@@ -268,27 +269,22 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, false)
   // 轻量 reheat：只给少量 alpha 让新节点微调，不会导致全局抽动
   graph.d3ReheatSimulation()
-  // 降低 reheat 强度，避免已稳定节点剧烈跳动
-  const sim = graph.d3Force('charge')
-  if (sim) {
-    // 通过设置较低的 alpha 目标让模拟快速冷却
-    graph.d3AlphaDecay(0.08)
-  }
-  // Re-center camera on the new data after a short delay for layout to settle
+  // 快速冷却，避免已稳定节点剧烈跳动
+  graph.d3AlphaDecay(0.1)
+
+  // 布局冷却后调整相机，确保用户看到全局
+  const cfg = calcForceConfig(nodeCount)
+  const settleMs = Math.min(cfg.warmupTicks * 16 + 200, 800)
   setTimeout(() => {
     if (graphInstance.value) {
       const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
-      setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
+      setCameraPreset(presetMap[newLayer] ?? 'overview')
     }
-  }, 600)
+  }, settleMs)
 }, { deep: false })
 
 // ── Watch: layer changes → auto-adjust camera ──
-watch(() => props.currentLayer, (newLayer) => {
-  if (!graphInstance.value || props.nodes.length === 0) return
-  const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
-  setCameraPreset(presetMap[newLayer] ?? 'overview')
-})
+// 已合并到上方主 watch 中，不再需要独立 watch
 
 // ── Resize handling ──
 function handleResize() {
