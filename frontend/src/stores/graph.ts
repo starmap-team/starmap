@@ -334,6 +334,8 @@ export const useGraphStore = defineStore('graph', () => {
     expandedKAId.value = null
     expandedKAName.value = ''
     expandedPositionId.value = null
+    // 清空缓存，防止残留旧 overviewMode 下的分组数据导致回退混乱
+    positionsByKA.value = new Map()
   }
 
   async function goToPositionLayer(kaId: string, kaName: string) {
@@ -350,6 +352,21 @@ export const useGraphStore = defineStore('graph', () => {
   function goToDetailLayer(positionId: string) {
     expandedPositionId.value = positionId
     currentLayer.value = 'detail'
+    // 防御：若 Position 不在当前 KA 下，自动修正 KA 上下文
+    if (expandedKAId.value) {
+      const positions = positionsByKA.value.get(expandedKAId.value) ?? []
+      if (!positions.some(p => p.id === positionId)) {
+        // 遍历缓存找到该 Position 所属的 KA
+        for (const [kaId, posList] of positionsByKA.value) {
+          if (posList.some(p => p.id === positionId)) {
+            const kaDomain = domains.value.find(d => d.id === kaId)
+            expandedKAId.value = kaId
+            expandedKAName.value = kaDomain?.name ?? ''
+            break
+          }
+        }
+      }
+    }
   }
 
   return {

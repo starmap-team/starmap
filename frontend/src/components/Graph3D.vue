@@ -87,6 +87,13 @@ let _mouseMoveHandler: ((e: MouseEvent) => void) | null = null
 
 async function initGraph() {
   if (!containerRef.value || !webglSupported.value) return
+
+  // 销毁旧实例，防止回调丢失或重复绑定
+  if (graphInstance.value) {
+    graphInstance.value._destructor?.()
+    graphInstance.value = null
+  }
+
   if (props.nodes.length === 0) { isReady.value = false; return }
 
   // Dynamic import to keep 3d-force-graph out of the main bundle
@@ -236,11 +243,37 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   const nodeCount = props.nodes.length
   const composedLinks = composeEvolutionLinks(props.links, props.evolutionPaths, props.nodes, props.showEvolution)
 
+  // 保存旧节点的位置映射，用于为相同 ID 的新节点提供初始位置
+  const oldNodes: GraphNode3D[] = graph.graphData().nodes
+  const posMap = new Map<string, { x: number; y: number; z: number }>()
+  for (const n of oldNodes) {
+    if (n.x !== undefined && n.y !== undefined && n.z !== undefined) {
+      posMap.set(String(n.id), { x: n.x, y: n.y, z: n.z })
+    }
+  }
+  // 为新数据中没有位置信息的节点，从旧位置映射中继承位置
+  for (const n of props.nodes) {
+    if (n.x === undefined || n.y === undefined || n.z === undefined) {
+      const oldPos = posMap.get(String(n.id))
+      if (oldPos) {
+        n.x = oldPos.x
+        n.y = oldPos.y
+        n.z = oldPos.z
+      }
+    }
+  }
+
   graph.graphData({ nodes: props.nodes, links: composedLinks })
   graph.nodeThreeObject(buildNodeThreeObject)
   applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, false)
-  // Reheat force simulation so new nodes spread out instead of stacking
+  // 轻量 reheat：只给少量 alpha 让新节点微调，不会导致全局抽动
   graph.d3ReheatSimulation()
+  // 降低 reheat 强度，避免已稳定节点剧烈跳动
+  const sim = graph.d3Force('charge')
+  if (sim) {
+    // 通过设置较低的 alpha 目标让模拟快速冷却
+    graph.d3AlphaDecay(0.08)
+  }
   // Re-center camera on the new data after a short delay for layout to settle
   setTimeout(() => {
     if (graphInstance.value) {
