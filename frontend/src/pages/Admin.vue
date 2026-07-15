@@ -1,20 +1,31 @@
 <script setup lang="ts">
 /**
- * 管理后台 — 增强版
- * Tabs: 审核队列 | 图谱节点管理 | 数据源配置
- * 新增: 图谱节点 CRUD + ReviewQueuePanel 集成
+ * 管理后台 — Phase 24 重设计
+ *
+ * Tabs (按用户视角的业务环节排序):
+ *  0. 业务总览   - 系统健康 KPI + 业务流图谱
+ *  1. 内容审核   - Phase 23 主数据生命周期（position/skill）
+ *  2. 演化变更   - §5.2 能力演化（trust_score < 0.6 的变更提案）
+ *  3. 图谱节点   - Neo4j 节点 CRUD
+ *  4. 数据采集   - 爬虫源 + 同步
+ *  5. Prompt     - LLM 抽取提示词版本
+ *  6. 系统       - 用户管理 + 审计日志
+ *
+ * 每个 Tab 顶部都有 el-alert 横幅说明业务含义，让新用户秒懂。
  */
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search, Plus, Edit, DataAnalysis } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
+import AdminOverview from '@/components/AdminOverview.vue'
 import ReviewQueuePanel from '@/components/ReviewQueuePanel.vue'
 import ContentReviewPanel from '@/components/ContentReviewPanel.vue'
 import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
 import { useDataSourceStore } from '@/stores/datasource'
 import { useAuditStore } from '@/stores/audit'
 import { useGraphNodeStore } from '@/stores/graphNode'
+import { useReviewStore } from '@/stores/review'
 import PromptManager from '@/components/PromptManager.vue'
 import UserManagement from '@/pages/UserManagement.vue'
 import AuditLog from '@/pages/AuditLog.vue'
@@ -30,14 +41,32 @@ const router = useRouter()
 const datasource = useDataSourceStore()
 const audit = useAuditStore()
 const graphNode = useGraphNodeStore()
+const review = useReviewStore()
 
 // ── Tab 导航 ──
-const activeTab = ref('audit')
+// Phase 24: 业务总览为默认 tab，让新用户第一眼理解系统。
+const activeTab = ref('overview')
+// Phase 24: 系统 tab 内部的子 tab（用户管理 / 审计日志）
+const systemSubTab = ref('users-list')
+
+// Cross-component navigation: AdminFlow / AdminOverview dispatch a
+// 'admin:navigate' CustomEvent to switch tabs without prop-drilling.
+function onAdminNavigate(e: Event) {
+  const tab = (e as CustomEvent<string>).detail
+  activeTab.value = tab
+}
 
 onMounted(() => {
+  window.addEventListener('admin:navigate', onAdminNavigate)
+  // Pre-fetch all stores in the background so tab switches feel instant.
   datasource.fetchSources()
   audit.fetchAuditQueue()
   graphNode.fetchGraphNodes()
+  review.fetchStats().catch(() => null)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('admin:navigate', onAdminNavigate)
 })
 
 // ════════════════════════════════════════════════
@@ -102,7 +131,7 @@ async function handleSaveSource() {
         <div>
           <h2>管理后台</h2>
           <p class="page-desc">
-            人工审核、图谱节点管理、数据源配置、Prompt管理
+            StarMap 业务闭环的运营控制台 — 6 大功能区覆盖采集 → 抽取 → 图谱 → 审核 → 匹配 → 学习
           </p>
         </div>
         <el-button
@@ -120,24 +149,30 @@ async function handleSaveSource() {
         v-model="activeTab"
         class="admin-tabs"
       >
-        <!-- ════════ Tab 1: 审核队列 (legacy evolution-changelog items) ════════ -->
+        <!-- ════════ Tab 0: 业务总览 (Phase 24 新增 — 第一眼) ════════ -->
         <el-tab-pane
-          label="审核队列"
-          name="audit"
+          label="业务总览"
+          name="overview"
         >
-          <el-card
-            shadow="never"
-            class="tab-card"
-          >
-            <ReviewQueuePanel />
-          </el-card>
+          <AdminOverview />
         </el-tab-pane>
 
-        <!-- ════════ Tab 2: 内容审核 (Phase 23 position/skill review) ════════ -->
+        <!-- ════════ Tab 1: 内容审核 (Phase 23 主数据生命周期) ════════ -->
         <el-tab-pane
           label="内容审核"
           name="content-review"
         >
+          <el-alert
+            type="info"
+            :closable="false"
+            show-icon
+            class="tab-description"
+          >
+            <template #title>主数据生命周期 — 新发现的内容审核</template>
+            <p>当系统从数据源抽取新岗位/技能、或在 /extract/jd 提取新内容时，
+            这些实体进入"待审核"状态。审核通过后才会出现在公开图谱中。</p>
+            <p class="tab-meta">后端: <code>/admin/review-items</code> · 数据源: <code>position_records.review_status</code> + <code>skill_records.review_status</code></p>
+          </el-alert>
           <el-card
             shadow="never"
             class="tab-card"
@@ -146,11 +181,47 @@ async function handleSaveSource() {
           </el-card>
         </el-tab-pane>
 
+        <!-- ════════ Tab 2: 演化变更 (§5.2 能力演化审核) ════════ -->
+        <el-tab-pane
+          label="演化变更"
+          name="evolution"
+        >
+          <el-alert
+            type="warning"
+            :closable="false"
+            show-icon
+            class="tab-description"
+          >
+            <template #title>§5.2 能力演化审核 — 低信任变更需要人工裁决</template>
+            <p>系统每周自动分析岗位能力图谱的演化（§5.2）。对于信任度低于 0.6 的
+            变更提案，会自动写入此队列等待人工确认是否更新图谱。信任度 ≥ 0.6 的
+            变更直接入图谱。</p>
+            <p class="tab-meta">后端: <code>/admin/review-queue</code> · 触发: <code>EvolutionOrchestrator._save_changelog</code> (trust_score &lt; 0.6)</p>
+          </el-alert>
+          <el-card
+            shadow="never"
+            class="tab-card"
+          >
+            <ReviewQueuePanel />
+          </el-card>
+        </el-tab-pane>
+
         <!-- ════════ Tab 3: 图谱节点管理 ════════ -->
         <el-tab-pane
-          label="图谱节点管理"
+          label="图谱节点"
           name="nodes"
         >
+          <el-alert
+            type="primary"
+            :closable="false"
+            show-icon
+            class="tab-description"
+          >
+            <template #title>Neo4j 图谱节点直接管理</template>
+            <p>直接对 Neo4j 知识图谱中的节点进行 CRUD 操作。修改会立即影响图谱查询。
+            注意：此 tab 绕过审核流程，请谨慎操作。</p>
+            <p class="tab-meta">后端: <code>/admin/graph/nodes</code> · 数据源: Neo4j</p>
+          </el-alert>
           <el-card
             shadow="never"
             class="tab-card"
@@ -350,11 +421,22 @@ async function handleSaveSource() {
           </el-card>
         </el-tab-pane>
 
-        <!-- ════════ Tab 3: 数据源配置 ════════ -->
+        <!-- ════════ Tab 4: 数据源配置 ════════ -->
         <el-tab-pane
-          label="数据源配置"
+          label="数据采集"
           name="sources"
         >
+          <el-alert
+            type="success"
+            :closable="false"
+            show-icon
+            class="tab-description"
+          >
+            <template #title>§5.2 数据输入 — 爬虫源配置</template>
+            <p>管理爬虫数据源（SAP、LinkedIn、Boss直聘等），配置权威性评分、启用状态。
+            权威性评分直接影响信任度驱动的图谱构建策略（§7.1）。</p>
+            <p class="tab-meta">后端: <code>/datasources</code> · 数据源: <code>datasources</code> 表</p>
+          </el-alert>
           <el-card
             shadow="never"
             class="tab-card"
@@ -485,31 +567,60 @@ async function handleSaveSource() {
           </el-card>
         </el-tab-pane>
 
-        <!-- ════════ Tab 4: Prompt 管理 ════════ -->
+        <!-- ════════ Tab 5: Prompt 管理 ════════ -->
         <el-tab-pane
-          label="Prompt 管理"
+          label="Prompt 工程"
           name="prompts"
         >
+          <el-alert
+            type="info"
+            :closable="false"
+            show-icon
+            class="tab-description"
+          >
+            <template #title>§7.2 幻觉防控 — LLM 抽取提示词管理</template>
+            <p>管理 LLM 抽取技能的提示词模板，支持版本控制和 A/B 测试。
+            提示词质量直接影响信任度评分和幻觉率。</p>
+            <p class="tab-meta">后端: <code>/admin/prompts</code></p>
+          </el-alert>
           <el-card
             shadow="never"
             class="tab-card"
           >
             <PromptManager />
           </el-card>
-	        </el-tab-pane>
-
-	        <!-- Tab 5: 用户管理 -->
-        <el-tab-pane label="用户管理" name="users">
-          <el-card shadow="never" class="tab-card">
-            <UserManagement />
-          </el-card>
         </el-tab-pane>
 
-        <!-- Tab 6: 审计日志 -->
-        <el-tab-pane label="审计日志" name="audit-log">
-          <el-card shadow="never" class="tab-card">
-            <AuditLog />
-          </el-card>
+        <!-- ════════ Tab 6: 系统（用户 + 审计） ════════ -->
+        <el-tab-pane label="系统" name="users">
+          <el-alert
+            type="warning"
+            :closable="false"
+            show-icon
+            class="tab-description"
+          >
+            <template #title>系统运维 — 用户管理与安全审计</template>
+            <p>用户权限管理（admin / 普通用户）和系统级安全审计日志（登录、授权、敏感操作）。
+            审计日志与"内容审核"无关，是独立的安全追溯机制。</p>
+            <p class="tab-meta">后端: <code>/admin/users</code>, <code>/admin/audit-events</code></p>
+          </el-alert>
+          <el-tabs
+            v-model="systemSubTab"
+            class="sub-tabs"
+          >
+            <el-tab-pane
+              label="用户管理"
+              name="users-list"
+            >
+              <UserManagement />
+            </el-tab-pane>
+            <el-tab-pane
+              label="审计日志"
+              name="audit-log"
+            >
+              <AuditLog />
+            </el-tab-pane>
+          </el-tabs>
         </el-tab-pane>
       </el-tabs>
 
@@ -562,6 +673,34 @@ async function handleSaveSource() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* ── Business description banner (Phase 24) ── */
+.tab-description {
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-lg);
+}
+.tab-description :deep(p) {
+  margin: 4px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--foreground);
+  line-height: 1.5;
+}
+.tab-description .tab-meta {
+  margin-top: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+}
+.tab-description code {
+  background: var(--muted);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+}
+
+.sub-tabs {
+  margin-top: var(--space-2);
 }
 
 .section-label {
