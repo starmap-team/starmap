@@ -219,6 +219,13 @@ async function initGraph() {
     if ((link as GraphLink3D).type === 'EVOLVES_TO') emit('evolutionEdgeClick', link as GraphLink3D)
   })
 
+  // 力模拟稳定后自动适配相机，确保用户看到全局
+  graph.onEngineStop(() => {
+    _engineStopHandled = true
+    const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
+    setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
+  })
+
   graphInstance.value = graph
   graph.graphData({ nodes: props.nodes, links: props.links })
   isReady.value = true
@@ -234,6 +241,9 @@ function measureFPS() {
   if (now - fpsLastTime >= 1000) { fps.value = fpsFrames; fpsFrames = 0; fpsLastTime = now }
   fpsRafId = requestAnimationFrame(measureFPS)
 }
+
+// 标志位：onEngineStop 触发后置 true，避免 watch setTimeout 重复定位相机
+let _engineStopHandled = false
 
 // ── Update data when props change ──
 // 单一 watch 合并数据+层级变化，避免两个 watch 同时触发 setCameraPreset 导致双重渲染
@@ -267,16 +277,19 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   graph.graphData({ nodes: props.nodes, links: composedLinks })
   graph.nodeThreeObject(buildNodeThreeObject)
   applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, false)
+
+  // 重置标志位，让 onEngineStop 接管相机定位
+  _engineStopHandled = false
   // 轻量 reheat：只给少量 alpha 让新节点微调，不会导致全局抽动
   graph.d3ReheatSimulation()
   // 快速冷却，避免已稳定节点剧烈跳动
   graph.d3AlphaDecay(0.1)
 
-  // 布局冷却后调整相机，确保用户看到全局
+  // 兜底：如果 onEngineStop 未触发（极短冷却），setTimeout 仍可定位相机
   const cfg = calcForceConfig(nodeCount)
   const settleMs = Math.min(cfg.warmupTicks * 16 + 200, 800)
   setTimeout(() => {
-    if (graphInstance.value) {
+    if (!_engineStopHandled && graphInstance.value) {
       const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
       setCameraPreset(presetMap[newLayer] ?? 'overview')
     }

@@ -16,6 +16,31 @@ export function useCameraPresets(
   const autoRotate = ref(false)
   let _autoRotateTimer: ReturnType<typeof setTimeout> | null = null
 
+  /** 根据节点实际空间分布计算 bounding box，返回相机所需最小距离 */
+  function calcFitDistance(padding = 1.3): number {
+    const ns = nodes()
+    if (ns.length === 0) return 400
+
+    // 从已有节点位置中提取 bounding box
+    let minX = Infinity, maxX = -Infinity
+    let minY = Infinity, maxY = -Infinity
+    let minZ = Infinity, maxZ = -Infinity
+    for (const n of ns) {
+      if (n.x !== undefined) { minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x) }
+      if (n.y !== undefined) { minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y) }
+      if (n.z !== undefined) { minZ = Math.min(minZ, n.z); maxZ = Math.max(maxZ, n.z) }
+    }
+    // 防御：节点全无坐标时回退到 nodeCount 启发式
+    if (minX === Infinity) return Math.max(400, ns.length * 3)
+
+    const extentX = (maxX - minX) / 2
+    const extentY = (maxY - minY) / 2
+    const extentZ = (maxZ - minZ) / 2
+    // 取最大半轴作为球体半径，乘 padding 确保边缘节点可见
+    const radius = Math.max(extentX, extentY, extentZ, 50)
+    return radius * padding
+  }
+
   function setCameraPreset(preset: CameraPreset) {
     const graph = graphInstance.value
     if (!graph) return
@@ -27,32 +52,28 @@ export function useCameraPresets(
     }
 
     const dist = { x: 0, y: 0, z: 0 }
-    let distance = 0
-    const nodeCount = nodes().length
+    const fitDist = calcFitDistance()
 
     switch (preset) {
       case 'overview':
-        // Pull camera far back for panoramic view
-        distance = Math.max(400, nodeCount * 3.5)
-        dist.x = distance * 0.7
-        dist.y = distance * 0.5
-        dist.z = distance * 0.9
+        // 全景：基于 bounding box 距离 + 角度偏移
+        dist.x = fitDist * 0.7
+        dist.y = fitDist * 0.5
+        dist.z = fitDist * 0.9
         break
 
       case 'domain':
-        // Closer, angled view focusing on domain clusters
-        distance = Math.max(250, nodeCount * 1.8)
-        dist.x = distance * 0.5
-        dist.y = distance * 0.7
-        dist.z = distance * 0.6
+        // 中距：domain 聚类视角
+        dist.x = fitDist * 0.5
+        dist.y = fitDist * 0.7
+        dist.z = fitDist * 0.6
         break
 
       case 'position':
-        // Tight view for position-skill networks
-        distance = Math.max(180, nodeCount * 1.2)
-        dist.x = distance * 0.4
-        dist.y = distance * 0.4
-        dist.z = distance * 0.9
+        // 近距：position-skill 网络
+        dist.x = fitDist * 0.4
+        dist.y = fitDist * 0.4
+        dist.z = fitDist * 0.9
         break
     }
 
@@ -71,13 +92,13 @@ export function useCameraPresets(
     }
   }
 
-  /** Reset camera to initial position */
+  /** Reset camera to initial position — 同样基于 bounding box */
   function resetCamera() {
     const graph = graphInstance.value
     if (!graph) return
-    const dist = Math.max(350, nodes().length * 2.5)
+    const fitDist = calcFitDistance(1.5)
     graph.cameraPosition(
-      { x: dist * 0.6, y: dist * 0.5, z: dist * 0.8 },
+      { x: fitDist * 0.6, y: fitDist * 0.5, z: fitDist * 0.8 },
       { x: 0, y: 0, z: 0 },
       1200
     )
