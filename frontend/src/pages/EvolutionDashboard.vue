@@ -246,16 +246,26 @@ onMounted(() => {
 	            <el-tag type="danger">{{ evo.emergingAlerts.length }}</el-tag>
 	          </div>
 	        </template>
-	        <el-table :data="evo.emergingAlerts" size="small" stripe>
-	          <el-table-column prop="skill_name" label="技能" />
-	          <el-table-column prop="level" label="级别" width="100">
-	            <template #default="{ row }">
-	              <el-tag :type="row.level === 'emerging' ? 'danger' : row.level === 'rising' ? 'warning' : 'info'" size="small">{{ row.level }}</el-tag>
-	            </template>
-	          </el-table-column>
-	          <el-table-column prop="z_score" label="Z-score" width="80" />
-	          <el-table-column prop="alert_message" label="预警信息" show-overflow-tooltip />
-	        </el-table>
+		        <el-table :data="evo.emergingAlerts" size="small" stripe>
+		          <el-table-column prop="skill_name" label="技能" />
+		          <el-table-column prop="level" label="级别" width="100">
+		            <template #default="{ row }">
+		              <el-tag :type="row.level === 'emerging' ? 'danger' : row.level === 'rising' ? 'warning' : row.level === 'stable' ? 'success' : 'info'" size="small">{{ row.level }}</el-tag>
+		            </template>
+		          </el-table-column>
+		          <el-table-column prop="trend" label="趋势" width="80">
+		            <template #default="{ row }">
+		              <span>{{ row.trend === 'rising' ? '↑' : row.trend === 'declining' ? '↓' : '→' }}</span>
+		            </template>
+		          </el-table-column>
+		          <el-table-column prop="z_score" label="Z-score" width="80" />
+		          <el-table-column prop="portability_score" label="可迁移性" width="90">
+		            <template #default="{ row }">
+		              <span>{{ row.portability_score != null ? Math.round(row.portability_score * 100) + '%' : '—' }}</span>
+		            </template>
+		          </el-table-column>
+		          <el-table-column prop="alert_message" label="预警信息" show-overflow-tooltip />
+		        </el-table>
 	      </el-card>
 
 	      <!-- 曲线图 -->

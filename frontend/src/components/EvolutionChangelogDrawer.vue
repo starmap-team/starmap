@@ -3,6 +3,7 @@
  * Evolution changelog drawer — extracted from EvolutionDashboard.vue (audit M16)
  */
 import type { ChangelogEntry } from '@/stores/evolution'
+import type { ChangeType } from '@/types/evolution'
 
 defineProps<{
   modelValue: boolean
@@ -15,21 +16,14 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
 }>()
 
-const changeTypeLabel: Record<string, string> = {
-  // Backend enum values (EvolutionChangelog.change_type)
+// ALIGN-04: ChangeType labels — matches backend diff_engine.py enum values
+const changeTypeLabel: Record<ChangeType, string> = {
   added_required: '新增必需',
   added_preferred: '新增优先',
   removed: '移除技能',
   promoted: '升级',
   demoted: '降级',
   retained: '保留',
-  // Legacy frontend values (kept for backward compat)
-  proficiency_change: '熟练度变更',
-  requirement_change: '需求等级变更',
-  new_skill: '新增技能',
-  removed_skill: '移除技能',
-  trend_change: '趋势变更',
-  confidence_change: '置信度变更',
 }
 </script>
 

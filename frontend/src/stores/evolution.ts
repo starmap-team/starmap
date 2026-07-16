@@ -5,6 +5,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
+import type { ChangeType } from '@/types/evolution'
 
 export interface TrendItem {
   skill_name: string
@@ -26,7 +27,7 @@ export interface SnapshotEntry {
 export interface ChangelogEntry {
   id: string
   skill_name: string
-  change_type: string
+  change_type: ChangeType
   before_value: string | null
   after_value: string | null
   confidence: number
@@ -43,13 +44,17 @@ export interface ChangelogEntry {
 }
 
 // LOOP-06: Emerging alert type for evolution alerts
+// ALIGN-05: Added missing fields from backend (source_count, trend, portability_score)
 export interface EmergingAlert {
   skill_name: string
   category: string
-  level: string  // emerging | rising | declining
+  level: 'emerging' | 'rising' | 'stable' | 'declining'
   z_score: number
   current_frequency: number
   mean_frequency: number
+  source_count: number
+  trend: 'rising' | 'stable' | 'declining'
+  portability_score: number
   domains: string[]
   positions: string[]
   alert_message: string

@@ -311,11 +311,11 @@ UX-03~05 ← 独立
 | FLOW-01 | ✅ 已完成 | 2026-07-16 | QualityMetrics 添加 total_extractions 字段 |
 | FLOW-02 | ✅ 已完成 | 2026-07-16 | S1: addParsedSkill(v3.0已有); S2: LearningCenter重新匹配按钮+MatchDiagnosis路由; S3: GapAnalysisReport分数差值卡片 |
 | FLOW-03 | ✅ 已完成 | 2026-07-16 | parsedSkills 改为 ParsedSkill[], setResume/addParsedSkill 适配, MatchDiagnosis/LearningCenter 消费方适配 |
-| ALIGN-01 | ⬜ 待开始 | | OpenAPI 93/125 路径覆盖, 缺 ~32 端点 |
+| ALIGN-01 | ✅ 已完成 | 2026-07-16 | OpenAPI 93→115 paths, 补齐22缺失端点+修复4错误路径+19新schema |
 | ALIGN-02 | ✅ 已修复 | (v3.0) | MatchResult schema 已含 match_id/missing_required/skill_gap_detail |
 | ALIGN-03 | ✅ 已修复 | (v3.0) | EmergingSkill 前端为后端超集, 核心字段匹配 |
-| ALIGN-04 | ⬜ 待开始 | | ChangeType 枚举前后端不一致 |
-| ALIGN-05 | ⬜ 待开始 | | Evolution trends 响应结构 |
+| ALIGN-04 | ✅ 已完成 | 2026-07-16 | ChangeType TypeScript union type + ChangelogDrawer 移除6 legacy labels |
+| ALIGN-05 | ✅ 已完成 | 2026-07-16 | Evolution trends 已对齐; EmergingAlerts 补齐 source_count/trend/portability_score; Dashboard 新增趋势+可迁移性列 |
 | METRIC-01 | ⬜ 待开始 | | JD F1=0.8767, 需提升至 ≥90% |
 | METRIC-02 | ⬜ 待开始 | | 简历提取 F1 未验证 |
 | METRIC-03 | ⬜ 待开始 | | 匹配准确率未验证 |

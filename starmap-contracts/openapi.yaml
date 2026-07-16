@@ -43,6 +43,244 @@ paths:
                     type: string
                     example: "development"
 
+  # ──────────────────────── 认证 ────────────────────────
+  /auth/login:
+    post:
+      operationId: authLogin
+      summary: "用户登录"
+      description: "用户名+密码认证，返回 access+refresh token 对"
+      tags: [认证]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: "登录成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: "用户名或密码错误 / 账号锁定 / 账号停用"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: "Redis 不可用"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/refresh:
+    post:
+      operationId: authRefresh
+      summary: "刷新令牌"
+      description: "用 refresh token 换取新的 access token"
+      tags: [认证]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: "刷新成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshResponse"
+        "401":
+          description: "刷新令牌无效或已过期"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: "Redis 不可用"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      operationId: authLogout
+      summary: "用户登出"
+      description: "撤销 refresh token（尽力而为）"
+      tags: [认证]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "200":
+          description: "登出成功"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revoked]
+                properties:
+                  revoked:
+                    type: integer
+                    description: "被撤销的 token 数量"
+        "503":
+          description: "Redis 不可用"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/me:
+    get:
+      operationId: authMe
+      summary: "当前用户信息"
+      description: "返回当前认证用户的完整信息（数据库真实数据，非 JWT 解码）"
+      tags: [认证]
+      responses:
+        "200":
+          description: "用户信息"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        "401":
+          description: "未认证或令牌无效"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "用户不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/change-password:
+    post:
+      operationId: authChangePassword
+      summary: "修改密码"
+      description: "自助修改密码（需提供旧密码）"
+      tags: [认证]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: "密码修改成功"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changed]
+                properties:
+                  changed:
+                    type: boolean
+        "400":
+          description: "原密码错误"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "未认证"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "用户不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/forgot-password:
+    post:
+      operationId: authForgotPassword
+      summary: "忘记密码"
+      description: "发起密码重置流程（始终返回成功以避免邮箱枚举）"
+      tags: [认证]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "200":
+          description: "重置请求已提交"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [submitted]
+                properties:
+                  submitted:
+                    type: boolean
+                  token:
+                    type: string
+                    nullable: true
+                    description: "开发环境返回重置令牌，生产环境为 null"
+        "503":
+          description: "Redis 不可用"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/reset-password:
+    post:
+      operationId: authResetPassword
+      summary: "重置密码"
+      description: "使用 /forgot-password 发出的令牌完成密码重置"
+      tags: [认证]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: "密码重置成功"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reset]
+                properties:
+                  reset:
+                    type: boolean
+        "401":
+          description: "令牌无效或已过期"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: "Redis 不可用"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   # ──────────────────────── 信息抽取 ────────────────────────
   /extract/jd:
     post:
@@ -675,19 +913,19 @@ paths:
                   days:
                     type: integer
 
-  /evolution/changelog/{position}:
+  /evolution/changelog/{identifier}:
     get:
       operationId: getEvolutionChangelog
       summary: "演化变更记录"
       description: "获取指定岗位的技能变更历史"
       tags: [演化分析]
       parameters:
-        - name: position
+        - name: identifier
           in: path
           required: true
           schema:
             type: string
-          description: "岗位名称"
+          description: "岗位标识符"
         - name: limit
           in: query
           schema:
@@ -1148,26 +1386,6 @@ paths:
                   pending_review:
                     type: integer
 
-  /admin/sources:
-    get:
-      operationId: listSources
-      summary: "数据源配置"
-      description: "获取所有数据源及其权威度评分"
-      tags: [管理后台]
-      responses:
-        "200":
-          description: "数据源列表"
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [items]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/SourceConfig"
-
   /admin/review-queue:
     get:
       operationId: getReviewQueue
@@ -1275,6 +1493,660 @@ paths:
                 $ref: "#/components/schemas/AuditItem"
         "404":
           description: "审核项不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/audit/batch:
+    post:
+      operationId: batchAudit
+      summary: "批量审核"
+      description: "批量通过或驳回多条审核队列项"
+      tags: [管理后台]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchAuditRequest"
+      responses:
+        "200":
+          description: "批量操作结果"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditItem"
+        "404":
+          description: "部分审核项不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/review-items:
+    get:
+      operationId: listReviewItems
+      summary: "统一审核队列"
+      description: "统一审核队列：岗位+技能实体，支持状态过滤。默认返回 pending_review 项"
+      tags: [管理后台]
+      parameters:
+        - name: entity_type
+          in: query
+          description: "过滤实体类型"
+          schema:
+            type: string
+            enum: [position, skill]
+        - name: status
+          in: query
+          description: "审核状态"
+          schema:
+            type: string
+            enum: [draft, pending_review, approved, rejected]
+        - name: limit
+          in: query
+          description: "返回数量上限"
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: "审核项列表"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewListResponse"
+
+  /admin/review/{entity_type}/{entity_id}/submit:
+    post:
+      operationId: submitForReview
+      summary: "提交审核"
+      description: "将草稿或被驳回的实体提交管理员审核"
+      tags: [管理后台]
+      parameters:
+        - name: entity_type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [position, skill]
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "提交成功"
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: "entity_id 格式错误"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "实体不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: "状态转换无效"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/review/{entity_type}/{entity_id}/approve:
+    post:
+      operationId: approveReviewItem
+      summary: "审核通过"
+      description: "通过待审核实体。对已通过项幂等"
+      tags: [管理后台]
+      parameters:
+        - name: entity_type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [position, skill]
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewActionRequest"
+      responses:
+        "200":
+          description: "审核通过"
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: "entity_id 格式错误"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "实体不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: "状态转换无效"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/review/{entity_type}/{entity_id}/reject:
+    post:
+      operationId: rejectReviewItem
+      summary: "审核驳回"
+      description: "驳回待审核实体，reason 必填"
+      tags: [管理后台]
+      parameters:
+        - name: entity_type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [position, skill]
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewActionRequest"
+      responses:
+        "200":
+          description: "审核驳回"
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: "entity_id 格式错误"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "实体不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: "状态转换无效"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: "reason 必填"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/review/{entity_type}/{entity_id}/unpublish:
+    post:
+      operationId: unpublishReviewItem
+      summary: "取消发布"
+      description: "管理员取消已通过实体的发布状态，回退为草稿。reason 必填"
+      tags: [管理后台]
+      parameters:
+        - name: entity_type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [position, skill]
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewActionRequest"
+      responses:
+        "200":
+          description: "取消发布成功"
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: "entity_id 格式错误"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "实体不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: "状态转换无效"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: "reason 必填"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/review-stats:
+    get:
+      operationId: getReviewStats
+      summary: "审核统计"
+      description: "按 entity_type x review_status 聚合统计实体数量"
+      tags: [管理后台]
+      responses:
+        "200":
+          description: "审核统计"
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties:
+                    type: integer
+
+  /admin/pipeline/status:
+    get:
+      operationId: getAdminPipelineStatus
+      summary: "管线状态（管理）"
+      description: "管线状态 — 最近运行 + 数据健康统计"
+      tags: [管理后台]
+      responses:
+        "200":
+          description: "管线状态"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPipelineStatusResponse"
+
+  /admin/pipeline/trigger-full:
+    post:
+      operationId: triggerFullPipeline
+      summary: "触发全量管线"
+      description: "触发全量管线运行：crawl -> dedup -> clean -> import -> graph_sync"
+      tags: [管理后台]
+      responses:
+        "200":
+          description: "管线已触发"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineTriggerResponse"
+
+  /admin/users:
+    get:
+      operationId: listUsers
+      summary: "用户列表"
+      description: "分页查询用户列表，支持搜索和角色过滤"
+      tags: [用户管理]
+      parameters:
+        - name: search
+          in: query
+          description: "用户名子串匹配"
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: "角色过滤: admin | user"
+          schema:
+            type: string
+        - name: is_active
+          in: query
+          description: "是否活跃"
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+            maximum: 10000
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: "用户列表"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+    post:
+      operationId: createUser
+      summary: "创建用户"
+      description: "创建新用户账号"
+      tags: [用户管理]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: "用户已创建"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        "409":
+          description: "用户名或邮箱已被占用"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/users/{user_id}:
+    get:
+      operationId: getUser
+      summary: "用户详情"
+      description: "获取单个用户信息"
+      tags: [用户管理]
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "用户信息"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        "404":
+          description: "用户不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      operationId: updateUser
+      summary: "更新用户"
+      description: "更新用户角色/活跃状态/强制改密/邮箱"
+      tags: [用户管理]
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: "更新成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        "404":
+          description: "用户不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteUser
+      summary: "删除用户"
+      description: "软删除（禁用）用户"
+      tags: [用户管理]
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteUserRequest"
+      responses:
+        "200":
+          description: "删除成功"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: boolean
+        "404":
+          description: "用户不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: "用户已被禁用"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/users/{user_id}/unlock:
+    post:
+      operationId: unlockUser
+      summary: "解锁用户"
+      description: "清除用户锁定计数器"
+      tags: [用户管理]
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "解锁成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        "404":
+          description: "用户不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/users/{user_id}/reset-password:
+    post:
+      operationId: adminResetPassword
+      summary: "管理员重置密码"
+      description: "管理员为用户设置新密码"
+      tags: [用户管理]
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminResetPasswordRequest"
+      responses:
+        "200":
+          description: "密码重置成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        "404":
+          description: "用户不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/audit-events:
+    get:
+      operationId: listAuditEvents
+      summary: "审计事件列表"
+      description: "分页查询审计事件表，所有时间视为 UTC"
+      tags: [用户管理]
+      parameters:
+        - name: actor
+          in: query
+          description: "操作人过滤"
+          schema:
+            type: string
+        - name: event
+          in: query
+          description: "事件类型过滤"
+          schema:
+            type: string
+        - name: from_ts
+          in: query
+          description: "起始时间（ISO-8601）"
+          schema:
+            type: string
+            format: date-time
+        - name: to_ts
+          in: query
+          description: "结束时间（ISO-8601）"
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+            maximum: 10000
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: "审计事件列表"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventListResponse"
+
+  /admin/datasources/{source_id}:
+    put:
+      operationId: adminUpdateDatasource
+      summary: "更新数据源（管理员）"
+      description: "更新数据源配置（authority_score / status / config），需管理员权限"
+      tags: [管理后台]
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataSourceUpdateRequest"
+      responses:
+        "200":
+          description: "更新成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataSourceResponse"
+        "404":
+          description: "数据源不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/datasources/{source_id}/sync:
+    post:
+      operationId: adminTriggerSourceSync
+      summary: "触发单源同步（管理员）"
+      description: "触发指定数据源的同步（执行完整管线），需管理员权限"
+      tags: [管理后台]
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "同步已触发"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncTriggerResponse"
+        "404":
+          description: "数据源不存在"
           content:
             application/json:
               schema:
@@ -2031,37 +2903,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-    put:
-      operationId: updateDatasource
-      summary: "更新数据源"
-      description: "更新数据源的权威度评分等配置"
+
+  /datasources/health:
+    get:
+      operationId: getDatasourcesHealth
+      summary: "数据源健康检查"
+      description: "数据源健康检查汇总 — 各源状态 + 最近管线运行状态"
       tags: [数据源管理]
-      parameters:
-        - name: source_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DataSourceUpdateRequest"
       responses:
         "200":
-          description: "更新成功"
+          description: "健康检查汇总"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DataSourceResponse"
-        "404":
-          description: "数据源不存在"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/DatasourcesHealthResponse"
 
   /datasources/{source_id}/stats:
     get:
@@ -2089,43 +2944,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DataSourceStatsResponse"
-        "404":
-          description: "数据源不存在"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /datasources/{source_id}/sync:
-    post:
-      operationId: triggerSourceSync
-      summary: "触发单源同步"
-      description: "触发指定数据源的同步（创建 source_sync 流水线运行记录）"
-      tags: [数据源管理]
-      parameters:
-        - name: source_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: "同步已触发"
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [run_id, source_name, status, message]
-                properties:
-                  run_id:
-                    type: string
-                  source_name:
-                    type: string
-                  status:
-                    type: string
-                  message:
-                    type: string
         "404":
           description: "数据源不存在"
           content:
@@ -4503,3 +5321,356 @@ components:
         retry_backoff:
           type: integer
           nullable: true
+
+    # ──────────────────────── 认证 ────────────────────────
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    LoginResponse:
+      type: object
+      required: [access_token, refresh_token, expires_in, user]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+        user:
+          type: object
+          additionalProperties: true
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    RefreshResponse:
+      type: object
+      required: [access_token, expires_in]
+      properties:
+        access_token:
+          type: string
+        expires_in:
+          type: integer
+
+    LogoutRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    ChangePasswordRequest:
+      type: object
+      required: [old_password, new_password]
+      properties:
+        old_password:
+          type: string
+          minLength: 1
+          maxLength: 128
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 128
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 128
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        email:
+          type: string
+          nullable: true
+          format: email
+        is_active:
+          type: boolean
+        must_change_password:
+          type: boolean
+        failed_login_attempts:
+          type: integer
+        locked_until:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ──────────────────────── 管理后台（审核+管线） ────────────────────────
+    BatchAuditRequest:
+      type: object
+      required: [item_ids, action]
+      properties:
+        item_ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+          maxItems: 100
+        action:
+          type: string
+          enum: [approve, reject]
+
+    ReviewListResponse:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        total:
+          type: integer
+          minimum: 0
+
+    ReviewActionRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          nullable: true
+          maxLength: 2000
+
+    AdminPipelineStatusResponse:
+      type: object
+      required: [recent_runs, data_stats]
+      properties:
+        recent_runs:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              run_type:
+                type: string
+              status:
+                type: string
+              started_at:
+                type: string
+                nullable: true
+              completed_at:
+                type: string
+                nullable: true
+        data_stats:
+          type: object
+          properties:
+            jd_count:
+              type: integer
+            position_count:
+              type: integer
+            skill_count:
+              type: integer
+            pending_review:
+              type: integer
+
+    PipelineTriggerResponse:
+      type: object
+      required: [run_id, status, message]
+      properties:
+        run_id:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+
+    # ──────────────────────── 用户管理 ────────────────────────
+    CreateUserRequest:
+      type: object
+      required: [username, password, role]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        role:
+          type: string
+          pattern: "^(admin|user)$"
+        email:
+          type: string
+          format: email
+          nullable: true
+        must_change_password:
+          type: boolean
+          default: true
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        role:
+          type: string
+          nullable: true
+          pattern: "^(admin|user)$"
+        is_active:
+          type: boolean
+          nullable: true
+        must_change_password:
+          type: boolean
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+
+    AdminResetPasswordRequest:
+      type: object
+      required: [new_password]
+      properties:
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 128
+
+    DeleteUserRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          nullable: true
+          maxLength: 255
+
+    UserListResponse:
+      type: object
+      required: [total, page, page_size, items]
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserInfo"
+
+    AuditEventListResponse:
+      type: object
+      required: [total, page, page_size, items]
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEventOut"
+
+    AuditEventOut:
+      type: object
+      required: [id, event, actor, action, detail, ip, created_at]
+      properties:
+        id:
+          type: string
+        event:
+          type: string
+        actor:
+          type: string
+        action:
+          type: string
+        detail:
+          type: string
+        ip:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # ──────────────────────── 数据源健康 ────────────────────────
+    DatasourcesHealthResponse:
+      type: object
+      required: [sources, total_sources, active_sources, error_sources]
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceHealthEntry"
+        total_sources:
+          type: integer
+        active_sources:
+          type: integer
+        error_sources:
+          type: integer
+
+    SourceHealthEntry:
+      type: object
+      required: [id, name, status]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        last_crawl_at:
+          type: string
+          nullable: true
+        total_records:
+          type: integer
+        recent_run_status:
+          type: string
+          nullable: true
+
+    SyncTriggerResponse:
+      type: object
+      required: [run_id, source_name, status, message]
+      properties:
+        run_id:
+          type: string
+        source_name:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
