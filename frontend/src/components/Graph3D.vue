@@ -19,6 +19,7 @@ import {
   getNodeLabel,
   getNodeRadius,
   NODE_COLLISION_PADDING,
+  applyZLayering,
   buildNodeThreeObject,
 } from '@/composables/useNodeThreeObject'
 import { type GraphLink3D, evolutionColor, composeEvolutionLinks } from '@/composables/useEvolutionEdges'
@@ -96,7 +97,7 @@ const limitedLinks = computed(() => {
 })
 
 // ── Camera presets composable ──
-const { autoRotate, setCameraPreset, resetCamera, toggleAutoRotate, clearAutoRotateTimer } = useCameraPresets(
+const { autoRotate, setCameraPreset, resetCamera, toggleAutoRotate, clearAutoRotateTimer, calcFitDistance } = useCameraPresets(
   graphInstance,
   () => props.nodes,
 )
@@ -246,6 +247,8 @@ async function initGraph() {
   })
 
   graphInstance.value = graph
+  // UX-03: Set initial z-coordinates for Skill nodes by proficiency tier
+  applyZLayering(limitedNodes.value)
   graph.graphData({ nodes: limitedNodes.value, links: limitedLinks.value })
   isReady.value = true
 }
@@ -292,6 +295,8 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
       }
     }
   }
+  // UX-03: Set initial z for new Skill nodes (those without inherited positions)
+  applyZLayering(limitedNodes.value)
 
   graph.graphData({ nodes: limitedNodes.value, links: composedLinks })
   graph.nodeThreeObject(buildNodeThreeObject)
@@ -352,13 +357,66 @@ onUnmounted(() => {
 // ── Expose methods for parent ──
 // 新增 autoRotateChange 事件，用于同步 autoRotate 状态到父组件
 // 注意：这里不能重复 defineEmits，因为上面已经定义了 emit
+// ── Zoom methods ──
+// 3d-force-graph doesn't have a built-in zoomBy; we adjust camera distance
+// relative to the lookAt center (always 0,0,0).
+function zoomBy(factor: number) {
+  const graph = graphInstance.value
+  // #region agent log
+  fetch('http://127.0.0.1:7337/ingest/a1b3769f-2ecd-42eb-8857-ccb5dabc585a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a1b3769f-2ecd-42eb-8857-ccb5dabc585a'},body:JSON.stringify({sessionId:'a1b3769f-2ecd-42eb-8857-ccb5dabc585a',location:'Graph3D.vue:zoomBy',message:'zoomBy called',data:{factor,hasGraph:!!graph},timestamp:Date.now(),hypothesisId:'graph3d-zoom'})}).catch(()=>{});
+  // #endregion
+  if (!graph) return
+  const cam = graph.cameraPosition()
+  if (!cam) return
+  // cam = { x, y, z } — current camera position; lookAt is always (0,0,0)
+  graph.cameraPosition(
+    { x: cam.x * factor, y: cam.y * factor, z: cam.z * factor },
+    { x: 0, y: 0, z: 0 },
+    400,
+  )
+}
+
+function zoomIn() { zoomBy(0.8) }   // move camera closer
+function zoomOut() { zoomBy(1.25) }  // move camera farther
+
+/** Fit all nodes into view — same logic as resetCamera but with tighter padding */
+function fitView() {
+  const graph = graphInstance.value
+  // #region agent log
+  fetch('http://127.0.0.1:7337/ingest/a1b3769f-2ecd-42eb-8857-ccb5dabc585a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a1b3769f-2ecd-42eb-8857-ccb5dabc585a'},body:JSON.stringify({sessionId:'a1b3769f-2ecd-42eb-8857-ccb5dabc585a',location:'Graph3D.vue:fitView',message:'fitView called',data:{hasGraph:!!graph},timestamp:Date.now(),hypothesisId:'graph3d-zoom'})}).catch(()=>{});
+  // #endregion
+  if (!graph) return
+  const fitDist = calcFitDistance(1.3)
+  graph.cameraPosition(
+    { x: fitDist * 0.6, y: fitDist * 0.5, z: fitDist * 0.8 },
+    { x: 0, y: 0, z: 0 },
+    800,
+  )
+}
+
+// ── Highlight methods ──
+// 3D graph uses nodeThreeObject for custom rendering; to "clear highlight"
+// we refresh the nodeThreeObject function which rebuilds all node visuals
+// from scratch using default colors.
+function clearHighlight() {
+  const graph = graphInstance.value
+  // #region agent log
+  fetch('http://127.0.0.1:7337/ingest/a1b3769f-2ecd-42eb-8857-ccb5dabc585a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a1b3769f-2ecd-42eb-8857-ccb5dabc585a'},body:JSON.stringify({sessionId:'a1b3769f-2ecd-42eb-8857-ccb5dabc585a',location:'Graph3D.vue:clearHighlight',message:'clearHighlight called',data:{hasGraph:!!graph},timestamp:Date.now(),hypothesisId:'graph3d-highlight'})}).catch(()=>{});
+  // #endregion
+  if (!graph) return
+  // Re-apply nodeThreeObject to force all nodes to rebuild with default colors
+  graph.nodeThreeObject(buildNodeThreeObject)
+  // Also reset node opacity to default
+  graph.nodeOpacity(0.75)
+}
+
 // 包装 toggleAutoRotate，在切换后 emit 事件
 function _toggleAutoRotate() {
   toggleAutoRotate()
   emit('autoRotateChange', autoRotate.value)
 }
 
-defineExpose({ setCameraPreset, resetCamera, toggleAutoRotate: _toggleAutoRotate, autoRotate, fps })
+defineExpose({ setCameraPreset, resetCamera, toggleAutoRotate: _toggleAutoRotate, autoRotate, fps, zoomBy, zoomIn, zoomOut, fitView, clearHighlight })
 </script>
 
 <template>

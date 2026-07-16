@@ -30,6 +30,36 @@ export function getNodeLabel(node: GraphNode3D): string {
   return node.labels?.[0] ?? 'Unknown'
 }
 
+// ── UX-03: Proficiency → z-axis layer mapping ──
+// Three-tier stratification: 了解=bottom, 熟悉=middle, 精通=top
+// Only applies to Skill nodes; KA/Position stay at z=0
+const PROFICIENCY_Z: Record<string, number> = {
+  '了解': -40,
+  '熟悉': 0,
+  '精通': 40,
+}
+const DEFAULT_PROFICIENCY_Z = 0
+
+/** Map proficiency string to z-coordinate for 3D layering. */
+export function proficiencyToZ(proficiency?: string): number {
+  if (!proficiency) return DEFAULT_PROFICIENCY_Z
+  return PROFICIENCY_Z[proficiency] ?? DEFAULT_PROFICIENCY_Z
+}
+
+/** Apply z-layering to Skill nodes in a node array (mutates in place). */
+export function applyZLayering(nodes: GraphNode3D[]): void {
+  for (const n of nodes) {
+    if (getNodeLabel(n) === 'Skill') {
+      const targetZ = proficiencyToZ(n.properties.proficiency)
+      // Only set z if node doesn't already have a position (new nodes)
+      // or if the node hasn't been positioned by force simulation yet
+      if (n.x === undefined || n.z === undefined) {
+        n.z = targetZ
+      }
+    }
+  }
+}
+
 /** Node collision padding factor for force simulation */
 export const NODE_COLLISION_PADDING = 1.6
 

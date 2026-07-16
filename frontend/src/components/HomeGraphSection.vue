@@ -11,7 +11,7 @@ import type { EvolutionEdgeClickPayload } from '@/types/g6'
 
 type LayoutMode = 'force' | 'dagre' | 'radial'
 
-defineProps<{
+const props = defineProps<{
   viewMode: '2d' | '3d'
   layoutMode: LayoutMode
   showEvolution: boolean
@@ -54,10 +54,22 @@ const graph2DRef = ref<InstanceType<typeof Graph2D> | null>(null)
 const graph3DRef = ref<InstanceType<typeof Graph3D> | null>(null)
 
 // ── Toolbar event delegation ──
-function onZoomIn() { graph2DRef.value?.zoomBy(1.2) }
-function onZoomOut() { graph2DRef.value?.zoomBy(0.8) }
-function onZoomFit() { graph2DRef.value?.fitView() }
-function onResetHighlight() { graph2DRef.value?.clearHighlight() }
+function onZoomIn() {
+  if (props.viewMode === '2d') graph2DRef.value?.zoomBy(1.2)
+  else graph3DRef.value?.zoomIn()
+}
+function onZoomOut() {
+  if (props.viewMode === '2d') graph2DRef.value?.zoomBy(0.8)
+  else graph3DRef.value?.zoomOut()
+}
+function onZoomFit() {
+  if (props.viewMode === '2d') graph2DRef.value?.fitView()
+  else graph3DRef.value?.fitView()
+}
+function onResetHighlight() {
+  graph2DRef.value?.clearHighlight()
+  graph3DRef.value?.clearHighlight()
+}
 function onCameraPreset(preset: 'overview' | 'domain' | 'position') { graph3DRef.value?.setCameraPreset(preset) }
 function onResetCamera() { graph3DRef.value?.resetCamera() }
 function onToggleAutoRotate() {
@@ -67,7 +79,10 @@ function onToggleAutoRotate() {
 
 // ── Expose methods for parent (e.g. highlightNode, clearHighlight) ──
 function highlightNode(nodeId: string) { graph2DRef.value?.highlightNode(nodeId) }
-function clearHighlight() { graph2DRef.value?.clearHighlight() }
+function clearHighlight() {
+  graph2DRef.value?.clearHighlight()
+  graph3DRef.value?.clearHighlight()
+}
 
 defineExpose({ highlightNode, clearHighlight })
 </script>

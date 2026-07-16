@@ -5,6 +5,7 @@
  * from the component.
  */
 import type { GraphNode3D, NODE_COLLISION_PADDING as _PAD } from './useNodeThreeObject'
+import { getNodeLabel, proficiencyToZ } from './useNodeThreeObject'
 
 /** Force configuration parameters based on node count */
 export interface ForceConfig {
@@ -82,4 +83,20 @@ export function applyForceConfig(
     })
     collisionForce.iterations(isInit ? 3 : 2)
   }
+
+  // UX-03: Proficiency z-layering force
+  // Pulls Skill nodes toward their proficiency-based z-target
+  // while keeping KA/Position nodes at z=0
+  graph.d3Force('zLayer', (alpha: number) => {
+    const nodes = graph.graphData().nodes as GraphNode3D[]
+    for (const n of nodes) {
+      const label = getNodeLabel(n)
+      const targetZ = label === 'Skill'
+        ? proficiencyToZ(n.properties.proficiency)
+        : 0 // KA/Position stay at z=0 plane
+      if (n.z !== undefined && targetZ !== undefined) {
+        n.vz = (n.vz ?? 0) + (targetZ - n.z) * alpha * 0.15
+      }
+    }
+  })
 }
