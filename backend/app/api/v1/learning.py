@@ -128,7 +128,7 @@ async def list_learning_plans(
     limit: int = Query(20, ge=1, le=100),
 ) -> list[PlanResponse]:
     """List all learning plans for the current user, newest first."""
-    user_id = user.get("sub", "anonymous")
+    user_id = user["sub"]
     stmt = (
         sa.select(LearningPlan)
         .where(LearningPlan.user_id == user_id)
@@ -192,7 +192,7 @@ async def create_learning_plan(
     Accepts skill gap data from a match diagnosis and generates a
     personalized, prerequisite-aware learning path with time estimates.
     """
-    user_id = user.get("sub", "anonymous")
+    user_id = user["sub"]
     # Generate learning path
     skill_gaps = [s.model_dump() for s in body.skills]
     learning_path = await generate_learning_path(
@@ -243,7 +243,7 @@ async def get_learning_plan(
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> PlanResponse:
     """Get learning plan details with current progress."""
-    user_id = user.get("sub", "anonymous")
+    user_id = user["sub"]
     try:
         pid = uuid.UUID(plan_id)
     except ValueError as exc:
@@ -303,7 +303,7 @@ async def update_skill_progress(
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> SkillProgressItem:
     """Update learning progress for a specific skill."""
-    user_id = user.get("sub", "anonymous")
+    user_id = user["sub"]
     try:
         pid = uuid.UUID(plan_id)
     except ValueError as exc:
@@ -361,7 +361,7 @@ async def add_skill_to_plan(
     user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> SkillProgressItem:
     """Add a new skill to an existing learning plan."""
-    user_id = user.get("sub", "anonymous")
+    user_id = user["sub"]
     try:
         pid = uuid.UUID(plan_id)
     except ValueError as exc:

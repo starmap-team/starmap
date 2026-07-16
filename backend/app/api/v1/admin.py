@@ -143,16 +143,12 @@ async def update_review_queue_item_endpoint(
 async def batch_audit_endpoint(
     body: BatchAuditRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
     user: Annotated[dict[str, Any], Depends(require_admin)],
 ) -> list[AuditItem]:
     """Batch approve or reject multiple review queue items."""
     try:
         actor = user.get("sub") or user.get("username") or "admin"
-        return await svc_batch_audit(
-            body.item_ids, body.action, session,
-            neo4j_driver=neo4j_driver, actor=f"admin:{actor}",
-        )
+        return await svc_batch_audit(body.item_ids, body.action, session, actor=f"admin:{actor}")
     except AuditItemNotFound as exc:
         raise _map_not_found(exc) from exc
 
@@ -339,8 +335,8 @@ async def get_review_stats(
 class PipelineStatusResponse(BaseModel):
     """Pipeline status + data health summary."""
 
-    recent_runs: list[dict[str, object]] = Field(default_factory=list)
-    data_stats: dict[str, object] = Field(default_factory=dict)
+    recent_runs: list[dict[str, Any]] = Field(default_factory=list)
+    data_stats: dict[str, Any] = Field(default_factory=dict)
 
 
 class PipelineTriggerResponse(BaseModel):

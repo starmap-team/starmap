@@ -91,8 +91,13 @@ omit = ["app/tests/*"]
 python_version = "3.11"
 strict = false
 ignore_missing_imports = true
-warn_return_any = false
-warn_unused_ignores = false
+# SEC-04 fix: 逐步开启类型安全选项
+warn_return_any = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+disallow_untyped_defs = false  # 逐步开启，当前仍有大量无注解函数
+disallow_any_generics = false  # 逐步开启
 
 # 新模块类型检查较宽松，逐步完善
 # Phase 15: core matching, graph_service, match_service, celery_app unlocked

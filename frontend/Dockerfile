@@ -19,9 +19,10 @@ RUN npm ci
 # 复制源码并构建
 COPY . .
 
-# 构建参数：API 基础 URL（生产环境通过反向代理）
-ARG VITE_API_BASE_URL=/api
-ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+# W1-T3 fix (P0-10): 不再注入 VITE_API_BASE_URL。前端 baseURL 现在由
+# `@/config/apiBase` 单一真相源硬编码为 '/api/v1'；nginx 已升级为
+# `proxy_pass ...:8000/api/v1/`（frontend/nginx.conf）。MSW 仍是死依赖，
+# 留待 W3-T3 清理。
 ENV VITE_USE_MSW=false
 
 RUN npm run build
@@ -39,6 +40,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
+    mkdir -p /etc/nginx/ssl && \
     touch /var/run/nginx.pid && \
     chown nginx:nginx /var/run/nginx.pid
 
@@ -48,6 +50,6 @@ USER nginx
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -q -O - http://localhost:80/ || exit 1
 
-EXPOSE 80
+EXPOSE 80 443
 
 CMD ["nginx", "-g", "daemon off;"]

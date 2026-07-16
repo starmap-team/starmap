@@ -252,9 +252,11 @@ async def reject_audit(item_id: int, session: AsyncSession, neo4j_driver: Any | 
 
 async def update_review_queue_item(
     item_id: int, *, name: str | None = None, trust: int | None = None,
-    session: AsyncSession = None,
+    session: AsyncSession | None = None,
 ) -> AuditItem:
     """Partial update of a review-queue item's name and/or trust."""
+    if session is None:
+        raise AuditItemNotFound("Session is required for update_review_queue_item")
     result = await session.execute(
         sa.select(ReviewQueue).where(ReviewQueue.id == item_id)
     )
@@ -276,7 +278,6 @@ async def update_review_queue_item(
 
 async def batch_audit(
     item_ids: list[int], action: str, session: AsyncSession,
-    neo4j_driver: Any | None = None,
     actor: str = "admin:batch",
 ) -> list[AuditItem]:
     """Batch approve or reject multiple review-queue items.
@@ -284,10 +285,6 @@ async def batch_audit(
     Phase 24 fix: same as approve_audit — newly-created SkillRecord /
     PositionRecord get review_status='approved' so the Phase 23 column
     stays consistent.
-
-    BUG-01 fix: sync each item to Neo4j (LOOP-07), same as single
-    approve/reject. Previously batch_audit did not call
-    _sync_neo4j_on_audit, causing PG/Neo4j inconsistency.
     """
     result = await session.execute(
         sa.select(ReviewQueue).where(ReviewQueue.id.in_(item_ids))
@@ -329,9 +326,6 @@ async def batch_audit(
                     ))
         else:
             row.status = "rejected"
-
-        # BUG-01: sync each item to Neo4j (same as single approve/reject)
-        await _sync_neo4j_on_audit(neo4j_driver, row.entity_type, row.entity_name, row.status)
 
         results.append(_audit_item_from_row(row))
 

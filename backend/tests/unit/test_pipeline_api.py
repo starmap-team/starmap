@@ -208,7 +208,12 @@ def client():
 
 @pytest.fixture
 def admin_headers():
-    return {"Authorization": "Bearer dev-token"}
+    # AUTHZ-05 fix: dev-token 返回 admin 需要 dev_anon_admin=True
+    from app.config import settings
+    original = settings.dev_anon_admin
+    settings.dev_anon_admin = True
+    yield {"Authorization": "Bearer dev-token"}
+    settings.dev_anon_admin = original
 
 
 @pytest.fixture
@@ -391,13 +396,13 @@ class TestGetPipelineRun:
 
 
 class TestTriggerPipeline:
-    def test_trigger_returns_200(self, client):
+    def test_trigger_returns_200(self, client, admin_headers):
         fake_run = FakePipelineRun(run_type="full", status="running")
         with (
             patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
             patch("app.core.pipeline.status_aggregator.invalidate_status_cache", new_callable=AsyncMock),
         ):
-            resp = client.post("/api/v1/pipeline/trigger", json={"run_type": "full"})
+            resp = client.post("/api/v1/pipeline/trigger", json={"run_type": "full"}, headers=admin_headers)
         assert resp.status_code == 200
         body = resp.json()
         assert body["run_id"] == str(fake_run.id)
@@ -405,7 +410,7 @@ class TestTriggerPipeline:
         assert body["status"] == "running"
         assert "triggered" in body["message"]
 
-    def test_trigger_with_selected_stages(self, client):
+    def test_trigger_with_selected_stages(self, client, admin_headers):
         fake_run = FakePipelineRun(run_type="incremental", status="running")
         with (
             patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
@@ -414,18 +419,19 @@ class TestTriggerPipeline:
             resp = client.post(
                 "/api/v1/pipeline/trigger",
                 json={"run_type": "incremental", "selected_stages": ["crawl", "dedup"]},
+                headers=admin_headers,
             )
         assert resp.status_code == 200
         body = resp.json()
         assert "crawl" in body["message"] or "incremental" in body["message"]
 
-    def test_trigger_default_run_type(self, client):
+    def test_trigger_default_run_type(self, client, admin_headers):
         fake_run = FakePipelineRun(run_type="full", status="running")
         with (
             patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
             patch("app.core.pipeline.status_aggregator.invalidate_status_cache", new_callable=AsyncMock),
         ):
-            resp = client.post("/api/v1/pipeline/trigger", json={})
+            resp = client.post("/api/v1/pipeline/trigger", json={}, headers=admin_headers)
         assert resp.status_code == 200
         assert resp.json()["run_type"] == "full"
 
@@ -461,24 +467,26 @@ class TestCancelPipelineRun:
 
 
 class TestRetryStage:
-    def test_retry_returns_200(self, client):
+    def test_retry_returns_200(self, client, admin_headers):
         run_id = uuid.uuid4()
         run = FakePipelineRun(run_id=run_id, status="running")
         with patch("app.core.pipeline.executor.retry_stage", new_callable=AsyncMock, return_value=run):
             resp = client.post(
                 f"/api/v1/pipeline/runs/{run_id}/retry",
                 json={"stage_name": "crawl"},
+                headers=admin_headers,
             )
         assert resp.status_code == 200
         body = resp.json()
         assert body["id"] == str(run_id)
 
-    def test_retry_not_found_returns_404(self, client):
+    def test_retry_not_found_returns_404(self, client, admin_headers):
         run_id = uuid.uuid4()
         with patch("app.core.pipeline.executor.retry_stage", new_callable=AsyncMock, return_value=None):
             resp = client.post(
                 f"/api/v1/pipeline/runs/{run_id}/retry",
                 json={"stage_name": "crawl"},
+                headers=admin_headers,
             )
         assert resp.status_code == 404
 
@@ -489,18 +497,18 @@ class TestRetryStage:
 
 
 class TestResumeRun:
-    def test_resume_returns_200(self, client):
+    def test_resume_returns_200(self, client, admin_headers):
         run_id = uuid.uuid4()
         run = FakePipelineRun(run_id=run_id, status="running")
         with patch("app.core.pipeline.executor.resume_run", new_callable=AsyncMock, return_value=run):
-            resp = client.post(f"/api/v1/pipeline/runs/{run_id}/resume")
+            resp = client.post(f"/api/v1/pipeline/runs/{run_id}/resume", headers=admin_headers)
         assert resp.status_code == 200
         assert resp.json()["id"] == str(run_id)
 
-    def test_resume_not_found_returns_404(self, client):
+    def test_resume_not_found_returns_404(self, client, admin_headers):
         run_id = uuid.uuid4()
         with patch("app.core.pipeline.executor.resume_run", new_callable=AsyncMock, return_value=None):
-            resp = client.post(f"/api/v1/pipeline/runs/{run_id}/resume")
+            resp = client.post(f"/api/v1/pipeline/runs/{run_id}/resume", headers=admin_headers)
         assert resp.status_code == 404
 
 
@@ -823,8 +831,8 @@ class TestTriggerSchedule:
 
 
 class TestGetPipelineConfig:
-    def test_config_returns_200(self, client):
-        resp = client.get("/api/v1/pipeline/config")
+    def test_config_returns_200(self, client, admin_headers):
+        resp = client.get("/api/v1/pipeline/config", headers=admin_headers)
         assert resp.status_code == 200
         body = resp.json()
         assert "stage_timeout" in body
@@ -851,7 +859,7 @@ class TestUpdatePipelineConfig:
         assert body["stage_timeout"] == 3600
 
     def test_update_config_partial_update(self, client, admin_headers):
-        current = client.get("/api/v1/pipeline/config").json()
+        current = client.get("/api/v1/pipeline/config", headers=admin_headers).json()
         resp = client.put(
             "/api/v1/pipeline/config",
             headers=admin_headers,

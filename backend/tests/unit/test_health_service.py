@@ -109,12 +109,13 @@ class TestGetCurrentUser:
     """get_current_user — dev mode, dev-token, JWT validation branches."""
 
     async def test_no_credentials_dev_mode_returns_dev_user(self):
-        """In non-production, no token → default dev user."""
+        """In non-production, no token → default dev user (role=viewer after W1-T2 fix)."""
         credentials = None
         with patch.object(settings, "app_env", "development"):
             user = await get_current_user(credentials)
         assert user["sub"] == "dev"
-        assert user["role"] == "admin"
+        # W1-T2: default dev user is now viewer, not admin
+        assert user["role"] == "viewer"
 
     async def test_no_credentials_production_raises_401(self):
         """In production, no token → 401."""

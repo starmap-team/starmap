@@ -201,7 +201,7 @@ class LoopOrchestrator:
             if step4.status == StepStatus.SUCCESS:
                 result.match_result = step4.data
         else:
-            step4 = LoopStep(
+            step4 = LoopStepResult(
                 step=4, name="Match Diagnosis", status=StepStatus.SKIPPED,
                 data={}, note="Skipped: no target_position provided",
             )
@@ -220,7 +220,7 @@ class LoopOrchestrator:
             result.steps.append(step5)
             result.learning_path = step5.data
         else:
-            step5 = LoopStep(
+            step5 = LoopStepResult(
                 step=5, name="Learning Path", status=StepStatus.SKIPPED,
                 data={}, note="Skipped: no target_position or match skipped",
             )

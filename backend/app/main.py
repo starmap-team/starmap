@@ -217,9 +217,9 @@ async def health_v1() -> dict:
     return await _health_payload()
 
 
-@app.get("/ready", tags=["系统"])
-@app.get("/api/v1/ready", tags=["系统"], include_in_schema=False)
-async def ready() -> dict:
+@app.get("/ready", tags=["系统"], response_model=None)
+@app.get("/api/v1/ready", tags=["系统"], include_in_schema=False, response_model=None)
+async def ready() -> dict[str, Any] | JSONResponse:
     """Readiness probe — returns 200 only when the app is fully bootstrapped."""
     checks: dict[str, str] = {}
 
@@ -268,7 +268,11 @@ async def ready() -> dict:
         checks["redis"] = "not initialised"
 
     all_ok = all(v == "ok" for v in checks.values() if v != "not initialised")
-    payload = {"status": "ready" if all_ok else "not_ready", "checks": checks}
+    # LOG-04 fix: 生产环境不暴露内部服务细节和错误消息
+    if _is_prod:
+        payload = {"status": "ready" if all_ok else "not_ready"}
+    else:
+        payload = {"status": "ready" if all_ok else "not_ready", "checks": checks}
     if not all_ok:
         from fastapi.responses import JSONResponse
         return JSONResponse(status_code=503, content=payload)

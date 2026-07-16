@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from difflib import SequenceMatcher
-from typing import Any
+from typing import Any, cast
 
 from app.core.extraction.normalize import normalize_skill
 from app.core.matching.constants import PROFICIENCY_SCORE
@@ -117,9 +117,9 @@ def _batch_chroma_match(
     # Single batch query
     try:
         results = collection.query(
-            query_embeddings=query_embeddings,
+            query_embeddings=cast("Any", query_embeddings),
             n_results=1,
-            include=["distances", "metadatas"],
+            include=cast("Any", ["distances", "metadatas"]),
         )
     except Exception:
         _mark_chroma_unavailable("batch-query-failed")
@@ -127,8 +127,11 @@ def _batch_chroma_match(
 
     # Parse batch results
     matches: dict[str, float] = {}
-    distances = results.get("distances", [])
-    metadatas = results.get("metadatas", [])
+    distances = results.get("distances")
+    metadatas = results.get("metadatas")
+
+    if distances is None or metadatas is None:
+        return {}
 
     for i, target in enumerate(valid_targets):
         if i >= len(distances) or not distances[i]:

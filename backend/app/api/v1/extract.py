@@ -11,6 +11,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.upload_validation import validate_resume_upload
 from app.core.extraction.graph_writer import write_extraction_to_graph
 from app.core.extraction.jd_extract import extract_from_jd
 from app.dependencies import get_db_session, get_neo4j_driver
@@ -202,21 +203,8 @@ async def extract_resume(
     """
     logger.info("POST /extract/resume - filename={}", file.filename)
 
-    if file.filename is None:
-        raise HTTPException(status_code=400, detail="No file provided")
-
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
-    if ext not in {"pdf", "docx", "doc"}:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type: .{ext}. Supported: .pdf, .docx, .doc",
-        )
-
-    try:
-        content_bytes = await file.read()
-    except Exception as e:
-        logger.error("Failed to read uploaded file: {}", e)
-        raise HTTPException(status_code=400, detail=f"Failed to read file: {e}") from e
+    # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+    content_bytes = await validate_resume_upload(file)
 
     try:
         pipeline_result = await run_resume_extraction(file.filename, content_bytes)

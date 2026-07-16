@@ -37,7 +37,8 @@ from app.api.v1.pipeline.serializers import (
     serialize_schedule,
 )
 from app.core.matching import MatchService
-from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, require_admin
+from app.api.v1.upload_validation import validate_resume_upload
+from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, require_admin, sse_disconnect
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 from app.pipeline.contracts import PipelineContext
 from app.pipeline.engine import PipelineEngine
@@ -49,14 +50,6 @@ from app.pipeline.steps import (
     SkillExtractStep,
 )
 from app.repositories.position_repository import PositionRepository
-
-# File upload security: size limit and allowed MIME types
-_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
-_ALLOWED_UPLOAD_MIMES = {
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/msword",
-}
 
 # 创建全局 MatchService 实例
 _match_service = MatchService()
@@ -321,6 +314,7 @@ async def get_datasources(
 
 @router.get("/events")
 async def pipeline_events(
+    request: Request,
     _user: Annotated[dict[str, Any], Depends(get_current_user_sse)],
 ) -> Any:
     """SSE 实时流水线进度事件流。
@@ -334,8 +328,18 @@ async def pipeline_events(
     from app.services.resources import resources as app_resources
 
     redis = app_resources.redis_client
+    # API-05: 在连接断开时释放 SSE 连接计数
+    client_ip = request.client.host if request.client else "unknown"
+
+    async def _stream_with_cleanup():
+        try:
+            async for chunk in event_stream(redis):
+                yield chunk
+        finally:
+            await sse_disconnect(client_ip)
+
     return StreamingResponse(
-        event_stream(redis),
+        _stream_with_cleanup(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
@@ -474,7 +478,7 @@ async def trigger_schedule(
 # 流水线配置
 # ---------------------------------------------------------------------------
 
-@router.get("/config", response_model=PipelineConfigResponse)
+@router.get("/config", response_model=PipelineConfigResponse, dependencies=[Depends(require_admin)])
 async def get_pipeline_config() -> PipelineConfigResponse:
     """获取流水线配置（超时/并发/重试）。"""
     from app.config import settings
@@ -534,14 +538,8 @@ async def analyze_pipeline(
     session: Annotated[AsyncSession, Depends(get_db_session)] = None,  # type: ignore[assignment]
 ) -> StreamingResponse:
     """上传简历，执行完整的6步求职者分析 Pipeline。"""
-    # Validate file upload: size and MIME type
-    content_bytes = await resume_file.read(_MAX_UPLOAD_SIZE + 1)
-    if len(content_bytes) > _MAX_UPLOAD_SIZE:
-        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
-    if resume_file.content_type and resume_file.content_type not in _ALLOWED_UPLOAD_MIMES:
-        raise HTTPException(status_code=415, detail=f"Unsupported file type: {resume_file.content_type}")
-    # Reset file position for downstream reading
-    await resume_file.seek(0)
+    # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+    content_bytes = await validate_resume_upload(resume_file)
 
     from loguru import logger as _logger
 
@@ -549,7 +547,6 @@ async def analyze_pipeline(
     if target_positions:
         positions = [p.strip() for p in target_positions.split(",") if p.strip()]
 
-    content_bytes = await resume_file.read()
     ctx = PipelineContext(resume_file=content_bytes, target_positions=positions)
     repo = PositionRepository(driver)
 
@@ -583,14 +580,8 @@ async def export_analysis(
     session: Annotated[AsyncSession, Depends(get_db_session)] = None,  # type: ignore[assignment]
 ) -> Any:
     """上传简历并返回 JSON 格式的完整分析结果。"""
-    # Validate file upload: size and MIME type
-    content_bytes = await resume_file.read(_MAX_UPLOAD_SIZE + 1)
-    if len(content_bytes) > _MAX_UPLOAD_SIZE:
-        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
-    if resume_file.content_type and resume_file.content_type not in _ALLOWED_UPLOAD_MIMES:
-        raise HTTPException(status_code=415, detail=f"Unsupported file type: {resume_file.content_type}")
-    # Reset file position for downstream reading
-    await resume_file.seek(0)
+    # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+    content_bytes = await validate_resume_upload(resume_file)
 
     from fastapi.responses import JSONResponse
 
@@ -598,7 +589,6 @@ async def export_analysis(
     if target_positions:
         positions = [p.strip() for p in target_positions.split(",") if p.strip()]
 
-    content_bytes = await resume_file.read()
     ctx = PipelineContext(resume_file=content_bytes, target_positions=positions)
     repo = PositionRepository(driver)
 

@@ -13,26 +13,25 @@ x-common-env: &common-env
 services:
   # ---------- Backend API ----------
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=production
+    image: starmap-backend:2026.07
     container_name: starmap-backend-prod
     ports:
       - "8000:8000"
+    # NEW-P0 fix (AUDIT_VERIFICATION §1.4 C1): use a dedicated production env file
+    # so APP_ENV=production + strong SECRET_KEY + REDIS_URI with password actually
+    # reach the runtime. Previously `env_file: .env` loaded dev defaults and every
+    # `if app_env == "production"` guard was dormant.
     env_file:
-      - .env
+      - .env.production
     environment:
       <<: *common-env
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-starmap_redis_2024}@redis:6379/0
-      - DATABASE_URL=postgresql://starmap:${POSTGRES_PASSWORD:-starmap123456}@postgres:5432/starmap
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-starmap123456}
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-starmap_redis_2024}@redis:6379/0
-      - CHROMA_URL=http://chroma:8000
-      - OLLAMA_BASE_URL=http://ollama:11434
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      NEO4J_URI: ${NEO4J_URI}
+      NEO4J_USER: ${NEO4J_USER}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+      OLLAMA_BASE_URL: http://ollama:11434
     depends_on:
       neo4j:
         condition: service_healthy
@@ -74,24 +73,19 @@ services:
 
   # ---------- Celery Worker ----------
   celery-worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=production
+    image: starmap-celery-worker:2026.07
     container_name: starmap-celery-worker-prod
     env_file:
-      - .env
+      - .env.production
     environment:
       <<: *common-env
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-starmap_redis_2024}@redis:6379/0
-      - DATABASE_URL=postgresql://starmap:${POSTGRES_PASSWORD:-starmap123456}@postgres:5432/starmap
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-starmap123456}
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-starmap_redis_2024}@redis:6379/0
-      - CHROMA_URL=http://chroma:8000
-      - OLLAMA_BASE_URL=http://ollama:11434
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      NEO4J_URI: ${NEO4J_URI}
+      NEO4J_USER: ${NEO4J_USER}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+      OLLAMA_BASE_URL: http://ollama:11434
     depends_on:
       redis:
         condition: service_healthy
@@ -128,25 +122,32 @@ services:
     networks:
       - starmap-net
 
-  # ---------- Frontend (Nginx static) ----------
+  # ---------- Frontend (Nginx + TLS) ----------
+  # API-01 fix: 生产使用 Dockerfile 构建的 nginx 镜像，
+  # 挂载 SSL 证书，暴露 80(HTTP→301→HTTPS) + 443(HTTPS)。
+  # 自签名证书在 secrets/ssl/，生产应替换为 Let's Encrypt。
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - VITE_API_BASE_URL=/api
+    image: starmap-frontend:prod
     container_name: starmap-frontend-prod
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./secrets/ssl:/etc/nginx/ssl:ro
+    environment:
+      VITE_API_BASE_URL: /api/v1
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:80/ || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -165,13 +166,27 @@ services:
     container_name: starmap-neo4j-prod
     environment:
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-starmap123456}
-      - NEO4J_PLUGINS=["apoc"]
+      # DEP-03 fix: 生产环境移除 APOC（减少攻击面）。
+      # 如需 APOC 功能，显式启用并配合安全设置：
+      # NEO4J_PLUGINS=["apoc"]
+      # NEO4J_apoc_export_file_enabled=false
+      # NEO4J_apoc_import_file_enabled=false
+      # NEO4J_apoc_trigger_enabled=false
       - NEO4J_server_memory_heap_initial__size=512m
       - NEO4J_server_memory_heap_max__size=1G
       - NEO4J_server_memory_pagecache_size=512m
+      # W1-T7 + P0-F3 fix (DATA-02): Neo4j Bolt TLS enforcement.
+      # Neo4j 5 community requires TLS certs in /ssl/ with specific naming.
+      # The cert/key are mounted from ./secrets/neo4j/ as neo4j.cert.pem / neo4j.key.pem.
+      # NEO4J_server_bolt_tls__level=REQUIRED forces all Bolt connections over TLS.
+      # NEO4J_server_bolt_tls__certificate__name / key_name reference filenames under /ssl/.
+      - NEO4J_server_bolt_tls__level=REQUIRED
+      - NEO4J_server_bolt_tls__certificate__name=neo4j.cert.pem
+      - NEO4J_server_bolt_tls__key_name=neo4j.key.pem
     volumes:
       - neo4j_data_prod:/data
       - neo4j_logs_prod:/logs
+      - ./secrets/neo4j:/ssl:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://localhost:7474 || exit 1"]
       interval: 15s
@@ -199,8 +214,26 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-starmap123456}
       - POSTGRES_DB=starmap
       - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    # W1-T7 + W2-F1 fix (DATA-03): 强制 Postgres 启用 SSL。
+    # 自签名证书用 `./secrets/postgres/server.crt` + `server.key`。
+    # 通过覆盖 entrypoint，在 initdb 完成后执行 enable-ssl.sh。
+    # docker-entrypoint.sh 会在 initdb 后自动执行 /docker-entrypoint-initdb.d/ 中的脚本。
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
+      - ./secrets/postgres:/etc/postgresql/certs:ro
+    entrypoint:
+      - bash
+      - -c
+      - |
+        set -e
+        # Copy SSL setup script to initdb.d so it runs AFTER initdb completes
+        if [ -f /etc/postgresql/certs/enable-ssl.sh ]; then
+          mkdir -p /docker-entrypoint-initdb.d
+          cp /etc/postgresql/certs/enable-ssl.sh /docker-entrypoint-initdb.d/00-enable-ssl.sh
+          chmod +x /docker-entrypoint-initdb.d/00-enable-ssl.sh
+        fi
+        # Now run the original Postgres entrypoint which handles initdb + init scripts
+        exec /usr/local/bin/docker-entrypoint.sh postgres
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U starmap -d starmap"]
       interval: 10s

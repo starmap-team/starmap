@@ -13,6 +13,10 @@ RUN npm install
 
 # 源码由 volume 挂载，不在这里 COPY
 
+# DEP-04 fix: 非 root 运行
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
 EXPOSE 5173
 
 # 命令由 docker-compose 指定（npm run dev --host 0.0.0.0）

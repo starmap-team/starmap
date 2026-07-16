@@ -11,6 +11,8 @@ Phase DB-AUTH:
 """
 from __future__ import annotations
 
+import asyncio
+from collections import defaultdict
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -93,13 +95,14 @@ async def get_current_user(
 ) -> dict[str, Any]:
     """获取当前认证用户。
 
-    开发环境: 无 token 时返回 dev 默认用户（便于调试）。
-    生产环境: 必须提供有效 Bearer token。
+    生产环境: 必须提供有效 Bearer token (强制 JWT 鉴权)。
+    开发环境 (默认 dev_anon_admin=False): 无 token 时返回 role=viewer
+        的 dev 占位用户，访问 admin 端点会被 require_admin 拦截。
+    开发环境 (显式 opt-in dev_anon_admin=True): 无 token 时返回
+        role=admin 的 dev 用户，仅供本地调试 / e2e 自测用。
     """
-    # 开发环境宽松模式：无 token 时返回默认用户
-    if credentials is None:
-        if settings.app_env != "production":
-            return {"sub": "dev", "role": "admin", "username": "developer"}
+    # 生产环境永远强制鉴权；不论 settings.dev_anon_admin 为何值
+    if settings.app_env == "production" and credentials is None:
         audit_log(AuditEntry(
             event=AuditEvent.AUTH_FAILURE,
             actor="anonymous",
@@ -113,11 +116,21 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Dev / 测试环境：缺 token 时按 dev_anon_admin 开关分流
+    if credentials is None:
+        if settings.dev_anon_admin:
+            # 显式 opt-in：返回 admin（仅供本地调试）
+            return {"sub": "dev", "role": "admin", "username": "developer"}
+        # 默认 dev 行为：返回 viewer（低权限）而不是 admin
+        # 这样默认 dev compose up 后访问 admin 端点会自然得到 403
+        return {"sub": "dev", "role": "viewer", "username": "developer"}
+
     token = credentials.credentials
 
-    # 开发环境：接受固定 dev token
+    # 开发环境 + dev-token 快捷路径：dev_anon_admin 控制角色
     if settings.app_env != "production" and token == "dev-token":
-        return {"sub": "dev", "role": "admin", "username": "developer"}
+        role = "admin" if settings.dev_anon_admin else "viewer"
+        return {"sub": "dev", "role": role, "username": "developer"}
 
     # JWT 验证
     try:
@@ -165,7 +178,66 @@ async def require_admin(
     return user
 
 
+# ══════════════════════════════════════════════════════════
+# SSE 连接数限制 (API-05 修复)
+# ══════════════════════════════════════════════════════════
+
+# Per-IP SSE 连接计数 — 防止单 IP 开大量 EventSource 耗尽资源
+_SSE_MAX_PER_IP = 10  # 单 IP 最大并发 SSE 连接
+_SSE_MAX_GLOBAL = 200  # 全局最大并发 SSE 连接
+_sse_ip_connections: dict[str, int] = defaultdict(int)
+_sse_global_connections = 0
+_sse_lock = asyncio.Lock()
+
+# 可注入的 SSE 连接检查函数 — 测试时可替换为 no-op 避免全局状态污染。
+# 使用方式: monkeypatch.setattr("app.dependencies._sse_connect_check", _noop_sse_check)
+_sse_connect_check: Any = None  # None → 使用默认 sse_connect
+
+
+async def sse_connect(client_ip: str) -> None:
+    """在 SSE 连接建立时调用，检查连接数限制。超限抛 429。"""
+    global _sse_global_connections
+    async with _sse_lock:
+        if _sse_global_connections >= _SSE_MAX_GLOBAL:
+            audit_log(AuditEntry(
+                event=AuditEvent.RATE_LIMITED,
+                actor=client_ip,
+                action="sse_connect",
+                detail=f"Global SSE limit reached ({_SSE_MAX_GLOBAL})",
+                ip=client_ip,
+            ))
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many SSE connections. Try again later.",
+            )
+        if _sse_ip_connections[client_ip] >= _SSE_MAX_PER_IP:
+            audit_log(AuditEntry(
+                event=AuditEvent.RATE_LIMITED,
+                actor=client_ip,
+                action="sse_connect",
+                detail=f"Per-IP SSE limit reached ({_SSE_MAX_PER_IP})",
+                ip=client_ip,
+            ))
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many SSE connections from your IP. Try again later.",
+            )
+        _sse_ip_connections[client_ip] += 1
+        _sse_global_connections += 1
+
+
+async def sse_disconnect(client_ip: str) -> None:
+    """在 SSE 连接断开时调用，释放连接计数。"""
+    global _sse_global_connections
+    async with _sse_lock:
+        if _sse_ip_connections[client_ip] > 0:
+            _sse_ip_connections[client_ip] -= 1
+        if _sse_global_connections > 0:
+            _sse_global_connections -= 1
+
+
 async def get_current_user_sse(
+    request: Request,
     token: str | None = Query(None, description="JWT token (EventSource fallback)"),
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> dict[str, Any]:
@@ -174,29 +246,49 @@ async def get_current_user_sse(
     EventSource API doesn't support custom headers, so the frontend passes
     the JWT token as a ``?token=xxx`` query parameter. This dependency checks
     the query param first, then falls back to the standard Bearer header.
+
+    P0-F2 fix: when the query-param token is expired, the 401 response includes
+    ``X-Token-Expired: true`` so the frontend SSE composable can trigger a
+    silent refresh before reconnecting (EventSource cannot set Authorization
+    headers, so the standard 401→refresh→retry flow in request.ts is bypassed).
+
+    API-05 fix: per-IP + global SSE connection limit to prevent resource exhaustion.
     """
+    # API-05: 检查 SSE 连接数限制
+    # 通过 _sse_connect_check 注入点，测试可替换为 no-op 避免全局状态污染
+    client_ip = request.client.host if request.client else "unknown"
+    check_fn = _sse_connect_check or sse_connect
+    await check_fn(client_ip)
+
     # Try query-param token first (for EventSource connections)
     if token:
-        # 开发环境：接受固定 dev token
+        # 开发环境：接受固定 dev token；角色由 dev_anon_admin 控制
         if settings.app_env != "production" and token == "dev-token":
-            return {"sub": "dev", "role": "admin", "username": "developer"}
+            role = "admin" if settings.dev_anon_admin else "viewer"
+            return {"sub": "dev", "role": role, "username": "developer"}
         try:
             payload = _decode_token_payload(token)
             return payload
         except ValueError as e:
             err_msg = str(e)
-            event = AuditEvent.TOKEN_EXPIRED if "expired" in err_msg else AuditEvent.TOKEN_INVALID
+            is_expired = "expired" in err_msg
+            event = AuditEvent.TOKEN_EXPIRED if is_expired else AuditEvent.TOKEN_INVALID
             audit_log(AuditEntry(
                 event=event,
                 actor="anonymous",
                 action="jwt_validate_sse",
                 detail=err_msg,
-                ip="",
+                ip=request.client.host if request.client else "",
             ))
             logger.warning("SSE JWT validation failed: {}", e)
+            headers: dict[str, str] = {}
+            if is_expired:
+                # P0-F2: signal to frontend that a silent refresh may recover
+                headers["X-Token-Expired"] = "true"
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired token",
+                headers=headers,
             ) from e
 
     # Fall back to standard Bearer header auth

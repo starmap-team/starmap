@@ -32,6 +32,12 @@ from app.models.user import ALLOWED_ROLES, User
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 # ═══════════════════════════════════════════════════════════════
+
+
+# INJ-03 fix: 转义 SQL LIKE 通配符，防止通配符注入
+def _escape_like(value: str) -> str:
+    """Escape SQL LIKE wildcards (% and _) in user input."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 # Configuration
 # ═══════════════════════════════════════════════════════════════
 
@@ -642,9 +648,9 @@ async def list_users(
     count_stmt = select(func.count()).select_from(User)
 
     if search:
-        like = f"%{search}%"
-        stmt = stmt.where(User.username.ilike(like))
-        count_stmt = count_stmt.where(User.username.ilike(like))
+        like = f"%{_escape_like(search)}%"
+        stmt = stmt.where(User.username.ilike(like, escape="\\"))
+        count_stmt = count_stmt.where(User.username.ilike(like, escape="\\"))
     if role is not None:
         stmt = stmt.where(User.role == role)
         count_stmt = count_stmt.where(User.role == role)
@@ -780,6 +786,15 @@ async def delete_user(
         detail=f"Disabled user '{user.username}' (reason={reason or 'unspecified'})",
         ip="",
     ))
+
+    # DATA-05 fix: 软删除时同时匿名化 PII（邮箱、登录 IP）
+    # 用户名保留用于审计追踪，但标记为已匿名化
+    if user.email:
+        user.email = None
+    if user.last_login_ip:
+        user.last_login_ip = None
+    await session.commit()
+
     return True
 
 

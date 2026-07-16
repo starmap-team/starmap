@@ -1,6 +1,14 @@
 # =============================================================================
 # 星图(StarMap) 后端 生产镜像
 # 多阶段构建：依赖安装 → 应用打包
+#
+# NOTE (NEW-P0 fix, AUDIT_VERIFICATION §1.4 C7):
+#   The previous build had `ARG ENVIRONMENT=production` (passed by
+#   docker-compose.prod.yml) but never set `ENV APP_ENV=$ENVIRONMENT`,
+#   so the runtime always fell back to config.py's default
+#   `app_env: str = "development"`. We removed that dead ARG in favour of
+#   loading the production env via `env_file: .env.production` in compose.
+#   This keeps the single source of truth in Pydantic Settings.
 # =============================================================================
 
 # ── 阶段 1：依赖安装 ─────────────────────────────────────────────────────────

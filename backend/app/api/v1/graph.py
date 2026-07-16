@@ -118,7 +118,11 @@ async def get_graph_overview(
     group_by: Annotated[Literal["domain", "tech_stack", "level"], Query(description="分组方式: domain(默认)/tech_stack/level")] = "domain",
 ) -> DomainOverviewResponse:
     if driver is None:
-        return DomainOverviewResponse()
+        return DomainOverviewResponse(
+            independent_positions=0,
+            independent_skills=0,
+            independent_edges=0,
+        )
     # Dispatch to specialized queries
     if group_by == "tech_stack":
         from app.services.graph_service import fetch_overview_by_tech_stack
@@ -339,24 +343,24 @@ async def get_ka_positions(
         RETURN DISTINCT p, r, s
         """
         result = await session.run(query, ka_id=ka_id)
-        positions: dict[str, dict[str, Any]] = {}
-        skills: dict[str, dict[str, Any]] = {}
-        edges: list[dict[str, Any]] = []
+        domain_positions: dict[str, dict[str, Any]] = {}
+        domain_skills: dict[str, dict[str, Any]] = {}
+        domain_edges: list[dict[str, Any]] = []
         async for record in result:
             p = record["p"]
-            if p and p.element_id not in positions:
-                positions[p.element_id] = serialize_node(p)
+            if p and p.element_id not in domain_positions:
+                domain_positions[p.element_id] = serialize_node(p)
             s = record["s"]
-            if s and s.element_id not in skills:
-                skills[s.element_id] = serialize_node(s)
+            if s and s.element_id not in domain_skills:
+                domain_skills[s.element_id] = serialize_node(s)
             r = record["r"]
             if r:
-                edges.append(serialize_relationship(r))
+                domain_edges.append(serialize_relationship(r))
 
     return KAPositionsResponse(
         ka_id=ka_id,
         ka_name=ka_name,
-        positions=list(positions.values()),
-        position_skill_edges=edges,
-        skills=list(skills.values()),
+        positions=list(domain_positions.values()),
+        position_skill_edges=domain_edges,
+        skills=list(domain_skills.values()),
     )

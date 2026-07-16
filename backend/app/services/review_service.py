@@ -23,7 +23,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -97,7 +97,7 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def _model_for(entity_type: EntityType) -> type:
+def _model_for(entity_type: EntityType) -> type[PositionRecord] | type[SkillRecord]:
     if entity_type == "position":
         return PositionRecord
     if entity_type == "skill":
@@ -105,9 +105,9 @@ def _model_for(entity_type: EntityType) -> type:
     raise ValueError(f"Unknown entity_type: {entity_type}")
 
 
-async def _get_entity(session: AsyncSession, entity_type: EntityType, entity_id: uuid.UUID):
+async def _get_entity(session: AsyncSession, entity_type: EntityType, entity_id: uuid.UUID) -> PositionRecord | SkillRecord:
     model = _model_for(entity_type)
-    result = await session.execute(sa.select(model).where(model.id == entity_id))
+    result: sa.Result[tuple[PositionRecord | SkillRecord]] = await session.execute(sa.select(model).where(model.id == entity_id))
     row = result.scalar_one_or_none()
     if row is None:
         raise ReviewNotFound(f"{entity_type} {entity_id} not found")
@@ -162,7 +162,7 @@ async def submit_for_review(
             f"Cannot submit {row.review_status} entity for review; must be draft or rejected"
         )
 
-    previous = row.review_status
+    previous = cast(Status, row.review_status)
     row.review_status = "pending_review"
     row.submitted_at = _now()
     # Clear any previous rejection reason — it's a fresh submission.
@@ -204,7 +204,7 @@ async def approve(
             f"Cannot approve {row.review_status} entity; must be pending_review"
         )
 
-    previous = row.review_status
+    previous = cast(Status, row.review_status)
     row.review_status = "approved"
     row.reviewed_by = actor
     row.reviewed_at = _now()
@@ -244,7 +244,7 @@ async def reject(
             f"Cannot reject {row.review_status} entity; must be pending_review"
         )
 
-    previous = row.review_status
+    previous = cast(Status, row.review_status)
     row.review_status = "rejected"
     row.reviewed_by = actor
     row.reviewed_at = _now()
@@ -281,7 +281,7 @@ async def unpublish(
             f"Cannot unpublish {row.review_status} entity; must be approved"
         )
 
-    previous = row.review_status
+    previous = cast(Status, row.review_status)
     row.review_status = "draft"
     row.reviewed_by = actor
     row.reviewed_at = _now()
@@ -304,7 +304,7 @@ async def unpublish(
 # ── Query operations ──
 
 
-def _to_item(entity_type: EntityType, row) -> ReviewItem:
+def _to_item(entity_type: EntityType, row: PositionRecord | SkillRecord) -> ReviewItem:
     # SkillRecord has no created_at — fall back to first_detected_at.
     created_at = getattr(row, "created_at", None) or getattr(row, "first_detected_at", None)
     return ReviewItem(
@@ -312,7 +312,7 @@ def _to_item(entity_type: EntityType, row) -> ReviewItem:
         entity_id=row.id,
         name=getattr(row, "name", ""),
         industry=getattr(row, "industry", None),
-        review_status=row.review_status,
+        review_status=cast(Status, row.review_status),
         created_by=row.created_by,
         reviewed_by=row.reviewed_by,
         reviewed_at=row.reviewed_at,
@@ -339,7 +339,7 @@ async def list_by_status(
     for et in types:
         model = _model_for(et)
         sort_col = getattr(model, "created_at", None) or getattr(model, "first_detected_at", None)
-        stmt = sa.select(model)
+        stmt: sa.Select[tuple[PositionRecord | SkillRecord]] = sa.select(model)
         if sort_col is not None:
             stmt = stmt.order_by(sort_col.desc())
         stmt = stmt.limit(limit)

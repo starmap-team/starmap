@@ -21,7 +21,7 @@ from starlette.responses import StreamingResponse
 
 from app.core.dashboard.dashboard_service import get_distribution, get_overview, get_trends
 from app.core.dashboard.sse_broadcaster import event_stream, get_recent_events
-from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, get_redis_client
+from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, get_redis_client, sse_disconnect
 
 router = APIRouter(prefix="/dashboard", tags=["数据大屏"])
 
@@ -151,8 +151,18 @@ async def dashboard_realtime(
     If Redis is unavailable, the client should fall back to
     ``GET /dashboard/realtime-poll``.
     """
+    # API-05: 在连接断开时释放 SSE 连接计数
+    client_ip = request.client.host if request.client else "unknown"
+
+    async def _stream_with_cleanup():
+        try:
+            async for chunk in event_stream(redis):
+                yield chunk
+        finally:
+            await sse_disconnect(client_ip)
+
     return StreamingResponse(
-        event_stream(redis),
+        _stream_with_cleanup(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

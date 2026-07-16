@@ -3,7 +3,7 @@ from functools import lru_cache
 from typing import Any, ClassVar
 
 from loguru import logger
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # 占位符：表示密码尚未在 .env 中配置，必须修改后才能用于生产环境
@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     secret_key: str = _UNCONFIGURED
 
     # CORS
+    # W1-T4 fix (AUTH-04 + NEW-P2): 浏览器跨域请求的 Origin 永远是人类可
+    # 解析的 http(s)://host[:port] 形式；不会以 `http://starmap-frontend:5173`
+    # 这种容器 hostname 形式出现。把容器内部名放进白名单等于把 CORS 当
+    # "内部全开"——一旦网络隔离失守就立刻被利用。
+    #
+    # 生产通过环境变量 `CORS_ALLOWED_ORIGINS`（逗号分隔）覆盖默认值；
+    # 默认仅含本地 dev 端口。
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -29,11 +36,19 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5176",
         "http://localhost:5174",
         "http://localhost:5175",
-        # Docker-internal service names (dev compose / prod compose)
-        "http://frontend:5173",
-        "http://starmap-frontend:5173",
-        "http://starmap-frontend-prod:80",
     ]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins_env(cls, v: object) -> object:
+        """允许通过 `CORS_ALLOWED_ORIGINS=a.com,b.com` 一次性覆盖。
+
+        Pydantic BaseSettings 默认对 list[str] 字段不做逗号分隔解析
+        （v2 Settings 行为）。这一层 validator 统一处理 env→list 的转换。
+        """
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     # 认证（仅保留 token 寿命；用户表已迁移至 PostgreSQL）
     token_expire_hours: int = Field(
@@ -65,6 +80,18 @@ class Settings(BaseSettings):
         default="starmap2024", min_length=8, max_length=128
     )
 
+    # ── Dev-mode anonymous admin bypass ──
+    # W1-T2 fix (PLAN §W1-T2): dev convenience "no token = admin" must be
+    # opt-in, not default. The previous behaviour — anonymous dev request
+    # returning role=admin — was a real residual risk once prod guards were
+    # dormant (NEW-P0). Defaulting this to False means fresh dev clones
+    # behave like real users; CI / shared dev environments must explicitly
+    # opt in via DEV_ANON_ADMIN=true in their .env.
+    dev_anon_admin: bool = Field(
+        default=False,
+        description="If true (dev only), missing Bearer token returns role=admin",
+    )
+
     # 数据来源权威度评分 (admin.py source management)
     authority_scores: dict[str, float] = {
         "lagou": 0.75, "zhaopin": 0.72, "indeed": 0.68, "linkedin": 0.85,
@@ -84,6 +111,9 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_db: str = "starmap"
+    # W1-T7 fix (DATA-03): 生产强制 SSL。开发可设 POSTGRES_SSLMODE=disable
+    # 跳过（asyncpg 默认会尝试 SSL）。生产应设 require / verify-full。
+    postgres_sslmode: str = "prefer"
     # 完整 URI：若通过环境变量 POSTGRES_URI 传入则优先使用，否则由组件拼接
     postgres_uri: str | None = None
     redis_uri: str = "redis://localhost:6379/0"
@@ -224,9 +254,14 @@ class Settings(BaseSettings):
     def _resolve_postgres_uri_and_warn(self) -> "Settings":
         # 若未通过 POSTGRES_URI 环境变量传入完整 URI，则由组件拼接
         if self.postgres_uri is None:
+            # W1-T7 fix (DATA-03): 按 postgres_sslmode 注入 SSL 参数。
+            # asyncpg 的 DSN 支持 `?sslmode=require`；只有用户显式传
+            # POSTGRES_URI 时才允许不带 sslmode（向后兼容）。
+            sslmode = self.postgres_sslmode or "prefer"
             object.__setattr__(self, "postgres_uri", (
                 f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
                 f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+                f"?sslmode={sslmode}"
             ))
 
         # 检测仍为占位值的密码字段
@@ -270,6 +305,60 @@ class Settings(BaseSettings):
                 f"生产环境至少需要 32 字符。"
                 f"生成方式：python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
+
+        # NEW-P1a (AUDIT_VERIFICATION §1.4 C5): 生产严禁自动播种弱管理员。
+        # 即便运维误把 .env.production 的 BOOTSTRAP_SEED_ADMIN 设回 true，
+        # 启动期也必须 fail-fast，不允许 admin:starmap2024 进入生产库。
+        if self.app_env == "production" and self.bootstrap_seed_admin:
+            raise RuntimeError(
+                "BOOTSTRAP_SEED_ADMIN=true 在生产环境被拒绝。"
+                "生产部署严禁自动播种管理员账户；"
+                "请通过 /api/v1/admin/users 显式创建。"
+            )
+
+        # W1-T2 (PLAN §W1-T2): dev 匿名 admin 旁路仅允许在 dev 且显式 opt-in。
+        # 生产部署绝不允许启用——它会让匿名请求获得 admin 角色。
+        if self.app_env == "production" and self.dev_anon_admin:
+            raise RuntimeError(
+                "DEV_ANON_ADMIN=true 在生产环境被拒绝。"
+                "生产部署必须强制 JWT 鉴权。"
+            )
+
+        # W1-T7 fix (DATA-03): 生产 Postgres 必须强制 SSL。
+        # 仅 `require`/`verify-ca`/`verify-full` 三档视为合规。
+        # `disable`/`prefer`/`allow` 在生产等同裸奔——拒绝启动。
+        if self.app_env == "production":
+            sslmode = (self.postgres_sslmode or "").lower()
+            if sslmode not in {"require", "verify-ca", "verify-full"}:
+                raise RuntimeError(
+                    f"POSTGRES_SSLMODE={self.postgres_sslmode!r} 在生产环境被拒绝。"
+                    f"生产必须使用 require / verify-ca / verify-full 之一。"
+                )
+
+        # W1-T7 fix (DATA-02): 生产 Neo4j 必须走 bolt+s://。
+        # 否则 Bolt 协议明文传输，节点凭据与查询内容均裸奔。
+        if self.app_env == "production" and not self.neo4j_uri.startswith(
+            ("bolt+s://", "neo4j+s://", "bolt+ssc://")
+        ):
+            raise RuntimeError(
+                f"NEO4J_URI={self.neo4j_uri!r} 在生产环境被拒绝。"
+                f"生产必须使用 bolt+s:// 启用 TLS。"
+                )
+
+        # AUTH-04 fix: 生产 CORS 白名单校验
+        # 默认 cors_origins 仅含 localhost dev 端口，生产必须通过
+        # CORS_ALLOWED_ORIGINS 环境变量显式覆盖为真实域名。
+        if self.app_env == "production":
+            _dev_only_origins = {
+                "http://localhost:5173", "http://127.0.0.1:5173",
+                "http://localhost:5176", "http://127.0.0.1:5176",
+                "http://localhost:5174", "http://localhost:5175",
+            }
+            if set(self.cors_origins).issubset(_dev_only_origins):
+                raise RuntimeError(
+                    "CORS_ALLOWED_ORIGINS 在生产环境仍为默认 dev localhost 值。"
+                    "请通过 CORS_ALLOWED_ORIGINS 环境变量设置生产域名白名单。"
+                )
 
         # Phase DB-AUTH: 密码策略由 PostgreSQL users 表的 bcrypt hash 保证
         # 这里不再做 AUTH_USERS plaintext 校验（该 env 已废弃）

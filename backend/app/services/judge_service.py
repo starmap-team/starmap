@@ -160,7 +160,9 @@ def _safe_resolve_jsonl_path(filepath: str | Path) -> Path:
     if settings.app_env != "production":
         allowed_dirs.append(Path(tempfile.gettempdir()).resolve())
 
-    if not any(str(path).startswith(str(d)) for d in allowed_dirs):
+    # INJ-01 加固: 使用 is_relative_to() 替代 startswith 防止前缀碰撞
+    # (e.g. /app/data/evaluation-hack/secret 会通过 startswith("/app/data/eval"))
+    if not any(path.is_relative_to(d) for d in allowed_dirs):
         raise ValueError(
             f"File path must be within allowed directories: "
             f"{', '.join(str(d) for d in allowed_dirs)}. Got: {path}"
