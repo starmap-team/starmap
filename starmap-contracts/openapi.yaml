@@ -4351,6 +4351,7 @@ components:
           type: string
         change_type:
           type: string
+          enum: [added_required, added_preferred, removed, promoted, demoted, retained]
         trust_score:
           type: number
         status:
