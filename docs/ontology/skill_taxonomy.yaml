@@ -1,23 +1,29 @@
 # StarMap 技能层级树 v1
-# 198 个标准化技能节点,12 个领域,58 个子领域
+# 500 个标准化技能节点,24 个领域,101 个子领域
 # 格式: domain → subdomain → skill
 # 每个技能包含: name, type, description, aliases, relationships
 
 ontology:
   version: "1.0"
   description: "StarMap 本体 v1 — 技能层级树"
-  total_skills: 198
-  total_domains: 13
-  total_subdomains: 58
+  total_skills: 500
+  total_domains: 24
+  total_subdomains: 101
   domains:
 
-  # ======================================================================
+  # ==============================================================================
   # 1. 编程语言 / Programming Languages
-  # ======================================================================
+  # ==============================================================================
     - domain: "编程语言"
       subdomains:
         - name: "系统编程"
           skills:
+            - name: "C"
+              type: hard_skill
+              description: "底层系统编程语言"
+              aliases: ["c", "c language", "c programming", "ansi c", "c99", "c11"]
+              relationships:
+                BELONGS_TO: "编程语言"
             - name: "C++"
               type: hard_skill
               description: "高性能系统编程语言"
@@ -28,6 +34,12 @@ ontology:
               type: hard_skill
               description: "安全系统编程语言，内存安全"
               aliases: ["rust", "rust-lang", "rustlang"]
+              relationships:
+                BELONGS_TO: "编程语言"
+            - name: "Tokio"
+              type: hard_skill
+              description: "Rust异步运行时框架"
+              aliases: ["tokio", "tokio rs", "tokio runtime", "rust tokio"]
               relationships:
                 BELONGS_TO: "编程语言"
             - name: "Go"
@@ -93,13 +105,19 @@ ontology:
             - name: "Shell"
               type: hard_skill
               description: "命令行脚本与自动化"
-              aliases: ["shell", "shell script", "shell scripting", "bash", "bash scripting", "zsh"]
+              aliases: ["shell", "shell script", "shell scripting", "bash", "bash scripting", "zsh", "shell script"]
               relationships:
                 BELONGS_TO: "编程语言"
             - name: "Lua"
               type: hard_skill
               description: "嵌入式脚本语言"
               aliases: ["lua", "lua5"]
+              relationships:
+                BELONGS_TO: "编程语言"
+            - name: "正则表达式"
+              type: hard_skill
+              description: "文本模式匹配与处理"
+              aliases: ["正则表达式", "regex", "regular expression", "regexp", "正则"]
               relationships:
                 BELONGS_TO: "编程语言"
 
@@ -127,9 +145,69 @@ ontology:
               relationships:
                 BELONGS_TO: "编程语言"
 
-    # ======================================================================
+        - name: "函数式语言"
+          skills:
+            - name: "Haskell"
+              type: hard_skill
+              description: "纯函数式编程语言"
+              aliases: ["haskell", "haskell language", "haskell programming", "ghc"]
+              relationships:
+                BELONGS_TO: "编程语言"
+            - name: "Clojure"
+              type: hard_skill
+              description: "Lisp方言，JVM上的函数式语言"
+              aliases: ["clojure", "clj", "clojurescript", "cljs"]
+              relationships:
+                BELONGS_TO: "编程语言"
+            - name: "Erlang"
+              type: hard_skill
+              description: "并发函数式编程语言"
+              aliases: ["erlang", "erlang language", "erlang programming", "otp"]
+              relationships:
+                BELONGS_TO: "编程语言"
+            - name: "Elixir"
+              type: hard_skill
+              description: "基于Erlang VM的动态函数式语言"
+              aliases: ["elixir", "elixir lang", "elixir programming", "ex"]
+              relationships:
+                BELONGS_TO: "编程语言"
+
+        - name: "其他语言"
+          skills:
+            - name: "Objective-C"
+              type: hard_skill
+              description: "Apple生态面向对象编程语言"
+              aliases: ["objective-c", "objc", "objective c", "obj-c"]
+              relationships:
+                BELONGS_TO: "编程语言"
+            - name: "Perl"
+              type: hard_skill
+              description: "文本处理与系统管理脚本语言"
+              aliases: ["perl", "perl5", "perl6", "raku"]
+              relationships:
+                BELONGS_TO: "编程语言"
+            - name: "R"
+              type: hard_skill
+              description: "统计计算与数据分析语言"
+              aliases: ["r", "r language", "r programming", "r stats"]
+              relationships:
+                BELONGS_TO: "编程语言"
+            - name: "MATLAB"
+              type: hard_skill
+              description: "数值计算与科学编程环境"
+              aliases: ["matlab", "matlab programming", "matlab r2024", "matlab r2023"]
+              relationships:
+                BELONGS_TO: "编程语言"
+            - name: "Groovy"
+              type: hard_skill
+              description: "JVM动态语言，Gradle构建脚本"
+              aliases: ["groovy", "groovy language", "groovy programming"]
+              relationships:
+                BELONGS_TO: "编程语言"
+
+    # ==============================================================================
     # 2. 前端开发 / Frontend Development
-    # ======================================================================
+    # ==============================================================================
     - domain: "前端开发"
       subdomains:
         - name: "基础"
@@ -171,6 +249,66 @@ ontology:
               type: hard_skill
               description: "编译时前端框架"
               aliases: ["svelte", "svelte3", "svelte4"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "jQuery"
+              type: hard_skill
+              description: "经典JavaScript库"
+              aliases: ["jquery", "jq", "jquery ui", "jquery mobile"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "Backbone.js"
+              type: hard_skill
+              description: "轻量级MVP前端框架"
+              aliases: ["backbone.js", "backbone", "backbonejs"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "Ember.js"
+              type: hard_skill
+              description: "约定优于配置的前端框架"
+              aliases: ["ember.js", "ember", "emberjs", "ember cli"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "Preact"
+              type: hard_skill
+              description: "React的轻量级替代方案"
+              aliases: ["preact", "preactjs", "preact.js"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "Alpine.js"
+              type: hard_skill
+              description: "轻量级JavaScript框架"
+              aliases: ["alpine.js", "alpine", "alpinejs"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "Lit"
+              type: hard_skill
+              description: "Google轻量级Web Components库"
+              aliases: ["lit", "lit element", "lit-element", "lit-html"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "SolidJS"
+              type: hard_skill
+              description: "高性能响应式前端框架"
+              aliases: ["solidjs", "solid", "solid js"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "Qwik"
+              type: hard_skill
+              description: "可恢复性前端框架"
+              aliases: ["qwik", "qwik framework", "qwik city"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "Astro"
+              type: hard_skill
+              description: "内容驱动网站构建框架"
+              aliases: ["astro", "astro.js", "astro framework", "astro build"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "Stencil"
+              type: hard_skill
+              description: "Web Components编译器"
+              aliases: ["stencil", "stenciljs", "stencil js"]
               relationships:
                 BELONGS_TO: "前端开发"
 
@@ -242,6 +380,30 @@ ontology:
               aliases: ["three.js", "threejs", "three js", "webgl"]
               relationships:
                 BELONGS_TO: "前端开发"
+            - name: "D3.js"
+              type: hard_skill
+              description: "数据驱动文档可视化库"
+              aliases: ["d3.js", "d3js", "d3", "d3 data driven documents"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "ECharts"
+              type: hard_skill
+              description: "数据可视化图表库"
+              aliases: ["echarts", "e charts", "apache echarts", "echarts5"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "WebXR"
+              type: hard_skill
+              description: "Web扩展现实API"
+              aliases: ["webxr", "web xr", "web ar", "web vr", "webxr api"]
+              relationships:
+                BELONGS_TO: "前端开发"
+            - name: "XPath"
+              type: hard_skill
+              description: "XML路径语言"
+              aliases: ["xpath", "xml path", "xpath query"]
+              relationships:
+                BELONGS_TO: "前端开发"
             - name: "WebAssembly"
               type: hard_skill
               description: "浏览器二进制运行时"
@@ -255,9 +417,9 @@ ontology:
               relationships:
                 BELONGS_TO: "前端开发"
 
-    # ======================================================================
+    # ==============================================================================
     # 3. 后端开发 / Backend Development
-    # ======================================================================
+    # ==============================================================================
     - domain: "后端开发"
       subdomains:
         - name: "Python框架"
@@ -280,6 +442,24 @@ ontology:
               aliases: ["django", "django rest", "drf", "django rest framework", "django4", "django5"]
               relationships:
                 BELONGS_TO: "后端开发"
+            - name: "Tornado"
+              type: hard_skill
+              description: "Python异步Web框架和服务器"
+              aliases: ["tornado", "tornado web", "tornado server"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Bottle"
+              type: hard_skill
+              description: "Python微型Web框架"
+              aliases: ["bottle", "bottle.py", "bottle framework"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Pyramid"
+              type: hard_skill
+              description: "Python灵活Web框架"
+              aliases: ["pyramid", "pyramid framework", "pyramid web"]
+              relationships:
+                BELONGS_TO: "后端开发"
 
         - name: "Java框架"
           skills:
@@ -287,6 +467,36 @@ ontology:
               type: hard_skill
               description: "Java企业级框架"
               aliases: ["spring boot", "springboot", "spring", "spring framework", "spring mvc", "spring cloud", "springboot2", "springboot3"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Micronaut"
+              type: hard_skill
+              description: "JVM微服务和无服务器框架"
+              aliases: ["micronaut", "micronaut framework", "micronaut io"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Quarkus"
+              type: hard_skill
+              description: "Java云原生框架"
+              aliases: ["quarkus", "quarkus framework", "quarkus io"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Play Framework"
+              type: hard_skill
+              description: "Scala/Java高生产力Web框架"
+              aliases: ["play framework", "play", "play scala", "play java"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Lagom"
+              type: hard_skill
+              description: "反应式微服务框架"
+              aliases: ["lagom", "lagom framework", "lagom microservices"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Dropwizard"
+              type: hard_skill
+              description: "Java操作友好型Web服务框架"
+              aliases: ["dropwizard", "dropwizard framework", "dropwizard java"]
               relationships:
                 BELONGS_TO: "后端开发"
 
@@ -310,6 +520,48 @@ ontology:
               aliases: ["fastify", "fastify4"]
               relationships:
                 BELONGS_TO: "后端开发"
+            - name: "NestJS"
+              type: hard_skill
+              description: "渐进式Node.js框架"
+              aliases: ["nestjs", "nest js", "nest", "nest.js"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Koa"
+              type: hard_skill
+              description: "下一代Node.js Web框架"
+              aliases: ["koa", "koa.js", "koa framework"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Hapi"
+              type: hard_skill
+              description: "Node.js应用框架"
+              aliases: ["hapi", "hapi.js", "hapi framework"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Sails.js"
+              type: hard_skill
+              description: "Node.js MVC框架"
+              aliases: ["sails.js", "sails", "sailsjs"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Meteor"
+              type: hard_skill
+              description: "Node.js全栈平台"
+              aliases: ["meteor", "meteor.js", "meteorjs"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "FeathersJS"
+              type: hard_skill
+              description: "Node.js实时应用框架"
+              aliases: ["feathersjs", "feathers", "feathers.js"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "AdonisJS"
+              type: hard_skill
+              description: "Node.js全栈框架"
+              aliases: ["adonisjs", "adonis", "adonis.js"]
+              relationships:
+                BELONGS_TO: "后端开发"
 
         - name: "Go框架"
           skills:
@@ -317,6 +569,201 @@ ontology:
               type: hard_skill
               description: "Go高性能Web框架"
               aliases: ["gin", "gin1"]
+              relationships:
+                BELONGS_TO: "后端开发"
+
+        - name: "PHP框架"
+          skills:
+            - name: "Laravel"
+              type: hard_skill
+              description: "PHP全栈Web框架"
+              aliases: ["laravel", "laravel10", "laravel11", "laravel framework"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Symfony"
+              type: hard_skill
+              description: "PHP企业级Web框架"
+              aliases: ["symfony", "symfony framework", "symfony6"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "CodeIgniter"
+              type: hard_skill
+              description: "PHP轻量级Web框架"
+              aliases: ["codeigniter", "codeigniter3", "codeigniter4", "ci"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Zend Framework"
+              type: hard_skill
+              description: "PHP企业级组件框架"
+              aliases: ["zend framework", "zend", "laminas"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "CakePHP"
+              type: hard_skill
+              description: "PHP快速开发框架"
+              aliases: ["cakephp", "cake php", "cakephp4"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Phalcon"
+              type: hard_skill
+              description: "PHP C扩展Web框架"
+              aliases: ["phalcon", "phalcon framework", "phalcon php"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Slim"
+              type: hard_skill
+              description: "PHP微型Web框架"
+              aliases: ["slim", "slim framework", "slim php"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Hyperf"
+              type: hard_skill
+              description: "PHP协程微服务框架"
+              aliases: ["hyperf", "hyperf framework", "php hyperf"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Swoole"
+              type: hard_skill
+              description: "PHP异步协程引擎"
+              aliases: ["swoole", "php swoole", "swoole coroutine"]
+              relationships:
+                BELONGS_TO: "后端开发"
+
+        - name: "Ruby框架"
+          skills:
+            - name: "Rails"
+              type: hard_skill
+              description: "Ruby全栈Web框架"
+              aliases: ["rails", "ruby on rails", "ruby rails", "ror", "rails7"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Sinatra"
+              type: hard_skill
+              description: "Ruby微型Web框架"
+              aliases: ["sinatra", "sinatra framework", "sinatra ruby"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Hanami"
+              type: hard_skill
+              description: "Ruby现代Web框架"
+              aliases: ["hanami", "hanami framework", "hanami ruby"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Sidekiq"
+              type: hard_skill
+              description: "Ruby后台任务处理"
+              aliases: ["sidekiq", "sidekiq worker", "ruby sidekiq"]
+              relationships:
+                BELONGS_TO: "后端开发"
+
+        - name: "ORM与数据层"
+          skills:
+            - name: "Prisma"
+              type: hard_skill
+              description: "下一代TypeScript ORM"
+              aliases: ["prisma", "prisma orm", "prisma client", "prisma5"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Sequelize"
+              type: hard_skill
+              description: "Node.js ORM"
+              aliases: ["sequelize", "sequelize orm", "sequelize js"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "TypeORM"
+              type: hard_skill
+              description: "TypeScript ORM"
+              aliases: ["typeorm", "type orm", "typeorm js"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "SQLAlchemy"
+              type: hard_skill
+              description: "Python SQL工具包和ORM"
+              aliases: ["sqlalchemy", "sql alchemy", "sqlalchemy orm"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Hibernate"
+              type: hard_skill
+              description: "Java ORM框架"
+              aliases: ["hibernate", "hibernate orm", "hibernate5", "hibernate6"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Entity Framework"
+              type: hard_skill
+              description: "Microsoft .NET ORM"
+              aliases: ["entity framework", "ef", "ef core", "entity framework core"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Dapper"
+              type: hard_skill
+              description: "轻量级.NET ORM"
+              aliases: ["dapper", "dapper orm", "dapper .net"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Doctrine"
+              type: hard_skill
+              description: "PHP ORM"
+              aliases: ["doctrine", "doctrine orm", "doctrine dbal"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Eloquent"
+              type: hard_skill
+              description: "Laravel ORM"
+              aliases: ["eloquent", "eloquent orm", "laravel eloquent"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Peewee"
+              type: hard_skill
+              description: "Python轻量级ORM"
+              aliases: ["peewee", "peewee orm", "peewee python"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Tortoise ORM"
+              type: hard_skill
+              description: "Python异步ORM"
+              aliases: ["tortoise orm", "tortoise", "tortoise-orm"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "GORM"
+              type: hard_skill
+              description: "Go ORM库"
+              aliases: ["gorm", "gorm go", "gorm orm"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "XORM"
+              type: hard_skill
+              description: "Go ORM库"
+              aliases: ["xorm", "xorm go", "xorm orm"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "JPA"
+              type: hard_skill
+              description: "Java持久化API"
+              aliases: ["jpa", "java persistence api", "javax.persistence"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "MyBatis"
+              type: hard_skill
+              description: "Java持久层框架"
+              aliases: ["mybatis", "mybatis3", "mybatis plus"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "jOOQ"
+              type: hard_skill
+              description: "Java SQL构建器"
+              aliases: ["jooq", "jooq sql", "jooq java"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "QueryDSL"
+              type: hard_skill
+              description: "Java查询DSL框架"
+              aliases: ["querydsl", "querydsl java", "query dsl"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Spring Data"
+              type: hard_skill
+              description: "Spring数据访问框架"
+              aliases: ["spring data", "spring data jpa", "spring data mongodb"]
               relationships:
                 BELONGS_TO: "后端开发"
 
@@ -346,6 +793,18 @@ ontology:
               aliases: ["openapi", "swagger", "swagger ui", "swagger openapi", "swagger api", "openapi3"]
               relationships:
                 BELONGS_TO: "后端开发"
+            - name: "Django REST Framework"
+              type: hard_skill
+              description: "Django REST API工具包"
+              aliases: ["django rest framework", "drf", "django rest"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Strapi"
+              type: hard_skill
+              description: "开源无头CMS"
+              aliases: ["strapi", "strapi cms", "strapi headless"]
+              relationships:
+                BELONGS_TO: "后端开发"
 
         - name: "认证授权"
           skills:
@@ -370,10 +829,40 @@ ontology:
               aliases: ["websocket", "ws", "wss", "websockets"]
               relationships:
                 BELONGS_TO: "后端开发"
+            - name: "Vert.x"
+              type: hard_skill
+              description: "JVM事件驱动应用平台"
+              aliases: ["vert.x", "vertx", "vertx framework"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Netty"
+              type: hard_skill
+              description: "Java异步事件驱动网络应用框架"
+              aliases: ["netty", "netty io", "netty framework"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Akka"
+              type: hard_skill
+              description: "JVM Actor模型工具包"
+              aliases: ["akka", "akka actor", "akka streams"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "Web2py"
+              type: hard_skill
+              description: "Python全栈Web框架"
+              aliases: ["web2py", "web2py framework", "web2py python"]
+              relationships:
+                BELONGS_TO: "后端开发"
+            - name: "CherryPy"
+              type: hard_skill
+              description: "Python极简Web框架"
+              aliases: ["cherrypy", "cherry py", "cherrypy framework"]
+              relationships:
+                BELONGS_TO: "后端开发"
 
-    # ======================================================================
+    # ==============================================================================
     # 4. 数据库 / Databases
-    # ======================================================================
+    # ==============================================================================
     - domain: "数据库"
       subdomains:
         - name: "关系型"
@@ -394,6 +883,96 @@ ontology:
               type: hard_skill
               description: "微软关系型数据库"
               aliases: ["sql server", "mssql", "t-sql", "tsql"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Oracle"
+              type: hard_skill
+              description: "企业级关系型数据库"
+              aliases: ["oracle", "oracle db", "oracle database", "oracle 19c", "oracle 21c"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "IBM Db2"
+              type: hard_skill
+              description: "IBM企业级关系型数据库"
+              aliases: ["ibm db2", "db2", "ibm db2 database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "MariaDB"
+              type: hard_skill
+              description: "MySQL分支开源关系型数据库"
+              aliases: ["mariadb", "maria db", "mariadb database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "SQLite"
+              type: hard_skill
+              description: "嵌入式关系型数据库"
+              aliases: ["sqlite", "sqlite3", "sqlite database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "DuckDB"
+              type: hard_skill
+              description: "嵌入式分析型数据库"
+              aliases: ["duckdb", "duck db", "duckdb database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Firebird"
+              type: hard_skill
+              description: "开源关系型数据库"
+              aliases: ["firebird", "firebird sql", "firebird database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "InterBase"
+              type: hard_skill
+              description: "嵌入式关系型数据库"
+              aliases: ["interbase", "interbase database", "interbase sql"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Sybase"
+              type: hard_skill
+              description: "企业级关系型数据库"
+              aliases: ["sybase", "sybase ase", "sybase iq"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Informix"
+              type: hard_skill
+              description: "IBM对象关系型数据库"
+              aliases: ["informix", "ibm informix", "informix database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Teradata"
+              type: hard_skill
+              description: "企业级数据仓库数据库"
+              aliases: ["teradata", "teradata database", "teradata sql"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Netezza"
+              type: hard_skill
+              description: "IBM数据仓库设备数据库"
+              aliases: ["netezza", "ibm netezza", "netezza database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Exasol"
+              type: hard_skill
+              description: "内存分析型数据库"
+              aliases: ["exasol", "exasol database", "exasol analytics"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "MonetDB"
+              type: hard_skill
+              description: "列式分析型数据库"
+              aliases: ["monetdb", "monet db", "monetdb database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "VoltDB"
+              type: hard_skill
+              description: "内存关系型数据库"
+              aliases: ["voltdb", "volt db", "voltdb database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "NuoDB"
+              type: hard_skill
+              description: "弹性SQL数据库"
+              aliases: ["nuodb", "nuo db", "nuodb database"]
               relationships:
                 BELONGS_TO: "数据库"
 
@@ -423,6 +1002,108 @@ ontology:
               aliases: ["hbase", "apache hbase", "hbase database"]
               relationships:
                 BELONGS_TO: "数据库"
+            - name: "RocksDB"
+              type: hard_skill
+              description: "嵌入式键值存储引擎"
+              aliases: ["rocksdb", "rocks db", "facebook rocksdb"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "CockroachDB"
+              type: hard_skill
+              description: "分布式SQL数据库"
+              aliases: ["cockroachdb", "cockroach", "cockroach db"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "CouchDB"
+              type: hard_skill
+              description: "面向文档的NoSQL数据库"
+              aliases: ["couchdb", "couch db", "apache couchdb"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Couchbase"
+              type: hard_skill
+              description: "分布式NoSQL数据库"
+              aliases: ["couchbase", "couchbase server", "couchbase db"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "ArangoDB"
+              type: hard_skill
+              description: "多模型NoSQL数据库"
+              aliases: ["arangodb", "arango db", "arangodb database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "OrientDB"
+              type: hard_skill
+              description: "多模型NoSQL数据库"
+              aliases: ["orientdb", "orient db", "orientdb database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "RavenDB"
+              type: hard_skill
+              description: "文档型NoSQL数据库"
+              aliases: ["ravendb", "raven db", "ravendb database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Realm"
+              type: hard_skill
+              description: "移动数据库"
+              aliases: ["realm", "realm database", "realm mobile"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "ObjectBox"
+              type: hard_skill
+              description: "高性能移动数据库"
+              aliases: ["objectbox", "objectbox database", "objectbox db"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "LevelDB"
+              type: hard_skill
+              description: "Google键值存储库"
+              aliases: ["leveldb", "level db", "leveldb database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "LMDB"
+              type: hard_skill
+              description: "闪电内存映射数据库"
+              aliases: ["lmdb", "lightning memory-mapped database", "lmdb database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Berkeley DB"
+              type: hard_skill
+              description: "嵌入式键值数据库"
+              aliases: ["berkeley db", "bdb", "berkeley database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "YugabyteDB"
+              type: hard_skill
+              description: "分布式SQL数据库"
+              aliases: ["yugabytedb", "yugabyte", "yugabyte db"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "PlanetScale"
+              type: hard_skill
+              description: "MySQL兼容无服务器数据库平台"
+              aliases: ["planetscale", "planetscale db", "planetscale database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Turso"
+              type: hard_skill
+              description: "SQLite边缘数据库"
+              aliases: ["turso", "turso db", "turso database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "LibSQL"
+              type: hard_skill
+              description: "SQLite分支开源数据库"
+              aliases: ["libsql", "lib sql", "libsql database"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "MotherDuck"
+              type: hard_skill
+              description: "DuckDB云分析数据库"
+              aliases: ["motherduck", "motherduck db", "motherduck database"]
+              relationships:
+                BELONGS_TO: "数据库"
 
         - name: "搜索引擎"
           skills:
@@ -430,6 +1111,39 @@ ontology:
               type: hard_skill
               description: "分布式搜索引擎"
               aliases: ["elasticsearch", "es", "elastic", "elastic stack", "elk", "elk stack", "elasticsearch8"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Solr"
+              type: hard_skill
+              description: "企业级搜索平台"
+              aliases: ["solr", "apache solr", "solr9"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Lucene"
+              type: hard_skill
+              description: "全文检索引擎库"
+              aliases: ["lucene", "apache lucene", "lucene9"]
+              relationships:
+                BELONGS_TO: "数据库"
+
+        - name: "时序数据库"
+          skills:
+            - name: "InfluxDB"
+              type: hard_skill
+              description: "开源时序数据库"
+              aliases: ["influxdb", "influx db", "influxdata"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "TimescaleDB"
+              type: hard_skill
+              description: "PostgreSQL时序扩展"
+              aliases: ["timescaledb", "timescale", "timescale db"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Druid"
+              type: hard_skill
+              description: "实时分析数据库"
+              aliases: ["druid", "apache druid", "druid database"]
               relationships:
                 BELONGS_TO: "数据库"
 
@@ -459,10 +1173,49 @@ ontology:
               aliases: ["tidb", "ti db", "tikv", "pd"]
               relationships:
                 BELONGS_TO: "数据库"
+            - name: "Vertica"
+              type: hard_skill
+              description: "列式分析型数据库"
+              aliases: ["vertica", "vertica database", "vertica analytics"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "Greenplum"
+              type: hard_skill
+              description: "开源大规模并行处理数据库"
+              aliases: ["greenplum", "greenplum database", "greenplum db"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "MemSQL"
+              type: hard_skill
+              description: "内存分布式SQL数据库"
+              aliases: ["memsql", "memsql database", "memsql db"]
+              relationships:
+                BELONGS_TO: "数据库"
 
-    # ======================================================================
+        - name: "数据库管理"
+          skills:
+            - name: "存储过程"
+              type: hard_skill
+              description: "数据库存储过程开发"
+              aliases: ["存储过程", "stored procedure", "存储 过程", "sp"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "查询优化"
+              type: hard_skill
+              description: "SQL查询性能优化"
+              aliases: ["查询优化", "query optimization", "查询 优化", "sql优化", "sql optimization", "performance tuning"]
+              relationships:
+                BELONGS_TO: "数据库"
+            - name: "备份恢复"
+              type: hard_skill
+              description: "数据库备份与灾难恢复"
+              aliases: ["备份恢复", "backup and recovery", "备份 恢复", "数据库备份", "database backup", "disaster recovery"]
+              relationships:
+                BELONGS_TO: "数据库"
+
+    # ==============================================================================
     # 5. 云原生 / Cloud Native
-    # ======================================================================
+    # ==============================================================================
     - domain: "云原生"
       subdomains:
         - name: "容器"
@@ -546,6 +1299,15 @@ ontology:
               relationships:
                 BELONGS_TO: "云原生"
 
+        - name: "边缘计算"
+          skills:
+            - name: "边缘计算"
+              type: hard_skill
+              description: "边缘计算架构与平台"
+              aliases: ["边缘计算", "edge computing", "边缘 计算", "edge computing platform"]
+              relationships:
+                BELONGS_TO: "云原生"
+
         - name: "包管理"
           skills:
             - name: "Helm"
@@ -555,9 +1317,9 @@ ontology:
               relationships:
                 BELONGS_TO: "云原生"
 
-    # ======================================================================
+    # ==============================================================================
     # 6. AI/机器学习 / AI & Machine Learning
-    # ======================================================================
+    # ==============================================================================
     - domain: "AI/机器学习"
       subdomains:
         - name: "机器学习基础"
@@ -565,10 +1327,28 @@ ontology:
             - name: "Machine Learning"
               type: hard_skill
               description: "机器学习理论与方法"
-              aliases: ["machine learning", "ml", "statistical learning"]
+              aliases: ["machine learning", "ml", "statistical learning", "机器学习"]
               relationships:
                 BELONGS_TO: "AI/机器学习"
                 PREREQUISITE: ["Python"]
+            - name: "统计学"
+              type: hard_skill
+              description: "统计理论与方法"
+              aliases: ["统计学", "statistics", "统计", "statistical analysis", "概率统计"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "特征工程"
+              type: hard_skill
+              description: "机器学习特征构建与选择"
+              aliases: ["特征工程", "feature engineering", "特征 工程", "feature selection"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "协同过滤"
+              type: hard_skill
+              description: "推荐系统协同过滤算法"
+              aliases: ["协同过滤", "collaborative filtering", "协同 过滤", "cf algorithm", "recommendation algorithm"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
 
         - name: "深度学习框架"
           skills:
@@ -657,6 +1437,24 @@ ontology:
               aliases: ["opencv", "open cv", "open computer vision", "cv2"]
               relationships:
                 BELONGS_TO: "AI/机器学习"
+            - name: "目标检测"
+              type: hard_skill
+              description: "图像中目标定位与识别"
+              aliases: ["目标检测", "object detection", "目标 检测", "yolo", "detection model"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "图像分割"
+              type: hard_skill
+              description: "图像像素级分割"
+              aliases: ["图像分割", "image segmentation", "图像 分割", "semantic segmentation", "instance segmentation"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "图像分类"
+              type: hard_skill
+              description: "图像类别识别"
+              aliases: ["图像分类", "image classification", "图像 分类", "image classifier"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
 
         - name: "深度学习"
           skills:
@@ -706,6 +1504,78 @@ ontology:
               aliases: ["fine-tuning", "finetuning", "sft"]
               relationships:
                 BELONGS_TO: "AI/机器学习"
+            - name: "Scipy"
+              type: hard_skill
+              description: "科学计算库"
+              aliases: ["scipy", "scipy python", "scipy library"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "Statsmodels"
+              type: hard_skill
+              description: "统计建模库"
+              aliases: ["statsmodels", "statsmodels python"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "LightGBM"
+              type: hard_skill
+              description: "梯度提升框架"
+              aliases: ["lightgbm", "light gbm", "lgbm"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "CatBoost"
+              type: hard_skill
+              description: "梯度提升库"
+              aliases: ["catboost", "cat boost", "catboost yandex"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "Prophet"
+              type: hard_skill
+              description: "时间序列预测库"
+              aliases: ["prophet", "facebook prophet", "prophet forecasting"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "Keras"
+              type: hard_skill
+              description: "高级神经网络API"
+              aliases: ["keras", "keras tensorflow", "keras api"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "FastAI"
+              type: hard_skill
+              description: "深度学习库"
+              aliases: ["fastai", "fast ai", "fastai library"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "AutoML"
+              type: hard_skill
+              description: "自动化机器学习"
+              aliases: ["automl", "auto ml", "automated machine learning"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "Optuna"
+              type: hard_skill
+              description: "超参数优化框架"
+              aliases: ["optuna", "optuna optimization", "optuna python"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "Hyperopt"
+              type: hard_skill
+              description: "分布式超参数优化"
+              aliases: ["hyperopt", "hyperopt python", "hyperopt optimization"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "SHAP"
+              type: hard_skill
+              description: "模型可解释性库"
+              aliases: ["shap", "shapley", "shap values"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "LIME"
+              type: hard_skill
+              description: "局部可解释模型"
+              aliases: ["lime", "lime explainable", "lime model"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
 
         - name: "LLM平台"
           skills:
@@ -724,6 +1594,30 @@ ontology:
               aliases: ["mlflow", "ml flow", "mlflow tracking", "mlflow model", "mlflow2"]
               relationships:
                 BELONGS_TO: "AI/机器学习"
+            - name: "Weights & Biases"
+              type: tool
+              description: "ML实验跟踪平台"
+              aliases: ["weights and biases", "wandb", "weights biases"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "Neptune"
+              type: tool
+              description: "ML实验管理平台"
+              aliases: ["neptune", "neptune ai", "neptune ml"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "DVC"
+              type: tool
+              description: "数据版本控制"
+              aliases: ["dvc", "data version control", "dvc git"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
+            - name: "Kubeflow"
+              type: tool
+              description: "Kubernetes机器学习平台"
+              aliases: ["kubeflow", "kubeflow pipelines", "kubeflow kubernetes"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
             - name: "ONNX"
               type: tool
               description: "模型交换格式"
@@ -736,9 +1630,21 @@ ontology:
               aliases: ["cuda", "nvidia cuda", "cuda toolkit"]
               relationships:
                 BELONGS_TO: "AI/机器学习"
+            - name: "AWS SageMaker"
+              type: tool
+              description: "AWS机器学习平台"
+              aliases: ["aws sagemaker", "sagemaker", "sage maker", "amazon sagemaker"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
 
         - name: "向量数据库"
           skills:
+            - name: "向量数据库"
+              type: hard_skill
+              description: "向量数据库技术与应用"
+              aliases: ["向量数据库", "vector database", "向量 数据库", "vectordb", "vector db"]
+              relationships:
+                BELONGS_TO: "AI/机器学习"
             - name: "ChromaDB"
               type: tool
               description: "开源向量数据库"
@@ -752,9 +1658,9 @@ ontology:
               relationships:
                 BELONGS_TO: "AI/机器学习"
 
-    # ======================================================================
+    # ==============================================================================
     # 7. 数据工程 / Data Engineering
-    # ======================================================================
+    # ==============================================================================
     - domain: "数据工程"
       subdomains:
         - name: "计算引擎"
@@ -777,6 +1683,48 @@ ontology:
               aliases: ["hadoop", "apache hadoop", "hdfs", "mapreduce", "yarn"]
               relationships:
                 BELONGS_TO: "数据工程"
+            - name: "Dask"
+              type: hard_skill
+              description: "Python并行计算库"
+              aliases: ["dask", "dask python", "dask distributed"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Ray"
+              type: hard_skill
+              description: "分布式计算框架"
+              aliases: ["ray", "ray framework", "ray distributed"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Modin"
+              type: hard_skill
+              description: "Pandas分布式加速库"
+              aliases: ["modin", "modin pandas", "modin python"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Vaex"
+              type: hard_skill
+              description: "大规模数据框库"
+              aliases: ["vaex", "vaex python", "vaex dataframe"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Polars"
+              type: hard_skill
+              description: "Rust编写的高性能DataFrame库"
+              aliases: ["polars", "polars python", "polars dataframe"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "cuDF"
+              type: hard_skill
+              description: "GPU加速DataFrame库"
+              aliases: ["cudf", "rapids cudf", "cudf python"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Koalas"
+              type: hard_skill
+              description: "Pandas API on Spark"
+              aliases: ["koalas", "pyspark koalas", "koalas pandas"]
+              relationships:
+                BELONGS_TO: "数据工程"
 
         - name: "消息系统"
           skills:
@@ -789,7 +1737,130 @@ ontology:
             - name: "RabbitMQ"
               type: hard_skill
               description: "消息队列"
-              aliases: ["rabbitmq", "rabbit mq", "message queue", "mq", "message broker"]
+              aliases: ["rabbitmq", "rabbit mq", "message queue", "mq", "message broker", "消息队列"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Pulsar"
+              type: hard_skill
+              description: "分布式消息与流平台"
+              aliases: ["pulsar", "apache pulsar", "pulsar messaging"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "ZeroMQ"
+              type: hard_skill
+              description: "高性能异步消息库"
+              aliases: ["zeromq", "zmq", "0mq", "zero mq"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Nanomsg"
+              type: hard_skill
+              description: "下一代消息库"
+              aliases: ["nanomsg", "nano msg", "nanomsg library"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "NATS"
+              type: hard_skill
+              description: "云原生消息系统"
+              aliases: ["nats", "nats.io", "nats messaging"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "RocketMQ"
+              type: hard_skill
+              description: "阿里巴巴分布式消息中间件"
+              aliases: ["rocketmq", "rocket mq", "apache rocketmq"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "ActiveMQ"
+              type: hard_skill
+              description: "Apache开源消息代理"
+              aliases: ["activemq", "active mq", "apache activemq"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "HornetQ"
+              type: hard_skill
+              description: "JBoss消息中间件"
+              aliases: ["hornetq", "hornet q", "hornetq messaging"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Artemis"
+              type: hard_skill
+              description: "ActiveMQ下一代消息代理"
+              aliases: ["artemis", "activemq artemis", "apache artemis"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "SQS"
+              type: hard_skill
+              description: "AWS简单队列服务"
+              aliases: ["sqs", "aws sqs", "simple queue service"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "SNS"
+              type: hard_skill
+              description: "AWS简单通知服务"
+              aliases: ["sns", "aws sns", "simple notification service"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "EventBridge"
+              type: hard_skill
+              description: "AWS无服务器事件总线"
+              aliases: ["eventbridge", "aws eventbridge", "amazon eventbridge"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Kinesis"
+              type: hard_skill
+              description: "AWS实时数据流服务"
+              aliases: ["kinesis", "aws kinesis", "amazon kinesis"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "EventStore"
+              type: hard_skill
+              description: "事件存储数据库"
+              aliases: ["eventstore", "event store", "eventstoredb"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Axon"
+              type: hard_skill
+              description: "Java事件溯源和CQRS框架"
+              aliases: ["axon", "axon framework", "axon server"]
+              relationships:
+                BELONGS_TO: "数据工程"
+
+        - name: "流处理"
+          skills:
+            - name: "Kafka Streams"
+              type: hard_skill
+              description: "Kafka流处理库"
+              aliases: ["kafka streams", "kafka stream", "kafka streaming"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Flink SQL"
+              type: hard_skill
+              description: "Flink流SQL处理"
+              aliases: ["flink sql", "apache flink sql", "flink streaming sql"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Spark Streaming"
+              type: hard_skill
+              description: "Spark流处理引擎"
+              aliases: ["spark streaming", "spark stream", "structured streaming"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Storm"
+              type: hard_skill
+              description: "Apache实时计算系统"
+              aliases: ["storm", "apache storm", "storm topology"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Samza"
+              type: hard_skill
+              description: "Apache流处理框架"
+              aliases: ["samza", "apache samza", "samza streaming"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Heron"
+              type: hard_skill
+              description: "Twitter实时流处理引擎"
+              aliases: ["heron", "twitter heron", "heron streaming"]
               relationships:
                 BELONGS_TO: "数据工程"
 
@@ -828,6 +1899,18 @@ ontology:
               aliases: ["etl", "etl pipeline"]
               relationships:
                 BELONGS_TO: "数据工程"
+            - name: "DataX"
+              type: hard_skill
+              description: "异构数据源同步工具"
+              aliases: ["datax", "data x", "alibaba datax"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Scrapy"
+              type: hard_skill
+              description: "Python网络爬虫框架"
+              aliases: ["scrapy", "scrapy spider", "web scraping", "爬虫框架"]
+              relationships:
+                BELONGS_TO: "数据工程"
             - name: "Data Science"
               type: hard_skill
               description: "数据科学"
@@ -855,10 +1938,121 @@ ontology:
               aliases: ["tableau", "tableau bi", "tableau visualization", "tableau2023"]
               relationships:
                 BELONGS_TO: "数据工程"
+            - name: "数据可视化"
+              type: hard_skill
+              description: "数据可视化方法与工具"
+              aliases: ["数据可视化", "data visualization", "数据 可视化", "dataviz", "data viz"]
+              relationships:
+                BELONGS_TO: "数据工程"
 
-    # ======================================================================
+        - name: "数据治理"
+          skills:
+            - name: "元数据管理"
+              type: hard_skill
+              description: "元数据采集与治理"
+              aliases: ["元数据管理", "metadata management", "元数据 管理", "元数据治理"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "数据目录"
+              type: hard_skill
+              description: "数据资产目录管理"
+              aliases: ["数据目录", "data catalog", "数据 目录", "data dictionary"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "数据质量"
+              type: hard_skill
+              description: "数据质量监控与治理"
+              aliases: ["数据质量", "data quality", "数据 质量", "data quality management"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "数据安全"
+              type: hard_skill
+              description: "数据安全与隐私保护"
+              aliases: ["数据安全", "data security", "数据 安全", "data privacy", "数据隐私"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "数据建模"
+              type: hard_skill
+              description: "数据模型设计与建模"
+              aliases: ["数据建模", "data modeling", "数据 建模", "data model design"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "业务建模"
+              type: hard_skill
+              description: "业务领域建模"
+              aliases: ["业务建模", "business modeling", "业务 建模", "business model design", "领域建模"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Great Expectations"
+              type: hard_skill
+              description: "数据验证和文档工具"
+              aliases: ["great expectations", "gx", "great expectations data"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Pandera"
+              type: hard_skill
+              description: "Pandas数据验证库"
+              aliases: ["pandera", "pandera pandas", "pandera validation"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Cerberus"
+              type: hard_skill
+              description: "Python数据验证库"
+              aliases: ["cerberus", "cerberus python", "cerberus validation"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Marshmallow"
+              type: hard_skill
+              description: "Python对象序列化库"
+              aliases: ["marshmallow", "marshmallow python", "marshmallow schema"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Pydantic"
+              type: hard_skill
+              description: "Python数据验证库"
+              aliases: ["pydantic", "pydantic v2", "pydantic python"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Voluptuous"
+              type: hard_skill
+              description: "Python数据验证库"
+              aliases: ["voluptuous", "voluptuous python", "voluptuous validation"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Schema"
+              type: hard_skill
+              description: "Python数据验证库"
+              aliases: ["schema", "schema python", "schema validation"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "dbt Cloud"
+              type: tool
+              description: "dbt云托管服务"
+              aliases: ["dbt cloud", "dbtcloud", "dbt cloud platform"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Fivetran"
+              type: tool
+              description: "自动化数据集成平台"
+              aliases: ["fivetran", "fivetran etl", "fivetran data"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Stitch"
+              type: tool
+              description: "数据集成服务"
+              aliases: ["stitch", "stitch data", "stitch etl"]
+              relationships:
+                BELONGS_TO: "数据工程"
+            - name: "Segment"
+              type: tool
+              description: "客户数据平台"
+              aliases: ["segment", "segment io", "segment analytics"]
+              relationships:
+                BELONGS_TO: "数据工程"
+
+    # ==============================================================================
     # 8. DevOps
-    # ======================================================================
+    # ==============================================================================
     - domain: "DevOps"
       subdomains:
         - name: "CI/CD"
@@ -911,6 +2105,18 @@ ontology:
               aliases: ["sentry", "sentry24"]
               relationships:
                 BELONGS_TO: "DevOps"
+            - name: "监控告警"
+              type: hard_skill
+              description: "系统监控与告警体系"
+              aliases: ["监控告警", "monitoring and alerting", "监控 告警", "alerting", "监控体系"]
+              relationships:
+                BELONGS_TO: "DevOps"
+            - name: "日志分析"
+              type: hard_skill
+              description: "日志采集与分析"
+              aliases: ["日志分析", "log analysis", "日志 分析", "log analytics", "日志处理"]
+              relationships:
+                BELONGS_TO: "DevOps"
 
         - name: "代码管理"
           skills:
@@ -930,9 +2136,9 @@ ontology:
               relationships:
                 BELONGS_TO: "DevOps"
 
-    # ======================================================================
+    # ==============================================================================
     # 9. 安全 / Security
-    # ======================================================================
+    # ==============================================================================
     - domain: "安全"
       subdomains:
         - name: "Web安全"
@@ -955,6 +2161,18 @@ ontology:
               aliases: ["web安全", "web security", "websec"]
               relationships:
                 BELONGS_TO: "安全"
+            - name: "XSS"
+              type: hard_skill
+              description: "跨站脚本攻击与防御"
+              aliases: ["xss", "cross-site scripting", "cross site scripting", "跨站脚本"]
+              relationships:
+                BELONGS_TO: "安全"
+            - name: "SQL注入"
+              type: hard_skill
+              description: "SQL注入攻击与防御"
+              aliases: ["sql注入", "sql injection", "sql 注入", "sqli"]
+              relationships:
+                BELONGS_TO: "安全"
 
         - name: "渗透测试"
           skills:
@@ -962,6 +2180,36 @@ ontology:
               type: hard_skill
               description: "渗透测试"
               aliases: ["penetration testing", "pentest", "pen testing", "渗透测试"]
+              relationships:
+                BELONGS_TO: "安全"
+            - name: "CTF"
+              type: hard_skill
+              description: "夺旗赛安全竞赛"
+              aliases: ["ctf", "capture the flag", "ctf竞赛", "ctf competition"]
+              relationships:
+                BELONGS_TO: "安全"
+            - name: "逆向工程"
+              type: hard_skill
+              description: "软件逆向分析"
+              aliases: ["逆向工程", "reverse engineering", "逆向 工程", "逆向分析", "reverse engineering analysis"]
+              relationships:
+                BELONGS_TO: "安全"
+            - name: "Burp Suite"
+              type: tool
+              description: "Web安全测试平台"
+              aliases: ["burp suite", "burp", "burpsuite"]
+              relationships:
+                BELONGS_TO: "安全"
+            - name: "Metasploit"
+              type: tool
+              description: "渗透测试框架"
+              aliases: ["metasploit", "metasploit framework", "msf"]
+              relationships:
+                BELONGS_TO: "安全"
+            - name: "Nmap"
+              type: tool
+              description: "网络扫描工具"
+              aliases: ["nmap", "nmap scanner", "network mapper"]
               relationships:
                 BELONGS_TO: "安全"
 
@@ -976,7 +2224,7 @@ ontology:
             - name: "Zero Trust"
               type: hard_skill
               description: "零信任安全架构"
-              aliases: ["zero trust", "zero trust architecture"]
+              aliases: ["zero trust", "zero trust architecture", "零信任"]
               relationships:
                 BELONGS_TO: "安全"
 
@@ -985,7 +2233,7 @@ ontology:
             - name: "PKI"
               type: hard_skill
               description: "公钥基础设施"
-              aliases: ["pki", "public key infrastructure"]
+              aliases: ["pki", "public key infrastructure", "密码学", "cryptography"]
               relationships:
                 BELONGS_TO: "安全"
 
@@ -994,7 +2242,28 @@ ontology:
             - name: "Cloud Security"
               type: hard_skill
               description: "云安全"
-              aliases: ["cloud security", "cloudsec"]
+              aliases: ["cloud security", "cloudsec", "云安全"]
+              relationships:
+                BELONGS_TO: "安全"
+
+        - name: "网络安全"
+          skills:
+            - name: "网络安全"
+              type: hard_skill
+              description: "网络层安全防护"
+              aliases: ["网络安全", "network security", "网络 安全", "netsec"]
+              relationships:
+                BELONGS_TO: "安全"
+            - name: "防火墙"
+              type: hard_skill
+              description: "网络防火墙技术"
+              aliases: ["防火墙", "firewall", "防火 墙", "network firewall", "next generation firewall", "ngfw"]
+              relationships:
+                BELONGS_TO: "安全"
+            - name: "Wireshark"
+              type: tool
+              description: "网络协议分析工具"
+              aliases: ["wireshark", "wireshark capture", "network analyzer", "packet capture"]
               relationships:
                 BELONGS_TO: "安全"
 
@@ -1013,9 +2282,27 @@ ontology:
               relationships:
                 BELONGS_TO: "安全"
 
-    # ======================================================================
+        - name: "安全认证"
+          skills:
+            - name: "CISSP"
+              type: certificate
+              description: "信息系统安全专业认证"
+              aliases: ["cissp", "certified information systems security professional"]
+              relationships:
+                BELONGS_TO: "安全"
+
+        - name: "数据安全"
+          skills:
+            - name: "反爬"
+              type: hard_skill
+              description: "反爬虫技术与策略"
+              aliases: ["反爬", "anti-crawler", "反爬虫", "anti-scraping", "反爬策略"]
+              relationships:
+                BELONGS_TO: "安全"
+
+    # ==============================================================================
     # 10. 移动开发 / Mobile Development
-    # ======================================================================
+    # ==============================================================================
     - domain: "移动开发"
       subdomains:
         - name: "Android"
@@ -1042,6 +2329,12 @@ ontology:
               type: hard_skill
               description: "Android本地数据库"
               aliases: ["room", "room database", "android room"]
+              relationships:
+                BELONGS_TO: "移动开发"
+            - name: "Dagger"
+              type: hard_skill
+              description: "Android依赖注入框架"
+              aliases: ["dagger", "dagger2", "dagger hilt", "hilt", "dagger android"]
               relationships:
                 BELONGS_TO: "移动开发"
 
@@ -1092,10 +2385,46 @@ ontology:
               aliases: ["react native", "rn", "react-native0.73"]
               relationships:
                 BELONGS_TO: "移动开发"
+            - name: "Ionic"
+              type: hard_skill
+              description: "混合移动应用框架"
+              aliases: ["ionic", "ionic framework", "ionic app"]
+              relationships:
+                BELONGS_TO: "移动开发"
+            - name: "Cordova"
+              type: hard_skill
+              description: "混合移动应用平台"
+              aliases: ["cordova", "apache cordova", "phonegap"]
+              relationships:
+                BELONGS_TO: "移动开发"
+            - name: "Capacitor"
+              type: hard_skill
+              description: "跨平台原生运行时"
+              aliases: ["capacitor", "capacitorjs", "ionic capacitor"]
+              relationships:
+                BELONGS_TO: "移动开发"
+            - name: "Xamarin"
+              type: hard_skill
+              description: "跨平台移动开发框架"
+              aliases: ["xamarin", "xamarin forms", "xamarin ios", "xamarin android"]
+              relationships:
+                BELONGS_TO: "移动开发"
+            - name: "Expo"
+              type: hard_skill
+              description: "React Native开发平台"
+              aliases: ["expo", "expo react native", "expo app"]
+              relationships:
+                BELONGS_TO: "移动开发"
+            - name: "NativeScript"
+              type: hard_skill
+              description: "跨平台移动开发框架"
+              aliases: ["nativescript", "native script", "nativescript app"]
+              relationships:
+                BELONGS_TO: "移动发展"
 
-    # ======================================================================
+    # ==============================================================================
     # 11. 测试 / Testing
-    # ======================================================================
+    # ==============================================================================
     - domain: "测试"
       subdomains:
         - name: "测试方法论"
@@ -1143,6 +2472,12 @@ ontology:
               type: tool
               description: "Java单元测试框架"
               aliases: ["junit", "junit5"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "Testing Library"
+              type: tool
+              description: "UI组件测试工具集"
+              aliases: ["testing library", "react testing library", "dom testing library", "@testing-library"]
               relationships:
                 BELONGS_TO: "测试"
 
@@ -1193,10 +2528,85 @@ ontology:
               aliases: ["locust", "locust testing", "locust load testing"]
               relationships:
                 BELONGS_TO: "测试"
+            - name: "API Testing"
+              type: hard_skill
+              description: "API接口测试"
+              aliases: ["api testing", "api test", "接口测试", "api automation testing"]
+              relationships:
+                BELONGS_TO: "测试"
 
-    # ======================================================================
+        - name: "API设计与管理"
+          skills:
+            - name: "API设计"
+              type: hard_skill
+              description: "API接口设计方法论"
+              aliases: ["api设计", "api design", "api 设计", "api接口设计"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "API文档"
+              type: hard_skill
+              description: "API文档编写与管理"
+              aliases: ["api文档", "api documentation", "api 文档", "api docs", "api specification"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "Swagger"
+              type: tool
+              description: "API文档和测试工具"
+              aliases: ["swagger", "swagger ui", "swagger editor", "swagger hub"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "Redoc"
+              type: tool
+              description: "OpenAPI文档生成器"
+              aliases: ["redoc", "redocly", "redoc documentation"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "Stoplight"
+              type: tool
+              description: "API设计和文档平台"
+              aliases: ["stoplight", "stoplight studio", "stoplight prism"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "Insomnia"
+              type: tool
+              description: "API客户端和测试工具"
+              aliases: ["insomnia", "insomnia rest", "insomnia api"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "Hoppscotch"
+              type: tool
+              description: "开源API开发平台"
+              aliases: ["hoppscotch", "hoppscotch api", "hoppscotch io"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "Altair"
+              type: tool
+              description: "GraphQL客户端"
+              aliases: ["altair", "altair graphql", "altair client"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "Voyager"
+              type: tool
+              description: "GraphQL可视化工具"
+              aliases: ["voyager", "graphql voyager", "voyager graphql"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "Prisma Studio"
+              type: tool
+              description: "Prisma可视化数据库管理工具"
+              aliases: ["prisma studio", "prismastudio", "prisma db studio"]
+              relationships:
+                BELONGS_TO: "测试"
+            - name: "PlanetScale CLI"
+              type: tool
+              description: "PlanetScale命令行工具"
+              aliases: ["planetscale cli", "pscale", "planetscale command line"]
+              relationships:
+                BELONGS_TO: "测试"
+
+    # ==============================================================================
     # 12. 项目管理 / Project Management
-    # ======================================================================
+    # ==============================================================================
     - domain: "项目管理"
       subdomains:
         - name: "方法论"
@@ -1219,6 +2629,42 @@ ontology:
               aliases: ["kanban", "kanban board"]
               relationships:
                 BELONGS_TO: "项目管理"
+            - name: "OKR"
+              type: soft_skill
+              description: "目标与关键成果管理"
+              aliases: ["okr", "objectives and key results", "目标与关键成果"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "PRD撰写"
+              type: soft_skill
+              description: "产品需求文档编写"
+              aliases: ["prd撰写", "prd", "prd writing", "product requirements document", "产品需求文档"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "用户故事"
+              type: soft_skill
+              description: "敏捷用户故事编写"
+              aliases: ["用户故事", "user story", "user stories", "故事点"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "竞品分析"
+              type: soft_skill
+              description: "竞争对手产品分析"
+              aliases: ["竞品分析", "competitive analysis", "competitor analysis", "竞争分析"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "数据分析"
+              type: soft_skill
+              description: "数据驱动分析方法"
+              aliases: ["数据分析", "data analysis", "data analytics", "数据 分析"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "A/B测试"
+              type: soft_skill
+              description: "A/B实验与优化"
+              aliases: ["a/b测试", "a/b test", "ab测试", "ab test", "split test", "a/b testing"]
+              relationships:
+                BELONGS_TO: "项目管理"
 
         - name: "工具"
           skills:
@@ -1234,6 +2680,48 @@ ontology:
               aliases: ["confluence"]
               relationships:
                 BELONGS_TO: "项目管理"
+            - name: "Notion"
+              type: tool
+              description: "协作工作空间工具"
+              aliases: ["notion", "notion.so", "notion workspace"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "Trello"
+              type: tool
+              description: "看板项目管理工具"
+              aliases: ["trello", "trello board", "trello kanban"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "Asana"
+              type: tool
+              description: "工作和项目管理平台"
+              aliases: ["asana", "asana project", "asana task"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "Monday.com"
+              type: tool
+              description: "工作操作系统平台"
+              aliases: ["monday.com", "monday", "monday project"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "Basecamp"
+              type: tool
+              description: "项目管理和团队协作工具"
+              aliases: ["basecamp", "basecamp project", "basecamp 3"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "Linear"
+              type: tool
+              description: "问题跟踪和项目管理工具"
+              aliases: ["linear", "linear app", "linear issue"]
+              relationships:
+                BELONGS_TO: "项目管理"
+            - name: "ClickUp"
+              type: tool
+              description: "一体化工作管理平台"
+              aliases: ["clickup", "click up", "clickup project"]
+              relationships:
+                BELONGS_TO: "项目管理"
 
         - name: "认证"
           skills:
@@ -1244,9 +2732,9 @@ ontology:
               relationships:
                 BELONGS_TO: "项目管理"
 
-    # ======================================================================
+    # ==============================================================================
     # 13. 通用软技能 / General Soft Skills
-    # ======================================================================
+    # ==============================================================================
     - domain: "通用软技能"
       subdomains:
         - name: "管理"
@@ -1269,6 +2757,30 @@ ontology:
               aliases: ["project management", "pm", "project manager", "program management"]
               relationships:
                 BELONGS_TO: "通用软技能"
+            - name: "Technical Writing"
+              type: soft_skill
+              description: "技术文档写作"
+              aliases: ["technical writing", "tech writing", "technical documentation"]
+              relationships:
+                BELONGS_TO: "通用软技能"
+            - name: "Public Speaking"
+              type: soft_skill
+              description: "公众演讲能力"
+              aliases: ["public speaking", "presentation skills", "speaking"]
+              relationships:
+                BELONGS_TO: "通用软技能"
+            - name: "Code Review"
+              type: soft_skill
+              description: "代码审查实践"
+              aliases: ["code review", "code reviews", "peer review"]
+              relationships:
+                BELONGS_TO: "通用软技能"
+            - name: "Pair Programming"
+              type: soft_skill
+              description: "结对编程"
+              aliases: ["pair programming", "pairing", "pair programming practice"]
+              relationships:
+                BELONGS_TO: "通用软技能"
 
         - name: "设计"
           skills:
@@ -1278,10 +2790,16 @@ ontology:
               aliases: ["产品设计", "产品 设计", "product design"]
               relationships:
                 BELONGS_TO: "通用软技能"
+            - name: "B端产品"
+              type: soft_skill
+              description: "企业级产品设计"
+              aliases: ["b端产品", "b端 产品", "b2b product", "enterprise product", "企业级产品"]
+              relationships:
+                BELONGS_TO: "通用软技能"
             - name: "用户调研"
               type: soft_skill
               description: "用户研究与调研"
-              aliases: ["用户调研", "用户 调研", "user research"]
+              aliases: ["用户调研", "用户 调研", "user research", "用户研究"]
               relationships:
                 BELONGS_TO: "通用软技能"
             - name: "技术写作"
@@ -1317,3 +2835,611 @@ ontology:
               aliases: ["system design", "system architecture", "architecture design", "software architecture", "distributed systems"]
               relationships:
                 BELONGS_TO: "通用软技能"
+
+    # ==============================================================================
+    # 14. 图形学 / Computer Graphics
+    # ==============================================================================
+    - domain: "图形学"
+      subdomains:
+        - name: "基础"
+          skills:
+            - name: "3D数学"
+              type: hard_skill
+              description: "3D图形数学基础"
+              aliases: ["3d数学", "3d math", "3d数学基础", "linear algebra for graphics", "3d数学"]
+              relationships:
+                BELONGS_TO: "图形学"
+            - name: "图形学"
+              type: hard_skill
+              description: "计算机图形学原理"
+              aliases: ["图形学", "computer graphics", "cg", "计算机图形学"]
+              relationships:
+                BELONGS_TO: "图形学"
+
+    # ==============================================================================
+    # 15. 网络 / Networking
+    # ==============================================================================
+    - domain: "网络"
+      subdomains:
+        - name: "网络编程"
+          skills:
+            - name: "网络编程"
+              type: hard_skill
+              description: "网络应用开发"
+              aliases: ["网络编程", "network programming", "网络 编程", "socket programming"]
+              relationships:
+                BELONGS_TO: "网络"
+            - name: "网络协议"
+              type: hard_skill
+              description: "网络通信协议"
+              aliases: ["网络协议", "network protocols", "网络 协议", "tcp/ip", "protocol design"]
+              relationships:
+                BELONGS_TO: "网络"
+
+    # ==============================================================================
+    # 16. 嵌入式 / Embedded Systems
+    # ==============================================================================
+    - domain: "嵌入式"
+      subdomains:
+        - name: "嵌入式系统"
+          skills:
+            - name: "嵌入式系统"
+              type: hard_skill
+              description: "嵌入式系统开发"
+              aliases: ["嵌入式系统", "embedded systems", "嵌入式 系统", "embedded development"]
+              relationships:
+                BELONGS_TO: "嵌入式"
+            - name: "FPGA"
+              type: hard_skill
+              description: "现场可编程门阵列"
+              aliases: ["fpga", "field programmable gate array", "fpga开发", "verilog", "hdl"]
+              relationships:
+                BELONGS_TO: "嵌入式"
+            - name: "传感器技术"
+              type: hard_skill
+              description: "传感器原理与应用"
+              aliases: ["传感器技术", "sensor technology", "传感器 技术", "sensor design"]
+              relationships:
+                BELONGS_TO: "嵌入式"
+            - name: "传感器融合"
+              type: hard_skill
+              description: "多传感器数据融合"
+              aliases: ["传感器融合", "sensor fusion", "传感器 融合", "multi-sensor fusion"]
+              relationships:
+                BELONGS_TO: "嵌入式"
+            - name: "5G"
+              type: hard_skill
+              description: "第五代移动通信技术"
+              aliases: ["5g", "5g通信", "5g technology", "fifth generation"]
+              relationships:
+                BELONGS_TO: "嵌入式"
+            - name: "MQTT"
+              type: hard_skill
+              description: "物联网消息传输协议"
+              aliases: ["mqtt", "message queuing telemetry transport", "mqtt5", "mqtt protocol"]
+              relationships:
+                BELONGS_TO: "嵌入式"
+
+    # ==============================================================================
+    # 17. SAP/企业应用 / SAP & Enterprise Applications
+    # ==============================================================================
+    - domain: "SAP/企业应用"
+      subdomains:
+        - name: "SAP核心"
+          skills:
+            - name: "SAP S/4HANA"
+              type: hard_skill
+              description: "SAP下一代ERP套件"
+              aliases: ["sap s/4hana", "s/4hana", "sap s4hana", "sap erp"]
+              relationships:
+                BELONGS_TO: "SAP/企业应用"
+            - name: "SAP Fiori"
+              type: hard_skill
+              description: "SAP现代化用户界面"
+              aliases: ["sap fiori", "fiori", "sap fiori elements", "fiori apps"]
+              relationships:
+                BELONGS_TO: "SAP/企业应用"
+            - name: "CDS视图"
+              type: hard_skill
+              description: "SAP核心数据服务视图"
+              aliases: ["cds视图", "cds view", "core data services", "cds", "abap cds"]
+              relationships:
+                BELONGS_TO: "SAP/企业应用"
+
+        - name: "SAP集成与平台"
+          skills:
+            - name: "SAP CPI"
+              type: hard_skill
+              description: "SAP云平台集成"
+              aliases: ["sap cpi", "cloud platform integration", "sap integration suite", "cpi"]
+              relationships:
+                BELONGS_TO: "SAP/企业应用"
+            - name: "BTP"
+              type: hard_skill
+              description: "SAP业务技术平台"
+              aliases: ["btp", "sap btp", "business technology platform", "sap business technology platform"]
+              relationships:
+                BELONGS_TO: "SAP/企业应用"
+
+    # ==============================================================================
+    # 18. 区块链 / Blockchain
+    # ==============================================================================
+    - domain: "区块链"
+      subdomains:
+        - name: "DeFi"
+          skills:
+            - name: "DeFi"
+              type: hard_skill
+              description: "去中心化金融"
+              aliases: ["defi", "decentralized finance", "去中心化金融", "decentralized financial"]
+              relationships:
+                BELONGS_TO: "区块链"
+
+        - name: "安全"
+          skills:
+            - name: "智能合约审计"
+              type: hard_skill
+              description: "智能合约安全审计"
+              aliases: ["智能合约审计", "smart contract audit", "智能合约 审计", "contract security audit"]
+              relationships:
+                BELONGS_TO: "区块链"
+
+        - name: "Web3"
+          skills:
+            - name: "Ethereum"
+              type: hard_skill
+              description: "去中心化应用平台"
+              aliases: ["ethereum", "eth", "ethereum blockchain", "ethereum network"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Solidity"
+              type: hard_skill
+              description: "以太坊智能合约语言"
+              aliases: ["solidity", "solidity language", "solidity programming"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Web3.js"
+              type: hard_skill
+              description: "以太坊JavaScript API"
+              aliases: ["web3.js", "web3js", "web3 javascript"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Ethers.js"
+              type: hard_skill
+              description: "以太坊JavaScript库"
+              aliases: ["ethers.js", "ethersjs", "ethers"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Hardhat"
+              type: hard_skill
+              description: "以太坊开发环境"
+              aliases: ["hardhat", "hardhat ethereum", "hardhat js"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Truffle"
+              type: hard_skill
+              description: "以太坊开发框架"
+              aliases: ["truffle", "truffle suite", "truffle framework"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Foundry"
+              type: hard_skill
+              description: "以太坊快速开发工具包"
+              aliases: ["foundry", "foundry ethereum", "foundry rust"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "IPFS"
+              type: hard_skill
+              description: "星际文件系统"
+              aliases: ["ipfs", "interplanetary file system", "ipfs protocol"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Filecoin"
+              type: hard_skill
+              description: "去中心化存储网络"
+              aliases: ["filecoin", "filecoin storage", "filecoin network"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Arweave"
+              type: hard_skill
+              description: "永久存储协议"
+              aliases: ["arweave", "arweave storage", "arweave protocol"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Chainlink"
+              type: hard_skill
+              description: "去中心化预言机网络"
+              aliases: ["chainlink", "chainlink oracle", "link token"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "The Graph"
+              type: hard_skill
+              description: "去中心化索引协议"
+              aliases: ["the graph", "graph protocol", "graph indexing"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Polygon"
+              type: hard_skill
+              description: "以太坊扩展解决方案"
+              aliases: ["polygon", "polygon matic", "polygon network"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Solana"
+              type: hard_skill
+              description: "高性能区块链"
+              aliases: ["solana", "solana blockchain", "solana network"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Polkadot"
+              type: hard_skill
+              description: "多链互操作协议"
+              aliases: ["polkadot", "polkadot network", "polkadot blockchain"]
+              relationships:
+                BELONGS_TO: "区块链"
+            - name: "Cosmos"
+              type: hard_skill
+              description: "区块链互操作网络"
+              aliases: ["cosmos", "cosmos network", "cosmos blockchain"]
+              relationships:
+                BELONGS_TO: "区块链"
+
+    # ==============================================================================
+    # 19. 机器人 / Robotics
+    # ==============================================================================
+    - domain: "机器人"
+      subdomains:
+        - name: "框架"
+          skills:
+            - name: "ROS"
+              type: hard_skill
+              description: "机器人操作系统"
+              aliases: ["ros", "robot operating system", "ros2", "ros noetic"]
+              relationships:
+                BELONGS_TO: "机器人"
+            - name: "SLAM"
+              type: hard_skill
+              description: "同步定位与地图构建"
+              aliases: ["slam", "simultaneous localization and mapping", "视觉slam", "lidar slam"]
+              relationships:
+                BELONGS_TO: "机器人"
+
+    # ==============================================================================
+    # 20. 增长/运营 / Growth & Operations
+    # ==============================================================================
+    - domain: "增长/运营"
+      subdomains:
+        - name: "增长"
+          skills:
+            - name: "Growth Hacking"
+              type: hard_skill
+              description: "增长黑客方法论"
+              aliases: ["growth hacking", "growth hack", "增长黑客", "growth marketing"]
+              relationships:
+                BELONGS_TO: "增长/运营"
+
+    # ==============================================================================
+    # 21. 云服务 / Cloud Services
+    # ==============================================================================
+    - domain: "云服务"
+      subdomains:
+        - name: "Serverless"
+          skills:
+            - name: "AWS Lambda"
+              type: hard_skill
+              description: "AWS无服务器计算服务"
+              aliases: ["aws lambda", "lambda", "amazon lambda"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Azure Functions"
+              type: hard_skill
+              description: "Azure无服务器计算服务"
+              aliases: ["azure functions", "azure function", "microsoft azure functions"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Google Cloud Functions"
+              type: hard_skill
+              description: "Google Cloud无服务器函数"
+              aliases: ["google cloud functions", "gcf", "cloud functions"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Cloudflare Workers"
+              type: hard_skill
+              description: "Cloudflare边缘无服务器平台"
+              aliases: ["cloudflare workers", "cf workers", "cloudflare worker"]
+              relationships:
+                BELONGS_TO: "云服务"
+
+        - name: "部署平台"
+          skills:
+            - name: "Vercel"
+              type: hard_skill
+              description: "前端部署和托管平台"
+              aliases: ["vercel", "vercel deploy", "vercel hosting"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Netlify"
+              type: hard_skill
+              description: "静态网站托管和部署平台"
+              aliases: ["netlify", "netlify deploy", "netlify hosting"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Heroku"
+              type: hard_skill
+              description: "云平台即服务"
+              aliases: ["heroku", "heroku app", "heroku platform"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "DigitalOcean"
+              type: hard_skill
+              description: "云基础设施平台"
+              aliases: ["digitalocean", "digital ocean", "digitalocean cloud"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Linode"
+              type: hard_skill
+              description: "云主机和基础设施平台"
+              aliases: ["linode", "linode cloud", "linode vps"]
+              relationships:
+                BELONGS_TO: "云服务"
+
+        - name: "AWS核心服务"
+          skills:
+            - name: "AWS EC2"
+              type: hard_skill
+              description: "AWS弹性计算云"
+              aliases: ["aws ec2", "ec2", "amazon ec2", "elastic compute cloud"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "AWS S3"
+              type: hard_skill
+              description: "AWS简单存储服务"
+              aliases: ["aws s3", "s3", "amazon s3", "simple storage service"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "AWS RDS"
+              type: hard_skill
+              description: "AWS关系型数据库服务"
+              aliases: ["aws rds", "rds", "amazon rds", "relational database service"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "AWS ECS"
+              type: hard_skill
+              description: "AWS容器编排服务"
+              aliases: ["aws ecs", "ecs", "amazon ecs", "elastic container service"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "AWS EKS"
+              type: hard_skill
+              description: "AWS Kubernetes服务"
+              aliases: ["aws eks", "eks", "amazon eks", "elastic kubernetes service"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Azure AKS"
+              type: hard_skill
+              description: "Azure Kubernetes服务"
+              aliases: ["azure aks", "aks", "azure kubernetes service"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Google GKE"
+              type: hard_skill
+              description: "Google Kubernetes引擎"
+              aliases: ["google gke", "gke", "google kubernetes engine"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Firebase"
+              type: hard_skill
+              description: "Google移动和Web应用平台"
+              aliases: ["firebase", "firebase google", "firebase app"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Supabase"
+              type: hard_skill
+              description: "开源Firebase替代方案"
+              aliases: ["supabase", "supabase db", "supabase database"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Auth0"
+              type: hard_skill
+              description: "身份认证平台"
+              aliases: ["auth0", "auth0 authentication", "auth0 identity"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Okta"
+              type: hard_skill
+              description: "身份和访问管理平台"
+              aliases: ["okta", "okta identity", "okta authentication"]
+              relationships:
+                BELONGS_TO: "云服务"
+            - name: "Keycloak"
+              type: hard_skill
+              description: "开源身份和访问管理"
+              aliases: ["keycloak", "keycloak auth", "keycloak identity"]
+              relationships:
+                BELONGS_TO: "云服务"
+
+    # ==============================================================================
+    # 22. 游戏开发 / Game Development
+    # ==============================================================================
+    - domain: "游戏开发"
+      subdomains:
+        - name: "游戏引擎"
+          skills:
+            - name: "Unity"
+              type: hard_skill
+              description: "跨平台游戏引擎"
+              aliases: ["unity", "unity3d", "unity engine", "unity 2023"]
+              relationships:
+                BELONGS_TO: "游戏开发"
+            - name: "Unreal Engine"
+              type: hard_skill
+              description: "虚幻游戏引擎"
+              aliases: ["unreal engine", "unreal", "ue4", "ue5", "unreal engine 5"]
+              relationships:
+                BELONGS_TO: "游戏开发"
+            - name: "Godot"
+              type: hard_skill
+              description: "开源游戏引擎"
+              aliases: ["godot", "godot engine", "godot 4"]
+              relationships:
+                BELONGS_TO: "游戏开发"
+            - name: "Cocos2d"
+              type: hard_skill
+              description: "2D游戏开发框架"
+              aliases: ["cocos2d", "cocos", "cocos2d-x", "cocos creator"]
+              relationships:
+                BELONGS_TO: "游戏开发"
+            - name: "Phaser"
+              type: hard_skill
+              description: "HTML5游戏框架"
+              aliases: ["phaser", "phaser.js", "phaser game", "phaser3"]
+              relationships:
+                BELONGS_TO: "游戏开发"
+            - name: "PixiJS"
+              type: hard_skill
+              description: "2D WebGL渲染引擎"
+              aliases: ["pixijs", "pixi.js", "pixi", "pixi webgl"]
+              relationships:
+                BELONGS_TO: "游戏开发"
+            - name: "GameMaker"
+              type: hard_skill
+              description: "游戏开发引擎"
+              aliases: ["gamemaker", "gamemaker studio", "gamemaker engine"]
+              relationships:
+                BELONGS_TO: "游戏开发"
+            - name: "RPG Maker"
+              type: hard_skill
+              description: "RPG游戏制作工具"
+              aliases: ["rpg maker", "rpgmaker", "rpg maker mv"]
+              relationships:
+                BELONGS_TO: "游戏开发"
+
+    # ==============================================================================
+    # 23. 设计/创意 / Design & Creative
+    # ==============================================================================
+    - domain: "设计/创意"
+      subdomains:
+        - name: "UI/UX设计"
+          skills:
+            - name: "Figma"
+              type: tool
+              description: "协作式界面设计工具"
+              aliases: ["figma", "figma design", "figma ui"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "Sketch"
+              type: tool
+              description: "Mac界面设计工具"
+              aliases: ["sketch", "sketch app", "sketch design"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "Adobe XD"
+              type: tool
+              description: "用户体验设计工具"
+              aliases: ["adobe xd", "xd", "adobe experience design"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+
+        - name: "图像处理"
+          skills:
+            - name: "Photoshop"
+              type: tool
+              description: "图像编辑和处理软件"
+              aliases: ["photoshop", "adobe photoshop", "ps", "photoshop cc"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "Illustrator"
+              type: tool
+              description: "矢量图形设计软件"
+              aliases: ["illustrator", "adobe illustrator", "ai", "illustrator cc"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+
+        - name: "视频制作"
+          skills:
+            - name: "After Effects"
+              type: tool
+              description: "动态图形和视觉效果软件"
+              aliases: ["after effects", "ae", "adobe after effects"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "Premiere Pro"
+              type: tool
+              description: "视频编辑软件"
+              aliases: ["premiere pro", "premiere", "adobe premiere", "pr"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+
+        - name: "3D建模"
+          skills:
+            - name: "Blender"
+              type: tool
+              description: "开源3D创作套件"
+              aliases: ["blender", "blender 3d", "blender3d"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "Maya"
+              type: tool
+              description: "3D计算机图形软件"
+              aliases: ["maya", "autodesk maya", "maya 3d"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "3ds Max"
+              type: tool
+              description: "3D建模和渲染软件"
+              aliases: ["3ds max", "3dsmax", "3d studio max", "autodesk 3ds max"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "Cinema 4D"
+              type: tool
+              description: "3D建模和动画软件"
+              aliases: ["cinema 4d", "c4d", "cinema4d", "maxon cinema 4d"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "ZBrush"
+              type: tool
+              description: "数字雕刻和绘画软件"
+              aliases: ["zbrush", "z brush", "pixologic zbrush"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "Substance Painter"
+              type: tool
+              description: "3D纹理绘制软件"
+              aliases: ["substance painter", "substance", "adobe substance painter"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "InDesign"
+              type: tool
+              description: "排版和出版设计软件"
+              aliases: ["indesign", "adobe indesign", "indesign cc"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+            - name: "Lightroom"
+              type: tool
+              description: "照片编辑和管理软件"
+              aliases: ["lightroom", "adobe lightroom", "lightroom cc"]
+              relationships:
+                BELONGS_TO: "设计/创意"
+
+    # ==============================================================================
+    # 24. Jupyter / Notebook Tools
+    # ==============================================================================
+    - domain: "Jupyter"
+      subdomains:
+        - name: "Notebook环境"
+          skills:
+            - name: "Jupyter"
+              type: tool
+              description: "交互式计算笔记本"
+              aliases: ["jupyter", "jupyter notebook", "jupyter lab", "jupyterhub"]
+              relationships:
+                BELONGS_TO: "Jupyter"
+            - name: "Zeppelin"
+              type: tool
+              description: "基于Web的笔记本和数据分析工具"
+              aliases: ["zeppelin", "apache zeppelin", "zeppelin notebook"]
+              relationships:
+                BELONGS_TO: "Jupyter"
+
+    # ==============================================================================
+    # 25-47: 保留扩展区域 (Empty placeholder domains for future expansion)
+    # ==============================================================================

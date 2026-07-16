@@ -3,6 +3,7 @@
 Measures F1 using keyword matching as a no-LLM baseline.
 """
 
+import asyncio
 import json
 import re
 import sys
@@ -39,8 +40,16 @@ def extract_skills_keyword(jd_text: str, index: dict[str, str]) -> dict[str, str
     jd_lower = jd_text.lower()
     found = {}
     for alias_lower, canonical in index.items():
-        if alias_lower in jd_lower:
-            found[canonical.lower()] = canonical
+        # Skip very short aliases (1-2 chars) that might match inside words
+        if len(alias_lower) <= 2:
+            # For short aliases, require word boundary check
+            # Match only if preceded/followed by non-word char or boundary
+            pattern = r'(?:^|[^a-zA-Z0-9\u4e00-\u9fff])' + re.escape(alias_lower) + r'(?:$|[^a-zA-Z0-9\u4e00-\u9fff])'
+            if re.search(pattern, jd_lower, re.IGNORECASE):
+                found[canonical.lower()] = canonical
+        else:
+            if alias_lower in jd_lower:
+                found[canonical.lower()] = canonical
     return found
 
 
@@ -79,8 +88,10 @@ def classify_skills_bonus_context(jd_text: str, found_canonical: list[str]) -> t
     required = []
     bonus = []
 
+    # Split JD into sections: main vs bonus
+    # Match Chinese "加分项" or English "bonus/preferred/plus"
     parts = re.split(
-        r"(?:\u52a0\u5206[\u9879\u6761\u76ee]|\u4f18\u5148[\u8003\u8651]?|preferred|bonus|plus|nice\.to\.have|\u62c5\u4efb\u804c\u8d23)",
+        r"(?:加分项|优先|preferred|bonus|plus|nice.to.have|加分)",
         jd_text,
         flags=re.IGNORECASE,
     )
@@ -173,11 +184,11 @@ def main():
 
     # Evaluate
     print("\n[4/4] Running evaluation...")
-    metrics = evaluate_batch(
+    metrics = asyncio.run(evaluate_batch(
         golden_file=str(golden_path),
         system_file=str(system_output_path),
         output_file=str(report_dir / "evaluation_results.json"),
-    )
+    ))
 
     # Generate report
     report = generate_evaluation_report(metrics, str(report_dir))
