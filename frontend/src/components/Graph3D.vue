@@ -10,7 +10,7 @@
  * - Camera presets, auto-rotate, FPS counter
  * - Hover tooltip via NodeTooltip3D
  */
-import { ref, onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue'
 import { nodeColor, edgeColor, withAlpha, SCENE_PALETTE } from '@/utils/graphColors'
 import NodeTooltip3D from './NodeTooltip3D.vue'
 import { Loading } from '@element-plus/icons-vue'
@@ -44,6 +44,9 @@ const props = withDefaults(defineProps<{
   showEvolution?: boolean
   evolutionPaths?: GraphLink3D[]
   currentDomainId?: string | null
+  opacity?: number
+  startAutoRotate?: boolean
+  maxNodes?: number
 }>(), {
   width: 800,
   height: 600,
@@ -51,6 +54,9 @@ const props = withDefaults(defineProps<{
   showEvolution: false,
   evolutionPaths: () => [],
   currentDomainId: null,
+  opacity: 1,
+  startAutoRotate: false,
+  maxNodes: 0,
 })
 
 const emit = defineEmits<{
@@ -76,6 +82,18 @@ const tooltipVisible = ref(false)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const graphInstance = shallowRef<any>(null)
+
+// UX-02: Limit nodes/links when maxNodes is set (for background mode)
+const limitedNodes = computed(() =>
+  props.maxNodes > 0 && props.nodes.length > props.maxNodes
+    ? props.nodes.slice(0, props.maxNodes)
+    : props.nodes,
+)
+const limitedLinks = computed(() => {
+  if (props.maxNodes <= 0 || props.nodes.length <= props.maxNodes) return props.links
+  const nodeIds = new Set(limitedNodes.value.map(n => n.id))
+  return props.links.filter(l => nodeIds.has(l.source as string) && nodeIds.has(l.target as string))
+})
 
 // ── Camera presets composable ──
 const { autoRotate, setCameraPreset, resetCamera, toggleAutoRotate, clearAutoRotateTimer } = useCameraPresets(
@@ -109,7 +127,7 @@ async function initGraph() {
   const container = containerRef.value
   const w = container.clientWidth || props.width
   const h = container.clientHeight || props.height
-  const nodeCount = props.nodes.length
+  const nodeCount = limitedNodes.value.length
   const cfg = calcForceConfig(nodeCount)
 
   const graph = new ForceGraph3D(container)
@@ -228,7 +246,7 @@ async function initGraph() {
   })
 
   graphInstance.value = graph
-  graph.graphData({ nodes: props.nodes, links: props.links })
+  graph.graphData({ nodes: limitedNodes.value, links: limitedLinks.value })
   isReady.value = true
 }
 
@@ -252,8 +270,8 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   const graph = graphInstance.value
   if (!graph) { if (props.nodes.length > 0) initGraph(); return }
 
-  const nodeCount = props.nodes.length
-  const composedLinks = composeEvolutionLinks(props.links, props.evolutionPaths, props.nodes, props.showEvolution)
+  const nodeCount = limitedNodes.value.length
+  const composedLinks = composeEvolutionLinks(limitedLinks.value, props.evolutionPaths, limitedNodes.value, props.showEvolution)
 
   // 保存旧节点的位置映射，用于为相同 ID 的新节点提供初始位置
   const oldNodes: GraphNode3D[] = graph.graphData().nodes
@@ -264,7 +282,7 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
     }
   }
   // 为新数据中没有位置信息的节点，从旧位置映射中继承位置
-  for (const n of props.nodes) {
+  for (const n of limitedNodes.value) {
     if (n.x === undefined || n.y === undefined || n.z === undefined) {
       const oldPos = posMap.get(String(n.id))
       if (oldPos) {
@@ -275,7 +293,7 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
     }
   }
 
-  graph.graphData({ nodes: props.nodes, links: composedLinks })
+  graph.graphData({ nodes: limitedNodes.value, links: composedLinks })
   graph.nodeThreeObject(buildNodeThreeObject)
   applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, false)
 
@@ -311,6 +329,12 @@ function handleResize() {
 onMounted(async () => {
   await nextTick()
   try { await initGraph() } catch { webglSupported.value = false; return }
+  // UX-02: start autoRotate if prop is set (e.g. Login background)
+  if (props.startAutoRotate) {
+    autoRotate.value = true
+    const controls = (graphInstance.value as any)?._controls
+    if (controls) { controls.autoRotate = true; controls.autoRotateSpeed = 0.8 }
+  }
   measureFPS()
   window.addEventListener('resize', handleResize)
 })
@@ -338,7 +362,7 @@ defineExpose({ setCameraPreset, resetCamera, toggleAutoRotate: _toggleAutoRotate
 </script>
 
 <template>
-  <div class="graph3d-wrapper">
+  <div class="graph3d-wrapper" :style="{ opacity: props.opacity }">
     <!-- WebGL not supported fallback -->
     <div v-if="!webglSupported" class="webgl-fallback">
       <div class="fallback-icon">

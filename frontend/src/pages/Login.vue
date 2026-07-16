@@ -1,23 +1,39 @@
 <script setup lang="ts">
 /**
- * 登录页面 — Phase DB-AUTH 双 token 登录
+ * 登录页面 — Phase DB-AUTH 双 token 登录 + UX-02 3D 背景
  *
  * POST /auth/login → { access_token, refresh_token, expires_in, user }
  *  - access_token 短期 (15 min)，refresh_token 长期 (7 d)
  *  - 401 = 用户名/密码错误；423 = 锁定；403 = 禁用
+ *  - UX-02: Graph3D auto-rotate 背景 (opacity=0.25, maxNodes=150)
+ *           登录成功后 opacity 0.25→1.0 过渡动画
  */
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { useGraphStore } from '@/stores/graph'
+import { useGraph3DData } from '@/composables/home/useGraph3DData'
+import Graph3D from '@/components/Graph3D.vue'
 import request from '@/api/request'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const graphStore = useGraphStore()
+const { graph3DNodes, graph3DLinks } = useGraph3DData()
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
+const loginSuccess = ref(false)
+
+// UX-02: 3D background data — use useGraph3DData for proper color/label mapping
+const bgOpacity = computed(() => loginSuccess.value ? 1 : 0.25)
+
+// Load graph overview data for 3D background
+onMounted(() => {
+  graphStore.fetchOverview().catch(() => { /* best-effort; background is decorative */ })
+})
 
 const isDev = import.meta.env.DEV
 
@@ -60,13 +76,18 @@ async function handleLogin() {
     })
     ElMessage.success('登录成功')
 
-    // Special UX: if password rotation required, force to a /change-password page.
-    if (data.user.must_change_password) {
-      router.push('/change-password?forced=1')
-      return
-    }
-    const redirect = (route.query.redirect as string) || '/'
-    router.push(redirect)
+    // UX-02: transition animation — opacity 0.25→1.0 (300ms)
+    loginSuccess.value = true
+
+    // Delay navigation to show the transition
+    setTimeout(() => {
+      if (data.user.must_change_password) {
+        router.push('/change-password?forced=1')
+        return
+      }
+      const redirect = (route.query.redirect as string) || '/'
+      router.push(redirect)
+    }, 400)
   } catch (e: unknown) {
     const err = e as { response?: { status?: number; data?: { detail?: string } } }
     const status = err?.response?.status
@@ -83,7 +104,20 @@ async function handleLogin() {
 
 <template>
   <div class="login-page">
-    <div class="login-card">
+    <!-- UX-02: 3D Graph background -->
+    <div class="login-bg-3d">
+      <Graph3D
+        v-if="graph3DNodes.length > 0"
+        :nodes="graph3DNodes"
+        :links="graph3DLinks"
+        :opacity="bgOpacity"
+        :start-auto-rotate="true"
+        :max-nodes="150"
+      />
+    </div>
+
+    <!-- Login card with glass effect -->
+    <div class="login-card" :class="{ 'login-card--success': loginSuccess }">
       <h2 class="login-title">⭐ StarMap 星图</h2>
       <p class="login-subtitle">人才能力星云导航系统</p>
       <el-form @submit.prevent="handleLogin" class="login-form">
@@ -129,40 +163,68 @@ async function handleLogin() {
 
 <style scoped>
 .login-page {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: var(--el-bg-color);
+  background: #0a0e1a;
+  overflow: hidden;
 }
+
+/* UX-02: 3D background layer */
+.login-bg-3d {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  transition: opacity 300ms ease-out;
+  pointer-events: none;
+}
+
+/* Glass card overlay */
 .login-card {
+  position: relative;
+  z-index: 1;
   width: 400px;
   padding: 40px;
-  border-radius: 12px;
-  background: var(--el-bg-color-page);
-  box-shadow: var(--el-box-shadow-light);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
 }
+.login-card--success {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.95);
+}
+
 .login-title {
   text-align: center;
   margin-bottom: 8px;
   font-size: 24px;
-  color: var(--el-text-color-primary);
+  color: #fff;
 }
 .login-subtitle {
   text-align: center;
   margin-bottom: 32px;
-  color: var(--el-text-color-secondary);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 14px;
 }
 .login-hint {
   text-align: center;
-  color: var(--el-text-color-placeholder);
+  color: rgba(255, 255, 255, 0.3);
   font-size: 12px;
   margin-top: -8px;
 }
 .login-hint code {
-  background: var(--el-fill-color-light);
+  background: rgba(255, 255, 255, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
+  color: rgba(255, 255, 255, 0.5);
 }
 </style>
