@@ -17,6 +17,7 @@ export interface QualityMetrics {
   total_edges: number
   total_positions: number
   total_skills: number
+  total_extractions: number
   hallucination_rate: number
   pending_review: number
   avg_trust_score: number
@@ -40,6 +41,7 @@ function defaultMetrics(): QualityMetrics {
     total_edges: 0,
     total_positions: 0,
     total_skills: 0,
+    total_extractions: 0,
     hallucination_rate: 0,
     pending_review: 0,
     avg_trust_score: 0,
