@@ -24,6 +24,21 @@ const gapSkills = computed(() => matchResult.value?.skill_gap_detail ?? [])
 const matchedSkills = computed(() => matchResult.value?.matched_skills ?? [])
 const matchScore = computed(() => matchResult.value?.match_score ?? 0)
 
+// FLOW-02-S3: 分数差值卡片 —— 对比当前匹配分数与历史最近一次同岗位匹配分数
+const previousScore = computed(() => {
+  const currentPosition = props.targetPosition
+  const currentId = matchResult.value?.match_id
+  // Find the most recent history entry for the same position, excluding current
+  const prev = matchStore.historyList.find(
+    (h) => h.target_position === currentPosition && h.match_id !== currentId,
+  )
+  return prev ? prev.match_score ?? null : null
+})
+const scoreDelta = computed(() => {
+  if (previousScore.value === null || !matchScore.value) return null
+  return Math.round((matchScore.value - previousScore.value) * 100)
+})
+
 // 学习路径数据（供导出用）
 const learningPaths = computed(() => {
   return gapSkills.value.map(g => {
@@ -90,6 +105,14 @@ function handleExport() {
           <div class="rs-score">
             <span class="rs-value">{{ Math.round((matchStore.result.match_score ?? 0) * 100) }}</span>
             <span class="rs-unit">%</span>
+          </div>
+          <!-- FLOW-02-S3: 分数差值卡片 -->
+          <div v-if="scoreDelta !== null" class="rs-delta" :class="{ 'rs-delta--up': scoreDelta > 0, 'rs-delta--down': scoreDelta < 0 }">
+            <span class="rs-delta-icon">{{ scoreDelta > 0 ? '↑' : scoreDelta < 0 ? '↓' : '→' }}</span>
+            <span class="rs-delta-text">
+              匹配分数从 {{ Math.round((previousScore ?? 0) * 100) }}% 提升至 {{ Math.round(matchScore * 100) }}%
+            </span>
+            <span class="rs-delta-value">({{ scoreDelta > 0 ? '+' : '' }}{{ scoreDelta }}%)</span>
           </div>
           <div class="rs-detail">
             <div class="rs-row">
@@ -375,6 +398,31 @@ function handleExport() {
   margin-left: var(--space-1);
   font-weight: 600;
 }
+/* FLOW-02-S3: 分数差值卡片 */
+.rs-delta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  margin-top: var(--space-2);
+  animation: fade-in-up 0.4s var(--ease-out);
+}
+.rs-delta--up {
+  background: color-mix(in srgb, var(--success) 10%, var(--card));
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 20%, var(--border));
+}
+.rs-delta--down {
+  background: color-mix(in srgb, var(--danger) 10%, var(--card));
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 20%, var(--border));
+}
+.rs-delta-icon { font-size: var(--font-size-lg); font-weight: 900; }
+.rs-delta-text { color: var(--foreground); font-weight: 500; }
+.rs-delta-value { font-variant-numeric: tabular-nums; }
 .rs-detail { flex: 1; display: flex; flex-direction: column; gap: var(--space-2-5); }
 .rs-row { display: flex; align-items: flex-start; gap: var(--space-3); font-size: var(--font-size-sm); }
 .rs-label { color: var(--muted-foreground); min-width: 80px; flex-shrink: 0; font-weight: 500; }

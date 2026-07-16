@@ -8,11 +8,12 @@
  */
 
 // 技术说明：引入 Vue 3 组合式 API 核心函数
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 // 技术说明：引入 Vue Router 用于页面导航
 import { useRouter } from 'vue-router'
 // 技术说明：引入 Element Plus 图标组件
-import { Guide, DataAnalysis, Clock, Trophy } from '@element-plus/icons-vue'
+import { Guide, DataAnalysis, Clock, Trophy, RefreshRight } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 // 业务说明：主布局组件，提供统一的页面导航和侧边栏
 import MainLayout from '@/layouts/MainLayout.vue'
 // 业务说明：学习路径可视化组件，展示技能之间的依赖关系图
@@ -21,6 +22,8 @@ import LearningPathFlow from '@/components/LearningPathFlow.vue'
 import SkillProgressCard from '@/components/SkillProgressCard.vue'
 // 业务说明：学习中心状态管理 Store，处理学习计划数据、进度更新和推荐逻辑
 import { useLearningStore } from '@/stores/learning'
+import { useUserStore } from '@/stores/user'
+import { useMatchStore } from '@/stores/match'
 // 业务说明：拆分到独立 composable 的指标计算与优先级映射
 import { useLearningMetrics } from '@/composables/useLearningMetrics'
 import { priorityType, priorityLabel } from '@/composables/useLearningPriority'
@@ -32,6 +35,8 @@ import { useLearningFilters } from '@/composables/useLearningFilters'
 const router = useRouter()
 // 业务说明：获取学习中心状态管理实例，统一管理学习计划、推荐和数据加载状态
 const learningStore = useLearningStore()
+const userStore = useUserStore()
+const matchStore = useMatchStore()
 
 // 业务说明：当前激活的学习计划，包含岗位信息、技能列表、整体进度等
 const currentPlan = computed(() => learningStore.currentPlan)
@@ -48,6 +53,35 @@ const { masteredCount, inProgressCount, remainingHours } = useLearningMetrics(cu
 
 // 业务说明：用户操作（更新状态 / 加入计划）
 const { handleUpdateStatus, handleAddToPlan } = useLearningActions(learningStore, currentPlan)
+
+// FLOW-02-S2: 一键重新匹配 —— 使用更新后的 parsedSkills 对当前岗位重新执行匹配
+const rematchLoading = ref(false)
+async function handleRematch() {
+  if (!currentPlan.value?.position) {
+    ElMessage.warning('当前学习计划无目标岗位')
+    return
+  }
+  const skillNames = userStore.parsedSkills
+  if (!skillNames.length) {
+    ElMessage.warning('技能列表为空，请先上传简历或标记已掌握的技能')
+    return
+  }
+  rematchLoading.value = true
+  try {
+    await matchStore.runMatch(currentPlan.value.position, skillNames)
+    // 携带匹配结果跳转到 MatchDiagnosis 第4步（差距分析/学习路径）
+    router.push({ path: '/match', query: { rematch: '1', position: currentPlan.value.position } })
+  } catch {
+    ElMessage.error('重新匹配失败，请重试')
+  } finally {
+    rematchLoading.value = false
+  }
+}
+
+// 业务说明：是否有已掌握的技能（决定是否显示重新匹配按钮）
+const hasMasteredSkills = computed(() =>
+  currentPlan.value ? currentPlan.value.skills.some(s => s.status === 'mastered') : false,
+)
 
 // 业务说明：页面初始化 —— 恢复 localStorage 计划 + 并行加载推荐
 // D-07: 每次打开 LearningCenter 验证 plan_id 有效性
@@ -78,6 +112,17 @@ onMounted(async () => {
           </p>
         </div>
         <div class="header-actions">
+          <!-- FLOW-02-S2: 一键重新匹配 —— 使用更新后的技能列表对目标岗位重新执行匹配诊断 -->
+          <el-button
+            v-if="hasMasteredSkills"
+            type="success"
+            :icon="RefreshRight"
+            size="default"
+            :loading="rematchLoading"
+            @click="handleRematch"
+          >
+            重新匹配
+          </el-button>
           <!-- 业务说明：快捷入口 —— 跳转到匹配诊断页面生成新的学习计划 -->
           <el-button
             type="primary"

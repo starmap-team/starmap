@@ -31,7 +31,7 @@ import { useUserStore } from '@/stores/user'
 import { useResumeStore } from '@/stores/resume'
 import { useMatchStore } from '@/stores/match'
 import { useLearningStore } from '@/stores/learning'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import type { RadarItem } from '@/components/SkillRadar.vue'
 
 const userStore = useUserStore()
@@ -75,6 +75,15 @@ async function handleUpload(file: File) {
 onMounted(async () => {
   await nextTick()
   setAsyncUploader()
+
+  // FLOW-02-S2: 重新匹配跳转 —— 从 LearningCenter 携带 rematch 查询参数
+  // 直接跳到差距分析步骤（step 3），使用已有匹配结果
+  const route = useRoute()
+  if (route.query.rematch === '1' && matchStore.result) {
+    targetPositionName.value = (route.query.position as string) || ''
+    step.value = 3  // 跳到差距分析报告
+    matchStore.fetchHistory()
+  }
 })
 
 watch(() => step.value, async (newStep) => {

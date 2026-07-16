@@ -5,7 +5,6 @@
  */
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { useLearningStore } from '@/stores/learning'
-import { useUserStore } from '@/stores/user'
 
 type LearningStore = ReturnType<typeof useLearningStore>
 
@@ -32,10 +31,10 @@ export function useLearningActions(
       const statusLabel = status === 'mastered' ? '已掌握' : status === 'in_progress' ? '学习中' : '未开始'
       ElMessage.success(`已更新「${skill}」状态为 ${statusLabel}`)
 
-      // LOOP-10: When mastered, add to user's parsed skills for re-match
+      // LOOP-10: When mastered, hint user to re-match for score improvement
+      // Note: addParsedSkill is already called inside store.updateProgress (FLOW-03),
+      // no need to call it again here (dedup guard prevents bugs but is redundant).
       if (status === 'mastered') {
-        const userStore = useUserStore()
-        userStore.addParsedSkill(skill)
         ElMessage.success({ message: '技能已掌握！可前往匹配诊断查看提升效果', duration: 5000 })
       }
     } catch {
