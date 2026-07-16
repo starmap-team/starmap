@@ -8,6 +8,7 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { ParsedSkill } from '@/stores/resume'
 
 export interface UserInfo {
   id?: string
@@ -156,11 +157,11 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  // ── Resume-related state (kept for backward compat with match-diagnosis flow) ──
+  // ── Resume-related state — FLOW-03: structured skills with proficiency ──
   const resumeName = ref('')
-  const parsedSkills = ref<string[]>([])
+  const parsedSkills = ref<ParsedSkill[]>([])
 
-  function setResume(name: string, skills: string[]) {
+  function setResume(name: string, skills: ParsedSkill[]) {
     resumeName.value = name
     parsedSkills.value = skills
   }
@@ -170,9 +171,9 @@ export const useUserStore = defineStore('user', () => {
     parsedSkills.value = []
   }
 
-  function addParsedSkill(skill: string) {
-    if (!parsedSkills.value.includes(skill)) {
-      parsedSkills.value = [...parsedSkills.value, skill]
+  function addParsedSkill(skill: string, proficiency: string = '熟悉') {
+    if (!parsedSkills.value.some(s => s.skill === skill)) {
+      parsedSkills.value = [...parsedSkills.value, { skill, category: 'hard_skill', proficiency: proficiency as ParsedSkill['proficiency'] }]
     }
   }
 

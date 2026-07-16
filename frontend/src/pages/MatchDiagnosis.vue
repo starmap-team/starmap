@@ -66,7 +66,7 @@ async function handleUpload(file: File) {
   if (!resumeStore.result) {
     throw new Error('解析结果为空')
   }
-  userStore.setResume(file.name, resumeStore.result.required_skills.map(s => s.skill) ?? [])
+  userStore.setResume(file.name, resumeStore.result.required_skills ?? [])
   await new Promise(resolve => setTimeout(resolve, 600))
   ElMessage.success('简历解析完成，识别 ' + userStore.parsedSkills.length + ' 项技能')
   step.value = 1
@@ -122,7 +122,8 @@ function removeManualSkill(skill: string) {
 }
 function confirmManualSkills() {
   if (!manualSkills.value.length) { ElMessage.warning('请至少添加一个技能'); return }
-  userStore.parsedSkills = [...manualSkills.value]
+  // FLOW-03: store structured skills with default proficiency
+  userStore.parsedSkills = manualSkills.value.map(s => ({ skill: s, category: 'hard_skill' as const, proficiency: '熟悉' as const }))
   ElMessage.success('已录入 ' + manualSkills.value.length + ' 项技能')
   step.value = 1
 }
@@ -145,7 +146,8 @@ async function handlePositionSelect(pos: { position_id: string; name: string }) 
       required: PROFICIENCY_MAP[s.proficiency] ?? 0.5,
       user: 0,
     }))
-    const userSkillSource = resumeStore.result?.required_skills ?? userStore.parsedSkills.map(s => ({ skill: s, proficiency: '熟悉' }))
+    // FLOW-03: parsedSkills is now ParsedSkill[] with real proficiency
+    const userSkillSource = resumeStore.result?.required_skills ?? userStore.parsedSkills
     if (userSkillSource.length) {
       const userSkills = new Map(userSkillSource.map((s: { skill: string; proficiency: string }) => [s.skill, PROFICIENCY_MAP[s.proficiency] ?? 0.5]))
       radarData.value = radarData.value.map(item => ({ ...item, user: userSkills.get(item.skill) ?? 0 }))
@@ -171,11 +173,17 @@ async function handleStartDiagnosis() {
   }, 300)
 
   try {
-    const skillNames = userStore.parsedSkills
+    // FLOW-03: extract skill names from structured parsedSkills
+    const skillNames = userStore.parsedSkills.map(s => s.skill)
     const profMap: Record<string, string> = {}
+    // Prefer resumeStore proficiency, fallback to parsedSkills proficiency
     if (resumeStore.result?.required_skills) {
       for (const s of resumeStore.result.required_skills) {
         profMap[s.skill] = s.proficiency ?? '熟悉'
+      }
+    } else {
+      for (const s of userStore.parsedSkills) {
+        profMap[s.skill] = s.proficiency
       }
     }
     await matchStore.runMatch(targetPositionName.value, skillNames, profMap)

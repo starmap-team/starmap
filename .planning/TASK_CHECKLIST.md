@@ -310,7 +310,7 @@ UX-03~05 ← 独立
 | BUG-01 | ✅ 已完成 | 2026-07-16 | batch_audit 添加 neo4j_driver + _sync_neo4j_on_audit 调用 |
 | FLOW-01 | ✅ 已完成 | 2026-07-16 | QualityMetrics 添加 total_extractions 字段 |
 | FLOW-02 | ✅ 已完成 | 2026-07-16 | S1: addParsedSkill(v3.0已有); S2: LearningCenter重新匹配按钮+MatchDiagnosis路由; S3: GapAnalysisReport分数差值卡片 |
-| FLOW-03 | 🟡 部分完成 | | ParsedSkill 含 proficiency, 但 userStore.setResume 仍为 string[] |
+| FLOW-03 | ✅ 已完成 | 2026-07-16 | parsedSkills 改为 ParsedSkill[], setResume/addParsedSkill 适配, MatchDiagnosis/LearningCenter 消费方适配 |
 | ALIGN-01 | ⬜ 待开始 | | OpenAPI 93/125 路径覆盖, 缺 ~32 端点 |
 | ALIGN-02 | ✅ 已修复 | (v3.0) | MatchResult schema 已含 match_id/missing_required/skill_gap_detail |
 | ALIGN-03 | ✅ 已修复 | (v3.0) | EmergingSkill 前端为后端超集, 核心字段匹配 |

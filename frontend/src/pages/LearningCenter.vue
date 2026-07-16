@@ -61,7 +61,8 @@ async function handleRematch() {
     ElMessage.warning('当前学习计划无目标岗位')
     return
   }
-  const skillNames = userStore.parsedSkills
+  // FLOW-03: extract skill names from structured parsedSkills
+  const skillNames = userStore.parsedSkills.map(s => s.skill)
   if (!skillNames.length) {
     ElMessage.warning('技能列表为空，请先上传简历或标记已掌握的技能')
     return
