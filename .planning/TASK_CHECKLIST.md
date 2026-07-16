@@ -319,11 +319,11 @@ UX-03~05 ← 独立
 | METRIC-01 | ⬜ 待开始 | | JD F1=0.8767, 需提升至 ≥90% |
 | METRIC-02 | ⬜ 待开始 | | 简历提取 F1 未验证 |
 | METRIC-03 | ⬜ 待开始 | | 匹配准确率未验证 |
-| UX-01 | ⬜ 待开始 | | agent log 遥测代码需移除 |
+| UX-01 | ✅ 已修复 | (v3.0) | agent log 遥测代码已在 v3.0 清理，grep 验证无残留 |
 | UX-02 | ⬜ 待开始 | | Login 页 3D 背景未实现 |
 | DATA-01 | ⬜ 待开始 | | 技能节点 ~380, 需 ≥500 |
 | UX-03 | ⬜ 待开始 | | Graph3D z 轴分层 |
-| UX-04 | ⬜ 待开始 | | changelog 参数命名修正 |
+| UX-04 | ✅ 已完成 | 2026-07-16 | fetchChangelog positionName→identifier, 匹配后端参数语义 |
 | UX-05 | ⬜ 待开始 | | ChangeType 枚举统一 |
 
 ---

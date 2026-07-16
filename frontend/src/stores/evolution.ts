@@ -101,10 +101,11 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return snapshots.value
   }
 
-  async function fetchChangelog(positionName: string) {
+  // UX-04: Renamed parameter — backend 'identifier' accepts both position and skill names
+  async function fetchChangelog(identifier: string) {
     changelogLoading.value = true
     try {
-      const raw = await request.get(`/evolution/changelog/${encodeURIComponent(positionName)}`) as unknown
+      const raw = await request.get(`/evolution/changelog/${encodeURIComponent(identifier)}`) as unknown
       const data = raw as Record<string, unknown>
       changelogData.value = (Array.isArray(raw)
         ? raw
