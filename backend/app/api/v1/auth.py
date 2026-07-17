@@ -260,12 +260,8 @@ async def forgot_password(
             detail="Redis is unavailable",
         )
     token = await auth_service.forgot_password_request(body.email, redis, session)
-    if token is None:
-        # Email not registered — still return success, but no token
-        return {"submitted": True, "token": None}
-    # In production this token would be sent via email. For now we return it
-    # so frontends / smoke tests can complete the flow.
-    return {"submitted": True, "token": token}
+    # ponytail: token stored in Redis; email integration sends it. Never return in response.
+    return {"submitted": True}
 
 
 @router.post("/reset-password")
