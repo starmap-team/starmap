@@ -98,7 +98,9 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
-      const reader = response.body!.getReader()
+      const body = response.body  // ponytail: null guard instead of !
+      if (!body) throw new Error('ReadableStream not available')
+      const reader = body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
 
