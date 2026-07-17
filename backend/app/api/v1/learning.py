@@ -128,7 +128,7 @@ async def list_learning_plans(
     limit: int = Query(20, ge=1, le=100),
 ) -> list[PlanResponse]:
     """List all learning plans for the current user, newest first."""
-    user_id = user["sub"]
+    user_id = user.get("uid") or user["sub"]  # ponytail: prefer uid (DB UUID), fallback sub
     stmt = (
         sa.select(LearningPlan)
         .where(LearningPlan.user_id == user_id)
