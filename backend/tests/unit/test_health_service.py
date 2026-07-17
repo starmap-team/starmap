@@ -11,14 +11,13 @@ from __future__ import annotations
 
 import json
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import jwt as _jwt
 import pytest
 
-from app.dependencies import _decode_token, get_current_user, require_admin
 from app.config import settings
-
+from app.dependencies import _decode_token, get_current_user, require_admin
 
 # ── JWT helpers ──
 

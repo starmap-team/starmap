@@ -14,14 +14,13 @@ import jwt
 import pytest
 
 from app.config import settings
+from app.models.user import User
 from app.services.auth_service import (
     create_access_token,
     decode_token,
     hash_password,
     verify_password,
 )
-from app.models.user import User
-
 
 # ══════════════════════════════════════════════════════════════
 # decode_token — JWT decode logic
@@ -133,9 +132,11 @@ class TestRequireAdmin:
         assert result["role"] == "admin"
 
     async def test_non_admin_raises_403(self):
-        from app.dependencies import require_admin
-        from fastapi import HTTPException
         from unittest.mock import patch
+
+        from fastapi import HTTPException
+
+        from app.dependencies import require_admin
         user = {"sub": "viewer1", "role": "viewer"}
         with (
             patch("app.dependencies.audit_log"),
@@ -145,9 +146,11 @@ class TestRequireAdmin:
         assert exc_info.value.status_code == 403
 
     async def test_no_role_field_raises_403(self):
-        from app.dependencies import require_admin
-        from fastapi import HTTPException
         from unittest.mock import patch
+
+        from fastapi import HTTPException
+
+        from app.dependencies import require_admin
         user = {"sub": "norole"}
         with (
             patch("app.dependencies.audit_log"),

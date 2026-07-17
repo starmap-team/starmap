@@ -15,7 +15,6 @@ import pytest
 
 from app.dependencies import get_db_session, get_neo4j_driver, get_redis_client
 
-
 # ══════════════════════════════════════════════════════════════
 # Dependency callable signatures
 # ══════════════════════════════════════════════════════════════

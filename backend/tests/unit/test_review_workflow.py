@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services import review_service
 from app.services.review_service import (
     ALLOWED_STATUSES,
     InvalidStateTransition,

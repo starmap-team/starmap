@@ -1,9 +1,8 @@
 """Integration tests for /admin/review-* endpoints using FastAPI TestClient."""
 from __future__ import annotations
 
-import os
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,8 +21,8 @@ def client(mock_admin_user):
     require_admin depends on get_current_user which validates JWT. We override
     BOTH to return the admin user, bypassing token validation.
     """
+    from app.dependencies import get_current_user, get_db_session, get_neo4j_driver, require_admin
     from app.main import app
-    from app.dependencies import get_db_session, require_admin, get_neo4j_driver, get_current_user
 
     async def _mock_session():
         return AsyncMock()
@@ -43,7 +42,8 @@ def client(mock_admin_user):
 
 def test_list_review_items_default_returns_pending(client, mock_admin_user):
     """Default endpoint returns pending_review items."""
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
+
     from app.services import review_service
 
     fake_item = review_service.ReviewItem(

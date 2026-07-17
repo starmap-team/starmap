@@ -5,17 +5,15 @@ import time
 import uuid
 
 import bcrypt
-import jwt
 import pytest
 
-from app.services.auth_service import (
-    decode_token,
-    hash_password,
-    verify_password,
-)
 from app.config import settings
+
 # Backwards-compat alias: the legacy helper was internal but some tests use it.
 from app.services.auth_service import decode_token as _decode_token
+from app.services.auth_service import (
+    verify_password,
+)
 
 
 def _encode_jwt(payload: dict) -> str:

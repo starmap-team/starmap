@@ -11,21 +11,17 @@ Covers:
 """
 from __future__ import annotations
 
-import time
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 
 from app.core.pipeline.loop_orchestrator import (
+    _LOOP_RESULTS,
+    STEP_NAMES,
     LoopOrchestrator,
     LoopResult,
     LoopRunStatus,
     LoopStepResult,
     StepStatus,
-    STEP_NAMES,
-    _LOOP_RESULTS,
 )
-
 
 # ── Helpers ──
 
@@ -259,8 +255,9 @@ class TestLoopRunRequestValidation:
         assert req.target_position == "Backend"
 
     def test_empty_jd_fails_validation(self):
-        from app.api.v1.loop import LoopRunRequest
         from pydantic import ValidationError
+
+        from app.api.v1.loop import LoopRunRequest
         with pytest.raises(ValidationError):
             LoopRunRequest(jd_text="", target_position="Backend")
 

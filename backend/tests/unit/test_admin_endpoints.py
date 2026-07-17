@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.api.v1.admin_graph_nodes import GraphNodeItem, _item_from_dict
+from app.api.v1.admin_graph_nodes import _item_from_dict
 from app.core.extraction.prompt import (
     ABTestConfig,
     get_ab_test,
@@ -43,7 +43,6 @@ from app.services.admin_audit_service import (
     update_review_queue_item,
 )
 from app.services.admin_graph_service import GraphNodeService
-
 
 # ══════════════════════════════════════════════════════════════
 # Fixtures
@@ -869,11 +868,12 @@ class TestAdminAuthGuards:
 
     def test_decode_token_rejects_expired_token(self):
         """decode_token should raise ValueError for expired JWT tokens."""
-        from app.services.auth_service import decode_token
-
         import time
+
         import jwt
+
         from app.config import settings
+        from app.services.auth_service import decode_token
 
         # Build an expired JWT using PyJWT
         payload = {"sub": "test", "role": "admin", "exp": time.time() - 3600, "iat": time.time() - 7200}

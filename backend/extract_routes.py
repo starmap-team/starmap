@@ -1,5 +1,6 @@
 """Extract all backend API routes with their database dependencies."""
-import re, os
+import os
+import re
 
 api_dir = os.path.join(os.path.dirname(__file__), "app", "api", "v1")
 routes = []

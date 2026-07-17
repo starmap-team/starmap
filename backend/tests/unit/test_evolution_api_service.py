@@ -10,10 +10,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
-
 
 # ── Fake records (mirrors what the API tests used) ──
 

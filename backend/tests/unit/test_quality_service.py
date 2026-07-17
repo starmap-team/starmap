@@ -9,8 +9,6 @@ Covers:
 """
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 
 from app.api.v1.quality import (
@@ -20,7 +18,6 @@ from app.api.v1.quality import (
     _warning_level,
 )
 from app.services.admin_ab_service import aggregate_ab_results
-
 
 # ══════════════════════════════════════════════════════════════
 # _status — quality score → pass/warn/fail

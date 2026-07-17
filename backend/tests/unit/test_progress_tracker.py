@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -15,7 +13,6 @@ from app.core.learning.progress_tracker import (
     update_progress,
 )
 from app.models.learning_models import LearningPlan, LearningProgress
-
 
 # ---------------------------------------------------------------------------
 # Fake session infrastructure

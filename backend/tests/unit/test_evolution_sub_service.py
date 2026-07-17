@@ -9,12 +9,7 @@ Covers:
 """
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-
 from app.core.evolution.emergence_finder import EmergenceLevel, EmergenceReport, EmergenceSignal
-
 
 # ── Helpers ──
 

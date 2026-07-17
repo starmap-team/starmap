@@ -36,8 +36,8 @@ from app.api.v1.pipeline.serializers import (
     serialize_run,
     serialize_schedule,
 )
-from app.core.matching import MatchService
 from app.api.v1.upload_validation import validate_resume_upload
+from app.core.matching import MatchService
 from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, require_admin, sse_disconnect
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 from app.pipeline.contracts import PipelineContext

@@ -17,7 +17,6 @@ import pytest
 
 from app.services.learning_service import create_plan_from_match
 
-
 # ── Fake DB ──
 
 

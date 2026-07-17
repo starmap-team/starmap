@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime
+from datetime import date
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -16,7 +16,6 @@ from app.core.pipeline.status_aggregator import (
     invalidate_status_cache,
     read_or_compute_status_aggregates,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fake session infrastructure

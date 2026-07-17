@@ -15,7 +15,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
 from app.core.matching import service as matching_service
 from app.services import match_service

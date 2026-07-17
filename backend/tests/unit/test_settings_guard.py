@@ -6,9 +6,6 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from app.config import Settings
-
-
 # ── SEC-05: FK constraints (ORM-level verification) ──
 
 
@@ -59,8 +56,8 @@ class TestFKDeclarations:
 
     def test_ondelete_set_null_for_nullable_refs(self) -> None:
         """ExtractionEvaluationRecord and EvolutionChangelog use SET NULL ondelete."""
-        from app.models.extraction_models import ExtractionEvaluationRecord
         from app.models.evolution_models import EvolutionChangelog
+        from app.models.extraction_models import ExtractionEvaluationRecord
 
         for fk in ExtractionEvaluationRecord.__table__.foreign_keys:
             assert fk.ondelete == "SET NULL"

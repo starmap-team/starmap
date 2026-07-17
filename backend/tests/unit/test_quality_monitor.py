@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -16,7 +15,6 @@ from app.core.pipeline.quality_monitor import (
     generate_alerts,
     get_quality_snapshot,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fake session

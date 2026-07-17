@@ -166,11 +166,11 @@ class TestSSETokenExpired:
         monkeypatch.setattr(settings, "app_env", "production")
         # Create a token that will fail with "expired" in the error message
         # by using an invalid token string that triggers the expired path
-        from app.services.auth_service import InvalidTokenError, decode_token
 
         # We need a real expired JWT to trigger the "expired" error path
-        import jwt as pyjwt
         import time as _time
+
+        import jwt as pyjwt
 
         expired_payload = {
             "sub": "testuser",

@@ -6,7 +6,6 @@ pre-configured JDExtractionRecord and SkillRecord results.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -15,7 +14,6 @@ from app.services.timeseries_service import (
     _extract_skill_names,
     refresh_skill_timeseries,
 )
-
 
 # ── Fake ORM objects ──
 

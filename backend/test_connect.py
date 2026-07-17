@@ -1,6 +1,8 @@
 """Quick script to test backend service connectivity."""
 import asyncio
+
 from neo4j import AsyncGraphDatabase
+
 
 async def test_neo4j():
     try:

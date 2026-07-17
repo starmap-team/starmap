@@ -10,12 +10,11 @@ and payloads that reach Neo4j, not just "it returns something".
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.services.admin_graph_service import GraphNodeService
-
 
 # ---------------------------------------------------------------------------
 # Fixture helpers
