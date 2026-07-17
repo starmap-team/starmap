@@ -745,7 +745,7 @@ ontology:
             - name: "MyBatis"
               type: hard_skill
               description: "Java持久层框架"
-              aliases: ["mybatis", "mybatis3", "mybatis plus"]
+              aliases: ["mybatis", "mybatis3", "mybatis plus", "mybatis-plus"]
               relationships:
                 BELONGS_TO: "后端开发"
             - name: "jOOQ"
