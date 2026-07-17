@@ -99,9 +99,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-# P1 修复 (API-02): 内存速率限制中间件
-# ponytail: stdlib sliding-window, per-IP, no external deps.
-# Upgrade to Redis-backed (slowapi) if multi-process or distributed.
+# P1 修复 (API-02): 速率限制中间件
+# ponytail: Redis-backed fixed-window counter when available, in-memory fallback.
+# In-memory is per-process only — Redis makes it work across workers.
 _RATE_LIMIT_WINDOW = 60  # seconds
 _RATE_LIMIT_MAX = 120  # requests per window per IP
 _rate_buckets: dict[str, list[float]] = defaultdict(list)
@@ -110,11 +110,37 @@ _rate_buckets: dict[str, list[float]] = defaultdict(list)
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> Response:
         client_ip = request.client.host if request.client else "unknown"
+
+        # Try Redis-backed rate limit first (works across workers)
+        redis = getattr(request.app.state, "resources", None)
+        redis_client = getattr(redis, "redis", None) if redis else None
+        if redis_client:
+            key = f"ratelimit:{client_ip}"
+            try:
+                count = await redis_client.incr(key)
+                if count == 1:
+                    await redis_client.expire(key, _RATE_LIMIT_WINDOW)
+                if count > _RATE_LIMIT_MAX:
+                    audit_log(AuditEntry(
+                        event=AuditEvent.RATE_LIMITED,
+                        actor=client_ip,
+                        action=f"{request.method} {request.url.path}",
+                        detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s (Redis)",
+                        ip=client_ip,
+                    ))
+                    return JSONResponse(
+                        status_code=429,
+                        content={"detail": "Rate limit exceeded. Try again later."},
+                        headers={"Retry-After": str(_RATE_LIMIT_WINDOW)},
+                    )
+                return await call_next(request)
+            except Exception:
+                pass  # ponytail: Redis down → fall through to in-memory
+
+        # In-memory fallback (per-process only)
         now = time.time()
-        # Sliding window: keep only timestamps within the window
         bucket = _rate_buckets[client_ip]
         _rate_buckets[client_ip] = [t for t in bucket if now - t < _RATE_LIMIT_WINDOW]
-        # Periodic cleanup: cap total buckets to prevent unbounded memory growth
         if len(_rate_buckets) > 10000:
             stale_keys = [
                 k for k, v in _rate_buckets.items()
@@ -127,7 +153,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 event=AuditEvent.RATE_LIMITED,
                 actor=client_ip,
                 action=f"{request.method} {request.url.path}",
-                detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s",
+                detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s (in-memory)",
                 ip=client_ip,
             ))
             return JSONResponse(
