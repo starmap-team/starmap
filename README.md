@@ -182,9 +182,13 @@ cd frontend && npm run lint              # 仅遗留 warning
 
 ## 文档
 
-- [设计文档](../星图-项目设计文档.docx) —— 总纲
-- [后端 README](backend/README.md)
-- [前端 README](frontend/README.md)
-- [接口契约](starmap-contracts/README.md)
-- [.env.example](.env.example) —— 三种模式环境变量文档
-- [Docker vs Local 不一致报告](.planning/codebase/DOCKER-VS-LOCAL-INCONSISTENCIES.md)
+本项目采用「活文档 + 归档」治理，详见 [DOCUMENT_POLICY.md](DOCUMENT_POLICY.md)。
+
+**活文档（当前真相，决策依据）**：
+- [ONBOARDING.md](ONBOARDING.md) —— 项目认知入门（架构/数据流/成熟度/头号风险）
+- [docs/standards/](docs/standards/) —— 全栈规范（顶部带 2026-07-16 硬数字核对表）
+- [starmap-contracts/](starmap-contracts/) —— API 契约（单一事实源）
+- [.planning/STATE.md](.planning/STATE.md) —— 进度真相
+- [docs/星图-项目设计文档v2.0.md](docs/) —— 总纲设计
+
+**归档区**（历史快照 / 过程产物，**不作当前依据**）：[docs/archive/](docs/archive/README.md)

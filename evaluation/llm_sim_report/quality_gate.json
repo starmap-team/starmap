@@ -1,7 +1,0 @@
-{
-  "passed": true,
-  "avg_f1": 0.9759,
-  "threshold": 0.9,
-  "status": "green",
-  "message": "Quality gate passed"
-}

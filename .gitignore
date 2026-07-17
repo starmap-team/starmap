@@ -1,9 +1,13 @@
-﻿# ==================== StarMap .gitignore ====================
+# ==================== StarMap .gitignore ====================
 # ---- 环境变量（含密钥，绝不提交）----
 .env
 .env.local
 .env.*.local
 !.env.example
+# NEW-P0 fix (AUDIT_VERIFICATION §1.4 C1): production env file holds real
+# secrets — keep `.env.production` out of git but allow the safe template.
+.env.production
+!.env.production.example
 # ---- Python ----
 __pycache__/
 *.py[cod]
@@ -88,6 +92,10 @@ cleanup.ps1
 .omo/
 graphify-out/
 screenshots/
+# Agent 工具运行时状态（会话计划/记忆，非项目文档，见 DOCUMENT_POLICY.md §4.5）
+.zcode/
+.workbuddy/
+.planning/quick/
 # ---- Playwright 测试产物 ----
 playwright-report/
 test-results/
@@ -134,3 +142,28 @@ starmap.zip
 # OS files
 # ---- 根目录临时文件 ----
 req.json
+
+# ---- 文档归档区（过程产物/历史快照，不作当前依据，见 DOCUMENT_POLICY.md）----
+docs/archive/
+
+# ---- 评估运行产物（代码与 golden_set*.jsonl 保留，运行报告不提交）----
+evaluation/baseline_report/
+evaluation/llm_real_report/
+evaluation/llm_sim_report/
+evaluation/real_eval_report/
+evaluation/demo_evidence/
+evaluation/system_llm_*.jsonl
+evaluation/match_accuracy_report.json
+
+# ---- E2E / QA 截图与产物目录（脚本 .py 保留，截图/产物不提交）----
+tests/e2e/**/*.png
+tests/e2e/browser-qa/
+tests/e2e/playwright_smoke/
+tests/e2e/integration-results/
+tests/e2e/browser_qa_screenshots/
+tests/e2e/browser_qa_match_extract/
+tests/e2e/browser_qa_cycle/
+tests/e2e/browser_toolbar_test/
+tests/e2e/browser_interaction/
+tests/e2e/browser_smoke/
+tests/e2e/screenshot_*.png
