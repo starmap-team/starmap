@@ -130,5 +130,6 @@ export function useCameraPresets(
     resetCamera,
     toggleAutoRotate,
     clearAutoRotateTimer,
+    calcFitDistance,
   }
 }

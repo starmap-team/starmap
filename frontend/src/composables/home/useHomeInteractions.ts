@@ -35,6 +35,11 @@ interface Graph3DExposed {
   setCameraPreset: (preset: 'overview' | 'domain' | 'position') => void
   resetCamera: () => void
   toggleAutoRotate: () => void
+  zoomBy: (factor: number) => void
+  zoomIn: () => void
+  zoomOut: () => void
+  fitView: () => void
+  clearHighlight: () => void
 }
 
 export interface UseHomeInteractions {
@@ -183,6 +188,7 @@ export function useHomeInteractions(
 
   function resetHighlight() {
     graph2DRef.value?.clearHighlight()
+    graph3DRef.value?.clearHighlight()
   }
 
   async function toggleEvolution(

@@ -93,8 +93,8 @@ const detailDeps: DetailLayerDeps = {
 
 // ── Exposed methods ──
 // 业务说明：对外暴露的缩放方法，父组件可通过 ref 调用以控制画布缩放级别
-function zoomBy(factor: number) {
-  graph.value?.zoomBy(factor)
+  function zoomBy(factor: number) {
+    graph.value?.zoomBy(factor)
 }
 // 业务说明：对外暴露的自适应视图方法，使全部节点自适应填充可视区域
 function fitView() {
@@ -127,8 +127,8 @@ function highlightNode(nodeId: string) {
   graph.value.draw()
 }
 // 业务说明：清除高亮状态，恢复到当前图层的默认渲染样式
-function clearHighlight() {
-  renderCurrentLayer()
+  function clearHighlight() {
+    renderCurrentLayer()
 }
 
 // 技术说明：将 zoomBy、fitView、highlightNode、clearHighlight 暴露给父组件，支持命令式调用
