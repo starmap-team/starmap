@@ -254,14 +254,31 @@ class Settings(BaseSettings):
     def _resolve_postgres_uri_and_warn(self) -> "Settings":
         # 若未通过 POSTGRES_URI 环境变量传入完整 URI，则由组件拼接
         if self.postgres_uri is None:
-            # W1-T7 fix (DATA-03): 按 postgres_sslmode 注入 SSL 参数。
-            # asyncpg 的 DSN 支持 `?sslmode=require`；只有用户显式传
-            # POSTGRES_URI 时才允许不带 sslmode（向后兼容）。
-            sslmode = self.postgres_sslmode or "prefer"
+            # W1-T7 fix (DATA-03): asyncpg 的 connect() 只接受 libpq 风格的 SSLMode
+            # 字符串（disable/allow/prefer/require/verify_ca/verify_full），
+            # 而不接受 libpq 旧的 `sslmode=` 或非布尔 `ssl=false/true`。
+            # 直白塞 `?sslmode=...` 会让 asyncpg 抛 `unexpected keyword
+            # argument 'sslmode'`（alembic 立即触发；FastAPI 的连接池懒加载
+            # 偶尔能掩盖）。asyncpg 0.27+ 还会在 `ssl=` 接收到无效字符串时
+            # 抛 `AttributeError: type object 'SSLMode' has no attribute ...`。
+            #
+            # 解决：对 prefer/allow/disable（dev 默认）直接 **省略 SSL 参数**
+            # （asyncpg 默认 = 不加密，符合 localhost 开发场景）；对
+            # require/verify-ca/verify-full 走 `ssl=<mode>` 把 libpq 同名
+            # 字符串透传给 asyncpg 解析。verify-* 严格校验需要额外 SSLContext
+            # 时再此分支注入 ctx，目前保持最小修复。
+            sslmode = (self.postgres_sslmode or "prefer").lower()
+            if sslmode in {"require", "verify-ca", "verify-full", "allow", "prefer", "disable"}:
+                # asyncpg SSLMode 名称：用 underscore 形式（verify_ca / verify_full）
+                asyncpg_ssl_mode = sslmode.replace("-", "_")
+                ssl_query = f"?ssl={asyncpg_ssl_mode}"
+            else:
+                # 未知值：保守走 prefer（asyncpg 默认 = 不加密）
+                ssl_query = "?ssl=prefer"
             object.__setattr__(self, "postgres_uri", (
                 f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
                 f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-                f"?sslmode={sslmode}"
+                f"{ssl_query}"
             ))
 
         # 检测仍为占位值的密码字段
