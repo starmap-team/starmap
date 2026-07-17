@@ -215,7 +215,7 @@ def test_prod_all_valid_passes():
     assert s.app_env == "production"
     assert s.app_debug is False
     assert "@" in s.redis_uri
-    assert s.postgres_uri.endswith("?sslmode=require")
+    assert s.postgres_uri.endswith("?ssl=require")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -261,7 +261,8 @@ def test_prod_postgres_strong_sslmode_accepted(sslmode):
         # AUTH-04: 生产 CORS 必须覆盖默认值
         cors_origins=["https://starmap.example.com"],
     )
-    assert f"sslmode={sslmode}" in s.postgres_uri
+    asyncpg_mode = sslmode.replace("-", "_")
+    assert f"ssl={asyncpg_mode}" in s.postgres_uri
 
 
 @pytest.mark.parametrize(
