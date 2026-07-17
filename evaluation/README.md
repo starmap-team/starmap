@@ -7,7 +7,7 @@
 | 文件 | 用途 |
 |------|------|
 | `judge_eval.py` | LLM-as-judge裁判评估+F1指标计算 |
-| `golden_set.jsonl` | 50条Golden标注样本（JD抽取标准答案），含raw_jd原始文本 |
+| `golden_set.jsonl` | 110条Golden标注样本（JD抽取标准答案），含raw_jd原始文本 |
 | `run_baseline.py` | 基于 normalize.py 别名表的关键词匹配基线评估 |
 | `simulate_llm_eval.py` | LLM抽取模拟（从Golden答案注入随机噪声），无API时用于验证评估框架 |
 | `baseline_report/` | 基线评估报告（F1=0.758，关键词匹配） |

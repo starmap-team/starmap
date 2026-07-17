@@ -130,6 +130,7 @@ async def evaluate_single_sample(golden: dict, system: dict, use_llm_judge: bool
     Supports two modes:
       - use_llm_judge=False (default): Compute F1 from skill name overlap.
       - use_llm_judge=True: Also call LLM judge for multi-dimensional scoring.
+        # ponytail: feature flag — LLM judge is optional; _HAS_LLM guard handles unavailability
 
     Args:
         golden: Golden standard dict.
