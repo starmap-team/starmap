@@ -82,7 +82,7 @@ jobs:
 
   # ---------- 前端 ----------
   frontend:
-    name: 前端 lint + typecheck + build
+    name: 前端 lint + typecheck + test + build
     runs-on: ubuntu-latest
     needs: contracts
     defaults:
@@ -105,6 +105,8 @@ jobs:
         run: npm run lint
       - name: TypeScript typecheck
         run: npm run typecheck
+      - name: Vitest
+        run: npm run test
       - name: 构建
         run: npm run build
 
