@@ -178,8 +178,12 @@ const tabCards = [
         <div class="flow-card-header">
           <Connection class="flow-header-icon" />
           <div>
-            <h3 class="flow-title">StarMap 业务闭环</h3>
-            <p class="flow-subtitle">JD 文本 → 智能抽取 → 图谱更新 → 人工审核 → 匹配诊断 → 学习路径</p>
+            <h3 class="flow-title">
+              StarMap 业务闭环
+            </h3>
+            <p class="flow-subtitle">
+              JD 文本 → 智能抽取 → 图谱更新 → 人工审核 → 匹配诊断 → 学习路径
+            </p>
           </div>
         </div>
       </template>
@@ -229,7 +233,9 @@ const tabCards = [
         <h3 class="section-title">
           管理后台 6 大功能区
         </h3>
-        <p class="section-subtitle">点击上方任意 KPI 或下方卡片切换到对应 Tab</p>
+        <p class="section-subtitle">
+          点击上方任意 KPI 或下方卡片切换到对应 Tab
+        </p>
       </template>
       <el-row :gutter="16">
         <el-col

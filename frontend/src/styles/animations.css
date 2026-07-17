@@ -315,6 +315,16 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * Dashboard typing-pulse (used by DataDashboard event-stream empty state)
+ * Three dots fade in/out with staggered delays to indicate "waiting for
+ * live events". Pure opacity animation — GPU-composited, no layout impact.
+ * --------------------------------------------------------------------------- */
+@keyframes dash-typing-pulse {
+  0%, 60%, 100% { opacity: 0.2; }
+  30% { opacity: 1; }
+}
+
+/* ---------------------------------------------------------------------------
  * Global request loading bar (emitted by frontend/src/api/request.ts)
  * Phase 8 — frontend UX fix 5: previously created without CSS, so the
  * element existed in DOM but was invisible. The animation/positioning

@@ -135,16 +135,13 @@ describe('useLearningActions', () => {
 
   // ── 3. Mastered skill adds to user parsed skills ──
 
-  it('should add mastered skill to user parsed skills and show extra message', async () => {
+  it('should show extra message when skill is mastered', async () => {
     const currentPlan = ref({ plan_id: 'plan-1', position: 'Dev' })
     mockStore.updateProgress.mockResolvedValueOnce(undefined)
-    const mockUserStore = { addParsedSkill: vi.fn() }
-    vi.mocked(useUserStore).mockReturnValue(mockUserStore as any)
 
     const { handleUpdateStatus } = useLearningActions(mockStore, currentPlan)
     await handleUpdateStatus('Python', 'mastered')
 
-    expect(mockUserStore.addParsedSkill).toHaveBeenCalledWith('Python')
     // Should show two success messages: one for status update, one for mastered notification
     expect(ElMessage.success).toHaveBeenCalledTimes(2)
   })

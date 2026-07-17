@@ -83,10 +83,16 @@ onMounted(() => {
         show-icon
         class="business-banner"
       >
-        <template #title>§5.2 演化分析 + §7.5 能力通胀指数 (CII)</template>
-        <p>本看板展示岗位技能图谱的演化趋势：新兴技能涌现（Z-score 检测）、技能变更日志、
-        以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。</p>
-        <p class="banner-meta">后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> · §7.1 信任度驱动</p>
+        <template #title>
+          §5.2 演化分析 + §7.5 能力通胀指数 (CII)
+        </template>
+        <p>
+          本看板展示岗位技能图谱的演化趋势：新兴技能涌现（Z-score 检测）、技能变更日志、
+          以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。
+        </p>
+        <p class="banner-meta">
+          后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> · §7.1 信任度驱动
+        </p>
       </el-alert>
 
       <!-- 标题 -->
@@ -208,7 +214,7 @@ onMounted(() => {
               v-for="skill in emergingSkills"
               :key="skill.skill_name"
               class="emerging-item"
-		              @click="fetchChangelog(skill.related_positions?.[0] ?? skill.skill_name)"
+              @click="fetchChangelog(skill.related_positions?.[0] ?? skill.skill_name)"
             >
               <div class="emerging-name">
                 {{ skill.skill_name }}
@@ -232,43 +238,77 @@ onMounted(() => {
             />
           </div>
         </el-card>
-	      </div>
+      </div>
 
-	      <!-- LOOP-06: 新兴技能预警 -->
-	      <el-card
-	        v-if="evo.emergingAlerts.length > 0"
-	        class="alerts-card"
-	        v-loading="evo.alertsLoading"
-	      >
-	        <template #header>
-	          <div class="card-header">
-	            <span>新兴技能预警</span>
-	            <el-tag type="danger">{{ evo.emergingAlerts.length }}</el-tag>
-	          </div>
-	        </template>
-		        <el-table :data="evo.emergingAlerts" size="small" stripe>
-		          <el-table-column prop="skill_name" label="技能" />
-		          <el-table-column prop="level" label="级别" width="100">
-		            <template #default="{ row }">
-		              <el-tag :type="row.level === 'emerging' ? 'danger' : row.level === 'rising' ? 'warning' : row.level === 'stable' ? 'success' : 'info'" size="small">{{ row.level }}</el-tag>
-		            </template>
-		          </el-table-column>
-		          <el-table-column prop="trend" label="趋势" width="80">
-		            <template #default="{ row }">
-		              <span>{{ row.trend === 'rising' ? '↑' : row.trend === 'declining' ? '↓' : '→' }}</span>
-		            </template>
-		          </el-table-column>
-		          <el-table-column prop="z_score" label="Z-score" width="80" />
-		          <el-table-column prop="portability_score" label="可迁移性" width="90">
-		            <template #default="{ row }">
-		              <span>{{ row.portability_score != null ? Math.round(row.portability_score * 100) + '%' : '—' }}</span>
-		            </template>
-		          </el-table-column>
-		          <el-table-column prop="alert_message" label="预警信息" show-overflow-tooltip />
-		        </el-table>
-	      </el-card>
+      <!-- LOOP-06: 新兴技能预警 -->
+      <el-card
+        v-if="evo.emergingAlerts.length > 0"
+        v-loading="evo.alertsLoading"
+        class="alerts-card"
+      >
+        <template #header>
+          <div class="card-header">
+            <span>新兴技能预警</span>
+            <el-tag type="danger">
+              {{ evo.emergingAlerts.length }}
+            </el-tag>
+          </div>
+        </template>
+        <el-table
+          :data="evo.emergingAlerts"
+          size="small"
+          stripe
+        >
+          <el-table-column
+            prop="skill_name"
+            label="技能"
+          />
+          <el-table-column
+            prop="level"
+            label="级别"
+            width="100"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.level === 'emerging' ? 'danger' : row.level === 'rising' ? 'warning' : row.level === 'stable' ? 'success' : 'info'"
+                size="small"
+              >
+                {{ row.level }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="trend"
+            label="趋势"
+            width="80"
+          >
+            <template #default="{ row }">
+              <span>{{ row.trend === 'rising' ? '↑' : row.trend === 'declining' ? '↓' : '→' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="z_score"
+            label="Z-score"
+            width="80"
+          />
+          <el-table-column
+            prop="portability_score"
+            label="可迁移性"
+            width="90"
+          >
+            <template #default="{ row }">
+              <span>{{ row.portability_score != null ? Math.round(row.portability_score * 100) + '%' : '—' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="alert_message"
+            label="预警信息"
+            show-overflow-tooltip
+          />
+        </el-table>
+      </el-card>
 
-	      <!-- 曲线图 -->
+      <!-- 曲线图 -->
       <el-card
         v-loading="loading"
         class="chart-card"
@@ -352,7 +392,7 @@ onMounted(() => {
           size="small"
           stripe
           empty-text="暂无数据"
-		          @row-click="(row: TrendItem) => fetchChangelog(row.related_positions?.[0] ?? row.skill_name)"
+          @row-click="(row: TrendItem) => fetchChangelog(row.related_positions?.[0] ?? row.skill_name)"
         >
           <el-table-column
             prop="skill_name"

@@ -4,14 +4,20 @@
  * - 友好错误提示（ElMessage）
  * - 网络断开重连提示
  * - Phase DB-AUTH: 双 token + 401 静默 refresh
+ *
+ * W1-T3 fix (P0-10): `baseURL` now comes from the central
+ * `@/config/apiBase` (SSoT). No more `import.meta.env.VITE_API_BASE_URL`
+ * fallback that previously masked the production path mismatch
+ * (browser → /api/auth/login → backend 404).
  */
 import axios, { type AxiosError } from 'axios'
 import { ElMessage, ElNotification } from 'element-plus'
+import { API_BASE } from '@/config/apiBase'
 
 const ACCESS_KEY = 'starmap_access_token'
 
 const request = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  baseURL: API_BASE,
   timeout: 30000,
 })
 
@@ -71,7 +77,7 @@ async function refreshAccessToken(): Promise<string | null> {
   refreshInFlight = (async () => {
     try {
       const resp = await axios.post(
-        (import.meta.env.VITE_API_BASE_URL || '/api/v1') + '/auth/refresh',
+        API_BASE + '/auth/refresh',
         { refresh_token: rt },
         { timeout: 10000 },
       )

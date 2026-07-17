@@ -239,96 +239,195 @@ onMounted(fetchList)
           @keyup.enter="filters.page = 1; fetchList()"
           @clear="filters.page = 1; fetchList()"
         />
-        <el-select v-model="filters.role" placeholder="角色" clearable style="width: 110px" @change="filters.page = 1; fetchList()">
-          <el-option label="全部" value="" />
-          <el-option label="admin" value="admin" />
-          <el-option label="user" value="user" />
+        <el-select
+          v-model="filters.role"
+          placeholder="角色"
+          clearable
+          style="width: 110px"
+          @change="filters.page = 1; fetchList()"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="admin"
+            value="admin"
+          />
+          <el-option
+            label="user"
+            value="user"
+          />
         </el-select>
-        <el-select v-model="filters.is_active" placeholder="状态" clearable style="width: 110px" @change="filters.page = 1; fetchList()">
-          <el-option label="全部" value="" />
-          <el-option label="启用" value="true" />
-          <el-option label="停用" value="false" />
+        <el-select
+          v-model="filters.is_active"
+          placeholder="状态"
+          clearable
+          style="width: 110px"
+          @change="filters.page = 1; fetchList()"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="启用"
+            value="true"
+          />
+          <el-option
+            label="停用"
+            value="false"
+          />
         </el-select>
-        <el-button type="primary" @click="filters.page = 1; fetchList()">查询</el-button>
-        <el-button type="success" @click="openCreate">+ 新建用户</el-button>
+        <el-button
+          type="primary"
+          @click="filters.page = 1; fetchList()"
+        >
+          查询
+        </el-button>
+        <el-button
+          type="success"
+          @click="openCreate"
+        >
+          + 新建用户
+        </el-button>
       </div>
     </header>
 
-    <el-table :data="items" v-loading="loading" stripe border>
-      <el-table-column prop="username" label="用户名" width="160" />
-      <el-table-column prop="role" label="角色" width="110">
+    <el-table
+      v-loading="loading"
+      :data="items"
+      stripe
+      border
+    >
+      <el-table-column
+        prop="username"
+        label="用户名"
+        width="160"
+      />
+      <el-table-column
+        prop="role"
+        label="角色"
+        width="110"
+      >
         <template #default="{ row }">
           <el-tag :type="row.role === 'admin' ? 'danger' : 'info'">
             {{ row.role }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="120">
+      <el-table-column
+        label="状态"
+        width="120"
+      >
         <template #default="{ row }">
           <template v-if="row.disabled_at">
-            <el-tag type="info">已停用</el-tag>
+            <el-tag type="info">
+              已停用
+            </el-tag>
           </template>
           <template v-else-if="!row.is_active">
-            <el-tag type="warning">未激活</el-tag>
+            <el-tag type="warning">
+              未激活
+            </el-tag>
           </template>
           <template v-else-if="row.locked_until && new Date(row.locked_until) > new Date()">
-            <el-tag type="danger">已锁定</el-tag>
+            <el-tag type="danger">
+              已锁定
+            </el-tag>
           </template>
           <template v-else>
-            <el-tag type="success">正常</el-tag>
+            <el-tag type="success">
+              正常
+            </el-tag>
           </template>
         </template>
       </el-table-column>
-      <el-table-column prop="email" label="邮箱" width="180" />
-      <el-table-column label="失败次数" width="80" align="center">
+      <el-table-column
+        prop="email"
+        label="邮箱"
+        width="180"
+      />
+      <el-table-column
+        label="失败次数"
+        width="80"
+        align="center"
+      >
         <template #default="{ row }">
           <span :class="{ 'warn-cell': row.failed_login_attempts >= 3 }">
             {{ row.failed_login_attempts }}
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="上次登录" width="170">
+      <el-table-column
+        label="上次登录"
+        width="170"
+      >
         <template #default="{ row }">
           {{ fmtDate(row.last_login_at) }}
         </template>
       </el-table-column>
-      <el-table-column label="IP" width="120">
+      <el-table-column
+        label="IP"
+        width="120"
+      >
         <template #default="{ row }">
           {{ row.last_login_ip || '—' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="320" fixed="right">
+      <el-table-column
+        label="操作"
+        min-width="320"
+        fixed="right"
+      >
         <template #default="{ row }">
           <el-button
             v-if="row.locked_until && new Date(row.locked_until) > new Date()"
             size="small"
             type="warning"
             @click="handleUnlock(row)"
-          >解锁</el-button>
-          <el-button size="small" @click="openResetPassword(row)">重置密码</el-button>
+          >
+            解锁
+          </el-button>
+          <el-button
+            size="small"
+            @click="openResetPassword(row)"
+          >
+            重置密码
+          </el-button>
           <el-select
             :model-value="row.role"
             size="small"
             style="width: 92px; margin-left: 4px"
             @change="(val: string | number) => handleChangeRole(row, String(val))"
           >
-            <el-option label="admin" value="admin" />
-            <el-option label="user" value="user" />
+            <el-option
+              label="admin"
+              value="admin"
+            />
+            <el-option
+              label="user"
+              value="user"
+            />
           </el-select>
           <el-button
             v-if="!row.disabled_at"
             size="small"
             type="danger"
-            @click="handleDelete(row)"
             style="margin-left: 4px"
-          >禁用</el-button>
+            @click="handleDelete(row)"
+          >
+            禁用
+          </el-button>
           <el-button
             v-else
             size="small"
             type="success"
-            @click="handleToggleActive(row)"
             style="margin-left: 4px"
-          >重新启用</el-button>
+            @click="handleToggleActive(row)"
+          >
+            重新启用
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -339,18 +438,31 @@ onMounted(fetchList)
       :total="total"
       layout="total, sizes, prev, pager, next, jumper"
       :page-sizes="[10, 20, 50, 100]"
+      style="margin-top: 16px; justify-content: flex-end"
       @current-change="fetchList"
       @size-change="fetchList"
-      style="margin-top: 16px; justify-content: flex-end"
     />
 
     <!-- Create dialog -->
-    <el-dialog v-model="showCreate" title="新建用户" width="480px">
+    <el-dialog
+      v-model="showCreate"
+      title="新建用户"
+      width="480px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="用户名" required>
-          <el-input v-model="createForm.username" placeholder="登录用户名" />
+        <el-form-item
+          label="用户名"
+          required
+        >
+          <el-input
+            v-model="createForm.username"
+            placeholder="登录用户名"
+          />
         </el-form-item>
-        <el-form-item label="密码" required>
+        <el-form-item
+          label="密码"
+          required
+        >
           <el-input
             v-model="createForm.password"
             type="password"
@@ -360,12 +472,19 @@ onMounted(fetchList)
         </el-form-item>
         <el-form-item label="角色">
           <el-radio-group v-model="createForm.role">
-            <el-radio value="user">user</el-radio>
-            <el-radio value="admin">admin</el-radio>
+            <el-radio value="user">
+              user
+            </el-radio>
+            <el-radio value="admin">
+              admin
+            </el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="邮箱">
-          <el-input v-model="createForm.email" placeholder="可选，用于密码找回" />
+          <el-input
+            v-model="createForm.email"
+            placeholder="可选，用于密码找回"
+          />
         </el-form-item>
         <el-form-item label="首次登录">
           <el-checkbox v-model="createForm.must_change_password">
@@ -374,13 +493,24 @@ onMounted(fetchList)
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showCreate = false">取消</el-button>
-        <el-button type="primary" @click="submitCreate">创建</el-button>
+        <el-button @click="showCreate = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitCreate"
+        >
+          创建
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- Reset-password dialog -->
-    <el-dialog v-model="showReset" title="重置密码" width="420px">
+    <el-dialog
+      v-model="showReset"
+      title="重置密码"
+      width="420px"
+    >
       <p class="um-reset-target">
         用户：<strong>{{ resetTarget?.username }}</strong>
       </p>
@@ -391,8 +521,15 @@ onMounted(fetchList)
         show-password
       />
       <template #footer>
-        <el-button @click="showReset = false">取消</el-button>
-        <el-button type="primary" @click="submitResetPassword">确定</el-button>
+        <el-button @click="showReset = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitResetPassword"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>

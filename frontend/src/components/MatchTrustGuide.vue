@@ -64,7 +64,10 @@ const trustBand = computed(() => bandFor(props.trustScore, trustBands))
       :style="{ borderLeft: `4px solid ${matchBand.color}` }"
     >
       <div class="trust-header">
-        <span class="trust-icon" :style="{ color: matchBand.color }">
+        <span
+          class="trust-icon"
+          :style="{ color: matchBand.color }"
+        >
           <el-icon :size="20"><CircleCheck /></el-icon>
         </span>
         <div class="trust-text">
@@ -96,7 +99,10 @@ const trustBand = computed(() => bandFor(props.trustScore, trustBands))
       :style="{ borderLeft: `4px solid ${trustBand.color}` }"
     >
       <div class="trust-header">
-        <span class="trust-icon" :style="{ color: trustBand.color }">
+        <span
+          class="trust-icon"
+          :style="{ color: trustBand.color }"
+        >
           <el-icon :size="20">
             <component :is="trustBand.color === '#f59e0b' ? QuestionFilled : WarningFilled" />
           </el-icon>

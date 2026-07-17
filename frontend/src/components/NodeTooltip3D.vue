@@ -58,7 +58,9 @@ const stats = computed(() => {
         </div>
 
         <!-- Node name: shown in tooltip when textSprite is hidden on hover -->
-        <div class="tt-name">{{ node.name }}</div>
+        <div class="tt-name">
+          {{ node.name }}
+        </div>
 
         <!-- Stats row -->
         <div

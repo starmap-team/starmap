@@ -6,7 +6,26 @@
 
 /** Read a CSS custom property value from :root. Cached for performance. Shared across all chart/theme consumers. */
 const _cvCache = new Map<string, string>()
+let _cvObserver: MutationObserver | null = null
+
+/** Lazily set up a MutationObserver that clears the cache when the theme class changes. */
+function _ensureCacheInvalidation() {
+  if (_cvObserver) return
+  _cvObserver = new MutationObserver(() => {
+    _cvCache.clear()
+  })
+  _cvObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  })
+  window.addEventListener('unload', () => {
+    _cvObserver?.disconnect()
+    _cvObserver = null
+  })
+}
+
 export function cv(name: string): string {
+  _ensureCacheInvalidation()
   let value = _cvCache.get(name)
   if (value === undefined) {
     value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()

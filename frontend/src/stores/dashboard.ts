@@ -49,10 +49,10 @@ export interface SkillDomain {
 export interface QualityTrend {
   date: string
   quality_score: number
-  trust_score: number
+  trust_score: number | null
   crawl_volume: number
-  match_success_rate: number
-  hallucination_rate: number
+  match_success_rate: number | null
+  hallucination_rate: number | null
 }
 
 export interface RealtimeEvent {
@@ -133,6 +133,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
           new_records: number
           quality_score: number
           extractions: number
+          trust_score?: number
+          match_success_rate?: number
+          hallucination_rate?: number
         }>
         summary: Record<string, unknown>
       }
@@ -140,10 +143,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
       qualityTrends.value = (resp.data_points || []).map(dp => ({
         date: dp.date,
         quality_score: dp.quality_score,
-        trust_score: dp.quality_score,  // reuse quality as trust proxy
+        trust_score: dp.trust_score ?? null,
         crawl_volume: dp.extractions,
-        match_success_rate: 0,
-        hallucination_rate: 0,
+        match_success_rate: dp.match_success_rate ?? null,
+        hallucination_rate: dp.hallucination_rate ?? null,
       }))
     } catch {
       qualityTrends.value = []
@@ -190,14 +193,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  async function fetchSkillDomains() {
-    // Now fetched together with fetchDistribution from /dashboard/distribution
-    // This function is kept for backwards compatibility but is a no-op
-    if (skillDomains.value.length === 0) {
-      await fetchDistribution()
-    }
-  }
-
   async function fetchEmergingSkills() {
     try {
       // Try the dedicated endpoint first, fallback to graph overview
@@ -234,7 +229,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
         fetchOverview(),
         fetchTrends(),
         fetchDistribution(),
-        fetchSkillDomains(),
         fetchEmergingSkills(),
         fetchPipelineTimeline(),
       ])
@@ -259,7 +253,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
     fetchOverview,
     fetchTrends,
     fetchDistribution,
-    fetchSkillDomains,
     fetchEmergingSkills,
     fetchPipelineTimeline,
     fetchAll,

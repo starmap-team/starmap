@@ -117,10 +117,20 @@ async function handleLogin() {
     </div>
 
     <!-- Login card with glass effect -->
-    <div class="login-card" :class="{ 'login-card--success': loginSuccess }">
-      <h2 class="login-title">⭐ StarMap 星图</h2>
-      <p class="login-subtitle">人才能力星云导航系统</p>
-      <el-form @submit.prevent="handleLogin" class="login-form">
+    <div
+      class="login-card"
+      :class="{ 'login-card--success': loginSuccess }"
+    >
+      <h2 class="login-title">
+        ⭐ StarMap 星图
+      </h2>
+      <p class="login-subtitle">
+        人才能力星云导航系统
+      </p>
+      <el-form
+        class="login-form"
+        @submit.prevent="handleLogin"
+      >
         <el-form-item>
           <el-input
             v-model="username"
@@ -147,13 +157,16 @@ async function handleLogin() {
             type="primary"
             size="large"
             :loading="loading"
-            @click="handleLogin"
             style="width: 100%"
+            @click="handleLogin"
           >
             登 录
           </el-button>
         </el-form-item>
-        <div v-if="isDev" class="login-hint">
+        <div
+          v-if="isDev"
+          class="login-hint"
+        >
           默认管理员: <code>admin / starmap2024</code>
         </div>
       </el-form>

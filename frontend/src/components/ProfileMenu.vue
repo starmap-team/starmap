@@ -81,12 +81,21 @@ const userInitial = (username?: string | null) => {
 </script>
 
 <template>
-  <el-dropdown @command="handleCommand" trigger="click">
+  <el-dropdown
+    trigger="click"
+    @command="handleCommand"
+  >
     <span class="profile-trigger">
       <span class="avatar">{{ userInitial(userStore.user?.username) }}</span>
       <span class="profile-name">
         {{ userStore.user?.username ?? '未登录' }}
-        <el-tag v-if="userStore.isAdmin" size="small" type="danger" effect="dark" style="margin-left: 4px">admin</el-tag>
+        <el-tag
+          v-if="userStore.isAdmin"
+          size="small"
+          type="danger"
+          effect="dark"
+          style="margin-left: 4px"
+        >admin</el-tag>
       </span>
     </span>
     <template #dropdown>
@@ -101,7 +110,10 @@ const userInitial = (username?: string | null) => {
         <el-dropdown-item command="change-password">
           <el-icon><Lock /></el-icon> 修改密码
         </el-dropdown-item>
-        <el-dropdown-item command="logout" divided>
+        <el-dropdown-item
+          command="logout"
+          divided
+        >
           <el-icon><SwitchButton /></el-icon> 退出登录
         </el-dropdown-item>
       </el-dropdown-menu>
@@ -114,23 +126,58 @@ const userInitial = (username?: string | null) => {
     width="440px"
     @close="pwdForm = { old_password: '', new_password: '', confirm_password: '' }"
   >
-    <p v-if="userStore.mustChangePassword" class="pwd-hint">
+    <p
+      v-if="userStore.mustChangePassword"
+      class="pwd-hint"
+    >
       ⚠️ 管理员要求您首次登录后修改密码后才能继续使用系统。
     </p>
     <el-form label-width="100px">
-      <el-form-item label="原密码" required>
-        <el-input v-model="pwdForm.old_password" type="password" show-password autocomplete="current-password" />
+      <el-form-item
+        label="原密码"
+        required
+      >
+        <el-input
+          v-model="pwdForm.old_password"
+          type="password"
+          show-password
+          autocomplete="current-password"
+        />
       </el-form-item>
-      <el-form-item label="新密码" required>
-        <el-input v-model="pwdForm.new_password" type="password" show-password placeholder="至少 8 位" autocomplete="new-password" />
+      <el-form-item
+        label="新密码"
+        required
+      >
+        <el-input
+          v-model="pwdForm.new_password"
+          type="password"
+          show-password
+          placeholder="至少 8 位"
+          autocomplete="new-password"
+        />
       </el-form-item>
-      <el-form-item label="确认密码" required>
-        <el-input v-model="pwdForm.confirm_password" type="password" show-password autocomplete="new-password" />
+      <el-form-item
+        label="确认密码"
+        required
+      >
+        <el-input
+          v-model="pwdForm.confirm_password"
+          type="password"
+          show-password
+          autocomplete="new-password"
+        />
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="showChangePwd = false">取消</el-button>
-      <el-button type="primary" @click="submitChangePassword">提交</el-button>
+      <el-button @click="showChangePwd = false">
+        取消
+      </el-button>
+      <el-button
+        type="primary"
+        @click="submitChangePassword"
+      >
+        提交
+      </el-button>
     </template>
   </el-dialog>
 </template>

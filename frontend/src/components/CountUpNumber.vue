@@ -30,6 +30,10 @@ function easeOutCubic(t: number): number {
 }
 
 function animateCount(from: number, to: number) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    displayValue.value = to
+    return
+  }
   if (animFrame) cancelAnimationFrame(animFrame)
   const start = performance.now()
   const diff = to - from
@@ -79,6 +83,10 @@ function triggerFlash() {
 function startCountUp() {
   if (hasTriggered) return
   hasTriggered = true
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    displayValue.value = props.target
+    return
+  }
   animateCount(0, props.target)
   triggerFlash()
 }

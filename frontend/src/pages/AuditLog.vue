@@ -105,8 +105,19 @@ onMounted(fetchList)
     <header class="al-header">
       <h2>审计日志</h2>
       <div class="al-actions">
-        <el-input v-model="filters.actor" placeholder="操作人" clearable style="width: 160px" />
-        <el-select v-model="filters.event" placeholder="事件类型" clearable style="width: 180px" filterable>
+        <el-input
+          v-model="filters.actor"
+          placeholder="操作人"
+          clearable
+          style="width: 160px"
+        />
+        <el-select
+          v-model="filters.event"
+          placeholder="事件类型"
+          clearable
+          style="width: 180px"
+          filterable
+        >
           <el-option
             v-for="opt in eventOptions"
             :key="opt.value"
@@ -130,25 +141,63 @@ onMounted(fetchList)
           value-format="YYYY-MM-DDTHH:mm:ss"
           style="width: 200px"
         />
-        <el-button type="primary" @click="filters.page = 1; fetchList()">查询</el-button>
+        <el-button
+          type="primary"
+          @click="filters.page = 1; fetchList()"
+        >
+          查询
+        </el-button>
       </div>
     </header>
 
-    <el-table :data="items" v-loading="loading" stripe border>
-      <el-table-column label="时间" width="180">
-        <template #default="{ row }">{{ fmtDate(row.created_at) }}</template>
-      </el-table-column>
-      <el-table-column label="事件" width="130">
+    <el-table
+      v-loading="loading"
+      :data="items"
+      stripe
+      border
+    >
+      <el-table-column
+        label="时间"
+        width="180"
+      >
         <template #default="{ row }">
-          <el-tag :type="eventView(row.event).type" size="small">
+          {{ fmtDate(row.created_at) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="事件"
+        width="130"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="eventView(row.event).type"
+            size="small"
+          >
             {{ eventView(row.event).label }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="actor" label="操作人" width="160" />
-      <el-table-column prop="action" label="行为" width="160" />
-      <el-table-column prop="detail" label="详情" min-width="280" show-overflow-tooltip />
-      <el-table-column prop="ip" label="IP" width="140" />
+      <el-table-column
+        prop="actor"
+        label="操作人"
+        width="160"
+      />
+      <el-table-column
+        prop="action"
+        label="行为"
+        width="160"
+      />
+      <el-table-column
+        prop="detail"
+        label="详情"
+        min-width="280"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="ip"
+        label="IP"
+        width="140"
+      />
     </el-table>
 
     <el-pagination
@@ -157,9 +206,9 @@ onMounted(fetchList)
       :total="total"
       layout="total, sizes, prev, pager, next, jumper"
       :page-sizes="[20, 50, 100, 200]"
+      style="margin-top: 16px; justify-content: flex-end"
       @current-change="fetchList"
       @size-change="fetchList"
-      style="margin-top: 16px; justify-content: flex-end"
     />
   </div>
 </template>

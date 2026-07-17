@@ -107,7 +107,11 @@ function handleExport() {
             <span class="rs-unit">%</span>
           </div>
           <!-- FLOW-02-S3: 分数差值卡片 -->
-          <div v-if="scoreDelta !== null" class="rs-delta" :class="{ 'rs-delta--up': scoreDelta > 0, 'rs-delta--down': scoreDelta < 0 }">
+          <div
+            v-if="scoreDelta !== null"
+            class="rs-delta"
+            :class="{ 'rs-delta--up': scoreDelta > 0, 'rs-delta--down': scoreDelta < 0 }"
+          >
             <span class="rs-delta-icon">{{ scoreDelta > 0 ? '↑' : scoreDelta < 0 ? '↓' : '→' }}</span>
             <span class="rs-delta-text">
               匹配分数从 {{ Math.round((previousScore ?? 0) * 100) }}% 提升至 {{ Math.round(matchScore * 100) }}%

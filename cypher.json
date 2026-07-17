@@ -1,0 +1,1 @@
+{"query":"MATCH (n) RETURN labels(n) AS labels, count(n) AS cnt ORDER BY cnt DESC LIMIT 10"}

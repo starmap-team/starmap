@@ -18,6 +18,7 @@ vi.mock('@/api/request', () => ({
 describe('useDashboardStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vi.clearAllMocks()
   })
 
   // ── 1. Initial state ──
@@ -108,7 +109,7 @@ describe('useDashboardStore', () => {
     expect(store.qualityTrends).toHaveLength(2)
     expect(store.qualityTrends[0].date).toBe('2024-01-01')
     expect(store.qualityTrends[0].quality_score).toBe(0.9)
-    expect(store.qualityTrends[0].trust_score).toBe(0.9) // reuse quality as trust proxy
+    expect(store.qualityTrends[0].trust_score).toBeNull() // no trust_score in mock → null
     expect(store.qualityTrends[0].crawl_volume).toBe(5)
     expect(request.get).toHaveBeenCalledWith('/dashboard/trends')
   })
@@ -167,11 +168,10 @@ describe('useDashboardStore', () => {
 
   it('should fetch all dashboard data in parallel', async () => {
     const request = (await import('@/api/request')).default
-    // Mock all 6 endpoints called by fetchAll
+    // Mock all 5 endpoints called by fetchAll
     vi.mocked(request.get).mockResolvedValueOnce({ total_nodes: 100, total_edges: 500, total_domains: 5, total_positions: 20, total_skills: 100, trust_score: 0.8, hallucination_rate: 0.02, total_extractions: 200, data_volume: 50, today_extractions: 5, active_data_sources: 3, pipeline_status: 'idle', weekly_new_nodes: 10, stale: false, stale_since: null, timestamp: 1700000000 }) // fetchOverview
     vi.mocked(request.get).mockResolvedValueOnce({ period: '7d', data_points: [], summary: {} }) // fetchTrends
     vi.mocked(request.get).mockResolvedValueOnce({ source_distribution: [], domain_distribution: [] }) // fetchDistribution
-    vi.mocked(request.get).mockResolvedValueOnce({ source_distribution: [], domain_distribution: [] }) // fetchSkillDomains (calls fetchDistribution)
     vi.mocked(request.get).mockResolvedValueOnce([]) // fetchEmergingSkills
     vi.mocked(request.get).mockResolvedValueOnce({ stages: [] }) // fetchPipelineTimeline
 

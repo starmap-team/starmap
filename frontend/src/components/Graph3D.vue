@@ -1,39 +1,20 @@
 <script setup lang="ts">
-/**
- * Graph3D — 3D force-directed graph visualization using 3d-force-graph
- * The visual centrepiece of StarMap's panoramic knowledge graph.
- *
- * - Dynamic import of 3d-force-graph (code-split)
- * - WebGL detection with graceful 2D fallback
- * - Node sizing/colors by type (domain=large glowing sphere, position=medium, skill=small)
- * - Semi-transparent gradient edges
- * - Camera presets, auto-rotate, FPS counter
- * - Hover tooltip via NodeTooltip3D
- */
+/** Graph3D — 3D force-directed graph visualization (3d-force-graph) */
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue'
 import { nodeColor, edgeColor, withAlpha, SCENE_PALETTE } from '@/utils/graphColors'
 import NodeTooltip3D from './NodeTooltip3D.vue'
 import { Loading } from '@element-plus/icons-vue'
 import {
-  type GraphNode3D,
-  getNodeLabel,
-  getNodeRadius,
-  NODE_COLLISION_PADDING,
-  applyZLayering,
-  buildNodeThreeObject,
+  type GraphNode3D, getNodeLabel, getNodeRadius,
+  NODE_COLLISION_PADDING, applyZLayering, buildNodeThreeObject,
 } from '@/composables/useNodeThreeObject'
 import { type GraphLink3D, evolutionColor, composeEvolutionLinks } from '@/composables/useEvolutionEdges'
 import { calcForceConfig, applyForceConfig } from '@/composables/useForceConfig'
 import { disposeGlowCache } from '@/composables/useGlowTexture'
 import { disposeTextCache } from '@/composables/useTextSprite'
 import { useCameraPresets, type CameraPreset } from '@/composables/useCameraPresets'
-
-// ── Security ──
-function escapeHtml(s: string): string {
-  const d = document.createElement('div')
-  d.textContent = s
-  return d.innerHTML
-}
+import { useZoomControls } from '@/composables/useZoomControls'
+import { useNodeTooltip } from '@/composables/useNodeTooltip'
 
 // ── Props ──
 const props = withDefaults(defineProps<{
@@ -48,17 +29,7 @@ const props = withDefaults(defineProps<{
   opacity?: number
   startAutoRotate?: boolean
   maxNodes?: number
-}>(), {
-  width: 800,
-  height: 600,
-  currentLayer: 'domain',
-  showEvolution: false,
-  evolutionPaths: () => [],
-  currentDomainId: null,
-  opacity: 1,
-  startAutoRotate: false,
-  maxNodes: 0,
-})
+}>(), { width: 800, height: 600, currentLayer: 'domain', showEvolution: false, evolutionPaths: () => [], currentDomainId: null, opacity: 1, startAutoRotate: false, maxNodes: 0 })
 
 const emit = defineEmits<{
   nodeClick: [nodeId: string]
@@ -72,14 +43,6 @@ const containerRef = ref<HTMLElement | null>(null)
 const webglSupported = ref(true)
 const fps = ref(0)
 const isReady = ref(false)
-const tooltipNode = ref<{
-  id: string; name: string; type: string;
-  position_count?: number; skill_count?: number;
-  proficiency?: string; category?: string
-} | null>(null)
-const tooltipX = ref(0)
-const tooltipY = ref(0)
-const tooltipVisible = ref(false)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const graphInstance = shallowRef<any>(null)
@@ -102,8 +65,11 @@ const { autoRotate, setCameraPreset, resetCamera, toggleAutoRotate, clearAutoRot
   () => props.nodes,
 )
 
-// ── Mouse move handler (component-scoped for cleanup) ──
-let _mouseMoveHandler: ((e: MouseEvent) => void) | null = null
+// ── Zoom controls composable ──
+const { zoomBy, zoomIn, zoomOut, fitView } = useZoomControls(graphInstance, calcFitDistance)
+
+// ── Node tooltip composable ──
+const { tooltipNode, tooltipX, tooltipY, tooltipVisible, createHoverHandler, attachMouseMoveListener, detachMouseMoveListener } = useNodeTooltip()
 
 async function initGraph() {
   if (!containerRef.value || !webglSupported.value) return
@@ -144,10 +110,7 @@ async function initGraph() {
     .nodeResolution(16)
     .nodeOpacity(0.75)
     .nodeThreeObject(buildNodeThreeObject)
-    // ── Node label (3D text sprite) ──
-    // Disable 3d-force-graph's default HTML tooltip — textSprite (via
-    // buildNodeThreeObject) already provides a persistent 3D label above
-    // each node, and NodeTooltip3D handles hover details.
+    // Disable default HTML tooltip — textSprite + NodeTooltip3D handle labels
     .nodeLabel(() => '')
     // ── Edge configuration ──
     .linkColor((link) => {
@@ -178,47 +141,9 @@ async function initGraph() {
   applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, true)
 
   // ── Interactions ──
-  // Track previously hovered node to restore its textSprite visibility
-  let _prevHoveredNode: GraphNode3D | null = null
+  graph.onNodeHover(createHoverHandler())
 
-  function _setTextSpriteVisible(nodeObj: GraphNode3D, visible: boolean) {
-    // nodeObj.__threeObj is the Three.js Object3D created by buildNodeThreeObject
-    // textSprite is the last Sprite child added in buildNodeThreeObject
-    const threeObj = (nodeObj as unknown as { __threeObj?: import('three').Object3D }).__threeObj
-    if (!threeObj) return
-    threeObj.traverse((child) => {
-      // Sprites added by createTextSprite carry a userData flag
-      if (child.type === 'Sprite' && child.userData.isTextSprite) {
-        child.visible = visible
-      }
-    })
-  }
-
-  graph.onNodeHover((node) => {
-    // Restore previous node's textSprite
-    if (_prevHoveredNode) {
-      _setTextSpriteVisible(_prevHoveredNode, true)
-      _prevHoveredNode = null
-    }
-    if (node) {
-      const typed = node as GraphNode3D
-      // Hide textSprite on hover — NodeTooltip3D already shows the name
-      _setTextSpriteVisible(typed, false)
-      _prevHoveredNode = typed
-      tooltipNode.value = {
-        id: String(typed.id), name: typed.properties.name, type: getNodeLabel(typed),
-        position_count: typed.properties.position_count, skill_count: typed.properties.skill_count,
-        proficiency: typed.properties.proficiency, category: typed.properties.category,
-      }
-      tooltipVisible.value = true
-    } else {
-      tooltipVisible.value = false
-      tooltipNode.value = null
-    }
-  })
-
-  _mouseMoveHandler = (e: MouseEvent) => { tooltipX.value = e.clientX; tooltipY.value = e.clientY }
-  container.addEventListener('mousemove', _mouseMoveHandler)
+  attachMouseMoveListener(container)
 
   // Double-click detection via onNodeClick + timestamp
   let lastClickTime = 0
@@ -320,9 +245,6 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   }, settleMs)
 }, { deep: false })
 
-// ── Watch: layer changes → auto-adjust camera ──
-// 已合并到上方主 watch 中，不再需要独立 watch
-
 // ── Resize handling ──
 function handleResize() {
   const graph = graphInstance.value
@@ -348,65 +270,18 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   cancelAnimationFrame(fpsRafId)
   clearAutoRotateTimer()
-  if (containerRef.value && _mouseMoveHandler) containerRef.value.removeEventListener('mousemove', _mouseMoveHandler)
+  if (containerRef.value) detachMouseMoveListener(containerRef.value)
   disposeGlowCache()
   disposeTextCache()
   if (graphInstance.value) { graphInstance.value._destructor?.(); graphInstance.value = null }
 })
 
 // ── Expose methods for parent ──
-// 新增 autoRotateChange 事件，用于同步 autoRotate 状态到父组件
-// 注意：这里不能重复 defineEmits，因为上面已经定义了 emit
-// ── Zoom methods ──
-// 3d-force-graph doesn't have a built-in zoomBy; we adjust camera distance
-// relative to the lookAt center (always 0,0,0).
-function zoomBy(factor: number) {
-  const graph = graphInstance.value
-  // #region agent log
-  fetch('http://127.0.0.1:7337/ingest/a1b3769f-2ecd-42eb-8857-ccb5dabc585a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a1b3769f-2ecd-42eb-8857-ccb5dabc585a'},body:JSON.stringify({sessionId:'a1b3769f-2ecd-42eb-8857-ccb5dabc585a',location:'Graph3D.vue:zoomBy',message:'zoomBy called',data:{factor,hasGraph:!!graph},timestamp:Date.now(),hypothesisId:'graph3d-zoom'})}).catch(()=>{});
-  // #endregion
-  if (!graph) return
-  const cam = graph.cameraPosition()
-  if (!cam) return
-  // cam = { x, y, z } — current camera position; lookAt is always (0,0,0)
-  graph.cameraPosition(
-    { x: cam.x * factor, y: cam.y * factor, z: cam.z * factor },
-    { x: 0, y: 0, z: 0 },
-    400,
-  )
-}
-
-function zoomIn() { zoomBy(0.8) }   // move camera closer
-function zoomOut() { zoomBy(1.25) }  // move camera farther
-
-/** Fit all nodes into view — same logic as resetCamera but with tighter padding */
-function fitView() {
-  const graph = graphInstance.value
-  // #region agent log
-  fetch('http://127.0.0.1:7337/ingest/a1b3769f-2ecd-42eb-8857-ccb5dabc585a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a1b3769f-2ecd-42eb-8857-ccb5dabc585a'},body:JSON.stringify({sessionId:'a1b3769f-2ecd-42eb-8857-ccb5dabc585a',location:'Graph3D.vue:fitView',message:'fitView called',data:{hasGraph:!!graph},timestamp:Date.now(),hypothesisId:'graph3d-zoom'})}).catch(()=>{});
-  // #endregion
-  if (!graph) return
-  const fitDist = calcFitDistance(1.3)
-  graph.cameraPosition(
-    { x: fitDist * 0.6, y: fitDist * 0.5, z: fitDist * 0.8 },
-    { x: 0, y: 0, z: 0 },
-    800,
-  )
-}
-
 // ── Highlight methods ──
-// 3D graph uses nodeThreeObject for custom rendering; to "clear highlight"
-// we refresh the nodeThreeObject function which rebuilds all node visuals
-// from scratch using default colors.
 function clearHighlight() {
   const graph = graphInstance.value
-  // #region agent log
-  fetch('http://127.0.0.1:7337/ingest/a1b3769f-2ecd-42eb-8857-ccb5dabc585a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a1b3769f-2ecd-42eb-8857-ccb5dabc585a'},body:JSON.stringify({sessionId:'a1b3769f-2ecd-42eb-8857-ccb5dabc585a',location:'Graph3D.vue:clearHighlight',message:'clearHighlight called',data:{hasGraph:!!graph},timestamp:Date.now(),hypothesisId:'graph3d-highlight'})}).catch(()=>{});
-  // #endregion
   if (!graph) return
-  // Re-apply nodeThreeObject to force all nodes to rebuild with default colors
   graph.nodeThreeObject(buildNodeThreeObject)
-  // Also reset node opacity to default
   graph.nodeOpacity(0.75)
 }
 
@@ -420,32 +295,71 @@ defineExpose({ setCameraPreset, resetCamera, toggleAutoRotate: _toggleAutoRotate
 </script>
 
 <template>
-  <div class="graph3d-wrapper" :style="{ opacity: props.opacity }">
+  <div
+    class="graph3d-wrapper"
+    :style="{ opacity: props.opacity }"
+  >
     <!-- WebGL not supported fallback -->
-    <div v-if="!webglSupported" class="webgl-fallback">
+    <div
+      v-if="!webglSupported"
+      class="webgl-fallback"
+    >
       <div class="fallback-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
           <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
         </svg>
       </div>
-      <p class="fallback-title">WebGL 不可用</p>
-      <p class="fallback-text">您的浏览器或设备不支持 WebGL 3D 渲染。<br>请使用最新版 Chrome / Edge / Firefox 浏览器，或切换到 2D 视图。</p>
+      <p class="fallback-title">
+        WebGL 不可用
+      </p>
+      <p class="fallback-text">
+        您的浏览器或设备不支持 WebGL 3D 渲染。<br>请使用最新版 Chrome / Edge / Firefox 浏览器，或切换到 2D 视图。
+      </p>
     </div>
 
     <!-- 3D Graph container -->
-    <div v-show="webglSupported" ref="containerRef" class="graph3d-container" />
+    <div
+      v-show="webglSupported"
+      ref="containerRef"
+      class="graph3d-container"
+    />
 
     <!-- Loading indicator during force simulation warmup -->
-    <div v-if="webglSupported && !isReady" class="graph3d-loading">
-      <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+    <div
+      v-if="webglSupported && !isReady"
+      class="graph3d-loading"
+    >
+      <el-icon
+        class="is-loading"
+        :size="24"
+      >
+        <Loading />
+      </el-icon>
       <span>力导向布局计算中...</span>
     </div>
 
     <!-- FPS counter overlay -->
-    <div v-if="webglSupported && isReady" class="fps-counter">{{ fps }} FPS</div>
+    <div
+      v-if="webglSupported && isReady"
+      class="fps-counter"
+    >
+      {{ fps }} FPS
+    </div>
 
     <!-- Node tooltip -->
-    <NodeTooltip3D :node="tooltipNode" :x="tooltipX" :y="tooltipY" :visible="tooltipVisible" />
+    <NodeTooltip3D
+      :node="tooltipNode"
+      :x="tooltipX"
+      :y="tooltipY"
+      :visible="tooltipVisible"
+    />
   </div>
 </template>
 

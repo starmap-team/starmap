@@ -302,10 +302,16 @@ onUnmounted(() => {
         show-icon
         class="tab-description"
       >
-        <template #title>§5.2 模块D — 人岗匹配度诊断与差距分析</template>
-        <p>本流程对应设计文档的"匹配诊断全流程"：上传简历 → 文档解析 → LLM 技能提取 →
-        技能归一化 → 与目标岗位技能对比 → 差距分析报告 → 学习路径生成。</p>
-        <p class="tab-meta">后端: <code>/match/*</code> · 信任度驱动 (§7.1) · 通胀指数参考 (§7.5)</p>
+        <template #title>
+          §5.2 模块D — 人岗匹配度诊断与差距分析
+        </template>
+        <p>
+          本流程对应设计文档的"匹配诊断全流程"：上传简历 → 文档解析 → LLM 技能提取 →
+          技能归一化 → 与目标岗位技能对比 → 差距分析报告 → 学习路径生成。
+        </p>
+        <p class="tab-meta">
+          后端: <code>/match/*</code> · 信任度驱动 (§7.1) · 通胀指数参考 (§7.5)
+        </p>
       </el-alert>
 
       <!-- Phase 25: 业务流程图 — 让新用户秒懂 6 步骤数据流 -->

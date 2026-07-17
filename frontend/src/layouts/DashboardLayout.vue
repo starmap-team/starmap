@@ -3,17 +3,52 @@
  * 数据大屏专用布局 — 全屏暗色主题
  * 无侧边栏，无面包屑，深色背景，沉浸式体验
  */
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { FullScreen, Back } from '@element-plus/icons-vue'
 
-defineProps<{
+const props = defineProps<{
   title?: string
   subtitle?: string
+  clockTick?: number
+  stale?: boolean
+  staleSince?: number | string
 }>()
 
 const router = useRouter()
 const isFullscreen = ref(false)
+
+// Local fallback tick when no clockTick prop is provided
+const localTick = ref(0)
+let localTickTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  if (props.clockTick === undefined) {
+    localTickTimer = setInterval(() => {
+      localTick.value++
+    }, 1000)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (localTickTimer) {
+    clearInterval(localTickTimer)
+    localTickTimer = null
+  }
+})
+
+const displayTime = computed(() => {
+  // Access reactive tick so Vue re-evaluates every second
+  void (props.clockTick !== undefined ? props.clockTick : localTick.value)
+  const now = new Date()
+  const y = now.getFullYear()
+  const M = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  const h = String(now.getHours()).padStart(2, '0')
+  const m = String(now.getMinutes()).padStart(2, '0')
+  const s = String(now.getSeconds()).padStart(2, '0')
+  return `${y}/${M}/${d} ${h}:${m}:${s}`
+})
 
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
@@ -64,8 +99,16 @@ function goBack() {
         </div>
       </div>
       <div class="header-right">
+        <span
+          v-if="stale"
+          class="freshness-indicator stale"
+        >⚠ 数据过期</span>
+        <span
+          v-else-if="stale === false"
+          class="freshness-indicator fresh"
+        >数据实时</span>
         <div class="header-time">
-          {{ new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}
+          {{ displayTime }}
         </div>
         <button
           class="header-btn"
@@ -147,6 +190,21 @@ function goBack() {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.freshness-indicator {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.freshness-indicator.stale {
+  color: var(--warning);
+}
+
+.freshness-indicator.fresh {
+  color: var(--success);
+  opacity: 0.6;
 }
 
 .header-time {

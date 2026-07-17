@@ -56,10 +56,16 @@ const {
         show-icon
         class="business-banner"
       >
-        <template #title>§3.2 L2 数据融合层 — ETL 流水线监控</template>
-        <p>全链路 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → LLM 抽取 → 入库 → 图谱构建。
-        每个阶段独立降级，失败不阻塞后续流程。数据源质量影响 §7.1 信任度评分。</p>
-        <p class="banner-meta">后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送</p>
+        <template #title>
+          §3.2 L2 数据融合层 — ETL 流水线监控
+        </template>
+        <p>
+          全链路 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → LLM 抽取 → 入库 → 图谱构建。
+          每个阶段独立降级，失败不阻塞后续流程。数据源质量影响 §7.1 信任度评分。
+        </p>
+        <p class="banner-meta">
+          后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送
+        </p>
       </el-alert>
 
       <!-- 页面头部 -->

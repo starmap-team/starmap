@@ -49,10 +49,16 @@ onMounted(() => {
         show-icon
         class="business-banner"
       >
-        <template #title>§3.2 多源异构数据融合 — 数据源管理</template>
-        <p>StarMap 融合三类异构数据源：结构化（ESCO 职业标准）、半结构化（招聘 JD 爬虫）、
-        非结构化（技术博客）。权威性评分直接影响 §7.1 信任度驱动的图谱构建策略。</p>
-        <p class="banner-meta">后端: <code>/datasources</code> · 数据源: <code>datasources</code> 表 · 采集 → 归一化 → 信任度评分</p>
+        <template #title>
+          §3.2 多源异构数据融合 — 数据源管理
+        </template>
+        <p>
+          StarMap 融合三类异构数据源：结构化（ESCO 职业标准）、半结构化（招聘 JD 爬虫）、
+          非结构化（技术博客）。权威性评分直接影响 §7.1 信任度驱动的图谱构建策略。
+        </p>
+        <p class="banner-meta">
+          后端: <code>/datasources</code> · 数据源: <code>datasources</code> 表 · 采集 → 归一化 → 信任度评分
+        </p>
       </el-alert>
 
       <!-- 页面头部 -->

@@ -201,7 +201,7 @@ export function useDashboardCharts(store: DashboardStore) {
               ],
             },
           },
-          data: trends.map((t: QualityTrend) => t.trust_score),
+          data: trends.map((t: QualityTrend) => t.trust_score ?? '-'),
         },
         {
           name: '采集量',
@@ -256,18 +256,20 @@ export function useDashboardCharts(store: DashboardStore) {
       series: [{
         type: 'radar',
         data: [
-          {
-            // z_score normalized to 0-100 scale; fallback to growth_rate
-            value: top.map((s: EmergingSkill) => Math.round(Math.min(100, Math.abs(s.z_score ?? (s.growth_rate ?? 0)) * 20))),
-            name: 'Z-score',
-            lineStyle: { color: cc.chart[0], width: 2 },
-            itemStyle: { color: cc.chart[0] },
-            areaStyle: { color: cc.chart[0] + '26' },
-          },
-          {
-            // source_count normalized; fallback to relevance
-            value: top.map((s: EmergingSkill) => Math.round(Math.min(100, ((s.source_count ?? 0) / 10) * 100 || (s.relevance ?? 0) * 100))),
-            name: '来源数',
+	          {
+	            // z_score normalized to 0-100: multiply by 20, cap at 100.
+	            // Use z_score only; default to 0 when null/undefined (never fall back to growth_rate).
+	            value: top.map((s: EmergingSkill) => Math.round(Math.min(100, Math.abs(s.z_score ?? 0) * 20))),
+	            name: 'Z-score',
+	            lineStyle: { color: cc.chart[0], width: 2 },
+	            itemStyle: { color: cc.chart[0] },
+	            areaStyle: { color: cc.chart[0] + '26' },
+	          },
+	          {
+	            // source_count normalized to 0-100: (count/10)*100, cap at 100.
+	            // Use source_count only; default to 0 when null/undefined (never fall back to relevance).
+	            value: top.map((s: EmergingSkill) => Math.round(Math.min(100, ((s.source_count ?? 0) / 10) * 100))),
+	            name: '来源数',
             lineStyle: { color: cc.chart[2], width: 2 },
             itemStyle: { color: cc.chart[2] },
             areaStyle: { color: cc.chart[2] + '1F' },

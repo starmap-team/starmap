@@ -225,7 +225,10 @@ const { clockTick, connectionState } = useDashboardRealtimeSync(
               v-if="!store.realtimeEvents.length"
               class="event-empty"
             >
-              <div class="event-typing-dots" aria-hidden="true">
+              <div
+                class="event-typing-dots"
+                aria-hidden="true"
+              >
                 <span class="event-typing-dot" />
                 <span class="event-typing-dot" />
                 <span class="event-typing-dot" />
@@ -258,7 +261,10 @@ const { clockTick, connectionState } = useDashboardRealtimeSync(
                     height: stage.progress + '%',
                   }"
                 />
-                <span class="stage-icon" :class="`stage-icon-${stage.status}`">{{ stageIcon(stage.status) }}</span>
+                <span
+                  class="stage-icon"
+                  :class="`stage-icon-${stage.status}`"
+                >{{ stageIcon(stage.status) }}</span>
                 <span class="stage-label">{{ stage.stage }}</span>
               </div>
               <div
@@ -272,14 +278,14 @@ const { clockTick, connectionState } = useDashboardRealtimeSync(
             </div>
           </div>
           <div class="pipeline-stats">
-	            <div class="stat-item">
-	              <span class="stat-value">{{ store.overview?.today_extractions?.toLocaleString() ?? '--' }}</span>
-	              <span class="stat-label">今日抽取</span>
-	            </div>
-	            <div class="stat-item">
-	              <span class="stat-value">{{ store.overview?.data_volume?.toLocaleString() ?? '--' }}</span>
-	              <span class="stat-label">数据总量</span>
-	            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ store.overview?.today_extractions?.toLocaleString() ?? '--' }}</span>
+              <span class="stat-label">今日抽取</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ store.overview?.data_volume?.toLocaleString() ?? '--' }}</span>
+              <span class="stat-label">数据总量</span>
+            </div>
             <div class="stat-item">
               <span class="stat-value">{{ store.overview?.pipeline_status ?? '--' }}</span>
               <span class="stat-label">状态</span>

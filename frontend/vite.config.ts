@@ -17,6 +17,10 @@ export default defineConfig({
     proxy: {
       // Default → http://localhost:8000 (matches docker-compose.dev.yml backend mapping 8000:8000).
       // Override via VITE_API_BASE_URL when running backend on a different host/port.
+      // UAT fallback: when running frontend as a docker-compose service, point at
+      // the docker-network host. `starmap-backend-prod` is the backend service name.
+      // In dev (vite on host), proxy stays at http://localhost:8000 because the
+      // host's port 8000 maps to backend container's 8000.
       '/api': {
         target: process.env.VITE_API_BASE_URL || 'http://localhost:8000',
         changeOrigin: true,
