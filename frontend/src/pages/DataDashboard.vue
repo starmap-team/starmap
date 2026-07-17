@@ -24,11 +24,13 @@ import { CanvasRenderer } from 'echarts/renderers'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import CountUpNumber from '@/components/CountUpNumber.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import DashboardSkeleton from '@/components/DashboardSkeleton.vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useDashboardCharts } from '@/composables/useDashboardCharts'
 import { useDashboardKpiCards } from '@/composables/useDashboardKpiCards'
 import { useDashboardRealtimeSync } from '@/composables/useDashboardRealtimeSync'
 import { useDashboardDisplay } from '@/composables/useDashboardDisplay'
+import { API_BASE } from '@/config/apiBase'
 
 use([
   PieChart,
@@ -53,12 +55,12 @@ const kpiCards = useDashboardKpiCards(store)
 const { darkPieOption, treemapOption, trendOption, radarOption } = useDashboardCharts(store)
 
 // ── Display maps + pipeline defaults + time formatter (Phase 7 D round 9) ──
-const { pipelineStages, statusColor, eventIcon, eventSeverityColor, formatTime } = useDashboardDisplay(store)
+const { pipelineStages, statusColor, eventIcon, eventSeverityColor, eventTypeColor, formatTime, stageIcon } = useDashboardDisplay(store)
 
 // ── Realtime sync (SSE + periodic refresh + clock) — Phase 7 D round 3 ──
-// SSE-05: Use VITE_API_BASE_URL for SSE URLs (Docker + local compatibility)
-const sseBase = import.meta.env.VITE_API_BASE_URL || '/api/v1'
-useDashboardRealtimeSync(
+// SSE-05: Use API_BASE from apiBase.ts SSoT
+const sseBase = API_BASE
+const { clockTick, connectionState } = useDashboardRealtimeSync(
   store,
   `${sseBase}/dashboard/realtime`,
   `${sseBase}/dashboard/realtime-poll`,
@@ -69,8 +71,15 @@ useDashboardRealtimeSync(
   <DashboardLayout
     title="StarMap 数据大屏"
     subtitle="实时数据监控与可视化"
+    :clock-tick="clockTick"
+    :stale="store.overview?.stale ?? false"
+    :stale-since="store.overview?.stale_since ?? ''"
   >
-    <div class="dashboard-grid">
+    <DashboardSkeleton v-if="store.loading && !store.overview" />
+    <div
+      v-else
+      class="dashboard-grid"
+    >
       <!-- ══════════════ TOP ROW: 6 KPI CARDS ══════════════ -->
       <div class="kpi-row">
         <router-link
@@ -86,7 +95,9 @@ useDashboardRealtimeSync(
         >
           <div class="kpi-glow-bg" />
           <div class="kpi-icon">
-            {{ card.icon }}
+            <el-icon :size="20">
+              <component :is="card.icon" />
+            </el-icon>
           </div>
           <div class="kpi-body">
             <div class="kpi-label">
@@ -182,10 +193,13 @@ useDashboardRealtimeSync(
             <span class="panel-title">实时事件流</span>
             <span
               class="sse-indicator"
-              :class="{ connected: store.sseConnected }"
+              :class="connectionState"
             >
               <span class="sse-dot" />
-              {{ store.sseConnected ? 'SSE 已连接' : '轮询中' }}
+              <template v-if="connectionState === 'connecting'">连接中...</template>
+              <template v-else-if="connectionState === 'connected'">SSE 已连接</template>
+              <template v-else-if="connectionState === 'polling'">轮询中</template>
+              <template v-else>已断开</template>
             </span>
           </div>
           <div class="event-stream">
@@ -194,6 +208,7 @@ useDashboardRealtimeSync(
                 v-for="evt in store.realtimeEvents.slice(0, 20)"
                 :key="evt.id"
                 class="event-item"
+                :style="{ borderLeftColor: eventTypeColor[evt.type] || 'var(--chart-1)' }"
               >
                 <span class="event-icon">{{ eventIcon[evt.type] || '📡' }}</span>
                 <div class="event-body">
@@ -210,8 +225,12 @@ useDashboardRealtimeSync(
               v-if="!store.realtimeEvents.length"
               class="event-empty"
             >
-              <div class="event-empty-pulse" />
-              <span>等待实时事件...</span>
+              <div class="event-typing-dots" aria-hidden="true">
+                <span class="event-typing-dot" />
+                <span class="event-typing-dot" />
+                <span class="event-typing-dot" />
+              </div>
+              <span class="event-empty-label">等待实时事件...</span>
             </div>
           </div>
         </div>
@@ -239,11 +258,13 @@ useDashboardRealtimeSync(
                     height: stage.progress + '%',
                   }"
                 />
+                <span class="stage-icon" :class="`stage-icon-${stage.status}`">{{ stageIcon(stage.status) }}</span>
                 <span class="stage-label">{{ stage.stage }}</span>
               </div>
               <div
                 v-if="idx < pipelineStages.length - 1"
                 class="stage-connector"
+                :class="`stage-connector-${pipelineStages[idx].status}`"
               >
                 <span class="connector-line" />
                 <span class="connector-arrow">›</span>
@@ -299,7 +320,7 @@ useDashboardRealtimeSync(
 .dashboard-grid {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--gap-md);
   height: calc(100vh - 72px);
   min-height: 700px;
 }
@@ -308,7 +329,7 @@ useDashboardRealtimeSync(
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 12px;
+  gap: var(--gap-md);
   flex-shrink: 0;
 }
 
@@ -316,16 +337,17 @@ useDashboardRealtimeSync(
   position: relative;
   background: var(--dash-surface);
   border: 1px solid var(--dash-accent-10);
-  border-radius: 8px;
+  border-radius: var(--radius-lg, 8px);
   padding: 14px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--gap-md);
   overflow: hidden;
   transition: all 0.3s ease;
   cursor: pointer;
   text-decoration: none;
   color: inherit;
+  box-shadow: var(--shadow-subtle);
 }
 
 .kpi-card:hover {
@@ -393,7 +415,7 @@ useDashboardRealtimeSync(
 .middle-row {
   display: grid;
   grid-template-columns: 1fr 1.5fr 1fr;
-  gap: 14px;
+  gap: var(--gap-md);
   flex: 1;
   min-height: 0;
 }
@@ -402,7 +424,7 @@ useDashboardRealtimeSync(
 .bottom-row {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr 1fr;
-  gap: 14px;
+  gap: var(--gap-md);
   flex: 1;
   min-height: 0;
 }
@@ -413,10 +435,11 @@ useDashboardRealtimeSync(
 .panel {
   background: var(--dash-surface);
   border: 1px solid var(--dash-accent-10);
-  border-radius: 8px;
+  border-radius: var(--radius-lg, 8px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: var(--shadow-subtle);
 }
 
 .panel-header {
@@ -452,39 +475,6 @@ useDashboardRealtimeSync(
 }
 
 /* ═══════════════════════════════════════════
-   Chart Empty State (Phase 9 D-02: custom-empty for charts)
-   Dark-theme adapted using --dash-* tokens.
-   ═══════════════════════════════════════════ */
-.chart-empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  gap: 8px;
-}
-
-.chart-empty-icon {
-  font-size: 28px;
-  opacity: 0.3;
-  line-height: 1;
-}
-
-.chart-empty-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--dash-text-50);
-  margin: 0;
-}
-
-.chart-empty-hint {
-  font-size: 11px;
-  color: var(--dash-text-30);
-  margin: 0;
-}
-
-/* ═══════════════════════════════════════════
    Event Stream
    ═══════════════════════════════════════════ */
 .sse-indicator {
@@ -492,11 +482,23 @@ useDashboardRealtimeSync(
   align-items: center;
   gap: 6px;
   font-size: 10px;
-  color: var(--dash-disconnected);
+}
+
+/* 4-state connection colors */
+.sse-indicator.connecting {
+  color: var(--el-color-info, #909399);
 }
 
 .sse-indicator.connected {
-  color: var(--dash-connected);
+  color: var(--el-color-success, #67c23a);
+}
+
+.sse-indicator.polling {
+  color: var(--el-color-warning, #e6a23c);
+}
+
+.sse-indicator.disconnected {
+  color: var(--el-color-danger, #f56c6c);
 }
 
 .sse-dot {
@@ -504,21 +506,38 @@ useDashboardRealtimeSync(
   height: 6px;
   border-radius: 50%;
   background: currentColor;
-  animation: pulse-dot 2s ease-in-out infinite;
 }
 
+/* connecting: pulsing dot */
+.sse-indicator.connecting .sse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* connected: solid dot */
 .sse-indicator.connected .sse-dot {
-  animation: pulse-dot-green 2s ease-in-out infinite;
+  animation: none;
+  opacity: 1;
+}
+
+/* polling: slower pulsing dot */
+.sse-indicator.polling .sse-dot {
+  animation: pulse-dot-slow 3s ease-in-out infinite;
+}
+
+/* disconnected: dot off */
+.sse-indicator.disconnected .sse-dot {
+  animation: none;
+  opacity: 0.3;
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 0.5; }
+  0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
 }
 
-@keyframes pulse-dot-green {
-  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px color-mix(in srgb, var(--success) 30%, transparent); }
-  50% { opacity: 1; box-shadow: 0 0 8px color-mix(in srgb, var(--success) 60%, transparent); }
+@keyframes pulse-dot-slow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }
 
 .event-stream {
@@ -543,8 +562,9 @@ useDashboardRealtimeSync(
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 6px 0;
+  padding: 6px 8px;
   border-bottom: 1px solid var(--dash-text-04);
+  border-left: 2px solid var(--chart-1);
   animation: event-in 0.3s ease-out;
 }
 
@@ -608,18 +628,31 @@ useDashboardRealtimeSync(
   font-size: 12px;
 }
 
-.event-empty-pulse {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--dash-accent-40);
-  animation: pulse-ring 2s ease-in-out infinite;
+.event-typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 10px;
 }
 
-@keyframes pulse-ring {
-  0% { transform: scale(0.8); opacity: 0.6; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(0.8); opacity: 0.6; }
+.event-typing-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dash-accent-40);
+  animation: dash-typing-pulse 1.2s ease-in-out infinite;
+}
+
+.event-typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.event-typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.event-empty-label {
+  letter-spacing: 0.02em;
 }
 
 /* TransitionGroup for events */
@@ -678,6 +711,31 @@ useDashboardRealtimeSync(
   transition: height 0.5s ease;
 }
 
+.stage-icon {
+  position: relative;
+  z-index: 2;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--dash-text-85);
+  text-shadow: 0 0 8px currentColor;
+}
+
+.stage-icon-running {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+.stage-icon-completed {
+  color: var(--el-color-success, #67c23a);
+}
+
+.stage-icon-failed {
+  color: var(--el-color-danger, #f56c6c);
+}
+
+.stage-icon-waiting {
+  color: var(--dash-text-40);
+}
+
 .stage-label {
   font-size: 10px;
   font-weight: 600;
@@ -705,6 +763,32 @@ useDashboardRealtimeSync(
   font-weight: 700;
   color: var(--dash-accent-20);
   line-height: 1;
+}
+
+.stage-connector-completed .connector-line,
+.stage-connector-running .connector-line {
+  background: var(--el-color-success, #67c23a);
+  background-image: linear-gradient(90deg, transparent 25%, currentColor 25%, currentColor 50%, transparent 50%, transparent 75%, currentColor 75%);
+  background-size: 8px 100%;
+  animation: connector-flow 1s linear infinite;
+}
+
+.stage-connector-running .connector-line {
+  color: var(--el-color-primary, #409eff);
+  background-color: var(--el-color-primary, #409eff);
+}
+
+.stage-connector-completed .connector-arrow {
+  color: var(--el-color-success, #67c23a);
+}
+
+.stage-connector-running .connector-arrow {
+  color: var(--el-color-primary, #409eff);
+}
+
+@keyframes connector-flow {
+  from { background-position: 0 0; }
+  to { background-position: 8px 0; }
 }
 
 .pipeline-stats {

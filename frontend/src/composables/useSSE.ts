@@ -8,6 +8,7 @@
  *   })
  */
 import { ref, onUnmounted } from 'vue'
+import { API_BASE } from '@/config/apiBase'
 
 export interface UseSSEOptions {
   /** Called for each SSE message (named events dispatch by event type) */
@@ -32,6 +33,38 @@ export interface UseSSEOptions {
    * before falling back to onMessage.
    */
   storeHandlers?: Record<string, (data: unknown) => void>
+  /** Interval in ms to retry SSE connection while in polling mode (default: 60000) */
+  sseRetryInterval?: number
+}
+
+/**
+ * P0-F2 fix: silent refresh for SSE connections.
+ * EventSource cannot set Authorization headers, so when the access token
+ * expires (15 min), SSE reconnects fail with 401. This function attempts
+ * a silent refresh using the stored refresh token before reconnecting.
+ */
+async function silentRefreshForSSE(): Promise<string | null> {
+  const rt = localStorage.getItem('starmap_refresh_token')
+  if (!rt) return null
+
+  try {
+    const apiBase = API_BASE
+    const resp = await fetch(`${apiBase}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: rt }),
+    })
+    if (!resp.ok) return null
+    const data = await resp.json()
+    const newAccess: string | undefined = data?.access_token
+    if (newAccess) {
+      localStorage.setItem('starmap_access_token', newAccess)
+      return newAccess
+    }
+  } catch {
+    // Network error or parse failure — cannot refresh
+  }
+  return null
 }
 
 export function useSSE(url: string, options: UseSSEOptions) {
@@ -45,6 +78,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
     pollInterval = 5000,
     pollUrl,
     storeHandlers,  // Phase 1 D-09: optional event-type dispatch
+    sseRetryInterval = 60000, // retry SSE while polling every 60s
   } = options
 
   const connected = ref(false)
@@ -55,7 +89,9 @@ export function useSSE(url: string, options: UseSSEOptions) {
   let consecutiveFailures = 0
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let pollTimer: ReturnType<typeof setInterval> | null = null
+  let sseRetryTimer: ReturnType<typeof setInterval> | null = null
   let disposed = false
+  let refreshingToken = false  // P0-F2: guard against parallel refreshes
 
   // ── SSE connection ──
 
@@ -82,6 +118,16 @@ export function useSSE(url: string, options: UseSSEOptions) {
         connected.value = true
         retryCount = 0
         consecutiveFailures = 0
+        // If we were polling, stop polling and switch back to SSE mode
+        if (pollTimer) {
+          clearInterval(pollTimer)
+          pollTimer = null
+        }
+        if (sseRetryTimer) {
+          clearInterval(sseRetryTimer)
+          sseRetryTimer = null
+        }
+        mode.value = 'sse'
       }
 
       eventSource.onmessage = (event: MessageEvent) => {
@@ -104,7 +150,6 @@ export function useSSE(url: string, options: UseSSEOptions) {
       eventSource.addEventListener('skill_update', onMessage)
       eventSource.addEventListener('match_event', onMessage)
       eventSource.addEventListener('graph_update', onMessage)
-      eventSource.addEventListener('pipeline_update', onMessage)
 
       // Phase 1 SSE-01/02/03: 监听新增的 3 种 named events
       if (storeHandlers) {
@@ -134,13 +179,41 @@ export function useSSE(url: string, options: UseSSEOptions) {
         })
       }
 
-      eventSource.onerror = (err: Event) => {
+      eventSource.onerror = () => {
         connected.value = false
         eventSource?.close()
         eventSource = null
 
         consecutiveFailures++
 
+        // P0-F2 fix: on first failure, attempt silent token refresh.
+        // EventSource.onerror doesn't expose HTTP status/headers, so we
+        // proactively refresh when a refresh token exists. If refresh
+        // succeeds, reconnect immediately with the new access token.
+        if (consecutiveFailures === 1 && !refreshingToken) {
+          const hasRefreshToken = !!localStorage.getItem('starmap_refresh_token')
+          if (hasRefreshToken) {
+            refreshingToken = true
+            silentRefreshForSSE().then((newToken) => {
+              refreshingToken = false
+              if (newToken && !disposed) {
+                if (import.meta.env.DEV) console.warn('[useSSE] Token refreshed, reconnecting SSE')
+                retryCount = 0
+                consecutiveFailures = 0
+                connectSSE()
+                return
+              }
+              // Refresh failed — fall through to normal backoff
+              handleSSEError()
+            })
+            return
+          }
+        }
+
+        handleSSEError()
+      }
+
+      function handleSSEError() {
         // Switch to polling after consecutive failures
         if (consecutiveFailures >= pollThreshold) {
           // keep: records SSE→polling fallback for ops debugging
@@ -159,7 +232,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
         } else {
           if (import.meta.env.DEV) console.error('[useSSE] Max retries reached, attempting polling fallback')
           startPolling()
-          onError?.(err)
+          onError?.(new Event('error'))
         }
       }
     } catch {
@@ -206,6 +279,32 @@ export function useSSE(url: string, options: UseSSEOptions) {
             data: JSON.stringify(data),
           }))
         }
+      } else if (response.status === 401) {
+        // P0-F2: polling also gets 401 — try silent refresh
+        const newToken = await silentRefreshForSSE()
+        if (newToken) {
+          // Retry this poll immediately with new token
+          headers['Authorization'] = `Bearer ${newToken}`
+          const retryResp = await fetch(pollUrl || `${url}-poll`, { headers })
+          if (retryResp.ok) {
+            const retryData = await retryResp.json()
+            connected.value = true
+            consecutiveFailures = 0
+            if (Array.isArray(retryData)) {
+              for (const item of retryData) {
+                if (storeHandlers && item?.type && storeHandlers[item.type]) {
+                  storeHandlers[item.type](item?.data ?? item)
+                }
+                onMessage(new MessageEvent('message', { data: JSON.stringify(item) }))
+              }
+            } else if (retryData && typeof retryData === 'object') {
+              if (storeHandlers && retryData?.type && storeHandlers[retryData.type]) {
+                storeHandlers[retryData.type](retryData?.data ?? retryData)
+              }
+              onMessage(new MessageEvent('message', { data: JSON.stringify(retryData) }))
+            }
+          }
+        }
       }
     } catch {
       consecutiveFailures++
@@ -227,6 +326,18 @@ export function useSSE(url: string, options: UseSSEOptions) {
     // Immediate first poll
     pollOnce()
     pollTimer = setInterval(pollOnce, pollInterval)
+
+    // Periodically attempt to reconnect to SSE while polling
+    if (!sseRetryTimer) {
+      sseRetryTimer = setInterval(() => {
+        if (disposed || mode.value === 'sse') return
+        if (import.meta.env.DEV) console.warn('[useSSE] Attempting SSE reconnection from polling mode')
+        // Reset retry state so connectSSE starts fresh
+        retryCount = 0
+        consecutiveFailures = 0
+        connectSSE()
+      }, sseRetryInterval)
+    }
   }
 
   // ── Cleanup ──
@@ -247,6 +358,11 @@ export function useSSE(url: string, options: UseSSEOptions) {
     if (pollTimer) {
       clearInterval(pollTimer)
       pollTimer = null
+    }
+
+    if (sseRetryTimer) {
+      clearInterval(sseRetryTimer)
+      sseRetryTimer = null
     }
 
     connected.value = false

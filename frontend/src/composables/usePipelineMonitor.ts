@@ -10,6 +10,7 @@ import type { PipelineStage, PipelineSchedule, DataMilestone, ExtractionComplete
 import type { QualityAlert } from '@/types/quality'
 import { STAGE_LABELS, ALL_STAGE_NAMES } from '@/stores/pipeline'
 import { useSSE } from '@/composables/useSSE'
+import { API_BASE } from '@/config/apiBase'
 import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle } from '@/utils/chartTheme'
 
 /** Default auto-refresh interval in seconds */
@@ -55,8 +56,8 @@ export function usePipelineMonitor() {
 
   // ── SSE 实时进度 ──
   // Phase 1 D-09: 多事件类型分发到 pipeline store actions
-  // SSE-05: Use VITE_API_BASE_URL for SSE URLs (Docker + local compatibility)
-  const sseBase = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+  // SSE-05: Use API_BASE from apiBase.ts SSoT
+  const sseBase = API_BASE
   const { connected: sseConnected, mode: sseMode, disconnect: sseDisconnect } = useSSE(
     `${sseBase}/pipeline/events`,
     {
