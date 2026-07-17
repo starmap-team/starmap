@@ -76,6 +76,9 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
     label = label_map.get(item_type)
     if not label:
         return
+    # ponytail: guard against Cypher injection — only alphanumeric labels allowed
+    if not label.isalnum():
+        return
     try:
         async with neo4j_driver.session() as session:
             await session.run(
