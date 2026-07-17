@@ -21,9 +21,7 @@ COPY . .
 
 # W1-T3 fix (P0-10): 不再注入 VITE_API_BASE_URL。前端 baseURL 现在由
 # `@/config/apiBase` 单一真相源硬编码为 '/api/v1'；nginx 已升级为
-# `proxy_pass ...:8000/api/v1/`（frontend/nginx.conf）。MSW 仍是死依赖，
-# 留待 W3-T3 清理。
-ENV VITE_USE_MSW=false
+# `proxy_pass ...:8000/api/v1/`（frontend/nginx.conf）。
 
 RUN npm run build
 
