@@ -23,5 +23,14 @@
     "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "no-empty": ["error", { "allowEmptyCatch": true }]
   },
-  "ignorePatterns": ["dist/", "node_modules/", "*.config.ts", "src/api/schema.ts"]
+  "ignorePatterns": ["dist/", "node_modules/", "*.config.ts", "src/api/schema.ts"],
+  "overrides": [
+    {
+      "files": ["**/__tests__/**", "**/*.spec.ts", "**/*.test.ts", "e2e/**"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unused-vars": "off"
+      }
+    }
+  ]
 }

@@ -259,7 +259,7 @@ onMounted(async () => {
   // UX-02: start autoRotate if prop is set (e.g. Login background)
   if (props.startAutoRotate) {
     autoRotate.value = true
-    const controls = (graphInstance.value as any)?._controls
+    const controls = (graphInstance.value as Record<string, unknown>)?._controls as { autoRotate: boolean; autoRotateSpeed: number } | undefined
     if (controls) { controls.autoRotate = true; controls.autoRotateSpeed = 0.8 }
   }
   measureFPS()

@@ -10,6 +10,7 @@
  * on /admin and immediately see *where* in the business they are.
  */
 import { useRouter } from 'vue-router'
+import type { Component } from 'vue'
 import {
   Coin,
   Document,
@@ -25,7 +26,7 @@ interface FlowStage {
   key: string
   label: string
   description: string
-  icon: any
+  icon: Component
   color: string
   route: string  // for direct navigation
   adminTab?: string  // for admin-tab navigation via event

@@ -296,7 +296,7 @@ export const useGraphStore = defineStore('graph', () => {
   /** 加载演化关系边（含趋势、技能重叠、差距等详情） */
   async function fetchEvolutionEdges() {
     try {
-      const data = await request.get('/evolution/paths/all') as unknown as RawEvolutionPath[]
+      const data = await request.get<RawEvolutionPath[]>('/evolution/paths/all')
       const paths = Array.isArray(data) ? data : []
       evolutionEdges.value = paths.map(mapEvolutionPath)
     } catch (e) {
@@ -316,7 +316,7 @@ export const useGraphStore = defineStore('graph', () => {
     }
     evolutionPathsLoading.value = true
     try {
-      const data = await request.get(`/evolution/paths/${encodeURIComponent(positionName)}`) as unknown as RawEvolutionPath[]
+      const data = await request.get<RawEvolutionPath[]>(`/evolution/paths/${encodeURIComponent(positionName)}`)
       const paths = Array.isArray(data) ? data : []
       evolutionPaths.value = paths.map(mapEvolutionPath)
     } catch (e) {

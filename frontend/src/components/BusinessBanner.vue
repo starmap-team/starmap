@@ -14,11 +14,9 @@
  *   />
  */
 
-import { computed } from 'vue'
-
 type AlertType = 'success' | 'warning' | 'info' | 'error'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   /** Element Plus alert type */
   type?: AlertType
   /** Banner title (supports HTML) */
@@ -29,16 +27,8 @@ const props = withDefaults(defineProps<{
   meta?: string
 }>(), {
   type: 'info',
+  meta: '',
 })
-
-const iconMap: Record<AlertType, string> = {
-  success: 'CircleCheck',
-  warning: 'WarningFilled',
-  info: 'InfoFilled',
-  error: 'CircleCloseFilled',
-}
-
-const alertIcon = computed(() => iconMap[props.type])
 </script>
 
 <template>
@@ -49,14 +39,18 @@ const alertIcon = computed(() => iconMap[props.type])
     class="business-banner"
   >
     <template #title>
+      <!-- eslint-disable-next-line vue/no-v-html -->
       <span v-html="title" />
     </template>
+    <!-- eslint-disable-next-line vue/no-v-html -->
     <p v-html="description" />
+    <!-- eslint-disable vue/no-v-html -->
     <p
       v-if="meta"
       class="banner-meta"
       v-html="meta"
     />
+    <!-- eslint-enable vue/no-v-html -->
   </el-alert>
 </template>
 

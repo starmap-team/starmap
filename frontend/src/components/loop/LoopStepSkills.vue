@@ -5,7 +5,7 @@
  */
 import type { StepResult } from '@/stores/loop'
 
-const props = defineProps<{
+defineProps<{
   step: StepResult
   celebrated: boolean
   skills: { skill: string; is_new: boolean; confidence?: number }[]

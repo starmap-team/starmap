@@ -1,4 +1,4 @@
-﻿import { defineStore } from 'pinia'
+import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 
@@ -56,11 +56,10 @@ export const useMatchStore = defineStore('match', () => {
         name,
         proficiency: skillProficiencies?.[name] ?? '熟悉',
       }))
-      const data = await request.post('/match/position', {
+      const matchResult = await request.post<MatchResult>('/match/position', {
         person_skills,
         target_position: targetPosition,
       })
-      const matchResult = data as unknown as MatchResult
       result.value = matchResult
       // 缓存到历史记录
       if (matchResult.match_id) {
@@ -78,8 +77,7 @@ export const useMatchStore = defineStore('match', () => {
     }
     // 再查后端
     try {
-      const data = await request.get(`/match/result/${matchId}`)
-      const matchResult = data as unknown as MatchResult
+      const matchResult = await request.get<MatchResult>(`/match/result/${matchId}`)
       history.value.set(matchId, matchResult)
       return matchResult
     } catch {

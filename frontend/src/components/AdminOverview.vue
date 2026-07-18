@@ -15,8 +15,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Grid, Connection, DataLine, Warning, Clock, Promotion } from '@element-plus/icons-vue'
+import { Grid, Connection, DataLine, Clock, Promotion } from '@element-plus/icons-vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useReviewStore } from '@/stores/review'
 import AdminFlow from '@/components/AdminFlow.vue'

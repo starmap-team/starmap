@@ -28,10 +28,9 @@ export const useResumeStore = defineStore('resume', () => {
     const formData = new FormData()
     formData.append('file', file)
     try {
-      const data = await request.post('/resume/upload', formData, {
+      result.value = await request.post<ResumeParseResult>('/resume/upload', formData, {
         timeout: 60000, // 60秒超时（LLM 抽取需要时间）
       })
-      result.value = data as unknown as ResumeParseResult
     } catch (e: unknown) {
       if (import.meta.env.DEV) console.error('[Resume] Parse failed:', e)
       result.value = null

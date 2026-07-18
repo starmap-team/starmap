@@ -214,4 +214,20 @@ request.interceptors.response.use(
   },
 )
 
-export default request
+// ── Type-safe wrappers ──
+// The response interceptor returns `resp.data` (untyped `any`).
+// These wrappers let callers specify the expected response shape
+// so stores can drop `as unknown as` casts entirely.
+
+type RequestInstance = typeof request
+
+interface TypedRequest extends RequestInstance {
+  get<T = unknown>(url: string, config?: Parameters<RequestInstance['get']>[1]): Promise<T>
+  post<T = unknown>(url: string, data?: unknown, config?: Parameters<RequestInstance['post']>[2]): Promise<T>
+  put<T = unknown>(url: string, data?: unknown, config?: Parameters<RequestInstance['put']>[2]): Promise<T>
+  delete<T = unknown>(url: string, config?: Parameters<RequestInstance['delete']>[1]): Promise<T>
+  patch<T = unknown>(url: string, data?: unknown, config?: Parameters<RequestInstance['patch']>[2]): Promise<T>
+}
+
+// The interceptor already unwraps `resp.data`, so a simple cast is safe.
+export default request as TypedRequest

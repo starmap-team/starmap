@@ -15,7 +15,7 @@ use([LineChart, TooltipComponent, GridComponent, MarkLineComponent])
 
 defineProps<{
   dataQuality: DataQualityMetrics | null
-  qualityTrendOption: Record<string, any>
+  qualityTrendOption: Record<string, unknown>
   qualityTrendDir: 'up' | 'down' | 'stable'
   loading: boolean
 }>()

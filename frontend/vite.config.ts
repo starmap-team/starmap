@@ -22,7 +22,10 @@ export default defineConfig({
     },
   },
   build: {
-    chunkSizeWarningLimit: 600,
+    // P3-5 fix: G6 v5 is ~1.4MB minified, which exceeds the default 500KB warning.
+    // G6 is already split into its own chunk (vendor-g6) and lazy-loaded via dynamic import.
+    // The size is inherent to the library; raising the limit suppresses the warning.
+    chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {
         manualChunks: {

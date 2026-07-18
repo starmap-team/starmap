@@ -128,11 +128,6 @@ function mapPlanResponse(data: PlanResponseRaw): LearningPlan {
   }
 }
 
-/** Narrow unknown API response to a typed object */
-function asRecord(data: unknown): Record<string, unknown> {
-  return (data && typeof data === 'object') ? data as Record<string, unknown> : {}
-}
-
 function asArray(data: unknown): unknown[] {
   return Array.isArray(data) ? data : []
 }
@@ -197,8 +192,8 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
     planError.value = null
     try {
       const payload = buildCreatePlanRequest(matchResult)
-      const data = await request.post('/learning/plan', payload)
-      const plan = mapPlanResponse(asRecord(data) as unknown as PlanResponseRaw)
+      const data = await request.post<PlanResponseRaw>('/learning/plan', payload)
+      const plan = mapPlanResponse(data)
       currentPlan.value = plan
       plans.value.unshift(plan)
       writeStoredPlanId(plan.plan_id)
@@ -215,8 +210,8 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
     planLoading.value = true
     planError.value = null
     try {
-      const data = await request.get(`/learning/plan/${planId}`)
-      const plan = mapPlanResponse(asRecord(data) as unknown as PlanResponseRaw)
+      const data = await request.get<PlanResponseRaw>(`/learning/plan/${planId}`)
+      const plan = mapPlanResponse(data)
       currentPlan.value = plan
       writeStoredPlanId(plan.plan_id)
       return plan

@@ -3,13 +3,12 @@
  * LoopStepInput — Step 1: JD Input
  * Textarea, example JD buttons, target position input, and run button.
  */
-import { ref } from 'vue'
 import { VideoPlay } from '@element-plus/icons-vue'
 
 const jdText = defineModel<string>('jdText', { required: true })
 const targetPosition = defineModel<string>('targetPosition', { required: true })
 
-const props = defineProps<{
+defineProps<{
   isRunning: boolean
 }>()
 

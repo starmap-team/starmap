@@ -22,6 +22,7 @@
  * (upload / position / radar / gap / learn) so the user can navigate
  * the page by business concept rather than wizard tab.
  */
+import type { Component } from 'vue'
 import {
   Document,
   Reading,
@@ -35,7 +36,7 @@ interface FlowNode {
   key: string
   label: string
   detail: string
-  icon: any
+  icon: Component
   step: number  // 0-4 in MatchDiagnosis wizard
   color: string
 }

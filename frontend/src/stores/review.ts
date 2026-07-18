@@ -79,8 +79,7 @@ export const useReviewStore = defineStore('review', () => {
   }
 
   async function submit(entityType: ReviewEntityType, entityId: string): Promise<ReviewItem> {
-    const data = await request.post(`/admin/review/${entityType}/${entityId}/submit`, {})
-    return data as unknown as ReviewItem
+    return request.post<ReviewItem>(`/admin/review/${entityType}/${entityId}/submit`, {})
   }
 
   async function approve(
@@ -88,10 +87,9 @@ export const useReviewStore = defineStore('review', () => {
     entityId: string,
     reason?: string,
   ): Promise<ReviewItem> {
-    const data = await request.post(`/admin/review/${entityType}/${entityId}/approve`, {
+    return request.post<ReviewItem>(`/admin/review/${entityType}/${entityId}/approve`, {
       reason: reason ?? null,
     })
-    return data as unknown as ReviewItem
   }
 
   async function reject(
@@ -99,10 +97,9 @@ export const useReviewStore = defineStore('review', () => {
     entityId: string,
     reason: string,
   ): Promise<ReviewItem> {
-    const data = await request.post(`/admin/review/${entityType}/${entityId}/reject`, {
+    return request.post<ReviewItem>(`/admin/review/${entityType}/${entityId}/reject`, {
       reason,
     })
-    return data as unknown as ReviewItem
   }
 
   async function unpublish(
@@ -110,10 +107,9 @@ export const useReviewStore = defineStore('review', () => {
     entityId: string,
     reason: string,
   ): Promise<ReviewItem> {
-    const data = await request.post(`/admin/review/${entityType}/${entityId}/unpublish`, {
+    return request.post<ReviewItem>(`/admin/review/${entityType}/${entityId}/unpublish`, {
       reason,
     })
-    return data as unknown as ReviewItem
   }
 
   /** Optimistically remove an item from the local list (after admin action). */

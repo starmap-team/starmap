@@ -78,9 +78,8 @@ export const useEvolutionStore = defineStore('evolution', () => {
     loading.value = true
     try {
       const params = days ? { days } : undefined
-      const data = await request.get('/evolution/trends', { params }) as unknown as Record<string, unknown>
-      // Backend EvolutionTrendsResponse has {items}, no quarters field
-      trendItems.value = data.items as TrendItem[] ?? []
+      const data = await request.get<{ items?: TrendItem[] }>('/evolution/trends', { params })
+      trendItems.value = data.items ?? []
     } finally {
       loading.value = false
     }
