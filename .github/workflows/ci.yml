@@ -69,7 +69,7 @@ jobs:
           import yaml
           from app.main import app
           exported = app.openapi()
-          with open('../starmap-contracts/openapi.yaml') as f:
+          with open('../starmap-contracts/openapi.yaml', encoding='utf-8') as f:
               contract = yaml.safe_load(f)
           # 剥掉 /api/v1 前缀后比对（契约 servers 里已配 base url）
           prefix = '/api/v1'
@@ -78,10 +78,10 @@ jobs:
           missing = con_paths - exp_paths
           extra = exp_paths - con_paths
           if missing:
-              print(f'FAIL: contract paths not in app: {missing}')
+              print(f'FAIL [{len(missing)}]: contract paths not in app: {sorted(missing)}')
               exit(1)
           if extra:
-              print(f'WARN: app paths not in contract (ok for now): {extra}')
+              print(f'WARN [{len(extra)}]: app paths not in contract (ok for now): {sorted(extra)}')
           print(f'OK: contract consistency passed ({len(exp_paths)} paths)')
           "
 
