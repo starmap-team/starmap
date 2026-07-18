@@ -102,16 +102,6 @@ disallow_any_generics = false  # 逐步开启
 
 # 新模块类型检查较宽松，逐步完善
 # Phase 15: core matching, graph_service, match_service, celery_app unlocked
-[[tool.mypy.overrides]]
-module = [
-    "app.core.dashboard.*",
-    "app.core.learning.*",
-    "app.core.pipeline.*",
-    "app.api.v1.dashboard",
-    "app.api.v1.datasource",
-    "app.api.v1.learning",
-    "app.api.v1.loop",
-    "app.api.v1.pipeline",
-    "app.api.v1.evolution",
-]
-ignore_errors = true
+# mypy.ini provides fine-grained per-module disable_error_code overrides;
+# the previous ignore_errors=true block here was dead config (mypy.ini takes
+# precedence). Removed in PR-B to surface the real mypy debt.
