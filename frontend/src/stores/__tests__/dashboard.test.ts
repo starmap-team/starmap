@@ -40,41 +40,41 @@ describe('useDashboardStore', () => {
   // ── 2. fetchOverview action ──
 
   it('should fetch overview and map backend fields to frontend DashboardOverview', async () => {
-	    const request = (await import('@/api/request')).default
-	    const mockOverview = {
-	      total_nodes: 1000,
-	      total_edges: 5000,
-	      total_domains: 10,
-	      total_positions: 50,
-	      total_skills: 200,
-	      trust_score: 0.85,
-	      hallucination_rate: 0.05,
-	      total_extractions: 500,
-	      data_volume: 300,
-	      today_extractions: 15,
-	      pipeline_status: 'running',
-	      active_data_sources: 5,
-	      weekly_new_nodes: 100,
-	      stale: false,
-	      stale_since: null,
-	      timestamp: 1700000000,
-	    }
-	    vi.mocked(request.get).mockResolvedValueOnce(mockOverview)
+      const request = (await import('@/api/request')).default
+      const mockOverview = {
+        total_nodes: 1000,
+        total_edges: 5000,
+        total_domains: 10,
+        total_positions: 50,
+        total_skills: 200,
+        trust_score: 0.85,
+        hallucination_rate: 0.05,
+        total_extractions: 500,
+        data_volume: 300,
+        today_extractions: 15,
+        pipeline_status: 'running',
+        active_data_sources: 5,
+        weekly_new_nodes: 100,
+        stale: false,
+        stale_since: null,
+        timestamp: 1700000000,
+      }
+      vi.mocked(request.get).mockResolvedValueOnce(mockOverview)
 
-	    const store = useDashboardStore()
-	    await store.fetchOverview()
+      const store = useDashboardStore()
+      await store.fetchOverview()
 
-	    expect(store.overview).toBeTruthy()
-	    expect(store.overview!.total_nodes).toBe(1000)
-	    expect(store.overview!.trust_score).toBe(0.85)
-	    expect(store.overview!.data_volume).toBe(300)
-	    expect(store.overview!.active_data_sources).toBe(5)
-	    expect(store.overview!.pipeline_status).toBe('running')
-	    expect(store.overview!.today_extractions).toBe(15)
-	    expect(store.overview!.stale).toBe(false)
-	    expect(store.loading).toBe(false)
-	    expect(request.get).toHaveBeenCalledWith('/dashboard/overview')
-	  })
+      expect(store.overview).toBeTruthy()
+      expect(store.overview!.total_nodes).toBe(1000)
+      expect(store.overview!.trust_score).toBe(0.85)
+      expect(store.overview!.data_volume).toBe(300)
+      expect(store.overview!.active_data_sources).toBe(5)
+      expect(store.overview!.pipeline_status).toBe('running')
+      expect(store.overview!.today_extractions).toBe(15)
+      expect(store.overview!.stale).toBe(false)
+      expect(store.loading).toBe(false)
+      expect(request.get).toHaveBeenCalledWith('/dashboard/overview')
+    })
 
   it('should handle missing fields with defaults in fetchOverview', async () => {
     const request = (await import('@/api/request')).default
@@ -85,7 +85,7 @@ describe('useDashboardStore', () => {
 
     expect(store.overview).toBeTruthy()
     expect(store.overview!.total_nodes).toBe(0)
-	    expect(store.overview!.trust_score).toBe(0)
+      expect(store.overview!.trust_score).toBe(0)
     expect(store.overview!.pipeline_status).toBe('idle')
   })
 

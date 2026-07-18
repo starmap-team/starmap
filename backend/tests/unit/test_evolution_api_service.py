@@ -15,68 +15,68 @@ from types import SimpleNamespace
 
 
 def _make_changelog_record(**kwargs):
-    defaults = dict(
-        id="cl-1",
-        position_name="Backend",
-        skill_name="Go",
-        change_type="added_required",
-        old_proficiency=None,
-        new_proficiency="熟悉",
-        old_requirement=None,
-        new_requirement="required",
-        snapshot_from_id=None,
-        snapshot_to_id="snap-1",
-        trust_score=0.7,
-        confidence=0.85,
-        evidence_json={},
-        created_at=datetime(2026, 6, 27, tzinfo=UTC),
-    )
+    defaults = {
+        "id": "cl-1",
+        "position_name": "Backend",
+        "skill_name": "Go",
+        "change_type": "added_required",
+        "old_proficiency": None,
+        "new_proficiency": "熟悉",
+        "old_requirement": None,
+        "new_requirement": "required",
+        "snapshot_from_id": None,
+        "snapshot_to_id": "snap-1",
+        "trust_score": 0.7,
+        "confidence": 0.85,
+        "evidence_json": {},
+        "created_at": datetime(2026, 6, 27, tzinfo=UTC),
+    }
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
 
 
 def _make_path_record(**kwargs):
-    defaults = dict(
-        id="path-1",
-        source_position="Backend",
-        target_position="FullStack",
-        similarity=0.75,
-        evidence_count=5,
-        skill_overlap=["Python", "SQL"],
-        key_gaps=["JavaScript", "React"],
-        trust_score=0.8,
-        first_detected=datetime(2026, 6, 27, tzinfo=UTC),
-        last_updated=datetime(2026, 6, 27, tzinfo=UTC),
-    )
+    defaults = {
+        "id": "path-1",
+        "source_position": "Backend",
+        "target_position": "FullStack",
+        "similarity": 0.75,
+        "evidence_count": 5,
+        "skill_overlap": ["Python", "SQL"],
+        "key_gaps": ["JavaScript", "React"],
+        "trust_score": 0.8,
+        "first_detected": datetime(2026, 6, 27, tzinfo=UTC),
+        "last_updated": datetime(2026, 6, 27, tzinfo=UTC),
+    }
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
 
 
 def _make_snapshot_record(**kwargs):
-    defaults = dict(
-        id="snap-1",
-        position_name="Backend",
-        snapshot_date="2026-06-01",
-        required_skills=[{"name": "Python", "proficiency": "熟悉"}],
-        preferred_skills=[{"name": "Docker", "proficiency": "了解"}],
-        source_count=5,
-        metadata_json={},
-    )
+    defaults = {
+        "id": "snap-1",
+        "position_name": "Backend",
+        "snapshot_date": "2026-06-01",
+        "required_skills": [{"name": "Python", "proficiency": "熟悉"}],
+        "preferred_skills": [{"name": "Docker", "proficiency": "了解"}],
+        "source_count": 5,
+        "metadata_json": {},
+    }
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
 
 
 def _make_timeseries_record(**kwargs):
-    defaults = dict(
-        id="ts-1",
-        skill_name="RAG",
-        window_start=datetime(2026, 1, 1, tzinfo=UTC),
-        window_end=datetime(2026, 4, 1, tzinfo=UTC),
-        frequency=3,
-        source_count=3,
-        positions=["AI Engineer"],
-        category="hard_skill",
-    )
+    defaults = {
+        "id": "ts-1",
+        "skill_name": "RAG",
+        "window_start": datetime(2026, 1, 1, tzinfo=UTC),
+        "window_end": datetime(2026, 4, 1, tzinfo=UTC),
+        "frequency": 3,
+        "source_count": 3,
+        "positions": ["AI Engineer"],
+        "category": "hard_skill",
+    }
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
 

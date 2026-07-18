@@ -6,6 +6,7 @@
     同步逻辑（sync_from_pipeline）已拆分至 graph_sync.py（m7）。
     本模块 re-export graph_serializers 的公共符号以保持向后兼容。
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -47,7 +48,9 @@ async def _resolve_position_name(driver: Any, position_name: str) -> str:
     # 支持精确匹配、子串匹配和双向包含匹配，提升搜索容错率。
     """Resolve the closest Neo4j Position name."""
     async with driver.session() as session:
-        exact = await session.run("MATCH (p:Position) WHERE p.name = $name RETURN p.name AS name LIMIT 1", name=position_name)
+        exact = await session.run(
+            "MATCH (p:Position) WHERE p.name = $name RETURN p.name AS name LIMIT 1", name=position_name
+        )
         rec = await exact.single()
         if rec and rec["name"]:
             return rec["name"]
@@ -176,4 +179,120 @@ async def fetch_position_graph(driver: Any, position_name: str, depth: int = 1) 
                 current_skill_ids = next_skill_ids
 
     return {"position": position, "skills": skills, "edges": edges}
-from app.services.graph_sync import sync_from_pipeline  # noqa: E402,F401
+
+
+async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
+    """Fetch domain-grouped overview with KA nodes and connections.
+
+    P1-3 fix: extracted from graph.py API route to keep route layer thin.
+    """
+    if driver is None:
+        return {
+            "domains": [],
+            "connections": [],
+            "total_positions": 0,
+            "total_skills": 0,
+            "independent_positions": 0,
+            "independent_skills": 0,
+            "independent_edges": 0,
+        }
+
+    _domain_colors = {
+        "人工智能": "#9B59B6",
+        "AI/机器学习": "#9B59B6",
+        "数据科学": "#E6A23C",
+        "数据工程": "#E6A23C",
+        "前端工程": "#409EFF",
+        "前端开发": "#409EFF",
+        "后端架构": "#67C23A",
+        "后端开发": "#67C23A",
+        "云计算": "#36CFC9",
+        "DevOps": "#36CFC9",
+    }
+
+    async with driver.session() as session:
+        # Get all KA nodes with counts
+        ka_query = """
+        MATCH (ka:KnowledgeArea)
+        OPTIONAL MATCH (ka)<-[:BELONGS_TO]-(s:Skill)
+        OPTIONAL MATCH (s)<-[:REQUIRES]-(p:Position)
+        WITH ka, count(DISTINCT s) AS skill_count, count(DISTINCT p) AS pos_count
+        WHERE skill_count > 0 OR pos_count > 0
+        RETURN ka, skill_count, pos_count
+        """
+        result = await session.run(ka_query)
+        domains = []
+        total_pos = 0
+        total_skill = 0
+        async for record in result:
+            ka_node = record["ka"]
+            if ka_node is None:
+                continue
+            props = dict(ka_node)
+            name = props.get("name", "")
+            sc = record["skill_count"]
+            pc = record["pos_count"]
+            total_skill += sc
+            total_pos += pc
+            color = _domain_colors.get(name, "#909399")
+            for key, val in _domain_colors.items():
+                if key in name:
+                    color = val
+                    break
+            domains.append(
+                {
+                    "id": str(ka_node.element_id),
+                    "name": name,
+                    "position_count": pc,
+                    "skill_count": sc,
+                    "color": color,
+                }
+            )
+
+        # Get independent counts (single query, P1-2 fix pattern)
+        count_result = await session.run(
+            "MATCH (p:Position), (s:Skill) "
+            "OPTIONAL MATCH ()-[r:REQUIRES]->() "
+            "RETURN count(DISTINCT p) AS pos_cnt, count(DISTINCT s) AS skill_cnt, count(r) AS edge_cnt"
+        )
+        count_record = await count_result.single()
+        if count_record:
+            independent_pos = count_record["pos_cnt"]
+            independent_skill = count_record["skill_cnt"]
+            independent_edge = count_record["edge_cnt"]
+        else:
+            independent_pos = 0
+            independent_skill = 0
+            independent_edge = 0
+
+        # Get KA-KA connections via shared positions
+        conn_query = """
+        MATCH (ka1:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[:REQUIRES]-(p:Position)-[:REQUIRES]->(s2:Skill)-[:BELONGS_TO]->(ka2:KnowledgeArea)
+        WHERE elementId(ka1) < elementId(ka2)
+        RETURN DISTINCT ka1, ka2
+        LIMIT 100
+        """
+        conn_result = await session.run(conn_query)
+        connections = []
+        async for record in conn_result:
+            ka1 = record["ka1"]
+            ka2 = record["ka2"]
+            if ka1 and ka2:
+                connections.append(
+                    {
+                        "source_id": str(ka1.element_id),
+                        "target_id": str(ka2.element_id),
+                        "type": "SHARES_POSITION",
+                        "properties": {"weight": 0.5},
+                    }
+                )
+
+    return {
+        "domains": domains,
+        "connections": connections,
+        "total_positions": total_pos,
+        "total_skills": total_skill,
+        "independent_positions": independent_pos,
+        "independent_skills": independent_skill,
+        "independent_edges": independent_edge,
+    }

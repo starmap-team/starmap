@@ -6,6 +6,7 @@
  */
 import { RefreshRight, Setting, Timer, VideoPlay } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
+import BusinessBanner from '@/components/BusinessBanner.vue'
 import { ALL_STAGE_NAMES, STAGE_LABELS } from '@/stores/pipeline'
 import PipelineDag from '@/components/PipelineDag.vue'
 import PipelineSourcePanel from '@/components/PipelineSourcePanel.vue'
@@ -49,24 +50,12 @@ const {
 <template>
   <MainLayout>
     <div class="pipeline-page animate-fade-in">
-      <!-- Phase 26: §3.2 业务说明横幅 -->
-      <el-alert
+      <BusinessBanner
         type="success"
-        :closable="false"
-        show-icon
-        class="business-banner"
-      >
-        <template #title>
-          §3.2 L2 数据融合层 — ETL 流水线监控
-        </template>
-        <p>
-          全链路 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → LLM 抽取 → 入库 → 图谱构建。
-          每个阶段独立降级，失败不阻塞后续流程。数据源质量影响 §7.1 信任度评分。
-        </p>
-        <p class="banner-meta">
-          后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送
-        </p>
-      </el-alert>
+        title="§3.2 L2 数据融合层 — ETL 流水线监控"
+        description="全链路 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → LLM 抽取 → 入库 → 图谱构建。每个阶段独立降级，失败不阻塞后续流程。数据源质量影响 §7.1 信任度评分。"
+        meta="后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送"
+      />
 
       <!-- 页面头部 -->
       <div class="page-header">
@@ -506,29 +495,8 @@ const {
   margin: 0 auto;
 }
 
-/* Phase 26: 业务说明横幅 */
-.business-banner {
-  margin-bottom: var(--space-4);
-  border-radius: var(--radius-lg);
-}
-.business-banner :deep(p) {
-  margin: 4px 0 0;
-  font-size: var(--font-size-sm);
-  color: var(--foreground);
-  line-height: 1.5;
-}
-.business-banner .banner-meta {
-  margin-top: 6px;
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-}
-.business-banner code {
-  background: var(--muted);
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono, monospace);
-  font-size: 11px;
-}
+/* Phase 26: 业务说明横幅 — 已迁移到 BusinessBanner.vue */
+
 
 /* 页面头部 */
 .page-header {

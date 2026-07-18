@@ -36,7 +36,6 @@ vi.mock('@/stores/learning', async () => {
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useLearningActions } from '../useLearningActions'
-import { useUserStore } from '@/stores/user'
 
 function createMockStore() {
   return {

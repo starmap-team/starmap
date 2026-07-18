@@ -36,14 +36,14 @@ class TestRunLoopUserId:
             mock_insert.return_value = None
             # _step1_validate_input is sync, need to patch it to return success
             with patch.object(orchestrator, "_step1_validate_input") as mock_step1, \
-                 patch.object(orchestrator, "_step2_extract_skills", new_callable=AsyncMock) as mock_step2, \
-                 patch.object(orchestrator, "_step3_graph_update", new_callable=AsyncMock) as mock_step3:
+                 patch.object(orchestrator, "_step2_extract_skills", new_callable=AsyncMock), \
+                 patch.object(orchestrator, "_step3_graph_update", new_callable=AsyncMock):
                 from app.core.pipeline.loop_orchestrator import LoopStepResult, StepStatus
                 mock_step1.return_value = LoopStepResult(
                     step=1, name="Input", status=StepStatus.FAILED, error="test",
                     duration_seconds=0.01,
                 )
-                result = await orchestrator.run_loop(
+                await orchestrator.run_loop(
                     jd_text="test jd",
                     target_position="test pos",
                     session=None,

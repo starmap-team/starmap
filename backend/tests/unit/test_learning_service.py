@@ -42,15 +42,15 @@ class FakeAsyncSession:
 
 
 def _make_plan_row(**kwargs):
-    defaults = dict(
-        id=uuid.uuid4(),
-        user_id="dev",
-        position="数据分析师",
-        skills=[{"skill": "Python", "importance": "required", "gap_level": "完全缺失", "learning_path": []}],
-        status="active",
-        match_score_at_creation=0.5,
-        estimated_hours=40.0,
-    )
+    defaults = {
+        "id": uuid.uuid4(),
+        "user_id": "dev",
+        "position": "数据分析师",
+        "skills": [{"skill": "Python", "importance": "required", "gap_level": "完全缺失", "learning_path": []}],
+        "status": "active",
+        "match_score_at_creation": 0.5,
+        "estimated_hours": 40.0,
+    }
     defaults.update(kwargs)
     row = MagicMock()
     for k, v in defaults.items():

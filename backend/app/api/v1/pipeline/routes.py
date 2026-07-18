@@ -500,7 +500,7 @@ async def update_pipeline_config(
     from app.config import settings
 
     # Map schema field names to Settings attribute names
-    _SCHEMA_TO_SETTINGS = {
+    _SCHEMA_TO_SETTINGS = {  # noqa: N806
         "stage_timeout": "pipeline_stage_timeout",
         "worker_concurrency": "pipeline_worker_concurrency",
         "crawl_concurrency": "pipeline_crawl_concurrency",
@@ -594,8 +594,8 @@ async def export_analysis(
 
     try:
         await _match_service._load_prerequisite_map(driver)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Failed to preload prerequisite map: {}", exc)
 
     engine = PipelineEngine([
         ResumeParseStep(),

@@ -51,10 +51,7 @@ request.interceptors.request.use(
     showLoading()
     // Attach access token (Phase DB-AUTH): stored under starmap_access_token.
     // Falls back to the legacy keys for backward compat with old localStorage data.
-    const token =
-      localStorage.getItem(ACCESS_KEY) ||
-      localStorage.getItem('starmap_token') ||
-      localStorage.getItem('token')
+    const token = localStorage.getItem(ACCESS_KEY)
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -167,8 +164,6 @@ request.interceptors.response.use(
       localStorage.removeItem(ACCESS_KEY)
       localStorage.removeItem('starmap_refresh_token')
       localStorage.removeItem('starmap_user')
-      localStorage.removeItem('starmap_token')
-      localStorage.removeItem('token')
       if (!isLogin) {
         ElMessage.warning({
           message: '登录已过期，请重新登录',

@@ -274,10 +274,10 @@ class TestUpdateDatasource:
         assert body.authority_score == 0.5
 
         # Out of range — Pydantic validation (ge=0, le=1)
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             DataSourceUpdateRequest(authority_score=2.0)
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             DataSourceUpdateRequest(authority_score=-0.1)
 
     def test_partial_update_no_fields(self):
@@ -377,7 +377,7 @@ class TestGetDatasourceStats:
         assert avg_per_run == 75.0
 
     def test_aggregation_empty_runs(self):
-        total = successful = failed = total_records = 0
+        successful = total_records = 0
         avg_per_run = (total_records / successful) if successful > 0 else 0.0
         assert avg_per_run == 0.0
 

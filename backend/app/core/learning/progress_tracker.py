@@ -120,7 +120,7 @@ async def update_progress(
         Updated LearningProgress, or None if not found.
     """
     # Validate status against allowed values
-    _VALID_STATUSES = {"not_started", "in_progress", "mastered"}
+    _VALID_STATUSES = {"not_started", "in_progress", "mastered"}  # noqa: N806
     if status is not None and status not in _VALID_STATUSES:
         raise ValueError(f"Invalid status: {status!r}. Must be one of {sorted(_VALID_STATUSES)}")
     stmt = (

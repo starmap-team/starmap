@@ -81,9 +81,8 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
       }
 
       // LOOP-02: Add Authorization header + fix hardcoded URL
-      // FIX-04: Read from starmap_access_token (primary) with legacy fallback
       const baseUrl = API_BASE
-      const token = localStorage.getItem('starmap_access_token') || localStorage.getItem('starmap_token') || localStorage.getItem('token')
+      const token = localStorage.getItem('starmap_access_token')
       const headers: Record<string, string> = {}
       if (token) {
         headers['Authorization'] = `Bearer ${token}`

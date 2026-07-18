@@ -1,4 +1,5 @@
 """简历解析兼容 API。"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -26,7 +27,7 @@ async def upload_resume(
     content_bytes = await validate_resume_upload(file)
 
     try:
-        pipeline_result = await run_resume_extraction(file.filename, content_bytes)
+        pipeline_result = await run_resume_extraction(file.filename or "resume", content_bytes)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ConnectionError as exc:

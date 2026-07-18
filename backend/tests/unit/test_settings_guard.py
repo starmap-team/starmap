@@ -211,7 +211,7 @@ class TestSchemaToSettingsMapping:
 
     def test_mapping_dict(self) -> None:
         """Verify the _SCHEMA_TO_SETTINGS mapping in routes.py."""
-        _SCHEMA_TO_SETTINGS = {
+        _SCHEMA_TO_SETTINGS = {  # noqa: N806
             "stage_timeout": "pipeline_stage_timeout",
             "worker_concurrency": "pipeline_worker_concurrency",
             "crawl_concurrency": "pipeline_crawl_concurrency",
@@ -220,5 +220,5 @@ class TestSchemaToSettingsMapping:
         }
         from app.config import settings
 
-        for schema_key, settings_key in _SCHEMA_TO_SETTINGS.items():
+        for _schema_key, settings_key in _SCHEMA_TO_SETTINGS.items():
             assert hasattr(settings, settings_key), f"Settings missing {settings_key}"

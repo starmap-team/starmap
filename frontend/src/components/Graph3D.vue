@@ -406,7 +406,7 @@ defineExpose({ setCameraPreset, resetCamera, toggleAutoRotate: _toggleAutoRotate
   background: rgba(10, 14, 26, 0.7);
   backdrop-filter: blur(8px);
   padding: 3px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid rgba(100, 116, 139, 0.2);
   pointer-events: none;
   z-index: 5;

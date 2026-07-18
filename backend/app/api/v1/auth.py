@@ -259,7 +259,7 @@ async def forgot_password(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Redis is unavailable",
         )
-    token = await auth_service.forgot_password_request(body.email, redis, session)
+    _ = await auth_service.forgot_password_request(body.email, redis, session)
     # ponytail: token stored in Redis; email integration sends it. Never return in response.
     return {"submitted": True}
 

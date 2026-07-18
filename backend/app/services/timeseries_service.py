@@ -6,6 +6,7 @@ Replaces the old seed_skill_timeseries script with a real data-driven approach:
 Called by the pipeline `timeseries` stage (after graph_sync) and can also be
 invoked manually via admin endpoints.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -47,10 +48,9 @@ async def refresh_skill_timeseries(session: AsyncSession) -> dict[str, Any]:
     windows = _build_monthly_windows(min_date, max_date)
 
     # ── Step 3: Load skill→category mapping from skill_records ──
-    cat_result = await session.execute(
-        sa.select(SkillRecord.name, SkillRecord.category)
-    )
-    skill_categories: dict[str, str] = {name: cat for name, cat in cat_result.all()}
+    cat_result = await session.execute(sa.select(SkillRecord.name, SkillRecord.category))
+    # cat_result.all() returns Sequence[Row[tuple[str, str]]], cast to Iterable[tuple[str, str]]
+    skill_categories: dict[str, str] = dict(cat_result.all())  # type: ignore[arg-type]
 
     # ── Step 4: Aggregate per (skill, month) ──
     # Extracted_skills is JSON — can be list[dict] or dict with required/preferred keys.
@@ -118,16 +118,18 @@ async def refresh_skill_timeseries(session: AsyncSession) -> dict[str, Any]:
     await session.flush()
 
     logger.info(
-        "refresh_skill_timeseries: {} skills updated, {} windows created "
-        "({} to {})",
-        skills_updated, windows_created,
-        min_date.date(), max_date.date(),
+        "refresh_skill_timeseries: {} skills updated, {} windows created ({} to {})",
+        skills_updated,
+        windows_created,
+        min_date.date(),
+        max_date.date(),
     )
     return {"skills_updated": skills_updated, "windows_created": windows_created}
 
 
 def _build_monthly_windows(
-    start: datetime, end: datetime,
+    start: datetime,
+    end: datetime,
 ) -> list[tuple[datetime, datetime]]:
     """Generate (window_start, window_end) pairs for each month in [start, end]."""
     windows: list[tuple[datetime, datetime]] = []
@@ -139,7 +141,8 @@ def _build_monthly_windows(
         next_month = datetime(
             current.year + (1 if current.month == 12 else 0),
             1 if current.month == 12 else current.month + 1,
-            1, tzinfo=UTC,
+            1,
+            tzinfo=UTC,
         )
         windows.append((current, next_month))
         current = next_month

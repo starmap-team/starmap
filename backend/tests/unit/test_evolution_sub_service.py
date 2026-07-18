@@ -118,19 +118,19 @@ class TestCareerPathDirection:
 
     def test_senior_keywords(self):
         """Positions containing '高级' should classify as 'up' direction."""
-        SENIOR_KEYWORDS = {"高级", "资深", "专家", "总监", "主管", "经理", "首席", "架构师"}
+        SENIOR_KEYWORDS = {"高级", "资深", "专家", "总监", "主管", "经理", "首席", "架构师"}  # noqa: N806
         target = "高级后端工程师"
         is_senior = any(kw in target for kw in SENIOR_KEYWORDS)
         assert is_senior is True
 
     def test_non_senior_is_lateral(self):
-        SENIOR_KEYWORDS = {"高级", "资深", "专家", "总监", "主管", "经理", "首席", "架构师"}
+        SENIOR_KEYWORDS = {"高级", "资深", "专家", "总监", "主管", "经理", "首席", "架构师"}  # noqa: N806
         target = "全栈工程师"
         is_senior = any(kw in target for kw in SENIOR_KEYWORDS)
         assert is_senior is False  # → lateral
 
     def test_architect_is_senior(self):
-        SENIOR_KEYWORDS = {"高级", "资深", "专家", "总监", "主管", "经理", "首席", "架构师"}
+        SENIOR_KEYWORDS = {"高级", "资深", "专家", "总监", "主管", "经理", "首席", "架构师"}  # noqa: N806
         target = "架构师"
         is_senior = any(kw in target for kw in SENIOR_KEYWORDS)
         assert is_senior is True

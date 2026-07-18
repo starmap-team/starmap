@@ -1,4 +1,5 @@
 """Alembic 迁移环境。"""
+
 from __future__ import annotations
 
 import asyncio
@@ -14,11 +15,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import app.models.evolution_models  # noqa: E402, F401
-
-# Import all models so they are registered with Base.metadata
-import app.models.extraction_models  # noqa: E402, F401
 from app.config import settings  # noqa: E402
+
+# P0-3 fix: `from app.models import Base` triggers __init__.py which imports ALL
+# model modules (including evolution_models and extraction_models), registering
+# them with Base.metadata for Alembic autogenerate. Explicit imports are redundant.
 from app.models import Base  # noqa: E402
 
 config = context.config

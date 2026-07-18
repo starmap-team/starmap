@@ -121,9 +121,6 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem(ACCESS_KEY)
     localStorage.removeItem(REFRESH_KEY)
     localStorage.removeItem(USER_KEY)
-    // Backward-compat cleanup
-    localStorage.removeItem('starmap_token')
-    localStorage.removeItem('token')
   }
 
   async function logout() {

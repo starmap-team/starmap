@@ -109,8 +109,6 @@ export class ApiCollector {
    */
   attach(page: Page, urlPattern: string): void {
     const matchUrl = (url: string): boolean => url.includes(urlPattern)
-    // 闭包捕获 self，避免箭头函数 / page.on 回调中 this 丢失
-    const self = this
 
     // 同步 handler：先 push 占位记录，再异步读取 body
     // 这样无论 body 解析成功与否，call 都已 push 进 calls，避免 race condition
@@ -129,7 +127,7 @@ export class ApiCollector {
         body: null,
         timestamp: Date.now(),
       }
-      self.calls.push(call)
+      this.calls.push(call)
 
       // 异步读取 body；body 解析失败（被 axios 消费）也不影响基础记录
       const ct = contentType.toLowerCase()

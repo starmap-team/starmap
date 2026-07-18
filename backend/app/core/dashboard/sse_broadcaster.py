@@ -182,8 +182,8 @@ async def event_stream(
         try:
             await pubsub.unsubscribe(CHANNEL)
             await pubsub.aclose()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("SSE pubsub cleanup failed: {}", exc)
 
 
 # ---------------------------------------------------------------------------

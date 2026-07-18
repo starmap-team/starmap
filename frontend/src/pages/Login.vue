@@ -203,7 +203,7 @@ async function handleLogin() {
   z-index: 1;
   width: 400px;
   padding: 40px;
-  border-radius: 16px;
+  border-radius: var(--radius-2xl);
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);

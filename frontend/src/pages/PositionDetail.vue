@@ -167,7 +167,7 @@ async function loadFromPostgres(token: number) {
             >
               <el-skeleton-item
                 variant="rect"
-                style="width: 100%; height: 360px; border-radius: 12px"
+                style="width: 100%; height: 360px; border-radius: var(--radius-xl)"
               />
             </el-skeleton>
           </div>

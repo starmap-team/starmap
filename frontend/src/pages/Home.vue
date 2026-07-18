@@ -16,6 +16,7 @@ import GraphToolbar from "@/components/GraphToolbar.vue"
 import HomeKpiStrip from "@/components/HomeKpiStrip.vue"
 import HomeGraphControls from "@/components/HomeGraphControls.vue"
 import HomeEvolutionDrawer from "@/components/HomeEvolutionDrawer.vue"
+import ErrorBoundary from "@/components/ErrorBoundary.vue"
 import { useGraphStore } from "@/stores/graph"
 import { useKPIMetrics } from "@/composables/useKPIMetrics"
 import {
@@ -98,32 +99,36 @@ onMounted(async () => {
             v-loading="graphStore.loading"
             class="graph-container grain"
           >
-            <Graph2D
-              v-if="viewMode === '2d'"
-              ref="graph2DRef"
-              :layout-mode="layoutMode"
-              :ka-color-map="kaColorMap"
-              :show-evolution="showEvolution"
-              :max-nodes-limit="maxNodesLimit"
-              :proficiency-filter="proficiencyFilter"
-              @node-click="onHandleNodeClick"
-              @node-dbl-click="onNodeDblClick"
-              @canvas-click="onCanvasClickWithClear"
-            />
-            <Graph3D
-              v-if="viewMode === '3d'"
-              ref="graph3DRef"
-              :nodes="graph3DNodes"
-              :links="graph3DLinks"
-              :current-layer="graphStore.currentLayer"
-              :show-evolution="showEvolution"
-              :evolution-paths="graph3DEvolutionLinks"
-              :current-domain-id="graphStore.expandedKAId"
-              @node-click="onHandleNodeClick"
-              @node-dbl-click="onNodeDblClick"
-              @evolution-edge-click="onOpenEvolutionDrawer"
-              @auto-rotate-change="autoRotate3D = $event"
-            />
+            <ErrorBoundary>
+              <Graph2D
+                v-if="viewMode === '2d'"
+                ref="graph2DRef"
+                :layout-mode="layoutMode"
+                :ka-color-map="kaColorMap"
+                :show-evolution="showEvolution"
+                :max-nodes-limit="maxNodesLimit"
+                :proficiency-filter="proficiencyFilter"
+                @node-click="onHandleNodeClick"
+                @node-dbl-click="onNodeDblClick"
+                @canvas-click="onCanvasClickWithClear"
+              />
+            </ErrorBoundary>
+            <ErrorBoundary>
+              <Graph3D
+                v-if="viewMode === '3d'"
+                ref="graph3DRef"
+                :nodes="graph3DNodes"
+                :links="graph3DLinks"
+                :current-layer="graphStore.currentLayer"
+                :show-evolution="showEvolution"
+                :evolution-paths="graph3DEvolutionLinks"
+                :current-domain-id="graphStore.expandedKAId"
+                @node-click="onHandleNodeClick"
+                @node-dbl-click="onNodeDblClick"
+                @evolution-edge-click="onOpenEvolutionDrawer"
+                @auto-rotate-change="autoRotate3D = $event"
+              />
+            </ErrorBoundary>
             <div
               v-if="showEvolution && viewMode === '3d' && graphStore.currentLayer === 'position' && !graphStore.focusedPositionName"
               class="evolution-hint"

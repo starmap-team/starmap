@@ -19,13 +19,13 @@ from app.config import Settings
 
 
 def _make_settings(**overrides) -> Settings:
-    base: dict[str, object] = dict(
-        secret_key="x" * 40,
-        neo4j_password="real-neo4j-pw",
-        postgres_password="real-pg-pw",
-        redis_uri="redis://:pw@localhost:6379/0",
-        mimo_api_key="configured",
-    )
+    base: dict[str, object] = {
+        "secret_key": "x" * 40,
+        "neo4j_password": "real-neo4j-pw",
+        "postgres_password": "real-pg-pw",
+        "redis_uri": "redis://:pw@localhost:6379/0",
+        "mimo_api_key": "configured",
+    }
     base.update(overrides)
     return Settings(**base)
 

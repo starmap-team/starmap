@@ -25,14 +25,14 @@ from app.models.extraction_models import (
 # ── Domain exceptions ──
 
 
-class AuditItemNotFound(Exception):
+class AuditItemNotFound(Exception):  # noqa: N818
     """Raised when a review-queue item does not exist."""
 
 
 # ── Pydantic-like result types (shared with API layer) ──
 # Kept here so service functions return typed objects instead of raw dicts.
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field  # noqa: E402
 
 
 class AuditItem(BaseModel):

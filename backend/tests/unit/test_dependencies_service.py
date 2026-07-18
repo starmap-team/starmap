@@ -51,8 +51,6 @@ class TestGetNeo4jDriver:
         request = MagicMock()
         request.app.state.resources = fake_resources
 
-        fake_resources
-
         result = get_neo4j_driver(request)
         assert result is fake_driver
 
@@ -113,6 +111,6 @@ class TestGetDbSession:
             mock_factory.return_value.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.return_value.__aexit__ = AsyncMock(return_value=False)
             with pytest.raises(ValueError):
-                async with _get_db_session() as session:
+                async with _get_db_session():
                     raise ValueError("test error")
             mock_session.rollback.assert_awaited_once()

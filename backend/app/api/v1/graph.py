@@ -1,4 +1,5 @@
 """图谱查询 API。"""
+
 from __future__ import annotations
 
 from typing import Annotated, Any, Literal
@@ -88,6 +89,7 @@ async def get_position_skills(
 
 class DomainOverviewItem(BaseModel):
     """领域概览中的单个 KA 节点。"""
+
     id: str
     name: str
     position_count: int = 0
@@ -97,6 +99,7 @@ class DomainOverviewItem(BaseModel):
 
 class DomainOverviewResponse(BaseModel):
     """领域概览响应：KA 节点 + KA 间关联 + 独立节点统计。"""
+
     domains: list[DomainOverviewItem] = Field(default_factory=list)
     connections: list[GraphEdge] = Field(default_factory=list)
     total_positions: int = 0
@@ -115,7 +118,9 @@ class DomainOverviewResponse(BaseModel):
 )
 async def get_graph_overview(
     driver: Annotated[Any, Depends(get_neo4j_driver)],
-    group_by: Annotated[Literal["domain", "tech_stack", "level"], Query(description="分组方式: domain(默认)/tech_stack/level")] = "domain",
+    group_by: Annotated[
+        Literal["domain", "tech_stack", "level"], Query(description="分组方式: domain(默认)/tech_stack/level")
+    ] = "domain",
 ) -> DomainOverviewResponse:
     if driver is None:
         return DomainOverviewResponse(
@@ -126,106 +131,24 @@ async def get_graph_overview(
     # Dispatch to specialized queries
     if group_by == "tech_stack":
         from app.services.graph_service import fetch_overview_by_tech_stack
+
         data = await fetch_overview_by_tech_stack(driver)
         return DomainOverviewResponse(**data)
     if group_by == "level":
         from app.services.graph_service import fetch_overview_by_level
+
         data = await fetch_overview_by_level(driver)
         return DomainOverviewResponse(**data)
-    _domain_colors = {
-        "人工智能": "#9B59B6", "AI/机器学习": "#9B59B6",
-        "数据科学": "#E6A23C", "数据工程": "#E6A23C",
-        "前端工程": "#409EFF", "前端开发": "#409EFF",
-        "后端架构": "#67C23A", "后端开发": "#67C23A",
-        "云计算": "#36CFC9", "DevOps": "#36CFC9",
-    }
-    async with driver.session() as session:
-        # Get all KA nodes with counts
-        ka_query = """
-        MATCH (ka:KnowledgeArea)
-        OPTIONAL MATCH (ka)<-[:BELONGS_TO]-(s:Skill)
-        OPTIONAL MATCH (s)<-[:REQUIRES]-(p:Position)
-        WITH ka, count(DISTINCT s) AS skill_count, count(DISTINCT p) AS pos_count
-        WHERE skill_count > 0 OR pos_count > 0
-        RETURN ka, skill_count, pos_count
-        """
-        result = await session.run(ka_query)
-        domains = []
-        total_pos = 0
-        total_skill = 0
-        async for record in result:
-            ka_node = record["ka"]
-            if ka_node is None:
-                continue
-            props = dict(ka_node)
-            name = props.get("name", "")
-            sc = record["skill_count"]
-            pc = record["pos_count"]
-            total_skill += sc
-            total_pos += pc
-            color = _domain_colors.get(name, "#909399")
-            for key, val in _domain_colors.items():
-                if key in name:
-                    color = val
-                    break
-            domains.append(DomainOverviewItem(
-                id=str(ka_node.element_id),
-                name=name,
-                position_count=pc,
-                skill_count=sc,
-                color=color,
-            ))
+    # P1-3 fix: domain mode delegated to graph_service.fetch_overview_by_domain
+    from app.services.graph_service import fetch_overview_by_domain
 
-        # Get independent counts (actual Neo4j node/edge counts, no duplication)
-        # Use separate queries to avoid UNION ALL column name mismatch
-        pos_result = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
-        independent_pos = 0
-        async for record in pos_result:
-            independent_pos = record["cnt"]
-
-        skill_result = await session.run("MATCH (s:Skill) RETURN count(s) AS cnt")
-        independent_skill = 0
-        async for record in skill_result:
-            independent_skill = record["cnt"]
-
-        edge_result = await session.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS cnt")
-        independent_edge = 0
-        async for record in edge_result:
-            independent_edge = record["cnt"]
-
-        # Get KA-KA connections via shared positions
-        conn_query = """
-        MATCH (ka1:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[:REQUIRES]-(p:Position)-[:REQUIRES]->(s2:Skill)-[:BELONGS_TO]->(ka2:KnowledgeArea)
-        WHERE elementId(ka1) < elementId(ka2)
-        RETURN DISTINCT ka1, ka2
-        LIMIT 100
-        """
-        conn_result = await session.run(conn_query)
-        connections = []
-        async for record in conn_result:
-            ka1 = record["ka1"]
-            ka2 = record["ka2"]
-            if ka1 and ka2:
-                connections.append(GraphEdge(
-                    source_id=str(ka1.element_id),
-                    target_id=str(ka2.element_id),
-                    type="SHARES_POSITION",
-                    properties={"weight": 0.5},
-                ))
-
-    return DomainOverviewResponse(
-        domains=domains,
-        connections=connections,
-        total_positions=total_pos,
-        total_skills=total_skill,
-        independent_positions=independent_pos,
-        independent_skills=independent_skill,
-        independent_edges=independent_edge,
-    )
+    data = await fetch_overview_by_domain(driver)
+    return DomainOverviewResponse(**data)
 
 
 class KAPositionsResponse(BaseModel):
     """单个 KA 下的 Position 列表 + 关联 Skill 边。"""
+
     ka_id: str = ""
     ka_name: str = ""
     positions: list[GraphNode] = Field(default_factory=list)
@@ -258,9 +181,17 @@ async def get_ka_positions(
             _classify_level,
             _classify_tech_stack,
         )
+
         # Reverse-lookup the category name from the literal ID
-        stack_id_prefix = {"人工智能": "ts-ai", "大数据": "ts-bigdata", "智能系统": "ts-sys",
-                           "物联网": "ts-iot", "云计算/DevOps": "ts-cloud", "网络安全": "ts-sec", "其他": "ts-other"}
+        stack_id_prefix = {
+            "人工智能": "ts-ai",
+            "大数据": "ts-bigdata",
+            "智能系统": "ts-sys",
+            "物联网": "ts-iot",
+            "云计算/DevOps": "ts-cloud",
+            "网络安全": "ts-sec",
+            "其他": "ts-other",
+        }
         level_id = {"初级": "lv-junior", "中级": "lv-mid", "高级": "lv-senior"}
         is_tech_stack = ka_id.startswith("ts-")
         ka_name = ""
@@ -303,8 +234,7 @@ async def get_ka_positions(
             edges: list[dict[str, Any]] = []
             if matched_element_ids:
                 edge_result = await session.run(
-                    "MATCH (p:Position)-[r:REQUIRES]->(s:Skill) "
-                    "WHERE elementId(p) IN $pids RETURN r, s",
+                    "MATCH (p:Position)-[r:REQUIRES]->(s:Skill) WHERE elementId(p) IN $pids RETURN r, s",
                     pids=matched_element_ids,
                 )
                 async for e_record in edge_result:

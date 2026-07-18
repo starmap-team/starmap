@@ -126,30 +126,30 @@ class TestQualityDashboardModel:
     """QualityDashboard and QualityReport Pydantic models."""
 
     def _make_report(self, **kwargs):
-        defaults = dict(precision=0.9, recall=0.85, f1=0.87, warning_level="green", details=[])
+        defaults = {"precision": 0.9, "recall": 0.85, "f1": 0.87, "warning_level": "green", "details": []}
         defaults.update(kwargs)
         return QualityReport(**defaults)
 
     def _make_dashboard(self, **kwargs):
         report = kwargs.pop("report", None) or self._make_report()
-        defaults = dict(
-            report=report,
-            hallucination_rate=0.03,
-            total_extractions=50,
-            pending_review=5,
-            total_nodes=200,
-            total_edges=300,
-            total_positions=80,
-            total_skills=120,
-            avg_trust_score=0.82,
-            high_trust_ratio=0.6,
-            trust_distribution=[],
-            hallucination_trend=[],
-            source_distribution=[],
-            weekly_new_nodes=10,
-            audit_pass_rate=0.9,
-            audit_queue=[],
-        )
+        defaults = {
+            "report": report,
+            "hallucination_rate": 0.03,
+            "total_extractions": 50,
+            "pending_review": 5,
+            "total_nodes": 200,
+            "total_edges": 300,
+            "total_positions": 80,
+            "total_skills": 120,
+            "avg_trust_score": 0.82,
+            "high_trust_ratio": 0.6,
+            "trust_distribution": [],
+            "hallucination_trend": [],
+            "source_distribution": [],
+            "weekly_new_nodes": 10,
+            "audit_pass_rate": 0.9,
+            "audit_queue": [],
+        }
         defaults.update(kwargs)
         return QualityDashboard(**defaults)
 

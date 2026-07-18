@@ -125,12 +125,7 @@ const PUBLIC_PATHS = new Set<string>(['/', '/login'])
 
 function isAuthed(): boolean {
   try {
-    return (
-      Boolean(localStorage.getItem('starmap_access_token')) ||
-      Boolean(localStorage.getItem('starmap_refresh_token')) ||
-      Boolean(localStorage.getItem('starmap_token')) ||
-      Boolean(localStorage.getItem('token'))
-    )
+    return Boolean(localStorage.getItem('starmap_access_token'))
   } catch {
     return false
   }

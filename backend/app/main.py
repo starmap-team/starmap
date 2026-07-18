@@ -1,4 +1,5 @@
 """FastAPI 应用入口。"""
+
 from __future__ import annotations
 
 import asyncio
@@ -49,11 +50,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Phase 10 PIPE-03 (c) D-03: 启动时若 PIPELINE_BOOTSTRAP=true,30 秒后入队一次 pipeline run
     # 该调用是 no-op（直接 return）如果环境变量未设置
     from app.core.pipeline.bootstrap import schedule_bootstrap_if_enabled
+
     schedule_bootstrap_if_enabled()
     # Phase 2 CRON-03: 启动 cron scanner 后台任务
     cron_task = None
     try:
         from app.core.pipeline.cron_scheduler import cron_scanner_loop
+
         cron_task = asyncio.create_task(cron_scanner_loop(interval_seconds=60))
         logger.info("Cron scanner loop started")
         yield
@@ -87,6 +90,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
 )
 
+
 # P1 修复 (API-04): 安全响应头中间件
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> Response:
@@ -96,6 +100,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         return response
+
 
 app.add_middleware(SecurityHeadersMiddleware)
 
@@ -121,13 +126,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 if count == 1:
                     await redis_client.expire(key, _RATE_LIMIT_WINDOW)
                 if count > _RATE_LIMIT_MAX:
-                    audit_log(AuditEntry(
-                        event=AuditEvent.RATE_LIMITED,
-                        actor=client_ip,
-                        action=f"{request.method} {request.url.path}",
-                        detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s (Redis)",
-                        ip=client_ip,
-                    ))
+                    audit_log(
+                        AuditEntry(
+                            event=AuditEvent.RATE_LIMITED,
+                            actor=client_ip,
+                            action=f"{request.method} {request.url.path}",
+                            detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s (Redis)",
+                            ip=client_ip,
+                        )
+                    )
                     return JSONResponse(
                         status_code=429,
                         content={"detail": "Rate limit exceeded. Try again later."},
@@ -141,21 +148,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         now = time.time()
         bucket = _rate_buckets[client_ip]
         _rate_buckets[client_ip] = [t for t in bucket if now - t < _RATE_LIMIT_WINDOW]
+        # P2-2 fix: 定期清理整个内存限流桶中过期的 IP 条目，防止 dict 无限增长
         if len(_rate_buckets) > 10000:
-            stale_keys = [
-                k for k, v in _rate_buckets.items()
-                if not v or now - v[-1] > _RATE_LIMIT_WINDOW
-            ]
+            stale_keys = [k for k, v in _rate_buckets.items() if not v or now - v[-1] > _RATE_LIMIT_WINDOW]
             for k in stale_keys:
                 del _rate_buckets[k]
         if len(_rate_buckets[client_ip]) >= _RATE_LIMIT_MAX:
-            audit_log(AuditEntry(
-                event=AuditEvent.RATE_LIMITED,
-                actor=client_ip,
-                action=f"{request.method} {request.url.path}",
-                detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s (in-memory)",
-                ip=client_ip,
-            ))
+            audit_log(
+                AuditEntry(
+                    event=AuditEvent.RATE_LIMITED,
+                    actor=client_ip,
+                    action=f"{request.method} {request.url.path}",
+                    detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s (in-memory)",
+                    ip=client_ip,
+                )
+            )
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Try again later."},
@@ -173,7 +180,7 @@ app.include_router(auth_router, prefix="/api/v1")
 
 
 # Domain exception → HTTP response mapping
-from app.exceptions import (
+from app.exceptions import (  # noqa: E402
     PlanNotFoundError,
     PlanOwnershipError,
     PositionNotFoundError,
@@ -253,6 +260,7 @@ async def ready() -> dict[str, Any] | JSONResponse:
     db_ok = False
     try:
         from sqlalchemy import text as _text
+
         if resources.pg_engine is not None:
             async with resources.pg_engine.begin() as conn:
                 db_ok = (await conn.execute(_text("SELECT 1"))).scalar() == 1
@@ -265,6 +273,7 @@ async def ready() -> dict[str, Any] | JSONResponse:
     try:
         if resources.pg_engine is not None:
             from sqlalchemy import text as _text
+
             async with resources.pg_engine.begin() as conn:
                 cnt = (await conn.execute(_text("SELECT COUNT(*) FROM users"))).scalar()
                 users_ok = (cnt or 0) >= 1
@@ -277,6 +286,7 @@ async def ready() -> dict[str, Any] | JSONResponse:
     try:
         if resources.pg_engine is not None:
             from sqlalchemy import text as _text
+
             async with resources.pg_engine.begin() as conn:
                 alembic_ok = (
                     await conn.execute(_text("SELECT version_num FROM alembic_version LIMIT 1"))
@@ -296,11 +306,12 @@ async def ready() -> dict[str, Any] | JSONResponse:
     all_ok = all(v == "ok" for v in checks.values() if v != "not initialised")
     # LOG-04 fix: 生产环境不暴露内部服务细节和错误消息
     if _is_prod:
-        payload = {"status": "ready" if all_ok else "not_ready"}
+        payload: dict[str, object] = {"status": "ready" if all_ok else "not_ready"}
     else:
         payload = {"status": "ready" if all_ok else "not_ready", "checks": checks}
     if not all_ok:
         from fastapi.responses import JSONResponse
+
         return JSONResponse(status_code=503, content=payload)
     return payload
 

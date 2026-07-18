@@ -360,7 +360,7 @@ async def get_pipeline_status(
         ReviewQueue,
         SkillRecord,
     )
-    from app.models.pipeline_models import PipelineRun as PR
+    from app.models.pipeline_models import PipelineRun as PR  # noqa: N817
 
     # Recent 5 runs
     runs_result = await session.execute(

@@ -136,7 +136,7 @@ async def create_run(
 ) -> PipelineRun:
     """Create a new PipelineRun record with DAG-aware stage initialization."""
     # Validate run_type
-    _VALID_RUN_TYPES = {"full", "incremental"}
+    _VALID_RUN_TYPES = {"full", "incremental"}  # noqa: N806
     if run_type not in _VALID_RUN_TYPES:
         raise ValueError(f"Invalid run_type: {run_type!r}. Must be one of {sorted(_VALID_RUN_TYPES)}")
     run = PipelineRun(
@@ -443,15 +443,15 @@ async def cancel_run(
     if redis_client is not None:
         try:
             await redis_client.setex(f"pipeline:stop:{run_id}", 3600, "1")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Redis STOP flag set failed (non-fatal): {}", exc)
 
         # 4. Invalidate status cache
         try:
             from app.core.pipeline.status_aggregator import invalidate_status_cache
             await invalidate_status_cache(redis_client)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Status cache invalidation failed (non-fatal): {}", exc)
 
     return RunCancelResult(
         run_id=run.id,

@@ -1,4 +1,5 @@
 """集中配置管理（基于 pydantic-settings，从环境变量/.env 读取）。"""
+
 from functools import lru_cache
 from typing import Any, ClassVar
 
@@ -52,7 +53,9 @@ class Settings(BaseSettings):
 
     # 认证（仅保留 token 寿命；用户表已迁移至 PostgreSQL）
     token_expire_hours: int = Field(
-        default=24, ge=1, le=720,
+        default=24,
+        ge=1,
+        le=720,
         description="JWT token 有效期（小时）",
     )
     jwt_audience: str = Field(
@@ -64,7 +67,8 @@ class Settings(BaseSettings):
         description="JWT issuer claim (iss)",
     )
     jwt_leeway_seconds: int = Field(
-        default=30, ge=0,
+        default=30,
+        ge=0,
         description="JWT clock skew tolerance (seconds)",
     )
 
@@ -76,9 +80,7 @@ class Settings(BaseSettings):
         description="If true, ensure an admin user exists on startup (dev only)",
     )
     bootstrap_admin_username: str = Field(default="admin", min_length=1, max_length=64)
-    bootstrap_admin_password: str = Field(
-        default="starmap2024", min_length=8, max_length=128
-    )
+    bootstrap_admin_password: str = Field(default=_UNCONFIGURED, min_length=8, max_length=128)
 
     # ── Dev-mode anonymous admin bypass ──
     # W1-T2 fix (PLAN §W1-T2): dev convenience "no token = admin" must be
@@ -94,10 +96,19 @@ class Settings(BaseSettings):
 
     # 数据来源权威度评分 (admin.py source management)
     authority_scores: dict[str, float] = {
-        "lagou": 0.75, "zhaopin": 0.72, "indeed": 0.68, "linkedin": 0.85,
-        "sap": 0.90, "talent": 0.70, "freelancer": 0.65, "bosszhipin": 0.73,
-        "51job": 0.71, "liepin": 0.74, "test_real_crawl": 0.50,
-        "boss": 0.70, "esco": 0.92,
+        "lagou": 0.75,
+        "zhaopin": 0.72,
+        "indeed": 0.68,
+        "linkedin": 0.85,
+        "sap": 0.90,
+        "talent": 0.70,
+        "freelancer": 0.65,
+        "bosszhipin": 0.73,
+        "51job": 0.71,
+        "liepin": 0.74,
+        "test_real_crawl": 0.50,
+        "boss": 0.70,
+        "esco": 0.92,
     }
     authority_default_score: float = 0.60
 
@@ -183,6 +194,12 @@ class Settings(BaseSettings):
     pipeline_retry_max: int = 3
     pipeline_retry_backoff: int = 10  # 秒, 指数递增基数
 
+    # ── 资源探测超时 ──
+    httpx_health_check_timeout: float = 3.0  # 健康探测（Ollama / Redis / Neo4j 等）
+
+    # ── Pipeline match 并发（替代 pipeline/steps.py 内的 Semaphore(50)）──
+    pipeline_match_concurrency: int = 50
+
     # ── Runtime-mutable config whitelist (SEC-06) ──
     _mutable_config_keys: ClassVar[set[str]] = {
         "pipeline_stage_timeout",
@@ -211,8 +228,7 @@ class Settings(BaseSettings):
         for key, value in updates.items():
             if key not in self._mutable_config_keys:
                 raise ValueError(
-                    f"Field '{key}' is not runtime-mutable. "
-                    f"Mutable fields: {sorted(self._mutable_config_keys)}"
+                    f"Field '{key}' is not runtime-mutable. Mutable fields: {sorted(self._mutable_config_keys)}"
                 )
             if value is None:
                 continue
@@ -234,16 +250,16 @@ class Settings(BaseSettings):
                 changes[key] = (old_value, validated_value)
 
         if changes:
-            change_summary = "; ".join(
-                f"{k}: {v[0]} -> {v[1]}" for k, v in changes.items()
+            change_summary = "; ".join(f"{k}: {v[0]} -> {v[1]}" for k, v in changes.items())
+            audit_log(
+                AuditEntry(
+                    event=AuditEvent.SENSITIVE_WRITE,
+                    actor=actor,
+                    action="update_pipeline_config",
+                    detail=change_summary,
+                    ip="",
+                )
             )
-            audit_log(AuditEntry(
-                event=AuditEvent.SENSITIVE_WRITE,
-                actor=actor,
-                action="update_pipeline_config",
-                detail=change_summary,
-                ip="",
-            ))
 
         return changes
 
@@ -275,11 +291,15 @@ class Settings(BaseSettings):
             else:
                 # 未知值：保守走 prefer（asyncpg 默认 = 不加密）
                 ssl_query = "?ssl=prefer"
-            object.__setattr__(self, "postgres_uri", (
-                f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
-                f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-                f"{ssl_query}"
-            ))
+            object.__setattr__(
+                self,
+                "postgres_uri",
+                (
+                    f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+                    f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+                    f"{ssl_query}"
+                ),
+            )
 
         # 检测仍为占位值的密码字段
         sensitive_fields = {
@@ -287,15 +307,12 @@ class Settings(BaseSettings):
             "neo4j_password": self.neo4j_password,
             "postgres_password": self.postgres_password,
         }
-        unconfigured = [
-            name for name, value in sensitive_fields.items()
-            if value == _UNCONFIGURED
-        ]
+        # P0-2 fix: 若 bootstrap 开启，admin 密码也算敏感字段
+        if self.bootstrap_seed_admin:
+            sensitive_fields["bootstrap_admin_password"] = self.bootstrap_admin_password
+        unconfigured = [name for name, value in sensitive_fields.items() if value == _UNCONFIGURED]
         if unconfigured:
-            msg = (
-                f"⚠️  以下配置仍为默认占位值 {_UNCONFIGURED!r}，"
-                f"请在 .env 中设置真实值：{', '.join(unconfigured)}"
-            )
+            msg = f"⚠️  以下配置仍为默认占位值 {_UNCONFIGURED!r}，请在 .env 中设置真实值：{', '.join(unconfigured)}"
             if self.app_env == "production":
                 # P1 修复 (SEC-02/SEC-03): 生产环境必须配置真实密钥/密码
                 raise RuntimeError(msg + "（生产环境必须修改！）")
@@ -304,15 +321,12 @@ class Settings(BaseSettings):
 
         # P1 fix: production environment must have debug mode disabled
         if self.app_env == "production" and self.app_debug:
-            raise RuntimeError(
-                "Debug mode (APP_DEBUG=True) must be disabled in production environment"
-            )
+            raise RuntimeError("Debug mode (APP_DEBUG=True) must be disabled in production environment")
 
         # P1 修复 (DATA-04): 生产环境 Redis 必须有密码
         if self.app_env == "production" and "@" not in self.redis_uri:
             raise RuntimeError(
-                "Redis URI 缺少密码认证（生产环境必须配置 REDIS_URL 含密码），"
-                "格式：redis://:password@host:port/db"
+                "Redis URI 缺少密码认证（生产环境必须配置 REDIS_URL 含密码），格式：redis://:password@host:port/db"
             )
 
         # P1 修复 (SEC-02): 生产环境 SECRET_KEY 必须足够长
@@ -320,8 +334,12 @@ class Settings(BaseSettings):
             raise RuntimeError(
                 f"SECRET_KEY 长度不足（当前 {len(self.secret_key)} 字符），"
                 f"生产环境至少需要 32 字符。"
-                f"生成方式：python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                f'生成方式：python -c "import secrets; print(secrets.token_urlsafe(32))"'
             )
+
+        # P0-2 fix: 生产环境必须配置独立的 bootstrap_admin_password
+        if self.app_env == "production" and self.bootstrap_admin_password == _UNCONFIGURED:
+            raise RuntimeError("BOOTSTRAP_ADMIN_PASSWORD 未配置。生产环境必须在 .env.production 中设置强密码。")
 
         # NEW-P1a (AUDIT_VERIFICATION §1.4 C5): 生产严禁自动播种弱管理员。
         # 即便运维误把 .env.production 的 BOOTSTRAP_SEED_ADMIN 设回 true，
@@ -336,10 +354,7 @@ class Settings(BaseSettings):
         # W1-T2 (PLAN §W1-T2): dev 匿名 admin 旁路仅允许在 dev 且显式 opt-in。
         # 生产部署绝不允许启用——它会让匿名请求获得 admin 角色。
         if self.app_env == "production" and self.dev_anon_admin:
-            raise RuntimeError(
-                "DEV_ANON_ADMIN=true 在生产环境被拒绝。"
-                "生产部署必须强制 JWT 鉴权。"
-            )
+            raise RuntimeError("DEV_ANON_ADMIN=true 在生产环境被拒绝。生产部署必须强制 JWT 鉴权。")
 
         # W1-T7 fix (DATA-03): 生产 Postgres 必须强制 SSL。
         # 仅 `require`/`verify-ca`/`verify-full` 三档视为合规。
@@ -354,22 +369,20 @@ class Settings(BaseSettings):
 
         # W1-T7 fix (DATA-02): 生产 Neo4j 必须走 bolt+s://。
         # 否则 Bolt 协议明文传输，节点凭据与查询内容均裸奔。
-        if self.app_env == "production" and not self.neo4j_uri.startswith(
-            ("bolt+s://", "neo4j+s://", "bolt+ssc://")
-        ):
-            raise RuntimeError(
-                f"NEO4J_URI={self.neo4j_uri!r} 在生产环境被拒绝。"
-                f"生产必须使用 bolt+s:// 启用 TLS。"
-                )
+        if self.app_env == "production" and not self.neo4j_uri.startswith(("bolt+s://", "neo4j+s://", "bolt+ssc://")):
+            raise RuntimeError(f"NEO4J_URI={self.neo4j_uri!r} 在生产环境被拒绝。生产必须使用 bolt+s:// 启用 TLS。")
 
         # AUTH-04 fix: 生产 CORS 白名单校验
         # 默认 cors_origins 仅含 localhost dev 端口，生产必须通过
         # CORS_ALLOWED_ORIGINS 环境变量显式覆盖为真实域名。
         if self.app_env == "production":
             _dev_only_origins = {
-                "http://localhost:5173", "http://127.0.0.1:5173",
-                "http://localhost:5176", "http://127.0.0.1:5176",
-                "http://localhost:5174", "http://localhost:5175",
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:5176",
+                "http://127.0.0.1:5176",
+                "http://localhost:5174",
+                "http://localhost:5175",
             }
             if set(self.cors_origins).issubset(_dev_only_origins):
                 raise RuntimeError(
@@ -397,6 +410,7 @@ class Settings(BaseSettings):
             )
 
         return self
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -77,7 +77,7 @@ describe('useEvolutionStore', () => {
     vi.mocked(request.get).mockResolvedValueOnce(mockSnapshots)
 
     const store = useEvolutionStore()
-    const result = await store.fetchSnapshots()
+    await store.fetchSnapshots()
 
     expect(store.snapshots).toHaveLength(2)
     // Should be sorted by snapshot_date ascending
@@ -102,7 +102,7 @@ describe('useEvolutionStore', () => {
     vi.mocked(request.get).mockResolvedValueOnce({ not: 'an array' })
 
     const store = useEvolutionStore()
-    const result = await store.fetchSnapshots()
+    await store.fetchSnapshots()
 
     expect(store.snapshots).toEqual([])
   })
@@ -117,7 +117,7 @@ describe('useEvolutionStore', () => {
     vi.mocked(request.get).mockResolvedValueOnce(mockChangelog)
 
     const store = useEvolutionStore()
-    const result = await store.fetchChangelog('Python')
+    await store.fetchChangelog('Python')
 
     expect(store.changelogData).toHaveLength(1)
     expect(store.changelogData[0].skill_name).toBe('Python')
@@ -135,7 +135,7 @@ describe('useEvolutionStore', () => {
     vi.mocked(request.get).mockResolvedValueOnce(mockResponse)
 
     const store = useEvolutionStore()
-    const result = await store.fetchChangelog('Docker')
+    await store.fetchChangelog('Docker')
 
     expect(store.changelogData).toHaveLength(1)
     expect(store.changelogData[0].skill_name).toBe('Docker')
@@ -151,7 +151,7 @@ describe('useEvolutionStore', () => {
     vi.mocked(request.get).mockResolvedValueOnce(mockResponse)
 
     const store = useEvolutionStore()
-    const result = await store.fetchChangelog('Go')
+    await store.fetchChangelog('Go')
 
     expect(store.changelogData).toHaveLength(1)
     expect(store.changelogData[0].skill_name).toBe('Go')

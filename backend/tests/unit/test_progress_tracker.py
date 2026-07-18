@@ -151,7 +151,7 @@ class TestCreatePlan:
     async def test_mastered_skill_gets_100_pct(self):
         skills = [{"skill": "SQL", "gap_level": "已掌握", "importance": "required"}]
         session = FakeAsyncSession()
-        plan = await create_plan(session, position="DBA", skills=skills)
+        await create_plan(session, position="DBA", skills=skills)
         progress = session._added[1]
         assert progress.status == "mastered"
         assert progress.progress_pct == 100.0
@@ -160,7 +160,7 @@ class TestCreatePlan:
     async def test_partial_gap_starts_not_started(self):
         skills = [{"skill": "Go", "gap_level": "部分掌握", "importance": "bonus"}]
         session = FakeAsyncSession()
-        plan = await create_plan(session, position="SRE", skills=skills)
+        await create_plan(session, position="SRE", skills=skills)
         progress = session._added[1]
         assert progress.status == "not_started"
         assert progress.progress_pct == 0.0
@@ -169,7 +169,7 @@ class TestCreatePlan:
     async def test_empty_skill_name_skipped(self):
         skills = [{"skill": "", "gap_level": "完全缺失"}, {"skill": "Rust", "gap_level": "完全缺失"}]
         session = FakeAsyncSession()
-        plan = await create_plan(session, position="Systems", skills=skills)
+        await create_plan(session, position="Systems", skills=skills)
         # Only 1 plan + 1 progress (empty name skipped)
         assert len(session._added) == 2
 
@@ -177,7 +177,7 @@ class TestCreatePlan:
     async def test_missing_skill_key_skipped(self):
         skills = [{"gap_level": "完全缺失"}, {"skill": "Rust", "gap_level": "完全缺失"}]
         session = FakeAsyncSession()
-        plan = await create_plan(session, position="Systems", skills=skills)
+        await create_plan(session, position="Systems", skills=skills)
         assert len(session._added) == 2  # plan + 1 progress
 
     @pytest.mark.asyncio
@@ -295,7 +295,7 @@ class TestUpdateProgress:
         session = MultiQuerySession()
         prog2.status = "mastered"
         prog2.progress_pct = 100.0
-        result = await update_progress(session, plan_id=pid, skill_name="B", status="mastered")
+        await update_progress(session, plan_id=pid, skill_name="B", status="mastered")
         assert plan.status == "completed"
 
     @pytest.mark.asyncio

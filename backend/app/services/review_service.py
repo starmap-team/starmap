@@ -43,15 +43,15 @@ ALLOWED_STATUSES: tuple[Status, ...] = ("draft", "pending_review", "approved", "
 # ── Domain exceptions ──
 
 
-class ReviewNotFound(Exception):
+class ReviewNotFound(Exception):  # noqa: N818
     """Entity not found for review operation."""
 
 
-class InvalidStateTransition(Exception):
+class InvalidStateTransition(Exception):  # noqa: N818
     """Attempted transition is not allowed from the current state."""
 
 
-class MissingRejectionReason(Exception):
+class MissingRejectionReason(Exception):  # noqa: N818
     """Reject requires a non-empty reason."""
 
 

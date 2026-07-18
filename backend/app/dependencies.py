@@ -9,6 +9,7 @@ Phase DB-AUTH:
   (which enforces aud/iss + leeway uniformly).
 - AUTH_USERS env-var bypass removed.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -103,13 +104,15 @@ async def get_current_user(
     """
     # 生产环境永远强制鉴权；不论 settings.dev_anon_admin 为何值
     if settings.app_env == "production" and credentials is None:
-        audit_log(AuditEntry(
-            event=AuditEvent.AUTH_FAILURE,
-            actor="anonymous",
-            action="missing_token",
-            detail="No Bearer token provided in production",
-            ip="",
-        ))
+        audit_log(
+            AuditEntry(
+                event=AuditEvent.AUTH_FAILURE,
+                actor="anonymous",
+                action="missing_token",
+                detail="No Bearer token provided in production",
+                ip="",
+            )
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
@@ -138,13 +141,15 @@ async def get_current_user(
     except ValueError as e:
         err_msg = str(e)
         event = AuditEvent.TOKEN_EXPIRED if "expired" in err_msg else AuditEvent.TOKEN_INVALID
-        audit_log(AuditEntry(
-            event=event,
-            actor="anonymous",
-            action="jwt_validate",
-            detail=err_msg,
-            ip="",
-        ))
+        audit_log(
+            AuditEntry(
+                event=event,
+                actor="anonymous",
+                action="jwt_validate",
+                detail=err_msg,
+                ip="",
+            )
+        )
         logger.warning("JWT validation failed: {}", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -164,13 +169,15 @@ async def require_admin(
     生产环境: JWT payload 中 role 必须为 "admin"。
     """
     if user.get("role") != "admin":
-        audit_log(AuditEntry(
-            event=AuditEvent.AUTHZ_DENIED,
-            actor=user.get("sub", "unknown"),
-            action="require_admin",
-            detail=f"User role={user.get('role')} attempted admin action",
-            ip="",
-        ))
+        audit_log(
+            AuditEntry(
+                event=AuditEvent.AUTHZ_DENIED,
+                actor=user.get("sub", "unknown"),
+                action="require_admin",
+                detail=f"User role={user.get('role')} attempted admin action",
+                ip="",
+            )
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
@@ -199,25 +206,29 @@ async def sse_connect(client_ip: str) -> None:
     global _sse_global_connections
     async with _sse_lock:
         if _sse_global_connections >= _SSE_MAX_GLOBAL:
-            audit_log(AuditEntry(
-                event=AuditEvent.RATE_LIMITED,
-                actor=client_ip,
-                action="sse_connect",
-                detail=f"Global SSE limit reached ({_SSE_MAX_GLOBAL})",
-                ip=client_ip,
-            ))
+            audit_log(
+                AuditEntry(
+                    event=AuditEvent.RATE_LIMITED,
+                    actor=client_ip,
+                    action="sse_connect",
+                    detail=f"Global SSE limit reached ({_SSE_MAX_GLOBAL})",
+                    ip=client_ip,
+                )
+            )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many SSE connections. Try again later.",
             )
         if _sse_ip_connections[client_ip] >= _SSE_MAX_PER_IP:
-            audit_log(AuditEntry(
-                event=AuditEvent.RATE_LIMITED,
-                actor=client_ip,
-                action="sse_connect",
-                detail=f"Per-IP SSE limit reached ({_SSE_MAX_PER_IP})",
-                ip=client_ip,
-            ))
+            audit_log(
+                AuditEntry(
+                    event=AuditEvent.RATE_LIMITED,
+                    actor=client_ip,
+                    action="sse_connect",
+                    detail=f"Per-IP SSE limit reached ({_SSE_MAX_PER_IP})",
+                    ip=client_ip,
+                )
+            )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many SSE connections from your IP. Try again later.",
@@ -227,11 +238,18 @@ async def sse_connect(client_ip: str) -> None:
 
 
 async def sse_disconnect(client_ip: str) -> None:
-    """在 SSE 连接断开时调用，释放连接计数。"""
+    """在 SSE 连接断开时调用，释放连接计数。
+
+    P2-16 fix: 安全断开 — 先检查再减，防止负数泄漏；
+    同时清理 IP 计数归零的条目，防止 _sse_ip_connections 无限增长。
+    """
     global _sse_global_connections
     async with _sse_lock:
-        if _sse_ip_connections[client_ip] > 0:
+        if _sse_ip_connections.get(client_ip, 0) > 0:
             _sse_ip_connections[client_ip] -= 1
+            # 清理归零条目，防止 dict 无限膨胀
+            if _sse_ip_connections[client_ip] <= 0:
+                _sse_ip_connections.pop(client_ip, None)
         if _sse_global_connections > 0:
             _sse_global_connections -= 1
 
@@ -273,13 +291,15 @@ async def get_current_user_sse(
             err_msg = str(e)
             is_expired = "expired" in err_msg
             event = AuditEvent.TOKEN_EXPIRED if is_expired else AuditEvent.TOKEN_INVALID
-            audit_log(AuditEntry(
-                event=event,
-                actor="anonymous",
-                action="jwt_validate_sse",
-                detail=err_msg,
-                ip=request.client.host if request.client else "",
-            ))
+            audit_log(
+                AuditEntry(
+                    event=event,
+                    actor="anonymous",
+                    action="jwt_validate_sse",
+                    detail=err_msg,
+                    ip=request.client.host if request.client else "",
+                )
+            )
             logger.warning("SSE JWT validation failed: {}", e)
             headers: dict[str, str] = {}
             if is_expired:

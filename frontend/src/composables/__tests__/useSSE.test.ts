@@ -4,7 +4,7 @@
  * and storeHandlers dispatch
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createApp, ref } from 'vue'
+import { createApp } from 'vue'
 
 // ── Mock EventSource globally ──
 
@@ -101,7 +101,7 @@ describe('useSSE', () => {
     vi.mocked(localStorage.getItem).mockReturnValue('my-jwt-token')
     const onMessage = vi.fn()
 
-    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
+    const { unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
     unmount = teardown
 
     expect((MockEventSource as any).mock.calls[0][0]).toBe('/api/v1/test?token=my-jwt-token')
@@ -111,7 +111,7 @@ describe('useSSE', () => {
     vi.mocked(localStorage.getItem).mockReturnValue('my-token')
     const onMessage = vi.fn()
 
-    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test?existing=1', { onMessage }))
+    const { unmount: teardown } = withSetup(() => useSSE('/api/v1/test?existing=1', { onMessage }))
     unmount = teardown
 
     expect((MockEventSource as any).mock.calls[0][0]).toBe('/api/v1/test?existing=1&token=my-token')
@@ -121,7 +121,7 @@ describe('useSSE', () => {
     vi.mocked(localStorage.getItem).mockReturnValue(null)
     const onMessage = vi.fn()
 
-    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
+    const { unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
     unmount = teardown
 
     expect((MockEventSource as any).mock.calls[0][0]).toBe('/api/v1/test')
@@ -182,7 +182,7 @@ describe('useSSE', () => {
 
   it('should disconnect on component unmount', () => {
     const onMessage = vi.fn()
-    const { result, unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
+    const { unmount: teardown } = withSetup(() => useSSE('/api/v1/test', { onMessage }))
 
     teardown()
 
@@ -219,7 +219,7 @@ describe('useSSE', () => {
       pipeline_update: pipelineHandler,
     }
 
-    const { result, unmount: teardown } = withSetup(() =>
+    const { unmount: teardown } = withSetup(() =>
       useSSE('/api/v1/test', { onMessage, storeHandlers })
     )
     unmount = teardown
@@ -243,7 +243,7 @@ describe('useSSE', () => {
       extraction_complete: vi.fn(),
     }
 
-    const { result, unmount: teardown } = withSetup(() =>
+    const { unmount: teardown } = withSetup(() =>
       useSSE('/api/v1/test', { onMessage, storeHandlers })
     )
     unmount = teardown

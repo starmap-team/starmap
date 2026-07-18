@@ -20,6 +20,7 @@ const trendLabel = TREND_LABEL
 const trendTagType = TREND_TAG_TYPE
 import EvolutionChangelogDrawer from '@/components/EvolutionChangelogDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import BusinessBanner from '@/components/BusinessBanner.vue'
 
 use([CanvasRenderer, LineChart, BarChart, GaugeChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
 
@@ -76,24 +77,12 @@ onMounted(() => {
 <template>
   <MainLayout>
     <div class="evolution-page animate-fade-in">
-      <!-- Phase 26: §5.2 + §7.5 业务说明横幅 -->
-      <el-alert
+      <BusinessBanner
         type="warning"
-        :closable="false"
-        show-icon
-        class="business-banner"
-      >
-        <template #title>
-          §5.2 演化分析 + §7.5 能力通胀指数 (CII)
-        </template>
-        <p>
-          本看板展示岗位技能图谱的演化趋势：新兴技能涌现（Z-score 检测）、技能变更日志、
-          以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。
-        </p>
-        <p class="banner-meta">
-          后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> · §7.1 信任度驱动
-        </p>
-      </el-alert>
+        title="§5.2 演化分析 + §7.5 能力通胀指数 (CII)"
+        description="本看板展示岗位技能图谱的演化趋势：新兴技能涌现（Z-score 检测）、技能变更日志、以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。"
+        meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> · §7.1 信任度驱动"
+      />
 
       <!-- 标题 -->
       <div class="page-header">
@@ -482,29 +471,8 @@ onMounted(() => {
   min-height: 400px;
 }
 
-/* Phase 26: 业务说明横幅 */
-.business-banner {
-  margin-bottom: var(--space-4);
-  border-radius: var(--radius-lg);
-}
-.business-banner :deep(p) {
-  margin: 4px 0 0;
-  font-size: var(--font-size-sm);
-  color: var(--foreground);
-  line-height: 1.5;
-}
-.business-banner .banner-meta {
-  margin-top: 6px;
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-}
-.business-banner code {
-  background: var(--muted);
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono, monospace);
-  font-size: 11px;
-}
+/* Phase 26: 业务说明横幅 — 已迁移到 BusinessBanner.vue */
+
 
 .page-title {
   font-size: var(--font-size-3xl);
@@ -575,7 +543,7 @@ onMounted(() => {
 .emerging-item {
   cursor: pointer;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--muted, rgba(148,163,184,0.08));
   transition: background 0.2s;
 }

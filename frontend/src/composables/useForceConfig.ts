@@ -4,7 +4,7 @@
  * Extracted from Graph3D.vue to decouple the force simulation configuration
  * from the component.
  */
-import type { GraphNode3D, NODE_COLLISION_PADDING as _PAD } from './useNodeThreeObject'
+import type { GraphNode3D } from './useNodeThreeObject'
 import { getNodeLabel, proficiencyToZ } from './useNodeThreeObject'
 
 /** Force configuration parameters based on node count */

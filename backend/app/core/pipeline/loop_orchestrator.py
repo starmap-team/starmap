@@ -179,8 +179,8 @@ class LoopOrchestrator:
         try:
             from app.services.resources import resources as app_resources
             driver = app_resources.neo4j_driver
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Neo4j driver not available for step 3/4: {}", exc)
 
         step3 = await self._step3_graph_update(run_id, extraction_data, target_position=target_position)
         result.steps.append(step3)
@@ -228,7 +228,6 @@ class LoopOrchestrator:
 
         # Determine overall status
         failed_steps = [s for s in result.steps if s.status == StepStatus.FAILED]
-        skipped_ok = [s for s in result.steps if s.status == StepStatus.SKIPPED]
         if failed_steps and all(s.step in (4, 5) for s in failed_steps):
             # Only path/match failed — pipeline still completed
             result.status = LoopRunStatus.COMPLETED
@@ -367,8 +366,8 @@ class LoopOrchestrator:
             try:
                 from app.services.resources import resources as app_resources
                 driver = app_resources.neo4j_driver
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Neo4j driver not available inside step 3: {}", exc)
 
             if driver is None:
                 return LoopStepResult(

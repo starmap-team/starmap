@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import DataQualityGauge from '../DataQualityGauge.vue'
@@ -38,7 +37,6 @@ describe('DataQualityGauge', () => {
       props: { score: 50 },
       global: { stubs: { VChart: { template: '<div />' } } },
     })
-    const vm = wrapper.vm as any
     // 默认 label = '数据质量'
     expect(wrapper.props('label')).toBe('数据质量')
   })

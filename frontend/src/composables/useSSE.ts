@@ -104,11 +104,33 @@ export function useSSE(url: string, options: UseSSEOptions) {
       eventSource = null
     }
 
+    function handleSSEError() {
+      // Switch to polling after consecutive failures
+      if (consecutiveFailures >= pollThreshold) {
+        // keep: records SSE→polling fallback for ops debugging
+        if (import.meta.env.DEV) console.warn(`[useSSE] ${consecutiveFailures} consecutive failures, switching to polling`)
+        startPolling()
+        return
+      }
+
+      // Exponential backoff reconnect
+      if (retryCount < maxRetries) {
+        const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay)
+        retryCount++
+        // keep: records reconnection attempt for ops debugging
+        if (import.meta.env.DEV) console.warn(`[useSSE] Reconnecting in ${delay}ms (attempt ${retryCount}/${maxRetries})`)
+        retryTimer = setTimeout(connectSSE, delay)
+      } else {
+        if (import.meta.env.DEV) console.error('[useSSE] Max retries reached, attempting polling fallback')
+        startPolling()
+        onError?.(new Event('error'))
+      }
+    }
+
     try {
       // LOOP-02: Append JWT token as query parameter for SSE auth
       // EventSource API doesn't support custom headers, so token goes in URL
-      // FIX-03: Read from starmap_access_token (primary) with legacy fallback
-      const token = localStorage.getItem('starmap_access_token') || localStorage.getItem('starmap_token') || localStorage.getItem('token')
+      const token = localStorage.getItem('starmap_access_token')
       const separator = url.includes('?') ? '&' : '?'
       const authedUrl = token ? `${url}${separator}token=${encodeURIComponent(token)}` : url
       eventSource = new EventSource(authedUrl)
@@ -212,29 +234,6 @@ export function useSSE(url: string, options: UseSSEOptions) {
 
         handleSSEError()
       }
-
-      function handleSSEError() {
-        // Switch to polling after consecutive failures
-        if (consecutiveFailures >= pollThreshold) {
-          // keep: records SSE→polling fallback for ops debugging
-          if (import.meta.env.DEV) console.warn(`[useSSE] ${consecutiveFailures} consecutive failures, switching to polling`)
-          startPolling()
-          return
-        }
-
-        // Exponential backoff reconnect
-        if (retryCount < maxRetries) {
-          const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay)
-          retryCount++
-          // keep: records reconnection attempt for ops debugging
-          if (import.meta.env.DEV) console.warn(`[useSSE] Reconnecting in ${delay}ms (attempt ${retryCount}/${maxRetries})`)
-          retryTimer = setTimeout(connectSSE, delay)
-        } else {
-          if (import.meta.env.DEV) console.error('[useSSE] Max retries reached, attempting polling fallback')
-          startPolling()
-          onError?.(new Event('error'))
-        }
-      }
     } catch {
       // EventSource constructor failed (e.g., invalid URL)
       startPolling()
@@ -247,8 +246,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
     if (disposed) return
     try {
       // LOOP-02: Add Authorization header for polling fetch auth
-      // FIX-03: Read from starmap_access_token (primary) with legacy fallback
-      const token = localStorage.getItem('starmap_access_token') || localStorage.getItem('starmap_token') || localStorage.getItem('token')
+      const token = localStorage.getItem('starmap_access_token')
       const headers: Record<string, string> = {
         'Accept': 'application/json',
       }

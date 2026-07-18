@@ -25,12 +25,12 @@ def _capture_warnings() -> tuple[list[str], int]:
 
 def _make_settings(**overrides) -> Settings:
     """构造一个密码已配置（非占位值）的 Settings，避免 DB WARNING 噪音。"""
-    base: dict[str, object] = dict(
-        secret_key="x" * 40,
-        neo4j_password="real-neo4j-pw",
-        postgres_password="real-pg-pw",
-        redis_uri="redis://:pw@localhost:6379/0",
-    )
+    base: dict[str, object] = {
+        "secret_key": "x" * 40,
+        "neo4j_password": "real-neo4j-pw",
+        "postgres_password": "real-pg-pw",
+        "redis_uri": "redis://:pw@localhost:6379/0",
+    }
     base.update(overrides)
     return Settings(**base)
 

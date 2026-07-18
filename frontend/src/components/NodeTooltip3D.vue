@@ -99,7 +99,7 @@ const stats = computed(() => {
   backdrop-filter: blur(16px) saturate(1.5);
   -webkit-backdrop-filter: blur(16px) saturate(1.5);
   border: 1px solid color-mix(in srgb, var(--muted-foreground, #64748b) 25%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow:
     0 0 20px color-mix(in srgb, var(--chart-2, #0891b2) 8%, transparent),
     0 8px 24px rgba(0, 0, 0, 0.4);

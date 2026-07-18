@@ -10,6 +10,7 @@ from typing import Any
 
 from loguru import logger
 
+from app.config import settings
 from app.core.extraction.jd_extract import extract_from_jd
 from app.pipeline.contracts import ExtractedSkill, PipelineContext
 from app.repositories.position_repository import PositionRepository
@@ -139,8 +140,8 @@ class MatchStep:
                 for s in ctx.extracted_skills
             ]
 
-            # 并行匹配（限制并发数）
-            sem = asyncio.Semaphore(50)
+            # 并行匹配（限制并发数，配置项化以便运行时调优）
+            sem = asyncio.Semaphore(settings.pipeline_match_concurrency)
 
             async def _match_one(pos_name: str) -> tuple[str, dict[str, Any] | None]:
                 async with sem:

@@ -77,14 +77,8 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "position_name": data.get("position_name", ""),
-        "required_skills": [
-            _map_skill_item(s)
-            for s in data.get("required_skills", [])
-        ],
-        "preferred_skills": [
-            _map_skill_item(s)
-            for s in data.get("preferred_skills", [])
-        ],
+        "required_skills": [_map_skill_item(s) for s in data.get("required_skills", [])],
+        "preferred_skills": [_map_skill_item(s) for s in data.get("preferred_skills", [])],
         "experience_required": data.get("experience_required"),
         "education_required": data.get("education_required"),
         "responsibilities": data.get("responsibilities", []),
@@ -207,7 +201,7 @@ async def extract_resume(
     content_bytes = await validate_resume_upload(file)
 
     try:
-        pipeline_result = await run_resume_extraction(file.filename, content_bytes)
+        pipeline_result = await run_resume_extraction(file.filename or "resume", content_bytes)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except ConnectionError as e:

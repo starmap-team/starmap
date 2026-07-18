@@ -17,18 +17,37 @@ export function useLoopGraph() {
   const loopStore = useLoopStore()
   const cc = chartColors()
 
+  // Local types for G6 graph data (avoid leaking G6 internals)
+  interface GraphNodeData { id: string; name?: string }
+  interface GraphEdgeData { source: string; target: string }
+  interface GraphRenderNode { id: string; style: Record<string, unknown> }
+  interface GraphRenderEdge { id: string; source: string; target: string; style: Record<string, unknown> }
+  interface Step2Data { skills?: Array<{ skill?: string; name?: string; is_new?: boolean; confidence?: number }> }
+  interface Step3Data {
+    new_nodes?: GraphNodeData[]
+    existing_nodes?: GraphNodeData[]
+    new_edges?: GraphEdgeData[]
+    existing_edges?: GraphEdgeData[]
+  }
+
   const graphContainerRef = ref<HTMLElement | null>(null)
-  let graphInstance: any = null
+  let graphInstance: {
+    destroy: () => void
+    setData: (d: unknown) => void
+    render: () => void
+    updateNodeData: (nodes: unknown[]) => void
+    draw: () => void
+  } | null = null
   let _enterIntervalId: ReturnType<typeof setInterval> | null = null
   let _blinkIntervalId: ReturnType<typeof setInterval> | null = null
 
   /** Extract skills from the current run's step 2 data */
   function extractSkillsFromRun(): { skill: string; is_new: boolean; confidence?: number }[] {
-    const step2Data = loopStore.currentRun?.steps[1]?.data
+    const step2Data = loopStore.currentRun?.steps[1]?.data as Step2Data | undefined
     if (!step2Data) return []
     const skills = step2Data.skills ?? []
-    return skills.map((s: any) => ({
-      skill: s.skill ?? s.name ?? String(s),
+    return skills.map((s) => ({
+      skill: s.skill ?? s.name ?? '',
       is_new: s.is_new ?? false,
       confidence: s.confidence,
     }))
@@ -64,41 +83,38 @@ export function useLoopGraph() {
       },
       node: {
         style: {
+          size: 20,
+          fill: cv('--primary'),
+          stroke: cv('--card'),
+          lineWidth: 2,
           labelFill: cv('--foreground'),
           labelFontSize: 11,
           labelPlacement: 'bottom' as const,
-          labelOffsetY: 6,
+          labelOffsetY: 4,
         },
       },
       edge: {
         style: {
           stroke: cv('--border'),
           lineWidth: 1.5,
-          opacity: 0.4,
+          opacity: 0.6,
           endArrow: true,
         },
       },
       behaviors: ['drag-canvas', 'zoom-canvas'],
-      plugins: [{
-        type: 'tooltip',
-        enable: true,
-        trigger: 'pointerenter',
-        offset: [10, 10],
-        style: {
-          background: cv('--card'),
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          padding: '8px 12px',
-          fontSize: '12px',
-          border: '1px solid ' + cv('--border'),
-          color: cv('--foreground'),
-        },
-      }],
-    })
+      plugins: ['minimap'],
+    }) as unknown as {
+      destroy: () => void
+      setData: (d: unknown) => void
+      render: () => void
+      updateNodeData: (nodes: unknown[]) => void
+      draw: () => void
+    }
 
     // Build nodes and edges from step3 data
-    const newNodes: any[] = (step3Data.new_nodes ?? []).map((n: any) => ({
-      id: n.id ?? n.name,
+    const step3 = step3Data as Step3Data
+    const newNodes: GraphRenderNode[] = (step3.new_nodes ?? []).map((n) => ({
+      id: n.id ?? n.name ?? '',
       style: {
         size: 28,
         fill: cc.success,
@@ -113,8 +129,8 @@ export function useLoopGraph() {
       },
     }))
 
-    const existingNodes: any[] = (step3Data.existing_nodes ?? []).map((n: any) => ({
-      id: n.id ?? n.name,
+    const existingNodes: GraphRenderNode[] = (step3.existing_nodes ?? []).map((n) => ({
+      id: n.id ?? n.name ?? '',
       style: {
         size: 24,
         fill: cv('--primary'),
@@ -128,8 +144,8 @@ export function useLoopGraph() {
     }))
 
     const allGraphNodes = [...newNodes, ...existingNodes]
-    const allGraphEdges: any[] = [
-      ...(step3Data.new_edges ?? []).map((e: any) => ({
+    const allGraphEdges: GraphRenderEdge[] = [
+      ...(step3.new_edges ?? []).map((e) => ({
         id: `${e.source}-${e.target}-new`,
         source: e.source,
         target: e.target,
@@ -141,7 +157,7 @@ export function useLoopGraph() {
           endArrow: true,
         },
       })),
-      ...(step3Data.existing_edges ?? []).map((e: any) => ({
+      ...(step3.existing_edges ?? []).map((e) => ({
         id: `${e.source}-${e.target}`,
         source: e.source,
         target: e.target,

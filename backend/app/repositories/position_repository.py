@@ -88,8 +88,8 @@ class PositionRepository:
                 record = await result.single()
                 if record:
                     prerequisite_count = record["cnt"]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("prerequisite_count query failed: {}", exc)
 
         return DataQualityStats(
             total_positions=total_positions,

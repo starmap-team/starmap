@@ -64,7 +64,7 @@ export function tooltipStyle() {
     borderColor: c.border,
     borderWidth: 1,
     textStyle: { color: c.foreground, fontSize: 12, fontFamily: `'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif` },
-    extraCssText: 'border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 8px 12px;',
+    extraCssText: 'border-radius: var(--radius-lg); box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 8px 12px;',
   }
 }
 

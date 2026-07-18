@@ -94,7 +94,7 @@ async def healthcheck_resources() -> dict[str, str]:
     ollama_url = settings.qwen_model_path
     if ollama_url:
         try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
+            async with httpx.AsyncClient(timeout=settings.httpx_health_check_timeout) as client:
                 resp = await client.get(f"{ollama_url}/api/tags")
             result["ollama"] = "ok" if resp.status_code == 200 else f"error:HTTP{resp.status_code}"
         except Exception as exc:  # pragma: no cover - defensive runtime check

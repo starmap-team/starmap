@@ -442,7 +442,7 @@ const getInfo = (name: string): PromptVersionInfo | undefined => prompt.prompts[
   margin-bottom: 16px;
   padding: 12px;
   background: var(--el-color-warning-light-9);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .ab-info {
   display: flex;
@@ -457,7 +457,7 @@ const getInfo = (name: string): PromptVersionInfo | undefined => prompt.prompts[
 .template-content {
   background: var(--el-fill-color-lighter);
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 12px;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   white-space: pre-wrap;

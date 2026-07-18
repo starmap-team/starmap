@@ -5,16 +5,22 @@
     并构建跨维度关联（共享技能 / 晋升路径），为前端技术栈与成长路径视图提供数据。
     graph_service.py 重新导出本模块的公共符号以保持向后兼容。
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
 from app.services.graph_serializers import _node_id, _safe_properties
 
-# ── 技术栈分组映射 ──
+if TYPE_CHECKING:
+    from neo4j import AsyncDriver
+
+
+# ── 常量 ──
+
 # 业务说明：定义技术栈关键词映射表，用于将职位名称/行业自动分类到对应的技术领域（如人工智能、大数据等）。
 # 技术说明：每个技术栈对应一组关键词，匹配时采用大小写不敏感的子串匹配。
 TECH_STACK_KEYWORDS: dict[str, list[str]] = {
@@ -43,10 +49,17 @@ LEVEL_COLORS = {
     "高级": "#F56C6C",
 }
 
+# 共享技能权重归一化分母：当两个技术栈共享技能数超过此值时，权重封顶为 1.0
+_SHARED_SKILL_WEIGHT_DENOMINATOR = 20.0
+
+# 职级晋升路径默认权重（初始值，未来可由实际晋升数据驱动替换）
+_DEFAULT_EVOLUTION_WEIGHT = 0.8
+
+
+# ── 分类函数 ──
+
 
 def _classify_tech_stack(industry: str, name: str) -> str:
-    # 业务说明：根据职位所属行业和职位名称，自动判定其所属技术栈分类。
-    # 技术说明：将行业与职位名称拼接后进行关键词子串匹配，未命中时归入 "其他"。
     """Classify a position into a tech stack group."""
     text = f"{industry} {name}".lower()
     for stack, keywords in TECH_STACK_KEYWORDS.items():
@@ -56,9 +69,7 @@ def _classify_tech_stack(industry: str, name: str) -> str:
     return "其他"
 
 
-def _classify_level(name: str, props: dict) -> str:
-    # 业务说明：根据职位属性或名称中的关键词，将职位划分为初级、中级、高级三档。
-    # 技术说明：优先读取 props 中的 level 字段，若不存在则从职位名称中推断。
+def _classify_level(name: str, props: dict[str, Any]) -> str:
     """Classify a position into a level group."""
     level = str(props.get("level", "")).strip()
     if level in ("初级", "junior", "entry"):
@@ -76,9 +87,39 @@ def _classify_level(name: str, props: dict) -> str:
     return "中级"
 
 
-async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
-    # 业务说明：按技术栈维度聚合统计职位与技能分布，并计算不同技术栈之间基于共享技能的关联强度，
-    # 为前端技术栈概览视图提供数据支撑。
+# ── 内部辅助函数 ──
+
+
+async def _fetch_independent_counts(driver: AsyncDriver) -> dict[str, int]:
+    """Fetch independent node/edge counts from Neo4j in a single query.
+
+    Returns a dict with keys: positions, skills, edges.
+    """
+    try:
+        async with driver.session() as session:
+            # P1 fix: merge 3 separate count queries into 1 Cypher to reduce RTT
+            result = await session.run(
+                "MATCH (p:Position), (s:Skill) "
+                "OPTIONAL MATCH ()-[r:REQUIRES]->() "
+                "RETURN count(DISTINCT p) AS pos_cnt, count(DISTINCT s) AS skill_cnt, count(r) AS edge_cnt"
+            )
+            record = await result.single()
+            if record:
+                return {
+                    "positions": record["pos_cnt"],
+                    "skills": record["skill_cnt"],
+                    "edges": record["edge_cnt"],
+                }
+    except Exception as exc:
+        # P1 fix: log instead of silently swallowing
+        logger.warning("Failed to fetch independent counts from Neo4j: {}", exc)
+    return {"positions": 0, "skills": 0, "edges": 0}
+
+
+# ── 公开 API ──
+
+
+async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
     """Overview grouped by tech stack (AI/大数据/IoT/etc)."""
     groups: dict[str, dict] = {}
     for stack, color in TECH_STACK_COLORS.items():
@@ -86,9 +127,7 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
 
     try:
         async with driver.session() as session:
-            result = await session.run(
-                "MATCH (p:Position) RETURN p"
-            )
+            result = await session.run("MATCH (p:Position) RETURN p")
             async for record in result:
                 node = record["p"]
                 if node is None:
@@ -97,11 +136,13 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
                 name = props.get("name", "")
                 industry = props.get("industry", "")
                 stack = _classify_tech_stack(industry, name)
-                groups[stack]["positions"].append({
-                    "id": _node_id(node),
-                    "name": name,
-                    "industry": industry,
-                })
+                groups[stack]["positions"].append(
+                    {
+                        "id": _node_id(node),
+                        "name": name,
+                        "industry": industry,
+                    }
+                )
 
             # Count skills per group
             skill_result = await session.run(
@@ -135,9 +176,15 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
         return {"domains": [], "connections": [], "total_positions": 0, "total_skills": 0}
 
     # Build response
-    # ponytail: literal IDs instead of hashlib.md5 — deterministic, readable, no import
-    stack_id_prefix = {"人工智能": "ts-ai", "大数据": "ts-bigdata", "智能系统": "ts-sys",
-                       "物联网": "ts-iot", "云计算/DevOps": "ts-cloud", "网络安全": "ts-sec", "其他": "ts-other"}
+    stack_id_prefix = {
+        "人工智能": "ts-ai",
+        "大数据": "ts-bigdata",
+        "智能系统": "ts-sys",
+        "物联网": "ts-iot",
+        "云计算/DevOps": "ts-cloud",
+        "网络安全": "ts-sec",
+        "其他": "ts-other",
+    }
     domains = []
     total_pos = 0
     total_skill = 0
@@ -148,56 +195,42 @@ async def fetch_overview_by_tech_stack(driver: Any) -> dict[str, Any]:
         sc = len(data["skills"])
         total_pos += pc
         total_skill += sc
-        domains.append({
-            "id": stack_id_prefix.get(stack, f"ts-{stack}"),
-            "name": stack,
-            "position_count": pc,
-            "skill_count": sc,
-            "color": data["color"],
-        })
+        domains.append(
+            {
+                "id": stack_id_prefix.get(stack, f"ts-{stack}"),
+                "name": stack,
+                "position_count": pc,
+                "skill_count": sc,
+                "color": data["color"],
+            }
+        )
 
     connections = []
     for (s1, s2), weight in stack_connections.items():
-        connections.append({
-            "source_id": stack_id_prefix.get(s1, f"ts-{s1}"),
-            "target_id": stack_id_prefix.get(s2, f"ts-{s2}"),
-            "type": "SHARES_SKILLS",
-            "properties": {"weight": min(1.0, weight / 20.0)},
-        })
+        connections.append(
+            {
+                "source_id": stack_id_prefix.get(s1, f"ts-{s1}"),
+                "target_id": stack_id_prefix.get(s2, f"ts-{s2}"),
+                "type": "SHARES_SKILLS",
+                "properties": {"weight": min(1.0, weight / _SHARED_SKILL_WEIGHT_DENOMINATOR)},
+            }
+        )
 
-    # Query actual Neo4j independent counts (same across all group_by modes)
-    # Initialize fallbacks before try block to prevent UnboundLocalError when async for yields 0 records
-    independent_pos = total_pos
-    independent_skill = total_skill
-    independent_edge = len(connections)
-    try:
-        async with driver.session() as session:
-            pos_rec = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
-            async for r in pos_rec:
-                independent_pos = r["cnt"]
-            skill_rec = await session.run("MATCH (s:Skill) RETURN count(s) AS cnt")
-            async for r in skill_rec:
-                independent_skill = r["cnt"]
-            edge_rec = await session.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS cnt")
-            async for r in edge_rec:
-                independent_edge = r["cnt"]
-    except Exception:
-        pass  # fallback values already set above
+    # Fetch independent counts (P1 fix: single query + logging)
+    counts = await _fetch_independent_counts(driver)
 
     return {
         "domains": domains,
         "connections": connections,
         "total_positions": total_pos,
         "total_skills": total_skill,
-        "independent_positions": independent_pos,
-        "independent_skills": independent_skill,
-        "independent_edges": independent_edge,
+        "independent_positions": counts["positions"],
+        "independent_skills": counts["skills"],
+        "independent_edges": counts["edges"],
     }
 
 
-async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
-    # 业务说明：按职级（初级/中级/高级）维度聚合统计职位与技能分布，并构建职级间的晋升路径关系，
-    # 为前端技能成长路径视图提供数据支撑。
+async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
     """Overview grouped by level (初级/中级/高级)."""
     groups: dict[str, dict] = {}
     for level, color in LEVEL_COLORS.items():
@@ -213,11 +246,13 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
                 props = _safe_properties(node)
                 name = props.get("name", "")
                 level = _classify_level(name, props)
-                groups[level]["positions"].append({
-                    "id": _node_id(node),
-                    "name": name,
-                    "level": level,
-                })
+                groups[level]["positions"].append(
+                    {
+                        "id": _node_id(node),
+                        "name": name,
+                        "level": level,
+                    }
+                )
 
             # Count skills per level
             skill_result = await session.run(
@@ -234,14 +269,13 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
 
             # Build evolution connections between levels
             level_connections = [
-                {"source": "初级", "target": "中级", "weight": 0.8},
-                {"source": "中级", "target": "高级", "weight": 0.8},
+                {"source": "初级", "target": "中级", "weight": _DEFAULT_EVOLUTION_WEIGHT},
+                {"source": "中级", "target": "高级", "weight": _DEFAULT_EVOLUTION_WEIGHT},
             ]
     except Exception as exc:
         logger.error("Level overview failed: {}", exc)
         return {"domains": [], "connections": [], "total_positions": 0, "total_skills": 0}
 
-    # ponytail: literal IDs instead of hashlib.md5
     level_id = {"初级": "lv-junior", "中级": "lv-mid", "高级": "lv-senior"}
     domains = []
     total_pos = 0
@@ -253,50 +287,38 @@ async def fetch_overview_by_level(driver: Any) -> dict[str, Any]:
         sc = len(data["skills"])
         total_pos += pc
         total_skill += sc
-        domains.append({
-            "id": level_id.get(level, f"lv-{level}"),
-            "name": level,
-            "position_count": pc,
-            "skill_count": sc,
-            "color": data["color"],
-        })
+        domains.append(
+            {
+                "id": level_id.get(level, f"lv-{level}"),
+                "name": level,
+                "position_count": pc,
+                "skill_count": sc,
+                "color": data["color"],
+            }
+        )
 
     connections = []
     for conn in level_connections:
         source = str(conn.get("source", ""))
         target = str(conn.get("target", ""))
-        connections.append({
-            "source_id": level_id.get(source, f"lv-{source}"),
-            "target_id": level_id.get(target, f"lv-{target}"),
-            "type": "EVOLVES_TO",
-            "properties": {"weight": conn["weight"]},
-        })
+        connections.append(
+            {
+                "source_id": level_id.get(source, f"lv-{source}"),
+                "target_id": level_id.get(target, f"lv-{target}"),
+                "type": "EVOLVES_TO",
+                "properties": {"weight": conn["weight"]},
+            }
+        )
 
-    # Query actual Neo4j independent counts (same across all group_by modes)
-    # Initialize fallbacks before try block to prevent UnboundLocalError when async for yields 0 records
-    independent_pos = total_pos
-    independent_skill = total_skill
-    independent_edge = len(connections)
-    try:
-        async with driver.session() as session:
-            pos_rec = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
-            async for r in pos_rec:
-                independent_pos = r["cnt"]
-            skill_rec = await session.run("MATCH (s:Skill) RETURN count(s) AS cnt")
-            async for r in skill_rec:
-                independent_skill = r["cnt"]
-            edge_rec = await session.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS cnt")
-            async for r in edge_rec:
-                independent_edge = r["cnt"]
-    except Exception:
-        pass  # fallback values already set above
+    # Fetch independent counts (P1 fix: single query + logging)
+    counts = await _fetch_independent_counts(driver)
 
     return {
         "domains": domains,
         "connections": connections,
         "total_positions": total_pos,
         "total_skills": total_skill,
-        "independent_positions": independent_pos,
-        "independent_skills": independent_skill,
-        "independent_edges": independent_edge,
+        "independent_positions": counts["positions"],
+        "independent_skills": counts["skills"],
+        "independent_edges": counts["edges"],
     }
