@@ -23,7 +23,7 @@ from app.dependencies import get_db_session, require_admin
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
 router = APIRouter(prefix="/datasources", tags=["数据源管理"])
-admin_router = APIRouter(prefix="/datasources", tags=["数据源管理"], dependencies=[Depends(require_admin)])
+admin_router = APIRouter(prefix="/admin/datasources", tags=["数据源管理"], dependencies=[Depends(require_admin)])
 
 
 # ---------------------------------------------------------------------------

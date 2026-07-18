@@ -85,7 +85,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.put(`/datasources/${id}`, config) as DataSourceDetail
+      const data = await request.put(`/admin/datasources/${id}`, config) as DataSourceDetail
       // 更新列表中的对应项
       const idx = sources.value.findIndex(s => s.id === id)
       if (idx !== -1) sources.value[idx] = data
@@ -118,7 +118,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      await request.post(`/datasources/${id}/sync`)
+      await request.post(`/admin/datasources/${id}/sync`)
       // 同步后刷新该数据源详情
       await fetchSourceDetail(id)
       return true
