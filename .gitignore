@@ -101,11 +101,14 @@ playwright-report/
 test-results/
 frontend/playwright-report/
 frontend/test-results/
+frontend/e2e/auth-state.json
 # ---- coverage 报告（CI 产物，不提交） ----
 
-# ---- 一次性 patch 脚本 ----
+# ---- 一次性 patch / 诊断脚本 ----
 _patch_*.py
 _expand_*.py
+backend/_*.py
+backend/_*.json
 # ---- Windows NUL 设备误生成 ----
 nul
 # ---- 前端临时生成 ----
