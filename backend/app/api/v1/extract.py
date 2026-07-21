@@ -76,7 +76,7 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
     validation = pipeline_result.get("validation") or {}
 
     return {
-        "position_name": data.get("position_name", ""),
+        "position_name": data.get("position_name") or "",
         "required_skills": [_map_skill_item(s) for s in data.get("required_skills", [])],
         "preferred_skills": [_map_skill_item(s) for s in data.get("preferred_skills", [])],
         "experience_required": data.get("experience_required"),

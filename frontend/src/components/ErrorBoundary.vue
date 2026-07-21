@@ -10,10 +10,13 @@ import { ref, onErrorCaptured } from 'vue'
 const hasError = ref(false)
 const errorMessage = ref('')
 
-onErrorCaptured((err) => {
+onErrorCaptured((err, instance, info) => {
   hasError.value = true
   errorMessage.value = err.message || String(err)
-  // Return false to prevent the error from propagating further
+  console.error('[ErrorBoundary] Caught error:', err)
+  console.error('[ErrorBoundary] Stack:', err instanceof Error ? err.stack : 'N/A')
+  console.error('[ErrorBoundary] Component:', instance?.$options?.name ?? instance?.$options?.__name ?? 'unknown')
+  console.error('[ErrorBoundary] Info:', info)
   return false
 })
 

@@ -76,6 +76,76 @@
             <span>{{ statusText(p.status) }}</span>
           </div>
         </div>
+
+        <!-- Phase 3: 逐步可视化核验面板 -->
+        <div
+          v-if="store.stepOutputs.length"
+          class="step-verify-section"
+        >
+          <h4 class="verify-title">
+            <el-icon><Checked /></el-icon>
+            步骤核验
+          </h4>
+          <el-collapse accordion>
+            <el-collapse-item
+              v-for="output in store.stepOutputs"
+              :key="output.step"
+            >
+              <template #title>
+                <div class="verify-step-header">
+                  <el-tag
+                    :type="output.verification.passed ? 'success' : 'danger'"
+                    size="small"
+                    effect="plain"
+                  >
+                    {{ output.verification.passed ? '通过' : '未通过' }}
+                  </el-tag>
+                  <span class="verify-step-name">{{ output.display_name }}</span>
+                  <span
+                    v-if="output.status === 'error'"
+                    class="verify-error-hint"
+                  >{{ output.error }}</span>
+                </div>
+              </template>
+              <!-- 验证检查项 -->
+              <div class="verify-checks">
+                <div
+                  v-for="(check, ci) in output.verification.checks"
+                  :key="ci"
+                  class="verify-check-item"
+                >
+                  <el-icon
+                    :class="check.ok ? 'check-ok' : 'check-fail'"
+                    :size="16"
+                  >
+                    <CircleCheck v-if="check.ok" />
+                    <CircleClose v-else />
+                  </el-icon>
+                  <div class="check-content">
+                    <span class="check-label">{{ check.check }}</span>
+                    <span class="check-detail">{{ check.detail }}</span>
+                  </div>
+                </div>
+              </div>
+              <!-- 数据样本 -->
+              <div
+                v-if="output.samples.length"
+                class="verify-samples"
+              >
+                <div
+                  v-for="(sample, si) in output.samples"
+                  :key="si"
+                  class="sample-block"
+                >
+                  <div class="sample-label">
+                    {{ sample.label }}
+                  </div>
+                  <pre class="sample-value">{{ formatSample(sample.value) }}</pre>
+                </div>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
       </el-card>
 
       <!-- Step 3: 结果 -->
@@ -363,7 +433,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { UploadFilled, Checked, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useJobseekerStore } from '@/stores/jobseeker'
 
@@ -432,6 +502,22 @@ function statusText(status: string) {
   if (status === 'timeout') return '超时'
   if (status === 'error') return '失败'
   return status
+}
+
+/** Phase 3: 格式化样本数据为可读文本 */
+function formatSample(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    // 如果是对象数组，格式化为表格形式
+    if (value.length > 0 && typeof value[0] === 'object') {
+      return JSON.stringify(value, null, 2)
+    }
+    return value.join(', ')
+  }
+  if (typeof value === 'object' && value !== null) {
+    return JSON.stringify(value, null, 2)
+  }
+  return String(value)
 }
 </script>
 
@@ -560,5 +646,119 @@ h4 {
 
 .resource-type {
   margin-left: var(--space-2);
+}
+
+/* Phase 3: 步骤核验面板 */
+.step-verify-section {
+  margin-top: var(--space-6);
+  text-align: left;
+}
+
+.verify-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.verify-step-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.verify-step-name {
+  font-weight: 500;
+  font-size: var(--font-size-sm);
+}
+
+.verify-error-hint {
+  color: var(--destructive);
+  font-size: var(--font-size-xs);
+  margin-left: auto;
+}
+
+.verify-checks {
+  padding: var(--space-2) 0;
+}
+
+.verify-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.verify-check-item:last-child {
+  border-bottom: none;
+}
+
+.check-ok {
+  color: var(--success);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.check-fail {
+  color: var(--destructive);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.check-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.check-detail {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+}
+
+.verify-samples {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px dashed var(--border);
+}
+
+.sample-block {
+  margin-bottom: var(--space-3);
+}
+
+.sample-block:last-child {
+  margin-bottom: 0;
+}
+
+.sample-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--muted-foreground);
+  margin-bottom: var(--space-1);
+}
+
+.sample-value {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--foreground);
+  max-height: 160px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  font-family: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
 }
 </style>

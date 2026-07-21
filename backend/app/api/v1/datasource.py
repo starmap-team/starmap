@@ -212,7 +212,7 @@ async def get_datasource(
     return _serialize(ds)
 
 
-@admin_router.put("/{source_id}", response_model=DataSourceResponse)
+@router.put("/{source_id}", response_model=DataSourceResponse, dependencies=[Depends(require_admin)])
 async def update_datasource(
     source_id: UUID,
     body: DataSourceUpdateRequest,
@@ -325,7 +325,7 @@ async def get_datasource_stats(
     )
 
 
-@admin_router.post("/{source_id}/sync", response_model=SyncTriggerResponse)
+@router.post("/{source_id}/sync", response_model=SyncTriggerResponse, dependencies=[Depends(require_admin)])
 async def trigger_source_sync(
     source_id: UUID,
     session: Annotated[AsyncSession, Depends(get_db_session)],

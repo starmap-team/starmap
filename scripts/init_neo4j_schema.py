@@ -228,6 +228,8 @@ async def main():
     print("  12 KnowledgeArea nodes seeded")
     print("  7 seed positions loaded with REQUIRES relationships")
     print("  24 BELONGS_TO, 8 PREREQUISITE, 4 USES relationships seeded")
+    print()
+    print("  提示：运行 scripts/backfill_pg_from_neo4j.py --include-skills 将 Neo4j 数据同步到 PostgreSQL")
 
 
 if __name__ == "__main__":

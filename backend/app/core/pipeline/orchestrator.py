@@ -80,6 +80,7 @@ def _build_initial_stages(selected: list[str] | None = None) -> list[dict[str, A
     """Return a fresh stages list for a new pipeline run.
 
     If *selected* is provided, only those stages are PENDING; others are SKIPPED.
+    Phase 3.7: 初始化 current_activity/recent_samples/sub_breakdown 字段
     """
     selected_set = set(selected) if selected else {s.value for s in ALL_STAGES}
     return [
@@ -93,6 +94,11 @@ def _build_initial_stages(selected: list[str] | None = None) -> list[dict[str, A
             "errors": [],
             "retry_count": 0,
             "depends_on": STAGE_DEPS.get(stage.value, []),
+            # Phase 3.7: 实时活动字段
+            "current_activity": "",
+            "recent_samples": [],
+            "sub_breakdown": {},
+            "elapsed_ms": 0,
         }
         for stage in ALL_STAGES
     ]
@@ -166,10 +172,20 @@ async def update_stage_status(
     status: str,
     duration_ms: int = 0,
     records_processed: int = 0,
+    records_seen: int = 0,                              # Phase 3.8.11
     errors: list[str] | None = None,
     retry_count: int | None = None,
+    current_activity: str = "",
+    recent_samples: list[dict] | None = None,
+    sub_breakdown: dict[str, int] | None = None,
+    elapsed_ms: int = 0,
+    progress: float | None = None,
 ) -> PipelineRun | None:
-    """Update a single stage inside a pipeline run's stages JSON array."""
+    """Update a single stage inside a pipeline run's stages JSON array.
+
+    Phase 3.7: 增加 current_activity/recent_samples/sub_breakdown 字段，
+    让前端刷新页面后还能看到每个 stage 的最近活动/样本/分解数据。
+    """
     result = await session.execute(
         select(PipelineRun).where(PipelineRun.id == run_id)
     )
@@ -185,12 +201,28 @@ async def update_stage_status(
         stage["started_at"] = _now().isoformat()
     if status in (StageStatus.COMPLETED.value, StageStatus.FAILED.value):
         stage["completed_at"] = _now().isoformat()
+    # Phase 3.8.1: stage 完成/失败时强制 progress=1.0 (避免显示 0%)
+    if status == StageStatus.COMPLETED.value and progress is None:
+        stage["progress"] = 1.0
+    elif progress is not None:
+        stage["progress"] = progress
     stage["duration_ms"] = duration_ms
     stage["records_processed"] = records_processed
+    if records_seen:
+        stage["records_seen"] = records_seen  # Phase 3.8.11: 抓到 vs 入库区分
     if errors:
         stage["errors"] = errors
     if retry_count is not None:
         stage["retry_count"] = retry_count
+    # Phase 3.7: 实时活动上下文持久化
+    if current_activity:
+        stage["current_activity"] = current_activity
+    if recent_samples is not None:
+        stage["recent_samples"] = list(recent_samples)[-10:]
+    if sub_breakdown is not None:
+        stage["sub_breakdown"] = sub_breakdown
+    if elapsed_ms:
+        stage["elapsed_ms"] = elapsed_ms
 
     await session.execute(
         update(PipelineRun).where(PipelineRun.id == run_id).values(stages=stages)
@@ -452,6 +484,21 @@ async def cancel_run(
             await invalidate_status_cache(redis_client)
         except Exception as exc:
             logger.debug("Status cache invalidation failed (non-fatal): {}", exc)
+
+    # 5. Phase 3.8.1 FIX: 通过 SSE 广播 cancel 事件，让前端立即响应
+    try:
+        from app.core.dashboard.sse_broadcaster import publish_event
+        await publish_event(redis_client, "pipeline_update", {
+            "run_id": str(run.id),
+            "stage": "pipeline",
+            "status": "cancelled",
+            "progress": 1.0,
+            "records_processed": 0,
+            "message": f"Pipeline cancelled by user (stopped stages: {stopped_stage_names})",
+            "cancelled_at": cancelled_at.isoformat(),
+        })
+    except Exception as exc:
+        logger.debug("Cancel SSE broadcast failed (non-fatal): {}", exc)
 
     return RunCancelResult(
         run_id=run.id,

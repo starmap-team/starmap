@@ -117,7 +117,7 @@ router.afterEach((to) => {
 // guard — other routes degrade gracefully (login prompts surface via the
 // global ElMessage in request.ts).
 // ---------------------------------------------------------------------------
-const PUBLIC_PATHS = new Set<string>(['/', '/login'])
+const PUBLIC_PATHS = new Set<string>(['/login'])
 
 // Pinia store import is deferred to avoid Pinia<->router cycle: the auth
 // bootstrap evaluates localStorage at module load time, which precedes

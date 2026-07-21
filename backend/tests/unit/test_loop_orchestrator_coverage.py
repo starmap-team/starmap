@@ -67,7 +67,7 @@ def _patch_full_loop(
               new=AsyncMock(return_value=extraction))
     )
     stack.enter_context(
-        patch("app.services.graph_service.sync_from_pipeline",
+        patch("app.services.graph_sync.sync_from_pipeline",
               new=AsyncMock(return_value=sync))
     )
     stack.enter_context(
@@ -565,7 +565,7 @@ class TestRunLoopDriverAcquisition:
         with patch.dict("sys.modules", {"app.services.resources": None}):
             with patch("app.core.extraction.jd_extract.extract_from_jd",
                        new=AsyncMock(return_value={"success": True, "data": {"required_skills": []}})):
-                with patch("app.services.graph_service.sync_from_pipeline",
+                with patch("app.services.graph_sync.sync_from_pipeline",
                            new=AsyncMock(return_value=sync_fail_no_driver)):
                     result = await orch.run_loop("jd", "dev")
         # Step3 should have failed because driver acquisition failed

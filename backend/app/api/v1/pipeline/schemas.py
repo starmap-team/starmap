@@ -19,6 +19,11 @@ class StageInfo(BaseModel):
     errors_count: int = Field(0, ge=0, description="Count of errors (alias for len(errors))")
     retry_count: int = Field(0, ge=0)
     depends_on: list[str] = Field(default_factory=list)
+    # Phase 3.7: 实时活动上下文（来自 executor 的 _publish_stage_progress）
+    current_activity: str = Field("", description="当前活动描述 (e.g. '正在爬取 BOSS直聘: ...')")
+    recent_samples: list[dict] = Field(default_factory=list, description="最近处理的样本 (URL/技能/图节点)")
+    sub_breakdown: dict[str, int] = Field(default_factory=dict, description="子项分解 (e.g. {'bosszhipin': 12, '51job': 5})")
+    elapsed_ms: int = Field(0, ge=0, description="已运行毫秒数")
 
 
 class PipelineRunResponse(BaseModel):

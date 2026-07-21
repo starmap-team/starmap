@@ -19,14 +19,8 @@ export function useGraph3DData() {
         id: n.id,
         labels: n.labels,
         color,
-        properties: {
-          name: props.name,
-          category: props.category,
-          proficiency: props.proficiency,
-          position_count: props.position_count,
-          skill_count: props.skill_count,
-          weight: props.weight,
-        },
+        // 保留所有原始属性，让 displayName() 能读取 name_cn
+        properties: { ...props },
       }
     }),
   )

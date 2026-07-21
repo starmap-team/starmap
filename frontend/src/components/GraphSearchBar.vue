@@ -2,6 +2,7 @@
 import { ref, computed, onUnmounted } from "vue"
 import { Search } from "@element-plus/icons-vue"
 import { useGraphStore } from "@/stores/graph"
+import { displayName } from "@/utils/graphColors"
 
 const emit = defineEmits<{
   nodeSelected: [id: string, name: string, type: string]
@@ -38,10 +39,11 @@ const searchResults = computed(() => {
 
   // 2. 搜索已加载的节点（allNodes 已通过 fetchKAPositions 逐步加载）
   for (const n of graphStore.allNodes) {
-    if (n.properties.name.toLowerCase().includes(kw) && !seen.has(n.id)) {
+    const display = displayName(n.properties)
+    if ((n.properties.name.toLowerCase() + ' ' + display.toLowerCase()).includes(kw) && !seen.has(n.id)) {
       seen.add(n.id)
       const label = n.labels[0] === "Position" ? "岗位" : n.labels[0] === "Skill" ? "技能" : n.labels[0]
-      results.push({ id: n.id, name: n.properties.name, type: label })
+      results.push({ id: n.id, name: display, type: label })
     }
   }
 

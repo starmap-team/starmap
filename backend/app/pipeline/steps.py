@@ -1,6 +1,6 @@
 """Pipeline 步骤实现 — 求职者业务闭环的6个处理步骤。
 
-每个步骤实现 PipelineStep 协议，通过 PipelineContext 传递数据。
+每个步骤通过 PipelineContext 传递数据，由 PipelineEngine 统一编排。
 """
 
 from __future__ import annotations

@@ -207,6 +207,32 @@ async def main():
             counts = {}
             async for r in result:
                 counts[r["l"]] = r["c"]
+
+        # 3.5 Sync position_records to PostgreSQL (Phase 23 / PG-Neo4j 数据统一)
+        #    确保双存储一致性：Neo4j Position 节点 → PG position_records
+        now_pg = datetime.now(UTC)
+        async with sf() as session:
+            # 获取 PG 中已有名称
+            existing_names = set(
+                (await session.execute(text("SELECT name FROM position_records"))).scalars().all()
+            )
+            new_positions = [(n, s) for n, s in POSITIONS if n not in existing_names]
+            if new_positions:
+                for pos_name, _ in new_positions:
+                    await session.execute(
+                        text(
+                            "INSERT INTO position_records "
+                            "(id, name, industry, description, created_at, "
+                            "review_status, reviewed_by, reviewed_at) "
+                            "VALUES (:id, :name, '信息技术/互联网', '', :created, "
+                            "'approved', 'system:seed', :now)"
+                        ),
+                        {"id": uuid4(), "name": pos_name, "created": now_pg, "now": now_pg},
+                    )
+                await session.commit()
+                print(f"Synced {len(new_positions)} positions to PG position_records")
+            else:
+                print(f"PG position_records already synced ({len(existing_names)} records)")
             result = await ns.run("MATCH ()-[r]->() RETURN count(r) AS c")
             total_rels = (await result.single())["c"]
 

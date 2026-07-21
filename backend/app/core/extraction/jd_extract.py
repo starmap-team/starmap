@@ -87,7 +87,7 @@ class PrerequisiteEntry(BaseModel):
     """A prerequisite skill relationship."""
 
     skill: str = Field(..., description="The skill that is a prerequisite")
-    required_by: str = Field(..., description="The skill that requires this prerequisite")
+    required_by: str = Field(default="", description="The skill that requires this prerequisite")
 
 
 class ToolEntry(BaseModel):
@@ -268,10 +268,19 @@ class JDExtractionPipeline:
                     for t in parsed["tools"]
                 ]
             if "prerequisites" in parsed and isinstance(parsed["prerequisites"], list):
-                validated.prerequisites = [
-                    PrerequisiteEntry(**p) if isinstance(p, dict) else PrerequisiteEntry(skill=str(p), required_by="")
-                    for p in parsed["prerequisites"]
-                ]
+                prereqs = []
+                for p in parsed["prerequisites"]:
+                    try:
+                        if isinstance(p, dict):
+                            # Try dict first, fallback to using first value as skill
+                            prereqs.append(PrerequisiteEntry(**p))
+                        else:
+                            prereqs.append(PrerequisiteEntry(skill=str(p)))
+                    except Exception:
+                        # LLM returned unexpected dict keys — use best-effort
+                        name = p.get("name") or p.get("skill") or str(p)
+                        prereqs.append(PrerequisiteEntry(skill=name))
+                validated.prerequisites = prereqs
             if "learning_resources" in parsed and isinstance(parsed["learning_resources"], list):
                 validated.learning_resources = [
                     LearningResourceEntry(**lr) if isinstance(lr, dict) else LearningResourceEntry(title=str(lr))

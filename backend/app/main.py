@@ -108,13 +108,37 @@ app.add_middleware(SecurityHeadersMiddleware)
 # ponytail: Redis-backed fixed-window counter when available, in-memory fallback.
 # In-memory is per-process only — Redis makes it work across workers.
 _RATE_LIMIT_WINDOW = 60  # seconds
-_RATE_LIMIT_MAX = 120  # requests per window per IP
+# Phase 3.7: 提高限流阈值以适应实时监控面板（auto-refresh + SSE + DAG polling）
+# PipelineMonitor 页面同时跑：4个轮询接口 / 5s一次 + SSE 长连接 + 事件触发
+# 原 120/60s 严重不足，每次自动刷新周期就会触发 429
+_RATE_LIMIT_MAX = 600  # requests per window per IP
 _rate_buckets: dict[str, list[float]] = defaultdict(list)
+
+# Phase 3.7: 高频端点白名单 — 这些是只读状态接口，不计入严格限流
+# 只对 mutation 类（POST/PUT/DELETE）应用严格限制
+_RATE_LIMIT_EXEMPT_PATH_PATTERNS = (
+    "/api/v1/pipeline/status",
+    "/api/v1/pipeline/stages",
+    "/api/v1/pipeline/data-quality",
+    "/api/v1/pipeline/datasources",
+    "/api/v1/pipeline/schedules",
+    "/api/v1/pipeline/config",
+)
+
+
+def _is_rate_limit_exempt(path: str) -> bool:
+    """只读状态查询端点不限流（高频轮询场景）。"""
+    return any(path.startswith(p) for p in _RATE_LIMIT_EXEMPT_PATH_PATTERNS)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> Response:
         client_ip = request.client.host if request.client else "unknown"
+        path = request.url.path
+
+        # Phase 3.7: 只读查询端点直接放行（不计入限流）
+        if _is_rate_limit_exempt(path):
+            return await call_next(request)
 
         # Try Redis-backed rate limit first (works across workers)
         redis = getattr(request.app.state, "resources", None)
@@ -130,7 +154,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         AuditEntry(
                             event=AuditEvent.RATE_LIMITED,
                             actor=client_ip,
-                            action=f"{request.method} {request.url.path}",
+                            action=f"{request.method} {path}",
                             detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s (Redis)",
                             ip=client_ip,
                         )
@@ -158,7 +182,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 AuditEntry(
                     event=AuditEvent.RATE_LIMITED,
                     actor=client_ip,
-                    action=f"{request.method} {request.url.path}",
+                    action=f"{request.method} {path}",
                     detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s (in-memory)",
                     ip=client_ip,
                 )

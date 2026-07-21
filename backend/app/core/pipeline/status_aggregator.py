@@ -38,12 +38,9 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
     seven_days_ago = datetime.now(UTC) - timedelta(days=7)
 
     try:
-        # 1) today_crawl_volume: 今日 0 点至今 raw_jd_records 新增
-        from app.models.extraction_models import RawJDRecord
-        vol_result = await session.execute(
-            select(func.count()).select_from(RawJDRecord)
-            .where(RawJDRecord.crawl_time >= today_start)
-        )
+        # 1) today_crawl_volume: 今日 0 点至今 jd_raw.crawled_at 新增 (Phase 3.8.11: RawJDRecord 永不被写入, 改查真实表 jd_raw)
+        from sqlalchemy import text as _text
+        vol_result = await session.execute(_text("SELECT COUNT(*) FROM jd_raw WHERE crawled_at >= :start"), {"start": today_start})
         today_volume = int(vol_result.scalar() or 0)
     except Exception as exc:
         logger.warning(f"today_crawl_volume query failed: {exc}")
@@ -135,6 +132,8 @@ async def compute_data_quality_aggregates(
         "consistency": round(consistency, 4),
         "timeliness": round(timeliness, 4),
         "trend": trend,
+        # Phase 3.8.11: overall_score = 4 维均值 (completeness/accuracy 由 quality_monitor 计算; 缺失按 0)
+        "overall_score": round((consistency + timeliness) / 2, 4),
     }
 
 

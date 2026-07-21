@@ -8,13 +8,15 @@ import {
   type GraphNode3D, getNodeLabel, getNodeRadius,
   NODE_COLLISION_PADDING, applyZLayering, buildNodeThreeObject,
 } from '@/composables/useNodeThreeObject'
-import { type GraphLink3D, evolutionColor, composeEvolutionLinks } from '@/composables/useEvolutionEdges'
-import { calcForceConfig, applyForceConfig } from '@/composables/useForceConfig'
-import { disposeGlowCache } from '@/composables/useGlowTexture'
+import {
+  type GraphLink3D, evolutionColor, composeEvolutionLinks,
+  calcForceConfig, applyForceConfig,
+  createGlowTexture, disposeGlowCache,
+  useCameraPresets, type CameraPreset,
+  useZoomControls,
+  useNodeTooltip,
+} from '@/composables/useGraph3D'
 import { disposeTextCache } from '@/composables/useTextSprite'
-import { useCameraPresets, type CameraPreset } from '@/composables/useCameraPresets'
-import { useZoomControls } from '@/composables/useZoomControls'
-import { useNodeTooltip } from '@/composables/useNodeTooltip'
 
 // ── Props ──
 const props = withDefaults(defineProps<{
@@ -46,6 +48,72 @@ const isReady = ref(false)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const graphInstance = shallowRef<any>(null)
+
+const GROWTH_INTERVAL_MS = 220
+let growthTimer: ReturnType<typeof setTimeout> | null = null
+let growthAnimating = false
+
+function cancelGrowthAnimation(): void {
+  if (growthTimer) {
+    clearTimeout(growthTimer)
+    growthTimer = null
+  }
+  growthAnimating = false
+}
+
+function endpointId(endpoint: GraphLink3D['source']): string {
+  return typeof endpoint === 'object' ? String(endpoint.id) : String(endpoint)
+}
+
+function linksForNodes(links: GraphLink3D[], nodes: GraphNode3D[]): GraphLink3D[] {
+  const nodeIds = new Set(nodes.map(node => String(node.id)))
+  return links.filter(link => nodeIds.has(endpointId(link.source)) && nodeIds.has(endpointId(link.target)))
+}
+
+function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, links: GraphLink3D[]): void {
+  const nodes = limitedNodes.value
+  const shouldAnimate = props.showEvolution && props.currentLayer === 'position' && nodes.length > 1
+
+  cancelGrowthAnimation()
+  graph.nodeThreeObject(buildNodeThreeObject)
+
+  if (!shouldAnimate) {
+    graph.graphData({ nodes, links })
+    applyForceConfig(graph, nodes.length, NODE_COLLISION_PADDING, getNodeRadius, false)
+    return
+  }
+
+  growthAnimating = true
+  let visibleCount = 1
+  const applyVisibleData = (visibleNodes: GraphNode3D[]) => {
+    graph.graphData({ nodes: visibleNodes, links: linksForNodes(links, visibleNodes) })
+    applyForceConfig(graph, visibleNodes.length, NODE_COLLISION_PADDING, getNodeRadius, false)
+    graph.d3ReheatSimulation()
+  }
+
+  applyVisibleData(nodes.slice(0, visibleCount))
+
+  const revealNext = () => {
+    if (graphInstance.value !== graph || visibleCount >= nodes.length) {
+      growthAnimating = false
+      growthTimer = null
+      return
+    }
+
+    visibleCount += 1
+    applyVisibleData(nodes.slice(0, visibleCount))
+    if (visibleCount < nodes.length) {
+      growthTimer = setTimeout(revealNext, GROWTH_INTERVAL_MS)
+    } else {
+      growthAnimating = false
+      growthTimer = null
+      graph.d3AlphaDecay(0.1)
+      setCameraPreset('domain')
+    }
+  }
+
+  growthTimer = setTimeout(revealNext, GROWTH_INTERVAL_MS)
+}
 
 // UX-02: Limit nodes/links when maxNodes is set (for background mode)
 const limitedNodes = computed(() =>
@@ -97,7 +165,7 @@ async function initGraph() {
   const nodeCount = limitedNodes.value.length
   const cfg = calcForceConfig(nodeCount)
 
-  const graph = new ForceGraph3D(container)
+  const graph = new ForceGraph3D(container, { controlType: 'orbit' })
     .width(w).height(h)
     .backgroundColor(SCENE_PALETTE.background)
     .showNavInfo(false)
@@ -166,6 +234,7 @@ async function initGraph() {
 
   // 力模拟稳定后自动适配相机，确保用户看到全局
   graph.onEngineStop(() => {
+    if (growthAnimating) return
     _engineStopHandled = true
     const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
     setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
@@ -174,7 +243,8 @@ async function initGraph() {
   graphInstance.value = graph
   // UX-03: Set initial z-coordinates for Skill nodes by proficiency tier
   applyZLayering(limitedNodes.value)
-  graph.graphData({ nodes: limitedNodes.value, links: limitedLinks.value })
+  const composedLinks = composeEvolutionLinks(limitedLinks.value, props.evolutionPaths, limitedNodes.value, props.showEvolution)
+  renderEvolutionGraph(graph, composedLinks)
   isReady.value = true
 }
 
@@ -198,7 +268,6 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   const graph = graphInstance.value
   if (!graph) { if (props.nodes.length > 0) initGraph(); return }
 
-  const nodeCount = limitedNodes.value.length
   const composedLinks = composeEvolutionLinks(limitedLinks.value, props.evolutionPaths, limitedNodes.value, props.showEvolution)
 
   // 保存旧节点的位置映射，用于为相同 ID 的新节点提供初始位置
@@ -223,19 +292,20 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   // UX-03: Set initial z for new Skill nodes (those without inherited positions)
   applyZLayering(limitedNodes.value)
 
-  graph.graphData({ nodes: limitedNodes.value, links: composedLinks })
-  graph.nodeThreeObject(buildNodeThreeObject)
-  applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, false)
+  const shouldAnimate = props.showEvolution && newLayer === 'position' && limitedNodes.value.length > 1
+  renderEvolutionGraph(graph, composedLinks)
 
   // 重置标志位，让 onEngineStop 接管相机定位
   _engineStopHandled = false
+  if (shouldAnimate) return
+
   // 轻量 reheat：只给少量 alpha 让新节点微调，不会导致全局抽动
   graph.d3ReheatSimulation()
   // 快速冷却，避免已稳定节点剧烈跳动
   graph.d3AlphaDecay(0.1)
 
   // 兜底：如果 onEngineStop 未触发（极短冷却），setTimeout 仍可定位相机
-  const cfg = calcForceConfig(nodeCount)
+  const cfg = calcForceConfig(limitedNodes.value.length)
   const settleMs = Math.min(cfg.warmupTicks * 16 + 200, 800)
   setTimeout(() => {
     if (!_engineStopHandled && graphInstance.value) {
@@ -259,14 +329,15 @@ onMounted(async () => {
   // UX-02: start autoRotate if prop is set (e.g. Login background)
   if (props.startAutoRotate) {
     autoRotate.value = true
-    const controls = (graphInstance.value as Record<string, unknown>)?._controls as { autoRotate: boolean; autoRotateSpeed: number } | undefined
-    if (controls) { controls.autoRotate = true; controls.autoRotateSpeed = 0.8 }
+    const controls = graphInstance.value?.controls() as { autoRotate: boolean; autoRotateSpeed: number; enableDamping: boolean } | undefined
+    if (controls) { controls.autoRotate = true; controls.autoRotateSpeed = 0.8; controls.enableDamping = true }
   }
   measureFPS()
   window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
+  cancelGrowthAnimation()
   window.removeEventListener('resize', handleResize)
   cancelAnimationFrame(fpsRafId)
   clearAutoRotateTimer()

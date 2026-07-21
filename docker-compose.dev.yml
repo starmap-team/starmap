@@ -33,7 +33,11 @@ services:
         condition: service_started
       chroma:
         condition: service_started
-    command: ["./entrypoint.sh", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-exclude=tests/*", "--reload-exclude=docs/*", "--reload-exclude=graphify-out/*"]
+    # W1-fix: 把 --reload 监听范围收敛到真正的代码目录 /app/app，
+    # 否则后端根目录下的随手脚本（test_cat.py / check_pg_data.py 等）被保存时会
+    # 触发 uvicorn 热重载，而前端 SSE 长连接（pipeline/events、dashboard/realtime）
+    # 无法在关闭阶段断开，导致旧 worker 卡死、新 worker 起不来 → 后端整体无响应。
+    command: ["./entrypoint.sh", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app", "--reload-exclude=tests/*", "--reload-exclude=docs/*", "--reload-exclude=graphify-out/*", "--reload-exclude=test_*.py"]
     restart: unless-stopped
     # 开发模式：容器停止后保留，不自动删除
     stop_signal: SIGTERM
@@ -88,7 +92,8 @@ services:
     ports:
       - "5173:5173"
     environment:
-      # Browser hits http://localhost:5173 → axios baseURL = http://localhost:8000/api/v1 → CORS → backend container :8000
+      # Vite proxy target — Docker 网络用服务名，不含路径
+      - VITE_API_PROXY_TARGET=http://starmap-backend:8000
       - VITE_API_BASE_URL=http://localhost:8000/api/v1
       - VITE_USE_MSW=false
     command: npm run dev -- --host 0.0.0.0
@@ -96,7 +101,10 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:5173 > /dev/null 2>&1 || exit 1"]
+      # 注意：不用 wget——Docker Desktop for Windows 的透明代理会劫持容器内
+      # 到 127.0.0.1:5173 的出站到网关 192.168.65.254 导致连接被拒。
+      # Node http.get() 不走系统代理，直连正常。
+      test: ["CMD-SHELL", "node -e \"http.get('http://127.0.0.1:5173/',r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>process.exit(r.statusCode===200?0:1))}).on('error',()=>process.exit(1))\""]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -184,7 +192,11 @@ services:
   # 首次启动会自动拉取模型（~4.5GB），耗时取决于网络
   # API 地址: http://localhost:11434/v1/chat/completions
   ollama:
-    image: ollama/ollama:0.5
+    image: ollama/ollama:0.5.0
+    # 可选 LLM 服务：默认 `up -d` 不启动，避免镜像拉取（国内镜像常 429 限流）
+    # 或无效标签阻塞整个栈。需要本地 Qwen 时：
+    #   docker compose -f docker-compose.dev.yml --profile llm up -d
+    profiles: ["llm"]
     container_name: starmap-ollama
     ports:
       - "11434:11434"
@@ -211,7 +223,8 @@ services:
 
   # 模型初始化容器（拉取 Qwen2.5-7B 到 Ollama 卷中，一次性的）
   ollama-pull:
-    image: ollama/ollama:0.5
+    image: ollama/ollama:0.5.0
+    profiles: ["llm"]
     container_name: starmap-ollama-pull
     depends_on:
       ollama:
@@ -226,7 +239,7 @@ services:
             echo 'Ollama 就绪，开始拉取模型...'
             break
           fi
-          echo '等待 Ollama... 重试 #'\$i
+          echo '等待 Ollama... 重试 #'$$i
           sleep 10
         done
         ollama pull qwen2.5:7b && echo '模型就绪' || echo '模型拉取失败，将在下次启动时重试'

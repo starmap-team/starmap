@@ -227,9 +227,7 @@ class TestGetGraphOverview:
 
         # Build fake result records
         ka_record = {"ka": mock_ka_node, "skill_count": 5, "pos_count": 3}
-        pos_record = {"cnt": 10}
-        skill_record = {"cnt": 20}
-        edge_record = {"cnt": 15}
+        pos_record = {"pos_cnt": 10, "skill_cnt": 20, "edge_cnt": 15}
 
         class FakeAsyncResult:
             def __init__(self, records):
@@ -246,15 +244,18 @@ class TestGetGraphOverview:
                 self._idx += 1
                 return r
 
+            async def single(self):
+                if self._records:
+                    return self._records[0]
+                return None
+
         mock_session = AsyncMock()
         # ka_query result
         # pos/skill/edge count results
         # conn_query result
         mock_session.run = AsyncMock(side_effect=[
             FakeAsyncResult([ka_record]),  # ka_query
-            FakeAsyncResult([pos_record]),  # pos count
-            FakeAsyncResult([skill_record]),  # skill count
-            FakeAsyncResult([edge_record]),  # edge count
+            FakeAsyncResult([pos_record]),  # count query (pos_cnt, skill_cnt, edge_cnt)
             FakeAsyncResult([]),  # conn_query
         ])
 

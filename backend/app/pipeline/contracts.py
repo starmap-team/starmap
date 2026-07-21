@@ -1,12 +1,12 @@
 """Pipeline 数据契约 — 求职者业务闭环步骤间的数据类型定义。
 
-所有 Pipeline 步骤通过 PipelineContext 共享数据，通过 PipelineEvent 推送进度。
+所有 Pipeline 步骤通过 PipelineContext 共享数据，通过 SSE 事件流推送进度。
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any
 
 # ── 技能数据 ──────────────────────────────────────────────
 
@@ -72,28 +72,7 @@ class PipelineContext:
     progress: dict[str, str] = field(default_factory=dict)  # step_name → status
 
 
-# ── SSE 事件 ──────────────────────────────────────────────
+# ── 步骤接口 ──────────────────────────────────────────────
 
-
-@dataclass
-class PipelineEvent:
-    """SSE 进度事件，通过 StreamingResponse 推送给前端。"""
-
-    step: str  # 步骤名
-    status: str  # running / done / timeout / error
-    data: dict[str, Any] | None = None  # 附加数据
-
-
-# ── 步骤协议 ──────────────────────────────────────────────
-
-
-class PipelineStep(Protocol):
-    """Pipeline 步骤接口。
-
-    所有步骤实现此协议，由 PipelineEngine 统一编排。
-    """
-
-    name: str
-    timeout: int = 30  # 单步超时（秒）
-
-    async def execute(self, ctx: PipelineContext) -> PipelineContext: ...
+# 步骤实现者只需具备 name (str), timeout (int), execute(ctx) 方法，
+# PipelineEngine 通过 duck typing 编排，无需显式 Protocol 声明。

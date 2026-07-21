@@ -1,4 +1,4 @@
-﻿import { createApp } from 'vue'
+import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 // @ts-expect-error - element-plus locale module types
@@ -21,6 +21,14 @@ async function bootstrap() {
   app.use(createPinia())
   app.use(router)
   app.use(ElementPlus, { locale: zhCn })
+
+  // DEBUG: global error handler to capture full stack traces
+  app.config.errorHandler = (err, instance, info) => {
+    console.error('[Vue Global Error]', err)
+    if (err instanceof Error) console.error('[Vue Global Error Stack]', err.stack)
+    console.error('[Vue Global Error Instance]', instance?.$options?.name ?? instance?.$options?.__name ?? 'unknown')
+    console.error('[Vue Global Error Info]', info)
+  }
 
   // 全局注册 vue-echarts 组件，页面中直接用 <v-chart>
   app.component('VChart', VChart)

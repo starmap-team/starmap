@@ -39,6 +39,7 @@ const resumeStore = useResumeStore()
 const matchStore = useMatchStore()
 const learningStore = useLearningStore()
 const router = useRouter()
+const route = useRoute()
 
 // ── Page mode: single or batch ──
 const pageMode = ref('single')
@@ -78,7 +79,6 @@ onMounted(async () => {
 
   // FLOW-02-S2: 重新匹配跳转 —— 从 LearningCenter 携带 rematch 查询参数
   // 直接跳到差距分析步骤（step 3），使用已有匹配结果
-  const route = useRoute()
   if (route.query.rematch === '1' && matchStore.result) {
     targetPositionName.value = (route.query.position as string) || ''
     step.value = 3  // 跳到差距分析报告
@@ -222,6 +222,10 @@ async function handleStartDiagnosis() {
   } catch (e: unknown) {
     ElMessage.error('诊断请求失败: ' + (e instanceof Error ? e.message : '未知错误'))
     matchAnimating.value = false
+    matchAnimComplete.value = false
+    matchProgress.value = 0
+    // P0 fix: clear stale result on failure so step 3/4 don't render with null
+    matchStore.clearResult()
   } finally {
     if (matchProgressTimer.value) {
       clearInterval(matchProgressTimer.value)

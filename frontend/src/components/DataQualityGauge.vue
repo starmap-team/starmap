@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<{
 
 const gaugeOption = computed(() => {
   const colors = chartColors()
-  const val = Math.round(props.score)
+  const val = Math.round(props.score * 100)  // Phase 3.8.11: 0-1 比例转 0-100 百分
 
   let trendColor = colors.muted
   if (props.trend === 'up') trendColor = colors.success

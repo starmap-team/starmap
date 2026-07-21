@@ -143,3 +143,13 @@ export const ECHARTS_PALETTE = {
 export function toThreeHex(cssHex: string): number {
   return parseInt(cssHex.replace('#', ''), 16)
 }
+
+// ── Display name helpers ──
+
+/**
+ * 返回节点的中文展示名。优先使用 name_cn，其次 name。
+ * 适用于从 Neo4j 序列化出来的 GraphNode.properties（已包含 name_cn）。
+ */
+export function displayName(props: { name_cn?: string; name?: string }): string {
+  return props.name_cn || props.name || ''
+}

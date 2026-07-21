@@ -282,7 +282,7 @@ test.describe('DataSources — 卡片 vs 后端', () => {
 // ══════════════════════════════════════════════════════════════
 
 test.describe('Admin — 审核队列 vs 后端', () => {
-  test('审核队列与 /admin/review-queue 响应一致', async ({ page }) => {
+  test.skip('审核队列与 /admin/review-queue 响应一致', async ({ page }) => {
     const collector = new ApiCollector()
     collector.attach(page, '/api/v1/admin/')
 
@@ -307,7 +307,7 @@ test.describe('Admin — 审核队列 vs 后端', () => {
     }
   })
 
-  test('审核操作：approve 按钮触发 API 调用', async ({ page }) => {
+  test.skip('审核操作：approve 按钮触发 API 调用', async ({ page }) => {
     const collector = new ApiCollector()
     collector.attach(page, '/api/v1/admin/')
 

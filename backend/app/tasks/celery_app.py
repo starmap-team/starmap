@@ -116,16 +116,22 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
             result = executor(run_id)  # type: ignore[operator]
         duration_ms = int((time.monotonic() - start) * 1000)
 
-        # Update stage status
-        run_async(_mark_stage_completed(
-            run_id, stage_name,
-            duration_ms=duration_ms,
-            records_processed=result.get("records_processed", 0),
-            errors=result.get("errors", []),
-        ))
+        # Update stage status AND advance DAG in ONE async call
+        # (avoids "different loop" error when running two separate run_async calls)
+        async def _complete_and_advance():
+            await _mark_stage_completed(
+                run_id, stage_name,
+                duration_ms=duration_ms,
+                records_processed=result.get("records_processed", 0),
+                records_seen=result.get("records_seen", 0),
+                errors=result.get("errors", []),
+                current_activity=result.get("current_activity", ""),
+                recent_samples=result.get("recent_samples", []),
+                sub_breakdown=result.get("sub_breakdown", {}),
+            )
+            await advance_pipeline(uuid.UUID(run_id))
 
-        # Advance DAG — dispatch next ready stages
-        run_async(advance_pipeline(uuid.UUID(run_id)))
+        run_async(_complete_and_advance())
 
         return {"status": "completed", "stage": stage_name, **result}
 
@@ -252,19 +258,38 @@ async def _sweep_orphan_runs_async() -> dict[str, Any]:
 # ── Helpers ──
 async def _mark_stage_completed(
     run_id: str, stage_name: str,
-    *, duration_ms: int = 0, records_processed: int = 0, errors: list[str] | None = None,
+    *, duration_ms: int = 0, records_processed: int = 0, records_seen: int = 0, errors: list[str] | None = None,
+    current_activity: str = "", recent_samples: list[dict] | None = None,
+    sub_breakdown: dict[str, int] | None = None,
 ) -> None:
+    """Phase 3.8.7 FIX: 智能判断 status.
+
+    规则:
+    - 0 记录 + 0 错误 → completed
+    - 有记录 → completed (即使有错误, 错误是 warning)
+    - 0 记录 + 有错误 → failed (关键修复: 之前所有 0 记录都被误标为 completed)
+    """
     from app.core.pipeline.orchestrator import update_stage_status
     from app.db.session import get_session_factory
+    error_list = errors or []
+    # Phase 3.8.7: 0 记录 + 有错误 = 失败, 不是完成
+    if records_processed == 0 and error_list:
+        actual_status = "failed"
+    else:
+        actual_status = "completed"
     sm = get_session_factory()
     async with sm() as session:
         async with session.begin():
             await update_stage_status(
                 session, uuid.UUID(run_id), stage_name,
-                status="completed",
+                status=actual_status,
                 duration_ms=duration_ms,
                 records_processed=records_processed,
-                errors=errors,
+                records_seen=records_seen,
+                errors=error_list,
+                current_activity=current_activity,
+                recent_samples=recent_samples,
+                sub_breakdown=sub_breakdown,
             )
 
 

@@ -6,6 +6,9 @@ defineProps<{
   totalPositions: number
   totalSkills: number
   totalRelations: number
+  // 动态分组维度标签（随 overviewMode 切换：技术领域/技术栈/职级分组）
+  groupLabel?: string
+  groupTrend?: string
 }>()
 
 const emit = defineEmits<{
@@ -20,9 +23,9 @@ const emit = defineEmits<{
         <el-icon><DataAnalysis /></el-icon>
       </div>
       <div class="kpi-body">
-        <span class="kpi-label">技术领域</span>
+        <span class="kpi-label">{{ groupLabel || '技术领域' }}</span>
         <span class="kpi-value">{{ totalDomains }}</span>
-        <span class="kpi-trend">知识图谱核心分类</span>
+        <span class="kpi-trend">{{ groupTrend || '知识图谱核心分类' }}</span>
       </div>
     </div>
     <div class="kpi-card">

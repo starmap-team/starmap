@@ -12,9 +12,7 @@ import VChart from 'vue-echarts'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useEvolutionStore } from '@/stores/evolution'
 import type { TrendItem } from '@/stores/evolution'
-import { useEvolutionCharts } from '@/composables/useEvolutionCharts'
-import { useEvolutionActions } from '@/composables/useEvolutionActions'
-import { formatChange, TREND_LABEL, TREND_TAG_TYPE } from '@/composables/useEvolutionFormatters'
+import { useEvolutionCharts, useEvolutionActions, formatChange, TREND_LABEL, TREND_TAG_TYPE } from '@/composables/useEvolutionDashboard'
 // ponytail: alias uppercase constants to camelCase for template binding without renaming template
 const trendLabel = TREND_LABEL
 const trendTagType = TREND_TAG_TYPE

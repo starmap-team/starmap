@@ -1,5 +1,6 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { useGraphStore, type GraphNode, type GraphEdge, type ViewLayer, type OverviewMode } from '@/stores/graph'
+import { displayName } from '@/utils/graphColors'
 import { cv, tooltipStyle } from '@/utils/chartTheme'
 
 export interface BreadcrumbItem {
@@ -152,7 +153,7 @@ export function useHomeInteractions(
     }
     if (graphStore.expandedPositionId) {
       const posNode = graphStore.nodeMap.get(graphStore.expandedPositionId)
-      items.push({ label: posNode?.properties.name ?? '岗位', layer: 'detail' })
+      items.push({ label: (posNode ? displayName(posNode.properties) : '') || '岗位', layer: 'detail' })
     }
     return items
   })
@@ -171,7 +172,9 @@ export function useHomeInteractions(
   }
   function onToggleAutoRotate(autoRotate3DRef: Ref<boolean>) {
     graph3DRef.value?.toggleAutoRotate()
-    autoRotate3DRef.value = !autoRotate3DRef.value
+    // Do NOT manually flip autoRotate3DRef here —
+    // Graph3D emits 'autoRotateChange' which Home.vue uses to sync autoRotate3D.
+    // Double-flipping would invert the logic.
   }
 
   // Node click / dblclick

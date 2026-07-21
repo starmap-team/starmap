@@ -21,25 +21,67 @@ if TYPE_CHECKING:
 
 # ── 常量 ──
 
-# 业务说明：定义技术栈关键词映射表，用于将职位名称/行业自动分类到对应的技术领域（如人工智能、大数据等）。
+# 业务说明：定义技术栈关键词映射表（中英双语），用于将职位名称/行业自动分类到对应的技术领域。
 # 技术说明：每个技术栈对应一组关键词，匹配时采用大小写不敏感的子串匹配。
+# P1 fix: 加入英文关键词以支持英文职位名称的分类。
 TECH_STACK_KEYWORDS: dict[str, list[str]] = {
-    "人工智能": ["AI", "人工智能", "机器学习", "深度学习", "NLP", "CV", "算法", "大模型", "LLM", "MLOps"],
-    "大数据": ["大数据", "数据", "Hadoop", "Spark", "Flink", "ETL", "数据仓库", "数据分析师"],
+    "人工智能": [
+        "AI", "人工智能", "机器学习", "深度学习", "NLP", "CV", "算法", "大模型", "LLM", "MLOps",
+        "Machine Learning", "Deep Learning", "Computer Vision", "ML Engineer", "Data Scien",
+        "Prompt", "RAG", "Fine-tuning", "LangChain", "Transformer",
+    ],
+    "大数据": [
+        "大数据", "数据", "Hadoop", "Spark", "Flink", "ETL", "数据仓库", "数据分析师",
+        "Data Engineer", "Data Analyst", "Analytics", "BI", "Big Data", "Kafka",
+    ],
+    "前端开发": [
+        "前端", "Web前端", "Frontend", "Front-end", "React", "Vue", "Angular",
+        "UI", "UX", "JavaScript", "TypeScript",
+    ],
+    "后端开发": [
+        "后端", "Backend", "Back-end", "API", "Microservice", "GraphQL",
+        "Java Dev", "Go Dev", "Python Dev", "Rust Dev", ".NET Dev",
+        "Node.js", "PHP", "Ruby",
+    ],
     "智能系统": ["智能系统", "智能制造", "自动化", "机器人", "嵌入式"],
-    "物联网": ["物联网", "IoT", "嵌入式", "边缘计算", "传感器"],
-    "云计算/DevOps": ["云", "DevOps", "运维", "SRE", "Kubernetes", "Docker", "CI/CD", "容器"],
-    "网络安全": ["安全", "网络安全", "渗透测试", "安全工程师", "密码学"],
+    "物联网": ["物联网", "IoT", "嵌入式", "边缘计算", "传感器", "Embedded", "Firmware"],
+    "云计算/DevOps": [
+        "云", "DevOps", "运维", "SRE", "Kubernetes", "Docker", "CI/CD", "容器",
+        "Cloud", "Platform Engineer", "Infrastructure", "Terraform",
+    ],
+    "网络安全": [
+        "安全", "网络安全", "渗透测试", "安全工程师", "密码学",
+        "Security", "DevSecOps", "Penetration", "IAM",
+    ],
+    "移动开发": [
+        "移动", "Android", "iOS", "Flutter", "React Native", "Mobile",
+        "App Dev", "Swift",
+    ],
+    "测试": [
+        "测试", "QA", "Test", "SDET", "Quality", "Automation",
+    ],
+    "区块链/Web3": [
+        "区块链", "Blockchain", "Web3", "Solidity", "Smart Contract",
+    ],
+    "游戏开发": [
+        "游戏", "Game Dev", "Unity", "Unreal", "Game Developer",
+    ],
 }
 
 # 业务说明：为每个技术栈分配固定的展示颜色，用于前端图可视化中的分类着色。
 TECH_STACK_COLORS = {
     "人工智能": "#9B59B6",
     "大数据": "#E6A23C",
+    "前端开发": "#409EFF",
+    "后端开发": "#67C23A",
     "智能系统": "#409EFF",
     "物联网": "#67C23A",
     "云计算/DevOps": "#36CFC9",
     "网络安全": "#F56C6C",
+    "移动开发": "#67C23A",
+    "测试": "#909399",
+    "区块链/Web3": "#909399",
+    "游戏开发": "#9B59B6",
     "其他": "#909399",
 }
 
@@ -97,11 +139,13 @@ async def _fetch_independent_counts(driver: AsyncDriver) -> dict[str, int]:
     """
     try:
         async with driver.session() as session:
-            # P1 fix: merge 3 separate count queries into 1 Cypher to reduce RTT
+            # 3 separate count queries to avoid Cartesian product
+            # (MATCH (p), (s) OPTIONAL MATCH ()-[r]->() produces |p|*|s|*|r| rows)
             result = await session.run(
-                "MATCH (p:Position), (s:Skill) "
-                "OPTIONAL MATCH ()-[r:REQUIRES]->() "
-                "RETURN count(DISTINCT p) AS pos_cnt, count(DISTINCT s) AS skill_cnt, count(r) AS edge_cnt"
+                "MATCH (p:Position) WITH count(p) AS pos_cnt "
+                "MATCH (s:Skill) WITH pos_cnt, count(s) AS skill_cnt "
+                "MATCH ()-[r:REQUIRES]->() "
+                "RETURN pos_cnt, skill_cnt, count(r) AS edge_cnt"
             )
             record = await result.single()
             if record:
@@ -179,10 +223,16 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
     stack_id_prefix = {
         "人工智能": "ts-ai",
         "大数据": "ts-bigdata",
+        "前端开发": "ts-frontend",
+        "后端开发": "ts-backend",
         "智能系统": "ts-sys",
         "物联网": "ts-iot",
         "云计算/DevOps": "ts-cloud",
         "网络安全": "ts-sec",
+        "移动开发": "ts-mobile",
+        "测试": "ts-qa",
+        "区块链/Web3": "ts-blockchain",
+        "游戏开发": "ts-game",
         "其他": "ts-other",
     }
     domains = []

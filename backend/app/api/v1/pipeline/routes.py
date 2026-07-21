@@ -5,6 +5,7 @@ Split from pipeline.py in Phase 6 architecture refactor.
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -203,6 +204,77 @@ async def retry_stage(
     if run is None:
         raise HTTPException(status_code=404, detail="Pipeline run not found")
     return serialize_run(run)
+
+
+@router.post("/runs/{run_id}/force-advance", response_model=PipelineRunResponse, dependencies=[Depends(require_admin)])
+async def force_advance_pipeline(run_id: UUID) -> PipelineRunResponse:
+    """Phase 3.8.5: 强制推进流水线 (修复 Celery event loop 错误导致的卡死).
+
+    当 Celery 任务因 event loop 错误失败时, run 可能处于 is_running=true 但所有 stage 都 pending 的状态。
+    这个接口会重新调用 advance_pipeline 继续推进。
+    """
+    from sqlalchemy import select as sa_select
+
+    from app.core.pipeline.executor import advance_pipeline
+    from app.db.session import get_session_factory
+    from app.models.pipeline_models import PipelineRun
+
+    # 强制 advance (即使 stage 已 completed, 也会去找 next ready stage)
+    await advance_pipeline(run_id)
+
+    # 返回最新状态
+    sm = get_session_factory()
+    async with sm() as session:
+        result = await session.execute(sa_select(PipelineRun).where(PipelineRun.id == run_id))
+        run = result.scalar_one_or_none()
+        if run is None:
+            raise HTTPException(status_code=404, detail="Pipeline run not found")
+        return serialize_run(run)
+
+
+@router.post("/runs/{run_id}/force-reset", response_model=PipelineRunResponse, dependencies=[Depends(require_admin)])
+async def force_reset_pipeline(run_id: UUID) -> PipelineRunResponse:
+    """Phase 3.8.5: 强制重置卡死的 run (is_running=true 但无 stage running).
+
+    适用场景: advance_pipeline 失败, run 处于幽灵 running 状态。
+    操作: 取消这个 run, 但不清空 stage 数据, 方便用户查看发生了什么。
+    """
+    from sqlalchemy import select as sa_select
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from app.db.session import get_session_factory
+    from app.models.pipeline_models import PipelineRun
+
+    sm = get_session_factory()
+    async with sm() as session:
+        async with session.begin():
+            result = await session.execute(sa_select(PipelineRun).where(PipelineRun.id == run_id))
+            run = result.scalar_one_or_none()
+            if run is None:
+                raise HTTPException(status_code=404, detail="Pipeline run not found")
+
+            if run.status != 'running':
+                return serialize_run(run)
+
+            cancelled_at = datetime.now(UTC)
+            run.status = 'cancelled'
+            run.completed_at = cancelled_at
+            run.error_log = 'force-reset by admin (stuck in running state)'
+
+            if run.stages:
+                for stage in run.stages:
+                    if stage.get('status') in ('running', 'pending'):
+                        stage['status'] = 'cancelled'
+                        stage['completed_at'] = cancelled_at.isoformat()
+                flag_modified(run, 'stages')
+
+            logger.warning(
+                "force_reset_pipeline: run_id={} forced from running to cancelled",
+                run_id,
+            )
+
+        result = await session.execute(sa_select(PipelineRun).where(PipelineRun.id == run_id))
+        return serialize_run(result.scalar_one())
 
 
 @router.post("/runs/{run_id}/resume", response_model=PipelineRunResponse, dependencies=[Depends(require_admin)])

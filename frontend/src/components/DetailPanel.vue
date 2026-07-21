@@ -4,6 +4,54 @@ import VChart from "vue-echarts"
 import { Aim } from "@element-plus/icons-vue"
 import { useGraphStore, type GraphNode } from "@/stores/graph"
 import type { RadarChartOption } from "@/composables/home/useHomeInteractions"
+import { displayName } from "@/utils/graphColors"
+
+const CATEGORY_LABELS: Record<string, string> = {
+  hard_skill: '硬技能',
+  soft_skill: '软技能',
+  tool: '工具',
+  certificate: '认证',
+  project_management: '项目管理',
+  design: '设计',
+  domain: '领域知识',
+  language: '语言',
+  certification: '认证',
+  methodology: '方法论',
+  // Neo4j label fallbacks — these should not appear after the backend fix,
+  // but handle them gracefully if they do.
+  Skill: '硬技能',
+  Position: '—',
+  Tool: '工具',
+  Certificate: '认证',
+  Industry: '—',
+  KnowledgeArea: '领域知识',
+  LearningResource: '学习资源',
+}
+
+function categoryLabel(raw: string | undefined | null): string {
+  if (!raw) return '—'
+  return CATEGORY_LABELS[raw] ?? raw
+}
+
+/** Count REQUIRES edges for a Position node */
+function positionSkillCount(positionId: string): number {
+  let count = 0
+  for (const e of graphStore.allEdges) {
+    if (e.source_id === positionId && e.type === 'REQUIRES') count++
+  }
+  return count
+}
+
+/** Find the parent KnowledgeArea name for a Position via BELONGS_TO edge */
+function parentKAName(positionId: string): string {
+  for (const e of graphStore.allEdges) {
+    if (e.source_id === positionId && (e.type === 'BELONGS_TO' || e.type === 'CONTAINS')) {
+      const ka = graphStore.nodeMap.get(e.target_id)
+      if (ka) return displayName(ka.properties)
+    }
+  }
+  return '其他'
+}
 
 const props = defineProps<{
   selectedNode: GraphNode | null
@@ -126,7 +174,7 @@ function navigateToDetail(node: GraphNode) {
         </div>
         <div class="dp-title-group">
           <h3 class="dp-title">
-            {{ selectedNode.properties.name }}
+            {{ displayName(selectedNode.properties) }}
           </h3>
           <span class="dp-subtitle">{{ nodeTypeLabel }}</span>
         </div>
@@ -159,7 +207,7 @@ function navigateToDetail(node: GraphNode) {
           <template v-if="selectedNode.labels.includes('Skill')">
             <div class="dp-prop-row">
               <span class="dp-prop-label">类别</span>
-              <span class="dp-prop-value">{{ selectedNode.properties.category ?? "—" }}</span>
+              <span class="dp-prop-value">{{ categoryLabel(selectedNode.properties.category) }}</span>
             </div>
             <div class="dp-prop-row">
               <span class="dp-prop-label">趋势</span>
@@ -173,21 +221,33 @@ function navigateToDetail(node: GraphNode) {
               <span
                 v-else
                 class="dp-prop-value"
-              >—</span>
+              >暂无</span>
             </div>
             <div class="dp-prop-row">
               <span class="dp-prop-label">来源数</span>
-              <span class="dp-prop-value">{{ selectedNode.properties.source_count ?? 0 }}</span>
+              <span class="dp-prop-value">{{ selectedNode.properties.source_count ?? 0 }} 个数据源</span>
+            </div>
+            <div class="dp-prop-row">
+              <span class="dp-prop-label">熟练度</span>
+              <span class="dp-prop-value">{{ selectedNode.properties.proficiency ?? "暂无" }}</span>
             </div>
           </template>
           <template v-else-if="selectedNode.labels.includes('Position')">
             <div class="dp-prop-row">
               <span class="dp-prop-label">级别</span>
-              <span class="dp-prop-value">{{ selectedNode.properties.level ?? "—" }}</span>
+              <span class="dp-prop-value">{{ selectedNode.properties.level ?? "暂无" }}</span>
             </div>
             <div class="dp-prop-row">
-              <span class="dp-prop-label">权重</span>
-              <span class="dp-prop-value">{{ selectedNode.properties.weight ?? "—" }}</span>
+              <span class="dp-prop-label">需求技能数</span>
+              <span class="dp-prop-value">{{ positionSkillCount(selectedNode.id) }} 项</span>
+            </div>
+            <div class="dp-prop-row">
+              <span class="dp-prop-label">关联岗位数</span>
+              <span class="dp-prop-value">{{ selectedNode.properties.position_count ?? "—" }} 个</span>
+            </div>
+            <div class="dp-prop-row">
+              <span class="dp-prop-label">所属知识域</span>
+              <span class="dp-prop-value">{{ parentKAName(selectedNode.id) }}</span>
             </div>
           </template>
           <template v-else>
@@ -219,7 +279,7 @@ function navigateToDetail(node: GraphNode) {
             @click="navigateToDetail(r.node)"
           >
             <span class="dp-list-dot" />
-            <span class="dp-list-name">{{ r.node.properties.name }}</span>
+            <span class="dp-list-name">{{ displayName(r.node.properties) }}</span>
             <span class="dp-list-meta">{{ r.sharedCount }} 共享技能</span>
           </div>
         </div>
@@ -241,7 +301,7 @@ function navigateToDetail(node: GraphNode) {
             @click="navigateToDetail(p)"
           >
             <span class="dp-list-dot" />
-            <span class="dp-list-name">{{ p.properties.name }}</span>
+            <span class="dp-list-name">{{ displayName(p.properties) }}</span>
           </div>
         </div>
       </div>
@@ -253,10 +313,12 @@ function navigateToDetail(node: GraphNode) {
       <el-icon
         size="28"
         color="var(--muted-foreground)"
+        aria-hidden="true"
       >
         <Aim />
       </el-icon>
-      <p>点击节点查看详情</p>
+      <p>点击图谱节点查看详情</p>
+      <p class="dp-empty-hint">或使用顶部搜索定位技能 / 岗位 / 领域</p>
     </div>
   </aside>
 </template>

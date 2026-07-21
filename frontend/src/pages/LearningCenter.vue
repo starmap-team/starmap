@@ -13,7 +13,7 @@ import { onMounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 // 技术说明：引入 Element Plus 图标组件
 import { Guide, DataAnalysis, Clock, Trophy, RefreshRight } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 // 业务说明：主布局组件，提供统一的页面导航和侧边栏
 import MainLayout from '@/layouts/MainLayout.vue'
 // 业务说明：学习路径可视化组件，展示技能之间的依赖关系图
@@ -24,12 +24,7 @@ import SkillProgressCard from '@/components/SkillProgressCard.vue'
 import { useLearningStore } from '@/stores/learning'
 import { useUserStore } from '@/stores/user'
 import { useMatchStore } from '@/stores/match'
-// 业务说明：拆分到独立 composable 的指标计算与优先级映射
-import { useLearningMetrics } from '@/composables/useLearningMetrics'
-import { priorityType, priorityLabel } from '@/composables/useLearningPriority'
 import { asTagType } from '@/utils/element'
-import { useLearningActions } from '@/composables/useLearningActions'
-import { useLearningFilters } from '@/composables/useLearningFilters'
 
 // 技术说明：初始化路由实例，用于跳转到匹配诊断页面
 const router = useRouter()
@@ -45,14 +40,48 @@ const recommendations = computed(() => learningStore.recommendations)
 // 业务说明：数据加载状态
 const isLoading = computed(() => learningStore.loading)
 
-// 业务说明：技能筛选 Tab + 过滤后的技能列表 (Phase 7 D round 10)
-const { activeTab, filteredSkills } = useLearningFilters(currentPlan)
+// 业务说明：技能筛选 Tab 状态 + 优先级映射（内联自 useLearningFilters + useLearningPriority）
+const activeTab = ref<'all'|'in_progress'|'not_started'>('all')
+const filteredSkills = computed(() => {
+  const plan = currentPlan.value
+  if (!plan) return []
+  return activeTab.value === 'all' ? plan.skills : plan.skills.filter((s: any) => s.status === activeTab.value)
+})
 
-// 业务说明：学习进度统计指标（已掌握/学习中/剩余学时；总学时在 composable 内部保留)
-const { masteredCount, inProgressCount, remainingHours } = useLearningMetrics(currentPlan)
+const priorityTagMap: Record<string, string> = { high: 'danger', medium: 'warning', low: 'info' }
+const priorityLabelMap: Record<string, string> = { high: '高优先', medium: '中优先', low: '低优先' }
+function priorityType(p: string) { return priorityTagMap[p] ?? 'info' }
+function priorityLabel(p: string) { return priorityLabelMap[p] ?? '低优先' }
 
-// 业务说明：用户操作（更新状态 / 加入计划）
-const { handleUpdateStatus, handleAddToPlan } = useLearningActions(learningStore, currentPlan)
+// 业务说明：学习进度统计指标（内联自 useLearningMetrics）
+const masteredCount = computed(() => currentPlan.value?.skills.filter((s: any) => s.status === 'mastered').length ?? 0)
+const inProgressCount = computed(() => currentPlan.value?.skills.filter((s: any) => s.status === 'in_progress').length ?? 0)
+const remainingHours = computed(() => {
+  if (!currentPlan.value) return 0
+  return currentPlan.value.skills.filter((s: any) => s.status !== 'mastered').reduce((sum: number, s: any) => sum + Math.round(s.estimated_hours * (1 - s.progress_pct / 100)), 0)
+})
+
+// 业务说明：用户操作（内联自 useLearningActions）
+async function handleUpdateStatus(skill: string, status: string) {
+  if (!currentPlan.value) { ElMessage.warning('请先创建学习计划'); return }
+  try {
+    await learningStore.updateProgress(currentPlan.value.plan_id, skill, status)
+    const statusLabel = status === 'mastered' ? '已掌握' : status === 'in_progress' ? '学习中' : '未开始'
+    ElMessage.success(`已更新「${skill}」状态为 ${statusLabel}`)
+    if (status === 'mastered') ElMessage.success({ message: '技能已掌握！可前往匹配诊断查看提升效果', duration: 5000 })
+  } catch { /* store handles errors */ }
+}
+async function handleAddToPlan(rec: { skill: string; priority: string }) {
+  try {
+    const rawData: Record<string, unknown> = { position: rec.skill, skill_gap_detail: [{ skill: rec.skill, importance: rec.priority || 'required', gap_level: '完全缺失' }] }
+    if (currentPlan.value) {
+      await ElMessageBox.confirm(`已有学习计划「${currentPlan.value.position}」，是否用「${rec.skill}」覆盖？`, '覆盖学习计划', { confirmButtonText: '确认覆盖', cancelButtonText: '取消', type: 'warning' })
+      await learningStore.createPlan(rawData); ElMessage.success('已创建新学习计划')
+    } else {
+      await learningStore.createPlan(rawData); ElMessage.success(`「${rec.skill}」已加入学习计划`)
+    }
+  } catch (e: unknown) { if (e === 'cancel' || e === 'close') return; ElMessage.error(e instanceof Error ? e.message : '加入计划失败') }
+}
 
 // FLOW-02-S2: 一键重新匹配 —— 使用更新后的 parsedSkills 对当前岗位重新执行匹配
 const rematchLoading = ref(false)

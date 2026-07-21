@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import { Aim, TrendCharts } from "@element-plus/icons-vue"
 import { use } from "echarts/core"
@@ -18,7 +18,6 @@ import HomeGraphControls from "@/components/HomeGraphControls.vue"
 import HomeEvolutionDrawer from "@/components/HomeEvolutionDrawer.vue"
 import ErrorBoundary from "@/components/ErrorBoundary.vue"
 import { useGraphStore } from "@/stores/graph"
-import { useKPIMetrics } from "@/composables/useKPIMetrics"
 import {
   useGraphToolbarState,
   useHomeLayout,
@@ -31,7 +30,11 @@ import {
 
 const router = useRouter()
 const graphStore = useGraphStore()
-const { totalPositions, totalSkills, totalDomains, totalRelations } = useKPIMetrics()
+// KPI metrics (inlined from useKPIMetrics)
+const totalPositions = computed(() => graphStore.independentPositions ?? graphStore.domains.reduce((s: number, d: any) => s + d.position_count, 0))
+const totalSkills = computed(() => graphStore.independentSkills ?? graphStore.domains.reduce((s: number, d: any) => s + d.skill_count, 0))
+const totalDomains = computed(() => graphStore.domains.length)
+const totalRelations = computed(() => graphStore.currentLayer === 'domain' ? (graphStore.domainConnections?.length ?? 0) : (graphStore.allEdges?.length ?? 0))
 const { layoutMode, maxNodesLimit, proficiencyFilter, toggleLayout, onMaxNodesChange, onProficiencyFilter } = useGraphToolbarState()
 const { viewMode, autoRotate3D } = useHomeLayout()
 const { showEvolution, graph3DEvolutionLinks } = useEvolutionPanel()
@@ -40,6 +43,19 @@ const { kaColorMap } = useGraph2DData()
 const { graph3DNodes, graph3DLinks } = useGraph3DData()
 const interactions = useHomeInteractions(() => graphStore)
 const evolutionDrawer = ref<InstanceType<typeof HomeEvolutionDrawer>>()
+
+// KPI 标签动态化：根据当前概览模式显示不同的"分组维度"名称
+const groupLabel = computed(() => {
+  switch (graphStore.overviewMode) {
+    case 'level':
+      return { label: '职级分组', trend: '成长路径三阶' }
+    case 'tech_stack':
+      return { label: '技术栈', trend: '领域技术全景' }
+    case 'domain':
+    default:
+      return { label: '技术领域', trend: '知识图谱核心分类' }
+  }
+})
 
 // Re-export bindings the <template> references under stable names.
 const { graph2DRef, graph3DRef, breadcrumb, positionRadarOption,
@@ -76,6 +92,8 @@ onMounted(async () => {
         :total-positions="totalPositions"
         :total-skills="totalSkills"
         :total-relations="totalRelations"
+        :group-label="groupLabel.label"
+        :group-trend="groupLabel.trend"
         @navigate="onNavigate"
       />
 

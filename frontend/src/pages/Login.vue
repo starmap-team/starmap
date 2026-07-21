@@ -11,6 +11,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { User, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useGraphStore } from '@/stores/graph'
 import { useGraph3DData } from '@/composables/home/useGraph3DData'
@@ -135,9 +136,10 @@ async function handleLogin() {
           <el-input
             v-model="username"
             placeholder="用户名"
-            prefix-icon="User"
+            :prefix-icon="User"
             size="large"
             autocomplete="username"
+            name="username"
           />
         </el-form-item>
         <el-form-item>
@@ -145,10 +147,11 @@ async function handleLogin() {
             v-model="password"
             type="password"
             placeholder="密码"
-            prefix-icon="Lock"
+            :prefix-icon="Lock"
             size="large"
             show-password
             autocomplete="current-password"
+            name="password"
             @keyup.enter="handleLogin"
           />
         </el-form-item>
@@ -158,7 +161,7 @@ async function handleLogin() {
             size="large"
             :loading="loading"
             style="width: 100%"
-            @click="handleLogin"
+            native-type="submit"
           >
             登 录
           </el-button>

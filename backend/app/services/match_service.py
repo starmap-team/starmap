@@ -129,65 +129,6 @@ async def enrich_learning_paths(
     return gap_details
 
 
-async def run_batch_match(
-    *,
-    resumes: list[dict[str, Any]],
-    positions: list[str],
-    threshold: float = 0.6,
-    driver: Any = None,
-    db_session: Any = None,
-) -> dict[str, Any]:
-    """批量匹配（向后兼容）。"""
-    results: list[dict[str, Any]] = []
-    matrix: list[list[float]] = []
-
-    for resume in resumes:
-        resume_id = resume.get("resume_id", "unknown")
-        person_skills = resume.get("person_skills", [])
-        row_scores: list[float] = []
-
-        for position in positions:
-            try:
-                result = await run_match(
-                    target_position=position,
-                    person_skills=person_skills,
-                    threshold=threshold,
-                    driver=driver,
-                    db_session=db_session,
-                )
-                result["resume_id"] = resume_id
-                results.append(result)
-                row_scores.append(result.get("match_score", 0.0))
-            except Exception as exc:
-                from loguru import logger
-                logger.warning(
-                    "Batch match failed for resume={} position={}: {}",
-                    resume_id, position, exc,
-                )
-                row_scores.append(0.0)
-
-        matrix.append(row_scores)
-
-    all_scores = [r.get("match_score", 0.0) for r in results]
-    summary = {
-        "total_pairs": len(results),
-        "avg_score": round(sum(all_scores) / len(all_scores), 4) if all_scores else 0.0,
-        "max_score": round(max(all_scores), 4) if all_scores else 0.0,
-        "min_score": round(min(all_scores), 4) if all_scores else 0.0,
-        "high_match_count": sum(1 for s in all_scores if s >= 0.75),
-        "medium_match_count": sum(1 for s in all_scores if 0.5 <= s < 0.75),
-        "low_match_count": sum(1 for s in all_scores if s < 0.5),
-    }
-
-    return {
-        "results": results,
-        "matrix": matrix,
-        "summary": summary,
-        "resume_ids": [r.get("resume_id", "unknown") for r in resumes],
-        "positions": positions,
-    }
-
-
 async def compute_competitiveness(
     *,
     target_position: str,
@@ -280,7 +221,6 @@ __all__ = [
     "run_match",
     "get_match_result",
     "enrich_learning_paths",
-    "run_batch_match",
     "compute_competitiveness",
     "PROFICIENCY_SCORE",
     "DEFAULT_REQUIRED_SKILL_BASELINE",

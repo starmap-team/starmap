@@ -42,6 +42,7 @@ interface PositionListResponse {
 interface PositionItem {
   position_id: string
   name: string
+  name_cn?: string
   industry: string
   description: string
   skills_required: { skill_id: string; name: string; category: string; confidence: number; source_count: number }[]

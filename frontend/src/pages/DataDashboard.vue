@@ -26,10 +26,7 @@ import CountUpNumber from '@/components/CountUpNumber.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import DashboardSkeleton from '@/components/DashboardSkeleton.vue'
 import { useDashboardStore } from '@/stores/dashboard'
-import { useDashboardCharts } from '@/composables/useDashboardCharts'
-import { useDashboardKpiCards } from '@/composables/useDashboardKpiCards'
-import { useDashboardRealtimeSync } from '@/composables/useDashboardRealtimeSync'
-import { useDashboardDisplay } from '@/composables/useDashboardDisplay'
+import { useDataDashboard } from '@/composables/useDataDashboard'
 import { API_BASE } from '@/config/apiBase'
 
 use([
@@ -48,23 +45,14 @@ use([
 
 const store = useDashboardStore()
 
-// ── KPI card definitions (extracted to composable — Phase 7 D round 2) ──
-const kpiCards = useDashboardKpiCards(store)
-
-// ── Chart options (extracted to composable — M15) ──
-const { darkPieOption, treemapOption, trendOption, radarOption } = useDashboardCharts(store)
-
-// ── Display maps + pipeline defaults + time formatter (Phase 7 D round 9) ──
-const { pipelineStages, statusColor, eventIcon, eventSeverityColor, eventTypeColor, formatTime, stageIcon } = useDashboardDisplay(store)
-
-// ── Realtime sync (SSE + periodic refresh + clock) — Phase 7 D round 3 ──
-// SSE-05: Use API_BASE from apiBase.ts SSoT
+// ── Unified dashboard composable (merged 4 single-caller files → 1) ──
 const sseBase = API_BASE
-const { clockTick, connectionState } = useDashboardRealtimeSync(
-  store,
-  `${sseBase}/dashboard/realtime`,
-  `${sseBase}/dashboard/realtime-poll`,
-)
+const {
+  kpiCards,
+  darkPieOption, treemapOption, trendOption, radarOption,
+  pipelineStages, statusColor, eventIcon, eventSeverityColor, eventTypeColor, formatTime, stageIcon,
+  clockTick, connectionState,
+} = useDataDashboard(store, `${sseBase}/dashboard/realtime`, `${sseBase}/dashboard/realtime-poll`)
 </script>
 
 <template>

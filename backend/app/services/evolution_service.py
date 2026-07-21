@@ -80,7 +80,11 @@ async def build_evolution_trends(
     for name, data in list(skill_data.items())[:20]:
         signal = signals_by_name.get(name)
         trend = signal.level.value if signal else "stable"
-        confidence = min(1.0, 0.5 + (signal.z_score / 10) if signal else 0.5)
+        # 修复 Pydantic ge=0 校验：负 z_score 会使 confidence 越界，正确 clamp 到 [0, 1]
+        if signal:
+            confidence = max(0.0, min(1.0, 0.5 + signal.z_score / 10))
+        else:
+            confidence = 0.5
         cii_points = _calculate_cii_points(data)
 
         items.append(

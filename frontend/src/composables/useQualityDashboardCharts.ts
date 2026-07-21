@@ -5,6 +5,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import { chartColors, tooltipStyle, legendStyle } from '@/utils/chartTheme'
+import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import type { useQualityStore } from '@/stores/quality'
 
 type QualityStore = ReturnType<typeof useQualityStore>
@@ -130,7 +131,7 @@ export function useQualityDashboardCharts(store: QualityStore) {
           label: { show: true, fontSize: 14, fontWeight: 'bold' },
           itemStyle: { shadowBlur: 12, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.25)' },
         },
-        data: dist.map(s => ({ name: s.name, value: s.count })),
+        data: dist.map(s => ({ name: getSourceNameLabel(s.name), value: s.count })),
       }],
     }
   })

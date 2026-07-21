@@ -15,10 +15,8 @@ import { ElMessage } from 'element-plus'
 // 业务说明：引入图谱数据 Store，提供节点、边、领域、岗位等全局状态数据
 import { useGraphStore } from '@/stores/graph'
 import type { Graph, G6GraphClass, G6ElementEvent, EvolutionEdgeClickPayload } from '@/types/g6'
-// 业务说明：引入图层渲染 composables
-import { renderDomainLayer, type DomainLayerDeps } from '@/composables/useDomainLayer'
-import { renderPositionLayer, type PositionLayerDeps } from '@/composables/usePositionLayer'
-import { renderDetailLayer, type DetailLayerDeps } from '@/composables/useDetailLayer'
+// 业务说明：引入图层渲染 composable（合并自 3 单调用者文件）
+import { renderDomainLayer, type DomainLayerDeps, renderPositionLayer, type PositionLayerDeps, renderDetailLayer, type DetailLayerDeps } from '@/composables/useGraph2DLayers'
 
 // ── Props (UI state owned by parent) ──
 // 业务说明：定义组件对外暴露的属性接口，父组件通过 props 控制图谱的展示模式与筛选条件
@@ -72,6 +70,34 @@ const containerRef = ref<HTMLElement | null>(null)
 // 技术说明：使用 shallowRef 持有 G6 实例，避免 Vue 对 G6 内部庞大对象进行深度响应式代理，降低内存与性能开销
 const graph = shallowRef<Graph | null>(null)
 
+const GROWTH_INTERVAL_MS = 220
+let growthTimer: ReturnType<typeof setTimeout> | null = null
+
+function cancelGrowthAnimation(): void {
+  if (growthTimer) {
+    clearTimeout(growthTimer)
+    growthTimer = null
+  }
+}
+
+function animateNodeGrowth(nodeIds: string[]): void {
+  cancelGrowthAnimation()
+  if (!nodeIds.length || !graph.value) return
+
+  let index = 0
+  const revealNext = () => {
+    const nodeId = nodeIds[index]
+    if (!nodeId || !graph.value) return
+
+    graph.value.updateNodeData([{ id: nodeId, style: { fillOpacity: 0.85, scale: 1 } }])
+    graph.value.draw()
+    index += 1
+    growthTimer = index < nodeIds.length ? setTimeout(revealNext, GROWTH_INTERVAL_MS) : null
+  }
+
+  growthTimer = setTimeout(revealNext, GROWTH_INTERVAL_MS)
+}
+
 // ── Layer dependency accessors (lazy-read current props/store state) ──
 const domainDeps: DomainLayerDeps = {
   graph: () => graph.value,
@@ -83,6 +109,7 @@ const positionDeps: PositionLayerDeps = {
   kaColorMap: () => props.kaColorMap,
   showEvolution: () => props.showEvolution,
   maxNodesLimit: () => props.maxNodesLimit,
+  animateNodeGrowth,
 }
 const detailDeps: DetailLayerDeps = {
   graph: () => graph.value,
@@ -175,8 +202,8 @@ async function initGraph() {
       },
       // 业务说明：配置交互行为：画布拖拽、滚轮缩放、节点拖拽、悬停高亮一度邻居（双向）
       behaviors: ['drag-canvas', 'zoom-canvas', 'drag-element', { type: 'hover-activate', degree: 1, direction: 'both' }],
-      // 业务说明：配置插件：缩略图(minimap)与悬浮提示框(tooltip)，提示框样式跟随当前主题
-      plugins: ['minimap', { type: 'tooltip', enable: true, trigger: 'pointerenter', offset: [10, 10], style: { ...g6TooltipStyle(), borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 14px' } }],
+      // 业务说明：配置插件：缩略图(缩小到 140x90)与悬浮提示框(tooltip)
+      plugins: [{ type: 'minimap', size: [140, 90], position: 'bottom-right', padding: 8 }, { type: 'tooltip', enable: true, trigger: 'pointerenter', offset: [10, 10], style: { ...g6TooltipStyle(), borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 14px' } }],
     })
 
     // 业务说明：监听节点单击事件，向上层抛出 nodeClick 事件，供父组件处理节点选中/下钻
@@ -220,6 +247,7 @@ async function initGraph() {
 let _renderTimer: ReturnType<typeof setTimeout> | null = null
 function renderCurrentLayer() {
   if (!graph.value) return
+  cancelGrowthAnimation()
   if (_renderTimer) clearTimeout(_renderTimer)
   _renderTimer = setTimeout(() => {
     _renderTimer = null
@@ -287,6 +315,7 @@ onMounted(async () => {
 
 // 技术说明：组件卸载时移除 resize 监听器并销毁 G6 实例，释放内存与事件绑定，防止内存泄漏
 onUnmounted(() => {
+  cancelGrowthAnimation()
   window.removeEventListener('resize', handleResize)
   if (graph.value) { graph.value.destroy(); graph.value = null }
 })
@@ -305,5 +334,7 @@ onUnmounted(() => {
 .graph-2d-canvas {
   width: 100%;
   height: 100%;
+  position: relative;
+  z-index: 1;
 }
 </style>

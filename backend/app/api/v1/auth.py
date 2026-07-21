@@ -31,6 +31,7 @@ from app.dependencies import (
     get_redis_client,
 )
 from app.services import auth_service
+from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -191,6 +192,9 @@ async def me(
     get_current_user, because /me is the canonical "who am I" endpoint
     and returning a fake dev user would mask real auth failures with
     confusing 404s ("User not found" for the non-existent dev account).
+
+    Dev-mode exception: accepts the fixed `dev-token` Bearer so E2E tests
+    can bypass real login without masking real auth failures.
     """
     if credentials is None:
         raise HTTPException(
@@ -198,6 +202,16 @@ async def me(
             detail="Authentication required",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Dev-mode shortcut: fixed dev-token → synthetic admin user
+    if settings.app_env != "production" and credentials.credentials == "dev-token":
+        return {
+            "id": "dev-user-id",
+            "username": "dev",
+            "role": "admin",
+            "must_change_password": False,
+        }
+
     try:
         payload = _decode_token_payload(credentials.credentials)
     except ValueError as exc:

@@ -155,6 +155,7 @@ def position_item(node: dict[str, Any]) -> dict[str, Any]:
     return {
         "position_id": str(props.get("position_id") or node.get("id") or props.get("name") or ""),
         "name": props.get("name") or node.get("id") or "",
+        "name_cn": props.get("name_cn") or props.get("name") or "",
         "industry": props.get("industry") or "",
         "description": props.get("description") or "",
         "skills_required": props.get("skills_required") or [],

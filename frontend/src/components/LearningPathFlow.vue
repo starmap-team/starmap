@@ -4,9 +4,9 @@
  * 展示技能前置关系和学习进度
  * 使用 G6 v5 的 antdag DAG 布局
  */
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { chartColors, cv, g6TooltipStyle } from '@/utils/chartTheme'
-import { useG6Graph } from '@/composables/useG6Graph'
+import { ensureG6Loaded } from '@/composables/useG6'
 import type { NodeData, EdgeData, G6ElementEvent, G6ElementDatum } from '@/types/g6'
 
 interface PathNode {
@@ -22,7 +22,21 @@ const props = defineProps<{
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
-const { createGraph } = useG6Graph(containerRef)
+
+// G6 graph lifecycle (inlined from useG6Graph)
+let graph: any = null
+async function createGraph(options: any) {
+  if (!containerRef.value) return
+  if (graph) { graph.destroy(); graph = null }
+  const w = containerRef.value.clientWidth || 700
+  const h = containerRef.value.clientHeight || 300
+  const GraphClass = await ensureG6Loaded()
+  graph = new GraphClass({ container: containerRef.value, width: w, height: h, ...options })
+  return graph
+}
+function handleResize() { if (graph && containerRef.value) graph.setSize(containerRef.value.clientWidth, containerRef.value.clientHeight) }
+onMounted(() => window.addEventListener('resize', handleResize))
+onUnmounted(() => { window.removeEventListener('resize', handleResize); if (graph) { graph.destroy(); graph = null } })
 
 const cc = chartColors()
 

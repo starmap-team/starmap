@@ -1,8 +1,8 @@
 # StarMap celery-worker 镜像（Playwright + 反检测浏览器）
-# PIPE-01: 使用 Playwright 官方镜像免去 Chromium 重复安装
-FROM mcr.microsoft.com/playwright/python:v1.49.0-jammy
+# PIPE-01: 基于 python:3.11-slim 自行安装 Playwright，避免上游镜像 Python 版本不匹配
+FROM python:3.11-slim
 
-# 系统依赖（与 backend/Dockerfile.dev 对齐 — psycopg build / 编译工具）
+# 系统依赖（psycopg build + Playwright 浏览器 + curl）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libpq-dev curl \
     && rm -rf /var/lib/apt/lists/*
@@ -16,13 +16,22 @@ ENV POETRY_VIRTUALENVS_CREATE=false \
 
 RUN pip install --no-cache-dir poetry==2.4.1
 
-COPY pyproject.toml poetry.lock* ./
+COPY backend/pyproject.toml backend/poetry.lock* ./
 RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
+
+# Crawler dependencies (psycopg 用于 sync DB, scrapy/playwright 用于爬虫)
+# 这些不被 poetry 跟踪，但 Celery worker 实际执行 crawl/import 阶段时需要
+RUN pip install --no-cache-dir 'psycopg[binary]>=3.0'
+
+# Playwright + Chromium（BOSS 爬虫反检测依赖，§10.1 PIPE-01）
+RUN pip install --no-cache-dir playwright && \
+    playwright install chromium && \
+    playwright install-deps chromium
 
 # 拷贝 crawler 包（Playwright-stealth BOSS 爬虫依赖）
 COPY crawler/ ./crawler/
 
-# entrypoint: bootstrap (alembic upgrade ensures schema), then exec CMD
+COPY backend/entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 ENTRYPOINT ["./entrypoint.sh"]
 

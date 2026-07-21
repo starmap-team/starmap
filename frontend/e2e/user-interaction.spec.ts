@@ -132,8 +132,8 @@ test.describe('匹配诊断 — 5步向导', () => {
         await confirmBtn.first().click()
         await page.waitForTimeout(500)
 
-        // 应进入 Step 1 — 应有"选择目标岗位"标题
-        const step1Title = page.locator('text=选择目标岗位')
+        // 应进入 Step 1 — 应有"选择目标岗位"标题 (用 heading role 避免匹配到步骤条)
+        const step1Title = page.getByRole('heading', { name: '选择目标岗位' })
         await expect(step1Title).toBeVisible({ timeout: 5000 })
       }
     }
@@ -157,6 +157,7 @@ test.describe('匹配诊断 — 5步向导', () => {
 
     // 应有两个标签
     const tags = page.locator('.skill-tags .el-tag')
+    await expect(tags.first()).toBeVisible({ timeout: 3000 })
     const tagCount = await tags.count()
     expect(tagCount).toBeGreaterThanOrEqual(2)
 
@@ -164,7 +165,7 @@ test.describe('匹配诊断 — 5步向导', () => {
     const closeIcon = tags.first().locator('.el-tag__close')
     if (await closeIcon.isVisible()) {
       await closeIcon.click()
-      await page.waitForTimeout(200)
+      await page.waitForTimeout(500)
       // 应少一个
       const newCount = await tags.count()
       expect(newCount).toBe(tagCount - 1)

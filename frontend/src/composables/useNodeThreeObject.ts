@@ -5,8 +5,8 @@
  * Extracted from Graph3D.vue to decouple the rendering pipeline from the component.
  */
 import type { NodeObject } from '3d-force-graph'
-import { nodeColor, toThreeHex } from '@/utils/graphColors'
-import { createGlowTexture } from './useGlowTexture'
+import { nodeColor, toThreeHex, displayName } from '@/utils/graphColors'
+import { createGlowTexture } from './useGraph3D'
 import { createTextSprite } from './useTextSprite'
 
 // ── Types ──
@@ -133,7 +133,7 @@ export function buildNodeThreeObject(node: NodeObject): import('three').Object3D
     sprite.scale.set(radius * 5, radius * 5, 1)
     mesh.add(sprite)
 
-    const textSprite = createTextSprite(n.properties.name, radius, 'domain', THREE)
+    const textSprite = createTextSprite(displayName(n.properties), radius, 'domain', THREE)
     textSprite.position.y = radius + 2
     mesh.add(textSprite)
 
@@ -164,7 +164,7 @@ export function buildNodeThreeObject(node: NodeObject): import('three').Object3D
     })
     mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
 
-    const textSprite = createTextSprite(n.properties.name, radius, 'position', THREE)
+    const textSprite = createTextSprite(displayName(n.properties), radius, 'position', THREE)
     textSprite.position.y = radius + 1.5
     mesh.add(textSprite)
 
@@ -196,7 +196,7 @@ export function buildNodeThreeObject(node: NodeObject): import('three').Object3D
     mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
 
     if (radius >= 3) {
-      const textSprite = createTextSprite(n.properties.name, radius, 'skill', THREE)
+      const textSprite = createTextSprite(displayName(n.properties), radius, 'skill', THREE)
       textSprite.position.y = radius + 1.2
       mesh.add(textSprite)
     }

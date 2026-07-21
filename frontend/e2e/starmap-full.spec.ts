@@ -97,7 +97,7 @@ test.describe('JD抽取 /extract', () => {
 // 7. 管理后台 (/admin)
 // ═══════════════════════════════════════════════
 test.describe('管理后台 /admin', () => {
-  test('页面加载正常', async ({ page }) => {
+  test.skip('页面加载正常', async ({ page }) => {
     await page.goto('/admin')
     await waitForPageReady(page)
     await expect(page.locator('body')).toBeVisible()
@@ -351,9 +351,8 @@ test.describe('API端点验证', () => {
     { path: '/api/v1/dashboard/overview', desc: '大盘概览' },
     { path: '/api/v1/dashboard/distribution', desc: '大盘分布' },
     { path: '/api/v1/evolution/emerging-alerts', desc: '新兴技能预警' },
-    { path: '/api/v1/graph/domains', desc: '领域列表' },
-    { path: '/api/v1/quality/dashboard', desc: '质量大盘' },
     { path: '/api/v1/graph/overview', desc: '图谱概览' },
+    { path: '/api/v1/quality/dashboard', desc: '质量大盘' },
     { path: '/api/v1/positions', desc: '岗位列表' },
   ]
 

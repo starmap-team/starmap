@@ -23,10 +23,30 @@ export interface PipelineStage {
   progress: number
   duration_ms: number
   records_processed: number
+  records_seen?: number         // Phase 3.8.11
   errors: string[]
   errors_count: number
   retry_count: number
   depends_on: string[]
+  // Phase 3.7: 实时活动上下文
+  current_activity?: string
+  recent_samples?: Array<Record<string, unknown>>
+  sub_breakdown?: Record<string, number>
+  elapsed_ms?: number
+}
+
+/** Phase 3.7: 实时活动事件 (来自 SSE pipeline_update) */
+export interface LiveActivityEvent {
+  stage: string
+  status: string
+  progress: number
+  records_processed: number
+  message: string
+  current_activity?: string
+  recent_samples?: Array<Record<string, unknown>>
+  sub_breakdown?: Record<string, number>
+  elapsed_ms?: number
+  timestamp: number
 }
 
 export interface PipelineRun {
@@ -111,6 +131,11 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
 
   // SSE 实时进度事件
   const liveEvents = ref<Array<{ stage: string; status: string; progress: number; message: string }>>([])
+
+  // Phase 3.7: 实时活动 (current_activity + recent_samples + sub_breakdown)
+  const liveActivity = ref<Record<string, LiveActivityEvent>>({})
+  // 阶段活动历史（最近 50 条）
+  const activityHistory = ref<LiveActivityEvent[]>([])
 
   // Phase 1 SSE-04 / SSE-05: 3 个新事件类型 state（D-07）
   const qualityAlerts = ref<QualityAlert[]>([])
@@ -246,15 +271,35 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
   }
 
   // 处理 SSE pipeline_update 事件
-  function handlePipelineEvent(event: { stage: string; status: string; progress: number; message: string }) {
+  function handlePipelineEvent(event: { stage: string; status: string; progress: number; message: string; current_activity?: string; recent_samples?: Array<Record<string, unknown>>; sub_breakdown?: Record<string, number>; elapsed_ms?: number; records_processed?: number }) {
     liveEvents.value.push(event)
-    // Keep only last 50 events
     if (liveEvents.value.length > 50) liveEvents.value = liveEvents.value.slice(-50)
+
+    // Phase 3.7: 捕获每个阶段的实时活动 + 样本 + 子项分解
+    const liveEvent: LiveActivityEvent = {
+      ...event,
+      records_processed: event.records_processed ?? 0,
+      timestamp: Date.now(),
+    }
+    if (event.current_activity || event.recent_samples || event.sub_breakdown) {
+      liveActivity.value[event.stage] = liveEvent
+      activityHistory.value.push(liveEvent)
+      if (activityHistory.value.length > 80) {
+        activityHistory.value = activityHistory.value.slice(-80)
+      }
+    }
+
     // Auto-refresh stages on stage status change
     if (['running', 'completed', 'failed'].includes(event.status)) {
       fetchStages()
       fetchStatus()
     }
+  }
+
+  /** Phase 3.7: 重置实时活动 (开始新 run 时调用) */
+  function resetLiveActivity() {
+    liveActivity.value = {}
+    activityHistory.value = []
   }
 
   // Phase 1 SSE-04 / SSE-05: 3 个新事件 handler（D-07）
@@ -290,11 +335,44 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     error.value = null
     try {
       await request.post(`/pipeline/runs/${runId}/cancel`)
-      // Refresh status after successful cancel
+      // Refresh status + stages after successful cancel
       await fetchStatus()
+      await fetchStages()
       return true
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '取消流水线失败'
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Phase 3.8.5: forceAdvance — 强制推进卡死的 run
+  async function forceAdvance(runId: string): Promise<boolean> {
+    loading.value = true
+    try {
+      await request.post(`/pipeline/runs/${runId}/force-advance`, {})
+      await fetchStatus()
+      await fetchStages()
+      return true
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '强制推进失败'
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Phase 3.8.5: forceReset — 强制重置卡死的 run
+  async function forceReset(runId: string): Promise<boolean> {
+    loading.value = true
+    try {
+      await request.post(`/pipeline/runs/${runId}/force-reset`, {})
+      await fetchStatus()
+      await fetchStages()
+      return true
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '强制重置失败'
       return false
     } finally {
       loading.value = false
@@ -310,6 +388,10 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     loading,
     error,
     liveEvents,
+    // Phase 3.7: 实时活动上下文
+    liveActivity,
+    activityHistory,
+    resetLiveActivity,
     // Phase 1 SSE-04/05 新增 state
     qualityAlerts,
     milestones,
@@ -330,5 +412,7 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     handleExtractionComplete,
     // Phase 1 CANCEL-02
     cancelRun,
+    forceAdvance,
+    forceReset,
   }
 })

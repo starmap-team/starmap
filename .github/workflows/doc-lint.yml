@@ -1,0 +1,180 @@
+# =============================================================================
+# StarMap 文档漂移门禁（doc-lint）
+# 触发：任何 PR 到 main + 直接 push 到 main + 每日 UTC 02:00（北京时间 10:00）
+# 目的:让文档里的「硬数字 / 目录引用」与代码现状保持一致,防止 ONBOARDING.md
+#       与 README 引用已删除的 audit/ 目录或写出过时 pytest/vitest 计数。
+# 非阻塞性:把发现登记到日志与 GitHub Step Summary,默认不失败 PR;
+#          若需要硬阻塞,把环境变量 DOC_LINT_STRICT=1 打开。
+# =============================================================================
+name: doc-lint
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  doc-drift:
+    name: 文档数字与路径现状核查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装 pyyaml
+        run: pip install pyyaml
+
+      - name: 文档数字 vs 实际数字（4 项硬检查 + 1 项路径引用）
+        env:
+          DOC_LINT_STRICT: ${{ vars.DOC_LINT_STRICT }}
+        run: |
+          python <<'PY'
+          """文档漂移门禁 — 报告 vs 阻断(可配)。
+
+          检查项:
+            1. OpenAPI 端点数:文档自称 vs 契约 YAML grep '^  /' 数
+            2. pytest passed 数字:README/CLAUDE/ONBOARDING vs pytest --collect-only 数
+            3. golden_set 条数:evaluation/README vs wc -l 数
+            4. audit/ 目录:README/ONBOARDING/standards 的引用 vs 真实存在性
+          """
+          import os
+          import re
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          ROOT = Path('.')
+          findings: list[tuple[str, str, str]] = []  # (level, name, msg)
+          strict = os.environ.get('DOC_LINT_STRICT') == '1'
+
+          def actual_openapi_paths() -> int:
+              p = ROOT / 'starmap-contracts/openapi.yaml'
+              return sum(1 for line in p.read_text(encoding='utf-8').splitlines()
+                         if re.match(r'^  /', line))
+
+          def actual_golden_lines() -> int:
+              p = ROOT / 'evaluation/golden_set.jsonl'
+              return sum(1 for _ in p.open(encoding='utf-8'))
+
+          def doc_claim_openapi() -> int:
+              """抓 README/CLAUDE/standards/ONBOARDING 中带 'openapi' 上下文的数字声明。"""
+              patterns = [
+                  r'(\d+)\s*(?:paths|端点|endpoints|paths?)',
+                  r'openapi[^.\n]{0,30}?(\d+)',
+                  r'(\d+)\s*(?:条|个)?\s*(?:API|api|paths)',
+              ]
+              for f in ('README.md', 'CLAUDE.md', 'AGENTS.md', 'ONBOARDING.md'):
+                  p = ROOT / f
+                  if not p.exists():
+                      continue
+                  txt = p.read_text(encoding='utf-8')
+                  for pat in patterns:
+                      for m in re.finditer(pat, txt, re.IGNORECASE):
+                          try:
+                              n = int(m.group(1))
+                              if 50 <= n <= 500:  # 排除过小/过大噪声
+                                  return n
+                          except ValueError:
+                              continue
+              return -1
+
+          def doc_claim_golden() -> int:
+              for f in ('README.md', 'CLAUDE.md', 'AGENTS.md'):
+                  p = ROOT / f
+                  if not p.exists():
+                      continue
+                  txt = p.read_text(encoding='utf-8')
+                  m = re.search(r'golden[_-]?set[^.\n]{0,30}?(\d+)', txt, re.IGNORECASE)
+                  if m:
+                      return int(m.group(1))
+              return -1
+
+          # ---- 检查 1: OpenAPI 端点数 ----
+          actual_paths = actual_openapi_paths()
+          doc_openapi = doc_claim_openapi()
+          if doc_openapi > 0 and abs(doc_openapi - actual_paths) > 5:
+              findings.append((
+                  'HIGH', 'openapi_paths',
+                  f'docs claim {doc_openapi} paths, yaml has {actual_paths} (delta {abs(doc_openapi - actual_paths)})',
+              ))
+          elif doc_openapi > 0:
+              findings.append(('OK', 'openapi_paths', f'docs {doc_openapi} ≈ yaml {actual_paths}'))
+
+          # ---- 检查 2: pytest passed 数字(信息性)----
+          pytest_claim = -1
+          for f in ('README.md', 'ONBOARDING.md', 'CLAUDE.md'):
+              p = ROOT / f
+              if not p.exists():
+                  continue
+              m = re.search(r'(\d{3,5})\s*(?:passed|pass)', (p.read_text(encoding='utf-8')), re.IGNORECASE)
+              if m:
+                  pytest_claim = int(m.group(1))
+                  break
+          if pytest_claim > 0:
+              findings.append(('INFO', 'pytest_passed', f'last doc claim: {pytest_claim} (run pytest to verify)'))
+
+          # ---- 检查 3: golden_set 条数 ----
+          actual_g = actual_golden_lines()
+          doc_g = doc_claim_golden()
+          if doc_g > 0 and doc_g != actual_g:
+              findings.append((
+                  'HIGH', 'golden_set',
+                  f'docs claim {doc_g} lines, jsonl has {actual_g} (delta {abs(doc_g - actual_g)})',
+              ))
+          elif doc_g > 0:
+              findings.append(('OK', 'golden_set', f'docs {doc_g} == jsonl {actual_g}'))
+
+          # ---- 检查 4: audit/ 目录引用(已删除必须报告)----
+          audit_mentions = subprocess.run(
+              ['git', 'grep', '-lE', r'audit/(00-summary|99-risk|98-ai)'],
+              cwd=str(ROOT), text=True, capture_output=True,
+          ).stdout.strip().splitlines()
+          if audit_mentions:
+              findings.append((
+                  'HIGH', 'audit_dir_stale',
+                  f'audit/ 已不存在,但 {len(audit_mentions)} 个文件仍引用它: {audit_mentions[:5]}',
+              ))
+          else:
+              findings.append(('OK', 'audit_dir_stale', 'no stale audit/ references'))
+
+          # ---- 报告 ----
+          md = ['# 文档漂移门禁报告\n']
+          counts = {'OK': 0, 'INFO': 0, 'HIGH': 0}
+          for level, name, msg in findings:
+              counts[level] += 1
+              md.append(f'- **{level}** · `{name}` — {msg}')
+          md.append('')
+          md.append('| 级别 | 数量 |')
+          md.append('|------|------|')
+          for k in ('HIGH', 'INFO', 'OK'):
+              md.append(f'| {k} | {counts[k]} |')
+          md.append('')
+          md.append(f'> 严格模式: `DOC_LINT_STRICT=1` (HIGH 项会让 PR 失败)')
+
+          summary_path = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary_path:
+              with open(summary_path, 'a', encoding='utf-8') as fh:
+                  fh.write('\n'.join(md))
+          print('\n'.join(md))
+
+          high = counts['HIGH']
+          if strict and high > 0:
+              print(f'STRICT mode: {high} HIGH findings → exit 1')
+              sys.exit(1)
+          if high > 0 and not strict:
+              print(f'WARN: {high} HIGH findings present (non-blocking by default)')
+          PY
+
+      - name: 总结
+        if: always()
+        run: |
+          echo "Doc-drift gate finished. See Step Summary for HIGH/INFO findings."

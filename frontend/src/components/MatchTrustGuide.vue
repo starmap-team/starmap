@@ -53,8 +53,8 @@ const trustBands: ScoreBand[] = [
   { threshold: 0,  label: '谨慎参考', color: '#f59e0b', description: '数据来源不足，结果仅供参考' },
 ]
 
-const matchBand = computed(() => bandFor(props.matchScore, matchBands))
-const trustBand = computed(() => bandFor(props.trustScore, trustBands))
+const matchBand = computed(() => bandFor(props.matchScore != null ? Math.round((props.matchScore ?? 0) * 100) : null, matchBands))
+const trustBand = computed(() => bandFor(props.trustScore != null ? Math.round((props.trustScore ?? 0) * 100) : null, trustBands))
 </script>
 
 <template>
@@ -72,7 +72,7 @@ const trustBand = computed(() => bandFor(props.trustScore, trustBands))
         </span>
         <div class="trust-text">
           <div class="trust-title">
-            匹配度: {{ matchScore ?? '—' }}
+            匹配度: {{ matchScore != null ? Math.round((matchScore ?? 0) * 100) + '%' : '—' }}
             <el-tag
               :style="{ background: matchBand.color + '18', color: matchBand.color, border: 'none' }"
               size="small"
@@ -109,7 +109,7 @@ const trustBand = computed(() => bandFor(props.trustScore, trustBands))
         </span>
         <div class="trust-text">
           <div class="trust-title">
-            信任度: {{ trustScore ?? '—' }}
+            信任度: {{ trustScore != null ? Math.round((trustScore ?? 0) * 100) + '%' : '—' }}
             <el-tag
               :style="{ background: trustBand.color + '18', color: trustBand.color, border: 'none' }"
               size="small"

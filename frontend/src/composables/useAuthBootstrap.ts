@@ -16,6 +16,12 @@ export async function useAuthBootstrap(): Promise<boolean> {
   const store = useUserStore()
   store.initUser()
 
+  // ponytail: dev-token short-circuit — backend dev mode accepts it,
+  // skip /auth/me (which 401s on the fake JWT) and trust cached user.
+  if (store.accessToken === 'dev-token') {
+    return store.user !== null
+  }
+
   const rt = store.refreshToken
   const at = store.accessToken
 

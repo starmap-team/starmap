@@ -1,7 +1,6 @@
-"""Unit tests for EmergenceFinder and PathRecommender."""
+"""Unit tests for EmergenceFinder."""
 
 from app.core.evolution.emergence_finder import EmergenceFinder, EmergenceLevel
-from app.core.evolution.path_recommender import PathRecommender
 
 
 class TestEmergenceFinder:
@@ -93,90 +92,3 @@ class TestEmergenceFinder:
         assert report.total_skills_analyzed == 3
         assert len(report.emerging) >= 1  # RAG
         assert len(report.declining) >= 1  # Perl
-
-
-class TestPathRecommender:
-    """Tests for EVOLVES_TO path discovery."""
-
-    def setup_method(self) -> None:
-        self.recommender = PathRecommender()
-
-    def test_jaccard_similarity(self) -> None:
-        """Jaccard similarity computation."""
-        sim, overlap = self.recommender.compute_similarity(
-            {"Python", "SQL", "Docker"},
-            {"Python", "SQL", "Go"},
-        )
-        assert abs(sim - 2 / 4) < 0.01  # 2 overlap / 4 union
-        assert set(overlap) == {"Python", "SQL"}
-
-    def test_no_overlap(self) -> None:
-        """No overlap → similarity 0."""
-        sim, overlap = self.recommender.compute_similarity(
-            {"Python", "SQL"},
-            {"Go", "Rust"},
-        )
-        assert sim == 0.0
-        assert overlap == []
-
-    def test_find_paths(self) -> None:
-        """Find paths with sufficient similarity and evidence."""
-        report = self.recommender.find_paths(
-            position_skills={
-                "Backend": {"Python", "SQL", "Docker", "Redis"},
-                "FullStack": {"Python", "SQL", "Docker", "JavaScript", "React"},
-                "Frontend": {"JavaScript", "React", "CSS", "HTML"},
-            },
-            evidence_counts={
-                "Backend->FullStack": 5,
-                "FullStack->Frontend": 2,
-                "Backend->Frontend": 1,
-            },
-            time_order={
-                "Backend": 1.0,
-                "FullStack": 2.0,
-                "Frontend": 3.0,
-            },
-        )
-        # Backend->FullStack: sim=3/6=0.5 < 0.6 → filtered out
-        # FullStack->Frontend: ev=2 < 3 → filtered out
-        # So no paths should pass all filters
-        assert report.total_pairs_analyzed == 6
-
-    def test_find_paths_high_similarity(self) -> None:
-        """Paths with high similarity and evidence pass filters."""
-        report = self.recommender.find_paths(
-            position_skills={
-                "Junior": {"Python", "SQL", "Git"},
-                "Senior": {"Python", "SQL", "Git", "Docker", "K8s"},
-            },
-            evidence_counts={"Junior->Senior": 5},
-            time_order={"Junior": 1.0, "Senior": 2.0},
-        )
-        # sim = 3/5 = 0.6 >= 0.6, ev=5 >= 3, time order correct
-        assert report.path_count == 1
-        assert report.paths[0].source_position == "Junior"
-        assert report.paths[0].target_position == "Senior"
-
-    def test_recommend_transitions(self) -> None:
-        """Recommend transitions from current position."""
-        recs = self.recommender.recommend_transitions(
-            current_position="Backend",
-            current_skills={"Python", "SQL", "Docker"},
-            position_skills={
-                "Backend": {"Python", "SQL", "Docker"},
-                "FullStack": {"Python", "SQL", "JavaScript", "React"},
-                "DataEng": {"Python", "SQL", "Spark", "Airflow"},
-                "Frontend": {"JavaScript", "React", "CSS"},
-            },
-        )
-        assert len(recs) > 0
-        # Backend → DataEng should rank high (Python+SQL overlap)
-        targets = [r.target_position for r in recs]
-        assert "DataEng" in targets
-
-    def test_empty_positions(self) -> None:
-        """Empty input → empty report."""
-        report = self.recommender.find_paths({})
-        assert report.path_count == 0
-        assert report.total_pairs_analyzed == 0

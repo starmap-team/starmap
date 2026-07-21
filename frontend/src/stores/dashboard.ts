@@ -1,10 +1,11 @@
-﻿/**
+/**
  * 数据大屏 Pinia store — Sprint 3.1
  * 聚合所有系统指标：图谱统计 + 来源分布 + 质量指标 + 实时处理量
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
+import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import type { EmergingSkill } from '@/types/evolution'
 
 // Re-export for backward compatibility
@@ -177,7 +178,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       const srcs = data.source_distribution || []
       const totalSrcCount = srcs.reduce((s, x) => s + (x.total_records ?? x.count ?? 0), 0) || 1
       sourceDistribution.value = srcs.map(s => ({
-        name: s.name,
+        name: getSourceNameLabel(s.name),
         count: s.total_records ?? s.count ?? 0,
         percentage: s.percentage ?? Math.round(((s.total_records ?? s.count ?? 0) / totalSrcCount) * 1000) / 10,
         trust: s.authority_score ?? s.trust ?? 0,

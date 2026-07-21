@@ -1,7 +1,8 @@
-﻿import { defineStore } from 'pinia'
+import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import request from '@/api/request'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'
+import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import type { QualityAlert } from '@/types/quality'
 
 // Re-export for backward compatibility
@@ -98,6 +99,13 @@ export const useQualityStore = defineStore('quality', () => {
         if (key !== 'report' && key in merged && data[key] !== undefined) {
           (merged as Record<string, unknown>)[key] = data[key]
         }
+      }
+      // 中文化数据源名称
+      if (merged.source_distribution && Array.isArray(merged.source_distribution)) {
+        merged.source_distribution = (merged.source_distribution as Array<{ name: string; count: number; trust: number }>).map(s => ({
+          ...s,
+          name: getSourceNameLabel(s.name),
+        }))
       }
       metrics.value = merged
     } finally {

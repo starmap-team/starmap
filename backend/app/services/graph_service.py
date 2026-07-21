@@ -9,9 +9,9 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Any
 
-from app.core.extraction.normalize import normalize_proficiency  # noqa: F401  (re-export)
 from app.services.graph_overview import (  # noqa: F401  (re-export)
     LEVEL_COLORS,
     TECH_STACK_COLORS,
@@ -185,6 +185,8 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
     """Fetch domain-grouped overview with KA nodes and connections.
 
     P1-3 fix: extracted from graph.py API route to keep route layer thin.
+    P1 fix: when no KnowledgeArea nodes exist, fallback to grouping by
+    Position.industry so the overview still shows meaningful clusters.
     """
     if driver is None:
         return {
@@ -200,15 +202,41 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
     _domain_colors = {
         "人工智能": "#9B59B6",
         "AI/机器学习": "#9B59B6",
+        "AI": "#9B59B6",
         "数据科学": "#E6A23C",
         "数据工程": "#E6A23C",
+        "数据库与存储": "#E6A23C",
         "前端工程": "#409EFF",
         "前端开发": "#409EFF",
         "后端架构": "#67C23A",
         "后端开发": "#67C23A",
         "云计算": "#36CFC9",
         "DevOps": "#36CFC9",
+        "云原生与基础设施": "#36CFC9",
+        "DevOps与运维": "#36CFC9",
+        "大数据": "#E6A23C",
+        "网络安全": "#F56C6C",
+        "编程语言与框架": "#E67E22",
+        "游戏开发": "#9B59B6",
+        "移动开发": "#1ABC9C",
+        "测试": "#95A5A6",
+        "测试与质量保障": "#95A5A6",
+        "嵌入式与物联网": "#607D8B",
+        "项目管理与协作": "#FF9800",
+        "设计": "#FF5722",
+        "区块链与Web3": "#FF9800",
+        "其他": "#F39C12",
+        "其他技能领域": "#F39C12",
+        "AI与机器学习": "#9B59B6",
+        "云原生": "#36CFC9",
     }
+
+    # Palette for domains not in the map above — prevents 灰色 flood
+    _fallback_palette = [
+        "#6366F1", "#8B5CF6", "#EC4899", "#F43F5E",
+        "#14B8A6", "#06B6D4", "#0EA5E9", "#84CC16",
+        "#EAB308", "#F97316", "#D946EF", "#10B981",
+    ]
 
     async with driver.session() as session:
         # Get all KA nodes with counts
@@ -224,6 +252,7 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
         domains = []
         total_pos = 0
         total_skill = 0
+        fallback_idx = 0  # Index into fallback palette for unmatched domains
         async for record in result:
             ka_node = record["ka"]
             if ka_node is None:
@@ -234,11 +263,11 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
             pc = record["pos_count"]
             total_skill += sc
             total_pos += pc
-            color = _domain_colors.get(name, "#909399")
-            for key, val in _domain_colors.items():
-                if key in name:
-                    color = val
-                    break
+            # Color resolution: exact match → palette rotation (no substring fallback)
+            color = _domain_colors.get(name)
+            if not color:
+                color = _fallback_palette[fallback_idx % len(_fallback_palette)]
+                fallback_idx += 1
             domains.append(
                 {
                     "id": str(ka_node.element_id),
@@ -251,9 +280,10 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
 
         # Get independent counts (single query, P1-2 fix pattern)
         count_result = await session.run(
-            "MATCH (p:Position), (s:Skill) "
-            "OPTIONAL MATCH ()-[r:REQUIRES]->() "
-            "RETURN count(DISTINCT p) AS pos_cnt, count(DISTINCT s) AS skill_cnt, count(r) AS edge_cnt"
+            "MATCH (p:Position) WITH count(p) AS pos_cnt "
+            "MATCH (s:Skill) WITH pos_cnt, count(s) AS skill_cnt "
+            "MATCH ()-[r:REQUIRES]->() "
+            "RETURN pos_cnt, skill_cnt, count(r) AS edge_cnt"
         )
         count_record = await count_result.single()
         if count_record:
@@ -265,27 +295,115 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
             independent_skill = 0
             independent_edge = 0
 
-        # Get KA-KA connections via shared positions
-        conn_query = """
-        MATCH (ka1:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[:REQUIRES]-(p:Position)-[:REQUIRES]->(s2:Skill)-[:BELONGS_TO]->(ka2:KnowledgeArea)
-        WHERE elementId(ka1) < elementId(ka2)
-        RETURN DISTINCT ka1, ka2
-        LIMIT 100
-        """
-        conn_result = await session.run(conn_query)
-        connections = []
-        async for record in conn_result:
-            ka1 = record["ka1"]
-            ka2 = record["ka2"]
-            if ka1 and ka2:
-                connections.append(
-                    {
-                        "source_id": str(ka1.element_id),
-                        "target_id": str(ka2.element_id),
-                        "type": "SHARES_POSITION",
-                        "properties": {"weight": 0.5},
-                    }
+        # ── Fallback: when no KA nodes, delegate to tech_stack classification ──
+        connections: list[dict[str, Any]] = []
+        if not domains and independent_pos > 0:
+            # No KnowledgeArea nodes in Neo4j — classify positions by tech stack
+            # using the same classifier as fetch_overview_by_tech_stack
+            from app.services.graph_overview import TECH_STACK_COLORS, _classify_tech_stack
+
+            groups: dict[str, dict[str, Any]] = {}
+            for stack, color in TECH_STACK_COLORS.items():
+                groups[stack] = {"positions": [], "skills": set(), "color": color}
+
+            pos_result = await session.run("MATCH (p:Position) RETURN p")
+            async for record in pos_result:
+                node = record["p"]
+                if node is None:
+                    continue
+                props = _safe_properties(node)
+                name = props.get("name", "")
+                industry = props.get("industry", "")
+                stack = _classify_tech_stack(industry, name)
+                groups[stack]["positions"].append({"id": _node_id(node), "name": name})
+
+            # Count skills per group
+            skill_result = await session.run(
+                "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
+                "RETURN p.name AS pos_name, p.industry AS pos_industry, collect(DISTINCT s.name) AS skills"
+            )
+            async for record in skill_result:
+                pos_name = record["pos_name"] or ""
+                pos_industry = record["pos_industry"] or ""
+                skills = record["skills"] or []
+                stack = _classify_tech_stack(pos_industry, pos_name)
+                for s in skills:
+                    groups[stack]["skills"].add(s)
+
+            # Build domain items
+            stack_id_prefix = {
+                "人工智能": "ts-ai",
+                "大数据": "ts-bigdata",
+                "前端开发": "ts-frontend",
+                "后端开发": "ts-backend",
+                "智能系统": "ts-sys",
+                "物联网": "ts-iot",
+                "云计算/DevOps": "ts-cloud",
+                "网络安全": "ts-sec",
+                "移动开发": "ts-mobile",
+                "测试": "ts-qa",
+                "区块链/Web3": "ts-blockchain",
+                "游戏开发": "ts-game",
+                "其他": "ts-other",
+            }
+            for stack, gdata in groups.items():
+                if not gdata["positions"] and not gdata["skills"]:
+                    continue
+                pc = len(gdata["positions"])
+                sc = len(gdata["skills"])
+                total_pos += pc
+                total_skill += sc
+                domains.append({
+                    "id": stack_id_prefix.get(stack, f"ts-{stack}"),
+                    "name": stack,
+                    "position_count": pc,
+                    "skill_count": sc,
+                    "color": gdata["color"],
+                })
+
+            # Build connections between tech stacks (shared skills)
+            if len(domains) > 1:
+                conn_result = await session.run(
+                    "MATCH (p1:Position)-[:REQUIRES]->(s:Skill)<-[:REQUIRES]-(p2:Position) "
+                    "WHERE p1.name < p2.name "
+                    "RETURN p1.name AS n1, p1.industry AS i1, p2.name AS n2, p2.industry AS i2, count(s) AS shared "
+                    "ORDER BY shared DESC LIMIT 50"
                 )
+                stack_connections: dict[tuple[str, str], int] = defaultdict(int)
+                async for record in conn_result:
+                    s1 = _classify_tech_stack(record["i1"] or "", record["n1"] or "")
+                    s2 = _classify_tech_stack(record["i2"] or "", record["n2"] or "")
+                    if s1 != s2:
+                        key = tuple(sorted([s1, s2]))
+                        stack_connections[key] += record["shared"] or 0
+                for (s1, s2), weight in stack_connections.items():
+                    connections.append({
+                        "source_id": stack_id_prefix.get(s1, f"ts-{s1}"),
+                        "target_id": stack_id_prefix.get(s2, f"ts-{s2}"),
+                        "type": "SHARES_SKILLS",
+                        "properties": {"weight": min(1.0, weight / 20.0)},
+                    })
+        else:
+            # Get KA-KA connections via shared positions
+            conn_query = """
+            MATCH (ka1:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[:REQUIRES]-(p:Position)-[:REQUIRES]->(s2:Skill)-[:BELONGS_TO]->(ka2:KnowledgeArea)
+            WHERE elementId(ka1) < elementId(ka2)
+            RETURN DISTINCT ka1, ka2
+            LIMIT 100
+            """
+            conn_result = await session.run(conn_query)
+            async for record in conn_result:
+                ka1 = record["ka1"]
+                ka2 = record["ka2"]
+                if ka1 and ka2:
+                    connections.append(
+                        {
+                            "source_id": str(ka1.element_id),
+                            "target_id": str(ka2.element_id),
+                            "type": "SHARES_POSITION",
+                            "properties": {"weight": 0.5},
+                        }
+                    )
 
     return {
         "domains": domains,

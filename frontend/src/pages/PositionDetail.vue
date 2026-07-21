@@ -114,9 +114,9 @@ async function loadFromPostgres(token: number) {
   try {
     const pgData = (await jdStore.fetchPositionDetail(positionName.value)) as unknown as Record<string, unknown>
     if (token !== fetchToken) return  // stale response, ignore
-    const pgRecord = pgData as { name?: string; industry?: string; description?: string; skills_required?: { skill_id?: string; name?: string; category?: string; proficiency?: string; confidence?: number; source_count?: number }[] }
+    const pgRecord = pgData as { name?: string; name_cn?: string; industry?: string; description?: string; skills_required?: { skill_id?: string; name?: string; category?: string; proficiency?: string; confidence?: number; source_count?: number }[] }
     position.value = {
-      name: pgRecord.name ?? positionName.value,
+      name: (pgRecord.name_cn || pgRecord.name) ?? positionName.value,
       industry: pgRecord.industry ?? '',
       description: pgRecord.description ?? '',
     }

@@ -1,14 +1,15 @@
-"""岗位管理 API — 接入 PostgreSQL position_records。"""
+"""岗位管理 API — 接入 PostgreSQL position_records，Neo4j fallback。"""
 from __future__ import annotations
 
 from typing import Annotated, Any
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Query
+from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db_session
+from app.dependencies import get_db_session, get_neo4j_driver
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
 router = APIRouter(prefix="/positions", tags=["岗位管理"])
@@ -33,10 +34,12 @@ class PositionNode(BaseModel):
     """契约中的 PositionNode。"""
     position_id: str = Field(..., description="岗位唯一标识")
     name: str = Field(..., description="岗位名称")
+    name_cn: str = Field(default="", description="岗位中文名称")
     industry: str = Field(..., description="所属行业")
     description: str = Field(..., description="岗位描述")
     skills_required: list[SkillNode] = Field(default_factory=list, description="岗位所需技能")
     discovered_at: str | None = Field(default=None, description="发现时间")
+    review_status: str | None = Field(default=None, description="审核状态")
 
 
 class PositionListResponse(BaseModel):
@@ -57,6 +60,7 @@ class PositionListResponse(BaseModel):
 )
 async def list_positions(
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
     page: Annotated[int, Query(ge=1, description="页码")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 20,
     industry: Annotated[str | None, Query(description="行业筛选")] = None,
@@ -83,6 +87,13 @@ async def list_positions(
     if effective_status is not None:
         count_stmt = count_stmt.where(PositionRecord.review_status == effective_status)
     total = (await session.execute(count_stmt)).scalar() or 0
+
+    # ── Neo4j fallback: when filtered PG count is 0, try Neo4j ──
+    # This handles the case where PG has records but none match the status filter
+    # (e.g., all PG positions are "pending_review" but user wants "approved").
+    # Neo4j positions without explicit review_status default to "approved".
+    if total == 0 and driver is not None:
+        return await _list_positions_neo4j(driver, page, page_size, industry, search, effective_status)
 
     # Fetch page
     stmt = sa.select(PositionRecord).order_by(PositionRecord.name)
@@ -119,10 +130,12 @@ async def list_positions(
         items.append(PositionNode(
             position_id=str(r.id),
             name=r.name or "",
+            name_cn=getattr(r, "name_cn", "") or "",
             industry=r.industry or "",
             description=r.description or "",
             skills_required=skill_map.get(r.id, []),
             discovered_at=r.created_at.isoformat() if r.created_at else None,
+            review_status=getattr(r, "review_status", None),
         ))
 
     return PositionListResponse(items=items, total=total, page=page, page_size=page_size)
@@ -136,6 +149,7 @@ async def list_positions(
 async def get_position(
     position_id: str,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> dict[str, Any]:
     import uuid as uuid_mod
 
@@ -143,8 +157,8 @@ async def get_position(
 
     r = None
 
-    # 尝试按 UUID 查询（仅当 ID 看起来像 UUID 时）
-    if len(position_id) >= 32:
+    # 尝试按 UUID 查询（仅当 ID 包含连字符的 UUID 或纯 hex 格式时）
+    if len(position_id) >= 32 and (len(position_id) <= 36):
         try:
             uuid_val = uuid_mod.UUID(position_id)
             stmt = sa.select(PositionRecord).where(PositionRecord.id == uuid_val)
@@ -157,33 +171,65 @@ async def get_position(
         stmt = sa.select(PositionRecord).where(PositionRecord.name == position_id)
         r = (await session.execute(stmt)).scalar_one_or_none()
 
-    if r is None:
-        raise HTTPException(status_code=404, detail=f"Position '{position_id}' not found")
-
-    skill_stmt = (
-        sa.select(SkillRecord, PositionSkillRelation)
-        .join(PositionSkillRelation, PositionSkillRelation.skill_id == SkillRecord.id)
-        .where(PositionSkillRelation.position_id == r.id)
-    )
-    skill_rows = (await session.execute(skill_stmt)).all()
-    skills = [
-        {
-            "skill_id": str(sk.id),
-            "name": sk.name,
-            "category": sk.category,
-            "confidence": float(rel.confidence or 1.0),
-            "source_count": sk.source_count or 0,
+    # PostgreSQL hit — return with skills
+    if r is not None:
+        skill_stmt = (
+            sa.select(SkillRecord, PositionSkillRelation)
+            .join(PositionSkillRelation, PositionSkillRelation.skill_id == SkillRecord.id)
+            .where(PositionSkillRelation.position_id == r.id)
+        )
+        skill_rows = (await session.execute(skill_stmt)).all()
+        skills = [
+            {
+                "skill_id": str(sk.id),
+                "name": sk.name,
+                "category": sk.category,
+                "confidence": float(rel.confidence or 1.0),
+                "source_count": sk.source_count or 0,
+            }
+            for sk, rel in skill_rows
+        ]
+        return {
+            "position_id": str(r.id),
+            "name": r.name,
+            "name_cn": getattr(r, "name_cn", "") or "",
+            "industry": r.industry,
+            "description": r.description,
+            "skills_required": skills,
+            "discovered_at": r.created_at.isoformat() if r.created_at else None,
         }
-        for sk, rel in skill_rows
-    ]
-    return {
-        "position_id": str(r.id),
-        "name": r.name,
-        "industry": r.industry,
-        "description": r.description,
-        "skills_required": skills,
-        "discovered_at": r.created_at.isoformat() if r.created_at else None,
-    }
+
+    # ── Neo4j fallback: query Position node by name ──
+    if driver is not None:
+        try:
+            from app.services.graph_service import fetch_position_graph
+
+            graph = await fetch_position_graph(driver, position_id, depth=1)
+            if graph.get("position") is not None:
+                pos = graph["position"]
+                skills = [
+                    {
+                        "skill_id": s.get("skill_id", ""),
+                        "name": s.get("name", ""),
+                        "category": s.get("category", "hard_skill"),
+                        "confidence": float(s.get("confidence", 1.0)),
+                        "source_count": int(s.get("source_count", 0) or 0),
+                    }
+                    for s in graph.get("skills", [])
+                ]
+                return {
+                    "position_id": pos.get("position_id", ""),
+                    "name": pos.get("name", ""),
+                    "name_cn": pos.get("name_cn", pos.get("name", "")),
+                    "industry": pos.get("industry", ""),
+                    "description": pos.get("description", ""),
+                    "skills_required": skills,
+                    "discovered_at": None,
+                }
+        except Exception as exc:
+            logger.debug("[positions/detail] Neo4j fallback failed: {}", exc)
+
+    raise HTTPException(status_code=404, detail=f"Position '{position_id}' not found")
 
 
 @router.post("/discover", summary="触发岗位发现流程")
@@ -238,3 +284,97 @@ async def discover_position(
         from loguru import logger
         logger.exception("Position discovery failed: {}", e)
         raise HTTPException(status_code=500, detail="Position discovery failed, please try again later") from e
+
+
+# ── Neo4j fallback for position list ──
+
+async def _list_positions_neo4j(
+    driver: Any,
+    page: int,
+    page_size: int,
+    industry: str | None,
+    search: str | None,
+    status_filter: str | None = None,
+) -> PositionListResponse:
+    """Fallback: query Position nodes from Neo4j when PostgreSQL has no matching records.
+
+    Positions without explicit review_status default to 'approved' for public view.
+    Supports status filtering (default: only show approved for public).
+    """
+    try:
+        async with driver.session() as session:
+            # Build dynamic WHERE clauses
+            where_clauses: list[str] = []
+            params: dict[str, Any] = {}
+
+            if search:
+                where_clauses.append("toLower(p.name) CONTAINS toLower($search)")
+                params["search"] = search
+            if industry:
+                where_clauses.append("toLower(p.industry) CONTAINS toLower($industry)")
+                params["industry"] = industry
+            # Status filter: Neo4j positions without review_status default to 'approved'
+            if status_filter and status_filter != "all":
+                if status_filter == "approved":
+                    where_clauses.append("(p.review_status IS NULL OR p.review_status = $status)")
+                else:
+                    where_clauses.append("p.review_status = $status")
+                params["status"] = status_filter
+
+            where_str = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+            # Count total
+            count_query = f"MATCH (p:Position){where_str} RETURN count(p) AS cnt"
+            count_result = await session.run(count_query, params)
+            count_record = await count_result.single()
+            total = count_record["cnt"] if count_record else 0
+
+            if total == 0:
+                return PositionListResponse(items=[], total=0, page=page, page_size=page_size)
+
+            # Fetch page with skills
+            page_query = f"""
+                MATCH (p:Position){where_str}
+                WITH p ORDER BY p.name
+                SKIP $skip LIMIT $limit
+                OPTIONAL MATCH (p)-[r:REQUIRES]->(s:Skill)
+                RETURN p, collect(s) AS skills
+            """
+            page_params = {**params, "skip": (page - 1) * page_size, "limit": page_size}
+            page_result = await session.run(page_query, page_params)
+
+            items: list[PositionNode] = []
+            async for record in page_result:
+                p_node = record["p"]
+                if p_node is None:
+                    continue
+                props = dict(p_node)
+                skills_raw = record["skills"] or []
+
+                skill_nodes: list[SkillNode] = []
+                for s in skills_raw:
+                    if s is None:
+                        continue
+                    s_props = dict(s)
+                    skill_nodes.append(SkillNode(
+                        skill_id=str(s.element_id),
+                        name=s_props.get("name", ""),
+                        category=s_props.get("category", "hard_skill"),
+                        confidence=float(s_props.get("confidence", 1.0)),
+                        source_count=int(s_props.get("source_count", 0) or 0),
+                    ))
+
+                items.append(PositionNode(
+                    position_id=str(p_node.element_id),
+                    name=props.get("name", ""),
+                    name_cn=props.get("name_cn", ""),
+                    industry=props.get("industry", ""),
+                    description=props.get("description", ""),
+                    skills_required=skill_nodes,
+                    discovered_at=None,
+                ))
+
+            return PositionListResponse(items=items, total=total, page=page, page_size=page_size)
+    except Exception as exc:
+        logger.warning("[positions] Neo4j fallback failed: {}", exc)
+        return PositionListResponse(items=[], total=0, page=page, page_size=page_size)

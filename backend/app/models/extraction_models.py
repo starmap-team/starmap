@@ -353,6 +353,8 @@ class PositionRecord(Base):
     # 业务说明：职位标准名称，全局唯一
     # 技术说明：unique=True确保职位名称唯一性，index加速职位查询
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    # 业务说明：职位中文名称，用于前端中文展示
+    name_cn: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # 业务说明：职位所属行业，如"互联网"、"金融"、"制造业"等
     industry: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # 业务说明：职位描述，存储职位的通用职责和要求说明

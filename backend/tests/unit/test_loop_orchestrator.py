@@ -245,7 +245,7 @@ class TestStep3GraphUpdateWithDriver:
         orch = LoopOrchestrator()
         mock_driver = object()
         with patch("app.services.resources.resources", type("R", (), {"neo4j_driver": mock_driver})()), \
-             patch("app.services.graph_service.sync_from_pipeline", new=AsyncMock(return_value={"synced": False, "error": "test error"})):
+             patch("app.services.graph_sync.sync_from_pipeline", new=AsyncMock(return_value={"synced": False, "error": "test error"})):
             result = await orch._step3_graph_update("run-1", {})
         assert result.status == StepStatus.FAILED
 
@@ -257,7 +257,7 @@ class TestStep3GraphUpdateWithDriver:
         orch = LoopOrchestrator()
         mock_driver = object()
         with patch("app.services.resources.resources", type("R", (), {"neo4j_driver": mock_driver})()), \
-             patch("app.services.graph_service.sync_from_pipeline", new=AsyncMock(return_value={"synced": True, "nodes": 5, "edges": 3})):
+             patch("app.services.graph_sync.sync_from_pipeline", new=AsyncMock(return_value={"synced": True, "nodes": 5, "edges": 3})):
             result = await orch._step3_graph_update("run-1", {"skills": [{"name": "Python"}]})
         assert result.status == StepStatus.SUCCESS
 

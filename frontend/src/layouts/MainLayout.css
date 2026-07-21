@@ -187,7 +187,7 @@
 }
 .sidebar-collapsed .main-wrapper { margin-left: var(--sidebar-width-collapsed); }
 
-/* Mobile Header */
+/* Mobile Header — only visible when sidebar is hidden (<1024px) */
 .mobile-header {
   display: none;
   align-items: center;
@@ -200,7 +200,7 @@
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: var(--z-sticky);
+  z-index: calc(var(--z-sticky) - 1);
 }
 .mobile-brand {
   display: flex;
@@ -327,8 +327,10 @@
   cursor: pointer;
   transition: all var(--duration-normal) var(--ease-out);
   flex-shrink: 0;
-  opacity: 0.5;
+  opacity: 0.7;
   margin: 0 var(--space-3) var(--space-2) auto;
+  position: relative;
+  z-index: 1;
 }
 .sidebar-collapse-btn:hover {
   opacity: 1;

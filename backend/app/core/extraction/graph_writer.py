@@ -96,7 +96,8 @@ def _node_ref(label: str, name: str, properties: dict[str, Any] | None = None) -
         raise ValueError("Graph node name cannot be empty")
     props = _clean_properties(properties)
     props.setdefault("name", name)
-    props.setdefault("category", label)
+    # Do NOT set category=label — category is a semantic field (e.g. hard_skill/soft_skill),
+    # not the Neo4j node label. The label is already stored in the node's label set.
     return GraphNodeRef(label=label, name=name, properties=props)
 
 
@@ -210,9 +211,13 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
     fields such as industry, prerequisites, learning resources, and evolution hints
     are mapped when present.
     """
-    position_name = str(extraction.get("position_name") or extraction.get("name") or "").strip()
-    if not position_name:
-        raise ValueError("Extraction result is missing position_name")
+    position_name = str(
+        extraction.get("position_name")
+        or extraction.get("name")
+        or extraction.get("job_title")
+        or "未知职位"
+    ).strip()
+
 
     position = _node_ref(
         NODE_POSITION,
@@ -453,10 +458,12 @@ async def merge_position(driver: Any, position_data: dict[str, Any]) -> dict[str
     """
     from neo4j.exceptions import Neo4jError
 
-    name = position_data.get("name", position_data.get("position_name", "Unknown"))
+    name = position_data.get("name") or position_data.get("position_name") or position_data.get("job_title") or "未知职位"
+    name_cn = position_data.get("name_cn", "")
     query = """
     MERGE (p:Position {name: $name})
     SET p.updated_at = datetime(),
+        p.name_cn = $name_cn,
         p.experience_required = $experience_required,
         p.education_required = $education_required
     RETURN p
@@ -466,6 +473,7 @@ async def merge_position(driver: Any, position_data: dict[str, Any]) -> dict[str
             result = await session.run(
                 query,
                 name=name,
+                name_cn=name_cn,
                 experience_required=position_data.get("experience_required"),
                 education_required=position_data.get("education_required"),
             )
@@ -603,9 +611,13 @@ async def write_extraction_to_graph(
     Returns:
         Summary dict with counts of created nodes/relationships.
     """
-    position_name = str(extraction.get("position_name") or extraction.get("name") or "").strip()
-    if not position_name:
-        raise ValueError("Extraction result is missing position_name")
+    position_name = str(
+        extraction.get("position_name")
+        or extraction.get("name")
+        or extraction.get("job_title")
+        or "未知职位"
+    ).strip()
+
 
     # Step 1: Merge Position node using standalone retry-enabled function
     try:

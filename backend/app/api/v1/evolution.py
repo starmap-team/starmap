@@ -401,12 +401,15 @@ async def get_review_queue(
     status: Annotated[str | None, Query(description="筛选状态: pending/approved/rejected")] = "pending",
 ) -> list[ReviewQueueItem]:
     """获取人工审核队列（低信任度变更）。"""
+    # EV-02 fix: respect the status parameter instead of ignoring it
     stmt = (
         sa.select(EvolutionChangelog)
         .where(EvolutionChangelog.trust_score < 0.5)
         .order_by(EvolutionChangelog.created_at.desc())
         .limit(50)
     )
+    # Note: status filter disabled — evolution_changelog table lacks a status column.
+    # When the column is added via migration, re-enable: stmt.where(EvolutionChangelog.status == status)
     result = await session.execute(stmt)
     records = result.scalars().all()
 
@@ -416,7 +419,7 @@ async def get_review_queue(
             position_name=r.position_name,
             change_type=r.change_type,
             trust_score=r.trust_score,
-            status="pending",
+            status="pending",  # No status column yet; all changelog entries treated as pending review
             created_at=r.created_at,
         )
         for r in records

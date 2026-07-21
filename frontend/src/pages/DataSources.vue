@@ -4,7 +4,8 @@
  * 网格卡片布局展示5个数据源（BOSS/拉勾/51Job/GitHub/ESCO）
  * 每个卡片含：权威度评分环形图、日采集量柱状图、数据质量评分、最后同步时间、一键同步按钮
  */
-import { onMounted } from 'vue'
+import { onMounted, ref, computed } from 'vue'
+import { ElMessage } from 'element-plus'
 import { Connection, Coin, DataLine, RefreshRight, WarningFilled } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -22,9 +23,8 @@ import {
   getSourceTypeLabel,
   formatLastCrawl,
   formatRecords,
+  getSourceNameLabel,
 } from '@/composables/useDataSourceCharts'
-import { useDataSourceSync } from '@/composables/useDataSourceActions'
-import { useDataSourceSummary } from '@/composables/useDataSourceSummary'
 
 use([GaugeChart, BarChart, TooltipComponent, GridComponent])
 
@@ -32,8 +32,20 @@ const dsStore = useDataSourceStore()
 // ponytail: chartColors re-exported for template KPI card :style bindings
 const cc = chartColors()
 
-const { syncingIds, handleSync } = useDataSourceSync(dsStore)
-const summaryStats = useDataSourceSummary(dsStore)
+// DataSource sync + summary (inlined from useDataSourceActions + useDataSourceSummary)
+const syncingIds = ref(new Set<string>())
+function isSyncing(id: string) { return syncingIds.value.has(id) }
+async function handleSync(source: typeof dsStore.sources[number]) {
+  if (syncingIds.value.has(source.id)) return
+  syncingIds.value.add(source.id)
+  try { const ok = await dsStore.triggerSync(source.id); ElMessage[ok ? 'success' : 'error'](`${getSourceNameLabel(source.name)} ${ok ? '同步已触发' : '同步失败'}`) }
+  catch { ElMessage.error(`${getSourceNameLabel(source.name)} 同步失败`) }
+  finally { syncingIds.value.delete(source.id) }
+}
+const summaryStats = computed(() => {
+  const src = dsStore.sources
+  return { total: src.length, active: src.filter((s: any) => s.status === 'active').length, totalRecords: src.reduce((sum: number, s: any) => sum + s.total_records, 0), avgQuality: src.length ? src.reduce((sum: number, s: any) => sum + s.avg_quality_score, 0) / src.length : 0 }
+})
 
 onMounted(() => {
   dsStore.fetchSources()
@@ -245,7 +257,7 @@ onMounted(() => {
             <!-- 卡片头部 -->
             <div class="card-header">
               <div class="card-title-group">
-                <span class="card-name">{{ source.name }}</span>
+                <span class="card-name">{{ getSourceNameLabel(source.name) }}</span>
                 <el-tag
                   :type="asTagType(getStatusBadge(source.status).type)"
                   size="small"

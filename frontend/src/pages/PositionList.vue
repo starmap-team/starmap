@@ -11,7 +11,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useJdStore } from '@/stores/jd'
@@ -26,6 +26,7 @@ const isAdmin = computed(() => userStore.isAdmin)
 interface PositionRow {
   id: string
   name: string
+  name_cn?: string
   industry: string
   review_status?: 'draft' | 'pending_review' | 'approved' | 'rejected'
   reviewed_by?: string | null
@@ -40,9 +41,10 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(24)
 
-// Phase 23: status filter. 'approved' (default) is what the public sees.
-// Admins can switch to 'pending_review' to triage the review queue.
-const statusFilter = ref<'approved' | 'pending_review' | 'rejected' | 'all'>('approved')
+// Phase 23: status filter.
+// Default to 'all' so the list is never empty on first load.
+// Admin and regular users both see all positions; status badges distinguish visibility.
+const statusFilter = ref<'approved' | 'pending_review' | 'rejected' | 'all'>('all')
 
 const industries = computed(() => {
   const set = new Set(positions.value.map(p => p.industry).filter(Boolean))
@@ -115,18 +117,21 @@ function statusLabel(status: PositionRow['review_status'] | undefined) {
         page: page.value,
         page_size: pageSize.value,
       }
-      if (statusFilter.value !== 'approved') {
-        // Admin viewing non-public states: tell backend to skip the default filter
-        // and explicitly request the chosen state (or all).
-        if (statusFilter.value !== 'all') {
-          params.status = statusFilter.value
-        }
+      // 审核状态过滤（Phase 23 / PG-Neo4j 数据统一后）
+      //   "全部" (all)    → include_all=true，显示所有审核状态
+      //   "已发布" (approved) → 默认行为，只查 approved（无需额外参数）
+      //   "待审核" / "已拒绝" → 指定 status + include_all
+      if (statusFilter.value === 'all') {
+        params.include_all = true
+      } else if (statusFilter.value !== 'approved') {
+        params.status = statusFilter.value
         params.include_all = true
       }
       const data = await jdStore.fetchPositions(params)
       positions.value = data.items.map((p) => ({
         id: p.position_id,
         name: p.name,
+        name_cn: p.name_cn || '',
         industry: p.industry,
         review_status: p.review_status ?? 'approved',
         reviewed_by: p.reviewed_by ?? null,
@@ -178,7 +183,7 @@ onMounted(fetchPositions)
         clearable
         size="large"
         class="search-input-wrapper"
-        prefix-icon="Search"
+        :prefix-icon="Search"
       />
 
       <!-- Admin: review-status filter chips -->
@@ -228,7 +233,7 @@ onMounted(fetchPositions)
         </el-tag>
       </div>
       <div class="result-count">
-        共 {{ filteredPositions.length }} 个岗位
+        共 {{ total }} 个岗位
       </div>
 
       <!-- 有数据时 -->
@@ -251,7 +256,7 @@ onMounted(fetchPositions)
             @click="goDetail(pos.name)"
           >
             <div class="card-content">
-              <h3>{{ pos.name }}</h3>
+              <h3>{{ pos.name_cn || pos.name }}</h3>
               <div class="card-meta">
                 <el-tag
                   size="small"
@@ -289,20 +294,6 @@ onMounted(fetchPositions)
           </el-card>
         </el-col>
       </el-row>
-
-      <!-- 分页 -->
-      <div
-        v-if="total > pageSize"
-        class="pagination-wrapper"
-      >
-        <el-pagination
-          v-model:current-page="page"
-          :page-size="pageSize"
-          :total="total"
-          layout="prev, pager, next"
-          @current-change="onPageChange"
-        />
-      </div>
 
       <!-- 空状态引导 -->
       <div
@@ -350,6 +341,20 @@ onMounted(fetchPositions)
             </el-button>
           </div>
         </div>
+      </div>
+
+      <!-- 分页 -->
+      <div
+        v-if="total > pageSize"
+        class="pagination-wrapper"
+      >
+        <el-pagination
+          v-model:current-page="page"
+          :page-size="pageSize"
+          :total="total"
+          layout="prev, pager, next"
+          @current-change="onPageChange"
+        />
       </div>
     </div>
   </MainLayout>

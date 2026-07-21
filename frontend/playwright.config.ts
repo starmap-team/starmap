@@ -15,6 +15,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    storageState: 'e2e/auth-state.json',
   },
   projects: [
     {

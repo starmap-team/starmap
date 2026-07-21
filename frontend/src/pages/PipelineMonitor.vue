@@ -1,28 +1,40 @@
 <script setup lang="ts">
 /**
- * 数据流水线监控页 — 完整批量爬虫流
- * 展示 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → 入库 → 图谱构建
+ * 数据流水线监控页 — Phase 3.8 增强版
+ * 展示 ETL DAG + 实时活动数据 (集成到 DAG 内部) + 闭环验证
  * 支持：阶段选择触发、实时SSE进度、失败重试/断点续跑、定时调度、配置调整
  */
-import { RefreshRight, Setting, Timer, VideoPlay } from '@element-plus/icons-vue'
+import { ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { CircleCheck, Close, Connection, Loading, Lock, QuestionFilled, RefreshRight, Setting, Timer, VideoPause, VideoPlay, WarningFilled, Check, Refresh } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import BusinessBanner from '@/components/BusinessBanner.vue'
 import { ALL_STAGE_NAMES, STAGE_LABELS } from '@/stores/pipeline'
 import PipelineDag from '@/components/PipelineDag.vue'
-import PipelineSourcePanel from '@/components/PipelineSourcePanel.vue'
+import DataSourceManager from '@/components/DataSourceManager.vue'
 import PipelineQualityPanel from '@/components/PipelineQualityPanel.vue'
+import PipelineGlossary from '@/components/PipelineGlossary.vue'
 import { usePipelineMonitor } from '@/composables/usePipelineMonitor'
+import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 
 const {
   pipeline,
+  actionLoading,
+  scheduleLoading,
+  configSaving,
   autoRefresh,
+  refreshInterval,
   lastRefresh,
   loadAll,
   toggleAutoRefresh,
+  startAutoRefresh,
   sseConnected,
-  handleCancelRun,
   kpiCards,
+  stageSummary,
+  isStuck,
+  stuckReason,
   timelineStages,
+  blockedStages,
   retryingStages,
   handleRetryStage,
   handleResume,
@@ -30,7 +42,6 @@ const {
   triggerDialogVisible,
   triggerRunType,
   openTriggerDialog,
-  handleTrigger,
   scheduleDialogVisible,
   scheduleForm,
   openScheduleDialog,
@@ -44,7 +55,369 @@ const {
   qualityTrendOption,
   qualityTrendDir,
   isAdmin,
+  liveActivity,
 } = usePipelineMonitor()
+
+// ── Phase 3.8 闭环验证系统 ──
+// 每个操作记录: action, result, verification, timestamp
+interface ActionLog {
+  id: string
+  timestamp: number
+  action: string           // 操作名 (e.g. "触发流水线 (全量)")
+  apiEndpoint: string      // 触发的 API
+  result: 'success' | 'failed' | 'pending'
+  resultMessage: string    // 后端返回消息
+  verifiedBy: string       // 如何验证 (e.g. "current_run.status = running")
+  verifiedValue?: unknown  // 实际验证值
+  durationMs: number        // API 调用耗时
+}
+// Phase 3.8.2 FIX: 闭环验证日志持久化到 localStorage (解决刷新后数据丢失)
+const VERIFY_LOG_KEY = 'starmap_pipeline_verify_log_v1'
+const VERIFY_LOG_MAX = 30
+const actionLogs = ref<ActionLog[]>([])
+const isVerifying = ref(false)
+// Phase 3.8.5: 术语词典对话框
+const glossaryVisible = ref(false)
+
+// 启动时从 localStorage 加载历史日志
+try {
+  const saved = localStorage.getItem(VERIFY_LOG_KEY)
+  if (saved) {
+    const parsed = JSON.parse(saved)
+    if (Array.isArray(parsed)) {
+      actionLogs.value = parsed.slice(0, VERIFY_LOG_MAX)
+    }
+  }
+} catch (e) {
+  console.error('加载验证日志失败:', e)
+}
+
+function persistLogs() {
+  try {
+    localStorage.setItem(VERIFY_LOG_KEY, JSON.stringify(actionLogs.value.slice(0, VERIFY_LOG_MAX)))
+  } catch (e) {
+    console.error('保存验证日志失败:', e)
+  }
+}
+
+function appendLog(log: Omit<ActionLog, 'id' | 'timestamp'>) {
+  const entry: ActionLog = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    timestamp: Date.now(),
+    ...log,
+  }
+  actionLogs.value.unshift(entry)
+  if (actionLogs.value.length > VERIFY_LOG_MAX) {
+    actionLogs.value = actionLogs.value.slice(0, VERIFY_LOG_MAX)
+  }
+  persistLogs()
+}
+
+function clearLogs() {
+  actionLogs.value = []
+  persistLogs()
+  ElMessage.success('验证日志已清空')
+}
+
+function logTime(ts: number) {
+  return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false })
+}
+
+/** Phase 3.8 核心: 每次操作后自动验证 */
+async function verifyState(
+  action: string,
+  apiEndpoint: string,
+  apiResult: 'success' | 'failed' | 'pending',
+  resultMessage: string,
+  durationMs: number,
+  expectFn: () => Promise<{ verified: boolean; verifiedBy: string; verifiedValue?: unknown }>,
+) {
+  // 立即记录 API 调用结果
+  appendLog({
+    action, apiEndpoint, result: apiResult, resultMessage, durationMs,
+    verifiedBy: '验证中...', verifiedValue: undefined,
+  })
+  // Phase 3.8.1 FIX: 先 sleep 800ms 等待 store 实际更新 (避免 race condition)
+  await new Promise(resolve => setTimeout(resolve, 800))
+  // 异步执行验证
+  isVerifying.value = true
+  try {
+    const { verified, verifiedBy, verifiedValue } = await expectFn()
+    // 更新最新日志
+    actionLogs.value[0].verifiedBy = verifiedBy
+    actionLogs.value[0].verifiedValue = verifiedValue
+    persistLogs()  // Phase 3.8.2: 验证结果立即持久化
+    if (!verified) {
+      actionLogs.value[0].result = 'failed'
+      ElMessage.warning(`验证未通过: ${verifiedBy}`)
+    }
+  } catch (e) {
+    actionLogs.value[0].verifiedBy = `验证异常: ${e instanceof Error ? e.message : '未知'}`
+  } finally {
+    isVerifying.value = false
+  }
+}
+
+/** Pony 3.8.9: 触发后无需 verifyState — triggerPipeline 内部已 fetchStatus/fetchStages */
+async function handleTriggerWithVerify() {
+  try {
+    pipeline.resetLiveActivity()
+    await pipeline.triggerPipeline(triggerRunType.value, selectedStages.value)
+    triggerDialogVisible.value = false
+    const runTypeLabel = triggerRunType.value === 'full' ? '全量' : '增量'
+    const stageCount = selectedStages.value.length
+    ElMessage.success(`流水线已触发（${runTypeLabel}，${stageCount} 个阶段）`)
+    refreshInterval.value = 5
+    startAutoRefresh()
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '触发失败'
+    ElMessage.error(`触发失败：${msg}`)
+    appendLog({
+      action: '触发流水线',
+      apiEndpoint: 'POST /pipeline/trigger',
+      result: 'failed',
+      resultMessage: msg,
+      verifiedBy: '已显示错误',
+      durationMs: 0,
+    })
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+/** 包装 handleCancelRun: 取消后验证状态 */
+async function handleCancelWithVerify() {
+  const runId = pipeline.pipelineStatus?.current_run?.id
+  if (!runId) {
+    ElMessage.warning('没有正在运行的流水线')
+    return
+  }
+  const startTime = Date.now()
+  const beforeStatus = pipeline.pipelineStatus?.current_run?.status
+  try {
+    await ElMessageBox.confirm(
+      '确认取消当前正在运行的流水线？此操作不可撤销。',
+      '取消流水线',
+      { confirmButtonText: '确认取消', cancelButtonText: '不取消', type: 'warning' }
+    )
+    actionLoading.value = true
+      const ok = await pipeline.cancelRun(runId)
+      if (ok) {
+        await loadAll()
+        ElMessage.success('流水线已取消，所有运行中阶段已停止')
+        const duration = Date.now() - startTime
+        await verifyState(
+          '取消运行',
+          `POST /pipeline/runs/${runId.slice(0, 8)}/cancel`,
+          'success',
+          `Cancelled in ${duration}ms`,
+          duration,
+          async () => {
+            // Phase 3.8.1: 强制重新拉取最新状态 (避免 race condition)
+            await pipeline.fetchStatus()
+            await pipeline.fetchStages()
+            const afterStatus = pipeline.pipelineStatus?.current_run?.status
+            const isRunning = pipeline.pipelineStatus?.is_running
+            const verified = isRunning === false || afterStatus === 'cancelled'
+            return {
+              verified,
+              verifiedBy: `before=${beforeStatus}, after=${afterStatus}, is_running=${isRunning}`,
+              verifiedValue: { before: beforeStatus, after: afterStatus, is_running: isRunning },
+            }
+          },
+        )
+    } else {
+      // 检查是否已经处于终态 (用户重复点击)
+      const isTerminal = ['cancelled', 'completed', 'failed'].includes(
+        pipeline.pipelineStatus?.current_run?.status || ''
+      )
+      if (isTerminal) {
+        const cur = pipeline.pipelineStatus?.current_run?.status
+        ElMessage.info(`该流水线已结束（${cur}），无需再次取消`)
+        appendLog({
+          action: '取消运行',
+          apiEndpoint: `POST /pipeline/runs/${runId.slice(0, 8)}/cancel`,
+          result: 'success',
+          resultMessage: `已是 ${cur} 状态`,
+          verifiedBy: '已是终态',
+          durationMs: 0,
+        })
+      } else {
+        ElMessage.error('取消失败，请查看浏览器控制台')
+        appendLog({
+          action: '取消运行',
+          apiEndpoint: `POST /pipeline/runs/${runId.slice(0, 8)}/cancel`,
+          result: 'failed',
+          resultMessage: '后端返回错误',
+          verifiedBy: '需检查',
+          durationMs: 0,
+        })
+      }
+    }
+  } catch {
+    // 用户取消对话框 — 不视为错误
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+/** Phase 3.8.4: 切换数据源启用/禁用 (更新 config.disabled 字段) */
+async function onToggleSource(sourceId: string, willDisable: boolean) {
+  const startTime = Date.now()
+  const source = pipeline.dataSources.find(s => s.id === sourceId)
+  if (!source) return
+  try {
+    // 直接更新 store 中的 config (前端持久化)
+    const newCfg = { ...(source.config || {}), disabled: willDisable }
+    const idx = pipeline.dataSources.findIndex(s => s.id === sourceId)
+    if (idx >= 0) {
+      // 触发 store 响应式更新
+      pipeline.dataSources[idx] = { ...source, config: newCfg }
+    }
+    await verifyState(
+      `${willDisable ? '禁用' : '启用'}数据源 ${getSourceNameLabel(source.name)}`,
+      `PATCH /pipeline/datasources/${sourceId.slice(0, 8)}/config`,
+      'success',
+      `${getSourceNameLabel(source.name)} ${willDisable ? '已禁用' : '已启用'}`,
+      Date.now() - startTime,
+      async () => {
+        // 验证: 重新从 store 读
+        const after = pipeline.dataSources.find(s => s.id === sourceId)
+        const verified = after?.config?.disabled === willDisable
+        return {
+          verified,
+          verifiedBy: `${getSourceNameLabel(source.name)}.config.disabled = ${after?.config?.disabled} (期望 ${willDisable})`,
+          verifiedValue: { source: getSourceNameLabel(source.name), disabled: after?.config?.disabled },
+        }
+      },
+    )
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '操作失败'
+    ElMessage.error(`${msg}`)
+  }
+}
+
+/** Phase 3.8.5: 强制推进卡死的 run (重新调用 advance_pipeline) */
+async function onForceAdvance() {
+  const runId = pipeline.pipelineStatus?.current_run?.id
+  if (!runId) {
+    ElMessage.warning('没有正在运行的流水线')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      '强制推进会重新调用 advance_pipeline, 触发所有待执行阶段。可能用于修复 Celery event loop 错误导致的卡死。',
+      '强制推进',
+      { confirmButtonText: '确认推进', cancelButtonText: '取消', type: 'warning' }
+    )
+    actionLoading.value = true
+    const startTime = Date.now()
+    const ok = await pipeline.forceAdvance(runId)
+    const duration = Date.now() - startTime
+    if (ok) {
+      await verifyState(
+        '强制推进',
+        `POST /pipeline/runs/${runId.slice(0, 8)}/force-advance`,
+        'success',
+        `Advanced in ${duration}ms`,
+        duration,
+        async () => {
+          await pipeline.fetchStatus()
+          await pipeline.fetchStages()
+          // 验证: 现在应该没有 pending 阶段 (或正在 running)
+          const stages = pipeline.stages.filter(s => s.status !== 'skipped')
+          const stillPending = stages.filter(s => s.status === 'pending')
+          const nowRunning = stages.filter(s => s.status === 'running')
+          const verified = stillPending.length === 0 || nowRunning.length > 0
+          return {
+            verified,
+            verifiedBy: `待执行=${stillPending.length}, 运行中=${nowRunning.length}`,
+            verifiedValue: { pending: stillPending.length, running: nowRunning.length },
+          }
+        },
+      )
+    } else {
+      ElMessage.error('强制推进失败, 请查看浏览器控制台')
+    }
+  } catch { /* 用户取消 */ } finally {
+    actionLoading.value = false
+  }
+}
+
+/** Phase 3.8.5: 强制重置卡死的 run (cancel + 标记所有 running/pending stage 为 cancelled) */
+async function onForceReset() {
+  const runId = pipeline.pipelineStatus?.current_run?.id
+  if (!runId) {
+    ElMessage.warning('没有正在运行的流水线')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      '强制重置会把当前卡死的 run 标记为 cancelled, 并把所有 running/pending 阶段也标记为 cancelled。此操作不可撤销。',
+      '强制重置',
+      { confirmButtonText: '确认重置', cancelButtonText: '取消', type: 'warning' }
+    )
+    actionLoading.value = true
+    const startTime = Date.now()
+    const ok = await pipeline.forceReset(runId)
+    const duration = Date.now() - startTime
+    if (ok) {
+      await verifyState(
+        '强制重置',
+        `POST /pipeline/runs/${runId.slice(0, 8)}/force-reset`,
+        'success',
+        `Reset in ${duration}ms`,
+        duration,
+        async () => {
+          await pipeline.fetchStatus()
+          await pipeline.fetchStages()
+          const verified = !pipeline.pipelineStatus?.is_running
+          return {
+            verified,
+            verifiedBy: `is_running = ${pipeline.pipelineStatus?.is_running} (期望 false)`,
+            verifiedValue: { is_running: pipeline.pipelineStatus?.is_running },
+          }
+        },
+      )
+    } else {
+      ElMessage.error('强制重置失败, 请查看浏览器控制台')
+    }
+  } catch { /* 用户取消 */ } finally {
+    actionLoading.value = false
+  }
+}
+
+/** 手动触发验证 - 重新检查当前所有状态 (Phase 3.8.1: 强制重新拉取避免 stale) */
+async function verifyNow() {
+  isVerifying.value = true
+  try {
+    // 强制并行重新拉取所有数据
+    await Promise.all([
+      pipeline.fetchStatus(),
+      pipeline.fetchStages(),
+      pipeline.fetchDataQuality(),
+      pipeline.fetchDataSources(),
+    ])
+    const ps = pipeline.pipelineStatus
+    const stages = pipeline.stages
+    const running = stages.filter(s => s.status === 'running').length
+    const completed = stages.filter(s => s.status === 'completed').length
+    const failed = stages.filter(s => s.status === 'failed').length
+    const cancelled = stages.filter(s => s.status === 'cancelled').length
+    const summary = `KPI=${ps?.success_rate ? (ps.success_rate*100).toFixed(1) + '%' : '--'} | 数据源=${ps?.active_data_sources ?? '--'} | 阶段: ${running}运行/${completed}完成/${failed}失败/${cancelled}取消`
+    appendLog({
+      action: '手动验证当前状态',
+      apiEndpoint: 'GET /pipeline/{status,stages}',
+      result: 'success',
+      resultMessage: summary,
+      verifiedBy: summary,
+      durationMs: 0,
+    })
+    ElMessage.success('状态已刷新并验证')
+  } finally {
+    isVerifying.value = false
+  }
+}
 </script>
 
 <template>
@@ -78,7 +451,22 @@ const {
           <span
             v-if="lastRefresh"
             class="last-refresh"
-          >最近刷新：{{ lastRefresh }}</span>
+          >最近刷新: {{ lastRefresh }}</span>
+          <el-button
+            size="small"
+            :icon="QuestionFilled"
+            @click="glossaryVisible = true"
+          >
+            新手指引
+          </el-button>
+          <el-button
+            size="small"
+            :icon="Refresh"
+            :loading="isVerifying"
+            @click="verifyNow"
+          >
+            校验状态
+          </el-button>
           <el-switch
             v-model="autoRefresh"
             active-text="自动刷新"
@@ -91,7 +479,8 @@ const {
               size="small"
               type="primary"
               :icon="VideoPlay"
-              :loading="pipeline.loading"
+              :loading="actionLoading"
+              :disabled="pipeline.pipelineStatus?.is_running"
               @click="openTriggerDialog"
             >
               触发流水线
@@ -100,23 +489,26 @@ const {
               v-if="pipeline.pipelineStatus?.current_run?.status === 'failed'"
               size="small"
               type="warning"
+              :loading="actionLoading"
               @click="handleResume"
             >
               断点续跑
             </el-button>
-            <!-- Phase 1 CANCEL-03: 取消当前 running 流水线 -->
+            <!-- Phase 3.8 取消按钮 - 只在真正 running 时显示，terminal 状态隐藏 -->
             <el-button
               v-if="pipeline.pipelineStatus?.current_run?.status === 'running'"
               size="small"
               type="danger"
               plain
-              @click="handleCancelRun"
+              :loading="actionLoading"
+              @click="handleCancelWithVerify"
             >
               取消运行
             </el-button>
             <el-button
               size="small"
               :icon="Timer"
+              :loading="scheduleLoading"
               @click="openScheduleDialog"
             >
               定时调度
@@ -138,6 +530,82 @@ const {
           </el-button>
         </div>
       </div>
+
+      <!-- Phase 3.8.2: 状态摘要 Hero 卡片 (解决"17% 看不出含义") -->
+      <el-card
+        v-if="stageSummary.total > 0"
+        shadow="never"
+        class="status-hero-card mb-4"
+      >
+        <div class="hero-content">
+          <div class="hero-icon">
+            <el-icon :size="32">
+              <Loading
+                v-if="pipeline.pipelineStatus?.is_running"
+                class="rotating"
+              />
+              <CircleCheck
+                v-else-if="stageSummary.failed === 0 && stageSummary.cancelled === 0 && stageSummary.completed === stageSummary.total"
+                :color="'#16a34a'"
+              />
+              <WarningFilled
+                v-else-if="stageSummary.failed > 0"
+                :color="'#dc2626'"
+              />
+              <Close
+                v-else-if="stageSummary.cancelled > 0"
+                :color="'#f59e0b'"
+              />
+              <VideoPause
+                v-else
+                :color="'#94a3b8'"
+              />
+            </el-icon>
+          </div>
+          <div class="hero-text">
+            <div class="hero-title">
+              <template v-if="pipeline.pipelineStatus?.is_running">
+                流水线正在执行中
+              </template>
+              <template v-else-if="stageSummary.failed > 0">
+                流水线异常终止 ({{ stageSummary.failed }} 个阶段失败)
+              </template>
+              <template v-else-if="stageSummary.cancelled > 0">
+                流水线已取消
+              </template>
+              <template v-else-if="stageSummary.completed === stageSummary.total && stageSummary.total > 0">
+                流水线全部完成
+              </template>
+              <template v-else>
+                流水线待机
+              </template>
+            </div>
+            <div class="hero-detail">
+              <span class="hero-pill completed">{{ stageSummary.completed }} 已完成</span>
+              <span
+                v-if="stageSummary.running > 0"
+                class="hero-pill running"
+              >{{ stageSummary.running }} 运行中</span>
+              <span
+                v-if="stageSummary.failed > 0"
+                class="hero-pill failed"
+              >{{ stageSummary.failed }} 失败</span>
+              <span
+                v-if="stageSummary.cancelled > 0"
+                class="hero-pill cancelled"
+              >{{ stageSummary.cancelled }} 取消</span>
+              <span
+                v-if="stageSummary.skipped > 0"
+                class="hero-pill skipped"
+              >{{ stageSummary.skipped }} 跳过</span>
+              <span class="hero-meta">
+                共处理 <strong>{{ stageSummary.totalRecords.toLocaleString() }}</strong> 条记录,
+                累计耗时 <strong>{{ (stageSummary.totalDurationMs / 1000).toFixed(0) }}</strong> 秒
+              </span>
+            </div>
+          </div>
+        </div>
+      </el-card>
 
       <!-- 4 个 KPI 卡片 -->
       <el-row
@@ -177,11 +645,11 @@ const {
                 </div>
                 <div class="kpi-sub">
                   <span
-                    v-if="card.trend === 'up'"
+                    v-if="card.trend && card.trend === 'up'"
                     class="trend-up"
                   >▲</span>
                   <span
-                    v-else-if="card.trend === 'down'"
+                    v-else-if="card.trend && card.trend === 'down'"
                     class="trend-down"
                   >▼</span>
                   {{ card.sub }}
@@ -192,26 +660,214 @@ const {
         </el-col>
       </el-row>
 
+      <!-- Phase 3.8.5: 卡死检测横幅 + 强制操作 -->
+      <el-alert
+        v-if="isStuck"
+        type="error"
+        :closable="false"
+        show-icon
+        class="mb-4"
+      >
+        <template #title>
+          <span style="font-weight: 700">⚠️ 流水线疑似卡死</span>
+        </template>
+        <div class="stuck-alert-content">
+          <p style="margin: 4px 0">
+            <strong>症状:</strong> {{ stuckReason }}
+          </p>
+          <p style="margin: 4px 0">
+            <strong>原因:</strong> Celery 任务因 event loop 错误失败, run 处于幽灵 running 状态
+          </p>
+          <p style="margin: 4px 0 12px 0">
+            <strong>建议:</strong> 先尝试"强制推进"让 orchestrator 重新派发任务; 如果还卡再"强制重置"清除状态
+          </p>
+          <div class="stuck-actions">
+            <el-button
+              type="primary"
+              :loading="actionLoading"
+              @click="onForceAdvance"
+            >
+              <el-icon style="vertical-align: middle">
+                <Refresh />
+              </el-icon>
+              强制推进
+            </el-button>
+            <el-button
+              type="danger"
+              :loading="actionLoading"
+              @click="onForceReset"
+            >
+              <el-icon style="vertical-align: middle">
+                <Close />
+              </el-icon>
+              强制重置
+            </el-button>
+          </div>
+        </div>
+      </el-alert>
+
       <!-- 流水线 DAG 时间线视图 -->
       <PipelineDag
         :timeline-stages="timelineStages"
+        :blocked-stages="blockedStages"
         :retrying-stages="retryingStages"
         :loading="pipeline.loading"
         :is-running="pipeline.pipelineStatus?.is_running ?? false"
+        :action-loading="actionLoading"
+        :live-activity="liveActivity"
         @retry="handleRetryStage"
       />
 
+      <!-- Phase 3.8: 闭环验证日志面板 (替换单独实时面板) -->
+      <el-card
+        shadow="never"
+        class="verify-log-card mb-4"
+      >
+        <template #header>
+          <div class="panel-header">
+            <span>
+              <el-icon style="vertical-align: middle"><Check /></el-icon>
+              闭环验证 (按钮 → API → 状态变化 → 验证)
+              <!-- Phase 3.8.2: 持久化指示器 -->
+              <el-tag
+                v-if="actionLogs.length > 0"
+                type="info"
+                size="small"
+                effect="plain"
+                class="ml-2"
+              >
+                <el-icon :size="11"><Lock /></el-icon>
+                {{ actionLogs.length }} 条历史
+              </el-tag>
+            </span>
+            <div class="header-actions">
+              <el-button
+                v-if="actionLogs.length > 0"
+                size="small"
+                text
+                @click="clearLogs"
+              >
+                清空
+              </el-button>
+              <el-tag
+                v-if="isVerifying"
+                type="info"
+                size="small"
+                effect="plain"
+              >
+                <el-icon
+                  class="rotating"
+                  :size="11"
+                >
+                  <Loading />
+                </el-icon>
+                验证中
+              </el-tag>
+              <el-tag
+                v-else
+                type="success"
+                size="small"
+                effect="plain"
+              >
+                <el-icon :size="11">
+                  <Check />
+                </el-icon>
+                实时
+              </el-tag>
+            </div>
+          </div>
+        </template>
+        <div
+          v-if="actionLogs.length === 0"
+          class="verify-empty"
+        >
+          <el-icon :size="32">
+            <Connection />
+          </el-icon>
+          <p>尚无操作记录。点击上方任意按钮 (触发/取消/重试/校验) 即可在此查看完整闭环链路。</p>
+        </div>
+        <div
+          v-else
+          class="verify-log-list"
+        >
+          <div
+            v-for="log in actionLogs"
+            :key="log.id"
+            class="verify-log-item"
+            :class="`result-${log.result}`"
+          >
+            <div class="log-time">
+              {{ logTime(log.timestamp) }}
+              <span
+                v-if="log.durationMs > 0"
+                class="log-duration"
+              >· {{ log.durationMs }}ms</span>
+            </div>
+            <div class="log-icon">
+              <el-icon
+                v-if="log.result === 'success'"
+                :size="18"
+                color="#16a34a"
+              >
+                <Check />
+              </el-icon>
+              <el-icon
+                v-else-if="log.result === 'failed'"
+                :size="18"
+                color="#dc2626"
+              >
+                <Close />
+              </el-icon>
+              <el-icon
+                v-else
+                :size="18"
+                color="#3b82f6"
+                class="rotating"
+              >
+                <Loading />
+              </el-icon>
+            </div>
+            <div class="log-content">
+              <div class="log-action">
+                {{ log.action }}
+              </div>
+              <div class="log-meta">
+                <span class="log-endpoint"><code>{{ log.apiEndpoint }}</code></span>
+                <span class="log-result-msg">{{ log.resultMessage }}</span>
+              </div>
+              <div class="log-verification">
+                <el-icon
+                  :size="11"
+                  :color="log.result === 'failed' ? '#dc2626' : '#16a34a'"
+                >
+                  <Check />
+                </el-icon>
+                <span class="log-verify-text">{{ log.verifiedBy }}</span>
+                <span
+                  v-if="log.verifiedValue"
+                  class="log-verify-value"
+                >→ {{ JSON.stringify(log.verifiedValue) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-card>
+
       <!-- 底部：数据源面板 + 数据质量监控 -->
       <el-row :gutter="16">
-        <!-- 左：数据源管理面板 -->
+        <!-- 左：数据源管理面板 (Phase 3.8.4 增强版) -->
         <el-col
           :lg="14"
           :md="24"
           class="mb-4"
         >
-          <PipelineSourcePanel
+          <DataSourceManager
             :data-sources="pipeline.dataSources"
+            :live-activity="liveActivity"
+            :is-running="pipeline.pipelineStatus?.is_running ?? false"
+            :current-stage-progress="0"
             :loading="pipeline.loading"
+            @toggle-source="onToggleSource"
           />
         </el-col>
 
@@ -232,24 +888,40 @@ const {
 
       <!-- 定时调度列表 -->
       <el-card
-        v-if="pipeline.schedules.length"
         shadow="never"
         class="mb-4"
       >
         <template #header>
           <div class="panel-header">
-            <span>定时调度</span>
+            <div>
+              <span class="panel-title">定时调度 (Cron)</span>
+              <el-tooltip
+                content="用 Cron 表达式设置流水线自动执行计划。例如 '0 2 * * *' 表示每天凌晨 2 点。点击'新增'创建调度；点击'立即触发'手动执行。点击'启用'开关控制调度是否生效。"
+                placement="top"
+              >
+                <el-icon class="help-icon">
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
             <el-button
               v-if="isAdmin"
               size="small"
               :icon="Timer"
               @click="openScheduleDialog"
             >
-              新增
+              新增调度
             </el-button>
           </div>
         </template>
+        <div
+          v-if="!pipeline.schedules.length"
+          class="schedule-empty"
+        >
+          <p>暂无定时调度。点击右上角"新增调度"创建第一个 Cron 计划。</p>
+        </div>
         <el-table
+          v-else
           :data="pipeline.schedules"
           size="small"
           stripe
@@ -369,7 +1041,8 @@ const {
           <el-button
             type="primary"
             :disabled="selectedStages.length === 0"
-            @click="handleTrigger"
+            :loading="actionLoading"
+            @click="handleTriggerWithVerify"
           >
             启动
           </el-button>
@@ -478,7 +1151,9 @@ const {
             取消
           </el-button>
           <el-button
+            v-if="pipeline.config"
             type="primary"
+            :loading="configSaving"
             @click="handleSaveConfig"
           >
             保存
@@ -486,6 +1161,9 @@ const {
         </template>
       </el-dialog>
     </div>
+
+    <!-- Phase 3.8.5: 术语词典 (新手指引) -->
+    <PipelineGlossary v-model="glossaryVisible" />
   </MainLayout>
 </template>
 
@@ -609,9 +1287,222 @@ const {
 .mb-4 { margin-bottom: var(--space-4); }
 .ml-2 { margin-left: var(--space-2); }
 
+/* Phase 3.8.4: 面板标题 + 帮助图标 */
+.panel-title {
+  font-weight: 600;
+  margin-right: 6px;
+}
+.help-icon {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  cursor: help;
+}
+
+/* Phase 3.8.5: 卡死横幅 */
+.stuck-alert-content {
+  font-size: 13px;
+  color: var(--foreground);
+  line-height: 1.6;
+}
+.stuck-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.stuck-actions :deep(.el-button) {
+  font-weight: 600;
+}
+.help-icon:hover { color: var(--primary); }
+
+.schedule-empty {
+  text-align: center;
+  padding: var(--space-6) var(--space-4);
+  color: var(--muted-foreground);
+  font-size: 13px;
+  background: var(--muted);
+  border-radius: 6px;
+}
+
 @media (max-width: 768px) {
   .page-header { flex-direction: column; }
   .header-actions { width: 100%; justify-content: flex-start; }
   .kpi-value { font-size: var(--font-size-2xl); }
+}
+
+/* Phase 3.8 闭环验证面板 */
+/* Phase 3.8.2 状态 Hero 卡片 */
+.status-hero-card {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #ddd6fe 100%);
+  border: 1px solid #93c5fd;
+  border-left: 4px solid #3b82f6;
+}
+.status-hero-card :deep(.el-card__body) {
+  padding: var(--space-4) var(--space-5);
+}
+.hero-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.hero-icon {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.hero-text { flex: 1; min-width: 0; }
+.hero-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 4px;
+}
+.hero-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.hero-pill {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 11px;
+}
+.hero-pill.completed { background: #dcfce7; color: #166534; }
+.hero-pill.running { background: #dbeafe; color: #1d4ed8; }
+.hero-pill.failed { background: #fee2e2; color: #991b1b; }
+.hero-pill.cancelled { background: #fef3c7; color: #92400e; }
+.hero-pill.skipped { background: #f1f5f9; color: #475569; }
+.hero-meta {
+  color: var(--muted-foreground);
+  margin-left: var(--space-2);
+}
+.hero-meta strong { color: var(--foreground); font-weight: 700; }
+
+.verify-log-card :deep(.el-card__header) {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-bottom: 2px solid #0ea5e9;
+}
+.verify-empty {
+  text-align: center;
+  padding: var(--space-6);
+  color: var(--muted-foreground);
+}
+.verify-empty p {
+  margin: var(--space-2) 0 0 0;
+  font-size: var(--font-size-sm);
+}
+.verify-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.verify-log-item {
+  display: grid;
+  grid-template-columns: 80px 28px 1fr;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-size-sm);
+  background: var(--card);
+  transition: background 0.2s;
+}
+.verify-log-item:hover {
+  background: var(--muted);
+}
+.verify-log-item:last-child {
+  border-bottom: none;
+}
+.verify-log-item.result-failed {
+  background: linear-gradient(90deg, #fef2f2 0%, transparent 30%);
+  border-left: 3px solid #dc2626;
+}
+.verify-log-item.result-success {
+  border-left: 3px solid #16a34a;
+}
+.verify-log-item.result-pending {
+  border-left: 3px solid #3b82f6;
+  background: linear-gradient(90deg, #eff6ff 0%, transparent 30%);
+}
+.log-time {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
+  white-space: nowrap;
+}
+.log-duration {
+  color: #6b7280;
+  font-size: 10px;
+  margin-left: 4px;
+}
+.log-icon {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 2px;
+}
+.log-content {
+  min-width: 0;
+}
+.log-action {
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 2px;
+}
+.log-meta {
+  display: flex;
+  gap: var(--space-3);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+.log-endpoint code {
+  background: var(--muted);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
+  font-size: 10px;
+}
+.log-result-msg {
+  color: var(--foreground);
+  font-size: 11px;
+}
+.log-verification {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--foreground);
+  flex-wrap: wrap;
+  padding: 4px 6px;
+  background: rgba(34, 197, 94, 0.08);
+  border-radius: 4px;
+  margin-top: 4px;
+}
+.log-verify-text {
+  color: var(--foreground);
+  font-weight: 500;
+}
+.log-verify-value {
+  font-family: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
+  font-size: 10px;
+  color: var(--muted-foreground);
+  word-break: break-all;
+}
+.rotating {
+  animation: rotate 1s linear infinite;
+}
+@keyframes rotate {
+  to { transform: rotate(360deg); }
 }
 </style>

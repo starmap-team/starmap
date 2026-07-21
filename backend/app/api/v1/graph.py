@@ -186,10 +186,16 @@ async def get_ka_positions(
         stack_id_prefix = {
             "人工智能": "ts-ai",
             "大数据": "ts-bigdata",
+            "前端开发": "ts-frontend",
+            "后端开发": "ts-backend",
             "智能系统": "ts-sys",
             "物联网": "ts-iot",
             "云计算/DevOps": "ts-cloud",
             "网络安全": "ts-sec",
+            "移动开发": "ts-mobile",
+            "测试": "ts-qa",
+            "区块链/Web3": "ts-blockchain",
+            "游戏开发": "ts-game",
             "其他": "ts-other",
         }
         level_id = {"初级": "lv-junior", "中级": "lv-mid", "高级": "lv-senior"}

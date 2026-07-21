@@ -28,12 +28,28 @@ import { useGraphNodeStore } from '@/stores/graphNode'
 import { useReviewStore } from '@/stores/review'
 import PromptManager from '@/components/PromptManager.vue'
 import UserManagement from '@/pages/UserManagement.vue'
+import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import AuditLog from '@/pages/AuditLog.vue'
+
+const CATEGORY_LABELS: Record<string, string> = {
+  hard_skill: '硬技能', soft_skill: '软技能', tool: '工具', certificate: '认证',
+  project_management: '项目管理', design: '设计', domain: '领域知识',
+  language: '语言', certification: '认证', methodology: '方法论',
+  Skill: '硬技能', Position: '—', Tool: '工具', Certificate: '认证',
+  Industry: '—', KnowledgeArea: '领域知识', LearningResource: '学习资源',
+}
 
 import { chartColors } from '@/utils/chartTheme'
 import { useGraphNodeList, type GraphNodeItem } from '@/composables/useGraphNodeList'
 import { useGraphNodeEditor } from '@/composables/useGraphNodeEditor'
-import { nodeTypeLabel, nodeStatusType, nodeStatusLabel } from '@/composables/useGraphNodeLabels'
+
+// Node label/status maps (inlined from useGraphNodeLabels)
+const _NODE_TYPE_LABELS: Record<string, string> = { Skill: '技能', Position: '岗位', Domain: '领域', Tool: '工具', Certificate: '证书' }
+const _NODE_STATUS_TAG: Record<string, string> = { approved: 'success', rejected: 'danger', pending: 'warning' }
+const _NODE_STATUS_LABELS: Record<string, string> = { approved: '已通过', rejected: '已拒绝', pending: '待审核' }
+function nodeTypeLabel(type: string): string { return _NODE_TYPE_LABELS[type] ?? type }
+function nodeStatusType(status: string): string { return _NODE_STATUS_TAG[status] ?? 'info' }
+function nodeStatusLabel(status: string): string { return _NODE_STATUS_LABELS[status] ?? status }
 
 const cc = chartColors()
 const router = useRouter()
@@ -355,7 +371,7 @@ async function handleSaveSource() {
                 <template #default="{ row }">
                   <span class="node-props">
                     <template v-if="row.properties?.category">
-                      {{ row.properties.category }}
+                      {{ CATEGORY_LABELS[row.properties.category] ?? row.properties.category }}
                     </template>
                     <template v-if="row.properties?.proficiency">
                       · {{ row.properties.proficiency }}
@@ -475,10 +491,13 @@ async function handleSaveSource() {
               empty-text="暂无数据"
             >
               <el-table-column
-                prop="name"
                 label="来源名称"
                 min-width="120"
-              />
+              >
+                <template #default="{ row }">
+                  {{ getSourceNameLabel(row.name) }}
+                </template>
+              </el-table-column>
               <el-table-column
                 prop="source_type"
                 label="类型"

@@ -1,7 +1,8 @@
 # StarMap 入职手册（Onboarding）
 
-> 生成日期：2026-07-16 · 用途：新人/后续维护快速理解项目、定位问题、认领待办
-> 信息来源：README、CLAUDE.md、AGENTS.md、CHECKPOINT_REPORT.md、audit/（49 项风险全 Open）、.planning/codebase（Docker vs Local 16 项不一致）、以及后端/前端/爬虫/评估的逐模块代码探查。
+> 生成日期：2026-07-16（最新实测：2026-07-20） · 用途：新人/后续维护快速理解项目、定位问题、认领待办
+> 信息来源：README、CLAUDE.md（项目根,项目规则源）、AGENTS.md、ONBOARDING.md（本文）、以及后端/前端/爬虫/评估的逐模块代码探查。
+> **审计历史**:原 `audit/` 目录 49 项 Open 已由 `163ca6d` 一笔提交关闭,详细归档见 `docs/standards/99-appendix/04-审计关闭-2026-07-16.md`（现行 P0 见 `99-appendix/01 §0`）。
 
 ---
 
@@ -36,7 +37,7 @@
                          └───────────────┬──────────────────────────────┘
                                          │ run-pipeline / W3 / HTTP
                          ┌───────────────▼─────────────── 后端 backend/ ──┐
-                         │ api/v1 (131 端点, router→service→core)        │
+                         │ api/v1 (115 端点, router→service→core)        │
                          │ core/extraction  (LLM抽取+归一化+反幻觉)        │
                          │ core/evolution   (diff/emergence/trust/路径)    │
                          │ core/pipeline    (executor/loop/cron/quality)  │
@@ -51,7 +52,7 @@
                          │ api/request.ts(双token+401静默刷新) · schema.ts(契约生成)  │
                          └──────────────────────────────────────────────────────┘
                                             ▲
-                          starmap-contracts/openapi.yaml (93 路径, 16 域, 单一事实源)
+                          starmap-contracts/openapi.yaml (115 路径, 16 域, 单一事实源)
 ```
 
 **关键分层约定**：图查询在 `services/`，抽取/演化在 `core/`；API 变更先改 `openapi.yaml` 再 `npm run gen:api` 同步前端。
@@ -63,7 +64,7 @@
 | 路径 | 作用 | 探查要点 |
 |------|------|---------|
 | `backend/app/main.py` | FastAPI 入口，`/health` `/ready` `/health/detail`，内存令牌桶限流，cron 后台循环 | 限流注释自承「多进程不安全」 |
-| `backend/app/api/v1/` | 28 个路由文件，**131 端点** | 逻辑下沉到 service/core，无 501 stub |
+| `backend/app/api/v1/` | 28 个路由文件,**115 端点** | 逻辑下沉到 service/core,无 501 stub |
 | `backend/app/core/extraction/` | llm_client(多供应商+降级)、jd_extract、normalize(Chroma+负缓存)、prompt(版本化)、graph_writer | 真实落地层 |
 | `backend/app/core/evolution/` | diff_engine、emergence_finder、hallucination_guard(反幻觉/信任)、orchestrator、path_recommender | 反幻觉/信任的真实实现处 |
 | `backend/app/core/pipeline/` | executor/loop_orchestrator/cron_scheduler/quality_monitor/data_fusion/simhash | 与 `app/pipeline/`(engine/steps) 疑似双实现 |
@@ -74,8 +75,8 @@
 | `frontend/src/api/` | request.ts(双token) + client.ts(已生成 schema.ts 但仅覆盖~11端点) | MSW 死依赖；19 个 store 仍直调 request |
 | `crawler/` | spiders(stealth+Apify)/compliance/dedup/persistence/pipelines/scripts | 功能较全，有 11 测试，默认密码硬编码 |
 | `evaluation/` | golden_set.jsonl(110) / baseline / mock-LLM / real-LLM / judge_eval | eval **未接 CI**；LLM-as-judge 死代码 |
-| `starmap-contracts/` | openapi.yaml(125KB,93路径,16域) · graph_cypher(空壳) · CONTRACT_AUDIT.md | /auth 路径缺失；Cypher 模板空白 |
-| `audit/` | 00-summary / 99-risk-register(49 风险全 Open) / phase-01..11 / 98-ai-antipatterns | 安全金矿，全部未关闭 |
+| `starmap-contracts/` | openapi.yaml(125KB,115路径,16域) · graph_cypher(空壳) · CONTRACT_AUDIT.md | /auth 路径缺失；Cypher 模板空白 |
+| `audit/` | ~~目录已删~~ → `docs/standards/99-appendix/04-审计关闭-2026-07-16.md` 归档 49 项关闭证据 | 已迁移至 99-appendix/04 |
 | `.planning/` | ROADMAP / STATE / TASK_CHECKLIST / codebase/(DOCKER-VS-LOCAL 16 项不一致) | 配置真相源混乱 |
 | `docs/` | 设计文档 v2.0(117KB) / docx(1.8MB) / core / ontology / evolution / bugs / qa / onboarding | 很全，但部分与代码漂移 |
 
@@ -238,13 +239,13 @@ python tests/e2e/smoke_test.py --base-url http://localhost:8000 --all
 
 ## 8. 关键文件索引（后续深挖入口）
 
-- 安全真相：`audit/00-summary.md` · `audit/99-risk-register.md` · `audit/98-ai-antipatterns.md`
-- 配置真相：`audit/` + `.planning/codebase/DOCKER-VS-LOCAL-INCONSISTENCIES.md` · `.planning/STATE.md` · `TASK_CHECKLIST.md`
-- 契约：`starmap-contracts/openapi.yaml` · `CONTRACT_AUDIT.md` · `graph_cypher/query_templates.cypher`
-- 设计：`docs/星图-项目设计文档v2.0.md` · `docs/INTEGRATION_REPORT.md` · `docs/CODE_INDEX.md`
-- 入口：`backend/app/main.py` · `backend/app/config.py` · `frontend/src/api/request.ts` · `frontend/src/stores/user.ts`
-- 评估：`evaluation/run_real_eval.py` · `evaluation/judge_eval.py` · `evaluation/golden_set.jsonl`
-- CI：`.github/workflows/ci.yml`（当前不跑 eval/e2e/frontend-test）
+- 安全真相:`docs/standards/99-appendix/04-审计关闭-2026-07-16.md`(49 项关闭证据归档) · `docs/standards/99-appendix/01-已知问题清单.md §0`(现行 P0)
+- 配置真相:`docs/standards/README.md`(含硬数字核对表) · `.planning/STATE.md.v4-active-sprint.md`(tracked 镜像) · `docs/pipeline_deep_analysis.md`
+- 契约:`starmap-contracts/openapi.yaml` · `starmap-contracts/validate.py` · `graph_cypher/query_templates.cypher`(待补)
+- 设计:`docs/星图-项目设计文档v2.0.md` · `docs/standards/00-总纲/00-寻路-LANDING.md`(任务寻路) · `docs/CODE_INDEX.md`
+- 入口:`backend/app/main.py` · `backend/app/config.py` · `frontend/src/api/request.ts` · `frontend/src/stores/user.ts`
+- 评估:`evaluation/run_real_eval.py` · `evaluation/judge_eval.py` · `evaluation/golden_set.jsonl`
+- CI:`.github/workflows/ci.yml` · `.github/workflows/doc-lint.yml`(漂移门禁,本批新增)
 
 ---
 

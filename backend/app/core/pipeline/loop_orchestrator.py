@@ -100,6 +100,8 @@ class LoopResult:
             "match_result": self.match_result,
             "learning_path": self.learning_path,
             "total_duration_seconds": round(self.total_duration_seconds, 2),
+            # Phase 3: 逐步核验摘要
+            "verification": _build_loop_verification(self.steps),
         }
 
 
@@ -360,7 +362,7 @@ class LoopOrchestrator:
         """Step 3: Sync extracted skills/positions into Neo4j graph."""
         start = time.monotonic()
         try:
-            from app.services.graph_service import sync_from_pipeline
+            from app.services.graph_sync import sync_from_pipeline
 
             driver = None
             try:
@@ -788,3 +790,114 @@ async def get_loop_history(
     items = list(_LOOP_RESULTS.values())
     items.sort(key=lambda r: r.total_duration_seconds, reverse=False)
     return [r.to_dict() for r in list(_LOOP_RESULTS.values())[-limit:]][::-1]
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: 闭环管道逐步核验
+# ---------------------------------------------------------------------------
+
+def _build_loop_verification(steps: list[LoopStepResult]) -> dict[str, Any]:
+    """为闭环管道构建每步核验摘要。
+
+    Returns:
+        {
+            "overall_passed": bool,
+            "steps": [
+                {"step": int, "name": str, "passed": bool, "checks": [...]},
+            ]
+        }
+    """
+    step_verifications = []
+    for s in steps:
+        checks = _loop_step_checks(s)
+        step_verifications.append({
+            "step": s.step,
+            "name": s.name,
+            "passed": all(c["ok"] for c in checks),
+            "checks": checks,
+        })
+    overall_passed = all(sv["passed"] for sv in step_verifications if sv["checks"])
+    return {
+        "overall_passed": overall_passed,
+        "steps": step_verifications,
+    }
+
+
+def _loop_step_checks(step: LoopStepResult) -> list[dict[str, Any]]:
+    """为单个闭环步骤生成验证检查项。"""
+    checks: list[dict[str, Any]] = []
+
+    if step.status == StepStatus.FAILED:
+        return [{"check": "步骤执行失败", "ok": False, "detail": step.error or "未知错误"}]
+    if step.status == StepStatus.SKIPPED:
+        return [{"check": "步骤已跳过", "ok": True, "detail": step.note or "无需执行"}]
+
+    # Step 1: JD输入
+    if step.step == 1:
+        jd_len = step.data.get("jd_length", 0)
+        checks.append({
+            "check": "JD文本非空",
+            "ok": jd_len > 0,
+            "detail": f"JD长度: {jd_len} 字符" if jd_len > 0 else "JD为空",
+        })
+        checks.append({
+            "check": "目标岗位已指定",
+            "ok": bool(step.data.get("target_position")),
+            "detail": f"目标: {step.data.get('target_position')}",
+        })
+
+    # Step 2: 技能提取
+    elif step.step == 2:
+        skills = step.data.get("skills", [])
+        checks.append({
+            "check": "提取技能数量充足",
+            "ok": len(skills) >= 3,
+            "detail": f"提取 {len(skills)} 个技能",
+        })
+        checks.append({
+            "check": "岗位名称已识别",
+            "ok": bool(step.data.get("position_name")),
+            "detail": f"岗位: {step.data.get('position_name', '未识别')}",
+        })
+
+    # Step 3: 图谱更新
+    elif step.step == 3:
+        synced = step.data.get("synced", False)
+        checks.append({
+            "check": "图谱同步成功",
+            "ok": synced,
+            "detail": f"写入 {step.data.get('nodes_written', 0)} 节点, {step.data.get('edges_written', 0)} 关系",
+        })
+
+    # Step 4: 匹配诊断
+    elif step.step == 4:
+        match_score = step.data.get("match_score", 0)
+        gap_detail = step.data.get("skill_gap_detail", [])
+        checks.append({
+            "check": "匹配分数合理",
+            "ok": match_score > 0,
+            "detail": f"匹配度: {match_score:.1%}" if match_score > 0 else "匹配分数为0",
+        })
+        checks.append({
+            "check": "技能差距分析完整",
+            "ok": len(gap_detail) > 0,
+            "detail": f"分析 {len(gap_detail)} 项技能差距",
+        })
+
+    # Step 5: 学习路径
+    elif step.step == 5:
+        path_items = step.data.get("path_items", [])
+        plan_id = step.data.get("plan_id")
+        checks.append({
+            "check": "学习路径已生成",
+            "ok": len(path_items) > 0,
+            "detail": f"生成 {len(path_items)} 条学习路径",
+        })
+        if plan_id:
+            checks.append({
+                "check": "学习计划已创建",
+                "ok": True,
+                "detail": f"计划ID: {plan_id}",
+            })
+
+    return checks

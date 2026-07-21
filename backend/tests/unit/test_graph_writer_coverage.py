@@ -155,7 +155,8 @@ class TestPureHelpers:
         assert _node_ref("Position", "  Dev  ").name == "Dev"
         ref2 = _node_ref("Tool", "Git")
         assert ref2.properties["name"] == "Git"
-        assert ref2.properties["category"] == "Tool"
+        # category is NOT auto-set to label anymore — only explicit category is kept
+        assert "category" not in ref2.properties
         with pytest.raises(ValueError, match="cannot be empty"):
             _node_ref("Position", "  ")
 

@@ -1,11 +1,10 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
-import charsetPlugin from './plugins/charset-plugin'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue(), charsetPlugin()],
+  plugins: [vue()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -16,7 +15,9 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_BASE_URL || 'http://localhost:8000',
+        // Docker 网络: VITE_API_PROXY_TARGET=http://starmap-backend:8000
+        // 本地开发: 回退到 http://localhost:8000
+        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
         changeOrigin: true,
       },
     },
@@ -32,7 +33,7 @@ export default defineConfig({
           'vendor-vue': ['vue', 'vue-router', 'pinia'],
           'vendor-echarts': ['echarts', 'vue-echarts'],
           'vendor-element': ['element-plus', '@element-plus/icons-vue'],
-          'vendor-utils': ['axios', 'lodash-es', '@vueuse/core'],
+          'vendor-utils': ['axios'],
           'vendor-g6': ['@antv/g6'],
         },
       },
