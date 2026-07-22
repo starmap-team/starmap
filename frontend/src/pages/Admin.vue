@@ -11,7 +11,7 @@
  *  5. Prompt     - LLM 抽取提示词版本
  *  6. 系统       - 用户管理 + 审计日志
  *
- * 每个 Tab 顶部都有 el-alert 横幅说明业务含义，让新用户秒懂。
+ * 每个 Tab 顶部都有 BusinessBanner 横幅说明业务含义，让新用户秒懂。
  */
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -22,6 +22,7 @@ import AdminOverview from '@/components/AdminOverview.vue'
 import ReviewQueuePanel from '@/components/ReviewQueuePanel.vue'
 import ContentReviewPanel from '@/components/ContentReviewPanel.vue'
 import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
+import BusinessBanner from '@/components/BusinessBanner.vue'
 import { useDataSourceStore } from '@/stores/datasource'
 import { useAuditStore } from '@/stores/audit'
 import { useGraphNodeStore } from '@/stores/graphNode'
@@ -178,23 +179,16 @@ async function handleSaveSource() {
           label="内容审核"
           name="content-review"
         >
-          <el-alert
+          <BusinessBanner
             type="info"
-            :closable="false"
-            show-icon
-            class="tab-description"
-          >
-            <template #title>
-              主数据生命周期 — 新发现的内容审核
-            </template>
-            <p>
-              当系统从数据源抽取新岗位/技能、或在 /extract/jd 提取新内容时，
-              这些实体进入"待审核"状态。审核通过后才会出现在公开图谱中。
-            </p>
-            <p class="tab-meta">
-              后端: <code>/admin/review-items</code> · 数据源: <code>position_records.review_status</code> + <code>skill_records.review_status</code>
-            </p>
-          </el-alert>
+            title="主数据生命周期 — 新发现的内容审核"
+            description="当系统从数据源抽取新岗位/技能、或在 /extract/jd 提取新内容时，这些实体进入“待审核”状态。审核通过后才会出现在公开图谱中。"
+            :meta="[
+              { category: '后端', label: '/admin/review-items', code: true, copyable: true },
+              { category: '数据源', label: 'position_records.review_status', code: true, copyable: true },
+              { label: 'skill_records.review_status', code: true, copyable: true },
+            ]"
+          />
           <el-card
             shadow="never"
             class="tab-card"
@@ -208,24 +202,15 @@ async function handleSaveSource() {
           label="演化变更"
           name="evolution"
         >
-          <el-alert
+          <BusinessBanner
             type="warning"
-            :closable="false"
-            show-icon
-            class="tab-description"
-          >
-            <template #title>
-              §5.2 能力演化审核 — 低信任变更需要人工裁决
-            </template>
-            <p>
-              系统每周自动分析岗位能力图谱的演化（§5.2）。对于信任度低于 0.6 的
-              变更提案，会自动写入此队列等待人工确认是否更新图谱。信任度 ≥ 0.6 的
-              变更直接入图谱。
-            </p>
-            <p class="tab-meta">
-              后端: <code>/admin/review-queue</code> · 触发: <code>EvolutionOrchestrator._save_changelog</code> (trust_score &lt; 0.6)
-            </p>
-          </el-alert>
+            title="能力演化审核 — 低信任变更需要人工裁决"
+            description="系统每周自动分析岗位能力图谱的演化（§5.2）。对于信任度低于 0.6 的变更提案，会自动写入此队列等待人工确认是否更新图谱。信任度 ≥ 0.6 的变更直接入图谱。"
+            :meta="[
+              { category: '后端', label: '/admin/review-queue', code: true, copyable: true },
+              { category: '触发', label: 'EvolutionOrchestrator._save_changelog', code: true, copyable: true, hint: 'trust_score < 0.6 时入队' },
+            ]"
+          />
           <el-card
             shadow="never"
             class="tab-card"
@@ -239,23 +224,15 @@ async function handleSaveSource() {
           label="图谱节点"
           name="nodes"
         >
-          <el-alert
-            type="primary"
-            :closable="false"
-            show-icon
-            class="tab-description"
-          >
-            <template #title>
-              Neo4j 图谱节点直接管理
-            </template>
-            <p>
-              直接对 Neo4j 知识图谱中的节点进行 CRUD 操作。修改会立即影响图谱查询。
-              注意：此 tab 绕过审核流程，请谨慎操作。
-            </p>
-            <p class="tab-meta">
-              后端: <code>/admin/graph/nodes</code> · 数据源: Neo4j
-            </p>
-          </el-alert>
+          <BusinessBanner
+            type="info"
+            title="Neo4j 图谱节点直接管理"
+            description="直接对 Neo4j 知识图谱中的节点进行 CRUD 操作。修改会立即影响图谱查询。注意：此 tab 绕过审核流程，请谨慎操作。"
+            :meta="[
+              { category: '后端', label: '/admin/graph/nodes', code: true, copyable: true },
+              { label: 'Neo4j', copyable: false },
+            ]"
+          />
           <el-card
             shadow="never"
             class="tab-card"
@@ -460,23 +437,16 @@ async function handleSaveSource() {
           label="数据采集"
           name="sources"
         >
-          <el-alert
+          <BusinessBanner
             type="success"
-            :closable="false"
-            show-icon
-            class="tab-description"
-          >
-            <template #title>
-              §5.2 数据输入 — 爬虫源配置
-            </template>
-            <p>
-              管理爬虫数据源（SAP、LinkedIn、Boss直聘等），配置权威性评分、启用状态。
-              权威性评分直接影响信任度驱动的图谱构建策略（§7.1）。
-            </p>
-            <p class="tab-meta">
-              后端: <code>/datasources</code> · 数据源: <code>datasources</code> 表
-            </p>
-          </el-alert>
+            title="数据输入 — 爬虫源配置"
+            description="管理爬虫数据源（SAP、LinkedIn、Boss直聘等），配置权威性评分、启用状态。权威性评分直接影响信任度驱动的图谱构建策略（§7.1）。"
+            :meta="[
+              { category: '后端', label: '/datasources', code: true, copyable: true },
+              { category: '数据源', label: 'datasources', code: true, copyable: true },
+              { label: '表' },
+            ]"
+          />
           <el-card
             shadow="never"
             class="tab-card"
@@ -615,23 +585,14 @@ async function handleSaveSource() {
           label="Prompt 工程"
           name="prompts"
         >
-          <el-alert
+          <BusinessBanner
             type="info"
-            :closable="false"
-            show-icon
-            class="tab-description"
-          >
-            <template #title>
-              §7.2 幻觉防控 — LLM 抽取提示词管理
-            </template>
-            <p>
-              管理 LLM 抽取技能的提示词模板，支持版本控制和 A/B 测试。
-              提示词质量直接影响信任度评分和幻觉率。
-            </p>
-            <p class="tab-meta">
-              后端: <code>/admin/prompts</code>
-            </p>
-          </el-alert>
+            title="幻觉防控 — LLM 抽取提示词管理"
+            description="管理 LLM 抽取技能的提示词模板，支持版本控制和 A/B 测试。提示词质量直接影响信任度评分和幻觉率。"
+            :meta="[
+              { category: '后端', label: '/admin/prompts', code: true, copyable: true },
+            ]"
+          />
           <el-card
             shadow="never"
             class="tab-card"
@@ -645,23 +606,15 @@ async function handleSaveSource() {
           label="系统"
           name="users"
         >
-          <el-alert
+          <BusinessBanner
             type="warning"
-            :closable="false"
-            show-icon
-            class="tab-description"
-          >
-            <template #title>
-              系统运维 — 用户管理与安全审计
-            </template>
-            <p>
-              用户权限管理（admin / 普通用户）和系统级安全审计日志（登录、授权、敏感操作）。
-              审计日志与"内容审核"无关，是独立的安全追溯机制。
-            </p>
-            <p class="tab-meta">
-              后端: <code>/admin/users</code>, <code>/admin/audit-events</code>
-            </p>
-          </el-alert>
+            title="系统运维 — 用户管理与安全审计"
+            description="用户权限管理（admin / 普通用户）和系统级安全审计日志（登录、授权、敏感操作）。审计日志与“内容审核”无关，是独立的安全追溯机制。"
+            :meta="[
+              { category: '后端', label: '/admin/users', code: true, copyable: true },
+              { label: '/admin/audit-events', code: true, copyable: true },
+            ]"
+          />
           <el-tabs
             v-model="systemSubTab"
             class="sub-tabs"
@@ -733,29 +686,7 @@ async function handleSaveSource() {
   align-items: center;
 }
 
-/* ── Business description banner (Phase 24) ── */
-.tab-description {
-  margin-bottom: var(--space-3);
-  border-radius: var(--radius-lg);
-}
-.tab-description :deep(p) {
-  margin: 4px 0 0;
-  font-size: var(--font-size-sm);
-  color: var(--foreground);
-  line-height: 1.5;
-}
-.tab-description .tab-meta {
-  margin-top: 6px;
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-}
-.tab-description code {
-  background: var(--muted);
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-size: 11px;
-}
+/* ── Business description banner — migrated to BusinessBanner component (Phase 26+) ── */
 
 .sub-tabs {
   margin-top: var(--space-2);

@@ -11,7 +11,7 @@ import {
 import {
   type GraphLink3D, evolutionColor, composeEvolutionLinks,
   calcForceConfig, applyForceConfig,
-  createGlowTexture, disposeGlowCache,
+  disposeGlowCache,
   useCameraPresets, type CameraPreset,
   useZoomControls,
   useNodeTooltip,
@@ -72,7 +72,7 @@ function linksForNodes(links: GraphLink3D[], nodes: GraphNode3D[]): GraphLink3D[
 
 function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, links: GraphLink3D[]): void {
   const nodes = limitedNodes.value
-  const shouldAnimate = props.showEvolution && props.currentLayer === 'position' && nodes.length > 1
+  const shouldAnimate = props.showEvolution && nodes.length > 1 && nodes.length <= 100
 
   cancelGrowthAnimation()
   graph.nodeThreeObject(buildNodeThreeObject)
@@ -83,20 +83,59 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
     return
   }
 
+  // Growth animation: reveal nodes one by one with biological feel
   growthAnimating = true
-  let visibleCount = 1
-  const applyVisibleData = (visibleNodes: GraphNode3D[]) => {
-    graph.graphData({ nodes: visibleNodes, links: linksForNodes(links, visibleNodes) })
-    applyForceConfig(graph, visibleNodes.length, NODE_COLLISION_PADDING, getNodeRadius, false)
-    graph.d3ReheatSimulation()
-  }
+  let visibleCount = 0
 
-  applyVisibleData(nodes.slice(0, visibleCount))
+  // Pre-calculate all node positions using a single force simulation
+  // This avoids the "double render" effect
+  const allNodes = nodes.map(n => ({ ...n }))
+  const allLinks = links.map(l => ({ ...l }))
+
+  // Run a quick simulation to get stable positions
+  graph.graphData({ nodes: allNodes, links: allLinks })
+  applyForceConfig(graph, allNodes.length, NODE_COLLISION_PADDING, getNodeRadius, true)
+
+  // Store final positions
+  const finalPositions = new Map<string, { x: number; y: number; z: number }>()
+  allNodes.forEach(n => {
+    if (n.x !== undefined && n.y !== undefined && n.z !== undefined) {
+      finalPositions.set(String(n.id), { x: n.x, y: n.y, z: n.z })
+    }
+  })
+
+  // Now start with empty and reveal one by one
+  graph.graphData({ nodes: [], links: [] })
+
+  const applyVisibleData = (visibleNodes: GraphNode3D[]) => {
+    // Use pre-calculated positions for smooth transitions
+    const positionedNodes = visibleNodes.map(n => {
+      const pos = finalPositions.get(String(n.id))
+      if (pos) {
+        return { ...n, x: pos.x, y: pos.y, z: pos.z, vx: 0, vy: 0, vz: 0 }
+      }
+      return n
+    })
+    graph.graphData({ nodes: positionedNodes, links: linksForNodes(links, positionedNodes) })
+    // Don't reheat - nodes already have positions
+    if (visibleNodes.length <= 1) {
+      applyForceConfig(graph, positionedNodes.length, NODE_COLLISION_PADDING, getNodeRadius, false)
+    }
+  }
 
   const revealNext = () => {
     if (graphInstance.value !== graph || visibleCount >= nodes.length) {
       growthAnimating = false
       growthTimer = null
+      if (visibleCount >= nodes.length) {
+        graph.d3AlphaDecay(0.1)
+        requestAnimationFrame(() => {
+          if (!growthAnimating) {
+            const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
+            setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
+          }
+        })
+      }
       return
     }
 
@@ -108,7 +147,12 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
       growthAnimating = false
       growthTimer = null
       graph.d3AlphaDecay(0.1)
-      setCameraPreset('domain')
+      requestAnimationFrame(() => {
+        if (!growthAnimating) {
+          const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
+          setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
+        }
+      })
     }
   }
 
@@ -234,7 +278,10 @@ async function initGraph() {
 
   // 力模拟稳定后自动适配相机，确保用户看到全局
   graph.onEngineStop(() => {
+    // Skip camera preset if growth animation is still in progress
     if (growthAnimating) return
+    // Skip if we've already handled this stop event
+    if (_engineStopHandled) return
     _engineStopHandled = true
     const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
     setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
@@ -292,7 +339,7 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   // UX-03: Set initial z for new Skill nodes (those without inherited positions)
   applyZLayering(limitedNodes.value)
 
-  const shouldAnimate = props.showEvolution && newLayer === 'position' && limitedNodes.value.length > 1
+  const shouldAnimate = props.showEvolution && limitedNodes.value.length > 1
   renderEvolutionGraph(graph, composedLinks)
 
   // 重置标志位，让 onEngineStop 接管相机定位

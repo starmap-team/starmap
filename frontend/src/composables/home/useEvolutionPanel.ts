@@ -7,7 +7,8 @@ export function useEvolutionPanel() {
   const showEvolution = ref(false)
 
   const graph3DEvolutionLinks = computed(() => {
-    if (!showEvolution.value || graphStore.currentLayer !== 'position') return []
+    if (!showEvolution.value) return []
+    // 演化路径在所有层级都显示，不再限制为仅 position 层
     const sourceName = graphStore.expandedKAName
     const posNodes = graphStore.positionsByKA.get(graphStore.expandedKAId ?? '') ?? []
     const positionNames = new Set(posNodes.map(p => p.properties.name))

@@ -105,6 +105,10 @@ export const useEvolutionStore = defineStore('evolution', () => {
     changelogLoading.value = true
     try {
       const raw = await request.get(`/evolution/changelog/${encodeURIComponent(identifier)}`) as unknown
+      if (raw === null || raw === undefined) {
+        changelogData.value = []
+        return changelogData.value
+      }
       const data = raw as Record<string, unknown>
       changelogData.value = (Array.isArray(raw)
         ? raw

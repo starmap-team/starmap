@@ -13,6 +13,8 @@ import { ALL_STAGE_NAMES, STAGE_LABELS } from '@/stores/pipeline'
 import PipelineDag from '@/components/PipelineDag.vue'
 import DataSourceManager from '@/components/DataSourceManager.vue'
 import PipelineQualityPanel from '@/components/PipelineQualityPanel.vue'
+import PipelineStatusHero from '@/components/PipelineStatusHero.vue'
+import PipelineKpiCards from '@/components/PipelineKpiCards.vue'
 import PipelineGlossary from '@/components/PipelineGlossary.vue'
 import { usePipelineMonitor } from '@/composables/usePipelineMonitor'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
@@ -120,6 +122,8 @@ function clearLogs() {
 }
 
 function logTime(ts: number) {
+  // Phase 7: defensive against invalid timestamps (NaN, undefined, negative)
+  if (typeof ts !== 'number' || !Number.isFinite(ts) || ts < 0) return '--:--:--'
   return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false })
 }
 
@@ -425,7 +429,7 @@ async function verifyNow() {
     <div class="pipeline-page animate-fade-in">
       <BusinessBanner
         type="success"
-        title="§3.2 L2 数据融合层 — ETL 流水线监控"
+        title="L2 数据融合层 — ETL 流水线监控"
         description="全链路 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → LLM 抽取 → 入库 → 图谱构建。每个阶段独立降级，失败不阻塞后续流程。数据源质量影响 §7.1 信任度评分。"
         meta="后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送"
       />
@@ -531,134 +535,14 @@ async function verifyNow() {
         </div>
       </div>
 
-      <!-- Phase 3.8.2: 状态摘要 Hero 卡片 (解决"17% 看不出含义") -->
-      <el-card
-        v-if="stageSummary.total > 0"
-        shadow="never"
-        class="status-hero-card mb-4"
-      >
-        <div class="hero-content">
-          <div class="hero-icon">
-            <el-icon :size="32">
-              <Loading
-                v-if="pipeline.pipelineStatus?.is_running"
-                class="rotating"
-              />
-              <CircleCheck
-                v-else-if="stageSummary.failed === 0 && stageSummary.cancelled === 0 && stageSummary.completed === stageSummary.total"
-                :color="'#16a34a'"
-              />
-              <WarningFilled
-                v-else-if="stageSummary.failed > 0"
-                :color="'#dc2626'"
-              />
-              <Close
-                v-else-if="stageSummary.cancelled > 0"
-                :color="'#f59e0b'"
-              />
-              <VideoPause
-                v-else
-                :color="'#94a3b8'"
-              />
-            </el-icon>
-          </div>
-          <div class="hero-text">
-            <div class="hero-title">
-              <template v-if="pipeline.pipelineStatus?.is_running">
-                流水线正在执行中
-              </template>
-              <template v-else-if="stageSummary.failed > 0">
-                流水线异常终止 ({{ stageSummary.failed }} 个阶段失败)
-              </template>
-              <template v-else-if="stageSummary.cancelled > 0">
-                流水线已取消
-              </template>
-              <template v-else-if="stageSummary.completed === stageSummary.total && stageSummary.total > 0">
-                流水线全部完成
-              </template>
-              <template v-else>
-                流水线待机
-              </template>
-            </div>
-            <div class="hero-detail">
-              <span class="hero-pill completed">{{ stageSummary.completed }} 已完成</span>
-              <span
-                v-if="stageSummary.running > 0"
-                class="hero-pill running"
-              >{{ stageSummary.running }} 运行中</span>
-              <span
-                v-if="stageSummary.failed > 0"
-                class="hero-pill failed"
-              >{{ stageSummary.failed }} 失败</span>
-              <span
-                v-if="stageSummary.cancelled > 0"
-                class="hero-pill cancelled"
-              >{{ stageSummary.cancelled }} 取消</span>
-              <span
-                v-if="stageSummary.skipped > 0"
-                class="hero-pill skipped"
-              >{{ stageSummary.skipped }} 跳过</span>
-              <span class="hero-meta">
-                共处理 <strong>{{ stageSummary.totalRecords.toLocaleString() }}</strong> 条记录,
-                累计耗时 <strong>{{ (stageSummary.totalDurationMs / 1000).toFixed(0) }}</strong> 秒
-              </span>
-            </div>
-          </div>
-        </div>
-      </el-card>
+      <!-- Phase 3.8.2: 状态摘要 Hero 卡片 (Phase 2 P3-1: 抽出 PipelineStatusHero) -->
+      <PipelineStatusHero
+        :is-running="pipeline.pipelineStatus?.is_running ?? false"
+        :summary="stageSummary"
+      />
 
-      <!-- 4 个 KPI 卡片 -->
-      <el-row
-        :gutter="16"
-        class="mb-4"
-      >
-        <el-col
-          v-for="card in kpiCards"
-          :key="card.label"
-          :lg="6"
-          :md="12"
-          :sm="24"
-          class="mb-4"
-        >
-          <el-card
-            shadow="hover"
-            class="kpi-card"
-          >
-            <div class="kpi-inner">
-              <div
-                class="kpi-icon"
-                :style="{ background: card.color + '18', color: card.color }"
-              >
-                <el-icon size="22">
-                  <component :is="card.icon" />
-                </el-icon>
-              </div>
-              <div class="kpi-body">
-                <div class="kpi-label">
-                  {{ card.label }}
-                </div>
-                <div
-                  class="kpi-value"
-                  :style="{ color: card.color }"
-                >
-                  {{ card.value }}
-                </div>
-                <div class="kpi-sub">
-                  <span
-                    v-if="card.trend && card.trend === 'up'"
-                    class="trend-up"
-                  >▲</span>
-                  <span
-                    v-else-if="card.trend && card.trend === 'down'"
-                    class="trend-down"
-                  >▼</span>
-                  {{ card.sub }}
-                </div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+      <!-- 4 个 KPI 卡片 (Phase 2 P3-1: 抽出 PipelineKpiCards) -->
+      <PipelineKpiCards :cards="kpiCards" />
 
       <!-- Phase 3.8.5: 卡死检测横幅 + 强制操作 -->
       <el-alert

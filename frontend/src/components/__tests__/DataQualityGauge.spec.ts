@@ -13,22 +13,23 @@ vi.mock('echarts/components', () => ({ TooltipComponent: {}, GraphicComponent: {
 describe('DataQualityGauge', () => {
   it('computes gauge option with correct score value', () => {
     const wrapper = mount(DataQualityGauge, {
-      props: { score: 85, label: '数据质量', trend: 'up' },
+      props: { score: 0.85, label: '数据质量', trend: 'up' },
       global: { stubs: { VChart: { template: '<div />' } } },
     })
     const vm = wrapper.vm as any
     const option = vm.gaugeOption
 
-    // score 应被 Math.round 处理
+    // score 为 0-1 比例，组件内部乘以 100 转为百分值
     expect(option.series[0].data[0].value).toBe(85)
   })
 
   it('rounds score to integer', () => {
     const wrapper = mount(DataQualityGauge, {
-      props: { score: 72.7 },
+      props: { score: 0.727 },
       global: { stubs: { VChart: { template: '<div />' } } },
     })
     const vm = wrapper.vm as any
+    // 0.727 * 100 = 72.7，Math.round 后为 73
     expect(vm.gaugeOption.series[0].data[0].value).toBe(73)
   })
 

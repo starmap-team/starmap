@@ -157,6 +157,62 @@ describe('useEvolutionStore', () => {
     expect(store.changelogData[0].skill_name).toBe('Go')
   })
 
+  // UX-04: fetchChangelog identifier parameter tests
+  it('should handle fetchChangelog with identifier containing special characters', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockResolvedValueOnce([
+      { id: '4', skill_name: 'C++ / Rust', change_type: 'added', before_value: null, after_value: 'required', confidence: 0.85, detected_at: '2024-04-01' },
+    ])
+
+    const store = useEvolutionStore()
+    await store.fetchChangelog('C++ / Rust')
+
+    expect(store.changelogData).toHaveLength(1)
+    expect(store.changelogData[0].skill_name).toBe('C++ / Rust')
+    // Verify URL encoding is used
+    expect(request.get).toHaveBeenCalledWith('/evolution/changelog/C%2B%2B%20%2F%20Rust')
+  })
+
+  it('should handle fetchChangelog with empty identifier', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockResolvedValueOnce([])
+
+    const store = useEvolutionStore()
+    await store.fetchChangelog('')
+
+    expect(store.changelogData).toEqual([])
+    expect(request.get).toHaveBeenCalledWith('/evolution/changelog/')
+  })
+
+  it('should handle fetchChangelog with non-string response', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockResolvedValueOnce(null)
+
+    const store = useEvolutionStore()
+    await store.fetchChangelog('test')
+
+    expect(store.changelogData).toEqual([])
+  })
+
+  it('should handle fetchChangelog with nested items/changelog in response', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockResolvedValueOnce({
+      items: [
+        { id: '5', skill_name: 'Nested', change_type: 'updated', before_value: 'old', after_value: 'new', confidence: 0.9, detected_at: '2024-05-01' },
+      ],
+      changelog: [
+        { id: '6', skill_name: 'Changelog', change_type: 'removed', before_value: 'req', after_value: null, confidence: 0.7, detected_at: '2024-05-02' },
+      ],
+    })
+
+    const store = useEvolutionStore()
+    await store.fetchChangelog('test')
+
+    // Should prefer changelog over items when both are present (matches actual code logic)
+    expect(store.changelogData).toHaveLength(1)
+    expect(store.changelogData[0].skill_name).toBe('Changelog')
+  })
+
   // ── 5. fetchEmergingAlerts action ──
 
   it('should fetch emerging alerts and set state', async () => {
@@ -271,5 +327,39 @@ describe('useEvolutionStore', () => {
     expect(store.snapshotsLoading).toBe(false)
     expect(store.changelogLoading).toBe(false)
     expect(store.alertsLoading).toBe(false)
+  })
+
+  // ── 9. fetchEmergingAlerts level filtering ──
+
+  it('should filter emerging alerts by level', async () => {
+    const request = (await import('@/api/request')).default
+    const mockAlerts = {
+      alerts: [
+        { skill_name: 'Rust', category: 'language', level: 'emerging', z_score: 2.5, current_frequency: 50, mean_frequency: 20, domains: ['backend'], positions: ['Dev'], alert_message: 'Rust is emerging' },
+        { skill_name: 'Python', category: 'language', level: 'stable', z_score: 0.5, current_frequency: 100, mean_frequency: 95, domains: ['backend', 'data'], positions: ['Dev', 'Data'], alert_message: 'Python is stable' },
+      ],
+      total: 2,
+      summary: '2 skills detected',
+    }
+    vi.mocked(request.get).mockResolvedValueOnce(mockAlerts)
+
+    const store = useEvolutionStore()
+    await store.fetchEmergingAlerts('emerging')
+
+    // Verify the request was made with the level filter
+    expect(request.get).toHaveBeenCalledWith('/evolution/emerging-alerts', { params: { level: 'emerging' } })
+    // Both alerts are stored (filtering is done by backend)
+    expect(store.emergingAlerts).toHaveLength(2)
+  })
+
+  it('should handle fetchEmergingAlerts with empty level', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockResolvedValueOnce({ alerts: [], total: 0, summary: '' })
+
+    const store = useEvolutionStore()
+    await store.fetchEmergingAlerts()
+
+    // Should call without level parameter
+    expect(request.get).toHaveBeenCalledWith('/evolution/emerging-alerts', { params: {} })
   })
 })

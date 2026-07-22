@@ -26,6 +26,7 @@ import GapAnalysisReport from '@/components/GapAnalysisReport.vue'
 import LearningPathPlan from '@/components/LearningPathPlan.vue'
 import MatchFlow from '@/components/MatchFlow.vue'
 import MatchTrustGuide from '@/components/MatchTrustGuide.vue'
+import BusinessBanner from '@/components/BusinessBanner.vue'
 import type { SkillMatchItem } from '@/components/SkillMatchAnimation.vue'
 import { useUserStore } from '@/stores/user'
 import { useResumeStore } from '@/stores/resume'
@@ -299,24 +300,17 @@ onUnmounted(() => {
         </p>
       </div>
 
-      <!-- Phase 25: §5.2 module-D 业务说明横幅 -->
-      <el-alert
+      <BusinessBanner
         type="info"
-        :closable="false"
-        show-icon
-        class="tab-description"
-      >
-        <template #title>
-          §5.2 模块D — 人岗匹配度诊断与差距分析
-        </template>
-        <p>
-          本流程对应设计文档的"匹配诊断全流程"：上传简历 → 文档解析 → LLM 技能提取 →
-          技能归一化 → 与目标岗位技能对比 → 差距分析报告 → 学习路径生成。
-        </p>
-        <p class="tab-meta">
-          后端: <code>/match/*</code> · 信任度驱动 (§7.1) · 通胀指数参考 (§7.5)
-        </p>
-      </el-alert>
+        title="模块D — 人岗匹配度诊断与差距分析"
+        description="本流程对应设计文档的“匹配诊断全流程”：上传简历 → 文档解析 → LLM 技能提取 → 技能归一化 → 与目标岗位技能对比 → 差距分析报告 → 学习路径生成。"
+        :meta="[
+          { category: '后端', label: '/match/*', code: true, copyable: true },
+          { label: '信任度驱动 (§7.1)' },
+          { label: '通胀指数参考 (§7.5)' },
+        ]"
+        collapsible
+      />
 
       <!-- Phase 25: 业务流程图 — 让新用户秒懂 6 步骤数据流 -->
       <el-card

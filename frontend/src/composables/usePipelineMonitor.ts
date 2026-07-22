@@ -228,6 +228,12 @@ export function usePipelineMonitor() {
     if (!ps?.is_running) return false
     const activeStages = (ps.current_run?.stages || []).filter((s: { status: string }) => s.status !== 'skipped')
     if (!activeStages.length) return false
+    // Phase 7: also stuck when ALL non-skipped stages are terminal (completed/failed) but run still 'running'
+    // (orchestrator forgot to mark run complete)
+    const TERMINAL = new Set(['completed', 'failed'])
+    if (activeStages.every((s: { status: string }) => TERMINAL.has(s.status))) {
+      return true
+    }
     // 卡死的核心条件: 有 running 阶段但该阶段已运行 > 10 分钟且无任何 records
     // 或者: 没有任何 pending/正在运行 的进展, 唯一 running 已卡住
     const runningStages = activeStages.filter((s: { status: string }) => s.status === 'running')
@@ -296,7 +302,10 @@ export function usePipelineMonitor() {
       {
         label: '自动爬虫',
         value: typeof s?.active_data_sources === 'number' ? String(s.active_data_sources) : '--',
-        sub: '个可定时爬取 (含 6 个手动数据源)',
+        // Phase 7: compute manual source count from dataSources store, no hardcoded "6"
+        sub: typeof s?.active_data_sources === 'number'
+          ? `${s.active_data_sources}个自动 + ${pipeline.dataSources.length}个手动 (合计${s.active_data_sources + pipeline.dataSources.length}个数据源)`
+          : '加载中...',
         color: colors.info,
         icon: 'Connection',
         trend: 'stable',

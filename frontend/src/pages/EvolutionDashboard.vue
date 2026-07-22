@@ -77,7 +77,7 @@ onMounted(() => {
     <div class="evolution-page animate-fade-in">
       <BusinessBanner
         type="warning"
-        title="§5.2 演化分析 + §7.5 能力通胀指数 (CII)"
+        title="演化分析 + 能力通胀指数 (CII)"
         description="本看板展示岗位技能图谱的演化趋势：新兴技能涌现（Z-score 检测）、技能变更日志、以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。"
         meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> · §7.1 信任度驱动"
       />
