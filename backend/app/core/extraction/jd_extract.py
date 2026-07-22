@@ -409,11 +409,11 @@ class JDExtractionPipeline:
             before_pref = len(validated.preferred_skills)
             validated.required_skills = [
                 s for s in validated.required_skills
-                if (s.name if hasattr(s, "name") else s.get("name", "")) in dict_skills
+                if s.name in dict_skills
             ]
             validated.preferred_skills = [
                 s for s in validated.preferred_skills
-                if (s.name if hasattr(s, "name") else s.get("name", "")) in dict_skills
+                if s.name in dict_skills
             ]
             dropped = (before_req - len(validated.required_skills)) + (before_pref - len(validated.preferred_skills))
             if dropped:

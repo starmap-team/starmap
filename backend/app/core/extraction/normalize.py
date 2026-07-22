@@ -8,7 +8,6 @@
   确保后续匹配、分析、统计的准确性，避免同一技能因写法不同而被重复计数。
 """
 
-import re
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path

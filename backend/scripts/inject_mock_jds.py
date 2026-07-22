@@ -1,12 +1,11 @@
 """Phase 3.8.9: 注入 mock JD 数据 + 验证 import 闭环"""
 import asyncio
-import json
 import uuid
-import subprocess
-from datetime import datetime, UTC
-from app.db.session import get_session_factory
+from datetime import datetime
+
 from sqlalchemy import text
 
+from app.db.session import get_session_factory
 
 MOCK_JDS = [
     {

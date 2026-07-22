@@ -217,7 +217,7 @@ async def force_advance_pipeline(run_id: UUID) -> PipelineRunResponse:
     from sqlalchemy import select as sa_select
 
     from app.core.pipeline.executor import advance_pipeline
-    from app.core.pipeline.orchestrator import get_ready_stages, STAGE_DEPS, StageStatus, _stage_index
+    from app.core.pipeline.orchestrator import StageStatus
     from app.db.session import get_session_factory
     from app.models.pipeline_models import PipelineRun
 
@@ -750,7 +750,6 @@ async def pipeline_metrics(
     Returns per-stage duration histogram, error_type counts, and run summary.
     Does NOT require admin — designed for scrape access.
     """
-    from sqlalchemy import func as sa_func
 
     # Recent runs per-stage duration histogram (last 30 days)
     since = datetime.now(UTC) - timedelta(days=30)

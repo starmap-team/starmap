@@ -248,8 +248,8 @@ class GraphWriteOutbox(Base):
 
     def __repr__(self) -> str:
         return (
-            f"<DataSourceRecord {self.name} type={self.source_type} "
-            f"status={self.status} authority={self.authority_score:.2f}>"
+            f"<GraphWriteOutbox id={self.id} status={self.status} "
+            f"run_id={self.run_id}>"
         )
 
 

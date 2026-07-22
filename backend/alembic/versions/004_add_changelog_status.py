@@ -7,7 +7,6 @@ Create Date: 2026-07-20
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -23,14 +22,14 @@ def upgrade() -> None:
         "evolution_changelog",
         sa.Column("status", sa.String(20), nullable=True, server_default="pending"),
     )
-    
+
     # Create composite index for review-queue queries
     op.create_index(
         "ix_evolution_changelog_status_trust",
         "evolution_changelog",
         ["status", "trust_score"],
     )
-    
+
     # Backfill existing data: trust_score < 0.5 -> pending, others -> approved
     op.execute(
         """

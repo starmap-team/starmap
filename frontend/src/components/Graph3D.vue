@@ -88,46 +88,65 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
   let visibleCount = 0
 
   // Pre-calculate all node positions using a single force simulation
-  // This avoids the "double render" effect
   const allNodes = nodes.map(n => ({ ...n }))
   const allLinks = links.map(l => ({ ...l }))
 
-  // Run a quick simulation to get stable positions
+  // Run simulation to get stable positions
   graph.graphData({ nodes: allNodes, links: allLinks })
   applyForceConfig(graph, allNodes.length, NODE_COLLISION_PADDING, getNodeRadius, true)
 
-  // Store final positions
-  const finalPositions = new Map<string, { x: number; y: number; z: number }>()
-  allNodes.forEach(n => {
-    if (n.x !== undefined && n.y !== undefined && n.z !== undefined) {
-      finalPositions.set(String(n.id), { x: n.x, y: n.y, z: n.z })
-    }
-  })
-
-  // Now start with empty and reveal one by one
-  graph.graphData({ nodes: [], links: [] })
-
-  const applyVisibleData = (visibleNodes: GraphNode3D[]) => {
-    // Use pre-calculated positions for smooth transitions
-    const positionedNodes = visibleNodes.map(n => {
-      const pos = finalPositions.get(String(n.id))
-      if (pos) {
-        return { ...n, x: pos.x, y: pos.y, z: pos.z, vx: 0, vy: 0, vz: 0 }
+  // Wait for simulation to stabilize before storing positions
+  setTimeout(() => {
+    // Store final positions
+    const finalPositions = new Map<string, { x: number; y: number; z: number }>()
+    allNodes.forEach(n => {
+      if (n.x !== undefined && n.y !== undefined && n.z !== undefined) {
+        finalPositions.set(String(n.id), { x: n.x, y: n.y, z: n.z })
       }
-      return n
     })
-    graph.graphData({ nodes: positionedNodes, links: linksForNodes(links, positionedNodes) })
-    // Don't reheat - nodes already have positions
-    if (visibleNodes.length <= 1) {
-      applyForceConfig(graph, positionedNodes.length, NODE_COLLISION_PADDING, getNodeRadius, false)
-    }
-  }
 
-  const revealNext = () => {
-    if (graphInstance.value !== graph || visibleCount >= nodes.length) {
-      growthAnimating = false
-      growthTimer = null
-      if (visibleCount >= nodes.length) {
+    // Now start with empty and reveal one by one
+    graph.graphData({ nodes: [], links: [] })
+
+    const applyVisibleData = (visibleNodes: GraphNode3D[]) => {
+      // Use pre-calculated positions for smooth transitions
+      const positionedNodes = visibleNodes.map(n => {
+        const pos = finalPositions.get(String(n.id))
+        if (pos) {
+          return { ...n, x: pos.x, y: pos.y, z: pos.z, vx: 0, vy: 0, vz: 0 }
+        }
+        return n
+      })
+      graph.graphData({ nodes: positionedNodes, links: linksForNodes(links, positionedNodes) })
+      // Don't reheat - nodes already have positions
+      if (visibleNodes.length <= 1) {
+        applyForceConfig(graph, positionedNodes.length, NODE_COLLISION_PADDING, getNodeRadius, false)
+      }
+    }
+
+    const revealNext = () => {
+      if (graphInstance.value !== graph || visibleCount >= nodes.length) {
+        growthAnimating = false
+        growthTimer = null
+        if (visibleCount >= nodes.length) {
+          graph.d3AlphaDecay(0.1)
+          requestAnimationFrame(() => {
+            if (!growthAnimating) {
+              const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
+              setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
+            }
+          })
+        }
+        return
+      }
+
+      visibleCount += 1
+      applyVisibleData(nodes.slice(0, visibleCount))
+      if (visibleCount < nodes.length) {
+        growthTimer = setTimeout(revealNext, GROWTH_INTERVAL_MS)
+      } else {
+        growthAnimating = false
+        growthTimer = null
         graph.d3AlphaDecay(0.1)
         requestAnimationFrame(() => {
           if (!growthAnimating) {
@@ -136,27 +155,10 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
           }
         })
       }
-      return
     }
 
-    visibleCount += 1
-    applyVisibleData(nodes.slice(0, visibleCount))
-    if (visibleCount < nodes.length) {
-      growthTimer = setTimeout(revealNext, GROWTH_INTERVAL_MS)
-    } else {
-      growthAnimating = false
-      growthTimer = null
-      graph.d3AlphaDecay(0.1)
-      requestAnimationFrame(() => {
-        if (!growthAnimating) {
-          const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
-          setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
-        }
-      })
-    }
-  }
-
-  growthTimer = setTimeout(revealNext, GROWTH_INTERVAL_MS)
+    growthTimer = setTimeout(revealNext, GROWTH_INTERVAL_MS)
+  }, 800)
 }
 
 // UX-02: Limit nodes/links when maxNodes is set (for background mode)

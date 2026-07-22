@@ -23,6 +23,7 @@ from pydantic import BaseModel, EmailStr, Field
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.dependencies import (
     _bearer_scheme,
     _decode_token_payload,
@@ -31,7 +32,6 @@ from app.dependencies import (
     get_redis_client,
 )
 from app.services import auth_service
-from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 

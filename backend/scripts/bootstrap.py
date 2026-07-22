@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 
+
 def run(cmd: list[str], *, cwd: str | None = None) -> None:
     print(f"[bootstrap] {' '.join(cmd)}")
     subprocess.run(cmd, cwd=cwd, check=True)
@@ -17,7 +18,7 @@ def main() -> int:
         except subprocess.CalledProcessError as e:
             print(f"[bootstrap] alembic upgrade failed: {e}")
             return 1
-    
+
     # Optional admin seed
     seed_script = "scripts/seed_admin.py"
     if os.path.exists(seed_script):
@@ -25,7 +26,7 @@ def main() -> int:
             run([sys.executable, "-m", "scripts.seed_admin"])
         except subprocess.CalledProcessError:
             print("[bootstrap] admin seed failed (non-critical)")
-    
+
     print("[bootstrap] complete")
     return 0
 

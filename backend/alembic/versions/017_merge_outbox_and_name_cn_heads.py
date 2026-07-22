@@ -10,8 +10,6 @@ Create Date: 2026-07-23
 """
 from collections.abc import Sequence
 
-from alembic import op
-
 revision: str = "017"
 down_revision: tuple[str, str] | None = ("016", "3a3d8b3c5b08")
 branch_labels: str | Sequence[str] | None = None
