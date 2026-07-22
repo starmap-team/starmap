@@ -1062,6 +1062,86 @@ paths:
                 items:
                   $ref: "#/components/schemas/ReviewQueueItem"
 
+  /evolution/review-queue/{id}/approve:
+    post:
+      operationId: approveEvolutionReviewQueueItem
+      summary: "审核通过演化变更"
+      description: "将指定演化变更项标记为 approved"
+      tags: [演化分析]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "变更项 ID"
+      responses:
+        "200":
+          description: "已审核通过"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewQueueItem"
+        "404":
+          description: "变更项不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /evolution/review-queue/{id}/reject:
+    post:
+      operationId: rejectEvolutionReviewQueueItem
+      summary: "审核驳回演化变更"
+      description: "将指定演化变更项标记为 rejected"
+      tags: [演化分析]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "变更项 ID"
+      responses:
+        "200":
+          description: "已审核驳回"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewQueueItem"
+        "404":
+          description: "变更项不存在"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /evolution/domains:
+    get:
+      operationId: getEvolutionDomains
+      summary: "演化领域列表"
+      description: "获取当前支持的演化分析领域及其关键词"
+      tags: [演化分析]
+      responses:
+        "200":
+          description: "领域列表"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domains:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        keywords:
+                          type: array
+                          items:
+                            type: string
+
   /evolution/cii-history/{position}:
     get:
       operationId: getCIIHistory
@@ -4266,6 +4346,10 @@ components:
           type: number
         confidence:
           type: number
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          description: "审核状态"
         created_at:
           type: string
           format: date-time

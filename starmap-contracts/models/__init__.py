@@ -359,6 +359,7 @@ class ChangelogEntry(BaseModel):
     new_requirement: Optional[str] = Field(default=None, description="")
     trust_score: float = Field(description="")
     confidence: float = Field(description="")
+    status: Optional[str] = Field(default=None, description="审核状态: pending, approved, rejected")
     created_at: str = Field(description="")
 
 class ComprehensiveReport(BaseModel):
@@ -710,12 +711,17 @@ class ReviewListResponse(BaseModel):
     total: int = Field(description="")
 
 class ReviewQueueItem(BaseModel):
+    id: Optional[str] = Field(default=None, description="变更项 ID")
     skill_name: str = Field(description="")
     position_name: str = Field(description="")
     change_type: str = Field(description="")
     trust_score: float = Field(description="")
     status: str = Field(description="")
     created_at: str = Field(description="")
+
+class DomainKeywordEntry(BaseModel):
+    name: str = Field(description="领域名称")
+    keywords: list[str] = Field(description="领域关键词列表")
 
 class ScheduleCreateRequest(BaseModel):
     name: str = Field(description="")
