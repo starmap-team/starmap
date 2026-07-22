@@ -93,6 +93,7 @@ def _build_initial_stages(selected: list[str] | None = None) -> list[dict[str, A
             "records_processed": 0,
             "errors": [],
             "retry_count": 0,
+            "error_type": "",     # Phase 7 fix: classify failures for observability
             "depends_on": STAGE_DEPS.get(stage.value, []),
             # Phase 3.7: 实时活动字段
             "current_activity": "",
@@ -175,6 +176,7 @@ async def update_stage_status(
     records_seen: int = 0,                              # Phase 3.8.11
     errors: list[str] | None = None,
     retry_count: int | None = None,
+    error_type: str = "",                                # Phase 7: failure classification
     current_activity: str = "",
     recent_samples: list[dict] | None = None,
     sub_breakdown: dict[str, int] | None = None,
@@ -214,6 +216,8 @@ async def update_stage_status(
         stage["errors"] = errors
     if retry_count is not None:
         stage["retry_count"] = retry_count
+    if error_type:
+        stage["error_type"] = error_type
     # Phase 3.7: 实时活动上下文持久化
     if current_activity:
         stage["current_activity"] = current_activity

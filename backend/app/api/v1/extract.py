@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.upload_validation import validate_resume_upload
 from app.core.extraction.graph_writer import write_extraction_to_graph
 from app.core.extraction.jd_extract import extract_from_jd
+from app.core.llm.cost_tracker import tracker
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.services.resume_service import run_resume_extraction
 
@@ -133,6 +134,12 @@ async def _write_extraction_to_pg(
         return None
 
     return await write_extraction_to_pg(session, pipeline_data=data)
+
+
+@router.get("/cost-summary", response_model=dict)
+async def get_llm_cost_summary() -> dict[str, Any]:
+    """累计 LLM 调用成本快照（进程内存，单进程聚合，重启清零）。"""
+    return tracker.summary()
 
 
 @router.post("/jd", response_model=ExtractionResult)

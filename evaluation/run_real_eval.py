@@ -378,7 +378,7 @@ async def main(sample_limit: int | None = None) -> None:
     print(f"[4/4] System output saved: {system_path}")
 
     # Score using full golden (results are already filtered by sample_limit)
-    metrics = evaluate_batch(
+    metrics = await evaluate_batch(
         golden_file=str(GOLDEN_PATH),
         system_file=str(system_path),
         output_file=str(OUTPUT_DIR / "evaluation_results.json"),

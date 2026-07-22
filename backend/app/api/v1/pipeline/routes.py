@@ -5,14 +5,14 @@ Split from pipeline.py in Phase 6 architecture refactor.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.pipeline.schemas import (
@@ -208,18 +208,52 @@ async def retry_stage(
 
 @router.post("/runs/{run_id}/force-advance", response_model=PipelineRunResponse, dependencies=[Depends(require_admin)])
 async def force_advance_pipeline(run_id: UUID) -> PipelineRunResponse:
-    """Phase 3.8.5: 强制推进流水线 (修复 Celery event loop 错误导致的卡死).
+    """强制推进流水线 (修复 Celery event loop 错误导致的卡死).
 
-    当 Celery 任务因 event loop 错误失败时, run 可能处于 is_running=true 但所有 stage 都 pending 的状态。
-    这个接口会重新调用 advance_pipeline 继续推进。
+    当 Celery 任务因 event loop 错误失败时, run 可能处于 'running' 状态但所有
+    stage 既不是 running 也不是 completed。这个接口会先将卡死的 stage 标记为
+    FAILED (error_type='stuck_force_advanced'),再调用 advance_pipeline 继续推进。
     """
     from sqlalchemy import select as sa_select
 
     from app.core.pipeline.executor import advance_pipeline
+    from app.core.pipeline.orchestrator import get_ready_stages, STAGE_DEPS, StageStatus, _stage_index
     from app.db.session import get_session_factory
     from app.models.pipeline_models import PipelineRun
 
-    # 强制 advance (即使 stage 已 completed, 也会去找 next ready stage)
+    sm = get_session_factory()
+
+    # Phase 7 fix: detect and mark stuck stages before advancing
+    async with sm() as session:
+        async with session.begin():
+            result = await session.execute(sa_select(PipelineRun).where(PipelineRun.id == run_id))
+            run = result.scalar_one_or_none()
+            if run is None:
+                raise HTTPException(status_code=404, detail="Pipeline run not found")
+
+            raw_stages = run.stages or []
+            stages: list[dict] = raw_stages if isinstance(raw_stages, list) else []
+            terminal = {StageStatus.COMPLETED.value, StageStatus.FAILED.value, StageStatus.SKIPPED.value}
+            stuck = False
+
+            for s in stages:
+                if s["status"] not in terminal and s["status"] != StageStatus.RUNNING.value:
+                    # Stuck stage: mark as failed so downstream can proceed
+                    s["status"] = StageStatus.FAILED.value
+                    s["completed_at"] = datetime.now(UTC).isoformat()
+                    s["error_type"] = "stuck_force_advanced"
+                    if not s.get("errors"):
+                        s["errors"] = []
+                    s["errors"].append("Marked as stuck by force-advance command")
+                    stuck = True
+                    logger.warning("force_advance: marked stuck stage %s as FAILED", s["name"])
+
+            if stuck:
+                await session.execute(
+                    update(PipelineRun).where(PipelineRun.id == run_id).values(stages=stages)
+                )
+
+    # Now advance normally (get_ready_stages will find PENDING successors)
     await advance_pipeline(run_id)
 
     # 返回最新状态
@@ -686,4 +720,79 @@ async def export_analysis(
             return JSONResponse(content=result)
 
     return JSONResponse(content=_build_result(ctx))
+
+
+# ── Phase 7: Crawler completion Webhook (P0-2 fix) ──
+
+
+@router.post("/crawler-complete", response_model=dict)
+async def crawler_complete_callback(
+    source_name: str = Form(...),
+    records_crawled: int = Form(0),
+) -> dict[str, Any]:
+    """废弃此端点。CRAWL 阶段将通过 crawl_source_data 内部感知爬虫完成。
+
+    此端点保有仅为向后兼容，永远返回 noop 状态。
+    """
+    logger.info("crawler_complete_callback (noop) source=%s records=%s", source_name, records_crawled)
+    return {"status": "noop", "source": source_name, "records_crawled": records_crawled}
+
+
+# ── Phase 7: Pipeline observability metrics (Prometheus-compatible) ──
+
+
+@router.get("/metrics", response_model=dict)
+async def pipeline_metrics(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, Any]:
+    """Expose pipeline observability metrics for Prometheus / Grafana.
+
+    Returns per-stage duration histogram, error_type counts, and run summary.
+    Does NOT require admin — designed for scrape access.
+    """
+    from sqlalchemy import func as sa_func
+
+    # Recent runs per-stage duration histogram (last 30 days)
+    since = datetime.now(UTC) - timedelta(days=30)
+    result = await session.execute(
+        select(PipelineRun)
+        .where(PipelineRun.started_at >= since)
+        .where(PipelineRun.status.in_(["completed", "failed"]))
+        .order_by(PipelineRun.started_at.desc())
+        .limit(100)
+    )
+    runs = result.scalars().all()
+
+    # Per-stage duration aggregation
+    stage_durations: dict[str, list[int]] = {}
+    error_type_counts: dict[str, int] = {}
+    total_runs = len(runs)
+    failed_runs = 0
+
+    for run in runs:
+        if run.status == "failed":
+            failed_runs += 1
+        raw_stages = run.stages or []
+        stages: list[dict] = raw_stages if isinstance(raw_stages, list) else []
+        for s in stages:
+            name = s.get("name", "unknown")
+            dur = s.get("elapsed_ms", s.get("duration_ms", 0))
+            if isinstance(dur, (int, float)) and dur > 0:
+                stage_durations.setdefault(name, []).append(int(dur))
+            et = s.get("error_type", "")
+            if et:
+                error_type_counts[et] = error_type_counts.get(et, 0) + 1
+
+    return {
+        "total_runs_30d": total_runs,
+        "failed_runs_30d": failed_runs,
+        "success_rate_30d": round((total_runs - failed_runs) / max(total_runs, 1), 4),
+        "stage_duration_p50_ms": {
+            k: sorted(v)[len(v) // 2] if v else 0 for k, v in stage_durations.items()
+        },
+        "stage_duration_p95_ms": {
+            k: sorted(v)[int(len(v) * 0.95)] if len(v) >= 20 else 0 for k, v in stage_durations.items()
+        },
+        "error_type_counts": error_type_counts,
+    }
 

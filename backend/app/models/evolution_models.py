@@ -136,6 +136,12 @@ class EvolutionChangelog(Base):
     snapshot_to_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("evolution_snapshots.id", ondelete="SET NULL"), nullable=True, index=True,
     )
+    # 业务说明：变更审核状态，用于人工审核队列筛选
+    # 技术说明：枚举值 pending（待审核）| approved（已通过）| rejected（已拒绝）
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending",
+        comment="pending | approved | rejected",
+    )
     # 业务说明：TrustScorer计算的可信度分数，评估变更的可靠性
     # 技术说明：默认0.5，范围0.0-1.0，值越高变更越可信，低分变更需人工复核
     trust_score: Mapped[float] = mapped_column(

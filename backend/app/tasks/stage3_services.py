@@ -1,6 +1,7 @@
 """Stage 3 task services for extraction, graph ingestion, and evolution analysis."""
 from __future__ import annotations
 
+import uuid
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -156,7 +157,12 @@ async def _load_source_counts(sessionmaker: async_sessionmaker) -> dict[str, int
 
 
 async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Run extraction, persist it, and ingest the resulting triples into Neo4j."""
+    """Run extraction, persist it, and ingest the resulting triples into Neo4j.
+
+    Phase 7 P0-1 fix: wraps the Neo4j write in the graph-write outbox protocol
+    so a Postgres commit followed by a Neo4j failure leaves a recoverable
+    ``graph_write_outbox`` row (status='failed') instead of silent PG/Neo4j drift.
+    """
     engine = get_async_engine()
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     try:
@@ -172,15 +178,42 @@ async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = No
             async with session.begin():
                 record = await persist_extraction_result(session, jd_text, result)
 
-        graph_summary = await write_single_extraction_to_graph(result["data"])
-        return {
-            "status": "completed",
-            "extraction_id": str(record.id),
-            "position_name": record.job_title,
-            "required_skill_count": len(result["data"].get("required_skills", [])),
-            "preferred_skill_count": len(result["data"].get("preferred_skills", [])),
-            "graph": graph_summary,
-        }
+        # H1 fix: outbox run_id=NULL for ad-hoc extraction; extraction_ids links
+        # back to JDExtractionRecord for audit/retry traceability.
+        # executor is imported lazily to avoid circular import (executor imports
+        # stage3_services at function scope — see executor.py:513, 611).
+        from app.core.pipeline import executor as _ex
+
+        outbox_id = uuid.uuid4()
+        try:
+            await _ex._create_outbox_record(
+                sessionmaker, outbox_id, None, extraction_ids=[record.id],
+            )
+        except Exception as o_exc:  # pragma: no cover - outbox is best-effort
+            logger.warning("run_batch_extract_jd outbox create failed (non-fatal): {}", o_exc)
+
+        try:
+            graph_summary = await write_single_extraction_to_graph(result["data"])
+            try:
+                await _ex._complete_outbox_record(
+                    sessionmaker, outbox_id, int(graph_summary.get("triples_merged", 0)),
+                )
+            except Exception as o_exc:  # pragma: no cover
+                logger.warning("run_batch_extract_jd outbox complete failed (non-fatal): {}", o_exc)
+            return {
+                "status": "completed",
+                "extraction_id": str(record.id),
+                "position_name": record.job_title,
+                "required_skill_count": len(result["data"].get("required_skills", [])),
+                "preferred_skill_count": len(result["data"].get("preferred_skills", [])),
+                "graph": graph_summary,
+            }
+        except Exception as exc:
+            try:
+                await _ex._fail_outbox_record(sessionmaker, outbox_id, str(exc))
+            except Exception as o_exc:  # pragma: no cover
+                logger.warning("run_batch_extract_jd outbox fail update error: {}", o_exc)
+            raise
     finally:
         await engine.dispose()
 

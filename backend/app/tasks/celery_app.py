@@ -175,19 +175,35 @@ async def _mark_stage_cancelled(run_id: str, stage_name: str) -> None:
         await session.commit()
 
 
-@celery_app.task
-def advance_pipeline_task(run_id: str) -> None:
-    """Async advance_pipeline wrapper for Celery dispatch."""
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
+def advance_pipeline_task(self, run_id: str) -> None:
+    """Async advance_pipeline wrapper for Celery dispatch.
+
+    Retries with exponential backoff if worker crashes mid-execution.
+    Stale advances are idempotent: advance_pipeline only dispatches PENDING stages.
+    """
     import uuid
 
     from app.core.pipeline.executor import advance_pipeline
-    run_async(advance_pipeline(uuid.UUID(run_id)))
+    try:
+        run_async(advance_pipeline(uuid.UUID(run_id)))
+    except Exception as exc:
+        logger.exception("advance_pipeline_task retry run_id=%s", run_id)
+        raise self.retry(exc=exc, countdown=30 * (2 ** self.request.retries)) from exc
 
 
-@celery_app.task
-def scheduled_pipeline_run(schedule_id: str) -> None:
-    """Phase 2 CRON-04: 读取 schedule 并触发 pipeline。"""
-    run_async(_execute_scheduled_run(schedule_id))
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=60)
+def scheduled_pipeline_run(self, schedule_id: str) -> None:
+    """Phase 2 CRON-04: 读取 schedule 并触发 pipeline。
+
+    Retries once at 60s delay. If the schedule fetch fails (transient DB issue),
+    the retry gives PostgreSQL time to recover.
+    """
+    try:
+        run_async(_execute_scheduled_run(schedule_id))
+    except Exception as exc:
+        logger.exception("scheduled_pipeline_run failed schedule_id=%s", schedule_id)
+        raise self.retry(exc=exc) from exc
 
 
 async def _execute_scheduled_run(schedule_id: str) -> None:
@@ -318,5 +334,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.celery_app.analyze_evolution_trends",
         "schedule": crontab(hour="*/6", minute=0),  # 每6小时
         "kwargs": {"days": 90},
+    },
+    # Phase 7: auto-recover orphaned pipeline runs stuck in RUNNING > 30min
+    "sweep-orphan-runs": {
+        "task": "app.tasks.celery_app.sweep_orphan_runs",
+        "schedule": crontab(minute="*/5"),  # 每5分钟
     },
 }

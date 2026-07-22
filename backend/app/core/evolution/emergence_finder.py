@@ -14,11 +14,15 @@ Sprint 2.3 增强功能：
 from __future__ import annotations
 
 import math
+import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import StrEnum
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
+import yaml
 from loguru import logger
 
 
@@ -93,10 +97,24 @@ class PortabilityAnalysis:
     recommendation: str = ""
 
 
-# BL-15: Domain keywords used to classify skills into domains.
-# TODO: Move to configuration file or database table for runtime updates
-# without code changes. Current hardcoded approach requires redeployment.
-DOMAIN_KEYWORDS: dict[str, list[str]] = {
+# BL-15: Domain keywords loaded from YAML config for runtime updates.
+# Fallback to hardcoded defaults if config file is missing.
+def _load_domain_keywords() -> dict[str, list[str]]:
+    """Load domain keywords from YAML config file with fallback to defaults."""
+    config_path = Path(__file__).parent.parent.parent / "config" / "domain_keywords.yaml"
+    try:
+        if config_path.exists():
+            with open(config_path, encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            if data and isinstance(data, dict):
+                return {k: v for k, v in data.items() if isinstance(v, list)}
+    except Exception as e:
+        logger.warning(f"Failed to load domain_keywords.yaml: {e}. Using fallback defaults.")
+    return _DEFAULT_DOMAIN_KEYWORDS
+
+
+# Fallback defaults (same as original hardcoded values)
+_DEFAULT_DOMAIN_KEYWORDS: dict[str, list[str]] = {
     "IT": [
         "java", "python", "c++", "c#", ".net", "go", "rust", "javascript",
         "typescript", "sql", "git", "linux", "docker", "kubernetes", "微服务",
@@ -123,14 +141,25 @@ DOMAIN_KEYWORDS: dict[str, list[str]] = {
 }
 
 
+@lru_cache(maxsize=1)
+def _get_domain_keywords() -> dict[str, list[str]]:
+    """Cached domain keywords. Reload on process restart."""
+    return _load_domain_keywords()
+
+
+# Public accessor: call _get_domain_keywords() at module load time
+DOMAIN_KEYWORDS: dict[str, list[str]] = _get_domain_keywords()
+
+
 def _classify_skill_domains(skill_name: str, positions: list[str] | None = None) -> list[str]:
     """Classify a skill into domains based on name and associated positions."""
+    keywords = _get_domain_keywords()
     text = skill_name.lower()
     combined = f"{skill_name} {' '.join(positions or [])}".lower()
 
     matched_domains: list[str] = []
-    for domain, keywords in DOMAIN_KEYWORDS.items():
-        for kw in keywords:
+    for domain, kws in keywords.items():
+        for kw in kws:
             if kw.lower() in text or kw.lower() in combined:
                 matched_domains.append(domain)
                 break

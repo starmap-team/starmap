@@ -8,6 +8,7 @@
   确保后续匹配、分析、统计的准确性，避免同一技能因写法不同而被重复计数。
 """
 
+import re
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -545,6 +546,67 @@ def normalize_skill(
     result.metadata["note"] = "No alias or vector match found; kept original"
     logger.debug("No normalization found for '{}', keeping original", skill_name)
     return result
+
+
+# Pre-compile alias list at import time for fast dictionary extraction.
+# ponytail: aliases sorted by length DESC so "Apache Kafka" matches before "Kafka"
+# and "PostgreSQL" matches before "SQL". The earlier regex-with-named-groups
+# approach blew Python's 100-group limit (2066 aliases > 100), so we fall back
+# to a sorted alias list + simple substring scan. With ~3000 aliases per JD,
+# a full scan is ~1ms — well under any LLM call cost.
+_DICT_ALIAS_PAIRS: list[tuple[str, str]] = []
+
+
+def _build_dict_pairs() -> list[tuple[str, str]]:
+    global _DICT_ALIAS_PAIRS
+    if _DICT_ALIAS_PAIRS:
+        return _DICT_ALIAS_PAIRS
+    pairs: list[tuple[str, str]] = []
+    for canonical, aliases in SKILL_ALIAS.items():
+        for alias in aliases:
+            pairs.append((alias, canonical))
+    pairs.sort(key=lambda p: len(p[0]), reverse=True)
+    _DICT_ALIAS_PAIRS = pairs
+    return pairs
+
+
+def extract_dict_skills(text: str) -> set[str]:
+    """Extract skill names found in text via dictionary (SKILL_ALIAS) match.
+
+    Returns a set of canonical skill names. Used as a high-precision pre-filter
+    before LLM extraction — anything matched here is treated as a verified skill,
+    and the LLM is then asked only to find ADDITIONAL skills not already found.
+
+    Args:
+        text: Raw JD or resume text.
+
+    Returns:
+        Set of canonical skill names (e.g. {"Python", "FastAPI", "Docker"}).
+    """
+    if not text:
+        return set()
+    pairs = _build_dict_pairs()
+    found: set[str] = set()
+    text_lower = text.lower()
+    for alias, canonical in pairs:
+        if not alias:
+            continue
+        idx = text_lower.find(alias.lower())
+        if idx < 0:
+            continue
+        # Word boundary check: prev/next char must NOT be an ASCII identifier
+        # char (avoid "Go" inside "Google", "Java" inside "JavaScript"). Chinese
+        # characters return True for str.isalnum() so we explicitly use the
+        # ASCII set only.
+        prev_char = text_lower[idx - 1] if idx > 0 else " "
+        next_idx = idx + len(alias)
+        next_char = text_lower[next_idx] if next_idx < len(text_lower) else " "
+        if prev_char.isascii() and prev_char.isalnum() or prev_char in "_+#":
+            continue
+        if next_char.isascii() and next_char.isalnum() or next_char in "_+#":
+            continue
+        found.add(canonical)
+    return found
 
 
 def batch_normalize_skills(

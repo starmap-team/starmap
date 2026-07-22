@@ -603,9 +603,10 @@ def execute_import(run_id: str) -> dict[str, Any]:
 def execute_graph_sync(run_id: str) -> dict[str, Any]:
     """Execute graph_sync stage: build Neo4j graph from extraction records.
 
-    Phase 3.7: 实时进度 — 报告 Neo4j 写入状态
+    Phase 7 P0-1: outbox pattern — 写入 Neo4j 前创建 outbox 记录，防止 PG/Neo4j 数据漂移。
     """
     import time
+    import uuid as _uuid
 
     from app.tasks.stage3_services import run_build_graph_from_extractions
 
@@ -618,29 +619,43 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         current_activity="正在连接 Neo4j 并准备图谱同步...", elapsed_ms=0,
     ))
 
+    # Phase 7 P0-1: Create outbox record BEFORE Neo4j write
+    outbox_id = _uuid.uuid4()
+    try:
+        _run_async(_create_outbox_record(get_session_factory(), outbox_id, _uuid.UUID(run_id)))
+    except Exception as o_exc:
+        logger.warning("graph_sync outbox create failed (non-fatal): {}", o_exc)
+
     try:
         result = _run_async(run_build_graph_from_extractions(limit=500))
         processed = result.get("processed", 0)
-        nodes_written = result.get("nodes_written", 0)
-        edges_written = result.get("edges_written", 0)
+        triples_merged = result.get("triples_merged", 0)
+        nodes = result.get("nodes_written", 0)
+        edges = result.get("edges_written", 0)
+        # Outbox: mark complete on success
+        _run_async(_complete_outbox_record(get_session_factory(), outbox_id, triples_merged))
         _run_async(_publish_stage_progress(
             run_id, "graph_sync", "completed", progress=1.0,
             records_processed=processed,
-            current_activity=f"图谱构建完成: 写入 {nodes_written} 节点, {edges_written} 关系到 Neo4j",
-            sub_breakdown={"节点数": nodes_written, "关系数": edges_written, "处理记录数": processed},
+            current_activity=f"图谱完成: {nodes}节点 {edges}关系 {triples_merged} triples",
+            sub_breakdown={"节点": nodes, "关系": edges, "triples": triples_merged},
             elapsed_ms=int((time.monotonic() - start) * 1000),
-            message=f"图谱同步完成: 节点={nodes_written}, 关系={edges_written}",
         ))
         if result.get("status") != "completed":
             errors.append(f"graph sync incomplete: {result}")
     except Exception as exc:
         errors.append(f"graph_sync failed: {exc}")
         logger.error("Graph sync stage failed: {}", exc)
+        # Outbox: mark failed for retry
+        try:
+            _run_async(_fail_outbox_record(get_session_factory(), outbox_id, str(exc)))
+        except Exception as o_err:
+            logger.warning("outbox fail update error: {}", o_err)
         _run_async(_publish_stage_progress(
             run_id, "graph_sync", "failed", current_activity=f"图谱同步失败: {exc}",
         ))
 
-    return {"records_processed": processed, "errors": errors}
+    return {"records_processed": processed, "errors": errors, "outbox_id": str(outbox_id)}
 
 
 def execute_timeseries(run_id: str) -> dict[str, Any]:
@@ -1048,3 +1063,76 @@ async def resume_run(run_id: uuid.UUID) -> PipelineRun | None:
             select(PipelineRun).where(PipelineRun.id == run_id)
         )
         return result.scalar_one_or_none()
+
+
+# ── Phase 7 P0-1: Graph Write Outbox helpers ──
+
+
+async def _create_outbox_record(
+    session_factory: Any,
+    outbox_id: uuid.UUID,
+    run_id: uuid.UUID | None,
+    extraction_ids: list[uuid.UUID] | None = None,
+) -> None:
+    """Create a pending outbox record before Neo4j write.
+
+    run_id may be None for ad-hoc extractions outside a pipeline run;
+    in that case extraction_ids must be populated for audit traceability.
+    """
+    from datetime import UTC, datetime
+
+    from app.models.pipeline_models import GraphWriteOutbox
+
+    async with session_factory() as session:
+        async with session.begin():
+            record = GraphWriteOutbox(
+                id=outbox_id,
+                run_id=uuid.UUID(run_id) if isinstance(run_id, str) else run_id,
+                extraction_ids=extraction_ids or [],
+                status="pending",
+                created_at=datetime.now(UTC),
+            )
+            session.add(record)
+
+
+async def _complete_outbox_record(
+    session_factory: Any, outbox_id: uuid.UUID, triples_written: int,
+) -> None:
+    """Mark outbox record as completed after successful Neo4j write."""
+    from datetime import UTC, datetime
+
+    from sqlalchemy import update
+
+    from app.models.pipeline_models import GraphWriteOutbox
+
+    async with session_factory() as session:
+        async with session.begin():
+            await session.execute(
+                update(GraphWriteOutbox)
+                .where(GraphWriteOutbox.id == outbox_id)
+                .values(status="completed", triples_written=triples_written, updated_at=datetime.now(UTC)),
+            )
+
+
+async def _fail_outbox_record(
+    session_factory: Any, outbox_id: uuid.UUID, error_msg: str,
+) -> None:
+    """Mark outbox record as failed (will be retried on next pipeline run)."""
+    from datetime import UTC, datetime
+
+    from sqlalchemy import update
+
+    from app.models.pipeline_models import GraphWriteOutbox
+
+    async with session_factory() as session:
+        async with session.begin():
+            await session.execute(
+                update(GraphWriteOutbox)
+                .where(GraphWriteOutbox.id == outbox_id)
+                .values(
+                    status="failed",
+                    error=error_msg[:500],
+                    retry_count=GraphWriteOutbox.retry_count + 1,
+                    updated_at=datetime.now(UTC),
+                ),
+            )

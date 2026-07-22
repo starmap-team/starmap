@@ -22,6 +22,7 @@ from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.core.llm.cost_tracker import tracker
 
 
 class LLMConnectionError(Exception):
@@ -252,10 +253,20 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
     """
     errors: list[str] = []
 
+    async def _call_and_track(coro_factory):  # type: ignore[no-untyped-def]
+        """Run a provider call and record its cost before returning."""
+        resp = await coro_factory(prompt)
+        tracker.record(
+            model=resp.get("model", "unknown"),
+            prompt=prompt,
+            content=str(resp.get("content", "")),
+        )
+        return resp
+
     # Try MiMo first (primary, reasoning model)
     if settings.mimo_api_key:
         try:
-            return await call_mimo_llm(prompt)
+            return await _call_and_track(call_mimo_llm)
         except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
             msg = f"MiMo failed: {e}"
             logger.warning(msg)
@@ -264,7 +275,7 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
     # Try DeepSeek second
     if settings.deepseek_api_key:
         try:
-            return await call_deepseek_llm(prompt)
+            return await _call_and_track(call_deepseek_llm)
         except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
             msg = f"DeepSeek failed: {e}"
             logger.warning(msg)
@@ -273,7 +284,7 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
     # Try Xunfei third
     if settings.xunfei_api_key:
         try:
-            return await call_xunfei_llm(prompt)
+            return await _call_and_track(call_xunfei_llm)
         except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
             msg = f"Xunfei failed: {e}"
             logger.warning(msg)
@@ -307,7 +318,9 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
             resp.raise_for_status()
             data = resp.json()
             content = data["message"]["content"]
-            return {"role": "assistant", "content": content, "model": "qwen2.5-7b-fallback"}
+            result = {"role": "assistant", "content": content, "model": "qwen2.5-7b-fallback"}
+            tracker.record(model=result["model"], prompt=prompt, content=content)
+            return result
     except httpx.TimeoutException as e:
         raise LLMTimeoutError("Fallback LLM timeout") from e
     except (httpx.RequestError, KeyError, IndexError) as e:
