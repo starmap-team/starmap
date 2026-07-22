@@ -1,0 +1,97 @@
+# Domain keywords for skill classification in emergence finder.
+# Loaded at runtime; no restart required after editing.
+#
+# Format:
+#   <domain_name>:
+#     - <keyword>
+#     - ...
+
+IT:
+  - java
+  - python
+  - c++
+  - c#
+  - .net
+  - go
+  - rust
+  - javascript
+  - typescript
+  - sql
+  - git
+  - linux
+  - docker
+  - kubernetes
+  - 微服务
+  - spring
+  - vue
+  - react
+  - angular
+  - 前端
+  - 后端
+  - 全栈
+  - 数据库
+  - redis
+  - mysql
+  - postgresql
+  - mongodb
+
+AI:
+  - 机器学习
+  - 深度学习
+  - tensorflow
+  - pytorch
+  - nlp
+  - cv
+  - 自然语言处理
+  - 计算机视觉
+  - 大模型
+  - llm
+  - transformer
+  - bert
+  - gpt
+  - 算法
+  - 模型训练
+  - 模型部署
+  - mlops
+  - 人工智能
+  - ai
+  - 强化学习
+  - 生成式ai
+  - rag
+
+BigData:
+  - 大数据
+  - hadoop
+  - spark
+  - flink
+  - hive
+  - 数据仓库
+  - etl
+  - 数据分析师
+  - 数据挖掘
+  - 数据治理
+  - 实时计算
+  - kafka
+  - elasticsearch
+  - clickhouse
+  - 数据湖
+  - 数据中台
+  - 离线计算
+  - 数据建模
+
+IoT:
+  - 物联网
+  - iot
+  嵌入式
+  - 边缘计算
+  - 传感器
+  - mqtt
+  - 工业互联网
+  - 智能制造
+  - 自动化
+  - 机器人
+  - 单片机
+  - arm
+  - rtos
+  - 物联网平台
+  - 设备管理
