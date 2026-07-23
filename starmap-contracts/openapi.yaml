@@ -1062,6 +1062,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/ReviewQueueItem"
 
+  /evolution/cii-history/{position}:
     get:
       operationId: getCIIHistory
       summary: "CII通胀指数历史"
