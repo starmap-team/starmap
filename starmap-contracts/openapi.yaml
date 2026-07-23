@@ -6179,3 +6179,16 @@ components:
         type:
           title: Error Type
           type: string
+    Body_crawler_complete_callback_api_v1_pipeline_crawler_complete_post:
+      title: Body_crawler_complete_callback
+      type: object
+      properties:
+        source_name:
+          type: string
+          title: Source Name
+        records_crawled:
+          type: integer
+          title: Records Crawled
+          default: 0
+      required:
+      - source_name
