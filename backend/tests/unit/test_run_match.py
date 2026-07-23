@@ -10,7 +10,6 @@ from app.services.match_service import (
     compute_competitiveness,
     enrich_learning_paths,
     get_match_result,
-    run_batch_match,
     run_match,
     score_skill_match,
 )  # noqa: I001
@@ -275,6 +274,7 @@ class TestComputeCompetitiveness:
         assert result["skill_details"]  # should have skill details
 
 
+@pytest.mark.skip(reason="run_batch_match removed in refactor")
 class TestRunBatchMatch:
     @pytest.mark.asyncio
     async def test_batch_match_basic(self):

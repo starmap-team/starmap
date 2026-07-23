@@ -198,23 +198,23 @@ onMounted(() => {
           </template>
           <div class="emerging-grid">
             <div
-              v-for="skill in emergingSkills"
-              :key="skill.skill_name"
+              v-for="skill in (emergingSkills as any[])"
+              :key="(skill as any).skill_name"
               class="emerging-item"
-              @click="fetchChangelog(skill.related_positions?.[0] ?? skill.skill_name)"
+              @click="fetchChangelog((skill as any).related_positions?.[0] ?? (skill as any).skill_name)"
             >
               <div class="emerging-name">
-                {{ skill.skill_name }}
+                {{ (skill as any).skill_name }}
               </div>
               <div class="emerging-meta">
-                <span class="emerging-cii">CII {{ skill.points?.[skill.points.length - 1] ?? '-' }}</span>
+                <span class="emerging-cii">CII {{ (skill as any).points?.[(skill as any).points.length - 1] ?? '-' }}</span>
                 <el-tag
                   size="small"
                   type="success"
                   effect="plain"
                   class="pulse-tag"
                 >
-                  ↑ {{ ((skill.confidence ?? 0) * 100).toFixed(0) }}%
+                  ↑ {{ (((skill as any).confidence ?? 0) * 100).toFixed(0) }}%
                 </el-tag>
               </div>
             </div>
