@@ -1,0 +1,265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap auth schemas",
+  "description": "Auto-generated from backend/app/schemas/auth.py",
+  "definitions": {
+    "LoginRequest": {
+      "description": "登录请求。",
+      "properties": {
+        "username": {
+          "description": "用户名，仅允许字母、数字、下划线、连字符、点号",
+          "examples": [
+            "admin"
+          ],
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9_\\-\\.]+$",
+          "title": "Username",
+          "type": "string"
+        },
+        "password": {
+          "description": "用户密码（服务端仅存储 bcrypt 哈希）",
+          "examples": [
+            "starmap2024"
+          ],
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Password",
+          "type": "string"
+        }
+      },
+      "required": [
+        "username",
+        "password"
+      ],
+      "title": "LoginRequest",
+      "type": "object"
+    },
+    "LoginResponse": {
+      "$defs": {
+        "TokenUser": {
+          "description": "嵌套在 Token 响应中的用户摘要。",
+          "properties": {
+            "id": {
+              "description": "用户唯一标识",
+              "title": "Id",
+              "type": "string"
+            },
+            "username": {
+              "description": "用户名",
+              "title": "Username",
+              "type": "string"
+            },
+            "role": {
+              "description": "角色（admin / viewer）",
+              "title": "Role",
+              "type": "string"
+            },
+            "must_change_password": {
+              "default": false,
+              "description": "是否需要在首次登录时修改密码",
+              "title": "Must Change Password",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "username",
+            "role"
+          ],
+          "title": "TokenUser",
+          "type": "object"
+        }
+      },
+      "description": "登录成功响应。",
+      "properties": {
+        "access_token": {
+          "description": "JWT access token",
+          "title": "Access Token",
+          "type": "string"
+        },
+        "refresh_token": {
+          "description": "JWT refresh token",
+          "title": "Refresh Token",
+          "type": "string"
+        },
+        "expires_in": {
+          "description": "Token 有效期（秒）",
+          "minimum": 1,
+          "title": "Expires In",
+          "type": "integer"
+        },
+        "user": {
+          "$ref": "#/$defs/TokenUser",
+          "description": "当前用户信息"
+        }
+      },
+      "required": [
+        "access_token",
+        "refresh_token",
+        "expires_in",
+        "user"
+      ],
+      "title": "LoginResponse",
+      "type": "object"
+    },
+    "RefreshRequest": {
+      "description": "刷新令牌请求。",
+      "properties": {
+        "refresh_token": {
+          "description": "有效的 refresh token（JWT 字符串）",
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Refresh Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "refresh_token"
+      ],
+      "title": "RefreshRequest",
+      "type": "object"
+    },
+    "RefreshResponse": {
+      "description": "令牌刷新响应。",
+      "properties": {
+        "access_token": {
+          "description": "新的 JWT access token",
+          "title": "Access Token",
+          "type": "string"
+        },
+        "expires_in": {
+          "description": "Token 有效期（秒）",
+          "minimum": 1,
+          "title": "Expires In",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "access_token",
+        "expires_in"
+      ],
+      "title": "RefreshResponse",
+      "type": "object"
+    },
+    "LogoutRequest": {
+      "description": "登出请求。",
+      "properties": {
+        "refresh_token": {
+          "description": "待撤销的 refresh token",
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Refresh Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "refresh_token"
+      ],
+      "title": "LogoutRequest",
+      "type": "object"
+    },
+    "ChangePasswordRequest": {
+      "description": "修改密码请求。",
+      "properties": {
+        "old_password": {
+          "description": "当前密码",
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Old Password",
+          "type": "string"
+        },
+        "new_password": {
+          "description": "新密码（至少 8 个字符）",
+          "maxLength": 128,
+          "minLength": 8,
+          "title": "New Password",
+          "type": "string"
+        }
+      },
+      "required": [
+        "old_password",
+        "new_password"
+      ],
+      "title": "ChangePasswordRequest",
+      "type": "object"
+    },
+    "ForgotPasswordRequest": {
+      "description": "忘记密码请求。",
+      "properties": {
+        "email": {
+          "description": "注册邮箱地址",
+          "examples": [
+            "user@example.com"
+          ],
+          "format": "email",
+          "title": "Email",
+          "type": "string"
+        }
+      },
+      "required": [
+        "email"
+      ],
+      "title": "ForgotPasswordRequest",
+      "type": "object"
+    },
+    "ResetPasswordRequest": {
+      "description": "重置密码请求。",
+      "properties": {
+        "token": {
+          "description": "密码重置令牌",
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Token",
+          "type": "string"
+        },
+        "new_password": {
+          "description": "新密码（至少 8 个字符）",
+          "maxLength": 128,
+          "minLength": 8,
+          "title": "New Password",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "new_password"
+      ],
+      "title": "ResetPasswordRequest",
+      "type": "object"
+    },
+    "TokenUser": {
+      "description": "嵌套在 Token 响应中的用户摘要。",
+      "properties": {
+        "id": {
+          "description": "用户唯一标识",
+          "title": "Id",
+          "type": "string"
+        },
+        "username": {
+          "description": "用户名",
+          "title": "Username",
+          "type": "string"
+        },
+        "role": {
+          "description": "角色（admin / viewer）",
+          "title": "Role",
+          "type": "string"
+        },
+        "must_change_password": {
+          "default": false,
+          "description": "是否需要在首次登录时修改密码",
+          "title": "Must Change Password",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "role"
+      ],
+      "title": "TokenUser",
+      "type": "object"
+    }
+  }
+}

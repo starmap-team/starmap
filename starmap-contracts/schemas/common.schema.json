@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap common schemas",
+  "description": "Auto-generated from backend/app/schemas/common.py",
+  "definitions": {
+    "ErrorResponse": {
+      "$defs": {
+        "FieldError": {
+          "description": "字段级校验错误。\n\n用于 422 响应中逐字段指出校验失败的字段、值和原因。\n前端据此高亮对应的表单输入框。\n\nExamples:\n    {\"field\": \"password\", \"value\": \"123\", \"message\": \"密码长度不能少于 8 个字符\", \"code\": \"min_length\"}\n    {\"field\": \"skills_required[0].name\", \"value\": \"\", \"message\": \"技能名称不能为空\", \"code\": \"value_error.empty\"}",
+          "properties": {
+            "field": {
+              "description": "出错字段路径。嵌套对象用 '.' 分隔，数组用 '[n]' 索引",
+              "examples": [
+                "password",
+                "skills_required[0].name"
+              ],
+              "title": "Field",
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "接收到的问题值（生产环境可能省略以保护隐私）",
+              "title": "Value"
+            },
+            "message": {
+              "description": "面向用户的错误描述",
+              "examples": [
+                "密码长度不能少于 8 个字符"
+              ],
+              "title": "Message",
+              "type": "string"
+            },
+            "code": {
+              "description": "机器可读错误码",
+              "examples": [
+                "min_length",
+                "value_error.email",
+                "type_error.int"
+              ],
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          "required": [
+            "field",
+            "message",
+            "code"
+          ],
+          "title": "FieldError",
+          "type": "object"
+        }
+      },
+      "description": "统一错误响应格式。\n\n所有 API 错误（400/401/403/404/409/422/500 等）均使用此格式。\n与 starmap-contracts/openapi.yaml 中 Error schema 保持一致。\n\nExamples:\n    业务错误:\n    {\"detail\": \"岗位不存在\", \"code\": \"POSITION_NOT_FOUND\", \"timestamp\": \"2026-07-23T14:30:00Z\"}\n\n    校验错误:\n    {\"detail\": \"请求数据校验失败\", \"code\": \"VALIDATION_ERROR\",\n     \"timestamp\": \"...\", \"fields\": [{\"field\": \"password\", ...}]}",
+      "properties": {
+        "detail": {
+          "description": "面向用户的错误摘要",
+          "examples": [
+            "岗位不存在",
+            "请求数据校验失败"
+          ],
+          "title": "Detail",
+          "type": "string"
+        },
+        "code": {
+          "description": "机器可读错误码（大写蛇形命名）",
+          "examples": [
+            "POSITION_NOT_FOUND",
+            "VALIDATION_ERROR",
+            "UNAUTHORIZED"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "timestamp": {
+          "description": "错误发生时间 (ISO 8601 UTC)",
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "fields": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/FieldError"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "字段级错误详情（仅校验错误时返回）",
+          "title": "Fields"
+        }
+      },
+      "required": [
+        "detail",
+        "code"
+      ],
+      "title": "ErrorResponse",
+      "type": "object"
+    },
+    "FieldError": {
+      "description": "字段级校验错误。\n\n用于 422 响应中逐字段指出校验失败的字段、值和原因。\n前端据此高亮对应的表单输入框。\n\nExamples:\n    {\"field\": \"password\", \"value\": \"123\", \"message\": \"密码长度不能少于 8 个字符\", \"code\": \"min_length\"}\n    {\"field\": \"skills_required[0].name\", \"value\": \"\", \"message\": \"技能名称不能为空\", \"code\": \"value_error.empty\"}",
+      "properties": {
+        "field": {
+          "description": "出错字段路径。嵌套对象用 '.' 分隔，数组用 '[n]' 索引",
+          "examples": [
+            "password",
+            "skills_required[0].name"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "接收到的问题值（生产环境可能省略以保护隐私）",
+          "title": "Value"
+        },
+        "message": {
+          "description": "面向用户的错误描述",
+          "examples": [
+            "密码长度不能少于 8 个字符"
+          ],
+          "title": "Message",
+          "type": "string"
+        },
+        "code": {
+          "description": "机器可读错误码",
+          "examples": [
+            "min_length",
+            "value_error.email",
+            "type_error.int"
+          ],
+          "title": "Code",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "message",
+        "code"
+      ],
+      "title": "FieldError",
+      "type": "object"
+    }
+  }
+}

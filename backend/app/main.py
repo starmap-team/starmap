@@ -20,6 +20,7 @@ from starlette.responses import Response
 
 from app.api.v1.router import api_router, auth_router
 from app.config import settings
+from app.core.validation.errors import ErrorCode
 from app.dependencies import get_current_user
 from app.services.resources import healthcheck_resources, init_resources, resources
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
@@ -161,7 +162,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     )
                     return JSONResponse(
                         status_code=429,
-                        content={"detail": "Rate limit exceeded. Try again later."},
+                        content={
+                            "detail": "请求过于频繁，请稍后重试",
+                            "code": ErrorCode.SYS_RATE_LIMITED.value,
+                        },
                         headers={"Retry-After": str(_RATE_LIMIT_WINDOW)},
                     )
                 return await call_next(request)
@@ -203,7 +207,11 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 
 
-# Domain exception → HTTP response mapping
+# ── 统一错误处理：域异常 + 校验异常 → 结构化 ErrorResponse ──
+from app.core.validation import (  # noqa: E402
+    build_error_response,
+)
+from app.core.validation.handler import request_validation_exception_handler  # noqa: E402
 from app.exceptions import (  # noqa: E402
     PlanNotFoundError,
     PlanOwnershipError,
@@ -212,37 +220,49 @@ from app.exceptions import (  # noqa: E402
     RunNotFoundError,
     StarMapError,
 )
+from fastapi.exceptions import RequestValidationError  # noqa: E402
 
+
+# ── FastAPI 请求体验证异常 (422) → 统一 ErrorResponse + field-level errors ──
+# 必须在域异常之前注册，否则 FastAPI 默认 handler 会接管
+app.add_exception_handler(RequestValidationError, request_validation_exception_handler)  # type: ignore[arg-type]
+
+
+# ── 域异常 → 结构化 ErrorResponse ──
 
 @app.exception_handler(PositionNotFoundError)
 async def position_not_found_handler(request: Request, exc: PositionNotFoundError) -> JSONResponse:
-    return JSONResponse(status_code=404, content={"detail": str(exc)})
+    return build_error_response(str(exc), ErrorCode.BIZ_POSITION_NOT_FOUND)
 
 
 @app.exception_handler(PlanNotFoundError)
 async def plan_not_found_handler(request: Request, exc: PlanNotFoundError) -> JSONResponse:
-    return JSONResponse(status_code=404, content={"detail": str(exc)})
+    return build_error_response(str(exc), ErrorCode.BIZ_PLAN_NOT_FOUND)
 
 
 @app.exception_handler(PlanOwnershipError)
 async def plan_ownership_handler(request: Request, exc: PlanOwnershipError) -> JSONResponse:
-    return JSONResponse(status_code=403, content={"detail": str(exc)})
+    return build_error_response(str(exc), ErrorCode.BIZ_PLAN_OWNERSHIP)
 
 
 @app.exception_handler(RunNotFoundError)
 async def run_not_found_handler(request: Request, exc: RunNotFoundError) -> JSONResponse:
-    return JSONResponse(status_code=404, content={"detail": str(exc)})
+    return build_error_response(str(exc), ErrorCode.BIZ_RUN_NOT_FOUND)
 
 
 @app.exception_handler(RunAlreadyTerminalError)
 async def run_already_terminal_handler(request: Request, exc: RunAlreadyTerminalError) -> JSONResponse:
-    return JSONResponse(status_code=409, content={"detail": str(exc)})
+    return build_error_response(str(exc), ErrorCode.BIZ_RUN_TERMINAL)
 
 
 @app.exception_handler(StarMapError)
 async def starmap_error_handler(request: Request, exc: StarMapError) -> JSONResponse:
     logger.opt(exception=True).error("Domain error on {} {}: {}", request.method, request.url.path, exc)
-    return JSONResponse(status_code=500, content={"detail": "Internal domain error"})
+    return build_error_response(
+        "内部处理异常，请稍后重试",
+        ErrorCode.SYS_INTERNAL_ERROR,
+        include_internal_detail=str(exc),
+    )
 
 
 # M17: Global exception handler — catches unhandled exceptions, logs them,
@@ -250,7 +270,11 @@ async def starmap_error_handler(request: Request, exc: StarMapError) -> JSONResp
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.opt(exception=True).error("Unhandled exception on {} {}: {}", request.method, request.url.path, exc)
-    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    return build_error_response(
+        "服务器内部错误，请稍后重试",
+        ErrorCode.SYS_INTERNAL_ERROR,
+        include_internal_detail=str(exc),
+    )
 
 
 # P0 修复 (SEC-10): 健康检查不暴露版本号和服务详情

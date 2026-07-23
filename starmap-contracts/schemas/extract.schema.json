@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap extract schemas",
+  "description": "Auto-generated from backend/app/schemas/extract.py",
+  "definitions": {
+    "ExtractionRequest": {
+      "description": "JD 文本抽取请求。",
+      "properties": {
+        "jd_content": {
+          "description": "职位描述原始文本（支持中英文）",
+          "maxLength": 100000,
+          "minLength": 1,
+          "title": "Jd Content",
+          "type": "string"
+        },
+        "options": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "抽取选项（model, temperature, max_tokens 等）",
+          "title": "Options"
+        }
+      },
+      "required": [
+        "jd_content"
+      ],
+      "title": "ExtractionRequest",
+      "type": "object"
+    },
+    "ExtractionResult": {
+      "$defs": {
+        "NormalizedSkill": {
+          "description": "归一化后的技能。",
+          "properties": {
+            "original": {
+              "description": "抽取的原始技能名称",
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Original",
+              "type": "string"
+            },
+            "normalized": {
+              "description": "归一化后的标准技能名称",
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Normalized",
+              "type": "string"
+            },
+            "method": {
+              "description": "归一化方法（alias / embedding / llm）",
+              "maxLength": 50,
+              "minLength": 1,
+              "title": "Method",
+              "type": "string"
+            },
+            "confidence": {
+              "description": "归一化置信度 [0, 1]",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "title": "Confidence",
+              "type": "number"
+            }
+          },
+          "required": [
+            "original",
+            "normalized",
+            "method",
+            "confidence"
+          ],
+          "title": "NormalizedSkill",
+          "type": "object"
+        },
+        "SkillItem": {
+          "description": "单条技能抽取结果（LLM 输出）。",
+          "properties": {
+            "skill": {
+              "description": "技能名称",
+              "examples": [
+                "Python",
+                "Docker"
+              ],
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Skill",
+              "type": "string"
+            },
+            "category": {
+              "description": "技能分类标签",
+              "examples": [
+                "hard_skill",
+                "tool"
+              ],
+              "maxLength": 50,
+              "minLength": 1,
+              "title": "Category",
+              "type": "string"
+            },
+            "proficiency": {
+              "description": "要求熟练度",
+              "examples": [
+                "精通",
+                "熟悉",
+                "了解"
+              ],
+              "maxLength": 20,
+              "minLength": 1,
+              "title": "Proficiency",
+              "type": "string"
+            }
+          },
+          "required": [
+            "skill",
+            "category",
+            "proficiency"
+          ],
+          "title": "SkillItem",
+          "type": "object"
+        }
+      },
+      "description": "JD 文本抽取结果。\n\n这是 LLM 抽取管线的最终输出，同时作为归一化和图谱写入的输入。",
+      "properties": {
+        "position_name": {
+          "default": "",
+          "description": "抽取出的岗位名称",
+          "maxLength": 200,
+          "title": "Position Name",
+          "type": "string"
+        },
+        "required_skills": {
+          "description": "必须掌握的技能",
+          "items": {
+            "$ref": "#/$defs/SkillItem"
+          },
+          "title": "Required Skills",
+          "type": "array"
+        },
+        "preferred_skills": {
+          "description": "加分技能",
+          "items": {
+            "$ref": "#/$defs/SkillItem"
+          },
+          "title": "Preferred Skills",
+          "type": "array"
+        },
+        "experience_required": {
+          "anyOf": [
+            {
+              "maximum": 50,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "要求的工作经验年数",
+          "title": "Experience Required"
+        },
+        "education_required": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "学历要求",
+          "examples": [
+            "本科",
+            "硕士",
+            "不限"
+          ],
+          "title": "Education Required"
+        },
+        "responsibilities": {
+          "description": "岗位职责列表",
+          "items": {
+            "type": "string"
+          },
+          "title": "Responsibilities",
+          "type": "array"
+        },
+        "confidence": {
+          "default": 0.0,
+          "description": "整体抽取置信度 [0, 1]",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "hallucination_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "幻觉风险评分 [0, 1]（越低越好）",
+          "title": "Hallucination Score"
+        },
+        "normalized_skills": {
+          "description": "归一化后的技能列表",
+          "items": {
+            "$ref": "#/$defs/NormalizedSkill"
+          },
+          "title": "Normalized Skills",
+          "type": "array"
+        }
+      },
+      "title": "ExtractionResult",
+      "type": "object"
+    },
+    "SkillItem": {
+      "description": "单条技能抽取结果（LLM 输出）。",
+      "properties": {
+        "skill": {
+          "description": "技能名称",
+          "examples": [
+            "Python",
+            "Docker"
+          ],
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Skill",
+          "type": "string"
+        },
+        "category": {
+          "description": "技能分类标签",
+          "examples": [
+            "hard_skill",
+            "tool"
+          ],
+          "maxLength": 50,
+          "minLength": 1,
+          "title": "Category",
+          "type": "string"
+        },
+        "proficiency": {
+          "description": "要求熟练度",
+          "examples": [
+            "精通",
+            "熟悉",
+            "了解"
+          ],
+          "maxLength": 20,
+          "minLength": 1,
+          "title": "Proficiency",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill",
+        "category",
+        "proficiency"
+      ],
+      "title": "SkillItem",
+      "type": "object"
+    }
+  }
+}

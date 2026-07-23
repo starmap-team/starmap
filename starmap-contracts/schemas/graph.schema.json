@@ -1,0 +1,356 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap graph schemas",
+  "description": "Auto-generated from backend/app/schemas/graph.py",
+  "definitions": {
+    "GraphNode": {
+      "description": "通用图谱节点。\n\n对应 Neo4j 中的任意节点类型。",
+      "properties": {
+        "id": {
+          "description": "节点稳定 ID",
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "labels": {
+          "description": "Neo4j 节点标签列表",
+          "examples": [
+            [
+              "Position"
+            ],
+            [
+              "Skill",
+              "Tool"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "节点属性键值对",
+          "title": "Properties"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "GraphNode",
+      "type": "object"
+    },
+    "GraphEdge": {
+      "description": "通用图谱边。",
+      "properties": {
+        "source_id": {
+          "description": "源节点 ID",
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "target_id": {
+          "description": "目标节点 ID",
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "type": {
+          "description": "关系类型",
+          "examples": [
+            "REQUIRES",
+            "EVOLVES_TO",
+            "BELONGS_TO"
+          ],
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "边属性键值对",
+          "title": "Properties"
+        }
+      },
+      "required": [
+        "source_id",
+        "target_id",
+        "type"
+      ],
+      "title": "GraphEdge",
+      "type": "object"
+    },
+    "GraphOverviewResponse": {
+      "description": "图谱全局概览。\n\n用于仪表盘首页展示图谱统计信息。",
+      "properties": {
+        "total_nodes": {
+          "description": "图谱总节点数",
+          "minimum": 0,
+          "title": "Total Nodes",
+          "type": "integer"
+        },
+        "total_edges": {
+          "description": "图谱总边数",
+          "minimum": 0,
+          "title": "Total Edges",
+          "type": "integer"
+        },
+        "total_positions": {
+          "description": "岗位节点数",
+          "minimum": 0,
+          "title": "Total Positions",
+          "type": "integer"
+        },
+        "total_skills": {
+          "description": "技能节点数",
+          "minimum": 0,
+          "title": "Total Skills",
+          "type": "integer"
+        },
+        "total_domains": {
+          "description": "知识域节点数",
+          "minimum": 0,
+          "title": "Total Domains",
+          "type": "integer"
+        },
+        "trust_score": {
+          "default": 0.0,
+          "description": "全局可信度评分 [0, 1]",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Trust Score",
+          "type": "number"
+        },
+        "hallucination_rate": {
+          "default": 0.0,
+          "description": "全局幻觉率 [0, 1]",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Hallucination Rate",
+          "type": "number"
+        },
+        "pipeline_status": {
+          "default": "idle",
+          "description": "数据管线状态",
+          "title": "Pipeline Status",
+          "type": "string"
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "数据快照时间",
+          "title": "Timestamp"
+        }
+      },
+      "required": [
+        "total_nodes",
+        "total_edges",
+        "total_positions",
+        "total_skills",
+        "total_domains"
+      ],
+      "title": "GraphOverviewResponse",
+      "type": "object"
+    },
+    "PositionSkillDetailResponse": {
+      "$defs": {
+        "PositionNode": {
+          "description": "岗位核心模型。\n\n对应 Postgres position_records + Neo4j Position 节点。",
+          "properties": {
+            "position_id": {
+              "description": "岗位唯一标识（UUID 或自定义 ID）",
+              "minLength": 1,
+              "title": "Position Id",
+              "type": "string"
+            },
+            "name": {
+              "description": "岗位名称",
+              "examples": [
+                "Python 后端开发工程师"
+              ],
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            },
+            "name_cn": {
+              "default": "",
+              "description": "岗位中文名称",
+              "maxLength": 200,
+              "title": "Name Cn",
+              "type": "string"
+            },
+            "industry": {
+              "description": "所属行业",
+              "examples": [
+                "信息技术",
+                "金融"
+              ],
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Industry",
+              "type": "string"
+            },
+            "description": {
+              "default": "",
+              "description": "岗位描述文本",
+              "title": "Description",
+              "type": "string"
+            },
+            "skills_required": {
+              "description": "岗位所要求的技能列表",
+              "items": {
+                "$ref": "#/$defs/SkillNode"
+              },
+              "title": "Skills Required",
+              "type": "array"
+            },
+            "discovered_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "首次发现时间（ISO 8601）",
+              "title": "Discovered At"
+            },
+            "review_status": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ReviewStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "审核状态"
+            }
+          },
+          "required": [
+            "position_id",
+            "name",
+            "industry"
+          ],
+          "title": "PositionNode",
+          "type": "object"
+        },
+        "ReviewStatus": {
+          "description": "审核状态。",
+          "enum": [
+            "draft",
+            "pending_review",
+            "approved",
+            "rejected"
+          ],
+          "title": "ReviewStatus",
+          "type": "string"
+        },
+        "SkillNode": {
+          "description": "岗位所需技能骨架。\n\n对应 Neo4j Skill 节点 + Postgres skill_records 表。",
+          "properties": {
+            "skill_id": {
+              "description": "技能唯一标识（归一化后的 stable ID）",
+              "examples": [
+                "py-core-001"
+              ],
+              "minLength": 1,
+              "title": "Skill Id",
+              "type": "string"
+            },
+            "name": {
+              "description": "技能展示名称",
+              "examples": [
+                "Python 核心编程"
+              ],
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            },
+            "category": {
+              "description": "技能分类标签",
+              "examples": [
+                "hard_skill",
+                "tool"
+              ],
+              "maxLength": 50,
+              "minLength": 1,
+              "title": "Category",
+              "type": "string"
+            },
+            "confidence": {
+              "default": 1.0,
+              "description": "该技能与岗位关联的置信度 [0, 1]",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "title": "Confidence",
+              "type": "number"
+            },
+            "source_count": {
+              "default": 0,
+              "description": "支撑该技能的来源文档数量",
+              "minimum": 0,
+              "title": "Source Count",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "skill_id",
+            "name",
+            "category"
+          ],
+          "title": "SkillNode",
+          "type": "object"
+        }
+      },
+      "description": "岗位-技能详情（含路径信息）。",
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/PositionNode",
+          "description": "岗位节点"
+        },
+        "skills": {
+          "description": "关联技能列表",
+          "items": {
+            "$ref": "#/$defs/SkillNode"
+          },
+          "title": "Skills",
+          "type": "array"
+        },
+        "paths": {
+          "description": "岗位到技能的关系路径（用于可视化）",
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Paths",
+          "type": "array"
+        }
+      },
+      "required": [
+        "position"
+      ],
+      "title": "PositionSkillDetailResponse",
+      "type": "object"
+    }
+  }
+}
