@@ -99,12 +99,10 @@ function goBack() {
   router.push('/')
 }
 
-// ponytail: on forced mode, warn user if they try to leave
-onMounted(() => {
-  if (!userStore.user) {
-    router.replace('/login')
-  }
-})
+// ponytail: race-condition guard moved into router beforeEach (see
+// router/index.ts). Leaving this hook empty avoids the empty-paint flash the
+// QA harness reported when localStorage was cleared mid-session.
+onMounted(() => { /* no-op */ })
 </script>
 
 <template>

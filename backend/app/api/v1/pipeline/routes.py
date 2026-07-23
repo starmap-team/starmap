@@ -132,6 +132,44 @@ async def get_pipeline_runs(
     return [serialize_run(r) for r in runs]
 
 
+# ---------------------------------------------------------------------------
+# QA B5: 5-stage skeleton returned when no PipelineRun rows exist yet.
+# ---------------------------------------------------------------------------
+
+_PIPELINE_SKELETON = (
+    ("crawl",       "采集",     "上游数据采集：JD 爬虫 / RSS / API"),
+    ("extract",     "抽取",     "LLM 抽取技能与归一化"),
+    ("standardize", "标准化",   "反幻觉评分与别名归并"),
+    ("ingest",      "入库",     "写入 Neo4j 节点与关系边"),
+    ("audit",       "质检",     "信任度评估与人工抽检排队"),
+)
+
+
+def _default_stage_skeleton() -> list[dict[str, Any]]:
+    """Return the canonical 5-stage skeleton in the same dict shape as a real run."""
+    return [
+        {
+            "name": key,
+            "display_name": display,
+            "description": desc,
+            "status": "pending",
+            "started_at": None,
+            "completed_at": None,
+            "progress": 0.0,
+            "duration_ms": 0,
+            "records_processed": 0,
+            "errors": [],
+            "errors_count": 0,
+            "retry_count": 0,
+            "depends_on": ([_PIPELINE_SKELETON[i - 1][0]] if i > 0 else []),
+            "run_id": None,
+            "run_status": None,
+            "skeleton": True,
+        }
+        for i, (key, display, desc) in enumerate(_PIPELINE_SKELETON)
+    ]
+
+
 @router.get("/runs/{run_id}", response_model=PipelineRunResponse)
 async def get_pipeline_run(
     run_id: UUID,
@@ -328,13 +366,19 @@ async def resume_run(
 async def get_pipeline_stages(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> StageStatusResponse:
-    """各阶段实时状态（爬虫/去重/清洗/入库/图谱同步）。"""
+    """各阶段实时状态（爬虫/去重/清洗/入库/图谱同步）。
+
+    QA B5: when no PipelineRun exists yet, return the 5-stage skeleton so the
+    PipelineMonitor UI is not stuck on a flat "暂无" empty state. The skeleton
+    mirrors the canonical pipeline (crawl → extract → standardize → ingest →
+    audit) and is purely informational — none of the stages have run.
+    """
     result = await session.execute(
         select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(1)
     )
     run = result.scalar_one_or_none()
     if run is None:
-        return StageStatusResponse(stages=[])
+        return StageStatusResponse(stages=_default_stage_skeleton())
 
     stage_list = []
     # Defensive: some legacy rows store stages as a dict (e.g. {"steps": [...]})

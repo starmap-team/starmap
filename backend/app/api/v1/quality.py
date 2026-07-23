@@ -300,11 +300,12 @@ async def evaluate_quality(
         )
     ).scalar() or 0.0
 
-    # 3. 计算总抽取数
+    # 3. 计算总抽取数（QA B3）：不要只数 'completed'，要把 'pending_review' / 'approved'
+    # 也算进来。Loop 写入路径并不把 status 立刻置为 'completed'，导致此前总被算成 0。
     total_extractions = (
         await session.execute(
             sa.select(sa.func.count()).select_from(JDExtractionRecord)
-            .where(JDExtractionRecord.status == "completed")
+            .where(JDExtractionRecord.status.in_(["completed", "pending_review", "approved"]))
         )
     ).scalar() or 0
 

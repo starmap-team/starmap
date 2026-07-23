@@ -175,6 +175,12 @@ class LoopOrchestrator:
             result.extracted_skills = extraction_data.get("skills", [])
         await self._update_steps_json(db_record, result, session=session)
 
+        # Resolve effective target_position: caller-supplied wins, else infer
+        # from extraction. See _resolve_target_position docstring.
+        effective_target = self._resolve_target_position(target_position, extraction_data)
+        # Reflect resolution into result metadata so frontend can show what was used.
+        result.target_position = effective_target
+
         # ---- Step 3: Graph Update ----
         # Obtain Neo4j driver for step 3 and step 4
         driver = None
@@ -184,16 +190,16 @@ class LoopOrchestrator:
         except Exception as exc:
             logger.debug("Neo4j driver not available for step 3/4: {}", exc)
 
-        step3 = await self._step3_graph_update(run_id, extraction_data, target_position=target_position)
+        step3 = await self._step3_graph_update(run_id, extraction_data, target_position=effective_target)
         result.steps.append(step3)
         graph_ok = step3.status == StepStatus.SUCCESS
         result.graph_update = step3.data
         await self._update_steps_json(db_record, result, session=session)
 
-        # ---- Step 4: Match Diagnosis (LOOP-09: skip if no target_position) ----
-        if target_position:
+        # ---- Step 4: Match Diagnosis (LOOP-09: skip if no effective target_position) ----
+        if effective_target:
             step4 = await self._step4_match_diagnosis(
-                target_position=target_position,
+                target_position=effective_target,
                 extracted_skills=result.extracted_skills,
                 graph_available=graph_ok,
                 driver=driver,
@@ -205,19 +211,19 @@ class LoopOrchestrator:
         else:
             step4 = LoopStepResult(
                 step=4, name="Match Diagnosis", status=StepStatus.SKIPPED,
-                data={}, note="Skipped: no target_position provided",
+                data={}, note="Skipped: no target_position (caller did not supply and extraction did not yield position_name)",
             )
             result.steps.append(step4)
         await self._update_steps_json(db_record, result, session=session)
 
-        # ---- Step 5: Learning Path (LOOP-09: skip if no target_position) ----
-        if target_position and step4.status != StepStatus.SKIPPED:
+        # ---- Step 5: Learning Path (LOOP-09: skip if no effective target_position) ----
+        if effective_target and step4.status != StepStatus.SKIPPED:
             step5 = await self._step5_learning_path(
                 match_result=result.match_result,
                 graph_available=graph_ok,
                 match_ok=step4.status != StepStatus.FAILED,
                 session=session,
-                target_position=target_position,
+                target_position=effective_target,
             )
             result.steps.append(step5)
             result.learning_path = step5.data
@@ -255,9 +261,15 @@ class LoopOrchestrator:
     # ------------------------------------------------------------------
 
     def _step1_validate_input(
-        self, jd_text: str, target_position: str,
+        self, jd_text: str, target_position: str | None,
     ) -> LoopStepResult:
-        """Step 1: Validate JD input and target position."""
+        """Step 1: Validate JD input.
+
+        target_position is optional per the OpenAPI contract
+        (LoopRunRequest.target_position: str | None = None). When omitted,
+        Step 2 will infer a position_name from the extracted JD; Steps 4/5
+        skip when still missing. We must NOT reject the run here — see QA B1.
+        """
         start = time.monotonic()
         if not jd_text or not jd_text.strip():
             return LoopStepResult(
@@ -267,24 +279,33 @@ class LoopOrchestrator:
                 error="JD text is empty",
                 duration_seconds=time.monotonic() - start,
             )
-        if not target_position or not target_position.strip():
-            return LoopStepResult(
-                step=1,
-                name=STEP_NAMES[1],
-                status=StepStatus.FAILED,
-                error="Target position is empty",
-                duration_seconds=time.monotonic() - start,
-            )
         return LoopStepResult(
             step=1,
             name=STEP_NAMES[1],
             status=StepStatus.SUCCESS,
             data={
                 "jd_length": len(jd_text),
-                "target_position": target_position.strip(),
+                "target_position": (target_position or "").strip(),
             },
             duration_seconds=time.monotonic() - start,
         )
+
+    def _resolve_target_position(
+        self,
+        requested: str | None,
+        extraction_data: dict[str, Any],
+    ) -> str | None:
+        """Resolve the effective target_position for match diagnosis.
+
+        Priority: caller-supplied non-empty value → LLM-extracted position_name → None.
+        A None result lets downstream steps skip gracefully (see Step 4/5 in run_loop).
+        """
+        if requested and requested.strip():
+            return requested.strip()
+        inferred = (extraction_data or {}).get("position_name")
+        if isinstance(inferred, str) and inferred.strip():
+            return inferred.strip()
+        return None
 
     async def _step2_extract_skills(self, jd_text: str) -> LoopStepResult:
         """Step 2: Extract skills from JD using LLM pipeline."""

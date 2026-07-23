@@ -2,7 +2,14 @@
 /**
  * LoopStepInput — Step 1: JD Input
  * Textarea, example JD buttons, target position input, and run button.
+ *
+ * QA P1-A: target_position is treated as required on the frontend even though
+ * the backend now accepts None (see loop_orchestrator._resolve_target_position).
+ * The frontend guard fails fast and surfaces the missing field instead of
+ * silently submitting a request that the user can no longer contextualize.
  */
+import { ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { VideoPlay } from '@element-plus/icons-vue'
 
 const jdText = defineModel<string>('jdText', { required: true })
@@ -15,6 +22,8 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'run'): void
 }>()
+
+const targetPositionError = ref(false)
 
 const exampleJDs = [
   {
@@ -74,6 +83,24 @@ function loadExampleJD(idx: number) {
   const example = exampleJDs[idx]
   jdText.value = example.text
   targetPosition.value = example.position
+  targetPositionError.value = false
+}
+
+function onRunClick() {
+  // Guard: empty JD or empty target_position. Backend now infers position_name
+  // from extraction, but we still want the user to declare intent up front —
+  // see QA P1-A: backend inference is a fallback, not a UX replacement.
+  if (!jdText.value.trim()) {
+    ElMessage.warning('请输入 JD 文本')
+    return
+  }
+  if (!targetPosition.value.trim()) {
+    targetPositionError.value = true
+    ElMessage.warning('请填写目标岗位名称')
+    return
+  }
+  targetPositionError.value = false
+  emit('run')
 }
 </script>
 
@@ -111,17 +138,20 @@ function loadExampleJD(idx: number) {
         </el-button>
       </div>
 
-      <!-- Target position -->
-      <el-input
-        v-model="targetPosition"
-        placeholder="目标岗位名称（可选，如：前端工程师）"
-        class="target-input"
-        clearable
+      <!-- Target position (required: see QA P1-A / B1) -->
+      <el-form-item
+        label="目标岗位"
+        required
+        :error="targetPositionError ? '请填写目标岗位名称' : ''"
       >
-        <template #prepend>
-          目标岗位
-        </template>
-      </el-input>
+        <el-input
+          v-model="targetPosition"
+          placeholder="目标岗位名称（如：前端工程师）"
+          class="target-input"
+          clearable
+          @input="targetPositionError = false"
+        />
+      </el-form-item>
 
       <!-- JD textarea -->
       <el-input
@@ -140,8 +170,8 @@ function loadExampleJD(idx: number) {
           size="large"
           :icon="VideoPlay"
           :loading="isRunning"
-          :disabled="!jdText.trim()"
-          @click="emit('run')"
+          :disabled="!jdText.trim() || !targetPosition.trim()"
+          @click="onRunClick"
         >
           {{ isRunning ? '闭环执行中...' : '开始闭环' }}
         </el-button>

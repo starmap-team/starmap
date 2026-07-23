@@ -19,6 +19,13 @@ export default defineConfig({
         // 本地开发: 回退到 http://localhost:8000
         target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
         changeOrigin: true,
+        // ponytail: forward client IP so audit logs are traceable
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const ip = req.socket.remoteAddress
+            if (ip) proxyReq.setHeader('X-Forwarded-For', ip)
+          })
+        },
       },
     },
   },
@@ -38,5 +45,11 @@ export default defineConfig({
         },
       },
     },
+  },
+  // ponytail: force pre-bundle 3d-graph deps to avoid "Failed to fetch
+  // dynamically imported module" in Vite dev (three.js sub-path imports
+  // aren't picked up by the dependency scanner at cold-start).
+  optimizeDeps: {
+    include: ['three', '3d-force-graph'],
   },
 })

@@ -138,6 +138,9 @@ async function submitResetPassword() {
     })
     ElMessage.success('密码已重置')
     showReset.value = false
+    // QA D6: refresh the table so last_login_at / password_changed_at reflect
+    // the new state. Without this the row looks unchanged until full reload.
+    fetchList()
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } }
     ElMessage.error(err?.response?.data?.detail ?? '重置失败')

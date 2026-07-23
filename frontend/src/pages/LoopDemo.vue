@@ -53,8 +53,14 @@ const stepMatchRef = ref<InstanceType<typeof LoopStepMatch> | null>(null)
 
 // ── Run loop ──
 async function handleRunLoop() {
+  // Defensive guard — LoopStepInput already validates, but a programmatic
+  // caller (e.g. test harness) may bypass it. Keep these in sync.
   if (!jdText.value.trim()) {
     ElMessage.warning('请输入 JD 文本')
+    return
+  }
+  if (!targetPosition.value.trim()) {
+    ElMessage.warning('请填写目标岗位名称')
     return
   }
   destroyGraph()

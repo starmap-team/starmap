@@ -26,11 +26,19 @@ export function useQualityDashboardCharts(store: QualityStore) {
   const kpiCardsEnhanced: ComputedRef<KpiCardEnhanced[]> = computed(() => {
     const m = store.metrics
     if (!m) return []
+    // QA P3-C: when the audit queue is empty, the static "0%" subtitle is
+    // misleading — render an honest "— 暂无审核" placeholders instead.
+    const auditRateLabel =
+      m.pending_review === 0
+        ? '— 暂无审核'
+        : `审核通过率 ${(m.audit_pass_rate * 100).toFixed(0)}%`
     return [
       {
         label: '总节点数',
         value: m.total_nodes.toLocaleString(),
-        sub: `周新增 +${m.weekly_new_nodes}`,
+        sub: m.total_extractions === 0
+          ? '— 待运行抽取'
+          : `周新增 +${m.weekly_new_nodes}`,
         trend: 'up',
         color: cc.primary,
         icon: 'Grid',
@@ -38,7 +46,9 @@ export function useQualityDashboardCharts(store: QualityStore) {
       {
         label: '平均信任度',
         value: (m.avg_trust_score * 100).toFixed(1) + '%',
-        sub: `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
+        sub: m.total_extractions === 0
+          ? '— 待评估'
+          : `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
         trend: m.avg_trust_score >= 0.75 ? 'up' : 'down',
         color: cc.success,
         icon: 'DataLine',
@@ -46,15 +56,15 @@ export function useQualityDashboardCharts(store: QualityStore) {
       {
         label: '幻觉率',
         value: (m.hallucination_rate * 100).toFixed(1) + '%',
-        sub: `审核通过率 ${(m.audit_pass_rate * 100).toFixed(0)}%`,
+        sub: auditRateLabel,
         trend: m.hallucination_rate <= 0.08 ? 'down' : 'up',
         color: cc.warning,
         icon: 'WarningFilled',
       },
       {
         label: '待审核',
-        value: String(m.pending_review),
-        sub: '条记录待处理',
+        value: m.pending_review === 0 ? '—' : String(m.pending_review),
+        sub: m.pending_review === 0 ? '暂无记录' : '条记录待处理',
         trend: m.pending_review > 5 ? 'up' : 'down',
         color: cc.danger,
         icon: 'Clock',

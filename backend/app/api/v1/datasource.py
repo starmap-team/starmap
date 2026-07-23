@@ -353,3 +353,54 @@ async def trigger_source_sync(
 
 
 __all__ = ["router", "admin_router"]
+
+
+# ---------------------------------------------------------------------------
+# QA B2: Admin 数据源管理镜像端点。
+# 原 admin_router 对象创建后没有任何 @admin_router.get/post 装饰，导致
+# GET /api/v1/admin/datasources 返回 404。这里补全列表 + 新建端点。
+# ---------------------------------------------------------------------------
+
+
+class DataSourceCreateRequest(BaseModel):
+    """管理员：注册一个新数据源。"""
+
+    name: str = Field(..., min_length=1, max_length=120)
+    source_type: Literal["job_board", "blog", "esco", "manual", "rss", "api"] = "job_board"
+    authority_score: float = Field(default=0.5, ge=0, le=1)
+    status: Literal["active", "paused", "error"] = "active"
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+@admin_router.get("", response_model=list[DataSourceResponse])
+async def list_admin_datasources(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    include_inactive: Annotated[bool, Query(description="是否包含已停用/异常数据源")] = True,
+) -> list[DataSourceResponse]:
+    """管理员视角：列出全部数据源，按状态再按权威度排序。"""
+    stmt = select(DataSourceRecord).order_by(
+        DataSourceRecord.status.asc(),
+        DataSourceRecord.authority_score.desc(),
+    )
+    if not include_inactive:
+        stmt = stmt.where(DataSourceRecord.status == "active")
+    result = await session.execute(stmt)
+    return [_serialize(ds) for ds in result.scalars().all()]
+
+
+@admin_router.post("", response_model=DataSourceResponse, status_code=201)
+async def create_datasource(
+    body: DataSourceCreateRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> DataSourceResponse:
+    """管理员：注册一个新数据源记录。"""
+    new = DataSourceRecord(
+        name=body.name,
+        source_type=body.source_type,
+        authority_score=body.authority_score,
+        status=body.status,
+        config=body.config,
+    )
+    session.add(new)
+    await session.flush()
+    return _serialize(new)

@@ -86,7 +86,15 @@ class ResetPasswordRequest(BaseModel):
 
 
 def get_client_ip(request: Request) -> str:
-    """FastAPI dependency that returns the client IP for the current request."""
+    """Return the originating client IP.
+
+    Checks X-Forwarded-For first (set by Vite proxy / Nginx), falls back to
+    the direct client IP. Takes only the leftmost entry in multi-hop chains.
+    """
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        # ponytail: first entry is the original client
+        return forwarded.split(",")[0].strip()
     if request.client is None:
         return ""
     return request.client.host

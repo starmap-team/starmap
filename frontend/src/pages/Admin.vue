@@ -676,6 +676,33 @@ async function handleSaveSource() {
   margin-top: var(--space-2);
 }
 
+.admin-tabs :deep(.el-tabs__nav-wrap) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.admin-tabs :deep(.el-tabs__nav-wrap)::after {
+  height: 1px;
+}
+
+.admin-tabs :deep(.el-tabs__nav) {
+  white-space: nowrap;
+  min-width: max-content;
+}
+
+.admin-tabs :deep(.el-tabs__item) {
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+@media (max-width: 1280px) {
+  .admin-tabs :deep(.el-tabs__item) {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+}
+
 .tab-card {
   border-radius: var(--radius-xl);
 }
