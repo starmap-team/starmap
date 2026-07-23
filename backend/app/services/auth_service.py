@@ -168,12 +168,12 @@ def _validate_password_policy(password: str, username: str = "") -> None:
     if username and password.lower() == username.lower():
         raise PasswordPolicyError("密码不能与用户名相同")
     # ── common password blocklist (ponytail: inline set, no file dep) ──
-    _BLOCKLIST = frozenset({
+    _blocklist = frozenset({
         "password", "password1", "admin123", "admin1234",
         "12345678", "123456789", "qwerty123", "abc12345", "11111111",
         "changeme", "welcome1", "iloveyou", "sunshine", "monkey123",
     })
-    if password.lower() in _BLOCKLIST:
+    if password.lower() in _blocklist:
         raise PasswordPolicyError("该密码过于常见，请使用更安全的密码")
 
 
