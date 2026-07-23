@@ -57,7 +57,7 @@ class FakeAsyncSession:
         self._results = results or []
         self._idx = 0
 
-    async def execute(self, stmt):
+    async def execute(self, stmt, *args, **kwargs):
         if self._idx < len(self._results):
             r = self._results[self._idx]
             self._idx += 1
@@ -97,7 +97,7 @@ class TestComputeStatusAggregates:
     @pytest.mark.asyncio
     async def test_db_error_graceful(self):
         class ErrorSession(FakeAsyncSession):
-            async def execute(self, stmt):
+            async def execute(self, stmt, *args, **kwargs):
                 raise Exception("db down")
 
         session = ErrorSession()
@@ -227,7 +227,7 @@ class TestComputeTrend:
     @pytest.mark.asyncio
     async def test_trend_db_error_returns_empty(self):
         class ErrorSession(FakeAsyncSession):
-            async def execute(self, stmt):
+            async def execute(self, stmt, *args, **kwargs):
                 raise Exception("db error")
 
         session = ErrorSession()

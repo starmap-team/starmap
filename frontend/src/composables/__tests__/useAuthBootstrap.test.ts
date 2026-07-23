@@ -28,6 +28,8 @@ describe('useAuthBootstrap', () => {
     localStorage.clear()
     requestMock.get.mockReset()
     requestMock.post.mockReset()
+    // Reset the singleton bootstrap promise between tests
+    vi.resetModules()
   })
 
   it('returns true and refreshes user from /auth/me when access token is valid', async () => {

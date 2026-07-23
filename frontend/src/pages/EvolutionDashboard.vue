@@ -219,7 +219,7 @@ onMounted(() => {
               </div>
             </div>
             <EmptyState
-              v-if="!emergingSkills.length"
+              v-if="!(emergingSkills as any).length"
               title="暂未检测到新兴技能"
               description="当技能 CII 指数出现显著上升时会在此显示"
             />

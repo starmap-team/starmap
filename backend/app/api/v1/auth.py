@@ -234,11 +234,25 @@ async def change_password(
     body: ChangePasswordRequest,
     session: AsyncSession = Depends(get_db_session),
     user: dict[str, Any] = Depends(get_current_user),
+    redis: Redis | None = Depends(get_redis_client),
 ) -> dict[str, Any]:
     """Self-service password change (requires old password)."""
     username = user.get("sub")
     if not username:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+    # ── Rate limiting: 5 attempts per user per 60s ──
+    if redis is not None:
+        key = f"rate:change_pwd:{username}"
+        tries = await redis.incr(key)
+        if tries == 1:
+            await redis.expire(key, 60)
+        if tries > 5:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="改密请求过于频繁，请 1 分钟后重试",
+            )
+    # ── end rate-limit ──
 
     db_user = await auth_service.get_user_by_username(session, username)
     if db_user is None:

@@ -101,6 +101,7 @@ def test_db_password_placeholder_prod_raises():
             postgres_password="CHANGE_ME_IN_ENV",
             redis_uri="redis://:pw@localhost:6379/0",
             mimo_api_key="configured",
+            bootstrap_admin_password="real-bootstrap-pw-12345",
         )
     msg = str(exc.value)
     assert "secret_key" in msg
@@ -127,6 +128,7 @@ def test_prod_weak_secret_key_raises():
             postgres_password="real-pg-pw",
             redis_uri="redis://:pw@localhost:6379/0",
             mimo_api_key="configured",
+            bootstrap_admin_password="real-bootstrap-pw-12345",
         )
     assert "SECRET_KEY" in str(exc.value)
     assert "32" in str(exc.value)
@@ -143,6 +145,7 @@ def test_prod_debug_true_raises():
             postgres_password="real-pg-pw",
             redis_uri="redis://:pw@localhost:6379/0",
             mimo_api_key="configured",
+            bootstrap_admin_password="real-bootstrap-pw-12345",
         )
     assert "Debug mode" in str(exc.value)
 
@@ -163,6 +166,7 @@ def test_prod_redis_no_password_raises():
             postgres_password="real-pg-pw",
             redis_uri="redis://redis:6379/0",  # no auth segment
             mimo_api_key="configured",
+            bootstrap_admin_password="real-bootstrap-pw-12345",
         )
     assert "Redis URI" in str(exc.value)
     assert "password" in str(exc.value)
@@ -186,6 +190,7 @@ def test_prod_bootstrap_seed_admin_blocked():
             postgres_password="real-pg-pw",
             redis_uri="redis://:pw@localhost:6379/0",
             mimo_api_key="configured",
+            bootstrap_admin_password="real-bootstrap-pw-12345",
         )
     assert "BOOTSTRAP_SEED_ADMIN" in str(exc.value) or "seed" in str(exc.value).lower()
 
@@ -211,6 +216,7 @@ def test_prod_all_valid_passes():
         mimo_api_key="configured",
         # AUTH-04: 生产 CORS 必须覆盖默认值
         cors_origins=["https://starmap.example.com"],
+            bootstrap_admin_password="real-bootstrap-pw-12345",
     )
     assert s.app_env == "production"
     assert s.app_debug is False
@@ -241,6 +247,7 @@ def test_prod_postgres_plaintext_sslmode_rejected(sslmode):
             mimo_api_key="configured",
             # AUTH-04: 提供 CORS 避免提前被 CORS 断言拦截
             cors_origins=["https://starmap.example.com"],
+            bootstrap_admin_password="real-bootstrap-pw-12345",
         )
     assert "POSTGRES_SSLMODE" in str(exc.value)
 
@@ -260,6 +267,7 @@ def test_prod_postgres_strong_sslmode_accepted(sslmode):
         mimo_api_key="configured",
         # AUTH-04: 生产 CORS 必须覆盖默认值
         cors_origins=["https://starmap.example.com"],
+            bootstrap_admin_password="real-bootstrap-pw-12345",
     )
     asyncpg_mode = sslmode.replace("-", "_")
     assert f"ssl={asyncpg_mode}" in s.postgres_uri
@@ -284,6 +292,7 @@ def test_prod_neo4j_plaintext_uri_rejected(uri):
             mimo_api_key="configured",
             # AUTH-04: 提供 CORS 避免提前被 CORS 断言拦截
             cors_origins=["https://starmap.example.com"],
+            bootstrap_admin_password="real-bootstrap-pw-12345",
         )
     assert "NEO4J_URI" in str(exc.value)
 
@@ -306,5 +315,6 @@ def test_prod_neo4j_tls_uri_accepted(uri):
         mimo_api_key="configured",
         # AUTH-04: 生产 CORS 必须覆盖默认值
         cors_origins=["https://starmap.example.com"],
+            bootstrap_admin_password="real-bootstrap-pw-12345",
     )
     assert s.neo4j_uri == uri

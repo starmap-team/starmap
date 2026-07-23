@@ -80,6 +80,7 @@ def _make_changelog_record():
         snapshot_from_id=None,
         snapshot_to_id="snap-1",
         trust_score=0.7,
+        status="pending",
         confidence=0.85,
         evidence_json={},
         created_at=datetime(2026, 6, 27, tzinfo=UTC),

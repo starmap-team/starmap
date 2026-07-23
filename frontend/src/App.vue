@@ -3,14 +3,12 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
-import { useAuthBootstrap } from '@/composables/useAuthBootstrap'
 import '@/styles/animations.css'
 
 const router = useRouter()
 
-// ponytail: silent token refresh on app boot — ensures user store
-// is populated from server truth, not just stale JWT decode.
-useAuthBootstrap()
+// Auth bootstrap moved to router guard (see router/index.ts) to eliminate
+// the race between fire-and-forget refresh and synchronous localStorage check.
 
 // Track navigation direction for slide transitions
 const transitionName = ref('page-fade')

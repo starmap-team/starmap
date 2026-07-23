@@ -71,7 +71,12 @@ async function handleLogout() {
 }
 
 function handleCommand(cmd: string) {
-  if (cmd === 'change-password') showChangePwd.value = true
+  if (cmd === 'change-password') {
+    // Route to dedicated page so the forced=1 flag is picked up
+    const forced = userStore.mustChangePassword ? { forced: '1' } : undefined
+    router.push({ path: '/change-password', query: forced })
+    return
+  }
   if (cmd === 'logout') handleLogout()
 }
 
@@ -104,7 +109,6 @@ const userInitial = (username?: string | null) => {
         <el-dropdown-item
           v-if="userStore.mustChangePassword"
           command="change-password"
-          disabled
         >
           <el-icon><Lock /></el-icon> 必须先修改密码
         </el-dropdown-item>
@@ -125,6 +129,9 @@ const userInitial = (username?: string | null) => {
     v-model="showChangePwd"
     title="修改密码"
     width="440px"
+    :close-on-click-modal="!userStore.mustChangePassword"
+    :close-on-press-escape="!userStore.mustChangePassword"
+    :show-close="!userStore.mustChangePassword"
     @close="pwdForm = { old_password: '', new_password: '', confirm_password: '' }"
   >
     <p
@@ -170,7 +177,10 @@ const userInitial = (username?: string | null) => {
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="showChangePwd = false">
+      <el-button
+        v-if="!userStore.mustChangePassword"
+        @click="showChangePwd = false"
+      >
         取消
       </el-button>
       <el-button

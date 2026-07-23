@@ -8,11 +8,21 @@
  *
  * Phase DB-AUTH: returns Promise<boolean> — caller can decide whether to
  * redirect to /login.
+ *
+ * Race-condition fix (2026-07-23):
+ *   The previous fire-and-forget call in App.vue created a window where
+ *   the router guard checked localStorage synchronously before the
+ *   bootstrap had finished its silent refresh. Now the guard calls
+ *   `await ensureBootstrapped()` before routing decisions, which waits
+ *   for the singleton bootstrap promise to settle.
  */
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 
-export async function useAuthBootstrap(): Promise<boolean> {
+/** Singleton bootstrap promise — computed once per page load. */
+let _bootstrapPromise: Promise<boolean> | null = null
+
+async function _doBootstrap(): Promise<boolean> {
   const store = useUserStore()
   store.initUser()
 
@@ -29,17 +39,11 @@ export async function useAuthBootstrap(): Promise<boolean> {
   if (at && store.user) {
     try {
       const me = (await request.get('/auth/me')) as {
-        username: string
-        role: string
-        id: string
-        must_change_password: boolean
+        username: string; role: string; id: string; must_change_password: boolean
       }
       store.setUser({
-        id: me.id,
-        sub: me.username,
-        username: me.username,
-        role: me.role,
-        must_change_password: me.must_change_password,
+        id: me.id, sub: me.username, username: me.username,
+        role: me.role, must_change_password: me.must_change_password,
       })
       return true
     } catch {
@@ -55,17 +59,11 @@ export async function useAuthBootstrap(): Promise<boolean> {
       })) as { access_token: string; expires_in: number }
       store.setTokens(data.access_token, rt)
       const me = (await request.get('/auth/me')) as {
-        username: string
-        role: string
-        id: string
-        must_change_password: boolean
+        username: string; role: string; id: string; must_change_password: boolean
       }
       store.setUser({
-        id: me.id,
-        sub: me.username,
-        username: me.username,
-        role: me.role,
-        must_change_password: me.must_change_password,
+        id: me.id, sub: me.username, username: me.username,
+        role: me.role, must_change_password: me.must_change_password,
       })
       return true
     } catch {
@@ -75,4 +73,19 @@ export async function useAuthBootstrap(): Promise<boolean> {
   }
 
   return false
+}
+
+/**
+ * Call once (e.g. from router guard) to ensure the auth bootstrap has
+ * completed before making routing decisions. Safe to call multiple times —
+ * subsequent callers get the same settled promise.
+ */
+export async function ensureBootstrapped(): Promise<boolean> {
+  if (_bootstrapPromise) return _bootstrapPromise
+  _bootstrapPromise = _doBootstrap()
+  return _bootstrapPromise
+}
+
+export async function useAuthBootstrap(): Promise<boolean> {
+  return ensureBootstrapped()
 }

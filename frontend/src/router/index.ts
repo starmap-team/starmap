@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { ensureBootstrapped } from '@/composables/useAuthBootstrap'
 
 const routes = [
   {
@@ -77,7 +78,7 @@ const routes = [
   {
     path: '/change-password',
     name: 'change-password',
-    component: () => import('@/components/ProfileMenu.vue'),
+    component: () => import('@/pages/ChangePassword.vue'),
     meta: { title: '修改密码', transition: 'page-slide', requiresAuth: true },
   },
   {
@@ -110,46 +111,62 @@ router.afterEach((to) => {
 })
 
 // ---------------------------------------------------------------------------
-// Auth guard (Phase 8 — frontend UX fix 3)
+// Auth guard — async bootstrap + must_change_password enforcement
 // ---------------------------------------------------------------------------
-// Routes can declare `meta: { requiresAuth: true }` to enforce that the
-// requesting session is authenticated. Currently only `/admin` needs the
-// guard — other routes degrade gracefully (login prompts surface via the
-// global ElMessage in request.ts).
-// ---------------------------------------------------------------------------
-const PUBLIC_PATHS = new Set<string>(['/login'])
+const PUBLIC_PATHS = new Set<string>(['/login', '/change-password'])
 
-// Pinia store import is deferred to avoid Pinia<->router cycle: the auth
-// bootstrap evaluates localStorage at module load time, which precedes
-// Pinia install. We read a small "auth hint" synchronously here.
-
-function isAuthed(): boolean {
+function hasTokens(): boolean {
   try {
     return Boolean(localStorage.getItem('starmap_access_token'))
+      || Boolean(localStorage.getItem('starmap_refresh_token'))
   } catch {
     return false
   }
 }
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   // Skip guard for public paths
-  if (PUBLIC_PATHS.has(to.path) || to.path.startsWith('/login')) {
+  if (PUBLIC_PATHS.has(to.path)) {
     return true
   }
   const requiresAuth = (to.meta as { requiresAuth?: boolean }).requiresAuth === true
   const requiresAdmin = (to.meta as { requiresAdmin?: boolean }).requiresAdmin === true
 
-  // 检查认证
-  if (requiresAuth && !isAuthed()) {
-    return { path: '/login', query: { redirect: to.fullPath } }
+  // No tokens at all — redirect to login for auth-required pages.
+  if (!hasTokens()) {
+    if (requiresAuth) {
+      return { path: '/login', query: { redirect: to.fullPath } }
+    }
+    return true
   }
 
-  // 检查 admin 权限
+  // Tokens exist — wait for silent-refresh bootstrap to settle before
+  // checking auth state, so we don't race between localStorage read and
+  // the async /auth/refresh call.
+  const booted = await ensureBootstrapped()
+  if (!booted) {
+    const userStore = useUserStore()
+    userStore.clearUser()
+    if (requiresAuth) {
+      return { path: '/login', query: { redirect: to.fullPath } }
+    }
+    return true
+  }
+
+  // ── must_change_password enforcement ──
+  if (requiresAuth) {
+    const userStore = useUserStore()
+    if (userStore.mustChangePassword) {
+      return {
+        path: '/change-password',
+        query: { forced: '1', redirect: to.fullPath },
+      }
+    }
+  }
+
+  // ── Admin guard ──
   if (requiresAdmin) {
     const userStore = useUserStore()
-    if (!userStore.user) {
-      userStore.initUser()
-    }
     if (!userStore.isAdmin) {
       return { path: '/' }
     }

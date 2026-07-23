@@ -211,12 +211,14 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
     fields such as industry, prerequisites, learning resources, and evolution hints
     are mapped when present.
     """
-    position_name = str(
+    _raw_name = (
         extraction.get("position_name")
         or extraction.get("name")
         or extraction.get("job_title")
-        or "未知职位"
-    ).strip()
+    )
+    if not _raw_name or not str(_raw_name).strip():
+        raise ValueError("missing position_name in extraction payload")
+    position_name = str(_raw_name).strip()
 
 
     position = _node_ref(
@@ -611,12 +613,14 @@ async def write_extraction_to_graph(
     Returns:
         Summary dict with counts of created nodes/relationships.
     """
-    position_name = str(
+    _raw_name = (
         extraction.get("position_name")
         or extraction.get("name")
         or extraction.get("job_title")
-        or "未知职位"
-    ).strip()
+    )
+    if not _raw_name or not str(_raw_name).strip():
+        raise ValueError("missing position_name in extraction payload")
+    position_name = str(_raw_name).strip()
 
 
     # Step 1: Merge Position node using standalone retry-enabled function

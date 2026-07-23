@@ -149,16 +149,32 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def _validate_password_policy(password: str) -> None:
-    """Enforce minimum policy. Raises PasswordPolicyError if violated."""
+def _validate_password_policy(password: str, username: str = "") -> None:
+    """Enforce password policy. Raises PasswordPolicyError if violated."""
     if len(password) < MIN_PASSWORD_LENGTH:
         raise PasswordPolicyError(
-            f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
+            f"密码至少需要 {MIN_PASSWORD_LENGTH} 个字符"
         )
     if len(password) > MAX_PASSWORD_LENGTH:
         raise PasswordPolicyError(
-            f"Password too long (max {MAX_PASSWORD_LENGTH} characters)"
+            f"密码不能超过 {MAX_PASSWORD_LENGTH} 个字符"
         )
+    # ── ponytail: reject trivial patterns ──
+    if password.isdigit():
+        raise PasswordPolicyError("密码不能是纯数字")
+    if password.isalpha():
+        raise PasswordPolicyError("密码不能是纯字母")
+    # ── reject password == username ──
+    if username and password.lower() == username.lower():
+        raise PasswordPolicyError("密码不能与用户名相同")
+    # ── common password blocklist (ponytail: inline set, no file dep) ──
+    _BLOCKLIST = frozenset({
+        "password", "password1", "admin123", "admin1234",
+        "12345678", "123456789", "qwerty123", "abc12345", "11111111",
+        "changeme", "welcome1", "iloveyou", "sunshine", "monkey123",
+    })
+    if password.lower() in _BLOCKLIST:
+        raise PasswordPolicyError("该密码过于常见，请使用更安全的密码")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -505,7 +521,9 @@ async def change_password(
     """
     if not verify_password(old_password, user.password_hash):
         return False
-    _validate_password_policy(new_password)
+    if verify_password(new_password, user.password_hash):
+        raise PasswordPolicyError("新密码不能与原密码相同")
+    _validate_password_policy(new_password, username=user.username)
 
     user.password_hash = hash_password(new_password)
     user.password_changed_at = datetime.now(UTC)
@@ -576,8 +594,6 @@ async def reset_password_with_token(
 
     Raises InvalidTokenError / PasswordPolicyError / UserNotFoundError.
     """
-    _validate_password_policy(new_password)
-
     raw = await redis.get(f"forgot_password:{token}")
     if raw is None:
         raise InvalidTokenError("Reset token is invalid or expired")
@@ -587,6 +603,8 @@ async def reset_password_with_token(
     user = await get_user_by_id(session, user_id_str)
     if user is None:
         raise UserNotFoundError("User no longer exists")
+
+    _validate_password_policy(new_password, username=user.username)
 
     user.password_hash = hash_password(new_password)
     user.password_changed_at = datetime.now(UTC)
@@ -830,11 +848,11 @@ async def reset_password(
     actor: str | None = None,
 ) -> User | None:
     """Admin-initiated password reset. Returns updated User or None."""
-    _validate_password_policy(new_password)
-
     user = await get_user_by_id(session, user_id)
     if user is None:
         return None
+
+    _validate_password_policy(new_password, username=user.username)
 
     user.password_hash = hash_password(new_password)
     user.password_changed_at = datetime.now(UTC)
