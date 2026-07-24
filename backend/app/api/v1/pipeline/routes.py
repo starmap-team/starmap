@@ -2,6 +2,7 @@
 
 Split from pipeline.py in Phase 6 architecture refactor.
 """
+
 from __future__ import annotations
 
 import json
@@ -41,9 +42,9 @@ from app.api.v1.upload_validation import validate_resume_upload
 from app.core.matching import MatchService
 from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, require_admin, sse_disconnect
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
-from app.pipeline.contracts import PipelineContext
-from app.pipeline.engine import PipelineEngine
-from app.pipeline.steps import (
+from app.core.pipeline.sse.contracts import PipelineContext
+from app.core.pipeline.sse.engine import PipelineEngine
+from app.core.pipeline.sse.steps import (
     LearningPathStep,
     MatchStep,
     RecommendStep,
@@ -62,6 +63,7 @@ router = APIRouter(prefix="/pipeline", tags=["数据流水线"])
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.get("/status", response_model=PipelineStatusResponse)
 async def get_pipeline_status(
     request: Request,
@@ -77,6 +79,7 @@ async def get_pipeline_status(
 
     try:
         from app.core.pipeline.quality_monitor import generate_alerts
+
         quality_alerts_raw = await generate_alerts(session)
         quality_alerts: list[QualityAlertItem] = [
             QualityAlertItem(
@@ -92,15 +95,20 @@ async def get_pipeline_status(
         ]
         if quality_alerts_raw and redis_client:
             from app.core.dashboard.sse_broadcaster import publish_event
+
             for alert in quality_alerts_raw:
                 if alert.level == "error" or alert.level == "critical":
-                    await publish_event(redis_client, "quality_alert", {
-                        "level": alert.level,
-                        "dimension": alert.dimension,
-                        "message": alert.message,
-                        "source": alert.source,
-                        "timestamp": alert.timestamp,
-                    })
+                    await publish_event(
+                        redis_client,
+                        "quality_alert",
+                        {
+                            "level": alert.level,
+                            "dimension": alert.dimension,
+                            "message": alert.message,
+                            "source": alert.source,
+                            "timestamp": alert.timestamp,
+                        },
+                    )
     except Exception as exc:
         logger.warning("quality_alerts generation failed (non-fatal): {}", exc)
         quality_alerts = []
@@ -137,11 +145,11 @@ async def get_pipeline_runs(
 # ---------------------------------------------------------------------------
 
 _PIPELINE_SKELETON = (
-    ("crawl",       "采集",     "上游数据采集：JD 爬虫 / RSS / API"),
-    ("extract",     "抽取",     "LLM 抽取技能与归一化"),
-    ("standardize", "标准化",   "反幻觉评分与别名归并"),
-    ("ingest",      "入库",     "写入 Neo4j 节点与关系边"),
-    ("audit",       "质检",     "信任度评估与人工抽检排队"),
+    ("crawl", "采集", "上游数据采集：JD 爬虫 / RSS / API"),
+    ("extract", "抽取", "LLM 抽取技能与归一化"),
+    ("standardize", "标准化", "反幻觉评分与别名归并"),
+    ("ingest", "入库", "写入 Neo4j 节点与关系边"),
+    ("audit", "质检", "信任度评估与人工抽检排队"),
 )
 
 
@@ -287,9 +295,7 @@ async def force_advance_pipeline(run_id: UUID) -> PipelineRunResponse:
                     logger.warning("force_advance: marked stuck stage %s as FAILED", s["name"])
 
             if stuck:
-                await session.execute(
-                    update(PipelineRun).where(PipelineRun.id == run_id).values(stages=stages)
-                )
+                await session.execute(update(PipelineRun).where(PipelineRun.id == run_id).values(stages=stages))
 
     # Now advance normally (get_ready_stages will find PENDING successors)
     await advance_pipeline(run_id)
@@ -325,20 +331,20 @@ async def force_reset_pipeline(run_id: UUID) -> PipelineRunResponse:
             if run is None:
                 raise HTTPException(status_code=404, detail="Pipeline run not found")
 
-            if run.status != 'running':
+            if run.status != "running":
                 return serialize_run(run)
 
             cancelled_at = datetime.now(UTC)
-            run.status = 'cancelled'
+            run.status = "cancelled"
             run.completed_at = cancelled_at
-            run.error_log = 'force-reset by admin (stuck in running state)'
+            run.error_log = "force-reset by admin (stuck in running state)"
 
             if run.stages:
                 for stage in run.stages:
-                    if stage.get('status') in ('running', 'pending'):
-                        stage['status'] = 'cancelled'
-                        stage['completed_at'] = cancelled_at.isoformat()
-                flag_modified(run, 'stages')
+                    if stage.get("status") in ("running", "pending"):
+                        stage["status"] = "cancelled"
+                        stage["completed_at"] = cancelled_at.isoformat()
+                flag_modified(run, "stages")
 
             logger.warning(
                 "force_reset_pipeline: run_id={} forced from running to cancelled",
@@ -373,9 +379,7 @@ async def get_pipeline_stages(
     mirrors the canonical pipeline (crawl → extract → standardize → ingest →
     audit) and is purely informational — none of the stages have run.
     """
-    result = await session.execute(
-        select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(1)
-    )
+    result = await session.execute(select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(1))
     run = result.scalar_one_or_none()
     if run is None:
         return StageStatusResponse(stages=_default_stage_skeleton())
@@ -391,21 +395,23 @@ async def get_pipeline_stages(
     for stage in raw_stages:
         if not isinstance(stage, dict):
             continue
-        stage_list.append({
-            "name": stage.get("name"),
-            "status": stage.get("status"),
-            "started_at": stage.get("started_at"),
-            "completed_at": stage.get("completed_at"),
-            "progress": stage.get("progress", 0.0),
-            "duration_ms": stage.get("duration_ms", 0),
-            "records_processed": stage.get("records_processed", 0),
-            "errors": stage.get("errors", []),
-            "errors_count": stage.get("errors_count", len(stage.get("errors", []))),
-            "retry_count": stage.get("retry_count", 0),
-            "depends_on": stage.get("depends_on", []),
-            "run_id": str(run.id),
-            "run_status": run.status,
-        })
+        stage_list.append(
+            {
+                "name": stage.get("name"),
+                "status": stage.get("status"),
+                "started_at": stage.get("started_at"),
+                "completed_at": stage.get("completed_at"),
+                "progress": stage.get("progress", 0.0),
+                "duration_ms": stage.get("duration_ms", 0),
+                "records_processed": stage.get("records_processed", 0),
+                "errors": stage.get("errors", []),
+                "errors_count": stage.get("errors_count", len(stage.get("errors", []))),
+                "retry_count": stage.get("retry_count", 0),
+                "depends_on": stage.get("depends_on", []),
+                "run_id": str(run.id),
+                "run_status": run.status,
+            }
+        )
     return StageStatusResponse(stages=stage_list)
 
 
@@ -418,9 +424,7 @@ async def get_data_quality(
     from app.core.pipeline.status_aggregator import compute_data_quality_aggregates
 
     snapshot = await get_quality_snapshot(session)
-    extra = await compute_data_quality_aggregates(
-        session, existing_metrics=snapshot.get("metrics", {})
-    )
+    extra = await compute_data_quality_aggregates(session, existing_metrics=snapshot.get("metrics", {}))
     metrics_dict = {**snapshot.get("metrics", {}), **extra}
 
     alerts_raw = snapshot.get("alerts", [])
@@ -451,9 +455,7 @@ async def get_datasources(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> list[DataSourceResponse]:
     """数据源列表及状态。"""
-    result = await session.execute(
-        select(DataSourceRecord).order_by(DataSourceRecord.authority_score.desc())
-    )
+    result = await session.execute(select(DataSourceRecord).order_by(DataSourceRecord.authority_score.desc()))
     sources = list(result.scalars().all())
     return [serialize_datasource(ds) for ds in sources]
 
@@ -461,6 +463,7 @@ async def get_datasources(
 # ---------------------------------------------------------------------------
 # SSE 实时进度
 # ---------------------------------------------------------------------------
+
 
 @router.get("/events")
 async def pipeline_events(
@@ -518,6 +521,7 @@ async def poll_pipeline_events(
 # 定时调度 CRUD
 # ---------------------------------------------------------------------------
 
+
 @router.get("/schedules", response_model=list[ScheduleResponse])
 async def list_schedules(
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -542,6 +546,7 @@ async def create_schedule(
     )
     try:
         from app.core.pipeline.cron_scheduler import compute_next_cron
+
         schedule.next_run_at = compute_next_cron(schedule.cron_expression)
     except Exception as exc:
         logger.warning("Failed to compute next_run_at: {}", exc)
@@ -628,10 +633,12 @@ async def trigger_schedule(
 # 流水线配置
 # ---------------------------------------------------------------------------
 
+
 @router.get("/config", response_model=PipelineConfigResponse, dependencies=[Depends(require_admin)])
 async def get_pipeline_config() -> PipelineConfigResponse:
     """获取流水线配置（超时/并发/重试）。"""
     from app.config import settings
+
     return PipelineConfigResponse(
         stage_timeout=settings.pipeline_stage_timeout,
         worker_concurrency=settings.pipeline_worker_concurrency,
@@ -680,6 +687,7 @@ async def update_pipeline_config(
 # 求职者业务闭环 Pipeline
 # ---------------------------------------------------------------------------
 
+
 @router.post("/analyze")
 async def analyze_pipeline(
     resume_file: UploadFile = File(..., description="求职者简历文件（PDF/DOCX）"),
@@ -705,13 +713,15 @@ async def analyze_pipeline(
     except Exception as exc:
         _logger.warning("[Pipeline] Failed to preload prerequisite map: {}", exc)
 
-    engine = PipelineEngine([
-        ResumeParseStep(),
-        SkillExtractStep(),
-        MatchStep(repo=repo, driver=driver, db_session=session),
-        LearningPathStep(driver=driver),
-        RecommendStep(repo=repo),
-    ])
+    engine = PipelineEngine(
+        [
+            ResumeParseStep(),
+            SkillExtractStep(),
+            MatchStep(repo=repo, driver=driver, db_session=session),
+            LearningPathStep(driver=driver),
+            RecommendStep(repo=repo),
+        ]
+    )
 
     _logger.info("[Pipeline] Starting analysis for file={}", resume_file.filename)
 
@@ -747,15 +757,17 @@ async def export_analysis(
     except Exception as exc:
         logger.debug("Failed to preload prerequisite map: {}", exc)
 
-    engine = PipelineEngine([
-        ResumeParseStep(),
-        SkillExtractStep(),
-        MatchStep(repo=repo, driver=driver, db_session=session),
-        LearningPathStep(driver=driver),
-        RecommendStep(repo=repo),
-    ])
+    engine = PipelineEngine(
+        [
+            ResumeParseStep(),
+            SkillExtractStep(),
+            MatchStep(repo=repo, driver=driver, db_session=session),
+            LearningPathStep(driver=driver),
+            RecommendStep(repo=repo),
+        ]
+    )
 
-    from app.pipeline.engine import _build_result
+    from app.core.pipeline.sse.engine import _build_result
 
     async for event_str in engine.run(ctx):
         if event_str.startswith("event: result"):
@@ -830,12 +842,9 @@ async def pipeline_metrics(
         "total_runs_30d": total_runs,
         "failed_runs_30d": failed_runs,
         "success_rate_30d": round((total_runs - failed_runs) / max(total_runs, 1), 4),
-        "stage_duration_p50_ms": {
-            k: sorted(v)[len(v) // 2] if v else 0 for k, v in stage_durations.items()
-        },
+        "stage_duration_p50_ms": {k: sorted(v)[len(v) // 2] if v else 0 for k, v in stage_durations.items()},
         "stage_duration_p95_ms": {
             k: sorted(v)[int(len(v) * 0.95)] if len(v) >= 20 else 0 for k, v in stage_durations.items()
         },
         "error_type_counts": error_type_counts,
     }
-

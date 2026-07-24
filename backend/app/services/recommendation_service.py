@@ -12,7 +12,7 @@ from typing import Any
 
 from loguru import logger
 
-from app.pipeline.contracts import ExtractedSkill, PositionProfile
+from app.core.pipeline.sse.contracts import ExtractedSkill, PositionProfile
 from app.repositories.position_repository import PositionRepository
 from app.services.match_service import PREREQUISITE_MAP, score_skill_match
 
@@ -56,8 +56,7 @@ class PositionRecommender:
 
         # 转换为 score_skill_match 期望的格式（key="skill"）
         person_skill_dicts: list[dict[str, Any]] = [
-            {"skill": s.name, "proficiency": s.proficiency}
-            for s in person_skills
+            {"skill": s.name, "proficiency": s.proficiency} for s in person_skills
         ]
 
         scores: list[Recommendation] = []
@@ -70,25 +69,23 @@ class PositionRecommender:
                 )
                 # 从 evaluated 列表计算匹配度均值
                 evaluated = match_result.get("evaluated", [])
-                match_score = (
-                    sum(e["score"] for e in evaluated) / len(evaluated)
-                    if evaluated
-                    else 0.0
-                )
+                match_score = sum(e["score"] for e in evaluated) / len(evaluated) if evaluated else 0.0
 
                 developability = self._compute_developability(person_skills, profile)
                 market_demand = profile.market_demand
 
                 final_score = match_score * 0.6 + developability * 0.3 + market_demand * 0.1
 
-                scores.append(Recommendation(
-                    position=name,
-                    score=round(final_score, 4),
-                    match_score=round(match_score, 4),
-                    developability=round(developability, 4),
-                    market_demand=round(market_demand, 4),
-                    match_detail=match_result,
-                ))
+                scores.append(
+                    Recommendation(
+                        position=name,
+                        score=round(final_score, 4),
+                        match_score=round(match_score, 4),
+                        developability=round(developability, 4),
+                        market_demand=round(market_demand, 4),
+                        match_detail=match_result,
+                    )
+                )
             except Exception as exc:
                 logger.debug("[Recommender] Failed to score {}: {}", name, exc)
                 continue
@@ -115,9 +112,5 @@ class PositionRecommender:
             return 1.0  # 无缺失，完美可发展性
         if not PREREQUISITE_MAP:
             return 0.5  # 无前置知识图数据，降级为中性值
-        reachable = sum(
-            1
-            for s in missing
-            if any(prereq in owned for prereq in PREREQUISITE_MAP.get(s["name"], []))
-        )
+        reachable = sum(1 for s in missing if any(prereq in owned for prereq in PREREQUISITE_MAP.get(s["name"], [])))
         return reachable / len(missing)

@@ -13,6 +13,7 @@
 .env.docker
 *.env.docker
 .env.bak
+secrets/
 
 # ---- Python 编译/发布产物 ----
 __pycache__/

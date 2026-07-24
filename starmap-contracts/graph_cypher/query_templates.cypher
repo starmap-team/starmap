@@ -1,1 +1,0 @@
-// StarMap Cypher Query Templates

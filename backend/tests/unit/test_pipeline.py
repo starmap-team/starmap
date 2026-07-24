@@ -8,13 +8,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.pipeline.contracts import (
+from app.core.pipeline.sse.contracts import (
     ExtractedSkill,
     PipelineContext,
     PositionProfile,
 )
-from app.pipeline.engine import PipelineEngine, _build_result, _sse_event
-from app.pipeline.steps import (
+from app.core.pipeline.sse.engine import PipelineEngine, _build_result, _sse_event
+from app.core.pipeline.sse.steps import (
     LearningPathStep,
     MatchStep,
     RecommendStep,
@@ -28,16 +28,24 @@ from app.pipeline.steps import (
 class TestExtractedSkill:
     def test_creation(self):
         skill = ExtractedSkill(
-            name="Python", raw_name="python", category="hard_skill",
-            proficiency="精通", confidence=0.95, source="llm_extraction",
+            name="Python",
+            raw_name="python",
+            category="hard_skill",
+            proficiency="精通",
+            confidence=0.95,
+            source="llm_extraction",
         )
         assert skill.name == "Python"
         assert skill.confidence == 0.95
 
     def test_default_values(self):
         skill = ExtractedSkill(
-            name="SQL", raw_name="sql", category="hard_skill",
-            proficiency="熟悉", confidence=0.8, source="manual",
+            name="SQL",
+            raw_name="sql",
+            category="hard_skill",
+            proficiency="熟悉",
+            confidence=0.8,
+            source="manual",
         )
         assert skill.source == "manual"
 
@@ -61,7 +69,8 @@ class TestPipelineContext:
 class TestPositionProfile:
     def test_creation(self):
         profile = PositionProfile(
-            name="后端开发工程师", industry="IT",
+            name="后端开发工程师",
+            industry="IT",
             required_skills=[{"name": "Python", "category": "hard_skill"}],
         )
         assert profile.name == "后端开发工程师"
@@ -97,8 +106,14 @@ class TestBuildResult:
     def test_with_match_results(self):
         ctx = PipelineContext(
             extracted_skills=[
-                ExtractedSkill(name="Python", raw_name="python", category="hard_skill",
-                              proficiency="精通", confidence=0.9, source="llm_extraction"),
+                ExtractedSkill(
+                    name="Python",
+                    raw_name="python",
+                    category="hard_skill",
+                    proficiency="精通",
+                    confidence=0.9,
+                    source="llm_extraction",
+                ),
             ],
             match_results={
                 "后端工程师": {

@@ -1,37 +1,33 @@
-﻿# API v1 knowledge base
+# API v1 knowledge base
 
 ## OVERVIEW
-Route layer for `/api/v1`; one module per business domain plus a shared router aggregator.
 
-## STRUCTURE
-```text
-starmap/backend/app/api/v1/
-├── router.py        # mounts all v1 routers under /api/v1
-├── admin.py         # admin/prompts/review/stats endpoints
-├── graph.py         # graph query endpoints
-├── match.py         # position match diagnostics
-├── extract.py       # JD and resume extraction endpoints
-├── evolution.py     # evolution trends/analyze/changelog/path endpoints
-├── quality.py       # graph quality dashboard
-├── position.py      # position management
-├── resume.py        # resume endpoints
-└── judge.py         # judge evaluation endpoints
-```
+Route layer for `/api/v1`. Public API shape is defined in `starmap-contracts/openapi.yaml`; request and response models belong in `backend/app/schemas/`.
 
 ## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Add a new domain route | `starmap/backend/app/api/v1/<domain>.py` | Keep one router per file |
-| Wire new routes into v1 | `starmap/backend/app/api/v1/router.py` | Import the module router and add it to `api_router` |
-| Implement business logic | `starmap/backend/app/services/` | Routes should delegate to services, not inline heavy logic |
-| Keep frontend types aligned | `starmap/starmap-contracts/` | Contract changes should precede route changes |
+
+| Task | Location |
+|---|---|
+| Register domain routers | `router.py` |
+| Authentication endpoints | `auth.py` |
+| Admin domains | `admin.py`, `admin_users.py`, `admin_graph_nodes.py`, `admin_prompts.py` |
+| Extraction and resume | `extract.py`, `resume.py`, `upload_validation.py` |
+| Graph and positions | `graph.py`, `position.py` |
+| Match and learning | `match.py`, `learning.py` |
+| Evolution | `evolution.py`, `evolution_*.py` |
+| Pipeline | `pipeline/routes.py`; legacy local pipeline schemas remain compatibility-only |
+| API Pydantic models | `../../schemas/` |
 
 ## CONVENTIONS
-- Each router uses its own `prefix` and `tags` to keep Swagger readable.
-- Routes should return contract-shaped response models, not raw ORM entities.
-- Graph endpoints go through Neo4j driver dependencies; DB-backed endpoints use the async session dependency.
+
+- Keep handlers thin: validate HTTP input, invoke services, return centralized Schema models.
+- Use `Depends(get_db_session)` and resource dependencies instead of creating clients or engines.
+- Mutating admin routes require `require_admin`; public/auth exceptions must be explicit.
+- Use the unified error response and `ErrorCode` values from `app/core/validation/`.
+- Update OpenAPI before adding or changing a public path or field.
 
 ## ANTI-PATTERNS
-- Do **not** add routes without updating the contract where the API surface changes.
-- Do **not** put Neo4j/SQL business orchestration directly in route handlers.
-- Do **not** introduce sync-only blocking calls into async endpoints.
+
+- Do not define new request/response `BaseModel` classes in route files.
+- Do not embed raw SQL, graph orchestration, or LLM provider logic in handlers.
+- Do not return ORM entities or unvalidated provider payloads directly.

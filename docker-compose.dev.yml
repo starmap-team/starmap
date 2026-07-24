@@ -164,6 +164,7 @@ services:
     container_name: starmap-redis
     ports:
       - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-starmap_dev_redis} --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     restart: unless-stopped

@@ -10,7 +10,7 @@ from typing import Any
 
 from loguru import logger
 
-from app.pipeline.contracts import DataQualityStats, PositionProfile
+from app.core.pipeline.sse.contracts import DataQualityStats, PositionProfile
 
 
 class PositionRepository:

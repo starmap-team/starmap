@@ -1,0 +1,255 @@
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\real_extract_test.py:2:1. Pick the just-crawled V2EX JD (real data)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\alembic\versions\002_add_extraction_tables.py:30:        sa.Column("crawl_time", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\alembic\versions\002_add_extraction_tables.py:35:    op.create_index("ix_raw_jd_crawl_time", "raw_jd_records", ["crawl_time"])
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\alembic\versions\005_add_pipeline_tables.py:44:        sa.Column("source_type", sa.String(20), nullable=False, server_default="crawler"),
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\alembic\versions\005_add_pipeline_tables.py:47:        sa.Column("last_crawl_at", sa.DateTime(timezone=True), nullable=True),
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:24:    CrawlVolumeEntry,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:41:    source_type="crawler",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:44:    last_crawl_at=None,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:57:    rec.last_crawl_at = last_crawl_at or datetime.now(UTC)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:153:    def test_last_crawl_at_serialized(self):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:155:        ds = _make_ds_record(last_crawl_at=dt)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:157:        assert result.last_crawl_at is not None
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:158:        assert "2026-01-15" in result.last_crawl_at
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:160:    def test_last_crawl_at_none(self):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:161:        ds = _make_ds_record(last_crawl_at=None)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:163:        ds.last_crawl_at = None
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:165:        assert result.last_crawl_at is None
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:310:    def test_crawl_volume_entry(self):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:311:        entry = CrawlVolumeEntry(date="2026-01-01", count=42)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_service.py:323:            crawl_volume=[], quality_trend=[],
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_api.py:62:        source_type="crawler",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_api.py:65:        last_crawl_at=_SENTINEL,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_api.py:78:        self.last_crawl_at = datetime.now(UTC) if last_crawl_at is _SENTINEL else last_crawl_at
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_api.py:232:        assert item["last_crawl_at"] is not None
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_api.py:234:    def test_list_null_last_crawl_at(self, client, auth_headers, db_override):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_api.py:235:        ds = FakeDataSourceRecord(last_crawl_at=None)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_api.py:240:        assert resp.json()[0]["last_crawl_at"] is None
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_api.py:417:        assert len(body["crawl_volume"]) == 30  # default period=30d
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_api.py:428:        assert len(body["crawl_volume"]) == 7
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_datasource_api.py:439:        assert len(body["crawl_volume"]) == 90
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\real_full_test.py:39:from crawler.spiders.v2ex_remote import run_sync as v2ex_run
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\real_full_test.py:45:    # ─── Step 1: live internet crawl (already proven, reconfirm) ───
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\real_full_test.py:47:    print("STEP 1: real internet crawl (v2ex + remotive)")
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\real_full_test.py:79:                crawl_time=datetime.now(UTC),
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\real_crawl_test.py:4:3. Feed each item into dao.upsert_jd() (what executor.execute_crawl does)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\real_crawl_test.py:18:from crawler.persistence import dao
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\real_crawl_test.py:19:from crawler.spiders.v2ex_remote import run_sync as v2ex_run
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\real_crawl_test.py:56:    print(f"\n=== Persist via dao.upsert_jd (matches executor.execute_crawl) ===")
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\real_crawl_test.py:60:    from crawler.persistence.models import JdStatus
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\scripts\inject_mock_jds.py:86:                        publish_date, crawled_at, content_hash, status
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_cancel_run.py:31:        {"name": "crawl", "status": "running", "started_at": None, "completed_at": None},
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_cancel_run.py:52:    assert "crawl" in result.stopped_stage_names
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_fixture_seed.py:66:        """_crawl_from_fixtures returns valid crawl output."""
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_fixture_seed.py:67:        from app.core.pipeline.executor import _crawl_from_fixtures
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_fixture_seed.py:69:        result = _crawl_from_fixtures("test-run-001")
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\models\pipeline_models.py:17:    记录ETL数据流水线（crawl -> dedup -> clean -> import -> graph_sync）
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\models\pipeline_models.py:160:    # 技术说明：默认"crawler"，可选值：crawler（爬虫）| api（接口）| manual（手动）| import（导入）
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\models\pipeline_models.py:162:        String(20), nullable=False, default="crawler",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\models\pipeline_models.py:163:        comment="'crawler' | 'api' | 'manual' | 'import'",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\models\pipeline_models.py:179:    last_crawl_at: Mapped[datetime | None] = mapped_column(
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\models\pipeline_models.py:198:        comment="Crawler / API configuration parameters",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\models\extraction_models.py:115:    crawl_time: Mapped[datetime] = mapped_column(
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\tasks\celery_app.py:112:        # ponytail: only crawl accepts run_type; others take run_id only
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\tasks\celery_app.py:113:        if stage_name == StageName.CRAWL.value:
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_executor_smoke.py:32:    def test_crawl_executor_is_callable(self):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_executor_smoke.py:33:        assert callable(STAGE_EXECUTORS[StageName.CRAWL.value])
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_executor_smoke.py:130:                await retry_stage(run_id, "crawl")
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_executor_smoke.py:148:                {"name": "crawl", "status": StageStatus.COMPLETED.value},
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\status_aggregator.py:33:      - today_crawl_volume: 今日 0 点至今 raw_jd_records 新增数
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\status_aggregator.py:41:        # 1) today_crawl_volume: 今日 0 点至今 jd_raw.crawled_at 新增 (Phase 3.8.11: RawJDRecord 永不被写入, 改查真实表 jd_raw)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\status_aggregator.py:43:        vol_result = await session.execute(_text("SELECT COUNT(*) FROM jd_raw WHERE crawled_at >= :start"), {"start": today_start})
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\status_aggregator.py:46:        logger.warning(f"today_crawl_volume query failed: {exc}")
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\status_aggregator.py:87:        "today_crawl_volume": today_volume,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_service.py:61:            {"name": "crawl", "status": "completed", "duration_ms": 5000},
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_service.py:67:        assert normalized[0]["name"] == "crawl"
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_service.py:71:        raw = {"steps": [{"name": "crawl", "status": "completed", "duration_ms": 100}]}
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_service.py:78:        assert normalized[0]["name"] == "crawl"
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_service.py:137:            "crawl_concurrency": 8,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\quality_monitor.py:99:    # Freshness: hours since last crawl across all sources
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\quality_monitor.py:102:    latest_crawl = None
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\quality_monitor.py:104:        if src.last_crawl_at is not None:
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\quality_monitor.py:105:            if latest_crawl is None or src.last_crawl_at > latest_crawl:
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\quality_monitor.py:106:                latest_crawl = src.last_crawl_at
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\quality_monitor.py:107:    if latest_crawl is not None:
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\quality_monitor.py:108:        delta = now - latest_crawl.replace(tzinfo=UTC) if latest_crawl.tzinfo is None else now - latest_crawl
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\quality_monitor.py:237:        if src.last_crawl_at is not None:
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\quality_monitor.py:239:            last = src.last_crawl_at.replace(tzinfo=UTC) if src.last_crawl_at.tzinfo is None else src.last_crawl_at
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\quality_monitor.py:246:                        f"Source '{src.name}' last crawl {hours_since:.0f}h ago "
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\orchestrator.py:4:  crawl → (dedup ∥ clean) → import → graph_sync
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\orchestrator.py:7:  - crawl: no deps (root)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\orchestrator.py:8:  - dedup: depends on crawl
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\orchestrator.py:9:  - clean: depends on crawl
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\orchestrator.py:36:    CRAWL = "crawl"
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\orchestrator.py:63:    StageName.CRAWL.value: [],
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\orchestrator.py:64:    StageName.DEDUP.value: [StageName.CRAWL.value],
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\orchestrator.py:65:    StageName.CLEAN.value: [StageName.CRAWL.value],
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:34:        assert StageName.CRAWL.value == "crawl"
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:54:        assert StageName.CRAWL in ALL_STAGES
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:60:        assert STAGE_DEPS["crawl"] == []
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:61:        assert STAGE_DEPS["dedup"] == ["crawl"]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:73:        stages = _build_initial_stages(selected=["crawl", "dedup"])
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:75:            if s["name"] in ("crawl", "dedup"):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:91:        stages = [{"name": "crawl"}, {"name": "dedup"}]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:92:        assert _stage_index(stages, "crawl") == 0
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:97:            _stage_index([{"name": "crawl"}], "nonexistent")
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:104:        assert ready == ["crawl"]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:106:    def test_crawl_completed_returns_dedup_and_clean(self):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:109:            if s["name"] == "crawl":
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:120:            if s["name"] == "crawl":
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:123:        # dedup and clean depend on crawl which failed
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:130:        # crawl has no deps, so it's ready
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:131:        assert ready == ["crawl"]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:142:            if s["name"] == "crawl":
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:144:        assert get_failed_stages(stages) == ["crawl"]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:170:        stages = _build_initial_stages(selected=["crawl"])
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:172:            if s["name"] == "crawl":
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:183:        assert stage_map["crawl"]["depends_on"] == []
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:184:        assert stage_map["dedup"]["depends_on"] == ["crawl"]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:213:        stages = _build_initial_stages(selected=["crawl", "dedup"])
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:215:        assert pending_names == {"crawl", "dedup"}
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:226:        stages = _build_initial_stages(selected=["INVALID", "crawl"])
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:228:        assert "crawl" in pending_names
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:252:    def test_crawl_running_blocks_others(self):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:255:            if s["name"] == "crawl":
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:258:        # crawl is running, not pending, so nothing is ready
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:264:            if s["name"] in ("crawl", "dedup", "clean"):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:272:            if s["name"] in ("crawl", "dedup", "clean", "import"):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:280:        # crawl/dedup/clean are skipped, import is pending
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:357:        run.stages = [{"name": "crawl", "status": "completed"}]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:404:        stages = [{"name": "crawl", "status": "completed"}]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:408:        stages = {"name": "crawl", "status": "completed"}
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:434:            {"name": "crawl", "status": StageStatus.RUNNING.value},
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_orchestrator.py:446:        assert "crawl" in result.stopped_stage_names
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_model_repr.py:93:            source_type="crawl",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:87:def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:88:    """Execute the crawl stage: run spiders and upsert JDs into jd_raw.
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:101:    from crawler.persistence import dao
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:102:    from crawler.persistence.models import JdStatus
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:103:    from crawler.spiders.v2ex_remote import run_sync as v2ex_sync  # Phase 3.8.10
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:124:    # Load all active crawler source configs
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:125:    source_configs = _run_async(_get_crawl_configs(run_id))
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:133:    crawl_start = time.monotonic()
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:139:            "No active crawler sources configured, falling back to default boss: "
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:175:                run_id, "crawl", "running",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:181:                elapsed_ms=int((time.monotonic() - crawl_start) * 1000),
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:188:            run_id, "crawl", "running",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:194:            elapsed_ms=int((time.monotonic() - crawl_start) * 1000),
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:200:                "Crawling source '{}' (platform={}, keyword={}, max_count={})",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:243:                        run_id, "crawl", "running",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:249:                        elapsed_ms=int((time.monotonic() - crawl_start) * 1000),
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:256:                "Source '{}' crawl complete: {} items, {} inserted",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:260:            err_msg = f"{source_name} ({platform}) crawl failed: {exc}"
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:262:            logger.error("Crawl stage {} failed: {}", source_name, exc)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:280:        run_id, "crawl", "completed",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:286:        elapsed_ms=int((time.monotonic() - crawl_start) * 1000),
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:302:    # Phase 2 SOURCE-01: execute_crawl 后更新 DataSourceRecord (UAT 修复)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:304:        _update_source_after_crawl(run_id, total_inserted)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:306:        logger.warning("_update_source_after_crawl failed (non-fatal): {}", exc)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:329:    Falls back to the legacy crawler SimHash when Redis is unavailable.
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:335:    from crawler.persistence.database import get_jd_raw_session
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:336:    from crawler.persistence.models import JdRaw, JdStatus
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:441:    from crawler.persistence.database import get_jd_raw_session
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:442:    from crawler.persistence.models import JdRaw, JdStatus
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:527:        from crawler.persistence.database import get_jd_raw_session
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:528:        from crawler.persistence.models import JdRaw, JdStatus
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:697:def _update_source_after_crawl(run_id: str, records_count: int) -> None:
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:698:    """execute_crawl 完成后更新 DataSourceRecord.total_records + last_crawl_at."""
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:719:                    ds.last_crawl_at = datetime.now(UTC)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:721:            logger.info("_update_source_after_crawl: updated {} sources for run_id={}", len(rows), run_id)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:728:    Looks up all active crawler DataSourceRecords and updates the
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:739:                    DataSourceRecord.source_type == "crawler",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:745:                logger.warning("_update_source_after_dedup: no active crawler sources found for run_id={}", run_id)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:787:async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:788:    """Load per-source crawl configurations from active DataSourceRecord(s).
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:803:                    DataSourceRecord.source_type == "crawler",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:819:                    "Loaded crawl configs from {} active source(s)",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:824:        logger.warning("_get_crawl_configs failed (non-fatal, using defaults): {}", exc)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\pipeline\executor.py:848:    StageName.CRAWL.value: execute_crawl,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:163:        source_type="crawler",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:166:        last_crawl_at=None,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:178:        self.last_crawl_at = last_crawl_at
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:197:    "today_crawl_volume": 42,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:285:        assert body["today_crawl_volume"] == 42
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:421:                json={"run_type": "incremental", "selected_stages": ["crawl", "dedup"]},
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:426:        assert "crawl" in body["message"] or "incremental" in body["message"]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:451:            stopped_stage_names=["crawl"],
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:461:        assert "crawl" in body["stopped_stage_names"]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:476:                json={"stage_name": "crawl"},
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:488:                json={"stage_name": "crawl"},
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:531:                {"name": "crawl", "status": "completed", "duration_ms": 5000, "records_processed": 100},
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:541:        assert body["stages"][0]["name"] == "crawl"
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:547:            stages={"steps": [{"name": "crawl", "status": "completed", "duration_ms": 100}]},
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:555:        assert body["stages"][0]["name"] == "crawl"
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:658:        events = [{"type": "stage_complete", "data": {"stage": "crawl"}}]
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_pipeline_api.py:840:        assert "crawl_concurrency" in body
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:75:            FakeResult(scalar_val=42),   # today_crawl_volume
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:81:        assert result["today_crawl_volume"] == 42
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:88:            FakeResult(scalar_val=0),   # today_crawl_volume
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:105:        assert result["today_crawl_volume"] == 0
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:112:            FakeResult(scalar_val=None),  # today_crawl_volume
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:118:        assert result["today_crawl_volume"] == 0
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:261:        cached_data = {"today_crawl_volume": 10, "success_rate": 0.9, "avg_quality_score": 0.85}
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:267:        assert result["today_crawl_volume"] == 10
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:273:        cached_data = {"today_crawl_volume": 5, "success_rate": 0.8, "avg_quality_score": 0.7}
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:279:        assert result["today_crawl_volume"] == 5
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:294:        assert result["today_crawl_volume"] == 5
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:309:        assert result["today_crawl_volume"] == 3
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_status_aggregator.py:324:        assert result["today_crawl_volume"] == 1
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:114:        today_crawl_volume=aggregates["today_crawl_volume"],
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:140:    ("crawl",       "采集",     "上游数据采集：JD 爬虫 / RSS / API"),
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:373:    mirrors the canonical pipeline (crawl → extract → standardize → ingest →
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:638:        crawl_concurrency=settings.pipeline_crawl_concurrency,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:656:        "crawl_concurrency": "pipeline_crawl_concurrency",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:673:        crawl_concurrency=settings.pipeline_crawl_concurrency,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:769:# ── Phase 7: Crawler completion Webhook (P0-2 fix) ──
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:772:@router.post("/crawler-complete", response_model=dict)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:773:async def crawler_complete_callback(
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:775:    records_crawled: int = Form(0),
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:777:    """废弃此端点。CRAWL 阶段将通过 crawl_source_data 内部感知爬虫完成。
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:781:    logger.info("crawler_complete_callback (noop) source=%s records=%s", source_name, records_crawled)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\routes.py:782:    return {"status": "noop", "source": source_name, "records_crawled": records_crawled}
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\serializers.py:37:        last_crawl_at=ds.last_crawl_at.isoformat() if ds.last_crawl_at else None,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\schemas.py:53:    today_crawl_volume: int = Field(0, ge=0, description="JDs crawled since 00:00 today")
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\schemas.py:64:        examples=[["crawl", "dedup", "import"]],
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\schemas.py:88:    last_crawl_at: str | None = None
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\schemas.py:171:    crawl_concurrency: int
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\schemas.py:191:    crawl_concurrency: int | None = Field(
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\pipeline\schemas.py:195:        description="Crawl concurrency (1-20)",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_proxy_breaker.py:4:from crawler.middleware.proxy_middleware import (
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_settings_guard.py:183:    def test_crawl_concurrency_above_max(self) -> None:
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_settings_guard.py:184:        """crawl_concurrency > 20 raises ValidationError."""
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_settings_guard.py:188:            PipelineConfigUpdateRequest(crawl_concurrency=50)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_settings_guard.py:217:            "crawl_concurrency": "pipeline_crawl_concurrency",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:63:    last_crawl_at: datetime | None = None,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:73:        last_crawl_at=last_crawl_at,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:117:    async def test_freshness_with_recent_crawl(self):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:119:        src = _make_source(last_crawl_at=recent)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:126:        """last_crawl_at without tzinfo gets UTC assigned."""
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:128:        src = _make_source(last_crawl_at=recent_naive)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:134:    async def test_freshness_none_crawl(self):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:135:        src = _make_source(last_crawl_at=None)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:289:        old_crawl = datetime.now(UTC) - timedelta(hours=72)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:290:        src = _make_source(last_crawl_at=old_crawl)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:300:        old_crawl = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=72)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:301:        src = _make_source(last_crawl_at=old_crawl)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:343:    async def test_no_last_crawl_no_freshness_alert(self):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\tests\unit\test_quality_monitor.py:344:        src = _make_source(last_crawl_at=None)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\dashboard\dashboard_service.py:425:            "test_real_crawl": "测试数据",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\core\dashboard\dashboard_service.py:430:                "source_type": "crawl",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\datasource.py:41:    last_crawl_at: str | None = None
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\datasource.py:57:class CrawlVolumeEntry(BaseModel):
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\datasource.py:76:    crawl_volume: list[CrawlVolumeEntry] = Field(default_factory=list)
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\datasource.py:90:    last_crawl_at: str | None = None
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\datasource.py:124:        last_crawl_at=ds.last_crawl_at.isoformat() if ds.last_crawl_at else None,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\datasource.py:187:            last_crawl_at=ds.last_crawl_at.isoformat() if ds.last_crawl_at else None,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\datasource.py:304:    crawl_volume: list[CrawlVolumeEntry] = []
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\datasource.py:309:        crawl_volume.append(CrawlVolumeEntry(date=day, count=volume_by_day.get(day, 0)))
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\datasource.py:319:        crawl_volume=crawl_volume,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\datasource.py:333:    """触发单源同步 — 执行完整管线 (crawl -> dedup -> clean -> import -> graph_sync)。"""
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\admin.py:409:    """Trigger a full pipeline run: crawl -> dedup -> clean -> import -> graph_sync."""
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\config.py:109:        "test_real_crawl": 0.50,
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\config.py:193:    pipeline_crawl_concurrency: int = 5
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\config.py:207:        "pipeline_crawl_concurrency",
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\quality_trends_alerts.py:109:        if src.last_crawl_at is not None:
+C:/Users/LiShuai/Desktop/Agents/starmap/backend\app\api\v1\quality_trends_alerts.py:110:            last = src.last_crawl_at.replace(tzinfo=UTC) if src.last_crawl_at.tzinfo is None else src.last_crawl_at
