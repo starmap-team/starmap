@@ -59,6 +59,8 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 - 生产域名的 `CORS_ALLOWED_ORIGINS`
 - `secrets/ssl/`、`secrets/postgres/`、`secrets/neo4j/` 中的有效证书和严格文件权限
 
+> **注意：** `secrets/` 目录已加入 `.gitignore`，不会被 Git 追踪。生产 SSL 证书必须通过外部安全渠道管理（如 Let's Encrypt、内部 CA 或密钥管理服务）。开发环境证书生成命令请参考 [入职指南](../guides/onboarding.md#证书与凭据管理)。
+
 应用设置校验不满足时会 fail fast。不要通过降低校验或把开发 `.env` 传给生产来绕过。
 
 ## 入口与健康

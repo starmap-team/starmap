@@ -42,6 +42,36 @@ PostgreSQL/Neo4j -> API -> Pinia/组件 -> 图谱、匹配、演化和质量页�
 
 ## 开发流程
 
+### 证书与凭据管理
+
+`secrets/` 目录已加入 `.gitignore`，不再被 Git 追踪。新克隆仓库后，需要重新生成开发证书：
+
+```bash
+# Neo4j TLS 证书
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout secrets/neo4j/neo4j.key.pem \
+  -out secrets/neo4j/neo4j.cert.pem \
+  -subj "/CN=starmap-dev.local" && chmod 600 secrets/neo4j/neo4j.key.pem
+
+# PostgreSQL SSL 证书
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout secrets/postgres/server.key \
+  -out secrets/postgres/server.crt \
+  -subj "/CN=starmap-dev.local" && chmod 600 secrets/postgres/server.key
+
+# Nginx SSL 证书
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout secrets/ssl/key.pem \
+  -out secrets/ssl/cert.pem \
+  -subj "/CN=starmap-dev.local" && chmod 600 secrets/ssl/key.pem
+openssl pkcs12 -export -out secrets/ssl/cert.pfx \
+  -inkey secrets/ssl/key.pem -in secrets/ssl/cert.pem -passout pass:
+```
+
+注意：`secrets/postgres/enable-ssl.sh` 是配置脚本（非密钥），仍被 Git 追踪。`.env` 需从 `.env.example` 复制并填入真实值。
+
+### API 变更
+
 ### API 变更
 
 1. 修改 `starmap-contracts/openapi.yaml`。
