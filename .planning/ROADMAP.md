@@ -294,6 +294,30 @@ Plans:
 4. 所有现有测试通过
 **Plans:** 1 plan
 
+## Phase 13: 设计-实现一致性审计与调优（12 模块跨端）
+**Goal:** 以 /docs 原始需求/设计规范为基准，逐模块比对多端真实实现（前端页面 + Store + API + PostgreSQL + Neo4j），定位不符合项与偏移，按 verify-first 调优改造，保障多数据源一致与高用户体验
+**Mode:** mvp
+**Depends on:** Phase 1-12（审计对象；已完成的模块可先行审计，不必等全部完成）
+**规范基线 (Source of Truth):**
+- 总纲/架构/命名: `docs/standards/00-总纲/01-03`
+- 后端规范: `docs/standards/01-backend/01-13`
+- 前端规范: `docs/standards/02-frontend/01-08`
+- 契约/爬虫/评估/测试/运维: `docs/standards/04-contracts`、`03-crawler`、`05-evaluation`、`06-testing`、`07-devops`
+- 架构: `docs/architecture/{overview,data-storage,pipeline}.md`
+- 本体: `docs/ontology/starmap-ontology-v1.md`
+- 总设计: `docs/星图-项目设计文档v2.0.md`
+- 既有模块分析（is 侧基线）: `docs/archive/{home,position,pipeline,datasource,match,extract,loop,learning,dashboard,evolution,quality,admin}-source-analysis.md`
+**模块 → 页面 → API 映射:** P1 Home→`/graph/*`; P2 PositionList/Detail→`/positions`,`/graph/position/*`; P3 Pipeline→`/pipeline/*`; P4 DataSources→`/datasources`; P5 Match→`/match/*`; P6 ExtractJD→`/extract/*`; P7 Loop→`/loop/*`; P8 Learning→`/learning/*`; P9 Dashboard→`/dashboard/*`; P10 Evolution→`/evolution/*`; P11 Quality→`/quality/*`; P12 Admin→`/admin/*`
+**Success Criteria:**
+1. 每模块产出 `CONFORMANCE-<module>.md`：规范基线条款 vs archive 分析 vs 多端真实实现 三方对照，逐条标注 符合/偏移/缺失 及严重度（CRITICAL/HIGH/MEDIUM/LOW）
+2. 多数据源一致性：每模块涉及的 PG/Neo4j/Redis 满足 SSOT 规则（PG 权威、Neo4j 只读投影、无孤儿、reconcile 健康、KPI 单一口径 + tooltip 解释口径），以 `/admin/data-truth` 与健康度佐证
+3. 页面级验证：每模块页面 0 console error、无空白/无卡死 skeleton、loading/empty/error 三态齐全、数字带数据源 tooltip、关键表单与按钮产生真实后端数据并有反馈（截图取证）
+4. 调优改造：所有 CRITICAL/HIGH 偏移完成代码修复，每项修复附 verify-first 证据（修复前验收标准 + 改后截图 + API + DB 三层校验），并记入记忆
+5. 高用户体验：交互流畅、信息层级清晰、错误可恢复、文案不裸呈现内部口径歧义（如 70/56/39 须解释）
+6. 测试不退化：每模块既有 + 新增测试通过（pytest + vitest）；CONFORMANCE 报告与 `docs/archive/*-source-analysis.md` 同步更新
+**Requirements:** CONFORM-01, CONFORM-02, CONFORM-03
+**Plans:** 0 plans（待 `/gsd-plan-phase 13` 生成；建议按 Wave 或每模块一个 tracer plan；种子对照表见 `.planning/phases/13-design-conformance/CONFORMANCE-MAP.md`）
+
 ## Dependency Graph
 
 ```
@@ -301,6 +325,7 @@ Wave 1 (数据组): Phase 1-4 — 独立，可并行或顺序执行
 Wave 2 (工具组): Phase 5-8 — 独立，可并行或顺序执行
 Wave 3 (洞察组): Phase 9-11 — 独立，可并行或顺序执行
 Wave 4 (系统组): Phase 12 — 独立执行
+Wave 5 (跨端审计): Phase 13 — 依赖 Phase 1-12（已完成的模块可立即审计，分批推进）
 ```
 
 **并行执行策略:**
@@ -311,8 +336,8 @@ Wave 4 (系统组): Phase 12 — 独立执行
 ---
 
 **Coverage:**
-- Total phases: 12
-- Total requirements: 24 (12 modules × 2 requirements: 联调测试 + 代码审核)
+- Total phases: 13
+- Total requirements: 27 (12 modules × 2 + CONFORM-01..03 跨端一致性审计)
 - All requirements mapped: ✓
 
 ---

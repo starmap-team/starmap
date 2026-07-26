@@ -67,6 +67,86 @@
 | 用户认证系统重写 | 认证逻辑基本可用，仅修复审计和错误处理 |
 | 大规模数据迁移 | 无数据迁移需求，仅清理密钥和配置 |
 
+## v5 Requirements (12 模块联调审核开发)
+
+### 全景图谱模块
+
+- [ ] **HOME-01**: 全景图谱 API 数据流联调 — 验证 graph/* 端点返回正确结构的图谱数据
+- [ ] **HOME-02**: 图谱渲染功能验证 — 2D/3D 图谱渲染正常，节点和边数据正确
+- [ ] **HOME-03**: 搜索功能前后端联调 — 搜索 API 返回正确结果，前端展示正常
+- [ ] **HOME-04**: 前端冒烟测试覆盖 — Home.vue 有渲染测试 + 交互测试
+
+### 岗位列表模块
+
+- [ ] **POS-01**: 岗位列表 API 联调 — 分页/排序/筛选正确
+- [ ] **POS-02**: 岗位详情页联调 — 岗位详情数据加载 + 技能图谱渲染
+- [ ] **POS-03**: 前端冒烟测试覆盖 — PositionList.vue + PositionDetail.vue
+
+### 数据流水线模块
+
+- [ ] **PIPE-MON-01**: 流水线状态 API 联调 — 运行状态/步骤进度/历史记录
+- [ ] **PIPE-MON-02**: SSE 实时事件验证 — 前端接收并展示 SSE 事件
+- [ ] **PIPE-MON-03**: 前端冒烟测试覆盖 — PipelineMonitor.vue
+
+### 数据源管理模块
+
+- [ ] **DS-01**: 数据源列表 API 联调 — CRUD 操作正确
+- [ ] **DS-02**: 数据源刷新/同步功能验证
+- [ ] **DS-03**: 前端冒烟测试覆盖 — DataSources.vue
+
+### 匹配诊断模块
+
+- [ ] **MATCH-01**: 匹配 API 联调 — 匹配评分/技能对比/差距分析正确
+- [ ] **MATCH-02**: 前端冒烟测试覆盖 — MatchDiagnosis.vue
+
+### JD 抽取模块
+
+- [ ] **EXTRACT-01**: JD 提交/抽取 API 联调 — 提交→抽取→展示全流程
+- [ ] **EXTRACT-02**: 反幻觉检查在前端可见
+- [ ] **EXTRACT-03**: 前端冒烟测试覆盖 — ExtractJD.vue
+
+### 闭环演示模块
+
+- [ ] **LOOP-01**: 闭环演示流程联调 — 每个步骤状态更新正确
+- [ ] **LOOP-02**: 前端冒烟测试覆盖 — LoopDemo.vue
+
+### 学习中心模块
+
+- [ ] **LEARN-01**: 学习路径 API 联调 — 学习路径/资源推荐正确
+- [ ] **LEARN-02**: 前端冒烟测试覆盖 — LearningCenter.vue
+
+### 数据大屏模块
+
+- [ ] **DASH-01**: 大屏数据 API 联调 — 统计数据/图表数据正确
+- [ ] **DASH-02**: 前端冒烟测试覆盖 — DataDashboard.vue
+
+### 演化看板模块
+
+- [ ] **EVOL-DASH-01**: 演化数据 API 联调 — 趋势数据/快照数据正确
+- [ ] **EVOL-DASH-02**: 前端冒烟测试覆盖 — EvolutionDashboard.vue
+
+### 图谱质量模块
+
+- [ ] **QUAL-01**: 质量数据 API 联调 — 质量指标/评分正确
+- [ ] **QUAL-02**: 前端冒烟测试覆盖 — QualityDashboard.vue
+
+### 管理后台模块
+
+- [ ] **ADMIN-01**: 用户管理 API 联调 — CRUD + 权限控制
+- [ ] **ADMIN-02**: 审计日志 API 联调 — 日志查询/过滤
+- [ ] **ADMIN-03**: 前端冒烟测试覆盖 — Admin.vue + AuditLog.vue + UserManagement.vue
+
+### 跨端一致性强制规范（CONFORM — 必修，Phase 13）
+
+> 来源：多端真实实现 vs `/docs` 规范/契约比对审计。**LOW 级“口径/跨端不一致/契约歧义”默认升级为必修**（见 CONFORM-05），不再仅归档。
+> 权威规范文本见 `docs/standards/04-contracts/01-API契约规范.md` **M1–M7**；本表 CONFORM-* 为其在 GSD 需求/追溯层的映射，**单一真相源为 standards M-rules**，本表状态须与之同步，避免双源漂移。
+
+- [x] **CONFORM-01**: 跨后端路径（PostgreSQL / Neo4j）对同一查询参数语义必须一致 — `search` 同时匹配 name+industry；`industry` 过滤统一为包含匹配（ilike/CONTAINS）。*Position 已修并验证（search=互联网→38, industry 部分匹配→33）*
+- [x] **CONFORM-02**: 聚合统计字段不得与去重字段同名歧义 — 按域累加等重复计数口径须重命名或显式标注，前端不得裸呈现歧义值。*已由 M6 闭环：`graph_service.total_*`→`independent_*`(395→257)；Home KPI 第 4 卡经 M5 改名 `domainConnections` 并加口径 tooltip，与大屏 edges 去歧义*
+- [x] **CONFORM-03**: 公开（非 admin）列表/详情仅返回 `review_status=approved`，且与全景图谱“已发布”口径及 `/positions` 默认契约一致；admin 才可见全状态并带徽标。*Position 已修并验证（非 admin→39 approved）*
+- [x] **CONFORM-04**: 无评估基线/无数据时，质量/统计指标须返回“未评估/无数据”语义（`baseline_available`+`explanation`+降级 `warning_level`），禁止红/失败态误导。*Quality 已修并验证（red→gray+解释）*
+- [x] **CONFORM-05**: 一致性审计中 LOW 级“口径/跨端不一致/契约歧义”默认升级为必修项，须在对应模块 plan 显式排期或以规范条款固化（本条款即政策落地）。*政策生效*
+
 ## Traceability
 
 | Requirement | Phase | Status |
@@ -101,6 +181,11 @@
 | TEST-01 | Phase 8 | Pending |
 | TEST-02 | Phase 8 | Pending |
 | INFRA-04 | Phase 9 | Pending |
+| CONFORM-01 | Phase 13 | Fixed (Position) |
+| CONFORM-02 | Phase 13 | Fixed (Home, M6+M5) |
+| CONFORM-03 | Phase 13 | Fixed (Position) |
+| CONFORM-04 | Phase 13 | Fixed (Quality) |
+| CONFORM-05 | Phase 13 | Active (policy) |
 
 **Coverage:**
 - v1 requirements: 30 total
