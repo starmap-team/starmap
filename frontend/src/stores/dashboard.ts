@@ -118,7 +118,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
         timestamp: (raw.timestamp as number) ?? 0,
       }
     } catch (e: unknown) {
-      error.value = e instanceof Error ? e.message : '获取概览数据失败'
+      // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      error.value = detail ?? (e instanceof Error ? e.message : '获取概览数据失败')
     } finally {
       loading.value = false
     }

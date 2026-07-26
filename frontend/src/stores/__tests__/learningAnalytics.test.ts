@@ -37,7 +37,8 @@ describe('useLearningAnalyticsStore', () => {
   it('should fetch competitiveness data', async () => {
     const request = (await import('@/api/request')).default
     const mockData = {
-      items: [
+      // fix: 后端返回 bottleneck_skills 列表（扁平字段），非 items
+      bottleneck_skills: [
         { skill: 'Python', market_demand: 90, your_level: 3, avg_level: 4 },
       ],
     }

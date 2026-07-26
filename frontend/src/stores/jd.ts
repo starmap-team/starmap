@@ -26,8 +26,13 @@ interface JDExtractResult {
   confidence?: number
   hallucination_score?: number | null
   normalized_skills?: { original?: string; normalized?: string; method?: string; confidence?: number }[]
-  skills?: { name: string; category: string; confidence: number; is_new: boolean }[]
-  position?: string
+  // fix: 后端 extract.py 已透传 4 个原丢弃字段 + 3 个反幻觉字段
+  tools?: { skill?: string; name?: string; category?: string; proficiency?: string }[]
+  learning_resources?: { title?: string; type?: string; url?: string }[]
+  evolves_to?: string[]
+  hallucinated_skills?: string[]
+  missing_skills?: string[]
+  issues?: string[]
   [key: string]: unknown
 }
 
@@ -139,14 +144,27 @@ export const useJdStore = defineStore('jd', () => {
       const data = await request.post('/extract/jd', { jd_content: jdContent }, { timeout: 120000 }) as JDExtractResult
       extractResult.value = data
       return data
+    } catch (err: unknown) {
+      // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      const msg = detail ?? (err instanceof Error ? err.message : 'JD 抽取失败')
+      throw new Error(msg)
     } finally {
       extractLoading.value = false
     }
+  }
+
+  // ── Cost summary ──
+  async function fetchCostSummary(): Promise<unknown> {
+    return await request.get('/extract/cost-summary')
   }
 
   function clearResult() {
     extractResult.value = null
   }
 
-  return { list, loading, fetchList, fetchPositionSkills, fetchPositionDetail, fetchPositions, searchPositions, extractResult, extractLoading, extractJd, clearResult }
+  return {
+    list, loading, fetchList, fetchPositionSkills, fetchPositionDetail, fetchPositions,
+    searchPositions, extractResult, extractLoading, extractJd, fetchCostSummary, clearResult,
+  }
 })

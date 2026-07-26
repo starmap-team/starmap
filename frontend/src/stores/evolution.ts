@@ -128,6 +128,9 @@ export const useEvolutionStore = defineStore('evolution', () => {
       emergingAlerts.value = data.alerts ?? []
     } catch (e: unknown) {
       if (import.meta.env.DEV) console.error('[Evolution] Failed to fetch alerts:', e)
+      // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      if (detail) console.error('[Evolution] Detail:', detail)
       emergingAlerts.value = []
     } finally {
       alertsLoading.value = false

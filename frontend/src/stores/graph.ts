@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import request from '@/api/request'
+import { ElMessage } from 'element-plus'
 
 /**
  * 全景图谱 store — 三层视图架构
@@ -238,6 +239,7 @@ export const useGraphStore = defineStore('graph', () => {
       positionsByKA.value = new Map()
     } catch (e) {
       if (import.meta.env.DEV) console.error('[Graph] Failed to fetch overview:', e)
+      ElMessage.error('加载图谱数据失败，请检查后端服务')
       domains.value = []
       domainConnections.value = []
       independentPositions.value = 0
@@ -261,8 +263,8 @@ export const useGraphStore = defineStore('graph', () => {
       const positions: GraphNode[] = data.positions ?? []
       const psEdges: GraphEdge[] = data.position_skill_edges ?? []
       const skillsData: GraphNode[] = data.skills ?? []
-      // 缓存
-      positionsByKA.value.set(kaId, positions)
+      // 缓存 — fix: 整体替换 Map 以触发 Vue 响应式
+      positionsByKA.value = new Map(positionsByKA.value).set(kaId, positions)
       // 合并到全局节点池（O(1) 查重）
       const existingNodeIds = new Set(allNodes.value.map(n => n.id))
       for (const p of positions) {

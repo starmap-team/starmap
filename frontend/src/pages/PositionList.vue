@@ -52,6 +52,7 @@ const industries = computed(() => {
 })
 
 const filteredPositions = computed(() => {
+  // fix: 后端已处理搜索和行业筛选，此处仅保留客户端兼容
   let list = positions.value
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
@@ -111,21 +112,27 @@ function statusLabel(status: PositionRow['review_status'] | undefined) {
       const params: {
         page: number
         page_size: number
+        search?: string
+        industry?: string
         status?: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'all'
         include_all?: boolean
       } = {
         page: page.value,
         page_size: pageSize.value,
       }
-      // 审核状态过滤（Phase 23 / PG-Neo4j 数据统一后）
-      //   "全部" (all)    → include_all=true，显示所有审核状态
-      //   "已发布" (approved) → 默认行为，只查 approved（无需额外参数）
-      //   "待审核" / "已拒绝" → 指定 status + include_all
-      if (statusFilter.value === 'all') {
-        params.include_all = true
-      } else if (statusFilter.value !== 'approved') {
-        params.status = statusFilter.value
-        params.include_all = true
+      // fix: 传递搜索关键字和行业筛选到后端，确保分页与筛选协同
+      const q = searchQuery.value.trim()
+      if (q) params.search = q
+      if (selectedIndustry.value) params.industry = selectedIndustry.value
+      // 审核状态过滤：公开契约 = 仅 approved；include_all 仅 admin 可用
+      // 非 admin 不传 include_all/status → 后端默认 approved（与全景图谱“已发布”口径一致）
+      if (isAdmin.value) {
+        if (statusFilter.value === 'all') {
+          params.include_all = true
+        } else if (statusFilter.value !== 'approved') {
+          params.status = statusFilter.value
+          params.include_all = true
+        }
       }
       const data = await jdStore.fetchPositions(params)
       positions.value = data.items.map((p) => ({

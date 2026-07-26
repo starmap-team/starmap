@@ -104,6 +104,8 @@ export function usePipelineMonitor() {
       pipeline.fetchStages(),
       pipeline.fetchDataQuality(),
       pipeline.fetchDataSources(),
+      // fix: 加载历史运行记录，否则刷新后 runs 列表为空
+      pipeline.fetchRuns(),
     ])
     lastRefresh.value = new Date().toLocaleTimeString()
   }
@@ -280,12 +282,24 @@ export function usePipelineMonitor() {
   const kpiCards = computed(() => {
     const s = pipeline.pipelineStatus
     const colors = chartColors()
+    const today = s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume : null
+    const lastTotal = s?.last_run?.total_records ?? 0
+    // Phase 4 P3: 显示最近采集时间，让用户知道数据是否陈旧
+    const lastCrawlAt = (s as any)?.last_crawl_at as string | undefined
+    const lastCrawlLabel = lastCrawlAt
+      ? new Date(lastCrawlAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : null
     return [
       {
         label: '今日采集量',
-        value: s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume.toLocaleString() : '--',
-        sub: '条记录',
-        color: colors.primary,
+        value: today !== null ? today.toLocaleString() : '--',
+        // today=0 时显示"今日 0 / 历史累计 N"，避免空状态误导
+        sub: today !== null
+          ? (today > 0
+              ? '条记录'
+              : `今日 0 / 历史累计 ${lastTotal} · 最近 ${lastCrawlLabel ?? '未知'}`)
+          : '条记录',
+        color: today !== null && today > 0 ? colors.primary : colors.muted,
         icon: 'Download',
       },
       {
@@ -294,7 +308,7 @@ export function usePipelineMonitor() {
         value: (s?.today_crawl_volume ?? 0) > 0 && typeof s?.success_rate === 'number'
           ? `${(s.success_rate * 100).toFixed(1)}%`
           : '--',
-        sub: (s?.today_crawl_volume ?? 0) > 0 ? '有效/总计' : '今日无采集数据',
+        sub: (s?.today_crawl_volume ?? 0) > 0 ? '有效/总计' : '今日无采集',
         color: (s?.today_crawl_volume ?? 0) > 0 ? colors.primary : colors.muted,
         icon: 'CircleCheck',
         trend: 'stable',
@@ -302,9 +316,9 @@ export function usePipelineMonitor() {
       {
         label: '自动爬虫',
         value: typeof s?.active_data_sources === 'number' ? String(s.active_data_sources) : '--',
-        // Phase 7: compute manual source count from dataSources store, no hardcoded "6"
+        // fix: 使用 dataSources 总数作为合计基数
         sub: typeof s?.active_data_sources === 'number'
-          ? `${s.active_data_sources}个自动 + ${pipeline.dataSources.length}个手动 (合计${s.active_data_sources + pipeline.dataSources.length}个数据源)`
+          ? `${s.active_data_sources}个自动数据源 (共${pipeline.dataSources.length}个)`
           : '加载中...',
         color: colors.info,
         icon: 'Connection',
@@ -315,20 +329,46 @@ export function usePipelineMonitor() {
 
   // ── 流水线阶段时间线 (DAG) ──
   const timelineStages = computed<PipelineStage[]>(() => {
-    if (pipeline.stages.length > 0) return pipeline.stages
-    return ALL_STAGE_NAMES.map(name => ({
-      name,
-      status: 'pending' as const,
-      duration_ms: 0,
-      records_processed: 0,
-      errors: [] as string[],
-      errors_count: 0,
-      progress: 0,
-      retry_count: 0,
-      depends_on: [],
-      started_at: null,
-      completed_at: null,
-    }))
+    // 将 API 返回的阶段映射到 5 个标准阶段名，缺失的用 pending 补齐
+    // 复合阶段名（dedup_clean → dedup + clean）必须一对一匹配，防止重复消费
+    const stageMap = new Map<string, PipelineStage>()
+    for (const s of pipeline.stages) {
+      stageMap.set(s.name, s)
+    }
+    const consumed = new Set<string>()  // 已映射到标准阶段的 API 阶段名
+    const takeByName = (name: string): PipelineStage | undefined => {
+      const direct = stageMap.get(name)
+      if (direct && !consumed.has(name)) {
+        consumed.add(name)
+        return { ...direct, name }  // 用标准阶段名显示，避免 dedup_clean 重复
+      }
+      // fix: 使用精确匹配避免子串误匹配（如 "crawler" 匹配 "crawl"）
+      for (const [k, v] of stageMap) {
+        if (consumed.has(k)) continue
+        if (k === name || k.startsWith(name + '_')) {
+          consumed.add(k)
+          return { ...v, name }  // 重命名为标准阶段名
+        }
+      }
+      return undefined
+    }
+    return ALL_STAGE_NAMES.map((name) => {
+      const found = takeByName(name)
+      if (found) return found
+      return {
+        name,
+        status: 'pending' as const,
+        duration_ms: 0,
+        records_processed: 0,
+        errors: [] as string[],
+        errors_count: 0,
+        progress: 0,
+        retry_count: 0,
+        depends_on: [],
+        started_at: null,
+        completed_at: null,
+      }
+    })
   })
 
   // Phase 3.8.8: 阻塞于上游失败 (不显示重试)

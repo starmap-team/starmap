@@ -58,7 +58,11 @@ describe('useLearningRecommendationStore', () => {
     const request = (await import('@/api/request')).default
     const mockResults = {
       results: [
-        { resume_name: 'Alice', position_name: 'Dev', match_score: 0.8, matched_skills: ['Python'], gap_skills: ['Docker'] },
+        // fix: 后端返回 { position_name, result: {match_score, ...} } 嵌套结构
+        {
+          position_name: 'Dev',
+          result: { match_score: 0.8, matched_skills: ['Python'], gap_skills: ['Docker'] },
+        },
       ],
     }
     vi.mocked(request.post).mockResolvedValueOnce(mockResults)
@@ -70,8 +74,13 @@ describe('useLearningRecommendationStore', () => {
     expect(results).toHaveLength(1)
     expect(store.batchResults).toHaveLength(1)
     expect(store.batchLoading).toBe(false)
+    // fix: skills 必须是 PersonSkillInput 对象数组（与后端 BatchMatchItem.skills 对齐）
     expect(request.post).toHaveBeenCalledWith('/match/batch', {
-      items: [{ skills: ['Python'], position: 'Dev', position_name: 'Dev' }],
+      items: [{
+        skills: [{ name: 'Python', proficiency: '熟悉' }],
+        position: 'Dev',
+        position_name: 'Dev',
+      }],
     })
   })
 

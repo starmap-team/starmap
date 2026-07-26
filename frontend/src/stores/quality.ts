@@ -12,7 +12,11 @@ export interface QualityMetrics {
   precision: number
   recall: number
   f1: number
-  warning_level: 'green' | 'yellow' | 'orange' | 'red'
+  warning_level: 'green' | 'yellow' | 'orange' | 'red' | 'gray'
+  // Phase 13 数据诚实化：无 golden-set 基线时前端须显“未评估”而非红/失败态
+  baseline_available?: boolean
+  evaluation_count?: number
+  evaluation_explanation?: string
   details: { dimension: string; value: number; threshold: number; status: 'pass' | 'warn' | 'fail' }[]
   total_nodes: number
   total_edges: number
@@ -36,7 +40,10 @@ function defaultMetrics(): QualityMetrics {
     precision: 0,
     recall: 0,
     f1: 0,
-    warning_level: 'red',
+    warning_level: 'gray',
+    baseline_available: false,
+    evaluation_count: 0,
+    evaluation_explanation: '',
     details: [],
     total_nodes: 0,
     total_edges: 0,
@@ -160,7 +167,10 @@ export const useQualityStore = defineStore('quality', () => {
     try {
       const resp = await request.get('/quality/alerts') as QualityAlertsResponse
       alerts.value = resp?.alerts ?? []
-    } catch {
+    } catch (e: unknown) {
+      // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      if (detail) console.error('[Quality] Alerts detail:', detail)
       alerts.value = []
     } finally {
       alertsLoading.value = false

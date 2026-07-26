@@ -198,7 +198,9 @@ export const useLoopStore = defineStore('loop', () => {
       currentRun.value.total_duration_ms = totalTime
       currentRun.value.run_id = data.run_id ?? currentRun.value.run_id
     } catch (e: unknown) {
-      error.value = e instanceof Error ? e.message : '闭环执行失败'
+      // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      error.value = detail ?? (e instanceof Error ? e.message : '闭环执行失败')
       // 标记当前运行的步骤为失败
       if (currentRun.value) {
         const runningStep = currentRun.value.steps.find(s => s.status === 'running')

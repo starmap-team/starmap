@@ -128,6 +128,7 @@ describe('useDataSourceStore — health & sync', () => {
     const result = await store.triggerSync('1')
 
     expect(result).toBe(true)
-    expect(request.post).toHaveBeenCalledWith('/admin/datasources/1/sync')
+    // fix: sync 端点在公共 router（/datasources/{id}/sync），非 admin_router
+    expect(request.post).toHaveBeenCalledWith('/datasources/1/sync')
   })
 })

@@ -80,6 +80,9 @@ interface PlanResponseRaw {
 
 /** Extract error message from unknown catch value */
 function getErrorMsg(e: unknown): string {
+  // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案
+  const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+  if (detail) return detail
   if (e instanceof Error) return e.message
   if (typeof e === 'string') return e
   return '未知错误'

@@ -274,6 +274,26 @@ onMounted(() => {
               >
                 {{ getSourceTypeLabel(source.source_type) }}
               </el-tag>
+              <!-- Phase 13 数据诚实化：零记录须显式标注为空态，避免被误读为数据异常 -->
+              <el-tag
+                v-if="source.total_records === 0 && !source.last_crawl_at"
+                size="small"
+                type="warning"
+                effect="plain"
+                round
+                title="该数据源尚未执行过采集，下方记录/质量数值为 0 属正常空态，非数据异常"
+              >
+                尚未采集
+              </el-tag>
+              <el-tag
+                v-else-if="source.total_records === 0"
+                size="small"
+                type="info"
+                effect="plain"
+                round
+              >
+                暂无记录
+              </el-tag>
             </div>
 
             <!-- 权威度环形图 + 统计信息 -->

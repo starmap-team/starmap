@@ -290,7 +290,7 @@ export function useHomeInteractions(
     return null
   }
 
-  function handleSearchSelect(
+  async function handleSearchSelect(
     id: string,
     _name: string,
     _type: string,
@@ -298,7 +298,7 @@ export function useHomeInteractions(
   ) {
     const domain = graphStore.domains.find(d => d.id === id)
     if (domain) {
-      graphStore.goToPositionLayer(domain.id, domain.name)
+      await graphStore.goToPositionLayer(domain.id, domain.name)
       return
     }
     const node = graphStore.allNodes.find(n => n.id === id)

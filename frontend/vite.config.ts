@@ -13,6 +13,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    hmr: { overlay: false },
     proxy: {
       '/api': {
         // Docker 网络: VITE_API_PROXY_TARGET=http://starmap-backend:8000

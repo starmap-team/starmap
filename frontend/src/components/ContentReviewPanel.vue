@@ -22,6 +22,48 @@ const statusFilter = ref<'' | ReviewStatus>('pending_review')
 const searchKeyword = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
+const selection = ref<ReviewItem[]>([])
+
+async function batchApprove() {
+  if (selection.value.length === 0) return
+  await ElMessageBox.confirm(
+    `确认批量批准 ${selection.value.length} 项？批准后将出现在公开图谱中。`,
+    '批量批准',
+    { type: 'warning', confirmButtonText: '确认批准', cancelButtonText: '取消' },
+  ).catch(() => null)
+  let ok = 0; let fail = 0
+  for (const item of selection.value) {
+    try {
+      await reviewStore.approve(item.entity_type as ReviewEntityType, item.entity_id)
+      ok++
+    } catch { fail++ }
+  }
+  selection.value = []
+  await reviewStore.fetchItems()
+  await reviewStore.fetchStats()
+  ElMessage[fail === 0 ? 'success' : 'warning'](`批准完成: ${ok} 成功, ${fail} 失败`)
+}
+
+async function batchReject() {
+  if (selection.value.length === 0) return
+  const { value: reason } = await ElMessageBox.prompt(
+    `将拒绝 ${selection.value.length} 项，请输入拒绝原因（会写入数据库）：`,
+    '批量拒绝',
+    { confirmButtonText: '确认拒绝', cancelButtonText: '取消', inputPlaceholder: '例如：与项目无关 / 数据质量差' },
+  ).catch(() => ({ value: '' }))
+  if (!reason) return
+  let ok = 0; let fail = 0
+  for (const item of selection.value) {
+    try {
+      await reviewStore.reject(item.entity_type as ReviewEntityType, item.entity_id, reason)
+      ok++
+    } catch { fail++ }
+  }
+  selection.value = []
+  await reviewStore.fetchItems()
+  await reviewStore.fetchStats()
+  ElMessage[fail === 0 ? 'success' : 'warning'](`拒绝完成: ${ok} 成功, ${fail} 失败`)
+}
 
 const filteredItems = computed<ReviewItem[]>(() => {
   let list = reviewStore.items
@@ -174,26 +216,51 @@ function formatDate(s: string | null) {
   <div class="content-review-panel">
     <!-- Stats row -->
     <div class="stats-row">
-      <div class="stat-item">
-        <span class="stat-value">{{ reviewStore.stats.position_approved ?? 0 }}</span>
-        <span class="stat-label">已发布岗位</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-value warn">{{ reviewStore.stats.position_pending_review ?? 0 }}</span>
-        <span class="stat-label">待审岗位</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-value danger">{{ reviewStore.stats.position_rejected ?? 0 }}</span>
-        <span class="stat-label">已拒岗位</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-value">{{ reviewStore.stats.skill_approved ?? 0 }}</span>
-        <span class="stat-label">已发布技能</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-value warn">{{ reviewStore.stats.skill_pending_review ?? 0 }}</span>
-        <span class="stat-label">待审技能</span>
-      </div>
+      <el-tooltip
+        content="PostgreSQL position_records 表中 review_status='approved' 的岗位（用户可见、可检索）。"
+        placement="top"
+      >
+        <div class="stat-item">
+          <span class="stat-value">{{ reviewStore.stats.position_approved ?? 0 }}</span>
+          <span class="stat-label">已发布岗位</span>
+        </div>
+      </el-tooltip>
+      <el-tooltip
+        content="PostgreSQL position_records 表中 review_status='pending_review' 的岗位（需人工审核才能发布）。"
+        placement="top"
+      >
+        <div class="stat-item">
+          <span class="stat-value warn">{{ reviewStore.stats.position_pending_review ?? 0 }}</span>
+          <span class="stat-label">待审岗位</span>
+        </div>
+      </el-tooltip>
+      <el-tooltip
+        content="PostgreSQL position_records 表中 review_status='rejected' 的岗位。"
+        placement="top"
+      >
+        <div class="stat-item">
+          <span class="stat-value danger">{{ reviewStore.stats.position_rejected ?? 0 }}</span>
+          <span class="stat-label">已拒岗位</span>
+        </div>
+      </el-tooltip>
+      <el-tooltip
+        content="PostgreSQL skill_records 表中 review_status='approved' 的技能。"
+        placement="top"
+      >
+        <div class="stat-item">
+          <span class="stat-value">{{ reviewStore.stats.skill_approved ?? 0 }}</span>
+          <span class="stat-label">已发布技能</span>
+        </div>
+      </el-tooltip>
+      <el-tooltip
+        content="PostgreSQL skill_records 表中 review_status='pending_review' 的技能。"
+        placement="top"
+      >
+        <div class="stat-item">
+          <span class="stat-value warn">{{ reviewStore.stats.skill_pending_review ?? 0 }}</span>
+          <span class="stat-label">待审技能</span>
+        </div>
+      </el-tooltip>
       <el-button
         :icon="RefreshRight"
         plain
@@ -240,6 +307,37 @@ function formatDate(s: string | null) {
       </el-select>
     </div>
 
+    <!-- 批量操作工具栏 -->
+    <div
+      v-if="selection.length > 0"
+      class="batch-toolbar"
+    >
+      <span class="batch-count">已选 {{ selection.length }} 项</span>
+      <el-button
+        size="small"
+        type="success"
+        :disabled="reviewStore.loading"
+        @click="batchApprove"
+      >
+        批量批准
+      </el-button>
+      <el-button
+        size="small"
+        type="danger"
+        :disabled="reviewStore.loading"
+        @click="batchReject"
+      >
+        批量拒绝
+      </el-button>
+      <el-button
+        size="small"
+        text
+        @click="selection = []"
+      >
+        清除选择
+      </el-button>
+    </div>
+
     <!-- Table -->
     <el-table
       v-loading="reviewStore.loading"
@@ -248,7 +346,12 @@ function formatDate(s: string | null) {
       size="default"
       empty-text="暂无审核项"
       class="review-table"
+      @selection-change="(rows: any[]) => selection = rows"
     >
+      <el-table-column
+        type="selection"
+        width="48"
+      />
       <el-table-column
         label="类型"
         width="80"
@@ -436,6 +539,22 @@ function formatDate(s: string | null) {
 }
 
 .refresh-btn { margin-left: auto; }
+
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  background: color-mix(in srgb, var(--primary) 5%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  border-radius: var(--radius-lg);
+}
+.batch-count {
+  font-weight: 600;
+  color: var(--primary);
+  margin-right: var(--space-2);
+}
 
 .filter-row {
   display: flex;

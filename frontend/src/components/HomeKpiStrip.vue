@@ -5,6 +5,7 @@ defineProps<{
   totalDomains: number
   totalPositions: number
   totalSkills: number
+  // M6：关系边 KPI 统一用 REQUIRES 总数（=大屏/Neo4j/PG 口径），不随视图模式变化，避免跨页面“同名异值”
   totalRelations: number
   // 动态分组维度标签（随 overviewMode 切换：技术领域/技术栈/职级分组）
   groupLabel?: string
@@ -14,6 +15,17 @@ defineProps<{
 const emit = defineEmits<{
   navigate: [path: string]
 }>()
+
+// M5/M6：每个 KPI 数字的口径说明，避免跨页面“同名异值”误导
+function kpiTooltip(field: string): string {
+  const map: Record<string, string> = {
+    totalDomains: '知识图谱核心分类数（domain）。',
+    totalPositions: '图谱 Position 节点数，与 PostgreSQL position_records 同步（单一真理源，可在 管理后台/数据源诊断 核对）。',
+    totalSkills: '图谱 Skill 节点数（去重）。',
+    totalRelations: '岗位-技能 REQUIRES 关系边总数（与数据大屏口径一致，=Neo4j/PG）。领域视图中的连线是按领域聚合后的跨领域连接，数量较少，故与该 KPI 不同。',
+  }
+  return map[field] ?? ''
+}
 </script>
 
 <template>
@@ -35,7 +47,10 @@ const emit = defineEmits<{
       <div class="kpi-body">
         <span class="kpi-label">岗位数</span>
         <span class="kpi-value">{{ totalPositions }}</span>
-        <span class="kpi-trend">IT 行业全覆盖</span>
+        <span
+          class="kpi-trend"
+          :title="kpiTooltip('totalPositions')"
+        >图谱节点（含历史）</span>
       </div>
     </div>
     <div class="kpi-card">
@@ -45,7 +60,10 @@ const emit = defineEmits<{
       <div class="kpi-body">
         <span class="kpi-label">技能数</span>
         <span class="kpi-value">{{ totalSkills }}</span>
-        <span class="kpi-trend">持续增长中</span>
+        <span
+          class="kpi-trend"
+          :title="kpiTooltip('totalSkills')"
+        >持续增长中</span>
       </div>
     </div>
     <div class="kpi-card">
@@ -53,9 +71,12 @@ const emit = defineEmits<{
         <el-icon><Connection /></el-icon>
       </div>
       <div class="kpi-body">
-        <span class="kpi-label">关系数</span>
+        <span class="kpi-label">关系边</span>
         <span class="kpi-value">{{ totalRelations }}</span>
-        <span class="kpi-trend">知识关联网络</span>
+        <span
+          class="kpi-trend"
+          :title="kpiTooltip('totalRelations')"
+        >岗位-技能关系</span>
       </div>
     </div>
     <div class="kpi-actions">
