@@ -169,6 +169,10 @@ tests/e2e/browser_interaction/
 tests/e2e/browser_smoke/
 tests/e2e/screenshot_*.png
 tests/e2e/**/*.png
+tests/e2e/full_e2e_results.json
+
+# ---- Vite/Vitest 临时文件 ----
+vitest.config.ts.timestamp-*.mjs
 
 # ---- 文档 / 归档区域 ----
 docs/archive/
