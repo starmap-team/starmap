@@ -50,6 +50,7 @@ from app.core.pipeline.sse.steps import (
     SkillExtractStep,
 )
 from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, require_admin, sse_disconnect
+from app.exceptions import StarMapError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 from app.repositories.position_repository import PositionRepository
 
@@ -109,9 +110,23 @@ async def get_pipeline_status(
                             "timestamp": alert.timestamp,
                         },
                     )
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("quality_alerts generation failed (non-fatal): {}", exc)
+        logger.opt(exception=True).error("Unexpected error in pipeline route: {}", exc)
         quality_alerts = []
+    # end of alerts block — after this we always return a valid response
+
+    # Phase 4 P3: 查询最近一次 crawl 时间，让用户看到数据陈旧度
+    from sqlalchemy import text as _text
+    try:
+        last_crawl_result = await session.execute(
+            _text("SELECT MAX(crawled_at) FROM jd_raw")
+        )
+        last_crawl_at = last_crawl_result.scalar()
+        last_crawl_iso = last_crawl_at.isoformat() if last_crawl_at else None
+    except Exception:
+        last_crawl_iso = None
 
     return PipelineStatusResponse(
         is_running=data["is_running"],
@@ -120,6 +135,7 @@ async def get_pipeline_status(
         run_counts=data["run_counts"],
         active_data_sources=data["active_data_sources"],
         today_crawl_volume=aggregates["today_crawl_volume"],
+        last_crawl_at=last_crawl_iso,
         success_rate=aggregates["success_rate"],
         avg_quality_score=aggregates["avg_quality_score"],
         quality_alerts=quality_alerts,
@@ -153,29 +169,6 @@ _PIPELINE_SKELETON = (
 )
 
 
-def _default_stage_skeleton() -> list[dict[str, Any]]:
-    """Return the canonical 5-stage skeleton in the same dict shape as a real run."""
-    return [
-        {
-            "name": key,
-            "display_name": display,
-            "description": desc,
-            "status": "pending",
-            "started_at": None,
-            "completed_at": None,
-            "progress": 0.0,
-            "duration_ms": 0,
-            "records_processed": 0,
-            "errors": [],
-            "errors_count": 0,
-            "retry_count": 0,
-            "depends_on": ([_PIPELINE_SKELETON[i - 1][0]] if i > 0 else []),
-            "run_id": None,
-            "run_status": None,
-            "skeleton": True,
-        }
-        for i, (key, display, desc) in enumerate(_PIPELINE_SKELETON)
-    ]
 
 
 @router.get("/runs/{run_id}", response_model=PipelineRunResponse)
@@ -379,10 +372,25 @@ async def get_pipeline_stages(
     mirrors the canonical pipeline (crawl → extract → standardize → ingest →
     audit) and is purely informational — none of the stages have run.
     """
-    result = await session.execute(select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(1))
+    # M3（Phase 13 强制规范）：取“最有意义”的最新 run，而非无脑 latest-started_at。
+    # cancelled 且 0 记录的 run 是 zombie/孤儿（典型：Celery worker 重启后 task 引用丢失），
+    # 它的 stage 快照里常含 “crawl|running” 的过期 in-flight 状态，呈现给用户=误报。
+    # 优先：running → completed(records>0) → failed → cancelled(records>0) → latest cancelled（最差兜底）。
+    from sqlalchemy import case as _case
+    from app.models.pipeline_models import PipelineRun as _PR
+    ordering = _case(
+        (_PR.status == "running", 0),
+        ((_PR.status == "completed") & (_PR.total_records > 0), 1),
+        (_PR.status == "failed", 2),
+        ((_PR.status == "cancelled") & (_PR.total_records > 0), 3),
+        else_=4,
+    )
+    result = await session.execute(
+        select(_PR).order_by(ordering, _PR.started_at.desc()).limit(1)
+    )
     run = result.scalar_one_or_none()
     if run is None:
-        return StageStatusResponse(stages=_default_stage_skeleton())
+        return StageStatusResponse(stages=[])
 
     stage_list = []
     # Defensive: some legacy rows store stages as a dict (e.g. {"steps": [...]})
@@ -548,8 +556,11 @@ async def create_schedule(
         from app.core.pipeline.cron_scheduler import compute_next_cron
 
         schedule.next_run_at = compute_next_cron(schedule.cron_expression)
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("Failed to compute next_run_at: {}", exc)
+        logger.opt(exception=True).error("Failed to compute next_run_at, saving with None: {}", exc)
+        schedule.next_run_at = None
     session.add(schedule)
     await session.flush()
     await session.commit()
@@ -710,8 +721,11 @@ async def analyze_pipeline(
 
     try:
         await _match_service._load_prerequisite_map(driver)
+    except StarMapError:
+        raise
     except Exception as exc:
-        _logger.warning("[Pipeline] Failed to preload prerequisite map: {}", exc)
+        logger.opt(exception=True).error("Unexpected error in pipeline route: {}", exc)
+        raise HTTPException(status_code=500, detail="内部处理异常") from exc
 
     engine = PipelineEngine(
         [
@@ -754,8 +768,11 @@ async def export_analysis(
 
     try:
         await _match_service._load_prerequisite_map(driver)
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.debug("Failed to preload prerequisite map: {}", exc)
+        logger.opt(exception=True).error("Unexpected error in pipeline route: {}", exc)
+        raise HTTPException(status_code=500, detail="内部处理异常") from exc
 
     engine = PipelineEngine(
         [

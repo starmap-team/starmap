@@ -18,6 +18,7 @@ from loguru import logger
 from app.core.matching.cache import get_match_cache
 from app.core.matching.constants import PROFICIENCY_SCORE
 from app.core.matching.scorer import score_skill_match
+from app.exceptions import MatchingError, StarMapError
 from app.services.graph_service import fetch_position_graph
 
 # CII 基线
@@ -61,8 +62,11 @@ class MatchService:
                         prereq_map[src].append(tgt)
             self._cache.set_prerequisite_map(prereq_map)
             logger.info("[MatchService] Loaded {} prerequisite relations", len(prereq_map))
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.warning("[MatchService] Failed to load prerequisite map: {}", exc)
+            logger.exception("Matching service error: {}", exc)
+            raise MatchingError(str(exc)) from exc
 
         return prereq_map
 
@@ -106,8 +110,11 @@ class MatchService:
                     }
                     self._cache.set_profile(target_position, result)
                     return result
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.debug("[MatchService] Repo lookup failed: {}", exc)
+                logger.exception("Matching service error: {}", exc)
+                raise MatchingError(str(exc)) from exc
 
         # 从 Neo4j 加载
         if driver is not None:
@@ -133,8 +140,11 @@ class MatchService:
                         result = {"required": required, "bonus": bonus}
                         self._cache.set_profile(target_position, result)
                         return result
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.warning("[MatchService] Graph lookup failed: {}", exc)
+                logger.exception("Matching service error: {}", exc)
+                raise MatchingError(str(exc)) from exc
 
         # 从 PostgreSQL position_records 回退
         if db_session is not None:
@@ -169,8 +179,11 @@ class MatchService:
                         result = {"required": required_db, "bonus": bonus_db}
                         self._cache.set_profile(target_position, result)
                         return result
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.debug("[MatchService] DB fallback lookup failed: {}", exc)
+                logger.exception("Matching service error: {}", exc)
+                raise MatchingError(str(exc)) from exc
 
         return None
 
@@ -181,7 +194,9 @@ class MatchService:
         required = [dict(item, importance="required") for item in profile.get("required", [])]
         bonus = [dict(item, importance="bonus") for item in profile.get("bonus", [])]
         required_count = len(required)
-        cii = (required_count / DEFAULT_REQUIRED_SKILL_BASELINE) if required_count else 1.0
+        # fix (M13): required=0 时 CII=0 表示"无明确必备要求"，
+        # 原逻辑 1.0 会被前端误读为"无通胀→匹配度可信"，实际是"无量化基准"。
+        cii = 0.0 if required_count == 0 else (required_count / DEFAULT_REQUIRED_SKILL_BASELINE)
 
         if cii <= 1.2 or required_count <= 6:
             required_names = {item["skill"] for item in required}
@@ -233,6 +248,24 @@ class MatchService:
         await self._load_prerequisite_map(driver)
         target_profile = await self._load_target_profile(driver, target_position, db_session, repo)
         if target_profile is None:
+            # M2（Phase 13 强制规范）：区分“岗位不存在”与“岗位存在但暂无技能画像”。
+            # 后者返回 200 + 0 分 + note，而非 404（not-found 仅用于真不存在）。
+            if await self._position_exists(driver, target_position, db_session):
+                return {
+                    "match_id": str(uuid4()),
+                    "target_position": target_position,
+                    "cii": None,
+                    "match_score": 0.0,
+                    "matched_skills": [],
+                    "gap_skills": [],
+                    "recommendations": [],
+                    "missing_required": [],
+                    "missing_bonus": [],
+                    "skill_gap_detail": [],
+                    "overall_assessment": "该岗位在图谱中存在，但暂无技能画像（无 REQUIRES 关系），无法计算匹配度与差距。",
+                    "estimated_learning_time": "",
+                    "note": "岗位存在但无技能画像：请先为该岗位补充技能要求（pipeline 抽取或人工维护），再行匹配。",
+                }
             from app.exceptions import PositionNotFoundError
             raise PositionNotFoundError(target_position)
 
@@ -324,6 +357,8 @@ class MatchService:
         result = {
             "match_id": match_id,
             "target_position": target_position,
+            # fix: 把已计算的 cii 纳入响应体（_save_match_result 第 428 行的 result.get("cii", 1.0) 也会读到真实值）
+            "cii": round(cii, 3),
             "match_score": match_score,
             "matched_skills": matched_skills,
             "gap_skills": gap_skills,
@@ -351,6 +386,33 @@ class MatchService:
             await self._save_match_result(db_session, match_id, result)
 
         return result
+
+    async def _position_exists(self, driver: Any, name: str, db_session: Any) -> bool:
+        """M2 辅助：判断岗位是否“存在”（PG 或 Neo4j 有节点），与“有技能画像”区分。"""
+        if db_session is not None:
+            try:
+                from sqlalchemy import select as _sel
+
+                from app.models.extraction_models import PositionRecord as _PR
+
+                row = (
+                    await db_session.execute(_sel(_PR.id).where(_PR.name == name).limit(1))
+                ).scalar_one_or_none()
+                if row is not None:
+                    return True
+            except Exception:
+                pass
+        if driver is not None:
+            try:
+                async with driver.session() as _s:
+                    _r = await _s.run(
+                        "MATCH (p:Position {name:$n}) RETURN 1 AS x LIMIT 1", n=name
+                    )
+                    if (await _r.single()) is not None:
+                        return True
+            except Exception:
+                pass
+        return False
 
     def _assessment_text(self, match_score: float, missing_required: int) -> str:
         """生成评估文本。"""
@@ -416,5 +478,8 @@ class MatchService:
             )
             await session.commit()
             logger.debug("[MatchService] Persisted result {} to PostgreSQL", match_id)
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.warning("[MatchService] Failed to persist result {}: {}", match_id, exc)
+            logger.exception("Matching service error: {}", exc)
+            raise MatchingError(str(exc)) from exc

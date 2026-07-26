@@ -5,12 +5,13 @@ from typing import Annotated, Any
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session
+from app.exceptions import QualityError, StarMapError
 from app.models.extraction_models import ExtractionEvaluationRecord, JDExtractionRecord
 
 router = APIRouter(prefix="/quality", tags=["质量监控"])
@@ -54,6 +55,10 @@ class QualityDashboard(BaseModel):
     weekly_new_nodes: int = Field(default=0, ge=0, description="本周新增节点数")
     audit_pass_rate: float = Field(default=0.0, ge=0, le=1, description="审核通过率")
     audit_queue: list[dict] = Field(default_factory=list, description="待审核队列项（id/position/skill/trust）")
+    # Phase 13 一致性审计：区分“未评估”与“质量差”，避免 0/0/0 被误读为红色告警
+    evaluation_count: int = Field(default=0, ge=0, description="已运行的 golden-set 评估记录数")
+    baseline_available: bool = Field(default=False, description="是否存在可信评估基线；False 时 precision/recall/f1 不可信")
+    evaluation_explanation: str = Field(default="", description="面向用户的口径说明（无基线时解释为何指标为 0）")
 
 
 def _status(value: float, threshold: float) -> str:
@@ -259,6 +264,20 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         for r in low_trust_records
     ]
 
+    # Phase 13 一致性审计：评估基线可用性 — 无 golden-set 评估时 0/0/0 表示“未评估”而非“质量差”
+    evaluation_count = int(
+        (await session.execute(sa.select(sa.func.count()).select_from(ExtractionEvaluationRecord))).scalar() or 0
+    )
+    baseline_available = evaluation_count > 0
+    if not baseline_available:
+        evaluation_explanation = (
+            "尚未运行 golden-set 评估（评估记录 0 条），precision/recall/F1 暂不可信；"
+            "红色仅表示“未评估”，不代表抽取质量差。请触发一次评估（/quality/evaluate）以建立基线。"
+        )
+        report.warning_level = "gray"  # 顶层告警降级，避免误报红色
+    else:
+        evaluation_explanation = ""
+
     return QualityDashboard(
         report=report,
         total_nodes=int(pos_count) + int(skill_count),
@@ -276,6 +295,9 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         weekly_new_nodes=weekly_new_nodes,
         audit_pass_rate=round(audit_pass_rate, 4),
         audit_queue=audit_queue,
+        evaluation_count=evaluation_count,
+        baseline_available=baseline_available,
+        evaluation_explanation=evaluation_explanation,
     )
 
 
@@ -416,9 +438,14 @@ async def evaluate_resume_extraction(
                 )
                 session.add(record)
             await session.commit()
-        except Exception as e:
-            logger.warning("Failed to persist resume eval records: {}", e)
-            await session.rollback()
+        except QualityError as exc:
+            logger.exception("Quality check failed: {}", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        except StarMapError:
+            raise
+        except Exception as exc:
+            logger.exception("Unexpected error in quality: {}", exc)
+            raise HTTPException(status_code=500, detail="è´¨éæ£æ¥å¼å¸¸") from exc
 
         return ResumeEvalResponse(
             success=True,
@@ -436,12 +463,14 @@ async def evaluate_resume_extraction(
             success=False,
             error="Golden set file not found: data/resume_golden_set.json",
         )
-    except Exception as e:
-        logger.opt(exception=True).error("Resume evaluation error: {}", e)
-        return ResumeEvalResponse(
-            success=False,
-            error=f"Evaluation error: {e}",
-        )
+    except QualityError as exc:
+        logger.exception("Quality check failed: {}", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error in quality: {}", exc)
+        raise HTTPException(status_code=500, detail="质量检查异常") from exc
 
 
 @router.get("/comprehensive-report", response_model=ComprehensiveReport)

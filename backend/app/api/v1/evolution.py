@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 from app.dependencies import get_db_session, get_neo4j_driver
+from app.exceptions import StarMapError
 from app.models.evolution_models import (
     EvolutionChangelog,
     EvolutionPath,
@@ -205,6 +206,8 @@ async def get_all_evolution_paths(
             report = finder.scan(skill_data)
             for s in report.all_signals:
                 signals_by_name.setdefault(s.skill_name, s)
+    except StarMapError:
+        raise
     except Exception as exc:
         logger.debug("Emergence enrichment skipped for /paths/all: {}", exc)
 
@@ -246,7 +249,9 @@ async def get_all_evolution_paths(
                     )
                 if entries:
                     return entries
-        except Exception as e:  # noqa: BLE001
+        except StarMapError:
+            raise
+        except Exception as e:
             logger.warning("Neo4j EVOLVES_TO read failed, falling back to PG: {}", e)
 
     # Fallback: PostgreSQL evolution_paths 表
@@ -286,6 +291,8 @@ async def get_evolution_paths(
             report = finder.scan(skill_data)
             for s in report.all_signals:
                 signals_by_name.setdefault(s.skill_name, s)
+    except StarMapError:
+        raise
     except Exception as exc:
         logger.debug("Emergence enrichment skipped for /paths/{{position}}: {}", exc)
 
@@ -327,7 +334,9 @@ async def get_evolution_paths(
                     )
                 if entries:
                     return entries
-        except Exception as e:  # noqa: BLE001
+        except StarMapError:
+            raise
+        except Exception as e:
             logger.warning("Neo4j EVOLVES_TO read failed, falling back to PG: {}", e)
 
     # Fallback: PostgreSQL

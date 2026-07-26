@@ -79,6 +79,96 @@ async def get_admin_stats(
     return await build_admin_stats(session)
 
 
+class ReconcileResult(BaseModel):
+    """Reconcile 操作结果。"""
+    positions_synced: int = Field(default=0, description="Position 节点同步数")
+    skills_synced: int = Field(default=0, description="Skill 节点同步数")
+    orphans_pruned: int = Field(default=0, description="孤儿节点剪枝数")
+    positions_in_neo4j: int = Field(default=0, description="Neo4j 当前 Position 数")
+    skills_in_neo4j: int = Field(default=0, description="Neo4j 当前 Skill 数")
+    positions_in_pg: int = Field(default=0, description="PG 当前 Position 数")
+    skills_in_pg: int = Field(default=0, description="PG 当前 Skill 数")
+    duration_ms: int = Field(default=0, description="执行耗时（毫秒）")
+    health: str = Field(default="ok", description="健康度: ok/warn/critical")
+
+
+@router.post("/reconcile-neo4j", response_model=ReconcileResult, dependencies=[Depends(require_admin)])
+async def reconcile_neo4j_endpoint(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+) -> ReconcileResult:
+    """Phase 5 Step 3: 手动触发 PG → Neo4j 同步 + 孤儿节点剪枝。
+
+    由 admin 手动调用，或由 cron job 定期调用。
+    """
+    import time
+    from app.services.graph_projector import GraphProjector
+    from sqlalchemy import select, func, text
+    from app.models.extraction_models import PositionRecord, SkillRecord
+
+    start = time.time()
+    projector = GraphProjector(driver)
+    result = await projector.reconcile_all(session)
+    duration_ms = int((time.time() - start) * 1000)
+
+    # 验证对齐
+    async with driver.session() as s:
+        r1 = await s.run("MATCH (p:Position) RETURN count(p) AS c")
+        neo4j_pos = int((await r1.single())["c"])
+        r2 = await s.run("MATCH (s:Skill) RETURN count(s) AS c")
+        neo4j_skl = int((await r2.single())["c"])
+
+    pg_pos = (await session.execute(select(func.count(PositionRecord.id)))).scalar() or 0
+    pg_skl = (await session.execute(select(func.count(SkillRecord.id)))).scalar() or 0
+
+    # 健康度
+    if neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0:
+        health = "ok"
+    elif abs(neo4j_pos - pg_pos) <= 1 and abs(neo4j_skl - pg_skl) <= 1:
+        health = "warn"
+    else:
+        health = "critical"
+
+    # Phase 5 Step 4: 写 audit_events 记录
+    try:
+        from datetime import UTC, datetime as _dt
+        import uuid as _uuid
+        await session.execute(
+            text("""
+                INSERT INTO audit_events (id, event, actor, action, detail, ip, created_at)
+                VALUES (:id, :event, :actor, :action, :detail, '', :now)
+            """),
+            {
+                "id": str(_uuid.uuid4()),
+                "event": "graph_reconcile",
+                "actor": "admin",
+                "action": "manual_reconcile",
+                "detail": f"health={health},upserted={result.nodes_upserted},orphans={result.orphans_pruned}",
+                "now": _dt.now(UTC),
+            },
+        )
+        await session.commit()
+    except Exception as audit_exc:
+        logger.warning("Failed to write reconcile audit: {}", audit_exc)
+
+    logger.info(
+        "Reconcile complete: health={}, positions_neo4j={} vs pg={}, skills_neo4j={} vs pg={}, orphans={}, duration={}ms",
+        health, neo4j_pos, pg_pos, neo4j_skl, pg_skl, result.orphans_pruned, duration_ms,
+    )
+
+    return ReconcileResult(
+        positions_synced=result.nodes_upserted,
+        skills_synced=result.nodes_upserted,
+        orphans_pruned=result.orphans_pruned,
+        positions_in_neo4j=neo4j_pos,
+        skills_in_neo4j=neo4j_skl,
+        positions_in_pg=pg_pos,
+        skills_in_pg=pg_skl,
+        duration_ms=duration_ms,
+        health=health,
+    )
+
+
 @router.get("/review-queue", response_model=AuditQueueResponse)
 @router.get("/audit-queue", response_model=AuditQueueResponse, include_in_schema=False)
 async def get_review_queue_endpoint(

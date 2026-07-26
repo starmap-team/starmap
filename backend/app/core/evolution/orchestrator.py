@@ -45,6 +45,7 @@ from app.core.evolution.snapshot_manager import (
 )
 from app.core.evolution.trust_scorer import TrustScorer
 from app.db.session import get_session_factory
+from app.exceptions import StarMapError
 from app.models.evolution_models import (
     EvolutionChangelog,
     EvolutionSnapshot,
@@ -141,6 +142,8 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
             msg = f"position='{position}': {exc}"
             summary["errors"].append(msg)
             logger.warning("evolution_orchestrator: pipeline error for position='{}': {}", position, exc)
+        except StarMapError:
+            raise
         except Exception as exc:
             # Unexpected errors: log with full traceback but still continue
             msg = f"position='{position}': {type(exc).__name__}: {exc}"
@@ -156,6 +159,8 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
     except EvolutionPipelineError as exc:
         summary["errors"].append(f"path_recommender: {exc}")
         logger.warning("evolution_orchestrator: path recommender error: {}", exc)
+    except StarMapError:
+        raise
     except Exception as exc:
         summary["errors"].append(f"path_recommender: {type(exc).__name__}: {exc}")
         logger.exception("evolution_orchestrator: path recommender unexpected error")
@@ -168,6 +173,8 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
     except EvolutionPipelineError as exc:
         summary["errors"].append(f"timeseries: {exc}")
         logger.warning("evolution_orchestrator: timeseries error: {}", exc)
+    except StarMapError:
+        raise
     except Exception as exc:
         summary["errors"].append(f"timeseries: {type(exc).__name__}: {exc}")
         logger.exception("evolution_orchestrator: timeseries unexpected error")

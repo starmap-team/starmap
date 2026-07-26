@@ -22,6 +22,7 @@ from typing import Any
 from loguru import logger
 
 from app.core.matching.constants import PROFICIENCY_SCORE
+from app.exceptions import LearningPathError, StarMapError
 
 # Base learning hours per skill at different gap levels
 _BASE_HOURS: dict[str, float] = {
@@ -110,9 +111,11 @@ async def _load_prerequisites_from_neo4j() -> dict[str, list[str]]:
         logger.debug("Loaded {} prerequisite rules from Neo4j", len(prereqs))
         _prereqs_cache = (time.monotonic(), prereqs)
         return prereqs
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("Failed to load PREREQUISITE map from Neo4j: {}", exc)
-        return {}
+        logger.exception("Learning path computation failed: {}", exc)
+        raise LearningPathError(str(exc)) from exc
 
 
 async def _load_skill_hours_from_neo4j(
@@ -165,9 +168,11 @@ async def _load_skill_hours_from_neo4j(
         )
         _skill_hours_cache = (time.monotonic(), cache_key, hours_map)
         return hours_map
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("Failed to load skill hours from Neo4j: {}", exc)
-        return {}
+        logger.exception("Learning path computation failed: {}", exc)
+        raise LearningPathError(str(exc)) from exc
 
 
 @dataclass

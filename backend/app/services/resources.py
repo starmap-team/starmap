@@ -5,8 +5,11 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
+from loguru import logger
 from neo4j import AsyncGraphDatabase
+from neo4j.exceptions import Neo4jError
 from redis.asyncio import Redis
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.config import settings
@@ -66,7 +69,10 @@ async def healthcheck_resources() -> dict[str, str]:
             async with resources.pg_engine.begin() as conn:
                 await conn.exec_driver_sql("SELECT 1")
             result["postgres"] = "ok"
+        except SQLAlchemyError as exc:
+            result["postgres"] = f"error:{exc.__class__.__name__}"
         except Exception as exc:  # pragma: no cover - defensive runtime check
+            logger.exception("PostgreSQL health check failed unexpectedly")
             result["postgres"] = f"error:{exc.__class__.__name__}"
     else:
         result["postgres"] = "not_initialized"
@@ -76,7 +82,10 @@ async def healthcheck_resources() -> dict[str, str]:
             async with resources.neo4j_driver.session() as session:
                 await session.run("RETURN 1 AS ok")
             result["neo4j"] = "ok"
+        except Neo4jError as exc:
+            result["neo4j"] = f"error:{exc.__class__.__name__}"
         except Exception as exc:  # pragma: no cover - defensive runtime check
+            logger.exception("Neo4j health check failed unexpectedly")
             result["neo4j"] = f"error:{exc.__class__.__name__}"
     else:
         result["neo4j"] = "not_initialized"
@@ -86,6 +95,7 @@ async def healthcheck_resources() -> dict[str, str]:
             await resources.redis_client.ping()  # type: ignore[misc]
             result["redis"] = "ok"
         except Exception as exc:  # pragma: no cover - defensive runtime check
+            logger.exception("Redis health check failed unexpectedly")
             result["redis"] = f"error:{exc.__class__.__name__}"
     else:
         result["redis"] = "not_initialized"
@@ -97,7 +107,10 @@ async def healthcheck_resources() -> dict[str, str]:
             async with httpx.AsyncClient(timeout=settings.httpx_health_check_timeout) as client:
                 resp = await client.get(f"{ollama_url}/api/tags")
             result["ollama"] = "ok" if resp.status_code == 200 else f"error:HTTP{resp.status_code}"
+        except httpx.RequestError as exc:
+            result["ollama"] = f"error:{exc.__class__.__name__}"
         except Exception as exc:  # pragma: no cover - defensive runtime check
+            logger.exception("Ollama health check failed unexpectedly")
             result["ollama"] = f"error:{exc.__class__.__name__}"
     else:
         result["ollama"] = "not_configured"

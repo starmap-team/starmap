@@ -25,6 +25,7 @@ from app.core.learning.progress_tracker import (
     update_progress,
 )
 from app.dependencies import get_current_user, get_db_session
+from app.exceptions import LearningPathError, StarMapError
 from app.models.learning_models import LearningPlan, LearningProgress
 from app.services.match_service import PREREQUISITE_MAP
 
@@ -153,11 +154,14 @@ async def list_learning_plans(
                 total_weeks = path.total_weeks
                 phases = [PhaseInfo(**p) for p in path.phases]
                 phase_count = path.phase_count
-            except Exception:
-                total_hours = plan.estimated_hours
-                total_weeks = 0
-                phases = []
-                phase_count = 0
+            except LearningPathError as exc:
+                logger.exception("Learning path operation failed: {}", exc)
+                raise HTTPException(status_code=500, detail=str(exc)) from exc
+            except StarMapError:
+                raise
+            except Exception as exc:
+                logger.exception("Unexpected error in learning path: {}", exc)
+                raise HTTPException(status_code=500, detail="学习路径处理异常") from exc
         else:
             total_hours = plan.estimated_hours
             total_weeks = 0
@@ -511,8 +515,14 @@ async def get_recommendations(
                         else:
                             required_skills.append(skill_name)
                     profile = {"required": required_skills, "bonus": bonus_skills}
+            except LearningPathError as exc:
+                logger.exception("Learning path operation failed: {}", exc)
+                raise HTTPException(status_code=500, detail=str(exc)) from exc
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.warning("Failed to load position profile from graph for \"{}\": {}", position, exc)
+                logger.exception("Unexpected error in learning path: {}", exc)
+                raise HTTPException(status_code=500, detail="学习路径处理异常") from exc
 
         if profile is None:
             # Fallback: return empty with message
@@ -564,8 +574,14 @@ async def get_recommendations(
                     prerequisites=prereqs,
                     reason=f"市场热门技能（出现 {tr.source_count} 次）",
                 ))
+        except LearningPathError as exc:
+            logger.exception("Learning path operation failed: {}", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.warning("Failed to load trending skills: {}", exc)
+            logger.exception("Unexpected error in learning path: {}", exc)
+            raise HTTPException(status_code=500, detail="学习路径处理异常") from exc
 
     return RecommendationsResponse(
         items=items,

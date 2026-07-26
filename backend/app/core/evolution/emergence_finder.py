@@ -24,6 +24,8 @@ from typing import Any
 import yaml
 from loguru import logger
 
+from app.exceptions import StarMapError
+
 
 class EmergenceLevel(StrEnum):
     """Classification of skill emergence."""
@@ -107,6 +109,8 @@ def _load_domain_keywords() -> dict[str, list[str]]:
                 data = yaml.safe_load(f)
             if data and isinstance(data, dict):
                 return {k: v for k, v in data.items() if isinstance(v, list)}
+    except StarMapError:
+        raise
     except Exception as e:
         logger.warning(f"Failed to load domain_keywords.yaml: {e}. Using fallback defaults.")
     return _DEFAULT_DOMAIN_KEYWORDS

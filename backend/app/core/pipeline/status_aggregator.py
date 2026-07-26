@@ -22,6 +22,8 @@ from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.exceptions import PipelineStageError, StarMapError
+
 CACHE_KEY = "pipeline:status:agg"
 CACHE_TTL_SECONDS = 600  # 10 分钟
 
@@ -43,7 +45,7 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
         vol_result = await session.execute(_text("SELECT COUNT(*) FROM jd_raw WHERE crawled_at >= :start"), {"start": today_start})
         today_volume = int(vol_result.scalar() or 0)
     except Exception as exc:
-        logger.warning(f"today_crawl_volume query failed: {exc}")
+        logger.exception("today_crawl_volume query failed")
         today_volume = 0
 
     try:
@@ -66,7 +68,7 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
         total = success_count + failed_count
         success_rate = success_count / total if total > 0 else 0.0
     except Exception as exc:
-        logger.warning(f"success_rate query failed: {exc}")
+        logger.exception("success_rate query failed")
         success_rate = 0.0
 
     try:
@@ -80,7 +82,7 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
         avg_q = avg_result.scalar()
         avg_quality_score = float(avg_q) if avg_q is not None else 0.0
     except Exception as exc:
-        logger.warning(f"avg_quality_score query failed: {exc}")
+        logger.exception("avg_quality_score query failed")
         avg_quality_score = 0.0
 
     return {
@@ -104,36 +106,60 @@ async def compute_data_quality_aggregates(
     """
     metrics = existing_metrics or {}
 
+    # M5（Phase 13 强制规范）：以“已质检/已入库记录数”判断是否有可评估数据。
+    # 无数据时 consistency/timeliness 不得取 vacuous 1.0（否则 overall=1.0 误报“完美”）。
+    completeness = float(metrics.get("completeness", 0.0) or 0.0)
+    accuracy = float(metrics.get("accuracy", 0.0) or 0.0)
+    total_records = int(metrics.get("total_records", 0) or 0)
+    valid_records = int(metrics.get("valid_records", 0) or 0)
+    source_scores = metrics.get("source_scores") or {}
+    has_data = (total_records > 0) or (valid_records > 0)
+
     # 1) consistency: 基于 source_scores 标准差反向（0.5 stddev 为基准）
     try:
-        source_scores = metrics.get("source_scores") or {}
         if len(source_scores) >= 2:
             scores = list(source_scores.values())
             stdev = statistics.stdev(scores)
             consistency = max(0.0, 1.0 - min(stdev / 0.5, 1.0))
+        elif len(source_scores) == 1:
+            consistency = 1.0  # 单一 source：无方差可比较
         else:
-            consistency = 1.0  # 单一 source 或无 source，consistency 默认为 1.0
+            consistency = 0.0  # M5: 无 source 分数，禁止 vacuous 1.0
     except Exception as exc:
-        logger.warning(f"consistency calculation failed: {exc}")
+        logger.exception("consistency calculation failed")
         consistency = 0.0
 
-    # 2) timeliness: 基于 freshness_hours
+    # 2) timeliness: 基于 freshness_hours（仅在有数据时有意义）
     try:
         freshness = float(metrics.get("freshness_hours", 0))
-        timeliness = max(0.0, 1.0 - min(freshness / 48.0, 1.0))
+        timeliness = max(0.0, 1.0 - min(freshness / 48.0, 1.0)) if has_data else 0.0
     except Exception as exc:
-        logger.warning(f"timeliness calculation failed: {exc}")
+        logger.exception("timeliness calculation failed")
         timeliness = 0.0
 
     # 3) trend: 最近 14 天 evolution_snapshots
     trend = await _compute_trend(session)
 
+    if has_data:
+        # 修正：overall 用 4 维均值（含 completeness/accuracy），与文档注释一致
+        overall = (completeness + accuracy + consistency + timeliness) / 4.0
+        baseline_available = True
+        explanation = ""
+    else:
+        overall = 0.0
+        baseline_available = False
+        explanation = (
+            "暂无已质检/已入库的可评估数据，completeness/accuracy/consistency/timeliness 与 "
+            "overall 均不可信（显示为 0，表示‘未评估’而非‘质量差’）。请先运行 pipeline 采集并质检。"
+        )
+
     return {
         "consistency": round(consistency, 4),
         "timeliness": round(timeliness, 4),
         "trend": trend,
-        # Phase 3.8.11: overall_score = 4 维均值 (completeness/accuracy 由 quality_monitor 计算; 缺失按 0)
-        "overall_score": round((consistency + timeliness) / 2, 4),
+        "overall_score": round(overall, 4),
+        "baseline_available": baseline_available,
+        "quality_explanation": explanation,
     }
 
 
@@ -172,7 +198,7 @@ async def _compute_trend(session: AsyncSession) -> list[dict[str, Any]]:
 
         return trend
     except Exception as exc:
-        logger.warning(f"trend query failed: {exc}")
+        logger.exception("trend query failed")
         return []
 
 
@@ -194,7 +220,7 @@ async def read_or_compute_status_aggregates(
                     cached = cached.decode("utf-8")
                 return json.loads(cached)
         except Exception as exc:
-            logger.warning(f"Redis cache read failed (degrading to sync): {exc}")
+            logger.exception("Redis cache read failed (degrading to sync)")
 
     # 2) 同步计算
     result = await compute_status_aggregates(session)
@@ -204,7 +230,7 @@ async def read_or_compute_status_aggregates(
         try:
             await redis_client.setex(CACHE_KEY, CACHE_TTL_SECONDS, json.dumps(result))
         except Exception as exc:
-            logger.warning(f"Redis cache write failed (continuing): {exc}")
+            logger.exception("Redis cache write failed (continuing)")
 
     return result
 
@@ -216,4 +242,4 @@ async def invalidate_status_cache(redis_client: Any | None) -> None:
     try:
         await redis_client.delete(CACHE_KEY)
     except Exception as exc:
-        logger.warning(f"Redis cache invalidation failed: {exc}")
+        logger.exception("Redis cache invalidation failed")

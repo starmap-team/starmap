@@ -24,6 +24,11 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
+from neo4j.exceptions import Neo4jError
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.exceptions import GraphProjectionError, StarMapError
+
 logger = logging.getLogger(__name__)
 
 
@@ -122,9 +127,14 @@ class GraphProjector:
                     props=props,
                 )
             return ProjectionResult(nodes_upserted=1)
-        except Exception as exc:  # noqa: BLE001 (projection best-effort)
-            logger.warning("apply_change failed for %s %s: %s", label, cid, exc)
-            return ProjectionResult(errors=[f"apply_change {label}/{cid}: {exc}"])
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("Graph projection DB error: %s %s", label, cid)
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("Unexpected error in graph projection: %s %s", label, cid)
+            raise GraphProjectionError(str(exc)) from exc
 
     # ------------------------------------------------------------------
     # Batch projection (called after pipeline graph_sync stage)
@@ -202,10 +212,14 @@ class GraphProjector:
                     result.edges_upserted += 1
 
             return result
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("apply_batch failed: %s", exc)
-            result.errors.append(f"apply_batch: {exc}")
-            return result
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("Graph projection DB error: apply_batch")
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("Unexpected error in graph projection: apply_batch")
+            raise GraphProjectionError(str(exc)) from exc
 
     # ------------------------------------------------------------------
     # Single-entity delete projection
@@ -232,12 +246,17 @@ class GraphProjector:
                 try:
                     record = await result.single()
                     deleted = int(record["deleted"]) if record else 0
-                except Exception:
+                except (Neo4jError, IndexError, KeyError, TypeError):
                     deleted = 1  # assume success if delete ran
             return ProjectionResult(orphans_pruned=deleted)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("apply_delete failed for %s %s: %s", label, cid, exc)
-            return ProjectionResult(errors=[f"apply_delete {label}/{cid}: {exc}"])
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("Graph projection DB error: apply_delete {} {}", label, cid)
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("Unexpected error in graph projection: apply_delete {} {}", label, cid)
+            raise GraphProjectionError(str(exc)) from exc
 
     # ------------------------------------------------------------------
     # Full reconciliation — diff PG vs Neo4j and prune orphans
@@ -356,10 +375,14 @@ class GraphProjector:
                 result.errors.extend(backfill.errors)
 
             return result
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("reconcile_all failed: %s", exc)
-            result.errors.append(f"reconcile_all: {exc}")
-            return result
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("Graph projection DB error: reconcile_all")
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("Unexpected error in graph projection: reconcile_all")
+            raise GraphProjectionError(str(exc)) from exc
 
 
 __all__ = ["GraphProjector", "ProjectionResult", "PK_FIELD", "NODE_LABELS"]

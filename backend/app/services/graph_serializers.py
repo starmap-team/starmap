@@ -8,6 +8,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from loguru import logger
+from neo4j.exceptions import Neo4jError
+
+from app.exceptions import StarMapError
+
 # ── Count helpers ─────────────────────────────────────────────────────────
 
 async def count_positions_neo4j(driver: Any) -> int:
@@ -21,7 +26,10 @@ async def count_positions_neo4j(driver: Any) -> int:
             result = await session.run("MATCH (p:Position) RETURN count(p) AS cnt")
             record = await result.single()
             return int(record["cnt"]) if record else 0
+    except (Neo4jError, StarMapError):
+        return 0
     except Exception:
+        logger.exception("Unexpected error in count_positions_neo4j")
         return 0
 
 
@@ -35,7 +43,10 @@ async def count_skills_neo4j(driver: Any) -> int:
             result = await session.run("MATCH (s:Skill) RETURN count(s) AS cnt")
             record = await result.single()
             return int(record["cnt"]) if record else 0
+    except (Neo4jError, StarMapError):
+        return 0
     except Exception:
+        logger.exception("Unexpected error in count_skills_neo4j")
         return 0
 
 
@@ -49,7 +60,10 @@ async def count_edges_neo4j(driver: Any) -> int:
             result = await session.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS cnt")
             record = await result.single()
             return int(record["cnt"]) if record else 0
+    except (Neo4jError, StarMapError):
+        return 0
     except Exception:
+        logger.exception("Unexpected error in count_edges_neo4j")
         return 0
 
 
@@ -61,7 +75,7 @@ def _safe_properties(value: Any) -> dict[str, Any]:
     # ponytail: dict() works for Neo4j ≥5.x; iso_format guard for temporal types
     try:
         return {k: (v.iso_format() if hasattr(v, 'iso_format') else v) for k, v in dict(value).items()}
-    except Exception:
+    except (ValueError, TypeError, AttributeError):
         return {}
 
 

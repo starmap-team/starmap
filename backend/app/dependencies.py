@@ -190,8 +190,8 @@ async def require_admin(
 # ══════════════════════════════════════════════════════════
 
 # Per-IP SSE 连接计数 — 防止单 IP 开大量 EventSource 耗尽资源
-_SSE_MAX_PER_IP = 10  # 单 IP 最大并发 SSE 连接
-_SSE_MAX_GLOBAL = 200  # 全局最大并发 SSE 连接
+_SSE_MAX_PER_IP = 25  # 单 IP 最大并发 SSE 连接（从 10 上调，适配前端自动刷新场景）
+_SSE_MAX_GLOBAL = 500  # 全局最大并发 SSE 连接
 _sse_ip_connections: dict[str, int] = defaultdict(int)
 _sse_global_connections = 0
 _sse_lock = asyncio.Lock()

@@ -16,7 +16,10 @@ from typing import Any
 import yaml
 from loguru import logger
 
-SKILL_ALIAS: dict[str, list[str]] = {
+from app.exceptions import ExtractionNormalizationError, StarMapError
+
+# ── Hardcoded alias dictionary (moved from module-level SKILL_ALIAS) ──
+_HARDCODED_ALIASES: dict[str, list[str]] = {
     "Python": ["python", "python3", "python 3", "py", "python programming", "python dev", "python development"],
     "JavaScript": ["javascript", "js", "ecmascript", "es6", "es2015", "esnext", "node.js", "nodejs", "node", "deno"],
     "TypeScript": ["typescript", "ts", "type script"],
@@ -265,46 +268,165 @@ def load_skill_aliases_from_yaml(path: Path = _TAXONOMY_PATH) -> dict[str, list[
     return aliases
 
 
-_REVERSE_INDEX: dict[str, str] = {}
-_LOCK = threading.Lock()
+# ── SkillNormalizer class ──
 
 
-def _build_reverse_index() -> dict[str, str]:
-    """Build alias-to-standard reverse lookup index."""
-    idx = {}
-    for standard, aliases in SKILL_ALIAS.items():
-        for a in aliases:
-            idx[a.lower()] = standard
-        idx[standard.lower()] = standard
-    return idx
+class SkillNormalizer:
+    """Skill name normalization with alias resolution.
+
+    Encapsulates the alias dictionary and reverse index, providing
+    alias lookup, dictionary extraction, and reverse index rebuild.
+    """
+
+    def __init__(self) -> None:
+        self._aliases: dict[str, list[str]] = {}
+        self._reverse_index: dict[str, str] = {}
+        self._dict_pairs: list[tuple[str, str]] = []
+        self._lock = threading.Lock()
+        self._load_builtin_aliases()
+
+    def _load_builtin_aliases(self) -> None:
+        """Load hardcoded skill aliases and merge with YAML taxonomy."""
+        self._aliases = dict(_HARDCODED_ALIASES)
+
+        yaml_aliases = load_skill_aliases_from_yaml()
+        if yaml_aliases:
+            merged = dict(yaml_aliases)
+            for k, v in self._aliases.items():
+                if k not in merged:
+                    merged[k] = v
+            self._aliases.clear()
+            self._aliases.update(merged)
+            logger.info(
+                "Loaded {} skills from YAML + {} hardcoded = {} total",
+                len(yaml_aliases),
+                len(self._aliases) - len(yaml_aliases),
+                len(self._aliases),
+            )
+        else:
+            logger.info("Using hardcoded skill aliases ({} skills)", len(self._aliases))
+
+        self._reverse_index = self._build_reverse_index()
+
+    def normalize_by_alias(self, skill_name: str) -> str | None:
+        """Normalize a skill name using the alias dictionary.
+
+        Args:
+            skill_name: Raw skill name.
+
+        Returns:
+            Standardized skill name, or None if not found.
+        """
+        key = skill_name.strip().lower()
+        return self._reverse_index.get(key)
+
+    def get_aliases(self, skill_name: str) -> list[str]:
+        """Get all aliases for a canonical skill name.
+
+        Args:
+            skill_name: Canonical skill name.
+
+        Returns:
+            List of alias strings, or empty list if not found.
+        """
+        return self._aliases.get(skill_name, [])
+
+    def get_standard_skill_seeds(self) -> list[str]:
+        """Return the list of standard (canonical) skill names.
+
+        Useful for seeding ChromaDB collections or building UI dropdowns.
+        """
+        return sorted(self._aliases.keys())
+
+    def build_reverse_index(self) -> dict[str, str]:
+        """Build and return the alias-to-standard reverse index (thread-safe)."""
+        with self._lock:
+            idx = self._build_reverse_index()
+            self._reverse_index.clear()
+            self._reverse_index.update(idx)
+            return dict(self._reverse_index)
+
+    def _build_reverse_index(self) -> dict[str, str]:
+        """Build alias-to-standard reverse lookup index."""
+        idx = {}
+        for standard, aliases in self._aliases.items():
+            for a in aliases:
+                idx[a.lower()] = standard
+            idx[standard.lower()] = standard
+        return idx
+
+    def _build_dict_pairs(self) -> list[tuple[str, str]]:
+        """Build and cache sorted alias-canonical pairs for dictionary extraction."""
+        if self._dict_pairs:
+            return self._dict_pairs
+        pairs: list[tuple[str, str]] = []
+        for canonical, aliases in self._aliases.items():
+            for alias in aliases:
+                pairs.append((alias, canonical))
+        pairs.sort(key=lambda p: len(p[0]), reverse=True)
+        self._dict_pairs = pairs
+        return pairs
+
+    def extract_dict_skills(self, text: str) -> set[str]:
+        """Extract skill names found in text via dictionary (SKILL_ALIAS) match.
+
+        Returns a set of canonical skill names. Used as a high-precision pre-filter
+        before LLM extraction — anything matched here is treated as a verified skill,
+        and the LLM is then asked only to find ADDITIONAL skills not already found.
+
+        Args:
+            text: Raw JD or resume text.
+
+        Returns:
+            Set of canonical skill names (e.g. {"Python", "FastAPI", "Docker"}).
+        """
+        if not text:
+            return set()
+        pairs = self._build_dict_pairs()
+        found: set[str] = set()
+        text_lower = text.lower()
+        for alias, canonical in pairs:
+            if not alias:
+                continue
+            idx = text_lower.find(alias.lower())
+            if idx < 0:
+                continue
+            # Word boundary check: prev/next char must NOT be an ASCII identifier
+            # char (avoid "Go" inside "Google", "Java" inside "JavaScript"). Chinese
+            # characters return True for str.isalnum() so we explicitly use the
+            # ASCII set only.
+            prev_char = text_lower[idx - 1] if idx > 0 else " "
+            next_idx = idx + len(alias)
+            next_char = text_lower[next_idx] if next_idx < len(text_lower) else " "
+            if prev_char.isascii() and prev_char.isalnum() or prev_char in "_+#":
+                continue
+            if next_char.isascii() and next_char.isalnum() or next_char in "_+#":
+                continue
+            found.add(canonical)
+        return found
 
 
-_REVERSE_INDEX.update(_build_reverse_index())
+# Pre-compile alias list at import time for fast dictionary extraction.
+# ponytail: aliases sorted by length DESC so "Apache Kafka" matches before "Kafka"
+# and "PostgreSQL" matches before "SQL". The earlier regex-with-named-groups
+# approach blew Python's 100-group limit (2066 aliases > 100), so we fall back
+# to a sorted alias list + simple substring scan. With ~3000 aliases per JD,
+# a full scan is ~1ms — well under any LLM call cost.
 
+# ── Singleton instance & backward-compatible references ──
 
-# ---- YAML taxonomy integration ----
-_YAML_SKILL_ALIASES = load_skill_aliases_from_yaml()
-if _YAML_SKILL_ALIASES:
-    merged = dict(_YAML_SKILL_ALIASES)
-    for k, v in SKILL_ALIAS.items():
-        if k not in merged:
-            merged[k] = v
-    SKILL_ALIAS.clear()
-    SKILL_ALIAS.update(merged)
-    logger.info(
-        "Loaded {} skills from YAML + {} hardcoded = {} total",
-        len(_YAML_SKILL_ALIASES),
-        len(SKILL_ALIAS) - len(_YAML_SKILL_ALIASES),
-        len(SKILL_ALIAS),
-    )
-    _REVERSE_INDEX.clear()
-    _REVERSE_INDEX.update(_build_reverse_index())
-else:
-    logger.info("Using hardcoded skill aliases ({} skills)", len(SKILL_ALIAS))
+_normalizer = SkillNormalizer()
+
+# Backward-compatible module-level reference to the alias dictionary.
+# Any code that does `from app.core.extraction.normalize import SKILL_ALIAS`
+# still works; the dict is now owned by the singleton.
+SKILL_ALIAS: dict[str, list[str]] = _normalizer._aliases
 
 
 def normalize_by_alias(skill_name: str) -> str | None:
     """Normalize a skill name using the alias dictionary.
+
+    Delegates to SkillNormalizer singleton.
 
     Args:
         skill_name: Raw skill name.
@@ -312,9 +434,40 @@ def normalize_by_alias(skill_name: str) -> str | None:
     Returns:
         Standardized skill name, or None if not found.
     """
-    key = skill_name.strip().lower()
-    return _REVERSE_INDEX.get(key)
+    return _normalizer.normalize_by_alias(skill_name)
 
+
+def extract_dict_skills(text: str) -> set[str]:
+    """Extract skill names found in text via dictionary (SKILL_ALIAS) match.
+
+    Delegates to SkillNormalizer singleton.
+
+    Args:
+        text: Raw JD or resume text.
+
+    Returns:
+        Set of canonical skill names.
+    """
+    return _normalizer.extract_dict_skills(text)
+
+
+def get_standard_skill_seeds() -> list[str]:
+    """Return the list of standard (canonical) skill names.
+
+    Delegates to SkillNormalizer singleton.
+    """
+    return _normalizer.get_standard_skill_seeds()
+
+
+def build_alias_reverse_index() -> dict[str, str]:
+    """Build and return the alias-to-standard reverse index (thread-safe).
+
+    Delegates to SkillNormalizer singleton.
+    """
+    return _normalizer.build_reverse_index()
+
+
+# ── ChromaDB / vector normalization ──
 
 CHROMA_COLLECTION_NAME: str = "skill_embeddings"
 _SENTENCE_MODEL: Any = None
@@ -416,6 +569,8 @@ def normalize_by_vector(
         try:
             from app.config import settings
             chroma_client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
+        except StarMapError:
+            raise
         except Exception:
             logger.warning("ChromaDB not reachable, skipping vector normalization")
             _mark_chroma_unavailable("client-unreachable")
@@ -425,6 +580,8 @@ def normalize_by_vector(
 
     try:
         collection = chroma_client.get_collection(collection_name)
+    except StarMapError:
+        raise
     except Exception:
         # 仅在首次失败时记录 warning + 标记不可用；负缓存窗口内后续调用静默返回 None。
         if not _is_chroma_marked_unavailable():
@@ -480,6 +637,9 @@ def validate_skill_by_source_count(
     # Fallback: alias existence check when no source_counts available
     matched = normalize_by_alias(skill_name)
     return matched is not None
+
+
+# ── Normalization pipeline ──
 
 
 @dataclass
@@ -547,67 +707,6 @@ def normalize_skill(
     return result
 
 
-# Pre-compile alias list at import time for fast dictionary extraction.
-# ponytail: aliases sorted by length DESC so "Apache Kafka" matches before "Kafka"
-# and "PostgreSQL" matches before "SQL". The earlier regex-with-named-groups
-# approach blew Python's 100-group limit (2066 aliases > 100), so we fall back
-# to a sorted alias list + simple substring scan. With ~3000 aliases per JD,
-# a full scan is ~1ms — well under any LLM call cost.
-_DICT_ALIAS_PAIRS: list[tuple[str, str]] = []
-
-
-def _build_dict_pairs() -> list[tuple[str, str]]:
-    global _DICT_ALIAS_PAIRS
-    if _DICT_ALIAS_PAIRS:
-        return _DICT_ALIAS_PAIRS
-    pairs: list[tuple[str, str]] = []
-    for canonical, aliases in SKILL_ALIAS.items():
-        for alias in aliases:
-            pairs.append((alias, canonical))
-    pairs.sort(key=lambda p: len(p[0]), reverse=True)
-    _DICT_ALIAS_PAIRS = pairs
-    return pairs
-
-
-def extract_dict_skills(text: str) -> set[str]:
-    """Extract skill names found in text via dictionary (SKILL_ALIAS) match.
-
-    Returns a set of canonical skill names. Used as a high-precision pre-filter
-    before LLM extraction — anything matched here is treated as a verified skill,
-    and the LLM is then asked only to find ADDITIONAL skills not already found.
-
-    Args:
-        text: Raw JD or resume text.
-
-    Returns:
-        Set of canonical skill names (e.g. {"Python", "FastAPI", "Docker"}).
-    """
-    if not text:
-        return set()
-    pairs = _build_dict_pairs()
-    found: set[str] = set()
-    text_lower = text.lower()
-    for alias, canonical in pairs:
-        if not alias:
-            continue
-        idx = text_lower.find(alias.lower())
-        if idx < 0:
-            continue
-        # Word boundary check: prev/next char must NOT be an ASCII identifier
-        # char (avoid "Go" inside "Google", "Java" inside "JavaScript"). Chinese
-        # characters return True for str.isalnum() so we explicitly use the
-        # ASCII set only.
-        prev_char = text_lower[idx - 1] if idx > 0 else " "
-        next_idx = idx + len(alias)
-        next_char = text_lower[next_idx] if next_idx < len(text_lower) else " "
-        if prev_char.isascii() and prev_char.isalnum() or prev_char in "_+#":
-            continue
-        if next_char.isascii() and next_char.isalnum() or next_char in "_+#":
-            continue
-        found.add(canonical)
-    return found
-
-
 def batch_normalize_skills(
     skill_names: list[str],
     use_vector: bool = True,
@@ -641,23 +740,6 @@ def batch_normalize_skills(
         )
         for s in skill_names
     ]
-
-
-def build_alias_reverse_index() -> dict[str, str]:
-    """Build and return the alias-to-standard reverse index (thread-safe)."""
-    with _LOCK:
-        idx = _build_reverse_index()
-        _REVERSE_INDEX.clear()
-        _REVERSE_INDEX.update(idx)
-        return dict(_REVERSE_INDEX)
-
-
-def get_standard_skill_seeds() -> list[str]:
-    """Return the list of standard (canonical) skill names.
-
-    Useful for seeding ChromaDB collections or building UI dropdowns.
-    """
-    return sorted(SKILL_ALIAS.keys())
 
 
 # ── Proficiency normalization ──

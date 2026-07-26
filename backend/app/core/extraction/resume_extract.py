@@ -21,6 +21,7 @@ from loguru import logger
 from app.core.extraction.jd_extract import LLMClient, parse_llm_json_response
 from app.core.extraction.normalize import batch_normalize_skills
 from app.core.extraction.prompt import get_prompt
+from app.exceptions import ExtractionError, StarMapError
 
 
 @dataclass
@@ -139,24 +140,31 @@ class ResumeExtractionPipeline:
 
         try:
             raw = await self.llm_client.extract_from_jd(resume_text)
-        except Exception as e:
-            logger.error("LLM call failed for resume: {}", e)
-            result["error"] = f"LLM error: {e}"
+        except StarMapError:
+            raise
+        except Exception as exc:
+            logger.exception("Resume extraction error: {}", exc)
+            result["error"] = f"LLM error: {exc}"
             return result
 
         # Step 2: Parse JSON
         try:
             parsed = parse_llm_json_response(raw["content"]) if isinstance(raw, dict) and "content" in raw else raw
-        except Exception as e:
-            result["error"] = f"JSON parse error: {e}"
+        except StarMapError:
+            raise
+        except Exception as exc:
+            logger.exception("Resume extraction error: {}", exc)
+            result["error"] = f"JSON parse error: {exc}"
             return result
 
         # Step 3: Build structured result
         try:
             extraction = self._build_result(parsed)
-        except Exception as e:
-            logger.warning("Resume result building failed: {}", e)
-            result["warnings"].append(f"Result building issue: {e}")
+        except StarMapError:
+            raise
+        except Exception as exc:
+            logger.exception("Resume extraction error: {}", exc)
+            result["warnings"].append(f"Result building issue: {exc}")
             extraction = ResumeExtractionResult(raw_text=resume_text)
 
         # Step 4: Normalize skills

@@ -12,6 +12,11 @@ from typing import Any
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from app.core.extraction.anti_hallucination import (
+    AntiHallucinationResult,
+    normalize_skill_list,
+    normalize_str_list,
+)
 from app.core.extraction.llm_client import (
     LLMClient,
     LLMConnectionError,
@@ -24,6 +29,7 @@ from app.core.extraction.normalize import (
     extract_dict_skills,
 )
 from app.core.extraction.prompt import get_ab_test, get_active_version, get_prompt
+from app.exceptions import ExtractionError, ExtractionLLMError, StarMapError
 
 # Chinese PII patterns
 _PII_PATTERNS: list[re.Pattern] = [
@@ -125,25 +131,6 @@ class JDExtractionResult(BaseModel):
     evolves_to: list[str] = Field(default_factory=list, description="Related positions this role can evolve into")
 
 
-class AntiHallucinationResult(BaseModel):
-    """Anti-hallucination validation result."""
-
-    is_valid: bool = Field(default=True)
-    hallucinated_skills: list[str | dict[str, Any]] = Field(default_factory=list)
-    missing_skills: list[str | dict[str, Any]] = Field(default_factory=list)
-    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
-    issues: list[str] = Field(default_factory=list)
-
-
-def _normalize_skill_list(skills: list[str | dict[str, Any]]) -> list[str]:
-    """Normalize skill list items to strings (extract 'name' key if dict)."""
-    result = []
-    for s in skills:
-        if isinstance(s, dict):
-            result.append(str(s.get("name", str(s))))
-        else:
-            result.append(str(s))
-    return result
 
 
 @dataclass
@@ -364,29 +351,14 @@ class JDExtractionPipeline:
                 )
                 # MiMo reasoning model may return dicts with {name, reasoning}
                 # instead of plain strings — normalize ALL list[str] fields
-                def _normalize_str_list(items):
-                    if not items:
-                        return []
-                    result = []
-                    for item in items:
-                        if isinstance(item, dict):
-                            # Extract most meaningful string value from dict
-                            result.append(item.get("name") or item.get("skill")
-                                          or item.get("issue") or str(item))
-                        elif isinstance(item, str):
-                            result.append(item)
-                        else:
-                            result.append(str(item))
-                    return result
-
-                v["hallucinated_skills"] = _normalize_str_list(v.get("hallucinated_skills", []))
-                v["missing_skills"] = _normalize_str_list(v.get("missing_skills", []))
-                v["issues"] = _normalize_str_list(v.get("issues", []))
+                v["hallucinated_skills"] = normalize_str_list(v.get("hallucinated_skills", []))
+                v["missing_skills"] = normalize_str_list(v.get("missing_skills", []))
+                v["issues"] = normalize_str_list(v.get("issues", []))
                 validation = AntiHallucinationResult(**v)
                 # Normalize dict items to strings for serialization
                 v_normalized = validation.model_dump()
-                v_normalized["hallucinated_skills"] = _normalize_skill_list(validation.hallucinated_skills)
-                v_normalized["missing_skills"] = _normalize_skill_list(validation.missing_skills)
+                v_normalized["hallucinated_skills"] = normalize_skill_list(validation.hallucinated_skills)
+                v_normalized["missing_skills"] = normalize_skill_list(validation.missing_skills)
                 result["validation"] = v_normalized
 
                 if not validation.is_valid:

@@ -24,6 +24,8 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.exceptions import PipelineStageError, StarMapError
+
 if TYPE_CHECKING:
     from app.models.pipeline_models import LoopResultRecord
 
@@ -187,6 +189,10 @@ class LoopOrchestrator:
         try:
             from app.services.resources import resources as app_resources
             driver = app_resources.neo4j_driver
+        except PipelineStageError:
+            raise
+        except StarMapError:
+            raise
         except Exception as exc:
             logger.debug("Neo4j driver not available for step 3/4: {}", exc)
 
@@ -364,6 +370,10 @@ class LoopOrchestrator:
                 },
                 duration_seconds=time.monotonic() - start,
             )
+        except PipelineStageError:
+            raise
+        except StarMapError:
+            raise
         except Exception as exc:
             logger.error("Step 2 (skill extraction) failed: {}", exc)
             return LoopStepResult(
@@ -389,6 +399,10 @@ class LoopOrchestrator:
             try:
                 from app.services.resources import resources as app_resources
                 driver = app_resources.neo4j_driver
+            except PipelineStageError:
+                raise
+            except StarMapError:
+                raise
             except Exception as exc:
                 logger.debug("Neo4j driver not available inside step 3: {}", exc)
 
@@ -409,6 +423,10 @@ class LoopOrchestrator:
                     extraction_data=extraction_data,
                     target_position=target_position,
                 )
+            except PipelineStageError:
+                raise
+            except StarMapError:
+                raise
             except Exception as exc:
                 logger.warning("sync_from_pipeline failed: {}", exc)
                 sync_result = {"synced": False, "error": str(exc)}
@@ -438,8 +456,12 @@ class LoopOrchestrator:
                 data=sync_result,
                 duration_seconds=time.monotonic() - start,
             )
+        except PipelineStageError:
+            raise
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.error("Step 3 (graph update) failed: {}", exc)
+            logger.exception("Loop orchestrator error: {}", exc)
             return LoopStepResult(
                 step=3,
                 name=STEP_NAMES[3],
@@ -496,8 +518,12 @@ class LoopOrchestrator:
                 data=match_result,
                 duration_seconds=time.monotonic() - start,
             )
+        except PipelineStageError:
+            raise
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.error("Step 4 (match diagnosis) failed: {}", exc)
+            logger.exception("Step 4 (match diagnosis) failed: {}", exc)
             return LoopStepResult(
                 step=4,
                 name=STEP_NAMES[4],
@@ -557,8 +583,12 @@ class LoopOrchestrator:
                                 "Auto-created learning plan {} for target '{}'",
                                 plan_info["plan_id"], target_position,
                             )
+                    except PipelineStageError:
+                        raise
+                    except StarMapError:
+                        raise
                     except Exception as exc:
-                        logger.warning(
+                        logger.exception(
                             "Failed to auto-create learning plan for '{}': {}",
                             target_position, exc,
                         )
@@ -570,8 +600,12 @@ class LoopOrchestrator:
                     data=learning_path_data,
                     duration_seconds=time.monotonic() - start,
                 )
+            except PipelineStageError:
+                raise
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.warning("Step 5 path derivation from match failed: {}", exc)
+                logger.exception("Step 5 path derivation from match failed: {}", exc)
 
         # Fallback: generic learning path
         return LoopStepResult(
@@ -638,8 +672,12 @@ class LoopOrchestrator:
             session.add(record)
             await session.commit()
             return record
+        except PipelineStageError:
+            raise
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.warning("Failed to insert loop run to DB: {}", exc)
+            logger.exception("Failed to insert loop run to DB: {}", exc)
             return None
 
     @staticmethod
@@ -660,8 +698,12 @@ class LoopOrchestrator:
                 return
             db_record.steps_json = result.to_dict()
             await session.commit()
+        except PipelineStageError:
+            raise
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.warning("Failed to update loop steps_json in DB: {}", exc)
+            logger.exception("Failed to update loop steps_json in DB: {}", exc)
 
     @staticmethod
     async def _complete_loop_run(
@@ -684,8 +726,12 @@ class LoopOrchestrator:
                         db_record.error_log = "; ".join(errors) if errors else None
                     await session.commit()
                     return
+            except PipelineStageError:
+                raise
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.warning(
+                logger.exception(
                     "Failed to complete loop run in DB, falling back to in-memory: {}",
                     exc,
                 )
@@ -724,8 +770,12 @@ async def get_loop_status(
                 data["run_id"] = row.run_id
                 data["status"] = row.status
                 return data
+        except PipelineStageError:
+            raise
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.warning("Failed to read loop status from loop_results, trying pipeline_runs: {}", exc)
+            logger.exception("Failed to read loop status from loop_results, trying pipeline_runs: {}", exc)
 
         # Secondary: query pipeline_runs table (legacy)
         try:
@@ -742,8 +792,12 @@ async def get_loop_status(
                 if "steps" not in data:
                     data["steps"] = row.stages.get("steps", [])
                 return data
+        except PipelineStageError:
+            raise
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.warning("Failed to read loop status from pipeline_runs, falling back to in-memory: {}", exc)
+            logger.exception("Failed to read loop status from pipeline_runs, falling back to in-memory: {}", exc)
 
     # Fallback: in-memory
     result = _LOOP_RESULTS.get(run_id)
@@ -782,8 +836,12 @@ async def get_loop_history(
                     data["status"] = row.status
                     items.append(data)
                 return items
+        except PipelineStageError:
+            raise
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.warning("Failed to read loop history from loop_results, trying pipeline_runs: {}", exc)
+            logger.exception("Failed to read loop history from loop_results, trying pipeline_runs: {}", exc)
 
         # Secondary: query pipeline_runs table (legacy)
         try:
@@ -804,8 +862,12 @@ async def get_loop_history(
                     data["status"] = row.status
                     items.append(data)
                 return items
+        except PipelineStageError:
+            raise
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.warning("Failed to read loop history from pipeline_runs, falling back to in-memory: {}", exc)
+            logger.exception("Failed to read loop history from pipeline_runs, falling back to in-memory: {}", exc)
 
     # Fallback: in-memory
     items = list(_LOOP_RESULTS.values())

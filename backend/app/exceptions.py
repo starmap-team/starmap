@@ -52,3 +52,63 @@ class RunAlreadyTerminalError(StarMapError):
     def __init__(self, status: str) -> None:
         self.status = status
         super().__init__(f"Run already in terminal state: {status}")
+
+
+class ExtractionError(StarMapError):
+    """Base for extraction failures."""
+
+    def __init__(self, message: str, source: str | None = None) -> None:
+        self.source = source
+        super().__init__(message)
+
+
+class ExtractionLLMError(ExtractionError):
+    """LLM call failed during extraction."""
+
+
+class ExtractionNormalizationError(ExtractionError):
+    """Skill normalization failed during extraction."""
+
+
+class PipelineError(StarMapError):
+    """Base for pipeline execution failures."""
+
+    def __init__(self, message: str, stage: str | None = None) -> None:
+        self.stage = stage
+        super().__init__(message)
+
+
+class PipelineStageError(PipelineError):
+    """A specific pipeline stage failed."""
+
+
+class PipelineTimeoutError(PipelineError):
+    """Pipeline stage timed out."""
+
+
+class MatchingError(StarMapError):
+    """Base for matching failures."""
+
+    def __init__(self, message: str, position_id: str | None = None) -> None:
+        self.position_id = position_id
+        super().__init__(message)
+
+
+class JudgeError(StarMapError):
+    """Base for judge/evaluation failures."""
+
+
+class LearningPathError(StarMapError):
+    """Base for learning path failures."""
+
+
+class QualityError(StarMapError):
+    """Base for quality check failures."""
+
+
+class DashboardError(StarMapError):
+    """Base for dashboard data failures."""
+
+
+class GraphProjectionError(StarMapError):
+    """Base for graph projection/sync failures."""

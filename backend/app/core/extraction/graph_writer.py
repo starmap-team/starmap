@@ -17,6 +17,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.config import settings
 from app.core.extraction.normalize import normalize_proficiency
 from app.core.matching.constants import ALLOWED_NODE_LABELS
+from app.exceptions import GraphProjectionError, StarMapError
 
 # ---- Node type labels (§2.1: 7类节点) ----
 NODE_POSITION = "Position"
@@ -627,9 +628,11 @@ async def write_extraction_to_graph(
     try:
         await merge_position(driver, extraction)
         positions_merged = 1
-    except Exception as exc:
-        logger.error("merge_position failed for '{}': {}", position_name, exc)
+    except StarMapError:
         raise
+    except Exception as exc:
+        logger.exception("Graph writer error: {}", exc)
+        raise GraphProjectionError(str(exc)) from exc
 
     # Step 2: Merge Skill nodes and create REQUIRES relationships using standalone functions
     skills_merged = 0
@@ -652,8 +655,10 @@ async def write_extraction_to_graph(
             try:
                 await merge_skill(driver, skill_name, metadata)
                 skills_merged += 1
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.warning("merge_skill failed for '{}': {}", skill_name, exc)
+                logger.exception("Graph writer error: {}", exc)
                 continue
             try:
                 await create_requires_relationship(
@@ -662,8 +667,10 @@ async def write_extraction_to_graph(
                     weight=1.0 if required_flag else 0.6,
                 )
                 requires_created += 1
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.warning("create_requires failed: Position '{}' -> Skill '{}': {}", position_name, skill_name, exc)
+                logger.exception("Graph writer error: {}", exc)
 
     # Step 3: Build and write ontology triples for extended relationships
     # (tools → USES, prerequisites → PREREQUISITE, etc.)

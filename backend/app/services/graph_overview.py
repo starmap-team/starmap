@@ -12,7 +12,9 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
+from neo4j.exceptions import Neo4jError
 
+from app.exceptions import DashboardError, StarMapError
 from app.services.graph_serializers import _node_id, _safe_properties
 
 if TYPE_CHECKING:
@@ -154,9 +156,14 @@ async def _fetch_independent_counts(driver: AsyncDriver) -> dict[str, int]:
                     "skills": record["skill_cnt"],
                     "edges": record["edge_cnt"],
                 }
-    except Exception as exc:
-        # P1 fix: log instead of silently swallowing
+    except StarMapError:
+        raise
+    except Neo4jError as exc:
         logger.warning("Failed to fetch independent counts from Neo4j: {}", exc)
+        raise DashboardError(str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error fetching independent counts: {}", exc)
+        raise DashboardError(str(exc)) from exc
     return {"positions": 0, "skills": 0, "edges": 0}
 
 
@@ -215,9 +222,14 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
                 if s1 != s2:
                     key = tuple(sorted([s1, s2]))
                     stack_connections[key] += record["shared"] or 0
+    except StarMapError:
+        raise
+    except Neo4jError as exc:
+        logger.error("Tech stack overview Neo4j error: {}", exc)
+        raise DashboardError(str(exc)) from exc
     except Exception as exc:
-        logger.error("Tech stack overview failed: {}", exc)
-        return {"domains": [], "connections": [], "total_positions": 0, "total_skills": 0}
+        logger.exception("Tech stack overview failed: {}", exc)
+        raise DashboardError(str(exc)) from exc
 
     # Build response
     stack_id_prefix = {
@@ -322,9 +334,14 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
                 {"source": "初级", "target": "中级", "weight": _DEFAULT_EVOLUTION_WEIGHT},
                 {"source": "中级", "target": "高级", "weight": _DEFAULT_EVOLUTION_WEIGHT},
             ]
+    except StarMapError:
+        raise
+    except Neo4jError as exc:
+        logger.error("Level overview Neo4j error: {}", exc)
+        raise DashboardError(str(exc)) from exc
     except Exception as exc:
-        logger.error("Level overview failed: {}", exc)
-        return {"domains": [], "connections": [], "total_positions": 0, "total_skills": 0}
+        logger.exception("Level overview failed: {}", exc)
+        raise DashboardError(str(exc)) from exc
 
     level_id = {"初级": "lv-junior", "中级": "lv-mid", "高级": "lv-senior"}
     domains = []

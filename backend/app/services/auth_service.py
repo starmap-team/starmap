@@ -445,18 +445,46 @@ async def refresh_access_token(
     try:
         payload = decode_token(refresh_token)
     except InvalidTokenError:
+        audit_log(AuditEntry(
+            event=AuditEvent.TOKEN_INVALID,
+            actor="unknown",
+            action="refresh_token",
+            detail="Refresh token decode failed",
+            ip="",
+        ))
         return None
 
     if payload.get("type") != "refresh":
+        audit_log(AuditEntry(
+            event=AuditEvent.TOKEN_INVALID,
+            actor=payload.get("sub", "unknown"),
+            action="refresh_token",
+            detail="Token is not a refresh token",
+            ip="",
+        ))
         return None
 
     jti = payload.get("jti")
     if not jti:
+        audit_log(AuditEntry(
+            event=AuditEvent.TOKEN_INVALID,
+            actor=payload.get("sub", "unknown"),
+            action="refresh_token",
+            detail="Refresh token missing jti",
+            ip="",
+        ))
         return None
 
     # Check Redis for revocation
     stored_user_id = await redis.get(f"refresh:{jti}")
     if stored_user_id is None:
+        audit_log(AuditEntry(
+            event=AuditEvent.TOKEN_INVALID,
+            actor=payload.get("sub", "unknown"),
+            action="refresh_token",
+            detail="Refresh token revoked or expired",
+            ip="",
+        ))
         return None
 
     # Look up user to ensure still active
@@ -465,12 +493,33 @@ async def refresh_access_token(
         return None
     user = await get_user_by_username(session, username)
     if user is None:
+        audit_log(AuditEntry(
+            event=AuditEvent.AUTHZ_DENIED,
+            actor=username,
+            action="refresh_token",
+            detail="User not found during token refresh",
+            ip="",
+        ))
         return None
     if user.is_login_blocked:
+        audit_log(AuditEntry(
+            event=AuditEvent.AUTHZ_DENIED,
+            actor=username,
+            action="refresh_token",
+            detail="User is blocked during token refresh",
+            ip="",
+        ))
         return None
 
     # Issue new access token
     new_access = create_access_token(user)
+    audit_log(AuditEntry(
+        event=AuditEvent.SENSITIVE_READ,
+        actor=username,
+        action="refresh_token",
+        detail="Access token refreshed",
+        ip="",
+    ))
     return {
         "access_token": new_access,
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
@@ -482,6 +531,7 @@ async def revoke_refresh_token(refresh_token: str, redis: Redis) -> bool:
 
     Returns True if the jti was found and deleted, False otherwise.
     """
+    actor = "unknown"
     try:
         payload = jwt.decode(
             refresh_token,
@@ -491,7 +541,15 @@ async def revoke_refresh_token(refresh_token: str, redis: Redis) -> bool:
             issuer=settings.jwt_issuer,
             options={"verify_exp": False},
         )
+        actor = payload.get("sub", "unknown")
     except jwt.InvalidTokenError:
+        audit_log(AuditEntry(
+            event=AuditEvent.TOKEN_INVALID,
+            actor=actor,
+            action="revoke_refresh_token",
+            detail="Invalid token for revocation",
+            ip="",
+        ))
         return False
 
     jti = payload.get("jti")
@@ -499,6 +557,14 @@ async def revoke_refresh_token(refresh_token: str, redis: Redis) -> bool:
         return False
 
     deleted = await redis.delete(f"refresh:{jti}")
+    if deleted > 0:
+        audit_log(AuditEntry(
+            event=AuditEvent.SENSITIVE_WRITE,
+            actor=actor,
+            action="revoke_refresh_token",
+            detail="Refresh token revoked",
+            ip="",
+        ))
     return deleted > 0
 
 

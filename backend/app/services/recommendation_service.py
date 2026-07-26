@@ -13,13 +13,23 @@ from typing import Any
 from loguru import logger
 
 from app.core.pipeline.sse.contracts import ExtractedSkill, PositionProfile
+from app.exceptions import MatchingError, StarMapError
 from app.repositories.position_repository import PositionRepository
 from app.services.match_service import PREREQUISITE_MAP, score_skill_match
 
 
 @dataclass
 class Recommendation:
-    """单个岗位推荐结果。"""
+    """单个岗位推荐结果。
+
+    Attributes:
+        position: 岗位名称（对应 PositionProfile 中的键）。
+        score: 综合得分 [0, 1]，由 match_score、developability、market_demand 加权得到。
+        match_score: 技能匹配度分量 [0, 1]，基于 score_skill_match 对 required_skills 的评估均值。
+        developability: 可发展性分量 [0, 1]，缺失技能中有学习路径的比例。
+        market_demand: 市场需求分量 [0, 1]，来源于 PositionProfile.market_demand。
+        match_detail: 来自 score_skill_match 的完整匹配详情（含 evaluated、missing 等字段）。
+    """
 
     position: str
     score: float  # 综合得分 [0, 1]
@@ -40,6 +50,14 @@ class PositionRecommender:
         repo: PositionRepository,
         scorer: Callable[..., dict[str, Any]] | None = None,
     ) -> None:
+        """初始化推荐引擎。
+
+        Args:
+            repo: 岗位数据仓库，用于加载所有岗位画像。
+            scorer: 技能匹配评分函数（默认 score_skill_match）。
+                    签名必须与 score_skill_match 兼容：
+                    scorer(target_skills, person_skills, threshold) -> dict
+        """
         self._repo = repo
         self._scorer = scorer or score_skill_match
 
@@ -48,7 +66,28 @@ class PositionRecommender:
         person_skills: list[ExtractedSkill],
         top_k: int = 10,
     ) -> list[Recommendation]:
-        """基于求职者技能画像推荐 Top-K 岗位。"""
+        """基于求职者技能画像推荐 Top-K 岗位。
+
+        评分公式：``score = match_score × 0.6 + developability × 0.3 + market_demand × 0.1``
+
+        流程：
+        1. 通过 PositionRepository 加载所有岗位画像。
+        2. 对每个岗位，调用 scorer 计算技能匹配度（match_score）。
+        3. 调用 _compute_developability 评估可发展性。
+        4. 组合加权得分，按 score 降序排序，返回 Top-K。
+
+        Args:
+            person_skills: 求职者技能列表，每个技能含 name 和 proficiency。
+            top_k: 返回的推荐数量上限，默认 10。
+
+        Returns:
+            按综合得分降序排列的推荐列表，最多 top_k 条。
+            若无可用岗位画像，返回空列表。
+
+        Raises:
+            StarMapError: 仓库层或评分层返回的 StarMap 系统错误（透传）。
+            MatchingError: 评分层返回的匹配逻辑错误（透传）。
+        """
         all_profiles = await self._repo.get_all_position_profiles()
         if not all_profiles:
             logger.warning("[Recommender] No position profiles available")
@@ -86,9 +125,13 @@ class PositionRecommender:
                         match_detail=match_result,
                     )
                 )
+            except StarMapError:
+                raise
+            except MatchingError:
+                raise
             except Exception as exc:
-                logger.debug("[Recommender] Failed to score {}: {}", name, exc)
-                continue
+                logger.exception("[Recommender] Failed to score {}: {}", name, exc)
+            continue
 
         scores.sort(key=lambda r: r.score, reverse=True)
         return scores[:top_k]

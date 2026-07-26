@@ -38,7 +38,7 @@ _HAS_NORMALIZE = False
 try:
     from app.core.extraction.normalize import normalize_by_alias
     _HAS_NORMALIZE = True
-except Exception:
+except ImportError:
     normalize_by_alias = None  # type: ignore[assignment]
 
 

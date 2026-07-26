@@ -6,12 +6,13 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select as sa_select
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver
+from app.exceptions import MatchingError, StarMapError
 from app.models.extraction_models import PositionRecord
 from app.services.match_service import compute_competitiveness, get_match_result, run_match
 
@@ -74,6 +75,7 @@ class MatchResponse(BaseModel):
     overall_assessment: str = Field(default="")
     estimated_learning_time: str = Field(default="")
     cii: float | None = Field(default=None, description="Capability Inflation Index")
+    note: str | None = Field(default=None, description="M2：补充说明（如岗位存在但无技能画像，无法计算匹配度）")
 
 
 async def _run_match_request(body: MatchRequestInput, driver: Any, session: AsyncSession) -> MatchResponse:
@@ -156,9 +158,14 @@ async def match_history(
                 "created_at": str(row[4]) if row[4] else None,
             })
         return {"items": items}
+    except MatchingError as exc:
+        logger.exception("Matching operation failed: {}", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("Failed to fetch match history: {}", exc)
-        return {"items": []}
+        logger.exception("Unexpected error in matching: {}", exc)
+        raise HTTPException(status_code=500, detail="匹配处理异常") from exc
 
 
 @router.get("/competitiveness/{position}")
@@ -168,11 +175,23 @@ async def get_competitiveness(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, Any]:
     """Return competitiveness analysis for a target position."""
-    return await compute_competitiveness(
+    result = await compute_competitiveness(
         target_position=position,
         driver=driver,
         db_session=session,
     )
+    # fix (M13): 兼容前端 store（`data.items ?? data.skills`）。原响应无 items/skills 字段
+    # 导致前端 competitiveness 恒空数组。现补 items（瓶颈技能）和 skills（必备+加分）别名。
+    bottleneck = result.get("bottleneck_skills") or []
+    required = result.get("required_count", 0)
+    bonus = result.get("bonus_count", 0)
+    result["items"] = bottleneck
+    result["skills"] = {
+        "required_count": required,
+        "bonus_count": bonus,
+        "total": required + bonus,
+    }
+    return result
 
 
 @router.post("/batch")
@@ -201,9 +220,24 @@ async def batch_match(
                 db_session=session,
             )
             results.append({"position_name": position, "result": result})
-        except Exception as e:
-            results.append({"position_name": position, "error": str(e)})
-    return {"results": results, "total": len(results)}
+        except MatchingError as exc:
+            results.append({"position_name": position, "error": str(exc)})
+        except StarMapError:
+            raise
+        except Exception as exc:
+            results.append({"position_name": position, "error": str(exc)})
+    # fix (M13): 响应中加 summary 便于前端一致性展示（plan: 当前前端按扁平 BatchMatchItem 消费，match_score 恒为 undefined）
+    success_count = sum(1 for r in results if "result" in r)
+    return {
+        "results": results,
+        "items": results,  # 别名：兼容前端按扁平 items 消费
+        "summary": {
+            "total": len(results),
+            "success": success_count,
+            "failed": len(results) - success_count,
+        },
+        "total": len(results),
+    }
 
 
 # ── FE-04: Reverse match (skills → position recommendations) ──
@@ -212,9 +246,21 @@ async def batch_match(
 class ReverseMatchRequest(BaseModel):
     """Request body for reverse matching: given user skills, find suitable positions."""
 
-    person_skills: list[PersonSkillInput] = Field(..., min_length=1, description="User's current skills")
+    person_skills: list[PersonSkillInput] = Field(default_factory=list, description="User's current skills")
+    # fix (M13): 兼容前端传 `skills` 字段（学习中心/匹配向导），自动归并到 person_skills
+    skills: list[PersonSkillInput] = Field(default_factory=list, exclude=True, description="Alias of person_skills (frontend compat)")
     top_k: int = Field(default=10, ge=1, le=50, description="Max positions to return")
     min_score: float = Field(default=0.3, ge=0.0, le=1.0, description="Minimum match score threshold")
+
+    @model_validator(mode="after")
+    def _merge_skills(self):
+        if self.skills and not self.person_skills:
+            self.person_skills = list(self.skills)
+        return self
+
+    def model_post_init(self, __context):
+        # model_post_init 在 Pydantic v2 中为私有/不推荐；改用上面的 validator
+        pass
 
 
 class PositionRecommendation(BaseModel):
@@ -254,9 +300,14 @@ async def recommend_positions(
             sa_select(PositionRecord.name).distinct().limit(200)
         )
         position_names = [row[0] for row in result.fetchall()]
+    except MatchingError as exc:
+        logger.exception("Matching operation failed: {}", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("Failed to query positions for reverse match: {}", exc)
-        position_names = []
+        logger.exception("Unexpected error in matching: {}", exc)
+        raise HTTPException(status_code=500, detail="匹配处理异常") from exc
 
     if not position_names:
         # Fallback: try Neo4j
@@ -270,8 +321,14 @@ async def recommend_positions(
                     async for rec in cypher_result:
                         if rec.get("name"):
                             position_names.append(rec["name"])
+            except MatchingError as exc:
+                logger.exception("Matching operation failed: {}", exc)
+                raise HTTPException(status_code=500, detail=str(exc)) from exc
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.warning("Neo4j fallback for reverse match failed: {}", exc)
+                logger.exception("Unexpected error in matching: {}", exc)
+                raise HTTPException(status_code=500, detail="匹配处理异常") from exc
 
     if not position_names:
         return ReverseMatchResponse(
@@ -287,12 +344,13 @@ async def recommend_positions(
     recommendations: list[PositionRecommendation] = []
     for pos_name in position_names:
         try:
+            # fix: recommend 是扫描式只读匹配，不持久化到 match_results，避免污染 /match/history
             result = await match_svc.run_match(
                 target_position=pos_name,
                 person_skills=person_skills_dicts,
                 threshold=body.min_score,
                 driver=driver,
-                db_session=session,
+                db_session=None,
             )
             score = result.get("match_score", 0.0)
             if score >= body.min_score:
@@ -308,6 +366,10 @@ async def recommend_positions(
                     gap_skills=gap,
                     skill_coverage=round(coverage, 4),
                 ))
+        except MatchingError:
+            continue
+        except StarMapError:
+            raise
         except Exception:
             continue  # skip positions that fail
 

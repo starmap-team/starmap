@@ -8,8 +8,11 @@ from __future__ import annotations
 from difflib import SequenceMatcher
 from typing import Any, cast
 
+from loguru import logger
+
 from app.core.extraction.normalize import normalize_skill
 from app.core.matching.constants import PROFICIENCY_SCORE
+from app.exceptions import MatchingError, StarMapError
 
 # 模糊匹配阈值
 FUZZY_MATCH_THRESHOLD = 0.7
@@ -90,16 +93,25 @@ def _batch_chroma_match(
         chroma_client = chromadb.HttpClient(
             host=settings.chroma_host, port=settings.chroma_port,
         )
-    except Exception:
-        _mark_chroma_unavailable("client-unreachable")
+    except StarMapError:
+        raise
+    except Exception as exc:
+        # Chroma is an OPTIONAL semantic boost; connection failure must not
+        # break matching — degrade to lexical scoring (Phase 13 conformance).
+        logger.warning("Chroma unavailable (connect), degrading to lexical match: {}", exc)
+        _mark_chroma_unavailable(f"chroma-connect:{exc}")
         return {}
 
     collection_name = CHROMA_COLLECTION_NAME
     try:
         collection = chroma_client.get_collection(collection_name)
-    except Exception:
-        if not _is_chroma_marked_unavailable():
-            _mark_chroma_unavailable(f"collection-missing:{collection_name}")
+    except StarMapError:
+        raise
+    except Exception as exc:
+        # 404 here = embedding collection not provisioned; degrade gracefully
+        # and negative-cache so subsequent calls fast-fail to lexical scoring.
+        logger.warning("Chroma collection '{}' unavailable, degrading to lexical match: {}", collection_name, exc)
+        _mark_chroma_unavailable(f"chroma-collection-missing:{exc}")
         return {}
 
     # Batch embed all target names
@@ -121,8 +133,11 @@ def _batch_chroma_match(
             n_results=1,
             include=cast("Any", ["distances", "metadatas"]),
         )
-    except Exception:
-        _mark_chroma_unavailable("batch-query-failed")
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.warning("Chroma query failed, degrading to lexical match: {}", exc)
+        _mark_chroma_unavailable(f"chroma-query:{exc}")
         return {}
 
     # Parse batch results
@@ -166,7 +181,12 @@ def _chroma_match_against_candidates(
     try:
         result = _batch_chroma_match([target_name], candidate_canonical_names)
         return result.get(target_name)
-    except Exception:
+    except StarMapError:
+        raise
+    except Exception as exc:
+        # Defensive: inner call already degrades; never let an optional
+        # semantic boost abort the whole match (Phase 13 conformance).
+        logger.warning("Chroma single-match failed, degrading: {}", exc)
         return None
 
 

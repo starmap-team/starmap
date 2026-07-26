@@ -18,6 +18,7 @@ from app.core.extraction.graph_writer import (
     skill_entry_name,
 )
 from app.core.extraction.jd_extract import extract_from_jd, mask_pii
+from app.exceptions import StarMapError
 from app.db.session import get_async_engine
 from app.models.extraction_models import (
     JDExtractionRecord,
@@ -151,8 +152,10 @@ async def _load_source_counts(sessionmaker: async_sessionmaker) -> dict[str, int
                 )
             ).all()
             return {row.name: row.source_count for row in rows if row.source_count}
-    except Exception:
-        logger.warning("Failed to load source counts, continuing without them")
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.warning("Failed to load source counts, continuing without them: {}", exc)
         return {}
 
 
@@ -189,6 +192,8 @@ async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = No
             await _ex._create_outbox_record(
                 sessionmaker, outbox_id, None, extraction_ids=[record.id],
             )
+        except StarMapError:
+            raise
         except Exception as o_exc:  # pragma: no cover - outbox is best-effort
             logger.warning("run_batch_extract_jd outbox create failed (non-fatal): {}", o_exc)
 
@@ -198,6 +203,8 @@ async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = No
                 await _ex._complete_outbox_record(
                     sessionmaker, outbox_id, int(graph_summary.get("triples_merged", 0)),
                 )
+            except StarMapError:
+                raise
             except Exception as o_exc:  # pragma: no cover
                 logger.warning("run_batch_extract_jd outbox complete failed (non-fatal): {}", o_exc)
             return {
@@ -208,9 +215,14 @@ async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = No
                 "preferred_skill_count": len(result["data"].get("preferred_skills", [])),
                 "graph": graph_summary,
             }
+        except StarMapError:
+            raise
         except Exception as exc:
+            logger.exception("Stage3 service error: {}", exc)
             try:
                 await _ex._fail_outbox_record(sessionmaker, outbox_id, str(exc))
+            except StarMapError:
+                raise
             except Exception as o_exc:  # pragma: no cover
                 logger.warning("run_batch_extract_jd outbox fail update error: {}", o_exc)
             raise

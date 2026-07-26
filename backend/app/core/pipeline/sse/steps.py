@@ -106,7 +106,7 @@ class SkillExtractStep:
             logger.info("[Pipeline] Extracted {} skills from resume", len(skills))
         except Exception as exc:
             ctx.errors.append(f"skill_extract: {exc}")
-            logger.error("[Pipeline] Skill extraction failed: {}", exc)
+            logger.error("[Pipeline] Skill extract failed: {}", exc)
 
         return ctx
 
@@ -154,7 +154,7 @@ class MatchStep:
                         )
                         return pos_name, result
                     except Exception as exc:
-                        logger.debug("[Pipeline] Match failed for {}: {}", pos_name, exc)
+                        logger.error("[Pipeline] Match failed for '{}': {}", pos_name, exc)
                         return pos_name, None
 
             tasks = [_match_one(pos) for pos in target_positions]
@@ -207,7 +207,7 @@ class RecommendStep:
     """步骤5：岗位推荐 — 根据技能画像推荐 Top-K 岗位。"""
 
     name = "recommend"
-    timeout = 120
+    timeout = 30
 
     def __init__(self, repo: PositionRepository, driver: Any = None, db_session: Any = None) -> None:
         self._recommender = PositionRecommender(repo)
@@ -235,6 +235,6 @@ class RecommendStep:
             logger.info("[Pipeline] Recommended {} positions", len(ctx.recommended_positions))
         except Exception as exc:
             ctx.errors.append(f"recommend: {exc}")
-            logger.error("[Pipeline] Recommendation failed: {}", exc)
+            logger.error("[Pipeline] Recommend step failed: {}", exc)
 
         return ctx

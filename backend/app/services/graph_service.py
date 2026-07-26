@@ -408,8 +408,10 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
     return {
         "domains": domains,
         "connections": connections,
-        "total_positions": total_pos,
-        "total_skills": total_skill,
+        # M6（Phase 13 强制规范）：total_* 一律用全局去重计数，禁止按域/KA 累加
+        # 导致的重复计数（曾使 total_skills=395 而 distinct=257）。分组视图见 domains[]。
+        "total_positions": independent_pos,
+        "total_skills": independent_skill,
         "independent_positions": independent_pos,
         "independent_skills": independent_skill,
         "independent_edges": independent_edge,

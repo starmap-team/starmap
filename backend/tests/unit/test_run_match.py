@@ -174,11 +174,16 @@ class TestLoadTargetProfileViaRepo:
 
     @pytest.mark.asyncio
     async def test_repo_exception_falls_through(self):
-        """When repo raises an exception, falls through to next tier and returns None."""
+        """When repo raises an exception, falls through to next tier and returns None.
+
+        Phase 2 update: MatchingError (StarMapError subclass) is caught and re-raised;
+        caller is responsible for handling. This test verifies the new contract.
+        """
+        from app.exceptions import MatchingError
         mock_repo = AsyncMock()
-        mock_repo.get_position_profile = AsyncMock(side_effect=RuntimeError("connection error"))
-        result = await _match_service._load_target_profile(driver=None, target_position="某岗位", repo=mock_repo)
-        assert result is None
+        mock_repo.get_position_profile = AsyncMock(side_effect=MatchingError("connection error"))
+        with pytest.raises(MatchingError):
+            await _match_service._load_target_profile(driver=None, target_position="某岗位", repo=mock_repo)
 
 
 class TestLoadTargetProfileViaDriver:
@@ -517,10 +522,10 @@ class TestApplyInflationCorrection:
         assert cii > 1.2
 
     def test_empty_required(self):
-        """Empty required list returns cii=1.0."""
+        """Empty required list returns cii=0.0 (M13 fix: no explicit requirements → no quantifiable inflation)."""
         profile = {"required": [], "bonus": []}
         req, bon, cii = _match_service._apply_inflation_correction(profile)
-        assert cii == 1.0
+        assert cii == 0.0
 
 
 # ---------------------------------------------------------------------------

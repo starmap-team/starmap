@@ -20,6 +20,7 @@ from app.services.judge_service import (
     evaluate_pair_async,
     evaluate_sample_async,
 )
+from app.exceptions import JudgeError, StarMapError
 
 router = APIRouter(prefix="/judge")
 
@@ -126,9 +127,14 @@ async def evaluate_sample(req: JudgeRequest) -> Any:
     except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
         logger.error("LLM service error in judge: {}", e)
         raise HTTPException(status_code=502, detail="LLM service temporarily unavailable") from e
-    except Exception as e:
-        logger.exception("Evaluation failed: {}", e)
-        raise HTTPException(status_code=500, detail="Evaluation failed, please try again later") from e
+    except JudgeError as exc:
+        logger.exception("Judge operation failed: {}", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error in judge: {}", exc)
+        raise HTTPException(status_code=500, detail="评估处理异常") from exc
 
 
 @router.post("/pairwise", response_model=PairwiseResponse)
@@ -145,9 +151,14 @@ async def pairwise_compare(req: PairwiseRequest) -> Any:
             f1_b_vs_a=result.f1,
             errors=result.errors,
         )
-    except Exception as e:
-        logger.exception("Pairwise comparison failed: {}", e)
-        raise HTTPException(status_code=500, detail="Comparison failed, please try again later") from e
+    except JudgeError as exc:
+        logger.exception("Judge operation failed: {}", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error in judge: {}", exc)
+        raise HTTPException(status_code=500, detail="评估处理异常") from exc
 
 
 @router.post("/batch", response_model=BatchJudgeResponse)
@@ -176,6 +187,11 @@ async def batch_evaluate(req: BatchJudgeRequest) -> Any:
     except FileNotFoundError as e:
         logger.warning("File not found in batch judge: {}", e)
         raise HTTPException(status_code=404, detail="Requested evaluation file not found") from e
-    except Exception as e:
-        logger.exception("Batch evaluation failed: {}", e)
-        raise HTTPException(status_code=500, detail="Batch evaluation failed, please try again later") from e
+    except JudgeError as exc:
+        logger.exception("Judge operation failed: {}", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error in judge: {}", exc)
+        raise HTTPException(status_code=500, detail="评估处理异常") from exc

@@ -11,6 +11,8 @@ import threading
 
 from loguru import logger
 
+from app.exceptions import PipelineStageError, StarMapError
+
 BOOTSTRAP_DELAY_SECONDS = 30
 
 
