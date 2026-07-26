@@ -157,3 +157,163 @@ Phase 9 (验证)      → 依赖以上所有
 
 ---
 *Last updated: 2026-07-24 after codebase inspection and research*
+
+---
+
+# Roadmap: StarMap v5.0 — 12 模块联调审核开发
+
+**Defined:** 2026-07-25
+**Core Value:** 每个前端导航模块都可独立验证、前后端数据一致、无功能回归
+
+**背景:** v4.0 完成了全系统重构与质量加固，本里程碑对每个导航模块进行全链路联调验证。
+
+## Phase 1: 全景图谱模块 (Home)
+**Goal:** 对全景图谱模块进行全链路分析→设计→联调→闭环
+**Mode:** mvp
+**Success Criteria:**
+1. 前端源码缺陷分析完成（图谱渲染、搜索、交互逻辑）
+2. 后端 API 缺陷分析完成（graph/* 端点、数据查询性能）
+3. 用户优化点调研（图谱交互体验、搜索响应、加载性能）
+4. 需求优化方案设计（基于分析结果产出改进设计）
+5. 后端 API（/api/v1/graph/*）返回正确结构的数据
+6. 前端图谱渲染（2D/3D）正常，节点和边数据正确
+7. 搜索功能前后端联调通过
+8. 所有现有测试通过
+9. 业务闭环确认：图谱数据从 DB → API → 前端渲染 → 用户交互 全链路可追溯
+**Plans:** 1 plan
+
+## Phase 2: 岗位列表模块 (PositionList + PositionDetail)
+**Goal:** 验证岗位列表和详情页的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. 岗位列表 API 返回正确的分页数据
+2. 岗位详情页数据加载正常
+3. 技能图谱在岗位详情中正确渲染
+4. 所有现有测试通过
+**Plans:** 1 plan
+
+Plans:
+- [ ] 02-01-PLAN.md — 源码缺陷分析 + 优化设计 + 联调修复 + 测试增强
+
+## Phase 3: 数据流水线模块 (PipelineMonitor)
+**Goal:** 验证数据流水线监控页面的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. 流水线状态 API 返回正确的运行状态
+2. SSE 实时事件推送正常工作
+3. 流水线历史记录显示正常
+4. 所有现有测试通过
+**Plans:** 1 plan
+
+Plans:
+- [ ] 03-01-PLAN.md — 源码缺陷分析 + 优化设计 + 联调修复 + 测试增强
+
+**Requirements:** PIPE-MON-01, PIPE-MON-02, PIPE-MON-03
+
+## Phase 4: 数据源管理模块 (DataSources)
+**Goal:** 验证数据源管理页面的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. 数据源列表 API 返回正确数据
+2. 数据源刷新/同步功能正常
+3. 所有现有测试通过
+**Plans:** 1 plan
+
+## Phase 5: 匹配诊断模块 (MatchDiagnosis)
+**Goal:** 验证匹配诊断页面的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. 匹配 API 返回正确的匹配评分
+2. 技能对比可视化正常
+3. 差距分析数据显示正常
+4. 所有现有测试通过
+**Plans:** 1 plan
+
+## Phase 6: JD 抽取模块 (ExtractJD)
+**Goal:** 验证 JD 抽取页面的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. JD 提交 API 正常处理
+2. 抽取结果在前端正确展示
+3. 反幻觉检查在前端可见
+4. 所有现有测试通过
+**Plans:** 1 plan
+
+## Phase 7: 闭环演示模块 (LoopDemo)
+**Goal:** 验证闭环演示页面的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. 闭环演示流程完整走通
+2. 每个步骤的状态更新正确
+3. 所有现有测试通过
+**Plans:** 1 plan
+
+## Phase 8: 学习中心模块 (LearningCenter)
+**Goal:** 验证学习中心页面的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. 学习路径 API 返回正确数据
+2. 学习资源推荐显示正常
+3. 所有现有测试通过
+**Plans:** 1 plan
+
+## Phase 9: 数据大屏模块 (DataDashboard)
+**Goal:** 验证数据大屏页面的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. 大屏数据 API 返回正确统计数据
+2. 图表渲染正常
+3. 所有现有测试通过
+**Plans:** 1 plan
+
+## Phase 10: 演化看板模块 (EvolutionDashboard)
+**Goal:** 验证演化看板页面的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. 演化数据 API 返回正确趋势数据
+2. 演化趋势图渲染正常
+3. 所有现有测试通过
+**Plans:** 1 plan
+
+## Phase 11: 图谱质量模块 (QualityDashboard)
+**Goal:** 验证图谱质量页面的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. 质量数据 API 返回正确指标
+2. 质量评分和统计图表正常
+3. 所有现有测试通过
+**Plans:** 1 plan
+
+## Phase 12: 管理后台模块 (Admin + AuditLog + UserManagement)
+**Goal:** 验证管理后台的前后端联调
+**Mode:** mvp
+**Success Criteria:**
+1. 用户管理 API 正常
+2. 审计日志 API 返回正确数据
+3. 管理员权限控制正确
+4. 所有现有测试通过
+**Plans:** 1 plan
+
+## Dependency Graph
+
+```
+Wave 1 (数据组): Phase 1-4 — 独立，可并行或顺序执行
+Wave 2 (工具组): Phase 5-8 — 独立，可并行或顺序执行
+Wave 3 (洞察组): Phase 9-11 — 独立，可并行或顺序执行
+Wave 4 (系统组): Phase 12 — 独立执行
+```
+
+**并行执行策略:**
+- 每个 Wave 内的模块可并行执行
+- 各 Wave 之间无依赖，可全部并行
+- 建议按 Wave 顺序执行以减少上下文切换
+
+---
+
+**Coverage:**
+- Total phases: 12
+- Total requirements: 24 (12 modules × 2 requirements: 联调测试 + 代码审核)
+- All requirements mapped: ✓
+
+---
+*Last updated: 2026-07-25 after v5.0 milestone initialization*
