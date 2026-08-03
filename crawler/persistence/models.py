@@ -26,6 +26,7 @@ class Base(DeclarativeBase):
 
 class JdStatus(str, enum.Enum):
     raw = "raw"
+    cleaned = "cleaned"
     extracted = "extracted"
     duplicate = "duplicate"
     failed = "failed"
