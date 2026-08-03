@@ -107,6 +107,8 @@ vite_output.log
 *.tmp
 *.bak
 *~
+# filter-repo / filter-branch 重写残留
+.git-rewrite/
 
 # ---- 调试 / 诊断临时文件 ----
 _backend*.txt
@@ -130,6 +132,7 @@ _patch_*.py
 _expand_*.py
 backend/_*.py
 backend/_*.json
+backend/_*.txt
 tmp_*.py
 
 # ---- 根目录/backend 一次性测试脚本（正经测试在 tests/ 下）----
@@ -144,6 +147,7 @@ check_*.py
 .codegraph/
 .omc/
 .omo/
+.serena/
 graphify-out/
 screenshots/
 .zcode/
