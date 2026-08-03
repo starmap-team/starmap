@@ -154,6 +154,19 @@ screenshots/
 .zcode/
 .workbuddy/
 .planning/quick/
+# .planning 草稿/运行时区域（正式计划与阶段文档纳管，scratch 忽略）
+.planning/debug/
+.planning/explore/
+.planning/notes/
+.planning/research/
+.planning/todos/
+.planning/deep/
+.planning/codebase/
+.planning/onboarding/
+.planning/phase-*-backups/
+.planning/*.txt
+.planning/*.json
+backend/.planning/
 
 # ---- Playwright / E2E 测试产物 ----
 playwright-report/
