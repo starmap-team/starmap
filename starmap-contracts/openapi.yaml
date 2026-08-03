@@ -4707,6 +4707,10 @@ components:
       - status
       - created_at
       properties:
+        id:
+          type: string
+          nullable: true
+          title: Id
         skill_name:
           type: string
         position_name:
@@ -6192,3 +6196,267 @@ components:
           default: 0
       required:
       - source_name
+    QualityDetail:
+      title: QualityDetail
+      type: object
+      properties:
+        dimension:
+          type: string
+          title: Dimension
+        value:
+          type: number
+          title: Value
+        threshold:
+          type: number
+          title: Threshold
+        status:
+          type: string
+          enum: [green, yellow, orange, red]
+          title: Status
+      required:
+      - dimension
+      - value
+      - threshold
+      - status
+    AdminStats:
+      title: AdminStats
+      type: object
+      properties:
+        total_nodes:
+          type: integer
+          title: Total Nodes
+        total_edges:
+          type: integer
+          title: Total Edges
+        total_positions:
+          type: integer
+          title: Total Positions
+        total_skills:
+          type: integer
+          title: Total Skills
+        avg_confidence:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Avg Confidence
+        hallucination_rate:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Hallucination Rate
+        pending_review:
+          type: integer
+          title: Pending Review
+      required:
+      - total_nodes
+      - total_edges
+      - total_positions
+      - total_skills
+      - avg_confidence
+      - hallucination_rate
+      - pending_review
+    SourceList:
+      title: SourceList
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceConfig'
+          title: Items
+      required:
+      - items
+    AuditQueue:
+      title: AuditQueue
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditItem'
+          title: Items
+      required:
+      - items
+    ResetDemoResult:
+      title: ResetDemoResult
+      type: object
+      properties:
+        ok:
+          type: boolean
+          title: Ok
+        review_items:
+          type: integer
+          minimum: 0
+          title: Review Items
+      required:
+      - ok
+      - review_items
+    PaginatedPositions:
+      title: PaginatedPositions
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PositionNode'
+          title: Items
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          title: Page
+        page_size:
+          type: integer
+          title: Page Size
+      required:
+      - items
+      - total
+      - page
+      - page_size
+    DiscoverRequest:
+      title: DiscoverRequest
+      type: object
+      properties:
+        source:
+          type: string
+          nullable: true
+          title: Source
+        force:
+          type: boolean
+          default: false
+          title: Force
+      required:
+      - force
+    TaskResponse:
+      title: TaskResponse
+      type: object
+      properties:
+        message:
+          type: string
+          title: Message
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+      required:
+      - message
+      - task_id
+    EvolutionAnalyzeRequest:
+      title: EvolutionAnalyzeRequest
+      type: object
+      properties:
+        mode:
+          type: string
+          default: incremental
+          title: Mode
+        category:
+          type: string
+          nullable: true
+          title: Category
+      required:
+      - mode
+    EvaluateRequest:
+      title: EvaluateRequest
+      type: object
+      properties:
+        scope:
+          type: string
+          default: full
+          title: Scope
+        sample_ratio:
+          type: number
+          maximum: 1.0
+          minimum: 0.01
+          default: 1.0
+          title: Sample Ratio
+      required:
+      - scope
+    DomainKeywordEntry:
+      title: DomainKeywordEntry
+      type: object
+      properties:
+        name:
+          type: string
+          title: Name
+        keywords:
+          type: array
+          items:
+            type: string
+          title: Keywords
+      required:
+      - name
+      - keywords
+    SkillItem:
+      title: SkillItem
+      type: object
+      properties:
+        skill:
+          type: string
+          title: Skill
+        category:
+          type: string
+          title: Category
+        proficiency:
+          type: string
+          title: Proficiency
+      required:
+      - skill
+      - category
+      - proficiency
+    NormalizedSkill:
+      title: NormalizedSkill
+      type: object
+      properties:
+        original:
+          type: string
+          title: Original
+        normalized:
+          type: string
+          title: Normalized
+        method:
+          type: string
+          title: Method
+        confidence:
+          type: number
+          title: Confidence
+      required:
+      - original
+      - normalized
+      - method
+      - confidence
+    MatchOptions:
+      title: MatchOptions
+      type: object
+      properties:
+        threshold:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          default: 0.6
+          title: Threshold
+      required:
+      - threshold
+    SkillGapDetail:
+      title: SkillGapDetail
+      type: object
+      properties:
+        skill:
+          type: string
+          title: Skill
+        importance:
+          type: string
+          title: Importance
+        gap_level:
+          type: string
+          title: Gap Level
+        learning_path:
+          type: array
+          items:
+            type: string
+          title: Learning Path
+      required:
+      - skill
+      - importance
+      - gap_level
+      - learning_path
