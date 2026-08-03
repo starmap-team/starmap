@@ -1,4 +1,4 @@
-﻿"""Add match_results table for persisted match outcomes.
+"""Add match_results table for persisted match outcomes.
 
 Revision ID: 004
 Revises: 003
