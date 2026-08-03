@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from fastapi import status
 from fastapi.responses import JSONResponse
@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from app.schemas.common import ErrorResponse, FieldError
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """API 错误码枚举。
 
     统一蛇形大写命名，前端可根据 code 做粒度错误处理。

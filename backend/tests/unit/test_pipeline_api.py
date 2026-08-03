@@ -518,12 +518,15 @@ class TestResumeRun:
 
 
 class TestGetPipelineStages:
-    def test_stages_no_runs_returns_empty(self, client, db_override):
+    def test_stages_no_runs_returns_skeleton(self, client, db_override):
+        """QA B5: no run yet returns the 5-stage pending skeleton, not an empty list."""
         session = FakeAsyncSession([FakeResult(None)])
         db_override(session)
         resp = client.get("/api/v1/pipeline/stages")
         assert resp.status_code == 200
-        assert resp.json()["stages"] == []
+        stages = resp.json()["stages"]
+        assert [s["name"] for s in stages] == ["crawl", "extract", "standardize", "ingest", "audit"]
+        assert all(s["status"] == "pending" and s["skeleton"] for s in stages)
 
     def test_stages_with_run_returns_stages(self, client, db_override):
         run = FakePipelineRun(

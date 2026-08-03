@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, EmailStr, Field
 
 from app.services import auth_service

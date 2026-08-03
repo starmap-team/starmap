@@ -208,6 +208,8 @@ app.include_router(auth_router, prefix="/api/v1")
 
 
 # ── 统一错误处理：域异常 + 校验异常 → 结构化 ErrorResponse ──
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+
 from app.core.validation import (  # noqa: E402
     build_error_response,
 )
@@ -220,8 +222,6 @@ from app.exceptions import (  # noqa: E402
     RunNotFoundError,
     StarMapError,
 )
-from fastapi.exceptions import RequestValidationError  # noqa: E402
-
 
 # ── FastAPI 请求体验证异常 (422) → 统一 ErrorResponse + field-level errors ──
 # 必须在域异常之前注册，否则 FastAPI 默认 handler 会接管

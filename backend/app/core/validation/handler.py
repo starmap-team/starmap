@@ -81,7 +81,7 @@ def _error_type_to_user_message(error_type: str, raw_msg: str, field_path: str) 
     Returns:
         面向用户的中文消息
     """
-    _MAPPING: dict[str, str] = {
+    mapping: dict[str, str] = {
         "missing": f"「{field_path}」为必填字段",
         "string_too_short": raw_msg,  # Pydantic 已生成包含 min_length 的消息
         "string_too_long": raw_msg,
@@ -99,7 +99,7 @@ def _error_type_to_user_message(error_type: str, raw_msg: str, field_path: str) 
         "value_error.any_str.min_length": raw_msg,
         "value_error.any_str.max_length": raw_msg,
     }
-    return _MAPPING.get(error_type, raw_msg)
+    return mapping.get(error_type, raw_msg)
 
 
 # ── FastAPI 全局异常处理器 ──
