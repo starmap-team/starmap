@@ -147,6 +147,16 @@
 - [x] **CONFORM-04**: 无评估基线/无数据时，质量/统计指标须返回“未评估/无数据”语义（`baseline_available`+`explanation`+降级 `warning_level`），禁止红/失败态误导。*Quality 已修并验证（red→gray+解释）*
 - [x] **CONFORM-05**: 一致性审计中 LOW 级“口径/跨端不一致/契约歧义”默认升级为必修项，须在对应模块 plan 显式排期或以规范条款固化（本条款即政策落地）。*政策生效*
 
+### 实时中文数据采集与真实呈现（Phase 15 种子 — explore 2026-07-27）
+
+> 取证结论：当前 34/56 岗位为 `system:fixture`，仅一次性英文抓取(remotive/v2ex)，Boss/拉勾/ESCO=0 从未爬，`name_cn` 全空无翻译。设计文档预期中文源(BOSS/拉勾/猎聘)≥500 条且“批+定时”非流式。用户选定路径=**定时+按需 + 英文源翻译**。种子详情 `.planning/phases/15-realtime-cn-datasource/CONTEXT.md`。
+
+- [ ] **DATA-SRC-01**: 中文招聘爬虫可运行并产出数据 — Boss/拉勾/猎聘 至少 1 源端到端跑通（Apify/本地 spider + WAF 降级），`data_sources.total_records>0` 且 `last_crawl_at` 更新。
+- [ ] **DATA-SRC-02**: 调度+按需 — `pipeline_schedules` 支持 cron 定期 + 页面按需触发，crawl→extract→import→graph_sync 全链路自动。
+- [ ] **DATA-SRC-03**: 抽取实时入库 — 新爬 JD 经抽取自动产生 position/skill 并投影图谱，前端可见新增。
+- [ ] **DATA-SRC-04**: 前端真实呈现 — 列表/详情/数据源页可见 `source`/`last_crawl_at`/采集运行状态；空/旧数据诚实提示。
+- [ ] **I18N-01**: 英文源自主转中文 — 抽取时对英文 `title`/`industry` 生成 `name_cn`(LLM)，中文源直接映射；前端优先 `name_cn`，无中文打“英文原文”标签。
+
 ## Traceability
 
 | Requirement | Phase | Status |
@@ -186,11 +196,17 @@
 | CONFORM-03 | Phase 13 | Fixed (Position) |
 | CONFORM-04 | Phase 13 | Fixed (Quality) |
 | CONFORM-05 | Phase 13 | Active (policy) |
+| DATA-SRC-01 | Phase 15 | Pending (seed) |
+| DATA-SRC-02 | Phase 15 | Pending (seed) |
+| DATA-SRC-03 | Phase 15 | Pending (seed) |
+| DATA-SRC-04 | Phase 15 | Pending (seed) |
+| I18N-01 | Phase 15 | Pending (seed) |
 
 **Coverage:**
 - v1 requirements: 30 total
 - Mapped to phases: 30
 - Unmapped: 0 ✓
+- v5 追加需求（CONFORM-01..05 → Phase 13；DATA-SRC-01..04 + I18N-01 → Phase 15 种子）见上表。
 
 ---
 *Requirements defined: 2026-07-24*

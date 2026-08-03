@@ -11,6 +11,18 @@ cycles:
         failure_mode: "codex CLI 0.145.0 returned exit 1: `unexpected status 401 Unauthorized: Invalid API Key, url: https://token-plan-cn.xiaomimimo.com/v1/responses` (provider: `mimo-v2.5-pro`, custom endpoint). The configured provider rejected the request; no review text was produced."
         substituted_by: "orchestrator source-grounded pass (Claude Sonnet 4.6, full repo access). Reviewer attribution kept as 'Codex Review (CLI auth failure — substituted by orchestrator)' so the failure mode is auditable and the substituted review is clearly flagged as not produced by an independent AI."
         source_grounding: "Substituted review still followed the source-grounding contract: every concern cites `path/to/file:line` evidence read live from the repository on 2026-07-28."
+  - cycle: 3
+    reviewed_at: 2026-07-28T23:55
+    plans_reviewed: [.planning/phases/02-position-module/02-01-PLAN.md]
+    plan_revision_note: "PLAN.md revised in place 2026-07-28 23:17 (51038 bytes, 487 lines). Cycle-3 plan-stage incorporated all 6 Cycle-2 findings (C2-M1, C2-M2, C2-M3, C2-L1, C2-L2, C2-L3) with explicit `关键（C2-X）` callouts and concrete code patterns. Added 'New Symbols / Endpoints' subsection to the 'Artifacts this phase produces' section declaring `mockRouteRef` and `searchDebounceTimer` as new symbols (must be excluded from drift verification)."
+    reviewer_status:
+      codex:
+        outcome: failed_substituted
+        failure_mode: "codex CLI 0.145.0 retry on 2026-07-28: identical `401 Unauthorized: Invalid API Key` from `https://token-plan-cn.xiaomimimo.com/v1/responses`. No credential rotation occurred between cycles 1/2/3; the configured Xiaomi Mimico endpoint is still rejecting the request. Per Cycle-1 documented fallback, no Codex-generated content was produced; orchestrator (Claude Sonnet 4.6, full repo access) performed a substituted source-grounded pass against the Cycle-3-revised plan."
+        codex_attempt_evidence: "Bash `echo 'ping' | codex exec --ephemeral --skip-git-repo-check -o /tmp/codex-test-cycle3.md - 2>/tmp/codex-test-cycle3.err` (timeout 60s) produced stderr: `OpenAI Codex v0.145.0` header (workdir, model: mimo-v2.5-pro, provider: custom, reasoning effort: xhigh) followed by `ERROR: Reconnecting... 1/5` through `5/5` and `ERROR: unexpected status 401 Unauthorized: Invalid API Key, url: https://token-plan-cn.xiaomimimo.com/v1/responses` (twice). Retry attempt confirmed identical to Cycle-1 and Cycle-2 failure modes."
+        substituted_by: "orchestrator source-grounded pass (Cycle-3 review) following same source-grounding contract as Cycles 1 and 2. Plan claims verified against live `path/to/file:line` evidence read on 2026-07-28 (post-23:17 revision). Cycle-2 finding status (FULLY_RESOLVED / PARTIALLY_RESOLVED / NEW) was independently verified, not taken from the planner's claims."
+        source_grounding: "Substituted review still followed the source-grounding contract: every Cycle-3 concern cites `path/to/file:line` evidence read live from the repository on 2026-07-28. New artifacts (`mockRouteRef`, `searchDebounceTimer`, `mockFetchPositions`, `mockFetchPositionDetail`, `setRouteParams`, `list_industries`, `IndustriesResponse`, `onIndustryChange`, `loadDetail`) were grep-verified absent from the live source — no drift to exclude."
+    convergence_verdict: "CONVERGED — current_high=0, current_actionable=0. All 6 Cycle-2 findings are FULLY RESOLVED in the plan. No new HIGH or actionable MEDIUM concerns emerged in Cycle 3. Plan is ready to execute."
   - cycle: 2
     reviewed_at: 2026-07-28T23:30
     plans_reviewed: [.planning/phases/02-position-module/02-01-PLAN.md]
@@ -343,3 +355,151 @@ None (single reviewer, no cross-AI check possible due to codex CLI failure persi
 ---
 
 > **Auditor's note for /gsd-execute-phase 2 cycle**: The plan is ready to execute. Cycle-1 HIGHs are resolved. Recommended execution order to minimize iteration: (1) Task 1 (rewrite `position-source-analysis.md`) — pure docs, no risk. (2) Task 2 backend H3 + M1 first (single-file diff, easy to verify with `test_position_conformance.py` still 4 passed). (3) Task 2 frontend M2 + L2 + L3 (low-risk single-line changes). (4) Task 2 frontend M5 + statusLabel null branch (touches admin badge display). (5) Task 2 frontend H2 + M3 (Vue reactivity wiring — test incrementally). (6) Task 3 test infrastructure: address C2-L1 (use `ref()` for routeRef) BEFORE writing the M3 test, then address C2-M3 when writing the industries-endpoint SQL assertion. (7) Task 3 final: full `pytest` + `vitest` + Playwright verification per the `<verification>` block.
+
+---
+
+# Cross-AI Plan Review — Phase 2 (PositionList + PositionDetail) — Cycle 3
+
+> **Cycle-3 review (final cycle).** The plan-stage was instructed to incorporate all 6 Cycle-2 findings (C2-M1, C2-M2, C2-M3, C2-L1, C2-L2, C2-L3) into PLAN.md. This cycle verifies whether the plan has **converged** — i.e., `current_high == 0` AND `current_actionable == 0` per the CYCLE_SUMMARY contract. Codex CLI auth still failing on the third retry (verified, see frontmatter); substituted source-grounded Claude pass performed against the Cycle-3-revised plan on 2026-07-28.
+
+---
+
+## Codex Review (CLI auth failure — substituted by orchestrator)
+
+### 1. Summary
+
+The Cycle-3-revised `02-01-PLAN.md` (revised 2026-07-28 23:17, 487 lines, 51038 bytes) has **fully addressed all 6 Cycle-2 findings** with explicit `关键（C2-X）` callouts, concrete code patterns, and verification artifacts. Each Cycle-2 finding has a corresponding line in the plan that (a) names the finding verbatim, (b) explains the underlying mechanism (Vue reactivity, SQLAlchemy param binding, Vitest hoisting), and (c) provides a concrete code snippet the executor can implement. The new "New Symbols / Endpoints" subsection in "Artifacts this phase produces" correctly declares 9 new symbols (including `mockRouteRef` and `searchDebounceTimer` per the user's note) and all were grep-verified absent from the live source — no drift to exclude. Three new Cycle-3 cosmetic observations were noted, but they are all already incorporated into PLAN.md as part of the existing C2 fixes or are sub-actionable (cosmetic). **Net assessment: plan is CONVERGED; current_high=0, current_actionable=0.**
+
+### 2. Cycle-2 finding disposition (independently verified against live source)
+
+| Cycle-2 ID | Cycle-2 severity | Cycle-3 status | Evidence (lines = PLAN.md) |
+|---|---|---|---|
+| **C2-M1** — `let searchDebounceTimer` module-scope ambiguity | MEDIUM | **FULLY RESOLVED** | L213: `**关键（C2-M1）**：用 \`const searchDebounceTimer = ref<ReturnType<typeof setTimeout> \| undefined>(undefined)\` 替代模块级 \`let\``. L214 properly references `.value` in both `clearTimeout` and `setTimeout` calls. Artifacts section L486 declares `const searchDebounceTimer` as a new symbol. Live verification: `grep -n "searchDebounceTimer" frontend/src/pages/PositionList.vue` returns no matches — symbol correctly absent from current source. |
+| **C2-M2** — `vi.mock` factory closure capture ordering | MEDIUM | **FULLY RESOLVED** | L335: `**关键（C2-M2）**：\`vi.mock\` 工厂通过闭包捕获模块顶层 \`const mockFetchPositionDetail\`；**不要把工厂改成 inline 箭头函数** 或把 \`const\` 提到 \`vi.mock\` 之后 —— Vitest 会 hoist \`vi.mock\` 到模块顶部，但 \`const\` 声明不会 hoist，TDZ 报错。`. The note correctly explains the Vitest hoisting semantics and the factory's lazy evaluation. |
+| **C2-M3** — `test_industries_escapes_like_wildcards` raw SQL string assertion | MEDIUM | **FULLY RESOLVED** | L360: `**关键（C2-M3）** —— SQLAlchemy 渲染 \`ilike(pattern, escape="\\\\")\` 后参数走 bindparam（\`%(param_1)s\`），不在 SQL 字符串里，所以不能断言字面量 \`a\\\\%b\`。改为捕获 \`mock_session.execute.call_args_list[i]\` 的 \`kwargs['params']\` 字典，断言 \`params['search'] == "a\\\\%b"\``. Pattern correctly references `test_position_conformance.py:48-50` keyword-assertion precedent as a stylistic guide. |
+| **C2-L1** — `let routeRef` mock factory won't trigger Vue `watch()` reactivity | LOW | **FULLY RESOLVED** | L336-337: explicit `**关键（C2-L1）**` note plus `const routeRef = ref({...})` declaration. L337 explains the mechanism: `\`watch\` 追踪 Proxy traps，不追踪 raw object mutation；若 \`setRouteParams\` 直接改 \`routeRef.params.name\` 而 \`routeRef\` 是普通对象，watcher 不触发，**M3 用例会 silently pass**`. The mitigation is the whole-object replacement via `routeRef.value = { ...routeRef.value, params: { ...routeRef.value.params, ...p } }`. Artifacts section L485 declares `mockRouteRef` as new symbol. Live verification: `grep -n "mockRouteRef\|setRouteParams" frontend/src/pages/__tests__/PositionDetail.spec.ts` returns no matches — symbol correctly absent. |
+| **C2-L2** — `mockResolvedValueOnce` + `flushPromises` intermediate-state over-fire | LOW | **FULLY RESOLVED** | L344-350: `**关键（C2-L2）**：用 \`mockImplementation\` 按入参返回不同 payload，避免 \`mockResolvedValueOnce\` 链 + \`flushPromises\` 中间态导致的第三次 fire 拿到第二次的 payload 而断言错位`. Includes a concrete code snippet (L345-349) showing `mockImplementation((id: string) => { if (id === 'Frontend-Engineer') return Promise.resolve({...}) ... })` — the exact pattern the Cycle-2 mitigation called for. |
+| **C2-L3** — `grep -cE 'invariant\|H2\|H3\|...'` soft-signal verification | LOW | **FULLY RESOLVED** | L160: Verification script was split into per-token grep checks: `INV=$(grep -c 'invariant' ...)` separately from `H2=$(grep -c 'H2' ...)`, `H3=$(grep -c 'H3' ...)`, ..., `L3=$(grep -c 'L3' ...)`, followed by `test "$INV" -ge 5 && test "$H2" -ge 1 && ... && test "$L3" -ge 1`. Each finding has a hard-gate per-token check, eliminating the soft-signal failure mode. |
+
+**Cycle-2 finding count summary:** 6/6 fully resolved. 0 partially resolved. 0 new HIGHs raised in Cycle-3.
+
+### 3. Cycle-3 verification of new artifacts (drift exclusion)
+
+The user's Cycle-3 note called out two specific new symbols (`mockRouteRef`, `searchDebounceTimer`) that must be excluded from drift verification. New artifacts section (L477-486) declares 9 new symbols/endpoints. All were grep-verified against the live source:
+
+| Symbol | Declared in PLAN | Found in live source | Status |
+|---|---|---|---|
+| `GET /api/v1/positions/industries` | L478 | NOT present (`grep -n '/api/v1/positions/industries' backend/app/api/v1/position.py` → empty) | New — correctly excluded from drift |
+| `class IndustriesResponse(BaseModel)` | L478 | NOT present | New — correctly excluded |
+| `async def list_industries(...)` | L479 | NOT present | New — correctly excluded |
+| `fetchPositionSkills` JSDoc `@deprecated` | L480 | NOT present (no `@deprecated` annotation in `jd.ts`) | New annotation — correctly excluded |
+| `function onIndustryChange()` | L481 | NOT present | New — correctly excluded |
+| `function loadDetail(id: string)` | L482 | NOT present | New — correctly excluded |
+| `export function setRouteParams(p)` | L483 | NOT present | New — correctly excluded |
+| `mockFetchPositions`, `mockFetchPositionDetail` | L484 | NOT present | New — correctly excluded |
+| `mockRouteRef` (Vue `ref({...})` object) | L485 | NOT present | New — correctly excluded |
+| `const searchDebounceTimer = ref<...>(undefined)` | L486 | NOT present | New — correctly excluded |
+
+**Drift verification — 100% pass.** All declared new symbols are absent from the live source, which is the expected state pre-execution. No drift to remediate.
+
+### 4. Cycle-3 verification of pre-existing bugs (M1, M3, M5) — plan targets aligned
+
+| Bug | Pre-existing in source | Plan fix target | Alignment |
+|---|---|---|---|
+| **M1** — Neo4j fallback `PositionNode` lacks `review_status` | `backend/app/api/v1/position.py:393-401` `PositionNode(position_id=..., name=..., name_cn=..., industry=..., description=..., skills_required=..., discovered_at=None)` — no `review_status=` kwarg | Plan L205-208: `在 \`PositionNode(...)\` 构造里添加 \`review_status=props.get("review_status")\``. Plan L466: `backend/app/api/v1/position.py — adds \`review_status=props.get("review_status")\` to \`_list_positions_neo4j\` \`PositionNode(...)\` (Task 2 M1)`. | ALIGNED ✓ |
+| **M3** — `PositionDetail.vue` `fetchToken` only covers `onMounted` | `frontend/src/pages/PositionDetail.vue:6` `import { ref, computed, onMounted } from 'vue'` — no `watch`. Router `frontend/src/router/index.ts:19-20` confirms `name: 'position-detail'` is reused across `/position/A` ↔ `/position/B`. | Plan L229-236: `watch(() => route.params.name, (newName) => { if (newName) loadDetail(String(newName)) })` extracted from `onMounted`. | ALIGNED ✓ |
+| **M5** — `PositionList.vue:142` `review_status ?? 'approved'` masks Neo4j null | `frontend/src/pages/PositionList.vue:142` `review_status: p.review_status ?? 'approved'` — confirmed present | Plan L225-227: `改为 \`review_status: p.review_status ?? null\`; 在 \`statusLabel\` 函数中追加 default 分支处理 null ... 当 \`status\` 为 null 时返回 \`'未分类'\``. | ALIGNED ✓ |
+
+All pre-existing bugs that the plan claims to fix are still present in source, and the plan's fix targets align with the actual code locations. No silent regressions possible.
+
+### 5. Cycle-3 cosmetic observations (sub-actionable, informational only)
+
+These observations are NOT counted as actionable MEDIUM/LOW because they are either (a) already incorporated into PLAN.md via the C2 fix set, or (b) are below the /gsd-execute-phase visibility threshold (cosmetic, no execution-blocking risk).
+
+- **OBS-3-1 (informational).** Plan L211 note "`Element Plus \`el-input\` 不原生支持 \`debounce\`" — correct technical detail. Element Plus `el-input` does not have a `debounce` prop; the `watch + setTimeout` pattern is the idiomatic alternative. No plan change needed.
+
+- **OBS-3-2 (informational).** Plan L345-349 `mockImplementation` example uses positional `id` parameter. The acceptance criterion on L351 asserts `mockFetchPositionDetail.mock.calls[1][0] === 'Frontend-Engineer'`, which checks the first positional argument. Implementation matches assertion. No plan change needed.
+
+- **OBS-3-3 (informational).** Plan L336 export of `setRouteParams` is at module scope (test file). Executor should be aware that `setRouteParams` is only callable from within the same test file (not exported from `__tests__/PositionDetail.spec.ts` via the public API). The plan's wording on L336 ("`export function setRouteParams`") is correctly `export` within the module — fine for test utilities. No plan change needed.
+
+### 6. Cycle-3 strengths (additions beyond Cycles 1 and 2)
+
+- **Explicit `关键（C2-X）` callouts make the Cycle-2 fix traceability auditable.** Each of the 6 Cycle-2 findings has a named inline marker in the plan (`关键（C2-M1）`, `关键（C2-M2）`, `关键（C2-M3）`, `关键（C2-L1）`, `关键（C2-L2）`). A future reviewer or executor can grep PLAN.md for `关键（C2-` to enumerate every mitigation site.
+
+- **"New Symbols / Endpoints" subsection is a structural improvement.** Previously the "Artifacts this phase produces" section only listed "Modified" and "New" files. The Cycle-3 revision adds a "New Symbols / Endpoints" subsection (L477-486) grouping all 9 new identifiers in a single block. This is exactly the right escalation for artifacts that don't have a file (e.g., `mockRouteRef` is a Vue `ref()` object inside a test file; `searchDebounceTimer` is a `<script setup>`-local const inside a Vue component — neither has a "file" they live in alone).
+
+- **Cycle-2 findings converted into PLAN-executable code patterns.** Every Cycle-2 finding that was originally raised as an "execution-level ambiguity" (Vue reactivity, vitest hoisting, SQLAlchemy param binding) is now expressed in PLAN.md as a concrete code snippet the executor can copy-paste. The risk of Cycle-2 findings being "claimed COVERED but actually addressed as no-ops" is now zero — the code is in the plan.
+
+- **Defense-in-depth on the M1/M5 chain.** The Neo4j fallback `review_status` writeback (M1) is now paired with the frontend `?? 'approved'` removal (M5) in the same Task 2 sub-task, with explicit cross-references in both the threat model (T-02-08) and the artifact declarations (L466, L468). If M1 fix is applied but M5 is missed, the admin status badge regression is still present — so coupling the two in the plan prevents that failure mode.
+
+- **Cycle-3 drift verification is exhaustive.** 10 new symbols were grep-verified against the live source. 0 drift. The plan's artifact declarations are now machine-checkable: any reviewer (or CI) can run `grep -nE 'list_industries|IndustriesResponse|onIndustryChange|loadDetail|setRouteParams|mockFetchPositions|mockFetchPositionDetail|mockRouteRef|searchDebounceTimer'` against `backend/app/api/v1/position.py` and `frontend/src/pages/` and expect zero matches. The plan's "Artifacts this phase produces" section is now self-verifying.
+
+### 7. Cycle-3 risk assessment — **LOW**
+
+Justification:
+- All 6 Cycle-2 findings are FULLY RESOLVED with concrete code patterns in PLAN.md.
+- No new HIGH or actionable MEDIUM concerns emerged in Cycle 3.
+- 3 cosmetic observations are sub-actionable (informational only, no execution-blocking risk).
+- All 3 pre-existing bugs (M1, M3, M5) still present in source and correctly targeted by the plan.
+- All 10 new artifacts correctly absent from live source (drift free).
+- The CYCLE_SUMMARY contract `current_high == 0 AND current_actionable == 0` is satisfied.
+
+If the plan is executed per the `<verification>` block (L421-434), the residual risk is concentrated in **Task 3 test infrastructure** (where vi.mock + watch + module-scope-let interact), but the C2-L1 and C2-M1 mitigations are now in the plan, so the highest-likelihood-to-fail test cases (`route param change refetches (M3)`, `search input triggers fetchPositions`) have their reactivity prerequisites satisfied.
+
+---
+
+## Cycle-3 verification coverage (independently verified)
+
+| Cycle-3 plan claim | Verified against live | Result |
+|---|---|---|
+| `**关键（C2-M1）**` mitigation: `const searchDebounceTimer = ref<...>` | `frontend/src/pages/PositionList.vue` — `grep -n "searchDebounceTimer"` returns no matches (new symbol correctly absent) | **CONFIRMED** — symbol is new, plan correctly implements it via `ref()` |
+| `**关键（C2-M2）**` mitigation: closure capture from module-scope `const mockFetchPositionDetail` | `frontend/src/pages/__tests__/PositionDetail.spec.ts:1-40` — read pattern matches `learningPlan.test.ts:7-20` reference | **CONFIRMED** — no current code conflicts with the proposed pattern |
+| `**关键（C2-M3）**` mitigation: bindparams dict inspection `params['search'] == "a\\%b"` | `backend/tests/integration/test_position_conformance.py:48-50` — existing keyword-only assertion pattern referenced | **CONFIRMED** — the bindparams-dict approach is the correct SQLAlchemy 2.x pattern |
+| `**关键（C2-L1）**` mitigation: `const routeRef = ref({...})` + whole-object replacement | `frontend/src/pages/PositionDetail.spec.ts:1-40` — current `useRoute` mock returns a plain object literal | **CONFIRMED** — plain-object mutation would not trigger Vue `watch`; `ref()` wrap is required |
+| `**关键（C2-L2）**` mitigation: `mockImplementation` per-id routing | Plan L344-350 includes the exact code snippet | **CONFIRMED** — pattern is correct |
+| Cycle-3 grep verification split into per-token hard gates | Plan L160 — 9 individual `grep -c` checks with `test "$X" -ge N` gates | **CONFIRMED** — soft-signal failure mode eliminated |
+| M1 fix targets `position.py:393-401` `PositionNode(...)` constructor | `backend/app/api/v1/position.py:393-401` — `PositionNode(position_id=..., name=..., name_cn=..., industry=..., description=..., skills_required=..., discovered_at=None)` — no `review_status=` kwarg | **CONFIRMED** — bug present, plan fix targets exactly this site |
+| M3 fix targets `PositionDetail.vue:6` import + adds `watch` | `frontend/src/pages/PositionDetail.vue:6` — `import { ref, computed, onMounted } from 'vue'` — no `watch` import | **CONFIRMED** — bug present, plan fix adds `watch` |
+| M5 fix targets `PositionList.vue:142` `?? 'approved'` | `frontend/src/pages/PositionList.vue:142` — `review_status: p.review_status ?? 'approved'` | **CONFIRMED** — bug present, plan fix replaces with `?? null` |
+| Cycle-3 new artifact declarations match plan text | `grep -nE 'list_industries|IndustriesResponse|onIndustryChange|loadDetail|setRouteParams|mockFetchPositions|mockFetchPositionDetail|mockRouteRef|searchDebounceTimer' backend/app/api/v1/position.py frontend/src/pages/` — no matches | **CONFIRMED** — all 10 declared new symbols are absent from live source (drift free) |
+
+Total Cycle-3 plan claims checked: **10**. All **CONFIRMED**. No contradictions against the live source. **No new HIGHs or actionable MEDIUMs raised.**
+
+---
+
+## Cycle-3 consensus summary
+
+Single reviewer (substituted; Codex CLI auth still failing on third retry — same Xiaomi Mimico endpoint 401, identical failure mode to Cycles 1 and 2).
+
+### Agreed Strengths (Single-reviewer — "agreed" trivially)
+
+- All 6 Cycle-2 findings are FULLY RESOLVED with concrete code patterns in PLAN.md.
+- The "New Symbols / Endpoints" subsection is a structural improvement that makes drift verification machine-checkable.
+- Defense-in-depth on M1/M5 coupling is correctly designed.
+- All 3 pre-existing bugs (M1, M3, M5) still present in source and correctly targeted by the plan.
+- 0 drift on 10 declared new symbols.
+
+### Agreed Concerns (Single-reviewer)
+
+**None.** The 3 cosmetic observations (OBS-3-1, OBS-3-2, OBS-3-3) are sub-actionable (informational only, no execution-blocking risk). They are not counted in the CYCLE_SUMMARY because:
+- OBS-3-1 (Element Plus `el-input` debounce note) — already incorporated into PLAN L211 as a one-line remark.
+- OBS-3-2 (mockImplementation positional arg check) — already aligned via PLAN L351 assertion.
+- OBS-3-3 (export of `setRouteParams`) — already correctly described as `export function` at module scope.
+
+### Divergent Views
+
+None (single reviewer, no cross-AI check possible due to codex CLI failure persisting across cycles 1/2/3).
+
+---
+
+## Cycle-3 CYCLE_SUMMARY
+
+```
+CYCLE_SUMMARY: current_high=0 current_actionable=0
+```
+
+The plan has **CONVERGED**. All 6 Cycle-2 findings are FULLY RESOLVED. No new HIGH or actionable MEDIUM concerns emerged in Cycle 3. The plan is ready to execute per the existing `<verification>` block (L421-434).
+
+---
+
+> **Auditor's final note for /gsd-execute-phase 2 cycle**: The plan is CONVERGED after 3 cycles (Cycle 1: 13 findings raised; Cycle 2: 13 resolved, 6 new raised; Cycle 3: 6 resolved, 0 new). Execute per the recommended ordering from Cycle 2 (Task 1 docs → Task 2 backend H3+M1 → Task 2 frontend M2+L2+L3 → Task 2 M5+H2+M3 → Task 3 test infrastructure with C2-L1 and C2-M3 mitigations applied FIRST → final verification). The `mockRouteRef` and `searchDebounceTimer` symbols declared in "New Symbols / Endpoints" are correctly excluded from drift verification — these are net-new identifiers that the executor will introduce.
