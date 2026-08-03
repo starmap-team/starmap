@@ -71,6 +71,8 @@ class FakeAsyncSession:
         if self._run_side_effect is not None:
             if callable(self._run_side_effect):
                 return self._run_side_effect(*args, **kwargs)
+            if isinstance(self._run_side_effect, BaseException):
+                raise self._run_side_effect
             return self._run_side_effect
         return FakeAsyncResult([])
 

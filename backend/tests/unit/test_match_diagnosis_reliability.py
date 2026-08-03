@@ -285,7 +285,14 @@ class TestRunMatchIntegration:
         """岗位画像不存在时应抛 PositionNotFoundError（B05 相关：明确错误而非静默）。"""
         from app.exceptions import PositionNotFoundError
 
+        # 模拟 Neo4j 查询成功但查无此岗位:_position_exists 内 `.single()` 返回 None → 判定不存在。
+        # 裸 MagicMock 会让 `.single()` 返回非 None 的假对象,误判岗位存在,故显式置 None。
+        neo_session = AsyncMock()
+        neo_session.run.return_value.single.return_value = None
+        neo_cm = AsyncMock()
+        neo_cm.__aenter__.return_value = neo_session
         driver = MagicMock()
+        driver.session.return_value = neo_cm
         with patch.object(matching_service, "fetch_position_graph", new=AsyncMock(return_value={"position": None, "skills": [], "edges": []})):
             with pytest.raises(PositionNotFoundError):
                 await run_match(

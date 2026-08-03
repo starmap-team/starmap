@@ -90,14 +90,14 @@ class TestStep1ValidateInput:
         assert result.status == StepStatus.FAILED
         assert result.error == "JD text is empty"
 
-    def test_empty_target_position_is_allowed(self):
-        """target_position is optional (LOOP-09): Step 2 infers it from the JD."""
+    def test_empty_target_position_is_optional(self):
+        # QA B1: target_position 按 OpenAPI 契约可选,空值不拒绝(Step 2 从 JD 推断岗位)。
         result = self.orch._step1_validate_input("Python developer", "")
         assert result.status == StepStatus.SUCCESS
         assert result.data["target_position"] == ""
 
-    def test_whitespace_target_position_is_allowed(self):
-        """Whitespace-only target_position is treated as omitted (LOOP-09)."""
+    def test_whitespace_target_position_is_optional(self):
+        # QA B1: 空白 target_position 等同省略,strip 后为空,不拒绝。
         result = self.orch._step1_validate_input("Python developer", "  ")
         assert result.status == StepStatus.SUCCESS
         assert result.data["target_position"] == ""

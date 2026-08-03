@@ -273,8 +273,9 @@ class TestGetGraphOverview:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["total_positions"] == 3
-        assert data["total_skills"] == 5
+        # M6（Phase 13 强制规范）：total_* 用全局去重计数(= independent_*),禁止按 KA 累加致重复计数。
+        assert data["total_positions"] == 10
+        assert data["total_skills"] == 20
         assert data["independent_positions"] == 10
         assert data["independent_skills"] == 20
         assert data["independent_edges"] == 15

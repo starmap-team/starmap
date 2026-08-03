@@ -87,6 +87,7 @@ async def test_quality_dashboard_builder_aggregates_metrics():
             (3,),              # 18. weekly_new_positions
             (8,),              # 19. approved_count
             [],                # 20. low_trust records (audit_queue — now a list)
+            (5,),              # 21. evaluation_count (Phase 13 baseline_available;>0 → 基线可用)
         ]
     )
 
@@ -112,7 +113,7 @@ def test_quality_dashboard_endpoint_contract(client):
     app.dependency_overrides[get_current_user] = _override_current_user
 
     async def override_session():
-        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0.0,), (0,), (0,), (0,), (0,), (0,), (0,), [], [], (0,), (0,), (0,), []])
+        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0.0,), (0,), (0,), (0,), (0,), (0,), (0,), [], [], (0,), (0,), (0,), [], (0,)])
 
     app.dependency_overrides[get_db_session] = override_session
     try:

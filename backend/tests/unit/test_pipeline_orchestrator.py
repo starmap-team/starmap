@@ -57,9 +57,13 @@ class TestConstants:
         assert StageName.GRAPH_SYNC.value in OPTIONAL_STAGES
 
     def test_stage_deps(self):
+        # Phase 3 Plan 02 Task 2: serial DAG (clean 依赖 dedup, import 依赖 clean,
+        # 链式传递保证 import 间接依赖 dedup；不再并行)
         assert STAGE_DEPS["crawl"] == []
         assert STAGE_DEPS["dedup"] == ["crawl"]
-        assert STAGE_DEPS["import"] == ["dedup", "clean"]
+        assert STAGE_DEPS["clean"] == ["dedup"]
+        assert STAGE_DEPS["import"] == ["clean"]
+        assert STAGE_DEPS["graph_sync"] == ["import"]
 
 
 class TestBuildInitialStages:
@@ -103,14 +107,15 @@ class TestGetReadyStages:
         ready = get_ready_stages(stages)
         assert ready == ["crawl"]
 
-    def test_crawl_completed_returns_dedup_and_clean(self):
+    def test_crawl_completed_returns_only_dedup(self):
+        # Phase 3 Plan 02 Task 2: clean 现在依赖 dedup，必须 dedup 完成才能 ready
         stages = _build_initial_stages()
         for s in stages:
             if s["name"] == "crawl":
                 s["status"] = StageStatus.COMPLETED.value
         ready = get_ready_stages(stages)
         assert "dedup" in ready
-        assert "clean" in ready
+        assert "clean" not in ready  # 等 dedup 完成才 ready
         assert "import" not in ready
         assert "graph_sync" not in ready
 
