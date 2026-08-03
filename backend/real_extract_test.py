@@ -7,6 +7,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+
 sys.path.insert(0, '.')
 for k, v in {
     'APP_ENV': 'development',
@@ -25,10 +26,11 @@ try:
 except Exception:
     pass
 
-from sqlalchemy import select, func
-from app.db.session import get_session_factory
-from app.models.extraction_models import RawJDRecord, JDExtractionRecord
+from sqlalchemy import func, select
+
 from app.core.extraction.jd_extract import extract_from_jd
+from app.db.session import get_session_factory
+from app.models.extraction_models import JDExtractionRecord, RawJDRecord
 
 
 async def main():

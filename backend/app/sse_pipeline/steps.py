@@ -12,11 +12,11 @@ from loguru import logger
 
 from app.config import settings
 from app.core.extraction.jd_extract import extract_from_jd
-from app.sse_pipeline.contracts import ExtractedSkill, PipelineContext
 from app.repositories.position_repository import PositionRepository
 from app.services.match_service import run_match
 from app.services.recommendation_service import PositionRecommender
 from app.services.resume_service import extract_resume_text
+from app.sse_pipeline.contracts import ExtractedSkill, PipelineContext
 
 
 class ResumeParseStep:

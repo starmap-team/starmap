@@ -19,8 +19,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -261,6 +262,7 @@ class GraphProjector:
 
         try:
             from sqlalchemy import select  # local import to keep module lean
+
             from app.models.extraction_models import PositionRecord, SkillRecord
 
             # 1. Snapshot Neo4j IDs by label

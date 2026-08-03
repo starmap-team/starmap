@@ -5,8 +5,14 @@
 4. Run orchestrator
 5. Verify evolution API endpoints return data
 """
-import asyncio, os, sys, time, json, hashlib
+import asyncio
+import hashlib
+import json
+import os
+import sys
+import time
 from pathlib import Path
+
 sys.path.insert(0, '.')
 for k, v in {
     'APP_ENV': 'development', 'POSTGRES_HOST': 'localhost',
@@ -28,15 +34,13 @@ try:
 except Exception:
     pass
 
-from sqlalchemy import select, func
-from app.db.session import get_session_factory
-from app.models.extraction_models import RawJDRecord, JDExtractionRecord
-from app.models.evolution_models import (
-    EvolutionSnapshot, EvolutionChangelog, EvolutionPath, SkillTimeseries,
-)
-from app.core.extraction.jd_extract import extract_from_jd
-from app.core.evolution.orchestrator import run_evolution_pipeline
 from crawler.spiders.v2ex_remote import run_sync as v2ex_run
+from sqlalchemy import func, select
+
+from app.core.evolution.orchestrator import run_evolution_pipeline
+from app.core.extraction.jd_extract import extract_from_jd
+from app.db.session import get_session_factory
+from app.models.extraction_models import JDExtractionRecord, RawJDRecord
 
 
 async def main():
@@ -58,7 +62,7 @@ async def main():
     print("\n" + "=" * 70)
     print("STEP 2: persist to raw_jd_records (live v2ex data)")
     print("=" * 70)
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
     async with sf() as s:
         n_pre_raw = (await s.execute(select(func.count(RawJDRecord.id)))).scalar() or 0
         print(f"  pre-count: {n_pre_raw}")
@@ -131,7 +135,7 @@ async def main():
                         ))
                         await s2.commit()
                         n_real_extractions += 1
-                        print(f"    PERSISTED -> JDExtractionRecord")
+                        print("    PERSISTED -> JDExtractionRecord")
         except Exception as e:
             print(f"    FAIL: {type(e).__name__}: {e}")
 

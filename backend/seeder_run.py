@@ -1,16 +1,23 @@
 """Densify fixture JDExtractionRecords + run orchestrator, print summary."""
-import asyncio, sys, json, os
-from datetime import datetime, UTC, timedelta
+import asyncio
+import os
+import sys
+from datetime import UTC, datetime, timedelta
+
 sys.path.insert(0, '.')
 os.environ.setdefault('APP_ENV', 'development')
 
-from app.db.session import get_session_factory
-from app.models.extraction_models import JDExtractionRecord
-from app.models.evolution_models import (
-    EvolutionSnapshot, EvolutionChangelog, EvolutionPath, SkillTimeseries,
-)
+from sqlalchemy import func, select
+
 from app.core.evolution.orchestrator import run_evolution_pipeline
-from sqlalchemy import select, func
+from app.db.session import get_session_factory
+from app.models.evolution_models import (
+    EvolutionChangelog,
+    EvolutionPath,
+    EvolutionSnapshot,
+    SkillTimeseries,
+)
+from app.models.extraction_models import JDExtractionRecord
 
 
 async def main():

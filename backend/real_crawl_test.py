@@ -7,11 +7,10 @@
 """
 import asyncio
 import os
-import sys
 import socket
+import sys
 import time
-from urllib.error import URLError
-import http.client
+
 sys.path.insert(0, '.')
 os.environ.setdefault('APP_ENV', 'development')
 
@@ -24,26 +23,27 @@ def check_internet():
     try:
         socket.create_connection(("www.v2ex.com", 443), timeout=5)
         return True
-    except (socket.timeout, OSError, ConnectionRefusedError) as e:
+    except (TimeoutError, OSError, ConnectionRefusedError) as e:
         return e
 
 
 async def main():
-    print(f"=== Internet reachability probe ===")
+    print("=== Internet reachability probe ===")
     reach = check_internet()
     print(f"v2ex.com reachable: {reach}")
 
-    print(f"\n=== Clear raw_jd_records (isolated clean-slate) ===")
+    print("\n=== Clear raw_jd_records (isolated clean-slate) ===")
+    from sqlalchemy import delete
+
     from app.db.session import get_session_factory
     from app.models.extraction_models import RawJDRecord
-    from sqlalchemy import delete
     sf = get_session_factory()
     async with sf() as s:
         async with s.begin():
             dres = await s.execute(delete(RawJDRecord))
             print(f"deleted {dres.rowcount} raw_jd_records rows")
 
-    print(f"\n=== Direct spider call: run_sync(keyword='python', max_count=5) ===")
+    print("\n=== Direct spider call: run_sync(keyword='python', max_count=5) ===")
     t0 = time.monotonic()
     items = v2ex_run(keyword="python", max_count=5)
     elapsed = time.monotonic() - t0
@@ -53,7 +53,7 @@ async def main():
     for it in items[:5]:
         print(f"  - {it['source_site']:8} | {it['job_title'][:60]} | url={it['source_url'][:55]}")
 
-    print(f"\n=== Persist via dao.upsert_jd (matches executor.execute_crawl) ===")
+    print("\n=== Persist via dao.upsert_jd (matches executor.execute_crawl) ===")
     inserted = 0
     duplicates = 0
     failed = 0
@@ -87,20 +87,20 @@ async def main():
             failed += 1
             print(f"  FAILED    | {it.get('source_site', '?')} | {e}")
 
-    print(f"\n=== Final summary ===")
+    print("\n=== Final summary ===")
     print(f"  spider items returned : {len(items)}")
     print(f"  inserted (raw)        : {inserted}")
     print(f"  duplicates (raw)      : {duplicates}")
     print(f"  failed                : {failed}")
 
-    print(f"\n=== DB distribution check ===")
+    print("\n=== DB distribution check ===")
     async with sf() as s:
         from sqlalchemy import func, select
         rows = (await s.execute(select(RawJDRecord.source_platform, func.count(RawJDRecord.id)).group_by(RawJDRecord.source_platform))).all()
         for p, c in rows:
             print(f"  source_platform={p!r}  count={c}")
 
-    print(f"\n=== Sample real v2ex record (first 400 chars of clean_text) ===")
+    print("\n=== Sample real v2ex record (first 400 chars of clean_text) ===")
     async with sf() as s:
         from sqlalchemy import select
         r = (await s.execute(select(RawJDRecord).where(RawJDRecord.source_platform == "v2ex").limit(1))).scalar_one_or_none()

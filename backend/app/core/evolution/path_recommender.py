@@ -17,7 +17,6 @@ Top-K (default 50) is enforced before UPSERT so the table stays small.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 import sqlalchemy as sa
 from loguru import logger
@@ -25,7 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.evolution_models import EvolutionPath
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
-
 
 # Tuning constants — exposed here so tests / admin can override when needed.
 DEFAULT_MIN_SIMILARITY = 0.3

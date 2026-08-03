@@ -31,7 +31,6 @@ from typing import Any
 
 from app.core.evolution.diff_engine import ChangeType, EvolutionChange
 
-
 # Weights — keep them in one place so tuning is auditable.
 WEIGHT_SOURCE = 0.5
 WEIGHT_STABILITY = 0.3

@@ -9,6 +9,7 @@ Tables:
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSON, UUID
@@ -44,13 +45,13 @@ class EvolutionSnapshot(Base):
     )
     # 业务说明：该职位在快照时间点的必需技能列表
     # 技术说明：JSON格式存储技能对象数组，每个元素包含name、category、proficiency
-    required_skills: Mapped[dict] = mapped_column(
+    required_skills: Mapped[list[dict[str, Any]]] = mapped_column(
         JSON, nullable=False, default=list,
         comment="List of {name, category, proficiency} dicts",
     )
     # 业务说明：该职位在快照时间点的优先/加分技能列表
     # 技术说明：JSON格式存储，结构与required_skills一致，用于区分技能重要性等级
-    preferred_skills: Mapped[dict] = mapped_column(
+    preferred_skills: Mapped[list[dict[str, Any]]] = mapped_column(
         JSON, nullable=False, default=list,
         comment="List of {name, category, proficiency} dicts",
     )

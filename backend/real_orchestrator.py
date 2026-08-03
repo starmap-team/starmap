@@ -1,5 +1,10 @@
 """Stage 4+5: run orchestrator + verify APIs (after real LLM extraction)."""
-import asyncio, os, sys, json, urllib.request
+import asyncio
+import json
+import os
+import sys
+import urllib.request
+
 for k, v in {
     'POSTGRES_HOST': 'localhost', 'POSTGRES_PORT': '5433',
     'POSTGRES_USER': 'starmap', 'POSTGRES_PASSWORD': 'starmap123456',
@@ -13,10 +18,11 @@ for k, v in {
     os.environ.setdefault(k, v)
 sys.path.insert(0, '.')
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
+
+from app.core.evolution.orchestrator import run_evolution_pipeline
 from app.db.session import get_session_factory
 from app.models.extraction_models import JDExtractionRecord
-from app.core.evolution.orchestrator import run_evolution_pipeline
 
 
 async def main():

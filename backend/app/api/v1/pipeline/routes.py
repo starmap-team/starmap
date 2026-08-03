@@ -40,8 +40,6 @@ from app.api.v1.pipeline.serializers import (
 )
 from app.api.v1.upload_validation import validate_resume_upload
 from app.core.matching import MatchService
-from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, require_admin, sse_disconnect
-from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 from app.core.pipeline.sse.contracts import PipelineContext
 from app.core.pipeline.sse.engine import PipelineEngine
 from app.core.pipeline.sse.steps import (
@@ -51,6 +49,8 @@ from app.core.pipeline.sse.steps import (
     ResumeParseStep,
     SkillExtractStep,
 )
+from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, require_admin, sse_disconnect
+from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 from app.repositories.position_repository import PositionRepository
 
 # 创建全局 MatchService 实例
