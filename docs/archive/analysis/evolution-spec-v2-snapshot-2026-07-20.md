@@ -1,3 +1,7 @@
+> **归档说明（2026-07-28）**：本文件为 2026-07-20 的一次性模块状态快照，已移出 `docs/standards/`。其"6 个文件已删除"的判断已被后续合并推翻——当前磁盘上 `backend/app/core/evolution/` 含 diff_engine、emergence_finder、orchestrator、path_recommender、snapshot_manager、timeseries_loader、trust_scorer 全部 7 个文件。Evolution 现行规范见 `docs/standards/01-backend/04-业务核心-evolution.md`。以下为原文，保留历史证据，不做修正。
+
+---
+
 # 业务核心 — Evolution 规范(v2,基于 2026-07-20 磁盘实况)
 
 > ⚠️ **本文件是 v2,反映 2026-07-20 磁盘实况**

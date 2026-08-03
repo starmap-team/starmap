@@ -4,7 +4,7 @@
 
 ## 开发
 
-开发 Compose 提供 backend、worker、frontend、PostgreSQL、Neo4j、Redis；Ollama 是 profile；没有 ChromaDB 服务。服务依赖使用健康条件，源码 volume 只用于开发。
+开发 Compose 提供 backend、worker、frontend、PostgreSQL、Neo4j、Redis、ChromaDB；Ollama（含 ollama-pull）位于 `llm` profile，默认不启动。服务依赖使用健康条件，源码 volume 只用于开发。
 
 ## 生产
 

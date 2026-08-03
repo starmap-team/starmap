@@ -20,7 +20,7 @@
 - 错误响应统一 `{detail, code, timestamp, fields?}`。
 - 删除/重命名已发布路径或字段需要明确版本与迁移策略。
 - OpenAPI、Pydantic、JSON Schema、前端类型不能独立演化。
-- 历史 contract audit 已归档，不作为变更日志。
+- `starmap-contracts/CONTRACT_AUDIT.md` 是一次性审计快照，不作为变更日志；变更历史以 `starmap-contracts/CHANGELOG.md` 为准。
 
 ## 验证
 
