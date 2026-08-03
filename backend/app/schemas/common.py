@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -65,7 +65,7 @@ class ErrorResponse(BaseModel):
         examples=["POSITION_NOT_FOUND", "VALIDATION_ERROR", "UNAUTHORIZED"],
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="错误发生时间 (ISO 8601 UTC)",
     )
     fields: list[FieldError] | None = Field(

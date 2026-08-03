@@ -9,12 +9,12 @@ PositionNode 和 SkillNode 同时用于：
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class SkillCategory(str, Enum):
+class SkillCategory(StrEnum):
     """技能分类枚举。"""
 
     hard_skill = "hard_skill"
@@ -23,7 +23,7 @@ class SkillCategory(str, Enum):
     certificate = "certificate"
 
 
-class Proficiency(str, Enum):
+class Proficiency(StrEnum):
     """熟练度等级。"""
 
     level_1 = "了解"
@@ -31,7 +31,7 @@ class Proficiency(str, Enum):
     level_3 = "精通"
 
 
-class ReviewStatus(str, Enum):
+class ReviewStatus(StrEnum):
     """审核状态。"""
 
     draft = "draft"
