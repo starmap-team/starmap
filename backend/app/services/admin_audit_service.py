@@ -83,10 +83,11 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
     if not label.isalnum():
         return
     try:
-        from app.db.session import get_async_engine
         from sqlalchemy import select
-        from app.models.extraction_models import PositionRecord, SkillRecord
         from sqlalchemy.ext.asyncio import AsyncSession
+
+        from app.db.session import get_async_engine
+        from app.models.extraction_models import PositionRecord, SkillRecord
 
         # 查 PG 拿到 canonical_id（用 PG 实际字段名）
         engine = get_async_engine()

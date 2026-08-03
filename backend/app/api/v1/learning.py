@@ -15,111 +15,28 @@ from typing import Annotated, Any
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.learning.path_engine import generate_learning_path
-from app.core.learning.progress_tracker import (
-    create_plan,
-    get_progress,
-    update_progress,
-)
 from app.dependencies import get_current_user, get_db_session
 from app.exceptions import LearningPathError, StarMapError
 from app.models.learning_models import LearningPlan, LearningProgress
+from app.schemas.learning import (
+    AddSkillRequest,
+    CreatePlanRequest,
+    PlanResponse,
+    RecommendationItem,
+    RecommendationsResponse,
+    SkillProgressItem,
+    UpdateProgressRequest,
+)
+from app.services import learning_service
 from app.services.match_service import PREREQUISITE_MAP
 
 router = APIRouter(prefix="/learning", tags=["学习中心"])
 
 
-# ─── Request / Response Models ───
-
-
-class SkillGapInput(BaseModel):
-    """Skill gap from match diagnosis."""
-
-    skill: str = Field(..., description="技能名称")
-    importance: str = Field(default="required", description="required | bonus")
-    gap_level: str = Field(default="完全缺失", description="完全缺失 | 部分掌握 | 已掌握")
-    learning_path: list[str] = Field(default_factory=list, description="前置技能链")
-    target_proficiency: str = Field(default="熟悉", description="目标熟练度")
-
-
-class CreatePlanRequest(BaseModel):
-    """Request to create a learning plan."""
-
-    position: str = Field(..., min_length=1, description="目标岗位")
-    match_score: float = Field(default=0.0, ge=0.0, le=1.0, description="匹配分")
-    skills: list[SkillGapInput] = Field(..., min_length=1, description="技能缺口列表")
-    available_hours_per_week: float = Field(default=10.0, ge=1.0, le=40.0)
-
-
-class SkillProgressItem(BaseModel):
-    """Per-skill progress in plan response."""
-
-    skill_name: str
-    status: str
-    progress_pct: float = Field(ge=0.0, le=100.0)
-    importance: str = "required"
-    estimated_hours: float = 0.0
-    started_at: str | None = None
-    completed_at: str | None = None
-    notes: str | None = None
-
-
-class PhaseInfo(BaseModel):
-    """Learning phase info."""
-
-    phase: int
-    skills: list[str]
-    estimated_hours: float
-    estimated_weeks: float
-
-
-class PlanResponse(BaseModel):
-    """Learning plan response."""
-
-    plan_id: str
-    position: str
-    status: str
-    match_score_at_creation: float = 0.0
-    overall_pct: float = 0.0
-    total_hours: float = 0.0
-    total_weeks: float = 0.0
-    phase_count: int = 0
-    phases: list[PhaseInfo] = Field(default_factory=list)
-    skills: list[SkillProgressItem] = Field(default_factory=list)
-    stats: dict[str, Any] = Field(default_factory=dict)
-
-
-class UpdateProgressRequest(BaseModel):
-    """Request to update skill progress."""
-
-    skill_name: str = Field(..., min_length=1)
-    status: str | None = Field(default=None, description="not_started | in_progress | mastered")
-    progress_pct: float | None = Field(default=None, ge=0.0, le=100.0)
-    notes: str | None = None
-
-
-class RecommendationItem(BaseModel):
-    """A personalized learning recommendation."""
-
-    skill: str
-    importance: str
-    gap_level: str
-    estimated_hours: float
-    prerequisites: list[str] = Field(default_factory=list)
-    reason: str
-
-
-class RecommendationsResponse(BaseModel):
-    """Response for personalized recommendations."""
-
-    items: list[RecommendationItem] = Field(default_factory=list)
-    total_items: int = 0
-
-
 # ─── Endpoints ───
+# 请求/响应模型已迁至 backend/app/schemas/learning.py(闭环审计 C2),路由层只引用。
 
 
 @router.get("/plans", response_model=list[PlanResponse])
@@ -130,59 +47,8 @@ async def list_learning_plans(
 ) -> list[PlanResponse]:
     """List all learning plans for the current user, newest first."""
     user_id = user.get("uid") or user["sub"]  # ponytail: prefer uid (DB UUID), fallback sub
-    stmt = (
-        sa.select(LearningPlan)
-        .where(LearningPlan.user_id == user_id)
-        .order_by(LearningPlan.created_at.desc())
-        .limit(limit)
-    )
-    result = await session.execute(stmt)
-    plans = result.scalars().all()
-
-    responses: list[PlanResponse] = []
-    for plan in plans:
-        progress_data = await get_progress(session, plan_id=plan.id)
-
-        skill_gaps: list[Any] = plan.skills if isinstance(plan.skills, list) else []
-        if skill_gaps:
-            try:
-                path = await generate_learning_path(
-                    match_gaps=skill_gaps,
-                    available_time=10.0,
-                )
-                total_hours = path.total_hours
-                total_weeks = path.total_weeks
-                phases = [PhaseInfo(**p) for p in path.phases]
-                phase_count = path.phase_count
-            except LearningPathError as exc:
-                logger.exception("Learning path operation failed: {}", exc)
-                raise HTTPException(status_code=500, detail=str(exc)) from exc
-            except StarMapError:
-                raise
-            except Exception as exc:
-                logger.exception("Unexpected error in learning path: {}", exc)
-                raise HTTPException(status_code=500, detail="学习路径处理异常") from exc
-        else:
-            total_hours = plan.estimated_hours
-            total_weeks = 0
-            phases = []
-            phase_count = 0
-
-        responses.append(PlanResponse(
-            plan_id=str(plan.id),
-            position=plan.position,
-            status=plan.status,
-            match_score_at_creation=plan.match_score_at_creation,
-            overall_pct=progress_data.get("overall_pct", 0.0),
-            total_hours=total_hours,
-            total_weeks=total_weeks,
-            phase_count=phase_count,
-            phases=phases,
-            skills=[SkillProgressItem(**s) for s in progress_data.get("skills", [])],
-            stats=progress_data.get("stats", {}),
-        ))
-
-    return responses
+    views = await learning_service.list_plans_for_user(session, user_id, limit)
+    return [PlanResponse(**v) for v in views]
 
 
 @router.post("/plan", response_model=PlanResponse)
@@ -197,47 +63,16 @@ async def create_learning_plan(
     personalized, prerequisite-aware learning path with time estimates.
     """
     user_id = user["sub"]
-    # Generate learning path
     skill_gaps = [s.model_dump() for s in body.skills]
-    learning_path = await generate_learning_path(
-        match_gaps=skill_gaps,
-        prerequisites=PREREQUISITE_MAP,
-        available_time=body.available_hours_per_week,
-    )
-
-    # Enrich skill data with estimated hours from path engine
-    enriched_skills = []
-    path_hours_map = {s.name: s.estimated_hours for s in learning_path.skills}
-    for gap in skill_gaps:
-        gap["estimated_hours"] = path_hours_map.get(gap["skill"], 0.0)
-        enriched_skills.append(gap)
-
-    # Create plan in DB
-    plan = await create_plan(
+    view = await learning_service.create_plan_from_diagnosis(
         session,
-        position=body.position,
-        skills=enriched_skills,
-        match_score=body.match_score,
-        estimated_hours=learning_path.total_hours,
         user_id=user_id,
+        position=body.position,
+        skill_gaps=skill_gaps,
+        match_score=body.match_score,
+        available_hours_per_week=body.available_hours_per_week,
     )
-
-    # Fetch full progress data
-    progress_data = await get_progress(session, plan_id=plan.id)
-
-    return PlanResponse(
-        plan_id=str(plan.id),
-        position=plan.position,
-        status=plan.status,
-        match_score_at_creation=plan.match_score_at_creation,
-        overall_pct=progress_data.get("overall_pct", 0.0),
-        total_hours=learning_path.total_hours,
-        total_weeks=learning_path.total_weeks,
-        phase_count=learning_path.phase_count,
-        phases=[PhaseInfo(**p) for p in learning_path.phases],
-        skills=[SkillProgressItem(**s) for s in progress_data.get("skills", [])],
-        stats=progress_data.get("stats", {}),
-    )
+    return PlanResponse(**view)
 
 
 @router.get("/plan/{plan_id}", response_model=PlanResponse)
@@ -252,51 +87,9 @@ async def get_learning_plan(
         pid = uuid.UUID(plan_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
-
-    progress_data = await get_progress(session, plan_id=pid)
-    if "error" in progress_data:
-        raise HTTPException(status_code=404, detail=progress_data["error"])
-
-    # Fetch plan for extra fields
-    plan_stmt = sa.select(LearningPlan).where(LearningPlan.id == pid)
-    plan_result = await session.execute(plan_stmt)
-    plan = plan_result.scalar_one_or_none()
-    if plan is None:
-        raise HTTPException(status_code=404, detail="Plan not found")
-    # P1 修复 (AUTHZ-02): IDOR 校验 — 用户只能访问自己的计划
-    if plan.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to access this plan")
-
-    # Reconstruct phases from skill data
-    skill_gaps: list[Any] = plan.skills if isinstance(plan.skills, list) else []
-    if skill_gaps:
-        path = await generate_learning_path(
-            match_gaps=skill_gaps,
-            available_time=10.0,
-        )
-        total_hours = path.total_hours
-        total_weeks = path.total_weeks
-        phases = [PhaseInfo(**p) for p in path.phases]
-        phase_count = path.phase_count
-    else:
-        total_hours = plan.estimated_hours
-        total_weeks = 0
-        phases = []
-        phase_count = 0
-
-    return PlanResponse(
-        plan_id=str(plan.id),
-        position=plan.position,
-        status=plan.status,
-        match_score_at_creation=plan.match_score_at_creation,
-        overall_pct=progress_data.get("overall_pct", 0.0),
-        total_hours=total_hours,
-        total_weeks=total_weeks,
-        phase_count=phase_count,
-        phases=phases,
-        skills=[SkillProgressItem(**s) for s in progress_data.get("skills", [])],
-        stats=progress_data.get("stats", {}),
-    )
+    # 业务逻辑在 learning_service;PlanNotFoundError→404 / PlanOwnershipError→403 由全局处理器映射。
+    view = await learning_service.get_plan_for_user(session, user_id=user_id, plan_id=pid)
+    return PlanResponse(**view)
 
 
 @router.put("/plan/{plan_id}/progress", response_model=SkillProgressItem)
@@ -312,49 +105,22 @@ async def update_skill_progress(
         pid = uuid.UUID(plan_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
-
-    # IDOR guard: verify plan ownership before allowing mutation
-    plan_stmt = sa.select(LearningPlan).where(LearningPlan.id == pid)
-    plan_result = await session.execute(plan_stmt)
-    plan = plan_result.scalar_one_or_none()
-    if plan is None:
-        raise HTTPException(status_code=404, detail="Plan not found")
-    if plan.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to modify this plan")
-
-    progress = await update_progress(
+    # PlanNotFoundError→404 / PlanOwnershipError→403 由全局处理器映射;返回 None 表示技能不在计划内。
+    progress = await learning_service.update_skill_progress_for_user(
         session,
+        user_id=user_id,
         plan_id=pid,
         skill_name=body.skill_name,
         status=body.status,
         progress_pct=body.progress_pct,
         notes=body.notes,
     )
-
     if progress is None:
         raise HTTPException(
             status_code=404,
             detail=f"Skill '{body.skill_name}' not found in plan",
         )
-
-    return SkillProgressItem(
-        skill_name=progress.skill_name,
-        status=progress.status,
-        progress_pct=round(progress.progress_pct, 1),
-        importance=progress.importance,
-        estimated_hours=progress.estimated_hours,
-        started_at=progress.started_at.isoformat() if progress.started_at else None,
-        completed_at=progress.completed_at.isoformat() if progress.completed_at else None,
-        notes=progress.notes,
-    )
-
-
-class AddSkillRequest(BaseModel):
-    """Request to add a new skill to an existing plan."""
-
-    skill_name: str = Field(..., min_length=1)
-    importance: str = Field(default="bonus", description="required | bonus")
-    estimated_hours: float = Field(default=20.0, ge=0.0)
+    return SkillProgressItem(**progress)
 
 
 @router.post("/plan/{plan_id}/skills", response_model=SkillProgressItem)

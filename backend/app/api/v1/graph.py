@@ -119,7 +119,7 @@ class DomainOverviewResponse(BaseModel):
 async def get_graph_overview(
     driver: Annotated[Any, Depends(get_neo4j_driver)],
     group_by: Annotated[
-        Literal["domain", "tech_stack", "level"], Query(description="分组方式: domain(默认)/tech_stack/level")
+        Literal["domain", "tech_stack", "level", "heat"], Query(description="分组方式: domain(默认)/tech_stack/level/heat(技能需求频次)")
     ] = "domain",
 ) -> DomainOverviewResponse:
     if driver is None:
@@ -129,21 +129,24 @@ async def get_graph_overview(
             independent_edges=0,
         )
     # Dispatch to specialized queries
+    from app.services.graph_service import (
+        fetch_overview_by_domain,
+        fetch_overview_by_level,
+        fetch_overview_by_tech_stack,
+    )
     if group_by == "tech_stack":
-        from app.services.graph_service import fetch_overview_by_tech_stack
-
         data = await fetch_overview_by_tech_stack(driver)
         return DomainOverviewResponse(**data)
+    if group_by == "domain":
+        data = await fetch_overview_by_domain(driver)
+        return DomainOverviewResponse(**data)
     if group_by == "level":
-        from app.services.graph_service import fetch_overview_by_level
-
         data = await fetch_overview_by_level(driver)
         return DomainOverviewResponse(**data)
-    # P1-3 fix: domain mode delegated to graph_service.fetch_overview_by_domain
-    from app.services.graph_service import fetch_overview_by_domain
-
-    data = await fetch_overview_by_domain(driver)
-    return DomainOverviewResponse(**data)
+    if group_by == "heat":
+        from app.services.graph_overview import fetch_overview_by_heat
+        data = await fetch_overview_by_heat(driver)
+        return DomainOverviewResponse(**data)
 
 
 class KAPositionsResponse(BaseModel):
@@ -257,6 +260,92 @@ async def get_ka_positions(
             positions=list(positions.values()),
             position_skill_edges=edges,
             skills=list(skills.values()),
+        )
+
+    # ── heat mode: ka_id is "heat-skill-{skillName}" ──
+    if ka_id.startswith("heat-skill-"):
+        skill_name = ka_id[len("heat-skill-"):]
+        async with driver.session() as session:
+            result = await session.run(
+                "MATCH (p:Position)-[:REQUIRES]->(s:Skill {name: $sname}) "
+                "RETURN p, collect(DISTINCT s) AS skills",
+                sname=skill_name,
+            )
+            positions_dict: dict[str, dict[str, Any]] = {}
+            skills_dict: dict[str, dict[str, Any]] = {}
+            edges: list[dict[str, Any]] = []
+            async for record in result:
+                p_node = record["p"]
+                if p_node is None:
+                    continue
+                pos_data = serialize_node(p_node)
+                if pos_data["id"] not in positions_dict:
+                    positions_dict[pos_data["id"]] = pos_data
+                for s_node in record["skills"] or []:
+                    if s_node and s_node.element_id not in skills_dict:
+                        skills_dict[s_node.element_id] = serialize_node(s_node)
+                    if s_node and p_node:
+                        edges.append({"source_id": p_node.element_id, "target_id": s_node.element_id, "type": "REQUIRES", "properties": {}})
+            return KAPositionsResponse(
+                ka_id=ka_id,
+                ka_name=skill_name,
+                positions=list(positions_dict.values()),
+                position_skill_edges=edges,
+                skills=list(skills_dict.values()),
+            )
+
+    # ── industry mode: ka_id is "ind-{industryKey}" ──
+    if ka_id.startswith("ind-"):
+        from app.services.graph_overview import INDUSTRY_ID_PREFIX, _classify_industry
+        # Reverse-lookup the industry name from the literal ID
+        industry_name = ""
+        for name, prefix in INDUSTRY_ID_PREFIX.items():
+            if prefix == ka_id:
+                industry_name = name
+                break
+        if not industry_name:
+            industry_name = ka_id[len("ind-"):]
+
+        async with driver.session() as session:
+            result = await session.run("MATCH (p:Position) RETURN p")
+            matched_element_ids: list[str] = []
+            positions_dict: dict[str, dict[str, Any]] = {}
+            async for record in result:
+                p_node = record["p"]
+                if p_node is None:
+                    continue
+                props = _safe_properties(p_node)
+                name = props.get("name", "")
+                industry = props.get("industry", "")
+                matched = _classify_industry(name, industry) == industry_name
+                if not matched:
+                    continue
+                pos_data = serialize_node(p_node)
+                if pos_data["id"] not in positions_dict:
+                    positions_dict[pos_data["id"]] = pos_data
+                    matched_element_ids.append(p_node.element_id)
+
+            skills_dict: dict[str, dict[str, Any]] = {}
+            edges: list[dict[str, Any]] = []
+            if matched_element_ids:
+                edge_result = await session.run(
+                    "MATCH (p:Position)-[r:REQUIRES]->(s:Skill) WHERE elementId(p) IN $pids RETURN r, s",
+                    pids=matched_element_ids,
+                )
+                async for e_record in edge_result:
+                    r = e_record["r"]
+                    s = e_record["s"]
+                    if r:
+                        edges.append(serialize_relationship(r))
+                    if s and s.element_id not in skills_dict:
+                        skills_dict[s.element_id] = serialize_node(s)
+
+        return KAPositionsResponse(
+            ka_id=ka_id,
+            ka_name=industry_name,
+            positions=list(positions_dict.values()),
+            position_skill_edges=edges,
+            skills=list(skills_dict.values()),
         )
 
     # ── domain mode: match by Neo4j elementId ──

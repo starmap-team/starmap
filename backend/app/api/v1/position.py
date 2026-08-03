@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.exceptions import PositionNotFoundError, StarMapError
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
+from app.schemas.position import IndustriesResponse
 
 router = APIRouter(prefix="/positions", tags=["岗位管理"])
 
@@ -80,11 +81,12 @@ async def list_positions(
     if industry:
         count_stmt = count_stmt.where(PositionRecord.industry.ilike(f"%{_escape_like(industry)}%", escape="\\"))
     if search:
-        # Phase 13 一致性审计：search 同时匹配 name 与 industry（与前端 placeholder/客户端筛选及 Neo4j 路径一致）
+        # Phase 13 一致性审计：search 同时匹配 name、name_cn 与 industry（与前端 placeholder/客户端筛选及 Neo4j 路径一致）
         like = f"%{_escape_like(search)}%"
         count_stmt = count_stmt.where(
             sa.or_(
                 PositionRecord.name.ilike(like, escape="\\"),
+                PositionRecord.name_cn.ilike(like, escape="\\"),
                 PositionRecord.industry.ilike(like, escape="\\"),
             )
         )
@@ -112,6 +114,7 @@ async def list_positions(
         stmt = stmt.where(
             sa.or_(
                 PositionRecord.name.ilike(like, escape="\\"),
+                PositionRecord.name_cn.ilike(like, escape="\\"),
                 PositionRecord.industry.ilike(like, escape="\\"),
             )
         )
@@ -153,6 +156,28 @@ async def list_positions(
         ))
 
     return PositionListResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get(
+    "/industries",
+    summary="行业列表",
+    description="返回所有岗位的去重行业名称列表（按字母排序）。\n\n"
+    "用于前端行业筛选下拉选项，确保用户看到全量行业而非仅当前页。",
+    response_model=IndustriesResponse,
+)
+async def list_industries(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> IndustriesResponse:
+    """Distinct industry names from position_records, sorted alphabetically."""
+    stmt = (
+        sa.select(PositionRecord.industry)
+        .where(PositionRecord.industry.isnot(None))
+        .where(PositionRecord.industry != "")
+        .distinct()
+        .order_by(PositionRecord.industry)
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    return IndustriesResponse(industries=[i for i in rows if i is not None])
 
 
 @router.get(
@@ -262,11 +287,11 @@ async def discover_position(
     然后运行 EmergenceFinder 进行 Z-score 分析。
     若无时序数据则返回"数据不足"提示。
     """
-    from app.core.evolution.emergence_finder import EmergenceFinder
+    from app.services.evolution_service import EmergenceFinder
 
     try:
         # Step 1: Load timeseries data for frequency history
-        from app.core.evolution.timeseries_loader import load_skill_timeseries_data
+        from app.services.evolution_service import load_skill_timeseries_data
 
         skill_data = await load_skill_timeseries_data(db)
 
@@ -398,6 +423,8 @@ async def _list_positions_neo4j(
                     description=props.get("description", ""),
                     skills_required=skill_nodes,
                     discovered_at=None,
+                    # fix: 回写 review_status，与 PG 路径字段对齐（OPEN-LOW 修复）
+                    review_status=props.get("review_status", None),
                 ))
 
             return PositionListResponse(items=items, total=total, page=page, page_size=page_size)

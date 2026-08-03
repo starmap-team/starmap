@@ -102,9 +102,11 @@ async def reconcile_neo4j_endpoint(
     由 admin 手动调用，或由 cron job 定期调用。
     """
     import time
-    from app.services.graph_projector import GraphProjector
-    from sqlalchemy import select, func, text
+
+    from sqlalchemy import func, select, text
+
     from app.models.extraction_models import PositionRecord, SkillRecord
+    from app.services.graph_projector import GraphProjector
 
     start = time.time()
     projector = GraphProjector(driver)
@@ -131,8 +133,9 @@ async def reconcile_neo4j_endpoint(
 
     # Phase 5 Step 4: 写 audit_events 记录
     try:
-        from datetime import UTC, datetime as _dt
         import uuid as _uuid
+        from datetime import UTC
+        from datetime import datetime as _dt
         await session.execute(
             text("""
                 INSERT INTO audit_events (id, event, actor, action, detail, ip, created_at)

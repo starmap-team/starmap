@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.session import get_async_engine
-from app.exceptions import PipelineStageError, StarMapError
+from app.exceptions import StarMapError
 from app.models.pipeline_models import PipelineSchedule
 
 # Try to use croniter; fall back to simple interval parser if not installed
@@ -27,6 +27,10 @@ try:
 except ImportError:
     HAS_CRONITER = False
     logger.warning("croniter not installed, using fallback cron parser")
+
+
+# Module-level constants
+RECONCILE_INTERVAL = timedelta(hours=24)
 
 
 def compute_next_cron(cron_expression: str, base: datetime | None = None) -> datetime | None:
@@ -54,7 +58,7 @@ def compute_next_cron(cron_expression: str, base: datetime | None = None) -> dat
             return base + timedelta(hours=1)
         except StarMapError:
             raise
-        except Exception as exc:
+        except Exception:
             logger.exception("Fallback cron parse failed")
             return None
 
@@ -97,7 +101,7 @@ async def trigger_schedule(
         return True
     except StarMapError:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to trigger schedule '{}'", schedule.name)
         return False
 
@@ -135,7 +139,6 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
     next_reconcile_at = datetime.now(UTC).replace(hour=3, minute=0, second=0, microsecond=0)
     if next_reconcile_at < datetime.now(UTC):
         next_reconcile_at += timedelta(days=1)
-    RECONCILE_INTERVAL = timedelta(hours=24)
 
     while True:
         try:
@@ -149,9 +152,9 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
             now = datetime.now(UTC)
             if last_reconcile_at is None or now >= next_reconcile_at:
                 try:
+
                     from app.services.graph_projector import GraphProjector
                     from app.services.resources import init_resources
-                    from sqlalchemy import text
                     resources = await init_resources()
                     if resources.neo4j_driver:
                         async with session_factory() as session:
@@ -164,6 +167,7 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
                             # Phase 5 Step 4: 写 audit_events 供健康度监控查询
                             try:
                                 import uuid as _uuid
+
                                 from sqlalchemy import text as _text
                                 async with session_factory() as audit_session:
                                     await audit_session.execute(
@@ -188,6 +192,6 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
 
         except StarMapError:
             raise
-        except Exception as exc:
+        except Exception:
             logger.exception("Cron scanner iteration failed")
         await asyncio.sleep(interval_seconds)

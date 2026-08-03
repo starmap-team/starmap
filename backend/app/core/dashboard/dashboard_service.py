@@ -16,10 +16,9 @@ from typing import Any, cast
 import sqlalchemy as sa
 from loguru import logger
 from redis.asyncio import Redis
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exceptions import DashboardError, StarMapError
+from app.exceptions import StarMapError
 from app.models.extraction_models import (
     JDExtractionRecord,
     PositionRecord,

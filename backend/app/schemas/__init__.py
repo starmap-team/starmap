@@ -13,12 +13,6 @@
 - 响应模型同时用作 FastAPI response_model
 """
 
-from app.schemas.common import (
-    ErrorResponse,
-    FieldError,
-    PaginatedResponse,
-    PaginationMeta,
-)
 from app.schemas.auth import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
@@ -30,10 +24,17 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     TokenUser,
 )
-from app.schemas.position import (
-    PositionListResponse,
-    PositionNode,
-    SkillNode,
+from app.schemas.common import (
+    ErrorResponse,
+    FieldError,
+    PaginatedResponse,
+    PaginationMeta,
+)
+from app.schemas.extract import (
+    ExtractionRequest,
+    ExtractionResult,
+    NormalizedSkill,
+    SkillItem,
 )
 from app.schemas.graph import (
     GraphEdge,
@@ -41,11 +42,33 @@ from app.schemas.graph import (
     GraphOverviewResponse,
     PositionSkillDetailResponse,
 )
-from app.schemas.extract import (
-    ExtractionRequest,
-    ExtractionResult,
-    NormalizedSkill,
-    SkillItem,
+from app.schemas.learning import (
+    AddSkillRequest,
+    CreatePlanRequest,
+    PhaseInfo,
+    PlanResponse,
+    RecommendationItem,
+    RecommendationsResponse,
+    SkillGapInput,
+    SkillProgressItem,
+    UpdateProgressRequest,
+)
+from app.schemas.match import (
+    BatchMatchItem,
+    BatchMatchRequest,
+    MatchOptionsInput,
+    MatchRequestInput,
+    MatchResponse,
+    PersonSkillInput,
+    PositionRecommendation,
+    ReverseMatchRequest,
+    ReverseMatchResponse,
+    SkillGapDetail,
+)
+from app.schemas.position import (
+    PositionListResponse,
+    PositionNode,
+    SkillNode,
 )
 
 __all__ = [
@@ -78,4 +101,25 @@ __all__ = [
     "ExtractionResult",
     "NormalizedSkill",
     "SkillItem",
+    # match
+    "BatchMatchItem",
+    "BatchMatchRequest",
+    "MatchOptionsInput",
+    "MatchRequestInput",
+    "MatchResponse",
+    "PersonSkillInput",
+    "PositionRecommendation",
+    "ReverseMatchRequest",
+    "ReverseMatchResponse",
+    "SkillGapDetail",
+    # learning
+    "AddSkillRequest",
+    "CreatePlanRequest",
+    "PhaseInfo",
+    "PlanResponse",
+    "RecommendationItem",
+    "RecommendationsResponse",
+    "SkillGapInput",
+    "SkillProgressItem",
+    "UpdateProgressRequest",
 ]

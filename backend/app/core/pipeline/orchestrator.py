@@ -17,7 +17,7 @@ and DAG scheduling logic.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
@@ -26,10 +26,14 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.exceptions import PipelineStageError, RunAlreadyTerminalError, RunNotFoundError, StarMapError
+from app.exceptions import RunAlreadyTerminalError, RunNotFoundError, StarMapError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
 # ── Domain exceptions (imported from app.exceptions for global handler mapping) ──
+
+
+# Module-level constants
+ZOMBIE_THRESHOLD = timedelta(minutes=30)
 
 
 class StageName(StrEnum):
@@ -62,8 +66,8 @@ ALL_STAGES = list(StageName)
 STAGE_DEPS: dict[str, list[str]] = {
     StageName.CRAWL.value: [],
     StageName.DEDUP.value: [StageName.CRAWL.value],
-    StageName.CLEAN.value: [StageName.CRAWL.value],
-    StageName.IMPORT.value: [StageName.DEDUP.value, StageName.CLEAN.value],
+    StageName.CLEAN.value: [StageName.DEDUP.value],  # Phase 3 Plan 02: 串行，等 dedup 标记 duplicate 后再清洗
+    StageName.IMPORT.value: [StageName.CLEAN.value],  # 串行，等 clean 完成（clean 已隐含 dedup 完成）
     StageName.GRAPH_SYNC.value: [StageName.IMPORT.value],
     StageName.TIMESERIES.value: [StageName.GRAPH_SYNC.value],
 }
@@ -276,7 +280,7 @@ async def complete_run(
         await update_authority_scores(session)
     except StarMapError:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("update_authority_scores failed (non-fatal)")
 
     # Phase 2 AUTHORITY-02: quality < 0.3 的数据源标记 paused
@@ -295,7 +299,7 @@ async def complete_run(
             await session.flush()
     except StarMapError:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("auto-pause failed (non-fatal)")
 
     result = await session.execute(
@@ -311,9 +315,6 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
     都已经 completed/cancelled/failed 时，前端不应显示"正在执行"。
     这种情况通常是 Celery worker 重启 / 任务丢失导致的状态卡死。
     """
-    from datetime import timedelta
-    ZOMBIE_THRESHOLD = timedelta(minutes=30)
-
     running_result = await session.execute(
         select(PipelineRun)
         .where(PipelineRun.status == RunStatus.RUNNING.value)
@@ -516,7 +517,7 @@ async def cancel_run(
             await redis_client.setex(f"pipeline:stop:{run_id}", 3600, "1")
         except StarMapError:
             raise
-        except Exception as exc:
+        except Exception:
             logger.exception("Redis STOP flag set failed (non-fatal)")
 
         # 4. Invalidate status cache
@@ -525,7 +526,7 @@ async def cancel_run(
             await invalidate_status_cache(redis_client)
         except StarMapError:
             raise
-        except Exception as exc:
+        except Exception:
             logger.exception("Status cache invalidation failed (non-fatal)")
 
     # 5. Phase 3.8.1 FIX: 通过 SSE 广播 cancel 事件，让前端立即响应
@@ -542,7 +543,7 @@ async def cancel_run(
         })
     except StarMapError:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Cancel SSE broadcast failed (non-fatal)")
 
     return RunCancelResult(

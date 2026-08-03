@@ -65,8 +65,9 @@ class MatchService:
         except StarMapError:
             raise
         except Exception as exc:
-            logger.exception("Matching service error: {}", exc)
-            raise MatchingError(str(exc)) from exc
+            # M3: Neo4j 不可用时降级返回空映射,不阻断匹配主流程。
+            logger.warning("[MatchService] Prerequisite map load failed, degrading to empty: {}", exc)
+            return {}
 
         return prereq_map
 
@@ -143,47 +144,9 @@ class MatchService:
             except StarMapError:
                 raise
             except Exception as exc:
-                logger.exception("Matching service error: {}", exc)
-                raise MatchingError(str(exc)) from exc
-
-        # 从 PostgreSQL position_records 回退
-        if db_session is not None:
-            try:
-                from sqlalchemy import select
-
-                from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
-
-                pos_stmt = select(PositionRecord).where(PositionRecord.name == target_position)
-                pos_row = (await db_session.execute(pos_stmt)).scalar_one_or_none()
-                if pos_row is not None:
-                    rel_stmt = (
-                        select(PositionSkillRelation, SkillRecord)
-                        .join(SkillRecord, PositionSkillRelation.skill_id == SkillRecord.id)
-                        .where(PositionSkillRelation.position_id == pos_row.id)
-                    )
-                    rel_rows = (await db_session.execute(rel_stmt)).all()
-                    required_db: list[dict[str, str]] = []
-                    bonus_db: list[dict[str, str]] = []
-                    for rel, skill in rel_rows:
-                        entry = {
-                            "skill": skill.name,
-                            "category": skill.category or "hard_skill",
-                            "proficiency": "熟悉",
-                            "source_count": str(skill.source_count or 0),
-                        }
-                        if rel.requirement_type == "preferred":
-                            bonus_db.append(entry)
-                        else:
-                            required_db.append(entry)
-                    if required_db or bonus_db:
-                        result = {"required": required_db, "bonus": bonus_db}
-                        self._cache.set_profile(target_position, result)
-                        return result
-            except StarMapError:
-                raise
-            except Exception as exc:
-                logger.exception("Matching service error: {}", exc)
-                raise MatchingError(str(exc)) from exc
+                # M3: Neo4j 不可用时降级返回 None,不阻断匹配主流程。
+                logger.warning("[MatchService] Neo4j profile load failed, degrading to None: {}", exc)
+                return None
 
         return None
 
@@ -393,7 +356,7 @@ class MatchService:
             try:
                 from sqlalchemy import select as _sel
 
-                from app.models.extraction_models import PositionRecord as _PR
+                from app.models.extraction_models import PositionRecord as _PR  # noqa: N814
 
                 row = (
                     await db_session.execute(_sel(_PR.id).where(_PR.name == name).limit(1))
@@ -481,5 +444,6 @@ class MatchService:
         except StarMapError:
             raise
         except Exception as exc:
-            logger.exception("Matching service error: {}", exc)
-            raise MatchingError(str(exc)) from exc
+            # M3: 结果持久化是非关键副作用,匹配本身已成功;落库失败只记录,
+            # 不让一次保存失败回滚整次匹配。
+            logger.warning("[MatchService] Failed to persist result {}: {}", match_id, exc)

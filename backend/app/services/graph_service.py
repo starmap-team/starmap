@@ -13,11 +13,15 @@ from collections import defaultdict
 from typing import Any
 
 from app.services.graph_overview import (  # noqa: F401  (re-export)
+    INDUSTRY_COLORS,
+    INDUSTRY_ID_PREFIX,
     LEVEL_COLORS,
     TECH_STACK_COLORS,
     TECH_STACK_KEYWORDS,
+    _classify_industry,
     _classify_level,
     _classify_tech_stack,
+    _prune_connections,
     fetch_overview_by_level,
     fetch_overview_by_tech_stack,
 )
@@ -295,16 +299,13 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
             independent_skill = 0
             independent_edge = 0
 
-        # ── Fallback: when no KA nodes, delegate to tech_stack classification ──
+        # ── Fallback: when no KA nodes, classify positions by 行业 (Phase 13 Step 1) ──
+        # 与 tech_stack 视图正交：tech_stack 按技术栈聚类，domain 按行业聚类。
         connections: list[dict[str, Any]] = []
         if not domains and independent_pos > 0:
-            # No KnowledgeArea nodes in Neo4j — classify positions by tech stack
-            # using the same classifier as fetch_overview_by_tech_stack
-            from app.services.graph_overview import TECH_STACK_COLORS, _classify_tech_stack
-
             groups: dict[str, dict[str, Any]] = {}
-            for stack, color in TECH_STACK_COLORS.items():
-                groups[stack] = {"positions": [], "skills": set(), "color": color}
+            for industry_name, color in INDUSTRY_COLORS.items():
+                groups[industry_name] = {"positions": [], "skills": set(), "color": color}
 
             pos_result = await session.run("MATCH (p:Position) RETURN p")
             async for record in pos_result:
@@ -314,10 +315,10 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
                 props = _safe_properties(node)
                 name = props.get("name", "")
                 industry = props.get("industry", "")
-                stack = _classify_tech_stack(industry, name)
-                groups[stack]["positions"].append({"id": _node_id(node), "name": name})
+                bucket = _classify_industry(name, industry)
+                groups[bucket]["positions"].append({"id": _node_id(node), "name": name})
 
-            # Count skills per group
+            # Count skills per industry
             skill_result = await session.run(
                 "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
                 "RETURN p.name AS pos_name, p.industry AS pos_industry, collect(DISTINCT s.name) AS skills"
@@ -326,27 +327,11 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
                 pos_name = record["pos_name"] or ""
                 pos_industry = record["pos_industry"] or ""
                 skills = record["skills"] or []
-                stack = _classify_tech_stack(pos_industry, pos_name)
+                bucket = _classify_industry(pos_name, pos_industry)
                 for s in skills:
-                    groups[stack]["skills"].add(s)
+                    groups[bucket]["skills"].add(s)
 
-            # Build domain items
-            stack_id_prefix = {
-                "人工智能": "ts-ai",
-                "大数据": "ts-bigdata",
-                "前端开发": "ts-frontend",
-                "后端开发": "ts-backend",
-                "智能系统": "ts-sys",
-                "物联网": "ts-iot",
-                "云计算/DevOps": "ts-cloud",
-                "网络安全": "ts-sec",
-                "移动开发": "ts-mobile",
-                "测试": "ts-qa",
-                "区块链/Web3": "ts-blockchain",
-                "游戏开发": "ts-game",
-                "其他": "ts-other",
-            }
-            for stack, gdata in groups.items():
+            for industry_name, gdata in groups.items():
                 if not gdata["positions"] and not gdata["skills"]:
                     continue
                 pc = len(gdata["positions"])
@@ -354,14 +339,14 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
                 total_pos += pc
                 total_skill += sc
                 domains.append({
-                    "id": stack_id_prefix.get(stack, f"ts-{stack}"),
-                    "name": stack,
+                    "id": INDUSTRY_ID_PREFIX.get(industry_name, f"ind-{industry_name}"),
+                    "name": industry_name,
                     "position_count": pc,
                     "skill_count": sc,
                     "color": gdata["color"],
                 })
 
-            # Build connections between tech stacks (shared skills)
+            # Build industry-industry connections (shared skills)
             if len(domains) > 1:
                 conn_result = await session.run(
                     "MATCH (p1:Position)-[:REQUIRES]->(s:Skill)<-[:REQUIRES]-(p2:Position) "
@@ -369,17 +354,17 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
                     "RETURN p1.name AS n1, p1.industry AS i1, p2.name AS n2, p2.industry AS i2, count(s) AS shared "
                     "ORDER BY shared DESC LIMIT 50"
                 )
-                stack_connections: dict[tuple[str, str], int] = defaultdict(int)
+                bucket_connections: dict[tuple[str, str], int] = defaultdict(int)
                 async for record in conn_result:
-                    s1 = _classify_tech_stack(record["i1"] or "", record["n1"] or "")
-                    s2 = _classify_tech_stack(record["i2"] or "", record["n2"] or "")
-                    if s1 != s2:
-                        key = tuple(sorted([s1, s2]))
-                        stack_connections[key] += record["shared"] or 0
-                for (s1, s2), weight in stack_connections.items():
+                    b1 = _classify_industry(record["n1"] or "", record["i1"] or "")
+                    b2 = _classify_industry(record["n2"] or "", record["i2"] or "")
+                    if b1 != b2:
+                        key = tuple(sorted([b1, b2]))
+                        bucket_connections[key] += record["shared"] or 0
+                for (b1, b2), weight in bucket_connections.items():
                     connections.append({
-                        "source_id": stack_id_prefix.get(s1, f"ts-{s1}"),
-                        "target_id": stack_id_prefix.get(s2, f"ts-{s2}"),
+                        "source_id": INDUSTRY_ID_PREFIX.get(b1, f"ind-{b1}"),
+                        "target_id": INDUSTRY_ID_PREFIX.get(b2, f"ind-{b2}"),
                         "type": "SHARES_SKILLS",
                         "properties": {"weight": min(1.0, weight / 20.0)},
                     })
@@ -407,7 +392,7 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
 
     return {
         "domains": domains,
-        "connections": connections,
+        "connections": _prune_connections(connections, domains),
         # M6（Phase 13 强制规范）：total_* 一律用全局去重计数，禁止按域/KA 累加
         # 导致的重复计数（曾使 total_skills=395 而 distinct=257）。分组视图见 domains[]。
         "total_positions": independent_pos,

@@ -12,7 +12,7 @@ from loguru import logger
 
 from app.core.extraction.normalize import normalize_skill
 from app.core.matching.constants import PROFICIENCY_SCORE
-from app.exceptions import MatchingError, StarMapError
+from app.exceptions import StarMapError
 
 # 模糊匹配阈值
 FUZZY_MATCH_THRESHOLD = 0.7

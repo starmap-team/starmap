@@ -1,12 +1,14 @@
-"""Match API."""
+"""Match API.
 
+注意:所有 Pydantic 模型已迁移到 backend/app/schemas/match.py(Phase X 闭环审计)。
+路由层只 import,不再内联 BaseModel 定义。
+"""
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
-from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select as sa_select
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,68 +16,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.exceptions import MatchingError, StarMapError
 from app.models.extraction_models import PositionRecord
-from app.services.match_service import compute_competitiveness, get_match_result, run_match
+from app.schemas.match import (
+    BatchMatchItem,  # noqa: F401  (重导出:测试/前端经 match_api.BatchMatchItem 构造)
+    BatchMatchRequest,
+    MatchRequestInput,
+    MatchResponse,
+    PersonSkillInput,
+    PositionRecommendation,
+    ReverseMatchRequest,
+    ReverseMatchResponse,
+)
+from app.services.match_service import (
+    MatchService,
+    compute_competitiveness,
+    get_match_result,
+    run_match,
+)
 
 router = APIRouter(prefix="/match", tags=["match"])
-
-
-class PersonSkillInput(BaseModel):
-    """More permissive skill input for current frontend payloads."""
-
-    skill_id: str | None = Field(default=None)
-    name: str = Field(..., description="Skill name")
-    category: str = Field(default="hard_skill", description="Skill category")
-    proficiency: str = Field(default="熟悉", description="Proficiency level")
-    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
-    source_count: int = Field(default=0, ge=0)
-
-
-class MatchOptionsInput(BaseModel):
-    threshold: float = Field(default=0.6, ge=0.0, le=1.0)
-
-
-class MatchRequestInput(BaseModel):
-    person_skills: list[PersonSkillInput] = Field(default_factory=list)
-    target_position: str = Field(..., min_length=1)
-    options: MatchOptionsInput = Field(default_factory=MatchOptionsInput)
-
-
-# P2 修复 (INJ-02/AUTHZ-03): /match/batch 添加 Pydantic schema
-class BatchMatchItem(BaseModel):
-    """Single item in a batch match request."""
-    position: str = Field(default="", description="Target position name")
-    position_name: str = Field(default="", description="Alias for position (legacy)")
-    skills: list[PersonSkillInput] = Field(default_factory=list, description="Person skills")
-
-
-class BatchMatchRequest(BaseModel):
-    """Batch match request with validated items."""
-    entries: list[BatchMatchItem] = Field(default_factory=list, max_length=20, alias="items")
-
-    model_config = {"populate_by_name": True}
-
-
-class SkillGapDetail(BaseModel):
-    skill: str
-    importance: str
-    gap_level: Literal["完全缺失", "部分掌握", "已掌握"]
-    learning_path: list[str] = Field(default_factory=list)
-
-
-class MatchResponse(BaseModel):
-    match_id: str
-    target_position: str
-    match_score: float = Field(ge=0.0, le=1.0)
-    matched_skills: list[str] = Field(default_factory=list)
-    gap_skills: list[str] = Field(default_factory=list)
-    recommendations: list[str] = Field(default_factory=list)
-    missing_required: list[str] = Field(default_factory=list)
-    missing_bonus: list[str] = Field(default_factory=list)
-    skill_gap_detail: list[SkillGapDetail] = Field(default_factory=list)
-    overall_assessment: str = Field(default="")
-    estimated_learning_time: str = Field(default="")
-    cii: float | None = Field(default=None, description="Capability Inflation Index")
-    note: str | None = Field(default=None, description="M2：补充说明（如岗位存在但无技能画像，无法计算匹配度）")
 
 
 async def _run_match_request(body: MatchRequestInput, driver: Any, session: AsyncSession) -> MatchResponse:
@@ -220,11 +178,9 @@ async def batch_match(
                 db_session=session,
             )
             results.append({"position_name": position, "result": result})
-        except MatchingError as exc:
-            results.append({"position_name": position, "error": str(exc)})
-        except StarMapError:
-            raise
         except Exception as exc:
+            # 批量匹配逐条隔离:任何单条失败(含 PositionNotFoundError 等 StarMapError 子类)
+            # 记为 error 条目,不中断整批。契约:test_batch_partial_failure_isolation。
             results.append({"position_name": position, "error": str(exc)})
     # fix (M13): 响应中加 summary 便于前端一致性展示（plan: 当前前端按扁平 BatchMatchItem 消费，match_score 恒为 undefined）
     success_count = sum(1 for r in results if "result" in r)
@@ -241,44 +197,8 @@ async def batch_match(
 
 
 # ── FE-04: Reverse match (skills → position recommendations) ──
-
-
-class ReverseMatchRequest(BaseModel):
-    """Request body for reverse matching: given user skills, find suitable positions."""
-
-    person_skills: list[PersonSkillInput] = Field(default_factory=list, description="User's current skills")
-    # fix (M13): 兼容前端传 `skills` 字段（学习中心/匹配向导），自动归并到 person_skills
-    skills: list[PersonSkillInput] = Field(default_factory=list, exclude=True, description="Alias of person_skills (frontend compat)")
-    top_k: int = Field(default=10, ge=1, le=50, description="Max positions to return")
-    min_score: float = Field(default=0.3, ge=0.0, le=1.0, description="Minimum match score threshold")
-
-    @model_validator(mode="after")
-    def _merge_skills(self):
-        if self.skills and not self.person_skills:
-            self.person_skills = list(self.skills)
-        return self
-
-    def model_post_init(self, __context):
-        # model_post_init 在 Pydantic v2 中为私有/不推荐；改用上面的 validator
-        pass
-
-
-class PositionRecommendation(BaseModel):
-    """A single position recommendation from reverse matching."""
-
-    position_name: str
-    match_score: float = Field(ge=0.0, le=1.0)
-    matched_skills: list[str] = Field(default_factory=list)
-    gap_skills: list[str] = Field(default_factory=list)
-    skill_coverage: float = Field(ge=0.0, le=1.0, description="Fraction of position's required skills the user has")
-
-
-class ReverseMatchResponse(BaseModel):
-    """Response for reverse matching."""
-
-    recommendations: list[PositionRecommendation] = Field(default_factory=list)
-    total_positions_scanned: int = Field(ge=0)
-    skills_provided: int = Field(ge=0)
+# ReverseMatchRequest / PositionRecommendation / ReverseMatchResponse
+# 已迁至 backend/app/schemas/match.py,路由层只引用。
 
 
 @router.post("/recommend", response_model=ReverseMatchResponse)
@@ -292,8 +212,6 @@ async def recommend_positions(
     Scans available positions, computes match score for each,
     and returns the top-k positions ranked by match score.
     """
-    from app.core.matching.service import MatchService
-
     # Get distinct position names from the database
     try:
         result = await session.execute(

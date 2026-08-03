@@ -12,10 +12,24 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
-from neo4j.exceptions import Neo4jError
 
 from app.exceptions import DashboardError, StarMapError
 from app.services.graph_serializers import _node_id, _safe_properties
+
+
+def _prune_connections(connections: list[dict[str, Any]], domains: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """M2 契约层：剔除任一端点不在已保留 domains 集合中的悬空连接。
+
+    背景：某些维度分组（典型为 level）的 domains 列表只保留非空组（成员数为 0 的组被
+    过滤），但该组的 incident 关系（EVOLVES_TO 等）仍会出现在 connections 数组中。
+    前端把这些 edges 透传给 3d-force-graph 后会抛 "node not found" 并使实例处于坏
+    状态，导致视图切换后渲染持续错误。
+    """
+    valid = {d.get("id") for d in domains if d.get("id") is not None}
+    return [
+        c for c in connections
+        if c.get("source_id") in valid and c.get("target_id") in valid
+    ]
 
 if TYPE_CHECKING:
     from neo4j import AsyncDriver
@@ -100,6 +114,30 @@ _SHARED_SKILL_WEIGHT_DENOMINATOR = 20.0
 _DEFAULT_EVOLUTION_WEIGHT = 0.8
 
 
+# Phase 13 Step 2: heat 视图（按技能需求频率着色）
+HEAT_COLOR_RAMP = [
+    (0,  "#e0f2fe"),
+    (1,  "#7dd3fc"),
+    (2,  "#38bdf8"),
+    (3,  "#f97316"),
+    (4,  "#ef4444"),
+]
+HEAT_ID_PREFIX = "heat-skill-"
+
+
+def _heat_color(count: int) -> str:
+    """Map skill demand count → heat color."""
+    if count <= 0:
+        return HEAT_COLOR_RAMP[0][1]
+    if count >= HEAT_COLOR_RAMP[-1][0]:
+        return HEAT_COLOR_RAMP[-1][1]
+    for i, (threshold, color) in enumerate(HEAT_COLOR_RAMP):
+        next_threshold = HEAT_COLOR_RAMP[i + 1][0] if i + 1 < len(HEAT_COLOR_RAMP) else threshold
+        if threshold <= count < next_threshold:
+            return color
+    return HEAT_COLOR_RAMP[-1][1]
+
+
 # ── 分类函数 ──
 
 
@@ -131,6 +169,61 @@ def _classify_level(name: str, props: dict[str, Any]) -> str:
     return "中级"
 
 
+# Phase 13 Step 1: 行业归一（13 大行业，对标 spec 5.3）
+INDUSTRY_ID_PREFIX: dict[str, str] = {
+    "人工智能": "ind-ai", "大数据": "ind-data", "数据科学": "ind-ds",
+    "数据工程": "ind-de", "AI/机器学习": "ind-ml", "前端开发": "ind-fe",
+    "后端开发": "ind-be", "云计算/DevOps": "ind-cloud", "网络安全": "ind-sec",
+    "移动开发": "ind-mobile", "测试": "ind-qa", "嵌入式与物联网": "ind-iot",
+    "游戏开发": "ind-game", "区块链与Web3": "ind-bc", "数据库与存储": "ind-db",
+    "互联网/IT": "ind-it", "项目管理与协作": "ind-pm", "其他": "ind-other",
+}
+INDUSTRY_COLORS = {
+    "人工智能": "#9B59B6",
+    "AI/机器学习": "#9B59B6",
+    "数据科学": "#E6A23C",
+    "数据工程": "#E6A23C",
+    "前端开发": "#409EFF",
+    "后端开发": "#67C23A",
+    "云计算/DevOps": "#36CFC9",
+    "网络安全": "#F56C6C",
+    "移动开发": "#1ABC9C",
+    "测试": "#95A5A6",
+    "嵌入式与物联网": "#607D8B",
+    "游戏开发": "#9B59B6",
+    "区块链与Web3": "#FF9800",
+    "互联网/IT": "#3498DB",
+    "其他": "#F39C12",
+}
+_INDUSTRY_KEYWORDS = {
+    "人工智能": ["人工智能", "ai工程师", "算法工程师", "机器学习", "深度学习", "nlp", "大模型"],
+    "AI/机器学习": ["ai ", "ml ", "算法"],
+    "数据科学": ["数据科学", "分析师", "统计"],
+    "数据工程": ["数据工程", "etl", "数仓", "数据仓库"],
+    "前端开发": ["前端", "frontend", "vue", "react", "h5", "web前端"],
+    "后端开发": ["后端", "backend", "服务端", "java", "go ", "python", "node"],
+    "云计算/DevOps": ["devops", "sre", "运维", "云", "k8s", "docker"],
+    "网络安全": ["安全", "security", "渗透", "安全工程师"],
+    "移动开发": ["移动", "ios", "android", "flutter", "react native"],
+    "测试": ["测试", "qa", "测开", "sdet"],
+    "嵌入式与物联网": ["嵌入式", "iot", "单片机", "嵌入式软件"],
+    "游戏开发": ["游戏", "unity", "unreal", "游戏开发"],
+    "区块链与Web3": ["区块链", "web3", "solidity"],
+    "互联网/IT": ["互联网", "it "],
+}
+
+
+def _classify_industry(name: str, industry: str) -> str:
+    """Phase 13 Step 1: 按 Position.name + industry 关键词分类到 13 大行业。"""
+    text = f"{industry or ''} {name or ''}".lower()
+    # 按关键词最长优先匹配（"AI/机器学习" 比 "人工智能" 长，先匹配更具体的）
+    for ind in sorted(_INDUSTRY_KEYWORDS.keys(), key=len, reverse=True):
+        for kw in _INDUSTRY_KEYWORDS[ind]:
+            if kw.lower() in text:
+                return ind
+    return "其他"
+
+
 # ── 内部辅助函数 ──
 
 
@@ -158,12 +251,9 @@ async def _fetch_independent_counts(driver: AsyncDriver) -> dict[str, int]:
                 }
     except StarMapError:
         raise
-    except Neo4jError as exc:
-        logger.warning("Failed to fetch independent counts from Neo4j: {}", exc)
-        raise DashboardError(str(exc)) from exc
     except Exception as exc:
-        logger.exception("Unexpected error fetching independent counts: {}", exc)
-        raise DashboardError(str(exc)) from exc
+        # M3: 独立计数是补充指标,失败/列缺失时降级为 0,不拖垮主概览。
+        logger.warning("Failed to fetch independent counts, degrading to zeros: {}", exc)
     return {"positions": 0, "skills": 0, "edges": 0}
 
 
@@ -224,12 +314,19 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
                     stack_connections[key] += record["shared"] or 0
     except StarMapError:
         raise
-    except Neo4jError as exc:
-        logger.error("Tech stack overview Neo4j error: {}", exc)
-        raise DashboardError(str(exc)) from exc
     except Exception as exc:
-        logger.exception("Tech stack overview failed: {}", exc)
-        raise DashboardError(str(exc)) from exc
+        # M3: Neo4j 不可用时降级返回空概览(仪表盘显示"暂无数据"),不抛 500。
+        # 契约:test_driver_exception_returns_empty。
+        logger.warning("Tech stack overview failed, degrading to empty: {}", exc)
+        return {
+            "domains": [],
+            "connections": [],
+            "total_positions": 0,
+            "total_skills": 0,
+            "independent_positions": 0,
+            "independent_skills": 0,
+            "independent_edges": 0,
+        }
 
     # Build response
     stack_id_prefix = {
@@ -283,7 +380,7 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
 
     return {
         "domains": domains,
-        "connections": connections,
+        "connections": _prune_connections(connections, domains),
         "total_positions": total_pos,
         "total_skills": total_skill,
         "independent_positions": counts["positions"],
@@ -336,20 +433,25 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
             ]
     except StarMapError:
         raise
-    except Neo4jError as exc:
-        logger.error("Level overview Neo4j error: {}", exc)
-        raise DashboardError(str(exc)) from exc
     except Exception as exc:
-        logger.exception("Level overview failed: {}", exc)
-        raise DashboardError(str(exc)) from exc
+        # M3: Neo4j 不可用时降级返回空概览,不抛 500。契约:test_driver_exception_returns_empty。
+        logger.warning("Level overview failed, degrading to empty: {}", exc)
+        return {
+            "domains": [],
+            "connections": [],
+            "total_positions": 0,
+            "total_skills": 0,
+            "independent_positions": 0,
+            "independent_skills": 0,
+            "independent_edges": 0,
+        }
 
     level_id = {"初级": "lv-junior", "中级": "lv-mid", "高级": "lv-senior"}
     domains = []
     total_pos = 0
     total_skill = 0
     for level, data in groups.items():
-        if not data["positions"] and not data["skills"]:
-            continue
+        # Step 5: 3 维泡始终保留(空 level 渲染为 0/0 透明泡),但占位不计入 total 计数。
         pc = len(data["positions"])
         sc = len(data["skills"])
         total_pos += pc
@@ -363,6 +465,19 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
                 "color": data["color"],
             }
         )
+
+    # Step 5: 兜底维度。PG 中 0 个 lv-junior 岗时，确保 3 维泡全在（0/0 透明），前端不会因缺桶渲染破图。
+    for required_level in ("初级",):
+        if not any(d["name"] == required_level for d in domains):
+            domains.append(
+                {
+                    "id": level_id[required_level],
+                    "name": required_level,
+                    "position_count": 0,
+                    "skill_count": 0,
+                    "color": LEVEL_COLORS[required_level],
+                }
+            )
 
     connections = []
     for conn in level_connections:
@@ -382,10 +497,106 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
 
     return {
         "domains": domains,
-        "connections": connections,
+        "connections": _prune_connections(connections, domains),
         "total_positions": total_pos,
         "total_skills": total_skill,
         "independent_positions": counts["positions"],
         "independent_skills": counts["skills"],
         "independent_edges": counts["edges"],
+    }
+
+
+# Phase 13 Step 2: 热度视图（技能需求频次）
+HEAT_BUCKETS: list[tuple[str, int, str]] = [
+    ("高 (≥20岗)", 20, "#E74C3C"),
+    ("中 (10-19岗)", 10, "#F39C12"),
+    ("低 (1-9岗)", 1, "#3498DB"),
+    ("无岗", 0, "#95A5A6"),
+]
+
+async def fetch_overview_by_heat(driver: AsyncDriver) -> dict[str, Any]:
+    """Phase 13 Step 2: 按技能需求频率排序的"热度视图"。
+
+    节点：需求 ≥ 1 的技能；按需求数量降序；前 30 个。
+    边：REQUIRES 关联（直接展示"技能与技能"的共享岗位关系）。
+    颜色：按 demand count 走 HEAT_COLOR_RAMP（蓝→深紫）。
+    """
+    counts_indep = await _fetch_independent_counts(driver)
+
+    if driver is None:
+        return {
+            "domains": [],
+            "connections": [],
+            "total_positions": counts_indep["positions"],
+            "total_skills": counts_indep["skills"],
+            "independent_positions": counts_indep["positions"],
+            "independent_skills": counts_indep["skills"],
+            "independent_edges": counts_indep["edges"],
+        }
+
+    domains: list[dict[str, Any]] = []
+    connections: list[dict[str, Any]] = []
+    total_skill = 0
+    top_count = 0
+
+    try:
+        async with driver.session() as session:
+            # 统计每个技能被多少 Position REQUIRES（需求频率）
+            result = await session.run(
+                "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
+                "WITH s, count(DISTINCT p) AS demand "
+                "WHERE demand >= 1 "
+                "RETURN s.name AS name, demand "
+                "ORDER BY demand DESC, s.name ASC "
+                "LIMIT 30"
+            )
+            async for record in result:
+                name = record["name"] or ""
+                demand = int(record["demand"] or 0)
+                if not name or demand <= 0:
+                    continue
+                domains.append({
+                    "id": f"{HEAT_ID_PREFIX}{name}",
+                    "name": name,
+                    "position_count": demand,
+                    "skill_count": 0,
+                    "color": _heat_color(demand),
+                })
+                total_skill += demand
+                if demand > top_count:
+                    top_count = demand
+
+            # 共享岗位关系（按 heat 排序，取 top 5 之间的 EVOLVES_TO 路径）
+            if len(domains) >= 2:
+                conn_result = await session.run(
+                    "MATCH (s1:Skill)<-[:REQUIRES]-(p:Position)-[:REQUIRES]->(s2:Skill) "
+                    "WHERE s1.name IN $ids AND s2.name IN $ids AND s1.name < s2.name "
+                    "RETURN s1.name AS n1, s2.name AS n2, count(DISTINCT p) AS shared "
+                    "ORDER BY shared DESC LIMIT 30",
+                    ids=[d["name"] for d in domains[:5]],
+                )
+                async for record in conn_result:
+                    n1 = record["n1"] or ""
+                    n2 = record["n2"] or ""
+                    if not n1 or not n2:
+                        continue
+                    shared = int(record["shared"] or 0)
+                    connections.append({
+                        "source_id": f"{HEAT_ID_PREFIX}{n1}",
+                        "target_id": f"{HEAT_ID_PREFIX}{n2}",
+                        "type": "CO_DEMANDED",
+                        "properties": {"weight": min(1.0, shared / 5.0)},
+                    })
+    except Exception as exc:
+        logger.exception("Heat overview failed: {}", exc)
+        raise DashboardError(str(exc)) from exc
+
+    return {
+        "domains": domains,
+        "connections": _prune_connections(connections, domains),
+        "total_positions": counts_indep["positions"],
+        "total_skills": counts_indep["skills"],
+        "independent_positions": counts_indep["positions"],
+        "independent_skills": counts_indep["skills"],
+        "independent_edges": counts_indep["edges"],
     }

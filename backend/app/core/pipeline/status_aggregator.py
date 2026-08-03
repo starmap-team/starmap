@@ -22,8 +22,6 @@ from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exceptions import PipelineStageError, StarMapError
-
 CACHE_KEY = "pipeline:status:agg"
 CACHE_TTL_SECONDS = 600  # 10 分钟
 
@@ -44,7 +42,7 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
         from sqlalchemy import text as _text
         vol_result = await session.execute(_text("SELECT COUNT(*) FROM jd_raw WHERE crawled_at >= :start"), {"start": today_start})
         today_volume = int(vol_result.scalar() or 0)
-    except Exception as exc:
+    except Exception:
         logger.exception("today_crawl_volume query failed")
         today_volume = 0
 
@@ -67,7 +65,7 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
 
         total = success_count + failed_count
         success_rate = success_count / total if total > 0 else 0.0
-    except Exception as exc:
+    except Exception:
         logger.exception("success_rate query failed")
         success_rate = 0.0
 
@@ -81,7 +79,7 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
         )
         avg_q = avg_result.scalar()
         avg_quality_score = float(avg_q) if avg_q is not None else 0.0
-    except Exception as exc:
+    except Exception:
         logger.exception("avg_quality_score query failed")
         avg_quality_score = 0.0
 
@@ -125,7 +123,7 @@ async def compute_data_quality_aggregates(
             consistency = 1.0  # 单一 source：无方差可比较
         else:
             consistency = 0.0  # M5: 无 source 分数，禁止 vacuous 1.0
-    except Exception as exc:
+    except Exception:
         logger.exception("consistency calculation failed")
         consistency = 0.0
 
@@ -133,7 +131,7 @@ async def compute_data_quality_aggregates(
     try:
         freshness = float(metrics.get("freshness_hours", 0))
         timeliness = max(0.0, 1.0 - min(freshness / 48.0, 1.0)) if has_data else 0.0
-    except Exception as exc:
+    except Exception:
         logger.exception("timeliness calculation failed")
         timeliness = 0.0
 
@@ -197,7 +195,7 @@ async def _compute_trend(session: AsyncSession) -> list[dict[str, Any]]:
             trend.append({"date": date_key, "score": round(avg, 4)})
 
         return trend
-    except Exception as exc:
+    except Exception:
         logger.exception("trend query failed")
         return []
 
@@ -219,7 +217,7 @@ async def read_or_compute_status_aggregates(
                 if isinstance(cached, bytes):
                     cached = cached.decode("utf-8")
                 return json.loads(cached)
-        except Exception as exc:
+        except Exception:
             logger.exception("Redis cache read failed (degrading to sync)")
 
     # 2) 同步计算
@@ -229,7 +227,7 @@ async def read_or_compute_status_aggregates(
     if redis_client is not None:
         try:
             await redis_client.setex(CACHE_KEY, CACHE_TTL_SECONDS, json.dumps(result))
-        except Exception as exc:
+        except Exception:
             logger.exception("Redis cache write failed (continuing)")
 
     return result
@@ -241,5 +239,5 @@ async def invalidate_status_cache(redis_client: Any | None) -> None:
         return
     try:
         await redis_client.delete(CACHE_KEY)
-    except Exception as exc:
+    except Exception:
         logger.exception("Redis cache invalidation failed")

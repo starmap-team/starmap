@@ -36,6 +36,11 @@ class AuditEvent(StrEnum):
     USER_DISABLED = "user_disabled"
     USER_UNLOCKED = "user_unlocked"
     ACCOUNT_DELETED = "account_deleted"
+    # ── Phase 15 (multi-source data) ──
+    MANUAL_IMPORT = "manual_import"
+    PII_DETECTED = "pii_detected"
+    DATA_SOURCE_RENAMED = "data_source_renamed"
+    AUTO_PAUSE = "auto_pause"
 
 
 @dataclass(frozen=True)

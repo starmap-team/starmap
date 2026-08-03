@@ -410,7 +410,7 @@ async def evaluate_resume_extraction(
     x-audit-note: L3 — Internal API, no frontend consumer. Used by backend quality pipelines.
     """
     try:
-        from app.core.extraction.resume_eval import run_resume_evaluation
+        from app.services.resume_service import run_resume_evaluation
 
         result = await run_resume_evaluation()
 
@@ -469,8 +469,9 @@ async def evaluate_resume_extraction(
     except StarMapError:
         raise
     except Exception as exc:
-        logger.exception("Unexpected error in quality: {}", exc)
-        raise HTTPException(status_code=500, detail="质量检查异常") from exc
+        # M3: 简历评估是非关键质检操作,任何失败降级为 success=False 的 200 响应,不抛 500。
+        logger.warning("Resume evaluation failed, degrading to success=False: {}", exc)
+        return ResumeEvalResponse(success=False, error=str(exc))
 
 
 @router.get("/comprehensive-report", response_model=ComprehensiveReport)

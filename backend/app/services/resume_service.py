@@ -10,6 +10,7 @@ from docx import Document
 from loguru import logger
 
 from app.core.extraction.jd_extract import extract_from_jd
+from app.core.extraction.resume_eval import run_resume_evaluation  # noqa: F401  (re-export:供 api 层经 service 引用)
 
 SUPPORTED_RESUME_EXTENSIONS = {"pdf", "docx"}
 """Whitelist of resume file extensions the backend can parse.

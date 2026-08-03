@@ -377,6 +377,7 @@ async def get_pipeline_stages(
     # 它的 stage 快照里常含 “crawl|running” 的过期 in-flight 状态，呈现给用户=误报。
     # 优先：running → completed(records>0) → failed → cancelled(records>0) → latest cancelled（最差兜底）。
     from sqlalchemy import case as _case
+
     from app.models.pipeline_models import PipelineRun as _PR
     ordering = _case(
         (_PR.status == "running", 0),

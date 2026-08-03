@@ -32,9 +32,9 @@ from app.core.pipeline.orchestrator import (
     update_stage_status,
 )
 from app.db.session import get_session_factory
+from app.exceptions import PipelineStageError
 from app.models.pipeline_models import PipelineRun
 from app.services.resources import resources as app_resources
-from app.exceptions import PipelineStageError
 
 # ---------------------------------------------------------------------------
 # SSE progress helpers
@@ -912,7 +912,7 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
             return
     except PipelineStageError:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("advance_pipeline STOP flag check failed (continuing)")
 
     session_factory = get_session_factory()

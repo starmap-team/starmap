@@ -10,17 +10,15 @@ from fastapi import APIRouter, HTTPException
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from app.core.extraction.llm_client import (
+from app.exceptions import JudgeError, StarMapError
+from app.services.judge_service import (
     LLMConnectionError,
     LLMResponseError,
     LLMTimeoutError,
-)
-from app.services.judge_service import (
     evaluate_batch_async,
     evaluate_pair_async,
     evaluate_sample_async,
 )
-from app.exceptions import JudgeError, StarMapError
 
 router = APIRouter(prefix="/judge")
 

@@ -28,7 +28,7 @@ from typing import Any, cast
 from loguru import logger
 from redis.asyncio import Redis
 
-from app.exceptions import DashboardError, StarMapError
+from app.exceptions import StarMapError
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -99,7 +99,7 @@ async def publish_event(
         return True
     except StarMapError:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("SSE publish failed for {}", event_type)
         return False
 
@@ -164,11 +164,11 @@ async def event_stream(
                 message = None
             except StarMapError:
                 raise
-            except (ConnectionError, OSError) as exc:
+            except (ConnectionError, OSError):
                 logger.exception("pubsub connection error")
                 await asyncio.sleep(POLL_INTERVAL)
                 continue
-            except Exception as exc:
+            except Exception:
                 logger.exception("pubsub.get_message error")
                 await asyncio.sleep(POLL_INTERVAL)
                 continue
@@ -189,10 +189,10 @@ async def event_stream(
         logger.debug("SSE client disconnected")
     except StarMapError:
         raise
-    except (ConnectionError, OSError) as exc:
+    except (ConnectionError, OSError):
         logger.exception("SSE subscriber connection error")
         # Continue — single subscriber failure shouldn't break broadcast
-    except Exception as exc:
+    except Exception:
         logger.exception("SSE stream error")
         # Continue — don't break the broadcast loop
     finally:
@@ -202,9 +202,9 @@ async def event_stream(
             await pubsub.aclose()
         except StarMapError:
             raise
-        except (ConnectionError, OSError) as exc:
+        except (ConnectionError, OSError):
             logger.exception("SSE pubsub connection cleanup failed")
-        except Exception as exc:
+        except Exception:
             logger.exception("SSE pubsub cleanup failed")
 
 
@@ -243,7 +243,7 @@ async def get_recent_events(
         raw_events = await cast(Awaitable[list[Any]], redis.lrange(POLL_LIST_KEY, 0, limit - 1))
     except StarMapError:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Polling fallback read failed")
         return []
 
