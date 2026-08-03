@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.pipeline.contracts import DataQualityStats, PositionProfile
+from app.core.pipeline.sse.contracts import DataQualityStats, PositionProfile
 from app.repositories.position_repository import PositionRepository
 
 

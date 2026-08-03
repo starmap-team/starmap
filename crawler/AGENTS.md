@@ -1,39 +1,30 @@
-﻿# Crawler subsystem knowledge base
+# Crawler subsystem knowledge base
 
 ## OVERVIEW
-Job-market ingestion subsystem: spiders, Scrapy/Playwright pipelines, dedup, compliance logging, persistence, and dedicated crawler tests.
 
-## STRUCTURE
-```text
-starmap/crawler/
-├── spiders/             # source-specific crawlers (boss/job51/lagou + stealth variants)
-├── pipelines/           # cleaning, dedup, and persistence pipeline helpers
-├── persistence/         # ORM models, migrations, DAO/storage helpers
-├── scripts/             # crawler ops/debug/export scripts
-├── tests/               # crawler-focused unit/integration tests
-├── compliance.py        # robots checks, QPS limits, logging, proxy fetch helper
-├── dedup.py             # hash/SimHash dedup utilities
-├── config.py            # runtime crawler config
-└── requirements.txt     # crawler-specific dependencies
-```
+Job-source ingestion, compliance checks, cleaning, deduplication, persistence adapters and pipeline integration.
+
+## CURRENT SOURCE LAYOUT
+
+- `spiders/v2ex_remote.py` is the active local spider.
+- `spiders/_disabled/` contains non-runnable historical site implementations.
+- `scripts/apify_*.py` are optional cloud collection tools, not local spider registrations.
 
 ## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Add/change source crawl logic | `starmap/crawler/spiders/` | One spider per site family |
-| Change clean/persist behavior | `starmap/crawler/pipelines/` | Keep pipeline steps modular |
-| Adjust persistence schema | `starmap/crawler/persistence/` | Use crawler-local migrations |
-| Work on compliance rules | `starmap/crawler/compliance.py` | robots, rate limiting, logging, proxy behavior |
-| Run/debug crawler helpers | `starmap/crawler/scripts/` | ESCO mapping, export, integration, golden tests |
+
+| Task | Location |
+|---|---|
+| Compliance and throttling | `compliance.py` |
+| Proxy circuit breaking | `middleware/proxy_middleware.py` |
+| Cleaning/incremental storage | `pipelines/` |
+| Crawler-local persistence | `persistence/` |
+| Backend pipeline bridge | `pipeline_bridge.py` |
+| Source/tool CLI | `run.py`, `scripts/` |
 
 ## CONVENTIONS
-- Keep crawler dependencies separate from backend dependencies.
-- Persist compliance logs even when the main request flow fails.
-- Treat stealth/browser automation as high-friction paths and keep them isolated per spider.
 
-## ANTI-PATTERNS
-- Do **not** bypass rate limits or robots checks.
-- Do **not** commit persistence schema changes without migrations.
-- Do **not** mix crawler persistence assumptions directly into backend application models.
-
-
+- Respect robots, rate limits, source terms and explicit source status.
+- Preserve request/compliance logs even when collection fails.
+- Keep crawler persistence migrations separate and intentional.
+- Never activate a `_disabled` spider without a fresh selector, compliance and integration test.
+- Credentials come from environment variables, not source or docs.

@@ -19,16 +19,19 @@
 ## 项目结构
 
 | 路径 | 用途 |
-|------|------|
+|---|---|
 | `backend/app/api/v1/` | API 路由层 |
-| `backend/app/core/` | 业务核心 (extraction/, evolution/) |
+| `backend/app/core/` | 业务核心 (extraction/, evolution/, validation/) |
+| `backend/app/schemas/` | **集中式 Pydantic Schema 定义（前后端数据模型唯一直相源）** |
 | `backend/app/services/` | 服务层 (graph, match, resume, judge) |
 | `backend/app/models/` | SQLAlchemy ORM 模型 |
 | `backend/app/tasks/` | Celery 异步任务 |
 | `frontend/src/pages/` | 页面组件 |
 | `frontend/src/stores/` | Pinia 状态管理 |
 | `frontend/src/components/` | 通用 UI 组件 |
-| `starmap-contracts/` | API 契约 (OpenAPI + Cypher), **跨团队真相源** |
+| `frontend/src/validation/` | **前端运行时校验层（JSON Schema 校验 + 错误解析 + 表单校验）** |
+| `starmap-contracts/` | API 契约 (OpenAPI + Cypher + JSON Schema), **跨团队真相源** |
+| `starmap-contracts/schemas/` | **自动生成的 JSON Schema（供前端运行时校验）** |
 | `evaluation/` | 评估套件 (baseline/模拟LLM/真实LLM) |
 | `tests/e2e/` | E2E 冒烟 + Playwright 测试 |
 
@@ -39,15 +42,22 @@
 - **图/业务分离**: Neo4j 查询在 `services/` 中，抽取/演化在 `core/` 中
 - **反幻觉**: 每个技能抽取必须附带信任度评分
 - **迁移优先**: 模型变更必须走 Alembic 迁移
+- **Schema 集中管理**: 所有 API 请求/响应 Pydantic 模型统一在 `backend/app/schemas/` 中定义，路由层直接导入使用，不允许在路由文件内内联定义 Pydantic 模型
+- **字段级约束**: 每个 Field 必须有 `description` + 合理的约束（`min_length`/`max_length`/`ge`/`le`/`pattern`）
+- **统一错误格式**: 所有 API 错误使用 `{detail, code, timestamp, fields?}` 格式，错误码见 `app/core/validation/errors.py` 中 `ErrorCode` 枚举
+- **请求校验**: 前端提交前用 JSON Schema 预校验（`useFormValidation`），后端用 Pydantic 强校验（FastAPI 自动 → 统一 ErrorResponse + FieldError）
+- **响应校验**: 前端 Store 中使用 `useResponseValidation.validateResponse()` 对 API 返回数据做结构校验（DEV 环境 console.warn，不阻断业务）
+- **JSON Schema 同步**: Schema 变更后运行 `cd backend && poetry run python ../scripts/export_json_schemas.py` 重新生成 `starmap-contracts/schemas/`
+- **文档治理**: 公共文档集中在 `docs/`，一次性报告进入 `docs/archive/`；活文档不写易漂移的硬数字，参考 `docs/governance/documentation.md`
 
 ## 测试
 
 ```bash
-# 后端
-cd backend && poetry run pytest                    # 单元 + 集成 (覆盖率 ≥ 60%)
+# 后端（覆盖率门禁见 backend/pyproject.toml，当前 70%）
+cd backend && poetry run pytest
 
 # 前端
-cd frontend && npm run test                        # vitest
+cd frontend && npm run test
 
 # E2E
 python tests/e2e/smoke_test.py --base-url http://localhost:8000 --all
@@ -68,6 +78,9 @@ cd frontend && npm run dev
 # 代码检查
 cd backend && poetry run ruff check . && poetry run mypy app
 cd frontend && npm run lint && npm run typecheck
+
+# 导出 JSON Schema（Pydantic 模型变更后）
+cd backend && poetry run python ../scripts/export_json_schemas.py
 ```
 
 ## Git 约定
@@ -79,7 +92,7 @@ cd frontend && npm run lint && npm run typecheck
 ## 数据流速查
 
 ```
-JD文本 → extract/jd (LLM抽取) → 归一化 → 反幻觉 → 写入Neo4j
+JD文本 → extract/jd (LLM抽取) → 归一化 → 反幻觉 → 写入PostgreSQL → 投影Neo4j
 简历   → match/diagnose → 技能对比 → 差距分析 → 学习路径
 快照   → evolution/diff → 差异引擎 → 新兴技能 → 信任度聚合
 ```

@@ -375,6 +375,7 @@ class Settings(BaseSettings):
         # AUTH-04 fix: 生产 CORS 白名单校验
         # 默认 cors_origins 仅含 localhost dev 端口，生产必须通过
         # CORS_ALLOWED_ORIGINS 环境变量显式覆盖为真实域名。
+        # 任何 dev-only origin 出现即拒绝（混合配置也拦截）
         if self.app_env == "production":
             _dev_only_origins = {
                 "http://localhost:5173",
@@ -384,10 +385,12 @@ class Settings(BaseSettings):
                 "http://localhost:5174",
                 "http://localhost:5175",
             }
-            if set(self.cors_origins).issubset(_dev_only_origins):
+            _found_dev_origins = [o for o in self.cors_origins if o in _dev_only_origins]
+            if _found_dev_origins:
                 raise RuntimeError(
-                    "CORS_ALLOWED_ORIGINS 在生产环境仍为默认 dev localhost 值。"
-                    "请通过 CORS_ALLOWED_ORIGINS 环境变量设置生产域名白名单。"
+                    f"CORS_ALLOWED_ORIGINS 包含开发环境专有 origin: {_found_dev_origins}。"
+                    f"生产环境必须通过 CORS_ALLOWED_ORIGINS 环境变量移除所有 dev localhost 值。"
+                    f"如需添加生产域名，请设置 CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://api.yourdomain.com"
                 )
 
         # Phase DB-AUTH: 密码策略由 PostgreSQL users 表的 bcrypt hash 保证

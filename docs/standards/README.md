@@ -1,193 +1,53 @@
-# StarMap 规范文档总索引
+# StarMap 规范索引
 
-> 📋 **星图(StarMap) 人才能力星云导航系统 — 规范驱动文档体系**
->
-> 本索引是 `docs/standards/` 目录的总入口，涵盖项目全部模块的规范性文档。
-> 每份文档均遵循统一的7节结构：概述 → 文件清单 → 架构设计 → 接口规范 → 编码规范 → 测试规范 → 变更管理。
+> 状态：活文档
+> 最近核对：2026-07-24
 
----
+规范只记录稳定边界和可执行规则，不记录易漂移的文件数、行数、端点数、测试通过数或阶段状态。
 
-> ⚠️ **核对状态（2026-07-16 实测）**：本索引及各子文档里的「文件数 / 路由数 / 组件数」等**硬数字是 2026-07-10 快照**，
-> 经 Phase 14（大文件拆分）后已明显漂移。**请勿把正文硬数字当现状**——以代码为准，或用下表命令自查。
-> 结构性约定（分层、契约优先、命名、迁移规则）经抽查仍与代码一致，可信。
+## 总纲
 
-### 硬数字核对表（2026-07-16 实测 vs 文档自称）
+- [任务寻路](00-总纲/00-寻路-LANDING.md)
+- [项目规范](00-总纲/01-项目规范总纲.md)
+- [架构规范](00-总纲/02-架构设计规范.md)
+- [命名与代码风格](00-总纲/03-命名与代码风格规范.md)
 
-| 维度 | 文档自称 | 实测 | 状态 | 自查命令 |
-|------|---------|------|------|---------|
-| 前端路由 | 14 | **16** | ⚠ 漂移 | 数 `frontend/src/router/index.ts` 中 `routes` 条目 |
-| 前端页面 | 15 | **17** | ⚠ 漂移 | `Get-ChildItem frontend/src/pages/*.vue` |
-| Pinia store | 14 | **23** | ⚠ 严重 | `Get-ChildItem frontend/src/stores/*.ts` |
-| 前端组件 | 38 | **55** | ⚠ 严重 | `Get-ChildItem frontend/src/components/**/*.vue` |
-| composable | 28 | **~45** | ⚠ 严重 | `Get-ChildItem frontend/src/composables/**/*.ts`（排除 `__tests__`） |
-| 后端路由文件 | 22 | **23** | ≈ 一致 | `Get-ChildItem backend/app/api/v1/*.py` |
-| 覆盖率门禁 | ≥60% | **80.42%** | ✓ | `cd backend && poetry run pytest --cov` |
+## 后端
 
-> **结论**：漂移集中在「计数类硬数字」（Phase 14 拆分所致，且会持续漂移），故**不回填正文**——
-> 凡涉及具体数量的位置，一律以本表 + 代码为准。规范/约定类内容可信。
+- [入口与配置](01-backend/01-入口与配置.md)
+- [API 路由](01-backend/02-API路由层.md)
+- [Extraction](01-backend/03-业务核心-extraction.md)
+- [Evolution](01-backend/04-业务核心-evolution.md)
+- [Learning](01-backend/05-业务核心-learning.md)
+- [Matching](01-backend/06-业务核心-matching.md)
+- [Pipeline](01-backend/07-业务核心-pipeline.md)
+- [Dashboard](01-backend/08-业务核心-dashboard.md)
+- [Services](01-backend/09-服务层-services.md)
+- [Models](01-backend/10-数据模型-models.md)
+- [Tasks](01-backend/11-异步任务-tasks.md)
+- [数据库与会话](01-backend/12-数据库与会话.md)
+- [后端测试](01-backend/13-后端测试规范.md)
 
----
+## 前端
 
-## 📊 文档统计
+- [入口与路由](02-frontend/01-入口与路由.md)
+- [API 调用](02-frontend/02-API调用层.md)
+- [Pinia](02-frontend/03-Pinia状态管理.md)
+- [Composables](02-frontend/04-Composables规范.md)
+- [页面](02-frontend/05-页面组件规范.md)
+- [通用组件](02-frontend/06-通用组件规范.md)
+- [样式与设计令牌](02-frontend/07-样式与设计令牌.md)
+- [构建与质量](02-frontend/08-前端构建与质量.md)
 
-| 分类 | 文档数 | 覆盖范围 |
-|------|--------|---------|
-| 00-总纲 | 3 | 项目规范、架构设计、命名风格 |
-| 01-后端 | 13 | FastAPI/Celery/Neo4j/PostgreSQL 全模块 |
-| 02-前端 | 8 | Vue3/TypeScript/Pinia 全模块 |
-| 03-爬虫 | 1 | Scrapy/Playwright 数据采集 |
-| 04-契约 | 1 | OpenAPI/Cypher 接口契约 |
-| 05-评估 | 1 | baseline/sim/real 三层评估 |
-| 06-测试 | 1 | E2E/集成/契约测试 |
-| 07-DevOps | 3 | CI/CD/Docker/脚本 |
-| 99-附录 | 3 | 已知问题、技术债、术语表 |
-| **合计** | **30** | **全栈覆盖** |
+## 其他
 
----
+- [爬虫](03-crawler/01-爬虫模块规范.md)
+- [AGENTS.md](03-crawler/02-AGENTS-md-规范.md)
+- [API 契约](04-contracts/01-API契约规范.md)
+- [评估](05-evaluation/01-评估套件规范.md)
+- [E2E 与集成测试](06-testing/01-E2E与集成测试规范.md)
+- [CI/CD](07-devops/01-CI-CD规范.md)
+- [Docker 与部署](07-devops/02-Docker与部署规范.md)
+- [脚本工具](07-devops/03-脚本工具规范.md)
 
-## 📖 快速导航
-
-### 00-总纲 — 必读入门
-
-| 文档 | 说明 | 优先级 |
-|------|------|--------|
-| [01-项目规范总纲](00-总纲/01-项目规范总纲.md) | 强制规范、铁律、协作纪律 | ⭐⭐⭐ |
-| [02-架构设计规范](00-总纲/02-架构设计规范.md) | 分层架构、数据流、技术栈选型 | ⭐⭐⭐ |
-| [03-命名与代码风格规范](00-总纲/03-命名与代码风格规范.md) | Python/Vue/TS/SQL/API 命名约定 | ⭐⭐⭐ |
-
-### 01-后端 — FastAPI 服务层
-
-| 文档 | 模块 | 文件数 | 核心职责 |
-|------|------|--------|---------|
-| [01-入口与配置](01-backend/01-入口与配置.md) | main.py / config.py / dependencies.py | 3 | 应用入口、配置中心、依赖注入 |
-| [02-API路由层](01-backend/02-API路由层.md) | api/v1/ | 22 | 14个功能域的RESTful端点 |
-| [03-业务核心-extraction](01-backend/03-业务核心-extraction.md) | core/extraction/ | 6 | JD/简历技能抽取、归一化、写入图谱 |
-| [04-业务核心-evolution](01-backend/04-业务核心-evolution.md) | core/evolution/ | 9 | 技能演化、新兴技能发现、幻觉防护、信任评分 |
-| [05-业务核心-learning](01-backend/05-业务核心-learning.md) | core/learning/ | 3 | 学习路径生成、进度追踪 |
-| [06-业务核心-matching](01-backend/06-业务核心-matching.md) | core/matching/ | 6 | 人岗匹配、差距诊断、学习推荐 |
-| [07-业务核心-pipeline](01-backend/07-业务核心-pipeline.md) | core/pipeline/ | 11 | ETL数据流水线、闭环编排、质量监控 |
-| [08-业务核心-dashboard](01-backend/08-业务核心-dashboard.md) | core/dashboard/ | 2 | 数据大屏服务、SSE实时广播 |
-| [09-服务层-services](01-backend/09-服务层-services.md) | services/ | 12 | Neo4j/图/匹配/简历/推荐等服务编排 |
-| [10-数据模型-models](01-backend/10-数据模型-models.md) | models/ | 5 | SQLAlchemy ORM模型、Alembic迁移 |
-| [11-异步任务-tasks](01-backend/11-异步任务-tasks.md) | tasks/ | 2 | Celery异步任务、定时调度 |
-| [12-数据库与会话](01-backend/12-数据库与会话.md) | db/ / repositories/ / alembic/ | 9+ | 数据库连接、仓储模式、迁移管理 |
-| [13-后端测试规范](01-backend/13-后端测试规范.md) | tests/ | 76 | 单元/集成测试、覆盖率门禁≥60% |
-
-### 02-前端 — Vue3 应用层
-
-| 文档 | 模块 | 文件数 | 核心职责 |
-|------|------|--------|---------|
-| [01-入口与路由](02-frontend/01-入口与路由.md) | main.ts / App.vue / router/ | 4 | 应用启动、14条懒加载路由、认证守卫 |
-| [02-API调用层](02-frontend/02-API调用层.md) | api/ | 4 | axios封装、类型化API、OpenAPI类型桥接 |
-| [03-Pinia状态管理](02-frontend/03-Pinia状态管理.md) | stores/ | 14 | 14个store的状态/动作/计算属性 |
-| [04-Composables规范](02-frontend/04-Composables规范.md) | composables/ | 28 | 28个组合函数（图表/数据/交互/展示） |
-| [05-页面组件规范](02-frontend/05-页面组件规范.md) | pages/ | 15 | 15个路由页面组件 |
-| [06-通用组件规范](02-frontend/06-通用组件规范.md) | components/ | 38 | 38个通用Vue组件 |
-| [07-样式与设计令牌](02-frontend/07-样式与设计令牌.md) | styles/ / utils/ | 7 | CSS变量、动画系统、响应式、图表主题 |
-| [08-前端构建与质量](02-frontend/08-前端构建与质量.md) | vite/ / tsconfig/ / eslint/ | 4 | 构建配置、类型检查、代码质量门禁 |
-
-### 03-爬虫 — 数据采集层
-
-| 文档 | 模块 | 文件数 | 核心职责 |
-|------|------|--------|---------|
-| [01-爬虫模块规范](03-crawler/01-爬虫模块规范.md) | spiders/ / middleware/ / persistence/ / scripts/ | 40+ | 三站点双模式抓取、合规层、代理熔断 |
-
-### 04-契约 — API 单一事实源
-
-| 文档 | 模块 | 文件数 | 核心职责 |
-|------|------|--------|---------|
-| [01-API契约规范](04-contracts/01-API契约规范.md) | openapi.yaml / models/ / validate.py | 3 | 93路径/102操作/60Schema、CI校验 |
-
-### 05-评估 — QA 质量保障层
-
-| 文档 | 模块 | 文件数 | 核心职责 |
-|------|------|--------|---------|
-| [01-评估套件规范](05-evaluation/01-评估套件规范.md) | baseline/ / sim/ / real/ | 8 | 关键词基线/LLM模拟/真实API三层评估 |
-
-### 06-测试 — 全链路验证层
-
-| 文档 | 模块 | 文件数 | 核心职责 |
-|------|------|--------|---------|
-| [01-E2E与集成测试规范](06-testing/01-E2E与集成测试规范.md) | e2e/ / integration/ / contract/ | 30+ | Playwright/pytest/vitest全链路测试 |
-
-### 07-DevOps — 交付运维层
-
-| 文档 | 模块 | 文件数 | 核心职责 |
-|------|------|--------|---------|
-| [01-CI-CD规范](07-devops/01-CI-CD规范.md) | .github/workflows/ci.yml | 1 | 5阶段流水线、覆盖率门禁、定时触发 |
-| [02-Docker与部署规范](07-devops/02-Docker与部署规范.md) | docker-compose/ / Dockerfile* | 7 | 开发/生产编排、多阶段构建、健康检查 |
-| [03-脚本工具规范](07-devops/03-脚本工具规范.md) | scripts/ | 34 | 图谱初始化/数据seed/评估测量/部署脚本 |
-
-### 99-附录 — 参考信息
-
-| 文档 | 说明 |
-|------|------|
-| [01-已知问题清单](99-appendix/01-已知问题清单.md) | 🔴严重3项 / 🟡中等5项 / 🟢低2项 |
-| [02-技术债与改进路线](99-appendix/02-技术债与改进路线.md) | 15项技术债务、三阶段升级路线 |
-| [03-术语表](99-appendix/03-术语表.md) | 8大类术语中英对照、缩写速查 |
-
----
-
-## 🔍 按场景查找
-
-### 我是新成员，需要快速了解项目
-1. → [00-总纲/01-项目规范总纲](00-总纲/01-项目规范总纲.md)（了解铁律）
-2. → [00-总纲/02-架构设计规范](00-总纲/02-架构设计规范.md)（了解架构）
-3. → [99-附录/03-术语表](99-附录/03-术语表.md)（熟悉术语）
-
-### 我要开发后端新功能
-1. → [01-后端/02-API路由层](01-backend/02-API路由层.md)（了解路由约定）
-2. → [04-契约/01-API契约规范](04-contracts/01-API契约规范.md)（先改契约）
-3. → 对应业务核心模块文档（了解实现模式）
-4. → [01-后端/13-后端测试规范](01-backend/13-后端测试规范.md)（写测试）
-
-### 我要开发前端新页面
-1. → [02-前端/01-入口与路由](02-frontend/01-入口与路由.md)（注册路由）
-2. → [02-前端/02-API调用层](02-frontend/02-API调用层.md)（API调用模式）
-3. → [02-前端/03-Pinia状态管理](02-frontend/03-Pinia状态管理.md)（状态设计）
-4. → [02-前端/05-页面组件规范](02-frontend/05-页面组件规范.md)（页面开发模式）
-
-### 我要修复Bug
-1. → [99-附录/01-已知问题清单](99-附录/01-已知问题清单.md)（查看已知问题）
-2. → 对应模块文档（了解代码结构）
-3. → [01-后端/13-后端测试规范](01-backend/13-后端测试规范.md) 或 [06-测试/01-E2E与集成测试规范](06-testing/01-E2E与集成测试规范.md)（写回归测试）
-
-### 我要升级依赖
-1. → [99-附录/02-技术债与改进路线](99-附录/02-技术债与改进路线.md)（查看升级路线）
-2. → [07-DevOps/01-CI-CD规范](07-devops/01-CI-CD规范.md)（确保CI兼容）
-3. → [04-契约/01-API契约规范](04-contracts/01-API契约规范.md)（检查契约影响）
-
----
-
-## ⚠️ 强制规范速查
-
-> 来自 [00-总纲/01-项目规范总纲.md](00-总纲/01-项目规范总纲.md)
-
-| 铁律 | 说明 | 违反后果 |
-|------|------|---------|
-| **契约优先** | 先改 `starmap-contracts/openapi.yaml`，再写代码 | 前后端不一致 |
-| **main 可运行** | main分支始终可构建、可运行 | 阻塞团队 |
-| **每日集成** | 每天拉main跑冒烟，当天问题当天修 | 问题堆积 |
-| **覆盖率≥60%** | pytest 覆盖率门禁 | CI失败 |
-| **模型变更走迁移** | Alembic迁移脚本 | 数据丢失 |
-| **PR需1人review** | CI全绿 + 1人review | 无法合并 |
-
----
-
-## 📅 文档维护
-
-- **生成日期**: 2026-07-10
-- **最近核对**: 2026-07-16（硬数字漂移已登记于顶部核对表；结构/约定类内容仍一致）
-- **对应代码版本**: main (ahead origin/main 220 commits)
-- **文档结构**: 30份模块级规范 + 1份总索引 = 31份文件
-- **维护方式**: 模块变更时同步更新对应文档；**计数类硬数字不手写、不回填**，一律以代码或顶部核对表的自查命令为准
-- **更新触发**: 新增模块、接口变更、架构调整、依赖升级
-
----
-
-## 🔗 外部链接
-
-- [项目根目录 README](../../README.md)
-- [AGENTS.md](../../AGENTS.md) — 项目指令与约定
-- [starmap-contracts/](../../starmap-contracts/) — API契约仓库
-- [.github/workflows/ci.yml](../../.github/workflows/ci.yml) — CI流水线
+历史已知问题、技术债、审计和 Sprint 状态已移至 [归档](../archive/README.md)。当前问题以 issue tracker、失败测试和当前工作树为准。

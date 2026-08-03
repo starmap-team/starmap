@@ -7,10 +7,11 @@ Covers:
 - PipelineContext dataclass
 - ExtractedSkill dataclass
 """
+
 from __future__ import annotations
 
-from app.pipeline.contracts import ExtractedSkill, PipelineContext
-from app.pipeline.steps import LearningPathStep, MatchStep, RecommendStep, ResumeParseStep, SkillExtractStep
+from app.core.pipeline.sse.contracts import ExtractedSkill, PipelineContext
+from app.core.pipeline.sse.steps import LearningPathStep, MatchStep, RecommendStep, ResumeParseStep, SkillExtractStep
 
 
 class TestStepNames:
@@ -58,7 +59,7 @@ class TestStepTimeouts:
 
     def test_recommend_timeout(self):
         step = RecommendStep.__new__(RecommendStep)
-        assert step.timeout == 30
+        assert step.timeout == 120
 
 
 class TestPipelineContext:

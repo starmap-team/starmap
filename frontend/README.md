@@ -1,42 +1,37 @@
-# 前端 README
+# StarMap 前端
 
-## 启动（开发）
+Vue 3 + TypeScript + Element Plus + Pinia + ECharts + AntV G6 应用。
 
-```bash
-docker-compose -f docker-compose.dev.yml up frontend
-# 访问 http://localhost:5173
-```
-
-## 本地直接运行
+## 启动
 
 ```bash
 cd frontend
 npm install
-npm run gen:api   # 从 starmap-contracts/openapi.yaml 生成 TS 类型
+npm run gen:api
 npm run dev
 ```
+
+或从仓库根运行 `docker compose -f docker-compose.dev.yml up -d frontend`。开发地址：<http://localhost:5173>。
 
 ## 命令
 
 | 命令 | 作用 |
-|------|------|
-| `npm run dev` | 开发服务器（HMR）|
-| `npm run build` | 构建（含 typecheck）|
-| `npm run typecheck` | TS 类型检查（CI 门禁）|
-| `npm run lint` | ESLint（CI 门禁）|
-| `npm run test` | Vitest 单测 |
-| `npm run gen:api` | 从契约生成 API 类型（规范1 双端类型一致）|
+|---|---|
+| `npm run dev` | Vite 开发服务器 |
+| `npm run gen:api` | 从 OpenAPI 生成 `src/api/schema.ts` |
+| `npm run typecheck` | Vue/TypeScript 类型检查 |
+| `npm run lint` | ESLint |
+| `npm run test` | Vitest |
+| `npm run build` | 类型检查后构建生产包 |
 
-## Mock 优先（规范4 §17.5）
+## 数据边界
 
-`src/mock/handlers.ts` 用 MSW 拦截请求返回样例，流C 从 W3 起独立开发。
-真实接口在 W6 联调时切换（去掉 main.ts 里的 mock 启用）。
+- `src/config/apiBase.ts` 是 API base path 的唯一来源，当前为 `/api/v1`。
+- `src/api/request.ts` 负责 token、refresh、loading 和统一错误消息。
+- `src/api/client.ts` 提供 OpenAPI 类型包装；迁移仍在进行，不假设所有 Store 已使用它。
+- `src/validation/` 使用导出的 JSON Schema 做表单和响应校验。
+- 当前应用不使用 MSW，也不存在 `src/mock/`；单元测试使用 Vitest，浏览器测试使用 Playwright 路由替身或真实后端。
 
-## 关键依赖
+## 结构约定
 
-- Vue 3 + TypeScript + Vite
-- Element Plus（UI 组件库）
-- AntV G6 5.x（图谱可视化）
-- ECharts（雷达/趋势/热力图）
-- Pinia（状态管理）
-- MSW（Mock）
+页面只做路由级编排；跨组件状态进入 Store；生命周期、SSE 和复杂交互进入 composable；可复用视图进入 components。API 字段保持后端的 `snake_case`，不做隐式 camelCase 转换。

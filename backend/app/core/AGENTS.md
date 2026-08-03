@@ -1,33 +1,32 @@
-﻿# Core backend subsystems knowledge base
+# Core backend knowledge base
 
 ## OVERVIEW
-Core business logic under ``backend/app/core/`` is split by domain: extraction from job/resume text, evolution analysis over time, and any future domain modules added alongside them.
 
-## STRUCTURE
-```text
-backend/app/core/
-├── extraction/   # LLM-backed extraction, normalization, prompts, graph writes
-└── evolution/    # snapshots, diffs, trust, hallucination defense, emergence, paths
-```
+`backend/app/core/` owns domain computation. HTTP concerns and graph/database adapters stay outside core unless a module is explicitly an orchestrator over typed domain services.
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Implement text extraction flow | ``backend/app/core/extraction/`` | jd_extract.py orchestrates the pipeline |
-| Change normalization behavior | ``backend/app/core/extraction/normalize.py`` | alias/synonym normalization rules |
-| Maintain prompts/A-B routing | ``backend/app/core/extraction/prompt.py`` | prompt registry plus active version routing |
-| Adjust LLM provider behavior | ``backend/app/core/extraction/llm_client.py`` | multi-provider fallback lives here |
-| Persist extraction results to graph | ``backend/app/core/extraction/graph_writer.py`` | Neo4j write logic stays isolated |
-| Tune evolution pipeline | ``backend/app/core/evolution/orchestrator.py`` | 8-step workflow coordinates downstream modules |
-| Tune trust/emergence/path logic | ``backend/app/core/evolution/*.py`` | keep each concern in its own module |
+## DOMAINS
+
+| Path | Responsibility |
+|---|---|
+| `dashboard/` | dashboard aggregation and SSE broadcast helpers |
+| `evolution/` | snapshots, diffs, trust, emergence and evolution paths |
+| `extraction/` | JD/resume extraction, prompts, normalization and graph-write preparation |
+| `learning/` | path generation and progress tracking |
+| `llm/` | provider-independent LLM cost tracking |
+| `matching/` | scoring, caching and learning-gap construction |
+| `pipeline/` | ETL DAG state, execution, scheduling and quality |
+| `validation/` | unified error codes and FastAPI validation handling |
 
 ## CONVENTIONS
-- Keep extraction and evolution separated; do not mix normalization rules with graph-evolution logic.
-- Route handlers stay thin; business orchestration belongs in ``core/`` and ``services/``.
-- Shared domain models live in ``backend/app/models/``; schema changes require Alembic migrations.
-- Async SQLAlchemy and Neo4j usage should stay behind service/resource abstractions instead of ad hoc drivers.
+
+- Keep pure algorithms independent of FastAPI request/response objects.
+- API-facing Pydantic models live in `app/schemas/`; ORM models live in `app/models/`.
+- Neo4j queries and PG/Neo4j projection orchestration live in `app/services/`.
+- Reuse extraction normalization and shared validation instead of copying rules.
+- Preserve async boundaries and use the established Celery bridge for worker entrypoints.
 
 ## ANTI-PATTERNS
-- Do **not** put prompt orchestration or graph write orchestration directly in API routes.
-- Do **not** embed Neo4j/LLM provider details inside normalization or diff logic.
-- Do **not** duplicate extraction validation rules across multiple modules.
+
+- No direct route imports into core.
+- No provider-specific credentials or HTTP parsing in domain algorithms.
+- No second implementation of a domain rule under another package.

@@ -6,10 +6,6 @@
 
 name: starmap-prod
 
-x-common-env: &common-env
-  NO_PROXY: "*"
-  no_proxy: "*"
-
 services:
   # ---------- Backend API ----------
   backend:
@@ -24,7 +20,6 @@ services:
     env_file:
       - .env.production
     environment:
-      <<: *common-env
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       NEO4J_URI: ${NEO4J_URI}
       NEO4J_USER: ${NEO4J_USER}
@@ -78,7 +73,6 @@ services:
     env_file:
       - .env.production
     environment:
-      <<: *common-env
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       NEO4J_URI: ${NEO4J_URI}
       NEO4J_USER: ${NEO4J_USER}

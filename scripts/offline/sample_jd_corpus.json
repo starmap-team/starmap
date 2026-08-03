@@ -1,0 +1,60 @@
+{
+  "_doc": "QA A.5 — offline sample JD corpus used by the MOCK_CRAWL pipeline branch.\n           These are real-shaped JD samples (English/中文 mix) so the offline\n           pipeline can produce extraction → graph → evolution records\n           without depending on Boss/拉勾 external crawlers.\n           Keep IDs (jdid-N) stable so reconcile scripts can dedupe.",
+  "version": "2026-07-23",
+  "samples": [
+    {
+      "jdid": "jdid-001",
+      "title": "Senior Python Backend Engineer",
+      "company": "ESCO Reference",
+      "industry": "互联网/IT",
+      "language": "en",
+      "posted_at": "2026-07-21",
+      "text": "We are hiring a Senior Python Backend Engineer. Required skills: Python, FastAPI, PostgreSQL, Redis, Docker, Kubernetes. 5+ years production experience. Strong system design background. Experience with microservices and gRPC preferred."
+    },
+    {
+      "jdid": "jdid-002",
+      "title": "Frontend Engineer",
+      "company": "BOSS 直聘 Sample",
+      "industry": "互联网/IT",
+      "language": "zh",
+      "posted_at": "2026-07-22",
+      "text": "岗位职责：1. 负责公司核心产品的前端开发，使用 Vue3 + TypeScript 技术栈；2. 参与前端架构设计；3. 与后端紧密协作。任职要求：1. 计算机相关专业本科及以上，3年以上前端开发经验；2. 精通 Vue3、TypeScript、HTML5、CSS3；3. 熟悉 React、Webpack、Vite；4. 了解 Node.js、Git、CI/CD。"
+    },
+    {
+      "jdid": "jdid-003",
+      "title": "数据分析师",
+      "company": "拉勾网 Sample",
+      "industry": "互联网/IT",
+      "language": "zh",
+      "posted_at": "2026-07-22",
+      "text": "岗位职责：1. 负责公司数据分析体系建设，搭建数据指标体系；2. 通过数据挖掘分析为业务决策提供支持。任职要求：1. 统计学/数学/计算机相关专业本科及以上；2. 精通 SQL、Python，熟悉 Pandas、NumPy；3. 熟悉 Tableau、Power BI；4. 了解机器学习基本算法。"
+    },
+    {
+      "jdid": "jdid-004",
+      "title": "AI 工程师",
+      "company": "GitHub Trends Sample",
+      "industry": "互联网/IT",
+      "language": "zh",
+      "posted_at": "2026-07-23",
+      "text": "岗位职责：1. 负责大语言模型（LLM）应用的开发与优化；2. 设计和实现 RAG 系统、Prompt Engineering 流程；3. 构建 AI Agent 框架；4. 进行模型评估与效果优化。任职要求：1. 计算机科学/人工智能相关专业硕士及以上；2. 精通 Python，熟悉 PyTorch/TensorFlow；3. 熟悉 LangChain、LlamaIndex 等 LLM 应用框架；4. 了解向量数据库、RAG 技术。"
+    },
+    {
+      "jdid": "jdid-005",
+      "title": "DevOps Engineer",
+      "company": "51Job Sample",
+      "industry": "互联网/IT",
+      "language": "en",
+      "posted_at": "2026-07-23",
+      "text": "DevOps Engineer — manage CI/CD pipelines, Kubernetes clusters, and observability stack. Required: Kubernetes, Docker, Terraform, Prometheus, Grafana, GitLab CI. 3+ years experience with cloud platforms (AWS/Aliyun)."
+    },
+    {
+      "jdid": "jdid-006",
+      "title": "Go Backend Engineer",
+      "company": "ESCO Reference",
+      "industry": "互联网/IT",
+      "language": "zh",
+      "posted_at": "2026-07-23",
+      "text": "岗位职责：使用 Go 开发高并发后端服务，熟悉 gRPC、Protobuf、Kafka、etcd。任职要求：本科及以上，3年以上 Go 开发经验，有大型分布式系统经验。"
+    }
+  ]
+}

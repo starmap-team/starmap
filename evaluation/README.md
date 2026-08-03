@@ -1,53 +1,36 @@
-# 评测模块
+# StarMap 评估套件
 
-**负责人**: R7 姜文彬（流D QA评估）
+`evaluation/` 保存领域 Golden Set、可重复 baseline、模拟 LLM 评估和真实 LLM 评估入口。生成报告是运行产物，不是质量现状的永久声明。
 
-## 文件说明
+## 数据集
 
-| 文件 | 用途 |
-|------|------|
-| `judge_eval.py` | LLM-as-judge裁判评估+F1指标计算 |
-| `golden_set.jsonl` | 110条Golden标注样本（JD抽取标准答案），含raw_jd原始文本 |
-| `run_baseline.py` | 基于 normalize.py 别名表的关键词匹配基线评估 |
-| `simulate_llm_eval.py` | LLM抽取模拟（从Golden答案注入随机噪声），无API时用于验证评估框架 |
-| `baseline_report/` | 基线评估报告（F1=0.758，关键词匹配） |
-| `llm_sim_report/` | LLM模拟评估报告（F1=0.9759，非真实LLM结果） |
+| 文件 | 范围 |
+|---|---|
+| `golden_set.jsonl` | JD 抽取 |
+| `golden_set_resume.jsonl` | 简历抽取 |
+| `golden_set_match.jsonl` | 人岗匹配 |
+| `golden_set_pipeline.jsonl` | 流水线场景 |
 
-## 评估指标
+标注规则见 [annotation_guideline.md](annotation_guideline.md)。修改 Golden Set 时应保留版本和评审记录，并防止真值泄漏到被评估管线。
 
-- **技能F1**: 基于集合的精确率/召回率/F1（大小写不敏感，自动trim）
-- **加权总分**: F1(0.5) + 岗位名称(0.15) + 经验(0.15) + 学历(0.20)
-- **质量门禁**: F1≥0.90绿色 / ≥0.85黄色 / ≥0.80橙色 / <0.80红色
+## 入口
 
-## 评估数据说明
-
-| 报告 | F1 | 方法 | 含义 |
-|------|-----|------|------|
-| `baseline_report/` | 0.758 | 纯关键词匹配（基于 normalize.py 别名表进行 JD 原文子串匹配） | 无 AI 参与的下限参考 |
-| `llm_sim_report/` | 0.9759 | 从 Golden 标准答案注入 ~5% 随机噪声（删3%技能、8%样本加1个幻觉、5%分类错误） | 模拟理想上限，非真实 LLM 抽取结果 |
-
-**为什么 llm_sim 远高于 baseline？**
-
-两份报告来自不同的评估方法，不可直接对比：
-- **baseline（0.758）** 是真实的关键词硬匹配，漏检和误检如实反映，jd-010 仅 0.387
-- **llm_sim（0.9759）** 从完美答案出发随机增减，回避了系统性失败模式（如 jd-010 在 sim 中为 1.0）
-- **二者均为 M1 阶段验证评估框架所用，不代表 M2 LLM 抽取的真实水平**
-
-**M2 真实 LLM 管线（讯飞星火 API）预期 F1：0.80~0.90**，待开发完成后更新。
-
-## 使用方式
-
-```python
-from evaluation.judge_eval import evaluate_batch, check_quality_gate
-
-# 批量评估
-metrics = evaluate_batch(
-    golden_file="evaluation/golden_set.jsonl",
-    system_file="data/output/jd_output.jsonl",
-    output_file="data/output/eval_result.json"
-)
-
-# 检查门禁
-gate = check_quality_gate(metrics)
-print(gate)  # {"passed": True/False, "status": "green"/"red", ...}
+```bash
+python evaluation/run_baseline.py
+python evaluation/run_resume_baseline.py
+python evaluation/simulate_llm_eval.py
+python evaluation/run_real_eval.py
 ```
+
+真实评估需要有效的 LLM 凭据和可复现的运行元数据。`run_llm_eval.py` 与 `run_real_eval.py` 的语义不同，发布指标前必须说明使用的入口、模型、prompt 版本、数据集 commit 和时间。
+
+## 指标
+
+抽取评估使用 precision、recall、F1 和结构字段评分。质量门槛与业务配置以评估代码和当前需求为准；不要从旧报告复制 F1 作为当前结果。
+
+## 规则
+
+- baseline、模拟 LLM、真实 LLM 结果必须分开报告。
+- 不手工编辑生成结果来"修复"指标。
+- 新算法提交前至少运行不需要外部服务的 baseline。
+- 需要保留的报告移入 `docs/archive/reports/<date>/evaluation/`，当前目录只保留评估代码、数据集和使用说明。

@@ -1,85 +1,112 @@
-# Requirements: StarMap v2.1 真实数据切换
+# Requirements: StarMap 全系统重构与质量加固
 
-**Defined:** 2026-07-09
-**Core Value:** 系统展示和处理的数据全部来自真实 API 和数据库，无假数据/mock/demo 残留
+**Defined:** 2026-07-24
+**Core Value:** 技能匹配与图谱分析的核心链路必须准确、可追溯、可观测
 
-## v2.1 Requirements (Active)
+## v1 Requirements
 
----
+### 核心架构
 
-### 前端关闭 Mock (MSW)
+- [ ] **ARCH-01**: Pipeline 双系统合一 — 消除 `backend/app/core/pipeline/` 与 `backend/app/sse_pipeline/` 的重叠，建立统一的 Pipeline 抽象
+- [ ] **ARCH-02**: 消除裸 `except Exception` — 将 200+ 处替换为具体异常类型，关键路径使用 `logger.exception()` 记录完整追踪
+- [ ] **ARCH-03**: 模块边界清晰化 — 明确 core/ 与 services/ 的职责边界，消除职责重叠
+- [ ] **ARCH-04**: 密钥安全 — secrets/ 从 Git 移除，凭证轮换，迁移到 .env 或密钥管理器
+- [ ] **ARCH-05**: 统一错误处理契约 — 所有业务异常统一使用 StarMapError 子类，API 层统一映射
 
-- [ ] **MSW-01**: 前端默认关闭 MSW Mock — 设置 `VITE_USE_MSW=false` 为默认值，注释 `main.ts` 中 `enableMocking()` 调用，确保前端走真实后端 API
-- [ ] **MSW-02**: 删除 Placeholder 图表 — 移除 `useDashboardCharts.ts` 中 `getPlaceholderPie/Treemap/Trend/Radar()` 函数，后端无数据时显示"暂无数据"空状态组件
-- [ ] **MSW-03**: Vite 代理配置 — 确认 `vite.config.ts` 中 `/api/v1` → `http://localhost:8000` 代理规则存在且正确，本地开发无需手动设置 CORS
-- [ ] **MSW-04**: 清理 Mock 文件 — 删除 `frontend/src/mock/` 目录和 `frontend/public/mockServiceWorker.js`，移除相关 import
+### 数据管道（Pipeline）
 
----
+- [ ] **PIPE-01**: executor.py（1138 行）按阶段拆分为独立模块（crawl / dedup / import / graph_sync）
+- [ ] **PIPE-02**: loop_orchestrator.py（924 行）步骤级错误处理从 `except Exception` 改为具体异常类型，引入结构化日志
+- [ ] **PIPE-03**: 死爬虫清理 — 移除指向 v2ex_remote 的假平台注册，保留单一爬虫路径或修复 Playwright 爬虫
+- [ ] **PIPE-04**: SSE Pipeline 步骤契约冻结 — 为 PipelineContext 定义不可变接口，添加单元测试后合并
+- [ ] **PIPE-05**: Pipeline 端到端集成测试 — 覆盖 crawl→import→graph_sync 全链路
 
-### 后端清理 Demo (DEMO)
+### 演化引擎（Evolution）
 
-- [ ] **DEMO-01**: 移除 auto-seed 逻辑 — 删除 `admin.py` 中 `_DEMO_REVIEW_SEED` 常量和 review_queue 表为空时的自动填充逻辑，空表返回空列表
-- [ ] **DEMO-02**: 删除 reset-demo 端点 — 移除 `/admin/seed/reset` 和 `/reset-demo` 端点及其 `ResetDemoResponse` 模型，前端 Admin 页面移除"重置演示数据"按钮
-- [ ] **DEMO-03**: 清理 seed 引用 — 移除 `quality.py` 中推荐运行 `seed_expansion_data_demo.py` 的文本，替换为建议触发 pipeline run
-- [ ] **DEMO-04**: 归档 demo 脚本 — 将 `backend/scripts/seed_*_demo.py` 和 `scripts/seed_demo_data.py` 等脚本移动至 `scripts/archive/` 或添加 `# ARCHIVE: 非生产用` 文件头注释
+- [ ] **EVOL-01**: orchestrator.py 错误处理升级 — 从 `except Exception` 改为 `EvolutionPipelineError` + 具体异常
+- [ ] **EVOL-02**: 演化管道 E2E 集成测试 — 覆盖 snapshot→diff→trust→path 全链路
+- [ ] **EVOL-03**: DiffEngine / TrustScorer / PathRecommender 接口契约化 — 明确定义输入输出类型
+- [ ] **EVOL-04**: Snapshot 管理器增量快照支持 — 避免全量重建
 
----
+### 技能抽取（Extraction）
 
-### LLM + DB 配置校验 (CFG)
+- [ ] **EXTR-01**: normalize.py 硬编码 SKILL_ALIAS 迁移到 YAML — 移除模块级可变状态，封装为类或工厂函数
+- [ ] **EXTR-02**: LLM 客户端接口契约化 — 定义 Provider 协议，每个供应商为独立实现
+- [ ] **EXTR-03**: 反幻觉检查器独立化 — 从 jd_extract.py 中提取为独立模块，可单独测试
 
-- [ ] **CFG-01**: LLM Key 启动校验 — 后端启动时检测 `MIMO_API_KEY` / `DEEPSEEK_API_KEY` / `XUNFEI_API_KEY`，至少一个已配置否则输出 WARNING 日志（非阻塞，因为 Ollama 本地可用）
-- [ ] **CFG-02**: DB 密码启动校验 — 后端启动时检测 `NEO4J_PASSWORD` / `POSTGRES_PASSWORD` / `SECRET_KEY` 不为 `CHANGE_ME_IN_ENV`，否则输出 WARNING（开发）或 RuntimeError（生产）
-- [ ] **CFG-03**: .env 模板完善 — 更新 `.env.example` 添加 `MIMO_API_KEY` / `DEEPSEEK_API_KEY` / `PROXY_LIST` 字段，补全注释说明必填/可选
-- [ ] **CFG-04**: 健康检查增强 — 添加 `/health/detail` 端点返回各服务连接状态（Neo4j / PostgreSQL / Redis / LLM），便于排查配置问题
+### 匹配推荐（Matching & Recommendation）
 
----
+- [ ] **MAT-01**: match_service.py 去包装器 — 删除向后兼容层，直接使用 core/matching/ 组件
+- [ ] **MAT-02**: 匹配缓存策略明确化 — 缓存键、TTL、失效策略文档化
+- [ ] **MAT-03**: 推荐服务接口契约化 — recommendation_service.py 输入输出类型明确定义
 
-### 爬虫 Pipeline 可用 (PIPE)
+### 测试质量
 
-- [ ] **PIPE-01**: Playwright 安装 — 确保 `backend/Dockerfile.dev` 安装了 `playwright` + `chromium`，celery-worker 容器可运行 Playwright 爬虫
-- [ ] **PIPE-02**: 代理配置支持 — 支持 `PROXY_LIST` 环境变量，boss 爬虫可通过代理抓取，无代理时直连（开发模式）
-- [ ] **PIPE-03**: 初始 Pipeline 触发 — 添加启动后自动触发一次 pipeline run 的便捷脚本或 API 调用文档，确保系统有初始真实数据
-- [ ] **PIPE-04**: E2E 冒烟验证 — 端到端冒烟测试：触发 pipeline → 爬取 JD → LLM 抽取技能 → 图谱写入 Neo4j → 前端页面可展示真实数据
+- [ ] **TEST-01**: 前端覆盖率修复 — vitest 配置包含源码文件，而非仅测试文件自身
+- [ ] **TEST-02**: 前端页面级测试 — 为 18 个页面添加至少冒烟测试（渲染 + 基本交互）
+- [ ] **TEST-03**: SSE Pipeline 测试 — 为 engine.py + steps.py + contracts.py 添加单元测试
+- [ ] **TEST-04**: Graph Projector 测试 — 为 graph_projector.py 添加集成测试（PG + Neo4j）
+- [ ] **TEST-05**: mypy 类型严格度逐步提升 — 从 `strict=false` 向 `strict=true` 过渡
+- [ ] **TEST-06**: 后端覆盖率目标 85%+ — 从当前 80.42% 提升
 
----
+### 基础设施
+
+- [ ] **INFRA-01**: Git 安全 — secrets/ 加入 .gitignore，清除已追踪的密钥文件，轮换凭据
+- [ ] **INFRA-02**: Docker Compose 安全 — 生产环境移除 `NO_PROXY=*`，Redis 添加默认密码
+- [ ] **INFRA-03**: CORS 生产加固 — 生产环境 CORS 校验失败时明确报错而非仅警告
+- [ ] **INFRA-04**: 文档更新 — 同步 AGENTS.md / 架构文档 / 部署文档，确保与实际代码一致
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| 多爬虫并行 | 当前只需 boss 爬虫可用，其他爬虫（lagou/51job）后续扩展 |
-| 大规模数据采集 | 本里程碑目标是验证真实数据链路通畅，不追求数据量 |
-| 性能优化 | 无当前瓶颈 |
-| 新增前端功能 | 仅清理/配置，不增加新页面或新交互 |
-| 生产环境部署 | 仅确保开发环境真实数据可用 |
-| 用户认证系统 | 与真实数据切换无关 |
+| 项目 | 原因 |
+|------|------|
+| 新功能开发 | 本次为重构与质量加固，不新增业务功能 |
+| 前端 UI 重设计 | 仅做接口对齐和测试覆盖，不涉及视觉重设计 |
+| 多爬虫平台实现 | 当前先简化清理，不新增爬虫平台 |
+| 生产环境部署 | 仅确保开发环境可用，部署配置后续再做 |
+| 用户认证系统重写 | 认证逻辑基本可用，仅修复审计和错误处理 |
+| 大规模数据迁移 | 无数据迁移需求，仅清理密钥和配置 |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MSW-01 | Phase 9 | Pending |
-| MSW-02 | Phase 9 | Pending |
-| MSW-03 | Phase 9 | Pending |
-| MSW-04 | Phase 9 | Pending |
-| DEMO-01 | Phase 8 | Pending |
-| DEMO-02 | Phase 8 | Pending |
-| DEMO-03 | Phase 8 | Pending |
-| DEMO-04 | Phase 8 | Pending |
-| CFG-01 | Phase 8 | Pending |
-| CFG-02 | Phase 8 | Pending |
-| CFG-03 | Phase 8 | Pending |
-| CFG-04 | Phase 8 | Pending |
-| PIPE-01 | Phase 10 | Pending |
-| PIPE-02 | Phase 10 | Pending |
-| PIPE-03 | Phase 10 | Pending |
-| PIPE-04 | Phase 10 | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| ARCH-02 | Phase 2 | Pending |
+| ARCH-05 | Phase 2 | Pending |
+| TEST-03 | Phase 3 | Pending |
+| TEST-04 | Phase 3 | Pending |
+| TEST-05 | Phase 3 | Pending |
+| TEST-06 | Phase 3 | Pending |
+| ARCH-01 | Phase 4 | Pending |
+| PIPE-01 | Phase 4 | Pending |
+| PIPE-02 | Phase 4 | Pending |
+| PIPE-03 | Phase 4 | Pending |
+| PIPE-04 | Phase 5 | Pending |
+| PIPE-05 | Phase 5 | Pending |
+| ARCH-03 | Phase 5 | Pending |
+| MAT-01 | Phase 5 | Pending |
+| MAT-02 | Phase 5 | Pending |
+| MAT-03 | Phase 5 | Pending |
+| EVOL-01 | Phase 6 | Pending |
+| EVOL-02 | Phase 6 | Pending |
+| EVOL-03 | Phase 6 | Pending |
+| EVOL-04 | Phase 6 | Pending |
+| EXTR-01 | Phase 7 | Pending |
+| EXTR-02 | Phase 7 | Pending |
+| EXTR-03 | Phase 7 | Pending |
+| ARCH-04 | Phase 8 | Pending |
+| TEST-01 | Phase 8 | Pending |
+| TEST-02 | Phase 8 | Pending |
+| INFRA-04 | Phase 9 | Pending |
 
 **Coverage:**
-- v2.1 requirements: 16 total
-- Mapped to phases: 16
+- v1 requirements: 30 total
+- Mapped to phases: 30
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-07-09*
-*Last updated: 2026-07-09 after initial definition*
+*Requirements defined: 2026-07-24*
+*Last updated: 2026-07-24 after codebase inspection and research*

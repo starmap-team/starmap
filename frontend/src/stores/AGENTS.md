@@ -1,33 +1,24 @@
-﻿# Frontend stores knowledge base
+# Frontend stores knowledge base
 
 ## OVERVIEW
-Pinia stores that hold client-side domain state for graph, match, resume, quality, admin, user, and JD workflows.
 
-## STRUCTURE
-```text
-starmap/frontend/src/stores/
-├── admin.ts
-├── graph.ts
-├── jd.ts
-├── match.ts
-├── quality.ts
-├── resume.ts
-└── user.ts
-```
-
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Change domain state | `starmap/frontend/src/stores/<domain>.ts` | One store per domain |
-| Update API calls | same files | Keep fetch logic centralized in stores |
-| Align types with API | `starmap/frontend/src/api/schema.ts` | Prefer generated contract types |
+Pinia domain state and API actions. Stores cover auth, graph, extraction/resume, match, learning, evolution, pipeline, quality, review, prompts, data sources and dashboards.
 
 ## CONVENTIONS
-- Stores should encapsulate fetch logic and expose simple reactive state to pages.
-- Keep each store focused on one user-facing domain.
-- Treat MSW mocks as contract stand-ins, not permanent API truth.
+
+- One domain owner per store; compatibility barrel stores only re-export existing behavior.
+- API calls use `src/api/request.ts` or the generated-type wrapper in `src/api/client.ts`.
+- Validate relevant responses with `useResponseValidation()` in development without changing the returned business value.
+- Keep server fields in `snake_case` and define explicit TypeScript types.
+- Pages consume reactive state/actions and do not recreate fetch/cache logic.
+
+## CURRENT SPLITS
+
+- Learning: `learningPlan.ts`, `learningRecommendation.ts`, `learningAnalytics.ts` with compatibility exports in `learning.ts`.
+- Pipeline: `pipelineRun.ts`, `pipelineConfig.ts` with compatibility exports in `pipeline.ts`.
 
 ## ANTI-PATTERNS
-- Do **not** scatter API fetch logic across pages instead of using stores.
-- Do **not** create store-level workarounds when the contract/backend shape needs fixing.
-- Do **not** rely on mock-only shapes without a path to real backend alignment.
+
+- No `admin.ts` compatibility store: it no longer exists.
+- No MSW-only response shapes.
+- Do not hide contract drift behind broad casts; fix schema/client/store boundaries.

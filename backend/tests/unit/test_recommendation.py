@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.pipeline.contracts import ExtractedSkill, PositionProfile
+from app.core.pipeline.sse.contracts import ExtractedSkill, PositionProfile
 from app.services.recommendation_service import PositionRecommender, Recommendation
 
 
@@ -18,13 +18,15 @@ def mock_scorer(*, target_skills: list[dict], person_skills: list[dict], thresho
     for t in target_skills:
         name = t.get("skill", "")
         score = 1.0 if name in person_names else 0.0
-        evaluated.append({
-            "skill": name,
-            "importance": t.get("importance", "required"),
-            "gap_level": "已掌握" if score >= 0.85 else "完全缺失",
-            "learning_path": [],
-            "score": score,
-        })
+        evaluated.append(
+            {
+                "skill": name,
+                "importance": t.get("importance", "required"),
+                "gap_level": "已掌握" if score >= 0.85 else "完全缺失",
+                "learning_path": [],
+                "score": score,
+            }
+        )
     return {"evaluated": evaluated}
 
 
@@ -76,12 +78,30 @@ def sample_profiles():
 def backend_skills():
     """后端工程师技能。"""
     return [
-        ExtractedSkill(name="Python", raw_name="python", category="hard_skill",
-                      proficiency="精通", confidence=0.95, source="llm_extraction"),
-        ExtractedSkill(name="PostgreSQL", raw_name="postgres", category="hard_skill",
-                      proficiency="熟悉", confidence=0.9, source="llm_extraction"),
-        ExtractedSkill(name="Docker", raw_name="docker", category="tool",
-                      proficiency="熟悉", confidence=0.85, source="llm_extraction"),
+        ExtractedSkill(
+            name="Python",
+            raw_name="python",
+            category="hard_skill",
+            proficiency="精通",
+            confidence=0.95,
+            source="llm_extraction",
+        ),
+        ExtractedSkill(
+            name="PostgreSQL",
+            raw_name="postgres",
+            category="hard_skill",
+            proficiency="熟悉",
+            confidence=0.9,
+            source="llm_extraction",
+        ),
+        ExtractedSkill(
+            name="Docker",
+            raw_name="docker",
+            category="tool",
+            proficiency="熟悉",
+            confidence=0.85,
+            source="llm_extraction",
+        ),
     ]
 
 
@@ -156,10 +176,22 @@ class TestPositionRecommender:
 
         # 有 Python 技能，缺 Kubernetes（需要 Docker + Linux）
         skills = [
-            ExtractedSkill(name="Python", raw_name="python", category="hard_skill",
-                          proficiency="精通", confidence=0.9, source="llm_extraction"),
-            ExtractedSkill(name="Docker", raw_name="docker", category="tool",
-                          proficiency="熟悉", confidence=0.8, source="llm_extraction"),
+            ExtractedSkill(
+                name="Python",
+                raw_name="python",
+                category="hard_skill",
+                proficiency="精通",
+                confidence=0.9,
+                source="llm_extraction",
+            ),
+            ExtractedSkill(
+                name="Docker",
+                raw_name="docker",
+                category="tool",
+                proficiency="熟悉",
+                confidence=0.8,
+                source="llm_extraction",
+            ),
         ]
 
         recommender = PositionRecommender(repo=mock_repo, scorer=mock_scorer)
