@@ -136,9 +136,10 @@ backend/_*.txt
 tmp_*.py
 
 # ---- 根目录/backend 一次性测试脚本（正经测试在 tests/ 下）----
-test_*.py
+# 锚定根级，避免误伤 backend/tests/** 下的正规测试
+/test_*.py
 backend/test_*.py
-check_*.py
+/check_*.py
 
 # ---- Agent / AI 工具运行时目录 ----
 .claude/
@@ -153,7 +154,6 @@ screenshots/
 .zcode/
 .workbuddy/
 .planning/quick/
-.planning/
 
 # ---- Playwright / E2E 测试产物 ----
 playwright-report/
