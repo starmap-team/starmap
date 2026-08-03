@@ -169,6 +169,29 @@ _PIPELINE_SKELETON = (
 )
 
 
+def _default_stage_skeleton() -> list[dict[str, Any]]:
+    """Return the canonical 5-stage skeleton in the same dict shape as a real run."""
+    return [
+        {
+            "name": key,
+            "display_name": display,
+            "description": desc,
+            "status": "pending",
+            "started_at": None,
+            "completed_at": None,
+            "progress": 0.0,
+            "duration_ms": 0,
+            "records_processed": 0,
+            "errors": [],
+            "errors_count": 0,
+            "retry_count": 0,
+            "depends_on": ([_PIPELINE_SKELETON[i - 1][0]] if i > 0 else []),
+            "run_id": None,
+            "run_status": None,
+            "skeleton": True,
+        }
+        for i, (key, display, desc) in enumerate(_PIPELINE_SKELETON)
+    ]
 
 
 @router.get("/runs/{run_id}", response_model=PipelineRunResponse)
@@ -378,20 +401,19 @@ async def get_pipeline_stages(
     # 优先：running → completed(records>0) → failed → cancelled(records>0) → latest cancelled（最差兜底）。
     from sqlalchemy import case as _case
 
-    from app.models.pipeline_models import PipelineRun as _PR
     ordering = _case(
-        (_PR.status == "running", 0),
-        ((_PR.status == "completed") & (_PR.total_records > 0), 1),
-        (_PR.status == "failed", 2),
-        ((_PR.status == "cancelled") & (_PR.total_records > 0), 3),
+        (PipelineRun.status == "running", 0),
+        ((PipelineRun.status == "completed") & (PipelineRun.total_records > 0), 1),
+        (PipelineRun.status == "failed", 2),
+        ((PipelineRun.status == "cancelled") & (PipelineRun.total_records > 0), 3),
         else_=4,
     )
     result = await session.execute(
-        select(_PR).order_by(ordering, _PR.started_at.desc()).limit(1)
+        select(PipelineRun).order_by(ordering, PipelineRun.started_at.desc()).limit(1)
     )
     run = result.scalar_one_or_none()
     if run is None:
-        return StageStatusResponse(stages=[])
+        return StageStatusResponse(stages=_default_stage_skeleton())
 
     stage_list = []
     # Defensive: some legacy rows store stages as a dict (e.g. {"steps": [...]})
