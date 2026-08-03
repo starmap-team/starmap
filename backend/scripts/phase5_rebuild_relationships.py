@@ -12,15 +12,12 @@ Phase 5 补遗: 重建 PositionSkillRelation 关系到 Neo4j。
 from __future__ import annotations
 
 import asyncio
-import sys
-from pathlib import Path
 
 from neo4j import AsyncGraphDatabase
 from sqlalchemy import select
 
 from app.db.session import get_async_engine
-from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
-
+from app.models.extraction_models import PositionSkillRelation
 
 NEO4J_URI = "bolt://neo4j:7687"
 NEO4J_USER = "neo4j"
@@ -82,11 +79,11 @@ async def build_relationships(driver) -> int:
         print(f"  跳过 {skipped} 条（节点缺失）")
 
     # 分批 MERGE
-    BATCH_SIZE = 200
+    batch_size = 200
     total_created = 0
     async with driver.session() as s:
-        for i in range(0, len(valid_relations), BATCH_SIZE):
-            batch = valid_relations[i:i + BATCH_SIZE]
+        for i in range(0, len(valid_relations), batch_size):
+            batch = valid_relations[i:i + batch_size]
             await s.run(
                 """
                 UNWIND $rels AS r
@@ -119,7 +116,7 @@ async def main() -> None:
             print("Neo4j 连接成功\n")
 
         created = await build_relationships(driver)
-        print(f"\n=== 完成 ===")
+        print("\n=== 完成 ===")
         print(f"创建 REQUIRES 关系: {created} 条")
 
         # 验证

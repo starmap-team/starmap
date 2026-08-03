@@ -23,7 +23,6 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.db.session import get_async_engine
 from app.models.extraction_models import PositionRecord, SkillRecord
 
@@ -127,10 +126,10 @@ async def main(mode: str = "report") -> None:
         print(f"孤儿 Position: {len(result['orphan_positions'])}")
         print(f"孤儿 Skill: {len(result['orphan_skills'])}")
         print(f"孤儿总数: {result['orphan_count']}")
-        print(f"\n孤儿 Position 前 10:")
+        print("\n孤儿 Position 前 10:")
         for n in result["orphan_positions"][:10]:
             print(f"  - {n}")
-        print(f"\n孤儿 Skill 前 10:")
+        print("\n孤儿 Skill 前 10:")
         for n in result["orphan_skills"][:10]:
             print(f"  - {n}")
 

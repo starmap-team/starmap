@@ -9,6 +9,7 @@ Revises: 020
 from __future__ import annotations
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "021"
@@ -19,7 +20,6 @@ depends_on = None
 
 def upgrade() -> None:
     """Seed 4 free API data sources. ON CONFLICT skip (idempotent)."""
-    bind = op.get_bind()
     rows = [
         {
             "name": "Arbeitnow (远程)",

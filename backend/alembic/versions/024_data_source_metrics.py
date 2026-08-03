@@ -6,8 +6,9 @@ Revises: 023
 from __future__ import annotations
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
+
+from alembic import op
 
 revision: str = "024"
 down_revision: str | None = "023"

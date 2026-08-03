@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 from neo4j import AsyncGraphDatabase
@@ -20,7 +19,6 @@ from sqlalchemy import select
 
 from app.db.session import get_async_engine
 from app.models.extraction_models import PositionRecord, SkillRecord
-
 
 NEO4J_URI = "bolt://neo4j:7687"
 NEO4J_USER = "neo4j"

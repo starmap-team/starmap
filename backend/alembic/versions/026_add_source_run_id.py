@@ -7,9 +7,10 @@ Create Date: 2026-07-28
 业务说明：为岗位和技能记录增加数据来源追溯字段，
 关联到产生该记录的 Pipeline Run，支持按运行审核数据。
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision = "026"
 down_revision = "025"

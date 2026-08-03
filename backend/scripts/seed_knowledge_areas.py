@@ -14,7 +14,6 @@ from app.config import settings
 from app.db.session import get_async_engine
 from app.models.extraction_models import PositionRecord
 
-
 KA_DEFINITIONS: list[dict[str, str]] = [
     {"name": "人工智能", "description": "AI / 机器学习 / 深度学习 / NLP / LLM"},
     {"name": "AI/机器学习", "description": "AI / ML / 算法 / Transformer"},
