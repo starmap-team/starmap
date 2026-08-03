@@ -26,7 +26,7 @@ from typing import Any
 
 from loguru import logger
 
-from app.exceptions import JudgeError, StarMapError
+from app.exceptions import StarMapError
 
 # Golden set path (relative to project root)
 _GOLDEN_SET_PATH = Path(__file__).resolve().parent.parent.parent.parent / "data" / "resume_golden_set.json"

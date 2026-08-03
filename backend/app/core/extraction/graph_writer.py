@@ -620,7 +620,11 @@ async def write_extraction_to_graph(
         or extraction.get("job_title")
     )
     if not _raw_name or not str(_raw_name).strip():
-        raise ValueError("missing position_name in extraction payload")
+        # Phase 17-03 (Fix B3): 缺失 position_name 静默跳过, 不阻塞 batch
+        logger.warning(
+            f"graph_writer: extraction {extraction.get('id') or extraction.get('source_url', '?')[:40]} missing position_name, skipping"
+        )
+        return {"positions": 0, "skills": 0, "requires": 0, "skipped": True, "reason": "missing_position_name"}
     position_name = str(_raw_name).strip()
 
 
@@ -714,7 +718,16 @@ async def batch_write_extractions(
     """
     summaries = []
     for extraction in extractions:
-        summary = await write_extraction_to_graph(extraction, driver)
+        # Phase 17-03 (Fix B4): try/except 单条隔离, 一条失败不阻塞整个 batch
+        try:
+            summary = await write_extraction_to_graph(extraction, driver)
+        except Exception as exc:
+            logger.warning(f"batch_write_extractions: skipped extraction {extraction.get('id')}: {exc}")
+            summary = {
+                "positions_merged": 0, "skills_merged": 0, "requires_created": 0,
+                "triples_merged": 0, "nodes_touched": 0, "relationships_touched": 0,
+                "skipped": True, "reason": str(exc)[:200]
+            }
         summaries.append(summary)
     return summaries
 

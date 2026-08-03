@@ -12,11 +12,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.upload_validation import validate_resume_upload
-from app.core.extraction.graph_writer import write_extraction_to_graph
-from app.core.extraction.jd_extract import extract_from_jd
-from app.core.llm.cost_tracker import tracker
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.exceptions import ExtractionError, ExtractionLLMError, StarMapError
+from app.services.extraction_service import (
+    extract_from_jd,
+    tracker,
+    write_extraction_to_graph,
+)
 from app.services.resume_service import run_resume_extraction
 
 router = APIRouter(prefix="/extract", tags=["信息抽取"])
@@ -118,6 +120,11 @@ async def _write_extraction_to_graph(
         logger.debug("Skipping graph write: no extraction data or position_name")
         return None
 
+    if neo4j_driver is None:
+        # M3: 无 Neo4j driver 时优雅跳过图谱写入(抽取本身已成功),不抛 502。
+        logger.debug("Skipping graph write: no Neo4j driver available")
+        return None
+
     try:
         summary = await write_extraction_to_graph(data, neo4j_driver)
         logger.info(
@@ -133,8 +140,10 @@ async def _write_extraction_to_graph(
     except StarMapError:
         raise
     except Exception as exc:
-        logger.exception("Unexpected error during extraction: {}", exc)
-        raise HTTPException(status_code=500, detail="抽取处理异常") from exc
+        # M3 + docstring 契约("Returns summary or None on failure"):
+        # 图谱写入是非关键副作用,失败降级返回 None,抽取本身已成功,不让整次请求 500。
+        logger.warning("Graph write failed, degrading to None: {}", exc)
+        return None
 
 
 async def _write_extraction_to_pg(

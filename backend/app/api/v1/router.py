@@ -17,6 +17,8 @@ from app.api.v1 import (
     evolution,
     extract,
     graph,
+    health_monitor,
+    import_jd,
     judge,
     learning,
     loop,
@@ -52,3 +54,5 @@ api_router.include_router(datasource_admin_router, tags=["数据源管理"])
 api_router.include_router(loop.router, tags=["闭环验证"])
 api_router.include_router(learning.router, tags=["学习中心"])
 api_router.include_router(dashboard.router, tags=["数据大屏"])
+api_router.include_router(import_jd.router, tags=["JD 导入 (Phase 15)"])
+api_router.include_router(health_monitor.router, tags=["健康度监控 (Phase 15-04)"])

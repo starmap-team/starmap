@@ -21,7 +21,7 @@ from loguru import logger
 from app.core.extraction.jd_extract import LLMClient, parse_llm_json_response
 from app.core.extraction.normalize import batch_normalize_skills
 from app.core.extraction.prompt import get_prompt
-from app.exceptions import ExtractionError, StarMapError
+from app.exceptions import StarMapError
 
 
 @dataclass

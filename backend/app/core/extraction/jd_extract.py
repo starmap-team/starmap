@@ -29,7 +29,6 @@ from app.core.extraction.normalize import (
     extract_dict_skills,
 )
 from app.core.extraction.prompt import get_ab_test, get_active_version, get_prompt
-from app.exceptions import ExtractionError, ExtractionLLMError, StarMapError
 
 # Chinese PII patterns
 _PII_PATTERNS: list[re.Pattern] = [

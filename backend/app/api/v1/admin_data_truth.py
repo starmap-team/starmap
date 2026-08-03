@@ -5,10 +5,12 @@ Phase 4 P0: 用户痛点是不知道 70/56/39/17 这四个数字的差异。
 """
 from __future__ import annotations
 
+from typing import Annotated, Any
+
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel, Field
 
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.models.extraction_models import PositionRecord, SkillRecord
@@ -70,7 +72,7 @@ def _calc_status(values: list[int]) -> tuple[float, str]:
 @router.get("/data-truth", response_model=TruthReport)
 async def get_data_truth(
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    driver: Annotated[object, Depends(get_neo4j_driver)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> TruthReport:
     """返回每个 KPI 的三层数据源对比报告。"""
     from datetime import UTC, datetime
@@ -121,9 +123,7 @@ async def get_data_truth(
 
     # ── API 返回值（与前端 store 实际拿到的一致） ──
     # 用直接查表的方式代替实际调用 API，避免重复 HTTP 请求
-    api_total_positions = neo4j_positions  # /graph/overview 返回 Neo4j 数
     api_dashboard_positions = pg_total_positions  # /dashboard/overview 返回 PG 数
-    api_approved_positions = pg_approved_positions  # /positions 返回 approved 数
 
     rows = []
 
@@ -162,7 +162,7 @@ async def get_data_truth(
         neo4j_value=neo4j_relations,
         diff_pct=0.0,
         status="ok",
-        explanation=f"Neo4j 中所有 (:Start)-[r]->(:End) 关系总数。注意：admin/stats 报告的 582 是 PositionSkillRelation 表记录数（仅岗位-技能），不包括其他关系类型。",
+        explanation="Neo4j 中所有 (:Start)-[r]->(:End) 关系总数。注意：admin/stats 报告的 582 是 PositionSkillRelation 表记录数（仅岗位-技能），不包括其他关系类型。",
     ))
 
     # 指标 4: 待审核岗位
@@ -255,7 +255,8 @@ async def get_data_truth(
     if last_reconcile_at is None:
         reconcile_status = "unknown"
     else:
-        from datetime import datetime as _dt, UTC
+        from datetime import UTC
+        from datetime import datetime as _dt
         last_dt = _dt.fromisoformat(last_reconcile_at)
         if last_dt.tzinfo is None:
             last_dt = last_dt.replace(tzinfo=UTC)
@@ -280,8 +281,5 @@ async def get_data_truth(
         generated_at=datetime.now(UTC).isoformat(),
     )
 
-
-# 导入 Annotated 用于类型提示
-from typing import Annotated
 
 __all__ = ["router"]

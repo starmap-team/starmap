@@ -16,7 +16,7 @@ from typing import Any
 import yaml
 from loguru import logger
 
-from app.exceptions import ExtractionNormalizationError, StarMapError
+from app.exceptions import StarMapError
 
 # ── Hardcoded alias dictionary (moved from module-level SKILL_ALIAS) ──
 _HARDCODED_ALIASES: dict[str, list[str]] = {

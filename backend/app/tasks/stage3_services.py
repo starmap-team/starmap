@@ -18,8 +18,8 @@ from app.core.extraction.graph_writer import (
     skill_entry_name,
 )
 from app.core.extraction.jd_extract import extract_from_jd, mask_pii
-from app.exceptions import StarMapError
 from app.db.session import get_async_engine
+from app.exceptions import StarMapError
 from app.models.extraction_models import (
     JDExtractionRecord,
     PositionRecord,
@@ -41,20 +41,24 @@ def _hallucination_score_from_result(result: dict[str, Any]) -> float | None:
     return round(1.0 - confidence, 4)
 
 
-async def _upsert_position(session: AsyncSession, name: str) -> PositionRecord:
+async def _upsert_position(session: AsyncSession, name: str, *, source_run_id: uuid.UUID | None = None) -> PositionRecord:
     existing = (
         await session.execute(sa.select(PositionRecord).where(PositionRecord.name == name))
     ).scalar_one_or_none()
     if existing is not None:
         return existing
 
-    record = PositionRecord(name=name)
+    record = PositionRecord(
+        name=name,
+        source_run_id=source_run_id,
+        created_by="system:pipeline",
+    )
     session.add(record)
     await session.flush()
     return record
 
 
-async def _upsert_skill(session: AsyncSession, name: str, category: str) -> SkillRecord:
+async def _upsert_skill(session: AsyncSession, name: str, category: str, *, source_run_id: uuid.UUID | None = None) -> SkillRecord:
     existing = (
         await session.execute(sa.select(SkillRecord).where(SkillRecord.name == name))
     ).scalar_one_or_none()
@@ -63,7 +67,13 @@ async def _upsert_skill(session: AsyncSession, name: str, category: str) -> Skil
         existing.category = existing.category or category
         return existing
 
-    record = SkillRecord(name=name, category=category, source_count=1)
+    record = SkillRecord(
+        name=name,
+        category=category,
+        source_count=1,
+        source_run_id=source_run_id,
+        created_by="system:pipeline",
+    )
     session.add(record)
     await session.flush()
     return record
@@ -103,6 +113,8 @@ async def persist_extraction_result(
     session: AsyncSession,
     jd_content: str,
     extraction_result: dict[str, Any],
+    *,
+    source_run_id: uuid.UUID | None = None,
 ) -> JDExtractionRecord:
     """Persist a successful extraction and update relational evolution source tables."""
     data = extraction_result["data"]
@@ -121,7 +133,7 @@ async def persist_extraction_result(
     session.add(record)
     await session.flush()
 
-    position = await _upsert_position(session, position_name)
+    position = await _upsert_position(session, position_name, source_run_id=source_run_id)
     for requirement_type, entries in (
         ("required", data.get("required_skills", [])),
         ("preferred", data.get("preferred_skills", [])),
@@ -130,7 +142,7 @@ async def persist_extraction_result(
             skill_name = skill_entry_name(entry)
             if not skill_name:
                 continue
-            skill = await _upsert_skill(session, skill_name, skill_entry_category(entry, default="general"))
+            skill = await _upsert_skill(session, skill_name, skill_entry_category(entry, default="general"), source_run_id=source_run_id)
             await _ensure_position_skill_relation(
                 session,
                 position.id,
@@ -159,7 +171,7 @@ async def _load_source_counts(sessionmaker: async_sessionmaker) -> dict[str, int
         return {}
 
 
-async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
+async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = None, *, source_run_id: uuid.UUID | None = None) -> dict[str, Any]:
     """Run extraction, persist it, and ingest the resulting triples into Neo4j.
 
     Phase 7 P0-1 fix: wraps the Neo4j write in the graph-write outbox protocol
@@ -179,7 +191,7 @@ async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = No
 
         async with sessionmaker() as session:
             async with session.begin():
-                record = await persist_extraction_result(session, jd_text, result)
+                record = await persist_extraction_result(session, jd_text, result, source_run_id=source_run_id)
 
         # H1 fix: outbox run_id=NULL for ad-hoc extraction; extraction_ids links
         # back to JDExtractionRecord for audit/retry traceability.
@@ -239,16 +251,27 @@ async def write_single_extraction_to_graph(extraction: dict[str, Any]) -> dict[s
 
 
 async def run_build_graph_from_extractions(limit: int = 100) -> dict[str, Any]:
-    """Load persisted extraction records and ingest their triples into Neo4j."""
+    """Load persisted extraction records and ingest their triples into Neo4j.
+
+    Phase 16 数据审核闭环: 仅同步已审核通过 (approved) 的岗位对应的抽取记录。
+    新抽取的数据默认 review_status='pending_review'，需人工审核后才进入图谱。
+    """
     bounded_limit = max(1, min(int(limit), 1000))
     engine = get_async_engine()
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with sessionmaker() as session:
+            # 严格门控: 只同步岗位已审核通过的抽取记录
+            approved_positions = sa.select(PositionRecord.name).where(
+                PositionRecord.review_status == "approved"
+            )
             rows = (
                 await session.execute(
                     sa.select(JDExtractionRecord)
-                    .where(JDExtractionRecord.status == "completed")
+                    .where(
+                        JDExtractionRecord.status == "completed",
+                        JDExtractionRecord.job_title.in_(approved_positions),
+                    )
                     .order_by(JDExtractionRecord.created_at.desc())
                     .limit(bounded_limit)
                 )
