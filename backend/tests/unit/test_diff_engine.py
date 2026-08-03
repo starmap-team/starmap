@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from app.core.evolution.diff_engine import ChangeType, DiffEngine, EvolutionChange
+from app.core.evolution.diff_engine import ChangeType, DiffEngine
 
 
 class _FakeSnap:

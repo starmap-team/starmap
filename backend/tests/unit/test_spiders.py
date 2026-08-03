@@ -9,13 +9,10 @@ import hashlib
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from crawler.spiders.arbeitnow import run_sync as arbeitnow_sync
 from crawler.spiders.himalayas import run_sync as himalayas_sync
 from crawler.spiders.jobicy import run_sync as jobicy_sync
 from crawler.spiders.weworkremotely import run_sync as wwr_sync
-
 
 # ── Arbeitnow ─────────────────────────────────────────────────────────
 

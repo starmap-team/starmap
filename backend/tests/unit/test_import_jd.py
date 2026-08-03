@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.csv_parser import parse_csv, DEFAULT_CSV_MAPPING
+from app.services.csv_parser import DEFAULT_CSV_MAPPING, parse_csv
 from app.services.pii_detector import detect_pii
-
 
 # ── PII Detector ──────────────────────────────────────────────────────
 
@@ -91,7 +90,7 @@ class TestCsvParser:
             "Python工程师,TestCo,\n"  # missing clean_text
             ",TestCo2,负责Python\n"  # missing job_title
             "Valid,Co,描述正常\n"
-        ).encode("utf-8")
+        ).encode()
         items = parse_csv(csv_content)
         assert len(items) == 1
         assert items[0]["job_title"] == "Valid"
@@ -99,9 +98,9 @@ class TestCsvParser:
     def test_english_field_aliases(self):
         """English CSV column aliases should also work."""
         csv_content = (
-            "title,company,description\n"
-            "Engineer,Acme,Build stuff\n"
-        ).encode("utf-8")
+            b"title,company,description\n"
+            b"Engineer,Acme,Build stuff\n"
+        )
         items = parse_csv(csv_content)
         assert len(items) == 1
         assert items[0]["job_title"] == "Engineer"
@@ -112,7 +111,7 @@ class TestCsvParser:
         csv_content = (
             "岗位,公司,内容\n"
             "Data Scientist,DataCo,Analyse data\n"
-        ).encode("utf-8")
+        ).encode()
         custom_mapping = {"岗位": "job_title", "公司": "company", "内容": "clean_text"}
         items = parse_csv(csv_content, mapping=custom_mapping)
         assert len(items) == 1

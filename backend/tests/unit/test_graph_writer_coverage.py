@@ -12,7 +12,6 @@ import pytest
 from neo4j.exceptions import Neo4jError
 
 from app.config import settings
-from app.exceptions import GraphProjectionError
 from app.core.extraction.graph_writer import (
     NODE_CERTIFICATE,
     NODE_INDUSTRY,
@@ -53,6 +52,7 @@ from app.core.extraction.graph_writer import (
     write_extraction_to_graph,
     write_triples_to_graph,
 )
+from app.exceptions import GraphProjectionError
 
 # ── Mock helpers (from tests/unit/test_graph_services.py) ──────────────────
 

@@ -30,13 +30,12 @@ class TestFixtureSeed:
     @pytest.mark.asyncio
     async def test_seed_is_idempotent(self, db_session):
         """Running seed twice does not create duplicates."""
+
         from app.data.fixtures.seed import seed_positions, seed_skills
-        from sqlalchemy import select, func
-        from app.models.extraction_models import PositionRecord, SkillRecord
 
         # First run
-        p1 = await seed_positions(db_session)
-        s1 = await seed_skills(db_session)
+        await seed_positions(db_session)
+        await seed_skills(db_session)
 
         # Second run
         p2 = await seed_positions(db_session)
@@ -48,8 +47,9 @@ class TestFixtureSeed:
     @pytest.mark.asyncio
     async def test_seed_creates_position_skill_relations(self, db_session):
         """After seed, position_skill_relations table is not empty."""
-        from app.data.fixtures.seed import seed_positions, seed_skills, seed_position_skill_relations
         from sqlalchemy import text
+
+        from app.data.fixtures.seed import seed_position_skill_relations, seed_positions, seed_skills
 
         await seed_positions(db_session)
         await seed_skills(db_session)

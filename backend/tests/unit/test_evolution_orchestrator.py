@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import pytest
-
 from app.core.evolution.orchestrator import _month_iter
 
 

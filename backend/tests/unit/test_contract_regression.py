@@ -6,8 +6,8 @@ Phase 13 契约回归测试：M2/M4/M5/M6 — 确保关键 API 字段不退化�
 from __future__ import annotations
 
 import json
-import urllib.request
 import urllib.error
+import urllib.request
 
 API = "http://localhost:8000/api/v1"
 
@@ -61,7 +61,7 @@ def test_m2_note_field_contract():
         _api_post("/match/position",
                   {"person_skills": [{"name": "Python", "proficiency": "expert"}],
                    "target_position": "ZZZ_NoSuchPosition_42"}, tok)
-        assert False, "Expected 404 for truly missing position"
+        raise AssertionError("Expected 404 for truly missing position")
     except urllib.error.HTTPError as e:
         assert e.code == 404, f"Expected 404, got {e.code}"
 

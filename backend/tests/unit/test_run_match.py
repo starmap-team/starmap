@@ -281,35 +281,7 @@ class TestComputeCompetitiveness:
 
 @pytest.mark.skip(reason="run_batch_match removed in refactor")
 class TestRunBatchMatch:
-    @pytest.mark.asyncio
-    async def test_batch_match_basic(self):
-        """run_batch_match with multiple resumes and positions."""
-        with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
-            result = await run_batch_match(
-                resumes=[
-                    {"resume_id": "r1", "person_skills": [{"name": "Python", "proficiency": "精通"}]},
-                    {"resume_id": "r2", "person_skills": [{"name": "SQL", "proficiency": "熟悉"}]},
-                ],
-                positions=["数据分析师", "前端开发工程师"],
-            )
-        assert "results" in result
-        assert "matrix" in result
-        assert "summary" in result
-        assert len(result["results"]) == 4  # 2 resumes x 2 positions
-        assert len(result["matrix"]) == 2  # 2 resume rows
-        assert result["summary"]["total_pairs"] == 4
-
-    @pytest.mark.asyncio
-    async def test_batch_match_with_unknown_position(self):
-        """run_batch_match handles unknown positions gracefully (score=0)."""
-        with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
-            result = await run_batch_match(
-                resumes=[{"resume_id": "r1", "person_skills": [{"name": "Python", "proficiency": "精通"}]}],
-                positions=["UnknownPosition"],
-            )
-        # Unknown position causes PositionNotFoundError, which is caught and scored as 0
-        assert len(result["results"]) == 0  # failed matches are not added to results
-        assert result["matrix"][0][0] == 0.0  # unknown position → score 0
+    pass
 
 
 class TestEnrichLearningPaths:

@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import importlib
 
-import pytest
-
 
 def _reset_chroma_negative_cache():
     """Reload the scorer module to clear the _is_chroma_marked_unavailable flag."""
@@ -19,8 +17,9 @@ def test_chroma_unavailable_degradation():
     """M3 regression: Chroma connection error must not 500 the match."""
     _reset_chroma_negative_cache()
 
-    import chromadb as _real_chromadb
     from unittest.mock import patch
+
+    import chromadb as _real_chromadb
 
     from app.core.matching.scorer import score_skill_match
 
@@ -46,8 +45,9 @@ def test_chroma_collection_missing_graceful():
     """M3 regression: Chroma get_collection 404 must not raise."""
     _reset_chroma_negative_cache()
 
-    import chromadb as _real_chromadb
     from unittest.mock import MagicMock, patch
+
+    import chromadb as _real_chromadb
 
     from app.core.matching.scorer import score_skill_match
 

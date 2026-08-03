@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from app.core.evolution.diff_engine import ChangeType, EvolutionChange
-from app.core.evolution.trust_scorer import TrustScorer, WEIGHT_SOURCE, WEIGHT_STABILITY, WEIGHT_TYPE
+from app.core.evolution.trust_scorer import WEIGHT_TYPE, TrustScorer
 
 
 @pytest.fixture

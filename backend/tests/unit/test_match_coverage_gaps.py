@@ -499,26 +499,6 @@ async def test_enrich_learning_paths_no_skill_key():
 
 
 # ===========================================================================
-# 16. run_batch_match with empty resumes/positions
-# ===========================================================================
-
-
-@pytest.mark.skip(reason="run_batch_match removed in refactor")
-@pytest.mark.asyncio
-async def test_run_batch_match_empty():
-    """run_batch_match with empty inputs returns empty summary."""
-    pass  # ponytail: function removed during refactor
-
-    result = await run_batch_match(
-        resumes=[],
-        positions=[],
-    )
-    assert result["summary"]["total_pairs"] == 0
-    assert result["summary"]["avg_score"] == 0.0
-    assert result["results"] == []
-
-
-# ===========================================================================
 # 17. _save_match_result on exception (service.py:384 area)
 # ===========================================================================
 

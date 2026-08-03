@@ -21,7 +21,7 @@ def _build_fake_session() -> Any:
         def add(self, *a: Any, **k: Any) -> None: pass
         async def flush(self) -> None: pass
 
-        async def __aenter__(self) -> "_Session": return self
+        async def __aenter__(self) -> _Session: return self
         async def __aexit__(self, *a: Any) -> bool: return False
 
         def begin(self) -> Any:

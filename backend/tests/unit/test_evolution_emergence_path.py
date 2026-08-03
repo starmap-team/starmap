@@ -1,8 +1,8 @@
 """Unit tests for EmergenceFinder."""
 
 from app.core.evolution.emergence_finder import (
-    CrossDomainSkill,
     DOMAIN_KEYWORDS,
+    CrossDomainSkill,
     EmergenceFinder,
     EmergenceLevel,
     EmergenceReport,
