@@ -18,10 +18,17 @@ import type { LiveActivityEvent } from '@/stores/pipelineRun'
 import type { DataSourceDetail } from '@/types/datasource'
 
 // Spider 注册表 (与后端 executor.py 一致)
+// Phase 15-01: 新增 5 个免费 API/Feed 适配器
 const SUPPORTED_SPIDERS = {
-  bosszhipin: { label: 'BOSS直聘', icon: '📋' },
-  '51job': { label: '前程无忧', icon: '💼' },
-  lagou: { label: '拉勾', icon: '🚀' },
+  bosszhipin: { label: 'BOSS直聘 (实验性)', icon: '📋' },
+  '51job': { label: '前程无忧 (实验性)', icon: '💼' },
+  lagou: { label: '拉勾 (实验性)', icon: '🚀' },
+  v2ex: { label: 'V2EX (中文)', icon: '🌐' },
+  remotive: { label: 'Remotive (远程)', icon: '🌍' },
+  arbeitnow: { label: 'Arbeitnow (远程)', icon: '💼' },
+  jobicy: { label: 'Jobicy (远程)', icon: '💻' },
+  weworkremotely: { label: 'WeWorkRemotely', icon: '🏠' },
+  himalayas: { label: 'Himalayas (404)', icon: '⛰️' },
 } as const
 
 interface DataSourceWithStatus extends DataSourceDetail {
@@ -118,6 +125,29 @@ function platformInfo(ds: DataSourceDetail) {
   return { available: false, label: platform || '未配置', icon: '❓' }
 }
 
+// Phase 15-01: 数据源类型标签 (api/rss/crawler/manual)
+function sourceTypeLabel(t?: string): string {
+  const map: Record<string, string> = {
+    api: 'API 实时',
+    rss: 'RSS 周期',
+    crawler: '爬虫实验',
+    manual: 'CSV 导入',
+    import: 'CSV 导入',
+  }
+  return map[t || ''] || (t || '未知')
+}
+
+function sourceTypeColor(t?: string): string {
+  const map: Record<string, string> = {
+    api: 'success',
+    rss: 'info',
+    crawler: 'warning',
+    manual: '',
+    import: '',
+  }
+  return map[t || ''] || ''
+}
+
 // 状态徽章
 function statusBadge(ds: DataSourceWithStatus) {
   if (ds.liveStatus === 'crawling') {
@@ -199,7 +229,7 @@ function formatRecords(n: number) {
             <el-icon :size="11">
               <CircleCheck />
             </el-icon>
-            {{ totalEnabled }} 个可用爬虫
+            {{ totalEnabled }} 个可用数据源
           </el-tag>
           <el-tag
             size="small"
@@ -254,6 +284,15 @@ function formatRecords(n: number) {
             <div class="ds-name-cell">
               <span class="ds-icon">{{ platformInfo(row).icon }}</span>
               <span class="ds-name">{{ getSourceNameLabel(row.name) }}</span>
+              <!-- Phase 15-01: 显示数据源类型 -->
+              <el-tag
+                :type="sourceTypeColor(row.source_type)"
+                size="small"
+                effect="plain"
+                class="ml-1"
+              >
+                {{ sourceTypeLabel(row.source_type) }}
+              </el-tag>
               <el-tag
                 v-if="row.config?.disabled"
                 type="info"

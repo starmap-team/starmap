@@ -96,9 +96,9 @@ export const useJdStore = defineStore('jd', () => {
     return request.get(`/graph/position/${encodeURIComponent(positionName)}/skills`)
   }
 
-  /** Fetch position detail from PostgreSQL */
-  async function fetchPositionDetail(positionName: string) {
-    return request.get(`/positions/${encodeURIComponent(positionName)}`)
+  /** Fetch position detail from PostgreSQL (accepts id or name; silent 抑制全局错误 toast) */
+  async function fetchPositionDetail(positionName: string, opts?: { silent?: boolean }) {
+    return request.get(`/positions/${encodeURIComponent(positionName)}`, { silent: opts?.silent } as never)
   }
 
   /** Fetch paginated positions list
@@ -108,15 +108,23 @@ export const useJdStore = defineStore('jd', () => {
    * `status: 'pending_review'` etc. to view other lifecycle states.
    */
   async function fetchPositions(
-    params: { page?: number; page_size?: number; status?: ReviewStatusFilter; include_all?: boolean } = {},
+    params: { page?: number; page_size?: number; search?: string; industry?: string; status?: ReviewStatusFilter; include_all?: boolean } = {},
   ): Promise<PositionListResponse> {
     const query: Record<string, string | number | boolean> = {
       page: params.page ?? 1,
       page_size: params.page_size ?? DEFAULT_PAGE_SIZE,
     }
+    if (params.search) query.search = params.search
+    if (params.industry) query.industry = params.industry
     if (params.include_all) query.include_all = true
     if (params.status && params.status !== 'all') query.status = params.status
     return request.get('/positions', { params: query }) as Promise<PositionListResponse>
+  }
+
+  /** Fetch all distinct industries from backend (US-3: 完整行业列表) */
+  async function fetchIndustries(): Promise<string[]> {
+    const data = await request.get('/positions/industries') as { industries: string[] }
+    return data.industries
   }
 
   /** Search positions by keyword, returns dropdown-ready items */
@@ -165,6 +173,6 @@ export const useJdStore = defineStore('jd', () => {
 
   return {
     list, loading, fetchList, fetchPositionSkills, fetchPositionDetail, fetchPositions,
-    searchPositions, extractResult, extractLoading, extractJd, fetchCostSummary, clearResult,
+    fetchIndustries, searchPositions, extractResult, extractLoading, extractJd, fetchCostSummary, clearResult,
   }
 })

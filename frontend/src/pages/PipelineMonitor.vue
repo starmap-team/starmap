@@ -58,6 +58,7 @@ const {
   qualityTrendDir,
   isAdmin,
   liveActivity,
+  pendingReviewCount,
 } = usePipelineMonitor()
 
 // ── Phase 3.8 闭环验证系统 ──
@@ -430,7 +431,7 @@ async function verifyNow() {
       <BusinessBanner
         type="success"
         title="L2 数据融合层 — ETL 流水线监控"
-        description="全链路 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → LLM 抽取 → 入库 → 图谱构建。每个阶段独立降级，失败不阻塞后续流程。数据源质量影响 §7.1 信任度评分。"
+        description="全链路 ETL DAG：爬虫采集 → 去重 → 清洗 → LLM 抽取 → 入库 → 图谱构建（Phase 3 串行化）。每个阶段独立降级，失败不阻塞后续流程。数据源质量影响 §7.1 信任度评分。"
         meta="后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送"
       />
 
@@ -439,7 +440,7 @@ async function verifyNow() {
         <div>
           <h2>数据流水线监控</h2>
           <p class="page-desc">
-            ETL DAG 全链路：爬虫采集 → (去重 ∥ 清洗) → 入库 → 图谱构建
+            ETL DAG 全链路：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建
             <el-tag
               v-if="sseConnected"
               size="small"
@@ -449,8 +450,36 @@ async function verifyNow() {
             >
               SSE 实时
             </el-tag>
+            <el-tag
+              v-else-if="sseMode === 'polling'"
+              size="small"
+              type="info"
+              effect="plain"
+              class="ml-2"
+            >
+              轮询模式
+            </el-tag>
+            <el-tag
+              v-else
+              size="small"
+              type="warning"
+              effect="plain"
+              class="ml-2"
+            >
+              连接中断
+            </el-tag>
           </p>
         </div>
+        <!-- Phase 3 Plan 02: SSE 断开时用户可见提示 -->
+        <el-alert
+          v-if="!sseConnected"
+          type="warning"
+          :closable="false"
+          show-icon
+          class="mb-4"
+          title="实时推送已断开"
+          :description="sseMode === 'polling' ? '已自动切换为轮询模式，数据每 10 秒刷新一次' : '正在尝试重新连接...'"
+        />
         <div class="header-actions">
           <span
             v-if="lastRefresh"
@@ -490,7 +519,7 @@ async function verifyNow() {
               触发流水线
             </el-button>
             <el-button
-              v-if="pipeline.pipelineStatus?.current_run?.status === 'failed'"
+              v-if="pipeline.pipelineStatus?.recent_failed_run && !pipeline.pipelineStatus?.is_running"
               size="small"
               type="warning"
               :loading="actionLoading"
@@ -543,6 +572,19 @@ async function verifyNow() {
 
       <!-- 4 个 KPI 卡片 (Phase 2 P3-1: 抽出 PipelineKpiCards) -->
       <PipelineKpiCards :cards="kpiCards" />
+
+      <!-- Phase 16 数据审核闭环: 待审核提示 -->
+      <el-alert
+        v-if="pendingReviewCount > 0"
+        type="warning"
+        :closable="true"
+        show-icon
+        class="mb-4"
+      >
+        <template #title>
+          <span>📋 <strong>{{ pendingReviewCount }}</strong> 条新抽取数据待审核（岗位/技能）——审核通过后将自动纳入图谱</span>
+        </template>
+      </el-alert>
 
       <!-- Phase 3.8.5: 卡死检测横幅 + 强制操作 -->
       <el-alert
@@ -895,6 +937,14 @@ async function verifyNow() {
         title="触发流水线"
         width="480px"
       >
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          class="mb-4"
+          title="触发后将按 DAG 顺序执行所有选中阶段"
+          description="未选中的阶段将标记为 skipped。至少需要 1 个启用的数据源才能采集数据。全量模式重跑所有数据，增量模式仅处理新增记录。"
+        />
         <el-form label-width="80px">
           <el-form-item label="运行类型">
             <el-radio-group v-model="triggerRunType">
@@ -907,15 +957,21 @@ async function verifyNow() {
             </el-radio-group>
           </el-form-item>
           <el-form-item label="执行阶段">
-            <el-checkbox-group v-model="selectedStages">
-              <el-checkbox
-                v-for="name in ALL_STAGE_NAMES"
-                :key="name"
-                :value="name"
-              >
-                {{ STAGE_LABELS[name] || name }}
-              </el-checkbox>
-            </el-checkbox-group>
+            <el-tooltip
+              content="可选择部分阶段重跑（如仅重跑 import），未选阶段将标记为 skipped"
+              placement="top"
+              effect="dark"
+            >
+              <el-checkbox-group v-model="selectedStages">
+                <el-checkbox
+                  v-for="name in ALL_STAGE_NAMES"
+                  :key="name"
+                  :value="name"
+                >
+                  {{ STAGE_LABELS[name] || name }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </el-tooltip>
           </el-form-item>
         </el-form>
         <template #footer>
@@ -950,10 +1006,32 @@ async function verifyNow() {
             />
           </el-form-item>
           <el-form-item label="Cron 表达式">
-            <el-input
-              v-model="scheduleForm.cron_expression"
-              placeholder="0 2 * * * (每天凌晨2点)"
-            />
+            <el-tooltip
+              placement="top"
+              effect="dark"
+            >
+              <template #content>
+                <div style="line-height: 1.6">
+                  格式: 分 时 日 月 周<br>
+                  示例:<br>
+                  <code>0 2 * * *</code> = 每天凌晨 2 点<br>
+                  <code>*/15 * * * *</code> = 每 15 分钟<br>
+                  <code>0 9 * * 1</code> = 每周一 9 点<br>
+                  <code>0 0 1 * *</code> = 每月 1 号 0 点<br>
+                  <code>30 8 * * 1-5</code> = 工作日 8:30
+                </div>
+              </template>
+              <el-input
+                v-model="scheduleForm.cron_expression"
+                placeholder="分 时 日 月 周，如 0 2 * * *"
+              />
+            </el-tooltip>
+            <div
+              v-if="scheduleForm.cron_expression && scheduleForm.cron_expression.trim().split(/\s+/).length !== 5"
+              class="cron-hint-error"
+            >
+              Cron 表达式需要 5 个字段（分 时 日 月 周）
+            </div>
           </el-form-item>
           <el-form-item label="运行类型">
             <el-radio-group v-model="scheduleForm.run_type">
@@ -1282,6 +1360,11 @@ async function verifyNow() {
 .verify-empty p {
   margin: var(--space-2) 0 0 0;
   font-size: var(--font-size-sm);
+}
+.cron-hint-error {
+  color: var(--el-color-danger);
+  font-size: var(--font-size-xs);
+  margin-top: 4px;
 }
 .verify-log-list {
   display: flex;

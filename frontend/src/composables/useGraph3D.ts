@@ -28,13 +28,21 @@ export interface ForceConfig {
   cooldownTicks: number
 }
 
-/** Calculate force configuration parameters based on node count. */
-export function calcForceConfig(nodeCount: number): ForceConfig {
+/** Calculate force configuration parameters based on node count and link density. */
+export function calcForceConfig(nodeCount: number, linkCount?: number): ForceConfig {
+  // Sparse graph (few links relative to nodes) — reduce charge strength
+  // so unconnected nodes don't fly apart (heat view, bug #2)
+  const sparse = linkCount !== undefined && linkCount < nodeCount * 0.3
   if (nodeCount <= 3) {
+    if (sparse) return { chargeStrength: -200, linkDist: 200, linkStrength: 0.02, alphaDecay: 0.02, velocityDecay: 0.4, warmupTicks: 200, cooldownTicks: 600 }
     return { chargeStrength: -600, linkDist: 200, linkStrength: 0.02, alphaDecay: 0.02, velocityDecay: 0.4, warmupTicks: 200, cooldownTicks: 600 }
   }
   if (nodeCount <= 10) {
+    if (sparse) return { chargeStrength: -100, linkDist: 160, linkStrength: 0.05, alphaDecay: 0.03, velocityDecay: 0.4, warmupTicks: 120, cooldownTicks: 400 }
     return { chargeStrength: -350, linkDist: 160, linkStrength: 0.05, alphaDecay: 0.03, velocityDecay: 0.4, warmupTicks: 120, cooldownTicks: 400 }
+  }
+  if (sparse) {
+    return { chargeStrength: -80, linkDist: 120, linkStrength: 0.08, alphaDecay: 0.04, velocityDecay: 0.5, warmupTicks: 80, cooldownTicks: 300 }
   }
   return {
     chargeStrength: nodeCount > 200 ? -400 : -250,
@@ -54,8 +62,9 @@ type GraphInstance = any
 export function applyForceConfig(
   graph: GraphInstance, nodeCount: number, nodeCollisionPadding: number,
   getNodeRadius: (node: GraphNode3D) => number, isInit: boolean = true,
+  linkCount?: number,
 ): void {
-  const cfg = calcForceConfig(nodeCount)
+  const cfg = calcForceConfig(nodeCount, linkCount)
 
   const chargeForce = graph.d3Force('charge') as unknown as { strength(v: number): unknown; distanceMax(v: number): unknown } | null
   if (chargeForce) { chargeForce.strength(cfg.chargeStrength); chargeForce.distanceMax(isInit ? 1200 : 600) }

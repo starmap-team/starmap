@@ -122,13 +122,13 @@ describe('useDataSourceStore — health & sync', () => {
   it('should trigger sync and refresh source detail', async () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.post).mockResolvedValueOnce({ run_id: 'abc', status: 'running' })
-    vi.mocked(request.get).mockResolvedValueOnce({ id: '1', name: 'BOSS直聘', authority_score: 0.8, source_type: 'crawler', status: 'active', last_crawl_at: '', total_records: 0, valid_records: 0, duplicate_rate: 0, avg_quality_score: 0 } as DataSourceDetail)
+    vi.mocked(request.get).mockResolvedValueOnce({ id: 'b867ccb1-9d15-4e4a-a854-aa3e27dc252c', name: 'BOSS直聘', authority_score: 0.8, source_type: 'crawler', status: 'active', last_crawl_at: '', total_records: 0, valid_records: 0, duplicate_rate: 0, avg_quality_score: 0 } as DataSourceDetail)
 
     const store = useDataSourceStore()
-    const result = await store.triggerSync('1')
+    const result = await store.triggerSync('b867ccb1-9d15-4e4a-a854-aa3e27dc252c')
 
     expect(result).toBe(true)
-    // fix: sync 端点在公共 router（/datasources/{id}/sync），非 admin_router
-    expect(request.post).toHaveBeenCalledWith('/datasources/1/sync')
+    // M1: id 必须为 UUID 形态，否则对真实解析路径产生虚假信心
+    expect(request.post).toHaveBeenCalledWith('/datasources/b867ccb1-9d15-4e4a-a854-aa3e27dc252c/sync')
   })
 })

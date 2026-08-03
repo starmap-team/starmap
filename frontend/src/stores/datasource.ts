@@ -147,6 +147,11 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
+  /** Phase 15 / T2.3: 按需触发单源采集 */
+  async function triggerCrawl(source: string) {
+    return request.post(`/pipeline/crawl-source?source=${encodeURIComponent(source)}`) as Promise<unknown>
+  }
+
   return {
     sources,
     selectedSource,
@@ -159,6 +164,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
     updateSource,
     fetchStats,
     triggerSync,
+    triggerCrawl,
     fetchHealth,
   }
 })

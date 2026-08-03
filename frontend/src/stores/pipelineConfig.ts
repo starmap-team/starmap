@@ -33,11 +33,15 @@ export const STAGE_LABELS: Record<string, string> = {
   crawl: '爬虫采集',
   dedup: 'SimHash去重',
   clean: '清洗标准化',
-  import: '数据入库',
+  import: 'LLM抽取+入库',
   graph_sync: '图谱构建',
+  timeseries: '时间序列',
 }
 
+// Phase 17-01: timeseries 移出核心 DAG (设计文档明确它不属于 ETL)
+// 它由 evolution 服务单独触发, 留 OPTIONAL_STAGES 供向后兼容
 export const ALL_STAGE_NAMES = ['crawl', 'dedup', 'clean', 'import', 'graph_sync']
+export const OPTIONAL_STAGES = ['timeseries', 'graph_sync']
 
 // ── Store 定义 ──
 

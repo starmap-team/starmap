@@ -147,6 +147,9 @@ request.interceptors.response.use(
       | (typeof error.config & { _retried?: boolean })
       | undefined
     const requestUrl = originalRequest?.url ?? ''
+    // 调用方可通过 config.silent=true 抑制全局错误 toast，改由页面自行渲染友好空/缺失态
+    // （避免“一次报错弹多条”：详情页缺失时不再叠加全局 404 toast）
+    const silent = (originalRequest as unknown as { silent?: boolean })?.silent === true
     const isLogin = requestUrl.includes('/auth/login')
     const isRefresh = requestUrl.includes('/auth/refresh')
 
@@ -193,13 +196,13 @@ request.interceptors.response.use(
         showClose: true,
       })
       window.dispatchEvent(new CustomEvent('auth:unauthorized'))
-    } else if (status === 403) {
+    } else if (status === 403 && !silent) {
       ElMessage.error({
         message: '您没有权限执行此操作',
         duration: 4000,
         showClose: true,
       })
-    } else {
+    } else if (!silent) {
       ElMessage.error({
         message,
         duration: 4000,

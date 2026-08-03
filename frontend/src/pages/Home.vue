@@ -58,6 +58,8 @@ const groupLabel = computed(() => {
       return { label: '职级分组', trend: '成长路径三阶' }
     case 'tech_stack':
       return { label: '技术栈', trend: '领域技术全景' }
+    case 'heat':
+      return { label: '热度视图', trend: '技能需求频次 Top 30' }
     case 'domain':
     default:
       return { label: '技术领域', trend: '知识图谱核心分类' }

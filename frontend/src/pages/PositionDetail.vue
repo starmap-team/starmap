@@ -6,7 +6,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import SkillRadar, { type RadarItem } from '@/components/SkillRadar.vue'
 import { useJdStore } from '@/stores/jd'
@@ -35,14 +34,10 @@ interface PositionInfo {
   description: string
 }
 
-interface PositionSkillsResponse {
-  skills?: SkillItem[]
-  position?: PositionInfo
-}
-
 const position = ref<PositionInfo | null>(null)
 const skills = ref<SkillItem[]>([])
 const loading = ref(false)
+const notFound = ref(false)
 
 import { PROFICIENCY_MAP } from '@/utils/proficiency'
 
@@ -81,46 +76,35 @@ function hotnessColor(count: number): string {
   return cc.border
 }
 
-// ── 加载（Neo4j 优先，PostgreSQL 回退） ──
-// Phase 26 / BUG-002: capture the positionName at fetch-start so a
-// slow response for /position/A can't overwrite the freshly-mounted
-// response for /position/B when the user navigates rapidly.
+// ── 加载：按 id 单次拉取 ──
+// get_position 已在后端做 PG→Neo4j 回退并返回 skills_required，故无需前端再发 Neo4j 优先请求
+// （旧实现对含 `/` 的岗位名会 404，且与 PG 回退各弹一次 toast，叠加页面 toast = “一次报错弹多条”）。
+// 改用列表传入的 id（UUID，路径安全）；silent=true 使真正缺失时不弹全局 404 toast，改渲染友好态。
 let fetchToken = 0
 
 onMounted(async () => {
   loading.value = true
   const myToken = ++fetchToken
+  const id = positionName.value
   try {
-    const data = await jdStore.fetchPositionSkills(positionName.value) as unknown as PositionSkillsResponse
-    if (myToken !== fetchToken) return  // a newer fetch has started
-    if (data?.skills?.length || data?.position) {
-      position.value = data.position as PositionInfo
-      skills.value = (data.skills ?? []) as SkillItem[]
-    } else {
-      // Neo4j 无数据，回退到 PostgreSQL
-      await loadFromPostgres(myToken)
+    const d = (await jdStore.fetchPositionDetail(id, { silent: true })) as unknown as {
+      name?: string
+      name_cn?: string
+      industry?: string
+      description?: string
+      skills_required?: SkillItem[]
     }
-  } catch (e) {
     if (myToken !== fetchToken) return
-    // Neo4j 查询失败（如 404），回退到 PostgreSQL
-    if (import.meta.env.DEV) console.warn('[PositionDetail] Neo4j lookup failed, trying PostgreSQL:', e)
-    await loadFromPostgres(myToken)
-  } finally {
-    if (myToken === fetchToken) loading.value = false
-  }
-})
-
-async function loadFromPostgres(token: number) {
-  try {
-    const pgData = (await jdStore.fetchPositionDetail(positionName.value)) as unknown as Record<string, unknown>
-    if (token !== fetchToken) return  // stale response, ignore
-    const pgRecord = pgData as { name?: string; name_cn?: string; industry?: string; description?: string; skills_required?: { skill_id?: string; name?: string; category?: string; proficiency?: string; confidence?: number; source_count?: number }[] }
-    position.value = {
-      name: (pgRecord.name_cn || pgRecord.name) ?? positionName.value,
-      industry: pgRecord.industry ?? '',
-      description: pgRecord.description ?? '',
+    if (!d || (!d.name && !d.name_cn)) {
+      notFound.value = true
+      return
     }
-    skills.value = (pgRecord.skills_required ?? []).map((s) => ({
+    position.value = {
+      name: d.name_cn || d.name || id,
+      industry: d.industry ?? '',
+      description: d.description ?? '',
+    }
+    skills.value = (d.skills_required ?? []).map((s) => ({
       skill_id: s.skill_id ?? '',
       name: s.name ?? '',
       category: s.category ?? 'hard_skill',
@@ -128,12 +112,13 @@ async function loadFromPostgres(token: number) {
       confidence: s.confidence ?? 1.0,
       source_count: s.source_count ?? 0,
     }))
-  } catch (pgErr) {
-    if (token !== fetchToken) return
-    if (import.meta.env.DEV) console.error('[PositionDetail] PostgreSQL fallback also failed:', pgErr)
-    ElMessage.error('岗位详情加载失败，请确认该岗位存在')
+  } catch {
+    if (myToken !== fetchToken) return
+    notFound.value = true // 真正缺失/404：友好态，不叠加 toast
+  } finally {
+    if (myToken === fetchToken) loading.value = false
   }
-}
+})
 </script>
 
 <template>
@@ -186,6 +171,34 @@ async function loadFromPostgres(token: number) {
         </div>
       </template>
 
+      <!-- 未找到：友好态（替代旧的“一次报错弹多条 toast”） -->
+      <template v-else-if="notFound">
+        <div class="page-header">
+          <el-button
+            circle
+            :icon="ArrowLeft"
+            size="small"
+            @click="$router.push('/positions')"
+          />
+          <div>
+            <h2>未找到该岗位</h2>
+            <p class="header-sub">
+              该岗位可能已下线、尚未同步，或链接已失效。
+            </p>
+          </div>
+        </div>
+        <div class="detail-body">
+          <el-empty description="没有可展示的岗位信息">
+            <el-button
+              type="primary"
+              @click="$router.push('/positions')"
+            >
+              返回岗位列表
+            </el-button>
+          </el-empty>
+        </div>
+      </template>
+
       <!-- 真实内容 -->
       <template v-else>
         <!-- 返回 + 标题 -->
@@ -209,7 +222,7 @@ async function loadFromPostgres(token: number) {
           <section class="radar-section">
             <SkillRadar
               :data="radarData"
-              :position-name="positionName"
+              :position-name="position?.name ?? positionName"
             />
           </section>
 

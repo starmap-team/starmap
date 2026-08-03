@@ -179,6 +179,13 @@ export function useHomeInteractions(
 
   // Node click / dblclick
   function onNodeDblClick(nodeId: string) {
+    // 先查 synthetic cluster nodes（domain/tech_stack/level/heat 视图的集群节点，
+    // 不在 allNodes 中，所以 nodeMap.get 会返回 undefined）
+    const domain = graphStore.domains.find(d => d.id === nodeId)
+    if (domain) {
+      graphStore.goToPositionLayer(nodeId, domain.name)
+      return
+    }
     const n = graphStore.nodeMap.get(nodeId)
     if (!n) return
     const label = n.labels[0]
@@ -309,7 +316,7 @@ export function useHomeInteractions(
         graphStore.goToPositionLayer(kaId, ka?.name ?? '').then(() => {
           graphStore.goToDetailLayer(node.id)
           selectedNodeRef.value = node
-        })
+        }).catch((err: unknown) => console.error('[useHomeInteractions] goToPositionLayer failed', err))
       }
       return
     }
@@ -324,7 +331,7 @@ export function useHomeInteractions(
               graphStore.goToPositionLayer(kaId, ka?.name ?? '').then(() => {
                 graphStore.goToDetailLayer(posNode.id)
                 selectedNodeRef.value = node
-              })
+              }).catch((err: unknown) => console.error('[useHomeInteractions] goToPositionLayer failed', err))
             }
             return
           }

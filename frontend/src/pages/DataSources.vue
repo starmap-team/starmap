@@ -42,6 +42,24 @@ async function handleSync(source: typeof dsStore.sources[number]) {
   catch { ElMessage.error(`${getSourceNameLabel(source.name)} 同步失败`) }
   finally { syncingIds.value.delete(source.id) }
 }
+// Phase 15 / T2.3: 按需触发单源采集 → raw_jd_records
+async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
+  if (syncingIds.value.has(source.id)) return
+  syncingIds.value.add(source.id)
+  try {
+    // map source.name -> source site key (BOSS, 拉勾, 猎聘, remotive, v2ex)
+    const key = source.name.includes('Boss') ? 'BOSS' : source.name
+    const out = await dsStore.triggerCrawl(key) as { fetched?: number; persisted?: number; rows?: { title: string }[] }
+    ElMessage.success(
+      `${getSourceNameLabel(source.name)} 立即采集完成: fetched=${out?.fetched ?? 0} persisted=${out?.persisted ?? 0}`
+    )
+    dsStore.fetchSources()  // refresh last_crawl_at
+  } catch {
+    ElMessage.error(`${getSourceNameLabel(source.name)} 立即采集失败`)
+  } finally {
+    syncingIds.value.delete(source.id)
+  }
+}
 const summaryStats = computed(() => {
   const src = dsStore.sources
   return { total: src.length, active: src.filter((s: any) => s.status === 'active').length, totalRecords: src.reduce((sum: number, s: any) => sum + s.total_records, 0), avgQuality: src.length ? src.reduce((sum: number, s: any) => sum + s.avg_quality_score, 0) / src.length : 0 }
@@ -241,6 +259,26 @@ onMounted(() => {
         v-loading="dsStore.loading"
         :gutter="16"
       >
+        <!-- M5：无数据源时显式空态（避免空 el-row 被误读为"加载中"） -->
+        <el-col v-if="!dsStore.loading && dsStore.sources.length === 0" :span="24">
+          <el-empty
+            description="暂无数据源（请检查后端 DataSourceRecord 表）"
+          />
+        </el-col>
+        <!-- M5：源存在但全部 records=0 时，给出"未采集"提示，避免 KPI 0/0/0 被误读为"质量差" -->
+        <el-col
+          v-else-if="!dsStore.loading && dsStore.sources.length > 0 && summaryStats.totalRecords === 0"
+          :span="24"
+        >
+          <el-alert
+            type="info"
+            :closable="false"
+            show-icon
+            title="数据源均无采集记录（待同步）"
+            description="所有数据源尚未触发过 crawl/sync，记录数=0。点击卡片底部“立即同步”启动首次采集；这是“未采集”状态，非“数据质量差”。"
+            class="mb-4"
+          />
+        </el-col>
         <el-col
           v-for="source in dsStore.sources"
           :key="source.id"
@@ -369,6 +407,15 @@ onMounted(() => {
                   <RefreshRight />
                 </el-icon>
                 {{ syncingIds.has(source.id) ? '同步中...' : '一键同步' }}
+              </el-button>
+              <el-button
+                size="small"
+                type="warning"
+                plain
+                :disabled="source.status === 'paused'"
+                @click="handleImmediateCrawl(source)"
+              >
+                立即采集
               </el-button>
             </div>
           </el-card>

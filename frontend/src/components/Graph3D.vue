@@ -66,6 +66,8 @@ function endpointId(endpoint: GraphLink3D['source']): string {
 }
 
 function linksForNodes(links: GraphLink3D[], nodes: GraphNode3D[]): GraphLink3D[] {
+  // R4 防御性：始终按可见节点 id 过滤，避免 maxNodes=0 路径直接 return props.links 漏过滤
+  // 造成悬空边传入 3d-force-graph。
   const nodeIds = new Set(nodes.map(node => String(node.id)))
   return links.filter(link => nodeIds.has(endpointId(link.source)) && nodeIds.has(endpointId(link.target)))
 }
@@ -79,7 +81,7 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
 
   if (!shouldAnimate) {
     graph.graphData({ nodes, links })
-    applyForceConfig(graph, nodes.length, NODE_COLLISION_PADDING, getNodeRadius, false)
+    applyForceConfig(graph, nodes.length, NODE_COLLISION_PADDING, getNodeRadius, false, limitedLinks.value.length)
     return
   }
 
@@ -93,7 +95,7 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
 
   // Run simulation to get stable positions
   graph.graphData({ nodes: allNodes, links: allLinks })
-  applyForceConfig(graph, allNodes.length, NODE_COLLISION_PADDING, getNodeRadius, true)
+  applyForceConfig(graph, allNodes.length, NODE_COLLISION_PADDING, getNodeRadius, true, limitedLinks.value.length)
 
   // Wait for simulation to stabilize before storing positions
   setTimeout(() => {
@@ -120,7 +122,7 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
       graph.graphData({ nodes: positionedNodes, links: linksForNodes(links, positionedNodes) })
       // Don't reheat - nodes already have positions
       if (visibleNodes.length <= 1) {
-        applyForceConfig(graph, positionedNodes.length, NODE_COLLISION_PADDING, getNodeRadius, false)
+        applyForceConfig(graph, positionedNodes.length, NODE_COLLISION_PADDING, getNodeRadius, false, limitedLinks.value.length)
       }
     }
 
@@ -209,7 +211,7 @@ async function initGraph() {
   const w = container.clientWidth || props.width
   const h = container.clientHeight || props.height
   const nodeCount = limitedNodes.value.length
-  const cfg = calcForceConfig(nodeCount)
+  const cfg = calcForceConfig(nodeCount, limitedLinks.value.length)
 
   const graph = new ForceGraph3D(container, { controlType: 'orbit' })
     .width(w).height(h)
@@ -252,7 +254,7 @@ async function initGraph() {
     .cooldownTicks(cfg.cooldownTicks)
 
   // Apply charge/link/center/collision forces
-  applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, true)
+  applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, true, limitedLinks.value.length)
 
   // ── Interactions ──
   graph.onNodeHover(createHoverHandler())
@@ -311,13 +313,42 @@ function measureFPS() {
 // 标志位：onEngineStop 触发后置 true，避免 watch setTimeout 重复定位相机
 let _engineStopHandled = false
 
-// ── Update data when props change ──
-// 单一 watch 合并数据+层级变化，避免两个 watch 同时触发 setCameraPreset 导致双重渲染
-watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths, props.currentDomainId, props.currentLayer] as const, ([_n, _l, _evo, _evoP, _domId, newLayer], _old) => {
+// R3：维度（domain/tech_stack/level 命名空间 ts-/ka-/lv-）改变时，
+// 图实例的 d3 内部状态与位置继承会污染 3D 渲染，必须销毁重建。
+// 仅数据增/减但维度一致时，复用 graph.graphData() + 位置继承。
+const _DIM_NAMESPACES = ['ts-', 'ka-', 'lv-']
+function _currentNamespace(ids: ReadonlyArray<unknown>): string | null {
+  let ns: string | null = null
+  for (const raw of ids) {
+    if (raw == null) continue
+    const s = String(raw)
+    const m = _DIM_NAMESPACES.find(p => s.startsWith(p))
+    if (m) {
+      if (ns === null) ns = m
+      else if (ns !== m) return 'mixed'
+    }
+  }
+  return ns
+}
+let _lastNamespace: string | null = null
+
+watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths, props.currentDomainId, props.currentLayer] as const, async ([_n, _l, _evo, _evoP, _domId, newLayer], _old) => {
   const graph = graphInstance.value
-  if (!graph) { if (props.nodes.length > 0) initGraph(); return }
+  if (!graph) { if (props.nodes.length > 0) await initGraph(); return }
 
   const composedLinks = composeEvolutionLinks(limitedLinks.value, props.evolutionPaths, limitedNodes.value, props.showEvolution)
+
+  // R3：维度（命名空间）变化 → 重建实例，避免悬空边或位置污染
+  const ns = _currentNamespace(props.nodes.map(n => n.id))
+  if (ns !== _lastNamespace && _lastNamespace !== null && ns !== null) {
+    cancelGrowthAnimation()
+    try { (graph as unknown as { _destructor?: () => void })._destructor?.() } catch { /* noop */ }
+    graphInstance.value = null
+    _lastNamespace = ns
+    if (props.nodes.length > 0) { await initGraph() }
+    return
+  }
+  _lastNamespace = ns
 
   // 保存旧节点的位置映射，用于为相同 ID 的新节点提供初始位置
   const oldNodes: GraphNode3D[] = graph.graphData().nodes
@@ -354,7 +385,7 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   graph.d3AlphaDecay(0.1)
 
   // 兜底：如果 onEngineStop 未触发（极短冷却），setTimeout 仍可定位相机
-  const cfg = calcForceConfig(limitedNodes.value.length)
+  const cfg = calcForceConfig(limitedNodes.value.length, limitedLinks.value.length)
   const settleMs = Math.min(cfg.warmupTicks * 16 + 200, 800)
   setTimeout(() => {
     if (!_engineStopHandled && graphInstance.value) {

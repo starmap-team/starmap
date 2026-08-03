@@ -92,7 +92,7 @@ export const useLearningAnalyticsStore = defineStore('learningAnalytics', () => 
     analyticsError.value = null
     try {
       const data = asRecord(await request.get('/evolution/industry-report'))
-      industryTrends.value = (asArray(data.items ?? data.trends)) as IndustryTrendItem[]
+      industryTrends.value = (asArray(data.trends ?? data.items)) as IndustryTrendItem[]
       return industryTrends.value
     } catch (e: unknown) {
       analyticsError.value = `获取行业趋势失败: ${getErrorMsg(e)}`

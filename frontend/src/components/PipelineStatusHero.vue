@@ -15,6 +15,8 @@ interface StageSummary {
   cancelled: number
   skipped: number
   totalRecords: number
+  crawlRecords: number
+  importRecords: number
   totalDurationMs: number
 }
 
@@ -92,7 +94,8 @@ const props = defineProps<{
             class="hero-pill skipped"
           >{{ props.summary.skipped }} 跳过</span>
           <span class="hero-meta">
-            共处理 <strong>{{ props.summary.totalRecords.toLocaleString() }}</strong> 条记录,
+            采集 <strong>{{ props.summary.crawlRecords.toLocaleString() }}</strong> 条 →
+            入库 <strong>{{ props.summary.importRecords.toLocaleString() }}</strong> 条,
             累计耗时 <strong>{{ (props.summary.totalDurationMs / 1000).toFixed(0) }}</strong> 秒
           </span>
         </div>

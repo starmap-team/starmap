@@ -44,7 +44,7 @@ function mapEvolutionPath(p: RawEvolutionPath) {
 export type ViewLayer = 'domain' | 'position' | 'detail'
 
 // ── 概览视图模式 ──
-export type OverviewMode = 'domain' | 'tech_stack' | 'level'
+export type OverviewMode = 'domain' | 'tech_stack' | 'level' | 'heat'
 
 export interface GraphNode {
   id: string
@@ -184,12 +184,17 @@ export const useGraphStore = defineStore('graph', () => {
 
   const visibleEdges = computed(() => {
     if (currentLayer.value === 'domain') {
-      return domainConnections.value.map(c => ({
-        source_id: c.source_id,
-        target_id: c.target_id,
-        type: c.type,
-        properties: c.properties,
-      }))
+      // M2 + R4：剔除任一端点不在当前 domains.id 集合的悬空连接，
+      // 避免空组（如 lv-junior）残留的 incident 边传入 3d-force-graph 触发 "node not found"。
+      const validIds = new Set(domains.value.map(d => d.id))
+      return domainConnections.value
+        .filter(c => validIds.has(c.source_id) && validIds.has(c.target_id))
+        .map(c => ({
+          source_id: c.source_id,
+          target_id: c.target_id,
+          type: c.type,
+          properties: c.properties,
+        }))
     }
     if (currentLayer.value === 'position' && expandedKAId.value) {
       // 显示 KA → Position 关联边（虚拟边，通过 BELONGS_TO 推导）

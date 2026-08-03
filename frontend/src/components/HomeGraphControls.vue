@@ -52,6 +52,9 @@ const emit = defineEmits<{
         <el-radio-button value="level">
           级别
         </el-radio-button>
+        <el-radio-button value="heat">
+          热度
+        </el-radio-button>
       </el-radio-group>
     </div>
     <div class="controls-right">
