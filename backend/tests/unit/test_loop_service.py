@@ -90,15 +90,17 @@ class TestStep1ValidateInput:
         assert result.status == StepStatus.FAILED
         assert result.error == "JD text is empty"
 
-    def test_empty_target_position_returns_failed(self):
+    def test_empty_target_position_is_allowed(self):
+        """target_position is optional (LOOP-09): Step 2 infers it from the JD."""
         result = self.orch._step1_validate_input("Python developer", "")
-        assert result.status == StepStatus.FAILED
-        assert result.error == "Target position is empty"
+        assert result.status == StepStatus.SUCCESS
+        assert result.data["target_position"] == ""
 
-    def test_whitespace_target_position_returns_failed(self):
+    def test_whitespace_target_position_is_allowed(self):
+        """Whitespace-only target_position is treated as omitted (LOOP-09)."""
         result = self.orch._step1_validate_input("Python developer", "  ")
-        assert result.status == StepStatus.FAILED
-        assert result.error == "Target position is empty"
+        assert result.status == StepStatus.SUCCESS
+        assert result.data["target_position"] == ""
 
     def test_both_empty_returns_failed_for_jd_first(self):
         """When both are empty, JD check triggers first."""

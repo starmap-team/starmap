@@ -58,10 +58,11 @@ class TestStep1Validate:
         result = orch._step1_validate_input("", "dev")
         assert result.status == StepStatus.FAILED
 
-    def test_empty_target_fails(self):
+    def test_empty_target_is_allowed(self):
+        """target_position is optional (LOOP-09); Step 2 infers it from the JD."""
         orch = LoopOrchestrator()
         result = orch._step1_validate_input("text", "")
-        assert result.status == StepStatus.FAILED
+        assert result.status == StepStatus.SUCCESS
 
     def test_whitespace_fails(self):
         orch = LoopOrchestrator()

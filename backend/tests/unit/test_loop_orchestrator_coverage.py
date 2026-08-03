@@ -182,13 +182,15 @@ class TestRunLoopEarlyExit:
         assert "empty" in result.steps[0].error.lower()
 
     @pytest.mark.asyncio
-    async def test_empty_target_exits_with_failed(self):
+    async def test_empty_target_completes_via_inference(self):
+        """LOOP-09: empty target_position is inferred from extraction, not rejected."""
         orch = LoopOrchestrator()
         with _patch_full_loop():
             result = await orch.run_loop(jd_text="valid jd", target_position="")
-        assert result.status == LoopRunStatus.FAILED
-        assert len(result.steps) == 1
-        assert "Target" in result.steps[0].error
+        assert result.status == LoopRunStatus.COMPLETED
+        assert len(result.steps) == 5
+        assert result.steps[0].status == StepStatus.SUCCESS
+        assert result.target_position == "Backend"
 
 
 class TestRunLoopStep3Failure:
