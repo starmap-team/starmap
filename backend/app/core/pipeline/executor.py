@@ -343,8 +343,7 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
     from crawler.persistence.models import JdRaw, JdStatus
 
     processed = 0
-    exact_duplicates = 0
-    fuzzy_duplicates = 0
+    duplicates_found = 0
     errors: list[str] = []
     start = time.monotonic()
 
@@ -404,6 +403,7 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
                     jd.status = JdStatus.duplicate
 
             duplicates = len(dup_jds)
+            duplicates_found = duplicates
             s.commit()
 
             _run_async(_publish_stage_progress(
@@ -433,13 +433,13 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
     finally:
         # Phase 2 SOURCE-02: execute_dedup 后更新 duplicate_rate (UAT 修复)
         try:
-            _update_source_after_dedup(run_id, exact_duplicates + fuzzy_duplicates, processed)
+            _update_source_after_dedup(run_id, duplicates_found, processed)
         except PipelineStageError:
             raise
         except Exception as exc:
             logger.warning("_update_source_after_dedup failed (non-fatal): {}", exc)
 
-    return {"records_processed": processed, "errors": errors, "duplicates_found": exact_duplicates + fuzzy_duplicates}
+    return {"records_processed": processed, "errors": errors, "duplicates_found": duplicates_found}
 
 
 def execute_clean(run_id: str) -> dict[str, Any]:
