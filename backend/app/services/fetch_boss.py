@@ -5,12 +5,10 @@ of dicts shaped like `jd_raw` rows.
 
 T1.1 recon: BOSS returns 200 (no WAF challenge) for the static HTML; however
 the JD list is rendered client-side from `window.__INITIAL_STATE__` / a session
-JSON API. The unauthenticated web search yields only an empty SPA shell, so
-the JSON parse and the HTML fallback both return 0 JDs. We therefore fall
-through to a tiny fixture that mimics the BOSS response so the END-TO-END
-tracer (pipeline → translate → persist → frontend reflects) can be verified.
-The real BOSS JSON API / session handling is tracked as a T1.6 follow-up.
-"""
+JSON API. The unauthenticated web search yields only an empty SPA shell, so the
+JSON parse and the HTML fallback both return 0 JDs and an empty list is
+returned honestly. 真实性红线（PLAN-006a）：不再以 fixture 冒充真实 JD；
+BOSS 真链路（robots-clean 路径 / session API）见计划书 D17 / PLAN-001。"""
 from __future__ import annotations
 
 import json
@@ -96,62 +94,6 @@ def _fallback_from_html(html: str, *, source_site: str) -> list[dict[str, Any]]:
     return rows
 
 
-# Phase 15 / T1.6 fixture: mocks the BOSS JSON response so the end-to-end
-# tracer (pipeline → translate → persist → frontend reflects) can be
-# verified. The real BOSS JSON API / session handling is tracked as a
-# T1.6 follow-up. Each fixture JD is a CJK title from the public BOSS list
-# (sampled), so the end-to-end pipeline (translate + persist + name_cn) is
-# exercised on real-shape data.
-_FIXTURE_JDS: list[dict[str, Any]] = [
-    {
-        "title": "Python后端工程师",
-        "salary": "15-25K·14薪",
-        "company": "某互联网公司",
-        "city": "杭州",
-        "job_id": "boss-fixture-001",
-    },
-    {
-        "title": "Python数据工程师",
-        "salary": "20-35K·15薪",
-        "company": "某科技公司",
-        "city": "北京",
-        "job_id": "boss-fixture-002",
-    },
-    {
-        "title": "高级Python开发工程师",
-        "salary": "25-40K·16薪",
-        "company": "某AI公司",
-        "city": "上海",
-        "job_id": "boss-fixture-003",
-    },
-]
-
-
-def _fixture_jobs(*, keyword: str, city: str, page: int) -> list[dict[str, Any]]:
-    """Return BOSS-shape JD rows for the given keyword/city/page.
-
-    The fixture is keyed on the search keyword so different queries return
-    different titles (rough contract parity, not real search).
-    """
-    if keyword.lower() not in {"python", "py"}:
-        return []
-    base = _FIXTURE_JDS[(page - 1) % len(_FIXTURE_JDS)].copy()
-    rows: list[dict[str, Any]] = []
-    for i in range(3):
-        offset = (page - 1) * 3 + i
-        title = f"{base['title']}（{'L' if (offset // len(_FIXTURE_JDS) + 1) % 2 else 'M'}{offset % 3 + 1}）"
-        rows.append(
-            {
-                "source_site": "BOSS Zhipin",
-                "source_url": f"https://www.zhipin.com/jobs/boss-fixture-{offset:03d}.html",
-                "title": title,
-                "salary": base["salary"],
-                "company": base["company"],
-                "city": city if city != "101250300" else base["city"],
-                "raw_text": f"{title} | {base['salary']} | {base['company']} | {base['city']}",
-            }
-        )
-    return rows
 
 
 async def fetch_boss_jobs(
@@ -164,9 +106,8 @@ async def fetch_boss_jobs(
     """Return a list of BOSS JD records shaped like `jd_raw` rows.
 
     BOSS city code 101250300 = 杭州. The static search URL is probed, the JSON
-    state extracted if present, then we fall back to HTML scraping and finally
-    to a fixture so the end-to-end tracer can be verified when the live SPA
-    returns an empty shell.
+    state extracted if present, then we fall back to HTML scraping. When both
+    yield nothing an empty list is returned honestly (真实性红线：不伪造数据).
     """
     url = (
         f"https://www.zhipin.com/web/geek/job?query={keyword}"
@@ -204,11 +145,14 @@ async def fetch_boss_jobs(
         if not extracted:
             extracted = _fallback_from_html(html, source_site="BOSS Zhipin")
     if not extracted:
-        extracted = _fixture_jobs(keyword=keyword, city=city, page=page)
+        # 真实性红线（PLAN-006a / NEW-08）：抓取失败诚实返回空列表，
+        # 不得以 fixture 冒充真实 JD。BOSS 真链路见计划书 D17/PLAN-001。
+        logger.info(
+            "BOSS fetch returned no JDs (empty shell/blocked); returning [] honestly"
+        )
     return extracted
 
 
 __all__ = [
     "fetch_boss_jobs",
-    "_fixture_jobs",
 ]
