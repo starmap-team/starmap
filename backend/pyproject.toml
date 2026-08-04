@@ -70,15 +70,6 @@ extend-exclude = ["_*"]  # 根目录 _*.py 临时诊断脚本不进 CI 门禁
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
 ignore = ["E501", "B008"]   # E501: 行长由 formatter 管; B008: FastAPI 依赖注入标准模式
 
-[tool.ruff.lint.isort]
-# Force "app" to be recognised as first-party in every environment.
-# Without this, CI Ruff (which runs from backend/ but has different
-# source-root detection than local) classifies `from app.... import ...`
-# as third-party and then sorts `app` < `sqlalchemy` alphabetically,
-# causing I001 in tests/unit/test_fixture_seed.py:50 even though the
-# isort-canonical order (third-party → first-party) is correct locally.
-known-first-party = ["app"]
-
 [tool.ruff.lint.per-file-ignores]
 # 独立调试脚本需先设置 sys.path / 环境变量再导入 app，E402 为预期模式
 "real_*.py" = ["E402"]
@@ -94,14 +85,6 @@ testpaths = ["tests"]
 # 与 tests/unit/test_proxy_breaker.py 引用）。crawler 与 app 在容器内为同级目录，
 # 本地测试通过 pythonpath 模拟同样的布局，无需改动测试源码。
 pythonpath = [".", ".."]
-# tests/integration/* 需要 PostgreSQL + Neo4j 真实连接（docker compose 启动后
-# 跑 `poetry run pytest tests/integration` 单独执行）。CI runner 默认无这俩
-# 服务，跑全量套件会因 connect refused + 覆盖率跌破 70% 而 fail。排除后
-# 默认 pytest 套件只覆盖 unit 层（73%+），符合规范1"unit + 集成分层"。
-#
-# tests/unit/test_contract_regression.py 名义在 unit/ 目录，实际依赖运行中
-# 的后端（http://localhost:8000，登录 + 调 match/position 等端点）。CI runner
-# 无后端进程，会 timed out；放到 addopts ignore 列表里保持目录结构不变。
 addopts = "--cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=70 --ignore=tests/integration --ignore=tests/unit/test_contract_regression.py"
 markers = [
     "smoke: marks tests as smoke suite (run on demand for pipeline E2E validation, Phase 10 PIPE-04)",
