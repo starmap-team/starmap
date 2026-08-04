@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- PLAN-011/NEW-12: 补全实现已有但契约缺失的端点 — `/positions/industries`、`/import/jd`、`/import/jd/json`、`/health-monitor/sources`、`/health-monitor/sources/{source_id}/resume`、`/admin/data-truth`；新增 Schema：ImportItem/ImportRequest/ImportResult/TruthRow/TruthReport；info.version 与 v1.2.0 对齐。
 - Centralized backend API models under `backend/app/schemas/`.
 - Added exported JSON Schema under `starmap-contracts/schemas/` and frontend runtime validation integration.
 - Expanded auth/admin/evolution/pipeline contract coverage without preserving hand-written endpoint totals in documentation.

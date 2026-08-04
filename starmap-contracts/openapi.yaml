@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: 星图 StarMap API
   description: 人才能力星云导航系统 - 后端 API 契约
-  version: 1.0.0
+  version: 1.2.0
   contact:
     name: StarMap Team
   x-summary: 人才技能图谱知识系统全量 API
@@ -3835,6 +3835,157 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /positions/industries:
+    get:
+      operationId: listPositionIndustries
+      summary: 行业列表
+      description: 返回去重排序后的岗位行业名称列表（PLAN-011 契约补全）
+      tags:
+      - 岗位管理
+      responses:
+        '200':
+          description: 行业列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  industries:
+                    type: array
+                    description: 去重排序后的行业名称列表
+                    items:
+                      type: string
+  /import/jd:
+    post:
+      operationId: importJdCsv
+      summary: CSV 上传导入 JD
+      description: 管理员上传 CSV 文件导入 JD（需 admin 权限，写 audit log）。PLAN-011 契约补全。
+      tags:
+      - JD 导入
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              - source_name
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV 文件（需含 job_title + clean_text 列）
+                source_name:
+                  type: string
+                  maxLength: 100
+                  description: 数据源标注
+                platform:
+                  type: string
+                  description: 平台标识
+                  default: manual
+      responses:
+        '200':
+          description: 导入结果统计
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        '400':
+          description: 文件无效或无可导入项
+  /import/jd/json:
+    post:
+      operationId: importJdJson
+      summary: JSON 直接导入 JD
+      description: 管理员以 JSON 请求体导入 JD（需 admin 权限，写 audit log）。PLAN-011 契约补全。
+      tags:
+      - JD 导入
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRequest'
+      responses:
+        '200':
+          description: 导入结果统计
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        '400':
+          description: items 为空
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /health-monitor/sources:
+    get:
+      operationId: listSourceHealth
+      summary: 数据源健康度
+      description: 返回每个数据源的 24h 健康度（需 admin 权限）。PLAN-011 契约补全。
+      tags:
+      - 健康度监控
+      responses:
+        '200':
+          description: 数据源健康度汇总
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sources:
+                    type: array
+                    items:
+                      type: object
+                  count:
+                    type: integer
+  /health-monitor/sources/{source_id}/resume:
+    post:
+      operationId: resumeSource
+      summary: 恢复暂停的数据源
+      description: 将 paused 数据源恢复为 active 并清除 auto_paused 标记（需 admin 权限）。PLAN-011 契约补全。
+      tags:
+      - 健康度监控
+      parameters:
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: 恢复结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  source_id:
+                    type: string
+                  status:
+                    type: string
+                  message:
+                    type: string
+        '404':
+          description: 数据源不存在
+  /admin/data-truth:
+    get:
+      operationId: getDataTruth
+      summary: 数据源真相对账
+      description: 返回每个 KPI 的 API/PostgreSQL/Neo4j 三层口径对比 + 同步健康度（需 admin 权限）。PLAN-011 契约补全。
+      tags:
+      - 管理后台
+      responses:
+        '200':
+          description: 三口径对账报告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TruthReport'
 components:
   securitySchemes:
     BearerAuth:
@@ -6460,3 +6611,148 @@ components:
       - importance
       - gap_level
       - learning_path
+    ImportItem:
+      title: ImportItem
+      type: object
+      description: 单条 JD 导入项
+      properties:
+        job_title:
+          type: string
+          maxLength: 200
+          description: 职位名称
+        company:
+          type: string
+          maxLength: 200
+          default: ''
+          description: 公司名称
+        clean_text:
+          type: string
+          minLength: 1
+          description: JD 描述/正文
+        source_url:
+          type: string
+          maxLength: 500
+          default: ''
+          description: 原始链接
+        location:
+          type: string
+          default: ''
+          description: 工作地点
+        salary_min:
+          type: integer
+          minimum: 0
+          default: 0
+          description: 最低薪资 (k)
+        salary_max:
+          type: integer
+          minimum: 0
+          default: 0
+          description: 最高薪资 (k)
+      required:
+      - job_title
+      - clean_text
+    ImportRequest:
+      title: ImportRequest
+      type: object
+      description: JSON 导入请求体
+      properties:
+        source_name:
+          type: string
+          maxLength: 100
+          description: 数据源名称 (用户标注)
+        platform:
+          type: string
+          pattern: '^(manual|bosszhipin|lagou|51job|liepin|zhaopin|other)$'
+          default: manual
+          description: 平台标识
+        items:
+          type: array
+          maxItems: 10000
+          description: 待导入 JDs
+          items:
+            $ref: '#/components/schemas/ImportItem'
+      required:
+      - source_name
+      - items
+    ImportResult:
+      title: ImportResult
+      type: object
+      description: 导入结果统计
+      properties:
+        total:
+          type: integer
+          description: 总数
+        inserted:
+          type: integer
+          description: 新插入
+        duplicate:
+          type: integer
+          description: 重复跳过
+        errors:
+          type: array
+          description: 错误列表 [{row, field, message}]
+          items:
+            type: object
+        pii_warnings:
+          type: integer
+          default: 0
+          description: PII 警告条数
+      required:
+      - total
+      - inserted
+      - duplicate
+    TruthRow:
+      title: TruthRow
+      type: object
+      description: 单个指标的三层口径对比
+      properties:
+        metric:
+          type: string
+        description:
+          type: string
+        api_value:
+          type: integer
+        postgres_value:
+          type: integer
+        neo4j_value:
+          type: integer
+        diff_pct:
+          type: number
+        status:
+          type: string
+          description: ok | warn | critical
+        explanation:
+          type: string
+      required:
+      - metric
+      - api_value
+      - postgres_value
+      - neo4j_value
+    TruthReport:
+      title: TruthReport
+      type: object
+      description: 三口径对账报告
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/TruthRow'
+        health:
+          type: object
+          properties:
+            orphan_positions:
+              type: integer
+            orphan_skills:
+              type: integer
+            last_reconcile_at:
+              type: string
+              nullable: true
+            reconcile_status:
+              type: string
+            sync_health:
+              type: string
+        generated_at:
+          type: string
+      required:
+      - rows
+      - generated_at
