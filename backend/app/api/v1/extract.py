@@ -12,10 +12,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.upload_validation import validate_resume_upload
-from app.core.extraction.graph_writer import write_extraction_to_graph
-from app.core.extraction.jd_extract import extract_from_jd
-from app.core.llm.cost_tracker import tracker
 from app.dependencies import get_db_session, get_neo4j_driver
+from app.exceptions import ExtractionError, ExtractionLLMError, StarMapError
+from app.services.extraction_service import (
+    extract_from_jd,
+    tracker,
+    write_extraction_to_graph,
+)
 from app.services.resume_service import run_resume_extraction
 
 router = APIRouter(prefix="/extract", tags=["信息抽取"])
@@ -40,6 +43,13 @@ class ExtractionResult(BaseModel):
     confidence: float = 0.0
     hallucination_score: float | None = None
     normalized_skills: list[dict[str, Any]] = []
+    # fix: 透传原 JDExtractionResult 丢弃的 4 个字段 + 3 个反幻觉字段
+    tools: list[dict[str, Any]] = []
+    learning_resources: list[dict[str, Any]] = []
+    evolves_to: list[str] = []
+    hallucinated_skills: list[str] = []
+    missing_skills: list[str] = []
+    issues: list[str] = []
 
 
 def _map_proficiency(value: str | None) -> str:
@@ -86,6 +96,13 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
         "confidence": validation.get("confidence", 0.85),
         "hallucination_score": None if validation.get("is_valid", True) else validation.get("confidence"),
         "normalized_skills": pipeline_result.get("normalization", []),
+        # fix: 透传 4 个原被丢弃字段 + 反幻觉结果
+        "tools": data.get("tools", []),
+        "learning_resources": data.get("learning_resources", []),
+        "evolves_to": data.get("evolves_to", []),
+        "hallucinated_skills": validation.get("hallucinated_skills", []),
+        "missing_skills": validation.get("missing_skills", []),
+        "issues": validation.get("issues", []),
     }
 
 
@@ -103,6 +120,11 @@ async def _write_extraction_to_graph(
         logger.debug("Skipping graph write: no extraction data or position_name")
         return None
 
+    if neo4j_driver is None:
+        # M3: 无 Neo4j driver 时优雅跳过图谱写入(抽取本身已成功),不抛 502。
+        logger.debug("Skipping graph write: no Neo4j driver available")
+        return None
+
     try:
         summary = await write_extraction_to_graph(data, neo4j_driver)
         logger.info(
@@ -112,8 +134,15 @@ async def _write_extraction_to_graph(
             data.get("position_name"),
         )
         return summary
-    except Exception as e:
-        logger.warning("Graph write failed (non-blocking): {}", e)
+    except (ExtractionError, ExtractionLLMError) as exc:
+        logger.exception("Extraction failed: {}", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except StarMapError:
+        raise
+    except Exception as exc:
+        # M3 + docstring 契约("Returns summary or None on failure"):
+        # 图谱写入是非关键副作用,失败降级返回 None,抽取本身已成功,不让整次请求 500。
+        logger.warning("Graph write failed, degrading to None: {}", exc)
         return None
 
 
@@ -166,9 +195,14 @@ async def extract_jd(
     except ConnectionError as e:
         logger.error("LLM connection failed: {}", e)
         raise HTTPException(status_code=502, detail=f"LLM service unavailable: {e}") from e
-    except Exception as e:
-        logger.opt(exception=True).error("Unexpected extraction error: {}", e)
-        raise HTTPException(status_code=500, detail="Internal extraction error") from e
+    except (ExtractionError, ExtractionLLMError) as exc:
+        logger.exception("Extraction failed: {}", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error during extraction: {}", exc)
+        raise HTTPException(status_code=500, detail="抽取处理异常") from exc
 
     if not pipeline_result.get("success"):
         error_msg = pipeline_result.get("error", "Unknown extraction error")
@@ -213,9 +247,14 @@ async def extract_resume(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except ConnectionError as e:
         raise HTTPException(status_code=502, detail=f"LLM service unavailable: {e}") from e
-    except Exception as e:
-        logger.opt(exception=True).error("Unexpected resume extraction error: {}", e)
-        raise HTTPException(status_code=500, detail="Internal extraction error") from e
+    except (ExtractionError, ExtractionLLMError) as exc:
+        logger.exception("Extraction failed: {}", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error during extraction: {}", exc)
+        raise HTTPException(status_code=500, detail="抽取处理异常") from exc
 
     if not pipeline_result.get("success"):
         error_msg = pipeline_result.get("error", "Unknown extraction error")

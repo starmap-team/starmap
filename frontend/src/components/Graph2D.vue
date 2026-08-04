@@ -12,7 +12,7 @@
  * Data flow: props (UI state) + graphStore (domain data) → render queue → G6.
  * State changes are batched in a 16ms window to prevent render storms.
  */
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useGraphStore } from '@/stores/graph'
 import type { G6ElementEvent, EvolutionEdgeClickPayload } from '@/types/g6'
 import { renderDomainLayer, type DomainLayerDeps, renderPositionLayer, type PositionLayerDeps, renderDetailLayer, type DetailLayerDeps } from '@/composables/useGraph2DLayers'
@@ -47,7 +47,7 @@ const graphStore = useGraphStore()
 // ── Composable wiring ──
 const { graph, containerRef, init, destroy } = useG6Lifecycle()
 const { animate } = useGraphAnimation()
-const { highlightNode, clearHighlight } = useGraphHighlight(
+const { highlightNode } = useGraphHighlight(
   { get value() { return graph.value } },
   () => graphStore.visibleNodes,
   () => graphStore.visibleEdges,
@@ -84,7 +84,7 @@ const renderQueue = useGraphRenderQueue([], 16)
 renderQueue.register({
   name: 'layer-dispatch',
   priority: 10,
-  fn: async (g) => {
+  fn: async (_g) => {
     // Update LOD based on current node count
     const nodeCount = graphStore.currentLayer === 'position' ? (graphStore.positionsByKA.get(graphStore.expandedKAId ?? '')?.length ?? 0) : graphStore.visibleNodes.length
     lod.setNodeCount(nodeCount)

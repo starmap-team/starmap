@@ -11,11 +11,23 @@ export interface Recommendation {
 }
 
 export interface BatchMatchItem {
-  resume_name: string
   position_name: string
   match_score: number
   matched_skills: string[]
   gap_skills: string[]
+  // fix: 可选 error 字段，后端批量匹配对单条失败会带上此字段
+  error?: string
+}
+
+interface BatchMatchRaw {
+  position_name: string
+  // 后端 BatchMatchResponse 单条结构：{ position_name, result: {...}, error?: string }
+  result?: {
+    match_score?: number
+    matched_skills?: string[]
+    gap_skills?: string[]
+  }
+  error?: string
 }
 
 interface RecommendationRaw {
@@ -81,9 +93,22 @@ export const useLearningRecommendationStore = defineStore('learningRecommendatio
     batchLoading.value = true
     recError.value = null
     try {
-      const payload = items.map(it => ({ skills: it.skills, position: it.position, position_name: it.position }))
+      // fix: skills 必须是 PersonSkillInput 对象数组，与后端 BatchMatchItem.skills 对齐
+      const payload = items.map(it => ({
+        skills: it.skills.map(name => ({ name, proficiency: '熟悉' })),
+        position: it.position,
+        position_name: it.position,
+      }))
       const data = asRecord(await request.post('/match/batch', { items: payload }))
-      batchResults.value = (asArray(data.results ?? data.items)) as BatchMatchItem[]
+      // fix: 后端返回 { results: [{ position_name, result: {...}, error? }] }，扁平化映射
+      const rawItems = asArray(data.results ?? data.items)
+      batchResults.value = (rawItems as unknown as BatchMatchRaw[]).map((r) => ({
+        position_name: r.position_name,
+        match_score: r.result?.match_score ?? 0,
+        matched_skills: r.result?.matched_skills ?? [],
+        gap_skills: r.result?.gap_skills ?? [],
+        error: r.error,
+      })) as BatchMatchItem[]
       return batchResults.value
     } catch (e: unknown) {
       recError.value = `批量匹配失败: ${getErrorMsg(e)}`

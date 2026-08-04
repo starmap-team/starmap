@@ -24,13 +24,14 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 from app.dependencies import get_db_session, get_neo4j_driver
+from app.exceptions import StarMapError
 from app.models.evolution_models import (
     EvolutionChangelog,
     EvolutionPath,
     EvolutionSnapshot,
 )
+from app.services.evolution_service import load_skill_timeseries_data
 from app.tasks.celery_app import analyze_evolution_trends
 
 router = APIRouter(prefix="/evolution", tags=["演化分析"])
@@ -195,7 +196,7 @@ async def get_all_evolution_paths(
 ) -> list[EvolutionPathEntry]:
     """获取所有演化路径（用于图谱页渲染 EVOLVES_TO 边）。"""
     # Load emergence signals to enrich trend field (graceful degradation)
-    from app.core.evolution.emergence_finder import EmergenceFinder
+    from app.services.evolution_service import EmergenceFinder
 
     signals_by_name: dict[str, Any] = {}
     try:
@@ -205,6 +206,8 @@ async def get_all_evolution_paths(
             report = finder.scan(skill_data)
             for s in report.all_signals:
                 signals_by_name.setdefault(s.skill_name, s)
+    except StarMapError:
+        raise
     except Exception as exc:
         logger.debug("Emergence enrichment skipped for /paths/all: {}", exc)
 
@@ -246,7 +249,9 @@ async def get_all_evolution_paths(
                     )
                 if entries:
                     return entries
-        except Exception as e:  # noqa: BLE001
+        except StarMapError:
+            raise
+        except Exception as e:
             logger.warning("Neo4j EVOLVES_TO read failed, falling back to PG: {}", e)
 
     # Fallback: PostgreSQL evolution_paths 表
@@ -276,7 +281,7 @@ async def get_evolution_paths(
 ) -> list[EvolutionPathEntry]:
     """获取指定岗位的演化路径推荐。"""
     # Load emergence signals to enrich trend field (graceful degradation)
-    from app.core.evolution.emergence_finder import EmergenceFinder
+    from app.services.evolution_service import EmergenceFinder
 
     signals_by_name: dict[str, Any] = {}
     try:
@@ -286,6 +291,8 @@ async def get_evolution_paths(
             report = finder.scan(skill_data)
             for s in report.all_signals:
                 signals_by_name.setdefault(s.skill_name, s)
+    except StarMapError:
+        raise
     except Exception as exc:
         logger.debug("Emergence enrichment skipped for /paths/{{position}}: {}", exc)
 
@@ -327,7 +334,9 @@ async def get_evolution_paths(
                     )
                 if entries:
                     return entries
-        except Exception as e:  # noqa: BLE001
+        except StarMapError:
+            raise
+        except Exception as e:
             logger.warning("Neo4j EVOLVES_TO read failed, falling back to PG: {}", e)
 
     # Fallback: PostgreSQL
@@ -488,7 +497,7 @@ async def get_skill_portability(
 
     x-audit-note: L2 — Internal API, no frontend consumer. Used by backend analysis pipelines.
     """
-    from app.core.evolution.emergence_finder import EmergenceFinder
+    from app.services.evolution_service import EmergenceFinder
 
     # Load timeseries data
     skill_data = await load_skill_timeseries_data(session, include_category=True)

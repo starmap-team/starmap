@@ -52,7 +52,9 @@ export const useLearningAnalyticsStore = defineStore('learningAnalytics', () => 
     analyticsError.value = null
     try {
       const data = asRecord(await request.get(`/match/competitiveness/${encodeURIComponent(position)}`))
-      competitiveness.value = (asArray(data.items ?? data.skills)) as CompetitivenessData[]
+      // fix: 后端返回扁平字典（非数组），提取 bottleneck_skills/skill_details 等真实字段
+      const bottleneckSkills = (asArray((data as { bottleneck_skills?: unknown }).bottleneck_skills)) as CompetitivenessData[]
+      competitiveness.value = bottleneckSkills
       return competitiveness.value
     } catch (e: unknown) {
       analyticsError.value = `获取竞争力数据失败: ${getErrorMsg(e)}`
@@ -90,7 +92,7 @@ export const useLearningAnalyticsStore = defineStore('learningAnalytics', () => 
     analyticsError.value = null
     try {
       const data = asRecord(await request.get('/evolution/industry-report'))
-      industryTrends.value = (asArray(data.items ?? data.trends)) as IndustryTrendItem[]
+      industryTrends.value = (asArray(data.trends ?? data.items)) as IndustryTrendItem[]
       return industryTrends.value
     } catch (e: unknown) {
       analyticsError.value = `获取行业趋势失败: ${getErrorMsg(e)}`

@@ -59,7 +59,7 @@ class TestStepTimeouts:
 
     def test_recommend_timeout(self):
         step = RecommendStep.__new__(RecommendStep)
-        assert step.timeout == 120
+        assert step.timeout == 30
 
 
 class TestPipelineContext:

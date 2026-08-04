@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import request from '@/api/request'
+import { ElMessage } from 'element-plus'
 
 /**
  * 全景图谱 store — 三层视图架构
@@ -43,7 +44,7 @@ function mapEvolutionPath(p: RawEvolutionPath) {
 export type ViewLayer = 'domain' | 'position' | 'detail'
 
 // ── 概览视图模式 ──
-export type OverviewMode = 'domain' | 'tech_stack' | 'level'
+export type OverviewMode = 'domain' | 'tech_stack' | 'level' | 'heat'
 
 export interface GraphNode {
   id: string
@@ -183,12 +184,17 @@ export const useGraphStore = defineStore('graph', () => {
 
   const visibleEdges = computed(() => {
     if (currentLayer.value === 'domain') {
-      return domainConnections.value.map(c => ({
-        source_id: c.source_id,
-        target_id: c.target_id,
-        type: c.type,
-        properties: c.properties,
-      }))
+      // M2 + R4：剔除任一端点不在当前 domains.id 集合的悬空连接，
+      // 避免空组（如 lv-junior）残留的 incident 边传入 3d-force-graph 触发 "node not found"。
+      const validIds = new Set(domains.value.map(d => d.id))
+      return domainConnections.value
+        .filter(c => validIds.has(c.source_id) && validIds.has(c.target_id))
+        .map(c => ({
+          source_id: c.source_id,
+          target_id: c.target_id,
+          type: c.type,
+          properties: c.properties,
+        }))
     }
     if (currentLayer.value === 'position' && expandedKAId.value) {
       // 显示 KA → Position 关联边（虚拟边，通过 BELONGS_TO 推导）
@@ -238,6 +244,7 @@ export const useGraphStore = defineStore('graph', () => {
       positionsByKA.value = new Map()
     } catch (e) {
       if (import.meta.env.DEV) console.error('[Graph] Failed to fetch overview:', e)
+      ElMessage.error('加载图谱数据失败，请检查后端服务')
       domains.value = []
       domainConnections.value = []
       independentPositions.value = 0
@@ -261,8 +268,8 @@ export const useGraphStore = defineStore('graph', () => {
       const positions: GraphNode[] = data.positions ?? []
       const psEdges: GraphEdge[] = data.position_skill_edges ?? []
       const skillsData: GraphNode[] = data.skills ?? []
-      // 缓存
-      positionsByKA.value.set(kaId, positions)
+      // 缓存 — fix: 整体替换 Map 以触发 Vue 响应式
+      positionsByKA.value = new Map(positionsByKA.value).set(kaId, positions)
       // 合并到全局节点池（O(1) 查重）
       const existingNodeIds = new Set(allNodes.value.map(n => n.id))
       for (const p of positions) {

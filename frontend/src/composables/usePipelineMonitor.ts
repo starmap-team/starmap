@@ -6,15 +6,18 @@
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 
 // Phase 3.8.8: 内联 deps (Ponytail — no extra module)
+// ponytail: timeseries stage was removed from the active pipeline; the _DEPS entry
+// is a vestige. The DAG has 5 stages (crawl, dedup, clean, import, graph_sync).
 const _DEPS: Record<string, string[]> = {
   crawl: [],
   dedup: ['crawl'],
-  clean: ['crawl'],
-  import: ['dedup', 'clean'],
+  // Phase 3 Plan 02 Task 2: clean 依赖 dedup (串行), not just crawl
+  clean: ['dedup'],
+  import: ['clean'],
   graph_sync: ['import'],
-  timeseries: ['graph_sync'],
 }
 import { ElMessage, ElMessageBox } from 'element-plus'
+import request from '@/api/request'
 // Phase 3.6 FIX: 直接导入真实 stores，绕开 barrel re-export 包装导致的
 // ref-as-value bug (usePipelineStore 返回普通对象，pipelineStatus 是 ref，
 // 但 kpiCards 等 computed 在 JS 上下文不会自动 unwrap，导致 s.today_crawl_volume = undefined)
@@ -104,6 +107,8 @@ export function usePipelineMonitor() {
       pipeline.fetchStages(),
       pipeline.fetchDataQuality(),
       pipeline.fetchDataSources(),
+      // fix: 加载历史运行记录，否则刷新后 runs 列表为空
+      pipeline.fetchRuns(),
     ])
     lastRefresh.value = new Date().toLocaleTimeString()
   }
@@ -183,9 +188,12 @@ export function usePipelineMonitor() {
   }
 
   // ── 阶段进度摘要 (Phase 3.8.2: 解决"17% 看不出含义"问题) ──
+  // Phase 16 Issue J: 区分 crawlRecords(输入) / importRecords(入库) 避免 sum 重复计数误导
+  // Phase 16 残留闭环: 仅统计 ALL_STAGE_NAMES 中的核心阶段, 排除已移除的 timeseries
   const stageSummary = computed(() => {
-    const stages = pipeline.stages
-    const total = stages.length || 6
+    const coreNames = new Set(ALL_STAGE_NAMES)
+    const stages = pipeline.stages.filter(s => coreNames.has(s.name))
+    const total = stages.length || ALL_STAGE_NAMES.length
     let completed = 0
     let running = 0
     let failed = 0
@@ -193,9 +201,15 @@ export function usePipelineMonitor() {
     let skipped = 0
     let totalRecords = 0
     let totalDuration = 0
+    let crawlRecords = 0
+    let importRecords = 0
     for (const s of stages) {
-      totalRecords += s.records_processed || 0
+      const rp = s.records_processed || 0
+      totalRecords += rp
       totalDuration += s.duration_ms || 0
+      // 按阶段名识别输入/输出口径
+      if (s.name === 'crawl' || s.name.startsWith('crawl')) crawlRecords = Math.max(crawlRecords, rp)
+      if (s.name === 'import' || s.name.startsWith('import')) importRecords = Math.max(importRecords, rp)
       switch (s.status) {
         case 'completed': completed++; break
         case 'running': running++; break
@@ -216,9 +230,11 @@ export function usePipelineMonitor() {
       remaining: Math.max(0, remaining),
       processed,
       totalRecords,
+      crawlRecords,
+      importRecords,
       totalDurationMs: totalDuration,
       overallPercent: total > 0 ? Math.round((completed / total) * 100) : 0,
-      progressMessage: `${completed}已完成 / ${total}总阶段, ${totalRecords.toLocaleString()}条记录, 累计 ${(totalDuration / 1000).toFixed(0)}s`,
+      progressMessage: `${completed}已完成 / ${total}总阶段, 采集${crawlRecords.toLocaleString()}条/入库${importRecords.toLocaleString()}条, 累计 ${(totalDuration / 1000).toFixed(0)}s`,
     }
   })
 
@@ -280,12 +296,25 @@ export function usePipelineMonitor() {
   const kpiCards = computed(() => {
     const s = pipeline.pipelineStatus
     const colors = chartColors()
+    const today = s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume : null
+    const lastTotal = s?.last_run?.total_records ?? 0
+    // Phase 4 P3: 显示最近采集时间，让用户知道数据是否陈旧
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lastCrawlAt = (s as any)?.last_crawl_at as string | undefined
+    const lastCrawlLabel = lastCrawlAt
+      ? new Date(lastCrawlAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : null
     return [
       {
         label: '今日采集量',
-        value: s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume.toLocaleString() : '--',
-        sub: '条记录',
-        color: colors.primary,
+        value: today !== null ? today.toLocaleString() : '--',
+        // Phase 16 Issue J: 明确口径 — 今日所有运行累计，区别于 DAG 单次运行数
+        sub: today !== null
+          ? (today > 0
+              ? '条 (今日累计)'
+              : `今日 0 / 历史累计 ${lastTotal} · 最近 ${lastCrawlLabel ?? '未知'}`)
+          : '条 (今日累计)',
+        color: today !== null && today > 0 ? colors.primary : colors.muted,
         icon: 'Download',
       },
       {
@@ -294,7 +323,7 @@ export function usePipelineMonitor() {
         value: (s?.today_crawl_volume ?? 0) > 0 && typeof s?.success_rate === 'number'
           ? `${(s.success_rate * 100).toFixed(1)}%`
           : '--',
-        sub: (s?.today_crawl_volume ?? 0) > 0 ? '有效/总计' : '今日无采集数据',
+        sub: (s?.today_crawl_volume ?? 0) > 0 ? '有效/总计' : '今日无采集',
         color: (s?.today_crawl_volume ?? 0) > 0 ? colors.primary : colors.muted,
         icon: 'CircleCheck',
         trend: 'stable',
@@ -302,9 +331,9 @@ export function usePipelineMonitor() {
       {
         label: '自动爬虫',
         value: typeof s?.active_data_sources === 'number' ? String(s.active_data_sources) : '--',
-        // Phase 7: compute manual source count from dataSources store, no hardcoded "6"
+        // fix: 使用 dataSources 总数作为合计基数
         sub: typeof s?.active_data_sources === 'number'
-          ? `${s.active_data_sources}个自动 + ${pipeline.dataSources.length}个手动 (合计${s.active_data_sources + pipeline.dataSources.length}个数据源)`
+          ? `${s.active_data_sources}个自动数据源 (共${pipeline.dataSources.length}个)`
           : '加载中...',
         color: colors.info,
         icon: 'Connection',
@@ -315,20 +344,46 @@ export function usePipelineMonitor() {
 
   // ── 流水线阶段时间线 (DAG) ──
   const timelineStages = computed<PipelineStage[]>(() => {
-    if (pipeline.stages.length > 0) return pipeline.stages
-    return ALL_STAGE_NAMES.map(name => ({
-      name,
-      status: 'pending' as const,
-      duration_ms: 0,
-      records_processed: 0,
-      errors: [] as string[],
-      errors_count: 0,
-      progress: 0,
-      retry_count: 0,
-      depends_on: [],
-      started_at: null,
-      completed_at: null,
-    }))
+    // 将 API 返回的阶段映射到 5 个标准阶段名，缺失的用 pending 补齐
+    // 复合阶段名（dedup_clean → dedup + clean）必须一对一匹配，防止重复消费
+    const stageMap = new Map<string, PipelineStage>()
+    for (const s of pipeline.stages) {
+      stageMap.set(s.name, s)
+    }
+    const consumed = new Set<string>()  // 已映射到标准阶段的 API 阶段名
+    const takeByName = (name: string): PipelineStage | undefined => {
+      const direct = stageMap.get(name)
+      if (direct && !consumed.has(name)) {
+        consumed.add(name)
+        return { ...direct, name }  // 用标准阶段名显示，避免 dedup_clean 重复
+      }
+      // fix: 使用精确匹配避免子串误匹配（如 "crawler" 匹配 "crawl"）
+      for (const [k, v] of stageMap) {
+        if (consumed.has(k)) continue
+        if (k === name || k.startsWith(name + '_')) {
+          consumed.add(k)
+          return { ...v, name }  // 重命名为标准阶段名
+        }
+      }
+      return undefined
+    }
+    return ALL_STAGE_NAMES.map((name) => {
+      const found = takeByName(name)
+      if (found) return found
+      return {
+        name,
+        status: 'pending' as const,
+        duration_ms: 0,
+        records_processed: 0,
+        errors: [] as string[],
+        errors_count: 0,
+        progress: 0,
+        retry_count: 0,
+        depends_on: [],
+        started_at: null,
+        completed_at: null,
+      }
+    })
   })
 
   // Phase 3.8.8: 阻塞于上游失败 (不显示重试)
@@ -354,9 +409,8 @@ export function usePipelineMonitor() {
     cancelled: '#f59e0b',
   }
 
-  // DAG 分支指示：去重和清洗并行
-  const isDagBranch = (idx: number) => idx === 1 || idx === 2 // dedup, clean
-  const isDagMerge = (idx: number) => idx === 3 // import
+  // DAG 现在是串行结构（Phase 3 Plan 02 Task 2: clean 依赖 dedup），
+  // 不再有并行分支/合并点；旧的 isDagBranch/isDagMerge 已删除。
 
   // ── 阶段选择触发 ──
   const selectedStages = ref<string[]>(ALL_STAGE_NAMES)
@@ -393,7 +447,13 @@ export function usePipelineMonitor() {
   }
 
   // ── 失败重试/断点续跑 ──
-  const currentRunId = computed(() => pipeline.pipelineStatus?.current_run?.id)
+  // Phase 17-02 (Fix B2): 改用 last_run.id fallback, 让 failed/cancelled run 也能重试
+  // (current_run 只在 status=running 时存在, 失败 run 不在其中)
+  const currentRunId = computed(() => {
+    return pipeline.pipelineStatus?.last_run?.id
+      ?? pipeline.pipelineStatus?.current_run?.id
+      ?? null
+  })
   const retryingStages = ref<Set<string>>(new Set())
 
   async function handleRetryStage(stageName: string) {
@@ -416,13 +476,15 @@ export function usePipelineMonitor() {
   }
 
   async function handleResume() {
-    if (!currentRunId.value) {
+    // Phase 16 B06 fix: 使用 recent_failed_run.id 而非 currentRunId (current_run 永不为 failed)
+    const failedRunId = pipeline.pipelineStatus?.recent_failed_run?.id ?? currentRunId.value
+    if (!failedRunId) {
       ElMessage.warning('没有可续跑的运行')
       return
     }
     actionLoading.value = true
     try {
-      await pipeline.resumeRun(currentRunId.value)
+      await pipeline.resumeRun(failedRunId)
       // 刷全页面：断点续跑后 status→running，按钮需切换，DAG 需更新
       await loadAll()
       ElMessage.success('断点续跑已启动，将从失败阶段继续执行')
@@ -583,12 +645,28 @@ export function usePipelineMonitor() {
     return 'stable'
   })
 
+  // ── Phase 16 数据审核闭环: 待审核计数 ──
+  const pendingReviewCount = ref(0)
+  async function fetchPendingReview() {
+    try {
+      const data = await request.get('/admin/review-stats') as Record<string, number>
+      // review-stats 返回 {position: N, skill: M, position_approved: X, skill_approved: Y}
+      // pending = total - approved
+      const totalPos = data.position ?? 0
+      const totalSkill = data.skill ?? 0
+      const approvedPos = data.position_approved ?? 0
+      const approvedSkill = data.skill_approved ?? 0
+      pendingReviewCount.value = (totalPos - approvedPos) + (totalSkill - approvedSkill)
+    } catch { /* non-fatal */ }
+  }
+
   // ── 生命周期 ──
   onMounted(() => {
     loadAll()
     startAutoRefresh()
     pipeline.fetchSchedules()
     pipeline.fetchConfig()
+    fetchPendingReview()
   })
 
   onUnmounted(() => {
@@ -627,8 +705,6 @@ export function usePipelineMonitor() {
     timelineStages,
     blockedStages,
     stageColorMap,
-    isDagBranch,
-    isDagMerge,
     // 触发流水线
     selectedStages,
     triggerDialogVisible,
@@ -654,6 +730,8 @@ export function usePipelineMonitor() {
     // 数据质量
     qualityTrendOption,
     qualityTrendDir,
+    // Phase 16 数据审核闭环
+    pendingReviewCount,
     // Phase 3.7: 实时活动上下文
     liveActivity: pipeline.liveActivity,
     activityHistory: pipeline.activityHistory,

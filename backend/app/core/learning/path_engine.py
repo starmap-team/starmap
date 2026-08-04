@@ -22,6 +22,7 @@ from typing import Any
 from loguru import logger
 
 from app.core.matching.constants import PROFICIENCY_SCORE
+from app.exceptions import StarMapError
 
 # Base learning hours per skill at different gap levels
 _BASE_HOURS: dict[str, float] = {
@@ -110,8 +111,12 @@ async def _load_prerequisites_from_neo4j() -> dict[str, list[str]]:
         logger.debug("Loaded {} prerequisite rules from Neo4j", len(prereqs))
         _prereqs_cache = (time.monotonic(), prereqs)
         return prereqs
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("Failed to load PREREQUISITE map from Neo4j: {}", exc)
+        # M3: Neo4j 不可用时降级返回空映射,不阻断学习路径主流程;域异常仍向上抛。
+        # 契约:test_neo4j_error_returns_empty。
+        logger.warning("Learning path Neo4j load failed, degrading to empty: {}", exc)
         return {}
 
 
@@ -165,8 +170,12 @@ async def _load_skill_hours_from_neo4j(
         )
         _skill_hours_cache = (time.monotonic(), cache_key, hours_map)
         return hours_map
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("Failed to load skill hours from Neo4j: {}", exc)
+        # M3: Neo4j 不可用时降级返回空映射,不阻断学习路径主流程;域异常仍向上抛。
+        # 契约:test_neo4j_error_returns_empty。
+        logger.warning("Learning path Neo4j load failed, degrading to empty: {}", exc)
         return {}
 
 

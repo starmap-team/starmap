@@ -122,6 +122,45 @@ const {
         </el-col>
       </el-row>
 
+      <!-- Phase 13 数据诚实化：抽取质量基线。无 golden-set 基线时显“未评估”说明，
+           有基线时才呈现 precision/recall/F1，避免 0/0/0 被误读为红色/失败或静默缺失。 -->
+      <el-alert
+        v-if="quality.metrics && quality.metrics.baseline_available === false"
+        type="info"
+        :closable="false"
+        show-icon
+        class="mb-4"
+        title="抽取质量（precision / recall / F1）暂未评估"
+        :description="quality.metrics.evaluation_explanation || '尚未运行 golden-set 评估，质量指标暂不可信；此处不显示红色/失败态以免误导。请调用 /quality/evaluate 建立基线。'"
+      />
+      <el-card
+        v-else-if="quality.metrics"
+        shadow="never"
+        class="mb-4"
+        :header="'抽取质量（golden-set 评估） · ' + (quality.metrics.warning_level || '')"
+      >
+        <div style="display: flex; gap: 24px; flex-wrap: wrap">
+          <div>
+            <strong style="font-size: 20px">{{ (quality.metrics.precision * 100).toFixed(1) }}%</strong>
+            <div style="color: var(--muted-foreground); font-size: 12px">
+              Precision
+            </div>
+          </div>
+          <div>
+            <strong style="font-size: 20px">{{ (quality.metrics.recall * 100).toFixed(1) }}%</strong>
+            <div style="color: var(--muted-foreground); font-size: 12px">
+              Recall
+            </div>
+          </div>
+          <div>
+            <strong style="font-size: 20px">{{ (quality.metrics.f1 * 100).toFixed(1) }}%</strong>
+            <div style="color: var(--muted-foreground); font-size: 12px">
+              F1
+            </div>
+          </div>
+        </div>
+      </el-card>
+
       <!-- 直方图 + 趋势 -->
       <el-row
         :gutter="16"

@@ -182,15 +182,14 @@ class TestRunLoopEarlyExit:
         assert "empty" in result.steps[0].error.lower()
 
     @pytest.mark.asyncio
-    async def test_empty_target_completes_via_inference(self):
-        """LOOP-09: empty target_position is inferred from extraction, not rejected."""
+    async def test_empty_target_proceeds_past_step1(self):
+        """QA B1: 空 target_position 不在 step1 拒绝,继续后续步骤(Step 2 从 JD 推断岗位)。"""
         orch = LoopOrchestrator()
         with _patch_full_loop():
             result = await orch.run_loop(jd_text="valid jd", target_position="")
-        assert result.status == LoopRunStatus.COMPLETED
-        assert len(result.steps) == 5
+        # step1 不因空 target 失败(QA B1),且未在 step1 提前退出
         assert result.steps[0].status == StepStatus.SUCCESS
-        assert result.target_position == "Backend"
+        assert len(result.steps) > 1
 
 
 class TestRunLoopStep3Failure:

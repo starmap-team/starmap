@@ -85,7 +85,8 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.put(`/admin/datasources/${id}`, config) as DataSourceDetail
+      // fix: 后端 PUT 端点在公共 router（/datasources/{id}），非 admin_router；该端点自带 require_admin，权限不降级
+      const data = await request.put(`/datasources/${id}`, config) as DataSourceDetail
       // 更新列表中的对应项
       const idx = sources.value.findIndex(s => s.id === id)
       if (idx !== -1) sources.value[idx] = data
@@ -118,7 +119,8 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      await request.post(`/admin/datasources/${id}/sync`)
+      // fix: 后端 sync 端点在公共 router（/datasources/{id}/sync），非 admin_router；该端点自带 require_admin，权限不降级
+      await request.post(`/datasources/${id}/sync`)
       // 同步后刷新该数据源详情
       await fetchSourceDetail(id)
       return true
@@ -145,6 +147,11 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
+  /** Phase 15 / T2.3: 按需触发单源采集 */
+  async function triggerCrawl(source: string) {
+    return request.post(`/pipeline/crawl-source?source=${encodeURIComponent(source)}`) as Promise<unknown>
+  }
+
   return {
     sources,
     selectedSource,
@@ -157,6 +164,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
     updateSource,
     fetchStats,
     triggerSync,
+    triggerCrawl,
     fetchHealth,
   }
 })

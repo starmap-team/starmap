@@ -9,7 +9,7 @@
  * - Each card displays a status badge so the workflow state is visible
  *   at a glance.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -46,25 +46,21 @@ const pageSize = ref(24)
 // Admin and regular users both see all positions; status badges distinguish visibility.
 const statusFilter = ref<'approved' | 'pending_review' | 'rejected' | 'all'>('all')
 
-const industries = computed(() => {
-  const set = new Set(positions.value.map(p => p.industry).filter(Boolean))
-  return Array.from(set).sort()
-})
+// US-3: 行业列表从后端 /positions/industries 获取全量，而非仅当前页
+const industries = ref<string[]>([])
 
-const filteredPositions = computed(() => {
-  let list = positions.value
-  const q = searchQuery.value.trim().toLowerCase()
-  if (q) {
-    list = list.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) || (p.industry ?? '').toLowerCase().includes(q),
-    )
+async function loadIndustries() {
+  try {
+    industries.value = await jdStore.fetchIndustries()
+  } catch {
+    // 静默降级：API 不可用时从当前页提取
+    const set = new Set(positions.value.map(p => p.industry).filter(Boolean))
+    industries.value = Array.from(set).sort()
   }
-  if (selectedIndustry.value) {
-    list = list.filter((p) => p.industry === selectedIndustry.value)
-  }
-  return list
-})
+}
+
+// 后端已统一处理搜索/行业筛选/分页，前端直接展示即可
+const filteredPositions = computed(() => positions.value)
 
 const showAdminFilters = computed(() => isAdmin.value)
 
@@ -111,21 +107,27 @@ function statusLabel(status: PositionRow['review_status'] | undefined) {
       const params: {
         page: number
         page_size: number
+        search?: string
+        industry?: string
         status?: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'all'
         include_all?: boolean
       } = {
         page: page.value,
         page_size: pageSize.value,
       }
-      // 审核状态过滤（Phase 23 / PG-Neo4j 数据统一后）
-      //   "全部" (all)    → include_all=true，显示所有审核状态
-      //   "已发布" (approved) → 默认行为，只查 approved（无需额外参数）
-      //   "待审核" / "已拒绝" → 指定 status + include_all
-      if (statusFilter.value === 'all') {
-        params.include_all = true
-      } else if (statusFilter.value !== 'approved') {
-        params.status = statusFilter.value
-        params.include_all = true
+      // fix: 传递搜索关键字和行业筛选到后端，确保分页与筛选协同
+      const q = searchQuery.value.trim()
+      if (q) params.search = q
+      if (selectedIndustry.value) params.industry = selectedIndustry.value
+      // 审核状态过滤：公开契约 = 仅 approved；include_all 仅 admin 可用
+      // 非 admin 不传 include_all/status → 后端默认 approved（与全景图谱“已发布”口径一致）
+      if (isAdmin.value) {
+        if (statusFilter.value === 'all') {
+          params.include_all = true
+        } else if (statusFilter.value !== 'approved') {
+          params.status = statusFilter.value
+          params.include_all = true
+        }
       }
       const data = await jdStore.fetchPositions(params)
       positions.value = data.items.map((p) => ({
@@ -156,15 +158,39 @@ function onStatusFilterChange() {
   fetchPositions()
 }
 
-function goDetail(name: string) {
-  router.push(`/position/${encodeURIComponent(name)}`)
+function goDetail(id: string) {
+  // 按 UUID 跳转：名称可能含 `/` 等路径不安全字符（如 "UI/UX设计师"），
+  // 用名称做路径段会让详情路由 404；UUID 无特殊字符，且后端 get_position 已支持 UUID。
+  router.push(`/position/${id}`)
+}
+
+// 名称是否含中文；用于在卡片上诚实标注“英文原文”，避免英文岗位被误读为“中文展示缺失”
+function hasCJK(s: string | undefined | null): boolean {
+  return /[㐀-鿿]/.test(s ?? '')
 }
 
 function goExtract() {
   router.push('/extract')
 }
 
-onMounted(fetchPositions)
+// ── 搜索/筛选变更时重新查询后端（修复: 此前缺少 watcher 导致仅客户端过滤当前页） ──
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchQuery, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    fetchPositions()
+  }, 300)
+})
+watch(selectedIndustry, () => {
+  page.value = 1
+  fetchPositions()
+})
+
+onMounted(() => {
+  fetchPositions()
+  loadIndustries()
+})
 </script>
 
 <template>
@@ -253,10 +279,22 @@ onMounted(fetchPositions)
           <el-card
             class="position-card card-interactive"
             shadow="hover"
-            @click="goDetail(pos.name)"
+            @click="goDetail(pos.id)"
           >
             <div class="card-content">
-              <h3>{{ pos.name_cn || pos.name }}</h3>
+              <h3>
+                {{ pos.name_cn || pos.name }}
+                <el-tag
+                  v-if="!hasCJK(pos.name_cn) && !hasCJK(pos.name)"
+                  size="small"
+                  type="warning"
+                  effect="plain"
+                  class="lang-badge"
+                  title="该岗位源自英文 JD，暂无中文名（非数据缺失）"
+                >
+                  英文原文
+                </el-tag>
+              </h3>
               <div class="card-meta">
                 <el-tag
                   size="small"
@@ -414,6 +452,10 @@ onMounted(fetchPositions)
 
 .status-badge {
   font-weight: 500;
+}
+.lang-badge {
+  vertical-align: middle;
+  margin-left: 6px;
 }
 
 .rejection-reason {

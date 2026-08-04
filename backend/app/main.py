@@ -112,18 +112,24 @@ _RATE_LIMIT_WINDOW = 60  # seconds
 # Phase 3.7: 提高限流阈值以适应实时监控面板（auto-refresh + SSE + DAG polling）
 # PipelineMonitor 页面同时跑：4个轮询接口 / 5s一次 + SSE 长连接 + 事件触发
 # 原 120/60s 严重不足，每次自动刷新周期就会触发 429
-_RATE_LIMIT_MAX = 600  # requests per window per IP
+_RATE_LIMIT_MAX = 1800  # requests per window per IP (开发模式提高；生产可在 settings 覆盖)
 _rate_buckets: dict[str, list[float]] = defaultdict(list)
 
 # Phase 3.7: 高频端点白名单 — 这些是只读状态接口，不计入严格限流
 # 只对 mutation 类（POST/PUT/DELETE）应用严格限制
 _RATE_LIMIT_EXEMPT_PATH_PATTERNS = (
+    "/api/v1/auth/me",             # 用户态每次请求都触发
+    "/api/v1/auth/refresh",        # token 刷新
     "/api/v1/pipeline/status",
     "/api/v1/pipeline/stages",
     "/api/v1/pipeline/data-quality",
     "/api/v1/pipeline/datasources",
     "/api/v1/pipeline/schedules",
     "/api/v1/pipeline/config",
+    "/api/v1/pipeline/events",      # SSE 长连接，不计入限流
+    "/api/v1/pipeline/events-poll", # SSE 轮询 fallback
+    "/api/v1/pipeline/realtime",    # 备用 SSE 端点
+    "/api/v1/dashboard/realtime",   # Dashboard SSE
 )
 
 
@@ -215,9 +221,19 @@ from app.core.validation import (  # noqa: E402
 )
 from app.core.validation.handler import request_validation_exception_handler  # noqa: E402
 from app.exceptions import (  # noqa: E402
+    DashboardError,
+    ExtractionError,
+    ExtractionLLMError,
+    GraphProjectionError,
+    JudgeError,
+    LearningPathError,
+    MatchingError,
+    PipelineError,
+    PipelineTimeoutError,
     PlanNotFoundError,
     PlanOwnershipError,
     PositionNotFoundError,
+    QualityError,
     RunAlreadyTerminalError,
     RunNotFoundError,
     StarMapError,
@@ -275,6 +291,56 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         ErrorCode.SYS_INTERNAL_ERROR,
         include_internal_detail=str(exc),
     )
+
+
+@app.exception_handler(PipelineError)
+async def pipeline_error_handler(request: Request, exc: PipelineError) -> JSONResponse:
+    logger.opt(exception=True).error("Pipeline error on stage '{}': {}", exc.stage, exc)
+    code = ErrorCode.BIZ_PIPELINE_STAGE_FAILED if not isinstance(exc, PipelineTimeoutError) else ErrorCode.BIZ_PIPELINE_TIMEOUT
+    return build_error_response(str(exc), code, include_internal_detail=str(exc))
+
+
+@app.exception_handler(ExtractionError)
+async def extraction_error_handler(request: Request, exc: ExtractionError) -> JSONResponse:
+    logger.opt(exception=True).error("Extraction error from '{}': {}", exc.source, exc)
+    code = ErrorCode.BIZ_EXTRACTION_LLM_UNAVAILABLE if isinstance(exc, ExtractionLLMError) else ErrorCode.BIZ_EXTRACTION_NORMALIZATION
+    return build_error_response(str(exc), code, include_internal_detail=str(exc))
+
+
+@app.exception_handler(MatchingError)
+async def matching_error_handler(request: Request, exc: MatchingError) -> JSONResponse:
+    logger.opt(exception=True).error("Matching error for '{}': {}", exc.position_id, exc)
+    return build_error_response(str(exc), ErrorCode.BIZ_MATCH_ERROR, include_internal_detail=str(exc))
+
+
+@app.exception_handler(JudgeError)
+async def judge_error_handler(request: Request, exc: JudgeError) -> JSONResponse:
+    logger.opt(exception=True).error("Judge error: {}", exc)
+    return build_error_response(str(exc), ErrorCode.BIZ_JUDGE_FAILED, include_internal_detail=str(exc))
+
+
+@app.exception_handler(LearningPathError)
+async def learning_path_error_handler(request: Request, exc: LearningPathError) -> JSONResponse:
+    logger.opt(exception=True).error("Learning path error: {}", exc)
+    return build_error_response(str(exc), ErrorCode.BIZ_LEARNING_PATH_FAILED, include_internal_detail=str(exc))
+
+
+@app.exception_handler(QualityError)
+async def quality_error_handler(request: Request, exc: QualityError) -> JSONResponse:
+    logger.opt(exception=True).error("Quality check error: {}", exc)
+    return build_error_response(str(exc), ErrorCode.BIZ_QUALITY_CHECK_FAILED, include_internal_detail=str(exc))
+
+
+@app.exception_handler(DashboardError)
+async def dashboard_error_handler(request: Request, exc: DashboardError) -> JSONResponse:
+    logger.opt(exception=True).error("Dashboard error: {}", exc)
+    return build_error_response(str(exc), ErrorCode.BIZ_DASHBOARD_ERROR, include_internal_detail=str(exc))
+
+
+@app.exception_handler(GraphProjectionError)
+async def graph_projection_error_handler(request: Request, exc: GraphProjectionError) -> JSONResponse:
+    logger.opt(exception=True).error("Graph projection error: {}", exc)
+    return build_error_response(str(exc), ErrorCode.BIZ_GRAPH_PROJECTION_FAILED, include_internal_detail=str(exc))
 
 
 # P0 修复 (SEC-10): 健康检查不暴露版本号和服务详情

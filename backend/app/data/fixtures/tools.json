@@ -1,0 +1,46 @@
+[
+  {
+    "name": "Git",
+    "category": "DevOps"
+  },
+  {
+    "name": "Docker",
+    "category": "云原生"
+  },
+  {
+    "name": "Kubernetes",
+    "category": "云原生"
+  },
+  {
+    "name": "VS Code",
+    "category": "DevOps"
+  },
+  {
+    "name": "Jira",
+    "category": "项目管理"
+  },
+  {
+    "name": "Postman",
+    "category": "测试"
+  },
+  {
+    "name": "Figma",
+    "category": "设计"
+  },
+  {
+    "name": "Jenkins",
+    "category": "DevOps"
+  },
+  {
+    "name": "Grafana",
+    "category": "云原生"
+  },
+  {
+    "name": "PyCharm",
+    "category": "DevOps"
+  },
+  {
+    "name": "Jupyter",
+    "category": "AI/机器学习"
+  }
+]

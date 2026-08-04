@@ -239,7 +239,7 @@ class TestListPlans:
     def test_empty_plans_returns_200(self, client, auth_headers, db_override):
         session = FakeAsyncSession([FakeResult([])])
         db_override(session)
-        with patch("app.api.v1.learning.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)):
+        with patch("app.services.learning_service.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)):
             resp = client.get("/api/v1/learning/plans", headers=auth_headers)
         assert resp.status_code == 200
         assert resp.json() == []
@@ -249,8 +249,8 @@ class TestListPlans:
         session = FakeAsyncSession([FakeResult([plan])])
         db_override(session)
         with (
-            patch("app.api.v1.learning.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)),
-            patch("app.api.v1.learning.generate_learning_path", new=AsyncMock(return_value=_MOCK_LEARNING_PATH)),
+            patch("app.services.learning_service.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)),
+            patch("app.services.learning_service.generate_learning_path", new=AsyncMock(return_value=_MOCK_LEARNING_PATH)),
         ):
             resp = client.get("/api/v1/learning/plans", headers=auth_headers)
         assert resp.status_code == 200
@@ -263,7 +263,7 @@ class TestListPlans:
         plan = FakePlanRow(skills=[])
         session = FakeAsyncSession([FakeResult([plan])])
         db_override(session)
-        with patch("app.api.v1.learning.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)):
+        with patch("app.services.learning_service.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)):
             resp = client.get("/api/v1/learning/plans", headers=auth_headers)
         assert resp.status_code == 200
         body = resp.json()
@@ -275,8 +275,8 @@ class TestListPlans:
         session = FakeAsyncSession([FakeResult([plan])])
         db_override(session)
         with (
-            patch("app.api.v1.learning.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)),
-            patch("app.api.v1.learning.generate_learning_path", new=AsyncMock(side_effect=Exception("path error"))),
+            patch("app.services.learning_service.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)),
+            patch("app.services.learning_service.generate_learning_path", new=AsyncMock(side_effect=Exception("path error"))),
         ):
             resp = client.get("/api/v1/learning/plans", headers=auth_headers)
         assert resp.status_code == 200
@@ -286,7 +286,7 @@ class TestListPlans:
     def test_plans_limit_param(self, client, auth_headers, db_override):
         session = FakeAsyncSession([FakeResult([])])
         db_override(session)
-        with patch("app.api.v1.learning.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)):
+        with patch("app.services.learning_service.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)):
             resp = client.get("/api/v1/learning/plans?limit=5", headers=auth_headers)
         assert resp.status_code == 200
 
@@ -302,9 +302,9 @@ class TestCreatePlan:
         session = FakeAsyncSession()
         db_override(session)
         with (
-            patch("app.api.v1.learning.generate_learning_path", new=AsyncMock(return_value=_MOCK_LEARNING_PATH)),
-            patch("app.api.v1.learning.create_plan", new=AsyncMock(return_value=plan)),
-            patch("app.api.v1.learning.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)),
+            patch("app.services.learning_service.generate_learning_path", new=AsyncMock(return_value=_MOCK_LEARNING_PATH)),
+            patch("app.services.learning_service.create_plan", new=AsyncMock(return_value=plan)),
+            patch("app.services.learning_service.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)),
         ):
             resp = client.post(
                 "/api/v1/learning/plan",
@@ -388,8 +388,8 @@ class TestGetPlan:
         session = FakeAsyncSession([FakeResult(plan)])
         db_override(session)
         with (
-            patch("app.api.v1.learning.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)),
-            patch("app.api.v1.learning.generate_learning_path", new=AsyncMock(return_value=_MOCK_LEARNING_PATH)),
+            patch("app.services.learning_service.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)),
+            patch("app.services.learning_service.generate_learning_path", new=AsyncMock(return_value=_MOCK_LEARNING_PATH)),
         ):
             resp = client.get(f"/api/v1/learning/plan/{plan_id}", headers=auth_headers)
         assert resp.status_code == 200
@@ -408,7 +408,7 @@ class TestGetPlan:
         plan_id = uuid.uuid4()
         session = FakeAsyncSession()
         db_override(session)
-        with patch("app.api.v1.learning.get_progress", new=AsyncMock(return_value={"error": "Plan not found"})):
+        with patch("app.services.learning_service.get_progress", new=AsyncMock(return_value={"error": "Plan not found"})):
             resp = client.get(f"/api/v1/learning/plan/{plan_id}", headers=auth_headers)
         assert resp.status_code == 404
 
@@ -417,16 +417,17 @@ class TestGetPlan:
         plan = FakePlanRow(plan_id=plan_id, user_id="other-user")
         session = FakeAsyncSession([FakeResult(plan)])
         db_override(session)
-        with patch("app.api.v1.learning.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)):
+        with patch("app.services.learning_service.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)):
             resp = client.get(f"/api/v1/learning/plan/{plan_id}", headers=auth_headers)
         assert resp.status_code == 403
-        assert "Not authorized" in resp.json()["detail"]
+        # PlanOwnershipError 域异常消息(全局处理器映射 403)
+        assert "does not own" in resp.json()["detail"]
 
     def test_get_plan_db_plan_not_found_returns_404(self, client, auth_headers, db_override):
         plan_id = uuid.uuid4()
         session = FakeAsyncSession([FakeResult(None)])
         db_override(session)
-        with patch("app.api.v1.learning.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)):
+        with patch("app.services.learning_service.get_progress", new=AsyncMock(return_value=_MOCK_PROGRESS_DATA)):
             resp = client.get(f"/api/v1/learning/plan/{plan_id}", headers=auth_headers)
         assert resp.status_code == 404
 
@@ -443,7 +444,7 @@ class TestUpdateProgress:
         progress = FakeProgressRow(plan_id=plan_id, skill_name="Python", status="in_progress", progress_pct=50.0)
         session = FakeAsyncSession([FakeResult(plan)])
         db_override(session)
-        with patch("app.api.v1.learning.update_progress", new=AsyncMock(return_value=progress)):
+        with patch("app.services.learning_service.update_progress", new=AsyncMock(return_value=progress)):
             resp = client.put(
                 f"/api/v1/learning/plan/{plan_id}/progress",
                 headers=auth_headers,
@@ -470,7 +471,7 @@ class TestUpdateProgress:
         plan = FakePlanRow(plan_id=plan_id, user_id="dev")
         session = FakeAsyncSession([FakeResult(plan)])
         db_override(session)
-        with patch("app.api.v1.learning.update_progress", new=AsyncMock(return_value=None)):
+        with patch("app.services.learning_service.update_progress", new=AsyncMock(return_value=None)):
             resp = client.put(
                 f"/api/v1/learning/plan/{plan_id}/progress",
                 headers=auth_headers,
@@ -487,7 +488,7 @@ class TestUpdateProgress:
         )
         session = FakeAsyncSession([FakeResult(plan)])
         db_override(session)
-        with patch("app.api.v1.learning.update_progress", new=AsyncMock(return_value=progress)):
+        with patch("app.services.learning_service.update_progress", new=AsyncMock(return_value=progress)):
             resp = client.put(
                 f"/api/v1/learning/plan/{plan_id}/progress",
                 headers=auth_headers,
@@ -503,7 +504,7 @@ class TestUpdateProgress:
         progress.completed_at = datetime.now(UTC)
         session = FakeAsyncSession([FakeResult(plan)])
         db_override(session)
-        with patch("app.api.v1.learning.update_progress", new=AsyncMock(return_value=progress)):
+        with patch("app.services.learning_service.update_progress", new=AsyncMock(return_value=progress)):
             resp = client.put(
                 f"/api/v1/learning/plan/{plan_id}/progress",
                 headers=auth_headers,

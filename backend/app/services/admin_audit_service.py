@@ -11,9 +11,12 @@ from typing import Any
 
 import sqlalchemy as sa
 from loguru import logger
+from neo4j.exceptions import Neo4jError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.quality import _build_quality_dashboard
+from app.exceptions import StarMapError
 from app.models.extraction_models import (
     JDExtractionRecord,
     PositionRecord,
@@ -68,7 +71,8 @@ def _trust_from_payload(payload: dict | None) -> int:
 async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str, status: str) -> None:
     """Sync audit result to Neo4j graph (non-blocking).
 
-    Updates trust_score and status on the matching node.
+    Phase 5 Step 2 修复: 用 MERGE 而非 MATCH+SET，确保节点不存在时自动创建。
+    canonical_id 是 Neo4j 与 PG 同步的桥梁。
     """
     if not neo4j_driver:
         return
@@ -76,20 +80,89 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
     label = label_map.get(item_type)
     if not label:
         return
-    # ponytail: guard against Cypher injection — only alphanumeric labels allowed
     if not label.isalnum():
         return
     try:
-        async with neo4j_driver.session() as session:
-            await session.run(
-                f"MATCH (n:`{label}`) WHERE n.name = $name SET n.trust_score = $trust, n.status = $status",
-                name=item_name,
-                trust=1.0 if status == "approved" else 0.0,
-                status=status,
-            )
-        logger.info("Neo4j sync: {} '{}' → status={}", label, item_name, status)
-    except Exception as e:
+        from sqlalchemy import select
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        from app.db.session import get_async_engine
+        from app.models.extraction_models import PositionRecord, SkillRecord
+
+        # 查 PG 拿到 canonical_id（用 PG 实际字段名）
+        engine = get_async_engine()
+        async with engine.begin() as conn:
+            session = AsyncSession(bind=conn)
+            if label == "Position":
+                result = await session.execute(
+                    select(PositionRecord.id, PositionRecord.name, PositionRecord.industry, PositionRecord.review_status)
+                    .where(PositionRecord.name == item_name)
+                )
+                row = result.first()
+                if not row:
+                    logger.warning("Neo4j sync: PG PositionRecord not found for '{}'", item_name)
+                    return
+                canonical_id = str(row[0])
+                name = row[1]
+                industry = row[2] or ""
+                review_status = row[3] or status
+            else:  # Skill
+                result = await session.execute(
+                    select(SkillRecord.id, SkillRecord.name, SkillRecord.review_status)
+                    .where(SkillRecord.name == item_name)
+                )
+                row = result.first()
+                if not row:
+                    logger.warning("Neo4j sync: PG SkillRecord not found for '{}'", item_name)
+                    return
+                canonical_id = str(row[0])
+                name = row[1]
+                review_status = row[2] or status
+                industry = ""
+
+        trust = 1.0 if status == "approved" else 0.0
+
+        # 用 canonical_id MERGE，确保幂等
+        async with neo4j_driver.session() as s:
+            if label == "Position":
+                await s.run(
+                    """
+                    MERGE (n:Position {canonical_id: $cid})
+                    SET n.name = $name,
+                        n.industry = $industry,
+                        n.review_status = $review_status,
+                        n.trust_score = $trust,
+                        n.status = $status,
+                        n.synced_at = datetime()
+                    """,
+                    cid=canonical_id,
+                    name=name,
+                    industry=industry,
+                    review_status=review_status,
+                    trust=trust,
+                    status=status,
+                )
+            else:
+                await s.run(
+                    """
+                    MERGE (n:Skill {canonical_id: $cid})
+                    SET n.name = $name,
+                        n.review_status = $review_status,
+                        n.trust_score = $trust,
+                        n.status = $status,
+                        n.synced_at = datetime()
+                    """,
+                    cid=canonical_id,
+                    name=name,
+                    review_status=review_status,
+                    trust=trust,
+                    status=status,
+                )
+        logger.info("Neo4j sync: {} '{}' (canonical={}) → status={}", label, name, canonical_id, status)
+    except (Neo4jError, SQLAlchemyError) as e:
         logger.warning("Neo4j sync failed (non-blocking): {}", e)
+    except Exception as e:
+        logger.exception("Unexpected error in Neo4j sync (non-blocking): {}", e)
 
 
 def _audit_item_from_row(row: ReviewQueue, *, status_override: str | None = None) -> AuditItem:
@@ -140,12 +213,20 @@ async def build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
                 .where(ReviewQueue.status == "pending")
             )).scalar() or 0
         )
+    except (SQLAlchemyError, StarMapError):
+        total_positions = 0
+        total_skills = 0
+        total_edges = 0
+        avg_value = 0.0
+        pending_count = 0
+        logger.warning("Admin stats DB query failed, using fallback")
     except Exception:
         total_positions = 0
         total_skills = 0
         total_edges = 0
         avg_value = 0.0
         pending_count = 0
+        logger.exception("Unexpected error in admin stats DB query")
 
     return AdminStatsResponse(
         total_nodes=total_positions + total_skills,

@@ -329,6 +329,8 @@ class SkillRecord(Base):
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 业务说明：提交审核时间（draft → pending_review 时记录）
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # 业务说明：数据来源 Pipeline Run ID，用于追溯“哪次运行产生了这条技能”
+    source_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
     def __repr__(self) -> str:
         return f"<SkillRecord {self.name} status={self.review_status}>"
@@ -381,6 +383,8 @@ class PositionRecord(Base):
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 业务说明：提交审核时间
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # 业务说明：数据来源 Pipeline Run ID，用于追溯“哪次运行产生了这个岗位”
+    source_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
     def __repr__(self) -> str:
         return f"<PositionRecord {self.name} status={self.review_status}>"

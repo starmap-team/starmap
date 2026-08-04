@@ -1,0 +1,2355 @@
+[
+  {
+    "name": "大模型应用工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "LangChain",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "RAG",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Prompt Engineering",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Fine-tuning",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "LLM",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "OpenAI API",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "ChromaDB",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "PyTorch",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Hugging Face",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Redis",
+        "category": "数据库"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      }
+    ]
+  },
+  {
+    "name": "高级后端工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "FastAPI",
+        "category": "后端开发"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      },
+      {
+        "name": "Redis",
+        "category": "数据库"
+      },
+      {
+        "name": "Celery",
+        "category": "其他"
+      },
+      {
+        "name": "Nginx",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      },
+      {
+        "name": "SQL",
+        "category": "编程语言"
+      },
+      {
+        "name": "Docker Compose",
+        "category": "DevOps"
+      },
+      {
+        "name": "Terraform",
+        "category": "云原生"
+      },
+      {
+        "name": "Prometheus",
+        "category": "云原生"
+      }
+    ]
+  },
+  {
+    "name": "前端开发工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "JavaScript",
+        "category": "编程语言"
+      },
+      {
+        "name": "TypeScript",
+        "category": "编程语言"
+      },
+      {
+        "name": "Vue.js",
+        "category": "前端开发"
+      },
+      {
+        "name": "HTML5",
+        "category": "前端开发"
+      },
+      {
+        "name": "CSS3",
+        "category": "前端开发"
+      },
+      {
+        "name": "React",
+        "category": "前端开发"
+      },
+      {
+        "name": "Vite",
+        "category": "前端开发"
+      },
+      {
+        "name": "Webpack",
+        "category": "前端开发"
+      },
+      {
+        "name": "Tailwind CSS",
+        "category": "前端开发"
+      },
+      {
+        "name": "Node.js",
+        "category": "后端开发"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      },
+      {
+        "name": "NPM",
+        "category": "前端开发"
+      },
+      {
+        "name": "Sass",
+        "category": "前端开发"
+      },
+      {
+        "name": "ESLint",
+        "category": "前端开发"
+      }
+    ]
+  },
+  {
+    "name": "数据工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "SQL",
+        "category": "编程语言"
+      },
+      {
+        "name": "Spark",
+        "category": "数据工程"
+      },
+      {
+        "name": "Kafka",
+        "category": "数据工程"
+      },
+      {
+        "name": "Airflow",
+        "category": "数据工程"
+      },
+      {
+        "name": "Flink",
+        "category": "数据工程"
+      },
+      {
+        "name": "ClickHouse",
+        "category": "数据库"
+      },
+      {
+        "name": "Snowflake",
+        "category": "数据库"
+      },
+      {
+        "name": "dbt",
+        "category": "数据工程"
+      },
+      {
+        "name": "Hadoop",
+        "category": "数据工程"
+      },
+      {
+        "name": "Hive",
+        "category": "数据工程"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Redis",
+        "category": "数据库"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "DevOps工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      },
+      {
+        "name": "Terraform",
+        "category": "云原生"
+      },
+      {
+        "name": "CI/CD",
+        "category": "DevOps"
+      },
+      {
+        "name": "Prometheus",
+        "category": "云原生"
+      },
+      {
+        "name": "Ansible",
+        "category": "云原生"
+      },
+      {
+        "name": "Grafana",
+        "category": "云原生"
+      },
+      {
+        "name": "Helm",
+        "category": "云原生"
+      },
+      {
+        "name": "Jenkins",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "AWS",
+        "category": "云原生"
+      },
+      {
+        "name": "Nginx",
+        "category": "DevOps"
+      },
+      {
+        "name": "Shell Script",
+        "category": "编程语言"
+      },
+      {
+        "name": "Python",
+        "category": "编程语言"
+      }
+    ]
+  },
+  {
+    "name": "AI算法工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "PyTorch",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "TensorFlow",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "scikit-learn",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Hugging Face",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "OpenCV",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "CUDA",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "MLflow",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "NumPy",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Pandas",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Jupyter",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      }
+    ]
+  },
+  {
+    "name": "安全工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Penetration Testing",
+        "category": "安全"
+      },
+      {
+        "name": "SIEM",
+        "category": "安全"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      },
+      {
+        "name": "Cloud Security",
+        "category": "云原生"
+      },
+      {
+        "name": "OWASP",
+        "category": "安全"
+      },
+      {
+        "name": "Burp Suite",
+        "category": "安全"
+      },
+      {
+        "name": "Nmap",
+        "category": "安全"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "AWS Security",
+        "category": "安全"
+      },
+      {
+        "name": "Wireshark",
+        "category": "安全"
+      },
+      {
+        "name": "IDS/IPS",
+        "category": "安全"
+      },
+      {
+        "name": "Firewall",
+        "category": "安全"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "全栈工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "JavaScript",
+        "category": "编程语言"
+      },
+      {
+        "name": "TypeScript",
+        "category": "编程语言"
+      },
+      {
+        "name": "React",
+        "category": "前端开发"
+      },
+      {
+        "name": "Node.js",
+        "category": "后端开发"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Redis",
+        "category": "数据库"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "HTML5",
+        "category": "前端开发"
+      },
+      {
+        "name": "CSS3",
+        "category": "前端开发"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      },
+      {
+        "name": "GraphQL",
+        "category": "后端开发"
+      },
+      {
+        "name": "MongoDB",
+        "category": "数据库"
+      },
+      {
+        "name": "AWS",
+        "category": "云原生"
+      },
+      {
+        "name": "CI/CD",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "移动端开发工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Kotlin",
+        "category": "编程语言"
+      },
+      {
+        "name": "Swift",
+        "category": "编程语言"
+      },
+      {
+        "name": "Flutter",
+        "category": "移动开发"
+      },
+      {
+        "name": "Dart",
+        "category": "编程语言"
+      },
+      {
+        "name": "React Native",
+        "category": "移动开发"
+      },
+      {
+        "name": "iOS",
+        "category": "移动开发"
+      },
+      {
+        "name": "Android",
+        "category": "移动开发"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      },
+      {
+        "name": "SQLite",
+        "category": "数据库"
+      },
+      {
+        "name": "Firebase",
+        "category": "移动开发"
+      },
+      {
+        "name": "Xcode",
+        "category": "移动开发"
+      },
+      {
+        "name": "Android Studio",
+        "category": "移动开发"
+      },
+      {
+        "name": "UI/UX Design",
+        "category": "设计"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      }
+    ]
+  },
+  {
+    "name": "数据分析师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "SQL",
+        "category": "编程语言"
+      },
+      {
+        "name": "Pandas",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "NumPy",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Tableau",
+        "category": "其他"
+      },
+      {
+        "name": "Power BI",
+        "category": "数据工程"
+      },
+      {
+        "name": "Excel",
+        "category": "数据工程"
+      },
+      {
+        "name": "Jupyter",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Matplotlib",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Seaborn",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Statistics",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Machine Learning",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "ETL",
+        "category": "数据工程"
+      }
+    ]
+  },
+  {
+    "name": "机器学习工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "PyTorch",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "TensorFlow",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "scikit-learn",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "MLflow",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Redis",
+        "category": "数据库"
+      },
+      {
+        "name": "Kafka",
+        "category": "数据工程"
+      },
+      {
+        "name": "Airflow",
+        "category": "数据工程"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "CUDA",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "ONNX",
+        "category": "AI/机器学习"
+      }
+    ]
+  },
+  {
+    "name": "NLP工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "PyTorch",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Hugging Face",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "spaCy",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "NLTK",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Transformers",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "BERT",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "GPT",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "LangChain",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "RAG",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Fine-tuning",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      }
+    ]
+  },
+  {
+    "name": "计算机视觉工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "PyTorch",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "OpenCV",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "TensorFlow",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "CUDA",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "YOLO",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "ResNet",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Image Processing",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "C++",
+        "category": "编程语言"
+      },
+      {
+        "name": "ONNX",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "MLflow",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      }
+    ]
+  },
+  {
+    "name": "云架构师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "AWS",
+        "category": "云原生"
+      },
+      {
+        "name": "Azure",
+        "category": "云原生"
+      },
+      {
+        "name": "GCP",
+        "category": "云原生"
+      },
+      {
+        "name": "Terraform",
+        "category": "云原生"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Ansible",
+        "category": "云原生"
+      },
+      {
+        "name": "CloudFormation",
+        "category": "云原生"
+      },
+      {
+        "name": "Lambda",
+        "category": "云原生"
+      },
+      {
+        "name": "S3",
+        "category": "云原生"
+      },
+      {
+        "name": "EC2",
+        "category": "云原生"
+      },
+      {
+        "name": "VPC",
+        "category": "云原生"
+      },
+      {
+        "name": "IAM",
+        "category": "云原生"
+      },
+      {
+        "name": "Cost Optimization",
+        "category": "云原生"
+      },
+      {
+        "name": "CI/CD",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "数据库管理员",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "MySQL",
+        "category": "数据库"
+      },
+      {
+        "name": "MongoDB",
+        "category": "数据库"
+      },
+      {
+        "name": "Redis",
+        "category": "数据库"
+      },
+      {
+        "name": "SQL",
+        "category": "编程语言"
+      },
+      {
+        "name": "Backup & Recovery",
+        "category": "DevOps"
+      },
+      {
+        "name": "Replication",
+        "category": "DevOps"
+      },
+      {
+        "name": "Performance Tuning",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Monitoring",
+        "category": "DevOps"
+      },
+      {
+        "name": "Security",
+        "category": "安全"
+      },
+      {
+        "name": "NoSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "ClickHouse",
+        "category": "数据库"
+      },
+      {
+        "name": "Elasticsearch",
+        "category": "数据库"
+      }
+    ]
+  },
+  {
+    "name": "SRE工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      },
+      {
+        "name": "Prometheus",
+        "category": "云原生"
+      },
+      {
+        "name": "Grafana",
+        "category": "云原生"
+      },
+      {
+        "name": "Terraform",
+        "category": "云原生"
+      },
+      {
+        "name": "Ansible",
+        "category": "云原生"
+      },
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Shell Script",
+        "category": "编程语言"
+      },
+      {
+        "name": "CI/CD",
+        "category": "DevOps"
+      },
+      {
+        "name": "AWS",
+        "category": "云原生"
+      },
+      {
+        "name": "Monitoring",
+        "category": "DevOps"
+      },
+      {
+        "name": "Incident Response",
+        "category": "DevOps"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Nginx",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "测试工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Selenium",
+        "category": "测试"
+      },
+      {
+        "name": "Playwright",
+        "category": "测试"
+      },
+      {
+        "name": "Pytest",
+        "category": "测试"
+      },
+      {
+        "name": "JMeter",
+        "category": "测试"
+      },
+      {
+        "name": "Postman",
+        "category": "测试"
+      },
+      {
+        "name": "API Testing",
+        "category": "测试"
+      },
+      {
+        "name": "Performance Testing",
+        "category": "测试"
+      },
+      {
+        "name": "CI/CD",
+        "category": "DevOps"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "SQL",
+        "category": "编程语言"
+      },
+      {
+        "name": "TestRail",
+        "category": "测试"
+      },
+      {
+        "name": "Jira",
+        "category": "项目管理"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "产品经理",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "User Research",
+        "category": "设计"
+      },
+      {
+        "name": "Product Strategy",
+        "category": "项目管理"
+      },
+      {
+        "name": "Agile",
+        "category": "项目管理"
+      },
+      {
+        "name": "Scrum",
+        "category": "项目管理"
+      },
+      {
+        "name": "Jira",
+        "category": "项目管理"
+      },
+      {
+        "name": "Figma",
+        "category": "设计"
+      },
+      {
+        "name": "Data Analysis",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "SQL",
+        "category": "编程语言"
+      },
+      {
+        "name": "A/B Testing",
+        "category": "项目管理"
+      },
+      {
+        "name": "Market Research",
+        "category": "项目管理"
+      },
+      {
+        "name": "Wireframing",
+        "category": "设计"
+      },
+      {
+        "name": "PRD",
+        "category": "项目管理"
+      },
+      {
+        "name": "KPI",
+        "category": "项目管理"
+      },
+      {
+        "name": "Stakeholder Management",
+        "category": "项目管理"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "UI/UX设计师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Figma",
+        "category": "设计"
+      },
+      {
+        "name": "Sketch",
+        "category": "设计"
+      },
+      {
+        "name": "Adobe XD",
+        "category": "设计"
+      },
+      {
+        "name": "Photoshop",
+        "category": "设计"
+      },
+      {
+        "name": "Illustrator",
+        "category": "设计"
+      },
+      {
+        "name": "User Research",
+        "category": "设计"
+      },
+      {
+        "name": "Wireframing",
+        "category": "设计"
+      },
+      {
+        "name": "Prototyping",
+        "category": "设计"
+      },
+      {
+        "name": "Design System",
+        "category": "设计"
+      },
+      {
+        "name": "HTML5",
+        "category": "前端开发"
+      },
+      {
+        "name": "CSS3",
+        "category": "前端开发"
+      },
+      {
+        "name": "User Testing",
+        "category": "设计"
+      },
+      {
+        "name": "Accessibility",
+        "category": "设计"
+      },
+      {
+        "name": "Responsive Design",
+        "category": "设计"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "技术经理",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Project Management",
+        "category": "项目管理"
+      },
+      {
+        "name": "Agile",
+        "category": "项目管理"
+      },
+      {
+        "name": "Scrum",
+        "category": "项目管理"
+      },
+      {
+        "name": "Jira",
+        "category": "项目管理"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "CI/CD",
+        "category": "DevOps"
+      },
+      {
+        "name": "Code Review",
+        "category": "项目管理"
+      },
+      {
+        "name": "Architecture Design",
+        "category": "项目管理"
+      },
+      {
+        "name": "Team Leadership",
+        "category": "项目管理"
+      },
+      {
+        "name": "Risk Management",
+        "category": "项目管理"
+      },
+      {
+        "name": "Stakeholder Communication",
+        "category": "项目管理"
+      },
+      {
+        "name": "Budget Management",
+        "category": "项目管理"
+      },
+      {
+        "name": "Technical Writing",
+        "category": "项目管理"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Cloud",
+        "category": "云原生"
+      }
+    ]
+  },
+  {
+    "name": "区块链工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Solidity",
+        "category": "编程语言"
+      },
+      {
+        "name": "Ethereum",
+        "category": "其他"
+      },
+      {
+        "name": "Web3.js",
+        "category": "其他"
+      },
+      {
+        "name": "Smart Contracts",
+        "category": "其他"
+      },
+      {
+        "name": "DeFi",
+        "category": "其他"
+      },
+      {
+        "name": "IPFS",
+        "category": "其他"
+      },
+      {
+        "name": "Node.js",
+        "category": "后端开发"
+      },
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Cryptography",
+        "category": "安全"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Security",
+        "category": "安全"
+      }
+    ]
+  },
+  {
+    "name": "游戏开发工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "C++",
+        "category": "编程语言"
+      },
+      {
+        "name": "C#",
+        "category": "编程语言"
+      },
+      {
+        "name": "Unity",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Unreal Engine",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Lua",
+        "category": "编程语言"
+      },
+      {
+        "name": "OpenGL",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Vulkan",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Physics",
+        "category": "其他"
+      },
+      {
+        "name": "AI Programming",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Networking",
+        "category": "其他"
+      },
+      {
+        "name": "Shader Programming",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      }
+    ]
+  },
+  {
+    "name": "嵌入式工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "C",
+        "category": "编程语言"
+      },
+      {
+        "name": "C++",
+        "category": "编程语言"
+      },
+      {
+        "name": "Embedded Linux",
+        "category": "其他"
+      },
+      {
+        "name": "RTOS",
+        "category": "其他"
+      },
+      {
+        "name": "ARM",
+        "category": "其他"
+      },
+      {
+        "name": "Microcontrollers",
+        "category": "其他"
+      },
+      {
+        "name": "Assembly",
+        "category": "编程语言"
+      },
+      {
+        "name": "Communication Protocols",
+        "category": "其他"
+      },
+      {
+        "name": "PCB Design",
+        "category": "其他"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Debugging",
+        "category": "DevOps"
+      },
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Shell Script",
+        "category": "编程语言"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Testing",
+        "category": "测试"
+      }
+    ]
+  },
+  {
+    "name": "大数据工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Spark",
+        "category": "数据工程"
+      },
+      {
+        "name": "Hadoop",
+        "category": "数据工程"
+      },
+      {
+        "name": "Hive",
+        "category": "数据工程"
+      },
+      {
+        "name": "Kafka",
+        "category": "数据工程"
+      },
+      {
+        "name": "Flink",
+        "category": "数据工程"
+      },
+      {
+        "name": "HBase",
+        "category": "数据库"
+      },
+      {
+        "name": "Elasticsearch",
+        "category": "数据库"
+      },
+      {
+        "name": "Presto",
+        "category": "数据库"
+      },
+      {
+        "name": "SQL",
+        "category": "编程语言"
+      },
+      {
+        "name": "Airflow",
+        "category": "数据工程"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "推荐系统工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "PyTorch",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "TensorFlow",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Spark",
+        "category": "数据工程"
+      },
+      {
+        "name": "Redis",
+        "category": "数据库"
+      },
+      {
+        "name": "Kafka",
+        "category": "数据工程"
+      },
+      {
+        "name": "A/B Testing",
+        "category": "项目管理"
+      },
+      {
+        "name": "Feature Engineering",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Collaborative Filtering",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Deep Learning",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "搜索工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Elasticsearch",
+        "category": "数据库"
+      },
+      {
+        "name": "Solr",
+        "category": "数据库"
+      },
+      {
+        "name": "Lucene",
+        "category": "数据库"
+      },
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Java",
+        "category": "编程语言"
+      },
+      {
+        "name": "NLP",
+        "category": "其他"
+      },
+      {
+        "name": "Information Retrieval",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      },
+      {
+        "name": "Redis",
+        "category": "数据库"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      },
+      {
+        "name": "Performance Tuning",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "中间件工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Java",
+        "category": "编程语言"
+      },
+      {
+        "name": "Spring Boot",
+        "category": "后端开发"
+      },
+      {
+        "name": "Netty",
+        "category": "后端开发"
+      },
+      {
+        "name": "gRPC",
+        "category": "后端开发"
+      },
+      {
+        "name": "Redis",
+        "category": "数据库"
+      },
+      {
+        "name": "Kafka",
+        "category": "数据工程"
+      },
+      {
+        "name": "RabbitMQ",
+        "category": "后端开发"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Kubernetes",
+        "category": "云原生"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Performance Tuning",
+        "category": "DevOps"
+      },
+      {
+        "name": "Distributed Systems",
+        "category": "后端开发"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Monitoring",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "iOS开发工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Swift",
+        "category": "编程语言"
+      },
+      {
+        "name": "Objective-C",
+        "category": "编程语言"
+      },
+      {
+        "name": "Xcode",
+        "category": "移动开发"
+      },
+      {
+        "name": "UIKit",
+        "category": "前端开发"
+      },
+      {
+        "name": "SwiftUI",
+        "category": "前端开发"
+      },
+      {
+        "name": "Core Data",
+        "category": "移动开发"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "CocoaPods",
+        "category": "移动开发"
+      },
+      {
+        "name": "Swift Package Manager",
+        "category": "移动开发"
+      },
+      {
+        "name": "App Store",
+        "category": "移动开发"
+      },
+      {
+        "name": "Testing",
+        "category": "测试"
+      },
+      {
+        "name": "Performance Optimization",
+        "category": "DevOps"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "CI/CD",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "Android开发工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Kotlin",
+        "category": "编程语言"
+      },
+      {
+        "name": "Java",
+        "category": "编程语言"
+      },
+      {
+        "name": "Android Studio",
+        "category": "移动开发"
+      },
+      {
+        "name": "Jetpack Compose",
+        "category": "前端开发"
+      },
+      {
+        "name": "Room",
+        "category": "数据库"
+      },
+      {
+        "name": "Retrofit",
+        "category": "移动开发"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Gradle",
+        "category": "移动开发"
+      },
+      {
+        "name": "Testing",
+        "category": "测试"
+      },
+      {
+        "name": "Google Play",
+        "category": "移动开发"
+      },
+      {
+        "name": "Performance Optimization",
+        "category": "DevOps"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "CI/CD",
+        "category": "DevOps"
+      },
+      {
+        "name": "Firebase",
+        "category": "移动开发"
+      }
+    ]
+  },
+  {
+    "name": "技术写作",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Markdown",
+        "category": "项目管理"
+      },
+      {
+        "name": "Technical Writing",
+        "category": "项目管理"
+      },
+      {
+        "name": "API Documentation",
+        "category": "项目管理"
+      },
+      {
+        "name": "Swagger",
+        "category": "项目管理"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Content Management",
+        "category": "项目管理"
+      },
+      {
+        "name": "SEO",
+        "category": "项目管理"
+      },
+      {
+        "name": "HTML5",
+        "category": "前端开发"
+      },
+      {
+        "name": "CSS3",
+        "category": "前端开发"
+      },
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "REST API",
+        "category": "后端开发"
+      },
+      {
+        "name": "Version Control",
+        "category": "DevOps"
+      },
+      {
+        "name": "Diagramming",
+        "category": "设计"
+      }
+    ]
+  },
+  {
+    "name": "数据治理工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "SQL",
+        "category": "编程语言"
+      },
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Data Catalog",
+        "category": "数据工程"
+      },
+      {
+        "name": "Data Quality",
+        "category": "数据工程"
+      },
+      {
+        "name": "Data Lineage",
+        "category": "数据工程"
+      },
+      {
+        "name": "Metadata Management",
+        "category": "数据工程"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Hadoop",
+        "category": "数据工程"
+      },
+      {
+        "name": "Spark",
+        "category": "数据工程"
+      },
+      {
+        "name": "Airflow",
+        "category": "数据工程"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Compliance",
+        "category": "安全"
+      },
+      {
+        "name": "Privacy",
+        "category": "安全"
+      }
+    ]
+  },
+  {
+    "name": "网络工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "TCP/IP",
+        "category": "安全"
+      },
+      {
+        "name": "DNS",
+        "category": "安全"
+      },
+      {
+        "name": "DHCP",
+        "category": "安全"
+      },
+      {
+        "name": "VPN",
+        "category": "安全"
+      },
+      {
+        "name": "Firewall",
+        "category": "安全"
+      },
+      {
+        "name": "Load Balancing",
+        "category": "安全"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Shell Script",
+        "category": "编程语言"
+      },
+      {
+        "name": "Monitoring",
+        "category": "DevOps"
+      },
+      {
+        "name": "Wireshark",
+        "category": "安全"
+      },
+      {
+        "name": "Ansible",
+        "category": "云原生"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Cloud Networking",
+        "category": "云原生"
+      }
+    ]
+  },
+  {
+    "name": "量化交易工程师",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "C++",
+        "category": "编程语言"
+      },
+      {
+        "name": "Quantitative Analysis",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Machine Learning",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Time Series",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Pandas",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "NumPy",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Backtesting",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Risk Management",
+        "category": "项目管理"
+      },
+      {
+        "name": "PostgreSQL",
+        "category": "数据库"
+      },
+      {
+        "name": "Redis",
+        "category": "数据库"
+      },
+      {
+        "name": "Kafka",
+        "category": "数据工程"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      }
+    ]
+  },
+  {
+    "name": "自然语言处理研究员",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "PyTorch",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Transformers",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "BERT",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "GPT",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "T5",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Research",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Paper Reading",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Experiment Design",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Hugging Face",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "CUDA",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Linux",
+        "category": "DevOps"
+      },
+      {
+        "name": "LaTeX",
+        "category": "项目管理"
+      }
+    ]
+  },
+  {
+    "name": "AI产品经理",
+    "industry": "信息技术/互联网",
+    "level": "senior",
+    "skills": [
+      {
+        "name": "Product Strategy",
+        "category": "项目管理"
+      },
+      {
+        "name": "AI/ML Knowledge",
+        "category": "项目管理"
+      },
+      {
+        "name": "User Research",
+        "category": "设计"
+      },
+      {
+        "name": "Data Analysis",
+        "category": "AI/机器学习"
+      },
+      {
+        "name": "SQL",
+        "category": "编程语言"
+      },
+      {
+        "name": "Python",
+        "category": "编程语言"
+      },
+      {
+        "name": "Agile",
+        "category": "项目管理"
+      },
+      {
+        "name": "Scrum",
+        "category": "项目管理"
+      },
+      {
+        "name": "Figma",
+        "category": "设计"
+      },
+      {
+        "name": "A/B Testing",
+        "category": "项目管理"
+      },
+      {
+        "name": "KPI",
+        "category": "项目管理"
+      },
+      {
+        "name": "Stakeholder Management",
+        "category": "项目管理"
+      },
+      {
+        "name": "Technical Writing",
+        "category": "项目管理"
+      },
+      {
+        "name": "Git",
+        "category": "DevOps"
+      },
+      {
+        "name": "Docker",
+        "category": "云原生"
+      }
+    ]
+  }
+]

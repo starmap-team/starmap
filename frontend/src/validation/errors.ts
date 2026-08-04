@@ -6,7 +6,7 @@
  */
 
 import type { AxiosError } from 'axios'
-import type { ErrorResponse, FieldError } from './types'
+import type { ErrorResponse } from './types'
 
 /** 字段路径 → 错误信息映射（用于表单错误状态） */
 export type FieldErrorsMap = Map<string, { message: string; code: string }>

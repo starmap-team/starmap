@@ -23,7 +23,9 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.extraction.llm_client import (
+    LLMConnectionError,  # noqa: F401  (re-export:供 api 层经 service 引用)
     LLMResponseError,
+    LLMTimeoutError,  # noqa: F401  (re-export:供 api 层经 service 引用)
     call_llm_with_fallback,
     parse_llm_json_response,
 )
@@ -38,7 +40,7 @@ _HAS_NORMALIZE = False
 try:
     from app.core.extraction.normalize import normalize_by_alias
     _HAS_NORMALIZE = True
-except Exception:
+except ImportError:
     normalize_by_alias = None  # type: ignore[assignment]
 
 

@@ -4,13 +4,15 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver
+from app.exceptions import PositionNotFoundError, StarMapError
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
+from app.schemas.position import IndustriesResponse
 
 router = APIRouter(prefix="/positions", tags=["岗位管理"])
 
@@ -77,9 +79,17 @@ async def list_positions(
     # Count total
     count_stmt = sa.select(sa.func.count()).select_from(PositionRecord)
     if industry:
-        count_stmt = count_stmt.where(PositionRecord.industry == industry)
+        count_stmt = count_stmt.where(PositionRecord.industry.ilike(f"%{_escape_like(industry)}%", escape="\\"))
     if search:
-        count_stmt = count_stmt.where(PositionRecord.name.ilike(f"%{_escape_like(search)}%", escape="\\"))
+        # Phase 13 一致性审计：search 同时匹配 name、name_cn 与 industry（与前端 placeholder/客户端筛选及 Neo4j 路径一致）
+        like = f"%{_escape_like(search)}%"
+        count_stmt = count_stmt.where(
+            sa.or_(
+                PositionRecord.name.ilike(like, escape="\\"),
+                PositionRecord.name_cn.ilike(like, escape="\\"),
+                PositionRecord.industry.ilike(like, escape="\\"),
+            )
+        )
     # Default visibility policy: only approved is public. Admin can override.
     effective_status = status
     if not include_all and effective_status is None:
@@ -98,9 +108,16 @@ async def list_positions(
     # Fetch page
     stmt = sa.select(PositionRecord).order_by(PositionRecord.name)
     if industry:
-        stmt = stmt.where(PositionRecord.industry == industry)
+        stmt = stmt.where(PositionRecord.industry.ilike(f"%{_escape_like(industry)}%", escape="\\"))
     if search:
-        stmt = stmt.where(PositionRecord.name.ilike(f"%{_escape_like(search)}%", escape="\\"))
+        like = f"%{_escape_like(search)}%"
+        stmt = stmt.where(
+            sa.or_(
+                PositionRecord.name.ilike(like, escape="\\"),
+                PositionRecord.name_cn.ilike(like, escape="\\"),
+                PositionRecord.industry.ilike(like, escape="\\"),
+            )
+        )
     if effective_status is not None:
         stmt = stmt.where(PositionRecord.review_status == effective_status)
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
@@ -139,6 +156,28 @@ async def list_positions(
         ))
 
     return PositionListResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get(
+    "/industries",
+    summary="行业列表",
+    description="返回所有岗位的去重行业名称列表（按字母排序）。\n\n"
+    "用于前端行业筛选下拉选项，确保用户看到全量行业而非仅当前页。",
+    response_model=IndustriesResponse,
+)
+async def list_industries(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> IndustriesResponse:
+    """Distinct industry names from position_records, sorted alphabetically."""
+    stmt = (
+        sa.select(PositionRecord.industry)
+        .where(PositionRecord.industry.isnot(None))
+        .where(PositionRecord.industry != "")
+        .distinct()
+        .order_by(PositionRecord.industry)
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    return IndustriesResponse(industries=[i for i in rows if i is not None])
 
 
 @router.get(
@@ -184,6 +223,7 @@ async def get_position(
                 "skill_id": str(sk.id),
                 "name": sk.name,
                 "category": sk.category,
+                "proficiency": "精通" if rel.requirement_type == "required" else "了解" if rel.requirement_type == "preferred" else "熟悉",
                 "confidence": float(rel.confidence or 1.0),
                 "source_count": sk.source_count or 0,
             }
@@ -226,8 +266,13 @@ async def get_position(
                     "skills_required": skills,
                     "discovered_at": None,
                 }
+        except PositionNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except StarMapError:
+            raise
         except Exception as exc:
-            logger.debug("[positions/detail] Neo4j fallback failed: {}", exc)
+            logger.exception("Unexpected error in position: {}", exc)
+            raise HTTPException(status_code=500, detail="岗位处理异常") from exc
 
     raise HTTPException(status_code=404, detail=f"Position '{position_id}' not found")
 
@@ -242,11 +287,11 @@ async def discover_position(
     然后运行 EmergenceFinder 进行 Z-score 分析。
     若无时序数据则返回"数据不足"提示。
     """
-    from app.core.evolution.emergence_finder import EmergenceFinder
+    from app.services.evolution_service import EmergenceFinder
 
     try:
         # Step 1: Load timeseries data for frequency history
-        from app.core.evolution.timeseries_loader import load_skill_timeseries_data
+        from app.services.evolution_service import load_skill_timeseries_data
 
         skill_data = await load_skill_timeseries_data(db)
 
@@ -279,11 +324,13 @@ async def discover_position(
             "count": len(emerging),
             "skills_analyzed": len(skill_data),
         }
-    except Exception as e:
-        from fastapi import HTTPException
-        from loguru import logger
-        logger.exception("Position discovery failed: {}", e)
-        raise HTTPException(status_code=500, detail="Position discovery failed, please try again later") from e
+    except PositionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error in position: {}", exc)
+        raise HTTPException(status_code=500, detail="岗位处理异常") from exc
 
 
 # ── Neo4j fallback for position list ──
@@ -308,7 +355,11 @@ async def _list_positions_neo4j(
             params: dict[str, Any] = {}
 
             if search:
-                where_clauses.append("toLower(p.name) CONTAINS toLower($search)")
+                # Phase 13 一致性审计：search 同时匹配 name 与 industry，与 PG 路径及前端契约一致
+                where_clauses.append(
+                    "(toLower(p.name) CONTAINS toLower($search) OR "
+                    "toLower(coalesce(p.industry, '')) CONTAINS toLower($search))"
+                )
                 params["search"] = search
             if industry:
                 where_clauses.append("toLower(p.industry) CONTAINS toLower($industry)")
@@ -372,9 +423,15 @@ async def _list_positions_neo4j(
                     description=props.get("description", ""),
                     skills_required=skill_nodes,
                     discovered_at=None,
+                    # fix: 回写 review_status，与 PG 路径字段对齐（OPEN-LOW 修复）
+                    review_status=props.get("review_status", None),
                 ))
 
             return PositionListResponse(items=items, total=total, page=page, page_size=page_size)
+    except PositionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("[positions] Neo4j fallback failed: {}", exc)
-        return PositionListResponse(items=[], total=0, page=page, page_size=page_size)
+        logger.exception("Unexpected error in position: {}", exc)
+        raise HTTPException(status_code=500, detail="岗位处理异常") from exc

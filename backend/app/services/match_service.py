@@ -12,6 +12,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from neo4j.exceptions import Neo4jError
+from sqlalchemy.exc import SQLAlchemyError
+
 # 从新的模块化组件导入
 from app.core.matching.cache import get_match_cache
 from app.core.matching.path_builder import build_learning_path
@@ -24,6 +27,7 @@ from app.core.matching.scorer import (
     score_skill_match,
 )
 from app.core.matching.service import DEFAULT_REQUIRED_SKILL_BASELINE, MatchService
+from app.exceptions import StarMapError
 
 # 为了保持向后兼容，保留原有的全局变量
 PREREQUISITE_MAP: dict[str, list[str]] = {}
@@ -85,9 +89,16 @@ async def get_match_result(match_id: str, db_session: Any = None) -> dict[str, A
                 }
                 _match_service._cache.set_match_result(match_id, result)
                 return result
+        except StarMapError:
+            raise
+        except SQLAlchemyError as exc:
+            from loguru import logger
+            logger.exception("[get_match_result] DB fallback failed: {}", exc)
+            return None
         except Exception as exc:
             from loguru import logger
-            logger.debug("[get_match_result] DB fallback failed: {}", exc)
+            logger.exception("[get_match_result] Unexpected error: {}", exc)
+            return None
 
     return None
 
@@ -118,9 +129,14 @@ async def enrich_learning_paths(
                     "url": rec["url"],
                     "type": rec["type"],
                 })
+    except StarMapError:
+        raise
+    except (Neo4jError, SQLAlchemyError) as exc:
+        from loguru import logger
+        logger.exception("[Match] Failed to load learning resources: {}", exc)
     except Exception as exc:
         from loguru import logger
-        logger.warning("[Match] Failed to load learning resources: {}", exc)
+        logger.exception("[Match] Unexpected error loading learning resources: {}", exc)
 
     for gap in gap_details:
         skill = gap.get("skill", "")

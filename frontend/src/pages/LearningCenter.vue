@@ -45,7 +45,7 @@ const activeTab = ref<'all'|'in_progress'|'not_started'>('all')
 const filteredSkills = computed(() => {
   const plan = currentPlan.value
   if (!plan) return []
-  return activeTab.value === 'all' ? plan.skills : plan.skills.filter((s: any) => s.status === activeTab.value)
+  return activeTab.value === 'all' ? plan.skills : plan.skills.filter((s) => s.status === activeTab.value)
 })
 
 const priorityTagMap: Record<string, string> = { high: 'danger', medium: 'warning', low: 'info' }
@@ -54,11 +54,11 @@ function priorityType(p: string) { return priorityTagMap[p] ?? 'info' }
 function priorityLabel(p: string) { return priorityLabelMap[p] ?? '低优先' }
 
 // 业务说明：学习进度统计指标（内联自 useLearningMetrics）
-const masteredCount = computed(() => currentPlan.value?.skills.filter((s: any) => s.status === 'mastered').length ?? 0)
-const inProgressCount = computed(() => currentPlan.value?.skills.filter((s: any) => s.status === 'in_progress').length ?? 0)
+const masteredCount = computed(() => currentPlan.value?.skills.filter((s) => s.status === 'mastered').length ?? 0)
+const inProgressCount = computed(() => currentPlan.value?.skills.filter((s) => s.status === 'in_progress').length ?? 0)
 const remainingHours = computed(() => {
   if (!currentPlan.value) return 0
-  return currentPlan.value.skills.filter((s: any) => s.status !== 'mastered').reduce((sum: number, s: any) => sum + Math.round(s.estimated_hours * (1 - s.progress_pct / 100)), 0)
+  return currentPlan.value.skills.filter((s) => s.status !== 'mastered').reduce((sum: number, s) => sum + Math.round(s.estimated_hours * (1 - s.progress_pct / 100)), 0)
 })
 
 // 业务说明：用户操作（内联自 useLearningActions）

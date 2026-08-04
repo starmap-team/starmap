@@ -318,7 +318,9 @@ function navigateToDetail(node: GraphNode) {
         <Aim />
       </el-icon>
       <p>点击图谱节点查看详情</p>
-      <p class="dp-empty-hint">或使用顶部搜索定位技能 / 岗位 / 领域</p>
+      <p class="dp-empty-hint">
+        或使用顶部搜索定位技能 / 岗位 / 领域
+      </p>
     </div>
   </aside>
 </template>

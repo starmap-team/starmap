@@ -144,3 +144,12 @@ class PositionListResponse(BaseModel):
         le=100,
         description="每页数量",
     )
+
+
+class IndustriesResponse(BaseModel):
+    """行业列表响应。"""
+
+    industries: list[str] = Field(
+        default_factory=list,
+        description="去重排序后的行业名称列表",
+    )

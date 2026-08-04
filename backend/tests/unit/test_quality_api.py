@@ -325,7 +325,7 @@ class TestEvaluateResumeExtraction:
             },
         }
         # Lazy import inside endpoint -> patch the source module
-        with patch("app.core.extraction.resume_eval.run_resume_evaluation", new_callable=AsyncMock, return_value=mock_result):
+        with patch("app.services.resume_service.run_resume_evaluation", new_callable=AsyncMock, return_value=mock_result):
             resp = client.post("/api/v1/quality/evaluate/resume")
         assert resp.status_code == 200
         body = resp.json()
@@ -342,7 +342,7 @@ class TestEvaluateResumeExtraction:
             "error": "No golden samples found",
             "metrics": {},
         }
-        with patch("app.core.extraction.resume_eval.run_resume_evaluation", new_callable=AsyncMock, return_value=mock_result):
+        with patch("app.services.resume_service.run_resume_evaluation", new_callable=AsyncMock, return_value=mock_result):
             resp = client.post("/api/v1/quality/evaluate/resume")
         assert resp.status_code == 200
         body = resp.json()
@@ -352,7 +352,7 @@ class TestEvaluateResumeExtraction:
     def test_resume_eval_file_not_found(self, client, db_override):
         session = FakeAsyncSession()
         db_override(session)
-        with patch("app.core.extraction.resume_eval.run_resume_evaluation", new_callable=AsyncMock, side_effect=FileNotFoundError):
+        with patch("app.services.resume_service.run_resume_evaluation", new_callable=AsyncMock, side_effect=FileNotFoundError):
             resp = client.post("/api/v1/quality/evaluate/resume")
         assert resp.status_code == 200
         body = resp.json()
@@ -362,7 +362,7 @@ class TestEvaluateResumeExtraction:
     def test_resume_eval_generic_exception(self, client, db_override):
         session = FakeAsyncSession()
         db_override(session)
-        with patch("app.core.extraction.resume_eval.run_resume_evaluation", new_callable=AsyncMock, side_effect=RuntimeError("LLM down")):
+        with patch("app.services.resume_service.run_resume_evaluation", new_callable=AsyncMock, side_effect=RuntimeError("LLM down")):
             resp = client.post("/api/v1/quality/evaluate/resume")
         assert resp.status_code == 200
         body = resp.json()

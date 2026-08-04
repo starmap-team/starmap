@@ -17,7 +17,7 @@ and DAG scheduling logic.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
@@ -26,10 +26,14 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.exceptions import RunAlreadyTerminalError, RunNotFoundError
+from app.exceptions import RunAlreadyTerminalError, RunNotFoundError, StarMapError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
 # ── Domain exceptions (imported from app.exceptions for global handler mapping) ──
+
+
+# Module-level constants
+ZOMBIE_THRESHOLD = timedelta(minutes=30)
 
 
 class StageName(StrEnum):
@@ -62,8 +66,8 @@ ALL_STAGES = list(StageName)
 STAGE_DEPS: dict[str, list[str]] = {
     StageName.CRAWL.value: [],
     StageName.DEDUP.value: [StageName.CRAWL.value],
-    StageName.CLEAN.value: [StageName.CRAWL.value],
-    StageName.IMPORT.value: [StageName.DEDUP.value, StageName.CLEAN.value],
+    StageName.CLEAN.value: [StageName.DEDUP.value],  # Phase 3 Plan 02: 串行，等 dedup 标记 duplicate 后再清洗
+    StageName.IMPORT.value: [StageName.CLEAN.value],  # 串行，等 clean 完成（clean 已隐含 dedup 完成）
     StageName.GRAPH_SYNC.value: [StageName.IMPORT.value],
     StageName.TIMESERIES.value: [StageName.GRAPH_SYNC.value],
 }
@@ -274,8 +278,10 @@ async def complete_run(
     try:
         from app.core.pipeline.source_authority import update_authority_scores
         await update_authority_scores(session)
-    except Exception as exc:
-        logger.warning(f"update_authority_scores failed (non-fatal): {exc}")
+    except StarMapError:
+        raise
+    except Exception:
+        logger.exception("update_authority_scores failed (non-fatal)")
 
     # Phase 2 AUTHORITY-02: quality < 0.3 的数据源标记 paused
     try:
@@ -291,8 +297,10 @@ async def complete_run(
             logger.warning("Auto-paused source '{}' (authority_score={})", ds.name, ds.authority_score)
         if low_quality_sources:
             await session.flush()
-    except Exception as exc:
-        logger.warning(f"auto-pause failed (non-fatal): {exc}")
+    except StarMapError:
+        raise
+    except Exception:
+        logger.exception("auto-pause failed (non-fatal)")
 
     result = await session.execute(
         select(PipelineRun).where(PipelineRun.id == run_id)
@@ -301,7 +309,12 @@ async def complete_run(
 
 
 async def get_status(session: AsyncSession) -> dict[str, Any]:
-    """Return global pipeline status overview."""
+    """Return global pipeline status overview.
+
+    注：自动检测"僵尸"run — 当一条 run 长时间 status=running 但所有 stage
+    都已经 completed/cancelled/failed 时，前端不应显示"正在执行"。
+    这种情况通常是 Celery worker 重启 / 任务丢失导致的状态卡死。
+    """
     running_result = await session.execute(
         select(PipelineRun)
         .where(PipelineRun.status == RunStatus.RUNNING.value)
@@ -309,6 +322,29 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
         .limit(1)
     )
     running_run = running_result.scalar_one_or_none()
+
+    # 检测僵尸 run：所有 stage 已结束但 run 还卡在 running > 30 分钟
+    if running_run is not None:
+        age = datetime.now(UTC) - running_run.started_at
+        stages = running_run.stages or []
+        all_done = bool(stages) and all(
+            s.get("status") in {"completed", "cancelled", "failed", "skipped"}
+            for s in stages
+        )
+        if age > ZOMBIE_THRESHOLD and (all_done or not stages):
+            # 直接修正数据库状态（无需等待用户手动 force-reset）
+            running_run.status = RunStatus.CANCELLED.value
+            running_run.completed_at = datetime.now(UTC)
+            running_run.error_log = (
+                f"[system] Auto-cleaned: stuck running for {age.total_seconds() / 60:.0f} min, "
+                "no active stages. Likely Celery worker restart."
+            )
+            await session.flush()
+            logger.warning(
+                "Auto-cleaned zombie pipeline run {} (age={:.0f}min)",
+                running_run.id, age.total_seconds() / 60,
+            )
+            running_run = None
 
     last_result = await session.execute(
         select(PipelineRun)
@@ -479,15 +515,19 @@ async def cancel_run(
     if redis_client is not None:
         try:
             await redis_client.setex(f"pipeline:stop:{run_id}", 3600, "1")
-        except Exception as exc:
-            logger.debug("Redis STOP flag set failed (non-fatal): {}", exc)
+        except StarMapError:
+            raise
+        except Exception:
+            logger.exception("Redis STOP flag set failed (non-fatal)")
 
         # 4. Invalidate status cache
         try:
             from app.core.pipeline.status_aggregator import invalidate_status_cache
             await invalidate_status_cache(redis_client)
-        except Exception as exc:
-            logger.debug("Status cache invalidation failed (non-fatal): {}", exc)
+        except StarMapError:
+            raise
+        except Exception:
+            logger.exception("Status cache invalidation failed (non-fatal)")
 
     # 5. Phase 3.8.1 FIX: 通过 SSE 广播 cancel 事件，让前端立即响应
     try:
@@ -501,8 +541,10 @@ async def cancel_run(
             "message": f"Pipeline cancelled by user (stopped stages: {stopped_stage_names})",
             "cancelled_at": cancelled_at.isoformat(),
         })
-    except Exception as exc:
-        logger.debug("Cancel SSE broadcast failed (non-fatal): {}", exc)
+    except StarMapError:
+        raise
+    except Exception:
+        logger.exception("Cancel SSE broadcast failed (non-fatal)")
 
     return RunCancelResult(
         run_id=run.id,
@@ -519,5 +561,7 @@ async def is_run_cancelled(redis_client: Any | None, run_id: uuid.UUID) -> bool:
     try:
         flag = await redis_client.get(f"pipeline:stop:{run_id}")
         return flag == b"1" or flag == "1"
+    except StarMapError:
+        raise
     except Exception:
         return False

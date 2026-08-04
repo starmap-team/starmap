@@ -26,6 +26,8 @@ from typing import Any
 
 from loguru import logger
 
+from app.exceptions import StarMapError
+
 # Golden set path (relative to project root)
 _GOLDEN_SET_PATH = Path(__file__).resolve().parent.parent.parent.parent / "data" / "resume_golden_set.json"
 
@@ -314,12 +316,14 @@ async def run_resume_evaluation(
                     "sample_id": sample.sample_id,
                     "error": result.get("error", "Unknown error"),
                 })
-        except Exception as e:
-            logger.warning("Extraction failed for sample {}: {}", sample.sample_id, e)
+        except StarMapError:
+            raise
+        except Exception as exc:
+            logger.exception("Resume evaluation error: {}", exc)
             predictions.append(set())
             extraction_errors.append({
                 "sample_id": sample.sample_id,
-                "error": str(e),
+                "error": str(exc),
             })
 
         if (i + 1) % 10 == 0:

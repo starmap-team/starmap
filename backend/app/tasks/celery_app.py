@@ -11,6 +11,7 @@ from loguru import logger
 
 from app.config import settings
 from app.core.pipeline.orchestrator import StageName
+from app.exceptions import StarMapError
 from app.tasks.stage3_services import (
     run_analyze_evolution_trends,
     run_batch_extract_jd,
@@ -39,8 +40,10 @@ def batch_extract_jd(self, jd_text: str, options: dict[str, Any] | None = None) 
     try:
         logger.info("batch_extract_jd started chars={}", len(jd_text))
         return run_async(run_batch_extract_jd(jd_text, options=options))
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.exception("batch_extract_jd failed")
+        logger.exception("Celery task error: {}", exc)
         raise self.retry(exc=exc) from exc
 
 
@@ -50,8 +53,10 @@ def build_graph_from_extractions(self, limit: int = 100) -> dict[str, Any]:
     try:
         logger.info("build_graph_from_extractions started limit={}", limit)
         return run_async(run_build_graph_from_extractions(limit))
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.exception("build_graph_from_extractions failed")
+        logger.exception("Celery task error: {}", exc)
         raise self.retry(exc=exc) from exc
 
 
@@ -61,8 +66,10 @@ def analyze_evolution_trends(self, days: int = 90) -> dict[str, Any]:
     try:
         logger.info("analyze_evolution_trends started days={}", days)
         return run_async(run_analyze_evolution_trends(days))
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.exception("analyze_evolution_trends failed")
+        logger.exception("Celery task error: {}", exc)
         raise self.retry(exc=exc) from exc
 
 
@@ -96,6 +103,8 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
             )
             run_async(_mark_stage_cancelled(run_id, stage_name))
             return {"status": "cancelled", "stage": stage_name, "reason": "STOP flag set"}
+    except StarMapError:
+        raise
     except Exception as exc:
         logger.warning("STOP flag check failed (continuing): {}", exc)
 
@@ -135,8 +144,10 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
 
         return {"status": "completed", "stage": stage_name, **result}
 
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.exception("Stage {} failed for run {}: {}", stage_name, run_id, exc)
+        logger.exception("Celery task error: {}", exc)
         # Retry with backoff
         retry_delay = settings.pipeline_retry_backoff * (2 ** self.request.retries)
         raise self.retry(exc=exc, countdown=retry_delay) from exc
@@ -187,8 +198,10 @@ def advance_pipeline_task(self, run_id: str) -> None:
     from app.core.pipeline.executor import advance_pipeline
     try:
         run_async(advance_pipeline(uuid.UUID(run_id)))
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.exception("advance_pipeline_task retry run_id=%s", run_id)
+        logger.exception("Celery task error: {}", exc)
         raise self.retry(exc=exc, countdown=30 * (2 ** self.request.retries)) from exc
 
 
@@ -201,8 +214,10 @@ def scheduled_pipeline_run(self, schedule_id: str) -> None:
     """
     try:
         run_async(_execute_scheduled_run(schedule_id))
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.exception("scheduled_pipeline_run failed schedule_id=%s", schedule_id)
+        logger.exception("Celery task error: {}", exc)
         raise self.retry(exc=exc) from exc
 
 
@@ -232,6 +247,8 @@ async def _execute_scheduled_run(schedule_id: str) -> None:
         try:
             from app.core.pipeline.cron_scheduler import compute_next_cron
             schedule.next_run_at = compute_next_cron(schedule.cron_expression, schedule.last_run_at)
+        except StarMapError:
+            raise
         except Exception:
             schedule.next_run_at = schedule.last_run_at + timedelta(hours=1)
         await session.commit()

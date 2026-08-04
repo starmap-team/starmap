@@ -10,12 +10,15 @@ from fastapi import APIRouter, Depends
 
 from app.api.v1 import (
     admin,
+    admin_data_truth,
     admin_users,
     auth,
     dashboard,
     evolution,
     extract,
     graph,
+    health_monitor,
+    import_jd,
     judge,
     learning,
     loop,
@@ -43,6 +46,7 @@ api_router.include_router(quality.router, tags=["质量监控"])
 api_router.include_router(extract.router, tags=["信息抽取"])
 api_router.include_router(admin.router, tags=["管理后台"])
 api_router.include_router(admin_users.router)
+api_router.include_router(admin_data_truth.router, tags=["数据源诊断"])
 api_router.include_router(judge.router, tags=["Judge 评估"])
 api_router.include_router(pipeline.router, tags=["数据流水线"])
 api_router.include_router(datasource_router, tags=["数据源管理"])
@@ -50,3 +54,5 @@ api_router.include_router(datasource_admin_router, tags=["数据源管理"])
 api_router.include_router(loop.router, tags=["闭环验证"])
 api_router.include_router(learning.router, tags=["学习中心"])
 api_router.include_router(dashboard.router, tags=["数据大屏"])
+api_router.include_router(import_jd.router, tags=["JD 导入 (Phase 15)"])
+api_router.include_router(health_monitor.router, tags=["健康度监控 (Phase 15-04)"])

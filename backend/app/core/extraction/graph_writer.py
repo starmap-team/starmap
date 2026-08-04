@@ -17,6 +17,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.config import settings
 from app.core.extraction.normalize import normalize_proficiency
 from app.core.matching.constants import ALLOWED_NODE_LABELS
+from app.exceptions import GraphProjectionError, StarMapError
 
 # ---- Node type labels (§2.1: 7类节点) ----
 NODE_POSITION = "Position"
@@ -619,7 +620,11 @@ async def write_extraction_to_graph(
         or extraction.get("job_title")
     )
     if not _raw_name or not str(_raw_name).strip():
-        raise ValueError("missing position_name in extraction payload")
+        # Phase 17-03 (Fix B3): 缺失 position_name 静默跳过, 不阻塞 batch
+        logger.warning(
+            f"graph_writer: extraction {extraction.get('id') or extraction.get('source_url', '?')[:40]} missing position_name, skipping"
+        )
+        return {"positions": 0, "skills": 0, "requires": 0, "skipped": True, "reason": "missing_position_name"}
     position_name = str(_raw_name).strip()
 
 
@@ -627,9 +632,11 @@ async def write_extraction_to_graph(
     try:
         await merge_position(driver, extraction)
         positions_merged = 1
-    except Exception as exc:
-        logger.error("merge_position failed for '{}': {}", position_name, exc)
+    except StarMapError:
         raise
+    except Exception as exc:
+        logger.exception("Graph writer error: {}", exc)
+        raise GraphProjectionError(str(exc)) from exc
 
     # Step 2: Merge Skill nodes and create REQUIRES relationships using standalone functions
     skills_merged = 0
@@ -652,8 +659,10 @@ async def write_extraction_to_graph(
             try:
                 await merge_skill(driver, skill_name, metadata)
                 skills_merged += 1
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.warning("merge_skill failed for '{}': {}", skill_name, exc)
+                logger.exception("Graph writer error: {}", exc)
                 continue
             try:
                 await create_requires_relationship(
@@ -662,8 +671,10 @@ async def write_extraction_to_graph(
                     weight=1.0 if required_flag else 0.6,
                 )
                 requires_created += 1
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.warning("create_requires failed: Position '{}' -> Skill '{}': {}", position_name, skill_name, exc)
+                logger.exception("Graph writer error: {}", exc)
 
     # Step 3: Build and write ontology triples for extended relationships
     # (tools → USES, prerequisites → PREREQUISITE, etc.)
@@ -707,7 +718,16 @@ async def batch_write_extractions(
     """
     summaries = []
     for extraction in extractions:
-        summary = await write_extraction_to_graph(extraction, driver)
+        # Phase 17-03 (Fix B4): try/except 单条隔离, 一条失败不阻塞整个 batch
+        try:
+            summary = await write_extraction_to_graph(extraction, driver)
+        except Exception as exc:
+            logger.warning(f"batch_write_extractions: skipped extraction {extraction.get('id')}: {exc}")
+            summary = {
+                "positions_merged": 0, "skills_merged": 0, "requires_created": 0,
+                "triples_merged": 0, "nodes_touched": 0, "relationships_touched": 0,
+                "skipped": True, "reason": str(exc)[:200]
+            }
         summaries.append(summary)
     return summaries
 

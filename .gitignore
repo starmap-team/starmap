@@ -44,6 +44,7 @@ venv/
 env/
 ENV/
 .venv/
+.venv-new/
 
 # ---- 测试覆盖率 & 缓存 ----
 htmlcov/
@@ -71,6 +72,7 @@ frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/
 frontend/e2e/auth-state.json
+frontend/e2e/__screenshots__/
 frontend/gen_*.js
 frontend/src/pages/*.vue.new
 frontend/pencil-tools/
@@ -87,7 +89,10 @@ frontend/src/api/schema.ts
 Thumbs.db
 
 # ---- Docker / 服务本地数据卷 ----
-data/
+# 注意：data/ 改为 /data/ 锚定到仓库根。原写法会同时匹配
+# backend/app/data/（fixture seed 数据），导致该目录被忽略，
+# tests/unit/test_fixture_seed.py 在 CI 中报 ModuleNotFoundError。
+/data/
 volumes/
 neo4j/
 pgdata/
@@ -136,9 +141,10 @@ backend/_*.txt
 tmp_*.py
 
 # ---- 根目录/backend 一次性测试脚本（正经测试在 tests/ 下）----
-test_*.py
+# 锚定根级，避免误伤 backend/tests/** 下的正规测试
+/test_*.py
 backend/test_*.py
-check_*.py
+/check_*.py
 
 # ---- Agent / AI 工具运行时目录 ----
 .claude/
@@ -148,12 +154,16 @@ check_*.py
 .omc/
 .omo/
 .serena/
+.reasonix/
 graphify-out/
 screenshots/
 .zcode/
 .workbuddy/
-.planning/quick/
+# .planning 整体忽略（开发过程产物，不进版本库）
 .planning/
+backend/.planning/
+# plans/ 规划蓝图（开发过程产物）
+plans/
 
 # ---- Playwright / E2E 测试产物 ----
 playwright-report/
@@ -169,9 +179,15 @@ tests/e2e/browser_interaction/
 tests/e2e/browser_smoke/
 tests/e2e/screenshot_*.png
 tests/e2e/**/*.png
+tests/e2e/full_e2e_results.json
+tests/e2e/investigations/
+
+# ---- Vite/Vitest 临时文件 ----
+vitest.config.ts.timestamp-*.mjs
 
 # ---- 文档 / 归档区域 ----
 docs/archive/
+docs/pencil-tools/
 CLAUDE.md
 
 # ---- 评估运行时产物（代码与 golden_set*.jsonl 保留，运行报告不提交）----

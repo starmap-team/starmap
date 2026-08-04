@@ -13,6 +13,12 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    hmr: { overlay: false },
+    // 永久防护：dev 下禁止浏览器缓存模块，避免缓存到 optimizeDeps 重跑期的
+    // 504 中间态导致"容器已起、页面空白"。强制每次重新拉取模块。
+    headers: {
+      'Cache-Control': 'no-store',
+    },
     proxy: {
       '/api': {
         // Docker 网络: VITE_API_PROXY_TARGET=http://starmap-backend:8000
@@ -46,9 +52,9 @@ export default defineConfig({
       },
     },
   },
-  // ponytail: force pre-bundle 3d-graph deps to avoid "Failed to fetch
-  // dynamically imported module" in Vite dev (three.js sub-path imports
-  // aren't picked up by the dependency scanner at cold-start).
+  // 3d-force-graph 的 three.js 深层子路径 import 在 dev 下需预打包，否则
+  // 画布动态 import 报 "Failed to fetch dynamically imported module" 致 3D 空白。
+  // 宿主 node_modules 可写后此预打包安全（此前匿名卷只读导致 EACCES 死循环）。
   optimizeDeps: {
     include: ['three', '3d-force-graph'],
   },

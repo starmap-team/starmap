@@ -1,7 +1,7 @@
 /**
  * 数据流水线运行 Store — 运行状态、阶段、数据质量、SSE 实时进度
- * 管理 ETL 运行链路：爬虫采集 → (去重 ∥ 清洗) → 入库 → 图谱构建
- * 支持：DAG并行、阶段选择、失败重试/断点续跑、SSE实时进度
+ * 管理 ETL 运行链路：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建（Phase 3 串行化）
+ * 支持：DAG 串行调度、阶段选择、失败重试/断点续跑、SSE实时进度
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -70,6 +70,7 @@ export interface PipelineStatus {
   is_running: boolean
   current_run: PipelineRun | null
   last_run: PipelineRun | null
+  recent_failed_run: PipelineRun | null
   run_counts: Record<string, number>
   active_data_sources: number
   today_crawl_volume: number

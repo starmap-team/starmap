@@ -29,6 +29,7 @@ import { useGraphNodeStore } from '@/stores/graphNode'
 import { useReviewStore } from '@/stores/review'
 import PromptManager from '@/components/PromptManager.vue'
 import UserManagement from '@/pages/UserManagement.vue'
+import DataTruthPanel from '@/components/DataTruthPanel.vue'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import AuditLog from '@/pages/AuditLog.vue'
 
@@ -601,7 +602,29 @@ async function handleSaveSource() {
           </el-card>
         </el-tab-pane>
 
-        <!-- ════════ Tab 6: 系统（用户 + 审计） ════════ -->
+        <!-- ════════ Tab 6: 数据源诊断（Phase 4 P0 — 跨模块 KPI 口径审计） ════════ -->
+        <el-tab-pane
+          label="数据源诊断"
+          name="data-truth"
+        >
+          <BusinessBanner
+            type="error"
+            title="数据源真理报告 — 跨模块 KPI 口径审计"
+            description="每个 KPI 数字都有三层来源：API 返回值 / PostgreSQL 直查 / Neo4j 直查。当数字不一致时，说明底层数据存在孤儿节点或同步缺失。Phase 4 修复重点。"
+            :meta="[
+              { category: '后端', label: '/admin/data-truth', code: true, copyable: true },
+              { category: '诊断标准', label: '<1% ok / 1-10% warn / >10% critical', code: true, copyable: true },
+            ]"
+          />
+          <el-card
+            shadow="never"
+            class="tab-card"
+          >
+            <DataTruthPanel />
+          </el-card>
+        </el-tab-pane>
+
+        <!-- ════════ Tab 7: 系统（用户 + 审计） ════════ -->
         <el-tab-pane
           label="系统"
           name="users"

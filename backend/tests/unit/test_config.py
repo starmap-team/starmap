@@ -35,6 +35,19 @@ def _make_settings(**overrides) -> Settings:
     return Settings(**base)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_from_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
+    """隔离 .env 中的 dev 便捷开关,防止泄漏进 prod 配置测试。
+
+    Settings 通过 env_file=".env" 加载本地配置;若 .env 设了 BOOTSTRAP_SEED_ADMIN=true
+    等 dev 开关,会在生产校验链中提前 fail-fast(config.py:347),掩盖本文件真正要测的
+    neo4j TLS / postgres SSL / CORS 行为。os.environ 优先级高于 .env,故用 setenv 强制
+    关闭,使测试结果与本地环境解耦(不削弱任何生产安全检查)。
+    """
+    monkeypatch.setenv("BOOTSTRAP_SEED_ADMIN", "false")
+    monkeypatch.setenv("DEV_ANON_ADMIN", "false")
+
+
 def test_llm_keys_all_empty_warns():
     """D-04/D-08: 所有 LLM key 为空时输出 WARNING，含 MIMO_API_KEY 和 DEEPSEEK_API_KEY。"""
     messages, handler_id = _capture_warnings()

@@ -10,6 +10,7 @@ Sprint 1.2 新增端点：
 """
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 from uuid import UUID
@@ -114,6 +115,20 @@ class SyncTriggerResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+# fix: 敏感配置键的掩码模式，防止 API key/token 经无鉴权列表端点泄露
+_SENSITIVE_KEY_PATTERN = re.compile(r"password|token|key|secret|credential", re.IGNORECASE)
+
+
+def _mask_config(config: dict[str, Any] | None) -> dict[str, Any]:
+    """掩码 config 中的敏感键值（password/token/key/secret/credential → '***'）。"""
+    if not config:
+        return {}
+    return {
+        k: ("***" if _SENSITIVE_KEY_PATTERN.search(k) else v)
+        for k, v in config.items()
+    }
+
+
 def _serialize(ds: DataSourceRecord) -> DataSourceResponse:
     return DataSourceResponse(
         id=str(ds.id),
@@ -126,7 +141,7 @@ def _serialize(ds: DataSourceRecord) -> DataSourceResponse:
         valid_records=ds.valid_records,
         duplicate_rate=ds.duplicate_rate,
         avg_quality_score=ds.avg_quality_score,
-        config=ds.config or {},
+        config=_mask_config(ds.config),
     )
 
 

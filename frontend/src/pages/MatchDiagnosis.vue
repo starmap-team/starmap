@@ -511,6 +511,7 @@ onUnmounted(() => {
           <MatchTrustGuide
             :match-score="matchStore.result?.match_score"
             :trust-score="matchStore.result?.match_score"
+            :note="matchStore.result?.note"
             class="mb-4"
           />
           <GapAnalysisReport

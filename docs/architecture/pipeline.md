@@ -9,20 +9,25 @@ StarMap 当前的 ETL 调度由 `backend/app/core/pipeline/orchestrator.py` 维�
 
 ```mermaid
 flowchart LR
-    C[crawl] --> D[dedup_clean]
-    D --> I[import_sync]
-    I --> PG[(PostgreSQL)]
-    I --> O[GraphWriteOutbox]
+    C[crawl] --> D[dedup]
+    C --> CL[clean]
+    D --> I[import]
+    CL --> I
+    I --> GS[graph_sync]
+    GS --> PG[(PostgreSQL)]
+    GS --> O[GraphWriteOutbox]
     O --> N[(Neo4j projection)]
 ```
 
 | 阶段 | 作用 |
 |---|---|
 | `crawl` | 按启用的数据源配置采集并写入原始 JD 记录 |
-| `dedup_clean` | 精确/近似去重、文本清理、规范化和有效性检查 |
-| `import_sync` | LLM 抽取并持久化 PG，再同步图投影 |
+| `dedup` | 精确/近似去重（Redis content-hash + SimHash），标记 duplicate |
+| `clean` | 文本清理、规范化、标题提取（依赖 dedup 完成后执行） |
+| `import` | LLM 技能抽取 + PG 持久化 |
+| `graph_sync` | Neo4j 图投影（outbox 模式防漂移） |
 
-`executor.py` 仍包含部分旧的细粒度执行函数，供兼容和组合调用；调度事实以 `STAGE_EXECUTORS` 与 `StageName` 为准，不以历史报告中的五阶段或六阶段图为准。
+`executor.py` 仍包含部分旧的细粒度执行函数，供兼容和组合调用；调度事实以 `STAGE_EXECUTORS` 与 `StageName` 为准。`timeseries` 为可选扩展阶段，不属于核心 ETL DAG。
 
 ## 运行与恢复
 

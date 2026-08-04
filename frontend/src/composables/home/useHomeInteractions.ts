@@ -170,7 +170,7 @@ export function useHomeInteractions(
   function onResetCamera() {
     graph3DRef.value?.resetCamera()
   }
-  function onToggleAutoRotate(autoRotate3DRef: Ref<boolean>) {
+  function onToggleAutoRotate(_autoRotate3DRef: Ref<boolean>) {
     graph3DRef.value?.toggleAutoRotate()
     // Do NOT manually flip autoRotate3DRef here —
     // Graph3D emits 'autoRotateChange' which Home.vue uses to sync autoRotate3D.
@@ -179,6 +179,13 @@ export function useHomeInteractions(
 
   // Node click / dblclick
   function onNodeDblClick(nodeId: string) {
+    // 先查 synthetic cluster nodes（domain/tech_stack/level/heat 视图的集群节点，
+    // 不在 allNodes 中，所以 nodeMap.get 会返回 undefined）
+    const domain = graphStore.domains.find(d => d.id === nodeId)
+    if (domain) {
+      graphStore.goToPositionLayer(nodeId, domain.name)
+      return
+    }
     const n = graphStore.nodeMap.get(nodeId)
     if (!n) return
     const label = n.labels[0]
@@ -290,7 +297,7 @@ export function useHomeInteractions(
     return null
   }
 
-  function handleSearchSelect(
+  async function handleSearchSelect(
     id: string,
     _name: string,
     _type: string,
@@ -298,7 +305,7 @@ export function useHomeInteractions(
   ) {
     const domain = graphStore.domains.find(d => d.id === id)
     if (domain) {
-      graphStore.goToPositionLayer(domain.id, domain.name)
+      await graphStore.goToPositionLayer(domain.id, domain.name)
       return
     }
     const node = graphStore.allNodes.find(n => n.id === id)
@@ -309,7 +316,7 @@ export function useHomeInteractions(
         graphStore.goToPositionLayer(kaId, ka?.name ?? '').then(() => {
           graphStore.goToDetailLayer(node.id)
           selectedNodeRef.value = node
-        })
+        }).catch((err: unknown) => console.error('[useHomeInteractions] goToPositionLayer failed', err))
       }
       return
     }
@@ -324,7 +331,7 @@ export function useHomeInteractions(
               graphStore.goToPositionLayer(kaId, ka?.name ?? '').then(() => {
                 graphStore.goToDetailLayer(posNode.id)
                 selectedNodeRef.value = node
-              })
+              }).catch((err: unknown) => console.error('[useHomeInteractions] goToPositionLayer failed', err))
             }
             return
           }

@@ -9,6 +9,10 @@ from __future__ import annotations
 from typing import Any
 
 from loguru import logger
+from neo4j.exceptions import Neo4jError
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.exceptions import GraphProjectionError
 
 
 async def sync_from_pipeline(
@@ -60,8 +64,11 @@ async def sync_from_pipeline(
                         name=pos.get("name", ""), industry=pos.get("industry", ""),
                     )
                     total_nodes += 1
-                except Exception as exc:
+                except (Neo4jError, SQLAlchemyError) as exc:
                     errors.append(f"position '{pos.get('name')}': {exc}")
+                except Exception as exc:
+                    logger.exception("Unexpected error in sync position: {}", exc)
+                    errors.append(f"position '{pos.get('name')}': {GraphProjectionError(str(exc))}")
 
             for skill in (new_skills or []):
                 try:
@@ -70,8 +77,11 @@ async def sync_from_pipeline(
                         name=skill.get("name", ""), category=skill.get("category", "hard_skill"),
                     )
                     total_nodes += 1
-                except Exception as exc:
+                except (Neo4jError, SQLAlchemyError) as exc:
                     errors.append(f"skill '{skill.get('name')}': {exc}")
+                except Exception as exc:
+                    logger.exception("Unexpected error in sync skill: {}", exc)
+                    errors.append(f"skill '{skill.get('name')}': {GraphProjectionError(str(exc))}")
 
             for edge in (new_edges or []):
                 try:
@@ -82,13 +92,19 @@ async def sync_from_pipeline(
                         level=edge.get("level", "熟悉"), required=edge.get("required", True),
                     )
                     total_edges += 1
-                except Exception as exc:
+                except (Neo4jError, SQLAlchemyError) as exc:
                     errors.append(f"edge: {exc}")
+                except Exception as exc:
+                    logger.exception("Unexpected error in sync edge: {}", exc)
+                    errors.append(f"edge: {GraphProjectionError(str(exc))}")
 
         logger.info("sync_from_pipeline (inline): {} nodes, {} edges (run_id={})", total_nodes, total_edges, run_id)
         return {"synced": len(errors) == 0, "count": total_nodes + total_edges, "nodes": total_nodes, "edges": total_edges, "errors": errors}
+    except (Neo4jError, SQLAlchemyError) as exc:
+        logger.error("sync_from_pipeline (inline) DB error: {}", exc)
+        return {"synced": False, "error": str(exc), "count": total_nodes + total_edges}
     except Exception as exc:
-        logger.error("sync_from_pipeline failed: {}", exc)
+        logger.exception("Unexpected error in sync_from_pipeline (inline): {}", exc)
         return {"synced": False, "error": str(exc), "count": total_nodes + total_edges}
 
 
@@ -232,9 +248,13 @@ async def _sync_via_graph_writer(
                     "sync_from_pipeline: found {} DB records for run_id={}",
                     len(rows), run_id,
                 )
-            except Exception as exc:
+            except (SQLAlchemyError, Neo4jError) as exc:
                 logger.warning(
                     "sync_from_pipeline: DB query failed (non-fatal, using inline data): {}", exc,
+                )
+            except Exception as exc:
+                logger.exception(
+                    "sync_from_pipeline: Unexpected DB query failure: {}", exc,
                 )
         else:
             logger.debug("sync_from_pipeline: pg_sessionmaker not available, using inline data only")
@@ -260,6 +280,9 @@ async def _sync_via_graph_writer(
             "edges_written": edges_written,
             "extractions_processed": len(extractions),
         }
+    except (Neo4jError, SQLAlchemyError) as exc:
+        logger.error("sync_from_pipeline (graph_writer) DB error: {}", exc)
+        return {"synced": False, "error": str(exc), "nodes_written": nodes_written, "edges_written": edges_written}
     except Exception as exc:
-        logger.error("sync_from_pipeline (graph_writer) failed: {}", exc)
+        logger.exception("Unexpected error in sync_from_pipeline (graph_writer): {}", exc)
         return {"synced": False, "error": str(exc), "nodes_written": nodes_written, "edges_written": edges_written}

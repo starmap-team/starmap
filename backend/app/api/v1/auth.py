@@ -32,6 +32,7 @@ from app.dependencies import (
     get_redis_client,
 )
 from app.services import auth_service
+from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -166,11 +167,25 @@ async def refresh(
         body.refresh_token, redis, session
     )
     if result is None:
+        audit_log(AuditEntry(
+            event=AuditEvent.TOKEN_INVALID,
+            actor="unknown",
+            action="refresh_token",
+            detail="Refresh token rejected by endpoint",
+            ip="",
+        ))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="刷新令牌无效或已过期",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    audit_log(AuditEntry(
+        event=AuditEvent.SENSITIVE_READ,
+        actor="unknown",
+        action="refresh_token",
+        detail="Access token refreshed via endpoint",
+        ip="",
+    ))
     return result
 
 
@@ -186,6 +201,13 @@ async def logout(
             detail="Redis is unavailable",
         )
     revoked = await auth_service.revoke_refresh_token(body.refresh_token, redis)
+    audit_log(AuditEntry(
+        event=AuditEvent.SENSITIVE_WRITE,
+        actor="unknown",
+        action="logout",
+        detail=f"Logout: token revoked={revoked}",
+        ip="",
+    ))
     return {"revoked": revoked}
 
 

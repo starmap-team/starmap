@@ -1,0 +1,66 @@
+{
+  "evolves_to": [
+    {
+      "from": "JavaScript",
+      "to": "TypeScript"
+    },
+    {
+      "from": "React",
+      "to": "Next.js"
+    },
+    {
+      "from": "Python",
+      "to": "PyTorch"
+    },
+    {
+      "from": "Docker",
+      "to": "Kubernetes"
+    },
+    {
+      "from": "SQL",
+      "to": "PostgreSQL"
+    },
+    {
+      "from": "Linux",
+      "to": "Docker"
+    },
+    {
+      "from": "Git",
+      "to": "CI/CD"
+    },
+    {
+      "from": "REST API",
+      "to": "GraphQL"
+    },
+    {
+      "from": "Vue.js",
+      "to": "Nuxt.js"
+    },
+    {
+      "from": "HTML5",
+      "to": "React"
+    }
+  ],
+  "prerequisite": [
+    {
+      "source": "JavaScript",
+      "target": "React"
+    },
+    {
+      "source": "Python",
+      "target": "PyTorch"
+    },
+    {
+      "source": "Linux",
+      "target": "Docker"
+    },
+    {
+      "source": "HTML5",
+      "target": "CSS3"
+    },
+    {
+      "source": "SQL",
+      "target": "PostgreSQL"
+    }
+  ]
+}

@@ -138,6 +138,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
 
       eventSource.onopen = () => {
         connected.value = true
+        const wasDisconnected = consecutiveFailures > 0
         retryCount = 0
         consecutiveFailures = 0
         // If we were polling, stop polling and switch back to SSE mode
@@ -150,6 +151,14 @@ export function useSSE(url: string, options: UseSSEOptions) {
           sseRetryTimer = null
         }
         mode.value = 'sse'
+        // Phase 16-02 (Fix M1): 重连成功后显示 toast 提示用户
+        if (wasDisconnected) {
+          try {
+            import('element-plus').then(({ ElMessage }) => {
+              ElMessage.success('实时推送已恢复')
+            })
+          } catch { /* ignore */ }
+        }
       }
 
       eventSource.onmessage = (event: MessageEvent) => {

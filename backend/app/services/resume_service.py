@@ -10,6 +10,7 @@ from docx import Document
 from loguru import logger
 
 from app.core.extraction.jd_extract import extract_from_jd
+from app.core.extraction.resume_eval import run_resume_evaluation  # noqa: F401  (re-export:供 api 层经 service 引用)
 
 SUPPORTED_RESUME_EXTENSIONS = {"pdf", "docx"}
 """Whitelist of resume file extensions the backend can parse.
@@ -57,16 +58,20 @@ def _extract_pdf_text(content_bytes: bytes) -> str:
                 page_text = page.extract_text() or ""
                 if page_text.strip():
                     pages.append(page_text.strip())
-    except Exception as exc:
+    except (ValueError, TypeError, RuntimeError) as exc:
         logger.warning("PDF parsing failed, fallback to raw decode: {}", exc)
+    except Exception as exc:
+        logger.exception("Unexpected error in PDF parsing: {}", exc)
     return "\n".join(pages).strip() or _decode_text(content_bytes).strip()
 
 
 def _extract_docx_text(content_bytes: bytes) -> str:
     try:
         document = Document(BytesIO(content_bytes))
-    except Exception as exc:
+    except (ValueError, TypeError) as exc:
         logger.warning("DOCX parsing failed, fallback to raw decode: {}", exc)
+    except Exception as exc:
+        logger.exception("Unexpected error in DOCX parsing: {}", exc)
         return _decode_text(content_bytes).strip()
 
     lines: list[str] = []

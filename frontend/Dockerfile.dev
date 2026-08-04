@@ -10,12 +10,14 @@ WORKDIR /app
 # 先拷依赖文件利用层缓存
 COPY package.json package-lock.json* ./
 RUN npm install
+# DEP-04 fix: 非 root 运行 + 先建用户
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Phase 13: 匿名卷继承 image layer root 所有权，appuser 写不进 .vite
+# build 阶段以 root 运行，提前 chown 给 appuser
+RUN mkdir -p /app/node_modules/.vite && chown -R appuser:appgroup /app/node_modules
+USER appuser
 
 # 源码由 volume 挂载，不在这里 COPY
-
-# DEP-04 fix: 非 root 运行
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-USER appuser
 
 EXPOSE 5173
 

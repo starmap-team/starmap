@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { ViewLayer } from "@/stores/graph"
+import type { ViewLayer, OverviewMode } from "@/stores/graph"
 
 defineProps<{
   breadcrumb: { label: string; layer: ViewLayer; action?: () => void }[]
   viewMode: '2d' | '3d'
   showEvolution: boolean
   showOverviewRadio: boolean
-  overviewMode: 'domain' | 'tech_stack' | 'level'
+  overviewMode: OverviewMode
   currentLayer: ViewLayer
 }>()
 
@@ -51,6 +51,9 @@ const emit = defineEmits<{
         </el-radio-button>
         <el-radio-button value="level">
           级别
+        </el-radio-button>
+        <el-radio-button value="heat">
+          热度
         </el-radio-button>
       </el-radio-group>
     </div>

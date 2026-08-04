@@ -15,6 +15,7 @@ services:
     container_name: starmap-backend
     volumes:
       - ./backend:/app           # 代码挂载，支持热重载
+      - ./crawler:/app/crawler   # Phase 15-02: CSV 导入端点需要 crawler.persistence.dao
       - ./starmap-contracts:/contracts:ro  # 契约只读挂载，启动校验一致性
       - ./docs:/app/docs:ro      # 文档挂载（ontology/skill_taxonomy.yaml 等）
     ports:
@@ -96,6 +97,8 @@ services:
       - VITE_API_PROXY_TARGET=http://starmap-backend:8000
       - VITE_API_BASE_URL=http://localhost:8000/api/v1
       - VITE_USE_MSW=false
+      # 将 Vite 缓存目录移到 /tmp，避免匿名卷 node_modules 写权限问题
+      - VITE_CACHE_DIR=/tmp/vite-cache
     command: npm run dev -- --host 0.0.0.0
     depends_on:
       backend:

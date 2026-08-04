@@ -52,6 +52,7 @@ from app.core.extraction.graph_writer import (
     write_extraction_to_graph,
     write_triples_to_graph,
 )
+from app.exceptions import GraphProjectionError
 
 # ── Mock helpers (from tests/unit/test_graph_services.py) ──────────────────
 
@@ -428,14 +429,17 @@ class TestWriteExtraction:
         assert s["triples_merged"] >= 4
 
     @pytest.mark.asyncio
-    async def test_missing_position_raises(self):
-        with pytest.raises(ValueError, match="missing position_name"):
-            await write_extraction_to_graph({}, FakeDriver(FakeAsyncSession()))
+    async def test_missing_position_skips(self):
+        # Phase 17-03 (Fix B3): 缺失 position_name 静默跳过(不阻塞 batch),返回 skipped 标记。
+        result = await write_extraction_to_graph({}, FakeDriver(FakeAsyncSession()))
+        assert result["skipped"] is True
+        assert result["reason"] == "missing_position_name"
 
     @pytest.mark.asyncio
     async def test_merge_position_failure(self):
+        # Neo4j 错误被包装为域异常 GraphProjectionError(StarMapError 子类),供上层统一处理。
         drv = FakeDriver(FakeAsyncSession(run_side_effect=lambda *a, **kw: (_ for _ in ()).throw(Neo4jError("boom"))))
-        with pytest.raises(Neo4jError):
+        with pytest.raises(GraphProjectionError):
             await write_extraction_to_graph({"position_name": "Dev"}, drv)
 
     @pytest.mark.asyncio

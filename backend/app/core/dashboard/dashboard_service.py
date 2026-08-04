@@ -18,6 +18,7 @@ from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.exceptions import StarMapError
 from app.models.extraction_models import (
     JDExtractionRecord,
     PositionRecord,
@@ -49,6 +50,8 @@ async def _get_cached(redis: Redis | None, key: str) -> dict | None:
         raw = await redis.get(key)
         if raw is not None:
             return json.loads(raw)
+    except StarMapError:
+        raise
     except Exception as exc:
         logger.debug("Redis cache read failed for {}: {}", key, exc)
     return None
@@ -59,6 +62,8 @@ async def _set_cached(redis: Redis | None, key: str, data: dict, ttl: int) -> No
         return
     try:
         await redis.set(key, json.dumps(data, default=str), ex=ttl)
+    except StarMapError:
+        raise
     except Exception as exc:
         logger.debug("Redis cache write failed for {}: {}", key, exc)
 
@@ -68,19 +73,13 @@ async def _set_cached(redis: Redis | None, key: str, data: dict, ttl: int) -> No
 # ---------------------------------------------------------------------------
 
 async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[str, Any]:
-    """Fetch graph statistics from PostgreSQL + Neo4j."""
-    # PostgreSQL counts
-    pos_count = (
-        await session.execute(sa.select(sa.func.count()).select_from(PositionRecord))
-    ).scalar() or 0
-    skill_count = (
-        await session.execute(sa.select(sa.func.count()).select_from(SkillRecord))
-    ).scalar() or 0
-    edge_count = (
-        await session.execute(sa.select(sa.func.count()).select_from(PositionSkillRelation))
-    ).scalar() or 0
+    """Fetch graph statistics from Neo4j (primary) + PostgreSQL (fallback).
 
-    # Neo4j counts (may be higher due to external imports)
+    Phase 4 P2: Neo4j 是图谱数据的唯一真理源 (single source of truth)。
+    PostgreSQL position_records 表只保存业务审核相关的字段。
+    当 Neo4j 不可用时，fallback 到 PostgreSQL 计数。
+    """
+    # Neo4j 优先：直接查询图谱节点数
     neo4j_pos, neo4j_skill, neo4j_edge = await asyncio.gather(
         count_positions_neo4j(neo4j_driver),
         count_skills_neo4j(neo4j_driver),
@@ -89,12 +88,36 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
     )
 
     # Handle return_exceptions=True: values may be int or BaseException
-    neo4j_pos = neo4j_pos if isinstance(neo4j_pos, int) else 0
-    neo4j_skill = neo4j_skill if isinstance(neo4j_skill, int) else 0
-    neo4j_edge = neo4j_edge if isinstance(neo4j_edge, int) else 0
+    neo4j_pos_val = int(neo4j_pos) if isinstance(neo4j_pos, int) else 0
+    neo4j_skill_val = int(neo4j_skill) if isinstance(neo4j_skill, int) else 0
+    neo4j_edge_val = int(neo4j_edge) if isinstance(neo4j_edge, int) else 0
 
-    total_nodes = max(int(pos_count) + int(skill_count), int(neo4j_pos or 0) + int(neo4j_skill or 0))
-    total_edges = max(int(edge_count), int(neo4j_edge or 0))
+    use_neo4j = (
+        neo4j_pos_val > 0 or neo4j_skill_val > 0 or neo4j_edge_val > 0
+    )
+
+    if use_neo4j:
+        # Neo4j 是真理源
+        total_nodes = neo4j_pos_val + neo4j_skill_val
+        total_edges = neo4j_edge_val
+        total_positions = neo4j_pos_val
+        total_skills = neo4j_skill_val
+    else:
+        # Neo4j 不可用：fallback 到 PostgreSQL
+        pos_count = (
+            await session.execute(sa.select(sa.func.count()).select_from(PositionRecord))
+        ).scalar() or 0
+        skill_count = (
+            await session.execute(sa.select(sa.func.count()).select_from(SkillRecord))
+        ).scalar() or 0
+        edge_count = (
+            await session.execute(sa.select(sa.func.count()).select_from(PositionSkillRelation))
+        ).scalar() or 0
+        total_nodes = int(pos_count) + int(skill_count)
+        total_edges = int(edge_count)
+        total_positions = int(pos_count)
+        total_skills = int(skill_count)
+
     total_domains = (
         await session.execute(
             sa.select(sa.func.count(sa.distinct(PositionRecord.industry)))
@@ -105,8 +128,8 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
     return {
         "total_nodes": total_nodes,
         "total_edges": total_edges,
-        "total_positions": int(pos_count),
-        "total_skills": int(skill_count),
+        "total_positions": total_positions,
+        "total_skills": total_skills,
         "total_domains": int(total_domains),
     }
 

@@ -10,6 +10,16 @@ import { chartColors } from '@/utils/chartTheme'
 import { STAGE_LABELS } from '@/stores/pipelineConfig'
 import type { LiveActivityEvent } from '@/stores/pipelineRun'
 
+// Phase 3 Plan 02: 阶段描述，供 hover tooltip 引导新用户
+const STAGE_DESCRIPTIONS: Record<string, string> = {
+  crawl: '从启用的数据源采集原始 JD 记录，写入 jd_raw 表',
+  dedup: '精确哈希 + SimHash 模糊去重，标记重复记录为 duplicate',
+  clean: 'HTML 剥离、空白规范化、标题提取（在去重后执行）',
+  import: 'LLM 技能识别 + 标准化 + 验证，持久化到 PostgreSQL',
+  graph_sync: '将 PG 数据同步到 Neo4j 图谱（outbox 模式防漂移）',
+  timeseries: '聚合技能频率时间序列，供演化分析使用',
+}
+
 export interface StageData {
   name: string
   status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled'
@@ -70,6 +80,7 @@ const statusConfig = computed(() => {
 })
 
 const stageLabel = computed(() => STAGE_LABELS[props.stage.name] || props.stage.name)
+const stageDesc = computed(() => STAGE_DESCRIPTIONS[props.stage.name] || '')
 const StageIcon = computed(() => STAGE_ICONS[props.stage.name] || Connection)
 
 // 实时活动（合并 props.stage 与 liveActivity，优先取 live）
@@ -108,6 +119,18 @@ function breakdownColor(item: { key: string; value: number }, idx: number): stri
 
 const BREAKDOWN_COLORS = ['#3b82f6', '#8b5cf6', '#06b6d4', '#f59e0b', '#16a34a', '#ec4899', '#6366f1']
 
+// Phase debug (issue): 展开/收起 控制 sub_breakdown + recent_samples 完整显示
+const isExpanded = ref(false)
+const fullBreakdownItems = computed(() => {
+  return Object.entries(subBreakdown.value)
+    .filter(([_, v]) => typeof v === 'number')
+    .map(([key, value]) => ({ key, value: Number(value) }))
+})
+const fullRecentSamples = computed(() => recentSamples.value)
+const hasMoreDetails = computed(() =>
+  fullBreakdownItems.value.length > 6 || fullRecentSamples.value.length > 3
+)
+
 const formattedDuration = computed(() => {
   const ms = props.stage.duration_ms
   if (ms <= 0) return '--'
@@ -119,6 +142,15 @@ const formattedDuration = computed(() => {
 })
 
 const errorsExpanded = ref(false)
+
+// Phase 16 残留闭环: 错误去重 + 计数，避免同一错误重复罗列 20 次
+const dedupedErrors = computed(() => {
+  const counts = new Map<string, number>()
+  for (const err of props.stage.errors) {
+    counts.set(err, (counts.get(err) || 0) + 1)
+  }
+  return Array.from(counts.entries()).map(([msg, count]) => ({ msg, count }))
+})
 
 // Phase 3.8.11: 显示 "X / Y" (入库 / 抓到) 让用户区分 dedup
 const formattedRecords = computed(() => {
@@ -132,11 +164,22 @@ const formattedRecords = computed(() => {
 })
 
 // 实际进度：优先 liveActivity.progress，否则 stage.progress
+// Phase 16-02 (Fix M3): 防御性 fallback — progress 为 null/undefined 时:
+//   - status=completed → 100% (避免"已完成 0%"矛盾显示)
+//   - 其他 → 0%
+//   - console.warn 提示后端问题 (避免静默掩盖 bug)
 const realProgress = computed(() => {
-  if (props.liveActivity?.progress !== undefined) {
-    return Math.round(props.liveActivity.progress * 100)
+  const raw = props.liveActivity?.progress ?? props.stage.progress
+  if (raw === null || raw === undefined) {
+    if (props.stage.status === 'completed') {
+      console.warn(
+        `[PipelineStageCard] stage ${props.stage.name} completed but progress=null — backend bug?`
+      )
+      return 100
+    }
+    return 0
   }
-  return Math.round((props.stage.progress || 0) * 100)
+  return Math.round(raw * 100)
 })
 </script>
 
@@ -170,9 +213,16 @@ const realProgress = computed(() => {
         <component :is="StageIcon" />
       </el-icon>
       <div class="stage-info">
-        <div class="stage-name">
-          {{ stageLabel }}
-        </div>
+        <el-tooltip
+          :content="stageDesc"
+          placement="top"
+          :disabled="!stageDesc"
+          effect="dark"
+        >
+          <div class="stage-name">
+            {{ stageLabel }}
+          </div>
+        </el-tooltip>
         <div
           class="stage-status-label"
           :style="{ color: statusConfig.color }"
@@ -275,6 +325,64 @@ const realProgress = computed(() => {
           :class="{ 'breakdown-skip-text': item.value < 0 }"
         >{{ item.value < 0 ? '跳过' : item.value }}</span>
       </div>
+
+      <!-- Phase debug (issue): 展开/收起按钮 - 查看全部 sub_breakdown -->
+      <div
+        v-if="hasMoreDetails"
+        class="breakdown-toggle"
+      >
+        <a
+          href="javascript:void(0)"
+          class="toggle-link"
+          @click="isExpanded = !isExpanded"
+        >
+          {{ isExpanded ? '收起' : `查看全部 (${fullBreakdownItems.length} 项)` }}
+        </a>
+      </div>
+
+      <!-- 展开后显示完整数据 -->
+      <el-dialog
+        v-model="isExpanded"
+        :title="`${stage.name} 完整详情`"
+        width="640"
+        append-to-body
+      >
+        <div class="expanded-section">
+          <h4>子项分解 ({{ fullBreakdownItems.length }} 项)</h4>
+          <div
+            v-for="item in fullBreakdownItems"
+            :key="'ex-' + item.key"
+            class="expanded-item"
+          >
+            <span class="expanded-label">{{ item.key }}</span>
+            <span class="expanded-value">{{ item.value < 0 ? (item.value === -1 ? '已禁用' : '无适配器') : item.value }}</span>
+          </div>
+          <h4 v-if="fullRecentSamples.length">
+            最近样本 ({{ fullRecentSamples.length }} 条)
+          </h4>
+          <div
+            v-for="(s, si) in fullRecentSamples"
+            :key="'sample-' + si"
+            class="expanded-sample"
+          >
+            <div class="sample-title">
+              {{ s.title || s.skill || '未命名' }}
+            </div>
+            <div
+              v-if="s.company || s.source"
+              class="sample-meta"
+            >
+              {{ s.company }} {{ s.source ? `· ${s.source}` : '' }}
+            </div>
+            <a
+              v-if="s.url"
+              :href="(s.url as string)"
+              target="_blank"
+              class="sample-url"
+            >{{ s.url }}</a>
+          </div>
+        </div>
+      </el-dialog>
     </div>
 
     <!-- 最近数据样本 -->
@@ -320,7 +428,18 @@ const realProgress = computed(() => {
       </div>
       <div class="metric">
         <span class="metric-label">处理量</span>
-        <span class="metric-value">{{ formattedRecords }}</span>
+        <!-- Phase debug (issue): 加 tooltip 解释"原始 vs 新增" -->
+        <el-tooltip
+          v-if="stage.name === 'crawl'"
+          content="原始数据 = 本次爬取的全部条目；新增 = 实际入库的新记录 (其余为已存在的重复内容)"
+          placement="top"
+        >
+          <span class="metric-value metric-value-link">{{ formattedRecords }}</span>
+        </el-tooltip>
+        <span
+          v-else
+          class="metric-value"
+        >{{ formattedRecords }}</span>
       </div>
       <div
         v-if="(stage.errors_count ?? stage.errors.length) > 0"
@@ -342,7 +461,7 @@ const realProgress = computed(() => {
       <el-alert
         type="error"
         :closable="false"
-        effect="plain"
+        effect="light"
       >
         <template #title>
           <div class="error-summary">
@@ -358,11 +477,14 @@ const realProgress = computed(() => {
             class="error-list"
           >
             <div
-              v-for="(err, i) in stage.errors"
+              v-for="(item, i) in dedupedErrors"
               :key="i"
               class="error-line"
             >
-              {{ err }}
+              {{ item.msg }}<span
+                v-if="item.count > 1"
+                class="error-repeat-badge"
+              > ×{{ item.count }}</span>
             </div>
           </div>
         </template>
@@ -653,5 +775,26 @@ const realProgress = computed(() => {
 /* 错误详情 */
 .stage-error-detail {
   margin-top: 6px;
+}
+.error-list {
+  margin-top: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.error-line {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--destructive);
+  word-break: break-all;
+}
+.error-repeat-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--destructive) 15%, transparent);
+  border-radius: 3px;
+  color: var(--destructive);
 }
 </style>

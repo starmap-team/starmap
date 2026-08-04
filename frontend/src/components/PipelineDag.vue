@@ -2,10 +2,11 @@
 /**
  * 流水线 DAG 时间线视图 (Phase 3.8 增强)
  * DAG 节点本身集成实时活动数据 - 不再需要单独的实时面板
- * 展示 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → 入库 → 图谱构建
- * 包含 fork/merge 箭头指示并行分支
+ * 展示 ETL DAG：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建（Phase 3 串行化）
+ * 箭头表示阶段间串行依赖（clean 依赖 dedup）
  */
 import { computed } from 'vue'
+import { Connection, Loading } from '@element-plus/icons-vue'
 import PipelineStageCard from '@/components/PipelineStageCard.vue'
 import type { PipelineStage, LiveActivityEvent } from '@/stores/pipelineRun'
 
@@ -159,15 +160,15 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
           />
         </div>
       </div>
-      <!-- Arrow: crawl → (dedup + clean) -->
+      <!-- Arrow: crawl → dedup -->
       <div class="dag-row dag-row-center">
-        <div class="dag-fork">
-          <div class="fork-line fork-left" />
-          <div class="fork-line fork-right" />
+        <div class="dag-arrow-down">
+          <span class="arrow-line" />
+          <span class="arrow-head">›</span>
         </div>
       </div>
-      <!-- Row 2: dedup ∥ clean (parallel) -->
-      <div class="dag-row dag-row-parallel">
+      <!-- Row 2: dedup -->
+      <div class="dag-row dag-row-center">
         <div class="timeline-node">
           <PipelineStageCard
             :stage="timelineStages[1]"
@@ -177,9 +178,16 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
             @retry="emit('retry', timelineStages[1].name)"
           />
         </div>
-        <div class="parallel-label">
-          并行
+      </div>
+      <!-- Arrow: dedup → clean (Phase 3 Plan 02 Task 2: clean 依赖 dedup，串行) -->
+      <div class="dag-row dag-row-center">
+        <div class="dag-arrow-down">
+          <span class="arrow-line" />
+          <span class="arrow-head">›</span>
         </div>
+      </div>
+      <!-- Row 3: clean -->
+      <div class="dag-row dag-row-center">
         <div class="timeline-node">
           <PipelineStageCard
             :stage="timelineStages[2]"
@@ -190,14 +198,14 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
           />
         </div>
       </div>
-      <!-- Arrow: (dedup + clean) → import -->
+      <!-- Arrow: clean → import -->
       <div class="dag-row dag-row-center">
-        <div class="dag-merge">
-          <div class="merge-line merge-left" />
-          <div class="merge-line merge-right" />
+        <div class="dag-arrow-down">
+          <span class="arrow-line" />
+          <span class="arrow-head">›</span>
         </div>
       </div>
-      <!-- Row 3: import -->
+      <!-- Row 4: import -->
       <div class="dag-row dag-row-center">
         <div class="timeline-node">
           <PipelineStageCard
@@ -216,7 +224,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
           <span class="arrow-head">›</span>
         </div>
       </div>
-      <!-- Row 4: graph_sync -->
+      <!-- Row 5: graph_sync (DAG 终点) -->
       <div class="dag-row dag-row-center">
         <div class="timeline-node">
           <PipelineStageCard
@@ -228,6 +236,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
           />
         </div>
       </div>
+      <!-- Phase 17-01: timeseries 移出核心 DAG, Row 6 删除 -->
     </div>
   </el-card>
 </template>
@@ -316,53 +325,11 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
 .dag-row-center {
   justify-content: center;
 }
-.dag-row-parallel {
-  justify-content: center;
-  gap: var(--space-6);
-}
 .timeline-node {
   position: relative;
 }
-.parallel-label {
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-  font-weight: 600;
-  align-self: center;
-}
 
-/* DAG fork/merge arrows */
-.dag-fork,
-.dag-merge {
-  display: flex;
-  justify-content: center;
-  width: 400px;
-  height: 24px;
-  position: relative;
-}
-.fork-line,
-.merge-line {
-  width: 2px;
-  height: 24px;
-  background: var(--muted-foreground);
-  opacity: 0.4;
-  position: absolute;
-}
-.fork-line.fork-left,
-.merge-line.merge-left {
-  left: 30%;
-  transform: rotate(15deg);
-}
-.fork-line.fork-right,
-.merge-line.merge-right {
-  right: 30%;
-  transform: rotate(-15deg);
-}
-.merge-line.merge-left {
-  transform: rotate(-15deg);
-}
-.merge-line.merge-right {
-  transform: rotate(15deg);
-}
+/* DAG 串行箭头（Phase 3 Plan 02 Task 2: clean 依赖 dedup，取消 fork/merge） */
 .dag-arrow-down {
   display: flex;
   flex-direction: column;
@@ -386,9 +353,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
 .mb-4 { margin-bottom: var(--space-4); }
 
 @media (max-width: 768px) {
-  .dag-row-parallel { flex-direction: column; gap: var(--space-2); }
-  .parallel-label { display: none; }
-  .dag-fork, .dag-merge { display: none; }
+  /* 旧并行布局的 mobile 适配已删除（Phase 3 Plan 02 Task 2: DAG 串行化） */
   .overall-progress { min-width: 120px; }
 }
 </style>

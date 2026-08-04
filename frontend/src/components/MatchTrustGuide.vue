@@ -16,6 +16,8 @@ import { CircleCheck, WarningFilled, QuestionFilled } from '@element-plus/icons-
 const props = defineProps<{
   matchScore?: number | null
   trustScore?: number | null
+  // M2（Phase 13 强制规范）：后端 MatchResponse.note（如“岗位存在但暂无可用画像”）的呈现
+  note?: string | null
 }>()
 
 interface ScoreBand {
@@ -59,6 +61,16 @@ const trustBand = computed(() => bandFor(props.trustScore != null ? Math.round((
 
 <template>
   <div class="trust-guide">
+    <!-- M2：呈现后端 MatchResponse.note（岗位存在但暂无可用画像/0 关系），避免 0 分被误读为“不会” -->
+    <el-alert
+      v-if="note"
+      type="info"
+      :closable="false"
+      show-icon
+      :title="'说明'"
+    >
+      {{ note }}
+    </el-alert>
     <div
       class="trust-card"
       :style="{ borderLeft: `4px solid ${matchBand.color}` }"

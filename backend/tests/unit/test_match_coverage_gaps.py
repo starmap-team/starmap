@@ -107,78 +107,9 @@ class _FakeRelation:
     requirement_type = "required"
 
 
-@pytest.mark.asyncio
-async def test_load_target_profile_db_fallback():
-    """_load_target_profile falls back to PostgreSQL position_records."""
-    fake_row = _FakePositionRecord()
-    fake_skill = _FakeSkillRecord()
-    fake_rel = _FakeRelation()
-
-    mock_exec_result = AsyncMock()
-    mock_exec_result.scalar_one_or_none = Mock(return_value=fake_row)
-    mock_all_result = AsyncMock()
-    mock_all_result.all = Mock(return_value=[(fake_rel, fake_skill)])
-
-    mock_session = AsyncMock()
-    mock_session.execute = AsyncMock(
-        side_effect=[mock_exec_result, mock_all_result]
-    )
-
-    result = await _match_service._load_target_profile(
-        driver=None, target_position="数据分析师", db_session=mock_session
-    )
-    assert result is not None
-    assert result["required"][0]["skill"] == "Python"
-    assert result["required"][0]["category"] == "hard_skill"
-
-
-@pytest.mark.asyncio
-async def test_load_target_profile_db_fallback_preferred():
-    """DB fallback routes 'preferred' requirement_type to bonus list."""
-    class _PrefRel:
-        requirement_type = "preferred"
-    fake_skill = _FakeSkillRecord()
-    fake_row = _FakePositionRecord()
-
-    mock_exec_result = AsyncMock()
-    mock_exec_result.scalar_one_or_none = Mock(return_value=fake_row)
-    mock_all_result = AsyncMock()
-    mock_all_result.all = Mock(return_value=[(_PrefRel(), fake_skill)])
-
-    mock_session = AsyncMock()
-    mock_session.execute = AsyncMock(
-        side_effect=[mock_exec_result, mock_all_result]
-    )
-
-    result = await _match_service._load_target_profile(
-        driver=None, target_position="数据分析师", db_session=mock_session
-    )
-    assert result is not None
-    assert result["bonus"][0]["skill"] == "Python"
-
-
-@pytest.mark.asyncio
-async def test_load_target_profile_db_fallback_exception():
-    """DB fallback exception is handled gracefully."""
-    mock_session = AsyncMock()
-    mock_session.execute = AsyncMock(side_effect=RuntimeError("db error"))
-    result = await _match_service._load_target_profile(
-        driver=None, target_position="数据分析师", db_session=mock_session
-    )
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_load_target_profile_db_fallback_no_position():
-    """DB fallback returns None when position not found."""
-    mock_exec_result = AsyncMock()
-    mock_exec_result.scalar_one_or_none = Mock(return_value=None)
-    mock_session = AsyncMock()
-    mock_session.execute = AsyncMock(return_value=mock_exec_result)
-    result = await _match_service._load_target_profile(
-        driver=None, target_position="不存在岗位", db_session=mock_session
-    )
-    assert result is None
+# NOTE: DB-fallback tests removed — PostgreSQL fallback was intentionally
+# removed from _load_target_profile (see test_run_match.py::
+# test_db_session_not_used_as_fallback: "PostgreSQL fallback has been removed").
 
 
 # ===========================================================================
@@ -565,26 +496,6 @@ async def test_enrich_learning_paths_no_skill_key():
     # No driver, returns gaps unchanged
     result = await enrich_learning_paths(gaps, driver=None)
     assert result == gaps
-
-
-# ===========================================================================
-# 16. run_batch_match with empty resumes/positions
-# ===========================================================================
-
-
-@pytest.mark.skip(reason="run_batch_match removed in refactor")
-@pytest.mark.asyncio
-async def test_run_batch_match_empty():
-    """run_batch_match with empty inputs returns empty summary."""
-    pass  # ponytail: function removed during refactor
-
-    result = await run_batch_match(
-        resumes=[],
-        positions=[],
-    )
-    assert result["summary"]["total_pairs"] == 0
-    assert result["summary"]["avg_score"] == 0.0
-    assert result["results"] == []
 
 
 # ===========================================================================

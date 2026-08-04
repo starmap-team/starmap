@@ -20,17 +20,27 @@ def init_schema() -> None:
 
 
 def upsert_jd(record: dict) -> str:
-    """单条 upsert。返回 'inserted' / 'duplicate' / 'failed'。"""
+    """单条 upsert。返回 'inserted' / 'duplicate' / 'failed'。
+
+    Phase 15-02: 改用 content_hash 作为 dedup key（而非 source_url）。
+    因 psycopg + SQLAlchemy pg_insert().on_conflict_do_nothing() 返回的
+    rowcount 为 -1（即使实际插入了），改用 inserted_primary_key 判断。
+    """
     try:
         with get_jd_raw_session() as s:
             stmt = (
                 pg_insert(JdRaw)
                 .values(**record)
-                .on_conflict_do_nothing(index_elements=["source_url"])
+                .on_conflict_do_nothing(index_elements=["content_hash"])
             )
             result = s.execute(stmt)
             s.commit()
-            return "inserted" if result.rowcount > 0 else "duplicate"
+            # rowcount 在 ON CONFLICT DO NOTHING 时返回 -1，需用 inserted_primary_key 判断
+            inserted_pk = getattr(result, "inserted_primary_key", None)
+            if inserted_pk:
+                return "inserted"
+            # Fallback: 检查 rowcount (兼容老 driver)
+            return "inserted" if (result.rowcount and result.rowcount > 0) else "duplicate"
     except Exception as e:  # noqa: BLE001
         log.error("upsert_jd 失败: %s", e)
         return "failed"

@@ -10,6 +10,7 @@ from loguru import logger
 from app.api.v1.extract import ExtractionResult, _build_result, _write_extraction_to_graph
 from app.api.v1.upload_validation import validate_resume_upload
 from app.dependencies import get_neo4j_driver
+from app.exceptions import ExtractionError, StarMapError
 from app.services.resume_service import run_resume_extraction
 
 router = APIRouter(prefix="/resume", tags=["简历解析"])
@@ -32,9 +33,14 @@ async def upload_resume(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ConnectionError as exc:
         raise HTTPException(status_code=502, detail=f"LLM service unavailable: {exc}") from exc
+    except ExtractionError as exc:
+        logger.exception("Resume extraction failed: {}", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.opt(exception=True).error("Unexpected /resume/upload error: {}", exc)
-        raise HTTPException(status_code=500, detail="Internal extraction error") from exc
+        logger.exception("Unexpected error in resume extraction: {}", exc)
+        raise HTTPException(status_code=500, detail="简历处理异常") from exc
 
     if not pipeline_result.get("success"):
         raise HTTPException(status_code=422, detail=pipeline_result.get("error", "Unknown extraction error"))

@@ -47,10 +47,10 @@ async def test_persist_extraction_result_basic(monkeypatch: pytest.MonkeyPatch) 
     session = FakeSession()
 
     # Stub DB upsert helpers
-    async def fake_upsert_position(_session: object, name: str) -> object:
+    async def fake_upsert_position(_session: object, name: str, **_kwargs: object) -> object:
         return types.SimpleNamespace(id=111, name=name)
 
-    async def fake_upsert_skill(_session: object, name: str, category: str) -> object:
+    async def fake_upsert_skill(_session: object, name: str, category: str, **_kwargs: object) -> object:
         return types.SimpleNamespace(id=222, name=name, category=category)
 
     async def fake_ensure(
@@ -82,10 +82,10 @@ async def test_persist_extraction_result_basic(monkeypatch: pytest.MonkeyPatch) 
 async def test_persist_with_preferred_skills(monkeypatch: pytest.MonkeyPatch) -> None:
     session = FakeSession()
 
-    async def fake_upsert_position(_s: object, name: str) -> object:
+    async def fake_upsert_position(_s: object, name: str, **_kwargs: object) -> object:
         return types.SimpleNamespace(id=1, name=name)
 
-    async def fake_upsert_skill(_s: object, name: str, cat: str) -> object:
+    async def fake_upsert_skill(_s: object, name: str, cat: str, **_kwargs: object) -> object:
         return types.SimpleNamespace(id=10, name=name, category=cat)
 
     async def fake_ensure(*_args: object, **_kwargs: object) -> None:
@@ -109,10 +109,10 @@ async def test_persist_with_preferred_skills(monkeypatch: pytest.MonkeyPatch) ->
 async def test_persist_skips_empty_skill_name(monkeypatch: pytest.MonkeyPatch) -> None:
     session = FakeSession()
 
-    async def fake_upsert_position(_s: object, name: str) -> object:
+    async def fake_upsert_position(_s: object, name: str, **_kwargs: object) -> object:
         return types.SimpleNamespace(id=1, name=name)
 
-    async def fake_upsert_skill(_s: object, name: str, cat: str) -> object:
+    async def fake_upsert_skill(_s: object, name: str, cat: str, **_kwargs: object) -> object:
         return types.SimpleNamespace(id=10, name=name, category=cat)
 
     async def fake_ensure(*_args: object, **_kwargs: object) -> None:
@@ -134,10 +134,10 @@ async def test_persist_skips_empty_skill_name(monkeypatch: pytest.MonkeyPatch) -
 async def test_persist_invalid_extraction_lower_hallucination(monkeypatch: pytest.MonkeyPatch) -> None:
     session = FakeSession()
 
-    async def fake_upsert_position(_s: object, name: str) -> object:
+    async def fake_upsert_position(_s: object, name: str, **_kwargs: object) -> object:
         return types.SimpleNamespace(id=1, name=name)
 
-    async def fake_upsert_skill(_s: object, name: str, cat: str) -> object:
+    async def fake_upsert_skill(_s: object, name: str, cat: str, **_kwargs: object) -> object:
         return types.SimpleNamespace(id=10, name=name, category=cat)
 
     async def fake_ensure(*_args: object, **_kwargs: object) -> None:

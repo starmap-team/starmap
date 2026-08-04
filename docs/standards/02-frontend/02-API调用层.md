@@ -4,7 +4,7 @@
 
 - Base path：`src/config/apiBase.ts`。
 - Axios 基础客户端：`src/api/request.ts`。
-- 生成类型包装：`src/api/client.ts` 和生成的 `schema.ts`。
+- 类型化客户端：`src/api/client.ts`（手写包装，消费生成的 `schema.ts`）。
 - 契约：`starmap-contracts/openapi.yaml`。
 - 运行时错误/Schema：`src/validation/`。
 

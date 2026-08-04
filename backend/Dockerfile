@@ -53,6 +53,8 @@ COPY alembic/ ./alembic/
 COPY alembic.ini ./
 COPY scripts/ ./scripts/
 COPY entrypoint.sh ./
+# Phase 15-02: CSV 导入端点需要 crawler.persistence.dao.upsert_jd
+COPY crawler/ ./crawler/
 
 # 创建非 root 用户运行应用
 RUN useradd -m -s /bin/bash starmap && chown -R starmap:starmap /app && chmod +x entrypoint.sh

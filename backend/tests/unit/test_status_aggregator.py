@@ -127,7 +127,8 @@ class TestComputeDataQualityAggregates:
     @pytest.mark.asyncio
     async def test_consistency_with_multiple_sources(self):
         session = FakeAsyncSession([FakeResult(scalars_list=[])])
-        metrics = {"source_scores": {"A": 0.8, "B": 0.9}, "freshness_hours": 12.0}
+        # M5: 提供 total_records 使 has_data=True,公式才会计算(否则无数据降级为 0)。
+        metrics = {"source_scores": {"A": 0.8, "B": 0.9}, "freshness_hours": 12.0, "total_records": 10}
         result = await compute_data_quality_aggregates(session, existing_metrics=metrics)
         # stdev([0.8, 0.9]) ≈ 0.0707, consistency = 1 - min(0.0707/0.5, 1) ≈ 0.8586
         assert 0.8 < result["consistency"] < 0.9
@@ -137,7 +138,8 @@ class TestComputeDataQualityAggregates:
     @pytest.mark.asyncio
     async def test_consistency_single_source_defaults_1(self):
         session = FakeAsyncSession([FakeResult(scalars_list=[])])
-        metrics = {"source_scores": {"A": 0.8}, "freshness_hours": 0}
+        # M5: total_records 使 has_data=True;单一 source 无方差 → consistency=1.0,freshness=0 → timeliness=1.0。
+        metrics = {"source_scores": {"A": 0.8}, "freshness_hours": 0, "total_records": 10}
         result = await compute_data_quality_aggregates(session, existing_metrics=metrics)
         assert result["consistency"] == 1.0
         assert result["timeliness"] == 1.0
@@ -146,9 +148,10 @@ class TestComputeDataQualityAggregates:
     async def test_no_existing_metrics(self):
         session = FakeAsyncSession([FakeResult(scalars_list=[])])
         result = await compute_data_quality_aggregates(session)
-        # No source_scores → consistency=1.0, freshness_hours=0 → timeliness=1.0
-        assert result["consistency"] == 1.0
-        assert result["timeliness"] == 1.0
+        # M5: 无任何数据时禁止 vacuous 1.0 → consistency/timeliness=0.0,baseline_available=False。
+        assert result["consistency"] == 0.0
+        assert result["timeliness"] == 0.0
+        assert result["baseline_available"] is False
 
     @pytest.mark.asyncio
     async def test_freshness_48h_gives_zero_timeliness(self):

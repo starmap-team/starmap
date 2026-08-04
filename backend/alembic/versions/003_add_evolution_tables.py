@@ -1,4 +1,4 @@
-﻿"""Create evolution subsystem tables: snapshots, changelog, paths, timeseries.
+"""Create evolution subsystem tables: snapshots, changelog, paths, timeseries.
 
 Revision ID: 003
 Revises: 002

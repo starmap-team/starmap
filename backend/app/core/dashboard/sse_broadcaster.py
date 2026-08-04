@@ -28,6 +28,8 @@ from typing import Any, cast
 from loguru import logger
 from redis.asyncio import Redis
 
+from app.exceptions import StarMapError
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -95,8 +97,10 @@ async def publish_event(
         await cast(Awaitable[Any], redis.ltrim(POLL_LIST_KEY, 0, 99))  # keep latest 100
         await redis.expire(POLL_LIST_KEY, EVENT_TTL)
         return True
-    except Exception as exc:
-        logger.debug("SSE publish failed for {}: {}", event_type, exc)
+    except StarMapError:
+        raise
+    except Exception:
+        logger.exception("SSE publish failed for {}", event_type)
         return False
 
 
@@ -133,8 +137,10 @@ async def event_stream(
     pubsub = redis.pubsub()
     try:
         await pubsub.subscribe(CHANNEL)
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("SSE subscribe failed: {}", exc)
+        logger.exception("SSE subscribe failed")
         yield _format_sse("error", {"message": f"Subscribe failed: {exc}"})
         return
 
@@ -156,8 +162,14 @@ async def event_stream(
                 )
             except TimeoutError:
                 message = None
-            except Exception as exc:
-                logger.debug("pubsub.get_message error: {}", exc)
+            except StarMapError:
+                raise
+            except (ConnectionError, OSError):
+                logger.exception("pubsub connection error")
+                await asyncio.sleep(POLL_INTERVAL)
+                continue
+            except Exception:
+                logger.exception("pubsub.get_message error")
                 await asyncio.sleep(POLL_INTERVAL)
                 continue
 
@@ -175,15 +187,25 @@ async def event_stream(
 
     except asyncio.CancelledError:
         logger.debug("SSE client disconnected")
-    except Exception as exc:
-        logger.warning("SSE stream error: {}", exc)
+    except StarMapError:
+        raise
+    except (ConnectionError, OSError):
+        logger.exception("SSE subscriber connection error")
+        # Continue — single subscriber failure shouldn't break broadcast
+    except Exception:
+        logger.exception("SSE stream error")
+        # Continue — don't break the broadcast loop
     finally:
         _active_sse_clients = max(0, _active_sse_clients - 1)
         try:
             await pubsub.unsubscribe(CHANNEL)
             await pubsub.aclose()
-        except Exception as exc:
-            logger.debug("SSE pubsub cleanup failed: {}", exc)
+        except StarMapError:
+            raise
+        except (ConnectionError, OSError):
+            logger.exception("SSE pubsub connection cleanup failed")
+        except Exception:
+            logger.exception("SSE pubsub cleanup failed")
 
 
 # ---------------------------------------------------------------------------
@@ -219,8 +241,10 @@ async def get_recent_events(
 
     try:
         raw_events = await cast(Awaitable[list[Any]], redis.lrange(POLL_LIST_KEY, 0, limit - 1))
-    except Exception as exc:
-        logger.debug("Polling fallback read failed: {}", exc)
+    except StarMapError:
+        raise
+    except Exception:
+        logger.exception("Polling fallback read failed")
         return []
 
     events: list[dict[str, Any]] = []

@@ -32,6 +32,7 @@ from app.core.pipeline.orchestrator import (
     update_stage_status,
 )
 from app.db.session import get_session_factory
+from app.exceptions import PipelineStageError
 from app.models.pipeline_models import PipelineRun
 from app.services.resources import resources as app_resources
 
@@ -113,6 +114,8 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     # Phase 3.8.6: 确保 jd_raw 表存在 (未在 Pipeline 中调用 init_schema)
     try:
         dao.init_schema()
+    except PipelineStageError:
+        raise
     except Exception as exc:
         logger.debug("init_schema call (non-fatal): {}", exc)
     default_platform = "bosszhipin"
@@ -256,10 +259,12 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
                 "Source '{}' crawl complete: {} items, {} inserted",
                 source_name, len(items), source_inserted,
             )
+        except PipelineStageError:
+            raise
         except Exception as exc:
             err_msg = f"{source_name} ({platform}) crawl failed: {exc}"
             errors.append(err_msg)
-            logger.error("Crawl stage {} failed: {}", source_name, exc)
+            logger.opt(exception=True).error("Crawl stage {} failed: {}", source_name, exc)
 
     # Phase 3.7: 最终完成报告 (含每源统计)
     per_source_summary = []
@@ -302,6 +307,8 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     # Phase 2 SOURCE-01: execute_crawl 后更新 DataSourceRecord (UAT 修复)
     try:
         _update_source_after_crawl(run_id, total_inserted)
+    except PipelineStageError:
+        raise
     except Exception as exc:
         logger.warning("_update_source_after_crawl failed (non-fatal): {}", exc)
 
@@ -413,9 +420,11 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
                 "Dedup stage run_id={}: {} total, {} unique, {} duplicates",
                 run_id, processed, len(unique_jds), duplicates,
             )
+    except PipelineStageError:
+        raise
     except Exception as exc:
         errors.append(f"dedup failed: {exc}")
-        logger.error("Dedup stage failed: {}", exc)
+        logger.opt(exception=True).error("Dedup stage failed: {}", exc)
         _run_async(_publish_stage_progress(
             run_id, "dedup", "failed",
             current_activity=f"去重失败: {exc}",
@@ -425,6 +434,8 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
         # Phase 2 SOURCE-02: execute_dedup 后更新 duplicate_rate (UAT 修复)
         try:
             _update_source_after_dedup(run_id, exact_duplicates + fuzzy_duplicates, processed)
+        except PipelineStageError:
+            raise
         except Exception as exc:
             logger.warning("_update_source_after_dedup failed (non-fatal): {}", exc)
 
@@ -493,9 +504,11 @@ def execute_clean(run_id: str) -> dict[str, Any]:
                 elapsed_ms=int((time.monotonic() - start) * 1000),
                 message=f"清洗完成: {processed} 条",
             ))
+    except PipelineStageError:
+        raise
     except Exception as exc:
         errors.append(f"clean failed: {exc}")
-        logger.error("Clean stage failed: {}", exc)
+        logger.opt(exception=True).error("Clean stage failed: {}", exc)
         _run_async(_publish_stage_progress(
             run_id, "clean", "failed", current_activity=f"清洗失败: {exc}",
         ))
@@ -572,9 +585,11 @@ def execute_import(run_id: str) -> dict[str, Any]:
                         recent_samples=extracted_skills_sample[-5:],
                         elapsed_ms=int((time.monotonic() - start) * 1000),
                     ))
+            except PipelineStageError:
+                raise
             except Exception as exc:
                 errors.append(f"extraction error: {exc}")
-                logger.warning("JD extraction failed in import stage: {}", exc)
+                logger.opt(exception=True).warning("JD extraction failed in import stage: {}", exc)
 
         _run_async(_publish_stage_progress(
             run_id, "import", "completed", progress=1.0,
@@ -584,9 +599,11 @@ def execute_import(run_id: str) -> dict[str, Any]:
             elapsed_ms=int((time.monotonic() - start) * 1000),
             message=f"LLM 提取完成: {processed}/{total} 成功",
         ))
+    except PipelineStageError:
+        raise
     except Exception as exc:
         errors.append(f"import failed: {exc}")
-        logger.error("Import stage failed: {}", exc)
+        logger.opt(exception=True).error("Import stage failed: {}", exc)
         _run_async(_publish_stage_progress(
             run_id, "import", "failed", current_activity=f"提取失败: {exc}",
         ))
@@ -594,6 +611,8 @@ def execute_import(run_id: str) -> dict[str, Any]:
         # Phase 2 SOURCE-03: execute_import 后更新 valid_records (UAT 修复)
         try:
             _update_source_after_import(run_id, processed)
+        except PipelineStageError:
+            raise
         except Exception as exc:
             logger.warning("_update_source_after_import failed (non-fatal): {}", exc)
 
@@ -623,6 +642,8 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
     outbox_id = _uuid.uuid4()
     try:
         _run_async(_create_outbox_record(get_session_factory(), outbox_id, _uuid.UUID(run_id)))
+    except PipelineStageError:
+        raise
     except Exception as o_exc:
         logger.warning("graph_sync outbox create failed (non-fatal): {}", o_exc)
 
@@ -643,12 +664,16 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         ))
         if result.get("status") != "completed":
             errors.append(f"graph sync incomplete: {result}")
+    except PipelineStageError:
+        raise
     except Exception as exc:
         errors.append(f"graph_sync failed: {exc}")
-        logger.error("Graph sync stage failed: {}", exc)
+        logger.opt(exception=True).error("Graph sync stage failed: {}", exc)
         # Outbox: mark failed for retry
         try:
             _run_async(_fail_outbox_record(get_session_factory(), outbox_id, str(exc)))
+        except PipelineStageError:
+            raise
         except Exception as o_err:
             logger.warning("outbox fail update error: {}", o_err)
         _run_async(_publish_stage_progress(
@@ -672,9 +697,11 @@ def execute_timeseries(run_id: str) -> dict[str, Any]:
             "Timeseries stage: {} skills updated, {} windows created",
             skills_updated, processed,
         )
+    except PipelineStageError:
+        raise
     except Exception as exc:
         errors.append(f"timeseries failed: {exc}")
-        logger.error("Timeseries stage failed: {}", exc)
+        logger.opt(exception=True).error("Timeseries stage failed: {}", exc)
 
     return {"records_processed": processed, "errors": errors}
 
@@ -820,6 +847,8 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
                     len(configs),
                 )
             return configs
+    except PipelineStageError:
+        raise
     except Exception as exc:
         logger.warning("_get_crawl_configs failed (non-fatal, using defaults): {}", exc)
     return []
@@ -840,6 +869,8 @@ async def _skip_paused_sources_if_needed(run_id: str) -> None:
             if paused_sources:
                 names = [s.name for s in paused_sources]
                 logger.info("Skipping {} paused source(s) for run_id={}: {}", len(names), run_id, names)
+    except PipelineStageError:
+        raise
     except Exception as exc:
         logger.warning("_skip_paused_sources_if_needed failed (non-fatal): {}", exc)
 
@@ -879,8 +910,10 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
                 run_id,
             )
             return
-    except Exception as exc:
-        logger.warning(f"advance_pipeline STOP flag check failed (continuing): {exc}")
+    except PipelineStageError:
+        raise
+    except Exception:
+        logger.exception("advance_pipeline STOP flag check failed (continuing)")
 
     session_factory = get_session_factory()
     async with session_factory() as session:

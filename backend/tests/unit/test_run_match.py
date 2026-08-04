@@ -174,11 +174,16 @@ class TestLoadTargetProfileViaRepo:
 
     @pytest.mark.asyncio
     async def test_repo_exception_falls_through(self):
-        """When repo raises an exception, falls through to next tier and returns None."""
+        """When repo raises an exception, falls through to next tier and returns None.
+
+        Phase 2 update: MatchingError (StarMapError subclass) is caught and re-raised;
+        caller is responsible for handling. This test verifies the new contract.
+        """
+        from app.exceptions import MatchingError
         mock_repo = AsyncMock()
-        mock_repo.get_position_profile = AsyncMock(side_effect=RuntimeError("connection error"))
-        result = await _match_service._load_target_profile(driver=None, target_position="某岗位", repo=mock_repo)
-        assert result is None
+        mock_repo.get_position_profile = AsyncMock(side_effect=MatchingError("connection error"))
+        with pytest.raises(MatchingError):
+            await _match_service._load_target_profile(driver=None, target_position="某岗位", repo=mock_repo)
 
 
 class TestLoadTargetProfileViaDriver:
@@ -276,35 +281,7 @@ class TestComputeCompetitiveness:
 
 @pytest.mark.skip(reason="run_batch_match removed in refactor")
 class TestRunBatchMatch:
-    @pytest.mark.asyncio
-    async def test_batch_match_basic(self):
-        """run_batch_match with multiple resumes and positions."""
-        with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
-            result = await run_batch_match(
-                resumes=[
-                    {"resume_id": "r1", "person_skills": [{"name": "Python", "proficiency": "精通"}]},
-                    {"resume_id": "r2", "person_skills": [{"name": "SQL", "proficiency": "熟悉"}]},
-                ],
-                positions=["数据分析师", "前端开发工程师"],
-            )
-        assert "results" in result
-        assert "matrix" in result
-        assert "summary" in result
-        assert len(result["results"]) == 4  # 2 resumes x 2 positions
-        assert len(result["matrix"]) == 2  # 2 resume rows
-        assert result["summary"]["total_pairs"] == 4
-
-    @pytest.mark.asyncio
-    async def test_batch_match_with_unknown_position(self):
-        """run_batch_match handles unknown positions gracefully (score=0)."""
-        with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
-            result = await run_batch_match(
-                resumes=[{"resume_id": "r1", "person_skills": [{"name": "Python", "proficiency": "精通"}]}],
-                positions=["UnknownPosition"],
-            )
-        # Unknown position causes PositionNotFoundError, which is caught and scored as 0
-        assert len(result["results"]) == 0  # failed matches are not added to results
-        assert result["matrix"][0][0] == 0.0  # unknown position → score 0
+    pass
 
 
 class TestEnrichLearningPaths:
@@ -517,10 +494,10 @@ class TestApplyInflationCorrection:
         assert cii > 1.2
 
     def test_empty_required(self):
-        """Empty required list returns cii=1.0."""
+        """Empty required list returns cii=0.0 (M13 fix: no explicit requirements → no quantifiable inflation)."""
         profile = {"required": [], "bonus": []}
         req, bon, cii = _match_service._apply_inflation_correction(profile)
-        assert cii == 1.0
+        assert cii == 0.0
 
 
 # ---------------------------------------------------------------------------

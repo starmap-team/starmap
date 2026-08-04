@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 学习路径流程图组件 — DAG 可视化
  * 展示技能前置关系和学习进度
@@ -7,7 +7,7 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { chartColors, cv, g6TooltipStyle } from '@/utils/chartTheme'
 import { ensureG6Loaded } from '@/composables/useG6'
-import type { NodeData, EdgeData, G6ElementEvent, G6ElementDatum } from '@/types/g6'
+import type { NodeData, EdgeData, G6ElementEvent, G6ElementDatum, Graph } from '@/types/g6'
 
 interface PathNode {
   skill: string
@@ -24,8 +24,8 @@ const props = defineProps<{
 const containerRef = ref<HTMLElement | null>(null)
 
 // G6 graph lifecycle (inlined from useG6Graph)
-let graph: any = null
-async function createGraph(options: any) {
+let graph: Graph | null = null
+async function createGraph(options: Record<string, unknown>) {
   if (!containerRef.value) return
   if (graph) { graph.destroy(); graph = null }
   const w = containerRef.value.clientWidth || 700

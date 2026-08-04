@@ -1,79 +1,39 @@
-"""Match API."""
+"""Match API.
 
+注意:所有 Pydantic 模型已迁移到 backend/app/schemas/match.py(Phase X 闭环审计)。
+路由层只 import,不再内联 BaseModel 定义。
+"""
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
-from pydantic import BaseModel, Field
 from sqlalchemy import select as sa_select
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver
+from app.exceptions import MatchingError, StarMapError
 from app.models.extraction_models import PositionRecord
-from app.services.match_service import compute_competitiveness, get_match_result, run_match
+from app.schemas.match import (
+    BatchMatchItem,  # noqa: F401  (重导出:测试/前端经 match_api.BatchMatchItem 构造)
+    BatchMatchRequest,
+    MatchRequestInput,
+    MatchResponse,
+    PersonSkillInput,
+    PositionRecommendation,
+    ReverseMatchRequest,
+    ReverseMatchResponse,
+)
+from app.services.match_service import (
+    MatchService,
+    compute_competitiveness,
+    get_match_result,
+    run_match,
+)
 
 router = APIRouter(prefix="/match", tags=["match"])
-
-
-class PersonSkillInput(BaseModel):
-    """More permissive skill input for current frontend payloads."""
-
-    skill_id: str | None = Field(default=None)
-    name: str = Field(..., description="Skill name")
-    category: str = Field(default="hard_skill", description="Skill category")
-    proficiency: str = Field(default="熟悉", description="Proficiency level")
-    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
-    source_count: int = Field(default=0, ge=0)
-
-
-class MatchOptionsInput(BaseModel):
-    threshold: float = Field(default=0.6, ge=0.0, le=1.0)
-
-
-class MatchRequestInput(BaseModel):
-    person_skills: list[PersonSkillInput] = Field(default_factory=list)
-    target_position: str = Field(..., min_length=1)
-    options: MatchOptionsInput = Field(default_factory=MatchOptionsInput)
-
-
-# P2 修复 (INJ-02/AUTHZ-03): /match/batch 添加 Pydantic schema
-class BatchMatchItem(BaseModel):
-    """Single item in a batch match request."""
-    position: str = Field(default="", description="Target position name")
-    position_name: str = Field(default="", description="Alias for position (legacy)")
-    skills: list[PersonSkillInput] = Field(default_factory=list, description="Person skills")
-
-
-class BatchMatchRequest(BaseModel):
-    """Batch match request with validated items."""
-    entries: list[BatchMatchItem] = Field(default_factory=list, max_length=20, alias="items")
-
-    model_config = {"populate_by_name": True}
-
-
-class SkillGapDetail(BaseModel):
-    skill: str
-    importance: str
-    gap_level: Literal["完全缺失", "部分掌握", "已掌握"]
-    learning_path: list[str] = Field(default_factory=list)
-
-
-class MatchResponse(BaseModel):
-    match_id: str
-    target_position: str
-    match_score: float = Field(ge=0.0, le=1.0)
-    matched_skills: list[str] = Field(default_factory=list)
-    gap_skills: list[str] = Field(default_factory=list)
-    recommendations: list[str] = Field(default_factory=list)
-    missing_required: list[str] = Field(default_factory=list)
-    missing_bonus: list[str] = Field(default_factory=list)
-    skill_gap_detail: list[SkillGapDetail] = Field(default_factory=list)
-    overall_assessment: str = Field(default="")
-    estimated_learning_time: str = Field(default="")
-    cii: float | None = Field(default=None, description="Capability Inflation Index")
 
 
 async def _run_match_request(body: MatchRequestInput, driver: Any, session: AsyncSession) -> MatchResponse:
@@ -156,9 +116,14 @@ async def match_history(
                 "created_at": str(row[4]) if row[4] else None,
             })
         return {"items": items}
+    except MatchingError as exc:
+        logger.exception("Matching operation failed: {}", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("Failed to fetch match history: {}", exc)
-        return {"items": []}
+        logger.exception("Unexpected error in matching: {}", exc)
+        raise HTTPException(status_code=500, detail="匹配处理异常") from exc
 
 
 @router.get("/competitiveness/{position}")
@@ -168,11 +133,23 @@ async def get_competitiveness(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, Any]:
     """Return competitiveness analysis for a target position."""
-    return await compute_competitiveness(
+    result = await compute_competitiveness(
         target_position=position,
         driver=driver,
         db_session=session,
     )
+    # fix (M13): 兼容前端 store（`data.items ?? data.skills`）。原响应无 items/skills 字段
+    # 导致前端 competitiveness 恒空数组。现补 items（瓶颈技能）和 skills（必备+加分）别名。
+    bottleneck = result.get("bottleneck_skills") or []
+    required = result.get("required_count", 0)
+    bonus = result.get("bonus_count", 0)
+    result["items"] = bottleneck
+    result["skills"] = {
+        "required_count": required,
+        "bonus_count": bonus,
+        "total": required + bonus,
+    }
+    return result
 
 
 @router.post("/batch")
@@ -201,38 +178,27 @@ async def batch_match(
                 db_session=session,
             )
             results.append({"position_name": position, "result": result})
-        except Exception as e:
-            results.append({"position_name": position, "error": str(e)})
-    return {"results": results, "total": len(results)}
+        except Exception as exc:
+            # 批量匹配逐条隔离:任何单条失败(含 PositionNotFoundError 等 StarMapError 子类)
+            # 记为 error 条目,不中断整批。契约:test_batch_partial_failure_isolation。
+            results.append({"position_name": position, "error": str(exc)})
+    # fix (M13): 响应中加 summary 便于前端一致性展示（plan: 当前前端按扁平 BatchMatchItem 消费，match_score 恒为 undefined）
+    success_count = sum(1 for r in results if "result" in r)
+    return {
+        "results": results,
+        "items": results,  # 别名：兼容前端按扁平 items 消费
+        "summary": {
+            "total": len(results),
+            "success": success_count,
+            "failed": len(results) - success_count,
+        },
+        "total": len(results),
+    }
 
 
 # ── FE-04: Reverse match (skills → position recommendations) ──
-
-
-class ReverseMatchRequest(BaseModel):
-    """Request body for reverse matching: given user skills, find suitable positions."""
-
-    person_skills: list[PersonSkillInput] = Field(..., min_length=1, description="User's current skills")
-    top_k: int = Field(default=10, ge=1, le=50, description="Max positions to return")
-    min_score: float = Field(default=0.3, ge=0.0, le=1.0, description="Minimum match score threshold")
-
-
-class PositionRecommendation(BaseModel):
-    """A single position recommendation from reverse matching."""
-
-    position_name: str
-    match_score: float = Field(ge=0.0, le=1.0)
-    matched_skills: list[str] = Field(default_factory=list)
-    gap_skills: list[str] = Field(default_factory=list)
-    skill_coverage: float = Field(ge=0.0, le=1.0, description="Fraction of position's required skills the user has")
-
-
-class ReverseMatchResponse(BaseModel):
-    """Response for reverse matching."""
-
-    recommendations: list[PositionRecommendation] = Field(default_factory=list)
-    total_positions_scanned: int = Field(ge=0)
-    skills_provided: int = Field(ge=0)
+# ReverseMatchRequest / PositionRecommendation / ReverseMatchResponse
+# 已迁至 backend/app/schemas/match.py,路由层只引用。
 
 
 @router.post("/recommend", response_model=ReverseMatchResponse)
@@ -246,17 +212,20 @@ async def recommend_positions(
     Scans available positions, computes match score for each,
     and returns the top-k positions ranked by match score.
     """
-    from app.core.matching.service import MatchService
-
     # Get distinct position names from the database
     try:
         result = await session.execute(
             sa_select(PositionRecord.name).distinct().limit(200)
         )
         position_names = [row[0] for row in result.fetchall()]
+    except MatchingError as exc:
+        logger.exception("Matching operation failed: {}", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except StarMapError:
+        raise
     except Exception as exc:
-        logger.warning("Failed to query positions for reverse match: {}", exc)
-        position_names = []
+        logger.exception("Unexpected error in matching: {}", exc)
+        raise HTTPException(status_code=500, detail="匹配处理异常") from exc
 
     if not position_names:
         # Fallback: try Neo4j
@@ -270,8 +239,14 @@ async def recommend_positions(
                     async for rec in cypher_result:
                         if rec.get("name"):
                             position_names.append(rec["name"])
+            except MatchingError as exc:
+                logger.exception("Matching operation failed: {}", exc)
+                raise HTTPException(status_code=500, detail=str(exc)) from exc
+            except StarMapError:
+                raise
             except Exception as exc:
-                logger.warning("Neo4j fallback for reverse match failed: {}", exc)
+                logger.exception("Unexpected error in matching: {}", exc)
+                raise HTTPException(status_code=500, detail="匹配处理异常") from exc
 
     if not position_names:
         return ReverseMatchResponse(
@@ -287,12 +262,13 @@ async def recommend_positions(
     recommendations: list[PositionRecommendation] = []
     for pos_name in position_names:
         try:
+            # fix: recommend 是扫描式只读匹配，不持久化到 match_results，避免污染 /match/history
             result = await match_svc.run_match(
                 target_position=pos_name,
                 person_skills=person_skills_dicts,
                 threshold=body.min_score,
                 driver=driver,
-                db_session=session,
+                db_session=None,
             )
             score = result.get("match_score", 0.0)
             if score >= body.min_score:
@@ -308,6 +284,10 @@ async def recommend_positions(
                     gap_skills=gap,
                     skill_coverage=round(coverage, 4),
                 ))
+        except MatchingError:
+            continue
+        except StarMapError:
+            raise
         except Exception:
             continue  # skip positions that fail
 
