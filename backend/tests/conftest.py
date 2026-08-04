@@ -58,3 +58,23 @@ async def db_session():
         pytest.skip(f"PostgreSQL 不可用,跳过集成测试: {exc}")
     async with sm() as session:
         yield session
+
+
+@pytest.fixture
+def require_db():
+    """Sync guard: skip if PostgreSQL unreachable (for sync tests hitting real DB endpoints)."""
+    import asyncio
+
+    from sqlalchemy import text
+
+    from app.db.session import get_session_factory
+
+    async def _check() -> None:
+        sm = get_session_factory()
+        async with sm() as probe:
+            await probe.execute(text("SELECT 1"))
+
+    try:
+        asyncio.run(_check())
+    except Exception as exc:  # noqa: BLE001
+        pytest.skip(f"PostgreSQL 不可用,跳过集成测试: {exc}")

@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import pytest
 
+# These tests call real DB-backed endpoints; skip when PostgreSQL is unreachable.
+pytestmark = pytest.mark.usefixtures("require_db")
+
 DOMAIN_PREFIXES = {
     "domain": "ind-",
     "tech_stack": "ts-",
