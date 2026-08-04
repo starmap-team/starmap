@@ -40,7 +40,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.23.0",
     "jsdom": "^24.0.0",
-    "openapi-typescript": "^6.7.0",
+    "openapi-typescript": "^7.13.0",
     "playwright": "^1.61.1",
     "sass": "^1.72.0",
     "typescript": "^5.4.0",
