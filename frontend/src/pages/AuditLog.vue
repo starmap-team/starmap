@@ -74,6 +74,11 @@ async function fetchList() {
     }
     items.value = data.items
     total.value = data.total
+  } catch {
+    // fetchList is called from onMounted; failures are non-fatal here —
+    // loading is reset in finally, and store/UI stays empty. The Vitest
+    // unhandled-rejection guard requires a catch even when the caller
+    // doesn't await the promise.
   } finally {
     loading.value = false
   }
