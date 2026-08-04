@@ -1,5 +1,12 @@
 """Tests for fixture seed — verify data flows correctly through review_service + graph_writer."""
 import pytest
+from sqlalchemy import text
+
+from app.data.fixtures.seed import (
+    seed_position_skill_relations,
+    seed_positions,
+    seed_skills,
+)
 
 
 class TestFixtureSeed:
@@ -47,9 +54,6 @@ class TestFixtureSeed:
     @pytest.mark.asyncio
     async def test_seed_creates_position_skill_relations(self, db_session):
         """After seed, position_skill_relations table is not empty."""
-        from sqlalchemy import text
-
-        from app.data.fixtures.seed import seed_position_skill_relations, seed_positions, seed_skills
 
         await seed_positions(db_session)
         await seed_skills(db_session)
