@@ -44,6 +44,7 @@ venv/
 env/
 ENV/
 .venv/
+.venv-new/
 
 # ---- 测试覆盖率 & 缓存 ----
 htmlcov/
