@@ -15,12 +15,15 @@ import json
 import sys
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows GBK 控制台防 UnicodeEncodeError
+
 # 确保 backend/ 在 sys.path 中
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _BACKEND_ROOT = _PROJECT_ROOT / "backend"
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.schemas import (
+from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入)
     ChangePasswordRequest,
     ErrorResponse,
     ExtractionRequest,
