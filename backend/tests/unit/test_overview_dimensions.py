@@ -6,7 +6,14 @@
 """
 from __future__ import annotations
 
+import os
+
 import pytest
+
+# PLAN-007b: 凭据单一来源 = 环境变量（默认值为 dev/demo 引导账号，
+# 生产被 config.py fail-fast 阻断）。
+_ADMIN_USER = os.environ.get("STARMAP_TEST_ADMIN_USER", "admin")
+_ADMIN_PASSWORD = os.environ.get("STARMAP_TEST_ADMIN_PASSWORD", "starmap2024")
 
 # These tests call real DB-backed endpoints; skip when PostgreSQL is unreachable.
 pytestmark = pytest.mark.usefixtures("require_db")
@@ -22,7 +29,7 @@ DOMAIN_PREFIXES = {
 def _auth_headers(client) -> dict:
     r = client.post(
         "/api/v1/auth/login",
-        json={"username": "admin", "password": "starmap2024"},
+        json={"username": _ADMIN_USER, "password": _ADMIN_PASSWORD},
     )
     assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
     return {"Authorization": f"Bearer {r.json()['access_token']}"}

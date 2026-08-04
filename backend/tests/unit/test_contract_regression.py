@@ -6,8 +6,13 @@ Phase 13 契约回归测试：M2/M4/M5/M6 — 确保关键 API 字段不退化�
 from __future__ import annotations
 
 import json
+import os
 import urllib.error
 import urllib.request
+
+# PLAN-007b: 凭据单一来源 = 环境变量（默认值为 dev/demo 引导账号）。
+_ADMIN_USER = os.environ.get("STARMAP_TEST_ADMIN_USER", "admin")
+_ADMIN_PASSWORD = os.environ.get("STARMAP_TEST_ADMIN_PASSWORD", "starmap2024")
 
 API = "http://localhost:8000/api/v1"
 
@@ -16,7 +21,7 @@ def _api_login():
     """return access_token string."""
     r = urllib.request.urlopen(urllib.request.Request(
         f"{API}/auth/login", method="POST",
-        data=json.dumps({"username": "admin", "password": "starmap2024"}).encode(),
+        data=json.dumps({"username": _ADMIN_USER, "password": _ADMIN_PASSWORD}).encode(),
         headers={"Content-Type": "application/json"}), timeout=10)
     return json.loads(r.read())["access_token"]
 

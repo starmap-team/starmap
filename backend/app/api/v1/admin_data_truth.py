@@ -12,10 +12,16 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db_session, get_neo4j_driver
+from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.models.extraction_models import PositionRecord, SkillRecord
 
-router = APIRouter(prefix="/admin", tags=["数据源诊断"])
+# PLAN-007a (NEW-01): /admin/* 端点必须叠加 require_admin，
+# 此前仅挂在 api_router 的 get_current_user 上，任意登录用户可读三口径对账数据。
+router = APIRouter(
+    prefix="/admin",
+    dependencies=[Depends(require_admin)],
+    tags=["数据源诊断"],
+)
 
 
 class SourceCount(BaseModel):

@@ -20,7 +20,7 @@
         "password": {
           "description": "用户密码（服务端仅存储 bcrypt 哈希）",
           "examples": [
-            "starmap2024"
+            "your-password"
           ],
           "maxLength": 128,
           "minLength": 1,
