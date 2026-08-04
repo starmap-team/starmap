@@ -48,7 +48,6 @@ class TestFixtureSeed:
     async def test_seed_creates_position_skill_relations(self, db_session):
         """After seed, position_skill_relations table is not empty."""
         from sqlalchemy import text
-
         from app.data.fixtures.seed import seed_position_skill_relations, seed_positions, seed_skills
 
         await seed_positions(db_session)
