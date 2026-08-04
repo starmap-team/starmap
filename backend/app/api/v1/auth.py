@@ -19,7 +19,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr, Field
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,54 +30,22 @@ from app.dependencies import (
     get_db_session,
     get_redis_client,
 )
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    LoginRequest,
+    LoginResponse,
+    LogoutRequest,
+    RefreshRequest,
+    RefreshResponse,
+    ResetPasswordRequest,
+)
 from app.services import auth_service
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 router = APIRouter(prefix="/auth", tags=["认证"])
-
-
-# ═══════════════════════════════════════════════════════════════
-# Pydantic schemas
-# ═══════════════════════════════════════════════════════════════
-
-
-class LoginRequest(BaseModel):
-    username: str = Field(..., min_length=1, max_length=64)
-    password: str = Field(..., min_length=1, max_length=128)
-
-
-class LoginResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    expires_in: int
-    user: dict[str, Any]
-
-
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-
-class RefreshResponse(BaseModel):
-    access_token: str
-    expires_in: int
-
-
-class LogoutRequest(BaseModel):
-    refresh_token: str
-
-
-class ChangePasswordRequest(BaseModel):
-    old_password: str = Field(..., min_length=1, max_length=128)
-    new_password: str = Field(..., min_length=auth_service.MIN_PASSWORD_LENGTH, max_length=128)
-
-
-class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
-
-
-class ResetPasswordRequest(BaseModel):
-    token: str
-    new_password: str = Field(..., min_length=auth_service.MIN_PASSWORD_LENGTH, max_length=128)
+# 请求/响应模型统一在 app/schemas/auth.py（AGENTS.md 集中管理约定，
+# 2026-08-05 PLAN-015：消除路由内联重复定义，启用更严格的字段约束）
 
 
 # ═══════════════════════════════════════════════════════════════

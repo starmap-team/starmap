@@ -26,7 +26,7 @@ class LoginRequest(BaseModel):
         min_length=1,
         max_length=128,
         description="用户密码（服务端仅存储 bcrypt 哈希）",
-        examples=["starmap2024"],
+        examples=["your-password"],
     )
 
 
