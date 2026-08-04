@@ -2,24 +2,21 @@
 
 用法:
     python run.py init              # 建表
-    python run.py lagou             # 跑拉勾（HTTP）
-    python run.py lagou_stealth     # 跑拉勾（Playwright-stealth，反检测）
-    python run.py 51job             # 跑前程无忧（HTTP）
-    python run.py 51job_stealth     # 跑前程无忧（Playwright-stealth）
-    python run.py bosszhipin        # 跑 BOSS（Playwright-stealth）
-    python run.py apify_lagou       # 跑拉勾(Apify, 免费层)
-    python run.py all               # 跑 3 个站点（HTTP 版）
-    python run.py stealth_all       # 跑 3 个站点（stealth 版）
     python run.py stats             # 统计
+    python run.py apify_lagou       # 跑拉勾 (Apify, 免费层)
+    python run.py run-pipeline      # 触发完整 pipeline（crawl 阶段跑真实开放源）
+
+2026-08-05（PLAN-005 / CR-09）：删除指向不存在模块的死子命令
+（lagou/51job/bosszhipin/lagou_stealth/51job_stealth/all/stealth_all）。
+真实开放源（v2ex/arbeitnow/jobicy/weworkremotely）由 pipeline crawl 阶段
+经 executor spider_registry 调度；国内站点真链路见计划书 D17 / PLAN-001。
 """
 # 业务说明：本模块是 StarMap 爬虫系统的 CLI 入口和任务调度中心。
-# 提供统一的命令行接口，支持初始化数据库、单站点抓取、批量抓取、
-# Stealth 模式抓取、Apify 云抓取和数据统计等多种操作。
+# 提供统一的命令行接口，支持初始化数据库、Apify 云抓取、流水线触发和数据统计。
 # 技术说明：使用 argparse 构建命令行解析，支持子命令和参数传递。
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import logging
 import sys
@@ -30,9 +27,7 @@ from pathlib import Path
 # 技术说明：sys.path.insert 确保导入 crawler 包时能找到正确的位置。
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from crawler import config  # noqa: E402
 from crawler.persistence import dao  # noqa: E402
-from crawler.persistence.models import JdStatus  # noqa: E402
 from crawler.pipeline_bridge import trigger_pipeline_run  # noqa: E402
 
 # 业务说明：配置根日志记录器，设置日志级别和格式。
@@ -59,135 +54,6 @@ def cmd_stats(_args):
     total = dao.count_jd()
     by_status = dao.count_by_status()
     print(json.dumps({"total": total, "by_status": by_status}, ensure_ascii=False, indent=2))
-
-
-def _scrapy_settings() -> dict:
-    """Scrapy 公共 settings（含入库 pipeline）。"""
-    # 业务说明：生成 Scrapy 框架的公共配置字典，所有基于 Scrapy 的爬虫共用。
-    # 技术说明：配置项说明：
-    #   USER_AGENT: 默认 User-Agent
-    #   ROBOTSTXT_OBEY: 是否遵守 robots.txt（True 表示遵守）
-    #   DOWNLOAD_DELAY: 下载延迟（秒），控制请求频率
-    #   CONCURRENT_REQUESTS: 并发请求数，设为 1 避免被封
-    #   LOG_LEVEL: 日志级别
-    #   ITEM_PIPELINES: 数据入库 pipeline，负责将抓取结果写入数据库
-    return {
-        "USER_AGENT": config.USER_AGENTS[0],
-        "ROBOTSTXT_OBEY": True,
-        "DOWNLOAD_DELAY": 2,
-        "CONCURRENT_REQUESTS": 1,
-        "LOG_LEVEL": "INFO",
-        "ITEM_PIPELINES": {
-            "crawler.pipelines.storage.JdStoragePipeline": 300,
-        },
-    }
-
-
-def cmd_crawl_lagou(args):
-    # 业务说明：使用 Scrapy 框架抓取拉勾网职位数据（HTTP 模式）。
-    # 技术说明：CrawlerProcess 是 Scrapy 的同步入口，会阻塞直到抓取完成。
-    from crawler.spiders.lagou import LagouSpider
-    from scrapy.crawler import CrawlerProcess
-
-    process = CrawlerProcess(settings=_scrapy_settings())
-    process.crawl(LagouSpider, max_per_site=args.max)
-    process.start()
-
-
-def cmd_crawl_51job(args):
-    # 业务说明：使用 Scrapy 框架抓取前程无忧职位数据（HTTP 模式）。
-    from crawler.spiders.job51 import Job51Spider
-    from scrapy.crawler import CrawlerProcess
-
-    process = CrawlerProcess(settings=_scrapy_settings())
-    process.crawl(Job51Spider, max_per_site=args.max)
-    process.start()
-
-
-def cmd_crawl_boss(args):
-    # 业务说明：使用 Playwright-stealth 模式抓取 BOSS 直聘职位数据。
-    # BOSS 直聘有严格的反爬机制，必须使用浏览器模拟才能获取完整数据。
-    # 技术说明：run_sync 为同步包装函数，内部启动异步 Playwright 浏览器。
-    from crawler.spiders.boss import run_sync
-    items = run_sync(keyword=args.keyword or "python", max_count=args.max, proxy=args.proxy)
-    log.info("BOSS 拿到 %d 条", len(items))
-    # 业务说明：将抓取结果写入数据库，使用 upsert（插入或更新）避免重复。
-    inserted = 0
-    for it in items:
-        rec = {
-            "source_site": it["source_site"],
-            "source_url": it["source_url"],
-            "raw_html": it["raw_html"],
-            "clean_text": it["clean_text"],
-            "job_title": it["job_title"],
-            "company": it["company"],
-            "salary_min": it["salary_min"],
-            "salary_max": it["salary_max"],
-            "location": it["location"],
-            "publish_date": it["publish_date"],
-            "content_hash": it["content_hash"],  # spider 已计算
-            "status": JdStatus.raw,
-        }
-        r = dao.upsert_jd(rec)
-        if r == "inserted":
-            inserted += 1
-    log.info("BOSS 入库 %d 条", inserted)
-
-
-def cmd_crawl_lagou_stealth(args):
-    # 业务说明：使用 Playwright-stealth 模式抓取拉勾网职位数据。
-    # 适用于拉勾网反爬升级、HTTP 模式被封禁时的备选方案。
-    from crawler.spiders.lagou_stealth import run_sync
-    items = run_sync(keyword=args.keyword or "python", max_count=args.max, proxy=args.proxy)
-    log.info("拉勾(stealth) 拿到 %d 条", len(items))
-    inserted = 0
-    for it in items:
-        rec = {
-            "source_site": it["source_site"],
-            "source_url": it["source_url"],
-            "raw_html": it["raw_html"],
-            "clean_text": it["clean_text"],
-            "job_title": it["job_title"],
-            "company": it["company"],
-            "salary_min": it["salary_min"],
-            "salary_max": it["salary_max"],
-            "location": it["location"],
-            "publish_date": it["publish_date"],
-            "content_hash": it["content_hash"],
-            "status": JdStatus.raw,
-        }
-        r = dao.upsert_jd(rec)
-        if r == "inserted":
-            inserted += 1
-    log.info("拉勾(stealth) 入库 %d 条", inserted)
-
-
-def cmd_crawl_51job_stealth(args):
-    # 业务说明：使用 Playwright-stealth 模式抓取前程无忧职位数据。
-    # 适用于前程无忧反爬升级、HTTP 模式被封禁时的备选方案。
-    from crawler.spiders.job51_stealth import run_sync
-    items = run_sync(keyword=args.keyword or "python", max_count=args.max, proxy=args.proxy)
-    log.info("51job(stealth) 拿到 %d 条", len(items))
-    inserted = 0
-    for it in items:
-        rec = {
-            "source_site": it["source_site"],
-            "source_url": it["source_url"],
-            "raw_html": it["raw_html"],
-            "clean_text": it["clean_text"],
-            "job_title": it["job_title"],
-            "company": it["company"],
-            "salary_min": it["salary_min"],
-            "salary_max": it["salary_max"],
-            "location": it["location"],
-            "publish_date": it["publish_date"],
-            "content_hash": it["content_hash"],
-            "status": JdStatus.raw,
-        }
-        r = dao.upsert_jd(rec)
-        if r == "inserted":
-            inserted += 1
-    log.info("51job(stealth) 入库 %d 条", inserted)
 
 
 def cmd_apify_lagou(args):
@@ -229,18 +95,6 @@ def cmd_run_pipeline(args):
     return rc
 
 
-def _add_common_args(sp):
-    """给 spider 子命令加通用参数。"""
-    # 业务说明：为所有爬虫子命令添加通用参数，避免重复定义。
-    # 参数说明：
-    #   --max: 最大抓取数量，默认使用 config.MAX_PER_SITE
-    #   --keyword: 搜索关键词，默认 "python"
-    #   --proxy: 代理地址，格式为 http://user:pass@host:port
-    sp.add_argument("--max", type=int, default=config.MAX_PER_SITE)
-    sp.add_argument("--keyword", default="python")
-    sp.add_argument("--proxy", help="代理地址 (http://user:pass@host:port)")
-
-
 def main():
     # 业务说明：构建命令行参数解析器，注册所有子命令。
     # 技术说明：使用 argparse 的 subparsers 机制实现子命令路由。
@@ -252,53 +106,9 @@ def main():
     # 业务说明：注册 stats 子命令，用于统计职位数据。
     sub.add_parser("stats", help="统计 jd_raw")
 
-    # HTTP 版 spider
-    # 业务说明：注册基于 Scrapy 的 HTTP 模式爬虫命令。
-    for site, fn in (("lagou", cmd_crawl_lagou), ("51job", cmd_crawl_51job)):
-        sp = sub.add_parser(site, help=f"爬 {site} (HTTP)")
-        _add_common_args(sp)
-        sp.set_defaults(func=fn)
-
-    # BOSS（已经是 Playwright）
-    # 业务说明：BOSS 直聘必须使用 Playwright-stealth 模式，单独注册。
-    sp_boss = sub.add_parser("bosszhipin", help="爬 BOSS 直聘 (Playwright-stealth)")
-    _add_common_args(sp_boss)
-    sp_boss.set_defaults(func=cmd_crawl_boss)
-
-    # Playwright-stealth 版
-    # 业务说明：注册反检测浏览器模式的爬虫命令，适用于反爬严格的站点。
-    for site, fn in (
-        ("lagou_stealth", cmd_crawl_lagou_stealth),
-        ("51job_stealth", cmd_crawl_51job_stealth),
-    ):
-        sp = sub.add_parser(site, help=f"爬 {site} (Playwright-stealth)")
-        _add_common_args(sp)
-        sp.set_defaults(func=fn)
-
-    # all = HTTP 版 3 站点
-    # 业务说明：批量执行 HTTP 模式的 3 个站点抓取，依次执行而非并行。
-    # 技术说明：使用 lambda 依次调用 3 个命令函数，注意这不是真正的并行执行。
-    sp_all = sub.add_parser("all", help="跑 3 个站点 (HTTP)")
-    _add_common_args(sp_all)
-    sp_all.set_defaults(func=lambda a: (
-        cmd_crawl_lagou(argparse.Namespace(max=a.max, keyword=a.keyword, proxy=None)),
-        cmd_crawl_51job(argparse.Namespace(max=a.max, keyword=a.keyword, proxy=None)),
-        cmd_crawl_boss(argparse.Namespace(max=a.max, keyword=a.keyword, proxy=None)),
-    ))
-
-    # stealth_all = stealth 版 3 站点
-    # 业务说明：批量执行 Stealth 模式的 3 个站点抓取。
-    sp_stealth_all = sub.add_parser("stealth_all", help="跑 3 个站点 (Playwright-stealth)")
-    _add_common_args(sp_stealth_all)
-    sp_stealth_all.set_defaults(func=lambda a: (
-        cmd_crawl_lagou_stealth(argparse.Namespace(max=a.max, keyword=a.keyword, proxy=a.proxy)),
-        cmd_crawl_51job_stealth(argparse.Namespace(max=a.max, keyword=a.keyword, proxy=a.proxy)),
-        cmd_crawl_boss(argparse.Namespace(max=a.max, keyword=a.keyword, proxy=a.proxy)),
-    ))
-
-    # Apify 拉勾（自带住宅代理绕 WAF）
+    # Apify 拉勾（免费层）
     # 业务说明：注册 Apify 云抓取命令，使用 Apify 的住宅代理绕过 WAF。
-    sp_apify = sub.add_parser("apify_lagou", help="爬拉勾 (Apify，自带住宅代理)")
+    sp_apify = sub.add_parser("apify_lagou", help="爬拉勾 (Apify，免费层 actor)")
     sp_apify.add_argument("--max", type=int, default=10, help="最大抓取条数")
     sp_apify.add_argument("--dry-run", action="store_true", help="仅测试，不入库")
     sp_apify.set_defaults(func=cmd_apify_lagou)
@@ -319,14 +129,16 @@ def main():
 
     # Phase 10 PIPE-03 (b) D-03: CLI 触发完整 pipeline run
     # 业务说明：注册 run-pipeline 子命令，触发一次完整流水线
-    # (crawl → dedup → clean → extract → graph_sync)
+    # (crawl → dedup → clean → extract → graph_sync)。
+    # crawl 阶段按 DataSourceRecord 配置跑真实开放源（v2ex/arbeitnow/jobicy/weworkremotely）。
     sp_pipeline = sub.add_parser(
         "run-pipeline",
         help="触发一次完整 pipeline run（与 POST /api/v1/pipeline/trigger 等价）",
     )
     sp_pipeline.add_argument(
-        "--source", default="boss", choices=["boss", "lagou", "51job"],
-        help="爬虫源（v2.1 仅 boss 走通完整链路）",
+        "--source", default="auto",
+        choices=["auto", "v2ex", "arbeitnow", "jobicy", "weworkremotely"],
+        help="爬取源标识（仅用于 run_type 标记；实际源由数据源配置决定）",
     )
     sp_pipeline.add_argument(
         "--limit", type=int, default=20,

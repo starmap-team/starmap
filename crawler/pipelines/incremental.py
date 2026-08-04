@@ -69,7 +69,7 @@ def check_incremental(
     *,
     source_site: str | None = None,
     skip_existing_urls: bool = True,
-    simhash_threshold: int = 3,
+    simhash_threshold: int = 10,  # CR-02: 与计划 §6.4 对齐（原 3 过严，漏判近似重复）
 ) -> tuple[list[dict], IncrementalResult]:
     """对一批待入库记录做增量过滤。
 

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import hashlib
 import re
-from typing import Iterable
 
 # 业务说明：正则表达式用于从文本中提取有效 token。
 # 匹配中文字符和英文字母，过滤掉标点符号、空白和数字，
@@ -65,7 +64,7 @@ def hamming(a: int, b: int) -> int:
     return bin(a ^ b).count("1")
 
 
-def is_near_duplicate(a: int, b: int, threshold: int = 3) -> bool:
+def is_near_duplicate(a: int, b: int, threshold: int = 10) -> bool:
     """距离 ≤ 3 视为近似重复（D6 决策默认阈值）。"""
     # 业务说明：判断两个文本是否为近似重复。
     # threshold 为汉明距离阈值，D6 决策默认值为 3。

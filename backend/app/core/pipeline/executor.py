@@ -101,14 +101,18 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
 
     from crawler.persistence import dao
     from crawler.persistence.models import JdStatus
-    from crawler.spiders.v2ex_remote import run_sync as v2ex_sync  # Phase 3.8.10
+    from crawler.spiders import arbeitnow, jobicy, weworkremotely
+    from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
 
     # Spider registry: platform name → run_sync function
-    # Phase 3.8.10: 所有平台指向 v2ex_remote (boss/51job/lagou Playwright 爬虫因反爬失效)
+    # PLAN-005/NEW-07: 注册真实 spider；移除 bosszhipin/51job/lagou 的误导映射
+    # （真实性红线：禁止用其它源数据冒充平台数据；国内真链路见计划书 D17）
     spider_registry: dict[str, Any] = {
-        "bosszhipin": v2ex_sync,
-        "51job": v2ex_sync,
-        "lagou": v2ex_sync,
+        "v2ex": v2ex_sync,
+        "remotive": v2ex_sync,  # v2ex_remote spider 同时覆盖 V2EX + Remotive
+        "arbeitnow": arbeitnow.run_sync,
+        "jobicy": jobicy.run_sync,
+        "weworkremotely": weworkremotely.run_sync,
     }
 
     # Phase 3.8.6: 确保 jd_raw 表存在 (未在 Pipeline 中调用 init_schema)
@@ -118,7 +122,7 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
         raise
     except Exception as exc:
         logger.debug("init_schema call (non-fatal): {}", exc)
-    default_platform = "bosszhipin"
+    default_platform = "v2ex"
     default_keyword = "python"
 
     # Phase 2 AUTHORITY-03: 跳过 paused 数据源
@@ -136,17 +140,17 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     crawl_start = time.monotonic()
 
     if not source_configs:
-        # Fallback: no configured sources → use boss with defaults
+        # Fallback: no configured sources → use v2ex/remotive with defaults
         default_max = 50 if run_type == "incremental" else 200
         logger.info(
-            "No active crawler sources configured, falling back to default boss: "
+            "No active crawler sources configured, falling back to default v2ex: "
             "keyword={}, max_count={}", default_keyword, default_max,
         )
         source_configs = [{
             "platform": default_platform,
             "keyword": default_keyword,
             "max_count": default_max,
-            "source_name": "BOSS直聘 (默认)",        }]
+            "source_name": "V2EX/Remotive (默认)",        }]
 
     total_sources = len(source_configs)
     for source_idx, cfg in enumerate(source_configs):
@@ -825,9 +829,10 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
         async with session_factory() as session:
             from app.models.pipeline_models import DataSourceRecord
 
+            # PLAN-005: api/rss 源同样参与 crawl 阶段（Phase 15 修复在 rebase 中丢失，恢复）
             result = await session.execute(
                 select(DataSourceRecord).where(
-                    DataSourceRecord.source_type == "crawler",
+                    DataSourceRecord.source_type.in_(["crawler", "api", "rss"]),
                     DataSourceRecord.status == "active",
                 )
             )
@@ -839,7 +844,7 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
                 # Build per-source config: merge record-level metadata with config JSON
                 cfg = dict(ds.config)
                 cfg["source_name"] = ds.name
-                cfg.setdefault("platform", cfg.get("source_site", "bosszhipin"))
+                cfg.setdefault("platform", cfg.get("source_site", "v2ex"))
                 configs.append(cfg)
             if configs:
                 logger.debug(

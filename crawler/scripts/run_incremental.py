@@ -3,10 +3,13 @@
 Issue #36 — 阶段3 数据增量更新管道。
 
 用法:
-    python -m crawler.scripts.run_incremental --source lagou --max 50
-    python -m crawler.scripts.run_incremental --source all --max 100 --skip-existing
-    python -m crawler.scripts.run_incremental --report
-    python -m crawler.scripts.run_incremental --report --source lagou
+    python -m crawler.scripts.run_incremental crawl --source v2ex --max 50
+    python -m crawler.scripts.run_incremental crawl --source all --max 100 --skip-existing
+    python -m crawler.scripts.run_incremental report
+    python -m crawler.scripts.run_incremental report --source v2ex
+
+2026-08-05（PLAN-005）：源清单改为真实开放源 v2ex/arbeitnow/jobicy/weworkremotely，
+移除 lagou/51job/bosszhipin 死引用（对应 spider 模块不存在）。
 """
 from __future__ import annotations
 
@@ -18,7 +21,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from crawler import config  # noqa: E402
 from crawler.persistence import dao  # noqa: E402
 from crawler.persistence.models import JdStatus  # noqa: E402
 from crawler.pipelines.incremental import check_incremental  # noqa: E402
@@ -31,57 +33,34 @@ logging.basicConfig(
 log = logging.getLogger("incremental")
 
 
-def _scrapy_settings() -> dict:
+def _spider_registry() -> dict:
+    """真实开放源注册表（PLAN-005：移除指向不存在模块的死引用）。"""
+    from crawler.spiders import arbeitnow, jobicy, weworkremotely
+    from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
+
     return {
-        "USER_AGENT": config.USER_AGENTS[0],
-        "ROBOTSTXT_OBEY": True,
-        "DOWNLOAD_DELAY": 2,
-        "CONCURRENT_REQUESTS": 1,
-        "LOG_LEVEL": "INFO",
-        "ITEM_PIPELINES": {},  # 不用 storage pipeline，手动走增量过滤后入库
+        "v2ex": v2ex_sync,
+        "arbeitnow": arbeitnow.run_sync,
+        "jobicy": jobicy.run_sync,
+        "weworkremotely": weworkremotely.run_sync,
     }
+
+
+_OPEN_SOURCES = ("v2ex", "arbeitnow", "jobicy", "weworkremotely")
 
 
 def _crawl_site(site: str, max_count: int) -> list[dict]:
     """爬取单个站点，返回 item 列表（不入库）。"""
-    items: list[dict] = []
-
-    if site in ("lagou", "51job"):
-        from scrapy.crawler import CrawlerProcess
-        from scrapy import signals
-
-        collected: list[dict] = []
-
-        def item_scraped(item, response, spider):
-            """Signal handler to collect scraped items."""
-            collected.append(dict(item))
-
-        if site == "lagou":
-            from crawler.spiders.lagou import LagouSpider
-            spider_cls = LagouSpider
-        else:
-            from crawler.spiders.job51 import Job51Spider
-            spider_cls = Job51Spider
-
-        process = CrawlerProcess(settings=_scrapy_settings())
-        crawler = process.create_crawler(spider_cls)
-        crawler.signals.connect(item_scraped, signal=signals.item_scraped)
-        process.crawl(crawler, max_per_site=max_count)
-        process.start()
-        items = collected
-
-    elif site == "bosszhipin":
-        from crawler.spiders.boss import run_sync
-
-        raw_items = run_sync(keyword="python", max_count=max_count)
-        items = [dict(it) for it in raw_items]
-
-    return items
+    fn = _spider_registry().get(site)
+    if fn is None:
+        log.warning("未知或已下线的源: %s（可选: %s）", site, ", ".join(_OPEN_SOURCES))
+        return []
+    return [dict(it) for it in fn(keyword="python", max_count=max_count)]
 
 
 def cmd_incremental(args: argparse.Namespace) -> None:
     """增量爬取：爬取 → 差分过滤 → 入库。"""
-    sites = ["lagou", "51job", "bosszhipin"] if args.source == "all" else [args.source]
+    sites = list(_OPEN_SOURCES) if args.source == "all" else [args.source]
 
     for site in sites:
         log.info("=== 增量爬取 %s (max=%d) ===", site, args.max)
@@ -141,15 +120,15 @@ def main() -> None:
 
     # 增量爬取
     sp_crawl = sub.add_parser("crawl", help="增量爬取（差分去重后入库）")
-    sp_crawl.add_argument("--source", default="all", choices=["lagou", "51job", "bosszhipin", "all"])
+    sp_crawl.add_argument("--source", default="all", choices=[*_OPEN_SOURCES, "all"])
     sp_crawl.add_argument("--max", type=int, default=50, help="每站点最大爬取数")
     sp_crawl.add_argument("--skip-existing", action="store_true", default=True, help="跳过已入库 URL")
-    sp_crawl.add_argument("--simhash-threshold", type=int, default=3, help="SimHash 近似阈值")
+    sp_crawl.add_argument("--simhash-threshold", type=int, default=10, help="SimHash 近似阈值（计划 §6.4 默认 10）")
     sp_crawl.set_defaults(func=cmd_incremental)
 
     # 质量报告
     sp_report = sub.add_parser("report", help="数据质量报告")
-    sp_report.add_argument("--source", default="all", choices=["lagou", "51job", "bosszhipin", "all"])
+    sp_report.add_argument("--source", default="all", help="数据源过滤（source_site 字符串或 all）")
     sp_report.add_argument("--json", action="store_true", help="同时输出 JSON")
     sp_report.set_defaults(func=cmd_report)
 

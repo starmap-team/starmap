@@ -30,14 +30,13 @@ if "crawler.persistence" not in sys.modules:
     crawler.persistence.models = sys.modules["crawler.persistence.models"]
     crawler.persistence.database = sys.modules["crawler.persistence.database"]
 
-# Mock scrapy and spider modules for run_incremental tests
+# Mock scrapy for tests without the dependency installed.
+# PLAN-005: 不再 mask crawler.spiders —— 真实开放源 spider 已存在，
+# 旧 mask 是为掩盖 lagou/job51/boss 死引用（已删除）。
 if "scrapy" not in sys.modules:
-    sys.modules["scrapy"] = MagicMock()
-    sys.modules["scrapy.crawler"] = MagicMock()
-    sys.modules["scrapy.signals"] = MagicMock()
-
-if "crawler.spiders" not in sys.modules:
-    sys.modules["crawler.spiders"] = MagicMock()
-    sys.modules["crawler.spiders.boss"] = MagicMock()
-    sys.modules["crawler.spiders.lagou"] = MagicMock()
-    sys.modules["crawler.spiders.job51"] = MagicMock()
+    try:
+        import scrapy  # noqa: F401
+    except ImportError:
+        sys.modules["scrapy"] = MagicMock()
+        sys.modules["scrapy.crawler"] = MagicMock()
+        sys.modules["scrapy.signals"] = MagicMock()
