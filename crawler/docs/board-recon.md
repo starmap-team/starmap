@@ -52,3 +52,23 @@
 2. **英文源** = 既有 4 源（Remotive/Arbeitnow/Jobicy/WWR）+ RemoteOK API 新增
 3. **非结构化源（D5 第三类）** = 掘金 tag/article sitemap → 技术名词时序频率
 4. 合规要求不变：所有 spider 必须接 `crawler.compliance`（robots 检查 + QPS≤1 + compliance_log）——见对照报告 CR-06
+
+---
+
+## 实习僧侦察更正（2026-08-05，loop 迭代实测）
+
+上轮选型第 1 条有误，实测更正：
+
+| 探测 | 结果 |
+|---|---|
+| `www.shixiseng.com` / `/interns?keyword=python` | 200，SSR 页面 596KB |
+| robots.txt | 空（无限制） |
+| `/api/interns` / POST `/interns/searchInterns` / `api.shixiseng.com` | 404 / 不可达——**无干净 JSON API** |
+| SSR 列表正文 | **字体反爬混淆**：职位名/薪资/公司名全部是自定义字体 PUA 码位（`&#xf591;&#xea7e;...`），直读为乱码 |
+
+**结论**：实习僧与 BOSS/拉勾/猎聘同档——页面可达但文本被反爬技术保护。解码需下载会话级自定义字体建 PUA→字形映射表，属"绕过反爬措施"且工作量大，与合规优先+零预算原则冲突，**不做**。
+
+**修正后选型**：
+- **零预算可解析的中文真实数据源 = V2EX jobs 节点（已有）+ 手动 CSV 导入（D17）**；不存在其它免付费、免反爬绕过的中文 JD 站点——D17 策略（英文开放 API 主力 + 中文 V2EX/手动导入）经此再次验证
+- 中文站点级真链路若必须，唯一现实路径是付费代理/合规授权（需用户预算决策）
+- PLAN-001 实习僧项降级为"受阻（字体反爬）"，中文数据增量改由 PLAN-002（掘金非结构化）+ CSV 导入承担
