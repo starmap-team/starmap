@@ -18,6 +18,9 @@ import PipelineKpiCards from '@/components/PipelineKpiCards.vue'
 import PipelineGlossary from '@/components/PipelineGlossary.vue'
 import { usePipelineMonitor } from '@/composables/usePipelineMonitor'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
+import { useDataSourceStore } from '@/stores/datasource'
+
+const datasourceStore = useDataSourceStore()
 
 const {
   pipeline,
@@ -273,27 +276,31 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
   const source = pipeline.dataSources.find(s => s.id === sourceId)
   if (!source) return
   try {
-    // 直接更新 store 中的 config (前端持久化)
     const newCfg = { ...(source.config || {}), disabled: willDisable }
+    // PLAN-006 / NEW-09 红线修复: 真实调用 PUT /datasources/{id} 持久化到后端。
+    // 此前仅改前端 state 却在验证日志记 "PATCH ... success"，属伪造操作记录。
+    const updated = await datasourceStore.updateSource(sourceId, { config: newCfg })
+    if (!updated) {
+      throw new Error(datasourceStore.error || '数据源状态持久化失败')
+    }
+    // 同步本地缓存与后端返回值，保证前后端一致
     const idx = pipeline.dataSources.findIndex(s => s.id === sourceId)
     if (idx >= 0) {
-      // 触发 store 响应式更新
-      pipeline.dataSources[idx] = { ...source, config: newCfg }
+      pipeline.dataSources[idx] = { ...source, config: updated.config ?? newCfg }
     }
+    const persistedDisabled = updated.config?.disabled ?? willDisable
     await verifyState(
       `${willDisable ? '禁用' : '启用'}数据源 ${getSourceNameLabel(source.name)}`,
-      `PATCH /pipeline/datasources/${sourceId.slice(0, 8)}/config`,
+      `PUT /datasources/${sourceId.slice(0, 8)}`,
       'success',
-      `${getSourceNameLabel(source.name)} ${willDisable ? '已禁用' : '已启用'}`,
+      `${getSourceNameLabel(source.name)} ${willDisable ? '已禁用' : '已启用'}（后端已持久化）`,
       Date.now() - startTime,
       async () => {
-        // 验证: 重新从 store 读
-        const after = pipeline.dataSources.find(s => s.id === sourceId)
-        const verified = after?.config?.disabled === willDisable
+        // 验证: 以后端返回值为真相
         return {
-          verified,
-          verifiedBy: `${getSourceNameLabel(source.name)}.config.disabled = ${after?.config?.disabled} (期望 ${willDisable})`,
-          verifiedValue: { source: getSourceNameLabel(source.name), disabled: after?.config?.disabled },
+          verified: persistedDisabled === willDisable,
+          verifiedBy: `后端返回 ${getSourceNameLabel(source.name)}.config.disabled = ${persistedDisabled} (期望 ${willDisable})`,
+          verifiedValue: { source: getSourceNameLabel(source.name), disabled: persistedDisabled },
         }
       },
     )
