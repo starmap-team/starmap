@@ -225,11 +225,11 @@ request.interceptors.response.use(
 type RequestInstance = typeof request
 
 interface TypedRequest extends RequestInstance {
-  get<T = unknown>(url: string, config?: Parameters<RequestInstance['get']>[1]): Promise<T>
-  post<T = unknown>(url: string, data?: unknown, config?: Parameters<RequestInstance['post']>[2]): Promise<T>
-  put<T = unknown>(url: string, data?: unknown, config?: Parameters<RequestInstance['put']>[2]): Promise<T>
-  delete<T = unknown>(url: string, config?: Parameters<RequestInstance['delete']>[1]): Promise<T>
-  patch<T = unknown>(url: string, data?: unknown, config?: Parameters<RequestInstance['patch']>[2]): Promise<T>
+  get<T = unknown>(url: string, config?: any): Promise<T>
+  post<T = unknown>(url: string, data?: unknown, config?: any): Promise<T>
+  put<T = unknown>(url: string, data?: unknown, config?: any): Promise<T>
+  delete<T = unknown>(url: string, config?: any): Promise<T>
+  patch<T = unknown>(url: string, data?: unknown, config?: any): Promise<T>
 }
 
 // The interceptor already unwraps `resp.data`, so a simple cast is safe.
