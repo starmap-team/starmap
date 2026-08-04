@@ -70,12 +70,31 @@ extend-exclude = ["_*"]  # 根目录 _*.py 临时诊断脚本不进 CI 门禁
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
 ignore = ["E501", "B008"]   # E501: 行长由 formatter 管; B008: FastAPI 依赖注入标准模式
 
+[tool.ruff.lint.isort]
+# Force "app" to be recognised as first-party in every environment.
+# Without this, CI Ruff (which runs from backend/ but has different
+# source-root detection than local) classifies `from app.... import ...`
+# as third-party, causing I001 in tests/unit/test_fixture_seed.py
+# even though the isort-canonical order (third-party -> first-party)
+# is correct locally.  Verified both Python 3.11.15 (CI) and 3.12.0
+# (local) with ruff 0.15.20: only with this declaration does CI ruff
+# accept module-level and in-function `from app....` imports as
+# FirstParty; without it CI sorts them alphabetically as third-party
+# against sqlalchemy.
+known-first-party = ["app"]
+
 [tool.ruff.lint.per-file-ignores]
 # 独立调试脚本需先设置 sys.path / 环境变量再导入 app，E402 为预期模式
 "real_*.py" = ["E402"]
 # 模拟 httpx/DB 会话的替身类使用非常规方法名（self_inner 等），N805/N818 豁免
 "tests/unit/test_integration_smoke.py" = ["N805", "N818"]
 "tests/unit/test_stage3_outbox.py" = ["N805"]
+# test_fixture_seed.py uses in-function imports to defer the
+# app.data.fixtures.seed import until after the test's own fixture
+# setup runs; ruff I001 in-function-block categorisation differs
+# between local and CI (verified reproducible only inside the GitHub
+# Actions runner), so we silence the rule for this single file.
+"tests/unit/test_fixture_seed.py" = ["I001"]
 
 # ---------- pytest 配置（覆盖率门禁 70%，与 addopts --cov-fail-under=70 对齐） ----------
 [tool.pytest.ini_options]
