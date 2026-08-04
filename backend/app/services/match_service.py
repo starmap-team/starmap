@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from loguru import logger
 from neo4j.exceptions import Neo4jError
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -31,6 +32,49 @@ from app.exceptions import StarMapError
 
 # 为了保持向后兼容，保留原有的全局变量
 PREREQUISITE_MAP: dict[str, list[str]] = {}
+_PREREQUISITE_LOADED = False
+
+
+async def ensure_prerequisite_map(driver: Any = None) -> dict[str, list[str]]:
+    """从 Neo4j 幂等加载技能前置关系到 PREREQUISITE_MAP（原地填充）。
+
+    NEW-03 修复：该字典此前恒空且无加载方，导致学习推荐 prerequisites 恒空、
+    recommendation_service developability 恒 0.5。所有消费方（learning/
+    learning_service/recommendation_service）import 的是同一 dict 对象，
+    原地填充即可一处修复全链路。Neo4j 不可用时降级为空映射，不阻断业务。
+    """
+    global _PREREQUISITE_LOADED
+    if _PREREQUISITE_LOADED or PREREQUISITE_MAP:
+        return PREREQUISITE_MAP
+    if driver is None:
+        from app.services.resources import resources as app_resources
+
+        driver = app_resources.neo4j_driver
+    if driver is None:
+        return PREREQUISITE_MAP
+    try:
+        async with driver.session() as session:
+            result = await session.run(
+                "MATCH (a:Skill)-[:PREREQUISITE]->(b:Skill) "
+                "RETURN a.name AS src, b.name AS tgt"
+            )
+            async for rec in result:
+                src, tgt = rec["src"], rec["tgt"]
+                PREREQUISITE_MAP.setdefault(src, [])
+                if tgt not in PREREQUISITE_MAP[src]:
+                    PREREQUISITE_MAP[src].append(tgt)
+        _PREREQUISITE_LOADED = True
+        logger.info(
+            "[match_service] Loaded {} prerequisite relations", len(PREREQUISITE_MAP)
+        )
+    except StarMapError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — 加载失败降级为空映射
+        logger.warning(
+            "[match_service] Prerequisite map load failed, degrading to empty: {}", exc
+        )
+    return PREREQUISITE_MAP
+
 
 # 创建全局 MatchService 实例
 _match_service = MatchService()

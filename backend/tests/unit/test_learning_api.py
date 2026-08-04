@@ -290,6 +290,35 @@ class TestListPlans:
             resp = client.get("/api/v1/learning/plans?limit=5", headers=auth_headers)
         assert resp.status_code == 200
 
+    def test_list_user_id_matches_create_caliber(self, client, db_override):
+        """NEW-02 回归：list 与 create 必须同口径取 user_id（sub=username）。
+
+        真实 JWT 同时携带 sub(username) 与 uid(DB UUID)。此前 list 优先 uid、
+        create 存 sub，真实用户查不到自己的计划。现统一为 sub。
+        """
+        real_user = {
+            "sub": "alice",
+            "uid": "11111111-2222-3333-4444-555555555555",
+            "role": "user",
+            "username": "alice",
+        }
+        app.dependency_overrides[get_current_user] = lambda: real_user
+        session = FakeAsyncSession([FakeResult([])])
+        db_override(session)
+        captured: dict[str, str] = {}
+
+        async def fake_list(_sess, user_id, limit):
+            captured["user_id"] = user_id
+            return []
+
+        with patch(
+            "app.api.v1.learning.learning_service.list_plans_for_user",
+            side_effect=fake_list,
+        ):
+            resp = client.get("/api/v1/learning/plans")
+        assert resp.status_code == 200
+        assert captured["user_id"] == "alice", "list 必须用 sub(username)，不得用 uid"
+
 
 # ══════════════════════════════════════════════════════════════
 # POST /api/v1/learning/plan
@@ -619,7 +648,11 @@ class TestGetRecommendations:
         progress = FakeProgressRow(
             plan_id=plan_id, skill_name="Python", status="not_started", progress_pct=0.0, importance="required"
         )
-        session = FakeAsyncSession([FakeResult([progress])])
+        # NEW-21: 先属主查询（plan.user_id=_MOCK_USER['sub']='dev'），再 progress 查询
+        session = FakeAsyncSession([
+            FakeResult(FakePlanRow(plan_id=plan_id)),
+            FakeResult([progress]),
+        ])
         db_override(session)
         with patch("app.api.v1.learning.PREREQUISITE_MAP", {"Python": ["基础编程"]}):
             resp = client.get(f"/api/v1/learning/recommendations?plan_id={plan_id}", headers=auth_headers)
@@ -677,7 +710,10 @@ class TestGetRecommendations:
     def test_recommendations_plan_id_filters_mastered(self, client, auth_headers, db_override):
         plan_id = uuid.uuid4()
         not_started = FakeProgressRow(plan_id=plan_id, skill_name="Python", status="not_started", progress_pct=0.0)
-        session = FakeAsyncSession([FakeResult([not_started])])
+        session = FakeAsyncSession([
+            FakeResult(FakePlanRow(plan_id=plan_id)),
+            FakeResult([not_started]),
+        ])
         db_override(session)
         with patch("app.api.v1.learning.PREREQUISITE_MAP", {}):
             resp = client.get(f"/api/v1/learning/recommendations?plan_id={plan_id}", headers=auth_headers)
@@ -685,6 +721,16 @@ class TestGetRecommendations:
         body = resp.json()
         skill_names = [i["skill"] for i in body["items"]]
         assert "SQL" not in skill_names
+
+    def test_recommendations_plan_id_other_user_returns_403(self, client, auth_headers, db_override):
+        """NEW-21 回归：他人 plan_id 必须 403（IDOR 防护）。"""
+        plan_id = uuid.uuid4()
+        session = FakeAsyncSession([
+            FakeResult(FakePlanRow(plan_id=plan_id, user_id="someone-else")),
+        ])
+        db_override(session)
+        resp = client.get(f"/api/v1/learning/recommendations?plan_id={plan_id}", headers=auth_headers)
+        assert resp.status_code == 403
 
 
 # ══════════════════════════════════════════════════════════════

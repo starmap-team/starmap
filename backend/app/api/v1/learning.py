@@ -30,7 +30,7 @@ from app.schemas.learning import (
     UpdateProgressRequest,
 )
 from app.services import learning_service
-from app.services.match_service import PREREQUISITE_MAP
+from app.services.match_service import PREREQUISITE_MAP, ensure_prerequisite_map
 
 router = APIRouter(prefix="/learning", tags=["学习中心"])
 
@@ -46,7 +46,10 @@ async def list_learning_plans(
     limit: int = Query(20, ge=1, le=100),
 ) -> list[PlanResponse]:
     """List all learning plans for the current user, newest first."""
-    user_id = user.get("uid") or user["sub"]  # ponytail: prefer uid (DB UUID), fallback sub
+    # NEW-02 修复：必须与 create/get/update/add 同口径（sub=username，
+    # 即 LearningPlan.user_id 的存储值）；此前用 uid 查询导致真实用户
+    # 查不到自己创建的计划。
+    user_id = user["sub"]
     views = await learning_service.list_plans_for_user(session, user_id, limit)
     return [PlanResponse(**v) for v in views]
 
@@ -209,6 +212,7 @@ async def add_skill_to_plan(
 @router.get("/recommendations", response_model=RecommendationsResponse)
 async def get_recommendations(
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
     plan_id: str | None = Query(default=None, description="Plan ID for context"),
     position: str | None = Query(default=None, description="Target position for context"),
 ) -> RecommendationsResponse:
@@ -218,6 +222,9 @@ async def get_recommendations(
     If position is provided, recommendations are based on the position's requirements.
     Otherwise, returns general trending skill recommendations.
     """
+    # NEW-03: 首次调用时从 Neo4j 加载前置关系（不可用时降级为空）
+    await ensure_prerequisite_map()
+
     items: list[RecommendationItem] = []
 
     if plan_id:
@@ -225,6 +232,15 @@ async def get_recommendations(
             pid = uuid.UUID(plan_id)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
+
+        # NEW-21 修复：plan_id 分支须属主校验，防他人计划技能缺口泄漏（IDOR）
+        plan_row = (
+            await session.execute(sa.select(LearningPlan).where(LearningPlan.id == pid))
+        ).scalar_one_or_none()
+        if plan_row is None:
+            raise HTTPException(status_code=404, detail="Plan not found")
+        if plan_row.user_id != user["sub"]:
+            raise HTTPException(status_code=403, detail="Not authorized to view this plan")
 
         # Get plan's gap skills sorted by priority
         stmt = (

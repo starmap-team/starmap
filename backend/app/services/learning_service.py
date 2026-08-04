@@ -18,7 +18,7 @@ from app.core.learning.path_engine import generate_learning_path
 from app.core.learning.progress_tracker import create_plan, get_progress, update_progress
 from app.exceptions import PlanNotFoundError, PlanOwnershipError
 from app.models.learning_models import LearningPlan
-from app.services.match_service import PREREQUISITE_MAP
+from app.services.match_service import PREREQUISITE_MAP, ensure_prerequisite_map
 
 
 async def create_plan_from_match(
@@ -74,6 +74,9 @@ async def create_plan_from_match(
             "status": "no_gaps",
             "message": "所有技能已掌握，无需学习计划",
         }
+
+    # NEW-03: 确保前置关系已从 Neo4j 加载（不可用时降级为空）
+    await ensure_prerequisite_map()
 
     # Generate structured learning path with time estimates
     learning_path = await generate_learning_path(
@@ -190,6 +193,9 @@ async def create_plan_from_diagnosis(
     available_hours_per_week: float = 10.0,
 ) -> dict[str, Any]:
     """从技能差距创建学习计划,返回完整视图。"""
+    # NEW-03: 确保前置关系已从 Neo4j 加载（不可用时降级为空）
+    await ensure_prerequisite_map()
+
     learning_path = await generate_learning_path(
         match_gaps=skill_gaps,
         prerequisites=PREREQUISITE_MAP,
