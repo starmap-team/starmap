@@ -153,6 +153,7 @@ backend/test_*.py
 .omc/
 .omo/
 .serena/
+.reasonix/
 graphify-out/
 screenshots/
 .zcode/
