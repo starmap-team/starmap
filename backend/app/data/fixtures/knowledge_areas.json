@@ -1,0 +1,54 @@
+[
+  {
+    "name": "AI/机器学习",
+    "description": "AI/机器学习领域相关知识和技能"
+  },
+  {
+    "name": "DevOps",
+    "description": "DevOps领域相关知识和技能"
+  },
+  {
+    "name": "云原生",
+    "description": "云原生领域相关知识和技能"
+  },
+  {
+    "name": "前端开发",
+    "description": "前端开发领域相关知识和技能"
+  },
+  {
+    "name": "后端开发",
+    "description": "后端开发领域相关知识和技能"
+  },
+  {
+    "name": "安全",
+    "description": "安全领域相关知识和技能"
+  },
+  {
+    "name": "数据工程",
+    "description": "数据工程领域相关知识和技能"
+  },
+  {
+    "name": "数据库",
+    "description": "数据库领域相关知识和技能"
+  },
+  {
+    "name": "测试",
+    "description": "测试领域相关知识和技能"
+  },
+  {
+    "name": "移动开发",
+    "description": "移动开发领域相关知识和技能"
+  },
+  {
+    "name": "编程语言",
+    "description": "编程语言领域相关知识和技能"
+  },
+  {
+    "name": "设计",
+    "description": "设计领域相关知识和技能"
+  },
+  {
+    "name": "项目管理",
+    "description": "项目管理领域相关知识和技能"
+  }
+]

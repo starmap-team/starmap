@@ -88,7 +88,10 @@ frontend/src/api/schema.ts
 Thumbs.db
 
 # ---- Docker / 服务本地数据卷 ----
-data/
+# 注意：data/ 改为 /data/ 锚定到仓库根。原写法会同时匹配
+# backend/app/data/（fixture seed 数据），导致该目录被忽略，
+# tests/unit/test_fixture_seed.py 在 CI 中报 ModuleNotFoundError。
+/data/
 volumes/
 neo4j/
 pgdata/

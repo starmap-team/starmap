@@ -1,0 +1,1217 @@
+[
+  {
+    "name": "A/B Testing",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "AI Programming",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "AI/ML Knowledge",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "API Documentation",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "API Testing",
+    "category": "测试",
+    "aliases": []
+  },
+  {
+    "name": "ARM",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "AWS",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "AWS Security",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Accessibility",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "Adobe XD",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "Agile",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Airflow",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Android",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "Android Studio",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "Ansible",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "App Store",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "Architecture Design",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Assembly",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "Azure",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "BERT",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Backtesting",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Backup & Recovery",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "Budget Management",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Burp Suite",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "C",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "C#",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "C++",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "CI/CD",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "CSS3",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "CUDA",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Celery",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "ChromaDB",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "ClickHouse",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "Cloud",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "Cloud Networking",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "Cloud Security",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "CloudFormation",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "CocoaPods",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "Code Review",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Collaborative Filtering",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Communication Protocols",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "Compliance",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Content Management",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Core Data",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "Cost Optimization",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "Cryptography",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "DHCP",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "DNS",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Dart",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "Data Analysis",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Data Catalog",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Data Lineage",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Data Quality",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "DeFi",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "Debugging",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "Deep Learning",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Design System",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "Diagramming",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "Distributed Systems",
+    "category": "后端开发",
+    "aliases": []
+  },
+  {
+    "name": "Docker",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "Docker Compose",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "EC2",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "ESLint",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "ETL",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Elasticsearch",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "Embedded Linux",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "Ethereum",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "Excel",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Experiment Design",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "FastAPI",
+    "category": "后端开发",
+    "aliases": []
+  },
+  {
+    "name": "Feature Engineering",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Figma",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "Fine-tuning",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Firebase",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "Firewall",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Flink",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Flutter",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "GCP",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "GPT",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Git",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "Google Play",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "Gradle",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "Grafana",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "GraphQL",
+    "category": "后端开发",
+    "aliases": []
+  },
+  {
+    "name": "HBase",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "HTML5",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "Hadoop",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Helm",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "Hive",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Hugging Face",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "IAM",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "IDS/IPS",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "IPFS",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "Illustrator",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "Image Processing",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Incident Response",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "Information Retrieval",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "JMeter",
+    "category": "测试",
+    "aliases": []
+  },
+  {
+    "name": "Java",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "JavaScript",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "Jenkins",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "Jetpack Compose",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "Jira",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Jupyter",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "KPI",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Kafka",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Kotlin",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "Kubernetes",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "LLM",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "LaTeX",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Lambda",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "LangChain",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Linux",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "Load Balancing",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Lua",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "Lucene",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "MLflow",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Machine Learning",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Markdown",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Market Research",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Matplotlib",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Metadata Management",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Microcontrollers",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "MongoDB",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "Monitoring",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "MySQL",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "NLP",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "NLTK",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "NPM",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "Netty",
+    "category": "后端开发",
+    "aliases": []
+  },
+  {
+    "name": "Networking",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "Nginx",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "Nmap",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "NoSQL",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "Node.js",
+    "category": "后端开发",
+    "aliases": []
+  },
+  {
+    "name": "NumPy",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "ONNX",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "OWASP",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Objective-C",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "OpenAI API",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "OpenCV",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "OpenGL",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "PCB Design",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "PRD",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Pandas",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Paper Reading",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Penetration Testing",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Performance Optimization",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "Performance Testing",
+    "category": "测试",
+    "aliases": []
+  },
+  {
+    "name": "Performance Tuning",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "Photoshop",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "Physics",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "Playwright",
+    "category": "测试",
+    "aliases": []
+  },
+  {
+    "name": "PostgreSQL",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "Postman",
+    "category": "测试",
+    "aliases": []
+  },
+  {
+    "name": "Power BI",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Presto",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "Privacy",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Product Strategy",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Project Management",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Prometheus",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "Prompt Engineering",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Prototyping",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "PyTorch",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Pytest",
+    "category": "测试",
+    "aliases": []
+  },
+  {
+    "name": "Python",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "Quantitative Analysis",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "RAG",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "REST API",
+    "category": "后端开发",
+    "aliases": []
+  },
+  {
+    "name": "RTOS",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "RabbitMQ",
+    "category": "后端开发",
+    "aliases": []
+  },
+  {
+    "name": "React",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "React Native",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "Redis",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "Replication",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "ResNet",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Research",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Responsive Design",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "Retrofit",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "Risk Management",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Room",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "S3",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "SEO",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "SIEM",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "SQL",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "SQLite",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "Sass",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "Scrum",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Seaborn",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Security",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Selenium",
+    "category": "测试",
+    "aliases": []
+  },
+  {
+    "name": "Shader Programming",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Shell Script",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "Sketch",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "Smart Contracts",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "Snowflake",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "Solidity",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "Solr",
+    "category": "数据库",
+    "aliases": []
+  },
+  {
+    "name": "Spark",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "Spring Boot",
+    "category": "后端开发",
+    "aliases": []
+  },
+  {
+    "name": "Stakeholder Communication",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Stakeholder Management",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Statistics",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Swagger",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Swift",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "Swift Package Manager",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "SwiftUI",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "T5",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "TCP/IP",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Tableau",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "Tailwind CSS",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "Team Leadership",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "Technical Writing",
+    "category": "项目管理",
+    "aliases": []
+  },
+  {
+    "name": "TensorFlow",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Terraform",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "TestRail",
+    "category": "测试",
+    "aliases": []
+  },
+  {
+    "name": "Testing",
+    "category": "测试",
+    "aliases": []
+  },
+  {
+    "name": "Time Series",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Transformers",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "TypeScript",
+    "category": "编程语言",
+    "aliases": []
+  },
+  {
+    "name": "UI/UX Design",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "UIKit",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "Unity",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Unreal Engine",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "User Research",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "User Testing",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "VPC",
+    "category": "云原生",
+    "aliases": []
+  },
+  {
+    "name": "VPN",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Version Control",
+    "category": "DevOps",
+    "aliases": []
+  },
+  {
+    "name": "Vite",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "Vue.js",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "Vulkan",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "Web3.js",
+    "category": "其他",
+    "aliases": []
+  },
+  {
+    "name": "Webpack",
+    "category": "前端开发",
+    "aliases": []
+  },
+  {
+    "name": "Wireframing",
+    "category": "设计",
+    "aliases": []
+  },
+  {
+    "name": "Wireshark",
+    "category": "安全",
+    "aliases": []
+  },
+  {
+    "name": "Xcode",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "YOLO",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "dbt",
+    "category": "数据工程",
+    "aliases": []
+  },
+  {
+    "name": "gRPC",
+    "category": "后端开发",
+    "aliases": []
+  },
+  {
+    "name": "iOS",
+    "category": "移动开发",
+    "aliases": []
+  },
+  {
+    "name": "scikit-learn",
+    "category": "AI/机器学习",
+    "aliases": []
+  },
+  {
+    "name": "spaCy",
+    "category": "AI/机器学习",
+    "aliases": []
+  }
+]
