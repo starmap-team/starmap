@@ -72,6 +72,7 @@ frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/
 frontend/e2e/auth-state.json
+frontend/e2e/__screenshots__/
 frontend/gen_*.js
 frontend/src/pages/*.vue.new
 frontend/pencil-tools/
@@ -158,20 +159,11 @@ graphify-out/
 screenshots/
 .zcode/
 .workbuddy/
-.planning/quick/
-# .planning 草稿/运行时区域（正式计划与阶段文档纳管，scratch 忽略）
-.planning/debug/
-.planning/explore/
-.planning/notes/
-.planning/research/
-.planning/todos/
-.planning/deep/
-.planning/codebase/
-.planning/onboarding/
-.planning/phase-*-backups/
-.planning/*.txt
-.planning/*.json
+# .planning 整体忽略（开发过程产物，不进版本库）
+.planning/
 backend/.planning/
+# plans/ 规划蓝图（开发过程产物）
+plans/
 
 # ---- Playwright / E2E 测试产物 ----
 playwright-report/
@@ -195,6 +187,7 @@ vitest.config.ts.timestamp-*.mjs
 
 # ---- 文档 / 归档区域 ----
 docs/archive/
+docs/pencil-tools/
 CLAUDE.md
 
 # ---- 评估运行时产物（代码与 golden_set*.jsonl 保留，运行报告不提交）----
