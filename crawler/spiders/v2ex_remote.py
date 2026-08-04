@@ -15,22 +15,24 @@ import time
 from datetime import datetime, UTC
 from typing import Any
 
-import urllib.request
 import json
 import hashlib
+
+from crawler.compliance import fetch
 
 
 V2EX_TOPICS_URL = "https://www.v2ex.com/api/topics/show.json?node_name=jobs"
 V2EX_TOPIC_URL = "https://www.v2ex.com/api/topics/show.json?id={id}"
 REMOTIVE_URL = "https://remotive.com/api/remote-jobs?search=python&limit=5"
 
-_HEADERS = {"User-Agent": "StarMap/1.0 (+https://github.com/starmap)"}
 
-
-def _fetch(url: str) -> dict:
-    req = urllib.request.Request(url, headers=_HEADERS)
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read())
+def _fetch(url: str, source_site: str) -> Any:
+    # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log），
+    # 不再裸 urllib。失败时抛错由调用方 try/except 降级（保持原行为）。
+    result = fetch(url, source_site)
+    if result.status_code != 200 or not result.text:
+        raise ValueError(f"fetch failed status={result.status_code}")
+    return json.loads(result.text)
 
 
 def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any]]:
@@ -41,7 +43,7 @@ def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any
 
     # ── V2EX (中文) ──
     try:
-        topics = _fetch(V2EX_TOPICS_URL)
+        topics = _fetch(V2EX_TOPICS_URL, "v2ex")
         if isinstance(topics, list):
             topics = topics[:max(max_count // 2, 2)]
             for topic in topics:
@@ -49,7 +51,7 @@ def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any
                 # 获取详情
                 detail_html = ""
                 try:
-                    detail = _fetch(V2EX_TOPIC_URL.format(id=tid))
+                    detail = _fetch(V2EX_TOPIC_URL.format(id=tid), "v2ex")
                     if isinstance(detail, list) and detail:
                         detail_html = detail[0].get("content_rendered", "") or detail[0].get("content", "")
                 except Exception:
@@ -73,13 +75,13 @@ def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any
 
                 if len(items) >= max_count:
                     break
-    except Exception as e:
+    except Exception:
         # 非 fatal — 有 V2EX 够了
         pass
 
     # ── Remotive (英文) ──
     try:
-        remo = _fetch(REMOTIVE_URL)
+        remo = _fetch(REMOTIVE_URL, "remotive")
         for job in remo.get("jobs", [])[:max(max_count - len(items), 0)]:
             desc = job.get("description", "")[:5000]
             items.append({

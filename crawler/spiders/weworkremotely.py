@@ -8,25 +8,24 @@
 from __future__ import annotations
 
 import hashlib
-import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 from typing import Any
 
+from crawler.compliance import fetch
+
 WWR_RSS = "https://weworkremotely.com/categories/remote-programming-jobs.rss"
-_HEADERS = {"User-Agent": "StarMap/1.0 (+https://github.com/starmap)"}
 
 
 def run_sync(keyword: str = "", max_count: int = 20) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
-    try:
-        req = urllib.request.Request(WWR_RSS, headers=_HEADERS)
-        xml_data = urllib.request.urlopen(req, timeout=15).read()
-    except Exception:
+    # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log）。
+    result = fetch(WWR_RSS, "weworkremotely")
+    if result.status_code != 200 or not result.text:
         return items
 
     try:
-        root = ET.fromstring(xml_data)
+        root = ET.fromstring(result.text)
     except ET.ParseError:
         return items
 

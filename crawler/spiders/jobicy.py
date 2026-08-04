@@ -9,22 +9,24 @@ from __future__ import annotations
 
 import hashlib
 import json
-import urllib.request
 from datetime import UTC, datetime
 from typing import Any
 
+from crawler.compliance import fetch
+
 JOBICY_URL = "https://jobicy.com/api/v2/remote-jobs"
-_HEADERS = {"User-Agent": "StarMap/1.0 (+https://github.com/starmap)"}
 
 
 def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
+    # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log）。
+    url = f"{JOBICY_URL}?count={max_count}&tag={keyword}"
+    result = fetch(url, "jobicy")
+    if result.status_code != 200 or not result.text:
+        return items
     try:
-        url = f"{JOBICY_URL}?count={max_count}&tag={keyword}"
-        req = urllib.request.Request(url, headers=_HEADERS)
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read())
-    except Exception as exc:
+        data = json.loads(result.text)
+    except json.JSONDecodeError:
         return items
 
     now = datetime.now(UTC).isoformat()

@@ -2,26 +2,22 @@
 caused silent 0-record crawl runs:
 
 1. HTTP 200 with valid JSON → returns items with all required fields
-2. urlopen timeout / network error → graceful degradation, returns partial/empty list
+2. network timeout / error (compliance.fetch returns status 0) → graceful degradation
 3. HTTP 200 with malformed JSON body → caught, returns partial/empty list
 
-These tests do NOT hit the real network — they patch ``urllib.request.urlopen``
-so they are deterministic and CI-safe.
+These tests do NOT hit the real network — they patch the module's ``fetch``
+(the compliance.fetch entry point, PLAN-004) so they are deterministic and CI-safe.
 """
 from __future__ import annotations
 
-import io
 import json
-from collections.abc import Sequence
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
-# Stage 2.2: conftest mocks crawler.spiders as a whole. To test the real
-# v2ex_remote module we must bypass that mock by importing the file directly
-# via importlib, otherwise `import crawler.spiders.v2ex_remote` would return
-# a MagicMock and AttributeError on attribute access.
+# Stage 2.2: conftest used to mock crawler.spiders as a whole. To test the real
+# v2ex_remote module we bypass any parent-package mock by importing the file
+# directly via importlib.
 import importlib.util
 from pathlib import Path
 
@@ -33,10 +29,10 @@ _V2EX_PATH = (
 
 
 def _load_real_v2ex_module():
-    """Load crawler/spiders/v2ex_remote.py bypassing the conftest MagicMock.
+    """Load crawler/spiders/v2ex_remote.py bypassing any parent-package mock.
 
-    The spider module has zero persistence imports, so it is safe to load
-    in isolation; we only need to defeat the parent-package mock.
+    The spider module's only persistence dependency is via crawler.compliance
+    (mocked DB), so it is safe to load in isolation.
     """
     spec = importlib.util.spec_from_file_location("_v2ex_under_test", _V2EX_PATH)
     assert spec is not None and spec.loader is not None, "v2ex_remote.py not found"
@@ -46,40 +42,37 @@ def _load_real_v2ex_module():
 
 
 # ---------------------------------------------------------------------------
-# Fixtures: simulate urlopen responses
+# Fixtures: simulate compliance.fetch responses
 # ---------------------------------------------------------------------------
 
 
-class _FakeResponse:
-    """Minimal context-manager mimicking http.client.HTTPResponse."""
+class _FakeFetchResult:
+    """Mimics crawler.compliance.FetchResult."""
 
-    def __init__(self, payload: bytes) -> None:
-        self._buf = io.BytesIO(payload)
-
-    def read(self) -> bytes:
-        return self._buf.read()
-
-    def __enter__(self) -> "_FakeResponse":
-        return self
-
-    def __exit__(self, *args: Any) -> None:
-        pass
+    def __init__(self, text: str = "", status_code: int = 200) -> None:
+        self.text = text
+        self.status_code = status_code
+        self.bytes_count = len(text.encode()) if text else 0
+        self.robots_allowed = True
 
 
-def _make_urlopen(return_map: dict[str, bytes | Exception]):
-    """Return a fake urlopen that dispatches by URL substring match."""
+def _make_fetch(return_map: dict[str, str | int]):
+    """Return a fake fetch that dispatches by URL substring.
 
-    def _fake_urlopen(req, timeout=15):  # noqa: ANN001
-        url = getattr(req, "full_url", str(req))
+    Values are either a JSON/text body (→ status 200) or an int status code
+    with empty body (e.g. 0 to simulate network failure like the real fetch).
+    """
+
+    def _fake_fetch(url: str, source_site: str, **kwargs: Any) -> _FakeFetchResult:
         for needle, payload in return_map.items():
             if needle in url:
-                if isinstance(payload, Exception):
-                    raise payload
-                return _FakeResponse(payload)
+                if isinstance(payload, int):
+                    return _FakeFetchResult(text="", status_code=payload)
+                return _FakeFetchResult(text=payload, status_code=200)
         # Default: empty but valid JSON list
-        return _FakeResponse(b"[]")
+        return _FakeFetchResult(text="[]", status_code=200)
 
-    return _fake_urlopen
+    return _fake_fetch
 
 
 # ---------------------------------------------------------------------------
@@ -122,10 +115,10 @@ def test_run_sync_happy_path(v2ex, monkeypatch):
         ]
     }
     payload_map = {
-        "v2ex.com": json.dumps(v2ex_payload).encode(),
-        "remotive.com": json.dumps(remotive_payload).encode(),
+        "v2ex.com": json.dumps(v2ex_payload),
+        "remotive.com": json.dumps(remotive_payload),
     }
-    monkeypatch.setattr(v2ex.urllib.request, "urlopen", _make_urlopen(payload_map))
+    monkeypatch.setattr(v2ex, "fetch", _make_fetch(payload_map))
 
     items = v2ex.run_sync(keyword="python", max_count=5)
 
@@ -149,15 +142,12 @@ def test_run_sync_happy_path(v2ex, monkeypatch):
 
 
 def test_run_sync_handles_timeout(v2ex, monkeypatch):
-    """Both endpoints raise OSError (timeout/unreachable) → returns empty list, no exception."""
-    import socket
+    """Network failure (compliance.fetch returns status 0) → returns list, no exception."""
 
-    timeout_err = socket.timeout("simulated timeout")
+    def _always_fail(url, source_site, **kwargs):
+        return _FakeFetchResult(text="", status_code=0)
 
-    def _always_raise(req, timeout=15):  # noqa: ANN001
-        raise timeout_err
-
-    monkeypatch.setattr(v2ex.urllib.request, "urlopen", _always_raise)
+    monkeypatch.setattr(v2ex, "fetch", _always_fail)
 
     items = v2ex.run_sync(keyword="python", max_count=3)
     # Current contract: return whatever was collected so far (possibly empty),
@@ -173,10 +163,10 @@ def test_run_sync_handles_timeout(v2ex, monkeypatch):
 def test_run_sync_handles_malformed_json(v2ex, monkeypatch):
     """Endpoints return 200 but body is not JSON → caught, returns empty/partial list."""
     payload_map = {
-        "v2ex.com": b"<html>502 Bad Gateway</html>",
-        "remotive.com": b"::not-json::",
+        "v2ex.com": "<html>502 Bad Gateway</html>",
+        "remotive.com": "::not-json::",
     }
-    monkeypatch.setattr(v2ex.urllib.request, "urlopen", _make_urlopen(payload_map))
+    monkeypatch.setattr(v2ex, "fetch", _make_fetch(payload_map))
 
     items = v2ex.run_sync(keyword="python", max_count=3)
     # Even with both endpoints failing JSON parse, run_sync must not crash.
@@ -189,17 +179,15 @@ def test_run_sync_handles_malformed_json(v2ex, monkeypatch):
 
 
 def test_run_sync_partial_degradation(v2ex, monkeypatch):
-    """v2ex returns items, remotive times out → still returns the v2ex items."""
-    import socket
-
+    """v2ex returns items, remotive fails → still returns the v2ex items."""
     v2ex_payload = [
         {"id": 999, "title": "Go 后端", "content": "golang", "url": "https://v2ex.com/t/999", "created": 1700000000}
     ]
     payload_map = {
-        "v2ex.com": json.dumps(v2ex_payload).encode(),
-        "remotive.com": socket.timeout("remotive down"),
+        "v2ex.com": json.dumps(v2ex_payload),
+        "remotive.com": 0,  # status 0 = network failure
     }
-    monkeypatch.setattr(v2ex.urllib.request, "urlopen", _make_urlopen(payload_map))
+    monkeypatch.setattr(v2ex, "fetch", _make_fetch(payload_map))
 
     items = v2ex.run_sync(keyword="go", max_count=2)
     assert len(items) >= 1
