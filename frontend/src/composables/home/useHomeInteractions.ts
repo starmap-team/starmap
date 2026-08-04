@@ -170,7 +170,7 @@ export function useHomeInteractions(
   function onResetCamera() {
     graph3DRef.value?.resetCamera()
   }
-  function onToggleAutoRotate(autoRotate3DRef: Ref<boolean>) {
+  function onToggleAutoRotate(_autoRotate3DRef: Ref<boolean>) {
     graph3DRef.value?.toggleAutoRotate()
     // Do NOT manually flip autoRotate3DRef here —
     // Graph3D emits 'autoRotateChange' which Home.vue uses to sync autoRotate3D.

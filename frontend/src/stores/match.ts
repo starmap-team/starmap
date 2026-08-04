@@ -35,6 +35,8 @@ export interface MatchResult {
   overall_assessment?: string
   estimated_learning_time?: string
   cii?: number | null
+  // M2（Phase 13 强制规范）：后端 MatchResponse.note 同步，前端运行时校验依赖
+  note?: string | null
 }
 
 export interface PositionSkills {

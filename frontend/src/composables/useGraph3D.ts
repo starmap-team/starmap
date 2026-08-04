@@ -121,10 +121,12 @@ export function applyForceConfig(
 // 2. ZoomControls — zoom and fit-view logic
 // =============================================================================
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export function useZoomControls(
   graphInstance: ShallowRef<any>,
   calcFitDistance: (padding?: number) => number,
 ) {
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   function zoomBy(factor: number) {
     const graph = graphInstance.value
     if (!graph) return
@@ -198,10 +200,12 @@ export function useNodeTooltip() {
 
 export type CameraPreset = 'overview' | 'domain' | 'position'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export function useCameraPresets(
   graphInstance: ShallowRef<any>,
   nodes: () => GraphNode3D[],
 ) {
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   const autoRotate = ref(false)
   let _autoRotateTimer: ReturnType<typeof setTimeout> | null = null
 

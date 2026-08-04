@@ -178,7 +178,7 @@ describe('Home.vue', () => {
     setActivePinia(pinia)
     const store = useGraphStore()
 
-    store.fetchKAPositions('test-ka-id', 'domain').then(() => {
+    store.fetchKAPositions('test-ka-id').then(() => {
       // fetchKAPositions 应该整体替换 Map，不是 mutate
       const newMap = new Map(store.positionsByKA)
       newMap.set('test-ka-id', [{ id: 'p1', name: 'Test Position' } as any])

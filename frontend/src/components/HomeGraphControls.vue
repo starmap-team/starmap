@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { ViewLayer } from "@/stores/graph"
+import type { ViewLayer, OverviewMode } from "@/stores/graph"
 
 defineProps<{
   breadcrumb: { label: string; layer: ViewLayer; action?: () => void }[]
   viewMode: '2d' | '3d'
   showEvolution: boolean
   showOverviewRadio: boolean
-  overviewMode: 'domain' | 'tech_stack' | 'level'
+  overviewMode: OverviewMode
   currentLayer: ViewLayer
 }>()
 

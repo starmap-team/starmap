@@ -34,7 +34,6 @@ const cc = chartColors()
 
 // DataSource sync + summary (inlined from useDataSourceActions + useDataSourceSummary)
 const syncingIds = ref(new Set<string>())
-function isSyncing(id: string) { return syncingIds.value.has(id) }
 async function handleSync(source: typeof dsStore.sources[number]) {
   if (syncingIds.value.has(source.id)) return
   syncingIds.value.add(source.id)
@@ -62,7 +61,7 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
 }
 const summaryStats = computed(() => {
   const src = dsStore.sources
-  return { total: src.length, active: src.filter((s: any) => s.status === 'active').length, totalRecords: src.reduce((sum: number, s: any) => sum + s.total_records, 0), avgQuality: src.length ? src.reduce((sum: number, s: any) => sum + s.avg_quality_score, 0) / src.length : 0 }
+  return { total: src.length, active: src.filter((s) => s.status === 'active').length, totalRecords: src.reduce((sum: number, s) => sum + s.total_records, 0), avgQuality: src.length ? src.reduce((sum: number, s) => sum + s.avg_quality_score, 0) / src.length : 0 }
 })
 
 onMounted(() => {
@@ -260,7 +259,10 @@ onMounted(() => {
         :gutter="16"
       >
         <!-- M5：无数据源时显式空态（避免空 el-row 被误读为"加载中"） -->
-        <el-col v-if="!dsStore.loading && dsStore.sources.length === 0" :span="24">
+        <el-col
+          v-if="!dsStore.loading && dsStore.sources.length === 0"
+          :span="24"
+        >
           <el-empty
             description="暂无数据源（请检查后端 DataSourceRecord 表）"
           />

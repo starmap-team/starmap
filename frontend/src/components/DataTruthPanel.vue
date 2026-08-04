@@ -110,8 +110,18 @@ function statusIcon(status: string): unknown {
 
       <p class="truth-intro">
         每个 KPI 数字都有三层来源：API 返回值、PostgreSQL 直查、Neo4j 直查。
-        差异超过 1% 标记为 <el-tag type="warning" size="small">warn</el-tag>，
-        差异超过 10% 标记为 <el-tag type="danger" size="small">critical</el-tag>。
+        差异超过 1% 标记为 <el-tag
+          type="warning"
+          size="small"
+        >
+          warn
+        </el-tag>，
+        差异超过 10% 标记为 <el-tag
+          type="danger"
+          size="small"
+        >
+          critical
+        </el-tag>。
       </p>
 
       <div
@@ -165,8 +175,8 @@ function statusIcon(status: string): unknown {
           <el-button
             size="small"
             type="primary"
-            @click="triggerReconcile"
             :loading="reconcileLoading"
+            @click="triggerReconcile"
           >
             手动触发 reconcile
           </el-button>

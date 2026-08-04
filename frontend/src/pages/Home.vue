@@ -33,11 +33,11 @@ const graphStore = useGraphStore()
 // KPI metrics (inlined from useKPIMetrics)
 const totalPositions = computed(() => {
   const ip = graphStore.independentPositions
-  return ip !== null && ip !== undefined ? ip : graphStore.domains.reduce((s: number, d: any) => s + d.position_count, 0)
+  return ip !== null && ip !== undefined ? ip : graphStore.domains.reduce((s: number, d) => s + d.position_count, 0)
 })
 const totalSkills = computed(() => {
   const is = graphStore.independentSkills
-  return is !== null && is !== undefined ? is : graphStore.domains.reduce((s: number, d: any) => s + d.skill_count, 0)
+  return is !== null && is !== undefined ? is : graphStore.domains.reduce((s: number, d) => s + d.skill_count, 0)
 })
 const totalDomains = computed(() => graphStore.domains.length)
 // M6：关系边 KPI 统一用 REQUIRES 去重总数（=数据大屏/Neo4j/PG 口径），不再随视图模式在 11/582 间跳变

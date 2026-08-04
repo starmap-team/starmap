@@ -28,7 +28,6 @@ export function useGraphRenderQueue(
   const tasks = new Map<string, RenderTask>()
   let scheduledFrame: number | null = null
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
-  let lastTrigger: number = 0
 
   function register(task: RenderTask): void {
     tasks.set(task.name, task)
@@ -55,7 +54,7 @@ export function useGraphRenderQueue(
       if (scheduledFrame) cancelAnimationFrame(scheduledFrame)
       scheduledFrame = requestAnimationFrame(() => {
         scheduledFrame = null
-        executeAll(graph).then(() => { lastTrigger = performance.now() }).catch((err: unknown) => console.error('[useGraphRenderQueue] executeAll failed', err))
+        executeAll(graph).catch((err: unknown) => console.error('[useGraphRenderQueue] executeAll failed', err))
       })
     }, debounceMs)
   }

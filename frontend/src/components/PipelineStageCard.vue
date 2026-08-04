@@ -5,7 +5,7 @@
  * 让 DAG 节点本身就能看到"从采集什么 URL 到提取什么技能"的完整过程
  */
 import { ref, computed } from 'vue'
-import { CircleCheck, CircleClose, Loading, Connection, Document, MagicStick, Promotion, Share, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+import { CircleCheck, CircleClose, Loading, Connection, Document, MagicStick, Promotion, Share } from '@element-plus/icons-vue'
 import { chartColors } from '@/utils/chartTheme'
 import { STAGE_LABELS } from '@/stores/pipelineConfig'
 import type { LiveActivityEvent } from '@/stores/pipelineRun'
@@ -357,13 +357,17 @@ const realProgress = computed(() => {
             <span class="expanded-label">{{ item.key }}</span>
             <span class="expanded-value">{{ item.value < 0 ? (item.value === -1 ? '已禁用' : '无适配器') : item.value }}</span>
           </div>
-          <h4 v-if="fullRecentSamples.length">最近样本 ({{ fullRecentSamples.length }} 条)</h4>
+          <h4 v-if="fullRecentSamples.length">
+            最近样本 ({{ fullRecentSamples.length }} 条)
+          </h4>
           <div
             v-for="(s, si) in fullRecentSamples"
             :key="'sample-' + si"
             class="expanded-sample"
           >
-            <div class="sample-title">{{ s.title || s.skill || '未命名' }}</div>
+            <div class="sample-title">
+              {{ s.title || s.skill || '未命名' }}
+            </div>
             <div
               v-if="s.company || s.source"
               class="sample-meta"
@@ -372,7 +376,7 @@ const realProgress = computed(() => {
             </div>
             <a
               v-if="s.url"
-              :href="s.url"
+              :href="(s.url as string)"
               target="_blank"
               class="sample-url"
             >{{ s.url }}</a>
@@ -432,7 +436,10 @@ const realProgress = computed(() => {
         >
           <span class="metric-value metric-value-link">{{ formattedRecords }}</span>
         </el-tooltip>
-        <span v-else class="metric-value">{{ formattedRecords }}</span>
+        <span
+          v-else
+          class="metric-value"
+        >{{ formattedRecords }}</span>
       </div>
       <div
         v-if="(stage.errors_count ?? stage.errors.length) > 0"

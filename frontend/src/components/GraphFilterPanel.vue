@@ -9,7 +9,6 @@
 import { ref, computed } from 'vue'
 import { ArrowLeft, ArrowRight, Connection } from '@element-plus/icons-vue'
 import type { OverviewMode, ViewLayer } from '@/stores/graph'
-import { KA_FALLBACK_COLORS } from '@/utils/graphColors'
 
 const props = withDefaults(defineProps<{
   overviewMode: OverviewMode
@@ -71,7 +70,11 @@ const layoutNextLabel = computed(() => {
 </script>
 
 <template>
-  <div class="filter-panel" :class="{ collapsed }" :style="{ width: panelWidth + 'px' }">
+  <div
+    class="filter-panel"
+    :class="{ collapsed }"
+    :style="{ width: panelWidth + 'px' }"
+  >
     <!-- Collapse handle -->
     <button
       class="filter-panel__handle"
@@ -85,10 +88,15 @@ const layoutNextLabel = computed(() => {
       </el-icon>
     </button>
 
-    <div v-show="!collapsed" class="filter-panel__inner">
+    <div
+      v-show="!collapsed"
+      class="filter-panel__inner"
+    >
       <!-- Section: Overview Mode -->
       <div class="filter-section">
-        <div class="filter-section__label">视图模式</div>
+        <div class="filter-section__label">
+          视图模式
+        </div>
         <el-radio-group
           :model-value="overviewMode"
           size="small"
@@ -106,7 +114,9 @@ const layoutNextLabel = computed(() => {
 
       <!-- Section: Layout -->
       <div class="filter-section">
-        <div class="filter-section__label">布局模式</div>
+        <div class="filter-section__label">
+          布局模式
+        </div>
         <el-button
           size="small"
           class="layout-btn"
@@ -135,7 +145,9 @@ const layoutNextLabel = computed(() => {
 
       <!-- Section: Proficiency -->
       <div class="filter-section">
-        <div class="filter-section__label">熟练度筛选</div>
+        <div class="filter-section__label">
+          熟练度筛选
+        </div>
         <div class="proficiency-chips">
           <el-check-tag
             v-for="level in PROFICIENCY_LEVELS"
@@ -157,7 +169,10 @@ const layoutNextLabel = computed(() => {
           :style="{ width: '100%' }"
           @click="emit('toggleEvolution')"
         >
-          <el-icon :size="14" style="margin-right: 4px">
+          <el-icon
+            :size="14"
+            style="margin-right: 4px"
+          >
             <Connection />
           </el-icon>
           演化视图 {{ showEvolution ? 'ON' : 'OFF' }}
@@ -165,7 +180,10 @@ const layoutNextLabel = computed(() => {
       </div>
 
       <!-- Section: Legend -->
-      <div v-if="legend.length" class="filter-section">
+      <div
+        v-if="legend.length"
+        class="filter-section"
+      >
         <div class="filter-section__label">
           图例
           <span class="filter-section__value">{{ nodeCount }} 节点</span>

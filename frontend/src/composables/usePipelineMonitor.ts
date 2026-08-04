@@ -299,6 +299,7 @@ export function usePipelineMonitor() {
     const today = s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume : null
     const lastTotal = s?.last_run?.total_records ?? 0
     // Phase 4 P3: 显示最近采集时间，让用户知道数据是否陈旧
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lastCrawlAt = (s as any)?.last_crawl_at as string | undefined
     const lastCrawlLabel = lastCrawlAt
       ? new Date(lastCrawlAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })

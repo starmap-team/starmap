@@ -6,7 +6,7 @@
  */
 import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { CircleCheck, Close, Connection, Loading, Lock, QuestionFilled, RefreshRight, Setting, Timer, VideoPause, VideoPlay, WarningFilled, Check, Refresh } from '@element-plus/icons-vue'
+import { Close, Connection, Loading, Lock, QuestionFilled, RefreshRight, Setting, Timer, VideoPlay, Check, Refresh } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import BusinessBanner from '@/components/BusinessBanner.vue'
 import { ALL_STAGE_NAMES, STAGE_LABELS } from '@/stores/pipeline'
@@ -31,6 +31,7 @@ const {
   toggleAutoRefresh,
   startAutoRefresh,
   sseConnected,
+  sseMode,
   kpiCards,
   stageSummary,
   isStuck,
