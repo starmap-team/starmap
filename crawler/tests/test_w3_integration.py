@@ -9,6 +9,8 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 # 强制 UTF-8
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -25,6 +27,9 @@ from crawler.persistence import extraction_dao  # noqa: E402
 class TestExtractionDao:
     """extraction_dao 写入 + 查询集成测试。"""
 
+    @pytest.mark.skip(
+        reason="NEW-22: live-DB 测试与 conftest 全局 persistence mock 冲突，需测试基建改造后启用"
+    )
     def test_roundtrip(self):
         """完整测试：写一条 → 读计数。"""
         from crawler.persistence.database import engine

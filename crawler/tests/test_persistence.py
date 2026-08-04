@@ -6,10 +6,12 @@ from datetime import date
 # 端口绕开
 os.environ.setdefault("POSTGRES_PORT", "5433")
 
-# 跳过数据库测试（CI 中没有 PostgreSQL）
-pytestmark = pytest.mark.skipif(
-    os.environ.get("CI") == "true",
-    reason="Skipping database tests in CI environment"
+# NEW-22: 本文件是 live-DB 集成测试（需 5433 真 Postgres），但 crawler/tests/conftest.py
+# 全局把 crawler.persistence.dao mock 成 MagicMock，二者结构性冲突——当前基建下无法运行。
+# 诚实标记 skip 并留档，而非让它以 MagicMock 断言错误假装"可跑"。修复路径：将 live-DB
+# 测试移出 mock conftest 作用域（或 conftest 按需 mock），跟踪见计划书附录E NEW-22。
+pytestmark = pytest.mark.skip(
+    reason="NEW-22: live-DB 测试与 conftest 全局 dao mock 冲突，需测试基建改造后启用"
 )
 
 from crawler.persistence import dao  # noqa: E402
