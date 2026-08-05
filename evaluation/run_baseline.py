@@ -47,6 +47,13 @@ def extract_skills_keyword(jd_text: str, index: dict[str, str]) -> dict[str, str
             pattern = r'(?:^|[^a-zA-Z0-9\u4e00-\u9fff])' + re.escape(alias_lower) + r'(?:$|[^a-zA-Z0-9\u4e00-\u9fff])'
             if re.search(pattern, jd_lower, re.IGNORECASE):
                 found[canonical.lower()] = canonical
+        elif re.search(r'[a-zA-Z]', alias_lower):
+            # M5 冲刺 (2026-08-06): 拉丁别名一律字边界匹配, 消除系统性子串误报
+            # (sql→sqlite/mysql/nosql, java→javascript, c→c++/cloud…)
+            # 中文别名无边界概念, 仍走裸子串。
+            pattern = r'(?<![a-zA-Z0-9])' + re.escape(alias_lower) + r'(?![a-zA-Z0-9])'
+            if re.search(pattern, jd_lower, re.IGNORECASE):
+                found[canonical.lower()] = canonical
         else:
             if alias_lower in jd_lower:
                 found[canonical.lower()] = canonical
