@@ -24,6 +24,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.security.dev_token import dev_token_identity, is_dev_token_allowed
 from app.services.auth_service import decode_token
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
@@ -130,10 +131,10 @@ async def get_current_user(
 
     token = credentials.credentials
 
-    # 开发环境 + dev-token 快捷路径：dev_anon_admin 控制角色
-    if settings.app_env != "production" and token == "dev-token":
-        role = "admin" if settings.dev_anon_admin else "viewer"
-        return {"sub": "dev", "role": role, "username": "developer"}
+    # PLAN-015③: dev-token 守门收敛到 core.security.dev_token (避免历史
+    # `settings.app_env != "production"` 二元判定误放行 staging/testing)
+    if is_dev_token_allowed(token):
+        return dev_token_identity()
 
     # JWT 验证
     try:
@@ -280,10 +281,9 @@ async def get_current_user_sse(
 
     # Try query-param token first (for EventSource connections)
     if token:
-        # 开发环境：接受固定 dev token；角色由 dev_anon_admin 控制
-        if settings.app_env != "production" and token == "dev-token":
-            role = "admin" if settings.dev_anon_admin else "viewer"
-            return {"sub": "dev", "role": role, "username": "developer"}
+        # PLAN-015③: dev-token 守门收敛到 core.security.dev_token (SSE 路径同上)
+        if is_dev_token_allowed(token):
+            return dev_token_identity()
         try:
             payload = _decode_token_payload(token)
             return payload
