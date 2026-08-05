@@ -259,6 +259,13 @@
           "minimum": 0,
           "title": "Independent Edges",
           "type": "integer"
+        },
+        "generated_at": {
+          "default": 0.0,
+          "description": "响应生成 Unix 时间戳",
+          "minimum": 0,
+          "title": "Generated At",
+          "type": "number"
         }
       },
       "title": "DomainOverviewResponse",

@@ -103,6 +103,7 @@ onMounted(async () => {
         :total-relations="totalRelations"
         :group-label="groupLabel.label"
         :group-trend="groupLabel.trend"
+        :generated-at="graphStore.overviewGeneratedAt"
         @navigate="onNavigate"
       />
 

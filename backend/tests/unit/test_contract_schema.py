@@ -102,3 +102,12 @@ class TestExportedSchemaRefs:
         assert "GraphPositionNode" in doc["$defs"]
         assert "GraphSkillNode" in doc["$defs"]
         assert "KAPositionsResponse" in doc["definitions"]
+
+class TestDomainOverviewResponseHasGeneratedAt:
+    """PLAN-006④: overview 响应必须含 generated_at 时间戳（前端 honest freshness 信号）。"""
+
+    def test_generated_at_field_present(self) -> None:
+        doc = _load_graph_schema()
+        dor = doc["definitions"]["DomainOverviewResponse"]
+        assert "generated_at" in dor["properties"], "DomainOverviewResponse 缺 generated_at 字段（PLAN-006④ 诚实时效）"
+        assert dor["properties"]["generated_at"]["type"] == "number"

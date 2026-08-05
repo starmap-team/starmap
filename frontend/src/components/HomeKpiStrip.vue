@@ -1,22 +1,34 @@
 <script setup lang="ts">
+import { computed } from "vue"
 import { Collection, DataAnalysis, Upload, Document, TrendCharts, Connection } from "@element-plus/icons-vue"
 
-defineProps<{
+const props = defineProps<{
   totalDomains: number
   totalPositions: number
   totalSkills: number
-  // M6：关系边 KPI 统一用 REQUIRES 总数（=大屏/Neo4j/PG 口径），不随视图模式变化，避免跨页面“同名异值”
+  // M6：关系边 KPI 统一用 REQUIRES 总数（=大屏/Neo4j/PG 口径），不随视图模式变化，避免跨页面"同名异值"
   totalRelations: number
   // 动态分组维度标签（随 overviewMode 切换：技术领域/技术栈/职级分组）
   groupLabel?: string
   groupTrend?: string
+  // PLAN-006④: 后端响应时间戳（Unix 秒），用于在 KPI 条上显示"截至 X"诚实时效
+  generatedAt?: number
 }>()
+
+// PLAN-006④: 把后端响应时间格式化为本地"YYYY-MM-DD HH:MM"
+// 无时间戳 = 后端尚未注入（防御性，理论不应发生）→ 不显示
+const snapshotLabel = computed(() => {
+  if (!props.generatedAt) return ''
+  const d = new Date(props.generatedAt * 1000)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 16).replace('T', ' ')
+})
 
 const emit = defineEmits<{
   navigate: [path: string]
 }>()
 
-// M5/M6：每个 KPI 数字的口径说明，避免跨页面“同名异值”误导
+// M5/M6：每个 KPI 数字的口径说明，避免跨页面"同名异值"误导
 function kpiTooltip(field: string): string {
   const map: Record<string, string> = {
     totalDomains: '知识图谱核心分类数（domain）。',
@@ -79,6 +91,14 @@ function kpiTooltip(field: string): string {
         >岗位-技能关系</span>
       </div>
     </div>
+    <!-- PLAN-006④: 快照时间标签（服务端正直信号，无则不渲染避免编造） -->
+    <div
+      v-if="snapshotLabel"
+      class="kpi-snapshot"
+      :title="`后端响应时间 (Unix ${generatedAt})`"
+    >
+      截至 {{ snapshotLabel }}
+    </div>
     <div class="kpi-actions">
       <el-button
         size="small"
@@ -117,6 +137,7 @@ function kpiTooltip(field: string): string {
 .kpi-label { font-size: 10px; color: var(--muted-foreground); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
 .kpi-trend { font-size: var(--font-size-xs); color: var(--muted-foreground); margin-top: 1px; opacity: 0.7; }
 .kpi-actions { display: flex; gap: var(--space-2); margin-left: auto; }
+.kpi-snapshot { font-size: var(--font-size-xs); color: var(--muted-foreground); opacity: 0.7; white-space: nowrap; }
 .kpi-icon--info { background: var(--info-ghost); color: var(--info); }
 .kpi-icon--primary { background: var(--primary-ghost); color: var(--primary); }
 .kpi-icon--success { background: var(--success-ghost); color: var(--success); }

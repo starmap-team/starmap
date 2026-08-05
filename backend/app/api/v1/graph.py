@@ -56,11 +56,17 @@ async def get_graph_overview(
         Literal["domain", "tech_stack", "level", "heat"], Query(description="分组方式: domain(默认)/tech_stack/level/heat(技能需求频次)")
     ] = "domain",
 ) -> DomainOverviewResponse:
+    import time
+
+    # PLAN-006④: 服务端响应时间戳注入；前端据此显示"截至 X"诚实信号
+    # （Neo4j 节点无内置 updated_at，不编造节点级 freshness）
+    generated_at = time.time()
     if driver is None:
         return DomainOverviewResponse(
             independent_positions=0,
             independent_skills=0,
             independent_edges=0,
+            generated_at=generated_at,
         )
     # Dispatch to specialized queries
     from app.services.graph_service import (
@@ -70,17 +76,17 @@ async def get_graph_overview(
     )
     if group_by == "tech_stack":
         data = await fetch_overview_by_tech_stack(driver)
-        return DomainOverviewResponse(**data)
+        return DomainOverviewResponse(**data, generated_at=generated_at)
     if group_by == "domain":
         data = await fetch_overview_by_domain(driver)
-        return DomainOverviewResponse(**data)
+        return DomainOverviewResponse(**data, generated_at=generated_at)
     if group_by == "level":
         data = await fetch_overview_by_level(driver)
-        return DomainOverviewResponse(**data)
+        return DomainOverviewResponse(**data, generated_at=generated_at)
     if group_by == "heat":
         from app.services.graph_overview import fetch_overview_by_heat
         data = await fetch_overview_by_heat(driver)
-        return DomainOverviewResponse(**data)
+        return DomainOverviewResponse(**data, generated_at=generated_at)
 
 
 @router.get(

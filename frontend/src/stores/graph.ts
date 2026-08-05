@@ -121,6 +121,8 @@ export const useGraphStore = defineStore('graph', () => {
   const independentPositions = ref<number>(0)
   const independentSkills = ref<number>(0)
   const independentEdges = ref<number>(0)
+  // PLAN-006④: 后端响应时间戳（Unix 秒），前端用来显示"截至 X"诚实时效
+  const overviewGeneratedAt = ref<number>(0)
 
   // ── 概览视图模式 ──
   const overviewMode = ref<OverviewMode>('domain')
@@ -234,6 +236,7 @@ export const useGraphStore = defineStore('graph', () => {
           independent_positions?: number
           independent_skills?: number
           independent_edges?: number
+          generated_at?: number
         },
         graphSchema, '/graph/overview', 'DomainOverviewResponse',
       )
@@ -243,6 +246,7 @@ export const useGraphStore = defineStore('graph', () => {
       independentPositions.value = data.independent_positions ?? 0
       independentSkills.value = data.independent_skills ?? 0
       independentEdges.value = data.independent_edges ?? 0
+      overviewGeneratedAt.value = data.generated_at ?? 0
       overviewMode.value = mode
       // 切换视图模式 = 重新从顶层导航，必须重置层级状态
       // 否则 expandedKAId/expandedPositionId 指向旧数据，导致图谱混乱
@@ -405,6 +409,7 @@ export const useGraphStore = defineStore('graph', () => {
     loading,
     // 独立节点计数
     independentPositions,
+    overviewGeneratedAt,
     independentSkills,
     independentEdges,
     // API

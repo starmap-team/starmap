@@ -167,6 +167,8 @@ class DomainOverviewResponse(BaseModel):
     independent_positions: int = Field(default=0, ge=0, description="独立 Position 节点数（去重）")
     independent_skills: int = Field(default=0, ge=0, description="独立 Skill 节点数（去重）")
     independent_edges: int = Field(default=0, ge=0, description="独立 REQUIRES 关系数（去重）")
+    # PLAN-006④: 服务端响应生成时间（Unix 秒），前端可据此显示"截至 X"，避免编造 freshness
+    generated_at: float = Field(default=0.0, ge=0, description="响应生成 Unix 时间戳")
 
 
 class GraphQueryRequest(BaseModel):
