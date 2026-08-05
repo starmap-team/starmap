@@ -1,0 +1,603 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap match schemas",
+  "description": "Auto-generated from backend/app/schemas/match.py",
+  "definitions": {
+    "PersonSkillInput": {
+      "description": "More permissive skill input for current frontend payloads.",
+      "properties": {
+        "skill_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "技能 UUID（可选,旧数据可能为空）",
+          "title": "Skill Id"
+        },
+        "name": {
+          "description": "技能名称",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "category": {
+          "default": "hard_skill",
+          "description": "技能类别:hard_skill / soft_skill / tool / project_management / design / domain / language / certification / methodology",
+          "title": "Category",
+          "type": "string"
+        },
+        "proficiency": {
+          "default": "熟悉",
+          "description": "熟练度:了解 / 熟悉 / 精通",
+          "title": "Proficiency",
+          "type": "string"
+        },
+        "confidence": {
+          "default": 1.0,
+          "description": "技能掌握置信度 0-1",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "source_count": {
+          "default": 0,
+          "description": "来源数(用于反幻觉)",
+          "minimum": 0,
+          "title": "Source Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "PersonSkillInput",
+      "type": "object"
+    },
+    "MatchOptionsInput": {
+      "description": "Tuning options for match engine.",
+      "properties": {
+        "threshold": {
+          "default": 0.6,
+          "description": "技能匹配阈值",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Threshold",
+          "type": "number"
+        }
+      },
+      "title": "MatchOptionsInput",
+      "type": "object"
+    },
+    "MatchRequestInput": {
+      "description": "Request body for /match/position and /match/diagnose.",
+      "properties": {
+        "person_skills": {
+          "description": "用户已掌握技能",
+          "items": {
+            "$ref": "#/$defs/PersonSkillInput"
+          },
+          "title": "Person Skills",
+          "type": "array"
+        },
+        "target_position": {
+          "description": "目标岗位名称",
+          "minLength": 1,
+          "title": "Target Position",
+          "type": "string"
+        },
+        "options": {
+          "$ref": "#/$defs/MatchOptionsInput"
+        }
+      },
+      "required": [
+        "target_position"
+      ],
+      "title": "MatchRequestInput",
+      "type": "object"
+    },
+    "BatchMatchItem": {
+      "description": "Single item in a batch match request.",
+      "properties": {
+        "position": {
+          "default": "",
+          "description": "目标岗位名称",
+          "title": "Position",
+          "type": "string"
+        },
+        "position_name": {
+          "default": "",
+          "description": "position 字段别名(兼容旧前端)",
+          "title": "Position Name",
+          "type": "string"
+        },
+        "skills": {
+          "description": "用户技能",
+          "items": {
+            "$ref": "#/$defs/PersonSkillInput"
+          },
+          "title": "Skills",
+          "type": "array"
+        }
+      },
+      "title": "BatchMatchItem",
+      "type": "object"
+    },
+    "BatchMatchRequest": {
+      "description": "Batch match request with validated items (P2 INJ-02/AUTHZ-03 修复)。",
+      "properties": {
+        "items": {
+          "description": "批量岗位(最多 20 个)",
+          "items": {
+            "$ref": "#/$defs/BatchMatchItem"
+          },
+          "maxItems": 20,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "BatchMatchRequest",
+      "type": "object"
+    },
+    "SkillGapDetail": {
+      "description": "Detailed skill gap entry.",
+      "properties": {
+        "skill": {
+          "description": "技能名",
+          "title": "Skill",
+          "type": "string"
+        },
+        "importance": {
+          "description": "required | bonus",
+          "title": "Importance",
+          "type": "string"
+        },
+        "gap_level": {
+          "enum": [
+            "完全缺失",
+            "部分掌握",
+            "已掌握"
+          ],
+          "title": "Gap Level",
+          "type": "string"
+        },
+        "learning_path": {
+          "description": "前置学习路径",
+          "items": {
+            "type": "string"
+          },
+          "title": "Learning Path",
+          "type": "array"
+        }
+      },
+      "required": [
+        "skill",
+        "importance",
+        "gap_level"
+      ],
+      "title": "SkillGapDetail",
+      "type": "object"
+    },
+    "MatchResponse": {
+      "description": "Match result for a single position.",
+      "properties": {
+        "match_id": {
+          "description": "本次匹配 UUID",
+          "title": "Match Id",
+          "type": "string"
+        },
+        "target_position": {
+          "description": "目标岗位名称",
+          "title": "Target Position",
+          "type": "string"
+        },
+        "match_score": {
+          "description": "综合匹配分 0-1",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Match Score",
+          "type": "number"
+        },
+        "matched_skills": {
+          "description": "已掌握的技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Matched Skills",
+          "type": "array"
+        },
+        "gap_skills": {
+          "description": "差距技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Gap Skills",
+          "type": "array"
+        },
+        "recommendations": {
+          "description": "学习建议",
+          "items": {
+            "type": "string"
+          },
+          "title": "Recommendations",
+          "type": "array"
+        },
+        "missing_required": {
+          "description": "缺失的必备技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Required",
+          "type": "array"
+        },
+        "missing_bonus": {
+          "description": "缺失的加分技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Bonus",
+          "type": "array"
+        },
+        "skill_gap_detail": {
+          "items": {
+            "$ref": "#/$defs/SkillGapDetail"
+          },
+          "title": "Skill Gap Detail",
+          "type": "array"
+        },
+        "overall_assessment": {
+          "default": "",
+          "description": "整体评估文案",
+          "title": "Overall Assessment",
+          "type": "string"
+        },
+        "estimated_learning_time": {
+          "default": "",
+          "description": "预计学习时长",
+          "title": "Estimated Learning Time",
+          "type": "string"
+        },
+        "cii": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "能力通胀指数 0-1+",
+          "title": "Cii"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "M2 补充说明(如岗位存在但无技能画像,无法计算匹配度)",
+          "title": "Note"
+        }
+      },
+      "required": [
+        "match_id",
+        "target_position",
+        "match_score"
+      ],
+      "title": "MatchResponse",
+      "type": "object"
+    },
+    "ReverseMatchRequest": {
+      "description": "Request body for reverse matching: given user skills, find suitable positions.",
+      "properties": {
+        "person_skills": {
+          "description": "用户当前技能",
+          "items": {
+            "$ref": "#/$defs/PersonSkillInput"
+          },
+          "title": "Person Skills",
+          "type": "array"
+        },
+        "skills": {
+          "description": "person_skills 的别名(前端兼容)",
+          "items": {
+            "$ref": "#/$defs/PersonSkillInput"
+          },
+          "title": "Skills",
+          "type": "array"
+        },
+        "top_k": {
+          "default": 10,
+          "description": "最多返回岗位数",
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Top K",
+          "type": "integer"
+        },
+        "min_score": {
+          "default": 0.3,
+          "description": "最低匹配分阈值",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Min Score",
+          "type": "number"
+        }
+      },
+      "title": "ReverseMatchRequest",
+      "type": "object"
+    },
+    "PositionRecommendation": {
+      "description": "A single position recommendation from reverse matching.",
+      "properties": {
+        "position_name": {
+          "description": "推荐岗位名",
+          "title": "Position Name",
+          "type": "string"
+        },
+        "match_score": {
+          "description": "匹配分 0-1",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Match Score",
+          "type": "number"
+        },
+        "matched_skills": {
+          "description": "已掌握技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Matched Skills",
+          "type": "array"
+        },
+        "gap_skills": {
+          "description": "差距技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Gap Skills",
+          "type": "array"
+        },
+        "skill_coverage": {
+          "description": "必备技能覆盖率",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Skill Coverage",
+          "type": "number"
+        }
+      },
+      "required": [
+        "position_name",
+        "match_score",
+        "skill_coverage"
+      ],
+      "title": "PositionRecommendation",
+      "type": "object"
+    },
+    "ReverseMatchResponse": {
+      "description": "Response for reverse matching.",
+      "properties": {
+        "recommendations": {
+          "items": {
+            "$ref": "#/$defs/PositionRecommendation"
+          },
+          "title": "Recommendations",
+          "type": "array"
+        },
+        "total_positions_scanned": {
+          "description": "扫描的岗位总数",
+          "minimum": 0,
+          "title": "Total Positions Scanned",
+          "type": "integer"
+        },
+        "skills_provided": {
+          "description": "用户提供的技能数",
+          "minimum": 0,
+          "title": "Skills Provided",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total_positions_scanned",
+        "skills_provided"
+      ],
+      "title": "ReverseMatchResponse",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "MatchOptionsInput": {
+      "description": "Tuning options for match engine.",
+      "properties": {
+        "threshold": {
+          "default": 0.6,
+          "description": "技能匹配阈值",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Threshold",
+          "type": "number"
+        }
+      },
+      "title": "MatchOptionsInput",
+      "type": "object"
+    },
+    "PersonSkillInput": {
+      "description": "More permissive skill input for current frontend payloads.",
+      "properties": {
+        "skill_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "技能 UUID（可选,旧数据可能为空）",
+          "title": "Skill Id"
+        },
+        "name": {
+          "description": "技能名称",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "category": {
+          "default": "hard_skill",
+          "description": "技能类别:hard_skill / soft_skill / tool / project_management / design / domain / language / certification / methodology",
+          "title": "Category",
+          "type": "string"
+        },
+        "proficiency": {
+          "default": "熟悉",
+          "description": "熟练度:了解 / 熟悉 / 精通",
+          "title": "Proficiency",
+          "type": "string"
+        },
+        "confidence": {
+          "default": 1.0,
+          "description": "技能掌握置信度 0-1",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "source_count": {
+          "default": 0,
+          "description": "来源数(用于反幻觉)",
+          "minimum": 0,
+          "title": "Source Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "PersonSkillInput",
+      "type": "object"
+    },
+    "BatchMatchItem": {
+      "description": "Single item in a batch match request.",
+      "properties": {
+        "position": {
+          "default": "",
+          "description": "目标岗位名称",
+          "title": "Position",
+          "type": "string"
+        },
+        "position_name": {
+          "default": "",
+          "description": "position 字段别名(兼容旧前端)",
+          "title": "Position Name",
+          "type": "string"
+        },
+        "skills": {
+          "description": "用户技能",
+          "items": {
+            "$ref": "#/$defs/PersonSkillInput"
+          },
+          "title": "Skills",
+          "type": "array"
+        }
+      },
+      "title": "BatchMatchItem",
+      "type": "object"
+    },
+    "SkillGapDetail": {
+      "description": "Detailed skill gap entry.",
+      "properties": {
+        "skill": {
+          "description": "技能名",
+          "title": "Skill",
+          "type": "string"
+        },
+        "importance": {
+          "description": "required | bonus",
+          "title": "Importance",
+          "type": "string"
+        },
+        "gap_level": {
+          "enum": [
+            "完全缺失",
+            "部分掌握",
+            "已掌握"
+          ],
+          "title": "Gap Level",
+          "type": "string"
+        },
+        "learning_path": {
+          "description": "前置学习路径",
+          "items": {
+            "type": "string"
+          },
+          "title": "Learning Path",
+          "type": "array"
+        }
+      },
+      "required": [
+        "skill",
+        "importance",
+        "gap_level"
+      ],
+      "title": "SkillGapDetail",
+      "type": "object"
+    },
+    "PositionRecommendation": {
+      "description": "A single position recommendation from reverse matching.",
+      "properties": {
+        "position_name": {
+          "description": "推荐岗位名",
+          "title": "Position Name",
+          "type": "string"
+        },
+        "match_score": {
+          "description": "匹配分 0-1",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Match Score",
+          "type": "number"
+        },
+        "matched_skills": {
+          "description": "已掌握技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Matched Skills",
+          "type": "array"
+        },
+        "gap_skills": {
+          "description": "差距技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Gap Skills",
+          "type": "array"
+        },
+        "skill_coverage": {
+          "description": "必备技能覆盖率",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Skill Coverage",
+          "type": "number"
+        }
+      },
+      "required": [
+        "position_name",
+        "match_score",
+        "skill_coverage"
+      ],
+      "title": "PositionRecommendation",
+      "type": "object"
+    }
+  }
+}

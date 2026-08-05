@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
+import { useResponseValidation } from '@/validation/useResponseValidation'
+// PLAN-014 批次5: match 契约接入 (10 模型在 schemas/match.py 已就位)
+// relative path 解析从 src/stores/ 到 repo root/starmap-contracts/schemas/ 需 ../../../
+import matchSchema from '../../../starmap-contracts/schemas/match.schema.json'
+
+const { validateResponse: validateMatch } = useResponseValidation()
 
 export interface PersonSkill {
   skill_id?: string
@@ -58,10 +64,12 @@ export const useMatchStore = defineStore('match', () => {
         name,
         proficiency: skillProficiencies?.[name] ?? '熟悉',
       }))
-      const matchResult = await request.post<MatchResult>('/match/position', {
+      const raw = await request.post<MatchResult>('/match/position', {
         person_skills,
         target_position: targetPosition,
       })
+      // PLAN-014 批次5: 契约运行时校验 (MatchResponse 入口) — DEV 仅 warn, 不阻断
+      const matchResult = validateMatch(raw, matchSchema, '/match/position', 'MatchResponse')
       result.value = matchResult
       // 缓存到历史记录
       if (matchResult.match_id) {
