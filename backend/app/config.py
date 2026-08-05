@@ -200,6 +200,29 @@ class Settings(BaseSettings):
     # ── Pipeline match 并发（替代 pipeline/steps.py 内的 Semaphore(50)）──
     pipeline_match_concurrency: int = 50
 
+    # ── PLAN-015①: X-Forwarded-For 可信代理白名单 (CIDR 列表, 逗号分隔)
+    # 空 = 不可信, 拒绝伪造的 XFF 头 (默认最保守)
+    # 生产示例: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" (k8s 内部 + RFC1918)
+    trusted_proxy_cidrs: str = Field(
+        default="", description="XFF 可信代理 CIDR 白名单 (逗号分隔); 空=拒绝伪造"
+    )
+
+    def get_trusted_proxy_networks(self) -> list:
+        """PLAN-015①: 解析 trusted_proxy_cidrs 为 ipaddress 网列表 (惰性, 避免 config 导入期计算)。"""
+        import ipaddress
+        if not self.trusted_proxy_cidrs:
+            return []
+        nets: list = []
+        for raw in self.trusted_proxy_cidrs.split(","):
+            cidr = raw.strip()
+            if not cidr:
+                continue
+            try:
+                nets.append(ipaddress.ip_network(cidr, strict=False))
+            except ValueError:
+                logger.warning("trusted_proxy_cidrs 忽略非法 CIDR: {!r}", cidr)
+        return nets
+
     # ── Runtime-mutable config whitelist (SEC-06) ──
     _mutable_config_keys: ClassVar[set[str]] = {
         "pipeline_stage_timeout",

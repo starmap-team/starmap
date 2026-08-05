@@ -54,18 +54,17 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 
 
 def get_client_ip(request: Request) -> str:
-    """Return the originating client IP.
+    """Return the originating client IP — 优先用 XFF 可信代理提取 (PLAN-015①)。
 
-    Checks X-Forwarded-For first (set by Vite proxy / Nginx), falls back to
-    the direct client IP. Takes only the leftmost entry in multi-hop chains.
+    直连 IP 来自 socket, 在反向代理后不是真实客户端; XFF 头又可被任意客户端
+    伪造。`app.core.security.client_ip.get_client_ip` 走"从右往左 + CIDR 白名单"
+    推导, 不可信时退化为直连 IP, 默认最保守。Settings.trusted_proxy_cidrs
+    配置可信代理。
     """
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        # ponytail: first entry is the original client
-        return forwarded.split(",")[0].strip()
-    if request.client is None:
-        return ""
-    return request.client.host
+    from app.config import settings
+    from app.core.security.client_ip import get_client_ip as _resolve
+
+    return _resolve(request, trusted_proxies=settings.get_trusted_proxy_networks())
 
 
 def _domain_error_to_http(exc: auth_service.AuthError) -> HTTPException:
