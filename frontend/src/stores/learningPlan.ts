@@ -2,6 +2,12 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 import { useUserStore } from '@/stores/user'
+import { useResponseValidation } from '@/validation/useResponseValidation'
+// PLAN-014 批次6: learning 契约接入 (5 模型: SkillGapInput/CreatePlanRequest/
+// SkillProgressItem/PhaseInfo/PlanResponse)
+import learningSchema from '../../../starmap-contracts/schemas/learning.schema.json'
+
+const { validateResponse: validateLearning } = useResponseValidation()
 
 const LOCAL_STORAGE_KEY = 'starmap_learning_plan_id'
 
@@ -201,7 +207,8 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
     planError.value = null
     try {
       const payload = buildCreatePlanRequest(matchResult)
-      const data = await request.post<PlanResponseRaw>('/learning/plan', payload)
+      const raw = await request.post<PlanResponseRaw>('/learning/plan', payload)
+      const data = validateLearning(raw, learningSchema, '/learning/plan', 'PlanResponse')
       const plan = mapPlanResponse(data)
       currentPlan.value = plan
       plans.value.unshift(plan)
@@ -219,7 +226,8 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
     planLoading.value = true
     planError.value = null
     try {
-      const data = await request.get<PlanResponseRaw>(`/learning/plan/${planId}`)
+      const raw = await request.get<PlanResponseRaw>(`/learning/plan/${planId}`)
+      const data = validateLearning(raw, learningSchema, '/learning/plan/{id}', 'PlanResponse')
       const plan = mapPlanResponse(data)
       currentPlan.value = plan
       writeStoredPlanId(plan.plan_id)

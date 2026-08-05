@@ -1,0 +1,450 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap learning schemas",
+  "description": "Auto-generated from backend/app/schemas/learning.py",
+  "definitions": {
+    "SkillGapInput": {
+      "description": "Skill gap from match diagnosis.",
+      "properties": {
+        "skill": {
+          "description": "技能名称",
+          "minLength": 1,
+          "title": "Skill",
+          "type": "string"
+        },
+        "importance": {
+          "default": "required",
+          "description": "required | bonus",
+          "title": "Importance",
+          "type": "string"
+        },
+        "gap_level": {
+          "default": "完全缺失",
+          "description": "完全缺失 | 部分掌握 | 已掌握",
+          "title": "Gap Level",
+          "type": "string"
+        },
+        "learning_path": {
+          "description": "前置技能链",
+          "items": {
+            "type": "string"
+          },
+          "title": "Learning Path",
+          "type": "array"
+        },
+        "target_proficiency": {
+          "default": "熟悉",
+          "description": "目标熟练度",
+          "title": "Target Proficiency",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill"
+      ],
+      "title": "SkillGapInput",
+      "type": "object"
+    },
+    "CreatePlanRequest": {
+      "description": "Request to create a learning plan.",
+      "properties": {
+        "position": {
+          "description": "目标岗位",
+          "minLength": 1,
+          "title": "Position",
+          "type": "string"
+        },
+        "match_score": {
+          "default": 0.0,
+          "description": "匹配分 0-1",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Match Score",
+          "type": "number"
+        },
+        "skills": {
+          "description": "技能缺口列表",
+          "items": {
+            "$ref": "#/$defs/SkillGapInput"
+          },
+          "minItems": 1,
+          "title": "Skills",
+          "type": "array"
+        },
+        "available_hours_per_week": {
+          "default": 10.0,
+          "description": "每周可用学习小时数",
+          "maximum": 40.0,
+          "minimum": 1.0,
+          "title": "Available Hours Per Week",
+          "type": "number"
+        }
+      },
+      "required": [
+        "position",
+        "skills"
+      ],
+      "title": "CreatePlanRequest",
+      "type": "object"
+    },
+    "SkillProgressItem": {
+      "description": "Per-skill progress in plan response.",
+      "properties": {
+        "skill_name": {
+          "description": "技能名",
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "status": {
+          "description": "not_started | in_progress | mastered | completed",
+          "title": "Status",
+          "type": "string"
+        },
+        "progress_pct": {
+          "default": 0.0,
+          "description": "进度 0-100",
+          "maximum": 100.0,
+          "minimum": 0.0,
+          "title": "Progress Pct",
+          "type": "number"
+        },
+        "importance": {
+          "default": "required",
+          "description": "required | bonus",
+          "title": "Importance",
+          "type": "string"
+        },
+        "estimated_hours": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Estimated Hours",
+          "type": "number"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO 8601",
+          "title": "Started At"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO 8601",
+          "title": "Completed At"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "学习笔记",
+          "title": "Notes"
+        }
+      },
+      "required": [
+        "skill_name",
+        "status"
+      ],
+      "title": "SkillProgressItem",
+      "type": "object"
+    },
+    "PhaseInfo": {
+      "description": "Learning phase info.",
+      "properties": {
+        "phase": {
+          "description": "阶段序号",
+          "minimum": 1,
+          "title": "Phase",
+          "type": "integer"
+        },
+        "skills": {
+          "description": "该阶段包含的技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Skills",
+          "type": "array"
+        },
+        "estimated_hours": {
+          "description": "该阶段总学习小时数",
+          "minimum": 0.0,
+          "title": "Estimated Hours",
+          "type": "number"
+        },
+        "estimated_weeks": {
+          "description": "该阶段预计完成周数",
+          "minimum": 0.0,
+          "title": "Estimated Weeks",
+          "type": "number"
+        }
+      },
+      "required": [
+        "phase",
+        "estimated_hours",
+        "estimated_weeks"
+      ],
+      "title": "PhaseInfo",
+      "type": "object"
+    },
+    "PlanResponse": {
+      "description": "Learning plan response.",
+      "properties": {
+        "plan_id": {
+          "description": "计划 UUID",
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "position": {
+          "description": "目标岗位",
+          "title": "Position",
+          "type": "string"
+        },
+        "status": {
+          "description": "active | completed | archived",
+          "title": "Status",
+          "type": "string"
+        },
+        "match_score_at_creation": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Match Score At Creation",
+          "type": "number"
+        },
+        "overall_pct": {
+          "default": 0.0,
+          "maximum": 100.0,
+          "minimum": 0.0,
+          "title": "Overall Pct",
+          "type": "number"
+        },
+        "total_hours": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Total Hours",
+          "type": "number"
+        },
+        "total_weeks": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Total Weeks",
+          "type": "number"
+        },
+        "phase_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Phase Count",
+          "type": "integer"
+        },
+        "phases": {
+          "items": {
+            "$ref": "#/$defs/PhaseInfo"
+          },
+          "title": "Phases",
+          "type": "array"
+        },
+        "skills": {
+          "items": {
+            "$ref": "#/$defs/SkillProgressItem"
+          },
+          "title": "Skills",
+          "type": "array"
+        },
+        "stats": {
+          "additionalProperties": true,
+          "description": "计划级别统计",
+          "title": "Stats",
+          "type": "object"
+        }
+      },
+      "required": [
+        "plan_id",
+        "position",
+        "status"
+      ],
+      "title": "PlanResponse",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "SkillGapInput": {
+      "description": "Skill gap from match diagnosis.",
+      "properties": {
+        "skill": {
+          "description": "技能名称",
+          "minLength": 1,
+          "title": "Skill",
+          "type": "string"
+        },
+        "importance": {
+          "default": "required",
+          "description": "required | bonus",
+          "title": "Importance",
+          "type": "string"
+        },
+        "gap_level": {
+          "default": "完全缺失",
+          "description": "完全缺失 | 部分掌握 | 已掌握",
+          "title": "Gap Level",
+          "type": "string"
+        },
+        "learning_path": {
+          "description": "前置技能链",
+          "items": {
+            "type": "string"
+          },
+          "title": "Learning Path",
+          "type": "array"
+        },
+        "target_proficiency": {
+          "default": "熟悉",
+          "description": "目标熟练度",
+          "title": "Target Proficiency",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill"
+      ],
+      "title": "SkillGapInput",
+      "type": "object"
+    },
+    "PhaseInfo": {
+      "description": "Learning phase info.",
+      "properties": {
+        "phase": {
+          "description": "阶段序号",
+          "minimum": 1,
+          "title": "Phase",
+          "type": "integer"
+        },
+        "skills": {
+          "description": "该阶段包含的技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Skills",
+          "type": "array"
+        },
+        "estimated_hours": {
+          "description": "该阶段总学习小时数",
+          "minimum": 0.0,
+          "title": "Estimated Hours",
+          "type": "number"
+        },
+        "estimated_weeks": {
+          "description": "该阶段预计完成周数",
+          "minimum": 0.0,
+          "title": "Estimated Weeks",
+          "type": "number"
+        }
+      },
+      "required": [
+        "phase",
+        "estimated_hours",
+        "estimated_weeks"
+      ],
+      "title": "PhaseInfo",
+      "type": "object"
+    },
+    "SkillProgressItem": {
+      "description": "Per-skill progress in plan response.",
+      "properties": {
+        "skill_name": {
+          "description": "技能名",
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "status": {
+          "description": "not_started | in_progress | mastered | completed",
+          "title": "Status",
+          "type": "string"
+        },
+        "progress_pct": {
+          "default": 0.0,
+          "description": "进度 0-100",
+          "maximum": 100.0,
+          "minimum": 0.0,
+          "title": "Progress Pct",
+          "type": "number"
+        },
+        "importance": {
+          "default": "required",
+          "description": "required | bonus",
+          "title": "Importance",
+          "type": "string"
+        },
+        "estimated_hours": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Estimated Hours",
+          "type": "number"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO 8601",
+          "title": "Started At"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO 8601",
+          "title": "Completed At"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "学习笔记",
+          "title": "Notes"
+        }
+      },
+      "required": [
+        "skill_name",
+        "status"
+      ],
+      "title": "SkillProgressItem",
+      "type": "object"
+    }
+  }
+}
