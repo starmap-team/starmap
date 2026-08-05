@@ -123,3 +123,28 @@ class ExtractionResult(BaseModel):
         default_factory=list,
         description="归一化后的技能列表",
     )
+    # 真实 API 透传字段（原 extract 路由内联版, PLAN-014 批次13 迁入时对齐）：
+    tools: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="JD 提及的工具与框架",
+    )
+    learning_resources: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="JD 提及的学习资源",
+    )
+    evolves_to: list[str] = Field(
+        default_factory=list,
+        description="该岗位演进方向",
+    )
+    hallucinated_skills: list[str] = Field(
+        default_factory=list,
+        description="反幻觉检查判定的幻觉技能",
+    )
+    missing_skills: list[str] = Field(
+        default_factory=list,
+        description="缺失的核心技能",
+    )
+    issues: list[str] = Field(
+        default_factory=list,
+        description="反幻觉检查问题清单",
+    )

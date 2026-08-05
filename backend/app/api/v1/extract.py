@@ -8,12 +8,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from loguru import logger
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.upload_validation import validate_resume_upload
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.exceptions import ExtractionError, ExtractionLLMError, StarMapError
+from app.schemas.extract import ExtractionRequest, ExtractionResult
 from app.services.extraction_service import (
     extract_from_jd,
     tracker,
@@ -23,33 +23,6 @@ from app.services.resume_service import run_resume_extraction
 
 router = APIRouter(prefix="/extract", tags=["信息抽取"])
 
-
-class ExtractionRequest(BaseModel):
-    """JD 内容 + 可选的抽取选项。"""
-
-    jd_content: str = Field(..., min_length=1, max_length=50000, description="职位描述文本")
-    options: dict[str, Any] | None = Field(None, description="抽取选项（model, temperature 等）")
-
-
-class ExtractionResult(BaseModel):
-    """抽取结果。"""
-
-    position_name: str
-    required_skills: list[dict[str, Any]] = []
-    preferred_skills: list[dict[str, Any]] = []
-    experience_required: int | None = None
-    education_required: str | None = None
-    responsibilities: list[str] = []
-    confidence: float = 0.0
-    hallucination_score: float | None = None
-    normalized_skills: list[dict[str, Any]] = []
-    # fix: 透传原 JDExtractionResult 丢弃的 4 个字段 + 3 个反幻觉字段
-    tools: list[dict[str, Any]] = []
-    learning_resources: list[dict[str, Any]] = []
-    evolves_to: list[str] = []
-    hallucinated_skills: list[str] = []
-    missing_skills: list[str] = []
-    issues: list[str] = []
 
 
 def _map_proficiency(value: str | None) -> str:

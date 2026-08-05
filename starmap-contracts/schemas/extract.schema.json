@@ -132,6 +132,56 @@
           },
           "title": "Normalized Skills",
           "type": "array"
+        },
+        "tools": {
+          "description": "JD 提及的工具与框架",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Tools",
+          "type": "array"
+        },
+        "learning_resources": {
+          "description": "JD 提及的学习资源",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Learning Resources",
+          "type": "array"
+        },
+        "evolves_to": {
+          "description": "该岗位演进方向",
+          "items": {
+            "type": "string"
+          },
+          "title": "Evolves To",
+          "type": "array"
+        },
+        "hallucinated_skills": {
+          "description": "反幻觉检查判定的幻觉技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Hallucinated Skills",
+          "type": "array"
+        },
+        "missing_skills": {
+          "description": "缺失的核心技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Skills",
+          "type": "array"
+        },
+        "issues": {
+          "description": "反幻觉检查问题清单",
+          "items": {
+            "type": "string"
+          },
+          "title": "Issues",
+          "type": "array"
         }
       },
       "title": "ExtractionResult",

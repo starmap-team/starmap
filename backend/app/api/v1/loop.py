@@ -22,7 +22,6 @@ from app.schemas.loop import (
     LoopHistoryResponse,
     LoopRunRequest,
     LoopRunResponse,
-    LoopStepResponse,
 )
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 

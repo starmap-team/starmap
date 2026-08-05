@@ -1,7 +1,7 @@
 """质量监控 API。对应§7.4 图谱质量仪表盘。"""
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -24,6 +24,22 @@ router = APIRouter(prefix="/quality", tags=["质量监控"])
 
 
 
+
+
+def _status(value: float, threshold: float) -> str:
+    """值-阈值门禁 → pass/warn/fail。
+
+    三态语义由 test_quality_service.py 锚定：
+    - value >= threshold → "pass"
+    - value >= threshold * 0.9 → "warn"（临界区）
+    - 否则 → "fail"
+    （此前该函数在重构中丢失，测试先行但实现缺失——HEAD 即 NameError 预存 bug）
+    """
+    if value >= threshold:
+        return "pass"
+    if value >= threshold * 0.9:
+        return "warn"
+    return "fail"
 
 
 def _warning_level(f1: float, hallucination_rate: float, total_extractions: int = 0) -> str:
