@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap judge schemas",
+  "description": "Auto-generated from backend/app/schemas/judge.py",
+  "definitions": {
+    "JudgeRequest": {
+      "description": "单样本评估请求：golden 标准答案 vs 系统输出.",
+      "properties": {
+        "golden": {
+          "additionalProperties": true,
+          "description": "标准答案 (golden standard)",
+          "title": "Golden",
+          "type": "object"
+        },
+        "system_output": {
+          "additionalProperties": true,
+          "description": "系统抽取结果",
+          "title": "System Output",
+          "type": "object"
+        },
+        "use_llm_judge": {
+          "default": false,
+          "description": "是否启用 LLM judge 进行多维度评分",
+          "title": "Use Llm Judge",
+          "type": "boolean"
+        },
+        "judge_prompt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Judge prompt 版本号 (v1/v2), 默认使用 active 版本",
+          "title": "Judge Prompt Version"
+        }
+      },
+      "required": [
+        "golden",
+        "system_output"
+      ],
+      "title": "JudgeRequest",
+      "type": "object"
+    },
+    "PairwiseRequest": {
+      "description": "两两对比请求 (无 golden, A/B 测试场景).",
+      "properties": {
+        "output_a": {
+          "additionalProperties": true,
+          "description": "A 版本抽取结果",
+          "title": "Output A",
+          "type": "object"
+        },
+        "output_b": {
+          "additionalProperties": true,
+          "description": "B 版本抽取结果",
+          "title": "Output B",
+          "type": "object"
+        }
+      },
+      "required": [
+        "output_a",
+        "output_b"
+      ],
+      "title": "PairwiseRequest",
+      "type": "object"
+    },
+    "BatchJudgeRequest": {
+      "description": "批量评估请求: JSONL 文件路径.",
+      "properties": {
+        "golden_file": {
+          "description": "Golden set JSONL 文件路径",
+          "minLength": 1,
+          "title": "Golden File",
+          "type": "string"
+        },
+        "system_file": {
+          "description": "System 输出 JSONL 文件路径",
+          "minLength": 1,
+          "title": "System File",
+          "type": "string"
+        },
+        "use_llm_judge": {
+          "default": false,
+          "description": "是否启用 LLM judge",
+          "title": "Use Llm Judge",
+          "type": "boolean"
+        },
+        "judge_prompt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Judge prompt 版本",
+          "title": "Judge Prompt Version"
+        },
+        "threshold": {
+          "default": 0.9,
+          "description": "质量门禁阈值",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Threshold",
+          "type": "number"
+        }
+      },
+      "required": [
+        "golden_file",
+        "system_file"
+      ],
+      "title": "BatchJudgeRequest",
+      "type": "object"
+    },
+    "JudgeSampleResponse": {
+      "description": "单样本评估结果.",
+      "properties": {
+        "sample_id": {
+          "default": "",
+          "description": "样本 ID",
+          "title": "Sample Id",
+          "type": "string"
+        },
+        "precision": {
+          "default": 0.0,
+          "description": "精确率",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Precision",
+          "type": "number"
+        },
+        "recall": {
+          "default": 0.0,
+          "description": "召回率",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Recall",
+          "type": "number"
+        },
+        "f1": {
+          "default": 0.0,
+          "description": "F1 分",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "F1",
+          "type": "number"
+        },
+        "llm_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "LLM judge 评分",
+          "title": "Llm Score"
+        },
+        "llm_reasoning": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "LLM judge 推理",
+          "title": "Llm Reasoning"
+        },
+        "errors": {
+          "description": "错误列表",
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "evaluated_at": {
+          "description": "评估时间 ISO 8601",
+          "title": "Evaluated At",
+          "type": "string"
+        }
+      },
+      "title": "JudgeSampleResponse",
+      "type": "object"
+    },
+    "PairwiseResponse": {
+      "description": "两两对比结果 (B vs A).",
+      "properties": {
+        "sample_id": {
+          "default": "",
+          "description": "样本 ID",
+          "title": "Sample Id",
+          "type": "string"
+        },
+        "precision_b_vs_a": {
+          "default": 0.0,
+          "description": "B vs A 精确率差",
+          "title": "Precision B Vs A",
+          "type": "number"
+        },
+        "recall_b_vs_a": {
+          "default": 0.0,
+          "description": "B vs A 召回率差",
+          "title": "Recall B Vs A",
+          "type": "number"
+        },
+        "f1_b_vs_a": {
+          "default": 0.0,
+          "description": "B vs A F1 差",
+          "title": "F1 B Vs A",
+          "type": "number"
+        },
+        "errors": {
+          "description": "错误列表",
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "evaluated_at": {
+          "description": "评估时间 ISO 8601",
+          "title": "Evaluated At",
+          "type": "string"
+        }
+      },
+      "title": "PairwiseResponse",
+      "type": "object"
+    },
+    "BatchJudgeResponse": {
+      "description": "批量评估汇总.",
+      "properties": {
+        "total_samples": {
+          "default": 0,
+          "description": "总样本数",
+          "minimum": 0,
+          "title": "Total Samples",
+          "type": "integer"
+        },
+        "evaluated_samples": {
+          "default": 0,
+          "description": "实际评估样本数",
+          "minimum": 0,
+          "title": "Evaluated Samples",
+          "type": "integer"
+        },
+        "avg_precision": {
+          "default": 0.0,
+          "description": "平均精确率",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Avg Precision",
+          "type": "number"
+        },
+        "avg_recall": {
+          "default": 0.0,
+          "description": "平均召回率",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Avg Recall",
+          "type": "number"
+        },
+        "avg_f1": {
+          "default": 0.0,
+          "description": "平均 F1",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Avg F1",
+          "type": "number"
+        },
+        "weighted_score": {
+          "default": 0.0,
+          "description": "加权总分",
+          "title": "Weighted Score",
+          "type": "number"
+        },
+        "f1_distribution": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "F1 分布",
+          "title": "F1 Distribution",
+          "type": "object"
+        },
+        "quality_gate": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "质量门禁结果",
+          "title": "Quality Gate"
+        },
+        "per_sample": {
+          "description": "逐样本详情",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Per Sample",
+          "type": "array"
+        },
+        "judge_prompt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "使用的 judge prompt 版本",
+          "title": "Judge Prompt Version"
+        }
+      },
+      "title": "BatchJudgeResponse",
+      "type": "object"
+    }
+  }
+}
