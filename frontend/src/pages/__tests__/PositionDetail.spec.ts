@@ -129,4 +129,20 @@ describe('PositionDetail.vue', () => {
     expect(props.data[0]).toHaveProperty('skill', 'Python')
     expect(props.positionName).toBe('后端工程师')
   })
+
+  // PLAN-006④: 数据时效指示 (discovered_at → freshness 标签)
+  it('shows recent-update badge when discovered_at is recent', async () => {
+    const recent = new Date(Date.now() - 3 * 86400000).toISOString()
+    mockGet.mockResolvedValue(makeDetailResponse({ discovered_at: recent }))
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain('数据更新于')
+  })
+
+  it('shows demo-data badge when discovered_at is null', async () => {
+    mockGet.mockResolvedValue(makeDetailResponse({ discovered_at: null }))
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain('演示数据')
+  })
 })

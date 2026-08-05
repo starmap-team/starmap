@@ -32,6 +32,8 @@ interface PositionInfo {
   name: string
   industry: string
   description: string
+  // PLAN-006④: 岗位入库时间, 用于"数据时效"指示; null = 演示/无采集
+  discovered_at: string | null
 }
 
 const position = ref<PositionInfo | null>(null)
@@ -68,6 +70,19 @@ const PROFICIENCY_TAG: Record<string, string> = {
   '了解': 'info',
 }
 
+// PLAN-006④: 数据时效指示 (discovered_at → 友好标签 + tag 类型)
+const freshness = computed<{ label: string; type: string }>(() => {
+  const at = position.value?.discovered_at
+  if (!at) return { label: '演示数据', type: 'info' }
+  const ts = Date.parse(at)
+  if (Number.isNaN(ts)) return { label: '演示数据', type: 'info' }
+  const days = Math.floor((Date.now() - ts) / 86400000)
+  const date = new Date(ts).toISOString().slice(0, 10)
+  if (days <= 7) return { label: `数据更新于 ${date}`, type: 'success' }
+  if (days <= 30) return { label: `数据更新于 ${date} (${days}天前)`, type: 'warning' }
+  return { label: `数据较旧 (${date}, ${days}天前)`, type: 'danger' }
+})
+
 // ── Hotness color: higher = greener, lower = grayer ──
 function hotnessColor(count: number): string {
   if (count >= 8) return cc.success
@@ -103,6 +118,8 @@ onMounted(async () => {
       name: d.name_cn || d.name || id,
       industry: d.industry ?? '',
       description: d.description ?? '',
+      // PLAN-006④: 岗位入库时间, 用于"数据时效"指示
+      discovered_at: d.discovered_at ?? null,
     }
     skills.value = (d.skills_required ?? []).map((s) => ({
       skill_id: s.skill_id ?? '',
@@ -215,6 +232,15 @@ onMounted(async () => {
             <p class="header-sub">
               {{ position?.industry ?? '' }}
             </p>
+            <!-- PLAN-006④: 数据时效指示 (演示数据 / 数据更新于 X / 较旧) -->
+            <el-tag
+              :type="freshness.type"
+              size="small"
+              effect="plain"
+              class="freshness-tag"
+            >
+              {{ freshness.label }}
+            </el-tag>
           </div>
         </div>
 
