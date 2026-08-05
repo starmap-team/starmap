@@ -96,6 +96,12 @@ from app.schemas.match import (
     ReverseMatchResponse,
     SkillGapDetail,
 )
+from app.schemas.pipeline import (
+    DataQualityResponse,
+    PipelineRunResponse,
+    PipelineStatusResponse,
+    StageInfo,
+)
 from app.schemas.position import (
     PositionListResponse,
     PositionNode,
@@ -168,6 +174,10 @@ __all__ = [
     "GraphSkillNode",
     "KAPositionsResponse",
     "PositionSkillDetailResponse",
+    "PipelineRunResponse",
+    "PipelineStatusResponse",
+    "DataQualityResponse",
+    "StageInfo",
     # extract
     "ExtractionRequest",
     "ExtractionResult",

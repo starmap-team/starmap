@@ -68,6 +68,10 @@ from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入
     SkillProgressItem,
     PhaseInfo,
     PlanResponse,
+    PipelineRunResponse,
+    PipelineStatusResponse,
+    DataQualityResponse,
+    StageInfo,
     PositionListResponse,
     OverviewResponse,
     RealtimePollResponse,
@@ -117,6 +121,12 @@ SCHEMA_GROUPS: dict[str, list[tuple[str, type]]] = {
         ("TrendsResponse", TrendsResponse),
         ("DistributionResponse", DistributionResponse),
         ("RealtimePollResponse", RealtimePollResponse),
+    ],
+    "pipeline": [
+        ("StageInfo", StageInfo),
+        ("PipelineRunResponse", PipelineRunResponse),
+        ("PipelineStatusResponse", PipelineStatusResponse),
+        ("DataQualityResponse", DataQualityResponse),
     ],
     "position": [
         ("PositionNode", PositionNode),

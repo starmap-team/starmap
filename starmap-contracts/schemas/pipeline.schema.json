@@ -1,0 +1,767 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap pipeline schemas",
+  "description": "Auto-generated from backend/app/schemas/pipeline.py",
+  "definitions": {
+    "StageInfo": {
+      "description": "Single pipeline stage details.",
+      "properties": {
+        "name": {
+          "description": "Stage name",
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "description": "pending/running/completed/failed/skipped/cancelled",
+          "title": "Status",
+          "type": "string"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO timestamp",
+          "title": "Started At"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO timestamp",
+          "title": "Completed At"
+        },
+        "progress": {
+          "default": 0.0,
+          "description": "Stage progress 0.0-1.0",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Progress",
+          "type": "number"
+        },
+        "duration_ms": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "records_processed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Records Processed",
+          "type": "integer"
+        },
+        "errors": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "errors_count": {
+          "default": 0,
+          "description": "Count of errors (alias for len(errors))",
+          "minimum": 0,
+          "title": "Errors Count",
+          "type": "integer"
+        },
+        "retry_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Retry Count",
+          "type": "integer"
+        },
+        "depends_on": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "current_activity": {
+          "default": "",
+          "description": "当前活动描述 (e.g. '正在爬取 BOSS直聘: ...')",
+          "title": "Current Activity",
+          "type": "string"
+        },
+        "recent_samples": {
+          "description": "最近处理的样本 (URL/技能/图节点)",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Recent Samples",
+          "type": "array"
+        },
+        "sub_breakdown": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "子项分解 (e.g. {'bosszhipin': 12, '51job': 5})",
+          "title": "Sub Breakdown",
+          "type": "object"
+        },
+        "elapsed_ms": {
+          "default": 0,
+          "description": "已运行毫秒数",
+          "minimum": 0,
+          "title": "Elapsed Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "status"
+      ],
+      "title": "StageInfo",
+      "type": "object"
+    },
+    "PipelineRunResponse": {
+      "description": "Pipeline run details.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "run_type": {
+          "title": "Run Type",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completed At"
+        },
+        "stages": {
+          "items": {
+            "$ref": "#/$defs/StageInfo"
+          },
+          "title": "Stages",
+          "type": "array"
+        },
+        "total_records": {
+          "default": 0,
+          "title": "Total Records",
+          "type": "integer"
+        },
+        "new_records": {
+          "default": 0,
+          "title": "New Records",
+          "type": "integer"
+        },
+        "updated_records": {
+          "default": 0,
+          "title": "Updated Records",
+          "type": "integer"
+        },
+        "quality_score": {
+          "default": 0.0,
+          "title": "Quality Score",
+          "type": "number"
+        },
+        "error_log": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Log"
+        },
+        "selected_stages": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selected Stages"
+        }
+      },
+      "required": [
+        "id",
+        "run_type",
+        "status"
+      ],
+      "title": "PipelineRunResponse",
+      "type": "object"
+    },
+    "PipelineStatusResponse": {
+      "description": "Global pipeline status overview.",
+      "properties": {
+        "is_running": {
+          "default": false,
+          "title": "Is Running",
+          "type": "boolean"
+        },
+        "current_run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PipelineRunResponse"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "last_run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PipelineRunResponse"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "recent_failed_run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PipelineRunResponse"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "run_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Run Counts",
+          "type": "object"
+        },
+        "active_data_sources": {
+          "default": 0,
+          "title": "Active Data Sources",
+          "type": "integer"
+        },
+        "today_crawl_volume": {
+          "default": 0,
+          "description": "JDs crawled since 00:00 today",
+          "minimum": 0,
+          "title": "Today Crawl Volume",
+          "type": "integer"
+        },
+        "last_crawl_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO timestamp of most recent crawl",
+          "title": "Last Crawl At"
+        },
+        "success_rate": {
+          "default": 0.0,
+          "description": "7-day completed/(completed+failed)",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Success Rate",
+          "type": "number"
+        },
+        "avg_quality_score": {
+          "default": 0.0,
+          "description": "7-day avg quality_score",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Avg Quality Score",
+          "type": "number"
+        },
+        "quality_alerts": {
+          "items": {
+            "$ref": "#/$defs/QualityAlertItem"
+          },
+          "title": "Quality Alerts",
+          "type": "array"
+        }
+      },
+      "title": "PipelineStatusResponse",
+      "type": "object"
+    },
+    "DataQualityResponse": {
+      "description": "Data quality metrics and alerts.",
+      "properties": {
+        "metrics": {
+          "$ref": "#/$defs/DataQualityMetrics"
+        },
+        "source_scores": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Source Scores",
+          "type": "object"
+        },
+        "alerts": {
+          "items": {
+            "$ref": "#/$defs/QualityAlertItem"
+          },
+          "title": "Alerts",
+          "type": "array"
+        },
+        "alert_count": {
+          "default": 0,
+          "title": "Alert Count",
+          "type": "integer"
+        }
+      },
+      "title": "DataQualityResponse",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "StageInfo": {
+      "description": "Single pipeline stage details.",
+      "properties": {
+        "name": {
+          "description": "Stage name",
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "description": "pending/running/completed/failed/skipped/cancelled",
+          "title": "Status",
+          "type": "string"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO timestamp",
+          "title": "Started At"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO timestamp",
+          "title": "Completed At"
+        },
+        "progress": {
+          "default": 0.0,
+          "description": "Stage progress 0.0-1.0",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Progress",
+          "type": "number"
+        },
+        "duration_ms": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "records_processed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Records Processed",
+          "type": "integer"
+        },
+        "errors": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "errors_count": {
+          "default": 0,
+          "description": "Count of errors (alias for len(errors))",
+          "minimum": 0,
+          "title": "Errors Count",
+          "type": "integer"
+        },
+        "retry_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Retry Count",
+          "type": "integer"
+        },
+        "depends_on": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "current_activity": {
+          "default": "",
+          "description": "当前活动描述 (e.g. '正在爬取 BOSS直聘: ...')",
+          "title": "Current Activity",
+          "type": "string"
+        },
+        "recent_samples": {
+          "description": "最近处理的样本 (URL/技能/图节点)",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Recent Samples",
+          "type": "array"
+        },
+        "sub_breakdown": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "子项分解 (e.g. {'bosszhipin': 12, '51job': 5})",
+          "title": "Sub Breakdown",
+          "type": "object"
+        },
+        "elapsed_ms": {
+          "default": 0,
+          "description": "已运行毫秒数",
+          "minimum": 0,
+          "title": "Elapsed Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "status"
+      ],
+      "title": "StageInfo",
+      "type": "object"
+    },
+    "PipelineRunResponse": {
+      "description": "Pipeline run details.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "run_type": {
+          "title": "Run Type",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completed At"
+        },
+        "stages": {
+          "items": {
+            "$ref": "#/$defs/StageInfo"
+          },
+          "title": "Stages",
+          "type": "array"
+        },
+        "total_records": {
+          "default": 0,
+          "title": "Total Records",
+          "type": "integer"
+        },
+        "new_records": {
+          "default": 0,
+          "title": "New Records",
+          "type": "integer"
+        },
+        "updated_records": {
+          "default": 0,
+          "title": "Updated Records",
+          "type": "integer"
+        },
+        "quality_score": {
+          "default": 0.0,
+          "title": "Quality Score",
+          "type": "number"
+        },
+        "error_log": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Log"
+        },
+        "selected_stages": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selected Stages"
+        }
+      },
+      "required": [
+        "id",
+        "run_type",
+        "status"
+      ],
+      "title": "PipelineRunResponse",
+      "type": "object"
+    },
+    "QualityAlertItem": {
+      "description": "Single quality alert.",
+      "properties": {
+        "level": {
+          "title": "Level",
+          "type": "string"
+        },
+        "dimension": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dimension"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Threshold"
+        },
+        "timestamp": {
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "time": {
+          "default": "",
+          "title": "Time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "message",
+        "timestamp"
+      ],
+      "title": "QualityAlertItem",
+      "type": "object"
+    },
+    "DataQualityMetrics": {
+      "description": "Nested data quality metrics.",
+      "properties": {
+        "overall_score": {
+          "default": 0.0,
+          "title": "Overall Score",
+          "type": "number"
+        },
+        "completeness": {
+          "default": 0.0,
+          "title": "Completeness",
+          "type": "number"
+        },
+        "accuracy": {
+          "default": 0.0,
+          "title": "Accuracy",
+          "type": "number"
+        },
+        "freshness_hours": {
+          "default": 0.0,
+          "title": "Freshness Hours",
+          "type": "number"
+        },
+        "duplicate_rate": {
+          "default": 0.0,
+          "title": "Duplicate Rate",
+          "type": "number"
+        },
+        "total_records": {
+          "default": 0,
+          "title": "Total Records",
+          "type": "integer"
+        },
+        "valid_records": {
+          "default": 0,
+          "title": "Valid Records",
+          "type": "integer"
+        },
+        "consistency": {
+          "default": 0.0,
+          "description": "Inverse stddev of source_scores",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Consistency",
+          "type": "number"
+        },
+        "timeliness": {
+          "default": 0.0,
+          "description": "1 - min(freshness/48h, 1)",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Timeliness",
+          "type": "number"
+        },
+        "trend": {
+          "description": "14-day overall_score trend",
+          "items": {
+            "$ref": "#/$defs/TrendPoint"
+          },
+          "title": "Trend",
+          "type": "array"
+        },
+        "baseline_available": {
+          "default": true,
+          "description": "是否存在可评估的质检数据；False 时各分数不可信",
+          "title": "Baseline Available",
+          "type": "boolean"
+        },
+        "quality_explanation": {
+          "default": "",
+          "description": "无基线/无数据时的口径说明",
+          "title": "Quality Explanation",
+          "type": "string"
+        }
+      },
+      "title": "DataQualityMetrics",
+      "type": "object"
+    },
+    "TrendPoint": {
+      "description": "A single point in the data-quality trend (date + score).",
+      "properties": {
+        "date": {
+          "description": "ISO date YYYY-MM-DD",
+          "title": "Date",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "date",
+        "score"
+      ],
+      "title": "TrendPoint",
+      "type": "object"
+    }
+  }
+}

@@ -9,6 +9,12 @@ import request from '@/api/request'
 import type { QualityAlert } from '@/types/quality'
 import type { DataSourceDetail } from '@/types/datasource'
 
+import { useResponseValidation } from '@/validation/useResponseValidation'
+import pipelineSchema from '../../../starmap-contracts/schemas/pipeline.schema.json'
+
+// PLAN-014: 契约响应校验 (DEV warn 不阻断)
+const { validateResponse: validatePipeline } = useResponseValidation()
+
 // Re-export for backward compatibility
 export type { QualityAlert } from '@/types/quality'
 export type { DataSourceDetail as DataSource } from '@/types/datasource'
@@ -147,7 +153,10 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get('/pipeline/status') as PipelineStatus
+      const data = validatePipeline(
+        await request.get('/pipeline/status') as PipelineStatus,
+        pipelineSchema, '/pipeline/status', 'PipelineStatusResponse',
+      ) as PipelineStatus
       pipelineStatus.value = data
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '获取流水线状态失败'
@@ -160,7 +169,10 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get('/pipeline/runs') as PipelineRun[]
+      const data = validatePipeline(
+        await request.get('/pipeline/runs') as PipelineRun[],
+        pipelineSchema, '/pipeline/runs', 'PipelineRunResponse',
+      ) as PipelineRun[]
       runs.value = data
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '获取运行记录失败'
@@ -173,7 +185,10 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get(`/pipeline/runs/${runId}`) as PipelineRun
+      const data = validatePipeline(
+        await request.get(`/pipeline/runs/${runId}`) as PipelineRun,
+        pipelineSchema, `/pipeline/runs/${runId}`, 'PipelineRunResponse',
+      ) as PipelineRun
       return data
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '获取运行详情失败'
@@ -244,7 +259,10 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     loading.value = true
     error.value = null
     try {
-      const raw = await request.get('/pipeline/data-quality') as DataQualityResponse
+      const raw = validatePipeline(
+        await request.get('/pipeline/data-quality') as DataQualityResponse,
+        pipelineSchema, '/pipeline/data-quality', 'DataQualityResponse',
+      ) as DataQualityResponse
       // Phase 1: API 返回嵌套 { metrics: {...}, alerts: [...] } 结构
       // 需要解包 metrics + 合并 alerts 到顶层
       const metrics = (raw && raw.metrics) ? raw.metrics : raw

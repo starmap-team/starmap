@@ -1,13 +1,13 @@
 """Serializers: DB model → Pydantic response conversion for the pipeline API."""
 from __future__ import annotations
 
-from app.api.v1.pipeline.schemas import (
+from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
+from app.schemas.pipeline import (
     DataSourceResponse,
     PipelineRunResponse,
     ScheduleResponse,
     StageInfo,
 )
-from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 
 
 def serialize_run(run: PipelineRun) -> PipelineRunResponse:

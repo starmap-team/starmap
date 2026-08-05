@@ -16,23 +16,6 @@ from loguru import logger
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.pipeline.schemas import (
-    CancelResponse,
-    DataQualityMetrics,
-    DataQualityResponse,
-    DataSourceResponse,
-    PipelineConfigResponse,
-    PipelineConfigUpdateRequest,
-    PipelineRunResponse,
-    PipelineStatusResponse,
-    QualityAlertItem,
-    RetryStageRequest,
-    ScheduleCreateRequest,
-    ScheduleResponse,
-    StageStatusResponse,
-    TriggerRequest,
-    TriggerResponse,
-)
 from app.api.v1.pipeline.serializers import (
     serialize_datasource,
     serialize_run,
@@ -54,6 +37,23 @@ from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_dri
 from app.exceptions import StarMapError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 from app.repositories.position_repository import PositionRepository
+from app.schemas.pipeline import (
+    CancelResponse,
+    DataQualityMetrics,
+    DataQualityResponse,
+    DataSourceResponse,
+    PipelineConfigResponse,
+    PipelineConfigUpdateRequest,
+    PipelineRunResponse,
+    PipelineStatusResponse,
+    QualityAlertItem,
+    RetryStageRequest,
+    ScheduleCreateRequest,
+    ScheduleResponse,
+    StageStatusResponse,
+    TriggerRequest,
+    TriggerResponse,
+)
 
 # 创建全局 MatchService 实例
 _match_service = MatchService()
