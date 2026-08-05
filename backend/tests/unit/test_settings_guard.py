@@ -154,49 +154,49 @@ class TestPipelineConfigConstraints:
 
     def test_stage_timeout_below_minimum(self) -> None:
         """stage_timeout < 60 raises ValidationError."""
-        from app.api.v1.pipeline.schemas import PipelineConfigUpdateRequest
+        from app.schemas.pipeline import PipelineConfigUpdateRequest
 
         with pytest.raises(ValidationError):
             PipelineConfigUpdateRequest(stage_timeout=0)
 
     def test_stage_timeout_above_maximum(self) -> None:
         """stage_timeout > 7200 raises ValidationError."""
-        from app.api.v1.pipeline.schemas import PipelineConfigUpdateRequest
+        from app.schemas.pipeline import PipelineConfigUpdateRequest
 
         with pytest.raises(ValidationError):
             PipelineConfigUpdateRequest(stage_timeout=99999)
 
     def test_stage_timeout_valid(self) -> None:
         """stage_timeout within range succeeds."""
-        from app.api.v1.pipeline.schemas import PipelineConfigUpdateRequest
+        from app.schemas.pipeline import PipelineConfigUpdateRequest
 
         req = PipelineConfigUpdateRequest(stage_timeout=300)
         assert req.stage_timeout == 300
 
     def test_worker_concurrency_above_max(self) -> None:
         """worker_concurrency > 10 raises ValidationError."""
-        from app.api.v1.pipeline.schemas import PipelineConfigUpdateRequest
+        from app.schemas.pipeline import PipelineConfigUpdateRequest
 
         with pytest.raises(ValidationError):
             PipelineConfigUpdateRequest(worker_concurrency=100)
 
     def test_crawl_concurrency_above_max(self) -> None:
         """crawl_concurrency > 20 raises ValidationError."""
-        from app.api.v1.pipeline.schemas import PipelineConfigUpdateRequest
+        from app.schemas.pipeline import PipelineConfigUpdateRequest
 
         with pytest.raises(ValidationError):
             PipelineConfigUpdateRequest(crawl_concurrency=50)
 
     def test_retry_backoff_below_minimum(self) -> None:
         """retry_backoff < 1 raises ValidationError."""
-        from app.api.v1.pipeline.schemas import PipelineConfigUpdateRequest
+        from app.schemas.pipeline import PipelineConfigUpdateRequest
 
         with pytest.raises(ValidationError):
             PipelineConfigUpdateRequest(retry_backoff=0)
 
     def test_all_none_succeeds(self) -> None:
         """PipelineConfigUpdateRequest() with all None succeeds."""
-        from app.api.v1.pipeline.schemas import PipelineConfigUpdateRequest
+        from app.schemas.pipeline import PipelineConfigUpdateRequest
 
         req = PipelineConfigUpdateRequest()
         assert req.stage_timeout is None
