@@ -14,7 +14,6 @@ import time
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel, Field
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
@@ -22,67 +21,15 @@ from starlette.responses import StreamingResponse
 from app.core.dashboard.dashboard_service import get_distribution, get_overview, get_trends
 from app.core.dashboard.sse_broadcaster import event_stream, get_recent_events
 from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, get_redis_client, sse_disconnect
+from app.schemas.dashboard import (
+    DistributionResponse,
+    OverviewResponse,
+    RealtimePollResponse,
+    TrendPoint,
+    TrendsResponse,
+)
 
 router = APIRouter(prefix="/dashboard", tags=["数据大屏"])
-
-
-# ---------------------------------------------------------------------------
-# Pydantic response schemas
-# ---------------------------------------------------------------------------
-
-class OverviewResponse(BaseModel):
-    """Dashboard overview KPIs."""
-
-    total_nodes: int = Field(0, description="Total graph nodes (positions + skills)")
-    total_edges: int = Field(0, description="Total graph edges")
-    total_positions: int = Field(0, description="Position count")
-    total_skills: int = Field(0, description="Skill count")
-    total_domains: int = Field(0, description="Distinct industry domains")
-    trust_score: float = Field(0.0, ge=0, le=1, description="Average trust score")
-    hallucination_rate: float = Field(0.0, ge=0, le=1, description="Hallucination rate")
-    total_extractions: int = Field(0, description="Total extraction records")
-    data_volume: int = Field(0, description="Total pipeline data volume")
-    today_extractions: int = Field(0, description="Extractions today")
-    pipeline_status: str = Field("idle", description="Latest pipeline run status")
-    active_data_sources: int = Field(0, description="Number of active data sources")
-    weekly_new_nodes: int = Field(0, description="New nodes this week")
-    stale: bool = Field(False, description="True if some data came from cache due to source failure")
-    stale_since: float | None = Field(None, description="Unix timestamp when staleness began")
-    timestamp: float = Field(0.0, description="Response generation time")
-
-
-class TrendPoint(BaseModel):
-    """Single time-series data point."""
-
-    date: str
-    total_records: int = 0
-    new_records: int = 0
-    quality_score: float = 0.0
-    extractions: int = 0
-
-
-class TrendsResponse(BaseModel):
-    """Trends time-series response."""
-
-    period: str = Field(..., description="'7d' | '30d' | '90d'")
-    data_points: list[TrendPoint] = Field(default_factory=list)
-    summary: dict[str, Any] = Field(default_factory=dict)
-
-
-class DistributionResponse(BaseModel):
-    """Distribution data for dashboard charts."""
-
-    source_distribution: list[dict[str, Any]] = Field(default_factory=list)
-    domain_distribution: list[dict[str, Any]] = Field(default_factory=list)
-    skill_category_distribution: list[dict[str, Any]] = Field(default_factory=list)
-    timestamp: float = 0.0
-
-
-class RealtimePollResponse(BaseModel):
-    """Polling fallback for SSE."""
-
-    events: list[dict[str, Any]] = Field(default_factory=list)
-    poll_interval_ms: int = Field(5000, description="Recommended poll interval in ms")
 
 
 # ---------------------------------------------------------------------------

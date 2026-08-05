@@ -15,6 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.api.v1 import dashboard as dashboard_router
 from app.api.v1 import graph as graph_router
 from app.api.v1 import position as position_router
 
@@ -43,6 +44,9 @@ class TestRouteModelCentralization:
 
     def test_position_route_has_no_inline_models(self) -> None:
         assert _inline_models(position_router) == []
+
+    def test_dashboard_route_has_no_inline_models(self) -> None:
+        assert _inline_models(dashboard_router) == []
 
 
 class TestPositionSkillDetailShape:

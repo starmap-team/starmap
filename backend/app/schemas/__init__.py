@@ -30,6 +30,13 @@ from app.schemas.common import (
     PaginatedResponse,
     PaginationMeta,
 )
+from app.schemas.dashboard import (
+    DistributionResponse,
+    OverviewResponse,
+    RealtimePollResponse,
+    TrendPoint,
+    TrendsResponse,
+)
 from app.schemas.extract import (
     ExtractionRequest,
     ExtractionResult,
@@ -92,6 +99,12 @@ __all__ = [
     "RefreshResponse",
     "ResetPasswordRequest",
     "TokenUser",
+    # dashboard
+    "DistributionResponse",
+    "OverviewResponse",
+    "RealtimePollResponse",
+    "TrendPoint",
+    "TrendsResponse",
     # position
     "PositionListResponse",
     "PositionNode",

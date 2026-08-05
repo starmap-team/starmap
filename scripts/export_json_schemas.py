@@ -42,6 +42,8 @@ from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入
     LoginResponse,
     LogoutRequest,
     PositionListResponse,
+    OverviewResponse,
+    RealtimePollResponse,
     PositionNode,
     PositionSkillDetailResponse,
     RefreshRequest,
@@ -50,6 +52,9 @@ from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入
     SkillItem,
     SkillNode,
     TokenUser,
+    TrendPoint,
+    TrendsResponse,
+    DistributionResponse,
 )
 
 # 按域分组的 Schema
@@ -68,6 +73,13 @@ SCHEMA_GROUPS: dict[str, list[tuple[str, type]]] = {
         ("ForgotPasswordRequest", ForgotPasswordRequest),
         ("ResetPasswordRequest", ResetPasswordRequest),
         ("TokenUser", TokenUser),
+    ],
+    "dashboard": [
+        ("OverviewResponse", OverviewResponse),
+        ("TrendPoint", TrendPoint),
+        ("TrendsResponse", TrendsResponse),
+        ("DistributionResponse", DistributionResponse),
+        ("RealtimePollResponse", RealtimePollResponse),
     ],
     "position": [
         ("PositionNode", PositionNode),

@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap dashboard schemas",
+  "description": "Auto-generated from backend/app/schemas/dashboard.py",
+  "definitions": {
+    "OverviewResponse": {
+      "description": "Dashboard overview KPIs.",
+      "properties": {
+        "total_nodes": {
+          "default": 0,
+          "description": "Total graph nodes (positions + skills)",
+          "title": "Total Nodes",
+          "type": "integer"
+        },
+        "total_edges": {
+          "default": 0,
+          "description": "Total graph edges",
+          "title": "Total Edges",
+          "type": "integer"
+        },
+        "total_positions": {
+          "default": 0,
+          "description": "Position count",
+          "title": "Total Positions",
+          "type": "integer"
+        },
+        "total_skills": {
+          "default": 0,
+          "description": "Skill count",
+          "title": "Total Skills",
+          "type": "integer"
+        },
+        "total_domains": {
+          "default": 0,
+          "description": "Distinct industry domains",
+          "title": "Total Domains",
+          "type": "integer"
+        },
+        "trust_score": {
+          "default": 0.0,
+          "description": "Average trust score",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Trust Score",
+          "type": "number"
+        },
+        "hallucination_rate": {
+          "default": 0.0,
+          "description": "Hallucination rate",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Hallucination Rate",
+          "type": "number"
+        },
+        "total_extractions": {
+          "default": 0,
+          "description": "Total extraction records",
+          "title": "Total Extractions",
+          "type": "integer"
+        },
+        "data_volume": {
+          "default": 0,
+          "description": "Total pipeline data volume",
+          "title": "Data Volume",
+          "type": "integer"
+        },
+        "today_extractions": {
+          "default": 0,
+          "description": "Extractions today",
+          "title": "Today Extractions",
+          "type": "integer"
+        },
+        "pipeline_status": {
+          "default": "idle",
+          "description": "Latest pipeline run status",
+          "title": "Pipeline Status",
+          "type": "string"
+        },
+        "active_data_sources": {
+          "default": 0,
+          "description": "Number of active data sources",
+          "title": "Active Data Sources",
+          "type": "integer"
+        },
+        "weekly_new_nodes": {
+          "default": 0,
+          "description": "New nodes this week",
+          "title": "Weekly New Nodes",
+          "type": "integer"
+        },
+        "stale": {
+          "default": false,
+          "description": "True if some data came from cache due to source failure",
+          "title": "Stale",
+          "type": "boolean"
+        },
+        "stale_since": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unix timestamp when staleness began",
+          "title": "Stale Since"
+        },
+        "timestamp": {
+          "default": 0.0,
+          "description": "Response generation time",
+          "title": "Timestamp",
+          "type": "number"
+        }
+      },
+      "title": "OverviewResponse",
+      "type": "object"
+    },
+    "TrendPoint": {
+      "description": "Single time-series data point.",
+      "properties": {
+        "date": {
+          "description": "日期（YYYY-MM-DD）",
+          "minLength": 1,
+          "title": "Date",
+          "type": "string"
+        },
+        "total_records": {
+          "default": 0,
+          "description": "累计记录数",
+          "minimum": 0,
+          "title": "Total Records",
+          "type": "integer"
+        },
+        "new_records": {
+          "default": 0,
+          "description": "新增记录数",
+          "minimum": 0,
+          "title": "New Records",
+          "type": "integer"
+        },
+        "quality_score": {
+          "default": 0.0,
+          "description": "质量分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Quality Score",
+          "type": "number"
+        },
+        "extractions": {
+          "default": 0,
+          "description": "抽取次数",
+          "minimum": 0,
+          "title": "Extractions",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "date"
+      ],
+      "title": "TrendPoint",
+      "type": "object"
+    },
+    "TrendsResponse": {
+      "description": "Trends time-series response.",
+      "properties": {
+        "period": {
+          "description": "'7d' | '30d' | '90d'",
+          "minLength": 1,
+          "title": "Period",
+          "type": "string"
+        },
+        "data_points": {
+          "description": "时序数据点",
+          "items": {
+            "$ref": "#/$defs/TrendPoint"
+          },
+          "title": "Data Points",
+          "type": "array"
+        },
+        "summary": {
+          "additionalProperties": true,
+          "description": "汇总指标",
+          "title": "Summary",
+          "type": "object"
+        }
+      },
+      "required": [
+        "period"
+      ],
+      "title": "TrendsResponse",
+      "type": "object"
+    },
+    "DistributionResponse": {
+      "description": "Distribution data for dashboard charts.",
+      "properties": {
+        "source_distribution": {
+          "description": "数据源分布",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Source Distribution",
+          "type": "array"
+        },
+        "domain_distribution": {
+          "description": "领域分布",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Domain Distribution",
+          "type": "array"
+        },
+        "skill_category_distribution": {
+          "description": "技能分类分布",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Skill Category Distribution",
+          "type": "array"
+        },
+        "timestamp": {
+          "default": 0.0,
+          "description": "响应生成时间戳",
+          "title": "Timestamp",
+          "type": "number"
+        }
+      },
+      "title": "DistributionResponse",
+      "type": "object"
+    },
+    "RealtimePollResponse": {
+      "description": "Polling fallback for SSE.",
+      "properties": {
+        "events": {
+          "description": "近期事件列表",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Events",
+          "type": "array"
+        },
+        "poll_interval_ms": {
+          "default": 5000,
+          "description": "Recommended poll interval in ms",
+          "minimum": 500,
+          "title": "Poll Interval Ms",
+          "type": "integer"
+        }
+      },
+      "title": "RealtimePollResponse",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "TrendPoint": {
+      "description": "Single time-series data point.",
+      "properties": {
+        "date": {
+          "description": "日期（YYYY-MM-DD）",
+          "minLength": 1,
+          "title": "Date",
+          "type": "string"
+        },
+        "total_records": {
+          "default": 0,
+          "description": "累计记录数",
+          "minimum": 0,
+          "title": "Total Records",
+          "type": "integer"
+        },
+        "new_records": {
+          "default": 0,
+          "description": "新增记录数",
+          "minimum": 0,
+          "title": "New Records",
+          "type": "integer"
+        },
+        "quality_score": {
+          "default": 0.0,
+          "description": "质量分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Quality Score",
+          "type": "number"
+        },
+        "extractions": {
+          "default": 0,
+          "description": "抽取次数",
+          "minimum": 0,
+          "title": "Extractions",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "date"
+      ],
+      "title": "TrendPoint",
+      "type": "object"
+    }
+  }
+}
