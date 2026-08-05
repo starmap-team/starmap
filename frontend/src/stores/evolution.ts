@@ -84,7 +84,10 @@ export const useEvolutionStore = defineStore('evolution', () => {
     loading.value = true
     try {
       const params = days ? { days } : undefined
-      const data = await request.get<{ items?: TrendItem[] }>('/evolution/trends', { params })
+      const data = validateEvolution(
+        await request.get<{ items?: TrendItem[] }>('/evolution/trends', { params }) as Record<string, unknown>,
+        evolutionSchema, '/evolution/trends', 'EvolutionTrendsResponse',
+      ) as { items?: TrendItem[] }
       trendItems.value = data.items ?? []
     } finally {
       loading.value = false
@@ -95,7 +98,10 @@ export const useEvolutionStore = defineStore('evolution', () => {
   async function fetchSnapshots(limit = 50) {
     snapshotsLoading.value = true
     try {
-      const data = await request.get(`/evolution/snapshots?limit=${limit}`)
+      const data = validateEvolution(
+        await request.get(`/evolution/snapshots?limit=${limit}`) as Record<string, unknown>,
+        evolutionSchema, '/evolution/snapshots', 'SnapshotEntry',
+      ) as Record<string, unknown>
       const list = Array.isArray(data) ? data : []
       snapshots.value = [...list].sort((a, b) =>
         String(a.snapshot_date).localeCompare(String(b.snapshot_date))
@@ -110,7 +116,10 @@ export const useEvolutionStore = defineStore('evolution', () => {
   async function fetchChangelog(identifier: string) {
     changelogLoading.value = true
     try {
-      const raw = await request.get(`/evolution/changelog/${encodeURIComponent(identifier)}`) as unknown
+      const raw = validateEvolution(
+        await request.get(`/evolution/changelog/${encodeURIComponent(identifier)}`) as Record<string, unknown>,
+        evolutionSchema, `/evolution/changelog/${encodeURIComponent(identifier)}`, 'ChangelogEntry',
+      ) as unknown
       if (raw === null || raw === undefined) {
         changelogData.value = []
         return changelogData.value

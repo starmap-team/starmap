@@ -246,6 +246,421 @@
       ],
       "title": "SkillTrendItem",
       "type": "object"
+    },
+    "ChangelogEntry": {
+      "description": "变更日志条目。",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "skill_name": {
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "change_type": {
+          "title": "Change Type",
+          "type": "string"
+        },
+        "old_proficiency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Old Proficiency"
+        },
+        "new_proficiency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "New Proficiency"
+        },
+        "old_requirement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Old Requirement"
+        },
+        "new_requirement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "New Requirement"
+        },
+        "trust_score": {
+          "title": "Trust Score",
+          "type": "number"
+        },
+        "confidence": {
+          "title": "Confidence",
+          "type": "number"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "skill_name",
+        "change_type",
+        "trust_score",
+        "confidence",
+        "created_at"
+      ],
+      "title": "ChangelogEntry",
+      "type": "object"
+    },
+    "EmergingSkill": {
+      "description": "涌现技能条目。",
+      "properties": {
+        "skill_name": {
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "string"
+        },
+        "z_score": {
+          "title": "Z Score",
+          "type": "number"
+        },
+        "current_frequency": {
+          "title": "Current Frequency",
+          "type": "integer"
+        },
+        "mean_frequency": {
+          "title": "Mean Frequency",
+          "type": "number"
+        },
+        "source_count": {
+          "title": "Source Count",
+          "type": "integer"
+        },
+        "positions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Positions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "skill_name",
+        "level",
+        "z_score",
+        "current_frequency",
+        "mean_frequency",
+        "source_count",
+        "positions"
+      ],
+      "title": "EmergingSkill",
+      "type": "object"
+    },
+    "EvolutionPathEntry": {
+      "description": "演化路径条目。",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source_position": {
+          "title": "Source Position",
+          "type": "string"
+        },
+        "target_position": {
+          "title": "Target Position",
+          "type": "string"
+        },
+        "similarity": {
+          "title": "Similarity",
+          "type": "number"
+        },
+        "evidence_count": {
+          "title": "Evidence Count",
+          "type": "integer"
+        },
+        "skill_overlap": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Skill Overlap",
+          "type": "array"
+        },
+        "key_gaps": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Key Gaps",
+          "type": "array"
+        },
+        "trust_score": {
+          "title": "Trust Score",
+          "type": "number"
+        },
+        "trend": {
+          "default": "stable",
+          "title": "Trend",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "source_position",
+        "target_position",
+        "similarity",
+        "evidence_count",
+        "skill_overlap",
+        "key_gaps",
+        "trust_score"
+      ],
+      "title": "EvolutionPathEntry",
+      "type": "object"
+    },
+    "EvolutionTrend": {
+      "description": "技能趋势条目。",
+      "properties": {
+        "skill_name": {
+          "description": "技能名称",
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "trend": {
+          "description": "趋势方向：rising/stable/declining",
+          "title": "Trend",
+          "type": "string"
+        },
+        "confidence": {
+          "description": "趋势置信度",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "points": {
+          "description": "CII 时序数据点",
+          "items": {
+            "type": "number"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "related_positions": {
+          "description": "相关岗位",
+          "items": {
+            "type": "string"
+          },
+          "title": "Related Positions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "skill_name",
+        "trend",
+        "confidence"
+      ],
+      "title": "EvolutionTrend",
+      "type": "object"
+    },
+    "EvolutionTrendsResponse": {
+      "description": "演化趋势响应。",
+      "properties": {
+        "items": {
+          "description": "趋势列表",
+          "items": {
+            "$ref": "#/$defs/EvolutionTrend"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "EvolutionTrendsResponse",
+      "type": "object"
+    },
+    "PortabilityDetail": {
+      "description": "Skill portability analysis response.",
+      "properties": {
+        "skill_name": {
+          "description": "技能名称",
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "portability_score": {
+          "default": 0.0,
+          "description": "可迁移性得分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Portability Score",
+          "type": "number"
+        },
+        "domains": {
+          "description": "所属领域",
+          "items": {
+            "type": "string"
+          },
+          "title": "Domains",
+          "type": "array"
+        },
+        "domain_count": {
+          "default": 0,
+          "title": "Domain Count",
+          "type": "integer"
+        },
+        "positions_by_domain": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": "各领域关联岗位",
+          "title": "Positions By Domain",
+          "type": "object"
+        },
+        "total_positions": {
+          "default": 0,
+          "title": "Total Positions",
+          "type": "integer"
+        },
+        "transferability_tier": {
+          "default": "low",
+          "description": "可迁移性等级",
+          "title": "Transferability Tier",
+          "type": "string"
+        },
+        "related_skills": {
+          "description": "相关跨领域技能",
+          "items": {
+            "type": "string"
+          },
+          "title": "Related Skills",
+          "type": "array"
+        },
+        "recommendation": {
+          "default": "",
+          "description": "建议",
+          "title": "Recommendation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill_name"
+      ],
+      "title": "PortabilityDetail",
+      "type": "object"
+    },
+    "ReviewQueueItem": {
+      "description": "审核队列条目。",
+      "properties": {
+        "skill_name": {
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "position_name": {
+          "title": "Position Name",
+          "type": "string"
+        },
+        "change_type": {
+          "title": "Change Type",
+          "type": "string"
+        },
+        "trust_score": {
+          "title": "Trust Score",
+          "type": "number"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill_name",
+        "position_name",
+        "change_type",
+        "trust_score",
+        "status",
+        "created_at"
+      ],
+      "title": "ReviewQueueItem",
+      "type": "object"
+    },
+    "SnapshotEntry": {
+      "description": "快照条目。",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "position_name": {
+          "title": "Position Name",
+          "type": "string"
+        },
+        "snapshot_date": {
+          "format": "date-time",
+          "title": "Snapshot Date",
+          "type": "string"
+        },
+        "required_skills": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Required Skills",
+          "type": "array"
+        },
+        "preferred_skills": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Preferred Skills",
+          "type": "array"
+        },
+        "source_count": {
+          "title": "Source Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "position_name",
+        "snapshot_date",
+        "required_skills",
+        "preferred_skills",
+        "source_count"
+      ],
+      "title": "SnapshotEntry",
+      "type": "object"
     }
   },
   "$defs": {
@@ -414,6 +829,51 @@
         "trend"
       ],
       "title": "SkillTrendItem",
+      "type": "object"
+    },
+    "EvolutionTrend": {
+      "description": "技能趋势条目。",
+      "properties": {
+        "skill_name": {
+          "description": "技能名称",
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "trend": {
+          "description": "趋势方向：rising/stable/declining",
+          "title": "Trend",
+          "type": "string"
+        },
+        "confidence": {
+          "description": "趋势置信度",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "points": {
+          "description": "CII 时序数据点",
+          "items": {
+            "type": "number"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "related_positions": {
+          "description": "相关岗位",
+          "items": {
+            "type": "string"
+          },
+          "title": "Related Positions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "skill_name",
+        "trend",
+        "confidence"
+      ],
+      "title": "EvolutionTrend",
       "type": "object"
     }
   }

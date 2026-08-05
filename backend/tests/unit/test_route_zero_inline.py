@@ -49,6 +49,7 @@ PASS_ROUTES = {
     "app.api.v1.evolution_career_path",  # PLAN-014 批次10 已零内联
     "app.api.v1.evolution_emerging_alerts",  # PLAN-014 批次11 已零内联
     "app.api.v1.evolution_industry_report",  # PLAN-014 批次11 已零内联
+    "app.api.v1.evolution",  # PLAN-014 批次12 已零内联
 }
 
 

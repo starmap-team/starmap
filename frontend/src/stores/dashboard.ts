@@ -213,7 +213,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
   async function fetchEmergingSkills() {
     try {
       // Try the dedicated endpoint first, fallback to graph overview
-      const data = await request.get('/evolution/emerging-skills') as EmergingSkill[]
+      const data = validateDashboard(
+        await request.get('/evolution/emerging-skills') as EmergingSkill[],
+        dashboardSchema, '/evolution/emerging-skills', 'ChangelogEntry',
+      ) as EmergingSkill[]
       emergingSkills.value = data
     } catch {
       emergingSkills.value = []

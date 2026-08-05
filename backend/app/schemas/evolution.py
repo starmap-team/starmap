@@ -1,6 +1,9 @@
-"""演化域 Schema：职业路径规划 (PLAN-014 批次10 迁入集中管理)。"""
+"""演化域 Schema：职业路径/预警/行业报告/演化趋势 (PLAN-014 批次10-12 迁入集中管理)。"""
 
 from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -65,3 +68,102 @@ class IndustryReportResponse(BaseModel):
     total_skills: int = 0
     rising_skills: list[SkillTrendItem] = Field(default_factory=list)
     declining_skills: list[SkillTrendItem] = Field(default_factory=list)
+
+
+class EvolutionTrend(BaseModel):
+    """技能趋势条目。"""
+
+    skill_name: str = Field(..., description="技能名称")
+    trend: str = Field(..., description="趋势方向：rising/stable/declining")
+    confidence: float = Field(..., ge=0, le=1, description="趋势置信度")
+    points: list[float] = Field(default_factory=list, description="CII 时序数据点")
+    related_positions: list[str] = Field(default_factory=list, description="相关岗位")
+
+
+class EvolutionTrendsResponse(BaseModel):
+    """演化趋势响应。"""
+
+    items: list[EvolutionTrend] = Field(default_factory=list, description="趋势列表")
+
+
+class ChangelogEntry(BaseModel):
+    """变更日志条目。"""
+
+    id: str
+    skill_name: str
+    change_type: str
+    old_proficiency: str | None = None
+    new_proficiency: str | None = None
+    old_requirement: str | None = None
+    new_requirement: str | None = None
+    trust_score: float
+    confidence: float
+    created_at: datetime
+
+
+class EvolutionPathEntry(BaseModel):
+    """演化路径条目。"""
+
+    id: str
+    source_position: str
+    target_position: str
+    similarity: float
+    evidence_count: int
+    skill_overlap: list[str]
+    key_gaps: list[str]
+    trust_score: float
+    trend: str = "stable"
+
+
+class EmergingSkill(BaseModel):
+    """涌现技能条目。"""
+
+    skill_name: str
+    level: str  # emerging/rising/stable/declining
+    z_score: float
+    current_frequency: int
+    mean_frequency: float
+    source_count: int
+    positions: list[str]
+
+
+class SnapshotEntry(BaseModel):
+    """快照条目。"""
+
+    id: str
+    position_name: str
+    snapshot_date: datetime
+    required_skills: list[dict[str, Any]]
+    preferred_skills: list[dict[str, Any]]
+    source_count: int
+
+
+class ReviewQueueItem(BaseModel):
+    """审核队列条目。"""
+
+    skill_name: str
+    position_name: str
+    change_type: str
+    trust_score: float
+    status: str  # pending/approved/rejected
+    created_at: datetime
+
+
+# ─── Endpoints ───
+
+
+class PortabilityDetail(BaseModel):
+    """Skill portability analysis response."""
+
+    skill_name: str = Field(..., description="技能名称")
+    portability_score: float = Field(default=0.0, ge=0, le=1, description="可迁移性得分")
+    domains: list[str] = Field(default_factory=list, description="所属领域")
+    domain_count: int = 0
+    positions_by_domain: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="各领域关联岗位",
+    )
+    total_positions: int = 0
+    transferability_tier: str = Field(default="low", description="可迁移性等级")
+    related_skills: list[str] = Field(default_factory=list, description="相关跨领域技能")
+    recommendation: str = Field(default="", description="建议")
