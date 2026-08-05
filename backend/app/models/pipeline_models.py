@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
+import sqlalchemy as sa
 from sqlalchemy import Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -316,3 +317,39 @@ class LoopResultRecord(Base):
 
     def __repr__(self) -> str:
         return f"<LoopResultRecord {self.run_id} status={self.status}>"
+
+
+class SourceTrustConfig(Base):
+    """数据源信任度配置 (§4.2 / PLAN-012 / DEV-14)。
+
+    与 data_sources 的职责区分:
+    - data_sources: 数据源接入配置 + 运行状态 (source_type = 接入方式)
+    - source_trust_config: §7.1 信任度模型的来源权威分类
+      (source_type = official/platform/aggregator/social, 对应 §7.1 Authority 表)
+
+    由 config.authority_scores 幂等播种 (ensure_source_trust_config)。
+    """
+
+    __tablename__ = "source_trust_config"
+
+    id: Mapped[int] = mapped_column(
+        sa.Integer, primary_key=True, autoincrement=True,
+    )
+    source_name: Mapped[str] = mapped_column(
+        String(100), nullable=False, unique=True, index=True,
+        comment="数据源名称 (对应 spider source_site / data_sources.name)",
+    )
+    authority_score: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.5,
+        comment="权威性评分 0.0-1.0 (§7.1 Authority)",
+    )
+    source_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="aggregator",
+        comment="来源类型: official/platform/aggregator/social (§7.1 Authority 表)",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow,
+    )
+
+    def __repr__(self) -> str:
+        return f"<SourceTrustConfig {self.source_name} authority={self.authority_score}>"

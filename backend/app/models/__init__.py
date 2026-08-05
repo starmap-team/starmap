@@ -36,6 +36,7 @@ from app.models.pipeline_models import (  # noqa: E402, F401
     LoopResultRecord,
     PipelineRun,
     PipelineSchedule,
+    SourceTrustConfig,
 )
 from app.models.user import (  # noqa: E402, F401
     ALLOWED_ROLES,
@@ -68,6 +69,7 @@ __all__ = [
     "SkillPrerequisite",
     "SkillRecord",
     "SkillTimeseries",
+    "SourceTrustConfig",
     "SystemConfig",
     "User",
 ]
