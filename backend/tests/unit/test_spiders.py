@@ -1,18 +1,32 @@
 """Tests for Phase 15-01 spider integrations.
 
 Tests 4 spiders: arbeitnow, jobicy, weworkremotely, himalayas.
-Uses mocking to avoid network dependency in CI.
+
+PLAN-004 / CR-06: spiders now route through ``crawler.compliance.fetch``
+(robots + QPS + compliance_log). These tests mock each spider module's
+``fetch`` entry point so they are deterministic and network-free in CI.
 """
 from __future__ import annotations
 
 import hashlib
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from crawler.spiders.arbeitnow import run_sync as arbeitnow_sync
 from crawler.spiders.himalayas import run_sync as himalayas_sync
 from crawler.spiders.jobicy import run_sync as jobicy_sync
 from crawler.spiders.weworkremotely import run_sync as wwr_sync
+
+
+class _FakeFetchResult:
+    """Mimics crawler.compliance.FetchResult."""
+
+    def __init__(self, text: str = "", status_code: int = 200) -> None:
+        self.text = text
+        self.status_code = status_code
+        self.bytes_count = len(text.encode()) if text else 0
+        self.robots_allowed = True
+
 
 # ── Arbeitnow ─────────────────────────────────────────────────────────
 
@@ -33,12 +47,10 @@ def test_arbeitnow_parses_valid_response():
             }
         ]
     }
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = json.dumps(fake_data).encode("utf-8")
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = lambda s, *args: None
-        mock_urlopen.return_value = mock_resp
+    with patch(
+        "crawler.spiders.arbeitnow.fetch",
+        return_value=_FakeFetchResult(json.dumps(fake_data)),
+    ):
         items = arbeitnow_sync("python", 5)
 
     assert len(items) == 1
@@ -54,8 +66,11 @@ def test_arbeitnow_parses_valid_response():
 
 
 def test_arbeitnow_handles_network_failure():
-    """Network error returns empty list, no exception."""
-    with patch("urllib.request.urlopen", side_effect=Exception("timeout")):
+    """Network error (fetch status 0) returns empty list, no exception."""
+    with patch(
+        "crawler.spiders.arbeitnow.fetch",
+        return_value=_FakeFetchResult("", 0),
+    ):
         items = arbeitnow_sync("python", 5)
     assert items == []
 
@@ -76,12 +91,10 @@ def test_arbeitnow_handles_string_created_at():
             }
         ]
     }
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = json.dumps(fake_data).encode("utf-8")
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = lambda s, *args: None
-        mock_urlopen.return_value = mock_resp
+    with patch(
+        "crawler.spiders.arbeitnow.fetch",
+        return_value=_FakeFetchResult(json.dumps(fake_data)),
+    ):
         items = arbeitnow_sync("python", 5)
     assert items[0]["publish_date"] == "2026-01-15"
 
@@ -106,12 +119,10 @@ def test_jobicy_parses_new_format():
             }
         ],
     }
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = json.dumps(fake_data).encode("utf-8")
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = lambda s, *args: None
-        mock_urlopen.return_value = mock_resp
+    with patch(
+        "crawler.spiders.jobicy.fetch",
+        return_value=_FakeFetchResult(json.dumps(fake_data)),
+    ):
         items = jobicy_sync("python", 5)
 
     assert len(items) == 1
@@ -123,12 +134,10 @@ def test_jobicy_parses_new_format():
 def test_jobicy_falls_back_to_joblist():
     """If 'jobs' missing, fall back to 'jobList' (legacy)."""
     fake_data = {"jobList": [{"id": "1", "jobTitle": "T", "url": "u"}]}
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = json.dumps(fake_data).encode("utf-8")
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = lambda s, *args: None
-        mock_urlopen.return_value = mock_resp
+    with patch(
+        "crawler.spiders.jobicy.fetch",
+        return_value=_FakeFetchResult(json.dumps(fake_data)),
+    ):
         items = jobicy_sync("python", 5)
     assert len(items) == 1
 
@@ -155,12 +164,10 @@ def test_wwr_parses_rss():
   </channel>
 </rss>
 """
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = xml_data.encode("utf-8")
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = lambda s, *args: None
-        mock_urlopen.return_value = mock_resp
+    with patch(
+        "crawler.spiders.weworkremotely.fetch",
+        return_value=_FakeFetchResult(xml_data),
+    ):
         items = wwr_sync("", 10)
 
     assert len(items) == 2
@@ -174,12 +181,10 @@ def test_wwr_parses_rss():
 
 def test_wwr_handles_invalid_xml():
     """Invalid XML → empty list, no crash."""
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = b"<not-valid-xml>"
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = lambda s, *args: None
-        mock_urlopen.return_value = mock_resp
+    with patch(
+        "crawler.spiders.weworkremotely.fetch",
+        return_value=_FakeFetchResult("<not-valid-xml>"),
+    ):
         items = wwr_sync("", 10)
     assert items == []
 
@@ -197,9 +202,16 @@ def test_himalayas_returns_empty():
 
 
 def test_all_spiders_return_list_type():
-    """All spiders return list[dict] even on errors."""
-    for fn in [arbeitnow_sync, jobicy_sync, wwr_sync, himalayas_sync]:
-        with patch("urllib.request.urlopen", side_effect=Exception("net")):
+    """All spiders return list[dict] (empty) on network failure."""
+    spiders = [
+        ("crawler.spiders.arbeitnow.fetch", arbeitnow_sync),
+        ("crawler.spiders.jobicy.fetch", jobicy_sync),
+        ("crawler.spiders.weworkremotely.fetch", wwr_sync),
+    ]
+    for target, fn in spiders:
+        with patch(target, return_value=_FakeFetchResult("", 0)):
             result = fn("python", 3)
         assert isinstance(result, list)
         assert result == []
+    # himalayas always returns [] (no fetch)
+    assert himalayas_sync("python", 3) == []
