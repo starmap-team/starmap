@@ -32,6 +32,10 @@ from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入
     BatchMatchRequest,
     CareerPathNode,
     CareerPathResponse,
+    EmergingAlert,
+    EmergingAlertsResponse,
+    IndustryReportResponse,
+    SkillTrendItem,
     ChangePasswordRequest,
     ComprehensiveReport,
     CreatePlanRequest,
@@ -165,6 +169,10 @@ SCHEMA_GROUPS: dict[str, list[tuple[str, type]]] = {
     "evolution": [
         ("CareerPathNode", CareerPathNode),
         ("CareerPathResponse", CareerPathResponse),
+        ("EmergingAlert", EmergingAlert),
+        ("EmergingAlertsResponse", EmergingAlertsResponse),
+        ("IndustryReportResponse", IndustryReportResponse),
+        ("SkillTrendItem", SkillTrendItem),
     ],
     "extract": [
         ("ExtractionRequest", ExtractionRequest),

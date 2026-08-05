@@ -8,37 +8,11 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 from app.dependencies import get_db_session
-
-
-class EmergingAlert(BaseModel):
-    """An emerging skill alert with full context."""
-
-    skill_name: str = Field(..., description="技能名称")
-    category: str = Field(default="", description="分类")
-    level: str = Field(..., description="分类: emerging/rising/declining/stable")
-    z_score: float = Field(default=0.0, description="Z-score 值")
-    current_frequency: int = Field(default=0, description="当前频次")
-    mean_frequency: float = Field(default=0.0, description="历史均值频次")
-    source_count: int = Field(default=0, description="来源数")
-    domains: list[str] = Field(default_factory=list, description="所属领域")
-    positions: list[str] = Field(default_factory=list, description="关联岗位")
-    trend: str = Field(default="stable", description="趋势方向")
-    portability_score: float = Field(default=0.0, ge=0, le=1, description="可迁移性得分")
-    alert_message: str = Field(default="", description="预警描述")
-
-
-class EmergingAlertsResponse(BaseModel):
-    """Emerging skill alerts response."""
-
-    alerts: list[EmergingAlert] = Field(default_factory=list, description="预警列表")
-    total: int = 0
-    summary: str = ""
-
+from app.schemas.evolution import EmergingAlert, EmergingAlertsResponse
 
 router = APIRouter(tags=["新兴技能预警"])
 

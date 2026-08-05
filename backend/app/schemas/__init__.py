@@ -47,6 +47,10 @@ from app.schemas.dashboard import (
 from app.schemas.evolution import (
     CareerPathNode,
     CareerPathResponse,
+    EmergingAlert,
+    EmergingAlertsResponse,
+    IndustryReportResponse,
+    SkillTrendItem,
 )
 from app.schemas.extract import (
     ExtractionRequest,
@@ -200,6 +204,10 @@ __all__ = [
     # extract
     "CareerPathNode",
     "CareerPathResponse",
+    "EmergingAlert",
+    "EmergingAlertsResponse",
+    "IndustryReportResponse",
+    "SkillTrendItem",
     "ExtractionRequest",
     "ExtractionResult",
     "NormalizedSkill",

@@ -7,6 +7,12 @@ import { ref } from 'vue'
 import request from '@/api/request'
 import type { ChangeType } from '@/types/evolution'
 
+import { useResponseValidation } from '@/validation/useResponseValidation'
+import evolutionSchema from '../../../starmap-contracts/schemas/evolution.schema.json'
+
+// PLAN-014: 契约响应校验 (DEV warn 不阻断)
+const { validateResponse: validateEvolution } = useResponseValidation()
+
 export interface TrendItem {
   skill_name: string
   trend: string
@@ -124,7 +130,10 @@ export const useEvolutionStore = defineStore('evolution', () => {
     alertsLoading.value = true
     try {
       const params = level ? { level } : {}
-      const data = await request.get('/evolution/emerging-alerts', { params }) as { alerts: EmergingAlert[]; total: number; summary: string }
+      const data = validateEvolution(
+        await request.get('/evolution/emerging-alerts', { params }) as { alerts: EmergingAlert[]; total: number; summary: string },
+        evolutionSchema, '/evolution/emerging-alerts', 'EmergingAlertsResponse',
+      ) as { alerts: EmergingAlert[]; total: number; summary: string }
       emergingAlerts.value = data.alerts ?? []
     } catch (e: unknown) {
       if (import.meta.env.DEV) console.error('[Evolution] Failed to fetch alerts:', e)

@@ -5,38 +5,16 @@
 """
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 from app.dependencies import get_db_session
 from app.models.extraction_models import PositionRecord, PositionSkillRelation
-
-
-class SkillTrendItem(BaseModel):
-    """Skill trend in industry report."""
-
-    skill_name: str
-    trend: str  # rising | stable | declining
-    frequency: int = 0
-    source_count: int = 0
-    related_positions: list[str] = Field(default_factory=list)
-
-
-class IndustryReportResponse(BaseModel):
-    """Industry trend report response."""
-
-    total_skills: int = 0
-    rising_skills: list[SkillTrendItem] = Field(default_factory=list)
-    declining_skills: list[SkillTrendItem] = Field(default_factory=list)
-    stable_skills: list[SkillTrendItem] = Field(default_factory=list)
-    top_positions: list[dict[str, Any]] = Field(default_factory=list)
-    summary: str = ""
-
+from app.schemas.evolution import IndustryReportResponse, SkillTrendItem
 
 router = APIRouter(tags=["行业报告"])
 

@@ -72,6 +72,180 @@
       ],
       "title": "CareerPathResponse",
       "type": "object"
+    },
+    "EmergingAlert": {
+      "description": "An emerging skill alert with full context.",
+      "properties": {
+        "skill_name": {
+          "description": "技能名称",
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "category": {
+          "default": "",
+          "description": "分类",
+          "title": "Category",
+          "type": "string"
+        },
+        "level": {
+          "description": "分类: emerging/rising/declining/stable",
+          "title": "Level",
+          "type": "string"
+        },
+        "z_score": {
+          "default": 0.0,
+          "description": "Z-score 值",
+          "title": "Z Score",
+          "type": "number"
+        },
+        "current_frequency": {
+          "default": 0,
+          "description": "当前频次",
+          "title": "Current Frequency",
+          "type": "integer"
+        },
+        "mean_frequency": {
+          "default": 0.0,
+          "description": "历史均值频次",
+          "title": "Mean Frequency",
+          "type": "number"
+        },
+        "source_count": {
+          "default": 0,
+          "description": "来源数",
+          "title": "Source Count",
+          "type": "integer"
+        },
+        "domains": {
+          "description": "所属领域",
+          "items": {
+            "type": "string"
+          },
+          "title": "Domains",
+          "type": "array"
+        },
+        "positions": {
+          "description": "关联岗位",
+          "items": {
+            "type": "string"
+          },
+          "title": "Positions",
+          "type": "array"
+        },
+        "trend": {
+          "default": "stable",
+          "description": "趋势方向",
+          "title": "Trend",
+          "type": "string"
+        },
+        "portability_score": {
+          "default": 0.0,
+          "description": "可迁移性得分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Portability Score",
+          "type": "number"
+        },
+        "alert_message": {
+          "default": "",
+          "description": "预警描述",
+          "title": "Alert Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill_name",
+        "level"
+      ],
+      "title": "EmergingAlert",
+      "type": "object"
+    },
+    "EmergingAlertsResponse": {
+      "description": "Emerging skill alerts response.",
+      "properties": {
+        "alerts": {
+          "description": "预警列表",
+          "items": {
+            "$ref": "#/$defs/EmergingAlert"
+          },
+          "title": "Alerts",
+          "type": "array"
+        },
+        "total": {
+          "default": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "summary": {
+          "default": "",
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "title": "EmergingAlertsResponse",
+      "type": "object"
+    },
+    "IndustryReportResponse": {
+      "description": "Industry trend report response.",
+      "properties": {
+        "total_skills": {
+          "default": 0,
+          "title": "Total Skills",
+          "type": "integer"
+        },
+        "rising_skills": {
+          "items": {
+            "$ref": "#/$defs/SkillTrendItem"
+          },
+          "title": "Rising Skills",
+          "type": "array"
+        },
+        "declining_skills": {
+          "items": {
+            "$ref": "#/$defs/SkillTrendItem"
+          },
+          "title": "Declining Skills",
+          "type": "array"
+        }
+      },
+      "title": "IndustryReportResponse",
+      "type": "object"
+    },
+    "SkillTrendItem": {
+      "description": "Skill trend in industry report.",
+      "properties": {
+        "skill_name": {
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "trend": {
+          "title": "Trend",
+          "type": "string"
+        },
+        "frequency": {
+          "default": 0,
+          "title": "Frequency",
+          "type": "integer"
+        },
+        "source_count": {
+          "default": 0,
+          "title": "Source Count",
+          "type": "integer"
+        },
+        "related_positions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Related Positions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "skill_name",
+        "trend"
+      ],
+      "title": "SkillTrendItem",
+      "type": "object"
     }
   },
   "$defs": {
@@ -117,6 +291,129 @@
         "position"
       ],
       "title": "CareerPathNode",
+      "type": "object"
+    },
+    "EmergingAlert": {
+      "description": "An emerging skill alert with full context.",
+      "properties": {
+        "skill_name": {
+          "description": "技能名称",
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "category": {
+          "default": "",
+          "description": "分类",
+          "title": "Category",
+          "type": "string"
+        },
+        "level": {
+          "description": "分类: emerging/rising/declining/stable",
+          "title": "Level",
+          "type": "string"
+        },
+        "z_score": {
+          "default": 0.0,
+          "description": "Z-score 值",
+          "title": "Z Score",
+          "type": "number"
+        },
+        "current_frequency": {
+          "default": 0,
+          "description": "当前频次",
+          "title": "Current Frequency",
+          "type": "integer"
+        },
+        "mean_frequency": {
+          "default": 0.0,
+          "description": "历史均值频次",
+          "title": "Mean Frequency",
+          "type": "number"
+        },
+        "source_count": {
+          "default": 0,
+          "description": "来源数",
+          "title": "Source Count",
+          "type": "integer"
+        },
+        "domains": {
+          "description": "所属领域",
+          "items": {
+            "type": "string"
+          },
+          "title": "Domains",
+          "type": "array"
+        },
+        "positions": {
+          "description": "关联岗位",
+          "items": {
+            "type": "string"
+          },
+          "title": "Positions",
+          "type": "array"
+        },
+        "trend": {
+          "default": "stable",
+          "description": "趋势方向",
+          "title": "Trend",
+          "type": "string"
+        },
+        "portability_score": {
+          "default": 0.0,
+          "description": "可迁移性得分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Portability Score",
+          "type": "number"
+        },
+        "alert_message": {
+          "default": "",
+          "description": "预警描述",
+          "title": "Alert Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill_name",
+        "level"
+      ],
+      "title": "EmergingAlert",
+      "type": "object"
+    },
+    "SkillTrendItem": {
+      "description": "Skill trend in industry report.",
+      "properties": {
+        "skill_name": {
+          "title": "Skill Name",
+          "type": "string"
+        },
+        "trend": {
+          "title": "Trend",
+          "type": "string"
+        },
+        "frequency": {
+          "default": 0,
+          "title": "Frequency",
+          "type": "integer"
+        },
+        "source_count": {
+          "default": 0,
+          "title": "Source Count",
+          "type": "integer"
+        },
+        "related_positions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Related Positions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "skill_name",
+        "trend"
+      ],
+      "title": "SkillTrendItem",
       "type": "object"
     }
   }

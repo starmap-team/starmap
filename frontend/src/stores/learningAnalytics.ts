@@ -100,7 +100,10 @@ export const useLearningAnalyticsStore = defineStore('learningAnalytics', () => 
     industryTrendsLoading.value = true
     analyticsError.value = null
     try {
-      const data = asRecord(await request.get('/evolution/industry-report'))
+      const data = validateEvolution(
+        await request.get('/evolution/industry-report') as Record<string, unknown>,
+        evolutionSchema, '/evolution/industry-report', 'IndustryReportResponse',
+      ) as Record<string, unknown>
       industryTrends.value = (asArray(data.trends ?? data.items)) as IndustryTrendItem[]
       return industryTrends.value
     } catch (e: unknown) {
