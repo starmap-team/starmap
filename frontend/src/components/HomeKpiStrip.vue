@@ -63,7 +63,7 @@ function kpiTooltip(field: string): string {
         <span
           class="kpi-trend"
           :title="kpiTooltip('totalSkills')"
-        >持续增长中</span>
+        >图谱快照节点数</span>
       </div>
     </div>
     <div class="kpi-card">

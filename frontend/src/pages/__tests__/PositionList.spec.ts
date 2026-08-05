@@ -116,6 +116,19 @@ describe('PositionList.vue', () => {
     expect(wrapper.text()).toContain('数据分析师')
   })
 
+  // PLAN-006④: 卡片数据时效指示 (discovered_at → freshness 标签)
+  it('shows freshness badge on cards', async () => {
+    const recent = new Date(Date.now() - 3 * 86400000).toISOString()
+    setupMockGet([
+      makePosition({ position_id: 'p1', discovered_at: recent }),
+      makePosition({ position_id: 'p2', discovered_at: null }),
+    ], 2, [])
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toContain('数据更新于')
+    expect(wrapper.text()).toContain('演示数据')
+  })
+
   it('fetches industries from API and renders tags', async () => {
     setupMockGet([makePosition()], 1, ['信息技术', '金融', '教育'])
     const wrapper = mountPage()

@@ -16,6 +16,7 @@ import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useJdStore } from '@/stores/jd'
 import { useUserStore } from '@/stores/user'
+import { freshnessOf } from '@/utils/freshness'
 
 const jdStore = useJdStore()
 const userStore = useUserStore()
@@ -31,6 +32,8 @@ interface PositionRow {
   review_status?: 'draft' | 'pending_review' | 'approved' | 'rejected'
   reviewed_by?: string | null
   rejection_reason?: string | null
+  // PLAN-006④: 岗位入库时间, 用于卡片"数据时效"指示; null = 演示/无采集
+  discovered_at?: string | null
 }
 
 const positions = ref<PositionRow[]>([])
@@ -138,6 +141,7 @@ function statusLabel(status: PositionRow['review_status'] | undefined) {
         review_status: p.review_status ?? 'approved',
         reviewed_by: p.reviewed_by ?? null,
         rejection_reason: p.rejection_reason ?? null,
+        discovered_at: p.discovered_at ?? null,
       }))
       total.value = data.total
     } catch (e) {
@@ -301,6 +305,15 @@ onMounted(() => {
                   type="info"
                 >
                   {{ pos.industry }}
+                </el-tag>
+                <!-- PLAN-006④: 数据时效指示 (演示数据 / 数据更新于 X / 较旧) -->
+                <el-tag
+                  size="small"
+                  :type="freshnessOf(pos.discovered_at).type"
+                  effect="plain"
+                  class="freshness-tag"
+                >
+                  {{ freshnessOf(pos.discovered_at).label }}
                 </el-tag>
                 <el-tag
                   v-if="showAdminFilters"

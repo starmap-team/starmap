@@ -10,6 +10,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import SkillRadar, { type RadarItem } from '@/components/SkillRadar.vue'
 import { useJdStore } from '@/stores/jd'
 import { chartColors } from '@/utils/chartTheme'
+import { freshnessOf, type FreshnessInfo } from '@/utils/freshness'
 
 const jdStore = useJdStore()
 
@@ -70,18 +71,8 @@ const PROFICIENCY_TAG: Record<string, string> = {
   '了解': 'info',
 }
 
-// PLAN-006④: 数据时效指示 (discovered_at → 友好标签 + tag 类型)
-const freshness = computed<{ label: string; type: string }>(() => {
-  const at = position.value?.discovered_at
-  if (!at) return { label: '演示数据', type: 'info' }
-  const ts = Date.parse(at)
-  if (Number.isNaN(ts)) return { label: '演示数据', type: 'info' }
-  const days = Math.floor((Date.now() - ts) / 86400000)
-  const date = new Date(ts).toISOString().slice(0, 10)
-  if (days <= 7) return { label: `数据更新于 ${date}`, type: 'success' }
-  if (days <= 30) return { label: `数据更新于 ${date} (${days}天前)`, type: 'warning' }
-  return { label: `数据较旧 (${date}, ${days}天前)`, type: 'danger' }
-})
+// PLAN-006④: 数据时效指示 (discovered_at → 友好标签 + tag 类型, 逻辑收敛于 utils/freshness)
+const freshness = computed<FreshnessInfo>(() => freshnessOf(position.value?.discovered_at))
 
 // ── Hotness color: higher = greener, lower = grayer ──
 function hotnessColor(count: number): string {
