@@ -12,7 +12,7 @@
  * @example
  * ```ts
  * import { useResponseValidation } from '@/validation/useResponseValidation'
- * import positionSchema from '../../starmap-contracts/schemas/position.schema.json'
+ * import positionSchema from '../../../starmap-contracts/schemas/position.schema.json'
  *
  * const { validateResponse } = useResponseValidation()
  *

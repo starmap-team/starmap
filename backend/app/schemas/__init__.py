@@ -42,6 +42,9 @@ from app.schemas.graph import (
     GraphEdge,
     GraphNode,
     GraphOverviewResponse,
+    GraphPositionNode,
+    GraphSkillNode,
+    KAPositionsResponse,
     PositionSkillDetailResponse,
 )
 from app.schemas.learning import (
@@ -99,6 +102,9 @@ __all__ = [
     "GraphEdge",
     "GraphNode",
     "GraphOverviewResponse",
+    "GraphPositionNode",
+    "GraphSkillNode",
+    "KAPositionsResponse",
     "PositionSkillDetailResponse",
     # extract
     "ExtractionRequest",

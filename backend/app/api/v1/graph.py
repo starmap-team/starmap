@@ -5,62 +5,18 @@ from __future__ import annotations
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
 
 from app.dependencies import get_neo4j_driver
-from app.schemas.graph import DomainOverviewResponse
+from app.schemas.graph import (
+    DomainOverviewResponse,
+    GraphEdge,
+    KAPositionsResponse,
+    PositionSkillDetailResponse,
+)
 from app.services.graph_serializers import _safe_properties
 from app.services.graph_service import fetch_position_graph
 
 router = APIRouter(prefix="/graph", tags=["图谱查询"])
-
-
-class GraphNode(BaseModel):
-    """契约中的 GraphNode，供前端图谱组件消费。"""
-
-    id: str = Field(..., description="节点唯一标识")
-    labels: list[str] = Field(default_factory=list, description="节点标签")
-    properties: dict[str, Any] = Field(default_factory=dict, description="节点属性键值对")
-
-
-class GraphEdge(BaseModel):
-    """契约中的 GraphEdge，供前端图谱组件消费。"""
-
-    source_id: str = Field(..., description="源节点 id")
-    target_id: str = Field(..., description="目标节点 id")
-    type: str = Field(..., description="关系类型")
-    properties: dict[str, Any] = Field(default_factory=dict, description="边属性")
-
-
-class PositionNode(BaseModel):
-    """岗位技能接口中的扁平岗位信息。"""
-
-    position_id: str = Field(default="", description="岗位唯一标识")
-    name: str = Field(default="", description="岗位名称")
-    industry: str = Field(default="", description="所属行业")
-    description: str = Field(default="", description="岗位描述")
-    skills_required: list[dict[str, Any]] = Field(default_factory=list, description="岗位所需技能")
-
-
-class SkillNode(BaseModel):
-    """岗位技能接口中的扁平技能信息。"""
-
-    skill_id: str = Field(..., description="技能唯一标识")
-    name: str = Field(..., description="技能名称")
-    category: str = Field(default="hard_skill", description="技能分类")
-    proficiency: str = Field(default="熟悉", description="熟练度")
-    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="置信度")
-    source_count: int = Field(default=0, ge=0, description="来源文档计数")
-    trend: str = Field(default="stable", description="趋势方向")
-    importance: str = Field(default="required", description="required/bonus")
-
-
-class PositionSkillDetailResponse(BaseModel):
-    """岗位技能子图响应，skills 为合同 SkillNode 扁平列表。"""
-
-    position: PositionNode | None = Field(default=None, description="岗位信息")
-    skills: list[SkillNode] = Field(default_factory=list, description="技能节点列表")
-    edges: list[GraphEdge] = Field(default_factory=list, description="技能关系边列表")
 
 
 def _graph_edges(items: list[dict[str, Any]]) -> list[GraphEdge]:
@@ -125,16 +81,6 @@ async def get_graph_overview(
         from app.services.graph_overview import fetch_overview_by_heat
         data = await fetch_overview_by_heat(driver)
         return DomainOverviewResponse(**data)
-
-
-class KAPositionsResponse(BaseModel):
-    """单个 KA 下的 Position 列表 + 关联 Skill 边。"""
-
-    ka_id: str = ""
-    ka_name: str = ""
-    positions: list[GraphNode] = Field(default_factory=list)
-    position_skill_edges: list[GraphEdge] = Field(default_factory=list)
-    skills: list[GraphNode] = Field(default_factory=list, description="关联的 Skill 节点")
 
 
 @router.get(

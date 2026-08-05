@@ -264,36 +264,189 @@
       "title": "DomainOverviewResponse",
       "type": "object"
     },
-    "PositionSkillDetailResponse": {
-      "description": "岗位-技能详情（含路径信息）。",
+    "GraphPositionNode": {
+      "description": "图域岗位扁平节点（Neo4j Position 序列化产物）。\n\n与 position.PositionNode 不同：skills_required 为 Neo4j 属性原始\ndict 列表（无规范子结构），且无 PG 侧的 discovered_at/review_status。\n原内联于 graph 路由，违反 Schema 集中管理约定，2026-08-05 迁入。",
       "properties": {
-        "position": {
-          "$ref": "#/$defs/PositionNode",
-          "description": "岗位节点"
+        "position_id": {
+          "default": "",
+          "description": "岗位唯一标识",
+          "title": "Position Id",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "description": "岗位名称",
+          "title": "Name",
+          "type": "string"
+        },
+        "name_cn": {
+          "default": "",
+          "description": "岗位中文名称",
+          "title": "Name Cn",
+          "type": "string"
+        },
+        "industry": {
+          "default": "",
+          "description": "所属行业",
+          "title": "Industry",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "description": "岗位描述",
+          "title": "Description",
+          "type": "string"
+        },
+        "skills_required": {
+          "description": "岗位所需技能（Neo4j 属性原始 dict 列表）",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Skills Required",
+          "type": "array"
+        }
+      },
+      "title": "GraphPositionNode",
+      "type": "object"
+    },
+    "GraphSkillNode": {
+      "description": "图域技能扁平节点（Neo4j Skill 节点 + REQUIRES 关系序列化产物）。\n\n与 position.SkillNode 不同：额外携带 proficiency/trend/importance\n（源自关系属性 level/required 的归一化结果）。\n原内联于 graph 路由，违反 Schema 集中管理约定，2026-08-05 迁入。",
+      "properties": {
+        "skill_id": {
+          "description": "技能唯一标识",
+          "minLength": 1,
+          "title": "Skill Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "技能名称",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "category": {
+          "default": "hard_skill",
+          "description": "技能分类",
+          "title": "Category",
+          "type": "string"
+        },
+        "proficiency": {
+          "default": "熟悉",
+          "description": "熟练度",
+          "title": "Proficiency",
+          "type": "string"
+        },
+        "confidence": {
+          "default": 1.0,
+          "description": "置信度",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "source_count": {
+          "default": 0,
+          "description": "来源文档计数",
+          "minimum": 0,
+          "title": "Source Count",
+          "type": "integer"
+        },
+        "trend": {
+          "default": "stable",
+          "description": "趋势方向",
+          "title": "Trend",
+          "type": "string"
+        },
+        "importance": {
+          "default": "required",
+          "description": "required/bonus",
+          "title": "Importance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill_id",
+        "name"
+      ],
+      "title": "GraphSkillNode",
+      "type": "object"
+    },
+    "KAPositionsResponse": {
+      "description": "单个 KA 下的 Position 列表 + 关联 Skill 边。\n\n对应 GET /graph/ka/{ka_id}/positions。原内联于 graph 路由，违反\nSchema 集中管理约定，2026-08-05 迁入。",
+      "properties": {
+        "ka_id": {
+          "default": "",
+          "description": "KA 节点 ID 或模式字面量（ts-/lv-/heat-/ind-）",
+          "title": "Ka Id",
+          "type": "string"
+        },
+        "ka_name": {
+          "default": "",
+          "description": "KA 名称（用于展示）",
+          "title": "Ka Name",
+          "type": "string"
+        },
+        "positions": {
+          "description": "Position 节点列表",
+          "items": {
+            "$ref": "#/$defs/GraphNode"
+          },
+          "title": "Positions",
+          "type": "array"
+        },
+        "position_skill_edges": {
+          "description": "Position-REQUIRES-Skill 边列表",
+          "items": {
+            "$ref": "#/$defs/GraphEdge"
+          },
+          "title": "Position Skill Edges",
+          "type": "array"
         },
         "skills": {
-          "description": "关联技能列表",
+          "description": "关联的 Skill 节点",
           "items": {
-            "$ref": "#/$defs/SkillNode"
+            "$ref": "#/$defs/GraphNode"
+          },
+          "title": "Skills",
+          "type": "array"
+        }
+      },
+      "title": "KAPositionsResponse",
+      "type": "object"
+    },
+    "PositionSkillDetailResponse": {
+      "description": "岗位技能子图响应：position + skills 扁平列表 + REQUIRES 边。\n\n以 GET /graph/position/{position_id}/skills 真实返回为准（前端\nmatch/jd store 均按 {position, skills, edges} 消费）。旧契约含\npaths 字段与真实 API 漂移，2026-08-05 对齐修正。",
+      "properties": {
+        "position": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphPositionNode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "岗位信息"
+        },
+        "skills": {
+          "description": "技能节点列表",
+          "items": {
+            "$ref": "#/$defs/GraphSkillNode"
           },
           "title": "Skills",
           "type": "array"
         },
-        "paths": {
-          "description": "岗位到技能的关系路径（用于可视化）",
+        "edges": {
+          "description": "技能关系边列表",
           "items": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
+            "$ref": "#/$defs/GraphEdge"
           },
-          "title": "Paths",
+          "title": "Edges",
           "type": "array"
         }
       },
-      "required": [
-        "position"
-      ],
       "title": "PositionSkillDetailResponse",
       "type": "object"
     }
@@ -383,139 +536,121 @@
       "title": "GraphEdge",
       "type": "object"
     },
-    "PositionNode": {
-      "description": "岗位核心模型。\n\n对应 Postgres position_records + Neo4j Position 节点。",
+    "GraphNode": {
+      "description": "通用图谱节点。\n\n对应 Neo4j 中的任意节点类型。",
+      "properties": {
+        "id": {
+          "description": "节点稳定 ID",
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "labels": {
+          "description": "Neo4j 节点标签列表",
+          "examples": [
+            [
+              "Position"
+            ],
+            [
+              "Skill",
+              "Tool"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "节点属性键值对",
+          "title": "Properties"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "GraphNode",
+      "type": "object"
+    },
+    "GraphPositionNode": {
+      "description": "图域岗位扁平节点（Neo4j Position 序列化产物）。\n\n与 position.PositionNode 不同：skills_required 为 Neo4j 属性原始\ndict 列表（无规范子结构），且无 PG 侧的 discovered_at/review_status。\n原内联于 graph 路由，违反 Schema 集中管理约定，2026-08-05 迁入。",
       "properties": {
         "position_id": {
-          "description": "岗位唯一标识（UUID 或自定义 ID）",
-          "minLength": 1,
+          "default": "",
+          "description": "岗位唯一标识",
           "title": "Position Id",
           "type": "string"
         },
         "name": {
+          "default": "",
           "description": "岗位名称",
-          "examples": [
-            "Python 后端开发工程师"
-          ],
-          "maxLength": 200,
-          "minLength": 1,
           "title": "Name",
           "type": "string"
         },
         "name_cn": {
           "default": "",
           "description": "岗位中文名称",
-          "maxLength": 200,
           "title": "Name Cn",
           "type": "string"
         },
         "industry": {
+          "default": "",
           "description": "所属行业",
-          "examples": [
-            "信息技术",
-            "金融"
-          ],
-          "maxLength": 100,
-          "minLength": 1,
           "title": "Industry",
           "type": "string"
         },
         "description": {
           "default": "",
-          "description": "岗位描述文本",
+          "description": "岗位描述",
           "title": "Description",
           "type": "string"
         },
         "skills_required": {
-          "description": "岗位所要求的技能列表",
+          "description": "岗位所需技能（Neo4j 属性原始 dict 列表）",
           "items": {
-            "$ref": "#/$defs/SkillNode"
+            "additionalProperties": true,
+            "type": "object"
           },
           "title": "Skills Required",
           "type": "array"
-        },
-        "discovered_at": {
-          "anyOf": [
-            {
-              "format": "date-time",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "首次发现时间（ISO 8601）",
-          "title": "Discovered At"
-        },
-        "review_status": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ReviewStatus"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "审核状态"
         }
       },
-      "required": [
-        "position_id",
-        "name",
-        "industry"
-      ],
-      "title": "PositionNode",
+      "title": "GraphPositionNode",
       "type": "object"
     },
-    "ReviewStatus": {
-      "description": "审核状态。",
-      "enum": [
-        "draft",
-        "pending_review",
-        "approved",
-        "rejected"
-      ],
-      "title": "ReviewStatus",
-      "type": "string"
-    },
-    "SkillNode": {
-      "description": "岗位所需技能骨架。\n\n对应 Neo4j Skill 节点 + Postgres skill_records 表。",
+    "GraphSkillNode": {
+      "description": "图域技能扁平节点（Neo4j Skill 节点 + REQUIRES 关系序列化产物）。\n\n与 position.SkillNode 不同：额外携带 proficiency/trend/importance\n（源自关系属性 level/required 的归一化结果）。\n原内联于 graph 路由，违反 Schema 集中管理约定，2026-08-05 迁入。",
       "properties": {
         "skill_id": {
-          "description": "技能唯一标识（归一化后的 stable ID）",
-          "examples": [
-            "py-core-001"
-          ],
+          "description": "技能唯一标识",
           "minLength": 1,
           "title": "Skill Id",
           "type": "string"
         },
         "name": {
-          "description": "技能展示名称",
-          "examples": [
-            "Python 核心编程"
-          ],
-          "maxLength": 200,
+          "description": "技能名称",
           "minLength": 1,
           "title": "Name",
           "type": "string"
         },
         "category": {
-          "description": "技能分类标签",
-          "examples": [
-            "hard_skill",
-            "tool"
-          ],
-          "maxLength": 50,
-          "minLength": 1,
+          "default": "hard_skill",
+          "description": "技能分类",
           "title": "Category",
+          "type": "string"
+        },
+        "proficiency": {
+          "default": "熟悉",
+          "description": "熟练度",
+          "title": "Proficiency",
           "type": "string"
         },
         "confidence": {
           "default": 1.0,
-          "description": "该技能与岗位关联的置信度 [0, 1]",
+          "description": "置信度",
           "maximum": 1.0,
           "minimum": 0.0,
           "title": "Confidence",
@@ -523,18 +658,29 @@
         },
         "source_count": {
           "default": 0,
-          "description": "支撑该技能的来源文档数量",
+          "description": "来源文档计数",
           "minimum": 0,
           "title": "Source Count",
           "type": "integer"
+        },
+        "trend": {
+          "default": "stable",
+          "description": "趋势方向",
+          "title": "Trend",
+          "type": "string"
+        },
+        "importance": {
+          "default": "required",
+          "description": "required/bonus",
+          "title": "Importance",
+          "type": "string"
         }
       },
       "required": [
         "skill_id",
-        "name",
-        "category"
+        "name"
       ],
-      "title": "SkillNode",
+      "title": "GraphSkillNode",
       "type": "object"
     }
   }

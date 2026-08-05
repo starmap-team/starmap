@@ -10,8 +10,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.schemas.position import PositionNode, SkillNode
-
 
 class GraphNode(BaseModel):
     """通用图谱节点。
@@ -80,18 +78,68 @@ class GraphOverviewResponse(BaseModel):
     )
 
 
-class PositionSkillDetailResponse(BaseModel):
-    """岗位-技能详情（含路径信息）。"""
+class GraphPositionNode(BaseModel):
+    """图域岗位扁平节点（Neo4j Position 序列化产物）。
 
-    position: PositionNode = Field(description="岗位节点")
-    skills: list[SkillNode] = Field(
+    与 position.PositionNode 不同：skills_required 为 Neo4j 属性原始
+    dict 列表（无规范子结构），且无 PG 侧的 discovered_at/review_status。
+    原内联于 graph 路由，违反 Schema 集中管理约定，2026-08-05 迁入。
+    """
+
+    position_id: str = Field(default="", description="岗位唯一标识")
+    name: str = Field(default="", description="岗位名称")
+    name_cn: str = Field(default="", description="岗位中文名称")
+    industry: str = Field(default="", description="所属行业")
+    description: str = Field(default="", description="岗位描述")
+    skills_required: list[dict[str, Any]] = Field(
         default_factory=list,
-        description="关联技能列表",
+        description="岗位所需技能（Neo4j 属性原始 dict 列表）",
     )
-    paths: list[list[str]] = Field(
-        default_factory=list,
-        description="岗位到技能的关系路径（用于可视化）",
-    )
+
+
+class GraphSkillNode(BaseModel):
+    """图域技能扁平节点（Neo4j Skill 节点 + REQUIRES 关系序列化产物）。
+
+    与 position.SkillNode 不同：额外携带 proficiency/trend/importance
+    （源自关系属性 level/required 的归一化结果）。
+    原内联于 graph 路由，违反 Schema 集中管理约定，2026-08-05 迁入。
+    """
+
+    skill_id: str = Field(min_length=1, description="技能唯一标识")
+    name: str = Field(min_length=1, description="技能名称")
+    category: str = Field(default="hard_skill", description="技能分类")
+    proficiency: str = Field(default="熟悉", description="熟练度")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="置信度")
+    source_count: int = Field(default=0, ge=0, description="来源文档计数")
+    trend: str = Field(default="stable", description="趋势方向")
+    importance: str = Field(default="required", description="required/bonus")
+
+
+class PositionSkillDetailResponse(BaseModel):
+    """岗位技能子图响应：position + skills 扁平列表 + REQUIRES 边。
+
+    以 GET /graph/position/{position_id}/skills 真实返回为准（前端
+    match/jd store 均按 {position, skills, edges} 消费）。旧契约含
+    paths 字段与真实 API 漂移，2026-08-05 对齐修正。
+    """
+
+    position: GraphPositionNode | None = Field(default=None, description="岗位信息")
+    skills: list[GraphSkillNode] = Field(default_factory=list, description="技能节点列表")
+    edges: list[GraphEdge] = Field(default_factory=list, description="技能关系边列表")
+
+
+class KAPositionsResponse(BaseModel):
+    """单个 KA 下的 Position 列表 + 关联 Skill 边。
+
+    对应 GET /graph/ka/{ka_id}/positions。原内联于 graph 路由，违反
+    Schema 集中管理约定，2026-08-05 迁入。
+    """
+
+    ka_id: str = Field(default="", description="KA 节点 ID 或模式字面量（ts-/lv-/heat-/ind-）")
+    ka_name: str = Field(default="", description="KA 名称（用于展示）")
+    positions: list[GraphNode] = Field(default_factory=list, description="Position 节点列表")
+    position_skill_edges: list[GraphEdge] = Field(default_factory=list, description="Position-REQUIRES-Skill 边列表")
+    skills: list[GraphNode] = Field(default_factory=list, description="关联的 Skill 节点")
 
 
 class DomainOverviewItem(BaseModel):

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useResponseValidation } from '@/validation'
 // PLAN-014: 契约 schema（后端 Pydantic 导出，脚本生成；供 DEV 响应校验）
-import graphSchema from '../../starmap-contracts/schemas/graph.schema.json'
+import graphSchema from '../../../starmap-contracts/schemas/graph.schema.json'
 import request from '@/api/request'
 import { ElMessage } from 'element-plus'
 
