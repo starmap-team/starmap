@@ -190,11 +190,14 @@ docs/archive/
 docs/pencil-tools/
 CLAUDE.md
 
-# ---- 评估运行时产物（代码与 golden_set*.jsonl 保留，运行报告不提交）----
-evaluation/baseline_report/
+# ---- 评估运行时产物（代码与 golden_set*.jsonl 保留）----
+# DEV-05: baseline/real_eval 报告按计划书裁决提交入库（评估证据），仅排除运行时中间产物
+evaluation/baseline_report/*
+!evaluation/baseline_report/
 evaluation/llm_real_report/
 evaluation/llm_sim_report/
-evaluation/real_eval_report/
+evaluation/real_eval_report/*
+!evaluation/real_eval_report/
 evaluation/demo_evidence/
 evaluation/system_llm_*.jsonl
 evaluation/match_accuracy_report.json
