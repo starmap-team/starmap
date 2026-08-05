@@ -27,10 +27,12 @@ from typing import Any
 import requests
 from playwright.sync_api import Page, sync_playwright, expect
 
+from e2e_creds import login_payload
+
 # ── 配置 ──
 BASE_URL = "http://localhost:5173"      # 前端 dev server
 API_BASE = "http://localhost:8000/api/v1"
-ADMIN_CREDS = {"username": "admin", "password": "starmap2024"}
+ADMIN_CREDS = login_payload()
 OUTPUT_DIR = Path(__file__).parent / "browser_qa_screenshots" / "e2e_full_role"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -190,7 +192,7 @@ class E2ETestRunner:
                 timestamp=datetime.now().isoformat(),
                 page="登录", role="admin", defect_type="logic", severity="critical",
                 title="Admin 登录失败", description=str(e),
-                reproduction_steps="1. 访问 /login 2. 填写 admin/starmap2024 3. 点击登录",
+                reproduction_steps="1. 访问 /login 2. 填写引导管理员凭据(见 tests/e2e/e2e_creds.py) 3. 点击登录",
                 screenshot_path=self._screenshot(page, "login_fail"),
                 expected_behavior="成功登录并跳转到 /",
                 actual_behavior=f"登录失败: {e}",

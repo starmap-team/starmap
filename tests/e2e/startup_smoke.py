@@ -27,6 +27,8 @@ import urllib.request
 import urllib.error
 from dataclasses import dataclass, field
 
+from e2e_creds import ADMIN_PASSWORD, ADMIN_USER
+
 
 @dataclass
 class CheckResult:
@@ -124,11 +126,11 @@ def check_ready(ctx: SmokeContext) -> None:
 def check_login(ctx: SmokeContext) -> str | None:
     """Login as admin, return access token (or None on failure)."""
     status, body = _post_json(f"{ctx.api}/auth/login", {
-        "username": "admin",
-        "password": "starmap2024",
+        "username": ADMIN_USER,
+        "password": ADMIN_PASSWORD,
     })
     ok = status == 200 and isinstance(body, dict) and "access_token" in body
-    check(ctx, "POST /auth/login admin/starmap2024 → 200 + JWT", ok, f"status={status}")
+    check(ctx, f"POST /auth/login {ADMIN_USER} → 200 + JWT", ok, f"status={status}")
     if ok and isinstance(body, dict):
         return body["access_token"]
     return None

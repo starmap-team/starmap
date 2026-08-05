@@ -11,8 +11,8 @@ const API_URL = 'http://localhost:8000'
 
 async function login(page: any) {
   await page.goto(`${BASE_URL}/login`)
-  await page.fill('input[placeholder="用户名"]', 'admin')
-  await page.fill('input[placeholder="密码"]', 'starmap2024')
+  await page.fill('input[placeholder="用户名"]', process.env.STARMAP_TEST_ADMIN_USER || 'admin')
+  await page.fill('input[placeholder="密码"]', process.env.STARMAP_TEST_ADMIN_PASSWORD || 'starmap2024')
   await page.click('button:has-text("登录")')
   await page.waitForURL(/\/(?!login)/, { timeout: 10000 })
 }

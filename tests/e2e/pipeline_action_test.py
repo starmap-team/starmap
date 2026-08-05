@@ -9,6 +9,8 @@
 """
 import asyncio
 import json
+
+from e2e_creds import login_payload
 import urllib.request
 import sys
 from pathlib import Path
@@ -25,7 +27,7 @@ def api_login() -> tuple[str, dict]:
     """通过后端 API 登录获取 token 和用户信息."""
     req = urllib.request.Request(
         f"{API_URL}/auth/login",
-        data=json.dumps({"username": "admin", "password": "starmap2024"}).encode("utf-8"),
+        data=json.dumps(login_payload()).encode("utf-8"),
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=10) as resp:

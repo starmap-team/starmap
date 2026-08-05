@@ -10,6 +10,8 @@
 """
 import asyncio
 import json
+
+from e2e_creds import login_payload
 import time
 import urllib.request
 from datetime import datetime
@@ -42,7 +44,7 @@ def api_call(method: str, path: str, data=None, timeout=30):
 def api_login_raw():
     req = urllib.request.Request(
         "http://localhost:8000/api/v1/auth/login",
-        data=json.dumps({"username": "admin", "password": "starmap2024"}).encode(),
+        data=json.dumps(login_payload()).encode(),
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=10) as r:

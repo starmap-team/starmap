@@ -10,6 +10,8 @@
 """
 import asyncio
 import os
+
+from e2e_creds import login_payload, ADMIN_PASSWORD
 import sys
 import time
 from pathlib import Path
@@ -68,7 +70,7 @@ async def login_if_needed(page: Page) -> None:
     if "/login" in page.url:
         print("  → 检测到登录页，自动登录为 admin")
         await page.fill('input[placeholder*="用户名"], input[placeholder*="username"], input[type="text"]:first-of-type', "admin")
-        await page.fill('input[type="password"]', "starmap2024")
+        await page.fill('input[type="password"]', ADMIN_PASSWORD)
         await page.click('button[type="submit"], button:has-text("登录")')
         # 等待跳转，但允许停留在当前页（也可能留在原页）
         try:
@@ -87,7 +89,7 @@ async def api_login(context: BrowserContext) -> None:
     try:
         req = urllib.request.Request(
             api_url,
-            data=json.dumps({"username": "admin", "password": "starmap2024"}).encode("utf-8"),
+            data=json.dumps(login_payload()).encode("utf-8"),
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=10) as resp:

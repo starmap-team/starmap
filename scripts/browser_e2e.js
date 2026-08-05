@@ -55,8 +55,8 @@ async function screenshot(page, name) {
     // Identify by placeholder specifically
     const userInput = page.locator('input[placeholder*="用户"]:visible').first();
     await userInput.click();
-    await userInput.fill('admin');
-    await page.locator('input[type="password"]:visible').first().fill('starmap2024');
+    await userInput.fill(process.env.STARMAP_TEST_ADMIN_USER || 'admin');
+    await page.locator('input[type="password"]:visible').first().fill(process.env.STARMAP_TEST_ADMIN_PASSWORD || 'starmap2024');
     // Click the el-button with type=primary (the login button)
     await page.locator('button.el-button--primary').first().click();
     await page.waitForTimeout(4000);

@@ -1,6 +1,8 @@
 """调试脚本: 检查前端 store 实际状态与 API 响应是否一致."""
 import asyncio
 import json
+
+from e2e_creds import login_payload
 import urllib.request
 from playwright.async_api import async_playwright
 
@@ -11,7 +13,7 @@ BASE_URL = "http://localhost:5173"
 def api_login() -> tuple[str, dict]:
     req = urllib.request.Request(
         f"{API_URL}/auth/login",
-        data=json.dumps({"username": "admin", "password": "starmap2024"}).encode("utf-8"),
+        data=json.dumps(login_payload()).encode("utf-8"),
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=10) as resp:

@@ -11,6 +11,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from e2e_creds import ADMIN_PASSWORD
+
 from playwright.sync_api import sync_playwright
 
 BASE_URL = "http://localhost:5173"
@@ -49,7 +51,7 @@ def test_all_pages():
         page.goto(f"{BASE_URL}/login")
         page.wait_for_load_state("networkidle")
         page.fill("input[type='text'], input[name='username']", "admin")
-        page.fill("input[type='password']", "starmap2024")
+        page.fill("input[type='password']", ADMIN_PASSWORD)
         page.click("button[type='submit']")
         time.sleep(2)
 

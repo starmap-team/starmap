@@ -6,7 +6,10 @@ from urllib.error import HTTPError, URLError
 
 BASE = "http://localhost:8000/api/v1"
 LOGIN_URL = f"{BASE}/auth/login"
-CREDS = json.dumps({"username": "admin", "password": "starmap2024"}).encode()
+# PLAN-007 / NEW-20: 凭据单一来源=环境变量（默认 dev 引导账号）
+ADMIN_USER = os.environ.get("STARMAP_TEST_ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.environ.get("STARMAP_TEST_ADMIN_PASSWORD", "starmap2024")
+CREDS = json.dumps({"username": ADMIN_USER, "password": ADMIN_PASSWORD}).encode()
 
 def api(method, path, body=None, headers=None):
     h = {"Content-Type": "application/json"}
@@ -25,7 +28,7 @@ def api(method, path, body=None, headers=None):
         return 0, str(e)
 
 def login():
-    code, data = api("POST", "/auth/login", {"username":"admin","password":"starmap2024"})
+    code, data = api("POST", "/auth/login", {"username": ADMIN_USER, "password": ADMIN_PASSWORD})
     return data.get("access_token","") if code==200 else ""
 
 def auth_headers(token):
@@ -47,7 +50,7 @@ admin_h = auth_headers(token) if token else {}
 
 # ━━━━━ 1. AUTH ━━━━━
 print("\n=== 1. Auth ===")
-code, _ = api("POST", "/auth/login", {"username":"admin","password":"starmap2024"})
+code, _ = api("POST", "/auth/login", {"username": ADMIN_USER, "password": ADMIN_PASSWORD})
 test("1.1 Normal login", code == 200, f"HTTP {code}")
 
 code, data = api("POST", "/auth/login", {"username":"","password":""})

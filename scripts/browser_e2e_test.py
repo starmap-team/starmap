@@ -13,10 +13,15 @@ Tests:
 10. Test pipeline monitoring page
 """
 import sys
+import os
 import json
 import time
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect, Page
+
+# PLAN-007 / NEW-20: 凭据单一来源=环境变量（默认 dev 引导账号）
+_ADMIN_USER = os.environ.get("STARMAP_TEST_ADMIN_USER", "admin")
+_ADMIN_PASSWORD = os.environ.get("STARMAP_TEST_ADMIN_PASSWORD", "starmap2024")
 
 
 SCREENSHOT_DIR = Path("C:/Users/LiShuai/Desktop/Agents/starmap/.workbuddy/screenshots")
@@ -35,10 +40,10 @@ def login(page: Page) -> None:
     page.wait_for_load_state("networkidle", timeout=10000)
     # Try to find username/password fields
     try:
-        page.locator('input[placeholder*="用户名"], input[placeholder*="账号"], input[type="text"]:visible').first.fill("admin")
+        page.locator('input[placeholder*="用户名"], input[placeholder*="账号"], input[type="text"]:visible').first.fill(_ADMIN_USER)
     except Exception:
-        page.locator('input').first.fill("admin")
-    page.locator('input[type="password"]:visible').first.fill("starmap2024")
+        page.locator('input').first.fill(_ADMIN_USER)
+    page.locator('input[type="password"]:visible').first.fill(_ADMIN_PASSWORD)
     # Click login button
     login_btn = page.get_by_role("button", name="登录")
     if login_btn.count() == 0:
