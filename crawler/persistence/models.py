@@ -52,6 +52,9 @@ class JdRaw(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     content_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    # NEW-06 / PLAN-009: 拆列方案——content_hash 守精确去重(UNIQUE),
+    # simhash(BIGINT, nullable)独立存 SimHash 指纹供近似去重; 旧记录 simhash 留 NULL
+    simhash: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     status: Mapped[JdStatus] = mapped_column(
         SAEnum(JdStatus, name="jd_status"), nullable=False, default=JdStatus.raw
     )
@@ -62,6 +65,8 @@ class JdRaw(Base):
         Index("idx_jd_raw_source_site", "source_site"),
         Index("idx_jd_raw_crawled_at", "crawled_at"),
         Index("idx_jd_raw_content_hash", "content_hash"),
+        # NEW-06: 近似去重查询路径索引
+        Index("ix_jd_raw_simhash", "simhash"),
     )
 
 

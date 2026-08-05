@@ -163,6 +163,7 @@ def run_apify_direct(
                 "location": location,
                 "publish_date": date.today(),
                 "content_hash": hex64(simhash(clean)),
+                "simhash": simhash(clean),
                 "status": JdStatus.raw,
             }
             r = dao.upsert_jd(rec)

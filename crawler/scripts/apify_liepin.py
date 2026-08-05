@@ -121,7 +121,7 @@ def run_apify_liepin(
                 'source_site': 'liepin', 'source_url': url, 'raw_html': description,
                 'clean_text': clean, 'job_title': title[:200], 'company': company or None,
                 'salary_min': salary_min, 'salary_max': salary_max, 'location': location or None,
-                'publish_date': date.today(), 'content_hash': hex64(simhash(clean)),
+                'publish_date': date.today(), 'content_hash': hex64(simhash(clean)), 'simhash': simhash(clean),
                 'status': JdStatus.raw,
             }
             r = dao.upsert_jd(rec)

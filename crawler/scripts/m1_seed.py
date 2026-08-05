@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import random
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent  # repo root
@@ -65,6 +65,7 @@ def gen_jd(site: str, idx: int) -> dict:
         "location": city,
         "publish_date": date.today() - timedelta(days=random.randint(0, 30)),
         "content_hash": hex64(simhash(body)),
+        "simhash": simhash(body),
         "status": JdStatus.raw,
     }
 

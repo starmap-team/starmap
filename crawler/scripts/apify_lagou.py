@@ -204,6 +204,7 @@ def run_apify_lagou(
                 "location": location or None,
                 "publish_date": date.today(),
                 "content_hash": hex64(simhash(clean)),
+                "simhash": simhash(clean),
                 "status": JdStatus.raw,
             }
 

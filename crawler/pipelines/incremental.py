@@ -4,13 +4,14 @@ Issue #36 — 阶段3 数据增量更新管道。
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 from dataclasses import dataclass, field
 from typing import Iterable
 
 from sqlalchemy import select
 
-from crawler.dedup import hex64, is_near_duplicate, simhash
+from crawler.dedup import is_near_duplicate, simhash
 from crawler.persistence.database import get_jd_raw_session
 from crawler.persistence.models import JdRaw
 
@@ -43,25 +44,19 @@ def get_existing_urls(source_site: str | None = None) -> set[str]:
 
 
 def get_existing_hashes(source_site: str | None = None) -> dict[str, int]:
-    """查询已入库的 content_hash → SimHash 映射，用于近似去重。
+    """查询已入库的 SimHash 映射，用于近似去重。
 
-    返回 {content_hash_hex: simhash_int}。
+    NEW-06 拆列后: 改读独立 simhash 列(旧记录 simhash 为 NULL 被跳过),
+    返回 {source_url: simhash_int}。key 仅为占位(check_incremental 仅用 values)。
     """
     with get_jd_raw_session() as s:
         if source_site:
             rows = s.execute(
-                select(JdRaw.content_hash).where(JdRaw.source_site == source_site)
+                select(JdRaw.simhash, JdRaw.source_url).where(JdRaw.source_site == source_site)
             ).all()
         else:
-            rows = s.execute(select(JdRaw.content_hash)).all()
-    result: dict[str, int] = {}
-    for (h,) in rows:
-        if h and len(h) >= 16:
-            try:
-                result[h] = int(h[:16], 16)
-            except ValueError:
-                continue
-    return result
+            rows = s.execute(select(JdRaw.simhash, JdRaw.source_url)).all()
+    return {url: sh for sh, url in rows if sh is not None}
 
 
 def check_incremental(
@@ -121,8 +116,10 @@ def check_incremental(
             if is_dup:
                 continue
             batch_hashes.append(new_hash)
-            # 更新 content_hash
-            rec["content_hash"] = hex64(new_hash)
+            # NEW-06 拆列: content_hash 用 sha256 守精确去重(UNIQUE),
+            # simhash 存 64-bit 整数供近似去重(独立列); 旧行为(content_hash=hex64(simhash))保留兼容
+            rec["content_hash"] = hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
+            rec["simhash"] = new_hash
 
         filtered.append(rec)
         stats.inserted += 1

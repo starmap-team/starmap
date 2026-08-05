@@ -125,6 +125,7 @@ def run_apify_51job(max_items=100, keywords=None, dry_run=False):
                 "location": city or None,
                 "publish_date": date.today(),
                 "content_hash": hex64(simhash(clean)),
+                "simhash": simhash(clean),
                 "status": JdStatus.raw,
             }
 
