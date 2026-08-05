@@ -7,6 +7,12 @@ import { ref } from 'vue'
 import request from '@/api/request'
 import type { GraphNodeItem } from '@/composables/useGraphNodeList'
 
+import { useResponseValidation } from '@/validation/useResponseValidation'
+import adminSchema from '../../../starmap-contracts/schemas/admin.schema.json'
+
+// PLAN-014: 契约响应校验 (DEV warn 不阻断)
+const { validateResponse: validateAdmin } = useResponseValidation()
+
 interface AdminGraphNodesResponse {
   items: GraphNodeItem[]
 }
@@ -34,7 +40,10 @@ export const useGraphNodeStore = defineStore('graphNode', () => {
       const queryString = params.toString()
       const url = queryString ? `/admin/graph/nodes?${queryString}` : '/admin/graph/nodes'
 
-      const data = await request.get(url) as AdminGraphNodesResponse
+      const data = validateAdmin(
+        await request.get(url) as AdminGraphNodesResponse,
+        adminSchema, url, 'GraphNodeListResponse',
+      ) as AdminGraphNodesResponse
       graphNodes.value = data.items ?? []
       return data
     } catch (e: unknown) {
