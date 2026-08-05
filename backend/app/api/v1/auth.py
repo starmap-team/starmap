@@ -283,9 +283,18 @@ async def forgot_password(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Redis is unavailable",
         )
-    _ = await auth_service.forgot_password_request(body.email, redis, session)
-    # ponytail: token stored in Redis; email integration sends it. Never return in response.
-    return {"submitted": True}
+    token = await auth_service.forgot_password_request(body.email, redis, session)
+    # PLAN-015②: 通道决策 (settings.forgot_password_delivery)
+    # - out_of_band: 默认, 仅写 Redis 不回 token, 等邮件/外带渠道接入
+    # - dev_return_token: 仅 dev 环境回 token, 供 e2e / 手动验证;
+    #   防误用: 非 dev 环境即便配了 dev_return_token 也只回 submitted
+    if (
+        settings.forgot_password_delivery == "dev_return_token"
+        and token is not None
+        and settings.app_env.lower() in {"development", "dev", "local"}
+    ):
+        return {"submitted": True, "token": token, "delivery": "dev_return_token"}
+    return {"submitted": True, "delivery": settings.forgot_password_delivery}
 
 
 @router.post("/reset-password")

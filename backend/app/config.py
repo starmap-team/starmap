@@ -207,6 +207,15 @@ class Settings(BaseSettings):
         default="", description="XFF 可信代理 CIDR 白名单 (逗号分隔); 空=拒绝伪造"
     )
 
+    # ── PLAN-015②: forgot-password 通道决策
+    # 默认 out_of_band: token 写入 Redis 但**不返回响应**, 等邮件/外带渠道接入
+    # dev_return_token: 仅 dev 环境允许响应中回 token, 供 e2e / 手动验证
+    # (字段名故意宽松, 未来可挂 "smtp" / "webhook" 等真实通道)
+    forgot_password_delivery: str = Field(
+        default="out_of_band",
+        description="forgot-password 令牌投递方式: out_of_band (默认, 仅写 Redis) / dev_return_token (响应回 token, 仅 dev)",
+    )
+
     def get_trusted_proxy_networks(self) -> list:
         """PLAN-015①: 解析 trusted_proxy_cidrs 为 ipaddress 网列表 (惰性, 避免 config 导入期计算)。"""
         import ipaddress
