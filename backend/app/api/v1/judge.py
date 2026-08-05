@@ -3,14 +3,20 @@
 提供单样本评估、两两对比和批量评测三个接口，
 作为流 D (QA) 的自动化评估基础。
 """
-from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from loguru import logger
-from pydantic import BaseModel, Field
 
 from app.exceptions import JudgeError, StarMapError
+from app.schemas.judge import (
+    BatchJudgeRequest,
+    BatchJudgeResponse,
+    JudgeRequest,
+    JudgeSampleResponse,
+    PairwiseRequest,
+    PairwiseResponse,
+)
 from app.services.judge_service import (
     LLMConnectionError,
     LLMResponseError,
@@ -28,74 +34,10 @@ router = APIRouter(prefix="/judge")
 # ──────────────────────────────────────────────
 
 
-class JudgeRequest(BaseModel):
-    """单样本评估请求：golden 标准答案 vs 系统输出。"""
-
-    golden: dict[str, Any] = Field(..., description="标准答案 (golden standard)")
-    system_output: dict[str, Any] = Field(..., description="系统抽取结果")
-    use_llm_judge: bool = Field(
-        default=False,
-        description="是否启用 LLM judge 进行多维度评分",
-    )
-    judge_prompt_version: str | None = Field(
-        default=None,
-        description="Judge prompt 版本号 (v1/v2)，默认使用 active 版本",
-    )
-
-
-class PairwiseRequest(BaseModel):
-    """两两对比请求（无 golden，A/B 测试场景）。"""
-
-    output_a: dict[str, Any] = Field(..., description="A 版本抽取结果")
-    output_b: dict[str, Any] = Field(..., description="B 版本抽取结果")
-
-
-class BatchJudgeRequest(BaseModel):
-    """批量评估请求：JSONL 文件路径。"""
-
-    golden_file: str = Field(..., description="Golden set JSONL 文件路径")
-    system_file: str = Field(..., description="System 输出 JSONL 文件路径")
-    use_llm_judge: bool = False
-    judge_prompt_version: str | None = None
-    threshold: float = Field(default=0.90, ge=0.0, le=1.0, description="质量门禁阈值")
-
 
 # ──────────────────────────────────────────────
 # Response models
 # ──────────────────────────────────────────────
-
-
-class JudgeSampleResponse(BaseModel):
-    sample_id: str = ""
-    precision: float = 0.0
-    recall: float = 0.0
-    f1: float = 0.0
-    llm_score: float | None = None
-    llm_reasoning: str | None = None
-    errors: list[str] = []
-    evaluated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
-
-
-class PairwiseResponse(BaseModel):
-    sample_id: str = ""
-    precision_b_vs_a: float = 0.0
-    recall_b_vs_a: float = 0.0
-    f1_b_vs_a: float = 0.0
-    errors: list[str] = []
-    evaluated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
-
-
-class BatchJudgeResponse(BaseModel):
-    total_samples: int = 0
-    evaluated_samples: int = 0
-    avg_precision: float = 0.0
-    avg_recall: float = 0.0
-    avg_f1: float = 0.0
-    weighted_score: float = 0.0
-    f1_distribution: dict[str, int] = {}
-    quality_gate: dict[str, Any] | None = None
-    per_sample: list[dict[str, Any]] = []
-    judge_prompt_version: str | None = None
 
 
 # ──────────────────────────────────────────────
