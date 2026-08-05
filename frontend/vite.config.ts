@@ -14,6 +14,8 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     hmr: { overlay: false },
+    // PLAN-014: 允许导入仓库根下 starmap-contracts/ 的契约 JSON Schema
+    fs: { allow: ['..'] },
     // 永久防护：dev 下禁止浏览器缓存模块，避免缓存到 optimizeDeps 重跑期的
     // 504 中间态导致"容器已起、页面空白"。强制每次重新拉取模块。
     headers: {

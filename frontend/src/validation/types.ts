@@ -65,6 +65,8 @@ export interface JSONSchemaProperty {
   required?: string[]
   additionalProperties?: boolean
   default?: unknown
+  /** 文档内引用，如 "#/$defs/SkillNode"（按根文档 $defs/definitions 解析） */
+  $ref?: string
 }
 
 export interface JSONSchema {
@@ -75,4 +77,6 @@ export interface JSONSchema {
   properties?: Record<string, JSONSchemaProperty>
   required?: string[]
   definitions?: Record<string, JSONSchemaProperty>
+  /** Pydantic v2 导出的引用定义表（refs 指向 "#/$defs/X"） */
+  $defs?: Record<string, JSONSchemaProperty>
 }

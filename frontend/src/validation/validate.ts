@@ -27,6 +27,27 @@ function fail(field: string, message: string, code: string, value?: unknown): Fi
   return { field, value: value ?? null, message, code }
 }
 
+// ── $ref 解析 ──
+
+/**
+ * 解析文档内 JSON Pointer 引用（如 "#/$defs/SkillNode"、"#/definitions/X"）。
+ * 解析失败返回 undefined（调用方按"悬空引用静默跳过"处理，与容错原则一致）。
+ */
+function resolveRef(ref: string, root: JSONSchema): JSONSchemaProperty | undefined {
+  if (!ref.startsWith('#')) return undefined
+  const parts = ref
+    .slice(1)
+    .split('/')
+    .filter(Boolean)
+    .map(p => p.replace(/~1/g, '/').replace(/~0/g, '~'))
+  let cur: unknown = root
+  for (const part of parts) {
+    if (typeof cur !== 'object' || cur === null) return undefined
+    cur = (cur as Record<string, unknown>)[part]
+  }
+  return typeof cur === 'object' && cur !== null ? (cur as JSONSchemaProperty) : undefined
+}
+
 // ── 核心校验函数 ──
 
 function validateValue(
@@ -34,9 +55,18 @@ function validateValue(
   schema: JSONSchemaProperty,
   path: string,
   errors: FieldError[],
+  root: JSONSchema,
 ): void {
   if (value === undefined || value === null) {
     return // required 检查在 validateObject 中处理
+  }
+
+  // $ref 引用：先解析再递归校验（悬空引用跳过该字段，不阻断）
+  if (schema.$ref) {
+    const resolved = resolveRef(schema.$ref, root)
+    if (!resolved) return
+    validateValue(value, resolved, path, errors, root)
+    return
   }
 
   const type = schema.type
@@ -104,9 +134,9 @@ function validateValue(
       for (let i = 0; i < value.length; i++) {
         const itemPath = `${path}[${i}]`
         if (schema.items.type === 'object' && schema.items.properties) {
-          validateObject(value[i], schema.items, itemPath, errors)
+          validateObject(value[i], schema.items, itemPath, errors, root)
         } else {
-          validateValue(value[i], schema.items, itemPath, errors)
+          validateValue(value[i], schema.items, itemPath, errors, root)
         }
       }
     }
@@ -117,7 +147,7 @@ function validateValue(
       errors.push(fail(path, `「${path}」必须为对象`, 'type_error.object', value))
       return
     }
-    validateObject(value as Record<string, unknown>, schema, path, errors)
+    validateObject(value as Record<string, unknown>, schema, path, errors, root)
   }
 }
 
@@ -126,6 +156,7 @@ function validateObject(
   schema: JSONSchemaProperty,
   path: string,
   errors: FieldError[],
+  root: JSONSchema,
 ): void {
   if (!obj) {
     errors.push(fail(path, `「${path}」不能为空`, 'value_error.null', obj))
@@ -149,7 +180,7 @@ function validateObject(
       continue // 已由 required 检查处理
     }
     const fieldPath = path ? `${path}.${key}` : key
-    validateValue(obj[key], propSchema, fieldPath, errors)
+    validateValue(obj[key], propSchema, fieldPath, errors, root)
   }
 }
 
@@ -175,6 +206,7 @@ function validateObject(
 export function validate(
   data: unknown,
   schema: JSONSchema | JSONSchemaProperty,
+  root: JSONSchema = schema as JSONSchema,
 ): ValidationResult {
   const errors: FieldError[] = []
 
@@ -182,10 +214,17 @@ export function validate(
     return { valid: false, errors: [fail('body', '请求数据不能为空', 'value_error.null', data)] }
   }
 
+  // 入口即 $ref：先解析再校验
+  if ((schema as JSONSchemaProperty).$ref) {
+    const resolved = resolveRef((schema as JSONSchemaProperty).$ref as string, root)
+    if (!resolved) return { valid: true, errors }
+    return validate(data, resolved, root)
+  }
+
   // 检查 schema 类型
   const resolvedType = schema.type
   if (resolvedType && resolvedType !== 'object') {
-    validateValue(data, schema as JSONSchemaProperty, '', errors)
+    validateValue(data, schema as JSONSchemaProperty, '', errors, root)
     return { valid: errors.length === 0, errors }
   }
 
@@ -201,7 +240,7 @@ export function validate(
 
   // 构建虚拟 schema 进行校验
   const virtualSchema: JSONSchemaProperty = { type: 'object', properties: props, required: req }
-  validateObject(data as Record<string, unknown>, virtualSchema, '', errors)
+  validateObject(data as Record<string, unknown>, virtualSchema, '', errors, root)
 
   return { valid: errors.length === 0, errors }
 }
@@ -227,9 +266,10 @@ export function validateOrThrow(data: unknown, schema: JSONSchema | JSONSchemaPr
 export function validateSafe(
   data: unknown,
   schema: JSONSchema | JSONSchemaProperty,
+  root: JSONSchema = schema as JSONSchema,
 ): ValidationResult {
   try {
-    return validate(data, schema)
+    return validate(data, schema, root)
   } catch {
     return {
       valid: false,

@@ -25,6 +25,8 @@ sys.path.insert(0, str(_BACKEND_ROOT))
 
 from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入)
     ChangePasswordRequest,
+    DomainOverviewItem,
+    DomainOverviewResponse,
     ErrorResponse,
     ExtractionRequest,
     ExtractionResult,
@@ -73,6 +75,8 @@ SCHEMA_GROUPS: dict[str, list[tuple[str, type]]] = {
         ("GraphNode", GraphNode),
         ("GraphEdge", GraphEdge),
         ("GraphOverviewResponse", GraphOverviewResponse),
+        ("DomainOverviewItem", DomainOverviewItem),
+        ("DomainOverviewResponse", DomainOverviewResponse),
         ("PositionSkillDetailResponse", PositionSkillDetailResponse),
     ],
     "extract": [
@@ -92,16 +96,23 @@ def main() -> None:
     total_schemas = 0
     for group_name, models in SCHEMA_GROUPS.items():
         definitions: dict[str, dict] = {}
+        root_defs: dict[str, dict] = {}
         for model_name, model_cls in models:
             json_schema = model_cls.model_json_schema()
+            # Pydantic v2 的 $ref 指向文档根 "#/$defs/X"；把各模型嵌套的 $defs
+            # 提升到根文档，避免 ref 悬空（前端运行时校验按根 $defs 解析）。
+            nested_defs = json_schema.pop("$defs", None) or {}
+            root_defs.update(nested_defs)
             definitions[model_name] = json_schema
 
-        output = {
+        output: dict[str, object] = {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "title": f"StarMap {group_name} schemas",
             "description": f"Auto-generated from backend/app/schemas/{group_name}.py",
             "definitions": definitions,
         }
+        if root_defs:
+            output["$defs"] = root_defs
 
         output_path = OUTPUT_DIR / f"{group_name}.schema.json"
         output_path.write_text(

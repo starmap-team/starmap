@@ -35,95 +35,6 @@
       "type": "object"
     },
     "ExtractionResult": {
-      "$defs": {
-        "NormalizedSkill": {
-          "description": "归一化后的技能。",
-          "properties": {
-            "original": {
-              "description": "抽取的原始技能名称",
-              "maxLength": 200,
-              "minLength": 1,
-              "title": "Original",
-              "type": "string"
-            },
-            "normalized": {
-              "description": "归一化后的标准技能名称",
-              "maxLength": 200,
-              "minLength": 1,
-              "title": "Normalized",
-              "type": "string"
-            },
-            "method": {
-              "description": "归一化方法（alias / embedding / llm）",
-              "maxLength": 50,
-              "minLength": 1,
-              "title": "Method",
-              "type": "string"
-            },
-            "confidence": {
-              "description": "归一化置信度 [0, 1]",
-              "maximum": 1.0,
-              "minimum": 0.0,
-              "title": "Confidence",
-              "type": "number"
-            }
-          },
-          "required": [
-            "original",
-            "normalized",
-            "method",
-            "confidence"
-          ],
-          "title": "NormalizedSkill",
-          "type": "object"
-        },
-        "SkillItem": {
-          "description": "单条技能抽取结果（LLM 输出）。",
-          "properties": {
-            "skill": {
-              "description": "技能名称",
-              "examples": [
-                "Python",
-                "Docker"
-              ],
-              "maxLength": 200,
-              "minLength": 1,
-              "title": "Skill",
-              "type": "string"
-            },
-            "category": {
-              "description": "技能分类标签",
-              "examples": [
-                "hard_skill",
-                "tool"
-              ],
-              "maxLength": 50,
-              "minLength": 1,
-              "title": "Category",
-              "type": "string"
-            },
-            "proficiency": {
-              "description": "要求熟练度",
-              "examples": [
-                "精通",
-                "熟悉",
-                "了解"
-              ],
-              "maxLength": 20,
-              "minLength": 1,
-              "title": "Proficiency",
-              "type": "string"
-            }
-          },
-          "required": [
-            "skill",
-            "category",
-            "proficiency"
-          ],
-          "title": "SkillItem",
-          "type": "object"
-        }
-      },
       "description": "JD 文本抽取结果。\n\n这是 LLM 抽取管线的最终输出，同时作为归一化和图谱写入的输入。",
       "properties": {
         "position_name": {
@@ -224,6 +135,95 @@
         }
       },
       "title": "ExtractionResult",
+      "type": "object"
+    },
+    "SkillItem": {
+      "description": "单条技能抽取结果（LLM 输出）。",
+      "properties": {
+        "skill": {
+          "description": "技能名称",
+          "examples": [
+            "Python",
+            "Docker"
+          ],
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Skill",
+          "type": "string"
+        },
+        "category": {
+          "description": "技能分类标签",
+          "examples": [
+            "hard_skill",
+            "tool"
+          ],
+          "maxLength": 50,
+          "minLength": 1,
+          "title": "Category",
+          "type": "string"
+        },
+        "proficiency": {
+          "description": "要求熟练度",
+          "examples": [
+            "精通",
+            "熟悉",
+            "了解"
+          ],
+          "maxLength": 20,
+          "minLength": 1,
+          "title": "Proficiency",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill",
+        "category",
+        "proficiency"
+      ],
+      "title": "SkillItem",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "NormalizedSkill": {
+      "description": "归一化后的技能。",
+      "properties": {
+        "original": {
+          "description": "抽取的原始技能名称",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Original",
+          "type": "string"
+        },
+        "normalized": {
+          "description": "归一化后的标准技能名称",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Normalized",
+          "type": "string"
+        },
+        "method": {
+          "description": "归一化方法（alias / embedding / llm）",
+          "maxLength": 50,
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "confidence": {
+          "description": "归一化置信度 [0, 1]",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "original",
+        "normalized",
+        "method",
+        "confidence"
+      ],
+      "title": "NormalizedSkill",
       "type": "object"
     },
     "SkillItem": {

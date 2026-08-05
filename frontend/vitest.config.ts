@@ -9,6 +9,10 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    // PLAN-014: 允许导入仓库根下 starmap-contracts/ 的契约 JSON Schema
+    fs: { allow: ['..'] },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

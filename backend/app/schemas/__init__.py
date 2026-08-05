@@ -37,6 +37,8 @@ from app.schemas.extract import (
     SkillItem,
 )
 from app.schemas.graph import (
+    DomainOverviewItem,
+    DomainOverviewResponse,
     GraphEdge,
     GraphNode,
     GraphOverviewResponse,
@@ -92,6 +94,8 @@ __all__ = [
     "PositionNode",
     "SkillNode",
     # graph
+    "DomainOverviewItem",
+    "DomainOverviewResponse",
     "GraphEdge",
     "GraphNode",
     "GraphOverviewResponse",

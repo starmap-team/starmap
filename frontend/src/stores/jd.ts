@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
+import { useResponseValidation } from '@/validation'
+// PLAN-014: 契约 schema（后端 Pydantic 导出，脚本生成；供 DEV 响应校验）
+import positionSchema from '../../starmap-contracts/schemas/position.schema.json'
+import extractSchema from '../../starmap-contracts/schemas/extract.schema.json'
+import graphSchema from '../../starmap-contracts/schemas/graph.schema.json'
 
 /** JD 原始数据 store */
 export interface JdRaw {
@@ -71,10 +76,16 @@ export const useJdStore = defineStore('jd', () => {
   const list = ref<JdRaw[]>([])
   const loading = ref(false)
 
+  // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
+  const { validateResponse } = useResponseValidation()
+
   async function fetchList() {
     loading.value = true
     try {
-      const data = await request.get('/positions', { params: { page_size: DEFAULT_PAGE_SIZE } }) as PositionListResponse
+      const data = validateResponse(
+        await request.get('/positions', { params: { page_size: DEFAULT_PAGE_SIZE } }) as PositionListResponse,
+        positionSchema, '/positions', 'PositionListResponse',
+      )
       list.value = data.items.map(p => ({
         id: 0, // position_id is a UUID string, not a numeric id
         source: 'database',
@@ -93,12 +104,14 @@ export const useJdStore = defineStore('jd', () => {
 
   /** Fetch position skills from Neo4j (with PostgreSQL fallback) */
   async function fetchPositionSkills(positionName: string) {
-    return request.get(`/graph/position/${encodeURIComponent(positionName)}/skills`)
+    const data = await request.get(`/graph/position/${encodeURIComponent(positionName)}/skills`)
+    return validateResponse(data, graphSchema, '/graph/position/{name}/skills', 'PositionSkillDetailResponse')
   }
 
   /** Fetch position detail from PostgreSQL (accepts id or name; silent 抑制全局错误 toast) */
   async function fetchPositionDetail(positionName: string, opts?: { silent?: boolean }) {
-    return request.get(`/positions/${encodeURIComponent(positionName)}`, { silent: opts?.silent } as never)
+    const data = await request.get(`/positions/${encodeURIComponent(positionName)}`, { silent: opts?.silent } as never)
+    return validateResponse(data, positionSchema, '/positions/{id}', 'PositionNode')
   }
 
   /** Fetch paginated positions list
@@ -118,7 +131,8 @@ export const useJdStore = defineStore('jd', () => {
     if (params.industry) query.industry = params.industry
     if (params.include_all) query.include_all = true
     if (params.status && params.status !== 'all') query.status = params.status
-    return request.get('/positions', { params: query }) as Promise<PositionListResponse>
+    const data = await request.get('/positions', { params: query }) as PositionListResponse
+    return validateResponse(data, positionSchema, '/positions', 'PositionListResponse')
   }
 
   /** Fetch all distinct industries from backend (US-3: 完整行业列表) */
@@ -133,7 +147,10 @@ export const useJdStore = defineStore('jd', () => {
     if (keyword?.trim()) {
       params.search = keyword.trim()
     }
-    const data = await request.get('/positions', { params }) as PositionListResponse
+    const data = validateResponse(
+      await request.get('/positions', { params }) as PositionListResponse,
+      positionSchema, '/positions', 'PositionListResponse',
+    )
     return data.items.map(p => ({
       label: p.name,
       value: p.name,
@@ -149,7 +166,10 @@ export const useJdStore = defineStore('jd', () => {
     extractLoading.value = true
     extractResult.value = null
     try {
-      const data = await request.post('/extract/jd', { jd_content: jdContent }, { timeout: 120000 }) as JDExtractResult
+      const data = validateResponse(
+        await request.post('/extract/jd', { jd_content: jdContent }, { timeout: 120000 }) as JDExtractResult,
+        extractSchema, '/extract/jd', 'ExtractionResult',
+      )
       extractResult.value = data
       return data
     } catch (err: unknown) {

@@ -108,6 +108,7 @@ onMounted(async () => {
       industry?: string
       description?: string
       skills_required?: SkillItem[]
+      discovered_at?: string | null
     }
     if (myToken !== fetchToken) return
     if (!d || (!d.name && !d.name_cn)) {

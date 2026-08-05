@@ -12,14 +12,14 @@
  * @example
  * ```ts
  * import { useResponseValidation } from '@/validation/useResponseValidation'
- * import positionListSchema from '@/validation/schemas/position.schema.json'
+ * import positionSchema from '../../starmap-contracts/schemas/position.schema.json'
  *
  * const { validateResponse } = useResponseValidation()
  *
  * async function fetchPositions() {
  *   const raw = await request.get('/positions')
- *   const validated = validateResponse(raw, positionListSchema.definitions.PositionListResponse)
- *   positions.value = validated as PositionListResponse
+ *   // schema 传整个文档（含 definitions/$defs），definitionPath 指定校验目标
+ *   return validateResponse(raw, positionSchema, '/positions', 'PositionListResponse')
  * }
  * ```
  */
@@ -35,11 +35,33 @@ export interface UseResponseValidationReturn {
    * 这确保即使在生产环境 schema 不匹配也不会导致页面白屏。
    *
    * @param data - 后端返回的原始数据
-   * @param schema - JSON Schema 定义
+   * @param schema - JSON Schema 文档（含 definitions/$defs，供 $ref 解析）
    * @param endpoint - API 端点名（用于日志）
+   * @param definitionPath - 可选：definitions/$defs 中的模型名（如 "PositionListResponse"）；
+   *   不传则直接校验传入的 schema
    * @returns 原始数据（附带类型守卫效果）
    */
-  validateResponse: <T>(data: T, schema: JSONSchema | JSONSchemaProperty, endpoint?: string) => T
+  validateResponse: <T>(
+    data: T,
+    schema: JSONSchema | JSONSchemaProperty,
+    endpoint?: string,
+    definitionPath?: string,
+  ) => T
+}
+
+/** 从文档 definitions/$defs 中查找模型定义 */
+function lookupDefinition(
+  doc: JSONSchema | JSONSchemaProperty,
+  path: string,
+): JSONSchemaProperty | undefined {
+  const defsTable = doc as unknown as Record<string, Record<string, JSONSchemaProperty>>
+  for (const key of ['definitions', '$defs']) {
+    const defs = defsTable[key]
+    if (defs && typeof defs === 'object' && path in defs) {
+      return defs[path]
+    }
+  }
+  return undefined
 }
 
 export function useResponseValidation(): UseResponseValidationReturn {
@@ -47,8 +69,15 @@ export function useResponseValidation(): UseResponseValidationReturn {
     data: T,
     schema: JSONSchema | JSONSchemaProperty,
     endpoint?: string,
+    definitionPath?: string,
   ): T {
-    const result = validateSafe(data, schema)
+    let target: JSONSchema | JSONSchemaProperty = schema
+    if (definitionPath) {
+      const def = lookupDefinition(schema, definitionPath)
+      if (def) target = def
+      // definitionPath 不存在：降级为直接校验整个文档（不抛异常）
+    }
+    const result = validateSafe(data, target, schema as JSONSchema)
 
     if (!result.valid && import.meta.env.DEV) {
       const label = endpoint ? `[${endpoint}]` : ''

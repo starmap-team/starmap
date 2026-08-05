@@ -36,41 +36,6 @@
       "type": "object"
     },
     "LoginResponse": {
-      "$defs": {
-        "TokenUser": {
-          "description": "嵌套在 Token 响应中的用户摘要。",
-          "properties": {
-            "id": {
-              "description": "用户唯一标识",
-              "title": "Id",
-              "type": "string"
-            },
-            "username": {
-              "description": "用户名",
-              "title": "Username",
-              "type": "string"
-            },
-            "role": {
-              "description": "角色（admin / viewer）",
-              "title": "Role",
-              "type": "string"
-            },
-            "must_change_password": {
-              "default": false,
-              "description": "是否需要在首次登录时修改密码",
-              "title": "Must Change Password",
-              "type": "boolean"
-            }
-          },
-          "required": [
-            "id",
-            "username",
-            "role"
-          ],
-          "title": "TokenUser",
-          "type": "object"
-        }
-      },
       "description": "登录成功响应。",
       "properties": {
         "access_token": {
@@ -228,6 +193,41 @@
       "title": "ResetPasswordRequest",
       "type": "object"
     },
+    "TokenUser": {
+      "description": "嵌套在 Token 响应中的用户摘要。",
+      "properties": {
+        "id": {
+          "description": "用户唯一标识",
+          "title": "Id",
+          "type": "string"
+        },
+        "username": {
+          "description": "用户名",
+          "title": "Username",
+          "type": "string"
+        },
+        "role": {
+          "description": "角色（admin / viewer）",
+          "title": "Role",
+          "type": "string"
+        },
+        "must_change_password": {
+          "default": false,
+          "description": "是否需要在首次登录时修改密码",
+          "title": "Must Change Password",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "role"
+      ],
+      "title": "TokenUser",
+      "type": "object"
+    }
+  },
+  "$defs": {
     "TokenUser": {
       "description": "嵌套在 Token 响应中的用户摘要。",
       "properties": {

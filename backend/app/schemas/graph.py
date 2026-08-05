@@ -94,6 +94,33 @@ class PositionSkillDetailResponse(BaseModel):
     )
 
 
+class DomainOverviewItem(BaseModel):
+    """领域概览中的单个 KA 节点。"""
+
+    id: str = Field(min_length=1, description="知识域节点 ID")
+    name: str = Field(min_length=1, description="知识域名称")
+    position_count: int = Field(default=0, ge=0, description="关联岗位数")
+    skill_count: int = Field(default=0, ge=0, description="关联技能数")
+    color: str = Field(default="", description="节点颜色")
+
+
+class DomainOverviewResponse(BaseModel):
+    """领域概览响应：KA 节点 + KA 间关联 + 独立节点统计。
+
+    对应 GET /graph/overview 实际返回结构（原内联于路由，违反
+    Schema 集中管理约定，2026-08-05 迁入）。
+    """
+
+    domains: list[DomainOverviewItem] = Field(default_factory=list, description="KA 节点列表")
+    connections: list[GraphEdge] = Field(default_factory=list, description="KA 间关联边")
+    total_positions: int = Field(default=0, ge=0, description="岗位总数")
+    total_skills: int = Field(default=0, ge=0, description="技能总数")
+    # 独立节点计数（去重，与 Neo4j 实际节点数一致）
+    independent_positions: int = Field(default=0, ge=0, description="独立 Position 节点数（去重）")
+    independent_skills: int = Field(default=0, ge=0, description="独立 Skill 节点数（去重）")
+    independent_edges: int = Field(default=0, ge=0, description="独立 REQUIRES 关系数（去重）")
+
+
 class GraphQueryRequest(BaseModel):
     """图谱查询请求（按需子图）。"""
 

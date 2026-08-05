@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.dependencies import get_neo4j_driver
+from app.schemas.graph import DomainOverviewResponse
 from app.services.graph_serializers import _safe_properties
 from app.services.graph_service import fetch_position_graph
 
@@ -85,29 +86,6 @@ async def get_position_skills(
         skills=graph["skills"],
         edges=_graph_edges(graph["edges"]),
     )
-
-
-class DomainOverviewItem(BaseModel):
-    """领域概览中的单个 KA 节点。"""
-
-    id: str
-    name: str
-    position_count: int = 0
-    skill_count: int = 0
-    color: str = ""
-
-
-class DomainOverviewResponse(BaseModel):
-    """领域概览响应：KA 节点 + KA 间关联 + 独立节点统计。"""
-
-    domains: list[DomainOverviewItem] = Field(default_factory=list)
-    connections: list[GraphEdge] = Field(default_factory=list)
-    total_positions: int = 0
-    total_skills: int = 0
-    # 独立节点计数（去重，与 Neo4j 实际节点数一致）
-    independent_positions: int = Field(0, description="独立 Position 节点数（去重）")
-    independent_skills: int = Field(0, description="独立 Skill 节点数（去重）")
-    independent_edges: int = Field(0, description="独立 REQUIRES 关系数（去重）")
 
 
 @router.get(
