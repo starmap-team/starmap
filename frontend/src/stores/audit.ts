@@ -6,6 +6,12 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 
+import { useResponseValidation } from '@/validation/useResponseValidation'
+import adminSchema from '../../../starmap-contracts/schemas/admin.schema.json'
+
+// PLAN-014: 契约响应校验 (DEV warn 不阻断)
+const { validateResponse: validateAdmin } = useResponseValidation()
+
 export interface AuditItem {
   id: number
   type: 'position' | 'skill'
@@ -27,7 +33,10 @@ export const useAuditStore = defineStore('audit', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get('/admin/review-queue') as AuditQueueResponse
+      const data = validateAdmin(
+        await request.get('/admin/review-queue') as AuditQueueResponse,
+        adminSchema, '/admin/review-queue', 'AuditQueueResponse',
+      ) as AuditQueueResponse
       auditQueue.value = data.items ?? []
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '获取审核队列失败'
@@ -58,7 +67,10 @@ export const useAuditStore = defineStore('audit', () => {
   }
 
   async function batchAudit(ids: number[], action: 'approve' | 'reject') {
-    const data = await request.post('/admin/audit/batch', { item_ids: ids, action }) as AuditItem[]
+    const data = validateAdmin(
+        await request.post('/admin/audit/batch', { item_ids: ids, action }) as AuditItem[],
+        adminSchema, '/admin/audit/batch', 'AuditItem',
+      ) as AuditItem[]
     // Remove processed items from queue
     const processedIds = new Set(ids)
     auditQueue.value = auditQueue.value.filter((i) => !processedIds.has(i.id))
