@@ -121,6 +121,9 @@ from app.schemas.prompt import (
     SetActiveRequest,
 )
 from app.schemas.quality import (
+    AlertItem,
+    QualityAlertsResponse,
+    QualityTrendsResponse,
     ComprehensiveReport,
     QualityDashboard,
     QualityDetail,

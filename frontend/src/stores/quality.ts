@@ -148,7 +148,20 @@ export const useQualityStore = defineStore('quality', () => {
     try {
       // Backend returns { period, data_points, summary }
       // data_points use { date, quality_score, ... } not { date, trust_score, ... }
-      const data = await request.get('/quality/trends', { params: { period } }) as {
+      const data = validateQuality(
+        await request.get('/quality/trends', { params: { period } }) as {
+        period: string
+        data_points: Array<{
+          date: string
+          overall_score?: number
+          quality_score?: number
+          hallucination_rate?: number
+          total_records?: number
+        }>
+        summary?: Record<string, unknown>
+        },
+        qualitySchema, '/quality/trends', 'QualityTrendsResponse',
+      ) as {
         period: string
         data_points: Array<{
           date: string
@@ -176,7 +189,10 @@ export const useQualityStore = defineStore('quality', () => {
   async function fetchAlerts() {
     alertsLoading.value = true
     try {
-      const resp = await request.get('/quality/alerts') as QualityAlertsResponse
+      const resp = validateQuality(
+        await request.get('/quality/alerts') as QualityAlertsResponse,
+        qualitySchema, '/quality/alerts', 'QualityAlertsResponse',
+      ) as QualityAlertsResponse
       alerts.value = resp?.alerts ?? []
     } catch (e: unknown) {
       // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail

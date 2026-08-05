@@ -6,64 +6,15 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Any
+from typing import Annotated
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
-
-
-class TrendPoint(BaseModel):
-    """单日质量趋势数据点。"""
-
-    date: str
-    overall_score: float = 0.0
-    duplicate_rate: float = 0.0
-    freshness_hours: float = 0.0
-    total_records: int = 0
-    new_records: int = 0
-    quality_score: float = 0.0
-    hallucination_rate: float = 0.0
-
-
-class QualityTrendsResponse(BaseModel):
-    """质量趋势时间线响应。"""
-
-    period: str = Field(..., description="'7d' | '30d' | '90d'")
-    data_points: list[TrendPoint] = Field(default_factory=list)
-    summary: dict[str, Any] = Field(default_factory=dict)
-
-
-class AlertItem(BaseModel):
-    """单条异常告警。"""
-
-    id: str = Field(default="", description="告警唯一标识")
-    type: str = Field(default="quality", description="告警类型")
-    level: str = Field(..., description="'info' | 'warning' | 'critical'")
-    dimension: str
-    message: str
-    source: str | None = None
-    value: float = 0.0
-    threshold: float = 0.0
-    timestamp: str = ""
-    status: str = Field(default="pending", description="'pending' | 'resolved' | 'ignored'")
-    created_at: str = Field(default="", description="告警创建时间")
-    handled: bool = False
-
-
-class QualityAlertsResponse(BaseModel):
-    """异常告警列表响应。"""
-
-    total: int = 0
-    critical: int = 0
-    warning: int = 0
-    info: int = 0
-    alerts: list[AlertItem] = Field(default_factory=list)
-
+from app.schemas.quality import AlertItem, QualityAlertsResponse, QualityTrendsResponse, TrendPoint
 
 router = APIRouter(tags=["质量趋势告警"])
 

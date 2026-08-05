@@ -3,6 +3,148 @@
   "title": "StarMap quality schemas",
   "description": "Auto-generated from backend/app/schemas/quality.py",
   "definitions": {
+    "AlertItem": {
+      "description": "单条异常告警。",
+      "properties": {
+        "id": {
+          "default": "",
+          "description": "告警唯一标识",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "default": "quality",
+          "description": "告警类型",
+          "title": "Type",
+          "type": "string"
+        },
+        "level": {
+          "description": "'info' | 'warning' | 'critical'",
+          "title": "Level",
+          "type": "string"
+        },
+        "dimension": {
+          "title": "Dimension",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "value": {
+          "default": 0.0,
+          "title": "Value",
+          "type": "number"
+        },
+        "threshold": {
+          "default": 0.0,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "timestamp": {
+          "default": "",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "status": {
+          "default": "pending",
+          "description": "'pending' | 'resolved' | 'ignored'",
+          "title": "Status",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "",
+          "description": "告警创建时间",
+          "title": "Created At",
+          "type": "string"
+        },
+        "handled": {
+          "default": false,
+          "title": "Handled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "level",
+        "dimension",
+        "message"
+      ],
+      "title": "AlertItem",
+      "type": "object"
+    },
+    "QualityAlertsResponse": {
+      "description": "异常告警列表响应。",
+      "properties": {
+        "total": {
+          "default": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "critical": {
+          "default": 0,
+          "title": "Critical",
+          "type": "integer"
+        },
+        "warning": {
+          "default": 0,
+          "title": "Warning",
+          "type": "integer"
+        },
+        "info": {
+          "default": 0,
+          "title": "Info",
+          "type": "integer"
+        },
+        "alerts": {
+          "items": {
+            "$ref": "#/$defs/AlertItem"
+          },
+          "title": "Alerts",
+          "type": "array"
+        }
+      },
+      "title": "QualityAlertsResponse",
+      "type": "object"
+    },
+    "QualityTrendsResponse": {
+      "description": "质量趋势时间线响应。",
+      "properties": {
+        "period": {
+          "description": "'7d' | '30d' | '90d'",
+          "title": "Period",
+          "type": "string"
+        },
+        "data_points": {
+          "items": {
+            "$ref": "#/$defs/TrendPoint"
+          },
+          "title": "Data Points",
+          "type": "array"
+        },
+        "summary": {
+          "additionalProperties": true,
+          "title": "Summary",
+          "type": "object"
+        }
+      },
+      "required": [
+        "period"
+      ],
+      "title": "QualityTrendsResponse",
+      "type": "object"
+    },
     "QualityDetail": {
       "description": "质量维度明细.",
       "properties": {
@@ -358,6 +500,136 @@
     }
   },
   "$defs": {
+    "AlertItem": {
+      "description": "单条异常告警。",
+      "properties": {
+        "id": {
+          "default": "",
+          "description": "告警唯一标识",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "default": "quality",
+          "description": "告警类型",
+          "title": "Type",
+          "type": "string"
+        },
+        "level": {
+          "description": "'info' | 'warning' | 'critical'",
+          "title": "Level",
+          "type": "string"
+        },
+        "dimension": {
+          "title": "Dimension",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "value": {
+          "default": 0.0,
+          "title": "Value",
+          "type": "number"
+        },
+        "threshold": {
+          "default": 0.0,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "timestamp": {
+          "default": "",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "status": {
+          "default": "pending",
+          "description": "'pending' | 'resolved' | 'ignored'",
+          "title": "Status",
+          "type": "string"
+        },
+        "created_at": {
+          "default": "",
+          "description": "告警创建时间",
+          "title": "Created At",
+          "type": "string"
+        },
+        "handled": {
+          "default": false,
+          "title": "Handled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "level",
+        "dimension",
+        "message"
+      ],
+      "title": "AlertItem",
+      "type": "object"
+    },
+    "TrendPoint": {
+      "description": "单日质量趋势数据点。",
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "overall_score": {
+          "default": 0.0,
+          "title": "Overall Score",
+          "type": "number"
+        },
+        "duplicate_rate": {
+          "default": 0.0,
+          "title": "Duplicate Rate",
+          "type": "number"
+        },
+        "freshness_hours": {
+          "default": 0.0,
+          "title": "Freshness Hours",
+          "type": "number"
+        },
+        "total_records": {
+          "default": 0,
+          "title": "Total Records",
+          "type": "integer"
+        },
+        "new_records": {
+          "default": 0,
+          "title": "New Records",
+          "type": "integer"
+        },
+        "quality_score": {
+          "default": 0.0,
+          "title": "Quality Score",
+          "type": "number"
+        },
+        "hallucination_rate": {
+          "default": 0.0,
+          "title": "Hallucination Rate",
+          "type": "number"
+        }
+      },
+      "required": [
+        "date"
+      ],
+      "title": "TrendPoint",
+      "type": "object"
+    },
     "QualityDetail": {
       "description": "质量维度明细.",
       "properties": {
