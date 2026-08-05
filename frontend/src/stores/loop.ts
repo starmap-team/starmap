@@ -15,7 +15,7 @@ import { ref, computed } from 'vue'
 import request from '@/api/request'
 import type { GapLevel } from '@/stores/match'
 import { useResponseValidation } from '@/validation/useResponseValidation'
-import loopSchema from '../../../starmap-contracts/schemas/loop.schema.json'
+import loopSchema from '@contracts/schemas/loop.schema.json'
 
 // PLAN-014: 契约响应校验 (DEV warn 不阻断)
 const { validateResponse: validateLoop } = useResponseValidation()

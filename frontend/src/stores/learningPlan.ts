@@ -5,7 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { useResponseValidation } from '@/validation/useResponseValidation'
 // PLAN-014 批次6: learning 契约接入 (5 模型: SkillGapInput/CreatePlanRequest/
 // SkillProgressItem/PhaseInfo/PlanResponse)
-import learningSchema from '../../../starmap-contracts/schemas/learning.schema.json'
+import learningSchema from '@contracts/schemas/learning.schema.json'
 
 const { validateResponse: validateLearning } = useResponseValidation()
 

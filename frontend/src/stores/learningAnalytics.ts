@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import request from '@/api/request'
 
 import { useResponseValidation } from '@/validation/useResponseValidation'
-import evolutionSchema from '../../../starmap-contracts/schemas/evolution.schema.json'
+import evolutionSchema from '@contracts/schemas/evolution.schema.json'
 
 // PLAN-014: 契约响应校验 (DEV warn 不阻断)
 const { validateResponse: validateEvolution } = useResponseValidation()

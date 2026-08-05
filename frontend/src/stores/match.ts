@@ -4,7 +4,7 @@ import request from '@/api/request'
 import { useResponseValidation } from '@/validation/useResponseValidation'
 // PLAN-014 批次5: match 契约接入 (10 模型在 schemas/match.py 已就位)
 // relative path 解析从 src/stores/ 到 repo root/starmap-contracts/schemas/ 需 ../../../
-import matchSchema from '../../../starmap-contracts/schemas/match.schema.json'
+import matchSchema from '@contracts/schemas/match.schema.json'
 
 const { validateResponse: validateMatch } = useResponseValidation()
 

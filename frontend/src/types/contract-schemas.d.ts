@@ -5,7 +5,7 @@
  * 位于仓库根 starmap-contracts/schemas/（frontend 目录外）。
  * 运行时由 Vite 直接以 JSON 解析；此处声明类型供 vue-tsc 使用。
  */
-declare module '../../../starmap-contracts/schemas/*.schema.json' {
+declare module '@contracts/schemas/*.schema.json' {
   import type { JSONSchema } from '@/validation/types'
 
   const schema: JSONSchema

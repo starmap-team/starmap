@@ -89,6 +89,7 @@ services:
     container_name: starmap-frontend
     volumes:
       - ./frontend:/app
+      - ./starmap-contracts:/app/starmap-contracts:ro  # PLAN-014 批次17: 契约 alias 容器可达
       - /app/node_modules   # 防止宿主 node_modules 覆盖容器内的
     ports:
       - "5173:5173"

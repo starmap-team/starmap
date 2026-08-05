@@ -10,7 +10,7 @@ import type { QualityAlert } from '@/types/quality'
 import type { DataSourceDetail } from '@/types/datasource'
 
 import { useResponseValidation } from '@/validation/useResponseValidation'
-import pipelineSchema from '../../../starmap-contracts/schemas/pipeline.schema.json'
+import pipelineSchema from '@contracts/schemas/pipeline.schema.json'
 
 // PLAN-014: 契约响应校验 (DEV warn 不阻断)
 const { validateResponse: validatePipeline } = useResponseValidation()

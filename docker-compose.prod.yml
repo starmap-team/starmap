@@ -122,8 +122,8 @@ services:
   # 自签名证书在 secrets/ssl/，生产应替换为 Let's Encrypt。
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .  # PLAN-014 批次17: 仓库根 context, 使 @contracts alias 在构建期可达
+      dockerfile: frontend/Dockerfile
     image: starmap-frontend:prod
     container_name: starmap-frontend-prod
     ports:

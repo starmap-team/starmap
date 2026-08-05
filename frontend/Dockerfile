@@ -16,8 +16,9 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-# 复制源码并构建
-COPY . .
+# 复制源码并构建 (context=仓库根; 契约目录供 @contracts alias 构建期解析)
+COPY frontend/ .
+COPY starmap-contracts/ /app/starmap-contracts/
 
 # W1-T3 fix (P0-10): 不再注入 VITE_API_BASE_URL。前端 baseURL 现在由
 # `@/config/apiBase` 单一真相源硬编码为 '/api/v1'；nginx 已升级为

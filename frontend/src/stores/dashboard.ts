@@ -8,7 +8,7 @@ import request from '@/api/request'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import type { EmergingSkill } from '@/types/evolution'
 import { useResponseValidation } from '@/validation/useResponseValidation'
-import dashboardSchema from '../../../starmap-contracts/schemas/dashboard.schema.json'
+import dashboardSchema from '@contracts/schemas/dashboard.schema.json'
 
 // Re-export for backward compatibility
 export type { EmergingSkill } from '@/types/evolution'

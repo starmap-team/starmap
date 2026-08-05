@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import request from '@/api/request'
 import { useResponseValidation } from '@/validation'
 // PLAN-014: 契约 schema（后端 Pydantic 导出，脚本生成；供 DEV 响应校验）
-import extractSchema from '../../../starmap-contracts/schemas/extract.schema.json'
+import extractSchema from '@contracts/schemas/extract.schema.json'
 
 export interface ParsedSkill {
   skill: string

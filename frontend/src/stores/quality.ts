@@ -5,7 +5,7 @@ import { ECHARTS_PALETTE } from '@/utils/graphColors'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import type { QualityAlert } from '@/types/quality'
 import { useResponseValidation } from '@/validation/useResponseValidation'
-import qualitySchema from '../../../starmap-contracts/schemas/quality.schema.json'
+import qualitySchema from '@contracts/schemas/quality.schema.json'
 
 // Re-export for backward compatibility
 export type { QualityAlert } from '@/types/quality'

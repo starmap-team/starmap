@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // PLAN-014 批次17: 契约路径 alias (容器/本地一致, 修复容器内 ../../../ 不可达白屏)
+      '@contracts': fileURLToPath(new URL('../starmap-contracts', import.meta.url)),
     },
   },
   server: {
