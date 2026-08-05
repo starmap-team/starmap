@@ -44,6 +44,7 @@ PASS_ROUTES = {
     "app.api.v1.quality",  # PLAN-014 批次11 已零内联
     "app.api.v1.loop",  # PLAN-014 批次12 已零内联
     "app.api.v1.extract",  # PLAN-014 批次13 已零内联（复用 schemas/extract.py，+6 透传字段对齐真实 API）
+    "app.api.v1.datasource",  # PLAN-014 批次8 已零内联
 }
 
 

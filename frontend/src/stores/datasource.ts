@@ -12,6 +12,12 @@ import { ref } from 'vue'
 import request from '@/api/request'
 import type { DataSourceDetail } from '@/types/datasource'
 
+import { useResponseValidation } from '@/validation/useResponseValidation'
+import datasourceSchema from '../../../starmap-contracts/schemas/datasource.schema.json'
+
+// PLAN-014: 契约响应校验 (DEV warn 不阻断)
+const { validateResponse: validateDatasource } = useResponseValidation()
+
 // Re-export for backward compatibility
 export type { DataSourceDetail } from '@/types/datasource'
 
@@ -57,7 +63,10 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get('/datasources') as DataSourceDetail[]
+      const data = validateDatasource(
+        await request.get('/datasources') as DataSourceDetail[],
+        datasourceSchema, '/datasources', 'DataSourceResponse',
+      ) as DataSourceDetail[]
       sources.value = data
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '获取数据源列表失败'
@@ -70,7 +79,10 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get(`/datasources/${id}`) as DataSourceDetail
+      const data = validateDatasource(
+        await request.get(`/datasources/${id}`) as DataSourceDetail,
+        datasourceSchema, `/datasources/${id}`, 'DataSourceResponse',
+      ) as DataSourceDetail
       selectedSource.value = data
       return data
     } catch (e: unknown) {
@@ -104,7 +116,10 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get(`/datasources/${id}/stats`) as DataSourceStats
+      const data = validateDatasource(
+        await request.get(`/datasources/${id}/stats`) as DataSourceStats,
+        datasourceSchema, `/datasources/${id}/stats`, 'DataSourceStatsResponse',
+      ) as DataSourceStats
       stats.value = data
       return data
     } catch (e: unknown) {

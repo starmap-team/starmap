@@ -30,6 +30,13 @@ from app.schemas.common import (
     PaginatedResponse,
     PaginationMeta,
 )
+from app.schemas.datasource import (
+    DataSourceCreateRequest,
+    DataSourceResponse,
+    DataSourceStatsResponse,
+    DatasourcesHealthResponse,
+    SyncTriggerResponse,
+)
 from app.schemas.dashboard import (
     DistributionResponse,
     OverviewResponse,
@@ -144,6 +151,11 @@ __all__ = [
     "ResetPasswordRequest",
     "TokenUser",
     # dashboard
+    "DataSourceCreateRequest",
+    "DataSourceResponse",
+    "DataSourceStatsResponse",
+    "DatasourcesHealthResponse",
+    "SyncTriggerResponse",
     "DistributionResponse",
     "OverviewResponse",
     "RealtimePollResponse",

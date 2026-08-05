@@ -95,6 +95,11 @@ from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入
     TokenUser,
     TrendPoint,
     TrendsResponse,
+    DataSourceCreateRequest,
+    DataSourceResponse,
+    DataSourceStatsResponse,
+    DatasourcesHealthResponse,
+    SyncTriggerResponse,
     DistributionResponse,
 )
 
@@ -114,6 +119,13 @@ SCHEMA_GROUPS: dict[str, list[tuple[str, type]]] = {
         ("ForgotPasswordRequest", ForgotPasswordRequest),
         ("ResetPasswordRequest", ResetPasswordRequest),
         ("TokenUser", TokenUser),
+    ],
+    "datasource": [
+        ("DataSourceCreateRequest", DataSourceCreateRequest),
+        ("DataSourceResponse", DataSourceResponse),
+        ("DataSourceStatsResponse", DataSourceStatsResponse),
+        ("DatasourcesHealthResponse", DatasourcesHealthResponse),
+        ("SyncTriggerResponse", SyncTriggerResponse),
     ],
     "dashboard": [
         ("OverviewResponse", OverviewResponse),

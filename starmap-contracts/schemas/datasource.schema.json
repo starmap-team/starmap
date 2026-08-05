@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap datasource schemas",
+  "description": "Auto-generated from backend/app/schemas/datasource.py",
+  "definitions": {
+    "DataSourceCreateRequest": {
+      "description": "管理员：注册一个新数据源。",
+      "properties": {
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "source_type": {
+          "default": "job_board",
+          "enum": [
+            "job_board",
+            "blog",
+            "esco",
+            "manual",
+            "rss",
+            "api"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "authority_score": {
+          "default": 0.5,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Authority Score",
+          "type": "number"
+        },
+        "status": {
+          "default": "active",
+          "enum": [
+            "active",
+            "paused",
+            "error"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "DataSourceCreateRequest",
+      "type": "object"
+    },
+    "DataSourceResponse": {
+      "description": "数据源详情响应。",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        },
+        "authority_score": {
+          "title": "Authority Score",
+          "type": "number"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "last_crawl_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Crawl At"
+        },
+        "total_records": {
+          "default": 0,
+          "title": "Total Records",
+          "type": "integer"
+        },
+        "valid_records": {
+          "default": 0,
+          "title": "Valid Records",
+          "type": "integer"
+        },
+        "duplicate_rate": {
+          "default": 0.0,
+          "title": "Duplicate Rate",
+          "type": "number"
+        },
+        "avg_quality_score": {
+          "default": 0.0,
+          "title": "Avg Quality Score",
+          "type": "number"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "source_type",
+        "authority_score",
+        "status"
+      ],
+      "title": "DataSourceResponse",
+      "type": "object"
+    },
+    "DataSourceStatsResponse": {
+      "description": "数据源统计响应。",
+      "properties": {
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_name": {
+          "title": "Source Name",
+          "type": "string"
+        },
+        "crawl_volume": {
+          "items": {
+            "$ref": "#/$defs/CrawlVolumeEntry"
+          },
+          "title": "Crawl Volume",
+          "type": "array"
+        },
+        "quality_trend": {
+          "items": {
+            "$ref": "#/$defs/QualityTrendEntry"
+          },
+          "title": "Quality Trend",
+          "type": "array"
+        },
+        "total_runs": {
+          "default": 0,
+          "title": "Total Runs",
+          "type": "integer"
+        },
+        "successful_runs": {
+          "default": 0,
+          "title": "Successful Runs",
+          "type": "integer"
+        },
+        "failed_runs": {
+          "default": 0,
+          "title": "Failed Runs",
+          "type": "integer"
+        },
+        "avg_records_per_run": {
+          "default": 0.0,
+          "title": "Avg Records Per Run",
+          "type": "number"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_name"
+      ],
+      "title": "DataSourceStatsResponse",
+      "type": "object"
+    },
+    "DatasourcesHealthResponse": {
+      "description": "数据源健康检查汇总。",
+      "properties": {
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/SourceHealthEntry"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "total_sources": {
+          "default": 0,
+          "title": "Total Sources",
+          "type": "integer"
+        },
+        "active_sources": {
+          "default": 0,
+          "title": "Active Sources",
+          "type": "integer"
+        },
+        "error_sources": {
+          "default": 0,
+          "title": "Error Sources",
+          "type": "integer"
+        }
+      },
+      "title": "DatasourcesHealthResponse",
+      "type": "object"
+    },
+    "SyncTriggerResponse": {
+      "description": "触发同步响应。",
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "source_name": {
+          "title": "Source Name",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "source_name",
+        "status",
+        "message"
+      ],
+      "title": "SyncTriggerResponse",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "CrawlVolumeEntry": {
+      "description": "单日采集量记录。",
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "count": {
+          "default": 0,
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "date"
+      ],
+      "title": "CrawlVolumeEntry",
+      "type": "object"
+    },
+    "QualityTrendEntry": {
+      "description": "单日质量趋势记录。",
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "score": {
+          "default": 0.0,
+          "title": "Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "date"
+      ],
+      "title": "QualityTrendEntry",
+      "type": "object"
+    },
+    "SourceHealthEntry": {
+      "description": "单个数据源健康状态。",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "last_crawl_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Crawl At"
+        },
+        "total_records": {
+          "default": 0,
+          "title": "Total Records",
+          "type": "integer"
+        },
+        "recent_run_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recent Run Status"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "status"
+      ],
+      "title": "SourceHealthEntry",
+      "type": "object"
+    }
+  }
+}
