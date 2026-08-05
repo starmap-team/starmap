@@ -69,3 +69,14 @@ def get_client_ip(
 
     # 全部在白名单 → 退化为最左侧 (理论上的原始客户端, 但已被代理覆盖)
     return candidates[0] if candidates else direct_ip
+
+
+def resolve_client_ip(request: Request) -> str:
+    """settings-aware 客户端 IP (集中守门, PLAN-015① follow-up)。
+
+    包装 get_client_ip: trusted_proxies 来自 settings.trusted_proxy_cidrs。
+    供所有路由/中间件统一调用, 消灭散落的 request.client.host 直取。
+    """
+    from app.config import settings
+
+    return get_client_ip(request, trusted_proxies=settings.get_trusted_proxy_networks())

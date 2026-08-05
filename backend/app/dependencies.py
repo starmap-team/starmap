@@ -24,6 +24,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.security.client_ip import resolve_client_ip
 from app.core.security.dev_token import dev_token_identity, is_dev_token_allowed
 from app.services.auth_service import decode_token
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
@@ -275,7 +276,7 @@ async def get_current_user_sse(
     """
     # API-05: 检查 SSE 连接数限制
     # 通过 _sse_connect_check 注入点，测试可替换为 no-op 避免全局状态污染
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = resolve_client_ip(request)
     check_fn = _sse_connect_check or sse_connect
     await check_fn(client_ip)
 
@@ -297,7 +298,7 @@ async def get_current_user_sse(
                     actor="anonymous",
                     action="jwt_validate_sse",
                     detail=err_msg,
-                    ip=request.client.host if request.client else "",
+                    ip=resolve_client_ip(request),
                 )
             )
             logger.warning("SSE JWT validation failed: {}", e)

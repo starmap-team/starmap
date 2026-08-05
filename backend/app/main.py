@@ -20,6 +20,7 @@ from starlette.responses import Response
 
 from app.api.v1.router import api_router, auth_router
 from app.config import settings
+from app.core.security.client_ip import resolve_client_ip
 from app.core.validation.errors import ErrorCode
 from app.dependencies import get_current_user
 from app.services.resources import healthcheck_resources, init_resources, resources
@@ -140,7 +141,7 @@ def _is_rate_limit_exempt(path: str) -> bool:
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> Response:
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = resolve_client_ip(request)
         path = request.url.path
 
         # Phase 3.7: 只读查询端点直接放行（不计入限流）

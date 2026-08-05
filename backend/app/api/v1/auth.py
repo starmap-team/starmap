@@ -54,17 +54,10 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 
 
 def get_client_ip(request: Request) -> str:
-    """Return the originating client IP — 优先用 XFF 可信代理提取 (PLAN-015①)。
+    """Return the originating client IP — 收敛到 core.security.client_ip (PLAN-015①)。"""
+    from app.core.security.client_ip import resolve_client_ip
 
-    直连 IP 来自 socket, 在反向代理后不是真实客户端; XFF 头又可被任意客户端
-    伪造。`app.core.security.client_ip.get_client_ip` 走"从右往左 + CIDR 白名单"
-    推导, 不可信时退化为直连 IP, 默认最保守。Settings.trusted_proxy_cidrs
-    配置可信代理。
-    """
-    from app.config import settings
-    from app.core.security.client_ip import get_client_ip as _resolve
-
-    return _resolve(request, trusted_proxies=settings.get_trusted_proxy_networks())
+    return resolve_client_ip(request)
 
 
 def _domain_error_to_http(exc: auth_service.AuthError) -> HTTPException:

@@ -20,6 +20,7 @@ from starlette.responses import StreamingResponse
 
 from app.core.dashboard.dashboard_service import get_distribution, get_overview, get_trends
 from app.core.dashboard.sse_broadcaster import event_stream, get_recent_events
+from app.core.security.client_ip import resolve_client_ip
 from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, get_redis_client, sse_disconnect
 from app.schemas.dashboard import (
     DistributionResponse,
@@ -99,7 +100,7 @@ async def dashboard_realtime(
     ``GET /dashboard/realtime-poll``.
     """
     # API-05: 在连接断开时释放 SSE 连接计数
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = resolve_client_ip(request)
 
     async def _stream_with_cleanup():
         try:

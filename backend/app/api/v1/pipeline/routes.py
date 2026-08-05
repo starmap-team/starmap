@@ -49,6 +49,7 @@ from app.core.pipeline.sse.steps import (
     ResumeParseStep,
     SkillExtractStep,
 )
+from app.core.security.client_ip import resolve_client_ip
 from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, require_admin, sse_disconnect
 from app.exceptions import StarMapError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
@@ -513,7 +514,7 @@ async def pipeline_events(
 
     redis = app_resources.redis_client
     # API-05: 在连接断开时释放 SSE 连接计数
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = resolve_client_ip(request)
 
     async def _stream_with_cleanup():
         try:
