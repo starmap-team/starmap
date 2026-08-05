@@ -1,0 +1,532 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap quality schemas",
+  "description": "Auto-generated from backend/app/schemas/quality.py",
+  "definitions": {
+    "QualityDetail": {
+      "description": "质量维度明细.",
+      "properties": {
+        "dimension": {
+          "description": "质量维度",
+          "minLength": 1,
+          "title": "Dimension",
+          "type": "string"
+        },
+        "value": {
+          "description": "当前值",
+          "title": "Value",
+          "type": "number"
+        },
+        "threshold": {
+          "description": "阈值",
+          "title": "Threshold",
+          "type": "number"
+        },
+        "status": {
+          "description": "pass/warn/fail",
+          "minLength": 1,
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dimension",
+        "value",
+        "threshold",
+        "status"
+      ],
+      "title": "QualityDetail",
+      "type": "object"
+    },
+    "QualityReport": {
+      "description": "契约质量报告.",
+      "properties": {
+        "precision": {
+          "description": "精确率",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Precision",
+          "type": "number"
+        },
+        "recall": {
+          "description": "召回率",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Recall",
+          "type": "number"
+        },
+        "f1": {
+          "description": "F1 分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "F1",
+          "type": "number"
+        },
+        "warning_level": {
+          "description": "green/yellow/orange/red",
+          "minLength": 1,
+          "title": "Warning Level",
+          "type": "string"
+        },
+        "details": {
+          "description": "维度明细",
+          "items": {
+            "$ref": "#/$defs/QualityDetail"
+          },
+          "title": "Details",
+          "type": "array"
+        }
+      },
+      "required": [
+        "precision",
+        "recall",
+        "f1",
+        "warning_level"
+      ],
+      "title": "QualityReport",
+      "type": "object"
+    },
+    "QualityDashboard": {
+      "description": "前端质量仪表盘兼容响应.",
+      "properties": {
+        "report": {
+          "$ref": "#/$defs/QualityReport"
+        },
+        "total_extractions": {
+          "default": 0,
+          "description": "总抽取数",
+          "minimum": 0,
+          "title": "Total Extractions",
+          "type": "integer"
+        },
+        "pending_review": {
+          "default": 0,
+          "description": "待审核数",
+          "minimum": 0,
+          "title": "Pending Review",
+          "type": "integer"
+        },
+        "hallucination_rate": {
+          "default": 0.0,
+          "description": "幻觉率",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Hallucination Rate",
+          "type": "number"
+        },
+        "total_nodes": {
+          "default": 0,
+          "description": "总节点数",
+          "minimum": 0,
+          "title": "Total Nodes",
+          "type": "integer"
+        },
+        "total_edges": {
+          "default": 0,
+          "description": "总边数",
+          "minimum": 0,
+          "title": "Total Edges",
+          "type": "integer"
+        },
+        "total_positions": {
+          "default": 0,
+          "description": "岗位节点数",
+          "minimum": 0,
+          "title": "Total Positions",
+          "type": "integer"
+        },
+        "total_skills": {
+          "default": 0,
+          "description": "技能节点数",
+          "minimum": 0,
+          "title": "Total Skills",
+          "type": "integer"
+        },
+        "avg_trust_score": {
+          "default": 0.0,
+          "description": "平均信任度",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Avg Trust Score",
+          "type": "number"
+        },
+        "high_trust_ratio": {
+          "default": 0.0,
+          "description": "高信任度占比",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "High Trust Ratio",
+          "type": "number"
+        },
+        "trust_distribution": {
+          "description": "信任度分布",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Trust Distribution",
+          "type": "array"
+        },
+        "hallucination_trend": {
+          "description": "幻觉趋势",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Hallucination Trend",
+          "type": "array"
+        },
+        "source_distribution": {
+          "description": "源分布",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Source Distribution",
+          "type": "array"
+        },
+        "weekly_new_nodes": {
+          "default": 0,
+          "description": "本周新增节点数",
+          "minimum": 0,
+          "title": "Weekly New Nodes",
+          "type": "integer"
+        },
+        "audit_pass_rate": {
+          "default": 0.0,
+          "description": "审核通过率",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Audit Pass Rate",
+          "type": "number"
+        },
+        "audit_queue": {
+          "description": "待审核队列",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Audit Queue",
+          "type": "array"
+        },
+        "evaluation_count": {
+          "default": 0,
+          "description": "已运行 golden-set 评估记录数",
+          "minimum": 0,
+          "title": "Evaluation Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "report"
+      ],
+      "title": "QualityDashboard",
+      "type": "object"
+    },
+    "ResumeEvalResponse": {
+      "description": "简历抽取 F1 评估结果.",
+      "properties": {
+        "success": {
+          "default": true,
+          "description": "评估是否成功",
+          "title": "Success",
+          "type": "boolean"
+        },
+        "total_samples": {
+          "default": 0,
+          "description": "总样本数",
+          "minimum": 0,
+          "title": "Total Samples",
+          "type": "integer"
+        },
+        "precision": {
+          "default": 0.0,
+          "description": "精确率",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Precision",
+          "type": "number"
+        },
+        "recall": {
+          "default": 0.0,
+          "description": "召回率",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Recall",
+          "type": "number"
+        },
+        "f1": {
+          "default": 0.0,
+          "description": "F1 分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "F1",
+          "type": "number"
+        },
+        "macro_f1": {
+          "default": 0.0,
+          "description": "宏 F1 分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Macro F1",
+          "type": "number"
+        },
+        "warning_level": {
+          "default": "gray",
+          "description": "green/yellow/orange/red/gray",
+          "minLength": 1,
+          "title": "Warning Level",
+          "type": "string"
+        },
+        "per_sample": {
+          "description": "逐样本结果",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Per Sample",
+          "type": "array"
+        },
+        "summary": {
+          "additionalProperties": true,
+          "description": "汇总",
+          "title": "Summary",
+          "type": "object"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "错误信息",
+          "title": "Error"
+        }
+      },
+      "title": "ResumeEvalResponse",
+      "type": "object"
+    },
+    "ComprehensiveReport": {
+      "description": "综合质量报告: JD + 简历评估 + 图谱统计.",
+      "properties": {
+        "jd_report": {
+          "$ref": "#/$defs/QualityReport"
+        },
+        "resume_eval": {
+          "$ref": "#/$defs/ResumeEvalResponse"
+        },
+        "dashboard_summary": {
+          "additionalProperties": true,
+          "description": "仪表盘摘要",
+          "title": "Dashboard Summary",
+          "type": "object"
+        },
+        "overall_score": {
+          "default": 0.0,
+          "description": "综合得分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Overall Score",
+          "type": "number"
+        },
+        "overall_status": {
+          "default": "unknown",
+          "description": "pass/warning/fail/unknown",
+          "minLength": 1,
+          "title": "Overall Status",
+          "type": "string"
+        },
+        "recommendations": {
+          "description": "改进建议",
+          "items": {
+            "type": "string"
+          },
+          "title": "Recommendations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "jd_report",
+        "resume_eval"
+      ],
+      "title": "ComprehensiveReport",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "QualityDetail": {
+      "description": "质量维度明细.",
+      "properties": {
+        "dimension": {
+          "description": "质量维度",
+          "minLength": 1,
+          "title": "Dimension",
+          "type": "string"
+        },
+        "value": {
+          "description": "当前值",
+          "title": "Value",
+          "type": "number"
+        },
+        "threshold": {
+          "description": "阈值",
+          "title": "Threshold",
+          "type": "number"
+        },
+        "status": {
+          "description": "pass/warn/fail",
+          "minLength": 1,
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dimension",
+        "value",
+        "threshold",
+        "status"
+      ],
+      "title": "QualityDetail",
+      "type": "object"
+    },
+    "QualityReport": {
+      "description": "契约质量报告.",
+      "properties": {
+        "precision": {
+          "description": "精确率",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Precision",
+          "type": "number"
+        },
+        "recall": {
+          "description": "召回率",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Recall",
+          "type": "number"
+        },
+        "f1": {
+          "description": "F1 分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "F1",
+          "type": "number"
+        },
+        "warning_level": {
+          "description": "green/yellow/orange/red",
+          "minLength": 1,
+          "title": "Warning Level",
+          "type": "string"
+        },
+        "details": {
+          "description": "维度明细",
+          "items": {
+            "$ref": "#/$defs/QualityDetail"
+          },
+          "title": "Details",
+          "type": "array"
+        }
+      },
+      "required": [
+        "precision",
+        "recall",
+        "f1",
+        "warning_level"
+      ],
+      "title": "QualityReport",
+      "type": "object"
+    },
+    "ResumeEvalResponse": {
+      "description": "简历抽取 F1 评估结果.",
+      "properties": {
+        "success": {
+          "default": true,
+          "description": "评估是否成功",
+          "title": "Success",
+          "type": "boolean"
+        },
+        "total_samples": {
+          "default": 0,
+          "description": "总样本数",
+          "minimum": 0,
+          "title": "Total Samples",
+          "type": "integer"
+        },
+        "precision": {
+          "default": 0.0,
+          "description": "精确率",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Precision",
+          "type": "number"
+        },
+        "recall": {
+          "default": 0.0,
+          "description": "召回率",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Recall",
+          "type": "number"
+        },
+        "f1": {
+          "default": 0.0,
+          "description": "F1 分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "F1",
+          "type": "number"
+        },
+        "macro_f1": {
+          "default": 0.0,
+          "description": "宏 F1 分",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Macro F1",
+          "type": "number"
+        },
+        "warning_level": {
+          "default": "gray",
+          "description": "green/yellow/orange/red/gray",
+          "minLength": 1,
+          "title": "Warning Level",
+          "type": "string"
+        },
+        "per_sample": {
+          "description": "逐样本结果",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Per Sample",
+          "type": "array"
+        },
+        "summary": {
+          "additionalProperties": true,
+          "description": "汇总",
+          "title": "Summary",
+          "type": "object"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "错误信息",
+          "title": "Error"
+        }
+      },
+      "title": "ResumeEvalResponse",
+      "type": "object"
+    }
+  }
+}

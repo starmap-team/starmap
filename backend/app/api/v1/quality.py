@@ -7,66 +7,23 @@ from uuid import UUID
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session
 from app.exceptions import QualityError, StarMapError
 from app.models.extraction_models import ExtractionEvaluationRecord, JDExtractionRecord
+from app.schemas.quality import (
+    ComprehensiveReport,
+    QualityDashboard,
+    QualityDetail,
+    QualityReport,
+    ResumeEvalResponse,
+)
 
 router = APIRouter(prefix="/quality", tags=["质量监控"])
 
 
-class QualityDetail(BaseModel):
-    """质量维度明细。"""
 
-    dimension: str = Field(..., description="质量维度")
-    value: float = Field(..., description="当前值")
-    threshold: float = Field(..., description="阈值")
-    status: str = Field(..., description="pass/warn/fail")
-
-
-class QualityReport(BaseModel):
-    """契约质量报告。"""
-
-    precision: float = Field(..., ge=0, le=1)
-    recall: float = Field(..., ge=0, le=1)
-    f1: float = Field(..., ge=0, le=1)
-    warning_level: str = Field(..., description="green/yellow/orange/red")
-    details: list[QualityDetail] = Field(default_factory=list)
-
-
-class QualityDashboard(BaseModel):
-    """前端质量仪表盘兼容响应。"""
-
-    report: QualityReport
-    total_extractions: int = Field(default=0, ge=0)
-    pending_review: int = Field(default=0, ge=0)
-    hallucination_rate: float = Field(default=0.0, ge=0, le=1)
-    total_nodes: int = Field(default=0, ge=0)
-    total_edges: int = Field(default=0, ge=0)
-    total_positions: int = Field(default=0, ge=0)
-    total_skills: int = Field(default=0, ge=0)
-    avg_trust_score: float = Field(default=0.0, ge=0, le=1)
-    high_trust_ratio: float = Field(default=0.0, ge=0, le=1)
-    trust_distribution: list[dict] = Field(default_factory=list)
-    hallucination_trend: list[dict] = Field(default_factory=list)
-    source_distribution: list[dict] = Field(default_factory=list)
-    weekly_new_nodes: int = Field(default=0, ge=0, description="本周新增节点数")
-    audit_pass_rate: float = Field(default=0.0, ge=0, le=1, description="审核通过率")
-    audit_queue: list[dict] = Field(default_factory=list, description="待审核队列项（id/position/skill/trust）")
-    # Phase 13 一致性审计：区分“未评估”与“质量差”，避免 0/0/0 被误读为红色告警
-    evaluation_count: int = Field(default=0, ge=0, description="已运行的 golden-set 评估记录数")
-    baseline_available: bool = Field(default=False, description="是否存在可信评估基线；False 时 precision/recall/f1 不可信")
-    evaluation_explanation: str = Field(default="", description="面向用户的口径说明（无基线时解释为何指标为 0）")
-
-
-def _status(value: float, threshold: float) -> str:
-    if value >= threshold:
-        return "pass"
-    if value >= threshold * 0.9:
-        return "warn"
-    return "fail"
 
 
 def _warning_level(f1: float, hallucination_rate: float, total_extractions: int = 0) -> str:
@@ -372,30 +329,6 @@ async def get_quality_dashboard(
 # ---------------------------------------------------------------------------
 
 
-class ResumeEvalResponse(BaseModel):
-    """简历抽取 F1 评估结果。"""
-
-    success: bool = Field(default=True)
-    total_samples: int = Field(default=0, ge=0)
-    precision: float = Field(default=0.0, ge=0, le=1)
-    recall: float = Field(default=0.0, ge=0, le=1)
-    f1: float = Field(default=0.0, ge=0, le=1)
-    macro_f1: float = Field(default=0.0, ge=0, le=1)
-    warning_level: str = Field(default="gray", description="green/yellow/orange/red/gray")
-    per_sample: list[dict[str, Any]] = Field(default_factory=list)
-    summary: dict[str, Any] = Field(default_factory=dict)
-    error: str | None = None
-
-
-class ComprehensiveReport(BaseModel):
-    """综合质量报告：JD + 简历评估 + 图谱统计。"""
-
-    jd_report: QualityReport
-    resume_eval: ResumeEvalResponse
-    dashboard_summary: dict[str, Any] = Field(default_factory=dict)
-    overall_score: float = Field(default=0.0, ge=0, le=1)
-    overall_status: str = Field(default="unknown", description="pass/warning/fail/unknown")
-    recommendations: list[str] = Field(default_factory=list)
 
 
 @router.post("/evaluate/resume", response_model=ResumeEvalResponse)

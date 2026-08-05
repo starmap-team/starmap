@@ -59,6 +59,14 @@ from app.schemas.import_jd import (
     ImportRequest,
     ImportResult,
 )
+from app.schemas.judge import (
+    BatchJudgeRequest,
+    BatchJudgeResponse,
+    JudgeRequest,
+    JudgeSampleResponse,
+    PairwiseRequest,
+    PairwiseResponse,
+)
 from app.schemas.learning import (
     AddSkillRequest,
     CreatePlanRequest,
@@ -86,6 +94,19 @@ from app.schemas.position import (
     PositionListResponse,
     PositionNode,
     SkillNode,
+)
+from app.schemas.prompt import (
+    ABResultRequest,
+    ABTestRequest,
+    RegisterVersionRequest,
+    SetActiveRequest,
+)
+from app.schemas.quality import (
+    ComprehensiveReport,
+    QualityDashboard,
+    QualityDetail,
+    QualityReport,
+    ResumeEvalResponse,
 )
 from app.schemas.prompt import (
     ABResultRequest,
@@ -121,6 +142,12 @@ __all__ = [
     "ABTestRequest",
     "RegisterVersionRequest",
     "SetActiveRequest",
+    # quality
+    "ComprehensiveReport",
+    "QualityDashboard",
+    "QualityDetail",
+    "QualityReport",
+    "ResumeEvalResponse",
     # position
     "PositionListResponse",
     "PositionNode",
@@ -140,6 +167,13 @@ __all__ = [
     "ExtractionResult",
     "NormalizedSkill",
     "SkillItem",
+    # judge
+    "BatchJudgeRequest",
+    "BatchJudgeResponse",
+    "JudgeRequest",
+    "JudgeSampleResponse",
+    "PairwiseRequest",
+    "PairwiseResponse",
     # import_jd
     "ImportItem",
     "ImportRequest",
