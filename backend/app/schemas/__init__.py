@@ -54,6 +54,11 @@ from app.schemas.graph import (
     KAPositionsResponse,
     PositionSkillDetailResponse,
 )
+from app.schemas.import_jd import (
+    ImportItem,
+    ImportRequest,
+    ImportResult,
+)
 from app.schemas.learning import (
     AddSkillRequest,
     CreatePlanRequest,
@@ -135,6 +140,10 @@ __all__ = [
     "ExtractionResult",
     "NormalizedSkill",
     "SkillItem",
+    # import_jd
+    "ImportItem",
+    "ImportRequest",
+    "ImportResult",
     # match
     "BatchMatchItem",
     "BatchMatchRequest",

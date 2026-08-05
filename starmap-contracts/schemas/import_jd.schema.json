@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap import_jd schemas",
+  "description": "Auto-generated from backend/app/schemas/import_jd.py",
+  "definitions": {
+    "ImportItem": {
+      "description": "单条 JD 导入项。",
+      "properties": {
+        "job_title": {
+          "description": "职位名称",
+          "maxLength": 200,
+          "title": "Job Title",
+          "type": "string"
+        },
+        "company": {
+          "default": "",
+          "description": "公司名称",
+          "maxLength": 200,
+          "title": "Company",
+          "type": "string"
+        },
+        "clean_text": {
+          "description": "JD 描述/正文",
+          "minLength": 1,
+          "title": "Clean Text",
+          "type": "string"
+        },
+        "source_url": {
+          "default": "",
+          "description": "原始链接",
+          "maxLength": 500,
+          "title": "Source Url",
+          "type": "string"
+        },
+        "location": {
+          "default": "",
+          "description": "工作地点",
+          "title": "Location",
+          "type": "string"
+        },
+        "salary_min": {
+          "default": 0,
+          "description": "最低薪资 (k)",
+          "minimum": 0,
+          "title": "Salary Min",
+          "type": "integer"
+        },
+        "salary_max": {
+          "default": 0,
+          "description": "最高薪资 (k)",
+          "minimum": 0,
+          "title": "Salary Max",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "job_title",
+        "clean_text"
+      ],
+      "title": "ImportItem",
+      "type": "object"
+    },
+    "ImportRequest": {
+      "description": "JSON 导入请求体。",
+      "properties": {
+        "source_name": {
+          "description": "数据源名称 (用户标注)",
+          "maxLength": 100,
+          "title": "Source Name",
+          "type": "string"
+        },
+        "platform": {
+          "default": "manual",
+          "description": "平台标识",
+          "pattern": "^(manual|bosszhipin|lagou|51job|liepin|zhaopin|other)$",
+          "title": "Platform",
+          "type": "string"
+        },
+        "items": {
+          "description": "待导入 JDs",
+          "items": {
+            "$ref": "#/$defs/ImportItem"
+          },
+          "maxItems": 10000,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source_name",
+        "items"
+      ],
+      "title": "ImportRequest",
+      "type": "object"
+    },
+    "ImportResult": {
+      "description": "导入结果统计。",
+      "properties": {
+        "total": {
+          "description": "总数",
+          "title": "Total",
+          "type": "integer"
+        },
+        "inserted": {
+          "description": "新插入",
+          "title": "Inserted",
+          "type": "integer"
+        },
+        "duplicate": {
+          "description": "重复跳过",
+          "title": "Duplicate",
+          "type": "integer"
+        },
+        "errors": {
+          "description": "错误列表 [{row, field, message}]",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "pii_warnings": {
+          "default": 0,
+          "description": "PII 警告条数",
+          "title": "Pii Warnings",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total",
+        "inserted",
+        "duplicate"
+      ],
+      "title": "ImportResult",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "ImportItem": {
+      "description": "单条 JD 导入项。",
+      "properties": {
+        "job_title": {
+          "description": "职位名称",
+          "maxLength": 200,
+          "title": "Job Title",
+          "type": "string"
+        },
+        "company": {
+          "default": "",
+          "description": "公司名称",
+          "maxLength": 200,
+          "title": "Company",
+          "type": "string"
+        },
+        "clean_text": {
+          "description": "JD 描述/正文",
+          "minLength": 1,
+          "title": "Clean Text",
+          "type": "string"
+        },
+        "source_url": {
+          "default": "",
+          "description": "原始链接",
+          "maxLength": 500,
+          "title": "Source Url",
+          "type": "string"
+        },
+        "location": {
+          "default": "",
+          "description": "工作地点",
+          "title": "Location",
+          "type": "string"
+        },
+        "salary_min": {
+          "default": 0,
+          "description": "最低薪资 (k)",
+          "minimum": 0,
+          "title": "Salary Min",
+          "type": "integer"
+        },
+        "salary_max": {
+          "default": 0,
+          "description": "最高薪资 (k)",
+          "minimum": 0,
+          "title": "Salary Max",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "job_title",
+        "clean_text"
+      ],
+      "title": "ImportItem",
+      "type": "object"
+    }
+  }
+}

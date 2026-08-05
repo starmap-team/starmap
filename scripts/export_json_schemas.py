@@ -41,6 +41,9 @@ from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入
     LoginRequest,
     LoginResponse,
     LogoutRequest,
+    ImportItem,
+    ImportRequest,
+    ImportResult,
     ABResultRequest,
     ABTestRequest,
     RegisterVersionRequest,
@@ -120,6 +123,11 @@ SCHEMA_GROUPS: dict[str, list[tuple[str, type]]] = {
         ("ExtractionRequest", ExtractionRequest),
         ("ExtractionResult", ExtractionResult),
         ("SkillItem", SkillItem),
+    ],
+    "import_jd": [
+        ("ImportItem", ImportItem),
+        ("ImportRequest", ImportRequest),
+        ("ImportResult", ImportResult),
     ],
     "prompt": [
         ("ABResultRequest", ABResultRequest),
