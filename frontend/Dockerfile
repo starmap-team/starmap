@@ -12,8 +12,8 @@ ENV LANG=C.UTF-8 \
 
 WORKDIR /app
 
-# 先拷依赖文件利用层缓存
-COPY package.json package-lock.json* ./
+# 先拷依赖文件利用层缓存 (context=仓库根)
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 
 # 复制源码并构建 (context=仓库根; 契约目录供 @contracts alias 构建期解析)
@@ -32,8 +32,8 @@ FROM nginx:alpine AS production
 # 复制构建产物到 Nginx 默认目录
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# 复制 Nginx 配置
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# 复制 Nginx 配置 (context=仓库根)
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 # 非 root 运行 (DEP-04 修复)
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
