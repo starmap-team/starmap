@@ -14,6 +14,11 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import request from '@/api/request'
 import type { GapLevel } from '@/stores/match'
+import { useResponseValidation } from '@/validation/useResponseValidation'
+import loopSchema from '../../../starmap-contracts/schemas/loop.schema.json'
+
+// PLAN-014: 契约响应校验 (DEV warn 不阻断)
+const { validateResponse: validateLoop } = useResponseValidation()
 
 /** Timeout for the loop run API call (LLM extraction can take ~3 minutes) */
 const LOOP_RUN_TIMEOUT_MS = 180_000
@@ -324,7 +329,10 @@ export const useLoopStore = defineStore('loop', () => {
   /** 获取运行状态 */
   async function getStatus(runId: string) {
     try {
-      const data = await request.get(`/loop/status/${runId}`) as Record<string, unknown>
+      const data = validateLoop(
+        await request.get(`/loop/status/${runId}`) as Record<string, unknown>,
+        loopSchema, `/loop/status/${runId}`, 'LoopRunResponse',
+      ) as Record<string, unknown>
       return data
     } catch {
       return null
@@ -334,7 +342,10 @@ export const useLoopStore = defineStore('loop', () => {
   /** 获取历史记录 */
   async function fetchHistory() {
     try {
-      const data = await request.get('/loop/history', { params: { limit: 20 } }) as { items?: LoopHistoryItem[] }
+      const data = validateLoop(
+        await request.get('/loop/history', { params: { limit: 20 } }) as { items?: LoopHistoryItem[] },
+        loopSchema, '/loop/history', 'LoopHistoryResponse',
+      ) as { items?: LoopHistoryItem[] }
       history.value = data.items ?? []
     } catch {
       history.value = []
