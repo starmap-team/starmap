@@ -65,3 +65,52 @@ def test_non_200_returns_empty(monkeypatch, mod):
     """robots 拒绝/网络失败（status 0 或 403）→ 诚实返回空列表。"""
     monkeypatch.setattr(mod, "fetch", lambda url, s, **kw: _FakeFetchResult(text="", status_code=403))
     assert mod.run_sync(max_count=3) == []
+
+
+def test_juejin_routes_through_compliance(monkeypatch):
+    """PLAN-002: 掘金 sitemap spider 必须经 compliance.fetch."""
+    calls: list[str] = []
+    from crawler.spiders import juejin
+
+    sitemap = """<?xml version="1.0"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>https://juejin.cn/sitemap/posts/index1.xml</loc></sitemap>
+</sitemapindex>"""
+    sub = """<?xml version="1.0"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://juejin.cn/post/123</loc></url>
+</urlset>"""
+
+    def _fake_fetch(url: str, source_site: str, **kw: Any) -> _FakeFetchResult:
+        calls.append(source_site)
+        if "index.xml" in url and "index1" not in url:
+            return _FakeFetchResult(text=sitemap, status_code=200)
+        if "index1.xml" in url:
+            return _FakeFetchResult(text=sub, status_code=200)
+        return _FakeFetchResult(text="<html><title>X - 掘金</title><body>" + "正文内容。" * 30 + "</body></html>", status_code=200)
+
+    monkeypatch.setattr(juejin, "fetch", _fake_fetch)
+    items = juejin.run_sync(max_count=2)
+    assert items, "juejin spider 应产出文章"
+    assert all(c == "juejin" for c in calls), "juejin 必须全部经 compliance.fetch"
+
+
+def test_remoteok_routes_through_compliance(monkeypatch):
+    """PLAN-003: RemoteOK spider 必须经 compliance.fetch."""
+    calls: list[str] = []
+    from crawler.spiders import remoteok
+
+    payload = json.dumps([
+        {"success": "placeholder"},
+        {"position": "Backend Engineer", "company": "ACME",
+         "description": "Build APIs with Python and FastAPI experience."},
+    ])
+
+    def _fake_fetch(url: str, source_site: str, **kw: Any) -> _FakeFetchResult:
+        calls.append(source_site)
+        return _FakeFetchResult(text=payload, status_code=200)
+
+    monkeypatch.setattr(remoteok, "fetch", _fake_fetch)
+    items = remoteok.run_sync(max_count=2)
+    assert items, "remoteok spider 应产出职位"
+    assert calls == ["remoteok"], "remoteok 必须经 compliance.fetch 抓取"
