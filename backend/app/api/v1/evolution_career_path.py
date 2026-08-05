@@ -9,31 +9,11 @@ from typing import Annotated
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session
 from app.models.evolution_models import EvolutionPath
-
-
-class CareerPathNode(BaseModel):
-    """A node in the career path graph."""
-
-    position: str
-    similarity: float = 0.0
-    skill_overlap: list[str] = Field(default_factory=list)
-    key_gaps: list[str] = Field(default_factory=list)
-    evidence_count: int = 0
-    direction: str = Field(default="forward", description="forward | lateral | up")
-
-
-class CareerPathResponse(BaseModel):
-    """Career path planning response."""
-
-    origin: str
-    nodes: list[CareerPathNode] = Field(default_factory=list)
-    total_paths: int = 0
-
+from app.schemas.evolution import CareerPathNode, CareerPathResponse
 
 router = APIRouter(tags=["职业路径"])
 

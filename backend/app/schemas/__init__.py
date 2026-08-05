@@ -44,6 +44,10 @@ from app.schemas.dashboard import (
     TrendPoint,
     TrendsResponse,
 )
+from app.schemas.evolution import (
+    CareerPathNode,
+    CareerPathResponse,
+)
 from app.schemas.extract import (
     ExtractionRequest,
     ExtractionResult,
@@ -194,6 +198,8 @@ __all__ = [
     "DataQualityResponse",
     "StageInfo",
     # extract
+    "CareerPathNode",
+    "CareerPathResponse",
     "ExtractionRequest",
     "ExtractionResult",
     "NormalizedSkill",

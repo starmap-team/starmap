@@ -2,6 +2,12 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 
+import { useResponseValidation } from '@/validation/useResponseValidation'
+import evolutionSchema from '../../../starmap-contracts/schemas/evolution.schema.json'
+
+// PLAN-014: 契约响应校验 (DEV warn 不阻断)
+const { validateResponse: validateEvolution } = useResponseValidation()
+
 export interface CompetitivenessData {
   skill: string
   market_demand: number
@@ -72,7 +78,10 @@ export const useLearningAnalyticsStore = defineStore('learningAnalytics', () => 
     careerPathLoading.value = true
     analyticsError.value = null
     try {
-      const data = asRecord(await request.get(`/evolution/career-path/${encodeURIComponent(position)}`))
+      const data = validateEvolution(
+        await request.get(`/evolution/career-path/${encodeURIComponent(position)}`) as Record<string, unknown>,
+        evolutionSchema, `/evolution/career-path/${encodeURIComponent(position)}`, 'CareerPathResponse',
+      ) as Record<string, unknown>
       careerPath.value = (asArray(data.path ?? data.steps)) as CareerPathStep[]
       return careerPath.value
     } catch (e: unknown) {

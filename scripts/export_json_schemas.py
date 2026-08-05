@@ -30,6 +30,8 @@ from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入
     BatchJudgeResponse,
     BatchMatchItem,
     BatchMatchRequest,
+    CareerPathNode,
+    CareerPathResponse,
     ChangePasswordRequest,
     ComprehensiveReport,
     CreatePlanRequest,
@@ -159,6 +161,10 @@ SCHEMA_GROUPS: dict[str, list[tuple[str, type]]] = {
         ("GraphSkillNode", GraphSkillNode),
         ("KAPositionsResponse", KAPositionsResponse),
         ("PositionSkillDetailResponse", PositionSkillDetailResponse),
+    ],
+    "evolution": [
+        ("CareerPathNode", CareerPathNode),
+        ("CareerPathResponse", CareerPathResponse),
     ],
     "extract": [
         ("ExtractionRequest", ExtractionRequest),

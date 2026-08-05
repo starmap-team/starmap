@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap evolution schemas",
+  "description": "Auto-generated from backend/app/schemas/evolution.py",
+  "definitions": {
+    "CareerPathNode": {
+      "description": "A node in the career path graph.",
+      "properties": {
+        "position": {
+          "title": "Position",
+          "type": "string"
+        },
+        "similarity": {
+          "default": 0.0,
+          "title": "Similarity",
+          "type": "number"
+        },
+        "skill_overlap": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Skill Overlap",
+          "type": "array"
+        },
+        "key_gaps": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Key Gaps",
+          "type": "array"
+        },
+        "evidence_count": {
+          "default": 0,
+          "title": "Evidence Count",
+          "type": "integer"
+        },
+        "direction": {
+          "default": "forward",
+          "description": "forward | lateral | up",
+          "title": "Direction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "position"
+      ],
+      "title": "CareerPathNode",
+      "type": "object"
+    },
+    "CareerPathResponse": {
+      "description": "Career path planning response.",
+      "properties": {
+        "origin": {
+          "title": "Origin",
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/CareerPathNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "total_paths": {
+          "default": 0,
+          "title": "Total Paths",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "origin"
+      ],
+      "title": "CareerPathResponse",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "CareerPathNode": {
+      "description": "A node in the career path graph.",
+      "properties": {
+        "position": {
+          "title": "Position",
+          "type": "string"
+        },
+        "similarity": {
+          "default": 0.0,
+          "title": "Similarity",
+          "type": "number"
+        },
+        "skill_overlap": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Skill Overlap",
+          "type": "array"
+        },
+        "key_gaps": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Key Gaps",
+          "type": "array"
+        },
+        "evidence_count": {
+          "default": 0,
+          "title": "Evidence Count",
+          "type": "integer"
+        },
+        "direction": {
+          "default": "forward",
+          "description": "forward | lateral | up",
+          "title": "Direction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "position"
+      ],
+      "title": "CareerPathNode",
+      "type": "object"
+    }
+  }
+}
