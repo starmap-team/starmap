@@ -401,3 +401,13 @@ class LLMClient:
         )
         response = await call_llm_with_fallback(prompt)
         return parse_llm_json_response(response["content"])
+
+    async def generate(self, prompt: str, **_kwargs: Any) -> str:
+        """通用 LLM 调用 (I18N-01 翻译钩子适配接口).
+
+        core/extraction/translation.translate_title_industry 依赖
+        ``generate(prompt, json_mode=True, temperature=0.0)`` 形态;
+        json_mode/temperature 由 prompt 内容承载, 此处不做额外解析.
+        """
+        response = await call_llm_with_fallback(prompt)
+        return response.get("content", "")

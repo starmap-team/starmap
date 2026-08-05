@@ -29,6 +29,7 @@ from app.core.extraction.normalize import (
     extract_dict_skills,
 )
 from app.core.extraction.prompt import get_ab_test, get_active_version, get_prompt
+from app.core.extraction.translation import has_cjk, translate_title_industry  # I18N-01 翻译钩子
 
 # Chinese PII patterns
 _PII_PATTERNS: list[re.Pattern] = [
@@ -392,6 +393,28 @@ class JDExtractionPipeline:
 
         result["success"] = True
         result["data"] = validated.model_dump()
+
+        # Step 8: I18N-01 — 非 CJK 岗位名翻译钩子 (RemoteOK 等英文 JD 源)
+        # 仅当 LLM 返回的 position_name 不含 CJK 才触发 (中文 JD 零成本跳过);
+        # 失败优雅降级 (name_cn 不注入, 前端显"英文原文"标签, 不编造)。
+        pos_name = validated.position_name
+        if pos_name and not has_cjk(pos_name):
+            try:
+                translated = await translate_title_industry(
+                    self.llm_client,
+                    title=pos_name,
+                    industry=getattr(validated, "industry", None),
+                )
+                if translated.get("name_cn"):
+                    result["data"]["name_cn"] = translated["name_cn"]
+                    result["data"]["industry_zh"] = translated.get("industry_zh")
+                    logger.info("I18N-01: translated '{}' -> '{}'", pos_name, translated["name_cn"])
+                else:
+                    result["warnings"].append("Translation skipped: LLM unavailable")
+            except Exception as e:  # noqa: BLE001 — 翻译永不阻断抽取
+                logger.warning("I18N-01 translation failed (graceful): {}", e)
+                result["warnings"].append("Translation skipped: LLM error")
+
         logger.info("JD extraction pipeline complete: {} required, {} preferred skills",
                      len(validated.required_skills), len(validated.preferred_skills))
         return result
