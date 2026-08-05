@@ -59,6 +59,10 @@ from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入
     QualityDetail,
     QualityReport,
     ResumeEvalResponse,
+    LoopHistoryResponse,
+    LoopRunRequest,
+    LoopRunResponse,
+    LoopStepResponse,
     SkillGapInput,
     CreatePlanRequest,
     SkillProgressItem,
@@ -167,6 +171,12 @@ SCHEMA_GROUPS: dict[str, list[tuple[str, type]]] = {
         ("SkillProgressItem", SkillProgressItem),
         ("PhaseInfo", PhaseInfo),
         ("PlanResponse", PlanResponse),
+    ],
+    "loop": [
+        ("LoopRunRequest", LoopRunRequest),
+        ("LoopStepResponse", LoopStepResponse),
+        ("LoopRunResponse", LoopRunResponse),
+        ("LoopHistoryResponse", LoopHistoryResponse),
     ],
     "match": [
         ("PersonSkillInput", PersonSkillInput),

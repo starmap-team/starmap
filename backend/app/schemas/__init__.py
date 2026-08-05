@@ -78,6 +78,12 @@ from app.schemas.learning import (
     SkillProgressItem,
     UpdateProgressRequest,
 )
+from app.schemas.loop import (
+    LoopHistoryResponse,
+    LoopRunRequest,
+    LoopRunResponse,
+    LoopStepResponse,
+)
 from app.schemas.match import (
     BatchMatchItem,
     BatchMatchRequest,
@@ -178,6 +184,11 @@ __all__ = [
     "ImportItem",
     "ImportRequest",
     "ImportResult",
+    # loop
+    "LoopHistoryResponse",
+    "LoopRunRequest",
+    "LoopRunResponse",
+    "LoopStepResponse",
     # match
     "BatchMatchItem",
     "BatchMatchRequest",

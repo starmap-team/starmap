@@ -10,7 +10,6 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.pipeline.loop_orchestrator import (
@@ -19,6 +18,12 @@ from app.core.pipeline.loop_orchestrator import (
     get_loop_status,
 )
 from app.dependencies import get_current_user, get_db_session
+from app.schemas.loop import (
+    LoopHistoryResponse,
+    LoopRunRequest,
+    LoopRunResponse,
+    LoopStepResponse,
+)
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 router = APIRouter(prefix="/loop", tags=["loop"])
@@ -27,54 +32,8 @@ router = APIRouter(prefix="/loop", tags=["loop"])
 _orchestrator = LoopOrchestrator()
 
 
-class LoopRunRequest(BaseModel):
-    """Request body for POST /loop/run."""
-
-    jd_text: str = Field(..., min_length=1, description="Raw JD text to process")
-    target_position: str | None = Field(
-        default=None, description="Target position name for match diagnosis (optional, LOOP-09)"
-    )
-
-    @field_validator("target_position")
-    @classmethod
-    def coerce_empty_string(cls, v: str | None) -> str | None:
-        """Convert empty/whitespace-only strings to None so the field is truly optional."""
-        if v is not None and not v.strip():
-            return None
-        return v
 
 
-class LoopStepResponse(BaseModel):
-    """Single step result in the loop timeline."""
-
-    step: int
-    name: str
-    status: str
-    data: dict = Field(default_factory=dict)
-    error: str | None = None
-    duration_seconds: float = 0.0
-    note: str | None = None
-
-
-class LoopRunResponse(BaseModel):
-    """Response for POST /loop/run."""
-
-    run_id: str
-    jd_text: str
-    target_position: str | None
-    status: str
-    steps: list[LoopStepResponse] = Field(default_factory=list)
-    extracted_skills: list[dict] = Field(default_factory=list)
-    graph_update: dict = Field(default_factory=dict)
-    match_result: dict = Field(default_factory=dict)
-    learning_path: dict = Field(default_factory=dict)
-    total_duration_seconds: float = 0.0
-
-
-class LoopHistoryResponse(BaseModel):
-    """Response for GET /loop/history."""
-
-    items: list[dict] = Field(default_factory=list)
 
 
 @router.post("/run", response_model=LoopRunResponse)

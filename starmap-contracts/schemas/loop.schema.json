@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap loop schemas",
+  "description": "Auto-generated from backend/app/schemas/loop.py",
+  "definitions": {
+    "LoopRunRequest": {
+      "description": "Request body for POST /loop/run.",
+      "properties": {
+        "jd_text": {
+          "description": "Raw JD text to process",
+          "minLength": 1,
+          "title": "Jd Text",
+          "type": "string"
+        },
+        "target_position": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target position name for match diagnosis (optional, LOOP-09)",
+          "title": "Target Position"
+        }
+      },
+      "required": [
+        "jd_text"
+      ],
+      "title": "LoopRunRequest",
+      "type": "object"
+    },
+    "LoopStepResponse": {
+      "description": "Single step result in the loop timeline.",
+      "properties": {
+        "step": {
+          "description": "步骤序号",
+          "minimum": 0,
+          "title": "Step",
+          "type": "integer"
+        },
+        "name": {
+          "description": "步骤名",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "description": "pending/running/done/failed",
+          "minLength": 1,
+          "title": "Status",
+          "type": "string"
+        },
+        "data": {
+          "additionalProperties": true,
+          "description": "步骤输出",
+          "title": "Data",
+          "type": "object"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "错误信息",
+          "title": "Error"
+        },
+        "duration_seconds": {
+          "default": 0.0,
+          "description": "步骤耗时 (秒)",
+          "minimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "备注",
+          "title": "Note"
+        }
+      },
+      "required": [
+        "step",
+        "name",
+        "status"
+      ],
+      "title": "LoopStepResponse",
+      "type": "object"
+    },
+    "LoopRunResponse": {
+      "description": "Response for POST /loop/run.",
+      "properties": {
+        "run_id": {
+          "description": "运行 ID",
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "jd_text": {
+          "description": "原始 JD 文本",
+          "title": "Jd Text",
+          "type": "string"
+        },
+        "target_position": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "目标岗位",
+          "title": "Target Position"
+        },
+        "status": {
+          "description": "运行状态",
+          "minLength": 1,
+          "title": "Status",
+          "type": "string"
+        },
+        "steps": {
+          "description": "步骤时间线",
+          "items": {
+            "$ref": "#/$defs/LoopStepResponse"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "extracted_skills": {
+          "description": "抽取技能",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Extracted Skills",
+          "type": "array"
+        },
+        "graph_update": {
+          "additionalProperties": true,
+          "description": "图谱更新结果",
+          "title": "Graph Update",
+          "type": "object"
+        },
+        "match_result": {
+          "additionalProperties": true,
+          "description": "匹配结果",
+          "title": "Match Result",
+          "type": "object"
+        },
+        "learning_path": {
+          "additionalProperties": true,
+          "description": "学习路径",
+          "title": "Learning Path",
+          "type": "object"
+        },
+        "total_duration_seconds": {
+          "default": 0.0,
+          "description": "总耗时 (秒)",
+          "minimum": 0,
+          "title": "Total Duration Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "run_id",
+        "jd_text",
+        "status"
+      ],
+      "title": "LoopRunResponse",
+      "type": "object"
+    },
+    "LoopHistoryResponse": {
+      "description": "Response for GET /loop/history.",
+      "properties": {
+        "items": {
+          "description": "历史运行记录",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "LoopHistoryResponse",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "LoopStepResponse": {
+      "description": "Single step result in the loop timeline.",
+      "properties": {
+        "step": {
+          "description": "步骤序号",
+          "minimum": 0,
+          "title": "Step",
+          "type": "integer"
+        },
+        "name": {
+          "description": "步骤名",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "description": "pending/running/done/failed",
+          "minLength": 1,
+          "title": "Status",
+          "type": "string"
+        },
+        "data": {
+          "additionalProperties": true,
+          "description": "步骤输出",
+          "title": "Data",
+          "type": "object"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "错误信息",
+          "title": "Error"
+        },
+        "duration_seconds": {
+          "default": 0.0,
+          "description": "步骤耗时 (秒)",
+          "minimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "备注",
+          "title": "Note"
+        }
+      },
+      "required": [
+        "step",
+        "name",
+        "status"
+      ],
+      "title": "LoopStepResponse",
+      "type": "object"
+    }
+  }
+}
