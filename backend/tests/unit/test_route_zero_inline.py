@@ -50,6 +50,11 @@ PASS_ROUTES = {
     "app.api.v1.evolution_emerging_alerts",  # PLAN-014 批次11 已零内联
     "app.api.v1.evolution_industry_report",  # PLAN-014 批次11 已零内联
     "app.api.v1.evolution",  # PLAN-014 批次12 已零内联
+    "app.api.v1.admin_graph_nodes",  # PLAN-014 批次13 已零内联
+    "app.api.v1.admin_data_truth",  # PLAN-014 批次13 已零内联
+    "app.api.v1.admin_users",  # PLAN-014 批次14 已零内联
+    "app.api.v1.admin",  # PLAN-014 批次14 已零内联
+    "app.api.v1.resume",  # 实际零内联 (误标 xfail, 转正)
 }
 
 

@@ -5,32 +5,18 @@ Registered to admin.py's main router (prefix="/admin"), final paths like /admin/
 """
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 
 import neo4j.exceptions
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
-from pydantic import BaseModel, Field
 
 from app.core.matching.constants import ALLOWED_NODE_LABELS
 from app.dependencies import get_neo4j_driver
+from app.schemas.admin import GraphNodeItem, GraphNodeListResponse
 from app.services.admin_graph_service import GraphNodeService
 
 _ALLOWED_LABELS = ALLOWED_NODE_LABELS
-
-
-class GraphNodeItem(BaseModel):
-    id: str = Field(default="")
-    type: Literal["Position", "Skill", "Tool", "KnowledgeArea", "Domain", "Industry", "Certificate", "LearningResource"] = Field(..., description="Node label")
-    name: str = Field(..., min_length=1, max_length=200)
-    properties: dict[str, Any] = Field(default_factory=dict)
-    status: str = Field(default="approved")
-    created_at: str | None = None
-
-
-class GraphNodeListResponse(BaseModel):
-    items: list[GraphNodeItem] = Field(default_factory=list)
-    total: int = 0
 
 
 router = APIRouter(tags=["graph-nodes"])

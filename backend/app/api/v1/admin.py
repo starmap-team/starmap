@@ -11,11 +11,20 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
-from pydantic import BaseModel, Field
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver, require_admin
+from app.schemas.admin import (
+    AuditQueueResponse,
+    AuditUpdateRequest,
+    BatchAuditRequest,
+    PipelineStatusResponse,
+    PipelineTriggerResponse,
+    ReconcileResult,
+    ReviewActionRequest,
+    ReviewListResponse,
+)
 from app.services import review_service
 from app.services.admin_audit_service import (
     AdminStatsResponse,
@@ -43,24 +52,6 @@ router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(requir
 # ── Request / Response models (HTTP-layer only) ──
 
 
-class AuditUpdateRequest(BaseModel):
-    """Partial update for a review-queue item."""
-
-    name: str | None = Field(default=None, min_length=1)
-    trust: int | None = Field(default=None, ge=0, le=100)
-
-
-class BatchAuditRequest(BaseModel):
-    """Batch approve or reject multiple review queue items."""
-
-    item_ids: list[int] = Field(..., min_length=1, max_length=100)
-    action: Literal["approve", "reject"]
-
-
-class AuditQueueResponse(BaseModel):
-    items: list[AuditItem] = Field(default_factory=list)
-
-
 # ── Helper: domain exception → HTTP ──
 
 
@@ -77,19 +68,6 @@ async def get_admin_stats(
 ) -> AdminStatsResponse:
     """Admin overview stats."""
     return await build_admin_stats(session)
-
-
-class ReconcileResult(BaseModel):
-    """Reconcile 操作结果。"""
-    positions_synced: int = Field(default=0, description="Position 节点同步数")
-    skills_synced: int = Field(default=0, description="Skill 节点同步数")
-    orphans_pruned: int = Field(default=0, description="孤儿节点剪枝数")
-    positions_in_neo4j: int = Field(default=0, description="Neo4j 当前 Position 数")
-    skills_in_neo4j: int = Field(default=0, description="Neo4j 当前 Skill 数")
-    positions_in_pg: int = Field(default=0, description="PG 当前 Position 数")
-    skills_in_pg: int = Field(default=0, description="PG 当前 Skill 数")
-    duration_ms: int = Field(default=0, description="执行耗时（毫秒）")
-    health: str = Field(default="ok", description="健康度: ok/warn/critical")
 
 
 @router.post("/reconcile-neo4j", response_model=ReconcileResult, dependencies=[Depends(require_admin)])
@@ -251,19 +229,6 @@ async def batch_audit_endpoint(
 # ══════════════════════════════════════════════════════════════
 
 
-class ReviewListResponse(BaseModel):
-    """Unified review queue: position + skill entities, with status filter."""
-
-    items: list[dict[str, Any]] = Field(default_factory=list)
-    total: int = Field(default=0, ge=0)
-
-
-class ReviewActionRequest(BaseModel):
-    """Body for submit/approve/reject/unpublish actions."""
-
-    reason: str | None = Field(default=None, max_length=2000)
-
-
 # entity_type → (service module, "skill"|"position")
 _REVIEW_TYPE_MAP = {
     "position": "position",
@@ -423,21 +388,6 @@ async def get_review_stats(
 
 
 # ── Pipeline management ──
-
-
-class PipelineStatusResponse(BaseModel):
-    """Pipeline status + data health summary."""
-
-    recent_runs: list[dict[str, Any]] = Field(default_factory=list)
-    data_stats: dict[str, Any] = Field(default_factory=dict)
-
-
-class PipelineTriggerResponse(BaseModel):
-    """Full pipeline trigger response."""
-
-    run_id: str
-    status: str
-    message: str
 
 
 @router.get("/pipeline/status", response_model=PipelineStatusResponse)

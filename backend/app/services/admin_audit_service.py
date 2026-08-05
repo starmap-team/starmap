@@ -37,13 +37,7 @@ class AuditItemNotFound(Exception):  # noqa: N818
 
 from pydantic import BaseModel, Field  # noqa: E402
 
-
-class AuditItem(BaseModel):
-    id: int
-    type: str
-    name: str
-    trust: int = Field(ge=0, le=100)
-    status: str
+from app.schemas.admin import AuditItem  # noqa: E402
 
 
 class AdminStatsResponse(BaseModel):

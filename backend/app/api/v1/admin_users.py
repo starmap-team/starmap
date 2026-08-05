@@ -17,12 +17,17 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_current_user, get_db_session
 from app.models.audit_models import AuditEventRecord
+from app.schemas.admin import (
+    AdminResetPasswordRequest,
+    CreateUserRequest,
+    DeleteUserRequest,
+    UpdateUserRequest,
+)
 from app.services import auth_service
 
 router = APIRouter(prefix="/admin", tags=["用户管理(管理员)"])
@@ -30,31 +35,6 @@ router = APIRouter(prefix="/admin", tags=["用户管理(管理员)"])
 # ═══════════════════════════════════════════════════════════════
 # Schemas
 # ═══════════════════════════════════════════════════════════════
-
-
-class CreateUserRequest(BaseModel):
-    username: str = Field(..., min_length=1, max_length=64)
-    password: str = Field(..., min_length=auth_service.MIN_PASSWORD_LENGTH, max_length=128)
-    role: str = Field(..., pattern="^(admin|user)$")
-    email: EmailStr | None = None
-    must_change_password: bool = True
-
-
-class UpdateUserRequest(BaseModel):
-    role: str | None = Field(default=None, pattern="^(admin|user)$")
-    is_active: bool | None = None
-    must_change_password: bool | None = None
-    email: EmailStr | None = None
-
-
-class AdminResetPasswordRequest(BaseModel):
-    new_password: str = Field(
-        ..., min_length=auth_service.MIN_PASSWORD_LENGTH, max_length=128
-    )
-
-
-class DeleteUserRequest(BaseModel):
-    reason: str | None = Field(default=None, max_length=255)
 
 
 def _require_admin(user: dict[str, Any] = Depends(get_current_user)) -> str:
@@ -228,19 +208,6 @@ async def admin_reset_password(
 # ═══════════════════════════════════════════════════════════════
 # Audit log query
 # ═══════════════════════════════════════════════════════════════
-
-
-class AuditEventOut(BaseModel):
-    id: str
-    event: str
-    actor: str
-    action: str
-    detail: str
-    ip: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 @router.get("/audit-events")

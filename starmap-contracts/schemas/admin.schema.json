@@ -1,0 +1,793 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap admin schemas",
+  "description": "Auto-generated from backend/app/schemas/admin.py",
+  "definitions": {
+    "GraphNodeItem": {
+      "properties": {
+        "id": {
+          "default": "",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "description": "Node label",
+          "enum": [
+            "Position",
+            "Skill",
+            "Tool",
+            "KnowledgeArea",
+            "Domain",
+            "Industry",
+            "Certificate",
+            "LearningResource"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "title": "Properties"
+        },
+        "status": {
+          "default": "approved",
+          "title": "Status",
+          "type": "string"
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "title": "GraphNodeItem",
+      "type": "object"
+    },
+    "GraphNodeListResponse": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/GraphNodeItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "total": {
+          "default": 0,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "title": "GraphNodeListResponse",
+      "type": "object"
+    },
+    "HealthMetrics": {
+      "description": "Phase 5 Step 4: 同步健康度指标。",
+      "properties": {
+        "orphan_positions": {
+          "default": 0,
+          "description": "Neo4j 中 PG 找不到的 Position 节点数",
+          "title": "Orphan Positions",
+          "type": "integer"
+        },
+        "orphan_skills": {
+          "default": 0,
+          "description": "Neo4j 中 PG 找不到的 Skill 节点数",
+          "title": "Orphan Skills",
+          "type": "integer"
+        },
+        "last_reconcile_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "最近一次 reconcile 时间（ISO）",
+          "title": "Last Reconcile At"
+        },
+        "reconcile_status": {
+          "default": "unknown",
+          "description": "ok | warn | critical | unknown",
+          "title": "Reconcile Status",
+          "type": "string"
+        },
+        "sync_health": {
+          "default": "ok",
+          "description": "ok | warn | critical",
+          "title": "Sync Health",
+          "type": "string"
+        }
+      },
+      "title": "HealthMetrics",
+      "type": "object"
+    },
+    "SourceCount": {
+      "description": "单数据源的某个指标。",
+      "properties": {
+        "value": {
+          "title": "Value",
+          "type": "integer"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "source"
+      ],
+      "title": "SourceCount",
+      "type": "object"
+    },
+    "TruthReport": {
+      "description": "完整数据源真理报告。",
+      "properties": {
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/TruthRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "health": {
+          "$ref": "#/$defs/HealthMetrics"
+        },
+        "generated_at": {
+          "title": "Generated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rows",
+        "health",
+        "generated_at"
+      ],
+      "title": "TruthReport",
+      "type": "object"
+    },
+    "TruthRow": {
+      "description": "一个指标的三个数据源对比。",
+      "properties": {
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "api_value": {
+          "title": "Api Value",
+          "type": "integer"
+        },
+        "postgres_value": {
+          "title": "Postgres Value",
+          "type": "integer"
+        },
+        "neo4j_value": {
+          "title": "Neo4J Value",
+          "type": "integer"
+        },
+        "diff_pct": {
+          "title": "Diff Pct",
+          "type": "number"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric",
+        "description",
+        "api_value",
+        "postgres_value",
+        "neo4j_value",
+        "diff_pct",
+        "status",
+        "explanation"
+      ],
+      "title": "TruthRow",
+      "type": "object"
+    },
+    "AdminResetPasswordRequest": {
+      "properties": {
+        "new_password": {
+          "maxLength": 128,
+          "minLength": 8,
+          "title": "New Password",
+          "type": "string"
+        }
+      },
+      "required": [
+        "new_password"
+      ],
+      "title": "AdminResetPasswordRequest",
+      "type": "object"
+    },
+    "AuditEventOut": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "event": {
+          "title": "Event",
+          "type": "string"
+        },
+        "actor": {
+          "title": "Actor",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "ip": {
+          "title": "Ip",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "event",
+        "actor",
+        "action",
+        "detail",
+        "ip",
+        "created_at"
+      ],
+      "title": "AuditEventOut",
+      "type": "object"
+    },
+    "AuditItem": {
+      "description": "审核队列条目 (原 admin_audit_service 定义, 迁入集中契约)。",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "trust": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Trust",
+          "type": "integer"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "name",
+        "trust",
+        "status"
+      ],
+      "title": "AuditItem",
+      "type": "object"
+    },
+    "AuditQueueResponse": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/AuditItem"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "AuditQueueResponse",
+      "type": "object"
+    },
+    "BatchAuditRequest": {
+      "description": "Batch approve or reject multiple review queue items.",
+      "properties": {
+        "item_ids": {
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Item Ids",
+          "type": "array"
+        },
+        "action": {
+          "enum": [
+            "approve",
+            "reject"
+          ],
+          "title": "Action",
+          "type": "string"
+        }
+      },
+      "required": [
+        "item_ids",
+        "action"
+      ],
+      "title": "BatchAuditRequest",
+      "type": "object"
+    },
+    "CreateUserRequest": {
+      "properties": {
+        "username": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Username",
+          "type": "string"
+        },
+        "password": {
+          "maxLength": 128,
+          "minLength": 8,
+          "title": "Password",
+          "type": "string"
+        },
+        "role": {
+          "pattern": "^(admin|user)$",
+          "title": "Role",
+          "type": "string"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "format": "email",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email"
+        },
+        "must_change_password": {
+          "default": true,
+          "title": "Must Change Password",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "username",
+        "password",
+        "role"
+      ],
+      "title": "CreateUserRequest",
+      "type": "object"
+    },
+    "DeleteUserRequest": {
+      "properties": {
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "title": "DeleteUserRequest",
+      "type": "object"
+    },
+    "PipelineTriggerResponse": {
+      "description": "Full pipeline trigger response.",
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "status",
+        "message"
+      ],
+      "title": "PipelineTriggerResponse",
+      "type": "object"
+    },
+    "ReconcileResult": {
+      "description": "Reconcile 操作结果。",
+      "properties": {
+        "positions_synced": {
+          "default": 0,
+          "description": "Position 节点同步数",
+          "title": "Positions Synced",
+          "type": "integer"
+        },
+        "skills_synced": {
+          "default": 0,
+          "description": "Skill 节点同步数",
+          "title": "Skills Synced",
+          "type": "integer"
+        },
+        "orphans_pruned": {
+          "default": 0,
+          "description": "孤儿节点剪枝数",
+          "title": "Orphans Pruned",
+          "type": "integer"
+        },
+        "positions_in_neo4j": {
+          "default": 0,
+          "description": "Neo4j 当前 Position 数",
+          "title": "Positions In Neo4J",
+          "type": "integer"
+        },
+        "skills_in_neo4j": {
+          "default": 0,
+          "description": "Neo4j 当前 Skill 数",
+          "title": "Skills In Neo4J",
+          "type": "integer"
+        },
+        "positions_in_pg": {
+          "default": 0,
+          "description": "PG 当前 Position 数",
+          "title": "Positions In Pg",
+          "type": "integer"
+        },
+        "skills_in_pg": {
+          "default": 0,
+          "description": "PG 当前 Skill 数",
+          "title": "Skills In Pg",
+          "type": "integer"
+        },
+        "duration_ms": {
+          "default": 0,
+          "description": "执行耗时（毫秒）",
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "health": {
+          "default": "ok",
+          "description": "健康度: ok/warn/critical",
+          "title": "Health",
+          "type": "string"
+        }
+      },
+      "title": "ReconcileResult",
+      "type": "object"
+    },
+    "ReviewActionRequest": {
+      "description": "Body for submit/approve/reject/unpublish actions.",
+      "properties": {
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "title": "ReviewActionRequest",
+      "type": "object"
+    },
+    "ReviewListResponse": {
+      "description": "Unified review queue: position + skill entities, with status filter.",
+      "properties": {
+        "items": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "total": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "title": "ReviewListResponse",
+      "type": "object"
+    },
+    "UpdateUserRequest": {
+      "properties": {
+        "role": {
+          "anyOf": [
+            {
+              "pattern": "^(admin|user)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "is_active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Active"
+        },
+        "must_change_password": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Must Change Password"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "format": "email",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email"
+        }
+      },
+      "title": "UpdateUserRequest",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "GraphNodeItem": {
+      "properties": {
+        "id": {
+          "default": "",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "description": "Node label",
+          "enum": [
+            "Position",
+            "Skill",
+            "Tool",
+            "KnowledgeArea",
+            "Domain",
+            "Industry",
+            "Certificate",
+            "LearningResource"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "title": "Properties"
+        },
+        "status": {
+          "default": "approved",
+          "title": "Status",
+          "type": "string"
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "title": "GraphNodeItem",
+      "type": "object"
+    },
+    "HealthMetrics": {
+      "description": "Phase 5 Step 4: 同步健康度指标。",
+      "properties": {
+        "orphan_positions": {
+          "default": 0,
+          "description": "Neo4j 中 PG 找不到的 Position 节点数",
+          "title": "Orphan Positions",
+          "type": "integer"
+        },
+        "orphan_skills": {
+          "default": 0,
+          "description": "Neo4j 中 PG 找不到的 Skill 节点数",
+          "title": "Orphan Skills",
+          "type": "integer"
+        },
+        "last_reconcile_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "最近一次 reconcile 时间（ISO）",
+          "title": "Last Reconcile At"
+        },
+        "reconcile_status": {
+          "default": "unknown",
+          "description": "ok | warn | critical | unknown",
+          "title": "Reconcile Status",
+          "type": "string"
+        },
+        "sync_health": {
+          "default": "ok",
+          "description": "ok | warn | critical",
+          "title": "Sync Health",
+          "type": "string"
+        }
+      },
+      "title": "HealthMetrics",
+      "type": "object"
+    },
+    "TruthRow": {
+      "description": "一个指标的三个数据源对比。",
+      "properties": {
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "api_value": {
+          "title": "Api Value",
+          "type": "integer"
+        },
+        "postgres_value": {
+          "title": "Postgres Value",
+          "type": "integer"
+        },
+        "neo4j_value": {
+          "title": "Neo4J Value",
+          "type": "integer"
+        },
+        "diff_pct": {
+          "title": "Diff Pct",
+          "type": "number"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric",
+        "description",
+        "api_value",
+        "postgres_value",
+        "neo4j_value",
+        "diff_pct",
+        "status",
+        "explanation"
+      ],
+      "title": "TruthRow",
+      "type": "object"
+    },
+    "AuditItem": {
+      "description": "审核队列条目 (原 admin_audit_service 定义, 迁入集中契约)。",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "integer"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "trust": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Trust",
+          "type": "integer"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "name",
+        "trust",
+        "status"
+      ],
+      "title": "AuditItem",
+      "type": "object"
+    }
+  }
+}

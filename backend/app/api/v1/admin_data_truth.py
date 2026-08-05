@@ -8,12 +8,12 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.models.extraction_models import PositionRecord, SkillRecord
+from app.schemas.admin import HealthMetrics, TruthReport, TruthRow
 
 # PLAN-007a (NEW-01): /admin/* 端点必须叠加 require_admin，
 # 此前仅挂在 api_router 的 get_current_user 上，任意登录用户可读三口径对账数据。
@@ -22,40 +22,6 @@ router = APIRouter(
     dependencies=[Depends(require_admin)],
     tags=["数据源诊断"],
 )
-
-
-class SourceCount(BaseModel):
-    """单数据源的某个指标。"""
-    value: int
-    source: str  # e.g., "api://graph/overview", "postgres://position_records", "neo4j://Position"
-
-
-class TruthRow(BaseModel):
-    """一个指标的三个数据源对比。"""
-    metric: str                          # "岗位总数"
-    description: str                     # "用户可见的岗位记录数"
-    api_value: int                       # API endpoint 返回值
-    postgres_value: int                  # PostgreSQL 直查
-    neo4j_value: int                      # Neo4j 直查
-    diff_pct: float                      # (max - min) / max * 100
-    status: str                          # "ok" | "warn" | "critical"
-    explanation: str                     # 给用户看的中文说明
-
-
-class HealthMetrics(BaseModel):
-    """Phase 5 Step 4: 同步健康度指标。"""
-    orphan_positions: int = Field(0, description="Neo4j 中 PG 找不到的 Position 节点数")
-    orphan_skills: int = Field(0, description="Neo4j 中 PG 找不到的 Skill 节点数")
-    last_reconcile_at: str | None = Field(None, description="最近一次 reconcile 时间（ISO）")
-    reconcile_status: str = Field("unknown", description="ok | warn | critical | unknown")
-    sync_health: str = Field("ok", description="ok | warn | critical")
-
-
-class TruthReport(BaseModel):
-    """完整数据源真理报告。"""
-    rows: list[TruthRow]
-    health: HealthMetrics
-    generated_at: str
 
 
 def _calc_status(values: list[int]) -> tuple[float, str]:
