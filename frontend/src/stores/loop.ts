@@ -277,8 +277,9 @@ export const useLoopStore = defineStore('loop', () => {
       steps[1].duration_ms = Math.round(totalTime * 0.25)
       steps[1].data = {
         skills: data.extracted_skills ?? data.required_skills ?? [],
-        confidence: data.confidence ?? 0.85,
-        hallucination_score: data.hallucination_score ?? 0.1,
+        // PLAN-006③ 红线: 后端无值时不再编造 0.85/0.1, 交 undefined 由展示层显"未评估"
+        confidence: data.confidence ?? undefined,
+        hallucination_score: data.hallucination_score ?? undefined,
       }
     }
 

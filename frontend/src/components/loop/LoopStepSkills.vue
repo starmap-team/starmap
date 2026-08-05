@@ -36,14 +36,14 @@ defineProps<{
               size="small"
               effect="plain"
             >
-              置信度: {{ ((step.data.confidence ?? 0) * 100).toFixed(0) }}%
+              置信度: {{ step.data.confidence == null ? '未评估' : `${(step.data.confidence * 100).toFixed(0)}%` }}
             </el-tag>
             <el-tag
-              :type="(step.data.hallucination_score ?? 0) > 0.3 ? 'warning' : 'success'"
+              :type="step.data.hallucination_score == null ? 'info' : (step.data.hallucination_score > 0.3 ? 'warning' : 'success')"
               size="small"
               effect="plain"
             >
-              幻觉评分: {{ ((step.data.hallucination_score ?? 0) * 100).toFixed(0) }}%
+              幻觉评分: {{ step.data.hallucination_score == null ? '未评估' : `${(step.data.hallucination_score * 100).toFixed(0)}%` }}
             </el-tag>
           </div>
         </div>

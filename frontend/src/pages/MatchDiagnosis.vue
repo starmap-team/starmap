@@ -197,7 +197,9 @@ async function handleStartDiagnosis() {
         ...skillNames.map((s: string) => ({
           name: s,
           matched: matchedSet.has(s),
-          score: matchedSet.has(s) ? result.match_score ?? 0.85 : 0,
+          // PLAN-006③ 红线: 后端无 match_score 时不再编造 0.85;
+          // SkillMatchAnimation 对 score===undefined 会隐藏百分比展示
+          score: matchedSet.has(s) ? result.match_score : 0,
         })),
       ]
       for (const g of (result.skill_gap_detail ?? [])) {

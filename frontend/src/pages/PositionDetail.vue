@@ -24,7 +24,7 @@ interface SkillItem {
   name: string
   category: string
   proficiency: string
-  confidence: number
+  confidence: number | null
   source_count: number
 }
 
@@ -109,7 +109,8 @@ onMounted(async () => {
       name: s.name ?? '',
       category: s.category ?? 'hard_skill',
       proficiency: s.proficiency ?? '熟悉',
-      confidence: s.confidence ?? 1.0,
+      // PLAN-006③ 红线: 后端无置信度时不再编造 1.0, 显示"未评估"
+      confidence: s.confidence ?? null,
       source_count: s.source_count ?? 0,
     }))
   } catch {
@@ -271,7 +272,7 @@ onMounted(async () => {
                 width="90"
               >
                 <template #default="{ row }">
-                  {{ (row.confidence * 100).toFixed(0) }}%
+                  {{ row.confidence == null ? '未评估' : `${(row.confidence * 100).toFixed(0)}%` }}
                 </template>
               </el-table-column>
               <el-table-column

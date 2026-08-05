@@ -90,15 +90,21 @@ function getErrorMsg(e: unknown): string {
 
 /** Map backend PlanResponse to frontend LearningPlan */
 function mapPlanResponse(data: PlanResponseRaw): LearningPlan {
-  const skills: SkillProgress[] = (data.skills ?? []).map((s) => ({
-    skill: s.skill_name ?? s.skill ?? '',
-    status: (s.status as SkillProgress['status']) ?? 'not_started',
-    progress_pct: s.progress_pct ?? 0,
-    estimated_hours: s.estimated_hours ?? 0,
-    prerequisites: s.prerequisites ?? [],
-    current_level: s.importance === 'required' ? 2 : 1,
-    target_level: s.importance === 'required' ? 5 : 3,
-  }))
+  const skills: SkillProgress[] = (data.skills ?? []).map((s) => {
+    const progress_pct = s.progress_pct ?? 0
+    const target_level = s.importance === 'required' ? 5 : 3
+    return {
+      skill: s.skill_name ?? s.skill ?? '',
+      status: (s.status as SkillProgress['status']) ?? 'not_started',
+      progress_pct,
+      estimated_hours: s.estimated_hours ?? 0,
+      prerequisites: s.prerequisites ?? [],
+      // PLAN-006③ 红线: current_level 不再按 importance 编造(2/1)，
+      // 改由真实学习进度 progress_pct 派生（0% → 0 级，100% → target 级）
+      current_level: Math.round((progress_pct / 100) * target_level),
+      target_level,
+    }
+  })
 
   const path: LearningPathItem[] = (data.phases ?? []).flatMap((phase) =>
     (phase.skills ?? []).map((skillName) => {
