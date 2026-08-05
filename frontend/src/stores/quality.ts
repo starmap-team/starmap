@@ -4,9 +4,14 @@ import request from '@/api/request'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import type { QualityAlert } from '@/types/quality'
+import { useResponseValidation } from '@/validation/useResponseValidation'
+import qualitySchema from '../../../starmap-contracts/schemas/quality.schema.json'
 
 // Re-export for backward compatibility
 export type { QualityAlert } from '@/types/quality'
+
+// PLAN-014: 契约响应校验 (DEV warn 不阻断)
+const { validateResponse: validateQuality } = useResponseValidation()
 
 export interface QualityMetrics {
   precision: number
@@ -90,9 +95,15 @@ export const useQualityStore = defineStore('quality', () => {
     try {
       let data: Record<string, unknown>
       try {
-        data = (await request.get('/quality/dashboard')) as Record<string, unknown>
+        data = validateQuality(
+          await request.get('/quality/dashboard') as Record<string, unknown>,
+          qualitySchema, '/quality/dashboard', 'QualityDashboard',
+        ) as Record<string, unknown>
       } catch {
-        data = (await request.get('/quality/report')) as Record<string, unknown>
+        data = validateQuality(
+          await request.get('/quality/report') as Record<string, unknown>,
+          qualitySchema, '/quality/report', 'QualityReport',
+        ) as Record<string, unknown>
       }
       const merged = { ...defaultMetrics() }
       const report = (data as Record<string, unknown>).report as Record<string, unknown> | undefined

@@ -7,9 +7,14 @@ import { ref } from 'vue'
 import request from '@/api/request'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import type { EmergingSkill } from '@/types/evolution'
+import { useResponseValidation } from '@/validation/useResponseValidation'
+import dashboardSchema from '../../../starmap-contracts/schemas/dashboard.schema.json'
 
 // Re-export for backward compatibility
 export type { EmergingSkill } from '@/types/evolution'
+
+// PLAN-014: 契约响应校验 (DEV warn 不阻断)
+const { validateResponse: validateDashboard } = useResponseValidation()
 
 // ── 类型定义 ──
 
@@ -97,7 +102,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
     loading.value = true
     error.value = null
     try {
-      const raw = await request.get('/dashboard/overview') as Record<string, unknown>
+      const raw = validateDashboard(
+        await request.get('/dashboard/overview') as Record<string, unknown>,
+        dashboardSchema, '/dashboard/overview', 'OverviewResponse',
+      ) as Record<string, unknown>
       // Direct mapping — frontend DashboardOverview matches backend OverviewResponse 1:1
       overview.value = {
         total_nodes: (raw.total_nodes as number) ?? 0,
@@ -128,7 +136,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   async function fetchTrends() {
     try {
-      const resp = await request.get('/dashboard/trends') as {
+      const resp = validateDashboard(
+        await request.get('/dashboard/trends') as Record<string, unknown>,
+        dashboardSchema, '/dashboard/trends', 'TrendsResponse',
+      ) as {
         period: string
         data_points: Array<{
           date: string
@@ -162,7 +173,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
       // Backend domain_distribution: {name, count}
       // Frontend SourceDistribution: {name, count, percentage, trust, color?}
       // Frontend SkillDomain: {name, value, children?, trend?}
-      const data = await request.get('/dashboard/distribution') as {
+      const data = validateDashboard(
+        await request.get('/dashboard/distribution') as Record<string, unknown>,
+        dashboardSchema, '/dashboard/distribution', 'DistributionResponse',
+      ) as {
         source_distribution: Array<{
           name: string
           source_type?: string
