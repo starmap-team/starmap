@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StarMap prompt schemas",
+  "description": "Auto-generated from backend/app/schemas/prompt.py",
+  "definitions": {
+    "ABResultRequest": {
+      "description": "A/B 测试结果上报 (运行时客户端调用)。",
+      "properties": {
+        "version": {
+          "description": "Version identifier (active or canary)",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "success": {
+          "default": true,
+          "description": "Whether the prompt led to success",
+          "title": "Success",
+          "type": "boolean"
+        },
+        "f1": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional F1 score for this call",
+          "title": "F1"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional latency in milliseconds",
+          "title": "Latency Ms"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "ABResultRequest",
+      "type": "object"
+    },
+    "ABTestRequest": {
+      "description": "A/B 测试配置：canary 版本 + 流量分桶。",
+      "properties": {
+        "canary_version": {
+          "description": "Candidate version",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Canary Version",
+          "type": "string"
+        },
+        "traffic_fraction": {
+          "default": 0.1,
+          "description": "Traffic fraction sent to canary in (0.0, 0.5]",
+          "maximum": 0.5,
+          "minimum": 0.0,
+          "title": "Traffic Fraction",
+          "type": "number"
+        }
+      },
+      "required": [
+        "canary_version"
+      ],
+      "title": "ABTestRequest",
+      "type": "object"
+    },
+    "RegisterVersionRequest": {
+      "description": "注册新 prompt 版本（可立即激活）。",
+      "properties": {
+        "template": {
+          "description": "Prompt template content with placeholders",
+          "minLength": 1,
+          "title": "Template",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Version label, e.g. v4; auto-increment if omitted",
+          "title": "Version"
+        },
+        "activate": {
+          "default": false,
+          "description": "Activate this version immediately",
+          "title": "Activate",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "template"
+      ],
+      "title": "RegisterVersionRequest",
+      "type": "object"
+    },
+    "SetActiveRequest": {
+      "description": "指定要激活的 prompt 版本。",
+      "properties": {
+        "version": {
+          "description": "Target prompt version to activate, e.g. v1, v2",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "SetActiveRequest",
+      "type": "object"
+    }
+  }
+}

@@ -41,6 +41,10 @@ from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入
     LoginRequest,
     LoginResponse,
     LogoutRequest,
+    ABResultRequest,
+    ABTestRequest,
+    RegisterVersionRequest,
+    SetActiveRequest,
     SkillGapInput,
     CreatePlanRequest,
     SkillProgressItem,
@@ -116,6 +120,12 @@ SCHEMA_GROUPS: dict[str, list[tuple[str, type]]] = {
         ("ExtractionRequest", ExtractionRequest),
         ("ExtractionResult", ExtractionResult),
         ("SkillItem", SkillItem),
+    ],
+    "prompt": [
+        ("ABResultRequest", ABResultRequest),
+        ("ABTestRequest", ABTestRequest),
+        ("RegisterVersionRequest", RegisterVersionRequest),
+        ("SetActiveRequest", SetActiveRequest),
     ],
     "learning": [
         ("SkillGapInput", SkillGapInput),

@@ -82,6 +82,12 @@ from app.schemas.position import (
     PositionNode,
     SkillNode,
 )
+from app.schemas.prompt import (
+    ABResultRequest,
+    ABTestRequest,
+    RegisterVersionRequest,
+    SetActiveRequest,
+)
 
 __all__ = [
     # common
@@ -105,6 +111,11 @@ __all__ = [
     "RealtimePollResponse",
     "TrendPoint",
     "TrendsResponse",
+    # prompt
+    "ABResultRequest",
+    "ABTestRequest",
+    "RegisterVersionRequest",
+    "SetActiveRequest",
     # position
     "PositionListResponse",
     "PositionNode",

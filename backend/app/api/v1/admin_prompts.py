@@ -14,7 +14,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
-from pydantic import BaseModel, Field
 
 from app.core.extraction.prompt import (
     get_ab_test,
@@ -28,6 +27,12 @@ from app.core.extraction.prompt import (
     stop_ab_test,
 )
 from app.dependencies import get_redis_client
+from app.schemas.prompt import (
+    ABResultRequest,
+    ABTestRequest,
+    RegisterVersionRequest,
+    SetActiveRequest,
+)
 from app.services.admin_ab_service import aggregate_ab_results
 
 # FE-02: A/B test result tracking (in-memory, process-local)
@@ -35,25 +40,7 @@ _ab_results: dict[str, list[dict[str, Any]]] = defaultdict(list)
 _MAX_RESULTS_PER_PROMPT = 10000
 
 
-class SetActiveRequest(BaseModel):
-    version: str = Field(..., description="Target prompt version to activate, e.g. v1, v2")
-
-
-class ABTestRequest(BaseModel):
-    canary_version: str = Field(..., description="Candidate version")
-    traffic_fraction: float = Field(
-        default=0.1,
-        ge=0.0,
-        le=0.5,
-        description="Traffic fraction sent to canary in (0.0, 0.5]",
-    )
-
-
-class RegisterVersionRequest(BaseModel):
-    template: str = Field(..., description="Prompt template content with placeholders")
-    version: str | None = Field(default=None, description="Version label, e.g. v4; auto-increment if omitted")
-    activate: bool = Field(default=False, description="Activate this version immediately")
-
+# 4 个 Request 类已迁入 schemas/prompt.py 集中管理 (PLAN-014 批次7)
 
 router = APIRouter(tags=["prompts"])
 
@@ -190,15 +177,7 @@ async def get_ab_test_config(name: str) -> dict[str, Any]:
 
 
 # ── FE-02: A/B test result tracking ──
-
-
-class ABResultRequest(BaseModel):
-    """Record an A/B test result for aggregation."""
-
-    version: str = Field(..., description="Prompt version used for this request")
-    success: bool = Field(default=True, description="Whether the extraction succeeded")
-    f1: float | None = Field(default=None, ge=0.0, le=1.0, description="F1 score if evaluated")
-    latency_ms: float | None = Field(default=None, ge=0.0, description="Request latency in ms")
+# ABResultRequest 已迁入 schemas/prompt.py (PLAN-014 批次7)
 
 
 @router.post("/prompts/{name}/ab-results")
