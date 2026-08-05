@@ -35,7 +35,7 @@ log = logging.getLogger("incremental")
 
 def _spider_registry() -> dict:
     """真实开放源注册表（PLAN-005：移除指向不存在模块的死引用）。"""
-    from crawler.spiders import arbeitnow, jobicy, weworkremotely
+    from crawler.spiders import arbeitnow, jobicy, juejin, weworkremotely
     from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
 
     return {
@@ -43,10 +43,11 @@ def _spider_registry() -> dict:
         "arbeitnow": arbeitnow.run_sync,
         "jobicy": jobicy.run_sync,
         "weworkremotely": weworkremotely.run_sync,
+        "juejin": juejin.run_sync,  # PLAN-002: D5 非结构化源 (sitemap)
     }
 
 
-_OPEN_SOURCES = ("v2ex", "arbeitnow", "jobicy", "weworkremotely")
+_OPEN_SOURCES = ("v2ex", "arbeitnow", "jobicy", "weworkremotely", "juejin")
 
 
 def _crawl_site(site: str, max_count: int) -> list[dict]:
