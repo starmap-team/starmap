@@ -6,13 +6,12 @@ from typing import Annotated, Any
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.exceptions import PositionNotFoundError, StarMapError
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
-from app.schemas.position import IndustriesResponse
+from app.schemas.position import IndustriesResponse, PositionListResponse, PositionNode, SkillNode
 
 router = APIRouter(prefix="/positions", tags=["岗位管理"])
 
@@ -21,35 +20,6 @@ router = APIRouter(prefix="/positions", tags=["岗位管理"])
 def _escape_like(value: str) -> str:
     """Escape SQL LIKE wildcards (% and _) in user input."""
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-
-class SkillNode(BaseModel):
-    """岗位所需技能骨架。"""
-    skill_id: str = Field(..., description="技能唯一标识")
-    name: str = Field(..., description="技能名称")
-    category: str = Field(..., description="技能分类")
-    confidence: float = Field(default=1.0, ge=0, le=1, description="置信度")
-    source_count: int = Field(default=0, ge=0, description="来源文档计数")
-
-
-class PositionNode(BaseModel):
-    """契约中的 PositionNode。"""
-    position_id: str = Field(..., description="岗位唯一标识")
-    name: str = Field(..., description="岗位名称")
-    name_cn: str = Field(default="", description="岗位中文名称")
-    industry: str = Field(..., description="所属行业")
-    description: str = Field(..., description="岗位描述")
-    skills_required: list[SkillNode] = Field(default_factory=list, description="岗位所需技能")
-    discovered_at: str | None = Field(default=None, description="发现时间")
-    review_status: str | None = Field(default=None, description="审核状态")
-
-
-class PositionListResponse(BaseModel):
-    """岗位列表响应。"""
-    items: list[PositionNode] = Field(default_factory=list, description="岗位列表")
-    total: int = Field(default=0, ge=0, description="岗位总数")
-    page: int = Field(default=1, ge=1, description="当前页")
-    page_size: int = Field(default=20, ge=1, le=100, description="每页数量")
 
 
 @router.get(
@@ -151,7 +121,7 @@ async def list_positions(
             industry=r.industry or "",
             description=r.description or "",
             skills_required=skill_map.get(r.id, []),
-            discovered_at=r.created_at.isoformat() if r.created_at else None,
+            discovered_at=r.created_at,
             review_status=getattr(r, "review_status", None),
         ))
 

@@ -98,9 +98,9 @@ class PositionNode(BaseModel):
         description="岗位中文名称",
     )
     industry: str = Field(
-        min_length=1,
+        default="",
         max_length=100,
-        description="所属行业",
+        description="所属行业（可为空：DB 中 NULL/空 industry 岗位合法，契约与实现对齐）",
         examples=["信息技术", "金融"],
     )
     description: str = Field(

@@ -30,13 +30,13 @@
           "type": "string"
         },
         "industry": {
-          "description": "所属行业",
+          "default": "",
+          "description": "所属行业（可为空：DB 中 NULL/空 industry 岗位合法，契约与实现对齐）",
           "examples": [
             "信息技术",
             "金融"
           ],
           "maxLength": 100,
-          "minLength": 1,
           "title": "Industry",
           "type": "string"
         },
@@ -83,8 +83,7 @@
       },
       "required": [
         "position_id",
-        "name",
-        "industry"
+        "name"
       ],
       "title": "PositionNode",
       "type": "object"
@@ -280,13 +279,13 @@
           "type": "string"
         },
         "industry": {
-          "description": "所属行业",
+          "default": "",
+          "description": "所属行业（可为空：DB 中 NULL/空 industry 岗位合法，契约与实现对齐）",
           "examples": [
             "信息技术",
             "金融"
           ],
           "maxLength": 100,
-          "minLength": 1,
           "title": "Industry",
           "type": "string"
         },
@@ -333,8 +332,7 @@
       },
       "required": [
         "position_id",
-        "name",
-        "industry"
+        "name"
       ],
       "title": "PositionNode",
       "type": "object"

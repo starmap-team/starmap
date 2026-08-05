@@ -16,25 +16,33 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.api.v1 import graph as graph_router
+from app.api.v1 import position as position_router
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GRAPH_SCHEMA = REPO_ROOT / "starmap-contracts" / "schemas" / "graph.schema.json"
+POSITION_SCHEMA = REPO_ROOT / "starmap-contracts" / "schemas" / "position.schema.json"
 
 
 def _load_graph_schema() -> dict[str, Any]:
     return json.loads(GRAPH_SCHEMA.read_text(encoding="utf-8"))
 
 
+def _inline_models(module: Any) -> list[str]:
+    return [
+        name
+        for name, obj in inspect.getmembers(module, inspect.isclass)
+        if issubclass(obj, BaseModel) and obj.__module__ == module.__name__
+    ]
+
+
 class TestRouteModelCentralization:
     """路由文件不得内联定义 Pydantic 模型（AGENTS.md Schema 集中管理）。"""
 
     def test_graph_route_has_no_inline_models(self) -> None:
-        route_models = [
-            name
-            for name, obj in inspect.getmembers(graph_router, inspect.isclass)
-            if issubclass(obj, BaseModel) and obj.__module__ == graph_router.__name__
-        ]
-        assert route_models == [], f"路由内联模型: {route_models}"
+        assert _inline_models(graph_router) == []
+
+    def test_position_route_has_no_inline_models(self) -> None:
+        assert _inline_models(position_router) == []
 
 
 class TestPositionSkillDetailShape:
@@ -50,6 +58,16 @@ class TestPositionSkillDetailShape:
         doc = _load_graph_schema()
         psdr = doc["definitions"]["PositionSkillDetailResponse"]
         assert "position" not in psdr.get("required", []), "position 可空（未找到岗位时 404 前的缺省）"
+
+
+class TestPositionNodeShape:
+    """/positions 列表契约与真实 API 对齐（industry 可为空串）。"""
+
+    def test_industry_nullable(self) -> None:
+        doc = json.loads(POSITION_SCHEMA.read_text(encoding="utf-8"))
+        pn = doc["definitions"]["PositionNode"]
+        assert "industry" not in pn.get("required", []), "industry 可空（DB 存在 NULL/空 industry 岗位）"
+        assert pn["properties"]["industry"].get("default") == ""
 
 
 class TestExportedSchemaRefs:
