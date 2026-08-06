@@ -20,6 +20,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 sys.path.insert(0, str(BASE_DIR))
 
 from evaluation.judge_eval import evaluate_batch, generate_evaluation_report
+from app.config import settings
 from app.core.extraction.jd_extract import extract_from_jd
 
 
@@ -176,7 +177,7 @@ async def run_evaluation(quick: bool = False):
     report = generate_evaluation_report(metrics, str(report_dir))
 
     # Summary
-    passed = metrics.avg_f1 >= 0.80
+    passed = metrics.avg_f1 >= settings.eval_f1_gate
     print(f"\n{'=' * 60}")
     print(f"M2 EVALUATION {'PASSED' if passed else 'FAILED'}")
     print(f"{'=' * 60}")
@@ -184,7 +185,7 @@ async def run_evaluation(quick: bool = False):
     print(f"  Avg Precision:  {metrics.avg_precision:.4f}")
     print(f"  Avg Recall:     {metrics.avg_recall:.4f}")
     print(f"  Avg F1:         {metrics.avg_f1:.4f}")
-    print(f"  Target F1:      0.80")
+    print(f"  Target F1:      {settings.eval_f1_gate:.2f}")
     print(f"  Status:         {'PASS' if passed else 'FAIL'}")
     if errors:
         print(f"  Errors:         {len(errors)} samples failed")
@@ -193,7 +194,7 @@ async def run_evaluation(quick: bool = False):
     print(f"\n  Report: {report['report_path']}")
     print(f"{'=' * 60}")
 
-    return metrics.avg_f1 >= 0.80
+    return metrics.avg_f1 >= settings.eval_f1_gate
 
 
 def main():

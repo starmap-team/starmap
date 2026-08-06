@@ -135,3 +135,43 @@ class TestModelInstantiation:
             config_value={"nested": "value"},
         )
         assert record.config_key == "test_key"
+
+
+class TestModelRegistryCompleteness:
+    """NEW-14: 全部 ORM 模型必须在 models/__init__ 注册（Alembic metadata 完整性）。"""
+
+    def test_previously_unregistered_models_importable(self):
+        """此前遗漏的 5 个模型可从 app.models 导入."""
+        from app.models import (
+            DataSourceMetric,
+            GraphWriteOutbox,
+            MatchResult,
+            ReviewAuditLog,
+            ReviewQueue,
+        )
+
+        for model in (
+            DataSourceMetric,
+            GraphWriteOutbox,
+            MatchResult,
+            ReviewAuditLog,
+            ReviewQueue,
+        ):
+            assert issubclass(model, Base)
+
+    def test_metadata_covers_all_tablenames(self):
+        """Base.metadata 覆盖全部 ORM 表（autogenerate 前提）."""
+        expected = {
+            "data_source_metrics",
+            "graph_write_outbox",
+            "match_results",
+            "review_audit_log",
+            "review_queue",
+        }
+        assert expected <= set(Base.metadata.tables.keys())
+
+    def test_data_source_record_maps_last_successful_crawl_at(self):
+        """迁移 024 新增列必须映射到 ORM（health_monitor hasattr 守卫依赖）."""
+        from app.models import DataSourceRecord
+
+        assert "last_successful_crawl_at" in DataSourceRecord.__table__.columns

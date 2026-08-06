@@ -579,6 +579,11 @@ class TestGetDataQuality:
         db_override(session)
         with (
             patch(
+                "app.core.pipeline.source_quality_sync.sync_source_quality",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
                 "app.core.pipeline.quality_monitor.get_quality_snapshot",
                 new_callable=AsyncMock,
                 return_value={"metrics": {"overall_score": 0.9}, "alerts": [], "source_scores": {"lagou": 0.8}},
@@ -601,6 +606,11 @@ class TestGetDataQuality:
         db_override(session)
         alert = {"level": "warning", "dimension": "freshness", "message": "Stale data", "timestamp": "2025-01-01"}
         with (
+            patch(
+                "app.core.pipeline.source_quality_sync.sync_source_quality",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
             patch(
                 "app.core.pipeline.quality_monitor.get_quality_snapshot",
                 new_callable=AsyncMock,

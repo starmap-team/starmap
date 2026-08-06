@@ -129,8 +129,19 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
         from crawler.spiders import arbeitnow, jobicy, weworkremotely
         from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
     except Exception as exc:  # noqa: BLE001 — 依赖缺失是环境级失败, 必须显式标记
-        _run_async(update_stage_status(run_id, "crawl", StageStatus.FAILED.value,
-                                       errors=[f"crawler 依赖不可用: {exc}"]))
+        # B1 修复修正: update_stage_status 需要 session 首参 + status 关键字,
+        # 此前裸调用签名错误(TypeError), 失败状态永远写不进去 — 复用 celery_app 同款事务模式
+        async def _mark_crawl_failed() -> None:
+            session_factory = get_session_factory()
+            async with session_factory() as session:
+                async with session.begin():
+                    await update_stage_status(
+                        session, uuid.UUID(str(run_id)), "crawl",
+                        status=StageStatus.FAILED.value,
+                        errors=[f"crawler 依赖不可用: {exc}"],
+                    )
+
+        _run_async(_mark_crawl_failed())
         logger.opt(exception=True).error("crawl stage deps unavailable: {}", exc)
         raise
 

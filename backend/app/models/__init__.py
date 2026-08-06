@@ -10,6 +10,9 @@ class Base(DeclarativeBase):
 from app.models.audit_models import (  # noqa: E402, F401
     AuditEventRecord,
 )
+from app.models.data_source_metric import (  # noqa: E402, F401
+    DataSourceMetric,
+)
 from app.models.evolution_models import (  # noqa: E402, F401
     EvolutionChangelog,
     EvolutionPath,
@@ -19,9 +22,11 @@ from app.models.evolution_models import (  # noqa: E402, F401
 from app.models.extraction_models import (  # noqa: E402, F401
     ExtractionEvaluationRecord,
     JDExtractionRecord,
+    MatchResult,
     PositionRecord,
     PositionSkillRelation,
     RawJDRecord,
+    ReviewQueue,
     SkillAliasRecord,
     SkillRecord,
     SystemConfig,
@@ -33,10 +38,14 @@ from app.models.learning_models import (  # noqa: E402, F401
 )
 from app.models.pipeline_models import (  # noqa: E402, F401
     DataSourceRecord,
+    GraphWriteOutbox,
     LoopResultRecord,
     PipelineRun,
     PipelineSchedule,
     SourceTrustConfig,
+)
+from app.models.review_audit_log import (  # noqa: E402, F401
+    ReviewAuditLog,
 )
 from app.models.user import (  # noqa: E402, F401
     ALLOWED_ROLES,
@@ -51,20 +60,25 @@ __all__ = [
     "ROLE_USER",
     "Base",
     "AuditEventRecord",
+    "DataSourceMetric",
     "DataSourceRecord",
     "EvolutionChangelog",
     "EvolutionPath",
     "EvolutionSnapshot",
     "ExtractionEvaluationRecord",
+    "GraphWriteOutbox",
     "JDExtractionRecord",
     "LearningPlan",
     "LearningProgress",
     "LoopResultRecord",
+    "MatchResult",
     "PipelineRun",
     "PipelineSchedule",
     "PositionRecord",
     "PositionSkillRelation",
     "RawJDRecord",
+    "ReviewAuditLog",
+    "ReviewQueue",
     "SkillAliasRecord",
     "SkillPrerequisite",
     "SkillRecord",

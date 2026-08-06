@@ -426,7 +426,9 @@ class TestWriteExtraction:
         extraction = {"position_name": "Dev", "required_skills": [{"name": "Python", "level": "advanced"}], "preferred_skills": [{"name": "Go"}], "industry": "IT", "tools": [{"name": "Docker"}]}
         s = await write_extraction_to_graph(extraction, drv)
         assert s["positions_merged"] == 1 and s["skills_merged"] == 2 and s["requires_created"] == 2
-        assert s["triples_merged"] >= 4
+        # d59ffed 后 industry 改为 Position 节点属性, 不再产生 BELONGS_TO 三元组;
+        # triples = requires(2) + extended/tools(1)
+        assert s["triples_merged"] == 3
 
     @pytest.mark.asyncio
     async def test_missing_position_skips(self):

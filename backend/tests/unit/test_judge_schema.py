@@ -75,3 +75,19 @@ class TestJudgeSchemasExported:
         assert s.errors == []
         # evaluated_at 是 ISO 字符串
         datetime.fromisoformat(s.evaluated_at.replace("Z", "+00:00"))  # 不可解析即报错
+
+
+class TestF1GateSingleSource:
+    """NEW-11: F1 质量门禁唯一常量 — settings.eval_f1_gate，全链引用."""
+
+    def test_settings_defines_eval_f1_gate(self) -> None:
+        from app.config import settings
+
+        assert 0.0 < settings.eval_f1_gate <= 1.0
+        assert settings.eval_f1_gate == 0.90  # §14 验收口径 F1 >= 90%
+
+    def test_batch_judge_threshold_default_references_gate(self) -> None:
+        from app.config import settings
+
+        req = BatchJudgeRequest(golden_file="g.jsonl", system_file="s.jsonl")
+        assert req.threshold == settings.eval_f1_gate

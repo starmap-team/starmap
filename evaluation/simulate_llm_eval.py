@@ -17,6 +17,7 @@ BACKEND_DIR = BASE_DIR / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 sys.path.insert(0, str(BASE_DIR))
 
+from app.config import settings  # noqa: E402
 from judge_eval import evaluate_batch, generate_evaluation_report
 
 
@@ -127,10 +128,10 @@ def main():
             output_file=str(eval_output),
         )
         
-        gate = "PASS" if metrics.avg_f1 >= 0.80 else "FAIL"
+        gate = "PASS" if metrics.avg_f1 >= settings.eval_f1_gate else "FAIL"
         print(f"\n  [{label}] Noise={noise:.0%}:  F1={metrics.avg_f1:.4f}  "
               f"Prec={metrics.avg_precision:.4f}  Rec={metrics.avg_recall:.4f}  "
-              f"Gate(>=0.80): [{gate}]")
+              f"Gate(>={settings.eval_f1_gate:.2f}): [{gate}]")
     
     # Full report for expected case
     print(f"\n[2/3] Generating full report for expected case (noise=5%)...")
@@ -160,7 +161,8 @@ def main():
     print(f"    Good     (>=0.70):  {metrics.f1_distribution['good']}")
     print(f"    Fair     (>=0.50):  {metrics.f1_distribution['fair']}")
     print(f"    Poor     (<0.50):   {metrics.f1_distribution['poor']}")
-    print(f"  Quality Gate (>=0.80): [{'PASS' if metrics.avg_f1 >= 0.80 else 'FAIL'}]")
+    print(f"  Quality Gate (>={settings.eval_f1_gate:.2f}): "
+          f"[{'PASS' if metrics.avg_f1 >= settings.eval_f1_gate else 'FAIL'}]")
     print(f"  Report: {report['report_path']}")
     print(f"\n  CONCLUSIONS:")
     print(f"  - Rule-based baseline (no LLM):                    F1 = 0.5347")

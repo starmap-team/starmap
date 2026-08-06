@@ -28,6 +28,7 @@ BACKEND_DIR = BASE_DIR / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 sys.path.insert(0, str(BASE_DIR))
 
+from app.config import settings  # noqa: E402
 from app.core.extraction.jd_extract import JDExtractionPipeline  # noqa: E402
 from app.core.extraction.llm_client import LLMClient  # noqa: E402
 from judge_eval import evaluate_batch, generate_evaluation_report  # noqa: E402
@@ -362,8 +363,8 @@ def _print_summary(metrics) -> None:
     print(f"    Good    (>=0.70): {metrics.f1_distribution.get('good', 0)}")
     print(f"    Fair    (>=0.50): {metrics.f1_distribution.get('fair', 0)}")
     print(f"    Poor    (<0.50):  {metrics.f1_distribution.get('poor', 0)}")
-    gate = "PASS" if metrics.avg_f1 >= 0.80 else "FAIL"
-    print(f"  Gate(>=0.80): [{gate}]")
+    gate = "PASS" if metrics.avg_f1 >= settings.eval_f1_gate else "FAIL"
+    print(f"  Gate(>={settings.eval_f1_gate:.2f}): [{gate}]")
     print(f"  Report: {OUTPUT_DIR}")
     print(f"{'=' * 60}")
 

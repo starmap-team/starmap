@@ -10,6 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.config import settings
+
 
 class JudgeRequest(BaseModel):
     """单样本评估请求：golden 标准答案 vs 系统输出."""
@@ -41,7 +43,10 @@ class BatchJudgeRequest(BaseModel):
     use_llm_judge: bool = Field(default=False, description="是否启用 LLM judge")
     judge_prompt_version: str | None = Field(default=None, description="Judge prompt 版本")
     threshold: float = Field(
-        default=0.90, ge=0.0, le=1.0, description="质量门禁阈值",
+        default=settings.eval_f1_gate,
+        ge=0.0,
+        le=1.0,
+        description="质量门禁阈值 (NEW-11 唯一常量 settings.eval_f1_gate)",
     )
 
 

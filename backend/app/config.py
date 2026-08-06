@@ -151,6 +151,10 @@ class Settings(BaseSettings):
     extraction_vector_threshold: float = 0.85
     extraction_min_sources: int = 3
 
+    # 评估质量门禁（NEW-11 唯一常量，§14 验收口径 F1 >= 90%）
+    # judge API 默认阈值 + evaluation/ 脚本门禁统一引用此值
+    eval_f1_gate: float = 0.90
+
     # 反幻觉守卫
     hallucination_semantic_threshold: float = 0.85
     hallucination_min_sources: int = 3

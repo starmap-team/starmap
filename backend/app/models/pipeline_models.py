@@ -180,6 +180,11 @@ class DataSourceRecord(Base):
     last_crawl_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
+    # 业务说明：最近一次成功爬取时间（迁移 024 新增，NEW-14 补 ORM 映射）
+    # 技术说明：null表示从未成功爬取；health_monitor 依赖此字段序列化
+    last_successful_crawl_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
     # 业务说明：该数据源累计爬取的总记录数
     # 技术说明：默认0，用于评估数据源的数据丰富度
     total_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

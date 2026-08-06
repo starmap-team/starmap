@@ -292,7 +292,7 @@ async def evaluate_batch_async(
     system_file: str | Path,
     use_llm_judge: bool = False,
     judge_version: str | None = None,
-    threshold: float = 0.90,
+    threshold: float = settings.eval_f1_gate,
 ) -> ExtractionMetrics:
     """批量评估 system 输出 vs golden 标准。"""
     golden_data = _load_jsonl(golden_file)
