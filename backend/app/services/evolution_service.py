@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.evolution.causal_inference import skill_position_associations  # §7.6 轻量版 (路由经 service 访问 core)
+from app.core.evolution.causal_inference import skill_position_associations  # noqa: F401 — §7.6 轻量版 re-export (路由经 service 访问 core)
 from app.core.evolution.emergence_finder import EmergenceFinder
 from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
