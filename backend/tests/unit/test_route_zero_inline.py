@@ -26,7 +26,6 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-
 # 已零内联 (PLAN-014 批次 2-8 已闭环) — 直接 PASS
 PASS_ROUTES = {
     "app.api.v1.graph",

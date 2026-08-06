@@ -15,11 +15,7 @@ from pydantic import BaseModel
 from app.api.v1 import judge as judge_router
 from app.schemas.judge import (
     BatchJudgeRequest,
-    BatchJudgeResponse,
-    JudgeRequest,
     JudgeSampleResponse,
-    PairwiseRequest,
-    PairwiseResponse,
 )
 
 
@@ -38,15 +34,25 @@ class TestJudgeRouteModelCentralization:
 
 class TestJudgeSchemasExported:
     def test_all_six_models_reachable(self) -> None:
-        from app.schemas import (  # noqa: F401
-            JudgeRequest as JR,
-            PairwiseRequest as PR,
-            BatchJudgeRequest as BJR,
-            JudgeSampleResponse as JSR,
-            PairwiseResponse as PWR,
-            BatchJudgeResponse as BWR,
+        from app.schemas import (
+            BatchJudgeRequest as JudgeReq,
         )
-        assert all((JR, PR, BJR, JSR, PWR, BWR))
+        from app.schemas import (
+            BatchJudgeResponse as JudgeResp,
+        )
+        from app.schemas import (  # noqa: F401
+            JudgeRequest as JudgeIn,
+        )
+        from app.schemas import (
+            JudgeSampleResponse as SampleResp,
+        )
+        from app.schemas import (
+            PairwiseRequest as PairwiseIn,
+        )
+        from app.schemas import (
+            PairwiseResponse as PairwiseResp,
+        )
+        assert all((JudgeIn, PairwiseIn, JudgeReq, SampleResp, PairwiseResp, JudgeResp))
 
     def test_batch_judge_threshold_bounds(self) -> None:
         """threshold 0.0-1.0, 越界报错."""

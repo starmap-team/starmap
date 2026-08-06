@@ -7,9 +7,9 @@ apify / incremental / m1_seed 写入 simhash）。
 """
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision: str = "027"
 down_revision: str | None = "026"

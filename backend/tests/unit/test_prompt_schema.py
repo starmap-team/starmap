@@ -16,7 +16,6 @@ from app.schemas.prompt import (
     ABResultRequest,
     ABTestRequest,
     RegisterVersionRequest,
-    SetActiveRequest,
 )
 
 
@@ -41,8 +40,14 @@ class TestPromptSchemasExported:
     def test_all_exports_reachable(self) -> None:
         from app.schemas import (  # noqa: F401
             ABResultRequest as A,
+        )
+        from app.schemas import (
             ABTestRequest as B,
+        )
+        from app.schemas import (
             RegisterVersionRequest as C,
+        )
+        from app.schemas import (
             SetActiveRequest as D,
         )
         assert all((A, B, C, D))
