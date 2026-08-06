@@ -36,7 +36,10 @@ def test_build_triples_from_extraction_maps_core_ontology_edges():
     assert (NODE_POSITION, "AI 后端工程师", REL_REQUIRES, NODE_SKILL, "Python") in keys
     assert (NODE_POSITION, "AI 后端工程师", REL_USES, NODE_TOOL, "Docker") in keys
     assert (NODE_POSITION, "AI 后端工程师", REL_REQUIRES, NODE_SKILL, "Neo4j") in keys
-    assert (NODE_POSITION, "AI 后端工程师", REL_BELONGS_TO, "Industry", "新一代信息技术") in keys
+    # industry is now a Position node property, not a BELONGS_TO edge (see ontology §3.1)
+    position_node = next(t.source for t in triples if t.source.label == NODE_POSITION)
+    assert position_node.properties.get("industry") == "新一代信息技术"
+    assert (NODE_POSITION, "AI 后端工程师", REL_BELONGS_TO, "Industry", "新一代信息技术") not in keys
     assert (NODE_SKILL, "Deep Learning", REL_PREREQUISITE, NODE_SKILL, "Machine Learning") in keys
 
     python_requires = next(t for t in triples if t.relationship == REL_REQUIRES and t.target.name == "Python")

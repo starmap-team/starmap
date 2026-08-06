@@ -33,7 +33,7 @@ REL_REQUIRES = "REQUIRES"           # Position -> Skill (required:bool, weight:f
 REL_PREREQUISITE = "PREREQUISITE"   # Skill -> Skill (strength:float)
 REL_EVOLVES_TO = "EVOLVES_TO"       # Position -> Position (similarity:float, evidence_count)
 REL_USES = "USES"                   # Position/Skill -> Tool
-REL_BELONGS_TO = "BELONGS_TO"       # Position -> Industry
+REL_BELONGS_TO = "BELONGS_TO"       # Skill -> KnowledgeArea
 REL_CERTIFIES = "CERTIFIES"         # Certificate -> Skill
 REL_RECOMMENDED_FOR = "RECOMMENDED_FOR"  # LearningResource -> Skill (rank:float)
 REL_APPLIES_TO = "APPLIES_TO"       # KnowledgeArea -> Industry
@@ -228,6 +228,7 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
         {
             "experience_required": extraction.get("experience_required"),
             "education_required": extraction.get("education_required"),
+            "industry": extraction.get("industry"),
         },
     )
     triples: list[GraphTriple] = []
@@ -267,7 +268,6 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
     industry_name = extraction.get("industry")
     if industry_name:
         industry = _node_ref(NODE_INDUSTRY, str(industry_name))
-        _append_unique(triples, GraphTriple(position, REL_BELONGS_TO, industry, {"weight": 1.0}))
     else:
         industry = None
 

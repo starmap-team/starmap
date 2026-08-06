@@ -1,9 +1,9 @@
 # StarMap 本体设计 v1 — 技能层级树与岗位-技能关系
 
-> 版本: v1  
-> 更新: 2026-06-16  
+> 版本: v1.1 (代码复核修订)
+> 更新: 2026-08-06
 > 负责人: Sisyphus  
-> 状态: 初稿
+> 状态: 已根据代码复核修订 (原初稿 2026-06-16)
 
 ## 目录
 
@@ -242,32 +242,33 @@
 
 ### 3.1 关系类型
 
-本体定义 8 种岗位-技能关系,与 `init_neo4j_schema.py` 一致:
+本体定义 8 种岗位-技能关系,与 `init_neo4j_schema.py` (L26-36) 及 `graph_writer.py` 运行时写入一致:
 
 | 关系 | 源节点 → 目标节点 | 含义 | 权重范围 |
 |------|-------------------|------|---------|
-| `REQUIRES` | Position → Skill | 岗位必备技能 | 0.8–1.0 |
-| `BONUS` | Position → Skill | 加分/优先技能 | 0.4–0.7 |
+| `REQUIRES` | Position → Skill | 岗位必备/优先技能(`required=True` 必备, `=False` 优先) | 0.6–1.0 |
+| `APPLIES_TO` | KnowledgeArea → Industry | 领域适用行业 | — |
 | `BELONGS_TO` | Skill → KnowledgeArea | 技能所属领域 | — |
 | `PREREQUISITE` | Skill → Skill | 学习前置依赖 | 0.3–0.6 |
-| `EVOLVES_TO` | Skill → Skill | 技能进阶路径 | 0.5–0.8 |
-| `USES` | Position → Tool | 岗位使用的工具 | 0.3–0.6 |
+| `EVOLVES_TO` | Position → Position | 岗位进阶路径 | — |
+| `USES` | Position → Tool | 岗位使用的工具 | 0.6–1.0 |
 | `CERTIFIES` | Certificate → Skill | 证书认证技能 | — |
-| `RECOMMENDED_FOR` | LearningResource → Position | 学习资源推荐 | — |
+| `RECOMMENDED_FOR` | LearningResource → Skill | 学习资源推荐 | — |
+
+> ✅ **`BELONGS_TO` 已于 2026-08-07 统一为 `Skill → KnowledgeArea`**(代码层修复 `a252d53` 之后续提交): 岗位的 `industry` 改为 `Position` 节点属性(`industry`), 行业派生 KA 存为 `Position` 属性(`knowledge_area`, 见 `backend/scripts/seed_knowledge_areas.py`), 不再使用 `BELONGS_TO` 边承载岗位-行业关系。原文档的 `BONUS` 关系**从未实现**, 已由 `APPLIES_TO` 取代。
 
 ### 3.2 权重说明
 
 | 权重区间 | 含义 | 示例 |
 |----------|------|------|
-| 0.8–1.0 | 必须(must-have) | 后端工程师 REQUIRES Python |
-| 0.4–0.7 | 加分(bonus) | 后端工程师 BONUS Kubernetes |
-| 0.3–0.6 | 推荐(nice-to-have) | 前端工程师 USES Webpack |
+| 0.6–1.0 | 必须/优先(must-have / preferred) | 后端工程师 REQUIRES Python (required=True) / Kubernetes (required=False, weight=0.6) |
+| 0.6–1.0 | 工具使用 | 前端工程师 USES Webpack |
 | 0.3–0.6 | 学习依赖 | Deep Learning PREREQUISITE Machine Learning |
 
 ### 3.3 与抽取管线的映射
 
-JD 抽取结果中的 `required_skills` → `REQUIRES` 关系  
-JD 抽取结果中的 `preferred_skills` → `BONUS` 关系
+JD 抽取结果中的 `required_skills` → `REQUIRES` 关系 (`required=True`, `weight=1.0`)
+JD 抽取结果中的 `preferred_skills` → `REQUIRES` 关系 (`required=False`, `weight=0.6`); 原 `BONUS` 关系从未实现
 
 ### 3.4 岗位种子数据
 
@@ -394,23 +395,23 @@ ISCO 职业组 (Level 2)      →       领域 (Domain)
 
 ### 6.3 Neo4j 关系类型覆盖
 
-| 关系 | 文档定义 | init_neo4j_schema.py |
-|------|---------|---------------------|
-| REQUIRES | ✅ | ✅ (seed positions) |
-| BONUS | ✅ | ❌ (待添加) |
-| BELONGS_TO | ✅ | ✅ (24 relationships) |
-| PREREQUISITE | ✅ | ✅ (8 relationships) |
-| EVOLVES_TO | ✅ | ❌ (待添加) |
-| USES | ✅ | ✅ (4 relationships) |
-| CERTIFIES | ✅ | ❌ (待添加) |
-| RECOMMENDED_FOR | ✅ | ❌ (待添加) |
+| 关系 | 文档定义 | 代码实现 (writer / seed) |
+|------|---------|--------------------------|
+| REQUIRES | ✅ | ✅ (graph_writer.py:235-265 运行时生成) |
+| BELONGS_TO | ✅ | ✅ (Skill→KnowledgeArea: init_neo4j_schema.py:51-68; add_more_skills.py:167; expand_graph_data.py:183) |
+| PREREQUISITE | ✅ | ✅ (graph_writer.py:304 / init_neo4j_schema.py:70-85 seed) |
+| EVOLVES_TO | ✅ | ✅ (graph_writer.py:319-331 运行时生成) |
+| USES | ✅ | ✅ (graph_writer.py:256,289 / init_neo4j_schema.py position_tools seed) |
+| CERTIFIES | ✅ | ✅ (graph_writer.py:262 运行时生成) |
+| RECOMMENDED_FOR | ✅ | ✅ (graph_writer.py:317 运行时生成) |
+| APPLIES_TO | ✅ | ✅ (graph_writer.py:277 KnowledgeArea→Industry) |
 
-> 注意: BONUS、EVOLVES_TO、CERTIFIES、RECOMMENDED_FOR 关系类型已在 schema 声明但尚未 seed 数据,属于已知缺口,将在后续迭代补充。
+> 说明: `BONUS` 关系**从未实现**, 已从本体重命名/移除, 由 `REQUIRES`(preferred, `weight=0.6`) 承载加分语义; `APPLIES_TO` 为 2026-07 重构新增的 8 种关系之一。全部 8 种关系均已由 `graph_writer.py` 运行时生成或由种子脚本写入, 无待添加缺口。
 
 ### 6.4 已知限制(v1)
 
 1. 软技能覆盖不足(当前仅 8 个),需在 v2 扩展
-2. `BONUS` 关系尚未 seed,需在 position 种子中添加 preferred_skills 支持
+2. (已修复) `BELONGS_TO` 代码语义不一致已于 2026-08-07 统一为 `Skill → KnowledgeArea`; 见 §3.1 脚注
 3. 部分新兴技术(Hugging Face, Claude API, Milvus)仅有 ESCO 种子但尚未纳入 YAML 层级
 
 ---
@@ -434,3 +435,5 @@ ISCO 职业组 (Level 2)      →       领域 (Domain)
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1 | 2026-06-16 | 初稿,198 个技能节点,12 个领域,58 个子领域 |
+| v1.1 | 2026-08-06 | 代码复核修订: 移除未实现的 `BONUS` 关系、补 `APPLIES_TO`; 校正 `BELONGS_TO`/`EVOLVES_TO`/`RECOMMENDED_FOR` 方向; `preferred_skills` 映射改 `REQUIRES`; 标注 `BELONGS_TO` 代码语义冲突 |
+| v1.2 | 2026-08-07 | 代码层统一 `BELONGS_TO` 为 `Skill → KnowledgeArea`; Position.industry 改为节点属性, 行业派生 KA 存为 Position.knowledge_area 属性; 修订 §6.3/§6.4 |

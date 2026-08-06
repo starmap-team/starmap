@@ -73,7 +73,7 @@ async def link_positions_by_industry() -> int:
         for name, industry in positions
     ]
 
-    # Single session = single transaction: KA + Position + edge resolved atomically
+    # Single session = single transaction: KA + Position resolved atomically
     driver = AsyncGraphDatabase.driver(
         settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password)
     )
@@ -83,7 +83,7 @@ async def link_positions_by_industry() -> int:
                 "UNWIND $rows AS row "
                 "MATCH (p:Position {name: row.p_name}) "
                 "MATCH (ka:KnowledgeArea {name: row.ka_name}) "
-                "MERGE (p)-[:BELONGS_TO]->(ka) "
+                "SET p.knowledge_area = row.ka_name "
                 "RETURN count(*) AS linked",
                 rows=rows,
             )
@@ -97,7 +97,7 @@ async def main() -> None:
     n_ka = await seed_ka()
     print(f"[1/2] Upserted {n_ka} KnowledgeArea nodes")
     n_linked = await link_positions_by_industry()
-    print(f"[2/2] Linked {n_linked} positions to their industry KA")
+    print(f"[2/2] Linked {n_linked} positions to their industry KA (via Position.knowledge_area)")
 
 
 if __name__ == "__main__":
