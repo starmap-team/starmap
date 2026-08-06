@@ -52,8 +52,8 @@ services:
 
   celery-worker:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.celery
+      context: .  # CI 修复 (2026-08-06): Dockerfile.celery 按仓库根写 COPY backend/... crawler/...
+      dockerfile: backend/Dockerfile.celery
     container_name: starmap-celery-worker
     volumes:
       - ./backend:/app
