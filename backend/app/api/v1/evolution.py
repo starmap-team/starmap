@@ -455,7 +455,7 @@ async def get_skill_causal_analysis(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CausalAnalysisResponse:
     """§7.6 因果推理轻量版: 技能-岗位关联显著性 (Fisher 精确检验, DEV-01)。"""
-    from app.core.evolution.causal_inference import skill_position_associations
+    from app.services.evolution_service import skill_position_associations
 
     data = await skill_position_associations(skill, session)
     return CausalAnalysisResponse(**data)
