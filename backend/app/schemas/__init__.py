@@ -65,6 +65,8 @@ from app.schemas.dashboard import (
     TrendsResponse,
 )
 from app.schemas.evolution import (
+    CausalAnalysisResponse,
+    CausalAssociation,
     CareerPathNode,
     CareerPathResponse,
     ChangelogEntry,
@@ -248,6 +250,8 @@ __all__ = [
     "DataQualityResponse",
     "StageInfo",
     # extract
+    "CausalAnalysisResponse",
+    "CausalAssociation",
     "CareerPathNode",
     "CareerPathResponse",
     "ChangelogEntry",

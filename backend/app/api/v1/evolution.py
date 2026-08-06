@@ -30,6 +30,7 @@ from app.models.evolution_models import (
     EvolutionSnapshot,
 )
 from app.schemas.evolution import (
+    CausalAnalysisResponse,
     ChangelogEntry,
     EmergingSkill,
     EvolutionPathEntry,
@@ -446,3 +447,15 @@ router.include_router(emerging_alerts_router, prefix="")
 from app.api.v1.evolution_career_path import router as career_path_router  # noqa: E402
 
 router.include_router(career_path_router, prefix="")
+
+
+@router.get("/causal/{skill}", response_model=CausalAnalysisResponse)
+async def get_skill_causal_analysis(
+    skill: str,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> CausalAnalysisResponse:
+    """§7.6 因果推理轻量版: 技能-岗位关联显著性 (Fisher 精确检验, DEV-01)。"""
+    from app.core.evolution.causal_inference import skill_position_associations
+
+    data = await skill_position_associations(skill, session)
+    return CausalAnalysisResponse(**data)

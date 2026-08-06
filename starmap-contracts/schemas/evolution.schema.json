@@ -3,6 +3,125 @@
   "title": "StarMap evolution schemas",
   "description": "Auto-generated from backend/app/schemas/evolution.py",
   "definitions": {
+    "CausalAnalysisResponse": {
+      "description": "技能因果关联分析响应 (§7.6)。",
+      "properties": {
+        "skill": {
+          "description": "被分析技能",
+          "minLength": 1,
+          "title": "Skill",
+          "type": "string"
+        },
+        "associations": {
+          "description": "显著关联岗位列表",
+          "items": {
+            "$ref": "#/$defs/CausalAssociation"
+          },
+          "title": "Associations",
+          "type": "array"
+        },
+        "total_records": {
+          "default": 0,
+          "description": "技能记录数",
+          "minimum": 0,
+          "title": "Total Records",
+          "type": "integer"
+        },
+        "control_records": {
+          "default": 0,
+          "description": "对照记录数",
+          "minimum": 0,
+          "title": "Control Records",
+          "type": "integer"
+        },
+        "alpha": {
+          "default": 0.05,
+          "description": "显著性水平",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Alpha",
+          "type": "number"
+        }
+      },
+      "required": [
+        "skill"
+      ],
+      "title": "CausalAnalysisResponse",
+      "type": "object"
+    },
+    "CausalAssociation": {
+      "description": "技能-岗位关联显著性 (§7.6 因果推理轻量版)。",
+      "properties": {
+        "position": {
+          "description": "岗位名称",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Position",
+          "type": "string"
+        },
+        "a": {
+          "description": "技能记录中含该岗位的记录数",
+          "minimum": 0,
+          "title": "A",
+          "type": "integer"
+        },
+        "b": {
+          "description": "技能记录中不含该岗位的记录数",
+          "minimum": 0,
+          "title": "B",
+          "type": "integer"
+        },
+        "c": {
+          "description": "对照记录中含该岗位的记录数",
+          "minimum": 0,
+          "title": "C",
+          "type": "integer"
+        },
+        "d": {
+          "description": "对照记录中不含该岗位的记录数",
+          "minimum": 0,
+          "title": "D",
+          "type": "integer"
+        },
+        "p_value": {
+          "description": "Fisher 精确检验 p 值",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "P Value",
+          "type": "number"
+        },
+        "significant": {
+          "description": "p < 0.05 且 |phi| >= 0.1",
+          "title": "Significant",
+          "type": "boolean"
+        },
+        "phi": {
+          "description": "phi 系数 (效应量)",
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Phi",
+          "type": "number"
+        },
+        "method": {
+          "default": "fisher_exact",
+          "description": "检验方法",
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "position",
+        "a",
+        "b",
+        "c",
+        "d",
+        "p_value",
+        "significant",
+        "phi"
+      ],
+      "title": "CausalAssociation",
+      "type": "object"
+    },
     "CareerPathNode": {
       "description": "A node in the career path graph.",
       "properties": {
@@ -664,6 +783,79 @@
     }
   },
   "$defs": {
+    "CausalAssociation": {
+      "description": "技能-岗位关联显著性 (§7.6 因果推理轻量版)。",
+      "properties": {
+        "position": {
+          "description": "岗位名称",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Position",
+          "type": "string"
+        },
+        "a": {
+          "description": "技能记录中含该岗位的记录数",
+          "minimum": 0,
+          "title": "A",
+          "type": "integer"
+        },
+        "b": {
+          "description": "技能记录中不含该岗位的记录数",
+          "minimum": 0,
+          "title": "B",
+          "type": "integer"
+        },
+        "c": {
+          "description": "对照记录中含该岗位的记录数",
+          "minimum": 0,
+          "title": "C",
+          "type": "integer"
+        },
+        "d": {
+          "description": "对照记录中不含该岗位的记录数",
+          "minimum": 0,
+          "title": "D",
+          "type": "integer"
+        },
+        "p_value": {
+          "description": "Fisher 精确检验 p 值",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "P Value",
+          "type": "number"
+        },
+        "significant": {
+          "description": "p < 0.05 且 |phi| >= 0.1",
+          "title": "Significant",
+          "type": "boolean"
+        },
+        "phi": {
+          "description": "phi 系数 (效应量)",
+          "maximum": 1,
+          "minimum": -1,
+          "title": "Phi",
+          "type": "number"
+        },
+        "method": {
+          "default": "fisher_exact",
+          "description": "检验方法",
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "position",
+        "a",
+        "b",
+        "c",
+        "d",
+        "p_value",
+        "significant",
+        "phi"
+      ],
+      "title": "CausalAssociation",
+      "type": "object"
+    },
     "CareerPathNode": {
       "description": "A node in the career path graph.",
       "properties": {

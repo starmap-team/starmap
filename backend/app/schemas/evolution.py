@@ -167,3 +167,26 @@ class PortabilityDetail(BaseModel):
     transferability_tier: str = Field(default="low", description="可迁移性等级")
     related_skills: list[str] = Field(default_factory=list, description="相关跨领域技能")
     recommendation: str = Field(default="", description="建议")
+
+class CausalAssociation(BaseModel):
+    """技能-岗位关联显著性 (§7.6 因果推理轻量版)。"""
+
+    position: str = Field(..., min_length=1, max_length=200, description="岗位名称")
+    a: int = Field(..., ge=0, description="技能记录中含该岗位的记录数")
+    b: int = Field(..., ge=0, description="技能记录中不含该岗位的记录数")
+    c: int = Field(..., ge=0, description="对照记录中含该岗位的记录数")
+    d: int = Field(..., ge=0, description="对照记录中不含该岗位的记录数")
+    p_value: float = Field(..., ge=0, le=1, description="Fisher 精确检验 p 值")
+    significant: bool = Field(..., description="p < 0.05 且 |phi| >= 0.1")
+    phi: float = Field(..., ge=-1, le=1, description="phi 系数 (效应量)")
+    method: str = Field(default="fisher_exact", description="检验方法")
+
+
+class CausalAnalysisResponse(BaseModel):
+    """技能因果关联分析响应 (§7.6)。"""
+
+    skill: str = Field(..., min_length=1, description="被分析技能")
+    associations: list[CausalAssociation] = Field(default_factory=list, description="显著关联岗位列表")
+    total_records: int = Field(0, ge=0, description="技能记录数")
+    control_records: int = Field(0, ge=0, description="对照记录数")
+    alpha: float = Field(0.05, ge=0, le=1, description="显著性水平")

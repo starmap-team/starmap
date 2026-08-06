@@ -48,6 +48,8 @@ from app.schemas import (  # noqa: E402  (sys.path 引导必须先于 app 导入
     BatchJudgeResponse,
     BatchMatchItem,
     BatchMatchRequest,
+    CausalAnalysisResponse,
+    CausalAssociation,
     CareerPathNode,
     ChangelogEntry,
     EmergingSkill,
@@ -213,6 +215,8 @@ SCHEMA_GROUPS: dict[str, list[tuple[str, type]]] = {
         ("PositionSkillDetailResponse", PositionSkillDetailResponse),
     ],
     "evolution": [
+        ("CausalAnalysisResponse", CausalAnalysisResponse),
+        ("CausalAssociation", CausalAssociation),
         ("CareerPathNode", CareerPathNode),
         ("CareerPathResponse", CareerPathResponse),
         ("EmergingAlert", EmergingAlert),
