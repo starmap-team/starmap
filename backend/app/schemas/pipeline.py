@@ -140,7 +140,7 @@ class QualityAlertItem(BaseModel):
 
 class DataQualityResponse(BaseModel):
     """Data quality metrics and alerts."""
-    metrics: DataQualityMetrics = Field(default_factory=DataQualityMetrics)
+    metrics: DataQualityMetrics = Field(default_factory=DataQualityMetrics.model_construct)
     source_scores: dict[str, float] = Field(default_factory=dict)
     alerts: list[QualityAlertItem] = Field(default_factory=list)
     alert_count: int = 0

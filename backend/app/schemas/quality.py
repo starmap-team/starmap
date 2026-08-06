@@ -50,6 +50,8 @@ class QualityDashboard(BaseModel):
     audit_queue: list[dict] = Field(default_factory=list, description="待审核队列")
     # Phase 13 一致性审计: 区分"未评估"与"质量差", 避免 0/0/0 被误读为红色告警
     evaluation_count: int = Field(default=0, ge=0, description="已运行 golden-set 评估记录数")
+    baseline_available: bool = Field(default=False, description="是否已有 golden-set 基线")
+    evaluation_explanation: str = Field(default="", description="评估状态说明")
 
 
 class ResumeEvalResponse(BaseModel):

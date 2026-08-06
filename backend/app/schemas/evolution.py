@@ -68,6 +68,9 @@ class IndustryReportResponse(BaseModel):
     total_skills: int = 0
     rising_skills: list[SkillTrendItem] = Field(default_factory=list)
     declining_skills: list[SkillTrendItem] = Field(default_factory=list)
+    stable_skills: list[SkillTrendItem] = Field(default_factory=list, description="平稳技能")
+    top_positions: list[dict] = Field(default_factory=list, description="热门岗位 TOP")
+    summary: str = Field(default="", description="报告摘要")
 
 
 class EvolutionTrend(BaseModel):
