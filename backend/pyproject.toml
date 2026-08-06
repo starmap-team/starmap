@@ -18,6 +18,7 @@ dependencies = [
     # 数据库
     "sqlalchemy[asyncio] (>=2.0,<2.1)",
     "asyncpg (>=0.29,<0.30)",            # PostgreSQL 异步驱动
+    "psycopg[binary] (>=3.1,<4.0)",      # crawler 同步 DB 驱动 (compliance_log/jd_raw, CI 测试依赖)
     "alembic (>=1.13,<1.15)",            # 迁移（规范2：模型变更必走迁移）
     "neo4j (>=5.17,<6.0)",               # Neo4j Python driver
     "chromadb (>=0.5,<0.6)",             # 向量库
