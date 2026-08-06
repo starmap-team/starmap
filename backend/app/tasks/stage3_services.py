@@ -278,6 +278,21 @@ async def run_build_graph_from_extractions(limit: int = 100) -> dict[str, Any]:
             ).scalars().all()
 
         extractions = [record.to_extraction_payload() for record in rows]
+        # 2026-08-07 数据一致性: 抽取技能 upsert 到 PG skill_records (PG 为 SSOT)
+        # graph_sync 此前只写 Neo4j → 新抽取技能 PG 缺失 (canonical_id 无法关联)
+        try:
+            from app.repositories.extract_repo import upsert_skill_record
+
+            seen: set[str] = set()
+            for payload in extractions:
+                for sk in (payload.get("required_skills") or []) + (payload.get("preferred_skills") or []):
+                    name = sk.get("skill") or sk.get("name") if isinstance(sk, dict) else str(sk)
+                    if name and name not in seen:
+                        seen.add(name)
+                        await upsert_skill_record(session, name=name, review_status="approved")
+            await session.commit()
+        except Exception as sk_exc:  # noqa: BLE001 — 技能入库失败不阻断图谱构建
+            logger.warning("skill_records upsert failed (non-fatal): {}", sk_exc)
         config = GraphConfig()
         async with config.get_driver() as driver:
             summaries = await batch_write_extractions(extractions, driver)
