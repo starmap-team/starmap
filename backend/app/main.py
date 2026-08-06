@@ -63,8 +63,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Cron scanner loop started")
         yield
     finally:
+        # 2026-08-07 修复: cancel 后必须 await (带超时), 否则 uvicorn --reload
+        # shutdown 会无限等待未退出任务 → reload hang (改文件后服务假死)
         if cron_task is not None:
             cron_task.cancel()
+            try:
+                await asyncio.wait_for(cron_task, timeout=5.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                logger.warning("Cron scanner task did not stop within 5s (forced shutdown)")
             logger.info("Cron scanner loop stopped")
         await resources.close()
         logger.info("StarMap 关闭中...")
