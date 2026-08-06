@@ -447,6 +447,98 @@ async def get_pipeline_stages(
     return StageStatusResponse(stages=stage_list)
 
 
+@router.post("/crawl-source")
+def crawl_single_source(  # sync def: 爬取+DB 同步操作放线程池, 避免阻塞 event loop (2026-08-07 修复)
+    source: str,
+) -> dict[str, Any]:
+    """按数据源名称触发单源爬取 (C1 修复, 2026-08-07)。
+
+    前端 triggerCrawl 原调此端点但后端缺失 (404) — 补实现:
+    1. 按名称查 DataSourceRecord → platform (config.platform)
+    2. spider_registry 找适配器 → run_sync 爬取
+    3. 经 crawler.dao.upsert_jd 写入 jd_raw (dedup)
+    4. 写 data_source_metrics 指标 (表已补建, D1)
+    """
+    from crawler.persistence import dao
+    from crawler.persistence.database import get_jd_raw_session
+
+    from app.core.pipeline.executor import build_spider_registry
+    from app.models.pipeline_models import DataSourceRecord
+    from app.models.data_source_metric import DataSourceMetric
+
+    # sync def: 用 crawler 同步 engine (psycopg) 查数据源 + 写指标
+    # session 内提取所需字段 (detached 实例不可访问属性)
+    with get_jd_raw_session() as s:
+        row = s.execute(
+            select(DataSourceRecord.id, DataSourceRecord.name, DataSourceRecord.config,
+                   DataSourceRecord.source_type)
+            .where(DataSourceRecord.name == source)
+        ).one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"数据源 '{source}' 不存在")
+    ds_id, ds_name, ds_config, ds_source_type = row
+    config = ds_config or {}
+    platform = config.get("platform") or _PLATFORM_BY_SOURCE_TYPE.get(ds_source_type)
+    if not platform:
+        raise HTTPException(status_code=400, detail=f"数据源 '{source}' 未配置爬虫平台")
+
+    spider_fn = build_spider_registry().get(platform)
+    if spider_fn is None:
+        raise HTTPException(status_code=400, detail=f"平台 '{platform}' 无 spider 适配器")
+
+    keyword = config.get("keyword", "python")
+    max_count = int(config.get("max_count", 50))
+    items = spider_fn(keyword=keyword, max_count=max_count)
+
+    inserted = duplicate = failed = 0
+    from crawler.persistence.models import JdStatus
+
+    for it in items:
+        rec = {
+            "source_site": it.get("source_site", platform),
+            "source_url": it.get("source_url", ""),
+            "raw_html": it.get("raw_html", ""),
+            "clean_text": it.get("clean_text", ""),
+            "job_title": it.get("job_title", "")[:200],
+            "company": it.get("company", ""),
+            "salary_min": int(it.get("salary_min", 0) or 0),
+            "salary_max": int(it.get("salary_max", 0) or 0),
+            "location": it.get("location", ""),
+            "publish_date": it.get("publish_date", ""),
+            "content_hash": it.get("content_hash", ""),
+            "status": JdStatus.raw,
+        }
+        result = dao.upsert_jd(rec)
+        if result == "inserted":
+            inserted += 1
+        elif result == "duplicate":
+            duplicate += 1
+        else:
+            failed += 1
+
+    # 写爬取指标 (D1 后表存在) — 同步 engine
+    with get_jd_raw_session() as s:
+        s.add(DataSourceMetric(
+            source_id=ds_id, run_id=None, status="success" if not failed else "partial",
+            records_inserted=inserted, records_duplicate=duplicate,
+            error_type=None if not failed else "parse",
+            duration_ms=0,
+        ))
+        s.commit()
+
+    return {
+        "source": source, "platform": platform,
+        "fetched": len(items), "inserted": inserted,
+        "duplicate": duplicate, "failed": failed,
+    }
+
+
+_PLATFORM_BY_SOURCE_TYPE: dict[str, str] = {
+    "api": "arbeitnow",
+    "rss": "weworkremotely",
+}
+
+
 @router.get("/data-quality", response_model=DataQualityResponse)
 async def get_data_quality(
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -455,8 +547,14 @@ async def get_data_quality(
     from app.core.pipeline.quality_monitor import get_quality_snapshot
     from app.core.pipeline.status_aggregator import compute_data_quality_aggregates
 
+    # D3 (2026-08-07): 先聚合真实数据回写 data_sources 统计 (质量评估的来源)
+    from app.core.pipeline.source_quality_sync import sync_source_quality
+
+    await sync_source_quality(session)
     snapshot = await get_quality_snapshot(session)
-    extra = await compute_data_quality_aggregates(session, existing_metrics=snapshot.get("metrics", {}))
+    # 2026-08-07 修复: source_scores 在 snapshot 顶层, 合并进 metrics 供聚合读取
+    snap_metrics = {**snapshot.get("metrics", {}), "source_scores": snapshot.get("source_scores", {})}
+    extra = await compute_data_quality_aggregates(session, existing_metrics=snap_metrics)
     metrics_dict = {**snapshot.get("metrics", {}), **extra}
 
     alerts_raw = snapshot.get("alerts", [])

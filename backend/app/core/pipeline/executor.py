@@ -33,6 +33,28 @@ from app.core.pipeline.orchestrator import (
 )
 from app.db.session import get_session_factory
 from app.exceptions import PipelineStageError
+
+# 2026-08-07 (B2 修复): 共享 spider 注册表 — 提取为模块常量,
+# executor 与单源调度端点共用; 补入 juejin/remoteok (PLAN-002/003 落地后遗漏注册)
+SPIDER_REGISTRY: dict[str, Any] = {
+    "v2ex": None,  # 延迟导入避免循环
+}
+
+
+def build_spider_registry() -> dict[str, Any]:
+    """构建真实 spider 注册表 (B2: 含 juejin/remoteok, 2026-08-07 补)."""
+    from crawler.spiders import arbeitnow, jobicy, juejin, remoteok, weworkremotely
+    from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
+
+    return {
+        "v2ex": v2ex_sync,
+        "remotive": v2ex_sync,  # v2ex_remote spider 同时覆盖 V2EX + Remotive
+        "arbeitnow": arbeitnow.run_sync,
+        "jobicy": jobicy.run_sync,
+        "weworkremotely": weworkremotely.run_sync,
+        "juejin": juejin.run_sync,    # PLAN-002: D5 非结构化源
+        "remoteok": remoteok.run_sync,  # PLAN-003: 英文 JD 源
+    }
 from app.models.pipeline_models import PipelineRun
 from app.services.resources import resources as app_resources
 
@@ -99,21 +121,23 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     """
     import time
 
-    from crawler.persistence import dao
-    from crawler.persistence.models import JdStatus
-    from crawler.spiders import arbeitnow, jobicy, weworkremotely
-    from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
+    # 2026-08-07 修复 (B1): import 失败(如 celery 容器缺 psycopg) 必须回写 run 状态,
+    # 否则 run/stage 永远卡 running 0%, 用户看不到失败原因
+    try:
+        from crawler.persistence import dao
+        from crawler.persistence.models import JdStatus
+        from crawler.spiders import arbeitnow, jobicy, weworkremotely
+        from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
+    except Exception as exc:  # noqa: BLE001 — 依赖缺失是环境级失败, 必须显式标记
+        _run_async(update_stage_status(run_id, "crawl", StageStatus.FAILED.value,
+                                       errors=[f"crawler 依赖不可用: {exc}"]))
+        logger.opt(exception=True).error("crawl stage deps unavailable: {}", exc)
+        raise
 
     # Spider registry: platform name → run_sync function
     # PLAN-005/NEW-07: 注册真实 spider；移除 bosszhipin/51job/lagou 的误导映射
     # （真实性红线：禁止用其它源数据冒充平台数据；国内真链路见计划书 D17）
-    spider_registry: dict[str, Any] = {
-        "v2ex": v2ex_sync,
-        "remotive": v2ex_sync,  # v2ex_remote spider 同时覆盖 V2EX + Remotive
-        "arbeitnow": arbeitnow.run_sync,
-        "jobicy": jobicy.run_sync,
-        "weworkremotely": weworkremotely.run_sync,
-    }
+    spider_registry = build_spider_registry()
 
     # Phase 3.8.6: 确保 jd_raw 表存在 (未在 Pipeline 中调用 init_schema)
     try:

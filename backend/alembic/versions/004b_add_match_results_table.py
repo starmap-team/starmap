@@ -16,7 +16,7 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision: str = "004"
+revision: str = "004b"  # 2026-08-07 唯一化 (与 004a 重复导致 005 down 悬空)
 down_revision: str | None = "003"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

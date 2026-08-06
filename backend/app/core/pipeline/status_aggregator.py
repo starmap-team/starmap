@@ -110,7 +110,12 @@ async def compute_data_quality_aggregates(
     accuracy = float(metrics.get("accuracy", 0.0) or 0.0)
     total_records = int(metrics.get("total_records", 0) or 0)
     valid_records = int(metrics.get("valid_records", 0) or 0)
+    # 2026-08-07 修复: source_scores 在 quality_monitor snapshot 顶层,
+    # 不在 metrics 内 — 原读取恒 None → consistency 恒 0 (quality 恒 0 根因之一)
     source_scores = metrics.get("source_scores") or {}
+    if not source_scores and existing_metrics:
+        # 兜底: 从调用方透传的顶层 source_scores (route 层合并)
+        source_scores = existing_metrics.get("source_scores") or {}
     has_data = (total_records > 0) or (valid_records > 0)
 
     # 1) consistency: 基于 source_scores 标准差反向（0.5 stddev 为基准）

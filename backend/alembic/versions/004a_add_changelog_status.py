@@ -15,7 +15,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "004"
+revision: str = "004a"  # 2026-08-07 唯一化 (与 004b 重复导致 005 down 悬空)
 down_revision: str | None = "003"
 branch_labels: str | Sequence[str] | None = None
 dends_on: str | Sequence[str] | None = None

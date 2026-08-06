@@ -1002,6 +1002,7 @@ async function verifyNow() {
         v-model="scheduleDialogVisible"
         title="创建定时调度"
         width="480px"
+        align-center
       >
         <el-form
           :model="scheduleForm"
