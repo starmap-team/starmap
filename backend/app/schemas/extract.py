@@ -148,3 +148,9 @@ class ExtractionResult(BaseModel):
         default_factory=list,
         description="反幻觉检查问题清单",
     )
+    model_used: str | None = Field(
+        default=None,
+        max_length=200,
+        description="实际用于本次抽取的 LLM 模型标识（含本地降级回退时的模型名）",
+        examples=["qwen2.5:7b", "qwen2.5-7b-fallback"],
+    )

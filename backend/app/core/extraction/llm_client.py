@@ -302,7 +302,9 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
     ollama_url = f"{base}/api/chat"
     logger.info("Calling fallback Qwen/Ollama at {}", ollama_url)
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(120)) as client:
+        # 本地 Ollama 生成慢（短 JD ~40-120s+），硬编码 120s 常导致真实抽取
+        # 超时。放宽到 300s，让本地降级模型也能完成真实抽取（前端同步放宽）。
+        async with httpx.AsyncClient(timeout=httpx.Timeout(300)) as client:
             resp = await client.post(
                 ollama_url,
                 json={
@@ -368,6 +370,9 @@ class LLMClient:
 
         prompt = get_prompt("jd_extraction", jd_content=jd_text)
         response = await call_llm_with_fallback(prompt)
+        # 记录实际用于抽取的模型（含降级 fallback，如 qwen2.5-7b-fallback），
+        # 供抽取管线透传给前端做“本次所用模型/是否降级”提示。
+        self.last_extraction_model = response.get("model")
         return parse_llm_json_response(response["content"])
 
     async def validate_extraction(

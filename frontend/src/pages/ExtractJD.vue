@@ -16,6 +16,13 @@ const charLimit = 50000
 const result = computed(() => jd.extractResult)
 const loading = computed(() => jd.extractLoading)
 
+// 透明化：识别是否使用本地/降级模型，前端给出相应提示（慢/精度较低）
+const isDegradedModel = computed(() => {
+  const m = (result.value?.model_used ?? '').toLowerCase()
+  if (!m) return false
+  return m.includes('fallback') || m.includes('qwen') || m.includes('ollama') || m.includes('local')
+})
+
 const extractProgress = ref(0)
 const extractPhase = ref('')
 let progressTimer: ReturnType<typeof setInterval> | null = null
@@ -139,7 +146,7 @@ onUnmounted(() => {
                 size="small"
               >
                 <el-descriptions-item label="职位名称">
-                  {{ result.position_name ?? result.job_title ?? '-' }}
+                  {{ result.position_name || result.job_title || '-' }}
                 </el-descriptions-item>
                 <el-descriptions-item label="经验要求">
                   {{ result.experience_required ?? result.experience_years ?? '-' }} 年
@@ -154,6 +161,26 @@ onUnmounted(() => {
                   />
                 </el-descriptions-item>
               </el-descriptions>
+
+              <div
+                v-if="result.model_used"
+                class="model-used-note"
+              >
+                <el-tag
+                  :type="isDegradedModel ? 'warning' : 'info'"
+                  effect="plain"
+                  size="small"
+                >
+                  模型
+                </el-tag>
+                <span class="model-used-text">
+                  {{ result.model_used }}
+                </span>
+                <span
+                  v-if="isDegradedModel"
+                  class="degraded-hint"
+                >（本地降级模型，处理较慢）</span>
+              </div>
 
               <h4 class="result-section-title">
                 必备技能
@@ -190,6 +217,129 @@ onUnmounted(() => {
                   class="starmap-empty--sm"
                 >无</span>
               </div>
+
+              <h4 class="result-section-title">
+                工具 / 技术栈
+              </h4>
+              <div class="skill-tags-row">
+                <el-tag
+                  v-for="s in (result.tools ?? [])"
+                  :key="s.skill ?? s.name ?? s"
+                  type="info"
+                  effect="plain"
+                >
+                  {{ s.skill ?? s.name ?? s }}
+                </el-tag>
+                <span
+                  v-if="!(result.tools?.length)"
+                  class="starmap-empty--sm"
+                >无</span>
+              </div>
+
+              <h4 class="result-section-title">
+                岗位演进方向
+              </h4>
+              <div class="skill-tags-row">
+                <el-tag
+                  v-for="p in (result.evolves_to ?? [])"
+                  :key="p"
+                  type="primary"
+                  effect="plain"
+                >
+                  {{ p }}
+                </el-tag>
+                <span
+                  v-if="!(result.evolves_to?.length)"
+                  class="starmap-empty--sm"
+                >无</span>
+              </div>
+
+              <h4 class="result-section-title">
+                幻觉防控
+              </h4>
+              <div
+                v-if="result.hallucination_score != null"
+                class="hc-row"
+              >
+                <span class="hc-label">幻觉评分:</span>
+                <el-tag
+                  :type="(result.hallucination_score ?? 0) > 0.5 ? 'danger' : 'success'"
+                  effect="plain"
+                >
+                  {{ ((result.hallucination_score ?? 0) * 100).toFixed(0) }}%
+                </el-tag>
+              </div>
+              <div class="hc-row">
+                <span class="hc-label">幻觉技能:</span>
+                <div class="skill-tags-row">
+                  <el-tag
+                    v-for="s in (result.hallucinated_skills ?? [])"
+                    :key="s"
+                    type="danger"
+                    effect="dark"
+                  >
+                    {{ s }}
+                  </el-tag>
+                  <span
+                    v-if="!(result.hallucinated_skills?.length)"
+                    class="starmap-empty--sm"
+                  >无</span>
+                </div>
+              </div>
+              <div class="hc-row">
+                <span class="hc-label">缺失技能:</span>
+                <div class="skill-tags-row">
+                  <el-tag
+                    v-for="s in (result.missing_skills ?? [])"
+                    :key="s"
+                    type="warning"
+                    effect="plain"
+                  >
+                    {{ s }}
+                  </el-tag>
+                  <span
+                    v-if="!(result.missing_skills?.length)"
+                    class="starmap-empty--sm"
+                  >无</span>
+                </div>
+              </div>
+              <div
+                v-if="(result.issues?.length)"
+                class="hc-issues"
+              >
+                <span class="hc-label">问题:</span>
+                <ul class="hc-issues-list">
+                  <li
+                    v-for="(issue, idx) in (result.issues ?? [])"
+                    :key="idx"
+                  >
+                    {{ issue }}
+                  </li>
+                </ul>
+              </div>
+
+              <h4 class="result-section-title">
+                学习资源
+              </h4>
+              <div
+                v-if="(result.learning_resources?.length)"
+                class="skill-tags-row"
+              >
+                <el-tag
+                  v-for="(r, idx) in (result.learning_resources ?? [])"
+                  :key="idx"
+                  type="success"
+                  effect="plain"
+                  class="learning-resource"
+                >
+                  {{ r.title }}
+                  <span v-if="r.type">({{ r.type }})</span>
+                </el-tag>
+              </div>
+              <span
+                v-else
+                class="starmap-empty--sm"
+              >无</span>
 
               <h4 class="result-section-title">
                 标准化结果
@@ -278,6 +428,19 @@ onUnmounted(() => {
 .result-section-title { font-size: var(--font-size-xs); font-weight: 600; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.06em; margin: var(--space-5) 0 var(--space-3); }
 .result-section-title:not(:first-child) { margin-top: var(--space-3); }
 .skill-tags-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+
+/* ── 模型透明化提示 ── */
+.model-used-note { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
+.model-used-text { font-size: var(--font-size-sm); color: var(--muted-foreground); font-family: var(--font-mono); }
+.degraded-hint { font-size: var(--font-size-xs); color: var(--warning); }
+
+/* ── 幻觉防控信号 ── */
+.hc-row { display: flex; align-items: flex-start; gap: var(--space-2); margin-bottom: var(--space-2); }
+.hc-label { flex-shrink: 0; font-size: var(--font-size-sm); font-weight: 600; color: var(--muted-foreground); min-width: 68px; line-height: 24px; }
+.hc-issues { margin-top: var(--space-1); }
+.hc-issues-list { margin: 0; padding-left: var(--space-5); color: var(--muted-foreground); font-size: var(--font-size-sm); }
+.hc-issues-list li { margin-bottom: var(--space-1); }
+.learning-resource { margin-bottom: var(--space-1); }
 
 
 /* ── Custom Empty State ── */

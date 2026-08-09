@@ -222,6 +222,10 @@ class JDExtractionPipeline:
             result["error"] = f"LLM timeout: {e}"
             return result
 
+        # 记录实际用于抽取的模型（含降级 fallback，如 qwen2.5-7b-fallback），
+        # 供前端展示“本次抽取所用模型/是否降级”，保证降级反馈透明。
+        result["model_used"] = getattr(self.llm_client, "last_extraction_model", None)
+
         # Step 3: Parse JSON
         try:
             parsed = parse_llm_json_response(raw["content"]) if isinstance(raw, dict) and "content" in raw else raw

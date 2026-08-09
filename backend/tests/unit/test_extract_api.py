@@ -211,6 +211,51 @@ class TestBuildResult:
         assert result["position_name"] == ""
         assert result["confidence"] == 0.9
 
+    def test_passes_through_enrichment_and_hallucination_fields(self):
+        """契约锁定: 反幻觉 + 富化字段透传给前端 (ExtractJD.vue 新增展示区依赖)。
+
+        后端已透传, 前端此前丢弃; 此测试防止 _build_result 回归丢掉这些字段。
+        """
+        pipeline_result = {
+            "data": {
+                "position_name": "Backend Dev",
+                "tools": [{"name": "Docker", "category": "devops"}],
+                "learning_resources": [{"title": "Python 官方文档", "type": "docs"}],
+                "evolves_to": ["技术架构师"],
+            },
+            "validation": {
+                "is_valid": False,
+                "confidence": 0.35,
+                "hallucinated_skills": ["量子编程"],
+                "missing_skills": ["RESTful API"],
+                "issues": ["技能超出本体白名单"],
+            },
+            "model_used": "qwen2.5-7b-fallback",
+        }
+        result = _build_result(pipeline_result)
+
+        # 幻觉防控信号
+        assert result["hallucination_score"] == 0.35
+        assert result["hallucinated_skills"] == ["量子编程"]
+        assert result["missing_skills"] == ["RESTful API"]
+        assert result["issues"] == ["技能超出本体白名单"]
+        # 富化字段
+        assert result["tools"][0]["name"] == "Docker"
+        assert result["learning_resources"][0]["title"] == "Python 官方文档"
+        assert result["evolves_to"] == ["技术架构师"]
+        # 模型透明化（含降级）
+        assert result["model_used"] == "qwen2.5-7b-fallback"
+
+    def test_enrichment_fields_default_to_empty(self):
+        """无富化/反幻觉数据时默认空列表, 不抛错。"""
+        result = _build_result({"data": {"position_name": "X"}, "validation": {}})
+        assert result["tools"] == []
+        assert result["learning_resources"] == []
+        assert result["evolves_to"] == []
+        assert result["hallucinated_skills"] == []
+        assert result["missing_skills"] == []
+        assert result["issues"] == []
+
 
 # ═══════════════════════════════════════════════════════════════
 # TestWriteExtractionToGraph — async function with mocked Neo4j

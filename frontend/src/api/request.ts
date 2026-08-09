@@ -182,6 +182,13 @@ request.interceptors.response.use(
     if (!error.response) {
       if (!navigator.onLine) {
         message = '网络连接已断开，请检查网络设置'
+      } else if (
+        error.code === 'ECONNABORTED' ||
+        /timeout/i.test(error.message || '')
+      ) {
+        // 请求超时 ≠ 连不上服务器（如 AI 抽取/大屏等长耗时接口）。
+        // 服务可达但处理过慢时给出准确提示，避免误报“无法连接”。
+        message = '请求超时，处理时间过长，请稍后重试或减少输入内容'
       } else {
         message = '无法连接到服务器，请稍后重试'
       }

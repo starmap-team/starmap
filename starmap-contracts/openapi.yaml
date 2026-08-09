@@ -4104,6 +4104,47 @@ components:
                 type: number
                 example: 1.0
           default: []
+        tools:
+          type: array
+          description: JD 提及的工具与框架
+          items:
+            type: object
+          default: []
+        learning_resources:
+          type: array
+          description: JD 提及的学习资源
+          items:
+            type: object
+          default: []
+        evolves_to:
+          type: array
+          description: 该岗位演进方向
+          items:
+            type: string
+          default: []
+        hallucinated_skills:
+          type: array
+          description: 反幻觉检查判定的幻觉技能
+          items:
+            type: string
+          default: []
+        missing_skills:
+          type: array
+          description: 缺失的核心技能
+          items:
+            type: string
+          default: []
+        issues:
+          type: array
+          description: 反幻觉检查问题清单
+          items:
+            type: string
+          default: []
+        model_used:
+          type: string
+          nullable: true
+          description: 实际用于本次抽取的 LLM 模型标识（含本地降级回退时的模型名）
+          example: qwen2.5-7b-fallback
     SkillNode:
       type: object
       required:

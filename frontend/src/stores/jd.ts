@@ -38,6 +38,8 @@ interface JDExtractResult {
   hallucinated_skills?: string[]
   missing_skills?: string[]
   issues?: string[]
+  // 透明化：实际用于抽取的模型（含降级 fallback），用于“本次所用模型/降级”提示
+  model_used?: string | null
   [key: string]: unknown
 }
 
@@ -167,7 +169,8 @@ export const useJdStore = defineStore('jd', () => {
     extractResult.value = null
     try {
       const data = validateResponse(
-        await request.post('/extract/jd', { jd_content: jdContent }, { timeout: 120000 }) as JDExtractResult,
+        // 本地降级模型抽取慢（40-120s+），与后端 Ollama 超时(300s)对齐，避免前端先超时
+        await request.post('/extract/jd', { jd_content: jdContent }, { timeout: 300000 }) as JDExtractResult,
         extractSchema, '/extract/jd', 'ExtractionResult',
       )
       extractResult.value = data
