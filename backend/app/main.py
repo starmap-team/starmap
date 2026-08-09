@@ -49,6 +49,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """应用生命周期：启动时初始化连接，关闭时释放。"""
     logger.info("StarMap 启动中... env={}", settings.app_env)
     app.state.resources = await init_resources()
+    # 2026-08-08: 启动时把 prompt_versions 表（管理后台注册的自定义版本/活跃选择）
+    # 合并进内存注册表，避免重启丢失（此前仅存进程内存）
+    if resources.pg_sessionmaker is not None:
+        try:
+            from sqlalchemy import select as _sel
+
+            from app.core.extraction.prompt import apply_custom_prompt_versions
+            from app.models.prompt_version import PromptVersion
+
+            async with resources.pg_sessionmaker() as _session:
+                rows = (await _session.execute(_sel(PromptVersion))).scalars().all()
+            apply_custom_prompt_versions(
+                [(r.prompt_name, r.version, r.content, r.is_active) for r in rows]
+            )
+            if rows:
+                logger.info("Loaded {} custom prompt version(s) from DB", len(rows))
+        except Exception as exc:  # noqa: BLE001 — 加载失败不阻断启动（降级为内置版本）
+            logger.warning("[lifespan] Prompt versions load failed, using builtin: {}", exc)
     # Phase 10 PIPE-03 (c) D-03: 启动时若 PIPELINE_BOOTSTRAP=true,30 秒后入队一次 pipeline run
     # 该调用是 no-op（直接 return）如果环境变量未设置
     from app.core.pipeline.bootstrap import schedule_bootstrap_if_enabled
@@ -69,7 +87,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             cron_task.cancel()
             try:
                 await asyncio.wait_for(cron_task, timeout=5.0)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
+            except (TimeoutError, asyncio.CancelledError):
                 logger.warning("Cron scanner task did not stop within 5s (forced shutdown)")
             logger.info("Cron scanner loop stopped")
         await resources.close()

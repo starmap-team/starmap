@@ -388,6 +388,32 @@ _PROMPT_VERSIONS: dict[str, dict[str, str]] = {
     },
 }
 
+
+def apply_custom_prompt_versions(rows: list[tuple[str, str, str, bool]]) -> None:
+    """启动时把 DB 持久化的自定义版本合并进内存注册表。
+
+    ponytail: 根因修复 —— 版本注册此前只写进程内存 dict，重启即丢；
+    现在 /admin/prompts 写 prompt_versions 表，此函数在 lifespan 启动时
+    把 DB 行合并进 _PROMPT_VERSIONS（新增/覆盖内容）并应用 is_active
+    到 _ACTIVE_VERSIONS。抽取流程仍从内存读取，零侵入。
+    空 content 行（内置版本激活快照）只贡献活跃标记，不覆盖内置模板。
+    """
+    for prompt_name, version, content, is_active in rows:
+        _PROMPT_VERSIONS.setdefault(prompt_name, {})
+        if content:
+            _PROMPT_VERSIONS[prompt_name][version] = content
+        if is_active:
+            _ACTIVE_VERSIONS[prompt_name] = version
+
+
+def get_prompt_version_content(name: str, version: str) -> str:
+    """返回指定 prompt 指定版本的模板内容（不存在抛 KeyError）。"""
+    try:
+        return _PROMPT_VERSIONS[name][version]
+    except KeyError:
+        msg = f"Prompt '{name}' version '{version}' not found"
+        raise KeyError(msg) from None
+
 # ──────────────────────────────────────────────
 # A/B test configuration
 # ──────────────────────────────────────────────

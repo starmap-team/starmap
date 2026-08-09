@@ -222,3 +222,24 @@ starmap.zip
 # ---- 幽灵目录（审计发现，防止意外闯入）----
 starmap/
 test_ignored.py
+
+# ---- 一次性诊断/探测产物（调试输出，严禁入库，其中可能含 token）----
+docker_now.txt
+docker_svc.txt
+docker_svc2.txt
+env_health.txt
+env_probe.txt
+kill.txt
+login_check.txt
+match3.txt
+match4.txt
+match5.txt
+match_test.txt
+match_test2.txt
+port2.txt
+port_check.txt
+ports.txt
+ports2.txt
+proxy2.txt
+proxy_check.txt
+.dismiss-alerts.cjs

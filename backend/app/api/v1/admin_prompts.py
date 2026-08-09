@@ -10,15 +10,18 @@ from __future__ import annotations
 import json
 import time
 from collections import defaultdict
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.extraction.prompt import (
     get_ab_test,
     get_active_version,
     get_prompt_template_raw,
+    get_prompt_version_content,
     list_prompt_names,
     list_prompt_versions,
     register_prompt_version,
@@ -26,7 +29,8 @@ from app.core.extraction.prompt import (
     set_active_version,
     stop_ab_test,
 )
-from app.dependencies import get_redis_client
+from app.dependencies import get_db_session, get_redis_client
+from app.models.prompt_version import PromptVersion
 from app.schemas.prompt import (
     ABResultRequest,
     ABTestRequest,
@@ -96,8 +100,37 @@ async def get_prompt_template_content(name: str) -> dict[str, Any]:
 async def create_prompt_version(
     name: str,
     req: RegisterVersionRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, Any]:
     """Register a new prompt version."""
+    # ponytail: 持久化优先 —— 先落 prompt_versions 表（重启不丢），再更新内存注册表
+    if req.activate:
+        await session.execute(
+            update(PromptVersion)
+            .where(PromptVersion.prompt_name == name)
+            .values(is_active=False)
+        )
+    existing = (
+        await session.execute(
+            select(PromptVersion).where(
+                PromptVersion.prompt_name == name,
+                PromptVersion.version == req.version,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is None:
+        session.add(PromptVersion(
+            prompt_name=name,
+            version=req.version,
+            content=req.template,
+            is_active=bool(req.activate),
+        ))
+    else:
+        existing.content = req.template
+        if req.activate:
+            existing.is_active = True
+    await session.commit()
+
     version = register_prompt_version(
         name=name,
         template=req.template,
@@ -121,12 +154,43 @@ async def create_prompt_version(
 async def change_active_version(
     name: str,
     req: SetActiveRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, Any]:
     """Change the active prompt version."""
     try:
         set_active_version(name, req.version)
     except KeyError as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
+    # ponytail: 持久化活跃选择 —— 该 (name, version) 若已注册则置 active，
+    # 否则（内置版本）插入快照行
+    await session.execute(
+        update(PromptVersion)
+        .where(PromptVersion.prompt_name == name)
+        .values(is_active=False)
+    )
+    row = (
+        await session.execute(
+            select(PromptVersion).where(
+                PromptVersion.prompt_name == name,
+                PromptVersion.version == req.version,
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        # 内置版本激活：插入空 content 快照（仅记录活跃标记，不覆盖内置模板）
+        try:
+            get_prompt_version_content(name, req.version)
+        except KeyError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from None
+        session.add(PromptVersion(
+            prompt_name=name,
+            version=req.version,
+            content="",
+            is_active=True,
+        ))
+    else:
+        row.is_active = True
+    await session.commit()
     logger.info("Prompt '{}' active version set to {}", name, req.version)
     return {
         "prompt": name,

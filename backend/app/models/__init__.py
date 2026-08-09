@@ -44,6 +44,9 @@ from app.models.pipeline_models import (  # noqa: E402, F401
     PipelineSchedule,
     SourceTrustConfig,
 )
+from app.models.prompt_version import (  # noqa: E402, F401
+    PromptVersion,
+)
 from app.models.review_audit_log import (  # noqa: E402, F401
     ReviewAuditLog,
 )
@@ -76,6 +79,7 @@ __all__ = [
     "PipelineSchedule",
     "PositionRecord",
     "PositionSkillRelation",
+    "PromptVersion",
     "RawJDRecord",
     "ReviewAuditLog",
     "ReviewQueue",
