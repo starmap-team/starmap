@@ -33,6 +33,8 @@ from app.core.pipeline.orchestrator import (
 )
 from app.db.session import get_session_factory
 from app.exceptions import PipelineStageError
+from app.models.pipeline_models import PipelineRun
+from app.services.resources import resources as app_resources
 
 # 2026-08-07 (B2 修复): 共享 spider 注册表 — 提取为模块常量,
 # executor 与单源调度端点共用; 补入 juejin/remoteok (PLAN-002/003 落地后遗漏注册)
@@ -55,8 +57,6 @@ def build_spider_registry() -> dict[str, Any]:
         "juejin": juejin.run_sync,    # PLAN-002: D5 非结构化源
         "remoteok": remoteok.run_sync,  # PLAN-003: 英文 JD 源
     }
-from app.models.pipeline_models import PipelineRun
-from app.services.resources import resources as app_resources
 
 # ---------------------------------------------------------------------------
 # SSE progress helpers
@@ -126,11 +126,16 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     try:
         from crawler.persistence import dao
         from crawler.persistence.models import JdStatus
-        from crawler.spiders import arbeitnow, jobicy, weworkremotely
-        from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
+
+        # noqa: F401 — 依赖可用性探测: spider 模块 import 失败必须在此显式标记 run 失败 (B1),
+        # 实际使用在下方 build_spider_registry(); 不可删除
+        from crawler.spiders import arbeitnow, jobicy, weworkremotely  # noqa: F401
+        from crawler.spiders.v2ex_remote import run_sync as v2ex_sync  # noqa: F401
     except Exception as exc:  # noqa: BLE001 — 依赖缺失是环境级失败, 必须显式标记
         # B1 修复修正: update_stage_status 需要 session 首参 + status 关键字,
         # 此前裸调用签名错误(TypeError), 失败状态永远写不进去 — 复用 celery_app 同款事务模式
+        dep_err = f"crawler 依赖不可用: {exc}"  # 提前捕获: except 块结束后 exc 被清理
+
         async def _mark_crawl_failed() -> None:
             session_factory = get_session_factory()
             async with session_factory() as session:
@@ -138,7 +143,7 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
                     await update_stage_status(
                         session, uuid.UUID(str(run_id)), "crawl",
                         status=StageStatus.FAILED.value,
-                        errors=[f"crawler 依赖不可用: {exc}"],
+                        errors=[dep_err],
                     )
 
         _run_async(_mark_crawl_failed())

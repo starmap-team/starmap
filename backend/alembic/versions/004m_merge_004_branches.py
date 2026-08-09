@@ -6,9 +6,6 @@
 """
 from __future__ import annotations
 
-from alembic import op
-
-
 revision: str = "004m"
 down_revision: tuple[str, str] = ("004a", "004b")
 branch_labels = None

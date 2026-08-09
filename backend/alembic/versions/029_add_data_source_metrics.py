@@ -6,10 +6,10 @@ valid_records/avg_quality_score 从不更新 → 数据质量评估恒 0。
 """
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 
 revision: str = "029"
 down_revision: tuple[str, str] = ("020", "028")  # merge 预存分叉 (020 与 021-028 并行)

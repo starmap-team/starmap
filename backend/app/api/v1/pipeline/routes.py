@@ -463,8 +463,8 @@ def crawl_single_source(  # sync def: 爬取+DB 同步操作放线程池, 避免
     from crawler.persistence.database import get_jd_raw_session
 
     from app.core.pipeline.executor import build_spider_registry
-    from app.models.pipeline_models import DataSourceRecord
     from app.models.data_source_metric import DataSourceMetric
+    from app.models.pipeline_models import DataSourceRecord
 
     # sync def: 用 crawler 同步 engine (psycopg) 查数据源 + 写指标
     # session 内提取所需字段 (detached 实例不可访问属性)
@@ -545,10 +545,10 @@ async def get_data_quality(
 ) -> DataQualityResponse:
     """数据质量实时指标。"""
     from app.core.pipeline.quality_monitor import get_quality_snapshot
-    from app.core.pipeline.status_aggregator import compute_data_quality_aggregates
 
     # D3 (2026-08-07): 先聚合真实数据回写 data_sources 统计 (质量评估的来源)
     from app.core.pipeline.source_quality_sync import sync_source_quality
+    from app.core.pipeline.status_aggregator import compute_data_quality_aggregates
 
     await sync_source_quality(session)
     snapshot = await get_quality_snapshot(session)
