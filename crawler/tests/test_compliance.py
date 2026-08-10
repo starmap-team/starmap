@@ -5,12 +5,11 @@
 """
 from __future__ import annotations
 
-import httpx
 import os
 import time
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
-import pytest
+import httpx
 
 
 # ── robots.txt ────────────────────────────────────────────────────
@@ -19,8 +18,9 @@ class TestRobotsCheck:
 
     def test_is_allowed_returns_true_for_no_robots(self):
         """拿不到 robots.txt 时默认放行。"""
-        from crawler.compliance import is_allowed, _ROBOTS_CACHE
         from urllib.robotparser import RobotFileParser
+
+        from crawler.compliance import _ROBOTS_CACHE, is_allowed
 
         # 注入一个空的 RobotFileParser（模拟读取失败）
         fake_rp = RobotFileParser()
@@ -57,8 +57,9 @@ class TestRobotsCheck:
 
     def test_stealth_check_robots_logs_warning_when_disallowed(self):
         """被禁止时应记录 warning（soft check，不阻塞）。"""
-        from crawler.compliance import stealth_check_robots, _ROBOTS_CACHE
         from urllib.robotparser import RobotFileParser
+
+        from crawler.compliance import _ROBOTS_CACHE, stealth_check_robots
 
         # 注入一个禁止所有路径的 robots
         fake_rp = RobotFileParser()

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """下载并解析 ESCO 技能数据"""
-import urllib.request
 import csv
 import io
 import os
+import urllib.request
 
 # ESCO skills CSV 下载地址
 ESCO_URL = "https://raw.githubusercontent.com/tabiya-tech/tabiya-open-dataset/main/tabiya-esco-v1.1.1/csv/skills.csv"

@@ -1,5 +1,7 @@
-import httpx
 import os
+
+import httpx
+
 os.environ['NO_PROXY'] = '*'
 
 token = os.environ.get("APIFY_TOKEN", "")

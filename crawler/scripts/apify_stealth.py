@@ -11,11 +11,11 @@ os.environ["NO_PROXY"] = "*"
 os.environ["no_proxy"] = "*"
 
 from apify_client import ApifyClient
-from crawler.compliance import log_request, is_allowed
+
+from crawler.compliance import is_allowed, log_request
 from crawler.dedup import hex64, simhash
 from crawler.persistence import dao
 from crawler.persistence.models import JdStatus
-from crawler.pipelines.clean import clean_html
 
 APIFY_TOKEN = os.environ.get("APIFY_TOKEN", "")
 ACTOR = "curious_coder/stealth-web-scraper"

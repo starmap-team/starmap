@@ -81,4 +81,4 @@ def hex64(value: int) -> str:
     return format(value & 0xFFFFFFFFFFFFFFFF, "016x").ljust(64, "0")
 
 
-__all__ = ["simhash", "hamming", "is_near_duplicate", "hex64"]
+__all__ = ["hamming", "hex64", "is_near_duplicate", "simhash"]

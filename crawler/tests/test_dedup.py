@@ -1,5 +1,5 @@
 """SimHash 去重单元测试。"""
-from crawler.dedup import simhash, hamming, is_near_duplicate, hex64
+from crawler.dedup import hamming, hex64, is_near_duplicate, simhash
 
 
 def test_simhash_same_text_same_hash():

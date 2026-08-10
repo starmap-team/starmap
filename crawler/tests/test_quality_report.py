@@ -5,7 +5,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from crawler.pipelines.quality_report import QualityReport, format_report_text, generate_quality_report
+from crawler.pipelines.quality_report import (
+    QualityReport,
+    format_report_text,
+    generate_quality_report,
+)
 
 
 class TestQualityReport:

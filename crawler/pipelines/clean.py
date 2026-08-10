@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+
 from bs4 import BeautifulSoup
 
 _JS_RE = re.compile(r"script|style|noscript|iframe", re.IGNORECASE)

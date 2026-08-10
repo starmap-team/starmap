@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 # 设置环境变量
 os.environ.setdefault("POSTGRES_PORT", "5433")
 
-from crawler.persistence import extraction_dao  # noqa: E402
+from crawler.persistence import extraction_dao
 
 
 # ---------------- extraction_dao 端到端测试 ----------------
@@ -32,8 +32,9 @@ class TestExtractionDao:
     )
     def test_roundtrip(self):
         """完整测试：写一条 → 读计数。"""
-        from crawler.persistence.database import engine
         from sqlalchemy import text
+
+        from crawler.persistence.database import engine
 
         # 清理
         with engine.connect() as c:

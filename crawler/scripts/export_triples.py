@@ -19,8 +19,9 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from crawler.persistence.database import get_jd_raw_session  # noqa: E402
-from sqlalchemy import text  # noqa: E402
+from sqlalchemy import text
+
+from crawler.persistence.database import get_jd_raw_session
 
 logging.basicConfig(
     level=logging.INFO,

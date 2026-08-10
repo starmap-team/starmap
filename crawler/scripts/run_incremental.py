@@ -21,10 +21,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from crawler.persistence import dao  # noqa: E402
-from crawler.persistence.models import JdStatus  # noqa: E402
-from crawler.pipelines.incremental import check_incremental  # noqa: E402
-from crawler.pipelines.quality_report import format_report_text, generate_quality_report  # noqa: E402
+from crawler.persistence import dao
+from crawler.persistence.models import JdStatus
+from crawler.pipelines.incremental import check_incremental
+from crawler.pipelines.quality_report import (
+    format_report_text,
+    generate_quality_report,
+)
 
 logging.basicConfig(
     level=logging.INFO,

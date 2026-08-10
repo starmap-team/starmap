@@ -4,11 +4,10 @@
 """
 from __future__ import annotations
 
-import yaml
 from pathlib import Path
 
 import pytest
-
+import yaml
 
 ESCO_YAML = Path(__file__).resolve().parent.parent.parent / "docs" / "ontology" / "esco_mapping.yaml"
 TAXONOMY_YAML = Path(__file__).resolve().parent.parent.parent / "docs" / "ontology" / "skill_taxonomy.yaml"
@@ -77,7 +76,7 @@ class TestEscoMapping:
             if skill not in all_skills:
                 missing.append(f"{key} → {skill}")
 
-        assert len(missing) == 0, f"以下映射在本体中找不到:\n" + "\n".join(missing[:10])
+        assert len(missing) == 0, "以下映射在本体中找不到:\n" + "\n".join(missing[:10])
 
     def test_no_duplicate_starmap_targets(self):
         """多个 ESCO 技能可以映射到同一个 StarMap skill（一对多），但不重复 key。"""

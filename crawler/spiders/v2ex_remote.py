@@ -11,15 +11,13 @@ Remotive API 免费无需认证, 返回英文远程职位.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import time
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
-import json
-import hashlib
-
 from crawler.compliance import fetch
-
 
 V2EX_TOPICS_URL = "https://www.v2ex.com/api/topics/show.json?node_name=jobs"
 V2EX_TOPIC_URL = "https://www.v2ex.com/api/topics/show.json?id={id}"

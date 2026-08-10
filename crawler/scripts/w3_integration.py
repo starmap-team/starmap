@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import logging
 import os
@@ -25,12 +24,11 @@ if hasattr(sys.stdout, "reconfigure"):
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 import httpx
+from sqlalchemy import select
 
-from crawler.persistence import dao as jd_dao
 from crawler.persistence import extraction_dao
 from crawler.persistence.database import get_jd_raw_session
 from crawler.persistence.models import JdRaw, JdStatus
-from sqlalchemy import select
 
 logging.basicConfig(
     level=logging.INFO,

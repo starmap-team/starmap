@@ -1,7 +1,7 @@
 # Alembic 环境配置
 import sys
-from pathlib import Path
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -10,8 +10,8 @@ from sqlalchemy import engine_from_config, pool
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 
-from crawler.config import DATABASE_URL  # noqa: E402
-from crawler.persistence.models import Base  # noqa: E402
+from crawler.config import DATABASE_URL
+from crawler.persistence.models import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", DATABASE_URL)

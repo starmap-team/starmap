@@ -10,14 +10,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent  # repo root
 sys.path.insert(0, str(ROOT))
 
-from crawler.config import KEYWORDS  # noqa: E402
-from crawler.dedup import hex64, simhash  # noqa: E402
-from crawler.persistence import dao  # noqa: E402
-from crawler.persistence.models import JdStatus  # noqa: E402
-from crawler.persistence.database import get_jd_raw_session  # noqa: E402
-from sqlalchemy import select, func  # noqa: E402
-from crawler.persistence.models import JdRaw, ComplianceLog  # noqa: E402
+from sqlalchemy import func, select
 
+from crawler.config import KEYWORDS
+from crawler.dedup import hex64, simhash
+from crawler.persistence import dao
+from crawler.persistence.database import get_jd_raw_session
+from crawler.persistence.models import (
+    ComplianceLog,
+    JdRaw,
+    JdStatus,
+)
 
 SITES = ["lagou", "51job", "bosszhipin"]
 CITIES = ["北京", "上海", "深圳", "杭州", "广州", "成都", "南京", "武汉"]

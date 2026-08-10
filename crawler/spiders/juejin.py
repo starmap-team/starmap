@@ -23,8 +23,8 @@ from typing import Any
 from crawler.compliance import fetch
 
 SITEMAP_INDEX_URL = "https://juejin.cn/sitemap/posts/index.xml"
-_HTML_SCRIPT = re.compile(r"<script[^>]*>.*?</script>", re.S | re.I)
-_HTML_STYLE = re.compile(r"<style[^>]*>.*?</style>", re.S | re.I)
+_HTML_SCRIPT = re.compile(r"<script[^>]*>.*?</script>", re.DOTALL | re.IGNORECASE)
+_HTML_STYLE = re.compile(r"<style[^>]*>.*?</style>", re.DOTALL | re.IGNORECASE)
 _HTML_TAG = re.compile(r"<[^>]+>")
 _WS = re.compile(r"\s+")
 _XML_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -53,7 +53,7 @@ def _parse_locs(xml_body: str) -> list[str]:
 
 
 def _extract_title(html: str) -> str:
-    m = re.search(r"<title[^>]*>(.*?)</title>", html, re.S | re.I)
+    m = re.search(r"<title[^>]*>(.*?)</title>", html, re.DOTALL | re.IGNORECASE)
     if not m:
         return ""
     # 掘金 title 形如 "{文章标题} - 掘金"

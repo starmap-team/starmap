@@ -13,7 +13,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import patch
 
-
 from crawler.spiders import juejin
 
 SITEMAP_INDEX = """<?xml version="1.0"?>

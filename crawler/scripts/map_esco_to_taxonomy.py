@@ -2,6 +2,7 @@
 """将 ESCO IT 技能映射到 StarMap 198 技能本体"""
 import csv
 import os
+
 import yaml
 
 ESCO_CSV = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "ontology", "esco_it_skills.csv")

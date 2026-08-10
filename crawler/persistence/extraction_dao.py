@@ -76,8 +76,8 @@ def count_by_status() -> dict[str, int]:
 
 
 __all__ = [
+    "count_by_status",
+    "count_extractions",
     "init_extraction_schema",
     "upsert_extraction",
-    "count_extractions",
-    "count_by_status",
 ]

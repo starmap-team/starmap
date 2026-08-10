@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 log = logging.getLogger(__name__)
 
@@ -69,4 +69,4 @@ def get_compliance_session() -> Iterator[Session]:
         s.close()
 
 
-__all__ = ["engine", "SessionLocal", "get_jd_raw_session", "get_compliance_session"]
+__all__ = ["SessionLocal", "engine", "get_compliance_session", "get_jd_raw_session"]

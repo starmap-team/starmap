@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+
 from sqlalchemy import func, select
 
 from crawler.persistence.database import get_jd_raw_session
@@ -122,4 +123,4 @@ def format_report_text(report: QualityReport) -> str:
     return "\n".join(lines)
 
 
-__all__ = ["QualityReport", "generate_quality_report", "format_report_text"]
+__all__ = ["QualityReport", "format_report_text", "generate_quality_report"]

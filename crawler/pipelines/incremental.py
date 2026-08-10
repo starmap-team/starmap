@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable
 
 from sqlalchemy import select
 
@@ -138,6 +138,6 @@ def check_incremental(
 __all__ = [
     "IncrementalResult",
     "check_incremental",
-    "get_existing_urls",
     "get_existing_hashes",
+    "get_existing_urls",
 ]

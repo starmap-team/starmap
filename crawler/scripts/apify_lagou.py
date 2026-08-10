@@ -19,19 +19,17 @@ import argparse
 import json
 import logging
 import os
-import re
 import sys
 from datetime import date
 from pathlib import Path
-from urllib.parse import urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from crawler.compliance import is_allowed, log_request
 from crawler.dedup import hex64, simhash
-from crawler.pipelines.clean import clean_html, extract_job_title
 from crawler.persistence import dao
 from crawler.persistence.models import JdStatus
+from crawler.pipelines.clean import clean_html
 
 log = logging.getLogger(__name__)
 

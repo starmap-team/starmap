@@ -27,8 +27,8 @@ from pathlib import Path
 # 技术说明：sys.path.insert 确保导入 crawler 包时能找到正确的位置。
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from crawler.persistence import dao  # noqa: E402
-from crawler.pipeline_bridge import trigger_pipeline_run  # noqa: E402
+from crawler.persistence import dao
+from crawler.pipeline_bridge import trigger_pipeline_run
 
 # 业务说明：配置根日志记录器，设置日志级别和格式。
 # 技术说明：format 包含时间戳、日志级别、记录器名称和消息内容。

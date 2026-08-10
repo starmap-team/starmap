@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
-from typing import Optional
 
 from playwright.async_api import BrowserContext, Page, async_playwright
 from playwright_stealth import Stealth
@@ -56,10 +55,10 @@ class StealthConfig:
     """stealth 配置。"""
     # 业务说明：Stealth 爬虫的配置数据类，封装了浏览器启动所需的全部参数。
     # 技术说明：使用 dataclass 可简化配置管理，支持默认值的灵活覆盖。
-    proxy: Optional[str] = None  # "http://host:port" 或 "socks5://host:port"
-    proxy_user: Optional[str] = None
-    proxy_pass: Optional[str] = None
-    user_agent: Optional[str] = None
+    proxy: str | None = None  # "http://host:port" 或 "socks5://host:port"
+    proxy_user: str | None = None
+    proxy_pass: str | None = None
+    user_agent: str | None = None
     headless: bool = True
     extra_args: list[str] = field(default_factory=list)
     viewport_width: int = 1920
@@ -67,7 +66,7 @@ class StealthConfig:
 
 
 async def create_stealth_context(
-    config: Optional[StealthConfig] = None,
+    config: StealthConfig | None = None,
 ) -> tuple:
     """创建反检测浏览器上下文。
 
@@ -132,7 +131,7 @@ async def stealth_goto(
     *,
     timeout: int = 30000,
     wait_until: str = "domcontentloaded",
-) -> tuple[Optional[Page], int]:
+) -> tuple[Page | None, int]:
     """用 stealth 上下文访问 URL，返回 (page, status_code)。
 
     调用方负责关闭 page。

@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from .database import get_jd_raw_session, engine
-from .models import Base, JdRaw, JdStatus
+from .database import engine, get_jd_raw_session
+from .models import Base, JdRaw
 
 log = logging.getLogger(__name__)
 
@@ -62,4 +61,4 @@ def count_by_status() -> dict[str, int]:
     return out
 
 
-__all__ = ["init_schema", "upsert_jd", "count_jd", "count_by_status"]
+__all__ = ["count_by_status", "count_jd", "init_schema", "upsert_jd"]

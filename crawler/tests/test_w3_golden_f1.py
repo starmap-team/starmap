@@ -5,8 +5,6 @@ CI 可全量运行。
 """
 from __future__ import annotations
 
-import json
-import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -17,12 +15,12 @@ if hasattr(sys.stdout, "reconfigure"):
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from crawler.scripts.w3_run_golden import (  # noqa: E402
+from crawler.scripts.w3_integration import call_extract_api
+from crawler.scripts.w3_run_golden import (
     compute_f1,
     load_golden,
     skill_set,
 )
-from crawler.scripts.w3_integration import call_extract_api  # noqa: E402
 
 
 # ---------------- compute_f1 测试 ----------------

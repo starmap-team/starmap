@@ -46,7 +46,7 @@ def trigger_pipeline_run(source: str = "boss", limit: int = 20) -> int:
         result = asyncio.run(_trigger_async(source, limit))
         print(f"Pipeline run triggered: {result}")
         return 0
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("Pipeline trigger failed")
         return 1
 

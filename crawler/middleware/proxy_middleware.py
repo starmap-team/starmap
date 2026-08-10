@@ -160,6 +160,9 @@ def reset_for_tests() -> None:
 
 
 __all__ = [
+    "COOLDOWN_SECONDS",
+    "FAIL_THRESHOLD",
+    "WINDOW_SECONDS",
     "ProxyEntry",
     "_Breaker",
     "load_proxies",
@@ -167,7 +170,4 @@ __all__ = [
     "record_proxy_failure",
     "record_proxy_success",
     "reset_for_tests",
-    "WINDOW_SECONDS",
-    "COOLDOWN_SECONDS",
-    "FAIL_THRESHOLD",
 ]

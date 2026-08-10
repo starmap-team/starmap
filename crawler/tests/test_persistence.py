@@ -1,7 +1,8 @@
 """入库层单元测试（需 Postgres 5433 跑着）。"""
 import os
-import pytest
 from datetime import date
+
+import pytest
 
 # 端口绕开
 os.environ.setdefault("POSTGRES_PORT", "5433")
@@ -14,9 +15,9 @@ pytestmark = pytest.mark.skip(
     reason="NEW-22: live-DB 测试与 conftest 全局 dao mock 冲突，需测试基建改造后启用"
 )
 
-from crawler.persistence import dao  # noqa: E402
-from crawler.persistence.models import JdStatus  # noqa: E402
-from crawler.dedup import hex64, simhash  # noqa: E402
+from crawler.dedup import hex64, simhash
+from crawler.persistence import dao
+from crawler.persistence.models import JdStatus
 
 
 @pytest.fixture(scope="module", autouse=True)

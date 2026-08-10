@@ -10,8 +10,6 @@ import os
 import random
 import time
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -110,7 +108,7 @@ def _load_proxies() -> list[str]:
     return [p.strip() for p in raw.split(",") if p.strip()]
 
 
-def get_proxy() -> Optional[str]:
+def get_proxy() -> str | None:
     """从代理池随机取一个代理。无池则返回 None（直连）。"""
     # 业务说明：随机选择代理以分散请求压力，避免单一代理过载。
     # 当代理池为空时返回 None，表示使用本机 IP 直连。
@@ -182,8 +180,8 @@ def fetch(
     url: str,
     source_site: str,
     *,
-    user_agent: Optional[str] = None,
-    rate_limiter: Optional[RateLimiter] = None,
+    user_agent: str | None = None,
+    rate_limiter: RateLimiter | None = None,
     timeout: float = 15.0,
     use_proxy: bool = False,
 ) -> FetchResult:
@@ -290,5 +288,13 @@ def stealth_check_robots(url: str, user_agent: str = "StarMap-Stealth/1.0") -> b
     return allowed
 
 
-__all__ = ["is_allowed", "RateLimiter", "log_request", "fetch", "FetchResult", "get_proxy",
-           "stealth_log_request", "stealth_check_robots"]
+__all__ = [
+    "FetchResult",
+    "RateLimiter",
+    "fetch",
+    "get_proxy",
+    "is_allowed",
+    "log_request",
+    "stealth_check_robots",
+    "stealth_log_request",
+]

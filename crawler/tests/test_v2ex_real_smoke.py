@@ -10,16 +10,15 @@ These tests do NOT hit the real network — they patch the module's ``fetch``
 """
 from __future__ import annotations
 
-import json
-from typing import Any
-
-import pytest
-
 # Stage 2.2: conftest used to mock crawler.spiders as a whole. To test the real
 # v2ex_remote module we bypass any parent-package mock by importing the file
 # directly via importlib.
 import importlib.util
+import json
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 _V2EX_PATH = (
     Path(__file__).resolve().parents[1]

@@ -3,19 +3,22 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
+
 from sqlalchemy import (
+    CHAR,
     BigInteger,
     Boolean,
-    CHAR,
     Date,
     DateTime,
-    Enum as SAEnum,
     Float,
     Index,
     Integer,
     String,
     Text,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -88,4 +91,4 @@ class ComplianceLog(Base):
     )
 
 
-__all__ = ["Base", "JdRaw", "ComplianceLog", "JdStatus"]
+__all__ = ["Base", "ComplianceLog", "JdRaw", "JdStatus"]

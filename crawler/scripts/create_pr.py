@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """通过 GitHub API 创建 PR"""
-import urllib.request
 import json
-import os
+import urllib.request
 
 # GitHub API 配置
 REPO = "starmap-team/starmap"
@@ -73,7 +72,7 @@ req.add_header("User-Agent", "Mozilla/5.0")
 try:
     with urllib.request.urlopen(req, timeout=30) as resp:
         result = json.loads(resp.read())
-        print(f"PR 创建成功!")
+        print("PR 创建成功!")
         print(f"URL: {result.get('html_url', 'N/A')}")
         print(f"Number: #{result.get('number', 'N/A')}")
 except urllib.error.HTTPError as e:

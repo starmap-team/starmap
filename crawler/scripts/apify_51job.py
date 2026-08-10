@@ -15,7 +15,6 @@ os.environ["no_proxy"] = "*"
 
 from apify_client import ApifyClient
 
-from crawler import config
 from crawler.compliance import is_allowed, log_request
 from crawler.dedup import hex64, simhash
 from crawler.persistence import dao
