@@ -15,6 +15,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, Any
 
 import sqlalchemy as sa
@@ -22,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db_session, get_neo4j_driver
+from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.exceptions import StarMapError
 from app.models.evolution_models import (
     EvolutionChangelog,
@@ -33,6 +34,7 @@ from app.schemas.evolution import (
     CausalAnalysisResponse,
     ChangelogEntry,
     EmergingSkill,
+    EvolutionKpiResponse,
     EvolutionPathEntry,
     EvolutionTrend,
     EvolutionTrendsResponse,
@@ -40,7 +42,7 @@ from app.schemas.evolution import (
     ReviewQueueItem,
     SnapshotEntry,
 )
-from app.services.evolution_service import load_skill_timeseries_data
+from app.services.evolution_service import LOW_TRUST_THRESHOLD, load_skill_timeseries_data
 from app.tasks.celery_app import analyze_evolution_trends
 
 router = APIRouter(prefix="/evolution", tags=["演化分析"])
@@ -63,7 +65,6 @@ CII_SOURCE_THRESHOLD = 7
 @router.get("/trends", response_model=EvolutionTrendsResponse)
 async def get_trends(
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    category: Annotated[str | None, Query(description="技能分类筛选")] = None,
     days: Annotated[int, Query(ge=7, le=730, description="分析时间窗口（天）")] = 90,
 ) -> EvolutionTrendsResponse:
     """技能热度趋势、岗位变迁时间线、新兴岗位预警（§8.3 演化看板）。"""
@@ -71,6 +72,17 @@ async def get_trends(
 
     items = await build_evolution_trends(session, days=days)
     return EvolutionTrendsResponse(items=[EvolutionTrend(**item) for item in items])
+
+
+@router.get("/kpi", response_model=EvolutionKpiResponse)
+async def get_kpi(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    days: Annotated[int, Query(ge=7, le=730, description="分析时间窗口（天）")] = 90,
+) -> EvolutionKpiResponse:
+    """演化看板 KPI 行（涌现数/信任均值/CII 均值/预警数，D-11）。"""
+    from app.services.evolution_service import build_evolution_kpi
+
+    return EvolutionKpiResponse(**await build_evolution_kpi(session, days=days))
 
 
 @router.post("/analyze")
@@ -104,6 +116,7 @@ async def get_changelog(
     return [
         ChangelogEntry(
             id=str(r.id),
+            position_name=r.position_name,
             skill_name=r.skill_name,
             change_type=r.change_type,
             old_proficiency=r.old_proficiency,
@@ -112,6 +125,9 @@ async def get_changelog(
             new_requirement=r.new_requirement,
             trust_score=r.trust_score,
             confidence=r.confidence,
+            status=r.status,
+            written_back=r.written_back,
+            evidence_json=r.evidence_json or {},
             created_at=r.created_at,
         )
         for r in records
@@ -338,21 +354,32 @@ async def get_snapshots(
 async def get_review_queue(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     status: Annotated[str | None, Query(description="筛选状态: pending/approved/rejected")] = "pending",
+    limit: Annotated[int, Query(ge=1, le=500, description="返回条数上限")] = 200,
+    offset: Annotated[int, Query(ge=0, description="分页偏移")] = 0,
 ) -> list[ReviewQueueItem]:
-    """获取人工审核队列（低信任度变更）。"""
+    """获取人工审核队列（低信任度变更）。
+
+    E21 fix: hard-coded `limit(50)` capped Tab 3 (演化变更) rendering at
+    50 rows even when the actual queue has 143+ items. The KPI on the
+    admin overview still showed 143 (because it does its own count),
+    which confused users. Now accept a `limit` query param (default 200)
+    and `offset` for pagination.
+    """
     # EV-02: respect the status parameter
     stmt = (
         sa.select(EvolutionChangelog)
         .where(EvolutionChangelog.status == status)
-        .where(EvolutionChangelog.trust_score < 0.5)
+        .where(EvolutionChangelog.trust_score < LOW_TRUST_THRESHOLD)
         .order_by(EvolutionChangelog.created_at.desc())
-        .limit(50)
+        .offset(offset)
+        .limit(limit)
     )
     result = await session.execute(stmt)
     records = result.scalars().all()
 
     return [
         ReviewQueueItem(
+            id=str(r.id),  # E22: include changelog id for per-row action
             skill_name=r.skill_name,
             position_name=r.position_name,
             change_type=r.change_type,
@@ -362,6 +389,67 @@ async def get_review_queue(
         )
         for r in records
     ]
+
+
+@router.post("/review-queue/batch-action", dependencies=[Depends(require_admin)])
+async def batch_review_queue_action(
+    body: dict[str, Any],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, int]:
+    """E21 fix: bulk approve/reject all current low-trust pending items.
+
+    Body: {"action": "approve" | "reject", "filter": {"position_name": "..."} | {}}
+    Returns: {"updated": N, "matched": N}
+    """
+    action = body.get("action")
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
+    target_status = "approved" if action == "approve" else "rejected"
+    f = body.get("filter") or {}
+    stmt = sa.select(EvolutionChangelog).where(
+        EvolutionChangelog.status == "pending",
+        EvolutionChangelog.trust_score < LOW_TRUST_THRESHOLD,
+    )
+    if "position_name" in f:
+        stmt = stmt.where(EvolutionChangelog.position_name == f["position_name"])
+    if "change_type" in f:
+        stmt = stmt.where(EvolutionChangelog.change_type == f["change_type"])
+    if "min_trust" in f:
+        stmt = stmt.where(EvolutionChangelog.trust_score >= float(f["min_trust"]))
+    if "max_trust" in f:
+        stmt = stmt.where(EvolutionChangelog.trust_score <= float(f["max_trust"]))
+    records = list((await session.execute(stmt)).scalars().all())
+    for r in records:
+        r.status = target_status
+    await session.commit()
+    return {"updated": len(records), "matched": len(records)}
+
+
+@router.post("/review-queue/{changelog_id}/action", dependencies=[Depends(require_admin)])
+async def review_queue_single_action(
+    changelog_id: uuid.UUID,
+    body: dict[str, Any],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, str]:
+    """E22 fix: per-item approve/reject action.
+
+    Body: {"action": "approve" | "reject"}
+    Returns: {"changelog_id": "...", "status": "approved" | "rejected"}
+    """
+    action = body.get("action")
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
+    row = (
+        await session.execute(
+            sa.select(EvolutionChangelog).where(EvolutionChangelog.id == changelog_id)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="EvolutionChangelog not found")
+    target_status = "approved" if action == "approve" else "rejected"
+    row.status = target_status
+    await session.commit()
+    return {"changelog_id": str(changelog_id), "status": target_status}
 
 
 @router.get("/cii-history/{position}")

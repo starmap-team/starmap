@@ -112,7 +112,7 @@ describe('useEvolutionStore', () => {
   it('should fetch changelog and set changelogData', async () => {
     const request = (await import('@/api/request')).default
     const mockChangelog = [
-      { id: '1', skill_name: 'Python', change_type: 'added', before_value: null, after_value: 'required', confidence: 0.9, detected_at: '2024-01-01' },
+      { id: '1', skill_name: 'Python', change_type: 'added_required', old_requirement: null, new_requirement: 'required', confidence: 0.9, trust_score: 0.85, created_at: '2024-01-01' },
     ]
     vi.mocked(request.get).mockResolvedValueOnce(mockChangelog)
 
@@ -129,7 +129,7 @@ describe('useEvolutionStore', () => {
     const request = (await import('@/api/request')).default
     const mockResponse = {
       items: [
-        { id: '2', skill_name: 'Docker', change_type: 'updated', before_value: 'optional', after_value: 'required', confidence: 0.8, detected_at: '2024-02-01' },
+        { id: '2', skill_name: 'Docker', change_type: 'promoted', old_requirement: 'preferred', new_requirement: 'required', confidence: 0.8, trust_score: 0.75, created_at: '2024-02-01' },
       ],
     }
     vi.mocked(request.get).mockResolvedValueOnce(mockResponse)
@@ -145,7 +145,7 @@ describe('useEvolutionStore', () => {
     const request = (await import('@/api/request')).default
     const mockResponse = {
       changelog: [
-        { id: '3', skill_name: 'Go', change_type: 'removed', before_value: 'preferred', after_value: null, confidence: 0.7, detected_at: '2024-03-01' },
+        { id: '3', skill_name: 'Go', change_type: 'removed', old_requirement: 'preferred', new_requirement: null, confidence: 0.7, trust_score: 0.65, created_at: '2024-03-01' },
       ],
     }
     vi.mocked(request.get).mockResolvedValueOnce(mockResponse)
@@ -161,7 +161,7 @@ describe('useEvolutionStore', () => {
   it('should handle fetchChangelog with identifier containing special characters', async () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.get).mockResolvedValueOnce([
-      { id: '4', skill_name: 'C++ / Rust', change_type: 'added', before_value: null, after_value: 'required', confidence: 0.85, detected_at: '2024-04-01' },
+      { id: '4', skill_name: 'C++ / Rust', change_type: 'added_required', old_requirement: null, new_requirement: 'required', confidence: 0.85, trust_score: 0.8, created_at: '2024-04-01' },
     ])
 
     const store = useEvolutionStore()
@@ -198,10 +198,10 @@ describe('useEvolutionStore', () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.get).mockResolvedValueOnce({
       items: [
-        { id: '5', skill_name: 'Nested', change_type: 'updated', before_value: 'old', after_value: 'new', confidence: 0.9, detected_at: '2024-05-01' },
+        { id: '5', skill_name: 'Nested', change_type: 'promoted', old_requirement: 'preferred', new_requirement: 'required', confidence: 0.9, trust_score: 0.85, created_at: '2024-05-01' },
       ],
       changelog: [
-        { id: '6', skill_name: 'Changelog', change_type: 'removed', before_value: 'req', after_value: null, confidence: 0.7, detected_at: '2024-05-02' },
+        { id: '6', skill_name: 'Changelog', change_type: 'removed', old_requirement: 'required', new_requirement: null, confidence: 0.7, trust_score: 0.6, created_at: '2024-05-02' },
       ],
     })
 
@@ -310,7 +310,7 @@ describe('useEvolutionStore', () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.get).mockResolvedValueOnce({ items: [{ skill_name: 'Rust', trend: 'rising', confidence: 0.9, points: [], related_positions: [] }] })
     vi.mocked(request.get).mockResolvedValueOnce([])
-    vi.mocked(request.get).mockResolvedValueOnce([{ id: '1', skill_name: 'Python', change_type: 'added', before_value: null, after_value: 'req', confidence: 0.9, detected_at: '2024-01-01' }])
+    vi.mocked(request.get).mockResolvedValueOnce([{ id: '1', skill_name: 'Python', change_type: 'added_required', old_requirement: null, new_requirement: 'required', confidence: 0.9, trust_score: 0.8, created_at: '2024-01-01' }])
     vi.mocked(request.get).mockResolvedValueOnce({ alerts: [], total: 0, summary: '' })
 
     const store = useEvolutionStore()
@@ -361,5 +361,77 @@ describe('useEvolutionStore', () => {
 
     // Should call without level parameter
     expect(request.get).toHaveBeenCalledWith('/evolution/emerging-alerts', { params: {} })
+  })
+
+  // ── 10. fetchKpi action (D-11) ──
+
+  it('should fetch KPI and populate kpi state', async () => {
+    const request = (await import('@/api/request')).default
+    const mockKpi = {
+      emerging_count: 5,
+      trust_mean: 0.72,
+      cii_mean: 108.5,
+      alert_count: 3,
+      days: 90,
+    }
+    vi.mocked(request.get).mockResolvedValueOnce(mockKpi)
+
+    const store = useEvolutionStore()
+    const result = await store.fetchKpi()
+
+    expect(store.kpi.emerging_count).toBe(5)
+    expect(store.kpi.trust_mean).toBe(0.72)
+    expect(store.kpi.cii_mean).toBe(108.5)
+    expect(store.kpi.alert_count).toBe(3)
+    expect(result.emerging_count).toBe(5)
+    expect(store.kpiLoading).toBe(false)
+    expect(request.get).toHaveBeenCalledWith('/evolution/kpi', { params: undefined })
+  })
+
+  it('should pass days parameter to fetchKpi', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockResolvedValueOnce({
+      emerging_count: 0, trust_mean: 0, cii_mean: 0, alert_count: 0, days: 30,
+    })
+
+    const store = useEvolutionStore()
+    await store.fetchKpi(30)
+
+    expect(request.get).toHaveBeenCalledWith('/evolution/kpi', { params: { days: 30 } })
+    expect(store.kpi.days).toBe(30)
+  })
+
+  it('should keep zeros when fetchKpi fails (finally still resets loading)', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockRejectedValueOnce(new Error('Server error'))
+
+    const store = useEvolutionStore()
+    await expect(store.fetchKpi()).rejects.toThrow('Server error')
+
+    expect(store.kpi.emerging_count).toBe(0)
+    expect(store.kpi.trust_mean).toBe(0)
+    expect(store.kpi.cii_mean).toBe(0)
+    expect(store.kpi.alert_count).toBe(0)
+    expect(store.kpiLoading).toBe(false)
+  })
+
+  // ── 11. refreshAll action (D-13) ──
+
+  it('should call all four fetches via refreshAll', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockResolvedValueOnce({ items: [] })       // trends
+    vi.mocked(request.get).mockResolvedValueOnce([])                  // snapshots
+    vi.mocked(request.get).mockResolvedValueOnce({ alerts: [], total: 0, summary: '' }) // alerts
+    vi.mocked(request.get).mockResolvedValueOnce({                    // kpi
+      emerging_count: 0, trust_mean: 0, cii_mean: 0, alert_count: 0, days: 90,
+    })
+
+    const store = useEvolutionStore()
+    await store.refreshAll()
+
+    expect(request.get).toHaveBeenCalledWith('/evolution/trends', { params: undefined })
+    expect(request.get).toHaveBeenCalledWith('/evolution/snapshots?limit=50')
+    expect(request.get).toHaveBeenCalledWith('/evolution/emerging-alerts', { params: {} })
+    expect(request.get).toHaveBeenCalledWith('/evolution/kpi', { params: undefined })
   })
 })

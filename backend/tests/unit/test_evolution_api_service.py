@@ -11,6 +11,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
+import pytest
+
 # ── Fake records (mirrors what the API tests used) ──
 
 
@@ -218,3 +220,87 @@ class TestCIIHistory:
         assert history[0]["cii"] == 100
         assert history[1]["cii"] == 200
         assert history[2]["cii"] == 300
+
+
+# ══════════════════════════════════════════════════════════════
+# KPI aggregation — build_evolution_kpi (D-11/D-12)
+# ══════════════════════════════════════════════════════════════
+
+
+class _AvgResult:
+    """Fake query result exposing scalar_one() for the avg() aggregate."""
+
+    def __init__(self, value: float | None) -> None:
+        self._value = value
+
+    def scalar_one(self) -> float | None:
+        return self._value
+
+
+class _FakeSession:
+    """Minimal AsyncSession double — returns a fixed avg for any aggregate query."""
+
+    def __init__(self, avg_value: float | None) -> None:
+        self._avg_value = avg_value
+
+    async def execute(self, _stmt: object) -> _AvgResult:
+        return _AvgResult(self._avg_value)
+
+
+async def _async_empty_timeseries(_session: object, **_: object) -> dict:
+    """Monkeypatched load_skill_timeseries_data returning empty data."""
+    return {}
+
+
+class TestKpi:
+    """build_evolution_kpi — real trust aggregate + empty→zeros (D-12)."""
+
+    @pytest.mark.asyncio
+    async def test_trust_mean_is_real_aggregate(self, monkeypatch):
+        rows = [
+            _make_changelog_record(trust_score=0.8),
+            _make_changelog_record(trust_score=0.6),
+            _make_changelog_record(trust_score=0.4),
+        ]
+        expected_avg = sum(r.trust_score for r in rows) / len(rows)
+        # The DB computes avg(trust_score); emulate it with the fixture rows
+        # so the assertion proves build_evolution_kpi uses the real aggregate.
+        monkeypatch.setattr(
+            "app.services.evolution_service.load_skill_timeseries_data",
+            _async_empty_timeseries,
+        )
+        from app.services.evolution_service import build_evolution_kpi
+
+        result = await build_evolution_kpi(_FakeSession(expected_avg))
+        assert result["trust_mean"] == round(expected_avg, 3)
+
+    @pytest.mark.asyncio
+    async def test_empty_data_returns_zeros(self, monkeypatch):
+        # No changelog (avg → None) and no timeseries data → all KPI zeros,
+        # never fabricated estimates (D-12).
+        monkeypatch.setattr(
+            "app.services.evolution_service.load_skill_timeseries_data",
+            _async_empty_timeseries,
+        )
+        from app.services.evolution_service import build_evolution_kpi
+
+        result = await build_evolution_kpi(_FakeSession(None))
+        assert result["emerging_count"] == 0
+        assert result["trust_mean"] == 0
+        assert result["cii_mean"] == 0
+        assert result["alert_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_days_passthrough(self, monkeypatch):
+        captured: dict[str, object] = {}
+
+        async def _fake_timeseries(session: object, **kwargs: object) -> dict:
+            captured["days"] = kwargs.get("days")
+            return {}
+
+        monkeypatch.setattr("app.services.evolution_service.load_skill_timeseries_data", _fake_timeseries)
+        from app.services.evolution_service import build_evolution_kpi
+
+        result = await build_evolution_kpi(_FakeSession(None), days=30)
+        assert captured["days"] == 30
+        assert result["days"] == 30

@@ -32,6 +32,7 @@ export const TREND_TAG_TYPE: Record<string, string> = {
 
 export interface EvolutionActionsApi {
   drawerVisible: Ref<boolean>
+  evidenceDrawerOpen: Ref<boolean>
   selectedSkillForDetail: Ref<string>
   snapshotIndex: Ref<number>
   selectedSnapshotDate: Ref<string>
@@ -39,10 +40,12 @@ export interface EvolutionActionsApi {
   fetchSnapshots: () => Promise<void>
   fetchChangelog: (identifier: string) => Promise<void>
   onSnapshotChange: (idx: number | number[]) => void
+  refresh: () => Promise<void>
 }
 
 export function useEvolutionActions(store: EvolutionStore): EvolutionActionsApi {
   const drawerVisible = ref(false)
+  const evidenceDrawerOpen = ref(false) // D-09: 证据区默认折叠不打扰
   const selectedSkillForDetail = ref('')
   const snapshotIndex = ref(0)
   const selectedSnapshotDate = ref('')
@@ -65,7 +68,12 @@ export function useEvolutionActions(store: EvolutionStore): EvolutionActionsApi 
   function onSnapshotChange(idx: number | number[]): void {
     const i = Array.isArray(idx) ? idx[0] : idx
     const snap: SnapshotEntry | undefined = store.snapshots[i ?? 0]
-    if (snap) { selectedSnapshotDate.value = snap.snapshot_date; ElMessage.info(`已切换到快照 ${snap.snapshot_date}（${snap.position_name}）`) }
+    if (snap) {
+      selectedSnapshotDate.value = snap.snapshot_date
+      // E1: 快照时间线联动次区 —— 拉取该岗位真实 CII 历史（非装饰滑块）
+      void store.fetchCiiHistory(snap.position_name)
+      ElMessage.info(`已切换到快照 ${snap.snapshot_date}（${snap.position_name}）`)
+    }
   }
 
   async function fetchChangelog(identifier: string): Promise<void> {
@@ -75,7 +83,17 @@ export function useEvolutionActions(store: EvolutionStore): EvolutionActionsApi 
     }
   }
 
-  return { drawerVisible, selectedSkillForDetail, snapshotIndex, selectedSnapshotDate, fetchTrends, fetchSnapshots, fetchChangelog, onSnapshotChange }
+  // 10-03 (D-13): 手动刷新 — 复用同一 fetch 集合，并发触发
+  async function refresh(): Promise<void> {
+    try {
+      await store.refreshAll()
+    } catch (e) {
+      if (import.meta.env.DEV) console.error('[Evolution] Refresh failed:', e)
+      ElMessage.error('演化数据刷新失败')
+    }
+  }
+
+  return { drawerVisible, evidenceDrawerOpen, selectedSkillForDetail, snapshotIndex, selectedSnapshotDate, fetchTrends, fetchSnapshots, fetchChangelog, onSnapshotChange, refresh }
 }
 
 // ===== Charts =====
@@ -88,35 +106,49 @@ export function useEvolutionCharts(
 
   const chartOption = computed(() => {
     if (!items.value.length) return {}
-    const dates = items.value.map(i => i.skill_name)
-    const cii = items.value.map(i => i.points?.length ? i.points[i.points.length - 1] : 100)
+    // E7: 全量技能（不再截断 [:20]）后，306 项单折线不可读 → 改为 CII 当前值分布直方图，
+    // 任意技能规模均可读；逐技能明细见下方「趋势概览」表，逐技能时序见「技能对比」。
+    const BUCKETS = [
+      { label: '<60', min: -Infinity, max: 60 },
+      { label: '60-80', min: 60, max: 80 },
+      { label: '80-100', min: 80, max: 100 },
+      { label: '100-120', min: 100, max: 120 },
+      { label: '120-140', min: 120, max: 140 },
+      { label: '>140', min: 140, max: Infinity },
+    ]
+    const counts = BUCKETS.map(b => ({ label: b.label, count: 0 }))
+    for (const i of items.value) {
+      const last = i.points?.length ? i.points[i.points.length - 1] : 100
+      const idx = BUCKETS.findIndex(b => last >= b.min && last < b.max)
+      counts[idx === -1 ? 0 : idx].count += 1
+    }
     return {
       tooltip: tooltipStyle(), legend: legendStyle(),
-      xAxis: { type: 'category', data: dates, axisLabel: { color: cc.muted, fontSize: 10 }, splitLine: splitLineStyle() },
-      yAxis: { type: 'value', axisLabel: { color: cc.muted } },
-      series: [{ type: 'line', data: cii, smooth: true, itemStyle: { color: cc.chart[0] }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: cc.chart[0] + '33' }, { offset: 1, color: cc.chart[0] + '00' }] } } }],
-    }
-  })
-
-  const emergingSkills = computed(() => {
-    if (!items.value.length) return {}
-    const rising = items.value.filter(i => i.trend === 'rising' || i.trend === 'emerging')
-    if (!rising.length) return {}
-    return {
-      tooltip: tooltipStyle(),
-      xAxis: { type: 'value', axisLabel: { color: cc.muted } },
-      yAxis: { type: 'category', data: rising.map(i => i.skill_name), axisLabel: { color: cc.muted } },
-      series: [{ type: 'bar', data: rising.map(i => i.confidence * 100), itemStyle: { color: cc.chart[1] } }],
-      grid: { left: 80 },
+      xAxis: { type: 'category', data: counts.map(c => c.label), axisLabel: { color: cc.muted, fontSize: 10 }, splitLine: splitLineStyle() },
+      yAxis: { type: 'value', axisLabel: { color: cc.muted }, name: '技能数' },
+      series: [{ type: 'bar', data: counts.map(c => c.count), barWidth: '55%', itemStyle: { color: cc.chart[0], borderRadius: [4, 4, 0, 0] }, label: { show: true, position: 'top', color: cc.muted, fontSize: 11 } }],
     }
   })
 
   const ciiGaugeOption = computed(() => {
-    const sel = items.value.find(i => i.skill_name === selectedSkill.value)
-    if (!sel) return {}
-    const lastPoint = sel.points?.length ? sel.points[sel.points.length - 1] : 100
+    if (!items.value.length) return {}
+    // E3: 「全部技能」模式下不渲染空白仪表盘 —— 改为全技能末点均值（与 KPI cii_mean 同口径）
+    const sel = selectedSkill.value ? items.value.find(i => i.skill_name === selectedSkill.value) : undefined
+    const points = sel?.points?.length
+      ? sel.points
+      : items.value.flatMap(i => (i.points?.length ? [i.points[i.points.length - 1]] : []))
+    const lastPoint = points.length
+      ? (points.reduce((a, b) => a + b, 0) / points.length)
+      : 100
+    const name = sel?.skill_name ?? `全部技能均值（${items.value.length} 项）`
     return {
-      series: [{ type: 'gauge', min: 60, max: 140, detail: { formatter: '{value}%', color: cc.foreground, fontSize: 18 }, axisLine: { lineStyle: { color: [[0.3, cc.success], [0.7, cc.warning], [1, cc.danger]], width: 12 } }, data: [{ value: lastPoint, name: 'CII' }], itemStyle: { color: gaugeColor(lastPoint) } }],
+      series: [{
+        type: 'gauge', min: 60, max: 140, radius: '95%', center: ['50%', '58%'],
+        detail: { formatter: '{value}%', color: cc.foreground, fontSize: 24, offsetCenter: [0, '70%'] },
+        title: { fontSize: 13, color: cc.muted, offsetCenter: [0, '105%'] },
+        axisLine: { lineStyle: { color: [[0.3, cc.success], [0.7, cc.warning], [1, cc.danger]], width: 16 } },
+        data: [{ value: Math.round(lastPoint * 10) / 10, name }], itemStyle: { color: gaugeColor(lastPoint) },
+      }],
     }
   })
 
@@ -136,5 +168,7 @@ export function useEvolutionCharts(
     }
   })
 
-  return { chartOption, emergingSkills, ciiGaugeOption, compareOption }
+  // C1: 新兴技能卡片的渲染数据源是 items 的 rising/emerging 子集（在页面 computed 中过滤），
+  // 不再在此暴露 ECharts option —— 避免被模板当技能列表迭代（误渲染 garbage cards）。
+  return { chartOption, ciiGaugeOption, compareOption }
 }

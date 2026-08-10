@@ -11,7 +11,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -160,6 +160,12 @@ class EvolutionChangelog(Base):
     evidence_json: Mapped[dict] = mapped_column(
         JSON, nullable=True, default=dict,
         comment="Evidence details (source JDs, timestamps, etc.)",
+    )
+    # 业务说明：该变更是否已回写 position_skill_relations 主数据 (D-06)
+    # 技术说明：回写成功后置 True；默认 False，仅服务端管线写回时翻转
+    written_back: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False,
+        comment="True after this changelog row was written back to position_skill_relations",
     )
     # 业务说明：变更检测时间
     created_at: Mapped[datetime] = mapped_column(

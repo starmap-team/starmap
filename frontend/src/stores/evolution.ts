@@ -34,19 +34,39 @@ export interface ChangelogEntry {
   id: string
   skill_name: string
   change_type: ChangeType
-  before_value: string | null
-  after_value: string | null
+  // 字段对齐后端 ChangelogEntry schema（Pydantic ↔ openapi.yaml ↔ evolution.schema.json）
+  trust_score: number
   confidence: number
-  detected_at: string
-  // Optional fields returned by some API endpoints / used in UI
+  created_at: string
+  // Optional fields returned by the backend schema / used in UI
+  position_name?: string
+  old_proficiency?: string | null
+  new_proficiency?: string | null
+  old_requirement?: string | null
+  new_requirement?: string | null
   date?: string
-  created_at?: string
-  old_proficiency?: string
-  new_proficiency?: string
-  old_requirement?: string
-  new_requirement?: string
   description?: string
-  trust_score?: number
+  // 10-03 contract sync: status/written_back/evidence_json (D-09 证据链路)
+  status?: 'pending' | 'approved' | 'rejected'
+  written_back?: boolean
+  evidence_json?: Record<string, unknown>
+}
+
+// 10-03: KPI row state (D-11) — zeros by default, filled by fetchKpi()
+export interface EvolutionKpi {
+  emerging_count: number
+  trust_mean: number
+  cii_mean: number
+  alert_count: number
+  days: number
+}
+
+export const DEFAULT_KPI: EvolutionKpi = {
+  emerging_count: 0,
+  trust_mean: 0,
+  cii_mean: 0,
+  alert_count: 0,
+  days: 90,
 }
 
 // LOOP-06: Emerging alert type for evolution alerts
@@ -66,6 +86,27 @@ export interface EmergingAlert {
   alert_message: string
 }
 
+// BUG-5 fix: review-queue item shape returned by /evolution/review-queue
+export interface ReviewQueueItem {
+  // E22 fix: include id so the frontend can dispatch per-row approve/reject
+  // via /evolution/review-queue/{id}/action.
+  id: string
+  skill_name: string | null
+  position_name: string | null
+  change_type: string
+  trust_score: number
+  status: string
+  created_at: string
+}
+
+// 快照联动: /evolution/cii-history/{position} 返回的 CII 历史（E1 快照时间线数据源）
+export interface CiiHistoryEntry {
+  snapshot_date: string
+  cii: number
+  total_skills: number
+  inflated_skills: number
+}
+
 export const useEvolutionStore = defineStore('evolution', () => {
   const loading = ref(false)
   const trendItems = ref<TrendItem[]>([])
@@ -80,6 +121,10 @@ export const useEvolutionStore = defineStore('evolution', () => {
   const emergingAlerts = ref<EmergingAlert[]>([])
   const alertsLoading = ref(false)
 
+  // 10-03 (D-11): KPI row state — zeros until fetchKpi resolves
+  const kpi = ref<EvolutionKpi>({ ...DEFAULT_KPI })
+  const kpiLoading = ref(false)
+
   async function fetchTrends(days?: number) {
     loading.value = true
     try {
@@ -93,6 +138,30 @@ export const useEvolutionStore = defineStore('evolution', () => {
       loading.value = false
     }
     return { items: trendItems.value }
+  }
+
+  // 10-03 (D-11): KPI row fetch — mirrors fetchTrends pattern
+  async function fetchKpi(days?: number) {
+    kpiLoading.value = true
+    try {
+      const params = days ? { days } : undefined
+      const data = validateEvolution(
+        await request.get<{ emerging_count?: number; trust_mean?: number; cii_mean?: number; alert_count?: number; days?: number }>(
+          '/evolution/kpi', { params },
+        ) as Record<string, unknown>,
+        evolutionSchema, '/evolution/kpi', 'EvolutionKpiResponse',
+      ) as { emerging_count?: number; trust_mean?: number; cii_mean?: number; alert_count?: number; days?: number }
+      kpi.value = {
+        emerging_count: data.emerging_count ?? DEFAULT_KPI.emerging_count,
+        trust_mean: data.trust_mean ?? DEFAULT_KPI.trust_mean,
+        cii_mean: data.cii_mean ?? DEFAULT_KPI.cii_mean,
+        alert_count: data.alert_count ?? DEFAULT_KPI.alert_count,
+        days: data.days ?? DEFAULT_KPI.days,
+      }
+    } finally {
+      kpiLoading.value = false
+    }
+    return kpi.value
   }
 
   async function fetchSnapshots(limit = 50) {
@@ -155,6 +224,58 @@ export const useEvolutionStore = defineStore('evolution', () => {
     }
   }
 
+  // BUG-5 fix: low-trust EvolutionChangelog review queue (Phase 24 §5.2)
+  const reviewQueue = ref<ReviewQueueItem[]>([])
+  const reviewQueueLoading = ref(false)
+  async function fetchReviewQueue(status: string = 'pending') {
+    reviewQueueLoading.value = true
+    try {
+      const data = validateEvolution(
+        await request.get(`/evolution/review-queue`, { params: { status } }) as ReviewQueueItem[],
+        evolutionSchema, '/evolution/review-queue', 'ReviewQueueItem',
+      ) as ReviewQueueItem[]
+      reviewQueue.value = Array.isArray(data) ? data : []
+    } catch (e: unknown) {
+      if (import.meta.env.DEV) console.error('[Evolution] Failed to fetch review queue:', e)
+      reviewQueue.value = []
+    } finally {
+      reviewQueueLoading.value = false
+    }
+    return reviewQueue.value
+  }
+
+  // 快照联动 (E1): 指定岗位的 CII 历史（真实快照数据，非估算）
+  const ciiHistory = ref<CiiHistoryEntry[]>([])
+  const ciiHistoryLoading = ref(false)
+  const ciiHistoryPosition = ref('')
+  async function fetchCiiHistory(position: string) {
+    if (!position) { ciiHistory.value = []; ciiHistoryPosition.value = ''; return ciiHistory.value }
+    ciiHistoryLoading.value = true
+    ciiHistoryPosition.value = position
+    try {
+      const data = await request.get<{ position?: string; history?: CiiHistoryEntry[] }>(
+        `/evolution/cii-history/${encodeURIComponent(position)}`,
+      ) as { position?: string; history?: CiiHistoryEntry[] }
+      ciiHistory.value = data.history ?? []
+    } catch (e: unknown) {
+      if (import.meta.env.DEV) console.error('[Evolution] Failed to fetch CII history:', e)
+      ciiHistory.value = []
+    } finally {
+      ciiHistoryLoading.value = false
+    }
+    return ciiHistory.value
+  }
+
+  // 10-03 (D-13): manual refresh — fire all dashboard fetches concurrently
+  async function refreshAll() {
+    await Promise.all([
+      fetchTrends(),
+      fetchSnapshots(),
+      fetchEmergingAlerts(),
+      fetchKpi(),
+    ])
+  }
+
   return {
     loading,
     trendItems,
@@ -164,9 +285,20 @@ export const useEvolutionStore = defineStore('evolution', () => {
     changelogData,
     emergingAlerts,
     alertsLoading,
+    kpi,
+    kpiLoading,
+    reviewQueue,
+    reviewQueueLoading,
+    ciiHistory,
+    ciiHistoryLoading,
+    ciiHistoryPosition,
     fetchTrends,
+    fetchKpi,
     fetchSnapshots,
     fetchChangelog,
     fetchEmergingAlerts,
+    fetchReviewQueue,
+    fetchCiiHistory,
+    refreshAll,
   }
 })

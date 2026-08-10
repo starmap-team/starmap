@@ -49,6 +49,21 @@ _TYPE_FACTOR: dict[ChangeType, float] = {
 # Saturation point: source_count beyond this adds no extra trust.
 SOURCE_SATURATION = 10.0
 
+# BUG-6 fix: single threshold for "low trust → needs human review".
+# Used by:
+#   - EvolutionOrchestrator._save_changelog (writes status='pending' when trust < this)
+#   - GET /evolution/review-queue (filters where trust_score < this)
+#   - services/review_service.count_by_status (counts evolution_pending)
+# Previously these were three different magic numbers (0.6 / 0.5 / 0.5) which
+# caused pending rows in [0.5, 0.6) to be invisible to /evolution/review-queue.
+LOW_TRUST_THRESHOLD = 0.5
+
+# D-05 write-back gate: independent from LOW_TRUST_THRESHOLD (approved/review
+# 口径 stays 0.5). Changes with trust >= this value are eligible for upsert
+# into position_skill_relations (SSOT). Kept as its own constant so the
+# write-back gate can never silently drift with the review threshold.
+WRITEBACK_TRUST_THRESHOLD = 0.6
+
 
 class TrustScorer:
     """Score an EvolutionChange into a trust/confidence pair.

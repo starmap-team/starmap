@@ -82,9 +82,23 @@ class DiffEngine:
         ``old=None`` is the cold-start case (first snapshot for a position):
         every skill in ``new`` is reported as ``added_required`` or
         ``added_preferred`` with ``old_*=None``.
+
+        E21 fix: when the new snapshot has empty required_skills AND empty
+        preferred_skills (e.g. spider failed and returned an empty payload,
+        or caller passed a half-built snapshot), the previous behavior
+        marked EVERY old skill as ``removed`` — flooding the review queue
+        with false positives. The 143 pending "removed" entries from
+        2026-08-09 18:58-19:08 (all on a single position) were caused
+        exactly by this. Now: if new is empty, return [].
         """
         new_req = _skill_to_meta(new.required_skills)
         new_pref = _skill_to_meta(new.preferred_skills)
+
+        # E21: skip if new snapshot is empty (would otherwise mark all
+        # old skills as removed). This filters out spider failures that
+        # produce empty snapshots.
+        if not new_req and not new_pref:
+            return []
 
         if old is None:
             return self._cold_start_changes(new_req, new_pref)

@@ -325,6 +325,29 @@
           },
           "title": "Declining Skills",
           "type": "array"
+        },
+        "stable_skills": {
+          "description": "平稳技能",
+          "items": {
+            "$ref": "#/$defs/SkillTrendItem"
+          },
+          "title": "Stable Skills",
+          "type": "array"
+        },
+        "top_positions": {
+          "description": "热门岗位 TOP",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Top Positions",
+          "type": "array"
+        },
+        "summary": {
+          "default": "",
+          "description": "报告摘要",
+          "title": "Summary",
+          "type": "string"
         }
       },
       "title": "IndustryReportResponse",
@@ -441,6 +464,30 @@
           "format": "date-time",
           "title": "Created At",
           "type": "string"
+        },
+        "position_name": {
+          "default": "",
+          "description": "发生技能变更的职位名称",
+          "title": "Position Name",
+          "type": "string"
+        },
+        "status": {
+          "default": "pending",
+          "description": "审核状态：pending/approved/rejected",
+          "title": "Status",
+          "type": "string"
+        },
+        "written_back": {
+          "default": false,
+          "description": "该变更是否已回写 position_skill_relations",
+          "title": "Written Back",
+          "type": "boolean"
+        },
+        "evidence_json": {
+          "additionalProperties": true,
+          "description": "证据链：mention_count_old/new、source_count、factors（源计数/提及新旧/变更类型/稳定性因子）",
+          "title": "Evidence Json",
+          "type": "object"
         }
       },
       "required": [
@@ -559,6 +606,52 @@
         "trust_score"
       ],
       "title": "EvolutionPathEntry",
+      "type": "object"
+    },
+    "EvolutionKpiResponse": {
+      "description": "演化看板 KPI 行响应 (D-11)。",
+      "properties": {
+        "emerging_count": {
+          "description": "涌现技能数（emerging + rising）",
+          "minimum": 0,
+          "title": "Emerging Count",
+          "type": "integer"
+        },
+        "trust_mean": {
+          "description": "变更日志信任度均值（0-1，真实聚合）",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Trust Mean",
+          "type": "number"
+        },
+        "cii_mean": {
+          "description": "技能 CII 均值（基准 100，A4 基线口径）",
+          "minimum": 0,
+          "title": "Cii Mean",
+          "type": "number"
+        },
+        "alert_count": {
+          "description": "预警数（emerging/rising/declining 非平稳信号）",
+          "minimum": 0,
+          "title": "Alert Count",
+          "type": "integer"
+        },
+        "days": {
+          "description": "分析时间窗口（天）",
+          "maximum": 730,
+          "minimum": 7,
+          "title": "Days",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "emerging_count",
+        "trust_mean",
+        "cii_mean",
+        "alert_count",
+        "days"
+      ],
+      "title": "EvolutionKpiResponse",
       "type": "object"
     },
     "EvolutionTrend": {

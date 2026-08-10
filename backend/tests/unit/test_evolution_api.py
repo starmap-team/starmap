@@ -83,6 +83,7 @@ def _make_changelog_record():
         status="pending",
         confidence=0.85,
         evidence_json={},
+        written_back=False,
         created_at=datetime(2026, 6, 27, tzinfo=UTC),
     )
 

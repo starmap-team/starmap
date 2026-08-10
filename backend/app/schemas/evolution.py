@@ -102,6 +102,23 @@ class ChangelogEntry(BaseModel):
     trust_score: float
     confidence: float
     created_at: datetime
+    position_name: str = Field(default="", description="发生技能变更的职位名称")
+    status: str = Field(default="pending", description="审核状态：pending/approved/rejected")
+    written_back: bool = Field(default=False, description="该变更是否已回写 position_skill_relations")
+    evidence_json: dict[str, Any] = Field(
+        default_factory=dict,
+        description="证据链：mention_count_old/new、source_count、factors（源计数/提及新旧/变更类型/稳定性因子）",
+    )
+
+
+class EvolutionKpiResponse(BaseModel):
+    """演化看板 KPI 行响应 (D-11)。"""
+
+    emerging_count: int = Field(..., ge=0, description="涌现技能数（emerging + rising）")
+    trust_mean: float = Field(..., ge=0, le=1, description="变更日志信任度均值（0-1，真实聚合）")
+    cii_mean: float = Field(..., ge=0, description="技能 CII 均值（基准 100，A4 基线口径）")
+    alert_count: int = Field(..., ge=0, description="预警数（emerging/rising/declining 非平稳信号）")
+    days: int = Field(..., ge=7, le=730, description="分析时间窗口（天）")
 
 
 class EvolutionPathEntry(BaseModel):
@@ -144,6 +161,9 @@ class SnapshotEntry(BaseModel):
 class ReviewQueueItem(BaseModel):
     """审核队列条目。"""
 
+    # E22 fix: include id so the frontend can dispatch per-row approve/reject
+    # via /evolution/review-queue/{id}/action.
+    id: str = Field(..., description="EvolutionChangelog id (UUID)")
     skill_name: str
     position_name: str
     change_type: str

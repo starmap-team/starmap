@@ -17,6 +17,9 @@ from app.core.evolution.causal_inference import (
 )
 from app.core.evolution.emergence_finder import EmergenceFinder
 from app.core.evolution.timeseries_loader import load_skill_timeseries_data
+from app.core.evolution.trust_scorer import (
+    LOW_TRUST_THRESHOLD,  # noqa: F401 — 低信任度阈值 re-export (路由经 service 访问 core)
+)
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
 
@@ -78,9 +81,10 @@ async def build_evolution_trends(
             if pos_name and pos_name not in skill_positions[skill_name]:
                 skill_positions[skill_name].append(pos_name)
 
-    # Build trend items
+    # Build trend items — ALL skills (no [:20] silent truncation: the overview
+    # table + CII chart must reflect the full trend set the user sees in KPI)
     items: list[dict[str, Any]] = []
-    for name, data in list(skill_data.items())[:20]:
+    for name, data in skill_data.items():
         signal = signals_by_name.get(name)
         trend = signal.level.value if signal else "stable"
         # 修复 Pydantic ge=0 校验：负 z_score 会使 confidence 越界，正确 clamp 到 [0, 1]
@@ -101,6 +105,61 @@ async def build_evolution_trends(
         )
 
     return items
+
+
+async def build_evolution_kpi(
+    session: AsyncSession,
+    *,
+    days: int = 90,
+) -> dict[str, Any]:
+    """Build the 4-KPI row for the evolution dashboard (D-11).
+
+    - emerging_count: number of emerging+rising skills — SAME full-history
+      emergence scan as /evolution/emerging-alerts, so the KPI matches the
+      visible 预警表 (previously a 90 天窗口 scan → 8 vs 11 口径漂移).
+    - trust_mean:     real aggregate avg(EvolutionChangelog.trust_score)
+    - cii_mean:       mean of each skill's latest CII point over the days
+      window (matches the 趋势概览 chart), baseline 100 口径.
+    - alert_count:    non-stable signals count (emerging + rising + declining)
+      from the SAME full-history scan as the 预警表.
+
+    Empty data returns zero values, never fabricated estimates (D-12).
+    """
+    from app.models.evolution_models import EvolutionChangelog
+
+    # 1/4. Emergence-derived KPIs — full-history scan (same as emerging-alerts)
+    full_skill_data = await load_skill_timeseries_data(session)
+    emerging_count = 0
+    alert_count = 0
+    if full_skill_data:
+        finder = EmergenceFinder()
+        report = finder.scan(full_skill_data)
+        emerging_count = len(report.emerging) + len(report.rising)
+        alert_count = len(report.emerging) + len(report.rising) + len(report.declining)
+
+    # 2. Trust mean — real aggregate over the changelog table (D-12: no placeholder)
+    trust_result = await session.execute(
+        sa.select(sa.func.avg(EvolutionChangelog.trust_score))
+    )
+    trust_value = trust_result.scalar_one()
+    trust_mean = round(float(trust_value), 3) if trust_value is not None else 0.0
+
+    # 3. CII mean — days window (matches the 趋势概览 chart), avg of last points
+    skill_data = await load_skill_timeseries_data(session, days=days)
+    cii_last_points: list[float] = []
+    for data in skill_data.values():
+        points = _calculate_cii_points(data)
+        if points:
+            cii_last_points.append(points[-1])
+    cii_mean = round(sum(cii_last_points) / len(cii_last_points), 1) if cii_last_points else 0.0
+
+    return {
+        "emerging_count": emerging_count,
+        "trust_mean": trust_mean,
+        "cii_mean": cii_mean,
+        "alert_count": alert_count,
+        "days": days,
+    }
 
 
 async def build_evolution_paths(

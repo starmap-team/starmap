@@ -37,13 +37,24 @@ import sqlalchemy as sa
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.evolution.consistency import check_pg_neo4j_consistency
 from app.core.evolution.diff_engine import DiffEngine
+from app.core.evolution.graph_projection import project_edges_to_neo4j
 from app.core.evolution.path_recommender import PathRecommender
 from app.core.evolution.snapshot_manager import (
     SnapshotManager,
     list_positions_with_records,
 )
-from app.core.evolution.trust_scorer import TrustScorer
+from app.core.evolution.trust_scorer import (
+    LOW_TRUST_THRESHOLD,
+    TrustScorer,
+)
+from app.core.evolution.write_back import (
+    CHANGE_TO_REQUIREMENT_TYPE,
+    _resolve_position_id,
+    _resolve_skill_id,
+    write_back_changelog_row,
+)
 from app.db.session import get_session_factory
 from app.exceptions import StarMapError
 from app.models.evolution_models import (
@@ -124,19 +135,22 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
         logger.warning("evolution_orchestrator: no positions to process, aborting early")
         return summary
 
+    projected_edges: list[tuple[str, str, str, float]] = []
     for position in positions:
         try:
-            snapshots_made, changelogs_made = await _process_single_position(
+            snapshots_made, changelogs_made, edges_made = await _process_single_position(
                 session_factory,
                 snap_mgr,
                 differ,
                 scorer,
                 position,
                 months,
+                summary["warnings"],
             )
             summary["positions_processed"] += 1
             summary["snapshots_created"] += snapshots_made
             summary["changelogs_written"] += changelogs_made
+            projected_edges.extend(edges_made)
         except EvolutionPipelineError as exc:
             # Expected pipeline errors: log and continue
             msg = f"position='{position}': {exc}"
@@ -149,6 +163,20 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
             msg = f"position='{position}': {type(exc).__name__}: {exc}"
             summary["errors"].append(msg)
             logger.exception("evolution_orchestrator: unexpected error for position='{}'", position)
+
+    # ── D-04 tail: incremental Neo4j projection of this run's written-back rows ──
+    # 仅投影本次回写成功的 upsert 行（增量），不触发全量重投影；fail-soft (D-06)。
+    summary["graph_projected_edges"] = 0
+    if projected_edges:
+        try:
+            summary["graph_projected_edges"] = await project_edges_to_neo4j(
+                projected_edges, summary["warnings"]
+            )
+        except Exception as exc:  # noqa: BLE001 — D-06 fail-soft, projection never aborts
+            summary["warnings"].append(
+                f"graph_projection: {type(exc).__name__}: {exc}"
+            )
+            logger.warning("evolution_orchestrator: graph projection failed (non-fatal): {}", exc)
 
     # ── Step 4: path recommender (single batch) ──
     try:
@@ -179,6 +207,31 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
         summary["errors"].append(f"timeseries: {type(exc).__name__}: {exc}")
         logger.exception("evolution_orchestrator: timeseries unexpected error")
 
+    # ── D-07: PG ↔ Neo4j 一致性校验（只读，warn-only，不改数据）──
+    # 校验失败仅告警不阻断管线；consistency 模块自身只读，禁止写 Cypher。
+    try:
+        summary["consistency"] = await check_pg_neo4j_consistency(session_factory)
+    except Exception as exc:  # noqa: BLE001 — D-07 fail-soft
+        summary["warnings"].append(
+            f"consistency: {type(exc).__name__}: {exc}"
+        )
+        logger.warning("evolution_orchestrator: consistency check failed (non-fatal): {}", exc)
+        summary["consistency"] = {
+            "status": "error",
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+    # W5: consistency.py docstring 承诺「调用方把 mismatch 降级为 warnings」——
+    # 这里落地：status=="mismatch" 时追加告警，使监控 warnings 列表的运维能看到漂移（D-07 意图）。
+    if summary["consistency"].get("status") == "mismatch":
+        cons = summary["consistency"]
+        summary["warnings"].append(
+            f"consistency: PG ↔ Neo4j mismatch — "
+            f"pg_only={len(cons.get('pg_only', []))}, "
+            f"neo4j_only={len(cons.get('neo4j_only', []))}, "
+            f"attribute_mismatches={len(cons.get('attribute_mismatches', []))}"
+        )
+
     summary["completed_at"] = datetime.now(UTC).isoformat()
     logger.info(
         "evolution_orchestrator: done positions={} snapshots={} changelogs={} paths={} errors={}",
@@ -198,13 +251,17 @@ async def _process_single_position(
     scorer: TrustScorer,
     position: str,
     months: list[datetime],
-) -> tuple[int, int]:
+    warnings: list[str],
+) -> tuple[int, int, list[tuple[str, str, str, float]]]:
     """Generate snapshots for each month, diff adjacent ones, write changelogs.
 
-    Returns ``(snapshots_created, changelogs_written)``.
+    Returns ``(snapshots_created, changelogs_written, projected_edges)``.
+    ``warnings`` is the shared pipeline warning sink — write-back/projection
+    failures append here and never abort the run (D-06).
     """
     snapshots_created = 0
     changelogs_written = 0
+    projected_edges: list[tuple[str, str, str, float]] = []
     prev_snapshot: EvolutionSnapshot | None = None
 
     # Generate snapshots in chronological order so we can walk adjacencies.
@@ -223,16 +280,19 @@ async def _process_single_position(
                             month_anchor,
                         )
                     if prev_snapshot is not None and prev_snapshot.id != snap.id:
-                        changelogs_written += await _diff_and_persist(
+                        written_here, edges_here = await _diff_and_persist(
                             session,
                             differ,
                             scorer,
                             prev_snapshot,
                             snap,
+                            warnings,
                         )
+                        changelogs_written += written_here
+                        projected_edges.extend(edges_here)
                     prev_snapshot = snap
 
-    return snapshots_created, changelogs_written
+    return snapshots_created, changelogs_written, projected_edges
 
 
 async def _load_previous_snapshot(
@@ -258,16 +318,26 @@ async def _diff_and_persist(
     scorer: TrustScorer,
     old: EvolutionSnapshot,
     new: EvolutionSnapshot,
-) -> int:
+    warnings: list[str],
+) -> tuple[int, list[tuple[str, str, str, float]]]:
     """Compute diff between two snapshots, score each change, persist to PG.
 
-    Returns the number of EvolutionChangelog rows written.
+    Persists EvolutionChangelog rows, then D-04 write-back: each eligible
+    high-trust row is upserted into position_skill_relations (fail-soft via
+    ``write_back_changelog_row``, D-06). Successfully written-back rows are
+    collected as ``projected_edges`` (pg_position_id, pg_skill_id,
+    requirement_type, effective_confidence) for the incremental Neo4j
+    projection — the confidence is the max actually written to the PSR row,
+    not the raw changelog value (W1).
+
+    Returns ``(changelogs_written, projected_edges)``.
     """
     changes = differ.diff(old, new)
     if not changes:
-        return 0
+        return 0, []
 
     written = 0
+    rows: list[EvolutionChangelog] = []
     for change in changes:
         # source_count: use the newer snapshot's source_count as the strongest signal.
         source_count = int(new.source_count or 0)
@@ -282,16 +352,52 @@ async def _diff_and_persist(
             new_requirement=change.new_requirement,
             snapshot_from_id=old.id,
             snapshot_to_id=new.id,
-            status="approved" if trust >= 0.6 else "pending",
+            # BUG-6 fix: use shared LOW_TRUST_THRESHOLD (was 0.6 — out of sync
+            # with /evolution/review-queue filter of 0.5; pending rows in
+            # [0.5, 0.6) were orphaned).
+            status="approved" if trust >= LOW_TRUST_THRESHOLD else "pending",
             trust_score=trust,
             confidence=confidence,
             evidence_json={
                 "mention_count_old": change.mention_count_old,
                 "mention_count_new": change.mention_count_new,
                 "source_count": source_count,
+                # D-09 证据因子: 与 trust_scorer.score_change 输出口径一致
+                "factors": {
+                    "source": round(scorer._source_factor(source_count), 3),
+                    "stability": round(scorer._stability_factor(change), 3),
+                    "type": scorer._type_factor(change.change_type),
+                },
             },
         )
         session.add(row)
+        rows.append(row)
         written += 1
     await session.flush()
-    return written
+
+    # D-04/D-06: per-row write-back → position_skill_relations (fail-soft,
+    # warnings thread into the pipeline summary). Collect projected edges for
+    # the incremental Neo4j projection (only THIS run's written-back rows).
+    # W1: 投影使用回写实际落库的有效 confidence（max(existing, new)），
+    # 而不是原始 changelog confidence —— 否则 PG 保持 max 而 Neo4j 写入 raw 值会漂移。
+    projected_edges: list[tuple[str, str, str, float]] = []
+    for row in rows:
+        try:
+            effective_confidence = await write_back_changelog_row(session, row, warnings)
+            if effective_confidence is not None:
+                row.written_back = True
+                position_id = await _resolve_position_id(session, row.position_name)
+                skill_id = await _resolve_skill_id(session, row.skill_name)
+                if position_id is not None:
+                    projected_edges.append(
+                        (
+                            str(position_id),
+                            str(skill_id),
+                            CHANGE_TO_REQUIREMENT_TYPE[row.change_type],
+                            effective_confidence,
+                        )
+                    )
+        except Exception as exc:  # noqa: BLE001 — D-06 fail-soft, never abort
+            warnings.append(f"_diff_and_persist: write-back loop failed for {row}: {type(exc).__name__}: {exc}")
+            logger.warning("evolution _diff_and_persist: write-back loop failed for {}: {}", row, exc)
+    return written, projected_edges

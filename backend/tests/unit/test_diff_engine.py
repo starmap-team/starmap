@@ -59,14 +59,23 @@ class TestSixChangeTypes:
         assert added_pref[0].skill_name == "Docker"
 
     def test_removed(self, engine):
+        # E21 fix: an *empty* new snapshot now returns [] (spider-failure guard),
+        # so to exercise the REMOVED branch the new snapshot must still contain
+        # at least one skill that is absent from it.
         old = _FakeSnap([_skill("Python")], [])
-        new = _FakeSnap([], [])
+        new = _FakeSnap([_skill("Go")], [])
         changes = engine.diff(old, new)
         removed = [c for c in changes if c.change_type == ChangeType.REMOVED]
         assert len(removed) == 1
         assert removed[0].skill_name == "Python"
         assert removed[0].old_requirement == "required"
         assert removed[0].new_requirement is None
+
+    def test_empty_new_snapshot_returns_no_removed(self, engine):
+        """E21: empty spider payload must not flood the queue with 'removed'."""
+        old = _FakeSnap([_skill("Python"), _skill("Go")], [_skill("K8s")])
+        new = _FakeSnap([], [])
+        assert engine.diff(old, new) == []
 
     def test_promoted(self, engine):
         old = _FakeSnap([], [_skill("Rust")])
