@@ -33,6 +33,7 @@ import DataTruthPanel from '@/components/DataTruthPanel.vue'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import request from '@/api/request'
 import {
+  ALL_OPTION,
   CATEGORY_LABELS,
   NODE_REVIEW_STATUS_LABELS,
   NODE_REVIEW_STATUS_TAGS,
@@ -366,32 +367,14 @@ function formatDate(iso: string | null | undefined): string {
                 size="default"
               >
                 <el-option
-                  label="全部"
+                  :label="ALL_OPTION"
                   value=""
                 />
                 <el-option
-                  label="技能 (Skill)"
-                  value="Skill"
-                />
-                <el-option
-                  label="工具 (Tool)"
-                  value="Tool"
-                />
-                <el-option
-                  label="岗位 (Position)"
-                  value="Position"
-                />
-                <el-option
-                  label="知识领域 (KnowledgeArea)"
-                  value="KnowledgeArea"
-                />
-                <el-option
-                  label="行业 (Industry)"
-                  value="Industry"
-                />
-                <el-option
-                  label="学习资源 (LearningResource)"
-                  value="LearningResource"
+                  v-for="(label, value) in NODE_TYPE_LABELS"
+                  :key="value"
+                  :label="`${label} (${value})`"
+                  :value="value"
                 />
               </el-select>
               <!-- E4 fix: previously every node had status="pending" because
