@@ -7,6 +7,7 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { chartColors, cv, g6TooltipStyle } from '@/utils/chartTheme'
 import { ensureG6Loaded } from '@/composables/useG6'
+import { LEARNING_STATUS_LABELS } from '@/constants/labels'
 import type { NodeData, EdgeData, G6ElementEvent, G6ElementDatum, Graph } from '@/types/g6'
 
 interface PathNode {
@@ -52,11 +53,7 @@ const STATUS_FILLS: Record<string, string> = {
   mastered: '#dcfce7',
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  not_started: '未开始',
-  in_progress: '学习中',
-  mastered: '已掌握',
-}
+const STATUS_LABELS = LEARNING_STATUS_LABELS
 
 function buildGraphData() {
   const nodes: NodeData[] = []

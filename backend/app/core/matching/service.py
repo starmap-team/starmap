@@ -15,6 +15,13 @@ from uuid import uuid4
 
 from loguru import logger
 
+from app.core.constants import (
+    DEFAULT_PROFICIENCY,
+    GAP_LEVEL_MASTERED,
+    GAP_LEVEL_MISSING,
+    GAP_LEVEL_PARTIAL,
+    LOW_PROFICIENCY,
+)
 from app.core.matching.cache import get_match_cache
 from app.core.matching.constants import PROFICIENCY_SCORE
 from app.core.matching.path_builder import build_learning_path
@@ -95,7 +102,7 @@ class MatchService:
                             {
                                 "skill": s["name"],
                                 "category": s.get("category", "hard_skill"),
-                                "proficiency": s.get("proficiency", "熟悉"),
+                                "proficiency": s.get("proficiency", DEFAULT_PROFICIENCY),
                                 "source_count": int(s.get("source_count", 0) or 0),
                             }
                             for s in profile.required_skills
@@ -104,7 +111,7 @@ class MatchService:
                             {
                                 "skill": s["name"],
                                 "category": s.get("category", "hard_skill"),
-                                "proficiency": s.get("proficiency", "了解"),
+                                "proficiency": s.get("proficiency", LOW_PROFICIENCY),
                                 "source_count": int(s.get("source_count", 0) or 0),
                             }
                             for s in profile.bonus_skills
@@ -130,7 +137,7 @@ class MatchService:
                         skill_entry = {
                             "skill": props.get("name") or item.get("name", ""),
                             "category": props.get("category") or item.get("category", "hard_skill"),
-                            "proficiency": props.get("proficiency") or item.get("proficiency", "熟悉"),
+                            "proficiency": props.get("proficiency") or item.get("proficiency", DEFAULT_PROFICIENCY),
                             "source_count": str(int(props.get("source_count") or item.get("source_count", 0) or 0)),
                         }
                         importance = props.get("importance") or item.get("importance", "required")
@@ -169,7 +176,7 @@ class MatchService:
 
         overflow = max(1, required_count - ceil(DEFAULT_REQUIRED_SKILL_BASELINE * 1.2))
         required.sort(key=lambda item: (
-            PROFICIENCY_SCORE.get(item.get("proficiency", "熟悉"), 0.65),
+            PROFICIENCY_SCORE.get(item.get("proficiency", DEFAULT_PROFICIENCY), PROFICIENCY_SCORE[DEFAULT_PROFICIENCY]),
             int(item.get("source_count", 0) or 0),
         ))
         downgraded = required[:overflow]
@@ -215,7 +222,7 @@ class MatchService:
             # M2（Phase 13 强制规范）：区分“岗位不存在”与“岗位存在但暂无技能画像”。
             # 后者返回 200 + 0 分 + note，而非 404（not-found 仅用于真不存在）。
             if await self._position_exists(driver, target_position, db_session):
-                result = {
+                result: dict[str, Any] = {
                     "match_id": str(uuid4()),
                     "target_position": target_position,
                     "cii": None,
@@ -266,7 +273,7 @@ class MatchService:
                     "score": max(req_item["score"], bon_item["score"]),
                     "gap_level": min(
                         [req_item["gap_level"], bon_item["gap_level"]],
-                        key=lambda g: {"已掌握": 0, "部分掌握": 1, "完全缺失": 2}.get(g, 2),
+                        key=lambda g: {GAP_LEVEL_MASTERED: 0, GAP_LEVEL_PARTIAL: 1, GAP_LEVEL_MISSING: 2}.get(g, 2),
                     ),
                 })
             else:
@@ -293,23 +300,23 @@ class MatchService:
         match_score = round(min(1.0, (required_avg * 0.7) + (bonus_avg * 0.3)), 4)
 
         matched_skills = [
-            item["skill"] for item in merged_evaluated if item["gap_level"] == "已掌握"
+            item["skill"] for item in merged_evaluated if item["gap_level"] == GAP_LEVEL_MASTERED
         ]
         missing_required = [
-            item["skill"] for item in evaluated_required if item["gap_level"] != "已掌握"
+            item["skill"] for item in evaluated_required if item["gap_level"] != GAP_LEVEL_MASTERED
         ]
         missing_bonus = [
-            item["skill"] for item in evaluated_bonus if item["gap_level"] != "已掌握"
+            item["skill"] for item in evaluated_bonus if item["gap_level"] != GAP_LEVEL_MASTERED
         ]
         gap_details = sorted(
             merged_evaluated,
             key=lambda item: (
                 item["importance"] != "required",
-                item["gap_level"] == "已掌握",
+                item["gap_level"] == GAP_LEVEL_MASTERED,
                 item["skill"],
             ),
         )
-        gap_skills = [item["skill"] for item in gap_details if item["gap_level"] != "已掌握"]
+        gap_skills = [item["skill"] for item in gap_details if item["gap_level"] != GAP_LEVEL_MASTERED]
 
         # ponytail: 真实先修链 —— path_builder 此前是死代码，prereq_map 已加载但从未被消费；
         # 这里按"未掌握技能 → 前置依赖"生成学习路径，已掌握技能路径置空
@@ -317,14 +324,14 @@ class MatchService:
         for item in gap_details:
             item["learning_path"] = (
                 []
-                if item["gap_level"] == "已掌握"
+                if item["gap_level"] == GAP_LEVEL_MASTERED
                 else build_learning_path(item["skill"], owned_skills, prereq_map)
             )
 
         # Build recommendations
         recommendations: list[str] = []
         for item in gap_details[:3]:
-            if item["gap_level"] == "已掌握":
+            if item["gap_level"] == GAP_LEVEL_MASTERED:
                 continue
             path_preview = " -> ".join(item["learning_path"][:3])
             recommendations.append(f"优先补齐 {item['skill']}：{path_preview}")
@@ -355,6 +362,19 @@ class MatchService:
             "overall_assessment": self._assessment_text(match_score, len(missing_required)),
             "estimated_learning_time": self._estimate_learning_time(gap_details),
         }
+
+        # D6 fix: compute trust_score from Neo4j Skill.trust_score over matched_skills
+        # via the shared metrics module. The MIN of matched_skills' trust is the
+        # bottleneck — a single low-trust matched skill degrades the overall
+        # trustworthiness. Routes through app.core.metrics to keep the formula
+        # consistent with anything else computing per-skill trust.
+        try:
+            from app.core.metrics import match_trust_score  # noqa: PLC0415
+            result["trust_score"] = await match_trust_score(matched_skills)
+        except Exception as exc:  # noqa: BLE001
+            from loguru import logger
+            logger.warning("run_match trust_score lookup failed: {}", exc)
+            result["trust_score"] = None
 
         # Cache result
         self._cache.set_match_result(match_id, result)
@@ -406,9 +426,9 @@ class MatchService:
         for gap in gaps:
             # ponytail: .get 兜底 —— gap_report 回读数据（历史/精简记录）可能缺 importance
             base = 3.0 if gap.get("importance", "required") == "required" else 1.5
-            if gap.get("gap_level") == "部分掌握":
+            if gap.get("gap_level") == GAP_LEVEL_PARTIAL:
                 base *= 0.5
-            elif gap.get("gap_level") == "已掌握":
+            elif gap.get("gap_level") == GAP_LEVEL_MASTERED:
                 base = 0.5
             weeks += base
 

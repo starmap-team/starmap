@@ -5,6 +5,7 @@
  */
 import { ref } from 'vue'
 import { ZoomIn, ZoomOut, Aim, Filter, RefreshRight, VideoCamera, Position, Compass } from '@element-plus/icons-vue'
+import { PROFICIENCY_LEVELS } from '@/constants/labels'
 
 const props = withDefaults(defineProps<{
   nodeCount: number
@@ -17,7 +18,7 @@ const props = withDefaults(defineProps<{
   is3D: false,
   autoRotate: false,
   maxNodes: 80,
-  selectedProficiencies: () => ['精通', '熟悉', '了解'],
+  selectedProficiencies: () => [...PROFICIENCY_LEVELS],
 })
 
 const emit = defineEmits<{

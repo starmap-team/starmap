@@ -9,6 +9,7 @@
 import { ref, computed } from 'vue'
 import { ArrowLeft, ArrowRight, Connection } from '@element-plus/icons-vue'
 import type { OverviewMode, ViewLayer } from '@/stores/graph'
+import { PROFICIENCY_LEVELS } from '@/constants/labels'
 
 const props = withDefaults(defineProps<{
   overviewMode: OverviewMode
@@ -47,8 +48,6 @@ const LAYOUT_OPTIONS: { value: 'force' | 'dagre' | 'radial'; label: string; icon
   { value: 'dagre', label: '层', icon: '≡' },
   { value: 'radial', label: '环', icon: '◎' },
 ]
-
-const PROFICIENCY_LEVELS = ['精通', '熟悉', '了解']
 
 function onProficiencyToggle(level: string) {
   const current = [...props.proficiencyFilter]

@@ -3,14 +3,15 @@ import { ref } from "vue"
 import { Connection } from "@element-plus/icons-vue"
 import { useGraphStore } from "@/stores/graph"
 import { asTagType } from "@/utils/element"
+import { TREND_ARROW_LABELS, TREND_TYPES } from "@/constants/labels"
 
 const graphStore = useGraphStore()
 
 const visible = ref(false)
 const selectedEdge = ref<typeof graphStore.evolutionPaths[number] | null>(null)
 
-const trendLabel: Record<string, string> = { rising: '↑ 上升', stable: '→ 平稳', declining: '↓ 下降' }
-const trendType: Record<string, string> = { rising: 'success', stable: 'info', declining: 'danger' }
+const trendLabel = TREND_ARROW_LABELS
+const trendType = TREND_TYPES
 
 function open(edge: { source: string | { id: string }; target: string | { id: string } }) {
   const sId = typeof edge.source === 'string' ? edge.source : edge.source?.id ?? ''

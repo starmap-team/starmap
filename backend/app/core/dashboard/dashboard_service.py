@@ -18,6 +18,7 @@ from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import SOURCE_PLATFORM_NAMES
 from app.exceptions import StarMapError
 from app.models.extraction_models import (
     JDExtractionRecord,
@@ -157,17 +158,28 @@ async def _fetch_quality_stats(session: AsyncSession) -> dict[str, Any]:
     hallucination_rate = (int(hallucinated or 0) / total_extractions) if total_extractions else 0.0
 
     return {
-        "trust_score": round(metrics.overall_score, 4),
+        # D2 fix: route through shared metrics module so Quality Dashboard
+        # and Admin Overview cannot drift on the trust value.
+        "trust_score": await _fetch_entity_trust_score(),
+        "data_source_quality": round(metrics.overall_score, 4),
         "hallucination_rate": round(hallucination_rate, 4),
         "total_extractions": total_extractions,
     }
+
+
+async def _fetch_entity_trust_score() -> float:
+    """Wrapper that delegates to the shared metrics module.
+
+    Kept as a thin alias so existing callers in this file don't break.
+    """
+    from app.core.metrics import avg_skill_trust  # noqa: PLC0415
+    return await avg_skill_trust()
 
 
 async def _fetch_pipeline_stats(session: AsyncSession) -> dict[str, Any]:
     """Fetch pipeline processing metrics."""
     now = datetime.now(UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_ago = now - timedelta(days=7)
 
     # Total data volume (all records across runs)
     total_volume = (
@@ -184,20 +196,11 @@ async def _fetch_pipeline_stats(session: AsyncSession) -> dict[str, Any]:
         )
     ).scalar() or 0
 
-    # Weekly new nodes (skills + positions created in last 7 days)
-    weekly_new_skills = (
-        await session.execute(
-            sa.select(sa.func.count()).select_from(SkillRecord)
-            .where(SkillRecord.first_detected_at >= week_ago)
-        )
-    ).scalar() or 0
-    weekly_new_positions = (
-        await session.execute(
-            sa.select(sa.func.count()).select_from(PositionRecord)
-            .where(PositionRecord.created_at >= week_ago)
-        )
-    ).scalar() or 0
-    weekly_new_nodes = int(weekly_new_skills) + int(weekly_new_positions)
+    # Weekly new nodes — D1 fix: route through shared metrics module so
+    # the Quality Dashboard and the Admin Overview cannot drift apart.
+    from app.core.metrics import weekly_new_nodes  # noqa: PLC0415
+    weekly = await weekly_new_nodes(session, now=now)
+    weekly_new_nodes_value = weekly.total
 
     # Latest pipeline run status
     latest_run = (
@@ -225,7 +228,7 @@ async def _fetch_pipeline_stats(session: AsyncSession) -> dict[str, Any]:
         "today_extractions": int(today_extractions),
         "pipeline_status": pipeline_status,
         "active_data_sources": int(active_sources),
-        "weekly_new_nodes": weekly_new_nodes,
+        "weekly_new_nodes": weekly_new_nodes_value,
     }
 
 
@@ -441,12 +444,7 @@ async def get_distribution(
         )
         platform_rows = fallback_result.all()
         total_raw = sum(int(cast(int, r.count)) for r in platform_rows) or 1
-        platform_names = {
-            "lagou": "拉勾网", "zhaopin": "智联招聘", "indeed": "Indeed",
-            "sap": "SAP", "talent": "猎聘", "freelancer": "Freelancer",
-            "linkedin": "LinkedIn", "51job": "前程无忧", "bosszhipin": "BOSS直聘",
-            "test_real_crawl": "测试数据",
-        }
+        platform_names = SOURCE_PLATFORM_NAMES
         source_distribution = [
             {
                 "name": platform_names.get(row.source_platform, row.source_platform),

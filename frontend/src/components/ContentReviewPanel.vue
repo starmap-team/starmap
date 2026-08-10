@@ -14,6 +14,7 @@ import { onMounted, ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Close, RefreshRight } from '@element-plus/icons-vue'
 import { useReviewStore, type ReviewEntityType, type ReviewItem, type ReviewStatus } from '@/stores/review'
+import { ALL_OPTION, POSITION_REVIEW_STATUS_LABELS } from '@/constants/labels'
 
 const reviewStore = useReviewStore()
 
@@ -88,11 +89,11 @@ const pagedItems = computed<ReviewItem[]>(() => {
 const totalFiltered = computed(() => filteredItems.value.length)
 
 const STATUS_OPTIONS: { value: '' | ReviewStatus; label: string }[] = [
-  { value: '', label: '全部' },
-  { value: 'pending_review', label: '待审核' },
-  { value: 'approved', label: '已发布' },
-  { value: 'rejected', label: '已拒绝' },
-  { value: 'draft', label: '草稿' },
+  { value: '', label: ALL_OPTION },
+  { value: 'pending_review', label: POSITION_REVIEW_STATUS_LABELS.pending_review },
+  { value: 'approved', label: POSITION_REVIEW_STATUS_LABELS.approved },
+  { value: 'rejected', label: POSITION_REVIEW_STATUS_LABELS.rejected },
+  { value: 'draft', label: POSITION_REVIEW_STATUS_LABELS.draft },
 ]
 
 const TYPE_OPTIONS: { value: '' | ReviewEntityType; label: string }[] = [
@@ -110,14 +111,7 @@ const statusTagType = (status: ReviewStatus) => {
   }
 }
 
-const statusLabel = (status: ReviewStatus) => {
-  switch (status) {
-    case 'approved': return '已发布'
-    case 'pending_review': return '待审核'
-    case 'rejected': return '已拒绝'
-    case 'draft': return '草稿'
-  }
-}
+const statusLabel = (status: ReviewStatus) => POSITION_REVIEW_STATUS_LABELS[status] ?? status
 
 async function refresh() {
   await reviewStore.fetchItems(

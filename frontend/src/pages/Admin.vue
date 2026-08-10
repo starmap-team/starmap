@@ -31,40 +31,26 @@ import PromptManager from '@/components/PromptManager.vue'
 import UserManagement from '@/pages/UserManagement.vue'
 import DataTruthPanel from '@/components/DataTruthPanel.vue'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
+import {
+  CATEGORY_LABELS,
+  NODE_REVIEW_STATUS_LABELS,
+  NODE_REVIEW_STATUS_TAGS,
+  NODE_TYPE_LABELS,
+} from '@/constants/labels'
 import AuditLog from '@/pages/AuditLog.vue'
-
-const CATEGORY_LABELS: Record<string, string> = {
-  hard_skill: '硬技能', soft_skill: '软技能', tool: '工具', certificate: '认证',
-  project_management: '项目管理', design: '设计', domain: '领域知识',
-  language: '语言', certification: '认证', methodology: '方法论',
-  Skill: '硬技能', Position: '—', Tool: '工具', Certificate: '认证',
-  Industry: '—', KnowledgeArea: '领域知识', LearningResource: '学习资源',
-}
 
 import { chartColors } from '@/utils/chartTheme'
 import { useGraphNodeList, type GraphNodeItem } from '@/composables/useGraphNodeList'
 import { useGraphNodeEditor } from '@/composables/useGraphNodeEditor'
 
-// Node label/status maps (inlined from useGraphNodeLabels)
+// Node label/status maps (from @/constants/labels)
 // E3 fix: Neo4j has 6 labels — Skill / Tool / Position / KnowledgeArea /
 // Industry / LearningResource. The old map only knew 5 (missing
 // KnowledgeArea / Industry / LearningResource), causing the type filter
 // to silently exclude them. Add the missing ones.
-const _NODE_TYPE_LABELS: Record<string, string> = {
-  Skill: '技能',
-  Tool: '工具',
-  Position: '岗位',
-  KnowledgeArea: '知识领域',
-  Industry: '行业',
-  LearningResource: '学习资源',
-  Domain: '领域',  // legacy alias (some old code referenced "Domain")
-  Certificate: '证书',
-}
-const _NODE_STATUS_TAG: Record<string, string> = { approved: 'success', rejected: 'danger', pending: 'warning' }
-const _NODE_STATUS_LABELS: Record<string, string> = { approved: '已通过', rejected: '已拒绝', pending: '待审核' }
-function nodeTypeLabel(type: string): string { return _NODE_TYPE_LABELS[type] ?? type }
-function nodeStatusType(status: string): string { return _NODE_STATUS_TAG[status] ?? 'info' }
-function nodeStatusLabel(status: string): string { return _NODE_STATUS_LABELS[status] ?? status }
+function nodeTypeLabel(type: string): string { return NODE_TYPE_LABELS[type] ?? type }
+function nodeStatusType(status: string): string { return NODE_REVIEW_STATUS_TAGS[status] ?? 'info' }
+function nodeStatusLabel(status: string): string { return NODE_REVIEW_STATUS_LABELS[status] ?? status }
 
 const cc = chartColors()
 const router = useRouter()

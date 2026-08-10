@@ -6,6 +6,7 @@
 import { computed } from 'vue'
 import { Clock, Checked, Loading as LoadingIcon } from '@element-plus/icons-vue'
 import { asTagType } from '@/utils/element'
+import { LEARNING_STATUS_LABELS } from '@/constants/labels'
 
 interface SkillData {
   skill: string
@@ -27,9 +28,9 @@ const emit = defineEmits<{
 
 const statusConfig = computed(() => {
   const map: Record<string, { label: string; type: string; color: string }> = {
-    not_started: { label: '未开始', type: 'info', color: 'var(--muted-foreground)' },
-    in_progress: { label: '学习中', type: 'warning', color: 'var(--warning)' },
-    mastered: { label: '已掌握', type: 'success', color: 'var(--success)' },
+    not_started: { label: LEARNING_STATUS_LABELS.not_started, type: 'info', color: 'var(--muted-foreground)' },
+    in_progress: { label: LEARNING_STATUS_LABELS.in_progress, type: 'warning', color: 'var(--warning)' },
+    mastered: { label: LEARNING_STATUS_LABELS.mastered, type: 'success', color: 'var(--success)' },
   }
   return map[props.skill.status] ?? map.not_started
 })

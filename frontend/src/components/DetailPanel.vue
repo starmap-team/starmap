@@ -4,29 +4,8 @@ import VChart from "vue-echarts"
 import { Aim } from "@element-plus/icons-vue"
 import { useGraphStore, type GraphNode } from "@/stores/graph"
 import type { RadarChartOption } from "@/composables/home/useHomeInteractions"
+import { CATEGORY_LABELS } from "@/constants/labels"
 import { displayName } from "@/utils/graphColors"
-
-const CATEGORY_LABELS: Record<string, string> = {
-  hard_skill: '硬技能',
-  soft_skill: '软技能',
-  tool: '工具',
-  certificate: '认证',
-  project_management: '项目管理',
-  design: '设计',
-  domain: '领域知识',
-  language: '语言',
-  certification: '认证',
-  methodology: '方法论',
-  // Neo4j label fallbacks — these should not appear after the backend fix,
-  // but handle them gracefully if they do.
-  Skill: '硬技能',
-  Position: '—',
-  Tool: '工具',
-  Certificate: '认证',
-  Industry: '—',
-  KnowledgeArea: '领域知识',
-  LearningResource: '学习资源',
-}
 
 function categoryLabel(raw: string | undefined | null): string {
   if (!raw) return '—'

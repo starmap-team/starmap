@@ -1,9 +1,10 @@
 /** Graph toolbar state — layout/maxNodes/proficiency filters, plain refs. */
 import { ref } from 'vue'
+import { PROFICIENCY_LEVELS } from '@/constants/labels'
 
 export type LayoutMode = 'force' | 'dagre' | 'radial'
 
-const DEFAULT_PROFICIENCY = ['精通', '熟悉', '了解'] as const
+const DEFAULT_PROFICIENCY = PROFICIENCY_LEVELS
 
 export function useGraphToolbarState() {
   const layoutMode = ref<LayoutMode>('force')

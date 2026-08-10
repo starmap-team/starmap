@@ -23,6 +23,7 @@ import SkillProgressCard from '@/components/SkillProgressCard.vue'
 // 业务说明：学习中心状态管理 Store，处理学习计划数据、进度更新和推荐逻辑
 import { useLearningStore } from '@/stores/learning'
 import { useUserStore } from '@/stores/user'
+import { ALL_OPTION, LEARNING_STATUS_LABELS } from '@/constants/labels'
 import { useMatchStore } from '@/stores/match'
 import { asTagType } from '@/utils/element'
 
@@ -66,7 +67,7 @@ async function handleUpdateStatus(skill: string, status: string) {
   if (!currentPlan.value) { ElMessage.warning('请先创建学习计划'); return }
   try {
     await learningStore.updateProgress(currentPlan.value.plan_id, skill, status)
-    const statusLabel = status === 'mastered' ? '已掌握' : status === 'in_progress' ? '学习中' : '未开始'
+    const statusLabel = LEARNING_STATUS_LABELS[status] ?? status
     ElMessage.success(`已更新「${skill}」状态为 ${statusLabel}`)
     if (status === 'mastered') ElMessage.success({ message: '技能已掌握！可前往匹配诊断查看提升效果', duration: 5000 })
   } catch { /* store handles errors */ }
@@ -325,9 +326,9 @@ onMounted(async () => {
                   <el-segmented
                     v-model="activeTab"
                     :options="[
-                      { label: '全部', value: 'all' },
-                      { label: '学习中', value: 'in_progress' },
-                      { label: '未开始', value: 'not_started' },
+                      { label: ALL_OPTION, value: 'all' },
+                      { label: LEARNING_STATUS_LABELS.in_progress, value: 'in_progress' },
+                      { label: LEARNING_STATUS_LABELS.not_started, value: 'not_started' },
                     ]"
                     size="small"
                   />

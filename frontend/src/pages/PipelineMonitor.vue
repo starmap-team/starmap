@@ -18,6 +18,7 @@ import PipelineKpiCards from '@/components/PipelineKpiCards.vue'
 import PipelineGlossary from '@/components/PipelineGlossary.vue'
 import { usePipelineMonitor } from '@/composables/usePipelineMonitor'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
+import { RUN_TYPE_LABELS } from '@/constants/labels'
 import { useDataSourceStore } from '@/stores/datasource'
 
 const datasourceStore = useDataSourceStore()
@@ -173,7 +174,7 @@ async function handleTriggerWithVerify() {
     pipeline.resetLiveActivity()
     await pipeline.triggerPipeline(triggerRunType.value, selectedStages.value)
     triggerDialogVisible.value = false
-    const runTypeLabel = triggerRunType.value === 'full' ? '全量' : '增量'
+    const runTypeLabel = RUN_TYPE_LABELS[triggerRunType.value] ?? triggerRunType.value
     const stageCount = selectedStages.value.length
     ElMessage.success(`流水线已触发（${runTypeLabel}，${stageCount} 个阶段）`)
     refreshInterval.value = 5
@@ -881,7 +882,7 @@ async function verifyNow() {
                 :type="row.run_type === 'full' ? '' : 'info'"
                 size="small"
               >
-                {{ row.run_type === 'full' ? '全量' : '增量' }}
+                {{ RUN_TYPE_LABELS[row.run_type] ?? row.run_type }}
               </el-tag>
             </template>
           </el-table-column>
@@ -957,10 +958,10 @@ async function verifyNow() {
           <el-form-item label="运行类型">
             <el-radio-group v-model="triggerRunType">
               <el-radio value="full">
-                全量
+                {{ RUN_TYPE_LABELS.full }}
               </el-radio>
               <el-radio value="incremental">
-                增量
+                {{ RUN_TYPE_LABELS.incremental }}
               </el-radio>
             </el-radio-group>
           </el-form-item>
@@ -1045,10 +1046,10 @@ async function verifyNow() {
           <el-form-item label="运行类型">
             <el-radio-group v-model="scheduleForm.run_type">
               <el-radio value="full">
-                全量
+                {{ RUN_TYPE_LABELS.full }}
               </el-radio>
               <el-radio value="incremental">
-                增量
+                {{ RUN_TYPE_LABELS.incremental }}
               </el-radio>
             </el-radio-group>
           </el-form-item>

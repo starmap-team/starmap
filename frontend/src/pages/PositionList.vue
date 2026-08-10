@@ -16,6 +16,7 @@ import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useJdStore } from '@/stores/jd'
 import { useUserStore } from '@/stores/user'
+import { ALL_OPTION, POSITION_REVIEW_STATUS_LABELS } from '@/constants/labels'
 import { freshnessOf } from '@/utils/freshness'
 
 const jdStore = useJdStore()
@@ -68,10 +69,10 @@ const filteredPositions = computed(() => positions.value)
 const showAdminFilters = computed(() => isAdmin.value)
 
 const statusOptions: { value: typeof statusFilter.value; label: string }[] = [
-  { value: 'approved', label: '已发布' },
-  { value: 'pending_review', label: '待审核' },
-  { value: 'rejected', label: '已拒绝' },
-  { value: 'all', label: '全部' },
+  { value: 'approved', label: POSITION_REVIEW_STATUS_LABELS.approved },
+  { value: 'pending_review', label: POSITION_REVIEW_STATUS_LABELS.pending_review },
+  { value: 'rejected', label: POSITION_REVIEW_STATUS_LABELS.rejected },
+  { value: 'all', label: ALL_OPTION },
 ]
 
 function statusBadgeType(status: PositionRow['review_status'] | undefined) {
@@ -90,18 +91,8 @@ function statusBadgeType(status: PositionRow['review_status'] | undefined) {
 }
 
 function statusLabel(status: PositionRow['review_status'] | undefined) {
-  switch (status) {
-    case 'approved':
-      return '已发布'
-    case 'pending_review':
-      return '待审核'
-    case 'rejected':
-      return '已拒绝'
-    case 'draft':
-      return '草稿'
-    default:
-      return status ?? ''
-  }
+  if (!status) return '—'
+  return POSITION_REVIEW_STATUS_LABELS[status] ?? status
 }
 
   async function fetchPositions() {

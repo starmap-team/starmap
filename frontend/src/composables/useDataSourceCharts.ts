@@ -3,6 +3,10 @@
  * Pure functions over chartColors() — no store dependency.
  */
 import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle } from '@/utils/chartTheme'
+import { SOURCE_NAME_LABELS } from '@/constants/labels'
+
+// re-export 保持向后兼容（Admin.vue / PipelineMonitor.vue 直接 import getSourceNameLabel）
+export { SOURCE_NAME_LABELS }
 
 export function getAuthorityGaugeOption(score: number): Record<string, unknown> {
   const colors = chartColors()
@@ -117,40 +121,6 @@ export function formatRecords(n: number): string {
   if (n >= 10000) return `${(n / 10000).toFixed(1)}万`
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
   return String(n)
-}
-
-/** 数据源名称中文化映射 — 覆盖爬虫平台、标准库、API 等常见数据源 */
-const SOURCE_NAME_LABELS: Record<string, string> = {
-  // 国内招聘平台
-  boss: 'BOSS直聘',
-  bosszhipin: 'BOSS直聘',
-  'BOSS直聘': 'BOSS直聘',
-  lagou: '拉勾网',
-  '拉勾网': '拉勾网',
-  '51job': '前程无忧',
-  '51Job': '前程无忧',
-  zhaopin: '智联招聘',
-  liepin: '猎聘',
-  talent: '猎聘',
-  // 国际平台
-  github: 'GitHub',
-  GitHub: 'GitHub',
-  indeed: 'Indeed',
-  linkedin: 'LinkedIn',
-  freelancer: 'Freelancer',
-  // 标准库
-  esco: 'ESCO 标准库',
-  ESCO: 'ESCO 标准库',
-  // 其他
-  manual: '手动录入',
-  import: '数据导入',
-  api: 'API 接入',
-  test_real_crawl: '测试数据',
-  // 内部数据源标识
-  jd_extract: 'JD 抽取',
-  jd_extraction: 'JD 抽取',
-  user_upload: '用户上传',
-  // linkedin 已在上面定义
 }
 
 export function getSourceNameLabel(name: string): string {

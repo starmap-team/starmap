@@ -43,6 +43,7 @@ const loading = ref(false)
 const notFound = ref(false)
 
 import { PROFICIENCY_MAP } from '@/utils/proficiency'
+import { CATEGORY_LABELS } from '@/constants/labels'
 
 // ── 雷达图数据 ──
 const radarData = computed<RadarItem[]>(() =>
@@ -52,18 +53,6 @@ const radarData = computed<RadarItem[]>(() =>
     user: 0, // 岗位详情仅展示要求，无用户对比
   }))
 )
-
-const CATEGORY_LABELS: Record<string, string> = {
-  hard_skill: '硬技能',
-  soft_skill: '软技能',
-  tool: '工具',
-  project_management: '项目管理',
-  design: '设计',
-  domain: '领域知识',
-  language: '语言',
-  certification: '认证',
-  methodology: '方法论',
-}
 
 const PROFICIENCY_TAG: Record<string, string> = {
   '精通': 'danger',

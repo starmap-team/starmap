@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import GAP_LEVEL_MISSING, GAP_LEVEL_PARTIAL
 from app.dependencies import get_current_user, get_db_session
 from app.exceptions import LearningPathError, StarMapError
 from app.models.learning_models import LearningPlan, LearningProgress
@@ -186,7 +187,7 @@ async def add_skill_to_plan(
     skills_list.append({
         "skill": body.skill_name,
         "importance": body.importance,
-        "gap_level": "完全缺失",
+        "gap_level": GAP_LEVEL_MISSING,
         "learning_path": [],
         "estimated_hours": body.estimated_hours,
     })
@@ -267,7 +268,7 @@ async def get_recommendations(
             items.append(RecommendationItem(
                 skill=p.skill_name,
                 importance=p.importance,
-                gap_level="部分掌握" if p.progress_pct > 0 else "完全缺失",
+                gap_level=GAP_LEVEL_PARTIAL if p.progress_pct > 0 else GAP_LEVEL_MISSING,
                 estimated_hours=p.estimated_hours,
                 prerequisites=prereqs,
                 reason=reason,

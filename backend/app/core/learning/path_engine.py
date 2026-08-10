@@ -506,7 +506,7 @@ async def generate_learning_path(
 
     for name in ordered_names:
         gap = gap_map.get(name, {})
-        gap_level = gap.get("gap_level", "完全缺失")
+        gap_level = gap.get("gap_level", GAP_LEVEL_MISSING)
         importance = gap.get("importance", "required")
         current = current_proficiencies.get(name)
         target = gap.get("target_proficiency", DEFAULT_PROFICIENCY)

@@ -18,6 +18,7 @@ const _DEPS: Record<string, string[]> = {
 }
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
+import { RUN_TYPE_LABELS } from '@/constants/labels'
 // Phase 3.6 FIX: 直接导入真实 stores，绕开 barrel re-export 包装导致的
 // ref-as-value bug (usePipelineStore 返回普通对象，pipelineStatus 是 ref，
 // 但 kpiCards 等 computed 在 JS 上下文不会自动 unwrap，导致 s.today_crawl_volume = undefined)
@@ -432,7 +433,7 @@ export function usePipelineMonitor() {
       triggerDialogVisible.value = false
       // 立即刷新全页面数据，确保 KPI/DAG/质量面板实时联动
       await loadAll()
-      const runTypeLabel = triggerRunType.value === 'full' ? '全量' : '增量'
+      const runTypeLabel = RUN_TYPE_LABELS[triggerRunType.value] ?? triggerRunType.value
       const stageCount = selectedStages.value.length
       ElMessage.success(`流水线已触发（${runTypeLabel}，${stageCount} 个阶段）`)
       // 执行期间加速刷新

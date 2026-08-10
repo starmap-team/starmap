@@ -17,6 +17,13 @@ from neo4j.exceptions import Neo4jError
 from sqlalchemy.exc import SQLAlchemyError
 
 # 从新的模块化组件导入
+from app.core.constants import (
+    DEFAULT_PROFICIENCY,
+    DIFFICULTY_HIGH,
+    DIFFICULTY_LOW,
+    DIFFICULTY_MEDIUM,
+    GAP_LEVEL_MASTERED,
+)
 from app.core.matching.cache import get_match_cache
 from app.core.matching.path_builder import build_learning_path
 
@@ -132,10 +139,15 @@ async def get_match_result(match_id: str, db_session: Any = None) -> dict[str, A
                     "skill_gap_detail": gap_report,
                     "cii": row.cii,
                 }
+                # D6 fix: compute trust_score from Neo4j Skill.trust_score over matched_skills.
+                # Routes through the shared metrics module so the formula is identical
+                # to anything else computing per-skill trust.
+                from app.core.metrics import match_trust_score  # noqa: PLC0415
+                result["trust_score"] = await match_trust_score(row.matched_skills or [])
                 # ponytail: PG 兜底与 POST 响应字段对齐 —— 缺失字段在此重建/派生，
                 # 避免同一 match_id 因 cache 状态返回不同结构
                 result["gap_skills"] = [
-                    g["skill"] for g in gap_report if g.get("gap_level") != "已掌握"
+                    g["skill"] for g in gap_report if g.get("gap_level") != GAP_LEVEL_MASTERED
                 ]
                 if row.cii is None and row.match_score == 0 and not gap_report:
                     result["recommendations"] = []
@@ -145,7 +157,7 @@ async def get_match_result(match_id: str, db_session: Any = None) -> dict[str, A
                 else:
                     result["recommendations"] = []
                     for item in gap_report[:3]:
-                        if item.get("gap_level") == "已掌握":
+                        if item.get("gap_level") == GAP_LEVEL_MASTERED:
                             continue
                         path_preview = " -> ".join(item.get("learning_path", [])[:3])
                         result["recommendations"].append(f"优先补齐 {item.get('skill', '')}：{path_preview}")
@@ -231,7 +243,7 @@ async def compute_competitiveness(
 
     skill_count_score = min(1.0, len(required_skills) / 10.0)
     proficiency_scores = [
-        PROFICIENCY_SCORE.get(s.get("proficiency", "熟悉"), 0.65)
+        PROFICIENCY_SCORE.get(s.get("proficiency", DEFAULT_PROFICIENCY), 0.65)
         for s in required_skills
     ]
     avg_proficiency = sum(proficiency_scores) / len(proficiency_scores) if proficiency_scores else 0.5
@@ -266,13 +278,13 @@ async def compute_competitiveness(
     )
 
     if competitiveness >= 0.75:
-        difficulty = "高"
+        difficulty = DIFFICULTY_HIGH
         description = "该岗位竞争激烈，需要广泛且深入的技能储备"
     elif competitiveness >= 0.5:
-        difficulty = "中"
+        difficulty = DIFFICULTY_MEDIUM
         description = "该岗位有一定竞争性，需要扎实的核心技能"
     else:
-        difficulty = "低"
+        difficulty = DIFFICULTY_LOW
         description = "该岗位入门门槛较低，适合快速入门"
 
     bottleneck_skills = sorted(
