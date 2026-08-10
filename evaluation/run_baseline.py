@@ -181,12 +181,11 @@ def main():
 
     # Save system output
     with open(system_output_path, "w", encoding="utf-8") as f:
-        for item in system_results:
-            f.write(json.dumps(item, ensure_ascii=False) + "\n")
+        f.writelines(json.dumps(item, ensure_ascii=False) + "\n" for item in system_results)
     print(f"       System output saved to: {system_output_path}")
 
     # Show sample
-    print(f"\nSample output (first entry):")
+    print("\nSample output (first entry):")
     print(json.dumps(system_results[0], ensure_ascii=False, indent=2))
 
     # Evaluate
@@ -209,7 +208,7 @@ def main():
     print(f"  Avg Recall:      {metrics.avg_recall:.4f}")
     print(f"  Avg F1:          {metrics.avg_f1:.4f}")
     print(f"  Weighted Score:  {metrics.weighted_score:.4f}")
-    print(f"\n  F1 Distribution:")
+    print("\n  F1 Distribution:")
     print(f"    Excellent (>=0.90):  {metrics.f1_distribution['excellent']}")
     print(f"    Good     (>=0.70):  {metrics.f1_distribution['good']}")
     print(f"    Fair     (>=0.50):  {metrics.f1_distribution['fair']}")

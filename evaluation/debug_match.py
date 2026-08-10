@@ -1,5 +1,6 @@
 """Debug keyword matching on golden set JDs."""
-import json, re
+import json
+import re
 from pathlib import Path
 
 # Load first golden entry

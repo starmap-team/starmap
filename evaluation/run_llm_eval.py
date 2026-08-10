@@ -19,9 +19,10 @@ BACKEND_DIR = BASE_DIR / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 sys.path.insert(0, str(BASE_DIR))
 
-from evaluation.judge_eval import evaluate_batch, generate_evaluation_report
 from app.config import settings
 from app.core.extraction.jd_extract import extract_from_jd
+
+from evaluation.judge_eval import evaluate_batch, generate_evaluation_report
 
 
 def load_golden_set(path: Path, quick: bool = False) -> list[dict]:
@@ -96,7 +97,7 @@ async def run_evaluation(quick: bool = False):
     print(f"\n[1/3] Loaded {len(entries)} golden entries [{label}]")
 
     # Run extraction pipeline on each JD
-    print(f"\n[2/3] Running LLM extraction pipeline...")
+    print("\n[2/3] Running LLM extraction pipeline...")
 
     # Load existing results to support resuming
     existing_ids = set()
@@ -166,7 +167,7 @@ async def run_evaluation(quick: bool = False):
         print(f"  Errors saved: {error_path}")
 
     # Evaluate
-    print(f"\n[3/3] Running evaluation...")
+    print("\n[3/3] Running evaluation...")
     metrics = evaluate_batch(
         golden_file=str(golden_path),
         system_file=str(system_output_path),

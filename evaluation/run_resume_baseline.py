@@ -3,7 +3,6 @@
 Uses the same rule-based extraction as JD baseline (keyword matching)
 to establish a baseline for resume skill extraction F1.
 """
-import asyncio
 import json
 import re
 import sys

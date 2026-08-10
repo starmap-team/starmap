@@ -21,8 +21,7 @@ def load_jsonl(path: Path) -> list[dict]:
 
 def save_jsonl(path: Path, rows: list[dict]) -> None:
     with open(path, "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in rows)
 
 
 # (岗位, 技术栈, 年限, 学历, 亮点) — 行业真实组合

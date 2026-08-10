@@ -28,10 +28,10 @@ BACKEND_DIR = BASE_DIR / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 sys.path.insert(0, str(BASE_DIR))
 
-from app.config import settings  # noqa: E402
-from app.core.extraction.jd_extract import JDExtractionPipeline  # noqa: E402
-from app.core.extraction.llm_client import LLMClient  # noqa: E402
-from judge_eval import evaluate_batch, generate_evaluation_report  # noqa: E402
+from app.config import settings
+from app.core.extraction.jd_extract import JDExtractionPipeline
+from app.core.extraction.llm_client import LLMClient
+from judge_eval import evaluate_batch, generate_evaluation_report
 
 EVAL_DIR = BASE_DIR / "evaluation"
 GOLDEN_PATH = EVAL_DIR / "golden_set.jsonl"
@@ -71,8 +71,7 @@ def load_golden(path: Path) -> list[dict]:
 def save_jsonl(records: list[dict], path: Path) -> None:
     """Write records as JSONL (one JSON per line, utf-8, no ASCII escaping)."""
     with open(path, "w", encoding="utf-8") as f:
-        for rec in records:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        f.writelines(json.dumps(rec, ensure_ascii=False) + "\n" for rec in records)
 
 
 def _get_skill_names(skills) -> list[str]:
@@ -358,7 +357,7 @@ def _print_summary(metrics) -> None:
     print(f"  Precision: {metrics.avg_precision:.4f}")
     print(f"  Recall:    {metrics.avg_recall:.4f}")
     print(f"  Weighted:  {metrics.weighted_score:.4f}")
-    print(f"  Distribution:")
+    print("  Distribution:")
     print(f"    Excellent(>=0.90): {metrics.f1_distribution.get('excellent', 0)}")
     print(f"    Good    (>=0.70): {metrics.f1_distribution.get('good', 0)}")
     print(f"    Fair    (>=0.50): {metrics.f1_distribution.get('fair', 0)}")

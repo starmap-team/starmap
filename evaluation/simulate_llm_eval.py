@@ -17,7 +17,7 @@ BACKEND_DIR = BASE_DIR / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 sys.path.insert(0, str(BASE_DIR))
 
-from app.config import settings  # noqa: E402
+from app.config import settings
 from judge_eval import evaluate_batch, generate_evaluation_report
 
 
@@ -118,8 +118,7 @@ def main():
         
         out_path = system_output_path.with_stem(f"system_llm_sim_{noise:.2f}")
         with open(out_path, "w", encoding="utf-8") as f:
-            for item in results:
-                f.write(json.dumps(item, ensure_ascii=False) + "\n")
+            f.writelines(json.dumps(item, ensure_ascii=False) + "\n" for item in results)
         
         eval_output = report_dir / f"evaluation_{noise:.2f}.json"
         metrics = evaluate_batch(
@@ -134,12 +133,11 @@ def main():
               f"Gate(>={settings.eval_f1_gate:.2f}): [{gate}]")
     
     # Full report for expected case
-    print(f"\n[2/3] Generating full report for expected case (noise=5%)...")
+    print("\n[2/3] Generating full report for expected case (noise=5%)...")
     expected_results = simulate_llm_pipeline_output(golden_data, noise_level=0.05, seed=47)
     expected_path = system_output_path.with_stem("system_llm_sim_0.05")
     with open(expected_path, "w", encoding="utf-8") as f:
-        for item in expected_results:
-            f.write(json.dumps(item, ensure_ascii=False) + "\n")
+        f.writelines(json.dumps(item, ensure_ascii=False) + "\n" for item in expected_results)
     
     metrics = evaluate_batch(
         golden_file=str(golden_path),
@@ -156,7 +154,7 @@ def main():
     print(f"  Precision:         {metrics.avg_precision:.4f}")
     print(f"  Recall:            {metrics.avg_recall:.4f}")
     print(f"  Samples:           {metrics.total_samples}")
-    print(f"  F1 Distribution:")
+    print("  F1 Distribution:")
     print(f"    Excellent (>=0.90):  {metrics.f1_distribution['excellent']}")
     print(f"    Good     (>=0.70):  {metrics.f1_distribution['good']}")
     print(f"    Fair     (>=0.50):  {metrics.f1_distribution['fair']}")
@@ -164,13 +162,13 @@ def main():
     print(f"  Quality Gate (>={settings.eval_f1_gate:.2f}): "
           f"[{'PASS' if metrics.avg_f1 >= settings.eval_f1_gate else 'FAIL'}]")
     print(f"  Report: {report['report_path']}")
-    print(f"\n  CONCLUSIONS:")
-    print(f"  - Rule-based baseline (no LLM):                    F1 = 0.5347")
-    print(f"  - Enhanced alias + rule-based:                     F1 = 0.7580")
-    print(f"  - Expected LLM pipeline (with optimized prompts):  F1 >= 0.85")
-    print(f"  - The prompt optimization reduces hallucination, improves bonus")
-    print(f"    classification, and handles Chinese/niche skills natively.")
-    print(f"  - Target F1 >= 80% is ACHIEVABLE with the current prompt design.")
+    print("\n  CONCLUSIONS:")
+    print("  - Rule-based baseline (no LLM):                    F1 = 0.5347")
+    print("  - Enhanced alias + rule-based:                     F1 = 0.7580")
+    print("  - Expected LLM pipeline (with optimized prompts):  F1 >= 0.85")
+    print("  - The prompt optimization reduces hallucination, improves bonus")
+    print("    classification, and handles Chinese/niche skills natively.")
+    print("  - Target F1 >= 80% is ACHIEVABLE with the current prompt design.")
     print(f"{'=' * 60}")
     return metrics
 
