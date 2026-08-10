@@ -54,7 +54,7 @@ export function useLoopGraph() {
   }
 
   /** Render the G6 mini-graph from step 3 data */
-  async function renderMiniGraph(targetPosition?: string) {
+  async function renderMiniGraph(_targetPosition?: string) {
     if (!graphContainerRef.value) return
     const step3Data = loopStore.currentRun?.steps[2]?.data
     if (!step3Data) return
@@ -170,64 +170,8 @@ export function useLoopGraph() {
       })),
     ]
 
-    // If no structured data, generate mock visualization
-    if (allGraphNodes.length === 0) {
-      const skills = extractSkillsFromRun()
-      skills.forEach((s, i) => {
-        allGraphNodes.push({
-          id: `skill_${i}`,
-          style: {
-            size: s.is_new ? 28 : 24,
-            fill: s.is_new ? cc.success : cv('--primary'),
-            fillOpacity: s.is_new ? 0.9 : 0.7,
-            stroke: s.is_new ? cc.success : cv('--primary'),
-            lineWidth: s.is_new ? 2 : 1.5,
-            labelText: s.skill,
-            labelFill: cv('--foreground'),
-            shadowColor: s.is_new ? withAlpha(cc.success, 0.4) : undefined,
-            shadowBlur: s.is_new ? 12 : 0,
-            cursor: 'pointer' as const,
-          },
-        })
-      })
-      // Connect position node to skills
-      if (allGraphNodes.length > 0) {
-        const posId = 'position_node'
-        allGraphNodes.unshift({
-          id: posId,
-          style: {
-            size: 36,
-            fill: cv('--info'),
-            fillOpacity: 0.85,
-            stroke: cv('--info'),
-            lineWidth: 2,
-            labelText: targetPosition || '目标岗位',
-            labelFill: cv('--foreground'),
-            labelFontSize: 12,
-            labelFontWeight: 'bold' as const,
-            shadowColor: withAlpha(cv('--info'), 0.3),
-            shadowBlur: 12,
-            cursor: 'pointer' as const,
-          },
-        })
-        for (let i = 0; i < allGraphNodes.length; i++) {
-          if (allGraphNodes[i].id !== posId) {
-            allGraphEdges.push({
-              id: `${posId}-${allGraphNodes[i].id}`,
-              source: posId,
-              target: allGraphNodes[i].id,
-              style: {
-                stroke: cv('--border'),
-                lineWidth: 1.5,
-                opacity: 0.4,
-                endArrow: true,
-              },
-            })
-          }
-        }
-      }
-    }
-
+    // ponytail: 原 mock 分支在无结构化数据时生成假节点/假 position_node 图，演示非真实数据；
+    // 删除，无数据时下方直接 return，由页面渲染空态
     if (allGraphNodes.length === 0) return
 
     // Set initial opacity to 0 for entrance animation

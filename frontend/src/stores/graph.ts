@@ -255,6 +255,10 @@ export const useGraphStore = defineStore('graph', () => {
       expandedKAName.value = ''
       expandedPositionId.value = null
       positionsByKA.value = new Map()
+      // ponytail: 演化聚焦状态不随模式切换重置会指向旧岗位（演化开关开着时残留）
+      focusedPositionId.value = null
+      focusedPositionName.value = ''
+      evolutionPaths.value = []
     } catch (e) {
       if (import.meta.env.DEV) console.error('[Graph] Failed to fetch overview:', e)
       ElMessage.error('加载图谱数据失败，请检查后端服务')

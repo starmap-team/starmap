@@ -47,7 +47,13 @@ const navGroups = [
   { key: 'insight', label: '洞察' },
   { key: 'system', label: '系统' },
 ]
-const currentTitle = computed(() => navItems.value.find(i => i.path === route.path)?.title ?? '星图')
+// ponytail: 原精确匹配 route.path === item.path 导致详情页 /position/:name 丢菜单高亮与标题；
+// 详情页归位到"岗位列表"
+function isActiveItem(item: { path: string }): boolean {
+  if (route.path === item.path) return true
+  return item.path === '/positions' && route.path.startsWith('/position/')
+}
+const currentTitle = computed(() => navItems.value.find(i => isActiveItem(i))?.title ?? '星图')
 const breadcrumbs = computed(() => {
   const meta = route.meta as Record<string, unknown>
   const bc = meta?.breadcrumb
@@ -159,7 +165,7 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
             v-for="item in navItems.filter(i => i.group === group.key)"
             :key="item.path"
             class="nav-item"
-            :class="{ active: route.path === item.path }"
+            :class="{ active: isActiveItem(item) }"
             @click="navigateTo(item.path)"
           >
             <div class="nav-item-icon">
@@ -172,7 +178,7 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
               class="nav-item-label"
             >{{ item.title }}</span>
             <div
-              v-if="route.path === item.path"
+              v-if="isActiveItem(item)"
               class="nav-item-indicator"
             />
           </div>
@@ -252,7 +258,7 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
           v-for="item in navItems"
           :key="item.path"
           class="mobile-link"
-          :class="{ active: route.path === item.path }"
+          :class="{ active: isActiveItem(item) }"
           @click="navigateTo(item.path)"
         >
           <el-icon :size="18">

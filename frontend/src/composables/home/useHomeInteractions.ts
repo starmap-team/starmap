@@ -1,4 +1,5 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useGraphStore, type GraphNode, type GraphEdge, type ViewLayer, type OverviewMode } from '@/stores/graph'
 import { displayName } from '@/utils/graphColors'
 import { cv, tooltipStyle } from '@/utils/chartTheme'
@@ -317,6 +318,10 @@ export function useHomeInteractions(
           graphStore.goToDetailLayer(node.id)
           selectedNodeRef.value = node
         }).catch((err: unknown) => console.error('[useHomeInteractions] goToPositionLayer failed', err))
+      } else {
+        // ponytail: positionsByKA 缓存被回退/模式切换清空后，allNodes 里残留的岗位
+        // 仍可搜到但无法反查领域 → 原实现静默 return，用户点击无任何反应
+        ElMessage.warning('未找到该岗位的领域上下文，请先在图谱中展开对应领域')
       }
       return
     }
@@ -332,6 +337,8 @@ export function useHomeInteractions(
                 graphStore.goToDetailLayer(posNode.id)
                 selectedNodeRef.value = node
               }).catch((err: unknown) => console.error('[useHomeInteractions] goToPositionLayer failed', err))
+            } else {
+              ElMessage.warning('未找到该技能的所属岗位上下文，请先在图谱中展开对应领域')
             }
             return
           }
@@ -345,6 +352,8 @@ export function useHomeInteractions(
     // selectedNodeRef is read via the closed-over Home.vue binding; we re-derive via
     // graphStore.expandedPositionId since this composable is consumed by Home.vue and
     // it always sets selectedNode before reaching this point.
+    // ponytail: detail 层点 Skill 时 expandedPositionId 仍是岗位 → 雷达会错位显示；
+    // 展示守卫放在 DetailPanel 模板（它有 selectedNode prop）
     const posId = graphStore.expandedPositionId
     if (!posId) return null
     const skills: { name: string; value: number }[] = []

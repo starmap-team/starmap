@@ -780,6 +780,12 @@ paths:
           default: 10
           minimum: 1
           maximum: 50
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+          minimum: 0
       responses:
         '200':
           description: 匹配历史列表
@@ -824,8 +830,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/CompetitivenessResponse'
   /match/batch:
     post:
       operationId: batchMatch
@@ -845,17 +850,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                - results
-                - total
-                properties:
-                  results:
-                    type: array
-                    items:
-                      type: object
-                  total:
-                    type: integer
+                $ref: '#/components/schemas/BatchMatchResponse'
   /match/recommend:
     post:
       operationId: recommendPositions
@@ -884,11 +879,6 @@ paths:
       tags:
       - 演化分析
       parameters:
-      - name: category
-        in: query
-        schema:
-          type: string
-          description: 技能分类筛选
       - name: days
         in: query
         schema:
@@ -944,6 +934,29 @@ paths:
                     type: string
                   days:
                     type: integer
+  /evolution/kpi:
+    get:
+      operationId: getEvolutionKpi
+      summary: 演化看板 KPI
+      description: 涌现数/信任均值/CII 均值/预警数（D-11 内容层级 KPI 行）
+      tags:
+      - 演化分析
+      parameters:
+      - name: days
+        in: query
+        schema:
+          type: integer
+          default: 90
+          minimum: 7
+          maximum: 730
+        description: 分析时间窗口（天）
+      responses:
+        '200':
+          description: KPI 行数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvolutionKpiResponse'
   /evolution/changelog/{identifier}:
     get:
       operationId: getEvolutionChangelog
@@ -1288,16 +1301,9 @@ paths:
     get:
       operationId: getQualityReport
       summary: 质量报告
-      description: 获取最新或指定批次的质量评估报告
+      description: 获取最新质量评估报告
       tags:
       - 质量监控
-      parameters:
-      - name: batch_id
-        in: query
-        schema:
-          type: string
-          format: uuid
-        description: 指定批次（留空返回最新报告）
       responses:
         '200':
           description: 质量报告
@@ -4390,6 +4396,130 @@ components:
         cii:
           type: number
           nullable: true
+        note:
+          type: string
+          nullable: true
+          description: M2 补充说明（如岗位存在但无技能画像，无法计算匹配度）
+    BatchMatchResultItem:
+      type: object
+      required:
+      - position_name
+      properties:
+        position_name:
+          type: string
+        result:
+          $ref: '#/components/schemas/MatchResult'
+        error:
+          type: string
+          nullable: true
+    BatchMatchResponse:
+      type: object
+      required:
+      - results
+      properties:
+        results:
+          type: array
+          description: 批量匹配结果（逐条隔离，单条失败记 error 不中断整批）
+          items:
+            $ref: '#/components/schemas/BatchMatchResultItem'
+        items:
+          type: array
+          description: results 的别名（前端兼容按扁平 items 消费）
+          items:
+            $ref: '#/components/schemas/BatchMatchResultItem'
+        summary:
+          type: object
+          properties:
+            total:
+              type: integer
+            success:
+              type: integer
+            failed:
+              type: integer
+        total:
+          type: integer
+    CompetitivenessResponse:
+      type: object
+      required:
+      - position
+      - competitiveness_score
+      - difficulty
+      properties:
+        position:
+          type: string
+        competitiveness_score:
+          type: number
+          description: 综合竞争力 0-1
+        difficulty:
+          type: string
+          enum:
+          - 高
+          - 中
+          - 低
+        description:
+          type: string
+        skill_count:
+          type: integer
+        required_count:
+          type: integer
+        bonus_count:
+          type: integer
+        avg_proficiency_level:
+          type: number
+        avg_prerequisite_depth:
+          type: number
+        cii:
+          type: number
+        items:
+          type: array
+          description: 瓶颈技能别名（前端兼容）
+          items:
+            type: object
+            properties:
+              skill:
+                type: string
+              prerequisite_depth:
+                type: integer
+              learning_path:
+                type: array
+                items:
+                  type: string
+        skills:
+          type: object
+          description: 技能统计别名（前端兼容）
+          properties:
+            required_count:
+              type: integer
+            bonus_count:
+              type: integer
+            total:
+              type: integer
+        bottleneck_skills:
+          type: array
+          items:
+            type: object
+            properties:
+              skill:
+                type: string
+              prerequisite_depth:
+                type: integer
+              learning_path:
+                type: array
+                items:
+                  type: string
+        skill_details:
+          type: array
+          items:
+            type: object
+            properties:
+              skill:
+                type: string
+              prerequisite_depth:
+                type: integer
+              learning_path:
+                type: array
+                items:
+                  type: string
     BatchMatchRequest:
       type: object
       required:
@@ -4762,6 +4892,9 @@ components:
       properties:
         id:
           type: string
+        position_name:
+          type: string
+          description: 发生技能变更的职位名称
         skill_name:
           type: string
         change_type:
@@ -4796,9 +4929,47 @@ components:
           - approved
           - rejected
           description: 审核状态
+        written_back:
+          type: boolean
+          description: 该变更是否已回写 position_skill_relations
+        evidence_json:
+          type: object
+          additionalProperties: true
+          description: 证据链：mention_count_old/new、source_count、factors
         created_at:
           type: string
           format: date-time
+    EvolutionKpiResponse:
+      type: object
+      required:
+      - emerging_count
+      - trust_mean
+      - cii_mean
+      - alert_count
+      - days
+      properties:
+        emerging_count:
+          type: integer
+          minimum: 0
+          description: 涌现技能数（emerging + rising）
+        trust_mean:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 变更日志信任度均值（0-1，真实聚合）
+        cii_mean:
+          type: number
+          minimum: 0
+          description: 技能 CII 均值（基准 100，A4 基线口径）
+        alert_count:
+          type: integer
+          minimum: 0
+          description: 预警数（emerging/rising/declining 非平稳信号）
+        days:
+          type: integer
+          minimum: 7
+          maximum: 730
+          description: 分析时间窗口（天）
     EvolutionPathEntry:
       type: object
       required:

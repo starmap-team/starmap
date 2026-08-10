@@ -73,6 +73,7 @@ from app.schemas.evolution import (
     EmergingAlert,
     EmergingAlertsResponse,
     EmergingSkill,
+    EvolutionKpiResponse,
     EvolutionPathEntry,
     EvolutionTrend,
     EvolutionTrendsResponse,

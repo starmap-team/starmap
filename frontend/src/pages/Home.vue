@@ -139,6 +139,7 @@ onMounted(async () => {
                 @node-click="onHandleNodeClick"
                 @node-dbl-click="onNodeDblClick"
                 @canvas-click="onCanvasClickWithClear"
+                @edge-click="onOpenEvolutionDrawer"
               />
             </ErrorBoundary>
             <ErrorBoundary>

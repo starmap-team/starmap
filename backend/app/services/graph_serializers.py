@@ -51,13 +51,18 @@ async def count_skills_neo4j(driver: Any) -> int:
 
 
 async def count_edges_neo4j(driver: Any) -> int:
-    # 业务说明：统计职位与技能之间 REQUIRES 关系的总数量，反映图谱连接密度。
-    """Count REQUIRES relationships in Neo4j."""
+    # 业务说明：统计 Neo4j 中所有关系类型的总数量 (REQUIRES + USES + BELONGS_TO + ...),
+    # 而不仅是 REQUIRES。这是图谱连接密度的真实指标。
+    """Count ALL relationships in Neo4j (regardless of type)."""
     if driver is None:
         return 0
     try:
         async with driver.session() as session:
-            result = await session.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS cnt")
+            # E20b fix: previously matched only :REQUIRES which excluded
+            # USES/BELONGS_TO/PREREQUISITE/APPLIES_TO/etc. Cross-page
+            # audit (data_truth vs dashboard) revealed a 755-edge gap
+            # (REQUIRES=1139 vs total=1894). Now match all relationship types.
+            result = await session.run("MATCH ()-[r]->() RETURN count(r) AS cnt")
             record = await result.single()
             return int(record["cnt"]) if record else 0
     except (Neo4jError, StarMapError):

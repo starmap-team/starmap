@@ -48,6 +48,14 @@ withDefaults(defineProps<{
     >
       {{ description }}
     </p>
+    <!-- 10-03 (D-12): 引导 slot — 空态可放 CTA 按钮（触发演化分析/查看文档），
+         无 slot 时保持既有纯文本空态，向后兼容 -->
+    <div
+      v-if="$slots.default"
+      class="empty-state-actions"
+    >
+      <slot />
+    </div>
   </div>
 </template>
 
@@ -87,5 +95,14 @@ withDefaults(defineProps<{
   color: var(--muted-foreground, #6b7280);
   margin: 0;
   max-width: 360px;
+}
+
+.empty-state-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3, 0.75rem);
+  flex-wrap: wrap;
+  margin-top: var(--space-1, 0.25rem);
 }
 </style>

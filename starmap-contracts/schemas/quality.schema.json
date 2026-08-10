@@ -357,6 +357,18 @@
           "minimum": 0,
           "title": "Evaluation Count",
           "type": "integer"
+        },
+        "baseline_available": {
+          "default": false,
+          "description": "是否已有 golden-set 基线",
+          "title": "Baseline Available",
+          "type": "boolean"
+        },
+        "evaluation_explanation": {
+          "default": "",
+          "description": "评估状态说明",
+          "title": "Evaluation Explanation",
+          "type": "string"
         }
       },
       "required": [

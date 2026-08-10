@@ -111,8 +111,9 @@ function toggleProficiency(level: string) {
       </button>
     </el-tooltip>
 
-    <!-- Filter toggle -->
+    <!-- Filter toggle — ponytail: 3D 视图不消费节点上限/熟练度过滤，隐藏避免无效控件 -->
     <el-tooltip
+      v-if="!is3D"
       content="筛选器"
       placement="top"
     >

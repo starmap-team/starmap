@@ -170,7 +170,7 @@ async function handleLogin() {
           v-if="isDev"
           class="login-hint"
         >
-          默认管理员: <code>admin / starmap2024</code>
+          开发环境：请使用管理员账号登录（见部署文档）
         </div>
       </el-form>
     </div>

@@ -570,8 +570,10 @@ async def create_requires_relationship(
     query = """
     MATCH (p:Position {name: $position_name})
     MATCH (s:Skill {name: $skill_name})
-    MERGE (p)-[r:REQUIRES {level: $level}]->(s)
-    SET r.required = $required, r.weight = $weight, r.updated_at = datetime()
+    // ponytail: 原 MERGE 带属性 {level: $level} —— 属性值变化时（如 schema 升级 level→requirement_type）
+    // 会新建第二条边 → 全库 REQUIRES 重复 34%（1772 vs 去重 1160）。改为无属性 MERGE + SET。
+    MERGE (p)-[r:REQUIRES]->(s)
+    SET r.level = $level, r.required = $required, r.weight = $weight, r.updated_at = datetime()
     RETURN r
     """
     try:

@@ -162,7 +162,7 @@
                 type="primary"
                 @click="viewInGraph"
               >
-                查看图谱
+                查看岗位详情
               </el-button>
               <el-button
                 text
@@ -476,7 +476,9 @@ function startAnalysis() {
 function viewInGraph() {
   if (!store.result?.top_matches?.length) return
   const topPosition = store.result.top_matches[0].position
-  router.push({ path: '/', query: { highlight: topPosition } })
+  // ponytail: 原实现跳 '/' 带 highlight 参数，但 Home.vue 从不消费该参数（点击无任何效果）；
+  // 直接跳转真实存在的岗位详情页，展示该岗位技能画像
+  router.push(`/position/${encodeURIComponent(topPosition)}`)
 }
 
 function exportJSON() {

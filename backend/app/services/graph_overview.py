@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
+from app.core.constants import LEVEL_JUNIOR, LEVEL_MID, LEVEL_SENIOR
 from app.exceptions import DashboardError, StarMapError
 from app.services.graph_serializers import _node_id, _safe_properties
 
@@ -102,9 +103,9 @@ TECH_STACK_COLORS = {
 }
 
 LEVEL_COLORS = {
-    "初级": "#67C23A",
-    "中级": "#E6A23C",
-    "高级": "#F56C6C",
+    LEVEL_JUNIOR: "#67C23A",
+    LEVEL_MID: "#E6A23C",
+    LEVEL_SENIOR: "#F56C6C",
 }
 
 # 共享技能权重归一化分母：当两个技术栈共享技能数超过此值时，权重封顶为 1.0
@@ -155,18 +156,18 @@ def _classify_level(name: str, props: dict[str, Any]) -> str:
     """Classify a position into a level group."""
     level = str(props.get("level", "")).strip()
     if level in ("初级", "junior", "entry"):
-        return "初级"
+        return LEVEL_JUNIOR
     if level in ("高级", "senior", "expert", "高级工程师", "资深"):
-        return "高级"
+        return LEVEL_SENIOR
     if level in ("中级", "mid", "intermediate"):
-        return "中级"
+        return LEVEL_MID
     # Infer from name
     name_lower = name.lower()
     if any(kw in name_lower for kw in ("高级", "资深", "senior", "专家", "架构师", "首席")):
-        return "高级"
+        return LEVEL_SENIOR
     if any(kw in name_lower for kw in ("初级", "实习", "junior", "助理", "入门")):
-        return "初级"
-    return "中级"
+        return LEVEL_JUNIOR
+    return LEVEL_MID
 
 
 # Phase 13 Step 1: 行业归一（13 大行业，对标 spec 5.3）

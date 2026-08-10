@@ -42,8 +42,23 @@ function positionSkillCount(positionId: string): number {
   return count
 }
 
-/** Find the parent KnowledgeArea name for a Position via BELONGS_TO edge */
+/** Find the parent KnowledgeArea name for a Position.
+ * ponytail: allEdges 只加载 REQUIRES 边（fetchKAPositions），BELONGS_TO/CONTAINS 归属边
+ * 从不进入前端 → 原实现恒返回"其他"。改为优先从当前展开上下文反查：
+ * 用户从哪个领域展开该岗位，就显示哪个领域（真实导航上下文）。
+ */
 function parentKAName(positionId: string): string {
+  if (graphStore.expandedKAId) {
+    const positions = graphStore.positionsByKA.get(graphStore.expandedKAId) ?? []
+    if (positions.some(p => p.id === positionId)) {
+      return graphStore.expandedKAName || '其他'
+    }
+  }
+  for (const [kaId, posList] of graphStore.positionsByKA) {
+    if (posList.some(p => p.id === positionId)) {
+      return graphStore.domains.find(d => d.id === kaId)?.name ?? '其他'
+    }
+  }
   for (const e of graphStore.allEdges) {
     if (e.source_id === positionId && (e.type === 'BELONGS_TO' || e.type === 'CONTAINS')) {
       const ka = graphStore.nodeMap.get(e.target_id)
@@ -186,8 +201,9 @@ function navigateToDetail(node: GraphNode) {
           ×
         </button>
       </div>
+      <!-- ponytail: 雷达基于 expandedPositionId，点 Skill 时岗位未变 → 仅当选中 Position 才展示 -->
       <div
-        v-if="positionRadarOption"
+        v-if="positionRadarOption && selectedNode?.labels?.includes('Position')"
         class="dp-section"
       >
         <div class="dp-section-title">
