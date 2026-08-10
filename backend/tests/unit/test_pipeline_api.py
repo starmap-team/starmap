@@ -269,13 +269,13 @@ class TestGetPipelineStatus:
         session = FakeAsyncSession()
         db_override(session)
         with (
-            patch("app.core.pipeline.orchestrator.get_status", new_callable=AsyncMock, return_value=_MOCK_STATUS_DATA),
+            patch("app.services.pipeline_service.get_status", new_callable=AsyncMock, return_value=_MOCK_STATUS_DATA),
             patch(
-                "app.core.pipeline.status_aggregator.read_or_compute_status_aggregates",
+                "app.services.pipeline_service.read_or_compute_status_aggregates",
                 new_callable=AsyncMock,
                 return_value=_MOCK_AGGREGATES,
             ),
-            patch("app.core.pipeline.quality_monitor.generate_alerts", new_callable=AsyncMock, return_value=[]),
+            patch("app.services.pipeline_service.generate_alerts", new_callable=AsyncMock, return_value=[]),
         ):
             resp = client.get("/api/v1/pipeline/status")
         assert resp.status_code == 200
@@ -294,13 +294,13 @@ class TestGetPipelineStatus:
             source="lagou", value=0.3, threshold=0.5, timestamp="2025-01-01T00:00:00Z",
         )
         with (
-            patch("app.core.pipeline.orchestrator.get_status", new_callable=AsyncMock, return_value=_MOCK_STATUS_DATA),
+            patch("app.services.pipeline_service.get_status", new_callable=AsyncMock, return_value=_MOCK_STATUS_DATA),
             patch(
-                "app.core.pipeline.status_aggregator.read_or_compute_status_aggregates",
+                "app.services.pipeline_service.read_or_compute_status_aggregates",
                 new_callable=AsyncMock,
                 return_value=_MOCK_AGGREGATES,
             ),
-            patch("app.core.pipeline.quality_monitor.generate_alerts", new_callable=AsyncMock, return_value=[fake_alert]),
+            patch("app.services.pipeline_service.generate_alerts", new_callable=AsyncMock, return_value=[fake_alert]),
         ):
             resp = client.get("/api/v1/pipeline/status")
         assert resp.status_code == 200
@@ -312,13 +312,13 @@ class TestGetPipelineStatus:
         session = FakeAsyncSession()
         db_override(session)
         with (
-            patch("app.core.pipeline.orchestrator.get_status", new_callable=AsyncMock, return_value=_MOCK_STATUS_DATA),
+            patch("app.services.pipeline_service.get_status", new_callable=AsyncMock, return_value=_MOCK_STATUS_DATA),
             patch(
-                "app.core.pipeline.status_aggregator.read_or_compute_status_aggregates",
+                "app.services.pipeline_service.read_or_compute_status_aggregates",
                 new_callable=AsyncMock,
                 return_value=_MOCK_AGGREGATES,
             ),
-            patch("app.core.pipeline.quality_monitor.generate_alerts", new_callable=AsyncMock, side_effect=Exception("boom")),
+            patch("app.services.pipeline_service.generate_alerts", new_callable=AsyncMock, side_effect=Exception("boom")),
         ):
             resp = client.get("/api/v1/pipeline/status")
         assert resp.status_code == 200
@@ -335,7 +335,7 @@ class TestGetPipelineRuns:
         run = FakePipelineRun(status="completed")
         session = FakeAsyncSession()
         db_override(session)
-        with patch("app.core.pipeline.orchestrator.get_run_history", new_callable=AsyncMock, return_value=[run]):
+        with patch("app.services.pipeline_service.get_run_history", new_callable=AsyncMock, return_value=[run]):
             resp = client.get("/api/v1/pipeline/runs")
         assert resp.status_code == 200
         body = resp.json()
@@ -345,7 +345,7 @@ class TestGetPipelineRuns:
     def test_runs_empty(self, client, db_override):
         session = FakeAsyncSession()
         db_override(session)
-        with patch("app.core.pipeline.orchestrator.get_run_history", new_callable=AsyncMock, return_value=[]):
+        with patch("app.services.pipeline_service.get_run_history", new_callable=AsyncMock, return_value=[]):
             resp = client.get("/api/v1/pipeline/runs")
         assert resp.status_code == 200
         assert resp.json() == []
@@ -353,14 +353,14 @@ class TestGetPipelineRuns:
     def test_runs_with_status_filter(self, client, db_override):
         session = FakeAsyncSession()
         db_override(session)
-        with patch("app.core.pipeline.orchestrator.get_run_history", new_callable=AsyncMock, return_value=[]):
+        with patch("app.services.pipeline_service.get_run_history", new_callable=AsyncMock, return_value=[]):
             resp = client.get("/api/v1/pipeline/runs?status=failed")
         assert resp.status_code == 200
 
     def test_runs_limit_param(self, client, db_override):
         session = FakeAsyncSession()
         db_override(session)
-        with patch("app.core.pipeline.orchestrator.get_run_history", new_callable=AsyncMock, return_value=[]):
+        with patch("app.services.pipeline_service.get_run_history", new_callable=AsyncMock, return_value=[]):
             resp = client.get("/api/v1/pipeline/runs?limit=5&offset=10")
         assert resp.status_code == 200
 
@@ -399,8 +399,8 @@ class TestTriggerPipeline:
     def test_trigger_returns_200(self, client, admin_headers):
         fake_run = FakePipelineRun(run_type="full", status="running")
         with (
-            patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
-            patch("app.core.pipeline.status_aggregator.invalidate_status_cache", new_callable=AsyncMock),
+            patch("app.services.pipeline_service.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
+            patch("app.services.pipeline_service.invalidate_status_cache", new_callable=AsyncMock),
         ):
             resp = client.post("/api/v1/pipeline/trigger", json={"run_type": "full"}, headers=admin_headers)
         assert resp.status_code == 200
@@ -413,8 +413,8 @@ class TestTriggerPipeline:
     def test_trigger_with_selected_stages(self, client, admin_headers):
         fake_run = FakePipelineRun(run_type="incremental", status="running")
         with (
-            patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
-            patch("app.core.pipeline.status_aggregator.invalidate_status_cache", new_callable=AsyncMock),
+            patch("app.services.pipeline_service.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
+            patch("app.services.pipeline_service.invalidate_status_cache", new_callable=AsyncMock),
         ):
             resp = client.post(
                 "/api/v1/pipeline/trigger",
@@ -428,8 +428,8 @@ class TestTriggerPipeline:
     def test_trigger_default_run_type(self, client, admin_headers):
         fake_run = FakePipelineRun(run_type="full", status="running")
         with (
-            patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
-            patch("app.core.pipeline.status_aggregator.invalidate_status_cache", new_callable=AsyncMock),
+            patch("app.services.pipeline_service.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
+            patch("app.services.pipeline_service.invalidate_status_cache", new_callable=AsyncMock),
         ):
             resp = client.post("/api/v1/pipeline/trigger", json={}, headers=admin_headers)
         assert resp.status_code == 200
@@ -452,7 +452,7 @@ class TestCancelPipelineRun:
         )
         session = FakeAsyncSession()
         db_override(session)
-        with patch("app.core.pipeline.orchestrator.cancel_run", new_callable=AsyncMock, return_value=cancel_result):
+        with patch("app.services.pipeline_service.cancel_run", new_callable=AsyncMock, return_value=cancel_result):
             resp = client.post(f"/api/v1/pipeline/runs/{run_id}/cancel")
         assert resp.status_code == 200
         body = resp.json()
@@ -470,7 +470,7 @@ class TestRetryStage:
     def test_retry_returns_200(self, client, admin_headers):
         run_id = uuid.uuid4()
         run = FakePipelineRun(run_id=run_id, status="running")
-        with patch("app.core.pipeline.executor.retry_stage", new_callable=AsyncMock, return_value=run):
+        with patch("app.services.pipeline_service.retry_stage", new_callable=AsyncMock, return_value=run):
             resp = client.post(
                 f"/api/v1/pipeline/runs/{run_id}/retry",
                 json={"stage_name": "crawl"},
@@ -482,7 +482,7 @@ class TestRetryStage:
 
     def test_retry_not_found_returns_404(self, client, admin_headers):
         run_id = uuid.uuid4()
-        with patch("app.core.pipeline.executor.retry_stage", new_callable=AsyncMock, return_value=None):
+        with patch("app.services.pipeline_service.retry_stage", new_callable=AsyncMock, return_value=None):
             resp = client.post(
                 f"/api/v1/pipeline/runs/{run_id}/retry",
                 json={"stage_name": "crawl"},
@@ -500,14 +500,14 @@ class TestResumeRun:
     def test_resume_returns_200(self, client, admin_headers):
         run_id = uuid.uuid4()
         run = FakePipelineRun(run_id=run_id, status="running")
-        with patch("app.core.pipeline.executor.resume_run", new_callable=AsyncMock, return_value=run):
+        with patch("app.services.pipeline_service.resume_run", new_callable=AsyncMock, return_value=run):
             resp = client.post(f"/api/v1/pipeline/runs/{run_id}/resume", headers=admin_headers)
         assert resp.status_code == 200
         assert resp.json()["id"] == str(run_id)
 
     def test_resume_not_found_returns_404(self, client, admin_headers):
         run_id = uuid.uuid4()
-        with patch("app.core.pipeline.executor.resume_run", new_callable=AsyncMock, return_value=None):
+        with patch("app.services.pipeline_service.resume_run", new_callable=AsyncMock, return_value=None):
             resp = client.post(f"/api/v1/pipeline/runs/{run_id}/resume", headers=admin_headers)
         assert resp.status_code == 404
 
@@ -579,17 +579,17 @@ class TestGetDataQuality:
         db_override(session)
         with (
             patch(
-                "app.core.pipeline.source_quality_sync.sync_source_quality",
+                "app.services.pipeline_service.sync_source_quality",
                 new_callable=AsyncMock,
                 return_value=None,
             ),
             patch(
-                "app.core.pipeline.quality_monitor.get_quality_snapshot",
+                "app.services.pipeline_service.get_quality_snapshot",
                 new_callable=AsyncMock,
                 return_value={"metrics": {"overall_score": 0.9}, "alerts": [], "source_scores": {"lagou": 0.8}},
             ),
             patch(
-                "app.core.pipeline.status_aggregator.compute_data_quality_aggregates",
+                "app.services.pipeline_service.compute_data_quality_aggregates",
                 new_callable=AsyncMock,
                 return_value={"completeness": 0.85},
             ),
@@ -607,17 +607,17 @@ class TestGetDataQuality:
         alert = {"level": "warning", "dimension": "freshness", "message": "Stale data", "timestamp": "2025-01-01"}
         with (
             patch(
-                "app.core.pipeline.source_quality_sync.sync_source_quality",
+                "app.services.pipeline_service.sync_source_quality",
                 new_callable=AsyncMock,
                 return_value=None,
             ),
             patch(
-                "app.core.pipeline.quality_monitor.get_quality_snapshot",
+                "app.services.pipeline_service.get_quality_snapshot",
                 new_callable=AsyncMock,
                 return_value={"metrics": {}, "alerts": [alert], "source_scores": {}},
             ),
             patch(
-                "app.core.pipeline.status_aggregator.compute_data_quality_aggregates",
+                "app.services.pipeline_service.compute_data_quality_aggregates",
                 new_callable=AsyncMock,
                 return_value={},
             ),
@@ -671,7 +671,7 @@ class TestEventsPoll:
         events = [{"type": "stage_complete", "data": {"stage": "crawl"}}]
         with patch("app.services.resources.resources") as mock_res:
             mock_res.redis_client = MagicMock()
-            with patch("app.core.dashboard.sse_broadcaster.get_recent_events", new_callable=AsyncMock, return_value=events):
+            with patch("app.services.pipeline_service.get_recent_events", new_callable=AsyncMock, return_value=events):
                 resp = client.get("/api/v1/pipeline/events-poll?since=0")
         assert resp.status_code == 200
         assert len(resp.json()) == 1
@@ -710,7 +710,7 @@ class TestCreateSchedule:
     def test_create_schedule_returns_200(self, client, admin_headers, db_override):
         session = FakeAsyncSession()
         db_override(session)
-        with patch("app.core.pipeline.cron_scheduler.compute_next_cron", return_value=datetime.now(UTC)):
+        with patch("app.services.pipeline_service.compute_next_cron", return_value=datetime.now(UTC)):
             resp = client.post(
                 "/api/v1/pipeline/schedules",
                 headers=admin_headers,
@@ -725,7 +725,7 @@ class TestCreateSchedule:
     def test_create_schedule_cron_compute_failure_still_saves(self, client, admin_headers, db_override):
         session = FakeAsyncSession()
         db_override(session)
-        with patch("app.core.pipeline.cron_scheduler.compute_next_cron", side_effect=Exception("bad cron")):
+        with patch("app.services.pipeline_service.compute_next_cron", side_effect=Exception("bad cron")):
             resp = client.post(
                 "/api/v1/pipeline/schedules",
                 headers=admin_headers,
@@ -821,8 +821,8 @@ class TestTriggerSchedule:
         session = FakeAsyncSession([FakeResult(schedule)])
         db_override(session)
         with (
-            patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
-            patch("app.core.pipeline.status_aggregator.invalidate_status_cache", new_callable=AsyncMock),
+            patch("app.services.pipeline_service.trigger_and_start", new_callable=AsyncMock, return_value=fake_run),
+            patch("app.services.pipeline_service.invalidate_status_cache", new_callable=AsyncMock),
         ):
             resp = client.post(f"/api/v1/pipeline/schedules/{schedule.id}/trigger", headers=admin_headers)
         assert resp.status_code == 200

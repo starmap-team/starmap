@@ -46,6 +46,7 @@ API_ROUTE_FILES = [
     "app/api/v1/datasource.py",
     "app/api/v1/loop.py",
     "app/api/v1/quality_trends_alerts.py",
+    "app/api/v1/pipeline/routes.py",
 ]
 
 # 纯数据/格式常量模块豁免：常量无业务副作用，路由直接引用安全

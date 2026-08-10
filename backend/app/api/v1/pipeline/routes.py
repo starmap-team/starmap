@@ -22,18 +22,14 @@ from app.api.v1.pipeline.serializers import (
     serialize_schedule,
 )
 from app.api.v1.upload_validation import validate_resume_upload
-from app.core.matching import MatchService
-from app.core.pipeline.sse.contracts import PipelineContext
-from app.core.pipeline.sse.engine import PipelineEngine
-from app.core.pipeline.sse.steps import (
-    LearningPathStep,
-    MatchStep,
-    RecommendStep,
-    ResumeParseStep,
-    SkillExtractStep,
+from app.dependencies import (
+    get_current_user_sse,
+    get_db_session,
+    get_neo4j_driver,
+    require_admin,
+    resolve_client_ip,
+    sse_disconnect,
 )
-from app.core.security.client_ip import resolve_client_ip
-from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, require_admin, sse_disconnect
 from app.exceptions import StarMapError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
 from app.repositories.position_repository import PositionRepository
@@ -54,6 +50,16 @@ from app.schemas.pipeline import (
     TriggerRequest,
     TriggerResponse,
 )
+from app.services.pipeline_service import (
+    LearningPathStep,
+    MatchService,
+    MatchStep,
+    PipelineContext,
+    PipelineEngine,
+    RecommendStep,
+    ResumeParseStep,
+    SkillExtractStep,
+)
 
 # 创建全局 MatchService 实例
 _match_service = MatchService()
@@ -72,15 +78,14 @@ async def get_pipeline_status(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> PipelineStatusResponse:
     """全局流水线状态概览。"""
-    from app.core.pipeline.orchestrator import get_status
-    from app.core.pipeline.status_aggregator import read_or_compute_status_aggregates
+    from app.services.pipeline_service import get_status, read_or_compute_status_aggregates
 
     data = await get_status(session)
     redis_client = getattr(request.app.state.resources, "redis_client", None) if request else None
     aggregates = await read_or_compute_status_aggregates(redis_client, session)
 
     try:
-        from app.core.pipeline.quality_monitor import generate_alerts
+        from app.services.pipeline_service import generate_alerts
 
         quality_alerts_raw = await generate_alerts(session)
         quality_alerts: list[QualityAlertItem] = [
@@ -96,7 +101,7 @@ async def get_pipeline_status(
             for a in quality_alerts_raw
         ]
         if quality_alerts_raw and redis_client:
-            from app.core.dashboard.sse_broadcaster import publish_event
+            from app.services.pipeline_service import publish_event
 
             for alert in quality_alerts_raw:
                 if alert.level == "error" or alert.level == "critical":
@@ -151,7 +156,7 @@ async def get_pipeline_runs(
     status: Annotated[str | None, Query(description="Filter by status")] = None,
 ) -> list[PipelineRunResponse]:
     """历史运行记录列表。"""
-    from app.core.pipeline.orchestrator import get_run_history
+    from app.services.pipeline_service import get_run_history
 
     runs = await get_run_history(session, limit=limit, offset=offset, status_filter=status)
     return [serialize_run(r) for r in runs]
@@ -215,7 +220,7 @@ async def cancel_pipeline_run(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CancelResponse:
     """Phase 1 D-04: 软取消 + Redis STOP flag + Celery 阶段开始时检查。"""
-    from app.core.pipeline.orchestrator import RunAlreadyTerminalError, RunNotFoundError, cancel_run
+    from app.services.pipeline_service import RunAlreadyTerminalError, RunNotFoundError, cancel_run
 
     redis_client = getattr(request.app.state.resources, "redis_client", None)
     try:
@@ -238,8 +243,7 @@ async def trigger_pipeline(
     body: TriggerRequest,
 ) -> TriggerResponse:
     """手动触发流水线（DAG执行，支持阶段选择）。"""
-    from app.core.pipeline.executor import trigger_and_start
-    from app.core.pipeline.status_aggregator import invalidate_status_cache
+    from app.services.pipeline_service import invalidate_status_cache, trigger_and_start
 
     run = await trigger_and_start(
         run_type=body.run_type,
@@ -261,7 +265,7 @@ async def retry_stage(
     body: RetryStageRequest,
 ) -> PipelineRunResponse:
     """重试失败阶段（断点续跑）。"""
-    from app.core.pipeline.executor import retry_stage as _retry
+    from app.services.pipeline_service import retry_stage as _retry
 
     run = await _retry(run_id, body.stage_name)
     if run is None:
@@ -279,10 +283,9 @@ async def force_advance_pipeline(run_id: UUID) -> PipelineRunResponse:
     """
     from sqlalchemy import select as sa_select
 
-    from app.core.pipeline.executor import advance_pipeline
-    from app.core.pipeline.orchestrator import StageStatus
     from app.db.session import get_session_factory
     from app.models.pipeline_models import PipelineRun
+    from app.services.pipeline_service import StageStatus, advance_pipeline
 
     sm = get_session_factory()
 
@@ -377,7 +380,7 @@ async def resume_run(
     run_id: UUID,
 ) -> PipelineRunResponse:
     """断点续跑：重置所有失败阶段并继续执行。"""
-    from app.core.pipeline.executor import resume_run as _resume
+    from app.services.pipeline_service import resume_run as _resume
 
     run = await _resume(run_id)
     if run is None:
@@ -462,9 +465,9 @@ def crawl_single_source(  # sync def: 爬取+DB 同步操作放线程池, 避免
     from crawler.persistence import dao
     from crawler.persistence.database import get_jd_raw_session
 
-    from app.core.pipeline.executor import build_spider_registry
     from app.models.data_source_metric import DataSourceMetric
     from app.models.pipeline_models import DataSourceRecord
+    from app.services.pipeline_service import build_spider_registry
 
     # sync def: 用 crawler 同步 engine (psycopg) 查数据源 + 写指标
     # session 内提取所需字段 (detached 实例不可访问属性)
@@ -544,11 +547,8 @@ async def get_data_quality(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DataQualityResponse:
     """数据质量实时指标。"""
-    from app.core.pipeline.quality_monitor import get_quality_snapshot
-
     # D3 (2026-08-07): 先聚合真实数据回写 data_sources 统计 (质量评估的来源)
-    from app.core.pipeline.source_quality_sync import sync_source_quality
-    from app.core.pipeline.status_aggregator import compute_data_quality_aggregates
+    from app.services.pipeline_service import compute_data_quality_aggregates, get_quality_snapshot, sync_source_quality
 
     await sync_source_quality(session)
     snapshot = await get_quality_snapshot(session)
@@ -607,7 +607,7 @@ async def pipeline_events(
     """
     from fastapi.responses import StreamingResponse
 
-    from app.core.dashboard.sse_broadcaster import event_stream
+    from app.services.pipeline_service import event_stream
     from app.services.resources import resources as app_resources
 
     redis = app_resources.redis_client
@@ -637,7 +637,7 @@ async def poll_pipeline_events(
 
     Auth: accepts JWT via query param or Authorization header.
     """
-    from app.core.dashboard.sse_broadcaster import get_recent_events
+    from app.services.pipeline_service import get_recent_events
     from app.services.resources import resources as app_resources
 
     redis = app_resources.redis_client
@@ -675,7 +675,7 @@ async def create_schedule(
         enabled=body.enabled,
     )
     try:
-        from app.core.pipeline.cron_scheduler import compute_next_cron
+        from app.services.pipeline_service import compute_next_cron
 
         schedule.next_run_at = compute_next_cron(schedule.cron_expression)
     except StarMapError:
@@ -739,8 +739,7 @@ async def trigger_schedule(
     if schedule is None:
         raise HTTPException(status_code=404, detail="Schedule not found")
 
-    from app.core.pipeline.executor import trigger_and_start
-    from app.core.pipeline.status_aggregator import invalidate_status_cache
+    from app.services.pipeline_service import invalidate_status_cache, trigger_and_start
 
     run = await trigger_and_start(
         run_type=schedule.run_type,
@@ -906,7 +905,7 @@ async def export_analysis(
         ]
     )
 
-    from app.core.pipeline.sse.engine import _build_result
+    from app.services.pipeline_service import _build_result
 
     async for event_str in engine.run(ctx):
         if event_str.startswith("event: result"):
