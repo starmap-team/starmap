@@ -13,12 +13,12 @@ class StageInfo(BaseModel):
     started_at: str | None = Field(None, description="ISO timestamp")
     completed_at: str | None = Field(None, description="ISO timestamp")
     progress: float = Field(0.0, ge=0.0, le=1.0, description="Stage progress 0.0-1.0")
-    duration_ms: int = Field(0, ge=0)
-    records_processed: int = Field(0, ge=0)
-    errors: list[str] = Field(default_factory=list)
+    duration_ms: int = Field(0, ge=0, description="阶段耗时（毫秒）")
+    records_processed: int = Field(0, ge=0, description="已处理记录数")
+    errors: list[str] = Field(default_factory=list, description="阶段错误信息列表")
     errors_count: int = Field(0, ge=0, description="Count of errors (alias for len(errors))")
-    retry_count: int = Field(0, ge=0)
-    depends_on: list[str] = Field(default_factory=list)
+    retry_count: int = Field(0, ge=0, description="阶段重试次数")
+    depends_on: list[str] = Field(default_factory=list, description="前置阶段名列表")
     # Phase 3.7: 实时活动上下文（来自 executor 的 _publish_stage_progress）
     current_activity: str = Field("", description="当前活动描述 (e.g. '正在爬取 BOSS直聘: ...')")
     recent_samples: list[dict] = Field(default_factory=list, description="最近处理的样本 (URL/技能/图节点)")
@@ -28,15 +28,15 @@ class StageInfo(BaseModel):
 
 class PipelineRunResponse(BaseModel):
     """Pipeline run details."""
-    id: str
-    run_type: str
-    status: str
-    started_at: str | None = None
-    completed_at: str | None = None
-    stages: list[StageInfo] = Field(default_factory=list)
-    total_records: int = 0
-    new_records: int = 0
-    updated_records: int = 0
+    id: str = Field(..., description="流水线运行 ID")
+    run_type: str = Field(..., description="full | incremental")
+    status: str = Field(..., description="running/completed/failed/cancelled")
+    started_at: str | None = Field(default=None, description="ISO 时间戳")
+    completed_at: str | None = Field(default=None, description="ISO 时间戳")
+    stages: list[StageInfo] = Field(default_factory=list, description="阶段详情列表")
+    total_records: int = Field(default=0, ge=0, description="总记录数")
+    new_records: int = Field(default=0, ge=0, description="新增记录数")
+    updated_records: int = Field(default=0, ge=0, description="更新记录数")
     quality_score: float = 0.0
     error_log: str | None = None
     selected_stages: list[str] | None = None

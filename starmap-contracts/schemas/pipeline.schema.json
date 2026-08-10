@@ -52,17 +52,20 @@
         },
         "duration_ms": {
           "default": 0,
+          "description": "阶段耗时（毫秒）",
           "minimum": 0,
           "title": "Duration Ms",
           "type": "integer"
         },
         "records_processed": {
           "default": 0,
+          "description": "已处理记录数",
           "minimum": 0,
           "title": "Records Processed",
           "type": "integer"
         },
         "errors": {
+          "description": "阶段错误信息列表",
           "items": {
             "type": "string"
           },
@@ -78,11 +81,13 @@
         },
         "retry_count": {
           "default": 0,
+          "description": "阶段重试次数",
           "minimum": 0,
           "title": "Retry Count",
           "type": "integer"
         },
         "depends_on": {
+          "description": "前置阶段名列表",
           "items": {
             "type": "string"
           },
@@ -131,14 +136,17 @@
       "description": "Pipeline run details.",
       "properties": {
         "id": {
+          "description": "流水线运行 ID",
           "title": "Id",
           "type": "string"
         },
         "run_type": {
+          "description": "full | incremental",
           "title": "Run Type",
           "type": "string"
         },
         "status": {
+          "description": "running/completed/failed/cancelled",
           "title": "Status",
           "type": "string"
         },
@@ -152,6 +160,7 @@
             }
           ],
           "default": null,
+          "description": "ISO 时间戳",
           "title": "Started At"
         },
         "completed_at": {
@@ -164,9 +173,11 @@
             }
           ],
           "default": null,
+          "description": "ISO 时间戳",
           "title": "Completed At"
         },
         "stages": {
+          "description": "阶段详情列表",
           "items": {
             "$ref": "#/$defs/StageInfo"
           },
@@ -175,16 +186,22 @@
         },
         "total_records": {
           "default": 0,
+          "description": "总记录数",
+          "minimum": 0,
           "title": "Total Records",
           "type": "integer"
         },
         "new_records": {
           "default": 0,
+          "description": "新增记录数",
+          "minimum": 0,
           "title": "New Records",
           "type": "integer"
         },
         "updated_records": {
           "default": 0,
+          "description": "更新记录数",
+          "minimum": 0,
           "title": "Updated Records",
           "type": "integer"
         },
@@ -409,17 +426,20 @@
         },
         "duration_ms": {
           "default": 0,
+          "description": "阶段耗时（毫秒）",
           "minimum": 0,
           "title": "Duration Ms",
           "type": "integer"
         },
         "records_processed": {
           "default": 0,
+          "description": "已处理记录数",
           "minimum": 0,
           "title": "Records Processed",
           "type": "integer"
         },
         "errors": {
+          "description": "阶段错误信息列表",
           "items": {
             "type": "string"
           },
@@ -435,11 +455,13 @@
         },
         "retry_count": {
           "default": 0,
+          "description": "阶段重试次数",
           "minimum": 0,
           "title": "Retry Count",
           "type": "integer"
         },
         "depends_on": {
+          "description": "前置阶段名列表",
           "items": {
             "type": "string"
           },
@@ -488,14 +510,17 @@
       "description": "Pipeline run details.",
       "properties": {
         "id": {
+          "description": "流水线运行 ID",
           "title": "Id",
           "type": "string"
         },
         "run_type": {
+          "description": "full | incremental",
           "title": "Run Type",
           "type": "string"
         },
         "status": {
+          "description": "running/completed/failed/cancelled",
           "title": "Status",
           "type": "string"
         },
@@ -509,6 +534,7 @@
             }
           ],
           "default": null,
+          "description": "ISO 时间戳",
           "title": "Started At"
         },
         "completed_at": {
@@ -521,9 +547,11 @@
             }
           ],
           "default": null,
+          "description": "ISO 时间戳",
           "title": "Completed At"
         },
         "stages": {
+          "description": "阶段详情列表",
           "items": {
             "$ref": "#/$defs/StageInfo"
           },
@@ -532,16 +560,22 @@
         },
         "total_records": {
           "default": 0,
+          "description": "总记录数",
+          "minimum": 0,
           "title": "Total Records",
           "type": "integer"
         },
         "new_records": {
           "default": 0,
+          "description": "新增记录数",
+          "minimum": 0,
           "title": "New Records",
           "type": "integer"
         },
         "updated_records": {
           "default": 0,
+          "description": "更新记录数",
+          "minimum": 0,
           "title": "Updated Records",
           "type": "integer"
         },

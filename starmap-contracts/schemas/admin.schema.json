@@ -4,14 +4,16 @@
   "description": "Auto-generated from backend/app/schemas/admin.py",
   "definitions": {
     "GraphNodeItem": {
+      "description": "图谱节点条目（图节点管理表单/列表）。",
       "properties": {
         "id": {
           "default": "",
+          "description": "图节点 ID（空串表示新建）",
           "title": "Id",
           "type": "string"
         },
         "type": {
-          "description": "Node label",
+          "description": "Neo4j 节点标签",
           "enum": [
             "Position",
             "Skill",
@@ -26,6 +28,7 @@
           "type": "string"
         },
         "name": {
+          "description": "节点名称",
           "maxLength": 200,
           "minLength": 1,
           "title": "Name",
@@ -34,10 +37,13 @@
         "properties": {
           "type": "object",
           "additionalProperties": true,
+          "description": "节点属性（category/proficiency/level 等）",
           "title": "Properties"
         },
         "status": {
           "default": "approved",
+          "description": "审核状态",
+          "pattern": "^(approved|pending|rejected)$",
           "title": "Status",
           "type": "string"
         },
@@ -51,6 +57,7 @@
             }
           ],
           "default": null,
+          "description": "创建时间（ISO 8601，可选）",
           "title": "Created At"
         }
       },
@@ -64,6 +71,7 @@
     "GraphNodeListResponse": {
       "properties": {
         "items": {
+          "description": "图节点列表",
           "items": {
             "$ref": "#/$defs/GraphNodeItem"
           },
@@ -72,6 +80,8 @@
         },
         "total": {
           "default": 0,
+          "description": "节点总数",
+          "minimum": 0,
           "title": "Total",
           "type": "integer"
         }
@@ -603,14 +613,16 @@
   },
   "$defs": {
     "GraphNodeItem": {
+      "description": "图谱节点条目（图节点管理表单/列表）。",
       "properties": {
         "id": {
           "default": "",
+          "description": "图节点 ID（空串表示新建）",
           "title": "Id",
           "type": "string"
         },
         "type": {
-          "description": "Node label",
+          "description": "Neo4j 节点标签",
           "enum": [
             "Position",
             "Skill",
@@ -625,6 +637,7 @@
           "type": "string"
         },
         "name": {
+          "description": "节点名称",
           "maxLength": 200,
           "minLength": 1,
           "title": "Name",
@@ -633,10 +646,13 @@
         "properties": {
           "type": "object",
           "additionalProperties": true,
+          "description": "节点属性（category/proficiency/level 等）",
           "title": "Properties"
         },
         "status": {
           "default": "approved",
+          "description": "审核状态",
+          "pattern": "^(approved|pending|rejected)$",
           "title": "Status",
           "type": "string"
         },
@@ -650,6 +666,7 @@
             }
           ],
           "default": null,
+          "description": "创建时间（ISO 8601，可选）",
           "title": "Created At"
         }
       },

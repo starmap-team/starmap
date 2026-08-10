@@ -10,17 +10,17 @@ from pydantic import BaseModel, Field
 class DataSourceResponse(BaseModel):
     """数据源详情响应。"""
 
-    id: str
-    name: str
-    source_type: str
-    authority_score: float
-    status: str
-    last_crawl_at: str | None = None
-    total_records: int = 0
-    valid_records: int = 0
-    duplicate_rate: float = 0.0
-    avg_quality_score: float = 0.0
-    config: dict[str, Any] = Field(default_factory=dict)
+    id: str = Field(..., description="数据源 ID")
+    name: str = Field(..., min_length=1, max_length=200, description="数据源名称")
+    source_type: str = Field(..., description="数据源类型（api/rss/spider/manual 等）")
+    authority_score: float = Field(default=0.6, ge=0, le=1, description="权威度评分 0~1")
+    status: str = Field(default="active", description="数据源状态 active/paused/error")
+    last_crawl_at: str | None = Field(default=None, description="最近一次采集时间（ISO）")
+    total_records: int = Field(default=0, ge=0, description="记录总数")
+    valid_records: int = Field(default=0, ge=0, description="有效记录数")
+    duplicate_rate: float = Field(default=0.0, ge=0, le=1, description="重复率 0~1")
+    avg_quality_score: float = Field(default=0.0, ge=0, le=1, description="平均质量分 0~1")
+    config: dict[str, Any] = Field(default_factory=dict, description="数据源配置（spider 参数等）")
 
 
 class DataSourceUpdateRequest(BaseModel):

@@ -11,17 +11,19 @@ from app.services import auth_service  # MIN_PASSWORD_LENGTH 常量
 
 
 class GraphNodeItem(BaseModel):
-    id: str = Field(default="")
-    type: Literal["Position", "Skill", "Tool", "KnowledgeArea", "Domain", "Industry", "Certificate", "LearningResource"] = Field(..., description="Node label")
-    name: str = Field(..., min_length=1, max_length=200)
-    properties: dict[str, Any] = Field(default_factory=dict)
-    status: str = Field(default="approved")
-    created_at: str | None = None
+    """图谱节点条目（图节点管理表单/列表）。"""
+
+    id: str = Field(default="", description="图节点 ID（空串表示新建）")
+    type: Literal["Position", "Skill", "Tool", "KnowledgeArea", "Domain", "Industry", "Certificate", "LearningResource"] = Field(..., description="Neo4j 节点标签")
+    name: str = Field(..., min_length=1, max_length=200, description="节点名称")
+    properties: dict[str, Any] = Field(default_factory=dict, description="节点属性（category/proficiency/level 等）")
+    status: str = Field(default="approved", pattern="^(approved|pending|rejected)$", description="审核状态")
+    created_at: str | None = Field(default=None, description="创建时间（ISO 8601，可选）")
 
 
 class GraphNodeListResponse(BaseModel):
-    items: list[GraphNodeItem] = Field(default_factory=list)
-    total: int = 0
+    items: list[GraphNodeItem] = Field(default_factory=list, description="图节点列表")
+    total: int = Field(default=0, ge=0, description="节点总数")
 
 
 class SourceCount(BaseModel):

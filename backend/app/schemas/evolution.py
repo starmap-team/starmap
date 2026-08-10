@@ -11,11 +11,11 @@ from pydantic import BaseModel, Field
 class CareerPathNode(BaseModel):
     """A node in the career path graph."""
 
-    position: str
-    similarity: float = 0.0
-    skill_overlap: list[str] = Field(default_factory=list)
-    key_gaps: list[str] = Field(default_factory=list)
-    evidence_count: int = 0
+    position: str = Field(..., description="岗位名称")
+    similarity: float = Field(default=0.0, ge=0, le=1, description="与起点岗位的相似度 0~1")
+    skill_overlap: list[str] = Field(default_factory=list, description="技能重叠列表")
+    key_gaps: list[str] = Field(default_factory=list, description="关键技能缺口")
+    evidence_count: int = Field(default=0, ge=0, description="路径证据条数")
     direction: str = Field(default="forward", description="forward | lateral | up")
 
 
@@ -55,19 +55,19 @@ class EmergingAlertsResponse(BaseModel):
 class SkillTrendItem(BaseModel):
     """Skill trend in industry report."""
 
-    skill_name: str
-    trend: str  # rising | stable | declining
-    frequency: int = 0
-    source_count: int = 0
-    related_positions: list[str] = Field(default_factory=list)
+    skill_name: str = Field(..., description="技能名称")
+    trend: str = Field(..., description="rising | stable | declining")
+    frequency: int = Field(default=0, ge=0, description="出现频次")
+    source_count: int = Field(default=0, ge=0, description="数据源数")
+    related_positions: list[str] = Field(default_factory=list, description="相关岗位")
 
 
 class IndustryReportResponse(BaseModel):
     """Industry trend report response."""
 
-    total_skills: int = 0
-    rising_skills: list[SkillTrendItem] = Field(default_factory=list)
-    declining_skills: list[SkillTrendItem] = Field(default_factory=list)
+    total_skills: int = Field(default=0, ge=0, description="技能总数")
+    rising_skills: list[SkillTrendItem] = Field(default_factory=list, description="上升技能")
+    declining_skills: list[SkillTrendItem] = Field(default_factory=list, description="下降技能")
     stable_skills: list[SkillTrendItem] = Field(default_factory=list, description="平稳技能")
     top_positions: list[dict] = Field(default_factory=list, description="热门岗位 TOP")
     summary: str = Field(default="", description="报告摘要")

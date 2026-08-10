@@ -126,15 +126,20 @@
       "description": "A node in the career path graph.",
       "properties": {
         "position": {
+          "description": "岗位名称",
           "title": "Position",
           "type": "string"
         },
         "similarity": {
           "default": 0.0,
+          "description": "与起点岗位的相似度 0~1",
+          "maximum": 1,
+          "minimum": 0,
           "title": "Similarity",
           "type": "number"
         },
         "skill_overlap": {
+          "description": "技能重叠列表",
           "items": {
             "type": "string"
           },
@@ -142,6 +147,7 @@
           "type": "array"
         },
         "key_gaps": {
+          "description": "关键技能缺口",
           "items": {
             "type": "string"
           },
@@ -150,6 +156,8 @@
         },
         "evidence_count": {
           "default": 0,
+          "description": "路径证据条数",
+          "minimum": 0,
           "title": "Evidence Count",
           "type": "integer"
         },
@@ -309,10 +317,13 @@
       "properties": {
         "total_skills": {
           "default": 0,
+          "description": "技能总数",
+          "minimum": 0,
           "title": "Total Skills",
           "type": "integer"
         },
         "rising_skills": {
+          "description": "上升技能",
           "items": {
             "$ref": "#/$defs/SkillTrendItem"
           },
@@ -320,6 +331,7 @@
           "type": "array"
         },
         "declining_skills": {
+          "description": "下降技能",
           "items": {
             "$ref": "#/$defs/SkillTrendItem"
           },
@@ -357,24 +369,31 @@
       "description": "Skill trend in industry report.",
       "properties": {
         "skill_name": {
+          "description": "技能名称",
           "title": "Skill Name",
           "type": "string"
         },
         "trend": {
+          "description": "rising | stable | declining",
           "title": "Trend",
           "type": "string"
         },
         "frequency": {
           "default": 0,
+          "description": "出现频次",
+          "minimum": 0,
           "title": "Frequency",
           "type": "integer"
         },
         "source_count": {
           "default": 0,
+          "description": "数据源数",
+          "minimum": 0,
           "title": "Source Count",
           "type": "integer"
         },
         "related_positions": {
+          "description": "相关岗位",
           "items": {
             "type": "string"
           },
@@ -789,6 +808,11 @@
     "ReviewQueueItem": {
       "description": "审核队列条目。",
       "properties": {
+        "id": {
+          "description": "EvolutionChangelog id (UUID)",
+          "title": "Id",
+          "type": "string"
+        },
         "skill_name": {
           "title": "Skill Name",
           "type": "string"
@@ -816,6 +840,7 @@
         }
       },
       "required": [
+        "id",
         "skill_name",
         "position_name",
         "change_type",
@@ -953,15 +978,20 @@
       "description": "A node in the career path graph.",
       "properties": {
         "position": {
+          "description": "岗位名称",
           "title": "Position",
           "type": "string"
         },
         "similarity": {
           "default": 0.0,
+          "description": "与起点岗位的相似度 0~1",
+          "maximum": 1,
+          "minimum": 0,
           "title": "Similarity",
           "type": "number"
         },
         "skill_overlap": {
+          "description": "技能重叠列表",
           "items": {
             "type": "string"
           },
@@ -969,6 +999,7 @@
           "type": "array"
         },
         "key_gaps": {
+          "description": "关键技能缺口",
           "items": {
             "type": "string"
           },
@@ -977,6 +1008,8 @@
         },
         "evidence_count": {
           "default": 0,
+          "description": "路径证据条数",
+          "minimum": 0,
           "title": "Evidence Count",
           "type": "integer"
         },
@@ -1084,24 +1117,31 @@
       "description": "Skill trend in industry report.",
       "properties": {
         "skill_name": {
+          "description": "技能名称",
           "title": "Skill Name",
           "type": "string"
         },
         "trend": {
+          "description": "rising | stable | declining",
           "title": "Trend",
           "type": "string"
         },
         "frequency": {
           "default": 0,
+          "description": "出现频次",
+          "minimum": 0,
           "title": "Frequency",
           "type": "integer"
         },
         "source_count": {
           "default": 0,
+          "description": "数据源数",
+          "minimum": 0,
           "title": "Source Count",
           "type": "integer"
         },
         "related_positions": {
+          "description": "相关岗位",
           "items": {
             "type": "string"
           },

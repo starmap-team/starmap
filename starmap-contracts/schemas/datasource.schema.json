@@ -58,22 +58,33 @@
       "description": "数据源详情响应。",
       "properties": {
         "id": {
+          "description": "数据源 ID",
           "title": "Id",
           "type": "string"
         },
         "name": {
+          "description": "数据源名称",
+          "maxLength": 200,
+          "minLength": 1,
           "title": "Name",
           "type": "string"
         },
         "source_type": {
+          "description": "数据源类型（api/rss/spider/manual 等）",
           "title": "Source Type",
           "type": "string"
         },
         "authority_score": {
+          "default": 0.6,
+          "description": "权威度评分 0~1",
+          "maximum": 1,
+          "minimum": 0,
           "title": "Authority Score",
           "type": "number"
         },
         "status": {
+          "default": "active",
+          "description": "数据源状态 active/paused/error",
           "title": "Status",
           "type": "string"
         },
@@ -87,30 +98,42 @@
             }
           ],
           "default": null,
+          "description": "最近一次采集时间（ISO）",
           "title": "Last Crawl At"
         },
         "total_records": {
           "default": 0,
+          "description": "记录总数",
+          "minimum": 0,
           "title": "Total Records",
           "type": "integer"
         },
         "valid_records": {
           "default": 0,
+          "description": "有效记录数",
+          "minimum": 0,
           "title": "Valid Records",
           "type": "integer"
         },
         "duplicate_rate": {
           "default": 0.0,
+          "description": "重复率 0~1",
+          "maximum": 1,
+          "minimum": 0,
           "title": "Duplicate Rate",
           "type": "number"
         },
         "avg_quality_score": {
           "default": 0.0,
+          "description": "平均质量分 0~1",
+          "maximum": 1,
+          "minimum": 0,
           "title": "Avg Quality Score",
           "type": "number"
         },
         "config": {
           "additionalProperties": true,
+          "description": "数据源配置（spider 参数等）",
           "title": "Config",
           "type": "object"
         }
@@ -118,9 +141,7 @@
       "required": [
         "id",
         "name",
-        "source_type",
-        "authority_score",
-        "status"
+        "source_type"
       ],
       "title": "DataSourceResponse",
       "type": "object"

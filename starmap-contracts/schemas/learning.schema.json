@@ -116,6 +116,7 @@
         },
         "estimated_hours": {
           "default": 0.0,
+          "description": "估算学习小时数",
           "minimum": 0.0,
           "title": "Estimated Hours",
           "type": "number"
@@ -225,6 +226,7 @@
         },
         "match_score_at_creation": {
           "default": 0.0,
+          "description": "创建时的匹配分",
           "maximum": 1.0,
           "minimum": 0.0,
           "title": "Match Score At Creation",
@@ -232,6 +234,7 @@
         },
         "overall_pct": {
           "default": 0.0,
+          "description": "整体完成度 0-100",
           "maximum": 100.0,
           "minimum": 0.0,
           "title": "Overall Pct",
@@ -239,23 +242,27 @@
         },
         "total_hours": {
           "default": 0.0,
+          "description": "总学习小时数",
           "minimum": 0.0,
           "title": "Total Hours",
           "type": "number"
         },
         "total_weeks": {
           "default": 0.0,
+          "description": "总学习周数",
           "minimum": 0.0,
           "title": "Total Weeks",
           "type": "number"
         },
         "phase_count": {
           "default": 0,
+          "description": "阶段数",
           "minimum": 0,
           "title": "Phase Count",
           "type": "integer"
         },
         "phases": {
+          "description": "学习阶段列表",
           "items": {
             "$ref": "#/$defs/PhaseInfo"
           },
@@ -263,6 +270,7 @@
           "type": "array"
         },
         "skills": {
+          "description": "技能进度列表",
           "items": {
             "$ref": "#/$defs/SkillProgressItem"
           },
@@ -395,6 +403,7 @@
         },
         "estimated_hours": {
           "default": 0.0,
+          "description": "估算学习小时数",
           "minimum": 0.0,
           "title": "Estimated Hours",
           "type": "number"
