@@ -486,6 +486,10 @@ onUnmounted(() => {
                 :data="radarData"
                 :position-name="targetPositionName"
               />
+              <!-- D-04: 雷达映射口径注记 — 用户知道对比含模糊匹配 -->
+              <p class="radar-note">
+                技能对比以精确匹配为主，并含后端归一化与语义模糊匹配补充（雷达上可能显示近似技能名）。
+              </p>
             </div>
             <div class="step-actions">
               <el-button
@@ -524,6 +528,7 @@ onUnmounted(() => {
           <MatchTrustGuide
             :match-score="matchStore.result?.match_score"
             :trust-score="matchStore.result?.trust_score"
+            :score-breakdown="matchStore.result?.score_breakdown"
             :note="matchStore.result?.note"
             class="mb-4"
           />
@@ -659,6 +664,14 @@ onUnmounted(() => {
 .skill-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .step-actions { display: flex; gap: var(--space-3); justify-content: center; margin-top: var(--space-6); }
 .skill-confirm-action { margin-top: var(--space-4); }
+
+/* D-04: 雷达口径注记 */
+.radar-note {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin: var(--space-3) 0 0;
+  text-align: center;
+}
 
 /* Mode Tabs */
 .mode-tabs { margin-bottom: var(--space-5); }

@@ -16,6 +16,14 @@ import { CircleCheck, WarningFilled, QuestionFilled } from '@element-plus/icons-
 const props = defineProps<{
   matchScore?: number | null
   trustScore?: number | null
+  // D-01: 分数拆解（required_avg/bonus_avg/权重/inflated）— 用户可感知 match_score 构成
+  scoreBreakdown?: {
+    required_avg?: number
+    bonus_avg?: number
+    weight_required?: number
+    weight_bonus?: number
+    inflated?: boolean
+  } | null
   // M2（Phase 13 强制规范）：后端 MatchResponse.note（如“岗位存在但暂无可用画像”）的呈现
   note?: string | null
 }>()
@@ -57,6 +65,19 @@ const trustBands: ScoreBand[] = [
 
 const matchBand = computed(() => bandFor(props.matchScore != null ? Math.round((props.matchScore ?? 0) * 100) : null, matchBands))
 const trustBand = computed(() => bandFor(props.trustScore != null ? Math.round((props.trustScore ?? 0) * 100) : null, trustBands))
+
+// D-01: 分数拆解计算 — 必备均值×权重 + 加分均值×权重
+const pct = (v?: number) => v != null ? `${Math.round(v * 100)}%` : '—'
+const breakdownLines = computed(() => {
+  const b = props.scoreBreakdown
+  if (!b) return []
+  return [
+    { label: '必备技能均值', value: pct(b.required_avg), weight: b.weight_required },
+    { label: '加分技能均值', value: pct(b.bonus_avg), weight: b.weight_bonus },
+  ]
+})
+// D-02: trust_score 为空（Neo4j 不可用）时给出明确降级文案，而非裸「—」
+const trustUnavailable = computed(() => props.trustScore == null || Number.isNaN(props.trustScore))
 </script>
 
 <template>
@@ -131,7 +152,7 @@ const trustBand = computed(() => bandFor(props.trustScore != null ? Math.round((
             </el-tag>
           </div>
           <div class="trust-desc">
-            系统对本次匹配结果的置信度 — 反映数据来源质量与覆盖度
+            系统对本次匹配结果的置信度 — 命中技能的最小 Neo4j 信任度（瓶颈口径）
           </div>
           <div
             class="trust-band-desc"
@@ -139,7 +160,46 @@ const trustBand = computed(() => bandFor(props.trustScore != null ? Math.round((
           >
             {{ trustBand.description }}
           </div>
+          <!-- D-02: Neo4j 不可用时的明确降级提示 -->
+          <div
+            v-if="trustUnavailable"
+            class="trust-unavailable"
+          >
+            信任度暂不可用（图谱服务未响应），其余结果不受影响
+          </div>
         </div>
+      </div>
+    </div>
+
+    <!-- D-01: 分数拆解 — 用户可感知 match_score 的构成 -->
+    <div
+      v-if="breakdownLines.length"
+      class="breakdown-card"
+    >
+      <div class="breakdown-title">
+        分数构成
+        <el-tag
+          v-if="props.scoreBreakdown?.inflated"
+          type="warning"
+          size="small"
+          effect="plain"
+          class="ml-2"
+        >
+          岗位要求存在通胀迹象，边缘必备项已按加分项处理
+        </el-tag>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-label">{{ breakdownLines[0].label }}</span>
+        <span class="breakdown-value">{{ breakdownLines[0].value }}</span>
+        <span class="breakdown-weight">× {{ breakdownLines[0].weight ?? 0.7 }}</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-label">{{ breakdownLines[1].label }}</span>
+        <span class="breakdown-value">{{ breakdownLines[1].value }}</span>
+        <span class="breakdown-weight">× {{ breakdownLines[1].weight ?? 0.3 }}</span>
+      </div>
+      <div class="breakdown-formula">
+        匹配度 = 必备均值 × 0.7 + 加分均值 × 0.3
       </div>
     </div>
   </div>
@@ -194,5 +254,41 @@ const trustBand = computed(() => bandFor(props.trustScore != null ? Math.round((
   margin-top: 4px;
   font-size: var(--font-size-sm);
   font-weight: 500;
+}
+
+/* D-02: 信任度降级提示 */
+.trust-unavailable {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--warning, #e6a23c);
+}
+
+/* D-01: 分数拆解 */
+.breakdown-card {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border, #e4e7ed);
+  border-radius: 8px;
+  background: var(--card, #fff);
+}
+.breakdown-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.breakdown-label { color: var(--muted-foreground); flex: 1; }
+.breakdown-value { font-weight: 600; }
+.breakdown-weight { color: var(--muted-foreground); }
+.breakdown-formula {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted-foreground);
 }
 </style>

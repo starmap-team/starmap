@@ -45,6 +45,14 @@ export interface MatchResult {
   note?: string | null
   // D6: 后端匹配结果含 trust_score（matched_skills 的 Neo4j Skill.trust_score 最小值）
   trust_score?: number | null
+  // D-01: 分数拆解（required_avg/bonus_avg/权重/inflated）— 后端 MatchScoreBreakdown
+  score_breakdown?: {
+    required_avg?: number
+    bonus_avg?: number
+    weight_required?: number
+    weight_bonus?: number
+    inflated?: boolean
+  } | null
 }
 
 export interface PositionSkills {
