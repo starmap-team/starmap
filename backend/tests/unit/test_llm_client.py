@@ -475,6 +475,9 @@ class TestCallLlmWithFallback:
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = "key"
             mock_settings.qwen_model_path = "http://localhost:11434"
+            # fix: 回退链用 settings.qwen_model_name.replace(':','-') 构造 model 名，
+            # 不 mock 会得到 MagicMock 而非 qwen2.5-7b-fallback
+            mock_settings.qwen_model_name = "qwen2.5:7b"
 
             result = await call_llm_with_fallback("test prompt")
 
