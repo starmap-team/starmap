@@ -12,6 +12,7 @@ Phase 5 补遗: 重建 PositionSkillRelation 关系到 Neo4j。
 from __future__ import annotations
 
 import asyncio
+import os
 
 from neo4j import AsyncGraphDatabase
 from sqlalchemy import select
@@ -19,9 +20,9 @@ from sqlalchemy import select
 from app.db.session import get_async_engine
 from app.models.extraction_models import PositionSkillRelation
 
-NEO4J_URI = "bolt://neo4j:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "starmap123456"
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 
 
 async def build_relationships(driver) -> int:

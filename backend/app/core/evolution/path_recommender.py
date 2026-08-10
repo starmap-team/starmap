@@ -22,12 +22,13 @@ import sqlalchemy as sa
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.evolution_models import EvolutionPath
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
-# Tuning constants — exposed here so tests / admin can override when needed.
-DEFAULT_MIN_SIMILARITY = 0.3
-DEFAULT_MIN_EVIDENCE = 1  # at least 1 shared skill qualifies a pair
+# Tuning constants — 阈值默认值来自 settings（单一事实源），tests / admin 可覆写。
+DEFAULT_MIN_SIMILARITY = settings.path_min_similarity
+DEFAULT_MIN_EVIDENCE = settings.path_min_evidence  # at least 1 shared skill qualifies a pair
 DEFAULT_TOP_K = 50
 MAX_POSITIONS = 500  # safety cap to prevent O(N²) explosion
 

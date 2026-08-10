@@ -17,6 +17,7 @@ from neo4j.exceptions import Neo4jError
 from sqlalchemy.exc import SQLAlchemyError
 
 # 从新的模块化组件导入
+from app.config import settings
 from app.core.constants import (
     DEFAULT_PROFICIENCY,
     DIFFICULTY_HIGH,
@@ -92,7 +93,7 @@ async def run_match(
     *,
     target_position: str,
     person_skills: list[dict[str, Any]],
-    threshold: float = 0.6,
+    threshold: float = settings.match_threshold,
     driver: Any = None,
     db_session: Any = None,
     repo: Any = None,

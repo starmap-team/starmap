@@ -10,6 +10,7 @@ from typing import Any, cast
 
 from loguru import logger
 
+from app.config import settings
 from app.core.constants import DEFAULT_PROFICIENCY, GAP_LEVEL_MASTERED, GAP_LEVEL_MISSING, GAP_LEVEL_PARTIAL
 from app.core.extraction.normalize import normalize_skill
 from app.core.matching.constants import PROFICIENCY_SCORE
@@ -89,8 +90,6 @@ def _batch_chroma_match(
 
     # Connect to ChromaDB
     try:
-        from app.config import settings
-
         chroma_client = chromadb.HttpClient(
             host=settings.chroma_host, port=settings.chroma_port,
         )
@@ -195,7 +194,7 @@ def score_skill_match(
     *,
     target_skills: list[dict[str, str]],
     person_skills: list[dict[str, Any]],
-    threshold: float = 0.6,
+    threshold: float = settings.match_threshold,
 ) -> dict[str, Any]:
     """Score skill match between target position and person.
 

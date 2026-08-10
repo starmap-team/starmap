@@ -12,6 +12,7 @@ from typing import Any
 
 from loguru import logger
 
+from app.config import settings
 from app.core.pipeline.sse.contracts import ExtractedSkill, PositionProfile
 from app.exceptions import MatchingError, StarMapError
 from app.repositories.position_repository import PositionRepository
@@ -111,7 +112,7 @@ class PositionRecommender:
                 match_result = self._scorer(
                     target_skills=profile.required_skills,
                     person_skills=person_skill_dicts,
-                    threshold=0.6,
+                    threshold=settings.match_threshold,
                 )
                 # 从 evaluated 列表计算匹配度均值
                 evaluated = match_result.get("evaluated", [])

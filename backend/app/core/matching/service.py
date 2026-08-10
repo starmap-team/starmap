@@ -15,6 +15,7 @@ from uuid import uuid4
 
 from loguru import logger
 
+from app.config import settings
 from app.core.constants import (
     DEFAULT_PROFICIENCY,
     GAP_LEVEL_MASTERED,
@@ -210,7 +211,7 @@ class MatchService:
         *,
         target_position: str,
         person_skills: list[dict[str, Any]],
-        threshold: float = 0.6,
+        threshold: float = settings.match_threshold,
         driver: Any = None,
         db_session: Any = None,
         repo: Any = None,

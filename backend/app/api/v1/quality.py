@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.dependencies import get_db_session
 from app.exceptions import QualityError, StarMapError
 from app.models.extraction_models import ExtractionEvaluationRecord, JDExtractionRecord
@@ -104,8 +105,8 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
             QualityDetail(
                 dimension="hallucination_rate",
                 value=hallucination_rate,
-                threshold=0.10,
-                status="pass" if hallucination_rate <= 0.10 else "fail",
+                threshold=settings.quality_hallucination_rate_threshold,
+                status="pass" if hallucination_rate <= settings.quality_hallucination_rate_threshold else "fail",
             ),
         ],
     )
@@ -128,7 +129,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         high_trust_count = (
             await session.execute(
                 sa.select(sa.func.count()).select_from(JDExtractionRecord).where(
-                    JDExtractionRecord.confidence > 0.8
+                    JDExtractionRecord.confidence > settings.quality_high_trust_confidence
                 )
             )
         ).scalar() or 0
@@ -178,9 +179,8 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     # the same SQL/date window. Previously this was trailing-7d while the admin
     # used week-start, which produced identical values mid-week but diverged at
     # week boundaries.
-    from app.services.quality_service import weekly_new_nodes  # noqa: PLC0415
-    weekly = await weekly_new_nodes(session)
-    weekly_new_nodes = weekly.total
+    from app.services.quality_service import weekly_new_nodes as fetch_weekly_new_nodes  # noqa: PLC0415
+    weekly_new_nodes = (await fetch_weekly_new_nodes(session)).total
 
     # H9: audit_pass_rate — ratio of approved vs rejected REVIEW transitions.
     # ponytail: 原实现把 JDExtractionRecord.status='completed'（抽取完成）当"审核通过"，
@@ -207,7 +207,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
             sa.select(JDExtractionRecord)
             .where(
                 sa.and_(
-                    JDExtractionRecord.confidence < 0.5,
+                    JDExtractionRecord.confidence < settings.trust_pending_threshold,
                     JDExtractionRecord.status != "completed",
                 )
             )

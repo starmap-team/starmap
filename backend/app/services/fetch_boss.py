@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 from loguru import logger
 
+from app.config import settings
 from app.core.extraction.translation import has_cjk
 
 _USER_AGENTS = [
@@ -58,7 +59,7 @@ def _extract_from_initial_state(state: dict[str, Any], *, source_site: str) -> l
         salary = j.get("salaryDesc") or j.get("salary") or ""
         company = (j.get("companyName") or "").strip()
         city = (j.get("cityName") or "").strip()
-        url_link = j.get("jobId") and f"https://www.zhipin.com/jobs/{j['jobId']}.html"
+        url_link = j.get("jobId") and f"{settings.zhipin_base_url}/jobs/{j['jobId']}.html"
         rows.append(
             {
                 "source_site": source_site,
@@ -110,7 +111,7 @@ async def fetch_boss_jobs(
     yield nothing an empty list is returned honestly (真实性红线：不伪造数据).
     """
     url = (
-        f"https://www.zhipin.com/web/geek/job?query={keyword}"
+        f"{settings.zhipin_base_url}/web/geek/job?query={keyword}"
         f"&city={city}&page={page}"
     )
     owns_client = client is not None

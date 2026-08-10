@@ -23,6 +23,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.pipeline_models import DataSourceRecord
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
@@ -194,14 +195,8 @@ def _probe_sync(url: str, timeout: int) -> str:
 
 
 def _derive_probe_url(source_name: str) -> str | None:
-    """从 source_name 推导 probe_url（fallback）。"""
-    mapping = {
-        "Arbeitnow (远程)": "https://arbeitnow.com/api/job-board-api",
-        "Jobicy (远程)": "https://jobicy.com/api/v2/remote-jobs?count=1",
-        "WeWorkRemotely (远程)": "https://weworkremotely.com/categories/remote-programming-jobs.rss",
-        "Remotive (远程)": "https://remotive.com/api/remote-jobs?limit=1",
-    }
-    return mapping.get(source_name)
+    """从 source_name 推导 probe_url（fallback，映射见 settings.source_probe_urls）。"""
+    return settings.source_probe_urls.get(source_name)
 
 
 # Fix M2: Rate limit 指数退避状态 (per source)

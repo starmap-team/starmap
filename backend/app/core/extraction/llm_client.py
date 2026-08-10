@@ -37,11 +37,7 @@ class LLMTimeoutError(Exception):
     """Raised when the LLM API request times out."""
 
 
-# API endpoints
-_SPARK_HTTP_URL = "https://spark-api-open.xf-yun.com/v1/chat/completions"
-_DEEPSEEK_HTTP_URL = "https://api.deepseek.com/chat/completions"
-
-# Model mappings
+# Model mappings（端点 URL 由 settings.spark_http_url / settings.deepseek_http_url 提供）
 _SPARK_MODELS: dict[str, str] = {
     "lite": "lite",
     "v2.0": "generalv2",
@@ -159,7 +155,7 @@ async def call_xunfei_llm(
 
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
-            response = await client.post(_SPARK_HTTP_URL, json=payload, headers=headers)
+            response = await client.post(settings.spark_http_url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
     except httpx.TimeoutException as e:
@@ -222,7 +218,7 @@ async def call_deepseek_llm(
 
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
-            response = await client.post(_DEEPSEEK_HTTP_URL, json=payload, headers=headers)
+            response = await client.post(settings.deepseek_http_url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
     except httpx.TimeoutException as e:
@@ -308,7 +304,7 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
             resp = await client.post(
                 ollama_url,
                 json={
-                    "model": "qwen2.5:7b",
+                    "model": settings.qwen_model_name,
                     "messages": [{"role": "user", "content": prompt}],
                     "stream": False,
                     "options": {
@@ -320,7 +316,7 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
             resp.raise_for_status()
             data = resp.json()
             content = data["message"]["content"]
-            result = {"role": "assistant", "content": content, "model": "qwen2.5-7b-fallback"}
+            result = {"role": "assistant", "content": content, "model": f"{settings.qwen_model_name.replace(':', '-')}-fallback"}
             tracker.record(model=result["model"], prompt=prompt, content=content)
             return result
     except httpx.TimeoutException as e:

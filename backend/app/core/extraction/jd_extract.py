@@ -12,6 +12,7 @@ from typing import Any
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.core.extraction.anti_hallucination import (
     AntiHallucinationResult,
     normalize_skill_list,
@@ -141,8 +142,8 @@ class JDExtractionPipeline:
     anti_hallucination_enabled: bool = True
     normalize_skills_enabled: bool = True
     use_vector_normalization: bool = True
-    vector_threshold: float = 0.85
-    min_sources: int = 3
+    vector_threshold: float = settings.extraction_vector_threshold
+    min_sources: int = settings.extraction_min_sources
     source_counts: dict[str, int] | None = None
 
     async def run(self, jd_content: str, options: dict[str, Any] | None = None) -> dict[str, Any]:

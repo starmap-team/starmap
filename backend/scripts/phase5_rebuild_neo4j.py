@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from neo4j import AsyncGraphDatabase
@@ -20,9 +21,9 @@ from sqlalchemy import select
 from app.db.session import get_async_engine
 from app.models.extraction_models import PositionRecord, SkillRecord
 
-NEO4J_URI = "bolt://neo4j:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "starmap123456"
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 
 
 async def backup_neo4j(driver) -> dict:

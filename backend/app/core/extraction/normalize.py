@@ -16,6 +16,7 @@ from typing import Any
 import yaml
 from loguru import logger
 
+from app.config import settings
 from app.exceptions import StarMapError
 
 # ── Hardcoded alias dictionary (moved from module-level SKILL_ALIAS) ──
@@ -658,8 +659,8 @@ def normalize_skill(
     skill_name: str,
     use_vector: bool = True,
     chroma_client: Any = None,
-    vector_threshold: float = 0.85,
-    min_sources: int = 3,
+    vector_threshold: float = settings.extraction_vector_threshold,
+    min_sources: int = settings.extraction_min_sources,
     source_counts: dict[str, int] | None = None,
 ) -> NormalizationResult:
     """Normalize a skill name through a 3-step pipeline.
@@ -711,8 +712,8 @@ def batch_normalize_skills(
     skill_names: list[str],
     use_vector: bool = True,
     chroma_client: Any = None,
-    vector_threshold: float = 0.85,
-    min_sources: int = 3,
+    vector_threshold: float = settings.extraction_vector_threshold,
+    min_sources: int = settings.extraction_min_sources,
     source_counts: dict[str, int] | None = None,
 ) -> list[NormalizationResult]:
     """Normalize multiple skill names.

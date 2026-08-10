@@ -29,6 +29,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from app.config import settings
 from app.core.evolution.diff_engine import ChangeType, EvolutionChange
 
 # Weights — keep them in one place so tuning is auditable.
@@ -56,13 +57,13 @@ SOURCE_SATURATION = 10.0
 #   - services/review_service.count_by_status (counts evolution_pending)
 # Previously these were three different magic numbers (0.6 / 0.5 / 0.5) which
 # caused pending rows in [0.5, 0.6) to be invisible to /evolution/review-queue.
-LOW_TRUST_THRESHOLD = 0.5
+LOW_TRUST_THRESHOLD = settings.trust_pending_threshold
 
 # D-05 write-back gate: independent from LOW_TRUST_THRESHOLD (approved/review
 # 口径 stays 0.5). Changes with trust >= this value are eligible for upsert
 # into position_skill_relations (SSOT). Kept as its own constant so the
 # write-back gate can never silently drift with the review threshold.
-WRITEBACK_TRUST_THRESHOLD = 0.6
+WRITEBACK_TRUST_THRESHOLD = settings.trust_writeback_threshold
 
 
 class TrustScorer:

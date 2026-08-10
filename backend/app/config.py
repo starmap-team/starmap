@@ -138,6 +138,7 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-chat"
     qwen_model_path: str = ""
+    qwen_model_name: str = "qwen2.5:7b"
     llm_timeout: int = 60
     llm_max_retries: int = 3
 
@@ -145,6 +146,20 @@ class Settings(BaseSettings):
     mimo_api_base: str = "https://token-plan-cn.xiaomimimo.com/v1"
     mimo_api_key: str = ""
     mimo_model: str = "mimo-v2.5"
+
+    # 备用 LLM HTTP 端点（Spark / DeepSeek OpenAI 兼容接口）
+    spark_http_url: str = "https://spark-api-open.xf-yun.com/v1/chat/completions"
+    deepseek_http_url: str = "https://api.deepseek.com/chat/completions"
+
+    # 数据源抓取与健康探测端点
+    zhipin_base_url: str = "https://www.zhipin.com"
+    # source_name → probe_url 兜底映射（数据源表缺失 probe_url 时用于健康探测）
+    source_probe_urls: dict[str, str] = {
+        "Arbeitnow (远程)": "https://arbeitnow.com/api/job-board-api",
+        "Jobicy (远程)": "https://jobicy.com/api/v2/remote-jobs?count=1",
+        "WeWorkRemotely (远程)": "https://weworkremotely.com/categories/remote-programming-jobs.rss",
+        "Remotive (远程)": "https://remotive.com/api/remote-jobs?limit=1",
+    }
 
     # ── 阈值配置 ──
     # 抽取管线
@@ -162,19 +177,17 @@ class Settings(BaseSettings):
     hallucination_verified_threshold: float = 0.8
     hallucination_pending_threshold: float = 0.5
 
-    # 路径推荐
-    path_min_similarity: float = 0.6
-    path_min_evidence: int = 3
+    # 路径推荐（默认值与 core/evolution/path_recommender.py 的代码现状对齐，行为保持）
+    path_min_similarity: float = 0.3
+    path_min_evidence: int = 1
 
     # 信任度评分 (trust_integration)
-    trust_w_source: float = 0.35
-    trust_w_temporal: float = 0.25
-    trust_w_cross: float = 0.25
-    trust_w_manual: float = 0.15
     trust_decay_rate: float = 0.15
     trust_max_sources: int = 10
     trust_verified_threshold: float = 0.8
     trust_pending_threshold: float = 0.5
+    # 演化信任写回门槛（core/evolution/trust_scorer.py WRITEBACK_TRUST_THRESHOLD）
+    trust_writeback_threshold: float = 0.6
 
     # 新兴技能检测 (emergence_finder)
     emergence_z_emerging: float = 2.0
