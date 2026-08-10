@@ -138,7 +138,10 @@ function statusIcon(status: string): unknown {
         <div class="header-actions">
           <span class="generated-at">
             服务端生成: {{ report.generated_at }}
-            <span v-if="(report as any).__clientLoadedAt" class="client-load-time">
+            <span
+              v-if="(report as any).__clientLoadedAt"
+              class="client-load-time"
+            >
               · 客户端加载: {{ (report as any).__clientLoadedAt }}
             </span>
           </span>

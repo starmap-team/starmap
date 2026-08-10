@@ -115,7 +115,10 @@ function changeTypeLabel(t: string): string {
   <div class="evolution-review-panel">
     <!-- E21 fix: tool bar with bulk-reject action to clean up false-positive
          "removed" events caused by diff_engine empty-snapshot handling. -->
-    <div v-if="evo.reviewQueue.length > 0" class="review-toolbar">
+    <div
+      v-if="evo.reviewQueue.length > 0"
+      class="review-toolbar"
+    >
       <span class="toolbar-text">
         共 <strong>{{ evo.reviewQueue.length }}</strong> 个低信任度变更待审
       </span>
