@@ -6,7 +6,9 @@
  *   GET /admin/audit-events?actor=&event=&from=&to=&page=&page_size=
  */
 import { onMounted, ref, reactive } from 'vue'
-import request from '@/api/request'
+import { useAuditStore } from '@/stores/audit'
+
+const auditStore = useAuditStore()
 
 interface AuditRow {
   id: string
@@ -68,11 +70,8 @@ async function fetchList() {
       if (filters.to.length <= 10) toDate.setHours(23, 59, 59, 999)
       params.to_ts = toDate.toISOString()
     }
-    const data = (await request.get('/admin/audit-events', { params })) as {
-      total: number
-      items: AuditRow[]
-    }
-    items.value = data.items
+    const data = await auditStore.fetchAuditEvents(params)
+    items.value = data.items as unknown as AuditRow[]
     total.value = data.total
   } catch {
     // fetchList is called from onMounted; failures are non-fatal here —

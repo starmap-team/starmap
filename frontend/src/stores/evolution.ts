@@ -164,6 +164,14 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return kpi.value
   }
 
+  // 触发演化分析（原 EvolutionDashboard.vue 直调 request.post('/evolution/analyze')）
+  async function analyze(days?: number): Promise<{ message?: string; task_id?: string; days?: number }> {
+    const res = await request.post<{ message?: string; task_id?: string; days?: number }>(
+      '/evolution/analyze', undefined, { params: days ? { days } : undefined },
+    ) as { message?: string; task_id?: string; days?: number }
+    return res
+  }
+
   async function fetchSnapshots(limit = 50) {
     snapshotsLoading.value = true
     try {
@@ -294,6 +302,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     ciiHistoryPosition,
     fetchTrends,
     fetchKpi,
+    analyze,
     fetchSnapshots,
     fetchChangelog,
     fetchEmergingAlerts,

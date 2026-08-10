@@ -31,6 +31,7 @@ import PromptManager from '@/components/PromptManager.vue'
 import UserManagement from '@/pages/UserManagement.vue'
 import DataTruthPanel from '@/components/DataTruthPanel.vue'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
+import request from '@/api/request'
 import {
   CATEGORY_LABELS,
   NODE_REVIEW_STATUS_LABELS,
@@ -184,14 +185,17 @@ async function handleShowStats(row: { id: string; name: string }) {
   // (all-time total + last_crawl + status) so the drawer shows
   // 30-day pipeline runs AND historical accumulated totals.
   try {
-    const token = localStorage.getItem('starmap_token') ?? ''
+    // E20b fix: load both /stats meta (runs) and /datasources/{id} meta
+    // (all-time total + last_crawl + status) so the drawer shows
+    // 30-day pipeline runs AND historical accumulated totals.
+    // 统一走 request 客户端（拦截器自动附加鉴权），替代裸 fetch + 手工 Bearer
     const [statsRaw, srcRaw] = await Promise.all([
-      fetch(`/api/v1/datasources/${row.id}/stats?period=30d`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
-      fetch(`/api/v1/datasources/${row.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
+      request.get<{ total_runs?: number; successful_runs?: number; failed_runs?: number; avg_records_per_run?: number }>(
+        `/datasources/${row.id}/stats`, { params: { period: '30d' } },
+      ),
+      request.get<{ total_records?: number; last_crawl_at?: string | null; status?: string }>(
+        `/datasources/${row.id}`,
+      ),
     ])
     statsMeta.value = {
       total: statsRaw.total_runs ?? 0,

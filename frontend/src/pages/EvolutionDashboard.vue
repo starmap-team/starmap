@@ -20,7 +20,6 @@ const trendTagType = TREND_TAG_TYPE
 import EvolutionChangelogDrawer from '@/components/EvolutionChangelogDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import BusinessBanner from '@/components/BusinessBanner.vue'
-import request from '@/api/request'
 
 use([CanvasRenderer, LineChart, BarChart, GaugeChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
 
@@ -90,9 +89,7 @@ async function triggerAnalyze() {
   if (analyzing.value) return
   analyzing.value = true
   try {
-    const res = await request.post('/evolution/analyze', undefined, {
-      params: { days: evo.kpi?.days ?? 90 },
-    }) as { message?: string; task_id?: string; days?: number }
+    const res = await evo.analyze(evo.kpi?.days ?? 90)
     const queued = res?.message === 'queued' || Boolean(res?.task_id)
     ElMessage.success(queued
       ? `演化分析已排队（任务 ${String(res?.task_id ?? '').slice(0, 8)}...，窗口 ${res?.days ?? 90} 天）`
@@ -187,13 +184,34 @@ onMounted(() => {
       />
 
       <!-- E2/E7: 数据口径说明 — 让用户可感知每个数值的计算依据与来源 -->
-      <el-card class="explainer-card" shadow="never">
+      <el-card
+        class="explainer-card"
+        shadow="never"
+      >
         <el-collapse>
-          <el-collapse-item title="📐 数据口径说明 — 每个数值怎么算的、来自哪里" name="explainer">
-            <el-table :data="dataSourceExplainer" size="small" stripe>
-              <el-table-column prop="metric" label="指标" width="220" />
-              <el-table-column prop="source" label="数据来源" width="260" />
-              <el-table-column prop="formula" label="计算口径" />
+          <el-collapse-item
+            title="📐 数据口径说明 — 每个数值怎么算的、来自哪里"
+            name="explainer"
+          >
+            <el-table
+              :data="dataSourceExplainer"
+              size="small"
+              stripe
+            >
+              <el-table-column
+                prop="metric"
+                label="指标"
+                width="220"
+              />
+              <el-table-column
+                prop="source"
+                label="数据来源"
+                width="260"
+              />
+              <el-table-column
+                prop="formula"
+                label="计算口径"
+              />
             </el-table>
           </el-collapse-item>
         </el-collapse>
@@ -392,7 +410,10 @@ onMounted(() => {
             description="技能 CII 数据将在分析完成后展示"
           />
           <!-- E3: 全部技能模式下展示聚合均值（不再空白）；选择具体技能查看其 CII -->
-          <p v-if="items.length" class="gauge-note">
+          <p
+            v-if="items.length"
+            class="gauge-note"
+          >
             {{ selectedSkill ? `当前展示「${selectedSkill}」的 CII` : `未选择技能时展示全部 ${items.length} 项技能的 CII 末点均值` }}
           </p>
         </el-card>
@@ -738,7 +759,9 @@ onMounted(() => {
         <div class="secondary-grid">
           <!-- 演化路径：已有快照覆盖的岗位 -->
           <div class="secondary-block">
-            <h4 class="secondary-title">演化路径</h4>
+            <h4 class="secondary-title">
+              演化路径
+            </h4>
             <template v-if="trackedPositions.length">
               <el-tag
                 v-for="pos in trackedPositions"
@@ -758,7 +781,9 @@ onMounted(() => {
           </div>
           <!-- CII 历史：全部技能当前 CII 概览（Top 10）— 快照级 CII 已在时间线卡内联展示 -->
           <div class="secondary-block">
-            <h4 class="secondary-title">CII 历史</h4>
+            <h4 class="secondary-title">
+              CII 历史
+            </h4>
             <template v-if="ciiOverviewList.length">
               <el-table
                 :data="ciiOverviewList.slice(0, 10)"
@@ -789,7 +814,9 @@ onMounted(() => {
           </div>
           <!-- 迁移性：复用 emerging alerts 的 portability_score -->
           <div class="secondary-block">
-            <h4 class="secondary-title">迁移性</h4>
+            <h4 class="secondary-title">
+              迁移性
+            </h4>
             <template v-if="portabilityAlerts.length">
               <div
                 v-for="a in portabilityAlerts.slice(0, 8)"

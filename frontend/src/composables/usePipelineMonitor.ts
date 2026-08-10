@@ -24,6 +24,7 @@ import { RUN_TYPE_LABELS } from '@/constants/labels'
 // 但 kpiCards 等 computed 在 JS 上下文不会自动 unwrap，导致 s.today_crawl_volume = undefined)
 import { usePipelineRunStore } from '@/stores/pipelineRun'
 import { usePipelineConfigStore } from '@/stores/pipelineConfig'
+import { useReviewStore } from '@/stores/review'
 import { useUserStore } from '@/stores/user'
 import type { PipelineStage, DataMilestone, ExtractionComplete } from '@/stores/pipelineRun'
 import type { PipelineSchedule } from '@/stores/pipelineConfig'
@@ -649,8 +650,9 @@ export function usePipelineMonitor() {
   // ── Phase 16 数据审核闭环: 待审核计数 ──
   const pendingReviewCount = ref(0)
   async function fetchPendingReview() {
+    // 复用 review store 的 fetchStats（同一 /admin/review-stats 端点），避免重复 API 调用逻辑
     try {
-      const data = await request.get('/admin/review-stats') as Record<string, number>
+      const data = await useReviewStore().fetchStats()
       // review-stats 返回 {position: N, skill: M, position_approved: X, skill_approved: Y}
       // pending = total - approved
       const totalPos = data.position ?? 0

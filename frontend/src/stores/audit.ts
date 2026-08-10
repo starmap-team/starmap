@@ -77,11 +77,19 @@ export const useAuditStore = defineStore('audit', () => {
     return data
   }
 
+  // 审计事件日志分页查询（原 AuditLog.vue 直调 /admin/audit-events）
+  // 审计事件行与 review 队列 AuditItem 是不同实体，此处返回宽松结构由页面断言
+  async function fetchAuditEvents(params: Record<string, string | number>): Promise<{ total: number; items: Record<string, unknown>[] }> {
+    const data = (await request.get('/admin/audit-events', { params })) as { total: number; items: Record<string, unknown>[] }
+    return data
+  }
+
   return {
     auditQueue,
     loading,
     error,
     fetchAuditQueue,
+    fetchAuditEvents,
     approveAudit,
     rejectAudit,
     updateAuditItem,
