@@ -766,30 +766,97 @@ async def _run_timeseries_refresh() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def _update_source_after_crawl(run_id: str, records_count: int) -> None:
-    """execute_crawl 完成后更新 DataSourceRecord.total_records + last_crawl_at."""
+    """execute_crawl 完成后更新 DataSourceRecord.total_records + last_crawl_at.
+
+    E20 fix: two critical bugs in the previous version:
+      1. "cnt" was the *cumulative* raw_jd_records count for each platform,
+         not the delta of THIS run. Calling sync N times added N× the
+         existing total to DataSourceRecord.total_records (累加 bug).
+      2. Match logic was too permissive — substring fallback would match
+         unrelated DS rows, attributing Boss Zhipin crawls to ESCO Skills.
+
+    Fix: filter raw_jd_records by `crawled_at >= run.started_at` so we
+    only count the rows produced by THIS pipeline run. Use a strict
+    two-step match (case-insensitive equality, then strip parens), no
+    substring fallback.
+    """
     async def _update():
         session_factory = get_session_factory()
         async with session_factory() as session:
             from sqlalchemy import text
 
-            from app.models.pipeline_models import DataSourceRecord
+            from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
-            # 按 source_platform 分组计数
+            # 1. Find this run's start time so we only count THIS run's rows.
+            run_row = (
+                await session.execute(
+                    select(PipelineRun.started_at).where(PipelineRun.id == uuid.UUID(run_id))
+                )
+            ).one_or_none()
+            if not run_row:
+                logger.warning(
+                    "_update_source_after_crawl: run_id={} not found, skipping update",
+                    run_id,
+                )
+                return
+            run_started_at = run_row[0]
+            if run_started_at.tzinfo is None:
+                run_started_at = run_started_at.replace(tzinfo=UTC)
+
+            # 2. Count rows by source_platform, but only those crawled
+            #    DURING this run. This is the delta, not a cumulative.
             result = await session.execute(
-                text("SELECT source_platform, COUNT(*) as cnt FROM raw_jd_records GROUP BY source_platform")
+                text("""
+                    SELECT source_platform, COUNT(*) AS cnt
+                    FROM raw_jd_records
+                    WHERE crawled_at >= :started_at
+                    GROUP BY source_platform
+                """),
+                {"started_at": run_started_at},
             )
             rows = result.fetchall()
+
+            # 3. Build DS index (case-insensitive). Skip substring fallback.
+            ds_index_result = await session.execute(select(DataSourceRecord))
+            all_ds = list(ds_index_result.scalars().all())
+            now = datetime.now(UTC)
+
             for platform, cnt in rows:
-                # 找对应 DataSourceRecord（按 name 匹配）
-                ds_result = await session.execute(
-                    select(DataSourceRecord).where(DataSourceRecord.name == platform)
+                if not platform:
+                    continue
+                p_norm = str(platform).strip().lower()
+                matched = None
+                # Step 1: exact lower match
+                for ds in all_ds:
+                    if ds.name.strip().lower() == p_norm:
+                        matched = ds
+                        break
+                # Step 2: strip " (远程)" / "(国内)" annotations, then exact match
+                if matched is None:
+                    for ds in all_ds:
+                        if ds.name.split("(")[0].strip().lower() == p_norm:
+                            matched = ds
+                            break
+                # NOTE: NO substring fallback. If we cannot strictly identify
+                # the DS for this platform, log and skip — better to under-
+                # count than to mis-attribute.
+                if matched is None:
+                    logger.warning(
+                        "_update_source_after_crawl: no DataSourceRecord matches "
+                        "platform={!r} (run_id={}); skipping",
+                        platform, run_id,
+                    )
+                    continue
+
+                delta = int(cnt)
+                matched.total_records = (matched.total_records or 0) + delta
+                matched.last_crawl_at = now
+                logger.info(
+                    "_update_source_after_crawl: matched platform={!r} → DS {!r} (+{} records)",
+                    platform, matched.name, delta,
                 )
-                ds = ds_result.scalar_one_or_none()
-                if ds:
-                    ds.total_records = (ds.total_records or 0) + int(cnt)
-                    ds.last_crawl_at = datetime.now(UTC)
             await session.commit()
-            logger.info("_update_source_after_crawl: updated {} sources for run_id={}", len(rows), run_id)
+            logger.info("_update_source_after_crawl: updated for run_id={}", run_id)
     _run_async(_update())
 
 

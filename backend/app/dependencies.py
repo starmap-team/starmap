@@ -159,6 +159,44 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
+    # BUG-17 fix: even if JWT signature/exp is valid, reject the request if
+    # the user is currently disabled. Without this, flipping is_active=False
+    # in admin does not invalidate already-issued tokens until they expire.
+    # We do a cheap PG lookup keyed on the JWT subject.
+    sub = payload.get("sub")
+    if sub and sub != "dev":
+        try:
+            from sqlalchemy import select
+
+            from app.db.session import get_session_factory
+            from app.models.user import User
+
+            sm = get_session_factory()
+            async with sm() as s:
+                user = (
+                    await s.execute(select(User).where(User.username == sub))
+                ).scalar_one_or_none()
+                if user is not None and not user.is_active:
+                    audit_log(
+                        AuditEntry(
+                            event=AuditEvent.AUTHZ_DENIED,
+                            actor=sub,
+                            action="jwt_validate",
+                            detail="Account disabled after token issuance",
+                            ip="",
+                        )
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Account is disabled",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            # Don't fail closed on PG hiccups — JWT signature is still valid.
+            logger.warning("post-JWT is_active check skipped: {}", exc)
+
     return payload
 
 

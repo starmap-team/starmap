@@ -13,6 +13,7 @@ from typing import Any
 
 from loguru import logger
 
+from app.core.constants import GAP_LEVEL_MASTERED
 from app.core.pipeline.sse.contracts import PipelineContext
 
 
@@ -126,7 +127,7 @@ def _build_result(ctx: PipelineContext) -> dict[str, Any]:
     # 取 top-1 岗位的差距和学习路径
     top_match = sorted_matches[0][1] if sorted_matches else {}
     skill_gaps = top_match.get("skill_gap_detail", [])
-    learning_path = [gap.get("learning_path", []) for gap in skill_gaps if gap.get("gap_level") != "已掌握"]
+    learning_path = [gap.get("learning_path", []) for gap in skill_gaps if gap.get("gap_level") != GAP_LEVEL_MASTERED]
 
     return {
         "extracted_skills": [

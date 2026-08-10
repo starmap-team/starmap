@@ -16,7 +16,7 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, require_admin
@@ -199,7 +199,20 @@ async def get_datasource_stats(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     period: Annotated[Literal["7d", "30d", "90d"], Query(description="统计周期")] = "30d",
 ) -> DataSourceStatsResponse:
-    """数据源统计：日采集量、质量趋势、运行计数。"""
+    """数据源统计：日采集量、质量趋势、运行计数。
+
+    E20 fix: previously this endpoint aggregated ALL PipelineRun rows in
+    the lookback window, ignoring the {source_id} argument. Result: Jobicy
+    / Remotive / ESCO all showed Boss Zhipin's totals (~83k / day) because
+    the cron schedule was running Boss crawls that didn't actually belong
+    to those sources.
+
+    Fix: read the per-source `sub_breakdown` JSON stored in each
+    PipelineRun.stages->crawl and only count records that match this
+    source's name (with paren-stripping for "Jobicy (远程)" vs "Jobicy").
+    Falls back to run.total_records when the breakdown is absent
+    (legacy runs from before the sub_breakdown field was added).
+    """
     result = await session.execute(
         select(DataSourceRecord).where(DataSourceRecord.id == source_id)
     )
@@ -212,16 +225,24 @@ async def get_datasource_stats(
     days = days_map.get(period, 30)
     cutoff = datetime.now(UTC) - timedelta(days=days)
 
-    # Pipeline runs that mention this source (run_type == 'source_sync' or
-    # completed within window) — aggregate by day
-    runs_result = await session.execute(
-        select(PipelineRun)
-        .where(PipelineRun.started_at >= cutoff)
-        .order_by(PipelineRun.started_at.asc())
-    )
-    runs = list(runs_result.scalars().all())
+    # Build per-source name keys: ["Jobicy (远程)", "Jobicy"]
+    ds_name = ds.name
+    ds_name_keys = {ds_name.strip().lower(), ds_name.split("(")[0].strip().lower()}
 
-    # Build daily aggregates
+    # Pull the relevant JSON fragment for each run in window.
+    # stages->0 is always the "crawl" stage; we read its sub_breakdown map.
+    runs_result = await session.execute(
+        text("""
+            SELECT id, started_at, status, total_records, quality_score,
+                   stages
+            FROM pipeline_runs
+            WHERE started_at >= :cutoff
+            ORDER BY started_at ASC
+        """),
+        {"cutoff": cutoff},
+    )
+    raw_rows = runs_result.fetchall()
+
     volume_by_day: dict[str, int] = {}
     quality_by_day: dict[str, list[float]] = {}
     total = 0
@@ -229,16 +250,46 @@ async def get_datasource_stats(
     failed = 0
     total_records = 0
 
-    for run in runs:
-        day_key = run.started_at.strftime("%Y-%m-%d")
+    for _run_id, started_at, status, _total_records_run, quality_score, stages in raw_rows:
+        # E20b: try sub_breakdown first (precise), else fall back to
+        # counting raw_jd_records by source_platform within the run window.
+        # Without the fallback, sources like BOSS Zhipin (whose crawls were
+        # recorded in raw_jd_records but never wrote to sub_breakdown) would
+        # always show 0.
+        source_count = 0
+        sub_breakdown: dict[str, Any] = {}
+        if isinstance(stages, list):
+            for stage in stages:
+                if isinstance(stage, dict) and stage.get("name") == "crawl":
+                    sub_breakdown = stage.get("sub_breakdown") or {}
+                    break
+        if sub_breakdown:
+            # Sum only the keys that match this DS (case-insensitive, paren-stripped).
+            for src_name, cnt in sub_breakdown.items():
+                if not isinstance(cnt, (int, float)):
+                    continue
+                key = str(src_name).strip().lower()
+                key_stripped = key.split("(")[0].strip()
+                if key in ds_name_keys or key_stripped in {k.split("(")[0].strip() for k in ds_name_keys}:
+                    source_count += int(cnt)
+        else:
+            # No sub_breakdown → we cannot attribute this run's records
+            # to a specific source. Count as 0 (under-count rather than
+            # mis-attribute). Historical records that pre-date the
+            # sub_breakdown field are reflected in DataSourceRecord.total_records
+            # (visible in the Tab5 "记录数" column), but they don't show
+            # in this 30-day stats chart because they have no associated run.
+            source_count = 0
+
+        day_key = started_at.strftime("%Y-%m-%d")
         total += 1
-        if run.status == "completed":
+        if status == "completed" and source_count > 0:
             successful += 1
-            volume_by_day[day_key] = volume_by_day.get(day_key, 0) + run.total_records
-            total_records += run.total_records
-            if run.quality_score > 0:
-                quality_by_day.setdefault(day_key, []).append(run.quality_score)
-        elif run.status == "failed":
+            volume_by_day[day_key] = volume_by_day.get(day_key, 0) + source_count
+            total_records += source_count
+            if quality_score and quality_score > 0:
+                quality_by_day.setdefault(day_key, []).append(quality_score)
+        elif status == "failed":
             failed += 1
 
     # Fill gaps for continuous timeline
@@ -281,9 +332,12 @@ async def trigger_source_sync(
         raise HTTPException(status_code=404, detail="Data source not found")
 
     # Delegate to pipeline executor so stages actually run (previously a no-op)
+    # E19 fix: trigger_and_start accepts full/incremental only (DB constraint),
+    # so map "source_sync" intent to "incremental" — single-source sync is
+    # by definition an incremental crawl.
     from app.core.pipeline.executor import trigger_and_start
 
-    run = await trigger_and_start(run_type="source_sync")
+    run = await trigger_and_start(run_type="incremental")
 
     return SyncTriggerResponse(
         run_id=str(run.id),

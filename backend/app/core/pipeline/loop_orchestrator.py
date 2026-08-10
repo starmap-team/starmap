@@ -24,6 +24,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import GAP_LEVEL_MASTERED
 from app.exceptions import PipelineStageError, StarMapError
 
 if TYPE_CHECKING:
@@ -547,7 +548,7 @@ class LoopOrchestrator:
         if match_ok and match_result:
             try:
                 gap_details = match_result.get("skill_gap_detail", [])
-                missing = [g for g in gap_details if g.get("gap_level") != "已掌握"]
+                missing = [g for g in gap_details if g.get("gap_level") != GAP_LEVEL_MASTERED]
 
                 path_items: list[dict[str, Any]] = []
                 for gap in missing:

@@ -39,6 +39,14 @@ export interface DatasourcesHealthResponse {
   error_sources: number
 }
 
+// 对齐后端 SyncTriggerResponse（openapi schema）：触发单源同步返回的任务信息
+export interface SyncTriggerResponse {
+  run_id: string
+  source_name: string
+  status: string
+  message: string
+}
+
 export interface DataSourceStats {
   source_id: string
   daily_volume: Array<{ date: string; count: number }>
@@ -116,12 +124,31 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      const data = validateDatasource(
-        await request.get(`/datasources/${id}/stats`) as DataSourceStats,
-        datasourceSchema, `/datasources/${id}/stats`, 'DataSourceStatsResponse',
-      ) as DataSourceStats
-      stats.value = data
-      return data
+      // E20 fix: backend returns `crawl_volume` / `quality_trend` / `avg_records_per_run`
+      // while the DataSourceStats type expects `daily_volume` / `quality_trend` / `avg_daily_count`.
+      // Map field names so the stats drawer renders the bar chart instead of empty.
+      const raw = await request.get(`/datasources/${id}/stats?period=30d`) as {
+        crawl_volume?: Array<{ date: string; count: number }>
+        quality_trend?: Array<{ date: string; score: number }>
+        total_runs?: number
+        successful_runs?: number
+        failed_runs?: number
+        avg_records_per_run?: number
+      }
+      const daily_volume = raw.crawl_volume ?? []
+      const total_count = daily_volume.reduce((s, d) => s + (d.count || 0), 0)
+      const days = daily_volume.length || 1
+      const mapped: DataSourceStats = {
+        source_id: id,
+        daily_volume,
+        weekly_volume: [],
+        monthly_volume: [],
+        quality_trend: raw.quality_trend ?? [],
+        avg_daily_count: Math.round((total_count / days) * 10) / 10,
+        total_count,
+      }
+      stats.value = mapped
+      return mapped
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '获取数据源统计失败'
       return null
@@ -130,15 +157,16 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
-  async function triggerSync(id: string) {
+  async function triggerSync(id: string): Promise<SyncTriggerResponse | false> {
     loading.value = true
     error.value = null
     try {
       // fix: 后端 sync 端点在公共 router（/datasources/{id}/sync），非 admin_router；该端点自带 require_admin，权限不降级
-      await request.post(`/datasources/${id}/sync`)
+      // 返回后端 SyncTriggerResponse（run_id/source_name/status/message），供 Admin 页展示真实任务信息
+      const data = await request.post(`/datasources/${id}/sync`) as SyncTriggerResponse
       // 同步后刷新该数据源详情
       await fetchSourceDetail(id)
-      return true
+      return data
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : '触发同步失败'
       return false

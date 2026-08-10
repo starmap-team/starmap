@@ -48,6 +48,10 @@ class FakeResult:
     def all(self):
         return self.value if isinstance(self.value, list) else [self.value]
 
+    def fetchall(self):
+        """E20 stats endpoint reads raw rows via `runs_result.fetchall()`."""
+        return self.value if isinstance(self.value, list) else [self.value]
+
 
 _SENTINEL = object()
 
@@ -83,21 +87,27 @@ class FakeDataSourceRecord:
         self.config = config or {"url": "https://example.com"}
 
 
-class FakePipelineRun:
-    """Mimics a PipelineRun ORM instance."""
+def _crawl_stages(sub_breakdown: dict[str, int] | None = None) -> list[dict]:
+    """Build the PipelineRun.stages JSON for a crawl stage with sub_breakdown."""
+    return [{"name": "crawl", "sub_breakdown": sub_breakdown or {}}]
 
-    def __init__(
-        self,
-        started_at=None,
-        status="completed",
-        total_records=100,
-        quality_score=0.9,
-    ):
-        self.id = uuid.uuid4()
-        self.started_at = started_at or datetime.now(UTC)
-        self.status = status
-        self.total_records = total_records
-        self.quality_score = quality_score
+
+def _run_row(
+    started_at: datetime | None = None,
+    status: str = "completed",
+    total_records: int = 100,
+    quality_score: float = 0.9,
+    sub_breakdown: dict[str, int] | None = None,
+) -> tuple:
+    """Raw row for the E20 stats query: (id, started_at, status, total_records, quality_score, stages)."""
+    return (
+        uuid.uuid4(),
+        started_at or datetime.now(UTC),
+        status,
+        total_records,
+        quality_score,
+        _crawl_stages(sub_breakdown),
+    )
 
 
 class FakeAsyncSession:
@@ -109,7 +119,9 @@ class FakeAsyncSession:
         self._added = []
         self._committed = False
 
-    async def execute(self, _stmt):
+    async def execute(self, _stmt, _params=None):
+        # E20 fix: stats endpoint calls `session.execute(text(...), {"cutoff": ...})`
+        # with a second positional params arg — accept and ignore it.
         if self._idx < len(self._results):
             r = self._results[self._idx]
             self._idx += 1
@@ -403,7 +415,9 @@ class TestGetDatasourceStats:
     def test_stats_returns_200(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()
         ds = FakeDataSourceRecord(id=ds_id, name="BOSS直聘")
-        run = FakePipelineRun(status="completed", total_records=50, quality_score=0.8)
+        # E20: stats reads raw rows (id, started_at, status, total_records, quality_score, stages);
+        # the crawl sub_breakdown attributes 50 records to BOSS直聘.
+        run = _run_row(status="completed", total_records=50, quality_score=0.8, sub_breakdown={"BOSS直聘": 50})
         session = FakeAsyncSession([FakeResult(ds), FakeResult([run])])
         db_override(session)
         resp = client.get(f"/api/v1/datasources/{ds_id}/stats", headers=auth_headers)
@@ -416,6 +430,8 @@ class TestGetDatasourceStats:
         assert body["failed_runs"] == 0
         assert len(body["crawl_volume"]) == 30  # default period=30d
         assert len(body["quality_trend"]) == 30
+        # The attributed volume lands on today's crawl_volume entry
+        assert body["crawl_volume"][-1]["count"] == 50
 
     def test_stats_7d_period(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()
@@ -457,8 +473,8 @@ class TestGetDatasourceStats:
     def test_stats_with_failed_runs(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()
         ds = FakeDataSourceRecord(id=ds_id)
-        completed = FakePipelineRun(status="completed", total_records=100, quality_score=0.9)
-        failed = FakePipelineRun(status="failed", total_records=0, quality_score=0.0)
+        completed = _run_row(status="completed", total_records=100, quality_score=0.9, sub_breakdown={"BOSS直聘": 100})
+        failed = _run_row(status="failed", total_records=0, quality_score=0.0, sub_breakdown={})
         session = FakeAsyncSession([FakeResult(ds), FakeResult([completed, failed])])
         db_override(session)
         resp = client.get(f"/api/v1/datasources/{ds_id}/stats", headers=auth_headers)
@@ -467,6 +483,24 @@ class TestGetDatasourceStats:
         assert body["total_runs"] == 2
         assert body["successful_runs"] == 1
         assert body["failed_runs"] == 1
+
+    def test_stats_does_not_misattribute_other_sources(self, client, auth_headers, db_override):
+        """E20: runs whose sub_breakdown does not mention this source must not
+        count toward successful_runs / crawl_volume (previously every completed
+        run in the window was attributed to every source)."""
+        ds_id = uuid.uuid4()
+        ds = FakeDataSourceRecord(id=ds_id, name="ESCO")
+        # This run belongs to BOSS直聘, not ESCO → should not be attributed.
+        foreign = _run_row(status="completed", total_records=83000, quality_score=0.9, sub_breakdown={"BOSS直聘": 83000})
+        session = FakeAsyncSession([FakeResult(ds), FakeResult([foreign])])
+        db_override(session)
+        resp = client.get(f"/api/v1/datasources/{ds_id}/stats", headers=auth_headers)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total_runs"] == 1
+        assert body["successful_runs"] == 0
+        assert body["failed_runs"] == 0
+        assert all(entry["count"] == 0 for entry in body["crawl_volume"])
 
     def test_stats_no_runs_zero_avg(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()
@@ -534,7 +568,9 @@ class TestTriggerSourceSync:
             resp = client.post(f"/api/v1/datasources/{ds_id}/sync", headers=auth_headers)
 
         assert resp.status_code == 200
-        mock_trigger.assert_awaited_once_with(run_type="source_sync")
+        # E19 fix: single-source sync is mapped to "incremental" because
+        # trigger_and_start only accepts full/incremental (DB constraint).
+        mock_trigger.assert_awaited_once_with(run_type="incremental")
 
 
 # ══════════════════════════════════════════════════════════════

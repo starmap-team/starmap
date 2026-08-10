@@ -46,8 +46,10 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
   if (syncingIds.value.has(source.id)) return
   syncingIds.value.add(source.id)
   try {
-    // map source.name -> source site key (BOSS, 拉勾, 猎聘, remotive, v2ex)
-    const key = source.name.includes('Boss') ? 'BOSS' : source.name
+    // ponytail: 原实现把 Boss 特判为 'BOSS'，其余源传显示名；
+    // 后端 /pipeline/crawl-source 按 DataSourceRecord.name 精确匹配（routes.py:475），
+    // 特判会导致 DB 名称非 'BOSS' 时 404 —— 直接传 source.name 即可
+    const key = source.name
     const out = await dsStore.triggerCrawl(key) as { fetched?: number; persisted?: number; rows?: { title: string }[] }
     ElMessage.success(
       `${getSourceNameLabel(source.name)} 立即采集完成: fetched=${out?.fetched ?? 0} persisted=${out?.persisted ?? 0}`

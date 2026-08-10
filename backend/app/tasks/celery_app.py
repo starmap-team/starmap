@@ -206,6 +206,37 @@ def advance_pipeline_task(self, run_id: str) -> None:
 
 
 @celery_app.task(bind=True, max_retries=2, default_retry_delay=60)
+def reconcile_graph_task(self, schedule_id: str) -> None:
+    """BUG-16 fix: Celery task for daily PG↔Neo4j reconcile.
+
+    Triggered by the cron_scanner when a `daily_reconcile` schedule comes due.
+    Runs the same reconciliation logic the manual `/admin/reconcile-neo4j`
+    endpoint triggers, and writes an audit event so Tab 7 数据源诊断 can
+    show "last reconcile" correctly.
+
+    BUG-16 root cause: the schedule existed in code paths but `pipeline_schedules`
+    had no row registered for it, AND `trigger_schedule` always called
+    `scheduled_pipeline_run` regardless of schedule name. Both are now fixed.
+    """
+    try:
+        async def _run() -> None:
+            from app.core.pipeline.cron_scheduler import _run_daily_reconcile
+            from app.db.session import get_session_factory
+
+            sm = get_session_factory()
+            async with sm() as session:
+                async with session.begin():
+                    await _run_daily_reconcile(session)
+
+        run_async(_run())
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("reconcile_graph_task error: {}", exc)
+        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries)) from exc
+
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=60)
 def scheduled_pipeline_run(self, schedule_id: str) -> None:
     """Phase 2 CRON-04: 读取 schedule 并触发 pipeline。
 

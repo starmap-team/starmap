@@ -355,6 +355,17 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
                 )
             await session.commit()
 
+        # C-5 入口闭环: POST /evolution/analyze 与 6h beat 共用本入口 (celery_app.py:63-73).
+        # SkillRecord 频次落库后追加完整演化管线 (snapshot → diff → trust → changelog →
+        # D-04 回写 / D-07 一致性校验). 管线自身 fail-soft; 此处再兜一层防入口失败.
+        try:
+            from app.core.evolution.orchestrator import run_evolution_pipeline
+
+            pipeline_summary = await run_evolution_pipeline(months_back=max(1, bounded_days // 30))
+        except Exception as exc:  # noqa: BLE001 — 演化管线失败不阻断趋势分析
+            logger.warning("run_analyze_evolution_trends: evolution pipeline failed (non-fatal): {}", exc)
+            pipeline_summary = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}
+
         top_trends = [
             {
                 "skill_name": name,
@@ -371,6 +382,7 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
             "records_analyzed": len(records),
             "skills_analyzed": len(skill_counts),
             "trends": top_trends,
+            "pipeline": pipeline_summary,
         }
     finally:
         await engine.dispose()
