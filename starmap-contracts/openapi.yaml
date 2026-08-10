@@ -4396,10 +4396,53 @@ components:
         cii:
           type: number
           nullable: true
+        trust_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          nullable: true
+          description: 已掌握技能中 Neo4j Skill.trust_score 的最小值（瓶颈信任度）
+        score_breakdown:
+          $ref: '#/components/schemas/MatchScoreBreakdown'
+          nullable: true
+          description: 匹配分数拆解（必需/加分均值与权重、是否通胀修正）
         note:
           type: string
           nullable: true
           description: M2 补充说明（如岗位存在但无技能画像，无法计算匹配度）
+    MatchScoreBreakdown:
+      type: object
+      required:
+      - required_avg
+      - bonus_avg
+      - weight_required
+      - weight_bonus
+      - inflated
+      properties:
+        required_avg:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 必备技能匹配均值
+        bonus_avg:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 加分技能匹配均值
+        weight_required:
+          type: number
+          format: float
+          description: 必备权重 0.7
+        weight_bonus:
+          type: number
+          format: float
+          description: 加分权重 0.3
+        inflated:
+          type: boolean
+          description: 是否应用了 CII 通胀修正
     BatchMatchResultItem:
       type: object
       required:

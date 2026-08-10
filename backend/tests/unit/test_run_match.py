@@ -107,6 +107,29 @@ async def test_run_match_simple():
 
 
 @pytest.mark.asyncio
+async def test_run_match_score_breakdown_shape():
+    """D-01: 响应携带 score_breakdown（分数组件可感知，前端可展示拆解）。"""
+    with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
+        result = await run_match(
+            target_position="数据分析师",
+            person_skills=[
+                {"skill": "Python", "proficiency": "熟悉"},
+                {"skill": "SQL", "proficiency": "熟悉"},
+            ],
+        )
+    breakdown = result.get("score_breakdown")
+    assert breakdown is not None
+    assert breakdown["required_avg"] >= 0.0 and breakdown["required_avg"] <= 1.0
+    assert breakdown["bonus_avg"] >= 0.0 and breakdown["bonus_avg"] <= 1.0
+    assert breakdown["weight_required"] == 0.7
+    assert breakdown["weight_bonus"] == 0.3
+    assert isinstance(breakdown["inflated"], bool)
+    # 拆解应能还原 match_score（浮点容差）
+    reconstructed = breakdown["required_avg"] * 0.7 + breakdown["bonus_avg"] * 0.3
+    assert abs(reconstructed - result["match_score"]) < 0.01
+
+
+@pytest.mark.asyncio
 async def test_run_match_no_skills():
     with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
         result = await run_match(

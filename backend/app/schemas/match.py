@@ -68,6 +68,20 @@ class SkillGapDetail(BaseModel):
     learning_path: list[str] = Field(default_factory=list, description="前置学习路径")
 
 
+class MatchScoreBreakdown(BaseModel):
+    """匹配分数拆解 — 让用户理解 match_score 的构成（D-01 透明化）。
+
+    match_score = required_avg * weight_required + bonus_avg * weight_bonus
+    inflated 表示该岗位存在 CII 通胀迹象（cii > 1.2），边缘必备项已被降为加分项。
+    """
+
+    required_avg: float = Field(ge=0.0, le=1.0, description="必备技能匹配均值")
+    bonus_avg: float = Field(ge=0.0, le=1.0, description="加分技能匹配均值")
+    weight_required: float = Field(ge=0.0, le=1.0, description="必备权重 0.7")
+    weight_bonus: float = Field(ge=0.0, le=1.0, description="加分权重 0.3")
+    inflated: bool = Field(default=False, description="是否应用了 CII 通胀修正")
+
+
 class MatchResponse(BaseModel):
     """Match result for a single position."""
 
@@ -91,6 +105,11 @@ class MatchResponse(BaseModel):
         default=None,
         ge=0.0, le=1.0,
         description="已掌握技能中 Neo4j Skill.trust_score 的最小值（瓶颈信任度）",
+    )
+    # D-01: 分数拆解 — 用户可感知 match_score 的构成（必备均值×0.7 + 加分均值×0.3）
+    score_breakdown: MatchScoreBreakdown | None = Field(
+        default=None,
+        description="匹配分数拆解（必需/加分均值与权重、是否通胀修正）",
     )
     note: str | None = Field(
         default=None,

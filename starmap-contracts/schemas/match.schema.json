@@ -290,6 +290,18 @@
           "description": "已掌握技能中 Neo4j Skill.trust_score 的最小值（瓶颈信任度）",
           "title": "Trust Score"
         },
+        "score_breakdown": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MatchScoreBreakdown"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "匹配分数拆解（必需/加分均值与权重、是否通胀修正）"
+        },
         "note": {
           "anyOf": [
             {
@@ -526,6 +538,53 @@
         }
       },
       "title": "BatchMatchItem",
+      "type": "object"
+    },
+    "MatchScoreBreakdown": {
+      "description": "匹配分数拆解 — 让用户理解 match_score 的构成（D-01 透明化）。\n\nmatch_score = required_avg * weight_required + bonus_avg * weight_bonus\ninflated 表示该岗位存在 CII 通胀迹象（cii > 1.2），边缘必备项已被降为加分项。",
+      "properties": {
+        "required_avg": {
+          "description": "必备技能匹配均值",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Required Avg",
+          "type": "number"
+        },
+        "bonus_avg": {
+          "description": "加分技能匹配均值",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Bonus Avg",
+          "type": "number"
+        },
+        "weight_required": {
+          "description": "必备权重 0.7",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Weight Required",
+          "type": "number"
+        },
+        "weight_bonus": {
+          "description": "加分权重 0.3",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Weight Bonus",
+          "type": "number"
+        },
+        "inflated": {
+          "default": false,
+          "description": "是否应用了 CII 通胀修正",
+          "title": "Inflated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "required_avg",
+        "bonus_avg",
+        "weight_required",
+        "weight_bonus"
+      ],
+      "title": "MatchScoreBreakdown",
       "type": "object"
     },
     "SkillGapDetail": {

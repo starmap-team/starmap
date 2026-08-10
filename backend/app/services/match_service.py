@@ -145,6 +145,9 @@ async def get_match_result(match_id: str, db_session: Any = None) -> dict[str, A
                 # to anything else computing per-skill trust.
                 from app.core.metrics import match_trust_score  # noqa: PLC0415
                 result["trust_score"] = await match_trust_score(row.matched_skills or [])
+                # D-01: 分数组件（required_avg/bonus_avg）未持久化，PG 兜底无法重建 →
+                # 显式 None（与 live POST 响应区分：cache/实时命中才带 score_breakdown）
+                result["score_breakdown"] = None
                 # ponytail: PG 兜底与 POST 响应字段对齐 —— 缺失字段在此重建/派生，
                 # 避免同一 match_id 因 cache 状态返回不同结构
                 result["gap_skills"] = [

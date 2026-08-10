@@ -346,6 +346,14 @@ class MatchService:
             # fix: 把已计算的 cii 纳入响应体（_save_match_result 第 428 行的 result.get("cii", 1.0) 也会读到真实值）
             "cii": round(cii, 3),
             "match_score": match_score,
+            # D-01: 分数拆解 — 暴露评分构成（required_avg×0.7 + bonus_avg×0.3），前端可展示
+            "score_breakdown": {
+                "required_avg": round(required_avg, 4),
+                "bonus_avg": round(bonus_avg, 4),
+                "weight_required": 0.7,
+                "weight_bonus": 0.3,
+                "inflated": cii > 1.2,
+            },
             "matched_skills": matched_skills,
             "gap_skills": gap_skills,
             "recommendations": recommendations,
