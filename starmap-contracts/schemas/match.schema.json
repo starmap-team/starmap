@@ -275,6 +275,21 @@
           "description": "能力通胀指数 0-1+",
           "title": "Cii"
         },
+        "trust_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "已掌握技能中 Neo4j Skill.trust_score 的最小值（瓶颈信任度）",
+          "title": "Trust Score"
+        },
         "note": {
           "anyOf": [
             {

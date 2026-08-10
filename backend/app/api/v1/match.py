@@ -93,6 +93,7 @@ async def get_match_result_detail(
 async def match_history(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     limit: int = Query(10, ge=1, le=50),
+    offset: int = Query(0, ge=0),
 ) -> dict[str, Any]:
     """Return recent match results."""
     try:
@@ -101,9 +102,9 @@ async def match_history(
                 SELECT match_id, target_position, match_score, matched_skills, created_at
                 FROM match_results
                 ORDER BY created_at DESC
-                LIMIT :limit
+                LIMIT :limit OFFSET :offset
             """),
-            {"limit": limit},
+            {"limit": limit, "offset": offset},
         )
         rows = result.fetchall()
         items = []

@@ -10,6 +10,7 @@ from typing import Any, cast
 
 from loguru import logger
 
+from app.core.constants import DEFAULT_PROFICIENCY, GAP_LEVEL_MASTERED, GAP_LEVEL_MISSING, GAP_LEVEL_PARTIAL
 from app.core.extraction.normalize import normalize_skill
 from app.core.matching.constants import PROFICIENCY_SCORE
 from app.exceptions import StarMapError
@@ -216,7 +217,7 @@ def score_skill_match(
         canonical = _canonical_skill_name(raw_name)
         person_name_map[canonical] = raw_name
         person_level_map[canonical] = PROFICIENCY_SCORE.get(
-            str(item.get("proficiency", "熟悉")), 0.65
+            str(item.get("proficiency", DEFAULT_PROFICIENCY)), PROFICIENCY_SCORE[DEFAULT_PROFICIENCY]
         )
 
     candidate_canonical_set = set(person_level_map.keys())
@@ -227,7 +228,7 @@ def score_skill_match(
 
     for item in target_skills:
         target_name = _canonical_skill_name(item["skill"])
-        target_level = PROFICIENCY_SCORE.get(item.get("proficiency", "熟悉"), 0.65)
+        target_level = PROFICIENCY_SCORE.get(item.get("proficiency", DEFAULT_PROFICIENCY), PROFICIENCY_SCORE[DEFAULT_PROFICIENCY])
 
         # Exact match
         exact = 1.0 if target_name in person_level_map else 0.0
@@ -282,13 +283,13 @@ def score_skill_match(
 
         # Gap level determination
         if exact == 1.0:
-            gap_level = "已掌握"
+            gap_level = GAP_LEVEL_MASTERED
         elif final_score >= 0.85:
-            gap_level = "已掌握"
+            gap_level = GAP_LEVEL_MASTERED
         elif final_score >= threshold * 0.75:
-            gap_level = "部分掌握"
+            gap_level = GAP_LEVEL_PARTIAL
         else:
-            gap_level = "完全缺失"
+            gap_level = GAP_LEVEL_MISSING
 
         evaluated.append({
             "skill": target_name,

@@ -83,6 +83,15 @@ class MatchResponse(BaseModel):
     overall_assessment: str = Field(default="", description="整体评估文案")
     estimated_learning_time: str = Field(default="", description="预计学习时长")
     cii: float | None = Field(default=None, description="能力通胀指数 0-1+")
+    # D6 fix: add real trust_score (was missing — frontend was passing match_score as
+    # trust-score by mistake, displaying duplicate "信任度" identical to "匹配度").
+    # Computed as the MIN of matched_skills' Neo4j trust_score — the bottleneck
+    # skill's trust determines the overall trustworthiness of the match.
+    trust_score: float | None = Field(
+        default=None,
+        ge=0.0, le=1.0,
+        description="已掌握技能中 Neo4j Skill.trust_score 的最小值（瓶颈信任度）",
+    )
     note: str | None = Field(
         default=None,
         description="M2 补充说明(如岗位存在但无技能画像,无法计算匹配度)",

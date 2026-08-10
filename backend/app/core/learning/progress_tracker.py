@@ -15,6 +15,7 @@ import sqlalchemy as sa
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import GAP_LEVEL_MASTERED, GAP_LEVEL_MISSING, GAP_LEVEL_PARTIAL
 from app.models.learning_models import LearningPlan, LearningProgress
 
 
@@ -62,15 +63,15 @@ async def create_plan(
         if not skill_name:
             continue
 
-        gap_level = skill_data.get("gap_level", "完全缺失")
+        gap_level = skill_data.get("gap_level", GAP_LEVEL_MISSING)
         importance = skill_data.get("importance", "required")
         hours = skill_data.get("estimated_hours", 0.0)
 
         # Determine initial status from gap level
-        if gap_level == "已掌握":
+        if gap_level == GAP_LEVEL_MASTERED:
             initial_status = "mastered"
             initial_pct = 100.0
-        elif gap_level == "部分掌握":
+        elif gap_level == GAP_LEVEL_PARTIAL:
             initial_status = "not_started"
             initial_pct = 0.0
         else:

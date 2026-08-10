@@ -13,7 +13,7 @@ import { onMounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 // 技术说明：引入 Element Plus 图标组件
 import { Guide, DataAnalysis, Clock, Trophy, RefreshRight } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 // 业务说明：主布局组件，提供统一的页面导航和侧边栏
 import MainLayout from '@/layouts/MainLayout.vue'
 // 业务说明：学习路径可视化组件，展示技能之间的依赖关系图
@@ -71,16 +71,20 @@ async function handleUpdateStatus(skill: string, status: string) {
     if (status === 'mastered') ElMessage.success({ message: '技能已掌握！可前往匹配诊断查看提升效果', duration: 5000 })
   } catch { /* store handles errors */ }
 }
+// ponytail: 原实现把推荐技能当 position 创建新计划（岗位名=技能名，语义错位），
+// 且已有计划时用技能"覆盖"整个计划（破坏性）。
+// 正确语义：推荐技能加入现有计划的技能列表；无计划时提示先创建。
 async function handleAddToPlan(rec: { skill: string; priority: string }) {
   try {
-    const rawData: Record<string, unknown> = { position: rec.skill, skill_gap_detail: [{ skill: rec.skill, importance: rec.priority || 'required', gap_level: '完全缺失' }] }
-    if (currentPlan.value) {
-      await ElMessageBox.confirm(`已有学习计划「${currentPlan.value.position}」，是否用「${rec.skill}」覆盖？`, '覆盖学习计划', { confirmButtonText: '确认覆盖', cancelButtonText: '取消', type: 'warning' })
-      await learningStore.createPlan(rawData); ElMessage.success('已创建新学习计划')
-    } else {
-      await learningStore.createPlan(rawData); ElMessage.success(`「${rec.skill}」已加入学习计划`)
+    if (!currentPlan.value) {
+      ElMessage.warning('请先创建学习计划，再将推荐技能加入')
+      return
     }
-  } catch (e: unknown) { if (e === 'cancel' || e === 'close') return; ElMessage.error(e instanceof Error ? e.message : '加入计划失败') }
+    await learningStore.addSkillToPlan(rec.skill, currentPlan.value.position)
+    ElMessage.success(`「${rec.skill}」已加入学习计划「${currentPlan.value.position}」`)
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '加入计划失败')
+  }
 }
 
 // FLOW-02-S2: 一键重新匹配 —— 使用更新后的 parsedSkills 对当前岗位重新执行匹配

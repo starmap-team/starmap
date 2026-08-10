@@ -80,10 +80,16 @@ onMounted(async () => {
 
   // FLOW-02-S2: 重新匹配跳转 —— 从 LearningCenter 携带 rematch 查询参数
   // 直接跳到差距分析步骤（step 3），使用已有匹配结果
-  if (route.query.rematch === '1' && matchStore.result) {
-    targetPositionName.value = (route.query.position as string) || ''
-    step.value = 3  // 跳到差距分析报告
-    matchStore.fetchHistory()
+  if (route.query.rematch === '1') {
+    if (matchStore.result) {
+      targetPositionName.value = (route.query.position as string) || ''
+      step.value = 3  // 跳到差距分析报告
+      matchStore.fetchHistory()
+    } else {
+      // ponytail: result 是跨页内存态，直输 URL/刷新后为空 → 提示并停留在 step 0，不再静默卡住
+      ElMessage.warning('重新匹配结果已失效（页面刷新或直连链接），请重新诊断')
+      step.value = 0
+    }
   }
 })
 
@@ -203,7 +209,9 @@ async function handleStartDiagnosis() {
         })),
       ]
       for (const g of (result.skill_gap_detail ?? [])) {
-        if (!skillNames.includes(g.skill)) {
+        // ponytail: 后端 gap_detail 含"已掌握"条目（语义匹配成功），
+        // 若仅按"不在用户输入里"判定，会把已掌握技能误标为未匹配
+        if (!skillNames.includes(g.skill) && !matchedSet.has(g.skill)) {
           allSkills.push({ name: g.skill, matched: false, score: 0 })
         }
       }
@@ -510,9 +518,12 @@ onUnmounted(() => {
         <!-- Step 3: Gap analysis report (extracted) -->
         <div v-if="step === 3">
           <!-- Phase 25: 信任度解读 + §7.4 质量说明 -->
+          <!-- D6 fix: trust_score now reads from the real backend field
+               (matched_skills' minimum Neo4j Skill.trust_score). Previously
+               this was bound to match_score, displaying the same number twice -->
           <MatchTrustGuide
             :match-score="matchStore.result?.match_score"
-            :trust-score="matchStore.result?.match_score"
+            :trust-score="matchStore.result?.trust_score"
             :note="matchStore.result?.note"
             class="mb-4"
           />

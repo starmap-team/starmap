@@ -43,6 +43,8 @@ export interface MatchResult {
   cii?: number | null
   // M2（Phase 13 强制规范）：后端 MatchResponse.note 同步，前端运行时校验依赖
   note?: string | null
+  // D6: 后端匹配结果含 trust_score（matched_skills 的 Neo4j Skill.trust_score 最小值）
+  trust_score?: number | null
 }
 
 export interface PositionSkills {

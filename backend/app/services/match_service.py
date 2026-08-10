@@ -120,17 +120,38 @@ async def get_match_result(match_id: str, db_session: Any = None) -> dict[str, A
                 )
             ).scalar_one_or_none()
             if row is not None:
+                gap_report = row.gap_report or []
+                missing_required = row.missing_required or []
                 result = {
                     "match_id": row.match_id,
                     "target_position": row.target_position,
                     "match_score": row.match_score,
                     "matched_skills": row.matched_skills or [],
-                    "missing_required": row.missing_required or [],
+                    "missing_required": missing_required,
                     "missing_bonus": row.missing_bonus or [],
-                    "skill_gap_detail": row.gap_report or [],
-                    "learning_path": row.learning_path or [],
+                    "skill_gap_detail": gap_report,
                     "cii": row.cii,
                 }
+                # ponytail: PG 兜底与 POST 响应字段对齐 —— 缺失字段在此重建/派生，
+                # 避免同一 match_id 因 cache 状态返回不同结构
+                result["gap_skills"] = [
+                    g["skill"] for g in gap_report if g.get("gap_level") != "已掌握"
+                ]
+                if row.cii is None and row.match_score == 0 and not gap_report:
+                    result["recommendations"] = []
+                    result["overall_assessment"] = "该岗位在图谱中存在，但暂无技能画像（无 REQUIRES 关系），无法计算匹配度与差距。"
+                    result["estimated_learning_time"] = ""
+                    result["note"] = "岗位存在但无技能画像：请先为该岗位补充技能要求，再行匹配。"
+                else:
+                    result["recommendations"] = []
+                    for item in gap_report[:3]:
+                        if item.get("gap_level") == "已掌握":
+                            continue
+                        path_preview = " -> ".join(item.get("learning_path", [])[:3])
+                        result["recommendations"].append(f"优先补齐 {item.get('skill', '')}：{path_preview}")
+                    result["overall_assessment"] = _match_service._assessment_text(row.match_score, len(missing_required))
+                    result["estimated_learning_time"] = _match_service._estimate_learning_time(gap_report)
+                    result["note"] = None
                 _match_service._cache.set_match_result(match_id, result)
                 return result
         except StarMapError:
@@ -215,16 +236,20 @@ async def compute_competitiveness(
     ]
     avg_proficiency = sum(proficiency_scores) / len(proficiency_scores) if proficiency_scores else 0.5
 
+    # ponytail: 真实先修链 —— 原实现 depth 恒 1、learning_path 恒 [skill]（虚构）；
+    # 复用 ensure_prerequisite_map + build_learning_path 计算真实前置深度
+    prereq_map = await ensure_prerequisite_map(driver)
     total_prereq_depth = 0
     skill_prereq_details: list[dict[str, Any]] = []
     for skill_data in all_skills:
         skill_name = skill_data["skill"]
-        depth = 1
+        path = build_learning_path(skill_name, set(), prereq_map)
+        depth = len(path)
         total_prereq_depth += depth
         skill_prereq_details.append({
             "skill": skill_name,
             "prerequisite_depth": depth,
-            "learning_path": [skill_name],
+            "learning_path": path,
         })
 
     avg_prereq_depth = total_prereq_depth / len(all_skills) if all_skills else 0

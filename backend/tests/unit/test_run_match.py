@@ -23,6 +23,17 @@ def _clear_profile_cache():
     _match_service._cache.clear()
 
 
+# D6 fix: run_match/get_match_result 现在经 app.core.metrics.match_trust_score 读 Neo4j。
+# 该函数内部调用 init_resources() 直接在模块级 resources 单例上创建真实 driver；
+# 单元测试打桩它，避免真实连接泄漏到后续 TestClient 生命周期（关闭时崩）。
+@pytest.fixture(autouse=True)
+def _no_real_neo4j_trust(monkeypatch):
+    async def _fake_trust(matched_skills):  # noqa: ANN001
+        return 0.0
+
+    monkeypatch.setattr("app.core.metrics.match_trust_score", _fake_trust)
+
+
 # Sample target profiles used by tests
 _DATA_ANALYST_PROFILE = {
     "required": [

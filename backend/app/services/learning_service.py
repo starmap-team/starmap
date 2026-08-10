@@ -14,6 +14,7 @@ import sqlalchemy as sa
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import DEFAULT_PROFICIENCY, GAP_LEVEL_MASTERED, GAP_LEVEL_MISSING
 from app.core.learning.path_engine import generate_learning_path
 from app.core.learning.progress_tracker import create_plan, get_progress, update_progress
 from app.exceptions import PlanNotFoundError, PlanOwnershipError
@@ -58,12 +59,12 @@ async def create_plan_from_match(
         {
             "skill": g["skill"],
             "importance": g.get("importance", "required"),
-            "gap_level": g.get("gap_level", "完全缺失"),
+            "gap_level": g.get("gap_level", GAP_LEVEL_MISSING),
             "learning_path": g.get("learning_path", []),
-            "target_proficiency": "熟悉",
+            "target_proficiency": DEFAULT_PROFICIENCY,
         }
         for g in gap_details
-        if g.get("gap_level") != "已掌握"
+        if g.get("gap_level") != GAP_LEVEL_MASTERED
     ]
 
     if not skill_gaps:

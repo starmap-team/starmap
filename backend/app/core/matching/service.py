@@ -17,6 +17,7 @@ from loguru import logger
 
 from app.core.matching.cache import get_match_cache
 from app.core.matching.constants import PROFICIENCY_SCORE
+from app.core.matching.path_builder import build_learning_path
 from app.core.matching.scorer import score_skill_match
 from app.exceptions import MatchingError, StarMapError
 from app.services.graph_service import fetch_position_graph
@@ -208,13 +209,13 @@ class MatchService:
         repo: Any = None,
     ) -> dict[str, Any]:
         """运行匹配引擎。"""
-        await self._load_prerequisite_map(driver)
+        prereq_map = await self._load_prerequisite_map(driver)
         target_profile = await self._load_target_profile(driver, target_position, db_session, repo)
         if target_profile is None:
             # M2（Phase 13 强制规范）：区分“岗位不存在”与“岗位存在但暂无技能画像”。
             # 后者返回 200 + 0 分 + note，而非 404（not-found 仅用于真不存在）。
             if await self._position_exists(driver, target_position, db_session):
-                return {
+                result = {
                     "match_id": str(uuid4()),
                     "target_position": target_position,
                     "cii": None,
@@ -229,6 +230,10 @@ class MatchService:
                     "estimated_learning_time": "",
                     "note": "岗位存在但无技能画像：请先为该岗位补充技能要求（pipeline 抽取或人工维护），再行匹配。",
                 }
+                # ponytail: 无画像结果也落库，避免 cache 淘汰后 GET /match/result/{id} 404
+                if db_session is not None:
+                    await self._save_match_result(db_session, result["match_id"], result)
+                return result
             from app.exceptions import PositionNotFoundError
             raise PositionNotFoundError(target_position)
 
@@ -305,6 +310,16 @@ class MatchService:
             ),
         )
         gap_skills = [item["skill"] for item in gap_details if item["gap_level"] != "已掌握"]
+
+        # ponytail: 真实先修链 —— path_builder 此前是死代码，prereq_map 已加载但从未被消费；
+        # 这里按"未掌握技能 → 前置依赖"生成学习路径，已掌握技能路径置空
+        owned_skills = {s.get("name", "").strip() for s in person_skills if s.get("name")}
+        for item in gap_details:
+            item["learning_path"] = (
+                []
+                if item["gap_level"] == "已掌握"
+                else build_learning_path(item["skill"], owned_skills, prereq_map)
+            )
 
         # Build recommendations
         recommendations: list[str] = []
@@ -389,10 +404,11 @@ class MatchService:
         """估算学习时长。"""
         weeks = 0.0
         for gap in gaps:
-            base = 3.0 if gap["importance"] == "required" else 1.5
-            if gap["gap_level"] == "部分掌握":
+            # ponytail: .get 兜底 —— gap_report 回读数据（历史/精简记录）可能缺 importance
+            base = 3.0 if gap.get("importance", "required") == "required" else 1.5
+            if gap.get("gap_level") == "部分掌握":
                 base *= 0.5
-            elif gap["gap_level"] == "已掌握":
+            elif gap.get("gap_level") == "已掌握":
                 base = 0.5
             weeks += base
 

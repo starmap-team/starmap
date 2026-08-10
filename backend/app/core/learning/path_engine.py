@@ -21,14 +21,21 @@ from typing import Any
 
 from loguru import logger
 
+from app.core.constants import (
+    DEFAULT_PROFICIENCY,
+    GAP_LEVEL_MASTERED,
+    GAP_LEVEL_MISSING,
+    GAP_LEVEL_PARTIAL,
+    LOW_PROFICIENCY,
+)
 from app.core.matching.constants import PROFICIENCY_SCORE
 from app.exceptions import StarMapError
 
 # Base learning hours per skill at different gap levels
 _BASE_HOURS: dict[str, float] = {
-    "完全缺失": 40.0,
-    "部分掌握": 20.0,
-    "已掌握": 2.0,
+    GAP_LEVEL_MISSING: 40.0,
+    GAP_LEVEL_PARTIAL: 20.0,
+    GAP_LEVEL_MASTERED: 2.0,
 }
 
 # Fallback prerequisite relationships (used when Neo4j is unavailable)
@@ -209,8 +216,8 @@ class LearningPath:
 def estimate_learning_time(
     skill: str,
     current_level: str | None = None,
-    target_level: str = "熟悉",
-    gap_level: str = "完全缺失",
+    target_level: str = DEFAULT_PROFICIENCY,
+    gap_level: str = GAP_LEVEL_MISSING,
     skill_hours_map: dict[str, float] | None = None,
 ) -> float:
     """Estimate learning hours for a single skill.
@@ -235,7 +242,7 @@ def estimate_learning_time(
         base = _BASE_HOURS.get(gap_level, 40.0)
 
     # Adjust based on proficiency gap
-    current_score = PROFICIENCY_SCORE.get(current_level or "了解", 0.0)
+    current_score = PROFICIENCY_SCORE.get(current_level or LOW_PROFICIENCY, 0.0)
     target_score = PROFICIENCY_SCORE.get(target_level, 0.65)
     proficiency_gap = max(0.0, target_score - current_score)
 
@@ -426,7 +433,7 @@ def _build_phases(
     phase_hours_budget = weekly_hours * 2  # ~2 weeks per phase
 
     for skill_node in ordered_skills:
-        if skill_node.gap_level == "已掌握":
+        if skill_node.gap_level == GAP_LEVEL_MASTERED:
             continue
 
         if current_hours + skill_node.estimated_hours > phase_hours_budget and current_phase:
@@ -502,7 +509,7 @@ async def generate_learning_path(
         gap_level = gap.get("gap_level", "完全缺失")
         importance = gap.get("importance", "required")
         current = current_proficiencies.get(name)
-        target = gap.get("target_proficiency", "熟悉")
+        target = gap.get("target_proficiency", DEFAULT_PROFICIENCY)
 
         hours = estimate_learning_time(
             skill=name,
@@ -529,7 +536,7 @@ async def generate_learning_path(
         node.order = i
 
     # Step 6: Calculate totals
-    total_hours = sum(n.estimated_hours for n in skill_nodes if n.gap_level != "已掌握")
+    total_hours = sum(n.estimated_hours for n in skill_nodes if n.gap_level != GAP_LEVEL_MASTERED)
     total_weeks = ceil(total_hours / available_time) if available_time > 0 else 0
 
     # Step 6: Build phases
