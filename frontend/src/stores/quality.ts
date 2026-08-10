@@ -60,7 +60,8 @@ function defaultMetrics(): QualityMetrics {
     avg_trust_score: 0,
     high_trust_ratio: 0,
     weekly_new_nodes: 0,
-    audit_pass_rate: 1.0,
+    // ponytail: 原默认 1.0 会在后端未返回时显示"审核通过率 100%"（假正常）；改 0 诚实表示未统计
+    audit_pass_rate: 0.0,
     source_distribution: [],
     hallucination_trend: [],
     trust_distribution: [],

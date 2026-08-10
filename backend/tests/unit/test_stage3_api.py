@@ -1,7 +1,7 @@
 """Stage 3 API contract tests."""
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -76,22 +76,28 @@ async def test_quality_dashboard_builder_aggregates_metrics():
             (36,),             # 3. pos_count
             (201,),            # 4. skill_count
             (0,),              # 5. edge_count
-            (0.87,),           # 6. avg_confidence
-            (8.0,),            # 7. avg_source
-            (5,),              # 8. high_trust_count
-            (10,),             # 9. high_source_count
-            (5,), (3,), (2,), (1,), (0,),  # 10-14. trust_distribution
-            [],                # 15. ts_rows (hallucination trend — empty)
-            [("general", 100), ("hard_skill", 80)],  # 16. source_distribution
-            (5,),              # 17. weekly_new_skills
-            (3,),              # 18. weekly_new_positions
-            (8,),              # 19. approved_count
-            [],                # 20. low_trust records (audit_queue — now a list)
-            (5,),              # 21. evaluation_count (Phase 13 baseline_available;>0 → 基线可用)
+            # D2 fix: avg_trust_score comes from avg_skill_trust (metrics module,
+            # Neo4j), NOT a session query — the old avg_confidence / avg_source
+            # executes are gone.
+            (5,),              # 6. high_trust_count
+            (10,),             # 7. high_source_count
+            (5,), (3,), (2,), (1,), (0,),  # 8-12. trust_distribution
+            [],                # 13. ts_rows (hallucination trend — empty)
+            [("general", 100), ("hard_skill", 80)],  # 14. source_distribution
+            (5,),              # 15. weekly_new_nodes: skill count
+            (3,),              # 16. weekly_new_nodes: position count
+            (8,),              # 17. approved_count (review_audit_log approve)
+            (0,),              # 18. rejected_count (review_audit_log reject) — ponytail: audit_pass_rate 口径修复后 +1 查询
+            [],                # 19. low_trust records (audit_queue — now a list)
+            (5,),              # 20. evaluation_count (Phase 13 baseline_available;>0 → 基线可用)
         ]
     )
 
-    dashboard = await _build_quality_dashboard(session)
+    # avg_skill_trust reads Neo4j (unavailable in unit tests) — pin it so the
+    # trust value flows through deterministically without a real connection.
+    with patch("app.services.quality_service.avg_skill_trust", new_callable=AsyncMock) as mock_trust:
+        mock_trust.return_value = 0.87
+        dashboard = await _build_quality_dashboard(session)
 
     assert dashboard.report.precision == 0.9
     assert dashboard.report.recall == 0.8
@@ -113,11 +119,16 @@ def test_quality_dashboard_endpoint_contract(client):
     app.dependency_overrides[get_current_user] = _override_current_user
 
     async def override_session():
-        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0.0,), (0,), (0,), (0,), (0,), (0,), (0,), [], [], (0,), (0,), (0,), [], (0,)])
+        # D2 fix: 少了 avg_confidence / avg_source 两次 execute（trust 来自 metrics 模块），
+        # 且 total_extractions=0 时 high_trust_count 查询被跳过；weekly_new_nodes 仍为 2 次 execute
+        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0,), (0,), (0,), (0,), (0,), (0,), [], [], (0,), (0,), (0,), (0,), [], (0,)])
 
     app.dependency_overrides[get_db_session] = override_session
     try:
-        resp = client.get("/api/v1/quality/dashboard")
+        # avg_skill_trust reads Neo4j (unavailable in unit tests) — pin to 0.0
+        with patch("app.services.quality_service.avg_skill_trust", new_callable=AsyncMock) as mock_trust:
+            mock_trust.return_value = 0.0
+            resp = client.get("/api/v1/quality/dashboard")
     finally:
         app.dependency_overrides.pop(get_db_session, None)
         app.dependency_overrides.pop(get_current_user, None)

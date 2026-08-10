@@ -38,10 +38,18 @@
         },
         "trust_score": {
           "default": 0.0,
-          "description": "Average trust score",
+          "description": "Average Skill.trust_score from Neo4j (BUG-4 fix)",
           "maximum": 1,
           "minimum": 0,
           "title": "Trust Score",
+          "type": "number"
+        },
+        "data_source_quality": {
+          "default": 0.0,
+          "description": "Weighted data-source quality score (was incorrectly surfaced as `trust_score` pre-BUG-4 fix)",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Data Source Quality",
           "type": "number"
         },
         "hallucination_rate": {

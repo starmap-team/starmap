@@ -18,7 +18,11 @@ class OverviewResponse(BaseModel):
     total_positions: int = Field(0, description="Position count")
     total_skills: int = Field(0, description="Skill count")
     total_domains: int = Field(0, description="Distinct industry domains")
-    trust_score: float = Field(0.0, ge=0, le=1, description="Average trust score")
+    trust_score: float = Field(0.0, ge=0, le=1, description="Average Skill.trust_score from Neo4j (BUG-4 fix)")
+    data_source_quality: float = Field(
+        0.0, ge=0, le=1,
+        description="Weighted data-source quality score (was incorrectly surfaced as `trust_score` pre-BUG-4 fix)",
+    )
     hallucination_rate: float = Field(0.0, ge=0, le=1, description="Hallucination rate")
     total_extractions: int = Field(0, description="Total extraction records")
     data_volume: int = Field(0, description="Total pipeline data volume")

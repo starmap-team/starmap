@@ -24,13 +24,8 @@ type DashboardStore = ReturnType<typeof useDashboardStore>
 // 1. Dashboard Display — pipeline stages, status colors, time formatting
 // =============================================================================
 
-const DEFAULT_PIPELINE_STAGES: ReadonlyArray<PipelineTimelineItem> = [
-  { stage: '采集', status: 'waiting', started_at: '', completed_at: null, records_processed: 0, progress: 0 },
-  { stage: '去重', status: 'waiting', started_at: '', completed_at: null, records_processed: 0, progress: 0 },
-  { stage: '清洗', status: 'waiting', started_at: '', completed_at: null, records_processed: 0, progress: 0 },
-  { stage: '入库', status: 'waiting', started_at: '', completed_at: null, records_processed: 0, progress: 0 },
-  { stage: '图谱', status: 'waiting', started_at: '', completed_at: null, records_processed: 0, progress: 0 },
-]
+// ponytail: 原 DEFAULT_PIPELINE_STAGES 硬编码 5 个 waiting 阶段，接口空时大屏展示假阶段；
+// 删除兜底，无数据时由模板渲染空态
 
 export function stageIcon(status: string): string {
   switch (status) {
@@ -44,10 +39,9 @@ export function stageIcon(status: string): string {
 function _useDashboardDisplay(store: DashboardStore) {
   const colors = chartColors()
 
-  const pipelineStages: ComputedRef<PipelineTimelineItem[]> = computed(() => {
-    if (store.pipelineTimeline.length) return store.pipelineTimeline as PipelineTimelineItem[]
-    return [...DEFAULT_PIPELINE_STAGES]
-  })
+  const pipelineStages: ComputedRef<PipelineTimelineItem[]> = computed(() =>
+    store.pipelineTimeline as PipelineTimelineItem[],
+  )
 
   const statusColor = computed<Record<string, string>>(() => ({
     running: colors.info,

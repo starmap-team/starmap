@@ -233,36 +233,45 @@ const {
             <span class="panel-badge">PIPELINE</span>
           </div>
           <div class="pipeline-mini">
-            <div
-              v-for="(stage, idx) in pipelineStages"
-              :key="stage.stage"
-              class="pipeline-stage"
-            >
+            <template v-if="pipelineStages.length">
               <div
-                class="stage-node"
-                :style="{ borderColor: statusColor[stage.status] }"
+                v-for="(stage, idx) in pipelineStages"
+                :key="stage.stage"
+                class="pipeline-stage"
               >
                 <div
-                  class="stage-fill"
-                  :style="{
-                    background: statusColor[stage.status],
-                    height: stage.progress + '%',
-                  }"
-                />
-                <span
-                  class="stage-icon"
-                  :class="`stage-icon-${stage.status}`"
-                >{{ stageIcon(stage.status) }}</span>
-                <span class="stage-label">{{ stage.stage }}</span>
+                  class="stage-node"
+                  :style="{ borderColor: statusColor[stage.status] }"
+                >
+                  <div
+                    class="stage-fill"
+                    :style="{
+                      background: statusColor[stage.status],
+                      height: stage.progress + '%',
+                    }"
+                  />
+                  <span
+                    class="stage-icon"
+                    :class="`stage-icon-${stage.status}`"
+                  >{{ stageIcon(stage.status) }}</span>
+                  <span class="stage-label">{{ stage.stage }}</span>
+                </div>
+                <div
+                  v-if="idx < pipelineStages.length - 1"
+                  class="stage-connector"
+                  :class="`stage-connector-${pipelineStages[idx].status}`"
+                >
+                  <span class="connector-line" />
+                  <span class="connector-arrow">›</span>
+                </div>
               </div>
-              <div
-                v-if="idx < pipelineStages.length - 1"
-                class="stage-connector"
-                :class="`stage-connector-${pipelineStages[idx].status}`"
-              >
-                <span class="connector-line" />
-                <span class="connector-arrow">›</span>
-              </div>
+            </template>
+            <!-- ponytail: 无流水线数据时显示空态而非假阶段 -->
+            <div
+              v-else
+              class="pipeline-empty"
+            >
+              暂无流水线运行数据
             </div>
           </div>
           <div class="pipeline-stats">

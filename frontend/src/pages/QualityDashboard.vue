@@ -41,6 +41,17 @@ const {
   handleResolveAlert,
   handleIgnoreAlert,
 } = useQualityActions(quality)
+
+// ponytail: 原模板内联 `quality.fetchQuality(); lastRefresh=...` 未 await，
+// 请求失败也显示"已刷新"；改为 await 后成功才置位，失败提示
+async function handleRefresh() {
+  try {
+    await quality.fetchQuality()
+    lastRefresh.value = new Date().toLocaleTimeString()
+  } catch (err: unknown) {
+    ElMessage.error('刷新失败：' + (err instanceof Error ? err.message : '未知错误'))
+  }
+}
 </script>
 
 <template>
@@ -67,7 +78,7 @@ const {
           <el-button
             size="small"
             :icon="RefreshRight"
-            @click="quality.fetchQuality(); lastRefresh = new Date().toLocaleTimeString()"
+            @click="handleRefresh"
           >
             刷新
           </el-button>

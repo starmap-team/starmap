@@ -2,16 +2,16 @@
 from __future__ import annotations
 
 from typing import Annotated
-from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session
 from app.exceptions import QualityError, StarMapError
 from app.models.extraction_models import ExtractionEvaluationRecord, JDExtractionRecord
+from app.models.review_audit_log import ReviewAuditLog
 from app.schemas.quality import (
     ComprehensiveReport,
     QualityDashboard,
@@ -115,26 +115,12 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     skill_count = (await session.execute(sa.select(sa.func.count()).select_from(SkillRecord))).scalar() or 0
     edge_count = (await session.execute(sa.select(sa.func.count()).select_from(PositionSkillRelation))).scalar() or 0
 
-    # Compute average trust score from extraction confidence
-    if total_extractions > 0:
-        avg_confidence = (
-            await session.execute(
-                sa.select(
-                    sa.func.coalesce(sa.func.avg(JDExtractionRecord.confidence), 0.0)
-                ).where(JDExtractionRecord.confidence > 0)
-            )
-        ).scalar() or 0.0
-    else:
-        avg_confidence = 0.0
-
-    # Also use skill source_count as trust proxy
-    avg_source = (
-        await session.execute(
-            sa.select(sa.func.coalesce(sa.func.avg(SkillRecord.source_count), 0.0))
-        )
-    ).scalar() or 0.0
-    source_trust = min(1.0, float(avg_source) / 10.0) if float(avg_source) > 0 else 0.0
-    avg_trust = max(float(avg_confidence), source_trust)
+    # D2 fix: avg_trust_score now comes from Neo4j Skill.trust_score via the
+    # shared metrics module (routed through services layer). The previous
+    # `max(extraction-conf, source-count/10)` blend was a different metric from
+    # the admin overview's Neo4j avg, so the two pages disagreed.
+    from app.services.quality_service import avg_skill_trust  # noqa: PLC0415
+    avg_trust = await avg_skill_trust()
 
     # Compute high trust ratio
     high_trust_count = 0
@@ -187,31 +173,32 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         for cat, cnt in source_rows
     ]
 
-    # H9: weekly_new_nodes — count skills/positions created in the last 7 days
-    from datetime import UTC, datetime, timedelta
-    week_ago = datetime.now(UTC) - timedelta(days=7)
-    weekly_new_skills = (
-        await session.execute(
-            sa.select(sa.func.count()).select_from(SkillRecord)
-            .where(SkillRecord.first_detected_at >= week_ago)
-        )
-    ).scalar() or 0
-    weekly_new_positions = (
-        await session.execute(
-            sa.select(sa.func.count()).select_from(PositionRecord)
-            .where(PositionRecord.created_at >= week_ago)
-        )
-    ).scalar() or 0
-    weekly_new_nodes = int(weekly_new_skills) + int(weekly_new_positions)
+    # D1 fix: weekly_new_nodes now routes through the shared metrics module
+    # (via services layer) so the Quality Dashboard and the Admin Overview use
+    # the same SQL/date window. Previously this was trailing-7d while the admin
+    # used week-start, which produced identical values mid-week but diverged at
+    # week boundaries.
+    from app.services.quality_service import weekly_new_nodes  # noqa: PLC0415
+    weekly = await weekly_new_nodes(session)
+    weekly_new_nodes = weekly.total
 
-    # H9: audit_pass_rate — ratio of approved vs total reviewed extractions
+    # H9: audit_pass_rate — ratio of approved vs rejected REVIEW transitions.
+    # ponytail: 原实现把 JDExtractionRecord.status='completed'（抽取完成）当"审核通过"，
+    # pending=0 时恒 100%（假正常）；审核权威数据在 review_audit_log（action: approve/reject）。
+    # 改为从审核日志计算；无审核记录返回 0.0（未评估，诚实）。
     approved_count = (
         await session.execute(
-            sa.select(sa.func.count()).select_from(JDExtractionRecord)
-            .where(JDExtractionRecord.status == "completed")
+            sa.select(sa.func.count()).select_from(ReviewAuditLog)
+            .where(ReviewAuditLog.action == "approve")
         )
     ).scalar() or 0
-    total_reviewed = approved_count + pending_review
+    rejected_count = (
+        await session.execute(
+            sa.select(sa.func.count()).select_from(ReviewAuditLog)
+            .where(ReviewAuditLog.action == "reject")
+        )
+    ).scalar() or 0
+    total_reviewed = approved_count + rejected_count
     audit_pass_rate = (int(approved_count) / total_reviewed) if total_reviewed > 0 else 0.0
 
     # H11: audit_queue — low-trust records needing review (as list for frontend table)
@@ -320,10 +307,8 @@ async def evaluate_quality(
 @router.get("/report", response_model=QualityReport)
 async def get_quality_report(
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    batch_id: Annotated[UUID | None, Query(description="指定批次（留空返回最新报告）")] = None,
 ) -> QualityReport:
     """质量报告：总节点数、平均信任度、幻觉率、待审核数。"""
-    _ = batch_id
     dashboard = await _build_quality_dashboard(session)
     return dashboard.report
 
