@@ -6,8 +6,8 @@ Run this once after positions are imported to enable Chinese-name rendering.
 import asyncio
 import os
 
-from neo4j import AsyncGraphDatabase
 from loguru import logger
+from neo4j import AsyncGraphDatabase
 
 # English → Chinese position name mapping
 POSITION_NAME_CN: dict[str, str] = {
@@ -88,7 +88,7 @@ POSITION_NAME_CN: dict[str, str] = {
 async def main():
     uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     user = os.getenv("NEO4J_USER", "neo4j")
-    pw = os.getenv("NEO4J_PASSWORD", "starmap123456")
+    pw = os.getenv("NEO4J_PASSWORD", "")
 
     logger.info(f"Connecting to {uri}...")
     driver = AsyncGraphDatabase.driver(uri, auth=(user, pw))

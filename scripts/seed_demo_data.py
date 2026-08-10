@@ -27,7 +27,7 @@ from pathlib import Path
 # Ensure `scripts/` is importable when invoked from project root.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from app.config import settings  # noqa: E402  (after sys.path mutation)
+from app.config import settings
 
 
 def _ensure_not_production() -> None:

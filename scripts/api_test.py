@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Comprehensive API integration tests for all Starmap business scenarios."""
-import json, sys, os, time
-from urllib.request import Request, urlopen
+import json
+import os
 from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 BASE = "http://localhost:8000/api/v1"
 LOGIN_URL = f"{BASE}/auth/login"

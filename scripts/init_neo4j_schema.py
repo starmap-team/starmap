@@ -1,9 +1,8 @@
 import asyncio
 import os
-import sys
 
-from neo4j import AsyncGraphDatabase
 from loguru import logger
+from neo4j import AsyncGraphDatabase
 
 
 async def create_constraints(driver):
@@ -206,7 +205,7 @@ async def load_seed_positions(driver):
 async def main():
     neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     neo4j_user = os.getenv("NEO4J_USER", "neo4j")
-    neo4j_password = os.getenv("NEO4J_PASSWORD", "starmap123456")
+    neo4j_password = os.getenv("NEO4J_PASSWORD", "")
 
     logger.info(f"Connecting to Neo4j: {neo4j_uri}")
     async with AsyncGraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password)) as driver:

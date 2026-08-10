@@ -1,5 +1,6 @@
 ﻿"""Add additional skills to reach ≥500 target."""
 import asyncio
+
 from neo4j import AsyncGraphDatabase
 
 # Additional skills from ESCO taxonomy and common IT skills

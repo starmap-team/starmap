@@ -14,8 +14,8 @@ review_status='approved' 回填，确保双存储数据一致性。
 """
 from __future__ import annotations
 
-import asyncio
 import argparse
+import asyncio
 import os
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 # ── 数据库连接配置 ──
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "starmap123456")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 PG_URI = os.getenv("POSTGRES_URI", "postgresql+asyncpg://starmap:starmap123456@localhost:5433/starmap")
 
 
@@ -275,7 +275,7 @@ async def main():
                     text("SELECT count(*) FROM position_records WHERE review_status = 'approved'")
                 )
             ).scalar()
-            print(f"\n=== PG 最终状态 ===")
+            print("\n=== PG 最终状态 ===")
             print(f"  position_records 总数: {total_pg}")
             print(f"  其中 approved: {approved}")
 

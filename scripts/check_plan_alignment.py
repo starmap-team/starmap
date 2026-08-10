@@ -14,7 +14,6 @@ ponytail: 原型只做机械事实比对；语义级偏差（公式族/策略）
 
 from __future__ import annotations
 
-import json
 import re
 import sys
 from pathlib import Path

@@ -1,13 +1,10 @@
 import asyncio
 import json
 import os
-import sys
-
 from pathlib import Path
 
-from neo4j import AsyncGraphDatabase
 from loguru import logger
-
+from neo4j import AsyncGraphDatabase
 
 ESCO_SKILL_SEEDS = [
     {"name": "Python", "category": "编程语言", "description": "通用编程语言，广泛用于AI、后端、数据科学", "aliases": ["python3", "cpython"]},
@@ -179,7 +176,7 @@ def export_to_json(path):
 async def main():
     neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     neo4j_user = os.getenv("NEO4J_USER", "neo4j")
-    neo4j_password = os.getenv("NEO4J_PASSWORD", "starmap123456")
+    neo4j_password = os.getenv("NEO4J_PASSWORD", "")
     export_path = os.getenv("SKILL_EXPORT_PATH", "data/skill_seeds.json")
 
     export_to_json(export_path)

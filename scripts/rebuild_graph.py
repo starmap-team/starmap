@@ -23,12 +23,10 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT / "backend"))
 
-from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db import get_session_factory
 from app.models.extraction_models import PositionRecord
 from app.services.resources import init_resources
+from sqlalchemy import select
 
 BATCH_SIZE = 50
 
@@ -108,7 +106,7 @@ async def main() -> None:
         print(f"  → 进度: {progress}/{total} ({updated} 已更新, {not_found} 未找到)")
 
     # 4. 验证
-    print(f"\n[3/3] 验证回填结果...")
+    print("\n[3/3] 验证回填结果...")
     verify_cypher = """
     MATCH (p:Position)
     RETURN

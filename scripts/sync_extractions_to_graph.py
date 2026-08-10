@@ -1,10 +1,14 @@
-﻿import asyncio, json, os, sys
+﻿import asyncio
+import json
+import os
+import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from loguru import logger
+from neo4j import AsyncGraphDatabase
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from neo4j import AsyncGraphDatabase
-from loguru import logger
 
 
 async def main():
@@ -12,7 +16,7 @@ async def main():
     pg_uri = os.getenv("POSTGRES_URI", "postgresql+asyncpg://starmap:starmap123456@localhost:5433/starmap")
     neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     neo4j_user = os.getenv("NEO4J_USER", "neo4j")
-    neo4j_password = os.getenv("NEO4J_PASSWORD", "starmap123456")
+    neo4j_password = os.getenv("NEO4J_PASSWORD", "")
 
     pg = create_async_engine(pg_uri, pool_pre_ping=True)
     sf = async_sessionmaker(pg, expire_on_commit=False)

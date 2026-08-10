@@ -190,11 +190,14 @@ SAMPLE_JDS: list[dict] = [
 
 
 async def _run(apply: bool) -> dict:
-    from sqlalchemy import select
-
-    from app.dependencies import get_session_factory, get_neo4j_driver
-    from app.models.extraction_models import JDExtractionRecord, PositionRecord, SkillRecord
+    from app.dependencies import get_neo4j_driver, get_session_factory
+    from app.models.extraction_models import (
+        JDExtractionRecord,
+        PositionRecord,
+        SkillRecord,
+    )
     from app.services.graph_projector import GraphProjector
+    from sqlalchemy import select
 
     sf = get_session_factory()
     try:
@@ -372,7 +375,9 @@ async def _run(apply: bool) -> dict:
         # 4. Backfill EvolutionSnapshot rows spanning the last 14 days
         if apply:
             try:
-                from app.models.evolution_models import EvolutionSnapshot  # type: ignore
+                from app.models.evolution_models import (
+                    EvolutionSnapshot,  # type: ignore
+                )
 
                 base = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
                 for offset in range(14):
@@ -414,7 +419,7 @@ def main() -> int:
 
     try:
         report = asyncio.run(_run(apply=args.apply))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("seed_demo_pipeline failed: %s", exc, exc_info=True)
         return 2
 

@@ -41,11 +41,10 @@ logger = logging.getLogger("reconcile_graph")
 
 async def _run(dry_run: bool, backfill: bool) -> dict:
     """Main reconciliation routine. Returns a structured report dict."""
-    from sqlalchemy import select
-    from app.config import settings
-    from app.dependencies import get_session_factory, get_neo4j_driver
+    from app.dependencies import get_neo4j_driver, get_session_factory
     from app.models.extraction_models import PositionRecord, SkillRecord
     from app.services.graph_projector import GraphProjector
+    from sqlalchemy import select
 
     sf = get_session_factory()
     driver = None
@@ -290,7 +289,7 @@ def main() -> int:
 
     try:
         report = asyncio.run(_run(args.dry_run, args.backfill))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("reconcile failed: %s", exc, exc_info=True)
         return 2
 

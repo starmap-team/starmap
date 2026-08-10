@@ -158,7 +158,7 @@ def check_pytest_count(report: Report, run_real: bool) -> None:
     # 实际跑 pytest --collect-only
     backend = ROOT / "backend"
     if not (backend / "pyproject.toml").exists():
-        report.add("ERROR", "pytest_passed", f"找不到 backend/pyproject.toml,跳过实际跑")
+        report.add("ERROR", "pytest_passed", "找不到 backend/pyproject.toml,跳过实际跑")
         return
     try:
         out = subprocess.run(

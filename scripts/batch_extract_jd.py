@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
 from app.tasks.stage3_services import run_batch_extract_jd
 
-
 # Sample JD data for batch extraction
 SAMPLE_JDS = [
     {

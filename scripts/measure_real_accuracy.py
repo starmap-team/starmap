@@ -1,5 +1,9 @@
 ﻿"""Real LLM Accuracy Measurement - runs extraction via live API and measures F1."""
-import json, requests, time, sys
+import json
+import sys
+import time
+
+import requests
 
 BASE_URL = "http://localhost:8000"
 GOLDEN_FILE = "backend/tests/fixtures/golden_jd_evaluation_sample.jsonl"
@@ -124,13 +128,13 @@ def measure():
     avg_f1 = total_f1 / n if n else 0
     
     print(f"\n{'='*60}")
-    print(f"JD EXTRACTION ACCURACY (Real LLM - MiMo v2.5)")
+    print("JD EXTRACTION ACCURACY (Real LLM - MiMo v2.5)")
     print(f"{'='*60}")
     print(f"Samples: {n}")
     print(f"Avg Precision: {avg_p:.4f}")
     print(f"Avg Recall:    {avg_r:.4f}")
     print(f"Avg F1:        {avg_f1:.4f}")
-    print(f"Target:        >=0.85")
+    print("Target:        >=0.85")
     print(f"Status:        {'PASS' if avg_f1 >= 0.85 else 'BELOW TARGET'}")
     
     output = {
@@ -145,7 +149,7 @@ def measure():
     }
     with open("tests/e2e/real_llm_accuracy_results.json", "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
-    print(f"\nResults saved to tests/e2e/real_llm_accuracy_results.json")
+    print("\nResults saved to tests/e2e/real_llm_accuracy_results.json")
 
 if __name__ == "__main__":
     measure()

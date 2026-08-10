@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import sys
 import time
 from pathlib import Path
 
@@ -132,13 +131,13 @@ async def measure_accuracy(base_url: str) -> dict:
     accuracy = passed / total if total else 0.0
 
     print(f"\n{'=' * 60}")
-    print(f"📊 Pipeline Accuracy Report")
+    print("📊 Pipeline Accuracy Report")
     print(f"{'=' * 60}")
     print(f"  Total cases: {total}")
     print(f"  Passed: {passed}")
     print(f"  Failed: {total - passed}")
     print(f"  Accuracy: {accuracy:.1%}")
-    print(f"  Threshold: 60%")
+    print("  Threshold: 60%")
     print(f"  Result: {'✅ PASS' if accuracy >= 0.6 else '❌ FAIL'}")
 
     return {

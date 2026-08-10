@@ -1,4 +1,8 @@
-﻿import asyncio, httpx, json
+﻿import asyncio
+import json
+
+import httpx
+
 
 async def main():
     async with httpx.AsyncClient(base_url="http://localhost:8000", timeout=15) as c:
@@ -119,7 +123,7 @@ async def main():
 
     passed = sum(1 for _, ok, _ in checks if ok)
     total = len(checks)
-    print(f"\n=== StarMap E2E Verification ===")
+    print("\n=== StarMap E2E Verification ===")
     for name, ok, detail in checks:
         mark = "PASS" if ok else "FAIL"
         print(f"  [{mark}] {name}: {detail}")

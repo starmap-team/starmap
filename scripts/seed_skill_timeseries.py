@@ -17,12 +17,11 @@ from __future__ import annotations
 
 import asyncio
 import os
-import random
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 DEFAULT_PG_URI = "postgresql+asyncpg://starmap:starmap123456@postgres:5432/starmap"
 

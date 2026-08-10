@@ -16,8 +16,8 @@
 """
 from __future__ import annotations
 
-import asyncio
 import argparse
+import asyncio
 import os
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "starmap123456")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 PG_URI = os.getenv("POSTGRES_URI", "postgresql+asyncpg://starmap:starmap123456@localhost:5433/starmap")
 
 
@@ -177,7 +177,7 @@ async def main():
 
         if args.fix:
             fixes = await fix_consistency(neo4j, pg, report)
-            print(f"\n  🔧 修复完成：")
+            print("\n  🔧 修复完成：")
             print(f"     回填 Neo4j → PG: {fixes['neo4j_to_pg']} 条")
             print(f"     回填 PG → Neo4j: {fixes['pg_to_neo4j']} 条")
 
@@ -186,7 +186,7 @@ async def main():
             if len(report2["only_in_neo4j"]) == 0 and len(report2["only_in_pg"]) == 0:
                 print("  ✅ 修复后数据完全一致！")
             else:
-                print(f"  ⚠️ 修复后仍有不一致，请检查")
+                print("  ⚠️ 修复后仍有不一致，请检查")
         else:
             print("\n  使用 --fix 参数自动修复")
 

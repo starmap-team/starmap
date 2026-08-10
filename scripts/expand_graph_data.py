@@ -6,8 +6,8 @@ Targets (design doc §1.4.1):
 - ≥100 JD test cases
 """
 import asyncio
-import json
 import hashlib
+import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,9 +15,9 @@ from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from neo4j import AsyncGraphDatabase
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from neo4j import AsyncGraphDatabase
 
 # 35 IT positions with realistic skill requirements
 POSITIONS = [

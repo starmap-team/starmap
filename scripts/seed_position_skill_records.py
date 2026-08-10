@@ -1,10 +1,10 @@
 ﻿"""Seed position_records and skill_records tables + more JDs."""
 # ARCHIVE: 非生产用，仅开发演示。v2.1 真实数据切换后不再推荐运行。
 import asyncio
-import json
 import hashlib
 from datetime import UTC, datetime
 from uuid import uuid4
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 

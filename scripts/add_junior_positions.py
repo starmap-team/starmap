@@ -6,8 +6,8 @@ existing skills. Run after fix_graph_data.py if the level view lacks 初级.
 import asyncio
 import os
 
-from neo4j import AsyncGraphDatabase
 from loguru import logger
+from neo4j import AsyncGraphDatabase
 
 # Junior positions to ensure - mapped to common entry-level skills
 JUNIOR_POSITIONS = [
@@ -53,7 +53,7 @@ JUNIOR_POSITIONS = [
 async def main():
     uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     user = os.getenv("NEO4J_USER", "neo4j")
-    pw = os.getenv("NEO4J_PASSWORD", "starmap123456")
+    pw = os.getenv("NEO4J_PASSWORD", "")
 
     logger.info(f"Connecting to {uri}...")
     driver = AsyncGraphDatabase.driver(uri, auth=(user, pw))

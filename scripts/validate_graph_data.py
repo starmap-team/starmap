@@ -127,36 +127,36 @@ async def main() -> None:
     print("📊 图谱数据完整性报告")
     print("=" * 60)
 
-    print(f"\n📌 节点数量:")
+    print("\n📌 节点数量:")
     for key in ["count_Position", "count_Skill", "count_KnowledgeArea", "count_Tool",
                  "count_Certificate", "count_LearningResource", "count_Industry"]:
         label = key.replace("count_", "")
         print(f"  {label}: {report.get(key, 0)}")
 
-    print(f"\n📌 关系数量:")
+    print("\n📌 关系数量:")
     for key in ["count_REQUIRES", "count_PREREQUISITE", "count_EVOLVES_TO", "count_USES",
                  "count_BELONGS_TO", "count_RECOMMENDED_FOR", "count_CERTIFIES"]:
         label = key.replace("count_", "")
         print(f"  {label}: {report.get(key, 0)}")
 
-    print(f"\n📌 岗位覆盖率:")
+    print("\n📌 岗位覆盖率:")
     print(f"  总岗位数: {report.get('position_total', 0)}")
     print(f"  ≥3技能: {report.get('positions_with_3plus_skills', 0)} ({report.get('position_coverage_ratio_3', 0):.1%})")
     print(f"  ≥5技能: {report.get('positions_with_5plus_skills', 0)} ({report.get('position_coverage_ratio_5', 0):.1%})")
 
-    print(f"\n📌 技能可信度:")
+    print("\n📌 技能可信度:")
     print(f"  总技能数: {report.get('skill_total', 0)}")
     print(f"  ≥3来源: {report.get('skills_with_3plus_sources', 0)} ({report.get('skill_trust_ratio', 0):.1%})")
 
-    print(f"\n📌 PREREQUISITE 覆盖率:")
+    print("\n📌 PREREQUISITE 覆盖率:")
     print(f"  有前置知识的技能: {report.get('skills_with_prerequisites', 0)} ({report.get('prerequisite_coverage_ratio', 0):.1%})")
 
-    print(f"\n📌 学习资源:")
+    print("\n📌 学习资源:")
     print(f"  LearningResource 节点: {report.get('learning_resources_total', 0)}")
     print(f"  覆盖技能数: {report.get('learning_resources_covered_skills', 0)}")
 
     if report.get("positions_without_skills"):
-        print(f"\n⚠️ 无技能数据的岗位（前20个）:")
+        print("\n⚠️ 无技能数据的岗位（前20个）:")
         for name in report["positions_without_skills"]:
             print(f"  - {name}")
 

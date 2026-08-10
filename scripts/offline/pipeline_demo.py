@@ -55,7 +55,6 @@ import asyncio
 import hashlib
 import json
 import logging
-import random
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -459,7 +458,7 @@ async def run(rounds: int = 24, dry_run: bool = False) -> dict[str, Any]:
         offset = i  # 1-day steps give a 30-day timeseries
         try:
             res = await _persist_extraction(sf, driver, fixture, offset, dry_run)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("Failed to persist %s: %s", fixture.position_name, exc)
             res = {"position": fixture.position_name, "error": str(exc)}
         results.append(res)

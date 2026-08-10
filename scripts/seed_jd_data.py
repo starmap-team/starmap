@@ -11,7 +11,7 @@ from uuid import uuid4
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 SAMPLE_JDS = [
     {

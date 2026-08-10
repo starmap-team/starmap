@@ -1,5 +1,7 @@
 ﻿"""Expand golden_set.jsonl from 50 to 100+ entries."""
-import json, os, random
+import json
+import os
+import random
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 EVAL_DIR = os.path.join(BASE_DIR, "evaluation")

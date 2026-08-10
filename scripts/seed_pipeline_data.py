@@ -8,9 +8,7 @@ Inserts:
 import asyncio
 import json
 import os
-import sys
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 import asyncpg
 

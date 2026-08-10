@@ -12,7 +12,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import sys
 import time
 from pathlib import Path
 
@@ -72,7 +71,7 @@ async def measure_latency(base_url: str, runs: int = 3) -> dict:
     hot_avg = sum(hot_times) / len(hot_times) if hot_times else float("inf")
 
     print(f"\n{'=' * 60}")
-    print(f"📊 Performance Report")
+    print("📊 Performance Report")
     print(f"{'=' * 60}")
     print(f"  Cold cache:  avg={cold_avg:.2f}s  threshold=60s  {'✅ PASS' if cold_avg <= 60 else '❌ FAIL'}")
     print(f"  Hot cache:   avg={hot_avg:.2f}s  threshold=10s  {'✅ PASS' if hot_avg <= 10 else '❌ FAIL'}")
