@@ -127,7 +127,8 @@ describe('useDataSourceStore — health & sync', () => {
     const store = useDataSourceStore()
     const result = await store.triggerSync('b867ccb1-9d15-4e4a-a854-aa3e27dc252c')
 
-    expect(result).toBe(true)
+    // 新契约: 返回后端 SyncTriggerResponse 对象（run_id/status），供 Admin 页展示真实任务信息
+    expect(result).toEqual({ run_id: 'abc', status: 'running' })
     // M1: id 必须为 UUID 形态，否则对真实解析路径产生虚假信心
     expect(request.post).toHaveBeenCalledWith('/datasources/b867ccb1-9d15-4e4a-a854-aa3e27dc252c/sync')
   })
