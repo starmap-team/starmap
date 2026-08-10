@@ -552,7 +552,7 @@ class TestGetQualityAlerts:
         session = FakeAsyncSession()
         db_override(session)
         # Lazy import inside endpoint -> patch the source module
-        with patch("app.core.pipeline.quality_monitor.generate_alerts", new_callable=AsyncMock, return_value=[]):
+        with patch("app.services.quality_service.generate_alerts", new_callable=AsyncMock, return_value=[]):
             resp = client.get("/api/v1/quality/alerts")
         assert resp.status_code == 200
         body = resp.json()
@@ -568,7 +568,7 @@ class TestGetQualityAlerts:
             QualityAlert(level="warning", dimension="freshness", message="Source Y stale", source="Y", value=72.0, threshold=48.0),
             QualityAlert(level="info", dimension="volume_anomaly", message="Volume spike", value=500.0, threshold=2.0),
         ]
-        with patch("app.core.pipeline.quality_monitor.generate_alerts", new_callable=AsyncMock, return_value=alerts):
+        with patch("app.services.quality_service.generate_alerts", new_callable=AsyncMock, return_value=alerts):
             resp = client.get("/api/v1/quality/alerts")
         assert resp.status_code == 200
         body = resp.json()
@@ -586,7 +586,7 @@ class TestGetQualityAlerts:
             QualityAlert(level="critical", dimension="source_error", message="Error", source="X"),
             QualityAlert(level="warning", dimension="freshness", message="Stale", source="Y"),
         ]
-        with patch("app.core.pipeline.quality_monitor.generate_alerts", new_callable=AsyncMock, return_value=alerts):
+        with patch("app.services.quality_service.generate_alerts", new_callable=AsyncMock, return_value=alerts):
             resp = client.get("/api/v1/quality/alerts", params={"level": "critical"})
         assert resp.status_code == 200
         body = resp.json()
@@ -601,7 +601,7 @@ class TestGetQualityAlerts:
         alerts = [
             QualityAlert(level="warning", dimension="freshness", message="Stale", source="Y"),
         ]
-        with patch("app.core.pipeline.quality_monitor.generate_alerts", new_callable=AsyncMock, return_value=alerts):
+        with patch("app.services.quality_service.generate_alerts", new_callable=AsyncMock, return_value=alerts):
             resp = client.get("/api/v1/quality/alerts", params={"level": "critical"})
         assert resp.status_code == 200
         body = resp.json()
