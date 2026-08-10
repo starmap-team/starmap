@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -267,6 +267,35 @@ from app.exceptions import (  # noqa: E402
 # ── FastAPI 请求体验证异常 (422) → 统一 ErrorResponse + field-level errors ──
 # 必须在域异常之前注册，否则 FastAPI 默认 handler 会接管
 app.add_exception_handler(RequestValidationError, request_validation_exception_handler)  # type: ignore[arg-type]
+
+
+# ── 裸 raise HTTPException → 统一 ErrorResponse ──
+# 路由层存在大量 `raise HTTPException(...)`（此前落入 FastAPI 默认 handler，
+# 响应缺少 code/timestamp）。这里按 status 映射到 ErrorCode，一次性统一。
+_HTTP_STATUS_TO_ERROR_CODE: dict[int, ErrorCode] = {
+    status.HTTP_400_BAD_REQUEST: ErrorCode.VALIDATION_BODY_PARSE_ERROR,
+    status.HTTP_401_UNAUTHORIZED: ErrorCode.AUTH_INVALID_CREDENTIALS,
+    status.HTTP_403_FORBIDDEN: ErrorCode.AUTH_FORBIDDEN,
+    status.HTTP_404_NOT_FOUND: ErrorCode.RES_NOT_FOUND,
+    status.HTTP_405_METHOD_NOT_ALLOWED: ErrorCode.VALIDATION_ERROR,
+    status.HTTP_409_CONFLICT: ErrorCode.RES_CONFLICT,
+    status.HTTP_422_UNPROCESSABLE_ENTITY: ErrorCode.VALIDATION_ERROR,
+    status.HTTP_429_TOO_MANY_REQUESTS: ErrorCode.SYS_RATE_LIMITED,
+    status.HTTP_500_INTERNAL_SERVER_ERROR: ErrorCode.SYS_INTERNAL_ERROR,
+    status.HTTP_503_SERVICE_UNAVAILABLE: ErrorCode.SYS_SERVICE_UNAVAILABLE,
+}
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """裸 raise HTTPException → 统一 {detail, code, timestamp, fields?} 格式。"""
+    code = _HTTP_STATUS_TO_ERROR_CODE.get(exc.status_code, ErrorCode.SYS_INTERNAL_ERROR)
+    return build_error_response(str(exc.detail), code, status_code=exc.status_code)
+
+
+# Starlette 对 404/405 使用独立的状态处理器（优先于类处理器），需显式覆盖
+app.add_exception_handler(404, http_exception_handler)  # type: ignore[arg-type]
+app.add_exception_handler(405, http_exception_handler)  # type: ignore[arg-type]
 
 
 # ── 域异常 → 结构化 ErrorResponse ──
