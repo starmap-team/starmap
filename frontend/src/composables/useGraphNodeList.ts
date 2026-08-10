@@ -1,8 +1,8 @@
 /**
  * Admin.vue graph node list state + filters — extracted from Admin.vue (Phase 7 D)
- * Pure composable: search keyword, type filter, pagination over a list of nodes.
+ * Pure composable: search keyword, type filter, status filter, pagination.
  */
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 
 export interface GraphNodeItem {
   id: string
@@ -17,6 +17,7 @@ export interface GraphNodeListApi {
   nodes: ComputedRef<GraphNodeItem[]>
   searchKeyword: Ref<string>
   typeFilter: Ref<string>
+  statusFilter: Ref<string>          // E4 fix: was missing
   currentPage: Ref<number>
   pageSize: Ref<number>
   filtered: ComputedRef<GraphNodeItem[]>
@@ -28,6 +29,7 @@ export function useGraphNodeList(source: ComputedRef<GraphNodeItem[]>): GraphNod
   const nodes: ComputedRef<GraphNodeItem[]> = source
   const searchKeyword: Ref<string> = ref('')
   const typeFilter: Ref<string> = ref('')
+  const statusFilter: Ref<string> = ref('')  // E4 fix: status dropdown
   const currentPage: Ref<number> = ref(1)
   const pageSize: Ref<number> = ref(10)
 
@@ -40,6 +42,9 @@ export function useGraphNodeList(source: ComputedRef<GraphNodeItem[]>): GraphNod
     if (typeFilter.value) {
       list = list.filter(n => n.type === typeFilter.value)
     }
+    if (statusFilter.value) {
+      list = list.filter(n => n.status === statusFilter.value)
+    }
     return list
   })
 
@@ -48,9 +53,18 @@ export function useGraphNodeList(source: ComputedRef<GraphNodeItem[]>): GraphNod
     return filtered.value.slice(start, start + pageSize.value)
   })
 
+  // Reset to page 1 when any filter changes (otherwise user lands on an
+  // empty page after narrowing the filter set).
+  watch([searchKeyword, typeFilter, statusFilter], () => {
+    currentPage.value = 1
+  })
+
   function resetPage(): void {
     currentPage.value = 1
   }
 
-  return { nodes, searchKeyword, typeFilter, currentPage, pageSize, filtered, paged, resetPage }
+  return {
+    nodes, searchKeyword, typeFilter, statusFilter,
+    currentPage, pageSize, filtered, paged, resetPage,
+  }
 }

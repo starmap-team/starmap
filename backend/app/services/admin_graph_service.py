@@ -84,7 +84,11 @@ class GraphNodeService:
                 node_type_label = valid_labels[0]
                 nodes.append(
                     {
-                        "id": str(node.element_id),
+                        # BUG-8 fix: prefer canonical_id (UUID) over Neo4j internal
+                        # elementId (opaque hex like 4:xxx:yyy). Fall back to
+                        # elementId only if canonical_id is missing (e.g. legacy nodes).
+                        "id": str(props.get("canonical_id") or node.element_id),
+                        "element_id": str(node.element_id),
                         "type": node_type_label,
                         "name": props.get("name", ""),
                         "properties": props,
@@ -108,7 +112,16 @@ class GraphNodeService:
                 f"Invalid label: {node_type}. Allowed: {sorted(_ALLOWED_LABELS)}"
             )
 
+        # BUG-9 fix: respect caller-provided status if any; otherwise pending.
+        # Previously hard-coded "pending" — admins couldn't create pre-approved nodes.
+        import uuid as _uuid
+
         props = {**properties, "name": name}
+        if "review_status" not in props:
+            props["review_status"] = "pending"
+        # BUG-8 fix: stamp canonical_id for round-tripping to PG/UI
+        if "canonical_id" not in props:
+            props["canonical_id"] = str(_uuid.uuid4())
         async with self._driver.session() as session:
             query = (
                 f"CREATE (n:{node_type} {{name: $name}}) SET n += $props "
@@ -119,11 +132,12 @@ class GraphNodeService:
             eid = str(record["eid"]) if record else ""
             logger.info("Created graph node: {} ({})", name, node_type)
             return {
-                "id": eid,
+                "id": props["canonical_id"],
+                "element_id": eid,
                 "type": node_type,
                 "name": name,
                 "properties": props,
-                "status": "pending",
+                "status": props["review_status"],
             }
 
     # ------------------------------------------------------------------
@@ -143,6 +157,10 @@ class GraphNodeService:
             )
 
         props = {**properties, "name": name}
+        # BUG-10 fix: never let `properties` clobber review_status —
+        # that's a workflow state and must go through the proper approve/reject
+        # endpoint, not the generic edit form.
+        props.pop("review_status", None)
         async with self._driver.session() as session:
             query = (
                 "MATCH (n) WHERE elementId(n) = $eid "

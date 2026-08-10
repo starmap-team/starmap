@@ -7,6 +7,7 @@
  */
 import { onMounted, ref } from 'vue'
 import { CircleCheck, WarningFilled, CircleClose } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 
 interface TruthRow {
@@ -39,13 +40,24 @@ const loading = ref(false)
 const reconcileLoading = ref(false)
 const errorMsg = ref<string | null>(null)
 
-async function loadReport() {
+async function loadReport(silent = false) {
   loading.value = true
   errorMsg.value = null
   try {
     report.value = (await request.get('/admin/data-truth')) as TruthReport
+    // E7 fix: surface real-time data status. The numbers, the diffs, the
+    // "explanation" column, and the "生成时间" are all generated server-side
+    // per request (60s Redis cache). Make the freshness visible by
+    // stamping the load time and the cache status into the report header.
+    if (report.value) {
+      (report.value as any).__clientLoadedAt = new Date().toISOString()
+    }
+    if (!silent) {
+      ElMessage.success('诊断报告已刷新')
+    }
   } catch (e: unknown) {
     errorMsg.value = e instanceof Error ? e.message : '加载数据源诊断失败'
+    ElMessage.error(errorMsg.value)
   } finally {
     loading.value = false
   }
@@ -53,12 +65,35 @@ async function loadReport() {
 
 async function triggerReconcile() {
   reconcileLoading.value = true
+  const start = Date.now()
+  // E6 fix: provide immediate feedback so the admin knows the action was
+  // registered. A 30-60s reconcile that appears silent makes the user
+  // think the button is broken.
+  const progressMsg = ElMessage({
+    message: 'Reconcile 任务已提交，正在同步 PG ↔ Neo4j...',
+    type: 'info',
+    duration: 0,  // 永驻, 完成后手动关闭
+  })
   try {
-    await request.post('/admin/reconcile-neo4j')
+    const result = await request.post('/admin/reconcile-neo4j') as {
+      health?: string
+      positions_in_neo4j?: number
+      skills_in_neo4j?: number
+      positions_in_pg?: number
+      skills_in_pg?: number
+      orphans_pruned?: number
+      duration_ms?: number
+    }
     await loadReport()
+    const elapsed = ((Date.now() - start) / 1000).toFixed(1)
+    ElMessage.success(
+      `Reconcile 完成 (${elapsed}s) · Neo4j 节点=${result.positions_in_neo4j ?? '?'}/${result.skills_in_neo4j ?? '?'} · PG 节点=${result.positions_in_pg ?? '?'}/${result.skills_in_pg ?? '?'} · 孤儿清理=${result.orphans_pruned ?? 0} · 健康度=${result.health ?? '?'}`,
+    )
   } catch (e: unknown) {
     errorMsg.value = e instanceof Error ? e.message : 'Reconcile 失败'
+    ElMessage.error(`Reconcile 失败: ${errorMsg.value}`)
   } finally {
+    progressMsg.close()
     reconcileLoading.value = false
   }
 }
@@ -101,7 +136,12 @@ function statusIcon(status: string): unknown {
       <div class="truth-header">
         <h3>数据源诊断报告</h3>
         <div class="header-actions">
-          <span class="generated-at">生成时间: {{ report.generated_at }}</span>
+          <span class="generated-at">
+            服务端生成: {{ report.generated_at }}
+            <span v-if="(report as any).__clientLoadedAt" class="client-load-time">
+              · 客户端加载: {{ (report as any).__clientLoadedAt }}
+            </span>
+          </span>
           <el-button @click="loadReport">
             刷新
           </el-button>
@@ -172,14 +212,27 @@ function statusIcon(status: string): unknown {
           </div>
         </div>
         <div class="health-actions">
-          <el-button
-            size="small"
-            type="primary"
-            :loading="reconcileLoading"
-            @click="triggerReconcile"
+          <el-tooltip
+            placement="top"
+            :show-after="200"
           >
-            手动触发 reconcile
-          </el-button>
+            <template #content>
+              立即执行一次 PG ↔ Neo4j 双向对账：<br>
+              • 把 position_records / skill_records 投影到 Neo4j<br>
+              • 清理 Neo4j 中的孤儿节点<br>
+              • 重新计算三层口径 KPI 差异<br>
+              <br>
+              通常 30-60 秒。系统每天凌晨 3 点也会自动跑。
+            </template>
+            <el-button
+              size="small"
+              type="primary"
+              :loading="reconcileLoading"
+              @click="triggerReconcile"
+            >
+              手动触发 reconcile
+            </el-button>
+          </el-tooltip>
         </div>
       </div>
 
@@ -289,6 +342,12 @@ function statusIcon(status: string): unknown {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+}
+
+.client-load-time {
+  color: var(--muted-foreground);
+  font-style: italic;
+  margin-left: 4px;
 }
 
 .generated-at {

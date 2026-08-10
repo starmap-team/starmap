@@ -4,7 +4,7 @@
  * 支持创建/编辑 Skill / Position / Domain 节点
  * 提交后进入审核队列
  */
-import { reactive, watch, computed } from 'vue'
+import { reactive, ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps<{
@@ -19,10 +19,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:visible', val: boolean): void
+  (e: 'update:modelValue', val: boolean): void
   (e: 'submit', data: { id?: string; type: string; name: string; properties: Record<string, unknown> }): void
   (e: 'close'): void
 }>()
 
+// E5 final: use computed wrapper. el-dialog v-model:visible works
+// reliably across all viewports with align-center: true.
 const dialogVisible = computed({
   get: () => props.visible,
   set: (val: boolean) => emit('update:visible', val),
@@ -112,11 +115,25 @@ function handleClose() {
 </script>
 
 <template>
+  <!--
+    E5 retry: original el-dialog was clipped on small viewports when the
+    trigger button was near the bottom. Tried el-drawer but Element Plus
+    2.14's drawer rtl transform animation stalls on first open. Fall
+    back to el-dialog with align-center: true (which Element Plus
+    2.14 does support reliably) plus a wrapper that locks the dialog to
+    the viewport center. Additionally, when the dialog height exceeds
+    viewport - 8vh, it switches to overflow-y: auto so the body becomes
+    scrollable and the user can always reach the footer.
+  -->
   <el-dialog
     v-model="dialogVisible"
-    :title="isEditing ? '编辑图谱节点' : '新建图谱节点'"
+    :title="isEditing ? `编辑图谱节点 — ${form.name || ''}` : '新建图谱节点'"
     width="480px"
     :close-on-click-modal="false"
+    :align-center="false"
+    :top="'4vh'"
+    append-to-body
+    modal-class="node-editor-dialog"
     @close="handleClose"
   >
     <el-form
@@ -253,5 +270,63 @@ function handleClose() {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+</style>
+
+<!--
+  E5 final + E23 retry: align-center removed, top=4vh, max-height=80vh.
+  Rationale: with align-center the dialog is positioned at viewport center
+  via flexbox align-items. When the trigger button is at the bottom of
+  a long table, the user perceives the dialog as "appearing somewhere
+  off-screen" because the relative offset is huge. By using
+  align-center=false + top=4vh, the dialog now appears at a fixed
+  position (4vh from top) regardless of the button location. This trades
+  a little bit of visual centering for predictability.
+-->
+<style>
+/* Default: align-center=false + top:4vh + max-height:80vh (set on el-dialog
+   inline) keeps the dialog at a fixed offset, predictable regardless of
+   trigger button position. */
+.node-editor-dialog .el-dialog__body {
+  max-height: calc(80vh - 140px);
+  overflow-y: auto;
+}
+.node-editor-dialog .el-dialog {
+  max-height: 80vh;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* E23 fix: on viewports shorter than 700px (small laptops / browser
+   panels with bookmarks/taskbar), the dialog + footer cannot fit at
+   80vh. Make the dialog a fixed-position bottom sheet pinned to the
+   viewport bottom. Use `inset` shorthand to avoid the Element Plus
+   internal transform/translate3d conflict. Body fills the remaining
+   vertical space (flex: 1), and the footer is pinned at the bottom. */
+@media (max-height: 700px) {
+  .node-editor-dialog .el-dialog {
+    position: fixed !important;
+    inset: auto auto 0 0 !important;  /* top right bottom left — bottom:0 */
+    margin: 0 !important;
+    width: 100vw !important;
+    max-width: 480px;
+    height: auto !important;
+    max-height: calc(100vh - 8px);
+    border-radius: 12px 12px 0 0;
+  }
+  .node-editor-dialog .el-dialog__body {
+    max-height: calc(100vh - 140px);
+    flex: 1 1 auto;
+  }
+}
+.node-editor-dialog .el-dialog__footer {
+  /* footer 始终钉在 dialog 底部 */
+  flex-shrink: 0;
+  border-top: 1px solid var(--el-border-color-lighter);
+  padding: 12px 16px;
+  background: var(--el-bg-color);
 }
 </style>

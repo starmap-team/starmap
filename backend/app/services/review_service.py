@@ -374,7 +374,15 @@ async def get_history(
 
 
 async def count_by_status(session: AsyncSession) -> dict[str, int]:
-    """Aggregate counts for admin stats."""
+    """Aggregate counts for admin stats.
+
+    BUG-2 fix: also include `evolution_pending` — count of low-trust
+    EvolutionChangelog rows awaiting human review. Without this, the
+    admin overview KPI "待审演化 (§5.2)" was silently displaying the
+    `skill_pending_review` count (Phase 23 skills) instead of the real
+    evolution queue count, which made the §5.2 evolution workflow look
+    operational when in fact its queue was always 0.
+    """
     out: dict[str, int] = {"position": 0, "skill": 0}
     for et in ("position", "skill"):
         model = _model_for(et)  # type: ignore[arg-type]
@@ -384,4 +392,21 @@ async def count_by_status(session: AsyncSession) -> dict[str, int]:
         for status, count in result.all():
             out[f"{et}_{status}"] = int(count)
             out[et] += int(count)
+
+    # EvolutionChangelog low-trust pending review (§5.2)
+    # Use the same threshold the evolution endpoint uses (LOW_TRUST_THRESHOLD = 0.5).
+    from app.core.evolution.trust_scorer import LOW_TRUST_THRESHOLD  # noqa: PLC0415
+    from app.models.evolution_models import EvolutionChangelog  # noqa: PLC0415
+
+    ev_result = await session.execute(
+        sa.select(sa.func.count())
+        .select_from(EvolutionChangelog)
+        .where(
+            sa.and_(
+                EvolutionChangelog.status == "pending",
+                EvolutionChangelog.trust_score < LOW_TRUST_THRESHOLD,
+            )
+        )
+    )
+    out["evolution_pending"] = int(ev_result.scalar() or 0)
     return out

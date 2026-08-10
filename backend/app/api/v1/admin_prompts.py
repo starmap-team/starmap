@@ -49,6 +49,20 @@ _MAX_RESULTS_PER_PROMPT = 10000
 router = APIRouter(tags=["prompts"])
 
 
+def _build_serving_version(active: str | None, ab: Any) -> tuple[str | None, str]:
+    """BUG-14 fix: compute `serving_version` and `serving_source`.
+
+    When an A/B test is configured with a canary_version, real traffic
+    splits between active (control) and canary. Surface that distinction so
+    the UI can show "this version is being served right now" rather than
+    just "this is the active version".
+    """
+    ab_dict = ab.to_dict() if ab else None
+    if ab_dict and ab_dict.get("canary_version"):
+        return ab_dict["canary_version"], "canary"
+    return active, "active"
+
+
 @router.get("/prompts")
 async def list_prompts() -> dict[str, Any]:
     """List all prompt templates and versions."""
@@ -57,10 +71,13 @@ async def list_prompts() -> dict[str, Any]:
         versions = list_prompt_versions(name)
         active = get_active_version(name)
         ab = get_ab_test(name)
+        serving, source = _build_serving_version(active, ab)
         result[name] = {
             "versions": versions,
             "active": active,
             "ab_test": ab.to_dict() if ab else None,
+            "serving_version": serving,
+            "serving_source": source,
         }
     return result
 
@@ -76,11 +93,14 @@ async def get_prompt_info(name: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"Prompt '{name}' not found")
     active = get_active_version(name)
     ab = get_ab_test(name)
+    serving, source = _build_serving_version(active, ab)
     return {
         "name": name,
         "versions": versions,
         "active": active,
         "ab_test": ab.to_dict() if ab else None,
+        "serving_version": serving,
+        "serving_source": source,
     }
 
 
@@ -269,8 +289,15 @@ async def record_ab_result(name: str, req: ABResultRequest, redis: Any = Depends
 
 @router.get("/prompts/{name}/ab-results")
 async def get_ab_results(name: str, redis: Any = Depends(get_redis_client)) -> dict[str, Any]:
-    """Get aggregated A/B test results for a prompt."""
+    """Get aggregated A/B test results for a prompt.
+
+    BUG-13 fix: surface data-source warning when Redis is unavailable and
+    we fall back to in-memory dict. In-memory dict resets on backend
+    restart, which silently destroys A/B history. Frontend now sees
+    `data_source: "in_memory_stale"` and can warn the admin.
+    """
     results: list[dict[str, Any]] = []
+    data_source = "redis"
 
     if redis is not None:
         key = f"ab:results:{name}"
@@ -281,7 +308,8 @@ async def get_ab_results(name: str, redis: Any = Depends(get_redis_client)) -> d
             except json.JSONDecodeError:
                 continue
     else:
+        data_source = "in_memory_stale"
         results = _ab_results.get(name, [])
 
     aggregated = aggregate_ab_results(results)
-    return {"prompt": name, **aggregated}
+    return {"prompt": name, "data_source": data_source, **aggregated}

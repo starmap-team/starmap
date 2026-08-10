@@ -116,8 +116,10 @@ async def reconcile_neo4j_endpoint(
         from datetime import datetime as _dt
         await session.execute(
             text("""
-                INSERT INTO audit_events (id, event, actor, action, detail, ip, created_at)
-                VALUES (:id, :event, :actor, :action, :detail, '', :now)
+                INSERT INTO audit_events (id, event, actor, action, detail, ip, created_at,
+                                          entity_type, entity_id)
+                VALUES (:id, :event, :actor, :action, :detail, '', :now,
+                        :entity_type, :entity_id)
             """),
             {
                 "id": str(_uuid.uuid4()),
@@ -126,6 +128,10 @@ async def reconcile_neo4j_endpoint(
                 "action": "manual_reconcile",
                 "detail": f"health={health},upserted={result.nodes_upserted},orphans={result.orphans_pruned}",
                 "now": _dt.now(UTC),
+                # BUG-18 fix: tag reconcile events with their scope so
+                # admin audit log can filter by entity (graph).
+                "entity_type": "graph",
+                "entity_id": "all",
             },
         )
         await session.commit()

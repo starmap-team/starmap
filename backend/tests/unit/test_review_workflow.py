@@ -381,7 +381,10 @@ async def test_count_by_status_aggregates_both_types():
     # Skill GROUP BY result
     skl_result = MagicMock()
     skl_result.all = MagicMock(return_value=[("approved", 269)])
-    session.execute = AsyncMock(side_effect=[pos_result, skl_result])
+    # BUG-2 fix: EvolutionChangelog low-trust pending count (§5.2)
+    ev_result = MagicMock()
+    ev_result.scalar = MagicMock(return_value=3)
+    session.execute = AsyncMock(side_effect=[pos_result, skl_result, ev_result])
 
     counts = await count_by_status(session)
 
@@ -390,3 +393,4 @@ async def test_count_by_status_aggregates_both_types():
     assert counts["skill_approved"] == 269
     assert counts["position"] == 40
     assert counts["skill"] == 269
+    assert counts["evolution_pending"] == 3

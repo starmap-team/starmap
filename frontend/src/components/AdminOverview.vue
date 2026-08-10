@@ -56,7 +56,9 @@ const kpiCards = computed(() => {
     {
       key: 'pending-content',
       label: '待审内容 (Phase 23)',
-      value: review.stats.position_pending_review ?? 0,
+      // BUG-1 fix: label says "岗位 / 技能" — sum BOTH pending reviews
+      // (was only position_pending_review, silently dropping skills)
+      value: (review.stats.position_pending_review ?? 0) + (review.stats.skill_pending_review ?? 0),
       suffix: '岗位 / 技能',
       icon: Clock,
       color: '#f59e0b',
@@ -65,7 +67,10 @@ const kpiCards = computed(() => {
     {
       key: 'pending-evolution',
       label: '待审演化 (Phase 24 §5.2)',
-      value: review.stats.skill_pending_review ?? 0,
+      // BUG-2 fix: read evolution_pending (Phase 24 §5.2 low-trust
+      // EvolutionChangelog entries) instead of skill_pending_review
+      // (which was Phase 23 skill records — wrong semantic).
+      value: review.stats.evolution_pending ?? 0,
       suffix: '个低信任变更',
       icon: Promotion,
       color: '#3b82f6',
@@ -74,6 +79,7 @@ const kpiCards = computed(() => {
     {
       key: 'weekly-new',
       label: '本周新增节点',
+      // BUG-3 fix: backend now uses week_start (Monday), not last-7-days.
       value: o?.weekly_new_nodes ?? 0,
       suffix: '个岗位/技能',
       icon: Grid,
@@ -83,6 +89,8 @@ const kpiCards = computed(() => {
     {
       key: 'trust',
       label: '平均信任度',
+      // BUG-4 fix: backend now reports real Skill.trust_score average
+      // from Neo4j (was: weighted data-source quality — different metric).
       value: o ? Math.round(o.trust_score * 100) : 0,
       suffix: '%',
       icon: DataLine,
@@ -303,6 +311,12 @@ const tabCards = [
   gap: var(--space-3);
 }
 .flow-header-icon {
+  /* E1 fix: SVG defaults to 100% width/height if not constrained — it
+     was filling the entire flex container (475×475). Pin to 24×24 to
+     match the icon's intended size next to the title text. */
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
   font-size: 24px;
   color: var(--primary);
 }

@@ -394,12 +394,28 @@ function formatDate(s: string | null) {
         </template>
       </el-table-column>
       <el-table-column
-        label="创建人"
+        label="提交来源"
         min-width="120"
         show-overflow-tooltip
       >
+        <!-- E2 fix: rename "创建人" → "提交来源". The value is the actor
+             recorded at extraction time (system:extraction for JD/LLM,
+             system:pipeline for cron spiders, otherwise an admin username).
+             Showing "—" when NULL is correct — admin manually-added items
+             have no recorded source. -->
         <template #default="{ row }">
-          {{ row.created_by ?? '—' }}
+          <el-tag
+            v-if="row.created_by"
+            size="small"
+            :type="row.created_by.startsWith('system:') ? 'info' : 'primary'"
+            effect="plain"
+          >
+            {{ row.created_by }}
+          </el-tag>
+          <span
+            v-else
+            class="muted"
+          >—</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -407,16 +423,27 @@ function formatDate(s: string | null) {
         min-width="120"
         show-overflow-tooltip
       >
+        <!-- "审核人" is empty by design for pending items; will be
+             populated when the row is approved/rejected. -->
         <template #default="{ row }">
-          {{ row.reviewed_by ?? '—' }}
+          <span
+            v-if="row.reviewed_by"
+            class="reviewer"
+          >{{ row.reviewed_by }}</span>
+          <span
+            v-else
+            class="muted"
+          >未审核</span>
         </template>
       </el-table-column>
       <el-table-column
         label="提交时间"
-        min-width="160"
+        min-width="170"
       >
+        <!-- E2 fix: submitted_at is the time the item entered pending_review.
+             Fall back to created_at so the column never shows "—". -->
         <template #default="{ row }">
-          {{ formatDate(row.submitted_at) }}
+          {{ formatDate(row.submitted_at ?? row.created_at) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -483,15 +510,15 @@ function formatDate(s: string | null) {
       </el-table-column>
     </el-table>
 
-    <div
-      v-if="totalFiltered > pageSize"
-      class="pagination-row"
-    >
+    <!-- BUG-7 fix: always render pagination (was hidden when totalFiltered ≤ pageSize,
+         making single-page queues feel dead-end). Disabled state when total is small. -->
+    <div class="pagination-row">
       <el-pagination
         v-model:current-page="currentPage"
         :page-size="pageSize"
         :total="totalFiltered"
-        layout="prev, pager, next"
+        :disabled="totalFiltered <= pageSize"
+        layout="prev, pager, next, total"
       />
     </div>
   </div>
