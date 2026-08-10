@@ -12,17 +12,13 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.pipeline.loop_orchestrator import (
-    LoopOrchestrator,
-    get_loop_history,
-    get_loop_status,
-)
 from app.dependencies import get_current_user, get_db_session
 from app.schemas.loop import (
     LoopHistoryResponse,
     LoopRunRequest,
     LoopRunResponse,
 )
+from app.services.loop_service import LoopOrchestrator, get_loop_history, get_loop_status
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 router = APIRouter(prefix="/loop", tags=["loop"])

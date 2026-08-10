@@ -119,7 +119,7 @@ async def get_quality_alerts(
     level: Annotated[str | None, Query(description="Filter: 'critical' | 'warning' | 'info'")] = None,
 ) -> QualityAlertsResponse:
     """异常告警列表：基于 quality_monitor.generate_alerts() 返回实时告警。"""
-    from app.core.pipeline.quality_monitor import generate_alerts
+    from app.services.quality_service import generate_alerts
 
     raw_alerts = await generate_alerts(session)
 

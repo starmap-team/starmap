@@ -11,10 +11,10 @@ import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 from app.dependencies import get_db_session
 from app.models.extraction_models import PositionRecord, PositionSkillRelation
 from app.schemas.evolution import IndustryReportResponse, SkillTrendItem
+from app.services.evolution_service import EmergenceFinder, load_skill_timeseries_data
 
 router = APIRouter(tags=["行业报告"])
 
@@ -38,9 +38,7 @@ async def get_industry_report(
     stable: list[SkillTrendItem] = []
 
     if skill_data:
-        from app.core.evolution.emergence_finder import EmergenceFinder
-
-        # skill_data already has the right shape for EmergenceFinder
+        # EmergenceFinder 经 services 层 re-export（api → services → core）
         finder = EmergenceFinder()
         report = finder.scan(skill_data)
 

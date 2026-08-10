@@ -60,7 +60,7 @@ async def get_career_path(
         seen_positions.add(target)
 
         # Classify direction heuristically based on title keywords
-        from app.core.matching.constants import SENIOR_KEYWORDS
+        from app.services.evolution_service import SENIOR_KEYWORDS  # noqa: PLC0415
         target_lower = target.lower()
         if any(kw in target_lower for kw in SENIOR_KEYWORDS):
             direction = "up"

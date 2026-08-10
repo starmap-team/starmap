@@ -34,7 +34,23 @@ API_ROUTE_FILES = [
     "app/api/v1/position.py",
     "app/api/v1/quality.py",
     "app/api/v1/resume.py",
+    "app/api/v1/evolution_emerging_alerts.py",
+    "app/api/v1/evolution_industry_report.py",
+    "app/api/v1/evolution_career_path.py",
+    "app/api/v1/admin_graph_nodes.py",
+    "app/api/v1/admin_prompts.py",
+    "app/api/v1/admin_data_truth.py",
+    "app/api/v1/admin.py",
+    "app/api/v1/auth.py",
+    "app/api/v1/dashboard.py",
+    "app/api/v1/datasource.py",
+    "app/api/v1/loop.py",
+    "app/api/v1/quality_trends_alerts.py",
 ]
+
+# 纯数据/格式常量模块豁免：常量无业务副作用，路由直接引用安全
+# （app.core.constants / app.core.*.constants / app.core.validation.errors）
+_EXEMPT_CONSTANTS = ("app.core.constants", ".constants", "app.core.validation.errors")
 
 
 def test_api_routes_do_not_import_core_directly():
@@ -44,6 +60,8 @@ def test_api_routes_do_not_import_core_directly():
         imports = _get_imports(rel_path)
         for mod, name in imports:
             if mod.startswith("app.core") or name.startswith("app.core"):
+                if any(s in mod for s in _EXEMPT_CONSTANTS):
+                    continue
                 violations.append(f"{rel_path}: {mod}.{name}")
     assert not violations, (
         f"API routes importing from core/ directly: {violations}"

@@ -308,7 +308,7 @@ class TestEmergingAlerts:
         db_override(session)
         with (
             patch("app.api.v1.evolution_emerging_alerts.load_skill_timeseries_data", new_callable=AsyncMock, return_value=skill_data),
-            patch("app.core.evolution.emergence_finder.EmergenceFinder") as mock_cls,
+            patch("app.api.v1.evolution_emerging_alerts.EmergenceFinder") as mock_cls,
         ):
             mock_finder = MagicMock()
             mock_finder.scan.return_value = report
@@ -343,7 +343,7 @@ class TestEmergingAlerts:
         db_override(session)
         with (
             patch("app.api.v1.evolution_emerging_alerts.load_skill_timeseries_data", new_callable=AsyncMock, return_value=skill_data),
-            patch("app.core.evolution.emergence_finder.EmergenceFinder") as mock_cls,
+            patch("app.api.v1.evolution_emerging_alerts.EmergenceFinder") as mock_cls,
         ):
             mock_finder = MagicMock()
             mock_finder.scan.return_value = report
@@ -368,7 +368,7 @@ class TestEmergingAlerts:
         db_override(session)
         with (
             patch("app.api.v1.evolution_emerging_alerts.load_skill_timeseries_data", new_callable=AsyncMock, return_value=skill_data),
-            patch("app.core.evolution.emergence_finder.EmergenceFinder") as mock_cls,
+            patch("app.api.v1.evolution_emerging_alerts.EmergenceFinder") as mock_cls,
         ):
             mock_finder = MagicMock()
             mock_finder.scan.return_value = report
@@ -395,7 +395,7 @@ class TestEmergingAlerts:
         db_override(session)
         with (
             patch("app.api.v1.evolution_emerging_alerts.load_skill_timeseries_data", new_callable=AsyncMock, return_value=skill_data),
-            patch("app.core.evolution.emergence_finder.EmergenceFinder") as mock_cls,
+            patch("app.api.v1.evolution_emerging_alerts.EmergenceFinder") as mock_cls,
         ):
             mock_finder = MagicMock()
             mock_finder.scan.return_value = report
@@ -431,7 +431,7 @@ class TestEmergingAlerts:
         db_override(session)
         with (
             patch("app.api.v1.evolution_emerging_alerts.load_skill_timeseries_data", new_callable=AsyncMock, return_value=skill_data),
-            patch("app.core.evolution.emergence_finder.EmergenceFinder") as mock_cls,
+            patch("app.api.v1.evolution_emerging_alerts.EmergenceFinder") as mock_cls,
         ):
             mock_finder = MagicMock()
             mock_finder.scan.return_value = report
@@ -474,7 +474,7 @@ class TestIndustryReport:
         db_override(session)
         with (
             patch("app.api.v1.evolution_industry_report.load_skill_timeseries_data", new_callable=AsyncMock, return_value=skill_data),
-            patch("app.core.evolution.emergence_finder.EmergenceFinder") as mock_cls,
+            patch("app.api.v1.evolution_industry_report.EmergenceFinder") as mock_cls,
         ):
             mock_finder = MagicMock()
             mock_finder.scan.return_value = report
@@ -529,7 +529,7 @@ class TestIndustryReport:
         db_override(session)
         with (
             patch("app.api.v1.evolution_industry_report.load_skill_timeseries_data", new_callable=AsyncMock, return_value=skill_data) as mock_load,
-            patch("app.core.evolution.emergence_finder.EmergenceFinder") as mock_cls,
+            patch("app.api.v1.evolution_industry_report.EmergenceFinder") as mock_cls,
         ):
             mock_finder = MagicMock()
             mock_finder.scan.return_value = report
@@ -561,7 +561,7 @@ class TestIndustryReport:
         db_override(session)
         with (
             patch("app.api.v1.evolution_industry_report.load_skill_timeseries_data", new_callable=AsyncMock, return_value=skill_data),
-            patch("app.core.evolution.emergence_finder.EmergenceFinder") as mock_cls,
+            patch("app.api.v1.evolution_industry_report.EmergenceFinder") as mock_cls,
         ):
             mock_finder = MagicMock()
             mock_finder.scan.return_value = report

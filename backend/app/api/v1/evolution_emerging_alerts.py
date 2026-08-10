@@ -10,9 +10,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 from app.dependencies import get_db_session
 from app.schemas.evolution import EmergingAlert, EmergingAlertsResponse
+from app.services.evolution_service import EmergenceFinder, load_skill_timeseries_data
 
 router = APIRouter(tags=["新兴技能预警"])
 
@@ -25,7 +25,7 @@ async def get_emerging_alerts(
     min_z_score: Annotated[float, Query(description="最小 Z-score 阈值")] = 0.0,
 ) -> EmergingAlertsResponse:
     """获取新兴技能预警列表，含分类、Z-score、领域、趋势详情。"""
-    from app.core.evolution.emergence_finder import EmergenceFinder
+    # EmergenceFinder 经 services 层 re-export，保持 api → services → core 依赖方向
 
     # Load timeseries data
     skill_data = await load_skill_timeseries_data(session, include_category=True)

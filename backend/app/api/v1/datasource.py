@@ -335,7 +335,7 @@ async def trigger_source_sync(
     # E19 fix: trigger_and_start accepts full/incremental only (DB constraint),
     # so map "source_sync" intent to "incremental" — single-source sync is
     # by definition an incremental crawl.
-    from app.core.pipeline.executor import trigger_and_start
+    from app.services.pipeline_service import trigger_and_start
 
     run = await trigger_and_start(run_type="incremental")
 

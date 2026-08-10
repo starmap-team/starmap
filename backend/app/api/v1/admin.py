@@ -456,7 +456,7 @@ async def trigger_full_pipeline(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> PipelineTriggerResponse:
     """Trigger a full pipeline run: crawl -> dedup -> clean -> import -> graph_sync."""
-    from app.core.pipeline.executor import trigger_and_start
+    from app.services.pipeline_service import trigger_and_start
 
     run = await trigger_and_start(run_type="full")
 

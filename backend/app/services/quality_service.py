@@ -10,5 +10,9 @@ from app.core.metrics import (  # noqa: F401 — §metrics re-export (路由经 
     avg_skill_trust,
     weekly_new_nodes,
 )
+from app.core.pipeline.quality_monitor import (  # noqa: F401 — 质量预警/快照 re-export
+    generate_alerts,
+    get_quality_snapshot,
+)
 
-__all__ = ["avg_skill_trust", "weekly_new_nodes"]
+__all__ = ["avg_skill_trust", "weekly_new_nodes", "generate_alerts", "get_quality_snapshot"]

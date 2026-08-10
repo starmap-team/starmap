@@ -18,16 +18,27 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
-from app.core.dashboard.dashboard_service import get_distribution, get_overview, get_trends
-from app.core.dashboard.sse_broadcaster import event_stream, get_recent_events
-from app.core.security.client_ip import resolve_client_ip
-from app.dependencies import get_current_user_sse, get_db_session, get_neo4j_driver, get_redis_client, sse_disconnect
+from app.dependencies import (
+    get_current_user_sse,
+    get_db_session,
+    get_neo4j_driver,
+    get_redis_client,
+    resolve_client_ip,
+    sse_disconnect,
+)
 from app.schemas.dashboard import (
     DistributionResponse,
     OverviewResponse,
     RealtimePollResponse,
     TrendPoint,
     TrendsResponse,
+)
+from app.services.dashboard_service import (
+    event_stream,
+    get_distribution,
+    get_overview,
+    get_recent_events,
+    get_trends,
 )
 
 router = APIRouter(prefix="/dashboard", tags=["数据大屏"])

@@ -525,7 +525,7 @@ class TestTriggerSourceSync:
         ds = FakeDataSourceRecord(id=ds_id, name="拉勾网")
         session = FakeAsyncSession([FakeResult(ds)])
         db_override(session)
-        with patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock) as mock_trigger:
+        with patch("app.services.pipeline_service.trigger_and_start", new_callable=AsyncMock) as mock_trigger:
             from app.models.pipeline_models import PipelineRun
             mock_run = MagicMock(spec=PipelineRun)
             mock_run.id = uuid.uuid4()
@@ -558,7 +558,7 @@ class TestTriggerSourceSync:
         ds = FakeDataSourceRecord(id=ds_id, name="51Job")
         session = FakeAsyncSession([FakeResult(ds)])
         db_override(session)
-        with patch("app.core.pipeline.executor.trigger_and_start", new_callable=AsyncMock) as mock_trigger:
+        with patch("app.services.pipeline_service.trigger_and_start", new_callable=AsyncMock) as mock_trigger:
             from app.models.pipeline_models import PipelineRun
             mock_run = MagicMock(spec=PipelineRun)
             mock_run.id = uuid.uuid4()

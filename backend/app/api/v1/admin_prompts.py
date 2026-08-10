@@ -17,7 +17,16 @@ from loguru import logger
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.extraction.prompt import (
+from app.dependencies import get_db_session, get_redis_client
+from app.models.prompt_version import PromptVersion
+from app.schemas.prompt import (
+    ABResultRequest,
+    ABTestRequest,
+    RegisterVersionRequest,
+    SetActiveRequest,
+)
+from app.services.admin_ab_service import aggregate_ab_results
+from app.services.prompt_service import (
     get_ab_test,
     get_active_version,
     get_prompt_template_raw,
@@ -29,15 +38,6 @@ from app.core.extraction.prompt import (
     set_active_version,
     stop_ab_test,
 )
-from app.dependencies import get_db_session, get_redis_client
-from app.models.prompt_version import PromptVersion
-from app.schemas.prompt import (
-    ABResultRequest,
-    ABTestRequest,
-    RegisterVersionRequest,
-    SetActiveRequest,
-)
-from app.services.admin_ab_service import aggregate_ab_results
 
 # FE-02: A/B test result tracking (in-memory, process-local)
 _ab_results: dict[str, list[dict[str, Any]]] = defaultdict(list)

@@ -54,8 +54,8 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 
 
 def get_client_ip(request: Request) -> str:
-    """Return the originating client IP — 收敛到 core.security.client_ip (PLAN-015①)。"""
-    from app.core.security.client_ip import resolve_client_ip
+    """Return the originating client IP — 经 dependencies 复用（api → services → core）。"""
+    from app.dependencies import resolve_client_ip
 
     return resolve_client_ip(request)
 

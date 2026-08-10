@@ -102,7 +102,7 @@ async def get_data_truth(
     api_dashboard_skills = pg_total_skills
     try:
         # BUG-15 fix: 实际调用看板聚合服务 get_overview（原误引 build_overview_payload 不存在）
-        from app.core.dashboard.dashboard_service import get_overview  # noqa: PLC0415
+        from app.services.dashboard_service import get_overview  # noqa: PLC0415
         payload = await get_overview(session, driver, None)
         # get_overview 返回图/质量/流水线合并统计（Neo4j 优先、失败回退 PG），作为 API 口径
         api_dashboard_positions = int(
