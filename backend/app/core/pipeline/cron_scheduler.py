@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
@@ -31,6 +32,85 @@ except ImportError:
 
 # Module-level constants
 RECONCILE_INTERVAL = timedelta(hours=24)
+
+
+# Phase 03 Plan 03 Task 11 (D-16): 5 字段值域常量
+CRON_FIELD_BOUNDS = {
+    "minute": (0, 59),  # 分
+    "hour": (0, 23),  # 时
+    "day": (1, 31),  # 日 (day of month)
+    "month": (1, 12),  # 月
+    "week": (0, 7),  # 周 (day of week, 0 and 7 both Sunday)
+}
+CRON_FIELD_ORDER = ("minute", "hour", "day", "month", "week")
+
+
+def _validate_cron_field_value(raw: str, min_val: int, max_val: int) -> str | None:
+    """校验单字段值（含通配符/范围/列表/步长）。返回错误消息或 None。"""
+    if raw == "*":
+        return None
+    # 步长：*/N 或 a-b/N
+    if "/" in raw:
+        range_part, step_str = raw.split("/", 1)
+        try:
+            step = int(step_str)
+        except ValueError:
+            return f"步长格式错误: {step_str}"
+        if step < 1 or step > max_val:
+            return f"步长越界（1-{max_val}）"
+        if range_part != "*":
+            return _validate_cron_field_value(range_part, min_val, max_val)
+        return None
+    # 列表：a,b,c
+    if "," in raw:
+        for part in raw.split(","):
+            err = _validate_cron_field_value(part.strip(), min_val, max_val)
+            if err:
+                return err
+        return None
+    # 范围：a-b
+    if "-" in raw:
+        try:
+            start_str, end_str = raw.split("-", 1)
+            start = int(start_str)
+            end = int(end_str)
+        except ValueError:
+            return "范围格式错误"
+        if start < min_val or start > max_val:
+            return f"起始值越界（{min_val}-{max_val}）"
+        if end < min_val or end > max_val:
+            return f"结束值越界（{min_val}-{max_val}）"
+        return None
+    # 单值
+    try:
+        num = int(raw)
+    except ValueError:
+        return "必须为整数"
+    if num < min_val or num > max_val:
+        return f"越界（{min_val}-{max_val}）"
+    return None
+
+
+def validate_cron_expression(cron: str) -> dict[str, Any]:
+    """完整校验 cron 表达式（D-16），返回 {valid: bool, errors: [{field, value, message}]}。
+
+    服务端二次校验（防绕过）；与前端 cronValidator 行为一致。
+    """
+    if not cron or not cron.strip():
+        return {"valid": False, "errors": [{"field": "minute", "value": "", "message": "Cron 表达式不能为空"}]}
+    parts = cron.strip().split()
+    if len(parts) != 5:
+        return {
+            "valid": False,
+            "errors": [{"field": "minute", "value": cron, "message": f"需要 5 个字段（分 时 日 月 周），当前 {len(parts)} 个"}],
+        }
+    errors: list[dict[str, Any]] = []
+    for i, field in enumerate(CRON_FIELD_ORDER):
+        min_val, max_val = CRON_FIELD_BOUNDS[field]
+        err_msg = _validate_cron_field_value(parts[i], min_val, max_val)
+        if err_msg:
+            errors.append({"field": field, "value": parts[i], "message": err_msg})
+    return {"valid": len(errors) == 0, "errors": errors}
 
 
 def compute_next_cron(cron_expression: str, base: datetime | None = None) -> datetime | None:
