@@ -7,6 +7,8 @@
 
 本模块从 executor.execute_graph_sync 迁出；executor.py 保留兼容重导出（D-11）。
 Phase 03 Plan 03 拆分：GraphWriteOutbox 辅助（_create/_complete/_fail）随阶段迁入本模块。
+Phase 02 D-03：阶段末追加 Position PG↔Neo4j 一致性校验（默认开启），差值 != 0 时写入
+outbox `position_pg_neo4j_drift` 告警条目 —— 仅观察不阻断（沿 M3 D-06）。
 """
 from __future__ import annotations
 
@@ -141,6 +143,10 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
                 sub_step="reconcile",  # D-15
             ))
             _run_reconcile_substep(run_id, errors, start)
+
+        # D-03 (Phase 02): Position PG↔Neo4j 一致性校验（**默认开启**，仅观察不阻断）。
+        # 与 D-07 reconcile 不同：这里只比对计数并告警，不改任何数据。
+        _run_position_consistency_substep(run_id)
     except PipelineStageError:
         raise
     except Exception as exc:
@@ -157,6 +163,113 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         ))
 
     return {"records_processed": processed, "errors": errors, "outbox_id": str(outbox_id)}
+
+
+# ── Position PG↔Neo4j 一致性校验（Phase 02 D-03；沿 M3 D-06 仅观察不阻断）──
+
+#: outbox 告警条目类型标识，写入 GraphWriteOutbox.error 前缀便于检索
+POSITION_DRIFT_ALERT_TYPE = "position_pg_neo4j_drift"
+
+#: 一致性告警使用的 outbox status，与写入重试生命周期
+#: （'pending' / 'completed' / 'failed'）区分，避免被重试逻辑误捡
+POSITION_DRIFT_OUTBOX_STATUS = "drift_warning"
+
+
+async def _count_pg_positions(session_factory: Any) -> int:
+    """PG position_records 行数。"""
+    import sqlalchemy as sa
+
+    from app.models.extraction_models import PositionRecord
+
+    async with session_factory() as session:
+        result = await session.execute(sa.select(sa.func.count()).select_from(PositionRecord))
+        return int(result.scalar() or 0)
+
+
+async def _count_neo4j_positions(neo4j_driver: Any) -> tuple[int, int]:
+    """Neo4j Position 节点数：返回 (总数, 带 canonical_id 的节点数)。
+
+    带 canonical_id 的节点才是 SSOT 管理范围；差额即早期按 name MERGE 留下的遗留节点。
+    """
+    async with neo4j_driver.session() as s:
+        result = await s.run(
+            "MATCH (n:Position) RETURN count(n) AS total, count(n.canonical_id) AS with_cid"
+        )
+        record = await result.single()
+    if record is None:
+        return 0, 0
+    return int(record["total"]), int(record["with_cid"])
+
+
+async def _write_position_drift_outbox(
+    session_factory: Any, run_id: str | None, detail: str,
+) -> None:
+    """把 Position 漂移告警写入 outbox（severity=warning，不阻断流水线）。"""
+    from app.models.pipeline_models import GraphWriteOutbox
+
+    async with session_factory() as session:
+        async with session.begin():
+            session.add(GraphWriteOutbox(
+                id=uuid.uuid4(),
+                run_id=uuid.UUID(run_id) if isinstance(run_id, str) else run_id,
+                extraction_ids=[],
+                status=POSITION_DRIFT_OUTBOX_STATUS,
+                triples_written=0,
+                error=f"{POSITION_DRIFT_ALERT_TYPE}: {detail}"[:500],
+                created_at=datetime.now(UTC),
+            ))
+
+
+async def _check_position_consistency(
+    session_factory: Any, neo4j_driver: Any, run_id: str | None = None,
+) -> int:
+    """D-03: Neo4j Position 节点数 vs PG PositionRecord 行数一致性校验。
+
+    差值 != 0 时写入 outbox `position_pg_neo4j_drift` 告警条目（severity=warning）。
+    **仅观察不阻断**：任何异常都被吞掉并记日志，不影响 graph_sync 阶段结果（沿 M3 D-06）。
+
+    Returns:
+        `neo4j_total - pg_count` 差值；无法取数时返回 0。
+    """
+    if neo4j_driver is None:
+        logger.debug("position consistency check skipped: neo4j_driver unavailable")
+        return 0
+
+    try:
+        pg_count = await _count_pg_positions(session_factory)
+        neo4j_total, neo4j_with_cid = await _count_neo4j_positions(neo4j_driver)
+    except Exception as exc:  # noqa: BLE001 — 取数失败不阻断阶段
+        logger.warning("position consistency check failed (non-fatal): {}", exc)
+        return 0
+
+    diff = neo4j_total - pg_count
+    if diff == 0:
+        logger.info("position consistency ok: pg={} neo4j={}", pg_count, neo4j_total)
+        return 0
+
+    detail = (
+        f"pg={pg_count} neo4j_total={neo4j_total} neo4j_with_canonical_id={neo4j_with_cid} "
+        f"diff={diff} legacy_without_canonical_id={neo4j_total - neo4j_with_cid}"
+    )
+    logger.warning("position PG↔Neo4j drift detected (warning only): {}", detail)
+    try:
+        await _write_position_drift_outbox(session_factory, run_id, detail)
+    except Exception as exc:  # noqa: BLE001 — 告警落库失败同样不阻断
+        logger.warning("position drift outbox write failed (non-fatal): {}", exc)
+    return diff
+
+
+def _run_position_consistency_substep(run_id: str) -> int:
+    """同步包装：在 graph_sync 阶段末调用一致性校验（默认开启，仅告警）。"""
+    from app.services.resources import resources as app_resources
+
+    try:
+        return run_async(_check_position_consistency(
+            get_session_factory(), app_resources.neo4j_driver, run_id,
+        ))
+    except Exception as exc:  # noqa: BLE001 — 校验永不阻断阶段
+        logger.warning("position consistency sub-step failed (non-fatal): {}", exc)
+        return 0
 
 
 def _run_reconcile_substep(run_id: str, errors: list[str], start: float) -> None:
@@ -181,6 +294,9 @@ def _run_reconcile_substep(run_id: str, errors: list[str], start: float) -> None
 
 
 __all__ = [
+    "POSITION_DRIFT_ALERT_TYPE",
+    "POSITION_DRIFT_OUTBOX_STATUS",
+    "_check_position_consistency",
     "_complete_outbox_record",
     "_create_outbox_record",
     "_fail_outbox_record",
