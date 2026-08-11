@@ -6,7 +6,7 @@
  * card rendering with source-name mapping, and sync feedback.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { shallowMount, flushPromises } from '@vue/test-utils'
+import { shallowMount, mount, flushPromises } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import { createPinia, setActivePinia } from 'pinia'
 
@@ -44,7 +44,6 @@ function makeSource(overrides: Record<string, unknown> = {}) {
     valid_records: 1100,
     duplicate_rate: 0.05,
     avg_quality_score: 0.9,
-    daily_crawl_volume: [10, 20, 30],
     ...overrides,
   }
 }
@@ -64,6 +63,27 @@ function mountPage() {
         'el-tag': true,
         'el-table': true,
         'el-table-column': true,
+        MainLayout: { template: '<div><slot /></div>' },
+        BusinessBanner: true,
+      },
+    },
+  })
+}
+
+// full mount：真实渲染 el-card/el-button 等，用于断言按钮 disabled 等 DOM 属性
+// （shallowMount + stub 会吞掉按钮树，见 11-04 quality 计划 T3/D-03 偏差教训）
+function mountFull() {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  return mount(DataSources, {
+    global: {
+      plugins: [ElementPlus, pinia],
+      stubs: {
+        'router-link': true,
+        'router-view': true,
+        'v-chart': true,
+        // vue-echarts 组件 name 为 'echarts'（VChart 是 import 别名）—— full mount 需按注册名 stub
+        echarts: true,
         MainLayout: { template: '<div><slot /></div>' },
         BusinessBanner: true,
       },
@@ -139,5 +159,31 @@ describe('DataSources.vue', () => {
     await store.updateSource('a1b2c3d4-1234-5678-9abc-def012345678', { status: 'paused' })
     expect(mockPut).toHaveBeenCalledWith('/datasources/a1b2c3d4-1234-5678-9abc-def012345678', { status: 'paused' })
     expect(mockPut).not.toHaveBeenCalledWith('/admin/datasources/a1b2c3d4-1234-5678-9abc-def012345678', { status: 'paused' })
+  })
+
+  it('renders while fetch is pending (loading state) and settles', async () => {
+    // 挂起的列表请求 → dsStore.loading === true 时页面不崩溃；resolve 后归位
+    let resolveFetch!: (v: unknown) => void
+    mockGet.mockReturnValueOnce(new Promise((resolve) => { resolveFetch = resolve }))
+    const wrapper = mountPage()
+    await flushPromises()
+    const { useDataSourceStore } = await import('@/stores/datasource')
+    const store = useDataSourceStore()
+    expect(wrapper.exists()).toBe(true)
+    expect(store.loading).toBe(true)
+    resolveFetch([])
+    await flushPromises()
+    expect(store.loading).toBe(false)
+  })
+
+  it('disables sync and crawl buttons for paused sources', async () => {
+    mockGet.mockResolvedValue([makeSource({ id: 'p1', status: 'paused' })])
+    const wrapper = mountFull()
+    await flushPromises()
+    const buttons = wrapper.findAll('button')
+    const syncBtn = buttons.find((b) => b.text().includes('一键同步'))
+    const crawlBtn = buttons.find((b) => b.text().includes('立即采集'))
+    expect(syncBtn?.attributes('disabled')).toBeDefined()
+    expect(crawlBtn?.attributes('disabled')).toBeDefined()
   })
 })
