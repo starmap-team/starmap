@@ -68,8 +68,27 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
 const summaryStats = computed(() => {
   const src = dsStore.sources
   // fix: 异常口径只计 error（paused 为人为主观停用，非异常）—— datasource 优化设计需求 C
-  return { total: src.length, active: src.filter((s) => s.status === 'active').length, error: src.filter((s) => s.status === 'error').length, totalRecords: src.reduce((sum: number, s) => sum + s.total_records, 0), avgQuality: src.length ? src.reduce((sum: number, s) => sum + s.avg_quality_score, 0) / src.length : 0 }
+  // fix: 平均质量分只对"已评估"(avg_quality_score>0) 源求均值；全未评估 → null（诚实"未评估"）
+  //      而非把 0 计入平均 → 假"0.0% ▼ 有提升空间"（2026-08-12 D4 多端语义验证）
+  const evaluated = src.filter((s) => s.avg_quality_score > 0)
+  const avgQuality = evaluated.length
+    ? evaluated.reduce((sum: number, s) => sum + s.avg_quality_score, 0) / evaluated.length
+    : null
+  return {
+    total: src.length,
+    active: src.filter((s) => s.status === 'active').length,
+    error: src.filter((s) => s.status === 'error').length,
+    evaluatedCount: evaluated.length,
+    totalRecords: src.reduce((sum: number, s) => sum + s.total_records, 0),
+    avgQuality,
+  }
 })
+
+// 卡片"数据质量"诚实态：已评估 → X%；有记录但未抽取 → 未评估；无记录 → 未采集
+function formatQuality(s: { avg_quality_score: number; total_records: number }): string {
+  if (s.avg_quality_score > 0) return `${(s.avg_quality_score * 100).toFixed(0)}%`
+  return s.total_records > 0 ? '未评估' : '未采集'
+}
 
 onMounted(() => {
   dsStore.fetchSources()
@@ -208,15 +227,21 @@ onMounted(() => {
                 </div>
                 <div
                   class="kpi-value"
-                  :style="{ color: summaryStats.avgQuality >= 0.8 ? cc.success : cc.warning }"
+                  :style="{ color: summaryStats.avgQuality === null ? cc.info : (summaryStats.avgQuality >= 0.8 ? cc.success : cc.warning) }"
                 >
-                  {{ (summaryStats.avgQuality * 100).toFixed(1) }}%
+                  {{ summaryStats.avgQuality === null ? '未评估' : `${(summaryStats.avgQuality * 100).toFixed(1)}%` }}
                 </div>
                 <div class="kpi-sub">
-                  <span :class="summaryStats.avgQuality >= 0.8 ? 'trend-up' : 'trend-down'">
-                    {{ summaryStats.avgQuality >= 0.8 ? '▲' : '▼' }}
-                  </span>
-                  {{ summaryStats.avgQuality >= 0.8 ? '质量优秀' : '有提升空间' }}
+                  <template v-if="summaryStats.avgQuality !== null">
+                    <span :class="summaryStats.avgQuality >= 0.8 ? 'trend-up' : 'trend-down'">
+                      {{ summaryStats.avgQuality >= 0.8 ? '▲' : '▼' }}
+                    </span>
+                    {{ summaryStats.avgQuality >= 0.8 ? '质量优秀' : '有提升空间' }}
+                    <span v-if="summaryStats.evaluatedCount < summaryStats.total">（{{ summaryStats.evaluatedCount }}/{{ summaryStats.total }} 已评估）</span>
+                  </template>
+                  <template v-else>
+                    尚无已评估数据源
+                  </template>
                 </div>
               </div>
             </div>
@@ -357,8 +382,9 @@ onMounted(() => {
                   <span class="stat-label">数据质量</span>
                   <span
                     class="stat-value"
-                    :style="{ color: source.avg_quality_score >= 0.8 ? cc.success : cc.warning }"
-                  >{{ (source.avg_quality_score * 100).toFixed(0) }}%</span>
+                    :title="source.avg_quality_score > 0 ? '有效记录 / (有效+重复) 的抽取质量' : (source.total_records > 0 ? '有记录但尚未抽取，质量未评估' : '尚未采集，无数据可评估')"
+                    :style="{ color: source.avg_quality_score > 0 ? (source.avg_quality_score >= 0.8 ? cc.success : cc.warning) : cc.info }"
+                  >{{ formatQuality(source) }}</span>
                 </div>
                 <div class="stat-row">
                   <span class="stat-label">记录总量</span>
