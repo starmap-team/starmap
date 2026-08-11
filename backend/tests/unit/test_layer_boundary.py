@@ -47,11 +47,25 @@ API_ROUTE_FILES = [
     "app/api/v1/loop.py",
     "app/api/v1/quality_trends_alerts.py",
     "app/api/v1/pipeline/routes.py",
+    # Phase 03 Plan 03 Task 7: pipeline 按领域拆 6 子路由，逐一纳入层边界守卫
+    "app/api/v1/pipeline/status_routes.py",
+    "app/api/v1/pipeline/runs_routes.py",
+    "app/api/v1/pipeline/trigger_routes.py",
+    "app/api/v1/pipeline/schedule_routes.py",
+    "app/api/v1/pipeline/config_routes.py",
+    "app/api/v1/pipeline/events_routes.py",
 ]
 
 # 纯数据/格式常量模块豁免：常量无业务副作用，路由直接引用安全
 # （app.core.constants / app.core.*.constants / app.core.validation.errors）
 _EXEMPT_CONSTANTS = ("app.core.constants", ".constants", "app.core.validation.errors")
+
+# 纯聚合入口：routes.py 仅 include_router 子路由，无业务逻辑（D-02 Task 7），
+# 业务逻辑经 app.services 的导入断言由各子路由承担。
+_AGGREGATION_ROUTES = {"app/api/v1/pipeline/routes.py"}
+
+# 无业务服务依赖：config_routes.py 端点仅读写 settings（app.config），非业务逻辑层。
+_NO_SERVICES_DEPS = {"app/api/v1/pipeline/config_routes.py"}
 
 
 def test_api_routes_do_not_import_core_directly():
@@ -72,6 +86,8 @@ def test_api_routes_do_not_import_core_directly():
 def test_api_routes_import_from_services():
     """API routes should import from services/ for business logic."""
     for rel_path in API_ROUTE_FILES:
+        if rel_path in _AGGREGATION_ROUTES or rel_path in _NO_SERVICES_DEPS:
+            continue  # 聚合入口 / 纯 settings 端点，无业务服务依赖
         imports = _get_imports(rel_path)
         service_imports = [
             (mod, name) for mod, name in imports
