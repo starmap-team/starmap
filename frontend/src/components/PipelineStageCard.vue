@@ -11,13 +11,80 @@ import { STAGE_LABELS } from '@/stores/pipelineConfig'
 import type { LiveActivityEvent } from '@/stores/pipelineRun'
 
 // Phase 3 Plan 02: 阶段描述，供 hover tooltip 引导新用户
-const STAGE_DESCRIPTIONS: Record<string, string> = {
-  crawl: '从启用的数据源采集原始 JD 记录，写入 jd_raw 表',
-  dedup: '精确哈希 + SimHash 模糊去重，标记重复记录为 duplicate',
-  clean: 'HTML 剥离、空白规范化、标题提取（在去重后执行）',
-  import: 'LLM 技能识别 + 标准化 + 验证，持久化到 PostgreSQL',
-  graph_sync: '将 PG 数据同步到 Neo4j 图谱（outbox 模式防漂移）',
-  timeseries: '聚合技能频率时间序列，供演化分析使用',
+// Phase 03 Plan 03 Task 9 (D-13 T6): 阶段描述 — 含作用 + 依赖 + 状态含义三要素
+const STAGE_DESCRIPTIONS: Record<string, { role: string; deps: string[]; status_meaning: Record<string, string> }> = {
+  crawl: {
+    role: '从启用的数据源采集原始 JD 记录，写入 jd_raw 表',
+    deps: [],
+    status_meaning: {
+      pending: '等待前置依赖（无前置）',
+      running: '正在从各数据源爬取 JD',
+      completed: '本批次所有数据源爬取完成',
+      failed: '爬虫失败 — 详见 errors',
+      skipped: '被上游跳过',
+      cancelled: '用户取消',
+    },
+  },
+  dedup: {
+    role: '精确哈希 + SimHash 模糊去重，标记重复记录为 duplicate',
+    deps: ['crawl'],
+    status_meaning: {
+      pending: '等待 crawl 完成',
+      running: '精确哈希 + SimHash 模糊比对',
+      completed: '去重完成（unique + duplicate 计数已报告）',
+      failed: '去重失败 — 检查 Redis 是否可用',
+      skipped: '上游失败导致跳过',
+      cancelled: '用户取消',
+    },
+  },
+  clean: {
+    role: 'HTML 剥离、空白规范化、标题提取（在去重后执行）',
+    deps: ['dedup'],
+    status_meaning: {
+      pending: '等待 dedup 完成',
+      running: '清洗 raw 记录（HTML 剥离 + 标题提取）',
+      completed: '清洗完成（已设 status=cleaned）',
+      failed: '清洗失败 — 单条失败不影响其他记录',
+      skipped: '上游失败导致跳过',
+      cancelled: '用户取消',
+    },
+  },
+  import: {
+    role: 'LLM 技能识别 + 标准化 + 验证，持久化到 PostgreSQL',
+    deps: ['clean'],
+    status_meaning: {
+      pending: '等待 clean 完成',
+      running: 'LLM 抽取技能（extract/normalize/persist 子步骤）',
+      completed: 'LLM 抽取完成（PG skill_records 已落库）',
+      failed: 'LLM 失败 — 重试或检查 API 配额',
+      skipped: '上游失败导致跳过',
+      cancelled: '用户取消',
+    },
+  },
+  graph_sync: {
+    role: '将 PG 数据同步到 Neo4j 图谱（outbox 模式防漂移）',
+    deps: ['import'],
+    status_meaning: {
+      pending: '等待 import 完成',
+      running: 'Neo4j 图投影（outbox 模式 + 可选 reconcile）',
+      completed: '图谱同步完成（triples 已 MERGE）',
+      failed: 'Neo4j 写入失败 — outbox 记录待重试',
+      skipped: '上游失败导致跳过',
+      cancelled: '用户取消',
+    },
+  },
+  timeseries: {
+    role: '聚合技能频率时间序列，供演化分析使用',
+    deps: ['graph_sync'],
+    status_meaning: {
+      pending: '等待 graph_sync 完成',
+      running: '正在聚合技能时间窗口',
+      completed: '时间序列窗口已生成',
+      failed: '聚合失败 — 检查 timeseries_service',
+      skipped: '上游失败导致跳过',
+      cancelled: '用户取消',
+    },
+  },
 }
 
 export interface StageData {
@@ -80,7 +147,14 @@ const statusConfig = computed(() => {
 })
 
 const stageLabel = computed(() => STAGE_LABELS[props.stage.name] || props.stage.name)
-const stageDesc = computed(() => STAGE_DESCRIPTIONS[props.stage.name] || '')
+// Phase 03 Plan 03 Task 9 (D-13 T6): 拼装三要素 hover 文本
+const stageDesc = computed(() => {
+  const desc = STAGE_DESCRIPTIONS[props.stage.name]
+  if (!desc) return ''
+  const depsLine = desc.deps.length > 0 ? `\n依赖: ${desc.deps.join(', ')}` : '\n依赖: 无'
+  const statusLine = `\n当前状态(${props.stage.status}): ${desc.status_meaning[props.stage.status] || '未知'}`
+  return desc.role + depsLine + statusLine
+})
 const StageIcon = computed(() => STAGE_ICONS[props.stage.name] || Connection)
 
 // 实时活动（合并 props.stage 与 liveActivity，优先取 live）

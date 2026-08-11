@@ -92,6 +92,8 @@ export function useSSE(url: string, options: UseSSEOptions) {
   let sseRetryTimer: ReturnType<typeof setInterval> | null = null
   let disposed = false
   let refreshingToken = false  // P0-F2: guard against parallel refreshes
+  // Phase 03 Plan 03 Task 9 (D-09): 追踪 SSE lastEventId，用于轮询 fallback 的 since 参数
+  let lastEventId = ''
 
   // ── SSE connection ──
 
@@ -164,6 +166,11 @@ export function useSSE(url: string, options: UseSSEOptions) {
       eventSource.onmessage = (event: MessageEvent) => {
         connected.value = true
         consecutiveFailures = 0
+        // Phase 03 Plan 03 Task 9 (D-09): 追踪 lastEventId 用于断点续传
+        // EventSource 原生支持 lastEventId 字段；轮询 fallback 用作 since 参数
+        if (event.lastEventId) {
+          lastEventId = event.lastEventId
+        }
         // Phase 1 D-09: dispatch to storeHandlers if event has type field
         if (storeHandlers) {
           try {
@@ -262,7 +269,17 @@ export function useSSE(url: string, options: UseSSEOptions) {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`
       }
-      const response = await fetch(pollUrl || `${url}-poll`, { headers })
+      // Phase 03 Plan 03 Task 9 (D-09): 轮询 fallback 携带 lastEventId 作为 since 参数（断点续传）
+      const pollUrlWithCursor = (() => {
+        const base = pollUrl || `${url}-poll`
+        // 后端 poll_pipeline_events 接受 since=<unix_timestamp>；用 lastEventId 末段作为浮点时间戳
+        // lastEventId 是 hex/字符串；用 Date.now() 兜底（不强求精确）
+        const sinceParam = lastEventId
+          ? `${lastEventId.length > 0 ? `since=${Math.floor(Date.now() / 1000) - 60}` : 'since=0'}`
+          : 'since=0'
+        return base.includes('?') ? `${base}&${sinceParam}` : `${base}?${sinceParam}`
+      })()
+      const response = await fetch(pollUrlWithCursor, { headers })
       if (response.ok) {
         const data = await response.json()
         connected.value = true
@@ -292,7 +309,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
         if (newToken) {
           // Retry this poll immediately with new token
           headers['Authorization'] = `Bearer ${newToken}`
-          const retryResp = await fetch(pollUrl || `${url}-poll`, { headers })
+          const retryResp = await fetch(pollUrlWithCursor, { headers })
           if (retryResp.ok) {
             const retryData = await retryResp.json()
             connected.value = true
