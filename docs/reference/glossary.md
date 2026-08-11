@@ -35,7 +35,7 @@
 |---|---|
 | MSW | 前端仓库已不使用它作为当前 API 数据源；测试替身使用 Vitest/Playwright 的局部能力 |
 | Chroma 开发服务 | 已从开发 Compose 移除；生产 Compose 仍可提供 ChromaDB |
-| 五阶段/六阶段 ETL | 历史实现描述；当前调度入口以代码中的 `StageName` 和 `STAGE_EXECUTORS` 为准 |
+| 五阶段/六阶段 ETL | 核心 ETL DAG 现为串行 5 阶段 `crawl → dedup → clean → import → graph_sync`（见 `docs/architecture/pipeline.md` 图）；历史"六阶段"含已移出核心 DAG 的 `timeseries` |
 | `request.improved.ts` | 历史文件名，当前 API 基础客户端是 `frontend/src/api/request.ts` |
 
 新增术语前先确认它不是现有概念的别名；同一业务概念必须在 API、Schema、前端和文档中使用一致名称。

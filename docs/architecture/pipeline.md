@@ -10,11 +10,10 @@ StarMap 当前的 ETL 调度由 `backend/app/core/pipeline/orchestrator.py` 维�
 ```mermaid
 flowchart LR
     C[crawl] --> D[dedup]
-    C --> CL[clean]
-    D --> I[import]
-    CL --> I
+    D --> CL[clean]
+    CL --> I[import]
     I --> GS[graph_sync]
-    GS --> PG[(PostgreSQL)]
+    I --> PG[(PostgreSQL)]
     GS --> O[GraphWriteOutbox]
     O --> N[(Neo4j projection)]
 ```
@@ -27,7 +26,11 @@ flowchart LR
 | `import` | LLM 技能抽取 + PG 持久化 |
 | `graph_sync` | Neo4j 图投影（outbox 模式防漂移） |
 
-`executor.py` 仍包含部分旧的细粒度执行函数，供兼容和组合调用；调度事实以 `STAGE_EXECUTORS` 与 `StageName` 为准。`timeseries` 为可选扩展阶段，不属于核心 ETL DAG。
+核心 ETL DAG 为串行 5 阶段：`crawl → dedup → clean → import → graph_sync`
+（Phase 3 Plan 02 起串行化，clean 依赖 dedup 完成后执行）。执行代码位于
+`backend/app/core/pipeline/stages/`（每阶段一个模块），DAG 推进/触发/重试/续跑
+位于 `backend/app/core/pipeline/engine.py`；`executor.py` 仅作兼容重导出层。
+`timeseries` 为可选扩展阶段，不属于核心 ETL DAG。
 
 ## 运行与恢复
 
