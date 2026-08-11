@@ -348,6 +348,21 @@ class GraphProjector:
                     )
                 ).scalars().all() if missing_skill else []
 
+                # D5 fix (2026-08-12): 抽取图写入路径（graph_writer merge_position/merge_skill）
+                # 按 name MERGE 时不设 canonical_id → 产生"同名孤儿节点"；此处先按名链接
+                # （MATCH name + SET canonical_id），使 apply_batch 的 canonical MERGE 命中
+                # 同一节点而非创建重复。幂等：已链接节点后续只更新属性。
+                async with self._driver.session() as session:
+                    for row, label in (
+                        *((p, "Position") for p in positions),
+                        *((s, "Skill") for s in skills),
+                    ):
+                        await session.run(
+                            f"MATCH (n:{label} {{name: $name}}) WHERE n.canonical_id IS NULL "
+                            "SET n.canonical_id = $cid",
+                            name=row.name, cid=str(row.id),
+                        )
+
                 pos_dicts = [
                     {
                         "canonical_id": str(p.id),
