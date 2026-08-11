@@ -381,80 +381,13 @@ from app.core.pipeline.stages.dedup import (  # noqa: E402,F401
 execute_dedup = _execute_dedup
 
 
-def execute_clean(run_id: str) -> dict[str, Any]:
-    """Execute clean stage: normalize and validate JD records.
+# Phase 03 Plan 03 Task 3: clean 阶段已迁出到 stages/clean.py。
+# 保留同名重导出（D-11 兼容壳），存量调用方零改动。
+from app.core.pipeline.stages.clean import (  # noqa: E402,F401
+    execute_clean as _execute_clean,
+)
 
-    Phase 3.7: 实时进度 — 报告清洗状态
-    """
-    import time
-
-    from crawler.persistence.database import get_jd_raw_session
-    from crawler.persistence.models import JdRaw, JdStatus
-
-    processed = 0
-    errors: list[str] = []
-    cleaned_titles: list[str] = []
-    start = time.monotonic()
-
-    _run_async(_publish_stage_progress(
-        run_id, "clean", "running", progress=0.0,
-        current_activity="正在加载待清洗记录...", elapsed_ms=0,
-    ))
-
-    try:
-        with get_jd_raw_session() as s:
-            # Clean raw JDs that passed dedup (status=raw means not duplicate)
-            raw_jds = s.query(JdRaw).filter(JdRaw.status == JdStatus.raw).all()
-            total = len(raw_jds)
-            _run_async(_publish_stage_progress(
-                run_id, "clean", "running", progress=0.1,
-                current_activity=f"待清洗: {total} 条 (HTML剥离 + 空白规范化 + 标题提取)",
-                records_processed=0,
-                elapsed_ms=int((time.monotonic() - start) * 1000),
-            ))
-
-            for idx, jd in enumerate(raw_jds):
-                # Basic cleaning: strip whitespace, normalize
-                if jd.clean_text:
-                    jd.clean_text = jd.clean_text.strip()
-                    if not jd.job_title:
-                        # Try to extract title from text
-                        first_line = jd.clean_text.split("\n")[0][:200]
-                        jd.job_title = first_line or "Unknown"
-                    if idx < 5:
-                        cleaned_titles.append(jd.job_title[:60])
-                processed += 1
-                # T5 fix: 标记 cleaned 状态供 import 阶段读取
-                jd.status = JdStatus.cleaned
-                # 每处理 10 条报告一次
-                if idx > 0 and idx % 10 == 0:
-                    _run_async(_publish_stage_progress(
-                        run_id, "clean", "running",
-                        progress=0.1 + 0.8 * (idx / total),
-                        records_processed=processed,
-                        current_activity=f"已清洗 {idx}/{total} 条",
-                        elapsed_ms=int((time.monotonic() - start) * 1000),
-                    ))
-            s.commit()
-
-            _run_async(_publish_stage_progress(
-                run_id, "clean", "completed", progress=1.0,
-                records_processed=processed,
-                current_activity=f"清洗完成: 共 {processed} 条记录标准化",
-                recent_samples=[{"title": t} for t in cleaned_titles[:5]],
-                elapsed_ms=int((time.monotonic() - start) * 1000),
-                message=f"清洗完成: {processed} 条",
-            ))
-    except PipelineStageError:
-        raise
-    except Exception as exc:
-        errors.append(f"clean failed: {exc}")
-        logger.opt(exception=True).error("Clean stage failed: {}", exc)
-        _run_async(_publish_stage_progress(
-            run_id, "clean", "failed", current_activity=f"清洗失败: {exc}",
-        ))
-
-    return {"records_processed": processed, "errors": errors}
+execute_clean = _execute_clean
 
 
 def execute_import(run_id: str) -> dict[str, Any]:

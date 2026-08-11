@@ -92,12 +92,12 @@ class TestStagesModuleSurface:
     def test_unmigrated_stages_raise(self):
         """未迁出的 stage 调用应抛 NotImplementedError（D-01 进度标识）。
 
-        当前已迁出：timeseries (Task 1)、dedup (Task 2)。
-        仍未迁出：crawl、clean、import、graph_sync (Tasks 3-6)。
+        当前已迁出：timeseries (Task 1)、dedup (Task 2)、clean (Task 3)。
+        仍未迁出：crawl、import、graph_sync (Tasks 4-6)。
         """
         from app.core.pipeline import stages
 
-        unmigrated = ["execute_crawl", "execute_clean", "execute_import", "execute_graph_sync"]
+        unmigrated = ["execute_crawl", "execute_import", "execute_graph_sync"]
         for name in unmigrated:
             fn = getattr(stages, name)
             with pytest.raises(NotImplementedError):
@@ -112,4 +112,15 @@ class TestStagesModuleSurface:
             result = fn("test-not-implemented-run-id")
         except NotImplementedError:
             raise AssertionError("stages.execute_dedup is still a stub; Task 2 incomplete")
+        assert isinstance(result, dict)
+
+    def test_clean_is_real_not_stub(self):
+        """clean 已迁出 — Task 3 完成标志。"""
+        from app.core.pipeline import stages
+
+        fn = stages.execute_clean
+        try:
+            result = fn("test-not-implemented-run-id")
+        except NotImplementedError:
+            raise AssertionError("stages.execute_clean is still a stub; Task 3 incomplete")
         assert isinstance(result, dict)

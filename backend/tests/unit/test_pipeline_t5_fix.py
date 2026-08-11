@@ -30,25 +30,35 @@ def _extract_function_body(source: str, func_name: str) -> str:
 
 
 class TestExecuteCleanSetsCleaned:
-    """execute_clean 成功后应设 status=cleaned。"""
+    """execute_clean 成功后应设 status=cleaned。
 
-    def test_clean_sets_status_cleaned_in_source(self):
-        """静态读取 executor.py 源码，断言存在 jd.status = JdStatus.cleaned 赋值。"""
+    Task 0 锁定行为；Task 3 后 execute_clean 迁出到 stages/clean.py，
+    故断言对 executor.py 和 stages/clean.py 双重兼容（D-20 先测后拆）。
+    """
+
+    def _clean_source(self) -> str:
         from pathlib import Path
 
-        executor_path = Path(__file__).resolve().parents[2] / "app" / "core" / "pipeline" / "executor.py"
-        source = executor_path.read_text(encoding="utf-8")
-        # 必须在 execute_clean 函数体内
+        base = Path(__file__).resolve().parents[2] / "app" / "core" / "pipeline"
+        # Task 0-2: executor.py 含 execute_clean；Task 3+: stages/clean.py 含 execute_clean
+        for candidate in [base / "executor.py", base / "stages" / "clean.py"]:
+            if candidate.exists():
+                src = candidate.read_text(encoding="utf-8")
+                if "def execute_clean(" in src:
+                    return src
+        return ""
+
+    def test_clean_sets_status_cleaned_in_source(self):
+        """静态读取源码，断言存在 jd.status = JdStatus.cleaned 赋值。"""
+        source = self._clean_source()
+        assert source, "execute_clean not found in executor.py or stages/clean.py"
         assert "jd.status = JdStatus.cleaned" in source, (
             "execute_clean must set jd.status = JdStatus.cleaned (T5 fix)"
         )
 
     def test_clean_status_assignment_before_commit(self):
         """cleaned 状态赋值必须发生在 s.commit() 之前。"""
-        from pathlib import Path
-
-        executor_path = Path(__file__).resolve().parents[2] / "app" / "core" / "pipeline" / "executor.py"
-        source = executor_path.read_text(encoding="utf-8")
+        source = self._clean_source()
         body = _extract_function_body(source, "execute_clean")
         status_idx = body.find("jd.status = JdStatus.cleaned")
         commit_idx = body.find("s.commit()")
