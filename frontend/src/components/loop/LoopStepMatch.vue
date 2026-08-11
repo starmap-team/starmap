@@ -2,6 +2,8 @@
 /**
  * LoopStepMatch — Step 4: Match Diagnosis
  * Radar chart + gap analysis + skill tags.
+ * Phase 07-02 D-05: also surfaces M5 分数拆解行（required_avg / bonus_avg /
+ * weight_required / weight_bonus / inflated）。
  */
 import { ref, computed, watch } from 'vue'
 import VChart from 'vue-echarts'
@@ -20,6 +22,33 @@ const props = defineProps<{
   step: StepResult
   celebrated: boolean
 }>()
+
+// D-05 口径拆解 — M5 分数拆解（沿用 app.core.matching.service.py:349-354
+// 现有 key: required_avg / bonus_avg / weight_required / weight_bonus / inflated）
+interface ScoreBreakdown {
+  required_avg?: number
+  bonus_avg?: number
+  weight_required?: number
+  weight_bonus?: number
+  inflated?: boolean
+}
+const scoreBreakdown = computed<ScoreBreakdown | null>(() => {
+  const d = props.step?.data as { score_breakdown?: ScoreBreakdown } | undefined
+  return d?.score_breakdown ?? null
+})
+
+const requiredAvgPct = computed(() =>
+  scoreBreakdown.value?.required_avg == null ? '—' : `${(scoreBreakdown.value.required_avg * 100).toFixed(0)}%`,
+)
+const bonusAvgPct = computed(() =>
+  scoreBreakdown.value?.bonus_avg == null ? '—' : `${(scoreBreakdown.value.bonus_avg * 100).toFixed(0)}%`,
+)
+const weightRequiredPct = computed(() =>
+  scoreBreakdown.value?.weight_required == null ? '—' : `${(scoreBreakdown.value.weight_required * 100).toFixed(0)}%`,
+)
+const weightBonusPct = computed(() =>
+  scoreBreakdown.value?.weight_bonus == null ? '—' : `${(scoreBreakdown.value.weight_bonus * 100).toFixed(0)}%`,
+)
 
 // ── Radar chart data ──
 const radarData = ref<{ skill: string; required: number; matched: number }[]>([])
@@ -100,6 +129,36 @@ defineExpose({ buildRadarData })
             <span class="score-value">{{ Math.round((step.data.match_score ?? 0) * 100) }}</span>
             <span class="score-unit">%</span>
           </div>
+        </div>
+        <!-- D-05 分数拆解行（M5 口径 — required_avg/bonus_avg/权重/inflated） -->
+        <div
+          v-if="scoreBreakdown"
+          class="score-breakdown-row"
+        >
+          <el-tag
+            type="info"
+            size="small"
+            effect="plain"
+          >必备均值 {{ requiredAvgPct }}</el-tag>
+          <el-tag
+            type="info"
+            size="small"
+            effect="plain"
+          >加分均值 {{ bonusAvgPct }}</el-tag>
+          <el-tag
+            size="small"
+            effect="plain"
+          >必备权重 {{ weightRequiredPct }}</el-tag>
+          <el-tag
+            size="small"
+            effect="plain"
+          >加分权重 {{ weightBonusPct }}</el-tag>
+          <el-tag
+            v-if="scoreBreakdown.inflated"
+            type="warning"
+            size="small"
+            effect="plain"
+          >⚠ CII 通胀修正已触发</el-tag>
         </div>
       </template>
 
@@ -354,6 +413,13 @@ defineExpose({ buildRadarData })
 }
 .gap-table-wrapper {
   margin-top: var(--space-3);
+}
+
+.score-breakdown-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 /* ── Celebration Effect ── */

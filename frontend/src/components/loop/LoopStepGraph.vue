@@ -3,10 +3,12 @@
  * LoopStepGraph — Step 3: Graph Update
  * Mini G6 graph container + legend.
  * The graph container ref is exposed so the parent (via useLoopGraph) can render into it.
+ * Phase 07-02 D-05: also surfaces 新增节点/关系数 口径行.
  */
+import { computed } from 'vue'
 import type { StepResult } from '@/stores/loop'
 
-defineProps<{
+const props = defineProps<{
   step: StepResult
   celebrated: boolean
 }>()
@@ -14,6 +16,24 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'graph-ref', el: HTMLElement | null): void
 }>()
+
+// D-05 口径拆解 — graph_sync 返回 nodes_written / edges_written
+// (来自 graph_sync.py:140, 279-280 既有契约 key，不重命名)
+const nodesWritten = computed<number | null>(() => {
+  const d = props.step?.data as { nodes_written?: number; nodes?: number } | undefined
+  if (!d) return null
+  if (typeof d.nodes_written === 'number') return d.nodes_written
+  if (typeof d.nodes === 'number') return d.nodes
+  return null
+})
+
+const edgesWritten = computed<number | null>(() => {
+  const d = props.step?.data as { edges_written?: number; edges?: number } | undefined
+  if (!d) return null
+  if (typeof d.edges_written === 'number') return d.edges_written
+  if (typeof d.edges === 'number') return d.edges
+  return null
+})
 </script>
 
 <template>
@@ -31,11 +51,27 @@ const emit = defineEmits<{
             <span class="step-num">3</span>
             图谱更新
           </h2>
-          <div
-            v-if="step?.warning"
-            class="degraded-badge"
-          >
-            ⚠ {{ step.warning }}
+          <div class="sc-metrics">
+            <el-tag
+              type="info"
+              size="small"
+              effect="plain"
+            >
+              新增节点: {{ nodesWritten ?? '—' }}
+            </el-tag>
+            <el-tag
+              type="info"
+              size="small"
+              effect="plain"
+            >
+              新增关系: {{ edgesWritten ?? '—' }}
+            </el-tag>
+            <div
+              v-if="step?.warning"
+              class="degraded-badge"
+            >
+              ⚠ {{ step.warning }}
+            </div>
           </div>
         </div>
       </template>
@@ -105,6 +141,12 @@ const emit = defineEmits<{
   align-items: flex-start;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+.sc-metrics {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
 }
 .sc-title {
   font-size: var(--font-size-xl);
