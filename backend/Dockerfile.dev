@@ -22,6 +22,11 @@ ENV POETRY_VIRTUALENVS_CREATE=false \
 COPY pyproject.toml poetry.lock* ./
 RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
 
+# Crawler sync DB 驱动 — 显式安装（pyproject/lock 已含，但 poetry install 层缓存
+# 可能在 psycopg 加入前构建导致镜像缺失；镜像内显式装一遍保证 API/worker 都能
+# 经 crawler.persistence 写 jd_raw，2026-08-12 D5）
+RUN pip install --no-cache-dir 'psycopg[binary]>=3.0'
+
 # 再拷源码（挂载会覆盖，这里仅为镜像构建）
 COPY . .
 
