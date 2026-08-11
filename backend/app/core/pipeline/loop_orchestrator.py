@@ -29,11 +29,10 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import GAP_LEVEL_MASTERED
 from app.core.pipeline.loop.common import (
     _LOOP_HISTORY_MAX,  # noqa: F401  (re-export for compat tests)
     _LOOP_RESULTS,
-    STEP_NAMES,
+    STEP_NAMES,  # noqa: F401  (re-export for compat tests)
     LoopResult,
     LoopRunStatus,
     LoopStepResult,
@@ -44,6 +43,7 @@ from app.core.pipeline.loop.common import (
 )
 from app.core.pipeline.loop.steps.extract import run_extract_step
 from app.core.pipeline.loop.steps.graph_update import run_graph_update_step
+from app.core.pipeline.loop.steps.learning_path import generic_learning_path, run_learning_path_step
 from app.core.pipeline.loop.steps.match import run_match_step
 from app.core.pipeline.loop.steps.validate import resolve_target_position, run_validate_step
 from app.exceptions import PipelineStageError, StarMapError
@@ -300,112 +300,25 @@ class LoopOrchestrator:
         session: AsyncSession | None = None,
         target_position: str = "",
     ) -> LoopStepResult:
-        """Step 5: Derive learning path from match gaps and auto-create learning plan."""
-        start = time.monotonic()
+        """Step 5: Derive learning path (compat delegate).
 
-        # If match diagnosis succeeded, derive path from match gaps
-        if match_ok and match_result:
-            try:
-                gap_details = match_result.get("skill_gap_detail", [])
-                missing = [g for g in gap_details if g.get("gap_level") != GAP_LEVEL_MASTERED]
-
-                path_items: list[dict[str, Any]] = []
-                for gap in missing:
-                    path_items.append({
-                        "skill": gap.get("skill", ""),
-                        "importance": gap.get("importance", "required"),
-                        "gap_level": gap.get("gap_level", ""),
-                        "learning_path": gap.get("learning_path", []),
-                    })
-
-                learning_path_data: dict[str, Any] = {
-                    "path_items": path_items,
-                    "estimated_learning_time": match_result.get("estimated_learning_time", ""),
-                    "overall_assessment": match_result.get("overall_assessment", ""),
-                    "recommendations": match_result.get("recommendations", []),
-                    "source": "match_gaps",
-                }
-
-                # Auto-create learning plan in DB when session is available
-                plan_info = None
-                if session is not None and target_position and match_result:
-                    try:
-                        from app.services.learning_service import create_plan_from_match
-
-                        plan_info = await create_plan_from_match(
-                            session,
-                            target_position=target_position,
-                            match_result=match_result,
-                        )
-                        if plan_info and plan_info.get("plan_id"):
-                            learning_path_data["plan_id"] = plan_info["plan_id"]
-                            logger.info(
-                                "Auto-created learning plan {} for target '{}'",
-                                plan_info["plan_id"], target_position,
-                            )
-                    except PipelineStageError:
-                        raise
-                    except StarMapError:
-                        raise
-                    except Exception as exc:
-                        logger.exception(
-                            "Failed to auto-create learning plan for '{}': {}",
-                            target_position, exc,
-                        )
-
-                return LoopStepResult(
-                    step=5,
-                    name=STEP_NAMES[5],
-                    status=StepStatus.SUCCESS,
-                    data=learning_path_data,
-                    duration_seconds=time.monotonic() - start,
-                )
-            except PipelineStageError:
-                raise
-            except StarMapError:
-                raise
-            except Exception as exc:
-                logger.exception("Step 5 path derivation from match failed: {}", exc)
-
-        # Fallback: generic learning path
-        return LoopStepResult(
-            step=5,
-            name=STEP_NAMES[5],
-            status=StepStatus.FAILED,
-            error="Match diagnosis not available for learning path generation",
-            data=self._generic_learning_path(),
-            duration_seconds=time.monotonic() - start,
+        Thin delegate to
+        :func:`app.core.pipeline.loop.steps.learning_path.run_learning_path_step`
+        (Phase 07-02 D-01). On success the returned data adds a
+        ``path_length`` field consumed by the frontend metric row.
+        """
+        return await run_learning_path_step(
+            match_result=match_result,
+            match_ok=match_ok,
+            target_position=target_position,
+            session=session,
+            graph_available=graph_available,
         )
 
     @staticmethod
     def _generic_learning_path() -> dict[str, Any]:
-        """Return a generic fallback learning path."""
-        return {
-            "path_items": [
-                {
-                    "skill": "Python基础",
-                    "importance": "required",
-                    "gap_level": "建议学习",
-                    "learning_path": ["Python基础"],
-                },
-                {
-                    "skill": "数据结构与算法",
-                    "importance": "required",
-                    "gap_level": "建议学习",
-                    "learning_path": ["数据结构与算法"],
-                },
-                {
-                    "skill": "项目实战",
-                    "importance": "bonus",
-                    "gap_level": "建议学习",
-                    "learning_path": ["项目实战"],
-                },
-            ],
-            "estimated_learning_time": "4-6周（兼职学习）",
-            "overall_assessment": "通用学习路径，请根据目标岗位调整。",
-            "recommendations": ["请指定明确的目标岗位以获得个性化学习路径。"],
-            "source": "generic_fallback",
-        }
+        """Compat shim — delegates to ``steps.learning_path.generic_learning_path``."""
+        return generic_learning_path()
 
     # ------------------------------------------------------------------
     # PostgreSQL persistence helpers
