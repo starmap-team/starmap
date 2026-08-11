@@ -1,6 +1,8 @@
 """Unit tests for loop orchestrator."""
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from app.core.pipeline.loop_orchestrator import (
@@ -293,3 +295,199 @@ class TestStep2ExtractSkillsSuccess:
         with patch("app.core.extraction.jd_extract.extract_from_jd", new=AsyncMock(return_value=mock_result)):
             result = await orch._step2_extract_skills("some text")
         assert result.status == StepStatus.FAILED
+
+
+# ---------------------------------------------------------------------------
+# Phase 07-02 D-03 / D-06: degradation判定 + model_used 透传 (T7)
+# ---------------------------------------------------------------------------
+class TestModelUsedPropagation:
+    """Step 2 (extract) must surface the actual LLM model name in data so the
+    frontend LoopStepSkills card can render cloud vs local fallback (D-06)."""
+
+    @pytest.mark.asyncio
+    async def test_model_used_passed_through(self):
+        from unittest.mock import AsyncMock, patch
+
+        orch = LoopOrchestrator()
+        mock_result = {
+            "success": True,
+            "model_used": "deepseek-chat",
+            "data": {
+                "required_skills": [
+                    {"name": "Python", "category": "hard_skill", "level": "熟悉", "confidence": 0.92},
+                ],
+                "preferred_skills": [],
+                "position_name": "Backend",
+            },
+        }
+        with patch("app.core.extraction.jd_extract.extract_from_jd",
+                   new=AsyncMock(return_value=mock_result)):
+            result = await orch._step2_extract_skills("some jd")
+        assert result.data["model_used"] == "deepseek-chat"
+        # D-05 metric row fields also surfaced
+        assert result.data["skill_count"] == 1
+        assert result.data["skill_confidence_avg"] == 0.92
+
+    @pytest.mark.asyncio
+    async def test_model_used_none_when_not_in_response(self):
+        """When extraction doesn't return model_used, data key is present but None
+        (honest empty state — Phase 1 / M6 '未评估' pattern)."""
+        from unittest.mock import AsyncMock, patch
+
+        orch = LoopOrchestrator()
+        mock_result = {
+            "success": True,
+            "data": {"required_skills": [], "preferred_skills": [], "position_name": ""},
+        }
+        with patch("app.core.extraction.jd_extract.extract_from_jd",
+                   new=AsyncMock(return_value=mock_result)):
+            result = await orch._step2_extract_skills("text")
+        assert result.data["model_used"] is None
+        assert result.data["skill_confidence_avg"] is None
+
+
+class TestStepLevelDirectInvocation:
+    """Steps modules can be called directly without going through LoopOrchestrator
+    (regression for the split — D-01)."""
+
+    @pytest.mark.asyncio
+    async def test_run_extract_step_success(self):
+        from app.core.pipeline.loop.steps.extract import run_extract_step
+        from unittest.mock import AsyncMock, patch
+
+        with patch("app.core.extraction.jd_extract.extract_from_jd",
+                   new=AsyncMock(return_value={
+                       "success": True,
+                       "model_used": "spark-x",
+                       "data": {"required_skills": [], "preferred_skills": [], "position_name": ""},
+                   })):
+            result = await run_extract_step("hello jd")
+        assert result.status == StepStatus.SUCCESS
+        assert result.data["model_used"] == "spark-x"
+
+    @pytest.mark.asyncio
+    async def test_run_extract_step_exception(self):
+        from app.core.pipeline.loop.steps.extract import run_extract_step
+        from unittest.mock import AsyncMock, patch
+
+        with patch("app.core.extraction.jd_extract.extract_from_jd",
+                   new=AsyncMock(side_effect=RuntimeError("LLM down"))):
+            result = await run_extract_step("hello jd")
+        assert result.status == StepStatus.FAILED
+        assert "LLM down" in result.error
+
+    @pytest.mark.asyncio
+    async def test_run_graph_update_step_no_driver(self):
+        from app.core.pipeline.loop.steps.graph_update import run_graph_update_step
+        from unittest.mock import patch
+
+        with patch("app.services.resources.resources", type("R", (), {"neo4j_driver": None})()):
+            result = await run_graph_update_step("run-1", {})
+        assert result.status == StepStatus.FAILED
+        assert "Neo4j" in result.error or "unavailable" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_run_match_step_no_skills(self):
+        from app.core.pipeline.loop.steps.match import run_match_step
+        result = await run_match_step(target_position="Backend", extracted_skills=[], graph_available=False)
+        assert result.status == StepStatus.FAILED
+        assert "No skills" in result.error
+
+    @pytest.mark.asyncio
+    async def test_run_learning_path_step_match_ok(self):
+        from app.core.pipeline.loop.steps.learning_path import run_learning_path_step
+        result = await run_learning_path_step(
+            match_result={"skill_gap_detail": [
+                {"skill": "Python", "importance": "required", "gap_level": "完全缺失",
+                 "learning_path": ["Python基础"]},
+            ], "estimated_learning_time": "2 weeks", "overall_assessment": "ok",
+             "recommendations": []},
+            match_ok=True, target_position="Backend",
+        )
+        assert result.status == StepStatus.SUCCESS
+        assert result.data["path_length"] == 1
+
+    @pytest.mark.asyncio
+    async def test_run_learning_path_step_match_failed(self):
+        from app.core.pipeline.loop.steps.learning_path import run_learning_path_step
+        result = await run_learning_path_step(
+            match_result={}, match_ok=False, target_position="Backend",
+        )
+        assert result.status == StepStatus.FAILED
+        # Fallback path still has path_length key (D-05 metric row contract)
+        assert "path_length" in result.data
+        assert len(result.data["path_items"]) >= 1
+
+
+class TestDegradationJudgment:
+    """D-03 fail-fast + 降级判定:
+    - step3 失败 → 整体仍 COMPLETED（degraded）
+    - step4 失败 + step5 失败 → 整体仍 COMPLETED
+    - ≥3 步失败 → 整体 FAILED
+    Per-step 异常仍记 FAILED（不扩展 StepStatus enum）。"""
+
+    @staticmethod
+    def _patches(sync_return=None, match_return=None, plan_return=None, driver=object()):
+        """Stack of patches used by D-03 degradation tests."""
+        from contextlib import ExitStack
+        sync = sync_return if sync_return is not None else {"synced": True, "nodes": 1, "edges": 0}
+        match = match_return if match_return is not None else {
+            "match_score": 0.5, "skill_gap_detail": [],
+            "estimated_learning_time": "", "overall_assessment": "", "recommendations": [],
+        }
+        plan = plan_return if plan_return is not None else {"plan_id": "p-1"}
+        stack = ExitStack()
+        stack.enter_context(patch("app.services.resources.resources",
+                                   type("R", (), {"neo4j_driver": driver})()))
+        stack.enter_context(patch("app.core.extraction.jd_extract.extract_from_jd",
+                                   new=AsyncMock(return_value={
+                                       "success": True,
+                                       "data": {"required_skills": [
+                                           {"name": "Python", "category": "hard_skill", "level": "熟悉"},
+                                       ], "preferred_skills": [], "position_name": "Backend"},
+                                   })))
+        stack.enter_context(patch("app.services.graph_sync.sync_from_pipeline",
+                                   new=AsyncMock(return_value=sync)))
+        stack.enter_context(patch("app.services.match_service.run_match",
+                                   new=AsyncMock(return_value=match)))
+        stack.enter_context(patch("app.services.learning_service.create_plan_from_match",
+                                   new=AsyncMock(return_value=plan)))
+        return stack
+
+    @pytest.mark.asyncio
+    async def test_step3_fail_keeps_run_completed(self):
+        orch = LoopOrchestrator()
+        with self._patches(sync_return={"synced": False, "error": "neo4j down"}):
+            result = await orch.run_loop("jd", "Backend")
+        step3_status = next(s.status for s in result.steps if s.step == 3)
+        assert step3_status == StepStatus.FAILED
+        # D-03: only 1 failure (step3) → overall COMPLETED
+        assert result.status == LoopRunStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_step4_step5_both_fail_still_completed(self):
+        orch = LoopOrchestrator()
+        with self._patches():
+            with patch("app.services.match_service.run_match",
+                       new=AsyncMock(side_effect=RuntimeError("match boom"))):
+                result = await orch.run_loop("jd", "Backend")
+        step4 = next(s for s in result.steps if s.step == 4)
+        step5 = next(s for s in result.steps if s.step == 5)
+        assert step4.status == StepStatus.FAILED
+        assert step5.status == StepStatus.FAILED
+        # D-03: only step 4/5 failed → overall COMPLETED
+        assert result.status == LoopRunStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_three_failures_means_failed(self):
+        orch = LoopOrchestrator()
+        # step2 raises + step3 fails + step4 fails
+        with self._patches(sync_return={"synced": False, "error": "neo4j down"}):
+            with patch("app.core.extraction.jd_extract.extract_from_jd",
+                       new=AsyncMock(side_effect=RuntimeError("LLM down"))), \
+                 patch("app.services.match_service.run_match",
+                       new=AsyncMock(side_effect=RuntimeError("match boom"))):
+                result = await orch.run_loop("jd", "Backend")
+        failed = [s for s in result.steps if s.status == StepStatus.FAILED]
+        assert len(failed) >= 3
+        assert result.status == LoopRunStatus.FAILED
