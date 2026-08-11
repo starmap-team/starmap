@@ -1,6 +1,7 @@
 """Unit tests for app.services.resume_service — resume parsing and extraction."""
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -345,6 +346,59 @@ class TestRunResumeExtraction:
         _call_args = mock_extract.await_args
         assert _call_args is not None
         assert _call_args[1]["options"]["source"] == "custom_source"
+
+    # ── DEF-001: Redis 内容哈希缓存 ──
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_skips_llm(self):
+        """同一内容命中缓存时应跳过 LLM，直接返回缓存结果。"""
+        cached_result = {"success": True, "data": {"position_name": "Engineer"}}
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=json.dumps(cached_result, ensure_ascii=False))
+
+        mock_extract = AsyncMock(return_value={"success": True, "data": {"position_name": "Other"}})
+
+        with patch("app.services.resume_service.extract_from_jd", mock_extract):
+            result = await run_resume_extraction(
+                "test.pdf", b"John Doe Resume PDF content", redis_client=mock_redis
+            )
+
+        assert result == cached_result
+        mock_extract.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_cache_miss_runs_llm_and_writes(self):
+        """未命中时应运行 LLM，并在成功后写入缓存。"""
+        fresh_result = {"success": True, "data": {"position_name": "Engineer"}}
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=None)
+
+        mock_extract = AsyncMock(return_value=fresh_result)
+
+        with patch("app.services.resume_service.extract_from_jd", mock_extract):
+            result = await run_resume_extraction(
+                "test.pdf", b"John Doe Resume PDF content", redis_client=mock_redis
+            )
+
+        assert result == fresh_result
+        mock_extract.assert_awaited_once()
+        mock_redis.set.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_cache_failure_does_not_block(self):
+        """Redis 读写失败不应阻断主抽取流程。"""
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(side_effect=ConnectionError("redis down"))
+
+        mock_extract = AsyncMock(return_value={"success": True, "data": {"position_name": "Engineer"}})
+
+        with patch("app.services.resume_service.extract_from_jd", mock_extract):
+            result = await run_resume_extraction(
+                "test.pdf", b"John Doe Resume PDF content", redis_client=mock_redis
+            )
+
+        assert result["success"] is True
+        mock_extract.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------

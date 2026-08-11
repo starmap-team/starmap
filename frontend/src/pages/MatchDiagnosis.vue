@@ -70,7 +70,10 @@ async function handleUpload(file: File) {
   }
   userStore.setResume(file.name, resumeStore.result.required_skills ?? [])
   await new Promise(resolve => setTimeout(resolve, 600))
-  ElMessage.success('简历解析完成，识别 ' + userStore.parsedSkills.length + ' 项技能')
+  // 展示实际抽取模型：云端（deepseek-chat/generalv3.5）秒级，本地（*-fallback）40-120s+
+  const model = resumeStore.result.model_used
+  const modelNote = model ? `（${model}）` : ''
+  ElMessage.success(`简历解析完成，识别 ${userStore.parsedSkills.length} 项技能${modelNote}`)
   step.value = 1
 }
 

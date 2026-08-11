@@ -9,7 +9,7 @@ from loguru import logger
 
 from app.api.v1.extract import ExtractionResult, _build_result, _write_extraction_to_graph
 from app.api.v1.upload_validation import validate_resume_upload
-from app.dependencies import get_neo4j_driver
+from app.dependencies import get_neo4j_driver, get_redis_client
 from app.exceptions import ExtractionError, StarMapError
 from app.services.resume_service import run_resume_extraction
 
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/resume", tags=["简历解析"])
 async def upload_resume(
     file: UploadFile = File(...),  # noqa: B008
     neo4j_driver: Any = Depends(get_neo4j_driver),  # noqa: B008
+    redis_client: Any = Depends(get_redis_client),  # noqa: B008
 ) -> dict[str, Any]:
     """阶段 4 兼容端点：上传简历并返回结构化抽取结果。"""
     logger.info("POST /resume/upload - filename={}", file.filename)
@@ -28,7 +29,7 @@ async def upload_resume(
     content_bytes = await validate_resume_upload(file)
 
     try:
-        pipeline_result = await run_resume_extraction(file.filename or "resume", content_bytes)
+        pipeline_result = await run_resume_extraction(file.filename or "resume", content_bytes, redis_client=redis_client)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ConnectionError as exc:

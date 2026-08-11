@@ -119,7 +119,7 @@ function handleRemove() {
           class="progress-wrapper"
         />
         <p class="upload-hint">
-          正在解析简历，请稍候...
+          LLM 正在解析简历，本地模型抽取较慢（约 1-2 分钟），请勿关闭页面
         </p>
       </template>
 

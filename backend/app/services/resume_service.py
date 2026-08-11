@@ -2,15 +2,26 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from io import BytesIO
 from typing import Any
 
 import pdfplumber
 from docx import Document
 from loguru import logger
+from redis.asyncio import Redis
 
 from app.core.extraction.jd_extract import extract_from_jd
 from app.core.extraction.resume_eval import run_resume_evaluation  # noqa: F401  (re-export:供 api 层经 service 引用)
+
+RESUME_CACHE_PREFIX = "resume-extract:"
+RESUME_CACHE_TTL_SECONDS = 24 * 60 * 60
+"""LLM 抽取结果内容哈希缓存（24h）。
+
+本地 Ollama 抽取耗时 40-120s+（后端已放宽到 300s），同一简历重复上传时
+逐次全量 LLM 抽取体验极差。按文件内容 sha256 缓存 pipeline 结果，命中即秒回。
+"""
 
 SUPPORTED_RESUME_EXTENSIONS = {"pdf", "docx"}
 """Whitelist of resume file extensions the backend can parse.
@@ -113,10 +124,52 @@ async def run_resume_extraction(
     filename: str,
     content_bytes: bytes,
     options: dict[str, Any] | None = None,
+    redis_client: Redis | None = None,
 ) -> dict[str, Any]:
-    """Parse a resume file and run the shared extraction pipeline."""
+    """Parse a resume file and run the shared extraction pipeline.
+
+    Results are cached by file content sha256 when a Redis client is provided
+    (the ``/resume/upload`` route injects ``get_redis_client``). Same-file
+    re-uploads bypass the slow LLM extraction entirely.
+    """
     text = extract_resume_text(filename, content_bytes)
     merged_options = {"source": "resume"}
     if options:
         merged_options.update(options)
-    return await extract_from_jd(text, options=merged_options)
+
+    cache_key = _resume_cache_key(content_bytes)
+    if redis_client is not None:
+        cached = await _read_resume_cache(redis_client, cache_key)
+        if cached is not None:
+            logger.info("Resume extraction cache HIT ({} bytes) — skipping LLM", len(content_bytes))
+            return cached
+
+    result = await extract_from_jd(text, options=merged_options)
+
+    if redis_client is not None and result.get("success"):
+        await _write_resume_cache(redis_client, cache_key, result)
+    return result
+
+
+def _resume_cache_key(content_bytes: bytes) -> str:
+    digest = hashlib.sha256(content_bytes).hexdigest()
+    return f"{RESUME_CACHE_PREFIX}{digest}"
+
+
+async def _read_resume_cache(redis_client: Redis, key: str) -> dict[str, Any] | None:
+    try:
+        raw = await redis_client.get(key)
+        if not raw:
+            return None
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception as exc:  # noqa: BLE001 — 缓存失败不阻断主流程
+        logger.warning("Resume cache read failed ({}): {}", key, exc)
+        return None
+
+
+async def _write_resume_cache(redis_client: Redis, key: str, result: dict[str, Any]) -> None:
+    try:
+        await redis_client.set(key, json.dumps(result, ensure_ascii=False), ex=RESUME_CACHE_TTL_SECONDS)
+    except Exception as exc:  # noqa: BLE001 — 缓存失败不阻断主流程
+        logger.warning("Resume cache write failed ({}): {}", key, exc)
