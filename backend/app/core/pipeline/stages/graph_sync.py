@@ -47,7 +47,10 @@ async def _create_outbox_record(
             record = GraphWriteOutbox(
                 id=outbox_id,
                 run_id=uuid.UUID(run_id) if isinstance(run_id, str) else run_id,
-                extraction_ids=extraction_ids or [],
+                # D5 fix (2026-08-12): extraction_ids 是 JSON 列，UUID 对象无法被驱动
+                # JSON 序列化 → "Object of type UUID is not JSON serializable"，
+                # outbox 创建静默失败（non-fatal）→ 抽取产物审计/重试链路断裂。入库前转 str。
+                extraction_ids=[str(eid) for eid in (extraction_ids or [])],
                 status="pending",
                 created_at=datetime.now(UTC),
             )
