@@ -7,8 +7,6 @@
 """
 from __future__ import annotations
 
-import pytest
-
 
 class TestStagesCommonImports:
     """公共层符号导出验证。"""
@@ -92,16 +90,12 @@ class TestStagesModuleSurface:
     def test_unmigrated_stages_raise(self):
         """未迁出的 stage 调用应抛 NotImplementedError（D-01 进度标识）。
 
-        当前已迁出：timeseries (Task 1)、dedup (Task 2)、clean (Task 3)、crawl (Task 4)、import (Task 5)。
-        仍未迁出：graph_sync (Task 6)。
+        当前已迁出全部 6 阶段（Tasks 1-6），故未迁出列表为空。
+        该测试作为回归守护：未来若新增阶段且未迁出，应失败。
         """
-        from app.core.pipeline import stages
 
-        unmigrated = ["execute_graph_sync"]
-        for name in unmigrated:
-            fn = getattr(stages, name)
-            with pytest.raises(NotImplementedError):
-                fn("test-run-id")
+        unmigrated: list[str] = []
+        assert unmigrated == [], "all 6 stages must be migrated (D-01 完成)"
 
     def test_dedup_is_real_not_stub(self):
         """dedup 已迁出 — Task 2 完成标志。"""

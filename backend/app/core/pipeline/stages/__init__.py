@@ -1,7 +1,7 @@
 """Pipeline 阶段模块聚合入口（D-01）。
 
 各阶段执行函数从 executor.py 迁出至此；executor.py 仍为兼容重导出层（D-11）。
-后续 Task 2-6 将逐个迁出 crawl/dedup/clean/import/graph_sync 阶段。
+所有 6 阶段均已迁出（Tasks 1-6）。
 """
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 
 
 def execute_timeseries(run_id: str) -> dict[str, Any]:  # noqa: D401
-    """Timeseries 阶段 — 已迁出。"""
+    """Timeseries 阶段 — 已迁出（Task 1）。"""
     from app.core.pipeline.stages.timeseries import execute_timeseries as _impl
 
     return _impl(run_id)
@@ -43,18 +43,11 @@ def execute_import(run_id: str) -> dict[str, Any]:  # noqa: D401
     return _impl(run_id)
 
 
-# 尚未迁出的阶段占位（保持模块 surface 一致，避免 import 顺序问题）
-def _not_migrated(stage_name: str):  # noqa: D401
-    def _stub(run_id: str) -> dict[str, Any]:  # noqa: ARG001
-        raise NotImplementedError(
-            f"Stage '{stage_name}' not yet migrated from executor.py "
-            f"(see Phase 03 Plan 03 Tasks 2-6)"
-        )
+def execute_graph_sync(run_id: str) -> dict[str, Any]:  # noqa: D401
+    """Graph_sync 阶段 — 已迁出（Task 6）。"""
+    from app.core.pipeline.stages.graph_sync import execute_graph_sync as _impl
 
-    return _stub
-
-
-execute_graph_sync = _not_migrated("graph_sync")
+    return _impl(run_id)
 
 
 __all__ = [

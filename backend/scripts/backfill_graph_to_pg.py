@@ -1,4 +1,7 @@
-"""One-shot backfill: PG ← Neo4j missing skills & REQUIRES edges.
+"""DEPRECATED — 逻辑已折入 backend/app/core/pipeline/stages/graph_sync.py 的 reconcile 子步骤。
+可通过配置 settings.pipeline_graph_sync_reconcile_on_sync=True 启用（默认 False）。
+
+One-shot backfill: PG ← Neo4j missing skills & REQUIRES edges.
 
 漂移根因（stage3_services.run_batch_extract_jd:294-298）：技能落 PG 是 non-fatal，
 失败仅告警、图谱写入继续 → Neo4j 有、PG 没有。本脚本把 PG 缺失的

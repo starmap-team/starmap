@@ -143,68 +143,15 @@ execute_import = _execute_import
 
 
 
-def execute_graph_sync(run_id: str) -> dict[str, Any]:
-    """Execute graph_sync stage: build Neo4j graph from extraction records.
+# Phase 03 Plan 03 Task 6: graph_sync 阶段已迁出到 stages/graph_sync.py。
+# 保留同名重导出（D-11 兼容壳），存量调用方零改动。
+from app.core.pipeline.stages.graph_sync import (  # noqa: E402,F401
+    execute_graph_sync as _execute_graph_sync,
+)
 
-    Phase 7 P0-1: outbox pattern — 写入 Neo4j 前创建 outbox 记录，防止 PG/Neo4j 数据漂移。
-    """
-    import time
-    import uuid as _uuid
+execute_graph_sync = _execute_graph_sync
 
-    from app.tasks.stage3_services import run_build_graph_from_extractions
 
-    processed = 0
-    errors: list[str] = []
-    start = time.monotonic()
-
-    _run_async(_publish_stage_progress(
-        run_id, "graph_sync", "running", progress=0.0,
-        current_activity="正在连接 Neo4j 并准备图谱同步...", elapsed_ms=0,
-    ))
-
-    # Phase 7 P0-1: Create outbox record BEFORE Neo4j write
-    outbox_id = _uuid.uuid4()
-    try:
-        _run_async(_create_outbox_record(get_session_factory(), outbox_id, _uuid.UUID(run_id)))
-    except PipelineStageError:
-        raise
-    except Exception as o_exc:
-        logger.warning("graph_sync outbox create failed (non-fatal): {}", o_exc)
-
-    try:
-        result = _run_async(run_build_graph_from_extractions(limit=500))
-        processed = result.get("processed", 0)
-        triples_merged = result.get("triples_merged", 0)
-        nodes = result.get("nodes_written", 0)
-        edges = result.get("edges_written", 0)
-        # Outbox: mark complete on success
-        _run_async(_complete_outbox_record(get_session_factory(), outbox_id, triples_merged))
-        _run_async(_publish_stage_progress(
-            run_id, "graph_sync", "completed", progress=1.0,
-            records_processed=processed,
-            current_activity=f"图谱完成: {nodes}节点 {edges}关系 {triples_merged} triples",
-            sub_breakdown={"节点": nodes, "关系": edges, "triples": triples_merged},
-            elapsed_ms=int((time.monotonic() - start) * 1000),
-        ))
-        if result.get("status") != "completed":
-            errors.append(f"graph sync incomplete: {result}")
-    except PipelineStageError:
-        raise
-    except Exception as exc:
-        errors.append(f"graph_sync failed: {exc}")
-        logger.opt(exception=True).error("Graph sync stage failed: {}", exc)
-        # Outbox: mark failed for retry
-        try:
-            _run_async(_fail_outbox_record(get_session_factory(), outbox_id, str(exc)))
-        except PipelineStageError:
-            raise
-        except Exception as o_err:
-            logger.warning("outbox fail update error: {}", o_err)
-        _run_async(_publish_stage_progress(
-            run_id, "graph_sync", "failed", current_activity=f"图谱同步失败: {exc}",
-        ))
-
-    return {"records_processed": processed, "errors": errors, "outbox_id": str(outbox_id)}
 
 
 # Phase 03 Plan 03 Task 1: timeseries 阶段已迁出到 stages/timeseries.py。

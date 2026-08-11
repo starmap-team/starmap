@@ -1,4 +1,7 @@
-"""One-shot: sync PG REQUIRES edges → Neo4j (missing pairs only).
+"""DEPRECATED — 逻辑已折入 backend/app/core/pipeline/stages/graph_sync.py 的 reconcile 子步骤。
+可通过配置 settings.pipeline_graph_sync_reconcile_on_sync=True 启用（默认 False）。
+
+One-shot: sync PG REQUIRES edges → Neo4j (missing pairs only).
 
 双存储漂移修复收尾：PG 有边而 Neo4j 缺失的对，用无属性 MERGE + SET 写入
 （graph_writer 幂等修复后同款写法），使两库边数一致。
