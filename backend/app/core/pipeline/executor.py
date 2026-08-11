@@ -529,6 +529,8 @@ def execute_clean(run_id: str) -> dict[str, Any]:
                     if idx < 5:
                         cleaned_titles.append(jd.job_title[:60])
                 processed += 1
+                # T5 fix: 标记 cleaned 状态供 import 阶段读取
+                jd.status = JdStatus.cleaned
                 # 每处理 10 条报告一次
                 if idx > 0 and idx % 10 == 0:
                     _run_async(_publish_stage_progress(
@@ -585,7 +587,15 @@ def execute_import(run_id: str) -> dict[str, Any]:
         from crawler.persistence.models import JdRaw, JdStatus
 
         with get_jd_raw_session() as s:
-            clean_jds = s.query(JdRaw).filter(JdRaw.status == JdStatus.raw).limit(100).all()
+            # T5 fix: 读 status=cleaned (clean 阶段已标记) + 可配 batch_size
+            from app.config import settings
+
+            clean_jds = (
+                s.query(JdRaw)
+                .filter(JdRaw.status == JdStatus.cleaned)
+                .limit(settings.pipeline_import_batch_size)
+                .all()
+            )
             jd_texts = []
             jd_titles = []
             for jd in clean_jds:

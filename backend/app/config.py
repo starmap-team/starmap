@@ -151,6 +151,12 @@ class Settings(BaseSettings):
     spark_http_url: str = "https://spark-api-open.xf-yun.com/v1/chat/completions"
     deepseek_http_url: str = "https://api.deepseek.com/chat/completions"
 
+    # 讯飞 Spark X 深度推理（优先于 Spark 传统模型；X2 为默认端点）
+    # model 固定为 spark-x（X2 与 X1.5 共用）；X2 端点 /x2/chat/completions，
+    # X1.5 端点 /v2/chat/completions（2026-08-11 实测均可用，X2 12s / X1.5 7s）
+    spark_x_url: str = "https://spark-api-open.xf-yun.com/x2/chat/completions"
+    spark_x_model: str = "spark-x"
+
     # 数据源抓取与健康探测端点
     zhipin_base_url: str = "https://www.zhipin.com"
     # source_name → probe_url 兜底映射（数据源表缺失 probe_url 时用于健康探测）
@@ -210,6 +216,8 @@ class Settings(BaseSettings):
     pipeline_crawl_concurrency: int = 5
     pipeline_retry_max: int = 3
     pipeline_retry_backoff: int = 10  # 秒, 指数递增基数
+    pipeline_import_batch_size: int = 500  # 阶段 import 每次读取已清洗 JD 的批量上限
+    pipeline_graph_sync_reconcile_on_sync: bool = False  # graph_sync 阶段可选对账开关
 
     # ── 资源探测超时 ──
     httpx_health_check_timeout: float = 3.0  # 健康探测（Ollama / Redis / Neo4j 等）
