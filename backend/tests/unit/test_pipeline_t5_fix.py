@@ -73,16 +73,24 @@ class TestExecuteImportReadsCleaned:
     """execute_import 应读 status=cleaned，不再读 raw。"""
 
     def test_import_filters_by_cleaned(self):
-        """静态读取源码，断言 import 用 JdStatus.cleaned 过滤。"""
+        """静态读取源码，断言 import 用 JdStatus.cleaned 过滤。
+
+        Task 0-4: executor.py 含 execute_import；Task 5+: stages/import_.py 含 execute_import。
+        """
         from pathlib import Path
 
-        executor_path = Path(__file__).resolve().parents[2] / "app" / "core" / "pipeline" / "executor.py"
-        source = executor_path.read_text(encoding="utf-8")
-        # import 阶段过滤必须用 cleaned
-        assert "JdStatus.cleaned" in source, "execute_import must filter by JdStatus.cleaned"
-        # 同时确认旧 raw 过滤在 import 阶段被移除
-        import_body = _extract_function_body(source, "execute_import")
-        # import 内不应再出现 .filter(... JdStatus.raw)
+        base = Path(__file__).resolve().parents[2] / "app" / "core" / "pipeline"
+        import_body = ""
+        for candidate in [base / "executor.py", base / "stages" / "import_.py"]:
+            if candidate.exists():
+                src = candidate.read_text(encoding="utf-8")
+                if "def execute_import(" in src:
+                    import_body = _extract_function_body(src, "execute_import")
+                    break
+        assert import_body, "execute_import not found in executor.py or stages/import_.py"
+        assert "JdStatus.cleaned" in import_body, (
+            "execute_import must filter by JdStatus.cleaned (T5 fix)"
+        )
         assert "JdStatus.raw" not in import_body, (
             "execute_import must NOT filter by JdStatus.raw (T5 fix)"
         )
@@ -106,19 +114,27 @@ class TestImportBatchSizeConfigurable:
         """源码中 execute_import 必须引用 settings.pipeline_import_batch_size。"""
         from pathlib import Path
 
-        executor_path = Path(__file__).resolve().parents[2] / "app" / "core" / "pipeline" / "executor.py"
-        source = executor_path.read_text(encoding="utf-8")
-        assert "pipeline_import_batch_size" in source, (
-            "execute_import must reference settings.pipeline_import_batch_size"
-        )
+        base = Path(__file__).resolve().parents[2] / "app" / "core" / "pipeline"
+        found = False
+        for candidate in [base / "executor.py", base / "stages" / "import_.py"]:
+            if candidate.exists() and "pipeline_import_batch_size" in candidate.read_text(encoding="utf-8"):
+                found = True
+                break
+        assert found, "execute_import must reference settings.pipeline_import_batch_size"
 
     def test_hardcoded_limit_100_removed(self):
         """execute_import 内不允许再有硬编码 limit(100)。"""
         from pathlib import Path
 
-        executor_path = Path(__file__).resolve().parents[2] / "app" / "core" / "pipeline" / "executor.py"
-        source = executor_path.read_text(encoding="utf-8")
-        import_body = _extract_function_body(source, "execute_import")
+        base = Path(__file__).resolve().parents[2] / "app" / "core" / "pipeline"
+        import_body = ""
+        for candidate in [base / "executor.py", base / "stages" / "import_.py"]:
+            if candidate.exists():
+                src = candidate.read_text(encoding="utf-8")
+                if "def execute_import(" in src:
+                    import_body = _extract_function_body(src, "execute_import")
+                    break
+        assert import_body, "execute_import not found"
         assert ".limit(100)" not in import_body, (
             "execute_import must NOT contain hardcoded limit(100) (T5 fix)"
         )

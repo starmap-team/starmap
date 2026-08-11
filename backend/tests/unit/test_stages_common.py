@@ -81,23 +81,23 @@ class TestStagesModuleSurface:
         try:
             # 用 invalid run_id 调用：真实现返回 dict（即使 records_processed=0），不抛
             result = fn("test-not-implemented-run-id")
-        except NotImplementedError:
+        except NotImplementedError as exc:
             raise AssertionError(
                 "stages.execute_timeseries is still a stub (NotImplementedError); "
                 "Task 1 migration incomplete"
-            )
+            ) from exc
         assert isinstance(result, dict)
         assert "records_processed" in result
 
     def test_unmigrated_stages_raise(self):
         """未迁出的 stage 调用应抛 NotImplementedError（D-01 进度标识）。
 
-        当前已迁出：timeseries (Task 1)、dedup (Task 2)、clean (Task 3)、crawl (Task 4)。
-        仍未迁出：import、graph_sync (Tasks 5-6)。
+        当前已迁出：timeseries (Task 1)、dedup (Task 2)、clean (Task 3)、crawl (Task 4)、import (Task 5)。
+        仍未迁出：graph_sync (Task 6)。
         """
         from app.core.pipeline import stages
 
-        unmigrated = ["execute_import", "execute_graph_sync"]
+        unmigrated = ["execute_graph_sync"]
         for name in unmigrated:
             fn = getattr(stages, name)
             with pytest.raises(NotImplementedError):
@@ -110,8 +110,8 @@ class TestStagesModuleSurface:
         fn = stages.execute_dedup
         try:
             result = fn("test-not-implemented-run-id")
-        except NotImplementedError:
-            raise AssertionError("stages.execute_dedup is still a stub; Task 2 incomplete")
+        except NotImplementedError as exc:
+            raise AssertionError("stages.execute_dedup is still a stub; Task 2 incomplete") from exc
         assert isinstance(result, dict)
 
     def test_clean_is_real_not_stub(self):
@@ -121,8 +121,8 @@ class TestStagesModuleSurface:
         fn = stages.execute_clean
         try:
             result = fn("test-not-implemented-run-id")
-        except NotImplementedError:
-            raise AssertionError("stages.execute_clean is still a stub; Task 3 incomplete")
+        except NotImplementedError as exc:
+            raise AssertionError("stages.execute_clean is still a stub; Task 3 incomplete") from exc
         assert isinstance(result, dict)
 
     def test_crawl_is_real_not_stub(self):
@@ -131,7 +131,18 @@ class TestStagesModuleSurface:
 
         fn = stages.execute_crawl
         try:
-            result = fn("test-not-implemented-run-id", "incremental")
-        except NotImplementedError:
-            raise AssertionError("stages.execute_crawl is still a stub; Task 4 incomplete")
+            result = fn("test-run-id", "incremental")
+        except NotImplementedError as exc:
+            raise AssertionError("stages.execute_crawl is still a stub; Task 4 incomplete") from exc
+        assert isinstance(result, dict)
+
+    def test_import_is_real_not_stub(self):
+        """import 已迁出 — Task 5 完成标志。"""
+        from app.core.pipeline import stages
+
+        fn = stages.execute_import
+        try:
+            result = fn("test-run-id")
+        except NotImplementedError as exc:
+            raise AssertionError("stages.execute_import is still a stub; Task 5 incomplete") from exc
         assert isinstance(result, dict)

@@ -284,13 +284,27 @@ async def run_build_graph_from_extractions(limit: int = 100) -> dict[str, Any]:
             from app.repositories.extract_repo import upsert_skill_record
 
             seen: set[str] = set()
+            failed_skills: list[str] = []
             for payload in extractions:
                 for sk in (payload.get("required_skills") or []) + (payload.get("preferred_skills") or []):
                     name = sk.get("skill") or sk.get("name") if isinstance(sk, dict) else str(sk)
                     if name and name not in seen:
                         seen.add(name)
-                        await upsert_skill_record(session, name=name, review_status="approved")
+                        try:
+                            await upsert_skill_record(session, name=name, review_status="approved")
+                        except Exception as single_sk_exc:  # noqa: BLE001 — 单条失败记入观测但不阻断
+                            failed_skills.append(name)
+                            logger.warning(
+                                "skill_records upsert failed for skill={!r} (non-fatal): {}",
+                                name, single_sk_exc,
+                            )
             await session.commit()
+            # D-06 SSOT 可观测化: 失败技能列表写日志告警 (outbox 表 + 一致性告警由 services/pipeline_consistency.py 在阶段末调用)
+            if failed_skills:
+                logger.warning(
+                    "stage3 skill_records upsert: {} failed (skills={})",
+                    len(failed_skills), failed_skills[:10],
+                )
         except Exception as sk_exc:  # noqa: BLE001 — 技能入库失败不阻断图谱构建
             logger.warning("skill_records upsert failed (non-fatal): {}", sk_exc)
         config = GraphConfig()

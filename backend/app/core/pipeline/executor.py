@@ -132,115 +132,15 @@ from app.core.pipeline.stages.clean import (  # noqa: E402,F401
 execute_clean = _execute_clean
 
 
-def execute_import(run_id: str) -> dict[str, Any]:
-    """Execute import stage: extract skills from JDs and persist to PostgreSQL + Neo4j.
+# Phase 03 Plan 03 Task 5: import 阶段已迁出到 stages/import_.py。
+# 保留同名重导出（D-11 兼容壳），存量调用方零改动。
+from app.core.pipeline.stages.import_ import (  # noqa: E402,F401
+    execute_import as _execute_import,
+)
 
-    Phase 3.7: 实时进度 — 报告 LLM 提取状态 + 技能样本
-    """
-    import time
+execute_import = _execute_import
 
-    from app.tasks.stage3_services import run_batch_extract_jd
 
-    processed = 0
-    errors: list[str] = []
-    extracted_skills_sample: list[dict[str, Any]] = []
-    start = time.monotonic()
-
-    _run_async(_publish_stage_progress(
-        run_id, "import", "running", progress=0.0,
-        current_activity="正在加载已清洗的JD...", elapsed_ms=0,
-    ))
-
-    try:
-        # Get cleaned JDs from jd_raw that haven't been extracted yet
-        from crawler.persistence.database import get_jd_raw_session
-        from crawler.persistence.models import JdRaw, JdStatus
-
-        with get_jd_raw_session() as s:
-            # T5 fix: 读 status=cleaned (clean 阶段已标记) + 可配 batch_size
-            from app.config import settings
-
-            clean_jds = (
-                s.query(JdRaw)
-                .filter(JdRaw.status == JdStatus.cleaned)
-                .limit(settings.pipeline_import_batch_size)
-                .all()
-            )
-            jd_texts = []
-            jd_titles = []
-            for jd in clean_jds:
-                if jd.clean_text:
-                    jd_texts.append(jd.clean_text)
-                    jd_titles.append(jd.job_title)
-                    jd.status = JdStatus.extracted
-            s.commit()
-
-            total = len(jd_texts)
-            _run_async(_publish_stage_progress(
-                run_id, "import", "running", progress=0.1,
-                current_activity=f"待提取: {total} 条 (LLM: 技能识别 + 标准化 + 验证)",
-                records_processed=0,
-                elapsed_ms=int((time.monotonic() - start) * 1000),
-            ))
-
-        # Extract skills from each JD via LLM
-        for idx, (text, title) in enumerate(zip(jd_texts, jd_titles, strict=False)):
-            try:
-                result = _run_async(run_batch_extract_jd(text))
-                if result.get("status") == "completed":
-                    processed += 1
-                    # 收集样本技能
-                    if result.get("data", {}).get("required_skills"):
-                        for sk in result["data"]["required_skills"][:3]:
-                            extracted_skills_sample.append({
-                                "title": title[:40] if title else "未命名",
-                                "skill": sk.get("name", ""),
-                                "category": sk.get("category", ""),
-                            })
-                else:
-                    errors.append(f"extraction failed: {result.get('error', 'unknown')}")
-
-                if idx > 0 and idx % 3 == 0:
-                    _run_async(_publish_stage_progress(
-                        run_id, "import", "running",
-                        progress=0.1 + 0.85 * (idx / total),
-                        records_processed=processed,
-                        current_activity=f"LLM 提取 {idx}/{total} 条 - 当前: {title[:30] if title else '...'}",
-                        recent_samples=extracted_skills_sample[-5:],
-                        elapsed_ms=int((time.monotonic() - start) * 1000),
-                    ))
-            except PipelineStageError:
-                raise
-            except Exception as exc:
-                errors.append(f"extraction error: {exc}")
-                logger.opt(exception=True).warning("JD extraction failed in import stage: {}", exc)
-
-        _run_async(_publish_stage_progress(
-            run_id, "import", "completed", progress=1.0,
-            records_processed=processed,
-            current_activity=f"提取完成: {processed}/{total} 条 JD 成功提取技能",
-            recent_samples=extracted_skills_sample[-5:],
-            elapsed_ms=int((time.monotonic() - start) * 1000),
-            message=f"LLM 提取完成: {processed}/{total} 成功",
-        ))
-    except PipelineStageError:
-        raise
-    except Exception as exc:
-        errors.append(f"import failed: {exc}")
-        logger.opt(exception=True).error("Import stage failed: {}", exc)
-        _run_async(_publish_stage_progress(
-            run_id, "import", "failed", current_activity=f"提取失败: {exc}",
-        ))
-    finally:
-        # Phase 2 SOURCE-03: execute_import 后更新 valid_records (UAT 修复)
-        try:
-            _update_source_after_import(run_id, processed)
-        except PipelineStageError:
-            raise
-        except Exception as exc:
-            logger.warning("_update_source_after_import failed (non-fatal): {}", exc)
-
-    return {"records_processed": processed, "errors": errors, "extracted_samples": extracted_skills_sample[-5:]}
 
 
 def execute_graph_sync(run_id: str) -> dict[str, Any]:
