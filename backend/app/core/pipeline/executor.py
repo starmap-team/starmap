@@ -737,37 +737,13 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
     return {"records_processed": processed, "errors": errors, "outbox_id": str(outbox_id)}
 
 
-def execute_timeseries(run_id: str) -> dict[str, Any]:
-    """Execute timeseries stage: aggregate skill frequencies from extraction records."""
+# Phase 03 Plan 03 Task 1: timeseries 阶段已迁出到 stages/timeseries.py。
+# 保留同名重导出（D-11 兼容壳），存量调用方零改动。
+from app.core.pipeline.stages.timeseries import (  # noqa: E402,F401
+    execute_timeseries as _execute_timeseries,
+)
 
-    processed = 0
-    errors: list[str] = []
-
-    try:
-        result = _run_async(_run_timeseries_refresh())
-        processed = result.get("windows_created", 0)
-        skills_updated = result.get("skills_updated", 0)
-        logger.info(
-            "Timeseries stage: {} skills updated, {} windows created",
-            skills_updated, processed,
-        )
-    except PipelineStageError:
-        raise
-    except Exception as exc:
-        errors.append(f"timeseries failed: {exc}")
-        logger.opt(exception=True).error("Timeseries stage failed: {}", exc)
-
-    return {"records_processed": processed, "errors": errors}
-
-
-async def _run_timeseries_refresh() -> dict[str, Any]:
-    """Async bridge for execute_timeseries to call refresh_skill_timeseries."""
-    from app.services.timeseries_service import refresh_skill_timeseries
-
-    session_factory = get_session_factory()
-    async with session_factory() as session:
-        async with session.begin():
-            return await refresh_skill_timeseries(session)
+execute_timeseries = _execute_timeseries
 
 
 # ---------------------------------------------------------------------------
