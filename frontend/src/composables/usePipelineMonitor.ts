@@ -15,6 +15,7 @@ import type { QualityAlert } from '@/types/quality'
 import { ALL_STAGE_NAMES } from '@/stores/pipelineConfig'
 import { useSSE } from '@/composables/useSSE'
 import { API_BASE } from '@/config/apiBase'
+import { setBackgroundPollMode } from '@/api/request'
 import { chartColors } from '@/utils/chartTheme'
 import type { PipelineConfig } from '@/stores/pipelineConfig'
 // Default auto-refresh interval in seconds
@@ -63,22 +64,29 @@ export function usePipelineMonitor() {
   let timer: ReturnType<typeof setInterval> | null = null
   const lastRefresh = ref('')
 
-  async function loadAll() {
-    await Promise.all([
-      pipeline.fetchStatus(),
-      pipeline.fetchStages(),
-      pipeline.fetchDataQuality(),
-      pipeline.fetchDataSources(),
-      // fix: 加载历史运行记录，否则刷新后 runs 列表为空
-      pipeline.fetchRuns(),
-    ])
-    lastRefresh.value = new Date().toLocaleTimeString()
+  // 2026-08-11: 自动刷新属于后台轮询, 失败时静默降级不弹"请求超时"toast 刷屏
+  // (request.ts 的 setBackgroundPollMode 在请求前置位; 手动刷新按钮仍走正常 toast)
+  async function loadAll({ background = false }: { background?: boolean } = {}) {
+    if (background) setBackgroundPollMode(true)
+    try {
+      await Promise.all([
+        pipeline.fetchStatus(),
+        pipeline.fetchStages(),
+        pipeline.fetchDataQuality(),
+        pipeline.fetchDataSources(),
+        // fix: 加载历史运行记录，否则刷新后 runs 列表为空
+        pipeline.fetchRuns(),
+      ])
+      lastRefresh.value = new Date().toLocaleTimeString()
+    } finally {
+      if (background) setBackgroundPollMode(false)
+    }
   }
 
   function startAutoRefresh() {
     if (timer) clearInterval(timer)
     if (autoRefresh.value) {
-      timer = setInterval(loadAll, refreshInterval.value * 1000)
+      timer = setInterval(() => loadAll({ background: true }), refreshInterval.value * 1000)
     }
   }
 

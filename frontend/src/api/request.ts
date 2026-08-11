@@ -16,6 +16,13 @@ import { API_BASE } from '@/config/apiBase'
 
 const ACCESS_KEY = 'starmap_access_token'
 
+// 后台轮询模式 (2026-08-11): 页面自动刷新等后台轮询调用在请求前置位,
+// 失败时静默降级不弹 toast, 避免后端不可用时每 10s 刷屏。
+let backgroundPollMode = false
+export function setBackgroundPollMode(on: boolean) {
+  backgroundPollMode = on
+}
+
 const request = axios.create({
   baseURL: API_BASE,
   timeout: 30000,
@@ -134,6 +141,25 @@ const ERROR_MESSAGES: Record<number, string> = {
   504: '网关超时，请稍后重试',
 }
 
+// ── 错误 toast 去重 (2026-08-11) ──
+// PipelineMonitor 自动刷新每 10s 并行发 5+ 请求，后端 reload 卡死时全部超时，
+// 会瞬间弹 5 条相同的"请求超时" toast。这里按 message 去重：同一条消息
+// 在 dedupeWindowMs 内只弹一次，且每次弹都重置计时。
+const TOAST_DEDUPE_WINDOW_MS = 5000
+let lastToastKey = ''
+let lastToastAt = 0
+function showDedupedToast(message: string, opts?: { type?: 'error' | 'warning'; duration?: number }) {
+  const now = Date.now()
+  if (message === lastToastKey && now - lastToastAt < TOAST_DEDUPE_WINDOW_MS) return
+  lastToastKey = message
+  lastToastAt = now
+  if (opts?.type === 'warning') {
+    ElMessage.warning({ message, duration: opts?.duration ?? 5000, showClose: true })
+  } else {
+    ElMessage.error({ message, duration: opts?.duration ?? 4000, showClose: true })
+  }
+}
+
 request.interceptors.response.use(
   (resp) => {
     hideLoading()
@@ -150,6 +176,10 @@ request.interceptors.response.use(
     // 调用方可通过 config.silent=true 抑制全局错误 toast，改由页面自行渲染友好空/缺失态
     // （避免“一次报错弹多条”：详情页缺失时不再叠加全局 404 toast）
     const silent = (originalRequest as unknown as { silent?: boolean })?.silent === true
+    // 2026-08-11: 后台自动刷新/轮询请求 (setBackgroundPollMode 或 config.poll=true)
+    // 失败时只静默降级不弹 toast，避免后端不可用时刷屏
+    const isBackground = backgroundPollMode
+      || (originalRequest as unknown as { poll?: boolean })?.poll === true
     const isLogin = requestUrl.includes('/auth/login')
     const isRefresh = requestUrl.includes('/auth/refresh')
 
@@ -168,11 +198,7 @@ request.interceptors.response.use(
       localStorage.removeItem('starmap_refresh_token')
       localStorage.removeItem('starmap_user')
       if (!isLogin) {
-        ElMessage.warning({
-          message: '登录已过期，请重新登录',
-          duration: 5000,
-          showClose: true,
-        })
+        showDedupedToast('登录已过期，请重新登录', { type: 'warning', duration: 5000 })
         window.dispatchEvent(new CustomEvent('auth:unauthorized'))
       }
       return Promise.reject(error)
@@ -196,25 +222,21 @@ request.interceptors.response.use(
       message = ERROR_MESSAGES[status] ?? `请求失败 (${status})`
     }
 
+    // 后台轮询失败不弹 toast（避免自动刷新刷屏），仅记录 console
+    if (isBackground && !isLogin) {
+      if (import.meta.env.DEV) {
+        console.warn(`[API] background poll failed (silent): ${status ?? 'Network'} ${message}`)
+      }
+      return Promise.reject(error)
+    }
+
     if (status === 401 && !isLogin) {
-      ElMessage.warning({
-        message: '登录已过期，请重新登录',
-        duration: 5000,
-        showClose: true,
-      })
+      showDedupedToast('登录已过期，请重新登录', { type: 'warning', duration: 5000 })
       window.dispatchEvent(new CustomEvent('auth:unauthorized'))
     } else if (status === 403 && !silent) {
-      ElMessage.error({
-        message: '您没有权限执行此操作',
-        duration: 4000,
-        showClose: true,
-      })
+      showDedupedToast('您没有权限执行此操作')
     } else if (!silent) {
-      ElMessage.error({
-        message,
-        duration: 4000,
-        showClose: true,
-      })
+      showDedupedToast(message)
     }
 
     if (import.meta.env.DEV) {

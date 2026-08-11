@@ -38,7 +38,10 @@ services:
     # 否则后端根目录下的随手脚本（test_cat.py / check_pg_data.py 等）被保存时会
     # 触发 uvicorn 热重载，而前端 SSE 长连接（pipeline/events、dashboard/realtime）
     # 无法在关闭阶段断开，导致旧 worker 卡死、新 worker 起不来 → 后端整体无响应。
-    command: ["./entrypoint.sh", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app", "--reload-exclude=tests/*", "--reload-exclude=docs/*", "--reload-exclude=graphify-out/*", "--reload-exclude=test_*.py"]
+    # 2026-08-11 修复: --timeout-graceful-shutdown 10 强制 reload 时最多等 10s
+    # 关闭（含 SSE 长连接），避免 graceful shutdown 无限等待 → 改文件后后端假死、
+    # 前端 30s axios 超时频繁弹"请求超时"。
+    command: ["./entrypoint.sh", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app", "--reload-exclude=tests/*", "--reload-exclude=docs/*", "--reload-exclude=graphify-out/*", "--reload-exclude=test_*.py", "--timeout-graceful-shutdown", "10"]
     restart: unless-stopped
     # 开发模式：容器停止后保留，不自动删除
     stop_signal: SIGTERM
