@@ -54,13 +54,15 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
     // 后端 /pipeline/crawl-source 按 DataSourceRecord.name 精确匹配（routes.py:475），
     // 特判会导致 DB 名称非 'BOSS' 时 404 —— 直接传 source.name 即可
     const key = source.name
-    const out = await dsStore.triggerCrawl(key) as { fetched?: number; persisted?: number; rows?: { title: string }[] }
+    const out = await dsStore.triggerCrawl(key) as { fetched?: number; inserted?: number; duplicate?: number; failed?: number }
     ElMessage.success(
-      `${getSourceNameLabel(source.name)} 立即采集完成: fetched=${out?.fetched ?? 0} persisted=${out?.persisted ?? 0}`
+      `${getSourceNameLabel(source.name)} 立即采集完成: fetched=${out?.fetched ?? 0} 新增=${out?.inserted ?? 0}${out?.duplicate ? ` 重复=${out.duplicate}` : ''}`
     )
     dsStore.fetchSources()  // refresh last_crawl_at
-  } catch {
-    ElMessage.error(`${getSourceNameLabel(source.name)} 立即采集失败`)
+  } catch (e: unknown) {
+    // 展示后端具体原因（如"未配置爬虫平台"），而非笼统失败
+    const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    ElMessage.error(detail ? `${getSourceNameLabel(source.name)} 立即采集失败：${detail}` : `${getSourceNameLabel(source.name)} 立即采集失败`)
   } finally {
     syncingIds.value.delete(source.id)
   }

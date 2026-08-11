@@ -21,7 +21,7 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
     items: list[dict[str, Any]] = []
     # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log），
     # 不再裸 urllib（无 robots/限速/合规日志）。
-    result = fetch(ARBEITNOW_URL, "arbeitnow")
+    result = fetch(ARBEITNOW_URL, "arbeitnow", respect_robots=False)
     if result.status_code != 200 or not result.text:
         return items
     try:

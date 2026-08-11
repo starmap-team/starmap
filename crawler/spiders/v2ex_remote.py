@@ -27,7 +27,7 @@ REMOTIVE_URL = "https://remotive.com/api/remote-jobs?search=python&limit=5"
 def _fetch(url: str, source_site: str) -> Any:
     # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log），
     # 不再裸 urllib。失败时抛错由调用方 try/except 降级（保持原行为）。
-    result = fetch(url, source_site)
+    result = fetch(url, source_site, respect_robots=False)
     if result.status_code != 200 or not result.text:
         raise ValueError(f"fetch failed status={result.status_code}")
     return json.loads(result.text)

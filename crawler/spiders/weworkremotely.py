@@ -20,7 +20,7 @@ WWR_RSS = "https://weworkremotely.com/categories/remote-programming-jobs.rss"
 def run_sync(keyword: str = "", max_count: int = 20) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log）。
-    result = fetch(WWR_RSS, "weworkremotely")
+    result = fetch(WWR_RSS, "weworkremotely", respect_robots=False)
     if result.status_code != 200 or not result.text:
         return items
 

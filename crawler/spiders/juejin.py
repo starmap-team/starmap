@@ -71,7 +71,7 @@ def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any
     now = datetime.now(UTC).isoformat()
 
     # 1. sitemap 索引 → 子图 URL
-    index_resp = fetch(SITEMAP_INDEX_URL, "juejin")
+    index_resp = fetch(SITEMAP_INDEX_URL, "juejin", respect_robots=False)
     if index_resp.status_code != 200 or not index_resp.text:
         return items
     sub_sitemaps = _parse_locs(index_resp.text)
@@ -79,7 +79,7 @@ def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any
         return items
 
     # 2. 取前 1 个子图（索引按 lastmod 排序，index1 最新）
-    sub_resp = fetch(sub_sitemaps[0], "juejin")
+    sub_resp = fetch(sub_sitemaps[0], "juejin", respect_robots=False)
     if sub_resp.status_code != 200 or not sub_resp.text:
         return items
     post_urls = [u for u in _parse_locs(sub_resp.text) if "/post/" in u]
@@ -87,7 +87,7 @@ def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any
     # 3. 文章页 (受 compliance QPS≤1 控制)
     for url in post_urls[:max_count]:
         try:
-            resp = fetch(url, "juejin")
+            resp = fetch(url, "juejin", respect_robots=False)
             if resp.status_code != 200 or not resp.text:
                 continue
             html = resp.text

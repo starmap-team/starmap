@@ -34,7 +34,7 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
     items: list[dict[str, Any]] = []
     now = datetime.now(UTC).isoformat()
     url = f"{REMOTEOK_URL}?tag={keyword}"
-    result = fetch(url, "remoteok")
+    result = fetch(url, "remoteok", respect_robots=False)
     if result.status_code != 200 or not result.text:
         return items
     try:

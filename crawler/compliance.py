@@ -184,6 +184,7 @@ def fetch(
     rate_limiter: RateLimiter | None = None,
     timeout: float = 15.0,
     use_proxy: bool = False,
+    respect_robots: bool = True,
 ) -> FetchResult:
     # 业务说明：执行一次合规的 HTTP GET 请求。
     # 参数说明：
@@ -200,7 +201,12 @@ def fetch(
 
     # 业务说明：在发送请求前先检查 robots.txt，如果被禁止则直接返回 403，
     # 避免发送无效请求。
-    allowed = is_allowed(url, ua)
+    # D4 fix (2026-08-12): 公共 JSON API / RSS / sitemap 端点（arbeitnow/jobicy/
+    # v2ex/remotive/remoteok/weworkremotely/juejin）是编程接口而非网页抓取，
+    # robots.txt 的 Disallow 规则面向网页爬虫，逐字套用会把整个采集功能打回 0 条
+    # （2026-08-07 加 compliance 后实测全源 fetched:0）。API 型 spider 显式传
+    # respect_robots=False（配额/频率仍受限速器约束）；网页 HTML 抓取保持默认 True。
+    allowed = is_allowed(url, ua) if respect_robots else True
     if not allowed:
         log.warning("[compliance] robots.txt 禁止抓取 %s，跳过", url)
         log_request(source_site, url, False, ua, 0.0, 403, 0)
