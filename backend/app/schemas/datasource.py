@@ -66,7 +66,10 @@ class SourceHealthEntry(BaseModel):
     status: str
     last_crawl_at: str | None = None
     total_records: int = 0
-    recent_run_status: str | None = None
+    recent_run_status: str | None = Field(
+        default=None,
+        description="最近一次 source_sync 运行状态。PipelineRun 无源归属，当前恒为 null；待 run↔source 关联迁移落地后按源计算",
+    )
 
 
 class DatasourcesHealthResponse(BaseModel):

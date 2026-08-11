@@ -20,7 +20,7 @@ from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, require_admin
-from app.models.pipeline_models import DataSourceRecord, PipelineRun
+from app.models.pipeline_models import DataSourceRecord
 from app.schemas.datasource import (
     CrawlVolumeEntry,
     DataSourceCreateRequest,
@@ -111,23 +111,17 @@ async def get_datasources_health(
         elif ds.status == "error":
             error_count += 1
 
-        # Find most recent pipeline run for this source
-        recent_run = await session.execute(
-            select(PipelineRun)
-            .where(PipelineRun.run_type == "source_sync")
-            .order_by(PipelineRun.started_at.desc())
-            .limit(1)
-        )
-        run = recent_run.scalar_one_or_none()
-        recent_status = run.status if run else None
-
+        # ponytail: 原实现循环内查 select(PipelineRun).where(run_type=="source_sync")
+        # 未按源过滤（PipelineRun 无 source 外键），所有源返回同一全局最新运行状态——
+        # 伪逐源 + N+1。逐源归属需 PipelineRun 迁移，此处诚实降级为 None（语义见
+        # schemas/datasource.py SourceHealthEntry.recent_run_status description）。
         entries.append(SourceHealthEntry(
             id=str(ds.id),
             name=ds.name,
             status=ds.status,
             last_crawl_at=ds.last_crawl_at.isoformat() if ds.last_crawl_at else None,
             total_records=ds.total_records,
-            recent_run_status=recent_status,
+            recent_run_status=None,
         ))
 
     return DatasourcesHealthResponse(
