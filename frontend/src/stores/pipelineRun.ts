@@ -144,6 +144,10 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
   // 阶段活动历史（最近 50 条）
   const activityHistory = ref<LiveActivityEvent[]>([])
 
+  // Phase 03 Plan 03 Task 10 (D-15): 子步骤事件订阅 state
+  // key = `<stage>:<sub_step>`，value = 最新子步骤活动
+  const subSteps = ref<Record<string, { stage: string; sub_step: string; current_activity: string; progress: number; timestamp: number }>>({})
+
   // Phase 1 SSE-04 / SSE-05: 3 个新事件类型 state（D-07）
   const qualityAlerts = ref<QualityAlert[]>([])
   const milestones = ref<DataMilestone[]>([])
@@ -290,9 +294,22 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
   }
 
   // 处理 SSE pipeline_update 事件
-  function handlePipelineEvent(event: { stage: string; status: string; progress: number; message: string; current_activity?: string; recent_samples?: Array<Record<string, unknown>>; sub_breakdown?: Record<string, number>; elapsed_ms?: number; records_processed?: number }) {
+  function handlePipelineEvent(event: { stage: string; status: string; progress: number; message: string; current_activity?: string; recent_samples?: Array<Record<string, unknown>>; sub_breakdown?: Record<string, number>; elapsed_ms?: number; records_processed?: number; sub_step?: string }) {
     liveEvents.value.push(event)
     if (liveEvents.value.length > 50) liveEvents.value = liveEvents.value.slice(-50)
+
+    // Phase 03 Plan 03 Task 10 (D-15): 订阅 sub_step 子步骤事件
+    // 子步骤事件 key = `<stage>:<sub_step>`，便于前端按子阶段渲染
+    if (event.sub_step) {
+      const subKey = `${event.stage}:${event.sub_step}`
+      subSteps.value[subKey] = {
+        stage: event.stage,
+        sub_step: event.sub_step,
+        current_activity: event.current_activity || '',
+        progress: event.progress || 0,
+        timestamp: Date.now(),
+      }
+    }
 
     // Phase 3.7: 捕获每个阶段的实时活动 + 样本 + 子项分解
     const liveEvent: LiveActivityEvent = {
@@ -410,6 +427,8 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     // Phase 3.7: 实时活动上下文
     liveActivity,
     activityHistory,
+    // Phase 03 Plan 03 Task 10 (D-15): 子步骤事件订阅 state
+    subSteps,
     resetLiveActivity,
     // Phase 1 SSE-04/05 新增 state
     qualityAlerts,
