@@ -8,8 +8,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.api.v1.quality import QualityDashboard, QualityReport
-
+from app.api.v1.quality import QualityDashboard, QualityReport, _build_quality_dashboard
 
 # ─────────────────────────────────────────────────────────────────
 # 1. QualityDashboard schema 契约（D-05 三段式）
