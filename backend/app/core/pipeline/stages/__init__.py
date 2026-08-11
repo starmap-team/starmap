@@ -29,6 +29,13 @@ def execute_clean(run_id: str) -> dict[str, Any]:  # noqa: D401
     return _impl(run_id)
 
 
+def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:  # noqa: D401
+    """Crawl 阶段 — 已迁出（Task 4）。"""
+    from app.core.pipeline.stages.crawl import execute_crawl as _impl
+
+    return _impl(run_id, run_type)
+
+
 # 尚未迁出的阶段占位（保持模块 surface 一致，避免 import 顺序问题）
 def _not_migrated(stage_name: str):  # noqa: D401
     def _stub(run_id: str) -> dict[str, Any]:  # noqa: ARG001
@@ -40,7 +47,6 @@ def _not_migrated(stage_name: str):  # noqa: D401
     return _stub
 
 
-execute_crawl = _not_migrated("crawl")
 execute_import = _not_migrated("import")
 execute_graph_sync = _not_migrated("graph_sync")
 
