@@ -160,4 +160,38 @@ describe('PositionList.vue', () => {
     await flushPromises()
     expect(wrapper.find('.result-count').text()).toContain('42')
   })
+
+  // ── D-04: 行业 chip（M10 数据透明）+ created_at 相对时间 ──
+  it('renders an industry chip on every card', async () => {
+    setupMockGet([
+      makePosition({ position_id: 'p1', industry: '互联网' }),
+      makePosition({ position_id: 'p2', industry: '金融' }),
+    ], 2, [])
+    const wrapper = mountPage()
+    await flushPromises()
+    const chips = wrapper.findAll('.industry-chip')
+    expect(chips.length).toBe(2)
+    expect(chips[0].text()).toBe('互联网')
+    expect(chips[1].text()).toBe('金融')
+  })
+
+  it('labels industry chip as 未分类 when industry is missing', async () => {
+    setupMockGet([makePosition({ position_id: 'p1', industry: '' })], 1, [])
+    const wrapper = mountPage()
+    await flushPromises()
+    const chip = wrapper.find('.industry-chip')
+    expect(chip.exists()).toBe(true)
+    // 诚实空态：不渲染空 chip，标注「未分类」
+    expect(chip.text()).toBe('未分类')
+  })
+
+  it('renders card count matching API total on the page', async () => {
+    const items = Array.from({ length: 5 }, (_, i) =>
+      makePosition({ position_id: `p${i}`, name_cn: `岗位${i}` }))
+    setupMockGet(items, 5, [])
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.findAll('.position-card').length).toBe(5)
+    expect(wrapper.find('.result-count').text()).toContain('5')
+  })
 })

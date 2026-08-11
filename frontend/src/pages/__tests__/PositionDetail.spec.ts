@@ -145,4 +145,29 @@ describe('PositionDetail.vue', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('演示数据')
   })
+
+  // ── D-05: 雷达图缺数据降级（沿 M5 D-04：无画像岗位不返回 404）──
+  it('degrades radar to "暂无技能画像" card when skills are empty', async () => {
+    mockGet.mockResolvedValue(makeDetailResponse({ skills_required: [] }))
+    const wrapper = mountPage()
+    await flushPromises()
+
+    // 雷达图不渲染，改渲染降级卡片 + 引导按钮
+    expect(wrapper.findComponent({ name: 'SkillRadar' }).exists()).toBe(false)
+    expect(wrapper.find('.no-profile-card').exists()).toBe(true)
+    expect(wrapper.text()).toContain('暂无技能画像')
+    expect(wrapper.text()).toContain('前往 JD 抽取')
+    // 关键：岗位本体仍正常展示，不落入 404 友好态
+    expect(wrapper.text()).not.toContain('未找到该岗位')
+    expect(wrapper.text()).toContain('后端工程师')
+  })
+
+  it('keeps radar and hides degradation card when skills exist', async () => {
+    mockGet.mockResolvedValue(makeDetailResponse())
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'SkillRadar' }).exists()).toBe(true)
+    expect(wrapper.find('.no-profile-card').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('暂无技能画像')
+  })
 })

@@ -291,11 +291,15 @@ onMounted(() => {
                 </el-tag>
               </h3>
               <div class="card-meta">
+                <!-- D-04: 行业 chip（M10 数据透明）。行业缺失时诚实标注「未分类」而非渲染空 chip -->
                 <el-tag
                   size="small"
-                  type="info"
+                  :type="pos.industry ? 'info' : 'warning'"
+                  :effect="pos.industry ? 'light' : 'plain'"
+                  class="industry-chip"
+                  :title="pos.industry ? `行业: ${pos.industry}` : '该岗位尚未标注行业'"
                 >
-                  {{ pos.industry }}
+                  {{ pos.industry || '未分类' }}
                 </el-tag>
                 <!-- PLAN-006④: 数据时效指示 (演示数据 / 数据更新于 X / 较旧) -->
                 <el-tag
@@ -455,6 +459,9 @@ onMounted(() => {
 }
 
 .status-badge {
+  font-weight: 500;
+}
+.industry-chip {
   font-weight: 500;
 }
 .lang-badge {

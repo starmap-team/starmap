@@ -54,6 +54,10 @@ const radarData = computed<RadarItem[]>(() =>
   }))
 )
 
+// D-05: 技能画像缺失降级判定。岗位存在但无技能关系时不走 404，
+// 改为渲染「暂无技能画像」引导卡片（沿 M5 D-04：无画像岗位 → 200 + 诚实空态）。
+const hasSkillProfile = computed(() => skills.value.length > 0)
+
 const PROFICIENCY_TAG: Record<string, string> = {
   '精通': 'danger',
   '熟悉': 'warning',
@@ -226,12 +230,60 @@ onMounted(async () => {
         </div>
 
         <div class="detail-body">
-          <!-- 左侧：雷达图 -->
+          <!-- 左侧：雷达图 / D-05 缺技能降级 -->
           <section class="radar-section">
             <SkillRadar
+              v-if="hasSkillProfile"
               :data="radarData"
               :position-name="position?.name ?? positionName"
             />
+            <!-- D-05: 岗位存在但无技能画像 → 诚实空态 + 引导，不返回 404 -->
+            <el-card
+              v-else
+              class="no-profile-card"
+              shadow="never"
+            >
+              <div class="no-profile-body">
+                <div class="no-profile-icon">
+                  <svg
+                    width="44"
+                    height="44"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
+                    <line
+                      x1="12"
+                      y1="2"
+                      x2="12"
+                      y2="22"
+                    />
+                  </svg>
+                </div>
+                <p class="no-profile-title">
+                  暂无技能画像
+                </p>
+                <p class="no-profile-hint">
+                  该岗位已入库，但尚未抽取到技能要求，因此无法绘制能力雷达图。
+                  可从一份 JD 中抽取技能后再回来查看。
+                </p>
+                <div class="no-profile-actions">
+                  <el-button
+                    type="primary"
+                    @click="$router.push('/extract')"
+                  >
+                    前往 JD 抽取
+                  </el-button>
+                  <el-button @click="$router.push('/positions')">
+                    返回岗位列表
+                  </el-button>
+                </div>
+              </div>
+            </el-card>
           </section>
 
           <!-- 右侧：技能列表 -->
@@ -244,7 +296,7 @@ onMounted(async () => {
               stripe
               size="small"
               style="width: 100%"
-              empty-text="暂无数据"
+              empty-text="暂无技能画像，可从 JD 抽取后回看"
             >
               <el-table-column
                 prop="name"
@@ -359,8 +411,47 @@ onMounted(async () => {
   margin: 0 0 var(--space-3);
 }
 
-/* ── Hotness Cell ── */
-.hotness-cell {
+/* ── D-05: 无技能画像降级卡片 ── */
+.no-profile-card {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-xl);
+  min-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.no-profile-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-4) var(--space-2);
+}
+.no-profile-icon {
+  color: var(--muted-foreground);
+  opacity: 0.4;
+  margin-bottom: var(--space-3);
+}
+.no-profile-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 var(--space-2);
+}
+.no-profile-hint {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  line-height: 1.6;
+  margin: 0 0 var(--space-4);
+}
+.no-profile-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ── Hotness Cell ── */.hotness-cell {
   display: flex;
   align-items: center;
   gap: var(--space-2);
