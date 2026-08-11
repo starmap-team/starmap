@@ -2,6 +2,7 @@
 
 两遍去重（精确哈希 + SimHash 模糊），将重复 JD 标记为 duplicate。
 本模块从 executor.execute_dedup 迁出；executor.py 保留兼容重导出，存量调用方零改动（D-11）。
+Phase 03 Plan 03 拆分：`_update_source_after_dedup` 辅助随阶段迁入本模块。
 """
 from __future__ import annotations
 
@@ -10,9 +11,47 @@ from typing import Any
 
 from app.core.pipeline.stages.common import (
     PipelineStageError,
+    get_session_factory,
     publish_stage_progress,
     run_async,
+    select,
 )
+
+
+def _update_source_after_dedup(run_id: str, duplicates: int, total: int) -> None:
+    """execute_dedup 完成后更新 DataSourceRecord.duplicate_rate.
+
+    Looks up all active crawler DataSourceRecords and updates the
+    duplicate_rate for each.  When only one source exists the update is
+    unambiguous; when multiple exist, the same rate is applied to all
+    (dedup operates across the whole raw_jd table).
+    """
+    async def _update():
+        from loguru import logger
+
+        from app.models.pipeline_models import DataSourceRecord
+
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            ds_result = await session.execute(
+                select(DataSourceRecord).where(
+                    DataSourceRecord.source_type == "crawler",
+                    DataSourceRecord.status == "active",
+                )
+            )
+            sources = ds_result.scalars().all()
+            if not sources:
+                logger.warning("_update_source_after_dedup: no active crawler sources found for run_id={}", run_id)
+                return
+            dup_rate = round(duplicates / total, 4) if total > 0 else 0.0
+            for ds in sources:
+                ds.duplicate_rate = dup_rate
+            await session.commit()
+            logger.info(
+                "_update_source_after_dedup: duplicate_rate={} for {} source(s), run_id={}",
+                dup_rate, len(sources), run_id,
+            )
+    run_async(_update())
 
 
 def execute_dedup(run_id: str) -> dict[str, Any]:
@@ -109,8 +148,6 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
     finally:
         # Phase 2 SOURCE-02: execute_dedup 后更新 duplicate_rate (UAT 修复)
         try:
-            from app.core.pipeline.executor import _update_source_after_dedup
-
             _update_source_after_dedup(run_id, duplicates_found, processed)
         except PipelineStageError:
             raise
@@ -120,4 +157,4 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
     return {"records_processed": processed, "errors": errors, "duplicates_found": duplicates_found}
 
 
-__all__ = ["execute_dedup"]
+__all__ = ["_update_source_after_dedup", "execute_dedup"]

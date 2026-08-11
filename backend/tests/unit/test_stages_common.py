@@ -120,14 +120,27 @@ class TestStagesModuleSurface:
         assert isinstance(result, dict)
 
     def test_crawl_is_real_not_stub(self):
-        """crawl 已迁出 — Task 4 完成标志（签名带 run_type）。"""
+        """crawl 已迁出 — Task 4 完成标志（签名带 run_type）。
+
+        Phase 03 Plan 03 补完：原实现会真实执行 crawl（连 DB + 爬虫网络请求），
+        在全量测试中会因连接池/网络而卡住。本测试改为 patch crawl 内部依赖
+        （spider 注册表 / 配置加载 / outbox 更新），仅验证「非占位 stub」契约。
+        """
+        from unittest.mock import AsyncMock, patch
+
         from app.core.pipeline import stages
 
         fn = stages.execute_crawl
-        try:
-            result = fn("test-run-id", "incremental")
-        except NotImplementedError as exc:
-            raise AssertionError("stages.execute_crawl is still a stub; Task 4 incomplete") from exc
+        with patch("app.core.pipeline.stages.crawl.build_spider_registry", return_value={}), \
+             patch("app.core.pipeline.stages.crawl._get_crawl_configs", new=AsyncMock(return_value=[])), \
+             patch("app.core.pipeline.stages.crawl._skip_paused_sources_if_needed", new=AsyncMock()), \
+             patch("app.core.pipeline.stages.crawl._update_source_after_crawl"), \
+             patch("app.core.pipeline.stages.crawl.publish_stage_progress", new=AsyncMock()), \
+             patch("crawler.persistence.dao.init_schema"):
+            try:
+                result = fn("test-run-id", "incremental")
+            except NotImplementedError as exc:
+                raise AssertionError("stages.execute_crawl is still a stub; Task 4 incomplete") from exc
         assert isinstance(result, dict)
 
     def test_import_is_real_not_stub(self):

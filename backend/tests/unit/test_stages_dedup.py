@@ -61,7 +61,7 @@ class TestExecuteDedup:
             "app.core.pipeline.stages.dedup.run_async",
             side_effect=lambda c: None,
         ), patch(
-            "app.core.pipeline.executor._update_source_after_dedup",
+            "app.core.pipeline.stages.dedup._update_source_after_dedup",
         ) as mock_update:
             result = execute_dedup("test-run-id")
         assert result["records_processed"] == 1
@@ -109,7 +109,7 @@ class TestExecuteDedup:
             "app.core.pipeline.stages.dedup.run_async",
             side_effect=_run_async_dispatch,
         ), patch(
-            "app.core.pipeline.executor._update_source_after_dedup",
+            "app.core.pipeline.stages.dedup._update_source_after_dedup",
         ):
             result = execute_dedup("test-run-id")
         assert dup.status == JdStatus.duplicate, f"expected duplicate, got {dup.status}"

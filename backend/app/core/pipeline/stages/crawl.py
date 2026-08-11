@@ -2,20 +2,205 @@
 
 按数据源/平台调度爬虫，写入 jd_raw。每启用的数据源发送 1 条 sub_step 事件（D-15）。
 本模块从 executor.execute_crawl 迁出；executor.py 保留兼容重导出，存量调用方零改动（D-11）。
+同时收纳 crawl 相关辅助（spider 注册表、crawl 配置加载、DataSourceRecord 更新）——
+Phase 03 Plan 03 拆分：这些辅助原在 executor.py，随阶段迁入本模块。
 """
 from __future__ import annotations
 
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
 
 from app.core.pipeline.stages.common import (
     PipelineStageError,
+    get_session_factory,
     publish_stage_progress,
     run_async,
+    select,
 )
+
+# 2026-08-07 (B2 修复): 共享 spider 注册表 — 提取为模块常量,
+# executor 与单源调度端点共用; 补入 juejin/remoteok (PLAN-002/003 落地后遗漏注册)
+SPIDER_REGISTRY: dict[str, Any] = {
+    "v2ex": None,  # 延迟导入避免循环
+}
+
+
+def build_spider_registry() -> dict[str, Any]:
+    """构建真实 spider 注册表 (B2: 含 juejin/remoteok, 2026-08-07 补)."""
+    from crawler.spiders import arbeitnow, jobicy, juejin, remoteok, weworkremotely
+    from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
+
+    return {
+        "v2ex": v2ex_sync,
+        "remotive": v2ex_sync,  # v2ex_remote spider 同时覆盖 V2EX + Remotive
+        "arbeitnow": arbeitnow.run_sync,
+        "jobicy": jobicy.run_sync,
+        "weworkremotely": weworkremotely.run_sync,
+        "juejin": juejin.run_sync,    # PLAN-002: D5 非结构化源
+        "remoteok": remoteok.run_sync,  # PLAN-003: 英文 JD 源
+    }
+
+
+def _update_source_after_crawl(run_id: str, records_count: int) -> None:
+    """execute_crawl 完成后更新 DataSourceRecord.total_records + last_crawl_at.
+
+    E20 fix: two critical bugs in the previous version:
+      1. "cnt" was the *cumulative* raw_jd_records count for each platform,
+         not the delta of THIS run. Calling sync N times added N× the
+         existing total to DataSourceRecord.total_records (累加 bug).
+      2. Match logic was too permissive — substring fallback would match
+         unrelated DS rows, attributing Boss Zhipin crawls to ESCO Skills.
+
+    Fix: filter raw_jd_records by `crawled_at >= run.started_at` so we
+    only count the rows produced by THIS pipeline run. Use a strict
+    two-step match (case-insensitive equality, then strip parens), no
+    substring fallback.
+    """
+    async def _update():
+        from sqlalchemy import text
+
+        from app.models.pipeline_models import DataSourceRecord, PipelineRun
+
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            # 1. Find this run's start time so we only count THIS run's rows.
+            run_row = (
+                await session.execute(
+                    select(PipelineRun.started_at).where(PipelineRun.id == uuid.UUID(run_id))
+                )
+            ).one_or_none()
+            if not run_row:
+                logger.warning(
+                    "_update_source_after_crawl: run_id={} not found, skipping update",
+                    run_id,
+                )
+                return
+            run_started_at = run_row[0]
+            if run_started_at.tzinfo is None:
+                run_started_at = run_started_at.replace(tzinfo=UTC)
+
+            # 2. Count rows by source_platform, but only those crawled
+            #    DURING this run. This is the delta, not a cumulative.
+            result = await session.execute(
+                text("""
+                    SELECT source_platform, COUNT(*) AS cnt
+                    FROM raw_jd_records
+                    WHERE crawled_at >= :started_at
+                    GROUP BY source_platform
+                """),
+                {"started_at": run_started_at},
+            )
+            rows = result.fetchall()
+
+            # 3. Build DS index (case-insensitive). Skip substring fallback.
+            ds_index_result = await session.execute(select(DataSourceRecord))
+            all_ds = list(ds_index_result.scalars().all())
+            now = datetime.now(UTC)
+
+            for platform, cnt in rows:
+                if not platform:
+                    continue
+                p_norm = str(platform).strip().lower()
+                matched = None
+                # Step 1: exact lower match
+                for ds in all_ds:
+                    if ds.name.strip().lower() == p_norm:
+                        matched = ds
+                        break
+                # Step 2: strip " (远程)" / "(国内)" annotations, then exact match
+                if matched is None:
+                    for ds in all_ds:
+                        if ds.name.split("(")[0].strip().lower() == p_norm:
+                            matched = ds
+                            break
+                # NOTE: NO substring fallback. If we cannot strictly identify
+                # the DS for this platform, log and skip — better to under-
+                # count than to mis-attribute.
+                if matched is None:
+                    logger.warning(
+                        "_update_source_after_crawl: no DataSourceRecord matches "
+                        "platform={!r} (run_id={}); skipping",
+                        platform, run_id,
+                    )
+                    continue
+
+                delta = int(cnt)
+                matched.total_records = (matched.total_records or 0) + delta
+                matched.last_crawl_at = now
+                logger.info(
+                    "_update_source_after_crawl: matched platform={!r} → DS {!r} (+{} records)",
+                    platform, matched.name, delta,
+                )
+            await session.commit()
+            logger.info("_update_source_after_crawl: updated for run_id={}", run_id)
+    run_async(_update())
+
+
+async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
+    """Load per-source crawl configurations from active DataSourceRecord(s).
+
+    Returns a list of config dicts, each with: platform, keyword, max_count, source_name.
+    Falls back to empty list if no active sources found (caller handles defaults).
+
+    Each DataSourceRecord.config should contain:
+        {"keyword": "python", "max_count": 50, "platform": "bosszhipin"}
+    """
+    try:
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            from app.models.pipeline_models import DataSourceRecord
+
+            # PLAN-005: api/rss 源同样参与 crawl 阶段（Phase 15 修复在 rebase 中丢失，恢复）
+            result = await session.execute(
+                select(DataSourceRecord).where(
+                    DataSourceRecord.source_type.in_(["crawler", "api", "rss"]),
+                    DataSourceRecord.status == "active",
+                )
+            )
+            sources = result.scalars().all()
+            configs: list[dict[str, Any]] = []
+            for ds in sources:
+                if ds.config is None:
+                    continue
+                # Build per-source config: merge record-level metadata with config JSON
+                cfg = dict(ds.config)
+                cfg["source_name"] = ds.name
+                cfg.setdefault("platform", cfg.get("source_site", "v2ex"))
+                configs.append(cfg)
+            if configs:
+                logger.debug(
+                    "Loaded crawl configs from {} active source(s)",
+                    len(configs),
+                )
+            return configs
+    except PipelineStageError:
+        raise
+    except Exception as exc:
+        logger.warning("_get_crawl_configs failed (non-fatal, using defaults): {}", exc)
+    return []
+
+
+async def _skip_paused_sources_if_needed(run_id: str) -> None:
+    """Phase 2 AUTHORITY-03: Log paused sources (the actual skip happens in the spider call)."""
+    try:
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            from app.models.pipeline_models import DataSourceRecord
+            paused = await session.execute(
+                select(DataSourceRecord).where(DataSourceRecord.status == "paused")
+            )
+            paused_sources = paused.scalars().all()
+            if paused_sources:
+                names = [s.name for s in paused_sources]
+                logger.info("Skipping {} paused source(s) for run_id={}: {}", len(names), run_id, names)
+    except PipelineStageError:
+        raise
+    except Exception as exc:
+        logger.warning("_skip_paused_sources_if_needed failed (non-fatal): {}", exc)
 
 
 def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
@@ -48,14 +233,7 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
         logger.opt(exception=True).error("crawl stage deps unavailable: {}", exc)
         raise
 
-    # 复用 executor 的 build_spider_registry (PLAN-005/NEW-07 注册)
-    from app.core.pipeline.executor import (
-        _get_crawl_configs,
-        _skip_paused_sources_if_needed,
-        _update_source_after_crawl,
-        build_spider_registry,
-    )
-
+    # 复用本模块的 build_spider_registry (PLAN-005/NEW-07 注册)
     spider_registry = build_spider_registry()
 
     try:
@@ -264,4 +442,8 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     }
 
 
-__all__ = ["execute_crawl"]
+__all__ = [
+    "SPIDER_REGISTRY",
+    "build_spider_registry",
+    "execute_crawl",
+]

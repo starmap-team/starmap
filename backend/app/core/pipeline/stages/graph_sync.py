@@ -6,11 +6,13 @@
 折入；脚本打 DEPRECATED 标记保留可手动跑。
 
 本模块从 executor.execute_graph_sync 迁出；executor.py 保留兼容重导出（D-11）。
+Phase 03 Plan 03 拆分：GraphWriteOutbox 辅助（_create/_complete/_fail）随阶段迁入本模块。
 """
 from __future__ import annotations
 
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
@@ -21,6 +23,72 @@ from app.core.pipeline.stages.common import (
     publish_stage_progress,
     run_async,
 )
+
+# ── Graph Write Outbox helpers (Phase 7 P0-1; 原 executor.py, 随阶段迁入) ──
+
+
+async def _create_outbox_record(
+    session_factory: Any,
+    outbox_id: uuid.UUID,
+    run_id: uuid.UUID | None,
+    extraction_ids: list[uuid.UUID] | None = None,
+) -> None:
+    """Create a pending outbox record before Neo4j write.
+
+    run_id may be None for ad-hoc extractions outside a pipeline run;
+    in that case extraction_ids must be populated for audit traceability.
+    """
+    from app.models.pipeline_models import GraphWriteOutbox
+
+    async with session_factory() as session:
+        async with session.begin():
+            record = GraphWriteOutbox(
+                id=outbox_id,
+                run_id=uuid.UUID(run_id) if isinstance(run_id, str) else run_id,
+                extraction_ids=extraction_ids or [],
+                status="pending",
+                created_at=datetime.now(UTC),
+            )
+            session.add(record)
+
+
+async def _complete_outbox_record(
+    session_factory: Any, outbox_id: uuid.UUID, triples_written: int,
+) -> None:
+    """Mark outbox record as completed after successful Neo4j write."""
+    from sqlalchemy import update
+
+    from app.models.pipeline_models import GraphWriteOutbox
+
+    async with session_factory() as session:
+        async with session.begin():
+            await session.execute(
+                update(GraphWriteOutbox)
+                .where(GraphWriteOutbox.id == outbox_id)
+                .values(status="completed", triples_written=triples_written, updated_at=datetime.now(UTC)),
+            )
+
+
+async def _fail_outbox_record(
+    session_factory: Any, outbox_id: uuid.UUID, error_msg: str,
+) -> None:
+    """Mark outbox record as failed (will be retried on next pipeline run)."""
+    from sqlalchemy import update
+
+    from app.models.pipeline_models import GraphWriteOutbox
+
+    async with session_factory() as session:
+        async with session.begin():
+            await session.execute(
+                update(GraphWriteOutbox)
+                .where(GraphWriteOutbox.id == outbox_id)
+                .values(
+                    status="failed",
+                    error=error_msg[:500],
+                    retry_count=GraphWriteOutbox.retry_count + 1,
+                    updated_at=datetime.now(UTC),
+                ),
+            )
 
 
 def execute_graph_sync(run_id: str) -> dict[str, Any]:
@@ -38,8 +106,6 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
 
     outbox_id = uuid.uuid4()
     try:
-        from app.core.pipeline.executor import _create_outbox_record
-
         run_async(_create_outbox_record(get_session_factory(), outbox_id, uuid.UUID(run_id)))
     except PipelineStageError:
         raise
@@ -52,8 +118,6 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         triples_merged = result.get("triples_merged", 0)
         nodes = result.get("nodes_written", 0)
         edges = result.get("edges_written", 0)
-        from app.core.pipeline.executor import _complete_outbox_record
-
         run_async(_complete_outbox_record(get_session_factory(), outbox_id, triples_merged))
         run_async(publish_stage_progress(
             run_id, "graph_sync", "completed", progress=1.0,
@@ -83,8 +147,6 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         errors.append(f"graph_sync failed: {exc}")
         logger.opt(exception=True).error("Graph sync stage failed: {}", exc)
         try:
-            from app.core.pipeline.executor import _fail_outbox_record
-
             run_async(_fail_outbox_record(get_session_factory(), outbox_id, str(exc)))
         except PipelineStageError:
             raise
@@ -118,4 +180,9 @@ def _run_reconcile_substep(run_id: str, errors: list[str], start: float) -> None
         logger.warning(err_msg)
 
 
-__all__ = ["execute_graph_sync"]
+__all__ = [
+    "_complete_outbox_record",
+    "_create_outbox_record",
+    "_fail_outbox_record",
+    "execute_graph_sync",
+]

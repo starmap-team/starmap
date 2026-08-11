@@ -2,23 +2,56 @@
 
 LLM 技能抽取 + PG 持久化。按 D-15 发 3 子步骤事件：extract / normalize / persist。
 本模块从 executor.execute_import 迁出；executor.py 保留兼容重导出（D-11）。
+Phase 03 Plan 03 拆分：`_update_source_after_import` 辅助随阶段迁入本模块。
 """
 from __future__ import annotations
 
 import time
 from typing import Any
 
-from loguru import logger
-
 from app.core.pipeline.stages.common import (
     PipelineStageError,
+    get_session_factory,
     publish_stage_progress,
     run_async,
+    select,
 )
+
+
+def _update_source_after_import(run_id: str, valid_count: int) -> None:
+    """execute_import 完成后更新 DataSourceRecord.valid_records + avg_quality_score."""
+    async def _update():
+        from loguru import logger
+        from sqlalchemy import text
+
+        from app.models.pipeline_models import DataSourceRecord
+
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            # 重算所有 data_sources 的 avg_quality_score
+            ds_list_result = await session.execute(
+                select(DataSourceRecord)
+            )
+            all_ds = ds_list_result.scalars().all()
+            for ds in all_ds:
+                # 从 extraction_models 查询有效记录数（按 source_platform 匹配）
+                rec_result = await session.execute(
+                    text("SELECT COUNT(*) FROM raw_jd_records WHERE source_platform = :platform AND status = 'extracted'"),
+                    {"platform": ds.name},
+                )
+                extracted = rec_result.scalar() or 0
+                ds.valid_records = extracted
+                ds.avg_quality_score = min(extracted / 100.0, 1.0) if extracted > 0 else 0.0
+
+            await session.commit()
+            logger.info("_update_source_after_import: updated valid_records for run_id={}", run_id)
+    run_async(_update())
 
 
 def execute_import(run_id: str) -> dict[str, Any]:
     """执行 import 阶段：LLM 抽取技能 + 持久化。"""
+    from loguru import logger
+
     from app.tasks.stage3_services import run_batch_extract_jd
 
     processed = 0
@@ -123,8 +156,6 @@ def execute_import(run_id: str) -> dict[str, Any]:
     finally:
         # Phase 2 SOURCE-03: execute_import 后更新 valid_records (UAT 修复)
         try:
-            from app.core.pipeline.executor import _update_source_after_import
-
             _update_source_after_import(run_id, processed)
         except PipelineStageError:
             raise
@@ -142,4 +173,4 @@ def execute_import(run_id: str) -> dict[str, Any]:
     return {"records_processed": processed, "errors": errors, "extracted_samples": extracted_skills_sample[-5:]}
 
 
-__all__ = ["execute_import"]
+__all__ = ["_update_source_after_import", "execute_import"]
