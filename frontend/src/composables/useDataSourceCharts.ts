@@ -98,13 +98,18 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   import: '导入',
   reference: '参考',
   internal: '内部',
+  // 后端 Literal 枚举补齐（datasource 优化设计需求 D）：job_board/blog/esco/rss
+  job_board: '招聘网站',
+  blog: '博客',
+  esco: 'ESCO',
+  rss: 'RSS',
 }
 
 export function getSourceTypeLabel(type: string): string {
   return SOURCE_TYPE_LABELS[type] ?? type
 }
 
-export function formatLastCrawl(dateStr: string): string {
+export function formatLastCrawl(dateStr: string | null): string {
   if (!dateStr) return '--'
   const d = new Date(dateStr)
   const diff = Date.now() - d.getTime()

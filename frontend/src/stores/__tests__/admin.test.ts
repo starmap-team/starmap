@@ -27,7 +27,7 @@ describe('useDataSourceStore', () => {
   it('should store source configs', () => {
     const store = useDataSourceStore()
     const mockSources: DataSourceDetail[] = [
-      { id: '1', name: 'BOSS直聘', authority_score: 0.8, source_type: 'crawler', status: 'active', last_crawl_at: '', total_records: 0, valid_records: 0, duplicate_rate: 0, avg_quality_score: 0, daily_crawl_volume: [] },
+      { id: '1', name: 'BOSS直聘', authority_score: 0.8, source_type: 'crawler', status: 'active', last_crawl_at: '', total_records: 0, valid_records: 0, duplicate_rate: 0, avg_quality_score: 0 },
     ]
     store.sources = mockSources
     expect(store.sources).toHaveLength(1)

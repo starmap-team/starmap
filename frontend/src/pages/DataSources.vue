@@ -18,7 +18,6 @@ import { chartColors } from '@/utils/chartTheme'
 import { asTagType } from '@/utils/element'
 import {
   getAuthorityGaugeOption,
-  getDailyVolumeOption,
   getStatusBadge,
   getSourceTypeLabel,
   formatLastCrawl,
@@ -37,9 +36,14 @@ const syncingIds = ref(new Set<string>())
 async function handleSync(source: typeof dsStore.sources[number]) {
   if (syncingIds.value.has(source.id)) return
   syncingIds.value.add(source.id)
-  try { const ok = await dsStore.triggerSync(source.id); ElMessage[ok ? 'success' : 'error'](`${getSourceNameLabel(source.name)} ${ok ? '同步已触发' : '同步失败'}`) }
-  catch { ElMessage.error(`${getSourceNameLabel(source.name)} 同步失败`) }
-  finally { syncingIds.value.delete(source.id) }
+  try {
+    const ok = await dsStore.triggerSync(source.id)
+    ElMessage[ok ? 'success' : 'error'](`${getSourceNameLabel(source.name)} ${ok ? '同步已触发' : '同步失败'}`)
+    // fix: 同步成功后刷新列表（triggerSync 只刷 detail），使卡片"最后同步"时间可见更新
+    if (ok) void dsStore.fetchSources()
+  } catch {
+    ElMessage.error(`${getSourceNameLabel(source.name)} 同步失败`)
+  } finally { syncingIds.value.delete(source.id) }
 }
 // Phase 15 / T2.3: 按需触发单源采集 → raw_jd_records
 async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
@@ -63,7 +67,8 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
 }
 const summaryStats = computed(() => {
   const src = dsStore.sources
-  return { total: src.length, active: src.filter((s) => s.status === 'active').length, totalRecords: src.reduce((sum: number, s) => sum + s.total_records, 0), avgQuality: src.length ? src.reduce((sum: number, s) => sum + s.avg_quality_score, 0) / src.length : 0 }
+  // fix: 异常口径只计 error（paused 为人为主观停用，非异常）—— datasource 优化设计需求 C
+  return { total: src.length, active: src.filter((s) => s.status === 'active').length, error: src.filter((s) => s.status === 'error').length, totalRecords: src.reduce((sum: number, s) => sum + s.total_records, 0), avgQuality: src.length ? src.reduce((sum: number, s) => sum + s.avg_quality_score, 0) / src.length : 0 }
 })
 
 onMounted(() => {
@@ -242,12 +247,12 @@ onMounted(() => {
                 </div>
                 <div
                   class="kpi-value"
-                  :style="{ color: summaryStats.total - summaryStats.active > 0 ? cc.danger : cc.success }"
+                  :style="{ color: summaryStats.error > 0 ? cc.danger : cc.success }"
                 >
-                  {{ summaryStats.total - summaryStats.active }}
+                  {{ summaryStats.error }}
                 </div>
                 <div class="kpi-sub">
-                  {{ summaryStats.total - summaryStats.active > 0 ? '需关注' : '全部正常' }}
+                  {{ summaryStats.error > 0 ? '需关注' : '全部正常' }}
                 </div>
               </div>
             </div>
@@ -373,24 +378,9 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- 日采集量柱状图 -->
-            <div class="card-chart">
-              <div class="chart-label">
-                日采集量
-              </div>
-              <VChart
-                v-if="source.daily_crawl_volume?.length"
-                :option="getDailyVolumeOption(source.daily_crawl_volume)"
-                style="height: 100px;"
-                autoresize
-              />
-              <div
-                v-else
-                class="chart-placeholder"
-              >
-                <span>暂无采集数据</span>
-              </div>
-            </div>
+            <!-- fix: 移除"日采集量"卡片柱状图 —— 后端列表响应从不返回 daily_crawl_volume，
+                 恒显占位符的死 UI（datasource 优化设计需求 B）。真实按源采集量由
+                 Admin 统计抽屉 fetchStats → crawl_volume 提供 -->
 
             <!-- 底部：同步时间 + 操作按钮 -->
             <div class="card-footer">
