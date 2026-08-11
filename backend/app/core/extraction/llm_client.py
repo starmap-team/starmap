@@ -1,13 +1,14 @@
 """LLM Client — 多供应商 LLM 客户端，支持自动降级。
 
 支持的模型（按优先级排序）：
-- MiMo API: https://token-plan-cn.xiaomimimo.com/v1 (推理模型，主用)
+- 讯飞 Spark X（X2/X1.5 深度推理，model=spark-x，首选）
+- MiMo API: https://token-plan-cn.xiaomimimo.com/v1 (推理模型)
 - DeepSeek API: https://api.deepseek.com/chat/completions
 - Xunfei Spark API: https://spark-api-open.xf-yun.com/v1/chat/completions
 - 本地 Qwen/Ollama 降级: /api/chat 端点
 
-降级链：MiMo → DeepSeek → Xunfei → Qwen/Ollama
-认证：通过 API Key 的 Bearer Token。
+降级链：Spark X → MiMo → DeepSeek → Xunfei Spark → Qwen/Ollama
+认证：通过 API Key 的 Bearer Token（讯飞系为 `Bearer {APIKey}:{APISecret}`）。
 
 业务价值：
   确保技能抽取服务的高可用性，当主用模型不可用时自动切换备用模型，
@@ -137,11 +138,20 @@ async def call_xunfei_llm(
     actual_timeout = timeout if timeout is not None else settings.llm_timeout
     model = _SPARK_MODELS.get(model_version, "generalv3.5")
     api_key = settings.xunfei_api_key
+    api_secret = settings.xunfei_api_secret
     if not api_key:
         raise LLMConnectionError("XUNFEI_API_KEY is not configured")
 
+    # 讯飞 HTTP OpenAI 兼容端点鉴权为 `Bearer {APIKey}:{APISecret}`（OpenAI 兼容，
+    # 非 Spark WebSocket 的三段式 HMAC 签名）。实测仅带 APIKey 会 401
+    # ("HMAC secret key does not match")；带 `APIKey:APISecret` 鉴权通过。
+    if api_secret:
+        bearer = f"{api_key}:{api_secret}"
+    else:
+        bearer = api_key
+
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {bearer}",
         "Content-Type": "application/json",
     }
     payload = {
@@ -173,6 +183,75 @@ async def call_xunfei_llm(
     content = message.get("content", "")
     logger.debug("Xunfei response received ({} chars)", len(content))
     return {"role": "assistant", "content": content, "model": model_version}
+
+
+async def call_spark_x_llm(
+    prompt: str,
+    timeout: int | None = None,
+) -> dict[str, Any]:
+    """Call Xunfei Spark X 深度推理模型（X2 / X1.5，model 固定为 spark-x）。
+
+    Spark X 是深度推理模型：响应含 reasoning_content（推理轨迹）+ content（最终答案）。
+    X2 端点：/x2/chat/completions（默认，推理更强）；X1.5 端点：/v2/chat/completions
+    （更快）。鉴权与 Spark HTTP 兼容端点一致：`Bearer {APIKey}:{APISecret}`。
+
+    2026-08-11 实测：X2 12s（reasoning 562 tokens）/ X1.5 7s，均可用。
+
+    Args:
+        prompt: Input prompt text.
+        timeout: Request timeout in seconds (默认取 settings.llm_timeout)。
+
+    Returns:
+        Dict with 'role', 'content', 'model' keys（content = 最终答案，reasoning_content 丢弃）。
+
+    Raises:
+        LLMConnectionError / LLMResponseError / LLMTimeoutError。
+    """
+    actual_timeout = timeout if timeout is not None else max(settings.llm_timeout, 180)
+    api_key = settings.xunfei_api_key
+    api_secret = settings.xunfei_api_secret
+    if not api_key:
+        raise LLMConnectionError("XUNFEI_API_KEY is not configured")
+
+    bearer = f"{api_key}:{api_secret}" if api_secret else api_key
+    # 兼容两种配置：SPARK_X_URL 可能含 /chat/completions 后缀（如 /x2/chat/completions）
+    # 也可能只到模型根路径（如 /x2/）——统一规范化，避免重复拼接导致 404。
+    base = settings.spark_x_url.rstrip("/")
+    url = base if base.endswith("/chat/completions") else f"{base}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {bearer}",
+        "Content-Type": "application/json",
+    }
+    # 深度推理模型：max_tokens 需覆盖 reasoning + output
+    payload = {
+        "model": settings.spark_x_model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 8192,
+    }
+
+    logger.info("Calling Xunfei Spark X ({}) at {}", settings.spark_x_model, url)
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+    except httpx.TimeoutException as e:
+        raise LLMTimeoutError(f"Spark X API timeout after {actual_timeout}s") from e
+    except httpx.HTTPStatusError as e:
+        raise LLMResponseError(f"Spark X API returned {e.response.status_code}: {e.response.text}") from e
+    except httpx.RequestError as e:
+        raise LLMConnectionError(f"Spark X API connection failed: {e}") from e
+
+    choices = data.get("choices", [])
+    if not choices:
+        raise LLMResponseError("Spark X API returned empty choices")
+
+    message = choices[0].get("message", {})
+    content = message.get("content", "")
+    reasoning = message.get("reasoning_content", "")
+    logger.debug("Spark X response: {} output chars, {} reasoning chars", len(content), len(reasoning))
+    return {"role": "assistant", "content": content, "model": settings.spark_x_model}
 
 
 @retry(
@@ -238,11 +317,25 @@ async def call_deepseek_llm(
     return {"role": "assistant", "content": content, "model": settings.deepseek_model}
 
 
-async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
-    """Call LLM with fallback: MiMo -> DeepSeek -> Xunfei -> Qwen/Ollama.
+# Spark X 深度推理对长 prompt 会触发讯飞网关 60s 504（实测：抽取 prompt ~2582 chars
+# → 504；反幻觉 ~591 chars → 16s OK）。长 prompt 直接跳过 Spark X，避免每次拖 61s 后降级。
+SPARK_X_MAX_PROMPT_CHARS = 1500
+
+
+async def call_llm_with_fallback(
+    prompt: str,
+    prefer_spark_x: bool = False,
+) -> dict[str, Any]:
+    """Call LLM with fallback.
+
+    路由策略（2026-08-11）：
+    - Spark X（深度推理，X2）优先用于短 prompt（≤1500 字符）或 `prefer_spark_x=True`
+      的调用（如 LLM 评测）；长抽取 prompt 直接跳过（讯飞网关 60s 504 限制）。
+    - 之后依次 MiMo → DeepSeek → Xunfei Spark → Qwen/Ollama。
 
     Args:
         prompt: Input prompt text.
+        prefer_spark_x: 显式要求优先 Spark X（用于质量敏感且 prompt 较短的调用）。
 
     Returns:
         Response dict with 'content' key.
@@ -259,7 +352,20 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
         )
         return resp
 
-    # Try MiMo first (primary, reasoning model)
+    spark_x_candidate = settings.xunfei_api_key and (
+        prefer_spark_x or len(prompt) <= SPARK_X_MAX_PROMPT_CHARS
+    )
+
+    # Try Spark X first (X2/X1.5 深度推理 — 用户首选；仅短 prompt 或显式偏好时)
+    if spark_x_candidate:
+        try:
+            return await _call_and_track(call_spark_x_llm)
+        except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
+            msg = f"Spark X failed: {e}"
+            logger.warning(msg)
+            errors.append(msg)
+
+    # Try MiMo (secondary reasoning model)
     if settings.mimo_api_key:
         try:
             return await _call_and_track(call_mimo_llm)
@@ -268,7 +374,7 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
             logger.warning(msg)
             errors.append(msg)
 
-    # Try DeepSeek second
+    # Try DeepSeek (抽取主阶段首选：长 prompt 稳定 4-7s)
     if settings.deepseek_api_key:
         try:
             return await _call_and_track(call_deepseek_llm)
@@ -277,7 +383,7 @@ async def call_llm_with_fallback(prompt: str) -> dict[str, Any]:
             logger.warning(msg)
             errors.append(msg)
 
-    # Try Xunfei third
+    # Try Xunfei Spark 传统模型
     if settings.xunfei_api_key:
         try:
             return await _call_and_track(call_xunfei_llm)
@@ -400,7 +506,8 @@ class LLMClient:
             system_json=json.dumps(system_output, ensure_ascii=False, indent=2),
             golden_json=json.dumps(golden, ensure_ascii=False, indent=2),
         )
-        response = await call_llm_with_fallback(prompt)
+        # LLM 评测质量敏感且 prompt 较短 → 优先 Spark X 深度推理
+        response = await call_llm_with_fallback(prompt, prefer_spark_x=True)
         return parse_llm_json_response(response["content"])
 
     async def generate(self, prompt: str, **_kwargs: Any) -> str:
