@@ -23,12 +23,9 @@ from app.api.v1.pipeline.serializers import (
 )
 from app.api.v1.upload_validation import validate_resume_upload
 from app.dependencies import (
-    get_current_user_sse,
     get_db_session,
     get_neo4j_driver,
     require_admin,
-    resolve_client_ip,
-    sse_disconnect,
 )
 from app.exceptions import StarMapError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun, PipelineSchedule
@@ -591,62 +588,6 @@ async def get_datasources(
 
 
 # ---------------------------------------------------------------------------
-# SSE 实时进度
-# ---------------------------------------------------------------------------
-
-
-@router.get("/events")
-async def pipeline_events(
-    request: Request,
-    _user: Annotated[dict[str, Any], Depends(get_current_user_sse)],
-) -> Any:
-    """SSE 实时流水线进度事件流。
-
-    Auth: accepts JWT via query param ``?token=xxx`` (for EventSource)
-    or standard ``Authorization: Bearer xxx`` header.
-    """
-    from fastapi.responses import StreamingResponse
-
-    from app.services.pipeline_service import event_stream
-    from app.services.resources import resources as app_resources
-
-    redis = app_resources.redis_client
-    # API-05: 在连接断开时释放 SSE 连接计数
-    client_ip = resolve_client_ip(request)
-
-    async def _stream_with_cleanup():
-        try:
-            async for chunk in event_stream(redis):
-                yield chunk
-        finally:
-            await sse_disconnect(client_ip)
-
-    return StreamingResponse(
-        _stream_with_cleanup(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
-    )
-
-
-@router.get("/events-poll", response_model=list[dict[str, Any]])
-async def poll_pipeline_events(
-    _user: Annotated[dict[str, Any], Depends(get_current_user_sse)],
-    since: float = Query(0.0, description="Unix timestamp filter"),
-) -> list[dict[str, Any]]:
-    """Phase 2 POLL-01: SSE polling fallback — 返回最近事件数组。
-
-    Auth: accepts JWT via query param or Authorization header.
-    """
-    from app.services.pipeline_service import get_recent_events
-    from app.services.resources import resources as app_resources
-
-    redis = app_resources.redis_client
-    if redis is None:
-        return []
-    events = await get_recent_events(redis, since=since, limit=50)
-    return events
-
-
 # ---------------------------------------------------------------------------
 # 定时调度 CRUD
 # ---------------------------------------------------------------------------
@@ -986,3 +927,8 @@ async def pipeline_metrics(
         },
         "error_type_counts": error_type_counts,
     }
+
+# ---------------------------------------------------------------------------# 子路由聚合 (D-02 Task 7)# 当前已拆分：events_routes（2 endpoints）# 未来拆分：status_routes / runs_routes / trigger_routes / schedule_routes / config_routes# ---------------------------------------------------------------------------
+from app.api.v1.pipeline.events_routes import router as _events_router  # noqa: E402,F401
+
+router.include_router(_events_router)
