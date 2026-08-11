@@ -247,6 +247,10 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         total_extractions=total_extractions,
         pending_review=pending_review,
         hallucination_rate=hallucination_rate,
+        # Phase 11 D-05: 三段式契约（沿 M5/M10 KPI breakdown）
+        hallucination_numerator=int(hallucinated or 0),
+        hallucination_denominator=total_extractions,
+        hallucination_window_days=30,
         avg_trust_score=float(avg_trust),
         high_trust_ratio=float(high_trust_ratio),
         trust_distribution=trust_distribution,

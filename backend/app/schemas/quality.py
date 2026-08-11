@@ -36,6 +36,10 @@ class QualityDashboard(BaseModel):
     total_extractions: int = Field(default=0, ge=0, description="总抽取数")
     pending_review: int = Field(default=0, ge=0, description="待审核数")
     hallucination_rate: float = Field(default=0.0, ge=0, le=1, description="幻觉率")
+    # Phase 11 D-05: hallucination_rate 三段式契约（沿 M5/M10 KPI breakdown 口径）
+    hallucination_numerator: int = Field(default=0, ge=0, description="幻觉数（分子）")
+    hallucination_denominator: int = Field(default=0, ge=0, description="总抽取数（分母）")
+    hallucination_window_days: int = Field(default=30, ge=1, description="统计窗口天数")
     total_nodes: int = Field(default=0, ge=0, description="总节点数")
     total_edges: int = Field(default=0, ge=0, description="总边数")
     total_positions: int = Field(default=0, ge=0, description="岗位节点数")
