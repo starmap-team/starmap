@@ -153,3 +153,55 @@ class IndustriesResponse(BaseModel):
         default_factory=list,
         description="去重排序后的行业名称列表",
     )
+
+
+class PositionSyncFailure(BaseModel):
+    """单条岗位同步失败明细（D-02）。"""
+
+    name: str = Field(
+        default="",
+        max_length=200,
+        description="同步失败的岗位名称",
+    )
+    canonical_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description="岗位 canonical_id（= PG PositionRecord.id 的字符串形式）",
+    )
+    error: str = Field(
+        default="",
+        max_length=500,
+        description="失败原因（截断至 500 字符）",
+    )
+
+
+class PositionSyncResult(BaseModel):
+    """全量 PG → Neo4j Position 同步结果（D-01/D-02）。"""
+
+    synced: int = Field(
+        default=0,
+        ge=0,
+        description="成功 MERGE 到 Neo4j 的 Position 节点数",
+    )
+    failed: list[PositionSyncFailure] = Field(
+        default_factory=list,
+        description="失败明细列表（单条失败不阻断全量补跑）",
+    )
+    total: int = Field(
+        default=0,
+        ge=0,
+        description="PG position_records 总行数",
+    )
+    pruned: int = Field(
+        default=0,
+        ge=0,
+        description="剪枝掉的无 canonical_id 遗留 Position 节点数（prune_legacy=true 时生效）",
+    )
+    started_at: str = Field(
+        default="",
+        description="同步开始时间（ISO 8601）",
+    )
+    finished_at: str = Field(
+        default="",
+        description="同步结束时间（ISO 8601）",
+    )

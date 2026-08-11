@@ -30,6 +30,7 @@ from app.api.v1 import (
 )
 from app.api.v1.datasource import admin_router as datasource_admin_router
 from app.api.v1.datasource import router as datasource_router
+from app.api.v1.position import admin_router as position_admin_router
 from app.dependencies import get_current_user
 
 # Auth router 不需要认证依赖（登录端点本身不需要 token）
@@ -39,6 +40,7 @@ auth_router.include_router(auth.router)
 api_router = APIRouter(dependencies=[Depends(get_current_user)])
 api_router.include_router(graph.router, tags=["图谱查询"])
 api_router.include_router(position.router, tags=["岗位管理"])
+api_router.include_router(position_admin_router, tags=["岗位管理"])
 api_router.include_router(match.router, tags=["匹配诊断"])
 api_router.include_router(evolution.router, tags=["演化分析"])
 api_router.include_router(resume.router, tags=["简历解析"])

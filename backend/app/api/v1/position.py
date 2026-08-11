@@ -8,12 +8,24 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db_session, get_neo4j_driver
+from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.exceptions import PositionNotFoundError, StarMapError
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
-from app.schemas.position import IndustriesResponse, PositionListResponse, PositionNode, SkillNode
+from app.schemas.position import (
+    IndustriesResponse,
+    PositionListResponse,
+    PositionNode,
+    PositionSyncResult,
+    SkillNode,
+)
 
 router = APIRouter(prefix="/positions", tags=["岗位管理"])
+
+# D-02: 岗位域的 admin 运维路由。独立 router（prefix="/admin"）以避免与
+# `/positions/{position_id}` 的路径参数抢匹配，同时叠加 require_admin 鉴权。
+admin_router = APIRouter(
+    prefix="/admin", tags=["岗位管理"], dependencies=[Depends(require_admin)],
+)
 
 
 # P2 修复 (INJ-03): 转义 SQL LIKE 通配符，防止通配符注入
@@ -303,8 +315,43 @@ async def discover_position(
         raise HTTPException(status_code=500, detail="岗位处理异常") from exc
 
 
-# ── Neo4j fallback for position list ──
+# ── Admin: 全量 PG → Neo4j Position 同步（C-1 D-01/D-02）──
 
+
+@admin_router.post(
+    "/sync/all-positions-to-neo4j",
+    summary="全量补齐 Neo4j Position 节点",
+    description="将 PG position_records 全量幂等 MERGE 到 Neo4j Position 节点（C-1 SSOT 漂移修复）。\n\n"
+    "复用 admin_audit_service 既有的 MERGE (n:Position {canonical_id}) 路径，重复执行安全。\n"
+    "单条失败不阻断其余记录，失败明细在 failed 列表返回。\n\n"
+    "prune_legacy=true 时额外剪枝无 canonical_id 的遗留 Position 节点（破坏性，默认关闭）。",
+    response_model=PositionSyncResult,
+)
+async def sync_all_positions_to_neo4j_endpoint(
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    prune_legacy: Annotated[
+        bool,
+        Query(description="是否剪枝无 canonical_id 的遗留 Position 节点（破坏性操作，默认 false）"),
+    ] = False,
+) -> PositionSyncResult:
+    """Admin 手动触发全量岗位同步，返回 {synced, failed, total, pruned, started_at, finished_at}。"""
+    from app.db.session import get_session_factory
+    from app.services.admin_audit_service import sync_all_positions_to_neo4j
+
+    try:
+        result = await sync_all_positions_to_neo4j(
+            get_session_factory(), driver, prune_legacy=prune_legacy,
+        )
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error in sync_all_positions_to_neo4j: {}", exc)
+        raise HTTPException(status_code=500, detail="岗位同步异常") from exc
+
+    return PositionSyncResult(**result)
+
+
+# ── Neo4j fallback for position list ──
 async def _list_positions_neo4j(
     driver: Any,
     page: int,
