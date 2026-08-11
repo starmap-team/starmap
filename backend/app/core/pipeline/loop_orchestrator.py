@@ -44,6 +44,7 @@ from app.core.pipeline.loop.common import (
 )
 from app.core.pipeline.loop.steps.extract import run_extract_step
 from app.core.pipeline.loop.steps.graph_update import run_graph_update_step
+from app.core.pipeline.loop.steps.match import run_match_step
 from app.core.pipeline.loop.steps.validate import resolve_target_position, run_validate_step
 from app.exceptions import PipelineStageError, StarMapError
 
@@ -275,58 +276,21 @@ class LoopOrchestrator:
         driver: Any = None,
         db_session: Any = None,
     ) -> LoopStepResult:
-        """Step 4: Run match diagnosis with extracted skills vs target position."""
-        start = time.monotonic()
+        """Step 4: Run match diagnosis (compat delegate).
 
-        if not extracted_skills:
-            return LoopStepResult(
-                step=4,
-                name=STEP_NAMES[4],
-                status=StepStatus.FAILED,
-                error="No skills available for matching",
-                duration_seconds=time.monotonic() - start,
-            )
-
-        try:
-            from app.services.match_service import run_match
-
-            person_skills = [
-                {
-                    "name": s["name"],
-                    "category": s.get("category", "hard_skill"),
-                    "proficiency": s.get("proficiency", "熟悉"),
-                }
-                for s in extracted_skills
-                if s.get("name")
-            ]
-
-            match_result = await run_match(
-                target_position=target_position,
-                person_skills=person_skills,
-                driver=driver,
-                db_session=db_session,
-            )
-
-            return LoopStepResult(
-                step=4,
-                name=STEP_NAMES[4],
-                status=StepStatus.SUCCESS,
-                data=match_result,
-                duration_seconds=time.monotonic() - start,
-            )
-        except PipelineStageError:
-            raise
-        except StarMapError:
-            raise
-        except Exception as exc:
-            logger.exception("Step 4 (match diagnosis) failed: {}", exc)
-            return LoopStepResult(
-                step=4,
-                name=STEP_NAMES[4],
-                status=StepStatus.FAILED,
-                error=str(exc),
-                duration_seconds=time.monotonic() - start,
-            )
+        Thin delegate to
+        :func:`app.core.pipeline.loop.steps.match.run_match_step`
+        (Phase 07-02 D-01). The returned ``data`` carries the M5
+        ``score_breakdown`` block (flat keys) for the frontend
+        ``LoopStepMatch`` breakdown row.
+        """
+        return await run_match_step(
+            target_position=target_position,
+            extracted_skills=extracted_skills,
+            graph_available=graph_available,
+            driver=driver,
+            db_session=db_session,
+        )
 
     async def _step5_learning_path(
         self,
