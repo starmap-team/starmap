@@ -1,41 +1,179 @@
 /**
- * useTriggerPipeline hook（D-03 Task 8 拆分骨架）
+ * 触发/取消/重试/续跑/强制操作 composable（Phase 03 Plan 03 Task 8 实际迁移）。
  *
- * 当前为占位接口契约，触发逻辑仍保留在 usePipelineMonitor.ts 中。
- * 下一步：实际迁移 trigger / cancel / retry / resume / force-advance / force-reset 操作。
+ * 从 usePipelineMonitor.ts 抽出触发流水线相关状态与操作：
+ * 触发对话框状态、actionLoading、重试中阶段、取消/重试/续跑/强制推进/强制重置。
  */
-import { ref } from 'vue'
-import type { Ref } from 'vue'
+import { computed, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { usePipelineRunStore } from '@/stores/pipelineRun'
+import { ALL_STAGE_NAMES, STAGE_LABELS } from '@/stores/pipelineConfig'
+import { RUN_TYPE_LABELS } from '@/constants/labels'
 
-export interface TriggerPipelineApi {
-  loading: Ref<boolean>
-  trigger: (stages: string[], runType?: string) => Promise<void>
-  cancel: (runId: string) => Promise<void>
-  retry: (runId: string) => Promise<void>
-  resume: (runId: string) => Promise<void>
-  forceAdvance: (runId: string) => Promise<void>
-  forceReset: (runId: string) => Promise<void>
+export type TriggerRunType = 'full' | 'incremental'
+
+export interface TriggerPipelineOptions {
+  /** 触发成功后回调（页面用于刷新 + 加速轮询） */
+  onAfterTrigger?: () => Promise<void> | void
+  /** 操作成功后刷新全页面（loadAll） */
+  onAfterMutation?: () => Promise<void> | void
 }
 
-/**
- * 当前实现：返回空 hook 桩，由 PipelineMonitor 继续使用 usePipelineMonitor.ts。
- * 未来 Task 8 完成后，PipelineMonitor 改用此 hook 替代内联操作。
- */
-export function useTriggerPipeline(): TriggerPipelineApi {
-  // 占位：返回 no-op refs 以满足接口契约
-  const loading = ref(false)
+export function useTriggerPipeline(options: TriggerPipelineOptions = {}) {
+  const runStore = usePipelineRunStore()
+  const actionLoading = ref(false)
+  const retryingStages = ref<Set<string>>(new Set())
 
-  const noop = async () => {
-    /* no-op */
+  // ── 触发对话框状态 ──
+  const selectedStages = ref<string[]>(ALL_STAGE_NAMES)
+  const triggerDialogVisible = ref(false)
+  const triggerRunType = ref<TriggerRunType>('full')
+
+  function openTriggerDialog() {
+    selectedStages.value = ALL_STAGE_NAMES
+    triggerRunType.value = 'full'
+    triggerDialogVisible.value = true
+  }
+
+  // ── Phase 17-02 (Fix B2): 用 last_run.id fallback, 让 failed/cancelled run 也能重试 ──
+  const currentRunId = computed(() => {
+    return runStore.pipelineStatus?.last_run?.id
+      ?? runStore.pipelineStatus?.current_run?.id
+      ?? null
+  })
+
+  async function trigger(stages: string[], runType: TriggerRunType = 'full') {
+    actionLoading.value = true
+    try {
+      // Phase 3.7: 触发新 run 时清空实时活动缓存
+      runStore.resetLiveActivity()
+      await runStore.triggerPipeline(runType, stages)
+      const runTypeLabel = RUN_TYPE_LABELS[runType] ?? runType
+      ElMessage.success(`流水线已触发（${runTypeLabel}，${stages.length} 个阶段）`)
+      await options.onAfterTrigger?.()
+      return true
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '触发失败，请检查后端服务状态'
+      ElMessage.error(`触发失败：${msg}`)
+      return false
+    } finally {
+      actionLoading.value = false
+    }
+  }
+
+  async function handleRetryStage(stageName: string) {
+    if (!currentRunId.value) {
+      ElMessage.warning('没有可重试的运行')
+      return
+    }
+    retryingStages.value.add(stageName)
+    try {
+      await runStore.retryStage(currentRunId.value, stageName)
+      // 刷全页面：重试后 DAG 需要反映阶段状态变化
+      await options.onAfterMutation?.()
+      ElMessage.success(`阶段「${STAGE_LABELS[stageName] || stageName}」已重新调度执行`)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '重试失败'
+      ElMessage.error(`重试失败：${msg}`)
+    } finally {
+      retryingStages.value.delete(stageName)
+    }
+  }
+
+  async function handleResume() {
+    // Phase 16 B06 fix: 使用 recent_failed_run.id 而非 currentRunId (current_run 永不为 failed)
+    const failedRunId = runStore.pipelineStatus?.recent_failed_run?.id ?? currentRunId.value
+    if (!failedRunId) {
+      ElMessage.warning('没有可续跑的运行')
+      return
+    }
+    actionLoading.value = true
+    try {
+      await runStore.resumeRun(failedRunId)
+      // 刷全页面：断点续跑后 status→running，按钮需切换，DAG 需更新
+      await options.onAfterMutation?.()
+      ElMessage.success('断点续跑已启动，将从失败阶段继续执行')
+      await options.onAfterTrigger?.() // 执行期间加速刷新
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '续跑失败'
+      ElMessage.error(`断点续跑失败：${msg}`)
+    } finally {
+      actionLoading.value = false
+    }
+  }
+
+  /** 取消运行（带确认）。返回 true 表示取消成功。 */
+  async function cancelRun(runId: string): Promise<boolean> {
+    try {
+      await ElMessageBox.confirm(
+        '确认取消当前正在运行的流水线？此操作不可撤销。',
+        '取消流水线',
+        { confirmButtonText: '确认取消', cancelButtonText: '不取消', type: 'warning' }
+      )
+      actionLoading.value = true
+      const ok = await runStore.cancelRun(runId)
+      if (ok) {
+        await options.onAfterMutation?.()
+        ElMessage.success('流水线已取消，所有运行中阶段已停止')
+      } else {
+        ElMessage.error('取消失败，请查看控制台错误信息')
+      }
+      return ok
+    } catch {
+      // 用户取消对话框 — 不视为错误
+      return false
+    } finally {
+      actionLoading.value = false
+    }
+  }
+
+  /** 强制推进卡死 run（带确认）。 */
+  async function forceAdvance(runId: string): Promise<boolean> {
+    try {
+      await ElMessageBox.confirm(
+        '强制推进会重新调用 advance_pipeline, 触发所有待执行阶段。可能用于修复 Celery event loop 错误导致的卡死。',
+        '强制推进',
+        { confirmButtonText: '确认推进', cancelButtonText: '取消', type: 'warning' }
+      )
+      actionLoading.value = true
+      return await runStore.forceAdvance(runId)
+    } catch {
+      return false
+    } finally {
+      actionLoading.value = false
+    }
+  }
+
+  /** 强制重置卡死 run（带确认）。 */
+  async function forceReset(runId: string): Promise<boolean> {
+    try {
+      await ElMessageBox.confirm(
+        '强制重置会把当前卡死的 run 标记为 cancelled, 并把所有 running/pending 阶段也标记为 cancelled。此操作不可撤销。',
+        '强制重置',
+        { confirmButtonText: '确认重置', cancelButtonText: '取消', type: 'warning' }
+      )
+      actionLoading.value = true
+      return await runStore.forceReset(runId)
+    } catch {
+      return false
+    } finally {
+      actionLoading.value = false
+    }
   }
 
   return {
-    loading,
-    trigger: noop as TriggerPipelineApi['trigger'],
-    cancel: noop,
-    retry: noop,
-    resume: noop,
-    forceAdvance: noop,
-    forceReset: noop,
+    actionLoading,
+    retryingStages,
+    currentRunId,
+    selectedStages,
+    triggerDialogVisible,
+    triggerRunType,
+    openTriggerDialog,
+    trigger,
+    handleRetryStage,
+    handleResume,
+    cancelRun,
+    forceAdvance,
+    forceReset,
   }
 }
