@@ -352,8 +352,9 @@ class TestStepLevelDirectInvocation:
 
     @pytest.mark.asyncio
     async def test_run_extract_step_success(self):
-        from app.core.pipeline.loop.steps.extract import run_extract_step
         from unittest.mock import AsyncMock, patch
+
+        from app.core.pipeline.loop.steps.extract import run_extract_step
 
         with patch("app.core.extraction.jd_extract.extract_from_jd",
                    new=AsyncMock(return_value={
@@ -367,8 +368,9 @@ class TestStepLevelDirectInvocation:
 
     @pytest.mark.asyncio
     async def test_run_extract_step_exception(self):
-        from app.core.pipeline.loop.steps.extract import run_extract_step
         from unittest.mock import AsyncMock, patch
+
+        from app.core.pipeline.loop.steps.extract import run_extract_step
 
         with patch("app.core.extraction.jd_extract.extract_from_jd",
                    new=AsyncMock(side_effect=RuntimeError("LLM down"))):
@@ -378,8 +380,9 @@ class TestStepLevelDirectInvocation:
 
     @pytest.mark.asyncio
     async def test_run_graph_update_step_no_driver(self):
-        from app.core.pipeline.loop.steps.graph_update import run_graph_update_step
         from unittest.mock import patch
+
+        from app.core.pipeline.loop.steps.graph_update import run_graph_update_step
 
         with patch("app.services.resources.resources", type("R", (), {"neo4j_driver": None})()):
             result = await run_graph_update_step("run-1", {})
