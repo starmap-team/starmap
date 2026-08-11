@@ -9,42 +9,32 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from loguru import logger
+
 from app.core.pipeline.stages.common import (
     PipelineStageError,
     get_session_factory,
     publish_stage_progress,
     run_async,
-    select,
 )
 
 
 def _update_source_after_import(run_id: str, valid_count: int) -> None:
-    """execute_import 完成后更新 DataSourceRecord.valid_records + avg_quality_score."""
-    async def _update():
-        from loguru import logger
-        from sqlalchemy import text
+    """execute_import 完成后刷新 DataSourceRecord 质量统计。
 
-        from app.models.pipeline_models import DataSourceRecord
+    D4 fix (2026-08-12): 原实现查遗留死表 raw_jd_records + `source_platform = ds.name`
+    精确匹配 + 朴素公式 `min(extracted/100, 1.0)` —— 三处叠加导致把 sync_source_quality
+    （D3 真实来源，从 jd_raw 聚合）已正确回写的 valid_records/avg_quality_score **清零**
+    （匹配失败 → extracted=0 → 全源质量归 0）。此处改为直接委托 sync_source_quality：
+    jd_raw 是唯一真实采集数据源，valid/quality/dup/total/last_crawl_at 全部由它聚合回写。
+    """
+    async def _update():
+        from app.core.pipeline.source_quality_sync import sync_source_quality
 
         session_factory = get_session_factory()
         async with session_factory() as session:
-            # 重算所有 data_sources 的 avg_quality_score
-            ds_list_result = await session.execute(
-                select(DataSourceRecord)
-            )
-            all_ds = ds_list_result.scalars().all()
-            for ds in all_ds:
-                # 从 extraction_models 查询有效记录数（按 source_platform 匹配）
-                rec_result = await session.execute(
-                    text("SELECT COUNT(*) FROM raw_jd_records WHERE source_platform = :platform AND status = 'extracted'"),
-                    {"platform": ds.name},
-                )
-                extracted = rec_result.scalar() or 0
-                ds.valid_records = extracted
-                ds.avg_quality_score = min(extracted / 100.0, 1.0) if extracted > 0 else 0.0
-
-            await session.commit()
-            logger.info("_update_source_after_import: updated valid_records for run_id={}", run_id)
+            await sync_source_quality(session)
+            logger.info("_update_source_after_import: stats refreshed via sync_source_quality (run_id={})", run_id)
     run_async(_update())
 
 

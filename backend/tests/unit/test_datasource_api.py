@@ -196,6 +196,13 @@ def _override_user():
 
 
 class TestListDatasources:
+    # D4 fix (2026-08-12): GET /datasources 现先跑 sync_source_quality（D3 聚合回写）
+    # 数据刷新副作用 —— 本类测试断言的是列表序列化，patch 掉该副作用避免依赖 Fake session
+    @pytest.fixture(autouse=True)
+    def _patch_sync_source_quality(self):
+        with patch("app.services.pipeline_service.sync_source_quality", new=AsyncMock(return_value={})):
+            yield
+
     def test_list_returns_200_with_data(self, client, auth_headers, db_override):
         ds1 = FakeDataSourceRecord(name="BOSS直聘", authority_score=0.9)
         ds2 = FakeDataSourceRecord(name="拉勾网", authority_score=0.7)

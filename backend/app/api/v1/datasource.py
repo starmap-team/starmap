@@ -79,7 +79,16 @@ def _serialize(ds: DataSourceRecord) -> DataSourceResponse:
 async def list_datasources(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> list[DataSourceResponse]:
-    """数据源列表（按权威度降序）。"""
+    """数据源列表（按权威度降序）。
+
+    D4 fix (2026-08-12): 返回前先跑 sync_source_quality（D3 聚合，从 jd_raw 回写
+    total/valid/quality/dup/last_crawl_at）—— 与 /pipeline/data-quality 同先例，
+    保证页面恒显示真实采集数据的聚合口径，不依赖上游触发。经 services 层导入以
+    遵守 api→services→core 分层（test_layer_boundary）。
+    """
+    from app.services.pipeline_service import sync_source_quality
+
+    await sync_source_quality(session)
     result = await session.execute(
         select(DataSourceRecord).order_by(DataSourceRecord.authority_score.desc())
     )

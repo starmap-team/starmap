@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
@@ -46,97 +45,22 @@ def build_spider_registry() -> dict[str, Any]:
 
 
 def _update_source_after_crawl(run_id: str, records_count: int) -> None:
-    """execute_crawl 完成后更新 DataSourceRecord.total_records + last_crawl_at.
+    """execute_crawl 完成后刷新 DataSourceRecord 统计字段。
 
-    E20 fix: two critical bugs in the previous version:
-      1. "cnt" was the *cumulative* raw_jd_records count for each platform,
-         not the delta of THIS run. Calling sync N times added N× the
-         existing total to DataSourceRecord.total_records (累加 bug).
-      2. Match logic was too permissive — substring fallback would match
-         unrelated DS rows, attributing Boss Zhipin crawls to ESCO Skills.
-
-    Fix: filter raw_jd_records by `crawled_at >= run.started_at` so we
-    only count the rows produced by THIS pipeline run. Use a strict
-    two-step match (case-insensitive equality, then strip parens), no
-    substring fallback.
+    D4 fix (2026-08-12): 原实现读遗留死表 raw_jd_records（当前管线 crawl 经
+    dao.upsert_jd 写 jd_raw；status_aggregator 注释明确 "RawJDRecord 永不被写入"）
+    并**累加** total_records，与 sync_source_quality（D3 真实来源，从 jd_raw 聚合
+    绝对量）互相污染：累加使 total 漂移、死表计数污染正确值。此处改为直接委托
+    sync_source_quality —— jd_raw 是唯一真实采集数据源，total/valid/quality/dup/
+    last_crawl_at 全部由它按绝对量回写，消除死表污染与累加漂移。
     """
     async def _update():
-        from sqlalchemy import text
-
-        from app.models.pipeline_models import DataSourceRecord, PipelineRun
+        from app.core.pipeline.source_quality_sync import sync_source_quality
 
         session_factory = get_session_factory()
         async with session_factory() as session:
-            # 1. Find this run's start time so we only count THIS run's rows.
-            run_row = (
-                await session.execute(
-                    select(PipelineRun.started_at).where(PipelineRun.id == uuid.UUID(run_id))
-                )
-            ).one_or_none()
-            if not run_row:
-                logger.warning(
-                    "_update_source_after_crawl: run_id={} not found, skipping update",
-                    run_id,
-                )
-                return
-            run_started_at = run_row[0]
-            if run_started_at.tzinfo is None:
-                run_started_at = run_started_at.replace(tzinfo=UTC)
-
-            # 2. Count rows by source_platform, but only those crawled
-            #    DURING this run. This is the delta, not a cumulative.
-            result = await session.execute(
-                text("""
-                    SELECT source_platform, COUNT(*) AS cnt
-                    FROM raw_jd_records
-                    WHERE crawled_at >= :started_at
-                    GROUP BY source_platform
-                """),
-                {"started_at": run_started_at},
-            )
-            rows = result.fetchall()
-
-            # 3. Build DS index (case-insensitive). Skip substring fallback.
-            ds_index_result = await session.execute(select(DataSourceRecord))
-            all_ds = list(ds_index_result.scalars().all())
-            now = datetime.now(UTC)
-
-            for platform, cnt in rows:
-                if not platform:
-                    continue
-                p_norm = str(platform).strip().lower()
-                matched = None
-                # Step 1: exact lower match
-                for ds in all_ds:
-                    if ds.name.strip().lower() == p_norm:
-                        matched = ds
-                        break
-                # Step 2: strip " (远程)" / "(国内)" annotations, then exact match
-                if matched is None:
-                    for ds in all_ds:
-                        if ds.name.split("(")[0].strip().lower() == p_norm:
-                            matched = ds
-                            break
-                # NOTE: NO substring fallback. If we cannot strictly identify
-                # the DS for this platform, log and skip — better to under-
-                # count than to mis-attribute.
-                if matched is None:
-                    logger.warning(
-                        "_update_source_after_crawl: no DataSourceRecord matches "
-                        "platform={!r} (run_id={}); skipping",
-                        platform, run_id,
-                    )
-                    continue
-
-                delta = int(cnt)
-                matched.total_records = (matched.total_records or 0) + delta
-                matched.last_crawl_at = now
-                logger.info(
-                    "_update_source_after_crawl: matched platform={!r} → DS {!r} (+{} records)",
-                    platform, matched.name, delta,
-                )
-            await session.commit()
-            logger.info("_update_source_after_crawl: updated for run_id={}", run_id)
+            await sync_source_quality(session)
+            logger.info("_update_source_after_crawl: stats refreshed via sync_source_quality (run_id={})", run_id)
     run_async(_update())
 
 

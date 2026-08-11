@@ -54,7 +54,13 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
         else:
             site_stats[site][status_str] = cnt
 
-    # 2. data_source_metrics 最新 started_at per source
+    # 2a. jd_raw 每个 source_site 最新 crawled_at —— 真实采集时间（主来源）
+    raw_last = (await session.execute(
+        sa.text("SELECT source_site, MAX(crawled_at) FROM jd_raw GROUP BY source_site")
+    )).all()
+    last_crawl_by_site: dict[str, datetime] = {str(site): at for site, at in raw_last}
+
+    # 2b. data_source_metrics 最新 started_at per source（补充来源）
     metric_rows = (await session.execute(
         sa.text("""
             SELECT m.source_id, MAX(m.started_at) AS last_at
@@ -83,7 +89,11 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
         ds.valid_records = extracted
         ds.avg_quality_score = round(quality, 4)
         ds.duplicate_rate = round(dup_rate, 4)
-        if str(ds.id) in last_crawl_by_source:
+        # last_crawl_at: 优先 jd_raw 真实采集时间（按 source_site），兜底 metrics
+        site_last = last_crawl_by_site.get(site)
+        if site_last:
+            ds.last_crawl_at = site_last
+        elif str(ds.id) in last_crawl_by_source:
             ds.last_crawl_at = last_crawl_by_source[str(ds.id)]
         updated[source_name] = {
             "total_records": total, "valid_records": extracted,
