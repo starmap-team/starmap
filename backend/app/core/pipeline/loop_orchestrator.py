@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +27,9 @@ from app.core.pipeline.loop.common import (
     _insert_loop_run,
     _update_steps_json,
 )
+
+if TYPE_CHECKING:
+    from app.models.pipeline_models import LoopResultRecord
 from app.core.pipeline.loop.steps.extract import run_extract_step
 from app.core.pipeline.loop.steps.graph_update import run_graph_update_step
 from app.core.pipeline.loop.steps.learning_path import generic_learning_path, run_learning_path_step
@@ -52,16 +55,16 @@ class LoopOrchestrator:
             run_id=run_id, jd_text=jd_text, target_position=target_position,
             status=LoopRunStatus.RUNNING,
         )
-        db_record = await _insert_loop_run(run_id, session=session, user_id=user_id)
+        db_record = await self._insert_loop_run(run_id, session=session, user_id=user_id)
 
         # Step 1: validation
         step1 = self._step1_validate_input(jd_text, target_position)
         result.steps.append(step1)
-        await _update_steps_json(db_record, result, session=session)
+        await self._update_steps_json(db_record, result, session=session)
         if step1.status == StepStatus.FAILED:
             result.status = LoopRunStatus.FAILED
             result.total_duration_seconds = time.monotonic() - start
-            await _complete_loop_run(db_record, result, session=session)
+            await self._complete_loop_run(db_record, result, session=session)
             return result
 
         # Step 2: extraction
@@ -70,7 +73,7 @@ class LoopOrchestrator:
         extraction_data = step2.data if step2.status == StepStatus.SUCCESS else {}
         if extraction_data:
             result.extracted_skills = extraction_data.get("skills", [])
-        await _update_steps_json(db_record, result, session=session)
+        await self._update_steps_json(db_record, result, session=session)
 
         effective_target = self._resolve_target_position(target_position, extraction_data)
         result.target_position = effective_target
@@ -89,7 +92,7 @@ class LoopOrchestrator:
         result.steps.append(step3)
         graph_ok = step3.status == StepStatus.SUCCESS
         result.graph_update = step3.data
-        await _update_steps_json(db_record, result, session=session)
+        await self._update_steps_json(db_record, result, session=session)
 
         # Step 4: match diagnosis (LOOP-09: skip if no effective target_position)
         if effective_target:
@@ -105,7 +108,7 @@ class LoopOrchestrator:
             step4 = LoopStepResult(step=4, name="Match Diagnosis", status=StepStatus.SKIPPED, data={},
                 note="Skipped: no target_position")
             result.steps.append(step4)
-        await _update_steps_json(db_record, result, session=session)
+        await self._update_steps_json(db_record, result, session=session)
 
         # Step 5: learning path (LOOP-09: skip if no target or match skipped)
         if effective_target and step4.status != StepStatus.SKIPPED:
@@ -131,7 +134,7 @@ class LoopOrchestrator:
             result.status = LoopRunStatus.COMPLETED
 
         result.total_duration_seconds = time.monotonic() - start
-        await _complete_loop_run(db_record, result, session=session)
+        await self._complete_loop_run(db_record, result, session=session)
 
         logger.info(
             "Loop {} completed: status={} steps=[{}] duration={:.2f}s",
@@ -180,15 +183,15 @@ class LoopOrchestrator:
     # ---- Persistence helper delegates (compat shell) ----
 
     @staticmethod
-    async def _insert_loop_run(run_id: str, session: AsyncSession | None = None, user_id: str = "system"):
+    async def _insert_loop_run(run_id: str, session: AsyncSession | None = None, user_id: str = "system") -> LoopResultRecord | None:
         return await _insert_loop_run(run_id, session=session, user_id=user_id)
 
     @staticmethod
-    async def _update_steps_json(db_record, result: LoopResult, session: AsyncSession | None = None):
+    async def _update_steps_json(db_record: LoopResultRecord | None, result: LoopResult, session: AsyncSession | None = None) -> None:
         await _update_steps_json(db_record, result, session=session)
 
     @staticmethod
-    async def _complete_loop_run(db_record, result: LoopResult, session: AsyncSession | None = None):
+    async def _complete_loop_run(db_record: LoopResultRecord | None, result: LoopResult, session: AsyncSession | None = None) -> None:
         await _complete_loop_run(db_record, result, session=session)
 
 

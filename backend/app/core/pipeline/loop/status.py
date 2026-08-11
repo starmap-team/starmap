@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.pipeline.loop.common import (
     _LOOP_RESULTS,
+    LoopResult,
     LoopStepResult,
     StepStatus,
 )
@@ -62,16 +63,19 @@ async def get_loop_status(
         try:
             from app.models.pipeline_models import PipelineRun
 
-            result = await session.execute(
+            db_result = await session.execute(
                 select(PipelineRun).where(PipelineRun.id == uuid.UUID(run_id))
             )
-            row = result.scalar_one_or_none()
-            if row is not None and row.stages is not None:
-                data = dict(row.stages)
-                data["run_id"] = str(row.id)
-                data["status"] = row.status
+            legacy_row = db_result.scalar_one_or_none()
+            if legacy_row is not None and legacy_row.stages is not None:
+                stages = legacy_row.stages
+                if not isinstance(stages, dict):
+                    stages = {}
+                data = dict(stages)
+                data["run_id"] = str(legacy_row.id)
+                data["status"] = legacy_row.status
                 if "steps" not in data:
-                    data["steps"] = row.stages.get("steps", [])
+                    data["steps"] = stages.get("steps", [])
                 return data
         except PipelineStageError:
             raise
@@ -81,10 +85,10 @@ async def get_loop_status(
             logger.exception("Failed to read loop status from pipeline_runs, falling back to in-memory: {}", exc)
 
     # Fallback: in-memory
-    result = _LOOP_RESULTS.get(run_id)
-    if result is None:
+    mem_result: LoopResult | None = _LOOP_RESULTS.get(run_id)
+    if mem_result is None:
         return None
-    return result.to_dict()
+    return mem_result.to_dict()
 
 
 async def get_loop_history(
@@ -128,21 +132,22 @@ async def get_loop_history(
         try:
             from app.models.pipeline_models import PipelineRun
 
-            result = await session.execute(
+            db_result = await session.execute(
                 select(PipelineRun)
                 .where(PipelineRun.run_type == "loop")
                 .order_by(PipelineRun.started_at.desc())
                 .limit(limit)
             )
-            rows = result.scalars().all()
-            if rows:
-                items = []
-                for row in rows:
-                    data = dict(row.stages) if row.stages else {}
-                    data["run_id"] = str(row.id)
-                    data["status"] = row.status
-                    items.append(data)
-                return items
+            rows2 = list(db_result.scalars().all())
+            if rows2:
+                items2: list[dict[str, Any]] = []
+                for legacy_row2 in rows2:
+                    stages = legacy_row2.stages
+                    data = dict(stages) if stages else {}
+                    data["run_id"] = str(legacy_row2.id)
+                    data["status"] = legacy_row2.status
+                    items2.append(data)
+                return items2
         except PipelineStageError:
             raise
         except StarMapError:
@@ -151,9 +156,9 @@ async def get_loop_history(
             logger.exception("Failed to read loop history from pipeline_runs, falling back to in-memory: {}", exc)
 
     # Fallback: in-memory
-    items = list(_LOOP_RESULTS.values())
-    items.sort(key=lambda r: r.total_duration_seconds, reverse=False)
-    return [r.to_dict() for r in list(_LOOP_RESULTS.values())[-limit:]][::-1]
+    in_memory: list[LoopResult] = list(_LOOP_RESULTS.values())
+    in_memory.sort(key=lambda r: r.total_duration_seconds, reverse=False)
+    return [r.to_dict() for r in in_memory[-limit:]][::-1]
 
 
 # ---------------------------------------------------------------------------
