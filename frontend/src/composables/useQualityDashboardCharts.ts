@@ -15,6 +15,8 @@ export interface KpiCardEnhanced {
   label: string
   value: string
   sub: string
+  /** Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown）*/
+  caption: string
   trend: KpiTrend
   color: string
   icon: string
@@ -32,6 +34,12 @@ export function useQualityDashboardCharts(store: QualityStore) {
       m.pending_review === 0
         ? '— 暂无审核'
         : `审核通过率 ${(m.audit_pass_rate * 100).toFixed(0)}%`
+    // Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown 原则——计算依据可感知）
+    // 幻觉率三段式（D-05）：X / Y = Z%——前端不再重新算率，避免口径漂移
+    const hallucinationCaption =
+      m.hallucination_denominator === 0
+        ? '— 未评估'
+        : `${m.hallucination_numerator} / ${m.hallucination_denominator} = ${(m.hallucination_rate * 100).toFixed(1)}%（窗口 ${m.hallucination_window_days}d）`
     return [
       {
         label: '总节点数',
@@ -39,6 +47,7 @@ export function useQualityDashboardCharts(store: QualityStore) {
         sub: m.total_extractions === 0
           ? '— 待运行抽取'
           : `周新增 +${m.weekly_new_nodes}`,
+        caption: `Position + Skill 节点数（来源: ${m.total_positions} 岗位 / ${m.total_skills} 技能）`,
         trend: 'up',
         color: cc.primary,
         icon: 'Grid',
@@ -49,6 +58,7 @@ export function useQualityDashboardCharts(store: QualityStore) {
         sub: m.total_extractions === 0
           ? '— 待评估'
           : `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
+        caption: `Neo4j Skill.trust_score 均值（来源: avg_skill_trust 共享指标模块）`,
         trend: m.avg_trust_score >= 0.75 ? 'up' : 'down',
         color: cc.success,
         icon: 'DataLine',
@@ -57,6 +67,7 @@ export function useQualityDashboardCharts(store: QualityStore) {
         label: '幻觉率',
         value: (m.hallucination_rate * 100).toFixed(1) + '%',
         sub: auditRateLabel,
+        caption: hallucinationCaption,
         trend: m.hallucination_rate <= 0.08 ? 'down' : 'up',
         color: cc.warning,
         icon: 'WarningFilled',
@@ -65,6 +76,7 @@ export function useQualityDashboardCharts(store: QualityStore) {
         label: '待审核',
         value: m.pending_review === 0 ? '—' : String(m.pending_review),
         sub: m.pending_review === 0 ? '暂无记录' : '条记录待处理',
+        caption: `JDExtractionRecord.confidence < ${0.5 * 100}% 阈值命中数（来源: ReviewAuditLog）`,
         trend: m.pending_review > 5 ? 'up' : 'down',
         color: cc.danger,
         icon: 'Clock',

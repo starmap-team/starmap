@@ -127,6 +127,10 @@ async function handleRefresh() {
                   </span>
                   {{ card.sub }}
                 </div>
+                <!-- Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown）-->
+                <div class="kpi-caption" data-testid="kpi-caption">
+                  {{ card.caption }}
+                </div>
               </div>
             </div>
           </el-card>
@@ -386,6 +390,34 @@ async function handleRefresh() {
                   />
                 </template>
               </el-table-column>
+              <!-- Phase 11 D-06: 审核状态徽标三色（沿 M10 audit 模式）-->
+              <el-table-column
+                prop="review_status"
+                label="状态"
+                width="100"
+                align="center"
+              >
+                <template #default="{ row }">
+                  <el-tag
+                    v-if="row.review_status"
+                    :type="row.review_status === 'approved' ? 'success' : row.review_status === 'rejected' ? 'danger' : 'warning'"
+                    size="small"
+                    effect="light"
+                    data-testid="review-status-badge"
+                  >
+                    {{ row.review_status === 'approved' ? '已通过' : row.review_status === 'rejected' ? '已拒绝' : '待审核' }}
+                  </el-tag>
+                  <el-tag
+                    v-else
+                    type="warning"
+                    size="small"
+                    effect="light"
+                    data-testid="review-status-badge"
+                  >
+                    待审核
+                  </el-tag>
+                </template>
+              </el-table-column>
               <el-table-column
                 label="操作"
                 width="150"
@@ -396,6 +428,7 @@ async function handleRefresh() {
                     size="small"
                     type="success"
                     plain
+                    :disabled="row.review_status === 'approved' || row.review_status === 'rejected'"
                     @click="audit.approveAudit(row.id).catch(() => ElMessage.error('审批失败'))"
                   >
                     通过
@@ -404,6 +437,7 @@ async function handleRefresh() {
                     size="small"
                     type="danger"
                     plain
+                    :disabled="row.review_status === 'approved' || row.review_status === 'rejected'"
                     @click="audit.rejectAudit(row.id).catch(() => ElMessage.error('拒绝失败'))"
                   >
                     拒绝
@@ -584,6 +618,14 @@ async function handleRefresh() {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
   margin-top: var(--space-1);
+}
+.kpi-caption {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  opacity: 0.75;
+  margin-top: var(--space-1);
+  line-height: 1.4;
+  font-style: italic;
 }
 .trend-up {
   color: var(--success);

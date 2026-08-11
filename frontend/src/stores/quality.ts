@@ -29,6 +29,10 @@ export interface QualityMetrics {
   total_skills: number
   total_extractions: number
   hallucination_rate: number
+  // Phase 11 D-05: 幻觉率三段式契约
+  hallucination_numerator: number
+  hallucination_denominator: number
+  hallucination_window_days: number
   pending_review: number
   avg_trust_score: number
   high_trust_ratio: number
@@ -37,7 +41,7 @@ export interface QualityMetrics {
   source_distribution: { name: string; count: number; trust: number }[]
   hallucination_trend: { date: string; rate: number }[]
   trust_distribution: { range: string; count: number }[]
-  audit_queue: { id: number; position: string; skill: string; trust: number }[]
+  audit_queue: { id: number; position: string; skill: string; trust: number; review_status?: 'pending_review' | 'approved' | 'rejected' }[]
 }
 
 function defaultMetrics(): QualityMetrics {
@@ -56,6 +60,9 @@ function defaultMetrics(): QualityMetrics {
     total_skills: 0,
     total_extractions: 0,
     hallucination_rate: 0,
+    hallucination_numerator: 0,
+    hallucination_denominator: 0,
+    hallucination_window_days: 30,
     pending_review: 0,
     avg_trust_score: 0,
     high_trust_ratio: 0,
