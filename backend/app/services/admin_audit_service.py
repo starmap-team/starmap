@@ -55,6 +55,30 @@ class AdminStatsResponse(BaseModel):
 _SKILL_ENTITY_TYPES = frozenset({"skill", "skill_alias", "new_skill"})
 _POSITION_ENTITY_TYPES = frozenset({"position", "new_position"})
 
+# Phase 02 D-01/D-02: single source of the Position MERGE Cypher.
+# Extracted verbatim from _sync_neo4j_on_audit so the one-off bulk backfill
+# (sync_all_positions_to_neo4j) reuses the exact same idempotent write path
+# instead of introducing a second sync implementation.
+_POSITION_MERGE_CYPHER = """
+                    MERGE (n:Position {canonical_id: $cid})
+                    SET n.name = $name,
+                        n.industry = $industry,
+                        n.review_status = $review_status,
+                        n.trust_score = $trust,
+                        n.status = $status,
+                        n.synced_at = datetime()
+                    """
+
+
+# Phase 02 D-01: 剪枝早期按 name MERGE 产生的遗留 Position 节点（无 canonical_id，不受 SSOT 管理）。
+# GraphProjector.reconcile_all 的孤儿剪枝带 `WHERE n.canonical_id IS NOT NULL` 前置条件，够不到这批。
+_POSITION_PRUNE_LEGACY_CYPHER = """
+                    MATCH (n:Position)
+                    WHERE n.canonical_id IS NULL
+                    DETACH DELETE n
+                    RETURN count(*) AS deleted
+                    """
+
 
 def _trust_from_payload(payload: dict | None) -> int:
     """Extract trust score from ReviewQueue payload, default 50."""
@@ -120,15 +144,7 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
         async with neo4j_driver.session() as s:
             if label == "Position":
                 await s.run(
-                    """
-                    MERGE (n:Position {canonical_id: $cid})
-                    SET n.name = $name,
-                        n.industry = $industry,
-                        n.review_status = $review_status,
-                        n.trust_score = $trust,
-                        n.status = $status,
-                        n.synced_at = datetime()
-                    """,
+                    _POSITION_MERGE_CYPHER,
                     cid=canonical_id,
                     name=name,
                     industry=industry,
@@ -159,8 +175,104 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
         logger.exception("Unexpected error in Neo4j sync (non-blocking): {}", e)
 
 
-def _audit_item_from_row(row: ReviewQueue, *, status_override: str | None = None) -> AuditItem:
-    return AuditItem(
+async def sync_all_positions_to_neo4j(
+    session_factory: Any, neo4j_driver: Any, *, prune_legacy: bool = False,
+) -> dict[str, Any]:
+    """D-01/D-02: 全量补跑 PG PositionRecord → Neo4j Position 节点（幂等 MERGE）。
+
+    复用 `_sync_neo4j_on_audit` 的 `_POSITION_MERGE_CYPHER`（同一 MERGE 路径，不新建 sync 逻辑）。
+    `canonical_id = str(PositionRecord.id)`，与 `_sync_neo4j_on_audit` 一致（D-06 canonical_id 复用）。
+
+    单条失败不影响其余记录：错误收集进 `failed` 列表后继续（沿 M3 D-06 仅观察不阻断）。
+
+    Args:
+        session_factory: async_sessionmaker（如 `app.db.session.get_session_factory()` 的返回值）
+        neo4j_driver: Neo4j AsyncDriver；为 None 时直接返回 0 同步结果
+        prune_legacy: True 时在 MERGE 之后 DETACH DELETE 所有 `canonical_id IS NULL` 的
+            Position 节点（早期按 name MERGE 的遗留节点，不受 SSOT 管理；
+            `GraphProjector.reconcile_all` 的孤儿剪枝只覆盖带 canonical_id 的节点，
+            够不到这批）。**破坏性操作，默认关闭**。
+
+    Returns:
+        `{"synced": N, "failed": [{"name": ..., "canonical_id": ..., "error": ...}], "total": N,
+          "pruned": N, "started_at": iso, "finished_at": iso}`
+    """
+    started_at = datetime.now(UTC)
+    synced = 0
+    pruned = 0
+    failed: list[dict[str, Any]] = []
+
+    if neo4j_driver is None:
+        logger.warning("sync_all_positions_to_neo4j: neo4j_driver is None, skipping")
+        return {
+            "synced": 0,
+            "failed": [],
+            "total": 0,
+            "pruned": 0,
+            "started_at": started_at.isoformat(),
+            "finished_at": datetime.now(UTC).isoformat(),
+        }
+
+    async with session_factory() as session:
+        result = await session.execute(
+            sa.select(
+                PositionRecord.id,
+                PositionRecord.name,
+                PositionRecord.industry,
+                PositionRecord.review_status,
+            ).order_by(PositionRecord.name)
+        )
+        rows = result.all()
+
+    for row in rows:
+        canonical_id = str(row[0])
+        name = row[1] or ""
+        industry = row[2] or ""
+        review_status = row[3] or "pending_review"
+        trust = 1.0 if review_status == "approved" else 0.0
+        try:
+            async with neo4j_driver.session() as s:
+                await s.run(
+                    _POSITION_MERGE_CYPHER,
+                    cid=canonical_id,
+                    name=name,
+                    industry=industry,
+                    review_status=review_status,
+                    trust=trust,
+                    status=review_status,
+                )
+            synced += 1
+        except Exception as exc:  # noqa: BLE001 — 单条失败不阻断全量补跑
+            logger.warning("sync_all_positions_to_neo4j: '{}' ({}) failed: {}", name, canonical_id, exc)
+            failed.append({"name": name, "canonical_id": canonical_id, "error": str(exc)[:500]})
+
+    if prune_legacy:
+        try:
+            async with neo4j_driver.session() as s:
+                prune_result = await s.run(_POSITION_PRUNE_LEGACY_CYPHER)
+                record = await prune_result.single()
+                pruned = int(record["deleted"]) if record else 0
+            logger.info("sync_all_positions_to_neo4j: pruned {} legacy Position node(s)", pruned)
+        except Exception as exc:  # noqa: BLE001 — 剪枝失败不影响已完成的 MERGE
+            logger.warning("sync_all_positions_to_neo4j: legacy prune failed: {}", exc)
+            failed.append({"name": "<legacy-prune>", "canonical_id": None, "error": str(exc)[:500]})
+
+    finished_at = datetime.now(UTC)
+    logger.info(
+        "sync_all_positions_to_neo4j: synced={} failed={} total={} pruned={} in {:.2f}s",
+        synced, len(failed), len(rows), pruned, (finished_at - started_at).total_seconds(),
+    )
+    return {
+        "synced": synced,
+        "failed": failed,
+        "total": len(rows),
+        "pruned": pruned,
+        "started_at": started_at.isoformat(),
+        "finished_at": finished_at.isoformat(),
+    }
+
+
+def _audit_item_from_row(row: ReviewQueue, *, status_override: str | None = None) -> AuditItem:    return AuditItem(
         id=row.id,
         type=row.entity_type,
         name=row.entity_name,
