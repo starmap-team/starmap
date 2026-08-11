@@ -372,118 +372,13 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     }
 
 
-def execute_dedup(run_id: str) -> dict[str, Any]:
-    """Execute dedup stage: two-pass dedup on jd_raw records.
+# Phase 03 Plan 03 Task 2: dedup 阶段已迁出到 stages/dedup.py。
+# 保留同名重导出（D-11 兼容壳），存量调用方零改动。
+from app.core.pipeline.stages.dedup import (  # noqa: E402,F401
+    execute_dedup as _execute_dedup,
+)
 
-    Pass 1 — exact dedup via Redis content-hash lookup (``dedup_service``).
-    Pass 2 — fuzzy dedup via SimHash with character 3-grams (``dedup_service``).
-    Falls back to the legacy crawler SimHash when Redis is unavailable.
-
-    Phase 3.7: 实时进度 — 报告去重状态
-    """
-    import time
-
-    from crawler.persistence.database import get_jd_raw_session
-    from crawler.persistence.models import JdRaw, JdStatus
-
-    processed = 0
-    duplicates_found = 0
-    errors: list[str] = []
-    start = time.monotonic()
-
-    # 报告启动
-    _run_async(_publish_stage_progress(
-        run_id, "dedup", "running",
-        progress=0.0,
-        records_processed=0,
-        current_activity="正在加载待去重记录...",
-        message="去重阶段启动",
-        elapsed_ms=0,
-    ))
-
-    try:
-        with get_jd_raw_session() as s:
-            raw_jds = s.query(JdRaw).filter(JdRaw.status == JdStatus.raw).all()
-            if not raw_jds:
-                _run_async(_publish_stage_progress(
-                    run_id, "dedup", "completed", progress=1.0,
-                    records_processed=0, current_activity="无待去重记录",
-                    elapsed_ms=int((time.monotonic() - start) * 1000),
-                ))
-                return {"records_processed": 0, "errors": errors, "duplicates_found": 0}
-
-            processed = len(raw_jds)
-            _run_async(_publish_stage_progress(
-                run_id, "dedup", "running",
-                progress=0.1,
-                records_processed=processed,
-                current_activity=f"待去重: {processed} 条 (精确哈希比对 + SimHash 模糊匹配)",
-                message=f"已加载 {processed} 条记录",
-                elapsed_ms=int((time.monotonic() - start) * 1000),
-            ))
-
-            # --- Two-pass dedup via dedup_service ---
-            from app.services.dedup_service import dedup_jd_records
-
-            redis_client = app_resources.redis_client
-
-            def _get_clean_text(jd: Any) -> str:
-                return jd.clean_text or ""
-
-            unique_jds, dup_jds = _run_async(
-                dedup_jd_records(
-                    raw_jds,
-                    text_getter=_get_clean_text,
-                    redis_client=redis_client,
-                    threshold=3,
-                ),
-            )
-
-            # Separate exact vs fuzzy counts from the returned duplicates
-            # (dedup_service returns both passes merged; we mark all as duplicate)
-            dup_ids = {id(jd) for jd in dup_jds}
-            for jd in raw_jds:
-                if id(jd) in dup_ids:
-                    jd.status = JdStatus.duplicate
-
-            duplicates = len(dup_jds)
-            duplicates_found = duplicates
-            s.commit()
-
-            _run_async(_publish_stage_progress(
-                run_id, "dedup", "completed",
-                progress=1.0,
-                records_processed=processed - duplicates,
-                current_activity=f"去重完成: 总 {processed} → 唯一 {len(unique_jds)} 条 (剔除 {duplicates} 条重复)",
-                sub_breakdown={"原始总数": processed, "唯一数": len(unique_jds), "重复数": duplicates},
-                elapsed_ms=int((time.monotonic() - start) * 1000),
-                message=f"去重完成: {len(unique_jds)} 唯一 / {duplicates} 重复",
-            ))
-
-            logger.info(
-                "Dedup stage run_id={}: {} total, {} unique, {} duplicates",
-                run_id, processed, len(unique_jds), duplicates,
-            )
-    except PipelineStageError:
-        raise
-    except Exception as exc:
-        errors.append(f"dedup failed: {exc}")
-        logger.opt(exception=True).error("Dedup stage failed: {}", exc)
-        _run_async(_publish_stage_progress(
-            run_id, "dedup", "failed",
-            current_activity=f"去重失败: {exc}",
-            elapsed_ms=int((time.monotonic() - start) * 1000),
-        ))
-    finally:
-        # Phase 2 SOURCE-02: execute_dedup 后更新 duplicate_rate (UAT 修复)
-        try:
-            _update_source_after_dedup(run_id, duplicates_found, processed)
-        except PipelineStageError:
-            raise
-        except Exception as exc:
-            logger.warning("_update_source_after_dedup failed (non-fatal): {}", exc)
-
-    return {"records_processed": processed, "errors": errors, "duplicates_found": duplicates_found}
+execute_dedup = _execute_dedup
 
 
 def execute_clean(run_id: str) -> dict[str, Any]:

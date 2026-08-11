@@ -90,10 +90,26 @@ class TestStagesModuleSurface:
         assert "records_processed" in result
 
     def test_unmigrated_stages_raise(self):
-        """未迁出的 stage 调用应抛 NotImplementedError（D-01 进度标识）。"""
+        """未迁出的 stage 调用应抛 NotImplementedError（D-01 进度标识）。
+
+        当前已迁出：timeseries (Task 1)、dedup (Task 2)。
+        仍未迁出：crawl、clean、import、graph_sync (Tasks 3-6)。
+        """
         from app.core.pipeline import stages
 
-        for name in ["execute_crawl", "execute_dedup", "execute_clean", "execute_import", "execute_graph_sync"]:
+        unmigrated = ["execute_crawl", "execute_clean", "execute_import", "execute_graph_sync"]
+        for name in unmigrated:
             fn = getattr(stages, name)
             with pytest.raises(NotImplementedError):
                 fn("test-run-id")
+
+    def test_dedup_is_real_not_stub(self):
+        """dedup 已迁出 — Task 2 完成标志。"""
+        from app.core.pipeline import stages
+
+        fn = stages.execute_dedup
+        try:
+            result = fn("test-not-implemented-run-id")
+        except NotImplementedError:
+            raise AssertionError("stages.execute_dedup is still a stub; Task 2 incomplete")
+        assert isinstance(result, dict)

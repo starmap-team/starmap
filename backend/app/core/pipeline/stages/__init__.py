@@ -15,6 +15,13 @@ def execute_timeseries(run_id: str) -> dict[str, Any]:  # noqa: D401
     return _impl(run_id)
 
 
+def execute_dedup(run_id: str) -> dict[str, Any]:  # noqa: D401
+    """Dedup 阶段 — 已迁出（Task 2）。"""
+    from app.core.pipeline.stages.dedup import execute_dedup as _impl
+
+    return _impl(run_id)
+
+
 # 尚未迁出的阶段占位（保持模块 surface 一致，避免 import 顺序问题）
 def _not_migrated(stage_name: str):  # noqa: D401
     def _stub(run_id: str) -> dict[str, Any]:  # noqa: ARG001
@@ -27,7 +34,6 @@ def _not_migrated(stage_name: str):  # noqa: D401
 
 
 execute_crawl = _not_migrated("crawl")
-execute_dedup = _not_migrated("dedup")
 execute_clean = _not_migrated("clean")
 execute_import = _not_migrated("import")
 execute_graph_sync = _not_migrated("graph_sync")
