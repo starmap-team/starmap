@@ -1,15 +1,68 @@
 <script setup lang="ts">
 /**
  * LoopStepSkills — Step 2: Skill Extraction Results
- * Displays skill chips with is_new indicators, confidence, and hallucination score.
+ * Displays skill chips with is_new indicators, confidence, hallucination score.
+ * Phase 07-02 D-05/D-06: also surfaces 技能数 / 信任度均值 / 实际 model_used
+ * (云端秒级 vs 本地 fallback 解释).
  */
+import { computed } from 'vue'
 import type { StepResult } from '@/stores/loop'
 
-defineProps<{
+const props = defineProps<{
   step: StepResult
   celebrated: boolean
   skills: { skill: string; is_new: boolean; confidence?: number }[]
 }>()
+
+// D-05: 口径拆解行 — 技能数 + 信任度均值
+const skillCount = computed<number | null>(() => {
+  const v = (props.step?.data as { skill_count?: number } | undefined)?.skill_count
+  if (typeof v === 'number') return v
+  return Array.isArray(props.skills) ? props.skills.length : null
+})
+
+const skillConfidenceAvg = computed<number | null>(() => {
+  const v = (props.step?.data as { skill_confidence_avg?: number | null } | undefined)?.skill_confidence_avg
+  return typeof v === 'number' ? v : null
+})
+
+const skillConfidencePct = computed(() =>
+  skillConfidenceAvg.value == null ? '未评估' : `${(skillConfidenceAvg.value * 100).toFixed(0)}%`,
+)
+
+// D-06: model_used 透传 — 云端 vs 本地 fallback 标签
+const modelUsed = computed<string | null>(() => {
+  const v = (props.step?.data as { model_used?: string | null } | undefined)?.model_used
+  return typeof v === 'string' && v.length > 0 ? v : null
+})
+
+const isLocalFallback = computed(() => {
+  if (!modelUsed.value) return false
+  // Convention from M6: local fallback models include '-fallback' suffix
+  return modelUsed.value.toLowerCase().includes('fallback')
+})
+
+// Backwards-compat metric values (legacy fields still used by some stores)
+const legacyConfidence = computed<number | null>(() => {
+  const v = (props.step?.data as { confidence?: number | null } | undefined)?.confidence
+  return typeof v === 'number' ? v : null
+})
+
+const legacyHallucination = computed<number | null>(() => {
+  const v = (props.step?.data as { hallucination_score?: number | null } | undefined)?.hallucination_score
+  return typeof v === 'number' ? v : null
+})
+
+const legacyHallucinationType = computed<'info' | 'warning' | 'success'>(() => {
+  const v = legacyHallucination.value
+  if (v == null) return 'info'
+  return v > 0.3 ? 'warning' : 'success'
+})
+
+const legacyHallucinationLabel = computed(() => {
+  const v = legacyHallucination.value
+  return v == null ? '未评估' : `${(v * 100).toFixed(0)}%`
+})
 </script>
 
 <template>
@@ -36,14 +89,37 @@ defineProps<{
               size="small"
               effect="plain"
             >
-              置信度: {{ step.data.confidence == null ? '未评估' : `${(step.data.confidence * 100).toFixed(0)}%` }}
+              技能数: {{ skillCount ?? '—' }}
             </el-tag>
             <el-tag
-              :type="step.data.hallucination_score == null ? 'info' : (step.data.hallucination_score > 0.3 ? 'warning' : 'success')"
+              type="info"
               size="small"
               effect="plain"
             >
-              幻觉评分: {{ step.data.hallucination_score == null ? '未评估' : `${(step.data.hallucination_score * 100).toFixed(0)}%` }}
+              信任度均值: {{ skillConfidencePct }}
+            </el-tag>
+            <el-tag
+              v-if="modelUsed"
+              :type="isLocalFallback ? 'warning' : 'success'"
+              size="small"
+              effect="plain"
+            >
+              模型: {{ modelUsed }}{{ isLocalFallback ? ' (本地，预计较慢)' : '' }}
+            </el-tag>
+            <el-tag
+              v-if="legacyConfidence != null"
+              type="info"
+              size="small"
+              effect="plain"
+            >
+              置信度: {{ ((legacyConfidence as number) * 100).toFixed(0) }}%
+            </el-tag>
+            <el-tag
+              :type="legacyHallucinationType"
+              size="small"
+              effect="plain"
+            >
+              幻觉评分: {{ legacyHallucinationLabel }}
             </el-tag>
           </div>
         </div>
