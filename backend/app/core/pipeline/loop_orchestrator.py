@@ -43,6 +43,7 @@ from app.core.pipeline.loop.common import (
     _update_steps_json,
 )
 from app.core.pipeline.loop.steps.extract import run_extract_step
+from app.core.pipeline.loop.steps.graph_update import run_graph_update_step
 from app.core.pipeline.loop.steps.validate import resolve_target_position, run_validate_step
 from app.exceptions import PipelineStageError, StarMapError
 
@@ -254,86 +255,17 @@ class LoopOrchestrator:
         extraction_data: dict[str, Any],
         target_position: str = "",
     ) -> LoopStepResult:
-        """Step 3: Sync extracted skills/positions into Neo4j graph."""
-        start = time.monotonic()
-        try:
-            from app.services.graph_sync import sync_from_pipeline
+        """Step 3: Sync extracted skills/positions into Neo4j graph (compat delegate).
 
-            driver = None
-            try:
-                from app.services.resources import resources as app_resources
-                driver = app_resources.neo4j_driver
-            except PipelineStageError:
-                raise
-            except StarMapError:
-                raise
-            except Exception as exc:
-                logger.debug("Neo4j driver not available inside step 3: {}", exc)
-
-            if driver is None:
-                return LoopStepResult(
-                    step=3,
-                    name=STEP_NAMES[3],
-                    status=StepStatus.FAILED,
-                    data={"error": "neo4j_driver_unavailable"},
-                    error="Neo4j driver not available",
-                    duration_seconds=time.monotonic() - start,
-                )
-
-            # Phase 2 SYNC-02: Pass extraction_data for DB-query + graph_writer mode
-            try:
-                sync_result = await sync_from_pipeline(
-                    run_id=run_id,
-                    extraction_data=extraction_data,
-                    target_position=target_position,
-                )
-            except PipelineStageError:
-                raise
-            except StarMapError:
-                raise
-            except Exception as exc:
-                logger.warning("sync_from_pipeline failed: {}", exc)
-                sync_result = {"synced": False, "error": str(exc)}
-
-            logger.info(
-                "Graph sync step for run {}: synced={}, nodes={}, edges={}",
-                run_id,
-                sync_result.get("synced", False),
-                sync_result.get("nodes_written", sync_result.get("nodes", 0)),
-                sync_result.get("edges_written", sync_result.get("edges", 0)),
-            )
-
-            if not sync_result.get("synced"):
-                return LoopStepResult(
-                    step=3,
-                    name=STEP_NAMES[3],
-                    status=StepStatus.FAILED,
-                    data=sync_result,
-                    error=sync_result.get("error") or "Graph sync failed",
-                    duration_seconds=time.monotonic() - start,
-                )
-
-            return LoopStepResult(
-                step=3,
-                name=STEP_NAMES[3],
-                status=StepStatus.SUCCESS,
-                data=sync_result,
-                duration_seconds=time.monotonic() - start,
-            )
-        except PipelineStageError:
-            raise
-        except StarMapError:
-            raise
-        except Exception as exc:
-            logger.exception("Loop orchestrator error: {}", exc)
-            return LoopStepResult(
-                step=3,
-                name=STEP_NAMES[3],
-                status=StepStatus.FAILED,
-                data={"error": str(exc)},
-                error=str(exc),
-                duration_seconds=time.monotonic() - start,
-            )
+        Thin delegate to
+        :func:`app.core.pipeline.loop.steps.graph_update.run_graph_update_step`
+        (Phase 07-02 D-01).
+        """
+        return await run_graph_update_step(
+            run_id=run_id,
+            extraction_data=extraction_data,
+            target_position=target_position,
+        )
 
     async def _step4_match_diagnosis(
         self,
