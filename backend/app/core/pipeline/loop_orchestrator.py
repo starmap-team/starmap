@@ -43,6 +43,7 @@ from app.core.pipeline.loop.common import (
     _update_steps_json,
 )
 from app.core.pipeline.loop.steps.extract import run_extract_step
+from app.core.pipeline.loop.steps.validate import resolve_target_position, run_validate_step
 from app.exceptions import PipelineStageError, StarMapError
 
 if TYPE_CHECKING:
@@ -214,49 +215,29 @@ class LoopOrchestrator:
     def _step1_validate_input(
         self, jd_text: str, target_position: str | None,
     ) -> LoopStepResult:
-        """Step 1: Validate JD input.
+        """Step 1: Validate JD input (compat delegate).
 
-        target_position is optional per the OpenAPI contract
-        (LoopRunRequest.target_position: str | None = None). When omitted,
-        Step 2 will infer a position_name from the extracted JD; Steps 4/5
-        skip when still missing. We must NOT reject the run here — see QA B1.
+        Thin delegate to
+        :func:`app.core.pipeline.loop.steps.validate.run_validate_step`
+        (Phase 07-02 D-01). Returns only the ``LoopStepResult`` so existing
+        callers and ``monkeypatch`` tests stay zero-diff; the resolved
+        ``target_position`` is also exposed via ``result.data.target_position``.
         """
-        start = time.monotonic()
-        if not jd_text or not jd_text.strip():
-            return LoopStepResult(
-                step=1,
-                name=STEP_NAMES[1],
-                status=StepStatus.FAILED,
-                error="JD text is empty",
-                duration_seconds=time.monotonic() - start,
-            )
-        return LoopStepResult(
-            step=1,
-            name=STEP_NAMES[1],
-            status=StepStatus.SUCCESS,
-            data={
-                "jd_length": len(jd_text),
-                "target_position": (target_position or "").strip(),
-            },
-            duration_seconds=time.monotonic() - start,
-        )
+        step_result, _effective = run_validate_step(jd_text, target_position)
+        return step_result
 
     def _resolve_target_position(
         self,
         requested: str | None,
         extraction_data: dict[str, Any],
     ) -> str | None:
-        """Resolve the effective target_position for match diagnosis.
+        """Resolve the effective target_position (compat delegate).
 
-        Priority: caller-supplied non-empty value → LLM-extracted position_name → None.
-        A None result lets downstream steps skip gracefully (see Step 4/5 in run_loop).
+        Thin delegate to
+        :func:`app.core.pipeline.loop.steps.validate.resolve_target_position`
+        (Phase 07-02 D-01).
         """
-        if requested and requested.strip():
-            return requested.strip()
-        inferred = (extraction_data or {}).get("position_name")
-        if isinstance(inferred, str) and inferred.strip():
-            return inferred.strip()
-        return None
+        return resolve_target_position(requested, extraction_data)
 
     async def _step2_extract_skills(self, jd_text: str) -> LoopStepResult:
         """Step 2: Extract skills from JD using LLM pipeline.
