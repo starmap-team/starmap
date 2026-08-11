@@ -87,7 +87,7 @@ async function handleCompetitiveness() {
         class="mt-4"
       >
         <el-table-column
-          prop="position"
+          prop="position_name"
           label="岗位"
           min-width="120"
         />
