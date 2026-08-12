@@ -15,7 +15,7 @@
  */
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, Edit, DataAnalysis } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import AdminOverview from '@/components/AdminOverview.vue'
@@ -169,6 +169,22 @@ async function handleTriggerSync(row: { id: string; name: string }) {
     progressMsg.close()
     syncingSourceId.value = null
   }
+}
+
+// D5: 软删除（停用）数据源 —— DELETE /datasources/{id} → status='inactive'，保留采集历史
+async function handleDeactivateSource(row: { id: string; name: string }) {
+  try {
+    await ElMessageBox.confirm(
+      `停用数据源「${row.name}」？将退出爬取/同步调度（历史采集数据保留）。`,
+      '停用数据源',
+      { type: 'warning', confirmButtonText: '停用', cancelButtonText: '取消' },
+    )
+  } catch {
+    return  // 用户取消
+  }
+  const ok = await datasource.deactivateSource(row.id)
+  if (ok) ElMessage.success(`「${row.name}」已停用`)
+  else ElMessage.error(`停用失败: ${datasource.error || '未知错误'}`)
 }
 
 const statsDrawerVisible = ref(false)
@@ -719,6 +735,14 @@ function formatDate(iso: string | null | undefined): string {
                     @click="handleShowStats(row)"
                   >
                     统计
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="danger"
+                    plain
+                    @click="handleDeactivateSource(row)"
+                  >
+                    停用
                   </el-button>
                 </template>
               </el-table-column>

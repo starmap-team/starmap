@@ -196,6 +196,29 @@ async def update_datasource(
     return _serialize(ds)
 
 
+@router.delete("/{source_id}", dependencies=[Depends(require_admin)])
+async def delete_datasource(
+    source_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, str]:
+    """软删除数据源（status → 'inactive'）。
+
+    D5 补全 CRUD: 保留 jd_raw / pipeline_runs 历史数据（硬删会孤儿化采集数据），
+    仅停用数据源使其退出爬取/同步调度（_get_crawl_configs 只取 active）。
+    """
+    result = await session.execute(
+        select(DataSourceRecord).where(DataSourceRecord.id == source_id)
+    )
+    ds = result.scalar_one_or_none()
+    if ds is None:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    if ds.status == "inactive":
+        raise HTTPException(status_code=400, detail="Data source already inactive")
+    ds.status = "inactive"
+    await session.commit()
+    return {"detail": "data source deactivated", "source_id": str(source_id)}
+
+
 @router.get("/{source_id}/stats", response_model=DataSourceStatsResponse)
 async def get_datasource_stats(
     source_id: UUID,

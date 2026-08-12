@@ -120,6 +120,22 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
+  // D5: 软删除（停用）数据源 —— DELETE /datasources/{id} → status='inactive'，保留采集历史
+  async function deactivateSource(id: string): Promise<boolean> {
+    loading.value = true
+    error.value = null
+    try {
+      await request.delete(`/datasources/${id}`)
+      await fetchSources()
+      return true
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '停用数据源失败'
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchStats(id: string) {
     loading.value = true
     error.value = null
@@ -205,6 +221,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
     fetchSources,
     fetchSourceDetail,
     updateSource,
+    deactivateSource,
     fetchStats,
     triggerSync,
     triggerCrawl,

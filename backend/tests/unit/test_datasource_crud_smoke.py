@@ -27,11 +27,12 @@ def _method_paths(routers) -> dict[str, set[str]]:
 
 
 def test_datasource_public_router_contract():
-    """/datasources 前缀路由：list / detail / update / stats / sync / health 齐全。"""
+    """/datasources 前缀路由：list / detail / update / delete(软) / stats / sync / health 齐全。"""
     by_method = _method_paths([router])
     assert "/datasources" in by_method["GET"]            # list
     assert "/datasources/{source_id}" in by_method["GET"]     # detail
     assert "/datasources/{source_id}" in by_method["PUT"]     # update
+    assert "/datasources/{source_id}" in by_method["DELETE"]  # soft-delete (D5 补全 CRUD)
     assert "/datasources/{source_id}/stats" in by_method["GET"]
     assert "/datasources/{source_id}/sync" in by_method["POST"]
     assert "/datasources/health" in by_method["GET"]

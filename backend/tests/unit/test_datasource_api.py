@@ -614,3 +614,24 @@ class TestDatasourcesHealth:
         body = resp.json()
         assert body["total_sources"] == 0
         assert body["sources"] == []
+
+
+class TestDeleteDatasource:
+    """D5: 软删除（status → inactive），保留采集历史。"""
+
+    def test_delete_deactivates_source(self, client, auth_headers, db_override):
+        ds_id = uuid.uuid4()
+        ds = FakeDataSourceRecord(id=ds_id, status="active")
+        session = FakeAsyncSession([FakeResult(ds)])
+        db_override(session)
+        resp = client.delete(f"/api/v1/datasources/{ds_id}", headers=auth_headers)
+        assert resp.status_code == 200
+        assert resp.json()["source_id"] == str(ds_id)
+        # 软删除语义: 不删行, 仅 status → inactive
+        assert ds.status == "inactive"
+
+    def test_delete_missing_returns_404(self, client, auth_headers, db_override):
+        session = FakeAsyncSession([FakeResult(None)])
+        db_override(session)
+        resp = client.delete(f"/api/v1/datasources/{uuid.uuid4()}", headers=auth_headers)
+        assert resp.status_code == 404
