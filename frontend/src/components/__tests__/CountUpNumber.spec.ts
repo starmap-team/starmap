@@ -29,8 +29,8 @@ describe('CountUpNumber', () => {
     const wrapper = mount(CountUpNumber, {
       props: { target: 100 },
     })
-    // 初始 displayValue = 0, prefix='', suffix=''
-    expect(wrapper.text()).toContain('0')
+    // D8e fix: 初始 displayValue = target（>0 时直接显示真实值，不再卡 0）
+    expect(wrapper.text()).toContain('100')
   })
 
   it('renders prefix and suffix', () => {
@@ -47,8 +47,8 @@ describe('CountUpNumber', () => {
       props: { target: 3.14, decimals: 2 },
     })
     const vm = wrapper.vm as any
-    // displayValue 初始为 0
-    expect(vm.formattedNumber).toBe('0.00')
+    // D8e fix: displayValue 初始 = target = 3.14
+    expect(vm.formattedNumber).toBe('3.14')
   })
 
   it('computes formattedNumber with locale formatting for integers', () => {
@@ -56,8 +56,8 @@ describe('CountUpNumber', () => {
       props: { target: 1234 },
     })
     const vm = wrapper.vm as any
-    // displayValue = 0, Math.round(0).toLocaleString() = '0'
-    expect(vm.formattedNumber).toBe('0')
+    // D8e fix: displayValue = 1234
+    expect(vm.formattedNumber).toBe('1,234')
   })
 
   it('computes displayText combining prefix + formatted + suffix', () => {
@@ -65,7 +65,8 @@ describe('CountUpNumber', () => {
       props: { target: 50, prefix: '>', suffix: '项' },
     })
     const vm = wrapper.vm as any
-    expect(vm.displayText).toBe('>0项')
+    // D8e fix: displayValue 初始 = target = 50
+    expect(vm.displayText).toBe('>50项')
   })
 
   it('easeOutCubic returns 0 at t=0 and 1 at t=1', () => {

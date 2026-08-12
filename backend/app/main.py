@@ -155,6 +155,7 @@ _RATE_LIMIT_EXEMPT_PATH_PATTERNS = (
     "/api/v1/pipeline/events-poll", # SSE 轮询 fallback
     "/api/v1/pipeline/realtime",    # 备用 SSE 端点
     "/api/v1/dashboard/realtime",   # Dashboard SSE
+    "/api/v1/dashboard/realtime-poll",  # D8e: Dashboard SSE 轮询 fallback（高频）
 )
 
 
