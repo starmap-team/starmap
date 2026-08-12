@@ -215,6 +215,10 @@ async def delete_datasource(
     if ds.status == "inactive":
         raise HTTPException(status_code=400, detail="Data source already inactive")
     ds.status = "inactive"
+    # D8c fix: 双写 config.disabled=true —— 流水线页 DataSourceManager 只读
+    # config.disabled 判断启停，DELETE 仅设 status 导致停用状态在两页不一致
+    # （数据源页「已停用」vs 流水线页「待机」）。
+    ds.config = {**(ds.config or {}), "disabled": True}
     await session.commit()
     return {"detail": "data source deactivated", "source_id": str(source_id)}
 

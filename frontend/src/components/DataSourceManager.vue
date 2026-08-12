@@ -101,6 +101,9 @@ const otherSources = computed(() =>
 const enabledCrawlers = computed(() =>
   crawlerSources.value.filter(s => {
     const platform = String(s.config?.platform || '')
+    // D8c: 生命周期终态（inactive/paused）排除 —— 与后端 _get_crawl_configs
+    // (status==active) 口径对齐，避免停用源仍计入"可用"
+    if (s.status === 'inactive' || s.status === 'paused') return false
     return platform in SUPPORTED_SPIDERS && !s.config?.disabled
   })
 )
@@ -155,6 +158,9 @@ function sourceTypeColor(t?: string): string {
 }
 
 // 状态徽章
+// D8c fix: 优先读生命周期状态 status（数据源页/后端统一口径）——inactive=已停用、
+// paused=已暂停；config.disabled 仅作流水线运行开关的兜底显示。修复 DELETE 停用
+// 后流水线页仍显示「待机」的跨页不同步。
 function statusBadge(ds: DataSourceWithStatus) {
   if (ds.liveStatus === 'crawling') {
     return { class: 'status-running', label: '采集中', color: '#3b82f6' }
@@ -167,6 +173,16 @@ function statusBadge(ds: DataSourceWithStatus) {
   }
   if (ds.liveStatus === 'failed') {
     return { class: 'status-failed', label: '失败', color: '#dc2626' }
+  }
+  // D8c: 生命周期状态优先（与数据源页 getStatusBadge 对齐）
+  if (ds.status === 'inactive') {
+    return { class: 'status-paused', label: '已停用', color: '#94a3b8' }
+  }
+  if (ds.status === 'paused') {
+    return { class: 'status-paused', label: '已暂停', color: '#94a3b8' }
+  }
+  if (ds.status === 'error') {
+    return { class: 'status-failed', label: '异常', color: '#dc2626' }
   }
   if (ds.config?.disabled) {
     return { class: 'status-paused', label: '已禁用', color: '#94a3b8' }
@@ -300,7 +316,25 @@ function formatRecords(n: number) {
                 {{ sourceTypeLabel(row.source_type) }}
               </el-tag>
               <el-tag
-                v-if="row.config?.disabled"
+                v-if="row.status === 'inactive'"
+                type="info"
+                size="small"
+                effect="plain"
+                class="ml-1"
+              >
+                已停用
+              </el-tag>
+              <el-tag
+                v-else-if="row.status === 'paused'"
+                type="warning"
+                size="small"
+                effect="plain"
+                class="ml-1"
+              >
+                已暂停
+              </el-tag>
+              <el-tag
+                v-else-if="row.config?.disabled"
                 type="info"
                 size="small"
                 effect="plain"
@@ -381,7 +415,18 @@ function formatRecords(n: number) {
           align="center"
         >
           <template #default="{ row }">
+            <!-- D8c: inactive/paused 生命周期终态 → 按钮禁用显示终态文案，不可误操作 -->
             <el-button
+              v-if="row.status === 'inactive' || row.status === 'paused'"
+              size="small"
+              text
+              disabled
+            >
+              <el-icon :size="11"><VideoPause /></el-icon>
+              {{ row.status === 'inactive' ? '已停用' : '已暂停' }}
+            </el-button>
+            <el-button
+              v-else
               size="small"
               text
               :type="row.config?.disabled ? 'success' : 'warning'"
