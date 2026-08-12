@@ -29,12 +29,12 @@ async def main() -> None:
 
     factory = get_session_factory()
     async with factory() as session:
-        existing = set(
+        existing = {
             (str(p), str(s))
             for p, s in (await session.execute(text(
                 "SELECT position_id, skill_id FROM position_skill_relations"
             ))).all()
-        )
+        }
         print(f"PG existing relations: {len(existing)}")
 
         missing = sorted(pairs - existing)
@@ -48,12 +48,12 @@ async def main() -> None:
         await session.commit()
 
         # 验证
-        after = set(
+        after = {
             (str(p), str(s))
             for p, s in (await session.execute(text(
                 "SELECT position_id, skill_id FROM position_skill_relations"
             ))).all()
-        )
+        }
         print(f"PG after: {len(after)}; Neo4j covered: {len(pairs & after)}")
 
 
