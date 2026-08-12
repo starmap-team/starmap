@@ -24,6 +24,7 @@ import {
   formatRecords,
   getSourceNameLabel,
 } from '@/composables/useDataSourceCharts'
+import { SOURCE_DESCRIPTIONS, isCrawlableSource } from '@/constants/labels'
 
 use([GaugeChart, BarChart, TooltipComponent, GridComponent])
 
@@ -341,33 +342,49 @@ onMounted(() => {
                   {{ getStatusBadge(source.status).label }}
                 </el-tag>
               </div>
-              <el-tag
-                size="small"
-                effect="plain"
-                round
-              >
-                {{ getSourceTypeLabel(source.source_type) }}
-              </el-tag>
-              <!-- Phase 13 数据诚实化：零记录须显式标注为空态，避免被误读为数据异常 -->
-              <el-tag
-                v-if="source.total_records === 0 && !source.last_crawl_at"
-                size="small"
-                type="warning"
-                effect="plain"
-                round
-                title="该数据源尚未执行过采集，下方记录/质量数值为 0 属正常空态，非数据异常"
-              >
-                尚未采集
-              </el-tag>
-              <el-tag
-                v-else-if="source.total_records === 0"
-                size="small"
-                type="info"
-                effect="plain"
-                round
-              >
-                暂无记录
-              </el-tag>
+              <!-- D5 UX: 数据源说明 —— 告诉用户这个源是什么 -->
+              <p class="card-desc">
+                {{ SOURCE_DESCRIPTIONS[source.name] ?? '外部数据源' }}
+              </p>
+              <div class="card-tags">
+                <el-tag
+                  size="small"
+                  effect="plain"
+                  round
+                >
+                  {{ getSourceTypeLabel(source.source_type) }}
+                </el-tag>
+                <!-- ESCO 标准库非爬虫源：不展示「立即采集」，用标签说明 -->
+                <el-tag
+                  v-if="source.source_type === 'esco'"
+                  size="small"
+                  type="info"
+                  effect="plain"
+                  round
+                >
+                  标准库 · 无需采集
+                </el-tag>
+                <!-- Phase 13 数据诚实化：零记录须显式标注为空态，避免被误读为数据异常 -->
+                <el-tag
+                  v-if="source.total_records === 0 && !source.last_crawl_at"
+                  size="small"
+                  type="warning"
+                  effect="plain"
+                  round
+                  title="该数据源尚未执行过采集，下方记录/质量数值为 0 属正常空态，非数据异常"
+                >
+                  尚未采集
+                </el-tag>
+                <el-tag
+                  v-else-if="source.total_records === 0"
+                  size="small"
+                  type="info"
+                  effect="plain"
+                  round
+                >
+                  暂无记录
+                </el-tag>
+              </div>
             </div>
 
             <!-- 权威度环形图 + 统计信息 -->
@@ -415,30 +432,49 @@ onMounted(() => {
               <span class="sync-time">
                 最后同步：{{ formatLastCrawl(source.last_crawl_at) }}
               </span>
-              <el-button
-                size="small"
-                type="primary"
-                :loading="syncingIds.has(source.id)"
-                :disabled="source.status === 'paused'"
-                @click="handleSync(source)"
+              <!-- D5 UX: 一键同步 tooltip —— 说明触发的是完整流水线 -->
+              <el-tooltip
+                placement="top"
+                :show-after="200"
               >
-                <el-icon
-                  v-if="!syncingIds.has(source.id)"
-                  class="el-icon--left"
+                <template #content>
+                  触发该数据源完整流水线：爬取 → 去重 → 清洗 → 技能抽取 → 写入图谱（通常 30-90 秒，完成后记录/质量自动更新）
+                </template>
+                <el-button
+                  size="small"
+                  type="primary"
+                  :loading="syncingIds.has(source.id)"
+                  :disabled="source.status === 'paused'"
+                  @click="handleSync(source)"
                 >
-                  <RefreshRight />
-                </el-icon>
-                {{ syncingIds.has(source.id) ? '同步中...' : '一键同步' }}
-              </el-button>
-              <el-button
-                size="small"
-                type="warning"
-                plain
-                :disabled="source.status === 'paused'"
-                @click="handleImmediateCrawl(source)"
+                  <el-icon
+                    v-if="!syncingIds.has(source.id)"
+                    class="el-icon--left"
+                  >
+                    <RefreshRight />
+                  </el-icon>
+                  {{ syncingIds.has(source.id) ? '同步中...' : '一键同步' }}
+                </el-button>
+              </el-tooltip>
+              <!-- D5 UX: 立即采集仅对可爬取源启用；未配置平台禁用并说明原因；ESCO 标准库已在上方标签标注不展示 -->
+              <el-tooltip
+                v-if="source.source_type !== 'esco'"
+                placement="top"
+                :show-after="200"
               >
-                立即采集
-              </el-button>
+                <template #content>
+                  {{ isCrawlableSource(source) ? '立即抓取该平台最新岗位并写入采集库（不执行抽取/入图）' : '该数据源尚未配置爬虫平台，暂不支持立即采集' }}
+                </template>
+                <el-button
+                  size="small"
+                  type="warning"
+                  plain
+                  :disabled="!isCrawlableSource(source) || source.status === 'paused'"
+                  @click="handleImmediateCrawl(source)"
+                >
+                  立即采集
+                </el-button>
+              </el-tooltip>
             </div>
           </el-card>
         </el-col>
@@ -618,6 +654,19 @@ onMounted(() => {
   font-weight: 700;
   color: var(--foreground);
   letter-spacing: var(--tracking-tight);
+}
+.card-desc {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
 }
 
 /* 卡片主体：权威度 + 统计 */

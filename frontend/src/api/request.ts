@@ -219,7 +219,12 @@ request.interceptors.response.use(
         message = '无法连接到服务器，请稍后重试'
       }
     } else if (status) {
-      message = ERROR_MESSAGES[status] ?? `请求失败 (${status})`
+      // D5 UX: 后端返回具体 detail 时优先展示（如"未配置爬虫平台"），
+      // 而非笼统的"请求参数有误"（400 全局映射掩盖了真实原因）
+      const backendDetail = (
+        (error.response?.data as { detail?: string } | undefined)?.detail
+      )
+      message = backendDetail || (ERROR_MESSAGES[status] ?? `请求失败 (${status})`)
     }
 
     // 后台轮询失败不弹 toast（避免自动刷新刷屏），仅记录 console

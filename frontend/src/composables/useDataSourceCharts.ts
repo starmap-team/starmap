@@ -93,16 +93,16 @@ export function getStatusBadge(status: string): StatusBadge {
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
   crawler: '爬虫',
-  api: 'API',
-  manual: '手动',
-  import: '导入',
-  reference: '参考',
-  internal: '内部',
+  api: '远程招聘 API',
+  manual: '手动录入',
+  import: '数据导入',
+  reference: '参考数据',
+  internal: '内部数据',
   // 后端 Literal 枚举补齐（datasource 优化设计需求 D）：job_board/blog/esco/rss
   job_board: '招聘网站',
-  blog: '博客',
-  esco: 'ESCO',
-  rss: 'RSS',
+  blog: '技术博客',
+  esco: 'ESCO 标准库',
+  rss: 'RSS 聚合',
 }
 
 export function getSourceTypeLabel(type: string): string {

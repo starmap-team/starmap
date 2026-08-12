@@ -125,6 +125,40 @@ export const SOURCE_NAME_LABELS: Record<string, string> = {
   jd_extract: 'JD 抽取',
   jd_extraction: 'JD 抽取',
   user_upload: '用户上传',
+  // D5: 真实 DB 名称（混合大小写 + (远程) 后缀）→ 中文显示名
+  'Boss Zhipin': 'BOSS直聘',
+  'Lagou': '拉勾网',
+  'ESCO Skills': 'ESCO 职业技能标准',
+  'Remotive (远程)': 'Remotive（远程招聘）',
+  'Arbeitnow (远程)': 'Arbeitnow（远程招聘）',
+  'Jobicy (远程)': 'Jobicy（远程招聘）',
+  'WeWorkRemotely (远程)': 'WeWorkRemotely（远程招聘）',
+}
+
+// ── 数据源说明（卡片展示：告诉用户这个数据源是什么）──
+export const SOURCE_DESCRIPTIONS: Record<string, string> = {
+  'Boss Zhipin': '国内主流互联网招聘平台，聚合大量技术岗位 JD',
+  'Lagou': '国内互联网招聘平台（拉勾网），覆盖技术/产品/运营岗位',
+  'ESCO Skills': '欧盟职业分类标准库 — 结构化技能体系，非爬虫数据源（采集不适用）',
+  'Remotive (远程)': '海外远程岗位聚合平台，经 API 抓取',
+  'Arbeitnow (远程)': '德国远程岗位聚合平台，经 API 抓取',
+  'Jobicy (远程)': '海外远程岗位聚合平台，经 API 抓取',
+  'WeWorkRemotely (远程)': '全球远程岗位聚合站，经 RSS 订阅抓取',
+}
+
+/** 真实可爬取的平台（有 spider 适配器；ESCO 标准库 / 未配置平台者不可采集） */
+export const CRAWLABLE_PLATFORMS = new Set([
+  'v2ex', 'remotive', 'arbeitnow', 'jobicy', 'weworkremotely',
+  'juejin', 'remoteok',
+])
+
+/** 是否支持「立即采集」：有可爬取平台且非标准库 */
+export function isCrawlableSource(source: {
+  name: string
+  config?: Record<string, unknown> | null
+}): boolean {
+  const platform = source.config?.platform
+  return typeof platform === 'string' && platform.length > 0 && CRAWLABLE_PLATFORMS.has(platform)
 }
 
 // ── 通用过滤选项 ──
