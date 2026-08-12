@@ -379,6 +379,17 @@ onMounted(() => {
                 >
                   标准库 · 无需采集
                 </el-tag>
+                <!-- D6: juejin 技术博客源（非岗位 JD）——语义化标注，立即采集抓取的是技术文章 -->
+                <el-tag
+                  v-if="source.source_type === 'blog'"
+                  size="small"
+                  type="warning"
+                  effect="plain"
+                  round
+                  title="该源抓取技术博客文章作为非结构化技能知识源，非招聘 JD"
+                >
+                  技术博客源 · 非岗位 JD
+                </el-tag>
                 <!-- Phase 13 数据诚实化：零记录须显式标注为空态，避免被误读为数据异常 -->
                 <el-tag
                   v-if="source.total_records === 0 && !source.last_crawl_at"

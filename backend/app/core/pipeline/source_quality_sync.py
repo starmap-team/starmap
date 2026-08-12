@@ -27,10 +27,10 @@ _SITE_TO_SOURCE: dict[str, str] = {
     "arbeitnow": "Arbeitnow (远程)",
     "jobicy": "Jobicy (远程)",
     "remotive": "Remotive (远程)",
-    "v2ex": "V2EX (远程)",
+    "v2ex": "V2EX 酷工作",        # D6: 迁移 034 名称对齐 (原 "V2EX (远程)" 无匹配)
     "weworkremotely": "WeWorkRemotely (远程)",
-    "juejin": "掘金",
-    "remoteok": "RemoteOK (远程)",
+    "juejin": "掘金技术社区",     # D6: 迁移 034 名称对齐 (原 "掘金" 无匹配)
+    "remoteok": "RemoteOK",       # D6: 迁移 034 名称对齐 (原 "RemoteOK (远程)" 无匹配)
     "manual": "手动导入",
     "boss": "Boss Zhipin",
 }

@@ -29,17 +29,28 @@ SPIDER_REGISTRY: dict[str, Any] = {
 
 
 def build_spider_registry() -> dict[str, Any]:
-    """构建真实 spider 注册表 (B2: 含 juejin/remoteok, 2026-08-07 补)."""
+    """构建真实 spider 注册表 (B2: 含 juejin/remoteok, 2026-08-07 补).
+
+    D6 (2026-08-12): v2ex 与 remotive 共用 v2ex_remote.run_sync 但需严格逐源
+    隔离 — 包一层闭包固定 source 参数，页面 V2EX 卡只写 v2ex、Remotive 卡只写
+    remotive，不再一次调用混写两源。
+    """
     from crawler.spiders import arbeitnow, jobicy, juejin, remoteok, weworkremotely
     from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
 
+    def _v2ex_only(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any]]:
+        return v2ex_sync(keyword=keyword, max_count=max_count, source="v2ex")
+
+    def _remotive_only(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any]]:
+        return v2ex_sync(keyword=keyword, max_count=max_count, source="remotive")
+
     return {
-        "v2ex": v2ex_sync,
-        "remotive": v2ex_sync,  # v2ex_remote spider 同时覆盖 V2EX + Remotive
+        "v2ex": _v2ex_only,
+        "remotive": _remotive_only,  # D6: 逐源隔离, 不再共享双源混写
         "arbeitnow": arbeitnow.run_sync,
         "jobicy": jobicy.run_sync,
         "weworkremotely": weworkremotely.run_sync,
-        "juejin": juejin.run_sync,    # PLAN-002: D5 非结构化源
+        "juejin": juejin.run_sync,    # PLAN-002: D5 非结构化源 (技术博客)
         "remoteok": remoteok.run_sync,  # PLAN-003: 英文 JD 源
     }
 

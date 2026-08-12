@@ -114,3 +114,21 @@ class TestRunSync:
         assert len(items) == 1
         # 只抓了 1 篇文章: 索引+子图+1 文章 = 3 次 fetch
         assert mock_fetch.call_count == 3
+
+    @patch("crawler.spiders.juejin.fetch")
+    def test_content_hash_is_real_hash_for_dedup(self, mock_fetch) -> None:
+        """D6 回归: content_hash 曾为空串 → 10 篇共享同一空 hash 只入 1 篇。
+
+        现在必须是由 URL 派生的非空 sha256，且不同文章 hash 不同。
+        """
+        mock_fetch.side_effect = [
+            _resp(200, SITEMAP_INDEX),
+            _resp(200, SUB_SITEMAP),
+            _resp(200, ARTICLE_HTML),
+            _resp(200, ARTICLE_HTML),
+        ]
+        items = juejin.run_sync(max_count=5)
+        hashes = {it["content_hash"] for it in items}
+        assert len(items) == 2
+        assert len(hashes) == 2
+        assert all(len(h) == 64 and h != "" for h in hashes)

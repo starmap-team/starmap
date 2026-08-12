@@ -15,6 +15,7 @@ keyword 参数为兼容 executor 签名保留; sitemap 是全量文章, 不按�
 """
 from __future__ import annotations
 
+import hashlib
 import re
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
@@ -108,7 +109,9 @@ def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any
                 "salary_min": 0,
                 "salary_max": 0,
                 "publish_date": now[:10],
-                "content_hash": "",
+                # D6 fix: content_hash 曾为空串 → 全部记录共享同一空 hash，
+                # ON CONFLICT dedup 失效（10 篇只有 1 篇入库）。改用 URL 摘要。
+                "content_hash": hashlib.sha256(url.encode()).hexdigest(),
             })
         except Exception:
             continue

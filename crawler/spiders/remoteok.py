@@ -12,6 +12,7 @@ I18N: 英文岗位名由抽取管线 Step 8 翻译钩子 (jd_extract → transla
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from datetime import UTC, datetime
@@ -62,7 +63,11 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
             "salary_min": int(j.get("salary_min") or 0),
             "salary_max": int(j.get("salary_max") or 0),
             "publish_date": str(j.get("date") or now)[:10],
-            "content_hash": "",
+            # D6 fix: content_hash 曾为空串 → 所有记录共享同一空 hash，ON CONFLICT
+            # dedup 失效（20 条全部判 duplicate 一条不入库）。改用 标题+描述 摘要。
+            "content_hash": hashlib.sha256(
+                f"{position}|{description[:300]}".encode()
+            ).hexdigest(),
         })
     return items
 

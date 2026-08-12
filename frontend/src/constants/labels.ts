@@ -133,6 +133,10 @@ export const SOURCE_NAME_LABELS: Record<string, string> = {
   'Arbeitnow (远程)': 'Arbeitnow（远程招聘）',
   'Jobicy (远程)': 'Jobicy（远程招聘）',
   'WeWorkRemotely (远程)': 'WeWorkRemotely（远程招聘）',
+  // D6: 补齐 7 爬虫域 —— V2EX/Juejin/RemoteOK（迁移 034 新增）
+  'V2EX 酷工作': 'V2EX 酷工作',
+  '掘金技术社区': '掘金技术社区',
+  'RemoteOK': 'RemoteOK',
 }
 
 // ── 数据源说明（卡片展示：告诉用户这个数据源是什么）──
@@ -144,6 +148,10 @@ export const SOURCE_DESCRIPTIONS: Record<string, string> = {
   'Arbeitnow (远程)': '德国远程岗位聚合平台，经 API 抓取',
   'Jobicy (远程)': '海外远程岗位聚合平台，经 API 抓取',
   'WeWorkRemotely (远程)': '全球远程岗位聚合站，经 RSS 订阅抓取',
+  // D6: 补齐 7 爬虫域描述（迁移 034 新增）
+  'V2EX 酷工作': 'V2EX 社区「酷工作」节点招聘帖，中文技术岗位',
+  '掘金技术社区': '掘金技术博客文章，作为非结构化技能知识源（非岗位 JD）',
+  'RemoteOK': '海外远程岗位聚合平台，经 API 抓取',
 }
 
 /** 真实可爬取的平台（有 spider 适配器；ESCO 标准库 / 未配置平台者不可采集） */

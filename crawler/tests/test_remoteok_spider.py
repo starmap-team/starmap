@@ -85,3 +85,16 @@ class TestRunSync:
         mock_fetch.return_value = _resp(200, SAMPLE)
         items = remoteok.run_sync(max_count=1)
         assert len(items) == 1
+
+    @patch("crawler.spiders.remoteok.fetch")
+    def test_content_hash_is_real_hash_for_dedup(self, mock_fetch) -> None:
+        """D6 回归: content_hash 曾为空串 → ON CONFLICT dedup 失效 (20 条全判 duplicate)。
+
+        现在必须是由 标题|描述 派生的非空 sha256，且不同职位 hash 不同。
+        """
+        mock_fetch.return_value = _resp(200, SAMPLE)
+        items = remoteok.run_sync()
+        hashes = {it["content_hash"] for it in items}
+        assert len(items) == 2
+        assert len(hashes) == 2                    # 每条唯一
+        assert all(len(h) == 64 and h != "" for h in hashes)  # sha256 hex 长度 64

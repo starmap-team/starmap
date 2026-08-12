@@ -192,3 +192,58 @@ def test_run_sync_partial_degradation(v2ex, monkeypatch):
     assert len(items) >= 1
     assert items[0]["source_site"] == "v2ex"
     assert items[0]["job_title"] == "Go 后端"
+
+
+# ---------------------------------------------------------------------------
+# Scenario 5: strict per-source isolation (D6)
+# ---------------------------------------------------------------------------
+
+
+def test_source_v2ex_only_returns_v2ex(v2ex, monkeypatch):
+    """D6: source='v2ex' 只抓 V2EX 酷工作，不混入 Remotive 记录。
+
+    之前 run_sync 一次调用同时写两源（页面 V2EX 卡触发会连带写入 remotive），
+    逐源隔离后必须只有 source_site='v2ex'。
+    """
+    v2ex_payload = [
+        {"id": 111, "title": "Python 后端", "content": "fastapi", "url": "https://v2ex.com/t/111", "created": 1700000000}
+    ]
+    remotive_payload = {
+        "jobs": [{"title": "Remote Python", "url": "https://remotive.com/jobs/2",
+                  "company_name": "Acme", "description": "Python",
+                  "candidate_required_location": "Remote", "publication_date": "2026-07-01"}]
+    }
+    payload_map = {
+        "v2ex.com": json.dumps(v2ex_payload),
+        "remotive.com": json.dumps(remotive_payload),
+    }
+    monkeypatch.setattr(v2ex, "fetch", _make_fetch(payload_map))
+
+    items = v2ex.run_sync(keyword="python", max_count=5, source="v2ex")
+    assert len(items) >= 1
+    assert all(it["source_site"] == "v2ex" for it in items), (
+        f"v2ex 隔离失败，混入了: {[it['source_site'] for it in items]}"
+    )
+
+
+def test_source_remotive_only_returns_remotive(v2ex, monkeypatch):
+    """D6: source='remotive' 只抓 Remotive API，不写 v2ex 记录。"""
+    v2ex_payload = [
+        {"id": 222, "title": "Java 后端", "content": "java", "url": "https://v2ex.com/t/222", "created": 1700000000}
+    ]
+    remotive_payload = {
+        "jobs": [{"title": "Remote Go", "url": "https://remotive.com/jobs/3",
+                  "company_name": "Acme", "description": "Go backend",
+                  "candidate_required_location": "Remote", "publication_date": "2026-07-01"}]
+    }
+    payload_map = {
+        "v2ex.com": json.dumps(v2ex_payload),
+        "remotive.com": json.dumps(remotive_payload),
+    }
+    monkeypatch.setattr(v2ex, "fetch", _make_fetch(payload_map))
+
+    items = v2ex.run_sync(keyword="python", max_count=5, source="remotive")
+    assert len(items) >= 1
+    assert all(it["source_site"] == "remotive" for it in items), (
+        f"remotive 隔离失败，混入了: {[it['source_site'] for it in items]}"
+    )
