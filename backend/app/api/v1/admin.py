@@ -318,7 +318,18 @@ async def approve_review_item_endpoint(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except review_service.InvalidStateTransition as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return item.to_dict()
+    # D8f 闭环: 岗位审核通过 → 立即入图 + LLM 补中文名（不等下一轮流水线）
+    item_dict = item.to_dict()
+    if entity_type == "position" and item_dict.get("status") == "approved":
+        position_name = item_dict.get("name", "")
+        if position_name:
+            from app.tasks.stage3_services import sync_approved_position_to_graph
+
+            try:
+                await sync_approved_position_to_graph(position_name)
+            except Exception as exc:  # noqa: BLE001 — 入图失败不阻断审核响应
+                logger.warning("approve-then-graph failed for {!r}: {}", position_name, exc)
+    return item_dict
 
 
 @router.post("/review/{entity_type}/{entity_id}/reject")

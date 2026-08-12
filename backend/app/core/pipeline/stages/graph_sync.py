@@ -118,7 +118,28 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         logger.warning("graph_sync outbox create failed (non-fatal): {}", o_exc)
 
     try:
-        result = run_async(run_build_graph_from_extractions(limit=500))
+        # D8f: 增量 —— 只处理本次 run 开始后创建的已审核抽取记录。
+        # 原实现全量重放最近 500 条历史记录（本次采集 0 新增也显示处理 226/2473），
+        # 数值与本次流水线无关。改传 run 的 started_at 作为 since 过滤。
+        from sqlalchemy import select
+
+        from app.models.pipeline_models import PipelineRun
+
+        _since: datetime | None = None
+        try:
+            async def _lookup_since() -> datetime | None:
+                session_factory = get_session_factory()
+                async with session_factory() as session:
+                    return (
+                        await session.execute(
+                            select(PipelineRun.started_at).where(PipelineRun.id == uuid.UUID(run_id))
+                        )
+                    ).scalar_one_or_none()
+            _since = run_async(_lookup_since())
+        except Exception as _e:  # noqa: BLE001 — since 取不到则全量（回退旧行为）
+            logger.warning("graph_sync since lookup failed (non-fatal): {}", _e)
+
+        result = run_async(run_build_graph_from_extractions(limit=500, since=_since))
         processed = result.get("processed", 0)
         triples_merged = result.get("triples_merged", 0)
         # D8c fix: 原读 nodes_written/edges_written —— 该键不存在（run_build_graph_

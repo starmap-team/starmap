@@ -280,11 +280,103 @@ async def write_single_extraction_to_graph(
     return summaries[0] if summaries else {}
 
 
-async def run_build_graph_from_extractions(limit: int = 100) -> dict[str, Any]:
+async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
+    """审核即入图 (D8f): 岗位审核通过后立即同步该岗位的抽取记录入图。
+
+    背景: 原 graph_sync 每次全量重放最近 500 条已审核抽取记录（order_by created_at
+    desc limit 500，无本次 run 过滤），导致"本次采集 0 新增但图谱处理 2473"的
+    数值误导，且审核通过后需等下一轮流水线才入图（闭环滞后）。
+    本函数: 审核通过时调用，只处理指定岗位的 completed 抽取记录 → 立即写图。
+    """
+    engine = get_async_engine()
+    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with sessionmaker() as session:
+            records = (
+                await session.execute(
+                    sa.select(JDExtractionRecord)
+                    .where(
+                        JDExtractionRecord.status == "completed",
+                        JDExtractionRecord.job_title == position_name,
+                    )
+                    .order_by(JDExtractionRecord.created_at.desc())
+                    .limit(10)
+                )
+            ).scalars().all()
+            extractions = [rec.to_extraction_payload() for rec in records]
+            position_id = None
+            # D8f: 中文化独立于抽取记录 —— 岗位缺中文名时无论有无抽取记录都补
+            pos = (
+                await session.execute(
+                    sa.select(PositionRecord).where(PositionRecord.name == position_name)
+                )
+            ).scalar_one_or_none()
+            if pos is not None:
+                position_id = str(pos.id)
+                if not (pos.name_cn or "").strip():
+                    name_cn = await _translate_position_name(position_name)
+                    if name_cn:
+                        pos.name_cn = name_cn
+                        await session.flush()
+                        # D8f fix: session 无 autocommit，flush 后必须 commit 否则回滚
+                        await session.commit()
+
+        config = GraphConfig()
+        async with config.get_driver() as driver:
+            canonical_ids_list: list[dict[str, Any] | None] | None = (
+                [{"position_id": position_id, "skills": {}} for _ in extractions]
+                if position_id else None
+            )
+            summaries = await batch_write_extractions(
+                extractions, driver, canonical_ids_list=canonical_ids_list,
+            )
+            # D8f: 无抽取记录时仍写岗位节点（审核即入图的最小单元），
+            # 保证岗位在图中存在（后续抽取可 merge 补关系）
+            if not extractions and position_id:
+                from app.core.extraction.graph_writer import merge_position
+
+                await merge_position(driver, {"name": position_name}, canonical_id=position_id)
+
+        return {
+            "status": "completed",
+            "position": position_name,
+            "extractions": len(extractions),
+            "triples_merged": sum(int(s.get("triples_merged", 0)) for s in summaries),
+            "nodes_touched": sum(int(s.get("nodes_touched", 0)) for s in summaries),
+        }
+    finally:
+        await engine.dispose()
+
+
+async def _translate_position_name(position_name: str) -> str | None:
+    """LLM 翻译岗位名为中文（D8f 中文化）。失败静默返回 None（不阻断入图）。"""
+    try:
+        from app.core.extraction.llm_client import LLMClient
+        from app.core.extraction.translation import has_cjk, translate_title_industry
+
+        if has_cjk(position_name):
+            return position_name
+        llm = LLMClient()
+        translated = await translate_title_industry(llm, title=position_name)
+        return translated.get("name_cn") or None
+    except Exception as exc:  # noqa: BLE001 — 翻译失败不阻断审核闭环
+        logger.warning("translate position name failed for {!r}: {}", position_name, exc)
+        return None
+
+
+async def run_build_graph_from_extractions(
+    limit: int = 100,
+    since: datetime | None = None,
+) -> dict[str, Any]:
     """Load persisted extraction records and ingest their triples into Neo4j.
 
     Phase 16 数据审核闭环: 仅同步已审核通过 (approved) 的岗位对应的抽取记录。
     新抽取的数据默认 review_status='pending_review'，需人工审核后才进入图谱。
+
+    D8f (增量): since 非空时只处理该时间点之后创建的抽取记录 —— graph_sync
+    阶段传本次 run 的 started_at，数值 = 本次流水线真实新增，不再全量重放历史
+    （原实现 order_by desc limit 500 全量重放，导致"本次采集 0 但图谱处理 2473"
+    的数值误导）。since=None = 全量（手动全量重建用）。
     """
     bounded_limit = max(1, min(int(limit), 1000))
     engine = get_async_engine()
@@ -295,17 +387,18 @@ async def run_build_graph_from_extractions(limit: int = 100) -> dict[str, Any]:
             approved_positions = sa.select(PositionRecord.name).where(
                 PositionRecord.review_status == "approved"
             )
-            rows = (
-                await session.execute(
-                    sa.select(JDExtractionRecord)
-                    .where(
-                        JDExtractionRecord.status == "completed",
-                        JDExtractionRecord.job_title.in_(approved_positions),
-                    )
-                    .order_by(JDExtractionRecord.created_at.desc())
-                    .limit(bounded_limit)
+            q = (
+                sa.select(JDExtractionRecord)
+                .where(
+                    JDExtractionRecord.status == "completed",
+                    JDExtractionRecord.job_title.in_(approved_positions),
                 )
-            ).scalars().all()
+                .order_by(JDExtractionRecord.created_at.desc())
+                .limit(bounded_limit)
+            )
+            if since is not None:
+                q = q.where(JDExtractionRecord.created_at >= since)
+            rows = (await session.execute(q)).scalars().all()
 
         extractions = [record.to_extraction_payload() for record in rows]
         # 2026-08-07 数据一致性: 抽取技能 upsert 到 PG skill_records (PG 为 SSOT)
