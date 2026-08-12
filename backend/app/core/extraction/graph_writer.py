@@ -449,12 +449,16 @@ class GraphConfig:
     wait=wait_exponential(multiplier=1, min=1, max=5),
     reraise=True,
 )
-async def merge_position(driver: Any, position_data: dict[str, Any]) -> dict[str, Any]:
+async def merge_position(driver: Any, position_data: dict[str, Any], canonical_id: str | None = None) -> dict[str, Any]:
     """MERGE a Position node from extraction data.
 
     Args:
         driver: Neo4j async driver.
         position_data: Dict with 'name' (required) and optional fields.
+        canonical_id: PG PositionRecord.id — SET on the node so graph_sync's
+            canonical MERGE hits the SAME node (no duplicate). coalesce keeps
+            an existing id (idempotent). None = ad-hoc extraction (reconcile
+            catches up later).
 
     Returns:
         The created/merged node properties dict.
@@ -468,7 +472,8 @@ async def merge_position(driver: Any, position_data: dict[str, Any]) -> dict[str
     SET p.updated_at = datetime(),
         p.name_cn = $name_cn,
         p.experience_required = $experience_required,
-        p.education_required = $education_required
+        p.education_required = $education_required,
+        p.canonical_id = coalesce(p.canonical_id, $canonical_id)
     RETURN p
     """
     try:
@@ -479,6 +484,7 @@ async def merge_position(driver: Any, position_data: dict[str, Any]) -> dict[str
                 name_cn=name_cn,
                 experience_required=position_data.get("experience_required"),
                 education_required=position_data.get("education_required"),
+                canonical_id=canonical_id,
             )
             record = await result.single()
             if record is None:
@@ -496,13 +502,16 @@ async def merge_position(driver: Any, position_data: dict[str, Any]) -> dict[str
     wait=wait_exponential(multiplier=1, min=1, max=5),
     reraise=True,
 )
-async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | None = None, canonical_id: str | None = None) -> dict[str, Any]:
     """MERGE a Skill node.
 
     Args:
         driver: Neo4j async driver.
         skill_name: Standardized skill name.
         metadata: Optional extra properties.
+        canonical_id: PG SkillRecord.id — SET on the node so graph_sync's
+            canonical MERGE hits the SAME node (no duplicate); coalesce keeps
+            existing (idempotent). None = ad-hoc extraction.
 
     Returns:
         The created/merged node properties dict.
@@ -522,12 +531,19 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
     MERGE (s:Skill {name: $name})
     SET s += $props,
         s.source_count = coalesce(s.source_count, 0) + $source_count,
-        s.updated_at = datetime()
+        s.updated_at = datetime(),
+        s.canonical_id = coalesce(s.canonical_id, $canonical_id)
     RETURN s
     """
     try:
         async with driver.session() as session:
-            result = await session.run(query, name=skill_name, props=merge_props, source_count=props["source_count"])
+            result = await session.run(
+                query,
+                name=skill_name,
+                props=merge_props,
+                source_count=props["source_count"],
+                canonical_id=canonical_id,
+            )
             record = await result.single()
             if record is None:
                 raise ValueError(f"Failed to merge Skill: {skill_name}")
@@ -600,6 +616,7 @@ async def create_requires_relationship(
 async def write_extraction_to_graph(
     extraction: dict[str, Any],
     driver: Any,
+    canonical_ids: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Write a full extraction result to Neo4j (§2.1/§2.2).
 
@@ -612,6 +629,10 @@ async def write_extraction_to_graph(
     Args:
         extraction: Extraction dict from jd_extract pipeline.
         driver: Neo4j async driver.
+        canonical_ids: Optional {"position_id": str, "skills": {skill_name: str}}
+            from the PG persist step — threaded into merge_* so graph nodes are
+            written WITH canonical_id (no orphan, no reconcile-lag window).
+            None = ad-hoc extraction without PG persist (reconcile catches up).
 
     Returns:
         Summary dict with counts of created nodes/relationships.
@@ -629,10 +650,13 @@ async def write_extraction_to_graph(
         return {"positions": 0, "skills": 0, "requires": 0, "skipped": True, "reason": "missing_position_name"}
     position_name = str(_raw_name).strip()
 
+    pos_cid = canonical_ids.get("position_id") if canonical_ids else None
+    skill_cids: dict[str, str] = (canonical_ids or {}).get("skills") or {}
+
 
     # Step 1: Merge Position node using standalone retry-enabled function
     try:
-        await merge_position(driver, extraction)
+        await merge_position(driver, extraction, canonical_id=pos_cid)
         positions_merged = 1
     except StarMapError:
         raise
@@ -659,7 +683,7 @@ async def write_extraction_to_graph(
                 "trend": _skill_entry_trend(entry),
             }
             try:
-                await merge_skill(driver, skill_name, metadata)
+                await merge_skill(driver, skill_name, metadata, canonical_id=skill_cids.get(skill_name))
                 skills_merged += 1
             except StarMapError:
                 raise
@@ -708,21 +732,26 @@ async def write_extraction_to_graph(
 async def batch_write_extractions(
     extractions: list[dict[str, Any]],
     driver: Any,
+    canonical_ids_list: list[dict[str, Any] | None] | None = None,
 ) -> list[dict[str, Any]]:
     """Write multiple extractions to Neo4j.
 
     Args:
         extractions: List of extraction dicts.
         driver: Neo4j async driver.
+        canonical_ids_list: Optional parallel list of {"position_id", "skills"}
+            per extraction (aligned by index) — threaded into merge_* so graph
+            nodes carry PG canonical_id at write time.
 
     Returns:
         List of summary dicts per extraction.
     """
     summaries = []
-    for extraction in extractions:
+    for idx, extraction in enumerate(extractions):
+        canonical_ids = canonical_ids_list[idx] if canonical_ids_list else None
         # Phase 17-03 (Fix B4): try/except 单条隔离, 一条失败不阻塞整个 batch
         try:
-            summary = await write_extraction_to_graph(extraction, driver)
+            summary = await write_extraction_to_graph(extraction, driver, canonical_ids=canonical_ids)
         except Exception as exc:
             logger.warning(f"batch_write_extractions: skipped extraction {extraction.get('id')}: {exc}")
             summary = {

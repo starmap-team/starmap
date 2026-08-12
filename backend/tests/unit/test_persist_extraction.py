@@ -67,7 +67,7 @@ async def test_persist_extraction_result_basic(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(s, "_ensure_position_skill_relation", fake_ensure)
 
     result = _make_extraction_result()
-    record = await s.persist_extraction_result(session, "some JD text", result)
+    record, _pos_id, _skill_ids = await s.persist_extraction_result(session, "some JD text", result)
 
     assert record.job_title == "Backend Engineer"
     assert record.confidence == 0.9
@@ -99,7 +99,7 @@ async def test_persist_with_preferred_skills(monkeypatch: pytest.MonkeyPatch) ->
         required_skills=[{"name": "Python", "category": "hard_skill"}],
         preferred_skills=[{"name": "Docker", "category": "tool"}],
     )
-    record = await s.persist_extraction_result(session, "JD", result)
+    record, _pos_id, _skill_ids = await s.persist_extraction_result(session, "JD", result)
     assert record.job_title == "Backend Engineer"
     # session.add called for the JDExtractionRecord
     assert len(session.added) == 1
@@ -126,7 +126,7 @@ async def test_persist_skips_empty_skill_name(monkeypatch: pytest.MonkeyPatch) -
     result = _make_extraction_result(
         required_skills=[{"unknown": "key"}],
     )
-    record = await s.persist_extraction_result(session, "JD", result)
+    record, _pos_id, _skill_ids = await s.persist_extraction_result(session, "JD", result)
     assert record.job_title == "Backend Engineer"
 
 
@@ -148,5 +148,5 @@ async def test_persist_invalid_extraction_lower_hallucination(monkeypatch: pytes
     monkeypatch.setattr(s, "_ensure_position_skill_relation", fake_ensure)
 
     result = _make_extraction_result(is_valid=False, confidence=0.7)
-    record = await s.persist_extraction_result(session, "JD", result)
+    record, _pos_id, _skill_ids = await s.persist_extraction_result(session, "JD", result)
     assert record.hallucination_score == pytest.approx(0.3, rel=1e-3)

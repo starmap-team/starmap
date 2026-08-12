@@ -29,7 +29,7 @@ async def test_write_single_extraction_to_graph(monkeypatch: pytest.MonkeyPatch)
         lambda: SimpleNamespace(get_driver=lambda: DummyCtx()),
     )
 
-    async def fake_batch_write_extractions(extractions: list, driver: object) -> list[dict]:
+    async def fake_batch_write_extractions(extractions: list, driver: object, canonical_ids_list: list | None = None) -> list[dict]:
         return [{"triples_merged": 2, "relationships_touched": 1}]
 
     monkeypatch.setattr(s, "batch_write_extractions", fake_batch_write_extractions)
@@ -49,7 +49,7 @@ async def test_write_single_empty_summaries(monkeypatch: pytest.MonkeyPatch) -> 
         lambda: SimpleNamespace(get_driver=lambda: DummyCtx()),
     )
 
-    async def fake_batch_write_extractions(extractions: list, driver: object) -> list:
+    async def fake_batch_write_extractions(extractions: list, driver: object, canonical_ids_list: list | None = None) -> list:
         return []
 
     monkeypatch.setattr(s, "batch_write_extractions", fake_batch_write_extractions)
@@ -126,10 +126,10 @@ async def test_run_build_graph_from_extractions(monkeypatch: pytest.MonkeyPatch)
         lambda: SimpleNamespace(get_driver=lambda: DummyCtx()),
     )
 
-    async def fake_batch_write(extractions: list, driver: object) -> list[dict]:
+    async def fake_batch_write_extractions(extractions: list, driver: object, canonical_ids_list: list | None = None) -> list[dict]:
         return [{"triples_merged": 3, "relationships_touched": 2}]
 
-    monkeypatch.setattr(s, "batch_write_extractions", fake_batch_write)
+    monkeypatch.setattr(s, "batch_write_extractions", fake_batch_write_extractions)
 
     result = await s.run_build_graph_from_extractions(limit=10)
     assert result["status"] == "completed"
@@ -161,10 +161,10 @@ async def test_run_build_graph_clamps_limit(monkeypatch: pytest.MonkeyPatch) -> 
         lambda: SimpleNamespace(get_driver=lambda: DummyCtx()),
     )
 
-    async def fake_batch_write(extractions: list, driver: object) -> list:
+    async def fake_batch_write_extractions(extractions: list, driver: object, canonical_ids_list: list | None = None) -> list:
         return []
 
-    monkeypatch.setattr(s, "batch_write_extractions", fake_batch_write)
+    monkeypatch.setattr(s, "batch_write_extractions", fake_batch_write_extractions)
 
     result = await s.run_build_graph_from_extractions(limit=-5)
     assert result["processed"] == 0

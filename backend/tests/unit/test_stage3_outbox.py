@@ -54,7 +54,8 @@ def _patch_common_deps(
     fake_record = type("R", (), {"id": uuid.uuid4(), "job_title": "Python Dev"})
 
     async def fake_persist(session: Any, jd_text: str, result: Any, **kwargs: Any) -> Any:
-        return fake_record()
+        # D5 根治: persist 现返回 (record, position_id, skill_ids) 供图写穿线 canonical_id
+        return fake_record(), str(uuid.uuid4()), {}
 
     async def fake_extract(jd_text: str, options: Any = None) -> dict:
         return {"success": True, "data": {"position_name": "Python Dev", "required_skills": []}}
@@ -94,7 +95,7 @@ def _patch_common_deps(
 async def test_outbox_marked_failed_when_graph_write_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     """Neo4j write failure must flip outbox to 'failed'; no completed marker."""
 
-    async def failing_graph_write(extraction: Any) -> Any:
+    async def failing_graph_write(extraction: Any, canonical_ids: dict | None = None) -> Any:
         raise RuntimeError("neo4j connection refused")
 
     captured = _patch_common_deps(monkeypatch, graph_write_impl=failing_graph_write)
@@ -111,7 +112,7 @@ async def test_outbox_marked_failed_when_graph_write_fails(monkeypatch: pytest.M
 async def test_outbox_completed_when_graph_write_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
     """Successful graph write must mark outbox 'completed'."""
 
-    async def ok_graph_write(extraction: Any) -> dict:
+    async def ok_graph_write(extraction: Any, canonical_ids: dict | None = None) -> dict:
         return {"triples_merged": 5}
 
     captured = _patch_common_deps(monkeypatch, graph_write_impl=ok_graph_write)
