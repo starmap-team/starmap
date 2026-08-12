@@ -293,11 +293,19 @@ def crawl_single_source(  # sync def: 爬取+DB 同步操作放线程池, 避免
             failed += 1
 
     # 写爬取指标 (D1 后表存在) — 同步 engine
+    # D5: status 语义诚实化 —— fetched=0 记 no_fetch（网络/平台无数据），
+    # 而非误标 success（曾导致"爬了 0 条还显示成功"）
+    if len(items) == 0:
+        metric_status, metric_error = "no_fetch", "network_or_empty"
+    elif not failed:
+        metric_status, metric_error = "success", None
+    else:
+        metric_status, metric_error = "partial", "parse"
     with get_jd_raw_session() as s:
         s.add(DataSourceMetric(
-            source_id=ds_id, run_id=None, status="success" if not failed else "partial",
+            source_id=ds_id, run_id=None, status=metric_status,
             records_inserted=inserted, records_duplicate=duplicate,
-            error_type=None if not failed else "parse",
+            error_type=metric_error,
             duration_ms=0,
         ))
         s.commit()

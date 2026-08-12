@@ -55,10 +55,22 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
     // 后端 /pipeline/crawl-source 按 DataSourceRecord.name 精确匹配（routes.py:475），
     // 特判会导致 DB 名称非 'BOSS' 时 404 —— 直接传 source.name 即可
     const key = source.name
-    const out = await dsStore.triggerCrawl(key) as { fetched?: number; inserted?: number; duplicate?: number; failed?: number }
-    ElMessage.success(
-      `${getSourceNameLabel(source.name)} 立即采集完成: fetched=${out?.fetched ?? 0} 新增=${out?.inserted ?? 0}${out?.duplicate ? ` 重复=${out.duplicate}` : ''}`
-    )
+    const out = await dsStore.triggerCrawl(key) as { fetched?: number; inserted?: number; duplicate?: number; failed?: number; error_samples?: Array<{ source: string; hash_prefix: string; error: string }> }
+    const fetched = out?.fetched ?? 0
+    const inserted = out?.inserted ?? 0
+    const duplicate = out?.duplicate ?? 0
+    if (out?.error_samples?.length) {
+      // D5: 错误穿透 —— 展示 dao 层真实异常，不再沉默
+      const first = out.error_samples[0]
+      ElMessage.error(`${getSourceNameLabel(source.name)} 采集 ${inserted} 条，${duplicate} 条已存在；写入失败: ${first.error}`)
+    } else if (fetched === 0) {
+      ElMessage.warning(`${getSourceNameLabel(source.name)} 立即采集：本次未获取到职位（远程平台可能限流或暂无数据）`)
+    } else if (inserted > 0) {
+      ElMessage.success(`${getSourceNameLabel(source.name)} 立即采集完成: 在线获取 ${fetched} 条，新增 ${inserted} 条${duplicate ? `，${duplicate} 条已存在` : ''}`)
+    } else {
+      // 全重复 = 已在线确认平台最新职位均已在库（非失败）
+      ElMessage.success(`${getSourceNameLabel(source.name)} 已在线确认最新 ${fetched} 条职位均已在库（平台暂无新职位），最后同步时间已刷新`)
+    }
     dsStore.fetchSources()  // refresh last_crawl_at
   } catch (e: unknown) {
     // 展示后端具体原因（如"未配置爬虫平台"），而非笼统失败

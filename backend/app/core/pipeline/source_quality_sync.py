@@ -89,12 +89,18 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
         ds.valid_records = extracted
         ds.avg_quality_score = round(quality, 4)
         ds.duplicate_rate = round(dup_rate, 4)
-        # last_crawl_at: 优先 jd_raw 真实采集时间（按 source_site），兜底 metrics
-        site_last = last_crawl_by_site.get(site)
-        if site_last:
-            ds.last_crawl_at = site_last
-        elif str(ds.id) in last_crawl_by_source:
-            ds.last_crawl_at = last_crawl_by_source[str(ds.id)]
+        # last_crawl_at = 「上次爬取尝试时间」语义：优先 data_source_metrics
+        # （/crawl-source 与 sync 端点每次爬取都写一条，started_at=爬取时刻）——
+        # 这样即使本次全部是 duplicate（平台暂无新职位）卡片也能反映"刚刚爬过"。
+        # jd_raw.MAX(crawled_at) 是「数据新鲜度」（最后一条新数据），不是爬取时刻，
+        # 仅在无 metrics（历史源）时兜底。
+        metric_last = last_crawl_by_source.get(str(ds.id))
+        if metric_last:
+            ds.last_crawl_at = metric_last
+        else:
+            site_last = last_crawl_by_site.get(site)
+            if site_last:
+                ds.last_crawl_at = site_last
         updated[source_name] = {
             "total_records": total, "valid_records": extracted,
             "avg_quality_score": round(quality, 4), "duplicate_rate": round(dup_rate, 4),

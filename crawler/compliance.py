@@ -215,22 +215,29 @@ def fetch(
     # 业务说明：根据 use_proxy 参数决定是否使用代理。
     # 代理格式为 "http://host:port" 或 "https://host:port"。
     proxy = get_proxy() if use_proxy else None
-    proxies = {"http://": proxy, "https://": proxy} if proxy else None
 
     t0 = time.monotonic()
-    try:
-        # 技术说明：使用 httpx 库发送 HTTP 请求，支持自动跟随重定向。
-        with httpx.Client(
-            headers={"User-Agent": ua},
-            timeout=timeout,
-            follow_redirects=True,
-            proxy=proxy,
-        ) as c:
-            resp = c.get(url)
-    except httpx.HTTPError as e:
+    # D5: 瞬时网络/SSL 抖动（沙盒 egress 间歇性超时）重试一次 —— 显著提升实时抓取命中率。
+    # 重试同样走限速器（min_interval 2s），不放大对目标站的请求频率。
+    resp = None
+    for attempt in range(2):
+        try:
+            # 技术说明：使用 httpx 库发送 HTTP 请求，支持自动跟随重定向。
+            with httpx.Client(
+                headers={"User-Agent": ua},
+                timeout=timeout,
+                follow_redirects=True,
+                proxy=proxy,
+            ) as c:
+                resp = c.get(url)
+            break
+        except httpx.HTTPError as e:
+            log.warning("HTTP error %s (attempt %d/2): %s", url, attempt + 1, e)
+            if attempt == 0:
+                limiter.wait()  # 重试前遵守限速
+    if resp is None:
         # 业务说明：HTTP 请求异常（如超时、连接失败）时记录警告并返回空结果。
         # 不抛异常，避免单次失败影响整个抓取任务。
-        log.warning("HTTP error %s: %s", url, e)
         log_request(source_site, url, allowed, ua, 0.0, 0, 0)
         return FetchResult(text="", status_code=0, bytes_count=0, robots_allowed=allowed)
 
