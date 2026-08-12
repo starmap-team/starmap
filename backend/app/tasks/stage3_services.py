@@ -41,15 +41,27 @@ def _hallucination_score_from_result(result: dict[str, Any]) -> float | None:
     return round(1.0 - confidence, 4)
 
 
-async def _upsert_position(session: AsyncSession, name: str, *, source_run_id: uuid.UUID | None = None) -> PositionRecord:
+async def _upsert_position(
+    session: AsyncSession,
+    name: str,
+    *,
+    source_run_id: uuid.UUID | None = None,
+    name_cn: str | None = None,
+) -> PositionRecord:
     existing = (
         await session.execute(sa.select(PositionRecord).where(PositionRecord.name == name))
     ).scalar_one_or_none()
     if existing is not None:
+        # D8f fix: 抽取 I18N-01 翻译结果曾丢弃（306 岗位仅 3 中文名根因）——
+        # 已存在岗位若有新翻译结果也回填，避免重复翻译
+        if name_cn and not (existing.name_cn or "").strip():
+            existing.name_cn = name_cn
+            await session.flush()
         return existing
 
     record = PositionRecord(
         name=name,
+        name_cn=name_cn,  # D8f: 抽取时持久化 I18N-01 翻译结果
         source_run_id=source_run_id,
         created_by="system:pipeline",
     )
@@ -143,7 +155,12 @@ async def persist_extraction_result(
     session.add(record)
     await session.flush()
 
-    position = await _upsert_position(session, position_name, source_run_id=source_run_id)
+    position = await _upsert_position(
+        session,
+        position_name,
+        source_run_id=source_run_id,
+        name_cn=data.get("name_cn"),  # D8f: I18N-01 翻译结果持久化
+    )
     skill_ids: dict[str, str] = {}
     for requirement_type, entries in (
         ("required", data.get("required_skills", [])),

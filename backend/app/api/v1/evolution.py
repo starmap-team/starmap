@@ -449,6 +449,21 @@ async def review_queue_single_action(
     target_status = "approved" if action == "approve" else "rejected"
     row.status = target_status
     await session.commit()
+    # D8f 闭环: 演化变更审核通过 → 立即写回 position_skill_relations（技能/岗位关系
+    # 真实生效 + 后续 graph_sync 投影 Neo4j）。原实现只改 status 无下游动作（断链）。
+    if action == "approve":
+        try:
+            from app.core.evolution.write_back import write_back_changelog_row
+
+            warnings: list[str] = []
+            await write_back_changelog_row(session, row, warnings)
+            await session.commit()
+        except Exception as exc:  # noqa: BLE001 — 写回失败不阻断审核响应
+            import logging as _logging
+
+            _logging.getLogger(__name__).warning(
+                "evolution review approve write-back failed (non-fatal): {}", exc
+            )
     return {"changelog_id": str(changelog_id), "status": target_status}
 
 

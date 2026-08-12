@@ -41,8 +41,11 @@ CHANGE_TO_REQUIREMENT_TYPE: dict[str, str] = {
     "demoted": "preferred",
 }
 
-# D-04: only these four change types are eligible for write-back.
-WRITEBACK_CHANGE_TYPES: set[str] = {"added_required", "added_preferred", "promoted", "demoted"}
+# D-04: only these change types are eligible for write-back.
+# D8f: removed 纳入 —— 原设计 excluded（"removed only goes to alert"），但审核即
+# 生效闭环要求 removed 审核通过后真实删除 position_skill_relations 关系；
+# 仍受 trust 阈值门槛保护（未审核/low-trust 不删）。
+WRITEBACK_CHANGE_TYPES: set[str] = {"added_required", "added_preferred", "promoted", "demoted", "removed"}
 
 
 async def _resolve_position_id(session: AsyncSession, name: str) -> uuid.UUID | None:
@@ -111,6 +114,25 @@ async def write_back_changelog_row(
                 row.position_name, row.skill_name, row.change_type,
             )
             return None
+
+        # D8f: removed 类型 —— 技能从岗位移除 → 删除 position_skill_relations 关系
+        if row.change_type == "removed":
+            skill_id = await _resolve_skill_id(session, row.skill_name)
+            rel = (
+                await session.execute(
+                    sa.select(PositionSkillRelation).where(
+                        PositionSkillRelation.position_id == position_id,
+                        PositionSkillRelation.skill_id == skill_id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if rel is not None:
+                await session.delete(rel)
+                logger.info(
+                    "evolution write_back: removed relation {} ← {} ({})",
+                    row.position_name, row.skill_name, row.change_type,
+                )
+            return float(row.confidence or 0.0)
 
         skill_id = await _resolve_skill_id(session, row.skill_name)
         requirement_type = CHANGE_TO_REQUIREMENT_TYPE[row.change_type]
