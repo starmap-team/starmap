@@ -156,12 +156,17 @@ async def reconcile_neo4j_endpoint(
     )
 
 
-@router.get("/review-queue", response_model=AuditQueueResponse)
+@router.get("/review-queue", response_model=AuditQueueResponse, deprecated=True)
 @router.get("/audit-queue", response_model=AuditQueueResponse, include_in_schema=False)
 async def get_review_queue_endpoint(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditQueueResponse:
-    """Return pending review items from DB; returns empty list when table is empty."""
+    """Return pending review items from DB; returns empty list when table is empty.
+
+    DEPRECATED (D8h): 旧 ReviewQueue 审核路径已废弃 —— review_queue 表 0 行且无
+    写入方（历史遗留，绕过 Phase 23 review_status 状态机直接 approved）。
+    前端已改用 /admin/review-items（新状态机 + 审核即入图）。仅保留兼容旧客户端。
+    """
     try:
         items = await get_review_queue(session)
         return AuditQueueResponse(items=items)

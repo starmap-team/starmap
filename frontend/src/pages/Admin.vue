@@ -81,7 +81,8 @@ onMounted(() => {
   window.addEventListener('admin:navigate', onAdminNavigate)
   // Pre-fetch all stores in the background so tab switches feel instant.
   datasource.fetchSources()
-  audit.fetchAuditQueue()
+  // D8h: 移除旧 ReviewQueue 空队列拉取 —— review_queue 表 0 行且无写入方，
+  // fetchAuditQueue 返回空徒增请求；审核走 Phase 23 review-status 状态机
   graphNode.fetchGraphNodes()
   review.fetchStats().catch(() => null)
 })
