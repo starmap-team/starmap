@@ -388,22 +388,26 @@ onMounted(() => {
                 <pre>{{ card.tooltip }}</pre>
               </div>
             </template>
-            <div
-              class="kpi-number-label"
-              :title="card.tip"
-            >
-              <span>{{ card.label }}</span>
-              <el-icon class="kpi-help-icon"><QuestionFilled /></el-icon>
-            </div>
-            <div class="kpi-number-value">
-              {{ card.value }}
-            </div>
-            <!-- E2: 口径拆解行 — 数值从何而来可见 -->
-            <div
-              class="kpi-number-breakdown"
-              :title="card.tip"
-            >
-              {{ card.breakdown }}
+            <!-- ponytail: el-tooltip 默认插槽只渲染首个子元素当 trigger；
+                 必须包一层 wrapper div，否则 value/breakdown 被吞 -->
+            <div class="kpi-number-body">
+              <div
+                class="kpi-number-label"
+                :title="card.tip"
+              >
+                <span>{{ card.label }}</span>
+                <el-icon class="kpi-help-icon"><QuestionFilled /></el-icon>
+              </div>
+              <div class="kpi-number-value">
+                {{ card.value }}
+              </div>
+              <!-- E2: 口径拆解行 — 数值从何而来可见 -->
+              <div
+                class="kpi-number-breakdown"
+                :title="card.tip"
+              >
+                {{ card.breakdown }}
+              </div>
             </div>
           </el-tooltip>
         </el-card>
