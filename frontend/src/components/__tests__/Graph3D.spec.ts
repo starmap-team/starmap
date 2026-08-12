@@ -66,7 +66,7 @@ describe('clusterNodes3D', () => {
     const lastVisible = result.visible[result.visible.length - 1]
     expect(lastVisible.id).toBe('cluster-overflow')
     expect(lastVisible.color).toBe('#999999')
-    expect((lastVisible as { properties: { name: string } }).properties.name).toContain('more nodes')
+    expect((lastVisible as unknown as { properties: { name: string } }).properties.name).toContain('more nodes')
   })
 
   it('cluster meta-node has correct properties (id, color, position_count, name)', () => {

@@ -1,8 +1,13 @@
 <script setup lang="ts">
 /** Graph3D — 3D force-directed graph visualization (3d-force-graph)
- *  2026-08-13: Phase 1 (M1 全景图谱) Plan 01-03 Task 3 — 接入 useGraph3DLOD +
- *  useGraph3DClustering (镜像 2D useGraphLOD + useGraphClustering)。节点数 > 50
- *  时自动折叠为 cluster meta-node,节省 GPU 开销。
+ *  2026-08-13: Phase 1 (M1 全景图谱) Plan 01-03 + 01-04:
+ *    01-03 Task 3: 接入 useGraph3DLOD + useGraph3DClustering (镜像 2D
+ *                useGraphLOD + useGraphClustering)。节点数 > 50 时自动折叠
+ *                为 cluster meta-node,节省 GPU 开销。
+ *    01-04 Task 3: 接入 useGraph3DLifecycle + useGraph3DFps + DEFAULT_FORCE_CONFIG
+ *                (沿 Phase 17 loop_orchestrator 兼容壳模式,保 monkeypatch)。
+ *                既有所需符号 (initGraph / destroyGraph / _destructor / _lastNamespace
+ *                / fps / force config) 不删除 — composable 代理调用。
  */
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue'
 import { nodeColor, edgeColor, withAlpha, SCENE_PALETTE } from '@/utils/graphColors'
@@ -21,7 +26,7 @@ import {
   useNodeTooltip,
 } from '@/composables/useGraph3D'
 import { disposeTextCache } from '@/composables/useTextSprite'
-import { useGraph3DLOD, useGraph3DClustering } from '@/composables/graph3d'
+import { useGraph3DLOD, useGraph3DClustering, useGraph3DFps } from '@/composables/graph3d'
 
 // ── Props ──
 const props = withDefaults(defineProps<{
@@ -48,7 +53,7 @@ const emit = defineEmits<{
 // ── Refs ──
 const containerRef = ref<HTMLElement | null>(null)
 const webglSupported = ref(true)
-const fps = ref(0)
+// fps 由 useGraph3DFps composable 提供(01-04 拆分),proxy 到 composable.fps
 const isReady = ref(false)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -196,6 +201,14 @@ const limitedLinks = computed(() => {
 // 同步 nodeCount 到 LOD watch
 watch(limitedNodes, (nodes) => lod.setNodeCount(nodes.length), { immediate: true })
 
+// 01-04: 抽 lifecycle / FPS / force config 到 composables (C-3 单文件拆分)
+// 沿 Phase 17 loop_orchestrator 兼容壳模式 — composable 暴露统一接口,
+// 既有 initGraph / destroyGraph / FPS loop 保留在 Graph3D.vue 内(保 monkeypatch)
+const fpsMonitor = useGraph3DFps()
+// 既有 fps ref 替换为 composable proxy (line 46 替换)
+const fps = fpsMonitor.fps
+// FORCE_CFG + LOD_3D 通过 import 即可消费(常量导出),无需本地 proxy
+
 // ── Camera presets composable ──
 const { autoRotate, setCameraPreset, resetCamera, toggleAutoRotate, clearAutoRotateTimer, calcFitDistance } = useCameraPresets(
   graphInstance,
@@ -327,7 +340,12 @@ let fpsRafId = 0
 function measureFPS() {
   fpsFrames++
   const now = performance.now()
-  if (now - fpsLastTime >= 1000) { fps.value = fpsFrames; fpsFrames = 0; fpsLastTime = now }
+  if (now - fpsLastTime >= 1000) {
+    // 01-04: 通过 fpsMonitor.set() 替代直接 fps.value 赋值 (ReadonlyRef)
+    fpsMonitor.set(fpsFrames)
+    fpsFrames = 0
+    fpsLastTime = now
+  }
   fpsRafId = requestAnimationFrame(measureFPS)
 }
 
