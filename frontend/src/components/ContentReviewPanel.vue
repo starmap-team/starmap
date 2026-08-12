@@ -27,11 +27,17 @@ const selection = ref<ReviewItem[]>([])
 
 async function batchApprove() {
   if (selection.value.length === 0) return
-  await ElMessageBox.confirm(
-    `确认批量批准 ${selection.value.length} 项？批准后将出现在公开图谱中。`,
-    '批量批准',
-    { type: 'warning', confirmButtonText: '确认批准', cancelButtonText: '取消' },
-  ).catch(() => null)
+  // 2026-08-12 (admin 联调修复): 原实现 `.catch(() => null)` 吞掉取消后无条件执行批准
+  // —— 用户点"取消"也会批准。改为 catch 后 return（仅在确认后执行）。
+  try {
+    await ElMessageBox.confirm(
+      `确认批量批准 ${selection.value.length} 项？批准后将出现在公开图谱中。`,
+      '批量批准',
+      { type: 'warning', confirmButtonText: '确认批准', cancelButtonText: '取消' },
+    )
+  } catch {
+    return  // 用户取消 — 不执行批准
+  }
   let ok = 0; let fail = 0
   for (const item of selection.value) {
     try {
@@ -51,8 +57,9 @@ async function batchReject() {
     `将拒绝 ${selection.value.length} 项，请输入拒绝原因（会写入数据库）：`,
     '批量拒绝',
     { confirmButtonText: '确认拒绝', cancelButtonText: '取消', inputPlaceholder: '例如：与项目无关 / 数据质量差' },
-  ).catch(() => ({ value: '' }))
-  if (!reason) return
+  ).catch(() => ({ value: null }))
+  // 2026-08-12: 用 null 区分"用户取消"与"确认但空原因"；取消不执行，空原因也拦截（拒绝原因必填）
+  if (reason === null || !reason?.trim()) return
   let ok = 0; let fail = 0
   for (const item of selection.value) {
     try {

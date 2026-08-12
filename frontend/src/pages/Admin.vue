@@ -67,6 +67,8 @@ const review = useReviewStore()
 const activeTab = ref('overview')
 // Phase 24: 系统 tab 内部的子 tab（用户管理 / 审计日志）
 const systemSubTab = ref('users-list')
+// 2026-08-12 (admin 联调): 数据源诊断 banner 类型随报告状态动态化
+const dataTruthBannerType = ref<'success' | 'warning' | 'error'>('error')
 
 // Cross-component navigation: AdminFlow / AdminOverview dispatch a
 // 'admin:navigate' CustomEvent to switch tabs without prop-drilling.
@@ -760,7 +762,10 @@ function formatDate(iso: string | null | undefined): string {
                 class="stats-loading"
               >
                 <el-icon class="is-loading">
-                  <svg viewBox="0 0 1024 1024"><path fill="currentColor" d="M512 64a32 32 0 0 0 32 32v128a32 32 0 0 0-64 0V96a32 32 0 0 0 32-32zm0 768a32 32 0 0 0 32 32v64a32 32 0 1 1-64 0v-64a32 32 0 0 0 32-32zm448-408H832a32 32 0 0 1 0-64h128a32 32 0 1 1 0 64zM192 416H64a32 32 0 0 1 0-64h128a32 32 0 1 1 0 64zM794.912 165.952l-90.624 90.496a32 32 0 0 1-45.248-45.248l90.624-90.496a32 32 0 1 1 45.248 45.248zM274.912 685.952l-90.496 90.624a32 32 0 1 1-45.248-45.248l90.496-90.624a32 32 0 0 1 45.248 45.248zM704 480a224 224 0 1 0-448 0 224 224 0 1 0 448 0z"></path></svg>
+                  <svg viewBox="0 0 1024 1024"><path
+                    fill="currentColor"
+                    d="M512 64a32 32 0 0 0 32 32v128a32 32 0 0 0-64 0V96a32 32 0 0 0 32-32zm0 768a32 32 0 0 0 32 32v64a32 32 0 1 1-64 0v-64a32 32 0 0 0 32-32zm448-408H832a32 32 0 0 1 0-64h128a32 32 0 1 1 0 64zM192 416H64a32 32 0 0 1 0-64h128a32 32 0 1 1 0 64zM794.912 165.952l-90.624 90.496a32 32 0 0 1-45.248-45.248l90.624-90.496a32 32 0 1 1 45.248 45.248zM274.912 685.952l-90.496 90.624a32 32 0 1 1-45.248-45.248l90.496-90.624a32 32 0 0 1 45.248 45.248zM704 480a224 224 0 1 0-448 0 224 224 0 1 0 448 0z"
+                  /></svg>
                 </el-icon>
                 <span>加载中...</span>
               </div>
@@ -798,7 +803,10 @@ function formatDate(iso: string | null | undefined): string {
                     </div>
                   </div>
                 </div>
-                <div class="stats-summary" style="margin-top: 8px;">
+                <div
+                  class="stats-summary"
+                  style="margin-top: 8px;"
+                >
                   <div class="stat-tile">
                     <div class="stat-tile-label">
                       成功 / 失败 run
@@ -817,7 +825,10 @@ function formatDate(iso: string | null | undefined): string {
                     <div class="stat-tile-label">
                       最近爬取
                     </div>
-                    <div class="stat-tile-value" style="font-size: 14px;">
+                    <div
+                      class="stat-tile-value"
+                      style="font-size: 14px;"
+                    >
                       {{ formatDate(statsMeta?.last_crawl_at) }}
                     </div>
                   </div>
@@ -825,7 +836,10 @@ function formatDate(iso: string | null | undefined): string {
                     <div class="stat-tile-label">
                       当前状态
                     </div>
-                    <div class="stat-tile-value" style="font-size: 14px;">
+                    <div
+                      class="stat-tile-value"
+                      style="font-size: 14px;"
+                    >
                       <el-tag
                         v-if="statsMeta?.status"
                         :type="statsMeta.status === 'active' ? 'success' : 'warning'"
@@ -929,7 +943,7 @@ function formatDate(iso: string | null | undefined): string {
           name="data-truth"
         >
           <BusinessBanner
-            type="error"
+            :type="dataTruthBannerType"
             title="数据源真理报告 — 跨模块 KPI 口径审计"
             description="每个 KPI 数字都有三层来源：API 返回值 / PostgreSQL 直查 / Neo4j 直查。当数字不一致时，说明底层数据存在孤儿节点或同步缺失。Phase 4 修复重点。"
             :meta="[
@@ -941,7 +955,9 @@ function formatDate(iso: string | null | undefined): string {
             shadow="never"
             class="tab-card"
           >
-            <DataTruthPanel />
+            <DataTruthPanel
+              @overall-status="(s: string) => { dataTruthBannerType = s === 'ok' ? 'success' : s === 'warn' ? 'warning' : 'error' }"
+            />
           </el-card>
         </el-tab-pane>
 

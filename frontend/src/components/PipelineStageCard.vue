@@ -94,6 +94,7 @@ export interface StageData {
   records_processed: number
   records_seen?: number          // Phase 3.8.11
   errors: string[]
+  warnings?: string[]            // 非致命警告（如 crawl 0 条采集），不判 failed
   progress: number
   retry_count?: number
   depends_on?: string[]
@@ -224,6 +225,16 @@ const formattedDuration = computed(() => {
 
 const errorsExpanded = ref(false)
 
+// 非致命警告（crawl 0 条采集等）：去重 + 计数，与 errors 同风格渲染
+const warningsExpanded = ref(false)
+const dedupedWarnings = computed(() => {
+  const counts = new Map<string, number>()
+  for (const w of props.stage.warnings ?? []) {
+    counts.set(w, (counts.get(w) || 0) + 1)
+  }
+  return Array.from(counts.entries()).map(([msg, count]) => ({ msg, count }))
+})
+
 // Phase 16 残留闭环: 错误去重 + 计数，避免同一错误重复罗列 20 次
 const dedupedErrors = computed(() => {
   const counts = new Map<string, number>()
@@ -244,13 +255,37 @@ const formattedRecords = computed(() => {
   return String(n)
 })
 
-// 实际进度：优先 liveActivity.progress，否则 stage.progress
+// D8c: 各阶段「处理量」语义口径 —— 普通用户视角，每个数字都要自解释
+const STAGE_METRIC_MEANING: Record<string, (s: { records_processed?: number; records_seen?: number; records_new?: number | null; records_duplicate?: number | null }) => string> = {
+  crawl: (s) => {
+    const fresh = s.records_new
+    const dup = s.records_duplicate
+    if (typeof fresh === 'number' && typeof dup === 'number') {
+      return `本次从平台抓到 ${s.records_seen ?? 0} 条；实际新入库 ${fresh} 条（其余 ${dup} 条与库中已有内容重复，不会重复存储）`
+    }
+    return '抓到 = 本次从平台拉取的全部条目；新增 = 实际入库的新记录（其余为已存在的重复内容）'
+  },
+  dedup: (s) => `本阶段处理 ${s.records_processed ?? 0} 条待去重记录（来自上游抓取且尚未入库的新内容）；若为 0 表示上游没有新记录需要去重`,
+  clean: (s) => `本阶段清洗 ${s.records_processed ?? 0} 条去重后记录（去 HTML 标签、规范化文本）；若为 0 表示上游没有新记录需要清洗`,
+  import: (s) => `本阶段用 LLM 抽取 ${s.records_processed ?? 0} 条记录的岗位/技能；若为 0 表示上游没有新记录需要抽取`,
+  graph_sync: (s) => `本阶段扫描 ${s.records_processed ?? 0} 条已审核抽取记录写入图谱（图谱构建以已审核数据为准）`,
+  timeseries: (s) => `本阶段处理 ${s.records_processed ?? 0} 条时间序列样本（技能频次历史）`,
+}
+
+const stageMetricTooltip = computed(() => {
+  const fn = STAGE_METRIC_MEANING[props.stage.name]
+  return fn ? fn(props.stage) : ''
+})
+
+// 实际进度：仅 running 阶段取 liveActivity.progress，终态阶段取持久化 stage.progress
+// 2026-08-12 (pipeline 修复): 原 `liveActivity?.progress ?? stage.progress` 会被残留的
+// SSE 事件覆盖终态 progress（crawl completed 显示 0%）；终态阶段一律用 stage.progress。
 // Phase 16-02 (Fix M3): 防御性 fallback — progress 为 null/undefined 时:
 //   - status=completed → 100% (避免"已完成 0%"矛盾显示)
 //   - 其他 → 0%
 //   - console.warn 提示后端问题 (避免静默掩盖 bug)
 const realProgress = computed(() => {
-  const raw = props.liveActivity?.progress ?? props.stage.progress
+  const raw = isLiveStage.value ? (props.liveActivity?.progress ?? props.stage.progress) : props.stage.progress
   if (raw === null || raw === undefined) {
     if (props.stage.status === 'completed') {
       console.warn(
@@ -509,10 +544,10 @@ const realProgress = computed(() => {
       </div>
       <div class="metric">
         <span class="metric-label">处理量</span>
-        <!-- Phase debug (issue): 加 tooltip 解释"原始 vs 新增" -->
+        <!-- D8c: 各阶段处理量 tooltip 口径说明（普通用户视角） -->
         <el-tooltip
-          v-if="stage.name === 'crawl'"
-          content="原始数据 = 本次爬取的全部条目；新增 = 实际入库的新记录 (其余为已存在的重复内容)"
+          v-if="stageMetricTooltip"
+          :content="stageMetricTooltip"
           placement="top"
         >
           <span class="metric-value metric-value-link">{{ formattedRecords }}</span>
@@ -565,6 +600,45 @@ const realProgress = computed(() => {
               {{ item.msg }}<span
                 v-if="item.count > 1"
                 class="error-repeat-badge"
+              > ×{{ item.count }}</span>
+            </div>
+          </div>
+        </template>
+      </el-alert>
+    </div>
+
+    <!-- 2026-08-12: 非致命警告 (crawl 0 条采集等) — completed 也不隐藏，醒目提示 "⚠" -->
+    <div
+      v-if="(stage.warnings?.length ?? 0) > 0"
+      class="stage-warning-detail"
+    >
+      <el-alert
+        type="warning"
+        :closable="false"
+        effect="light"
+        show-icon
+      >
+        <template #title>
+          <div class="warning-summary">
+            <span class="warning-count-badge">{{ stage.warnings?.length }} 条警告</span>
+            <a
+              href="javascript:void(0)"
+              class="warning-toggle"
+              @click="warningsExpanded = !warningsExpanded"
+            >{{ warningsExpanded ? '收起' : '展开详情' }}</a>
+          </div>
+          <div
+            v-if="warningsExpanded"
+            class="warning-list"
+          >
+            <div
+              v-for="(item, i) in dedupedWarnings"
+              :key="i"
+              class="warning-line"
+            >
+              {{ item.msg }}<span
+                v-if="item.count > 1"
+                class="warning-repeat-badge"
               > ×{{ item.count }}</span>
             </div>
           </div>
@@ -877,5 +951,43 @@ const realProgress = computed(() => {
   background: color-mix(in srgb, var(--destructive) 15%, transparent);
   border-radius: 3px;
   color: var(--destructive);
+}
+
+/* 非致命警告（crawl 0 条采集等） */
+.stage-warning-detail {
+  margin-top: 6px;
+}
+.warning-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.warning-count-badge {
+  font-weight: 600;
+}
+.warning-toggle {
+  font-size: 11px;
+}
+.warning-list {
+  margin-top: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.warning-line {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--warning);
+  word-break: break-all;
+}
+.warning-repeat-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  border-radius: 3px;
+  color: var(--warning);
 }
 </style>

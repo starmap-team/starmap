@@ -18,6 +18,7 @@ interface StageSummary {
   crawlRecords: number
   importRecords: number
   totalDurationMs: number
+  importNote?: string   // 2026-08-12: 采集>0 但入库=0 时的重复说明（如"全部重复，未新增"）
 }
 
 const props = defineProps<{
@@ -97,9 +98,23 @@ const props = defineProps<{
             采集 <strong>{{ props.summary.crawlRecords.toLocaleString() }}</strong> 条 →
             入库 <strong>{{ props.summary.importRecords.toLocaleString() }}</strong> 条,
             累计耗时 <strong>{{ (props.summary.totalDurationMs / 1000).toFixed(0) }}</strong> 秒
+            <span
+              v-if="props.summary.importNote"
+              class="hero-note"
+            >{{ props.summary.importNote }}</span>
           </span>
         </div>
       </div>
     </div>
   </el-card>
 </template>
+
+<style scoped>
+/* 2026-08-12: 采集>0 但入库=0 的重复说明 */
+.hero-note {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--warning);
+  font-weight: 600;
+}
+</style>

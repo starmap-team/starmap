@@ -10,6 +10,12 @@ import { CircleCheck, WarningFilled, CircleClose } from '@element-plus/icons-vue
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 
+// 2026-08-12 (admin 联调): 向父级上报整体诊断状态，供 banner 类型动态化
+// （此前 Admin.vue 的 banner 硬编码 type="error"，报告全 ok 也显示 ERROR）
+const emit = defineEmits<{
+  (e: 'overall-status', status: 'ok' | 'warn' | 'critical'): void
+}>()
+
 interface TruthRow {
   metric: string
   description: string
@@ -40,6 +46,25 @@ const loading = ref(false)
 const reconcileLoading = ref(false)
 const errorMsg = ref<string | null>(null)
 
+// 整体状态 = 各指标行 + 同步健康度 中最差的一档（ok < warn < critical）
+function emitOverallStatus() {
+  if (!report.value) return
+  const rank: Record<string, number> = { ok: 0, warn: 1, critical: 2 }
+  let worst: 'ok' | 'warn' | 'critical' = 'ok'
+  for (const r of report.value.rows || []) {
+    const s = r.status as 'ok' | 'warn' | 'critical'
+    if ((rank[s] ?? 0) > rank[worst]) worst = s
+  }
+  const health = report.value.health
+  if (health) {
+    for (const s of [health.sync_health, health.reconcile_status]) {
+      const key = s as 'ok' | 'warn' | 'critical'
+      if (key && (rank[key] ?? 0) > rank[worst]) worst = key
+    }
+  }
+  emit('overall-status', worst)
+}
+
 async function loadReport(silent = false) {
   loading.value = true
   errorMsg.value = null
@@ -52,6 +77,7 @@ async function loadReport(silent = false) {
     if (report.value) {
       (report.value as any).__clientLoadedAt = new Date().toISOString()
     }
+    emitOverallStatus()
     if (!silent) {
       ElMessage.success('诊断报告已刷新')
     }

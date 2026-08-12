@@ -30,7 +30,10 @@ export interface PipelineStage {
   duration_ms: number
   records_processed: number
   records_seen?: number         // Phase 3.8.11
+  records_new?: number          // crawl 真正新增行
+  records_duplicate?: number    // crawl 重复行
   errors: string[]
+  warnings?: string[]           // 非致命警告（如 crawl 0 条采集）— 不判 failed
   errors_count: number
   retry_count: number
   depends_on: string[]
@@ -79,7 +82,9 @@ export interface PipelineStatus {
   recent_failed_run: PipelineRun | null
   run_counts: Record<string, number>
   active_data_sources: number
-  today_crawl_volume: number
+  today_crawl_volume: number  // 今日爬虫处理量 = 各 run crawl records_processed 之和（含重复）
+  today_crawl_new?: number    // 今日 jd_raw 实际新增行数（爬虫 upsert inserted 之和）
+  total_jd_raw?: number      // jd_raw 全表行数（历史累计）
   success_rate: number
   avg_quality_score: number
 }

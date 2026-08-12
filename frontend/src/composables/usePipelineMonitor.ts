@@ -157,6 +157,22 @@ export function usePipelineMonitor() {
     }
     const processed = completed + running + failed + cancelled
     const remaining = total - processed - skipped
+    // 2026-08-12 (pipeline 联调): 当采集>0 但入库=0 时，说明本批与库中内容重复，
+    // 追加解释（crawl 阶段持久化 records_new/records_duplicate）。
+    let importNote = ''
+    let progressMessage = `${completed}已完成 / ${total}总阶段, 采集${crawlRecords.toLocaleString()}条/入库${importRecords.toLocaleString()}条, 累计 ${(totalDuration / 1000).toFixed(0)}s`
+    if (crawlRecords > 0 && importRecords === 0) {
+      const crawlStage = stages.find(s => s.name === 'crawl')
+      const dup = crawlStage?.records_duplicate ?? 0
+      const fresh = crawlStage?.records_new ?? 0
+      if (fresh === 0 && dup > 0) {
+        importNote = '（本批全部与库中已有记录重复，未新增）'
+        progressMessage += importNote
+      } else if (fresh === 0) {
+        importNote = '（未产生新增，可能全部重复）'
+        progressMessage += importNote
+      }
+    }
     return {
       total,
       completed,
@@ -171,7 +187,8 @@ export function usePipelineMonitor() {
       importRecords,
       totalDurationMs: totalDuration,
       overallPercent: total > 0 ? Math.round((completed / total) * 100) : 0,
-      progressMessage: `${completed}已完成 / ${total}总阶段, 采集${crawlRecords.toLocaleString()}条/入库${importRecords.toLocaleString()}条, 累计 ${(totalDuration / 1000).toFixed(0)}s`,
+      importNote,
+      progressMessage,
     }
   })
 
@@ -217,41 +234,44 @@ export function usePipelineMonitor() {
   const kpiCards = computed(() => {
     const s = pipeline.pipelineStatus
     const colors = chartColors()
-    const today = s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume : null
-    const lastTotal = s?.last_run?.total_records ?? 0
+    // 2026-08-12 (pipeline 联调): 今日采集量 = 今日各 run crawl 处理量之和（含重复）；
+    // 今日新增 = jd_raw 今日新行；历史累计 = jd_raw 全表行数。三者口径在 status
+    // 聚合器统一，避免"DAG 显示采集 70 但今日 0"的矛盾。
+    const todayVolume = s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume : null
+    const todayNew = s?.today_crawl_new ?? 0
+    const totalJdRaw = s?.total_jd_raw ?? 0
     // Phase 4 P3: 显示最近采集时间，让用户知道数据是否陈旧
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lastCrawlAt = (s as any)?.last_crawl_at as string | undefined
     const lastCrawlLabel = lastCrawlAt
       ? new Date(lastCrawlAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
       : null
+    const successRate = typeof s?.success_rate === 'number' ? s.success_rate : null
     return [
       {
         label: '今日采集量',
-        value: today !== null ? today.toLocaleString() : '--',
-        sub: today !== null
-          ? (today > 0
-              ? '条 (今日累计)'
-              : `今日 0 / 历史累计 ${lastTotal} · 最近 ${lastCrawlLabel ?? '未知'}`)
-          : '条 (今日累计)',
-        color: today !== null && today > 0 ? colors.primary : colors.muted,
+        value: todayVolume !== null ? todayVolume.toLocaleString() : '--',
+        sub: todayVolume !== null
+          ? `今日新增 ${todayNew} · 历史累计 ${totalJdRaw.toLocaleString()} 条${lastCrawlLabel ? ` · 最近 ${lastCrawlLabel}` : ''}`
+          : '条 (今日处理量)',
+        color: todayVolume !== null && todayVolume > 0 ? colors.primary : colors.muted,
         icon: 'Download',
       },
       {
         label: '采集成功率',
-        value: (s?.today_crawl_volume ?? 0) > 0 && typeof s?.success_rate === 'number'
-          ? `${(s.success_rate * 100).toFixed(1)}%`
-          : '--',
-        sub: (s?.today_crawl_volume ?? 0) > 0 ? '有效/总计' : '今日无采集',
-        color: (s?.today_crawl_volume ?? 0) > 0 ? colors.primary : colors.muted,
+        // 2026-08-12: 恒显近 7 天成功率（原逻辑要求今日采集量>0 才显示，导致 "--"）
+        value: successRate !== null ? `${(successRate * 100).toFixed(1)}%` : '--',
+        sub: `近7天成功/运行总数${todayNew === 0 ? ' · 今日无新增' : ` · 今日新增 ${todayNew}`}`,
+        color: successRate !== null && successRate > 0 ? colors.primary : colors.muted,
         icon: 'CircleCheck',
         trend: 'stable',
       },
       {
-        label: '自动爬虫',
+        label: '活跃数据源',
+        // 2026-08-12: 标签由"自动爬虫"改为"活跃数据源"，避免与下方"可用爬虫源"混淆
         value: typeof s?.active_data_sources === 'number' ? String(s.active_data_sources) : '--',
         sub: typeof s?.active_data_sources === 'number'
-          ? `${s.active_data_sources}个自动数据源 (共${pipeline.dataSources.length}个)`
+          ? `${s.active_data_sources} 个 active（共 ${pipeline.dataSources.length} 个）`
           : '加载中...',
         color: colors.info,
         icon: 'Connection',
