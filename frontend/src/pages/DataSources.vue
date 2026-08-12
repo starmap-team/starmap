@@ -55,7 +55,10 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
     // 后端 /pipeline/crawl-source 按 DataSourceRecord.name 精确匹配（routes.py:475），
     // 特判会导致 DB 名称非 'BOSS' 时 404 —— 直接传 source.name 即可
     const key = source.name
+    // D5: 点击即提示"正在在线爬取"，避免 30-60s 等待期看起来无响应
+    const crawlingMsg = ElMessage.info({ message: `${getSourceNameLabel(source.name)} 正在在线爬取最新职位（约 30-90 秒）...`, duration: 4000 })
     const out = await dsStore.triggerCrawl(key) as { fetched?: number; inserted?: number; duplicate?: number; failed?: number; error_samples?: Array<{ source: string; hash_prefix: string; error: string }> }
+    crawlingMsg.close()
     const fetched = out?.fetched ?? 0
     const inserted = out?.inserted ?? 0
     const duplicate = out?.duplicate ?? 0

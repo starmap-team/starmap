@@ -208,7 +208,13 @@ export const useDataSourceStore = defineStore('datasource', () => {
 
   /** Phase 15 / T2.3: 按需触发单源采集 */
   async function triggerCrawl(source: string) {
-    return request.post(`/pipeline/crawl-source?source=${encodeURIComponent(source)}`) as Promise<unknown>
+    // D5: /crawl-source 是同步爬取（spider 全程 + 限速 2s/请求），沙盒网络差时可达 30-60s。
+    // 默认 axios 30s 会先超时误报，这里单独给 90s 超时（仅此请求，不污染全局）。
+    return request.post(
+      `/pipeline/crawl-source?source=${encodeURIComponent(source)}`,
+      undefined,
+      { timeout: 90000 },
+    ) as Promise<unknown>
   }
 
   return {
