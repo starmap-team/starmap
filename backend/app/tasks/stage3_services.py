@@ -305,6 +305,7 @@ async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
             ).scalars().all()
             extractions = [rec.to_extraction_payload() for rec in records]
             position_id = None
+            name_cn_value: str | None = None
             # D8f: 中文化独立于抽取记录 —— 岗位缺中文名时无论有无抽取记录都补
             pos = (
                 await session.execute(
@@ -317,9 +318,16 @@ async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
                     name_cn = await _translate_position_name(position_name)
                     if name_cn:
                         pos.name_cn = name_cn
+                        name_cn_value = name_cn
                         await session.flush()
                         # D8f fix: session 无 autocommit，flush 后必须 commit 否则回滚
                         await session.commit()
+                else:
+                    name_cn_value = pos.name_cn
+            # D8f: 翻译结果回传 extraction payload → Neo4j 节点同步 name_cn
+            if name_cn_value:
+                for payload in extractions:
+                    payload["name_cn"] = name_cn_value
 
         config = GraphConfig()
         async with config.get_driver() as driver:
@@ -335,7 +343,11 @@ async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
             if not extractions and position_id:
                 from app.core.extraction.graph_writer import merge_position
 
-                await merge_position(driver, {"name": position_name}, canonical_id=position_id)
+                await merge_position(
+                    driver,
+                    {"name": position_name, "name_cn": name_cn_value or ""},
+                    canonical_id=position_id,
+                )
 
         return {
             "status": "completed",

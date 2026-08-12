@@ -320,7 +320,8 @@ async def approve_review_item_endpoint(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     # D8f 闭环: 岗位审核通过 → 立即入图 + LLM 补中文名（不等下一轮流水线）
     item_dict = item.to_dict()
-    if entity_type == "position" and item_dict.get("status") == "approved":
+    # to_dict 键是 review_status（非 status）
+    if entity_type == "position" and item_dict.get("review_status") == "approved":
         position_name = item_dict.get("name", "")
         if position_name:
             from app.tasks.stage3_services import sync_approved_position_to_graph
