@@ -15,7 +15,6 @@ from app.models import (
     JDExtractionRecord,
     PositionRecord,
     PositionSkillRelation,
-    RawJDRecord,
     SkillAliasRecord,
     SkillRecord,
     SystemConfig,
@@ -37,8 +36,7 @@ class TestModelImports:
             JDExtractionRecord,
             PositionRecord,
             PositionSkillRelation,
-            RawJDRecord,
-            SkillAliasRecord,
+                    SkillAliasRecord,
             SkillRecord,
             SystemConfig,
         ]
@@ -52,8 +50,7 @@ class TestModelImports:
             JDExtractionRecord,
             PositionRecord,
             PositionSkillRelation,
-            RawJDRecord,
-            SkillAliasRecord,
+                    SkillAliasRecord,
             SkillRecord,
             SystemConfig,
         ]
@@ -76,14 +73,6 @@ class TestModelInstantiation:
         assert record.job_title == "Software Engineer"
         assert record.extracted_skills == {"python": 0.9}
 
-    def test_raw_jd_record(self):
-        """RawJDRecord can be instantiated."""
-        record = RawJDRecord(
-            raw_text="raw job description text",
-            source_platform="linkedin",
-        )
-        assert record.raw_text == "raw job description text"
-        assert record.source_platform == "linkedin"
 
     def test_skill_record(self):
         """SkillRecord can be instantiated."""

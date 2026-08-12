@@ -86,45 +86,6 @@ class JDExtractionRecord(Base):
         return payload
 
 
-class RawJDRecord(Base):
-    """业务说明：原始JD爬取数据表。
-
-    存储从各招聘平台爬取的原始职位数据，是JD提取的上游数据源。
-    保留原始文本用于数据溯源、去重和质量审计。
-    与JDExtractionRecord构成一对多关系：一条原始JD可触发多次提取。
-    """
-
-    __tablename__ = "raw_jd_records"
-
-    # 业务说明：原始记录唯一标识
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
-    )
-    # 业务说明：JD来源URL，用于溯源和数据更新
-    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # 业务说明：数据来源平台标识，如"BOSS直聘"、"拉勾网"等
-    # 技术说明：默认"manual"表示手动录入，用于区分自动化爬取和人工数据
-    source_platform: Mapped[str] = mapped_column(String(50), nullable=False, default="manual")
-    # 业务说明：原始职位描述文本，未经任何清洗处理
-    raw_text: Mapped[str] = mapped_column(Text, nullable=False)
-    # 业务说明：原始职位标题，可能包含平台特有的格式标记
-    title_raw: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # 业务说明：发布职位的公司名称
-    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # 业务说明：数据爬取时间，用于数据新鲜度评估
-    crawl_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
-    )
-    # 业务说明：内容去重哈希值，基于文本内容计算的唯一指纹
-    # 技术说明：建立索引加速重复检测，64位字符串存储SHA-256哈希
-    hash_dedup: Mapped[str] = mapped_column(String(64), nullable=True, index=True)
-    # 业务说明：数据处理状态，追踪从原始数据到提取完成的流程
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
-
-    def __repr__(self) -> str:
-        return f"<RawJDRecord {self.id} title={self.title_raw}>"
-
-
 class SkillAliasRecord(Base):
     """业务说明：技能别名映射表。
 

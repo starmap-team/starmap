@@ -24,7 +24,6 @@ from app.models.extraction_models import (
     JDExtractionRecord,
     PositionRecord,
     PositionSkillRelation,
-    RawJDRecord,
     SkillRecord,
 )
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
@@ -433,14 +432,12 @@ async def get_distribution(
             for s in sources
         ]
     else:
-        # Fallback: aggregate from raw_jd_records by source_platform
+        # D5: 退化路径聚合真实采集表 jd_raw（raw_jd_records 已废弃为死表，2026-08-12 移除）
         fallback_result = await session.execute(
-            sa.select(
-                RawJDRecord.source_platform,
-                sa.func.count().label("count"),
+            sa.text(
+                "SELECT source_site, COUNT(*) AS count "
+                "FROM jd_raw GROUP BY source_site ORDER BY count DESC"
             )
-            .group_by(RawJDRecord.source_platform)
-            .order_by(sa.func.count().desc())
         )
         platform_rows = fallback_result.all()
         total_raw = sum(int(cast(int, r.count)) for r in platform_rows) or 1
