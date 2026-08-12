@@ -328,6 +328,16 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
                 except Exception as exc:
                     logger.exception("Daily reconcile failed: {}", exc)
 
+            # D8 fix: watchdog —— 定期清理超时卡死的 running run（import 等阶段 task
+            # 丢失后 run 永不 completed → 前端 current_run 恒 running 与 DAG 矛盾）。
+            # sweep_orphan_runs 此前从未被调度（只定义无调用），卡死 run 无人清理。
+            try:
+                from app.tasks.celery_app import _sweep_orphan_runs_async
+
+                await _sweep_orphan_runs_async()
+            except Exception as sweep_exc:
+                logger.warning("Watchdog sweep failed (non-fatal): {}", sweep_exc)
+
         except StarMapError:
             raise
         except Exception:

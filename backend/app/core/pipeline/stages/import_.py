@@ -161,7 +161,18 @@ def execute_import(run_id: str) -> dict[str, Any]:
         except Exception as exc:
             logger.warning("pipeline_consistency check failed (non-fatal): {}", exc)
 
-    return {"records_processed": processed, "errors": errors, "extracted_samples": extracted_skills_sample[-5:]}
+    return {
+        "records_processed": processed,
+        "errors": errors,
+        "extracted_samples": extracted_skills_sample[-5:],
+        # D8 fix: 键名与 _mark_stage_completed 对齐（原 extracted_samples 不被消费 →
+        # 详情抽屉/阶段展开看不到抽取的岗位/技能样本）；sub_breakdown 补成功/失败分解
+        "recent_samples": extracted_skills_sample[-5:],
+        "sub_breakdown": {
+            "成功抽取": processed,
+            "失败": len(errors),
+        },
+    }
 
 
 __all__ = ["_update_source_after_import", "execute_import"]

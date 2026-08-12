@@ -83,7 +83,17 @@ def execute_clean(run_id: str) -> dict[str, Any]:
             run_id, "clean", "failed", current_activity=f"清洗失败: {exc}",
         ))
 
-    return {"records_processed": processed, "errors": errors}
+    return {
+        "records_processed": processed,
+        "errors": errors,
+        # D8 fix: SSE 有 recent_samples 但 return 缺 → _mark_stage_completed 读
+        # result.get("recent_samples") 为 null → 详情抽屉/阶段展开看不到清洗样本
+        "recent_samples": [{"title": t} for t in cleaned_titles[:5]],
+        "sub_breakdown": {
+            "原始总数": processed,
+            "清洗标题": len(cleaned_titles),
+        },
+    }
 
 
 __all__ = ["execute_clean"]

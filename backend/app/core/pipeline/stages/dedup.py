@@ -64,6 +64,10 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
     duplicates_found = 0
     errors: list[str] = []
     start = time.monotonic()
+    # D8 fix: unique_jds/duplicates 在 except 路径（dedup_service 抛错）未定义 →
+    # UnboundLocalError。初始化默认值，失败时返回 0 分解（诚实空态）。
+    unique_jds: list[Any] = []
+    duplicates = 0
 
     run_async(publish_stage_progress(
         run_id, "dedup", "running",
@@ -83,7 +87,14 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
                     records_processed=0, current_activity="无待去重记录",
                     elapsed_ms=int((time.monotonic() - start) * 1000),
                 ))
-                return {"records_processed": 0, "errors": errors, "duplicates_found": 0}
+                return {
+                    "records_processed": 0,
+                    "errors": errors,
+                    "duplicates_found": 0,
+                    # D8: 0 条时也返回分解，详情抽屉/阶段展开不显示空白
+                    "sub_breakdown": {"原始总数": 0, "唯一数": 0, "重复数": 0},
+                    "recent_samples": [],
+                }
 
             processed = len(raw_jds)
             run_async(publish_stage_progress(
@@ -154,7 +165,19 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
         except Exception as exc:
             logger.warning("_update_source_after_dedup failed (non-fatal): {}", exc)
 
-    return {"records_processed": processed, "errors": errors, "duplicates_found": duplicates_found}
+    return {
+        "records_processed": processed,
+        "errors": errors,
+        "duplicates_found": duplicates_found,
+        # 2026-08-12 (pipeline 联调): 持久化去重分解，详情抽屉可解释"为何入库 0"
+        "sub_breakdown": {
+            "原始总数": processed,
+            "唯一数": len(unique_jds),
+            "重复数": duplicates,
+        },
+        # D8 fix: 补去重后唯一记录标题样本（详情抽屉展示去重结果）
+        "recent_samples": [{"title": jd.job_title[:60] if getattr(jd, "job_title", "") else "未命名"} for jd in unique_jds[:5]],
+    }
 
 
 __all__ = ["_update_source_after_dedup", "execute_dedup"]

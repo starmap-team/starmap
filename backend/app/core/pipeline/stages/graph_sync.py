@@ -165,7 +165,14 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
             run_id, "graph_sync", "failed", current_activity=f"图谱同步失败: {exc}",
         ))
 
-    return {"records_processed": processed, "errors": errors, "outbox_id": str(outbox_id)}
+    return {
+        "records_processed": processed,
+        "errors": errors,
+        "outbox_id": str(outbox_id),
+        # D8 fix: SSE publish 有 sub_breakdown 但 return 缺 → 持久化丢失 →
+        # 图谱构建阶段展开无「节点/关系/triples」详情
+        "sub_breakdown": {"节点": nodes, "关系": edges, "triples": triples_merged},
+    }
 
 
 # ── Position PG↔Neo4j 一致性校验（Phase 02 D-03；沿 M3 D-06 仅观察不阻断）──

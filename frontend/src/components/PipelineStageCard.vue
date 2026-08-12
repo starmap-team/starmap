@@ -158,22 +158,29 @@ const stageDesc = computed(() => {
 const StageIcon = computed(() => STAGE_ICONS[props.stage.name] || Connection)
 
 // 实时活动（合并 props.stage 与 liveActivity，优先取 live）
+// 2026-08-12 (pipeline 修复): 仅 running 阶段采用 liveActivity —— 终态阶段必须用
+// 持久化的 stage 数据，否则上一次 run 的 SSE 残留事件会覆盖真实 progress（如
+// completed 却显示 0%）。liveActivity 在触发新 run 前不会清空（cron/API 触发路径）。
+const isLiveStage = computed(() => props.stage.status === 'running')
+
 const currentActivity = computed(() => {
-  return props.liveActivity?.current_activity || props.stage.current_activity || ''
+  return (isLiveStage.value ? props.liveActivity?.current_activity : '') || props.stage.current_activity || ''
 })
 
 const recentSamples = computed(() => {
-  return props.liveActivity?.recent_samples || props.stage.recent_samples || []
+  return (isLiveStage.value ? props.liveActivity?.recent_samples : null) || props.stage.recent_samples || []
 })
 
 const subBreakdown = computed(() => {
-  return props.liveActivity?.sub_breakdown || props.stage.sub_breakdown || {}
+  return (isLiveStage.value ? props.liveActivity?.sub_breakdown : null) || props.stage.sub_breakdown || {}
 })
 
 // Phase 3.8.2: 增强子项分解 — 包含 disabled (-1) 和 无蜘蛛 (-2) 的源
+// D8 fix: 不再过滤 v===0 —— dedup/clean/import 的 0 条分解（诚实空态）也应展示，
+// 否则"无待去重/0 条"时卡片无任何分解信息，用户以为详情丢失
 const breakdownItems = computed(() => {
   const items = Object.entries(subBreakdown.value)
-    .filter(([_, v]) => typeof v === 'number' && v !== 0)
+    .filter(([_, v]) => typeof v === 'number')
     .map(([key, value]) => ({ key, value: Number(value) }))
   return items.sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 6)
 })
