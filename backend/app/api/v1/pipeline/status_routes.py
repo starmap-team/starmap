@@ -136,6 +136,8 @@ async def get_pipeline_status(
         run_counts=data["run_counts"],
         active_data_sources=data["active_data_sources"],
         today_crawl_volume=aggregates["today_crawl_volume"],
+        today_crawl_new=aggregates.get("today_crawl_new", 0),
+        total_jd_raw=aggregates.get("total_jd_raw", 0),
         last_crawl_at=last_crawl_iso,
         success_rate=aggregates["success_rate"],
         avg_quality_score=aggregates["avg_quality_score"],
@@ -158,17 +160,13 @@ async def get_pipeline_stages(
     # cancelled 且 0 记录的 run 是 zombie/孤儿（典型：Celery worker 重启后 task 引用丢失），
     # 它的 stage 快照里常含 “crawl|running” 的过期 in-flight 状态，呈现给用户=误报。
     # 优先：running → completed(records>0) → failed → cancelled(records>0) → latest cancelled（最差兜底）。
-    from sqlalchemy import case as _case
-
-    ordering = _case(
-        (PipelineRun.status == "running", 0),
-        ((PipelineRun.status == "completed") & (PipelineRun.total_records > 0), 1),
-        (PipelineRun.status == "failed", 2),
-        ((PipelineRun.status == "cancelled") & (PipelineRun.total_records > 0), 3),
-        else_=4,
-    )
+    # 2026-08-12 (pipeline 修复): 改绑最新一条 run（含 failed/cancelled）。
+    # 原逻辑按 "running > completed(records>0) > failed" 择优，导致时间线永远定格在
+    # 最近一条 completed run 上，最新失败的 run 在运行历史中可见但在 DAG 中被无视，
+    # 用户看到 "记录 failed 但 DAG 全绿 100%" 的矛盾。现在 DAG 与运行历史始终一致；
+    # failed run 的红色 stage + 错误明细由前端 PipelineStageCard 渲染。
     result = await session.execute(
-        select(PipelineRun).order_by(ordering, PipelineRun.started_at.desc()).limit(1)
+        select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(1)
     )
     run = result.scalar_one_or_none()
     if run is None:
@@ -194,10 +192,18 @@ async def get_pipeline_stages(
                 "progress": stage.get("progress", 0.0),
                 "duration_ms": stage.get("duration_ms", 0),
                 "records_processed": stage.get("records_processed", 0),
+                "records_new": stage.get("records_new"),
+                "records_duplicate": stage.get("records_duplicate"),
                 "errors": stage.get("errors", []),
                 "errors_count": stage.get("errors_count", len(stage.get("errors", []))),
+                "warnings": stage.get("warnings", []),
                 "retry_count": stage.get("retry_count", 0),
                 "depends_on": stage.get("depends_on", []),
+                # D8 fix: 序列化漏传 recent_samples/sub_breakdown/current_activity →
+                # DAG 卡片展开 + 运行详情 drawer 看不到"爬了哪些岗位/技能"（DB 有但 API 丢弃）
+                "recent_samples": stage.get("recent_samples", []),
+                "sub_breakdown": stage.get("sub_breakdown", {}),
+                "current_activity": stage.get("current_activity", ""),
                 "run_id": str(run.id),
                 "run_status": run.status,
             }

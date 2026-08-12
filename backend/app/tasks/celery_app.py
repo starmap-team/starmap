@@ -272,7 +272,11 @@ async def _execute_scheduled_run(schedule_id: str) -> None:
             return
 
         from app.core.pipeline.executor import trigger_and_start
-        await trigger_and_start(run_type=schedule.run_type, selected_stages=schedule.selected_stages)
+        await trigger_and_start(
+            run_type=schedule.run_type,
+            selected_stages=schedule.selected_stages,
+            selected_sources=schedule.selected_sources,
+        )
 
         schedule.last_run_at = datetime.now(UTC)
         try:

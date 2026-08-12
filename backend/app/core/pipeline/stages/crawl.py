@@ -81,25 +81,56 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
     Returns a list of config dicts, each with: platform, keyword, max_count, source_name.
     Falls back to empty list if no active sources found (caller handles defaults).
 
+    D8: 若 run 指定了 selected_sources（触发/调度时自选源），按名称过滤；
+    null/空 = 全部 active 的 crawler/api/rss 源（向后兼容）。
     Each DataSourceRecord.config should contain:
         {"keyword": "python", "max_count": 50, "platform": "bosszhipin"}
     """
     try:
         session_factory = get_session_factory()
         async with session_factory() as session:
-            from app.models.pipeline_models import DataSourceRecord
+            from app.models.pipeline_models import DataSourceRecord, PipelineRun
+
+            # D8: 读取 run 的 selected_sources（触发/调度时手动自选源）
+            selected: list[str] | None = None
+            if run_id:
+                run_row = await session.execute(
+                    select(PipelineRun.id, PipelineRun.selected_sources)
+                    .where(PipelineRun.id == run_id)
+                )
+                run_meta = run_row.first()
+                if run_meta and run_meta.selected_sources:
+                    selected = list(run_meta.selected_sources)
 
             # PLAN-005: api/rss 源同样参与 crawl 阶段（Phase 15 修复在 rebase 中丢失，恢复）
-            result = await session.execute(
-                select(DataSourceRecord).where(
-                    DataSourceRecord.source_type.in_(["crawler", "api", "rss"]),
-                    DataSourceRecord.status == "active",
+            # D8 fix: 当手动指定了 selected_sources 时，直接按名称查这些源（不限制
+            # source_type —— job_board/blog 型如 V2EX/掘金也在可选项内），否则用户
+            # 选了源却因 source_type 过滤被排除 → fallback 默认源（日志实证）。
+            if selected:
+                result = await session.execute(
+                    select(DataSourceRecord).where(
+                        DataSourceRecord.name.in_(selected),
+                        DataSourceRecord.status == "active",
+                    )
                 )
-            )
+            else:
+                result = await session.execute(
+                    select(DataSourceRecord).where(
+                        DataSourceRecord.source_type.in_(["crawler", "api", "rss"]),
+                        DataSourceRecord.status == "active",
+                    )
+                )
             sources = result.scalars().all()
             configs: list[dict[str, Any]] = []
             for ds in sources:
                 if ds.config is None:
+                    continue
+                # D8: 选源过滤 —— 指定了源但当前 ds 不在列表内则跳过
+                if selected and ds.name not in selected:
+                    logger.info(
+                        "D8 source filter: skip '{}' (not in selected_sources={})",
+                        ds.name, selected,
+                    )
                     continue
                 # Build per-source config: merge record-level metadata with config JSON
                 cfg = dict(ds.config)

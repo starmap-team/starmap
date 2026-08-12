@@ -41,6 +41,7 @@ async def create_schedule(
         cron_expression=body.cron_expression,
         run_type=body.run_type,
         selected_stages=body.selected_stages,
+        selected_sources=body.selected_sources,
         enabled=body.enabled,
     )
     try:
@@ -74,6 +75,7 @@ async def update_schedule(
     schedule.cron_expression = body.cron_expression
     schedule.run_type = body.run_type
     schedule.selected_stages = body.selected_stages
+    schedule.selected_sources = body.selected_sources
     schedule.enabled = body.enabled
     await session.flush()
     await session.commit()
@@ -113,6 +115,7 @@ async def trigger_schedule(
     run = await trigger_and_start(
         run_type=schedule.run_type,
         selected_stages=schedule.selected_stages,
+        selected_sources=schedule.selected_sources,
     )
     # ponytail: update last_run_at on the schedule row
     schedule.last_run_at = run.started_at

@@ -144,6 +144,7 @@ async def create_run(
     *,
     run_type: str = "full",
     selected_stages: list[str] | None = None,
+    selected_sources: list[str] | None = None,
 ) -> PipelineRun:
     """Create a new PipelineRun record with DAG-aware stage initialization."""
     # Validate run_type
@@ -163,6 +164,7 @@ async def create_run(
         quality_score=0.0,
         error_log=None,
         selected_stages=selected_stages,
+        selected_sources=selected_sources,
     )
     session.add(run)
     await session.flush()

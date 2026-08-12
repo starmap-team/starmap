@@ -23,11 +23,12 @@ export function useSchedules(options: SchedulesOptions = {}) {
     cron_expression: '0 2 * * *',
     run_type: 'incremental' as 'full' | 'incremental',
     selected_stages: null as string[] | null,
+    selected_sources: null as string[] | null,
     enabled: true,
   })
 
   function openScheduleDialog() {
-    scheduleForm.value = { name: '', cron_expression: '0 2 * * *', run_type: 'incremental', selected_stages: null, enabled: true }
+    scheduleForm.value = { name: '', cron_expression: '0 2 * * *', run_type: 'incremental', selected_stages: null, selected_sources: null, enabled: true }
     scheduleDialogVisible.value = true
   }
 

@@ -3,7 +3,7 @@
  * 数据流水线监控页 — Phase 03 Plan 03 Task 8 拆子组件后瘦身 < 600 行。
  * 仅保留顶层布局 + KPI 卡片 + DAG 区 + 子组件挂载点 + 闭环验证编排。
  */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { QuestionFilled, Refresh, Setting, Timer, VideoPlay, RefreshRight } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -62,6 +62,7 @@ const {
   actionLoading,
   retryingStages,
   selectedStages,
+  selectedSources,
   triggerDialogVisible,
   triggerRunType,
   openTriggerDialog,
@@ -75,6 +76,17 @@ const {
   onAfterTrigger: () => { refreshInterval.value = 5; startAutoRefresh() },
   onAfterMutation: loadAll,
 })
+
+// D8: 触发/调度对话框可选数据源 —— 全部 active 的爬虫源（有 config.platform 的）
+// 用 pipeline store 的 dataSources（loadAll 已加载），而非 datasource store
+const triggerSourceOptions = computed(() =>
+  (pipeline.dataSources || [])
+    .filter(s => s.status === 'active' && s.config?.platform)
+    .map(s => ({
+      name: s.name,
+      label: getSourceNameLabel(s.name),
+    })),
+)
 
 const {
   scheduleLoading,
@@ -93,7 +105,7 @@ const glossaryVisible = ref(false)
 // ── Phase 3.8.9: 触发后无需 verifyState — triggerPipeline 内部已 fetchStatus/fetchStages ──
 async function handleTriggerWithVerify() {
   pipeline.resetLiveActivity()
-  const ok = await trigger(selectedStages.value, triggerRunType.value)
+  const ok = await trigger(selectedStages.value, triggerRunType.value, selectedSources.value)
   if (ok) {
     triggerDialogVisible.value = false
   } else {
@@ -511,9 +523,12 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
         :selected-stages="selectedStages"
         :available-stages="ALL_STAGE_NAMES"
         :stage-labels="STAGE_LABELS"
+        :selected-sources="selectedSources"
+        :available-sources="triggerSourceOptions"
         :loading="actionLoading"
         @update:run-type="triggerRunType = $event"
         @update:selected-stages="selectedStages = $event"
+        @update:selected-sources="selectedSources = $event"
         @submit="handleTriggerWithVerify"
       />
 
@@ -521,6 +536,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
       <ScheduleForm
         v-model="scheduleDialogVisible"
         :form="scheduleForm"
+        :available-sources="triggerSourceOptions"
         :loading="scheduleLoading"
         @update:form="scheduleForm = $event"
         @submit="handleCreateSchedule"

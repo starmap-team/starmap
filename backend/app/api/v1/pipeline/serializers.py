@@ -24,6 +24,7 @@ def serialize_run(run: PipelineRun) -> PipelineRunResponse:
         quality_score=run.quality_score,
         error_log=run.error_log,
         selected_stages=run.selected_stages,
+        selected_sources=run.selected_sources,
     )
 
 
@@ -50,6 +51,7 @@ def serialize_schedule(s: PipelineSchedule) -> ScheduleResponse:
         cron_expression=s.cron_expression,
         run_type=s.run_type,
         selected_stages=s.selected_stages,
+        selected_sources=s.selected_sources,
         enabled=s.enabled,
         last_run_at=s.last_run_at.isoformat() if s.last_run_at else None,
         next_run_at=s.next_run_at.isoformat() if s.next_run_at else None,

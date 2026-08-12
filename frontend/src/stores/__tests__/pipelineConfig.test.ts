@@ -44,7 +44,7 @@ describe('usePipelineConfigStore', () => {
   it('should fetch schedules', async () => {
     const request = (await import('@/api/request')).default
     const mockSchedules = [
-      { id: 'sch-1', name: 'Daily Crawl', cron_expression: '0 2 * * *', run_type: 'incremental', selected_stages: null, enabled: true, last_run_at: null, next_run_at: '2024-01-02T02:00:00Z', created_at: '2024-01-01' },
+      { id: 'sch-1', name: 'Daily Crawl', cron_expression: '0 2 * * *', run_type: 'incremental', selected_stages: null, selected_sources: null, enabled: true, last_run_at: null, next_run_at: '2024-01-02T02:00:00Z', created_at: '2024-01-01' },
     ]
     vi.mocked(request.get).mockResolvedValueOnce(mockSchedules)
 
@@ -77,14 +77,14 @@ describe('usePipelineConfigStore', () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.post).mockResolvedValueOnce({})
     const mockSchedules = [
-      { id: 'sch-1', name: 'New Schedule', cron_expression: '0 3 * * *', run_type: 'full', selected_stages: null, enabled: true, last_run_at: null, next_run_at: null, created_at: '2024-01-01' },
+      { id: 'sch-1', name: 'New Schedule', cron_expression: '0 3 * * *', run_type: 'full', selected_stages: null, selected_sources: null, enabled: true, last_run_at: null, next_run_at: null, created_at: '2024-01-01' },
     ]
     vi.mocked(request.get).mockResolvedValueOnce(mockSchedules)
 
     const store = usePipelineConfigStore()
-    await store.createSchedule({ name: 'New Schedule', cron_expression: '0 3 * * *', run_type: 'full', selected_stages: null, enabled: true })
+    await store.createSchedule({ name: 'New Schedule', cron_expression: '0 3 * * *', run_type: 'full', selected_stages: null, selected_sources: null, enabled: true })
 
-    expect(request.post).toHaveBeenCalledWith('/pipeline/schedules', { name: 'New Schedule', cron_expression: '0 3 * * *', run_type: 'full', selected_stages: null, enabled: true })
+    expect(request.post).toHaveBeenCalledWith('/pipeline/schedules', { name: 'New Schedule', cron_expression: '0 3 * * *', run_type: 'full', selected_stages: null, selected_sources: null, enabled: true })
     expect(store.scheduleLoading).toBe(false)
   })
 
@@ -96,9 +96,9 @@ describe('usePipelineConfigStore', () => {
     vi.mocked(request.get).mockResolvedValueOnce([])
 
     const store = usePipelineConfigStore()
-    await store.updateSchedule('sch-1', { name: 'Updated', cron_expression: '0 4 * * *', run_type: 'incremental', selected_stages: null, enabled: false })
+    await store.updateSchedule('sch-1', { name: 'Updated', cron_expression: '0 4 * * *', run_type: 'incremental', selected_stages: null, selected_sources: null, enabled: false })
 
-    expect(request.put).toHaveBeenCalledWith('/pipeline/schedules/sch-1', { name: 'Updated', cron_expression: '0 4 * * *', run_type: 'incremental', selected_stages: null, enabled: false })
+    expect(request.put).toHaveBeenCalledWith('/pipeline/schedules/sch-1', { name: 'Updated', cron_expression: '0 4 * * *', run_type: 'incremental', selected_stages: null, selected_sources: null, enabled: false })
     expect(store.scheduleLoading).toBe(false)
   })
 
@@ -174,7 +174,7 @@ describe('usePipelineConfigStore', () => {
     vi.mocked(request.post).mockRejectedValueOnce(new Error('Create failed'))
 
     const store = usePipelineConfigStore()
-    await store.createSchedule({ name: 'Test', cron_expression: '0 0 * * *', run_type: 'full', selected_stages: null, enabled: true })
+    await store.createSchedule({ name: 'Test', cron_expression: '0 0 * * *', run_type: 'full', selected_stages: null, selected_sources: null, enabled: true })
 
     expect(store.error).toBe('Create failed')
     expect(store.scheduleLoading).toBe(false)

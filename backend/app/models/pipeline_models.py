@@ -78,6 +78,12 @@ class PipelineRun(Base):
         JSON, nullable=True,
         comment="List of stage names to execute; null = all stages",
     )
+    # D8: 指定爬取的特定数据源列表（null/空 = 全部源）
+    # 技术说明：JSON数组格式，元素为 data_sources.name；空/None = 全部 active 源
+    selected_sources: Mapped[list | None] = mapped_column(
+        JSON, nullable=True,
+        comment="List of source names to crawl; null/empty = all sources",
+    )
 
     def __repr__(self) -> (
         str
@@ -118,6 +124,8 @@ class PipelineSchedule(Base):
     # 业务说明：指定调度触发的特定阶段列表
     # 技术说明：JSON数组格式，null表示执行所有阶段
     selected_stages: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # D8: 指定调度爬取的特定数据源列表（null/空 = 全部源）
+    selected_sources: Mapped[list | None] = mapped_column(JSON, nullable=True)
     # 业务说明：调度任务是否启用，用于临时暂停而不删除配置
     # 技术说明：默认True，设置为False时调度器跳过该任务
     enabled: Mapped[bool] = mapped_column(

@@ -108,6 +108,7 @@ def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any
                 "raw_html": html[:10000],
                 "salary_min": 0,
                 "salary_max": 0,
+                "location": "掘金",  # D8: 缺键 → 自动 DAG crawl KeyError
                 "publish_date": now[:10],
                 # D6 fix: content_hash 曾为空串 → 全部记录共享同一空 hash，
                 # ON CONFLICT dedup 失效（10 篇只有 1 篇入库）。改用 URL 摘要。

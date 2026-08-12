@@ -14,6 +14,7 @@ export interface PipelineSchedule {
   cron_expression: string
   run_type: 'full' | 'incremental'
   selected_stages: string[] | null
+  selected_sources: string[] | null
   enabled: boolean
   last_run_at: string | null
   next_run_at: string | null

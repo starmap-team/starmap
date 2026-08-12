@@ -19,6 +19,7 @@ import type { DataSourceDetail } from '@/types/datasource'
 
 // Spider 注册表 (与后端 executor.py 一致)
 // Phase 15-01: 新增 5 个免费 API/Feed 适配器
+// D8: 补 remoteok/juejin（D6 迁移 034 新增源，缺此映射 → 适配器显示红色 unavailable 叹号）
 const SUPPORTED_SPIDERS = {
   bosszhipin: { label: 'BOSS直聘 (实验性)', icon: '📋' },
   '51job': { label: '前程无忧 (实验性)', icon: '💼' },
@@ -28,6 +29,8 @@ const SUPPORTED_SPIDERS = {
   arbeitnow: { label: 'Arbeitnow (远程)', icon: '💼' },
   jobicy: { label: 'Jobicy (远程)', icon: '💻' },
   weworkremotely: { label: 'WeWorkRemotely', icon: '🏠' },
+  remoteok: { label: 'RemoteOK (远程)', icon: '❓' },
+  juejin: { label: '掘金 (技术博客)', icon: '📝' },
   himalayas: { label: 'Himalayas (404)', icon: '⛰️' },
 } as const
 
@@ -85,11 +88,14 @@ const enhancedSources = computed<DataSourceWithStatus[]>(() => {
 })
 
 // 按类型分组
+// 2026-08-12 (pipeline 联调): 可用源口径对齐后端 _get_crawl_configs —— 后端 crawl
+// 实际抓取 source_type ∈ [crawler, api, rss] 的源，而此前前端只统计 source_type==='crawler'
+// 导致"自动爬虫 7" 但"可用数据源 0" 的矛盾（7 源全是 api/rss/job_board，无一 crawler 型）。
 const crawlerSources = computed(() =>
-  enhancedSources.value.filter(s => s.source_type === 'crawler')
+  enhancedSources.value.filter(s => ['crawler', 'api', 'rss'].includes(s.source_type))
 )
 const otherSources = computed(() =>
-  enhancedSources.value.filter(s => s.source_type !== 'crawler')
+  enhancedSources.value.filter(s => !['crawler', 'api', 'rss'].includes(s.source_type))
 )
 
 const enabledCrawlers = computed(() =>
@@ -531,6 +537,33 @@ function formatRecords(n: number) {
               <template v-else-if="row.source_type === 'manual'">
                 手动上传数据源，用户已上传 {{ formatRecords(row.total_records) }} 条
               </template>
+              <template v-else-if="row.source_type === 'esco'">
+                <el-tooltip
+                  content="ESCO 欧盟职业分类标准库 — 提供标准化的技能/职业体系，供图谱技能参考与对齐，不参与爬虫采集"
+                  placement="top"
+                  effect="dark"
+                >
+                  <span class="cursor-help">标准库：图谱技能体系参考（无需采集）</span>
+                </el-tooltip>
+              </template>
+              <template v-else-if="row.source_type === 'blog'">
+                <el-tooltip
+                  content="技术博客源 — 抓取文章作为非结构化技能知识源（如掘金技术社区），参与爬取后产出技术文章数据"
+                  placement="top"
+                  effect="dark"
+                >
+                  <span class="cursor-help">技术博客：非结构化技能知识源（可爬取）</span>
+                </el-tooltip>
+              </template>
+              <template v-else-if="row.source_type === 'job_board'">
+                <el-tooltip
+                  content="招聘网站源 — 配置爬虫适配器后可参与自动 DAG 采集（如 V2EX 酷工作）；未配置适配器则为占位记录"
+                  placement="top"
+                  effect="dark"
+                >
+                  <span class="cursor-help">招聘网站：配置适配器后参与 DAG 采集</span>
+                </el-tooltip>
+              </template>
               <template v-else>
                 {{ row.source_type }} 类型数据源
               </template>
@@ -726,6 +759,12 @@ function formatRecords(n: number) {
 .ds-description {
   font-size: 12px;
   color: var(--muted-foreground);
+}
+
+/* D8: 语义说明可悬停提示 */
+.cursor-help {
+  cursor: help;
+  border-bottom: 1px dashed var(--border-color, #dcdfe6);
 }
 
 /* 空状态 */

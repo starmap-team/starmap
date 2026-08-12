@@ -202,12 +202,18 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     }
   }
 
-  async function triggerPipeline(runType: string = 'full', selectedStages?: string[]) {
+  async function triggerPipeline(
+    runType: string = 'full',
+    selectedStages?: string[],
+    selectedSources?: string[],
+  ) {
     loading.value = true
     error.value = null
     try {
       const body: Record<string, unknown> = { run_type: runType }
-      if (selectedStages) body.selected_stages = selectedStages
+      if (selectedStages?.length) body.selected_stages = selectedStages
+      // D8: 手动触发支持自选源（空/未选 = 全部源）
+      if (selectedSources?.length) body.selected_sources = selectedSources
       await request.post('/pipeline/trigger', body)
       await fetchStatus()
       await fetchStages()

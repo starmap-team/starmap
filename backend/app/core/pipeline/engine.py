@@ -166,6 +166,7 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
 async def trigger_and_start(
     run_type: str = "full",
     selected_stages: list[str] | None = None,
+    selected_sources: list[str] | None = None,
 ) -> PipelineRun:
     """Create a pipeline run and start executing the first ready stage(s).
 
@@ -190,7 +191,12 @@ async def trigger_and_start(
                     old_run.id, old_run.started_at,
                     (datetime.now(UTC) - old_run.started_at).total_seconds() / 3600,
                 )
-            run = await create_run(session, run_type=run_type, selected_stages=selected_stages)
+            run = await create_run(
+                session,
+                run_type=run_type,
+                selected_stages=selected_stages,
+                selected_sources=selected_sources,
+            )
             run_id = run.id
 
     # Advance the DAG — dispatches first stage(s)

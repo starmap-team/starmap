@@ -62,6 +62,7 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
             "raw_html": (j.get("description") or "")[:10000],
             "salary_min": int(j.get("salary_min") or 0),
             "salary_max": int(j.get("salary_max") or 0),
+            "location": (j.get("location") or "Remote")[:200],  # D8: 缺键 → 自动 DAG crawl KeyError
             "publish_date": str(j.get("date") or now)[:10],
             # D6 fix: content_hash 曾为空串 → 所有记录共享同一空 hash，ON CONFLICT
             # dedup 失效（20 条全部判 duplicate 一条不入库）。改用 标题+描述 摘要。

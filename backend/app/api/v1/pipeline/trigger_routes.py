@@ -85,6 +85,7 @@ async def trigger_pipeline(
     run = await trigger_and_start(
         run_type=body.run_type,
         selected_stages=body.selected_stages,
+        selected_sources=body.selected_sources,
     )
     redis_client = getattr(request.app.state.resources, "redis_client", None)
     await invalidate_status_cache(redis_client)
@@ -92,7 +93,7 @@ async def trigger_pipeline(
         run_id=str(run.id),
         run_type=run.run_type,
         status=run.status,
-        message=f"Pipeline '{run.run_type}' triggered (id={run.id}, stages={body.selected_stages or 'all'})",
+        message=f"Pipeline '{run.run_type}' triggered (id={run.id}, stages={body.selected_stages or 'all'}, sources={body.selected_sources or 'all'})",
     )
 
 

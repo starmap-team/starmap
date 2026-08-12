@@ -12,12 +12,20 @@ export interface ScheduleFormModel {
   cron_expression: string
   run_type: 'full' | 'incremental'
   selected_stages: string[] | null
+  selected_sources: string[] | null
   enabled: boolean
+}
+
+export interface ScheduleSourceOption {
+  name: string
+  label: string
+  icon?: string
 }
 
 const props = defineProps<{
   modelValue: boolean
   form: ScheduleFormModel
+  availableSources?: ScheduleSourceOption[]
   loading?: boolean
 }>()
 
@@ -100,6 +108,33 @@ const cronErrors = computed(() => cronResult.value.errors)
             {{ RUN_TYPE_LABELS.incremental }}
           </el-radio>
         </el-radio-group>
+      </el-form-item>
+      <!-- D8: 定时调度自选源（空 = 全部源） -->
+      <el-form-item label="数据源">
+        <el-tooltip
+          content="选择定时触发时要爬取的源；不选 = 全部启用的爬虫源。"
+          placement="top"
+          effect="dark"
+        >
+          <el-checkbox-group
+            :model-value="form.selected_sources ?? []"
+            @update:model-value="emit('update:form', { ...form, selected_sources: ($event as string[]).length ? ($event as string[]) : null })"
+          >
+            <el-checkbox
+              v-for="src in availableSources ?? []"
+              :key="src.name"
+              :value="src.name"
+            >
+              {{ src.icon ? src.icon + ' ' : '' }}{{ src.label }}
+            </el-checkbox>
+          </el-checkbox-group>
+        </el-tooltip>
+        <div
+          v-if="!form.selected_sources?.length"
+          class="cron-hint-ok"
+        >
+          未选择 = 爬取全部启用源
+        </div>
       </el-form-item>
       <el-form-item label="启用">
         <el-switch

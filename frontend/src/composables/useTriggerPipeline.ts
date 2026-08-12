@@ -26,11 +26,14 @@ export function useTriggerPipeline(options: TriggerPipelineOptions = {}) {
 
   // ── 触发对话框状态 ──
   const selectedStages = ref<string[]>(ALL_STAGE_NAMES)
+  // D8: 手动触发自选源（空数组 = 全部源）
+  const selectedSources = ref<string[]>([])
   const triggerDialogVisible = ref(false)
   const triggerRunType = ref<TriggerRunType>('full')
 
   function openTriggerDialog() {
     selectedStages.value = ALL_STAGE_NAMES
+    selectedSources.value = []  // 默认全部源
     triggerRunType.value = 'full'
     triggerDialogVisible.value = true
   }
@@ -42,14 +45,26 @@ export function useTriggerPipeline(options: TriggerPipelineOptions = {}) {
       ?? null
   })
 
-  async function trigger(stages: string[], runType: TriggerRunType = 'full') {
+  async function trigger(
+    stages: string[],
+    runType: TriggerRunType = 'full',
+    sources?: string[],
+  ) {
+    // 2026-08-12 (pipeline 修复): 防重入 —— 触发请求进行中忽略重复点击。
+    // 之前 run 在 ~1s 内跑完，连点"触发流水线/续跑"会瞬间产生 3~5 条新 run。
+    if (actionLoading.value) {
+      ElMessage.info('流水线正在触发中，请稍候…')
+      return false
+    }
     actionLoading.value = true
     try {
       // Phase 3.7: 触发新 run 时清空实时活动缓存
       runStore.resetLiveActivity()
-      await runStore.triggerPipeline(runType, stages)
+      // D8: sources 传入选源（空/未传 = 全部源）
+      await runStore.triggerPipeline(runType, stages, sources?.length ? sources : undefined)
       const runTypeLabel = RUN_TYPE_LABELS[runType] ?? runType
-      ElMessage.success(`流水线已触发（${runTypeLabel}，${stages.length} 个阶段）`)
+      const sourceNote = sources?.length ? `，${sources.length} 个数据源` : ''
+      ElMessage.success(`流水线已触发（${runTypeLabel}，${stages.length} 个阶段${sourceNote}）`)
       await options.onAfterTrigger?.()
       return true
     } catch (e: unknown) {
@@ -80,9 +95,12 @@ export function useTriggerPipeline(options: TriggerPipelineOptions = {}) {
     }
   }
 
-  async function handleResume() {
-    // Phase 16 B06 fix: 使用 recent_failed_run.id 而非 currentRunId (current_run 永不为 failed)
-    const failedRunId = runStore.pipelineStatus?.recent_failed_run?.id ?? currentRunId.value
+  async function handleResume(runId?: string) {
+    // 2026-08-12 (pipeline 修复): RunHistory 每行的"续跑"按钮会传 row.id，但此前
+    // handleResume 不接收参数，固定用 recent_failed_run 兜底 —— 当另一 run 正在执行
+    // (recent_failed_run=null) 时会把已完成/运行中的 run 误续跑。现在优先用传入的
+    // runId（被点击行），无参（页面头部"断点续跑"按钮）才回退到 recent_failed_run。
+    const failedRunId = runId ?? runStore.pipelineStatus?.recent_failed_run?.id ?? currentRunId.value
     if (!failedRunId) {
       ElMessage.warning('没有可续跑的运行')
       return
@@ -166,6 +184,7 @@ export function useTriggerPipeline(options: TriggerPipelineOptions = {}) {
     retryingStages,
     currentRunId,
     selectedStages,
+    selectedSources,
     triggerDialogVisible,
     triggerRunType,
     openTriggerDialog,

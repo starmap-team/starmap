@@ -72,6 +72,27 @@ const emit = defineEmits<{
         label="Cron 表达式"
         width="140"
       />
+      <!-- D8: 展示调度自选的爬取源（空 = 全部） -->
+      <el-table-column
+        label="爬取源"
+        min-width="140"
+      >
+        <template #default="{ row }">
+          <template v-if="row.selected_sources?.length">
+            <el-tag
+              v-for="s in row.selected_sources"
+              :key="s"
+              size="small"
+              type="info"
+              effect="plain"
+              class="mr-1"
+            >
+              {{ s }}
+            </el-tag>
+          </template>
+          <span v-else>全部源</span>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="run_type"
         label="类型"

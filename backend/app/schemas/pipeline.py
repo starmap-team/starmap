@@ -40,6 +40,7 @@ class PipelineRunResponse(BaseModel):
     quality_score: float = 0.0
     error_log: str | None = None
     selected_stages: list[str] | None = None
+    selected_sources: list[str] | None = None
 
 
 class PipelineStatusResponse(BaseModel):
@@ -63,6 +64,10 @@ class TriggerRequest(BaseModel):
     selected_stages: list[str] | None = Field(
         None, description="Stages to execute; null = all stages",
         examples=[["crawl", "dedup", "import"]],
+    )
+    selected_sources: list[str] | None = Field(
+        None, description="Source names to crawl; null/empty = all active sources",
+        examples=[["V2EX 酷工作", "Remotive (远程)"]],
     )
 
 
@@ -152,6 +157,9 @@ class ScheduleCreateRequest(BaseModel):
     cron_expression: str = Field(..., description="cron expression, e.g. '0 2 * * *'")
     run_type: str = Field(default="incremental", description="'full' | 'incremental'")
     selected_stages: list[str] | None = Field(None)
+    selected_sources: list[str] | None = Field(
+        None, description="Source names to crawl; null/empty = all active sources",
+    )
     enabled: bool = Field(default=True)
 
 
@@ -162,6 +170,7 @@ class ScheduleResponse(BaseModel):
     cron_expression: str
     run_type: str
     selected_stages: list[str] | None = None
+    selected_sources: list[str] | None = None
     enabled: bool = True
     last_run_at: str | None = None
     next_run_at: str | None = None
