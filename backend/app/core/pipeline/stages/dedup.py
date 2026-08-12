@@ -68,6 +68,7 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
     # UnboundLocalError。初始化默认值，失败时返回 0 分解（诚实空态）。
     unique_jds: list[Any] = []
     duplicates = 0
+    unique_titles: list[str] = []
 
     run_async(publish_stage_progress(
         run_id, "dedup", "running",
@@ -130,6 +131,13 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
 
             duplicates = len(dup_jds)
             duplicates_found = duplicates
+            # D8c: 在 session 内收集唯一记录标题（dedup_jd_records 返回的实例可能
+            # 已脱离 session，commit 后访问 .job_title 触发 DetachedInstanceError）
+            unique_titles = [
+                (jd.job_title or "未命名")[:60]
+                for jd in unique_jds
+                if getattr(jd, "job_title", None)
+            ]
             s.commit()
 
             run_async(publish_stage_progress(
@@ -175,8 +183,9 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
             "唯一数": len(unique_jds),
             "重复数": duplicates,
         },
-        # D8 fix: 补去重后唯一记录标题样本（详情抽屉展示去重结果）
-        "recent_samples": [{"title": jd.job_title[:60] if getattr(jd, "job_title", "") else "未命名"} for jd in unique_jds[:5]],
+        # D8 fix: 补去重后唯一记录标题样本（详情抽屉展示去重结果）——
+        # 用 session 内收集的 unique_titles，避免访问脱绑实例
+        "recent_samples": [{"title": t} for t in unique_titles[:5]],
     }
 
 

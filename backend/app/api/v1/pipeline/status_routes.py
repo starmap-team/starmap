@@ -194,6 +194,8 @@ async def get_pipeline_stages(
                 "records_processed": stage.get("records_processed", 0),
                 "records_new": stage.get("records_new"),
                 "records_duplicate": stage.get("records_duplicate"),
+                # D8c: 补 records_seen（crawl 抓到数）——前端 tooltip 口径依赖它
+                "records_seen": stage.get("records_seen"),
                 "errors": stage.get("errors", []),
                 "errors_count": stage.get("errors_count", len(stage.get("errors", []))),
                 "warnings": stage.get("warnings", []),

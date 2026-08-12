@@ -346,6 +346,9 @@ async def run_build_graph_from_extractions(limit: int = 100) -> dict[str, Any]:
             "processed": len(extractions),
             "triples_merged": sum(int(s.get("triples_merged", 0)) for s in summaries),
             "relationships_touched": sum(int(s.get("relationships_touched", 0)) for s in summaries),
+            # D8c fix: 补 nodes_touched 汇总（graph_sync 读它展示"触及节点"，
+            # 此前不返回 → 阶段卡节点恒 0）
+            "nodes_touched": sum(int(s.get("nodes_touched", 0)) for s in summaries),
         }
     finally:
         await engine.dispose()
