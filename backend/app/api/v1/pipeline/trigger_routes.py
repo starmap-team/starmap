@@ -302,10 +302,19 @@ def crawl_single_source(  # sync def: 爬取+DB 同步操作放线程池, 避免
         ))
         s.commit()
 
+    from crawler.persistence import dao
+    from crawler.persistence.models import JdStatus
+
+    error_samples = list(dao.get_last_error().items())[:3] if failed else []
+
     return {
         "source": source, "platform": platform,
         "fetched": len(items), "inserted": inserted,
         "duplicate": duplicate, "failed": failed,
+        "error_samples": [
+            {"source": k.split("/", 1)[0], "hash_prefix": k.split("/", 1)[1], "error": v}
+            for k, v in error_samples
+        ],
     }
 
 

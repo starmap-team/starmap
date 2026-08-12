@@ -82,6 +82,8 @@ def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any
         remo = _fetch(REMOTIVE_URL, "remotive")
         for job in remo.get("jobs", [])[:max(max_count - len(items), 0)]:
             desc = job.get("description", "")[:5000]
+            # D5: publication_date 常为空 / 不存在 → PG DATE 拒绝空串，转 None
+            pub_date_raw = (job.get("publication_date") or "").strip()[:10]
             items.append({
                 "source_site": "remotive",
                     "clean_text": desc,
@@ -92,7 +94,7 @@ def run_sync(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any
                 "salary_min": 0,
                 "salary_max": 0,
                 "location": job.get("candidate_required_location", "Remote"),
-                "publish_date": job.get("publication_date", ""),
+                "publish_date": pub_date_raw if pub_date_raw and pub_date_raw != "None" else None,
                 "crawled_at": now,
                 "content_hash": hashlib.sha256(desc.encode()).hexdigest(),
                 "detail_html": desc,
