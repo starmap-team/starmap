@@ -58,7 +58,7 @@ export function useQualityDashboardCharts(store: QualityStore) {
         sub: m.total_extractions === 0
           ? '— 待评估'
           : `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
-        caption: `Neo4j Skill.trust_score 均值（来源: avg_skill_trust 共享指标模块）`,
+        caption: `Neo4j Skill.trust_score 均值（来源: avg_skill_trust 共享指标模块）；对照：/evolution 信任均值（含历史变更事件，evolution_changelog 全部记录 avg(trust_score)）`,
         trend: m.avg_trust_score >= 0.75 ? 'up' : 'down',
         color: cc.success,
         icon: 'DataLine',

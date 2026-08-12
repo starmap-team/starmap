@@ -105,7 +105,7 @@ async function triggerAnalyze() {
 // KPI 卡格式化 — E2: 每项带口径拆解行（用户可感知数值从何而来）
 const kpiCards = computed(() => [
   { label: '涌现技能数', value: evo.kpi.emerging_count, unit: '', tip: 'emerging + rising 技能数（Z-score 检测，全量时序）', breakdown: `= ${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 · 与下方预警表同源` },
-  { label: '信任均值', value: `${Math.round((evo.kpi.trust_mean ?? 0) * 100)}%`, unit: '', tip: '变更日志 trust_score 真实均值', breakdown: 'evolution_changelog 全部记录 avg(trust_score)' },
+  { label: '信任均值', value: `${Math.round((evo.kpi.trust_mean ?? 0) * 100)}%`, unit: '', tip: '变更日志 trust_score 真实均值', breakdown: `evolution_changelog 全部记录 avg(trust_score)；对照：/quality 平均信任度 ${Math.round((evo.kpi.trust_mean_neo4j_skill ?? 0) * 100)}%（Neo4j Skill.trust_score 实时均值）` },
   { label: 'CII 均值', value: evo.kpi.cii_mean, unit: '', tip: '技能 CII 时序末点均值（基准 100，近 90 天窗口）', breakdown: `${items.value.length} 项技能 CII 末点算术平均` },
   { label: '预警数', value: evo.kpi.alert_count, unit: '', tip: 'emerging/rising/declining 非平稳信号数', breakdown: `=${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 + ${evo.emergingAlerts.filter(a => a.level === 'declining').length} 下降` },
 ])

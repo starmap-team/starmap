@@ -154,9 +154,18 @@ async def build_evolution_kpi(
             cii_last_points.append(points[-1])
     cii_mean = round(sum(cii_last_points) / len(cii_last_points), 1) if cii_last_points else 0.0
 
+    # Phase 11 D-cross: 与 /quality 平均信任度对照口径（Neo4j Skill.trust_score 实时均值）
+    # 复用 quality_service.avg_skill_trust 共享指标模块，避免两处口径漂移
+    from app.services.quality_service import avg_skill_trust
+    try:
+        trust_neo4j_skill = round(float(await avg_skill_trust()), 3)
+    except Exception:
+        trust_neo4j_skill = 0.0
+
     return {
         "emerging_count": emerging_count,
         "trust_mean": trust_mean,
+        "trust_mean_neo4j_skill": trust_neo4j_skill,
         "cii_mean": cii_mean,
         "alert_count": alert_count,
         "days": days,

@@ -56,6 +56,8 @@ export interface ChangelogEntry {
 export interface EvolutionKpi {
   emerging_count: number
   trust_mean: number
+  /** Phase 11 D-cross: 与 /quality 共享 avg_skill_trust 对照口径（Neo4j Skill.trust_score 实时均值）*/
+  trust_mean_neo4j_skill?: number
   cii_mean: number
   alert_count: number
   days: number
@@ -64,6 +66,7 @@ export interface EvolutionKpi {
 export const DEFAULT_KPI: EvolutionKpi = {
   emerging_count: 0,
   trust_mean: 0,
+  trust_mean_neo4j_skill: 0,
   cii_mean: 0,
   alert_count: 0,
   days: 90,
@@ -146,14 +149,15 @@ export const useEvolutionStore = defineStore('evolution', () => {
     try {
       const params = days ? { days } : undefined
       const data = validateEvolution(
-        await request.get<{ emerging_count?: number; trust_mean?: number; cii_mean?: number; alert_count?: number; days?: number }>(
+        await request.get<{ emerging_count?: number; trust_mean?: number; trust_mean_neo4j_skill?: number; cii_mean?: number; alert_count?: number; days?: number }>(
           '/evolution/kpi', { params },
         ) as Record<string, unknown>,
         evolutionSchema, '/evolution/kpi', 'EvolutionKpiResponse',
-      ) as { emerging_count?: number; trust_mean?: number; cii_mean?: number; alert_count?: number; days?: number }
+      ) as { emerging_count?: number; trust_mean?: number; trust_mean_neo4j_skill?: number; cii_mean?: number; alert_count?: number; days?: number }
       kpi.value = {
         emerging_count: data.emerging_count ?? DEFAULT_KPI.emerging_count,
         trust_mean: data.trust_mean ?? DEFAULT_KPI.trust_mean,
+        trust_mean_neo4j_skill: data.trust_mean_neo4j_skill ?? DEFAULT_KPI.trust_mean_neo4j_skill,
         cii_mean: data.cii_mean ?? DEFAULT_KPI.cii_mean,
         alert_count: data.alert_count ?? DEFAULT_KPI.alert_count,
         days: data.days ?? DEFAULT_KPI.days,

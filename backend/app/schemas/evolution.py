@@ -116,6 +116,10 @@ class EvolutionKpiResponse(BaseModel):
 
     emerging_count: int = Field(..., ge=0, description="涌现技能数（emerging + rising）")
     trust_mean: float = Field(..., ge=0, le=1, description="变更日志信任度均值（0-1，真实聚合）")
+    # Phase 11 D-cross: 与 /quality 平均信任度对照口径（Neo4j Skill.trust_score 实时均值）
+    trust_mean_neo4j_skill: float = Field(
+        default=0.0, ge=0, le=1, description="Neo4j Skill.trust_score 实时均值（与 /quality 共享 avg_skill_trust 指标）"
+    )
     cii_mean: float = Field(..., ge=0, description="技能 CII 均值（基准 100，A4 基线口径）")
     alert_count: int = Field(..., ge=0, description="预警数（emerging/rising/declining 非平稳信号）")
     days: int = Field(..., ge=7, le=730, description="分析时间窗口（天）")
