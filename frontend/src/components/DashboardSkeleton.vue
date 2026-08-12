@@ -2,12 +2,14 @@
 /**
  * DashboardSkeleton — Loading skeleton for the data dashboard.
  * Shown while initial data is loading.
+ * 2026-08-13 (deep-interview): 回归普通页面风格 — 用 --card/--border 令牌
+ * 替代 --dash-* 沉浸式令牌，随亮暗主题自适应。
  */
 </script>
 
 <template>
   <div class="dashboard-skeleton">
-    <!-- KPI row skeleton -->
+    <!-- KPI row skeleton (8 cards, 4 cols × 2 rows) -->
     <div class="skeleton-kpi-row">
       <div
         v-for="i in 8"
@@ -37,24 +39,19 @@
 .dashboard-skeleton {
   display: flex;
   flex-direction: column;
-  gap: var(--gap-md, 14px);
-  height: calc(100vh - 72px);
-  min-height: 700px;
+  gap: var(--gap-md, 12px);
 }
 
 .skeleton-kpi-row {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: var(--gap-sm, 12px);
-  flex-shrink: 0;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--gap-md, 12px);
 }
 
 .skeleton-middle-row,
 .skeleton-bottom-row {
   display: grid;
-  gap: var(--gap-md, 14px);
-  flex: 1;
-  min-height: 0;
+  gap: var(--gap-md, 12px);
 }
 
 .skeleton-middle-row {
@@ -62,16 +59,15 @@
 }
 
 .skeleton-bottom-row {
-  grid-template-columns: 1.2fr 0.8fr 1fr;
+  grid-template-columns: 1.2fr 1fr 1fr;
 }
 
 .skeleton-kpi-card,
 .skeleton-panel {
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-accent-10);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg, 8px);
   animation: skeleton-pulse 1.8s ease-in-out infinite;
-  opacity: 0.6;
 }
 
 .skeleton-kpi-card {
@@ -79,32 +75,27 @@
 }
 
 .skeleton-panel {
-  height: 100%;
+  height: 300px;
 }
 
 @keyframes skeleton-pulse {
   0%, 100% {
-    background: var(--dash-surface);
-    opacity: 0.4;
+    opacity: 0.5;
   }
   50% {
-    background: color-mix(in srgb, var(--chart-1) 6%, var(--dash-surface));
-    opacity: 0.7;
+    opacity: 0.9;
   }
 }
 
-/* ── Responsive ── */
-@media (max-width: 1600px) {
-  .skeleton-kpi-row {
-    grid-template-columns: repeat(4, 1fr);
-  }
+/* ── Responsive（对齐 DataDashboard.vue 断点） ── */
+@media (max-width: 1280px) {
   .skeleton-middle-row,
   .skeleton-bottom-row {
     grid-template-columns: 1fr 1fr;
   }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 900px) {
   .skeleton-kpi-row {
     grid-template-columns: repeat(2, 1fr);
   }

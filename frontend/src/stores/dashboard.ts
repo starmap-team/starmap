@@ -57,26 +57,93 @@ export interface QualityTrend {
   quality_score: number
   trust_score: number | null
   crawl_volume: number
+  /** 每日新增记录数（TrendPoint.new_records，2026-08-13 补展示） */
+  new_records: number
   match_success_rate: number | null
   hallucination_rate: number | null
 }
 
+/** 后端 sse_broadcaster 发布的事件类型（VALID_EVENT_TYPES）+ 前端历史类型 */
+export type RealtimeEventType =
+  | 'pipeline_update' | 'quality_alert' | 'data_milestone' | 'extraction_complete'
+  | 'skill_update' | 'match_event' | 'graph_update' | 'pipeline_event' | 'extraction'
+
 export interface RealtimeEvent {
   id: string
-  type: 'skill_update' | 'match_event' | 'graph_update' | 'pipeline_event' | 'extraction'
+  type: RealtimeEventType
   title: string
   detail: string
+  /** ISO 字符串（normalizeRealtimeEvent 已将后端 unix float 转换） */
   timestamp: string
   icon?: string
   severity?: 'info' | 'success' | 'warning' | 'error'
 }
 
+/**
+ * 后端 SSE/poll 原始 payload → 前端 RealtimeEvent。
+ * 后端 publish_event 发送 {type, data, timestamp(unix float)}，
+ * 前端此前按 {id, title, detail} 扁平结构解析 → 事件标题/详情全空、id 冲突。
+ * 此函数是唯一的契约适配点。
+ */
+export function normalizeRealtimeEvent(raw: Record<string, unknown>, idx = 0): RealtimeEvent {
+  const type = (raw.type as RealtimeEventType) || 'pipeline_update'
+  const data = (raw.data ?? {}) as Record<string, unknown>
+  const rawTs = raw.timestamp
+  const ts = typeof rawTs === 'number'
+    ? new Date(rawTs * 1000).toISOString()
+    : typeof rawTs === 'string' ? rawTs : new Date().toISOString()
+
+  // 按事件类型从 data 载荷提取标题/详情（后端不传 title/detail）
+  let title = ''
+  let detail = ''
+  let severity: RealtimeEvent['severity'] = 'info'
+  switch (type) {
+    case 'pipeline_update': {
+      const stage = data.stage as string | undefined
+      const status = data.status as string | undefined
+      title = stage ? `流水线阶段 ${stage}` : '流水线更新'
+      detail = status ? `状态：${status}` : JSON.stringify(data).slice(0, 80)
+      severity = status === 'failed' ? 'error' : status === 'completed' ? 'success' : 'info'
+      break
+    }
+    case 'quality_alert':
+      title = '质量告警'
+      detail = (data.message as string) || JSON.stringify(data).slice(0, 80)
+      severity = 'warning'
+      break
+    case 'data_milestone':
+      title = '数据里程碑'
+      detail = (data.message as string) || JSON.stringify(data).slice(0, 80)
+      severity = 'success'
+      break
+    case 'extraction_complete':
+      title = '抽取完成'
+      detail = (data.message as string) || JSON.stringify(data).slice(0, 80)
+      severity = 'success'
+      break
+    default:
+      title = (raw.title as string) || (data.title as string) || '系统事件'
+      detail = (raw.detail as string) || (data.detail as string) || ''
+  }
+
+  return {
+    id: (raw.id as string) || `${type}-${String(rawTs ?? Date.now())}-${idx}`,
+    type,
+    title,
+    detail,
+    timestamp: ts,
+    severity,
+  }
+}
+
+/** 与后端 /pipeline/stages 的 PipelineStage schema 对齐（name + 0-1 progress） */
 export interface PipelineTimelineItem {
-  stage: string
-  status: 'running' | 'completed' | 'failed' | 'waiting'
+  name: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled' | 'waiting'
   started_at: string
   completed_at: string | null
   records_processed: number
+  /** 0.0-1.0 小数（后端 schema 约束 ge=0 le=1），渲染需 ×100 */
   progress: number
 }
 
@@ -159,6 +226,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         quality_score: dp.quality_score,
         trust_score: dp.trust_score ?? null,
         crawl_volume: dp.extractions,
+        new_records: dp.new_records ?? 0,
         match_success_rate: dp.match_success_rate ?? null,
         hallucination_rate: dp.hallucination_rate ?? null,
       }))
@@ -232,6 +300,29 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
+  /**
+   * 页面加载时用轮询接口回填最近事件（Redis list 保留 300s 内最多 100 条）。
+   * SSE 只在流水线运行时发事件，不回填则事件流 95% 时间为空。
+   */
+  async function fetchRecentEvents() {
+    try {
+      const data = await request.get('/dashboard/realtime-poll', { params: { since: 0 } }) as {
+        events?: Array<Record<string, unknown>>
+      }
+      const events = (data.events || []).map((e, i) => normalizeRealtimeEvent(e, i))
+      if (events.length) {
+        // 去重：仅补充尚未存在的事件（按 id）
+        const existing = new Set(realtimeEvents.value.map(e => e.id))
+        const fresh = events.filter(e => !existing.has(e.id))
+        if (fresh.length) {
+          realtimeEvents.value = [...fresh, ...realtimeEvents.value].slice(0, 100)
+        }
+      }
+    } catch {
+      // 回填失败不阻断 — SSE 仍可接收新事件
+    }
+  }
+
   /** Add a real-time event from SSE stream */
   function addRealtimeEvent(event: RealtimeEvent) {
     realtimeEvents.value.unshift(event)
@@ -251,6 +342,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         fetchDistribution(),
         fetchEmergingSkills(),
         fetchPipelineTimeline(),
+        fetchRecentEvents(),
       ])
     } finally {
       loading.value = false
@@ -275,6 +367,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     fetchDistribution,
     fetchEmergingSkills,
     fetchPipelineTimeline,
+    fetchRecentEvents,
     fetchAll,
     addRealtimeEvent,
   }

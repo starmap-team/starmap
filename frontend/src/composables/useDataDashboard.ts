@@ -15,7 +15,8 @@ import { chartColors, tooltipStyle } from '@/utils/chartTheme'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'
 import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import { useSSE } from '@/composables/useSSE'
-import type { useDashboardStore, PipelineTimelineItem, RealtimeEvent, SkillDomain, QualityTrend } from '@/stores/dashboard'
+import { normalizeRealtimeEvent } from '@/stores/dashboard'
+import type { useDashboardStore, PipelineTimelineItem, RealtimeEventType, SkillDomain, QualityTrend } from '@/stores/dashboard'
 import type { EmergingSkill } from '@/types/evolution'
 
 type DashboardStore = ReturnType<typeof useDashboardStore>
@@ -32,7 +33,22 @@ export function stageIcon(status: string): string {
     case 'running': return '●'
     case 'completed': return '✓'
     case 'failed': return '✗'
-    default: return '○'
+    case 'skipped': return '⊘'
+    case 'cancelled': return '⊗'
+    default: return '○' // pending / waiting
+  }
+}
+
+/** pipeline_status 汉化（后端返回 idle/running/completed/failed 原始值） */
+export function pipelineStatusLabel(status: string): string {
+  switch (status) {
+    case 'completed': return '已完成'
+    case 'running': return '运行中'
+    case 'failed': return '失败'
+    case 'idle': return '空闲'
+    case 'pending': return '等待中'
+    case 'cancelled': return '已取消'
+    default: return status || '--'
   }
 }
 
@@ -43,14 +59,25 @@ function _useDashboardDisplay(store: DashboardStore) {
     store.pipelineTimeline as PipelineTimelineItem[],
   )
 
+  // 2026-08-13 (deep-interview A3): 补齐后端 PipelineStage 全部状态
+  // （原缺 pending/skipped/cancelled → statusColor[status] undefined）
   const statusColor = computed<Record<string, string>>(() => ({
     running: colors.info,
     completed: colors.success,
     failed: colors.danger,
     waiting: colors.muted + '33',
+    pending: colors.muted + '33',
+    skipped: colors.muted + '33',
+    cancelled: colors.muted + '33',
   }))
 
   const eventIcon: Record<string, string> = {
+    // 后端 sse_broadcaster VALID_EVENT_TYPES
+    pipeline_update: '🚀',
+    quality_alert: '⚠️',
+    data_milestone: '🏆',
+    extraction_complete: '📄',
+    // 前端历史类型（保留兼容）
     skill_update: '💡',
     match_event: '🎯',
     graph_update: '🔗',
@@ -91,7 +118,7 @@ function _useDashboardDisplay(store: DashboardStore) {
     return `${mo}-${day} ${h}:${m}`
   }
 
-  return { pipelineStages, statusColor, eventIcon, eventSeverityColor, eventTypeColor, formatTime, stageIcon }
+  return { pipelineStages, statusColor, eventIcon, eventSeverityColor, eventTypeColor, formatTime, stageIcon, pipelineStatusLabel }
 }
 
 // =============================================================================
@@ -105,22 +132,23 @@ export interface KpiCardDef {
   decimals: number
   icon: Component
   color: string
-  glow: string
   route: string
 }
 
 function _useDashboardKpiCards(store: DashboardStore): ComputedRef<KpiCardDef[]> {
   return computed(() => {
     const cc = chartColors()
+    // 2026-08-13 (deep-interview B1/D3): "技能域"实际统计 industry 去重数 → 改名"行业域"；
+    // 路由按语义校准（原 技能域→/learning 与该数据无关）；glow 霓虹随沉浸式风格移除
     return [
-      { label: '总节点数', target: store.overview?.total_nodes ?? 0, suffix: '', decimals: 0, icon: Connection, color: cc.chart[0], glow: cc.chart[0] + '40', route: '/' },
-      { label: '总关系数', target: store.overview?.total_edges ?? 0, suffix: '', decimals: 0, icon: Share, color: cc.chart[2], glow: cc.chart[2] + '40', route: '/' },
-      { label: '技能域', target: store.overview?.total_domains ?? 0, suffix: '', decimals: 0, icon: Collection, color: cc.success, glow: cc.success + '40', route: '/learning' },
-      { label: '岗位数', target: store.overview?.total_positions ?? 0, suffix: '', decimals: 0, icon: User, color: cc.danger, glow: cc.danger + '40', route: '/positions' },
-      { label: '技能数', target: store.overview?.total_skills ?? 0, suffix: '', decimals: 0, icon: Star, color: cc.warning, glow: cc.warning + '40', route: '/quality' },
-      { label: '信任评分', target: (store.overview?.trust_score ?? 0) * 100, suffix: '%', decimals: 1, icon: Medal, color: cc.info, glow: cc.info + '40', route: '/quality' },
-      { label: '本周新增', target: store.overview?.weekly_new_nodes ?? 0, suffix: '', decimals: 0, icon: TrendCharts, color: cc.chart[3], glow: cc.chart[3] + '40', route: '/evolution' },
-      { label: '数据源', target: store.overview?.active_data_sources ?? 0, suffix: '', decimals: 0, icon: Coin, color: cc.chart[4], glow: cc.chart[4] + '40', route: '/datasources' },
+      { label: '总节点数', target: store.overview?.total_nodes ?? 0, suffix: '', decimals: 0, icon: Connection, color: cc.chart[0], route: '/' },
+      { label: '总关系数', target: store.overview?.total_edges ?? 0, suffix: '', decimals: 0, icon: Share, color: cc.chart[2], route: '/' },
+      { label: '行业域', target: store.overview?.total_domains ?? 0, suffix: '', decimals: 0, icon: Collection, color: cc.success, route: '/' },
+      { label: '岗位数', target: store.overview?.total_positions ?? 0, suffix: '', decimals: 0, icon: User, color: cc.danger, route: '/positions' },
+      { label: '技能数', target: store.overview?.total_skills ?? 0, suffix: '', decimals: 0, icon: Star, color: cc.warning, route: '/quality' },
+      { label: '信任评分', target: (store.overview?.trust_score ?? 0) * 100, suffix: '%', decimals: 1, icon: Medal, color: cc.info, route: '/quality' },
+      { label: '本周新增', target: store.overview?.weekly_new_nodes ?? 0, suffix: '', decimals: 0, icon: TrendCharts, color: cc.chart[3], route: '/evolution' },
+      { label: '数据源', target: store.overview?.active_data_sources ?? 0, suffix: '', decimals: 0, icon: Coin, color: cc.chart[4], route: '/datasources' },
     ]
   })
 }
@@ -133,12 +161,19 @@ const REFRESH_DEBOUNCE_MS = 500
 const OVERVIEW_REFRESH_MS = 30_000
 const CLOCK_TICK_MS = 1_000
 
-const EVENT_REFRESH_MAP: Readonly<Record<RealtimeEvent['type'], (keyof DashboardStore)[]>> = {
-  skill_update:       ['fetchOverview', 'fetchDistribution'],
-  graph_update:       ['fetchOverview', 'fetchDistribution'],
-  match_event:        ['fetchOverview'],
-  pipeline_event:     ['fetchPipelineTimeline'],
-  extraction:         ['fetchOverview'],
+// 2026-08-13 (deep-interview A4): 键名对齐后端 sse_broadcaster 实际发布的类型
+// （原 skill_update/match_event 等从未被后端发布 → 定向刷新从未触发）
+const EVENT_REFRESH_MAP: Readonly<Partial<Record<RealtimeEventType, (keyof DashboardStore)[]>>> = {
+  pipeline_update:     ['fetchPipelineTimeline', 'fetchOverview'],
+  quality_alert:       ['fetchOverview'],
+  data_milestone:      ['fetchOverview', 'fetchDistribution'],
+  extraction_complete: ['fetchOverview'],
+  // 前端历史类型（保留兼容）
+  skill_update:        ['fetchOverview', 'fetchDistribution'],
+  graph_update:        ['fetchOverview', 'fetchDistribution'],
+  match_event:         ['fetchOverview'],
+  pipeline_event:      ['fetchPipelineTimeline'],
+  extraction:          ['fetchOverview'],
 }
 
 export type ConnectionState = 'connecting' | 'connected' | 'polling' | 'disconnected'
@@ -193,8 +228,11 @@ function _useDashboardRealtimeSync(store: DashboardStore, sseUrl: string, pollUr
     const { connected, mode } = useSSE(sseUrl, {
       onMessage: (event: MessageEvent) => {
         try {
-          const data = JSON.parse(event.data) as RealtimeEvent
-          if (data?.type) {
+          const raw = JSON.parse(event.data) as Record<string, unknown>
+          if (raw?.type) {
+            // 2026-08-13 (deep-interview A4): 后端 payload 为 {type, data, timestamp}，
+            // 经 normalizeRealtimeEvent 适配为前端 RealtimeEvent（提取 title/detail）
+            const data = normalizeRealtimeEvent(raw)
             store.addRealtimeEvent(data)
             const targets = EVENT_REFRESH_MAP[data.type]
             if (targets) scheduleTargetedRefresh(targets)
@@ -272,22 +310,25 @@ function _useDashboardCharts(store: DashboardStore) {
   })
 
   // -- Quality trend dual-axis line chart --
+  // 2026-08-13 (deep-interview A5/R8): 移除永不渲染的"信任分"系列
+  // （TrendPoint 无 trust_score 字段且无每日信任数据源，不造假数据）；
+  // 补上后端已返回但从未展示的 new_records「新增记录」系列
   const trendOption = computed(() => {
     const trends = store.qualityTrends
     if (!trends?.length) return undefined
     return {
       tooltip: { trigger: 'axis', backgroundColor: cc.card + 'E6', borderColor: cc.chart[0] + '4D', textStyle: { color: cc.foreground, fontSize: 12 } },
-      legend: { top: 0, right: 0, textStyle: { color: cc.muted, fontSize: 10 }, itemWidth: 12, itemHeight: 2 },
+      legend: { top: 0, right: 0, itemGap: 12, textStyle: { color: cc.muted, fontSize: 10 }, itemWidth: 12, itemHeight: 2 },
       grid: { top: 30, bottom: 24, left: 40, right: 40 },
       xAxis: { type: 'category', data: trends.map((t: QualityTrend) => t.date.slice(5)), axisLine: { lineStyle: { color: cc.foreground + '26' } }, axisLabel: { color: cc.muted, fontSize: 10 }, axisTick: { show: false } },
       yAxis: [
         { type: 'value', name: '分值', nameTextStyle: { color: cc.muted, fontSize: 10 }, axisLabel: { color: cc.muted, fontSize: 10 }, splitLine: { lineStyle: { color: cc.foreground + '0F' } } },
-        { type: 'value', name: '采集量', nameTextStyle: { color: cc.muted, fontSize: 10 }, axisLabel: { color: cc.muted, fontSize: 10 }, splitLine: { show: false } },
+        { type: 'value', name: '数量', nameTextStyle: { color: cc.muted, fontSize: 10 }, axisLabel: { color: cc.muted, fontSize: 10 }, splitLine: { show: false } },
       ],
       series: [
         { name: '质量分', type: 'line', smooth: true, symbol: 'circle', symbolSize: 4, lineStyle: { color: cc.chart[0], width: 2 }, itemStyle: { color: cc.chart[0] }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: cc.chart[0] + '33' }, { offset: 1, color: cc.chart[0] + '00' }] } }, data: trends.map((t: QualityTrend) => t.quality_score) },
-        { name: '信任分', type: 'line', smooth: true, symbol: 'circle', symbolSize: 4, lineStyle: { color: cc.success, width: 2 }, itemStyle: { color: cc.success }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: cc.success + '26' }, { offset: 1, color: cc.success + '00' }] } }, data: trends.map((t: QualityTrend) => t.trust_score ?? '-') },
         { name: '采集量', type: 'line', yAxisIndex: 1, smooth: true, symbol: 'none', lineStyle: { color: cc.warning, width: 1.5, type: 'dashed' }, itemStyle: { color: cc.warning }, data: trends.map((t: QualityTrend) => t.crawl_volume) },
+        { name: '新增记录', type: 'line', yAxisIndex: 1, smooth: true, symbol: 'circle', symbolSize: 3, lineStyle: { color: cc.chart[2], width: 1.5 }, itemStyle: { color: cc.chart[2] }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: cc.chart[2] + '26' }, { offset: 1, color: cc.chart[2] + '00' }] } }, data: trends.map((t: QualityTrend) => t.new_records) },
       ],
     }
   })

@@ -168,12 +168,13 @@ describe('useDashboardStore', () => {
 
   it('should fetch all dashboard data in parallel', async () => {
     const request = (await import('@/api/request')).default
-    // Mock all 5 endpoints called by fetchAll
+    // Mock all 6 endpoints called by fetchAll（含 2026-08-13 新增的 fetchRecentEvents 回填）
     vi.mocked(request.get).mockResolvedValueOnce({ total_nodes: 100, total_edges: 500, total_domains: 5, total_positions: 20, total_skills: 100, trust_score: 0.8, hallucination_rate: 0.02, total_extractions: 200, data_volume: 50, today_extractions: 5, active_data_sources: 3, pipeline_status: 'idle', weekly_new_nodes: 10, stale: false, stale_since: null, timestamp: 1700000000 }) // fetchOverview
     vi.mocked(request.get).mockResolvedValueOnce({ period: '7d', data_points: [], summary: {} }) // fetchTrends
     vi.mocked(request.get).mockResolvedValueOnce({ source_distribution: [], domain_distribution: [] }) // fetchDistribution
     vi.mocked(request.get).mockResolvedValueOnce([]) // fetchEmergingSkills
     vi.mocked(request.get).mockResolvedValueOnce({ stages: [] }) // fetchPipelineTimeline
+    vi.mocked(request.get).mockResolvedValueOnce({ events: [], poll_interval_ms: 5000 }) // fetchRecentEvents
 
     const store = useDashboardStore()
     await store.fetchAll()
@@ -280,9 +281,10 @@ describe('useDashboardStore', () => {
 
   it('should fetch pipeline timeline', async () => {
     const request = (await import('@/api/request')).default
+    // 2026-08-13 (deep-interview A1): 契约对齐后端 /pipeline/stages — 字段为 name（原误用 stage）
     const mockTimeline = {
       stages: [
-        { stage: 'crawl', status: 'completed', started_at: '2024-01-01', completed_at: '2024-01-01', records_processed: 100, progress: 1.0 },
+        { name: 'crawl', status: 'completed', started_at: '2024-01-01', completed_at: '2024-01-01', records_processed: 100, progress: 1.0 },
       ],
     }
     vi.mocked(request.get).mockResolvedValueOnce(mockTimeline)
@@ -291,7 +293,7 @@ describe('useDashboardStore', () => {
     await store.fetchPipelineTimeline()
 
     expect(store.pipelineTimeline).toHaveLength(1)
-    expect(store.pipelineTimeline[0].stage).toBe('crawl')
+    expect(store.pipelineTimeline[0].name).toBe('crawl')
   })
 
   it('should set pipelineTimeline to empty on fetch failure', async () => {
@@ -302,5 +304,102 @@ describe('useDashboardStore', () => {
     await store.fetchPipelineTimeline()
 
     expect(store.pipelineTimeline).toEqual([])
+  })
+
+  // ── normalizeRealtimeEvent（deep-interview A4：后端 {type,data,timestamp} → 前端 RealtimeEvent） ──
+
+  describe('normalizeRealtimeEvent', () => {
+    it('maps pipeline_update payload to title/detail/severity', async () => {
+      const { normalizeRealtimeEvent } = await import('../dashboard')
+      const evt = normalizeRealtimeEvent({
+        type: 'pipeline_update',
+        data: { stage: 'crawl', status: 'completed' },
+        timestamp: 1700000000,
+      })
+
+      expect(evt.type).toBe('pipeline_update')
+      expect(evt.title).toContain('crawl')
+      expect(evt.detail).toContain('completed')
+      expect(evt.severity).toBe('success')
+      expect(evt.id).toBeTruthy()
+      // unix float → ISO string
+      expect(new Date(evt.timestamp).getTime()).toBe(1700000000_000)
+    })
+
+    it('maps failed pipeline status to error severity', async () => {
+      const { normalizeRealtimeEvent } = await import('../dashboard')
+      const evt = normalizeRealtimeEvent({
+        type: 'pipeline_update',
+        data: { stage: 'import', status: 'failed' },
+        timestamp: 1700000000,
+      })
+      expect(evt.severity).toBe('error')
+    })
+
+    it('handles quality_alert with message payload', async () => {
+      const { normalizeRealtimeEvent } = await import('../dashboard')
+      const evt = normalizeRealtimeEvent({
+        type: 'quality_alert',
+        data: { message: '幻觉率超过阈值' },
+        timestamp: 1700000000,
+      })
+      expect(evt.title).toBe('质量告警')
+      expect(evt.detail).toBe('幻觉率超过阈值')
+      expect(evt.severity).toBe('warning')
+    })
+
+    it('generates unique ids for same-timestamp events', async () => {
+      const { normalizeRealtimeEvent } = await import('../dashboard')
+      const a = normalizeRealtimeEvent({ type: 'pipeline_update', data: {}, timestamp: 1700000000 }, 0)
+      const b = normalizeRealtimeEvent({ type: 'pipeline_update', data: {}, timestamp: 1700000000 }, 1)
+      expect(a.id).not.toBe(b.id)
+    })
+  })
+
+  // ── fetchRecentEvents（deep-interview A4：页面加载回填最近事件） ──
+
+  it('should seed realtimeEvents from realtime-poll endpoint', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockResolvedValueOnce({
+      events: [
+        { type: 'pipeline_update', data: { stage: 'crawl', status: 'completed' }, timestamp: 1700000000 },
+      ],
+      poll_interval_ms: 5000,
+    })
+
+    const store = useDashboardStore()
+    await store.fetchRecentEvents()
+
+    expect(request.get).toHaveBeenCalledWith('/dashboard/realtime-poll', { params: { since: 0 } })
+    expect(store.realtimeEvents).toHaveLength(1)
+    expect(store.realtimeEvents[0].title).toContain('crawl')
+  })
+
+  it('should not duplicate events on repeated fetchRecentEvents', async () => {
+    const request = (await import('@/api/request')).default
+    const payload = {
+      events: [
+        { type: 'pipeline_update', data: { stage: 'crawl', status: 'completed' }, timestamp: 1700000000 },
+      ],
+      poll_interval_ms: 5000,
+    }
+    vi.mocked(request.get).mockResolvedValueOnce(payload)
+    const store = useDashboardStore()
+    await store.fetchRecentEvents()
+
+    vi.mocked(request.get).mockResolvedValueOnce(payload)
+    await store.fetchRecentEvents()
+
+    expect(store.realtimeEvents).toHaveLength(1)
+  })
+
+  it('should swallow fetchRecentEvents errors silently', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockRejectedValueOnce(new Error('Redis down'))
+
+    const store = useDashboardStore()
+    await store.fetchRecentEvents()
+
+    expect(store.realtimeEvents).toEqual([])
   })
 })
