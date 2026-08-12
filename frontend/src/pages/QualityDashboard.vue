@@ -4,7 +4,7 @@
  * 4 指标卡（含趋势箭头）+ 信任度直方图 + 幻觉率趋势 + 数据源饼图 + 审核队列
  */
 import { ElMessage } from 'element-plus'
-import { RefreshRight } from '@element-plus/icons-vue'
+import { RefreshRight, QuestionFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useQualityStore } from '@/stores/quality'
 import { useAuditStore } from '@/stores/audit'
@@ -63,6 +63,16 @@ async function handleRefresh() {
           <p class="page-desc">
             实时监控数据质量、信任度分布与幻觉率趋势
           </p>
+          <!-- Phase 11 新手友好引导（沿 ui-ux-pro-max：data-dense dashboard，新手需一句话入口）-->
+          <el-alert
+            class="kpi-help-alert"
+            type="info"
+            :closable="false"
+            show-icon
+          >
+            <strong>什么是图谱健康度？</strong>
+            4 张卡片展示 StarMap 图谱的整体质量：节点规模（总节点/周新增）、数据可信度（平均信任度）、抽取可靠性（幻觉率）、人工监督（待审核）。每张卡片 hover <strong>口径</strong> 行可看"这个数怎么算 + 数据源"。两个菜单（/quality vs /evolution）的口径差异在「平均信任度」卡 caption 已说明。
+          </el-alert>
         </div>
         <div class="header-actions">
           <span
@@ -102,37 +112,50 @@ async function handleRefresh() {
             shadow="hover"
             class="kpi-card"
           >
-            <div class="kpi-inner">
-              <div
-                class="kpi-icon"
-                :style="{ background: card.color + '18', color: card.color }"
-              >
-                <el-icon size="22">
-                  <component :is="card.icon" />
-                </el-icon>
-              </div>
-              <div class="kpi-body">
-                <div class="kpi-label">
-                  {{ card.label }}
+            <el-tooltip
+              placement="top-start"
+              :show-after="300"
+              popper-class="kpi-tooltip"
+            >
+              <template #content>
+                <div class="kpi-tooltip-content">
+                  <pre>{{ card.tooltip }}</pre>
                 </div>
+              </template>
+              <div class="kpi-inner">
                 <div
-                  class="kpi-value"
-                  :style="{ color: card.color }"
+                  class="kpi-icon"
+                  :style="{ background: card.color + '18', color: card.color }"
                 >
-                  {{ card.value }}
+                  <el-icon size="22">
+                    <component :is="card.icon" />
+                  </el-icon>
                 </div>
-                <div class="kpi-sub">
-                  <span :class="card.trend === 'up' ? 'trend-up' : 'trend-down'">
-                    {{ card.trend === 'up' ? '▲' : '▼' }}
-                  </span>
-                  {{ card.sub }}
-                </div>
-                <!-- Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown）-->
-                <div class="kpi-caption" data-testid="kpi-caption">
-                  {{ card.caption }}
+                <div class="kpi-body">
+                  <div class="kpi-label">
+                    <span>{{ card.label }}</span>
+                    <!-- Phase 11 新手友好：问号图标引导 hover tooltip -->
+                    <el-icon class="kpi-help-icon"><QuestionFilled /></el-icon>
+                  </div>
+                  <div
+                    class="kpi-value"
+                    :style="{ color: card.color }"
+                  >
+                    {{ card.value }}
+                  </div>
+                  <div class="kpi-sub">
+                    <span :class="card.trend === 'up' ? 'trend-up' : 'trend-down'">
+                      {{ card.trend === 'up' ? '▲' : '▼' }}
+                    </span>
+                    {{ card.sub }}
+                  </div>
+                  <!-- Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown）-->
+                  <div class="kpi-caption" data-testid="kpi-caption">
+                    {{ card.caption }}
+                  </div>
                 </div>
               </div>
-            </div>
+            </el-tooltip>
           </el-card>
         </el-col>
       </el-row>
@@ -626,6 +649,45 @@ async function handleRefresh() {
   margin-top: var(--space-1);
   line-height: 1.4;
   font-style: italic;
+}
+.kpi-card {
+  /* Phase 11 ui-ux-pro-max: 4 卡片高度统一（消除 147/163/167/224 高度差）*/
+  min-height: 180px;
+}
+.kpi-help-icon {
+  /* Phase 11 新手友好：问号图标——hover 触发 tooltip 展示完整说明 */
+  margin-left: 4px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  cursor: help;
+  opacity: 0.6;
+  transition: opacity 150ms ease;
+}
+.kpi-help-icon:hover {
+  opacity: 1;
+}
+.kpi-label {
+  display: flex;
+  align-items: center;
+}
+.kpi-tooltip-content pre {
+  /* tooltip 内容保留换行（沿 ui-ux-pro-max：新手友好 + 易读）*/
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-width: 280px;
+}
+.kpi-help-alert {
+  /* 顶部新手引导块（沿 ui-ux-pro-max 数据密集 + 新手友好）*/
+  margin-top: var(--space-2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.kpi-help-alert :deep(.el-alert__content) {
+  padding-left: var(--space-2);
 }
 .trend-up {
   color: var(--success);

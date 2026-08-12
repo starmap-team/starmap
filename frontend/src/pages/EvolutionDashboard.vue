@@ -10,6 +10,7 @@ import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { ElMessage } from 'element-plus'
+import { QuestionFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useEvolutionStore } from '@/stores/evolution'
 import type { TrendItem, EmergingAlert } from '@/stores/evolution'
@@ -102,12 +103,12 @@ async function triggerAnalyze() {
   }
 }
 
-// KPI 卡格式化 — E2: 每项带口径拆解行（用户可感知数值从何而来）
+// KPI 卡格式化 — E2: 每项带口径拆解行 + D-ui: 新手友好 tooltip 完整说明
 const kpiCards = computed(() => [
-  { label: '涌现技能数', value: evo.kpi.emerging_count, unit: '', tip: 'emerging + rising 技能数（Z-score 检测，全量时序）', breakdown: `= ${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 · 与下方预警表同源` },
-  { label: '信任均值', value: `${Math.round((evo.kpi.trust_mean ?? 0) * 100)}%`, unit: '', tip: '变更日志 trust_score 真实均值', breakdown: `evolution_changelog 全部记录 avg(trust_score)；对照：/quality 平均信任度 ${Math.round((evo.kpi.trust_mean_neo4j_skill ?? 0) * 100)}%（Neo4j Skill.trust_score 实时均值）` },
-  { label: 'CII 均值', value: evo.kpi.cii_mean, unit: '', tip: '技能 CII 时序末点均值（基准 100，近 90 天窗口）', breakdown: `${items.value.length} 项技能 CII 末点算术平均` },
-  { label: '预警数', value: evo.kpi.alert_count, unit: '', tip: 'emerging/rising/declining 非平稳信号数', breakdown: `=${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 + ${evo.emergingAlerts.filter(a => a.level === 'declining').length} 下降` },
+  { label: '涌现技能数', value: evo.kpi.emerging_count, unit: '', tip: 'emerging + rising 技能数（Z-score 检测，全量时序）', breakdown: `= ${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 · 与下方预警表同源`, tooltip: `🌱 图谱新生力量：近期 Z-score 显著高于历史均值的技能。\n\n` + `• 涌现 (Z>2)：频次突增 2 个标准差以上\n` + `• 上升 (Z>1.5)：频次稳定增长\n` + `• 0 = 当前无明显新技能信号\n\n` + `公式：Z-score = (当前频次 - 历史均值) / 标准差` },
+  { label: '信任均值', value: `${Math.round((evo.kpi.trust_mean ?? 0) * 100)}%`, unit: '', tip: '变更日志 trust_score 真实均值', breakdown: `evolution_changelog 全部记录 avg(trust_score)；对照：/quality 平均信任度 ${Math.round((evo.kpi.trust_mean_neo4j_skill ?? 0) * 100)}%（Neo4j Skill.trust_score 实时均值）`, tooltip: `🎯 变更日志视角的可信度：所有技能变更事件的 trust_score 算术平均。\n\n` + `• 这是历史变更事件的均值，不等于"当前图谱状态"\n` + `• /quality 的平均信任度 50% 是当前图谱实时均值\n` + `• 两个数字差异 = 变更事件覆盖 ≠ 当前节点总数\n\n` + `⚠️ 此数仅用于跟踪变更质量，不应与 /quality 50% 直接比较` },
+  { label: 'CII 均值', value: evo.kpi.cii_mean, unit: '', tip: '技能 CII 时序末点均值（基准 100，近 90 天窗口）', breakdown: `${items.value.length} 项技能 CII 末点算术平均`, tooltip: `📈 技能需求通胀指数：基准 100 = 2024-Q1 历史均值。\n\n` + `• ≈ 100 = 需求无显著变化\n` + `• > 100 = 需求膨胀（企业越来越看重这些技能）\n` + `• < 100 = 需求收缩\n\n` + `公式：CII = 当期频次 ÷ 历史基准 × 100` },
+  { label: '预警数', value: evo.kpi.alert_count, unit: '', tip: 'emerging/rising/declining 非平稳信号数', breakdown: `=${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 + ${evo.emergingAlerts.filter(a => a.level === 'declining').length} 下降`, tooltip: `⚠️ 非平稳信号总数：emerging + rising + declining 全部合并。\n\n` + `• 0 = 图谱平稳\n` + `• 1-5 = 正常范围\n` + `• > 5 = 较多异常，建议逐条排查\n\n` + `下方「新兴技能预警」表格可看明细 + Z-score + 关联岗位` },
 ])
 
 // E2/E7: 全局数据口径说明 —— 让用户能感知每个数值的计算依据与数据来源
@@ -226,6 +227,16 @@ onMounted(() => {
           <p class="page-subtitle">
             CII 时序曲线 — 技能需求通胀指数（基准 100 = 2024-Q1）
           </p>
+          <!-- Phase 11 新手友好引导（沿 ui-ux-pro-max 数据密集 dashboard）-->
+          <el-alert
+            class="kpi-help-alert"
+            type="info"
+            :closable="false"
+            show-icon
+          >
+            <strong>什么是技能演化看板？</strong>
+            4 张卡片展示 StarMap 图谱中技能随时间的演化趋势：新涌现的技能（Z-score 检测）、历史变更日志的可信度均值（与 /quality 平均信任度 50% 不同口径，详见「信任均值」卡 hover）、技能需求通胀指数（CII 100 = 历史基准，> 100 表示需求膨胀）、非平稳信号总数。hover 每张卡问号图标看完整解读。
+          </el-alert>
         </div>
         <div class="header-actions">
           <el-select
@@ -367,22 +378,34 @@ onMounted(() => {
           class="kpi-number-card"
           shadow="hover"
         >
-          <div
-            class="kpi-number-label"
-            :title="card.tip"
+          <el-tooltip
+            placement="top-start"
+            :show-after="300"
+            popper-class="kpi-tooltip"
           >
-            {{ card.label }}
-          </div>
-          <div class="kpi-number-value">
-            {{ card.value }}
-          </div>
-          <!-- E2: 口径拆解行 — 数值从何而来可见 -->
-          <div
-            class="kpi-number-breakdown"
-            :title="card.tip"
-          >
-            {{ card.breakdown }}
-          </div>
+            <template #content>
+              <div class="kpi-tooltip-content">
+                <pre>{{ card.tooltip }}</pre>
+              </div>
+            </template>
+            <div
+              class="kpi-number-label"
+              :title="card.tip"
+            >
+              <span>{{ card.label }}</span>
+              <el-icon class="kpi-help-icon"><QuestionFilled /></el-icon>
+            </div>
+            <div class="kpi-number-value">
+              {{ card.value }}
+            </div>
+            <!-- E2: 口径拆解行 — 数值从何而来可见 -->
+            <div
+              class="kpi-number-breakdown"
+              :title="card.tip"
+            >
+              {{ card.breakdown }}
+            </div>
+          </el-tooltip>
         </el-card>
       </div>
 
@@ -891,11 +914,37 @@ onMounted(() => {
   gap: 12px;
   margin-bottom: 16px;
 }
-.kpi-number-card { text-align: center; padding: 4px 0; }
+.kpi-number-card { text-align: center; padding: 4px 0; min-height: 120px; }
 .kpi-number-label {
   font-size: 12px;
   color: var(--muted-foreground);
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.kpi-help-icon {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  cursor: help;
+  opacity: 0.6;
+  transition: opacity 150ms ease;
+}
+.kpi-help-icon:hover { opacity: 1; }
+.kpi-tooltip-content pre {
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-width: 280px;
+}
+.kpi-help-alert {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.6;
 }
 .kpi-number-value {
   font-size: 26px;

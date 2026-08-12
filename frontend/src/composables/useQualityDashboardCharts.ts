@@ -17,6 +17,8 @@ export interface KpiCardEnhanced {
   sub: string
   /** Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown）*/
   caption: string
+  /** Phase 11 新手友好 tooltip：完整说明这个数是什么 + 怎么算 + 解读阈值 */
+  tooltip: string
   trend: KpiTrend
   color: string
   icon: string
@@ -48,6 +50,11 @@ export function useQualityDashboardCharts(store: QualityStore) {
           ? '— 待运行抽取'
           : `周新增 +${m.weekly_new_nodes}`,
         caption: `Position + Skill 节点数（来源: ${m.total_positions} 岗位 / ${m.total_skills} 技能）`,
+        tooltip: `📊 图谱规模：当前 StarMap 数据库中岗位 + 技能节点总数。\n\n` +
+          `• 数字越大 = 覆盖面越广\n` +
+          `• 「周新增 +N」反映本周增量\n` +
+          `• 健康标准：周新增 > 0 表示系统在持续抽取\n` +
+          `• 数据源：Neo4j Skill/Position 节点`,
         trend: 'up',
         color: cc.primary,
         icon: 'Grid',
@@ -58,7 +65,13 @@ export function useQualityDashboardCharts(store: QualityStore) {
         sub: m.total_extractions === 0
           ? '— 待评估'
           : `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
-        caption: `Neo4j Skill.trust_score 均值（来源: avg_skill_trust 共享指标模块）；对照：/evolution 信任均值（含历史变更事件，evolution_changelog 全部记录 avg(trust_score)）`,
+        caption: `Neo4j Skill.trust_score 均值（来源: avg_skill_trust 共享指标模块）`,
+        tooltip: `🎯 数据可信度：所有技能节点 trust_score 的平均值（0-100%）。\n\n` +
+          `• ≥ 75% = 健康（绿）\n` +
+          `• 50-75% = 中等（黄）\n` +
+          `• < 50% = 需关注（红）\n\n` +
+          `⚠️ /evolution 菜单的「信任均值 75%」是另一套口径（历史变更事件均值），不是同一指标\n` +
+          `对照：/evolution 信任均值 75%（Neo4j 实时均值 vs EvolutionChangelog 变更事件均值）`,
         trend: m.avg_trust_score >= 0.75 ? 'up' : 'down',
         color: cc.success,
         icon: 'DataLine',
@@ -68,6 +81,11 @@ export function useQualityDashboardCharts(store: QualityStore) {
         value: (m.hallucination_rate * 100).toFixed(1) + '%',
         sub: auditRateLabel,
         caption: hallucinationCaption,
+        tooltip: `🌀 抽取可靠性：LLM 抽取结果中「幻觉技能」占比。\n\n` +
+          `• ≤ 8% = 健康\n` +
+          `• 8-15% = 需关注\n` +
+          `• > 15% = 严重，建议触发 /quality/evaluate 重新校准\n\n` +
+          `公式：hallucinated / total_extractions（近 30 天窗口）`,
         trend: m.hallucination_rate <= 0.08 ? 'down' : 'up',
         color: cc.warning,
         icon: 'WarningFilled',
@@ -77,6 +95,11 @@ export function useQualityDashboardCharts(store: QualityStore) {
         value: m.pending_review === 0 ? '—' : String(m.pending_review),
         sub: m.pending_review === 0 ? '暂无记录' : '条记录待处理',
         caption: `JDExtractionRecord.confidence < ${0.5 * 100}% 阈值命中数（来源: ReviewAuditLog）`,
+        tooltip: `👥 人工监督：低信任度（confidence < 50%）的抽取记录数。\n\n` +
+          `• 0 = 无需人工干预（绿）\n` +
+          `• 1-5 = 可逐条审核（黄）\n` +
+          `• > 5 = 队列拥堵，建议批量审核或调整抽取策略\n\n` +
+          `可在下方「待审核队列」表格中逐条通过 / 拒绝`,
         trend: m.pending_review > 5 ? 'up' : 'down',
         color: cc.danger,
         icon: 'Clock',
