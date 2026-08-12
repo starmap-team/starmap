@@ -10,7 +10,7 @@ export interface DataSourceDetail {
   // 历史值以兼容 DataSourceManager.vue 等消费方（superset 补齐，见 datasource 优化设计需求 D）
   source_type: 'crawler' | 'api' | 'manual' | 'import' | 'job_board' | 'blog' | 'esco' | 'rss'
   authority_score: number
-  status: 'active' | 'paused' | 'error'
+  status: 'active' | 'paused' | 'inactive' | 'error'
   last_crawl_at: string | null
   total_records: number
   valid_records: number

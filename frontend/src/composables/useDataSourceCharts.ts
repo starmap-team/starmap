@@ -84,10 +84,11 @@ export interface StatusBadge {
 
 export function getStatusBadge(status: string): StatusBadge {
   switch (status) {
-    case 'active': return { type: 'success', label: '运行中' }
-    case 'paused': return { type: 'warning', label: '已暂停' }
-    case 'error':  return { type: 'danger',  label: '异常' }
-    default:       return { type: 'info',    label: '未知' }
+    case 'active':   return { type: 'success', label: '运行中' }
+    case 'paused':   return { type: 'warning', label: '已暂停' }
+    case 'inactive': return { type: 'info',    label: '已停用' }
+    case 'error':    return { type: 'danger',  label: '异常' }
+    default:         return { type: 'info',    label: '未知' }
   }
 }
 

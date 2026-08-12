@@ -470,7 +470,7 @@ onMounted(() => {
                   size="small"
                   type="primary"
                   :loading="syncingIds.has(source.id)"
-                  :disabled="source.status === 'paused'"
+                  :disabled="source.status === 'paused' || source.status === 'inactive'"
                   @click="handleSync(source)"
                 >
                   <el-icon
@@ -495,7 +495,7 @@ onMounted(() => {
                   size="small"
                   type="warning"
                   plain
-                  :disabled="!isCrawlableSource(source) || source.status === 'paused'"
+                  :disabled="!isCrawlableSource(source) || source.status === 'paused' || source.status === 'inactive'"
                   @click="handleImmediateCrawl(source)"
                 >
                   立即采集
