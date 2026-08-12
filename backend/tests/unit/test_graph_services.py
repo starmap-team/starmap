@@ -10,11 +10,15 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.services.graph_overview import (
+    HEAT_COLOR_RAMP,
+    _classify_industry,
     _classify_level,
     _classify_tech_stack,
+    fetch_overview_by_heat,
     fetch_overview_by_level,
     fetch_overview_by_tech_stack,
 )
+from app.services.graph_service import fetch_overview_by_domain
 from app.services.graph_serializers import (
     _node_id,
     _relationship_endpoint,
@@ -83,6 +87,19 @@ class FakeDriver:
 
     def session(self):
         return self._session
+
+
+class _SingleResult:
+    """Result wrapper whose .single() returns a dict (for count-style queries)."""
+
+    def __init__(self, record):
+        self._record = record
+
+    async def single(self):
+        return self._record
+
+    def __aiter__(self):
+        return iter([])
 
 
 # ── graph_serializers: _safe_properties ──────────────────────────────────
@@ -699,6 +716,165 @@ class TestFetchOverviewByLevel:
         result = await fetch_overview_by_level(driver)
         # Even with no data, evolution connections are hardcoded
         assert len(result["connections"]) == 2
+
+
+# ── graph_overview: fetch_overview_by_heat (Phase 13 Step 2, M1 C-5 closure) ─
+
+
+class TestFetchOverviewByHeat:
+    """fetch_overview_by_heat — 按技能需求频率排序的"热度视图"。
+
+    节点：需求 ≥ 1 的技能；按需求数量降序；前 30 个。
+    颜色：HEAT_COLOR_RAMP（蓝→红）。
+
+    Neo4j session 共 3 个 query 调用:
+      Q1: _fetch_independent_counts → result.single() 返回 dict{pos_cnt, skill_cnt, edge_cnt}
+      Q2: fetch_overview_by_heat skill demand 列表 (async iter)
+      Q3: CO_DEMANDED connections (async iter; 仅 len(domains)>=2 时触发)
+    """
+
+    def _make_session(self, heat_records, conn_records, counts=None):
+        """构造 MultiQuerySession: Q1 用 .single(), Q2/Q3 用 async iter。"""
+        counts = counts or {"pos_cnt": 5, "skill_cnt": 3, "edge_cnt": 10}
+
+        class MultiQuerySession(FakeAsyncSession):
+            async def run(self, *args, **kwargs):
+                # 通过 args/kwargs 字符串判断 query 语义
+                q = (args[0] if args else kwargs.get("query", "")) or ""
+                if "count(p) AS pos_cnt" in q:
+                    # Q1: independent counts
+                    return _SingleResult(counts)
+                if "REQUIRES]->(s:Skill)" in q and "AS demand" in q:
+                    # Q2: heat skill demand list
+                    return FakeAsyncResult(heat_records)
+                # Q3: CO_DEMANDED connections
+                return FakeAsyncResult(conn_records)
+
+        return MultiQuerySession()
+
+    @pytest.mark.asyncio
+    async def test_top30_descending_with_mock_skill_data(self):
+        """mock 3 个 skill demand records → 断言按 demand 降序、
+        domain.id 含 HEAT_ID_PREFIX、color 在 HEAT_COLOR_RAMP 集合中。"""
+        # demand DESC: Docker 34 / Git 28 / Python 22
+        heat_records = [
+            {"name": "Docker", "demand": 34},
+            {"name": "Git", "demand": 28},
+            {"name": "Python", "demand": 22},
+        ]
+        driver = FakeDriver(self._make_session(heat_records, conn_records=[]))
+        result = await fetch_overview_by_heat(driver)
+        # 3 domains 按 demand DESC
+        assert len(result["domains"]) == 3
+        assert result["domains"][0]["name"] == "Docker"
+        assert result["domains"][0]["position_count"] == 34
+        assert result["domains"][1]["name"] == "Git"
+        assert result["domains"][2]["name"] == "Python"
+        # 每个 domain 有 HEAT_ID_PREFIX 前缀的 id
+        for d in result["domains"]:
+            assert d["id"].startswith("heat-skill-")
+        # color 在 HEAT_COLOR_RAMP 颜色集合中
+        heat_colors = {c[1] for c in HEAT_COLOR_RAMP}
+        for d in result["domains"]:
+            assert d["color"] in heat_colors
+
+    @pytest.mark.asyncio
+    async def test_zero_demand_records_excluded(self):
+        """name 空 或 demand ≤ 0 的 record 不出现在 domains 中。"""
+        # 混有效 + 无效 records
+        heat_records = [
+            {"name": "Docker", "demand": 10},
+            {"name": "", "demand": 5},         # 空 name → 跳过
+            {"name": "NullSkill", "demand": 0},  # demand 0 → 跳过 (source `if not name or demand <= 0`)
+        ]
+        driver = FakeDriver(self._make_session(heat_records, conn_records=[]))
+        result = await fetch_overview_by_heat(driver)
+        # 仅 Docker 留下
+        assert len(result["domains"]) == 1
+        assert result["domains"][0]["name"] == "Docker"
+
+    @pytest.mark.asyncio
+    async def test_color_mapping_matches_demand(self):
+        """`_heat_color(demand)` 按 HEAT_COLOR_RAMP 阈值映射:demand 高 → 红,低 → 蓝。"""
+        heat_records = [
+            {"name": "HighDemand", "demand": 100},   # 命中阈值 ≥ 4 → #ef4444
+            {"name": "MidDemand", "demand": 3},      # 阈值 [3, 4) → #f97316
+            {"name": "LowDemand", "demand": 1},      # 阈值 [1, 2) → #7dd3fc
+        ]
+        driver = FakeDriver(self._make_session(heat_records, conn_records=[]))
+        result = await fetch_overview_by_heat(driver)
+        # 找到每个 skill 的 color
+        color_by_name = {d["name"]: d["color"] for d in result["domains"]}
+        assert color_by_name["HighDemand"] == "#ef4444"  # HEAT_COLOR_RAMP[-1][1]
+        assert color_by_name["MidDemand"] == "#f97316"   # threshold 3
+        assert color_by_name["LowDemand"] == "#7dd3fc"   # threshold 1
+
+    @pytest.mark.asyncio
+    async def test_empty_skill_data_returns_empty_domains(self):
+        """Neo4j 无 skill 节点 → domains=[] + connections=[] 不抛异常 (M5 零数据空态契约)。"""
+        driver = FakeDriver(self._make_session(heat_records=[], conn_records=[]))
+        result = await fetch_overview_by_heat(driver)
+        assert result["domains"] == []
+        assert result["connections"] == []
+
+
+# ── graph_service: fetch_overview_by_domain (Phase 13 Step 1, M1 C-5 closure) ─
+
+
+class TestFetchOverviewByDomain:
+    """fetch_overview_by_domain — Phase 13 Step 1: 行业归一(13 大行业)视图。
+
+    函数位于 graph_service.py:188,内部混合 _classify_industry + Neo4j cypher。
+    本测试聚焦纯逻辑可验证部分: INDUSTRY_ID_PREFIX dict 完整性 +
+    _classify_industry → INDUSTRY_ID_PREFIX 反查路径(沿 graph_service.py:342 模式)。
+    完整 cypher 端到端测试因 mock 链复杂,沿既有 TestFetchOverviewByTechStack 模式
+    可在后续 phase 加强 (本轮 ≥3 用例目标)。
+    """
+
+    def test_industry_id_prefix_dict_completeness(self):
+        """INDUSTRY_ID_PREFIX 是 dict[str, str];_classify_industry 输出的 14 大行业桶
+        + '其他' 都应有对应 id。所有 id 必须以 'ind-' 开头。"""
+        from app.services.graph_overview import INDUSTRY_ID_PREFIX
+        # 14 大行业 + 其他
+        expected_buckets = {
+            "人工智能", "AI/机器学习", "数据科学", "数据工程",
+            "前端开发", "后端开发", "云计算/DevOps", "网络安全",
+            "移动开发", "测试", "嵌入式与物联网", "游戏开发",
+            "区块链与Web3", "互联网/IT", "其他",
+        }
+        # 实际定义在 graph_overview.py:174 + 5 个 spec 文档别名 (大数据 / AI / 数据库与存储 等)
+        # 测试映射的反向完整性: 所有 defined 值都形如 'ind-XXX'
+        for bucket_name, prefix_id in INDUSTRY_ID_PREFIX.items():
+            assert prefix_id.startswith("ind-"), (
+                f"bucket {bucket_name!r} has prefix id {prefix_id!r} not starting with 'ind-'"
+            )
+        # _classify_industry 输出的主桶都在 INDUSTRY_ID_PREFIX 中 (除 "其他" 是 fallback)
+        for bucket in expected_buckets - {"其他"}:
+            assert bucket in INDUSTRY_ID_PREFIX, f"bucket {bucket!r} missing from INDUSTRY_ID_PREFIX"
+
+    def test_classify_industry_then_id_reverse_lookup(self):
+        """验证 _classify_industry 输出 → INDUSTRY_ID_PREFIX 反查路径
+        (沿 graph_service.py:342 ``INDUSTRY_ID_PREFIX.get(industry_name, f"ind-{industry_name}")``)。"""
+        from app.services.graph_overview import INDUSTRY_ID_PREFIX
+        classified = _classify_industry("AI 工程师", "科技")
+        # 主路径: INDUSTRY_ID_PREFIX.get(classified, fallback)
+        domain_id = INDUSTRY_ID_PREFIX.get(classified, f"ind-{classified}")
+        # 验证 classified 是 14+1 桶之一
+        valid_buckets = set(INDUSTRY_ID_PREFIX.keys()) | {"其他"}
+        assert classified in valid_buckets
+        # 验证 domain_id 形如 'ind-XXX'
+        assert domain_id.startswith("ind-")
+
+    def test_default_other_bucket_fallback_id(self):
+        """_classify_industry 默认 '其他' 桶:无 INDUSTRY_ID_PREFIX 项时,fallback
+        路径仍生成合法 'ind-其他' id。"""
+        from app.services.graph_overview import INDUSTRY_ID_PREFIX
+        classified = _classify_industry("UnknownXYZ", "RandomIndustry")
+        assert classified == "其他"
+        # 实际 graph_overview.py:174 INDUSTRY_ID_PREFIX 含 "其他": "ind-other"
+        domain_id = INDUSTRY_ID_PREFIX.get(classified, f"ind-{classified}")
+        # 此处 _classify_industry 返回 "其他" → INDUSTRY_ID_PREFIX 命中 → "ind-other"
+        assert domain_id == "ind-other"
 
 
 # ── graph_sync: sync_from_pipeline ───────────────────────────────────────
