@@ -1,5 +1,9 @@
 <script setup lang="ts">
-/** Graph3D — 3D force-directed graph visualization (3d-force-graph) */
+/** Graph3D — 3D force-directed graph visualization (3d-force-graph)
+ *  2026-08-13: Phase 1 (M1 全景图谱) Plan 01-03 Task 3 — 接入 useGraph3DLOD +
+ *  useGraph3DClustering (镜像 2D useGraphLOD + useGraphClustering)。节点数 > 50
+ *  时自动折叠为 cluster meta-node,节省 GPU 开销。
+ */
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue'
 import { nodeColor, edgeColor, withAlpha, SCENE_PALETTE } from '@/utils/graphColors'
 import NodeTooltip3D from './NodeTooltip3D.vue'
@@ -17,6 +21,7 @@ import {
   useNodeTooltip,
 } from '@/composables/useGraph3D'
 import { disposeTextCache } from '@/composables/useTextSprite'
+import { useGraph3DLOD, useGraph3DClustering } from '@/composables/graph3d'
 
 // ── Props ──
 const props = withDefaults(defineProps<{
@@ -163,17 +168,33 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
   }, 800)
 }
 
-// UX-02: Limit nodes/links when maxNodes is set (for background mode)
-const limitedNodes = computed(() =>
-  props.maxNodes > 0 && props.nodes.length > props.maxNodes
-    ? props.nodes.slice(0, props.maxNodes)
-    : props.nodes,
+// UX-02 + Phase 1 Plan 01-03: 节点降噪 LOD + cluster 折叠 — 镜像 2D useGraphLOD + useGraphClustering
+// 节点数 ≤ 30: 全展开;> 50: 折叠为 1 个 cluster meta-node
+const CLUSTER_LIMIT = 30
+const lod = useGraph3DLOD({ hideLabelsAbove: 30, simplifyAbove: 100, defaultLabelsVisible: true })
+// useGraph3DClustering 接受 GraphNode3D (本地定义),与 GraphNode3D (useNodeThreeObject) 是同名异构;
+// 我们仅使用 position_count + id 字段 — cast 为 unknown 简化类型
+const clustering = useGraph3DClustering(
+  computed(() => props.nodes as unknown as Parameters<typeof useGraph3DClustering>[0]['value']),
+  CLUSTER_LIMIT,
 )
+
+const limitedNodes = computed(() => {
+  // UX-02 maxNodes 优先 (background mode);否则 Phase 1 Plan 01-03 cluster 折叠
+  if (props.maxNodes > 0 && props.nodes.length > props.maxNodes) {
+    return props.nodes.slice(0, props.maxNodes)
+  }
+  // cluster 折叠结果可能含 1 个 cluster meta-node;保持原数组元素形态兼容下游
+  return clustering.value.visible as unknown as typeof props.nodes
+})
 const limitedLinks = computed(() => {
   if (props.maxNodes <= 0 || props.nodes.length <= props.maxNodes) return props.links
   const nodeIds = new Set(limitedNodes.value.map(n => n.id))
   return props.links.filter(l => nodeIds.has(l.source as string) && nodeIds.has(l.target as string))
 })
+
+// 同步 nodeCount 到 LOD watch
+watch(limitedNodes, (nodes) => lod.setNodeCount(nodes.length), { immediate: true })
 
 // ── Camera presets composable ──
 const { autoRotate, setCameraPreset, resetCamera, toggleAutoRotate, clearAutoRotateTimer, calcFitDistance } = useCameraPresets(
