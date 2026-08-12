@@ -183,7 +183,7 @@ def fetch(
     user_agent: str | None = None,
     rate_limiter: RateLimiter | None = None,
     timeout: float = 15.0,
-    use_proxy: bool = False,
+    use_proxy: bool | None = None,
     respect_robots: bool = True,
 ) -> FetchResult:
     # 业务说明：执行一次合规的 HTTP GET 请求。
@@ -193,7 +193,8 @@ def fetch(
     #   user_agent: 自定义 User-Agent，未指定时使用 config 默认列表第一个
     #   rate_limiter: 限速器实例，未指定时创建默认限速器
     #   timeout: 请求超时时间（秒），默认 15 秒
-    #   use_proxy: 是否使用代理，True 时从代理池随机选取代理
+    #   use_proxy: 代理开关 —— None=自动（PROXY_LIST 非空即走代理池）、
+    #              True=强制走代理、False=强制直连（默认自动，D7 修复）
     # 技术说明：请求完成后会自动调用 limiter.wait() 进行限速，
     # 确保下一次请求前有足够的冷却时间。
     ua = user_agent or config.USER_AGENTS[0]
@@ -213,8 +214,10 @@ def fetch(
         return FetchResult(text="", status_code=403, bytes_count=0, robots_allowed=False)
 
     # 业务说明：根据 use_proxy 参数决定是否使用代理。
-    # 代理格式为 "http://host:port" 或 "https://host:port"。
-    proxy = get_proxy() if use_proxy else None
+    # D7 fix (2026-08-12): 此前 use_proxy 默认 False 且各 spider 调用均未显式开启，
+    # 导致即使运维配了 PROXY_LIST 也全部直连（沙盒 egress 间歇性 SSL 超时的根源之一）。
+    # 改为 None=自动探测：PROXY_LIST 非空即走代理池，无需逐个 spider 改造。
+    proxy = get_proxy() if use_proxy is not False else None
 
     t0 = time.monotonic()
     # D5: 瞬时网络/SSL 抖动（沙盒 egress 间歇性超时）重试一次 —— 显著提升实时抓取命中率。
