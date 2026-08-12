@@ -48,8 +48,8 @@ PROXY_LIST=http://user:pass@proxy1.example.com:8080,http://proxy2.example.com:80
 **Step 2**：重启 backend 容器（容器启动时读取 `.env`）：
 
 ```bash
-docker compose -f docker-compose.dev.yml restart backend
-# 如改的是 docker-compose.yml 的 environment，需 up -d 重建
+# ⚠️ 必须用 up -d 重建，restart 不会重新读取 env_file（环境变量在容器创建时固化）
+docker compose -f docker-compose.dev.yml up -d backend
 ```
 
 **Step 3**：验证代理生效：
@@ -69,6 +69,35 @@ print('status', r.status_code, 'bytes', r.bytes_count)
 ### 3. 代理不可用时的表现
 
 `fetch()` 会重试一次（D5），仍失败则返回 `status=0` → `/crawl-source` 记 `metric_status="no_fetch"` → 前端 toast「本次未获取到职位」。**不会崩、不会假成功**。
+
+### 4. 本地 Clash/Mihomo（127.0.0.1:7897）实测案例（2026-08-12）
+
+本地代理软件（Clash/Mihomo 等）默认只绑定宿主机回环 `127.0.0.1:7897`。爬虫在 Docker 容器内，**容器里的 `127.0.0.1` 不是宿主机**，必须用 Docker Desktop 提供的 `host.docker.internal`（自动解析到宿主机 loopback）：
+
+```ini
+# .env —— 实测可用（Docker Desktop for Windows）
+PROXY_LIST=http://host.docker.internal:7897
+```
+
+验证与效果（已端到端实测）：
+
+```bash
+# ① 容器内经 host.docker.internal 访问宿主机 Clash → 200
+docker exec starmap-backend curl -s -o /dev/null -w "%{http_code}" \
+  -x http://host.docker.internal:7897 https://www.google.com
+
+# ② 爬虫 fetch 自动走代理抓 V2EX → 200 + 完整数据（之前直连 000）
+docker exec starmap-backend python -c "
+from crawler.compliance import fetch, get_proxy
+print('proxy:', get_proxy())   # http://host.docker.internal:7897
+r = fetch('https://www.v2ex.com/api/topics/show.json?node_name=jobs', 'v2ex', respect_robots=False, timeout=15)
+print('v2ex:', r.status_code, r.bytes_count)
+"
+
+# ③ 页面「立即采集」V2EX → fetched=10 inserted=10（此前永远 0 条）
+```
+
+**注意**：`host.docker.internal` 需要 Docker Desktop（Windows/Mac 自动支持）。Linux 原生 Docker 需在 `docker-compose.yml` backend 加 `extra_hosts: - "host.docker.internal:host-gateway"`。改 `.env` 后**必须 `up -d` 重建容器**（`restart` 不重读 env_file）。
 
 ---
 
