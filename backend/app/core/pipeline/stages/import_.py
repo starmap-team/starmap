@@ -98,7 +98,8 @@ def execute_import(run_id: str) -> dict[str, Any]:
         for idx, (text, title) in enumerate(zip(jd_texts, jd_titles, strict=False)):
             try:
                 # D-15: persist 子步骤事件 (LLM 抽取完成 = 持久化就绪)
-                result = run_async(run_batch_extract_jd(text))
+                # D5 fix: 传 JD 标题作为 position_name 回退（LLM 未返回岗位名时不再落 Unknown Position）
+                result = run_async(run_batch_extract_jd(text, job_title=title))
                 if result.get("status") == "completed":
                     processed += 1
                     if result.get("data", {}).get("required_skills"):

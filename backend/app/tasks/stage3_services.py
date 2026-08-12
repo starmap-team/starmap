@@ -114,11 +114,21 @@ async def persist_extraction_result(
     jd_content: str,
     extraction_result: dict[str, Any],
     *,
+    job_title: str | None = None,
     source_run_id: uuid.UUID | None = None,
-) -> JDExtractionRecord:
-    """Persist a successful extraction and update relational evolution source tables."""
+) -> tuple[JDExtractionRecord, str, dict[str, str]]:
+    """Persist a successful extraction and update relational evolution source tables.
+
+    Returns (record, position_id, skill_ids) — position_id 与 {skill_name: id} 供
+    write_single_extraction_to_graph 穿线 canonical_id（C-1 根治：图节点写库即带 id）。
+    """
     data = extraction_result["data"]
-    position_name = str(data.get("position_name") or "Unknown Position")
+    # D5 fix (2026-08-12): LLM 未返回 position_name 时回退到 JD 标题（管线 import 已传
+    # job_title），不再落 "Unknown Position" 占位符 —— 该占位符曾产生 103 条幻影关系
+    # 污染 PG SSOT 且无图对应（双库不一致根因之一）。
+    position_name = str(data.get("position_name") or job_title or "").strip()
+    if not position_name:
+        position_name = "Unknown Position"
     confidence = _confidence_from_result(extraction_result)
     record = JDExtractionRecord(
         jd_content=mask_pii(jd_content),
@@ -134,6 +144,7 @@ async def persist_extraction_result(
     await session.flush()
 
     position = await _upsert_position(session, position_name, source_run_id=source_run_id)
+    skill_ids: dict[str, str] = {}
     for requirement_type, entries in (
         ("required", data.get("required_skills", [])),
         ("preferred", data.get("preferred_skills", [])),
@@ -143,6 +154,7 @@ async def persist_extraction_result(
             if not skill_name:
                 continue
             skill = await _upsert_skill(session, skill_name, skill_entry_category(entry, default="general"), source_run_id=source_run_id)
+            skill_ids[skill_name] = str(skill.id)
             await _ensure_position_skill_relation(
                 session,
                 position.id,
@@ -151,7 +163,7 @@ async def persist_extraction_result(
                 confidence,
             )
 
-    return record
+    return record, str(position.id), skill_ids
 
 
 async def _load_source_counts(sessionmaker: async_sessionmaker) -> dict[str, int]:
@@ -171,7 +183,13 @@ async def _load_source_counts(sessionmaker: async_sessionmaker) -> dict[str, int
         return {}
 
 
-async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = None, *, source_run_id: uuid.UUID | None = None) -> dict[str, Any]:
+async def run_batch_extract_jd(
+    jd_text: str,
+    options: dict[str, Any] | None = None,
+    *,
+    job_title: str | None = None,
+    source_run_id: uuid.UUID | None = None,
+) -> dict[str, Any]:
     """Run extraction, persist it, and ingest the resulting triples into Neo4j.
 
     Phase 7 P0-1 fix: wraps the Neo4j write in the graph-write outbox protocol
@@ -191,7 +209,9 @@ async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = No
 
         async with sessionmaker() as session:
             async with session.begin():
-                record = await persist_extraction_result(session, jd_text, result, source_run_id=source_run_id)
+                record, position_id, skill_ids = await persist_extraction_result(
+                    session, jd_text, result, job_title=job_title, source_run_id=source_run_id
+                )
 
         # H1 fix: outbox run_id=NULL for ad-hoc extraction; extraction_ids links
         # back to JDExtractionRecord for audit/retry traceability.
@@ -210,7 +230,10 @@ async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = No
             logger.warning("run_batch_extract_jd outbox create failed (non-fatal): {}", o_exc)
 
         try:
-            graph_summary = await write_single_extraction_to_graph(result["data"])
+            graph_summary = await write_single_extraction_to_graph(
+                result["data"],
+                canonical_ids={"position_id": position_id, "skills": skill_ids},
+            )
             try:
                 await _ex._complete_outbox_record(
                     sessionmaker, outbox_id, int(graph_summary.get("triples_merged", 0)),
@@ -242,11 +265,18 @@ async def run_batch_extract_jd(jd_text: str, options: dict[str, Any] | None = No
         await engine.dispose()
 
 
-async def write_single_extraction_to_graph(extraction: dict[str, Any]) -> dict[str, Any]:
-    """Write a single extraction result to Neo4j."""
+async def write_single_extraction_to_graph(
+    extraction: dict[str, Any],
+    canonical_ids: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Write a single extraction result to Neo4j.
+
+    canonical_ids: {"position_id", "skills": {name: id}} from the PG persist
+    step — threaded so graph nodes carry canonical_id at write time (C-1 根治).
+    """
     config = GraphConfig()
     async with config.get_driver() as driver:
-        summaries = await batch_write_extractions([extraction], driver)
+        summaries = await batch_write_extractions([extraction], driver, canonical_ids_list=[canonical_ids])
     return summaries[0] if summaries else {}
 
 
