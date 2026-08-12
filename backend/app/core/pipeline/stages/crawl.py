@@ -139,8 +139,8 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
                 configs.append(cfg)
             if configs:
                 logger.debug(
-                    "Loaded crawl configs from {} active source(s)",
-                    len(configs),
+                    "Loaded {} crawl config(s) from {} active source(s) (selected={})",
+                    len(configs), len(sources), bool(selected),
                 )
             return configs
     except PipelineStageError:
@@ -217,8 +217,11 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     source_configs = run_async(_get_crawl_configs(run_id))
 
     total_inserted = 0
+    total_new = 0        # 真正新增行（upsert 返回 inserted）
+    total_duplicate = 0  # content_hash 已存在（重复）
     total_seen = 0
     errors: list[str] = []
+    warnings: list[str] = []   # 非致命提示（0 条采集等），仅告警不判 failed
     per_source_stats: dict[str, int] = {}
     recent_samples: list[dict[str, Any]] = []
     sub_breakdown: dict[str, int] = {}
@@ -311,9 +314,18 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
                     "status": JdStatus.raw,
                 }
                 r = dao.upsert_jd(rec)
+                # 2026-08-12 (pipeline 联调): 区分新增 vs 重复 —— "入库 0" 通常是因为
+                # 本次爬取 70 条 content_hash 与库中已有记录重复（upsert 返回 duplicate），
+                # 而非爬虫没抓到。source_inserted 计入新增+重复（= 本源处理量，供
+                # sub_breakdown/实时状态展示），新增/重复总数由 records_new/records_duplicate
+                # 承载（DAG tooltip 与详情抽屉解释"为何入库 0"）。
                 if r in ("inserted", "duplicate"):
                     source_inserted += 1
                     total_inserted += 1
+                    if r == "inserted":
+                        total_new += 1
+                    else:
+                        total_duplicate += 1
                     if len(recent_samples) >= 10:
                         recent_samples.pop(0)
                     recent_samples.append({
@@ -367,22 +379,29 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     run_async(publish_stage_progress(
         run_id, "crawl", "completed",
         progress=1.0,
-        records_processed=total_inserted,
-        current_activity=f"采集完成: 共 {total_seen} 条原始数据，新增 {total_inserted} 条入库",
+        records_processed=total_seen,
+        # D8c fix: 文案用真实新增 total_new（原用 total_inserted=新增+重复 冒充"新增"）
+        current_activity=(
+            f"采集完成: 抓到 {total_seen} 条，新增 {total_new} 条入库，{total_duplicate} 条与库中重复"
+            if total_new > 0 else
+            f"采集完成: 抓到 {total_seen} 条，全部 {total_duplicate} 条与库中已有重复（未新增）"
+        ),
         recent_samples=recent_samples[-5:],
         sub_breakdown=sub_breakdown,
         elapsed_ms=int((time.monotonic() - crawl_start) * 1000),
-        message=f"采集阶段完成: 总览={total_seen} 新增={total_inserted} | {'; '.join(per_source_summary[:5])}",
+        message=f"采集阶段完成: 抓到={total_seen} 新增={total_new} 重复={total_duplicate} | {'; '.join(per_source_summary[:5])}",
     ))
 
-    if total_inserted == 0 and not errors:
+    if total_seen == 0 and not errors:
         warning_msg = (
             "⚠️ 爬虫采集完成但 0 条入库。可能原因: ① 平台反爬(stealth被识别) "
             "② 选择器失效(网站改版) ③ 数据源配置 max_count=0"
         )
-        errors.append(warning_msg)
+        # 0 条采集 = 非致命警告（进入 warnings），不再判 failed —— 否则定时任务
+        # 在部分源返回 0（如 v2ex 超时 / arbeitnow 握手失败）时会每小时刷失败记录
+        warnings.append(warning_msg)
         logger.warning(warning_msg + f" sources_attempted={total_sources}, total_seen={total_seen}")
-    elif total_inserted == 0 and errors:
+    elif total_seen == 0 and errors:
         logger.warning(f"爬虫 0 记录: 已有 {len(errors)} 个 errors")
 
     try:
@@ -393,17 +412,20 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
         logger.warning("_update_source_after_crawl failed (non-fatal): {}", exc)
 
     return {
-        "records_processed": total_inserted,
+        "records_processed": total_seen,
         "records_seen": total_seen,
+        "records_new": total_new,
+        "records_duplicate": total_duplicate,
         "errors": errors,
+        "warnings": warnings,
         "per_source": per_source_stats,
         "sub_breakdown": sub_breakdown,
         "recent_samples": recent_samples[-5:],
         "per_source_summary": per_source_summary,
         "current_activity": (
-            f"采集完成: 共 {total_seen} 条原始数据，新增 {total_inserted} 条入库 | {'; '.join(per_source_summary[:5])}"
-            if total_inserted > 0 else
-            f"⚠️ 0 条入库 (尝试 {total_sources} 源, 失败 {len(errors)} 个) | {'; '.join(per_source_summary[:5])}"
+            f"采集完成: 抓到 {total_seen} 条，新增 {total_new} 条入库，{total_duplicate} 条与库中重复 | {'; '.join(per_source_summary[:5])}"
+            if total_new > 0 else
+            f"采集完成: 抓到 {total_seen} 条，全部与库中已有重复（未新增） | {'; '.join(per_source_summary[:5])}"
         ),
     }
 

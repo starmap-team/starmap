@@ -15,8 +15,11 @@ class StageInfo(BaseModel):
     progress: float = Field(0.0, ge=0.0, le=1.0, description="Stage progress 0.0-1.0")
     duration_ms: int = Field(0, ge=0, description="阶段耗时（毫秒）")
     records_processed: int = Field(0, ge=0, description="已处理记录数")
+    records_new: int | None = Field(None, ge=0, description="crawl 真正新增行数")
+    records_duplicate: int | None = Field(None, ge=0, description="crawl 重复行数")
     errors: list[str] = Field(default_factory=list, description="阶段错误信息列表")
     errors_count: int = Field(0, ge=0, description="Count of errors (alias for len(errors))")
+    warnings: list[str] = Field(default_factory=list, description="阶段非致命警告（如 crawl 0 条采集），不判 failed")
     retry_count: int = Field(0, ge=0, description="阶段重试次数")
     depends_on: list[str] = Field(default_factory=list, description="前置阶段名列表")
     # Phase 3.7: 实时活动上下文（来自 executor 的 _publish_stage_progress）
@@ -51,7 +54,9 @@ class PipelineStatusResponse(BaseModel):
     recent_failed_run: PipelineRunResponse | None = None
     run_counts: dict[str, int] = Field(default_factory=dict)
     active_data_sources: int = 0
-    today_crawl_volume: int = Field(0, ge=0, description="JDs crawled since 00:00 today")
+    today_crawl_volume: int = Field(0, ge=0, description="今日爬虫处理量（各 run crawl 处理量之和，含重复）")
+    today_crawl_new: int = Field(0, ge=0, description="今日 jd_raw 实际新增行数")
+    total_jd_raw: int = Field(0, ge=0, description="jd_raw 全表行数（历史累计）")
     last_crawl_at: str | None = Field(None, description="ISO timestamp of most recent crawl")
     success_rate: float = Field(0.0, ge=0.0, le=1.0, description="7-day completed/(completed+failed)")
     avg_quality_score: float = Field(0.0, ge=0.0, le=1.0, description="7-day avg quality_score")

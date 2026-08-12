@@ -133,7 +133,10 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
                 duration_ms=duration_ms,
                 records_processed=result.get("records_processed", 0),
                 records_seen=result.get("records_seen", 0),
+                records_new=result.get("records_new"),
+                records_duplicate=result.get("records_duplicate"),
                 errors=result.get("errors", []),
+                warnings=result.get("warnings", []),
                 current_activity=result.get("current_activity", ""),
                 recent_samples=result.get("recent_samples", []),
                 sub_breakdown=result.get("sub_breakdown", {}),
@@ -327,6 +330,7 @@ async def _sweep_orphan_runs_async() -> dict[str, Any]:
 async def _mark_stage_completed(
     run_id: str, stage_name: str,
     *, duration_ms: int = 0, records_processed: int = 0, records_seen: int = 0, errors: list[str] | None = None,
+    warnings: list[str] | None = None, records_new: int | None = None, records_duplicate: int | None = None,
     current_activity: str = "", recent_samples: list[dict] | None = None,
     sub_breakdown: dict[str, int] | None = None,
 ) -> None:
@@ -336,6 +340,10 @@ async def _mark_stage_completed(
     - 0 记录 + 0 错误 → completed
     - 有记录 → completed (即使有错误, 错误是 warning)
     - 0 记录 + 有错误 → failed (关键修复: 之前所有 0 记录都被误标为 completed)
+
+    2026-08-12 (pipeline 修复): 非致命提示（如 crawl 0 条采集）已移入 warnings，
+    不再进入 errors —— 因此 "0 记录 + 有错误" 里的 errors 现在只代表真实异常，
+    避免部分源返回 0 条导致定时任务每小时刷 failed。
     """
     from app.core.pipeline.orchestrator import update_stage_status
     from app.db.session import get_session_factory
@@ -355,6 +363,9 @@ async def _mark_stage_completed(
                 records_processed=records_processed,
                 records_seen=records_seen,
                 errors=error_list,
+                warnings=warnings,
+                records_new=records_new,
+                records_duplicate=records_duplicate,
                 current_activity=current_activity,
                 recent_samples=recent_samples,
                 sub_breakdown=sub_breakdown,

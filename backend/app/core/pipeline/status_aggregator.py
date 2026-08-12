@@ -27,10 +27,13 @@ CACHE_TTL_SECONDS = 600  # 10 分钟
 
 
 async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
-    """同步计算 3 个 STATUS-* 字段（不带缓存）。
+    """同步计算 STATUS-* 字段（不带缓存）。
 
     返回 dict 包含:
-      - today_crawl_volume: 今日 0 点至今 raw_jd_records 新增数
+      - today_crawl_volume: 今日爬虫处理量 = 今日各 run crawl 阶段 records_processed 之和
+        （含重复；与 DAG/历史"处理量"同源，避免"今日跑了多次却显示 0"的困惑）
+      - today_crawl_new: 今日 jd_raw 实际新增行数（爬虫 upsert 重复不改 crawled_at）
+      - total_jd_raw: jd_raw 全表行数（历史累计）
       - success_rate: 近 7 天 completed / (completed + failed)
       - avg_quality_score: 近 7 天 quality_score 平均
     """
@@ -38,16 +41,38 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
     seven_days_ago = datetime.now(UTC) - timedelta(days=7)
 
     try:
-        # 1) today_crawl_volume: 今日 0 点至今 jd_raw.crawled_at 新增 (Phase 3.8.11: RawJDRecord 永不被写入, 改查真实表 jd_raw)
+        # 1) today_crawl_volume: 今日各 run 的 crawl records_processed 之和（真实采集活动量）
         from sqlalchemy import text as _text
-        vol_result = await session.execute(_text("SELECT COUNT(*) FROM jd_raw WHERE crawled_at >= :start"), {"start": today_start})
+        vol_result = await session.execute(_text(
+            """
+            SELECT COALESCE(SUM((s->>'records_processed')::int), 0)
+            FROM pipeline_runs, jsonb_array_elements(stages::jsonb) s
+            WHERE s->>'name' = 'crawl' AND started_at >= :start
+              AND status IN ('completed', 'running', 'failed')
+            """
+        ), {"start": today_start})
         today_volume = int(vol_result.scalar() or 0)
     except Exception:
         logger.exception("today_crawl_volume query failed")
         today_volume = 0
 
     try:
-        # 2) success_rate: 近 7 天 completed / (completed + failed)
+        # 2) today_crawl_new: 今日 jd_raw 实际新增行数（新增 vs 重复的诚实区分）
+        from sqlalchemy import text as _text
+        new_result = await session.execute(
+            _text("SELECT COUNT(*) FROM jd_raw WHERE crawled_at >= :start"),
+            {"start": today_start},
+        )
+        today_new = int(new_result.scalar() or 0)
+        total_result = await session.execute(_text("SELECT COUNT(*) FROM jd_raw"))
+        total_jd_raw = int(total_result.scalar() or 0)
+    except Exception:
+        logger.exception("today_crawl_new query failed")
+        today_new = 0
+        total_jd_raw = 0
+
+    try:
+        # 3) success_rate: 近 7 天 completed / (completed + failed)
         from app.models.pipeline_models import PipelineRun
         success_count_result = await session.execute(
             select(func.count()).select_from(PipelineRun)
@@ -70,7 +95,7 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
         success_rate = 0.0
 
     try:
-        # 3) avg_quality_score: 近 7 天 quality_score 平均
+        # 4) avg_quality_score: 近 7 天 quality_score 平均
         from app.models.pipeline_models import PipelineRun
         avg_result = await session.execute(
             select(func.avg(PipelineRun.quality_score))
@@ -85,6 +110,8 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
 
     return {
         "today_crawl_volume": today_volume,
+        "today_crawl_new": today_new,
+        "total_jd_raw": total_jd_raw,
         "success_rate": round(success_rate, 4),
         "avg_quality_score": round(avg_quality_score, 4),
     }

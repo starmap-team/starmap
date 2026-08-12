@@ -71,14 +71,20 @@ class FakeAsyncSession:
 class TestComputeStatusAggregates:
     @pytest.mark.asyncio
     async def test_normal_case(self):
+        # 2026-08-12 (pipeline 联调): 新增 today_crawl_new / total_jd_raw 两查询，
+        # 位于 today_crawl_volume 之后、success_count 之前。
         session = FakeAsyncSession([
-            FakeResult(scalar_val=42),   # today_crawl_volume
+            FakeResult(scalar_val=42),   # today_crawl_volume (SUM)
+            FakeResult(scalar_val=5),    # today_crawl_new
+            FakeResult(scalar_val=958),  # total_jd_raw
             FakeResult(scalar_val=80),   # success_count
             FakeResult(scalar_val=20),   # failed_count
             FakeResult(scalar_val=0.85), # avg_quality_score
         ])
         result = await compute_status_aggregates(session)
         assert result["today_crawl_volume"] == 42
+        assert result["today_crawl_new"] == 5
+        assert result["total_jd_raw"] == 958
         assert result["success_rate"] == round(80 / 100, 4)
         assert result["avg_quality_score"] == 0.85
 
@@ -86,6 +92,8 @@ class TestComputeStatusAggregates:
     async def test_zero_total_success_rate(self):
         session = FakeAsyncSession([
             FakeResult(scalar_val=0),   # today_crawl_volume
+            FakeResult(scalar_val=0),   # today_crawl_new
+            FakeResult(scalar_val=0),   # total_jd_raw
             FakeResult(scalar_val=0),   # success_count
             FakeResult(scalar_val=0),   # failed_count
             FakeResult(scalar_val=None),# avg_quality_score
@@ -110,6 +118,8 @@ class TestComputeStatusAggregates:
     async def test_scalar_none_treated_as_zero(self):
         session = FakeAsyncSession([
             FakeResult(scalar_val=None),  # today_crawl_volume
+            FakeResult(scalar_val=None),  # today_crawl_new
+            FakeResult(scalar_val=None),  # total_jd_raw
             FakeResult(scalar_val=None),  # success_count
             FakeResult(scalar_val=None),  # failed_count
             FakeResult(scalar_val=None),  # avg_quality_score

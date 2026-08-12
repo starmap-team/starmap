@@ -117,7 +117,10 @@ async def get_data_truth(
     rows = []
 
     # 指标 1: 岗位总数（三口径）
-    diff, status = _calc_status([neo4j_positions, pg_total_positions, pg_approved_positions])
+    # 2026-08-12 (admin 联调修复): 原 `[neo4j, pg_total, pg_approved]` 把"总数(233)"与
+    # "已发布(179)"混作跨源比较 → 23.2% 假 critical（三源其实一致）。差异应只比较同一
+    # 指标（总数）的三个来源：API / PostgreSQL / Neo4j。已发布数是独立指标（见指标 5）。
+    diff, status = _calc_status([api_dashboard_positions, pg_total_positions, neo4j_positions])
     rows.append(TruthRow(
         metric="岗位总数",
         description="不同数据源给出的岗位总数（口径不同）",
@@ -130,7 +133,7 @@ async def get_data_truth(
     ))
 
     # 指标 2: 技能总数
-    diff, status = _calc_status([neo4j_skills, pg_total_skills])
+    diff, status = _calc_status([api_dashboard_skills, neo4j_skills, pg_total_skills])
     rows.append(TruthRow(
         metric="技能总数",
         description="Neo4j Skill 节点 vs PostgreSQL skill_records",

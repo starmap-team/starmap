@@ -121,14 +121,24 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         result = run_async(run_build_graph_from_extractions(limit=500))
         processed = result.get("processed", 0)
         triples_merged = result.get("triples_merged", 0)
-        nodes = result.get("nodes_written", 0)
-        edges = result.get("edges_written", 0)
+        # D8c fix: 原读 nodes_written/edges_written —— 该键不存在（run_build_graph_
+        # from_extractions 返回 nodes_touched/relationships_touched），导致死字段恒 0。
+        nodes = result.get("nodes_touched", 0)
+        edges = result.get("relationships_touched", 0)
         run_async(_complete_outbox_record(get_session_factory(), outbox_id, triples_merged))
         run_async(publish_stage_progress(
             run_id, "graph_sync", "completed", progress=1.0,
             records_processed=processed,
-            current_activity=f"图谱完成: {nodes}节点 {edges}关系 {triples_merged} triples",
-            sub_breakdown={"节点": nodes, "关系": edges, "triples": triples_merged},
+            current_activity=(
+                f"图谱构建完成: 扫描 {processed} 条已审核抽取记录，"
+                f"三元组操作 {triples_merged}（含已存在），触及节点 {nodes} / 关系 {edges}"
+            ),
+            sub_breakdown={
+                "扫描抽取记录": processed,
+                "三元组操作": triples_merged,
+                "触及节点": nodes,
+                "触及关系": edges,
+            },
             elapsed_ms=int((time.monotonic() - start) * 1000),
         ))
         if result.get("status") != "completed":
@@ -171,7 +181,13 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         "outbox_id": str(outbox_id),
         # D8 fix: SSE publish 有 sub_breakdown 但 return 缺 → 持久化丢失 →
         # 图谱构建阶段展开无「节点/关系/triples」详情
-        "sub_breakdown": {"节点": nodes, "关系": edges, "triples": triples_merged},
+        # D8c: 键名与 publish 一致（扫描抽取记录/三元组操作/触及节点/触及关系）
+        "sub_breakdown": {
+            "扫描抽取记录": processed,
+            "三元组操作": triples_merged,
+            "触及节点": nodes,
+            "触及关系": edges,
+        },
     }
 
 

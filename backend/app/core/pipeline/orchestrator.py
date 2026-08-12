@@ -96,6 +96,7 @@ def _build_initial_stages(selected: list[str] | None = None) -> list[dict[str, A
             "duration_ms": 0,
             "records_processed": 0,
             "errors": [],
+            "warnings": [],            # 非致命提示（如 crawl 0 条入库），不触发 failed
             "retry_count": 0,
             "error_type": "",     # Phase 7 fix: classify failures for observability
             "depends_on": STAGE_DEPS.get(stage.value, []),
@@ -180,7 +181,10 @@ async def update_stage_status(
     duration_ms: int = 0,
     records_processed: int = 0,
     records_seen: int = 0,                              # Phase 3.8.11
+    records_new: int | None = None,                     # crawl 真正新增行
+    records_duplicate: int | None = None,               # crawl 重复行
     errors: list[str] | None = None,
+    warnings: list[str] | None = None,          # 非致命警告（0 条采集等），仅提示不判失败
     retry_count: int | None = None,
     error_type: str = "",                                # Phase 7: failure classification
     current_activity: str = "",
@@ -218,8 +222,14 @@ async def update_stage_status(
     stage["records_processed"] = records_processed
     if records_seen:
         stage["records_seen"] = records_seen  # Phase 3.8.11: 抓到 vs 入库区分
+    if records_new is not None:
+        stage["records_new"] = records_new
+    if records_duplicate is not None:
+        stage["records_duplicate"] = records_duplicate
     if errors:
         stage["errors"] = errors
+    if warnings is not None:
+        stage["warnings"] = warnings
     if retry_count is not None:
         stage["retry_count"] = retry_count
     if error_type:

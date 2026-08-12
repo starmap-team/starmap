@@ -118,7 +118,20 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
             # Check if all stages are done
             if all_stages_done(stages):
                 failed = get_failed_stages(stages)
-                total_records = sum(s.get("records_processed", 0) for s in stages)
+                # 2026-08-12 (pipeline 修复): total_records 只计本轮 crawl 新增入库数。
+                # 原实现 Σ 全部 stage records_processed，把 graph_sync 的 outbox 回补与
+                # timeseries 时间窗数混入 —— failed run 因此出现误导性的 "总记录 435"
+                # （其实是 timeseries 窗口数），completed run 的 709=50+224+435 也无法
+                # 表达"本轮采集入库了多少"。现在 failed run 的总记录 = 本轮采集量。
+                crawl_records = next(
+                    (
+                        int(s.get("records_processed", 0))
+                        for s in stages
+                        if s.get("name") == StageName.CRAWL.value
+                    ),
+                    0,
+                )
+                total_records = crawl_records
                 run_status = RunStatus.FAILED.value if failed else RunStatus.COMPLETED.value
                 error_log = f"Failed stages: {failed}" if failed else None
                 await session.execute(
@@ -214,13 +227,16 @@ async def retry_stage(run_id: uuid.UUID, stage_name: str) -> PipelineRun | None:
     """Reset a failed stage to PENDING and advance the pipeline."""
     session_factory = get_session_factory()
     async with session_factory() as session:
-        # Reset the stage
-        await update_stage_status(
-            session, run_id, stage_name,
-            status=StageStatus.PENDING.value,
-            errors=[],
-            retry_count=0,
-        )
+        # 2026-08-12 (pipeline 修复): 必须显式 begin —— session 退出即回滚，
+        # 否则 stage 重置丢失，advance_pipeline 会读到原始失败态并重新标记 failed。
+        async with session.begin():
+            # Reset the stage
+            await update_stage_status(
+                session, run_id, stage_name,
+                status=StageStatus.PENDING.value,
+                errors=[],
+                retry_count=0,
+            )
     # Re-advance
     await advance_pipeline(run_id)
     async with session_factory() as session:
@@ -234,29 +250,33 @@ async def resume_run(run_id: uuid.UUID) -> PipelineRun | None:
     """Resume a failed pipeline run by resetting all failed stages and advancing."""
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(PipelineRun).where(PipelineRun.id == run_id)
-        )
-        run = result.scalar_one_or_none()
-        if run is None:
-            return None
+        # 2026-08-12 (pipeline 修复): 必须显式 begin —— 无 begin 时 stages 重置在
+        # session 关闭时被回滚，advance_pipeline 读到原始失败态 → 续跑实际无效
+        # （仅刷新了 completed_at）。加 begin 保证重置持久化。
+        async with session.begin():
+            result = await session.execute(
+                select(PipelineRun).where(PipelineRun.id == run_id)
+            )
+            run = result.scalar_one_or_none()
+            if run is None:
+                return None
 
-        stages = list(run.stages or [])
-        for s in stages:
-            if s["status"] == StageStatus.FAILED.value:
-                s["status"] = StageStatus.PENDING.value
-                s["errors"] = []
-                s["retry_count"] = 0
-                s["started_at"] = None
-                s["completed_at"] = None
+            stages = list(run.stages or [])
+            for s in stages:
+                if s["status"] == StageStatus.FAILED.value:
+                    s["status"] = StageStatus.PENDING.value
+                    s["errors"] = []
+                    s["retry_count"] = 0
+                    s["started_at"] = None
+                    s["completed_at"] = None
 
-        # Reset run status to running
-        run.status = RunStatus.RUNNING.value
-        run.completed_at = None
-        await session.execute(
-            update(PipelineRun)
-            .where(PipelineRun.id == run_id)
-            .values(stages=stages, status=RunStatus.RUNNING.value, completed_at=None)
+            # Reset run status to running
+            run.status = RunStatus.RUNNING.value
+            run.completed_at = None
+            await session.execute(
+                update(PipelineRun)
+                .where(PipelineRun.id == run_id)
+                .values(stages=stages, status=RunStatus.RUNNING.value, completed_at=None)
         )
 
     await advance_pipeline(run_id)

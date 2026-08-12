@@ -34,6 +34,7 @@ dependencies = [
     "pyyaml (>=6.0)",                    # YAML 解析（skill_taxonomy.yaml 归一化）
     "python-dotenv (>=1.0)",
     "loguru (>=0.7)",
+    "croniter (>=1.0,<3.0)",             # cron 表达式解析（pipeline 定时调度；缺失时兜底退化为 +1h 触发）
     "tenacity (>=8.2,<9.0)",             # 重试
     "PyJWT (>=2.8,<3.0)",                # JWT 签发/验证 (SEC-01)
     "bcrypt (>=4.0,<5.0)",               # 密码哈希 (SEC-02)
