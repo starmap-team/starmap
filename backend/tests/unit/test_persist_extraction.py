@@ -150,3 +150,34 @@ async def test_persist_invalid_extraction_lower_hallucination(monkeypatch: pytes
     result = _make_extraction_result(is_valid=False, confidence=0.7)
     record, _pos_id, _skill_ids = await s.persist_extraction_result(session, "JD", result)
     assert record.hallucination_score == pytest.approx(0.3, rel=1e-3)
+
+
+@pytest.mark.asyncio
+async def test_persist_evolves_to_successors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """R5 根治: evolves_to 后继岗位一并落 PG（不再只写图成孤儿）。"""
+    session = FakeSession()
+    upserted_positions: list[str] = []
+
+    async def fake_upsert_position(_session: object, name: str, **_kwargs: object) -> object:
+        upserted_positions.append(name)
+        return types.SimpleNamespace(id=111, name=name)
+
+    async def fake_upsert_skill(_session: object, name: str, category: str, **_kwargs: object) -> object:
+        return types.SimpleNamespace(id=222, name=name, category=category)
+
+    async def fake_ensure(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(s, "_upsert_position", fake_upsert_position)
+    monkeypatch.setattr(s, "_upsert_skill", fake_upsert_skill)
+    monkeypatch.setattr(s, "_ensure_position_skill_relation", fake_ensure)
+
+    result = _make_extraction_result()
+    result["data"]["evolves_to"] = ["Data Engineer", {"position": "Data Scientist", "similarity": 0.8}]
+    record, _pos_id, _skill_ids = await s.persist_extraction_result(session, "some JD", result)
+
+    assert record.job_title == "Backend Engineer"
+    # 主岗位 + 2 个后继都 upsert 了
+    assert upserted_positions[0] == "Backend Engineer"
+    assert "Data Engineer" in upserted_positions
+    assert "Data Scientist" in upserted_positions

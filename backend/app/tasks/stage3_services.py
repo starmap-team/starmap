@@ -180,6 +180,21 @@ async def persist_extraction_result(
                 confidence,
             )
 
+    # R5 根治 (2026-08-13): 抽取 evolves_to 后继岗位（职业演化目标）此前只写 Neo4j 图
+    # （graph_writer name-MERGE 无 canonical_id）不落 PG → 产生被 EVOLVES_TO 引用的
+    # 无记录图节点（孤儿）。现在一并落 PG（pending_review 待审核），graph_sync 的
+    # 岗位自愈会补齐 canonical_id 链接——未来抽取不再产生岗位孤儿。
+    for successor in data.get("evolves_to", []) or []:
+        if isinstance(successor, dict):
+            succ_name = str(successor.get("position") or successor.get("name") or "").strip()
+        else:
+            succ_name = str(successor).strip()
+        if succ_name and succ_name != position_name:
+            try:
+                await _upsert_position(session, succ_name, source_run_id=source_run_id)
+            except Exception as succ_exc:  # noqa: BLE001 — 单条后继失败不阻断主写入
+                logger.warning("evolves_to successor PG upsert failed for {!r}: {}", succ_name, succ_exc)
+
     return record, str(position.id), skill_ids
 
 
