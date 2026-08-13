@@ -79,4 +79,4 @@ def resolve_client_ip(request: Request) -> str:
     """
     from app.config import settings
 
-    return get_client_ip(request, trusted_proxies=settings.get_trusted_proxy_networks())
+    return get_client_ip(request, trusted_proxies=settings.trusted_proxy_networks)

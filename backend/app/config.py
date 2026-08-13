@@ -1,10 +1,10 @@
 """集中配置管理（基于 pydantic-settings，从环境变量/.env 读取）。"""
 
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from typing import Any, ClassVar
 
 from loguru import logger
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, TypeAdapter, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # 占位符：表示密码尚未在 .env 中配置，必须修改后才能用于生产环境
@@ -18,7 +18,11 @@ class Settings(BaseSettings):
 
     # 应用
     app_env: str = "development"
-    app_debug: bool = True
+    # P1-AUDIT-FIX (2026-08-13): 原默认 True 反直觉——fresh clone 未配置
+    # APP_DEBUG 时默认 debug 模式跑更危险；本字段唯一作用就是 config.py
+    # 生产校验守卫（app_env=production 且 app_debug 时拒绝启动）。本项目
+    # .env 已显式设 APP_DEBUG=true，改默认值对现有部署零影响。
+    app_debug: bool = False
     app_log_level: str = "INFO"
     secret_key: str = _UNCONFIGURED
 
@@ -253,8 +257,12 @@ class Settings(BaseSettings):
         description="forgot-password 令牌投递方式: out_of_band (默认, 仅写 Redis) / dev_return_token (响应回 token, 仅 dev)",
     )
 
-    def get_trusted_proxy_networks(self) -> list:
-        """PLAN-015①: 解析 trusted_proxy_cidrs 为 ipaddress 网列表 (惰性, 避免 config 导入期计算)。"""
+    # P1-AUDIT-FIX (2026-08-13): 原方法每次请求都 split + ip_network × N
+    # （限流中间件/审计每请求调用一次）。trusted_proxy_cidrs 非运行时可变，
+    # 缓存为 cached_property 只解析一次。
+    @cached_property
+    def trusted_proxy_networks(self) -> list:
+        """PLAN-015①: 解析 trusted_proxy_cidrs 为 ipaddress 网列表 (惰性, 只解析一次)。"""
         import ipaddress
         if not self.trusted_proxy_cidrs:
             return []
@@ -305,11 +313,14 @@ class Settings(BaseSettings):
                 continue
 
             # Validate using the field's own constraints
+            # P1-AUDIT-FIX (2026-08-13): 原实现用 `model_validate({key, app_env})`
+            # 校验单字段——整模型重建开销大，且一旦 Settings 未来加必填字段
+            # 就会误失败。TypeAdapter 只校验该字段类型，语义一致、开销更小。
             field_info = type(self).model_fields.get(key)
+            validated_value: Any
             if field_info is not None:
                 try:
-                    validated = type(self).model_validate({key: value, "app_env": self.app_env})
-                    validated_value = getattr(validated, key)
+                    validated_value = TypeAdapter(field_info.annotation).validate_python(value)
                 except Exception as e:
                     raise ValueError(f"Invalid value for '{key}': {e}") from e
             else:
@@ -349,18 +360,19 @@ class Settings(BaseSettings):
             # 偶尔能掩盖）。asyncpg 0.27+ 还会在 `ssl=` 接收到无效字符串时
             # 抛 `AttributeError: type object 'SSLMode' has no attribute ...`。
             #
-            # 解决：对 prefer/allow/disable（dev 默认）直接 **省略 SSL 参数**
-            # （asyncpg 默认 = 不加密，符合 localhost 开发场景）；对
-            # require/verify-ca/verify-full 走 `ssl=<mode>` 把 libpq 同名
-            # 字符串透传给 asyncpg 解析。verify-* 严格校验需要额外 SSLContext
-            # 时再此分支注入 ctx，目前保持最小修复。
+            # P1-AUDIT-FIX (2026-08-13): 此前注释声称 "prefer/allow/disable
+            # 直接省略 SSL 参数"，但实际实现对所有合法 mode（含 prefer/allow/
+            # disable）都显式传 `?ssl=<asyncpg_mode>`——功能正确（asyncpg 原生
+            # 接受这些字符串），注释与实现不符。现按实现如实描述：
+            # 把 libpq 风格 mode（可带连字符）统一转成 asyncpg 的 underscore
+            # 形式透传；未知值保守回落 `?ssl=prefer`（asyncpg 默认行为）。
             sslmode = (self.postgres_sslmode or "prefer").lower()
             if sslmode in {"require", "verify-ca", "verify-full", "allow", "prefer", "disable"}:
                 # asyncpg SSLMode 名称：用 underscore 形式（verify_ca / verify_full）
                 asyncpg_ssl_mode = sslmode.replace("-", "_")
                 ssl_query = f"?ssl={asyncpg_ssl_mode}"
             else:
-                # 未知值：保守走 prefer（asyncpg 默认 = 不加密）
+                # 未知值：保守走 prefer（asyncpg 默认 = 优先加密、失败回退明文）
                 ssl_query = "?ssl=prefer"
             object.__setattr__(
                 self,
