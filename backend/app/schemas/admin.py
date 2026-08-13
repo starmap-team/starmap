@@ -13,7 +13,11 @@ from app.services import auth_service  # MIN_PASSWORD_LENGTH 常量
 class GraphNodeItem(BaseModel):
     """图谱节点条目（图节点管理表单/列表）。"""
 
-    id: str = Field(default="", description="图节点 ID（空串表示新建）")
+    id: str = Field(default="", description="图节点 ID（优先 canonical_id，缺省回退 elementId）")
+    # P1-6 fix (functional-review 2026-08-13): 透传 Neo4j elementId。此前列表只回
+    # canonical_id、写操作按 elementId 匹配 → 前端拿 canonical_id 调更新/删除/审核
+    # 全部 404。前端可优先用 element_id 调写操作（服务端已改为双匹配，两者皆可）。
+    element_id: str = Field(default="", description="Neo4j elementId（写操作首选标识）")
     type: Literal["Position", "Skill", "Tool", "KnowledgeArea", "Domain", "Industry", "Certificate", "LearningResource"] = Field(..., description="Neo4j 节点标签")
     name: str = Field(..., min_length=1, max_length=200, description="节点名称")
     properties: dict[str, Any] = Field(default_factory=dict, description="节点属性（category/proficiency/level 等）")

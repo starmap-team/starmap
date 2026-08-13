@@ -15,10 +15,17 @@ const { validateResponse: validateAdmin } = useResponseValidation()
 
 interface AdminGraphNodesResponse {
   items: GraphNodeItem[]
+  // P1-4 fix: 服务端节点总数（分页用）
+  total?: number
 }
 
 export const useGraphNodeStore = defineStore('graphNode', () => {
   const graphNodes = ref<GraphNodeItem[]>([])
+  // P1-4 fix (functional-review 2026-08-13): 服务端节点总数。此前页面分页
+  // :total 用客户端已取回列表长度（fetchGraphNodes 默认 limit=20）→ 图谱
+  // 节点 >20 时后端节点完全不可见。store 记录后端 total，页面分页组件据此
+  // 渲染总页数，并在翻页/改页大小时按 offset/limit 重拉。
+  const total = ref(0)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -45,6 +52,7 @@ export const useGraphNodeStore = defineStore('graphNode', () => {
         adminSchema, url, 'GraphNodeListResponse',
       ) as AdminGraphNodesResponse
       graphNodes.value = data.items ?? []
+      total.value = data.total ?? graphNodes.value.length
       return data
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '获取图谱节点失败'
@@ -83,6 +91,7 @@ export const useGraphNodeStore = defineStore('graphNode', () => {
 
   return {
     graphNodes,
+    total,
     loading,
     error,
     fetchGraphNodes,

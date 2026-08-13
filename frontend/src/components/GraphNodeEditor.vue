@@ -1,7 +1,10 @@
 <script setup lang="ts">
 /**
  * 图谱节点编辑器
- * 支持创建/编辑 Skill / Position / Domain 节点
+ * 支持创建/编辑 Skill / Tool / Position / KnowledgeArea / Industry /
+ * LearningResource 节点（P2 fix: 原仅 3/6 类型，页面过滤列出 6 类却无法
+ * 通过 UI 创建 → 补齐至与 NODE_TYPE_LABELS 一致，Domain 为 legacy 别名
+ * 不提供新建）。
  * 提交后进入审核队列
  */
 import { reactive, watch, computed } from 'vue'
@@ -44,8 +47,11 @@ const form = reactive({
 
 const nodeTypes = [
   { value: 'Skill', label: '技能' },
+  { value: 'Tool', label: '工具' },
   { value: 'Position', label: '岗位' },
-  { value: 'Domain', label: '领域' },
+  { value: 'KnowledgeArea', label: '知识领域' },
+  { value: 'Industry', label: '行业' },
+  { value: 'LearningResource', label: '学习资源' },
 ]
 
 const categories = [

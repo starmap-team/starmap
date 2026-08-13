@@ -13,7 +13,7 @@
  *
  * 每个 Tab 顶部都有 BusinessBanner 横幅说明业务含义，让新用户秒懂。
  */
-import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, Edit, DataAnalysis } from '@element-plus/icons-vue'
@@ -96,7 +96,7 @@ onMounted(() => {
   datasource.fetchSources()
   // D8h: 移除旧 ReviewQueue 空队列拉取 —— review_queue 表 0 行且无写入方，
   // fetchAuditQueue 返回空徒增请求；审核走 Phase 23 review-status 状态机
-  graphNode.fetchGraphNodes()
+  graphNode.fetchGraphNodes(0, nodePageSize.value)
   review.fetchStats().catch(() => null)
 })
 
@@ -118,6 +118,26 @@ const {
   filtered: filteredGraphNodes,
   paged: pagedGraphNodes,
 } = useGraphNodeList(computed(() => graphNode.graphNodes as GraphNodeItem[]))
+
+// P1-4 fix (functional-review 2026-08-13): 图谱节点管理改为服务端分页。
+// 此前 fetchGraphNodes() 无参调用默认 limit=20，el-pagination :total 用客户端
+// 已取回列表长度 → 节点 >20 时后端节点完全不可见不可操作。现在翻页/改页大小
+// 时按 offset/limit 重拉后端，:total 用后端 total。
+async function onNodePageChange() {
+  await graphNode.fetchGraphNodes(
+    (nodeCurrentPage.value - 1) * nodePageSize.value,
+    nodePageSize.value,
+    nodeSearchKeyword.value,
+    nodeTypeFilter.value,
+  )
+}
+
+// P1-4 fix: 搜索/类型过滤变化时服务端重拉（客户端过滤只是当前页内增强），
+// 避免服务端分页下跨页搜索漏匹配。
+watch([nodeSearchKeyword, nodeTypeFilter], () => {
+  nodeCurrentPage.value = 1
+  void onNodePageChange()
+})
 
 // Node editor + CRUD actions (extracted — Phase 7 D round 6)
 const {
@@ -569,16 +589,18 @@ function formatDate(iso: string | null | undefined): string {
 
             <!-- 分页 -->
             <div
-              v-if="filteredGraphNodes.length"
+              v-if="filteredGraphNodes.length || graphNode.total > 0"
               class="node-pagination"
             >
               <el-pagination
                 v-model:current-page="nodeCurrentPage"
                 v-model:page-size="nodePageSize"
-                :total="filteredGraphNodes.length"
+                :total="graphNode.total"
                 :page-sizes="[10, 20, 50]"
                 layout="total, sizes, prev, pager, next"
                 small
+                @current-change="onNodePageChange"
+                @size-change="onNodePageChange"
               />
             </div>
           </el-card>

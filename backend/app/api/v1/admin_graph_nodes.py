@@ -25,6 +25,8 @@ router = APIRouter(tags=["graph-nodes"])
 def _item_from_dict(data: dict[str, Any]) -> GraphNodeItem:
     return GraphNodeItem(
         id=data.get("id", ""),
+        # P1-6 fix: 透传 element_id，前端写操作可用（服务端已改双匹配）
+        element_id=data.get("element_id", ""),
         type=data.get("type", ""),
         name=data.get("name", ""),
         properties=data.get("properties", {}),

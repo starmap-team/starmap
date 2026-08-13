@@ -6,6 +6,9 @@ import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 
 export interface GraphNodeItem {
   id: string
+  // P1-6 fix (functional-review 2026-08-13): Neo4j elementId，写操作首选标识
+  // （服务端已改为 elementId OR canonical_id 双匹配，两者皆可）
+  element_id?: string
   type: string
   name: string
   properties: Record<string, unknown>

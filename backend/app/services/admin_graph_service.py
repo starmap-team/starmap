@@ -162,8 +162,12 @@ class GraphNodeService:
         # endpoint, not the generic edit form.
         props.pop("review_status", None)
         async with self._driver.session() as session:
+            # P1-6 fix (functional-review 2026-08-13): 列表返回 id=canonical_id，
+            # 但写操作原先只按 elementId(n) 匹配 → 前端拿 canonical_id 来更新
+            # 永远 404（_item_from_dict 还丢弃了 element_id）。改为双匹配：
+            # elementId(n) = $eid OR n.canonical_id = $eid，兼容新旧两种 id。
             query = (
-                "MATCH (n) WHERE elementId(n) = $eid "
+                "MATCH (n) WHERE elementId(n) = $eid OR n.canonical_id = $eid "
                 "SET n += $props "
                 "RETURN n"
             )
@@ -192,8 +196,9 @@ class GraphNodeService:
             raise RuntimeError("Neo4j driver not available")
 
         async with self._driver.session() as session:
+            # P1-6 fix: 双匹配（elementId OR canonical_id），见 update_node 注释
             query = (
-                "MATCH (n) WHERE elementId(n) = $eid "
+                "MATCH (n) WHERE elementId(n) = $eid OR n.canonical_id = $eid "
                 "DETACH DELETE n RETURN count(n) AS deleted"
             )
             result = await session.run(query, {"eid": node_id})
@@ -214,8 +219,9 @@ class GraphNodeService:
             raise RuntimeError("Neo4j driver not available")
 
         async with self._driver.session() as session:
+            # P1-6 fix: 双匹配（elementId OR canonical_id），见 update_node 注释
             query = (
-                "MATCH (n) WHERE elementId(n) = $eid "
+                "MATCH (n) WHERE elementId(n) = $eid OR n.canonical_id = $eid "
                 "SET n.review_status = $status "
                 "RETURN n"
             )
