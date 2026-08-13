@@ -104,7 +104,10 @@ export const useJdStore = defineStore('jd', () => {
     }
   }
 
-  /** Fetch position skills from Neo4j (with PostgreSQL fallback) */
+  /**
+   * @deprecated 已被 fetchPositionDetail 取代（后端 /positions/{id} 返回完整
+   * skills_required）。保留仅防外部引用破坏——新代码请用 fetchPositionDetail。
+   */
   async function fetchPositionSkills(positionName: string) {
     const data = await request.get(`/graph/position/${encodeURIComponent(positionName)}/skills`)
     return validateResponse(data, graphSchema, '/graph/position/{name}/skills', 'PositionSkillDetailResponse')

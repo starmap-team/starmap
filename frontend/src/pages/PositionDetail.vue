@@ -3,7 +3,7 @@
  * 岗位详情页 — 能力雷达图 + 技能列表
  * 路由：/position/:name
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -82,8 +82,12 @@ function hotnessColor(count: number): string {
 // 改用列表传入的 id（UUID，路径安全）；silent=true 使真正缺失时不弹全局 404 toast，改渲染友好态。
 let fetchToken = 0
 
-onMounted(async () => {
+// M2-AUDIT-FIX (02-01 M3): `/position/A` ↔ `/position/B` 复用同一组件实例时
+// onMounted 不会重跑，旧岗位的 skills/radar 会残留。提取为函数并 watch
+// route.params.name 触发重拉（fetchToken 竞态防护沿用）。
+async function loadPosition() {
   loading.value = true
+  notFound.value = false  // M2-AUDIT-FIX: 路由切换重拉前复位，避免上次 not-found 残留
   const myToken = ++fetchToken
   const id = positionName.value
   try {
@@ -123,7 +127,10 @@ onMounted(async () => {
   } finally {
     if (myToken === fetchToken) loading.value = false
   }
-})
+}
+
+onMounted(loadPosition)
+watch(() => route.params.name, loadPosition)
 </script>
 
 <template>
