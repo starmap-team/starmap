@@ -11,7 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.dependencies import get_db_session
 from app.exceptions import QualityError, StarMapError
-from app.models.extraction_models import ExtractionEvaluationRecord, JDExtractionRecord
+from app.models.extraction_models import (
+    ExtractionEvaluationRecord,
+    JDExtractionRecord,
+    PositionRecord,
+    SkillRecord,
+)
 from app.models.review_audit_log import ReviewAuditLog
 from app.schemas.quality import (
     ComprehensiveReport,
@@ -65,7 +70,6 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
 
     extraction_counts_stmt = sa.select(
         sa.func.count(JDExtractionRecord.id),
-        sa.func.count(JDExtractionRecord.id).filter(JDExtractionRecord.status == "pending"),
         sa.func.count(JDExtractionRecord.id).filter(
             sa.and_(
                 JDExtractionRecord.hallucination_score.isnot(None),
@@ -73,9 +77,29 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
             )
         ),
     )
-    total, pending, hallucinated = (await session.execute(extraction_counts_stmt)).one()
+    # P1-5 fix (functional-review 2026-08-13): pending_review 原先统计
+    # JDExtractionRecord.status == "pending"，但抽取记录写入恒为 "completed"
+    # （stage3_services.py），该列无 pending 值 → KPI 恒 0，与同仪表盘
+    # audit_queue（position/skill_records 的 pending_review）口径矛盾。
+    # 对齐 review_service 状态机（Phase 23）：pending 队列 = 岗位 + 技能的
+    # pending_review 计数，与 /admin/review-items 同源。
+    pending_pos = (
+        await session.execute(
+            sa.select(sa.func.count())
+            .select_from(PositionRecord)
+            .where(PositionRecord.review_status == "pending_review")
+        )
+    ).scalar() or 0
+    pending_skill = (
+        await session.execute(
+            sa.select(sa.func.count())
+            .select_from(SkillRecord)
+            .where(SkillRecord.review_status == "pending_review")
+        )
+    ).scalar() or 0
+    total, hallucinated = (await session.execute(extraction_counts_stmt)).one()
     total_extractions = int(total or 0)
-    pending_review = int(pending or 0)
+    pending_review = int(pending_pos or 0) + int(pending_skill or 0)
     hallucination_rate = (int(hallucinated or 0) / total_extractions) if total_extractions else 0.0
 
     report = QualityReport(
@@ -111,7 +135,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         ],
     )
     # Count positions and skills from the database
-    from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
+    from app.models.extraction_models import PositionSkillRelation
     pos_count = (await session.execute(sa.select(sa.func.count()).select_from(PositionRecord))).scalar() or 0
     skill_count = (await session.execute(sa.select(sa.func.count()).select_from(SkillRecord))).scalar() or 0
     edge_count = (await session.execute(sa.select(sa.func.count()).select_from(PositionSkillRelation))).scalar() or 0

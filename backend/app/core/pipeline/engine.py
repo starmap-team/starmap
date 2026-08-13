@@ -20,6 +20,7 @@ from app.core.pipeline.orchestrator import (
     StageName,
     StageStatus,
     all_stages_done,
+    complete_run,
     create_run,
     get_failed_stages,
     get_ready_stages,
@@ -144,16 +145,50 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
                 total_records = crawl_records
                 run_status = RunStatus.FAILED.value if failed else RunStatus.COMPLETED.value
                 error_log = f"Failed stages: {failed}" if failed else None
+                # P1-3 fix (functional-review 2026-08-13): 完成分支此前内联
+                # update(PipelineRun) 只写 stages/status/completed_at/total_records/
+                # error_log，从不写 new_records/updated_records/quality_score ——
+                # 导致 /quality/trends、/dashboard/trends、/datasources/{id}/stats
+                # 的质量分与新增记录恒 0（complete_run 定义了完整回写却无人调用，
+                # 成为死代码）。改为经 complete_run 收口：聚合 crawl 阶段的
+                # records_new/records_duplicate 并计算 data_sources 加权质量分。
+                crawl_stage = next(
+                    (
+                        s for s in stages
+                        if s.get("name") == StageName.CRAWL.value
+                    ),
+                    {},
+                )
+                new_records = int(crawl_stage.get("records_new") or crawl_records or 0)
+                updated_records = int(crawl_stage.get("records_duplicate") or 0)
+                quality_score = 0.0
+                try:
+                    from app.core.pipeline.quality_monitor import compute_source_quality
+
+                    qm = await compute_source_quality(session)
+                    quality_score = qm.overall_score
+                except StarMapError:
+                    raise
+                except Exception:
+                    logger.exception(
+                        "advance_pipeline quality_score compute failed (non-fatal)"
+                    )
+                # complete_run 不写 stages —— 先持久化本事务内对 stages 的
+                # cascade-fail/skip 修改，再收口 run 级指标。
                 await session.execute(
                     update(PipelineRun)
                     .where(PipelineRun.id == run_id)
-                    .values(
-                        stages=stages,
-                        status=run_status,
-                        completed_at=datetime.now(UTC),
-                        total_records=total_records,
-                        error_log=error_log,
-                    )
+                    .values(stages=stages)
+                )
+                await complete_run(
+                    session,
+                    run_id,
+                    status=run_status,
+                    total_records=total_records,
+                    new_records=new_records,
+                    updated_records=updated_records,
+                    quality_score=quality_score,
+                    error_log=error_log,
                 )
                 # Broadcast completion
                 await publish_stage_progress(
