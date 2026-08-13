@@ -124,7 +124,70 @@ async function triggerReconcile() {
   }
 }
 
-onMounted(loadReport)
+onMounted(() => {
+  loadReport()
+  loadOrphanQueue()
+})
+
+// ── P2 孤儿节点审批队列 ──
+interface OrphanQueueItem {
+  id: string
+  node_type: 'position' | 'skill'
+  name: string
+  canonical_id: string | null
+  reason: 'no_canonical_id' | 'orphan_canonical_id'
+  status: 'pending' | 'approved' | 'rejected' | 'cleaned'
+  detail: Record<string, unknown>
+  created_at: string | null
+  reviewed_at: string | null
+  reviewed_by: string | null
+}
+const orphanItems = ref<OrphanQueueItem[]>([])
+const orphanLoading = ref(false)
+const approvingId = ref<string | null>(null)
+
+async function loadOrphanQueue() {
+  orphanLoading.value = true
+  try {
+    const data = await request.get('/admin/orphan-queue') as {
+      items: OrphanQueueItem[]
+      total: number
+    }
+    orphanItems.value = data.items ?? []
+  } catch {
+    orphanItems.value = []
+  } finally {
+    orphanLoading.value = false
+  }
+}
+
+// approve = 删除孤儿节点（级联边）+ 审计；reject = 拒绝清理
+async function actOnOrphan(item: OrphanQueueItem, action: 'approve' | 'reject') {
+  approvingId.value = item.id
+  try {
+    await request.post(`/admin/orphan-queue/${item.id}/action`, { action })
+    ElMessage.success(
+      action === 'approve'
+        ? `已清理孤儿 ${item.node_type === 'position' ? '岗位' : '技能'}「${item.name}」`
+        : `已拒绝清理「${item.name}」`,
+    )
+    await loadOrphanQueue()
+    await loadReport(true)  // 清理后刷新报告（总数差异应归 0）
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '操作失败'
+    ElMessage.error(`孤儿审批失败: ${msg}`)
+  } finally {
+    approvingId.value = null
+  }
+}
+
+function orphanTypeLabel(t: string): string {
+  return t === 'position' ? '岗位' : '技能'
+}
+
+function orphanReasonLabel(r: string): string {
+  return r === 'no_canonical_id' ? '无 canonical_id' : 'PG 无对应记录'
+}
 
 function statusColor(status: string): string {
   if (status === 'ok') return 'success'
@@ -262,6 +325,118 @@ function statusIcon(status: string): unknown {
               手动触发 reconcile
             </el-button>
           </el-tooltip>
+        </div>
+      </div>
+
+      <!-- P2 数据统一: 孤儿节点审批队列（删除是破坏性操作，必须经审批门控） -->
+      <div class="orphan-card">
+        <div class="orphan-header">
+          <h4>孤儿节点清理队列</h4>
+          <span class="orphan-hint">
+            孤儿 = Neo4j 中存在但 PostgreSQL 无对应记录（无 canonical_id 或已删除）。
+            批准后执行删除（级联边），操作记入审计日志。
+          </span>
+        </div>
+        <el-table
+          v-loading="orphanLoading"
+          :data="orphanItems"
+          size="small"
+          empty-text="暂无孤儿待清理 —— 双库已一致 🎉"
+        >
+          <el-table-column
+            label="类型"
+            width="70"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.node_type === 'position' ? 'primary' : 'success'"
+                size="small"
+              >
+                {{ orphanTypeLabel(row.node_type) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="名称"
+            min-width="160"
+            prop="name"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="原因"
+            width="140"
+          >
+            <template #default="{ row }">
+              {{ orphanReasonLabel(row.reason) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="被引用边"
+            width="90"
+          >
+            <template #default="{ row }">
+              <span :class="{ 'ref-warn': Number(row.detail?.referenced_by ?? 0) > 0 }">
+                {{ row.detail?.referenced_by ?? 0 }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.status === 'pending' ? 'warning' : row.status === 'cleaned' ? 'success' : 'info'"
+                size="small"
+              >
+                {{ row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="150"
+          >
+            <template #default="{ row }">
+              <template v-if="row.status === 'pending'">
+                <el-popconfirm
+                  :title="`确认删除孤儿${orphanTypeLabel(row.node_type)}「${row.name}」？（级联移除相关边，不可恢复）`"
+                  width="260"
+                  @confirm="actOnOrphan(row, 'approve')"
+                >
+                  <template #reference>
+                    <el-button
+                      size="small"
+                      type="danger"
+                      :loading="approvingId === row.id"
+                      :disabled="Number(row.detail?.referenced_by ?? 0) > 0"
+                    >
+                      批准删除
+                    </el-button>
+                  </template>
+                </el-popconfirm>
+                <el-button
+                  size="small"
+                  :loading="approvingId === row.id"
+                  @click="actOnOrphan(row, 'reject')"
+                >
+                  拒绝
+                </el-button>
+              </template>
+              <span
+                v-else
+                class="orphan-muted"
+              >
+                {{ row.reviewed_by ? `${row.reviewed_by} ${row.reviewed_at?.slice(0, 10) ?? ''}` : '—' }}
+              </span>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div
+          v-if="orphanItems.some(i => Number(i.detail?.referenced_by ?? 0) > 0)"
+          class="orphan-note"
+        >
+          ⚠ 有被引用边的孤儿已被禁用「批准删除」（需先手动处理引用关系）。
         </div>
       </div>
 
@@ -464,5 +639,47 @@ function statusIcon(status: string): unknown {
   margin-top: var(--space-3);
   display: flex;
   gap: var(--space-2);
+}
+
+/* P2 孤儿审批队列 */
+.orphan-card {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+.orphan-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.orphan-header h4 {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.orphan-hint {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+}
+
+.ref-warn {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.orphan-note {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--warning);
+}
+
+.orphan-muted {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
 }
 </style>

@@ -35,6 +35,9 @@ from app.models.learning_models import (  # noqa: E402, F401
     LearningProgress,
     SkillPrerequisite,
 )
+from app.models.orphan_cleanup import (  # noqa: E402, F401
+    OrphanCleanupQueue,
+)
 from app.models.pipeline_models import (  # noqa: E402, F401
     DataSourceRecord,
     GraphWriteOutbox,
@@ -74,6 +77,7 @@ __all__ = [
     "LearningProgress",
     "LoopResultRecord",
     "MatchResult",
+    "OrphanCleanupQueue",
     "PipelineRun",
     "PipelineSchedule",
     "PositionRecord",

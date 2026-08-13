@@ -3992,6 +3992,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TruthReport'
+  /admin/orphan-queue:
+    get:
+      operationId: getOrphanQueue
+      summary: 孤儿节点审批队列
+      description: 返回待审批的 Neo4j 孤儿节点（无 canonical_id 或 PG 无对应记录）。查看前自动同步最新检测结果（需 admin 权限）。P2 数据统一方案。
+      tags:
+      - 管理后台
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 按状态过滤（pending/approved/rejected/cleaned），默认 pending
+      responses:
+        '200':
+          description: 孤儿队列
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrphanQueueResponse'
+  /admin/orphan-queue/{item_id}/action:
+    post:
+      operationId: orphanQueueAction
+      summary: 孤儿审批（删除/拒绝）
+      description: approve=删除孤儿节点（级联边）+审计；reject=拒绝清理。破坏性操作需 admin 权限。
+      tags:
+      - 管理后台
+      parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrphanQueueActionRequest'
+      responses:
+        '200':
+          description: 审批后的队列条目
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrphanQueueItem'
+        '409':
+          description: 状态冲突（如已审批/已清理）
 components:
   securitySchemes:
     BearerAuth:
@@ -7011,3 +7061,76 @@ components:
       required:
       - rows
       - generated_at
+    OrphanQueueItem:
+      title: OrphanQueueItem
+      type: object
+      description: 孤儿节点审批队列条目（P2 数据统一方案）
+      required:
+      - id
+      - node_type
+      - name
+      - reason
+      - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        node_type:
+          type: string
+          enum:
+          - position
+          - skill
+        name:
+          type: string
+        canonical_id:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          enum:
+          - no_canonical_id
+          - orphan_canonical_id
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - cleaned
+        detail:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          nullable: true
+        reviewed_at:
+          type: string
+          nullable: true
+        reviewed_by:
+          type: string
+          nullable: true
+    OrphanQueueResponse:
+      title: OrphanQueueResponse
+      type: object
+      description: 孤儿审批队列响应
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrphanQueueItem'
+        total:
+          type: integer
+    OrphanQueueActionRequest:
+      title: OrphanQueueActionRequest
+      type: object
+      required:
+      - action
+      properties:
+        action:
+          type: string
+          enum:
+          - approve
+          - reject
+        actor:
+          type: string
+          nullable: true

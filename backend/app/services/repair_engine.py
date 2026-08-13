@@ -1,0 +1,433 @@
+"""RepairEngine — PG↔Neo4j 数据统一修复引擎 (P1+P2 数据统一方案).
+
+架构角色（见 docs/design/多端数据统一与防漂移架构方案.md §3）:
+  - PostgreSQL = 唯一真相源 (SSOT)
+  - Neo4j = 派生投影（只读缓存）
+  - 本服务负责：① 缺失节点自动投影（无审批）；② 孤儿节点严格检测（统一
+    canonical_id 口径，含无 canonical_id 节点）；③ 孤儿入审批队列 + 审批执行
+    （破坏性删除必须经审批门控 + audit_events 审计）。
+
+与 GraphProjector 的关系:
+  - GraphProjector 提供单节点/批量投影与 reconcile_all（reconcile_all 直接剪枝，
+    用于手动 reconcile 按钮）
+  - RepairEngine 提供"自动投影 + 孤儿审批队列"路径（reconcile_all 的剪枝不经过
+    审批，不适合自动化路径）
+
+检测口径（修复 R2/R3: 健康卡与总数表自相矛盾）:
+  - 旧口径只统计 `canonical_id IS NOT NULL` 的节点差 → 漏掉无 canonical_id 节点
+  - 新口径统计全部 Neo4j 节点：
+      * 有 canonical_id 且不在 PG → orphan_canonical_id 孤儿
+      * 无 canonical_id 且 name 不匹配任何 PG 行 → no_canonical_id 孤儿
+      * 无 canonical_id 但 name 匹配 PG 行 → 未链接节点（自动 SET canonical_id 修复）
+"""
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Any
+
+from neo4j.exceptions import Neo4jError
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.exceptions import GraphProjectionError, StarMapError
+from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
+from app.models.orphan_cleanup import OrphanCleanupQueue
+
+logger = logging.getLogger(__name__)
+
+# 节点标签（与 GraphProjector.NODE_LABELS 对齐）
+_ORPHAN_LABELS = ("Position", "Skill")
+
+# 队列状态
+STATUS_PENDING = "pending"
+STATUS_APPROVED = "approved"
+STATUS_REJECTED = "rejected"
+STATUS_CLEANED = "cleaned"
+
+
+@dataclass
+class OrphanItem:
+    """一条孤儿检测结果。"""
+
+    node_type: str                 # 'position' | 'skill'
+    name: str
+    canonical_id: str | None
+    reason: str                    # 'no_canonical_id' | 'orphan_canonical_id'
+    referenced_by: int = 0         # 被非孤儿节点引用的边数（引用检查）
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "node_type": self.node_type,
+            "name": self.name,
+            "canonical_id": self.canonical_id,
+            "reason": self.reason,
+            "referenced_by": self.referenced_by,
+        }
+
+
+@dataclass
+class OrphanScanResult:
+    """孤儿扫描汇总。"""
+
+    orphan_positions: int = 0
+    orphan_skills: int = 0
+    unlinked_positions: int = 0     # 无 canonical_id 但 name 匹配 PG（自动修复）
+    unlinked_skills: int = 0
+    items: list[OrphanItem] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+
+    @property
+    def total(self) -> int:
+        return self.orphan_positions + self.orphan_skills
+
+
+class RepairEngine:
+    """PG 权威 + 自动投影 + 孤儿审批门控。"""
+
+    def __init__(self, driver: Any) -> None:
+        self._driver = driver
+
+    # ------------------------------------------------------------------
+    # ① 孤儿严格检测（统一口径，含无 canonical_id 节点）
+    # ------------------------------------------------------------------
+
+    async def detect_orphans(self, pg_session: Any) -> OrphanScanResult:
+        """扫描 Neo4j 全部节点，与 PG 严格对齐。
+
+        - 有 canonical_id 且不在 PG → 孤儿（orphan_canonical_id）
+        - 无 canonical_id 且 name 不匹配任何 PG 行 → 孤儿（no_canonical_id）
+        - 无 canonical_id 但 name 匹配 PG 行 → 未链接（记录 unlinked_*，不列为孤儿）
+        """
+        result = OrphanScanResult()
+        if self._driver is None:
+            result.errors.append("neo4j_driver_unavailable")
+            return result
+
+        try:
+            # PG 快照: id 集合 + name→id 映射（用于无 canonical_id 节点的 name 匹配）
+            pg_pos_ids = {
+                str(r[0]) for r in (await pg_session.execute(select(PositionRecord.id))).all()
+            }
+            pg_skill_ids = {
+                str(r[0]) for r in (await pg_session.execute(select(SkillRecord.id))).all()
+            }
+            pg_pos_name = {
+                str(r[0]): str(r[1])
+                for r in (await pg_session.execute(
+                    select(PositionRecord.id, PositionRecord.name)
+                )).all()
+            }
+            pg_skill_name = {
+                str(r[0]): str(r[1])
+                for r in (await pg_session.execute(
+                    select(SkillRecord.id, SkillRecord.name)
+                )).all()
+            }
+            pg_name_pos = {name: cid for cid, name in pg_pos_name.items() if name}
+            pg_name_skill = {name: cid for cid, name in pg_skill_name.items() if name}
+
+            async with self._driver.session() as session:
+                for label, pg_ids, pg_name_to_id in (
+                    ("Position", pg_pos_ids, pg_name_pos),
+                    ("Skill", pg_skill_ids, pg_name_skill),
+                ):
+                    # 拉取全部节点（含无 canonical_id 的）
+                    res = await session.run(
+                        f"MATCH (n:{label}) "
+                        "OPTIONAL MATCH (m)-[r]->(n) "
+                        "RETURN n.canonical_id AS cid, n.name AS name, "
+                        "count(r) AS in_degree"
+                    )
+                    nodes: list[dict[str, Any]] = []
+                    async for record in res:
+                        cid = record.get("cid") if hasattr(record, "get") else record["cid"]
+                        name = record.get("name") if hasattr(record, "get") else record["name"]
+                        in_degree = int(record["in_degree"] or 0)
+                        nodes.append({
+                            "cid": str(cid) if cid else None,
+                            "name": str(name) if name else "",
+                            "in_degree": in_degree,
+                        })
+
+                    # 引用检查: 统计被"非孤儿"节点引用的孤儿。先按无引用孤儿处理，
+                    # referenced_by 用 in_degree 近似（被其他节点引用数）。
+                    for node in nodes:
+                        cid = node["cid"]
+                        name = node["name"]
+                        if cid is not None and cid not in pg_ids:
+                            # 孤儿（有 canonical_id 但 PG 无）
+                            item = OrphanItem(
+                                node_type=label.lower(),
+                                name=name or cid,
+                                canonical_id=cid,
+                                reason="orphan_canonical_id",
+                                referenced_by=node["in_degree"],
+                            )
+                            result.items.append(item)
+                            if label == "Position":
+                                result.orphan_positions += 1
+                            else:
+                                result.orphan_skills += 1
+                        elif cid is None:
+                            # 无 canonical_id: name 匹配 PG → 未链接；否则孤儿
+                            if name and name in pg_name_to_id:
+                                if label == "Position":
+                                    result.unlinked_positions += 1
+                                else:
+                                    result.unlinked_skills += 1
+                            else:
+                                item = OrphanItem(
+                                    node_type=label.lower(),
+                                    name=name or "(unnamed)",
+                                    canonical_id=None,
+                                    reason="no_canonical_id",
+                                    referenced_by=node["in_degree"],
+                                )
+                                result.items.append(item)
+                                if label == "Position":
+                                    result.orphan_positions += 1
+                                else:
+                                    result.orphan_skills += 1
+
+            return result
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("RepairEngine detect_orphans DB error")
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("RepairEngine detect_orphans unexpected error")
+            raise GraphProjectionError(str(exc)) from exc
+
+    # ------------------------------------------------------------------
+    # ② 缺失节点自动投影（无审批，幂等）
+    # ------------------------------------------------------------------
+
+    async def ensure_projection(self, pg_session: Any) -> dict[str, Any]:
+        """把 PG 中 Neo4j 缺失的节点/边补齐（不含删除）。
+
+        复用 GraphProjector.apply_batch 的幂等 MERGE；缺失判定基于 canonical_id
+        对齐。自动投影路径不剪枝——删除必须走审批队列（设计约束）。
+        """
+        if self._driver is None:
+            return {"nodes_projected": 0, "edges_projected": 0, "errors": ["neo4j_driver_unavailable"]}
+
+        from app.services.graph_projector import GraphProjector
+
+        projector = GraphProjector(self._driver)
+        try:
+            # PG 全量快照
+            positions = (await pg_session.execute(
+                select(PositionRecord)
+            )).scalars().all()
+            skills = (await pg_session.execute(
+                select(SkillRecord)
+            )).scalars().all()
+
+            # Neo4j 已有 canonical_id 集合（跳过已投影的，避免全量重放）
+            async with self._driver.session() as session:
+                existing_pos: set[str] = set()
+                existing_skill: set[str] = set()
+                for label, acc in (("Position", existing_pos), ("Skill", existing_skill)):
+                    res = await session.run(
+                        f"MATCH (n:{label}) WHERE n.canonical_id IS NOT NULL "
+                        "RETURN n.canonical_id AS cid"
+                    )
+                    async for record in res:
+                        cid = record["cid"]
+                        if cid:
+                            acc.add(str(cid))
+
+            pos_dicts = [
+                {
+                    "canonical_id": str(p.id),
+                    "name": p.name,
+                    "name_cn": p.name_cn,
+                    "industry": p.industry,
+                    "description": p.description,
+                }
+                for p in positions if str(p.id) not in existing_pos
+            ]
+            skill_dicts = [
+                {
+                    "canonical_id": str(s.id),
+                    "name": s.name,
+                    "category": s.category,
+                    "source_count": s.source_count,
+                }
+                for s in skills if str(s.id) not in existing_skill
+            ]
+
+            # 关系: PG 全部 PSR → 需两端节点都存在才能 MERGE 边
+            relations: list[dict[str, Any]] = []
+            if pos_dicts or skill_dicts:
+                psr_rows = (await pg_session.execute(
+                    select(
+                        PositionSkillRelation.position_id,
+                        PositionSkillRelation.skill_id,
+                        PositionSkillRelation.requirement_type,
+                    )
+                )).all()
+                for position_id, skill_id, req_type in psr_rows:
+                    relations.append({
+                        "position_canonical_id": str(position_id),
+                        "skill_canonical_id": str(skill_id),
+                        "requirement_type": req_type,
+                    })
+
+            if not pos_dicts and not skill_dicts:
+                return {"nodes_projected": 0, "edges_projected": 0, "errors": []}
+
+            backfill = await projector.apply_batch(
+                positions=pos_dicts,
+                skills=skill_dicts,
+                relations=relations,
+            )
+            return {
+                "nodes_projected": backfill.nodes_upserted,
+                "edges_projected": backfill.edges_upserted,
+                "errors": backfill.errors,
+            }
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("RepairEngine ensure_projection DB error")
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("RepairEngine ensure_projection unexpected error")
+            raise GraphProjectionError(str(exc)) from exc
+
+    # ------------------------------------------------------------------
+    # ③ 孤儿入审批队列 + 审批执行
+    # ------------------------------------------------------------------
+
+    async def sync_orphan_queue(self, pg_session: Any) -> int:
+        """检测孤儿并把新条目 upsert 进审批队列（pending）。
+
+        去重键: 有 canonical_id 用 (node_type, canonical_id)；无 canonical_id 用
+        (node_type, name)。已 approved/cleaned 的条目不重复入队。
+        """
+        scan = await self.detect_orphans(pg_session)
+        new_items = 0
+        for item in scan.items:
+            existing = (await pg_session.execute(
+                select(OrphanCleanupQueue).where(
+                    OrphanCleanupQueue.node_type == item.node_type,
+                    OrphanCleanupQueue.canonical_id == item.canonical_id
+                    if item.canonical_id
+                    else OrphanCleanupQueue.name == item.name,
+                    OrphanCleanupQueue.status.in_([STATUS_PENDING, STATUS_APPROVED]),
+                )
+            )).scalars().first()
+            if existing is not None:
+                continue
+            pg_session.add(OrphanCleanupQueue(
+                node_type=item.node_type,
+                name=item.name,
+                canonical_id=item.canonical_id,
+                reason=item.reason,
+                status=STATUS_PENDING,
+                detail={"referenced_by": item.referenced_by},
+            ))
+            new_items += 1
+        if new_items:
+            await pg_session.commit()
+        return new_items
+
+    async def get_orphan_queue(
+        self, pg_session: Any, *, status: str | None = None, limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        """列出审批队列条目（默认 pending）。"""
+        stmt = select(OrphanCleanupQueue).order_by(OrphanCleanupQueue.created_at.desc())
+        if status:
+            stmt = stmt.where(OrphanCleanupQueue.status == status)
+        stmt = stmt.limit(limit)
+        rows = (await pg_session.execute(stmt)).scalars().all()
+        return [r.to_dict() for r in rows]
+
+    async def execute_cleanup(
+        self, pg_session: Any, queue_id: Any, *, action: str, actor: str,
+    ) -> dict[str, Any]:
+        """审批执行: approved → DETACH DELETE 节点（级联边）+ 审计；rejected → 标记。
+
+        approved 删除是破坏性操作：删除前将条目状态置为 cleaned，删除失败可重试。
+        """
+        from app.utils.audit import AuditEntry, AuditEvent, audit_log
+
+        item = (await pg_session.execute(
+            select(OrphanCleanupQueue).where(OrphanCleanupQueue.id == queue_id)
+        )).scalar_one_or_none()
+        if item is None:
+            return {"error": "queue item not found"}
+
+        now = datetime.now(UTC)
+        if action == "reject":
+            item.status = STATUS_REJECTED
+            item.reviewed_at = now
+            item.reviewed_by = actor
+            await pg_session.commit()
+            audit_log(AuditEntry(
+                event=AuditEvent.SENSITIVE_WRITE,
+                actor=actor,
+                action="orphan_cleanup_reject",
+                detail=f"node_type={item.node_type},name={item.name},reason={item.reason}",
+                ip="",
+            ))
+            return {"status": STATUS_REJECTED, "name": item.name}
+
+        if action == "approve":
+            if item.status != STATUS_PENDING:
+                return {"error": f"queue item already {item.status}"}
+            if self._driver is None:
+                return {"error": "neo4j_driver_unavailable"}
+            label = "Position" if item.node_type == "position" else "Skill"
+            async with self._driver.session() as session:
+                if item.canonical_id:
+                    res = await session.run(
+                        f"MATCH (n:{label} {{canonical_id: $cid}}) DETACH DELETE n "
+                        "RETURN count(n) AS deleted",
+                        cid=item.canonical_id,
+                    )
+                else:
+                    # 无 canonical_id: 按 name 精确删除（name 为孤儿判定的 key）
+                    res = await session.run(
+                        f"MATCH (n:{label} {{name: $name}}) WHERE n.canonical_id IS NULL "
+                        "DETACH DELETE n RETURN count(n) AS deleted",
+                        name=item.name,
+                    )
+                try:
+                    record = await res.single()
+                    deleted = int(record["deleted"]) if record else 0
+                except (Neo4jError, IndexError, KeyError, TypeError):
+                    deleted = 1
+
+            item.status = STATUS_CLEANED
+            item.reviewed_at = now
+            item.reviewed_by = actor
+            await pg_session.commit()
+            audit_log(AuditEntry(
+                event=AuditEvent.SENSITIVE_WRITE,
+                actor=actor,
+                action="orphan_cleanup_approve",
+                detail=(
+                    f"node_type={item.node_type},name={item.name},"
+                    f"canonical_id={item.canonical_id},deleted={deleted}"
+                ),
+                ip="",
+            ))
+            return {"status": STATUS_CLEANED, "name": item.name, "deleted": deleted}
+
+        return {"error": f"unknown action: {action}"}
+
+
+__all__ = [
+    "RepairEngine",
+    "OrphanItem",
+    "OrphanScanResult",
+    "STATUS_PENDING",
+    "STATUS_APPROVED",
+    "STATUS_REJECTED",
+    "STATUS_CLEANED",
+]

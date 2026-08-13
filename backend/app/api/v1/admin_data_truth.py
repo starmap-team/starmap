@@ -14,7 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.models.extraction_models import PositionRecord, SkillRecord
-from app.schemas.admin import HealthMetrics, TruthReport, TruthRow
+from app.schemas.admin import (
+    HealthMetrics,
+    OrphanQueueActionRequest,
+    OrphanQueueItem,
+    OrphanQueueResponse,
+    TruthReport,
+    TruthRow,
+)
 
 # PLAN-007a (NEW-01): /admin/* 端点必须叠加 require_admin，
 # 此前仅挂在 api_router 的 get_current_user 上，任意登录用户可读三口径对账数据。
@@ -184,39 +191,21 @@ async def get_data_truth(
     ))
 
     # Phase 5 Step 4: 计算同步健康度
-    # 1. 孤儿节点：Neo4j 中存在但 PG 中找不到的（按 canonical_id 对齐）
-    pg_position_cids = {
-        str(r[0]) for r in (
-            await session.execute(select(PositionRecord.id))
-        ).all()
-    }
-    pg_skill_cids = {
-        str(r[0]) for r in (
-            await session.execute(select(SkillRecord.id))
-        ).all()
-    }
+    # P2 修复 (R2/R3): 旧口径只对齐 canonical_id 非空节点 → 漏掉无 canonical_id 的
+    # 历史孤儿（正是 346-311=35 / 843-752=91 差额的来源），健康卡与总数表自相矛盾。
+    # 统一走 RepairEngine.detect_orphans 严格口径（含 no_canonical_id 节点）。
+    from app.services.repair_engine import RepairEngine
 
-    async with driver.session() as s:
-        result = await s.run(
-            "MATCH (p:Position) WHERE p.canonical_id IS NOT NULL RETURN p.canonical_id AS cid"
-        )
-        neo4j_pos_cids = set()
-        async for record in result:
-            cid = record["cid"]
-            if cid:
-                neo4j_pos_cids.add(str(cid))
+    repair = RepairEngine(driver)
+    orphan_scan = await repair.detect_orphans(session)
+    orphan_positions = orphan_scan.orphan_positions
+    orphan_skills = orphan_scan.orphan_skills
 
-        result = await s.run(
-            "MATCH (s:Skill) WHERE s.canonical_id IS NOT NULL RETURN s.canonical_id AS cid"
-        )
-        neo4j_skl_cids = set()
-        async for record in result:
-            cid = record["cid"]
-            if cid:
-                neo4j_skl_cids.add(str(cid))
-
-    orphan_positions = len(neo4j_pos_cids - pg_position_cids)
-    orphan_skills = len(neo4j_skl_cids - pg_skill_cids)
+    # P2: 报告生成即同步审批队列（自愈式报告：每次查看数据源诊断都会刷新孤儿清单）
+    try:
+        await repair.sync_orphan_queue(session)
+    except Exception as exc:  # noqa: BLE001 — 队列同步失败不阻断报告
+        logger.warning("orphan queue sync failed (non-fatal): {}", exc)
 
     # 2. 最近 reconcile 时间：从 PG 查（cron_scanner 写表）
     from sqlalchemy import text
@@ -272,6 +261,66 @@ async def get_data_truth(
         ),
         generated_at=datetime.now(UTC).isoformat(),
     )
+
+
+@router.get("/orphan-queue", response_model=OrphanQueueResponse)
+async def get_orphan_queue_endpoint(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    status: str | None = None,
+) -> OrphanQueueResponse:
+    """P2: 孤儿节点审批队列（pending 默认）。查看前先同步最新检测结果。"""
+    from app.services.repair_engine import RepairEngine
+
+    repair = RepairEngine(driver)
+    try:
+        await repair.sync_orphan_queue(session)
+    except Exception as exc:  # noqa: BLE001 — 队列同步失败不阻断列表
+        logger.warning("orphan queue sync failed (non-fatal): {}", exc)
+    items = await repair.get_orphan_queue(session, status=status)
+    return OrphanQueueResponse(
+        items=[OrphanQueueItem(**it) for it in items],
+        total=len(items),
+    )
+
+
+@router.post("/orphan-queue/{item_id}/action", response_model=OrphanQueueItem)
+async def orphan_queue_action_endpoint(
+    item_id: str,
+    body: OrphanQueueActionRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> OrphanQueueItem:
+    """P2: 孤儿审批 — approve 删除节点（级联边）+ 审计；reject 拒绝清理。"""
+    from uuid import UUID
+
+    from fastapi import HTTPException
+
+    from app.services.repair_engine import RepairEngine
+
+    try:
+        queue_id = UUID(item_id)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="item_id must be a UUID") from exc
+
+    actor = body.actor or user.get("sub") or user.get("username") or "admin"
+    repair = RepairEngine(driver)
+    result = await repair.execute_cleanup(
+        session, queue_id, action=body.action, actor=f"admin:{actor}",
+    )
+    if "error" in result:
+        raise HTTPException(status_code=409, detail=result["error"])
+
+    # 返回最新条目状态
+    from app.models.orphan_cleanup import OrphanCleanupQueue
+
+    item = (await session.execute(
+        select(OrphanCleanupQueue).where(OrphanCleanupQueue.id == queue_id)
+    )).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=404, detail="queue item not found")
+    return OrphanQueueItem(**item.to_dict())
 
 
 __all__ = ["router"]

@@ -60,6 +60,35 @@ class TruthReport(BaseModel):
     generated_at: str
 
 
+class OrphanQueueItem(BaseModel):
+    """孤儿节点审批队列条目（P2 数据统一方案）。"""
+
+    id: str = Field(..., description="队列条目 UUID")
+    node_type: Literal["position", "skill"] = Field(..., description="'position' | 'skill'")
+    name: str = Field(..., min_length=1, max_length=255, description="Neo4j 节点显示名")
+    canonical_id: str | None = Field(default=None, description="canonical_id（无则为 NULL）")
+    reason: Literal["no_canonical_id", "orphan_canonical_id"] = Field(..., description="孤儿判定原因")
+    status: str = Field(..., pattern="^(pending|approved|rejected|cleaned)$", description="审批状态")
+    detail: dict[str, Any] = Field(default_factory=dict, description="引用检查结果等附加信息")
+    created_at: str | None = Field(default=None, description="入队时间（ISO）")
+    reviewed_at: str | None = Field(default=None, description="审批时间（ISO）")
+    reviewed_by: str | None = Field(default=None, description="审批人")
+
+
+class OrphanQueueResponse(BaseModel):
+    """孤儿审批队列响应。"""
+
+    items: list[OrphanQueueItem] = Field(default_factory=list, description="队列条目")
+    total: int = Field(default=0, ge=0, description="条目总数")
+
+
+class OrphanQueueActionRequest(BaseModel):
+    """孤儿队列审批动作请求。"""
+
+    action: Literal["approve", "reject"] = Field(..., description="'approve' 删除节点 / 'reject' 拒绝")
+    actor: str | None = Field(default=None, max_length=64, description="审批人（可选，默认取当前用户）")
+
+
 class CreateUserRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=64)
     password: str = Field(..., min_length=auth_service.MIN_PASSWORD_LENGTH, max_length=128)
