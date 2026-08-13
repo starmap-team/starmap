@@ -20,6 +20,9 @@ from app.core.evolution.timeseries_loader import load_skill_timeseries_data
 from app.core.evolution.trust_scorer import (
     LOW_TRUST_THRESHOLD,  # noqa: F401 — 低信任度阈值 re-export (路由经 service 访问 core)
 )
+from app.core.evolution.write_back import (  # noqa: F401 — 审核即生效写回 re-export (路由经 service 访问 core)
+    write_back_changelog_row,
+)
 from app.core.matching.constants import SENIOR_KEYWORDS  # noqa: F401 — 职级关键词 re-export (路由经 service 访问 core)
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 

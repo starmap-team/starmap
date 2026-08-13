@@ -99,7 +99,23 @@ async def test_translation_failure_degrades_gracefully():
 
 @pytest.mark.asyncio
 async def test_translation_non_cjk_result_not_injected():
-    """LLM 返回英文 name_cn → 防御性不注入 (不把英文当中文入库)。"""
+    """LLM 返回与原文**不同**的英文 name_cn → 防御性不注入 (不存无关英文)。"""
+    with patch("app.core.extraction.llm_client.LLMClient.generate",
+               new_callable=AsyncMock,
+               return_value='{"name_cn": "Some Unrelated English Name", "industry_zh": "互联网"}'):
+        stack = _patch_pipeline(extract=EN_JD)
+        try:
+            result = await extract_from_jd("Senior Backend Engineer JD")
+        finally:
+            for p in stack:
+                p.stop()
+        assert result["success"] is True
+        assert "name_cn" not in result["data"]
+
+
+@pytest.mark.asyncio
+async def test_translation_original_name_injected_as_fallback():
+    """D8h 契约: LLM 返回原文（与 title 相同）→ 兜底注入 name_cn (5bea4f86)。"""
     with patch("app.core.extraction.llm_client.LLMClient.generate",
                new_callable=AsyncMock,
                return_value='{"name_cn": "Senior Backend Engineer", "industry_zh": "互联网"}'):
@@ -110,4 +126,4 @@ async def test_translation_non_cjk_result_not_injected():
             for p in stack:
                 p.stop()
         assert result["success"] is True
-        assert "name_cn" not in result["data"]
+        assert result["data"]["name_cn"] == "Senior Backend Engineer"

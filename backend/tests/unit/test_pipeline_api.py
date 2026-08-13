@@ -115,6 +115,7 @@ class FakePipelineRun:
         quality_score=0.0,
         error_log=None,
         selected_stages=None,
+        selected_sources=None,  # D8 (14c9a566) 起 serializers 读取，mock 曾缺
     ):
         self.id = run_id or uuid.uuid4()
         self.run_type = run_type
@@ -128,6 +129,7 @@ class FakePipelineRun:
         self.quality_score = quality_score
         self.error_log = error_log
         self.selected_stages = selected_stages
+        self.selected_sources = selected_sources
 
 
 class FakePipelineSchedule:
@@ -139,6 +141,7 @@ class FakePipelineSchedule:
         cron_expression="0 2 * * *",
         run_type="incremental",
         selected_stages=None,
+        selected_sources=None,  # D8 (14c9a566) 起 serializers 读取，mock 曾缺
         enabled=True,
         last_run_at=None,
         next_run_at=None,
@@ -148,6 +151,7 @@ class FakePipelineSchedule:
         self.cron_expression = cron_expression
         self.run_type = run_type
         self.selected_stages = selected_stages
+        self.selected_sources = selected_sources
         self.enabled = enabled
         self.last_run_at = last_run_at
         self.next_run_at = next_run_at

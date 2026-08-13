@@ -79,10 +79,20 @@ class TestTranslateTitleIndustry:
 
     @pytest.mark.asyncio
     async def test_llm_non_cjk_result_falls_back(self) -> None:
-        """防御性检查：LLM 返回英文名 → 回退 None（不把英文当中文入库）。"""
-        llm = _FakeLLM(result='{"name_cn": "Data Engineer", "industry_zh": "互联网"}')
+        """防御性检查：LLM 返回与原文**不同**的英文名 → 回退 None（不存无关英文）。"""
+        llm = _FakeLLM(result='{"name_cn": "Some Unrelated Name", "industry_zh": "互联网"}')
         out = await translate_title_industry(llm, title="Data Engineer")
         assert out == {"name_cn": None, "industry_zh": None}
+
+    @pytest.mark.asyncio
+    async def test_llm_returns_original_used_as_fallback(self) -> None:
+        """D8h 契约：LLM 对专有名词返回原文（与 title 相同）→ 原文兜底保留为 name_cn。
+
+        (5bea4f86 变更: 原逻辑丢弃 → 岗位显示「英文原文」；现兜底保证有显示名。)
+        """
+        llm = _FakeLLM(result='{"name_cn": "Data Engineer", "industry_zh": "互联网"}')
+        out = await translate_title_industry(llm, title="Data Engineer")
+        assert out == {"name_cn": "Data Engineer", "industry_zh": "互联网"}
 
     @pytest.mark.asyncio
     async def test_llm_exception_falls_back_gracefully(self) -> None:

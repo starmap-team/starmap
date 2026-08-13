@@ -25,8 +25,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.security.client_ip import resolve_client_ip
-from app.core.security.dev_token import dev_token_identity, is_dev_token_allowed
 from app.services.auth_service import decode_token
+from app.services.dev_token import dev_token_identity, is_dev_token_allowed
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 # ── Bearer token scheme ──
@@ -132,7 +132,7 @@ async def get_current_user(
 
     token = credentials.credentials
 
-    # PLAN-015③: dev-token 守门收敛到 core.security.dev_token (避免历史
+    # PLAN-015③: dev-token 守门收敛到 services.dev_token (避免历史
     # `settings.app_env != "production"` 二元判定误放行 staging/testing)
     if is_dev_token_allowed(token):
         return dev_token_identity()
@@ -320,7 +320,7 @@ async def get_current_user_sse(
 
     # Try query-param token first (for EventSource connections)
     if token:
-        # PLAN-015③: dev-token 守门收敛到 core.security.dev_token (SSE 路径同上)
+        # PLAN-015③: dev-token 守门收敛到 services.dev_token (SSE 路径同上)
         if is_dev_token_allowed(token):
             return dev_token_identity()
         try:

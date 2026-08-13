@@ -1,4 +1,4 @@
-"""Coverage boost: core/security/dev_token.py — dev-token 集中守门 (PLAN-015③).
+"""Coverage boost: services/dev_token.py — dev-token 集中守门 (PLAN-015③).
 
 历史问题: `settings.app_env != "production"` 二元判定把 staging/testing 与
 development 等同, 任何中间环境都接受 dev-token (即 admin 凭据).
@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.security import dev_token
-from app.core.security.dev_token import dev_token_identity, dev_token_role, is_dev_token_allowed
+from app.services import dev_token
+from app.services.dev_token import dev_token_identity, dev_token_role, is_dev_token_allowed
 
 
 @pytest.fixture

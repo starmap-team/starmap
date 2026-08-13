@@ -198,7 +198,7 @@ async def me(
     # typo'd value) silently accepts `dev-token` and grants admin.
     # Delegate to the central dev_token helper which only allows
     # `development` — fail-closed by whitelist.
-    from app.core.security.dev_token import dev_token_role, is_dev_token_allowed
+    from app.services.dev_token import dev_token_role, is_dev_token_allowed
 
     if is_dev_token_allowed(credentials.credentials):
         return {

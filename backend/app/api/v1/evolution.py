@@ -453,7 +453,8 @@ async def review_queue_single_action(
     # 真实生效 + 后续 graph_sync 投影 Neo4j）。原实现只改 status 无下游动作（断链）。
     if action == "approve":
         try:
-            from app.core.evolution.write_back import write_back_changelog_row
+            # 层边界 (test_layer_boundary): 路由不直连 app.core，经 services 访问
+            from app.services.evolution_service import write_back_changelog_row
 
             warnings: list[str] = []
             await write_back_changelog_row(session, row, warnings)
