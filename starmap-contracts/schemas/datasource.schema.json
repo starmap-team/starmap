@@ -339,6 +339,7 @@
             }
           ],
           "default": null,
+          "description": "最近一次 source_sync 运行状态。PipelineRun 无源归属，当前恒为 null；待 run↔source 关联迁移落地后按源计算",
           "title": "Recent Run Status"
         }
       },

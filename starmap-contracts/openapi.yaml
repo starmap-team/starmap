@@ -5501,6 +5501,12 @@ components:
       properties:
         id:
           type: string
+          description: '图节点 ID（优先 canonical_id，缺省回退 elementId）'
+        # P1-6 (functional-review 2026-08-13): 透传 Neo4j elementId。
+        # 写操作已改为 elementId OR canonical_id 双匹配，前端可用此字段。
+        element_id:
+          type: string
+          description: 'Neo4j elementId（写操作首选标识）'
         type:
           type: string
           description: 'Node label: Position, Skill, Tool, KnowledgeArea'

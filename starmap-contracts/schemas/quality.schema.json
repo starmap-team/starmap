@@ -256,6 +256,27 @@
           "title": "Hallucination Rate",
           "type": "number"
         },
+        "hallucination_numerator": {
+          "default": 0,
+          "description": "幻觉数（分子）",
+          "minimum": 0,
+          "title": "Hallucination Numerator",
+          "type": "integer"
+        },
+        "hallucination_denominator": {
+          "default": 0,
+          "description": "总抽取数（分母）",
+          "minimum": 0,
+          "title": "Hallucination Denominator",
+          "type": "integer"
+        },
+        "hallucination_window_days": {
+          "default": 30,
+          "description": "统计窗口天数",
+          "minimum": 1,
+          "title": "Hallucination Window Days",
+          "type": "integer"
+        },
         "total_nodes": {
           "default": 0,
           "description": "总节点数",

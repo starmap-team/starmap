@@ -110,6 +110,20 @@
           "title": "Name",
           "type": "string"
         },
+        "name_cn": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "技能中文名（英文技能翻译后展示，前端 name_cn || name）",
+          "title": "Name Cn"
+        },
         "category": {
           "description": "技能分类标签",
           "examples": [
@@ -216,6 +230,20 @@
           "minLength": 1,
           "title": "Name",
           "type": "string"
+        },
+        "name_cn": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "技能中文名（英文技能翻译后展示，前端 name_cn || name）",
+          "title": "Name Cn"
         },
         "category": {
           "description": "技能分类标签",

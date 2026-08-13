@@ -8,8 +8,14 @@
       "properties": {
         "id": {
           "default": "",
-          "description": "图节点 ID（空串表示新建）",
+          "description": "图节点 ID（优先 canonical_id，缺省回退 elementId）",
           "title": "Id",
+          "type": "string"
+        },
+        "element_id": {
+          "default": "",
+          "description": "Neo4j elementId（写操作首选标识）",
+          "title": "Element Id",
           "type": "string"
         },
         "type": {
@@ -617,8 +623,14 @@
       "properties": {
         "id": {
           "default": "",
-          "description": "图节点 ID（空串表示新建）",
+          "description": "图节点 ID（优先 canonical_id，缺省回退 elementId）",
           "title": "Id",
+          "type": "string"
+        },
+        "element_id": {
+          "default": "",
+          "description": "Neo4j elementId（写操作首选标识）",
+          "title": "Element Id",
           "type": "string"
         },
         "type": {

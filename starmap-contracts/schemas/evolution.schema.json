@@ -643,6 +643,14 @@
           "title": "Trust Mean",
           "type": "number"
         },
+        "trust_mean_neo4j_skill": {
+          "default": 0.0,
+          "description": "Neo4j Skill.trust_score 实时均值（与 /quality 共享 avg_skill_trust 指标）",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Trust Mean Neo4J Skill",
+          "type": "number"
+        },
         "cii_mean": {
           "description": "技能 CII 均值（基准 100，A4 基线口径）",
           "minimum": 0,
