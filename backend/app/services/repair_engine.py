@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -45,6 +46,7 @@ STATUS_PENDING = "pending"
 STATUS_APPROVED = "approved"
 STATUS_REJECTED = "rejected"
 STATUS_CLEANED = "cleaned"
+STATUS_LINKED = "linked"
 
 
 @dataclass
@@ -56,6 +58,9 @@ class OrphanItem:
     canonical_id: str | None
     reason: str                    # 'no_canonical_id' | 'orphan_canonical_id'
     referenced_by: int = 0         # 被非孤儿节点引用的边数（引用检查）
+    suggested_cid: str | None = None    # P3a: 建议链接的 PG canonical_id
+    suggested_name: str | None = None   # P3a: 建议链接的 PG 名称
+    suggestion_level: str | None = None # 'exact' | 'normalized' | 'fuzzy'
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -64,7 +69,52 @@ class OrphanItem:
             "canonical_id": self.canonical_id,
             "reason": self.reason,
             "referenced_by": self.referenced_by,
+            "suggested_cid": self.suggested_cid,
+            "suggested_name": self.suggested_name,
+            "suggestion_level": self.suggestion_level,
         }
+
+
+def _normalize_name(name: str) -> str:
+    """归一化: 去非字母数字、转小写（用于模糊匹配）。"""
+    return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "", name.lower())
+
+
+def _suggest_pg_match(
+    name: str, pg_name_to_id: dict[str, str],
+) -> tuple[str | None, str | None, str | None]:
+    """为无 canonical_id 节点建议 PG 匹配（保守，防误链）。
+
+    返回 (suggested_cid, suggested_name, level):
+      - exact: 大小写精确匹配（最安全）
+      - normalized: 归一化后相等（React.js vs ReactJS 类）
+      - fuzzy: token 子集匹配（有误链风险，如 CSS ⊆ tailwind css，仅作候选提示）
+    """
+    if not name:
+        return None, None, None
+    # 1. 大小写精确
+    low = name.lower()
+    for pn, cid in pg_name_to_id.items():
+        if pn.lower() == low:
+            return cid, pn, "exact"
+    # 2. 归一化相等
+    norm = _normalize_name(name)
+    for pn, cid in pg_name_to_id.items():
+        if norm and _normalize_name(pn) == norm:
+            return cid, pn, "normalized"
+    # 3. token 子集（孤儿 token ⊆ PG token，且 PG 名不长于孤儿名 3 倍，降低误链）
+    tokens = set(re.findall(r"[a-z0-9\u4e00-\u9fff]+", name.lower()))
+    if not tokens:
+        return None, None, None
+    best: tuple[int, str, str] | None = None
+    for pn, cid in pg_name_to_id.items():
+        pt = set(re.findall(r"[a-z0-9\u4e00-\u9fff]+", pn.lower()))
+        if tokens and tokens <= pt and len(pt) <= len(tokens) * 3:
+            if best is None or len(pt) < best[0]:
+                best = (len(pt), pn, cid)
+    if best is not None:
+        return best[2], best[1], "fuzzy"
+    return None, None, None
 
 
 @dataclass
@@ -171,19 +221,24 @@ class RepairEngine:
                             else:
                                 result.orphan_skills += 1
                         elif cid is None:
-                            # 无 canonical_id: name 匹配 PG → 未链接；否则孤儿
+                            # 无 canonical_id: name 匹配 PG → 未链接（自动修复候选）；否则孤儿
+                            # P3a: 精确匹配 → unlinked（不列孤儿）；否则尝试建议链接候选
                             if name and name in pg_name_to_id:
                                 if label == "Position":
                                     result.unlinked_positions += 1
                                 else:
                                     result.unlinked_skills += 1
                             else:
+                                sug_cid, sug_name, sug_level = _suggest_pg_match(name, pg_name_to_id)
                                 item = OrphanItem(
                                     node_type=label.lower(),
                                     name=name or "(unnamed)",
                                     canonical_id=None,
                                     reason="no_canonical_id",
                                     referenced_by=node["in_degree"],
+                                    suggested_cid=sug_cid,
+                                    suggested_name=sug_name,
+                                    suggestion_level=sug_level,
                                 )
                                 result.items.append(item)
                                 if label == "Position":
@@ -311,6 +366,7 @@ class RepairEngine:
         """
         scan = await self.detect_orphans(pg_session)
         new_items = 0
+        updated_items = 0
         for item in scan.items:
             existing = (await pg_session.execute(
                 select(OrphanCleanupQueue).where(
@@ -322,6 +378,16 @@ class RepairEngine:
                 )
             )).scalars().first()
             if existing is not None:
+                # P3a: 存量 pending 条目刷新引用数 + 链接建议（检测口径升级后）
+                detail = dict(existing.detail or {})
+                detail["referenced_by"] = item.referenced_by
+                if item.suggested_cid:
+                    detail["suggested_cid"] = item.suggested_cid
+                    detail["suggested_name"] = item.suggested_name
+                    detail["suggestion_level"] = item.suggestion_level
+                if detail != (existing.detail or {}):
+                    existing.detail = detail
+                    updated_items += 1
                 continue
             pg_session.add(OrphanCleanupQueue(
                 node_type=item.node_type,
@@ -329,12 +395,18 @@ class RepairEngine:
                 canonical_id=item.canonical_id,
                 reason=item.reason,
                 status=STATUS_PENDING,
-                detail={"referenced_by": item.referenced_by},
+                detail={
+                    "referenced_by": item.referenced_by,
+                    # P3a: 链接建议（同实体不同名 → 候选 PG 匹配）
+                    "suggested_cid": item.suggested_cid,
+                    "suggested_name": item.suggested_name,
+                    "suggestion_level": item.suggestion_level,
+                },
             ))
             new_items += 1
-        if new_items:
+        if new_items or updated_items:
             await pg_session.commit()
-        return new_items
+        return new_items + updated_items
 
     async def get_orphan_queue(
         self, pg_session: Any, *, status: str | None = None, limit: int = 200,
@@ -454,6 +526,85 @@ class RepairEngine:
                 deleted += int(res.get("deleted", 0))
         return {"processed": processed, "deleted": deleted, "errors": errors}
 
+    # ------------------------------------------------------------------
+    # ⑤ 链接建议执行（P3a: 被引用无标识节点 → SET canonical_id，非破坏、可逆）
+    # ------------------------------------------------------------------
+
+    async def link_node(
+        self, pg_session: Any, queue_id: Any, *, canonical_id: str | None, actor: str,
+    ) -> dict[str, Any]:
+        """把无 canonical_id 的 Neo4j 节点链接到 PG 记录（SET canonical_id）。
+
+        非破坏性（不删节点/边）；canonical_id 缺省时用检测时的建议值。
+        目标 canonical_id 必须是真实 PG 记录，否则拒绝（防误链）。
+        """
+        from sqlalchemy import select as _sel
+
+        from app.utils.audit import AuditEntry, AuditEvent, audit_log
+
+        item = (await pg_session.execute(
+            _sel(OrphanCleanupQueue).where(OrphanCleanupQueue.id == queue_id)
+        )).scalar_one_or_none()
+        if item is None:
+            return {"error": "queue item not found"}
+        if item.status != STATUS_PENDING:
+            return {"error": f"queue item already {item.status}"}
+
+        target_cid = canonical_id or (item.detail or {}).get("suggested_cid")
+        if not target_cid:
+            return {"error": "no canonical_id provided and no suggestion available"}
+
+        # 目标必须是真实 PG 记录（按节点类型校验）
+        model = PositionRecord if item.node_type == "position" else SkillRecord
+        try:
+            from uuid import UUID as _UUID
+            pg_row = (await pg_session.execute(
+                _sel(model).where(model.id == _UUID(str(target_cid)))
+            )).scalar_one_or_none()
+        except (ValueError, TypeError):
+            return {"error": f"invalid canonical_id: {target_cid}"}
+        if pg_row is None:
+            return {"error": f"canonical_id {target_cid} not found in PG {model.__tablename__}"}
+
+        if self._driver is None:
+            return {"error": "neo4j_driver_unavailable"}
+
+        label = "Position" if item.node_type == "position" else "Skill"
+        async with self._driver.session() as session:
+            # 无 canonical_id 节点按 name 定位（name 是检测 key）；幂等 SET
+            res = await session.run(
+                f"MATCH (n:{label} {{name: $name}}) WHERE n.canonical_id IS NULL "
+                "SET n.canonical_id = $cid "
+                "RETURN count(n) AS linked",
+                name=item.name,
+                cid=str(target_cid),
+            )
+            try:
+                record = await res.single()
+                linked = int(record["linked"]) if record else 0
+            except (Neo4jError, IndexError, KeyError, TypeError):
+                linked = 1
+
+        if linked == 0:
+            return {"error": f"no node found to link for name={item.name!r} (node already linked?)"}
+
+        item.status = STATUS_LINKED
+        item.canonical_id = str(target_cid)
+        item.reviewed_at = datetime.now(UTC)
+        item.reviewed_by = actor
+        detail = dict(item.detail or {})
+        detail["linked_cid"] = str(target_cid)
+        item.detail = detail
+        await pg_session.commit()
+        audit_log(AuditEntry(
+            event=AuditEvent.SENSITIVE_WRITE,
+            actor=actor,
+            action="orphan_cleanup_link",
+            detail=f"node_type={item.node_type},name={item.name},linked_cid={target_cid}",
+            ip="",
+        ))
+        return {"status": STATUS_LINKED, "name": item.name, "linked_cid": str(target_cid), "linked": linked}
+
 
 __all__ = [
     "RepairEngine",
@@ -463,4 +614,5 @@ __all__ = [
     "STATUS_APPROVED",
     "STATUS_REJECTED",
     "STATUS_CLEANED",
+    "STATUS_LINKED",
 ]

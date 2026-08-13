@@ -68,11 +68,21 @@ class OrphanQueueItem(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Neo4j 节点显示名")
     canonical_id: str | None = Field(default=None, description="canonical_id（无则为 NULL）")
     reason: Literal["no_canonical_id", "orphan_canonical_id"] = Field(..., description="孤儿判定原因")
-    status: str = Field(..., pattern="^(pending|approved|rejected|cleaned)$", description="审批状态")
-    detail: dict[str, Any] = Field(default_factory=dict, description="引用检查结果等附加信息")
+    status: str = Field(..., pattern="^(pending|approved|rejected|cleaned|linked)$", description="审批状态")
+    detail: dict[str, Any] = Field(default_factory=dict, description="引用检查结果/链接建议等附加信息")
     created_at: str | None = Field(default=None, description="入队时间（ISO）")
     reviewed_at: str | None = Field(default=None, description="审批时间（ISO）")
     reviewed_by: str | None = Field(default=None, description="审批人")
+
+
+class OrphanLinkRequest(BaseModel):
+    """孤儿链接请求（P3a: SET canonical_id，非破坏、可逆）。"""
+
+    canonical_id: str | None = Field(
+        default=None, max_length=64,
+        description="目标 PG canonical_id（缺省用检测建议值）",
+    )
+    actor: str | None = Field(default=None, max_length=64, description="操作人（可选）")
 
 
 class OrphanQueueResponse(BaseModel):

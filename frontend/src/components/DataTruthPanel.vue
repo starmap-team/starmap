@@ -200,12 +200,14 @@ const ORPHAN_STATUS_LABEL: Record<string, string> = {
   approved: '已批准',
   rejected: '已拒绝',
   cleaned: '已清理',
+  linked: '已链接',
 }
 const ORPHAN_STATUS_TYPE: Record<string, 'warning' | 'success' | 'info' | 'danger'> = {
   pending: 'warning',
   approved: 'success',
   rejected: 'info',
   cleaned: 'success',
+  linked: 'success',
 }
 function orphanStatusLabel(status: string): string {
   return ORPHAN_STATUS_LABEL[status] ?? status
@@ -240,6 +242,28 @@ async function batchApproveSafe() {
   } finally {
     batchLoading.value = false
   }
+}
+
+// P3a: 确认链接 — 把无 canonical_id 节点 SET 到建议的 PG 记录（非破坏、可逆）
+const linkingId = ref<string | null>(null)
+async function linkOrphan(item: OrphanQueueItem) {
+  linkingId.value = item.id
+  try {
+    await request.post(`/admin/orphan-queue/${item.id}/link`, {})
+    ElMessage.success(`已链接「${item.name}」到 PG 记录「${item.detail?.suggested_name ?? ''}」`)
+    await loadOrphanQueue()
+    await loadReport(true)
+  } catch (e: unknown) {
+    ElMessage.error(`链接失败: ${e instanceof Error ? e.message : '未知错误'}`)
+  } finally {
+    linkingId.value = null
+  }
+}
+
+// 链接建议置信度语义
+function suggestionLabel(level: string | undefined): string {
+  const map: Record<string, string> = { exact: '精确匹配', normalized: '归一化匹配', fuzzy: '模糊候选' }
+  return map[level ?? ''] ?? ''
 }
 
 function statusColor(status: string): string {
@@ -454,6 +478,29 @@ function statusIcon(status: string): unknown {
             </template>
           </el-table-column>
           <el-table-column
+            label="链接建议"
+            min-width="150"
+          >
+            <template #default="{ row }">
+              <template v-if="row.detail?.suggested_cid">
+                <span class="suggestion-name">{{ row.detail.suggested_name }}</span>
+                <el-tag
+                  :type="row.detail.suggestion_level === 'exact' ? 'success' : row.detail.suggestion_level === 'normalized' ? 'primary' : 'warning'"
+                  size="small"
+                  class="suggestion-tag"
+                >
+                  {{ suggestionLabel(row.detail.suggestion_level) }}
+                </el-tag>
+              </template>
+              <span
+                v-else
+                class="orphan-muted"
+              >
+                —
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column
             label="状态"
             width="90"
           >
@@ -468,7 +515,7 @@ function statusIcon(status: string): unknown {
           </el-table-column>
           <el-table-column
             label="操作"
-            width="150"
+            width="220"
           >
             <template #default="{ row }">
               <template v-if="row.status === 'pending'">
@@ -488,6 +535,16 @@ function statusIcon(status: string): unknown {
                     </el-button>
                   </template>
                 </el-popconfirm>
+                <el-button
+                  v-if="row.detail?.suggested_cid"
+                  size="small"
+                  type="primary"
+                  plain
+                  :loading="linkingId === row.id"
+                  @click="linkOrphan(row)"
+                >
+                  确认链接
+                </el-button>
                 <el-button
                   size="small"
                   :loading="approvingId === row.id"
@@ -756,5 +813,15 @@ function statusIcon(status: string): unknown {
 .orphan-muted {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
+}
+
+/* P3a 链接建议 */
+.suggestion-name {
+  font-size: var(--font-size-xs);
+  margin-right: 4px;
+}
+
+.suggestion-tag {
+  margin-top: 2px;
 }
 </style>

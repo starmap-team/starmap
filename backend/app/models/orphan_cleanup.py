@@ -43,10 +43,10 @@ class OrphanCleanupQueue(Base):
         String(32), nullable=False,
         comment="'no_canonical_id' | 'orphan_canonical_id'",
     )
-    # 审批状态机: pending -> approved/rejected -> cleaned
+    # 审批状态机: pending -> approved/rejected/linked -> cleaned
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending",
-        comment="'pending' | 'approved' | 'rejected' | 'cleaned'",
+        comment="'pending' | 'approved' | 'rejected' | 'cleaned' | 'linked'",
     )
     # 引用检查备注（被非孤儿节点引用时记录）
     detail: Mapped[dict | None] = mapped_column(

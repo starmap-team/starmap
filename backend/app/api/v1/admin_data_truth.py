@@ -18,6 +18,7 @@ from app.schemas.admin import (
     HealthMetrics,
     OrphanBatchActionRequest,
     OrphanBatchActionResponse,
+    OrphanLinkRequest,
     OrphanQueueActionRequest,
     OrphanQueueItem,
     OrphanQueueResponse,
@@ -308,6 +309,46 @@ async def orphan_queue_batch_action_endpoint(
         actor=f"admin:{actor}",
     )
     return OrphanBatchActionResponse(**result)
+
+
+@router.post("/orphan-queue/{item_id}/link", response_model=OrphanQueueItem)
+async def orphan_queue_link_endpoint(
+    item_id: str,
+    body: OrphanLinkRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> OrphanQueueItem:
+    """P3a: 孤儿链接 — 把无 canonical_id 节点 SET 到 PG 记录（非破坏、可逆）。
+
+    用于被引用孤儿（同实体不同名/缺链接），canonical_id 缺省用检测建议值。
+    """
+    from uuid import UUID
+
+    from fastapi import HTTPException
+
+    from app.models.orphan_cleanup import OrphanCleanupQueue
+    from app.services.repair_engine import RepairEngine
+
+    try:
+        queue_id = UUID(item_id)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="item_id must be a UUID") from exc
+
+    actor = body.actor or user.get("sub") or user.get("username") or "admin"
+    repair = RepairEngine(driver)
+    result = await repair.link_node(
+        session, queue_id, canonical_id=body.canonical_id, actor=f"admin:{actor}",
+    )
+    if "error" in result:
+        raise HTTPException(status_code=409, detail=result["error"])
+
+    item = (await session.execute(
+        select(OrphanCleanupQueue).where(OrphanCleanupQueue.id == queue_id)
+    )).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=404, detail="queue item not found")
+    return OrphanQueueItem(**item.to_dict())
 
 
 @router.post("/orphan-queue/{item_id}/action", response_model=OrphanQueueItem)
