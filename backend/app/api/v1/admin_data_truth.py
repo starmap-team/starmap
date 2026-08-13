@@ -13,7 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver, require_admin
-from app.models.extraction_models import PositionRecord, SkillRecord
+from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 from app.schemas.admin import (
     HealthMetrics,
     OrphanBackfillResponse,
@@ -86,6 +86,12 @@ async def get_data_truth(
             .where(SkillRecord.review_status == "approved")
         )).scalar() or 0
     )
+    # P3c: PSR 关系行数（关系边指标口径 = PositionSkillRelation 表，与 admin/stats 对齐）
+    pg_psr_count = int(
+        (await session.execute(
+            select(func.count()).select_from(PositionSkillRelation)
+        )).scalar() or 0
+    )
 
     # ── Neo4j 直接查询 ──
     neo4j_positions = 0
@@ -101,7 +107,10 @@ async def get_data_truth(
             record = await result.single()
             neo4j_skills = int(record["c"]) if record else 0
 
-            result = await session_neo.run("MATCH ()-[r]->() RETURN count(r) AS c")
+            # P3c: 关系边指标改为 REQUIRES 子集（Position→Skill），与 PSR 表口径一致
+            result = await session_neo.run(
+                "MATCH (:Position)-[r:REQUIRES]->(:Skill) RETURN count(r) AS c"
+            )
             record = await result.single()
             neo4j_relations = int(record["c"]) if record else 0
 
@@ -156,16 +165,21 @@ async def get_data_truth(
         explanation=f"差额 {(neo4j_skills - pg_total_skills) if neo4j_skills > pg_total_skills else 0} 个孤儿 Skill 节点在 Neo4j 中不在 PG 中。Approved {pg_approved_skills} 个技能可被用户检索。",
     ))
 
-    # 指标 3: 关系边数
+    # 指标 3: 关系边数（P3c 口径统一: Neo4j REQUIRES 边 == PG PositionSkillRelation 行数）
+    diff, status = _calc_status([neo4j_relations, pg_psr_count])
     rows.append(TruthRow(
         metric="关系边数",
-        description="Neo4j 关系总数（实时）",
+        description="Neo4j Position→Skill REQUIRES 边 vs PostgreSQL position_skill_relations",
         api_value=neo4j_relations,
-        postgres_value=neo4j_relations,  # 暂无 PG 边表查询
+        postgres_value=pg_psr_count,
         neo4j_value=neo4j_relations,
-        diff_pct=0.0,
-        status="ok",
-        explanation="Neo4j 中所有 (:Start)-[r]->(:End) 关系总数。注意：admin/stats 报告的 582 是 PositionSkillRelation 表记录数（仅岗位-技能），不包括其他关系类型。",
+        diff_pct=diff,
+        status=status,
+        explanation=(
+            f"Neo4j REQUIRES 边 {neo4j_relations} = 岗位-技能要求关系投影。"
+            f"PostgreSQL position_skill_relations {pg_psr_count} = 关系表行数（SSOT）。"
+            "两口径一致表示岗位-技能关系投影无漂移；学习路径 PREREQUISITE 等其他关系类型不在此指标内。"
+        ),
     ))
 
     # 指标 4: 待审核岗位
