@@ -7,7 +7,7 @@ import { ElMessage } from 'element-plus'
 import { RefreshRight, QuestionFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useQualityStore } from '@/stores/quality'
-import { useAuditStore } from '@/stores/audit'
+import { useReviewStore, type ReviewEntityType } from '@/stores/review'
 import { chartColors } from '@/utils/chartTheme'
 import QualityTrendChart from '@/components/QualityTrendChart.vue'
 import AlertList from '@/components/AlertList.vue'
@@ -16,7 +16,7 @@ import { useQualityActions } from '@/composables/useQualityActions'
 import { useQualityDashboard } from '@/composables/useQualityDashboard'
 
 const quality = useQualityStore()
-const audit = useAuditStore()
+const review = useReviewStore()
 // ponytail: chartColors re-exported for template el-progress :color binding
 const cc = chartColors()
 const {
@@ -50,6 +50,31 @@ async function handleRefresh() {
     lastRefresh.value = new Date().toLocaleTimeString()
   } catch (err: unknown) {
     ElMessage.error('刷新失败：' + (err instanceof Error ? err.message : '未知错误'))
+  }
+}
+
+// ── 待审核队列操作（2026-08-13 对齐 admin 内容审核 review_service 状态机）──
+// 修复前走旧 /admin/audit/{id}/approve（ReviewQueue 死代码）；audit_queue 现返回
+// position/skill 的 entity_type+entity_id，审批后刷新队列与 KPI
+async function handleQueueApprove(row: { entity_type?: string; entity_id?: string }) {
+  if (!row.entity_type || !row.entity_id) return
+  try {
+    await review.approve(row.entity_type as ReviewEntityType, row.entity_id)
+    ElMessage.success('已通过审核')
+    await quality.fetchQuality()
+  } catch {
+    ElMessage.error('审批失败')
+  }
+}
+
+async function handleQueueReject(row: { entity_type?: string; entity_id?: string }) {
+  if (!row.entity_type || !row.entity_id) return
+  try {
+    await review.reject(row.entity_type as ReviewEntityType, row.entity_id, '质量仪表盘拒绝')
+    ElMessage.success('已拒绝')
+    await quality.fetchQuality()
+  } catch {
+    ElMessage.error('拒绝失败')
   }
 }
 </script>
@@ -452,7 +477,7 @@ async function handleRefresh() {
                     type="success"
                     plain
                     :disabled="row.review_status === 'approved' || row.review_status === 'rejected'"
-                    @click="audit.approveAudit(row.id).catch(() => ElMessage.error('审批失败'))"
+                    @click="handleQueueApprove(row)"
                   >
                     通过
                   </el-button>
@@ -461,7 +486,7 @@ async function handleRefresh() {
                     type="danger"
                     plain
                     :disabled="row.review_status === 'approved' || row.review_status === 'rejected'"
-                    @click="audit.rejectAudit(row.id).catch(() => ElMessage.error('拒绝失败'))"
+                    @click="handleQueueReject(row)"
                   >
                     拒绝
                   </el-button>

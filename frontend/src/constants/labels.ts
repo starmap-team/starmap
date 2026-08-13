@@ -137,6 +137,14 @@ export const SOURCE_NAME_LABELS: Record<string, string> = {
   'V2EX 酷工作': 'V2EX 酷工作',
   '掘金技术社区': '掘金技术社区',
   'RemoteOK': 'RemoteOK',
+  // 2026-08-13: 补齐 jd_raw.source_site 原始键（数据源贡献分布 / 样本来源映射）
+  v2ex: 'V2EX 酷工作',
+  juejin: '掘金技术社区',
+  remoteok: 'RemoteOK',
+  arbeitnow: 'Arbeitnow（远程招聘）',
+  jobicy: 'Jobicy（远程招聘）',
+  remotive: 'Remotive（远程招聘）',
+  weworkremotely: 'WeWorkRemotely（远程招聘）',
 }
 
 // ── 数据源说明（卡片展示：告诉用户这个数据源是什么）──

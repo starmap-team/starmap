@@ -189,6 +189,32 @@ async def generate_alerts(
     if thresholds is None:
         thresholds = DEFAULT_THRESHOLDS
 
+    # 数据源内部标识 → 中文展示名（对齐前端 SOURCE_NAME_LABELS，中文化 message）
+    site_labels: dict[str, str] = {
+        "boss": "BOSS直聘",
+        "bosszhipin": "BOSS直聘",
+        "Boss Zhipin": "BOSS直聘",
+        "lagou": "拉勾网",
+        "Lagou": "拉勾网",
+        "zhaopin": "智联招聘",
+        "liepin": "猎聘",
+        "51job": "前程无忧",
+        "v2ex": "V2EX 酷工作",
+        "juejin": "掘金技术社区",
+        "remotive": "Remotive（远程）",
+        "arbeitnow": "Arbeitnow（远程）",
+        "jobicy": "Jobicy（远程）",
+        "remoteok": "RemoteOK",
+        "weworkremotely": "WeWorkRemotely（远程）",
+        "WeWorkRemotely (远程)": "WeWorkRemotely（远程招聘）",
+        "ESCO Skills": "ESCO 职业技能标准",
+        "esco": "ESCO 标准库",
+        "manual": "手动导入",
+    }
+
+    def _site_label(name: str) -> str:
+        return site_labels.get(name, name)
+
     alerts: list[QualityAlert] = []
 
     # 1. Check each data source
@@ -202,8 +228,8 @@ async def generate_alerts(
                 level="warning",
                 dimension="low_quality",
                 message=(
-                    f"Source '{src.name}' quality score {src.avg_quality_score:.3f} "
-                    f"below threshold {thresholds['min_quality_score']}"
+                    f"数据源「{_site_label(src.name)}」质量分 {src.avg_quality_score:.3f} "
+                    f"低于阈值 {thresholds['min_quality_score']}"
                 ),
                 source=src.name,
                 value=src.avg_quality_score,
@@ -216,8 +242,8 @@ async def generate_alerts(
                 level="warning",
                 dimension="duplicate_rate",
                 message=(
-                    f"Source '{src.name}' duplicate rate {src.duplicate_rate:.1%} "
-                    f"exceeds threshold {thresholds['max_duplicate_rate']:.1%}"
+                    f"数据源「{_site_label(src.name)}」重复率 {src.duplicate_rate:.1%} "
+                    f"超过阈值 {thresholds['max_duplicate_rate']:.1%}"
                 ),
                 source=src.name,
                 value=src.duplicate_rate,
@@ -229,7 +255,7 @@ async def generate_alerts(
             alerts.append(QualityAlert(
                 level="critical",
                 dimension="source_error",
-                message=f"Source '{src.name}' is in error state",
+                message=f"数据源「{_site_label(src.name)}」处于异常状态",
                 source=src.name,
             ))
 
@@ -243,8 +269,8 @@ async def generate_alerts(
                     level="warning",
                     dimension="freshness",
                     message=(
-                        f"Source '{src.name}' last crawl {hours_since:.0f}h ago "
-                        f"(threshold {thresholds['max_freshness_hours']}h)"
+                        f"数据源「{_site_label(src.name)}」已 {hours_since:.0f} 小时未采集"
+                        f"（阈值 {thresholds['max_freshness_hours']} 小时）"
                     ),
                     source=src.name,
                     value=hours_since,
@@ -262,7 +288,7 @@ async def generate_alerts(
         alerts.append(QualityAlert(
             level="critical",
             dimension="pipeline_failures",
-            message=f"{recent_failures} failed pipeline runs detected",
+            message=f"流水线累计 {recent_failures} 次失败运行（阈值 {thresholds.get('max_failed_runs', 3)} 次）",
             value=float(recent_failures),
             threshold=3.0,
         ))

@@ -317,14 +317,38 @@ class TestGenerateAlerts:
         assert any(a.dimension == "pipeline_failures" and a.level == "critical" for a in alerts)
 
     @pytest.mark.asyncio
-    async def test_no_pipeline_failures_below_threshold(self):
+    async def test_scalar_none_for_pipeline_failures(self):
         src = _make_source()
         session = FakeAsyncSession([
             FakeResult(scalars_list=[src]),
-            FakeResult(scalar_val=2),  # <= 3
+            FakeResult(scalar_val=None),
         ])
         alerts = await generate_alerts(session)
         assert not any(a.dimension == "pipeline_failures" for a in alerts)
+
+    # ── 全盘友好性: message 中文化（2026-08-13）──
+    @pytest.mark.asyncio
+    async def test_low_quality_alert_message_chinese(self):
+        src = _make_source(name="v2ex", avg_quality_score=0.4, duplicate_rate=0.05, status="active")
+        session = FakeAsyncSession([
+            FakeResult(scalars_list=[src]),
+            FakeResult(scalar_val=0),
+        ])
+        alerts = await generate_alerts(session)
+        low = next(a for a in alerts if a.dimension == "low_quality")
+        assert "V2EX" in low.message  # 站点中文名映射
+        assert "低于阈值" in low.message  # 中文 message（不再直出英文 below threshold）
+
+    @pytest.mark.asyncio
+    async def test_pipeline_failures_message_chinese(self):
+        src = _make_source()
+        session = FakeAsyncSession([
+            FakeResult(scalars_list=[src]),
+            FakeResult(scalar_val=5),
+        ])
+        alerts = await generate_alerts(session)
+        fail = next(a for a in alerts if a.dimension == "pipeline_failures")
+        assert "失败运行" in fail.message
 
     @pytest.mark.asyncio
     async def test_custom_thresholds(self):
@@ -348,17 +372,6 @@ class TestGenerateAlerts:
         ])
         alerts = await generate_alerts(session)
         assert not any(a.dimension == "freshness" for a in alerts)
-
-    @pytest.mark.asyncio
-    async def test_scalar_none_for_pipeline_failures(self):
-        src = _make_source()
-        session = FakeAsyncSession([
-            FakeResult(scalars_list=[src]),
-            FakeResult(scalar_val=None),
-        ])
-        alerts = await generate_alerts(session)
-        # None or 0 treated as 0 → no pipeline_failures alert
-        assert not any(a.dimension == "pipeline_failures" for a in alerts)
 
 
 # ---------------------------------------------------------------------------

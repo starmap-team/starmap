@@ -161,17 +161,18 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     from app.repositories.quality_repo import fetch_hallucination_trend
     hallucination_trend = await fetch_hallucination_trend(session)
 
-    # Generate source distribution from skill categories
-    source_dist_stmt = (
-        sa.select(SkillRecord.category, sa.func.count())
-        .group_by(SkillRecord.category)
-        .order_by(sa.func.count().desc())
-        .limit(8)
+    # 数据源贡献分布：真实数据源（jd_raw.source_site，status='extracted' 有效记录，
+    # 排除 fixture_* 测试数据）——与 source_quality_sync 的"真实采集数据源"口径一致。
+    # 修复前按 SkillRecord.category（技能分类）分组，标题"数据源贡献分布"与数据语义错位。
+    source_dist_stmt = sa.text(
+        "SELECT source_site, COUNT(*) AS cnt FROM jd_raw "
+        "WHERE status = 'extracted' AND source_site NOT LIKE 'fixture\\_%' "
+        "GROUP BY source_site ORDER BY cnt DESC LIMIT 8"
     )
     source_rows = (await session.execute(source_dist_stmt)).all()
     source_distribution = [
-        {"name": cat or "unknown", "count": int(cnt), "trust": round(avg_trust, 2)}
-        for cat, cnt in source_rows
+        {"name": site or "unknown", "count": int(cnt), "trust": 0.0}
+        for site, cnt in source_rows
     ]
 
     # D1 fix: weekly_new_nodes now routes through the shared metrics module
@@ -201,28 +202,51 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     total_reviewed = approved_count + rejected_count
     audit_pass_rate = (int(approved_count) / total_reviewed) if total_reviewed > 0 else 0.0
 
-    # H11: audit_queue — low-trust records needing review (as list for frontend table)
-    low_trust_records = (
+    # H11: audit_queue — 待审核记录（与 admin 内容审核同源：position_records + skill_records 的
+    # pending_review）。修复前查 JDExtractionRecord（全 completed → 队列恒空），与实际审核流
+    # 脱节；现对齐 review_service 状态机（Phase 23），队列内容与 /admin/review-items 一致。
+    pos_rows = (
         await session.execute(
-            sa.select(JDExtractionRecord)
-            .where(
-                sa.and_(
-                    JDExtractionRecord.confidence < settings.trust_pending_threshold,
-                    JDExtractionRecord.status != "completed",
-                )
-            )
-            .limit(20)
+            sa.select(PositionRecord.id, PositionRecord.name)
+            .where(PositionRecord.review_status == "pending_review")
+            .order_by(PositionRecord.submitted_at.asc().nulls_last())
+            .limit(10)
         )
-    ).scalars().all()
+    ).all()
+    skill_rows = (
+        await session.execute(
+            sa.select(SkillRecord.id, SkillRecord.name, SkillRecord.source_count)
+            .where(SkillRecord.review_status == "pending_review")
+            .order_by(SkillRecord.submitted_at.asc().nulls_last())
+            .limit(10)
+        )
+    ).all()
     audit_queue = [
         {
-            "id": int(r.id) if r.id is not None else 0,
-            "position": r.job_title or "",
+            "id": str(r.id),
+            "entity_type": "position",
+            "entity_id": str(r.id),
+            "position": r.name or "",
             "skill": "",
-            "trust": int((r.confidence or 0) * 100),
+            "trust": 0,
+            "review_status": "pending_review",
         }
-        for r in low_trust_records
+        for r in pos_rows
     ]
+    audit_queue += [
+        {
+            "id": str(r.id),
+            "entity_type": "skill",
+            "entity_id": str(r.id),
+            "position": "",
+            "skill": r.name or "",
+            "trust": int((r.source_count or 0) / 10 * 100),
+            "review_status": "pending_review",
+        }
+        for r in skill_rows
+    ]
+    # 队列上限 20 条（岗位 + 技能合计）
+    audit_queue = audit_queue[:20]
 
     # Phase 13 一致性审计：评估基线可用性 — 无 golden-set 评估时 0/0/0 表示“未评估”而非“质量差”
     evaluation_count = int(

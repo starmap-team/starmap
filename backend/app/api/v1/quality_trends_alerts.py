@@ -9,7 +9,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session
@@ -17,6 +18,22 @@ from app.models.pipeline_models import DataSourceRecord, PipelineRun
 from app.schemas.quality import AlertItem, QualityAlertsResponse, QualityTrendsResponse, TrendPoint
 
 router = APIRouter(tags=["质量趋势告警"])
+
+# ── 告警处理状态持久化（Redis hash）：用户"解决/忽略"后跨刷新保留 ──
+ALERT_HANDLED_KEY = "quality:alert:handled"
+ALERT_HANDLED_TTL = 60 * 60 * 24 * 7  # 7 天；告警实时生成，处理状态是用户操作记录
+
+
+class AlertHandleRequest(BaseModel):
+    """告警处理请求：action = resolve | ignore。"""
+
+    id: str = Field(..., description="告警稳定标识（dimension:source）")
+    action: str = Field(..., description="'resolve' | 'ignore'")
+
+
+def _alert_key(dimension: str, source: str | None) -> str:
+    """告警稳定标识：dimension:source（实时生成告警中可重复的键）。"""
+    return f"{dimension}:{source or 'pipeline'}"
 
 
 @router.get("/trends", response_model=QualityTrendsResponse)
@@ -115,21 +132,36 @@ async def get_quality_trends(
 
 @router.get("/alerts", response_model=QualityAlertsResponse)
 async def get_quality_alerts(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     level: Annotated[str | None, Query(description="Filter: 'critical' | 'warning' | 'info'")] = None,
 ) -> QualityAlertsResponse:
-    """异常告警列表：基于 quality_monitor.generate_alerts() 返回实时告警。"""
+    """异常告警列表：基于 quality_monitor.generate_alerts() 返回实时告警。
+
+    已处理告警（用户点"解决/忽略"）从 Redis 读取状态并叠加，跨刷新保留。
+    """
     from app.services.quality_service import generate_alerts
 
     raw_alerts = await generate_alerts(session)
+
+    # 读取已处理告警状态（dimension:source → resolved|ignored）
+    handled_map: dict[str, str] = {}
+    redis_client = getattr(request.app.state.resources, "redis_client", None)
+    if redis_client:
+        try:
+            handled_map = await redis_client.hgetall(ALERT_HANDLED_KEY)
+            if isinstance(handled_map, dict):
+                handled_map = {k.decode() if isinstance(k, bytes) else str(k): v.decode() if isinstance(v, bytes) else str(v) for k, v in handled_map.items()}
+        except Exception:  # noqa: BLE001 — Redis 不可用时告警仍可用（仅失去已处理状态）
+            handled_map = {}
 
     # Convert to serializable items
     items: list[AlertItem] = []
     for idx, a in enumerate(raw_alerts):
         if level and a.level != level:
             continue
-        items.append(AlertItem(
-            id=f"alert_{idx}_{a.dimension}",
+        item = AlertItem(
+            id=_alert_key(a.dimension, a.source) if a.source else f"alert_{idx}_{a.dimension}",
             type="quality",
             level=a.level,
             dimension=a.dimension,
@@ -141,7 +173,13 @@ async def get_quality_alerts(
             status="pending",
             created_at=a.timestamp,
             handled=False,
-        ))
+        )
+        # 叠加已处理状态（跨刷新保留）
+        stored = handled_map.get(item.id)
+        if stored in ("resolved", "ignored"):
+            item.status = stored
+            item.handled = True
+        items.append(item)
 
     # Count by level
     critical = sum(1 for a in items if a.level == "critical")
@@ -155,3 +193,24 @@ async def get_quality_alerts(
         info=info,
         alerts=items,
     )
+
+
+@router.post("/alerts/handle", response_model=QualityAlertsResponse)
+async def handle_quality_alert(
+    request: Request,
+    body: AlertHandleRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> QualityAlertsResponse:
+    """处理告警：resolve（解决）/ ignore（忽略）。持久化到 Redis，跨刷新保留。"""
+    if body.action not in ("resolve", "ignore"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="action 必须是 'resolve' 或 'ignore'")
+
+    redis_client = getattr(request.app.state.resources, "redis_client", None)
+    if redis_client is not None:
+        # 存完整词形（resolved/ignored），与 GET /alerts 的 status 判断一致
+        stored = "resolved" if body.action == "resolve" else "ignored"
+        await redis_client.hset(ALERT_HANDLED_KEY, body.id, stored)
+        await redis_client.expire(ALERT_HANDLED_KEY, ALERT_HANDLED_TTL)
+
+    return await get_quality_alerts(request, session)
