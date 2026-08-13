@@ -18,6 +18,7 @@ export interface ReviewItem {
   entity_type: ReviewEntityType
   entity_id: string
   name: string
+  name_cn: string | null
   industry: string | null
   review_status: ReviewStatus
   created_by: string | null

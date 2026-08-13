@@ -1674,6 +1674,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/review/{entity_type}/{entity_id}/name-cn:
+    patch:
+      operationId: updateReviewNameCn
+      summary: 调整岗位/技能中文名
+      description: 复用内容审核模块，管理员在审核队列中直接修正 name_cn（D8i/D8j 中文化手工校准）。同步 PG + Neo4j，非破坏、幂等。
+      tags:
+      - 管理后台
+      parameters:
+      - name: entity_type
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - position
+          - skill
+      - name: entity_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NameCnUpdateRequest'
+      responses:
+        '200':
+          description: 更新后的审核条目（ReviewItem 结构，含 entity_type 等字段）
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '422':
+          description: name_cn 为空
   /admin/review/{entity_type}/{entity_id}/approve:
     post:
       operationId: approveReviewItem
@@ -6450,6 +6488,16 @@ components:
           type: string
           nullable: true
           maxLength: 2000
+    NameCnUpdateRequest:
+      type: object
+      required:
+      - name_cn
+      properties:
+        name_cn:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: 中文显示名（非空）
     AdminPipelineStatusResponse:
       type: object
       required:

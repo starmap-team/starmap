@@ -12,7 +12,8 @@
  */
 import { onMounted, ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, Close, RefreshRight } from '@element-plus/icons-vue'
+import { Check, Close, EditPen, RefreshRight } from '@element-plus/icons-vue'
+import request from '@/api/request'
 import { useReviewStore, type ReviewEntityType, type ReviewItem, type ReviewStatus } from '@/stores/review'
 import { ALL_OPTION, POSITION_REVIEW_STATUS_LABELS } from '@/constants/labels'
 
@@ -209,6 +210,40 @@ function formatDate(s: string | null) {
     return new Date(s).toLocaleString()
   } catch {
     return s
+  }
+}
+
+// ── 中文名调整 (D8i/D8j 手工校准): 复用内容审核模块，审核时直接修正 name_cn ──
+const nameCnEditor = ref<ReviewItem | null>(null)
+const nameCnValue = ref('')
+const nameCnSaving = ref(false)
+
+function openNameCnEditor(item: ReviewItem) {
+  nameCnEditor.value = item
+  nameCnValue.value = item.name_cn ?? ''
+}
+
+async function saveNameCn() {
+  if (!nameCnEditor.value) return
+  const name = (nameCnValue.value ?? '').trim()
+  if (!name) {
+    ElMessage.warning('中文名不能为空')
+    return
+  }
+  nameCnSaving.value = true
+  try {
+    const item = nameCnEditor.value
+    await request.patch(
+      `/admin/review/${item.entity_type}/${item.entity_id}/name-cn`,
+      { name_cn: name },
+    )
+    ElMessage.success(`已更新「${item.name}」中文名: ${name}`)
+    nameCnEditor.value = null
+    await refresh()
+  } catch (e) {
+    ElMessage.error(`更新中文名失败: ${e instanceof Error ? e.message : '未知错误'}`)
+  } finally {
+    nameCnSaving.value = false
   }
 }
 </script>
@@ -467,10 +502,18 @@ function formatDate(s: string | null) {
       </el-table-column>
       <el-table-column
         label="操作"
-        width="220"
+        width="280"
         fixed="right"
       >
         <template #default="{ row }">
+          <el-button
+            size="small"
+            plain
+            :icon="EditPen"
+            @click="openNameCnEditor(row)"
+          >
+            改中文名
+          </el-button>
           <el-button
             v-if="row.review_status === 'pending_review'"
             type="success"
@@ -522,6 +565,48 @@ function formatDate(s: string | null) {
         layout="prev, pager, next, total"
       />
     </div>
+
+    <!-- 中文名调整弹窗 (D8i/D8j 手工校准): 审核队列中直接修正 name_cn -->
+    <el-dialog
+      :model-value="nameCnEditor !== null"
+      :title="nameCnEditor ? `调整中文名 — ${nameCnEditor.entity_type === 'position' ? '岗位' : '技能'}「${nameCnEditor.name}」` : ''"
+      width="460px"
+      append-to-body
+      @update:model-value="(v: boolean) => { if (!v) nameCnEditor = null }"
+    >
+      <el-form
+        v-if="nameCnEditor"
+        label-position="top"
+        @submit.prevent="saveNameCn"
+      >
+        <el-form-item label="原名（原文）">
+          <el-input
+            :model-value="nameCnEditor.name"
+            disabled
+          />
+        </el-form-item>
+        <el-form-item label="中文名（name_cn）">
+          <el-input
+            v-model="nameCnValue"
+            placeholder="输入中文显示名，如：数据工程师"
+            maxlength="255"
+            clearable
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="nameCnEditor = null">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="nameCnSaving"
+          @click="saveNameCn"
+        >
+          保存中文名
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 

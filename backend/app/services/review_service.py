@@ -34,7 +34,7 @@ from app.models.review_audit_log import ReviewAuditLog
 # ── Status enum ──
 
 Status = Literal["draft", "pending_review", "approved", "rejected"]
-Action = Literal["submit", "approve", "reject", "unpublish", "grandfather"]
+Action = Literal["submit", "approve", "reject", "unpublish", "grandfather", "update_name_cn"]
 EntityType = Literal["position", "skill"]
 
 ALLOWED_STATUSES: tuple[Status, ...] = ("draft", "pending_review", "approved", "rejected")
@@ -65,20 +65,22 @@ class ReviewItem:
     entity_type: EntityType
     entity_id: uuid.UUID
     name: str
-    industry: str | None
-    review_status: Status
-    created_by: str | None
-    reviewed_by: str | None
-    reviewed_at: datetime | None
-    submitted_at: datetime | None
-    rejection_reason: str | None
-    created_at: datetime | None
+    name_cn: str | None = None
+    industry: str | None = None
+    review_status: Status = "pending_review"
+    created_by: str | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+    submitted_at: datetime | None = None
+    rejection_reason: str | None = None
+    created_at: datetime | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "entity_type": self.entity_type,
             "entity_id": str(self.entity_id),
             "name": self.name,
+            "name_cn": self.name_cn,
             "industry": self.industry,
             "review_status": self.review_status,
             "created_by": self.created_by,
@@ -224,6 +226,41 @@ async def approve(
     return _to_item(entity_type, row)
 
 
+async def update_name_cn(
+    session: AsyncSession,
+    *,
+    entity_type: EntityType,
+    entity_id: uuid.UUID,
+    name_cn: str,
+    actor: str,
+) -> ReviewItem:
+    """Update the Chinese display name (name_cn) of a position/skill.
+
+    复用内容审核模块：管理员在审核队列中直接修正中文名（D8i/D8j 中文化后
+    手工校准入口）。非破坏、幂等。
+    """
+    row = await _get_entity(session, entity_type, entity_id)
+    cleaned = (name_cn or "").strip()
+    if not cleaned:
+        raise ValueError("name_cn cannot be empty")
+    old_value = row.name_cn
+    row.name_cn = cleaned
+    if old_value != cleaned:
+        await _record_transition(
+            session,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action="update_name_cn",
+            actor=actor,
+            previous_status=cast(Status, row.review_status),
+            new_status=cast(Status, row.review_status),
+            reason=f"name_cn: {old_value or '(none)'} -> {cleaned}",
+        )
+    await session.commit()
+    await session.refresh(row)
+    return _to_item(entity_type, row)
+
+
 async def reject(
     session: AsyncSession,
     *,
@@ -311,6 +348,7 @@ def _to_item(entity_type: EntityType, row: PositionRecord | SkillRecord) -> Revi
         entity_type=entity_type,
         entity_id=row.id,
         name=getattr(row, "name", ""),
+        name_cn=getattr(row, "name_cn", None),
         industry=getattr(row, "industry", None),
         review_status=cast(Status, row.review_status),
         created_by=row.created_by,

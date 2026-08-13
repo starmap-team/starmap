@@ -652,6 +652,7 @@ class RepairEngine:
                     await upsert_skill_record(
                         pg_session, name=name, category="hard_skill",
                         review_status=review_status,
+                        created_by="system:backfill",
                     )
                     backfilled += 1
                 except Exception as exc:  # noqa: BLE001 — 单条失败不阻断
@@ -733,6 +734,7 @@ class RepairEngine:
                     await upsert_position_record(
                         pg_session, name=name, industry=None, description=None,
                         review_status=review_status,
+                        created_by="system:backfill",
                     )
                     backfilled += 1
                 except Exception as exc:  # noqa: BLE001 — 单条失败不阻断

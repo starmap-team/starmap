@@ -19,6 +19,7 @@ from app.schemas.admin import (
     AuditQueueResponse,
     AuditUpdateRequest,
     BatchAuditRequest,
+    NameCnUpdateRequest,
     PipelineStatusResponse,
     PipelineTriggerResponse,
     ReconcileResult,
@@ -367,6 +368,52 @@ async def reject_review_item_endpoint(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except review_service.MissingRejectionReason as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return item.to_dict()
+
+
+@router.patch("/review/{entity_type}/{entity_id}/name-cn")
+async def update_name_cn_endpoint(
+    entity_type: Literal["position", "skill"],
+    entity_id: str,
+    body: NameCnUpdateRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> dict[str, Any]:
+    """调整岗位/技能中文名（name_cn）— 复用内容审核模块（D8i/D8j 手工校准）。
+
+    更新 PG 行 + 同步 Neo4j 节点属性，非破坏、幂等。
+    """
+    try:
+        uid = uuid_mod.UUID(entity_id)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="entity_id must be a UUID") from exc
+    try:
+        item = await review_service.update_name_cn(
+            session,
+            entity_type=entity_type,  # type: ignore[arg-type]
+            entity_id=uid,
+            name_cn=body.name_cn,
+            actor=user.get("sub", "admin"),
+        )
+    except review_service.ReviewNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # 同步 Neo4j 节点 name_cn（图谱展示跟随 PG 权威）
+    if neo4j_driver is not None:
+        try:
+            from app.services.graph_projector import GraphProjector
+
+            projector = GraphProjector(neo4j_driver)
+            await projector.apply_change(
+                label="Position" if entity_type == "position" else "Skill",
+                canonical_id=uid,
+                properties={"name_cn": body.name_cn},
+            )
+        except Exception as exc:  # noqa: BLE001 — 图同步失败不阻断 PG 更新
+            logger.warning("name_cn graph sync failed for {} {}: {}", entity_type, entity_id, exc)
     return item.to_dict()
 
 

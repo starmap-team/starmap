@@ -208,6 +208,12 @@ class ReviewActionRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=2000)
 
 
+class NameCnUpdateRequest(BaseModel):
+    """调整岗位/技能中文名（name_cn）。"""
+
+    name_cn: str = Field(..., min_length=1, max_length=255, description="中文显示名（非空）")
+
+
 class PipelineStatusResponse(BaseModel):
     """Pipeline status + data health summary."""
 
