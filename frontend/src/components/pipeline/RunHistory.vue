@@ -27,12 +27,36 @@ function runTypeLabel(t: string): string {
   return labels[t] ?? t
 }
 
+// ── 状态中文化（全盘友好性）: run/stage 内部英文标识 → 用户友好中文 ──
+const RUN_STATUS_LABELS: Record<string, string> = {
+  pending: '等待中',
+  running: '运行中',
+  completed: '已完成',
+  failed: '失败',
+  cancelled: '已取消',
+  waiting: '排队中',
+}
+
+function statusLabel(status: string): string {
+  return RUN_STATUS_LABELS[status] ?? status
+}
+
 function statusTagType(status: string): 'success' | 'primary' | 'danger' | 'info' | 'warning' {
   if (status === 'completed') return 'success'
   if (status === 'running') return 'primary'
   if (status === 'failed') return 'danger'
   if (status === 'cancelled') return 'warning'
   return 'info'
+}
+
+// stage 状态多一个 skipped（阶段级）
+const STAGE_STATUS_LABELS: Record<string, string> = {
+  ...RUN_STATUS_LABELS,
+  skipped: '已跳过',
+}
+
+function stageStatusLabel(status: string): string {
+  return STAGE_STATUS_LABELS[status] ?? status
 }
 
 function stageTagType(status: string): 'success' | 'primary' | 'danger' | 'info' | 'warning' {
@@ -135,7 +159,7 @@ function stageRecordLabel(s: PipelineStage): string {
             :type="statusTagType(row.status)"
             size="small"
           >
-            {{ row.status }}
+            {{ statusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -225,7 +249,7 @@ function stageRecordLabel(s: PipelineStage): string {
             :type="statusTagType(detailRun.status)"
             size="small"
           >
-            {{ detailRun.status }}
+            {{ statusLabel(detailRun.status) }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="开始时间">
@@ -361,7 +385,7 @@ function stageRecordLabel(s: PipelineStage): string {
               :type="stageTagType(row.status)"
               size="small"
             >
-              {{ row.status }}
+              {{ stageStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>

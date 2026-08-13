@@ -8,6 +8,7 @@ import { ref, computed } from 'vue'
 import { CircleCheck, CircleClose, Loading, Connection, Document, MagicStick, Promotion, Share } from '@element-plus/icons-vue'
 import { chartColors } from '@/utils/chartTheme'
 import { STAGE_LABELS } from '@/stores/pipelineConfig'
+import { SOURCE_NAME_LABELS } from '@/constants/labels'
 import type { LiveActivityEvent } from '@/stores/pipelineRun'
 
 // Phase 3 Plan 02: 阶段描述，供 hover tooltip 引导新用户
@@ -171,6 +172,12 @@ const currentActivity = computed(() => {
 const recentSamples = computed(() => {
   return (isLiveStage.value ? props.liveActivity?.recent_samples : null) || props.stage.recent_samples || []
 })
+
+// ── 样本来源中文化（全盘友好性）: source_site 内部键（v2ex/boss...）→ 平台中文名 ──
+function sampleSourceLabel(source: unknown): string {
+  const key = String(source ?? '')
+  return SOURCE_NAME_LABELS[key] ?? key
+}
 
 const subBreakdown = computed(() => {
   return (isLiveStage.value ? props.liveActivity?.sub_breakdown : null) || props.stage.sub_breakdown || {}
@@ -488,7 +495,7 @@ const realProgress = computed(() => {
               v-if="s.company || s.source"
               class="sample-meta"
             >
-              {{ s.company }} {{ s.source ? `· ${s.source}` : '' }}
+              {{ s.company }} {{ s.source ? `· ${sampleSourceLabel(s.source)}` : '' }}
             </div>
             <a
               v-if="s.url"
@@ -531,7 +538,7 @@ const realProgress = computed(() => {
           <span
             v-if="s.source"
             class="sample-source"
-          >{{ s.source }}</span>
+          >{{ sampleSourceLabel(s.source) }}</span>
         </div>
       </div>
     </div>

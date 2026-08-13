@@ -495,7 +495,7 @@ function formatRecords(n: number) {
             <span
               v-if="s.source"
               class="sample-source"
-            >[{{ s.source }}]</span>
+            >[{{ getSourceNameLabel(String(s.source)) }}]</span>
           </div>
         </div>
       </div>

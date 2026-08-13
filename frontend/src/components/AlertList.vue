@@ -60,6 +60,20 @@ const typeIconMap: Record<string, string> = {
   system:     'Monitor',
 }
 
+// ── 告警类型中文化（全盘友好性）: 内部 type 标识 → 用户友好中文 ──
+const typeConfig: Record<string, { type: string; label: string }> = {
+  quality:   { type: 'warning', label: '质量' },
+  crawl:     { type: 'info',    label: '采集' },
+  duplicate: { type: 'info',    label: '去重' },
+  timeout:   { type: 'danger',  label: '超时' },
+  auth:      { type: 'danger',  label: '认证' },
+  system:    { type: 'info',    label: '系统' },
+}
+
+function getTypeLabel(type: string): string {
+  return typeConfig[type]?.label ?? type
+}
+
 </script>
 
 <template>
@@ -102,7 +116,7 @@ const typeIconMap: Record<string, string> = {
             >
               <component :is="typeIconMap[row.type] ?? 'Warning'" />
             </el-icon>
-            <span>{{ row.type }}</span>
+            <span>{{ getTypeLabel(row.type) }}</span>
           </div>
         </template>
       </el-table-column>
