@@ -297,4 +297,76 @@ describe('useSSE', () => {
 
     expect(result.connected.value).toBe(true)
   })
+
+  // ── 10. Polling unwraps { events: [...] } envelope (P1-2 fix) ──
+
+  it('should unwrap { events: [...] } envelope from polling fallback', async () => {
+    const onMessage = vi.fn()
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        events: [
+          { type: 'pipeline_update', data: { stage: 'crawl', status: 'completed' }, timestamp: 1000 },
+          { type: 'quality_alert', data: { message: '低质量' }, timestamp: 1001 },
+        ],
+        poll_interval_ms: 5000,
+      }),
+    })
+
+    const { result, unmount: teardown } = withSetup(() =>
+      useSSE('/api/v1/test', { onMessage, pollInterval: 1000, baseDelay: 10, pollThreshold: 1 })
+    )
+    unmount = teardown
+
+    // Trigger polling by consecutive failures
+    mockEventSourceInstance.onerror!(new Event('error'))
+    mockEventSourceInstance.onerror!(new Event('error'))
+
+    expect(result.mode.value).toBe('polling')
+    // Wait for immediate first poll
+    await vi.advanceTimersByTimeAsync(0)
+    await Promise.resolve()
+
+    // Two events delivered to onMessage (parsed as JSON strings)
+    expect(onMessage).toHaveBeenCalledTimes(2)
+    const first = JSON.parse(onMessage.mock.calls[0][0].data)
+    const second = JSON.parse(onMessage.mock.calls[1][0].data)
+    expect(first.type).toBe('pipeline_update')
+    expect(second.type).toBe('quality_alert')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('should advance since cursor to last event timestamp on subsequent polls', async () => {
+    const onMessage = vi.fn()
+    // First poll returns events; second poll should carry since=1001
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ events: [{ type: 'pipeline_update', data: {}, timestamp: 1000 }] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ events: [{ type: 'data_milestone', data: {}, timestamp: 1005 }] }),
+      })
+
+    const { result, unmount: teardown } = withSetup(() =>
+      useSSE('/api/v1/test', { onMessage, pollInterval: 1000, baseDelay: 10, pollThreshold: 1 })
+    )
+    unmount = teardown
+
+    mockEventSourceInstance.onerror!(new Event('error'))
+    mockEventSourceInstance.onerror!(new Event('error'))
+    expect(result.mode.value).toBe('polling')
+    await vi.advanceTimersByTimeAsync(0)
+    await Promise.resolve()
+
+    // Advance one poll interval → second fetch
+    await vi.advanceTimersByTimeAsync(1000)
+    await Promise.resolve()
+
+    // Second fetch URL must carry since=<lastEventTs> (=1000 from first poll)
+    const secondUrl = mockFetch.mock.calls[1][0] as string
+    expect(secondUrl).toContain('since=1000')
+  })
 })

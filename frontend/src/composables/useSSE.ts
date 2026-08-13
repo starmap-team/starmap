@@ -92,8 +92,9 @@ export function useSSE(url: string, options: UseSSEOptions) {
   let sseRetryTimer: ReturnType<typeof setInterval> | null = null
   let disposed = false
   let refreshingToken = false  // P0-F2: guard against parallel refreshes
-  // Phase 03 Plan 03 Task 9 (D-09): 追踪 SSE lastEventId，用于轮询 fallback 的 since 参数
-  let lastEventId = ''
+  // P1-2 fix (functional-review 2026-08-13): 轮询游标改用最后一次事件时间戳
+  // （lastEventTs）。此前依赖 SSE lastEventId（后端 _format_sse 不发送 id: 行，
+  // onmessage 也不触发 → 恒为空 → 轮询恒 since=0 重复拉全量）。
 
   // ── SSE connection ──
 
@@ -166,11 +167,6 @@ export function useSSE(url: string, options: UseSSEOptions) {
       eventSource.onmessage = (event: MessageEvent) => {
         connected.value = true
         consecutiveFailures = 0
-        // Phase 03 Plan 03 Task 9 (D-09): 追踪 lastEventId 用于断点续传
-        // EventSource 原生支持 lastEventId 字段；轮询 fallback 用作 since 参数
-        if (event.lastEventId) {
-          lastEventId = event.lastEventId
-        }
         // Phase 1 D-09: dispatch to storeHandlers if event has type field
         if (storeHandlers) {
           try {
@@ -189,33 +185,16 @@ export function useSSE(url: string, options: UseSSEOptions) {
       eventSource.addEventListener('match_event', onMessage)
       eventSource.addEventListener('graph_update', onMessage)
 
-      // Phase 1 SSE-01/02/03: 监听新增的 3 种 named events
-      if (storeHandlers) {
-        eventSource.addEventListener('pipeline_update', (e: MessageEvent) => {
-          try {
-            const data = JSON.parse(e.data)
-            storeHandlers['pipeline_update']?.(data?.data ?? data)
-          } catch { /* ignore */ }
-        })
-        eventSource.addEventListener('quality_alert', (e: MessageEvent) => {
-          try {
-            const data = JSON.parse(e.data)
-            storeHandlers.quality_alert?.(data?.data ?? data)
-          } catch { /* ignore */ }
-        })
-        eventSource.addEventListener('data_milestone', (e: MessageEvent) => {
-          try {
-            const data = JSON.parse(e.data)
-            storeHandlers.data_milestone?.(data?.data ?? data)
-          } catch { /* ignore */ }
-        })
-        eventSource.addEventListener('extraction_complete', (e: MessageEvent) => {
-          try {
-            const data = JSON.parse(e.data)
-            storeHandlers.extraction_complete?.(data?.data ?? data)
-          } catch { /* ignore */ }
-        })
-      }
+      // P1-1 fix (functional-review 2026-08-13): 后端真实事件类型无条件注册。
+      // 此前 4 种事件监听写在 `if (storeHandlers)` 内，而 useDataDashboard
+      // 未传 storeHandlers → 监听器未注册；且后端恒发命名事件（_format_sse
+      // 恒带 `event: {type}`），EventSource 默认 onmessage 不触发命名事件，
+      // 导致实时事件流 + 定向刷新整体失效。统一走 onMessage（onMessage 内
+      // 已含 storeHandlers 分发逻辑），与 skill_update 等历史类型对称。
+      eventSource.addEventListener('pipeline_update', onMessage)
+      eventSource.addEventListener('quality_alert', onMessage)
+      eventSource.addEventListener('data_milestone', onMessage)
+      eventSource.addEventListener('extraction_complete', onMessage)
 
       eventSource.onerror = () => {
         connected.value = false
@@ -258,6 +237,12 @@ export function useSSE(url: string, options: UseSSEOptions) {
 
   // ── Polling fallback ──
 
+  // P1-2 fix (functional-review 2026-08-13): 轮询游标。此前依赖 lastEventId
+  // （SSE onmessage 才更新，且后端 _format_sse 不发送 id: 行 → 恒为空）→
+  // 恒 since=0 每次拉全部事件重复叠加。改为跟踪最后一次事件时间戳，作为
+  // 下次 since，实现断点续传 + 天然去重。
+  let lastEventTs = 0
+
   async function pollOnce() {
     if (disposed) return
     try {
@@ -269,38 +254,38 @@ export function useSSE(url: string, options: UseSSEOptions) {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`
       }
-      // Phase 03 Plan 03 Task 9 (D-09): 轮询 fallback 携带 lastEventId 作为 since 参数（断点续传）
       const pollUrlWithCursor = (() => {
         const base = pollUrl || `${url}-poll`
-        // 后端 poll_pipeline_events 接受 since=<unix_timestamp>；用 lastEventId 末段作为浮点时间戳
-        // lastEventId 是 hex/字符串；用 Date.now() 兜底（不强求精确）
-        const sinceParam = lastEventId
-          ? `${lastEventId.length > 0 ? `since=${Math.floor(Date.now() / 1000) - 60}` : 'since=0'}`
-          : 'since=0'
-        return base.includes('?') ? `${base}&${sinceParam}` : `${base}?${sinceParam}`
+        const sinceParam = lastEventTs > 0 ? `since=${lastEventTs}` : ''
+        return sinceParam
+          ? `${base}${base.includes('?') ? '&' : '?'}${sinceParam}`
+          : base
       })()
       const response = await fetch(pollUrlWithCursor, { headers })
       if (response.ok) {
         const data = await response.json()
         connected.value = true
         consecutiveFailures = 0
-        // Wrap as MessageEvent-like for consistency
-        if (Array.isArray(data)) {
-          for (const item of data) {
-            // Dispatch to storeHandlers by item.type (mimics SSE named event behavior)
-            if (storeHandlers && item?.type && storeHandlers[item.type]) {
-              storeHandlers[item.type](item?.data ?? item)
-            }
-            onMessage(new MessageEvent('message', {
-              data: JSON.stringify(item),
-            }))
+        // P1-2 fix: 后端 /realtime-poll 返回 { events: [...], poll_interval_ms } 包装，
+        // 此前只处理裸数组/裸对象 → 包装结构走 else 分支，item 无 type → 事件
+        // 全部静默丢弃（轮询兜底完全失效）。统一解包 events 数组。
+        const items: unknown[] = Array.isArray(data)
+          ? data
+          : Array.isArray((data as { events?: unknown[] })?.events)
+            ? (data as { events: unknown[] }).events
+            : data && typeof data === 'object' ? [data] : []
+        for (const item of items) {
+          const typed = item as { type?: string; data?: unknown; timestamp?: number }
+          // 推进断点续传游标（后端 timestamp 为 unix float）
+          if (typeof typed?.timestamp === 'number' && typed.timestamp > lastEventTs) {
+            lastEventTs = typed.timestamp
           }
-        } else if (data && typeof data === 'object') {
-          if (storeHandlers && data?.type && storeHandlers[data.type]) {
-            storeHandlers[data.type](data?.data ?? data)
+          // Dispatch to storeHandlers by item.type (mimics SSE named event behavior)
+          if (storeHandlers && typed?.type && storeHandlers[typed.type]) {
+            storeHandlers[typed.type](typed?.data ?? typed)
           }
           onMessage(new MessageEvent('message', {
-            data: JSON.stringify(data),
+            data: JSON.stringify(typed),
           }))
         }
       } else if (response.status === 401) {
@@ -314,18 +299,20 @@ export function useSSE(url: string, options: UseSSEOptions) {
             const retryData = await retryResp.json()
             connected.value = true
             consecutiveFailures = 0
-            if (Array.isArray(retryData)) {
-              for (const item of retryData) {
-                if (storeHandlers && item?.type && storeHandlers[item.type]) {
-                  storeHandlers[item.type](item?.data ?? item)
-                }
-                onMessage(new MessageEvent('message', { data: JSON.stringify(item) }))
+            const retryItems: unknown[] = Array.isArray(retryData)
+              ? retryData
+              : Array.isArray((retryData as { events?: unknown[] })?.events)
+                ? (retryData as { events: unknown[] }).events
+                : retryData && typeof retryData === 'object' ? [retryData] : []
+            for (const item of retryItems) {
+              const typed = item as { type?: string; data?: unknown; timestamp?: number }
+              if (typeof typed?.timestamp === 'number' && typed.timestamp > lastEventTs) {
+                lastEventTs = typed.timestamp
               }
-            } else if (retryData && typeof retryData === 'object') {
-              if (storeHandlers && retryData?.type && storeHandlers[retryData.type]) {
-                storeHandlers[retryData.type](retryData?.data ?? retryData)
+              if (storeHandlers && typed?.type && storeHandlers[typed.type]) {
+                storeHandlers[typed.type](typed?.data ?? typed)
               }
-              onMessage(new MessageEvent('message', { data: JSON.stringify(retryData) }))
+              onMessage(new MessageEvent('message', { data: JSON.stringify(typed) }))
             }
           }
         }
