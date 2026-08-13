@@ -306,6 +306,7 @@ async def approve_review_item_endpoint(
     body: ReviewActionRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     user: Annotated[dict[str, Any], Depends(require_admin)],
+    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> dict[str, Any]:
     """Approve a pending_review entity. Idempotent for already-approved."""
     try:
@@ -336,6 +337,18 @@ async def approve_review_item_endpoint(
                 await sync_approved_position_to_graph(position_name)
             except Exception as exc:  # noqa: BLE001 — 入图失败不阻断审核响应
                 logger.warning("approve-then-graph failed for {!r}: {}", position_name, exc)
+    # P1-14 fix (functional-review 2026-08-13): 技能审核通过此前只改 PG 状态，
+    # 不写 Neo4j Skill.trust_score → avg_skill_trust（数据大屏信任评分）滞后。
+    # 复用 _sync_neo4j_on_audit（MERGE canonical_id + trust_score=1.0）。
+    elif entity_type == "skill" and item_dict.get("review_status") == "approved":
+        skill_name = item_dict.get("name", "")
+        if skill_name:
+            from app.services.admin_audit_service import _sync_neo4j_on_audit
+
+            try:
+                await _sync_neo4j_on_audit(neo4j_driver, "skill", skill_name, "approved")
+            except Exception as exc:  # noqa: BLE001 — Neo4j 同步失败不阻断审核响应
+                logger.warning("skill approve Neo4j sync failed for {!r}: {}", skill_name, exc)
     return item_dict
 
 
@@ -346,6 +359,7 @@ async def reject_review_item_endpoint(
     body: ReviewActionRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     user: Annotated[dict[str, Any], Depends(require_admin)],
+    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> dict[str, Any]:
     """Reject a pending_review entity. Reason is required."""
     if not body.reason or not body.reason.strip():
@@ -368,7 +382,19 @@ async def reject_review_item_endpoint(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except review_service.MissingRejectionReason as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return item.to_dict()
+    # P1-14 fix (functional-review 2026-08-13): 技能驳回同样同步 Neo4j
+    # （trust_score=0.0），保持图/PG 审核态一致。
+    item_dict = item.to_dict()
+    if entity_type == "skill":
+        skill_name = item_dict.get("name", "")
+        if skill_name:
+            from app.services.admin_audit_service import _sync_neo4j_on_audit
+
+            try:
+                await _sync_neo4j_on_audit(neo4j_driver, "skill", skill_name, "rejected")
+            except Exception as exc:  # noqa: BLE001 — Neo4j 同步失败不阻断审核响应
+                logger.warning("skill reject Neo4j sync failed for {!r}: {}", skill_name, exc)
+    return item_dict
 
 
 @router.patch("/review/{entity_type}/{entity_id}/name-cn")

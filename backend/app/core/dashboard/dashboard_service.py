@@ -444,7 +444,11 @@ async def get_distribution(
         platform_names = SOURCE_PLATFORM_NAMES
         source_distribution = [
             {
-                "name": platform_names.get(row.source_platform, row.source_platform),
+                # P1-11 fix (functional-review 2026-08-13): fallback SQL 查的列是
+                # source_site，此前代码读 row.source_platform（不存在）→
+                # AttributeError → data_sources 表为空时 get_distribution 直接 500，
+                # 违背 graceful degradation 承诺。
+                "name": platform_names.get(row.source_site, row.source_site),
                 "source_type": "crawl",
                 "count": int(cast(int, row.count)),
                 "total_records": int(cast(int, row.count)),

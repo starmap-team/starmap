@@ -180,8 +180,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Try Redis-backed rate limit first (works across workers)
+        # P1-10 fix (functional-review 2026-08-13): 属性名此前写成 "redis"，
+        # 而 AppResources 的属性是 redis_client → getattr 恒 None → Redis 分支
+        # 永不执行，跨 worker 限流失效（多进程下限流阈值放大 N 倍），专门写的
+        # Lua 原子脚本成为死代码。修正为 redis_client。
         redis = getattr(request.app.state, "resources", None)
-        redis_client = getattr(redis, "redis", None) if redis else None
+        redis_client = getattr(redis, "redis_client", None) if redis else None
         if redis_client:
             key = f"ratelimit:{client_ip}"
             try:
