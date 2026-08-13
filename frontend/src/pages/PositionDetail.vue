@@ -23,6 +23,7 @@ const positionName = computed(() => route.params.name as string)
 interface SkillItem {
   skill_id: string
   name: string
+  name_cn?: string  // D8i: 技能中文名
   category: string
   proficiency: string
   confidence: number | null
@@ -109,6 +110,7 @@ onMounted(async () => {
     skills.value = (d.skills_required ?? []).map((s) => ({
       skill_id: s.skill_id ?? '',
       name: s.name ?? '',
+      name_cn: s.name_cn ?? '',  // D8i: 技能中文名
       category: s.category ?? 'hard_skill',
       proficiency: s.proficiency ?? '熟悉',
       // PLAN-006③ 红线: 后端无置信度时不再编造 1.0, 显示"未评估"
@@ -302,7 +304,12 @@ onMounted(async () => {
                 prop="name"
                 label="技能"
                 min-width="120"
-              />
+              >
+                <!-- D8i: 技能中文名优先展示 -->
+                <template #default="{ row }">
+                  {{ row.name_cn || row.name }}
+                </template>
+              </el-table-column>
               <el-table-column
                 label="类别"
                 width="100"

@@ -57,6 +57,11 @@ class SkillNode(BaseModel):
         description="技能展示名称",
         examples=["Python 核心编程"],
     )
+    name_cn: str | None = Field(
+        default=None,
+        max_length=200,
+        description="技能中文名（英文技能翻译后展示，前端 name_cn || name）",
+    )
     category: str = Field(
         min_length=1,
         max_length=50,

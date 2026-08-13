@@ -254,6 +254,8 @@ class SkillRecord(Base):
     # 业务说明：技能标准名称，全局唯一
     # 技术说明：unique=True防止重复技能，index加速技能查找
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    # D8i: 技能中文名（I18N 中文化）——英文技能翻译后展示，岗位详情/匹配诊断等
+    name_cn: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # 业务说明：技能分类，如"编程语言"、"框架"、"工具"等
     # 技术说明：默认"general"，用于技能分组展示和分类统计
     category: Mapped[str] = mapped_column(String(100), nullable=False, default="general")

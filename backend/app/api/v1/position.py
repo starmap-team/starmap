@@ -119,6 +119,7 @@ async def list_positions(
             skill_map.setdefault(rel.position_id, []).append(SkillNode(
                 skill_id=str(sk.id),
                 name=sk.name,
+                name_cn=sk.name_cn,  # D8i: 技能中文名
                 category=sk.category,
                 confidence=float(rel.confidence or 1.0),
                 source_count=sk.source_count or 0,

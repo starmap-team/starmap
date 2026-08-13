@@ -144,7 +144,7 @@ async function handlePositionSelect(pos: { position_id: string; name: string }) 
   radarLoading.value = true
   try {
     const skillData = await matchStore.fetchPositionSkills(pos.name)
-    const skills: { name: string; proficiency: string }[] = skillData?.required_skills ?? []
+    const skills: { name: string; name_cn?: string; proficiency: string }[] = skillData?.required_skills ?? []
     if (skills.length === 0) {
       ElMessage.warning('未获取到岗位技能数据，仍可继续但雷达图将为空')
       radarData.value = []
@@ -152,7 +152,7 @@ async function handlePositionSelect(pos: { position_id: string; name: string }) 
       return
     }
     radarData.value = skills.map((s) => ({
-      skill: s.name,
+      skill: s.name_cn || s.name,  // D8i: 技能中文名优先
       required: PROFICIENCY_MAP[s.proficiency] ?? 0.5,
       user: 0,
     }))
