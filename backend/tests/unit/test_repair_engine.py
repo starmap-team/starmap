@@ -233,8 +233,10 @@ class TestSyncOrphanQueue:
             position_nodes=[{"canonical_id": "dead", "name": "Ghost", "in_degree": 0}],
             skill_nodes=[],
         ))
-        new_items = await RepairEngine(driver).sync_orphan_queue(pg)
-        assert new_items == 0  # 已有 pending 条目，不重复入队
+        result = await RepairEngine(driver).sync_orphan_queue(pg)
+        # 不重复入队: 队列仍只有 1 条 pending（存量条目仅刷新 referenced_by，非新增）
+        assert len(pg._queue) == 1
+        assert result == 1  # 1 条存量条目被刷新（P3a: 返回 new + updated）
 
 
 class TestExecuteCleanup:
