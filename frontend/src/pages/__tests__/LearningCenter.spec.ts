@@ -124,6 +124,20 @@ describe('LearningCenter.vue', () => {
 
     await store.fetchRecommendations()
 
-    expect(mockGet).toHaveBeenCalledWith('/learning/recommendations')
+    // P1 fix (functional-review 2026-08-13): fetchRecommendations 现带 params 参数
+    expect(mockGet).toHaveBeenCalledWith('/learning/recommendations', { params: {} })
+  })
+
+  it('passes plan_id to recommendations for personalization', async () => {
+    const { useLearningRecommendationStore } = await import('@/stores/learningRecommendation')
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const store = useLearningRecommendationStore()
+
+    await store.fetchRecommendations('plan-abc', '后端工程师')
+
+    expect(mockGet).toHaveBeenCalledWith('/learning/recommendations', {
+      params: { plan_id: 'plan-abc', position: '后端工程师' },
+    })
   })
 })

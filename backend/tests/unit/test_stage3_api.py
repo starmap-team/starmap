@@ -72,24 +72,30 @@ async def test_quality_dashboard_builder_aggregates_metrics():
     session = FakeAsyncSession(
         [
             (0.9, 0.8, 0.85),  # 1. precision, recall, f1
-            (10, 2, 1),        # 2. total_extractions, hallucination_count, pending_review
-            (36,),             # 3. pos_count
-            (201,),            # 4. skill_count
-            (0,),              # 5. edge_count
+            # P1-5 fix (functional-review 2026-08-13): pending_review 改从
+            # position/skill_records 的 pending_review 计数（原 JDExtractionRecord
+            # status=pending 恒 0）。新增 2 个查询，extraction_counts 从 3 列变 2 列。
+            (1,),              # 2. pending_pos count (PositionRecord pending_review)
+            (1,),              # 3. pending_skill count (SkillRecord pending_review)
+            (10, 1),           # 4. total_extractions, hallucination_count
+            (36,),             # 5. pos_count
+            (201,),            # 6. skill_count
+            (0,),              # 7. edge_count
             # D2 fix: avg_trust_score comes from avg_skill_trust (metrics module,
             # Neo4j), NOT a session query — the old avg_confidence / avg_source
             # executes are gone.
-            (5,),              # 6. high_trust_count
-            (10,),             # 7. high_source_count
-            (5,), (3,), (2,), (1,), (0,),  # 8-12. trust_distribution
-            [],                # 13. ts_rows (hallucination trend — empty)
-            [("general", 100), ("hard_skill", 80)],  # 14. source_distribution
-            (5,),              # 15. weekly_new_nodes: skill count
-            (3,),              # 16. weekly_new_nodes: position count
-            (8,),              # 17. approved_count (review_audit_log approve)
-            (0,),              # 18. rejected_count (review_audit_log reject) — ponytail: audit_pass_rate 口径修复后 +1 查询
-            [],                # 19. low_trust records (audit_queue — now a list)
-            (5,),              # 20. evaluation_count (Phase 13 baseline_available;>0 → 基线可用)
+            (5,),              # 8. high_trust_count
+            (10,),             # 9. high_source_count
+            (5,), (3,), (2,), (1,), (0,),  # 10-14. trust_distribution
+            [],                # 15. ts_rows (hallucination trend — empty)
+            [("general", 100), ("hard_skill", 80)],  # 16. source_distribution
+            (5,),              # 17. weekly_new_nodes: skill count
+            (3,),              # 18. weekly_new_nodes: position count
+            (8,),              # 19. approved_count (review_audit_log approve)
+            (0,),              # 20. rejected_count (review_audit_log reject) — ponytail: audit_pass_rate 口径修复后 +1 查询
+            [],                # 21. audit_queue pos_rows (pending positions — empty)
+            [],                # 22. audit_queue skill_rows (pending skills — empty)
+            (5,),              # 23. evaluation_count (Phase 13 baseline_available;>0 → 基线可用)
         ]
     )
 
@@ -121,7 +127,7 @@ def test_quality_dashboard_endpoint_contract(client):
     async def override_session():
         # D2 fix: 少了 avg_confidence / avg_source 两次 execute（trust 来自 metrics 模块），
         # 且 total_extractions=0 时 high_trust_count 查询被跳过；weekly_new_nodes 仍为 2 次 execute
-        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0, 0, 0), (0,), (0,), (0,), (0,), (0,), (0,), (0,), (0,), (0,), [], [], (0,), (0,), (0,), (0,), [], (0,)])
+        yield FakeAsyncSession([(0.0, 0.0, 0.0), (0,), (0,), (0, 0), (0,), (0,), (0,), (0,), (0,), (0,), (0,), (0,), (0,), [], [], (0,), (0,), (0,), (0,), [], [], (0,)])
 
     app.dependency_overrides[get_db_session] = override_session
     try:
