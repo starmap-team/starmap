@@ -7,6 +7,7 @@ import { computed } from 'vue'
 import { chartColors } from '@/utils/chartTheme'
 import { asTagType } from '@/utils/element'
 import { formatRelativeTime } from '@/utils/formatTime'
+import { ALERT_TYPE_LABELS } from '@/constants/labels'
 
 export interface AlertItem {
   id: string | number
@@ -60,14 +61,14 @@ const typeIconMap: Record<string, string> = {
   system:     'Monitor',
 }
 
-// ── 告警类型中文化（全盘友好性）: 内部 type 标识 → 用户友好中文 ──
+// ── 告警类型中文化（全盘友好性）: 内部 type 标识 → 用户友好中文（集中化自 labels.ts）──
 const typeConfig: Record<string, { type: string; label: string }> = {
-  quality:   { type: 'warning', label: '质量' },
-  crawl:     { type: 'info',    label: '采集' },
-  duplicate: { type: 'info',    label: '去重' },
-  timeout:   { type: 'danger',  label: '超时' },
-  auth:      { type: 'danger',  label: '认证' },
-  system:    { type: 'info',    label: '系统' },
+  quality:   { type: 'warning', label: ALERT_TYPE_LABELS.quality ?? '质量' },
+  crawl:     { type: 'info',    label: ALERT_TYPE_LABELS.crawl ?? '采集' },
+  duplicate: { type: 'info',    label: ALERT_TYPE_LABELS.duplicate ?? '去重' },
+  timeout:   { type: 'danger',  label: ALERT_TYPE_LABELS.timeout ?? '超时' },
+  auth:      { type: 'danger',  label: ALERT_TYPE_LABELS.auth ?? '认证' },
+  system:    { type: 'info',    label: ALERT_TYPE_LABELS.system ?? '系统' },
 }
 
 function getTypeLabel(type: string): string {

@@ -15,7 +15,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Close, EditPen, RefreshRight } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import { useReviewStore, type ReviewEntityType, type ReviewItem, type ReviewStatus } from '@/stores/review'
-import { ALL_OPTION, POSITION_REVIEW_STATUS_LABELS } from '@/constants/labels'
+import { ALL_OPTION, POSITION_REVIEW_STATUS_LABELS, REVIEW_SOURCE_LABELS } from '@/constants/labels'
 
 const reviewStore = useReviewStore()
 
@@ -213,16 +213,8 @@ function formatDate(s: string | null) {
   }
 }
 
-// ── 提交来源语义化: system:* 内部标识 → 用户友好中文标签 ──
-const SOURCE_LABELS: Record<string, string> = {
-  'system:pipeline': '流水线抽取',
-  'system:extraction': 'JD 抽取',
-  'system:fixture': '测试数据',
-  'system:backfill': '数据补录',
-  'system:legacy': '历史数据',
-  'phase15:crawl-source': '数据源采集',
-  'graph-promotion-d5': '图谱合并',
-}
+// ── 提交来源语义化: system:* 内部标识 → 用户友好中文标签（集中化自 labels.ts）──
+const SOURCE_LABELS = REVIEW_SOURCE_LABELS
 function sourceLabel(createdBy: string | null): { label: string; isSystem: boolean } {
   if (!createdBy) return { label: '未知来源', isSystem: true }
   if (SOURCE_LABELS[createdBy]) return { label: SOURCE_LABELS[createdBy], isSystem: true }

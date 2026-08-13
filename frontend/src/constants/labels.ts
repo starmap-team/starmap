@@ -176,3 +176,27 @@ export const ALL_OPTION = '全部'
 export const PAGINATION_SIZES_DEFAULT = [10, 20, 50]
 export const PAGINATION_SIZES_LARGE = [20, 50, 100, 200]
 export const PAGINATION_SIZES_ADMIN = [10, 20, 50, 100]
+
+// ── 内容审核提交来源语义化（system:* 内部标识 → 用户友好中文）──
+// 集中化自 ContentReviewPanel（batch3）：多个审核入口复用同一份来源标签
+export const REVIEW_SOURCE_LABELS: Record<string, string> = {
+  'system:pipeline': '流水线抽取',
+  'system:extraction': 'JD 抽取',
+  'system:fixture': '测试数据',
+  'system:backfill': '数据补录',
+  'system:legacy': '历史数据',
+  'phase15:crawl-source': '数据源采集',
+  'graph-promotion-d5': '图谱合并',
+}
+
+// ── 告警类型语义化（内部 type 标识 → 用户友好中文）──
+// 集中化自 AlertList（batch3）
+export const ALERT_TYPE_LABELS: Record<string, string> = {
+  quality: '质量',
+  crawl: '采集',
+  duplicate: '去重',
+  timeout: '超时',
+  auth: '认证',
+  system: '系统',
+}
+

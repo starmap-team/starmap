@@ -35,6 +35,22 @@ function formatDuration(ms?: number): string {
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(1)}s`
 }
+
+// ── 运行状态中文化（全盘友好性）: completed/partial/failed 等内部标识 → 中文 ──
+const RUN_STATUS_LABELS: Record<string, string> = {
+  completed: '已完成',
+  partial: '部分完成',
+  failed: '失败',
+  running: '执行中',
+  pending: '等待中',
+  cancelled: '已取消',
+  success: '成功',
+  degraded: '降级',
+}
+
+function runStatusLabel(status: string): string {
+  return RUN_STATUS_LABELS[status] ?? status
+}
 </script>
 
 <template>
@@ -134,7 +150,7 @@ function formatDuration(ms?: number): string {
               :type="row.status === 'completed' ? 'success' : row.status === 'partial' ? 'warning' : 'info'"
               size="small"
             >
-              {{ row.status === 'completed' ? '完成' : row.status === 'partial' ? '部分' : row.status }}
+              {{ runStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>

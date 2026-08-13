@@ -13,7 +13,7 @@ import {
   Connection, VideoPlay, VideoPause, CircleCheck, Warning, QuestionFilled, Loading,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
+import { getSourceNameLabel, getSourceTypeLabel } from '@/composables/useDataSourceCharts'
 import type { LiveActivityEvent } from '@/stores/pipelineRun'
 import type { DataSourceDetail } from '@/types/datasource'
 
@@ -422,7 +422,9 @@ function formatRecords(n: number) {
               text
               disabled
             >
-              <el-icon :size="11"><VideoPause /></el-icon>
+              <el-icon :size="11">
+                <VideoPause />
+              </el-icon>
               {{ row.status === 'inactive' ? '已停用' : '已暂停' }}
             </el-button>
             <el-button
@@ -560,7 +562,7 @@ function formatRecords(n: number) {
               size="small"
               effect="plain"
             >
-              {{ row.source_type }}
+              {{ getSourceTypeLabel(row.source_type) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -610,7 +612,7 @@ function formatRecords(n: number) {
                 </el-tooltip>
               </template>
               <template v-else>
-                {{ row.source_type }} 类型数据源
+                {{ getSourceTypeLabel(row.source_type) }} 类型数据源
               </template>
             </span>
           </template>
