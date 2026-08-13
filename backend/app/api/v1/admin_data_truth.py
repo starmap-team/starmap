@@ -16,6 +16,7 @@ from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.models.extraction_models import PositionRecord, SkillRecord
 from app.schemas.admin import (
     HealthMetrics,
+    OrphanBackfillResponse,
     OrphanBatchActionRequest,
     OrphanBatchActionResponse,
     OrphanLinkRequest,
@@ -309,6 +310,22 @@ async def orphan_queue_batch_action_endpoint(
         actor=f"admin:{actor}",
     )
     return OrphanBatchActionResponse(**result)
+
+
+@router.post("/orphan-queue/backfill-skills", response_model=OrphanBackfillResponse)
+async def orphan_queue_backfill_skills_endpoint(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+) -> OrphanBackfillResponse:
+    """P3b: 历史技能补录 — 图中存在但 PG 无记录的 Skill 回填 skill_records + 链接。
+
+    非破坏（仅 ADD + SET canonical_id），幂等。用于根因 R3 的历史遗留技能。
+    """
+    from app.services.repair_engine import RepairEngine
+
+    repair = RepairEngine(driver)
+    result = await repair.backfill_skill_records(session)
+    return OrphanBackfillResponse(**result)
 
 
 @router.post("/orphan-queue/{item_id}/link", response_model=OrphanQueueItem)

@@ -605,6 +605,88 @@ class RepairEngine:
         ))
         return {"status": STATUS_LINKED, "name": item.name, "linked_cid": str(target_cid), "linked": linked}
 
+    # ------------------------------------------------------------------
+    # ⑥ 历史技能补录（P3b: 图中有但 PG 无记录 → 回填 skill_records + 链接）
+    # ------------------------------------------------------------------
+
+    async def backfill_skill_records(self, pg_session: Any, *, review_status: str = "approved") -> dict[str, Any]:
+        """把 Neo4j 中无 canonical_id 且 PG 无同名记录的 Skill 回填到 skill_records。
+
+        根因 R3: graph_sync 的 upsert 只覆盖当次 run 抽取载荷，历史 name-MERGE
+        技能（被 PREREQUISITE/RECOMMENDED_FOR 引用）永不回填 PG。
+        本方法: 扫描全部无标识 Skill 节点 → PG 无同名记录 → upsert（approved，因
+        已在公开学习图中被引用）→ SET canonical_id 链接。幂等、非破坏。
+        """
+        from app.repositories.extract_repo import upsert_skill_record
+
+        if self._driver is None:
+            return {"backfilled": 0, "linked": 0, "errors": ["neo4j_driver_unavailable"]}
+
+        try:
+            # PG 现有技能名（大小写不敏感判定）
+            pg_skill_lower = {
+                str(r[0]).lower() for r in (
+                    await pg_session.execute(select(SkillRecord.name))
+                ).all()
+            }
+
+            # 扫描无 canonical_id 的 Skill 节点
+            async with self._driver.session() as session:
+                res = await session.run(
+                    "MATCH (n:Skill) WHERE n.canonical_id IS NULL "
+                    "RETURN n.name AS name"
+                )
+                names: set[str] = set()
+                async for record in res:
+                    name = record.get("name") if hasattr(record, "get") else record["name"]
+                    if name:
+                        names.add(str(name))
+
+            backfilled = 0
+            linked = 0
+            errors: list[str] = []
+            for name in sorted(names):
+                if name.lower() in pg_skill_lower:
+                    continue  # PG 已有（大小写变体），跳过
+                try:
+                    await upsert_skill_record(
+                        pg_session, name=name, category="hard_skill",
+                        review_status=review_status,
+                    )
+                    backfilled += 1
+                except Exception as exc:  # noqa: BLE001 — 单条失败不阻断
+                    errors.append(f"{name}: {exc}")
+                    continue
+                # 新记录 id: 按 name 查回
+                row = (await pg_session.execute(
+                    select(SkillRecord.id).where(SkillRecord.name == name)
+                )).scalar_one_or_none()
+                if row is None:
+                    errors.append(f"{name}: backfilled but id not found")
+                    continue
+                try:
+                    async with self._driver.session() as session:
+                        await session.run(
+                            "MATCH (n:Skill {name: $name}) WHERE n.canonical_id IS NULL "
+                            "SET n.canonical_id = $cid",
+                            name=name, cid=str(row),
+                        )
+                    linked += 1
+                except (Neo4jError, SQLAlchemyError) as exc:
+                    errors.append(f"{name}: link failed: {exc}")
+
+            if backfilled or linked:
+                await pg_session.commit()
+            return {"backfilled": backfilled, "linked": linked, "errors": errors}
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("RepairEngine backfill_skill_records DB error")
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("RepairEngine backfill_skill_records unexpected error")
+            raise GraphProjectionError(str(exc)) from exc
+
 
 __all__ = [
     "RepairEngine",

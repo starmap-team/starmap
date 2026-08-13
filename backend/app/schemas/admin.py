@@ -85,6 +85,14 @@ class OrphanLinkRequest(BaseModel):
     actor: str | None = Field(default=None, max_length=64, description="操作人（可选）")
 
 
+class OrphanBackfillResponse(BaseModel):
+    """历史技能补录结果（P3b）。"""
+
+    backfilled: int = Field(default=0, description="回填 skill_records 的技能数")
+    linked: int = Field(default=0, description="链接 canonical_id 的技能数")
+    errors: list[str] = Field(default_factory=list, description="失败明细（不阻断其余）")
+
+
 class OrphanQueueResponse(BaseModel):
     """孤儿审批队列响应。"""
 
