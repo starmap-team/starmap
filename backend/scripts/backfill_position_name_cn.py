@@ -31,7 +31,6 @@ async def backfill(limit: int, dry_run: bool) -> None:
                 select(PositionRecord)
                 .where(
                     PositionRecord.name_cn.is_(None) | (PositionRecord.name_cn == ""),
-                    PositionRecord.review_status == "approved",
                 )
                 .order_by(PositionRecord.created_at.desc())
                 .limit(limit)
