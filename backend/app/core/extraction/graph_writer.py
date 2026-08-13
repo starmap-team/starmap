@@ -490,6 +490,13 @@ async def merge_position(driver: Any, position_data: dict[str, Any], canonical_i
             if record is None:
                 raise ValueError(f"Failed to merge Position: {name}")
             props = dict(record["p"])
+            if canonical_id is None:
+                # P4a 根治 (R1): 无 canonical_id 落图会再次产生孤儿（name-MERGE 历史
+                # 根因）。响亮告警让写路径缺口可观测——repair 引擎后续补齐，但必须暴露。
+                logger.warning(
+                    "merge_position: no canonical_id for {!r} — node will be unlinked "
+                    "(repair engine will catch up; root cause R1)", name,
+                )
             logger.debug("Merged Position: {}", name)
             return props
     except Neo4jError as e:
@@ -548,6 +555,13 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
             if record is None:
                 raise ValueError(f"Failed to merge Skill: {skill_name}")
             props = dict(record["s"])
+            if canonical_id is None:
+                # P4a 根治 (R1/R3): 见 merge_position 同款告警——无 id 技能节点是
+                # R3 (PG 回填不覆盖) 的直接入口，必须暴露而非静默。
+                logger.warning(
+                    "merge_skill: no canonical_id for {!r} — node will be unlinked "
+                    "(repair engine will catch up; root cause R1/R3)", skill_name,
+                )
             logger.debug("Merged Skill: {}", skill_name)
             return props
     except Neo4jError as e:

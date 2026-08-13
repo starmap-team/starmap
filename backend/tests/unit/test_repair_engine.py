@@ -308,3 +308,87 @@ class TestEnsureProjection:
         result = await RepairEngine(driver).ensure_projection(pg)
         assert result["nodes_projected"] == 0
         assert result["errors"] == []
+
+
+class TestSuggestPgMatch:
+    """P3a: 链接建议的保守匹配分级。"""
+
+    def test_exact_ci(self) -> None:
+        from app.services.repair_engine import _suggest_pg_match
+        cid, name, level = _suggest_pg_match("React", {"React": "c1", "Vue": "c2"})
+        assert (cid, name, level) == ("c1", "React", "exact")
+
+    def test_normalized_equality(self) -> None:
+        from app.services.repair_engine import _suggest_pg_match
+        # Full-Stack vs Full Stack（连字符差异）→ normalized
+        cid, name, level = _suggest_pg_match("Full Stack Developer", {"Full-Stack Developer": "c9"})
+        assert level == "normalized"
+
+    def test_fuzzy_token_subset(self) -> None:
+        from app.services.repair_engine import _suggest_pg_match
+        # React.js ⊆ "React, Next.js" → fuzzy（低置信，提示人工确认）
+        cid, name, level = _suggest_pg_match("React.js", {"React, Next.js": "c7", "Vue": "c8"})
+        assert level == "fuzzy"
+        assert name == "React, Next.js"
+
+    def test_no_match(self) -> None:
+        from app.services.repair_engine import _suggest_pg_match
+        cid, name, level = _suggest_pg_match("Graffiti Design Art", {"Vue": "c1"})
+        assert (cid, name, level) == (None, None, None)
+
+    def test_fuzzy_too_long_suppressed(self) -> None:
+        """孤儿名是 PG 名 token 子集但 PG 名远超 3 倍 → 不误链。"""
+        from app.services.repair_engine import _suggest_pg_match
+        # 'CSS' ⊆ 'Tailwind CSS' 但 css 只有 1 token vs 2 token（≤3 倍，会 fuzzy）
+        # 用更极端的: 孤儿 1 token, PG 5 token → 超 3 倍 → 拒绝
+        cid, name, level = _suggest_pg_match("CSS", {"A B C D E CSS F G": "c1"})
+        assert (cid, name, level) == (None, None, None)
+
+
+class TestBackfillSkillRecords:
+    async def test_backfills_graph_only_skills(self, monkeypatch: Any) -> None:
+        """图中存在但 PG 无记录的技能 → 回填 skill_records + 链接。"""
+        from app.services.repair_engine import RepairEngine
+
+        backfilled_names: list[str] = []
+
+        async def _fake_upsert(session: Any, *, name: str, category: str = "hard_skill",
+                               review_status: str = "pending_review", created_by: str | None = None) -> None:
+            backfilled_names.append(name)
+
+        monkeypatch.setattr("app.repositories.extract_repo.upsert_skill_record", _fake_upsert)
+
+        # 假 PG: 无技能记录；id 查询返回固定 id
+        class _BackfillPg:
+            def __init__(self) -> None:
+                self.committed = False
+
+            async def execute(self, stmt: Any) -> Any:
+                from sqlalchemy import Select
+
+                from app.models.extraction_models import SkillRecord
+
+                if isinstance(stmt, Select):
+                    # select(SkillRecord.name) → 空（PG 无记录）
+                    # select(SkillRecord.id).where(name=...) → 返回固定 id
+                    for ent in stmt.column_descriptions:
+                        if ent.get("entity") is SkillRecord:
+                            cols = [c["name"] for c in stmt.column_descriptions]
+                            if "name" in cols and "id" not in cols:
+                                return _FakeScalarResult([], ["name"])
+                            return _FakeScalarResult([_Row(uuid.uuid4(), "NewSkill")], ["id"])
+                return _FakeScalarResult([], [])
+
+            async def commit(self) -> None:
+                self.committed = True
+
+        pg = _BackfillPg()
+        driver = _FakeDriver(_FakeNeo4jSession(
+            position_nodes=[],
+            skill_nodes=[{"canonical_id": None, "name": "Network Administration", "in_degree": 4}],
+        ))
+        result = await RepairEngine(driver).backfill_skill_records(pg)
+        assert result["backfilled"] == 1
+        assert "Network Administration" in backfilled_names
+        assert result["linked"] == 1
+        assert pg.committed is True

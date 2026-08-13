@@ -247,6 +247,25 @@ def reconcile_graph_task(self, schedule_id: str) -> None:
             async with sm() as session:
                 async with session.begin():
                     await _run_daily_reconcile(session)
+                # P4b 漂移告警: reconcile 后检测残留孤儿（被引用无标识节点/缺 PG 记录），
+                # 非零即告警——让每日 cron 把漂移暴露为可观测信号，而非静默。
+                try:
+                    from app.services.repair_engine import RepairEngine
+                    from app.services.resources import resources as app_resources
+
+                    if app_resources.neo4j_driver is not None:
+                        repair = RepairEngine(app_resources.neo4j_driver)
+                        scan = await repair.detect_orphans(session)
+                        if scan.total > 0:
+                            logger.warning(
+                                "reconcile drift alert: {} orphan nodes remain "
+                                "(positions={}, skills={}) — 需链接 canonical_id 或补录 PG",
+                                scan.total, scan.orphan_positions, scan.orphan_skills,
+                            )
+                        else:
+                            logger.info("reconcile drift check: clean (0 orphans)")
+                except Exception as drift_exc:  # noqa: BLE001 — 告警失败不阻断
+                    logger.warning("reconcile drift check failed (non-fatal): {}", drift_exc)
 
         run_async(_run())
     except StarMapError:

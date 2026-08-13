@@ -462,6 +462,21 @@ async def run_build_graph_from_extractions(
         config = GraphConfig()
         async with config.get_driver() as driver:
             summaries = await batch_write_extractions(extractions, driver)
+            # P4a 根治 (R3): 补录覆盖全图谱——把图中存在但 PG 无记录的无标识技能
+            # 回填 skill_records + 链接 canonical_id（幂等，每次 run 自愈历史缺口）。
+            # 此前只回填当次 run 抽取载荷，历史 name-MERGE 技能永不回填（R3 根因）。
+            try:
+                from app.services.repair_engine import RepairEngine
+
+                repair = RepairEngine(driver)
+                heal = await repair.backfill_skill_records(session)
+                if heal.get("backfilled") or heal.get("linked"):
+                    logger.info(
+                        "graph_sync: healed {} historical skills (backfilled={}, linked={})",
+                        heal.get("backfilled", 0), heal.get("backfilled", 0), heal.get("linked", 0),
+                    )
+            except Exception as heal_exc:  # noqa: BLE001 — 补录失败不阻断图谱构建
+                logger.warning("graph_sync skill heal failed (non-fatal): {}", heal_exc)
 
         return {
             "status": "completed",
