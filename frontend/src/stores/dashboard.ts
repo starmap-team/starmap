@@ -9,6 +9,7 @@ import { getSourceNameLabel } from '@/composables/useDataSourceCharts'
 import type { EmergingSkill } from '@/types/evolution'
 import { useResponseValidation } from '@/validation/useResponseValidation'
 import dashboardSchema from '@contracts/schemas/dashboard.schema.json'
+import evolutionSchema from '@contracts/schemas/evolution.schema.json'
 
 // Re-export for backward compatibility
 export type { EmergingSkill } from '@/types/evolution'
@@ -280,12 +281,13 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   async function fetchEmergingSkills() {
     try {
-      // Try the dedicated endpoint first, fallback to graph overview
-      const data = validateDashboard(
-        await request.get('/evolution/emerging-skills') as EmergingSkill[],
-        dashboardSchema, '/evolution/emerging-skills', 'ChangelogEntry',
-      ) as EmergingSkill[]
-      emergingSkills.value = data
+      // P2 fix (functional-review 2026-08-13): EmergingSkill 模型在 evolution
+      // schema 而非 dashboard schema，且此前用 'ChangelogEntry' 名校验整个数组
+      // → schema 名错位，校验实际未生效。改用 evolutionSchema 逐条校验。
+      const raw = await request.get('/evolution/emerging-skills') as EmergingSkill[]
+      emergingSkills.value = Array.isArray(raw)
+        ? raw.map((item) => validateDashboard(item, evolutionSchema, '/evolution/emerging-skills', 'EmergingSkill') as EmergingSkill)
+        : []
     } catch {
       emergingSkills.value = []
     }

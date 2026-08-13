@@ -94,6 +94,12 @@ function formatDuration(ms?: number): string {
             v-else-if="step.status === 'degraded'"
             class="tl-degraded-icon"
           >!</span>
+          <!-- P2 fix (functional-review 2026-08-13): 后端 StepStatus 含 skipped
+               此前无图标分支 → 回退显示步骤数字，与 waiting 混淆 -->
+          <span
+            v-else-if="step.status === 'skipped'"
+            class="tl-skipped-icon"
+          >⊘</span>
           <!-- Failed cross -->
           <svg
             v-else-if="step.status === 'failed'"
@@ -271,6 +277,19 @@ function formatDuration(ms?: number): string {
   font-size: var(--font-size-lg);
   font-weight: 800;
   color: var(--warning);
+  line-height: 1;
+}
+
+/* P2 fix (functional-review 2026-08-13): skipped 状态（后端 StepStatus.SKIPPED）
+   此前无样式 → 与 waiting 视觉混淆。灰色虚线风格 + ⊘ 图标 */
+.status-skipped .tl-circle-inner {
+  border-color: var(--muted-foreground);
+  border-style: dashed;
+  background: color-mix(in srgb, var(--muted-foreground) 8%, var(--card));
+}
+.tl-skipped-icon {
+  font-size: var(--font-size-md);
+  color: var(--muted-foreground);
   line-height: 1;
 }
 

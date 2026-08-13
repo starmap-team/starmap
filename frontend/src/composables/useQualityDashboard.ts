@@ -20,7 +20,10 @@ export interface QualityDashboardApi {
 }
 
 export function useQualityDashboard(store: QualityStore): QualityDashboardApi {
-  const activeTab: Ref<string> = ref('overview')
+  // P2 fix (functional-review 2026-08-13): 默认 activeTab 此前为 'overview'，
+  // 而 QualityDashboard.vue 的 el-tab-pane 只有 'trend'/'alert' 两个 → 首屏
+  // 无激活 pane，质量趋势/异常告警区域空白，需用户点击后才显示。改为 'trend'。
+  const activeTab: Ref<string> = ref('trend')
   const autoRefresh: Ref<boolean> = ref(true)
   const refreshInterval: Ref<number> = ref(30) // seconds
 

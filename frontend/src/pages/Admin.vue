@@ -24,7 +24,6 @@ import ContentReviewPanel from '@/components/ContentReviewPanel.vue'
 import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
 import BusinessBanner from '@/components/BusinessBanner.vue'
 import { useDataSourceStore } from '@/stores/datasource'
-import { useAuditStore } from '@/stores/audit'
 import { useGraphNodeStore } from '@/stores/graphNode'
 import { useReviewStore } from '@/stores/review'
 import PromptManager from '@/components/PromptManager.vue'
@@ -58,7 +57,6 @@ const cc = chartColors()
 const router = useRouter()
 
 const datasource = useDataSourceStore()
-const audit = useAuditStore()
 const graphNode = useGraphNodeStore()
 const review = useReviewStore()
 
@@ -76,9 +74,13 @@ const dataTruthBannerType = ref<'success' | 'warning' | 'error'>('error')
 // payload as the new active tab — any third-party script / extension could
 // dispatch `{detail: 'review'}` and silently switch to the destructive
 // review tab. Restrict to a literal union + warn on reject.
-type AdminTab = 'overview' | 'flow' | 'graph' | 'sources' | 'review' | 'audit' | 'prompts'
+// P2 fix (functional-review 2026-08-13): 白名单此前含 flow/graph/review/audit，
+// 而这些 pane 不存在（el-tabs 实际 name 为 content-review/evolution/nodes/
+// sources/prompts/data-truth/users/audit-log）—— 一旦任何调用方 dispatch
+// 旧值，activeTab 指向不存在的 pane → Tab 内容空白。对齐真实 pane 名。
+type AdminTab = 'overview' | 'content-review' | 'evolution' | 'nodes' | 'sources' | 'prompts' | 'data-truth' | 'users' | 'audit-log' | 'users-list'
 const _ALLOWED_ADMIN_TABS: ReadonlySet<AdminTab> = new Set<AdminTab>([
-  'overview', 'flow', 'graph', 'sources', 'review', 'audit', 'prompts',
+  'overview', 'content-review', 'evolution', 'nodes', 'sources', 'prompts', 'data-truth', 'users', 'audit-log', 'users-list',
 ])
 function onAdminNavigate(e: Event) {
   const detail = (e as CustomEvent<unknown>).detail

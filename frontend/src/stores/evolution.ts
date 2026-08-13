@@ -179,14 +179,18 @@ export const useEvolutionStore = defineStore('evolution', () => {
   async function fetchSnapshots(limit = 50) {
     snapshotsLoading.value = true
     try {
-      const data = validateEvolution(
-        await request.get(`/evolution/snapshots?limit=${limit}`) as Record<string, unknown>,
-        evolutionSchema, '/evolution/snapshots', 'SnapshotEntry',
-      ) as Record<string, unknown>
-      const list = Array.isArray(data) ? data : []
+      // P2 fix (functional-review 2026-08-13): 后端 /evolution/snapshots 返回
+      // SnapshotEntry 数组，此前把整数组当单条 SnapshotEntry 校验 → schema 名
+      // 错位，校验实际未生效（DEV warn 不报）。改为逐条校验。
+      const data = await request.get(`/evolution/snapshots?limit=${limit}`) as SnapshotEntry[]
+      const list = Array.isArray(data)
+        ? data.map((item) => validateEvolution(item, evolutionSchema, '/evolution/snapshots', 'SnapshotEntry') as SnapshotEntry)
+        : []
       snapshots.value = [...list].sort((a, b) =>
         String(a.snapshot_date).localeCompare(String(b.snapshot_date))
       ) as SnapshotEntry[]
+    } catch {
+      snapshots.value = []
     } finally {
       snapshotsLoading.value = false
     }

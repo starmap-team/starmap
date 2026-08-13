@@ -139,12 +139,15 @@ export const useQualityStore = defineStore('quality', () => {
     }
   }
 
+  // P2 fix (functional-review 2026-08-13): 此 kpiCards 目前无页面消费（页面用
+  // useQualityDashboardCharts 的 kpiCardsEnhanced），但保留以防未来接线 ——
+  // 修正 avg_trust_score 未 ×100 的伪数值缺陷（0.0~1.0 显示为"0.4"而非"40%"）。
   const kpiCards = computed(() => {
     if (!metrics.value) return []
     const m = metrics.value
     return [
       { label: '节点总数', value: m.total_nodes.toLocaleString(), color: ECHARTS_PALETTE.KPI[0] },
-      { label: '平均信任度', value: m.avg_trust_score.toFixed(1), color: ECHARTS_PALETTE.KPI[1] },
+      { label: '平均信任度', value: (m.avg_trust_score * 100).toFixed(1) + '%', color: ECHARTS_PALETTE.KPI[1] },
       { label: '幻觉率', value: (m.hallucination_rate * 100).toFixed(1) + '%', color: ECHARTS_PALETTE.KPI[2] },
       { label: '待审核', value: m.pending_review, color: ECHARTS_PALETTE.KPI[3] },
     ]

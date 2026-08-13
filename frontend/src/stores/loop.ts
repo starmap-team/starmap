@@ -25,7 +25,10 @@ const LOOP_RUN_TIMEOUT_MS = 180_000
 
 // ── 类型定义 ──
 
-export type StepStatus = 'waiting' | 'running' | 'success' | 'degraded' | 'failed'
+// P2 fix (functional-review 2026-08-13): 后端 StepStatus 含 skipped
+// (app/core/pipeline/loop/common.py)，前端类型缺失 → skipped 步骤无样式/
+// 进度语义错误。补齐。
+export type StepStatus = 'waiting' | 'running' | 'success' | 'degraded' | 'failed' | 'skipped'
 
 export interface StepResult {
   step: number

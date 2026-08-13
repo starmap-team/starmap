@@ -32,12 +32,38 @@ export interface ReviewItem {
 export interface ReviewStats {
   position: number
   skill: number
+  // P2 fix (functional-review 2026-08-13): 显式声明后端 review_service 实际
+  // 返回的扁平键（此前仅有 index signature，类型隐藏漂移 —— 模板用
+  // position_approved/skill_pending_review/evolution_pending 等键而类型不感知）。
+  position_pending_review: number
+  position_approved: number
+  position_rejected: number
+  skill_pending_review: number
+  skill_approved: number
+  skill_rejected: number
+  evolution_pending: number
+  total_count: number
+  daily_volume: number
+  avg_daily_count: number
   [key: string]: number
 }
 
 export const useReviewStore = defineStore('review', () => {
   const items = ref<ReviewItem[]>([])
-  const stats = ref<ReviewStats>({ position: 0, skill: 0 })
+  const stats = ref<ReviewStats>({
+    position: 0,
+    skill: 0,
+    position_pending_review: 0,
+    position_approved: 0,
+    position_rejected: 0,
+    skill_pending_review: 0,
+    skill_approved: 0,
+    skill_rejected: 0,
+    evolution_pending: 0,
+    total_count: 0,
+    daily_volume: 0,
+    avg_daily_count: 0,
+  })
   const loading = ref(false)
   const error = ref<string | null>(null)
 

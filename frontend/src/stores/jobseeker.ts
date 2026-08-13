@@ -149,7 +149,20 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
                 progress.value.push(data)
                 currentStep.value = data.step
               } else if (currentEvent === 'result') {
-                result.value = data
+                // P2 fix (functional-review 2026-08-13): SSE result 事件直接赋给
+                // result.value 无字段归一化 —— PipelineAnalysis.vue 模板访问
+                // result.extracted_skills.length 等，后端若缺任一数组字段即抛
+                // TypeError（页面异常）。统一补齐数组字段默认值。
+                const rawResult = (data ?? {}) as Record<string, unknown>
+                result.value = {
+                  ...rawResult,
+                  extracted_skills: Array.isArray(rawResult.extracted_skills) ? rawResult.extracted_skills : [],
+                  top_matches: Array.isArray(rawResult.top_matches) ? rawResult.top_matches : [],
+                  recommended_positions: Array.isArray(rawResult.recommended_positions) ? rawResult.recommended_positions : [],
+                  skill_gaps: Array.isArray(rawResult.skill_gaps) ? rawResult.skill_gaps : [],
+                  learning_path_summary: Array.isArray(rawResult.learning_path_summary) ? rawResult.learning_path_summary : [],
+                  errors: Array.isArray(rawResult.errors) ? rawResult.errors : [],
+                } as PipelineResult
               } else if (currentEvent === 'step_output') {
                 // Phase 3: 接收步骤输出详情供可视化核验
                 stepOutputs.value.push(data as StepOutput)
