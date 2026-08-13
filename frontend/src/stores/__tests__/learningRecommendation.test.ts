@@ -49,7 +49,21 @@ describe('useLearningRecommendationStore', () => {
     expect(store.recommendations[0].skill).toBe('Rust')
     expect(store.recommendations[0].priority).toBe('high')
     expect(store.recommendations[1].priority).toBe('low')
-    expect(request.get).toHaveBeenCalledWith('/learning/recommendations')
+    expect(request.get).toHaveBeenCalledWith('/learning/recommendations', { params: {} })
+  })
+
+  // ── 2b. fetchRecommendations passes plan_id/position for personalization (P1 fix) ──
+
+  it('should pass plan_id and position params when provided', async () => {
+    const request = (await import('@/api/request')).default
+    vi.mocked(request.get).mockResolvedValueOnce({ items: [] })
+
+    const store = useLearningRecommendationStore()
+    await store.fetchRecommendations('plan-123', '后端工程师')
+
+    expect(request.get).toHaveBeenCalledWith('/learning/recommendations', {
+      params: { plan_id: 'plan-123', position: '后端工程师' },
+    })
   })
 
   // ── 3. runBatchMatch action ──

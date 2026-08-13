@@ -8,7 +8,7 @@
  */
 
 // 技术说明：引入 Vue 3 组合式 API 核心函数
-import { onMounted, computed, ref } from 'vue'
+import { onMounted, computed, ref, watch } from 'vue'
 // 技术说明：引入 Vue Router 用于页面导航
 import { useRouter } from 'vue-router'
 // 技术说明：引入 Element Plus 图标组件
@@ -120,15 +120,21 @@ const hasMasteredSkills = computed(() =>
 
 // 业务说明：页面初始化 —— 恢复 localStorage 计划 + 并行加载推荐
 // D-07: 每次打开 LearningCenter 验证 plan_id 有效性
+// P1 fix (functional-review 2026-08-13): 先恢复计划，再带 plan_id 拉取
+// 个性化推荐（此前并行调用无 plan_id → 恒为市场热门，个性化失效）。
 onMounted(async () => {
   try {
-    await Promise.all([
-      learningStore.restorePlanFromLocalStorage(),
-      learningStore.fetchRecommendations(),
-    ])
+    await learningStore.restorePlanFromLocalStorage()
+    const plan = currentPlan.value
+    await learningStore.fetchRecommendations(plan?.plan_id, plan?.position)
   } catch {
     // errors handled by store
   }
+})
+
+// P1 fix: 计划变化（创建/切换/清除）后重新拉取个性化推荐。
+watch(currentPlan, (plan) => {
+  void learningStore.fetchRecommendations(plan?.plan_id, plan?.position)
 })
 </script>
 
