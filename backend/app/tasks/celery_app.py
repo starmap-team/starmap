@@ -329,11 +329,18 @@ async def _sweep_orphan_runs_async() -> dict[str, Any]:
     async with sm() as session:
         threshold = datetime.now(UTC) - timedelta(seconds=settings.pipeline_stage_timeout * 2)
         result = await session.execute(
-            select(PipelineRun)
-            .where(PipelineRun.status == RunStatus.RUNNING.value)
-            .where(PipelineRun.started_at < threshold)
+            select(PipelineRun).where(PipelineRun.status == RunStatus.RUNNING.value)
         )
-        orphans = list(result.scalars().all())
+        orphans = []
+        for run in result.scalars().all():
+            # P0-AUDIT-FIX (2026-08-13): started_at 可能为 naive（timezone=True 规范化
+            # 前的历史行，或 SQLite 测试库）——naive 与 aware 比较会抛 TypeError。
+            # 假定 naive = UTC，统一后做 Python 侧过滤（RUNNING 记录数少，可接受）。
+            started_at = run.started_at
+            if started_at is not None and started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=UTC)
+            if started_at < threshold:
+                orphans.append(run)
         for run in orphans:
             run.status = RunStatus.FAILED.value
             run.completed_at = datetime.now(UTC)

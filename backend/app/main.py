@@ -133,11 +133,17 @@ app.add_middleware(SecurityHeadersMiddleware)
 # P1 修复 (API-02): 速率限制中间件
 # ponytail: Redis-backed fixed-window counter when available, in-memory fallback.
 # In-memory is per-process only — Redis makes it work across workers.
-_RATE_LIMIT_WINDOW = 60  # seconds
-# Phase 3.7: 提高限流阈值以适应实时监控面板（auto-refresh + SSE + DAG polling）
-# PipelineMonitor 页面同时跑：4个轮询接口 / 5s一次 + SSE 长连接 + 事件触发
-# 原 120/60s 严重不足，每次自动刷新周期就会触发 429
-_RATE_LIMIT_MAX = 1800  # requests per window per IP (开发模式提高；生产可在 settings 覆盖)
+# 窗口/阈值来自 settings（rate_limit_window / rate_limit_max），支持运行时调整。
+# P0-AUDIT-FIX (2026-08-13): INCR + EXPIRE 两条命令间进程崩溃会留下无过期
+# 时间的死键 → 该 IP 永久封禁。用 Lua 脚本在 Redis 内原子完成
+# "INCR 后首次创建时设置窗口过期"，任意一步失败都不会留下死键。
+_RATE_LIMIT_INCR_SCRIPT = """
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return count
+"""
 _rate_buckets: dict[str, list[float]] = defaultdict(list)
 
 # Phase 3.7: 高频端点白名单 — 这些是只读状态接口，不计入严格限流
@@ -179,16 +185,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if redis_client:
             key = f"ratelimit:{client_ip}"
             try:
-                count = await redis_client.incr(key)
-                if count == 1:
-                    await redis_client.expire(key, _RATE_LIMIT_WINDOW)
-                if count > _RATE_LIMIT_MAX:
+                count = await redis_client.eval(
+                    _RATE_LIMIT_INCR_SCRIPT, 1, key, settings.rate_limit_window
+                )
+                if count > settings.rate_limit_max:
                     audit_log(
                         AuditEntry(
                             event=AuditEvent.RATE_LIMITED,
                             actor=client_ip,
                             action=f"{request.method} {path}",
-                            detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s (Redis)",
+                            detail=(
+                                f"Exceeded {settings.rate_limit_max} "
+                                f"req/{settings.rate_limit_window}s (Redis)"
+                            ),
                             ip=client_ip,
                         )
                     )
@@ -198,7 +207,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                             "detail": "请求过于频繁，请稍后重试",
                             "code": ErrorCode.SYS_RATE_LIMITED.value,
                         },
-                        headers={"Retry-After": str(_RATE_LIMIT_WINDOW)},
+                        headers={"Retry-After": str(settings.rate_limit_window)},
                     )
                 return await call_next(request)
             except Exception:
@@ -207,26 +216,29 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # In-memory fallback (per-process only)
         now = time.time()
         bucket = _rate_buckets[client_ip]
-        _rate_buckets[client_ip] = [t for t in bucket if now - t < _RATE_LIMIT_WINDOW]
+        _rate_buckets[client_ip] = [t for t in bucket if now - t < settings.rate_limit_window]
         # P2-2 fix: 定期清理整个内存限流桶中过期的 IP 条目，防止 dict 无限增长
         if len(_rate_buckets) > 10000:
-            stale_keys = [k for k, v in _rate_buckets.items() if not v or now - v[-1] > _RATE_LIMIT_WINDOW]
+            stale_keys = [k for k, v in _rate_buckets.items() if not v or now - v[-1] > settings.rate_limit_window]
             for k in stale_keys:
                 del _rate_buckets[k]
-        if len(_rate_buckets[client_ip]) >= _RATE_LIMIT_MAX:
+        if len(_rate_buckets[client_ip]) >= settings.rate_limit_max:
             audit_log(
                 AuditEntry(
                     event=AuditEvent.RATE_LIMITED,
                     actor=client_ip,
                     action=f"{request.method} {path}",
-                    detail=f"Exceeded {_RATE_LIMIT_MAX} req/{_RATE_LIMIT_WINDOW}s (in-memory)",
+                    detail=(
+                        f"Exceeded {settings.rate_limit_max} "
+                        f"req/{settings.rate_limit_window}s (in-memory)"
+                    ),
                     ip=client_ip,
                 )
             )
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Try again later."},
-                headers={"Retry-After": str(_RATE_LIMIT_WINDOW)},
+                headers={"Retry-After": str(settings.rate_limit_window)},
             )
         _rate_buckets[client_ip].append(now)
         return await call_next(request)

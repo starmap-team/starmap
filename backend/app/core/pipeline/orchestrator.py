@@ -337,7 +337,13 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
 
     # 检测僵尸 run：所有 stage 已结束但 run 还卡在 running > 30 分钟
     if running_run is not None:
-        age = datetime.now(UTC) - running_run.started_at
+        # P0-AUDIT-FIX (2026-08-13): started_at 可能为 naive（DateTime(timezone=True)
+        # 规范化前的历史行，或 SQLite 测试库）。aware-now 减 naive 会抛 TypeError。
+        # 假定 naive = UTC，统一后比较。
+        started_at = running_run.started_at
+        if started_at is not None and started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=UTC)
+        age = datetime.now(UTC) - started_at
         stages = running_run.stages or []
         all_done = bool(stages) and all(
             s.get("status") in {"completed", "cancelled", "failed", "skipped"}

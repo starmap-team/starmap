@@ -22,6 +22,18 @@ class Settings(BaseSettings):
     app_log_level: str = "INFO"
     secret_key: str = _UNCONFIGURED
 
+    # 限流 (API-02): Redis 固定窗口计数（多 worker 共享），内存兜底（单进程）
+    rate_limit_window: int = Field(
+        default=60,
+        description="速率限制窗口（秒）；每窗口每 IP 的最大请求数由 rate_limit_max 定义",
+        ge=1,
+    )
+    rate_limit_max: int = Field(
+        default=1800,
+        description="每窗口每 IP 最大请求数（高频只读轮询路径已在 main.py 豁免列表排除）",
+        ge=1,
+    )
+
     # CORS
     # W1-T4 fix (AUTH-04 + NEW-P2): 浏览器跨域请求的 Origin 永远是人类可
     # 解析的 http(s)://host[:port] 形式；不会以 `http://starmap-frontend:5173`
@@ -264,6 +276,8 @@ class Settings(BaseSettings):
         "pipeline_crawl_concurrency",
         "pipeline_retry_max",
         "pipeline_retry_backoff",
+        "rate_limit_window",
+        "rate_limit_max",
     }
 
     def safe_update(self, updates: dict[str, Any], actor: str) -> dict[str, tuple[Any, Any]]:
