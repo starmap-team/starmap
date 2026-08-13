@@ -24,6 +24,21 @@ def _clean_global_state(monkeypatch):
     dep_mod._sse_ip_connections.clear()
     dep_mod._sse_global_connections = 0
 
+    # P1 fix (functional-review 2026-08-13): 禁用 lifespan 后台 cron 扫描任务。
+    # 测试 patch `app.services.resources.resources` 为 mock 期间，cron_scanner_loop
+    # 首次迭代（last_reconcile_at is None）会调用 init_resources() → 把真实
+    # Neo4j driver 写回被 patch 的 mock → learning/evolution 测试偶发失败
+    # （flaky，全量 ~5min 长跑触发率更高）。测试不依赖定时调度，patch 为
+    # no-op 安全（cron 调度逻辑有独立单测 test_cron_scheduler.py）。
+    # 必须在 yield 之前（setup 区）patch，测试运行期间才生效。
+    import app.core.pipeline.cron_scheduler as _cron_mod
+
+    async def _noop_cron_scanner_loop(interval_seconds: int = 60) -> None:
+        """测试期间 no-op：不扫描、不 reconcile、不调 init_resources。"""
+        return
+
+    monkeypatch.setattr(_cron_mod, "cron_scanner_loop", _noop_cron_scanner_loop)
+
     yield
 
     app.dependency_overrides.clear()
