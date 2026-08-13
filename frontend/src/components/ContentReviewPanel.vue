@@ -213,6 +213,25 @@ function formatDate(s: string | null) {
   }
 }
 
+// ── 提交来源语义化: system:* 内部标识 → 用户友好中文标签 ──
+const SOURCE_LABELS: Record<string, string> = {
+  'system:pipeline': '流水线抽取',
+  'system:extraction': 'JD 抽取',
+  'system:fixture': '测试数据',
+  'system:backfill': '数据补录',
+  'system:legacy': '历史数据',
+  'phase15:crawl-source': '数据源采集',
+  'graph-promotion-d5': '图谱合并',
+}
+function sourceLabel(createdBy: string | null): { label: string; isSystem: boolean } {
+  if (!createdBy) return { label: '未知来源', isSystem: true }
+  if (SOURCE_LABELS[createdBy]) return { label: SOURCE_LABELS[createdBy], isSystem: true }
+  if (createdBy.startsWith('system:') || createdBy.includes(':')) {
+    return { label: createdBy, isSystem: true }
+  }
+  return { label: `管理员（${createdBy}）`, isSystem: false }
+}
+
 // ── 中文名调整 (D8i/D8j 手工校准): 复用内容审核模块，审核时直接修正 name_cn ──
 const nameCnEditor = ref<ReviewItem | null>(null)
 const nameCnValue = ref('')
@@ -408,7 +427,17 @@ async function saveNameCn() {
         show-overflow-tooltip
       >
         <template #default="{ row }">
-          <span class="entity-name">{{ row.name }}</span>
+          <!-- D8i/D8j: 中文名优先展示（name_cn || name），改中文名后即时生效 -->
+          <span class="entity-name">{{ row.name_cn || row.name }}</span>
+          <el-tag
+            v-if="row.name_cn && row.name_cn !== row.name"
+            size="small"
+            type="info"
+            effect="plain"
+            class="origin-name-tag"
+          >
+            {{ row.name }}
+          </el-tag>
           <span
             v-if="row.industry"
             class="industry-tag"
@@ -431,27 +460,18 @@ async function saveNameCn() {
       </el-table-column>
       <el-table-column
         label="提交来源"
-        min-width="120"
+        min-width="130"
         show-overflow-tooltip
       >
-        <!-- E2 fix: rename "创建人" → "提交来源". The value is the actor
-             recorded at extraction time (system:extraction for JD/LLM,
-             system:pipeline for cron spiders, otherwise an admin username).
-             Showing "—" when NULL is correct — admin manually-added items
-             have no recorded source. -->
+        <!-- 提交来源语义化: system:* 内部标识 → 用户友好中文标签（流水线抽取/JD抽取/历史数据等） -->
         <template #default="{ row }">
           <el-tag
-            v-if="row.created_by"
             size="small"
-            :type="row.created_by.startsWith('system:') ? 'info' : 'primary'"
+            :type="sourceLabel(row.created_by).isSystem ? 'info' : 'primary'"
             effect="plain"
           >
-            {{ row.created_by }}
+            {{ sourceLabel(row.created_by).label }}
           </el-tag>
-          <span
-            v-else
-            class="muted"
-          >—</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -684,6 +704,10 @@ async function saveNameCn() {
 .entity-name {
   font-weight: 500;
   color: var(--foreground);
+  margin-right: var(--space-2);
+}
+
+.origin-name-tag {
   margin-right: var(--space-2);
 }
 
