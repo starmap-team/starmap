@@ -28,6 +28,27 @@ async def upload_resume(
     # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
     content_bytes = await validate_resume_upload(file)
 
+    # P0-AUDIT-FIX (2026-08-13): PII detection was defined but never called
+    # from the upload path — raw resumes hit Neo4j/PostgreSQL with phone,
+    # email, and ID-card numbers inline (GDPR / 个保法 violation). Detect
+    # before extraction and emit a structured audit log entry; do NOT block
+    # the upload — masking already happens inside run_resume_extraction via
+    # mask_pii, this is a defensive observability hook.
+    try:
+        from app.services.pii_detector import detect_pii
+        try:
+            preview_text = content_bytes.decode("utf-8", errors="ignore")[:8192]
+            pii_types = detect_pii(preview_text)
+            if pii_types:
+                logger.warning(
+                    "Resume upload detected PII types={} filename={} bytes={}",
+                    pii_types, file.filename, len(content_bytes),
+                )
+        except Exception as exc:  # never let observability block the request
+            logger.debug("PII detection skipped ({}): {}", type(exc).__name__, exc)
+    except ImportError:
+        pass  # detector module not present in minimal installs
+
     try:
         pipeline_result = await run_resume_extraction(file.filename or "resume", content_bytes, redis_client=redis_client)
     except ValueError as exc:

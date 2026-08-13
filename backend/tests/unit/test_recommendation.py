@@ -39,15 +39,25 @@ def mock_repo():
 
 @pytest.fixture
 def sample_profiles():
-    """示例岗位画像。"""
+    """示例岗位画像。
+
+    P0-AUDIT-FIX (2026-08-13): SkillItem fields are `skill`/`category`/
+    `proficiency` (per app/schemas/extract.py:13), not `name`. The previous
+    fixture used `name` and only worked because `recommendation_service`
+    was reading `s["name"]` which silently KeyError'd (caught by an
+    `except Exception` block), making `missing` always empty and
+    `developability` always 1.0 — recommend was running but always
+    returning empty results due to inner exceptions. Switch the fixture
+    to the real field name so the recommender actually compares skills.
+    """
     return {
         "后端开发工程师": PositionProfile(
             name="后端开发工程师",
             industry="IT",
             required_skills=[
-                {"name": "Python", "category": "hard_skill", "proficiency": "精通", "is_required": True},
-                {"name": "PostgreSQL", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
-                {"name": "Docker", "category": "tool", "proficiency": "熟悉", "is_required": True},
+                {"skill": "Python", "category": "hard_skill", "proficiency": "精通", "is_required": True},
+                {"skill": "PostgreSQL", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
+                {"skill": "Docker", "category": "tool", "proficiency": "熟悉", "is_required": True},
             ],
             market_demand=0.8,
         ),
@@ -55,9 +65,9 @@ def sample_profiles():
             name="前端开发工程师",
             industry="IT",
             required_skills=[
-                {"name": "JavaScript", "category": "hard_skill", "proficiency": "精通", "is_required": True},
-                {"name": "Vue.js", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
-                {"name": "CSS3", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
+                {"skill": "JavaScript", "category": "hard_skill", "proficiency": "精通", "is_required": True},
+                {"skill": "Vue.js", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
+                {"skill": "CSS3", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
             ],
             market_demand=0.7,
         ),
@@ -65,9 +75,9 @@ def sample_profiles():
             name="数据分析师",
             industry="数据分析",
             required_skills=[
-                {"name": "Python", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
-                {"name": "SQL", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
-                {"name": "Pandas", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
+                {"skill": "Python", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
+                {"skill": "SQL", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
+                {"skill": "Pandas", "category": "hard_skill", "proficiency": "熟悉", "is_required": True},
             ],
             market_demand=0.6,
         ),

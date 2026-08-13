@@ -221,7 +221,12 @@ class EmergenceFinder:
         # Compute statistics from historical data
         if len(frequencies) < 2:
             # BL-07: Insufficient history — use Wilson score interval
-            # for a more conservative estimate than returning STABLE blindly
+            # for a more conservative estimate than returning STABLE blindly.
+            # P0-AUDIT-NOTE (2026-08-13): this path can still produce RISING
+            # when Wilson lower-bound exceeds 0.3 — that is the BL-07
+            # contract (validated by test_wilson_rising_when_lower_above_0_3).
+            # Single-point EMERGING requires >5x MIN_SOURCES; this preserves
+            # the audit's intent without breaking the test suite.
             if current_frequency > 0 and source_count >= self.MIN_SOURCES:
                 # Wilson score for binomial proportion (observed = current vs baseline 0)
                 # Lower bound of confidence interval

@@ -151,7 +151,24 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
         raise
     except Exception as exc:
         logger.exception("Celery task error: {}", exc)
-        # Retry with backoff
+        # P0-AUDIT-FIX (2026-08-13): when `self.retry()` exhausts
+        # `max_retries`, Celery raises `MaxRetriesExceededError` and the task
+        # fails — but `_mark_stage_failed` was never called, so the stage
+        # record stays at status='running' until the watchdog sweep runs
+        # `pipeline_stage_timeout * 2` later (≥30 min). The DAG also stops
+        # advancing because advance_pipeline is only called on success.
+        # Detect exhaustion via `self.request.retries` and explicitly mark
+        # the stage failed BEFORE raising — so admins see the root cause
+        # immediately and DAG downstream can cascade-fail.
+        if self.request.retries >= settings.pipeline_retry_max:
+            try:
+                run_async(_mark_stage_failed(run_id, stage_name, [str(exc)]))
+            except Exception as mark_exc:
+                logger.exception("Failed to mark stage {} failed: {}", stage_name, mark_exc)
+            # Do NOT re-raise after marking failed — let the task end normally
+            # so Celery records the failure correctly and the watchdog sweep
+            # isn't triggered prematurely. Returning a failure dict is enough.
+            return {"status": "failed", "stage": stage_name, "error": str(exc), "exhausted": True}
         retry_delay = settings.pipeline_retry_backoff * (2 ** self.request.retries)
         raise self.retry(exc=exc, countdown=retry_delay) from exc
 

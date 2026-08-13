@@ -72,9 +72,22 @@ const dataTruthBannerType = ref<'success' | 'warning' | 'error'>('error')
 
 // Cross-component navigation: AdminFlow / AdminOverview dispatch a
 // 'admin:navigate' CustomEvent to switch tabs without prop-drilling.
+// P0-AUDIT-FIX (2026-08-13): the previous listener accepted ANY `detail`
+// payload as the new active tab — any third-party script / extension could
+// dispatch `{detail: 'review'}` and silently switch to the destructive
+// review tab. Restrict to a literal union + warn on reject.
+type AdminTab = 'overview' | 'flow' | 'graph' | 'sources' | 'review' | 'audit' | 'prompts'
+const _ALLOWED_ADMIN_TABS: ReadonlySet<AdminTab> = new Set<AdminTab>([
+  'overview', 'flow', 'graph', 'sources', 'review', 'audit', 'prompts',
+])
 function onAdminNavigate(e: Event) {
-  const tab = (e as CustomEvent<string>).detail
-  activeTab.value = tab
+  const detail = (e as CustomEvent<unknown>).detail
+  if (typeof detail === 'string' && (_ALLOWED_ADMIN_TABS as Set<string>).has(detail)) {
+    activeTab.value = detail as AdminTab
+  } else {
+    // Reject payload — log loudly so silent hijack attempts are visible.
+    console.warn('[Admin] rejected admin:navigate with non-allow-listed detail:', detail)
+  }
 }
 
 onMounted(() => {

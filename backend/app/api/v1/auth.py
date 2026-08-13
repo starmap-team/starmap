@@ -192,12 +192,19 @@ async def me(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Dev-mode shortcut: fixed dev-token → synthetic admin user
-    if settings.app_env != "production" and credentials.credentials == "dev-token":
+    # P0-AUDIT-FIX (2026-08-13): previously the bypass only checked
+    # `app_env != "production"`. That is fail-OPEN: any environment name
+    # other than "production" (e.g. "staging", "uat", "qa", "internal",
+    # typo'd value) silently accepts `dev-token` and grants admin.
+    # Delegate to the central dev_token helper which only allows
+    # `development` — fail-closed by whitelist.
+    from app.core.security.dev_token import dev_token_role, is_dev_token_allowed
+
+    if is_dev_token_allowed(credentials.credentials):
         return {
             "id": "dev-user-id",
             "username": "dev",
-            "role": "admin",
+            "role": dev_token_role(),
             "must_change_password": False,
         }
 

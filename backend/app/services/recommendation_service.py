@@ -158,10 +158,14 @@ class PositionRecommender:
         4. 无 PREREQUISITE 数据时降级为 0.5（中性值）
         """
         owned = {s.name for s in person_skills}
-        missing = [s for s in profile.required_skills if s["name"] not in owned]
+        # P0-AUDIT-FIX (2026-08-13): profile.required_skills elements have key
+        # "skill", NOT "name" — `s["name"]` always KeyError'd, so `missing` was
+        # always [] and developability was always 1.0 (silently biasing the
+        # recommender toward bonus-heavy positions). Use the correct key.
+        missing = [s for s in profile.required_skills if s["skill"] not in owned]
         if not missing:
             return 1.0  # 无缺失，完美可发展性
         if not PREREQUISITE_MAP:
             return 0.5  # 无前置知识图数据，降级为中性值
-        reachable = sum(1 for s in missing if any(prereq in owned for prereq in PREREQUISITE_MAP.get(s["name"], [])))
+        reachable = sum(1 for s in missing if any(prereq in owned for prereq in PREREQUISITE_MAP.get(s["skill"], [])))
         return reachable / len(missing)

@@ -124,12 +124,17 @@ async def update_progress(
     _VALID_STATUSES = {"not_started", "in_progress", "mastered"}  # noqa: N806
     if status is not None and status not in _VALID_STATUSES:
         raise ValueError(f"Invalid status: {status!r}. Must be one of {sorted(_VALID_STATUSES)}")
+    # P0-AUDIT-FIX (2026-08-13): row lock prevents two concurrent updates from
+    # both passing the auto-complete check and double-marking the plan.
+    # Without `with_for_update`, two parallel `update_progress` calls could
+    # both see `all_mastered = True` and race on `plan.status = "completed"`.
     stmt = (
         sa.select(LearningProgress)
         .where(
             LearningProgress.plan_id == plan_id,
             LearningProgress.skill_name == skill_name,
         )
+        .with_for_update()
     )
     result = await session.execute(stmt)
     progress = result.scalar_one_or_none()
@@ -171,13 +176,21 @@ async def update_progress(
     progress.updated_at = now
 
     # Check if all skills are mastered → auto-complete plan
+    # P0-AUDIT-FIX (2026-08-13): `progress_pct >= 100.0` is NOT a valid mastery
+    # signal — a skill with status="not_started" and progress_pct=99.9 was
+    # silently counted as mastered, marking the whole plan completed.
+    # Only explicit status="mastered" counts.
     all_progress = await get_plan_progress_list(session, plan_id=plan_id)
-    all_mastered = all(
-        p.status == "mastered" or p.progress_pct >= 100.0
+    all_mastered = bool(all_progress) and all(
+        p.status == "mastered"
         for p in all_progress
     )
     if all_mastered:
-        plan_stmt = sa.select(LearningPlan).where(LearningPlan.id == plan_id)
+        plan_stmt = (
+            sa.select(LearningPlan)
+            .where(LearningPlan.id == plan_id)
+            .with_for_update()
+        )
         plan_result = await session.execute(plan_stmt)
         plan = plan_result.scalar_one_or_none()
         if plan and plan.status == "active":

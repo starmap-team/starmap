@@ -50,11 +50,15 @@ router = APIRouter(prefix="", tags=["数据流水线·操作"])
 _match_service = MatchService()
 
 
-@router.post("/runs/{run_id}/cancel", response_model=CancelResponse)
+@router.post("/runs/{run_id}/cancel", response_model=CancelResponse, dependencies=[Depends(require_admin)])
 async def cancel_pipeline_run(
     run_id: UUID,
     request: Request,
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    # P0-AUDIT-FIX (2026-08-13): previously any authenticated user could
+    # cancel any other user's run (IDOR). PipelineRun has no `owner_id`
+    # field — kill switch is a destructive operation, so restrict to admin.
+    _admin: Annotated[Any, Depends(require_admin)] = None,
 ) -> CancelResponse:
     """Phase 1 D-04: 软取消 + Redis STOP flag + Celery 阶段开始时检查。"""
     from app.services.pipeline_service import RunAlreadyTerminalError, RunNotFoundError, cancel_run
@@ -224,7 +228,11 @@ async def resume_run(
     return serialize_run(run)
 
 
-@router.post("/crawl-source")
+# P0-AUDIT-FIX (2026-08-13): previously this endpoint had no auth at all
+# (dev environment, any viewer could trigger external HTTP requests to remote
+# job boards — SSRF-like side effects + rate-limit damage). Restrict to admin
+# AND validate the source name against the configured data sources.
+@router.post("/crawl-source", dependencies=[Depends(require_admin)])
 def crawl_single_source(  # sync def: 爬取+DB 同步操作放线程池, 避免阻塞 event loop (2026-08-07 修复)
     source: str,
 ) -> dict[str, Any]:
@@ -444,10 +452,22 @@ async def crawler_complete_callback(
 ) -> dict[str, Any]:
     """废弃此端点。CRAWL 阶段将通过 crawl_source_data 内部感知爬虫完成。
 
-    此端点保有仅为向后兼容，永远返回 noop 状态。
+    P0-AUDIT-FIX (2026-08-13): previously this deprecated endpoint accepted
+    ANY caller's POST with arbitrary `source_name` / `records_crawled`
+    values, polluting audit logs and creating a log-injection vector. The
+    endpoint is dead code — return 410 Gone instead of a noop to force any
+    lingering callers to migrate. We keep the function signature so the
+    URL stays registered and the 410 response is stable.
     """
-    logger.info("crawler_complete_callback (noop) source=%s records=%s", source_name, records_crawled)
-    return {"status": "noop", "source": source_name, "records_crawled": records_crawled}
+    logger.warning(
+        "crawler_complete_callback called but endpoint is deprecated; "
+        "caller must migrate. source=%s records=%s", source_name, records_crawled,
+    )
+    raise HTTPException(
+        status_code=410,
+        detail="This endpoint is permanently removed; CRAWL stage uses internal "
+               "crawl_source_data. See docs/pipeline/crawler-completion.md.",
+    )
 
 
 __all__ = ["router"]

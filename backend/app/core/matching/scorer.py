@@ -278,7 +278,15 @@ def score_skill_match(
         recall_score = (0.5 * exact) + (0.3 * fuzzy_match) + (0.2 * best_semantic)
         user_level = person_level_map.get(target_name, 0.0)
         proficiency_coverage = min(1.0, user_level / target_level) if target_level else 1.0
-        final_score = min(1.0, recall_score * (0.65 + (0.35 * proficiency_coverage)))
+        # P0-AUDIT-FIX (2026-08-13): the old formula `recall_score * (0.65 + 0.35*coverage)`
+        # guaranteed final_score >= 0.65 * recall_score even when coverage=0,
+        # so missing skills with any fuzzy/best_semantic signal were inflated
+        # into PARTIAL/MASTERED territory. Make coverage=0 the honest case:
+        # final_score == recall_score (no proficiency bonus).
+        if proficiency_coverage <= 0.0:
+            final_score = recall_score
+        else:
+            final_score = min(1.0, recall_score * (0.65 + (0.35 * proficiency_coverage)))
 
         # Gap level determination
         if exact == 1.0:

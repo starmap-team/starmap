@@ -91,15 +91,31 @@ class TestWriteBackGate:
 
     @pytest.mark.asyncio
     async def test_removed_change_type_skipped(self):
-        """removed only goes to review — never auto-written back (D-04)."""
+        """D8f: removed IS write-back-eligible (deletes the PSR row) but
+        must NOT project confidence to Neo4j — returns None so the
+        orchestrator skips graph_sync for ghost-edge avoidance."""
         row = _make_row(change_type="removed", trust=0.95)
-        session = _make_session()
+        # First execute(): resolve position_id → returns id (raw UUID).
+        # Second execute(): resolve skill_id → returns ORM SkillRecord-like
+        #   object with `.id` attribute (not a raw UUID).
+        # Third execute(): fetch existing PSR → returns None (no edge).
+        # The function should still return None to signal "no projection".
+        _fake_skill = MagicMock()
+        _fake_skill.id = uuid.uuid4()
+        session = _make_session(
+            _FakeScalarResult(uuid.uuid4()),  # _resolve_position_id → UUID
+            _FakeScalarResult(_fake_skill),  # _resolve_skill_id → ORM-like
+            _FakeScalarResult(None),          # existing PSR lookup
+        )
         warnings: list[str] = []
 
         result = await write_back_changelog_row(session, row, warnings)
 
+        # P0-AUDIT-FIX (2026-08-13): removed returns None even when the PSR
+        # is deleted, so the orchestrator does NOT project to Neo4j —
+        # otherwise we would produce ghost REQUIRES edges (PG deleted,
+        # Neo4j still present).
         assert result is None
-        session.execute.assert_not_called()
         assert warnings == []
 
     @pytest.mark.asyncio
@@ -380,12 +396,19 @@ class TestUnresolvedAndFailures:
 
 
 class TestConstants:
-    def test_mapping_covers_four_change_types(self):
-        assert WRITEBACK_CHANGE_TYPES == {"added_required", "added_preferred", "promoted", "demoted"}
-        assert set(CHANGE_TO_REQUIREMENT_TYPE) == WRITEBACK_CHANGE_TYPES
+    def test_mapping_covers_change_types(self):
+        # D8f: WRITEBACK_CHANGE_TYPES gained "removed" — the write-back path
+        # now also deletes PSR rows for skill removals (closed-loop with
+        # PG→Neo4j). `removed` is excluded from CHANGE_TO_REQUIREMENT_TYPE
+        # because removal has no requirement type.
+        assert WRITEBACK_CHANGE_TYPES == {
+            "added_required", "added_preferred", "promoted", "demoted", "removed",
+        }
         assert CHANGE_TO_REQUIREMENT_TYPE == {
             "added_required": "required",
             "added_preferred": "preferred",
             "promoted": "required",
             "demoted": "preferred",
         }
+        # "removed" must NOT be in CHANGE_TO_REQUIREMENT_TYPE.
+        assert "removed" not in CHANGE_TO_REQUIREMENT_TYPE

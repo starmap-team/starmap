@@ -132,7 +132,13 @@ async def write_back_changelog_row(
                     "evolution write_back: removed relation {} ← {} ({})",
                     row.position_name, row.skill_name, row.change_type,
                 )
-            return float(row.confidence or 0.0)
+            # P0-AUDIT-FIX (2026-08-13): D8f closed the loop on PG side (delete
+            # the PSR row), but returning `row.confidence` here caused the
+            # orchestrator to project that confidence onto Neo4j — producing a
+            # "ghost REQUIRES edge" (PG deleted, Neo4j still present). Return
+            # None to signal "no projection" — same convention used when
+            # _resolve_position_id fails.
+            return None
 
         skill_id = await _resolve_skill_id(session, row.skill_name)
         requirement_type = CHANGE_TO_REQUIREMENT_TYPE[row.change_type]

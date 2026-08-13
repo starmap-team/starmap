@@ -110,9 +110,19 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
                         s["status"] = StageStatus.FAILED.value
                     s["completed_at"] = datetime.now(UTC).isoformat()
                     if s["name"] not in OPTIONAL_STAGES:
+                        # P0-AUDIT-FIX (2026-08-13): previously `error_log` was
+                        # never populated on cascade-fail, so when admins
+                        # inspected a stuck run they could not tell which
+                        # upstream stage was the root cause. Record the
+                        # failed-dep names so the UI can show "cascaded from X".
+                        failed_deps = [
+                            d for d in deps
+                            if any(ds["name"] == d and ds["status"] == StageStatus.FAILED.value for ds in stages)
+                        ]
+                        s["error_log"] = f"cascaded from failed dep(s): {', '.join(failed_deps)}"
                         logger.warning(
-                            "advance_pipeline: marking {} as FAILED (required dep failed)",
-                            s["name"],
+                            "advance_pipeline: marking {} as FAILED (required dep failed: {})",
+                            s["name"], failed_deps,
                         )
 
             # Check if all stages are done

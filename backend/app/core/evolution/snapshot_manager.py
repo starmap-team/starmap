@@ -229,7 +229,23 @@ async def list_positions_with_records(
     Used by orchestrator to decide which positions need snapshotting.
     """
     # First: get positions with any completed extraction
-    stmt = sa.select(JDExtractionRecord.job_title).where(JDExtractionRecord.status == "completed").distinct()
+    # P0-AUDIT-FIX (2026-08-13): the previous implementation declared
+    # `min_monthly_jds=30` but never used it — sparse-data positions produced
+    # noisy changelogs and contaminated PSR/Neo4j writes. Apply the threshold
+    # via HAVING on a per-position count subquery.
+    if min_monthly_jds > 0:
+        from sqlalchemy import func
+        # Subquery: distinct job_titles whose completed-record count >= threshold
+        stmt = (
+            sa.select(JDExtractionRecord.job_title)
+            .where(JDExtractionRecord.status == "completed")
+            .group_by(JDExtractionRecord.job_title)
+            .having(func.count(JDExtractionRecord.id) >= min_monthly_jds)
+        )
+    else:
+        stmt = sa.select(JDExtractionRecord.job_title).where(
+            JDExtractionRecord.status == "completed"
+        ).distinct()
     if since is not None:
         stmt = stmt.where(JDExtractionRecord.created_at >= since)
     result = await session.execute(stmt)

@@ -459,9 +459,13 @@ async def review_queue_single_action(
             await write_back_changelog_row(session, row, warnings)
             await session.commit()
         except Exception as exc:  # noqa: BLE001 — 写回失败不阻断审核响应
-            import logging as _logging
-
-            _logging.getLogger(__name__).warning(
+            # P0-AUDIT-FIX (2026-08-13): the previous code did a local
+            # `import logging as _logging` and called stdlib `getLogger` —
+            # but the rest of this module uses loguru. Mixed channels made
+            # this write-back failure invisible to the project-level audit
+            # pipeline (which only tails loguru). Use the module-level loguru
+            # logger so monitoring catches the regression.
+            logger.warning(
                 "evolution review approve write-back failed (non-fatal): {}", exc
             )
     return {"changelog_id": str(changelog_id), "status": target_status}

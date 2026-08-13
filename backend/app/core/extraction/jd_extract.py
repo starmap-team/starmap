@@ -336,15 +336,26 @@ class JDExtractionPipeline:
 
             result["normalization"] = [nr.__dict__ for nr in normalized_results]
 
-            nr_iter = iter(normalized_results)
-            for skill in validated.required_skills:
-                nr = next(nr_iter)
+            # P0-AUDIT-FIX (2026-08-13): replace manual iter() + next() chain
+            # with zip(). If batch_normalize_skills returns fewer items than
+            # expected (e.g. vector/Chroma exception swallowed one), next()
+            # raises StopIteration and the response becomes a 500; even worse,
+            # if it returns more items we silently dropped the tail. zip()
+            # truncates to the shorter input — the leftover skills keep their
+            # original names instead of crashing or going half-applied.
+            for skill, nr in zip(validated.required_skills, normalized_results, strict=False):
                 if nr.normalized:
                     skill.name = nr.normalized
-            for skill in validated.preferred_skills:
-                nr = next(nr_iter)
+            offset = len(validated.required_skills)
+            for skill, nr in zip(validated.preferred_skills, normalized_results[offset:], strict=False):
                 if nr.normalized:
                     skill.name = nr.normalized
+            # Surface the count mismatch as a warning so callers can see it.
+            expected = len(validated.required_skills) + len(validated.preferred_skills)
+            if len(normalized_results) != expected:
+                result.setdefault("warnings", []).append(
+                    f"normalization count mismatch: expected={expected}, got={len(normalized_results)}"
+                )
 
         # Step 6: Anti-hallucination check
         validation = None

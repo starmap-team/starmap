@@ -396,12 +396,17 @@ class SkillNormalizer:
             # char (avoid "Go" inside "Google", "Java" inside "JavaScript"). Chinese
             # characters return True for str.isalnum() so we explicitly use the
             # ASCII set only.
+            # P0-AUDIT-FIX (2026-08-13): wrap each OR clause in parens so the
+            # precedence is `(prev.isascii() AND prev.isalnum()) OR prev in "_+#"`
+            # instead of `prev.isascii() AND (prev.isalnum() OR prev in "_+#")`.
+            # Without parens, "Go" inside "Google" would match (G is alnum),
+            # and "Java" inside "JavaScript" would match — silently inflating F1.
             prev_char = text_lower[idx - 1] if idx > 0 else " "
             next_idx = idx + len(alias)
             next_char = text_lower[next_idx] if next_idx < len(text_lower) else " "
-            if prev_char.isascii() and prev_char.isalnum() or prev_char in "_+#":
+            if (prev_char.isascii() and prev_char.isalnum()) or prev_char in "_+#":
                 continue
-            if next_char.isascii() and next_char.isalnum() or next_char in "_+#":
+            if (next_char.isascii() and next_char.isalnum()) or next_char in "_+#":
                 continue
             found.add(canonical)
         return found

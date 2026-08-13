@@ -427,8 +427,16 @@ async def call_llm_with_fallback(
             return result
     except httpx.TimeoutException as e:
         raise LLMTimeoutError("Fallback LLM timeout") from e
-    except (httpx.RequestError, KeyError, IndexError) as e:
-        raise LLMConnectionError(f"Fallback LLM failed: {e}") from e
+    except httpx.RequestError as e:
+        # Network/HTTP transport errors — wrap as connection failure.
+        raise LLMConnectionError(f"Fallback LLM transport failed: {e}") from e
+    except (KeyError, IndexError) as e:
+        # P0-AUDIT-FIX (2026-08-13): response-shape errors must NOT be coerced
+        # into LLMConnectionError. If Ollama/Qwen changes its JSON layout,
+        # the caller treats this as a transient transport failure and retries
+        # forever. Re-raise as LLMResponseError so the orchestrator can decide
+        # whether to retry (no) or fall back further (yes).
+        raise LLMResponseError(f"Fallback LLM returned unexpected shape: {e}") from e
 
 
 def parse_llm_json_response(response_text: str) -> dict[str, Any]:

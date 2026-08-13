@@ -18,8 +18,19 @@ const ACCESS_KEY = 'starmap_access_token'
 
 // 后台轮询模式 (2026-08-11): 页面自动刷新等后台轮询调用在请求前置位,
 // 失败时静默降级不弹 toast, 避免后端不可用时每 10s 刷屏。
+// P0-AUDIT-FIX (2026-08-13): the module-global flag bleeds across concurrent
+// requests — caller A enters poll mode while caller B's real failure is in
+// flight, and B gets silently swallowed. Prefer the per-request field
+// `config.poll = true` (already supported at line ~182). This setter is now
+// deprecated; existing callers will keep working but produce a console
+// warning so we can migrate them one at a time.
 let backgroundPollMode = false
 export function setBackgroundPollMode(on: boolean) {
+  console.warn(
+    '[request] setBackgroundPollMode() is deprecated — use `config.poll = true` '
+    + 'on the request config instead. Module-global state can swallow real '
+    + 'failures from concurrent unrelated requests.',
+  )
   backgroundPollMode = on
 }
 
