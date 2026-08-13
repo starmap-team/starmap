@@ -18,7 +18,6 @@ from app.services.graph_overview import (
     fetch_overview_by_level,
     fetch_overview_by_tech_stack,
 )
-from app.services.graph_service import fetch_overview_by_domain
 from app.services.graph_serializers import (
     _node_id,
     _relationship_endpoint,
