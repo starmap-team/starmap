@@ -123,11 +123,34 @@ async def write_extraction_to_pg(
                 created_by=created_by,
             )
 
+        # R5 根治 (2026-08-13): 抽取的 evolves_to 后继岗位（职业演化目标）此前只写
+        # Neo4j 图（graph_writer name-MERGE 无 canonical_id）不落 PG → 产生被
+        # EVOLVES_TO 引用的无记录图节点（孤儿）。现在一并落 PG（pending_review
+        # 待审核），后续 graph_sync 的岗位自愈会补齐 canonical_id 链接。
+        for successor in pipeline_data.get("evolves_to", []) or []:
+            if isinstance(successor, dict):
+                succ_name = str(successor.get("position") or successor.get("name") or "").strip()
+            else:
+                succ_name = str(successor).strip()
+            if succ_name and succ_name != position_name:
+                try:
+                    await upsert_position_record(
+                        session,
+                        name=succ_name,
+                        industry=pipeline_data.get("industry"),
+                        description=None,
+                        review_status=review_status,
+                        created_by=created_by,
+                    )
+                except Exception as succ_exc:  # noqa: BLE001 — 单条后继失败不阻断主写入
+                    logger.warning("evolves_to successor PG upsert failed for {!r}: {}", succ_name, succ_exc)
+
         await session.commit()
         logger.info(
-            "PG write complete: PositionRecord '{}' + {} skills upserted",
+            "PG write complete: PositionRecord '{}' + {} skills upserted (+{} evolves_to successors)",
             position_name,
             len(set(all_skills)),
+            len(pipeline_data.get("evolves_to", []) or []),
         )
         return True
     except Exception as e:

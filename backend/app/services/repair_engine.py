@@ -687,6 +687,86 @@ class RepairEngine:
             logger.exception("RepairEngine backfill_skill_records unexpected error")
             raise GraphProjectionError(str(exc)) from exc
 
+    # ------------------------------------------------------------------
+    # ⑦ 历史岗位补录（R5: 抽取 evolves_to 后继岗位只写图不落 PG → 回填 + 链接）
+    # ------------------------------------------------------------------
+
+    async def backfill_position_records(self, pg_session: Any, *, review_status: str = "pending_review") -> dict[str, Any]:
+        """把 Neo4j 中无 canonical_id 且 PG 无同名记录的 Position 回填到 position_records。
+
+        根因 R5: 抽取的 `evolves_to` 后继岗位（职业演化目标）由 graph_writer 按
+        name-MERGE 写图（graph_writer.py:319-331），persist 只写主岗位 → 后继
+        岗位成为无 PG 记录、被 EVOLVES_TO 引用的图节点。
+        本方法: 扫描无标识 Position 节点 → PG 无同名 → upsert（默认 pending_review，
+        新岗位需审核）→ SET canonical_id。幂等、非破坏。
+        """
+        from app.repositories.extract_repo import upsert_position_record
+
+        if self._driver is None:
+            return {"backfilled": 0, "linked": 0, "errors": ["neo4j_driver_unavailable"]}
+
+        try:
+            pg_pos_lower = {
+                str(r[0]).lower() for r in (
+                    await pg_session.execute(select(PositionRecord.name))
+                ).all()
+            }
+
+            async with self._driver.session() as session:
+                res = await session.run(
+                    "MATCH (n:Position) WHERE n.canonical_id IS NULL "
+                    "RETURN n.name AS name"
+                )
+                names: set[str] = set()
+                async for record in res:
+                    name = record.get("name") if hasattr(record, "get") else record["name"]
+                    if name:
+                        names.add(str(name))
+
+            backfilled = 0
+            linked = 0
+            errors: list[str] = []
+            for name in sorted(names):
+                if name.lower() in pg_pos_lower:
+                    continue
+                try:
+                    await upsert_position_record(
+                        pg_session, name=name, industry=None, description=None,
+                        review_status=review_status,
+                    )
+                    backfilled += 1
+                except Exception as exc:  # noqa: BLE001 — 单条失败不阻断
+                    errors.append(f"{name}: {exc}")
+                    continue
+                row = (await pg_session.execute(
+                    select(PositionRecord.id).where(PositionRecord.name == name)
+                )).scalar_one_or_none()
+                if row is None:
+                    errors.append(f"{name}: backfilled but id not found")
+                    continue
+                try:
+                    async with self._driver.session() as session:
+                        await session.run(
+                            "MATCH (n:Position {name: $name}) WHERE n.canonical_id IS NULL "
+                            "SET n.canonical_id = $cid",
+                            name=name, cid=str(row),
+                        )
+                    linked += 1
+                except (Neo4jError, SQLAlchemyError) as exc:
+                    errors.append(f"{name}: link failed: {exc}")
+
+            if backfilled or linked:
+                await pg_session.commit()
+            return {"backfilled": backfilled, "linked": linked, "errors": errors}
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("RepairEngine backfill_position_records DB error")
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("RepairEngine backfill_position_records unexpected error")
+            raise GraphProjectionError(str(exc)) from exc
+
 
 __all__ = [
     "RepairEngine",

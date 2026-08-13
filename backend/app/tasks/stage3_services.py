@@ -475,8 +475,16 @@ async def run_build_graph_from_extractions(
                         "graph_sync: healed {} historical skills (backfilled={}, linked={})",
                         heal.get("backfilled", 0), heal.get("backfilled", 0), heal.get("linked", 0),
                     )
+                # R5 根治: 同样自愈岗位——抽取 evolves_to 后继岗位只写图不落 PG 的
+                # 历史缺口，回填 position_records（pending_review 待审核）+ 链接。
+                pos_heal = await repair.backfill_position_records(session)
+                if pos_heal.get("backfilled") or pos_heal.get("linked"):
+                    logger.info(
+                        "graph_sync: healed {} historical positions (backfilled={}, linked={})",
+                        pos_heal.get("backfilled", 0), pos_heal.get("backfilled", 0), pos_heal.get("linked", 0),
+                    )
             except Exception as heal_exc:  # noqa: BLE001 — 补录失败不阻断图谱构建
-                logger.warning("graph_sync skill heal failed (non-fatal): {}", heal_exc)
+                logger.warning("graph_sync heal failed (non-fatal): {}", heal_exc)
 
         return {
             "status": "completed",
