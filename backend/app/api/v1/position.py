@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db_session, get_neo4j_driver, require_admin
+from app.dependencies import get_current_user, get_db_session, get_neo4j_driver, require_admin
 from app.exceptions import PositionNotFoundError, StarMapError
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 from app.schemas.position import (
@@ -45,6 +45,7 @@ def _escape_like(value: str) -> str:
 async def list_positions(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
     page: Annotated[int, Query(ge=1, description="页码")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 20,
     industry: Annotated[str | None, Query(description="行业筛选")] = None,
@@ -58,6 +59,14 @@ async def list_positions(
         Query(description="admin 用：true 时不强制 status=approved"),
     ] = False,
 ) -> PositionListResponse:
+    # P1-9 fix (functional-review 2026-08-13): 可见性策略此前只读 query 参数、
+    # 无角色校验 —— 任何登录用户传 ?status=pending_review 或 include_all=true
+    # 即可查看未发布/已驳回岗位，注释声称的"admin 用户可传 include_all"形同
+    # 虚设。现强制：非 admin 忽略 include_all 并锁定 status=approved。
+    is_admin = user.get("role") == "admin"
+    if not is_admin:
+        include_all = False
+        status = "approved"
     # Count total
     count_stmt = sa.select(sa.func.count()).select_from(PositionRecord)
     if industry:
@@ -172,10 +181,16 @@ async def get_position(
     position_id: str,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
 ) -> dict[str, Any]:
     import uuid as uuid_mod
 
     from fastapi import HTTPException
+
+    # P1-9 fix: 详情同样遵守可见性策略 —— 非 admin 只能查看已发布岗位
+    # （list_positions 已锁定 status=approved，详情端点此前完全不按
+    # review_status 过滤 → 通过 /positions/{id} 直接访问未发布岗位）。
+    is_admin = user.get("role") == "admin"
 
     r = None
 
@@ -184,6 +199,8 @@ async def get_position(
         try:
             uuid_val = uuid_mod.UUID(position_id)
             stmt = sa.select(PositionRecord).where(PositionRecord.id == uuid_val)
+            if not is_admin:
+                stmt = stmt.where(PositionRecord.review_status == "approved")
             r = (await session.execute(stmt)).scalar_one_or_none()
         except (ValueError, Exception):
             pass  # 非 UUID 格式，跳过
@@ -191,6 +208,8 @@ async def get_position(
     # 尝试按名称查询
     if r is None:
         stmt = sa.select(PositionRecord).where(PositionRecord.name == position_id)
+        if not is_admin:
+            stmt = stmt.where(PositionRecord.review_status == "approved")
         r = (await session.execute(stmt)).scalar_one_or_none()
 
     # PostgreSQL hit — return with skills

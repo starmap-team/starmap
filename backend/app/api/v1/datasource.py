@@ -365,9 +365,13 @@ async def trigger_source_sync(
     # E19 fix: trigger_and_start accepts full/incremental only (DB constraint),
     # so map "source_sync" intent to "incremental" — single-source sync is
     # by definition an incremental crawl.
+    # P1-7 fix (functional-review 2026-08-13): 此前未传 selected_sources →
+    # 新 run 的 selected_sources=None → crawl 阶段爬全部 active 源，响应却声称
+    # "Source sync triggered for 'X'"（单源语义失效）。现透传 ds.name，crawl
+    # 阶段按 run.selected_sources 只爬该源。
     from app.services.pipeline_service import trigger_and_start
 
-    run = await trigger_and_start(run_type="incremental")
+    run = await trigger_and_start(run_type="incremental", selected_sources=[ds.name])
 
     return SyncTriggerResponse(
         run_id=str(run.id),

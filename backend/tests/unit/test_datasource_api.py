@@ -577,7 +577,11 @@ class TestTriggerSourceSync:
         assert resp.status_code == 200
         # E19 fix: single-source sync is mapped to "incremental" because
         # trigger_and_start only accepts full/incremental (DB constraint).
-        mock_trigger.assert_awaited_once_with(run_type="incremental")
+        # P1-7 fix (functional-review 2026-08-13): 单源同步必须透传 selected_sources，
+        # 否则新 run selected_sources=None → crawl 爬全部 active 源（单源语义失效）。
+        mock_trigger.assert_awaited_once_with(
+            run_type="incremental", selected_sources=["51Job"],
+        )
 
 
 # ══════════════════════════════════════════════════════════════
