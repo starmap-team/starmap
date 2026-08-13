@@ -4013,6 +4013,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrphanQueueResponse'
+  /admin/orphan-queue/batch-action:
+    post:
+      operationId: orphanQueueBatchAction
+      summary: 孤儿批量审批
+      description: 批量批准/拒绝孤儿。only_no_reference=true 仅处理无引用孤儿（删除安全）。P2.1。
+      tags:
+      - 管理后台
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrphanBatchActionRequest'
+      responses:
+        '200':
+          description: 批量审批结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrphanBatchActionResponse'
+  /admin/orphan-queue/backfill-skills:
+    post:
+      operationId: orphanQueueBackfillSkills
+      summary: 历史技能补录
+      description: 把图中存在但 PG 无记录的 Skill 回填 skill_records + 链接 canonical_id。非破坏、幂等。P3b。
+      tags:
+      - 管理后台
+      responses:
+        '200':
+          description: 补录结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrphanBackfillResponse'
+  /admin/orphan-queue/{item_id}/link:
+    post:
+      operationId: orphanQueueLink
+      summary: 孤儿链接
+      description: 把无 canonical_id 节点 SET 到 PG 记录（非破坏、可逆）。canonical_id 缺省用检测建议值。P3a。
+      tags:
+      - 管理后台
+      parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrphanLinkRequest'
+      responses:
+        '200':
+          description: 链接后的队列条目
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrphanQueueItem'
   /admin/orphan-queue/{item_id}/action:
     post:
       operationId: orphanQueueAction
@@ -7134,3 +7195,56 @@ components:
         actor:
           type: string
           nullable: true
+    OrphanBatchActionRequest:
+      title: OrphanBatchActionRequest
+      type: object
+      required:
+      - action
+      properties:
+        action:
+          type: string
+          enum:
+          - approve
+          - reject
+        only_no_reference:
+          type: boolean
+          default: true
+          description: 仅处理无引用孤儿（referenced_by=0，删除安全）
+        actor:
+          type: string
+          nullable: true
+    OrphanBatchActionResponse:
+      title: OrphanBatchActionResponse
+      type: object
+      properties:
+        processed:
+          type: integer
+        deleted:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+    OrphanLinkRequest:
+      title: OrphanLinkRequest
+      type: object
+      properties:
+        canonical_id:
+          type: string
+          nullable: true
+          description: 目标 PG canonical_id（缺省用检测建议值）
+        actor:
+          type: string
+          nullable: true
+    OrphanBackfillResponse:
+      title: OrphanBackfillResponse
+      type: object
+      properties:
+        backfilled:
+          type: integer
+        linked:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
