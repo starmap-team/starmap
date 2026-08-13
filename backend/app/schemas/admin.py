@@ -89,6 +89,25 @@ class OrphanQueueActionRequest(BaseModel):
     actor: str | None = Field(default=None, max_length=64, description="审批人（可选，默认取当前用户）")
 
 
+class OrphanBatchActionRequest(BaseModel):
+    """孤儿队列批量审批请求。"""
+
+    action: Literal["approve", "reject"] = Field(..., description="'approve' 删除节点 / 'reject' 拒绝")
+    only_no_reference: bool = Field(
+        default=True,
+        description="仅处理无引用孤儿（referenced_by=0，删除安全）；False 处理全部 pending（危险）",
+    )
+    actor: str | None = Field(default=None, max_length=64, description="审批人（可选）")
+
+
+class OrphanBatchActionResponse(BaseModel):
+    """孤儿队列批量审批结果。"""
+
+    processed: int = Field(default=0, description="处理的条目数")
+    deleted: int = Field(default=0, description="实际删除的 Neo4j 节点数")
+    errors: list[str] = Field(default_factory=list, description="失败明细（不阻断其余）")
+
+
 class CreateUserRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=64)
     password: str = Field(..., min_length=auth_service.MIN_PASSWORD_LENGTH, max_length=128)

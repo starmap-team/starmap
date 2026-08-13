@@ -16,6 +16,8 @@ from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.models.extraction_models import PositionRecord, SkillRecord
 from app.schemas.admin import (
     HealthMetrics,
+    OrphanBatchActionRequest,
+    OrphanBatchActionResponse,
     OrphanQueueActionRequest,
     OrphanQueueItem,
     OrphanQueueResponse,
@@ -282,6 +284,30 @@ async def get_orphan_queue_endpoint(
         items=[OrphanQueueItem(**it) for it in items],
         total=len(items),
     )
+
+
+@router.post("/orphan-queue/batch-action", response_model=OrphanBatchActionResponse)
+async def orphan_queue_batch_action_endpoint(
+    body: OrphanBatchActionRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> OrphanBatchActionResponse:
+    """P2: 孤儿批量审批 — 默认仅处理无引用孤儿（referenced_by=0，删除安全）。
+
+    声明在 /orphan-queue/{item_id}/action 之前，避免 "batch-action" 被当作 item_id。
+    """
+    from app.services.repair_engine import RepairEngine
+
+    actor = body.actor or user.get("sub") or user.get("username") or "admin"
+    repair = RepairEngine(driver)
+    result = await repair.execute_batch_cleanup(
+        session,
+        action=body.action,
+        only_no_reference=body.only_no_reference,
+        actor=f"admin:{actor}",
+    )
+    return OrphanBatchActionResponse(**result)
 
 
 @router.post("/orphan-queue/{item_id}/action", response_model=OrphanQueueItem)

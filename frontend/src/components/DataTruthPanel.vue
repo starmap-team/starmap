@@ -185,8 +185,61 @@ function orphanTypeLabel(t: string): string {
   return t === 'position' ? '岗位' : '技能'
 }
 
-function orphanReasonLabel(r: string): string {
-  return r === 'no_canonical_id' ? '无 canonical_id' : 'PG 无对应记录'
+// 语义级原因标签（区分: 无引用=可删除孤儿 / 被引用=同实体待链接或 PG 缺记录）
+function orphanReasonText(row: { reason: string; detail?: Record<string, unknown> }): string {
+  const ref = Number(row.detail?.referenced_by ?? 0)
+  if (row.reason === 'no_canonical_id') {
+    return ref > 0 ? '缺唯一标识·被引用' : '缺唯一标识'
+  }
+  return 'PG 无对应记录'
+}
+
+// 语义级状态映射（P2 优化: 不向用户暴露 raw enum）
+const ORPHAN_STATUS_LABEL: Record<string, string> = {
+  pending: '待审批',
+  approved: '已批准',
+  rejected: '已拒绝',
+  cleaned: '已清理',
+}
+const ORPHAN_STATUS_TYPE: Record<string, 'warning' | 'success' | 'info' | 'danger'> = {
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'info',
+  cleaned: 'success',
+}
+function orphanStatusLabel(status: string): string {
+  return ORPHAN_STATUS_LABEL[status] ?? status
+}
+function orphanStatusType(status: string): 'warning' | 'success' | 'info' | 'danger' {
+  return ORPHAN_STATUS_TYPE[status] ?? 'info'
+}
+
+// 健康/同步状态语义化
+function healthStatusLabel(status: string | undefined): string {
+  const map: Record<string, string> = { ok: '正常', warn: '轻微异常', critical: '严重异常', unknown: '未知' }
+  return map[status ?? ''] ?? (status ?? '未知')
+}
+
+// 批量批准无引用孤儿（删除安全，一次调用）
+const batchLoading = ref(false)
+async function batchApproveSafe() {
+  batchLoading.value = true
+  try {
+    const result = await request.post('/admin/orphan-queue/batch-action', {
+      action: 'approve',
+      only_no_reference: true,
+    }) as { processed: number; deleted: number; errors?: string[] }
+    ElMessage.success(
+      `批量清理完成：处理 ${result.processed} 项，删除 ${result.deleted} 个孤儿节点` +
+      (result.errors?.length ? `（${result.errors.length} 项失败）` : ''),
+    )
+    await loadOrphanQueue()
+    await loadReport(true)
+  } catch (e: unknown) {
+    ElMessage.error(`批量清理失败: ${e instanceof Error ? e.message : '未知错误'}`)
+  } finally {
+    batchLoading.value = false
+  }
 }
 
 function statusColor(status: string): string {
@@ -286,7 +339,7 @@ function statusIcon(status: string): unknown {
               :type="report.health.sync_health === 'ok' ? 'success' : report.health.sync_health === 'warn' ? 'warning' : 'danger'"
               size="small"
             >
-              {{ report.health.sync_health }}
+              {{ healthStatusLabel(report.health.sync_health) }}
             </el-tag>
           </div>
           <div class="health-item">
@@ -295,7 +348,7 @@ function statusIcon(status: string): unknown {
               :type="report.health.reconcile_status === 'ok' ? 'success' : report.health.reconcile_status === 'warn' ? 'warning' : 'danger'"
               size="small"
             >
-              {{ report.health.reconcile_status }}
+              {{ healthStatusLabel(report.health.reconcile_status) }}
             </el-tag>
           </div>
           <div class="health-item">
@@ -333,9 +386,27 @@ function statusIcon(status: string): unknown {
         <div class="orphan-header">
           <h4>孤儿节点清理队列</h4>
           <span class="orphan-hint">
-            孤儿 = Neo4j 中存在但 PostgreSQL 无对应记录（无 canonical_id 或已删除）。
+            孤儿 = Neo4j 中存在但 PostgreSQL 无对应记录（无唯一标识或已删除）。
             批准后执行删除（级联边），操作记入审计日志。
           </span>
+          <el-tooltip
+            placement="top"
+            :show-after="200"
+          >
+            <template #content>
+              一键批准清理所有「无被引用边」的孤儿（删除安全、可审计）。<br>
+              被其他节点引用的孤儿保持待处理，需先人工处理引用关系。
+            </template>
+            <el-button
+              size="small"
+              type="primary"
+              :loading="batchLoading"
+              :disabled="!orphanItems.some(i => i.status === 'pending' && Number(i.detail?.referenced_by ?? 0) === 0)"
+              @click="batchApproveSafe"
+            >
+              批量批准无引用孤儿
+            </el-button>
+          </el-tooltip>
         </div>
         <el-table
           v-loading="orphanLoading"
@@ -364,10 +435,12 @@ function statusIcon(status: string): unknown {
           />
           <el-table-column
             label="原因"
-            width="140"
+            width="150"
           >
             <template #default="{ row }">
-              {{ orphanReasonLabel(row.reason) }}
+              <span :class="{ 'ref-warn': Number(row.detail?.referenced_by ?? 0) > 0 }">
+                {{ orphanReasonText(row) }}
+              </span>
             </template>
           </el-table-column>
           <el-table-column
@@ -386,10 +459,10 @@ function statusIcon(status: string): unknown {
           >
             <template #default="{ row }">
               <el-tag
-                :type="row.status === 'pending' ? 'warning' : row.status === 'cleaned' ? 'success' : 'info'"
+                :type="orphanStatusType(row.status)"
                 size="small"
               >
-                {{ row.status }}
+                {{ orphanStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -436,7 +509,9 @@ function statusIcon(status: string): unknown {
           v-if="orphanItems.some(i => Number(i.detail?.referenced_by ?? 0) > 0)"
           class="orphan-note"
         >
-          ⚠ 有被引用边的孤儿已被禁用「批准删除」（需先手动处理引用关系）。
+          ⚠ 被引用边的孤儿已禁用「批准删除」：它们很可能是<b>同一实体的不同写法</b>
+          （如 React.js↔React）或<b>历史抽取未回填 PG 的技能</b>——应核对 PG 记录后
+          「链接 canonical_id」或补录，而非删除（删除会破坏学习路径 PREREQUISITE 关系）。
         </div>
       </div>
 

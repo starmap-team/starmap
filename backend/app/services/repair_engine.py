@@ -421,6 +421,39 @@ class RepairEngine:
 
         return {"error": f"unknown action: {action}"}
 
+    # ------------------------------------------------------------------
+    # ④ 批量审批（无引用孤儿一键清理）
+    # ------------------------------------------------------------------
+
+    async def execute_batch_cleanup(
+        self, pg_session: Any, *, action: str, only_no_reference: bool, actor: str,
+    ) -> dict[str, Any]:
+        """批量审批所有匹配的 pending 条目。
+
+        only_no_reference=True（推荐）: 仅处理 referenced_by==0 的无引用孤儿
+        （删除安全，不破坏其他节点的边）；False: 全部 pending（含被引用项，
+        危险，仅显式授权时用）。
+        逐项 execute_cleanup（各自事务），部分失败不影响其余。
+        """
+        rows = (await pg_session.execute(
+            select(OrphanCleanupQueue).where(OrphanCleanupQueue.status == STATUS_PENDING)
+        )).scalars().all()
+
+        if only_no_reference:
+            rows = [r for r in rows if (r.detail or {}).get("referenced_by", 0) == 0]
+
+        processed = 0
+        deleted = 0
+        errors: list[str] = []
+        for item in rows:
+            res = await self.execute_cleanup(pg_session, item.id, action=action, actor=actor)
+            if "error" in res:
+                errors.append(f"{item.node_type}:{item.name} -> {res['error']}")
+            else:
+                processed += 1
+                deleted += int(res.get("deleted", 0))
+        return {"processed": processed, "deleted": deleted, "errors": errors}
+
 
 __all__ = [
     "RepairEngine",
