@@ -176,7 +176,7 @@ function handleRemove() {
           将简历文件拖到此处
         </div>
         <div class="upload-hint">
-          支持 PDF、DOC、DOCX 格式，最大 10MB
+          支持 PDF、DOCX 格式，最大 10MB
         </div>
         <label class="upload-btn">
           选择文件
