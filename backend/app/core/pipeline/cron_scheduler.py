@@ -216,6 +216,16 @@ async def _run_daily_reconcile(session: AsyncSession) -> None:
         result.orphans_pruned,
     )
 
+    # Phase 19 D-02/D-04: reconcile 时全量重算 Skill.trust_score（§6.2 四因子），
+    # 覆盖历史 0.5 脏数据（投影不写 trust_score 时代的默认值）
+    try:
+        from app.services.graph_sync import recompute_skill_trust
+
+        trust_result = await recompute_skill_trust(session, resources.neo4j_driver)
+        logger.info("Daily reconcile trust recompute: {}", trust_result)
+    except Exception as exc:  # noqa: BLE001 — 重算失败不阻断 reconcile 主体
+        logger.warning("recompute_skill_trust failed (non-blocking): {}", exc)
+
     # Write audit event for health monitoring
     try:
         import uuid as _uuid

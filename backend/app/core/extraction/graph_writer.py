@@ -525,12 +525,24 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
     """
     from neo4j.exceptions import Neo4jError
 
+    # Phase 19: 投影落 trust_score（§6.2 四因子公式）——修复"投影不写信任 → 新技能
+    # Neo4j 无 trust_score / 全 0.5 脏数据"根因。metadata 带 confidence（抽取置信度）
+    # 与 last_detected_at；缺失时 scorer 内部兜底（conf→0.5, time→按来源数）。
+    from app.core.trust.entity_trust import EntityTrustScorer  # noqa: PLC0415
+
+    _meta = metadata or {}
+    _trust = EntityTrustScorer().score(
+        source_count=int(_meta.get("source_count") or 1),
+        confidence=_meta.get("confidence"),
+        last_detected_at=_meta.get("last_detected_at"),
+    )
     props = _clean_properties(
         {
-            **(metadata or {}),
-            "proficiency": normalize_proficiency((metadata or {}).get("proficiency") or (metadata or {}).get("level")),
-            "source_count": int((metadata or {}).get("source_count") or 1),
-            "trend": (metadata or {}).get("trend") or "stable",
+            **_meta,
+            "proficiency": normalize_proficiency(_meta.get("proficiency") or _meta.get("level")),
+            "source_count": int(_meta.get("source_count") or 1),
+            "trend": _meta.get("trend") or "stable",
+            "trust_score": _trust,
         }
     )
     merge_props = {key: value for key, value in props.items() if key != "source_count"}
@@ -695,6 +707,8 @@ async def write_extraction_to_graph(
                 "category": skill_entry_category(entry),
                 "source_count": _skill_entry_source_count(entry),
                 "trend": _skill_entry_trend(entry),
+                # Phase 19: 抽取置信度透传 → merge_skill 计算 trust_score（§6.2）
+                "confidence": _skill_entry_confidence(entry),
             }
             try:
                 await merge_skill(driver, skill_name, metadata, canonical_id=skill_cids.get(skill_name))

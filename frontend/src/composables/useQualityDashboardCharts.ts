@@ -65,7 +65,7 @@ export function useQualityDashboardCharts(store: QualityStore) {
         sub: m.total_extractions === 0
           ? '— 待评估'
           : `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
-        caption: `Neo4j Skill.trust_score 均值（来源: avg_skill_trust 共享指标模块）`,
+        caption: `§6.2 四因子综合信任度均值（来源多样性/抽取置信/多源验证/时间衰减）`,
         tooltip: `🎯 数据可信度：所有技能节点 trust_score 的平均值（0-100%）。\n\n` +
           `• ≥ 75% = 健康（绿）\n` +
           `• 50-75% = 中等（黄）\n` +

@@ -384,10 +384,31 @@ class TestRetryFunctions:
         drv = FakeDriver(FakeAsyncSession(run_side_effect=FakeAsyncResult([{"s": {"name": "Python"}}])))
         assert (await merge_skill(drv, "Python", {"proficiency": "advanced", "source_count": 2}))["name"] == "Python"
 
+    # Phase 19: 投影落 trust_score（§6.2 四因子）——断言 Cypher props 含 trust_score
     @pytest.mark.asyncio
-    async def test_merge_skill_no_metadata(self):
-        drv = FakeDriver(FakeAsyncSession(run_side_effect=FakeAsyncResult([{"s": {"name": "Go"}}])))
+    async def test_merge_skill_writes_trust_score(self):
+        fake = FakeAsyncSession(run_side_effect=FakeAsyncResult([{"s": {"name": "Python"}}]))
+        drv = FakeDriver(fake)
+        await merge_skill(
+            drv, "Python",
+            {"source_count": 5, "confidence": 0.9, "proficiency": "advanced"},
+        )
+        # 断言传给 Cypher 的 props 含 trust_score（Fake record["s"] 只是模拟节点，不含属性）
+        sent_props = fake.calls[0][1].get("props", {})
+        assert "trust_score" in sent_props
+        trust = float(sent_props["trust_score"])
+        assert 0.0 <= trust <= 1.0
+        # source=5→sqrt(0.5)≈0.707, conf=0.9, cross=1.0, time 缺省→0 → 0.3*.707+0.3*.9+0.25 = 0.737
+        assert trust > 0.5
+
+    @pytest.mark.asyncio
+    async def test_merge_skill_no_metadata_still_writes_trust(self):
+        fake = FakeAsyncSession(run_side_effect=FakeAsyncResult([{"s": {"name": "Go"}}]))
+        drv = FakeDriver(fake)
         await merge_skill(drv, "Go", None)
+        sent_props = fake.calls[0][1].get("props", {})
+        assert "trust_score" in sent_props  # 无 metadata 也落 trust_score（兜底计算）
+        assert 0.0 <= float(sent_props["trust_score"]) <= 1.0
 
     @pytest.mark.asyncio
     async def test_merge_skill_none_record(self):

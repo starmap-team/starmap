@@ -15,6 +15,57 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.exceptions import GraphProjectionError
 
 
+async def recompute_skill_trust(session: Any, driver: Any) -> dict[str, Any]:
+    """全量重算 Skill 节点 trust_score（Phase 19 D-02/D-04）。
+
+    用 §6.2 四因子公式(EntityTrustScorer)对全部 SkillRecord 重算信任度并写回 Neo4j，
+    覆盖历史 0.5 脏数据（投影不写 trust_score 时代的默认值）。幂等：重复调用结果一致。
+
+    Returns: {"skills": n, "updated": m}
+    """
+    from sqlalchemy import select
+
+    from app.core.trust.entity_trust import EntityTrustScorer
+    from app.models.extraction_models import JDExtractionRecord, SkillRecord
+
+    if driver is None:
+        return {"skills": 0, "updated": 0}
+
+    # 1. 全部技能 + 其最近一条抽取置信度（按技能名匹配，取最新）
+    skill_rows = (
+        await session.execute(
+            select(SkillRecord.id, SkillRecord.name, SkillRecord.source_count, SkillRecord.last_detected_at)
+        )
+    ).all()
+    conf_stmt = (
+        select(JDExtractionRecord.job_title, JDExtractionRecord.confidence)
+        .order_by(JDExtractionRecord.created_at.desc())
+    )
+    conf_rows = (await session.execute(conf_stmt)).all()
+    conf_by_title: dict[str, float | None] = {}
+    for title, conf in conf_rows:
+        conf_by_title.setdefault(title or "", conf)
+
+    scorer = EntityTrustScorer()
+    updated = 0
+    async with driver.session() as neo4j_session:
+        for row in skill_rows:
+            trust = scorer.score(
+                source_count=int(row.source_count or 0),
+                confidence=conf_by_title.get(row.name),
+                last_detected_at=row.last_detected_at,
+            )
+            await neo4j_session.run(
+                "MATCH (s:Skill {canonical_id: $cid}) "
+                "SET s.trust_score = $trust, s.trust_updated_at = datetime()",
+                cid=str(row.id),
+                trust=trust,
+            )
+            updated += 1
+    logger.info("recompute_skill_trust: {} skills, {} updated", len(skill_rows), updated)
+    return {"skills": len(skill_rows), "updated": updated}
+
+
 async def sync_from_pipeline(
     run_id: str,
     new_skills: list[dict[str, Any]] | None = None,
