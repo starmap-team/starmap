@@ -172,29 +172,11 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     # Phase 19 D-03: 直方图改用 §6.2 四因子综合信任度分布（与 KPI avg(n.trust_score) 同口径）。
     # 修复前用 source_count/10（频次当信任度代理），把"低频=冷门"误判为"低信任"（两极分化失真）。
     # 现在从 PG 用 EntityTrustScorer 计算每个技能的真实信任度分桶，不依赖 Neo4j 时序。
-    from app.core.trust.entity_trust import EntityTrustScorer  # noqa: PLC0415
+    # 层边界修复（2026-08-14）：实现迁至 quality_service.compute_trust_distribution，
+    # 路由不再直连 app.core.trust（api/v1 → services → core）。
+    from app.services.quality_service import compute_trust_distribution  # noqa: PLC0415
 
-    _trust_scorer = EntityTrustScorer()
-    _trust_scores: list[float] = []
-    _skill_trust_rows = (
-        await session.execute(
-            sa.select(SkillRecord.source_count, SkillRecord.last_detected_at)
-        )
-    ).all()
-    for _row in _skill_trust_rows:
-        _trust_scores.append(_trust_scorer.score(
-            source_count=int(_row.source_count or 0),
-            confidence=None,  # PG 侧置信度在抽取记录表，逐技能关联成本高；source+time 已够分桶
-            last_detected_at=_row.last_detected_at,
-        ))
-    trust_distribution = []
-    trust_ranges = [
-        ("0-20%", 0, 0.2), ("20-40%", 0.2, 0.4), ("40-60%", 0.4, 0.6),
-        ("60-80%", 0.6, 0.8), ("80-100%", 0.8, 1.01),
-    ]
-    for label, lo, hi in trust_ranges:
-        cnt = sum(1 for t in _trust_scores if lo <= t < hi)
-        trust_distribution.append({"range": label, "count": int(cnt)})
+    trust_distribution = await compute_trust_distribution(session)
 
     # Build hallucination trend from skill_timeseries data (real data only)
     from app.repositories.quality_repo import fetch_hallucination_trend

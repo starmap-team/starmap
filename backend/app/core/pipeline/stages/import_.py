@@ -45,6 +45,10 @@ def execute_import(run_id: str) -> dict[str, Any]:
     from app.tasks.stage3_services import run_batch_extract_jd
 
     processed = 0
+    # 2026-08-14 门禁修复: total 原仅在 DB 查询成功后赋值（len(jd_texts)），
+    # 而 except/finally 返回路径无条件引用它 → DB 不可达时 UnboundLocalError。
+    # 提前初始化为 0，失败路径返回 {current_activity: 无可提取记录} 优雅降级。
+    total = 0
     errors: list[str] = []
     extracted_skills_sample: list[dict[str, Any]] = []
     start = time.monotonic()
