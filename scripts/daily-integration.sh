@@ -53,7 +53,10 @@ done
 # 4. 加载演示种子数据（如果是空库）
 echo "" | tee -a "$REPORT"
 echo "[4/6] 检查/加载演示种子数据..." | tee -a "$REPORT"
-docker compose -f docker-compose.dev.yml exec -T backend python seed_loader.py --profile demo --if-empty 2>&1 | tee -a "$REPORT" || echo "  (种子加载跳过或已完成)"
+# 2026-08-14 门禁修复: 原引用不存在的 seed_loader.py --profile demo --if-empty
+# （容器内亦无该文件）。改用真实脚本 seed_demo_data.py（项目根 + PYTHONPATH=backend
+# 或 venv 环境；APP_ENV=production 时脚本自行拒绝）。环境未就绪时非致命跳过。
+python scripts/seed_demo_data.py 2>&1 | tee -a "$REPORT" || echo "  (种子加载跳过或已完成)"
 
 # 5. 运行 E2E 冒烟测试
 echo "" | tee -a "$REPORT"
