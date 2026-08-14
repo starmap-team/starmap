@@ -87,6 +87,9 @@ export interface PipelineStatus {
   total_jd_raw?: number      // jd_raw 全表行数（历史累计）
   success_rate: number
   avg_quality_score: number
+  // 跨模块联动 (2026-08-14): 待审岗位/技能数（与 admin 内容审核同口径）
+  pending_review_positions?: number
+  pending_review_skills?: number
 }
 
 export interface DataQualityMetrics {

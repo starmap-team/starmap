@@ -6160,6 +6160,12 @@ components:
           type: array
           items:
             type: object
+        pending_review_positions:
+          type: integer
+          description: 待审核岗位数（与 admin 内容审核同口径）
+        pending_review_skills:
+          type: integer
+          description: 待审核技能数（与 admin 内容审核同口径）
     TriggerRequest:
       type: object
       properties:

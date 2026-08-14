@@ -214,7 +214,7 @@ async function handleTriggerSync(row: { id: string; name: string }) {
     await datasource.fetchSources()  // 重新拉取 record_count / avg_q 更新
     ElMessage.success(
       `「${row.name}」同步已启动 (run_id=${(result.run_id ?? '').slice(0, 8)}). ` +
-      `完成后 record_count 会更新。`,
+      `完成后 record_count 会更新，新增岗位/技能将进入「内容审核」待审队列。`,
     )
   } catch (e: unknown) {
     ElMessage.error(`同步失败: ${e instanceof Error ? e.message : '未知错误'}`)

@@ -277,6 +277,19 @@ export function usePipelineMonitor() {
         icon: 'Connection',
         trend: 'stable',
       },
+      {
+        // 2026-08-14: 跨模块联动——数据产出后的去向（与 admin 内容审核同口径）
+        label: '待审内容',
+        value: typeof s?.pending_review_positions === 'number'
+          ? `${s.pending_review_positions} 岗位`
+          : '--',
+        sub: typeof s?.pending_review_skills === 'number'
+          ? `${s.pending_review_skills} 技能待审核 · 新抽取内容进入内容审核队列`
+          : '加载中...',
+        color: colors.warning,
+        icon: 'DocumentChecked',
+        trend: 'stable',
+      },
     ]
   })
 

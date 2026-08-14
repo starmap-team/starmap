@@ -69,7 +69,10 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
     } else if (fetched === 0) {
       ElMessage.warning(`${getSourceNameLabel(source.name)} 立即采集：本次未获取到职位（远程平台可能限流或暂无数据）`)
     } else if (inserted > 0) {
-      ElMessage.success(`${getSourceNameLabel(source.name)} 立即采集完成: 在线获取 ${fetched} 条，新增 ${inserted} 条${duplicate ? `，${duplicate} 条已存在` : ''}`)
+      ElMessage.success(
+        `${getSourceNameLabel(source.name)} 立即采集完成: 在线获取 ${fetched} 条，新增 ${inserted} 条` +
+        `${duplicate ? `，${duplicate} 条已存在` : ''}。新增岗位/技能将进入管理后台「内容审核」待审队列。`,
+      )
     } else {
       // 全重复 = 已在线确认平台最新职位均已在库（非失败）
       ElMessage.success(`${getSourceNameLabel(source.name)} 已在线确认最新 ${fetched} 条职位均已在库（平台暂无新职位），最后同步时间已刷新`)

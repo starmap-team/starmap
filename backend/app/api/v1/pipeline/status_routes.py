@@ -129,6 +129,30 @@ async def get_pipeline_status(
     except Exception:
         last_crawl_iso = None
 
+    # 跨模块联动 (2026-08-14): 待审岗位/技能计数——与 admin 内容审核同口径
+    # （position_records / skill_records review_status=pending_review），
+    # 数据产出后的去向指示（新抽取内容进入审核队列）。
+    try:
+        from sqlalchemy import func as _func
+
+        from app.models.extraction_models import PositionRecord, SkillRecord
+
+        pending_review_positions = int(
+            (await session.execute(
+                select(_func.count()).select_from(PositionRecord)
+                .where(PositionRecord.review_status == "pending_review")
+            )).scalar() or 0
+        )
+        pending_review_skills = int(
+            (await session.execute(
+                select(_func.count()).select_from(SkillRecord)
+                .where(SkillRecord.review_status == "pending_review")
+            )).scalar() or 0
+        )
+    except Exception:  # noqa: BLE001 — 联动计数失败不阻断状态响应
+        pending_review_positions = 0
+        pending_review_skills = 0
+
     return PipelineStatusResponse(
         is_running=data["is_running"],
         current_run=PipelineRunResponse(**data["current_run"]) if data["current_run"] else None,
@@ -142,6 +166,8 @@ async def get_pipeline_status(
         success_rate=aggregates["success_rate"],
         avg_quality_score=aggregates["avg_quality_score"],
         quality_alerts=quality_alerts,
+        pending_review_positions=pending_review_positions,
+        pending_review_skills=pending_review_skills,
     )
 
 

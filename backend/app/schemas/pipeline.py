@@ -61,6 +61,9 @@ class PipelineStatusResponse(BaseModel):
     success_rate: float = Field(0.0, ge=0.0, le=1.0, description="7-day completed/(completed+failed)")
     avg_quality_score: float = Field(0.0, ge=0.0, le=1.0, description="7-day avg quality_score")
     quality_alerts: list[QualityAlertItem] = Field(default_factory=list)
+    # 跨模块联动 (2026-08-14): 待审岗位/技能数（与 admin 内容审核同口径，数据产出后的去向指示）
+    pending_review_positions: int = Field(0, ge=0, description="待审核岗位数（position_records.review_status=pending_review）")
+    pending_review_skills: int = Field(0, ge=0, description="待审核技能数（skill_records.review_status=pending_review）")
 
 
 class TriggerRequest(BaseModel):
