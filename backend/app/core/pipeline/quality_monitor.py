@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import statistics
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
@@ -60,6 +60,11 @@ DEFAULT_THRESHOLDS = {
     "max_freshness_hours": 48,
     "min_completeness": 0.80,
     "volume_anomaly_z": 2.0,  # z-score for volume anomaly
+    # 2026-08-14 门禁修复: 失败运行告警窗口 — 此前统计 all-time 失败数，croniter
+    # bug 时代累积的 297 次永久触发 critical 告警，每次轮询/SSE 重发 → 事件流刷屏。
+    # 告警本意是"近期失败爆发"，改为近 N 小时窗口（默认 24h）。
+    "max_failed_runs": 3,
+    "max_failed_runs_window_hours": 24,
 }
 
 
@@ -188,6 +193,9 @@ async def generate_alerts(
     """Scan current state and return any active quality alerts."""
     if thresholds is None:
         thresholds = DEFAULT_THRESHOLDS
+    # 2026-08-14: 统一在函数顶部取 now（此前只在"有 last_crawl_at 的源"分支
+    # 赋值，无源/无 last_crawl_at 时后续失败运行检查引用 now → UnboundLocalError）
+    now = datetime.now(UTC)
 
     # 数据源内部标识 → 中文展示名（对齐前端 SOURCE_NAME_LABELS，中文化 message）
     site_labels: dict[str, str] = {
@@ -261,7 +269,6 @@ async def generate_alerts(
 
         # Stale data
         if src.last_crawl_at is not None:
-            now = datetime.now(UTC)
             last = src.last_crawl_at.replace(tzinfo=UTC) if src.last_crawl_at.tzinfo is None else src.last_crawl_at
             hours_since = (now - last).total_seconds() / 3600.0
             if hours_since > thresholds["max_freshness_hours"]:
@@ -277,20 +284,27 @@ async def generate_alerts(
                     threshold=thresholds["max_freshness_hours"],
                 ))
 
-    # 2. Check for failed pipeline runs
+    # 2. Check for failed pipeline runs (近 24h 窗口 — 2026-08-14 修复，见
+    #    DEFAULT_THRESHOLDS.max_failed_runs_window_hours 注释)
+    _fail_window_h = int(thresholds.get("max_failed_runs_window_hours", 24))
     failed_result = await session.execute(
         select(func.count())
         .select_from(PipelineRun)
-        .where(PipelineRun.status == "failed")
+        .where(
+            PipelineRun.status == "failed",
+            PipelineRun.started_at >= now - timedelta(hours=_fail_window_h),
+        )
     )
     recent_failures = failed_result.scalar() or 0
-    if recent_failures > 3:
+    _fail_threshold = int(thresholds.get("max_failed_runs", 3))
+    if recent_failures > _fail_threshold:
         alerts.append(QualityAlert(
             level="critical",
             dimension="pipeline_failures",
-            message=f"流水线累计 {recent_failures} 次失败运行（阈值 {thresholds.get('max_failed_runs', 3)} 次）",
+            message=f"流水线近 {_fail_window_h} 小时 {recent_failures} 次失败运行"
+                    f"（阈值 {_fail_threshold} 次）",
             value=float(recent_failures),
-            threshold=3.0,
+            threshold=float(_fail_threshold),
         ))
 
     return alerts
