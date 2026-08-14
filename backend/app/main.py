@@ -49,6 +49,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """应用生命周期：启动时初始化连接，关闭时释放。"""
     logger.info("StarMap 启动中... env={}", settings.app_env)
     app.state.resources = await init_resources()
+    # CONCERN 2.3 (reliability audit 2026-08-15): log the effective rate-limit
+    # knobs at startup so operators can verify staging/prod parity without
+    # inspecting env vars. ``rate_limit_storage`` reports which backend will
+    # serve the counters ("redis" if a Redis client is attached, else "memory").
+    _rate_limit_storage = (
+        "redis" if getattr(app.state.resources, "redis_client", None) is not None
+        else "memory"
+    )
+    logger.info(
+        "RateLimitMiddleware active: rate_limit_max={} rate_limit_window={}s "
+        "rate_limit_storage={}",
+        settings.rate_limit_max,
+        settings.rate_limit_window,
+        _rate_limit_storage,
+    )
     # 2026-08-08: 启动时把 prompt_versions 表（管理后台注册的自定义版本/活跃选择）
     # 合并进内存注册表，避免重启丢失（此前仅存进程内存）
     if resources.pg_sessionmaker is not None:
