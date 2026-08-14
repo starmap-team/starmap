@@ -132,3 +132,10 @@ class QualityAlertsResponse(BaseModel):
     warning: int = 0
     info: int = 0
     alerts: list[AlertItem] = Field(default_factory=list)
+
+
+class AlertHandleRequest(BaseModel):
+    """告警处理请求：action = resolve | ignore。"""
+
+    id: str = Field(..., description="告警稳定标识（dimension:source）")
+    action: str = Field(..., description="'resolve' | 'ignore'")

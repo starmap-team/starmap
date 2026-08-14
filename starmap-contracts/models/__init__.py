@@ -79,6 +79,13 @@ class ExtractionResult(BaseModel):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="抽取置信度")
     hallucination_score: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="幻觉风险评分")
     normalized_skills: list[NormalizedSkill] = Field(default_factory=list, description="归一化后的技能列表")
+    tools: list[str] = Field(default_factory=list, description="工具技能")
+    learning_resources: list[str] = Field(default_factory=list, description="学习资源")
+    evolves_to: list[str] = Field(default_factory=list, description="可演化岗位")
+    hallucinated_skills: list[str] = Field(default_factory=list, description="幻觉技能")
+    missing_skills: list[str] = Field(default_factory=list, description="缺失技能")
+    issues: list[str] = Field(default_factory=list, description="抽取问题")
+    model_used: Optional[str] = Field(default=None, description="实际使用的模型")
 
 
 class SkillNode(BaseModel):
@@ -149,6 +156,9 @@ class MatchResult(BaseModel):
     overall_assessment: str = Field(default="", description="总体评估")
     estimated_learning_time: str = Field(default="", description="预计学习时长")
     cii: Optional[float] = Field(default=None, description="CII 评分")
+    trust_score: float = Field(default=0.0, description="信任度评分")
+    score_breakdown: Optional[dict[str, Any]] = Field(default=None, description="匹配得分分解")
+    note: Optional[str] = Field(default=None, description="附加说明")
 
 
 class SkillGapDetail(BaseModel):
@@ -361,6 +371,9 @@ class ChangelogEntry(BaseModel):
     confidence: float = Field(description="")
     status: Optional[str] = Field(default=None, description="审核状态: pending, approved, rejected")
     created_at: str = Field(description="")
+    position_name: str = Field(default="", description="岗位名称")
+    written_back: bool = Field(default=False, description="是否已写回")
+    evidence_json: Optional[dict[str, Any]] = Field(default=None, description="证据明细")
 
 class ComprehensiveReport(BaseModel):
     jd_report: Optional[QualityReport] = Field(default=None, description="")
@@ -493,6 +506,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class GraphNodeItem(BaseModel):
     id: Optional[str] = Field(default=None, description="")
+    element_id: Optional[str] = Field(default=None, description="Neo4j element id")
     type: str = Field(description="Node label: Position, Skill, Tool, KnowledgeArea")
     name: str = Field(description="")
     properties: Optional[dict[str, Any]] = Field(default=None, description="")
@@ -615,6 +629,8 @@ class PipelineStatusResponse(BaseModel):
     success_rate: float = Field(description="")
     avg_quality_score: float = Field(description="")
     quality_alerts: Optional[list[dict[str, Any]]] = Field(default=None, description="")
+    pending_review_positions: int = Field(default=0, description="待审岗位数")
+    pending_review_skills: int = Field(default=0, description="待审技能数")
 
 class PipelineTriggerResponse(BaseModel):
     run_id: str = Field(description="")
@@ -631,6 +647,11 @@ class PortabilityDetail(BaseModel):
     transferability_tier: str = Field(description="")
     related_skills: Optional[list[str]] = Field(default=None, description="")
     recommendation: Optional[str] = Field(default=None, description="")
+
+class OrphanBackfillResponse(BaseModel):
+    backfilled: int = Field(default=0, description="回填 skill_records 的技能数")
+    linked: int = Field(default=0, description="链接 canonical_id 的技能数")
+    errors: list[str] = Field(default_factory=list, description="失败明细")
 
 class QualityAlertsResponse(BaseModel):
     total: int = Field(description="")

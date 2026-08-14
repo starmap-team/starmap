@@ -6,9 +6,7 @@ severity="ok"，D-06 告警是 no-op。现实现真实 PG/Neo4j 计数。
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from app.services.pipeline_consistency import check_pg_neo4j_consistency
 
