@@ -26,10 +26,24 @@ async function _doBootstrap(): Promise<boolean> {
   const store = useUserStore()
   store.initUser()
 
-  // ponytail: dev-token short-circuit — backend dev mode accepts it,
-  // skip /auth/me (which 401s on the fake JWT) and trust cached user.
+  // 2026-08-14 规范驱动改进 (deep-interview): dev-token 不再信任缓存用户。
+  // 后端 get_current_user 对 dev-token 走 is_dev_token_allowed → dev_token_identity()
+  // （role=viewer，除非 dev_anon_admin=true）。直接调 /auth/me 拉服务端真实角色，
+  // 消除"前端缓存 admin、后端 viewer"的 403 不一致（strict viewer 语义）。
   if (store.accessToken === 'dev-token') {
-    return store.user !== null
+    try {
+      const me = (await request.get('/auth/me')) as {
+        username: string; role: string; id: string; must_change_password: boolean
+      }
+      store.setUser({
+        id: me.id, sub: me.username, username: me.username,
+        role: me.role, must_change_password: me.must_change_password,
+      })
+      return true
+    } catch {
+      store.clearUser()
+      return false
+    }
   }
 
   const rt = store.refreshToken

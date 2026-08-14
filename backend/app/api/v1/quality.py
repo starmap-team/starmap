@@ -277,7 +277,12 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     if not baseline_available:
         evaluation_explanation = (
             "尚未运行 golden-set 评估（评估记录 0 条），precision/recall/F1 暂不可信；"
-            "红色仅表示“未评估”，不代表抽取质量差。请触发一次评估（/quality/evaluate）以建立基线。"
+            "红色仅表示“未评估”，不代表抽取质量差。"
+            # 2026-08-14 规范驱动改进 (deep-interview): 文案指向真实写入端点。
+            # /quality/evaluate 仅只读算分，不写 ExtractionEvaluationRecord；
+            # 建立基线需提供 backend/data/resume_golden_set.json 后调用
+            # /quality/evaluate/resume（golden set 缺失时返回 No golden samples found）。
+            "建立基线需提供 resume golden set 后调用 /quality/evaluate/resume。"
         )
         report.warning_level = "gray"  # 顶层告警降级，避免误报红色
     else:

@@ -231,7 +231,10 @@ async def generate_alerts(
 
     for src in sources:
         # Low quality score
-        if src.avg_quality_score < thresholds["min_quality_score"]:
+        # 2026-08-14 规范驱动改进 (deep-interview): 0 记录源（未接入的 BOSS直聘/
+        # ESCO/拉勾网等 valid_records=0）质量分恒 0.000 会持续误报 low_quality
+        # 噪音；无数据无从评估质量，跳过（freshness/duplicate 等维度不受影响）。
+        if src.valid_records > 0 and src.avg_quality_score < thresholds["min_quality_score"]:
             alerts.append(QualityAlert(
                 level="warning",
                 dimension="low_quality",
