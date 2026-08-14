@@ -164,6 +164,15 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "RTOS": ["rtos", "real time os", "real time operating system"],
     "FreeRTOS": ["freertos", "free rtos", "free real time os"],
     "Zephyr": ["zephyr", "zephyr os", "zephyr rtos"],
+    # 2026-08-15 F1 优化: 补嵌入式/测试域技能 — dict 后过滤只保留词汇表内技能，
+    # 词汇表外真技能被误删（评估 F1 0.857 主因：Communication Protocols 等 4 项漏检）。
+    "Embedded Linux": ["embedded linux", "embedded linux development", "embedded linux system"],
+    "Microcontrollers": ["microcontrollers", "microcontroller", "mcu", "stm32", "esp32"],
+    "Assembly": ["assembly", "assembly language", "assembly programming"],
+    "Communication Protocols": ["communication protocols", "communication protocol", "comm protocols"],
+    "PCB Design": ["pcb design", "pcb layout", "pcb design tool"],
+    "Debugging": ["debugging", "debugger", "gdb", "kernel debugging"],
+    "Testing": ["testing", "software testing", "unit testing", "integration testing", "自动化测试"],
     # ---- Blockchain ----
     "Solidity": ["solidity", "solidity lang", "solidity contract"],
     "Ethereum": ["ethereum", "eth", "ethereum blockchain"],

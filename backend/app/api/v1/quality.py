@@ -1,6 +1,7 @@
 """质量监控 API。对应§7.4 图谱质量仪表盘。"""
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Annotated
 
 import sqlalchemy as sa
@@ -61,11 +62,15 @@ def _warning_level(f1: float, hallucination_rate: float, total_extractions: int 
 
 
 async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
+    # 2026-08-15 F1 优化: 取"最新一轮评估"而非全史平均 — 每次 /evaluate/resume
+    # 追加记录，全史平均会被旧基线稀释（如 0.857→0.894→0.956 的历史混合）。
+    # 以 max(evaluated_at) 前 5 秒窗口圈定最近一轮（同批记录微秒级差异）。
+    _latest_run_ts = sa.select(sa.func.max(ExtractionEvaluationRecord.evaluated_at)).scalar_subquery()
     metrics_stmt = sa.select(
         sa.func.coalesce(sa.func.avg(ExtractionEvaluationRecord.precision), 0.0),
         sa.func.coalesce(sa.func.avg(ExtractionEvaluationRecord.recall), 0.0),
         sa.func.coalesce(sa.func.avg(ExtractionEvaluationRecord.f1_score), 0.0),
-    )
+    ).where(ExtractionEvaluationRecord.evaluated_at >= _latest_run_ts - timedelta(seconds=5))
     precision, recall, f1 = (await session.execute(metrics_stmt)).one()
 
     extraction_counts_stmt = sa.select(

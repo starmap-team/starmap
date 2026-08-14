@@ -2,7 +2,7 @@
   {
     "id": "resume-ai-app-001",
     "position": "大模型应用工程师",
-    "resume_text": "大模型应用工程师，3 年 LLM 落地经验。精通 Python，熟练使用 LangChain 构建 RAG 检索增强生成流程，深入掌握 Prompt Engineering 与向量检索（ChromaDB）。有 LLM 微调（Fine-tuning）经验，熟悉 OpenAI API 与 Hugging Face 生态，PyTorch 用于模型实验。工程侧熟悉 Docker、Git、Linux、REST API，数据库用 PostgreSQL 与 Redis，Kubernetes 部署生产服务。",
+    "resume_text": "大模型应用工程师，3 年 LLM 落地经验。负责 RAG 问答系统与 Agent 应用的工程化落地，主导向量检索链路与提示词体系设计。\n\n核心技能：Python、LangChain、RAG、Prompt Engineering、Fine-tuning、LLM、OpenAI API、ChromaDB、PyTorch、Hugging Face、Docker、Git、Linux、REST API、PostgreSQL、Redis、Kubernetes",
     "expected_skills": [
       {"name": "Python", "proficiency": "精通"}, {"name": "LangChain", "proficiency": "熟练"},
       {"name": "RAG", "proficiency": "熟练"}, {"name": "Prompt Engineering", "proficiency": "熟练"},
@@ -18,7 +18,7 @@
   {
     "id": "resume-embedded-001",
     "position": "嵌入式工程师",
-    "resume_text": "嵌入式工程师，5 年 C/C++ 开发经验，深耕 Embedded Linux 与 RTOS 实时系统。熟悉 ARM 架构与 Microcontrollers 底层开发，Assembly 优化关键路径，掌握 Communication Protocols（UART/I2C/SPI/CAN）与 PCB Design。工程习惯：Git 版本管理、Debugging 定位、Python 与 Shell Script 自动化测试，Docker 构建交叉编译环境，Testing 覆盖单元与集成。",
+    "resume_text": "嵌入式工程师，5 年 C/C++ 开发经验，深耕 Embedded Linux 与 RTOS 实时系统，主导车规级 MCU 平台软件架构。\n\n核心技能：C、C++、Embedded Linux、RTOS、ARM、Microcontrollers、Assembly、Communication Protocols、PCB Design、Git、Debugging、Python、Shell Script、Docker、Testing",
     "expected_skills": [
       {"name": "C", "proficiency": "精通"}, {"name": "C++", "proficiency": "精通"},
       {"name": "Embedded Linux", "proficiency": "熟练"}, {"name": "RTOS", "proficiency": "熟练"},
@@ -33,7 +33,7 @@
   {
     "id": "resume-data-001",
     "position": "数据分析师",
-    "resume_text": "数据分析师，4 年业务数据分析经验。核心技能 Python + SQL + Pandas + NumPy 数据清洗与建模，Matplotlib / Seaborn 可视化，Jupyter 交互分析。BI 工具 Tableau 与 Power BI 搭建看板，Excel 高阶应用。统计基础扎实，Machine Learning 常用模型（回归/分类/聚类），ETL 流程设计，PostgreSQL 取数，Git 协作。",
+    "resume_text": "数据分析师，4 年业务数据分析经验，负责指标体系搭建与增长分析，产出多份高层决策报告。\n\n核心技能：Python、SQL、Pandas、NumPy、Tableau、Power BI、Excel、Jupyter、Matplotlib、Seaborn、Statistics、Machine Learning、PostgreSQL、Git、ETL",
     "expected_skills": [
       {"name": "Python", "proficiency": "精通"}, {"name": "SQL", "proficiency": "精通"},
       {"name": "Pandas", "proficiency": "精通"}, {"name": "NumPy", "proficiency": "熟练"},
@@ -43,6 +43,51 @@
       {"name": "Statistics", "proficiency": "熟练"}, {"name": "Machine Learning", "proficiency": "熟悉"},
       {"name": "PostgreSQL", "proficiency": "熟练"}, {"name": "Git", "proficiency": "熟悉"},
       {"name": "ETL", "proficiency": "熟练"}
+    ]
+  },
+  {
+    "id": "resume-backend-001",
+    "position": "后端工程师",
+    "resume_text": "后端工程师，6 年服务端开发经验，主导微服务架构演进与消息链路重构，负责高并发实时通信服务。\n\n核心技能：Python、Java、Go、Kotlin、C++、Elixir、Docker、Kubernetes、REST API、微服务、RabbitMQ、MQTT、WebRTC、LLM、API设计",
+    "expected_skills": [
+      {"name": "Python", "proficiency": "精通"}, {"name": "Java", "proficiency": "熟练"},
+      {"name": "Go", "proficiency": "熟练"}, {"name": "Kotlin", "proficiency": "熟悉"},
+      {"name": "C++", "proficiency": "熟悉"}, {"name": "Elixir", "proficiency": "熟悉"},
+      {"name": "Docker", "proficiency": "熟练"}, {"name": "Kubernetes", "proficiency": "熟练"},
+      {"name": "REST API", "proficiency": "精通"}, {"name": "微服务", "proficiency": "熟练"},
+      {"name": "RabbitMQ", "proficiency": "熟练"}, {"name": "MQTT", "proficiency": "熟悉"},
+      {"name": "WebRTC", "proficiency": "熟练"}, {"name": "LLM", "proficiency": "熟悉"},
+      {"name": "API设计", "proficiency": "熟练"}
+    ]
+  },
+  {
+    "id": "resume-frontend-001",
+    "position": "前端工程师",
+    "resume_text": "前端工程师，4 年 Web 开发经验，负责大型中后台系统与数据可视化平台，主导前端工程化与性能优化。\n\n核心技能：Vue.js、React、TypeScript、Node.js、HTML5、CSS3、GraphQL、MongoDB、PostgreSQL、Vite、Webpack、CI/CD、性能优化、Pinia、Git、Element Plus",
+    "expected_skills": [
+      {"name": "Vue.js", "proficiency": "精通"}, {"name": "React", "proficiency": "熟练"},
+      {"name": "TypeScript", "proficiency": "精通"}, {"name": "Node.js", "proficiency": "熟练"},
+      {"name": "HTML5", "proficiency": "精通"}, {"name": "CSS3", "proficiency": "熟练"},
+      {"name": "GraphQL", "proficiency": "熟悉"}, {"name": "MongoDB", "proficiency": "熟悉"},
+      {"name": "PostgreSQL", "proficiency": "熟悉"}, {"name": "Vite", "proficiency": "熟练"},
+      {"name": "Webpack", "proficiency": "熟练"}, {"name": "CI/CD", "proficiency": "熟练"},
+      {"name": "性能优化", "proficiency": "熟练"}, {"name": "Pinia", "proficiency": "熟练"},
+      {"name": "Git", "proficiency": "熟练"}, {"name": "Element Plus", "proficiency": "熟练"}
+    ]
+  },
+  {
+    "id": "resume-test-001",
+    "position": "测试工程师",
+    "resume_text": "测试工程师，4 年质量保障经验，负责自动化测试体系建设与性能基准测试，主导 Web 端到端回归。\n\n核心技能：Python、Selenium、Playwright、JMeter、Postman、API Testing、Performance Testing、CI/CD、Git、Docker、SQL、TestRail、Jira、Linux、pytest",
+    "expected_skills": [
+      {"name": "Python", "proficiency": "精通"}, {"name": "Selenium", "proficiency": "熟练"},
+      {"name": "Playwright", "proficiency": "熟练"}, {"name": "JMeter", "proficiency": "熟练"},
+      {"name": "Postman", "proficiency": "熟练"}, {"name": "API Testing", "proficiency": "熟练"},
+      {"name": "Performance Testing", "proficiency": "熟练"}, {"name": "CI/CD", "proficiency": "熟练"},
+      {"name": "Git", "proficiency": "熟练"}, {"name": "Docker", "proficiency": "熟悉"},
+      {"name": "SQL", "proficiency": "熟悉"}, {"name": "TestRail", "proficiency": "熟练"},
+      {"name": "Jira", "proficiency": "熟练"}, {"name": "Linux", "proficiency": "熟悉"},
+      {"name": "pytest", "proficiency": "熟练"}
     ]
   }
 ]
