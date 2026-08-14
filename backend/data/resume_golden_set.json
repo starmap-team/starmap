@@ -1,0 +1,48 @@
+[
+  {
+    "id": "resume-ai-app-001",
+    "position": "大模型应用工程师",
+    "resume_text": "大模型应用工程师，3 年 LLM 落地经验。精通 Python，熟练使用 LangChain 构建 RAG 检索增强生成流程，深入掌握 Prompt Engineering 与向量检索（ChromaDB）。有 LLM 微调（Fine-tuning）经验，熟悉 OpenAI API 与 Hugging Face 生态，PyTorch 用于模型实验。工程侧熟悉 Docker、Git、Linux、REST API，数据库用 PostgreSQL 与 Redis，Kubernetes 部署生产服务。",
+    "expected_skills": [
+      {"name": "Python", "proficiency": "精通"}, {"name": "LangChain", "proficiency": "熟练"},
+      {"name": "RAG", "proficiency": "熟练"}, {"name": "Prompt Engineering", "proficiency": "熟练"},
+      {"name": "Fine-tuning", "proficiency": "熟悉"}, {"name": "LLM", "proficiency": "精通"},
+      {"name": "OpenAI API", "proficiency": "熟悉"}, {"name": "ChromaDB", "proficiency": "熟练"},
+      {"name": "PyTorch", "proficiency": "熟悉"}, {"name": "Hugging Face", "proficiency": "熟悉"},
+      {"name": "Docker", "proficiency": "熟练"}, {"name": "Git", "proficiency": "熟练"},
+      {"name": "Linux", "proficiency": "熟练"}, {"name": "REST API", "proficiency": "熟练"},
+      {"name": "PostgreSQL", "proficiency": "熟悉"}, {"name": "Redis", "proficiency": "熟悉"},
+      {"name": "Kubernetes", "proficiency": "熟悉"}
+    ]
+  },
+  {
+    "id": "resume-embedded-001",
+    "position": "嵌入式工程师",
+    "resume_text": "嵌入式工程师，5 年 C/C++ 开发经验，深耕 Embedded Linux 与 RTOS 实时系统。熟悉 ARM 架构与 Microcontrollers 底层开发，Assembly 优化关键路径，掌握 Communication Protocols（UART/I2C/SPI/CAN）与 PCB Design。工程习惯：Git 版本管理、Debugging 定位、Python 与 Shell Script 自动化测试，Docker 构建交叉编译环境，Testing 覆盖单元与集成。",
+    "expected_skills": [
+      {"name": "C", "proficiency": "精通"}, {"name": "C++", "proficiency": "精通"},
+      {"name": "Embedded Linux", "proficiency": "熟练"}, {"name": "RTOS", "proficiency": "熟练"},
+      {"name": "ARM", "proficiency": "熟练"}, {"name": "Microcontrollers", "proficiency": "熟练"},
+      {"name": "Assembly", "proficiency": "熟悉"}, {"name": "Communication Protocols", "proficiency": "熟练"},
+      {"name": "PCB Design", "proficiency": "熟悉"}, {"name": "Git", "proficiency": "熟练"},
+      {"name": "Debugging", "proficiency": "精通"}, {"name": "Python", "proficiency": "熟悉"},
+      {"name": "Shell Script", "proficiency": "熟练"}, {"name": "Docker", "proficiency": "熟悉"},
+      {"name": "Testing", "proficiency": "熟练"}
+    ]
+  },
+  {
+    "id": "resume-data-001",
+    "position": "数据分析师",
+    "resume_text": "数据分析师，4 年业务数据分析经验。核心技能 Python + SQL + Pandas + NumPy 数据清洗与建模，Matplotlib / Seaborn 可视化，Jupyter 交互分析。BI 工具 Tableau 与 Power BI 搭建看板，Excel 高阶应用。统计基础扎实，Machine Learning 常用模型（回归/分类/聚类），ETL 流程设计，PostgreSQL 取数，Git 协作。",
+    "expected_skills": [
+      {"name": "Python", "proficiency": "精通"}, {"name": "SQL", "proficiency": "精通"},
+      {"name": "Pandas", "proficiency": "精通"}, {"name": "NumPy", "proficiency": "熟练"},
+      {"name": "Tableau", "proficiency": "熟练"}, {"name": "Power BI", "proficiency": "熟练"},
+      {"name": "Excel", "proficiency": "熟练"}, {"name": "Jupyter", "proficiency": "熟练"},
+      {"name": "Matplotlib", "proficiency": "熟练"}, {"name": "Seaborn", "proficiency": "熟练"},
+      {"name": "Statistics", "proficiency": "熟练"}, {"name": "Machine Learning", "proficiency": "熟悉"},
+      {"name": "PostgreSQL", "proficiency": "熟练"}, {"name": "Git", "proficiency": "熟悉"},
+      {"name": "ETL", "proficiency": "熟练"}
+    ]
+  }
+]
