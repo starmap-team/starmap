@@ -60,8 +60,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(
         "RateLimitMiddleware active: rate_limit_max={} rate_limit_window={}s "
         "rate_limit_storage={}",
-        settings.rate_limit_max,
-        settings.rate_limit_window,
+        getattr(settings, "rate_limit_max", "n/a"),
+        getattr(settings, "rate_limit_window", "n/a"),
         _rate_limit_storage,
     )
     # 2026-08-08: 启动时把 prompt_versions 表（管理后台注册的自定义版本/活跃选择）

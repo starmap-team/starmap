@@ -11,16 +11,59 @@ both the rejection path and the boot path. They avoid hitting the live
 ``app.config.settings`` because the CORS-middleware code runs at import
 time and is process-global — each test rewrites the module under a fresh
 import.
+
+Both tests use the `_reload_app_main` helper which **always restores the
+real `app.config.settings` and re-imports `app.main` with the real
+settings in its finally block** so subsequent tests in the same process
+see the production app (otherwise the SimpleNamespace leaks into the
+singleton and the next test's `from app.main import settings` returns
+the fake).
 """
 
 from __future__ import annotations
 
 import importlib
 import sys
+from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+
+
+@contextmanager
+def _reload_app_main(fake_settings: SimpleNamespace | None):
+    """Context manager: pop app.main, import under fake settings, restore.
+
+    Yields the (possibly-rejected) `app.main` module. Always restores the
+    real `app.config.settings` and re-imports `app.main` with real settings
+    on exit so the singleton is left clean for the next test.
+    """
+    # Snapshot the real settings so we can restore it in finally.
+    import app.config as _cfg
+    real_settings = _cfg.settings
+
+    sys.modules.pop("app.main", None)
+    if fake_settings is not None:
+        ctx = patch("app.config.settings", fake_settings, create=True)
+    else:
+        # No fake → just pop & re-import with real settings to get a clean module.
+        ctx = _nullcontext()
+    try:
+        with ctx:
+            module = importlib.import_module("app.main")
+        yield module
+    finally:
+        # Restore: drop the patched app.main and re-import with the real
+        # settings singleton. This guarantees the next test sees a healthy
+        # `from app.main import settings, app`.
+        sys.modules.pop("app.main", None)
+        importlib.import_module("app.main")
+
+
+class _nullcontext:
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
 
 
 class TestCorsStartupGuard:
@@ -33,10 +76,6 @@ class TestCorsStartupGuard:
         ``app.add_middleware(...)``), so we exercise the guard by
         stubbing ``app.config.settings.cors_origins`` before importing.
         """
-        # Drop any cached app.main so the module re-evaluates under our stub.
-        for mod_name in ("app.main",):
-            sys.modules.pop(mod_name, None)
-
         fake_settings = SimpleNamespace(
             cors_origins=["*"],
             # Other attributes accessed at import time — keep minimal.
@@ -44,22 +83,19 @@ class TestCorsStartupGuard:
             app_log_level="INFO",
         )
 
-        with patch("app.config.settings", fake_settings, create=True):
-            with pytest.raises(ValueError, match="cors_origins=\\['\\*'\\]"):
-                importlib.import_module("app.main")
+        with pytest.raises(ValueError, match="cors_origins=\\['\\*'\\]"):
+            with _reload_app_main(fake_settings):
+                pass  # the import inside _reload_app_main should raise
 
     def test_explicit_cors_origins_with_credentials_boots_cleanly(self):
         """Explicit origins + credentials is the supported config and must
         not raise at import time."""
-        for mod_name in ("app.main",):
-            sys.modules.pop(mod_name, None)
-
         fake_settings = SimpleNamespace(
             cors_origins=["https://starmap.example.com"],
             app_env="development",
             app_log_level="INFO",
         )
 
-        with patch("app.config.settings", fake_settings, create=True):
-            # No exception → guard let the boot proceed.
-            importlib.import_module("app.main")
+        # No exception → guard let the boot proceed.
+        with _reload_app_main(fake_settings):
+            pass
