@@ -1,7 +1,8 @@
 """Coverage boost: repositories/quality_repo.py — 幻觉趋势聚合 (PLAN-013)。
 
 fetch_hallucination_trend 使用假 AsyncSession（execute → all() 返回假行），
-验证聚合口径：低来源(<3)计为幻觉代理，rate=low/total 舍入 3 位。
+验证聚合口径：JDExtractionRecord.hallucination_score > 0.5 计为幻觉，
+rate=hallucinated/total 舍入 3 位（2026-08-14 统一口径，与 KPI/质量趋势同源）。
 """
 
 from __future__ import annotations
@@ -22,8 +23,8 @@ class _FakeSession:
         return SimpleNamespace(all=lambda: self._rows)
 
 
-def _row(total: int, low_source: int, month: str) -> SimpleNamespace:
-    return SimpleNamespace(total=total, low_source=low_source, month=month)
+def _row(total: int, hallucinated: int, day: str) -> SimpleNamespace:
+    return SimpleNamespace(total=total, hallucinated=hallucinated, day=day)
 
 
 class TestFetchHallucinationTrend:
@@ -36,20 +37,20 @@ class TestFetchHallucinationTrend:
     async def test_rate_rounded_to_3_decimals(self) -> None:
         # 2/3 = 0.666... → 0.667
         out = await fetch_hallucination_trend(_FakeSession([_row(3, 2, "2026-01-01 00:00:00")]))
-        assert out == [{"date": "2026-01", "rate": 0.667}]
+        assert out == [{"date": "2026-01-01", "rate": 0.667}]
 
     @pytest.mark.asyncio
     async def test_zero_total_does_not_divide_by_zero(self) -> None:
         out = await fetch_hallucination_trend(_FakeSession([_row(0, 0, "2026-01-01 00:00:00")]))
-        assert out == [{"date": "2026-01", "rate": 0.0}]
+        assert out == [{"date": "2026-01-01", "rate": 0.0}]
 
     @pytest.mark.asyncio
-    async def test_multiple_months_sorted_by_input_order(self) -> None:
+    async def test_multiple_days_sorted_by_input_order(self) -> None:
         out = await fetch_hallucination_trend(_FakeSession([
             _row(10, 3, "2026-01-01 00:00:00"),
-            _row(8, 0, "2026-02-01 00:00:00"),
+            _row(8, 0, "2026-01-02 00:00:00"),
         ]))
         assert out == [
-            {"date": "2026-01", "rate": 0.3},
-            {"date": "2026-02", "rate": 0.0},
+            {"date": "2026-01-01", "rate": 0.3},
+            {"date": "2026-01-02", "rate": 0.0},
         ]

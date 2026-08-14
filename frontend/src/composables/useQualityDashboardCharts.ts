@@ -94,12 +94,14 @@ export function useQualityDashboardCharts(store: QualityStore) {
         label: '待审核',
         value: m.pending_review === 0 ? '—' : String(m.pending_review),
         sub: m.pending_review === 0 ? '暂无记录' : '条记录待处理',
-        caption: `JDExtractionRecord.confidence < ${0.5 * 100}% 阈值命中数（来源: ReviewAuditLog）`,
-        tooltip: `👥 人工监督：低信任度（confidence < 50%）的抽取记录数。\n\n` +
+        // 2026-08-14: 口径对齐 admin 内容审核（review_service 状态机）——pending_review
+        // 计数 = position_records + skill_records。修复前文案误标 JDExtractionRecord.confidence
+        caption: `岗位 + 技能 pending_review 计数（与 admin 内容审核同源）`,
+        tooltip: `👥 人工监督：待人工审核的岗位 + 技能记录数（review_status = pending_review）。\n\n` +
           `• 0 = 无需人工干预（绿）\n` +
           `• 1-5 = 可逐条审核（黄）\n` +
           `• > 5 = 队列拥堵，建议批量审核或调整抽取策略\n\n` +
-          `可在下方「待审核队列」表格中逐条通过 / 拒绝`,
+          `下方队列展示最近 20 条，完整队列请在「管理后台 → 内容审核」处理`,
         trend: m.pending_review > 5 ? 'up' : 'down',
         color: cc.danger,
         icon: 'Clock',

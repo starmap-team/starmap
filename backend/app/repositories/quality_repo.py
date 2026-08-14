@@ -6,38 +6,49 @@ keeping the API handlers free of SQL string literals.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.evolution_models import SkillTimeseries
+from app.models.extraction_models import JDExtractionRecord
 
 
 async def fetch_hallucination_trend(session: AsyncSession) -> list[dict[str, Any]]:
-    """Fetch monthly hallucination trend from skill_timeseries data.
+    """Fetch hallucination trend from JDExtractionRecord.hallucination_score.
 
-    Groups by month, counting low-source (<3) entries as hallucination proxies.
-    Returns a list of {"date": str, "rate": float} dicts.
+    Groups by day over the trailing 30d window, counting hallucinated records
+    (hallucination_score > 0.5, same threshold as the KPI card) — unified with
+    the dashboard KPI and /quality/trends instead of the old skill_timeseries
+    `source_count < 3` proxy (which was a different concept and returned 0
+    because all timeseries rows had source_count >= 3).
+
+    Returns a list of {"date": str, "rate": float} dicts (rate = hallucinated / total).
     """
-    ts_stmt = (
+    cutoff = datetime.now(UTC) - timedelta(days=30)
+    stmt = (
         sa.select(
-            sa.func.date_trunc("month", SkillTimeseries.window_start).label("month"),
+            sa.func.date_trunc("day", JDExtractionRecord.created_at).label("day"),
             sa.func.count().label("total"),
-            sa.func.sum(sa.case((SkillTimeseries.source_count < 3, 1), else_=0)).label("low_source"),
+            sa.func.sum(sa.case(
+                (JDExtractionRecord.hallucination_score > 0.5, 1),
+                else_=0,
+            )).label("hallucinated"),
         )
-        .select_from(SkillTimeseries)
-        .group_by(sa.text("month"))
-        .order_by(sa.text("month"))
+        .select_from(JDExtractionRecord)
+        .where(JDExtractionRecord.created_at >= cutoff)
+        .group_by(sa.text("day"))
+        .order_by(sa.text("day"))
     )
-    ts_rows = (await session.execute(ts_stmt)).all()
+    rows = (await session.execute(stmt)).all()
     result: list[dict[str, Any]] = []
-    for row in ts_rows:
+    for row in rows:
         total = int(row.total)
-        low_source = int(row.low_source)
-        rate = low_source / total if total > 0 else 0.0
+        hallucinated = int(row.hallucinated)
+        rate = hallucinated / total if total > 0 else 0.0
         result.append({
-            "date": str(row.month)[:7],
+            "date": str(row.day)[:10],
             "rate": round(rate, 3),
         })
     return result

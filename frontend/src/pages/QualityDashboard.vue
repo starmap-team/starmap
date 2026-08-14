@@ -401,8 +401,24 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
           <el-card
             v-loading="quality.loading"
             shadow="never"
-            header="待审核队列"
           >
+            <template #header>
+              <div class="review-queue-header">
+                <span>待审核队列</span>
+                <span
+                  v-if="quality.metrics?.pending_review"
+                  class="review-queue-total"
+                >共 {{ quality.metrics.pending_review }} 条，显示最近 20 条</span>
+                <el-button
+                  size="small"
+                  type="primary"
+                  plain
+                  @click="$router.push('/admin')"
+                >
+                  前往内容审核
+                </el-button>
+              </div>
+            </template>
             <el-table
               :data="quality.metrics?.audit_queue ?? []"
               stripe
@@ -678,6 +694,17 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
 .kpi-card {
   /* Phase 11 ui-ux-pro-max: 4 卡片高度统一（消除 147/163/167/224 高度差）*/
   min-height: 180px;
+}
+/* 2026-08-14: 待审核队列 header — 总数说明 + 跳转管理后台按钮（联动 admin 内容审核）*/
+.review-queue-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.review-queue-total {
+  flex: 1;
+  font-size: 12px;
+  color: var(--muted-foreground);
 }
 .kpi-help-icon {
   /* Phase 11 新手友好：问号图标——hover 触发 tooltip 展示完整说明 */
