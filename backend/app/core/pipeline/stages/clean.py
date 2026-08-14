@@ -86,6 +86,9 @@ def execute_clean(run_id: str) -> dict[str, Any]:
     return {
         "records_processed": processed,
         "errors": errors,
+        # Phase 19 修复: return 补 current_activity —— _mark_stage_completed 从 result 读,
+        # 此前仅 SSE publish 有文案, DB 快照丢失 → 卡片"已完成但 0 数据无解释"
+        "current_activity": f"清洗完成: 共 {processed} 条记录标准化",
         # D8 fix: SSE 有 recent_samples 但 return 缺 → _mark_stage_completed 读
         # result.get("recent_samples") 为 null → 详情抽屉/阶段展开看不到清洗样本
         "recent_samples": [{"title": t} for t in cleaned_titles[:5]],

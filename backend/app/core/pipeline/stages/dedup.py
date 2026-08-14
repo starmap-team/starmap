@@ -92,6 +92,8 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
                     "records_processed": 0,
                     "errors": errors,
                     "duplicates_found": 0,
+                    # Phase 19: 空分支 return 也补 current_activity（DB 快照持久化）
+                    "current_activity": "无待去重记录",
                     # D8: 0 条时也返回分解，详情抽屉/阶段展开不显示空白
                     "sub_breakdown": {"原始总数": 0, "唯一数": 0, "重复数": 0},
                     "recent_samples": [],
@@ -177,6 +179,13 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
         "records_processed": processed,
         "errors": errors,
         "duplicates_found": duplicates_found,
+        # Phase 19 修复: return 补 current_activity（DB 快照持久化，卡片解释"为何 0/去重结果"）
+        "current_activity": (
+            f"去重完成: 总 {processed} → 唯一 {len(unique_jds)} 条"
+            f" (剔除 {duplicates} 条重复)"
+            if processed
+            else "无待去重记录"
+        ),
         # 2026-08-12 (pipeline 联调): 持久化去重分解，详情抽屉可解释"为何入库 0"
         "sub_breakdown": {
             "原始总数": processed,

@@ -216,8 +216,11 @@ const fullBreakdownItems = computed(() => {
     .map(([key, value]) => ({ key, value: Number(value) }))
 })
 const fullRecentSamples = computed(() => recentSamples.value)
+// Phase 19 修复: hasMoreDetails 门槛从 ">6项 || >3样本" 降为 "有 breakdown 或样本即可点开"。
+// 此前 dedup/clean/import/graph_sync 的 breakdown 仅 2-4 项且无样本 → 永远不显示"查看全部"，
+// 用户无法点开看完整分解(4 卡片"已完成但 0 数据"无解释入口)。
 const hasMoreDetails = computed(() =>
-  fullBreakdownItems.value.length > 6 || fullRecentSamples.value.length > 3
+  fullBreakdownItems.value.length > 0 || fullRecentSamples.value.length > 0
 )
 
 const formattedDuration = computed(() => {

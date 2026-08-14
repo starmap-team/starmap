@@ -200,6 +200,12 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         "records_processed": processed,
         "errors": errors,
         "outbox_id": str(outbox_id),
+        # Phase 19 修复: return 补 current_activity（DB 快照持久化，解释"0 条扫描/构建结果"）
+        "current_activity": (
+            f"图谱构建完成: {triples_merged} 三元组 / {nodes} 节点 / {edges} 关系"
+            if processed
+            else "无新抽取记录待投影"
+        ),
         # D8 fix: SSE publish 有 sub_breakdown 但 return 缺 → 持久化丢失 →
         # 图谱构建阶段展开无「节点/关系/triples」详情
         # D8c: 键名与 publish 一致（扫描抽取记录/三元组操作/触及节点/触及关系）

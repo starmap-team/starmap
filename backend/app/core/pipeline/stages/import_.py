@@ -165,6 +165,12 @@ def execute_import(run_id: str) -> dict[str, Any]:
         "records_processed": processed,
         "errors": errors,
         "extracted_samples": extracted_skills_sample[-5:],
+        # Phase 19 修复: return 补 current_activity（DB 快照持久化）
+        "current_activity": (
+            f"提取完成: {processed}/{total} 条 JD 成功提取技能"
+            if total
+            else "无可提取记录"
+        ),
         # D8 fix: 键名与 _mark_stage_completed 对齐（原 extracted_samples 不被消费 →
         # 详情抽屉/阶段展开看不到抽取的岗位/技能样本）；sub_breakdown 补成功/失败分解
         "recent_samples": extracted_skills_sample[-5:],
