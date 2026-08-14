@@ -87,6 +87,21 @@ class Settings(BaseSettings):
         ge=0,
         description="JWT clock skew tolerance (seconds)",
     )
+    # Phase 20 Task 2: JWT rotation — `kid` header + multi-secret keyring.
+    # `jwt_kid` is the active signing key id; new tokens carry this in the JOSE
+    # header. `jwt_secret_keyring` maps kid -> secret and is consulted at
+    # verification time so that legacy tokens remain valid during rotation.
+    # Both default to {"v1": <current secret_key>} for backward compatibility.
+    jwt_kid: str = Field(
+        default="v1",
+        min_length=1,
+        max_length=32,
+        description="Active JWT signing key id (JOSE `kid` header)",
+    )
+    jwt_secret_keyring: dict[str, str] = Field(
+        default_factory=dict,
+        description="Map of kid -> secret used for verification; empty means use {jwt_kid: secret_key}",
+    )
 
     # ── Bootstrap (DB seed) ──
     # Initial admin credentials seeded by scripts/bootstrap.py on first run.
