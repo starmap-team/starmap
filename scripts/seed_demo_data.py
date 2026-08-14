@@ -13,8 +13,8 @@ safe to run against any environment with the same Postgres / Neo4j
 connection settings — production credentials must NOT be used; the script
 exits if APP_ENV=production.
 
-Implementation note: the per-table seed sub-scripts (seed_datasources.py,
-seed_pipeline_stages.py, seed_evolution_snapshots.py) are intentionally
+Implementation note: the per-table seed sub-scripts (seed_pipeline_data.py,
+seed_evolution_snapshots.py, seed_skill_timeseries.py) are intentionally
 left as small, focused modules so each can be re-run independently. This
 top-level file just orchestrates them in the right order.
 """
@@ -24,10 +24,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+_SCRIPT_DIR = Path(__file__).resolve().parent
 # Ensure `scripts/` is importable when invoked from project root.
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(_SCRIPT_DIR))
+# Ensure `backend/` is importable so `app.*` (config/db.session) resolves.
+sys.path.insert(0, str(_SCRIPT_DIR.parent / "backend"))
 
-from app.config import settings
+from app.config import settings  # noqa: E402  (需要 sys.path 修正后导入)
 
 
 def _ensure_not_production() -> None:
@@ -53,9 +56,9 @@ def main() -> None:
 
     # Order matters: pipeline stages / evolution snapshots depend on the
     # datasource IDs being deterministic.
-    _run_sub("seed_datasources")
-    _run_sub("seed_pipeline_stages")
+    _run_sub("seed_pipeline_data")
     _run_sub("seed_evolution_snapshots")
+    _run_sub("seed_skill_timeseries")
 
     print("\nseed_demo_data: done.")
 

@@ -232,6 +232,15 @@ class PipelineTriggerResponse(BaseModel):
     status: str
     message: str
 
+
+class SeedResetResponse(BaseModel):
+    """演示数据重置（seed/reset）结果 —— 设计文档 §2.3.3.2 管理角色刚需。"""
+
+    seeded: list[str] = Field(default_factory=list, description="成功执行的种子模块名列表")
+    skipped: list[str] = Field(default_factory=list, description="跳过（幂等已存在/不可用）的模块名列表")
+    refused: bool = Field(default=False, description="生产环境拒绝执行时为 True（APP_ENV=production）")
+    message: str = Field(default="", min_length=0, max_length=500, description="人类可读结果摘要（含子进程输出摘录）")
+
 class AuditItem(BaseModel):
     """审核队列条目 (原 admin_audit_service 定义, 迁入集中契约)。"""
 

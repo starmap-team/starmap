@@ -224,6 +224,41 @@ async function handleTriggerSync(row: { id: string; name: string }) {
   }
 }
 
+// 演示数据重置 (设计文档 §2.3.3.2 管理角色刚需) — POST /admin/seed/reset。
+// 生产环境后端直接 refused，不做任何写入。
+const seedingDemo = ref(false)
+async function handleResetDemoData() {
+  try {
+    await ElMessageBox.confirm(
+      '将执行演示数据种子（数据源 / 流水线阶段 / 演化快照 / 技能时序）。生产环境后端会直接拒绝。确认继续？',
+      '重置演示数据',
+      { type: 'warning', confirmButtonText: '重置', cancelButtonText: '取消' },
+    )
+  } catch {
+    return // 用户取消
+  }
+  seedingDemo.value = true
+  const progressMsg = ElMessage({ message: '正在重置演示数据...', type: 'info', duration: 0 })
+  try {
+    const res = await request.post<{
+      seeded: string[]
+      skipped: string[]
+      refused: boolean
+      message: string
+    }>('/admin/seed/reset')
+    if (res.refused) {
+      ElMessage.error(`拒绝执行: ${res.message}`)
+      return
+    }
+    ElMessage.success(`演示数据重置完成 — 执行 ${res.seeded.length} 个种子, 跳过 ${res.skipped.length} 个`)
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '重置失败，请重试')
+  } finally {
+    progressMsg.close()
+    seedingDemo.value = false
+  }
+}
+
 // 数据源状态语义化 (2026-08-14): inactive 曾误显示为「异常」——现独立为「已停用」
 const DATASOURCE_STATUS_LABEL: Record<string, string> = {
   active: '活跃',
@@ -1092,6 +1127,31 @@ function formatDate(iso: string | null | undefined): string {
               name="audit-log"
             >
               <AuditLog />
+            </el-tab-pane>
+            <el-tab-pane
+              label="演示数据"
+              name="demo-seed"
+            >
+              <BusinessBanner
+                type="info"
+                title="演示数据一键重置"
+                description="设计文档 §2.3.3.2 管理角色刚需：一键加载演示数据（数据源 / 流水线阶段 / 演化快照 / 技能时序）。生产环境后端直接拒绝。"
+                :meta="[
+                  { category: '后端', label: 'POST /admin/seed/reset', code: true, copyable: true },
+                ]"
+              />
+              <el-card
+                shadow="never"
+                class="tab-card"
+              >
+                <el-button
+                  type="warning"
+                  :loading="seedingDemo"
+                  @click="handleResetDemoData"
+                >
+                  {{ seedingDemo ? '重置中...' : '重置演示数据' }}
+                </el-button>
+              </el-card>
             </el-tab-pane>
           </el-tabs>
         </el-tab-pane>

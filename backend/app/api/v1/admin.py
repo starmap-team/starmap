@@ -25,6 +25,7 @@ from app.schemas.admin import (
     ReconcileResult,
     ReviewActionRequest,
     ReviewListResponse,
+    SeedResetResponse,
 )
 from app.services import review_service
 from app.services.admin_audit_service import (
@@ -563,3 +564,15 @@ from app.api.v1.admin_prompts import router as prompts_router  # noqa: E402
 
 router.include_router(prompts_router, prefix="")
 router.include_router(graph_nodes_router, prefix="")
+
+
+@router.post("/seed/reset", response_model=SeedResetResponse)
+async def reset_demo_seed() -> SeedResetResponse:
+    """演示数据一键重置（设计文档 §2.3.3.2 管理角色刚需）。
+
+    以 subprocess 顺序执行 scripts/seed_*.py；生产环境（APP_ENV=production）
+    返回 refused=True，不做任何写入。
+    """
+    from app.services.admin_seed_service import run_demo_seed
+
+    return await run_demo_seed()

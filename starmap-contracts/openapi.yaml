@@ -1932,6 +1932,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PipelineTriggerResponse'
+  /admin/seed/reset:
+    post:
+      operationId: resetDemoSeed
+      summary: 演示数据一键重置
+      description: 设计文档 §2.3.3.2 管理角色刚需：顺序执行 scripts/seed_*.py 加载演示数据。生产环境（APP_ENV=production）返回 refused=true，不做任何写入。
+      tags:
+      - 管理后台
+      responses:
+        '200':
+          description: 演示数据重置结果（seeded/skipped 明细）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeedResetResponse'
   /admin/users:
     get:
       operationId: listUsers
@@ -6557,6 +6571,30 @@ components:
           type: string
         message:
           type: string
+    SeedResetResponse:
+      type: object
+      required:
+      - seeded
+      - skipped
+      - refused
+      - message
+      properties:
+        seeded:
+          type: array
+          items:
+            type: string
+          description: 成功执行的种子模块名列表
+        skipped:
+          type: array
+          items:
+            type: string
+          description: 跳过（幂等已存在/不可用）的模块名列表
+        refused:
+          type: boolean
+          description: 生产环境拒绝执行时为 True（APP_ENV=production）
+        message:
+          type: string
+          description: 人类可读结果摘要
     CreateUserRequest:
       type: object
       required:

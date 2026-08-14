@@ -10,8 +10,9 @@ from __future__ import annotations
 import random
 from datetime import UTC, datetime, timedelta
 
-from app.dependencies import get_session_factory  # type: ignore
 from sqlalchemy import select
+
+from app.db.session import get_session_factory
 
 
 def seed() -> None:
