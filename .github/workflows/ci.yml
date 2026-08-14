@@ -33,6 +33,10 @@ jobs:
       - name: 校验契约
         run: python starmap-contracts/validate.py
 
+      # Phase 20: 阻断 .env.production 重新入仓 (security/secret-rotation-playbook.md)
+      - name: 校验 .env.production 未入仓
+        run: python scripts/check_no_env_production_in_git.py
+
   # ---------- 后端 ----------
   backend:
     name: 后端 lint + typecheck + test
