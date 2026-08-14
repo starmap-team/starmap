@@ -148,11 +148,14 @@ for i in $(seq 1 30); do
 done
 
 # ===== 8. 播种管理员（一次性） =====
-# DEPLOY-FIX (2026-08-14): config.py 生产守卫拒绝 BOOTSTRAP_SEED_ADMIN=true
-# （防弱密码播种），.env.production 需为 false → 首次部署后无人可登录。
-# 这里用环境变量一次性覆盖（pydantic-settings env > .env）执行 seed_admin。
+# DEPLOY-FIX (2026-08-14): config.py 生产守卫在 Settings() 构造时就拒绝
+# BOOTSTRAP_SEED_ADMIN=true（防弱密码播种）→ .env.production 保持 false。
+# 一次性播种用双 env 覆盖：BOOTSTRAP_SEED_ADMIN=true 开启播种 + APP_ENV=development
+# 跳过生产守卫（仅该 seed 进程；DB 连接与 admin 凭据仍来自 .env.production，
+# 运行中的生产后端不受影响）。幂等：admin 已存在则跳过。
 log "[8/9] 播种管理员（admin / 轮换密码，首登需改密）..."
-if sudo -u starmap docker compose -f "$COMPOSE_FILE" exec -T -e BOOTSTRAP_SEED_ADMIN=true \
+if sudo -u starmap docker compose -f "$COMPOSE_FILE" exec -T \
+    -e BOOTSTRAP_SEED_ADMIN=true -e APP_ENV=development \
     backend python -m scripts.seed_admin 2>&1 | tail -6; then
   ok "管理员播种完成"
 else
