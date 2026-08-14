@@ -60,6 +60,14 @@ jobs:
         run: poetry run ruff check .
       - name: Mypy typecheck
         run: poetry run mypy app
+      # CONCERN 3.1 (correctness audit 2026-08-15): guard against sites that
+      # update PipelineRun.stages without routing through complete_run.
+      # Pre-fix bug: engine.py wrote stages but skipped complete_run, leaving
+      # quality_score at 0. The script fails CI if a new bypass lands.
+      - name: complete_run 旁路检查（CONCERN 3.1）
+        run: bash ../backend/scripts/check_complete_run_bypass.sh
+      - name: bootstrap run_type 禁用（CONCERN 3.4）
+        run: bash ../backend/scripts/check_bootstrap_run_type.sh
       - name: Pip 安全审计（continue-on-error 以便后续修复）
         run: |
           poetry run pip install --quiet pip-audit 2>/dev/null || pip install --quiet pip-audit
