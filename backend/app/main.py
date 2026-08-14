@@ -81,17 +81,27 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Cron scanner loop started")
         yield
     finally:
-        # 2026-08-07 修复: cancel 后必须 await (带超时), 否则 uvicorn --reload
-        # shutdown 会无限等待未退出任务 → reload hang (改文件后服务假死)
-        if cron_task is not None:
-            cron_task.cancel()
+        # 2026-08-14 门禁修复: shutdown 尽力而为 — 测试 teardown 中 TestClient
+        # 关停时事件循环可能已关闭（resources/task 由早前测试在其他 loop 创建）
+        # → await 抛 `'NoneType' object has no attribute 'send'`（flaky ERROR）。
+        # 任何关闭失败降级为 warning，不阻断 shutdown。
+        # （2026-08-07 起 cron cancel 后必须 await 带超时，否则 uvicorn --reload
+        #   无限等待 → 该语义保留。）
+        try:
+            if cron_task is not None:
+                cron_task.cancel()
+                try:
+                    await asyncio.wait_for(cron_task, timeout=5.0)
+                except (TimeoutError, asyncio.CancelledError):
+                    logger.warning("Cron scanner task did not stop within 5s (forced shutdown)")
+                logger.info("Cron scanner loop stopped")
             try:
-                await asyncio.wait_for(cron_task, timeout=5.0)
-            except (TimeoutError, asyncio.CancelledError):
-                logger.warning("Cron scanner task did not stop within 5s (forced shutdown)")
-            logger.info("Cron scanner loop stopped")
-        await resources.close()
-        logger.info("StarMap 关闭中...")
+                await resources.close()
+            except Exception as exc:  # noqa: BLE001 — 资源关闭尽力而为
+                logger.warning("StarMap 关闭资源失败(非致命): {}", exc)
+            logger.info("StarMap 关闭中...")
+        except Exception as exc:  # noqa: BLE001 — 事件循环已关等 shutdown 竞态
+            logger.warning("StarMap shutdown 异常(非致命): {}", exc)
 
 
 # P0 修复 (API-03): 生产环境禁用 Swagger/ReDoc/OpenAPI

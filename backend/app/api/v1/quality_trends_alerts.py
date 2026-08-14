@@ -10,25 +10,23 @@ from typing import Annotated
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
-from app.schemas.quality import AlertItem, QualityAlertsResponse, QualityTrendsResponse, TrendPoint
+from app.schemas.quality import (
+    AlertHandleRequest,
+    AlertItem,
+    QualityAlertsResponse,
+    QualityTrendsResponse,
+    TrendPoint,
+)
 
 router = APIRouter(tags=["质量趋势告警"])
 
 # ── 告警处理状态持久化（Redis hash）：用户"解决/忽略"后跨刷新保留 ──
 ALERT_HANDLED_KEY = "quality:alert:handled"
 ALERT_HANDLED_TTL = 60 * 60 * 24 * 7  # 7 天；告警实时生成，处理状态是用户操作记录
-
-
-class AlertHandleRequest(BaseModel):
-    """告警处理请求：action = resolve | ignore。"""
-
-    id: str = Field(..., description="告警稳定标识（dimension:source）")
-    action: str = Field(..., description="'resolve' | 'ignore'")
 
 
 def _alert_key(dimension: str, source: str | None) -> str:

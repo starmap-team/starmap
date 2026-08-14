@@ -88,9 +88,11 @@ def test_manual_extraction_writes_outbox_with_nullable_run_id() -> None:
         class R:
             id = captured_id  # type: ignore[misc]
             job_title = "test"
-        return R()
+        # 2026-08-14 门禁修复: persist_extraction_result 现返回 3 元组
+        # (record, position_id, skill_ids)（stage3_services.py:244 解包）。
+        return R(), None, []
 
-    async def fake_graph_write(data):  # noqa: ANN001
+    async def fake_graph_write(data, **kwargs):  # noqa: ANN001
         return {"triples_merged": 3}
 
     async def fake_load(sm):  # noqa: ANN001
@@ -139,6 +141,12 @@ def test_call_llm_with_fallback_tracks_costs_per_provider() -> None:
 
     cost_tracker.tracker._by_model.clear()
 
+    # 2026-08-14 门禁修复: 降级链新增 DashScope(首选) 与 Spark X(短 prompt 优先)。
+    # dashscope_api_key 未设 → 跳过；但 xunfei_api_key 已 stub 且 prompt 短 →
+    # Spark X 会先于 MiMo 执行且未被 mock → 真实调用走 httpx stub（无 post 方法）崩。
+    # 显式 mock Spark X 抛连接错误，让链落到 MiMo（测试意图：mimo-test 记账）。
+    from app.core.extraction.llm_client import LLMConnectionError
+
     # Enable all 4 paths by stubbing settings + provider functions
     with (
         patch.object(llm_client.settings, "mimo_api_key", "stub", create=True),
@@ -148,6 +156,10 @@ def test_call_llm_with_fallback_tracks_costs_per_provider() -> None:
         patch.object(
             llm_client, "call_mimo_llm",
             AsyncMock(return_value={"role": "assistant", "content": "mimo-out", "model": "mimo-test"}),
+        ),
+        patch.object(
+            llm_client, "call_spark_x_llm",
+            AsyncMock(side_effect=LLMConnectionError("spark-x down")),
         ),
         patch.object(
             llm_client, "call_deepseek_llm",

@@ -36,7 +36,7 @@ from app.core.pipeline.stages import (
 )
 from app.core.pipeline.stages.common import publish_stage_progress
 from app.db.session import get_session_factory
-from app.exceptions import PipelineStageError
+from app.exceptions import PipelineStageError, StarMapError
 from app.models.pipeline_models import PipelineRun
 from app.services.resources import resources as app_resources
 
