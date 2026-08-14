@@ -118,10 +118,27 @@ app = FastAPI(
 )
 
 # P0 修复 (AUTH-04): CORS 收紧 methods/headers
+# CONCERN 1.2 (security audit 2026-08-15): refuse startup if `cors_origins`
+# is the wildcard `["*"]` while credentials are enabled — that combination
+# is a CSRF-grade hole that Starlette does NOT silently reject for FastAPI's
+# CORSMiddleware on every version, and human operators occasionally set it
+# during debugging. Fail-fast at startup is the safer path.
+_ALLOW_CREDENTIALS = True
+if _ALLOW_CREDENTIALS and settings.cors_origins == ["*"]:
+    raise ValueError(
+        "CORS misconfiguration: cors_origins=['*'] is not allowed when "
+        "allow_credentials=True. Set CORS_ALLOWED_ORIGINS to explicit "
+        "origins (e.g. CORS_ALLOWED_ORIGINS=https://yourdomain.com)."
+    )
+logger.info(
+    "CORS allow_origins in effect ({} entries): {}",
+    len(settings.cors_origins),
+    settings.cors_origins,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    allow_credentials=_ALLOW_CREDENTIALS,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
 )
