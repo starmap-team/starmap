@@ -39,8 +39,15 @@ echo ""
 
 # ===== 1. 环境检测 =====
 log "[1/9] 环境检测..."
+# 2026-08-15 任意服务器适配: 内存门槛 env 可配（MIN_MEM_MB）。默认 3500（4c4G
+# 规格）；小内存服务器可显式降低（如 2G 服务器 MIN_MEM_MB=2048，需自行评估
+# 资源峰 5c/4G 的挤占风险）。不传则按 4c4G 规格保守校验。
+MIN_MEM_MB="${MIN_MEM_MB:-3500}"
 MEM_MB=$(free -m | awk '/^Mem:/{print $2}')
-[ "$MEM_MB" -lt 3500 ] && { fail "内存 ${MEM_MB}MB < 4G, 请确认实例规格"; exit 1; }
+if [ "$MEM_MB" -lt "$MIN_MEM_MB" ]; then
+  fail "内存 ${MEM_MB}MB < 要求 ${MIN_MEM_MB}MB（资源峰 5c/4G；小内存需 MIN_MEM_MB 显式降低并评估）"
+  exit 1
+fi
 ok "内存 ${MEM_MB}MB"
 
 command -v docker &>/dev/null || {
