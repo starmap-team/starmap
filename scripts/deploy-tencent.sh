@@ -5,7 +5,7 @@
 # 7 服务（砍 ollama） / 5c/4G 资源峰
 #
 # 用法（在服务器上 root 权限）：
-#   curl -fsSL https://raw.githubusercontent.com/Li3379/starmap/main/scripts/deploy-tencent.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/starmap-team/starmap/main/scripts/deploy-tencent.sh | bash
 #   或本地：scp + ssh
 #
 # 前置：
@@ -73,7 +73,7 @@ if [ -d "$DEPLOY_DIR/.git" ]; then
   cd "$DEPLOY_DIR"
   sudo -u starmap git pull origin "$DEPLOY_BRANCH"
 else
-  sudo -u starmap git clone -b "$DEPLOY_BRANCH" https://github.com/Li3379/starmap.git "$DEPLOY_DIR"
+  sudo -u starmap git clone -b "$DEPLOY_BRANCH" https://github.com/starmap-team/starmap.git "$DEPLOY_DIR"
   cd "$DEPLOY_DIR"
   sudo -u starmap git submodule update --init --recursive
 fi

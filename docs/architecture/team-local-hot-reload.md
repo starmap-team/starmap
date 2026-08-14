@@ -10,7 +10,7 @@
 
 ```bash
 # 1. 克隆（首次）
-git clone https://github.com/Li3379/starmap.git
+git clone https://github.com/starmap-team/starmap.git
 cd starmap
 
 # 2. 复制 .env（用本机 dev 默认值）

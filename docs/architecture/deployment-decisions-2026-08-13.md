@@ -61,7 +61,7 @@ scp ~/.starmap/keys/.env.production.new root@<host>:/opt/starmap/.env.production
 scp -r secrets root@<host>:/opt/starmap/
 
 # C. 一键部署（脚本含：docker 组/构建/启动/健康等待/管理员播种/冒烟测试）
-curl -fsSL https://raw.githubusercontent.com/Li3379/starmap/main/scripts/deploy-tencent.sh | bash
+curl -fsSL https://raw.githubusercontent.com/starmap-team/starmap/main/scripts/deploy-tencent.sh | bash
 
 # D. 验收
 cd /opt/starmap
@@ -71,7 +71,7 @@ docker compose -f docker-compose.prod.yml exec backend python tests/e2e/smoke_te
 ## 本地开发（每天用）
 
 ```bash
-git clone https://github.com/Li3379/starmap.git
+git clone https://github.com/starmap-team/starmap.git
 cd starmap
 cp .env.example .env
 docker compose -f docker-compose.dev.yml up -d
