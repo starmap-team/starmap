@@ -352,13 +352,20 @@ class TestCallLlmWithFallback:
     async def test_mimo_succeeds_first(self):
         """MiMo succeeds — no fallback called."""
         with patch("app.core.extraction.llm_client.call_mimo_llm", new_callable=AsyncMock) as mock_mimo, \
+             patch("app.core.extraction.llm_client.call_spark_x_llm", new_callable=AsyncMock) as mock_spark_x, \
              patch("app.core.extraction.llm_client.settings") as mock_settings:
+            # 2026-08-14 门禁修复: xunfei_api_key truthy 使 spark_x 在短 prompt 下
+            # 优先于 mimo 执行，而 spark_x 未被 mock → 真实调用在
+            # `max(settings.llm_timeout, 180)` 撞 MagicMock 崩溃。mock 抛连接错误
+            # 让链落到目标提供方（mimo）。
+            mock_spark_x.side_effect = LLMConnectionError("Spark X down")
             mock_mimo.return_value = {"role": "assistant", "content": "mimo result", "model": "mimo"}
             mock_settings.mimo_api_key = "key"
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = "key"
             mock_settings.qwen_model_path = ""
             mock_settings.dashscope_api_key = ""
+            mock_settings.llm_timeout = 60
 
             result = await call_llm_with_fallback("test prompt")
 
@@ -391,15 +398,19 @@ class TestCallLlmWithFallback:
         with patch("app.core.extraction.llm_client.call_mimo_llm", new_callable=AsyncMock) as mock_mimo, \
              patch("app.core.extraction.llm_client.call_deepseek_llm", new_callable=AsyncMock) as mock_ds, \
              patch("app.core.extraction.llm_client.call_xunfei_llm", new_callable=AsyncMock) as mock_xf, \
+             patch("app.core.extraction.llm_client.call_spark_x_llm", new_callable=AsyncMock) as mock_spark_x, \
              patch("app.core.extraction.llm_client.settings") as mock_settings:
             mock_mimo.side_effect = LLMConnectionError("MiMo down")
             mock_ds.side_effect = LLMResponseError("DS error")
             mock_xf.return_value = {"role": "assistant", "content": "xf result", "model": "xf"}
+            # 2026-08-14 门禁修复: spark_x 短 prompt 优先，mock 抛错让链落到 xunfei
+            mock_spark_x.side_effect = LLMConnectionError("Spark X down")
             mock_settings.mimo_api_key = "key"
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = "key"
             mock_settings.qwen_model_path = ""
             mock_settings.dashscope_api_key = ""
+            mock_settings.llm_timeout = 60
 
             result = await call_llm_with_fallback("test prompt")
 
@@ -411,15 +422,19 @@ class TestCallLlmWithFallback:
         with patch("app.core.extraction.llm_client.call_mimo_llm", new_callable=AsyncMock) as mock_mimo, \
              patch("app.core.extraction.llm_client.call_deepseek_llm", new_callable=AsyncMock) as mock_ds, \
              patch("app.core.extraction.llm_client.call_xunfei_llm", new_callable=AsyncMock) as mock_xf, \
+             patch("app.core.extraction.llm_client.call_spark_x_llm", new_callable=AsyncMock) as mock_spark_x, \
              patch("app.core.extraction.llm_client.settings") as mock_settings:
             mock_mimo.side_effect = LLMConnectionError("MiMo down")
             mock_ds.side_effect = LLMConnectionError("DS down")
             mock_xf.side_effect = LLMConnectionError("XF down")
+            # 2026-08-14 门禁修复: spark_x 短 prompt 优先，mock 抛错并入"全挂"链
+            mock_spark_x.side_effect = LLMConnectionError("Spark X down")
             mock_settings.mimo_api_key = "key"
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = "key"
             mock_settings.qwen_model_path = ""
             mock_settings.dashscope_api_key = ""
+            mock_settings.llm_timeout = 60
 
             with pytest.raises(LLMConnectionError, match="No LLM endpoint configured"):
                 await call_llm_with_fallback("test prompt")
@@ -465,11 +480,14 @@ class TestCallLlmWithFallback:
         with patch("app.core.extraction.llm_client.call_mimo_llm", new_callable=AsyncMock) as mock_mimo, \
              patch("app.core.extraction.llm_client.call_deepseek_llm", new_callable=AsyncMock) as mock_ds, \
              patch("app.core.extraction.llm_client.call_xunfei_llm", new_callable=AsyncMock) as mock_xf, \
+             patch("app.core.extraction.llm_client.call_spark_x_llm", new_callable=AsyncMock) as mock_spark_x, \
              patch("app.core.extraction.llm_client.httpx.AsyncClient") as mock_client_cls, \
              patch("app.core.extraction.llm_client.settings") as mock_settings:
             mock_mimo.side_effect = LLMConnectionError("MiMo down")
             mock_ds.side_effect = LLMConnectionError("DS down")
             mock_xf.side_effect = LLMConnectionError("XF down")
+            # 2026-08-14 门禁修复: spark_x 短 prompt 优先，mock 抛错让链落到 ollama
+            mock_spark_x.side_effect = LLMConnectionError("Spark X down")
 
             mock_client = AsyncMock()
             mock_client.post.return_value = mock_response
