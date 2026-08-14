@@ -220,18 +220,31 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     _RATE_LIMIT_INCR_SCRIPT, 1, key, settings.rate_limit_window
                 )
                 if count > settings.rate_limit_max:
-                    audit_log(
-                        AuditEntry(
-                            event=AuditEvent.RATE_LIMITED,
-                            actor=client_ip,
-                            action=f"{request.method} {path}",
-                            detail=(
-                                f"Exceeded {settings.rate_limit_max} "
-                                f"req/{settings.rate_limit_window}s (Redis)"
-                            ),
-                            ip=client_ip,
+                    # CONCERN 1.8 (security audit 2026-08-15): rate-limit
+                    # audit must NEVER break the 429 response. If the
+                    # audit_log sink (loguru/Redis/DB persist) raises for
+                    # any reason — Redis down mid-flight, structured-log
+                    # failure, etc — fall back to a WARNING log and still
+                    # return the rate-limit response to the client.
+                    try:
+                        audit_log(
+                            AuditEntry(
+                                event=AuditEvent.RATE_LIMITED,
+                                actor=client_ip,
+                                action=f"{request.method} {path}",
+                                detail=(
+                                    f"Exceeded {settings.rate_limit_max} "
+                                    f"req/{settings.rate_limit_window}s (Redis)"
+                                ),
+                                ip=client_ip,
+                            )
                         )
-                    )
+                    except Exception as audit_exc:  # noqa: BLE001
+                        logger.warning(
+                            "Rate-limit audit sink failed (Redis path); "
+                            "suppressing audit but enforcing 429: {}",
+                            audit_exc,
+                        )
                     return JSONResponse(
                         status_code=429,
                         content={
@@ -254,18 +267,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             for k in stale_keys:
                 del _rate_buckets[k]
         if len(_rate_buckets[client_ip]) >= settings.rate_limit_max:
-            audit_log(
-                AuditEntry(
-                    event=AuditEvent.RATE_LIMITED,
-                    actor=client_ip,
-                    action=f"{request.method} {path}",
-                    detail=(
-                        f"Exceeded {settings.rate_limit_max} "
-                        f"req/{settings.rate_limit_window}s (in-memory)"
-                    ),
-                    ip=client_ip,
+            # CONCERN 1.8: same defence-in-depth as the Redis path —
+            # audit failure must not block the 429 response.
+            try:
+                audit_log(
+                    AuditEntry(
+                        event=AuditEvent.RATE_LIMITED,
+                        actor=client_ip,
+                        action=f"{request.method} {path}",
+                        detail=(
+                            f"Exceeded {settings.rate_limit_max} "
+                            f"req/{settings.rate_limit_window}s (in-memory)"
+                        ),
+                        ip=client_ip,
+                    )
                 )
-            )
+            except Exception as audit_exc:  # noqa: BLE001
+                logger.warning(
+                    "Rate-limit audit sink failed (in-memory path); "
+                    "suppressing audit but enforcing 429: {}",
+                    audit_exc,
+                )
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Try again later."},
