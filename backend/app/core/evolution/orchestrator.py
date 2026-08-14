@@ -339,6 +339,26 @@ async def _diff_and_persist(
     written = 0
     rows: list[EvolutionChangelog] = []
     for change in changes:
+        # 去重 (2026-08-14 修复): 同一对快照的同一变更只记录一次。此前每轮管线
+        # run 都用 _get_snapshot_before 重复对比同一历史快照对（如 7月→8月），
+        # 每次 INSERT 一条相同 changelog → 15,356 行里 99.6% 是重复（retained 噪声
+        # 8988 条、Pandas|Data Analyst removed pending 重复 15 条）。
+        existing = (
+            await session.execute(
+                sa.select(EvolutionChangelog.id)
+                .where(
+                    EvolutionChangelog.position_name == new.position_name,
+                    EvolutionChangelog.skill_name == change.skill_name,
+                    EvolutionChangelog.change_type == change.change_type.value,
+                    EvolutionChangelog.snapshot_from_id == old.id,
+                    EvolutionChangelog.snapshot_to_id == new.id,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            continue  # 该快照对的此变更已记录，跳过
+
         # source_count: use the newer snapshot's source_count as the strongest signal.
         source_count = int(new.source_count or 0)
         trust, confidence = scorer.score(change, source_count)

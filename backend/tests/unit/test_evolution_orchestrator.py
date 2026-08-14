@@ -292,3 +292,29 @@ class TestRunEvolutionPipelineSummary:
         assert summary["consistency"]["status"] == "mismatch"
         assert any("consistency" in w and "mismatch" in w for w in summary["warnings"])
 
+
+    @pytest.mark.asyncio
+    async def test_same_snapshot_pair_change_not_duplicated(self):
+        """去重 (2026-08-14): 同一快照对的同一变更只记录一次，不重复 INSERT。
+
+        根因: 每轮管线 run 重复 diff 同一历史快照对 → 相同 changelog 累积
+        （曾达 15,356 行 vs 56 真实键）。
+        """
+        from app.core.evolution.diff_engine import DiffEngine
+        from app.core.evolution.trust_scorer import TrustScorer
+
+        old = _snapshot("后端工程师", required=["Python"], preferred=[])
+        new = _snapshot("后端工程师", required=["Python", "FastAPI"], preferred=[])
+
+        # execute 第一次调用返回已存在的 changelog id → 去重命中，跳过 add
+        session = MagicMock()
+        session.add = MagicMock()
+        session.flush = AsyncMock()
+        session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value="existing-id")))
+
+        warnings: list[str] = []
+        written, edges = await _diff_and_persist(
+            session, DiffEngine(), TrustScorer(), old, new, warnings
+        )
+        assert written == 0
+        assert session.add.call_count == 0
