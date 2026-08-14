@@ -1,4 +1,6 @@
 """conftest.py：pytest 公共 fixture。"""
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -17,6 +19,7 @@ def _clean_global_state(monkeypatch):
     - 清理 FastAPI dependency_overrides
     - 清理 rate limiter buckets
     - 绕过 SSE 连接数限制（避免全局计数器污染测试）
+    - CONCERN 2.8 (reliability audit 2026-08-15): 检测 linger asyncio 任务
     """
     # Bypass SSE connection limit check in all tests
     import app.dependencies as dep_mod
@@ -40,6 +43,12 @@ def _clean_global_state(monkeypatch):
     monkeypatch.setattr(_cron_mod, "cron_scanner_loop", _noop_cron_scanner_loop)
 
     yield
+
+    # CONCERN 2.8: 必须在 yield 之后、清理 overrides 之前检查 lingering tasks。
+    # 原始修复在 commit ``b0f6ab4f`` (TestClient teardown race) —— 关闭时
+    # 给 asyncio.wait_for 上超时。但任何后续 task.cancel() 不 await 都会重新
+    # 引入竞态：teardown 时这个 fixture 检测 pending task，fail 该测试。
+    _assert_no_lingering_tasks()
 
     app.dependency_overrides.clear()
     _rate_buckets.clear()
@@ -78,8 +87,6 @@ async def db_session():
 @pytest.fixture
 def require_db():
     """Sync guard: skip if PostgreSQL unreachable (for sync tests hitting real DB endpoints)."""
-    import asyncio
-
     from sqlalchemy import text
 
     from app.db.session import get_session_factory
@@ -93,3 +100,38 @@ def require_db():
         asyncio.run(_check())
     except Exception as exc:  # noqa: BLE001
         pytest.skip(f"PostgreSQL 不可用,跳过集成测试: {exc}")
+
+
+def _assert_no_lingering_tasks() -> None:
+    """CONCERN 2.8: CI guard for lingering asyncio tasks after each test.
+
+    Refs: commit ``b0f6ab4f`` (TestClient teardown race original fix).
+    The race remains if any future code adds a ``task.cancel()`` without
+    ``await``. This function inspects ``asyncio.all_tasks()`` and fails
+    the test if any task is still pending (not done/cancelled).
+
+    Skipped silently when there is no running event loop (e.g. when a
+    sync test never entered asyncio). The check is best-effort.
+    """
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        return  # no event loop in this thread; nothing to check
+
+    if loop.is_closed():
+        return  # loop already torn down; tasks from this test are gone
+
+    pending: list[asyncio.Task] = []
+    for task in asyncio.all_tasks(loop=loop):
+        if task.done() or task.cancelled():
+            continue
+        pending.append(task)
+
+    if pending:
+        names = [t.get_name() for t in pending]
+        pytest.fail(
+            f"Lingering asyncio tasks detected after test (CONCERN 2.8): "
+            f"{len(pending)} pending task(s): {names}. "
+            f"Each task must be awaited with timeout or cancelled before "
+            f"the test ends. See commit b0f6ab4f for the original fix."
+        )
