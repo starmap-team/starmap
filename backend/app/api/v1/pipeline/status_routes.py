@@ -9,7 +9,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import BigInteger, Column, DateTime, MetaData, Table, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.pipeline.serializers import serialize_datasource
@@ -24,6 +24,39 @@ from app.schemas.pipeline import (
     PipelineStatusResponse,
     QualityAlertItem,
     StageStatusResponse,
+)
+
+# CONCERN 1.7 (security audit 2026-08-15): typed SQLAlchemy Core `select`
+# against the `jd_raw` table instead of `_text("SELECT MAX(crawled_at) FROM jd_raw")`.
+#
+# `jd_raw` has no ORM model — the table is owned by the crawler's own
+# alembic (`crawler/persistence/migrations/versions/0001_init_jd_raw.py`).
+# We declare a thin Core `Table` against the same PG schema so future
+# schema renames surface as import-time / type errors instead of silent
+# runtime SQL failures.
+#
+# Schema (from 0001_init_jd_raw.py):
+#   id            BigInteger PK
+#   source_site   String(32)
+#   source_url    Text UNIQUE
+#   raw_html      Text
+#   clean_text    Text
+#   job_title     String(200)
+#   company       String(200)
+#   salary_min    Integer
+#   salary_max    Integer
+#   location      String(100)
+#   publish_date  Date
+#   crawled_at    DateTime(timezone=True)  ← the column we project MAX on
+#   content_hash  CHAR(64)
+#   status        Enum('raw','extracted','duplicate','failed', name='jd_status')
+#   error_msg     Text
+_JD_RAW_METADATA = MetaData()
+jd_raw_table = Table(
+    "jd_raw",
+    _JD_RAW_METADATA,
+    Column("id", BigInteger, primary_key=True),
+    Column("crawled_at", DateTime(timezone=True)),
 )
 
 router = APIRouter(prefix="", tags=["数据流水线·状态"])
@@ -119,12 +152,15 @@ async def get_pipeline_status(
     # end of alerts block — after this we always return a valid response
 
     # Phase 4 P3: 查询最近一次 crawl 时间，让用户看到数据陈旧度
-    from sqlalchemy import text as _text
+    # CONCERN 1.7: use SQLAlchemy Core `select(func.max(jd_raw_table.c.crawled_at))`
+    # against the typed `jd_raw_table` Table — keeps column renames as
+    # import-time failures rather than silent runtime SQL breakage.
     try:
-        last_crawl_result = await session.execute(
-            _text("SELECT MAX(crawled_at) FROM jd_raw")
-        )
-        last_crawl_at = last_crawl_result.scalar()
+        last_crawl_at = (
+            await session.execute(
+                select(func.max(jd_raw_table.c.crawled_at))
+            )
+        ).scalar()
         last_crawl_iso = last_crawl_at.isoformat() if last_crawl_at else None
     except Exception:
         last_crawl_iso = None
