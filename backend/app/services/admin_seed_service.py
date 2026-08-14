@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -16,8 +17,15 @@ from loguru import logger
 from app.config import get_settings
 from app.schemas.admin import SeedResetResponse
 
-# backend/app/services/admin_seed_service.py → 仓库根
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# backend/app/services/admin_seed_service.py
+#   host:  repo_root/backend/app/services → _BACKEND_DIR = repo_root/backend
+#   容器:  repo_root/backend 挂载为 /app   → _BACKEND_DIR = /app
+_BACKEND_DIR = Path(__file__).resolve().parents[2]
+# scripts/ 位置：容器内 compose 挂载于 /app/scripts（=_BACKEND_DIR/scripts）；
+# 宿主机上为仓库根的兄弟目录（=_BACKEND_DIR.parent/scripts）。
+_SCRIPTS_DIR = _BACKEND_DIR / "scripts"
+if not _SCRIPTS_DIR.exists():
+    _SCRIPTS_DIR = _BACKEND_DIR.parent / "scripts"
 
 # 顺序敏感：pipeline 阶段/演化快照依赖 datasource ID 确定性。
 _SEED_SCRIPTS: list[str] = [
@@ -32,17 +40,31 @@ _SEED_TIMEOUT_SECONDS: int = 120
 
 async def _run_one(script: str) -> tuple[bool, str]:
     """执行单个种子脚本，返回 (成功与否, 输出摘录)。"""
-    path = _PROJECT_ROOT / "scripts" / script
+    path = _SCRIPTS_DIR / script
     if not path.exists():
         logger.warning("seed script not found: %s", script)
         return False, f"skip {script}: not found"
+
+    # 种子脚本按容器约定从 POSTGRES_URI 取连接串；无则 fallback 到 localhost（主机端口），
+    # 容器内会连错。显式注入应用已解析的正确 URI（settings.postgres_uri）。
+    # 注意：asyncpg 不接受 SQLAlchemy 风格的 `?ssl=` 查询参数，须剥离后再注入。
+    env = dict(os.environ)
+    try:
+        uri = getattr(get_settings(), "postgres_uri", None)
+        if uri:
+            env["POSTGRES_URI"] = uri.split("?")[0]
+    except Exception:  # noqa: BLE001 — 配置不可用时让种子走自己的默认值
+        pass
+    # 子脚本 import `app.*`（config / db.session），把 backend 目录加进 PYTHONPATH。
+    env["PYTHONPATH"] = str(_BACKEND_DIR) + os.pathsep + env.get("PYTHONPATH", "")
 
     try:
         proc = await asyncio.wait_for(
             asyncio.create_subprocess_exec(
                 sys.executable,
                 str(path),
-                cwd=str(_PROJECT_ROOT),
+                cwd=str(_SCRIPTS_DIR.parent),
+                env=env,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             ),

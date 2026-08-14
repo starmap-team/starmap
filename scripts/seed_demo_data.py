@@ -21,6 +21,7 @@ top-level file just orchestrates them in the right order.
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 
@@ -42,13 +43,15 @@ def _run_sub(name: str) -> None:
     print(f"\n--- seed_demo_data: {name} ---")
     mod = __import__(name)
     if hasattr(mod, "main"):
-        mod.main()
+        result = mod.main()
     elif hasattr(mod, "seed"):
-        mod.seed()
+        result = mod.seed()
     else:
         # Convention: importing the module runs its top-level insertion.
         # Sub-scripts that follow this contract need no entry point.
-        pass
+        return
+    if asyncio.iscoroutine(result):
+        asyncio.run(result)
 
 
 def main() -> None:
