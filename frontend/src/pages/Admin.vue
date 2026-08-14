@@ -209,6 +209,26 @@ async function handleTriggerSync(row: { id: string; name: string }) {
   }
 }
 
+// 数据源状态语义化 (2026-08-14): inactive 曾误显示为「异常」——现独立为「已停用」
+const DATASOURCE_STATUS_LABEL: Record<string, string> = {
+  active: '活跃',
+  paused: '暂停',
+  inactive: '已停用',
+  error: '异常',
+}
+const DATASOURCE_STATUS_TYPE: Record<string, 'success' | 'warning' | 'info' | 'danger'> = {
+  active: 'success',
+  paused: 'warning',
+  inactive: 'info',
+  error: 'danger',
+}
+function datasourceStatusLabel(s: string): string {
+  return DATASOURCE_STATUS_LABEL[s] ?? s
+}
+function datasourceStatusType(s: string): 'success' | 'warning' | 'info' | 'danger' {
+  return DATASOURCE_STATUS_TYPE[s] ?? 'info'
+}
+
 // D5: 软删除（停用）数据源 —— DELETE /datasources/{id} → status='inactive'，保留采集历史
 async function handleDeactivateSource(row: { id: string; name: string }) {
   try {
@@ -680,11 +700,11 @@ function formatDate(iso: string | null | undefined): string {
               >
                 <template #default="{ row }">
                   <el-tag
-                    :type="row.status === 'active' ? 'success' : row.status === 'paused' ? 'warning' : 'danger'"
+                    :type="datasourceStatusType(row.status)"
                     size="small"
                     effect="plain"
                   >
-                    {{ row.status === 'active' ? '活跃' : row.status === 'paused' ? '暂停' : '异常' }}
+                    {{ datasourceStatusLabel(row.status) }}
                   </el-tag>
                 </template>
               </el-table-column>
@@ -776,14 +796,23 @@ function formatDate(iso: string | null | undefined): string {
                   >
                     统计
                   </el-button>
-                  <el-button
-                    size="small"
-                    type="danger"
-                    plain
-                    @click="handleDeactivateSource(row)"
+                  <el-tooltip
+                    placement="top"
+                    :show-after="200"
                   >
-                    停用
-                  </el-button>
+                    <template #content>
+                      {{ row.status === 'active' ? '停用数据源，退出爬取/同步调度（历史数据保留）' : '仅活跃数据源可停用' }}
+                    </template>
+                    <el-button
+                      size="small"
+                      type="danger"
+                      plain
+                      :disabled="row.status !== 'active'"
+                      @click="handleDeactivateSource(row)"
+                    >
+                      停用
+                    </el-button>
+                  </el-tooltip>
                 </template>
               </el-table-column>
             </el-table>

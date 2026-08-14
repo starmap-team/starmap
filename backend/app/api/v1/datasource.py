@@ -211,16 +211,19 @@ async def delete_datasource(
     )
     ds = result.scalar_one_or_none()
     if ds is None:
-        raise HTTPException(status_code=404, detail="Data source not found")
+        raise HTTPException(status_code=404, detail="数据源不存在")
     if ds.status == "inactive":
-        raise HTTPException(status_code=400, detail="Data source already inactive")
+        # 幂等 (2026-08-14): 停用已停用的源不是错误——返回成功（no-op）。
+        # 此前 400 英文 detail 触发前端双重错误 toast（"Data source already inactive"
+        # + "停用失败: Request failed with status code 400"），且按钮对已停用源仍可点。
+        return {"detail": "数据源已停用", "source_id": str(source_id)}
     ds.status = "inactive"
     # D8c fix: 双写 config.disabled=true —— 流水线页 DataSourceManager 只读
     # config.disabled 判断启停，DELETE 仅设 status 导致停用状态在两页不一致
     # （数据源页「已停用」vs 流水线页「待机」）。
     ds.config = {**(ds.config or {}), "disabled": True}
     await session.commit()
-    return {"detail": "data source deactivated", "source_id": str(source_id)}
+    return {"detail": "数据源已停用", "source_id": str(source_id)}
 
 
 @router.get("/{source_id}/stats", response_model=DataSourceStatsResponse)
