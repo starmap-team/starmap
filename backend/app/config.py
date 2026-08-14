@@ -158,6 +158,11 @@ class Settings(BaseSettings):
     llm_timeout: int = 60
     llm_max_retries: int = 3
 
+    # 阿里云百炼 Qwen（2026-08-14 接入，降级链首选）——OpenAI 兼容端点
+    dashscope_api_key: str = ""
+    dashscope_base_url: str = "https://llm-nire844xse41iz9w.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+    dashscope_model: str = "qwen-plus"
+
     # 小米 MiMo（实际使用的 OpenAI 兼容端点，推理模型）
     mimo_api_base: str = "https://token-plan-cn.xiaomimimo.com/v1"
     mimo_api_key: str = ""

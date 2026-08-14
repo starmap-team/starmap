@@ -317,6 +317,69 @@ async def call_deepseek_llm(
     return {"role": "assistant", "content": content, "model": settings.deepseek_model}
 
 
+async def call_dashscope_llm(
+    prompt: str,
+    timeout: int | None = None,
+) -> dict[str, Any]:
+    """Call Aliyun Bailian Qwen (OpenAI-compatible endpoint).
+
+    Args:
+        prompt: Input prompt text.
+        timeout: Request timeout in seconds (default: settings.llm_timeout).
+
+    Returns:
+        Dict with 'role', 'content', 'model' keys.
+
+    Raises:
+        LLMConnectionError: On connection failure.
+        LLMResponseError: On unexpected response.
+        LLMTimeoutError: On timeout.
+
+    Note: 2026-08-14 接入为降级链首选。百炼 OpenAI 兼容端点支持 `enable_thinking`
+    (深度思考),但非流式请求下 content 即最终回复(thinking 不混入 content)。
+    """
+    actual_timeout = timeout if timeout is not None else settings.llm_timeout
+    api_key = settings.dashscope_api_key
+    if not api_key:
+        raise LLMConnectionError("DASHSCOPE_API_KEY is not configured")
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": settings.dashscope_model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.5,
+        "max_tokens": 4096,
+    }
+
+    logger.info("Calling Aliyun Bailian Qwen ({})", settings.dashscope_model)
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
+            # base_url 指向 OpenAI 兼容根(如 .../compatible-mode/v1)，须拼 /chat/completions
+            url = settings.dashscope_base_url.rstrip("/") + "/chat/completions"
+            response = await client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+    except httpx.TimeoutException as e:
+        raise LLMTimeoutError(f"DashScope API timeout after {actual_timeout}s") from e
+    except httpx.HTTPStatusError as e:
+        raise LLMResponseError(f"DashScope API returned {e.response.status_code}: {e.response.text}") from e
+    except httpx.RequestError as e:
+        raise LLMConnectionError(f"DashScope API connection failed: {e}") from e
+
+    choices = data.get("choices", [])
+    if not choices:
+        raise LLMResponseError("DashScope API returned empty choices")
+
+    message = choices[0].get("message", {})
+    content = message.get("content", "")
+    logger.debug("DashScope response received ({} chars)", len(content))
+    return {"role": "assistant", "content": content, "model": settings.dashscope_model}
+
+
 # Spark X 深度推理对长 prompt 会触发讯飞网关 60s 504（实测：抽取 prompt ~2582 chars
 # → 504；反幻觉 ~591 chars → 16s OK）。长 prompt 直接跳过 Spark X，避免每次拖 61s 后降级。
 SPARK_X_MAX_PROMPT_CHARS = 1500
@@ -355,6 +418,15 @@ async def call_llm_with_fallback(
     spark_x_candidate = settings.xunfei_api_key and (
         prefer_spark_x or len(prompt) <= SPARK_X_MAX_PROMPT_CHARS
     )
+
+    # 阿里云百炼 Qwen（2026-08-14 接入，降级链首选）——DeepSeek 余额不足、讯飞 11200 时主链路
+    if settings.dashscope_api_key:
+        try:
+            return await _call_and_track(call_dashscope_llm)
+        except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
+            msg = f"DashScope failed: {e}"
+            logger.warning(msg)
+            errors.append(msg)
 
     # Try Spark X first (X2/X1.5 深度推理 — 用户首选；仅短 prompt 或显式偏好时)
     if spark_x_candidate:

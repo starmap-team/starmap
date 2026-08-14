@@ -358,6 +358,7 @@ class TestCallLlmWithFallback:
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = "key"
             mock_settings.qwen_model_path = ""
+            mock_settings.dashscope_api_key = ""
 
             result = await call_llm_with_fallback("test prompt")
 
@@ -376,6 +377,7 @@ class TestCallLlmWithFallback:
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = ""
             mock_settings.qwen_model_path = ""
+            mock_settings.dashscope_api_key = ""
 
             result = await call_llm_with_fallback("test prompt")
 
@@ -397,6 +399,7 @@ class TestCallLlmWithFallback:
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = "key"
             mock_settings.qwen_model_path = ""
+            mock_settings.dashscope_api_key = ""
 
             result = await call_llm_with_fallback("test prompt")
 
@@ -416,6 +419,7 @@ class TestCallLlmWithFallback:
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = "key"
             mock_settings.qwen_model_path = ""
+            mock_settings.dashscope_api_key = ""
 
             with pytest.raises(LLMConnectionError, match="No LLM endpoint configured"):
                 await call_llm_with_fallback("test prompt")
@@ -432,6 +436,7 @@ class TestCallLlmWithFallback:
             mock_settings.deepseek_api_key = "key"
             mock_settings.xunfei_api_key = ""
             mock_settings.qwen_model_path = ""
+            mock_settings.dashscope_api_key = ""
 
             result = await call_llm_with_fallback("test prompt")
 
@@ -445,6 +450,7 @@ class TestCallLlmWithFallback:
             mock_settings.deepseek_api_key = ""
             mock_settings.xunfei_api_key = ""
             mock_settings.qwen_model_path = ""
+            mock_settings.dashscope_api_key = ""
 
             with pytest.raises(LLMConnectionError, match="no providers available"):
                 await call_llm_with_fallback("test prompt")
@@ -483,6 +489,61 @@ class TestCallLlmWithFallback:
 
         assert result["content"] == "qwen result"
         assert result["model"] == "qwen2.5-7b-fallback"
+
+    # ── 阿里云百炼 Qwen 接入 (2026-08-14) ──
+    @pytest.mark.asyncio
+    async def test_dashscope_succeeds_first(self):
+        """DashScope 是降级链首选——配置了 key 则最先调用。"""
+        with patch("app.core.extraction.llm_client.call_dashscope_llm", new_callable=AsyncMock) as mock_ds, \
+             patch("app.core.extraction.llm_client.settings") as mock_settings:
+            mock_ds.return_value = {"role": "assistant", "content": "bailian result", "model": "qwen-plus"}
+            mock_settings.dashscope_api_key = "key"
+            mock_settings.xunfei_api_key = "key"
+            mock_settings.deepseek_api_key = "key"
+            mock_settings.qwen_model_path = ""
+
+            result = await call_llm_with_fallback("test prompt")
+
+        assert result["content"] == "bailian result"
+        mock_ds.assert_called_once_with("test prompt")
+
+    @pytest.mark.asyncio
+    async def test_dashscope_fails_deepseek_succeeds(self):
+        """DashScope 失败 → 降级到 DeepSeek。"""
+        with patch("app.core.extraction.llm_client.call_dashscope_llm", new_callable=AsyncMock) as mock_ds, \
+             patch("app.core.extraction.llm_client.call_deepseek_llm", new_callable=AsyncMock) as mock_dsk, \
+             patch("app.core.extraction.llm_client.settings") as mock_settings:
+            mock_ds.side_effect = LLMConnectionError("Bailian down")
+            mock_dsk.return_value = {"role": "assistant", "content": "ds result", "model": "deepseek-chat"}
+            mock_settings.dashscope_api_key = "key"
+            mock_settings.mimo_api_key = ""
+            mock_settings.xunfei_api_key = ""
+            mock_settings.deepseek_api_key = "key"
+            mock_settings.qwen_model_path = ""
+
+            result = await call_llm_with_fallback("test prompt")
+
+        assert result["content"] == "ds result"
+        mock_ds.assert_called_once()
+        mock_dsk.assert_called_once_with("test prompt")
+
+    @pytest.mark.asyncio
+    async def test_dashscope_not_configured_skips(self):
+        """无 DASHSCOPE_API_KEY 时跳过百炼分支,直接走 Spark X。"""
+        with patch("app.core.extraction.llm_client.call_dashscope_llm", new_callable=AsyncMock) as mock_ds, \
+             patch("app.core.extraction.llm_client.call_spark_x_llm", new_callable=AsyncMock) as mock_sx, \
+             patch("app.core.extraction.llm_client.settings") as mock_settings:
+            mock_sx.return_value = {"role": "assistant", "content": "spark result", "model": "spark-x"}
+            mock_settings.dashscope_api_key = ""
+            mock_settings.xunfei_api_key = "key"
+            mock_settings.deepseek_api_key = ""
+            mock_settings.qwen_model_path = ""
+
+            result = await call_llm_with_fallback("test prompt", prefer_spark_x=True)
+
+        assert result["content"] == "spark result"
+        mock_ds.assert_not_called()
+        mock_sx.assert_called_once_with("test prompt")
 
 
 # ═══════════════════════════════════════════════════════════════
