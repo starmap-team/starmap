@@ -135,11 +135,15 @@ export function useQualityDashboardCharts(store: QualityStore) {
   const trendChartOption: ComputedRef<Record<string, unknown>> = computed(() => {
     const trend = store.metrics?.hallucination_trend
     if (!trend) return {}
+    // Y 轴上限动态: 保底 20%(维持 10% 预警线的健康分级视觉), 但容纳真实数据峰值
+    // (修复前硬编码 max:20 —— 一旦某天幻觉率 >20% 会被裁剪成"顶格", 掩盖真实告警)
+    const peak = Math.max(...trend.map(t => t.rate * 100), 0)
+    const yMax = Math.max(20, Math.ceil(peak * 1.2 / 5) * 5)
     return {
       tooltip: { trigger: 'axis' },
       grid: { top: 20, bottom: 28, left: 50, right: 20 },
       xAxis: { type: 'category', data: trend.map(t => t.date) },
-      yAxis: { type: 'value', name: '幻觉率 (%)', min: 0, max: 20 },
+      yAxis: { type: 'value', name: '幻觉率 (%)', min: 0, max: yMax },
       series: [{
         type: 'line',
         data: trend.map(t => ({ value: +(t.rate * 100).toFixed(1) })),
