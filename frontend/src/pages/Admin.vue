@@ -183,6 +183,21 @@ async function handleSaveSource() {
 
 // E19: 数据源联动操作 — 让用户能立即触发单源同步,并看到真实统计
 const syncingSourceId = ref<string | null>(null)
+const activatingSourceId = ref<string | null>(null)
+// 2026-08-14: 重新启用停用/暂停源（功能缺口修复——此前停用后 UI 无法再启用）
+async function handleActivateSource(row: { id: string; name: string }) {
+  activatingSourceId.value = row.id
+  try {
+    const ok = await datasource.activateSource(row.id)
+    if (ok) ElMessage.success(`「${row.name}」已启用，恢复活跃`)
+    else ElMessage.error(`启用失败: ${datasource.error || '未知错误'}`)
+    await datasource.fetchSources()
+  } catch (e: unknown) {
+    ElMessage.error(`启用失败: ${e instanceof Error ? e.message : '未知错误'}`)
+  } finally {
+    activatingSourceId.value = null
+  }
+}
 async function handleTriggerSync(row: { id: string; name: string }) {
   syncingSourceId.value = row.id
   const progressMsg = ElMessage({
@@ -796,23 +811,43 @@ function formatDate(iso: string | null | undefined): string {
                   >
                     统计
                   </el-button>
-                  <el-tooltip
-                    placement="top"
-                    :show-after="200"
-                  >
-                    <template #content>
-                      {{ row.status === 'active' ? '停用数据源，退出爬取/同步调度（历史数据保留）' : '仅活跃数据源可停用' }}
-                    </template>
-                    <el-button
-                      size="small"
-                      type="danger"
-                      plain
-                      :disabled="row.status !== 'active'"
-                      @click="handleDeactivateSource(row)"
+                  <template v-if="row.status === 'active'">
+                    <el-tooltip
+                      placement="top"
+                      :show-after="200"
                     >
-                      停用
-                    </el-button>
-                  </el-tooltip>
+                      <template #content>
+                        停用数据源，退出爬取/同步调度（历史数据保留）
+                      </template>
+                      <el-button
+                        size="small"
+                        type="danger"
+                        plain
+                        @click="handleDeactivateSource(row)"
+                      >
+                        停用
+                      </el-button>
+                    </el-tooltip>
+                  </template>
+                  <template v-else>
+                    <!-- 2026-08-14: 启用按钮——修复"停用后无法再启用"功能缺口 -->
+                    <el-tooltip
+                      placement="top"
+                      :show-after="200"
+                    >
+                      <template #content>
+                        {{ row.status === 'paused' ? '恢复该数据源为活跃（重新加入爬取/同步调度）' : '重新启用该数据源（恢复为活跃）' }}
+                      </template>
+                      <el-button
+                        size="small"
+                        type="success"
+                        :loading="activatingSourceId === row.id"
+                        @click="handleActivateSource(row)"
+                      >
+                        启用
+                      </el-button>
+                    </el-tooltip>
+                  </template>
                 </template>
               </el-table-column>
             </el-table>

@@ -136,6 +136,26 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
+  // 2026-08-14: 重新启用停用/暂停的数据源（功能缺口修复——此前停用后 UI 无法再启用）
+  async function activateSource(id: string): Promise<boolean> {
+    loading.value = true
+    error.value = null
+    try {
+      const src = sources.value.find(s => s.id === id)
+      // 保留现有 config（platform/max_count 等），仅把 disabled 置 false + status=active
+      const config = { ...(src?.config || {}), disabled: false }
+      const data = await request.put(`/datasources/${id}`, { status: 'active', config }) as DataSourceDetail
+      const idx = sources.value.findIndex(s => s.id === id)
+      if (idx !== -1) sources.value[idx] = data
+      return true
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '启用数据源失败'
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchStats(id: string) {
     loading.value = true
     error.value = null
@@ -228,6 +248,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
     fetchSourceDetail,
     updateSource,
     deactivateSource,
+    activateSource,
     fetchStats,
     triggerSync,
     triggerCrawl,
