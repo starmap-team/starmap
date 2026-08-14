@@ -32,6 +32,7 @@
 | `frontend/src/validation/` | **前端运行时校验层（JSON Schema 校验 + 错误解析 + 表单校验）** |
 | `starmap-contracts/` | API 契约 (OpenAPI + Cypher + JSON Schema), **跨团队真相源** |
 | `starmap-contracts/schemas/` | **自动生成的 JSON Schema（供前端运行时校验）** |
+| `crawler/` | Scrapy 爬虫工程（7 平台: remoteok/arbeitnow/juejin/v2ex 等 → compliance_log/jd_raw 落库，经 import_jd 导入 JD 抽取） |
 | `evaluation/` | 评估套件 (baseline/模拟LLM/真实LLM) |
 | `tests/e2e/` | E2E 冒烟 + Playwright 测试 |
 
