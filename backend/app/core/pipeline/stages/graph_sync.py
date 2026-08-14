@@ -101,6 +101,12 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
     from app.tasks.stage3_services import run_build_graph_from_extractions
 
     processed = 0
+    # 2026-08-14 门禁修复: 与 import_.execute_import 同源问题 — 三元组/节点/关系
+    # 仅在 happy path 赋值，DB/Neo4j 失败路径的 return/sub_breakdown 引用它们 →
+    # CI（无 DB）下 UnboundLocalError。提前初始化为 0，失败路径优雅返回。
+    triples_merged = 0
+    nodes = 0
+    edges = 0
     errors: list[str] = []
     start = time.monotonic()
 
