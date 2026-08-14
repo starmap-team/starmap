@@ -9,6 +9,12 @@ name: starmap-prod
 services:
   # ---------- Backend API ----------
   backend:
+    # DEPLOY-FIX (2026-08-14): 部署前查验补齐 — 原仅有 image 无 build，
+    # 服务器 `up -d` 会尝试拉取不存在的 `starmap-backend:2026.07`。补 build
+    # 段（context=backend/，镜像 dev compose），fresh clone 可直接构建。
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: starmap-backend:2026.07
     container_name: starmap-backend-prod
     ports:
@@ -68,6 +74,11 @@ services:
 
   # ---------- Celery Worker ----------
   celery-worker:
+    # DEPLOY-FIX (2026-08-14): 补 build 段（context=仓库根，Dockerfile.celery
+    # 按仓库根 COPY backend/... crawler/...），fresh clone 可直接构建。
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.celery
     image: starmap-celery-worker:2026.07
     container_name: starmap-celery-worker-prod
     env_file:

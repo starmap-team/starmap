@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 StarMap E2E 冒烟测试脚本（§10.4）
 
@@ -19,8 +18,9 @@ StarMap E2E 冒烟测试脚本（§10.4）
 import argparse
 import sys
 import time
+from urllib.parse import quote
+
 import requests
-from pathlib import Path
 
 
 class Colors:
@@ -90,10 +90,18 @@ def test_e2e1_new_position_discovery(base_url):
     results = []
 
     # Step 1: 全景图谱有数据
+    # DEPLOY-FIX (2026-08-14): 冷启动竞态误报 — Neo4j 数据就绪晚于容器健康，
+    # 原实现首查即判失败。加重试 3 次 × 5s 后再判定。
     try:
-        resp = requests.get(f"{base_url}/api/v1/graph/panorama", timeout=10)
-        data = resp.json()
-        node_count = len(data.get("nodes", []))
+        node_count = 0
+        for attempt in range(1, 4):
+            resp = requests.get(f"{base_url}/api/v1/graph/panorama", timeout=10)
+            data = resp.json()
+            node_count = len(data.get("nodes", []))
+            if node_count > 0:
+                break
+            if attempt < 3:
+                time.sleep(5)
         results.append(check(
             f"全景图谱有节点 ({node_count} 个)",
             node_count > 0,
@@ -137,7 +145,12 @@ def test_e2e2_position_update(base_url):
         if positions:
             pos_name = positions[0].get("name", positions[0].get("job_title", ""))
             if pos_name:
-                resp2 = requests.get(f"{base_url}/api/v1/graph/position/{pos_name}", timeout=10)
+                # DEPLOY-FIX (2026-08-14): 岗位名含空格/特殊字符时未 URL 编码
+                # → "Account Executive" 请求挂（需 %20）。quote 后路径可查。
+                resp2 = requests.get(
+                    f"{base_url}/api/v1/graph/position/{quote(pos_name, safe='')}",
+                    timeout=10,
+                )
                 results.append(check(
                     f"岗位详情可查 ({pos_name})",
                     resp2.status_code == 200
@@ -239,7 +252,7 @@ def main():
     args = parser.parse_args()
 
     print(f"\n{'='*60}")
-    print(f"  StarMap E2E 冒烟测试")
+    print("  StarMap E2E 冒烟测试")
     print(f"  目标: {args.base_url}")
     print(f"  时间: {time.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}")
