@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.upload_validation import validate_resume_upload
 from app.dependencies import get_db_session, get_neo4j_driver
-from app.exceptions import ExtractionError, ExtractionLLMError, StarMapError
+from app.exceptions import ExtractionError, ExtractionLLMError, GraphProjectionError, StarMapError
 from app.schemas.extract import ExtractionRequest, ExtractionResult
 from app.services.extraction_service import (
     extract_from_jd,
@@ -111,6 +111,15 @@ async def _write_extraction_to_graph(
             data.get("position_name"),
         )
         return summary
+    except GraphProjectionError as exc:
+        # Phase 23 Task 2 (checkpoint:decision): MERGE 键已切 canonical_id——API 抽取
+        # 路径此时尚未落 PG（图写先于 PG 写），无 canonical_id 不落图（拒绝孤儿）。
+        # 降级为"仅 PG 写入"，节点待审核通过后由 graph_sync/reconcile 按 canonical_id 补投影。
+        logger.warning(
+            "Graph write deferred (no canonical_id yet, PG write will follow; reconcile catches up): {}",
+            exc,
+        )
+        return None
     except (ExtractionError, ExtractionLLMError) as exc:
         logger.exception("Extraction failed: {}", exc)
         raise HTTPException(status_code=502, detail=str(exc)) from exc
