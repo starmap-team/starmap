@@ -188,7 +188,7 @@ async def _replay_outbox_row(session_factory: Any, row: Any, driver: Any) -> boo
             await _complete_outbox_record(session_factory, row.id, 0)
             return True
 
-        canonical_ids_list: list[dict[str, Any]] = []
+        canonical_ids_list: list[dict[str, Any] | None] = []
         for p in extractions:
             pname = str(p.get("position_name") or p.get("job_title") or "").strip()
             cids: dict[str, Any] = {"position_id": position_map.get(pname), "skills": {}}
