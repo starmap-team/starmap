@@ -46,6 +46,7 @@ def _make_row(
     change_type: str = "added_required",
     trust: float = 0.8,
     confidence: float = 0.9,
+    status: str = "pending",
 ) -> EvolutionChangelog:
     return EvolutionChangelog(
         position_name=position_name,
@@ -53,6 +54,7 @@ def _make_row(
         change_type=change_type,
         trust_score=trust,
         confidence=confidence,
+        status=status,
     )
 
 
@@ -88,6 +90,57 @@ class TestWriteBackGate:
         assert result is None
         session.execute.assert_not_called()
         assert warnings == []
+
+    @pytest.mark.asyncio
+    async def test_pending_low_trust_still_blocked(self):
+        """Phase 23 Task 5: pending 行 trust<0.6 仍被拦（0.6 保守闸门保留）。"""
+        row = _make_row(trust=WRITEBACK_TRUST_THRESHOLD - 0.01, status="pending")
+        session = _make_session()
+        warnings: list[str] = []
+
+        result = await write_back_changelog_row(session, row, warnings)
+
+        assert result is None
+        session.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_approved_low_trust_writes_back(self, position_id, skill_record):
+        """Phase 23 Task 5 (DF-04): approved 行 trust<0.6 直接放行写回 PSR。"""
+        row = _make_row(change_type="added_required", trust=0.4, status="approved")
+        session = _make_session(
+            _FakeScalarResult(position_id),
+            _FakeScalarResult(skill_record),
+            _FakeScalarResult(None),
+        )
+        warnings: list[str] = []
+
+        result = await write_back_changelog_row(session, row, warnings)
+
+        assert result == 0.9  # 写回成功（INSERT PSR）
+        added: PositionSkillRelation = session.add.call_args[0][0]
+        assert added.requirement_type == "required"
+        assert added.position_id == position_id
+        assert warnings == []
+
+    @pytest.mark.asyncio
+    async def test_manual_approve_then_write_back(self, position_id, skill_record):
+        """手动 approve（evolution.py:454-461 置 status='approved'）后写回成功。
+
+        单源新技能 trust≈0.35-0.42 曾永远 <0.6 被静默拦截——审核即写回闭环（D8f）。
+        """
+        row = _make_row(change_type="added_preferred", trust=0.35, status="approved")
+        session = _make_session(
+            _FakeScalarResult(position_id),
+            _FakeScalarResult(skill_record),
+            _FakeScalarResult(None),
+        )
+        warnings: list[str] = []
+
+        result = await write_back_changelog_row(session, row, warnings)
+
+        assert result == 0.9
+        added = session.add.call_args[0][0]
+        assert added.requirement_type == "preferred"
 
     @pytest.mark.asyncio
     async def test_removed_change_type_skipped(self):

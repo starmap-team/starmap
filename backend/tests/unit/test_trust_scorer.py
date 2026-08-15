@@ -82,3 +82,31 @@ class TestStabilityFactor:
         t_g, _ = scorer.score(growing, source_count=5)
         t_v, _ = scorer.score(vanishing, source_count=5)
         assert t_g > t_v
+
+
+class TestSingleSourceColdStart:
+    """Phase 23 Task 5 (DF-04): 单源 cold-start trust 数值固化（文档锚点）。
+
+    权重 source 0.5 / stability 0.3 / type 0.2（trust_scorer.py docstring 已固化）：
+    source_count=1 → source_factor=√(1/10)≈0.316；mention_count_new=1 →
+    stability_factor=1/5=0.2。
+    - ADDED_REQUIRED   = 0.5·0.316 + 0.3·0.2 + 0.2·1.00 = 0.418
+    - ADDED_PREFERRED  = 0.5·0.316 + 0.3·0.2 + 0.2·0.65 = 0.348
+    """
+
+    def test_added_required_single_source(self, scorer):
+        trust, _ = scorer.score(_change(ChangeType.ADDED_REQUIRED, new_n=1), source_count=1)
+        assert trust == pytest.approx(0.418, abs=0.001)
+
+    def test_added_preferred_single_source(self, scorer):
+        trust, _ = scorer.score(_change(ChangeType.ADDED_PREFERRED, new_n=1), source_count=1)
+        assert trust == pytest.approx(0.348, abs=0.001)
+
+    def test_single_source_below_review_threshold(self, scorer):
+        """单源 cold-start 均 < LOW_TRUST_THRESHOLD(0.5) → 自动 pending。"""
+        from app.core.evolution.trust_scorer import LOW_TRUST_THRESHOLD
+
+        t_req, _ = scorer.score(_change(ChangeType.ADDED_REQUIRED, new_n=1), source_count=1)
+        t_pref, _ = scorer.score(_change(ChangeType.ADDED_PREFERRED, new_n=1), source_count=1)
+        assert t_req < LOW_TRUST_THRESHOLD
+        assert t_pref < LOW_TRUST_THRESHOLD

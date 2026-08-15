@@ -23,6 +23,18 @@ change with stable history scores near 1.0:
 
 Stage 3 governance rule: no EvolutionChangelog row may persist with the
 default 0.5 placeholder — TrustScorer MUST be invoked for every change.
+
+Single-source cold-start values (source_count=1, mention_count_new=1) — 文档固化
+(Phase 23 Task 5, DF-04): 防止未来权重调整无回归参照。两者均 < LOW_TRUST_THRESHOLD
+(0.5) → 自动标记 status='pending'；写回闸门 (write_back.py) 已是审核态感知——
+pending 受 0.6 保护，approved（自动/手动）直接放行写回 PSR。
+
+    ADDED_REQUIRED   = 0.5·√(1/10) + 0.3·(1/5) + 0.2·1.00 = 0.158 + 0.060 + 0.200 = 0.418
+    ADDED_PREFERRED  = 0.5·√(1/10) + 0.3·(1/5) + 0.2·0.65 = 0.158 + 0.060 + 0.130 = 0.348
+
+注：EntityTrustScorer（core/trust/entity_trust.py，图节点四因子）单源最高
+0.3·√(1/10)+0.3·1.0+0.25·1.0 ≈ 0.545 < 0.6，但该评分**不用于**写回闸门
+（evolution 写回只认本模块 TrustScorer 的 trust_score）。
 """
 from __future__ import annotations
 
