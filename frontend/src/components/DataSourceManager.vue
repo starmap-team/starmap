@@ -131,7 +131,7 @@ function platformInfo(ds: DataSourceDetail) {
     const info = SUPPORTED_SPIDERS[platform as keyof typeof SUPPORTED_SPIDERS]
     return { available: true, label: info.label, icon: info.icon }
   }
-  return { available: false, label: platform || '未配置', icon: '❓' }
+  return { available: false, label: platform || '未配置', icon: '⚠️' }
 }
 
 // Phase 15-01: 数据源类型标签 (api/rss/crawler/manual)
@@ -251,7 +251,16 @@ function formatRecords(n: number) {
             <el-icon :size="11">
               <CircleCheck />
             </el-icon>
-            {{ totalEnabled }} 个可用数据源
+            <!-- D7 (2026-08-15): 可用数判定标准 tooltip，避免"1 可用 vs 16 活跃"困惑 -->
+            <el-tooltip
+              placement="top"
+              :show-after="200"
+            >
+              <template #content>
+                可用 = 有爬虫适配器（后端 spider 注册表判定）且 config 未禁用、status=active；与"活跃（DB active）"是不同口径
+              </template>
+              <span>{{ totalEnabled }} 个可用数据源</span>
+            </el-tooltip>
           </el-tag>
           <el-tag
             size="small"

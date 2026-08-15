@@ -247,12 +247,20 @@ export function usePipelineMonitor() {
       ? new Date(lastCrawlAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
       : null
     const successRate = typeof s?.success_rate === 'number' ? s.success_rate : null
+    // D1 (2026-08-15): 可用源 = crawler/api/rss 型（与后端 _get_crawl_configs 参与自动采集
+    // 的口径一致）且 has_adapter(后端注册表判定) + config 未禁用 + active。
+    // 与"活跃(DB active)"区分——未配置/禁用的源虽 active 但实际不参与采集。
+    const crawlableEnabled = pipeline.dataSources.filter(
+      (ds) => ['crawler', 'api', 'rss'].includes(ds.source_type)
+        && ds.has_adapter && !ds.config?.disabled && ds.status === 'active',
+    ).length
+    const activeCount = typeof s?.active_data_sources === 'number' ? s.active_data_sources : null
     return [
       {
         label: '今日采集量',
         value: todayVolume !== null ? todayVolume.toLocaleString() : '--',
         sub: todayVolume !== null
-          ? `今日新增 ${todayNew} · 历史累计 ${totalJdRaw.toLocaleString()} 条${lastCrawlLabel ? ` · 最近 ${lastCrawlLabel}` : ''}`
+          ? `今日新增 ${todayNew} · 历史累计 ${totalJdRaw.toLocaleString()} 条${lastCrawlLabel ? ` · 最近 ${lastCrawlLabel}` : ''}${crawlableEnabled === 0 ? ' · ⚠ 无可用的已启用爬虫源' : ''}`
           : '条 (今日处理量)',
         color: todayVolume !== null && todayVolume > 0 ? colors.primary : colors.muted,
         icon: 'Download',
@@ -267,13 +275,12 @@ export function usePipelineMonitor() {
         trend: 'stable',
       },
       {
-        label: '活跃数据源',
-        // 2026-08-12: 标签由"自动爬虫"改为"活跃数据源"，避免与下方"可用爬虫源"混淆
-        value: typeof s?.active_data_sources === 'number' ? String(s.active_data_sources) : '--',
-        sub: typeof s?.active_data_sources === 'number'
-          ? `${s.active_data_sources} 个 active（共 ${pipeline.dataSources.length} 个）`
-          : '加载中...',
-        color: colors.info,
+        // D1 (2026-08-15): 双值 KPI —— 可用(真实爬取能力) / 活跃(DB active)。
+        // 此前只显示"活跃 16"，与下方"1 个可用数据源"相差 16 倍且无解释。
+        label: '可用 / 活跃',
+        value: `${crawlableEnabled} / ${activeCount ?? '--'}`,
+        sub: `可用 ${crawlableEnabled}（有适配器且启用）· 活跃 ${activeCount ?? '--'}（DB active，共 ${pipeline.dataSources.length} 个）`,
+        color: crawlableEnabled > 0 ? colors.success : colors.warning,
         icon: 'Connection',
         trend: 'stable',
       },
@@ -283,8 +290,9 @@ export function usePipelineMonitor() {
         value: typeof s?.pending_review_positions === 'number'
           ? `${s.pending_review_positions} 岗位`
           : '--',
+        // D3 (2026-08-15): 与页面 alert"438 条"同源——sub 注明总数关系，消除双显混淆
         sub: typeof s?.pending_review_skills === 'number'
-          ? `${s.pending_review_skills} 技能待审核 · 新抽取内容进入内容审核队列`
+          ? `${s.pending_review_skills} 技能待审核 · 共 ${(s.pending_review_positions ?? 0) + s.pending_review_skills} 条（岗位+技能）`
           : '加载中...',
         color: colors.warning,
         icon: 'DocumentChecked',

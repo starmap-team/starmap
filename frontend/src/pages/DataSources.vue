@@ -105,10 +105,21 @@ const summaryStats = computed(() => {
   }
 })
 
-// 卡片"数据质量"诚实态：已评估 → X%；有记录但未抽取 → 未评估；无记录 → 未采集
+// 卡片"数据质量"诚实态：已评估 → X%；有记录但未抽取 → 未评估；无记录 → 未评估
+// D2 (2026-08-15): 0 记录源的质量分是残留值（seed/历史 avg_quality_score），
+// 纯 UI 隐藏为"未评估"，避免"暂无记录 + 质量 90%"矛盾。
 function formatQuality(s: { avg_quality_score: number; total_records: number }): string {
+  if (s.total_records === 0) return '未评估'
   if (s.avg_quality_score > 0) return `${(s.avg_quality_score * 100).toFixed(0)}%`
-  return s.total_records > 0 ? '未评估' : '未采集'
+  return '未评估'
+}
+
+// D2: 卡片状态徽章 —— 未配置适配器的 active 源显示"未配置"而非"运行中"
+function cardStatusBadge(s: { status: string; has_adapter?: boolean }) {
+  if (s.status === 'active' && s.has_adapter === false) {
+    return { type: 'warning' as const, label: '未配置' }
+  }
+  return getStatusBadge(s.status)
 }
 
 onMounted(() => {
@@ -352,12 +363,12 @@ onMounted(() => {
               <div class="card-title-group">
                 <span class="card-name">{{ getSourceNameLabel(source.name) }}</span>
                 <el-tag
-                  :type="asTagType(getStatusBadge(source.status).type)"
+                  :type="asTagType(cardStatusBadge(source).type)"
                   size="small"
                   effect="light"
                   round
                 >
-                  {{ getStatusBadge(source.status).label }}
+                  {{ cardStatusBadge(source).label }}
                 </el-tag>
               </div>
               <!-- D5 UX: 数据源说明 —— 告诉用户这个源是什么 -->
@@ -459,7 +470,7 @@ onMounted(() => {
             <!-- 底部：同步时间 + 操作按钮 -->
             <div class="card-footer">
               <span class="sync-time">
-                最后同步：{{ formatLastCrawl(source.last_crawl_at) }}
+                {{ source.total_records > 0 ? '最后同步' : '最近尝试' }}：{{ formatLastCrawl(source.last_crawl_at) }}
               </span>
               <!-- D5 UX: 一键同步 tooltip —— 说明触发的是完整流水线 -->
               <el-tooltip

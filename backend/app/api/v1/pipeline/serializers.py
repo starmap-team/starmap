@@ -29,6 +29,11 @@ def serialize_run(run: PipelineRun) -> PipelineRunResponse:
 
 
 def serialize_datasource(ds: DataSourceRecord) -> DataSourceResponse:
+    # P0-3/D1 (2026-08-15): 与 /datasources 端点同源——has_adapter/adapter_platform
+    # 由后端 spider 注册表判定（唯一事实源），否则 pipeline 页"可用源"恒 0 与源管理不一致。
+    from app.api.v1.datasource import _adapter_capability
+
+    has_adapter, adapter_platform = _adapter_capability(ds)
     return DataSourceResponse(
         id=str(ds.id),
         name=ds.name,
@@ -41,6 +46,8 @@ def serialize_datasource(ds: DataSourceRecord) -> DataSourceResponse:
         duplicate_rate=ds.duplicate_rate,
         avg_quality_score=ds.avg_quality_score,
         config=ds.config or {},
+        has_adapter=has_adapter,
+        adapter_platform=adapter_platform,
     )
 
 

@@ -798,7 +798,12 @@ function formatDate(iso: string | null | undefined): string {
                 align="center"
               >
                 <template #default="{ row }">
-                  <span :class="['quality-score', (row.avg_quality_score ?? 0) >= 0.6 ? 'good' : (row.avg_quality_score ?? 0) >= 0.3 ? 'mid' : 'bad']">
+                  <!-- D5 (2026-08-15): 0 记录源的质量分是残留值，显示 — 而非误导性百分比 -->
+                  <span v-if="row.total_records === 0">—</span>
+                  <span
+                    v-else
+                    :class="['quality-score', (row.avg_quality_score ?? 0) >= 0.6 ? 'good' : (row.avg_quality_score ?? 0) >= 0.3 ? 'mid' : 'bad']"
+                  >
                     {{ ((row.avg_quality_score ?? 0) * 100).toFixed(0) }}%
                   </span>
                 </template>
