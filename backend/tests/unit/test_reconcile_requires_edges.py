@@ -367,3 +367,36 @@ class TestReconcileAllApprovedGate:
                 assert "review_status" in q, f"PositionRecord 快照查询缺少审核过滤: {q}"
                 return
         pytest.fail(f"未找到 PositionRecord 快照查询: {captured}")
+
+
+class TestReconcileEndpointPgPosApproved:
+    """Phase 23 核验修复 (M1b 闭环): reconcile 端点 PG 计数必须限定 approved。
+
+    Bug: admin.py pg_pos 曾取全量岗位计数 (359) vs Neo4j 184 → nodes_equal False
+    → 健康度误报 critical。修复后 count 查询必须含 review_status 过滤。
+    """
+
+    @pytest.mark.asyncio
+    async def test_pg_pos_query_contains_approved_filter(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """嗅探 reconcile_neo4j_endpoint 内 count(PositionRecord) 查询。"""
+        captured: list[str] = []
+
+        class _CapturingPgSession(_FakePgSession):
+            async def execute(self, stmt: object, *a: object, **k: object):
+                captured.append(str(stmt))
+                return await super().execute(stmt, *a, **k)
+
+        _patch_projector(monkeypatch, nodes_upserted=0, skills_upserted=0, orphans_pruned=0)
+        session = _CapturingPgSession(pos=184, skl=822, pg_requires=1002)
+        driver = _FakeDriver(pos=184, skl=822, requires=1002)  # diff=0 → ok
+
+        result = await _run_endpoint(session, driver)
+
+        assert result.health == "ok", f"184=184 diff=0 应为 ok，实际 {result.health}"
+        pos_counts = [c for c in captured if "position_records" in c and "count" in c]
+        assert pos_counts, f"必须查询 position_records 计数: {captured}"
+        assert any("review_status" in c for c in pos_counts), (
+            f"position_records 计数查询必须限定 review_status: {pos_counts}"
+        )

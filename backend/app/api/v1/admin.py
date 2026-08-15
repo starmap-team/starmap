@@ -105,7 +105,15 @@ async def reconcile_neo4j_endpoint(
         r3 = await s.run("MATCH (:Position)-[r:REQUIRES]->(:Skill) RETURN count(r) AS c")
         neo4j_requires = int((await r3.single())["c"])
 
-    pg_pos = (await session.execute(select(func.count(PositionRecord.id)))).scalar() or 0
+    # Phase 23 核验修复 (M1b 闭环): PG 计数必须限定 approved——Neo4j 只投影
+    # approved 岗位，否则全量计数 (359) vs 图节点 (184) 误报 critical。
+    pg_pos = (
+        await session.execute(
+            select(func.count(PositionRecord.id)).where(
+                PositionRecord.review_status == "approved"
+            )
+        )
+    ).scalar() or 0
     pg_skl = (await session.execute(select(func.count(SkillRecord.id)))).scalar() or 0
     # IC-05: PG 侧只统计 approved 岗位的 PSR（Neo4j 只投影 approved）
     pg_requires = (
