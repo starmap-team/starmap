@@ -219,6 +219,25 @@ async def _load_source_counts(sessionmaker: async_sessionmaker) -> dict[str, int
         return {}
 
 
+async def _position_is_approved(sessionmaker: Any, position_id: str) -> bool:
+    """Check whether a PositionRecord has review_status='approved'.
+
+    Phase 23 核验修复 (M1b 闭环): 抽取即写图路径守 approved 门控——未审核岗位
+    (pending_review) 不得进入图谱。审核通过后由 sync_approved_position_to_graph 补投影。
+    """
+    try:
+        async with sessionmaker() as session:
+            result = await session.execute(
+                sa.select(PositionRecord.review_status).where(
+                    PositionRecord.id == position_id
+                )
+            )
+            return (result.scalar_one_or_none() or "") == "approved"
+    except Exception as exc:  # pragma: no cover - 查询失败 fail-closed 拒绝写图
+        logger.warning("_position_is_approved query failed (fail-closed skip graph): {}", exc)
+        return False
+
+
 async def run_batch_extract_jd(
     jd_text: str,
     options: dict[str, Any] | None = None,
@@ -266,10 +285,16 @@ async def run_batch_extract_jd(
             logger.warning("run_batch_extract_jd outbox create failed (non-fatal): {}", o_exc)
 
         try:
-            graph_summary = await write_single_extraction_to_graph(
-                result["data"],
-                canonical_ids={"position_id": position_id, "skills": skill_ids},
-            )
+            # Phase 23 核验修复 (M1b 闭环): 抽取即写图路径也必须守 approved 门控。
+            # 设计意图 (Phase 16): 新抽取默认 review_status='pending_review'，需人工审核
+            # 后才进入图谱。run_batch_extract_jd 绕过 run_build_graph_from_extractions
+            # 的 approved 过滤直接写图，是未审核岗位持续入图的根因——此处补查。
+            graph_summary: dict[str, Any] = {"skipped": True, "reason": "position_not_approved"}
+            if await _position_is_approved(sessionmaker, position_id):
+                graph_summary = await write_single_extraction_to_graph(
+                    result["data"],
+                    canonical_ids={"position_id": position_id, "skills": skill_ids},
+                )
             try:
                 await _ex._complete_outbox_record(
                     sessionmaker, outbox_id, int(graph_summary.get("triples_merged", 0)),

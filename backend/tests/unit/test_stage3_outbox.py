@@ -71,6 +71,12 @@ def _patch_common_deps(
     monkeypatch.setattr(s, "_load_source_counts", fake_load_counts)
     monkeypatch.setattr(s, "get_async_engine", lambda: _FakeEngine())
     monkeypatch.setattr(s, "async_sessionmaker", fake_sessionmaker)
+    # Phase 23 M1b 门控: 默认 approved（保持既有 outbox 测试语义），
+    # 未审核跳过写图的用例在下面单独覆盖为 False。
+    async def fake_approved(sm: Any, position_id: str) -> bool:
+        return True
+
+    monkeypatch.setattr(s, "_position_is_approved", fake_approved)
 
     from app.core.pipeline import executor as ex
 
@@ -176,3 +182,61 @@ async def test_retry_worker_does_not_swallow_completed_rows(monkeypatch: pytest.
     assert len(picked) == 1
     assert picked[0].status == "failed"
     assert picked[0].retry_count == 1  # completed/drift_warning/retry>=3 全部跳过
+
+
+@pytest.mark.asyncio
+async def test_batch_extract_skips_graph_when_position_pending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase 23 M1b 闭环: pending_review 岗位抽取不得写图 (DC-03/IS-01)。
+
+    run_batch_extract_jd 是抽取即写图路径，绕过 run_build_graph_from_extractions
+    的 approved 过滤。修复后未审核岗位跳过图写，outbox 标记 completed triples=0，
+    审核通过后由 sync_approved_position_to_graph 补投影。
+    """
+    graph_writes: list = []
+
+    async def ok_graph_write(extraction: Any, canonical_ids: dict | None = None) -> dict:
+        graph_writes.append(extraction)
+        return {"triples_merged": 5}
+
+    captured = _patch_common_deps(monkeypatch, graph_write_impl=ok_graph_write)
+
+    # 岗位未审核 (pending_review) → 图写必须跳过
+    async def fake_query_pending(sm: Any, position_id: str) -> bool:
+        return False
+
+    monkeypatch.setattr(s, "_position_is_approved", fake_query_pending)
+
+    result = await s.run_batch_extract_jd("fake JD text")
+
+    assert result["status"] == "completed"
+    assert result["graph"].get("skipped") is True, "pending 岗位不得写图"
+    assert graph_writes == [], "pending 岗位不得调用 graph write"
+    assert "completed" in captured, "outbox 仍标记 completed (triples=0, 不触发重放)"
+    assert captured["completed"][1] == 0, "pending 岗位 triples 必须为 0"
+
+
+@pytest.mark.asyncio
+async def test_batch_extract_writes_graph_when_position_approved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """approved 岗位抽取正常写图 (原有行为保持)。"""
+    graph_writes: list = []
+
+    async def ok_graph_write(extraction: Any, canonical_ids: dict | None = None) -> dict:
+        graph_writes.append(extraction)
+        return {"triples_merged": 5}
+
+    captured = _patch_common_deps(monkeypatch, graph_write_impl=ok_graph_write)
+
+    async def fake_query_approved(sm: Any, position_id: str) -> bool:
+        return True
+
+    monkeypatch.setattr(s, "_position_is_approved", fake_query_approved)
+
+    result = await s.run_batch_extract_jd("fake JD text")
+
+    assert result["status"] == "completed"
+    assert len(graph_writes) == 1, "approved 岗位必须写图"
+    assert captured["completed"][1] == 5, "approved 岗位 triples 正常传播"
