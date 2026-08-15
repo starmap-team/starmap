@@ -827,12 +827,14 @@ function formatDate(iso: string | null | undefined): string {
                     <template #content>
                       立即触发一次「单源同步」流水线 (crawl → dedup → clean → import → graph_sync)。
                       通常 30-90 秒。完成后 record_count/avg_quality_score 字段会自动更新。
+                      {{ row.has_adapter ? '' : '该源未配置爬虫适配器，后端将拒绝同步。' }}
                     </template>
                     <el-button
                       size="small"
                       type="success"
                       :loading="syncingSourceId === row.id"
                       plain
+                      :disabled="!row.has_adapter || syncingSourceId === row.id"
                       @click="handleTriggerSync(row)"
                     >
                       立即同步

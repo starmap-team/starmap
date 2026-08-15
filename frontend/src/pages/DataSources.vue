@@ -473,7 +473,7 @@ onMounted(() => {
                   size="small"
                   type="primary"
                   :loading="syncingIds.has(source.id)"
-                  :disabled="source.status === 'paused' || source.status === 'inactive'"
+                  :disabled="!source.has_adapter || source.status === 'paused' || source.status === 'inactive'"
                   @click="handleSync(source)"
                 >
                   <el-icon

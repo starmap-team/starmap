@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 
 import pytest
 
@@ -11,7 +10,6 @@ from app.core.pipeline.engine import _derive_run_record_counts
 from app.core.pipeline.source_quality_sync import sync_source_quality
 from app.core.pipeline.stages.crawl import build_spider_registry
 from app.models.pipeline_models import DataSourceRecord
-
 
 # ── P0-1 / P0-3 辅助：适配器能力与注册表 ──
 

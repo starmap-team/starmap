@@ -21,6 +21,37 @@ from app.schemas.pipeline import ScheduleCreateRequest, ScheduleResponse, Trigge
 router = APIRouter(prefix="", tags=["数据流水线·定时调度"])
 
 
+async def _validate_sources_have_adapters(
+    session: AsyncSession, source_names: list[str] | None
+) -> None:
+    """P1-6 (2026-08-15): 调度目标源必须配置爬虫适配器，否则 400 拒绝。
+
+    selected_sources=None 表示"全部源"，不校验（crawl 阶段对未配置源已跳过）。
+    """
+    if not source_names:
+        return
+    from app.api.v1.datasource import _adapter_capability
+    from app.models.pipeline_models import DataSourceRecord
+
+    result = await session.execute(
+        select(DataSourceRecord).where(DataSourceRecord.name.in_(source_names))
+    )
+    sources = {s.name: s for s in result.scalars().all()}
+    missing = [
+        name
+        for name in source_names
+        if name not in sources or not _adapter_capability(sources[name])[0]
+    ]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "以下数据源未配置爬虫适配器，无法定时调度: "
+                + ", ".join(missing)
+            ),
+        )
+
+
 @router.get("/schedules", response_model=list[ScheduleResponse])
 async def list_schedules(
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -36,6 +67,7 @@ async def create_schedule(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ScheduleResponse:
     """创建定时调度（Phase 2 CRON-02: 创建时计算 next_run_at）。"""
+    await _validate_sources_have_adapters(session, body.selected_sources)
     schedule = PipelineSchedule(
         name=body.name,
         cron_expression=body.cron_expression,
@@ -71,6 +103,7 @@ async def update_schedule(
     schedule = result.scalar_one_or_none()
     if schedule is None:
         raise HTTPException(status_code=404, detail="Schedule not found")
+    await _validate_sources_have_adapters(session, body.selected_sources)
     schedule.name = body.name
     schedule.cron_expression = body.cron_expression
     schedule.run_type = body.run_type
