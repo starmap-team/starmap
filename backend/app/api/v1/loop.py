@@ -7,6 +7,7 @@ Endpoints:
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,6 +26,10 @@ router = APIRouter(prefix="/loop", tags=["loop"])
 
 # Module-level orchestrator instance (stateless, no constructor args)
 _orchestrator = LoopOrchestrator()
+
+# QA-FIX (F#10): 闭环运行顶层超时（秒）。LLM 链路 + 图谱匹配正常情况下数秒~1 分钟完成；
+# 超时即取消内层任务，run_loop 的 CancelledError 兜底会将该运行标记为失败。
+LOOP_RUN_TIMEOUT_SECONDS = 600
 
 
 
@@ -48,12 +53,23 @@ async def run_loop(
 
     Each step degrades independently on failure.
     """
-    result = await _orchestrator.run_loop(
-        jd_text=req.jd_text,
-        target_position=req.target_position,
-        session=session,
-        user_id=user["sub"],  # SEC-04: pass user identity
-    )
+    # QA-FIX (F#10): 顶层超时兜底 — run_loop 内部对 CancelledError/未捕获异常
+    # 标记失败；wait_for 超时即取消内层任务，触发该兜底，防止运行永久 running。
+    try:
+        result = await asyncio.wait_for(
+            _orchestrator.run_loop(
+                jd_text=req.jd_text,
+                target_position=req.target_position,
+                session=session,
+                user_id=user["sub"],  # SEC-04: pass user identity
+            ),
+            timeout=LOOP_RUN_TIMEOUT_SECONDS,
+        )
+    except TimeoutError as exc:
+        raise HTTPException(
+            status_code=504,
+            detail="闭环运行超时，已标记为失败（可在历史记录中查看）",
+        ) from exc
     data = result.to_dict()
     return LoopRunResponse(**data)
 

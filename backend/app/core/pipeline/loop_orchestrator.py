@@ -8,6 +8,7 @@ delegates so legacy test ``monkeypatch`` paths still resolve.
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from typing import TYPE_CHECKING, Any
@@ -48,7 +49,12 @@ class LoopOrchestrator:
         session: AsyncSession | None = None,
         user_id: str = "system",  # SEC-04
     ) -> LoopResult:
-        """Execute the full 5-step closed-loop pipeline (D-03 fail-fast + degrade)."""
+        """Execute the full 5-step closed-loop pipeline (D-03 fail-fast + degrade).
+
+        QA-FIX (F#10): 增加取消/异常兜底 — 客户端断开取消、asyncio.wait_for 超时或
+        任何未捕获异常时，将运行标记为 FAILED 并写入 completed_at，避免 DB 记录
+        永久停留在 running（同 CONCERN 2.4 的 stuck-running 模式）。
+        """
         run_id = str(uuid.uuid4())
         start = time.monotonic()
         result = LoopResult(
@@ -56,7 +62,40 @@ class LoopOrchestrator:
             status=LoopRunStatus.RUNNING,
         )
         db_record = await self._insert_loop_run(run_id, session=session, user_id=user_id)
+        try:
+            return await self._run_loop_inner(
+                jd_text, target_position, session, run_id, start, result, db_record,
+            )
+        except asyncio.CancelledError:
+            result.status = LoopRunStatus.FAILED
+            result.total_duration_seconds = time.monotonic() - start
+            logger.warning("Loop {} cancelled (client disconnect/timeout) — marking failed", run_id)
+            try:
+                await self._complete_loop_run(db_record, result, session=session)
+            except Exception as exc:
+                logger.warning("Failed to persist cancelled loop run {}: {}", run_id, exc)
+            raise
+        except Exception:
+            result.status = LoopRunStatus.FAILED
+            result.total_duration_seconds = time.monotonic() - start
+            logger.exception("Loop {} failed with unhandled exception — marking failed", run_id)
+            try:
+                await self._complete_loop_run(db_record, result, session=session)
+            except Exception as exc:
+                logger.warning("Failed to persist failed loop run {}: {}", run_id, exc)
+            raise
 
+    async def _run_loop_inner(
+        self,
+        jd_text: str,
+        target_position: str | None,
+        session: AsyncSession | None,
+        run_id: str,
+        start: float,
+        result: LoopResult,
+        db_record: Any,
+    ) -> LoopResult:
+        """(QA-FIX F#10 提取) 5 步闭环实际执行体 — 成功/按步失败路径与原实现一致。"""
         # Step 1: validation
         step1 = self._step1_validate_input(jd_text, target_position)
         result.steps.append(step1)
