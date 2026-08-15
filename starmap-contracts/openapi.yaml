@@ -5835,6 +5835,13 @@ components:
         config:
           type: object
           additionalProperties: true
+        has_adapter:
+          type: boolean
+          description: 是否有可用爬虫适配器（后端 spider 注册表判定，唯一事实源）
+        adapter_platform:
+          type: string
+          nullable: true
+          description: 配置的爬虫平台名（无则 null，如 bosszhipin）
     DataSourceUpdateRequest:
       type: object
       properties:
