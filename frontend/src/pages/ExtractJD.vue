@@ -179,7 +179,7 @@ onUnmounted(() => {
                 <span
                   v-if="isDegradedModel"
                   class="degraded-hint"
-                >（本地降级模型，处理较慢）</span>
+                >（降级模型，处理较慢）</span>
               </div>
 
               <h4 class="result-section-title">

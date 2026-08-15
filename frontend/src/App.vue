@@ -13,6 +13,45 @@ const router = useRouter()
 // Track navigation direction for slide transitions
 const transitionName = ref('page-fade')
 
+// ---------------------------------------------------------------------------
+// Route transition watchdog — rAF/transitionend stall safety.
+//
+// Vue's <transition> advances enter/leave phases on requestAnimationFrame and
+// completes them on transitionend. In environments where the rAF pump stalls
+// (headless CI, backgrounded tab, heavy load) the phase never advances, the
+// page stays at enter-from (opacity 0) and appears blank forever.
+//
+// Fix: if a phase hasn't finished within TRANSITION_FORCE_MS, nudge Vue to
+// finish by dispatching a synthetic transitionend (propertyName === undefined
+// is treated as a finish signal), with a class-level force-settle fallback.
+// ---------------------------------------------------------------------------
+const TRANSITION_FORCE_MS = 600  // > --duration-slow (300ms)
+
+function forceSettleTransition(el: Element) {
+  const cls = el.classList
+  const stuck = Array.from(cls).filter((c) => /-(enter|leave)-(from|active|to)$/.test(c))
+  if (stuck.length === 0) return
+  cls.remove(...stuck)
+  const elm = el as HTMLElement
+  elm.style.transition = 'none'
+  elm.style.opacity = '1'
+  elm.style.transform = 'none'
+  void elm.offsetHeight  // flush so the next transition starts from a clean state
+  elm.style.transition = ''
+}
+
+function armTransitionWatchdog(el: Element) {
+  const timer = window.setTimeout(() => {
+    el.dispatchEvent(new Event('transitionend'))
+    // Fallback: if the nudge didn't take effect, force the end state directly.
+    window.setTimeout(() => forceSettleTransition(el), 50)
+  }, TRANSITION_FORCE_MS)
+  el.addEventListener('transitionend', () => window.clearTimeout(timer), { once: true })
+}
+
+function onTransitionEnter(el: Element) { armTransitionWatchdog(el) }
+function onTransitionLeave(el: Element) { armTransitionWatchdog(el) }
+
 router.beforeEach((to, from) => {
   const toPath = to.path
   const fromPath = from.path
@@ -38,6 +77,8 @@ router.beforeEach((to, from) => {
       <transition
         :name="transitionName"
         mode="out-in"
+        @enter="onTransitionEnter"
+        @leave="onTransitionLeave"
       >
         <component
           :is="Component"

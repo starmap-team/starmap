@@ -288,6 +288,7 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
       plans.value = items.map((p) => mapPlanResponse(p as PlanResponseRaw))
       if (plans.value.length > 0 && !currentPlan.value) {
         currentPlan.value = plans.value[0]
+        writeStoredPlanId(plans.value[0].plan_id)
       }
       return plans.value
     } catch (e: unknown) {
