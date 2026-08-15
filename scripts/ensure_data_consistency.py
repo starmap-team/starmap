@@ -18,18 +18,27 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
-from datetime import datetime, timezone
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
 from uuid import uuid4
 
 from neo4j import AsyncGraphDatabase
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
-PG_URI = os.getenv("POSTGRES_URI", "postgresql+asyncpg://starmap:starmap123456@localhost:5433/starmap")
+# Phase 23 Task 10: 改走 Pydantic/settings（不硬编码环境变量）。
+# 连接参数从 app.config.settings 单一来源读取（backend 包加入 import 路径）。
+_BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+
+from app.config import settings  # noqa: E402
+
+NEO4J_URI = settings.neo4j_uri
+NEO4J_USER = settings.neo4j_user
+NEO4J_PASSWORD = settings.neo4j_password
+PG_URI = settings.postgres_uri
 
 
 async def check_consistency(neo4j_driver, pg_engine) -> dict:
@@ -66,7 +75,7 @@ async def check_consistency(neo4j_driver, pg_engine) -> dict:
 
 async def fix_consistency(neo4j_driver, pg_engine, report: dict) -> dict:
     """根据检查报告修复不一致。"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     fixes = {"neo4j_to_pg": 0, "pg_to_neo4j": 0}
 
     # 1. Neo4j 有但 PG 无 → 回填 PG

@@ -15,8 +15,11 @@ BACKEND_DIR = BASE_DIR / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 sys.path.insert(0, str(BASE_DIR))
 
-from app.core.extraction.normalize import SKILL_ALIAS
-from judge_eval import evaluate_batch, generate_evaluation_report
+# Phase 23 Task 10: 第二道门禁 — 入库完整性指标（连实时库，阈值集中 config.py）
+from ingestion_consistency import run_ingestion_gate  # noqa: E402
+from judge_eval import evaluate_batch, generate_evaluation_report  # noqa: E402
+
+from app.core.extraction.normalize import SKILL_ALIAS  # noqa: E402
 
 
 def build_pattern_index() -> dict[str, str]:
@@ -31,10 +34,10 @@ def build_pattern_index() -> dict[str, str]:
 
 def extract_skills_keyword(jd_text: str, index: dict[str, str]) -> dict[str, str]:
     """Extract skill names from JD text by substring matching.
-    
+
     Uses raw substring matching (not word boundaries) because Chinese text
     doesn't have Latin word boundaries.
-    
+
     Returns dict of {canonical_lower: canonical_name} for dedup.
     """
     jd_lower = jd_text.lower()
@@ -147,8 +150,34 @@ def process_golden_entry(entry: dict, index: dict[str, str]) -> dict:
     }
 
 
+def decide_gate(quality_gate: dict, ingestion_gate: dict) -> dict:
+    """quality gate + ingestion gate 合并判定（任一 FAIL → 整体 FAIL，exit 非 0）。
+
+    Phase 23 Task 10 (IS-04): 入库完整性门禁与 F1 质量门禁并列，只有两者都通过
+    才算 PASS。纯函数，便于单测构造超阈数据断言 fail 逻辑。
+    """
+    quality_passed = bool(quality_gate.get("passed", False))
+    ingestion_passed = bool(ingestion_gate.get("passed", False))
+    passed = quality_passed and ingestion_passed
+    if not passed:
+        failures: list[str] = []
+        if not quality_passed:
+            failures.append(f"quality({quality_gate.get('message', 'F1 门禁未通过')})")
+        if not ingestion_passed:
+            failures.append(f"ingestion({ingestion_gate.get('message', '入库完整性门禁未通过')})")
+        message = "FAIL: " + "; ".join(failures)
+    else:
+        message = "PASS: quality gate 与 ingestion gate 均通过"
+    return {
+        "passed": passed,
+        "quality_gate": quality_gate,
+        "ingestion_gate": ingestion_gate,
+        "message": message,
+    }
+
+
 def main():
-    """Run baseline evaluation."""
+    """Run baseline evaluation. Returns exit code (0=PASS, non-0=FAIL)."""
     print("=" * 60)
     print("StarMap Baseline Evaluation - Rule-Based Extraction")
     print("=" * 60)
@@ -160,7 +189,7 @@ def main():
     # Load golden set
     print(f"\n[1/4] Loading golden set from: {golden_path}")
     golden_data = []
-    with open(golden_path, "r", encoding="utf-8") as f:
+    with open(golden_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -217,8 +246,16 @@ def main():
     print(f"  Report: {report['report_path']}")
     print(f"{'=' * 60}")
 
-    return metrics
+    # Phase 23 Task 10: 第二道门禁 — ingestion gate（入库完整性，IC-01..07 回归守护）。
+    # 连实时库失败时 fail-closed（passed=False），保证「无法验证完整性 ≠ PASS」。
+    ingestion_gate = run_ingestion_gate()
+
+    overall = decide_gate(report["quality_gate"], ingestion_gate)
+    print(f"\n  Overall Gate: [{'PASS' if overall['passed'] else 'FAIL'}] {overall['message']}")
+    print(f"{'=' * 60}")
+
+    return 0 if overall["passed"] else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

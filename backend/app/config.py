@@ -212,6 +212,43 @@ class Settings(BaseSettings):
     # judge API 默认阈值 + evaluation/ 脚本门禁统一引用此值
     eval_f1_gate: float = 0.90
 
+    # 入库完整性门禁（Phase 23 Task 10, IC-01..07 CI 回归守护）——
+    # evaluation/ingestion_consistency.py 引用的第二道门禁，阈值集中于此（与
+    # eval_f1_gate 同模式，脚本不硬编码阈值）。SQL 口径见 docs/ingestion-kpi-calibers.md。
+    ingestion_psr_tolerance: float = Field(
+        default=0.005,
+        ge=0.0,
+        le=1.0,
+        description="PG approved PSR 边数 vs Neo4j REQUIRES 边数容差（±0.5%），与 /admin/reconcile-neo4j 同口径",
+    )
+    ingestion_position_diff: int = Field(
+        default=0,
+        ge=0,
+        description="count(PositionRecord) vs count(Position) 允许最大绝对差（默认 0，IS-01 P0 漂移根除）",
+    )
+    ingestion_skill_diff: int = Field(
+        default=0,
+        ge=0,
+        description="count(SkillRecord) vs count(Skill) 允许最大绝对差（默认 0）",
+    )
+    ingestion_orphan_ratio: float = Field(
+        default=0.005,
+        ge=0.0,
+        le=1.0,
+        description="Neo4j canonical_id IS NULL 节点占比上限（<0.5%，超过即孤儿漂移）",
+    )
+    ingestion_dedup_rate: float = Field(
+        default=0.95,
+        ge=0.0,
+        le=1.0,
+        description="jd_raw 去重率下限（非 duplicate 行占比 ≥95%）",
+    )
+    ingestion_kpi_drift: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="quality dashboard 与 status_aggregator 重叠 KPI（待审计数）允许最大差（默认 0，IC-07）",
+    )
+
     # 反幻觉守卫
     hallucination_semantic_threshold: float = 0.85
     hallucination_min_sources: int = 3
