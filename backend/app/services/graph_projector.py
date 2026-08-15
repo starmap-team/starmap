@@ -304,10 +304,17 @@ class GraphProjector:
                     neo4j_ids[label] = ids
 
             # 2. Snapshot PG IDs
+            # Phase 23 核验修复 (M1b 闭环): 节点快照必须限定 approved——与边层
+            # (line ~440) 及 run_build_graph_from_extractions 口径一致。否则每次
+            # reconcile 都会把 pending_review 岗位回灌图谱（孤儿剪枝后又被回填）。
             pg_pos_ids = {
                 str(row[0])
                 for row in (
-                    await pg_session.execute(select(PositionRecord.id))
+                    await pg_session.execute(
+                        select(PositionRecord.id).where(
+                            PositionRecord.review_status == "approved"
+                        )
+                    )
                 ).all()
             }
             pg_skill_ids = {

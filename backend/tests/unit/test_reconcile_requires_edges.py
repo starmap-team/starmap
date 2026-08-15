@@ -301,3 +301,69 @@ class TestReconcileResultSchema:
         assert result.requires_in_neo4j == 0
         assert result.requires_in_pg == 0
         assert result.requires_diff == 0
+
+
+class TestReconcileAllApprovedGate:
+    """Phase 23 核验修复 (M1b 闭环): reconcile_all 节点快照必须限定 approved。
+
+    Bug: reconcile_all 的 pg_pos_ids 快照曾取全量岗位（含 pending_review），导致
+    每次 reconcile 把待审岗位回灌图谱（孤儿剪枝后又被回填，Neo4j 184→359）。
+    修复后 PositionRecord 快照查询必须含 review_status == 'approved' 过滤。
+    """
+
+    def test_pg_position_snapshot_filters_approved(self) -> None:
+        """捕获 reconcile_all 内 PositionRecord 快照 SQL，断言含 approved 过滤。"""
+        from sqlalchemy import select
+
+        captured: list[str] = []
+
+        class _FakePgSession:
+            async def execute(self, stmt: object, *a: object, **k: object):
+                captured.append(str(stmt))
+                return SimpleNamespace(all=lambda: [])  # 无快照 → 无回填无剪枝
+
+        class _FakeNeo4jRun:
+            def __init__(self) -> None:
+                self._rows: list = []
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                if not self._rows:
+                    raise StopAsyncIteration
+                return self._rows.pop(0)
+
+        class _FakeNeo4jSession:
+            async def __aenter__(self) -> "_FakeNeo4jSession":
+                return self
+
+            async def __aexit__(self, *_a: object) -> bool:
+                return False
+
+            async def run(self, query: str, **kwargs):
+                return _FakeNeo4jRun()
+
+        class _FakeDriver:
+            def __init__(self) -> None:
+                self._sessions = [_FakeNeo4jSession(), _FakeNeo4jSession()]
+
+            def session(self):
+                return self._sessions.pop(0)
+
+        projector = GraphProjector.__new__(GraphProjector)
+        projector._driver = _FakeDriver()
+
+        import asyncio
+
+        asyncio.run(projector.reconcile_all(_FakePgSession()))
+
+        # 找到 PositionRecord 快照查询并断言 approved 过滤
+        pos_queries = [c for c in captured if "position_records" in c and "id" in c]
+        assert pos_queries, "reconcile_all 必须查询 position_records"
+        for q in pos_queries:
+            if "SELECT position_records.id" in q or "FROM position_records" in q:
+                # 快照查询必须限定 review_status（SQLAlchemy 绑定参数形式）
+                assert "review_status" in q, f"PositionRecord 快照查询缺少审核过滤: {q}"
+                return
+        pytest.fail(f"未找到 PositionRecord 快照查询: {captured}")
