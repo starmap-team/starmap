@@ -355,6 +355,21 @@ class TestUpdateDatasource:
         # Literal type validation rejects at Pydantic layer (422)
         assert resp.status_code == 422
 
+    def test_update_status_inactive_returns_200(self, client, auth_headers, db_override):
+        """Phase 23 Task 8 (DC-04): PATCH status='inactive' 被接受（替代 DELETE 独占软删）。"""
+        ds_id = uuid.uuid4()
+        ds = FakeDataSourceRecord(id=ds_id, status="active")
+        updated_ds = FakeDataSourceRecord(id=ds_id, status="inactive")
+        session = FakeAsyncSession([FakeResult(ds), FakeResult(None), FakeResult(updated_ds)])
+        db_override(session)
+        resp = client.put(
+            f"/api/v1/datasources/{ds_id}",
+            headers=auth_headers,
+            json={"status": "inactive"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "inactive"
+
     def test_update_not_found_returns_404(self, client, auth_headers, db_override):
         ds_id = uuid.uuid4()
         session = FakeAsyncSession([FakeResult(None)])
@@ -618,6 +633,57 @@ class TestDatasourcesHealth:
         body = resp.json()
         assert body["total_sources"] == 0
         assert body["sources"] == []
+
+
+class TestCreateDatasource:
+    """POST /api/v1/admin/datasources — 管理员注册新数据源。"""
+
+    def test_create_rejects_inactive_422(self, client, auth_headers, db_override):
+        """Phase 23 Task 8 (DC-04): 新源不能直接建为停用 → Literal 拒绝 (422)。"""
+        session = FakeAsyncSession()
+        db_override(session)
+        resp = client.post(
+            "/api/v1/admin/datasources",
+            headers=auth_headers,
+            json={"name": "NewSource", "status": "inactive"},
+        )
+        assert resp.status_code == 422
+
+    def test_create_rejects_invalid_status_422(self, client, auth_headers, db_override):
+        session = FakeAsyncSession()
+        db_override(session)
+        resp = client.post(
+            "/api/v1/admin/datasources",
+            headers=auth_headers,
+            json={"name": "NewSource", "status": "bogus"},
+        )
+        assert resp.status_code == 422
+
+
+class TestDataSourceStatusEnum:
+    """Phase 23 Task 8 (DC-04): 共享 DataSourceStatus 覆盖 'inactive' 且被 schema 引用。"""
+
+    def test_shared_enum_covers_inactive(self):
+        from app.core.constants import DataSourceStatus
+
+        assert DataSourceStatus.INACTIVE == "inactive"
+        assert {s.value for s in DataSourceStatus} == {"active", "paused", "error", "inactive"}
+
+    def test_schema_references_shared_enum(self):
+        """update schema 引用 DataSourceStatus（含 inactive），create 保持不含。"""
+        from typing import get_args
+
+        from app.core.constants import DataSourceStatus
+        from app.schemas.datasource import DataSourceCreateRequest, DataSourceUpdateRequest
+
+        # update 字段类型引用共享枚举（DataSourceStatus | None）
+        ann = DataSourceUpdateRequest.model_fields["status"].annotation
+        assert DataSourceStatus in get_args(ann)
+        assert type(None) in get_args(ann)
+        # create 不含 inactive（新源不能直接建为停用）
+        create_annotation = str(DataSourceCreateRequest.model_fields["status"].annotation)
+        assert "inactive" not in create_annotation
+        assert "active" in create_annotation
 
 
 class TestDeleteDatasource:

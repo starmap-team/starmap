@@ -88,6 +88,9 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
 }
 // M2/M3 (2026-08-15): 软删除源（inactive）不展示——避免"同名不同状态"卡与
 // KPI 虚高（数据源总数 19 含 3 个已归档占位 → 应 16）。
+// Phase 23 Task 8 (DC-04): status 全集与后端共享枚举
+// app.core.constants.DataSourceStatus（active/paused/error/inactive）对齐——
+// 'inactive' 由 DELETE 软删除 / PATCH 产出，UI 过滤属展示层约定，非校验兜底。
 const visibleSources = computed(() => dsStore.sources.filter((s) => s.status !== 'inactive'))
 const summaryStats = computed(() => {
   const src = visibleSources.value

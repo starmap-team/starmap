@@ -186,4 +186,24 @@ describe('DataSources.vue', () => {
     expect(syncBtn?.attributes('disabled')).toBeDefined()
     expect(crawlBtn?.attributes('disabled')).toBeDefined()
   })
+
+  it('filters out inactive sources from visible list and KPI (Phase 23 Task 8 / DC-04)', async () => {
+    // 后端 DELETE 软删除产出 status='inactive'；UI 展示层过滤（指向
+    // app.core.constants.DataSourceStatus），inactive 不计入数据源总数 KPI。
+    mockGet.mockResolvedValue([
+      makeSource({ id: 's1', name: 'boss', status: 'active' }),
+      makeSource({ id: 's2', name: 'archive', status: 'inactive' }),
+    ])
+    const wrapper = mountFull()
+    await flushPromises()
+    const { useDataSourceStore } = await import('@/stores/datasource')
+    const store = useDataSourceStore()
+    // store 保留全部源（含 inactive，供管理端/恢复用）
+    expect(store.sources.length).toBe(2)
+    // KPI 总数只统计 visibleSources（过滤 inactive）→ 1 个活跃，而非 2
+    expect(wrapper.text()).toContain('1 个活跃')
+    expect(wrapper.text()).not.toContain('2 个活跃')
+    // 渲染层不出现 inactive 源
+    expect(wrapper.text()).not.toContain('archive')
+  })
 })

@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.core.constants import DataSourceStatus
+
 
 class DataSourceResponse(BaseModel):
     """数据源详情响应。"""
@@ -29,7 +31,10 @@ class DataSourceUpdateRequest(BaseModel):
     """数据源更新请求。"""
 
     authority_score: float | None = Field(None, ge=0, le=1)
-    status: Literal["active", "paused", "error"] | None = Field(None, description="数据源状态")
+    status: DataSourceStatus | None = Field(
+        None,
+        description="数据源状态（active/paused/error/inactive）——inactive 支持 PATCH 恢复/停用语义",
+    )
     config: dict[str, Any] | None = None
 
 
@@ -97,5 +102,7 @@ class DataSourceCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     source_type: Literal["job_board", "blog", "esco", "manual", "rss", "api"] = "job_board"
     authority_score: float = Field(default=0.5, ge=0, le=1)
+    # 新源不能直接建为停用：不含 'inactive'（停用只经 DELETE 软删除 / PATCH）。
+    # 运行值全集见 app.core.constants.DataSourceStatus。
     status: Literal["active", "paused", "error"] = "active"
     config: dict[str, Any] = Field(default_factory=dict)

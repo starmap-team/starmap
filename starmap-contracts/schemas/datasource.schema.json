@@ -136,6 +136,25 @@
           "description": "数据源配置（spider 参数等）",
           "title": "Config",
           "type": "object"
+        },
+        "has_adapter": {
+          "default": false,
+          "description": "是否有可用爬虫适配器（后端 spider 注册表判定，唯一事实源）",
+          "title": "Has Adapter",
+          "type": "boolean"
+        },
+        "adapter_platform": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "配置的爬虫平台名（无则 None，如 bosszhipin）",
+          "title": "Adapter Platform"
         }
       },
       "required": [

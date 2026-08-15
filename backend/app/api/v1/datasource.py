@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import DataSourceStatus
 from app.dependencies import get_db_session, require_admin
 from app.models.pipeline_models import DataSourceRecord
 from app.schemas.datasource import (
@@ -194,9 +195,12 @@ async def update_datasource(
     if body.authority_score is not None:
         values["authority_score"] = body.authority_score
     if body.status is not None:
-        if body.status not in ("active", "paused", "error"):
+        # Phase 23 Task 8 (DC-04): 校验全集沿 DataSourceStatus（含 inactive，支持
+        # PATCH 恢复/停用语义）；schema Literal 已先兜底，此处防御双写。
+        allowed_statuses = {s.value for s in DataSourceStatus}
+        if body.status.value not in allowed_statuses:
             raise HTTPException(status_code=400, detail="Invalid status")
-        values["status"] = body.status
+        values["status"] = body.status.value
     if body.config is not None:
         values["config"] = body.config
 
