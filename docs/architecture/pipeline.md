@@ -1,7 +1,7 @@
 # 数据流水线
 
 > 状态：活文档
-> 最近核对：2026-07-24
+> 最近核对：2026-08-15（ETL DAG 修正：核心 4 阶段，graph_sync/timeseries 为可选）
 
 StarMap 当前的 ETL 调度由 `backend/app/core/pipeline/orchestrator.py` 维护状态，`executor.py` 执行阶段，`backend/app/tasks/celery_app.py` 通过 Celery 分发任务。
 
@@ -26,11 +26,12 @@ flowchart LR
 | `import` | LLM 技能抽取 + PG 持久化 |
 | `graph_sync` | Neo4j 图投影（outbox 模式防漂移） |
 
-核心 ETL DAG 为串行 5 阶段：`crawl → dedup → clean → import → graph_sync`
+核心 ETL DAG 为串行 **4 阶段**：`crawl → dedup → clean → import`
 （Phase 3 Plan 02 起串行化，clean 依赖 dedup 完成后执行）。执行代码位于
 `backend/app/core/pipeline/stages/`（每阶段一个模块），DAG 推进/触发/重试/续跑
 位于 `backend/app/core/pipeline/engine.py`；`executor.py` 仅作兼容重导出层。
-`timeseries` 为可选扩展阶段，不属于核心 ETL DAG。
+`graph_sync` 与 `timeseries` 均为 `OPTIONAL_STAGES`（orchestrator.py:76），按 run 配置
+纳入 DAG，不属于核心 ETL 必选阶段。
 
 ## 运行与恢复
 
