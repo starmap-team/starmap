@@ -71,6 +71,10 @@ async def _upsert_position(
 
 
 async def _upsert_skill(session: AsyncSession, name: str, category: str, *, source_run_id: uuid.UUID | None = None) -> SkillRecord:
+    # Phase 23 Task 7 (IC-06/IS-01): source_count 口径固化 —— PG 每次抽取 +1（命中次数
+    # 语义），与 Neo4j `graph_writer.merge_skill` 的 max 语义（去重来源数上限）不同；
+    # 差值由 dashboard `_fetch_graph_stats` 只读漂移探针监控（差值>0 告警）。等业务
+    # 确认统一口径（RESEARCH §6.6）后此处与 graph_writer 一起收敛。
     existing = (
         await session.execute(sa.select(SkillRecord).where(SkillRecord.name == name))
     ).scalar_one_or_none()

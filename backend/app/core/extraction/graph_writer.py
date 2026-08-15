@@ -521,6 +521,13 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
         canonical_id: PG SkillRecord.id — **MERGE 键**（Phase 23 Task 2）。name 降级
             为普通 SET 属性；缺失时 raise ``GraphProjectionError`` 拒绝产生孤儿。
 
+    Notes:
+        ``source_count`` 口径（Phase 23 Task 7, IC-06）：SET 使用 **max 语义**
+        ``max(coalesce(s.source_count, 0), $source_count)``——同 skill 重复 MERGE/
+        outbox 重放**不累加**，收敛为「去重来源数上限」。PG 侧
+        ``stage3_services._upsert_skill`` 为每次抽取 +1（命中次数），两库语义差异
+        由 dashboard ``_fetch_graph_stats`` 的只读漂移探针监控（差值>0 告警）。
+
     Returns:
         The created/merged node properties dict.
 
