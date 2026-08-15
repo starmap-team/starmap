@@ -60,6 +60,7 @@ class LoopOrchestrator:
         result = LoopResult(
             run_id=run_id, jd_text=jd_text, target_position=target_position,
             status=LoopRunStatus.RUNNING,
+            user_id=user_id,  # SEC-04 QA-FIX F#11: in-memory 历史过滤
         )
         db_record = await self._insert_loop_run(run_id, session=session, user_id=user_id)
         try:
