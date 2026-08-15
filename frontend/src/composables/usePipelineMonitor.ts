@@ -247,12 +247,11 @@ export function usePipelineMonitor() {
       ? new Date(lastCrawlAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
       : null
     const successRate = typeof s?.success_rate === 'number' ? s.success_rate : null
-    // D1 (2026-08-15): 可用源 = crawler/api/rss 型（与后端 _get_crawl_configs 参与自动采集
-    // 的口径一致）且 has_adapter(后端注册表判定) + config 未禁用 + active。
+    // D1/O3 (2026-08-15): 可用源 = has_adapter(后端注册表判定, 任意类型) + config 未禁用 + active。
     // 与"活跃(DB active)"区分——未配置/禁用的源虽 active 但实际不参与采集。
+    // 任意类型：V2EX/掘金 等 job_board/blog 源有适配器时也可被单源同步/选源采集。
     const crawlableEnabled = pipeline.dataSources.filter(
-      (ds) => ['crawler', 'api', 'rss'].includes(ds.source_type)
-        && ds.has_adapter && !ds.config?.disabled && ds.status === 'active',
+      (ds) => ds.has_adapter && !ds.config?.disabled && ds.status === 'active',
     ).length
     const activeCount = typeof s?.active_data_sources === 'number' ? s.active_data_sources : null
     return [

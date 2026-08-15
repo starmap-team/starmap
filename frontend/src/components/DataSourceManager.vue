@@ -29,7 +29,7 @@ const SUPPORTED_SPIDERS = {
   arbeitnow: { label: 'Arbeitnow (远程)', icon: '💼' },
   jobicy: { label: 'Jobicy (远程)', icon: '💻' },
   weworkremotely: { label: 'WeWorkRemotely', icon: '🏠' },
-  remoteok: { label: 'RemoteOK (远程)', icon: '❓' },
+  remoteok: { label: 'RemoteOK (远程)', icon: '🌐' },
   juejin: { label: '掘金 (技术博客)', icon: '📝' },
   himalayas: { label: 'Himalayas (404)', icon: '⛰️' },
 } as const
@@ -87,25 +87,23 @@ const enhancedSources = computed<DataSourceWithStatus[]>(() => {
   })
 })
 
-// 按类型分组
-// 2026-08-12 (pipeline 联调): 可用源口径对齐后端 _get_crawl_configs —— 后端 crawl
-// 实际抓取 source_type ∈ [crawler, api, rss] 的源，而此前前端只统计 source_type==='crawler'
-// 导致"自动爬虫 7" 但"可用数据源 0" 的矛盾（7 源全是 api/rss/job_board，无一 crawler 型）。
-const crawlerSources = computed(() =>
-  enhancedSources.value.filter(s => ['crawler', 'api', 'rss'].includes(s.source_type))
+// 按采集能力分组（O1, 2026-08-15）：has_adapter（后端 spider 注册表判定）为唯一
+// 分组标准 —— 有适配器的源（含 job_board/blog 如 V2EX/掘金）归"采集源"组；
+// 无适配器的占位/非采集源归"其他"组。此前按 source_type 分组导致能力倒挂
+// （能爬的 V2EX 在"其他"、不能爬的 BOSS直聘在"爬虫源"）。
+const adapterSources = computed(() =>
+  enhancedSources.value.filter(s => s.has_adapter)
 )
 const otherSources = computed(() =>
-  enhancedSources.value.filter(s => !['crawler', 'api', 'rss'].includes(s.source_type))
+  enhancedSources.value.filter(s => !s.has_adapter && s.status !== 'inactive')
 )
 
+// O3 (2026-08-15): 可用 = has_adapter + 未禁用 + active（任意类型，与后端
+// _get_crawl_configs 的 selected_sources 能力对齐——V2EX/掘金可被手动选源采集）。
 const enabledCrawlers = computed(() =>
-  crawlerSources.value.filter(s => {
-    const platform = String(s.config?.platform || '')
-    // D8c: 生命周期终态（inactive/paused）排除 —— 与后端 _get_crawl_configs
-    // (status==active) 口径对齐，避免停用源仍计入"可用"
-    if (s.status === 'inactive' || s.status === 'paused') return false
-    return platform in SUPPORTED_SPIDERS && !s.config?.disabled
-  })
+  adapterSources.value.filter(s =>
+    s.status === 'active' && !s.config?.disabled
+  )
 )
 
 const totalEnabled = computed(() => enabledCrawlers.value.length)
@@ -139,7 +137,7 @@ function sourceTypeLabel(t?: string): string {
   const map: Record<string, string> = {
     api: 'API 实时',
     rss: 'RSS 周期',
-    crawler: '爬虫实验',
+    crawler: '爬虫',
     manual: 'CSV 导入',
     import: 'CSV 导入',
   }
@@ -288,23 +286,23 @@ function formatRecords(n: number) {
       </span>
     </div>
 
-    <!-- 可用爬虫源 (可执行) -->
+    <!-- 采集源（有适配器）——可被流水线/单源同步实际采集 -->
     <div
-      v-if="crawlerSources.length"
+      v-if="adapterSources.length"
       class="ds-section"
     >
       <div class="section-label">
         <el-icon :size="12">
           <VideoPlay />
         </el-icon>
-        爬虫源 ({{ crawlerSources.length }})
+        采集源（有适配器）({{ adapterSources.length }})
       </div>
       <el-table
-        :data="crawlerSources"
+        :data="adapterSources"
         size="small"
         stripe
         :show-overflow-tooltip="true"
-        empty-text="暂无爬虫源"
+        empty-text="暂无采集源"
         class="ds-table"
       >
         <el-table-column
@@ -532,7 +530,7 @@ function formatRecords(n: number) {
       </div>
     </div>
 
-    <!-- 非爬虫源 (API/Manual/Reference/Internal) -->
+    <!-- 其他数据源（无适配器/非采集型） -->
     <div
       v-if="otherSources.length"
       class="ds-section mt-3"
@@ -541,7 +539,7 @@ function formatRecords(n: number) {
         <el-icon :size="12">
           <QuestionFilled />
         </el-icon>
-        其他类型数据源 ({{ otherSources.length }})
+        其他数据源（无适配器）({{ otherSources.length }})
       </div>
       <el-table
         :data="otherSources"
