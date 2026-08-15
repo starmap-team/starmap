@@ -39,31 +39,18 @@ def _reload_app_main(fake_settings: SimpleNamespace | None):
     real `app.config.settings` and re-imports `app.main` with real settings
     on exit so the singleton is left clean for the next test.
     """
-    # Snapshot the real settings so we can restore it in finally.
-    import app.config as _cfg
-    real_settings = _cfg.settings
-
     sys.modules.pop("app.main", None)
+    # If a fake is provided, patch app.config.settings during the import.
+    # Otherwise import directly under the real settings singleton.
     if fake_settings is not None:
-        ctx = patch("app.config.settings", fake_settings, create=True)
+        with patch("app.config.settings", fake_settings, create=True):
+            yield importlib.import_module("app.main")
     else:
-        # No fake → just pop & re-import with real settings to get a clean module.
-        ctx = _nullcontext()
-    try:
-        with ctx:
-            module = importlib.import_module("app.main")
-        yield module
-    finally:
-        # Restore: drop the patched app.main and re-import with the real
-        # settings singleton. This guarantees the next test sees a healthy
-        # `from app.main import settings, app`.
-        sys.modules.pop("app.main", None)
-        importlib.import_module("app.main")
-
-
-class _nullcontext:
-    def __enter__(self): return self
-    def __exit__(self, *a): return False
+        yield importlib.import_module("app.main")
+    # Restore: drop the (possibly-patched) app.main and re-import with the
+    # real settings singleton so the next test sees a healthy module.
+    sys.modules.pop("app.main", None)
+    importlib.import_module("app.main")
 
 
 class TestCorsStartupGuard:

@@ -84,7 +84,7 @@ class FakeDataSourceRecord:
         self.valid_records = valid_records
         self.duplicate_rate = duplicate_rate
         self.avg_quality_score = avg_quality_score
-        self.config = config or {"url": "https://example.com"}
+        self.config = config or {"url": "https://example.com", "platform": "v2ex"}
 
 
 def _crawl_stages(sub_breakdown: dict[str, int] | None = None) -> list[dict]:

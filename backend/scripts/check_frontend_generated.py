@@ -11,7 +11,6 @@ This guard fails if the header is missing or the file looks hand-edited
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent.parent
