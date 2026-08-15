@@ -11,6 +11,9 @@ down_revision: tuple[str, str] = ("004a", "004b")
 branch_labels = None
 depends_on = None
 
+# CONCERN 9.5: merge migration — downgrade is a no-op by design.
+_DOWNGRADE_NOTE = "merge"
+
 
 def upgrade() -> None:
     """No-op merge (两个分支的表已在各自迁移中创建)。"""

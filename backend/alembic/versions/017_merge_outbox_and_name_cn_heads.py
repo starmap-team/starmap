@@ -15,6 +15,9 @@ down_revision: tuple[str, str] | None = ("016", "3a3d8b3c5b08")
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+# CONCERN 9.5: merge migration — downgrade is a no-op by design.
+_DOWNGRADE_NOTE = "merge"
+
 
 def upgrade() -> None:
     # Empty merge — both branches are independent schema changes.

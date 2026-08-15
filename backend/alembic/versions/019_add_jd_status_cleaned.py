@@ -15,6 +15,10 @@ down_revision: str | None = "018"
 branch_labels = None
 depends_on = None
 
+# CONCERN 9.5: PostgreSQL cannot drop an enum value once added, so the
+# downgrade is irreversible by design.
+_DOWNGRADE_NOTE = "irreversible"
+
 
 def upgrade() -> None:
     # PostgreSQL: ADD VALUE 在事务内不可见（必须先 commit 才能用），
