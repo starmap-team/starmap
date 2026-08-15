@@ -195,6 +195,10 @@ class ReconcileResult(BaseModel):
     skills_in_neo4j: int = Field(default=0, description="Neo4j 当前 Skill 数")
     positions_in_pg: int = Field(default=0, description="PG 当前 Position 数")
     skills_in_pg: int = Field(default=0, description="PG 当前 Skill 数")
+    # Phase 23 Task 3 (IC-05): REQUIRES 边对账字段
+    requires_in_neo4j: int = Field(default=0, ge=0, description="Neo4j REQUIRES 边数")
+    requires_in_pg: int = Field(default=0, ge=0, description="PG approved 岗位 PSR 边数")
+    requires_diff: int = Field(default=0, ge=0, description="REQUIRES 边数差值（绝对值）")
     duration_ms: int = Field(default=0, description="执行耗时（毫秒）")
     health: str = Field(default="ok", description="健康度: ok/warn/critical")
 

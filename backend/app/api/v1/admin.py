@@ -80,12 +80,15 @@ async def reconcile_neo4j_endpoint(
     """Phase 5 Step 3: 手动触发 PG → Neo4j 同步 + 孤儿节点剪枝。
 
     由 admin 手动调用，或由 cron job 定期调用。
+
+    Phase 23 Task 3 (IC-05): 增加 REQUIRES 边计数对账——Neo4j 全边 vs PG approved
+    岗位 PSR，健康三档扩展纳入 ±0.5% 容差；边层补缺只 MERGE 不删（多余边记 drift）。
     """
     import time
 
     from sqlalchemy import func, select, text
 
-    from app.models.extraction_models import PositionRecord, SkillRecord
+    from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
     from app.services.graph_projector import GraphProjector
 
     start = time.time()
@@ -93,20 +96,35 @@ async def reconcile_neo4j_endpoint(
     result = await projector.reconcile_all(session)
     duration_ms = int((time.time() - start) * 1000)
 
-    # 验证对齐
+    # 验证对齐（节点 + REQUIRES 边）
     async with driver.session() as s:
         r1 = await s.run("MATCH (p:Position) RETURN count(p) AS c")
         neo4j_pos = int((await r1.single())["c"])
         r2 = await s.run("MATCH (s:Skill) RETURN count(s) AS c")
         neo4j_skl = int((await r2.single())["c"])
+        r3 = await s.run("MATCH (:Position)-[r:REQUIRES]->(:Skill) RETURN count(r) AS c")
+        neo4j_requires = int((await r3.single())["c"])
 
     pg_pos = (await session.execute(select(func.count(PositionRecord.id)))).scalar() or 0
     pg_skl = (await session.execute(select(func.count(SkillRecord.id)))).scalar() or 0
+    # IC-05: PG 侧只统计 approved 岗位的 PSR（Neo4j 只投影 approved）
+    pg_requires = (
+        await session.execute(
+            select(func.count(PositionSkillRelation.id))
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .where(PositionRecord.review_status == "approved")
+        )
+    ).scalar() or 0
+    requires_diff = abs(int(neo4j_requires) - int(pg_requires))
 
-    # 健康度
-    if neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0:
+    # 健康度（Phase 23 Task 3 扩展：边 ±0.5% 容差纳入三档）
+    edge_tolerance = max(1, int(pg_requires * 0.005))
+    nodes_equal = neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0
+    if nodes_equal and requires_diff <= edge_tolerance:
         health = "ok"
-    elif abs(neo4j_pos - pg_pos) <= 1 and abs(neo4j_skl - pg_skl) <= 1:
+    elif requires_diff > edge_tolerance or (
+        abs(neo4j_pos - pg_pos) <= 1 and abs(neo4j_skl - pg_skl) <= 1
+    ):
         health = "warn"
     else:
         health = "critical"
@@ -128,7 +146,12 @@ async def reconcile_neo4j_endpoint(
                 "event": "graph_reconcile",
                 "actor": "admin",
                 "action": "manual_reconcile",
-                "detail": f"health={health},upserted={result.nodes_upserted},orphans={result.orphans_pruned}",
+                "detail": (
+                    f"health={health},upserted={result.nodes_upserted},"
+                    f"skills={result.skills_upserted},orphans={result.orphans_pruned},"
+                    f"requires_neo4j={neo4j_requires},requires_pg={pg_requires},"
+                    f"requires_diff={requires_diff}"
+                ),
                 "now": _dt.now(UTC),
                 # BUG-18 fix: tag reconcile events with their scope so
                 # admin audit log can filter by entity (graph).
@@ -141,18 +164,24 @@ async def reconcile_neo4j_endpoint(
         logger.warning("Failed to write reconcile audit: {}", audit_exc)
 
     logger.info(
-        "Reconcile complete: health={}, positions_neo4j={} vs pg={}, skills_neo4j={} vs pg={}, orphans={}, duration={}ms",
-        health, neo4j_pos, pg_pos, neo4j_skl, pg_skl, result.orphans_pruned, duration_ms,
+        "Reconcile complete: health={}, positions_neo4j={} vs pg={}, skills_neo4j={} vs pg={}, "
+        "requires_neo4j={} vs pg={} (diff={}), orphans={}, duration={}ms",
+        health, neo4j_pos, pg_pos, neo4j_skl, pg_skl,
+        neo4j_requires, pg_requires, requires_diff, result.orphans_pruned, duration_ms,
     )
 
     return ReconcileResult(
         positions_synced=result.nodes_upserted,
-        skills_synced=result.nodes_upserted,
+        # Phase 23 Task 3: 修 skills_synced 复制粘贴 bug（此前误用 nodes_upserted）
+        skills_synced=result.skills_upserted,
         orphans_pruned=result.orphans_pruned,
         positions_in_neo4j=neo4j_pos,
         skills_in_neo4j=neo4j_skl,
         positions_in_pg=pg_pos,
         skills_in_pg=pg_skl,
+        requires_in_neo4j=neo4j_requires,
+        requires_in_pg=pg_requires,
+        requires_diff=requires_diff,
         duration_ms=duration_ms,
         health=health,
     )

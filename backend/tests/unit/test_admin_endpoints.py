@@ -850,6 +850,33 @@ class TestAggregateABResults:
 class TestAdminAuthGuards:
     """Verify that admin endpoints enforce authentication and admin role checks."""
 
+    def test_reconcile_result_schema_has_edge_fields(self) -> None:
+        """Phase 23 Task 3: ReconcileResult 含 REQUIRES 边对账字段（IC-05 可观测）。"""
+        from app.schemas.admin import ReconcileResult
+
+        fields = ReconcileResult.model_fields
+        assert "requires_in_neo4j" in fields
+        assert "requires_in_pg" in fields
+        assert "requires_diff" in fields
+        result = ReconcileResult(
+            requires_in_neo4j=100, requires_in_pg=98, requires_diff=2,
+        )
+        assert result.requires_diff == 2
+
+    def test_reconcile_requires_admin_dependency(self) -> None:
+        """reconcile-neo4j 端点必须声明 require_admin 依赖（T2 写权限防护）。"""
+        from app.api.v1 import admin as admin_mod
+
+        route = next(
+            r for r in admin_mod.router.routes
+            if getattr(r, "path", "") == "/admin/reconcile-neo4j"
+        )
+        assert route.dependencies, "reconcile-neo4j must declare a security dependency"
+        assert any(
+            getattr(dep.dependency, "__name__", "") == "require_admin"
+            for dep in route.dependencies
+        )
+
     def test_require_admin_rejects_non_admin_role(self):
         """require_admin should raise 403 for non-admin role in user dict."""
         from fastapi import HTTPException
