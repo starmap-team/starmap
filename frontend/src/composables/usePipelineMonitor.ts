@@ -237,6 +237,9 @@ export function usePipelineMonitor() {
     // 2026-08-12 (pipeline 联调): 今日采集量 = 今日各 run crawl 处理量之和（含重复）；
     // 今日新增 = jd_raw 今日新行；历史累计 = jd_raw 全表行数。三者口径在 status
     // 聚合器统一，避免"DAG 显示采集 70 但今日 0"的矛盾。
+    // Phase 23 (IC-07): 三段 KPI 口径的唯一事实源为 backend/app/core/pipeline/
+    // status_aggregator.py，SQL 级定义见 docs/ingestion-kpi-calibers.md。此处必须
+    // 直接从 pipeline.pipelineStatus 派生，禁止前端本地重新聚合。
     const todayVolume = s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume : null
     const todayNew = s?.today_crawl_new ?? 0
     const totalJdRaw = s?.total_jd_raw ?? 0
