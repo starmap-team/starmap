@@ -31,7 +31,6 @@ except ImportError:
 
 
 # Module-level constants
-RECONCILE_INTERVAL = timedelta(hours=24)
 
 
 # Phase 03 Plan 03 Task 11 (D-16): 5 字段值域常量
@@ -199,7 +198,15 @@ async def _run_daily_reconcile(session: AsyncSession) -> None:
     """BUG-16 fix: extract reconcile logic so both cron and the manual endpoint
     share one implementation. Runs GraphProjector.reconcile_all and writes an
     audit event so Tab 7 数据源诊断 reports an accurate "last reconcile" time.
+
+    Phase 23 Task 4 (DC-01/DC-03): 扩展为全量对账——节点（reconcile_all，含 Task 3
+    的 REQUIRES 边补缺）+ REQUIRES 边计数与 PG approved PSR 对照（±0.5% 容差）+
+    trust 重算；audit detail 含边 diff。orphan 漂移告警由
+    celery_app.reconcile_graph_task 的 RepairEngine.detect_orphans 承担（已有）。
     """
+    from sqlalchemy import func, select
+
+    from app.models.extraction_models import PositionRecord, PositionSkillRelation
     from app.services.graph_projector import GraphProjector
     from app.services.resources import init_resources
 
@@ -211,10 +218,35 @@ async def _run_daily_reconcile(session: AsyncSession) -> None:
     projector = GraphProjector(resources.neo4j_driver)
     result = await projector.reconcile_all(session)
     logger.info(
-        "Daily reconcile: positions/skills upserted={}, orphans_pruned={}",
-        result.nodes_upserted,
-        result.orphans_pruned,
+        "Daily reconcile: positions/skills upserted={}, skills={}, edges={}, orphans_pruned={}",
+        result.nodes_upserted, result.skills_upserted, result.edges_upserted, result.orphans_pruned,
     )
+
+    # REQUIRES 边计数对账（IC-05：Neo4j 全边 vs PG approved PSR）
+    neo4j_requires = 0
+    try:
+        async with resources.neo4j_driver.session() as n4j_session:
+            res = await n4j_session.run(
+                "MATCH (:Position)-[r:REQUIRES]->(:Skill) RETURN count(r) AS c",
+            )
+            rec = await res.single()
+            neo4j_requires = int(rec["c"]) if rec else 0
+    except Exception as exc:  # noqa: BLE001 — 边计数失败不阻断 reconcile 主体
+        logger.warning("daily_reconcile edge count (neo4j) failed (non-fatal): {}", exc)
+    pg_requires = 0
+    try:
+        pg_requires = int(
+            (
+                await session.execute(
+                    select(func.count(PositionSkillRelation.id))
+                    .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+                    .where(PositionRecord.review_status == "approved")
+                )
+            ).scalar() or 0
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("daily_reconcile edge count (pg) failed (non-fatal): {}", exc)
+    requires_diff = abs(int(neo4j_requires) - int(pg_requires))
 
     # Phase 19 D-02/D-04: reconcile 时全量重算 Skill.trust_score（§6.2 四因子），
     # 覆盖历史 0.5 脏数据（投影不写 trust_score 时代的默认值）
@@ -226,7 +258,7 @@ async def _run_daily_reconcile(session: AsyncSession) -> None:
     except Exception as exc:  # noqa: BLE001 — 重算失败不阻断 reconcile 主体
         logger.warning("recompute_skill_trust failed (non-blocking): {}", exc)
 
-    # Write audit event for health monitoring
+    # Write audit event for health monitoring（detail 含边 diff）
     try:
         import uuid as _uuid
 
@@ -245,7 +277,12 @@ async def _run_daily_reconcile(session: AsyncSession) -> None:
                 """),
                 {
                     "id": str(_uuid.uuid4()),
-                    "detail": f"upserted={result.nodes_upserted},orphans={result.orphans_pruned}",
+                    "detail": (
+                        f"upserted={result.nodes_upserted},skills={result.skills_upserted},"
+                        f"edges={result.edges_upserted},orphans={result.orphans_pruned},"
+                        f"requires_neo4j={neo4j_requires},requires_pg={pg_requires},"
+                        f"requires_diff={requires_diff}"
+                    ),
                     "now": now,
                 },
             )
@@ -274,19 +311,15 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
 
     Registered in app.main.py lifespan as a background task.
 
-    Phase 5 Step 3: 每天凌晨 3 点自动 reconcile PG → Neo4j。
+    Phase 23 Task 4: 每日 03:00 自动 reconcile 统一走 **Celery 路径**——
+    迁移 039 已在 `pipeline_schedules` 种子 `daily_reconcile` 行（next_run_at 非 NULL），
+    `scan_due_schedules` → `trigger_schedule` name 分发 → `reconcile_graph_task` →
+    `_run_daily_reconcile`。本循环不再保留内联 reconcile 副本（避免双跑/audit 双写），
+    仅保留 watchdog sweep（清理超时卡死的 running run）。
     """
-    from datetime import UTC, datetime, timedelta
-
     logger.info("Cron scanner loop started (interval={}s)", interval_seconds)
     engine = get_async_engine()
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
-
-    # Phase 5 Step 3: 定时 reconcile 状态
-    last_reconcile_at: datetime | None = None
-    next_reconcile_at = datetime.now(UTC).replace(hour=3, minute=0, second=0, microsecond=0)
-    if next_reconcile_at < datetime.now(UTC):
-        next_reconcile_at += timedelta(days=1)
 
     while True:
         try:
@@ -295,48 +328,6 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
                 triggered = await cron_scanner_once(session)
                 if triggered:
                     logger.info("Cron scanner triggered {} schedule(s)", triggered)
-
-            # Phase 5 Step 3: 定时 reconcile
-            now = datetime.now(UTC)
-            if last_reconcile_at is None or now >= next_reconcile_at:
-                try:
-
-                    from app.services.graph_projector import GraphProjector
-                    from app.services.resources import init_resources
-                    resources = await init_resources()
-                    if resources.neo4j_driver:
-                        async with session_factory() as session:
-                            projector = GraphProjector(resources.neo4j_driver)
-                            result = await projector.reconcile_all(session)
-                            logger.info(
-                                "Daily reconcile: positions={}, skills={}, orphans={}",
-                                result.nodes_upserted, result.nodes_upserted, result.orphans_pruned,
-                            )
-                            # Phase 5 Step 4: 写 audit_events 供健康度监控查询
-                            try:
-                                import uuid as _uuid
-
-                                from sqlalchemy import text as _text
-                                async with session_factory() as audit_session:
-                                    await audit_session.execute(
-                                        _text("""
-                                            INSERT INTO audit_events (id, event, actor, action, detail, ip, created_at)
-                                            VALUES (:id, 'graph_reconcile', 'cron_scanner', 'daily_reconcile',
-                                                    :detail, '', :now)
-                                        """),
-                                        {
-                                            "id": str(_uuid.uuid4()),
-                                            "detail": f"upserted={result.nodes_upserted},orphans={result.orphans_pruned}",
-                                            "now": now,
-                                        },
-                                    )
-                                    await audit_session.commit()
-                            except Exception as audit_exc:
-                                logger.warning("Failed to write reconcile audit: {}", audit_exc)
-                    last_reconcile_at = now
-                    next_reconcile_at = now + RECONCILE_INTERVAL
-                except Exception as exc:
-                    logger.exception("Daily reconcile failed: {}", exc)
 
             # D8 fix: watchdog —— 定期清理超时卡死的 running run（import 等阶段 task
             # 丢失后 run 永不 completed → 前端 current_run 恒 running 与 DAG 矛盾）。
