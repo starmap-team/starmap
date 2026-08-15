@@ -30,8 +30,8 @@ async def _validate_sources_have_adapters(
     """
     if not source_names:
         return
-    from app.api.v1.datasource import _adapter_capability
     from app.models.pipeline_models import DataSourceRecord
+    from app.services.spider_registry import has_adapter
 
     result = await session.execute(
         select(DataSourceRecord).where(DataSourceRecord.name.in_(source_names))
@@ -40,7 +40,10 @@ async def _validate_sources_have_adapters(
     missing = [
         name
         for name in source_names
-        if name not in sources or not _adapter_capability(sources[name])[0]
+        if name not in sources or not has_adapter(
+            (sources[name].config or {}).get("platform")
+            or (sources[name].config or {}).get("source_site")
+        )
     ]
     if missing:
         raise HTTPException(

@@ -60,14 +60,16 @@ def _adapter_capability(ds: DataSourceRecord) -> tuple[bool, str | None]:
 
     返回 (has_adapter, adapter_platform)。platform 取自 config.platform（或
     config.source_site 兜底）；缺 platform 或不在注册表 → 无适配器。
+    Layer-boundary: imports from app.services.spider_registry (services →
+    core forbidden in reverse).
     """
-    from app.core.pipeline.stages.crawl import build_spider_registry
+    from app.services.spider_registry import has_adapter
 
     cfg = ds.config or {}
     platform = cfg.get("platform") or cfg.get("source_site")
     if not platform:
         return False, None
-    return platform in build_spider_registry(), str(platform)
+    return has_adapter(platform), str(platform)
 
 
 def _serialize(ds: DataSourceRecord) -> DataSourceResponse:
