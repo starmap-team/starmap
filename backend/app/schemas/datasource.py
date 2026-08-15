@@ -21,6 +21,8 @@ class DataSourceResponse(BaseModel):
     duplicate_rate: float = Field(default=0.0, ge=0, le=1, description="重复率 0~1")
     avg_quality_score: float = Field(default=0.0, ge=0, le=1, description="平均质量分 0~1")
     config: dict[str, Any] = Field(default_factory=dict, description="数据源配置（spider 参数等）")
+    has_adapter: bool = Field(default=False, description="是否有可用爬虫适配器（后端 spider 注册表判定，唯一事实源）")
+    adapter_platform: str | None = Field(default=None, description="配置的爬虫平台名（无则 None，如 bosszhipin）")
 
 
 class DataSourceUpdateRequest(BaseModel):

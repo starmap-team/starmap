@@ -135,7 +135,16 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
                 # Build per-source config: merge record-level metadata with config JSON
                 cfg = dict(ds.config)
                 cfg["source_name"] = ds.name
-                cfg.setdefault("platform", cfg.get("source_site", "v2ex"))
+                # P0-1 (2026-08-15): 禁止静默回退 v2ex —— 无 platform 的源直接跳过，
+                # 避免 V2EX 内容被错误归属到 bosszhipin/zhaopin 等未配置源。
+                platform = cfg.get("platform") or cfg.get("source_site")
+                if not platform:
+                    logger.warning(
+                        "crawl config skip '{}': 未配置 platform/source_site，跳过（P0-1）",
+                        ds.name,
+                    )
+                    continue
+                cfg["platform"] = platform
                 configs.append(cfg)
             if configs:
                 logger.debug(

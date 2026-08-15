@@ -55,7 +55,23 @@ def _mask_config(config: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _adapter_capability(ds: DataSourceRecord) -> tuple[bool, str | None]:
+    """数据源是否有可用爬虫适配器 —— 后端 spider 注册表为唯一事实源（P0-3）。
+
+    返回 (has_adapter, adapter_platform)。platform 取自 config.platform（或
+    config.source_site 兜底）；缺 platform 或不在注册表 → 无适配器。
+    """
+    from app.core.pipeline.stages.crawl import build_spider_registry
+
+    cfg = ds.config or {}
+    platform = cfg.get("platform") or cfg.get("source_site")
+    if not platform:
+        return False, None
+    return platform in build_spider_registry(), str(platform)
+
+
 def _serialize(ds: DataSourceRecord) -> DataSourceResponse:
+    has_adapter, adapter_platform = _adapter_capability(ds)
     return DataSourceResponse(
         id=str(ds.id),
         name=ds.name,
@@ -68,6 +84,8 @@ def _serialize(ds: DataSourceRecord) -> DataSourceResponse:
         duplicate_rate=ds.duplicate_rate,
         avg_quality_score=ds.avg_quality_score,
         config=_mask_config(ds.config),
+        has_adapter=has_adapter,
+        adapter_platform=adapter_platform,
     )
 
 
@@ -363,6 +381,17 @@ async def trigger_source_sync(
     ds = result.scalar_one_or_none()
     if ds is None:
         raise HTTPException(status_code=404, detail="Data source not found")
+
+    # P0-4 (2026-08-15): 无适配器源拒绝同步 —— 避免 crawl 阶段错源归属/空转。
+    has_adapter, adapter_platform = _adapter_capability(ds)
+    if not has_adapter:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"数据源 '{ds.name}' 未配置爬虫适配器"
+                f"（platform={adapter_platform or '未设置'}），无法同步"
+            ),
+        )
 
     # Delegate to pipeline executor so stages actually run (previously a no-op)
     # E19 fix: trigger_and_start accepts full/incremental only (DB constraint),

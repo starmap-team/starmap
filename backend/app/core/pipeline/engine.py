@@ -54,6 +54,19 @@ STAGE_EXECUTORS: dict[str, Any] = {
 # DAG advance logic (async, updates DB + dispatches next Celery tasks)
 # ---------------------------------------------------------------------------
 
+def _derive_run_record_counts(crawl_stage: dict, crawl_records: int) -> tuple[int, int]:
+    """从 crawl 阶段推导 run 级 new/updated 记录数（P1-7）。
+
+    records_new=0 是合法值（全部重复），不得用 `or` 回退到 crawl_records；
+    仅当字段缺省（None）时回退。
+    """
+    _rn = crawl_stage.get("records_new")
+    new_records = int(_rn) if _rn is not None else crawl_records
+    _rd = crawl_stage.get("records_duplicate")
+    updated_records = int(_rd) if _rd is not None else 0
+    return new_records, updated_records
+
+
 async def advance_pipeline(run_id: uuid.UUID) -> None:
     """Check stage statuses and dispatch the next ready stages.
 
@@ -159,8 +172,10 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
                     ),
                     {},
                 )
-                new_records = int(crawl_stage.get("records_new") or crawl_records or 0)
-                updated_records = int(crawl_stage.get("records_duplicate") or 0)
+                # P1-7 fix (2026-08-15): records_new=0 是合法值（全部重复），
+                # 原 `records_new or crawl_records` 把 0 误判为缺省 → 回退成
+                # total（85），导致 run 级 new=total=updated 同值。改用显式 None 判断。
+                new_records, updated_records = _derive_run_record_counts(crawl_stage, crawl_records)
                 quality_score = 0.0
                 try:
                     from app.core.pipeline.quality_monitor import compute_source_quality
