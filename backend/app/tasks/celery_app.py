@@ -446,4 +446,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.celery_app.sweep_orphan_runs",
         "schedule": crontab(minute="*/5"),  # 每5分钟
     },
+    # Phase 23 Task 1 (DC-02/DF-01): 重放 graph_write_outbox 失败行 + sweep 超龄
+    # pending 行——每 30 分钟，幂等（MERGE），source_count max 语义不放大漂移
+    "retry-failed-outbox-writes": {
+        "task": "app.tasks.outbox_retry.retry_failed_outbox_writes",
+        "schedule": crontab(minute="*/30"),  # 每30分钟
+    },
 }

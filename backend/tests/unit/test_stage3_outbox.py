@@ -127,3 +127,52 @@ async def test_outbox_completed_when_graph_write_succeeds(monkeypatch: pytest.Mo
     # H1: ad-hoc extraction must use run_id=None + extraction_ids for traceability
     assert captured.get("run_id") is None, "run_id must be NULL for ad-hoc extraction"
     assert captured.get("extraction_ids"), "extraction_ids must be populated for audit"
+
+
+@pytest.mark.asyncio
+async def test_retry_worker_does_not_swallow_completed_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 23 Task 1: retry worker 只消费 failed 行，completed/drift_warning 不误捡。
+
+    沿 `_list_retryable_outbox` 的 SQL 过滤 + Python 兜底过滤——completed 行已落库
+    成功，重放会重复写图（即使 MERGE 幂等也造成 source_count 语义噪音），必须跳过。
+    """
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from app.tasks.outbox_retry import _list_retryable_outbox
+
+    def _row(status: str, retry_count: int = 0) -> SimpleNamespace:
+        return SimpleNamespace(
+            id=uuid.uuid4(), status=status, retry_count=retry_count,
+            created_at=datetime.now(UTC), updated_at=datetime.now(UTC),
+        )
+
+    rows = [
+        _row("failed", retry_count=1),
+        _row("completed"),
+        _row("drift_warning"),
+        _row("failed", retry_count=3),
+    ]
+
+    class _Scalars:
+        def __init__(self, items: list) -> None:
+            self._items = items
+
+        def all(self) -> list:
+            return self._items
+
+    class _Result:
+        def __init__(self, items: list) -> None:
+            self._scalars = _Scalars(items)
+
+        def scalars(self) -> _Scalars:
+            return self._scalars
+
+    class _Session:
+        async def execute(self, *a: Any, **k: Any) -> _Result:
+            return _Result(rows)
+
+    picked = await _list_retryable_outbox(_Session())
+    assert len(picked) == 1
+    assert picked[0].status == "failed"
+    assert picked[0].retry_count == 1  # completed/drift_warning/retry>=3 全部跳过
