@@ -4,7 +4,8 @@
  * 路由：/position/:name
  */
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import SkillRadar, { type RadarItem } from '@/components/SkillRadar.vue'
@@ -17,6 +18,7 @@ const jdStore = useJdStore()
 const cc = chartColors()
 
 const route = useRoute()
+const router = useRouter()
 const positionName = computed(() => route.params.name as string)
 
 // ── 数据 ──
@@ -74,6 +76,13 @@ function hotnessColor(count: number): string {
   if (count >= 5) return cc.chart[4]   // lighter green from chart palette
   if (count >= 3) return cc.muted
   return cc.border
+}
+
+// QA 优化: 详情页直达「匹配诊断」——携带岗位名，匹配页确认技能后自动选中该岗位
+function goMatch() {
+  const name = position.value?.name ?? (positionName.value as string)
+  if (!name) { ElMessage.warning('岗位信息未加载完成'); return }
+  router.push({ path: '/match', query: { position: name } })
 }
 
 // ── 加载：按 id 单次拉取 ──
@@ -221,6 +230,13 @@ watch(() => route.params.name, loadPosition)
             size="small"
             @click="$router.push('/positions')"
           />
+          <el-button
+            type="primary"
+            size="small"
+            @click="goMatch"
+          >
+            匹配诊断
+          </el-button>
           <div>
             <h2>{{ position?.name ?? positionName }}</h2>
             <p class="header-sub">

@@ -11,14 +11,10 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.schemas.admin import (
-    AuditQueueResponse,
-    AuditUpdateRequest,
-    BatchAuditRequest,
     NameCnUpdateRequest,
     PipelineStatusResponse,
     PipelineTriggerResponse,
@@ -30,22 +26,8 @@ from app.schemas.admin import (
 from app.services import review_service
 from app.services.admin_audit_service import (
     AdminStatsResponse,
-    AuditItem,
     AuditItemNotFound,
     build_admin_stats,
-    get_review_queue,
-)
-from app.services.admin_audit_service import (
-    approve_audit as svc_approve_audit,
-)
-from app.services.admin_audit_service import (
-    batch_audit as svc_batch_audit,
-)
-from app.services.admin_audit_service import (
-    reject_audit as svc_reject_audit,
-)
-from app.services.admin_audit_service import (
-    update_review_queue_item as svc_update_review_queue_item,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -195,86 +177,6 @@ async def reconcile_neo4j_endpoint(
     )
 
 
-@router.get("/review-queue", response_model=AuditQueueResponse, deprecated=True)
-@router.get("/audit-queue", response_model=AuditQueueResponse, include_in_schema=False)
-async def get_review_queue_endpoint(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> AuditQueueResponse:
-    """Return pending review items from DB; returns empty list when table is empty.
-
-    DEPRECATED (D8h): 旧 ReviewQueue 审核路径已废弃 —— review_queue 表 0 行且无
-    写入方（历史遗留，绕过 Phase 23 review_status 状态机直接 approved）。
-    前端已改用 /admin/review-items（新状态机 + 审核即入图）。仅保留兼容旧客户端。
-    """
-    try:
-        items = await get_review_queue(session)
-        return AuditQueueResponse(items=items)
-    except SQLAlchemyError as exc:
-        logger.error("Database error in get_review_queue: {}", exc)
-        raise HTTPException(status_code=500, detail="Database query failed") from exc
-
-
-@router.post("/audit/{item_id}/approve", response_model=AuditItem)
-async def approve_audit_endpoint(
-    item_id: int,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
-    user: Annotated[dict[str, Any], Depends(require_admin)],
-) -> AuditItem:
-    """Approve a review queue item and sync to Neo4j (LOOP-07)."""
-    try:
-        actor = user.get("sub") or user.get("username") or "admin"
-        return await svc_approve_audit(
-            item_id, session, neo4j_driver=neo4j_driver, actor=f"admin:{actor}",
-        )
-    except AuditItemNotFound as exc:
-        raise _map_not_found(exc) from exc
-
-
-@router.post("/audit/{item_id}/reject", response_model=AuditItem)
-async def reject_audit_endpoint(
-    item_id: int,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
-) -> AuditItem:
-    """Reject a review queue item and sync to Neo4j (LOOP-07)."""
-    try:
-        return await svc_reject_audit(item_id, session, neo4j_driver=neo4j_driver)
-    except AuditItemNotFound as exc:
-        raise _map_not_found(exc) from exc
-
-
-@router.put("/review-queue/{item_id}", response_model=AuditItem)
-@router.patch("/review-queue/{item_id}", response_model=AuditItem, include_in_schema=False)
-async def update_review_queue_item_endpoint(
-    item_id: int,
-    body: AuditUpdateRequest,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> AuditItem:
-    """Update name and/or trust of a review queue item (ADMIN-02 save loop)."""
-    try:
-        return await svc_update_review_queue_item(
-            item_id, name=body.name, trust=body.trust, session=session,
-        )
-    except AuditItemNotFound as exc:
-        raise _map_not_found(exc) from exc
-
-
-@router.post("/audit/batch", response_model=list[AuditItem])
-async def batch_audit_endpoint(
-    body: BatchAuditRequest,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[dict[str, Any], Depends(require_admin)],
-) -> list[AuditItem]:
-    """Batch approve or reject multiple review queue items."""
-    try:
-        actor = user.get("sub") or user.get("username") or "admin"
-        return await svc_batch_audit(body.item_ids, body.action, session, actor=f"admin:{actor}")
-    except AuditItemNotFound as exc:
-        raise _map_not_found(exc) from exc
-
-
-# ══════════════════════════════════════════════════════════════
 # Review workflow endpoints (Phase 23 — D-tier redesign)
 # ══════════════════════════════════════════════════════════════
 

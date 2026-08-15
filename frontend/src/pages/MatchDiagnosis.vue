@@ -135,6 +135,13 @@ function confirmManualSkills() {
   // FLOW-03: store structured skills with default proficiency
   userStore.parsedSkills = manualSkills.value.map(s => ({ skill: s, category: 'hard_skill' as const, proficiency: '熟悉' as const }))
   ElMessage.success('已录入 ' + manualSkills.value.length + ' 项技能')
+  // QA 优化: 从岗位详情「匹配诊断」CTA 进入时（?position=），确认技能后直接选中目标岗位
+  const qPos = route.query.position as string | undefined
+  if (qPos) {
+    targetPositionName.value = qPos
+    void handlePositionSelect({ position_id: '', name: qPos })
+    return
+  }
   step.value = 1
 }
 
