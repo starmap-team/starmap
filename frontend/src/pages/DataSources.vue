@@ -86,8 +86,11 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
     syncingIds.value.delete(source.id)
   }
 }
+// M2/M3 (2026-08-15): 软删除源（inactive）不展示——避免"同名不同状态"卡与
+// KPI 虚高（数据源总数 19 含 3 个已归档占位 → 应 16）。
+const visibleSources = computed(() => dsStore.sources.filter((s) => s.status !== 'inactive'))
 const summaryStats = computed(() => {
-  const src = dsStore.sources
+  const src = visibleSources.value
   // fix: 异常口径只计 error（paused 为人为主观停用，非异常）—— datasource 优化设计需求 C
   // fix: 平均质量分只对"已评估"(avg_quality_score>0) 源求均值；全未评估 → null（诚实"未评估"）
   //      而非把 0 计入平均 → 假"0.0% ▼ 有提升空间"（2026-08-12 D4 多端语义验证）
@@ -346,7 +349,7 @@ onMounted(() => {
           />
         </el-col>
         <el-col
-          v-for="source in dsStore.sources"
+          v-for="source in visibleSources"
           :key="source.id"
           :xl="8"
           :lg="12"

@@ -141,7 +141,12 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     )
     # Count positions and skills from the database
     from app.models.extraction_models import PositionSkillRelation
-    pos_count = (await session.execute(sa.select(sa.func.count()).select_from(PositionRecord))).scalar() or 0
+    # M1 (2026-08-15): 岗位规模只计已发布（approved）——待审岗位未对用户可见，
+    # 计入会与 /positions 列表(184) 相差 95%（359 含 175 待审）。
+    pos_count = (await session.execute(
+        sa.select(sa.func.count()).select_from(PositionRecord)
+        .where(PositionRecord.review_status == "approved")
+    )).scalar() or 0
     skill_count = (await session.execute(sa.select(sa.func.count()).select_from(SkillRecord))).scalar() or 0
     edge_count = (await session.execute(sa.select(sa.func.count()).select_from(PositionSkillRelation))).scalar() or 0
 
