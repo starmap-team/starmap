@@ -29,7 +29,7 @@ NODE_LEARNING_RESOURCE = "LearningResource"
 NODE_INDUSTRY = "Industry"
 
 # ---- Relationship types (§2.2: 8类关系) ----
-REL_REQUIRES = "REQUIRES"           # Position -> Skill (required:bool, weight:float)
+REL_REQUIRES = "REQUIRES"           # Position -> Skill (requirement_type:'required'|'preferred' 唯一真值, required:bool 兼容读, weight:float)
 REL_PREREQUISITE = "PREREQUISITE"   # Skill -> Skill (strength:float)
 REL_EVOLVES_TO = "EVOLVES_TO"       # Position -> Position (similarity:float, evidence_count)
 REL_USES = "USES"                   # Position/Skill -> Tool
@@ -598,10 +598,16 @@ async def create_requires_relationship(
     required: bool = True,
     weight: float = 1.0,
     *,
+    requirement_type: str | None = None,
     position_canonical_id: str | None = None,
     skill_canonical_id: str | None = None,
 ) -> dict[str, Any]:
     """Create a REQUIRES relationship between Position and Skill (§2.2).
+
+    Phase 23 Task 6 (DC-05): REQUIRES 边属性契约唯一真值 —— 本函数与演化投影
+    ``graph_projection._PROJECT_QUERY`` 都写 ``r.requirement_type``
+    （'required' | 'preferred'），``r.required`` 降级为兼容读（历史边）。两条写
+    路径 SET 必须保持一致，否则 bool/str 双轨漂移。
 
     Args:
         driver: Neo4j async driver.
@@ -610,6 +616,9 @@ async def create_requires_relationship(
         level: Required proficiency level.
         required: Whether this skill is strictly required.
         weight: Weight/importance of this skill for the position.
+        requirement_type: REQUIRES 边属性契约真值（'required'|'preferred'）。
+            未传时从 ``required`` 派生（``'required' if required else 'preferred'``），
+            保证双写路径契约一致。
         position_canonical_id: PG PositionRecord.id — 传入时端点按 canonical_id
             MATCH（Phase 23 Task 2 主键收敛）。
         skill_canonical_id: PG SkillRecord.id — 同上。
@@ -619,13 +628,17 @@ async def create_requires_relationship(
     """
     from neo4j.exceptions import Neo4jError
 
+    if requirement_type is None:
+        requirement_type = "required" if required else "preferred"
+
     if position_canonical_id and skill_canonical_id:
         query = """
         MATCH (p:Position {canonical_id: $position_canonical_id})
         MATCH (s:Skill {canonical_id: $skill_canonical_id})
         // ponytail: 无属性 MERGE + SET —— 属性值变化不产生重复边（REQUIRES 重复 34% 教训）
         MERGE (p)-[r:REQUIRES]->(s)
-        SET r.level = $level, r.required = $required, r.weight = $weight, r.updated_at = datetime()
+        SET r.level = $level, r.required = $required, r.weight = $weight,
+            r.requirement_type = $requirement_type, r.updated_at = datetime()
         RETURN r
         """
         params = {
@@ -634,6 +647,7 @@ async def create_requires_relationship(
             "level": level,
             "required": required,
             "weight": weight,
+            "requirement_type": requirement_type,
         }
     else:
         # 兼容回退：未传 canonical_id 时按 name MATCH（读/补丁路径保留 name 匹配，
@@ -642,7 +656,8 @@ async def create_requires_relationship(
         MATCH (p:Position {name: $position_name})
         MATCH (s:Skill {name: $skill_name})
         MERGE (p)-[r:REQUIRES]->(s)
-        SET r.level = $level, r.required = $required, r.weight = $weight, r.updated_at = datetime()
+        SET r.level = $level, r.required = $required, r.weight = $weight,
+            r.requirement_type = $requirement_type, r.updated_at = datetime()
         RETURN r
         """
         params = {
@@ -651,6 +666,7 @@ async def create_requires_relationship(
             "level": level,
             "required": required,
             "weight": weight,
+            "requirement_type": requirement_type,
         }
     try:
         async with driver.session() as session:
@@ -750,6 +766,9 @@ async def write_extraction_to_graph(
                     driver, position_name, skill_name,
                     level=level, required=required_flag,
                     weight=1.0 if required_flag else 0.6,
+                    # Phase 23 Task 6 (DC-05): REQUIRES 属性契约唯一真值 —— 与演化
+                    # 投影 graph_projection._PROJECT_QUERY 的 r.requirement_type 对齐。
+                    requirement_type="required" if required_flag else "preferred",
                     # Phase 23 Task 2: REQUIRES 端点按 canonical_id MATCH（写路径主键收敛）
                     position_canonical_id=pos_cid,
                     skill_canonical_id=skill_cids.get(skill_name),
@@ -836,14 +855,16 @@ async def get_position_skills(driver: Any, position_name: str, *, position_canon
     if position_canonical_id:
         query = """
         MATCH (p:Position {canonical_id: $position_canonical_id})-[r:REQUIRES]->(s:Skill)
-        RETURN s.name AS skill_name, r.level AS level, r.required AS required
+        RETURN s.name AS skill_name, r.level AS level,
+               r.requirement_type AS requirement_type, r.required AS required
         """
         params: dict[str, Any] = {"position_canonical_id": position_canonical_id}
     else:
         # 兼容回退：读路径保留 name MATCH（RESEARCH §2.2-4 影响面收敛）
         query = """
         MATCH (p:Position {name: $name})-[r:REQUIRES]->(s:Skill)
-        RETURN s.name AS skill_name, r.level AS level, r.required AS required
+        RETURN s.name AS skill_name, r.level AS level,
+               r.requirement_type AS requirement_type, r.required AS required
         """
         params = {"name": position_name}
     required = []
@@ -853,8 +874,14 @@ async def get_position_skills(driver: Any, position_name: str, *, position_canon
         result = await session.run(query, **params)
         async for record in result:
             entry = {"name": record["skill_name"], "level": record.get("level", "intermediate")}
-            is_required = record.get("required", True)
-            if is_required is not False:
+            # Phase 23 Task 6 (DC-05): requirement_type 是唯一真值，优先读它；
+            # 历史边无 requirement_type 时回退 r.required（缺省 True 兼容）。
+            req_type = record.get("requirement_type")
+            if req_type is not None:
+                is_required = req_type == "required"
+            else:
+                is_required = record.get("required", True) is not False
+            if is_required:
                 required.append(entry)
             else:
                 preferred.append(entry)
