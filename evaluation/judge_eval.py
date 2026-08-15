@@ -1,5 +1,6 @@
 import asyncio
 import json
+import random
 import re
 import sys
 from pathlib import Path
@@ -68,6 +69,41 @@ class ExtractionMetrics(BaseModel):
     weighted_score: float = 0.0
     f1_distribution: dict[str, int] = Field(default_factory=lambda: {"excellent": 0, "good": 0, "fair": 0, "poor": 0})
     per_sample: list[SampleEvaluation] = Field(default_factory=list)
+    # 95% bootstrap CI（n=1000 重采样，纯 stdlib，无依赖）。ALIGN-08：§14.5 置信区间报告落地。
+    # 缺失时表示样本数 < 2 或不启用。
+    ci_95: dict[str, dict[str, float]] | None = None
+
+
+def bootstrap_ci_95(
+    values: list[float],
+    n_resamples: int = 1000,
+    seed: int = 42,
+) -> dict[str, float] | None:
+    """Compute bootstrap 95% confidence interval using percentile method.
+
+    Pure stdlib (random.seed + choices); no external stats dependency.
+    Returns {"lower": q025, "upper": q975, "mean": ..., "n": ...} or None
+    when input has fewer than 2 non-NaN values.
+
+    Per docs/星图-项目设计文档v2.0.md §14.5 (ALIGN-08 落地)。
+    """
+    clean = [v for v in values if v is not None and not (isinstance(v, float) and v != v)]
+    if len(clean) < 2:
+        return None
+    rng = random.Random(seed)
+    n = len(clean)
+    means: list[float] = []
+    for _ in range(n_resamples):
+        sample = [clean[rng.randrange(n)] for _ in range(n)]
+        means.append(sum(sample) / n)
+    means.sort()
+    return {
+        "lower": round(means[int(0.025 * n_resamples)], 4),
+        "upper": round(means[int(0.975 * n_resamples)], 4),
+        "mean": round(sum(clean) / n, 4),
+        "n": n,
+        "n_resamples": n_resamples,
+    }
 
 
 def compute_skill_f1(golden_skills: list[str], system_skills: list[str]) -> tuple[float, float, float]:
@@ -235,6 +271,16 @@ async def evaluate_batch(golden_file: str, system_file: str, output_file: str | 
     )
     metrics.weighted_score = compute_weighted_score(metrics)
 
+    # ALIGN-08: §14.5 bootstrap 95% CI（per-sample 重采样，1000 次）
+    f1_values = [e.f1 for e in evaluations]
+    p_values = [e.precision for e in evaluations]
+    r_values = [e.recall for e in evaluations]
+    metrics.ci_95 = {
+        "f1": bootstrap_ci_95(f1_values) or {},
+        "precision": bootstrap_ci_95(p_values) or {},
+        "recall": bootstrap_ci_95(r_values) or {},
+    }
+
     if output_file:
         output_path = Path(output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -257,6 +303,31 @@ def generate_evaluation_report(metrics: ExtractionMetrics, output_dir: str) -> d
         f"- **Avg F1**: {metrics.avg_f1:.4f}",
         f"- **Weighted Score**: {metrics.weighted_score:.4f}",
         "",
+    ]
+
+    # ALIGN-08 §14.5 置信区间报告（bootstrap 1000 次 95% CI）
+    if metrics.ci_95:
+        md.append("## 95% Bootstrap CI (ALIGN-08, §14.5)\n")
+        md.append("| 指标 | 下限 | 均值 | 上限 | 样本 |")
+        md.append("|------|------|------|------|------|")
+        for label, key in (("F1", "f1"), ("Precision", "precision"), ("Recall", "recall")):
+            ci = metrics.ci_95.get(key) or {}
+            if ci:
+                md.append(
+                    f"| {label} | {ci.get('lower', 0):.4f} | "
+                    f"{ci.get('mean', 0):.4f} | {ci.get('upper', 0):.4f} | "
+                    f"{ci.get('n', 0)} |"
+                )
+        md.append("")
+        # 格式：`JD解析 F1 = 92.3% [90.1%, 94.3%]`
+        ci_f1 = metrics.ci_95.get("f1") or {}
+        if ci_f1:
+            md.append(
+                f"**报告格式**：`JD解析 F1 = {metrics.avg_f1:.4f} "
+                f"[{ci_f1.get('lower', 0):.4f}, {ci_f1.get('upper', 0):.4f}]`\n"
+            )
+
+    md.extend([
         "## F1 Distribution",
         f"- Excellent (>= 0.90): {metrics.f1_distribution['excellent']}",
         f"- Good (>= 0.70): {metrics.f1_distribution['good']}",
@@ -266,7 +337,7 @@ def generate_evaluation_report(metrics: ExtractionMetrics, output_dir: str) -> d
         "## Per-Sample Breakdown",
         "| ID | Precision | Recall | F1 | Errors |",
         "|----|-----------|--------|----|--------|",
-    ]
+    ])
     for e in metrics.per_sample:
         errors = "; ".join(e.errors) if e.errors else "-"
         md.append(f"| {e.sample_id} | {e.precision:.4f} | {e.recall:.4f} | {e.f1:.4f} | {errors} |")
