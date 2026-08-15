@@ -96,7 +96,9 @@ async def _write_extraction_to_graph(
         return None
 
     if neo4j_driver is None:
-        # M3: 无 Neo4j driver 时优雅跳过图谱写入(抽取本身已成功),不抛 502。
+        # Extraction succeeded but graph persistence is unavailable; log and
+        # return None rather than raising 502. The caller treats None as
+        # "graph write skipped" and continues to the success response.
         logger.debug("Skipping graph write: no Neo4j driver available")
         return None
 
