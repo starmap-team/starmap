@@ -26,13 +26,24 @@ from app.main import app
 
 
 class _FakeDataSourceRecord:
+    # Map test-only fixture names to real registered crawler platforms so the
+    # _adapter_capability guard (added in commit 0456371b, P0-3/P0-4) accepts
+    # the source. The fixture name only exists in test scope; production
+    # names are matched against build_spider_registry() in real code paths.
+    _PLATFORM_FIXTURE_MAP = {
+        "bosszhipin": "v2ex",
+        "v2ex_remote": "v2ex",
+        "jobicy": "jobicy",
+    }
+
     def __init__(self, name: str):
         self.id = uuid4()
         self.name = name
         self.source_type = "crawler"
         self.status = "active"
         self.authority_score = 0.8
-        self.config = {}
+        platform = self._PLATFORM_FIXTURE_MAP.get(name, name)
+        self.config = {"platform": platform}
 
 
 class _FakePipelineRun:
