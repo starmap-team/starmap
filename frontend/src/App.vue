@@ -310,7 +310,9 @@ a:hover { color: var(--primary-hover); }
 .el-menu--horizontal { border-bottom: none !important; }
 .glass { background: color-mix(in srgb, var(--card) 80%, transparent); backdrop-filter: blur(16px) saturate(1.8); -webkit-backdrop-filter: blur(12px) saturate(1.5); }
 @keyframes fade-in-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.animate-fade-in { animation: fade-in-up 0.4s var(--ease-out) both; }
+/* QA-FIX (G#2): fill-mode 用 backwards 而非 both — both 会让 translateY(0) 的恒等
+   transform 永久残留，成为 fixed 弹层(抽屉/对话框)的包含块，页面滚动时弹层错位不可操作 */
+.animate-fade-in { animation: fade-in-up 0.4s var(--ease-out) backwards; }
 @media (max-width: 768px) { html { font-size: 14px; } .el-card__body { padding: var(--space-4) !important; } .el-card__header { padding: var(--space-3) var(--space-4) !important; } }
 
 /* ── Enhanced Element Plus Overrides ── */
@@ -467,7 +469,7 @@ html { transition: background-color var(--duration-slow) var(--ease-in-out), col
   to { opacity: 1; transform: translateY(0); }
 }
 .stagger > * {
-  animation: stagger-in 0.35s var(--ease-out) both;
+  animation: stagger-in 0.35s var(--ease-out) backwards;
 }
 .stagger > *:nth-child(1) { animation-delay: 0ms; }
 .stagger > *:nth-child(2) { animation-delay: 50ms; }

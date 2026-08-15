@@ -339,10 +339,12 @@ async def _diff_and_persist(
     written = 0
     rows: list[EvolutionChangelog] = []
     for change in changes:
-        # 去重 (2026-08-14 修复): 同一对快照的同一变更只记录一次。此前每轮管线
-        # run 都用 _get_snapshot_before 重复对比同一历史快照对（如 7月→8月），
-        # 每次 INSERT 一条相同 changelog → 15,356 行里 99.6% 是重复（retained 噪声
-        # 8988 条、Pandas|Data Analyst removed pending 重复 15 条）。
+        # 去重 (QA G#3 修复): 同一 (岗位, 技能, 变更类型) 只保留一条记录，跨状态去重。
+        # 此前按快照对 (from_id, to_id) 去重 — 但 create_snapshot 每月 delete+重建快照，
+        # 旧快照被删触发 FK ON DELETE SET NULL 把已存行的 from/to_id 置空 → 去重键
+        # 永远匹配不上 → 每轮运行重复 INSERT（Pandas|Data Analyst removed 已累积 76 条
+        # pending + approved/rejected 各 1 条）。改为按业务键去重：同一条变更
+        # 无论当前是 pending/approved/rejected，都不再重复入队。
         existing = (
             await session.execute(
                 sa.select(EvolutionChangelog.id)
@@ -350,14 +352,12 @@ async def _diff_and_persist(
                     EvolutionChangelog.position_name == new.position_name,
                     EvolutionChangelog.skill_name == change.skill_name,
                     EvolutionChangelog.change_type == change.change_type.value,
-                    EvolutionChangelog.snapshot_from_id == old.id,
-                    EvolutionChangelog.snapshot_to_id == new.id,
                 )
                 .limit(1)
             )
         ).scalar_one_or_none()
         if existing is not None:
-            continue  # 该快照对的此变更已记录，跳过
+            continue  # 该变更已记录过（含已审核），跳过
 
         # source_count: use the newer snapshot's source_count as the strongest signal.
         source_count = int(new.source_count or 0)
