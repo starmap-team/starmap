@@ -272,17 +272,42 @@ function _useDashboardCharts(store: DashboardStore) {
   const cc = chartColors()
 
   // -- Data source pie chart --
+  // 源数≥10 时 legend 改垂直右侧（避免横向溢出与扇区重叠）；
+  // 长名称截断到 8 字 + tooltip 完整展示。
   const darkPieOption = computed(() => {
     const data = store.sourceDistribution
     if (!data?.length) return undefined
     const palette = [cc.chart[0], cc.chart[2], cc.success, cc.danger, cc.warning, cc.info, cc.primary, cc.chart[4]]
+    const useVerticalLegend = data.length >= 10
     return {
       tooltip: { trigger: 'item', ...tooltipStyle(), formatter: '{b}: {c} 条 ({d}%)' },
-      legend: { bottom: 4, textStyle: { color: cc.muted, fontSize: 10 }, itemWidth: 10, itemHeight: 10 },
+      legend: {
+        ...(useVerticalLegend
+          ? {
+              type: 'scroll',
+              orient: 'vertical',
+              right: 4,
+              top: 'middle',
+              itemWidth: 10,
+              itemHeight: 10,
+              pageIconSize: 10,
+              pageTextStyle: { color: cc.muted, fontSize: 10 },
+            }
+          : {
+              bottom: 4,
+              itemWidth: 10,
+              itemHeight: 10,
+            }),
+        textStyle: { color: cc.muted, fontSize: 10 },
+        formatter: (name: string) => (name.length > 8 ? `${name.slice(0, 7)}…` : name),
+      },
       animationDuration: 1200, animationEasing: 'cubicOut' as const,
       animationDelay: (_idx: number) => _idx * 80,
       series: [{
-        type: 'pie', radius: ['40%', '70%'], center: ['50%', '44%'], avoidLabelOverlap: false,
+        type: 'pie',
+        radius: useVerticalLegend ? ['38%', '62%'] : ['40%', '70%'],
+        center: useVerticalLegend ? ['38%', '50%'] : ['50%', '44%'],
+        avoidLabelOverlap: true,
         itemStyle: { borderRadius: 4, borderColor: ECHARTS_PALETTE.PIE_BORDER, borderWidth: 2 },
         label: { show: false },
         emphasis: { label: { show: true, fontSize: 13, fontWeight: 'bold', color: cc.foreground }, itemStyle: { shadowBlur: 20, shadowColor: cc.chart[0] + '66' } },

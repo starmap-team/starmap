@@ -708,6 +708,7 @@ const staleLabel = computed(() => {
   display: flex;
   align-items: flex-start;
   margin: 0 auto;
+  min-width: max-content;
 }
 
 .pipeline-stage {
