@@ -233,9 +233,28 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
     )
     triples: list[GraphTriple] = []
 
+    # 写入门禁（Prevention）— 全收全写改为门槛过滤：
+    # 1. 来源门槛：单条 JD 出现的技能降级 preferred（防单点幻觉污染画像）
+    # 2. 信任度门槛：幻觉分过高/置信度过低 → 跳过不入图
+    # 3. required 上限：required 已达 cap → 新技能强制 preferred（截断膨胀）
+    from app.core.extraction.ingestion_gate import apply_ingestion_gate
+
+    gated = apply_ingestion_gate(
+        extraction.get("required_skills", []),
+        extraction.get("preferred_skills", []),
+    )
+    gated_required = gated["required"]
+    gated_preferred = gated["preferred"]
+    if gated["dropped"]:
+        dropped_names = ", ".join(d.get("name", "?") for d in gated["dropped"])
+        logger.warning(
+            "ingestion gate dropped {} low-trust skills: [{}]",
+            len(gated["dropped"]), dropped_names,
+        )
+
     for required, skills in (
-        (True, extraction.get("required_skills", [])),
-        (False, extraction.get("preferred_skills", [])),
+        (True, gated_required),
+        (False, gated_preferred),
     ):
         for entry in skills or []:
             skill_name = skill_entry_name(entry)

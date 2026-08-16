@@ -22,9 +22,11 @@ def test_build_triples_from_extraction_maps_core_ontology_edges():
     extraction = {
         "position_name": "AI 后端工程师",
         "industry": "新一代信息技术",
+        # source_count=3 表示技能在多个独立 JD 出现 —— 写入门禁(ingestion_gate)
+        # 要求多源才写 required；单源(缺省1)会被降级 preferred
         "required_skills": [
-            {"name": "Python", "level": "advanced", "category": "hard_skill"},
-            {"name": "Docker", "level": "intermediate", "category": "tool"},
+            {"name": "Python", "level": "advanced", "category": "hard_skill", "source_count": 3},
+            {"name": "Docker", "level": "intermediate", "category": "tool", "source_count": 3},
         ],
         "preferred_skills": [{"name": "Neo4j", "level": "intermediate"}],
         "prerequisites": [{"skill": "Machine Learning", "required_by": "Deep Learning", "strength": 0.8}],
@@ -46,7 +48,8 @@ def test_build_triples_from_extraction_maps_core_ontology_edges():
     assert python_requires.properties["required"] is True
     assert python_requires.properties["level"] == "advanced"
     assert python_requires.target.properties["proficiency"] == "精通"
-    assert python_requires.target.properties["source_count"] == 1
+    # 写入门禁多源要求：source_count=3 的 required 保留（此前无门槛时缺省 1）
+    assert python_requires.target.properties["source_count"] == 3
     assert python_requires.target.properties["trend"] == "stable"
 
 
