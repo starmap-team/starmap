@@ -1,11 +1,12 @@
-"""Coverage for scripts/backfill_position_industry.py — PRD US-002 C6.
+"""Coverage for scripts/backfill_position_industry.py — PRD US-002 C6 + Fix E.
 
 验证:
 - 扫描条件：industry IS NULL OR industry = ''，且 review_status='approved'
 - dry-run 不写 DB
-- batch_size < 1 抛 ValueError
+- progress_every < 1 抛 ValueError（Fix E: 参数重命名以消除命名误导）
 - translate_one 失败容错
 - industry 已有值的已审核岗位不被覆盖
+- collect_candidates SQL 包含 approved 过滤（防止 pending_review 污染）
 """
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from scripts.backfill_position_industry import backfill, translate_one
+from scripts.backfill_position_industry import backfill, collect_candidates, translate_one
 
 
 class _FakePosition:
@@ -52,19 +53,15 @@ class _FakeSession:
 
 
 class TestCollectCandidatesFilter:
-    """验证 collect_candidates 的扫描条件被正确应用。"""
-
     @pytest.mark.asyncio
     async def test_filters_null_or_empty_industry_and_approved_only(self) -> None:
         rows = [
             _FakePosition("p1", "Backend Engineer", None, "approved"),
             _FakePosition("p2", "Data Scientist", "", "approved"),
-            _FakePosition("p3", "Frontend Dev", "互联网/IT", "approved"),  # 已有 industry
-            _FakePosition("p4", "Intern", None, "pending_review"),  # 未审不过滤
+            _FakePosition("p3", "Frontend Dev", "互联网/IT", "approved"),
+            _FakePosition("p4", "Intern", None, "pending_review"),
         ]
-        # 直接通过 PositionRecord 属性构造期望 select chain —— 这里只验证翻译函数
-        # 扫描逻辑需要真实 DB，单测聚焦业务函数 translate_one + backfill 行为
-        assert len(rows) == 4  # sanity
+        assert len(rows) == 4  # sanity — 实际过滤由 collect_candidates SQL 完成
 
     @pytest.mark.asyncio
     async def test_dry_run_does_not_commit(self) -> None:
@@ -83,8 +80,7 @@ class TestCollectCandidatesFilter:
             ),
             patch("scripts.backfill_position_industry.LLMClient") as mock_llm,
         ):
-            # dry_run=True → LLMClient 不应被实例化；不写 DB
-            await backfill(limit=10, batch_size=20, dry_run=True)
+            await backfill(limit=10, progress_every=20, dry_run=True)
             mock_llm.assert_not_called()
             assert fake_session.commits == 0
             engine.dispose.assert_awaited_once()
@@ -127,9 +123,10 @@ class TestTranslateOne:
 
 class TestBackfillValidation:
     @pytest.mark.asyncio
-    async def test_batch_size_must_be_positive(self) -> None:
-        with pytest.raises(ValueError, match="batch_size 必须 >= 1"):
-            await backfill(limit=10, batch_size=0, dry_run=True)
+    async def test_progress_every_must_be_positive(self) -> None:
+        # Fix E: 参数重命名为 --progress-every 以消除「批量并发」误导
+        with pytest.raises(ValueError, match="progress_every 必须 >= 1"):
+            await backfill(limit=10, progress_every=0, dry_run=True)
 
     @pytest.mark.asyncio
     async def test_empty_candidates_disposes_engine(self) -> None:
@@ -137,8 +134,6 @@ class TestBackfillValidation:
         engine.dispose = AsyncMock()
         fake_session = _FakeSession([])
 
-        # context manager: sessionmaker() 返回 _FakeSession 对象本身
-        # 它的 .execute().scalars().all() 返回空列表，触发 backfill 早返回
         with (
             patch("scripts.backfill_position_industry.get_async_engine", return_value=engine),
             patch(
@@ -146,6 +141,47 @@ class TestBackfillValidation:
                 return_value=MagicMock(return_value=fake_session),
             ),
         ):
-            await backfill(limit=10, batch_size=20, dry_run=True)
-        # 空候选不进入翻译循环；engine.dispose 仍被调用
+            await backfill(limit=10, progress_every=20, dry_run=True)
         engine.dispose.assert_awaited()
+
+
+class TestCollectCandidatesSQL:
+    """Fix E: 验证 collect_candidates 的 SELECT 包含 industry 缺失 + approved 双过滤。
+
+    这是关键审计点 —— 防止脚本误把 pending_review 岗位批量改写。
+    """
+
+    @pytest.mark.asyncio
+    async def test_collect_candidates_sql_includes_required_filters(self) -> None:
+        captured: dict[str, Any] = {"stmt": "", "params": {}}
+
+        class _CaptureSession:
+            async def __aenter__(self) -> _CaptureSession:
+                return self
+
+            async def __aexit__(self, *_exc) -> None:
+                return None
+
+            async def execute(self, stmt: Any, params: dict | None = None) -> _FakeScalarResult:
+                captured["stmt"] = str(stmt)
+                captured["params"] = params or {}
+                return _FakeScalarResult([])
+
+        sm = MagicMock(return_value=_CaptureSession())
+        await collect_candidates(sm, limit=10)
+
+        sql = captured["stmt"]
+        sql_upper = sql.upper()
+        # industry 缺失条件（IS NULL OR industry = ''）
+        assert "industry" in sql.lower()
+        assert "IS NULL" in sql_upper
+        # review_status 过滤 —— SQLAlchemy 编译时 params 是 None，
+        # 但 SQL 含 `review_status = :review_status_1` bind param + AND 链接
+        # （关键审计点：防止 pending_review 岗位被脚本批量改写）
+        assert "review_status" in sql.lower()
+        assert ":review_status_1" in sql
+        # 排序 + 限制
+        assert "ORDER BY" in sql_upper
+        assert "LIMIT" in sql_upper
+        # 双 WHERE 条件 + AND 连接
+        assert sql.count("AND") >= 1

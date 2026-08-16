@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.extraction.llm_client import LLMClient
-from app.core.extraction.translation import has_cjk, translate_title_industry
+from app.core.extraction.translation import translate_title_industry
 from app.db.session import get_async_engine
 from app.models.extraction_models import PositionRecord
 
@@ -55,9 +55,18 @@ async def translate_one(llm: LLMClient, name: str) -> str | None:
         return None
 
 
-async def backfill(limit: int, batch_size: int, dry_run: bool) -> None:
-    if batch_size < 1:
-        raise ValueError(f"batch_size 必须 >= 1，当前 {batch_size}")
+async def backfill(limit: int, progress_every: int, dry_run: bool) -> None:
+    """回填脚本主入口。
+
+    参数:
+      limit: 最多处理条数
+      progress_every: 进度打印步长（每 N 个岗位打印一次进度）；仅日志节奏控制，
+        不影响 LLM 调用并发（当前串行调用，参考 backfill_skill_name_cn_batch.py
+        是真批量模式——本脚本 US-002 阶段未做并发，后续如需可改用批量 LLM 调用）
+      dry_run: 只扫描不写 DB
+    """
+    if progress_every < 1:
+        raise ValueError(f"progress_every 必须 >= 1，当前 {progress_every}")
     engine = get_async_engine()
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     llm = LLMClient() if not dry_run else None
@@ -75,9 +84,6 @@ async def backfill(limit: int, batch_size: int, dry_run: bool) -> None:
     done = 0
     for idx, pos in enumerate(candidates, start=1):
         name = pos.name
-        if has_cjk(name):
-            # 中文岗位大概率是种子/中文源，industry 缺失多源于 LLM 返回 "" —— 仍可走翻译兜底
-            pass
         if dry_run:
             print(f"  [dry] {name!r} -> (待翻译)")
             done += 1
@@ -100,11 +106,8 @@ async def backfill(limit: int, batch_size: int, dry_run: bool) -> None:
         else:
             print(f"  - {name!r} 翻译失败（跳过）")
 
-        # 批次切分：D8j2 经验（2da90cdd）—— 批量 20 比逐条 15s/个提速 20x。
-        # 本脚本采用串行 + 批次打印进度，避免 LLM 限流；
-        # 如需并发，可在此处用 asyncio.gather 切片。
-        if idx % batch_size == 0 and idx < len(candidates):
-            print(f"  … 批次进度 {idx}/{len(candidates)}")
+        if idx % progress_every == 0 and idx < len(candidates):
+            print(f"  … 进度 {idx}/{len(candidates)}")
 
     print(f"[backfill-industry] 完成 {done}/{len(candidates)}")
     await engine.dispose()
@@ -113,11 +116,15 @@ async def backfill(limit: int, batch_size: int, dry_run: bool) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="批量回填岗位行业 industry (PRD US-002)")
     parser.add_argument("--limit", type=int, default=100, help="最多处理条数（默认 100）")
-    parser.add_argument("--batch-size", type=int, default=20, help="进度打印步长（默认 20）")
+    parser.add_argument(
+        "--progress-every", type=int, default=20,
+        help="进度打印步长（默认 20）。注意：仅控制日志节奏，不做 LLM 并发分批；"
+             "如需 20x 提速请改用 backfill_skill_name_cn_batch.py 的批量模式",
+    )
     parser.add_argument("--dry-run", action="store_true", help="只扫描不翻译")
     args = parser.parse_args()
     try:
-        asyncio.run(backfill(args.limit, args.batch_size, args.dry_run))
+        asyncio.run(backfill(args.limit, args.progress_every, args.dry_run))
     except KeyboardInterrupt:
         sys.exit(1)
 
