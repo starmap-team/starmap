@@ -9,7 +9,6 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 
 from app.core.pipeline.stages.common import (
@@ -53,11 +52,6 @@ def execute_import(run_id: str) -> dict[str, Any]:
     errors: list[str] = []
     extracted_skills_sample: list[dict[str, Any]] = []
     start = time.monotonic()
-    # 2026-08-16: 阶段内总时间预算（独立于 Celery soft_time_limit）。
-    # 留 5 分钟 buffer 给 _update_source_after_import + consistency check，
-    # 避免 Celery 30 分钟硬性 SoftTimeLimit 在收尾阶段触发。
-    from app.config import settings as _settings
-    stage_budget_seconds = max(_settings.pipeline_stage_timeout - 300, 60)
 
     run_async(publish_stage_progress(
         run_id, "import", "running", progress=0.0,
@@ -106,28 +100,6 @@ def execute_import(run_id: str) -> dict[str, Any]:
         ))
 
         for idx, (text, title) in enumerate(zip(jd_texts, jd_titles, strict=False)):
-            # 2026-08-16: 检查阶段内总时间预算 — 超过预算主动放弃剩余 JDs,
-            # 防止单一慢 LLM endpoint 把整个 Celery soft_time_limit 拖到顶才退出
-            # (观察值: 单条 LLM 在网络挂死时 httpx read_timeout 可能不强制触发,
-            # 整个 stage 会卡 30 分钟直到 watchdog sweep 才清,前端一直 0%)。
-            elapsed_sec = time.monotonic() - start
-            if elapsed_sec > stage_budget_seconds:
-                msg = (
-                    f"Stage budget exceeded ({elapsed_sec:.0f}s > {stage_budget_seconds}s); "
-                    f"processed {processed}/{total} before timeout"
-                )
-                logger.warning("import stage {}: {}", run_id, msg)
-                errors.append(msg)
-                run_async(publish_stage_progress(
-                    run_id, "import", "running",
-                    progress=0.15 + 0.8 * (idx / max(total, 1)),
-                    records_processed=processed,
-                    current_activity=f"阶段时间预算耗尽 ({elapsed_sec:.0f}s),提前收尾",
-                    elapsed_ms=int(elapsed_sec * 1000),
-                    sub_step="persist",
-                ))
-                break
-
             try:
                 # D-15: persist 子步骤事件 (LLM 抽取完成 = 持久化就绪)
                 # D5 fix: 传 JD 标题作为 position_name 回退（LLM 未返回岗位名时不再落 Unknown Position）
@@ -144,23 +116,18 @@ def execute_import(run_id: str) -> dict[str, Any]:
                 else:
                     errors.append(f"extraction failed: {result.get('error', 'unknown')}")
 
-                # 2026-08-16: 每条都发进度消息(原每 3 条)——卡的时候前端能看正在处理哪条
-                run_async(publish_stage_progress(
-                    run_id, "import", "running",
-                    progress=0.15 + 0.8 * ((idx + 1) / max(total, 1)),
-                    records_processed=processed,
-                    current_activity=f"LLM 提取 {idx + 1}/{total} 条 - 当前: {title[:30] if title else '...'}",
-                    recent_samples=extracted_skills_sample[-5:],
-                    elapsed_ms=int((time.monotonic() - start) * 1000),
-                    sub_step="persist",  # D-15: persist 期间
-                ))
+                if idx > 0 and idx % 3 == 0:
+                    run_async(publish_stage_progress(
+                        run_id, "import", "running",
+                        progress=0.15 + 0.8 * (idx / max(total, 1)),
+                        records_processed=processed,
+                        current_activity=f"LLM 提取 {idx}/{total} 条 - 当前: {title[:30] if title else '...'}",
+                        recent_samples=extracted_skills_sample[-5:],
+                        elapsed_ms=int((time.monotonic() - start) * 1000),
+                        sub_step="persist",  # D-15: persist 期间
+                    ))
             except PipelineStageError:
                 raise
-            except SoftTimeLimitExceeded:
-                # Celery soft_time_limit 触发了 — 立即退出循环让上层捕获
-                logger.warning("import stage {}: SoftTimeLimitExceeded, breaking", run_id)
-                errors.append("Celery soft_time_limit reached")
-                break
             except Exception as exc:
                 errors.append(f"extraction error: {exc}")
                 logger.opt(exception=True).warning("JD extraction failed in import stage: {}", exc)
