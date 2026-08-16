@@ -66,7 +66,7 @@ export interface VerificationCheck {
   detail: string
 }
 
-/** 步骤输出摘要（Phase 3: 逐步可视化核验） */
+/** 步骤输出摘要（逐步可视化核验） */
 export interface StepOutput {
   step: string
   display_name: string
@@ -87,7 +87,7 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
   const currentStep = ref('')
   const result = ref<PipelineResult | null>(null)
   const error = ref<string | null>(null)
-  /** Phase 3: 逐步可视化核验 — 每步的输出详情 */
+  /** 逐步可视化核验 — 每步的输出详情 */
   const stepOutputs = ref<StepOutput[]>([])
 
   /** 上传简历并执行 Pipeline 分析（SSE 模式）。 */
@@ -164,7 +164,7 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
                   errors: Array.isArray(rawResult.errors) ? rawResult.errors : [],
                 } as PipelineResult
               } else if (currentEvent === 'step_output') {
-                // Phase 3: 接收步骤输出详情供可视化核验
+                // 接收步骤输出详情供可视化核验
                 stepOutputs.value.push(data as StepOutput)
               }
             } catch {

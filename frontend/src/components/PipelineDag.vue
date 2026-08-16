@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * 流水线 DAG 时间线视图 (Phase 3.8 增强)
+ * 流水线 DAG 时间线视图
  * DAG 节点本身集成实时活动数据 - 不再需要单独的实时面板
- * 展示 ETL DAG：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建（Phase 3 串行化）
+ * 展示 ETL DAG：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建（串行化）
  * 箭头表示阶段间串行依赖（clean 依赖 dedup）
  */
 import { computed } from 'vue'
@@ -36,7 +36,7 @@ const overallProgress = computed(() => {
   return Math.round((completedWeight / active.length) * 100)
 })
 
-// Phase 3.8.2: 阶段状态计数 (解决"17% 看不出含义")
+// 阶段状态计数 (解决"17% 看不出含义")
 const completedCount = computed(() => props.timelineStages.filter(s => s.status === 'completed').length)
 const runningCount = computed(() => props.timelineStages.filter(s => s.status === 'running').length)
 const failedCount = computed(() => props.timelineStages.filter(s => s.status === 'failed').length)
@@ -72,7 +72,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
             <Connection />
           </el-icon>
           <span>流水线时间线 (DAG)</span>
-          <!-- Phase 3.8.2: 阶段完成计数 (解决"17% 看不出含义") -->
+          <!-- 阶段完成计数 (解决"17% 看不出含义") -->
           <span class="stage-count">
             {{ completedCount }}/{{ totalCount }} 阶段已完成
             <span
@@ -90,7 +90,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
           </span>
         </div>
         <div class="header-right">
-          <!-- Phase 3.8.2: 始终显示进度条 + 文字说明 -->
+          <!-- 始终显示进度条 + 文字说明 -->
           <div class="overall-progress">
             <span class="overall-label">{{ isRunning ? '执行中' : (anyFailed ? '异常' : (anyCompleted ? '已完成' : '待机')) }}</span>
             <el-progress
@@ -179,7 +179,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
           />
         </div>
       </div>
-      <!-- Arrow: dedup → clean (Phase 3 Plan 02 Task 2: clean 依赖 dedup，串行) -->
+      <!-- Arrow: dedup → clean -->
       <div class="dag-row dag-row-center">
         <div class="dag-arrow-down">
           <span class="arrow-line" />
@@ -236,7 +236,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
           />
         </div>
       </div>
-      <!-- Phase 17-01: timeseries 移出核心 DAG, Row 6 删除 -->
+      <!-- timeseries 移出核心 DAG, Row 6 删除 -->
     </div>
   </el-card>
 </template>
@@ -329,7 +329,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
   position: relative;
 }
 
-/* DAG 串行箭头（Phase 3 Plan 02 Task 2: clean 依赖 dedup，取消 fork/merge） */
+/* DAG 串行箭头 (clean 依赖 dedup,取消 fork/merge) */
 .dag-arrow-down {
   display: flex;
   flex-direction: column;
@@ -353,7 +353,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
 .mb-4 { margin-bottom: var(--space-4); }
 
 @media (max-width: 768px) {
-  /* 旧并行布局的 mobile 适配已删除（Phase 3 Plan 02 Task 2: DAG 串行化） */
+  /* 旧并行布局的 mobile 适配已删除 (DAG 串行化) */
   .overall-progress { min-width: 120px; }
 }
 </style>

@@ -1,5 +1,5 @@
 /**
- * DataSources chart options + format helpers — extracted from DataSources.vue (Phase 7 D)
+ * DataSources chart options + format helpers — extracted from DataSources.vue
  * Pure functions over chartColors() — no store dependency.
  */
 import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle } from '@/utils/chartTheme'

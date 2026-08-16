@@ -70,7 +70,7 @@ const ALERT_LEVEL_TAG: Record<string, string> = {
   emerging: 'danger', rising: 'warning', declining: 'info', stable: 'success',
 }
 
-// Drawer / fetch handlers / snapshot state (extracted — Phase 7 D round 8)
+// Drawer / fetch handlers / snapshot state (extracted — D round 8)
 const {
   drawerVisible,
   evidenceDrawerOpen,
@@ -154,7 +154,7 @@ function skillDisplayName(skill: unknown): string {
 }
 
 // 10-03 (D-11): 次区 — 演化路径/CII 历史/迁移性，数据源全部复用已有 store 数据，
-// 不得造前端估算数据（RESEARCH §3 D-11）。
+// 不得造前端估算数据（RESEARCH D-11）。
 const trackedPositions = computed<string[]>(() =>
   [...new Set(snapshots.value.map(s => s.position_name).filter(Boolean))]
 )
@@ -181,7 +181,7 @@ onMounted(() => {
         type="warning"
         title="演化分析 + 能力通胀指数 (CII)"
         description="本看板展示岗位技能图谱的演化趋势：新兴技能涌现（Z-score 检测）、技能变更日志、以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。"
-        meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> · §7.1 信任度驱动"
+        meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> · 信任度驱动"
       />
 
       <!-- E2/E7: 数据口径说明 — 让用户可感知每个数值的计算依据与来源 -->
@@ -227,7 +227,7 @@ onMounted(() => {
           <p class="page-subtitle">
             CII 时序曲线 — 技能需求通胀指数（基准 100 = 2024-Q1）
           </p>
-          <!-- Phase 11 新手友好引导（沿 ui-ux-pro-max 数据密集 dashboard）-->
+          <!-- 新手友好引导（沿 ui-ux-pro-max 数据密集 dashboard）-->
           <el-alert
             class="kpi-help-alert"
             type="info"
@@ -880,7 +880,7 @@ onMounted(() => {
   min-height: 400px;
 }
 
-/* Phase 26: 业务说明横幅 — 已迁移到 BusinessBanner.vue */
+/* 业务说明横幅 — 已迁移到 BusinessBanner.vue */
 
 
 .page-title {

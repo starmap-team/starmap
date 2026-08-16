@@ -7,9 +7,9 @@
  * 节点数 > effectiveLimit * clusterThreshold 时,超出部分折叠为 1 个 cluster
  * meta-node (id='cluster-overflow', color='#999999', properties.name='{N} more nodes')。
  *
- * 2026-08-13: Phase 1 (M1 全景图谱) Plan 01-03 Task 2 — 镜像 2D useGraphClustering
+ * 2026-08-13: (M1 全景图谱) Plan 01-03 Task 2 — 镜像 2D useGraphClustering
  * 但 3D 暂不实现"点击展开 cluster"(避免引入 watch + _destructor 重建复杂度;沿
- * Phase 13 R3 防御路径)。后续 phase 增强。
+ * R3 防御路径)。后续 phase 增强。
  */
 import { computed, type Ref } from 'vue'
 

@@ -1,5 +1,5 @@
 <!--
-  PipelineMonitor 运行历史列表子组件（Phase 03 Plan 03 Task 8 实际实现）。
+  PipelineMonitor 运行历史列表子组件（Task 8 实际实现）。
   渲染 /pipeline/runs 历史运行记录 + 每行操作（详情/重试/续跑/取消）。
 
   2026-08-12 (pipeline 修复): 新增"详情"抽屉 —— 展示单次 run 的 stage 明细

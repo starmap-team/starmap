@@ -1,5 +1,5 @@
 /**
- * Review store — Phase 23 review-workflow state machine on the client.
+ * Review store — review-workflow state machine on the client.
  *
  * Wraps the unified admin review queue:
  * - GET  /admin/review-items       list pending positions + skills

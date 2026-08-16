@@ -59,7 +59,7 @@ interface PositionItem {
   description: string
   skills_required: { skill_id: string; name: string; category: string; confidence: number; source_count: number }[]
   discovered_at: string | null
-  // Phase 23: review workflow — these fields are only populated when the
+  // review workflow — these fields are only populated when the
   // caller requests `?include_all=true` (admin). Public /positions endpoint
   // filters to approved only and may omit these.
   review_status?: 'draft' | 'pending_review' | 'approved' | 'rejected'
@@ -121,7 +121,7 @@ export const useJdStore = defineStore('jd', () => {
 
   /** Fetch paginated positions list
    *
-   * Phase 23: `status` is forwarded to the backend. Public callers leave
+   * `status` is forwarded to the backend. Public callers leave
    * it undefined and receive only approved positions. Admin can pass
    * `status: 'pending_review'` etc. to view other lifecycle states.
    */

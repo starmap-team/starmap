@@ -2,7 +2,7 @@
 /**
  * Graph2D — G6 v5 force-directed graph visualization (2D counterpart to Graph3D).
  *
- * Architecture (Phase 7 refactor):
+ * Architecture:
  *   - useG6Lifecycle   → G6 instance init/destroy/resize (lifecycle)
  *   - useGraphAnimation → Node entrance growth animation
  *   - useGraphHighlight → Highlight + 1-hop neighbor fade

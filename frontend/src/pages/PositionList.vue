@@ -2,7 +2,7 @@
 /**
  * 岗位列表页 — 从后端 /positions 获取岗位数据
  *
- * Phase 23: review-workflow awareness —
+ * review-workflow awareness —
  * - Default view shows only approved positions (public).
  * - Admin can switch to "All" or specific status (pending_review, etc.)
  *   to see positions awaiting review.
@@ -45,7 +45,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(24)
 
-// Phase 23: status filter.
+// status filter.
 // Default to 'all' so the list is never empty on first load.
 // Admin and regular users both see all positions; status badges distinguish visibility.
 const statusFilter = ref<'approved' | 'pending_review' | 'rejected' | 'all'>('all')

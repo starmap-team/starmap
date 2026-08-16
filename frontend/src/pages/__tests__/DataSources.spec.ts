@@ -187,7 +187,7 @@ describe('DataSources.vue', () => {
     expect(crawlBtn?.attributes('disabled')).toBeDefined()
   })
 
-  it('filters out inactive sources from visible list and KPI (Phase 23 Task 8 / DC-04)', async () => {
+  it('filters out inactive sources from visible list and KPI', async () => {
     // 后端 DELETE 软删除产出 status='inactive'；UI 展示层过滤（指向
     // app.core.constants.DataSourceStatus），inactive 不计入数据源总数 KPI。
     mockGet.mockResolvedValue([

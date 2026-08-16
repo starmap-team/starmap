@@ -18,7 +18,7 @@ export interface QualityMetrics {
   recall: number
   f1: number
   warning_level: 'green' | 'yellow' | 'orange' | 'red' | 'gray'
-  // Phase 13 数据诚实化：无 golden-set 基线时前端须显“未评估”而非红/失败态
+  // 数据诚实化：无 golden-set 基线时前端须显“未评估”而非红/失败态
   baseline_available?: boolean
   evaluation_count?: number
   evaluation_explanation?: string
@@ -29,7 +29,7 @@ export interface QualityMetrics {
   total_skills: number
   total_extractions: number
   hallucination_rate: number
-  // Phase 11 D-05: 幻觉率三段式契约
+  // D-05: 幻觉率三段式契约
   hallucination_numerator: number
   hallucination_denominator: number
   hallucination_window_days: number

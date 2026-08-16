@@ -12,7 +12,7 @@ const graphStore = useGraphStore()
 const searchKeyword = ref("")
 const showSearchDropdown = ref(false)
 const searchHighlightIndex = ref(-1)
-// Phase 26 / BUG-007: capture the blur-hide timer so we can cancel
+// / BUG-007: capture the blur-hide timer so we can cancel
 // it on unmount. Without this, a fast unmount during the 200ms
 // grace window would fire the callback into a dead ref.
 let blurHideTimer: ReturnType<typeof setTimeout> | null = null

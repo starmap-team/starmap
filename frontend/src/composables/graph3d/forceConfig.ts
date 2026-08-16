@@ -1,7 +1,7 @@
 /**
  * forceConfig — 3d-force-graph 力导参数常量
  *
- * 2026-08-13: Phase 1 (M1 全景图谱) Plan 01-04 Task 2 — 抽 Graph3D.vue:240-280
+ * 2026-08-13: (M1 全景图谱) Plan 01-04 Task 2 — 抽 Graph3D.vue:240-280
  * force config 常量 (warmupTicks / cooldownTime / d3AlphaDecay 等)。
  *
  * 既有代码中 force config 是 const 赋值;本文件仅抽常量,不在 composable 层修改。

@@ -1,6 +1,5 @@
 /**
- * LoopStepMatch.spec — Phase 07-02 T9
- * Verifies D-05 M5 分数拆解行（required_avg / bonus_avg / 权重 / inflated）.
+ * LoopStepMatch.spec — * Verifies D-05 M5 分数拆解行（required_avg / bonus_avg / 权重 / inflated）.
  */
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'

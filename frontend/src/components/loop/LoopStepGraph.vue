@@ -3,7 +3,7 @@
  * LoopStepGraph — Step 3: Graph Update
  * Mini G6 graph container + legend.
  * The graph container ref is exposed so the parent (via useLoopGraph) can render into it.
- * Phase 07-02 D-05: also surfaces 新增节点/关系数 口径行.
+ * D-05: also surfaces 新增节点/关系数 口径行.
  */
 import { computed } from 'vue'
 import type { StepResult } from '@/stores/loop'

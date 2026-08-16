@@ -1,6 +1,6 @@
 /**
  * QualityDashboard page-level orchestration — extracted from QualityDashboard.vue
- * (Phase 7 D round 11). Owns: activeTab ref + onMounted initial data fetch +
+ *. Owns: activeTab ref + onMounted initial data fetch +
  * toggleAutoRefresh wrapper that bridges UI value to composable API.
  */
 import { onMounted, ref, type Ref } from 'vue'

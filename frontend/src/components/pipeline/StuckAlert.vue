@@ -1,5 +1,5 @@
 <!--
-  PipelineMonitor 卡死检测横幅（Phase 03 Plan 03 从内联模板抽出）。
+  PipelineMonitor 卡死检测横幅（从内联模板抽出）。
   强制推进 / 强制重置 操作按钮。
 -->
 <script setup lang="ts">

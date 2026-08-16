@@ -136,7 +136,7 @@ export const useUserStore = defineStore('user', () => {
     }
     clearUser()
     clearResume()
-    // Phase 26 / BUG-003: clear cached per-user data in every store so
+    // / BUG-003: clear cached per-user data in every store so
     // the next user logging in on the same browser cannot see the
     // previous user's skill gaps, match results, or extracted positions.
     // Lazy-load to avoid a circular-import at module-evaluation time.

@@ -1,5 +1,5 @@
 /**
- * Audit queue store — extracted from datasource.ts (Phase 7 admin domain split).
+ * Audit queue store — extracted from datasource.ts.
  * Manages the review/audit queue for admin panel.
  */
 import { defineStore } from 'pinia'

@@ -65,7 +65,7 @@ const props = withDefaults(defineProps<{
   title: string
   /** Plain-text description (NOT v-html). */
   description?: string
-  /** Section reference, e.g. "§3.2". Rendered as a monospace pill. */
+  /** Section reference, e.g. "". Rendered as a monospace pill. */
   section?: string
   /**
    * Structured meta tags (preferred) OR legacy HTML string with `<code>...</code>`
@@ -392,7 +392,7 @@ const computedAriaLabel = computed(() => {
   margin-bottom: 2px;
 }
 
-/* §3.2 chapter badge — monospace pill */
+/* chapter badge — monospace pill */
 .biz-banner__section {
   display: inline-flex;
   align-items: center;

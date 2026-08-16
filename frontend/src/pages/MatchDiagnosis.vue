@@ -228,7 +228,7 @@ async function handleStartDiagnosis() {
       matchAnimSkills.value = allSkills
     }
 
-    // Phase 26 / BUG-006: don't advance to step 3 (gap analysis) when
+    // / BUG-006: don't advance to step 3 (gap analysis) when
     // the match result is empty — that would leave the wizard stuck on
     // a blank GapAnalysisReport with no recovery path. Stay on step 2,
     // show a warning, and let the user retry with a different position.
@@ -274,7 +274,7 @@ function resetAll() {
   userStore.clearResume()
 }
 
-// Phase 25: MatchFlow navigation handler — jumps the wizard to the
+// MatchFlow navigation handler — jumps the wizard to the
 // step associated with the business concept the user clicked.
 function onFlowNavigate(targetStep: number) {
   step.value = targetStep
@@ -326,13 +326,13 @@ onUnmounted(() => {
         description="本流程对应设计文档的“匹配诊断全流程”：上传简历 → 文档解析 → LLM 技能提取 → 技能归一化 → 与目标岗位技能对比 → 差距分析报告 → 学习路径生成。"
         :meta="[
           { category: '后端', label: '/match/*', code: true, copyable: true },
-          { label: '信任度驱动 (§7.1)' },
-          { label: '通胀指数参考 (§7.5)' },
+          { label: '信任度驱动 ()' },
+          { label: '通胀指数参考 ()' },
         ]"
         collapsible
       />
 
-      <!-- Phase 25: 业务流程图 — 让新用户秒懂 6 步骤数据流 -->
+      <!-- 业务流程图 — 让新用户秒懂 6 步骤数据流 -->
       <el-card
         shadow="never"
         class="flow-card"
@@ -531,7 +531,7 @@ onUnmounted(() => {
 
         <!-- Step 3: Gap analysis report (extracted) -->
         <div v-if="step === 3">
-          <!-- Phase 25: 信任度解读 + §7.4 质量说明 -->
+          <!-- 信任度解读 + 质量说明 -->
           <!-- D6 fix: trust_score now reads from the real backend field
                (matched_skills' minimum Neo4j Skill.trust_score). Previously
                this was bound to match_score, displaying the same number twice -->
@@ -571,7 +571,7 @@ onUnmounted(() => {
   margin: 0 auto;
 }
 
-/* ── Phase 25: 业务说明横幅 + 流程图 ── */
+/* ── 业务说明横幅 + 流程图 ── */
 .tab-description {
   margin-bottom: var(--space-4);
   border-radius: var(--radius-lg);

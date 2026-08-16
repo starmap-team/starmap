@@ -1,5 +1,5 @@
 /**
- * QualityDashboard chart options + KPI cards + auto-refresh — extracted from QualityDashboard.vue (Phase 7 D)
+ * QualityDashboard chart options + KPI cards + auto-refresh — extracted from QualityDashboard.vue
  * Pure computeds reading from the quality store.
  */
 import { computed, onUnmounted, ref, watch } from 'vue'
@@ -15,9 +15,9 @@ export interface KpiCardEnhanced {
   label: string
   value: string
   sub: string
-  /** Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown）*/
+  /** D-03: 口径拆解行（沿 M10 KPI breakdown）*/
   caption: string
-  /** Phase 11 新手友好 tooltip：完整说明这个数是什么 + 怎么算 + 解读阈值 */
+  /** 新手友好 tooltip：完整说明这个数是什么 + 怎么算 + 解读阈值 */
   tooltip: string
   trend: KpiTrend
   color: string
@@ -36,7 +36,7 @@ export function useQualityDashboardCharts(store: QualityStore) {
       m.pending_review === 0
         ? '— 暂无审核'
         : `审核通过率 ${(m.audit_pass_rate * 100).toFixed(0)}%`
-    // Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown 原则——计算依据可感知）
+    // D-03: 口径拆解行（沿 M10 KPI breakdown 原则——计算依据可感知）
     // 幻觉率三段式（D-05）：X / Y = Z%——前端不再重新算率，避免口径漂移
     const hallucinationCaption =
       m.hallucination_denominator === 0
@@ -65,7 +65,7 @@ export function useQualityDashboardCharts(store: QualityStore) {
         sub: m.total_extractions === 0
           ? '— 待评估'
           : `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
-        caption: `§6.2 四因子综合信任度均值（来源多样性/抽取置信/多源验证/时间衰减）`,
+        caption: ` 四因子综合信任度均值（来源多样性/抽取置信/多源验证/时间衰减）`,
         tooltip: `🎯 数据可信度：所有技能节点 trust_score 的平均值（0-100%）。\n\n` +
           `• ≥ 75% = 健康（绿）\n` +
           `• 50-75% = 中等（黄）\n` +

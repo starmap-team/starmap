@@ -1,5 +1,5 @@
 <!--
-  PipelineMonitor 定时调度表单子组件（Phase 03 Plan 03 Task 8/11 实际迁移）。
+  PipelineMonitor 定时调度表单子组件（实际迁移）。
   T8：Cron 5 字段完整校验（值域 + 范围）+ 错误提示 + 常用示例 tooltip。
 -->
 <script setup lang="ts">

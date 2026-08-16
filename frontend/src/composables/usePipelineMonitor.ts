@@ -1,5 +1,5 @@
 /**
- * 数据流水线监控页 composable（Phase 03 Plan 03 Task 8 拆分后瘦身 < 400 行）。
+ * 数据流水线监控页 composable（ Plan 03 Task 8 拆分后瘦身 < 400 行）。
  * 保留核心：pipeline 兼容对象 / SSE / 自动刷新 / KPI / 阶段摘要 / 卡死检测 /
  * DAG 时间线 / 配置弹窗 / 待审核计数。触发/取消/重试 → useTriggerPipeline；调度 → useSchedules。
  */
@@ -21,7 +21,7 @@ import type { PipelineConfig } from '@/stores/pipelineConfig'
 // Default auto-refresh interval in seconds
 const DEFAULT_REFRESH_INTERVAL_SEC = 10
 
-// Phase 3.8.8: 内联 deps（串行 DAG，不含 timeseries）
+// : 内联 deps（串行 DAG，不含 timeseries）
 const _DEPS: Record<string, string[]> = { crawl: [], dedup: ['crawl'], clean: ['dedup'], import: ['clean'], graph_sync: ['import'] }
 
 export function usePipelineMonitor() {
@@ -50,7 +50,7 @@ export function usePipelineMonitor() {
     handleQualityAlert: runStore.handleQualityAlert,
     handleMilestone: runStore.handleMilestone,
     handleExtractionComplete: runStore.handleExtractionComplete,
-    // Phase 3.7: 实时活动
+    // : 实时活动
     liveActivity: runStore.liveActivity,
     resetLiveActivity: runStore.resetLiveActivity,
   }
@@ -102,7 +102,7 @@ export function usePipelineMonitor() {
   }
 
   // ── SSE 实时进度 ──
-  // Phase 1 D-09: 多事件类型分发到 pipeline store actions
+  // D-09: 多事件类型分发到 pipeline store actions
   // SSE-05: Use API_BASE from apiBase.ts SSoT
   const sseBase = API_BASE
   const { connected: sseConnected, mode: sseMode, disconnect: sseDisconnect } = useSSE(
@@ -126,7 +126,7 @@ export function usePipelineMonitor() {
     },
   )
 
-  // ── 阶段进度摘要 (Phase 3.8.2: 解决"17% 看不出含义"问题) ──
+  // ── 阶段进度摘要 (: 解决"17% 看不出含义"问题) ──
   const stageSummary = computed(() => {
     const coreNames = new Set(ALL_STAGE_NAMES)
     const stages = pipeline.stages.filter(s => coreNames.has(s.name))
@@ -192,7 +192,7 @@ export function usePipelineMonitor() {
     }
   })
 
-  // ── Phase 3.8.5: 卡死检测 (is_running=true 但唯一 running 阶段无进展) ──
+  // ── 卡死检测 (is_running=true 但唯一 running 阶段无进展) ──
   const isStuck = computed(() => {
     const ps = runStore.pipelineStatus
     if (!ps?.is_running) return false
@@ -237,13 +237,13 @@ export function usePipelineMonitor() {
     // 2026-08-12 (pipeline 联调): 今日采集量 = 今日各 run crawl 处理量之和（含重复）；
     // 今日新增 = jd_raw 今日新行；历史累计 = jd_raw 全表行数。三者口径在 status
     // 聚合器统一，避免"DAG 显示采集 70 但今日 0"的矛盾。
-    // Phase 23 (IC-07): 三段 KPI 口径的唯一事实源为 backend/app/core/pipeline/
+    // (IC-07): 三段 KPI 口径的唯一事实源为 backend/app/core/pipeline/
     // status_aggregator.py，SQL 级定义见 docs/ingestion-kpi-calibers.md。此处必须
     // 直接从 pipeline.pipelineStatus 派生，禁止前端本地重新聚合。
     const todayVolume = s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume : null
     const todayNew = s?.today_crawl_new ?? 0
     const totalJdRaw = s?.total_jd_raw ?? 0
-    // Phase 4 P3: 显示最近采集时间，让用户知道数据是否陈旧
+    // P3: 显示最近采集时间，让用户知道数据是否陈旧
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lastCrawlAt = (s as any)?.last_crawl_at as string | undefined
     const lastCrawlLabel = lastCrawlAt
@@ -345,7 +345,7 @@ export function usePipelineMonitor() {
     })
   })
 
-  // Phase 3.8.8: 阻塞于上游失败 (不显示重试)
+  // : 阻塞于上游失败 (不显示重试)
   const blockedStages = computed<Set<string>>(() => {
     const blocked = new Set<string>()
     const statusMap = Object.fromEntries(timelineStages.value.map(s => [s.name, s.status]))
@@ -381,7 +381,7 @@ export function usePipelineMonitor() {
     }
   }
 
-  // ── Phase 16 数据审核闭环: 待审核计数 ──
+  // ── 数据审核闭环: 待审核计数 ──
   const pendingReviewCount = ref(0)
   async function fetchPendingReview() {
     try {
@@ -438,9 +438,9 @@ export function usePipelineMonitor() {
     configDialogVisible,
     openConfigDialog,
     handleSaveConfig,
-    // Phase 16 数据审核闭环
+    // 数据审核闭环
     pendingReviewCount,
-    // Phase 3.7: 实时活动上下文
+    // : 实时活动上下文
     liveActivity: pipeline.liveActivity,
   }
 }

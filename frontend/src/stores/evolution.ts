@@ -56,7 +56,7 @@ export interface ChangelogEntry {
 export interface EvolutionKpi {
   emerging_count: number
   trust_mean: number
-  /** Phase 11 D-cross: 与 /quality 共享 avg_skill_trust 对照口径（Neo4j Skill.trust_score 实时均值）*/
+  /** D-cross: 与 /quality 共享 avg_skill_trust 对照口径（Neo4j Skill.trust_score 实时均值）*/
   trust_mean_neo4j_skill?: number
   cii_mean: number
   alert_count: number
@@ -240,7 +240,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     }
   }
 
-  // BUG-5 fix: low-trust EvolutionChangelog review queue (Phase 24 §5.2)
+  // BUG-5 fix: low-trust EvolutionChangelog review queue
   const reviewQueue = ref<ReviewQueueItem[]>([])
   const reviewQueueLoading = ref(false)
   async function fetchReviewQueue(status: string = 'pending') {

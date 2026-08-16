@@ -1,6 +1,6 @@
 /**
  * QualityDashboard user actions — trend period, alert resolve/ignore, auto-refresh toggle.
- * Extracted from QualityDashboard.vue (Phase 7 D round 4).
+ * Extracted from QualityDashboard.vue.
  * Toast messages owned by ElMessage — kept inline for ops visibility.
  *
  * 2026-08-13 (全盘友好性): 告警"解决/忽略"原只改前端内存（刷新即失效）→ 改调后端

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 数据源管理面板 (Phase 3.8.4 增强版)
+ * 数据源管理面板
  *
  * 核心功能:
  * 1. 实时执行状态 — 通过 SSE 事件流显示每源当前在做什么
@@ -18,7 +18,7 @@ import type { LiveActivityEvent } from '@/stores/pipelineRun'
 import type { DataSourceDetail } from '@/types/datasource'
 
 // Spider 注册表 (与后端 executor.py 一致)
-// Phase 15-01: 新增 5 个免费 API/Feed 适配器
+// 新增 5 个免费 API/Feed 适配器
 // D8: 补 remoteok/juejin（D6 迁移 034 新增源，缺此映射 → 适配器显示红色 unavailable 叹号）
 const SUPPORTED_SPIDERS = {
   bosszhipin: { label: 'BOSS直聘 (实验性)', icon: '📋' },
@@ -108,7 +108,7 @@ const enabledCrawlers = computed(() =>
 
 const totalEnabled = computed(() => enabledCrawlers.value.length)
 
-// Phase 3.8.5: 当前活动详情 (从 liveActivity 中提取最新一条)
+// 当前活动详情 (从 liveActivity 中提取最新一条)
 const currentActivityDetails = computed(() => {
   if (!props.liveActivity) return null
   const entries = Object.values(props.liveActivity)
@@ -132,7 +132,7 @@ function platformInfo(ds: DataSourceDetail) {
   return { available: false, label: platform || '未配置', icon: '⚠️' }
 }
 
-// Phase 15-01: 数据源类型标签 (api/rss/crawler/manual)
+// 数据源类型标签 (api/rss/crawler/manual)
 function sourceTypeLabel(t?: string): string {
   const map: Record<string, string> = {
     api: 'API 实时',
@@ -313,7 +313,7 @@ function formatRecords(n: number) {
             <div class="ds-name-cell">
               <span class="ds-icon">{{ platformInfo(row).icon }}</span>
               <span class="ds-name">{{ getSourceNameLabel(row.name) }}</span>
-              <!-- Phase 15-01: 显示数据源类型 -->
+              <!-- 显示数据源类型 -->
               <el-tag
                 :type="sourceTypeColor(row.source_type)"
                 size="small"
@@ -452,7 +452,7 @@ function formatRecords(n: number) {
       </el-table>
     </div>
 
-    <!-- Phase 3.8.5: 执行详情面板 (当前爬取活动的可读翻译) -->
+    <!-- 执行详情面板 (当前爬取活动的可读翻译) -->
     <div
       v-if="isRunning && currentActivityDetails"
       class="execution-detail mt-3"
@@ -829,7 +829,7 @@ function formatRecords(n: number) {
   font-size: 13px;
 }
 
-/* Phase 3.8.5: 执行详情面板 */
+/* 执行详情面板 */
 .execution-detail {
   background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
   border: 1px solid #93c5fd;

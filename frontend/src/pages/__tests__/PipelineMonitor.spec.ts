@@ -1,5 +1,5 @@
 /**
- * PipelineMonitor.vue 测试套件（Phase 03 Plan 03 Task 12）。
+ * PipelineMonitor.vue 测试套件（Task 12）。
  *
  * 覆盖：渲染/DAG 阶段卡片/触发按钮/空态/失败阶段提示/SSE 断连/Cron 校验。
  */

@@ -1,5 +1,5 @@
 /**
- * Phase 11 演化看板组件综合测试（沿 M11 UX 重构）。
+ * 演化看板组件综合测试（沿 M11 UX 重构）。
  * 覆盖:
  *  - 4 KPI 数字响应（kpiCards computed）
  *  - mount 时 4 个 fetch 并行触发（fetchTrends / fetchSnapshots / fetchEmergingAlerts / fetchKpi）
@@ -115,7 +115,7 @@ function mountPage() {
 // 1. Mount 触发所有 fetch actions（fetchTrends / fetchSnapshots / fetchEmergingAlerts / fetchKpi）
 // ════════════════════════════════════════════════════════════════
 
-describe('Phase 11 Evolution 组件 fetch actions 触发', () => {
+describe(' Evolution 组件 fetch actions 触发', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setupMocks()
@@ -161,7 +161,7 @@ describe('Phase 11 Evolution 组件 fetch actions 触发', () => {
 // 2. KPI 数字响应（store → 组件渲染）
 // ════════════════════════════════════════════════════════════════
 
-describe('Phase 11 Evolution KPI 数字响应', () => {
+describe(' Evolution KPI 数字响应', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setupMocks()
@@ -205,7 +205,7 @@ describe('Phase 11 Evolution KPI 数字响应', () => {
 // 3. 选中技能 → CII 仪表盘 + 技能对比响应
 // ════════════════════════════════════════════════════════════════
 
-describe('Phase 11 Evolution selectedSkill 响应', () => {
+describe(' Evolution selectedSkill 响应', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setupMocks()
@@ -237,7 +237,7 @@ describe('Phase 11 Evolution selectedSkill 响应', () => {
 // 4. 刷新按钮 / 分析触发（事件绑定）
 // ════════════════════════════════════════════════════════════════
 
-describe('Phase 11 Evolution 事件绑定', () => {
+describe(' Evolution 事件绑定', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setupMocks()
@@ -288,7 +288,7 @@ describe('Phase 11 Evolution 事件绑定', () => {
 // 5. 数据口径说明 collapse（E2/E7）
 // ════════════════════════════════════════════════════════════════
 
-describe('Phase 11 Evolution 数据口径说明 collapse', () => {
+describe(' Evolution 数据口径说明 collapse', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setupMocks()
@@ -305,7 +305,7 @@ describe('Phase 11 Evolution 数据口径说明 collapse', () => {
 // 6. 新手友好引导 alert（沿 ui-ux-pro-max）
 // ════════════════════════════════════════════════════════════════
 
-describe('Phase 11 Evolution 新手友好引导', () => {
+describe(' Evolution 新手友好引导', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setupMocks()
@@ -337,7 +337,7 @@ describe('Phase 11 Evolution 新手友好引导', () => {
 // 7. 错误处理 — fetch 失败不崩 + 降级
 // ════════════════════════════════════════════════════════════════
 
-describe('Phase 11 Evolution 错误降级', () => {
+describe(' Evolution 错误降级', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -379,7 +379,7 @@ describe('Phase 11 Evolution 错误降级', () => {
 // 8. 端到端契约 — 后端 → store → 组件渲染链路
 // ════════════════════════════════════════════════════════════════
 
-describe('Phase 11 Evolution 端到端契约', () => {
+describe(' Evolution 端到端契约', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setupMocks()

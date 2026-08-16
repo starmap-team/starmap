@@ -26,7 +26,7 @@ const {
   sourceChartOption,
 } = useQualityDashboardCharts(quality)
 
-// Page-level orchestration (activeTab + auto-refresh + initial fetch — Phase 7 D round 11)
+// Page-level orchestration (activeTab + auto-refresh + initial fetch — D round 11)
 const {
   activeTab,
   autoRefresh,
@@ -88,7 +88,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
           <p class="page-desc">
             实时监控数据质量、信任度分布与幻觉率趋势
           </p>
-          <!-- Phase 11 新手友好引导（沿 ui-ux-pro-max：data-dense dashboard，新手需一句话入口）-->
+          <!-- 新手友好引导（沿 ui-ux-pro-max：data-dense dashboard，新手需一句话入口）-->
           <el-alert
             class="kpi-help-alert"
             type="info"
@@ -159,7 +159,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
                 <div class="kpi-body">
                   <div class="kpi-label">
                     <span>{{ card.label }}</span>
-                    <!-- Phase 11 新手友好：问号图标引导 hover tooltip -->
+                    <!-- 新手友好：问号图标引导 hover tooltip -->
                     <el-icon class="kpi-help-icon"><QuestionFilled /></el-icon>
                   </div>
                   <div
@@ -174,7 +174,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
                     </span>
                     {{ card.sub }}
                   </div>
-                  <!-- Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown）-->
+                  <!-- D-03: 口径拆解行（沿 M10 KPI breakdown）-->
                   <div class="kpi-caption" data-testid="kpi-caption">
                     {{ card.caption }}
                   </div>
@@ -185,7 +185,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
         </el-col>
       </el-row>
 
-      <!-- Phase 13 数据诚实化：抽取质量基线。无 golden-set 基线时显“未评估”说明，
+      <!-- 数据诚实化：抽取质量基线。无 golden-set 基线时显“未评估”说明，
            有基线时才呈现 precision/recall/F1，避免 0/0/0 被误读为红色/失败或静默缺失。 -->
       <el-alert
         v-if="quality.metrics && quality.metrics.baseline_available === false"
@@ -454,7 +454,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
                   />
                 </template>
               </el-table-column>
-              <!-- Phase 11 D-06: 审核状态徽标三色（沿 M10 audit 模式）-->
+              <!-- D-06: 审核状态徽标三色（沿 M10 audit 模式）-->
               <el-table-column
                 prop="review_status"
                 label="状态"
@@ -692,7 +692,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
   font-style: italic;
 }
 .kpi-card {
-  /* Phase 11 ui-ux-pro-max: 4 卡片高度统一（消除 147/163/167/224 高度差）*/
+  /* ui-ux-pro-max: 4 卡片高度统一（消除 147/163/167/224 高度差）*/
   min-height: 180px;
 }
 /* 2026-08-14: 待审核队列 header — 总数说明 + 跳转管理后台按钮（联动 admin 内容审核）*/
@@ -707,7 +707,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
   color: var(--muted-foreground);
 }
 .kpi-help-icon {
-  /* Phase 11 新手友好：问号图标——hover 触发 tooltip 展示完整说明 */
+  /* 新手友好：问号图标——hover 触发 tooltip 展示完整说明 */
   margin-left: 4px;
   font-size: 12px;
   color: var(--muted-foreground);

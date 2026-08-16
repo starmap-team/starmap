@@ -1,5 +1,5 @@
 /**
- * 定时调度 CRUD composable（Phase 03 Plan 03 Task 8 实际迁移）。
+ * 定时调度 CRUD composable（Task 8 实际迁移）。
  *
  * 从 usePipelineMonitor.ts 抽出调度相关状态与操作：
  * 调度对话框状态、scheduleForm、create/delete/toggle/trigger。

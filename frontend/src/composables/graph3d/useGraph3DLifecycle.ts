@@ -1,9 +1,9 @@
 /**
  * useGraph3DLifecycle — 3d-force-graph instance lifecycle composable
  *
- * 2026-08-13: Phase 1 (M1 全景图谱) Plan 01-04 Task 1 — Graph3D.vue 单体拆分 (C-3)
+ * 2026-08-13: (M1 全景图谱) Plan 01-04 Task 1 — Graph3D.vue 单体拆分 (C-3)
  *
- * 沿 Phase 17 loop_orchestrator.py 987→199 兼容壳先例: composable **代理调用**
+ * 沿 loop_orchestrator.py 987→199 兼容壳先例: composable **代理调用**
  * 既有方法体,保 monkeypatch 兼容。本 composable 不重复实现 initGraph / destroyGraph,
  * 仅暴露 useGraph3DLifecycle hook 让 Graph3D.vue 调用方获得统一 lifecycle 接口
  * (instance / isInitializing / lastNamespace refs + 命名空间检测 + destructor 助手)。

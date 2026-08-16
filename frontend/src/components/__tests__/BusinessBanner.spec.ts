@@ -43,10 +43,10 @@ describe('BusinessBanner', () => {
   })
 
   it('渲染 section 章节徽章', () => {
-    const wrapper = mountBanner({ section: '§3.2' })
+    const wrapper = mountBanner({ section: '' })
     const badge = wrapper.find('.biz-banner__section')
     expect(badge.exists()).toBe(true)
-    expect(badge.text()).toBe('§3.2')
+    expect(badge.text()).toBe('')
   })
 
   /* ─── 5 种 type 映射 ─── */

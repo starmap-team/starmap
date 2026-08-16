@@ -1,6 +1,5 @@
 /**
- * LoopStepGraph.spec — Phase 07-02 T9
- * Verifies D-05 口径拆解行：nodes_written / edges_written (来自 graph_sync 既有契约).
+ * LoopStepGraph.spec — * Verifies D-05 口径拆解行：nodes_written / edges_written (来自 graph_sync 既有契约).
  */
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'

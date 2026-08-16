@@ -39,7 +39,7 @@ export const STAGE_LABELS: Record<string, string> = {
   timeseries: '时间序列',
 }
 
-// Phase 17-01: timeseries 移出核心 DAG (设计文档明确它不属于 ETL)
+// timeseries 移出核心 DAG (设计文档明确它不属于 ETL)
 // 它由 evolution 服务单独触发, 留 OPTIONAL_STAGES 供向后兼容
 export const ALL_STAGE_NAMES = ['crawl', 'dedup', 'clean', 'import', 'graph_sync']
 export const OPTIONAL_STAGES = ['timeseries', 'graph_sync']

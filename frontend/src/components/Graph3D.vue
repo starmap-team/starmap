@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /** Graph3D — 3D force-directed graph visualization (3d-force-graph)
- *  2026-08-13: Phase 1 (M1 全景图谱) Plan 01-03 + 01-04:
+ *  2026-08-13: (M1 全景图谱) Plan 01-03 + 01-04:
  *    01-03 Task 3: 接入 useGraph3DLOD + useGraph3DClustering (镜像 2D
  *                useGraphLOD + useGraphClustering)。节点数 > 50 时自动折叠
  *                为 cluster meta-node,节省 GPU 开销。
  *    01-04 Task 3: 接入 useGraph3DLifecycle + useGraph3DFps + DEFAULT_FORCE_CONFIG
- *                (沿 Phase 17 loop_orchestrator 兼容壳模式,保 monkeypatch)。
+ *                (沿 loop_orchestrator 兼容壳模式,保 monkeypatch)。
  *                既有所需符号 (initGraph / destroyGraph / _destructor / _lastNamespace
  *                / fps / force config) 不删除 — composable 代理调用。
  */
@@ -173,7 +173,7 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
   }, 800)
 }
 
-// UX-02 + Phase 1 Plan 01-03: 节点降噪 LOD + cluster 折叠 — 镜像 2D useGraphLOD + useGraphClustering
+// UX-02 + Plan 01-03: 节点降噪 LOD + cluster 折叠 — 镜像 2D useGraphLOD + useGraphClustering
 // 节点数 ≤ 30: 全展开;> 50: 折叠为 1 个 cluster meta-node
 const CLUSTER_LIMIT = 30
 const lod = useGraph3DLOD({ hideLabelsAbove: 30, simplifyAbove: 100, defaultLabelsVisible: true })
@@ -185,7 +185,7 @@ const clustering = useGraph3DClustering(
 )
 
 const limitedNodes = computed(() => {
-  // UX-02 maxNodes 优先 (background mode);否则 Phase 1 Plan 01-03 cluster 折叠
+  // UX-02 maxNodes 优先 (background mode);否则 Plan 01-03 cluster 折叠
   if (props.maxNodes > 0 && props.nodes.length > props.maxNodes) {
     return props.nodes.slice(0, props.maxNodes)
   }
@@ -202,7 +202,7 @@ const limitedLinks = computed(() => {
 watch(limitedNodes, (nodes) => lod.setNodeCount(nodes.length), { immediate: true })
 
 // 01-04: 抽 lifecycle / FPS / force config 到 composables (C-3 单文件拆分)
-// 沿 Phase 17 loop_orchestrator 兼容壳模式 — composable 暴露统一接口,
+// 沿 loop_orchestrator 兼容壳模式 — composable 暴露统一接口,
 // 既有 initGraph / destroyGraph / FPS loop 保留在 Graph3D.vue 内(保 monkeypatch)
 const fpsMonitor = useGraph3DFps()
 // 既有 fps ref 替换为 composable proxy (line 46 替换)

@@ -1,5 +1,5 @@
 /**
- * Graph node management store — extracted from datasource.ts (Phase 7 admin domain split).
+ * Graph node management store — extracted from datasource.ts.
  * Manages Neo4j graph node CRUD for admin panel.
  */
 import { defineStore } from 'pinia'

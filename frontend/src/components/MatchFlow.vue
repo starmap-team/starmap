@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * MatchFlow — business-flow diagram for MatchDiagnosis page (Phase 25).
+ * MatchFlow — business-flow diagram for MatchDiagnosis page.
  *
- * Phase 25: makes the §5.2 module-D pipeline visible so a new user
+ * makes the module-D pipeline visible so a new user
  * immediately sees how the 5-step match wizard fits into the broader
  * StarMap architecture.
  *
@@ -16,7 +16,7 @@
  *       ↓
  *   与目标岗位对比 (Neo4j REQUIRES 关系)
  *       ↓
- *   差距分析 + 学习路径 (§7.5 通胀指数参考)
+ *   差距分析 + 学习路径 ( 通胀指数参考)
  *
  * Each step is clickable: it jumps the wizard to the corresponding step
  * (upload / position / radar / gap / learn) so the user can navigate

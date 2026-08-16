@@ -46,7 +46,7 @@ async function handleSync(source: typeof dsStore.sources[number]) {
     ElMessage.error(`${getSourceNameLabel(source.name)} 同步失败`)
   } finally { syncingIds.value.delete(source.id) }
 }
-// Phase 15 / T2.3: 按需触发单源采集 → raw_jd_records
+// / T2.3: 按需触发单源采集 → raw_jd_records
 async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
   if (syncingIds.value.has(source.id)) return
   syncingIds.value.add(source.id)
@@ -88,7 +88,7 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
 }
 // M2/M3 (2026-08-15): 软删除源（inactive）不展示——避免"同名不同状态"卡与
 // KPI 虚高（数据源总数 19 含 3 个已归档占位 → 应 16）。
-// Phase 23 Task 8 (DC-04): status 全集与后端共享枚举
+// Task 8 (DC-04): status 全集与后端共享枚举
 // app.core.constants.DataSourceStatus（active/paused/error/inactive）对齐——
 // 'inactive' 由 DELETE 软删除 / PATCH 产出，UI 过滤属展示层约定，非校验兜底。
 const visibleSources = computed(() => dsStore.sources.filter((s) => s.status !== 'inactive'))
@@ -139,7 +139,7 @@ onMounted(() => {
       <BusinessBanner
         type="info"
         title="多源异构数据融合 — 数据源管理"
-        description="StarMap 融合三类异构数据源：结构化（ESCO 职业标准）、半结构化（招聘 JD 爬虫）、非结构化（技术博客）。权威性评分直接影响 §7.1 信任度驱动的图谱构建策略。"
+        description="StarMap 融合三类异构数据源：结构化（ESCO 职业标准）、半结构化（招聘 JD 爬虫）、非结构化（技术博客）。权威性评分直接影响 信任度驱动的图谱构建策略。"
         meta="后端: <code>/datasources</code> · 数据源: <code>datasources</code> 表 · 采集 → 归一化 → 信任度评分"
       />
 
@@ -410,7 +410,7 @@ onMounted(() => {
                 >
                   技术博客源 · 非岗位 JD
                 </el-tag>
-                <!-- Phase 13 数据诚实化：零记录须显式标注为空态，避免被误读为数据异常 -->
+                <!-- 数据诚实化：零记录须显式标注为空态，避免被误读为数据异常 -->
                 <el-tag
                   v-if="source.total_records === 0 && !source.last_crawl_at"
                   size="small"
@@ -576,7 +576,7 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-/* Phase 26: 业务说明横幅 — 已迁移到 BusinessBanner.vue */
+/* 业务说明横幅 — 已迁移到 BusinessBanner.vue */
 
 
 /* 页面头部 */

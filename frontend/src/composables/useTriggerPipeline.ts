@@ -1,5 +1,5 @@
 /**
- * 触发/取消/重试/续跑/强制操作 composable（Phase 03 Plan 03 Task 8 实际迁移）。
+ * 触发/取消/重试/续跑/强制操作 composable（Task 8 实际迁移）。
  *
  * 从 usePipelineMonitor.ts 抽出触发流水线相关状态与操作：
  * 触发对话框状态、actionLoading、重试中阶段、取消/重试/续跑/强制推进/强制重置。
@@ -38,7 +38,7 @@ export function useTriggerPipeline(options: TriggerPipelineOptions = {}) {
     triggerDialogVisible.value = true
   }
 
-  // ── Phase 17-02 (Fix B2): 用 last_run.id fallback, 让 failed/cancelled run 也能重试 ──
+  // ── (Fix B2): 用 last_run.id fallback, 让 failed/cancelled run 也能重试 ──
   const currentRunId = computed(() => {
     return runStore.pipelineStatus?.last_run?.id
       ?? runStore.pipelineStatus?.current_run?.id
@@ -58,7 +58,7 @@ export function useTriggerPipeline(options: TriggerPipelineOptions = {}) {
     }
     actionLoading.value = true
     try {
-      // Phase 3.7: 触发新 run 时清空实时活动缓存
+      // 触发新 run 时清空实时活动缓存
       runStore.resetLiveActivity()
       // D8: sources 传入选源（空/未传 = 全部源）
       await runStore.triggerPipeline(runType, stages, sources?.length ? sources : undefined)

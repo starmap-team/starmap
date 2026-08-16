@@ -32,7 +32,7 @@ async function handleExtract() {
     ElMessage.warning('请输入 JD 文本')
     return
   }
-  // Phase 26 / BUG-004: clear any prior progress interval before
+  // / BUG-004: clear any prior progress interval before
   // starting a new one. Without this, double-clicking "抽取" left
   // two intervals racing — the second one would advance the bar past
   // 85% and the random increments produced visually-jumpy progress.

@@ -2,9 +2,8 @@
 /**
  * AdminOverview — business-overview tab for the management console.
  *
- * Phase 24: replaces the previous "audit queue as default" landing page
- * with a one-screen business map. A new admin user can land on this
- * tab and in <30 seconds understand:
+ * One-screen business map so a new admin user can land here and in
+ * <30 seconds understand:
  *  - the four business KPIs the system cares about
  *  - which business stages exist and which tabs answer which question
  *  - where the most pressing action items live
@@ -24,8 +23,7 @@ const router = useRouter()
 const dashboard = useDashboardStore()
 const review = useReviewStore()
 
-// Phase 26 / BUG-005: surface load failures so the user can retry
-// instead of staring at a row of "0" KPIs.
+// Surface load failures so the user can retry instead of staring at a row of "0" KPIs.
 const loadError = ref<string | null>(null)
 const loading = ref(false)
 
@@ -55,9 +53,8 @@ const kpiCards = computed(() => {
   return [
     {
       key: 'pending-content',
-      label: '待审内容 (Phase 23)',
-      // BUG-1 fix: label says "岗位 / 技能" — sum BOTH pending reviews
-      // (was only position_pending_review, silently dropping skills)
+      label: '待审内容',
+      // sum BOTH pending reviews (position + skill) so the card isn't silently dropping one
       value: (review.stats.position_pending_review ?? 0) + (review.stats.skill_pending_review ?? 0),
       suffix: '岗位 / 技能',
       icon: Clock,
@@ -66,10 +63,8 @@ const kpiCards = computed(() => {
     },
     {
       key: 'pending-evolution',
-      label: '待审演化 (Phase 24 §5.2)',
-      // BUG-2 fix: read evolution_pending (Phase 24 §5.2 low-trust
-      // EvolutionChangelog entries) instead of skill_pending_review
-      // (which was Phase 23 skill records — wrong semantic).
+      label: '待审演化',
+      // read evolution_pending (low-trust EvolutionChangelog entries) instead of skill_pending_review
       value: review.stats.evolution_pending ?? 0,
       suffix: '个低信任变更',
       icon: Promotion,
@@ -79,7 +74,7 @@ const kpiCards = computed(() => {
     {
       key: 'weekly-new',
       label: '本周新增节点',
-      // BUG-3 fix: backend now uses week_start (Monday), not last-7-days.
+      // backend now uses week_start (Monday), not last-7-days
       value: o?.weekly_new_nodes ?? 0,
       suffix: '个岗位/技能',
       icon: Grid,
@@ -89,8 +84,7 @@ const kpiCards = computed(() => {
     {
       key: 'trust',
       label: '平均信任度',
-      // BUG-4 fix: backend now reports real Skill.trust_score average
-      // from Neo4j (was: weighted data-source quality — different metric).
+      // backend reports real Skill.trust_score average from Neo4j
       value: o ? Math.round(o.trust_score * 100) : 0,
       suffix: '%',
       icon: DataLine,
@@ -114,13 +108,13 @@ const tabCards = [
   {
     key: 'content-review',
     title: '内容审核',
-    desc: '审核新发现的岗位和技能。Phase 23 主数据生命周期入口。',
+    desc: '审核新发现的岗位和技能。',
     color: 'warning',
   },
   {
     key: 'evolution',
     title: '演化变更',
-    desc: '每周自动分析发现的能力变更。§5.2 演化工作流。',
+    desc: '每周自动分析发现的能力变更。',
     color: 'info',
   },
   {
@@ -152,8 +146,7 @@ const tabCards = [
 
 <template>
   <div class="admin-overview">
-    <!-- Phase 26 / BUG-005: surface load failures with a retry button
-         instead of silently rendering all KPIs as 0. -->
+    <!-- Surface load failures with a retry button instead of silently rendering all KPIs as 0. -->
     <el-alert
       v-if="loadError"
       type="warning"

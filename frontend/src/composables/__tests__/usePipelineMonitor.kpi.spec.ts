@@ -1,5 +1,5 @@
 /**
- * usePipelineMonitor KPI 三段口径测试（Phase 23 Task 9, IC-07 防跨页漂移）。
+ * usePipelineMonitor KPI 三段口径测试（IC-07 防跨页漂移）。
  *
  * 断言: PipelineMonitor 的三段 KPI（今日采集量 / 今日新增 / 历史累计 / 成功率）
  * 必须从同一 `pipeline.pipelineStatus` 派生，且与后端 status_aggregator 的聚合

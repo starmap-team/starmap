@@ -72,7 +72,7 @@ export const TYPE_INFO: Record<string, { label: string; color: string }> = {
 /**
  * Returns the base color for a non-KA node type.
  * KA coloring is precomputed by the caller (Home.vue builds KA_COLOR_MAP from store).
- * The _categoryOrId parameter is retained for backward compatibility (Phase 5 removes callers).
+ * The _categoryOrId parameter is retained for backward compatibility.
  */
 export function nodeColor(type: string, _categoryOrId?: string): string {
   return NODE_TYPE_COLORS[type] ?? '#64748b'

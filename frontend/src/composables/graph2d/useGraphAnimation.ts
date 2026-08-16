@@ -40,7 +40,7 @@ export function useGraphAnimation(defaultIntervalMs: number = 220): UseGraphAnim
         if (!nodeId) { resolve(); return }
 
         try {
-          // Phase 1: overshoot for elastic feel
+          // overshoot for elastic feel
           graph.updateNodeData([{
             id: nodeId,
             style: {
@@ -51,7 +51,7 @@ export function useGraphAnimation(defaultIntervalMs: number = 220): UseGraphAnim
           }])
           graph.draw()
 
-          // Phase 2: settle to normal size
+          // settle to normal size
           timer.value = setTimeout(() => {
             if (!graph) return
             graph.updateNodeData([{

@@ -4,7 +4,7 @@
  * 5 步端到端闭环：JD 输入 → 技能提取 → 图谱更新 → 匹配诊断 → 学习路径
  * 路由：/loop
  *
- * Phase 14-01: Refactored from 1677 lines into orchestrator + 6 sub-components + 1 composable.
+ * Refactored from 1677 lines into orchestrator + 6 sub-components + 1 composable.
  * - LoopStepInput.vue  — Step 1: JD Input
  * - LoopStepSkills.vue — Step 2: Skill Extraction
  * - LoopStepGraph.vue  — Step 3: Graph Update (uses useLoopGraph)

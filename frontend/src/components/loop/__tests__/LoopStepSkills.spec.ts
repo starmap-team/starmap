@@ -1,6 +1,5 @@
 /**
- * LoopStepSkills.spec — Phase 07-02 T8
- * Verifies D-05 口径拆解行（技能数 + 信任度均值）+ D-06 model_used 透传
+ * LoopStepSkills.spec — * Verifies D-05 口径拆解行（技能数 + 信任度均值）+ D-06 model_used 透传
  * （云端 vs 本地 fallback 文案差异）+ 空 data 不崩.
  */
 import { describe, it, expect } from 'vitest'

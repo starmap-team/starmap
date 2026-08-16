@@ -3,7 +3,7 @@
  * 管理多源数据融合：BOSS/拉勾/51Job/GitHub/ESCO
  * 提供数据源 CRUD、统计查询、同步触发
  *
- * Phase 7 refactor: audit queue and graph node management have been
+ * refactor: audit queue and graph node management have been
  * extracted to useAuditStore and useGraphNodeStore respectively.
  * This store now focuses solely on data source operations.
  */
@@ -226,7 +226,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
-  /** Phase 15 / T2.3: 按需触发单源采集 */
+  /** / T2.3: 按需触发单源采集 */
   async function triggerCrawl(source: string) {
     // D5: /crawl-source 是同步爬取（spider 全程 + 限速 2s/请求），沙盒网络差时可达 30-60s。
     // 默认 axios 30s 会先超时误报，这里单独给 90s 超时（仅此请求，不污染全局）。

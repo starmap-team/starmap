@@ -1,5 +1,5 @@
 /**
- * Admin.vue graph node list state + filters — extracted from Admin.vue (Phase 7 D)
+ * Admin.vue graph node list state + filters — extracted from Admin.vue
  * Pure composable: search keyword, type filter, status filter, pagination.
  */
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'

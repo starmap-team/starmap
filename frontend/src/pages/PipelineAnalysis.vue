@@ -77,7 +77,7 @@
           </div>
         </div>
 
-        <!-- Phase 3: 逐步可视化核验面板 -->
+        <!-- 逐步可视化核验面板 -->
         <div
           v-if="store.stepOutputs.length"
           class="step-verify-section"
@@ -506,7 +506,7 @@ function statusText(status: string) {
   return status
 }
 
-/** Phase 3: 格式化样本数据为可读文本 */
+/** 格式化样本数据为可读文本 */
 function formatSample(value: unknown): string {
   if (typeof value === 'string') return value
   if (Array.isArray(value)) {
@@ -650,7 +650,7 @@ h4 {
   margin-left: var(--space-2);
 }
 
-/* Phase 3: 步骤核验面板 */
+/* 步骤核验面板 */
 .step-verify-section {
   margin-top: var(--space-6);
   text-align: left;

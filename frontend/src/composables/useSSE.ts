@@ -28,7 +28,7 @@ export interface UseSSEOptions {
   /** URL for polling fallback (defaults to url + '-poll') */
   pollUrl?: string
   /**
-   * Phase 1 D-09: Optional event-type-specific handlers map.
+   * D-09: Optional event-type-specific handlers map.
    * If provided, useSSE will dispatch event to matching handler based on event.type
    * before falling back to onMessage.
    */
@@ -77,7 +77,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
     pollThreshold = 3,
     pollInterval = 5000,
     pollUrl,
-    storeHandlers,  // Phase 1 D-09: optional event-type dispatch
+    storeHandlers,  // D-09: optional event-type dispatch
     sseRetryInterval = 60000, // retry SSE while polling every 60s
   } = options
 
@@ -154,7 +154,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
           sseRetryTimer = null
         }
         mode.value = 'sse'
-        // Phase 16-02 (Fix M1): 重连成功后显示 toast 提示用户
+        // (Fix M1): 重连成功后显示 toast 提示用户
         if (wasDisconnected) {
           try {
             import('element-plus').then(({ ElMessage }) => {
@@ -167,7 +167,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
       eventSource.onmessage = (event: MessageEvent) => {
         connected.value = true
         consecutiveFailures = 0
-        // Phase 1 D-09: dispatch to storeHandlers if event has type field
+        // D-09: dispatch to storeHandlers if event has type field
         if (storeHandlers) {
           try {
             const data = JSON.parse(event.data)

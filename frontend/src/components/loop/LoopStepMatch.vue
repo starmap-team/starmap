@@ -2,7 +2,7 @@
 /**
  * LoopStepMatch — Step 4: Match Diagnosis
  * Radar chart + gap analysis + skill tags.
- * Phase 07-02 D-05: also surfaces M5 分数拆解行（required_avg / bonus_avg /
+ * D-05: also surfaces M5 分数拆解行（required_avg / bonus_avg /
  * weight_required / weight_bonus / inflated）。
  */
 import { ref, computed, watch } from 'vue'

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 数据流水线监控页 — Phase 03 Plan 03 Task 8 拆子组件后瘦身 < 600 行。
+ * 数据流水线监控页 — Plan 03 Task 8 拆子组件后瘦身 < 600 行。
  * 仅保留顶层布局 + KPI 卡片 + DAG 区 + 子组件挂载点 + 闭环验证编排。
  */
 import { computed, ref } from 'vue'
@@ -99,10 +99,10 @@ const {
   handleToggleSchedule,
 } = useSchedules({ onAfterTrigger: loadAll })
 
-// ── Phase 3.8.5: 术语词典对话框 ──
+// ── 术语词典对话框 ──
 const glossaryVisible = ref(false)
 
-// ── Phase 3.8.9: 触发后无需 verifyState — triggerPipeline 内部已 fetchStatus/fetchStages ──
+// ── 触发后无需 verifyState — triggerPipeline 内部已 fetchStatus/fetchStages ──
 async function handleTriggerWithVerify() {
   pipeline.resetLiveActivity()
   const ok = await trigger(selectedStages.value, triggerRunType.value, selectedSources.value)
@@ -250,7 +250,7 @@ async function verifyNow() {
   }
 }
 
-/** Phase 3.8.4: 切换数据源启用/禁用 (真实调用 PUT /datasources/{id} 持久化) */
+/** 切换数据源启用/禁用 (真实调用 PUT /datasources/{id} 持久化) */
 async function onToggleSource(sourceId: string, willDisable: boolean) {
   const startTime = Date.now()
   const source = pipeline.dataSources.find(s => s.id === sourceId)
@@ -286,7 +286,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
       <BusinessBanner
         type="success"
         title="L2 数据融合层 — ETL 流水线监控"
-        description="全链路 ETL DAG：爬虫采集 → 去重 → 清洗 → LLM 抽取 → 入库 → 图谱构建（Phase 3 串行化）。每个阶段独立降级，失败不阻塞后续流程。数据源质量影响 §7.1 信任度评分。"
+        description="全链路 ETL DAG：爬虫采集 → 去重 → 清洗 → LLM 抽取 → 入库 → 图谱构建（串行化）。每个阶段独立降级，失败不阻塞后续流程。数据源质量影响信任度评分。"
         meta="后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送"
       />
 
@@ -325,7 +325,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
             </el-tag>
           </p>
         </div>
-        <!-- Phase 3 Plan 02: SSE 断开时用户可见提示 -->
+        <!-- Plan 02: SSE 断开时用户可见提示 -->
         <el-alert
           v-if="!sseConnected"
           type="warning"
@@ -418,7 +418,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
         </div>
       </div>
 
-      <!-- Phase 3.8.2: 状态摘要 Hero 卡片 -->
+      <!-- 状态摘要 Hero 卡片 -->
       <PipelineStatusHero
         :is-running="pipeline.pipelineStatus?.is_running ?? false"
         :summary="stageSummary"
@@ -427,7 +427,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
       <!-- 4 个 KPI 卡片 -->
       <PipelineKpiCards :cards="kpiCards" />
 
-      <!-- Phase 16 数据审核闭环: 待审核提示 -->
+      <!-- 数据审核闭环: 待审核提示 -->
       <el-alert
         v-if="pendingReviewCount > 0"
         type="warning"
@@ -440,7 +440,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
         </template>
       </el-alert>
 
-      <!-- Phase 3.8.5: 卡死检测横幅 + 强制操作 -->
+      <!-- 卡死检测横幅 + 强制操作 -->
       <StuckAlert
         v-if="isStuck"
         :reason="stuckReason"
@@ -461,7 +461,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
         @retry="handleRetryStage"
       />
 
-      <!-- Phase 3.8: 闭环验证日志面板 -->
+      <!-- 闭环验证日志面板 -->
       <VerifyLogPanel
         :logs="actionLogs"
         :is-verifying="isVerifying"
@@ -551,7 +551,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
       />
     </div>
 
-    <!-- Phase 3.8.5: 术语词典 (新手指引) -->
+    <!-- 术语词典 (新手指引) -->
     <PipelineGlossary v-model="glossaryVisible" />
   </MainLayout>
 </template>

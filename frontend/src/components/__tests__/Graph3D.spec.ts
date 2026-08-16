@@ -1,7 +1,7 @@
 /**
  * Graph3D.spec.ts — 3D 节点降噪 LOD + cluster 折叠单元测试
  *
- * 2026-08-13: Phase 1 (M1 全景图谱) Plan 01-03 Task 4
+ * 2026-08-13: (M1 全景图谱) Plan 01-03 Task 4
  *
  * 聚焦纯 composable 测试 (useGraph3DLOD / useGraph3DClustering),避免 mount
  * Graph3D.vue 触发 3d-force-graph dynamic import + WebGL 依赖。沿 04-datasources

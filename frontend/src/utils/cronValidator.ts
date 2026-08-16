@@ -1,4 +1,4 @@
-// Cron 表达式完整校验工具 (D-16 Phase 03 Plan 03 Task 11).
+// Cron 表达式完整校验工具 (D-16 Plan 03 Task 11).
 //
 // 5 字段值域 + 范围校验：
 // - 分 (minute): 0-59

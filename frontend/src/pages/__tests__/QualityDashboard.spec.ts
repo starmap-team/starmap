@@ -135,14 +135,14 @@ describe('QualityDashboard.vue', () => {
   })
 })
 // ════════════════════════════════════════════════════════════════
-// Phase 11 D-03/D-05/D-06: KPI 口径 + 审核徽标 composable 契约测试
+// D-03/D-05/D-06: KPI 口径 + 审核徽标 composable 契约测试
 // （避免直接 mountPage 测 DOM——el-button/el-tag stub 会吞 :disabled/data-testid，
 //  改为直接测 useQualityDashboardCharts composable 的输出契约，更稳）
 // ════════════════════════════════════════════════════════════════
 
 import { useQualityDashboardCharts } from '@/composables/useQualityDashboardCharts'
 
-describe('Phase 11 D-03 KPI 口径拆解行（composable 契约）', () => {
+describe(' D-03 KPI 口径拆解行（composable 契约）', () => {
   it('kpiCardsEnhanced 返回 4 张卡，每张含 caption 字段', () => {
     const fakeStore = { metrics: { hallucination_rate: 0.1, hallucination_numerator: 1, hallucination_denominator: 10, hallucination_window_days: 30, total_extractions: 10, total_nodes: 100, total_positions: 20, total_skills: 80, avg_trust_score: 0.7, high_trust_ratio: 0.5, weekly_new_nodes: 5, audit_pass_rate: 0.8, pending_review: 0 } } as any
     const { kpiCardsEnhanced } = useQualityDashboardCharts(fakeStore)
@@ -171,10 +171,10 @@ describe('Phase 11 D-03 KPI 口径拆解行（composable 契约）', () => {
 })
 
 // ════════════════════════════════════════════════════════════════
-// Phase 11 D-06: 审核状态徽标三色（store 契约 + 模板规则）
+// D-06: 审核状态徽标三色（store 契约 + 模板规则）
 // ════════════════════════════════════════════════════════════════
 
-describe('Phase 11 D-06 审核状态徽标三色契约', () => {
+describe(' D-06 审核状态徽标三色契约', () => {
   it('审核 row 缺 review_status 字段时默认按 "待审核" 处理 (D-06)', () => {
     // QualityMetrics.audit_queue 默认空数组
     const fullMetrics = {

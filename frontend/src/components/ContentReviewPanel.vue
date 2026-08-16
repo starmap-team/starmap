@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * ContentReviewPanel — Phase 23 review workflow for position + skill entities.
+ * ContentReviewPanel — review workflow for position + skill entities.
  *
  * Replaces the legacy "review_queue" workflow (which only stored evolution
  * changelog items) with a unified admin queue that shows ALL pending

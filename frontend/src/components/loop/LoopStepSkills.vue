@@ -2,7 +2,7 @@
 /**
  * LoopStepSkills — Step 2: Skill Extraction Results
  * Displays skill chips with is_new indicators, confidence, hallucination score.
- * Phase 07-02 D-05/D-06: also surfaces 技能数 / 信任度均值 / 实际 model_used
+ * D-05/D-06: also surfaces 技能数 / 信任度均值 / 实际 model_used
  * (云端秒级 vs 本地 fallback 解释).
  */
 import { computed } from 'vue'

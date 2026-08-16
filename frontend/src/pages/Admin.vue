@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * 管理后台 — Phase 24 重设计
+ * 管理后台
  *
  * Tabs (按用户视角的业务环节排序):
  *  0. 业务总览   - 系统健康 KPI + 业务流图谱
- *  1. 内容审核   - Phase 23 主数据生命周期（position/skill）
- *  2. 演化变更   - §5.2 能力演化（trust_score < 0.6 的变更提案）
+ *  1. 内容审核   - 待审岗位/技能（position/skill）
+ *  2. 演化变更   - 低信任能力变更（trust_score < 0.6 的变更提案）
  *  3. 图谱节点   - Neo4j 节点 CRUD
  *  4. 数据采集   - 爬虫源 + 同步
  *  5. Prompt     - LLM 抽取提示词版本
@@ -61,11 +61,11 @@ const graphNode = useGraphNodeStore()
 const review = useReviewStore()
 
 // ── Tab 导航 ──
-// Phase 24: 业务总览为默认 tab，让新用户第一眼理解系统。
+// 业务总览为默认 tab，让新用户第一眼理解系统。
 const activeTab = ref('overview')
-// Phase 24: 系统 tab 内部的子 tab（用户管理 / 审计日志）
+// 系统 tab 内部的子 tab（用户管理 / 审计日志）
 const systemSubTab = ref('users-list')
-// 2026-08-12 (admin 联调): 数据源诊断 banner 类型随报告状态动态化
+// 数据源诊断 banner 类型随报告状态动态化
 const dataTruthBannerType = ref<'success' | 'warning' | 'error'>('error')
 
 // Cross-component navigation: AdminFlow / AdminOverview dispatch a
@@ -97,7 +97,7 @@ onMounted(() => {
   // Pre-fetch all stores in the background so tab switches feel instant.
   datasource.fetchSources()
   // D8h: 移除旧 ReviewQueue 空队列拉取 —— review_queue 表 0 行且无写入方，
-  // fetchAuditQueue 返回空徒增请求；审核走 Phase 23 review-status 状态机
+  // fetchAuditQueue 返回空徒增请求；审核走 review-status 状态机
   graphNode.fetchGraphNodes(0, nodePageSize.value)
   review.fetchStats().catch(() => null)
 })
@@ -141,7 +141,7 @@ watch([nodeSearchKeyword, nodeTypeFilter], () => {
   void onNodePageChange()
 })
 
-// Node editor + CRUD actions (extracted — Phase 7 D round 6)
+// Node editor + CRUD actions (extracted)
 const {
   editorVisible,
   editingNode,
@@ -224,7 +224,7 @@ async function handleTriggerSync(row: { id: string; name: string }) {
   }
 }
 
-// 演示数据重置 (设计文档 §2.3.3.2 管理角色刚需) — POST /admin/seed/reset。
+// 演示数据重置 (管理角色刚需) — POST /admin/seed/reset。
 // 生产环境后端直接 refused，不做任何写入。
 const seedingDemo = ref(false)
 async function handleResetDemoData() {
@@ -384,7 +384,7 @@ function formatDate(iso: string | null | undefined): string {
         v-model="activeTab"
         class="admin-tabs"
       >
-        <!-- ════════ Tab 0: 业务总览 (Phase 24 新增 — 第一眼) ════════ -->
+        <!-- ════════ Tab 0: 业务总览 (第一眼) ════════ -->
         <el-tab-pane
           label="业务总览"
           name="overview"
@@ -392,7 +392,7 @@ function formatDate(iso: string | null | undefined): string {
           <AdminOverview />
         </el-tab-pane>
 
-        <!-- ════════ Tab 1: 内容审核 (Phase 23 主数据生命周期) ════════ -->
+        <!-- ════════ Tab 1: 内容审核 (待审岗位/技能) ════════ -->
         <el-tab-pane
           label="内容审核"
           name="content-review"
@@ -415,7 +415,7 @@ function formatDate(iso: string | null | undefined): string {
           </el-card>
         </el-tab-pane>
 
-        <!-- ════════ Tab 2: 演化变更 (§5.2 能力演化审核) ════════ -->
+        <!-- ════════ Tab 2: 演化变更 (低信任能力变更审核) ════════ -->
         <el-tab-pane
           label="演化变更"
           name="evolution"
@@ -423,7 +423,7 @@ function formatDate(iso: string | null | undefined): string {
           <BusinessBanner
             type="warning"
             title="能力演化审核 — 低信任变更需要人工裁决"
-            description="系统每周自动分析岗位能力图谱的演化（§5.2）。对于信任度低于 0.6 的变更提案，会自动写入此队列等待人工确认是否更新图谱。信任度 ≥ 0.6 的变更直接入图谱。"
+            description="系统每周自动分析岗位能力图谱的演化。对于信任度低于 0.6 的变更提案，会自动写入此队列等待人工确认是否更新图谱。信任度 ≥ 0.6 的变更直接入图谱。"
             :meta="[
               { category: '后端', label: '/admin/review-queue', code: true, copyable: true },
               { category: '触发', label: 'EvolutionOrchestrator._save_changelog', code: true, copyable: true, hint: 'trust_score < 0.6 时入队' },
@@ -686,7 +686,7 @@ function formatDate(iso: string | null | undefined): string {
           <BusinessBanner
             type="success"
             title="数据输入 — 爬虫源配置"
-            description="管理爬虫数据源（SAP、LinkedIn、Boss直聘等），配置权威性评分、启用状态。权威性评分直接影响信任度驱动的图谱构建策略（§7.1）。"
+            description="管理爬虫数据源（SAP、LinkedIn、Boss直聘等），配置权威性评分、启用状态。权威性评分直接影响信任度驱动的图谱构建策略。"
             :meta="[
               { category: '后端', label: '/datasources', code: true, copyable: true },
               { category: '数据源', label: 'datasources', code: true, copyable: true },
@@ -1081,7 +1081,7 @@ function formatDate(iso: string | null | undefined): string {
           </el-card>
         </el-tab-pane>
 
-        <!-- ════════ Tab 6: 数据源诊断（Phase 4 P0 — 跨模块 KPI 口径审计） ════════ -->
+        <!-- ════════ Tab 6: 数据源诊断（跨模块 KPI 口径审计） ════════ -->
         <el-tab-pane
           label="数据源诊断"
           name="data-truth"
@@ -1089,7 +1089,7 @@ function formatDate(iso: string | null | undefined): string {
           <BusinessBanner
             :type="dataTruthBannerType"
             title="数据源真理报告 — 跨模块 KPI 口径审计"
-            description="每个 KPI 数字都有三层来源：API 返回值 / PostgreSQL 直查 / Neo4j 直查。当数字不一致时，说明底层数据存在孤儿节点或同步缺失。Phase 4 修复重点。"
+            description="每个 KPI 数字都有三层来源：API 返回值 / PostgreSQL 直查 / Neo4j 直查。当数字不一致时，说明底层数据存在孤儿节点或同步缺失。"
             :meta="[
               { category: '后端', label: '/admin/data-truth', code: true, copyable: true },
               { category: '诊断标准', label: '<1% ok / 1-10% warn / >10% critical', code: true, copyable: true },
@@ -1142,7 +1142,7 @@ function formatDate(iso: string | null | undefined): string {
               <BusinessBanner
                 type="info"
                 title="演示数据一键重置"
-                description="设计文档 §2.3.3.2 管理角色刚需：一键加载演示数据（数据源 / 流水线阶段 / 演化快照 / 技能时序）。生产环境后端直接拒绝。"
+                description="管理角色刚需：一键加载演示数据（数据源 / 流水线阶段 / 演化快照 / 技能时序）。生产环境后端直接拒绝。"
                 :meta="[
                   { category: '后端', label: 'POST /admin/seed/reset', code: true, copyable: true },
                 ]"
@@ -1244,7 +1244,7 @@ function formatDate(iso: string | null | undefined): string {
   align-items: center;
 }
 
-/* ── Business description banner — migrated to BusinessBanner component (Phase 26+) ── */
+/* ── Business description banner — migrated to BusinessBanner component ── */
 
 .sub-tabs {
   margin-top: var(--space-2);

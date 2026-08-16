@@ -1,5 +1,5 @@
 <!--
-  PipelineMonitor 定时调度列表子组件（Phase 03 Plan 03 从内联模板抽出）。
+  PipelineMonitor 定时调度列表子组件（从内联模板抽出）。
 -->
 <script setup lang="ts">
 import { QuestionFilled, Timer } from '@element-plus/icons-vue'

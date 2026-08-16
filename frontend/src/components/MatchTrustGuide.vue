@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * MatchTrustGuide — explains what the match_score and trust_score mean
- * to a non-technical user. Phase 25 enhancement for §5.2 module D.
+ * to a non-technical user. enhancement for module D.
  *
  *   match_score (0-100): 你的技能对该岗位的覆盖度
  *   trust_score (0-100): 系统对该匹配结果的置信度
@@ -24,7 +24,7 @@ const props = defineProps<{
     weight_bonus?: number
     inflated?: boolean
   } | null
-  // M2（Phase 13 强制规范）：后端 MatchResponse.note（如“岗位存在但暂无可用画像”）的呈现
+  // M2（强制规范）：后端 MatchResponse.note（如"岗位存在但暂无可用画像"）的呈现
   note?: string | null
 }>()
 

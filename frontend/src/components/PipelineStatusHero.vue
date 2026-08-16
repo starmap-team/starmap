@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * PipelineMonitor 状态 Hero 卡片 — Phase 2 P3-1 拆分
+ * PipelineMonitor 状态 Hero 卡片 — P3-1 拆分
  *
  * 纯展示：根据 isRunning + stageSummary 显示流水线总体状态。
  * 无事件回调，无副作用。从 PipelineMonitor.vue:536-610 抽出。
