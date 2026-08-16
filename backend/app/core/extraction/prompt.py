@@ -38,7 +38,7 @@ $jd_content
 4. experience_required: 所需经验年限（数字，无法确定则返回null）
 5. education_required: 学历要求（如"本科及以上"、"硕士及以上"，无法确定则返回null）
 6. responsibilities: 主要职责列表（如["开发API", "性能优化"]）
-7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"、"医疗健康"，无法确定则返回空字符串""）
+7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"、"医疗健康"，**必须给出最接近的行业归类**；确实无任何线索时可返回"通用"，**不要返回空字符串**——后端会将其映射为"未分类"展示，但有意义的归类可显著提升岗位匹配精度）
 8. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
 9. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习"]，无法确定则返回空列表[]）
 10. tools: 工具/技术平台列表。每项包含name和category（可选值"ide"/"framework"/"platform"/"database"/"devops"/"other"）
@@ -92,7 +92,7 @@ $jd_content
 4. experience_required: 所需经验年限（数字，无法确定则返回null）
 5. education_required: 学历要求（如"本科及以上"、"硕士及以上"，无法确定则返回null）
 6. responsibilities: 主要职责列表（如["开发API", "性能优化"]）
-7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"、"医疗健康"，无法确定则返回空字符串""）
+7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"、"医疗健康"，**必须给出最接近的行业归类**；确实无任何线索时可返回"通用"，**不要返回空字符串**——后端会将其映射为"未分类"展示，但有意义的归类可显著提升岗位匹配精度）
 8. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
 9. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习", "网络安全"]，无法确定则返回空列表[]）
 10. tools: 工具/技术平台列表。每项包含：
@@ -160,7 +160,7 @@ $jd_content
     4. experience_required: 所需经验年限（数字，无法确定则返回null）
     5. education_required: 学历要求（如"本科及以上"）
     6. responsibilities: 主要职责列表
-    7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"，无法确定则返回空字符串""）
+    7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"，**必须给出最接近的行业归类**；确实无任何线索时可返回"通用"，**不要返回空字符串**——后端会将其映射为"未分类"展示，但有意义的归类可显著提升岗位匹配精度）
     8. description: 岗位职责概述（1-2句话概括）
     9. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习"]，无法确定则返回空列表[]）
     10. tools: 工具/技术平台列表。每项包含name和category（可选值"ide"/"framework"/"platform"/"database"/"devops"/"other"）
@@ -211,7 +211,7 @@ $jd_content
     4. experience_required: 所需经验年限（数字，无法确定则返回null）
     5. education_required: 学历要求（如"本科及以上"）
     6. responsibilities: 主要职责列表
-    7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"，无法确定则返回空字符串""）
+    7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"，**必须给出最接近的行业归类**；确实无任何线索时可返回"通用"，**不要返回空字符串**——后端会将其映射为"未分类"展示，但有意义的归类可显著提升岗位匹配精度）
     8. description: 岗位职责概述（1-2句话概括）
     9. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习"]，无法确定则返回空列表[]）
     10. tools: 工具/技术平台列表。每项包含name和category（可选值"ide"/"framework"/"platform"/"database"/"devops"/"other"）
