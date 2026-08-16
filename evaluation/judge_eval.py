@@ -217,7 +217,7 @@ async def evaluate_single_sample(golden: dict, system: dict, use_llm_judge: bool
     return eval_result
 
 
-async def evaluate_batch(golden_file: str, system_file: str, output_file: str | None = None, use_llm_judge: bool = False) -> ExtractionMetrics:
+async def evaluate_batch(golden_file: str, system_file: str, output_file: str | None = None, use_llm_judge: bool = False, sample_limit: int | None = None) -> ExtractionMetrics:
     """Evaluate system output against golden standard in batch.
 
     Args:
@@ -225,11 +225,16 @@ async def evaluate_batch(golden_file: str, system_file: str, output_file: str | 
         system_file: Path to system output JSONL file.
         output_file: Optional output path for the metrics JSON.
         use_llm_judge: Whether to use LLM judge for evaluation.
+        sample_limit: If set, only evaluate the first N golden samples
+            (must align with a partial extraction run — e.g. SAMPLE_LIMIT
+            debug runs; otherwise unmatched golden drags F1 toward 0).
 
     Returns:
         ExtractionMetrics with aggregate scores.
     """
     golden_data = _load_jsonl(golden_file)
+    if sample_limit is not None:
+        golden_data = golden_data[:sample_limit]
     system_data = _load_jsonl(system_file)
     system_map = {s.get("id", s.get("job_title", "")): s for s in system_data}
 

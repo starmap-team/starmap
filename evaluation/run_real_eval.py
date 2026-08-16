@@ -390,6 +390,7 @@ async def main(sample_limit: int | None = None) -> None:
         golden_file=str(GOLDEN_PATH),
         system_file=str(system_path),
         output_file=str(OUTPUT_DIR / "evaluation_results.json"),
+        sample_limit=sample_limit,
     )
     generate_evaluation_report(metrics, str(OUTPUT_DIR))
 
