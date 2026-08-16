@@ -37,10 +37,7 @@ class PositionProfile:
     ]  # [{"name":"Python","category":"hard_skill","proficiency":"精通","is_required":True}]
     bonus_skills: list[dict[str, Any]] = field(default_factory=list)
     market_demand: float = 0.5  # 市场需求度 [0, 1]
-    # P5 fix (Phase 24 求职者分析): 岗位中文名（D8g/D8i 中文化贯穿）。
-    # 分析报告此前显示英文 name（Senior Controller – Reporting & Insights），
-    # 而岗位详情页用 name_cn || name（高级财务控制 — 报告与洞察）——两处不一致。
-    name_cn: str = ""
+    name_cn: str = ""  # 岗位中文名（name_cn || name 贯穿，与详情页一致）
 
 
 @dataclass
