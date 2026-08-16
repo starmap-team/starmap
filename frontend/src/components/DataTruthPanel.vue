@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 数据源真理面板 — Phase 4 P0
+ * 数据源真理面板 — P0
  *
  * 显示每个 KPI 数字的三层来源对比：API / PostgreSQL / Neo4j
  * 让管理员看到 70/56/39 这三个数字的真实含义
@@ -96,7 +96,7 @@ async function triggerReconcile() {
   // registered. A 30-60s reconcile that appears silent makes the user
   // think the button is broken.
   const progressMsg = ElMessage({
-    message: 'Reconcile 任务已提交，正在同步 PG ↔ Neo4j...',
+    message: '对账已开始，正在同步 PostgreSQL 与 Neo4j 图库...',
     type: 'info',
     duration: 0,  // 永驻, 完成后手动关闭
   })
@@ -108,16 +108,24 @@ async function triggerReconcile() {
       positions_in_pg?: number
       skills_in_pg?: number
       orphans_pruned?: number
+      requires_in_neo4j?: number
+      requires_in_pg?: number
       duration_ms?: number
     }
     await loadReport()
     const elapsed = ((Date.now() - start) / 1000).toFixed(1)
+    const healthMap: Record<string, string> = { ok: '正常', warn: '有偏差', critical: '严重偏差' }
+    // 用户可理解的完成文案：计数一致 + 清理孤儿 + 健康度
+    const posSame = result.positions_in_pg === result.positions_in_neo4j ? '一致' : '不一致'
+    const sklSame = result.skills_in_pg === result.skills_in_neo4j ? '一致' : '不一致'
     ElMessage.success(
-      `Reconcile 完成 (${elapsed}s) · Neo4j 节点=${result.positions_in_neo4j ?? '?'}/${result.skills_in_neo4j ?? '?'} · PG 节点=${result.positions_in_pg ?? '?'}/${result.skills_in_pg ?? '?'} · 孤儿清理=${result.orphans_pruned ?? 0} · 健康度=${result.health ?? '?'}`,
+      `对账完成 (${elapsed}s) · 岗位 ${result.positions_in_pg ?? '?'}↔${result.positions_in_neo4j ?? '?'} ${posSame} · ` +
+      `技能 ${result.skills_in_pg ?? '?'}↔${result.skills_in_neo4j ?? '?'} ${sklSame} · ` +
+      `清理孤儿 ${result.orphans_pruned ?? 0} 个 · 健康度 ${healthMap[result.health ?? ''] ?? result.health ?? '未知'}`,
     )
   } catch (e: unknown) {
-    errorMsg.value = e instanceof Error ? e.message : 'Reconcile 失败'
-    ElMessage.error(`Reconcile 失败: ${errorMsg.value}`)
+    errorMsg.value = e instanceof Error ? e.message : '对账失败'
+    ElMessage.error(`对账失败: ${errorMsg.value}`)
   } finally {
     progressMsg.close()
     reconcileLoading.value = false
@@ -337,7 +345,7 @@ function statusIcon(status: string): unknown {
         v-if="report.health"
         class="health-card"
       >
-        <h4>同步健康度（Phase 5 Step 4）</h4>
+        <h4>同步健康度</h4>
         <div class="health-row">
           <div class="health-item">
             <span class="health-label">孤儿 Position</span>
@@ -386,12 +394,12 @@ function statusIcon(status: string): unknown {
             :show-after="200"
           >
             <template #content>
-              立即执行一次 PG ↔ Neo4j 双向对账：<br>
-              • 把 position_records / skill_records 投影到 Neo4j<br>
-              • 清理 Neo4j 中的孤儿节点<br>
-              • 重新计算三层口径 KPI 差异<br>
+              立即执行一次双库对账与修复：<br>
+              • 把 PostgreSQL 中的岗位/技能同步投影到 Neo4j 图库<br>
+              • 清理 Neo4j 中已不存在于 PostgreSQL 的孤儿节点<br>
+              • 修复后重新核对两侧计数，使 KPI 完全一致<br>
               <br>
-              通常 30-60 秒。系统每天凌晨 3 点也会自动跑。
+              通常 30-60 秒。系统每天凌晨 3 点也会自动执行一次。
             </template>
             <el-button
               size="small"
@@ -399,7 +407,7 @@ function statusIcon(status: string): unknown {
               :loading="reconcileLoading"
               @click="triggerReconcile"
             >
-              手动触发 reconcile
+              对账并修复双库差异
             </el-button>
           </el-tooltip>
         </div>

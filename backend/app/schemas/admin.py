@@ -199,6 +199,11 @@ class ReconcileResult(BaseModel):
     requires_in_neo4j: int = Field(default=0, ge=0, description="Neo4j REQUIRES 边数")
     requires_in_pg: int = Field(default=0, ge=0, description="PG approved 岗位 PSR 边数")
     requires_diff: int = Field(default=0, ge=0, description="REQUIRES 边数差值（绝对值）")
+    # Phase 24 根治③: 幽灵边明细（Neo4j 有但 PG approved 无的边对）
+    ghost_edges: list[dict[str, str]] = Field(
+        default_factory=list,
+        description="幽灵 REQUIRES 边明细（position_id/skill_id），空=无漂移",
+    )
     duration_ms: int = Field(default=0, description="执行耗时（毫秒）")
     health: str = Field(default="ok", description="健康度: ok/warn/critical")
 

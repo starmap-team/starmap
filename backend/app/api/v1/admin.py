@@ -107,6 +107,39 @@ async def reconcile_neo4j_endpoint(
     ).scalar() or 0
     requires_diff = abs(int(neo4j_requires) - int(pg_requires))
 
+    # Phase 24 根治③: 幽灵边明细检测——Neo4j 有但 PG approved 无的 REQUIRES 边对。
+    # 演化 removed 写回若未同步删边，会在此暴露具体 (position, skill) 供审计定位
+    # （修复后 normal 路径 removed 已同步删边，此处是兜底防线）。
+    ghost_edges: list[dict[str, str]] = []
+    try:
+        async with driver.session() as s:
+            # 导出 Neo4j 全部 REQUIRES 边（canonical_id 对）
+            r4 = await s.run(
+                "MATCH (p:Position)-[r:REQUIRES]->(sk:Skill) "
+                "WHERE p.canonical_id IS NOT NULL AND sk.canonical_id IS NOT NULL "
+                "RETURN p.canonical_id AS pid, sk.canonical_id AS sid"
+            )
+            neo_edges = [(str(rec["pid"]), str(rec["sid"])) async for rec in r4]
+        # PG approved PSR 的 (position_id, skill_id) 集合
+        pg_psr_pairs = set()
+        pg_rows = await session.execute(
+            select(PositionSkillRelation.position_id, PositionSkillRelation.skill_id)
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .where(PositionRecord.review_status == "approved")
+        )
+        for pid, sid in pg_rows.all():
+            pg_psr_pairs.add((str(pid), str(sid)))
+        for pid, sid in neo_edges:
+            if (pid, sid) not in pg_psr_pairs:
+                ghost_edges.append({"position_id": pid, "skill_id": sid})
+        if ghost_edges:
+            logger.warning(
+                "reconcile: {} ghost REQUIRES edges (Neo4j present, PG approved absent)",
+                len(ghost_edges),
+            )
+    except Exception as exc:  # 兜底检测 fail-soft，不阻断对账
+        logger.warning("reconcile: ghost-edge detection skipped: {}", exc)
+
     # 健康度（Phase 23 Task 3 扩展：边 ±0.5% 容差纳入三档）
     edge_tolerance = max(1, int(pg_requires * 0.005))
     nodes_equal = neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0
@@ -140,7 +173,8 @@ async def reconcile_neo4j_endpoint(
                     f"health={health},upserted={result.nodes_upserted},"
                     f"skills={result.skills_upserted},orphans={result.orphans_pruned},"
                     f"requires_neo4j={neo4j_requires},requires_pg={pg_requires},"
-                    f"requires_diff={requires_diff}"
+                    f"requires_diff={requires_diff},"
+                    f"ghost_edges={len(ghost_edges)}"
                 ),
                 "now": _dt.now(UTC),
                 # BUG-18 fix: tag reconcile events with their scope so
@@ -172,6 +206,8 @@ async def reconcile_neo4j_endpoint(
         requires_in_neo4j=neo4j_requires,
         requires_in_pg=pg_requires,
         requires_diff=requires_diff,
+        # Phase 24 根治③: 幽灵边明细兜底防线（removed 若未同步删边在此暴露）
+        ghost_edges=ghost_edges,
         duration_ms=duration_ms,
         health=health,
     )
