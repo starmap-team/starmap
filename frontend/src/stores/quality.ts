@@ -42,6 +42,8 @@ export interface QualityMetrics {
   hallucination_trend: { date: string; rate: number }[]
   trust_distribution: { range: string; count: number }[]
   audit_queue: { id: number; position: string; skill: string; trust: number; review_status?: 'pending_review' | 'approved' | 'rejected' }[]
+  // Phase 3: 抽取 F1 历史趋势（评估批次演进）
+  evaluation_f1_history?: { evaluated_at: string; precision: number; recall: number; f1_score: number }[]
 }
 
 function defaultMetrics(): QualityMetrics {

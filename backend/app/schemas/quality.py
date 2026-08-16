@@ -56,6 +56,11 @@ class QualityDashboard(BaseModel):
     evaluation_count: int = Field(default=0, ge=0, description="已运行 golden-set 评估记录数")
     baseline_available: bool = Field(default=False, description="是否已有 golden-set 基线")
     evaluation_explanation: str = Field(default="", description="评估状态说明")
+    # Phase 3 (accuracy gate): 抽取 F1 历史趋势（按评估批次），供前端展示指标演进
+    evaluation_f1_history: list[dict] = Field(
+        default_factory=list,
+        description="抽取评估 F1 历史：[{evaluated_at, precision, recall, f1_score}] 按时间升序",
+    )
 
 
 class ResumeEvalResponse(BaseModel):

@@ -298,6 +298,29 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     else:
         evaluation_explanation = ""
 
+    # Phase 3 (accuracy gate): 抽取 F1 历史趋势 — 按评估批次聚合，供前端展示指标演进
+    eval_history_rows = (
+        await session.execute(
+            sa.select(
+                ExtractionEvaluationRecord.evaluated_at,
+                ExtractionEvaluationRecord.precision,
+                ExtractionEvaluationRecord.recall,
+                ExtractionEvaluationRecord.f1_score,
+            )
+            .order_by(ExtractionEvaluationRecord.evaluated_at.asc())
+            .limit(50)
+        )
+    ).all()
+    evaluation_f1_history = [
+        {
+            "evaluated_at": str(row.evaluated_at),
+            "precision": round(float(row.precision or 0.0), 4),
+            "recall": round(float(row.recall or 0.0), 4),
+            "f1_score": round(float(row.f1_score or 0.0), 4),
+        }
+        for row in eval_history_rows
+    ]
+
     return QualityDashboard(
         report=report,
         total_nodes=int(pos_count) + int(skill_count),
@@ -322,6 +345,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         evaluation_count=evaluation_count,
         baseline_available=baseline_available,
         evaluation_explanation=evaluation_explanation,
+        evaluation_f1_history=evaluation_f1_history,
     )
 
 

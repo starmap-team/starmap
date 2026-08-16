@@ -224,6 +224,33 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
         </div>
       </el-card>
 
+      <!-- Phase 3: 抽取 F1 历史趋势（评估批次演进，赛项指标可视化） -->
+      <el-card
+        v-if="quality.metrics && quality.metrics.evaluation_f1_history && quality.metrics.evaluation_f1_history.length > 0"
+        shadow="never"
+        class="mb-4"
+        header="抽取 F1 历史趋势（评估批次演进）"
+      >
+        <div class="f1-trend-bars">
+          <div
+            v-for="(point, idx) in quality.metrics.evaluation_f1_history"
+            :key="idx"
+            class="f1-trend-bar"
+            :title="`${point.evaluated_at}: F1=${(point.f1_score * 100).toFixed(1)}% P=${(point.precision * 100).toFixed(1)}% R=${(point.recall * 100).toFixed(1)}%`"
+          >
+            <div
+              class="f1-trend-fill"
+              :style="{ height: Math.max(4, point.f1_score * 100) + '%' }"
+            />
+            <span class="f1-trend-label">{{ (point.f1_score * 100).toFixed(0) }}</span>
+          </div>
+        </div>
+        <p class="f1-trend-note">
+          每次 golden-set 评估追加一个批次点（JD 解析/简历提取共用 evaluation_records）。
+          配合 CI 门禁 + 每周定时评测，指标劣化可自动发现。
+        </p>
+      </el-card>
+
       <!-- 直方图 + 趋势 -->
       <el-row
         :gutter="16"
@@ -757,6 +784,39 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
 .mb-4 { margin-bottom: var(--space-4); }
 .chart-h-md { height: 330px; }
 .chart-h-sm { height: 310px; }
+
+/* Phase 3: 抽取 F1 历史趋势条 */
+.f1-trend-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 90px;
+  padding: 4px 0;
+}
+.f1-trend-bar {
+  flex: 1;
+  min-width: 14px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+}
+.f1-trend-fill {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, var(--primary, #409eff), rgba(64, 158, 255, 0.45));
+}
+.f1-trend-label {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.f1-trend-note {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin: 6px 0 0;
+}
 
 .custom-empty { display: flex; flex-direction: column; align-items: center; padding: var(--space-8) var(--space-4); text-align: center; }
 .empty-icon-wrapper { color: var(--muted-foreground); opacity: 0.4; margin-bottom: var(--space-3); }
