@@ -75,11 +75,16 @@ async def list_positions(
     if search:
         # Phase 13 一致性审计：search 同时匹配 name、name_cn 与 industry（与前端 placeholder/客户端筛选及 Neo4j 路径一致）
         like = f"%{_escape_like(search)}%"
+        # Fix D (Architect review): industry 搜索排除「未分类」字面量，避免 admin
+        # 输入「未分类」搜出全部岗位。
         count_stmt = count_stmt.where(
             sa.or_(
                 PositionRecord.name.ilike(like, escape="\\"),
                 PositionRecord.name_cn.ilike(like, escape="\\"),
-                PositionRecord.industry.ilike(like, escape="\\"),
+                sa.and_(
+                    PositionRecord.industry.ilike(like, escape="\\"),
+                    PositionRecord.industry != UNCLASSIFIED_INDUSTRY_LITERAL,
+                ),
             )
         )
     # Default visibility policy: only approved is public. Admin can override.
@@ -103,11 +108,15 @@ async def list_positions(
         stmt = stmt.where(PositionRecord.industry.ilike(f"%{_escape_like(industry)}%", escape="\\"))
     if search:
         like = f"%{_escape_like(search)}%"
+        # Fix D: search 排除「未分类」字面量（避免 admin 搜「未分类」命中全部）
         stmt = stmt.where(
             sa.or_(
                 PositionRecord.name.ilike(like, escape="\\"),
                 PositionRecord.name_cn.ilike(like, escape="\\"),
-                PositionRecord.industry.ilike(like, escape="\\"),
+                sa.and_(
+                    PositionRecord.industry.ilike(like, escape="\\"),
+                    PositionRecord.industry != UNCLASSIFIED_INDUSTRY_LITERAL,
+                ),
             )
         )
     if effective_status is not None:
@@ -395,11 +404,16 @@ async def _list_positions_neo4j(
 
             if search:
                 # Phase 13 一致性审计：search 同时匹配 name 与 industry，与 PG 路径及前端契约一致
+                # Fix D (Architect review): industry CONTAINS 排除「未分类」字面量，
+                # 避免 admin 搜「未分类」命中所有岗位。Neo4j 侧 industry=null 时
+                # coalesce('', '') 不命中。
                 where_clauses.append(
                     "(toLower(p.name) CONTAINS toLower($search) OR "
-                    "toLower(coalesce(p.industry, '')) CONTAINS toLower($search))"
+                    "(p.industry IS NOT NULL AND p.industry <> $unclassified_lit AND "
+                    "toLower(p.industry) CONTAINS toLower($search)))"
                 )
                 params["search"] = search
+                params["unclassified_lit"] = UNCLASSIFIED_INDUSTRY_LITERAL
             if industry:
                 where_clauses.append("toLower(p.industry) CONTAINS toLower($industry)")
                 params["industry"] = industry
