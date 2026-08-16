@@ -241,3 +241,80 @@ async def build_emerging_skills(
         }
         for s in signals
     ]
+
+
+async def discover_emerging_positions(
+    session: AsyncSession,
+    threshold: float = 0.5,
+) -> dict[str, Any]:
+    """P1-4 新岗位发现：涌现技能 → 岗位画像交叉 → 候选新兴岗位。
+
+    赛项模块A要求"识别市场上萌芽/兴起的新岗位并生成岗位定义"。现有
+    EmergenceFinder 只做技能级发现（z-score），本函数在其之上做岗位级
+    聚合：对每个岗位，统计其 required 技能中有多少属于涌现/上升技能，
+    占比 ≥ threshold 的岗位标记为"新兴演化候选"，附带岗位定义字段。
+
+    返回:
+        {"status", "candidates": [{position, industry_scenario, emerging_skills,
+           emerging_ratio, definition}], "analyzed_positions"}
+    """
+    from app.models.extraction_models import PositionRecord, PositionSkillRelation
+
+    skill_data = await load_skill_timeseries_data(session)
+    if not skill_data:
+        return {
+            "status": "insufficient_data",
+            "candidates": [],
+            "analyzed_positions": 0,
+            "message": "时序数据不足，请先执行管线以生成技能频率统计",
+        }
+
+    finder = EmergenceFinder()
+    report = finder.scan(skill_data)
+    emerging_names = {s.skill_name for s in report.emerging + report.rising}
+
+    # 岗位 → required 技能名
+    rows = (
+        await session.execute(
+            sa.select(
+                PositionRecord.name,
+                SkillRecord.name.label("skill_name"),
+            )
+            .select_from(PositionSkillRelation)
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .join(SkillRecord, SkillRecord.id == PositionSkillRelation.skill_id)
+            .where(PositionSkillRelation.requirement_type == "required")
+            .where(PositionRecord.review_status == "approved")
+        )
+    ).all()
+    pos_skills: dict[str, set[str]] = {}
+    for name, skill_name in rows:
+        pos_skills.setdefault(name, set()).add(skill_name)
+
+    candidates = []
+    for pos, skills in pos_skills.items():
+        hit = skills & emerging_names
+        if not hit:
+            continue
+        ratio = round(len(hit) / len(skills), 3) if skills else 0.0
+        if ratio >= threshold:
+            candidates.append({
+                "position": pos,
+                "industry_scenario": None,  # 抽取阶段补全（P1-5 字段）
+                "emerging_skills": sorted(hit),
+                "emerging_ratio": ratio,
+                "definition": {
+                    "position_name": pos,
+                    "required_skills": sorted(skills),
+                    "emerging_required": sorted(hit),
+                },
+            })
+
+    candidates.sort(key=lambda c: -c["emerging_ratio"])
+    return {
+        "status": "completed" if candidates else "no_candidates",
+        "candidates": candidates,
+        "analyzed_positions": len(pos_skills),
+        "threshold": threshold,
+        "message": f"扫描 {len(pos_skills)} 个已审核岗位，发现 {len(candidates)} 个新兴演化候选",
+    }
