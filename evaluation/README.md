@@ -16,13 +16,32 @@
 ## 入口
 
 ```bash
-python evaluation/run_baseline.py
-python evaluation/run_resume_baseline.py
+python evaluation/run_baseline.py            # JD 抽取（规则 baseline，F1≈0.93）
+python evaluation/run_resume_baseline.py     # 简历抽取（规则 baseline，F1≈0.78，不达标）
+python evaluation/run_resume_eval.py         # 简历抽取（真实 LLM 管线，赛项 P0-2）
+python evaluation/run_match_baseline.py      # 人岗匹配（真实匹配引擎，赛项 P0-1）
 python evaluation/simulate_llm_eval.py
-python evaluation/run_real_eval.py
+python evaluation/run_real_eval.py           # JD 抽取（真实 LLM）
 ```
 
 真实评估需要有效的 LLM 凭据和可复现的运行元数据。`run_llm_eval.py` 与 `run_real_eval.py` 的语义不同，发布指标前必须说明使用的入口、模型、prompt 版本、数据集 commit 和时间。
+
+## 指标口径（赛项 XH-202621 三个 ≥90% 指标）
+
+| 指标 | runner | 口径 | 判定 |
+|---|---|---|---|
+| JD 解析准确率 | `run_baseline.py`（规则）/ `run_real_eval.py`（LLM） | 对 golden JD 提取技能集合，与标注集合算 **F1**（precision/recall 合并） | F1 ≥ 0.90 |
+| 简历提取准确率 | `run_resume_baseline.py`（规则）/ `run_resume_eval.py`（LLM） | 对 golden 简历提取技能集合，与标注集合算 **F1** | F1 ≥ 0.90 |
+| 人岗匹配准确率 | `run_match_baseline.py` | 逐条调用真实匹配引擎，判定 match_score 是否落在 golden 期望区间 **且** should_match 方向一致 | 区间命中率 ≥ 0.90 |
+
+口径要点：
+
+- **匹配准确率**采用"区间命中 + 方向一致"二元判定（见 `run_match_baseline.py`），
+  不是单一 F1 —— 赛项"匹配准确率≥90%"用可解释的区间校准口径。
+- 规则 baseline 与真实 LLM 结果**必须分开报告**，且发布指标以真实管线
+  （`run_real_eval.py` / `run_resume_eval.py`）为准，规则 baseline 仅作下限参考。
+- 匹配评测暴露的图谱画像问题（岗位 required 技能含跨 JD 噪声，如 Axon/Ktor
+  混入「后端工程师」）属于数据质量项，修复后重跑 `run_match_baseline.py` 即刷新数字。
 
 ## 指标
 
