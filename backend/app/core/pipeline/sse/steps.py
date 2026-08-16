@@ -224,11 +224,19 @@ class RecommendStep:
 
         try:
             recs = await self._recommender.recommend(ctx.extracted_skills, top_k=10)
+            # P4 fix (Phase 24 求职者分析): 推荐岗位的 match_score 复用 MatchStep
+            # 的 ctx.match_results（graph repo，与 top_matches 口径一致）——此前
+            # PositionRecommender 用 get_all_position_profiles（PG repo）独立计算，
+            # 同岗位 graph=0.82 / PG=0.0，导致前端"匹配度"列误显示 0.0%。
+            match_by_position: dict[str, float] = {
+                name: float(res.get("match_score", 0.0))
+                for name, res in ctx.match_results.items()
+            }
             ctx.recommended_positions = [
                 {
                     "position": r.position,
                     "score": r.score,
-                    "match_score": r.match_score,
+                    "match_score": round(match_by_position.get(r.position, r.match_score), 4),
                     "developability": r.developability,
                     "market_demand": r.market_demand,
                     "match_detail": r.match_detail,

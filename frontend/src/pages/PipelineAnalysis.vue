@@ -264,10 +264,19 @@
             label="技能"
           />
           <el-table-column
-            prop="importance"
             label="重要性"
             width="100"
-          />
+          >
+            <template #default="{ row }">
+              <!-- P4 fix: importance 中文化（required=必备 / bonus=加分） -->
+              <el-tag
+                :type="row.importance === 'required' ? 'danger' : 'info'"
+                size="small"
+              >
+                {{ row.importance === 'required' ? '必备' : '加分' }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column
             prop="gap_level"
             label="差距程度"
@@ -288,7 +297,8 @@
             width="100"
           >
             <template #default="{ row }">
-              {{ Math.round(row.score * 100) }}%
+              <!-- P4 fix: score 缺失/未定义时显示 — 而非 NaN%（后端已补字段，双保险） -->
+              {{ typeof row.score === 'number' && Number.isFinite(row.score) ? Math.round(row.score * 100) + '%' : '—' }}
             </template>
           </el-table-column>
         </el-table>
@@ -629,6 +639,11 @@ h4 {
   gap: var(--space-2);
   padding: var(--space-2) 0;
   flex-wrap: wrap;
+  /* P4 fix: 多条路径间留视觉分隔，避免标签平铺误读为一条长路径 */
+  border-bottom: 1px dashed var(--border);
+}
+.learning-path:last-child {
+  border-bottom: none;
 }
 
 .path-step {

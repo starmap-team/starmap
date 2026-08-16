@@ -319,3 +319,43 @@ class TestBuildResultLearningPathNone:
         for path in result["learning_path_summary"]:
             assert path is not None
         assert all(isinstance(p, list) for p in result["learning_path_summary"])
+
+
+class TestBuildResultScoreField:
+    """Phase 24 P4 fix: skill_gap_detail 必须含 score 字段（前端 Math.round(row.score*100) 依赖）。
+
+    缺失时前端显示 "NaN%"。同时验证 learning_path_summary 与 score 并存。
+    """
+
+    def test_skill_gap_detail_includes_score(self):
+        ctx = PipelineContext(
+            extracted_skills=[
+                ExtractedSkill(
+                    name="Python", raw_name="python", category="hard_skill",
+                    proficiency="精通", confidence=0.9, source="llm_extraction",
+                ),
+            ],
+            match_results={
+                "前端工程师": {
+                    "match_score": 0.6,
+                    "overall_assessment": "部分匹配",
+                    "missing_required": ["React"],
+                    "skill_gap_detail": [
+                        {
+                            "skill": "React", "importance": "required",
+                            "gap_level": "完全缺失", "score": 0.1,
+                            "learning_path": [],
+                        },
+                    ],
+                },
+            },
+            recommended_positions=[],
+            data_source="graph",
+        )
+        result = _build_result(ctx)
+        assert len(result["skill_gaps"]) == 1
+        gap = result["skill_gaps"][0]
+        # score 字段必须存在且为数字（前端 NaN% 修复）
+        assert "score" in gap
+        assert isinstance(gap["score"], (int, float))
+        assert gap["score"] == 0.1
