@@ -10,12 +10,18 @@
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from scripts.backfill_position_industry import backfill, collect_candidates, translate_one
+from scripts.backfill_position_industry import (
+    _translate_batch,
+    backfill,
+    collect_candidates,
+    translate_one,
+)
 
 
 class _FakePosition:
@@ -119,6 +125,11 @@ class TestBackfillValidation:
             await backfill(limit=10, progress_every=0, dry_run=True)
 
     @pytest.mark.asyncio
+    async def test_batch_size_must_be_positive(self) -> None:
+        with pytest.raises(ValueError, match="batch_size 必须 >= 1"):
+            await backfill(limit=10, progress_every=20, dry_run=True, batch_size=0)
+
+    @pytest.mark.asyncio
     async def test_empty_candidates_disposes_engine(self) -> None:
         engine = MagicMock()
         engine.dispose = AsyncMock()
@@ -175,3 +186,67 @@ class TestCollectCandidatesSQL:
         assert "LIMIT" in sql_upper
         # 双 WHERE 条件 + AND 连接
         assert sql.count("AND") >= 1
+
+
+class TestTranslateBatch:
+    """批量分类：一次 LLM 调用翻译多岗位为行业（D8j2 批量 20x 提速）。"""
+
+    @pytest.mark.asyncio
+    async def test_returns_industry_map_for_all_valid(self) -> None:
+        llm = MagicMock()
+        payload = json.dumps(
+            {"Backend Engineer": "互联网/IT", "Data Scientist": "人工智能"},
+            ensure_ascii=False,
+        )
+        with patch("scripts.backfill_position_industry.json.loads", return_value=json.loads(payload)):
+            # 直接测 _translate_batch 内部逻辑：mock llm.generate 返回 JSON 串
+            async def fake_generate(*_a, **_kw):
+                return payload
+
+            llm.generate = fake_generate
+            result = await _translate_batch(llm, ["Backend Engineer", "Data Scientist"])
+        assert result == {"Backend Engineer": "互联网/IT", "Data Scientist": "人工智能"}
+
+    @pytest.mark.asyncio
+    async def test_generic_industry_filtered_out(self) -> None:
+        """LLM 返回「通用」等模糊词 → 不进入结果（回填只写真实行业）。"""
+        llm = MagicMock()
+        payload = json.dumps({"Mystery Role": "通用"}, ensure_ascii=False)
+
+        async def fake_generate(*_a, **_kw):
+            return payload
+
+        llm.generate = fake_generate
+        result = await _translate_batch(llm, ["Mystery Role"])
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_empty_industry_filtered_out(self) -> None:
+        """LLM 返回空值/null → 不进入结果。"""
+        llm = MagicMock()
+        payload = json.dumps({"Mystery Role": ""}, ensure_ascii=False)
+
+        async def fake_generate(*_a, **_kw):
+            return payload
+
+        llm.generate = fake_generate
+        result = await _translate_batch(llm, ["Mystery Role"])
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_batch_error_returns_empty(self) -> None:
+        """LLM 调用异常 → 返回 {}（调用方降级逐条）。"""
+        llm = MagicMock()
+
+        async def boom(*_a, **_kw):
+            raise RuntimeError("LLM 502")
+
+        llm.generate = boom
+        result = await _translate_batch(llm, ["Anything"])
+        assert result == {}
+
+    @pytest.mark.asyncio
+    async def test_empty_names_returns_empty(self) -> None:
+        llm = MagicMock()
+        result = await _translate_batch(llm, [])
+        assert result == {}
