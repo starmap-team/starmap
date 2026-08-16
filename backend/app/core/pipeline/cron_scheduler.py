@@ -170,6 +170,10 @@ async def trigger_schedule(
         if schedule.name in ("daily_reconcile", "graph_reconcile"):
             from app.tasks.celery_app import reconcile_graph_task  # type: ignore[attr-defined]
             task = reconcile_graph_task
+        elif schedule.name in ("evolution_weekly", "evolution"):
+            # P2-8: 演化自动调度 —— 每周对既有岗位做能力 diff 演化分析
+            from app.tasks.celery_app import analyze_evolution_trends  # type: ignore[attr-defined]
+            task = analyze_evolution_trends
         else:
             from app.tasks.celery_app import scheduled_pipeline_run as task
 
@@ -291,6 +295,38 @@ async def _run_daily_reconcile(session: AsyncSession) -> None:
         logger.warning("audit event write failed: {}", exc)
 
 
+async def _ensure_evolution_schedule(session: AsyncSession) -> None:
+    """P2-8: 幂等创建每周演化调度（不存在则 seed）。
+
+    赛项模块B要求"既有岗位能力动态更新"持续运行 —— 每周日 03:30 触发
+    analyze_evolution_trends（evolution diff 引擎），让岗位能力变化可追踪。
+    已存在同名调度则跳过（不覆盖用户自定义）。
+    """
+    from sqlalchemy import select
+
+    from app.models.pipeline_models import PipelineSchedule
+
+    existing = (
+        await session.execute(
+            select(PipelineSchedule).where(PipelineSchedule.name == "evolution_weekly")
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return
+    schedule = PipelineSchedule(
+        name="evolution_weekly",
+        cron_expression="30 3 * * 0",  # 每周日 03:30
+        run_type="full",
+        selected_stages=["evolution"],
+        selected_sources=[],
+        enabled=True,
+    )
+    schedule.next_run_at = compute_next_cron(schedule.cron_expression)
+    session.add(schedule)
+    await session.commit()
+    logger.info("Seeded evolution_weekly schedule (next_run_at={})", schedule.next_run_at)
+
+
 async def cron_scanner_once(session: AsyncSession) -> int:
     """Single scan iteration: find and trigger due schedules.
 
@@ -320,6 +356,13 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
     logger.info("Cron scanner loop started (interval={}s)", interval_seconds)
     engine = get_async_engine()
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    # P2-8: 确保每周演化调度存在（幂等 seed，缺则创建）
+    async with session_factory() as session:
+        try:
+            await _ensure_evolution_schedule(session)
+        except Exception:  # noqa: BLE001 — seed 失败不阻断 scanner 启动
+            logger.exception("Ensure evolution schedule failed (non-fatal)")
 
     while True:
         try:

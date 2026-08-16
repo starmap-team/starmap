@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.core.pipeline.cron_scheduler import (
+    _ensure_evolution_schedule,
     compute_next_cron,
     cron_scanner_once,
     scan_due_schedules,
@@ -29,9 +30,13 @@ class FakeScalarsResult:
 class FakeResult:
     def __init__(self, scalars_list=None):
         self._scalars = FakeScalarsResult(scalars_list) if scalars_list is not None else FakeScalarsResult([])
+        self._scalar_one = scalars_list[0] if scalars_list else None
 
     def scalars(self):
         return self._scalars
+
+    def scalar_one_or_none(self):
+        return self._scalar_one
 
 
 class FakeAsyncSession:
@@ -244,3 +249,27 @@ class TestCronScannerOnce:
         with patch("app.core.pipeline.cron_scheduler.trigger_schedule", fake_trigger):
             count = await cron_scanner_once(session)
         assert count == 1
+
+
+class TestEnsureEvolutionSchedule:
+    """P2-8: evolution_weekly 调度幂等 seed。"""
+
+    @pytest.mark.asyncio
+    async def test_seeds_when_missing(self):
+        session = FakeAsyncSession([FakeResult(scalars_list=[])])
+        added = []
+        session.add = lambda s: added.append(s)  # noqa: ARG005
+        with patch("app.core.pipeline.cron_scheduler.compute_next_cron", return_value=datetime.now(UTC)):
+            await _ensure_evolution_schedule(session)
+        evo = [s for s in added if getattr(s, "name", None) == "evolution_weekly"]
+        assert len(evo) == 1
+        assert evo[0].cron_expression == "30 3 * * 0"
+
+    @pytest.mark.asyncio
+    async def test_skips_when_exists(self):
+        existing = _make_schedule(name="evolution_weekly")
+        session = FakeAsyncSession([FakeResult(scalars_list=[existing])])
+        added = []
+        session.add = lambda s: added.append(s)  # noqa: ARG005
+        await _ensure_evolution_schedule(session)
+        assert added == []
