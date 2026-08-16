@@ -59,7 +59,10 @@ class SkillExtractStep:
     """步骤2：技能提取 — LLM 抽取 + 标准化 → ExtractedSkill 列表。"""
 
     name = "skill_extract"
-    timeout = 30
+    # P1 fix (Phase 24 求职者分析): 30s→120s —— LLM 降级链（云端秒级 / 本地
+    # Ollama fallback 40-120s+）下 30s 必超时，导致后续 match/learn/recommend
+    # 级联失败（实测 4 警告全空结果）。对齐 MatchStep.timeout=120。
+    timeout = 120
 
     async def execute(self, ctx: PipelineContext) -> PipelineContext:
         if not ctx.resume_text:

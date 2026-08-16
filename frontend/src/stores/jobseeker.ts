@@ -67,13 +67,22 @@ export interface VerificationCheck {
 }
 
 /** 步骤输出摘要（Phase 3: 逐步可视化核验） */
+export interface StepOutputSample {
+  label?: string
+  value?: unknown
+  /** 后端多样样本结构（name/category/confidence / text_preview / position 等） */
+  name?: string
+  position?: string
+  [key: string]: unknown
+}
+
 export interface StepOutput {
   step: string
   display_name: string
   status: string
   input_summary: Record<string, unknown>
   output_summary: Record<string, unknown>
-  samples: Array<{ label: string; value: unknown }>
+  samples: StepOutputSample[]
   verification: {
     passed: boolean
     checks: VerificationCheck[]
@@ -97,7 +106,10 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
     stepOutputs.value = []
     result.value = null
     error.value = null
-
+    // P3 fix (Phase 24 求职者分析): AbortController 支持组件卸载/超时中止，
+    // 避免请求悬挂时 loading 永远 true。超时 300s 对齐后端 LLM 降级链。
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), 300_000)
     try {
       const formData = new FormData()
       formData.append('resume_file', file)
@@ -116,6 +128,7 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
         method: 'POST',
         body: formData,
         headers,
+        signal: controller.signal,
       })
 
       if (!response.ok) {
@@ -154,13 +167,24 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
                 // result.extracted_skills.length 等，后端若缺任一数组字段即抛
                 // TypeError（页面异常）。统一补齐数组字段默认值。
                 const rawResult = (data ?? {}) as Record<string, unknown>
+                // P0 fix (Phase 24 求职者分析): learning_path_summary 元素可能为
+                // None（后端 gap.learning_path 显式 null）——模板 v-for path.length
+                // 崩溃。统一过滤非数组元素；skill_gaps 同兜底。
+                const rawPaths = Array.isArray(rawResult.learning_path_summary)
+                  ? rawResult.learning_path_summary
+                  : []
+                const rawGaps = Array.isArray(rawResult.skill_gaps) ? rawResult.skill_gaps : []
                 result.value = {
                   ...rawResult,
                   extracted_skills: Array.isArray(rawResult.extracted_skills) ? rawResult.extracted_skills : [],
                   top_matches: Array.isArray(rawResult.top_matches) ? rawResult.top_matches : [],
                   recommended_positions: Array.isArray(rawResult.recommended_positions) ? rawResult.recommended_positions : [],
-                  skill_gaps: Array.isArray(rawResult.skill_gaps) ? rawResult.skill_gaps : [],
-                  learning_path_summary: Array.isArray(rawResult.learning_path_summary) ? rawResult.learning_path_summary : [],
+                  skill_gaps: rawGaps.map((g: Record<string, unknown>) => ({
+                    ...g,
+                    learning_path: Array.isArray(g.learning_path) ? g.learning_path : [],
+                    learning_resources: Array.isArray(g.learning_resources) ? g.learning_resources : [],
+                  })),
+                  learning_path_summary: rawPaths.filter(p => Array.isArray(p)),
                   errors: Array.isArray(rawResult.errors) ? rawResult.errors : [],
                 } as PipelineResult
               } else if (currentEvent === 'step_output') {
@@ -174,8 +198,12 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
         }
       }
     } catch (e: unknown) {
-      error.value = e instanceof Error ? e.message : '分析失败'
+      window.clearTimeout(timeoutId)
+      error.value = e instanceof Error
+        ? (e.name === 'AbortError' ? '分析超时，请重试或更换网络' : e.message)
+        : '分析失败'
     } finally {
+      window.clearTimeout(timeoutId)
       loading.value = false
     }
   }

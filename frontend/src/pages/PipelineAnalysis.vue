@@ -28,7 +28,7 @@
           </div>
           <template #tip>
             <div class="el-upload__tip">
-              支持 PDF / DOCX 格式
+              支持 PDF / DOCX / DOC 格式（≤10MB）
             </div>
           </template>
         </el-upload>
@@ -138,9 +138,9 @@
                   class="sample-block"
                 >
                   <div class="sample-label">
-                    {{ sample.label }}
+                    {{ sample.label ?? sample.name ?? sample.position ?? '样本' }}
                   </div>
-                  <pre class="sample-value">{{ formatSample(sample.value) }}</pre>
+                  <pre class="sample-value">{{ formatSample(sample.value ?? sample) }}</pre>
                 </div>
               </div>
             </el-collapse-item>
@@ -433,6 +433,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { UploadFilled, Checked, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useJobseekerStore } from '@/stores/jobseeker'
@@ -456,6 +457,7 @@ const stepMap: Record<string, number> = {
   match: 2,
   learning_path: 3,
   recommend: 4,
+  complete: 5,  // P1 fix: complete 事件使 el-steps 全部完成（active=5 表示 5/5）
 }
 
 const activeStep = computed(() => {
@@ -467,10 +469,25 @@ function handleFileChange(file: { raw: File }) {
   selectedFile.value = file.raw
 }
 
+/** P3 fix (Phase 24 求职者分析): 前端文件校验 + 防重复点击。 */
 function startAnalysis() {
-  if (selectedFile.value) {
-    store.analyzeResume(selectedFile.value)
+  if (!selectedFile.value) {
+    ElMessage.warning('请先选择简历文件')
+    return
   }
+  if (store.loading) return  // 防重复提交
+  const f = selectedFile.value
+  const okExt = /\.(pdf|docx?)$/i.test(f.name)
+  const okType = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(f.type)
+  if (!okExt && !okType) {
+    ElMessage.error('仅支持 PDF / DOCX / DOC 格式')
+    return
+  }
+  if (f.size > 10 * 1024 * 1024) {
+    ElMessage.error('文件大小不能超过 10MB')
+    return
+  }
+  store.analyzeResume(f)
 }
 
 function viewInGraph() {
@@ -506,7 +523,7 @@ function statusText(status: string) {
   return status
 }
 
-/** Phase 3: 格式化样本数据为可读文本 */
+/** Phase 3: 格式化样本数据为可读文本（兼容后端多样样本结构） */
 function formatSample(value: unknown): string {
   if (typeof value === 'string') return value
   if (Array.isArray(value)) {
@@ -519,7 +536,7 @@ function formatSample(value: unknown): string {
   if (typeof value === 'object' && value !== null) {
     return JSON.stringify(value, null, 2)
   }
-  return String(value)
+  return String(value ?? '')
 }
 </script>
 

@@ -277,3 +277,45 @@ class TestRecommendStep:
         ctx = PipelineContext()
         result = await step.execute(ctx)
         assert "无技能数据" in result.errors[-1]
+
+
+class TestBuildResultLearningPathNone:
+    """Phase 24 P0 fix: gap.learning_path 显式为 None 时不得进入 learning_path_summary。
+
+    复现用户可见崩溃: "Cannot read properties of undefined (reading 'length')"。
+    后端 gap.get("learning_path", []) 在字段显式 None 时返回 None → 前端
+    v-for path.length 崩溃。修复后 None 被 `or []` 过滤为 []。
+    """
+
+    def test_learning_path_none_does_not_crash(self):
+        ctx = PipelineContext(
+            extracted_skills=[
+                ExtractedSkill(
+                    name="Python", raw_name="python", category="hard_skill",
+                    proficiency="精通", confidence=0.9, source="llm_extraction",
+                ),
+            ],
+            match_results={
+                "前端工程师": {
+                    "match_score": 0.6,
+                    "overall_assessment": "部分匹配",
+                    "missing_required": ["React"],
+                    "skill_gap_detail": [
+                        {
+                            "skill": "React", "importance": "required",
+                            "gap_level": "完全缺失", "score": 0.1,
+                            # 模拟后端返回 None（而非缺省）——旧代码此处会漏进 result
+                            "learning_path": None,
+                        },
+                    ],
+                },
+            },
+            recommended_positions=[],
+            data_source="graph",
+        )
+        result = _build_result(ctx)
+        # learning_path_summary 必须不含 None 元素（前端 v-for path.length 崩溃点）
+        assert result["learning_path_summary"] == [[]]
+        for path in result["learning_path_summary"]:
+            assert path is not None
+        assert all(isinstance(p, list) for p in result["learning_path_summary"])
