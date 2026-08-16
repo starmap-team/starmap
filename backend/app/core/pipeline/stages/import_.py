@@ -9,6 +9,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 
 from app.core.pipeline.stages.common import (
@@ -52,6 +53,9 @@ def execute_import(run_id: str) -> dict[str, Any]:
     errors: list[str] = []
     extracted_skills_sample: list[dict[str, Any]] = []
     start = time.monotonic()
+    # 2026-08-16: stage budget (independent of Celery soft_time_limit).
+    from app.config import settings as _settings
+    stage_budget_seconds = max(_settings.pipeline_stage_timeout - 300, 60)
 
     run_async(publish_stage_progress(
         run_id, "import", "running", progress=0.0,
@@ -63,6 +67,11 @@ def execute_import(run_id: str) -> dict[str, Any]:
         from crawler.persistence.database import get_jd_raw_session
         from crawler.persistence.models import JdRaw, JdStatus
 
+        # 2026-08-16 fix: 不在查询时提前标记 extracted —— 原实现 (L85) 在 LLM 抽取
+        # 之前就把 jd.status 改为 extracted 并 commit, 一旦抽取失败/超时, 这些 JD
+        # 既没成功入库也不会被下次 run 重试 (cleaned=0 数据丢失)。
+        # 现改为: 只收集 (id, text, title), 循环内抽取成功后收集 success_ids,
+        # 循环结束后统一把成功的标记为 extracted; 失败的保持 cleaned 可重试。
         with get_jd_raw_session() as s:
             from app.config import settings
 
@@ -72,16 +81,13 @@ def execute_import(run_id: str) -> dict[str, Any]:
                 .limit(settings.pipeline_import_batch_size)
                 .all()
             )
-            jd_texts = []
-            jd_titles = []
-            for jd in clean_jds:
-                if jd.clean_text:
-                    jd_texts.append(jd.clean_text)
-                    jd_titles.append(jd.job_title)
-                    jd.status = JdStatus.extracted
-            s.commit()
+            jd_items = [
+                (jd.id, jd.clean_text, jd.job_title)
+                for jd in clean_jds
+                if jd.clean_text
+            ]
 
-            total = len(jd_texts)
+            total = len(jd_items)
             run_async(publish_stage_progress(
                 run_id, "import", "running", progress=0.1,
                 current_activity=f"待提取: {total} 条 (LLM: 技能识别 + 标准化 + 验证)",
@@ -99,13 +105,30 @@ def execute_import(run_id: str) -> dict[str, Any]:
             sub_step="normalize",
         ))
 
-        for idx, (text, title) in enumerate(zip(jd_texts, jd_titles, strict=False)):
+        success_ids: list[Any] = []
+        for idx, (jd_id, text, title) in enumerate(jd_items):
+            # 2026-08-16: stage budget check — break early when single LLM endpoint hangs
+            elapsed_sec = time.monotonic() - start
+            if elapsed_sec > stage_budget_seconds:
+                msg = f"Stage budget exceeded ({elapsed_sec:.0f}s > {stage_budget_seconds}s); processed {processed}/{total}"
+                logger.warning("import stage {}: {}", run_id, msg)
+                errors.append(msg)
+                run_async(publish_stage_progress(
+                    run_id, "import", "running",
+                    progress=0.15 + 0.8 * (idx / max(total, 1)),
+                    records_processed=processed,
+                    current_activity=f"Stage budget exceeded ({elapsed_sec:.0f}s)",
+                    elapsed_ms=int(elapsed_sec * 1000),
+                    sub_step="persist",
+                ))
+                break
             try:
                 # D-15: persist 子步骤事件 (LLM 抽取完成 = 持久化就绪)
                 # D5 fix: 传 JD 标题作为 position_name 回退（LLM 未返回岗位名时不再落 Unknown Position）
                 result = run_async(run_batch_extract_jd(text, job_title=title))
                 if result.get("status") == "completed":
                     processed += 1
+                    success_ids.append(jd_id)
                     if result.get("data", {}).get("required_skills"):
                         for sk in result["data"]["required_skills"][:3]:
                             extracted_skills_sample.append({
@@ -116,21 +139,42 @@ def execute_import(run_id: str) -> dict[str, Any]:
                 else:
                     errors.append(f"extraction failed: {result.get('error', 'unknown')}")
 
-                if idx > 0 and idx % 3 == 0:
-                    run_async(publish_stage_progress(
-                        run_id, "import", "running",
-                        progress=0.15 + 0.8 * (idx / max(total, 1)),
-                        records_processed=processed,
-                        current_activity=f"LLM 提取 {idx}/{total} 条 - 当前: {title[:30] if title else '...'}",
-                        recent_samples=extracted_skills_sample[-5:],
-                        elapsed_ms=int((time.monotonic() - start) * 1000),
-                        sub_step="persist",  # D-15: persist 期间
-                    ))
+                # 2026-08-16: progress every record, not every 3rd (so UI sees activity)
+                run_async(publish_stage_progress(
+                    run_id, "import", "running",
+                    progress=0.15 + 0.8 * ((idx + 1) / max(total, 1)),
+                    records_processed=processed,
+                    current_activity=f"LLM 提取 {idx + 1}/{total} 条 - 当前: {title[:30] if title else '...'}",
+                    recent_samples=extracted_skills_sample[-5:],
+                    elapsed_ms=int((time.monotonic() - start) * 1000),
+                    sub_step="persist",  # D-15: persist 期间
+                ))
             except PipelineStageError:
                 raise
+            except SoftTimeLimitExceeded:
+                logger.warning("import stage {}: SoftTimeLimitExceeded, breaking", run_id)
+                errors.append("Celery soft_time_limit reached")
+                break
             except Exception as exc:
                 errors.append(f"extraction error: {exc}")
                 logger.opt(exception=True).warning("JD extraction failed in import stage: {}", exc)
+
+        # 2026-08-16 fix: 循环结束后才把抽取成功的 JD 标记为 extracted。
+        # 失败的保持 cleaned, 下次 run 可重试 (原实现提前标记导致失败 JD 数据丢失)。
+        if success_ids:
+            with get_jd_raw_session() as s:
+                from sqlalchemy import update
+
+                s.execute(
+                    update(JdRaw)
+                    .where(JdRaw.id.in_(success_ids))
+                    .values(status=JdStatus.extracted)
+                )
+                s.commit()
+            logger.info(
+                "import stage {}: marked {} JDs as extracted ({} failed/skipped kept cleaned)",
+                run_id, len(success_ids), total - len(success_ids),
+            )
 
         run_async(publish_stage_progress(
             run_id, "import", "completed", progress=1.0,

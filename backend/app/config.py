@@ -289,7 +289,7 @@ class Settings(BaseSettings):
     pipeline_crawl_concurrency: int = 5
     pipeline_retry_max: int = 3
     pipeline_retry_backoff: int = 10  # 秒, 指数递增基数
-    pipeline_import_batch_size: int = 500  # 阶段 import 每次读取已清洗 JD 的批量上限
+    pipeline_import_batch_size: int = 200  # 阶段 import 每次读取已清洗 JD 的批量上限 (2026-08-16: 500 -> 200)
     pipeline_graph_sync_reconcile_on_sync: bool = False  # graph_sync 阶段可选对账开关
 
     # ── 资源探测超时 ──

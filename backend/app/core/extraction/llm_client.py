@@ -16,6 +16,7 @@
 """
 
 import json
+import time
 from typing import Any
 
 import httpx
@@ -88,7 +89,14 @@ async def call_mimo_llm(
     logger.info("Calling MiMo {} at {}", settings.mimo_model, base)
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(
+                connect=10.0,
+                read=actual_timeout,
+                write=actual_timeout,
+                pool=10.0,
+            )
+        ) as client:
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
@@ -164,7 +172,14 @@ async def call_xunfei_llm(
     logger.info("Calling Xunfei Spark {} ({})", model_version, model)
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(
+                connect=10.0,
+                read=actual_timeout,
+                write=actual_timeout,
+                pool=10.0,
+            )
+        ) as client:
             response = await client.post(settings.spark_http_url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
@@ -232,7 +247,14 @@ async def call_spark_x_llm(
     logger.info("Calling Xunfei Spark X ({}) at {}", settings.spark_x_model, url)
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(
+                connect=10.0,
+                read=actual_timeout,
+                write=actual_timeout,
+                pool=10.0,
+            )
+        ) as client:
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
@@ -296,7 +318,14 @@ async def call_deepseek_llm(
     logger.info("Calling DeepSeek ({})", settings.deepseek_model)
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(
+                connect=10.0,
+                read=actual_timeout,
+                write=actual_timeout,
+                pool=10.0,
+            )
+        ) as client:
             response = await client.post(settings.deepseek_http_url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
@@ -357,7 +386,14 @@ async def call_dashscope_llm(
     logger.info("Calling Aliyun Bailian Qwen ({})", settings.dashscope_model)
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(actual_timeout)) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(
+                connect=10.0,
+                read=actual_timeout,
+                write=actual_timeout,
+                pool=10.0,
+            )
+        ) as client:
             # base_url 指向 OpenAI 兼容根(如 .../compatible-mode/v1)，须拼 /chat/completions
             url = settings.dashscope_base_url.rstrip("/") + "/chat/completions"
             response = await client.post(url, json=payload, headers=headers)
@@ -404,9 +440,17 @@ async def call_llm_with_fallback(
         Response dict with 'content' key.
     """
     errors: list[str] = []
+    fallback_budget_seconds = 180.0
+    fallback_start = time.monotonic()
 
     async def _call_and_track(coro_factory):  # type: ignore[no-untyped-def]
         """Run a provider call and record its cost before returning."""
+        elapsed = time.monotonic() - fallback_start
+        if elapsed > fallback_budget_seconds:
+            raise LLMConnectionError(
+                f"Fallback budget exceeded ({elapsed:.0f}s > {fallback_budget_seconds:.0f}s); "
+                f"tried: {'; '.join(errors) if errors else 'no providers'}"
+            )
         resp = await coro_factory(prompt)
         tracker.record(
             model=resp.get("model", "unknown"),
