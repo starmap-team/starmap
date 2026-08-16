@@ -17,7 +17,14 @@ Typical usage::
     prompt = get_prompt("jd_extraction", version="v2", jd_content="...")
 """
 
-import randomimport refrom string import Templatefrom typing import Anyfrom loguru import logger# ──────────────────────────────────────────────
+import random
+import re
+from string import Template
+from typing import Any
+
+from loguru import logger
+
+# ──────────────────────────────────────────────
 # Prompt templates (versioned)
 # ──────────────────────────────────────────────
 
@@ -39,12 +46,13 @@ $jd_content
 5. education_required: 学历要求（如"本科及以上"、"硕士及以上"，无法确定则返回null）
 6. responsibilities: 主要职责列表（如["开发API", "性能优化"]）
 7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"、"医疗健康"，**必须给出最接近的行业归类**；确实无任何线索时可返回"通用"，**不要返回空字符串**——后端会将其映射为"未分类"展示，但有意义的归类可显著提升岗位匹配精度）
-8. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
-9. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习"]，无法确定则返回空列表[]）
-10. tools: 工具/技术平台列表。每项包含name和category（可选值"ide"/"framework"/"platform"/"database"/"devops"/"other"）
-11. prerequisites: 技能前置依赖关系列表。每项包含skill（被依赖技能）和required_by（依赖该技能的技能）
-12. learning_resources: 推荐学习资源列表。每项包含title、type（可选值"book"/"course"/"tutorial"/"docs"/"other"）和for_skill
-13. evolves_to: 该岗位可能演进的目标岗位列表（无法确定则返回空列表[]）
+8. industry_scenario: 典型行业应用场景（1句话，如"大模型训练/推理平台"、"电商实时风控"；无法确定则返回空字符串""）
+9. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
+10. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习"]，无法确定则返回空列表[]）
+11. tools: 工具/技术平台列表。每项包含name和category（可选值"ide"/"framework"/"platform"/"database"/"devops"/"other"）
+12. prerequisites: 技能前置依赖关系列表。每项包含skill（被依赖技能）和required_by（依赖该技能的技能）
+13. learning_resources: 推荐学习资源列表。每项包含title、type（可选值"book"/"course"/"tutorial"/"docs"/"other"）和for_skill
+14. evolves_to: 该岗位可能演进的目标岗位列表（无法确定则返回空列表[]）
 
 ## 分类规则
 - **required_skills**: 出现在"任职要求"、"岗位职责"中，描述为"精通"、"掌握"、"熟练使用"、"熟悉"的技能
@@ -93,9 +101,10 @@ $jd_content
 5. education_required: 学历要求（如"本科及以上"、"硕士及以上"，无法确定则返回null）
 6. responsibilities: 主要职责列表（如["开发API", "性能优化"]）
 7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"、"医疗健康"，**必须给出最接近的行业归类**；确实无任何线索时可返回"通用"，**不要返回空字符串**——后端会将其映射为"未分类"展示，但有意义的归类可显著提升岗位匹配精度）
-8. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
-9. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习", "网络安全"]，无法确定则返回空列表[]）
-10. tools: 工具/技术平台列表。每项包含：
+8. industry_scenario: 典型行业应用场景（1句话，如"大模型训练/推理平台"、"电商实时风控"；无法确定则返回空字符串""）
+9. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
+10. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习", "网络安全"]，无法确定则返回空列表[]）
+11. tools: 工具/技术平台列表。每项包含：
     - name: 工具名称（如"Docker"、"Jenkins"、"VS Code"）
     - category: 工具类别，可选值"ide"、"framework"、"platform"、"database"、"devops"、"analytics"、"other"
 11. prerequisites: 技能前置依赖关系列表。每项包含：
@@ -160,13 +169,14 @@ $jd_content
     4. experience_required: 所需经验年限（数字，无法确定则返回null）
     5. education_required: 学历要求（如"本科及以上"）
     6. responsibilities: 主要职责列表
-    7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"，**必须给出最接近的行业归类**；确实无任何线索时可返回"通用"，**不要返回空字符串**——后端会将其映射为"未分类"展示，但有意义的归类可显著提升岗位匹配精度）
-    8. description: 岗位职责概述（1-2句话概括）
-    9. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习"]，无法确定则返回空列表[]）
-    10. tools: 工具/技术平台列表。每项包含name和category（可选值"ide"/"framework"/"platform"/"database"/"devops"/"other"）
-    11. prerequisites: 技能前置依赖关系列表。每项包含skill（被依赖技能）和required_by（依赖该技能的技能）
-    12. learning_resources: 推荐学习资源列表。每项包含title、type（可选值"book"/"course"/"tutorial"/"docs"/"other"）和for_skill
-    13. evolves_to: 该岗位可能演进的目标岗位列表（无法确定则返回空列表[]）
+8. industry_scenario: 典型行业应用场景（1句话，如"大模型训练/推理平台"、"电商实时风控"；无法确定则返回空字符串""）
+    8. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"，**必须给出最接近的行业归类**；确实无任何线索时可返回"通用"，**不要返回空字符串**——后端会将其映射为"未分类"展示，但有意义的归类可显著提升岗位匹配精度）
+    9. description: 岗位职责概述（1-2句话概括）
+    10. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习"]，无法确定则返回空列表[]）
+    11. tools: 工具/技术平台列表。每项包含name和category（可选值"ide"/"framework"/"platform"/"database"/"devops"/"other"）
+    12. prerequisites: 技能前置依赖关系列表。每项包含skill（被依赖技能）和required_by（依赖该技能的技能）
+    13. learning_resources: 推荐学习资源列表。每项包含title、type（可选值"book"/"course"/"tutorial"/"docs"/"other"）和for_skill
+    14. evolves_to: 该岗位可能演进的目标岗位列表（无法确定则返回空列表[]）
 
     ## 示例输出
     {
@@ -210,14 +220,15 @@ $jd_content
     3. preferred_skills: 加分/优先技能列表（格式同上）
     4. experience_required: 所需经验年限（数字，无法确定则返回null）
     5. education_required: 学历要求（如"本科及以上"）
-    6. responsibilities: 主要职责列表
-    7. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"，**必须给出最接近的行业归类**；确实无任何线索时可返回"通用"，**不要返回空字符串**——后端会将其映射为"未分类"展示，但有意义的归类可显著提升岗位匹配精度）
-    8. description: 岗位职责概述（1-2句话概括）
-    9. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习"]，无法确定则返回空列表[]）
-    10. tools: 工具/技术平台列表。每项包含name和category（可选值"ide"/"framework"/"platform"/"database"/"devops"/"other"）
-    11. prerequisites: 技能前置依赖关系列表。每项包含skill（被依赖技能）和required_by（依赖该技能的技能）
-    12. learning_resources: 推荐学习资源列表。每项包含title、type（可选值"book"/"course"/"tutorial"/"docs"/"other"）和for_skill
-    13. evolves_to: 该岗位可能演进的目标岗位列表（无法确定则返回空列表[]）
+8. industry_scenario: 典型行业应用场景（1句话，如"大模型训练/推理平台"、"电商实时风控"；无法确定则返回空字符串""）
+    7. responsibilities: 主要职责列表
+    8. industry: 所属行业（如"互联网/IT"、"金融科技"、"智能制造"，**必须给出最接近的行业归类**；确实无任何线索时可返回"通用"，**不要返回空字符串**——后端会将其映射为"未分类"展示，但有意义的归类可显著提升岗位匹配精度）
+    9. description: 岗位职责概述（1-2句话概括）
+    10. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习"]，无法确定则返回空列表[]）
+    11. tools: 工具/技术平台列表。每项包含name和category（可选值"ide"/"framework"/"platform"/"database"/"devops"/"other"）
+    12. prerequisites: 技能前置依赖关系列表。每项包含skill（被依赖技能）和required_by（依赖该技能的技能）
+    13. learning_resources: 推荐学习资源列表。每项包含title、type（可选值"book"/"course"/"tutorial"/"docs"/"other"）和for_skill
+    14. evolves_to: 该岗位可能演进的目标岗位列表（无法确定则返回空列表[]）
 
     ## 分类规则
     - **required_skills**: "任职要求""岗位职责"中出现，配合"精通""掌握""熟练""熟悉""了解"的技能

@@ -125,6 +125,10 @@ class JDExtractionResult(BaseModel):
     education_required: str | None = Field(default=None, description="Minimum education requirement")
     responsibilities: list[str] = Field(default_factory=list, description="Job responsibilities")
     industry: str | None = Field(default=None, description="Industry sector")
+    industry_scenario: str | None = Field(
+        default=None,
+        description="典型行业应用场景（如'大模型训练/推理平台'、'电商实时风控'），赛项模块A岗位定义必含字段",
+    )
     description: str | None = Field(default=None, description="Brief position description")
     knowledge_areas: list[str] = Field(default_factory=list, description="Knowledge domains/areas")
     tools: list[ToolEntry] = Field(default_factory=list, description="Tools and technologies used")
@@ -261,7 +265,7 @@ class JDExtractionPipeline:
             validated = JDExtractionResult()
             # BL-02: Complete fallback for ALL fields, not just a subset
             for key in ("position_name", "experience_required", "education_required",
-                        "industry", "description"):
+                        "industry", "industry_scenario", "description"):
                 if key in parsed:
                     setattr(validated, key, parsed.get(key, ""))
             for key in ("required_skills", "preferred_skills"):

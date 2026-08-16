@@ -166,3 +166,23 @@ async def test_empty_industry_filled_with_zh_translation():
         assert result["success"] is True
         # 英文 JD industry 为空 → industry_zh 填充 "金融科技"
         assert result["data"]["industry"] == "金融科技"
+
+
+@pytest.mark.asyncio
+async def test_industry_scenario_passthrough():
+    """P1-5: industry_scenario 字段从 LLM 结果透传到抽取结果（赛项模块A岗位定义字段）。"""
+    en_jd_scenario = {
+        **EN_JD,
+        "industry_scenario": "大模型训练/推理平台",
+    }
+    with patch("app.core.extraction.llm_client.LLMClient.generate",
+               new_callable=AsyncMock,
+               return_value='{"name_cn": "高级后端工程师", "industry_zh": "互联网/IT"}'):
+        stack = _patch_pipeline(extract=en_jd_scenario)
+        try:
+            result = await extract_from_jd("Senior Backend Engineer JD")
+        finally:
+            for p in stack:
+                p.stop()
+        assert result["success"] is True
+        assert result["data"]["industry_scenario"] == "大模型训练/推理平台"

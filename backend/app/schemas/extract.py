@@ -107,6 +107,12 @@ class ExtractionResult(BaseModel):
         default_factory=list,
         description="岗位职责列表",
     )
+    industry_scenario: str | None = Field(
+        default=None,
+        max_length=100,
+        description="典型行业应用场景（如'大模型训练/推理平台'、'电商实时风控'）——赛项模块A岗位定义必含字段",
+        examples=["大模型训练/推理平台", "电商实时风控"],
+    )
     confidence: float = Field(
         default=0.0,
         ge=0.0,
