@@ -12,6 +12,7 @@ from loguru import logger
 from neo4j.exceptions import Neo4jError
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.extraction.industry import is_unclassified
 from app.exceptions import GraphProjectionError
 
 
@@ -112,7 +113,6 @@ async def sync_from_pipeline(
                 try:
                     # Architect review (PRD US-003 B): DB「未分类」字面量同步到 Neo4j
                     # 会污染 _classify_industry 聚类 —— 归一化为 null，不写「未分类」节点属性。
-                    from app.core.extraction.industry import is_unclassified
                     raw_industry = pos.get("industry", "")
                     industry_value = None if is_unclassified(raw_industry) else raw_industry
                     await session.run(

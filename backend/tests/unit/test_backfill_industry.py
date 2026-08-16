@@ -54,16 +54,6 @@ class _FakeSession:
 
 class TestCollectCandidatesFilter:
     @pytest.mark.asyncio
-    async def test_filters_null_or_empty_industry_and_approved_only(self) -> None:
-        rows = [
-            _FakePosition("p1", "Backend Engineer", None, "approved"),
-            _FakePosition("p2", "Data Scientist", "", "approved"),
-            _FakePosition("p3", "Frontend Dev", "互联网/IT", "approved"),
-            _FakePosition("p4", "Intern", None, "pending_review"),
-        ]
-        assert len(rows) == 4  # sanity — 实际过滤由 collect_candidates SQL 完成
-
-    @pytest.mark.asyncio
     async def test_dry_run_does_not_commit(self) -> None:
         fake_session = _FakeSession([])
         sm = MagicMock()
