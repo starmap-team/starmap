@@ -110,6 +110,19 @@ export interface CiiHistoryEntry {
   inflated_skills: number
 }
 
+// P1-4: 岗位级新岗位发现候选（POST /positions/discover → emerging_positions）
+export interface EmergingPositionCandidate {
+  position: string
+  industry_scenario: string | null
+  emerging_skills: string[]
+  emerging_ratio: number
+  definition: {
+    position_name: string
+    required_skills: string[]
+    emerging_required: string[]
+  }
+}
+
 export const useEvolutionStore = defineStore('evolution', () => {
   const loading = ref(false)
   const trendItems = ref<TrendItem[]>([])
@@ -292,6 +305,25 @@ export const useEvolutionStore = defineStore('evolution', () => {
     ])
   }
 
+  // P1-4: 岗位级新岗位发现 —— 涌现技能反查岗位画像 → 新兴演化候选
+  const emergingPositions = ref<EmergingPositionCandidate[]>([])
+  const positionsLoading = ref(false)
+  async function fetchEmergingPositions() {
+    positionsLoading.value = true
+    try {
+      const data = await request.post<{ emerging_positions?: EmergingPositionCandidate[] }>(
+        '/positions/discover',
+      ) as { emerging_positions?: EmergingPositionCandidate[] }
+      emergingPositions.value = data.emerging_positions ?? []
+    } catch (e: unknown) {
+      if (import.meta.env.DEV) console.error('[Evolution] Failed to fetch emerging positions:', e)
+      emergingPositions.value = []
+    } finally {
+      positionsLoading.value = false
+    }
+    return emergingPositions.value
+  }
+
   return {
     loading,
     trendItems,
@@ -308,6 +340,8 @@ export const useEvolutionStore = defineStore('evolution', () => {
     ciiHistory,
     ciiHistoryLoading,
     ciiHistoryPosition,
+    emergingPositions,
+    positionsLoading,
     fetchTrends,
     fetchKpi,
     analyze,
@@ -316,6 +350,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     fetchEmergingAlerts,
     fetchReviewQueue,
     fetchCiiHistory,
+    fetchEmergingPositions,
     refreshAll,
   }
 })

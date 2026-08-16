@@ -171,6 +171,7 @@ onMounted(() => {
   void fetchSnapshots()
   void evo.fetchEmergingAlerts()  // LOOP-06: fetch alerts on mount
   void evo.fetchKpi()  // 10-03 (D-11): KPI 行数据
+  void evo.fetchEmergingPositions()  // P1-4: 岗位级新岗位发现候选
 })
 </script>
 
@@ -585,6 +586,88 @@ onMounted(() => {
         </el-table>
       </el-card>
 
+      <!-- P1-4: 岗位级新岗位发现候选（涌现技能 → 岗位画像交叉） -->
+      <el-card
+        v-if="evo.emergingPositions.length > 0"
+        v-loading="evo.positionsLoading"
+        class="emerging-positions-card"
+      >
+        <template #header>
+          <div class="card-header">
+            <span>新兴岗位候选（新岗位发现）</span>
+            <el-tag type="warning">
+              {{ evo.emergingPositions.length }}
+            </el-tag>
+          </div>
+        </template>
+        <p class="alerts-note">
+          基于涌现技能 Z-score 检测结果，反查岗位技能画像中涌现技能占比 ≥50% 的岗位 —— 可能是新兴岗位或正在演化的岗位（赛项模块A：新岗位发现与定义）。
+        </p>
+        <el-table
+          :data="evo.emergingPositions"
+          size="small"
+          stripe
+        >
+          <el-table-column
+            prop="position"
+            label="候选岗位"
+            min-width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="涌现技能占比"
+            width="120"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.emerging_ratio >= 0.8 ? 'danger' : 'warning'"
+                size="small"
+              >
+                {{ Math.round(row.emerging_ratio * 100) }}%
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="涌现技能"
+            min-width="220"
+          >
+            <template #default="{ row }">
+              <el-tag
+                v-for="s in row.emerging_skills"
+                :key="s"
+                size="small"
+                effect="plain"
+                class="pos-skill-tag"
+              >
+                {{ s }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="岗位定义（必备技能）"
+            min-width="200"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ (row.definition?.required_skills ?? []).join('、') }}
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
+      <el-card
+        v-else-if="!evo.positionsLoading"
+        class="emerging-positions-card empty-state-card"
+      >
+        <template #header>
+          <div class="card-header">
+            <span>新兴岗位候选（新岗位发现）</span>
+          </div>
+        </template>
+        <p class="alerts-note">
+          当前无候选：时序数据不足或所有已审核岗位的涌现技能占比 < 50%。先运行流水线积累时序数据后刷新。
+        </p>
+      </el-card>
+
       <!-- 曲线图 -->
       <el-card
         v-loading="loading"
@@ -986,6 +1069,20 @@ onMounted(() => {
   font-size: 12px;
   color: var(--muted-foreground);
   margin: 0 0 8px;
+}
+
+/* P1-4: 新兴岗位候选卡 */
+.emerging-positions-card {
+  margin-top: 16px;
+}
+
+.pos-skill-tag {
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.empty-state-card .alerts-note {
+  margin-bottom: 0;
 }
 
 /* E1: 快照详情块 */
