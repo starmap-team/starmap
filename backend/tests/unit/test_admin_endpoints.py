@@ -907,6 +907,11 @@ class TestAdminAuthGuards:
         expired_token = jwt.encode(payload, settings.secret_key, algorithm="HS256")
         with patch("app.services.auth_service.settings") as mock_settings:
             mock_settings.secret_key = settings.secret_key
+            # Phase 20 D-02 keyring: decode_token 按 kid 查 JWT_SECRET_KEYRING，
+            # jwt_kid 必须是真实字符串（MagicMock 作 dict key 会抛 Unknown kid），
+            # jwt_secret_keyring 必须置 None（MagicMock truthy 会走 explicit 分支）
+            mock_settings.jwt_kid = settings.jwt_kid
+            mock_settings.jwt_secret_keyring = None
             mock_settings.jwt_leeway_seconds = 0
             mock_settings.jwt_audience = None
             mock_settings.jwt_issuer = None
@@ -920,6 +925,8 @@ class TestAdminAuthGuards:
         fake_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0Iiwicm9sZSI6ImFkbWluIn0.invalidsig"
         with patch("app.services.auth_service.settings") as mock_settings:
             mock_settings.secret_key = "test-secret-key"
+            mock_settings.jwt_kid = "test-kid"
+            mock_settings.jwt_secret_keyring = None
             mock_settings.jwt_leeway_seconds = 0
             mock_settings.jwt_audience = None
             mock_settings.jwt_issuer = None
