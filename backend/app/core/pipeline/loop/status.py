@@ -156,7 +156,11 @@ async def get_loop_history(
             logger.exception("Failed to read loop history from pipeline_runs, falling back to in-memory: {}", exc)
 
     # Fallback: in-memory
+    # SEC-04 QA-FIX (F#11): 与 DB 主路径同口径 — 非 admin 仅能看到自己的运行，
+    # system 归属的历史数据对普通用户隐藏。
     in_memory: list[LoopResult] = list(_LOOP_RESULTS.values())
+    if not is_admin:
+        in_memory = [r for r in in_memory if getattr(r, "user_id", "system") == user_id]
     in_memory.sort(key=lambda r: r.total_duration_seconds, reverse=False)
     return [r.to_dict() for r in in_memory[-limit:]][::-1]
 

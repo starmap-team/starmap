@@ -105,6 +105,10 @@ class DataSourceResponse(BaseModel):
     duplicate_rate: float = 0.0
     avg_quality_score: float = 0.0
     config: dict[str, Any] = Field(default_factory=dict)
+    # P0-3/D1 (2026-08-15): 与 schemas/datasource.DataSourceResponse 对齐 ——
+    # 爬虫适配器能力由后端注册表判定，pipeline 页"可用源"依赖此字段。
+    has_adapter: bool = False
+    adapter_platform: str | None = None
 
 
 class StageStatusResponse(BaseModel):

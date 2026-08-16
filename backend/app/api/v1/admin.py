@@ -11,40 +11,23 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.schemas.admin import (
-    AuditQueueResponse,
-    AuditUpdateRequest,
-    BatchAuditRequest,
     NameCnUpdateRequest,
     PipelineStatusResponse,
     PipelineTriggerResponse,
     ReconcileResult,
     ReviewActionRequest,
     ReviewListResponse,
+    SeedResetResponse,
 )
 from app.services import review_service
 from app.services.admin_audit_service import (
     AdminStatsResponse,
-    AuditItem,
     AuditItemNotFound,
     build_admin_stats,
-    get_review_queue,
-)
-from app.services.admin_audit_service import (
-    approve_audit as svc_approve_audit,
-)
-from app.services.admin_audit_service import (
-    batch_audit as svc_batch_audit,
-)
-from app.services.admin_audit_service import (
-    reject_audit as svc_reject_audit,
-)
-from app.services.admin_audit_service import (
-    update_review_queue_item as svc_update_review_queue_item,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -79,12 +62,15 @@ async def reconcile_neo4j_endpoint(
     """Phase 5 Step 3: 手动触发 PG → Neo4j 同步 + 孤儿节点剪枝。
 
     由 admin 手动调用，或由 cron job 定期调用。
+
+    Phase 23 Task 3 (IC-05): 增加 REQUIRES 边计数对账——Neo4j 全边 vs PG approved
+    岗位 PSR，健康三档扩展纳入 ±0.5% 容差；边层补缺只 MERGE 不删（多余边记 drift）。
     """
     import time
 
     from sqlalchemy import func, select, text
 
-    from app.models.extraction_models import PositionRecord, SkillRecord
+    from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
     from app.services.graph_projector import GraphProjector
 
     start = time.time()
@@ -92,20 +78,41 @@ async def reconcile_neo4j_endpoint(
     result = await projector.reconcile_all(session)
     duration_ms = int((time.time() - start) * 1000)
 
-    # 验证对齐
+    # 验证对齐（节点 + REQUIRES 边）
     async with driver.session() as s:
         r1 = await s.run("MATCH (p:Position) RETURN count(p) AS c")
         neo4j_pos = int((await r1.single())["c"])
         r2 = await s.run("MATCH (s:Skill) RETURN count(s) AS c")
         neo4j_skl = int((await r2.single())["c"])
+        r3 = await s.run("MATCH (:Position)-[r:REQUIRES]->(:Skill) RETURN count(r) AS c")
+        neo4j_requires = int((await r3.single())["c"])
 
-    pg_pos = (await session.execute(select(func.count(PositionRecord.id)))).scalar() or 0
+    pg_pos = (
+        await session.execute(
+            select(func.count(PositionRecord.id)).where(
+                PositionRecord.review_status == "approved"
+            )
+        )
+    ).scalar() or 0
     pg_skl = (await session.execute(select(func.count(SkillRecord.id)))).scalar() or 0
+    # IC-05: PG 侧只统计 approved 岗位的 PSR（Neo4j 只投影 approved）
+    pg_requires = (
+        await session.execute(
+            select(func.count(PositionSkillRelation.id))
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .where(PositionRecord.review_status == "approved")
+        )
+    ).scalar() or 0
+    requires_diff = abs(int(neo4j_requires) - int(pg_requires))
 
-    # 健康度
-    if neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0:
+    # 健康度（Phase 23 Task 3 扩展：边 ±0.5% 容差纳入三档）
+    edge_tolerance = max(1, int(pg_requires * 0.005))
+    nodes_equal = neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0
+    if nodes_equal and requires_diff <= edge_tolerance:
         health = "ok"
-    elif abs(neo4j_pos - pg_pos) <= 1 and abs(neo4j_skl - pg_skl) <= 1:
+    elif requires_diff > edge_tolerance or (
+        abs(neo4j_pos - pg_pos) <= 1 and abs(neo4j_skl - pg_skl) <= 1
+    ):
         health = "warn"
     else:
         health = "critical"
@@ -127,7 +134,12 @@ async def reconcile_neo4j_endpoint(
                 "event": "graph_reconcile",
                 "actor": "admin",
                 "action": "manual_reconcile",
-                "detail": f"health={health},upserted={result.nodes_upserted},orphans={result.orphans_pruned}",
+                "detail": (
+                    f"health={health},upserted={result.nodes_upserted},"
+                    f"skills={result.skills_upserted},orphans={result.orphans_pruned},"
+                    f"requires_neo4j={neo4j_requires},requires_pg={pg_requires},"
+                    f"requires_diff={requires_diff}"
+                ),
                 "now": _dt.now(UTC),
                 # BUG-18 fix: tag reconcile events with their scope so
                 # admin audit log can filter by entity (graph).
@@ -140,103 +152,28 @@ async def reconcile_neo4j_endpoint(
         logger.warning("Failed to write reconcile audit: {}", audit_exc)
 
     logger.info(
-        "Reconcile complete: health={}, positions_neo4j={} vs pg={}, skills_neo4j={} vs pg={}, orphans={}, duration={}ms",
-        health, neo4j_pos, pg_pos, neo4j_skl, pg_skl, result.orphans_pruned, duration_ms,
+        "Reconcile complete: health={}, positions_neo4j={} vs pg={}, skills_neo4j={} vs pg={}, "
+        "requires_neo4j={} vs pg={} (diff={}), orphans={}, duration={}ms",
+        health, neo4j_pos, pg_pos, neo4j_skl, pg_skl,
+        neo4j_requires, pg_requires, requires_diff, result.orphans_pruned, duration_ms,
     )
 
     return ReconcileResult(
         positions_synced=result.nodes_upserted,
-        skills_synced=result.nodes_upserted,
+        skills_synced=result.skills_upserted,
         orphans_pruned=result.orphans_pruned,
         positions_in_neo4j=neo4j_pos,
         skills_in_neo4j=neo4j_skl,
         positions_in_pg=pg_pos,
         skills_in_pg=pg_skl,
+        requires_in_neo4j=neo4j_requires,
+        requires_in_pg=pg_requires,
+        requires_diff=requires_diff,
         duration_ms=duration_ms,
         health=health,
     )
 
 
-@router.get("/review-queue", response_model=AuditQueueResponse, deprecated=True)
-@router.get("/audit-queue", response_model=AuditQueueResponse, include_in_schema=False)
-async def get_review_queue_endpoint(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> AuditQueueResponse:
-    """Return pending review items from DB; returns empty list when table is empty.
-
-    DEPRECATED (D8h): 旧 ReviewQueue 审核路径已废弃 —— review_queue 表 0 行且无
-    写入方（历史遗留，绕过 Phase 23 review_status 状态机直接 approved）。
-    前端已改用 /admin/review-items（新状态机 + 审核即入图）。仅保留兼容旧客户端。
-    """
-    try:
-        items = await get_review_queue(session)
-        return AuditQueueResponse(items=items)
-    except SQLAlchemyError as exc:
-        logger.error("Database error in get_review_queue: {}", exc)
-        raise HTTPException(status_code=500, detail="Database query failed") from exc
-
-
-@router.post("/audit/{item_id}/approve", response_model=AuditItem)
-async def approve_audit_endpoint(
-    item_id: int,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
-    user: Annotated[dict[str, Any], Depends(require_admin)],
-) -> AuditItem:
-    """Approve a review queue item and sync to Neo4j (LOOP-07)."""
-    try:
-        actor = user.get("sub") or user.get("username") or "admin"
-        return await svc_approve_audit(
-            item_id, session, neo4j_driver=neo4j_driver, actor=f"admin:{actor}",
-        )
-    except AuditItemNotFound as exc:
-        raise _map_not_found(exc) from exc
-
-
-@router.post("/audit/{item_id}/reject", response_model=AuditItem)
-async def reject_audit_endpoint(
-    item_id: int,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
-) -> AuditItem:
-    """Reject a review queue item and sync to Neo4j (LOOP-07)."""
-    try:
-        return await svc_reject_audit(item_id, session, neo4j_driver=neo4j_driver)
-    except AuditItemNotFound as exc:
-        raise _map_not_found(exc) from exc
-
-
-@router.put("/review-queue/{item_id}", response_model=AuditItem)
-@router.patch("/review-queue/{item_id}", response_model=AuditItem, include_in_schema=False)
-async def update_review_queue_item_endpoint(
-    item_id: int,
-    body: AuditUpdateRequest,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> AuditItem:
-    """Update name and/or trust of a review queue item (ADMIN-02 save loop)."""
-    try:
-        return await svc_update_review_queue_item(
-            item_id, name=body.name, trust=body.trust, session=session,
-        )
-    except AuditItemNotFound as exc:
-        raise _map_not_found(exc) from exc
-
-
-@router.post("/audit/batch", response_model=list[AuditItem])
-async def batch_audit_endpoint(
-    body: BatchAuditRequest,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[dict[str, Any], Depends(require_admin)],
-) -> list[AuditItem]:
-    """Batch approve or reject multiple review queue items."""
-    try:
-        actor = user.get("sub") or user.get("username") or "admin"
-        return await svc_batch_audit(body.item_ids, body.action, session, actor=f"admin:{actor}")
-    except AuditItemNotFound as exc:
-        raise _map_not_found(exc) from exc
-
-
-# ══════════════════════════════════════════════════════════════
 # Review workflow endpoints (Phase 23 — D-tier redesign)
 # ══════════════════════════════════════════════════════════════
 
@@ -337,9 +274,6 @@ async def approve_review_item_endpoint(
                 await sync_approved_position_to_graph(position_name)
             except Exception as exc:  # noqa: BLE001 — 入图失败不阻断审核响应
                 logger.warning("approve-then-graph failed for {!r}: {}", position_name, exc)
-    # P1-14 fix (functional-review 2026-08-13): 技能审核通过此前只改 PG 状态，
-    # 不写 Neo4j Skill.trust_score → avg_skill_trust（数据大屏信任评分）滞后。
-    # 复用 _sync_neo4j_on_audit（MERGE canonical_id + trust_score=1.0）。
     elif entity_type == "skill" and item_dict.get("review_status") == "approved":
         skill_name = item_dict.get("name", "")
         if skill_name:
@@ -382,8 +316,6 @@ async def reject_review_item_endpoint(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except review_service.MissingRejectionReason as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    # P1-14 fix (functional-review 2026-08-13): 技能驳回同样同步 Neo4j
-    # （trust_score=0.0），保持图/PG 审核态一致。
     item_dict = item.to_dict()
     if entity_type == "skill":
         skill_name = item_dict.get("name", "")
@@ -563,3 +495,15 @@ from app.api.v1.admin_prompts import router as prompts_router  # noqa: E402
 
 router.include_router(prompts_router, prefix="")
 router.include_router(graph_nodes_router, prefix="")
+
+
+@router.post("/seed/reset", response_model=SeedResetResponse)
+async def reset_demo_seed() -> SeedResetResponse:
+    """演示数据一键重置（设计文档 §2.3.3.2 管理角色刚需）。
+
+    以 subprocess 顺序执行 scripts/seed_*.py；生产环境（APP_ENV=production）
+    返回 refused=True，不做任何写入。
+    """
+    from app.services.admin_seed_service import run_demo_seed
+
+    return await run_demo_seed()

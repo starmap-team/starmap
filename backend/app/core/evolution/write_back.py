@@ -100,7 +100,12 @@ async def write_back_changelog_row(
     try:
         if row.change_type not in WRITEBACK_CHANGE_TYPES:
             return None
-        if float(row.trust_score or 0.0) < WRITEBACK_TRUST_THRESHOLD:
+        # Phase 23 Task 5 (DF-04/DF-05): 审核态感知闸门——`status='approved'`（含
+        # trust>=LOW_TRUST_THRESHOLD 自动 approved 与管理员手动 approved）直接放行；
+        # 未审核 pending 行仍受 WRITEBACK_TRUST_THRESHOLD(0.6) 保守保护。
+        # 修复「单源新技能手动审核即写回」闭环断裂（D8f）：此前闸门只看 trust，
+        # 单源 added_required≈0.418 / added_preferred≈0.348 永远 <0.6 被静默拦截。
+        if row.status != "approved" and float(row.trust_score or 0.0) < WRITEBACK_TRUST_THRESHOLD:
             return None
 
         position_id = await _resolve_position_id(session, row.position_name)

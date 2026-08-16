@@ -9,7 +9,43 @@
 
 from __future__ import annotations
 
-from app.core.matching.constants import PROFICIENCY_SCORE  # noqa: F401  (re-export)
+from enum import StrEnum
+from typing import Any
+
+
+def __getattr__(name: str) -> Any:
+    """Lazy re-export of ``PROFICIENCY_SCORE`` / ``PROFICIENCY_LEVELS``（兼容旧引用）。
+
+    原为顶层 ``from app.core.matching.constants import PROFICIENCY_SCORE`` 并据此
+    计算 ``PROFICIENCY_LEVELS``。该 import 会触发 ``app.core.matching.__init__``
+    → ``scorer`` → 反向 import ``app.core.constants``，形成循环依赖（schemas/
+    datasource 等早期模块直接 import 本模块时必炸）。改为惰性解析：``from
+    app.core.constants import PROFICIENCY_SCORE`` 仍可用，但不再在模块加载期拉入
+    matching 包。
+    """
+    if name in ("PROFICIENCY_SCORE", "PROFICIENCY_LEVELS"):
+        from app.core.matching.constants import PROFICIENCY_SCORE  # noqa: PLC0415
+
+        if name == "PROFICIENCY_SCORE":
+            return PROFICIENCY_SCORE
+        return tuple(PROFICIENCY_SCORE.keys())
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+# ── 数据源运行状态（IC-01/DC-04 共享枚举）──
+# 唯一事实源：模型默认值 / schema Literal / 前端类型共用。软删除（DELETE）产出的
+# 'inactive' 必须在此收敛，否则文档与校验双重错位（RESEARCH §2.8）。
+class DataSourceStatus(StrEnum):
+    """数据源运行状态（'active' | 'paused' | 'error' | 'inactive'）。
+
+    注：新数据源不能直接创建为 'inactive'（create schema 保持不含），
+    停用只能经 DELETE 软删除或 PATCH status='inactive' 达成。
+    """
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    ERROR = "error"
+    INACTIVE = "inactive"
 
 # ── 技能差距级别（matching / learning / pipeline 共用）──
 GAP_LEVEL_MASTERED = "已掌握"
@@ -17,8 +53,7 @@ GAP_LEVEL_PARTIAL = "部分掌握"
 GAP_LEVEL_MISSING = "完全缺失"
 GAP_LEVELS: tuple[str, ...] = (GAP_LEVEL_MASTERED, GAP_LEVEL_PARTIAL, GAP_LEVEL_MISSING)
 
-# ── 熟练度级别（键与 PROFICIENCY_SCORE 对齐）──
-PROFICIENCY_LEVELS: tuple[str, ...] = tuple(PROFICIENCY_SCORE.keys())
+# ── 熟练度级别（键与 PROFICIENCY_SCORE 对齐；PROFICIENCY_LEVELS 惰性导出）──
 DEFAULT_PROFICIENCY = "熟悉"
 LOW_PROFICIENCY = "了解"
 

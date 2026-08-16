@@ -15,6 +15,7 @@ from typing import Any, cast
 
 import sqlalchemy as sa
 from loguru import logger
+from neo4j.exceptions import Neo4jError
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,6 +73,45 @@ async def _set_cached(redis: Redis | None, key: str, data: dict, ttl: int) -> No
 # Data source helpers (individual subsystem fetchers)
 # ---------------------------------------------------------------------------
 
+async def _max_skill_source_count_neo4j(neo4j_driver: Any) -> int:
+    """Neo4j ``max(s.source_count)`` — max 语义（去重来源数上限）。
+
+    Phase 23 Task 7 (IC-06/IS-01) 只读探针。fail-soft：驱动不可用/异常返回 0，
+    不抛异常（与 ``count_*_neo4j`` 同款降级）。
+    """
+    if neo4j_driver is None:
+        return 0
+    try:
+        async with neo4j_driver.session() as session:
+            result = await session.run("MATCH (s:Skill) RETURN max(s.source_count) AS max_sc")
+            record = await result.single()
+            if record is None or record["max_sc"] is None:
+                return 0
+            return int(record["max_sc"])
+    except (Neo4jError, StarMapError):
+        return 0
+    except Exception:
+        logger.exception("Unexpected error in _max_skill_source_count_neo4j")
+        return 0
+
+
+async def _max_skill_source_count_pg(session: AsyncSession) -> int:
+    """PG ``max(source_count)`` — 命中次数语义（每次抽取 +1）。
+
+    Phase 23 Task 7 只读探针。fail-soft：查询异常返回 0，不抛异常。
+    """
+    try:
+        value = (
+            await session.execute(sa.select(sa.func.max(SkillRecord.source_count)))
+        ).scalar()
+        return int(value or 0)
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.debug("PG source_count probe failed: {}", exc)
+        return 0
+
+
 async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[str, Any]:
     """Fetch graph statistics from Neo4j (primary) + PostgreSQL (fallback).
 
@@ -125,12 +165,32 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         )
     ).scalar() or 0
 
+    # Phase 23 Task 7 (IC-06/IS-01): source_count 漂移探针 —— Neo4j max 语义（去重
+    # 来源数上限，重放/重复写入不放大）vs PG 命中次数（每次抽取 +1）语义不同；差值
+    # >0 记日志告警，不新增端点。asyncio.gather(return_exceptions=True) + int 兜底，
+    # Neo4j 不可用时 fail-soft 不崩。
+    neo4j_max_sc, pg_max_sc = await asyncio.gather(
+        _max_skill_source_count_neo4j(neo4j_driver),
+        _max_skill_source_count_pg(session),
+        return_exceptions=True,
+    )
+    neo4j_max_sc_val = int(neo4j_max_sc) if isinstance(neo4j_max_sc, int) else 0
+    pg_max_sc_val = int(pg_max_sc) if isinstance(pg_max_sc, int) else 0
+    if neo4j_max_sc_val > pg_max_sc_val:
+        logger.warning(
+            "source_count drift: Neo4j max(s.source_count)={} > PG max(source_count)={} — 重放/重复写入未收敛或存量数据未回填",
+            neo4j_max_sc_val,
+            pg_max_sc_val,
+        )
+
     return {
         "total_nodes": total_nodes,
         "total_edges": total_edges,
         "total_positions": total_positions,
         "total_skills": total_skills,
         "total_domains": int(total_domains),
+        "source_count_max_neo4j": neo4j_max_sc_val,
+        "source_count_max_pg": pg_max_sc_val,
     }
 
 

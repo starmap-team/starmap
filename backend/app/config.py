@@ -87,6 +87,21 @@ class Settings(BaseSettings):
         ge=0,
         description="JWT clock skew tolerance (seconds)",
     )
+    # Phase 20 Task 2: JWT rotation — `kid` header + multi-secret keyring.
+    # `jwt_kid` is the active signing key id; new tokens carry this in the JOSE
+    # header. `jwt_secret_keyring` maps kid -> secret and is consulted at
+    # verification time so that legacy tokens remain valid during rotation.
+    # Both default to {"v1": <current secret_key>} for backward compatibility.
+    jwt_kid: str = Field(
+        default="v1",
+        min_length=1,
+        max_length=32,
+        description="Active JWT signing key id (JOSE `kid` header)",
+    )
+    jwt_secret_keyring: dict[str, str] = Field(
+        default_factory=dict,
+        description="Map of kid -> secret used for verification; empty means use {jwt_kid: secret_key}",
+    )
 
     # ── Bootstrap (DB seed) ──
     # Initial admin credentials seeded by scripts/bootstrap.py on first run.
@@ -196,6 +211,43 @@ class Settings(BaseSettings):
     # 评估质量门禁（NEW-11 唯一常量，§14 验收口径 F1 >= 90%）
     # judge API 默认阈值 + evaluation/ 脚本门禁统一引用此值
     eval_f1_gate: float = 0.90
+
+    # 入库完整性门禁（Phase 23 Task 10, IC-01..07 CI 回归守护）——
+    # evaluation/ingestion_consistency.py 引用的第二道门禁，阈值集中于此（与
+    # eval_f1_gate 同模式，脚本不硬编码阈值）。SQL 口径见 docs/ingestion-kpi-calibers.md。
+    ingestion_psr_tolerance: float = Field(
+        default=0.005,
+        ge=0.0,
+        le=1.0,
+        description="PG approved PSR 边数 vs Neo4j REQUIRES 边数容差（±0.5%），与 /admin/reconcile-neo4j 同口径",
+    )
+    ingestion_position_diff: int = Field(
+        default=0,
+        ge=0,
+        description="count(PositionRecord) vs count(Position) 允许最大绝对差（默认 0，IS-01 P0 漂移根除）",
+    )
+    ingestion_skill_diff: int = Field(
+        default=0,
+        ge=0,
+        description="count(SkillRecord) vs count(Skill) 允许最大绝对差（默认 0）",
+    )
+    ingestion_orphan_ratio: float = Field(
+        default=0.005,
+        ge=0.0,
+        le=1.0,
+        description="Neo4j canonical_id IS NULL 节点占比上限（<0.5%，超过即孤儿漂移）",
+    )
+    ingestion_dedup_rate: float = Field(
+        default=0.95,
+        ge=0.0,
+        le=1.0,
+        description="jd_raw 去重率下限（非 duplicate 行占比 ≥95%）",
+    )
+    ingestion_kpi_drift: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="quality dashboard 与 status_aggregator 重叠 KPI（待审计数）允许最大差（默认 0，IC-07）",
+    )
 
     # 反幻觉守卫
     hallucination_semantic_threshold: float = 0.85

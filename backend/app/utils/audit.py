@@ -17,6 +17,9 @@ from loguru import logger
 class AuditEvent(StrEnum):
     """审计事件类型。"""
 
+    # ── Celery task lifecycle (Phase 24, CONCERN 2.4) ──
+    CELERY_TASK_FAILURE = "celery_task_failure"
+
     AUTH_FAILURE = "auth_failure"
     AUTHZ_DENIED = "authz_denied"
     RATE_LIMITED = "rate_limited"

@@ -362,6 +362,14 @@ def _print_summary(metrics) -> None:
     print(f"    Good    (>=0.70): {metrics.f1_distribution.get('good', 0)}")
     print(f"    Fair    (>=0.50): {metrics.f1_distribution.get('fair', 0)}")
     print(f"    Poor    (<0.50):  {metrics.f1_distribution.get('poor', 0)}")
+    # ALIGN-08 §14.5 置信区间（bootstrap 1000 次 95% CI）
+    if getattr(metrics, "ci_95", None):
+        ci_f1 = metrics.ci_95.get("f1") or {}
+        if ci_f1:
+            print(
+                f"  F1 95% CI: [{ci_f1.get('lower', 0):.4f}, "
+                f"{ci_f1.get('upper', 0):.4f}] (n={ci_f1.get('n', 0)})"
+            )
     gate = "PASS" if metrics.avg_f1 >= settings.eval_f1_gate else "FAIL"
     print(f"  Gate(>={settings.eval_f1_gate:.2f}): [{gate}]")
     print(f"  Report: {OUTPUT_DIR}")

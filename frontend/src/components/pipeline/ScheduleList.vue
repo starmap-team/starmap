@@ -132,7 +132,7 @@ const emit = defineEmits<{
         width="160"
       >
         <template #default="{ row }">
-          {{ row.next_run_at ? new Date(row.next_run_at).toLocaleString() : '--' }}
+          {{ row.enabled && row.next_run_at ? new Date(row.next_run_at).toLocaleString() : '--' }}
         </template>
       </el-table-column>
       <el-table-column

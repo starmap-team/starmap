@@ -237,6 +237,9 @@ export function usePipelineMonitor() {
     // 2026-08-12 (pipeline 联调): 今日采集量 = 今日各 run crawl 处理量之和（含重复）；
     // 今日新增 = jd_raw 今日新行；历史累计 = jd_raw 全表行数。三者口径在 status
     // 聚合器统一，避免"DAG 显示采集 70 但今日 0"的矛盾。
+    // Phase 23 (IC-07): 三段 KPI 口径的唯一事实源为 backend/app/core/pipeline/
+    // status_aggregator.py，SQL 级定义见 docs/ingestion-kpi-calibers.md。此处必须
+    // 直接从 pipeline.pipelineStatus 派生，禁止前端本地重新聚合。
     const todayVolume = s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume : null
     const todayNew = s?.today_crawl_new ?? 0
     const totalJdRaw = s?.total_jd_raw ?? 0
@@ -247,12 +250,19 @@ export function usePipelineMonitor() {
       ? new Date(lastCrawlAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
       : null
     const successRate = typeof s?.success_rate === 'number' ? s.success_rate : null
+    // D1/O3 (2026-08-15): 可用源 = has_adapter(后端注册表判定, 任意类型) + config 未禁用 + active。
+    // 与"活跃(DB active)"区分——未配置/禁用的源虽 active 但实际不参与采集。
+    // 任意类型：V2EX/掘金 等 job_board/blog 源有适配器时也可被单源同步/选源采集。
+    const crawlableEnabled = pipeline.dataSources.filter(
+      (ds) => ds.has_adapter && !ds.config?.disabled && ds.status === 'active',
+    ).length
+    const activeCount = typeof s?.active_data_sources === 'number' ? s.active_data_sources : null
     return [
       {
         label: '今日采集量',
         value: todayVolume !== null ? todayVolume.toLocaleString() : '--',
         sub: todayVolume !== null
-          ? `今日新增 ${todayNew} · 历史累计 ${totalJdRaw.toLocaleString()} 条${lastCrawlLabel ? ` · 最近 ${lastCrawlLabel}` : ''}`
+          ? `今日新增 ${todayNew} · 历史累计 ${totalJdRaw.toLocaleString()} 条${lastCrawlLabel ? ` · 最近 ${lastCrawlLabel}` : ''}${crawlableEnabled === 0 ? ' · ⚠ 无可用的已启用爬虫源' : ''}`
           : '条 (今日处理量)',
         color: todayVolume !== null && todayVolume > 0 ? colors.primary : colors.muted,
         icon: 'Download',
@@ -267,13 +277,12 @@ export function usePipelineMonitor() {
         trend: 'stable',
       },
       {
-        label: '活跃数据源',
-        // 2026-08-12: 标签由"自动爬虫"改为"活跃数据源"，避免与下方"可用爬虫源"混淆
-        value: typeof s?.active_data_sources === 'number' ? String(s.active_data_sources) : '--',
-        sub: typeof s?.active_data_sources === 'number'
-          ? `${s.active_data_sources} 个 active（共 ${pipeline.dataSources.length} 个）`
-          : '加载中...',
-        color: colors.info,
+        // D1 (2026-08-15): 双值 KPI —— 可用(真实爬取能力) / 活跃(DB active)。
+        // 此前只显示"活跃 16"，与下方"1 个可用数据源"相差 16 倍且无解释。
+        label: '可用 / 活跃',
+        value: `${crawlableEnabled} / ${activeCount ?? '--'}`,
+        sub: `可用 ${crawlableEnabled}（有适配器且启用）· 活跃 ${activeCount ?? '--'}（DB active，共 ${pipeline.dataSources.length} 个）`,
+        color: crawlableEnabled > 0 ? colors.success : colors.warning,
         icon: 'Connection',
         trend: 'stable',
       },
@@ -283,8 +292,9 @@ export function usePipelineMonitor() {
         value: typeof s?.pending_review_positions === 'number'
           ? `${s.pending_review_positions} 岗位`
           : '--',
+        // D3 (2026-08-15): 与页面 alert"438 条"同源——sub 注明总数关系，消除双显混淆
         sub: typeof s?.pending_review_skills === 'number'
-          ? `${s.pending_review_skills} 技能待审核 · 新抽取内容进入内容审核队列`
+          ? `${s.pending_review_skills} 技能待审核 · 共 ${(s.pending_review_positions ?? 0) + s.pending_review_skills} 条（岗位+技能）`
           : '加载中...',
         color: colors.warning,
         icon: 'DocumentChecked',

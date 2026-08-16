@@ -178,10 +178,12 @@ class DataSourceRecord(Base):
         comment="Source authority weight 0.0-1.0",
     )
     # 业务说明：数据源运行状态，用于监控和告警
-    # 技术说明：默认"active"，可选值：active（正常）| paused（暂停）| error（异常）
+    # 技术说明：默认"active"，可选值：active（正常）| paused（暂停）| error（异常）| inactive（软删除停用）。
+    #          枚举唯一事实源见 app.core.constants.DataSourceStatus（IC-01/DC-04 收敛），
+    #          DELETE 软删除（datasource.py:240）会写 status='inactive'。
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="active",
-        comment="'active' | 'paused' | 'error'",
+        comment="'active' | 'paused' | 'error' | 'inactive' (见 DataSourceStatus)",
     )
     # 业务说明：最近一次爬取/同步时间，评估数据新鲜度
     # 技术说明：null表示尚未执行过爬取

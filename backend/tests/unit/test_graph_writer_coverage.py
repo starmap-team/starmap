@@ -358,18 +358,18 @@ class TestRetryFunctions:
     @pytest.mark.asyncio
     async def test_merge_position_success(self):
         drv = FakeDriver(FakeAsyncSession(run_side_effect=FakeAsyncResult([{"p": {"name": "Dev"}}])))
-        assert (await merge_position(drv, {"name": "Dev", "experience_required": "3y"}))["name"] == "Dev"
+        assert (await merge_position(drv, {"name": "Dev", "experience_required": "3y"}, canonical_id="pos-1"))["name"] == "Dev"
 
     @pytest.mark.asyncio
     async def test_merge_position_position_name_fallback(self):
         drv = FakeDriver(FakeAsyncSession(run_side_effect=FakeAsyncResult([{"p": {"name": "P"}}])))
-        await merge_position(drv, {"position_name": "P"})
+        await merge_position(drv, {"position_name": "P"}, canonical_id="pos-2")
 
     @pytest.mark.asyncio
     async def test_merge_position_none_record(self):
         drv = FakeDriver(FakeAsyncSession(run_side_effect=FakeAsyncResult([])))
         with pytest.raises(ValueError, match="Failed to merge Position"):
-            await merge_position(drv, {"name": "Dev"})
+            await merge_position(drv, {"name": "Dev"}, canonical_id="pos-3")
 
     @pytest.mark.asyncio
     async def test_merge_position_error(self):
@@ -377,12 +377,19 @@ class TestRetryFunctions:
             raise Neo4jError("boom")
         drv = FakeDriver(FakeAsyncSession(run_side_effect=raise_err))
         with pytest.raises(Neo4jError):
+            await merge_position(drv, {"name": "Dev"}, canonical_id="pos-4")
+
+    @pytest.mark.asyncio
+    async def test_merge_position_requires_canonical_id(self):
+        """Phase 23 Task 2: 缺 canonical_id → GraphProjectionError（不再产生孤儿）。"""
+        drv = FakeDriver(FakeAsyncSession(run_side_effect=FakeAsyncResult([{"p": {"name": "Dev"}}])))
+        with pytest.raises(GraphProjectionError, match="requires canonical_id"):
             await merge_position(drv, {"name": "Dev"})
 
     @pytest.mark.asyncio
     async def test_merge_skill_success(self):
         drv = FakeDriver(FakeAsyncSession(run_side_effect=FakeAsyncResult([{"s": {"name": "Python"}}])))
-        assert (await merge_skill(drv, "Python", {"proficiency": "advanced", "source_count": 2}))["name"] == "Python"
+        assert (await merge_skill(drv, "Python", {"proficiency": "advanced", "source_count": 2}, canonical_id="sk-1"))["name"] == "Python"
 
     # Phase 19: 投影落 trust_score（§6.2 四因子）——断言 Cypher props 含 trust_score
     @pytest.mark.asyncio
@@ -392,6 +399,7 @@ class TestRetryFunctions:
         await merge_skill(
             drv, "Python",
             {"source_count": 5, "confidence": 0.9, "proficiency": "advanced"},
+            canonical_id="sk-2",
         )
         # 断言传给 Cypher 的 props 含 trust_score（Fake record["s"] 只是模拟节点，不含属性）
         sent_props = fake.calls[0][1].get("props", {})
@@ -405,7 +413,7 @@ class TestRetryFunctions:
     async def test_merge_skill_no_metadata_still_writes_trust(self):
         fake = FakeAsyncSession(run_side_effect=FakeAsyncResult([{"s": {"name": "Go"}}]))
         drv = FakeDriver(fake)
-        await merge_skill(drv, "Go", None)
+        await merge_skill(drv, "Go", None, canonical_id="sk-3")
         sent_props = fake.calls[0][1].get("props", {})
         assert "trust_score" in sent_props  # 无 metadata 也落 trust_score（兜底计算）
         assert 0.0 <= float(sent_props["trust_score"]) <= 1.0
@@ -414,12 +422,19 @@ class TestRetryFunctions:
     async def test_merge_skill_none_record(self):
         drv = FakeDriver(FakeAsyncSession(run_side_effect=FakeAsyncResult([])))
         with pytest.raises(ValueError, match="Failed to merge Skill"):
-            await merge_skill(drv, "Python")
+            await merge_skill(drv, "Python", canonical_id="sk-4")
 
     @pytest.mark.asyncio
     async def test_merge_skill_error(self):
         drv = FakeDriver(FakeAsyncSession(run_side_effect=lambda *a, **kw: (_ for _ in ()).throw(Neo4jError("boom"))))
         with pytest.raises(Neo4jError):
+            await merge_skill(drv, "Python", canonical_id="sk-5")
+
+    @pytest.mark.asyncio
+    async def test_merge_skill_requires_canonical_id(self):
+        """Phase 23 Task 2: 缺 canonical_id → GraphProjectionError（不再产生孤儿）。"""
+        drv = FakeDriver(FakeAsyncSession(run_side_effect=FakeAsyncResult([{"s": {"name": "Python"}}])))
+        with pytest.raises(GraphProjectionError, match="requires canonical_id"):
             await merge_skill(drv, "Python")
 
     @pytest.mark.asyncio
@@ -445,7 +460,10 @@ class TestWriteExtraction:
     async def test_full_flow(self):
         drv = FakeDriver(_universal_session())
         extraction = {"position_name": "Dev", "required_skills": [{"name": "Python", "level": "advanced"}], "preferred_skills": [{"name": "Go"}], "industry": "IT", "tools": [{"name": "Docker"}]}
-        s = await write_extraction_to_graph(extraction, drv)
+        s = await write_extraction_to_graph(
+            extraction, drv,
+            canonical_ids={"position_id": "p1", "skills": {"Python": "sk1", "Go": "sk2"}},
+        )
         assert s["positions_merged"] == 1 and s["skills_merged"] == 2 and s["requires_created"] == 2
         # d59ffed 后 industry 改为 Position 节点属性, 不再产生 BELONGS_TO 三元组;
         # triples = requires(2) + extended/tools(1)
@@ -463,7 +481,10 @@ class TestWriteExtraction:
         # Neo4j 错误被包装为域异常 GraphProjectionError(StarMapError 子类),供上层统一处理。
         drv = FakeDriver(FakeAsyncSession(run_side_effect=lambda *a, **kw: (_ for _ in ()).throw(Neo4jError("boom"))))
         with pytest.raises(GraphProjectionError):
-            await write_extraction_to_graph({"position_name": "Dev"}, drv)
+            await write_extraction_to_graph(
+                {"position_name": "Dev"}, drv,
+                canonical_ids={"position_id": "p1", "skills": {}},
+            )
 
     @pytest.mark.asyncio
     async def test_merge_skill_failure_continues(self):
@@ -478,13 +499,19 @@ class TestWriteExtraction:
                 raise Neo4jError("skill err")
             return FakeAsyncResult([{"r": {"weight": 1.0}}])
         drv = FakeDriver(FakeAsyncSession(run_side_effect=smart_run))
-        s = await write_extraction_to_graph({"position_name": "Dev", "required_skills": [{"name": "Python"}]}, drv)
+        s = await write_extraction_to_graph(
+            {"position_name": "Dev", "required_skills": [{"name": "Python"}]}, drv,
+            canonical_ids={"position_id": "p1", "skills": {"Python": "sk1"}},
+        )
         assert s["skills_merged"] == 0 and s["requires_created"] == 0
 
     @pytest.mark.asyncio
     async def test_empty_skill_name_skipped(self):
         drv = FakeDriver(_universal_session())
-        s = await write_extraction_to_graph({"position_name": "Dev", "required_skills": [{"name": ""}, {"name": "Python"}]}, drv)
+        s = await write_extraction_to_graph(
+            {"position_name": "Dev", "required_skills": [{"name": ""}, {"name": "Python"}]}, drv,
+            canonical_ids={"position_id": "p1", "skills": {"Python": "sk1"}},
+        )
         assert s["skills_merged"] == 1
 
     @pytest.mark.asyncio
@@ -500,7 +527,10 @@ class TestWriteExtraction:
                 return FakeAsyncResult([{"s": {"name": "Python"}}])
             raise Neo4jError("requires err")
         drv = FakeDriver(FakeAsyncSession(run_side_effect=smart_run))
-        s = await write_extraction_to_graph({"position_name": "Dev", "required_skills": [{"name": "Python"}]}, drv)
+        s = await write_extraction_to_graph(
+            {"position_name": "Dev", "required_skills": [{"name": "Python"}]}, drv,
+            canonical_ids={"position_id": "p1", "skills": {"Python": "sk1"}},
+        )
         assert s["skills_merged"] == 1 and s["requires_created"] == 0
 
 
@@ -508,8 +538,27 @@ class TestBatchAndQueries:
     @pytest.mark.asyncio
     async def test_batch_write(self):
         drv = FakeDriver(_universal_session())
-        results = await batch_write_extractions([{"position_name": "Dev", "required_skills": [{"name": "Python"}]}, {"position_name": "QA", "required_skills": [{"name": "Selenium"}]}], drv)
+        results = await batch_write_extractions(
+            [{"position_name": "Dev", "required_skills": [{"name": "Python"}]},
+             {"position_name": "QA", "required_skills": [{"name": "Selenium"}]}],
+            drv,
+            canonical_ids_list=[
+                {"position_id": "p1", "skills": {"Python": "sk1"}},
+                {"position_id": "p2", "skills": {"Selenium": "sk2"}},
+            ],
+        )
         assert len(results) == 2 and all(r["positions_merged"] == 1 for r in results)
+
+    @pytest.mark.asyncio
+    async def test_batch_write_without_canonical_ids_skips(self):
+        """Phase 23 Task 2: 无 canonical_ids_list 时 batch 逐条跳过（不产生孤儿）。"""
+        drv = FakeDriver(_universal_session())
+        results = await batch_write_extractions(
+            [{"position_name": "Dev", "required_skills": [{"name": "Python"}]}], drv,
+        )
+        assert len(results) == 1
+        assert results[0]["positions_merged"] == 0
+        assert results[0].get("skipped") is True
 
     @pytest.mark.asyncio
     async def test_get_position_skills(self):

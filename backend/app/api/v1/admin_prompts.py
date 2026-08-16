@@ -39,7 +39,6 @@ from app.services.prompt_service import (
     stop_ab_test,
 )
 
-# FE-02: A/B test result tracking (in-memory, process-local)
 _ab_results: dict[str, list[dict[str, Any]]] = defaultdict(list)
 _MAX_RESULTS_PER_PROMPT = 10000
 
@@ -258,10 +257,6 @@ async def get_ab_test_config(name: str) -> dict[str, Any]:
         "prompt": name,
         "ab_test": ab.to_dict() if ab else None,
     }
-
-
-# ── FE-02: A/B test result tracking ──
-# ABResultRequest 已迁入 schemas/prompt.py (PLAN-014 批次7)
 
 
 @router.post("/prompts/{name}/ab-results")

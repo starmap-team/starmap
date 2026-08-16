@@ -125,6 +125,11 @@ const hasMasteredSkills = computed(() =>
 onMounted(async () => {
   try {
     await learningStore.restorePlanFromLocalStorage()
+    // QA-FIX: 后端已有学习计划但 localStorage 无记录（换设备/清缓存）时，
+    // 从后端同步最近计划，避免页面误显示「暂无学习计划」。
+    if (!currentPlan.value) {
+      await learningStore.fetchPlans()
+    }
     const plan = currentPlan.value
     await learningStore.fetchRecommendations(plan?.plan_id, plan?.position)
   } catch {
@@ -449,14 +454,18 @@ watch(currentPlan, (plan) => {
               </span>
             </div>
             <div class="rec-action">
-              <!-- 业务说明：加入计划按钮 —— 将推荐技能添加到当前学习计划中，无计划时禁用 -->
+              <!-- 业务说明：加入计划按钮 —— 将推荐技能添加到当前学习计划中，无计划时禁用
+                   QA-FIX: 原按钮无计划时文案为「创建计划」但行为仅弹提示，语义误导；
+                   改为始终「加入计划」，无计划时禁用并给出引导 tooltip。 -->
               <el-button
                 size="small"
                 type="primary"
                 plain
+                :disabled="!currentPlan"
+                :title="currentPlan ? '' : '请先创建学习计划（从「匹配诊断」生成）'"
                 @click="handleAddToPlan(rec)"
               >
-                {{ currentPlan ? '加入计划' : '创建计划' }}
+                加入计划
               </el-button>
             </div>
           </div>

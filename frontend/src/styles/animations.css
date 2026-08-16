@@ -75,7 +75,7 @@
   }
 }
 .anim-fade-in-up {
-  animation: fadeInUp 0.45s var(--ease-out) both;
+  animation: fadeInUp 0.45s var(--ease-out) backwards;
 }
 
 /* fadeInLeft — from left */
@@ -90,7 +90,7 @@
   }
 }
 .anim-fade-in-left {
-  animation: fadeInLeft 0.45s var(--ease-out) both;
+  animation: fadeInLeft 0.45s var(--ease-out) backwards;
 }
 
 /* fadeInRight — from right */
@@ -105,7 +105,7 @@
   }
 }
 .anim-fade-in-right {
-  animation: fadeInRight 0.45s var(--ease-out) both;
+  animation: fadeInRight 0.45s var(--ease-out) backwards;
 }
 
 /* scaleIn — pop-in effect */
@@ -120,7 +120,7 @@
   }
 }
 .anim-scale-in {
-  animation: scaleIn 0.4s var(--ease-spring) both;
+  animation: scaleIn 0.4s var(--ease-spring) backwards;
 }
 
 /* fadeIn — pure opacity */
@@ -129,7 +129,7 @@
   to { opacity: 1; }
 }
 .anim-fade-in {
-  animation: fadeIn 0.4s var(--ease-out) both;
+  animation: fadeIn 0.4s var(--ease-out) backwards;
 }
 
 
@@ -148,7 +148,7 @@
   }
 }
 .anim-pulse-glow {
-  animation: pulseGlow 0.7s var(--ease-out) both;
+  animation: pulseGlow 0.7s var(--ease-out) backwards;
 }
 
 /* Subtle highlight flash on card/value update */
@@ -164,7 +164,7 @@
   }
 }
 .anim-highlight-flash {
-  animation: highlightFlash 0.6s var(--ease-out) both;
+  animation: highlightFlash 0.6s var(--ease-out) backwards;
 }
 
 
@@ -261,7 +261,7 @@
   }
 }
 .anim-celebrate {
-  animation: celebratePulse 0.7s var(--ease-out) both;
+  animation: celebratePulse 0.7s var(--ease-out) backwards;
 }
 
 

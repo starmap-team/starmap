@@ -30,6 +30,7 @@ from app.core.extraction.normalize import (
     extract_dict_skills,
 )
 from app.core.extraction.prompt import get_ab_test, get_active_version, get_prompt
+from app.core.extraction.prompt_injection import scan_prompt_injection
 from app.core.extraction.translation import has_cjk, translate_title_industry  # I18N-01 翻译钩子
 
 # Chinese PII patterns
@@ -178,6 +179,23 @@ class JDExtractionPipeline:
 
         # PII masking before sending to LLM
         jd_content_safe = mask_pii(jd_content)
+
+        # CONCERN 1.6 (Phase 24): 输入侧 prompt-injection 检测——JD 文本是用户
+        # 输入，直接拼入 LLM prompt 可被 "ignore previous instructions" 类注入
+        # 劫持抽取（技能幻觉/抽取投毒）。命中注入模式时拒绝本次抽取并记录。
+        injection_check = scan_prompt_injection(jd_content_safe)
+        if not injection_check.is_clean:
+            logger.warning(
+                "prompt-injection blocked: patterns={} snippet={!r} confidence={:.2f}",
+                injection_check.matched_patterns,
+                injection_check.snippet[:120],
+                injection_check.confidence,
+            )
+            result["status"] = "failed"
+            result["error"] = "JD content rejected: suspected prompt injection"
+            result["injection_check"] = injection_check.model_dump()
+            return result
+        result["injection_checked"] = True
 
         # Step 1: Fill prompt
         logger.info("JD extraction pipeline starting ({} chars)", len(jd_content_safe))

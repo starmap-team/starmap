@@ -71,6 +71,10 @@ async def _upsert_position(
 
 
 async def _upsert_skill(session: AsyncSession, name: str, category: str, *, source_run_id: uuid.UUID | None = None) -> SkillRecord:
+    # Phase 23 Task 7 (IC-06/IS-01): source_count 口径固化 —— PG 每次抽取 +1（命中次数
+    # 语义），与 Neo4j `graph_writer.merge_skill` 的 max 语义（去重来源数上限）不同；
+    # 差值由 dashboard `_fetch_graph_stats` 只读漂移探针监控（差值>0 告警）。等业务
+    # 确认统一口径（RESEARCH §6.6）后此处与 graph_writer 一起收敛。
     existing = (
         await session.execute(sa.select(SkillRecord).where(SkillRecord.name == name))
     ).scalar_one_or_none()
@@ -215,6 +219,25 @@ async def _load_source_counts(sessionmaker: async_sessionmaker) -> dict[str, int
         return {}
 
 
+async def _position_is_approved(sessionmaker: Any, position_id: str) -> bool:
+    """Check whether a PositionRecord has review_status='approved'.
+
+    Phase 23 核验修复 (M1b 闭环): 抽取即写图路径守 approved 门控——未审核岗位
+    (pending_review) 不得进入图谱。审核通过后由 sync_approved_position_to_graph 补投影。
+    """
+    try:
+        async with sessionmaker() as session:
+            result = await session.execute(
+                sa.select(PositionRecord.review_status).where(
+                    PositionRecord.id == position_id
+                )
+            )
+            return (result.scalar_one_or_none() or "") == "approved"
+    except Exception as exc:  # pragma: no cover - 查询失败 fail-closed 拒绝写图
+        logger.warning("_position_is_approved query failed (fail-closed skip graph): {}", exc)
+        return False
+
+
 async def run_batch_extract_jd(
     jd_text: str,
     options: dict[str, Any] | None = None,
@@ -262,10 +285,16 @@ async def run_batch_extract_jd(
             logger.warning("run_batch_extract_jd outbox create failed (non-fatal): {}", o_exc)
 
         try:
-            graph_summary = await write_single_extraction_to_graph(
-                result["data"],
-                canonical_ids={"position_id": position_id, "skills": skill_ids},
-            )
+            # Phase 23 核验修复 (M1b 闭环): 抽取即写图路径也必须守 approved 门控。
+            # 设计意图 (Phase 16): 新抽取默认 review_status='pending_review'，需人工审核
+            # 后才进入图谱。run_batch_extract_jd 绕过 run_build_graph_from_extractions
+            # 的 approved 过滤直接写图，是未审核岗位持续入图的根因——此处补查。
+            graph_summary: dict[str, Any] = {"skipped": True, "reason": "position_not_approved"}
+            if await _position_is_approved(sessionmaker, position_id):
+                graph_summary = await write_single_extraction_to_graph(
+                    result["data"],
+                    canonical_ids={"position_id": position_id, "skills": skill_ids},
+                )
             try:
                 await _ex._complete_outbox_record(
                     sessionmaker, outbox_id, int(graph_summary.get("triples_merged", 0)),
@@ -363,8 +392,37 @@ async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
 
         config = GraphConfig()
         async with config.get_driver() as driver:
+            # Phase 23 Task 2: MERGE 键切为 canonical_id 后，这里必须解析技能
+            # canonical_id（skills 不再传空 dict）——否则 merge_skill 缺 id 会 raise。
+            skill_map: dict[str, str] = {}
+            if position_id and extractions:
+                try:
+                    async with sessionmaker() as session:
+                        skill_names = {
+                            skill_entry_name(entry)
+                            for payload in extractions
+                            for entry in (payload.get("required_skills") or []) + (payload.get("preferred_skills") or [])
+                        } - {""}
+                        if skill_names:
+                            skill_map = {
+                                name: str(sid)
+                                for name, sid in (
+                                    await session.execute(
+                                        sa.select(SkillRecord.name, SkillRecord.id).where(
+                                            SkillRecord.name.in_(skill_names)
+                                        )
+                                    )
+                                ).all()
+                            }
+                except Exception as sk_exc:  # noqa: BLE001 — 技能 id 解析失败不阻断
+                    logger.warning(
+                        "sync_approved_position_to_graph: skill canonical_id lookup failed (non-fatal): {}", sk_exc,
+                    )
             canonical_ids_list: list[dict[str, Any] | None] | None = (
-                [{"position_id": position_id, "skills": {}} for _ in extractions]
+                [
+                    {"position_id": position_id, "skills": dict(skill_map)}
+                    for _ in extractions
+                ]
                 if position_id else None
             )
             summaries = await batch_write_extractions(
@@ -476,7 +534,64 @@ async def run_build_graph_from_extractions(
             logger.warning("skill_records upsert failed (non-fatal): {}", sk_exc)
         config = GraphConfig()
         async with config.get_driver() as driver:
-            summaries = await batch_write_extractions(extractions, driver)
+            # Phase 23 Task 2 (checkpoint:decision): MERGE 键切为 canonical_id 后，
+            # 这里必须预查 name → PG id 映射并补传 canonical_ids_list——否则
+            # merge_position/merge_skill 缺 canonical_id 会 raise（不再静默孤儿）。
+            canonical_ids_list: list[dict[str, Any] | None] | None = None
+            try:
+                async with sessionmaker() as session:
+                    position_names = {
+                        str(p.get("position_name") or p.get("job_title") or "").strip()
+                        for p in extractions
+                        if p
+                    } - {""}
+                    position_map: dict[str, str] = {}
+                    if position_names:
+                        position_map = {
+                            name: str(pid)
+                            for name, pid in (
+                                await session.execute(
+                                    sa.select(PositionRecord.name, PositionRecord.id).where(
+                                        PositionRecord.name.in_(position_names)
+                                    )
+                                )
+                            ).all()
+                        }
+                    skill_names: set[str] = set()
+                    for payload in extractions:
+                        for entry in (payload.get("required_skills") or []) + (payload.get("preferred_skills") or []):
+                            name = skill_entry_name(entry)
+                            if name:
+                                skill_names.add(name)
+                    skill_map: dict[str, str] = {}
+                    if skill_names:
+                        skill_map = {
+                            name: str(sid)
+                            for name, sid in (
+                                await session.execute(
+                                    sa.select(SkillRecord.name, SkillRecord.id).where(
+                                        SkillRecord.name.in_(skill_names)
+                                    )
+                                )
+                            ).all()
+                        }
+                canonical_ids_list = []
+                for payload in extractions:
+                    pname = str(payload.get("position_name") or payload.get("job_title") or "").strip()
+                    cids: dict[str, Any] = {"position_id": position_map.get(pname), "skills": {}}
+                    for entry in (payload.get("required_skills") or []) + (payload.get("preferred_skills") or []):
+                        name = skill_entry_name(entry)
+                        if name and name in skill_map:
+                            cids["skills"][name] = skill_map[name]
+                    canonical_ids_list.append(cids)
+            except Exception as cid_exc:  # noqa: BLE001 — canonical_id 预查失败不阻断构建
+                logger.warning(
+                    "run_build_graph_from_extractions: canonical_id lookup failed (non-fatal): {}", cid_exc,
+                )
+                canonical_ids_list = None
+            summaries = await batch_write_extractions(
+                extractions, driver, canonical_ids_list=canonical_ids_list,
+            )
             # P4a 根治 (R3): 补录覆盖全图谱——把图中存在但 PG 无记录的无标识技能
             # 回填 skill_records + 链接 canonical_id（幂等，每次 run 自愈历史缺口）。
             # 此前只回填当次 run 抽取载荷，历史 name-MERGE 技能永不回填（R3 根因）。

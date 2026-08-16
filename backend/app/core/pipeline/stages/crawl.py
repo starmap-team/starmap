@@ -29,30 +29,15 @@ SPIDER_REGISTRY: dict[str, Any] = {
 
 
 def build_spider_registry() -> dict[str, Any]:
-    """构建真实 spider 注册表 (B2: 含 juejin/remoteok, 2026-08-07 补).
+    """Re-export of ``app.services.spider_registry.build_spider_registry``.
 
-    D6 (2026-08-12): v2ex 与 remotive 共用 v2ex_remote.run_sync 但需严格逐源
-    隔离 — 包一层闭包固定 source 参数，页面 V2EX 卡只写 v2ex、Remotive 卡只写
-    remotive，不再一次调用混写两源。
+    Layer-boundary conformance: API routes must not import from ``core/``,
+    so the canonical implementation lives in ``services/spider_registry.py``
+    and this module re-exports it for in-core callers (executor, pipeline_service).
     """
-    from crawler.spiders import arbeitnow, jobicy, juejin, remoteok, weworkremotely
-    from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
+    from app.services.spider_registry import build_spider_registry as _impl
 
-    def _v2ex_only(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any]]:
-        return v2ex_sync(keyword=keyword, max_count=max_count, source="v2ex")
-
-    def _remotive_only(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any]]:
-        return v2ex_sync(keyword=keyword, max_count=max_count, source="remotive")
-
-    return {
-        "v2ex": _v2ex_only,
-        "remotive": _remotive_only,  # D6: 逐源隔离, 不再共享双源混写
-        "arbeitnow": arbeitnow.run_sync,
-        "jobicy": jobicy.run_sync,
-        "weworkremotely": weworkremotely.run_sync,
-        "juejin": juejin.run_sync,    # PLAN-002: D5 非结构化源 (技术博客)
-        "remoteok": remoteok.run_sync,  # PLAN-003: 英文 JD 源
-    }
+    return _impl()
 
 
 def _update_source_after_crawl(run_id: str, records_count: int) -> None:
@@ -135,7 +120,16 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
                 # Build per-source config: merge record-level metadata with config JSON
                 cfg = dict(ds.config)
                 cfg["source_name"] = ds.name
-                cfg.setdefault("platform", cfg.get("source_site", "v2ex"))
+                # P0-1 (2026-08-15): 禁止静默回退 v2ex —— 无 platform 的源直接跳过，
+                # 避免 V2EX 内容被错误归属到 bosszhipin/zhaopin 等未配置源。
+                platform = cfg.get("platform") or cfg.get("source_site")
+                if not platform:
+                    logger.warning(
+                        "crawl config skip '{}': 未配置 platform/source_site，跳过（P0-1）",
+                        ds.name,
+                    )
+                    continue
+                cfg["platform"] = platform
                 configs.append(cfg)
             if configs:
                 logger.debug(

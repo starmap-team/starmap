@@ -105,5 +105,28 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
             "total_records": total, "valid_records": extracted,
             "avg_quality_score": round(quality, 4), "duplicate_rate": round(dup_rate, 4),
         }
+    # P0-2 (2026-08-15): 对 jd_raw 无行的 crawler/api/rss 活动源归零记录数。
+    # 这些源的 total/valid 可能是 seed 合成值（seed_pipeline_data: 50+hash%200），
+    # 不反映真实采集；sync 是唯一回写方，此前因 _SITE_TO_SOURCE 无映射而永不清零。
+    # avg_quality_score 保留（属配置权威度，非测量值）。
+    active_crawlers = (await session.execute(
+        sa.select(DataSourceRecord).where(
+            DataSourceRecord.status == "active",
+            DataSourceRecord.source_type.in_(["crawler", "api", "rss"]),
+        )
+    )).scalars().all()
+    for ds in active_crawlers:
+        platform = (ds.config or {}).get("platform") or (ds.config or {}).get("source_site")
+        has_real_rows = bool(platform) and platform in site_stats
+        if has_real_rows or (ds.total_records == 0 and ds.valid_records == 0):
+            continue
+        ds.total_records = 0
+        ds.valid_records = 0
+        updated[ds.name] = {
+            "total_records": 0, "valid_records": 0,
+            "avg_quality_score": ds.avg_quality_score,
+            "duplicate_rate": ds.duplicate_rate,
+            "zeroed": True,
+        }
     await session.commit()
     return updated

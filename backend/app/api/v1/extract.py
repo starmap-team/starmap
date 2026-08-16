@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.upload_validation import validate_resume_upload
 from app.dependencies import get_db_session, get_neo4j_driver
-from app.exceptions import ExtractionError, ExtractionLLMError, StarMapError
+from app.exceptions import ExtractionError, ExtractionLLMError, GraphProjectionError, StarMapError
 from app.schemas.extract import ExtractionRequest, ExtractionResult
 from app.services.extraction_service import (
     extract_from_jd,
@@ -69,7 +69,6 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
         "confidence": validation.get("confidence", 0.85),
         "hallucination_score": None if validation.get("is_valid", True) else validation.get("confidence"),
         "normalized_skills": pipeline_result.get("normalization", []),
-        # fix: 透传 4 个原被丢弃字段 + 反幻觉结果
         "tools": data.get("tools", []),
         "learning_resources": data.get("learning_resources", []),
         "evolves_to": data.get("evolves_to", []),
@@ -96,7 +95,9 @@ async def _write_extraction_to_graph(
         return None
 
     if neo4j_driver is None:
-        # M3: 无 Neo4j driver 时优雅跳过图谱写入(抽取本身已成功),不抛 502。
+        # Extraction succeeded but graph persistence is unavailable; log and
+        # return None rather than raising 502. The caller treats None as
+        # "graph write skipped" and continues to the success response.
         logger.debug("Skipping graph write: no Neo4j driver available")
         return None
 
@@ -109,6 +110,15 @@ async def _write_extraction_to_graph(
             data.get("position_name"),
         )
         return summary
+    except GraphProjectionError as exc:
+        # Phase 23 Task 2 (checkpoint:decision): MERGE 键已切 canonical_id——API 抽取
+        # 路径此时尚未落 PG（图写先于 PG 写），无 canonical_id 不落图（拒绝孤儿）。
+        # 降级为"仅 PG 写入"，节点待审核通过后由 graph_sync/reconcile 按 canonical_id 补投影。
+        logger.warning(
+            "Graph write deferred (no canonical_id yet, PG write will follow; reconcile catches up): {}",
+            exc,
+        )
+        return None
     except (ExtractionError, ExtractionLLMError) as exc:
         logger.exception("Extraction failed: {}", exc)
         raise HTTPException(status_code=502, detail=str(exc)) from exc

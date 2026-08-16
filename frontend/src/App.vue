@@ -13,6 +13,45 @@ const router = useRouter()
 // Track navigation direction for slide transitions
 const transitionName = ref('page-fade')
 
+// ---------------------------------------------------------------------------
+// Route transition watchdog — rAF/transitionend stall safety.
+//
+// Vue's <transition> advances enter/leave phases on requestAnimationFrame and
+// completes them on transitionend. In environments where the rAF pump stalls
+// (headless CI, backgrounded tab, heavy load) the phase never advances, the
+// page stays at enter-from (opacity 0) and appears blank forever.
+//
+// Fix: if a phase hasn't finished within TRANSITION_FORCE_MS, nudge Vue to
+// finish by dispatching a synthetic transitionend (propertyName === undefined
+// is treated as a finish signal), with a class-level force-settle fallback.
+// ---------------------------------------------------------------------------
+const TRANSITION_FORCE_MS = 600  // > --duration-slow (300ms)
+
+function forceSettleTransition(el: Element) {
+  const cls = el.classList
+  const stuck = Array.from(cls).filter((c) => /-(enter|leave)-(from|active|to)$/.test(c))
+  if (stuck.length === 0) return
+  cls.remove(...stuck)
+  const elm = el as HTMLElement
+  elm.style.transition = 'none'
+  elm.style.opacity = '1'
+  elm.style.transform = 'none'
+  void elm.offsetHeight  // flush so the next transition starts from a clean state
+  elm.style.transition = ''
+}
+
+function armTransitionWatchdog(el: Element) {
+  const timer = window.setTimeout(() => {
+    el.dispatchEvent(new Event('transitionend'))
+    // Fallback: if the nudge didn't take effect, force the end state directly.
+    window.setTimeout(() => forceSettleTransition(el), 50)
+  }, TRANSITION_FORCE_MS)
+  el.addEventListener('transitionend', () => window.clearTimeout(timer), { once: true })
+}
+
+function onTransitionEnter(el: Element) { armTransitionWatchdog(el) }
+function onTransitionLeave(el: Element) { armTransitionWatchdog(el) }
+
 router.beforeEach((to, from) => {
   const toPath = to.path
   const fromPath = from.path
@@ -38,6 +77,8 @@ router.beforeEach((to, from) => {
       <transition
         :name="transitionName"
         mode="out-in"
+        @enter="onTransitionEnter"
+        @leave="onTransitionLeave"
       >
         <component
           :is="Component"
@@ -269,7 +310,9 @@ a:hover { color: var(--primary-hover); }
 .el-menu--horizontal { border-bottom: none !important; }
 .glass { background: color-mix(in srgb, var(--card) 80%, transparent); backdrop-filter: blur(16px) saturate(1.8); -webkit-backdrop-filter: blur(12px) saturate(1.5); }
 @keyframes fade-in-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.animate-fade-in { animation: fade-in-up 0.4s var(--ease-out) both; }
+/* QA-FIX (G#2): fill-mode 用 backwards 而非 both — both 会让 translateY(0) 的恒等
+   transform 永久残留，成为 fixed 弹层(抽屉/对话框)的包含块，页面滚动时弹层错位不可操作 */
+.animate-fade-in { animation: fade-in-up 0.4s var(--ease-out) backwards; }
 @media (max-width: 768px) { html { font-size: 14px; } .el-card__body { padding: var(--space-4) !important; } .el-card__header { padding: var(--space-3) var(--space-4) !important; } }
 
 /* ── Enhanced Element Plus Overrides ── */
@@ -426,7 +469,7 @@ html { transition: background-color var(--duration-slow) var(--ease-in-out), col
   to { opacity: 1; transform: translateY(0); }
 }
 .stagger > * {
-  animation: stagger-in 0.35s var(--ease-out) both;
+  animation: stagger-in 0.35s var(--ease-out) backwards;
 }
 .stagger > *:nth-child(1) { animation-delay: 0ms; }
 .stagger > *:nth-child(2) { animation-delay: 50ms; }

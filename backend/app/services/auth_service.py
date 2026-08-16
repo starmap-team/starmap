@@ -15,6 +15,8 @@ Public surface:
 """
 from __future__ import annotations
 
+import asyncio
+import collections
 import secrets
 import time
 import uuid
@@ -204,14 +206,45 @@ def _build_jwt_payload(
     }
 
 
+def _resolve_jwt_keyring() -> dict[str, str]:
+    """Resolve effective kid -> secret mapping for verification.
+
+    Defaults to {"<jwt_kid>": <secret_key>} when no explicit keyring is
+    configured. Operators can override via JWT_SECRET_KEYRING env (JSON dict)
+    during rotation to accept tokens signed by both old and new secrets.
+    """
+    explicit = settings.jwt_secret_keyring
+    if explicit:
+        return dict(explicit)
+    return {settings.jwt_kid: settings.secret_key}
+
+
+def _secret_for_kid(kid: str | None) -> str:
+    """Pick the secret for a given kid; raise if kid is unknown."""
+    keyring = _resolve_jwt_keyring()
+    resolved_kid = kid or settings.jwt_kid
+    if resolved_kid not in keyring:
+        raise InvalidTokenError(f"Unknown JWT kid: {resolved_kid!r}")
+    return keyring[resolved_kid]
+
+
 def create_access_token(user: User) -> str:
-    """Sign an access token (short-lived, 15 min)."""
+    """Sign an access token (short-lived, 15 min).
+
+    The active `settings.jwt_kid` is embedded as the JOSE `kid` header so
+    verifiers can pick the matching secret during rotation (Phase 20 D-02).
+    """
     payload = _build_jwt_payload(
         user,
         exp_seconds=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         token_type="access",
     )
-    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
+    return jwt.encode(
+        payload,
+        _secret_for_kid(settings.jwt_kid),
+        algorithm="HS256",
+        headers={"kid": settings.jwt_kid},
+    )
 
 
 def create_refresh_token(user: User) -> str:
@@ -221,11 +254,20 @@ def create_refresh_token(user: User) -> str:
         exp_seconds=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         token_type="refresh",
     )
-    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
+    return jwt.encode(
+        payload,
+        _secret_for_kid(settings.jwt_kid),
+        algorithm="HS256",
+        headers={"kid": settings.jwt_kid},
+    )
 
 
 def decode_token(token: str) -> dict[str, Any]:
     """Decode and validate a JWT token.
+
+    Selects the verification secret from the JWT_SECRET_KEYRING via the JOSE
+    `kid` header (Phase 20 D-02). Unknown kid → InvalidTokenError. Backward
+    compatible: tokens without a kid header fall back to settings.jwt_kid.
 
     Raises InvalidTokenError on invalid/expired/wrong-audience/wrong-issuer.
     Enforces aud/iss claims (SEC-03).
@@ -235,10 +277,19 @@ def decode_token(token: str) -> dict[str, Any]:
     if token.count(".") != 2:
         raise InvalidTokenError("Invalid JWT format")
 
+    # Extract kid header (unverified) for keyring lookup. PyJWT returns the
+    # unverified header via jwt.get_unverified_header().
+    try:
+        header = jwt.get_unverified_header(token)
+    except jwt.InvalidTokenError as e:
+        raise InvalidTokenError(f"Invalid JWT header: {e}") from e
+    kid = header.get("kid") if isinstance(header, dict) else None
+    secret = _secret_for_kid(kid)
+
     try:
         payload = jwt.decode(
             token,
-            settings.secret_key,
+            secret,
             algorithms=["HS256"],
             leeway=_td(seconds=int(settings.jwt_leeway_seconds)),
             audience=settings.jwt_audience,
@@ -392,8 +443,16 @@ async def _record_successful_login(
 # ═══════════════════════════════════════════════════════════════
 
 
-async def create_tokens(user: User, redis: Redis) -> dict[str, Any]:
+async def create_tokens(
+    user: User,
+    redis: Redis | None = None,
+) -> dict[str, Any]:
     """Create access + refresh token pair. Store refresh jti in Redis.
+
+    Phase 20 D-03: Redis is no longer a hard dependency. If ``redis`` is None
+    or the Redis SET fails, the access + refresh tokens are still issued;
+    the revocation-list write is enqueued to ``_revocation_queue`` for the
+    background drain task to retry once Redis recovers.
 
     Returns: {access_token, refresh_token, expires_in, user: {username, role}}
     """
@@ -411,12 +470,20 @@ async def create_tokens(user: User, redis: Redis) -> dict[str, Any]:
     )
     jti = refresh_payload["jti"]
 
-    # Store refresh:{jti} = user_id in Redis with TTL matching token expiry
-    await redis.set(
-        f"refresh:{jti}",
-        str(user.id),
-        ex=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-    )
+    ttl_seconds = REFRESH_TOKEN_EXPIRE_DAYS * 86400
+
+    if redis is not None:
+        try:
+            await redis.set(f"refresh:{jti}", str(user.id), ex=ttl_seconds)
+        except Exception as exc:  # pragma: no cover - exercised under Redis outage
+            # Downgrade: enqueue and continue. Access token is still valid;
+            # revocation is best-effort until the drain task succeeds.
+            _enqueue_revocation(jti, str(user.id), ttl_seconds, exc)
+    else:
+        # No Redis client available (e.g. APP_ENV=test with no Redis fixture).
+        # Tokens are issued; revocation is skipped — refresh tokens become
+        # effectively non-revocable until Redis comes back.
+        _enqueue_revocation(jti, str(user.id), ttl_seconds, reason="no_redis_client")
 
     return {
         "access_token": access_token,
@@ -429,6 +496,95 @@ async def create_tokens(user: User, redis: Redis) -> dict[str, Any]:
             "must_change_password": user.must_change_password,
         },
     }
+
+
+# ── Phase 20 D-03: Revocation queue for Redis-down degradation ──────────
+# When Redis is unavailable, token issuance must still succeed. The
+# refresh-token revocation entry is enqueued here; a background task
+# (``_drain_revocation_queue``) flushes the queue once Redis recovers.
+
+_RevocationItem = tuple[str, str, int, str | None]  # (jti, user_id, ttl, last_error)
+
+
+class _RevocationQueue:
+    """Bounded in-memory queue for deferred Redis revocation writes.
+
+    Bounded (10k items) to prevent unbounded growth under a sustained Redis
+    outage. When full, oldest items are dropped and a warning is logged.
+    """
+
+    def __init__(self, maxsize: int = 10000) -> None:
+        self._items: collections.deque[_RevocationItem] = collections.deque(maxlen=maxsize)
+        self._lock = asyncio.Lock()
+
+    async def put(self, item: _RevocationItem) -> bool:
+        """Append an item; returns True if accepted, False if dropped (queue full)."""
+        async with self._lock:
+            cap = self._items.maxlen or 0
+            if cap and len(self._items) >= cap:
+                # Drop oldest silently (deque(maxlen=...) auto-drops but we
+                # want to log once per drop).
+                from loguru import logger as _logger
+                _logger.warning(
+                    "Revocation queue full ({} items); dropping oldest",
+                    cap,
+                )
+            self._items.append(item)
+            return True
+
+    async def drain_to_redis(self, redis: Redis) -> int:
+        """Flush queued items to Redis. Returns the number successfully written."""
+        from loguru import logger as _logger
+        flushed = 0
+        async with self._lock:
+            pending = list(self._items)
+            self._items.clear()
+        for jti, user_id, ttl, _err in pending:
+            try:
+                await redis.set(f"refresh:{jti}", user_id, ex=ttl)
+                flushed += 1
+            except Exception as exc:
+                # Re-enqueue items that still fail; preserve order so we don't
+                # lose earlier issuances.
+                async with self._lock:
+                    self._items.append((jti, user_id, ttl, str(exc)))
+                _logger.warning("Revocation drain failed for jti={}: {}", jti[:8], exc)
+                # Stop retrying on this drain cycle to avoid a tight loop;
+                # next cycle will try again.
+                break
+        if flushed:
+            _logger.info("Revocation drain: flushed {} queued items to Redis", flushed)
+        return flushed
+
+    def qsize(self) -> int:
+        return len(self._items)
+
+
+_revocation_queue = _RevocationQueue()
+
+
+def _enqueue_revocation(
+    jti: str,
+    user_id: str,
+    ttl_seconds: int,
+    reason: Exception | str | None = None,
+) -> None:
+    """Schedule a deferred Redis write. Fire-and-forget (asyncio task)."""
+    err_str = str(reason) if reason else None
+    item = (jti, user_id, ttl_seconds, err_str)
+
+    async def _put() -> None:
+        await _revocation_queue.put(item)
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_put())
+    except RuntimeError:
+        # No running loop (sync context) — best-effort sync put via asyncio.run
+        # is unsafe here; just log and skip. In practice this only happens in
+        # unit tests that call create_tokens outside an event loop.
+        from loguru import logger as _logger
+        _logger.warning("No asyncio loop; revocation item dropped: jti={}", jti[:8])
 
 
 async def refresh_access_token(

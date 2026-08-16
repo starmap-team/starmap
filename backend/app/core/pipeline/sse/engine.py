@@ -127,7 +127,14 @@ def _build_result(ctx: PipelineContext) -> dict[str, Any]:
     # 取 top-1 岗位的差距和学习路径
     top_match = sorted_matches[0][1] if sorted_matches else {}
     skill_gaps = top_match.get("skill_gap_detail", [])
-    learning_path = [gap.get("learning_path", []) for gap in skill_gaps if gap.get("gap_level") != GAP_LEVEL_MASTERED]
+    # P0 fix (Phase 24 求职者分析): gap.learning_path 可能显式为 None（而非缺省），
+    # gap.get("learning_path", []) 会返回 None → learning_path_summary 含 None 元素
+    # → 前端 `path.length` 渲染崩溃（Cannot read properties of undefined）。
+    learning_path = [
+        gap.get("learning_path") or []
+        for gap in skill_gaps
+        if gap.get("gap_level") != GAP_LEVEL_MASTERED
+    ]
 
     return {
         "extracted_skills": [
@@ -142,7 +149,8 @@ def _build_result(ctx: PipelineContext) -> dict[str, Any]:
         ],
         "top_matches": [
             {
-                "position": name,
+                # P5 fix: 岗位名用 name_cn 优先（_display_name），与详情页口径一致
+                "position": result.get("_display_name") or name,
                 "match_score": result.get("match_score", 0),
                 "assessment": result.get("overall_assessment", ""),
                 "gap_count": len(result.get("missing_required", [])),
@@ -359,7 +367,8 @@ def _build_match_output(
     for pos_name, result in sorted_matches[:10]:
         top_results.append(
             {
-                "position": pos_name,
+                # P5 fix: 岗位名用 name_cn 优先（_display_name），与详情页口径一致
+                "position": result.get("_display_name") or pos_name,
                 "match_score": result.get("match_score", 0),
                 "assessment": result.get("overall_assessment", ""),
                 "matched": result.get("matched_skills", 0),

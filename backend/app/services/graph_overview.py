@@ -19,12 +19,14 @@ from app.services.graph_serializers import _node_id, _safe_properties
 
 
 def _prune_connections(connections: list[dict[str, Any]], domains: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """M2 契约层：剔除任一端点不在已保留 domains 集合中的悬空连接。
+    """Drop connections whose source or target node is not in the retained
+    ``domains`` set.
 
-    背景：某些维度分组（典型为 level）的 domains 列表只保留非空组（成员数为 0 的组被
-    过滤），但该组的 incident 关系（EVOLVES_TO 等）仍会出现在 connections 数组中。
-    前端把这些 edges 透传给 3d-force-graph 后会抛 "node not found" 并使实例处于坏
-    状态，导致视图切换后渲染持续错误。
+    Background: a dimension group with zero members is filtered out of the
+    ``domains`` list, but the group's incident edges (e.g. ``EVOLVES_TO``)
+    can still appear in the ``connections`` payload. Forwarding those
+    dangling edges to the 3d-force-graph renderer raises "node not found"
+    and leaves the view in a corrupted state across dimension switches.
     """
     valid = {d.get("id") for d in domains if d.get("id") is not None}
     return [

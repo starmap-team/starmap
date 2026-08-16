@@ -25,6 +25,7 @@ const baseNavItems = [
   { path: '/pipeline', title: '数据流水线', icon: DataLine, group: 'data' },
   { path: '/datasources', title: '数据源管理', icon: Coin, group: 'data' },
   { path: '/match', title: '匹配诊断', icon: DataAnalysis, group: 'tools' },
+  { path: '/analysis', title: '求职者分析', icon: User, group: 'tools' },
   { path: '/extract', title: 'JD 抽取', icon: Document, group: 'tools' },
   { path: '/loop', title: '闭环演示', icon: Refresh, group: 'tools' },
   { path: '/learning', title: '学习中心', icon: Reading, group: 'tools' },

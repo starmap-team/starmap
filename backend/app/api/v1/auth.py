@@ -93,12 +93,13 @@ async def login(
     redis: Redis | None = Depends(get_redis_client),
     client_ip: str = Depends(get_client_ip),
 ) -> dict[str, Any]:
-    """Authenticate username + password against DB; issue access+refresh pair."""
-    if redis is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Redis is unavailable — token refresh cannot run",
-        )
+    """Authenticate username + password against DB; issue access+refresh pair.
+
+    Phase 20 D-03: Redis is no longer a hard requirement for login. If Redis is
+    unavailable, ``auth_service.create_tokens`` still issues the JWT pair and
+    enqueues the revocation-list write to an in-memory queue; a background
+    drain task flushes it once Redis recovers.
+    """
     ip = client_ip
     try:
         user = await auth_service.authenticate(

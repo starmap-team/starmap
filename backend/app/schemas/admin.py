@@ -14,9 +14,6 @@ class GraphNodeItem(BaseModel):
     """图谱节点条目（图节点管理表单/列表）。"""
 
     id: str = Field(default="", description="图节点 ID（优先 canonical_id，缺省回退 elementId）")
-    # P1-6 fix (functional-review 2026-08-13): 透传 Neo4j elementId。此前列表只回
-    # canonical_id、写操作按 elementId 匹配 → 前端拿 canonical_id 调更新/删除/审核
-    # 全部 404。前端可优先用 element_id 调写操作（服务端已改为双匹配，两者皆可）。
     element_id: str = Field(default="", description="Neo4j elementId（写操作首选标识）")
     type: Literal["Position", "Skill", "Tool", "KnowledgeArea", "Domain", "Industry", "Certificate", "LearningResource"] = Field(..., description="Neo4j 节点标签")
     name: str = Field(..., min_length=1, max_length=200, description="节点名称")
@@ -49,7 +46,7 @@ class TruthRow(BaseModel):
 
 
 class HealthMetrics(BaseModel):
-    """Phase 5 Step 4: 同步健康度指标。"""
+    """同步健康度指标。"""
     orphan_positions: int = Field(0, description="Neo4j 中 PG 找不到的 Position 节点数")
     orphan_skills: int = Field(0, description="Neo4j 中 PG 找不到的 Skill 节点数")
     last_reconcile_at: str | None = Field(None, description="最近一次 reconcile 时间（ISO）")
@@ -195,6 +192,10 @@ class ReconcileResult(BaseModel):
     skills_in_neo4j: int = Field(default=0, description="Neo4j 当前 Skill 数")
     positions_in_pg: int = Field(default=0, description="PG 当前 Position 数")
     skills_in_pg: int = Field(default=0, description="PG 当前 Skill 数")
+    # Phase 23 Task 3 (IC-05): REQUIRES 边对账字段
+    requires_in_neo4j: int = Field(default=0, ge=0, description="Neo4j REQUIRES 边数")
+    requires_in_pg: int = Field(default=0, ge=0, description="PG approved 岗位 PSR 边数")
+    requires_diff: int = Field(default=0, ge=0, description="REQUIRES 边数差值（绝对值）")
     duration_ms: int = Field(default=0, description="执行耗时（毫秒）")
     health: str = Field(default="ok", description="健康度: ok/warn/critical")
 
@@ -231,6 +232,15 @@ class PipelineTriggerResponse(BaseModel):
     run_id: str
     status: str
     message: str
+
+
+class SeedResetResponse(BaseModel):
+    """演示数据重置（seed/reset）结果 —— 设计文档 §2.3.3.2 管理角色刚需。"""
+
+    seeded: list[str] = Field(default_factory=list, description="成功执行的种子模块名列表")
+    skipped: list[str] = Field(default_factory=list, description="跳过（幂等已存在/不可用）的模块名列表")
+    refused: bool = Field(default=False, description="生产环境拒绝执行时为 True（APP_ENV=production）")
+    message: str = Field(default="", min_length=0, max_length=500, description="人类可读结果摘要（含子进程输出摘录）")
 
 class AuditItem(BaseModel):
     """审核队列条目 (原 admin_audit_service 定义, 迁入集中契约)。"""

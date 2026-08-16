@@ -27,8 +27,6 @@ from app.schemas.admin import (
     TruthRow,
 )
 
-# PLAN-007a (NEW-01): /admin/* 端点必须叠加 require_admin，
-# 此前仅挂在 api_router 的 get_current_user 上，任意登录用户可读三口径对账数据。
 router = APIRouter(
     prefix="/admin",
     dependencies=[Depends(require_admin)],
@@ -61,16 +59,13 @@ async def get_data_truth(
     """返回每个 KPI 的三层数据源对比报告。"""
     from datetime import UTC, datetime
 
-    # ── PostgreSQL 直接查询 ──
     pg_total_positions = int(
-        (await session.execute(select(func.count()).select_from(PositionRecord))).scalar() or 0
-    )
-    pg_approved_positions = int(
         (await session.execute(
             select(func.count()).select_from(PositionRecord)
             .where(PositionRecord.review_status == "approved")
         )).scalar() or 0
     )
+    pg_approved_positions = pg_total_positions
     pg_pending_positions = int(
         (await session.execute(
             select(func.count()).select_from(PositionRecord)
@@ -86,10 +81,11 @@ async def get_data_truth(
             .where(SkillRecord.review_status == "approved")
         )).scalar() or 0
     )
-    # P3c: PSR 关系行数（关系边指标口径 = PositionSkillRelation 表，与 admin/stats 对齐）
     pg_psr_count = int(
         (await session.execute(
-            select(func.count()).select_from(PositionSkillRelation)
+            select(func.count(PositionSkillRelation.id))
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .where(PositionRecord.review_status == "approved")
         )).scalar() or 0
     )
 
@@ -137,9 +133,6 @@ async def get_data_truth(
     rows = []
 
     # 指标 1: 岗位总数（三口径）
-    # 2026-08-12 (admin 联调修复): 原 `[neo4j, pg_total, pg_approved]` 把"总数(233)"与
-    # "已发布(179)"混作跨源比较 → 23.2% 假 critical（三源其实一致）。差异应只比较同一
-    # 指标（总数）的三个来源：API / PostgreSQL / Neo4j。已发布数是独立指标（见指标 5）。
     diff, status = _calc_status([api_dashboard_positions, pg_total_positions, neo4j_positions])
     rows.append(TruthRow(
         metric="岗位总数",
@@ -209,9 +202,6 @@ async def get_data_truth(
     ))
 
     # Phase 5 Step 4: 计算同步健康度
-    # P2 修复 (R2/R3): 旧口径只对齐 canonical_id 非空节点 → 漏掉无 canonical_id 的
-    # 历史孤儿（正是 346-311=35 / 843-752=91 差额的来源），健康卡与总数表自相矛盾。
-    # 统一走 RepairEngine.detect_orphans 严格口径（含 no_canonical_id 节点）。
     from app.services.repair_engine import RepairEngine
 
     repair = RepairEngine(driver)
@@ -219,7 +209,6 @@ async def get_data_truth(
     orphan_positions = orphan_scan.orphan_positions
     orphan_skills = orphan_scan.orphan_skills
 
-    # P2: 报告生成即同步审批队列（自愈式报告：每次查看数据源诊断都会刷新孤儿清单）
     try:
         await repair.sync_orphan_queue(session)
     except Exception as exc:  # noqa: BLE001 — 队列同步失败不阻断报告

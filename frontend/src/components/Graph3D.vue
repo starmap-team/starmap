@@ -535,14 +535,6 @@ defineExpose({ setCameraPreset, resetCamera, toggleAutoRotate: _toggleAutoRotate
       <span>力导向布局计算中...</span>
     </div>
 
-    <!-- FPS counter overlay -->
-    <div
-      v-if="webglSupported && isReady"
-      class="fps-counter"
-    >
-      {{ fps }} FPS
-    </div>
-
     <!-- Node tooltip -->
     <NodeTooltip3D
       :node="tooltipNode"

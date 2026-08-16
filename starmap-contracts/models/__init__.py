@@ -443,6 +443,8 @@ class DataSourceResponse(BaseModel):
     duplicate_rate: Optional[float] = Field(default=None, description="")
     avg_quality_score: Optional[float] = Field(default=None, description="")
     config: Optional[dict[str, Any]] = Field(default=None, description="")
+    has_adapter: Optional[bool] = Field(default=False, description="")
+    adapter_platform: Optional[str] = Field(default=None, description="")
 
 class DataSourceStatsResponse(BaseModel):
     source_id: str = Field(description="")

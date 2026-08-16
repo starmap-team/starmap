@@ -301,9 +301,7 @@ def crawl_single_source(  # sync def: 爬取+DB 同步操作放线程池, 避免
         else:
             failed += 1
 
-    # 写爬取指标 (D1 后表存在) — 同步 engine
-    # D5: status 语义诚实化 —— fetched=0 记 no_fetch（网络/平台无数据），
-    # 而非误标 success（曾导致"爬了 0 条还显示成功"）
+    # 写爬取指标 — fetched=0 记 no_fetch，避免误标 success
     if len(items) == 0:
         metric_status, metric_error = "no_fetch", "network_or_empty"
     elif not failed:

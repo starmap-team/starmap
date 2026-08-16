@@ -116,6 +116,94 @@ class TestCreateAccessToken:
         # exp - iat should be ~900 seconds (15 min)
         assert abs((decoded["exp"] - decoded["iat"]) - 900) < 5
 
+    def test_token_contains_kid_header(self):
+        """Phase 20 D-02: JOSE header carries `kid` for rotation keyring lookup."""
+        import jwt as _jwt
+
+        user = User(username="kiduser", password_hash=hash_password("testX123"), role="user")
+        token = create_access_token(user)
+        header = _jwt.get_unverified_header(token)
+        assert header["kid"] == settings.jwt_kid
+        assert header["alg"] == "HS256"
+
+
+# ══════════════════════════════════════════════════════════════
+# Phase 20 D-02: JWT rotation — kid keyring
+# ══════════════════════════════════════════════════════════════
+
+
+class TestJWTKeyring:
+    """JWT kid + keyring rotation — Phase 20 D-02.
+
+    Backward-compatible fallback: when jwt_secret_keyring is empty,
+    `{jwt_kid: secret_key}` is used. When set explicitly, multiple kids
+    may coexist (rotation transition).
+    """
+
+    def test_default_keyring_uses_active_kid(self, monkeypatch):
+        """Empty keyring → {jwt_kid: secret_key}; tokens verify normally."""
+        monkeypatch.setattr(settings, "jwt_secret_keyring", {})
+        user = User(username="k1", password_hash=hash_password("testX123"), role="user")
+        token = create_access_token(user)
+        # decode_token should pick up the kid from the JOSE header and use secret_key
+        decoded = decode_token(token)
+        assert decoded["sub"] == "k1"
+
+    def test_decode_with_unknown_kid_rejected(self, monkeypatch):
+        """Token signed by a kid not in keyring → InvalidTokenError."""
+        from app.services.auth_service import InvalidTokenError
+
+        # Sign a token with an unknown kid
+        unknown_secret = "x" * 64
+        unknown_token = jwt.encode(
+            {"sub": "rogue", "role": "admin", "exp": time.time() + 60, "iat": time.time()},
+            unknown_secret,
+            algorithm="HS256",
+            headers={"kid": "v999-does-not-exist"},
+        )
+        monkeypatch.setattr(settings, "jwt_secret_keyring", {})
+        with pytest.raises(InvalidTokenError, match="Unknown JWT kid"):
+            decode_token(unknown_token)
+
+    def test_keyring_supports_multiple_kids(self, monkeypatch):
+        """Multi-kid keyring accepts tokens signed by any of them (rotation transition)."""
+        legacy_secret = "a" * 64
+        new_secret = "b" * 64
+        monkeypatch.setattr(
+            settings,
+            "jwt_secret_keyring",
+            {"v1": legacy_secret, "v2": new_secret},
+        )
+        # Sign with v1 (legacy) — must carry iss/aud to match decode_token's verify
+        legacy_token = jwt.encode(
+            {
+                "sub": "legacy",
+                "role": "user",
+                "iat": time.time(),
+                "exp": time.time() + 60,
+                "iss": settings.jwt_issuer,
+                "aud": settings.jwt_audience,
+            },
+            legacy_secret,
+            algorithm="HS256",
+            headers={"kid": "v1"},
+        )
+        new_token = jwt.encode(
+            {
+                "sub": "new",
+                "role": "user",
+                "iat": time.time(),
+                "exp": time.time() + 60,
+                "iss": settings.jwt_issuer,
+                "aud": settings.jwt_audience,
+            },
+            new_secret,
+            algorithm="HS256",
+            headers={"kid": "v2"},
+        )
+        assert decode_token(legacy_token)["sub"] == "legacy"
+        assert decode_token(new_token)["sub"] == "new"
+
 
 # ══════════════════════════════════════════════════════════════
 # require_admin — role-based access (still in dependencies)

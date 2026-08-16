@@ -71,6 +71,12 @@ def _patch_common_deps(
     monkeypatch.setattr(s, "_load_source_counts", fake_load_counts)
     monkeypatch.setattr(s, "get_async_engine", lambda: _FakeEngine())
     monkeypatch.setattr(s, "async_sessionmaker", fake_sessionmaker)
+    # Phase 23 M1b 门控: 默认 approved（保持既有 outbox 测试语义），
+    # 未审核跳过写图的用例在下面单独覆盖为 False。
+    async def fake_approved(sm: Any, position_id: str) -> bool:
+        return True
+
+    monkeypatch.setattr(s, "_position_is_approved", fake_approved)
 
     from app.core.pipeline import executor as ex
 
@@ -127,3 +133,110 @@ async def test_outbox_completed_when_graph_write_succeeds(monkeypatch: pytest.Mo
     # H1: ad-hoc extraction must use run_id=None + extraction_ids for traceability
     assert captured.get("run_id") is None, "run_id must be NULL for ad-hoc extraction"
     assert captured.get("extraction_ids"), "extraction_ids must be populated for audit"
+
+
+@pytest.mark.asyncio
+async def test_retry_worker_does_not_swallow_completed_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 23 Task 1: retry worker 只消费 failed 行，completed/drift_warning 不误捡。
+
+    沿 `_list_retryable_outbox` 的 SQL 过滤 + Python 兜底过滤——completed 行已落库
+    成功，重放会重复写图（即使 MERGE 幂等也造成 source_count 语义噪音），必须跳过。
+    """
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from app.tasks.outbox_retry import _list_retryable_outbox
+
+    def _row(status: str, retry_count: int = 0) -> SimpleNamespace:
+        return SimpleNamespace(
+            id=uuid.uuid4(), status=status, retry_count=retry_count,
+            created_at=datetime.now(UTC), updated_at=datetime.now(UTC),
+        )
+
+    rows = [
+        _row("failed", retry_count=1),
+        _row("completed"),
+        _row("drift_warning"),
+        _row("failed", retry_count=3),
+    ]
+
+    class _Scalars:
+        def __init__(self, items: list) -> None:
+            self._items = items
+
+        def all(self) -> list:
+            return self._items
+
+    class _Result:
+        def __init__(self, items: list) -> None:
+            self._scalars = _Scalars(items)
+
+        def scalars(self) -> _Scalars:
+            return self._scalars
+
+    class _Session:
+        async def execute(self, *a: Any, **k: Any) -> _Result:
+            return _Result(rows)
+
+    picked = await _list_retryable_outbox(_Session())
+    assert len(picked) == 1
+    assert picked[0].status == "failed"
+    assert picked[0].retry_count == 1  # completed/drift_warning/retry>=3 全部跳过
+
+
+@pytest.mark.asyncio
+async def test_batch_extract_skips_graph_when_position_pending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase 23 M1b 闭环: pending_review 岗位抽取不得写图 (DC-03/IS-01)。
+
+    run_batch_extract_jd 是抽取即写图路径，绕过 run_build_graph_from_extractions
+    的 approved 过滤。修复后未审核岗位跳过图写，outbox 标记 completed triples=0，
+    审核通过后由 sync_approved_position_to_graph 补投影。
+    """
+    graph_writes: list = []
+
+    async def ok_graph_write(extraction: Any, canonical_ids: dict | None = None) -> dict:
+        graph_writes.append(extraction)
+        return {"triples_merged": 5}
+
+    captured = _patch_common_deps(monkeypatch, graph_write_impl=ok_graph_write)
+
+    # 岗位未审核 (pending_review) → 图写必须跳过
+    async def fake_query_pending(sm: Any, position_id: str) -> bool:
+        return False
+
+    monkeypatch.setattr(s, "_position_is_approved", fake_query_pending)
+
+    result = await s.run_batch_extract_jd("fake JD text")
+
+    assert result["status"] == "completed"
+    assert result["graph"].get("skipped") is True, "pending 岗位不得写图"
+    assert graph_writes == [], "pending 岗位不得调用 graph write"
+    assert "completed" in captured, "outbox 仍标记 completed (triples=0, 不触发重放)"
+    assert captured["completed"][1] == 0, "pending 岗位 triples 必须为 0"
+
+
+@pytest.mark.asyncio
+async def test_batch_extract_writes_graph_when_position_approved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """approved 岗位抽取正常写图 (原有行为保持)。"""
+    graph_writes: list = []
+
+    async def ok_graph_write(extraction: Any, canonical_ids: dict | None = None) -> dict:
+        graph_writes.append(extraction)
+        return {"triples_merged": 5}
+
+    captured = _patch_common_deps(monkeypatch, graph_write_impl=ok_graph_write)
+
+    async def fake_query_approved(sm: Any, position_id: str) -> bool:
+        return True
+
+    monkeypatch.setattr(s, "_position_is_approved", fake_query_approved)
+
+    result = await s.run_batch_extract_jd("fake JD text")
+
+    assert result["status"] == "completed"
+    assert len(graph_writes) == 1, "approved 岗位必须写图"
+    assert captured["completed"][1] == 5, "approved 岗位 triples 正常传播"

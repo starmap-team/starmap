@@ -17,4 +17,6 @@ export interface DataSourceDetail {
   duplicate_rate: number
   avg_quality_score: number
   config?: Record<string, unknown>
+  has_adapter?: boolean
+  adapter_platform?: string | null
 }

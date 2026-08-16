@@ -102,3 +102,24 @@ def test_trust_weights_match_design_doc() -> None:
         "cross_verify": 0.25,
         "time_decay": 0.15,
     }
+
+
+class TestWriteBackThresholdSeparation:
+    """Phase 23 Task 5 (DF-05) 回归锁定：EntityTrustScorer 不参与写回闸门。
+
+    EntityTrustScorer（图节点四因子）单源最高 ≈0.545 < 写回阈值 0.6——但它用于
+    图节点信任，**不用于** evolution 写回 PSR 的闸门（写回只认 TrustScorer 的
+    trust_score）。锁定该值，防止未来把 EntityTrustScorer 误接入写回闸门。
+    """
+
+    def test_single_source_max_below_writeback_threshold(self) -> None:
+        from app.core.evolution.trust_scorer import WRITEBACK_TRUST_THRESHOLD
+
+        # source=1→0.316, conf=1.0, cross_verify(1)=0.0, time=1.0
+        v = _scorer().score(1, 1.0, NOW)
+        expected = 0.3 * (1 / 10) ** 0.5 + 0.3 * 1.0 + 0.25 * 0.0 + 0.15 * 1.0
+        assert v == pytest.approx(expected, abs=0.001)
+        assert v == pytest.approx(0.545, abs=0.001)
+        assert v < WRITEBACK_TRUST_THRESHOLD
+        # 单源永远到不了 0.6 → 若误接进写回闸门，手动 approve 的单源技能会被永久拦截
+        assert WRITEBACK_TRUST_THRESHOLD == 0.6

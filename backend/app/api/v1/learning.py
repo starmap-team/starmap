@@ -47,9 +47,6 @@ async def list_learning_plans(
     limit: int = Query(20, ge=1, le=100),
 ) -> list[PlanResponse]:
     """List all learning plans for the current user, newest first."""
-    # NEW-02 修复：必须与 create/get/update/add 同口径（sub=username，
-    # 即 LearningPlan.user_id 的存储值）；此前用 uid 查询导致真实用户
-    # 查不到自己创建的计划。
     user_id = user["sub"]
     views = await learning_service.list_plans_for_user(session, user_id, limit)
     return [PlanResponse(**v) for v in views]
@@ -223,7 +220,6 @@ async def get_recommendations(
     If position is provided, recommendations are based on the position's requirements.
     Otherwise, returns general trending skill recommendations.
     """
-    # NEW-03: 首次调用时从 Neo4j 加载前置关系（不可用时降级为空）
     await ensure_prerequisite_map()
 
     items: list[RecommendationItem] = []
@@ -234,7 +230,6 @@ async def get_recommendations(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
 
-        # NEW-21 修复：plan_id 分支须属主校验，防他人计划技能缺口泄漏（IDOR）
         plan_row = (
             await session.execute(sa.select(LearningPlan).where(LearningPlan.id == pid))
         ).scalar_one_or_none()

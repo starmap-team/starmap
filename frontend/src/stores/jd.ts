@@ -157,8 +157,8 @@ export const useJdStore = defineStore('jd', () => {
       positionSchema, '/positions', 'PositionListResponse',
     )
     return data.items.map(p => ({
-      label: p.name,
-      value: p.name,
+      label: p.name_cn || p.name,
+      value: p.name_cn || p.name,
       position_id: p.position_id,
     }))
   }

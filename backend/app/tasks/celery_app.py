@@ -446,4 +446,53 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.celery_app.sweep_orphan_runs",
         "schedule": crontab(minute="*/5"),  # 每5分钟
     },
+    # Phase 23 Task 1 (DC-02/DF-01): 重放 graph_write_outbox 失败行 + sweep 超龄
+    # pending 行——每 30 分钟，幂等（MERGE），source_count max 语义不放大漂移
+    "retry-failed-outbox-writes": {
+        "task": "app.tasks.outbox_retry.retry_failed_outbox_writes",
+        "schedule": crontab(minute="*/30"),  # 每30分钟
+    },
 }
+
+
+# ── CONCERN 2.4 (Phase 24): Celery task_failure 信号接线 ──
+# 失败任务此前不产生任何告警/审计——Celery 级失败对运营不可见（pipeline 由
+# cron_scheduler 串行驱动，stage 失败仅靠 run 级 status，任务级异常静默）。
+# 接线：task_failure → audit_events (celery_task_failure) + loguru 告警。
+
+from celery import signals  # noqa: E402
+
+
+def _on_task_failure(
+    task_id: str,
+    task_name: str,
+    exception: BaseException,
+    **kwargs: Any,
+) -> None:
+    """Celery task failure handler — surface to audit_events + logger."""
+    try:
+        from app.utils.audit import AuditEntry, AuditEvent, audit_log
+
+        audit_log(
+            AuditEntry(
+                event=AuditEvent.CELERY_TASK_FAILURE,
+                actor="celery",
+                action=f"task_failure:{task_name}",
+                detail=f"task_id={task_id} error={exception!r}",
+                extra={"task_id": task_id, "task_name": task_name},
+            )
+        )
+    except Exception:
+        logger.opt(exception=True).warning(
+            "task_failure audit write failed (non-fatal): task={} id={}",
+            task_name, task_id,
+        )
+    logger.error(
+        "Celery task FAILED: name={} id={} exc={!r}",
+        task_name, task_id, exception,
+    )
+
+
+if getattr(celery_app, "task_failure_handler_registered", False) is False:
+    signals.task_failure.connect(_on_task_failure)
+    celery_app.task_failure_handler_registered = True

@@ -86,8 +86,14 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
     syncingIds.value.delete(source.id)
   }
 }
+// M2/M3 (2026-08-15): 软删除源（inactive）不展示——避免"同名不同状态"卡与
+// KPI 虚高（数据源总数 19 含 3 个已归档占位 → 应 16）。
+// Phase 23 Task 8 (DC-04): status 全集与后端共享枚举
+// app.core.constants.DataSourceStatus（active/paused/error/inactive）对齐——
+// 'inactive' 由 DELETE 软删除 / PATCH 产出，UI 过滤属展示层约定，非校验兜底。
+const visibleSources = computed(() => dsStore.sources.filter((s) => s.status !== 'inactive'))
 const summaryStats = computed(() => {
-  const src = dsStore.sources
+  const src = visibleSources.value
   // fix: 异常口径只计 error（paused 为人为主观停用，非异常）—— datasource 优化设计需求 C
   // fix: 平均质量分只对"已评估"(avg_quality_score>0) 源求均值；全未评估 → null（诚实"未评估"）
   //      而非把 0 计入平均 → 假"0.0% ▼ 有提升空间"（2026-08-12 D4 多端语义验证）
@@ -105,10 +111,21 @@ const summaryStats = computed(() => {
   }
 })
 
-// 卡片"数据质量"诚实态：已评估 → X%；有记录但未抽取 → 未评估；无记录 → 未采集
+// 卡片"数据质量"诚实态：已评估 → X%；有记录但未抽取 → 未评估；无记录 → 未评估
+// D2 (2026-08-15): 0 记录源的质量分是残留值（seed/历史 avg_quality_score），
+// 纯 UI 隐藏为"未评估"，避免"暂无记录 + 质量 90%"矛盾。
 function formatQuality(s: { avg_quality_score: number; total_records: number }): string {
+  if (s.total_records === 0) return '未评估'
   if (s.avg_quality_score > 0) return `${(s.avg_quality_score * 100).toFixed(0)}%`
-  return s.total_records > 0 ? '未评估' : '未采集'
+  return '未评估'
+}
+
+// D2: 卡片状态徽章 —— 未配置适配器的 active 源显示"未配置"而非"运行中"
+function cardStatusBadge(s: { status: string; has_adapter?: boolean }) {
+  if (s.status === 'active' && s.has_adapter === false) {
+    return { type: 'warning' as const, label: '未配置' }
+  }
+  return getStatusBadge(s.status)
 }
 
 onMounted(() => {
@@ -335,7 +352,7 @@ onMounted(() => {
           />
         </el-col>
         <el-col
-          v-for="source in dsStore.sources"
+          v-for="source in visibleSources"
           :key="source.id"
           :xl="8"
           :lg="12"
@@ -352,12 +369,12 @@ onMounted(() => {
               <div class="card-title-group">
                 <span class="card-name">{{ getSourceNameLabel(source.name) }}</span>
                 <el-tag
-                  :type="asTagType(getStatusBadge(source.status).type)"
+                  :type="asTagType(cardStatusBadge(source).type)"
                   size="small"
                   effect="light"
                   round
                 >
-                  {{ getStatusBadge(source.status).label }}
+                  {{ cardStatusBadge(source).label }}
                 </el-tag>
               </div>
               <!-- D5 UX: 数据源说明 —— 告诉用户这个源是什么 -->
@@ -459,7 +476,7 @@ onMounted(() => {
             <!-- 底部：同步时间 + 操作按钮 -->
             <div class="card-footer">
               <span class="sync-time">
-                最后同步：{{ formatLastCrawl(source.last_crawl_at) }}
+                {{ source.total_records > 0 ? '最后同步' : '最近尝试' }}：{{ formatLastCrawl(source.last_crawl_at) }}
               </span>
               <!-- D5 UX: 一键同步 tooltip —— 说明触发的是完整流水线 -->
               <el-tooltip
@@ -473,7 +490,7 @@ onMounted(() => {
                   size="small"
                   type="primary"
                   :loading="syncingIds.has(source.id)"
-                  :disabled="source.status === 'paused' || source.status === 'inactive'"
+                  :disabled="!source.has_adapter || source.status === 'paused' || source.status === 'inactive'"
                   @click="handleSync(source)"
                 >
                   <el-icon

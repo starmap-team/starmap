@@ -4,7 +4,7 @@
 
 ## 当前调度
 
-当前 `STAGE_EXECUTORS` 对应 `crawl -> dedup_clean -> import_sync`。旧的细粒度 executor 函数可作为内部兼容实现，但不代表调度 DAG。
+`StageName` 定义 6 阶段：`crawl → dedup → clean → import → graph_sync → timeseries`；其中 `graph_sync` 与 `timeseries` 属 `OPTIONAL_STAGES`（orchestrator.py:76），核心 ETL DAG 为 `crawl → dedup → clean → import`，可选阶段按 run 配置纳入。`STAGE_EXECUTORS` 映射 6 阶段到 `execute_crawl/dedup/clean/import/graph_sync/timeseries`（engine.py）。旧的细粒度 executor 函数可作为内部兼容实现，但不代表调度 DAG。
 
 ## 规则
 

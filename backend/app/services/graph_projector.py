@@ -57,6 +57,7 @@ class ProjectionResult:
     """Outcome of a single projection operation."""
 
     nodes_upserted: int = 0
+    skills_upserted: int = 0
     edges_upserted: int = 0
     orphans_pruned: int = 0
     errors: list[str] = None  # type: ignore[assignment]
@@ -72,6 +73,7 @@ class ProjectionResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "nodes_upserted": self.nodes_upserted,
+            "skills_upserted": self.skills_upserted,
             "edges_upserted": self.edges_upserted,
             "orphans_pruned": self.orphans_pruned,
             "errors": self.errors,
@@ -185,7 +187,9 @@ class GraphProjector:
                         cid=str(cid),
                         props=props,
                     )
-                    result.nodes_upserted += 1
+                    # Phase 23 Task 3: Skill 分支单独累加 skills_upserted（修 admin
+                    # skills_synced 复制粘贴 bug——Position/Skill 不再共用 nodes_upserted）
+                    result.skills_upserted += 1
 
                 # REQUIRES relations (position_cid -> skill_cid)
                 for rel in relations or ():
@@ -300,10 +304,17 @@ class GraphProjector:
                     neo4j_ids[label] = ids
 
             # 2. Snapshot PG IDs
+            # Phase 23 核验修复 (M1b 闭环): 节点快照必须限定 approved——与边层
+            # (line ~440) 及 run_build_graph_from_extractions 口径一致。否则每次
+            # reconcile 都会把 pending_review 岗位回灌图谱（孤儿剪枝后又被回填）。
             pg_pos_ids = {
                 str(row[0])
                 for row in (
-                    await pg_session.execute(select(PositionRecord.id))
+                    await pg_session.execute(
+                        select(PositionRecord.id).where(
+                            PositionRecord.review_status == "approved"
+                        )
+                    )
                 ).all()
             }
             pg_skill_ids = {
@@ -387,7 +398,17 @@ class GraphProjector:
                     skills=skill_dicts,
                 )
                 result.nodes_upserted += backfill.nodes_upserted
+                # Phase 23 Task 3: Skill 分支计数单独累加（修 admin skills_synced bug）
+                result.skills_upserted += backfill.skills_upserted
                 result.errors.extend(backfill.errors)
+
+            # 6. 边层补缺（Phase 23 Task 3，IC-05）：PG approved 岗位 PSR 边按
+            # canonical_id 对账补缺（复用 apply_batch relations 分支）。多余边只记
+            # drift（admin/daily 对账 audit diff 暴露）不自动删——抽取/演化双写路径
+            # 都可能合法建边，误删风险大（phase prohibition）。
+            edge_backfill = await self._reconcile_requires_edges(pg_session)
+            result.edges_upserted += edge_backfill.edges_upserted
+            result.errors.extend(edge_backfill.errors)
 
             return result
         except StarMapError:
@@ -397,6 +418,56 @@ class GraphProjector:
             raise GraphProjectionError(str(exc)) from exc
         except Exception as exc:
             logger.exception("Unexpected error in graph projection: reconcile_all")
+            raise GraphProjectionError(str(exc)) from exc
+
+    async def _reconcile_requires_edges(self, pg_session: Any) -> ProjectionResult:
+        """Phase 23 Task 3: 按 canonical_id 补缺 REQUIRES 边（PG approved PSR）。
+
+        只补缺不自动删——多余 REQUIRES 边由 admin/daily 对账的 audit diff 暴露
+        （drift 告警），避免误删抽取/演化双写路径合法建边。
+        """
+        result = ProjectionResult()
+        if self._driver is None:
+            result.errors.append("neo4j_driver_unavailable")
+            return result
+        try:
+            from sqlalchemy import select  # local import to keep module lean
+
+            from app.models.extraction_models import PositionRecord, PositionSkillRelation
+
+            rows = (
+                await pg_session.execute(
+                    select(
+                        PositionSkillRelation.position_id,
+                        PositionSkillRelation.skill_id,
+                        PositionSkillRelation.requirement_type,
+                        PositionSkillRelation.confidence,
+                    )
+                    .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+                    .where(PositionRecord.review_status == "approved")
+                )
+            ).all()
+            relations = [
+                {
+                    "position_canonical_id": str(position_id),
+                    "skill_canonical_id": str(skill_id),
+                    "requirement_type": requirement_type,
+                    "confidence": float(confidence or 0.0),
+                }
+                for position_id, skill_id, requirement_type, confidence in rows
+            ]
+            if relations:
+                edge_result = await self.apply_batch(relations=relations)
+                result.edges_upserted += edge_result.edges_upserted
+                result.errors.extend(edge_result.errors)
+            return result
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("Graph projection DB error: reconcile_requires_edges")
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("Unexpected error in graph projection: reconcile_requires_edges")
             raise GraphProjectionError(str(exc)) from exc
 
 

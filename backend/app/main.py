@@ -49,6 +49,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """应用生命周期：启动时初始化连接，关闭时释放。"""
     logger.info("StarMap 启动中... env={}", settings.app_env)
     app.state.resources = await init_resources()
+    # CONCERN 2.3 (reliability audit 2026-08-15): log the effective rate-limit
+    # knobs at startup so operators can verify staging/prod parity without
+    # inspecting env vars. ``rate_limit_storage`` reports which backend will
+    # serve the counters ("redis" if a Redis client is attached, else "memory").
+    _rate_limit_storage = (
+        "redis" if getattr(app.state.resources, "redis_client", None) is not None
+        else "memory"
+    )
+    logger.info(
+        "RateLimitMiddleware active: rate_limit_max={} rate_limit_window={}s "
+        "rate_limit_storage={}",
+        getattr(settings, "rate_limit_max", "n/a"),
+        getattr(settings, "rate_limit_window", "n/a"),
+        _rate_limit_storage,
+    )
     # 2026-08-08: 启动时把 prompt_versions 表（管理后台注册的自定义版本/活跃选择）
     # 合并进内存注册表，避免重启丢失（此前仅存进程内存）
     if resources.pg_sessionmaker is not None:
@@ -118,10 +133,27 @@ app = FastAPI(
 )
 
 # P0 修复 (AUTH-04): CORS 收紧 methods/headers
+# CONCERN 1.2 (security audit 2026-08-15): refuse startup if `cors_origins`
+# is the wildcard `["*"]` while credentials are enabled — that combination
+# is a CSRF-grade hole that Starlette does NOT silently reject for FastAPI's
+# CORSMiddleware on every version, and human operators occasionally set it
+# during debugging. Fail-fast at startup is the safer path.
+_ALLOW_CREDENTIALS = True
+if _ALLOW_CREDENTIALS and settings.cors_origins == ["*"]:
+    raise ValueError(
+        "CORS misconfiguration: cors_origins=['*'] is not allowed when "
+        "allow_credentials=True. Set CORS_ALLOWED_ORIGINS to explicit "
+        "origins (e.g. CORS_ALLOWED_ORIGINS=https://yourdomain.com)."
+    )
+logger.info(
+    "CORS allow_origins in effect ({} entries): {}",
+    len(settings.cors_origins),
+    settings.cors_origins,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    allow_credentials=_ALLOW_CREDENTIALS,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
 )
@@ -203,18 +235,31 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     _RATE_LIMIT_INCR_SCRIPT, 1, key, settings.rate_limit_window
                 )
                 if count > settings.rate_limit_max:
-                    audit_log(
-                        AuditEntry(
-                            event=AuditEvent.RATE_LIMITED,
-                            actor=client_ip,
-                            action=f"{request.method} {path}",
-                            detail=(
-                                f"Exceeded {settings.rate_limit_max} "
-                                f"req/{settings.rate_limit_window}s (Redis)"
-                            ),
-                            ip=client_ip,
+                    # CONCERN 1.8 (security audit 2026-08-15): rate-limit
+                    # audit must NEVER break the 429 response. If the
+                    # audit_log sink (loguru/Redis/DB persist) raises for
+                    # any reason — Redis down mid-flight, structured-log
+                    # failure, etc — fall back to a WARNING log and still
+                    # return the rate-limit response to the client.
+                    try:
+                        audit_log(
+                            AuditEntry(
+                                event=AuditEvent.RATE_LIMITED,
+                                actor=client_ip,
+                                action=f"{request.method} {path}",
+                                detail=(
+                                    f"Exceeded {settings.rate_limit_max} "
+                                    f"req/{settings.rate_limit_window}s (Redis)"
+                                ),
+                                ip=client_ip,
+                            )
                         )
-                    )
+                    except Exception as audit_exc:  # noqa: BLE001
+                        logger.warning(
+                            "Rate-limit audit sink failed (Redis path); "
+                            "suppressing audit but enforcing 429: {}",
+                            audit_exc,
+                        )
                     return JSONResponse(
                         status_code=429,
                         content={
@@ -237,18 +282,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             for k in stale_keys:
                 del _rate_buckets[k]
         if len(_rate_buckets[client_ip]) >= settings.rate_limit_max:
-            audit_log(
-                AuditEntry(
-                    event=AuditEvent.RATE_LIMITED,
-                    actor=client_ip,
-                    action=f"{request.method} {path}",
-                    detail=(
-                        f"Exceeded {settings.rate_limit_max} "
-                        f"req/{settings.rate_limit_window}s (in-memory)"
-                    ),
-                    ip=client_ip,
+            # CONCERN 1.8: same defence-in-depth as the Redis path —
+            # audit failure must not block the 429 response.
+            try:
+                audit_log(
+                    AuditEntry(
+                        event=AuditEvent.RATE_LIMITED,
+                        actor=client_ip,
+                        action=f"{request.method} {path}",
+                        detail=(
+                            f"Exceeded {settings.rate_limit_max} "
+                            f"req/{settings.rate_limit_window}s (in-memory)"
+                        ),
+                        ip=client_ip,
+                    )
                 )
-            )
+            except Exception as audit_exc:  # noqa: BLE001
+                logger.warning(
+                    "Rate-limit audit sink failed (in-memory path); "
+                    "suppressing audit but enforcing 429: {}",
+                    audit_exc,
+                )
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Try again later."},

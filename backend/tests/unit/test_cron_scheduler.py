@@ -173,6 +173,34 @@ class TestTriggerSchedule:
         assert result is False
 
     @pytest.mark.asyncio
+    async def test_daily_reconcile_dispatches_reconcile_graph_task(self):
+        """Phase 23 Task 4 (DC-01): daily_reconcile name 分发到 reconcile_graph_task.delay。
+
+        迁移 039 种子行 name='daily_reconcile' → trigger_schedule 按 name 派发
+        `reconcile_graph_task`（而非 scheduled_pipeline_run）→ 每日自动全量对账。
+        """
+        sched = _make_schedule(name="daily_reconcile")
+        session = FakeAsyncSession()
+        with patch("app.core.pipeline.cron_scheduler.compute_next_cron", return_value=datetime.now(UTC) + timedelta(hours=6)):
+            with patch("app.tasks.celery_app.reconcile_graph_task") as mock_task:
+                result = await trigger_schedule(session, sched)
+        assert result is True
+        mock_task.delay.assert_called_once_with(str(sched.id))
+        assert sched.last_run_at is not None
+        assert sched.next_run_at is not None
+
+    @pytest.mark.asyncio
+    async def test_graph_reconcile_dispatches_reconcile_graph_task(self):
+        """graph_reconcile 别名同样分发 reconcile_graph_task（name 白名单）。"""
+        sched = _make_schedule(name="graph_reconcile")
+        session = FakeAsyncSession()
+        with patch("app.core.pipeline.cron_scheduler.compute_next_cron", return_value=datetime.now(UTC) + timedelta(hours=6)):
+            with patch("app.tasks.celery_app.reconcile_graph_task") as mock_task:
+                result = await trigger_schedule(session, sched)
+        assert result is True
+        mock_task.delay.assert_called_once_with(str(sched.id))
+
+    @pytest.mark.asyncio
     async def test_trigger_with_no_next_cron_fallback(self):
         sched = _make_schedule(cron_expression="invalid")
         session = FakeAsyncSession()

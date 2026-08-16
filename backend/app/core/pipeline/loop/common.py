@@ -76,6 +76,8 @@ class LoopResult:
     match_result: dict[str, Any] = field(default_factory=dict)
     learning_path: dict[str, Any] = field(default_factory=dict)
     total_duration_seconds: float = 0.0
+    # SEC-04 QA-FIX (F#11): 携带归属用户，供 in-memory 历史回退路径做 IDOR 过滤。
+    user_id: str = "system"
 
     def to_dict(self) -> dict[str, Any]:
         # ponytail: defer the verification build until to_dict time so step-level

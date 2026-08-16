@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import DataSourceStatus
 from app.dependencies import get_db_session, require_admin
 from app.models.pipeline_models import DataSourceRecord
 from app.schemas.datasource import (
@@ -55,7 +56,25 @@ def _mask_config(config: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _adapter_capability(ds: DataSourceRecord) -> tuple[bool, str | None]:
+    """数据源是否有可用爬虫适配器 —— 后端 spider 注册表为唯一事实源（P0-3）。
+
+    返回 (has_adapter, adapter_platform)。platform 取自 config.platform（或
+    config.source_site 兜底）；缺 platform 或不在注册表 → 无适配器。
+    Layer-boundary: imports from app.services.spider_registry (services →
+    core forbidden in reverse).
+    """
+    from app.services.spider_registry import has_adapter
+
+    cfg = ds.config or {}
+    platform = cfg.get("platform") or cfg.get("source_site")
+    if not platform:
+        return False, None
+    return has_adapter(platform), str(platform)
+
+
 def _serialize(ds: DataSourceRecord) -> DataSourceResponse:
+    has_adapter, adapter_platform = _adapter_capability(ds)
     return DataSourceResponse(
         id=str(ds.id),
         name=ds.name,
@@ -68,6 +87,8 @@ def _serialize(ds: DataSourceRecord) -> DataSourceResponse:
         duplicate_rate=ds.duplicate_rate,
         avg_quality_score=ds.avg_quality_score,
         config=_mask_config(ds.config),
+        has_adapter=has_adapter,
+        adapter_platform=adapter_platform,
     )
 
 
@@ -174,9 +195,12 @@ async def update_datasource(
     if body.authority_score is not None:
         values["authority_score"] = body.authority_score
     if body.status is not None:
-        if body.status not in ("active", "paused", "error"):
+        # Phase 23 Task 8 (DC-04): 校验全集沿 DataSourceStatus（含 inactive，支持
+        # PATCH 恢复/停用语义）；schema Literal 已先兜底，此处防御双写。
+        allowed_statuses = {s.value for s in DataSourceStatus}
+        if body.status.value not in allowed_statuses:
             raise HTTPException(status_code=400, detail="Invalid status")
-        values["status"] = body.status
+        values["status"] = body.status.value
     if body.config is not None:
         values["config"] = body.config
 
@@ -213,14 +237,10 @@ async def delete_datasource(
     if ds is None:
         raise HTTPException(status_code=404, detail="数据源不存在")
     if ds.status == "inactive":
-        # 幂等 (2026-08-14): 停用已停用的源不是错误——返回成功（no-op）。
-        # 此前 400 英文 detail 触发前端双重错误 toast（"Data source already inactive"
-        # + "停用失败: Request failed with status code 400"），且按钮对已停用源仍可点。
+        # 幂等: 停用已停用的源不是错误——返回成功（no-op）。
         return {"detail": "数据源已停用", "source_id": str(source_id)}
     ds.status = "inactive"
-    # D8c fix: 双写 config.disabled=true —— 流水线页 DataSourceManager 只读
-    # config.disabled 判断启停，DELETE 仅设 status 导致停用状态在两页不一致
-    # （数据源页「已停用」vs 流水线页「待机」）。
+    # 双写 config.disabled=true —— 流水线页 DataSourceManager 只读 config.disabled 判断启停
     ds.config = {**(ds.config or {}), "disabled": True}
     await session.commit()
     return {"detail": "数据源已停用", "source_id": str(source_id)}
@@ -364,14 +384,21 @@ async def trigger_source_sync(
     if ds is None:
         raise HTTPException(status_code=404, detail="Data source not found")
 
-    # Delegate to pipeline executor so stages actually run (previously a no-op)
-    # E19 fix: trigger_and_start accepts full/incremental only (DB constraint),
+    # P0-4 (2026-08-15): 无适配器源拒绝同步 —— 避免 crawl 阶段错源归属/空转。
+    has_adapter, adapter_platform = _adapter_capability(ds)
+    if not has_adapter:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"数据源 '{ds.name}' 未配置爬虫适配器"
+                f"（platform={adapter_platform or '未设置'}），无法同步"
+            ),
+        )
+
+    # Delegate to pipeline executor so stages actually run
+    # E19: trigger_and_start accepts full/incremental only (DB constraint),
     # so map "source_sync" intent to "incremental" — single-source sync is
     # by definition an incremental crawl.
-    # P1-7 fix (functional-review 2026-08-13): 此前未传 selected_sources →
-    # 新 run 的 selected_sources=None → crawl 阶段爬全部 active 源，响应却声称
-    # "Source sync triggered for 'X'"（单源语义失效）。现透传 ds.name，crawl
-    # 阶段按 run.selected_sources 只爬该源。
     from app.services.pipeline_service import trigger_and_start
 
     run = await trigger_and_start(run_type="incremental", selected_sources=[ds.name])
