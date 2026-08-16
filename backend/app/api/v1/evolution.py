@@ -42,7 +42,11 @@ from app.schemas.evolution import (
     ReviewQueueItem,
     SnapshotEntry,
 )
-from app.services.evolution_service import LOW_TRUST_THRESHOLD, load_skill_timeseries_data
+from app.services.evolution_service import (
+    LOW_TRUST_THRESHOLD,
+    build_change_explanation,
+    load_skill_timeseries_data,
+)
 from app.tasks.celery_app import analyze_evolution_trends
 
 router = APIRouter(prefix="/evolution", tags=["演化分析"])
@@ -128,6 +132,7 @@ async def get_changelog(
             status=r.status,
             written_back=r.written_back,
             evidence_json=r.evidence_json or {},
+            explanation=build_change_explanation(r),
             created_at=r.created_at,
         )
         for r in records

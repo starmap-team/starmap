@@ -318,3 +318,38 @@ async def discover_emerging_positions(
         "threshold": threshold,
         "message": f"扫描 {len(pos_skills)} 个已审核岗位，发现 {len(candidates)} 个新兴演化候选",
     }
+
+
+def build_change_explanation(record: Any) -> str:
+    """P2-7 更新说明：规则模板派生自然语言变更说明（不依赖 LLM）。
+
+    赛项模块B要求能力变更"提供更新说明及数据源"。根据 change_type 与
+    evidence_json（mention_count_old/new、source_count、factors）生成
+    可读的中文说明，数据源引用 mention_count/source_count 统计依据。
+    """
+    evidence = getattr(record, "evidence_json", None) or {}
+    mention_old = evidence.get("mention_count_old")
+    mention_new = evidence.get("mention_count_new")
+    source_count = evidence.get("source_count")
+    ctype = getattr(record, "change_type", "") or ""
+    skill = getattr(record, "skill_name", "") or ""
+    position = getattr(record, "position_name", "") or "该岗位"
+
+    source_ref = ""
+    if source_count:
+        source_ref = f"（数据源：{source_count} 个独立 JD 来源"
+        if mention_old is not None and mention_new is not None:
+            source_ref += f"，提及次数 {mention_old}→{mention_new}"
+        source_ref += "）"
+
+    if ctype == "added_required":
+        return f"「{position}」新增必备技能「{skill}」{source_ref}：市场 JD 对该技能的需求占比上升，已提升为核心要求。"
+    if ctype == "added_preferred":
+        return f"「{position}」新增加分技能「{skill}」{source_ref}：更多 JD 将其列为优先项。"
+    if ctype == "removed":
+        return f"「{position}」移除技能「{skill}」{source_ref}：JD 提及显著下降或已不再要求。"
+    if ctype == "promoted":
+        return f"「{position}」技能「{skill}」由加分项提升为必备项{source_ref}：需求增长使其成为硬性要求。"
+    if ctype == "demoted":
+        return f"「{position}」技能「{skill}」由必备项降为加分项{source_ref}：需求减弱或竞争性下降。"
+    return f"「{position}」技能「{skill}」状态更新（{ctype}）{source_ref}。"

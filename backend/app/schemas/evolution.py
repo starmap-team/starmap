@@ -109,6 +109,10 @@ class ChangelogEntry(BaseModel):
         default_factory=dict,
         description="证据链：mention_count_old/new、source_count、factors（源计数/提及新旧/变更类型/稳定性因子）",
     )
+    explanation: str = Field(
+        default="",
+        description="更新说明（P2-7）：自然语言描述该能力项新增/删除/修改的原因与数据源依据（规则模板派生，不依赖 LLM）",
+    )
 
 
 class EvolutionKpiResponse(BaseModel):

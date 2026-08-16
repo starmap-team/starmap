@@ -6,6 +6,7 @@ the DB session is fully mocked, no real PG required.
 from __future__ import annotations
 
 import uuid
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -18,6 +19,7 @@ from app.core.evolution.write_back import (
 )
 from app.models.evolution_models import EvolutionChangelog
 from app.models.extraction_models import PositionSkillRelation, SkillRecord
+from app.services.evolution_service import build_change_explanation
 
 
 class _FakeScalarResult:
@@ -465,3 +467,45 @@ class TestConstants:
         }
         # "removed" must NOT be in CHANGE_TO_REQUIREMENT_TYPE.
         assert "removed" not in CHANGE_TO_REQUIREMENT_TYPE
+
+
+class TestBuildChangeExplanation:
+    """P2-7 更新说明规则模板派生。"""
+
+    def _record(self, change_type: str, skill: str = "Python", evidence: dict | None = None) -> SimpleNamespace:
+        return SimpleNamespace(
+            skill_name=skill,
+            position_name="后端工程师",
+            change_type=change_type,
+            evidence_json=evidence or {
+                "mention_count_old": 5, "mention_count_new": 12,
+                "source_count": 8,
+            },
+        )
+
+    def test_added_required(self) -> None:
+        text = build_change_explanation(self._record("added_required"))
+        assert "新增必备技能" in text
+        assert "Python" in text
+        assert "8 个独立 JD 来源" in text
+        assert "5→12" in text
+
+    def test_removed(self) -> None:
+        text = build_change_explanation(self._record("removed", skill="Elixir"))
+        assert "移除技能" in text
+        assert "Elixir" in text
+
+    def test_promoted_and_demoted(self) -> None:
+        assert "提升为必备项" in build_change_explanation(self._record("promoted"))
+        assert "降为加分项" in build_change_explanation(self._record("demoted"))
+
+    def test_no_evidence_graceful(self) -> None:
+        rec = SimpleNamespace(
+            skill_name="Python",
+            position_name="后端工程师",
+            change_type="added_preferred",
+            evidence_json=None,
+        )
+        text = build_change_explanation(rec)
+        assert "新增加分技能" in text
+        assert "数据源" not in text
