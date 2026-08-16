@@ -149,7 +149,8 @@ def _build_result(ctx: PipelineContext) -> dict[str, Any]:
         ],
         "top_matches": [
             {
-                "position": name,
+                # P5 fix: 岗位名用 name_cn 优先（_display_name），与详情页口径一致
+                "position": result.get("_display_name") or name,
                 "match_score": result.get("match_score", 0),
                 "assessment": result.get("overall_assessment", ""),
                 "gap_count": len(result.get("missing_required", [])),
@@ -366,7 +367,8 @@ def _build_match_output(
     for pos_name, result in sorted_matches[:10]:
         top_results.append(
             {
-                "position": pos_name,
+                # P5 fix: 岗位名用 name_cn 优先（_display_name），与详情页口径一致
+                "position": result.get("_display_name") or pos_name,
                 "match_score": result.get("match_score", 0),
                 "assessment": result.get("overall_assessment", ""),
                 "matched": result.get("matched_skills", 0),

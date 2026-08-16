@@ -359,3 +359,58 @@ class TestBuildResultScoreField:
         assert "score" in gap
         assert isinstance(gap["score"], (int, float))
         assert gap["score"] == 0.1
+
+
+class TestBuildResultDisplayName:
+    """Phase 24 P5 fix: top_matches 岗位名必须用 name_cn（_display_name）优先。
+
+    分析报告此前显示英文 name（Senior Controller – Reporting & Insights），
+    岗位详情页用 name_cn || name（高级财务控制 — 报告与洞察）——中文化未贯穿。
+    """
+
+    def test_top_matches_use_display_name(self):
+        ctx = PipelineContext(
+            extracted_skills=[
+                ExtractedSkill(
+                    name="Python", raw_name="python", category="hard_skill",
+                    proficiency="精通", confidence=0.9, source="llm_extraction",
+                ),
+            ],
+            match_results={
+                "Senior Controller – Reporting & Insights": {
+                    "match_score": 0.84,
+                    "overall_assessment": "核心技能已基本覆盖",
+                    "missing_required": [],
+                    "skill_gap_detail": [],
+                    "_display_name": "高级财务控制 — 报告与洞察",
+                },
+            },
+            recommended_positions=[],
+            data_source="graph",
+        )
+        result = _build_result(ctx)
+        assert result["top_matches"][0]["position"] == "高级财务控制 — 报告与洞察"
+        assert result["top_matches"][0]["position"] != "Senior Controller – Reporting & Insights"
+
+    def test_top_matches_fallback_to_name_when_no_cn(self):
+        ctx = PipelineContext(
+            extracted_skills=[
+                ExtractedSkill(
+                    name="Python", raw_name="python", category="hard_skill",
+                    proficiency="精通", confidence=0.9, source="llm_extraction",
+                ),
+            ],
+            match_results={
+                "Python Backend Engineer": {
+                    "match_score": 0.73,
+                    "overall_assessment": "部分匹配",
+                    "missing_required": [],
+                    "skill_gap_detail": [],
+                    # 无 _display_name → 回退英文 name
+                },
+            },
+            recommended_positions=[],
+            data_source="graph",
+        )
+        result = _build_result(ctx)
+        assert result["top_matches"][0]["position"] == "Python Backend Engineer"

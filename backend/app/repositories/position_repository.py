@@ -33,6 +33,7 @@ class PositionRepository:
         query = """
         MATCH (p:Position)-[rel:REQUIRES]->(s:Skill)
         RETURN p.name AS pos_name,
+               COALESCE(p.name_cn, '') AS pos_name_cn,
                COALESCE(p.industry, '') AS industry,
                collect({
                    name: s.name,
@@ -53,6 +54,8 @@ class PositionRepository:
                 bonus = [s for s in skills if not s.get("is_required", True)]
                 self._cache[pos_name] = PositionProfile(
                     name=pos_name,
+                    # P5 fix: name_cn 贯穿——分析报告显示中文岗位名（与详情页一致）
+                    name_cn=rec.get("pos_name_cn") or "",
                     industry=rec.get("industry", ""),
                     required_skills=required,
                     bonus_skills=bonus,

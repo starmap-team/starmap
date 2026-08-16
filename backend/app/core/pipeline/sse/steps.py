@@ -165,6 +165,11 @@ class MatchStep:
 
             for pos_name, result in results:
                 if result:
+                    # P5 fix: 注入 _display_name（name_cn 优先）——分析报告 top_matches
+                    # 此前显示英文 name（Senior Controller – Reporting & Insights），
+                    # 岗位详情页用 name_cn || name（高级财务控制 — 报告与洞察）不一致。
+                    profile = profiles.get(pos_name)
+                    result["_display_name"] = (profile.name_cn if profile and profile.name_cn else "") or pos_name
                     ctx.match_results[pos_name] = result
 
             # 设置数据源标记
@@ -232,9 +237,14 @@ class RecommendStep:
                 name: float(res.get("match_score", 0.0))
                 for name, res in ctx.match_results.items()
             }
+            # P5 fix: 推荐岗位名同样用 name_cn（复用 MatchStep 注入的 _display_name）
+            display_by_position: dict[str, str] = {
+                name: (res.get("_display_name") or name)
+                for name, res in ctx.match_results.items()
+            }
             ctx.recommended_positions = [
                 {
-                    "position": r.position,
+                    "position": display_by_position.get(r.position, r.position),
                     "score": r.score,
                     "match_score": round(match_by_position.get(r.position, r.match_score), 4),
                     "developability": r.developability,
