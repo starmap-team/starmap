@@ -13,35 +13,10 @@
         v-if="!store.loading && !store.result"
         class="upload-card"
       >
-        <el-upload
-          drag
-          :auto-upload="false"
-          :on-change="handleFileChange"
-          :limit="1"
-          accept=".pdf,.docx,.doc"
-        >
-          <el-icon class="el-icon--upload">
-            <UploadFilled />
-          </el-icon>
-          <div class="el-upload__text">
-            拖拽简历到此处，或 <em>点击上传</em>
-          </div>
-          <template #tip>
-            <div class="el-upload__tip">
-              支持 PDF / DOCX 格式
-            </div>
-          </template>
-        </el-upload>
-
-        <div class="actions">
-          <el-button
-            type="primary"
-            :disabled="!selectedFile"
-            @click="startAnalysis"
-          >
-            开始分析
-          </el-button>
-        </div>
+        <ResumeUpload
+          ref="resumeUploadRef"
+          action-label="开始分析"
+        />
       </el-card>
 
       <!-- Step 2: 进度 -->
@@ -431,16 +406,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { UploadFilled, Checked, CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { Checked, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ResumeUpload from '@/components/ResumeUpload.vue'
 import { useJobseekerStore } from '@/stores/jobseeker'
 
 const router = useRouter()
 
 const store = useJobseekerStore()
-const selectedFile = ref<File | null>(null)
+const resumeUploadRef = ref<InstanceType<typeof ResumeUpload> | null>(null)
 
 /** 有学习资源的技能差距列表。 */
 const gapsWithResources = computed(() => {
@@ -463,15 +439,11 @@ const activeStep = computed(() => {
   return (stepMap[store.currentStep] ?? 0) + 1
 })
 
-function handleFileChange(file: { raw: File }) {
-  selectedFile.value = file.raw
-}
-
-function startAnalysis() {
-  if (selectedFile.value) {
-    store.analyzeResume(selectedFile.value)
-  }
-}
+onMounted(() => {
+  resumeUploadRef.value?.setAsyncUploader(async (file: File) => {
+    await store.analyzeResume(file)
+  })
+})
 
 function viewInGraph() {
   if (!store.result?.top_matches?.length) return

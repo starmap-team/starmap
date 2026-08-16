@@ -2,9 +2,22 @@
 /**
  * 简历上传组件 — 拖拽 + 进度条 + 骨架屏 + 校验
  * 对应任务文档：匹配诊断第1步
+ *
+ * 2026-08-16 UI/UX 增强:
+ * - actionLabel prop: 允许父页面自定义主按钮文案（"开始分析" vs "开始上传解析"）
+ * - 拖拽区键盘可达 (tabindex + Enter/Space 触发文件选择)
+ * - prefers-reduced-motion 尊重
+ * - 上传中隐藏可重复点击的按钮, 避免重复提交
  */
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+
+withDefaults(defineProps<{
+  /** 主操作按钮文案（默认"开始上传解析"） */
+  actionLabel?: string
+}>(), {
+  actionLabel: '开始上传解析',
+})
 
 const emit = defineEmits<{
   upload: [file: File]
@@ -46,11 +59,21 @@ function handleDrop(e: DragEvent) {
   if (droppedFile) validateAndSet(droppedFile)
 }
 
+// 键盘可达: Enter / Space 触发文件选择
+const fileInput = ref<HTMLInputElement | null>(null)
+function handleZoneKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    fileInput.value?.click()
+  }
+}
+
 // 文件选择
 function handleFileChange(e: Event) {
   const target = e.target as HTMLInputElement
   const selected = target.files?.[0]
   if (selected) validateAndSet(selected)
+  target.value = ''
 }
 
 // 校验文件
@@ -72,7 +95,7 @@ function validateAndSet(f: File) {
 
 // 上传进度
 async function startUpload() {
-  if (!file.value) return
+  if (!file.value || uploading.value) return
   uploading.value = true
 
   try {
@@ -102,9 +125,13 @@ function handleRemove() {
     <div
       class="upload-zone"
       :class="{ 'is-dragover': isDragover, 'has-file': file }"
+      role="button"
+      tabindex="0"
+      aria-label="选择简历文件上传"
       @dragover="handleDragOver"
       @dragleave="handleDragLeave"
       @drop="handleDrop"
+      @keydown="handleZoneKeydown"
     >
       <!-- 骨架屏（上传中） -->
       <template v-if="uploading">
@@ -150,9 +177,12 @@ function handleRemove() {
             :loading="uploading"
             @click="startUpload"
           >
-            开始上传解析
+            {{ actionLabel }}
           </el-button>
-          <el-button @click="handleRemove">
+          <el-button
+            :disabled="uploading"
+            @click="handleRemove"
+          >
             移除
           </el-button>
         </div>
@@ -162,8 +192,8 @@ function handleRemove() {
       <template v-else>
         <div class="upload-icon-wrapper">
           <svg
-            width="48"
-            height="48"
+            width="52"
+            height="52"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -181,6 +211,7 @@ function handleRemove() {
         <label class="upload-btn">
           选择文件
           <input
+            ref="fileInput"
             type="file"
             accept=".pdf,.doc,.docx"
             hidden
@@ -223,6 +254,11 @@ function handleRemove() {
   border-color: var(--primary);
   background: var(--primary-ghost);
   transform: scale(1.01);
+  box-shadow: 0 0 0 4px var(--primary-subtle);
+}
+.upload-zone:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 .upload-zone.has-file {
   border-style: solid;
@@ -292,4 +328,19 @@ function handleRemove() {
 }
 .progress-wrapper { margin-top: var(--space-3); }
 .upload-icon-wrapper { color: var(--muted-foreground); position: relative; }
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-zone {
+    transition: none;
+  }
+  .upload-zone::before {
+    transition: none;
+  }
+  .upload-zone.is-dragover {
+    transform: none;
+  }
+  .upload-btn {
+    transition: none;
+  }
+}
 </style>
