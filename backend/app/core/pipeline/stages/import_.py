@@ -9,6 +9,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 
 from app.core.pipeline.stages.common import (
@@ -52,6 +53,9 @@ def execute_import(run_id: str) -> dict[str, Any]:
     errors: list[str] = []
     extracted_skills_sample: list[dict[str, Any]] = []
     start = time.monotonic()
+    # 2026-08-16: stage budget (independent of Celery soft_time_limit).
+    from app.config import settings as _settings
+    stage_budget_seconds = max(_settings.pipeline_stage_timeout - 300, 60)
 
     run_async(publish_stage_progress(
         run_id, "import", "running", progress=0.0,
@@ -100,6 +104,21 @@ def execute_import(run_id: str) -> dict[str, Any]:
         ))
 
         for idx, (text, title) in enumerate(zip(jd_texts, jd_titles, strict=False)):
+            # 2026-08-16: stage budget check — break early when single LLM endpoint hangs
+            elapsed_sec = time.monotonic() - start
+            if elapsed_sec > stage_budget_seconds:
+                msg = f"Stage budget exceeded ({elapsed_sec:.0f}s > {stage_budget_seconds}s); processed {processed}/{total}"
+                logger.warning("import stage {}: {}", run_id, msg)
+                errors.append(msg)
+                run_async(publish_stage_progress(
+                    run_id, "import", "running",
+                    progress=0.15 + 0.8 * (idx / max(total, 1)),
+                    records_processed=processed,
+                    current_activity=f"Stage budget exceeded ({elapsed_sec:.0f}s)",
+                    elapsed_ms=int(elapsed_sec * 1000),
+                    sub_step="persist",
+                ))
+                break
             try:
                 # D-15: persist 子步骤事件 (LLM 抽取完成 = 持久化就绪)
                 # D5 fix: 传 JD 标题作为 position_name 回退（LLM 未返回岗位名时不再落 Unknown Position）
@@ -116,18 +135,22 @@ def execute_import(run_id: str) -> dict[str, Any]:
                 else:
                     errors.append(f"extraction failed: {result.get('error', 'unknown')}")
 
-                if idx > 0 and idx % 3 == 0:
-                    run_async(publish_stage_progress(
-                        run_id, "import", "running",
-                        progress=0.15 + 0.8 * (idx / max(total, 1)),
-                        records_processed=processed,
-                        current_activity=f"LLM 提取 {idx}/{total} 条 - 当前: {title[:30] if title else '...'}",
-                        recent_samples=extracted_skills_sample[-5:],
-                        elapsed_ms=int((time.monotonic() - start) * 1000),
-                        sub_step="persist",  # D-15: persist 期间
-                    ))
+                # 2026-08-16: progress every record, not every 3rd (so UI sees activity)
+                run_async(publish_stage_progress(
+                    run_id, "import", "running",
+                    progress=0.15 + 0.8 * ((idx + 1) / max(total, 1)),
+                    records_processed=processed,
+                    current_activity=f"LLM 提取 {idx + 1}/{total} 条 - 当前: {title[:30] if title else '...'}",
+                    recent_samples=extracted_skills_sample[-5:],
+                    elapsed_ms=int((time.monotonic() - start) * 1000),
+                    sub_step="persist",  # D-15: persist 期间
+                ))
             except PipelineStageError:
                 raise
+            except SoftTimeLimitExceeded:
+                logger.warning("import stage {}: SoftTimeLimitExceeded, breaking", run_id)
+                errors.append("Celery soft_time_limit reached")
+                break
             except Exception as exc:
                 errors.append(f"extraction error: {exc}")
                 logger.opt(exception=True).warning("JD extraction failed in import stage: {}", exc)
