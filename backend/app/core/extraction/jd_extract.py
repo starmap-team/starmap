@@ -431,6 +431,9 @@ class JDExtractionPipeline:
         # Step 8: I18N-01 — 非 CJK 岗位名翻译钩子 (RemoteOK 等英文 JD 源)
         # 仅当 LLM 返回的 position_name 不含 CJK 才触发 (中文 JD 零成本跳过);
         # 失败优雅降级 (name_cn 不注入, 前端显"英文原文"标签, 不编造)。
+        # PRD US-005 C3: 翻译成功且 industry_zh 非空时，覆盖 industry 字段；
+        # 这样下游落库 (extract_repo) 写入的就是中文行业而非英文残留，
+        # 与 dashboard chip / domain_distribution 口径一致。
         pos_name = validated.position_name
         if pos_name and not has_cjk(pos_name):
             try:
@@ -441,7 +444,15 @@ class JDExtractionPipeline:
                 )
                 if translated.get("name_cn"):
                     result["data"]["name_cn"] = translated["name_cn"]
-                    result["data"]["industry_zh"] = translated.get("industry_zh")
+                    industry_zh = translated.get("industry_zh")
+                    result["data"]["industry_zh"] = industry_zh
+                    # 仅当原 industry 是英文或空时覆盖为中文版，避免污染已有合法行业
+                    current_industry = getattr(validated, "industry", None) or ""
+                    if industry_zh and (not current_industry or not has_cjk(current_industry)):
+                        result["data"]["industry"] = industry_zh
+                        logger.info(
+                            "I18N-01: industry '{}' -> '{}'", current_industry, industry_zh
+                        )
                     logger.info("I18N-01: translated '{}' -> '{}'", pos_name, translated["name_cn"])
                 else:
                     result["warnings"].append("Translation skipped: LLM unavailable")

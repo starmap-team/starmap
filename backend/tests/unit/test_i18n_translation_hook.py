@@ -127,3 +127,42 @@ async def test_translation_original_name_injected_as_fallback():
                 p.stop()
         assert result["success"] is True
         assert result["data"]["name_cn"] == "Senior Backend Engineer"
+
+
+@pytest.mark.asyncio
+async def test_english_industry_overwritten_with_zh_translation():
+    """PRD US-005 C3: 英文 JD 翻译返回 industry_zh → industry 字段被覆盖为中文版。
+
+    这样下游 extract_repo.upsert_position_record 写入 DB 的就是中文行业，
+    与前端 chip / dashboard domain_distribution 口径一致。
+    """
+    with patch("app.core.extraction.llm_client.LLMClient.generate",
+               new_callable=AsyncMock,
+               return_value='{"name_cn": "高级后端工程师", "industry_zh": "互联网/IT"}'):
+        stack = _patch_pipeline(extract=EN_JD)  # EN_JD industry="Internet"
+        try:
+            result = await extract_from_jd("Senior Backend Engineer JD")
+        finally:
+            for p in stack:
+                p.stop()
+        assert result["success"] is True
+        assert result["data"]["industry"] == "互联网/IT"
+        assert result["data"]["industry_zh"] == "互联网/IT"
+
+
+@pytest.mark.asyncio
+async def test_empty_industry_filled_with_zh_translation():
+    """PRD US-005 C3: industry 为空时，industry_zh 兜底填充（避免「未分类」兜底）。"""
+    en_jd_no_industry = {**EN_JD, "industry": ""}
+    with patch("app.core.extraction.llm_client.LLMClient.generate",
+               new_callable=AsyncMock,
+               return_value='{"name_cn": "高级后端工程师", "industry_zh": "金融科技"}'):
+        stack = _patch_pipeline(extract=en_jd_no_industry)
+        try:
+            result = await extract_from_jd("Senior Backend Engineer JD")
+        finally:
+            for p in stack:
+                p.stop()
+        assert result["success"] is True
+        # 英文 JD industry 为空 → industry_zh 填充 "金融科技"
+        assert result["data"]["industry"] == "金融科技"
