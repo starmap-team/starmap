@@ -67,6 +67,11 @@ def execute_import(run_id: str) -> dict[str, Any]:
         from crawler.persistence.database import get_jd_raw_session
         from crawler.persistence.models import JdRaw, JdStatus
 
+        # 2026-08-16 fix: 不在查询时提前标记 extracted —— 原实现 (L85) 在 LLM 抽取
+        # 之前就把 jd.status 改为 extracted 并 commit, 一旦抽取失败/超时, 这些 JD
+        # 既没成功入库也不会被下次 run 重试 (cleaned=0 数据丢失)。
+        # 现改为: 只收集 (id, text, title), 循环内抽取成功后收集 success_ids,
+        # 循环结束后统一把成功的标记为 extracted; 失败的保持 cleaned 可重试。
         with get_jd_raw_session() as s:
             from app.config import settings
 
@@ -76,16 +81,13 @@ def execute_import(run_id: str) -> dict[str, Any]:
                 .limit(settings.pipeline_import_batch_size)
                 .all()
             )
-            jd_texts = []
-            jd_titles = []
-            for jd in clean_jds:
-                if jd.clean_text:
-                    jd_texts.append(jd.clean_text)
-                    jd_titles.append(jd.job_title)
-                    jd.status = JdStatus.extracted
-            s.commit()
+            jd_items = [
+                (jd.id, jd.clean_text, jd.job_title)
+                for jd in clean_jds
+                if jd.clean_text
+            ]
 
-            total = len(jd_texts)
+            total = len(jd_items)
             run_async(publish_stage_progress(
                 run_id, "import", "running", progress=0.1,
                 current_activity=f"待提取: {total} 条 (LLM: 技能识别 + 标准化 + 验证)",
@@ -103,7 +105,8 @@ def execute_import(run_id: str) -> dict[str, Any]:
             sub_step="normalize",
         ))
 
-        for idx, (text, title) in enumerate(zip(jd_texts, jd_titles, strict=False)):
+        success_ids: list[Any] = []
+        for idx, (jd_id, text, title) in enumerate(jd_items):
             # 2026-08-16: stage budget check — break early when single LLM endpoint hangs
             elapsed_sec = time.monotonic() - start
             if elapsed_sec > stage_budget_seconds:
@@ -125,6 +128,7 @@ def execute_import(run_id: str) -> dict[str, Any]:
                 result = run_async(run_batch_extract_jd(text, job_title=title))
                 if result.get("status") == "completed":
                     processed += 1
+                    success_ids.append(jd_id)
                     if result.get("data", {}).get("required_skills"):
                         for sk in result["data"]["required_skills"][:3]:
                             extracted_skills_sample.append({
@@ -154,6 +158,23 @@ def execute_import(run_id: str) -> dict[str, Any]:
             except Exception as exc:
                 errors.append(f"extraction error: {exc}")
                 logger.opt(exception=True).warning("JD extraction failed in import stage: {}", exc)
+
+        # 2026-08-16 fix: 循环结束后才把抽取成功的 JD 标记为 extracted。
+        # 失败的保持 cleaned, 下次 run 可重试 (原实现提前标记导致失败 JD 数据丢失)。
+        if success_ids:
+            with get_jd_raw_session() as s:
+                from sqlalchemy import update
+
+                s.execute(
+                    update(JdRaw)
+                    .where(JdRaw.id.in_(success_ids))
+                    .values(status=JdStatus.extracted)
+                )
+                s.commit()
+            logger.info(
+                "import stage {}: marked {} JDs as extracted ({} failed/skipped kept cleaned)",
+                run_id, len(success_ids), total - len(success_ids),
+            )
 
         run_async(publish_stage_progress(
             run_id, "import", "completed", progress=1.0,
