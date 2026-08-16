@@ -73,6 +73,21 @@ class TestUpsertPositionRecord:
         params = session.executed[0][1]
         assert params["industry"] == "未分类"
 
+    @pytest.mark.asyncio
+    async def test_generic_industry_token_normalized_to_literal(self) -> None:
+        """Fix C: LLM 返回「通用」/「综合」等模糊词 → 「未分类」字面量.
+
+        避免 US-004 prompt 收紧后 LLM 给「通用」创建新污染桶。
+        """
+        for token in ("通用", "综合", "其他"):
+            session = _FakeSession()
+            await upsert_position_record(
+                session, name=f"Role-{token}", industry=token,
+                description="desc", review_status="pending_review", created_by="u1",
+            )
+            params = session.executed[0][1]
+            assert params["industry"] == "未分类", f"{token!r} should normalize"
+
 
 class TestUpsertSkillRecord:
     @pytest.mark.asyncio

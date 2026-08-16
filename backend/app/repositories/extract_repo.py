@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL
+from app.core.extraction.industry import normalize_industry
 
 
 async def upsert_position_record(
@@ -30,10 +30,11 @@ async def upsert_position_record(
     position is human-curated before publication. On conflict (duplicate
     name), the existing row is left untouched — review_status and other
     review metadata are preserved (admin may have already approved it).
-    PRD US-003 C2: industry 为空时写入「未分类」字面量，与前端 chip 文案一致；
+    PRD US-003 C2: industry 归一化：None/空串/「通用」/「综合」等模糊词 → 「未分类」
+    字面量（Per Fix C / Architect review），与前端 chip 文案一致；
     真实统计过滤需排除该字面量（见 app/core/extraction/industry.py）。
     """
-    industry_value = industry if industry else UNCLASSIFIED_INDUSTRY_LITERAL
+    industry_value = normalize_industry(industry)
 
     await session.execute(
         sa.text("""

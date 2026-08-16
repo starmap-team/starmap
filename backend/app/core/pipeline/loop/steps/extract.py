@@ -12,7 +12,7 @@ from typing import Any
 
 from loguru import logger
 
-from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL
+from app.core.extraction.industry import normalize_industry
 from app.core.pipeline.loop.common import (
     STEP_NAMES,
     LoopStepResult,
@@ -88,7 +88,7 @@ async def run_extract_step(jd_text: str) -> LoopStepResult:
             data={
                 "skills": skills,
                 "position_name": data.get("position_name", ""),
-                "industry": data.get("industry") or UNCLASSIFIED_INDUSTRY_LITERAL,
+                "industry": normalize_industry(data.get("industry")),
                 "description": data.get("description", ""),
                 "knowledge_areas": data.get("knowledge_areas", []),
                 "experience_required": data.get("experience_required"),
