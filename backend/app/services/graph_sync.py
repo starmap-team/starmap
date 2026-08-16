@@ -110,9 +110,14 @@ async def sync_from_pipeline(
         async with driver.session() as session:
             for pos in (new_positions or []):
                 try:
+                    # Architect review (PRD US-003 B): DB「未分类」字面量同步到 Neo4j
+                    # 会污染 _classify_industry 聚类 —— 归一化为 null，不写「未分类」节点属性。
+                    from app.core.extraction.industry import is_unclassified
+                    raw_industry = pos.get("industry", "")
+                    industry_value = None if is_unclassified(raw_industry) else raw_industry
                     await session.run(
                         "MERGE (p:Position {name: $name}) SET p.industry = $industry, p.updated_at = datetime()",
-                        name=pos.get("name", ""), industry=pos.get("industry", ""),
+                        name=pos.get("name", ""), industry=industry_value,
                     )
                     total_nodes += 1
                 except (Neo4jError, SQLAlchemyError) as exc:

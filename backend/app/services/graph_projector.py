@@ -27,6 +27,7 @@ from uuid import UUID
 from neo4j.exceptions import Neo4jError
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.extraction.industry import is_unclassified
 from app.exceptions import GraphProjectionError, StarMapError
 
 logger = logging.getLogger(__name__)
@@ -118,6 +119,10 @@ class GraphProjector:
         cid = str(canonical_id)
         props = dict(properties or {})
         props[PK_FIELD] = cid
+        # Architect review (PRD US-003 B): DB「未分类」字面量同步到 Neo4j 会污染
+        # _classify_industry 聚类 —— 归一化为 None，让现有 None-drop 逻辑丢弃。
+        if "industry" in props and is_unclassified(props.get("industry")):
+            props["industry"] = None
         # Drop None values to avoid Neo4j complaints
         props = {k: v for k, v in props.items() if v is not None}
         try:
@@ -415,7 +420,9 @@ class GraphProjector:
                         "canonical_id": str(p.id),
                         "name": p.name,
                         "name_cn": p.name_cn,
-                        "industry": p.industry,
+                        # Architect review (PRD US-003 B): 归一化为 None 避免 Neo4j
+                        # _classify_industry 把「未分类」聚成假行业桶。
+                        "industry": None if is_unclassified(p.industry) else p.industry,
                         "description": p.description,
                     }
                     for p in positions

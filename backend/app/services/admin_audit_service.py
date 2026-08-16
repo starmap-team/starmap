@@ -16,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.quality import _build_quality_dashboard
+from app.core.extraction.industry import is_unclassified
 from app.exceptions import StarMapError
 from app.models.extraction_models import (
     JDExtractionRecord,
@@ -122,7 +123,11 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
                     return
                 canonical_id = str(row[0])
                 name = row[1]
-                industry = row[2] or ""
+                # Architect review (PRD US-003 B): DB「未分类」字面量同步到 Neo4j
+                # 会污染 _classify_industry 聚类 —— 归一化为空字符串写入，Neo4j
+                # 侧空字符串和 None 在 _classify_industry 都不进入聚类。
+                raw_industry = row[2] or ""
+                industry = "" if is_unclassified(raw_industry) else raw_industry
                 review_status = row[3] or status
             else:  # Skill
                 result = await session.execute(
