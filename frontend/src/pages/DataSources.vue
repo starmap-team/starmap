@@ -138,8 +138,8 @@ onMounted(() => {
     <div class="datasources-page animate-fade-in">
       <BusinessBanner
         type="info"
-        title="多源异构数据融合 — 数据源管理"
-        description="StarMap 融合三类异构数据源：结构化（ESCO 职业标准）、半结构化（招聘 JD 爬虫）、非结构化（技术博客）。权威性评分直接影响 信任度驱动的图谱构建策略。"
+        title="数据源管理"
+        description="管理 StarMap 用到的所有数据源：官方标准（ESCO）、招聘 JD、技术博客。每个数据源都有一个权威性评分，越权威的数据对岗位/技能信任度评分的影响越大。"
         meta="后端: <code>/datasources</code> · 数据源: <code>datasources</code> 表 · 采集 → 归一化 → 信任度评分"
       />
 

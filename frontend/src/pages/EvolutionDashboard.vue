@@ -180,9 +180,9 @@ onMounted(() => {
     <div class="evolution-page animate-fade-in">
       <BusinessBanner
         type="warning"
-        title="演化分析 + 能力通胀指数 (CII)"
-        description="本看板展示岗位技能图谱的演化趋势：新兴技能涌现（Z-score 检测）、技能变更日志、以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。"
-        meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> · 信任度驱动"
+        title="能力演化与技能通胀"
+        description="看岗位要求随时间怎么变：哪些技能在新兴、哪些技能被淘汰、技能要求的整体膨胀速度。CII 通胀指数 100 = 2024 年第一季度基准，越高说明企业要求涨得越多。"
+        meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> 表 · 信任度驱动"
       />
 
       <!-- E2/E7: 数据口径说明 — 让用户可感知每个数值的计算依据与来源 -->

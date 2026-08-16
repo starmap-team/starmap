@@ -285,9 +285,9 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
     <div class="pipeline-page animate-fade-in">
       <BusinessBanner
         type="success"
-        title="L2 数据融合层 — ETL 流水线监控"
-        description="全链路 ETL DAG：爬虫采集 → 去重 → 清洗 → LLM 抽取 → 入库 → 图谱构建（串行化）。每个阶段独立降级，失败不阻塞后续流程。数据源质量影响信任度评分。"
-        meta="后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送"
+        title="数据流水线监控"
+        description="看数据从爬虫采集到写入图谱的全过程：每个阶段独立降级，失败不阻塞下一步。数据源质量越高，最终岗位/技能的信任度评分也越高。"
+        meta="后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> 表 · SSE 实时推送"
       />
 
       <!-- 页面头部 -->

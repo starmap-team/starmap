@@ -322,8 +322,8 @@ onUnmounted(() => {
 
       <BusinessBanner
         type="info"
-        title="模块D — 人岗匹配度诊断与差距分析"
-        description="本流程对应设计文档的“匹配诊断全流程”：上传简历 → 文档解析 → LLM 技能提取 → 技能归一化 → 与目标岗位技能对比 → 差距分析报告 → 学习路径生成。"
+        title="人岗匹配度诊断与差距分析"
+        description="上传一份简历，约 30–90 秒得到与目标岗位的匹配度、缺失技能清单和学习路径。结果同时考虑技能命中率和技能在岗位画像中的信任度。"
         :meta="[
           { category: '后端', label: '/match/*', code: true, copyable: true },
           { label: '信任度驱动' },
