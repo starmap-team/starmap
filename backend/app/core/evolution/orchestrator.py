@@ -39,7 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.evolution.consistency import check_pg_neo4j_consistency
 from app.core.evolution.diff_engine import DiffEngine
-from app.core.evolution.graph_projection import project_edges_to_neo4j
+from app.core.evolution.graph_projection import delete_edges_from_neo4j, project_edges_to_neo4j
 from app.core.evolution.path_recommender import PathRecommender
 from app.core.evolution.snapshot_manager import (
     SnapshotManager,
@@ -136,9 +136,10 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
         return summary
 
     projected_edges: list[tuple[str, str, str, float]] = []
+    removed_edges: list[tuple[str, str]] = []
     for position in positions:
         try:
-            snapshots_made, changelogs_made, edges_made = await _process_single_position(
+            snapshots_made, changelogs_made, edges_made, removed_made = await _process_single_position(
                 session_factory,
                 snap_mgr,
                 differ,
@@ -151,6 +152,7 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
             summary["snapshots_created"] += snapshots_made
             summary["changelogs_written"] += changelogs_made
             projected_edges.extend(edges_made)
+            removed_edges.extend(removed_made)
         except EvolutionPipelineError as exc:
             # Expected pipeline errors: log and continue
             msg = f"position='{position}': {exc}"
@@ -177,6 +179,24 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
                 f"graph_projection: {type(exc).__name__}: {exc}"
             )
             logger.warning("evolution_orchestrator: graph projection failed (non-fatal): {}", exc)
+
+    # ── Phase 24 根治: removed 边同步删除到 Neo4j（PG 删 PSR → 图删 REQUIRES）──
+    # 此前 removed 仅删 PG，Neo4j 残留 ghost edge（双库漂移）。fail-soft (D-06)。
+    summary["graph_deleted_edges"] = 0
+    if removed_edges:
+        try:
+            summary["graph_deleted_edges"] = await delete_edges_from_neo4j(
+                removed_edges, summary["warnings"]
+            )
+        except Exception as exc:  # noqa: BLE001 — D-06 fail-soft, delete never aborts
+            summary["warnings"].append(
+                f"graph_projection delete: {type(exc).__name__}: {exc}"
+            )
+            logger.warning("evolution_orchestrator: graph edge delete failed (non-fatal): {}", exc)
+        logger.info(
+            "evolution_orchestrator: deleted {} REQUIRES edges in Neo4j (removed write-back)",
+            summary["graph_deleted_edges"],
+        )
 
     # ── Step 4: path recommender (single batch) ──
     try:
@@ -252,7 +272,7 @@ async def _process_single_position(
     position: str,
     months: list[datetime],
     warnings: list[str],
-) -> tuple[int, int, list[tuple[str, str, str, float]]]:
+) -> tuple[int, int, list[tuple[str, str, str, float]], list[tuple[str, str]]]:
     """Generate snapshots for each month, diff adjacent ones, write changelogs.
 
     Returns ``(snapshots_created, changelogs_written, projected_edges)``.
@@ -262,6 +282,8 @@ async def _process_single_position(
     snapshots_created = 0
     changelogs_written = 0
     projected_edges: list[tuple[str, str, str, float]] = []
+    # Phase 24 根治: 收集 removed 边供 Neo4j 同步删除
+    removed_edges: list[tuple[str, str]] = []
     prev_snapshot: EvolutionSnapshot | None = None
 
     # Generate snapshots in chronological order so we can walk adjacencies.
@@ -280,7 +302,7 @@ async def _process_single_position(
                             month_anchor,
                         )
                     if prev_snapshot is not None and prev_snapshot.id != snap.id:
-                        written_here, edges_here = await _diff_and_persist(
+                        written_here, edges_here, removed_here = await _diff_and_persist(
                             session,
                             differ,
                             scorer,
@@ -290,9 +312,10 @@ async def _process_single_position(
                         )
                         changelogs_written += written_here
                         projected_edges.extend(edges_here)
+                        removed_edges.extend(removed_here)
                     prev_snapshot = snap
 
-    return snapshots_created, changelogs_written, projected_edges
+    return snapshots_created, changelogs_written, projected_edges, removed_edges
 
 
 async def _load_previous_snapshot(
@@ -319,7 +342,7 @@ async def _diff_and_persist(
     old: EvolutionSnapshot,
     new: EvolutionSnapshot,
     warnings: list[str],
-) -> tuple[int, list[tuple[str, str, str, float]]]:
+) -> tuple[int, list[tuple[str, str, str, float]], list[tuple[str, str]]]:
     """Compute diff between two snapshots, score each change, persist to PG.
 
     Persists EvolutionChangelog rows, then D-04 write-back: each eligible
@@ -334,7 +357,7 @@ async def _diff_and_persist(
     """
     changes = differ.diff(old, new)
     if not changes:
-        return 0, []
+        return 0, [], []
 
     written = 0
     rows: list[EvolutionChangelog] = []
@@ -401,9 +424,21 @@ async def _diff_and_persist(
     # W1: 投影使用回写实际落库的有效 confidence（max(existing, new)），
     # 而不是原始 changelog confidence —— 否则 PG 保持 max 而 Neo4j 写入 raw 值会漂移。
     projected_edges: list[tuple[str, str, str, float]] = []
+    # Phase 24 根治: removed 类型收集删除边——PG 删 PSR 后同步删 Neo4j REQUIRES
+    # 边（此前仅 PG 删除，Neo4j 残留 ghost edge，双库漂移）。
+    removed_edges: list[tuple[str, str]] = []
     for row in rows:
         try:
             effective_confidence = await write_back_changelog_row(session, row, warnings)
+            if row.change_type == "removed":
+                # PG 删除已由 write_back_changelog_row 完成（返回 None）。
+                # 收集 (position_id, skill_id) 供 Neo4j 同步删边。
+                row.written_back = True
+                position_id = await _resolve_position_id(session, row.position_name)
+                skill_id = await _resolve_skill_id(session, row.skill_name)
+                if position_id is not None and skill_id is not None:
+                    removed_edges.append((str(position_id), str(skill_id)))
+                continue
             if effective_confidence is not None:
                 row.written_back = True
                 position_id = await _resolve_position_id(session, row.position_name)
@@ -420,4 +455,4 @@ async def _diff_and_persist(
         except Exception as exc:  # noqa: BLE001 — D-06 fail-soft, never abort
             warnings.append(f"_diff_and_persist: write-back loop failed for {row}: {type(exc).__name__}: {exc}")
             logger.warning("evolution _diff_and_persist: write-back loop failed for {}: {}", row, exc)
-    return written, projected_edges
+    return written, projected_edges, removed_edges

@@ -88,3 +88,64 @@ async def project_edges_to_neo4j(
         logger.warning("evolution graph_projection: Neo4j projection failed: {}", exc)
         return projected
     return projected
+
+
+async def delete_edges_from_neo4j(
+    edges: list[tuple[str, str]],
+    warnings: list[str],
+) -> int:
+    """Delete REQUIRES edges from Neo4j after PG-side evolution ``removed`` write-back.
+
+    根治双库漂移（Phase 24）: 演化 removed 类型此前只在 PG 删除 position_skill_relations
+    行，Neo4j REQUIRES 边残留（ghost edge）——orchestrator 投影时返回 None 只是"不
+    新增"，边仍存在。此函数按 canonical_id 对 (position_id, skill_id) 精确删除边，
+    使 PG 与 Neo4j 同步删除。
+
+    Args:
+        edges: (position_id, skill_id) UUID string pairs from the removed changelog rows.
+        warnings: fail-soft sink; failures appended here, never raised.
+
+    Returns:
+        Number of edges successfully deleted (counters.relationships_deleted).
+    """
+    if not edges:
+        return 0
+
+    deleted = 0
+    config = GraphConfig()
+    try:
+        async with config.get_driver() as driver:
+            async with driver.session() as session:
+                for pid, sid in edges:
+                    try:
+                        result = await session.run(
+                            "MATCH (p:Position {canonical_id: $pid})"
+                            "-[r:REQUIRES]->(s:Skill {canonical_id: $sid}) "
+                            "DELETE r",
+                            pid=pid,
+                            sid=sid,
+                        )
+                        summary = await result.consume()
+                        n = summary.counters.relationships_deleted
+                        deleted += n
+                        if n == 0:
+                            logger.debug(
+                                "delete_edges: no REQUIRES edge {}-{} to delete (already gone?)",
+                                pid, sid,
+                            )
+                    except Exception as exc:  # noqa: BLE001 — per-edge fail-soft
+                        warnings.append(
+                            f"graph_projection: delete edge {pid}->{sid} failed: "
+                            f"{type(exc).__name__}: {exc}"
+                        )
+                        logger.warning(
+                            "evolution graph_projection: delete edge {}->{} failed: {}",
+                            pid, sid, exc,
+                        )
+    except Exception as exc:  # noqa: BLE001 — driver-level fail-soft (D-06)
+        warnings.append(
+            f"graph_projection: Neo4j edge delete failed: {type(exc).__name__}: {exc}"
+        )
+        logger.warning("evolution graph_projection: Neo4j edge delete failed: {}", exc)
+        return deleted
+    return deleted
