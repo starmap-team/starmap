@@ -62,15 +62,16 @@ async def get_data_truth(
     from datetime import UTC, datetime
 
     # ── PostgreSQL 直接查询 ──
+    # Phase 24 核验修复 (approved 口径): 岗位总数/关系边数 PG 侧必须限定 approved——
+    # Neo4j 只投影 approved 岗位（审核门控），PG 全量（含 pending）与之比较会产生
+    # 假 critical（如 362 vs 185 报 48.9%）。口径统一后三源一致。
     pg_total_positions = int(
-        (await session.execute(select(func.count()).select_from(PositionRecord))).scalar() or 0
-    )
-    pg_approved_positions = int(
         (await session.execute(
             select(func.count()).select_from(PositionRecord)
             .where(PositionRecord.review_status == "approved")
         )).scalar() or 0
     )
+    pg_approved_positions = pg_total_positions
     pg_pending_positions = int(
         (await session.execute(
             select(func.count()).select_from(PositionRecord)
@@ -86,10 +87,14 @@ async def get_data_truth(
             .where(SkillRecord.review_status == "approved")
         )).scalar() or 0
     )
-    # P3c: PSR 关系行数（关系边指标口径 = PositionSkillRelation 表，与 admin/stats 对齐）
+    # P3c: PSR 关系行数（关系边指标口径 = PositionSkillRelation 表，与 admin/stats 对齐）。
+    # Phase 24 核验修复: 限定 approved 岗位的 PSR——Neo4j REQUIRES 只投影 approved
+    # 岗位的关系，PG 全量 PSR（含 pending）与之比较同样产生假 critical（1560 vs 1001）。
     pg_psr_count = int(
         (await session.execute(
-            select(func.count()).select_from(PositionSkillRelation)
+            select(func.count(PositionSkillRelation.id))
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .where(PositionRecord.review_status == "approved")
         )).scalar() or 0
     )
 

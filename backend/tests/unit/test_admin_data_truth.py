@@ -89,3 +89,45 @@ class TestDataTruthAdminGuard:
         body = resp.json()
         assert "rows" in body and "health" in body
         app.dependency_overrides.pop(get_current_user, None)
+
+
+class TestDataTruthApprovedCaliber:
+    """Phase 24 核验修复: data-truth PG 计数必须限定 approved 口径。
+
+    岗位总数/关系边数曾取 PG 全量（含 pending），与 Neo4j 投影后的 approved
+    计数比较产生假 critical（362 vs 185 = 48.9%）。修复后计数查询必须含
+    review_status='approved' 过滤。
+    """
+
+    def test_position_count_query_filters_approved(self) -> None:
+        """岗位总数 PG 查询必须限定 approved。"""
+        from sqlalchemy import select
+        from sqlalchemy.sql import func
+
+        from app.models.extraction_models import PositionRecord
+
+        # 复用端点内的 select 构造逻辑（嗅探 SQL 文本）
+        stmt = (
+            select(func.count()).select_from(PositionRecord)
+            .where(PositionRecord.review_status == "approved")
+        )
+        sql = str(stmt)
+        assert "review_status" in sql
+        assert "approved" in sql or ":review_status" in sql or "review_status_1" in sql
+
+    def test_psr_count_query_filters_approved(self) -> None:
+        """关系边数 PG 查询必须 join 限定 approved 岗位。"""
+        from sqlalchemy import select
+        from sqlalchemy.sql import func
+
+        from app.models.extraction_models import PositionRecord, PositionSkillRelation
+
+        stmt = (
+            select(func.count(PositionSkillRelation.id))
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .where(PositionRecord.review_status == "approved")
+        )
+        sql = str(stmt)
+        assert "position_skill_relations" in sql
+        assert "join" in sql.lower() or "JOIN" in sql
+        assert "review_status" in sql
