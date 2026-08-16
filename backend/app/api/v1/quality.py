@@ -82,12 +82,6 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
             )
         ),
     )
-    # P1-5 fix (functional-review 2026-08-13): pending_review 原先统计
-    # JDExtractionRecord.status == "pending"，但抽取记录写入恒为 "completed"
-    # （stage3_services.py），该列无 pending 值 → KPI 恒 0，与同仪表盘
-    # audit_queue（position/skill_records 的 pending_review）口径矛盾。
-    # 对齐 review_service 状态机（Phase 23）：pending 队列 = 岗位 + 技能的
-    # pending_review 计数，与 /admin/review-items 同源。
     pending_pos = (
         await session.execute(
             sa.select(sa.func.count())
@@ -141,8 +135,6 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     )
     # Count positions and skills from the database
     from app.models.extraction_models import PositionSkillRelation
-    # M1 (2026-08-15): 岗位规模只计已发布（approved）——待审岗位未对用户可见，
-    # 计入会与 /positions 列表(184) 相差 95%（359 含 175 待审）。
     pos_count = (await session.execute(
         sa.select(sa.func.count()).select_from(PositionRecord)
         .where(PositionRecord.review_status == "approved")
@@ -179,11 +171,6 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         high_trust_ratio = 0.0
 
     # Generate trust distribution from skill source_counts
-    # Phase 19 D-03: 直方图改用 §6.2 四因子综合信任度分布（与 KPI avg(n.trust_score) 同口径）。
-    # 修复前用 source_count/10（频次当信任度代理），把"低频=冷门"误判为"低信任"（两极分化失真）。
-    # 现在从 PG 用 EntityTrustScorer 计算每个技能的真实信任度分桶，不依赖 Neo4j 时序。
-    # 层边界修复（2026-08-14）：实现迁至 quality_service.compute_trust_distribution，
-    # 路由不再直连 app.core.trust（api/v1 → services → core）。
     from app.services.quality_service import compute_trust_distribution  # noqa: PLC0415
 
     trust_distribution = await compute_trust_distribution(session)
@@ -193,8 +180,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     hallucination_trend = await fetch_hallucination_trend(session)
 
     # 数据源贡献分布：真实数据源（jd_raw.source_site，status='extracted' 有效记录，
-    # 排除 fixture_* 测试数据）——与 source_quality_sync 的"真实采集数据源"口径一致。
-    # 修复前按 SkillRecord.category（技能分类）分组，标题"数据源贡献分布"与数据语义错位。
+    # 排除 fixture_* 测试数据）
     source_dist_stmt = sa.text(
         "SELECT source_site, COUNT(*) AS cnt FROM jd_raw "
         "WHERE status = 'extracted' AND source_site NOT LIKE 'fixture\\_%' "
@@ -279,7 +265,6 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     # 队列上限 20 条（岗位 + 技能合计）
     audit_queue = audit_queue[:20]
 
-    # Phase 13 一致性审计：评估基线可用性 — 无 golden-set 评估时 0/0/0 表示“未评估”而非“质量差”
     evaluation_count = int(
         (await session.execute(sa.select(sa.func.count()).select_from(ExtractionEvaluationRecord))).scalar() or 0
     )
@@ -307,7 +292,6 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         total_extractions=total_extractions,
         pending_review=pending_review,
         hallucination_rate=hallucination_rate,
-        # Phase 11 D-05: 三段式契约（沿 M5/M10 KPI breakdown）
         hallucination_numerator=int(hallucinated or 0),
         hallucination_denominator=total_extractions,
         hallucination_window_days=30,
@@ -467,7 +451,6 @@ async def evaluate_resume_extraction(
     except StarMapError:
         raise
     except Exception as exc:
-        # M3: 简历评估是非关键质检操作,任何失败降级为 success=False 的 200 响应,不抛 500。
         logger.warning("Resume evaluation failed, degrading to success=False: {}", exc)
         return ResumeEvalResponse(success=False, error=str(exc))
 

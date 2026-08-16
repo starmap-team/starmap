@@ -14,9 +14,6 @@ class GraphNodeItem(BaseModel):
     """图谱节点条目（图节点管理表单/列表）。"""
 
     id: str = Field(default="", description="图节点 ID（优先 canonical_id，缺省回退 elementId）")
-    # P1-6 fix (functional-review 2026-08-13): 透传 Neo4j elementId。此前列表只回
-    # canonical_id、写操作按 elementId 匹配 → 前端拿 canonical_id 调更新/删除/审核
-    # 全部 404。前端可优先用 element_id 调写操作（服务端已改为双匹配，两者皆可）。
     element_id: str = Field(default="", description="Neo4j elementId（写操作首选标识）")
     type: Literal["Position", "Skill", "Tool", "KnowledgeArea", "Domain", "Industry", "Certificate", "LearningResource"] = Field(..., description="Neo4j 节点标签")
     name: str = Field(..., min_length=1, max_length=200, description="节点名称")
@@ -49,7 +46,7 @@ class TruthRow(BaseModel):
 
 
 class HealthMetrics(BaseModel):
-    """Phase 5 Step 4: 同步健康度指标。"""
+    """同步健康度指标。"""
     orphan_positions: int = Field(0, description="Neo4j 中 PG 找不到的 Position 节点数")
     orphan_skills: int = Field(0, description="Neo4j 中 PG 找不到的 Skill 节点数")
     last_reconcile_at: str | None = Field(None, description="最近一次 reconcile 时间（ISO）")

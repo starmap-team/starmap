@@ -1,4 +1,4 @@
-"""Pydantic schemas for CSV/JSON import (Phase 15-02 Task 1)."""
+"""Pydantic schemas for CSV/JSON import."""
 from __future__ import annotations
 
 from pydantic import BaseModel, Field

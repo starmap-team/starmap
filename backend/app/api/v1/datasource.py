@@ -237,14 +237,10 @@ async def delete_datasource(
     if ds is None:
         raise HTTPException(status_code=404, detail="数据源不存在")
     if ds.status == "inactive":
-        # 幂等 (2026-08-14): 停用已停用的源不是错误——返回成功（no-op）。
-        # 此前 400 英文 detail 触发前端双重错误 toast（"Data source already inactive"
-        # + "停用失败: Request failed with status code 400"），且按钮对已停用源仍可点。
+        # 幂等: 停用已停用的源不是错误——返回成功（no-op）。
         return {"detail": "数据源已停用", "source_id": str(source_id)}
     ds.status = "inactive"
-    # D8c fix: 双写 config.disabled=true —— 流水线页 DataSourceManager 只读
-    # config.disabled 判断启停，DELETE 仅设 status 导致停用状态在两页不一致
-    # （数据源页「已停用」vs 流水线页「待机」）。
+    # 双写 config.disabled=true —— 流水线页 DataSourceManager 只读 config.disabled 判断启停
     ds.config = {**(ds.config or {}), "disabled": True}
     await session.commit()
     return {"detail": "数据源已停用", "source_id": str(source_id)}
@@ -399,14 +395,10 @@ async def trigger_source_sync(
             ),
         )
 
-    # Delegate to pipeline executor so stages actually run (previously a no-op)
-    # E19 fix: trigger_and_start accepts full/incremental only (DB constraint),
+    # Delegate to pipeline executor so stages actually run
+    # E19: trigger_and_start accepts full/incremental only (DB constraint),
     # so map "source_sync" intent to "incremental" — single-source sync is
     # by definition an incremental crawl.
-    # P1-7 fix (functional-review 2026-08-13): 此前未传 selected_sources →
-    # 新 run 的 selected_sources=None → crawl 阶段爬全部 active 源，响应却声称
-    # "Source sync triggered for 'X'"（单源语义失效）。现透传 ds.name，crawl
-    # 阶段按 run.selected_sources 只爬该源。
     from app.services.pipeline_service import trigger_and_start
 
     run = await trigger_and_start(run_type="incremental", selected_sources=[ds.name])

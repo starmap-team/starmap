@@ -37,11 +37,7 @@ router = APIRouter(prefix="/match", tags=["match"])
 
 
 async def _run_match_request(body: MatchRequestInput, driver: Any, session: AsyncSession) -> MatchResponse:
-    """Execute match and persist result via the service layer.
-
-    The service's run_match() now handles PostgreSQL persistence internally,
-    so no duplicate INSERT is needed here.
-    """
+    """Execute match and persist result via the service layer."""
     result = await run_match(
         target_position=body.target_position,
         person_skills=[item.model_dump() for item in body.person_skills],
@@ -70,10 +66,7 @@ async def diagnose_match(
     driver: Annotated[Any, Depends(get_neo4j_driver)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> MatchResponse:
-    """Alias for /match/position — delegates to match_position.
-
-    x-audit-note: L1 — This is a convenience alias; /match/position is the canonical endpoint.
-    """
+    """Alias for /match/position — delegates to match_position."""
     return await match_position(body, driver, session)
 
 
@@ -139,8 +132,6 @@ async def get_competitiveness(
         driver=driver,
         db_session=session,
     )
-    # fix (M13): 兼容前端 store（`data.items ?? data.skills`）。原响应无 items/skills 字段
-    # 导致前端 competitiveness 恒空数组。现补 items（瓶颈技能）和 skills（必备+加分）别名。
     bottleneck = result.get("bottleneck_skills") or []
     required = result.get("required_count", 0)
     bonus = result.get("bonus_count", 0)
@@ -183,7 +174,6 @@ async def batch_match(
             # 批量匹配逐条隔离:任何单条失败(含 PositionNotFoundError 等 StarMapError 子类)
             # 记为 error 条目,不中断整批。契约:test_batch_partial_failure_isolation。
             results.append({"position_name": position, "error": str(exc)})
-    # fix (M13): 响应中加 summary 便于前端一致性展示（plan: 当前前端按扁平 BatchMatchItem 消费，match_score 恒为 undefined）
     success_count = sum(1 for r in results if "result" in r)
     return {
         "results": results,
@@ -195,11 +185,6 @@ async def batch_match(
         },
         "total": len(results),
     }
-
-
-# ── FE-04: Reverse match (skills → position recommendations) ──
-# ReverseMatchRequest / PositionRecommendation / ReverseMatchResponse
-# 已迁至 backend/app/schemas/match.py,路由层只引用。
 
 
 @router.post("/recommend", response_model=ReverseMatchResponse)
@@ -263,7 +248,6 @@ async def recommend_positions(
     recommendations: list[PositionRecommendation] = []
     for pos_name in position_names:
         try:
-            # fix: recommend 是扫描式只读匹配，不持久化到 match_results，避免污染 /match/history
             result = await match_svc.run_match(
                 target_position=pos_name,
                 person_skills=person_skills_dicts,

@@ -26,16 +26,11 @@ from app.schemas.pipeline import (
     StageStatusResponse,
 )
 
-# CONCERN 1.7 (security audit 2026-08-15): typed SQLAlchemy Core `select`
-# against the `jd_raw` table instead of `_text("SELECT MAX(crawled_at) FROM jd_raw")`.
+# typed SQLAlchemy Core `Table` for `jd_raw` (no ORM model — owned by
+# crawler alembic). Declaring columns locally lets schema renames surface
+# as import-time errors instead of silent runtime SQL failures.
 #
-# `jd_raw` has no ORM model — the table is owned by the crawler's own
-# alembic (`crawler/persistence/migrations/versions/0001_init_jd_raw.py`).
-# We declare a thin Core `Table` against the same PG schema so future
-# schema renames surface as import-time / type errors instead of silent
-# runtime SQL failures.
-#
-# Schema (from 0001_init_jd_raw.py):
+# Schema (from crawler/persistence/migrations/versions/0001_init_jd_raw.py):
 #   id            BigInteger PK
 #   source_site   String(32)
 #   source_url    Text UNIQUE
@@ -151,10 +146,7 @@ async def get_pipeline_status(
         quality_alerts = []
     # end of alerts block — after this we always return a valid response
 
-    # Phase 4 P3: 查询最近一次 crawl 时间，让用户看到数据陈旧度
-    # CONCERN 1.7: use SQLAlchemy Core `select(func.max(jd_raw_table.c.crawled_at))`
-    # against the typed `jd_raw_table` Table — keeps column renames as
-    # import-time failures rather than silent runtime SQL breakage.
+    # 查询最近一次 crawl 时间，让用户看到数据陈旧度
     try:
         last_crawl_at = (
             await session.execute(
@@ -218,15 +210,8 @@ async def get_pipeline_stages(
     mirrors the canonical pipeline (crawl → extract → standardize → ingest →
     audit) and is purely informational — none of the stages have run.
     """
-    # M3（Phase 13 强制规范）：取“最有意义”的最新 run，而非无脑 latest-started_at。
-    # cancelled 且 0 记录的 run 是 zombie/孤儿（典型：Celery worker 重启后 task 引用丢失），
-    # 它的 stage 快照里常含 “crawl|running” 的过期 in-flight 状态，呈现给用户=误报。
-    # 优先：running → completed(records>0) → failed → cancelled(records>0) → latest cancelled（最差兜底）。
-    # 2026-08-12 (pipeline 修复): 改绑最新一条 run（含 failed/cancelled）。
-    # 原逻辑按 "running > completed(records>0) > failed" 择优，导致时间线永远定格在
-    # 最近一条 completed run 上，最新失败的 run 在运行历史中可见但在 DAG 中被无视，
-    # 用户看到 "记录 failed 但 DAG 全绿 100%" 的矛盾。现在 DAG 与运行历史始终一致；
-    # failed run 的红色 stage + 错误明细由前端 PipelineStageCard 渲染。
+    # 取“最有意义”的最新 run（DAG 与运行历史始终一致）
+    # 优先：running → completed(records>0) → failed → cancelled(records>0) → latest cancelled
     result = await session.execute(
         select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(1)
     )
@@ -280,12 +265,10 @@ async def get_data_quality(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DataQualityResponse:
     """数据质量实时指标。"""
-    # D3 (2026-08-07): 先聚合真实数据回写 data_sources 统计 (质量评估的来源)
     from app.services.pipeline_service import compute_data_quality_aggregates, get_quality_snapshot, sync_source_quality
 
     await sync_source_quality(session)
     snapshot = await get_quality_snapshot(session)
-    # 2026-08-07 修复: source_scores 在 snapshot 顶层, 合并进 metrics 供聚合读取
     snap_metrics = {**snapshot.get("metrics", {}), "source_scores": snapshot.get("source_scores", {})}
     extra = await compute_data_quality_aggregates(session, existing_metrics=snap_metrics)
     metrics_dict = {**snapshot.get("metrics", {}), **extra}

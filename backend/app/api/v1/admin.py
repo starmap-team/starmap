@@ -87,8 +87,6 @@ async def reconcile_neo4j_endpoint(
         r3 = await s.run("MATCH (:Position)-[r:REQUIRES]->(:Skill) RETURN count(r) AS c")
         neo4j_requires = int((await r3.single())["c"])
 
-    # Phase 23 核验修复 (M1b 闭环): PG 计数必须限定 approved——Neo4j 只投影
-    # approved 岗位，否则全量计数 (359) vs 图节点 (184) 误报 critical。
     pg_pos = (
         await session.execute(
             select(func.count(PositionRecord.id)).where(
@@ -162,7 +160,6 @@ async def reconcile_neo4j_endpoint(
 
     return ReconcileResult(
         positions_synced=result.nodes_upserted,
-        # Phase 23 Task 3: 修 skills_synced 复制粘贴 bug（此前误用 nodes_upserted）
         skills_synced=result.skills_upserted,
         orphans_pruned=result.orphans_pruned,
         positions_in_neo4j=neo4j_pos,
@@ -277,9 +274,6 @@ async def approve_review_item_endpoint(
                 await sync_approved_position_to_graph(position_name)
             except Exception as exc:  # noqa: BLE001 — 入图失败不阻断审核响应
                 logger.warning("approve-then-graph failed for {!r}: {}", position_name, exc)
-    # P1-14 fix (functional-review 2026-08-13): 技能审核通过此前只改 PG 状态，
-    # 不写 Neo4j Skill.trust_score → avg_skill_trust（数据大屏信任评分）滞后。
-    # 复用 _sync_neo4j_on_audit（MERGE canonical_id + trust_score=1.0）。
     elif entity_type == "skill" and item_dict.get("review_status") == "approved":
         skill_name = item_dict.get("name", "")
         if skill_name:
@@ -322,8 +316,6 @@ async def reject_review_item_endpoint(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except review_service.MissingRejectionReason as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    # P1-14 fix (functional-review 2026-08-13): 技能驳回同样同步 Neo4j
-    # （trust_score=0.0），保持图/PG 审核态一致。
     item_dict = item.to_dict()
     if entity_type == "skill":
         skill_name = item_dict.get("name", "")
