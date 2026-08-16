@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL
 from app.dependencies import get_current_user, get_db_session, get_neo4j_driver, require_admin
 from app.exceptions import PositionNotFoundError, StarMapError
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
@@ -165,6 +166,7 @@ async def list_industries(
         sa.select(PositionRecord.industry)
         .where(PositionRecord.industry.isnot(None))
         .where(PositionRecord.industry != "")
+        .where(PositionRecord.industry != UNCLASSIFIED_INDUSTRY_LITERAL)
         .distinct()
         .order_by(PositionRecord.industry)
     )

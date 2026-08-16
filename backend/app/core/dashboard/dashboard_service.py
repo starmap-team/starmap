@@ -20,6 +20,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import SOURCE_PLATFORM_NAMES
+from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL
 from app.exceptions import StarMapError
 from app.models.extraction_models import (
     JDExtractionRecord,
@@ -162,6 +163,8 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         await session.execute(
             sa.select(sa.func.count(sa.distinct(PositionRecord.industry)))
             .where(PositionRecord.industry.isnot(None))
+            .where(PositionRecord.industry != "")
+            .where(PositionRecord.industry != UNCLASSIFIED_INDUSTRY_LITERAL)
         )
     ).scalar() or 0
 
@@ -527,6 +530,8 @@ async def get_distribution(
             sa.func.count().label("count"),
         )
         .where(PositionRecord.industry.isnot(None))
+        .where(PositionRecord.industry != "")
+        .where(PositionRecord.industry != UNCLASSIFIED_INDUSTRY_LITERAL)
         .group_by(PositionRecord.industry)
         .order_by(sa.func.count().desc())
         .limit(15)

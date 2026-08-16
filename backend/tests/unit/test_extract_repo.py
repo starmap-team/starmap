@@ -49,6 +49,29 @@ class TestUpsertPositionRecord:
         assert "review_status" not in sql.split("DO UPDATE")[1]
         assert params["name"] == "后端工程师"
         assert params["review_status"] == "pending_review"
+        assert params["industry"] == "IT"
+
+    @pytest.mark.asyncio
+    async def test_unclassified_literal_written_when_industry_empty(self) -> None:
+        """PRD US-003 C2: industry 为空时写入「未分类」字面量，chip 文案 = DB 列值."""
+        session = _FakeSession()
+        await upsert_position_record(
+            session, name="Mystery Role", industry=None,
+            description="desc", review_status="pending_review", created_by="u1",
+        )
+        params = session.executed[0][1]
+        assert params["industry"] == "未分类"
+
+    @pytest.mark.asyncio
+    async def test_unclassified_literal_written_when_industry_empty_string(self) -> None:
+        """空字符串 industry 也回写「未分类」字面量."""
+        session = _FakeSession()
+        await upsert_position_record(
+            session, name="Empty Industry", industry="",
+            description="desc", review_status="pending_review", created_by="u1",
+        )
+        params = session.executed[0][1]
+        assert params["industry"] == "未分类"
 
 
 class TestUpsertSkillRecord:
