@@ -326,8 +326,8 @@ onUnmounted(() => {
         description="本流程对应设计文档的“匹配诊断全流程”：上传简历 → 文档解析 → LLM 技能提取 → 技能归一化 → 与目标岗位技能对比 → 差距分析报告 → 学习路径生成。"
         :meta="[
           { category: '后端', label: '/match/*', code: true, copyable: true },
-          { label: '信任度驱动 ()' },
-          { label: '通胀指数参考 ()' },
+          { label: '信任度驱动' },
+          { label: '通胀指数参考' },
         ]"
         collapsible
       />
