@@ -234,14 +234,17 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
     triples: list[GraphTriple] = []
 
     # 写入门禁（Prevention）— 全收全写改为门槛过滤：
-    # 1. 来源门槛：单条 JD 出现的技能降级 preferred（防单点幻觉污染画像）
-    # 2. 信任度门槛：幻觉分过高/置信度过低 → 跳过不入图
-    # 3. required 上限：required 已达 cap → 新技能强制 preferred（截断膨胀）
+    # 1. 信任度门槛：幻觉分过高/置信度过低 → 跳过不入图
+    # 2. required 上限：required 已达 cap → 新技能强制 preferred（截断膨胀）
+    # 注：来源门槛（source_count >= N 才 required）不在此判断 —— 单条抽取
+    # 的技能条目 source_count 缺省 1（无法判断累计来源），该门槛在图谱
+    # MERGE 层基于累计 source_count 应用（见 _apply_source_gate）。
     from app.core.extraction.ingestion_gate import apply_ingestion_gate
 
     gated = apply_ingestion_gate(
         extraction.get("required_skills", []),
         extraction.get("preferred_skills", []),
+        min_sources=1,  # 来源门槛由图谱 MERGE 层基于累计 source_count 处理
     )
     gated_required = gated["required"]
     gated_preferred = gated["preferred"]
