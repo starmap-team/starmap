@@ -75,6 +75,8 @@ jobs:
         continue-on-error: true
       - name: Pytest（含覆盖率门禁 70%）
         run: poetry run pytest
+      - name: 赛项指标门禁（JD 解析 F1 ≥0.90 快速回归）
+        run: poetry run python ../evaluation/accuracy_gate.py --jd-only
       - name: 契约一致性校验（FastAPI 导出 vs openapi.yaml）
         run: |
           poetry run python -c "

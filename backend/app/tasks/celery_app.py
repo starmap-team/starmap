@@ -452,6 +452,12 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.outbox_retry.retry_failed_outbox_writes",
         "schedule": crontab(minute="*/30"),  # 每30分钟
     },
+    # Phase 2 (accuracy gate): 每周一 02:30 跑赛项三项 ≥90% 指标门禁，
+    # 劣化自动写审计告警（prevention 之外的 detection 防线）
+    "accuracy-gate-weekly": {
+        "task": "app.tasks.celery_app.run_accuracy_gate_task",
+        "schedule": crontab(hour=2, minute=30, day_of_week=1),  # 每周一 02:30
+    },
 }
 
 
@@ -496,3 +502,57 @@ def _on_task_failure(
 if getattr(celery_app, "task_failure_handler_registered", False) is False:
     signals.task_failure.connect(_on_task_failure)
     celery_app.task_failure_handler_registered = True
+
+
+@celery_app.task(name="app.tasks.celery_app.run_accuracy_gate", bind=True, max_retries=1)
+def run_accuracy_gate_task(self) -> dict[str, Any]:
+    """赛项三项 ≥90% 指标定时评测 + 劣化告警（Phase 2）。
+
+    每周跑一次 accuracy_gate.py（规则 baseline，无 LLM 依赖），
+    任一指标 < 0.90 时写 audit 告警（CELERY_TASK_FAILURE 同级，
+    让运营在审计日志里看到"指标劣化"）。结果落 loguru。
+
+    真实 LLM 评测（run_resume_eval / run_real_eval）需凭据且慢，
+    由人工/CI 按需跑；本任务用规则 baseline 做每周回归防线。
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent.parent.parent
+    gate_script = root / "evaluation" / "accuracy_gate.py"
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(gate_script)],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=1800,
+        )
+        output = proc.stdout + proc.stderr
+        logger.info("accuracy_gate output:\n{}", output[-2000:])
+        if proc.returncode != 0:
+            # 指标劣化 → 写审计告警
+            try:
+                from app.utils.audit import AuditEntry, AuditEvent, audit_log
+
+                audit_log(
+                    AuditEntry(
+                        event=AuditEvent.CELERY_TASK_FAILURE,
+                        actor="celery",
+                        action="accuracy_gate_degraded",
+                        detail=f"赛项指标门禁未达标 exit={proc.returncode}",
+                        extra={"output": output[-1500:]},
+                    )
+                )
+            except Exception:
+                logger.exception("accuracy_gate audit write failed (non-fatal)")
+            logger.error("赛项指标门禁未达标（≥90%），需人工核查: {}", output[-800:])
+            return {"passed": False, "exit_code": proc.returncode}
+        return {"passed": True, "exit_code": 0}
+    except subprocess.TimeoutExpired:
+        logger.error("accuracy_gate 超时（1800s）")
+        return {"passed": False, "error": "timeout"}
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("accuracy_gate task error: {}", exc)
+        return {"passed": False, "error": str(exc)}
