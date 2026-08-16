@@ -430,10 +430,13 @@ async function saveNameCn() {
           >
             {{ row.name }}
           </el-tag>
-          <span
-            v-if="row.industry"
+          <el-tag
+            :type="row.industry ? 'info' : 'warning'"
+            :effect="row.industry ? 'light' : 'plain'"
+            size="small"
             class="industry-tag"
-          >{{ row.industry }}</span>
+            :title="row.industry ? `行业: ${row.industry}` : '该岗位尚未标注行业'"
+          >{{ row.industry || '未分类' }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column
@@ -704,12 +707,7 @@ async function saveNameCn() {
 }
 
 .industry-tag {
-  display: inline-block;
-  font-size: var(--font-size-xs);
-  color: var(--muted-foreground);
-  padding: 1px 6px;
-  background: var(--muted);
-  border-radius: var(--radius-sm);
+  margin-left: var(--space-2);
 }
 
 .rejection-reason {
