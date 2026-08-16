@@ -87,6 +87,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from app.core.pipeline.bootstrap import schedule_bootstrap_if_enabled
 
     schedule_bootstrap_if_enabled()
+    # 2026-08-16: 启动时清一遍 SSE 限流 stale 计数（旧进程卡住的连接数）
+    try:
+        from app.dependencies import sweep_stale_sse_counters
+
+        cleaned = await sweep_stale_sse_counters()
+        if cleaned:
+            logger.info("[lifespan] swept {} stale SSE per-IP counter(s)", cleaned)
+    except Exception as exc:  # noqa: BLE001 — 启动期降级不阻断
+        logger.warning("[lifespan] sweep_stale_sse_counters failed: {}", exc)
     # Phase 2 CRON-03: 启动 cron scanner 后台任务
     cron_task = None
     try:

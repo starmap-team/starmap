@@ -235,6 +235,11 @@ _SSE_MAX_GLOBAL = 500  # 全局最大并发 SSE 连接
 _sse_ip_connections: dict[str, int] = defaultdict(int)
 _sse_global_connections = 0
 _sse_lock = asyncio.Lock()
+# Stale-entry 清理：连接断开时减计数，若 IP 计数归零且距上次 connect ≥ 60s，
+# 把 _sse_ip_connections 中的零值条目清掉，防止 dict 永驻（旧连接因 vite HMR /
+# page reload 服务端未收到 FIN packet 时计数会卡住，导致假阳性 429）。
+_SSE_STALE_CLEANUP_SECONDS = 60.0
+_sse_last_connect_at: dict[str, float] = {}
 
 # 可注入的 SSE 连接检查函数 — 测试时可替换为 no-op 避免全局状态污染。
 # 使用方式: monkeypatch.setattr("app.dependencies._sse_connect_check", _noop_sse_check)
@@ -275,6 +280,9 @@ async def sse_connect(client_ip: str) -> None:
             )
         _sse_ip_connections[client_ip] += 1
         _sse_global_connections += 1
+        # 记录本次 connect 时间，供 sweep_stale_sse_counters 兜底
+        import time as _time
+        _sse_last_connect_at[client_ip] = _time.monotonic()
 
 
 async def sse_disconnect(client_ip: str) -> None:
@@ -292,6 +300,44 @@ async def sse_disconnect(client_ip: str) -> None:
                 _sse_ip_connections.pop(client_ip, None)
         if _sse_global_connections > 0:
             _sse_global_connections -= 1
+
+
+async def sweep_stale_sse_counters() -> int:
+    """扫描并清理卡住的 SSE 计数（dev 环境 stale 连接兜底）。
+
+    触发条件: IP 计数 > 0 但距上次 connect 已过 ≥ _SSE_STALE_CLEANUP_SECONDS
+    且该 IP 上 _active stream 已断开（依赖 _sse_last_connect_at 时间戳）。
+
+    调用场景:
+    - 服务端健康检查（health/detail endpoint）
+    - 定时 Celery beat 任务（每小时一次）
+    - FastAPI startup hook（每次进程重启）
+
+    返回: 清理的 IP 数。失败计数仍可能存在，但已不再增长。
+    """
+    import time as _time
+
+    cleaned = 0
+    now = _time.monotonic()
+    async with _sse_lock:
+        stale_ips = [
+            ip for ip, last_at in _sse_last_connect_at.items()
+            if (now - last_at) >= _SSE_STALE_CLEANUP_SECONDS
+            and _sse_ip_connections.get(ip, 0) > 0
+        ]
+        for ip in stale_ips:
+            leaked = _sse_ip_connections.pop(ip, 0)
+            _sse_last_connect_at.pop(ip, None)
+            if leaked > 0:
+                # 同步减全局计数
+                global _sse_global_connections
+                _sse_global_connections = max(0, _sse_global_connections - leaked)
+                cleaned += 1
+                logger.warning(
+                    "[sse-limit] swept stale counter for ip={} leaked={} (no FIN in {}s)",
+                    ip, leaked, int(_SSE_STALE_CLEANUP_SECONDS),
+                )
+    return cleaned
 
 
 async def get_current_user_sse(

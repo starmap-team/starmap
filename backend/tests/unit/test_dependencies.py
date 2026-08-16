@@ -22,6 +22,7 @@ from app.dependencies import (
     get_redis_client,
     sse_connect,
     sse_disconnect,
+    sweep_stale_sse_counters,
 )
 
 
@@ -216,9 +217,15 @@ class TestSSEConnectionLimit:
         import app.dependencies as dep_mod
         dep_mod._sse_global_connections = 0
         dep_mod._sse_ip_connections.clear()
+        # Reset the connect-time tracker so sweep_stale_sse_counters tests
+        # start from a clean slate (2026-08-16: stale sweep feature).
+        if hasattr(dep_mod, "_sse_last_connect_at"):
+            dep_mod._sse_last_connect_at.clear()
         yield
         dep_mod._sse_global_connections = 0
         dep_mod._sse_ip_connections.clear()
+        if hasattr(dep_mod, "_sse_last_connect_at"):
+            dep_mod._sse_last_connect_at.clear()
 
     def test_sse_connect_increments_counters(self):
         """sse_connect should increment per-IP and global counters."""
@@ -255,3 +262,70 @@ class TestSSEConnectionLimit:
         with pytest.raises(HTTPException) as exc:
             _run(sse_connect("new-ip"))
         assert exc.value.status_code == 429
+
+
+class TestSSEStaleSweep:
+    """2026-08-16: sweep_stale_sse_counters — 兜底清理卡住的 SSE 计数。
+
+    当客户端连接因 vite HMR / page reload / 浏览器崩溃 未发送 FIN packet，
+    服务端 sse_disconnect 不会被调用，_sse_ip_connections 永久卡住。
+    sweep_stale_sse_counters 在 startup 时调用 + 距上次 connect 超过阈值的
+    IP 计数清理掉，防止误报 429。
+    """
+
+    @pytest.fixture(autouse=True)
+    def _reset_sse_counters(self):
+        import app.dependencies as dep_mod
+        dep_mod._sse_global_connections = 0
+        dep_mod._sse_ip_connections.clear()
+        if hasattr(dep_mod, "_sse_last_connect_at"):
+            dep_mod._sse_last_connect_at.clear()
+        yield
+        dep_mod._sse_global_connections = 0
+        dep_mod._sse_ip_connections.clear()
+        if hasattr(dep_mod, "_sse_last_connect_at"):
+            dep_mod._sse_last_connect_at.clear()
+
+    async def test_sweep_clears_stale_counters(self, monkeypatch):
+        """Per-IP counter > 0 且距上次 connect > 阈值时，sweep 应清掉并减 global。"""
+        import app.dependencies as dep_mod
+
+        # Simulate 3 个客户端连接到 10.0.0.5，但都没正常 disconnect
+        for _ in range(3):
+            await sse_connect("10.0.0.5")
+        assert dep_mod._sse_ip_connections["10.0.0.5"] == 3
+        assert dep_mod._sse_global_connections == 3
+
+        # 把最后一次 connect 时间戳推回 90 秒前（> _SSE_STALE_CLEANUP_SECONDS）
+        import time
+        dep_mod._sse_last_connect_at["10.0.0.5"] = time.monotonic() - 90.0
+
+        cleaned = await sweep_stale_sse_counters()
+        assert cleaned == 1
+        assert "10.0.0.5" not in dep_mod._sse_ip_connections
+        assert dep_mod._sse_global_connections == 0
+
+    async def test_sweep_skips_recent_counters(self):
+        """距上次 connect 未超过阈值的 IP 计数不应被 sweep。"""
+        import app.dependencies as dep_mod
+
+        await sse_connect("10.0.0.6")
+        assert dep_mod._sse_ip_connections["10.0.0.6"] == 1
+
+        # 刚 connect 完，timestamp 是 monotonic now — sweep 不应清理
+        cleaned = await sweep_stale_sse_counters()
+        assert cleaned == 0
+        assert dep_mod._sse_ip_connections["10.0.0.6"] == 1
+
+    async def test_sweep_handles_normal_disconnect(self):
+        """正常 disconnect 走的路径（计数归零 + ip 条目 pop）不需要 sweep 介入。"""
+        import app.dependencies as dep_mod
+
+        await sse_connect("10.0.0.7")
+        await sse_disconnect("10.0.0.7")
+        assert "10.0.0.7" not in dep_mod._sse_ip_connections
+        assert dep_mod._sse_global_connections == 0
+
+        # sweep should report 0 — no stale entries
+        cleaned = await sweep_stale_sse_counters()
+        assert cleaned == 0
