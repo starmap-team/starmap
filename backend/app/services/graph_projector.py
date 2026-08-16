@@ -343,6 +343,42 @@ class GraphProjector:
                         )
                         result.orphans_pruned += 1
 
+            # Phase 24 根治④: 清理 canonical_id IS NULL 的 Position 孤儿。
+            # Phase 23 Task 2 切键后，无 canonical_id 的旧节点既不被上方 set-diff
+            # 剪枝（只查 canonical_id IS NOT NULL）也不被投影回填，永久残留——
+            # reconcile 曾报 positions_in_neo4j=189 vs PG=185 差 4 且孤儿清理无效。
+            # 这里按 name 对比 PG approved 岗位名：图中有 name 但 PG 无对应
+            # approved 岗位 → 孤儿，DETACH DELETE。
+            try:
+                pg_approved_names = {
+                    str(row[0])
+                    for row in (
+                        await pg_session.execute(
+                            select(PositionRecord.name).where(
+                                PositionRecord.review_status == "approved"
+                            )
+                        )
+                    ).all()
+                }
+                async with self._driver.session() as session:
+                    null_cid_positions = await session.run(
+                        "MATCH (p:Position) WHERE p.canonical_id IS NULL "
+                        "RETURN p.name AS name, p.canonical_id AS cid"
+                    )
+                    async for rec in null_cid_positions:
+                        name = rec["name"]
+                        if name not in pg_approved_names:
+                            # 图内无主键孤儿：从 PG 侧找不到 → 删除（级联边）
+                            await session.run(
+                                "MATCH (p:Position {name: $name}) "
+                                "WHERE p.canonical_id IS NULL DETACH DELETE p",
+                                name=name,
+                            )
+                            result.orphans_pruned += 1
+                            logger.info("reconcile: pruned null-cid Position orphan '{}'", name)
+            except Exception as exc:  # 兜底清理 fail-soft，不阻断主对账
+                logger.warning("reconcile: null-cid orphan prune skipped: {}", exc)
+
             # 5. Backfill PG → Neo4j for missing nodes (best-effort)
             missing_pos = pg_pos_ids - neo4j_ids["Position"]
             missing_skill = pg_skill_ids - neo4j_ids["Skill"]

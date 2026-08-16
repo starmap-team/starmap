@@ -345,11 +345,10 @@ class TestReconcileAllApprovedGate:
                 return _FakeNeo4jRun()
 
         class _FakeDriver:
-            def __init__(self) -> None:
-                self._sessions = [_FakeNeo4jSession(), _FakeNeo4jSession()]
-
             def session(self):
-                return self._sessions.pop(0)
+                # Phase 24: reconcile_all 新增 null-cid 孤儿清理会多次开 session——
+                # 无限返回新 session（此前 pop 固定 2 个越界）
+                return _FakeNeo4jSession()
 
         projector = GraphProjector.__new__(GraphProjector)
         projector._driver = _FakeDriver()
