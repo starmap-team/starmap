@@ -12,6 +12,7 @@ import VChart from 'vue-echarts'
 import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import { useEvolutionStore } from '@/stores/evolution'
 import type { TrendItem, EmergingAlert } from '@/stores/evolution'
 import { useEvolutionCharts, useEvolutionActions, formatChange, TREND_LABEL, TREND_TAG_TYPE } from '@/composables/useEvolutionDashboard'
@@ -177,6 +178,7 @@ onMounted(() => {
 
 <template>
   <MainLayout>
+    <ErrorBoundary>
     <div class="evolution-page animate-fade-in">
       <BusinessBanner
         type="warning"
@@ -955,6 +957,7 @@ onMounted(() => {
         :evidence-open="evidenceDrawerOpen"
       />
     </div>
+    </ErrorBoundary>
   </MainLayout>
 </template>
 

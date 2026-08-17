@@ -163,7 +163,8 @@ async def build_evolution_kpi(
     try:
         trust_neo4j_skill = round(float(await avg_skill_trust()), 3)
     except Exception:
-        trust_neo4j_skill = 0.0
+        # 返回 None 而非 0.0，让前端显示"不可用"而非误导性的"零信任"
+        trust_neo4j_skill = None
 
     return {
         "emerging_count": emerging_count,

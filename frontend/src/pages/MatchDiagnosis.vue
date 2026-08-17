@@ -10,6 +10,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { DataAnalysis, Plus } from '@element-plus/icons-vue'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import { use } from 'echarts/core'
 import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
@@ -310,6 +311,7 @@ onUnmounted(() => {
 
 <template>
   <MainLayout>
+    <ErrorBoundary>
     <div class="match-page animate-fade-in">
       <div class="page-header">
         <h1 class="page-title">
@@ -562,6 +564,7 @@ onUnmounted(() => {
       <!-- Batch Match -->
       <MatchBatchMode v-if="pageMode === 'batch'" />
     </div>
+    </ErrorBoundary>
   </MainLayout>
 </template>
 

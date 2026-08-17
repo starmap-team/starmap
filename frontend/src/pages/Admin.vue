@@ -18,6 +18,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, Edit, DataAnalysis } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import AdminOverview from '@/components/AdminOverview.vue'
 import EvolutionReviewPanel from '@/components/EvolutionReviewPanel.vue'
 import ContentReviewPanel from '@/components/ContentReviewPanel.vue'
@@ -361,6 +362,7 @@ function formatDate(iso: string | null | undefined): string {
 
 <template>
   <MainLayout>
+    <ErrorBoundary>
     <div class="admin-page animate-fade-in">
       <div class="page-header">
         <div>
@@ -1173,6 +1175,7 @@ function formatDate(iso: string | null | undefined): string {
         @submit="handleNodeSubmit"
       />
     </div>
+    </ErrorBoundary>
   </MainLayout>
 </template>
 

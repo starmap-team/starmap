@@ -13,10 +13,12 @@ const errorMessage = ref('')
 onErrorCaptured((err, instance, info) => {
   hasError.value = true
   errorMessage.value = err.message || String(err)
-  console.error('[ErrorBoundary] Caught error:', err)
-  console.error('[ErrorBoundary] Stack:', err instanceof Error ? err.stack : 'N/A')
-  console.error('[ErrorBoundary] Component:', instance?.$options?.name ?? instance?.$options?.__name ?? 'unknown')
-  console.error('[ErrorBoundary] Info:', info)
+  if (import.meta.env.DEV) {
+    console.error('[ErrorBoundary] Caught error:', err)
+    console.error('[ErrorBoundary] Stack:', err instanceof Error ? err.stack : 'N/A')
+    console.error('[ErrorBoundary] Component:', instance?.$options?.name ?? instance?.$options?.__name ?? 'unknown')
+    console.error('[ErrorBoundary] Info:', info)
+  }
   return false
 })
 
@@ -31,6 +33,8 @@ function retry() {
   <div
     v-else
     class="error-boundary"
+    role="alert"
+    aria-live="assertive"
   >
     <div class="error-boundary-icon">
       <svg

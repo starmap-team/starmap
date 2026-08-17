@@ -6,6 +6,7 @@
 import { ElMessage } from 'element-plus'
 import { RefreshRight, QuestionFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import { useQualityStore } from '@/stores/quality'
 import { useReviewStore, type ReviewEntityType } from '@/stores/review'
 import { chartColors } from '@/utils/chartTheme'
@@ -81,6 +82,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
 
 <template>
   <MainLayout>
+    <ErrorBoundary>
     <div class="quality-page animate-fade-in">
       <div class="page-header">
         <div>
@@ -616,6 +618,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
         </el-tabs>
       </el-card>
     </div>
+    </ErrorBoundary>
   </MainLayout>
 </template>
 

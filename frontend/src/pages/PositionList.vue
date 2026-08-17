@@ -14,6 +14,7 @@ import { useRouter } from 'vue-router'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 import { useJdStore } from '@/stores/jd'
 import { useUserStore } from '@/stores/user'
 import { ALL_OPTION, POSITION_REVIEW_STATUS_LABELS } from '@/constants/labels'
@@ -190,6 +191,7 @@ onMounted(() => {
 
 <template>
   <MainLayout>
+    <ErrorBoundary>
     <div class="position-list-page animate-fade-in">
       <div class="page-header">
         <h2>岗位列表</h2>
@@ -239,15 +241,20 @@ onMounted(() => {
         >
           全部
         </el-tag>
+        <!-- 真实行业 + 「未分类」字面量（后端 list_industries 已在末尾追加） -->
+        <!-- 「未分类」使用 warning 样式提示它是兜底桶，与卡片上的 chip 风格一致 -->
         <el-tag
           v-for="ind in industries"
           :key="ind"
-          :type="selectedIndustry === ind ? 'primary' : 'info'"
+          :type="selectedIndustry === ind
+            ? (ind === '未分类' ? 'warning' : 'primary')
+            : (ind === '未分类' ? 'warning' : 'info')"
           :effect="selectedIndustry === ind ? 'dark' : 'plain'"
           class="clickable-tag"
           role="button"
           tabindex="0"
           :aria-label="`筛选行业: ${ind}`"
+          :title="ind === '未分类' ? '尚未标注行业的岗位（兜底桶，可筛）' : `行业: ${ind}`"
           @click="selectedIndustry = selectedIndustry === ind ? '' : ind"
         >
           {{ ind }}
@@ -403,6 +410,7 @@ onMounted(() => {
         />
       </div>
     </div>
+    </ErrorBoundary>
   </MainLayout>
 </template>
 
