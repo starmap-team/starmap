@@ -23,6 +23,7 @@ from pathlib import Path
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.extraction.industry import normalize_industry
 from app.db.session import get_session_factory
 from app.models.extraction_models import PositionRecord, SkillRecord
 from app.services import review_service
@@ -69,7 +70,9 @@ async def seed_positions(session: AsyncSession) -> int:
         """)
         await session.execute(stmt, {
             "id": rid, "name": name,
-            "industry": pos.get("industry", "信息技术/互联网"),
+            # normalize_industry("未分类") → "未分类"；normalize_industry(None) → "未分类"。
+            # 直接传 None/'' 会被 DB CHECK 拒绝（040 迁移）；走归一化函数保留语义。
+            "industry": normalize_industry(pos.get("industry")),
             "desc": "",
             "created": now,
         })
