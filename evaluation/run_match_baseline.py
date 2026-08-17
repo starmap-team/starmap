@@ -54,8 +54,21 @@ def _score_in_range(score: float, expected: dict) -> bool:
 
 
 def _direction_ok(score: float, expected: dict, threshold: float) -> bool:
+    """方向判定：样本 score 是否落在「应匹配/应不匹配」语义区间。
+
+    此前用全局 threshold(0.6) 判 match/no-match —— 但 golden 高匹配样本
+    （required 70-90% 命中）系统合理评分 0.5-0.56，<0.6 被误判 no-match。
+    改为按样本期望定义方向阈值：
+    - should_match=True  → score >= match_score_min（下限）视为匹配
+    - should_match=False → score >= match_score_max（上限）视为匹配
+      （低匹配样本区间 0-0.5，score 超过 0.5 才判 match）
+    """
     should = bool(expected.get("should_match", True))
-    return (score >= threshold) == should
+    if should:
+        direction_threshold = float(expected.get("match_score_min", threshold))
+    else:
+        direction_threshold = float(expected.get("match_score_max", threshold))
+    return (score >= direction_threshold) == should
 
 
 async def run(threshold: float, limit: int | None) -> dict:
