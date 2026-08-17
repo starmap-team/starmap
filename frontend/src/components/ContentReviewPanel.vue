@@ -204,6 +204,60 @@ async function handleUnpublish(item: ReviewItem) {
   }
 }
 
+// Phase 3 IndustryClassifier (2026-08-17): admin 手动重新分类 industry。
+// 多层防御第三层 — 当 LLM 抽取 / backfill / alias 字典把某岗位归到错误
+// canonical 桶时，运营可在审核面板一键修正。端点：
+// POST /api/v1/admin/positions/{position_id}/reclassify-industry
+const reclassifyDialog = ref<{ open: boolean; item: ReviewItem | null }>({
+  open: false,
+  item: null,
+})
+const reclassifyIndustry = ref('')
+const reclassifyReason = ref('')
+const reclassifyLoading = ref(false)
+
+async function openReclassifyDialog(item: ReviewItem) {
+  if (item.entity_type !== 'position') {
+    ElMessage.warning('仅岗位支持行业重新分类（技能无需行业字段）')
+    return
+  }
+  reclassifyDialog.value = { open: true, item }
+  reclassifyIndustry.value = item.industry || ''
+  reclassifyReason.value = ''
+}
+
+async function submitReclassify() {
+  const item = reclassifyDialog.value.item
+  if (!item) return
+  if (!reclassifyIndustry.value.trim()) {
+    ElMessage.warning('请选择新的行业')
+    return
+  }
+  if (reclassifyReason.value.trim().length < 5) {
+    ElMessage.warning('请填写至少 5 字的原因')
+    return
+  }
+  reclassifyLoading.value = true
+  try {
+    await request.post(
+      `/api/v1/admin/positions/${item.entity_id}/reclassify-industry`,
+      {
+        industry: reclassifyIndustry.value.trim(),
+        reason: reclassifyReason.value.trim(),
+      },
+    )
+    ElMessage.success('行业重新分类已写入')
+    reclassifyDialog.value.open = false
+    await refresh()
+  } catch (e) {
+    const detail =
+      (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    ElMessage.error(detail ? `重新分类失败: ${detail}` : '重新分类失败')
+  } finally {
+    reclassifyLoading.value = false
+  }
+}
+
 function formatDate(s: string | null) {
   if (!s) return '—'
   try {
@@ -557,6 +611,17 @@ async function saveNameCn() {
           >
             下架
           </el-button>
+          <el-button
+            v-if="row.entity_type === 'position' && row.review_status === 'approved'"
+            type="primary"
+            size="small"
+            plain
+            :icon="RefreshRight"
+            title="Phase 3: Admin 手动重新分类 industry（多层防御 IndustryClassifier 第三层）"
+            @click="openReclassifyDialog(row)"
+          >
+            重分类行业
+          </el-button>
           <span
             v-if="row.review_status === 'rejected'"
             class="muted"
@@ -619,6 +684,50 @@ async function saveNameCn() {
           @click="saveNameCn"
         >
           保存中文名
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Phase 3: Admin reclassify-industry 对话框 (多层防御第三层) -->
+    <el-dialog
+      v-model="reclassifyDialog.open"
+      title="重新分类行业"
+      width="520px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <p class="reclassify-hint">
+        当前行业：
+        <strong>{{ reclassifyDialog.item?.industry || '未分类' }}</strong>
+        （岗位：{{ reclassifyDialog.item?.name_cn || reclassifyDialog.item?.name }}）
+      </p>
+      <el-form label-width="80px">
+        <el-form-item label="新行业" required>
+          <el-input
+            v-model="reclassifyIndustry"
+            placeholder="输入 industry_taxonomy.yaml canonical 桶（如：互联网/IT / 金融科技 / 销售/营销）"
+            clearable
+          />
+        </el-form-item>
+        <el-form-item label="原因" required>
+          <el-input
+            v-model="reclassifyReason"
+            type="textarea"
+            :rows="3"
+            placeholder="至少 5 字，说明重新分类原因（写入 ReviewAuditLog）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="reclassifyDialog.open = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="reclassifyLoading"
+          @click="submitReclassify"
+        >
+          提交重分类
         </el-button>
       </template>
     </el-dialog>
@@ -708,6 +817,12 @@ async function saveNameCn() {
 
 .industry-tag {
   margin-left: var(--space-2);
+}
+
+.reclassify-hint {
+  margin-bottom: var(--space-4);
+  color: var(--muted-foreground);
+  font-size: var(--font-size-sm);
 }
 
 .rejection-reason {
