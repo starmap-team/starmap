@@ -23,6 +23,20 @@ from app.schemas.position import (
 
 router = APIRouter(prefix="/positions", tags=["岗位管理"])
 
+# ──────────────────────────────────────────────────────────────────
+# 赛方范围：IT 核心行业（2026-08-17）
+# ──────────────────────────────────────────────────────────────────
+# 赛方原文："瞄准新一代信息技术领域（围绕人工智能、大数据、智能系统、物联网等）"
+# IT 核心 = 赛项3 范围，非 IT 行业（零售/电商/制造/销售/HR 等）不主动展示。
+IT_CORE_INDUSTRIES = frozenset({
+    "互联网/IT",      # AI/大数据/云计算/软件
+    "金融科技",        # 金融科技
+    "网络安全",        # 数字经济基础设施
+    "通信/电信",        # 网络基础设施
+    "智能制造",        # IoT/智能系统
+    "零售/电商",        # 赛方示例"电子商务"
+})
+
 # D-02: 岗位域的 admin 运维路由。独立 router（prefix="/admin"）以避免与
 # `/positions/{position_id}` 的路径参数抢匹配，同时叠加 require_admin 鉴权。
 admin_router = APIRouter(
@@ -60,6 +74,10 @@ async def list_positions(
         bool,
         Query(description="admin 用：true 时不强制 status=approved"),
     ] = False,
+    scope: Annotated[
+        str | None,
+        Query(description="展示范围：it_core（默认）或 all（全部行业）"),
+    ] = None,
 ) -> PositionListResponse:
  # 可见性策略此前只读 query 参数、
  # 无角色校验 —— 任何登录用户传 ?status=pending_review 或 include_all=true
@@ -73,6 +91,10 @@ async def list_positions(
     count_stmt = sa.select(sa.func.count()).select_from(PositionRecord)
     if industry:
         count_stmt = count_stmt.where(PositionRecord.industry.ilike(f"%{_escape_like(industry)}%", escape="\\"))
+    # Phase 5 scope 过滤：只统计 IT 核心行业（赛方范围）
+    use_it_core = (scope or "it_core") == "it_core"
+    if use_it_core and not industry:
+        count_stmt = count_stmt.where(PositionRecord.industry.in_(IT_CORE_INDUSTRIES))
     if search:
  # Phase 13 一致性审计：search 同时匹配 name、name_cn 与 industry（与前端 placeholder/客户端筛选及 Neo4j 路径一致）
         like = f"%{_escape_like(search)}%"
@@ -107,6 +129,9 @@ async def list_positions(
     stmt = sa.select(PositionRecord).order_by(PositionRecord.name)
     if industry:
         stmt = stmt.where(PositionRecord.industry.ilike(f"%{_escape_like(industry)}%", escape="\\"))
+    # Phase 5 scope 过滤：只返回 IT 核心行业（赛方范围）
+    if use_it_core and not industry:
+        stmt = stmt.where(PositionRecord.industry.in_(IT_CORE_INDUSTRIES))
     if search:
         like = f"%{_escape_like(search)}%"
  # Fix D: search 排除「未分类」字面量（避免 admin 搜「未分类」命中全部）
@@ -164,29 +189,41 @@ async def list_positions(
 @router.get(
     "/industries",
     summary="行业列表",
-    description="返回所有岗位的去重行业名称列表（按字母排序）。\n\n"
-    "用于前端行业筛选下拉选项，确保用户看到全量行业而非仅当前页。\n\n"
-    "2026-08-17 (P1-D 闭环): 若 DB 存在「未分类」字面量行（永远存在的兜底桶），\n"
-    "API 也会一并返回 — 否则用户无法在 87% 岗位是「未分类」时筛选它们。",
+    description="返回岗位的去重行业名称列表（按字母排序）。\n\n"
+    "scope 参数控制展示范围：\n"
+    "- scope=it_core（默认）：只返回 IT 核心行业（赛方范围：AI/大数据/智能系统/IoT/网络安全/通信）\n"
+    "- scope=all：返回全部行业（admin 用）\n\n"
+    "不影响数据计算——只改展示过滤。所有行业数据保留在 DB 中，不删除。",
     response_model=IndustriesResponse,
 )
 async def list_industries(
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    scope: Annotated[
+        str | None,
+        Query(description="展示范围：it_core（默认）或 all（全部）"),
+    ] = None,
 ) -> IndustriesResponse:
     """Distinct industry names from position_records, sorted alphabetically.
 
-    「未分类」字面量（DB 兜底桶）始终追加在返回列表末尾（仅在存在时），
-    不参与字母排序，确保用户可筛 87% 的「未分类」岗位。
+    scope 参数（Phase 5 竞赛范围收口）：
+    - it_core（默认）：只返回 IT 核心行业（赛方范围：AI/大数据/智能系统/IoT 等）
+    - all：返回全部行业（admin 调试用，不删数据，不改指标）
+
+    两种 scope 都保留「未分类」字面量（仅在存在时追加在末尾）。
     """
- # 真实行业（不含「未分类」），按字母排序
+    use_it_core = (scope or "it_core") == "it_core"
+
+    # 真实行业（不含「未分类」），按字母排序
     real_stmt = (
         sa.select(PositionRecord.industry)
         .where(PositionRecord.industry.isnot(None))
         .where(PositionRecord.industry != "")
         .where(PositionRecord.industry != UNCLASSIFIED_INDUSTRY_LITERAL)
-        .distinct()
-        .order_by(PositionRecord.industry)
     )
+    # Phase 5 scope 过滤：只返回 IT 核心行业（赛方要求）
+    if use_it_core:
+        real_stmt = real_stmt.where(PositionRecord.industry.in_(IT_CORE_INDUSTRIES))
+    real_stmt = real_stmt.distinct().order_by(PositionRecord.industry)
     real_rows = (await session.execute(real_stmt)).scalars().all()
 
  # 「未分类」字面量行存在性检查（避免出现「未分类」chip 但筛不出结果的 UX 撕裂）

@@ -54,9 +54,15 @@ const statusFilter = ref<'approved' | 'pending_review' | 'rejected' | 'all'>('al
 // US-3: 行业列表从后端 /positions/industries 获取全量，而非仅当前页
 const industries = ref<string[]>([])
 
+// Phase 5 竞赛范围收口：IT 核心行业展示模式（赛方要求：新一代信息技术领域）
+// scope = it_core（默认）：只显示 IT 核心行业 chip
+// scope = all：显示全部行业 chip（admin 调试用）
+const industryScope = ref<'it_core' | 'all'>('it_core')
+
 async function loadIndustries() {
   try {
-    industries.value = await jdStore.fetchIndustries()
+    // 竞赛范围收口：后端 scope 参数控制行业列表返回范围
+    industries.value = await jdStore.fetchIndustries(industryScope.value === 'it_core' ? 'it_core' : 'all')
   } catch {
     // 静默降级：API 不可用时从当前页提取
     const set = new Set(positions.value.map(p => p.industry).filter(Boolean))
@@ -230,6 +236,23 @@ onMounted(() => {
         </div>
 
         <div class="industry-tags">
+          <!-- Phase 5 竞赛范围收口：IT 核心行业模式（赛方要求） -->
+          <el-button
+            size="small"
+            :type="industryScope === 'it_core' ? 'primary' : 'info'"
+            plain
+            @click="industryScope = 'it_core'; loadIndustries()"
+          >
+            IT 核心
+          </el-button>
+          <el-button
+            size="small"
+            :type="industryScope === 'all' ? 'primary' : 'info'"
+            plain
+            @click="industryScope = 'all'; loadIndustries()"
+          >
+            全部行业
+          </el-button>
           <el-tag
             :type="selectedIndustry === '' ? 'primary' : 'info'"
             :effect="selectedIndustry === '' ? 'dark' : 'plain'"

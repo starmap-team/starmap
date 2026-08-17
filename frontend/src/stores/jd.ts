@@ -141,8 +141,11 @@ export const useJdStore = defineStore('jd', () => {
   }
 
   /** Fetch all distinct industries from backend (US-3: 完整行业列表) */
-  async function fetchIndustries(): Promise<string[]> {
-    const data = await request.get('/positions/industries') as { industries: string[] }
+  async function fetchIndustries(scope?: string): Promise<string[]> {
+    // Phase 5 竞赛范围收口：scope 参数控制行业列表返回范围（it_core | all）
+    const params: Record<string, string> = {}
+    if (scope) params.scope = scope
+    const data = await request.get('/positions/industries', { params }) as { industries: string[] }
     return data.industries
   }
 

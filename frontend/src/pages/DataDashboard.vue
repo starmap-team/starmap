@@ -352,6 +352,73 @@ const staleLabel = computed(() => {
             </div>
           </div>
         </div>
+
+        <!-- Phase 3 创新性可视化：多源异构数据清洗 + 幻觉防控 + 动态演化 -->
+        <div class="innovation-section">
+          <h3 class="section-title">创新性技术方案</h3>
+          <div class="innovation-grid">
+            <!-- 多源异构数据清洗验证 -->
+            <div class="panel innovation-card">
+              <div class="panel-header">
+                <span class="panel-title">数据清洗验证</span>
+                <span class="panel-badge">多源异构</span>
+              </div>
+              <div class="innovation-content">
+                <div class="innovation-metric">
+                  <span class="metric-value">{{ store.overview?.hallucination_rate ? ((1 - store.overview.hallucination_rate) * 100).toFixed(1) : '0.0' }}%</span>
+                  <span class="metric-label">Anti-Hallucination 通过率</span>
+                </div>
+                <div class="innovation-metric">
+                  <span class="metric-value">{{ store.overview?.trust_score ? (store.overview.trust_score * 100).toFixed(1) : '0.0' }}%</span>
+                  <span class="metric-label">跨源验证信任度</span>
+                </div>
+                <div class="innovation-desc">
+                  SimHash去重 + 多源交叉验证 + 幻觉防控：解决 JD 数据"时滞"、"噪音"、"抄袭"问题
+                </div>
+              </div>
+            </div>
+            <!-- 动态演化感知 -->
+            <div class="panel innovation-card">
+              <div class="panel-header">
+                <span class="panel-title">动态演化感知</span>
+                <span class="panel-badge">自进化</span>
+              </div>
+              <div class="innovation-content">
+                <div class="innovation-metric">
+                  <span class="metric-value">{{ store.overview?.total_domains ?? 0 }}</span>
+                  <span class="metric-label">行业域数</span>
+                </div>
+                <div class="innovation-metric">
+                  <span class="metric-value">{{ store.emergingSkills?.length ?? 0 }}</span>
+                  <span class="metric-label">涌现技能数</span>
+                </div>
+                <div class="innovation-desc">
+                  Z-score涌现检测 + CII能力通胀指数 + 新岗位发现：从"静态画像"向"动态感知"跨越
+                </div>
+              </div>
+            </div>
+            <!-- 技术可迁移性 -->
+            <div class="panel innovation-card">
+              <div class="panel-header">
+                <span class="panel-title">技术可迁移性</span>
+                <span class="panel-badge">标准化</span>
+              </div>
+              <div class="innovation-content">
+                <div class="innovation-metric">
+                  <span class="metric-value">{{ store.overview?.total_skills ?? 0 }}</span>
+                  <span class="metric-label">技能图谱规模</span>
+                </div>
+                <div class="innovation-metric">
+                  <span class="metric-value">OpenAPI</span>
+                  <span class="metric-label">API 标准化</span>
+                </div>
+                <div class="innovation-desc">
+                  标准化API + Docker部署 + JSON Schema：可迁移至更多新一代信息技术领域岗位
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </template>
     </div>
   </MainLayout>
@@ -866,5 +933,73 @@ const staleLabel = computed(() => {
   .middle-right,
   .bottom-right { grid-column: auto; }
   .page-header { flex-direction: column; }
+}
+
+/* Phase 3 创新性可视化 */
+.innovation-section {
+  margin-top: var(--space-6);
+}
+.innovation-section .section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: var(--space-4);
+}
+.innovation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+.innovation-card {
+  border-radius: 12px;
+  overflow: hidden;
+}
+.innovation-card .panel-header {
+  padding: 12px 16px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.innovation-card .panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.innovation-card .panel-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--primary);
+  color: white;
+  margin-left: 8px;
+}
+.innovation-content {
+  padding: 16px;
+}
+.innovation-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.metric-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.metric-label {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-top: 4px;
+}
+.innovation-desc {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+  padding: 8px;
+  background: var(--muted);
+  border-radius: 6px;
+}
+@media (max-width: 768px) {
+  .innovation-grid { grid-template-columns: 1fr; }
 }
 </style>
