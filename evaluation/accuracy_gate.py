@@ -30,8 +30,8 @@ PYTHON = sys.executable
 GATE_THRESHOLD = 0.90
 
 
-def _run(cmd: list[str], cwd: Path) -> tuple[int, str]:
-    proc = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True, timeout=600)
+def _run(cmd: list[str], cwd: Path, timeout: int = 600) -> tuple[int, str]:
+    proc = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True, timeout=timeout)
     return proc.returncode, proc.stdout + proc.stderr
 
 
@@ -88,7 +88,7 @@ def run_resume_gate(threshold: float, real_llm: bool = False) -> dict:
     凭据且慢——由每周定时任务用，反映真实抽取管线而非 keyword 上限题）。
     """
     if real_llm:
-        code, out = _run([PYTHON, str(EVAL_DIR / "run_resume_eval.py"), "--limit", "25"], BACKEND_DIR)
+        code, out = _run([PYTHON, str(EVAL_DIR / "run_resume_eval.py"), "--limit", "25"], BACKEND_DIR, timeout=1800)
     else:
         code, out = _run([PYTHON, str(EVAL_DIR / "run_resume_baseline.py")], BACKEND_DIR)
     f1 = None

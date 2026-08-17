@@ -455,7 +455,7 @@ celery_app.conf.beat_schedule = {
     # Phase 2 (accuracy gate): 每周一 02:30 跑赛项三项 ≥90% 指标门禁，
     # 劣化自动写审计告警（prevention 之外的 detection 防线）
     "accuracy-gate-weekly": {
-        "task": "app.tasks.celery_app.run_accuracy_gate_task",
+        "task": "app.tasks.celery_app.run_accuracy_gate",
         "schedule": crontab(hour=2, minute=30, day_of_week=1),  # 每周一 02:30
     },
 }

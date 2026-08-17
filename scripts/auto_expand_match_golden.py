@@ -42,10 +42,17 @@ def _load_golden() -> list[dict]:
 
 
 def _save_golden(entries: list[dict]) -> None:
-    GOLDEN_FILE.write_text(
-        "\n".join(json.dumps(e, ensure_ascii=False) for e in entries) + "\n",
-        encoding="utf-8",
-    )
+    import tempfile
+    import os
+    # 原子写入：先写临时文件，再 os.replace 覆盖，防止崩溃导致 golden 文件损坏
+    fd, tmp_path = tempfile.mkstemp(dir=str(GOLDEN_FILE.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write("\n".join(json.dumps(e, ensure_ascii=False) for e in entries) + "\n")
+        os.replace(tmp_path, str(GOLDEN_FILE))
+    except Exception:
+        os.unlink(tmp_path)
+        raise
 
 
 def _get_approved_positions_from_pg() -> list[dict]:
