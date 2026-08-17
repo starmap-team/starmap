@@ -140,11 +140,17 @@ function _useDashboardKpiCards(store: DashboardStore): ComputedRef<KpiCardDef[]>
     const cc = chartColors()
     // 2026-08-13 (deep-interview B1/D3): "技能域"实际统计 industry 去重数 → 改名"行业域"；
     // 路由按语义校准（原 技能域→/learning 与该数据无关）；glow 霓虹随沉浸式风格移除
+    //
+    // 2026-08-17 (Defect E): 大屏 KPI 标注口径 — 避免与 /positions 列表 total 撕裂：
+    //   - 岗位数 185 = 已发布 approved-only（图谱 SSOT）
+    //   - /positions total 557 = 全部状态（admin include_all=true）
+    //   - 行业域 3 = approved-only distinct industry（排除「未分类」字面量）
+    // 后端字段语义不变，仅前端 label 标明口径让用户不撕裂。
     return [
       { label: '总节点数', target: store.overview?.total_nodes ?? 0, suffix: '', decimals: 0, icon: Connection, color: cc.chart[0], route: '/' },
       { label: '总关系数', target: store.overview?.total_edges ?? 0, suffix: '', decimals: 0, icon: Share, color: cc.chart[2], route: '/' },
-      { label: '行业域', target: store.overview?.total_domains ?? 0, suffix: '', decimals: 0, icon: Collection, color: cc.success, route: '/' },
-      { label: '岗位数', target: store.overview?.total_positions ?? 0, suffix: '', decimals: 0, icon: User, color: cc.danger, route: '/positions' },
+      { label: '行业域', target: store.overview?.total_domains ?? 0, suffix: '（已发布）', decimals: 0, icon: Collection, color: cc.success, route: '/' },
+      { label: '岗位数', target: store.overview?.total_positions ?? 0, suffix: '（已发布）', decimals: 0, icon: User, color: cc.danger, route: '/positions' },
       { label: '技能数', target: store.overview?.total_skills ?? 0, suffix: '', decimals: 0, icon: Star, color: cc.warning, route: '/quality' },
       { label: '信任评分', target: (store.overview?.trust_score ?? 0) * 100, suffix: '%', decimals: 1, icon: Medal, color: cc.info, route: '/quality' },
       { label: '本周新增', target: store.overview?.weekly_new_nodes ?? 0, suffix: '', decimals: 0, icon: TrendCharts, color: cc.chart[3], route: '/evolution' },
