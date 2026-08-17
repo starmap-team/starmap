@@ -36,14 +36,14 @@ export function useVerifyLog() {
       }
     }
   } catch (e) {
-    console.error('加载验证日志失败:', e)
+    if (import.meta.env.DEV) console.error('加载验证日志失败:', e)
   }
 
   function persistLogs() {
     try {
       localStorage.setItem(VERIFY_LOG_KEY, JSON.stringify(actionLogs.value.slice(0, VERIFY_LOG_MAX)))
     } catch (e) {
-      console.error('保存验证日志失败:', e)
+      if (import.meta.env.DEV) console.error('保存验证日志失败:', e)
     }
   }
 

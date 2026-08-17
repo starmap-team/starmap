@@ -298,9 +298,11 @@ const realProgress = computed(() => {
   const raw = isLiveStage.value ? (props.liveActivity?.progress ?? props.stage.progress) : props.stage.progress
   if (raw === null || raw === undefined) {
     if (props.stage.status === 'completed') {
-      console.warn(
-        `[PipelineStageCard] stage ${props.stage.name} completed but progress=null — backend bug?`
-      )
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[PipelineStageCard] stage ${props.stage.name} completed but progress=null — backend bug?`
+        )
+      }
       return 100
     }
     return 0

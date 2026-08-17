@@ -1247,4 +1247,24 @@ onMounted(() => {
   text-align: center;
 }
 .empty-icon-wrapper { opacity: 0.4; }
+
+/* ── Mobile breakpoints ── */
+@media (max-width: 768px) {
+  .kpi-number-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .kpi-row {
+    grid-template-columns: 1fr;
+  }
+  .secondary-grid {
+    grid-template-columns: 1fr;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .compare-selectors {
+    flex-wrap: wrap;
+  }
+}
 </style>

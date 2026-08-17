@@ -39,8 +39,7 @@ export interface StepResult {
   // arithmetic/method calls in LoopDemo.vue. Discriminated union won't work
   // because consumers access via steps[N].data without narrowing. Revisit when
   // LoopDemo.vue adds step-indexed type guards.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data?: any
+  data?: Record<string, unknown>
   error?: string
   warning?: string
 }

@@ -43,7 +43,7 @@ export function useQualityDashboard(store: QualityStore): QualityDashboardApi {
   onMounted(() => {
     void store.fetchQuality().then(() => {
       lastRefresh.value = new Date().toLocaleTimeString()
-    }).catch((err: unknown) => console.error('[useQualityDashboard] fetchQuality failed', err))
+    }).catch((err: unknown) => { if (import.meta.env.DEV) console.error('[useQualityDashboard] fetchQuality failed', err) })
     void store.fetchTrends('7d')
     void store.fetchAlerts()
     startAutoRefresh()

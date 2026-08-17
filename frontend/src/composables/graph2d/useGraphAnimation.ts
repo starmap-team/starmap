@@ -63,7 +63,7 @@ export function useGraphAnimation(defaultIntervalMs: number = 220): UseGraphAnim
             graph.draw()
           }, 250)
         } catch (e) {
-          console.warn('[useGraphAnimation] Failed to animate node:', nodeId, e)
+          if (import.meta.env.DEV) console.warn('[useGraphAnimation] Failed to animate node:', nodeId, e)
         }
 
         index += 1

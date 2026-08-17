@@ -393,7 +393,7 @@ async function saveNameCn() {
       size="default"
       empty-text="暂无审核项"
       class="review-table"
-      @selection-change="(rows: any[]) => selection = rows"
+      @selection-change="(rows: ReviewItem[]) => selection = rows"
     >
       <el-table-column
         type="selection"

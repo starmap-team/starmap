@@ -4,7 +4,7 @@
  * Log entries + duration chart + history table.
  */
 import { computed } from 'vue'
-import type { LoopRun, LoopHistoryItem } from '@/stores/loop'
+import type { LoopRun, LoopHistoryItem, StepResult } from '@/stores/loop'
 
 const props = defineProps<{
   currentRun: LoopRun | null
@@ -160,7 +160,7 @@ function runStatusLabel(status: string): string {
           align="center"
         >
           <template #default="{ row }">
-            {{ (row.steps ?? []).filter((s: any) => s.status === 'success').length }}/{{ (row.steps ?? []).length }}
+            {{ (row.steps ?? []).filter((s: StepResult) => s.status === 'success').length }}/{{ (row.steps ?? []).length }}
           </template>
         </el-table-column>
         <el-table-column

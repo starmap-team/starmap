@@ -735,4 +735,15 @@ h4 {
   margin: 0;
   font-family: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
 }
+
+/* ── Mobile breakpoints ── */
+@media (max-width: 768px) {
+  .kpi-row .el-col {
+    margin-bottom: var(--space-3);
+  }
+  .result-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
 </style>

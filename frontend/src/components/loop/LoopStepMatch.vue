@@ -225,7 +225,7 @@ defineExpose({ buildRadarData })
               </h4>
               <div class="skill-tags-row">
                 <el-tag
-                  v-for="s in (step.data.missing_skills ?? step.data.gap_analysis?.map((g: any) => g.skill) ?? [])"
+                  v-for="s in (step.data.missing_skills ?? step.data.gap_analysis?.map((g: Record<string, unknown>) => g.skill) ?? [])"
                   :key="s"
                   type="danger"
                   size="small"

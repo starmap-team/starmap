@@ -317,7 +317,7 @@ export function useHomeInteractions(
         graphStore.goToPositionLayer(kaId, ka?.name ?? '').then(() => {
           graphStore.goToDetailLayer(node.id)
           selectedNodeRef.value = node
-        }).catch((err: unknown) => console.error('[useHomeInteractions] goToPositionLayer failed', err))
+        }).catch((err: unknown) => { if (import.meta.env.DEV) console.error('[useHomeInteractions] goToPositionLayer failed', err) })
       } else {
         // ponytail: positionsByKA 缓存被回退/模式切换清空后，allNodes 里残留的岗位
         // 仍可搜到但无法反查领域 → 原实现静默 return，用户点击无任何反应
@@ -336,7 +336,7 @@ export function useHomeInteractions(
               graphStore.goToPositionLayer(kaId, ka?.name ?? '').then(() => {
                 graphStore.goToDetailLayer(posNode.id)
                 selectedNodeRef.value = node
-              }).catch((err: unknown) => console.error('[useHomeInteractions] goToPositionLayer failed', err))
+              }).catch((err: unknown) => { if (import.meta.env.DEV) console.error('[useHomeInteractions] goToPositionLayer failed', err) })
             } else {
               ElMessage.warning('未找到该技能的所属岗位上下文，请先在图谱中展开对应领域')
             }

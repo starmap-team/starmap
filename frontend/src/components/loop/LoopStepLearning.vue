@@ -88,7 +88,7 @@ const learningPaths = computed(() => {
 
         <!-- Prerequisite graph (simple visual) -->
         <div
-          v-if="learningPaths.some((p: any) => p.prerequisites?.length)"
+          v-if="learningPaths.some((p: Record<string, unknown>) => p.prerequisites?.length)"
           class="prereq-section"
         >
           <h4 class="gap-section-title">
@@ -96,7 +96,7 @@ const learningPaths = computed(() => {
           </h4>
           <div class="prereq-list">
             <div
-              v-for="(item, idx) in learningPaths.filter((p: any) => p.prerequisites?.length)"
+              v-for="(item, idx) in learningPaths.filter((p: Record<string, unknown>) => p.prerequisites?.length)"
               :key="idx"
               class="prereq-item"
             >

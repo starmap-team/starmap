@@ -552,4 +552,20 @@ onMounted(() => {
   margin-top: var(--space-6);
   padding: var(--space-4) 0;
 }
+
+/* ── Mobile breakpoints ── */
+@media (max-width: 768px) {
+  .search-input-wrapper {
+    max-width: 100%;
+  }
+  .industry-tags {
+    gap: var(--space-1);
+  }
+  .clickable-tag {
+    font-size: var(--font-size-xs);
+  }
+  .position-card .el-card__body {
+    padding: var(--space-2);
+  }
+}
 </style>

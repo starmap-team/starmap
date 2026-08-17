@@ -54,7 +54,7 @@ export function useGraphRenderQueue(
       if (scheduledFrame) cancelAnimationFrame(scheduledFrame)
       scheduledFrame = requestAnimationFrame(() => {
         scheduledFrame = null
-        executeAll(graph).catch((err: unknown) => console.error('[useGraphRenderQueue] executeAll failed', err))
+        executeAll(graph).catch((err: unknown) => { if (import.meta.env.DEV) console.error('[useGraphRenderQueue] executeAll failed', err) })
       })
     }, debounceMs)
   }

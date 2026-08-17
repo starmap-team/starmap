@@ -210,7 +210,7 @@ export const useQualityStore = defineStore('quality', () => {
     } catch (e: unknown) {
       // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      if (detail) console.error('[Quality] Alerts detail:', detail)
+      if (detail) { if (import.meta.env.DEV) console.error('[Quality] Alerts detail:', detail) }
       alerts.value = []
     } finally {
       alertsLoading.value = false

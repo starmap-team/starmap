@@ -89,7 +89,7 @@ function onAdminNavigate(e: Event) {
     activeTab.value = detail as AdminTab
   } else {
     // Reject payload — log loudly so silent hijack attempts are visible.
-    console.warn('[Admin] rejected admin:navigate with non-allow-listed detail:', detail)
+    if (import.meta.env.DEV) console.warn('[Admin] rejected admin:navigate with non-allow-listed detail:', detail)
   }
 }
 
@@ -958,11 +958,11 @@ function formatDate(iso: string | null | undefined): string {
                       成功 / 失败 run
                     </div>
                     <div class="stat-tile-value">
-                      <span style="color: rgb(5,150,105);">
+                      <span style="color: var(--color-success, rgb(5,150,105));">
                         {{ statsMeta?.successful ?? 0 }}
                       </span>
                       <span style="color: var(--muted-foreground); font-size: 14px; margin: 0 4px;">/</span>
-                      <span style="color: rgb(220,38,38);">
+                      <span style="color: var(--color-danger, rgb(220,38,38));">
                         {{ statsMeta?.failed ?? 0 }}
                       </span>
                     </div>
@@ -973,7 +973,7 @@ function formatDate(iso: string | null | undefined): string {
                     </div>
                     <div
                       class="stat-tile-value"
-                      style="font-size: 14px;"
+                      style="font-size: var(--font-size-base, 14px);"
                     >
                       {{ formatDate(statsMeta?.last_crawl_at) }}
                     </div>
@@ -984,7 +984,7 @@ function formatDate(iso: string | null | undefined): string {
                     </div>
                     <div
                       class="stat-tile-value"
-                      style="font-size: 14px;"
+                      style="font-size: var(--font-size-base, 14px);"
                     >
                       <el-tag
                         v-if="statsMeta?.status"
