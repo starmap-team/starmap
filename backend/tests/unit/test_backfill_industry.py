@@ -250,3 +250,4 @@ class TestTranslateBatch:
         llm = MagicMock()
         result = await _translate_batch(llm, [])
         assert result == {}
+
