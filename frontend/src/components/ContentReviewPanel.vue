@@ -490,7 +490,9 @@ async function saveNameCn() {
             size="small"
             class="industry-tag"
             :title="row.industry ? `行业: ${row.industry}` : '该岗位尚未标注行业'"
-          >{{ row.industry || '未分类' }}</el-tag>
+          >
+            {{ row.industry || '未分类' }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column
@@ -702,14 +704,20 @@ async function saveNameCn() {
         （岗位：{{ reclassifyDialog.item?.name_cn || reclassifyDialog.item?.name }}）
       </p>
       <el-form label-width="80px">
-        <el-form-item label="新行业" required>
+        <el-form-item
+          label="新行业"
+          required
+        >
           <el-input
             v-model="reclassifyIndustry"
             placeholder="输入 industry_taxonomy.yaml canonical 桶（如：互联网/IT / 金融科技 / 销售/营销）"
             clearable
           />
         </el-form-item>
-        <el-form-item label="原因" required>
+        <el-form-item
+          label="原因"
+          required
+        >
           <el-input
             v-model="reclassifyReason"
             type="textarea"

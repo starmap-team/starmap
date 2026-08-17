@@ -312,258 +312,258 @@ onUnmounted(() => {
 <template>
   <MainLayout>
     <ErrorBoundary>
-    <div class="match-page animate-fade-in">
-      <div class="page-header">
-        <h1 class="page-title">
-          匹配诊断
-        </h1>
-        <p class="page-desc">
-          上传简历或输入技能，诊断与目标岗位的匹配度
-        </p>
-      </div>
+      <div class="match-page animate-fade-in">
+        <div class="page-header">
+          <h1 class="page-title">
+            匹配诊断
+          </h1>
+          <p class="page-desc">
+            上传简历或输入技能，诊断与目标岗位的匹配度
+          </p>
+        </div>
 
-      <BusinessBanner
-        type="info"
-        title="人岗匹配度诊断与差距分析"
-        description="上传一份简历，约 30–90 秒得到与目标岗位的匹配度、缺失技能清单和学习路径。结果同时考虑技能命中率和技能在岗位画像中的信任度。"
-        :meta="[
-          { category: '后端', label: '/match/*', code: true, copyable: true },
-          { label: '信任度驱动' },
-          { label: '通胀指数参考' },
-        ]"
-        collapsible
-      />
-
-      <!-- 业务流程图 — 让新用户秒懂 6 步骤数据流 -->
-      <el-card
-        shadow="never"
-        class="flow-card"
-      >
-        <template #header>
-          <h3 class="flow-title">
-            匹配诊断业务流
-          </h3>
-        </template>
-        <MatchFlow @navigate="onFlowNavigate" />
-      </el-card>
-
-      <el-tabs
-        v-model="pageMode"
-        class="mode-tabs"
-      >
-        <el-tab-pane
-          label="单次匹配"
-          name="single"
+        <BusinessBanner
+          type="info"
+          title="人岗匹配度诊断与差距分析"
+          description="上传一份简历，约 30–90 秒得到与目标岗位的匹配度、缺失技能清单和学习路径。结果同时考虑技能命中率和技能在岗位画像中的信任度。"
+          :meta="[
+            { category: '后端', label: '/match/*', code: true, copyable: true },
+            { label: '信任度驱动' },
+            { label: '通胀指数参考' },
+          ]"
+          collapsible
         />
-        <el-tab-pane
-          label="批量匹配"
-          name="batch"
-        />
-      </el-tabs>
 
-      <template v-if="pageMode === 'single'">
-        <el-steps
-          :active="step"
-          finish-status="success"
-          class="steps-bar"
-          align-center
+        <!-- 业务流程图 — 让新用户秒懂 6 步骤数据流 -->
+        <el-card
+          shadow="never"
+          class="flow-card"
         >
-          <el-step
-            v-for="title in stepTitles"
-            :key="title"
-            :title="title"
+          <template #header>
+            <h3 class="flow-title">
+              匹配诊断业务流
+            </h3>
+          </template>
+          <MatchFlow @navigate="onFlowNavigate" />
+        </el-card>
+
+        <el-tabs
+          v-model="pageMode"
+          class="mode-tabs"
+        >
+          <el-tab-pane
+            label="单次匹配"
+            name="single"
           />
-        </el-steps>
+          <el-tab-pane
+            label="批量匹配"
+            name="batch"
+          />
+        </el-tabs>
 
-        <!-- Step 0: Upload/Input -->
-        <div
-          v-if="step === 0"
-          class="step-content"
-        >
-          <div class="step-card grain">
-            <div class="sc-header">
-              <h2 class="sc-title">
-                录入你的技能
-              </h2>
-              <p class="sc-desc">
-                上传简历自动解析，或手动输入技能标签
-              </p>
-            </div>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <div class="input-section">
-                  <h3 class="is-title">
-                    上传简历
-                  </h3>
-                  <ResumeUpload
-                    ref="resumeUploadRef"
-                    @upload="handleUploadEvent"
-                  />
-                </div>
-              </el-col>
-              <el-col :span="12">
-                <div class="input-section">
-                  <h3 class="is-title">
-                    手动输入技能
-                  </h3>
-                  <div class="manual-input">
-                    <el-input
-                      v-model="skillInput"
-                      placeholder="输入技能名称，回车添加"
-                      size="large"
-                      @keyup.enter="addManualSkill"
-                    >
-                      <template #append>
-                        <el-button
-                          :icon="Plus"
-                          @click="addManualSkill"
-                        >
-                          添加
-                        </el-button>
-                      </template>
-                    </el-input>
-                    <div
-                      v-if="manualSkills.length"
-                      class="skill-tags"
-                    >
-                      <el-tag
-                        v-for="s in manualSkills"
-                        :key="s"
-                        closable
-                        size="default"
-                        @close="removeManualSkill(s)"
-                      >
-                        {{ s }}
-                      </el-tag>
-                    </div>
-                    <el-button
-                      v-if="manualSkills.length"
-                      type="primary"
-                      class="skill-confirm-action"
-                      @click="confirmManualSkills"
-                    >
-                      确认 {{ manualSkills.length }} 项技能
-                    </el-button>
+        <template v-if="pageMode === 'single'">
+          <el-steps
+            :active="step"
+            finish-status="success"
+            class="steps-bar"
+            align-center
+          >
+            <el-step
+              v-for="title in stepTitles"
+              :key="title"
+              :title="title"
+            />
+          </el-steps>
+
+          <!-- Step 0: Upload/Input -->
+          <div
+            v-if="step === 0"
+            class="step-content"
+          >
+            <div class="step-card grain">
+              <div class="sc-header">
+                <h2 class="sc-title">
+                  录入你的技能
+                </h2>
+                <p class="sc-desc">
+                  上传简历自动解析，或手动输入技能标签
+                </p>
+              </div>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <div class="input-section">
+                    <h3 class="is-title">
+                      上传简历
+                    </h3>
+                    <ResumeUpload
+                      ref="resumeUploadRef"
+                      @upload="handleUploadEvent"
+                    />
                   </div>
-                </div>
-              </el-col>
-            </el-row>
-          </div>
-        </div>
-
-        <!-- Step 1: Select position -->
-        <div
-          v-if="step === 1"
-          class="step-content"
-        >
-          <div class="step-card">
-            <div class="sc-header">
-              <h2 class="sc-title">
-                选择目标岗位
-              </h2>
-              <p class="sc-desc">
-                搜索并选择你要匹配的目标岗位
-              </p>
+                </el-col>
+                <el-col :span="12">
+                  <div class="input-section">
+                    <h3 class="is-title">
+                      手动输入技能
+                    </h3>
+                    <div class="manual-input">
+                      <el-input
+                        v-model="skillInput"
+                        placeholder="输入技能名称，回车添加"
+                        size="large"
+                        @keyup.enter="addManualSkill"
+                      >
+                        <template #append>
+                          <el-button
+                            :icon="Plus"
+                            @click="addManualSkill"
+                          >
+                            添加
+                          </el-button>
+                        </template>
+                      </el-input>
+                      <div
+                        v-if="manualSkills.length"
+                        class="skill-tags"
+                      >
+                        <el-tag
+                          v-for="s in manualSkills"
+                          :key="s"
+                          closable
+                          size="default"
+                          @close="removeManualSkill(s)"
+                        >
+                          {{ s }}
+                        </el-tag>
+                      </div>
+                      <el-button
+                        v-if="manualSkills.length"
+                        type="primary"
+                        class="skill-confirm-action"
+                        @click="confirmManualSkills"
+                      >
+                        确认 {{ manualSkills.length }} 项技能
+                      </el-button>
+                    </div>
+                  </div>
+                </el-col>
+              </el-row>
             </div>
-            <PositionSearch @select="handlePositionSelect" />
           </div>
-        </div>
 
-        <!-- Step 2: Radar comparison -->
-        <div
-          v-if="step === 2"
-          class="step-content"
-        >
-          <div class="step-card">
-            <div class="sc-header">
-              <div class="sc-header-row">
-                <div>
-                  <h2 class="sc-title">
-                    技能雷达对比
-                  </h2>
-                  <p class="sc-desc">
-                    你的技能 vs {{ targetPositionName }} 岗位要求
-                  </p>
+          <!-- Step 1: Select position -->
+          <div
+            v-if="step === 1"
+            class="step-content"
+          >
+            <div class="step-card">
+              <div class="sc-header">
+                <h2 class="sc-title">
+                  选择目标岗位
+                </h2>
+                <p class="sc-desc">
+                  搜索并选择你要匹配的目标岗位
+                </p>
+              </div>
+              <PositionSearch @select="handlePositionSelect" />
+            </div>
+          </div>
+
+          <!-- Step 2: Radar comparison -->
+          <div
+            v-if="step === 2"
+            class="step-content"
+          >
+            <div class="step-card">
+              <div class="sc-header">
+                <div class="sc-header-row">
+                  <div>
+                    <h2 class="sc-title">
+                      技能雷达对比
+                    </h2>
+                    <p class="sc-desc">
+                      你的技能 vs {{ targetPositionName }} 岗位要求
+                    </p>
+                  </div>
+                  <el-button
+                    text
+                    @click="step = 1"
+                  >
+                    ← 返回选岗
+                  </el-button>
                 </div>
+              </div>
+              <div v-loading="radarLoading">
+                <SkillRadar
+                  :data="radarData"
+                  :position-name="targetPositionName"
+                />
+                <!-- D-04: 雷达映射口径注记 — 用户知道对比含模糊匹配 -->
+                <p class="radar-note">
+                  技能对比以精确匹配为主，并含后端归一化与语义模糊匹配补充（雷达上可能显示近似技能名）。
+                </p>
+              </div>
+              <div class="step-actions">
                 <el-button
-                  text
-                  @click="step = 1"
+                  type="primary"
+                  size="large"
+                  :icon="DataAnalysis"
+                  @click="handleStartDiagnosis"
                 >
-                  ← 返回选岗
+                  开始诊断
                 </el-button>
               </div>
-            </div>
-            <div v-loading="radarLoading">
-              <SkillRadar
-                :data="radarData"
-                :position-name="targetPositionName"
-              />
-              <!-- D-04: 雷达映射口径注记 — 用户知道对比含模糊匹配 -->
-              <p class="radar-note">
-                技能对比以精确匹配为主，并含后端归一化与语义模糊匹配补充（雷达上可能显示近似技能名）。
-              </p>
-            </div>
-            <div class="step-actions">
-              <el-button
-                type="primary"
-                size="large"
-                :icon="DataAnalysis"
-                @click="handleStartDiagnosis"
+              <div
+                v-if="matchAnimating && matchAnimSkills.length > 0"
+                class="match-anim-section"
               >
-                开始诊断
-              </el-button>
-            </div>
-            <div
-              v-if="matchAnimating && matchAnimSkills.length > 0"
-              class="match-anim-section"
-            >
-              <h3 class="match-anim-title">
-                <LoadingPulse size="small" />
-                技能匹配中...
-              </h3>
-              <SkillMatchAnimation
-                :skills="matchAnimSkills"
-                :auto-play="true"
-                :interval="350"
-                @complete="matchAnimComplete = true"
-              />
+                <h3 class="match-anim-title">
+                  <LoadingPulse size="small" />
+                  技能匹配中...
+                </h3>
+                <SkillMatchAnimation
+                  :skills="matchAnimSkills"
+                  :auto-play="true"
+                  :interval="350"
+                  @complete="matchAnimComplete = true"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Step 3: Gap analysis report (extracted) -->
-        <div v-if="step === 3">
-          <!-- 信任度解读 + 质量说明 -->
-          <!-- D6 fix: trust_score now reads from the real backend field
+          <!-- Step 3: Gap analysis report (extracted) -->
+          <div v-if="step === 3">
+            <!-- 信任度解读 + 质量说明 -->
+            <!-- D6 fix: trust_score now reads from the real backend field
                (matched_skills' minimum Neo4j Skill.trust_score). Previously
                this was bound to match_score, displaying the same number twice -->
-          <MatchTrustGuide
-            :match-score="matchStore.result?.match_score"
-            :trust-score="matchStore.result?.trust_score"
-            :score-breakdown="matchStore.result?.score_breakdown"
-            :note="matchStore.result?.note"
-            class="mb-4"
-          />
-          <GapAnalysisReport
-            :target-position="targetPositionName"
-            @go-learning="goToLearning"
+            <MatchTrustGuide
+              :match-score="matchStore.result?.match_score"
+              :trust-score="matchStore.result?.trust_score"
+              :score-breakdown="matchStore.result?.score_breakdown"
+              :note="matchStore.result?.note"
+              class="mb-4"
+            />
+            <GapAnalysisReport
+              :target-position="targetPositionName"
+              @go-learning="goToLearning"
+              @go-back="goBack"
+            />
+          </div>
+
+          <!-- Step 4: Learning path (extracted) -->
+          <LearningPathPlan
+            v-if="step === 4"
+            :gap-skills="gapSkills"
             @go-back="goBack"
+            @reset-all="resetAll"
+            @create-plan="handleCreatePlan"
           />
-        </div>
+        </template>
 
-        <!-- Step 4: Learning path (extracted) -->
-        <LearningPathPlan
-          v-if="step === 4"
-          :gap-skills="gapSkills"
-          @go-back="goBack"
-          @reset-all="resetAll"
-          @create-plan="handleCreatePlan"
-        />
-      </template>
-
-      <!-- Batch Match -->
-      <MatchBatchMode v-if="pageMode === 'batch'" />
-    </div>
+        <!-- Batch Match -->
+        <MatchBatchMode v-if="pageMode === 'batch'" />
+      </div>
     </ErrorBoundary>
   </MainLayout>
 </template>

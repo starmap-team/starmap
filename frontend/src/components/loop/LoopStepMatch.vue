@@ -139,26 +139,36 @@ defineExpose({ buildRadarData })
             type="info"
             size="small"
             effect="plain"
-          >必备均值 {{ requiredAvgPct }}</el-tag>
+          >
+            必备均值 {{ requiredAvgPct }}
+          </el-tag>
           <el-tag
             type="info"
             size="small"
             effect="plain"
-          >加分均值 {{ bonusAvgPct }}</el-tag>
+          >
+            加分均值 {{ bonusAvgPct }}
+          </el-tag>
           <el-tag
             size="small"
             effect="plain"
-          >必备权重 {{ weightRequiredPct }}</el-tag>
+          >
+            必备权重 {{ weightRequiredPct }}
+          </el-tag>
           <el-tag
             size="small"
             effect="plain"
-          >加分权重 {{ weightBonusPct }}</el-tag>
+          >
+            加分权重 {{ weightBonusPct }}
+          </el-tag>
           <el-tag
             v-if="scoreBreakdown.inflated"
             type="warning"
             size="small"
             effect="plain"
-          >⚠ CII 通胀修正已触发</el-tag>
+          >
+            ⚠ CII 通胀修正已触发
+          </el-tag>
         </div>
       </template>
 
