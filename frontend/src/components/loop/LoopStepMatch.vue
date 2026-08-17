@@ -23,6 +23,8 @@ const props = defineProps<{
   celebrated: boolean
 }>()
 
+const sd = computed(() => (props.step?.data ?? {}) as Record<string, any>)
+
 // D-05 口径拆解 — M5 分数拆解（沿用 app.core.matching.service.py:349-354
 // 现有 key: required_avg / bonus_avg / weight_required / weight_bonus / inflated）
 interface ScoreBreakdown {
@@ -54,14 +56,15 @@ const weightBonusPct = computed(() =>
 const radarData = ref<{ skill: string; required: number; matched: number }[]>([])
 
 function buildRadarData() {
-  const step4Data = props.step?.data
+  const step4Data = props.step?.data as Record<string, unknown> | undefined
   if (!step4Data) return
-  if (step4Data.radar_data && step4Data.radar_data.length > 0) {
-    radarData.value = step4Data.radar_data
+  const radarArr = step4Data.radar_data as { skill: string; required: number; matched: number }[] | undefined
+  if (radarArr && radarArr.length > 0) {
+    radarData.value = radarArr
   } else {
     // Build from matched + missing
-    const matched = (step4Data.matched_skills ?? []).map((s: string) => ({ skill: s, required: 0.8, matched: 0.7 + Math.random() * 0.25 }))
-    const missing = (step4Data.missing_skills ?? []).map((s: string) => ({ skill: s, required: 0.7, matched: Math.random() * 0.3 }))
+    const matched = ((step4Data.matched_skills ?? []) as string[]).map((s: string) => ({ skill: s, required: 0.8, matched: 0.7 + Math.random() * 0.25 }))
+    const missing = ((step4Data.missing_skills ?? []) as string[]).map((s: string) => ({ skill: s, required: 0.7, matched: Math.random() * 0.3 }))
     radarData.value = [...matched, ...missing].slice(0, 8)
   }
 }
@@ -126,7 +129,7 @@ defineExpose({ buildRadarData })
             v-if="step?.data?.match_score !== undefined"
             class="match-score-badge"
           >
-            <span class="score-value">{{ Math.round((step.data.match_score ?? 0) * 100) }}</span>
+            <span class="score-value">{{ Math.round(((step.data.match_score as number) ?? 0) * 100) }}</span>
             <span class="score-unit">%</span>
           </div>
         </div>
@@ -224,7 +227,7 @@ defineExpose({ buildRadarData })
                   {{ s }}
                 </el-tag>
                 <span
-                  v-if="!(step.data.matched_skills?.length)"
+                  v-if="!(sd.matched_skills?.length)"
                   class="empty-text"
                 >无</span>
               </div>
@@ -235,7 +238,7 @@ defineExpose({ buildRadarData })
               </h4>
               <div class="skill-tags-row">
                 <el-tag
-                  v-for="s in (step.data.missing_skills ?? step.data.gap_analysis?.map((g: Record<string, unknown>) => g.skill) ?? [])"
+                  v-for="s in (sd.missing_skills ?? sd.gap_analysis?.map((g: any) => g.skill) ?? [])"
                   :key="s"
                   type="danger"
                   size="small"
@@ -244,14 +247,14 @@ defineExpose({ buildRadarData })
                   {{ s }}
                 </el-tag>
                 <span
-                  v-if="!(step.data.missing_skills?.length) && !(step.data.gap_analysis?.length)"
+                  v-if="!(sd.missing_skills?.length) && !(sd.gap_analysis?.length)"
                   class="empty-text"
                 >无</span>
               </div>
 
               <!-- Gap detail table -->
               <div
-                v-if="step.data.gap_analysis?.length"
+                v-if="sd.gap_analysis?.length"
                 class="gap-table-wrapper"
               >
                 <h4 class="gap-section-title">

@@ -12,10 +12,14 @@ const props = defineProps<{
 }>()
 
 const learningPaths = computed(() => {
-  const step5Data = props.step?.data
+  const step5Data = props.step?.data as Record<string, unknown> | undefined
   if (!step5Data) return []
-  return step5Data.paths ?? step5Data.learning_paths ?? []
+  return (step5Data.paths ?? step5Data.learning_paths ?? []) as { skill?: string; name?: string; estimated_hours?: number; hours?: number; prerequisites?: string[] }[]
 })
+
+const hasPrereqs = computed(() =>
+  learningPaths.value.some((p) => p.prerequisites?.length)
+)
 </script>
 
 <template>
@@ -88,7 +92,7 @@ const learningPaths = computed(() => {
 
         <!-- Prerequisite graph (simple visual) -->
         <div
-          v-if="learningPaths.some((p: Record<string, unknown>) => p.prerequisites?.length)"
+          v-if="hasPrereqs"
           class="prereq-section"
         >
           <h4 class="gap-section-title">
@@ -96,11 +100,11 @@ const learningPaths = computed(() => {
           </h4>
           <div class="prereq-list">
             <div
-              v-for="(item, idx) in learningPaths.filter((p: Record<string, unknown>) => p.prerequisites?.length)"
+              v-for="(item, idx) in learningPaths.filter((p) => p.prerequisites?.length)"
               :key="idx"
               class="prereq-item"
             >
-              <span class="prereq-arrow">{{ item.prerequisites.join(' + ') }}</span>
+              <span class="prereq-arrow">{{ item.prerequisites!.join(' + ') }}</span>
               <span class="prereq-arrow-icon">→</span>
               <span class="prereq-target">{{ item.skill ?? item.name }}</span>
             </div>

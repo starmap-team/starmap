@@ -98,7 +98,7 @@ const edgesWritten = computed<number | null>(() => {
       />
       <div
         v-else
-        :ref="(el: Element | null) => emit('graph-ref', el as HTMLElement | null)"
+        :ref="(el: any) => emit('graph-ref', el as HTMLElement | null)"
         class="mini-graph-container"
       />
     </el-card>

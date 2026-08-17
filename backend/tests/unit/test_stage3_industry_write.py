@@ -16,6 +16,7 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
+
 from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL
 from app.tasks.stage3_services import _upsert_position
 
