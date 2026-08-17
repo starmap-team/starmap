@@ -573,6 +573,180 @@ async def reclassify_industry(
     )
 
 
+class ReExtractSkillsRequest(BaseModel):
+    """Admin 触发重新抽取技能请求体（多模块联动 Phase 4, 2026-08-17）。
+
+    适用场景：低数据支撑岗位（no_data / low_data_support）—
+    admin 可触发对原始 JD 文本的 LLM 重新抽取，补全 skills_required。
+    """
+
+    reason: str = Field(
+        ...,
+        min_length=5,
+        max_length=500,
+        description="重新抽取原因（写入 ReviewAuditLog）",
+    )
+
+
+class ReExtractSkillsResponse(BaseModel):
+    """Re-extract 结果。"""
+
+    position_id: str
+    jd_extraction_id: str | None = None
+    skills_extracted: int = 0
+    neo4j_synced: bool
+    audit_log_id: int | None = None
+
+
+@admin_router.post(
+    "/positions/{position_id}/re-extract-skills",
+    summary="触发单个岗位技能重新抽取",
+    description=(
+        "多模块联动 Phase 4 (2026-08-17)：admin 主动对低数据支撑岗位触发"
+        " LLM 重新抽取 skills_required，弥补自动 ETL 抽取失败 / 数据缺失场景。\n\n"
+        "与 reclassify-industry 不同：reclassify 只改 industry 字段，"
+        "本端点重新跑 LLM extract pipeline（不传 jd_content 用最近一次"
+        " raw_text 重新抽取）。\n\n"
+        "写入路径：create JDExtractionRecord → 写 PositionSkillRelation"
+        " → Neo4j 同步 → 写 ReviewAuditLog。"
+    ),
+    response_model=ReExtractSkillsResponse,
+)
+async def re_extract_skills(
+    position_id: str,
+    body: ReExtractSkillsRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> ReExtractSkillsResponse:
+    """低数据支撑岗位的补抽取端点（fail-soft，LLM 失败不阻塞）。"""
+    import uuid as _uuid
+    from app.core.extraction.llm_client import LLMClient
+    from app.core.extraction.jd_extract import extract_from_jd, mask_pii
+    from app.tasks.stage3_services import (
+        _upsert_position,
+        _upsert_skill,
+        _ensure_position_skill_relation,
+        _confidence_from_result,
+        _hallucination_score_from_result,
+    )
+    from app.models.extraction_models import (
+        JDExtractionRecord,
+        PositionSkillRelation,
+    )
+
+    # 1. 校验 position 存在
+    try:
+        _uuid.UUID(position_id)
+        pos = (await session.execute(
+            sa.select(PositionRecord).where(PositionRecord.id == _uuid.UUID(position_id))
+        )).scalar_one_or_none()
+    except (ValueError, Exception):
+        pos = (await session.execute(
+            sa.select(PositionRecord).where(PositionRecord.name == position_id)
+        )).scalar_one_or_none()
+    if pos is None:
+        raise HTTPException(status_code=404, detail=f"Position '{position_id}' not found")
+
+    # 2. 找最近一次该岗位的 raw_text（jdextractionrecord.extracted_skills.job_title 对应）
+    #    这里简化：直接用 pos.name 作为 LLM 输入（admin 触发场景通常是 legacy 岗位没 JD 文本）
+    jd_content = pos.name
+    if pos.name_cn and pos.name_cn != pos.name:
+        jd_content = f"{pos.name_cn}（{pos.name}）"
+
+    # 3. 调 LLM extract（fail-soft）
+    try:
+        llm_result = await extract_from_jd(jd_content)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500, detail=f"LLM 抽取失败: {type(exc).__name__}: {str(exc)[:200]}",
+        )
+
+    data = llm_result.get("data", {})
+    extracted_skills = data.get("required_skills", []) + data.get("preferred_skills", [])
+
+    # 4. 写 JDExtractionRecord
+    extraction_record = JDExtractionRecord(
+        jd_content=mask_pii(jd_content),
+        job_title=pos.name,
+        extracted_skills=data,
+        experience_years=data.get("experience_required"),
+        education=data.get("education_required"),
+        confidence=_confidence_from_result(llm_result),
+        hallucination_score=_hallucination_score_from_result(llm_result),
+        status="completed",
+    )
+    session.add(extraction_record)
+    await session.flush()
+
+    # 5. 写 PositionSkillRelation（重复检测：同 position+skill 跳过）
+    skills_added = 0
+    for entry in extracted_skills:
+        if not isinstance(entry, dict):
+            continue
+        skill_name = entry.get("name") or entry.get("skill") or entry.get("title")
+        if not skill_name:
+            continue
+        skill_row = await _upsert_skill(
+            session, skill_name,
+            entry.get("category", "hard_skill"),
+        )
+        existing_rel = (await session.execute(
+            sa.select(PositionSkillRelation).where(
+                PositionSkillRelation.position_id == pos.id,
+                PositionSkillRelation.skill_id == skill_row.id,
+            )
+        )).scalar_one_or_none()
+        if existing_rel is None:
+            await _ensure_position_skill_relation(
+                session, pos.id, skill_row.id,
+                "required" if entry in data.get("required_skills", []) else "preferred",
+                _confidence_from_result(llm_result),
+            )
+            skills_added += 1
+
+    await session.commit()
+    await session.refresh(extraction_record)
+
+    # 6. Neo4j 同步（fail-soft）
+    neo4j_synced = False
+    if driver is not None:
+        try:
+            async with driver.session() as s:
+                await s.run(
+                    "MATCH (p:Position {canonical_id: $cid}) "
+                    "SET p.updated_at = datetime()",
+                    cid=str(pos.id),
+                )
+                neo4j_synced = True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("re_extract_skills: Neo4j sync failed: {}", exc)
+            neo4j_synced = False
+
+    # 7. 写 ReviewAuditLog
+    from app.models.review_audit_log import ReviewAuditLog
+    audit_log = ReviewAuditLog(
+        entity_type="position",
+        entity_id=pos.id,
+        actor=user.get("sub") or user.get("username") or "unknown",
+        action="re_extract_skills",
+        previous_status=None,  # skills 列表无法用 single string 表示
+        new_status=f"extracted={skills_added}",
+        reason=body.reason,
+    )
+    session.add(audit_log)
+    await session.commit()
+    await session.refresh(audit_log)
+
+    return ReExtractSkillsResponse(
+        position_id=str(pos.id),
+        jd_extraction_id=str(extraction_record.id) if extraction_record.id else None,
+        skills_extracted=skills_added,
+        neo4j_synced=neo4j_synced,
+        audit_log_id=audit_log.id,
+    )
+
+
 # ── Neo4j fallback for position list ──
 async def _list_positions_neo4j(
     driver: Any,
