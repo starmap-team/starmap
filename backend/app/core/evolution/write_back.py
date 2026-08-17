@@ -159,7 +159,12 @@ async def write_back_changelog_row(
             f"write_back: failed for {row.position_name}/{row.skill_name} "
             f"({row.change_type}): {type(exc).__name__}: {exc}"
         )
-        logger.warning("evolution write_back: failed for {}: {}", row, exc)
+        # 非瞬态异常（数据完整性错误）升级为 ERROR，避免 WARNING 被日志过滤器忽略
+        from sqlalchemy.exc import IntegrityError, ProgrammingError
+        if isinstance(exc, (IntegrityError, ProgrammingError)):
+            logger.error("evolution write_back: DATA INTEGRITY ERROR for {}: {}", row, exc)
+        else:
+            logger.warning("evolution write_back: failed for {}: {}", row, exc)
         return None
 
 

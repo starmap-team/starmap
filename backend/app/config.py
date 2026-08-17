@@ -172,6 +172,13 @@ class Settings(BaseSettings):
     qwen_model_name: str = "qwen2.5:7b"
     llm_timeout: int = 60
     llm_max_retries: int = 3
+    llm_temperature: float = 0.5  # LLM 抽取温度，低值减少幻觉
+
+    # 写入门禁阈值（ingestion_gate.py 引用）
+    ingestion_min_sources_required: int = 2
+    ingestion_max_hallucination_score: float = 0.7
+    ingestion_min_confidence: float = 0.3
+    ingestion_required_cap: int = 7
 
     # 阿里云百炼 Qwen（2026-08-14 接入，降级链首选）——OpenAI 兼容端点
     dashscope_api_key: str = ""

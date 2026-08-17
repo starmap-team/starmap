@@ -69,13 +69,13 @@ def _entry_name(entry: Any) -> str:
     return str(entry or "")
 
 
-def _is_trusted(entry: Any) -> bool:
+def _is_trusted(entry: Any, max_h: float = DEFAULT_MAX_HALLUCINATION_SCORE, min_c: float = DEFAULT_MIN_CONFIDENCE) -> bool:
     """信任度门槛：幻觉分过高或置信度过低 → 拒绝写入。"""
     h = _entry_hallucination_score(entry)
-    if h is not None and h > DEFAULT_MAX_HALLUCINATION_SCORE:
+    if h is not None and h > max_h:
         return False
     c = _entry_confidence(entry)
-    if c is not None and c < DEFAULT_MIN_CONFIDENCE:
+    if c is not None and c < min_c:
         return False
     return True
 
@@ -84,21 +84,29 @@ def apply_ingestion_gate(
     required_skills: list[Any],
     preferred_skills: list[Any],
     *,
-    min_sources: int = DEFAULT_MIN_SOURCES_REQUIRED,
-    required_cap: int = DEFAULT_REQUIRED_CAP,
+    min_sources: int | None = None,
+    required_cap: int | None = None,
+    max_hallucination_score: float | None = None,
+    min_confidence: float | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """对抽取结果应用写入门禁，返回治理后的技能列表。
 
-    Args:
-        required_skills: LLM 抽取的必备技能列表（dict 或 str）。
-        preferred_skills: 加分技能列表。
-        min_sources: 写入 required 所需的最小独立来源数。
-        required_cap: required 技能数量上限（超过则新技能降级 preferred）。
-
-    Returns:
-        {"required": [...], "preferred": [...], "dropped": [...]}
-        dropped 为被信任度门槛拒绝的技能（不入图）。
+    阈值优先从 settings 读取（可配置），回退到模块级常量（向后兼容）。
+    纯函数设计：不依赖 DB/Neo4j，输入抽取条目 + 岗位上下文，输出治理后的
+    (required, preferred) 技能列表 —— 便于单测与未来扩展。
     """
+    # 从 settings 读取可配置阈值，回退到模块级常量
+    try:
+        from app.config import settings as _settings
+        _min_sources = min_sources if min_sources is not None else getattr(_settings, 'ingestion_min_sources_required', DEFAULT_MIN_SOURCES_REQUIRED)
+        _required_cap = required_cap if required_cap is not None else getattr(_settings, 'ingestion_required_cap', DEFAULT_REQUIRED_CAP)
+        _max_h = max_hallucination_score if max_hallucination_score is not None else getattr(_settings, 'ingestion_max_hallucination_score', DEFAULT_MAX_HALLUCINATION_SCORE)
+        _min_c = min_confidence if min_confidence is not None else getattr(_settings, 'ingestion_min_confidence', DEFAULT_MIN_CONFIDENCE)
+    except Exception:
+        _min_sources = min_sources if min_sources is not None else DEFAULT_MIN_SOURCES_REQUIRED
+        _required_cap = required_cap if required_cap is not None else DEFAULT_REQUIRED_CAP
+        _max_h = max_hallucination_score if max_hallucination_score is not None else DEFAULT_MAX_HALLUCINATION_SCORE
+        _min_c = min_confidence if min_confidence is not None else DEFAULT_MIN_CONFIDENCE
     dropped: list[dict[str, Any]] = []
 
     def _to_dict(entry: Any) -> dict[str, Any]:
@@ -109,14 +117,14 @@ def apply_ingestion_gate(
     # 1. 信任度门槛：先过滤低质条目（无论 required/preferred）
     kept_required: list[dict[str, Any]] = []
     for entry in required_skills:
-        if _is_trusted(entry):
+        if _is_trusted(entry, _max_h, _min_c):
             kept_required.append(_to_dict(entry))
         else:
             dropped.append({"name": _entry_name(entry), "reason": "low_trust"})
 
     kept_preferred: list[dict[str, Any]] = []
     for entry in preferred_skills:
-        if _is_trusted(entry):
+        if _is_trusted(entry, _max_h, _min_c):
             kept_preferred.append(_to_dict(entry))
         else:
             dropped.append({"name": _entry_name(entry), "reason": "low_trust"})
@@ -129,19 +137,19 @@ def apply_ingestion_gate(
     final_required: list[dict[str, Any]] = []
     trusted_index = 0
     for original in required_skills:
-        if not _is_trusted(original):
+        if not _is_trusted(original, _max_h, _min_c):
             continue  # 已在信任门槛剔除，跳过配对
         entry = kept_required[trusted_index]
         trusted_index += 1
         src = _entry_source_count(original)
-        if src < min_sources:
+        if src < _min_sources:
             # 单条 JD 出现 → 降级为 preferred（防单点幻觉污染）
             demoted = dict(entry)
             demoted["required"] = False
             demoted["demoted_reason"] = "low_source_count"
             promoted_preferred.append(demoted)
             continue
-        if len(final_required) >= required_cap:
+        if len(final_required) >= _required_cap:
             # 已达上限 → 新技能强制进 preferred（结构性截断膨胀）
             capped_entry = dict(entry)
             capped_entry["required"] = False

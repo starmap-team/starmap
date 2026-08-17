@@ -165,7 +165,7 @@ async def call_xunfei_llm(
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.5,
+        "temperature": settings.llm_temperature,
         "max_tokens": 4096,
     }
 
@@ -311,7 +311,7 @@ async def call_deepseek_llm(
     payload = {
         "model": settings.deepseek_model,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.5,
+        "temperature": settings.llm_temperature,
         "max_tokens": 4096,
     }
 
@@ -379,7 +379,7 @@ async def call_dashscope_llm(
     payload = {
         "model": settings.dashscope_model,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.5,
+        "temperature": settings.llm_temperature,
         "max_tokens": 4096,
     }
 
@@ -530,7 +530,7 @@ async def call_llm_with_fallback(
                     "messages": [{"role": "user", "content": prompt}],
                     "stream": False,
                     "options": {
-                        "temperature": 0.5,
+                        "temperature": settings.llm_temperature,
                         "num_predict": 4096,
                     },
                 },
