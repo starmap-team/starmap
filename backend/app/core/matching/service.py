@@ -129,7 +129,10 @@ class MatchService:
         # 从 Neo4j 加载
         if driver is not None:
             try:
-                graph = await fetch_position_graph(driver, target_position, depth=3)
+                # depth=1：只取岗位的**直接** REQUIRES 技能（required/preferred），
+                # 避免 multi-hop REQUIRES 把间接/关联技能也标为 required 造成画像膨胀
+                # （此前 depth=3 会沿 REQUIRES 多跳吞入无关技能）。
+                graph = await fetch_position_graph(driver, target_position, depth=1)
                 if graph.get("skills"):
                     required: list[dict[str, str]] = []
                     bonus: list[dict[str, str]] = []

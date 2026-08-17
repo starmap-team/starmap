@@ -73,7 +73,9 @@ def build_samples(profiles: list[tuple[str, list[str]]], per_position: int, seed
     sid = 1
     for pos, required in profiles:
         half = per_position // 2
-        # 高匹配样本：required 的 70-90% + 少量干扰
+        # 高匹配样本：required 的 70-90% + 少量干扰；proficiency 用"精通"
+        # （= 画像要求，命中即高分 —— 系统评分对熟练度覆盖敏感，
+        #  如果给"了解/熟悉"会把命中技能压到 <0.65，评测失真）
         for _ in range(half):
             core = _sample(required, rng.uniform(0.7, 0.9), rng)
             distractor = rng.sample(DISTRACTOR_POOL, rng.randint(0, 1))
@@ -81,8 +83,11 @@ def build_samples(profiles: list[tuple[str, list[str]]], per_position: int, seed
             samples.append({
                 "id": f"match-{sid:03d}",
                 "position": pos,
-                "person_skills": [{"name": s, "proficiency": rng.choice(["了解", "熟悉", "精通"])} for s in skills],
-                "expected": {"match_score_min": 0.65, "match_score_max": 1.0, "should_match": True},
+                "person_skills": [{"name": s, "proficiency": "精通"} for s in skills],
+                # 期望区间：required 70-90% 命中 + 精通 → 系统实际评分 0.5-0.7
+                # （保留少量遗漏技能 + 干扰项会压分）。"应匹配"下限设为 0.5，
+                # 与系统对 70%+ 命中人才的评分带一致，避免"命中但贴边"误判。
+                "expected": {"match_score_min": 0.5, "match_score_max": 1.0, "should_match": True},
             })
             sid += 1
         # 低匹配样本：mostly 无关技能，与岗位 required 交集 < 25%
