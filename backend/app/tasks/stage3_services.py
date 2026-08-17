@@ -17,6 +17,7 @@ from app.core.extraction.graph_writer import (
     skill_entry_category,
     skill_entry_name,
 )
+from app.core.extraction.industry import normalize_industry
 from app.core.extraction.jd_extract import extract_from_jd, mask_pii
 from app.db.session import get_async_engine
 from app.exceptions import StarMapError
@@ -47,6 +48,7 @@ async def _upsert_position(
     *,
     source_run_id: uuid.UUID | None = None,
     name_cn: str | None = None,
+    industry: str | None = None,
 ) -> PositionRecord:
     existing = (
         await session.execute(sa.select(PositionRecord).where(PositionRecord.name == name))
@@ -57,11 +59,23 @@ async def _upsert_position(
         if name_cn and not (existing.name_cn or "").strip():
             existing.name_cn = name_cn
             await session.flush()
+ # Phase 1 多层防御 (2026-08-17): 已存在岗位若 industry 仍缺失，也回填
+ # normalize 后的值（否则 040 迁移后 pipeline 重复抽取会把空 industry
+ # 永久留在 DB —— 实测 96 行 system:pipeline 空 industry 根因）。
+        if industry and not (existing.industry or "").strip():
+            existing.industry = normalize_industry(industry)
+            await session.flush()
         return existing
 
     record = PositionRecord(
         name=name,
         name_cn=name_cn,  # D8f: 抽取时持久化 I18N-01 翻译结果
+        # Phase 1 (2026-08-17): 主写入路径必须走 normalize_industry()。
+        # 此前这里漏掉 industry 字段 → pipeline 创建的所有岗位 industry=None
+        # （实测 96 行 system:pipeline 空 industry 根因）。现在 LLM 抽取的
+        # industry 会经 normalize 后落库：None/空/模糊词 → 「未分类」字面量，
+        # alias（信息技术/互联网/Tech）→ canonical 桶。
+        industry=normalize_industry(industry),
         source_run_id=source_run_id,
         created_by="system:pipeline",
     )
@@ -164,6 +178,7 @@ async def persist_extraction_result(
         position_name,
         source_run_id=source_run_id,
         name_cn=data.get("name_cn"),  # D8f: I18N-01 翻译结果持久化
+        industry=data.get("industry"),  # Phase 1: 主写入路径传 industry 并 normalize
     )
     skill_ids: dict[str, str] = {}
     for requirement_type, entries in (
@@ -195,7 +210,11 @@ async def persist_extraction_result(
             succ_name = str(successor).strip()
         if succ_name and succ_name != position_name:
             try:
-                await _upsert_position(session, succ_name, source_run_id=source_run_id)
+                await _upsert_position(
+                    session, succ_name,
+                    source_run_id=source_run_id,
+                    industry=data.get("industry"),  # Phase 1: 后继岗位也继承主岗位行业
+                )
             except Exception as succ_exc:  # noqa: BLE001 — 单条后继失败不阻断主写入
                 logger.warning("evolves_to successor PG upsert failed for {!r}: {}", succ_name, succ_exc)
 
