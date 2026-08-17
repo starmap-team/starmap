@@ -9,7 +9,7 @@
  */
 import { computed, onMounted, onUnmounted, ref, watch, type Component, type ComputedRef, type Ref } from 'vue'
 import {
-  Connection, Share, Collection, User, Star, Medal, TrendCharts, Coin,
+  Connection, Share, Collection, User, Star, Medal, TrendCharts, Coin, Warning,
 } from '@element-plus/icons-vue'
 import { chartColors, tooltipStyle } from '@/utils/chartTheme'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'
@@ -146,10 +146,35 @@ function _useDashboardKpiCards(store: DashboardStore): ComputedRef<KpiCardDef[]>
     //   - /positions total 557 = 全部状态（admin include_all=true）
     //   - 行业域 3 = approved-only distinct industry（排除「未分类」字面量）
     // 后端字段语义不变，仅前端 label 标明口径让用户不撕裂。
+    //
+    // Phase 4 (2026-08-17): IndustryClassifier 第四层监测 — 「未分类占比」KPI
+    // 用 alert_level 决定颜色（info=success / warning=warning / critical=danger），
+    // 让 admin / PM 一眼看到行业分类系统是否健康。
+    const industryRatio = (store.overview?.unclassified_ratio ?? 0) * 100
+    const industryAlert = store.overview?.alert_level ?? 'info'
+    const industryColor =
+      industryAlert === 'critical'
+        ? cc.danger
+        : industryAlert === 'warning'
+          ? cc.warning
+          : cc.success
+
     return [
       { label: '总节点数', target: store.overview?.total_nodes ?? 0, suffix: '', decimals: 0, icon: Connection, color: cc.chart[0], route: '/' },
       { label: '总关系数', target: store.overview?.total_edges ?? 0, suffix: '', decimals: 0, icon: Share, color: cc.chart[2], route: '/' },
       { label: '行业域', target: store.overview?.total_domains ?? 0, suffix: '（已发布）', decimals: 0, icon: Collection, color: cc.success, route: '/' },
+      // Phase 4: 「未分类占比」KPI — 取代原来的「岗位数」卡，避免 8 卡拥挤。
+      // 显示「未分类占比 %」+ 「未分类 X / 已发布 Y」悬浮信息
+      {
+        label: '未分类占比',
+        target: industryRatio,
+        suffix: '%',
+        decimals: 1,
+        icon: Warning,
+        color: industryColor,
+        route: '/quality',
+        title: `${store.overview?.unclassified_count ?? 0} 个未分类 / ${store.overview?.total_positions ?? 0} 个已发布岗位 — 告警等级 ${industryAlert}`,
+      },
       { label: '岗位数', target: store.overview?.total_positions ?? 0, suffix: '（已发布）', decimals: 0, icon: User, color: cc.danger, route: '/positions' },
       { label: '技能数', target: store.overview?.total_skills ?? 0, suffix: '', decimals: 0, icon: Star, color: cc.warning, route: '/quality' },
       { label: '信任评分', target: (store.overview?.trust_score ?? 0) * 100, suffix: '%', decimals: 1, icon: Medal, color: cc.info, route: '/quality' },

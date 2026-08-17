@@ -36,6 +36,21 @@ export interface DashboardOverview {
   stale: boolean
   stale_since: number | null
   timestamp: number
+  // Phase 4 (2026-08-17): IndustryClassifier 第四层监测 — 行业质量 KPI
+  // 后端 services/industry_quality_monitor.py 写入 dashboard_service.py
+  unclassified_count?: number
+  unclassified_ratio?: number
+  total_positions_approved?: number
+  new_24h_unclassified_count?: number
+  new_24h_total?: number
+  per_source_unclassified?: Array<{
+    source_site: string
+    unclassified: number
+    total: number
+    ratio: number
+  }>
+  neo4j_pg_consistency?: boolean
+  alert_level?: 'info' | 'warning' | 'critical'
 }
 
 export interface SourceDistribution {
@@ -192,6 +207,14 @@ export const useDashboardStore = defineStore('dashboard', () => {
         stale: (raw.stale as boolean) ?? false,
         stale_since: (raw.stale_since as number | null) ?? null,
         timestamp: (raw.timestamp as number) ?? 0,
+        // Phase 4 (2026-08-17): IndustryClassifier 第四层监测 KPI
+        unclassified_count: (raw.unclassified_count as number) ?? 0,
+        unclassified_ratio: (raw.unclassified_ratio as number) ?? 0,
+        new_24h_unclassified_count: (raw.new_24h_unclassified_count as number) ?? 0,
+        new_24h_total: (raw.new_24h_total as number) ?? 0,
+        per_source_unclassified: (raw.per_source_unclassified as DashboardOverview['per_source_unclassified']) ?? [],
+        neo4j_pg_consistency: (raw.neo4j_pg_consistency as boolean) ?? true,
+        alert_level: (raw.alert_level as 'info' | 'warning' | 'critical') ?? 'info',
       }
     } catch (e: unknown) {
       // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案

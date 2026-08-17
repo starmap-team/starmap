@@ -201,7 +201,41 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         "total_domains": int(total_domains),
         "source_count_max_neo4j": neo4j_max_sc_val,
         "source_count_max_pg": pg_max_sc_val,
+        # Phase 4 (2026-08-17): IndustryClassifier 第四层监测
+        # — 「未分类」占比与告警等级暴露给 dashboard 渲染 KPI 卡
+        **(await _fetch_industry_quality_stats(session, neo4j_driver)),
     }
+
+
+async def _fetch_industry_quality_stats(
+    session: AsyncSession,
+    neo4j_driver: Any | None,
+) -> dict[str, Any]:
+    """Phase 4 IndustryClassifier 第四层监测 — 行业质量统计。
+
+    返回值直接喂给 dashboard overview JSON。失败时降级为 info 告警
+    （fail-soft，不让 dashboard 整个 500）。
+    """
+    try:
+        from app.services.industry_quality_monitor import (
+            detect_industry_quality,
+            report_to_dict,
+        )
+        report = await detect_industry_quality(session, neo4j_driver)
+        return report_to_dict(report)
+    except Exception as exc:  # noqa: BLE001 — 监测层 fail-soft
+        logger.warning("industry quality monitor failed: {}", exc)
+        return {
+            "unclassified_count": 0,
+            "unclassified_ratio": 0.0,
+            "total_positions": 0,
+            "new_24h_unclassified_count": 0,
+            "new_24h_total": 0,
+            "per_source_unclassified": [],
+            "neo4j_pg_consistency": True,
+            "alert_level": "info",
+            "timestamp": 0.0,
+        }
 
 
 async def _fetch_quality_stats(session: AsyncSession) -> dict[str, Any]:
