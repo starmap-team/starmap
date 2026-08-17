@@ -62,6 +62,7 @@ class TestAsyncBackfillHelper:
 
     def test_helper_signature(self):
         import inspect
+
         from app.tasks.skill_backfill_scheduler import _async_skill_backfill
         sig = inspect.signature(_async_skill_backfill)
         assert "limit" in sig.parameters

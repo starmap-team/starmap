@@ -20,14 +20,13 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.core.extraction.jd_extract import extract_from_jd, mask_pii
+from app.core.extraction.jd_extract import extract_from_jd
 from app.db.session import get_async_engine
 from app.models.extraction_models import (
     JDExtractionRecord,
@@ -35,8 +34,8 @@ from app.models.extraction_models import (
     PositionSkillRelation,
 )
 from app.tasks.stage3_services import (
-    _ensure_position_skill_relation,
     _confidence_from_result,
+    _ensure_position_skill_relation,
     _upsert_skill,
 )
 
@@ -113,7 +112,7 @@ async def fix_it_zero_skills(limit: int = 50) -> dict[str, Any]:
                 extracted_skills = data.get("required_skills", []) + data.get("preferred_skills", [])
 
                 if not extracted_skills:
-                    print(f"  - LLM returned 0 skills (still empty after v5)")
+                    print("  - LLM returned 0 skills (still empty after v5)")
                     failed += 1
                     continue
 

@@ -12,7 +12,6 @@ from __future__ import annotations
 import uuid
 from types import SimpleNamespace
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.dependencies import get_current_user, get_db_session, get_neo4j_driver

@@ -133,7 +133,7 @@ describe('PositionList.vue', () => {
     setupMockGet([makePosition()], 1, ['信息技术', '金融', '教育'])
     const wrapper = mountPage()
     await flushPromises()
-    expect(mockGet).toHaveBeenCalledWith('/positions/industries')
+    expect(mockGet).toHaveBeenCalledWith('/positions/industries', expect.objectContaining({ params: expect.anything() }))
     const industrySection = wrapper.find('.industry-tags')
     expect(industrySection.text()).toContain('信息技术')
     expect(industrySection.text()).toContain('教育')
