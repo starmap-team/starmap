@@ -85,6 +85,37 @@ services:
     stop_signal: SIGTERM
     stop_grace_period: 10s
 
+  # ── celery beat（定时调度器）──
+  # 此前 beat 仅定义在 celery_app.py，未部署任何 beat 守护进程 → accuracy-gate-weekly
+  # （每周一 02:30 赛项三项指标门禁）等定时任务从未真正触发。此处新增 beat 服务：
+  # 与 worker 共用镜像/卷，仅以 beat 模式启动，把 Detection 定时层落地。
+  celery-beat:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.celery
+    container_name: starmap-celery-beat
+    volumes:
+      - ./backend:/app
+      - ./crawler:/app/crawler
+      - ./docs:/app/docs:ro
+    env_file:
+      - .env
+    environment:
+      - NO_PROXY=*
+      - no_proxy=*
+      - PYTHONPATH=/app
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    command: ["./entrypoint.sh", "celery", "-A", "app.tasks.celery_app.celery_app", "beat", "--loglevel=info"]
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
+
   # ---------- 前端（Vite HMR） ----------
   frontend:
     build:

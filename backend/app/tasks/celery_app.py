@@ -506,14 +506,12 @@ if getattr(celery_app, "task_failure_handler_registered", False) is False:
 
 @celery_app.task(name="app.tasks.celery_app.run_accuracy_gate", bind=True, max_retries=1)
 def run_accuracy_gate_task(self) -> dict[str, Any]:
-    """赛项三项 ≥90% 指标定时评测 + 劣化告警（Phase 2）。
+    """赛项三项 ≥90% 指标定时评测 + 劣化告警（Phase 2 / 2026-08-17 实落地）。
 
-    每周跑一次 accuracy_gate.py（规则 baseline，无 LLM 依赖），
-    任一指标 < 0.90 时写 audit 告警（CELERY_TASK_FAILURE 同级，
-    让运营在审计日志里看到"指标劣化"）。结果落 loguru。
-
-    真实 LLM 评测（run_resume_eval / run_real_eval）需凭据且慢，
-    由人工/CI 按需跑；本任务用规则 baseline 做每周回归防线。
+    每周一 02:30 由 beat 触发（此前 beat 未部署，本任务从未真正调度）。
+    跑 accuracy_gate.py 全量三指标：JD（规则 baseline）+ 简历（真实 LLM，
+    --with-resume-real-llm，反映 /resume 实际抽取管线）+ 匹配（全量 348
+    golden，含覆盖岗位数）。任一 < 0.90 写审计告警。结果落 loguru。
     """
     import subprocess
     import sys
@@ -523,11 +521,11 @@ def run_accuracy_gate_task(self) -> dict[str, Any]:
     gate_script = root / "evaluation" / "accuracy_gate.py"
     try:
         proc = subprocess.run(
-            [sys.executable, str(gate_script)],
+            [sys.executable, str(gate_script), "--with-resume-real-llm"],
             cwd=str(root),
             capture_output=True,
             text=True,
-            timeout=1800,
+            timeout=3600,
         )
         output = proc.stdout + proc.stderr
         logger.info("accuracy_gate output:\n{}", output[-2000:])
