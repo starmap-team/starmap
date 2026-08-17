@@ -143,16 +143,24 @@ class TestReclassifyIndustrySuccess:
 
     def test_neo4j_query_params_correct(self):
         """Neo4j Cypher 必须传 canonical_id + industry。"""
-        pid = uuid.uuid4()
-        response, _, driver = _call_endpoint(
-            pid,
-            {"industry": "金融科技", "reason": "运营修正", "__initial_industry": "未分类"},
-        )
-        assert response.status_code == 200
-        call = driver.calls[0]
-        assert call["params"]["cid"] == str(pid)
-        assert call["params"]["industry"] == "金融科技"
-        assert "MATCH (n:Position {canonical_id: $cid})" in call["query"]
+        # 创建一个 row 并用 row.id 作为 URL position_id
+        row = _make_row("未分类")
+        driver = _FakeNeo4jDriver()
+        _install_overrides(row, driver)
+        try:
+            client = TestClient(app)
+            response = client.post(
+                f"/api/v1/admin/positions/{row.id}/reclassify-industry",
+                json={"industry": "金融科技", "reason": "运营修正此岗位行业分类"},
+            )
+            assert response.status_code == 200, response.text
+            assert len(driver.calls) == 1
+            call = driver.calls[0]
+            assert call["params"]["cid"] == str(row.id)
+            assert call["params"]["industry"] == "金融科技"
+            assert "MATCH (n:Position {canonical_id: $cid})" in call["query"]
+        finally:
+            _cleanup()
 
 
 class TestReclassifyIndustryValidation:
@@ -162,10 +170,12 @@ class TestReclassifyIndustryValidation:
         """「未分类」字面量被拒绝（用户应填真实行业）。"""
         response, _, _ = _call_endpoint(
             uuid.uuid4(),
-            {"industry": "未分类", "reason": "想保持空", "__initial_industry": "未分类"},
+            {"industry": "未分类", "reason": "想保持空类别为未分类", "__initial_industry": "未分类"},
         )
         assert response.status_code == 422
-        assert "未分类" in response.json()["detail"] or "canonical" in response.json()["detail"].lower()
+        # HTTPException 直接抛 detail 字符串在 ErrorResponse envelope 里
+        detail = response.json().get("detail", "")
+        assert "未分类" in detail or "canonical" in detail.lower()
 
     def test_reject_generic_token(self):
         """模糊词（通用/综合/其他）被拒绝。"""
@@ -215,7 +225,7 @@ class TestReclassifyIndustryValidation:
             client = TestClient(app)
             response = client.post(
                 f"/api/v1/admin/positions/{uuid.uuid4()}/reclassify-industry",
-                json={"industry": "互联网/IT", "reason": "test"},
+                json={"industry": "互联网/IT", "reason": "测试 position 不存在"},
             )
             assert response.status_code == 404
         finally:
