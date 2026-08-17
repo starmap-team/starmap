@@ -51,6 +51,22 @@ export interface DashboardOverview {
   }>
   neo4j_pg_consistency?: boolean
   alert_level?: 'info' | 'warning' | 'critical'
+  // 多模块联动 Phase 2 (2026-08-17): 技能数据支撑度 KPI
+  avg_score?: number
+  full_coverage_count?: number
+  partial_coverage_count?: number
+  low_data_support_count?: number
+  no_data_count?: number
+  low_data_position_count?: number
+  low_data_position_sample?: Array<{
+    position_id: string
+    position_name: string
+    skill_count: number
+    score: number
+    tier: string
+  }>
+  zero_source_skills_count?: number
+  low_confidence_skills_count?: number
 }
 
 export interface SourceDistribution {
@@ -215,6 +231,16 @@ export const useDashboardStore = defineStore('dashboard', () => {
         per_source_unclassified: (raw.per_source_unclassified as DashboardOverview['per_source_unclassified']) ?? [],
         neo4j_pg_consistency: (raw.neo4j_pg_consistency as boolean) ?? true,
         alert_level: (raw.alert_level as 'info' | 'warning' | 'critical') ?? 'info',
+        // 多模块联动 Phase 2 (2026-08-17): 技能数据支撑度 KPI 映射
+        avg_score: (raw.avg_score as number) ?? 0,
+        full_coverage_count: (raw.full_coverage_count as number) ?? 0,
+        partial_coverage_count: (raw.partial_coverage_count as number) ?? 0,
+        low_data_support_count: (raw.low_data_support_count as number) ?? 0,
+        no_data_count: (raw.no_data_count as number) ?? 0,
+        low_data_position_count: (raw.low_data_position_count as number) ?? 0,
+        low_data_position_sample: (raw.low_data_position_sample as DashboardOverview['low_data_position_sample']) ?? [],
+        zero_source_skills_count: (raw.zero_source_skills_count as number) ?? 0,
+        low_confidence_skills_count: (raw.low_confidence_skills_count as number) ?? 0,
       }
     } catch (e: unknown) {
       // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案

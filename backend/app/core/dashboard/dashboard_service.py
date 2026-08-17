@@ -201,10 +201,43 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         "total_domains": int(total_domains),
         "source_count_max_neo4j": neo4j_max_sc_val,
         "source_count_max_pg": pg_max_sc_val,
- # IndustryClassifier 第四层监测
- # — 「未分类」占比与告警等级暴露给 dashboard 渲染 KPI 卡
+        # Phase 4 (2026-08-17): IndustryClassifier 第四层监测
+        # — 「未分类」占比与告警等级暴露给 dashboard 渲染 KPI 卡
         **(await _fetch_industry_quality_stats(session, neo4j_driver)),
+        # 多模块联动 Phase 2 (2026-08-17): 技能数据支撑度 — 4 档 KPI（满/部分/低/无）
+        **(await _fetch_data_support_stats(session)),
     }
+
+
+async def _fetch_data_support_stats(
+    session: AsyncSession,
+) -> dict[str, Any]:
+    """多模块联动 Phase 2 (2026-08-17): 技能数据支撑度 KPI。
+
+    返回 4 档数据支撑分布 + 平均分 + 低数据岗位示例（dashboard 渲染用）。
+    失败时降级为空值（不让 dashboard 整个 500）。
+    """
+    try:
+        from app.services.skill_data_support import (
+            compute_data_support_report,
+            report_to_dict,
+        )
+        report = await compute_data_support_report(session, approved_only=True)
+        return report_to_dict(report)
+    except Exception as exc:  # noqa: BLE001 — fail-soft
+        logger.warning("skill data support report failed: {}", exc)
+        return {
+            "avg_score": 0.0,
+            "total_positions": 0,
+            "full_coverage_count": 0,
+            "partial_coverage_count": 0,
+            "low_data_support_count": 0,
+            "no_data_count": 0,
+            "low_data_position_count": 0,
+            "low_data_position_sample": [],
+            "zero_source_skills_count": 0,
+            "low_confidence_skills_count": 0,
+        }
 
 
 async def _fetch_industry_quality_stats(

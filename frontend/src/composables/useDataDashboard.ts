@@ -178,6 +178,22 @@ function _useDashboardKpiCards(store: DashboardStore): ComputedRef<KpiCardDef[]>
       { label: '岗位数', target: store.overview?.total_positions ?? 0, suffix: '（已发布）', decimals: 0, icon: User, color: cc.danger, route: '/positions' },
       { label: '技能数', target: store.overview?.total_skills ?? 0, suffix: '', decimals: 0, icon: Star, color: cc.warning, route: '/quality' },
       { label: '信任评分', target: (store.overview?.trust_score ?? 0) * 100, suffix: '%', decimals: 1, icon: Medal, color: cc.info, route: '/quality' },
+      // 多模块联动 Phase 2 (2026-08-17): 数据支撑度 KPI — 3 维度加权得分
+      // 0.7+ 完整 (绿) / 0.4-0.7 部分 (黄) / <0.4 不足 (红)
+      {
+        label: '数据支撑度',
+        target: (store.overview?.avg_score ?? 0) * 100,
+        suffix: '%',
+        decimals: 1,
+        icon: Coin,
+        color: (store.overview?.avg_score ?? 0) >= 0.7
+          ? cc.success
+          : (store.overview?.avg_score ?? 0) >= 0.4
+            ? cc.warning
+            : cc.danger,
+        route: '/quality',
+        title: `低数据岗位 ${store.overview?.low_data_position_count ?? 0} / ${store.overview?.total_positions ?? 0}（含 ${store.overview?.no_data_count ?? 0} 个 0 技能）`,
+      },
       { label: '本周新增', target: store.overview?.weekly_new_nodes ?? 0, suffix: '', decimals: 0, icon: TrendCharts, color: cc.chart[3], route: '/evolution' },
       { label: '数据源', target: store.overview?.active_data_sources ?? 0, suffix: '', decimals: 0, icon: Coin, color: cc.chart[4], route: '/datasources' },
     ]

@@ -47,6 +47,19 @@ class OverviewResponse(BaseModel):
         "info",
         description="告警等级：info / warning / critical（基于 4 个指标越界判定）",
     )
+    # 多模块联动 Phase 2 (2026-08-17): 技能数据支撑度 — 数据质量闭环
+    avg_score: float = Field(0.0, ge=0.0, le=1.0, description="平均技能数据支撑度 0-1（skill_count + confidence + source_count 加权）")
+    full_coverage_count: int = Field(0, description="数据支撑完整（≥0.7）的岗位数")
+    partial_coverage_count: int = Field(0, description="数据支撑部分（0.4-0.7）的岗位数")
+    low_data_support_count: int = Field(0, description="数据支撑不足（<0.4 且有技能）的岗位数")
+    no_data_count: int = Field(0, description="0 技能的岗位数（雷达图无法生成）")
+    low_data_position_count: int = Field(0, description="低数据岗位总数（low + no_data）")
+    low_data_position_sample: list[dict] = Field(
+        default_factory=list,
+        description="低数据岗位示例（top 10）",
+    )
+    zero_source_skills_count: int = Field(0, description="source_count=0 的技能数（孤儿技能）")
+    low_confidence_skills_count: int = Field(0, description="置信度 <0.5 的技能数")
 
 
 class TrendPoint(BaseModel):
