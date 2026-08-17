@@ -279,7 +279,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     # 队列上限 20 条（岗位 + 技能合计）
     audit_queue = audit_queue[:20]
 
-    # Phase 13 一致性审计：评估基线可用性 — 无 golden-set 评估时 0/0/0 表示“未评估”而非“质量差”
+    # Phase 13 一致性审计：评估基线可用性 — 无 golden-set 评估时 0/0/0 表示"未评估"而非"质量差"
     evaluation_count = int(
         (await session.execute(sa.select(sa.func.count()).select_from(ExtractionEvaluationRecord))).scalar() or 0
     )
@@ -287,7 +287,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     if not baseline_available:
         evaluation_explanation = (
             "尚未运行 golden-set 评估（评估记录 0 条），precision/recall/F1 暂不可信；"
-            "红色仅表示“未评估”，不代表抽取质量差。"
+            "红色仅表示「未评估」，不代表抽取质量差。"
             # 2026-08-14 规范驱动改进 (deep-interview): 文案指向真实写入端点。
             # /quality/evaluate 仅只读算分，不写 ExtractionEvaluationRecord；
             # 建立基线需提供 backend/data/resume_golden_set.json 后调用

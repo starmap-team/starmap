@@ -76,7 +76,7 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
         "hallucinated_skills": validation.get("hallucinated_skills", []),
         "missing_skills": validation.get("missing_skills", []),
         "issues": validation.get("issues", []),
-        # 透明化：实际用于抽取的模型（含降级 fallback），供前端“本次所用模型/降级”提示
+        # 透明化：实际用于抽取的模型（含降级 fallback），供前端"本次所用模型/降级"提示
         "model_used": pipeline_result.get("model_used"),
     }
 

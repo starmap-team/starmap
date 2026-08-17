@@ -223,7 +223,7 @@ class MatchService:
         prereq_map = await self._load_prerequisite_map(driver)
         target_profile = await self._load_target_profile(driver, target_position, db_session, repo)
         if target_profile is None:
-            # M2（Phase 13 强制规范）：区分“岗位不存在”与“岗位存在但暂无技能画像”。
+            # M2（Phase 13 强制规范）：区分"岗位不存在"与"岗位存在但暂无技能画像"。
             # 后者返回 200 + 0 分 + note，而非 404（not-found 仅用于真不存在）。
             if await self._position_exists(driver, target_position, db_session):
                 result: dict[str, Any] = {
@@ -398,7 +398,7 @@ class MatchService:
         return result
 
     async def _position_exists(self, driver: Any, name: str, db_session: Any) -> bool:
-        """M2 辅助：判断岗位是否“存在”（PG 或 Neo4j 有节点），与“有技能画像”区分。"""
+        """M2 辅助：判断岗位是否"存在"（PG 或 Neo4j 有节点），与"有技能画像"区分。"""
         if db_session is not None:
             try:
                 from sqlalchemy import select as _sel

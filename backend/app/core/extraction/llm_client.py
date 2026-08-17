@@ -591,21 +591,21 @@ class LLMClient:
     """High-level LLM client for extraction tasks."""
 
     async def extract_from_jd(self, jd_text: str) -> dict[str, Any]:
-        “””Extract skills from a job description.
+        """Extract skills from a job description.
 
         Returns:
             dict with 'extraction' (parsed JSON) and 'model' (which model was used).
             The 'model' key eliminates the race condition of storing on self —
             concurrent calls no longer overwrite each other's model name.
-        “””
+        """
         from app.core.extraction.prompt import get_prompt
 
-        prompt = get_prompt(“jd_extraction”, jd_content=jd_text)
+        prompt = get_prompt("jd_extraction", jd_content=jd_text)
         response = await call_llm_with_fallback(prompt)
-        model_name = response.get(“model”)
-        extraction = parse_llm_json_response(response[“content”])
+        model_name = response.get("model")
+        extraction = parse_llm_json_response(response["content"])
         # 返回 model 而非存在 self 上，消除并发竞态
-        return {“extraction”: extraction, “model”: model_name}
+        return {"extraction": extraction, "model": model_name}
 
     async def validate_extraction(
         self,

@@ -134,7 +134,7 @@ class DataQualityMetrics(BaseModel):
     consistency: float = Field(0.0, ge=0.0, le=1.0, description="Inverse stddev of source_scores")
     timeliness: float = Field(0.0, ge=0.0, le=1.0, description="1 - min(freshness/48h, 1)")
     trend: list[TrendPoint] = Field(default_factory=list, description="14-day overall_score trend")
-    # M5（Phase 13 强制规范）：无已质检数据时不得报“完美”，须显式标记不可信
+    # M5（Phase 13 强制规范）：无已质检数据时不得报"完美"，须显式标记不可信
     baseline_available: bool = Field(True, description="是否存在可评估的质检数据；False 时各分数不可信")
     quality_explanation: str = Field("", description="无基线/无数据时的口径说明")
 

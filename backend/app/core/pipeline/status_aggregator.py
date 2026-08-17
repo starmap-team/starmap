@@ -131,8 +131,8 @@ async def compute_data_quality_aggregates(
     """
     metrics = existing_metrics or {}
 
-    # M5（Phase 13 强制规范）：以“已质检/已入库记录数”判断是否有可评估数据。
-    # 无数据时 consistency/timeliness 不得取 vacuous 1.0（否则 overall=1.0 误报“完美”）。
+    # M5（Phase 13 强制规范）：以"已质检/已入库记录数"判断是否有可评估数据。
+    # 无数据时 consistency/timeliness 不得取 vacuous 1.0（否则 overall=1.0 误报"完美"）。
     completeness = float(metrics.get("completeness", 0.0) or 0.0)
     accuracy = float(metrics.get("accuracy", 0.0) or 0.0)
     total_records = int(metrics.get("total_records", 0) or 0)

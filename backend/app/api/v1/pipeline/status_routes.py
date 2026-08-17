@@ -218,9 +218,9 @@ async def get_pipeline_stages(
     mirrors the canonical pipeline (crawl → extract → standardize → ingest →
     audit) and is purely informational — none of the stages have run.
     """
-    # M3（Phase 13 强制规范）：取“最有意义”的最新 run，而非无脑 latest-started_at。
+    # M3（Phase 13 强制规范）：取"最有意义"的最新 run，而非无脑 latest-started_at。
     # cancelled 且 0 记录的 run 是 zombie/孤儿（典型：Celery worker 重启后 task 引用丢失），
-    # 它的 stage 快照里常含 “crawl|running” 的过期 in-flight 状态，呈现给用户=误报。
+    # 它的 stage 快照里常含 "crawl|running" 的过期 in-flight 状态，呈现给用户=误报。
     # 优先：running → completed(records>0) → failed → cancelled(records>0) → latest cancelled（最差兜底）。
     # 2026-08-12 (pipeline 修复): 改绑最新一条 run（含 failed/cancelled）。
     # 原逻辑按 "running > completed(records>0) > failed" 择优，导致时间线永远定格在
