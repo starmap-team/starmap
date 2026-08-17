@@ -1,0 +1,539 @@
+# Skill icon taxonomy (2026-08-17 技能图标系统)
+#
+# 背景: 整个项目无 skill icon 字段/字典 —— radar 图、技能图谱、技能选择器
+# 全是 ECharts default 符号（空心圆）。这导致:
+# 1. 雷达图/图谱节点无视觉辨识度（用户难以快速区分技能类型）
+# 2. 候选技能选择时无图标引导
+# 3. 数据支撑度「」无法快速传达技能类型
+#
+# 设计:
+# - 按技能类别 (hard_skill/soft_skill/tool/certificate) 分组
+# - icon 是 emoji 字符串（不依赖外部 CDN/字体，离线部署可用）
+# - canonical 名称 + alias 映射（与 industry_taxonomy.yaml 同样模式）
+# - 未登记的技能 → DEFAULT_ICON (fallback)
+#
+# 100+ 技能覆盖 IT 行业 90%+ 高频技能，余下未登记技能用 fallback。
+
+# 通用 fallback（未登记技能）
+DEFAULT_ICON: "⚡"
+
+canonical_skills:
+  # ── Programming Languages 编程语言 ──
+  - name: Python
+    icon: "🐍"
+    aliases: [python3, py, Python3]
+  - name: JavaScript
+    icon: "📜"
+    aliases: [js, javascript, ES6, ES2015]
+  - name: TypeScript
+    icon: "📘"
+    aliases: [ts]
+  - name: Java
+    icon: "☕"
+    aliases: [java8, java11, java17, JDK]
+  - name: Go
+    icon: "🦫"
+    aliases: [golang, GoLang]
+  - name: Rust
+    icon: "🦀"
+    aliases: [rustlang]
+  - name: C++
+    icon: "➕"
+    aliases: [cpp, cxx, CXX]
+  - name: C
+    icon: "🔤"
+  - name: C#
+    icon: "🎵"
+    aliases: [csharp, CSharp, .NET, dotnet]
+  - name: Kotlin
+    icon: "🟪"
+  - name: Swift
+    icon: "🦅"
+  - name: PHP
+    icon: "🐘"
+  - name: Ruby
+    icon: "💎"
+  - name: Scala
+    icon: "🔺"
+  - name: Shell
+    icon: "🐚"
+    aliases: [bash, sh, zsh, Shell Script, Bash Script]
+  - name: SQL
+    icon: "🗃️"
+  - name: R
+    icon: "📊"
+  - name: Lua
+    icon: "🌙"
+  - name: Dart
+    icon: "🎯"
+  - name: Elixir
+    icon: "💧"
+  - name: Haskell
+    icon: "λ"
+
+  # ── Frontend 前端 ──
+  - name: Vue.js
+    icon: "💚"
+    aliases: [Vue, vue3, Vue3, vuejs]
+  - name: React
+    icon: "⚛️"
+    aliases: [ReactJS, reactjs]
+  - name: Angular
+    icon: "🅰️"
+    aliases: [AngularJS, angularjs]
+  - name: Next.js
+    icon: "▲"
+    aliases: [NextJS, nextjs]
+  - name: Nuxt.js
+    icon: "🟢"
+    aliases: [NuxtJS, nuxtjs]
+  - name: Svelte
+    icon: "🔥"
+  - name: HTML
+    icon: "🌐"
+    aliases: [html5, HTML5]
+  - name: CSS
+    icon: "🎨"
+    aliases: [css3, CSS3]
+  - name: Tailwind CSS
+    icon: "🌬️"
+    aliases: [tailwind, Tailwind]
+  - name: Sass
+    icon: "💅"
+    aliases: [SCSS]
+  - name: Less
+    icon: "🟦"
+  - name: Webpack
+    icon: "📦"
+  - name: Vite
+    icon: "⚡"
+  - name: Rollup
+    icon: "🌀"
+  - name: TypeScript Decorators
+    icon: "🏷️"
+
+  # ── Backend 后端 ──
+  - name: FastAPI
+    icon: "🚀"
+  - name: Django
+    icon: "🎸"
+  - name: Flask
+    icon: "🧪"
+  - name: Express
+    icon: "🚂"
+    aliases: [Express.js, ExpressJS]
+  - name: NestJS
+    icon: "🐈"
+  - name: Spring Boot
+    icon: "🍃"
+    aliases: [SpringBoot, spring-boot]
+  - name: Spring
+    icon: "🌱"
+  - name: Gin
+    icon: "🍸"
+  - name: Rails
+    icon: "🛤️"
+    aliases: [Ruby on Rails, RoR]
+  - name: Laravel
+    icon: "🎼"
+  - name: Koa
+    icon: "🥋"
+  - name: GraphQL
+    icon: "◈"
+  - name: gRPC
+    icon: "⚡"
+  - name: REST API
+    icon: "🔗"
+    aliases: [REST, RESTful]
+  - name: WebSocket
+    icon: "🔌"
+  - name: Microservices
+    icon: "🧩"
+    aliases: [微服务, microservice]
+
+  # ── Database 数据库 ──
+  - name: PostgreSQL
+    icon: "🐘"
+    aliases: [Postgres, postgres, PG, postgresql]
+  - name: MySQL
+    icon: "🐬"
+  - name: MongoDB
+    icon: "🍃"
+    aliases: [mongo, Mongo]
+  - name: Redis
+    icon: "🔴"
+  - name: Elasticsearch
+    icon: "🔍"
+    aliases: [ES, Elastic Search]
+  - name: ClickHouse
+    icon: "🟫"
+  - name: Cassandra
+    icon: "👁️"
+  - name: Neo4j
+    icon: "🔗"
+  - name: SQLite
+    icon: "🪶"
+  - name: Oracle
+    icon: "🔴"
+  - name: DynamoDB
+    icon: "⚡"
+
+  # ── DevOps / Cloud DevOps 与云 ──
+  - name: Docker
+    icon: "🐳"
+  - name: Kubernetes
+    icon: "☸️"
+    aliases: [k8s, K8s, K8S]
+  - name: Helm
+    icon: "⛑️"
+  - name: Terraform
+    icon: "🏗️"
+  - name: Ansible
+    icon: "🔁"
+  - name: Puppet
+    icon: "🎭"
+  - name: Chef
+    icon: "👨‍🍳"
+  - name: Jenkins
+    icon: "🤵"
+  - name: GitLab CI
+    icon: "🦊"
+    aliases: [GitLab-CI]
+  - name: GitHub Actions
+    icon: "🐙"
+  - name: CircleCI
+    icon: "🔄"
+  - name: ArgoCD
+    icon: "🚀"
+  - name: Prometheus
+    icon: "🔥"
+  - name: Grafana
+    icon: "📊"
+  - name: ELK Stack
+    icon: "📚"
+    aliases: [ELK, Elastic Stack]
+  - name: Datadog
+    icon: "🐕"
+  - name: AWS
+    icon: "☁️"
+    aliases: [Amazon Web Services]
+  - name: GCP
+    icon: "☁️"
+    aliases: [Google Cloud, Google Cloud Platform]
+  - name: Azure
+    icon: "🔷"
+    aliases: [Microsoft Azure]
+  - name: Linux
+    icon: "🐧"
+  - name: Nginx
+    icon: "🌐"
+  - name: Apache
+    icon: "🪶"
+  - name: HAProxy
+    icon: "⚖️"
+
+  # ── AI/ML 人工智能与机器学习 ──
+  - name: TensorFlow
+    icon: "🧠"
+    aliases: [tf, TF]
+  - name: PyTorch
+    icon: "🔥"
+    aliases: [torch, Torch]
+  - name: Keras
+    icon: "🎨"
+  - name: scikit-learn
+    icon: "📚"
+    aliases: [sklearn, Scikit-Learn]
+  - name: Hugging Face
+    icon: "🤗"
+    aliases: [huggingface, HF, HuggingFace]
+  - name: OpenAI API
+    icon: "🤖"
+    aliases: [openai, GPT, GPT-4, ChatGPT]
+  - name: LangChain
+    icon: "🦜"
+  - name: LlamaIndex
+    icon: "🦙"
+  - name: LLM
+    icon: "🧠"
+    aliases: [Large Language Model, 大语言模型, 大模型]
+  - name: RAG
+    icon: "🔍"
+    aliases: [Retrieval-Augmented Generation]
+  - name: Prompt Engineering
+    icon: "✨"
+  - name: Fine-tuning
+    icon: "🎛️"
+  - name: NLP
+    icon: "🗣️"
+    aliases: [Natural Language Processing, 自然语言处理]
+  - name: Computer Vision
+    icon: "👁️"
+    aliases: [CV, 机器视觉]
+  - name: Reinforcement Learning
+    icon: "🎮"
+    aliases: [RL]
+  - name: MLOps
+    icon: "🔄"
+  - name: Transformer
+    icon: "🔄"
+  - name: BERT
+    icon: "🔤"
+  - name: GPT
+    icon: "💬"
+  - name: RAGAS
+    icon: "📊"
+
+  # ── Data 数据 ──
+  - name: Spark
+    icon: "✨"
+    aliases: [Apache Spark, PySpark]
+  - name: Hadoop
+    icon: "🐘"
+  - name: Kafka
+    icon: "📨"
+  - name: Flink
+    icon: "🌊"
+    aliases: [Apache Flink]
+  - name: Airflow
+    icon: "💨"
+    aliases: [Apache Airflow]
+  - name: dbt
+    icon: "🛠️"
+  - name: Pandas
+    icon: "🐼"
+  - name: NumPy
+    icon: "🔢"
+  - name: Matplotlib
+    icon: "📈"
+  - name: Scikit-learn
+    icon: "📚"
+
+  # ── Tools 工具 ──
+  - name: Git
+    icon: "🌿"
+  - name: GitHub
+    icon: "🐙"
+  - name: GitLab
+    icon: "🦊"
+  - name: Bitbucket
+    icon: "🪣"
+  - name: VS Code
+    icon: "💙"
+    aliases: [vscode, VSCode, Visual Studio Code]
+  - name: IntelliJ IDEA
+    icon: "🧠"
+    aliases: [IntelliJ, idea]
+  - name: PyCharm
+    icon: "🐍"
+  - name: WebStorm
+    icon: "🌐"
+  - name: Postman
+    icon: "📮"
+  - name: Swagger
+    icon: "📋"
+    aliases: [OpenAPI]
+  - name: Jupyter
+    icon: "📓"
+    aliases: [Jupyter Notebook, IPython]
+  - name: Figma
+    icon: "🎨"
+  - name: Jira
+    icon: "📝"
+  - name: Confluence
+    icon: "📚"
+  - name: Slack
+    icon: "💬"
+
+  # ── Methodologies 方法论 ──
+  - name: Agile
+    icon: "🏃"
+    aliases: [敏捷开发]
+  - name: Scrum
+    icon: "🏉"
+  - name: Kanban
+    icon: "📋"
+  - name: TDD
+    icon: "✅"
+    aliases: [Test-Driven Development, 测试驱动开发]
+  - name: BDD
+    icon: "🎯"
+  - name: DevOps
+    icon: "🔄"
+  - name: CI/CD
+    icon: "♻️"
+    aliases: [CICD]
+  - name: OOP
+    icon: "🧬"
+    aliases: [Object-Oriented Programming, 面向对象编程]
+  - name: Functional Programming
+    icon: "𝝋"
+    aliases: [FP]
+  - name: Design Patterns
+    icon: "🏛️"
+    aliases: [设计模式]
+  - name: Microservices Architecture
+    icon: "🧱"
+  - name: Event-Driven Architecture
+    icon: "⚡"
+  - name: DDD
+    icon: "🌐"
+    aliases: [Domain-Driven Design, 领域驱动设计]
+
+  # ── Security 安全 ──
+  - name: Cybersecurity
+    icon: "🛡️"
+  - name: Penetration Testing
+    icon: "🗡️"
+  - name: OWASP
+    icon: "🛡️"
+  - name: OAuth
+    icon: "🔐"
+  - name: JWT
+    icon: "🎫"
+    aliases: [JSON Web Token]
+  - name: SSL/TLS
+    icon: "🔒"
+  - name: Cryptography
+    icon: "🔏"
+  - name: OAuth 2.0
+    icon: "🔐"
+
+  # ── Soft Skills 软技能 ──
+  - name: Communication
+    icon: "💬"
+    aliases: [沟通能力, 沟通]
+  - name: Leadership
+    icon: "👑"
+    aliases: [领导力, 团队领导]
+  - name: Teamwork
+    icon: "🤝"
+    aliases: [团队合作, 团队协作]
+  - name: Problem Solving
+    icon: "🧩"
+    aliases: [解决问题, 问题解决]
+  - name: Critical Thinking
+    icon: "🤔"
+    aliases: [批判性思维]
+  - name: Project Management
+    icon: "📊"
+    aliases: [项目管理, PM]
+  - name: Time Management
+    icon: "⏰"
+    aliases: [时间管理]
+  - name: Presentation Skills
+    icon: "🎤"
+    aliases: [演示技能]
+  - name: English
+    icon: "🇬🇧"
+    aliases: [英语]
+  - name: Chinese
+    icon: "🇨🇳"
+    aliases: [中文, 汉语]
+  - name: Japanese
+    icon: "🇯🇵"
+    aliases: [日语]
+  - name: German
+    icon: "🇩🇪"
+    aliases: [德语]
+
+  # ── Cloud Native 云原生 ──
+  - name: Docker Compose
+    icon: "🐳"
+    aliases: [docker-compose]
+  - name: Istio
+    icon: "🚢"
+  - name: Linkerd
+    icon: "🔗"
+  - name: Knative
+    icon: "🎽"
+  - name: OpenShift
+    icon: "🔴"
+
+  # ── Web3 / 区块链 ──
+  - name: Blockchain
+    icon: "⛓️"
+    aliases: [区块链]
+  - name: Ethereum
+    icon: "Ξ"
+  - name: Solidity
+    icon: "💎"
+  - name: Web3
+    icon: "🌍"
+  - name: IPFS
+    icon: "📁"
+  - name: Smart Contract
+    icon: "📜"
+    aliases: [智能合约]
+
+  # ── Mobile 移动端 ──
+  - name: React Native
+    icon: "📱"
+  - name: Flutter
+    icon: "🦋"
+  - name: SwiftUI
+    icon: "🎨"
+  - name: iOS
+    icon: "🍎"
+  - name: Android
+    icon: "🤖"
+  - name: Kotlin Multiplatform
+    icon: "🔀"
+
+  # ── Game Development 游戏开发 ──
+  - name: Unity
+    icon: "🎮"
+  - name: Unreal Engine
+    icon: "🛸"
+    aliases: [UE4, UE5, Unreal]
+  - name: Cocos2d
+    icon: "🐢"
+
+  # ── QA Testing 测试 ──
+  - name: Selenium
+    icon: "🤖"
+  - name: Cypress
+    icon: "🌲"
+  - name: Playwright
+    icon: "🎭"
+  - name: Jest
+    icon: "🃏"
+  - name: Pytest
+    icon: "🐍"
+    aliases: [pytest]
+  - name: JMeter
+    icon: "⚡"
+  - name: LoadRunner
+    icon: "🏋️"
+  - name: Postman Testing
+    icon: "📮"
+
+# ── 按 category 的默认图标（canonical_skills 中未登记的技能） ──
+category_default_icons:
+  hard_skill: "💻"
+  soft_skill: "🤝"
+  tool: "🔧"
+  certificate: "📜"
+  unknown: "⚡"
+
+# ── soft_skill 关键词识别（防止硬技能被误归类为 soft_skill） ──
+soft_skill_keywords:
+  - 沟通
+  - 团队
+  - 领导
+  - 协作
+  - 学习
+  - 解决
+  - 思考
+  - 表达
+  - 演讲
+  - 管理
+  - 英语
+  - 中文
+  - 日语
+  - 德语
+  - Communication
+  - Leadership
+  - Teamwork
+  - Management
+  - Presentation
