@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL
+from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL, normalize_industry
 from app.dependencies import get_current_user, get_db_session, get_neo4j_driver, require_admin
 from app.exceptions import PositionNotFoundError, StarMapError
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
@@ -164,14 +164,21 @@ async def list_positions(
     "/industries",
     summary="行业列表",
     description="返回所有岗位的去重行业名称列表（按字母排序）。\n\n"
-    "用于前端行业筛选下拉选项，确保用户看到全量行业而非仅当前页。",
+    "用于前端行业筛选下拉选项，确保用户看到全量行业而非仅当前页。\n\n"
+    "2026-08-17 (P1-D 闭环): 若 DB 存在「未分类」字面量行（永远存在的兜底桶），\n"
+    "API 也会一并返回 — 否则用户无法在 87% 岗位是「未分类」时筛选它们。",
     response_model=IndustriesResponse,
 )
 async def list_industries(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> IndustriesResponse:
-    """Distinct industry names from position_records, sorted alphabetically."""
-    stmt = (
+    """Distinct industry names from position_records, sorted alphabetically.
+
+    「未分类」字面量（DB 兜底桶）始终追加在返回列表末尾（仅在存在时），
+    不参与字母排序，确保用户可筛 87% 的「未分类」岗位。
+    """
+    # 真实行业（不含「未分类」），按字母排序
+    real_stmt = (
         sa.select(PositionRecord.industry)
         .where(PositionRecord.industry.isnot(None))
         .where(PositionRecord.industry != "")
@@ -179,8 +186,20 @@ async def list_industries(
         .distinct()
         .order_by(PositionRecord.industry)
     )
-    rows = (await session.execute(stmt)).scalars().all()
-    return IndustriesResponse(industries=[i for i in rows if i is not None])
+    real_rows = (await session.execute(real_stmt)).scalars().all()
+
+    # 「未分类」字面量行存在性检查（避免出现「未分类」chip 但筛不出结果的 UX 撕裂）
+    has_unclassified_stmt = (
+        sa.select(sa.func.count())
+        .select_from(PositionRecord)
+        .where(PositionRecord.industry == UNCLASSIFIED_INDUSTRY_LITERAL)
+    )
+    has_unclassified = (await session.execute(has_unclassified_stmt)).scalar() or 0
+
+    industries = [i for i in real_rows if i is not None]
+    if has_unclassified > 0:
+        industries.append(UNCLASSIFIED_INDUSTRY_LITERAL)
+    return IndustriesResponse(industries=industries)
 
 
 @router.get(
@@ -242,11 +261,17 @@ async def get_position(
             }
             for sk, rel in skill_rows
         ]
+        # 契约 (industry.py): DB industry 永远是非空字符串 — 后端兜底归一化，
+        # 前端 PositionList.vue:302 / PositionDetail.vue 都不需要 `|| '未分类'` 兜底。
+        # 同时防止后续写入路径绕过 normalize_industry() 时的回归。
+        # 用 normalize_industry 而非简单的 `or` 兜底，是为了让「  」(纯空白)、
+        # 「通用」/「其他」等历史脏数据也能被归一化（详见 industry.py）。
+        industry_value = normalize_industry(r.industry)
         return {
             "position_id": str(r.id),
             "name": r.name,
             "name_cn": getattr(r, "name_cn", "") or "",
-            "industry": r.industry,
+            "industry": industry_value,
             "description": r.description,
             "skills_required": skills,
             "discovered_at": r.created_at.isoformat() if r.created_at else None,
@@ -274,7 +299,10 @@ async def get_position(
                     "position_id": pos.get("position_id", ""),
                     "name": pos.get("name", ""),
                     "name_cn": pos.get("name_cn", pos.get("name", "")),
-                    "industry": pos.get("industry", ""),
+                    # 契约 (industry.py): industry 永远是非空字面量。
+                    # Neo4j 节点 industry 属性可能存 NULL（_POSITION_MERGE_CYPHER
+                    # 不走归一化），必须 normalize_industry 兜底。
+                    "industry": normalize_industry(pos.get("industry")),
                     "description": pos.get("description", ""),
                     "skills_required": skills,
                     "discovered_at": None,

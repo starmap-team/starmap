@@ -239,8 +239,16 @@ watch(() => route.params.name, loadPosition)
           </el-button>
           <div>
             <h2>{{ position?.name ?? positionName }}</h2>
+            <!-- 行业 chip (P0-B 2026-08-17): 与 PositionList.vue 卡片「未分类」chip 样式对齐 -->
             <p class="header-sub">
-              {{ position?.industry ?? '' }}
+              <el-tag
+                size="small"
+                :type="position?.industry && position.industry !== '未分类' ? 'info' : 'warning'"
+                :effect="position?.industry && position.industry !== '未分类' ? 'light' : 'plain'"
+                :title="position?.industry && position.industry !== '未分类' ? `行业: ${position.industry}` : '该岗位尚未标注行业'"
+              >
+                {{ position?.industry || '未分类' }}
+              </el-tag>
             </p>
             <!-- PLAN-006④: 数据时效指示 (演示数据 / 数据更新于 X / 较旧) -->
             <el-tag
