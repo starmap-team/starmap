@@ -9,9 +9,9 @@
 from __future__ import annotations
 
 from app.core.extraction.graph_writer import (
-    GraphTriple,
     NODE_INDUSTRY,
     NODE_POSITION,
+    GraphTriple,
     build_triples_from_extraction,
 )
 from app.core.extraction.industry import (

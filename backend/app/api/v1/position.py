@@ -6,6 +6,7 @@ from typing import Annotated, Any
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL, normalize_industry
@@ -427,6 +428,149 @@ async def sync_all_positions_to_neo4j_endpoint(
         raise HTTPException(status_code=500, detail="岗位同步异常") from exc
 
     return PositionSyncResult(**result)
+
+
+# ── Admin: 单个岗位 industry 重新分类（Phase 3 IndustryClassifier）──
+
+
+class ReclassifyIndustryRequest(BaseModel):
+    """Admin 手动重新分类 industry 请求体（Phase 3, 2026-08-17）。
+
+    验证规则：
+    - industry 不允许填「未分类」字面量（用户应填真实行业或留空由系统 fallback）
+    - industry 必须是 canonical 桶之一（防 Admin 误输入拼写错误的字符串污染图谱）
+    - reason 至少 5 字（让 audit log 可追溯动机）
+    """
+
+    industry: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="新的行业（必须是 industry_taxonomy.yaml 中的 canonical 桶之一）",
+    )
+    reason: str = Field(
+        ...,
+        min_length=5,
+        max_length=500,
+        description="重新分类的原因（写入 ReviewAuditLog）",
+    )
+
+
+class ReclassifyIndustryResponse(BaseModel):
+    """Reclassify 结果（返回写入后的 industry + 受影响记录数）。"""
+
+    position_id: str
+    canonical_id: str | None = None
+    industry: str = Field(description="归一化后的 industry（前端直接显示）")
+    neo4j_synced: bool = Field(description="Neo4j Position 节点 industry 是否已同步")
+    audit_log_id: int | None = Field(description="ReviewAuditLog 主键（用户可查）")
+
+
+@admin_router.post(
+    "/positions/{position_id}/reclassify-industry",
+    summary="重新分类单个岗位 industry",
+    description="Admin 手动覆盖 PG position_records.industry 字段 + 同步 Neo4j Position 节点 industry 属性 + 写 ReviewAuditLog。\n\n"
+    "用法：当场景场景下 LLM 抽取 / backfill / alias 字典把某岗位归到错误的"
+    " canonical 桶时，运营可在 /admin/content-review 面板一键修正。\n\n"
+    "锁定契约：industry 必须是 taxonomy.yaml canonical 桶之一（不允许"
+    " 「未分类」字面量 / 模糊词），否则 422 拒绝。",
+    response_model=ReclassifyIndustryResponse,
+)
+async def reclassify_industry(
+    position_id: str,
+    body: ReclassifyIndustryRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> ReclassifyIndustryResponse:
+    """Phase 3 IndustryClassifier 第三层：admin 手动覆盖闭环。"""
+    from app.core.extraction.industry import (
+        UNCLASSIFIED_INDUSTRY_LITERAL,
+        get_canonical_industries,
+        is_generic_industry,
+        normalize_industry,
+    )
+
+    # 1. 校验 industry 是 canonical 桶之一（防 admin 误输入污染）
+    canonical = set(get_canonical_industries())
+    normalized = normalize_industry(body.industry)
+    if normalized == UNCLASSIFIED_INDUSTRY_LITERAL:
+        raise HTTPException(
+            status_code=422,
+            detail=f"industry 不允许「未分类」字面量或模糊词，请选 canonical 桶：{sorted(canonical)[:5]}...",
+        )
+    if normalized not in canonical:
+        raise HTTPException(
+            status_code=422,
+            detail=f"industry '{body.industry}' 不在 canonical 桶中，可选：{sorted(canonical)[:10]}...",
+        )
+    if is_generic_industry(normalized):
+        raise HTTPException(
+            status_code=422,
+            detail=f"industry '{body.industry}' 是模糊词，请选真实行业",
+        )
+
+    # 2. 校验 position 存在且可访问
+    import uuid as _uuid
+    canonical_id: str | None = None
+    try:
+        _uuid.UUID(position_id)
+        r = (await session.execute(
+            sa.select(PositionRecord).where(PositionRecord.id == _uuid.UUID(position_id))
+        )).scalar_one_or_none()
+    except (ValueError, Exception):
+        # 非 UUID，按名称查询
+        r = (await session.execute(
+            sa.select(PositionRecord).where(PositionRecord.name == position_id)
+        )).scalar_one_or_none()
+    if r is None:
+        raise HTTPException(status_code=404, detail=f"Position '{position_id}' not found")
+
+    old_industry = r.industry or ""
+    canonical_id = str(r.id)
+    r.industry = normalized
+    await session.commit()
+    await session.refresh(r)
+
+    # 3. 同步 Neo4j Position 节点 industry 属性
+    neo4j_synced = False
+    if driver is not None:
+        try:
+            async with driver.session() as s:
+                await s.run(
+                    "MATCH (n:Position {canonical_id: $cid}) "
+                    "SET n.industry = $industry, n.updated_at = datetime()",
+                    cid=canonical_id,
+                    industry=normalized,
+                )
+                neo4j_synced = True
+        except Exception as exc:
+            logger.warning("reclassify_industry: Neo4j sync failed: {}", exc)
+            neo4j_synced = False
+
+    # 4. 写 ReviewAuditLog（让 admin 可查「谁、什么时候、为什么」改了 industry）
+    from app.models.review_audit_log import ReviewAuditLog
+    audit_log = ReviewAuditLog(
+        entity_type="position",
+        entity_id=r.id,
+        actor=user.get("sub") or user.get("username") or "unknown",
+        action="reclassify_industry",
+        previous_status=old_industry or None,
+        new_status=normalized,
+        reason=body.reason,
+    )
+    session.add(audit_log)
+    await session.commit()
+    await session.refresh(audit_log)
+    audit_id = audit_log.id
+
+    return ReclassifyIndustryResponse(
+        position_id=canonical_id,
+        canonical_id=canonical_id,
+        industry=normalized,
+        neo4j_synced=neo4j_synced,
+        audit_log_id=audit_id,
+    )
 
 
 # ── Neo4j fallback for position list ──

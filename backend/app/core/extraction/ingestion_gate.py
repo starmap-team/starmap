@@ -88,7 +88,7 @@ def apply_ingestion_gate(
     required_cap: int | None = None,
     max_hallucination_score: float | None = None,
     min_confidence: float | None = None,
-) -> dict[str, list[dict[str, Any]]]:
+) -> dict[str, Any]:
     """对抽取结果应用写入门禁，返回治理后的技能列表。
 
     阈值优先从 settings 读取（可配置），回退到模块级常量（向后兼容）。

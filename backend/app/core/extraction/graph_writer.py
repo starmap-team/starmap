@@ -780,8 +780,8 @@ async def write_extraction_to_graph(
     from app.core.extraction.ingestion_gate import apply_ingestion_gate
 
     gated = apply_ingestion_gate(
-        extraction.get("required_skills", []),
-        extraction.get("preferred_skills", []),
+        extraction.get("required_skills", []),  # type: ignore[arg-type]
+        extraction.get("preferred_skills", []),  # type: ignore[arg-type]
         min_sources=1,  # 单条抽取 source_count=1，来源门槛在 MERGE 层累计
     )
     if gated["dropped"]:
@@ -790,15 +790,16 @@ async def write_extraction_to_graph(
             "ingestion gate dropped {} low-trust skills: [{}]",
             len(gated["dropped"]), dropped_names,
         )
-    if gated["stats"]["demoted_low_source"]:
+    stats = gated["stats"]  # type: ignore[index]
+    if stats.get("demoted_low_source"):
         logger.info(
             "ingestion gate demoted {} low-source skills to preferred",
-            gated["stats"]["demoted_low_source"],
+            stats["demoted_low_source"],
         )
-    if gated["stats"]["capped"]:
+    if stats.get("capped"):
         logger.info(
             "ingestion gate capped {} skills (required >= {}) → preferred",
-            gated["stats"]["capped"], gated["stats"].get("required_after", "?"),
+            stats["capped"], stats.get("required_after", "?"),
         )
 
     skills_merged = 0

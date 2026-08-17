@@ -334,7 +334,7 @@ async def discover_emerging_positions(
                 },
             })
 
-    candidates.sort(key=lambda c: -c["emerging_ratio"])
+    candidates.sort(key=lambda c: -c["emerging_ratio"])  # type: ignore[operator]
     return {
         "status": "completed" if candidates else "no_candidates",
         "candidates": candidates,
