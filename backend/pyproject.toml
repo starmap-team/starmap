@@ -91,6 +91,7 @@ known-first-party = ["app"]
 # between local and CI (verified reproducible only inside the GitHub
 # Actions runner), so we silence the rule for this single file.
 "tests/unit/test_fixture_seed.py" = ["I001"]
+"tests/unit/test_backfill_industry.py" = ["I001"]
 
 # ---------- pytest 配置（覆盖率门禁 70%，与 addopts --cov-fail-under=70 对齐） ----------
 [tool.pytest.ini_options]
