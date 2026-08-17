@@ -23,7 +23,7 @@ class TestTaskFailureSignal:
         handler_names = []
         for receiver in receivers:
             ref = receiver[1]
-            func = ref() if hasattr(ref, "__call__") else ref
+            func = ref() if callable(ref) else ref
             if func is not None:
                 handler_names.append(getattr(func, "__name__", str(func)))
         assert any("_on_task_failure" in n for n in handler_names), (
@@ -55,7 +55,7 @@ class TestTaskFailureSignal:
 
         with (
             patch("app.utils.audit.audit_log", side_effect=RuntimeError("audit down")),
-            patch("app.tasks.celery_app.logger") as mock_logger,
+            patch("app.tasks.celery_app.logger"),
         ):
             # 由于 handler 内部 lazy import 会重新绑定，这里 patch 真实目标后
             # 通过模块级 reimport 强制走真实路径不可行；直接调用确认不抛。

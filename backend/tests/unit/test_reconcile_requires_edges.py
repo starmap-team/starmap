@@ -313,7 +313,6 @@ class TestReconcileAllApprovedGate:
 
     def test_pg_position_snapshot_filters_approved(self) -> None:
         """捕获 reconcile_all 内 PositionRecord 快照 SQL，断言含 approved 过滤。"""
-        from sqlalchemy import select
 
         captured: list[str] = []
 
@@ -335,7 +334,7 @@ class TestReconcileAllApprovedGate:
                 return self._rows.pop(0)
 
         class _FakeNeo4jSession:
-            async def __aenter__(self) -> "_FakeNeo4jSession":
+            async def __aenter__(self) -> _FakeNeo4jSession:
                 return self
 
             async def __aexit__(self, *_a: object) -> bool:
