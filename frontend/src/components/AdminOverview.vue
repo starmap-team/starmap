@@ -91,6 +91,19 @@ const kpiCards = computed(() => {
       color: '#6366f1',
       tab: 'quality',
     },
+    {
+      // 多模块联动 Phase 4 (2026-08-17): 技能数据支撑度（admin 端）
+      // - value: low_data_position_count (low + no_data 之和)
+      // - tab: 'positions' 让 admin 一键跳到 /positions 筛选低数据岗位
+      // - color: orange 警示（不是 critical red，因为 no_data 通常 legacy 岗位）
+      key: 'low-data-positions',
+      label: '低数据岗位',
+      value: o?.low_data_position_count ?? 0,
+      suffix: '个待补技能',
+      icon: DataLine,
+      color: '#f59e0b',
+      tab: 'positions',
+    },
   ]
 })
 
