@@ -324,6 +324,21 @@ watch(() => route.params.name, loadPosition)
             <h3 class="section-title">
               技能要求 ({{ skills.length }})
             </h3>
+            <!-- 指标说明 (2026-08-18): 3 个指标的真实含义和计算链路 -->
+            <div class="metric-explainer">
+              <div class="metric-item">
+                <span class="metric-label">熟练度</span>
+                <span class="metric-desc">LLM 从 JD 文本提取的技能要求级别（精通/熟悉/了解），反映岗位对该技能的掌握深度要求</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">置信度</span>
+                <span class="metric-desc">反幻觉评分：1.0 - hallucination_rate，LLM 抽取后经 Anti-Hallucination 校验，高置信=技能真实存在</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">热度</span>
+                <span class="metric-desc">跨岗位累计 source_count：需要该技能的岗位数量，反映市场技能需求热度</span>
+              </div>
+            </div>
             <el-table
               :data="skills"
               stripe
@@ -447,6 +462,32 @@ watch(() => route.params.name, loadPosition)
   font-weight: 500;
   color: var(--foreground);
   margin: 0 0 var(--space-3);
+}
+
+/* ── 指标说明区域 (2026-08-18) ── */
+.metric-explainer {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--muted);
+  border-radius: 8px;
+  margin-bottom: var(--space-3);
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+.metric-item {
+  flex: 1;
+  min-width: 0;
+}
+.metric-label {
+  font-weight: 600;
+  color: var(--foreground);
+  display: inline;
+  margin-right: 4px;
+}
+.metric-desc {
+  display: inline;
 }
 
 /* ── D-05: 无技能画像降级卡片 ── */

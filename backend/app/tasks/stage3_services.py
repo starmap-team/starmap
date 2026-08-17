@@ -30,8 +30,25 @@ from app.models.extraction_models import (
 
 
 def _confidence_from_result(result: dict[str, Any]) -> float:
+    """计算技能置信度（真实测量，非默认值）。
+
+    置信度 = 1.0 - hallucination_rate，反映 LLM 抽取的反幻觉评分。
+    - 幻觉率 0 → 置信度 1.0（高置信，技能真实）
+    - 幻觉率 0.3 → 置信度 0.7（中置信，存在部分幻觉风险）
+    - 幻觉率 1.0 → 置信度 0.0（低置信，技能可能不存在）
+
+    默认值 0.85（无 validation 数据时的保守估计）。
+    """
     validation = result.get("validation") or {}
-    return float(validation.get("confidence") or 0.85)
+    if validation.get("is_valid", True):
+        # 验证通过：confidence = 1.0 - hallucination_rate
+        hallucination_rate = 1.0 - float(validation.get("confidence") or 1.0)
+        confidence = round(1.0 - hallucination_rate, 4)
+        # 确保在合理范围内
+        return max(0.0, min(1.0, confidence))
+    else:
+        # 验证失败：置信度降至 0
+        return 0.0
 
 
 def _hallucination_score_from_result(result: dict[str, Any]) -> float | None:
