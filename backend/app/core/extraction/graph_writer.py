@@ -763,11 +763,37 @@ async def write_extraction_to_graph(
         raise GraphProjectionError(str(exc)) from exc
 
     # Step 2: Merge Skill nodes and create REQUIRES relationships using standalone functions
+    # Phase 8 (G4): 写入门禁在此应用 —— 此前 Step 2 直接从原始抽取结果写 REQUIRES，
+    # 信任度/膨胀截断从未生效（build_triples 的 gated REQUIRES 在 Step 3 被丢弃）。
+    from app.core.extraction.ingestion_gate import apply_ingestion_gate
+
+    gated = apply_ingestion_gate(
+        extraction.get("required_skills", []),
+        extraction.get("preferred_skills", []),
+        min_sources=1,  # 单条抽取 source_count=1，来源门槛在 MERGE 层累计
+    )
+    if gated["dropped"]:
+        dropped_names = ", ".join(d.get("name", "?") for d in gated["dropped"])
+        logger.warning(
+            "ingestion gate dropped {} low-trust skills: [{}]",
+            len(gated["dropped"]), dropped_names,
+        )
+    if gated["stats"]["demoted_low_source"]:
+        logger.info(
+            "ingestion gate demoted {} low-source skills to preferred",
+            gated["stats"]["demoted_low_source"],
+        )
+    if gated["stats"]["capped"]:
+        logger.info(
+            "ingestion gate capped {} skills (required >= {}) → preferred",
+            gated["stats"]["capped"], gated["stats"].get("required_after", "?"),
+        )
+
     skills_merged = 0
     requires_created = 0
     for required_flag, skills_list in (
-        (True, extraction.get("required_skills", [])),
-        (False, extraction.get("preferred_skills", [])),
+        (True, gated["required"]),
+        (False, gated["preferred"]),
     ):
         for entry in skills_list or []:
             skill_name = skill_entry_name(entry)

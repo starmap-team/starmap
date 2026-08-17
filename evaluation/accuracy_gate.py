@@ -59,13 +59,24 @@ def _read_report_f1(path: Path) -> float | None:
 
 
 def run_jd_gate(threshold: float) -> dict:
-    """JD 解析规则 baseline（run_baseline.py → baseline_report/evaluation_results.json）。"""
-    # 直接跑 run_baseline 太重（110 样本 + ingestion gate），改用其已生成的报告
-    result_file = REPORT_DIR / "evaluation_results.json"
+    """JD 解析规则 baseline（run_baseline.py 实时运行，非读缓存）。
+
+    Phase 8 (G3): 此前读取 evaluation_results.json 静态缓存——该文件是
+    手动/CI 生成的快照，新 JD 流入后不会自动更新。改为每次门禁调用时
+    实时运行 run_baseline.py（~30s，110 样本 keyword F1），确保门禁
+    反映当前抽取质量而非历史快照。
+    """
+    code, out = _run([PYTHON, str(EVAL_DIR / "run_baseline.py")], BACKEND_DIR)
     f1 = None
-    if result_file.exists():
-        data = json.loads(result_file.read_text(encoding="utf-8"))
-        f1 = float(data.get("avg_f1", 0.0) or 0.0)
+    for line in out.splitlines():
+        if "Avg F1" in line:
+            parts = line.split()
+            for i, p in enumerate(parts):
+                if p == "F1:" and i + 1 < len(parts):
+                    try:
+                        f1 = float(parts[i + 1])
+                    except ValueError:
+                        f1 = None
     return {"metric": "JD解析", "f1": f1, "threshold": threshold, "pass": (f1 or 0) >= threshold}
 
 

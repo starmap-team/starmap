@@ -547,6 +547,24 @@ def run_accuracy_gate_task(self) -> dict[str, Any]:
                 logger.exception("accuracy_gate audit write failed (non-fatal)")
             logger.error("赛项指标门禁未达标（≥90%），需人工核查: {}", output[-800:])
             return {"passed": False, "exit_code": proc.returncode}
+
+        # G1: 门禁通过后自动扩展 golden set + 覆盖率报告
+        try:
+            expand_script = root / "scripts" / "auto_expand_match_golden.py"
+            expand_proc = subprocess.run(
+                [sys.executable, str(expand_script), "--apply"],
+                cwd=str(root),
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            expand_output = expand_proc.stdout + expand_proc.stderr
+            logger.info("golden set auto-expand output:\n{}", expand_output[-1500:])
+            if expand_proc.returncode != 0:
+                logger.warning("golden set auto-expand 异常 exit={}", expand_proc.returncode)
+        except Exception:
+            logger.exception("golden set auto-expand 失败 (non-fatal)")
+
         return {"passed": True, "exit_code": 0}
     except subprocess.TimeoutExpired:
         logger.error("accuracy_gate 超时（1800s）")
