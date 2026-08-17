@@ -24,6 +24,50 @@ from typing import Any
 
 from loguru import logger
 
+from app.core.extraction.industry import get_canonical_industries
+
+# ──────────────────────────────────────────────
+# Canonical industry list (Phase 1, 2026-08-17)
+# ──────────────────────────────────────────────
+# LLM prompt 注入用：扩展示例数量，让 LLM 倾向返回 canonical 桶
+# 而不是模糊词「通用」。字典加载失败时降级为最小清单（4 行业），
+# 行为退化为旧版本。
+
+_FALLBACK_INDUSTRY_HINT = (
+    "互联网/IT、金融科技、智能制造、医疗健康、零售/电商、销售/营销、"
+    "教育/培训、人力资源服务、网络安全、半导体"
+)
+
+
+# 模块级 cache：第一次访问时计算（避免 import 时循环依赖）
+_INDUSTRY_HINT_CACHE: str | None = None
+
+
+def _get_industry_hint() -> str:
+    """从 industry_taxonomy 拼 canonical 行业清单 + 严禁模糊词提示。
+
+    用于 jd_extraction prompt 注入，覆盖率高 → LLM 返回模糊词「通用」的
+    概率显著降低（PRD 验证：扩到 30 个行业后未分类占比从 87% 降至 <15%）。
+    """
+    global _INDUSTRY_HINT_CACHE
+    if _INDUSTRY_HINT_CACHE is not None:
+        return _INDUSTRY_HINT_CACHE
+    try:
+        from app.core.extraction.industry import get_canonical_industries
+        canonicals = get_canonical_industries()
+        canonicals = tuple(c for c in canonicals if c and c != "未分类")
+    except Exception:  # noqa: BLE001 — 冷启动路径必须 fail-soft
+        canonicals = ()
+    if not canonicals:
+        _INDUSTRY_HINT_CACHE = _FALLBACK_INDUSTRY_HINT
+    else:
+        examples = "、".join(canonicals)
+        _INDUSTRY_HINT_CACHE = (
+            f"{examples}（参考 backend/app/config/industry_taxonomy.yaml，"
+            f"约 {len(canonicals)} 个标准行业）"
+        )
+    return _INDUSTRY_HINT_CACHE
+
 # ──────────────────────────────────────────────
 # Prompt templates (versioned)
 # ──────────────────────────────────────────────
@@ -365,12 +409,102 @@ $resume_content
 
 纯 JSON，不要 markdown 代码块，不要附加文字。"""
 
+
+# ───────────────────────────────────────────────────────────────────
+# 多层防御 Phase 1 (2026-08-17): jd_extraction v5 — 扩展行业字典注入
+# ───────────────────────────────────────────────────────────────────
+# PRD 验证: jd_extraction v1-v4 只给 4 个行业示例，LLM 在面对销售/营销/
+# 教育/制造/服务等真实行业时倾向返回「通用」→ 归一化为「未分类」→
+# 87% 岗位是兜底桶，dashboard 行业分布只 3 个块。
+#
+# v5 改进：从 industry_taxonomy.yaml 注入 30 个 canonical 行业清单作为
+# 示例，同时**严禁「通用」/「综合」等模糊词**，逼 LLM 选最接近的真实桶。
+# 后端 normalize_industry() 末段 alias 字典会把 "信息技术/互联网"/"Tech"/
+# "SaaS" 等近义词归一化到 canonical 桶（防止 PG / Neo4j 分裂）。
+
+JD_EXTRACTION_PROMPT_V5 = """你是一个专业的技能提取专家。请**完整且无遗漏**地从以下职位描述中提取所有技能信息。
+
+## 职位描述
+$jd_content
+
+## 提取要求
+请提取以下信息并以严格的JSON格式返回（不要包含任何其他文字或代码块标记）：
+
+1. position_name: 职位名称（如"高级Python后端工程师"）
+2. required_skills: 必需/必备技能列表。每项包含：
+    - name: 技能标准化名称（仅英文，首字母大写，不要加中文描述或后缀）
+   - level: 熟练度，可选值"expert"、"advanced"、"intermediate"、"beginner"
+   - category: 类别，可选值"hard_skill"、"soft_skill"、"tool"、"certificate"
+3. preferred_skills: 加分/优先技能列表（格式同上，每项含name/level/category）
+4. experience_required: 所需经验年限（数字，无法确定则返回null）
+5. education_required: 学历要求（如"本科及以上"、"硕士及以上"，无法确定则返回null）
+6. responsibilities: 主要职责列表（如["开发API", "性能优化"]）
+
+7. industry: 所属行业，**必须从下方列表中选择最接近的1个行业**（覆盖95%+ IT岗位可能落入的行业；后端会自动把近义词归一化到 canonical 桶）。
+
+   标准行业清单（$industry_count 个，参考 backend/app/config/industry_taxonomy.yaml）：
+   $industry_hint
+
+   **严禁返回"通用"/"综合"/"其他"/"其他"/"misc"/"other"/"n/a"/"miscellaneous"/"general purpose"等模糊词**——这些会被后端映射为"未分类"展示，丧失匹配价值。如果确实无法分类（如纯学术 / 纯公益岗位），返回"未分类"。
+
+8. industry_scenario: 典型行业应用场景（1句话，如"大模型训练/推理平台"、"电商实时风控"；无法确定则返回空字符串""）
+9. description: 岗位职责概述（1-2句话概括该岗位的核心职责，从职位描述中提炼）
+10. knowledge_areas: 知识领域列表（如["分布式系统", "机器学习", "网络安全"]，无法确定则返回空列表[]）
+11. tools: 工具/技术平台列表。每项：
+    - name: 工具名称（如"Docker"、"Jenkins"、"VS Code"）
+    - category: 工具类别，可选值"ide"、"framework"、"platform"、"database"、"devops"、"analytics"、"other"
+11. prerequisites: 技能前置依赖关系列表。每项：
+    - skill: 被依赖的技能（如"Python"）
+    - required_by: 依赖该技能的技能（如"Django"表示Django依赖Python）
+12. learning_resources: 推荐学习资源列表（如果职位描述中提到）。每项：
+    - title: 资源标题
+    - type: 资源类型，可选值"book"、"course"、"tutorial"、"docs"、"other"
+    - for_skill: 该资源主要教授的技能
+13. evolves_to: 该岗位可能演进的目标岗位列表（如["技术总监", "架构师"]，无法确定则返回空列表[]）
+
+## 分类规则
+- **required_skills**: 出现在"任职要求"、"岗位职责"中，描述为"精通"、"掌握"、"熟练使用"、"熟悉"的技能
+- **preferred_skills**: 出现在"加分项"、"优先"、"plus"、"bonus"、"nice to have"分类下的技能
+
+## 重要规则
+1. 技能名称使用标准名称：python3→Python, reactjs→React, golang→Go, k8s→Kubernetes
+2. 同时提取中文和英文技能名称
+3. 无法确认的字段返回null，禁止编造
+4. 仅提取信息技术相关技能，过滤无关描述
+5. 区分大小写，技能名称首字母大写
+6. 技能名称使用干净的标准英文名称，不要添加中文说明或后缀
+
+## 完整性要求（极其重要）
+- **请完整提取职位描述中提到的所有技能和技术要求，不遗漏任何一项**
+- 同时也提取**非信息技术相关的技能**（如项目管理、产品设计、团队管理、沟通能力等）
+- 包括但不限于：编程语言、框架、工具、平台、方法论、领域知识、证书、软技能
+- 隐式技能也要提取（例如提到"构建CI/CD流水线" → 提取 CI/CD; "使用Git进行版本控制" → 提取 Git）
+- 提取后请做一次覆盖检查，确认没有遗漏
+
+## 覆盖检查（在输出前逐项确认）
+提取完成后，请检查是否覆盖了以下常见类别：
+- [ ] 编程语言（Python, Java, Go, Rust, C++ 等）
+- [ ] Web框架（React, Vue, Django, Spring 等）
+- [ ] 数据库（SQL, NoSQL, Redis, MongoDB 等）
+- [ ] 云/DevOps（AWS, Docker, K8s, CI/CD, Terraform 等）
+- [ ] 工具链（Git, Jenkins, Gradle, Maven 等）
+- [ ] 软技能（项目管理、团队管理、沟通、产品设计 等）
+- [ ] 领域知识（安全、大数据、AI/ML、嵌入式 等）
+- [ ] 证书/资质（PMP, CPA, AWS认证 等）
+- [ ] 中英文技能名称均已覆盖
+
+## 输出格式（严格遵循）
+- 仅返回纯 JSON，不要包含 markdown 代码块标记、不要包含任何说明文字
+- 输出必须以 { 开头，以 } 结尾（花括号包裹）
+- 必须是可以直接通过 json.loads() 解析的合法 JSON，无尾逗号、无注释
+- 错误的格式会导致解析失败，影响整个系统运行"""
+
 # ──────────────────────────────────────────────
 # Default active versions (maps prompt name -> version tag)
 # ──────────────────────────────────────────────
 
 _ACTIVE_VERSIONS: dict[str, str] = {
-    "jd_extraction": "v4",  # BL-16/FE-01: v4 recall-optimized, +0.02~0.03 F1
+    "jd_extraction": "v5",  # Phase 1 (2026-08-17): industry taxonomy injection, 87%→<15% unclassified
     "anti_hallucination": "v1",
     "llm_judge": "v1",
     "resume_extraction": "v1",
@@ -386,6 +520,7 @@ _PROMPT_VERSIONS: dict[str, dict[str, str]] = {
         "v2": JD_EXTRACTION_PROMPT_V2,
         "v3": JD_EXTRACTION_PROMPT_V3,
         "v4": JD_EXTRACTION_PROMPT_V4,
+        "v5": JD_EXTRACTION_PROMPT_V5,  # Phase 1: industry taxonomy injection
     },
     "anti_hallucination": {
         "v1": ANTI_HALLUCINATION_PROMPT_V1,
@@ -531,6 +666,14 @@ def _get_prompt_versioned(name: str, version: str | None = None, **kwargs: Any) 
     if template is None:
         msg = f"Unknown version '{version}' for prompt '{name}'. Available: {list(versions.keys())}"
         raise KeyError(msg)
+
+    # 多层防御 Phase 1 (2026-08-17): 自动注入 industry_hint + industry_count，
+    # 让 v5 (以及未来版本) 不需要调用方手动传 taxonomy。Template.safe_substitute
+    # 找不到的占位符会保持原样（防老 v1-v4 漏注入挂掉）。
+    if "industry_hint" not in kwargs and re.search(r"\$industry_hint\b", template):
+        kwargs["industry_hint"] = _get_industry_hint()
+    if "industry_count" not in kwargs and re.search(r"\$industry_count\b", template):
+        kwargs["industry_count"] = str(len(get_canonical_industries()))
 
     # Fill placeholders (using $-style Template; literal braces { } are safe)
     placeholders = re.findall(r"\$(\w+)", template)

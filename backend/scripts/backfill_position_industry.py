@@ -71,15 +71,31 @@ async def _translate_batch(llm: LLMClient, names: list[str]) -> dict[str, str]:
 
     失败返回 {}（调用方降级逐条）。只保留有效行业值 —— 空值 / 模糊词
     （通用/综合等）不进入结果，调用方会跳过该岗位。
+
+    Phase 1 (2026-08-17): prompt 注入 industry_taxonomy 30 个 canonical 行业
+    作为参考清单 + 严禁模糊词。否则 LLM 倾向返回「通用」导致归一化为
+    「未分类」兜底桶。
     """
     if not names:
         return {}
+    try:
+        from app.core.extraction.industry import get_canonical_industries
+        canonical_list = [
+            c for c in get_canonical_industries() if c and c != "未分类"
+        ]
+        examples = "、".join(canonical_list)
+    except Exception:  # noqa: BLE001 — fail-soft
+        examples = "互联网/IT、金融科技、智能制造、医疗健康、零售/电商、销售/营销、教育/培训"
+
     prompt = (
         "You are a recruiting industry classifier. For each job position title, "
         "return the most specific industry it belongs to, in Simplified Chinese.\n"
         "Respond ONLY as JSON object mapping each original title to its industry.\n"
-        "Rules: concise Chinese industry name (e.g. 互联网/IT, 金融科技, 智能制造, "
-        "医疗健康, 电子商务, 游戏); if a title truly cannot be classified, map it to null.\n"
+        "Rules: pick from the canonical industry list below if possible; "
+        "the list has "
+        f"{len(examples.split('、'))} standard industries; if a title truly "
+        "cannot be classified, map it to null.\n"
+        f"Canonical industries (reference): {examples}\n"
         "Output format: {\"title1\": \"行业1\", \"title2\": \"行业2\", ...}\n"
         f"Titles to classify: {json.dumps(names, ensure_ascii=False)}\n"
     )

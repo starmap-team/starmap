@@ -1,0 +1,159 @@
+# Industry taxonomy — 标准行业字典 (2026-08-17 多层防御 IndustryClassifier Phase 1)
+#
+# 背景: industry.py 文档承诺写「未分类」字面量，但 LLM jd_extraction prompt
+# 只给 4 个示例（互联网/IT、金融科技、智能制造、医疗健康），LLM 在面对
+# 销售/教育/营销/服务等真实行业时倾向返回 "通用" → 归一化为「未分类」 →
+# 87% 岗位是兜底桶，dashboard 行业分布只3 块。
+#
+# 本文件提供:
+#   1. canonical 行业清单 (GB/T 4754 国民经济行业分类简化版 30 个) —
+#      LLM prompt 引用，覆盖 95%+ IT岗位可能落入的行业。
+#   2. alias 近义词映射 — LLM 真实输出与 canonical 之间的双向归一化，
+#      防止「信息技术/互联网」与「互联网/IT」分裂成 2 个 Neo4j 节点。
+#   3. generic_tokens 扩展字典 — 把更多 LLM 容易产生的模糊词归一化为
+#      「未分类」（已被 industry.py:19 覆盖10 个，本文件补充）。
+#
+# 加载: industry.py load_industry_taxonomy() 启动时一次性读入内存，
+#       字典变更需要重启进程（与 skill_aliases 同样的简单模型）。
+# 维护: 修改本文件后重启 starmap-backend，无需迁移。
+
+canonical_industries:
+  # ── 信息技术 (互联网/IT 是项目最大行业，占当前岗位 60%+)
+  - name: 互联网/IT
+    description: 软件开发、互联网平台、SaaS、互联网基础设施
+    aliases: [信息技术, 互联网, IT, 软件, 软件开发, 信息技术服务, "IT/互联网", "信息技术/互联网", "Tech", "SaaS", tech]
+
+  - name: 金融科技
+    description: 银行、保险、证券、支付、数字金融
+    aliases: [FinTech, fintech, 互联网金融, 数字金融, 金融]
+
+  # ── 制造与硬件
+  - name: 智能制造
+    description: 高端装备、自动化、工业互联网
+    aliases: [制造业, 高端装备, 工业自动化, 工业互联网]
+
+  - name: 汽车
+    description: 汽车整车、零部件、自动驾驶
+    aliases: [新能源汽车, 自动驾驶, 智能汽车]
+
+  - name: 半导体
+    description: 芯片设计、制造、封装测试
+    aliases: [芯片, IC, IC设计, 集成电路]
+
+  - name: 通信/电信
+    description: 通信设备、运营商、网络
+    aliases: [电信, 通讯, 通信设备]
+
+  # ── 生命科学
+  - name: 医疗健康
+    description: 医院、医疗服务、健康管理
+    aliases: [医疗, 医疗行业, 医院, 健康管理, Healthcare]
+
+  - name: 生物医药
+    description: 制药、生物技术、医疗器械
+    aliases: [医药, 生物技术, 制药, 创新药]
+
+  # ── 消费与零售
+  - name: 零售/电商
+    description: 电商平台、零售、跨境电商
+    aliases: [电商, 电子商务, 零售, 新零售, E-Commerce, Ecommerce]
+
+  - name: 餐饮/酒店/旅游
+    description: 餐饮、酒店、航空旅游
+    aliases: [酒店, 旅游, 餐饮, OTA, Hospitality]
+
+  - name: 消费品
+    description: 日化、服装、美妆
+    aliases: [日用消费品, FMCG, 消费品行业]
+
+  # ── 服务与销售
+  - name: 销售/营销
+    description: B2B/B2C 销售、市场营销、品牌
+    aliases: [销售, 市场营销, 营销, 市场, Sales, Marketing, BD, 商务拓展]
+
+  - name: 广告/传媒
+    description: 广告代理、内容、影视
+    aliases: [传媒, 广告, 内容, 影视, 媒体]
+
+  - name: 教育/培训
+    description: K12、高教、职业培训、在线教育
+    aliases: [教育, 培训, 在线教育, EdTech, 教育科技]
+
+  - name: 人力资源服务
+    description: 招聘、人事、HR SaaS
+    aliases: [HR, 招聘, 人力资源, HRTech, 猎头]
+
+  - name: 咨询服务
+    description: 管理咨询、IT咨询、财务咨询
+    aliases: [咨询, 管理咨询, 顾问, Consulting]
+
+  # ── 公共与基础设施
+  - name: 政府/公共事业
+    description: 政府机关、事业单位、NGO
+    aliases: [政府, 公共事业, 事业单位, 公共部门, 政府机构]
+
+  - name: 物流/供应链
+    description: 快递、运输、仓储、供应链
+    aliases: [物流, 供应链, 仓储, 运输, Supply Chain]
+
+  - name: 能源/环保
+    description: 电力、新能源、环保
+    aliases: [能源, 电力, 新能源, 环保, 清洁能源, 太阳能]
+
+  - name: 建筑工程/房地产
+    description: 建筑、地产、设计院
+    aliases: [建筑, 房地产, 工程, 地产, 建筑设计, AEC]
+
+  # ── 创意与技术交叉
+  - name: 游戏
+    description: 游戏开发、电竞、游戏发行
+    aliases: [游戏开发, 游戏行业, 电竞, Gaming]
+
+  - name: 文化创意
+    description: 设计、艺术、文创、出版
+    aliases: [设计, 文创, 创意, 艺术, 出版]
+
+  # ── 安全与合规
+  - name: 网络安全
+    description: 安全产品、安全服务
+    aliases: [安全, 信息安全, Security, Cybersecurity, 安全管理]
+
+  - name: 法律/合规
+    description: 律师事务所、合规、风控
+    aliases: [法律, 合规, 法务, 风控, Legal]
+
+  # ── 其他
+  - name: 农业科技
+    description: 农业、畜牧、种植业
+    aliases: [农业, 农业产业, AgriTech, 种植]
+
+  - name: 制造业(传统)
+    description: 传统制造(非智能制造/汽车/半导体)
+    aliases: [传统制造, 工厂, 工业]
+
+  - name: 航空航天
+    description: 航空、航天、卫星
+    aliases: [航空, 航天, 卫星, Aviation, Aerospace]
+
+  - name: 海洋/船舶
+    description: 海洋工程、船舶制造
+    aliases: [船舶, 海洋, 海事, Marine]
+
+  - name: 学术研究
+    description: 高校、科研院所
+    aliases: [学术, 科研, 研究院, Academic]
+
+  # ── 兜底桶 (DB 字面量)
+  - name: 未分类
+    description: 兜底桶 — LLM 无法分类或数据缺失
+    aliases: [未指定, Unknown, N/A, 其他]
+
+# LLM 模糊词补充（与 industry.py GENERIC_INDUSTRY_TOKENS 合并）
+additional_generic_tokens:
+  - 一般
+  - 通用行业
+  - 综合行业
+  - misc
+  - other
+  - miscellaneous
+  - 杂项
