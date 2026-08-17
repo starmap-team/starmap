@@ -37,6 +37,7 @@ class PositionProfile:
     ]  # [{"name":"Python","category":"hard_skill","proficiency":"精通","is_required":True}]
     bonus_skills: list[dict[str, Any]] = field(default_factory=list)
     market_demand: float = 0.5  # 市场需求度 [0, 1]
+    name_cn: str = ""  # 岗位中文名（name_cn || name 贯穿，与详情页一致）
 
 
 @dataclass

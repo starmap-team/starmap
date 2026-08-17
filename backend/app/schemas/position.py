@@ -161,7 +161,7 @@ class IndustriesResponse(BaseModel):
 
 
 class PositionSyncFailure(BaseModel):
-    """单条岗位同步失败明细（D-02）。"""
+    """单条岗位同步失败明细。"""
 
     name: str = Field(
         default="",
@@ -181,7 +181,7 @@ class PositionSyncFailure(BaseModel):
 
 
 class PositionSyncResult(BaseModel):
-    """全量 PG → Neo4j Position 同步结果（D-01/D-02）。"""
+    """全量 PG → Neo4j Position 同步结果。"""
 
     synced: int = Field(
         default=0,

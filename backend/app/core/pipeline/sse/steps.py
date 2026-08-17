@@ -59,7 +59,10 @@ class SkillExtractStep:
     """步骤2：技能提取 — LLM 抽取 + 标准化 → ExtractedSkill 列表。"""
 
     name = "skill_extract"
-    timeout = 30
+    # P1 fix (Phase 24 求职者分析): 30s→120s —— LLM 降级链（云端秒级 / 本地
+    # Ollama fallback 40-120s+）下 30s 必超时，导致后续 match/learn/recommend
+    # 级联失败（实测 4 警告全空结果）。对齐 MatchStep.timeout=120。
+    timeout = 120
 
     async def execute(self, ctx: PipelineContext) -> PipelineContext:
         if not ctx.resume_text:
@@ -162,6 +165,11 @@ class MatchStep:
 
             for pos_name, result in results:
                 if result:
+                    # P5 fix: 注入 _display_name（name_cn 优先）——分析报告 top_matches
+                    # 此前显示英文 name（Senior Controller – Reporting & Insights），
+                    # 岗位详情页用 name_cn || name（高级财务控制 — 报告与洞察）不一致。
+                    profile = profiles.get(pos_name)
+                    result["_display_name"] = (profile.name_cn if profile and profile.name_cn else "") or pos_name
                     ctx.match_results[pos_name] = result
 
             # 设置数据源标记
@@ -221,11 +229,24 @@ class RecommendStep:
 
         try:
             recs = await self._recommender.recommend(ctx.extracted_skills, top_k=10)
+            # P4 fix (Phase 24 求职者分析): 推荐岗位的 match_score 复用 MatchStep
+            # 的 ctx.match_results（graph repo，与 top_matches 口径一致）——此前
+            # PositionRecommender 用 get_all_position_profiles（PG repo）独立计算，
+            # 同岗位 graph=0.82 / PG=0.0，导致前端"匹配度"列误显示 0.0%。
+            match_by_position: dict[str, float] = {
+                name: float(res.get("match_score", 0.0))
+                for name, res in ctx.match_results.items()
+            }
+            # P5 fix: 推荐岗位名同样用 name_cn（复用 MatchStep 注入的 _display_name）
+            display_by_position: dict[str, str] = {
+                name: (res.get("_display_name") or name)
+                for name, res in ctx.match_results.items()
+            }
             ctx.recommended_positions = [
                 {
-                    "position": r.position,
+                    "position": display_by_position.get(r.position, r.position),
                     "score": r.score,
-                    "match_score": r.match_score,
+                    "match_score": round(match_by_position.get(r.position, r.match_score), 4),
                     "developability": r.developability,
                     "market_demand": r.market_demand,
                     "match_detail": r.match_detail,

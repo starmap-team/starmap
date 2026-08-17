@@ -69,7 +69,6 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
         "confidence": validation.get("confidence", 0.85),
         "hallucination_score": None if validation.get("is_valid", True) else validation.get("confidence"),
         "normalized_skills": pipeline_result.get("normalization", []),
-        # fix: 透传 4 个原被丢弃字段 + 反幻觉结果
         "tools": data.get("tools", []),
         "learning_resources": data.get("learning_resources", []),
         "evolves_to": data.get("evolves_to", []),

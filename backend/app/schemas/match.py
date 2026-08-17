@@ -47,7 +47,7 @@ class BatchMatchItem(BaseModel):
 
 
 class BatchMatchRequest(BaseModel):
-    """Batch match request with validated items (P2 INJ-02/AUTHZ-03 修复)。"""
+    """Batch match request with validated items."""
 
     entries: list[BatchMatchItem] = Field(
         default_factory=list,
@@ -69,7 +69,7 @@ class SkillGapDetail(BaseModel):
 
 
 class MatchScoreBreakdown(BaseModel):
-    """匹配分数拆解 — 让用户理解 match_score 的构成（D-01 透明化）。
+    """匹配分数拆解。
 
     match_score = required_avg * weight_required + bonus_avg * weight_bonus
     inflated 表示该岗位存在 CII 通胀迹象（cii > 1.2），边缘必备项已被降为加分项。
@@ -97,16 +97,11 @@ class MatchResponse(BaseModel):
     overall_assessment: str = Field(default="", description="整体评估文案")
     estimated_learning_time: str = Field(default="", description="预计学习时长")
     cii: float | None = Field(default=None, description="能力通胀指数 0-1+")
-    # D6 fix: add real trust_score (was missing — frontend was passing match_score as
-    # trust-score by mistake, displaying duplicate "信任度" identical to "匹配度").
-    # Computed as the MIN of matched_skills' Neo4j trust_score — the bottleneck
-    # skill's trust determines the overall trustworthiness of the match.
     trust_score: float | None = Field(
         default=None,
         ge=0.0, le=1.0,
         description="已掌握技能中 Neo4j Skill.trust_score 的最小值（瓶颈信任度）",
     )
-    # D-01: 分数拆解 — 用户可感知 match_score 的构成（必备均值×0.7 + 加分均值×0.3）
     score_breakdown: MatchScoreBreakdown | None = Field(
         default=None,
         description="匹配分数拆解（必需/加分均值与权重、是否通胀修正）",
@@ -121,7 +116,6 @@ class ReverseMatchRequest(BaseModel):
     """Request body for reverse matching: given user skills, find suitable positions."""
 
     person_skills: list[PersonSkillInput] = Field(default_factory=list, description="用户当前技能")
-    # fix (M13): 兼容前端传 `skills` 字段(学习中心/匹配向导),自动归并到 person_skills
     skills: list[PersonSkillInput] = Field(
         default_factory=list,
         exclude=True,

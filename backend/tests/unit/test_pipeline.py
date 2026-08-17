@@ -277,3 +277,140 @@ class TestRecommendStep:
         ctx = PipelineContext()
         result = await step.execute(ctx)
         assert "无技能数据" in result.errors[-1]
+
+
+class TestBuildResultLearningPathNone:
+    """Phase 24 P0 fix: gap.learning_path 显式为 None 时不得进入 learning_path_summary。
+
+    复现用户可见崩溃: "Cannot read properties of undefined (reading 'length')"。
+    后端 gap.get("learning_path", []) 在字段显式 None 时返回 None → 前端
+    v-for path.length 崩溃。修复后 None 被 `or []` 过滤为 []。
+    """
+
+    def test_learning_path_none_does_not_crash(self):
+        ctx = PipelineContext(
+            extracted_skills=[
+                ExtractedSkill(
+                    name="Python", raw_name="python", category="hard_skill",
+                    proficiency="精通", confidence=0.9, source="llm_extraction",
+                ),
+            ],
+            match_results={
+                "前端工程师": {
+                    "match_score": 0.6,
+                    "overall_assessment": "部分匹配",
+                    "missing_required": ["React"],
+                    "skill_gap_detail": [
+                        {
+                            "skill": "React", "importance": "required",
+                            "gap_level": "完全缺失", "score": 0.1,
+                            # 模拟后端返回 None（而非缺省）——旧代码此处会漏进 result
+                            "learning_path": None,
+                        },
+                    ],
+                },
+            },
+            recommended_positions=[],
+            data_source="graph",
+        )
+        result = _build_result(ctx)
+        # learning_path_summary 必须不含 None 元素（前端 v-for path.length 崩溃点）
+        assert result["learning_path_summary"] == [[]]
+        for path in result["learning_path_summary"]:
+            assert path is not None
+        assert all(isinstance(p, list) for p in result["learning_path_summary"])
+
+
+class TestBuildResultScoreField:
+    """Phase 24 P4 fix: skill_gap_detail 必须含 score 字段（前端 Math.round(row.score*100) 依赖）。
+
+    缺失时前端显示 "NaN%"。同时验证 learning_path_summary 与 score 并存。
+    """
+
+    def test_skill_gap_detail_includes_score(self):
+        ctx = PipelineContext(
+            extracted_skills=[
+                ExtractedSkill(
+                    name="Python", raw_name="python", category="hard_skill",
+                    proficiency="精通", confidence=0.9, source="llm_extraction",
+                ),
+            ],
+            match_results={
+                "前端工程师": {
+                    "match_score": 0.6,
+                    "overall_assessment": "部分匹配",
+                    "missing_required": ["React"],
+                    "skill_gap_detail": [
+                        {
+                            "skill": "React", "importance": "required",
+                            "gap_level": "完全缺失", "score": 0.1,
+                            "learning_path": [],
+                        },
+                    ],
+                },
+            },
+            recommended_positions=[],
+            data_source="graph",
+        )
+        result = _build_result(ctx)
+        assert len(result["skill_gaps"]) == 1
+        gap = result["skill_gaps"][0]
+        # score 字段必须存在且为数字（前端 NaN% 修复）
+        assert "score" in gap
+        assert isinstance(gap["score"], (int, float))
+        assert gap["score"] == 0.1
+
+
+class TestBuildResultDisplayName:
+    """Phase 24 P5 fix: top_matches 岗位名必须用 name_cn（_display_name）优先。
+
+    分析报告此前显示英文 name（Senior Controller – Reporting & Insights），
+    岗位详情页用 name_cn || name（高级财务控制 — 报告与洞察）——中文化未贯穿。
+    """
+
+    def test_top_matches_use_display_name(self):
+        ctx = PipelineContext(
+            extracted_skills=[
+                ExtractedSkill(
+                    name="Python", raw_name="python", category="hard_skill",
+                    proficiency="精通", confidence=0.9, source="llm_extraction",
+                ),
+            ],
+            match_results={
+                "Senior Controller – Reporting & Insights": {
+                    "match_score": 0.84,
+                    "overall_assessment": "核心技能已基本覆盖",
+                    "missing_required": [],
+                    "skill_gap_detail": [],
+                    "_display_name": "高级财务控制 — 报告与洞察",
+                },
+            },
+            recommended_positions=[],
+            data_source="graph",
+        )
+        result = _build_result(ctx)
+        assert result["top_matches"][0]["position"] == "高级财务控制 — 报告与洞察"
+        assert result["top_matches"][0]["position"] != "Senior Controller – Reporting & Insights"
+
+    def test_top_matches_fallback_to_name_when_no_cn(self):
+        ctx = PipelineContext(
+            extracted_skills=[
+                ExtractedSkill(
+                    name="Python", raw_name="python", category="hard_skill",
+                    proficiency="精通", confidence=0.9, source="llm_extraction",
+                ),
+            ],
+            match_results={
+                "Python Backend Engineer": {
+                    "match_score": 0.73,
+                    "overall_assessment": "部分匹配",
+                    "missing_required": [],
+                    "skill_gap_detail": [],
+                    # 无 _display_name → 回退英文 name
+                },
+            },
+            recommended_positions=[],
+            data_source="graph",
+        )
+        result = _build_result(ctx)
+        assert result["top_matches"][0]["position"] == "Python Backend Engineer"

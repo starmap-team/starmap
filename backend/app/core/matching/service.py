@@ -368,6 +368,9 @@ class MatchService:
                     "importance": item["importance"],
                     "gap_level": item["gap_level"],
                     "learning_path": item["learning_path"],
+                    # P4 fix (Phase 24 求职者分析): 补 score 字段——前端差距表
+                    # Math.round(row.score*100) 依赖它，缺失时显示 "NaN%"。
+                    "score": round(item.get("score", 0.0), 4),
                 }
                 for item in gap_details
             ],
