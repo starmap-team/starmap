@@ -9,7 +9,7 @@
 |---|---|---|---|---|---|
 | **JD 解析** | run_real_eval.py（真实 LLM） | 30 | **F1=0.9509**（P=0.946 R=0.964） | ✅ ≥90% | real_eval_report/ |
 | **JD 解析（规则基线）** | run_baseline.py | 110 | F1=0.9340 | ✅ | baseline_report/evaluation_results.json |
-| **简历提取** | run_resume_eval.py（真实 LLM） | 25 | **F1=0.9377**（P=0.941 R=0.935） | ✅ ≥90% | baseline_report/resume_report.md |
+| **简历提取** | run_resume_eval.py（真实 LLM） | 25 | **F1=0.9316**（P=0.929 R=0.935） | ✅ ≥90% | baseline_report/resume_report.md |
 | **人岗匹配** | run_match_baseline.py | 348 | **99.14%**（方向判定 golden 区间语义） | ✅ ≥90% | baseline_report/match_report.md |
 
 ## 匹配指标演进（镜像系统画像治理过程）
@@ -39,7 +39,7 @@
 ## 结论
 
 **三项 ≥90% 指标真实 LLM 全达标**：
-- JD 解析 F1=0.9509 · 简历提取 F1=0.9377 · 人岗匹配 99.14%
+- JD 解析 F1=0.9509 · 简历提取 F1=0.9316 · 人岗匹配 99.14%
 
 且写入门禁 + 定时评测 + F1 趋势可视化保证新数据流入后持续自动保障。
 （此前匹配 60% 为评测方向判定用错全局阈值所致，非系统缺陷。）
