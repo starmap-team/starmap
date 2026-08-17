@@ -74,7 +74,7 @@ class User(Base):
         default=True,
     )
 
-    # ── Lifecycle (added in migration 014) ──
+ # ── Lifecycle (added in migration 014) ──
     failed_login_attempts: Mapped[int] = mapped_column(
         Integer,
         nullable=False,

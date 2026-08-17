@@ -25,15 +25,15 @@ async def upload_resume(
     """阶段 4 兼容端点：上传简历并返回结构化抽取结果。"""
     logger.info("POST /resume/upload - filename={}", file.filename)
 
-    # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+ # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
     content_bytes = await validate_resume_upload(file)
 
-    # P0-AUDIT-FIX (2026-08-13): PII detection was defined but never called
-    # from the upload path — raw resumes hit Neo4j/PostgreSQL with phone,
-    # email, and ID-card numbers inline (GDPR / 个保法 violation). Detect
-    # before extraction and emit a structured audit log entry; do NOT block
-    # the upload — masking already happens inside run_resume_extraction via
-    # mask_pii, this is a defensive observability hook.
+ # P0-AUDIT-FIX (2026-08-13): PII detection was defined but never called
+ # from the upload path — raw resumes hit Neo4j/PostgreSQL with phone,
+ # email, and ID-card numbers inline (GDPR / 个保法 violation). Detect
+ # before extraction and emit a structured audit log entry; do NOT block
+ # the upload — masking already happens inside run_resume_extraction via
+ # mask_pii, this is a defensive observability hook.
     try:
         from app.services.pii_detector import detect_pii
         try:
@@ -67,7 +67,7 @@ async def upload_resume(
     if not pipeline_result.get("success"):
         raise HTTPException(status_code=422, detail=pipeline_result.get("error", "Unknown extraction error"))
 
-    # Write extraction to Neo4j graph
+ # Write extraction to Neo4j graph
     graph_summary = await _write_extraction_to_graph(pipeline_result, neo4j_driver)
     if graph_summary:
         logger.info("Graph integration: {} triples written", graph_summary["triples_merged"])

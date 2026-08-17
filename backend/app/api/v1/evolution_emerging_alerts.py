@@ -25,24 +25,24 @@ async def get_emerging_alerts(
     min_z_score: Annotated[float, Query(description="最小 Z-score 阈值")] = 0.0,
 ) -> EmergingAlertsResponse:
     """获取新兴技能预警列表，含分类、Z-score、领域、趋势详情。"""
-    # EmergenceFinder 经 services 层 re-export，保持 api → services → core 依赖方向
+ # EmergenceFinder 经 services 层 re-export，保持 api → services → core 依赖方向
 
-    # Load timeseries data
+ # Load timeseries data
     skill_data = await load_skill_timeseries_data(session, include_category=True)
 
     if not skill_data:
         return EmergingAlertsResponse(alerts=[], total=0, summary="暂无时序数据")
 
-    # Run emergence detection
+ # Run emergence detection
     finder = EmergenceFinder()
     report = finder.scan(skill_data)
 
-    # Build alerts from all non-stable signals
+ # Build alerts from all non-stable signals
     alerts: list[EmergingAlert] = []
     all_signals = report.emerging + report.rising + report.declining
 
     for signal in all_signals:
-        # Apply filters
+ # Apply filters
         if level and signal.level.value != level:
             continue
         if abs(signal.z_score) < abs(min_z_score):
@@ -54,7 +54,7 @@ async def get_emerging_alerts(
         if domain and domain not in domains:
             continue
 
-        # Build alert message
+ # Build alert message
         if signal.level.value == "emerging":
             alert_msg = (
                 f"新兴技能预警: {signal.skill_name} Z-score={signal.z_score:.2f}，"
@@ -72,7 +72,7 @@ async def get_emerging_alerts(
                 f"频次呈下降趋势"
             )
 
-        # Compute portability
+ # Compute portability
         portability = finder.portability_score(signal.skill_name)
 
         alerts.append(EmergingAlert(
@@ -90,7 +90,7 @@ async def get_emerging_alerts(
             alert_message=alert_msg,
         ))
 
-    # Sort by z_score descending for emerging/rising, ascending for declining
+ # Sort by z_score descending for emerging/rising, ascending for declining
     alerts.sort(key=lambda a: a.z_score, reverse=True)
 
     total = len(alerts)

@@ -77,7 +77,7 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "Test Automation": ["test automation", "automation testing", "e2e", "end to end", "selenium", "cypress", "playwright"],
     "System Design": ["system design", "system architecture", "architecture design", "software architecture", "distributed systems"],
     "API Design": ["api design", "api development", "api architecture", "rest api design", "api gateway"],
-    # ---- Frontend / UI ----
+ # ---- Frontend / UI ----
     "HTML5": ["html5", "html 5", "html"],
     "CSS3": ["css3", "css 3", "css", "cascading style sheets"],
     "Webpack": ["webpack", "web pack", "webpack5"],
@@ -89,7 +89,7 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "Storybook": ["storybook", "story book"],
     "Three.js": ["three.js", "threejs", "three js", "webgl"],
     "WebAssembly": ["webassembly", "wasm", "web assembly"],
-    # ---- Mobile ----
+ # ---- Mobile ----
     "Kotlin": ["kotlin", "kotlin lang", "kotlin language"],
     "Swift": ["swift", "swift language", "swift programming"],
     "SwiftUI": ["swiftui", "swift ui"],
@@ -105,7 +105,7 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "Core Data": ["core data", "coredata", "apple core data"],
     "Combine": ["combine", "apple combine", "combine framework"],
     "Firebase": ["firebase", "google firebase", "firebase console", "firebase sdk"],
-    # ---- Big Data & Streaming ----
+ # ---- Big Data & Streaming ----
     "Spark": ["spark", "apache spark", "spark core", "spark sql", "spark streaming", "pyspark"],
     "Hadoop": ["hadoop", "apache hadoop", "hdfs", "mapreduce", "yarn"],
     "Hive": ["hive", "hive sql", "hive data warehouse"],
@@ -118,7 +118,7 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "Snowflake": ["snowflake", "snowflake cloud", "snowflake warehouse"],
     "ClickHouse": ["clickhouse", "click house", "clickhouse olap"],
     "TiDB": ["tidb", "ti db", "tikv", "pd"],
-    # ---- ML / AI ----
+ # ---- ML / AI ----
     "scikit-learn": ["scikit-learn", "sklearn", "scikit learn", "sk learn"],
     "Transformers": ["transformers", "huggingface transformers", "hf transformers"],
     "BERT": ["bert", "bert model", "google bert", "bert nlp"],
@@ -135,7 +135,7 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "ChromaDB": ["chromadb", "chroma db", "chroma vector db"],
     "Pinecone": ["pinecone", "pinecone vector db", "pinecone db"],
     "OpenCV": ["opencv", "open cv", "open computer vision"],
-    # ---- Cloud / Service Mesh ----
+ # ---- Cloud / Service Mesh ----
     "Istio": ["istio", "istio service mesh", "istio mesh"],
     "Helm": ["helm", "helm chart", "helm charts", "helm package manager"],
     "ArgoCD": ["argocd", "argo cd", "argo cd gitops"],
@@ -147,14 +147,14 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "Seldon": ["seldon", "seldon core", "seldon model serving"],
     "Kubeflow": ["kubeflow", "kube flow", "kubeflow pipeline"],
     "Yocto": ["yocto", "yocto project", "yocto build system"],
-    # ---- Languages ----
+ # ---- Languages ----
     "Ruby": ["ruby", "ruby language", "ruby programming"],
     "PHP": ["php", "php language", "php programming"],
     "Scala": ["scala", "scala language", "scala programming"],
     "ABAP": ["abap", "sap abap", "abap programming"],
     "Shell": ["shell", "shell script", "shell scripting", "bash scripting"],
     "Markdown": ["markdown", "md", "markdown documentation"],
-    # ---- Protocols & Hardware ----
+ # ---- Protocols & Hardware ----
     "WebRTC": ["webrtc", "web rtc", "webrtc protocol"],
     "SIP": ["sip", "sip protocol", "session initiation protocol"],
     "UART": ["uart", "universal asynchronous receiver transmitter"],
@@ -164,8 +164,8 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "RTOS": ["rtos", "real time os", "real time operating system"],
     "FreeRTOS": ["freertos", "free rtos", "free real time os"],
     "Zephyr": ["zephyr", "zephyr os", "zephyr rtos"],
-    # 2026-08-15 F1 优化: 补嵌入式/测试域技能 — dict 后过滤只保留词汇表内技能，
-    # 词汇表外真技能被误删（评估 F1 0.857 主因：Communication Protocols 等 4 项漏检）。
+ # 2026-08-15 F1 优化: 补嵌入式/测试域技能 — dict 后过滤只保留词汇表内技能，
+ # 词汇表外真技能被误删（评估 F1 0.857 主因：Communication Protocols 等 4 项漏检）。
     "Embedded Linux": ["embedded linux", "embedded linux development", "embedded linux system"],
     "Microcontrollers": ["microcontrollers", "microcontroller", "mcu", "stm32", "esp32"],
     "Assembly": ["assembly", "assembly language", "assembly programming"],
@@ -173,7 +173,7 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "PCB Design": ["pcb design", "pcb layout", "pcb design tool"],
     "Debugging": ["debugging", "debugger", "gdb", "kernel debugging"],
     "Testing": ["testing", "software testing", "unit testing", "integration testing", "自动化测试"],
-    # ---- Blockchain ----
+ # ---- Blockchain ----
     "Solidity": ["solidity", "solidity lang", "solidity contract"],
     "Ethereum": ["ethereum", "eth", "ethereum blockchain"],
     "Web3.js": ["web3.js", "web3js", "web3 js", "web3"],
@@ -181,27 +181,27 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "Hardhat": ["hardhat", "hardhat framework", "hardhat ethereum"],
     "Substrate": ["substrate", "substrate framework", "parity substrate"],
     "Zero-Knowledge": ["zero knowledge", "zk", "zero knowledge proof", "zkp"],
-    # ---- Testing ----
+ # ---- Testing ----
     "Playwright": ["playwright", "playwright testing", "playwright automation"],
     "Postman": ["postman", "postman api", "postman testing"],
     "Locust": ["locust", "locust testing", "locust load testing"],
     "Jest": ["jest", "jest testing", "jest framework"],
     "pytest": ["pytest", "py test", "pytest testing"],
     "Cypress": ["cypress", "cypress testing", "cypress e2e"],
-    # ---- Build & Tools ----
+ # ---- Build & Tools ----
     "Gradle": ["gradle", "gradle build", "gradle tool"],
     "Xcode": ["xcode", "xcode ide", "xcode development"],
     "Swagger": ["swagger", "swagger ui", "swagger openapi", "swagger api"],
     "Sphinx": ["sphinx", "sphinx docs", "sphinx documentation"],
     "Docusaurus": ["docusaurus", "docusaurus docs", "docusaurus documentation"],
     "Cargo": ["cargo", "cargo build", "cargo rust", "cargo package manager"],
-    # ---- BI & Design ----
+ # ---- BI & Design ----
     "Tableau": ["tableau", "tableau bi", "tableau visualization"],
     "Power BI": ["power bi", "powerbi", "power bi dashboard"],
     "Excel": ["excel", "microsoft excel", "ms excel", "excel spreadsheet"],
     "Axure": ["axure", "axure rp", "axure prototype"],
     "Figma": ["figma", "figma design", "figma prototyping"],
-    # ---- Game & 3D ----
+ # ---- Game & 3D ----
     "Unity": ["unity", "unity 3d", "unity engine", "unity game engine"],
     "Unreal": ["unreal", "unreal engine", "unreal engine 4", "unreal engine 5"],
     "OpenXR": ["openxr", "open xr", "openxr standard"],
@@ -210,7 +210,7 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "Blender": ["blender", "blender 3d", "blender modeling"],
     "Qt": ["qt", "qt framework", "qt gui"],
     "WPF": ["wpf", "wpf framework", "windows presentation foundation"],
-    # ---- Chinese skill names ----
+ # ---- Chinese skill names ----
     "项目管理": ["项目管理", "项目 管理", "project management"],
     "数据分析": ["数据分析", "数据 分析", "data analysis"],
     "系统架构": ["系统架构", "系统 架构", "系统架构设计", "system architecture"],
@@ -232,7 +232,7 @@ _HARDCODED_ALIASES: dict[str, list[str]] = {
     "Web安全": ["web安全", "web安全"],
     "智能合约": ["智能合约", "智能 合约", "smart contract"],
     "嵌入式开发": ["嵌入式开发", "嵌入式", "embedded development", "embedded system"],
-    # ---- Education aliases ----
+ # ---- Education aliases ----
     "计算机视觉": ["计算机视觉"],
     "自然语言处理": ["自然语言处理"],
     "Element Plus": ["element plus", "element-plus", "elementplus", "element ui", "element-ui"],
@@ -401,15 +401,15 @@ class SkillNormalizer:
             idx = text_lower.find(alias.lower())
             if idx < 0:
                 continue
-            # Word boundary check: prev/next char must NOT be an ASCII identifier
-            # char (avoid "Go" inside "Google", "Java" inside "JavaScript"). Chinese
-            # characters return True for str.isalnum() so we explicitly use the
-            # ASCII set only.
-            # P0-AUDIT-FIX (2026-08-13): wrap each OR clause in parens so the
-            # precedence is `(prev.isascii() AND prev.isalnum()) OR prev in "_+#"`
-            # instead of `prev.isascii() AND (prev.isalnum() OR prev in "_+#")`.
-            # Without parens, "Go" inside "Google" would match (G is alnum),
-            # and "Java" inside "JavaScript" would match — silently inflating F1.
+ # Word boundary check: prev/next char must NOT be an ASCII identifier
+ # char (avoid "Go" inside "Google", "Java" inside "JavaScript"). Chinese
+ # characters return True for str.isalnum() so we explicitly use the
+ # ASCII set only.
+ # P0-AUDIT-FIX (2026-08-13): wrap each OR clause in parens so the
+ # precedence is `(prev.isascii() AND prev.isalnum()) OR prev in "_+#"`
+ # instead of `prev.isascii() AND (prev.isalnum() OR prev in "_+#")`.
+ # Without parens, "Go" inside "Google" would match (G is alnum),
+ # and "Java" inside "JavaScript" would match — silently inflating F1.
             prev_char = text_lower[idx - 1] if idx > 0 else " "
             next_idx = idx + len(alias)
             next_char = text_lower[next_idx] if next_idx < len(text_lower) else " "
@@ -567,9 +567,9 @@ def normalize_by_vector(
     is cached for ``_CHROMA_NEGATIVE_CACHE_TTL`` seconds to avoid hammering the
     service from hot loops (e.g. the match engine's O(N×M) chroma fallback).
     """
-    # 负缓存快速失败：若 ChromaDB 近期被标记为不可用，直接返回 None，
-    # 避免在匹配引擎嵌套循环中重复触发连接/查询失败。
-    # 注意：显式传入 chroma_client 的调用（如管理脚本）跳过负缓存，以便即时验证。
+ # 负缓存快速失败：若 ChromaDB 近期被标记为不可用，直接返回 None，
+ # 避免在匹配引擎嵌套循环中重复触发连接/查询失败。
+ # 注意：显式传入 chroma_client 的调用（如管理脚本）跳过负缓存，以便即时验证。
     if chroma_client is None and _is_chroma_marked_unavailable():
         return None
 
@@ -598,7 +598,7 @@ def normalize_by_vector(
     except StarMapError:
         raise
     except Exception:
-        # 仅在首次失败时记录 warning + 标记不可用；负缓存窗口内后续调用静默返回 None。
+ # 仅在首次失败时记录 warning + 标记不可用；负缓存窗口内后续调用静默返回 None。
         if not _is_chroma_marked_unavailable():
             logger.warning("Chroma collection '{}' not found, skipping vector norm", collection_name)
             _mark_chroma_unavailable(f"collection-missing:{collection_name}")
@@ -649,7 +649,7 @@ def validate_skill_by_source_count(
         standard = normalize_by_alias(skill_name) or skill_name
         count = source_counts.get(standard, 0)
         return count >= min_sources
-    # Fallback: alias existence check when no source_counts available
+ # Fallback: alias existence check when no source_counts available
     matched = normalize_by_alias(skill_name)
     return matched is not None
 

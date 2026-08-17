@@ -111,7 +111,7 @@ async def write_extraction_to_pg(
             created_by=created_by,
         )
 
-        # Collect all skill names from required + preferred
+ # Collect all skill names from required + preferred
         all_skills: list[str] = []
         for s in pipeline_data.get("required_skills", []):
             skill_name = s.get("skill") or s.get("name") if isinstance(s, dict) else str(s)
@@ -130,10 +130,10 @@ async def write_extraction_to_pg(
                 created_by=created_by,
             )
 
-        # R5 根治 (2026-08-13): 抽取的 evolves_to 后继岗位（职业演化目标）此前只写
-        # Neo4j 图（graph_writer name-MERGE 无 canonical_id）不落 PG → 产生被
-        # EVOLVES_TO 引用的无记录图节点（孤儿）。现在一并落 PG（pending_review
-        # 待审核），后续 graph_sync 的岗位自愈会补齐 canonical_id 链接。
+ # R5 根治 (2026-08-13): 抽取的 evolves_to 后继岗位（职业演化目标）此前只写
+ # Neo4j 图（graph_writer name-MERGE 无 canonical_id）不落 PG → 产生被
+ # EVOLVES_TO 引用的无记录图节点（孤儿）。现在一并落 PG（pending_review
+ # 待审核），后续 graph_sync 的岗位自愈会补齐 canonical_id 链接。
         for successor in pipeline_data.get("evolves_to", []) or []:
             if isinstance(successor, dict):
                 succ_name = str(successor.get("position") or successor.get("name") or "").strip()

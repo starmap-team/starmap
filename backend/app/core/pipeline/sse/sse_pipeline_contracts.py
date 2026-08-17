@@ -116,11 +116,11 @@ class PipelineCompletedEvent(TypedDict, total=False):
 
 # 订阅示例（前端 useSSE storeHandlers）：
 # storeHandlers = {
-#   "stage.sub_step": (data) => { /* D-15 子步骤 */ },
-#   "stage.progress": (data) => { /* 进度 */ },
-#   "stage.completed": (data) => { /* 阶段完成 */ },
-#   "stage.failed": (data) => { /* 阶段失败 */ },
-#   "pipeline.completed": (data) => { /* 流水线完成 */ },
+# "stage.sub_step": (data) => { /* D-15 子步骤 */ },
+# "stage.progress": (data) => { /* 进度 */ },
+# "stage.completed": (data) => { /* 阶段完成 */ },
+# "stage.failed": (data) => { /* 阶段失败 */ },
+# "pipeline.completed": (data) => { /* 流水线完成 */ },
 # }
 
 

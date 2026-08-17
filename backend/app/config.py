@@ -16,17 +16,17 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # 应用
+ # 应用
     app_env: str = "development"
-    # P1-AUDIT-FIX (2026-08-13): 原默认 True 反直觉——fresh clone 未配置
-    # APP_DEBUG 时默认 debug 模式跑更危险；本字段唯一作用就是 config.py
-    # 生产校验守卫（app_env=production 且 app_debug 时拒绝启动）。本项目
-    # .env 已显式设 APP_DEBUG=true，改默认值对现有部署零影响。
+ # P1-AUDIT-FIX (2026-08-13): 原默认 True 反直觉——fresh clone 未配置
+ # APP_DEBUG 时默认 debug 模式跑更危险；本字段唯一作用就是 config.py
+ # 生产校验守卫（app_env=production 且 app_debug 时拒绝启动）。本项目
+ # .env 已显式设 APP_DEBUG=true，改默认值对现有部署零影响。
     app_debug: bool = False
     app_log_level: str = "INFO"
     secret_key: str = _UNCONFIGURED
 
-    # 限流 (API-02): Redis 固定窗口计数（多 worker 共享），内存兜底（单进程）
+ # 限流 (API-02): Redis 固定窗口计数（多 worker 共享），内存兜底（单进程）
     rate_limit_window: int = Field(
         default=60,
         description="速率限制窗口（秒）；每窗口每 IP 的最大请求数由 rate_limit_max 定义",
@@ -38,14 +38,14 @@ class Settings(BaseSettings):
         ge=1,
     )
 
-    # CORS
-    # W1-T4 fix (AUTH-04 + NEW-P2): 浏览器跨域请求的 Origin 永远是人类可
-    # 解析的 http(s)://host[:port] 形式；不会以 `http://starmap-frontend:5173`
-    # 这种容器 hostname 形式出现。把容器内部名放进白名单等于把 CORS 当
-    # "内部全开"——一旦网络隔离失守就立刻被利用。
+ # CORS
+ # W1-T4 fix (AUTH-04 + NEW-P2): 浏览器跨域请求的 Origin 永远是人类可
+ # 解析的 http(s)://host[:port] 形式；不会以 `http://starmap-frontend:5173`
+ # 这种容器 hostname 形式出现。把容器内部名放进白名单等于把 CORS 当
+ # "内部全开"——一旦网络隔离失守就立刻被利用。
     #
-    # 生产通过环境变量 `CORS_ALLOWED_ORIGINS`（逗号分隔）覆盖默认值；
-    # 默认仅含本地 dev 端口。
+ # 生产通过环境变量 `CORS_ALLOWED_ORIGINS`（逗号分隔）覆盖默认值；
+ # 默认仅含本地 dev 端口。
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -67,7 +67,7 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
-    # 认证（仅保留 token 寿命；用户表已迁移至 PostgreSQL）
+ # 认证（仅保留 token 寿命；用户表已迁移至 PostgreSQL）
     token_expire_hours: int = Field(
         default=24,
         ge=1,
@@ -87,11 +87,11 @@ class Settings(BaseSettings):
         ge=0,
         description="JWT clock skew tolerance (seconds)",
     )
-    # Phase 20 Task 2: JWT rotation — `kid` header + multi-secret keyring.
-    # `jwt_kid` is the active signing key id; new tokens carry this in the JOSE
-    # header. `jwt_secret_keyring` maps kid -> secret and is consulted at
-    # verification time so that legacy tokens remain valid during rotation.
-    # Both default to {"v1": <current secret_key>} for backward compatibility.
+ # Phase 20 Task 2: JWT rotation — `kid` header + multi-secret keyring.
+ # `jwt_kid` is the active signing key id; new tokens carry this in the JOSE
+ # header. `jwt_secret_keyring` maps kid -> secret and is consulted at
+ # verification time so that legacy tokens remain valid during rotation.
+ # Both default to {"v1": <current secret_key>} for backward compatibility.
     jwt_kid: str = Field(
         default="v1",
         min_length=1,
@@ -103,9 +103,9 @@ class Settings(BaseSettings):
         description="Map of kid -> secret used for verification; empty means use {jwt_kid: secret_key}",
     )
 
-    # ── Bootstrap (DB seed) ──
-    # Initial admin credentials seeded by scripts/bootstrap.py on first run.
-    # Set BOOTSTRAP_SEED_ADMIN=true in dev/internal environments only.
+ # ── Bootstrap (DB seed) ──
+ # Initial admin credentials seeded by scripts/bootstrap.py on first run.
+ # Set BOOTSTRAP_SEED_ADMIN=true in dev/internal environments only.
     bootstrap_seed_admin: bool = Field(
         default=False,
         description="If true, ensure an admin user exists on startup (dev only)",
@@ -113,19 +113,19 @@ class Settings(BaseSettings):
     bootstrap_admin_username: str = Field(default="admin", min_length=1, max_length=64)
     bootstrap_admin_password: str = Field(default=_UNCONFIGURED, min_length=8, max_length=128)
 
-    # ── Dev-mode anonymous admin bypass ──
-    # W1-T2 fix (PLAN §W1-T2): dev convenience "no token = admin" must be
-    # opt-in, not default. The previous behaviour — anonymous dev request
-    # returning role=admin — was a real residual risk once prod guards were
-    # dormant (NEW-P0). Defaulting this to False means fresh dev clones
-    # behave like real users; CI / shared dev environments must explicitly
-    # opt in via DEV_ANON_ADMIN=true in their .env.
+ # ── Dev-mode anonymous admin bypass ──
+ # W1-T2 fix (PLAN §W1-T2): dev convenience "no token = admin" must be
+ # opt-in, not default. The previous behaviour — anonymous dev request
+ # returning role=admin — was a real residual risk once prod guards were
+ # dormant (NEW-P0). Defaulting this to False means fresh dev clones
+ # behave like real users; CI / shared dev environments must explicitly
+ # opt in via DEV_ANON_ADMIN=true in their .env.
     dev_anon_admin: bool = Field(
         default=False,
         description="If true (dev only), missing Bearer token returns role=admin",
     )
 
-    # 数据来源权威度评分 (admin.py source management)
+ # 数据来源权威度评分 (admin.py source management)
     authority_scores: dict[str, float] = {
         "lagou": 0.75,
         "zhaopin": 0.72,
@@ -143,26 +143,26 @@ class Settings(BaseSettings):
     }
     authority_default_score: float = 0.60
 
-    # 数据库
+ # 数据库
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = _UNCONFIGURED
-    # PostgreSQL 连接拆分为组件，避免在默认值中硬编码密码
+ # PostgreSQL 连接拆分为组件，避免在默认值中硬编码密码
     postgres_user: str = "starmap"
     postgres_password: str = _UNCONFIGURED
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_db: str = "starmap"
-    # W1-T7 fix (DATA-03): 生产强制 SSL。开发可设 POSTGRES_SSLMODE=disable
-    # 跳过（asyncpg 默认会尝试 SSL）。生产应设 require / verify-full。
+ # W1-T7 fix (DATA-03): 生产强制 SSL。开发可设 POSTGRES_SSLMODE=disable
+ # 跳过（asyncpg 默认会尝试 SSL）。生产应设 require / verify-full。
     postgres_sslmode: str = "prefer"
-    # 完整 URI：若通过环境变量 POSTGRES_URI 传入则优先使用，否则由组件拼接
+ # 完整 URI：若通过环境变量 POSTGRES_URI 传入则优先使用，否则由组件拼接
     postgres_uri: str | None = None
     redis_uri: str = "redis://localhost:6379/0"
     chroma_host: str = "localhost"
     chroma_port: int = 8001
 
-    # LLM
+ # LLM
     xunfei_api_key: str = ""
     xunfei_api_secret: str = ""
     xunfei_app_id: str = ""
@@ -174,38 +174,38 @@ class Settings(BaseSettings):
     llm_max_retries: int = 3
     llm_temperature: float = 0.5  # LLM 抽取温度，低值减少幻觉
 
-    # 写入门禁阈值（ingestion_gate.py 引用）
+ # 写入门禁阈值（ingestion_gate.py 引用）
     ingestion_min_sources_required: int = 2
     ingestion_max_hallucination_score: float = 0.7
     ingestion_min_confidence: float = 0.3
     ingestion_required_cap: int = 7
 
-    # Spark X 长 prompt 跳过阈值（超长 prompt 触发讯飞网关 504）
+ # Spark X 长 prompt 跳过阈值（超长 prompt 触发讯飞网关 504）
     spark_x_max_prompt_chars: int = 1500
 
-    # 阿里云百炼 Qwen（2026-08-14 接入，降级链首选）——OpenAI 兼容端点
+ # 阿里云百炼 Qwen（2026-08-14 接入，降级链首选）——OpenAI 兼容端点
     dashscope_api_key: str = ""
     dashscope_base_url: str = "https://llm-nire844xse41iz9w.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
     dashscope_model: str = "qwen-plus"
 
-    # 小米 MiMo（实际使用的 OpenAI 兼容端点，推理模型）
+ # 小米 MiMo（实际使用的 OpenAI 兼容端点，推理模型）
     mimo_api_base: str = "https://token-plan-cn.xiaomimimo.com/v1"
     mimo_api_key: str = ""
     mimo_model: str = "mimo-v2.5"
 
-    # 备用 LLM HTTP 端点（Spark / DeepSeek OpenAI 兼容接口）
+ # 备用 LLM HTTP 端点（Spark / DeepSeek OpenAI 兼容接口）
     spark_http_url: str = "https://spark-api-open.xf-yun.com/v1/chat/completions"
     deepseek_http_url: str = "https://api.deepseek.com/chat/completions"
 
-    # 讯飞 Spark X 深度推理（优先于 Spark 传统模型；X2 为默认端点）
-    # model 固定为 spark-x（X2 与 X1.5 共用）；X2 端点 /x2/chat/completions，
-    # X1.5 端点 /v2/chat/completions（2026-08-11 实测均可用，X2 12s / X1.5 7s）
+ # 讯飞 Spark X 深度推理（优先于 Spark 传统模型；X2 为默认端点）
+ # model 固定为 spark-x（X2 与 X1.5 共用）；X2 端点 /x2/chat/completions，
+ # X1.5 端点 /v2/chat/completions（2026-08-11 实测均可用，X2 12s / X1.5 7s）
     spark_x_url: str = "https://spark-api-open.xf-yun.com/x2/chat/completions"
     spark_x_model: str = "spark-x"
 
-    # 数据源抓取与健康探测端点
+ # 数据源抓取与健康探测端点
     zhipin_base_url: str = "https://www.zhipin.com"
-    # source_name → probe_url 兜底映射（数据源表缺失 probe_url 时用于健康探测）
+ # source_name → probe_url 兜底映射（数据源表缺失 probe_url 时用于健康探测）
     source_probe_urls: dict[str, str] = {
         "Arbeitnow (远程)": "https://arbeitnow.com/api/job-board-api",
         "Jobicy (远程)": "https://jobicy.com/api/v2/remote-jobs?count=1",
@@ -213,18 +213,18 @@ class Settings(BaseSettings):
         "Remotive (远程)": "https://remotive.com/api/remote-jobs?limit=1",
     }
 
-    # ── 阈值配置 ──
-    # 抽取管线
+ # ── 阈值配置 ──
+ # 抽取管线
     extraction_vector_threshold: float = 0.85
     extraction_min_sources: int = 3
 
-    # 评估质量门禁（NEW-11 唯一常量，§14 验收口径 F1 >= 90%）
-    # judge API 默认阈值 + evaluation/ 脚本门禁统一引用此值
+ # 评估质量门禁（唯一常量，验收口径 F1 >= 90%）
+ # judge API 默认阈值 + evaluation/ 脚本门禁统一引用此值
     eval_f1_gate: float = 0.90
 
-    # 入库完整性门禁（Phase 23 Task 10, IC-01..07 CI 回归守护）——
-    # evaluation/ingestion_consistency.py 引用的第二道门禁，阈值集中于此（与
-    # eval_f1_gate 同模式，脚本不硬编码阈值）。SQL 口径见 docs/ingestion-kpi-calibers.md。
+ # 入库完整性门禁（Phase 23 Task 10, ..07 CI 回归守护）——
+ # evaluation/ingestion_consistency.py 引用的第二道门禁，阈值集中于此（与
+ # eval_f1_gate 同模式，脚本不硬编码阈值）。SQL 口径见 docs/ingestion-kpi-calibers.md。
     ingestion_psr_tolerance: float = Field(
         default=0.005,
         ge=0.0,
@@ -259,41 +259,41 @@ class Settings(BaseSettings):
         description="quality dashboard 与 status_aggregator 重叠 KPI（待审计数）允许最大差（默认 0，IC-07）",
     )
 
-    # 反幻觉守卫
+ # 反幻觉守卫
     hallucination_semantic_threshold: float = 0.85
     hallucination_min_sources: int = 3
     hallucination_min_span_weeks: int = 4
     hallucination_verified_threshold: float = 0.8
     hallucination_pending_threshold: float = 0.5
 
-    # 路径推荐（默认值与 core/evolution/path_recommender.py 的代码现状对齐，行为保持）
+ # 路径推荐（默认值与 core/evolution/path_recommender.py 的代码现状对齐，行为保持）
     path_min_similarity: float = 0.3
     path_min_evidence: int = 1
 
-    # 信任度评分 (trust_integration)
+ # 信任度评分 (trust_integration)
     trust_decay_rate: float = 0.15
     trust_max_sources: int = 10
     trust_verified_threshold: float = 0.8
     trust_pending_threshold: float = 0.5
-    # 演化信任写回门槛（core/evolution/trust_scorer.py WRITEBACK_TRUST_THRESHOLD）
+ # 演化信任写回门槛（core/evolution/trust_scorer.py WRITEBACK_TRUST_THRESHOLD）
     trust_writeback_threshold: float = 0.6
 
-    # 新兴技能检测 (emergence_finder)
+ # 新兴技能检测 (emergence_finder)
     emergence_z_emerging: float = 2.0
     emergence_z_rising: float = 1.5
     emergence_z_declining: float = -1.5
     emergence_min_frequency: int = 3
     emergence_min_sources: int = 3
 
-    # 匹配引擎
+ # 匹配引擎
     match_threshold: float = 0.6
 
-    # 质量门禁
+ # 质量门禁
     quality_f1_threshold: float = 0.90
     quality_hallucination_rate_threshold: float = 0.10
     quality_high_trust_confidence: float = 0.8
 
-    # ── 流水线配置 ──
+ # ── 流水线配置 ──
     pipeline_stage_timeout: int = 1800  # 单阶段超时(秒), 默认30分钟
     pipeline_worker_concurrency: int = 2
     pipeline_crawl_concurrency: int = 5
@@ -302,31 +302,31 @@ class Settings(BaseSettings):
     pipeline_import_batch_size: int = 200  # 阶段 import 每次读取已清洗 JD 的批量上限 (2026-08-16: 500 -> 200)
     pipeline_graph_sync_reconcile_on_sync: bool = False  # graph_sync 阶段可选对账开关
 
-    # ── 资源探测超时 ──
+ # ── 资源探测超时 ──
     httpx_health_check_timeout: float = 3.0  # 健康探测（Ollama / Redis / Neo4j 等）
 
-    # ── Pipeline match 并发（替代 pipeline/steps.py 内的 Semaphore(50)）──
+ # ── Pipeline match 并发（替代 pipeline/steps.py 内的 Semaphore(50)）──
     pipeline_match_concurrency: int = 50
 
-    # ── PLAN-015①: X-Forwarded-For 可信代理白名单 (CIDR 列表, 逗号分隔)
-    # 空 = 不可信, 拒绝伪造的 XFF 头 (默认最保守)
-    # 生产示例: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" (k8s 内部 + RFC1918)
+ # ── PLAN-015①: X-Forwarded-For 可信代理白名单 (CIDR 列表, 逗号分隔)
+ # 空 = 不可信, 拒绝伪造的 XFF 头 (默认最保守)
+ # 生产示例: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" (k8s 内部 + RFC1918)
     trusted_proxy_cidrs: str = Field(
         default="", description="XFF 可信代理 CIDR 白名单 (逗号分隔); 空=拒绝伪造"
     )
 
-    # ── PLAN-015②: forgot-password 通道决策
-    # 默认 out_of_band: token 写入 Redis 但**不返回响应**, 等邮件/外带渠道接入
-    # dev_return_token: 仅 dev 环境允许响应中回 token, 供 e2e / 手动验证
-    # (字段名故意宽松, 未来可挂 "smtp" / "webhook" 等真实通道)
+ # ── PLAN-015②: forgot-password 通道决策
+ # 默认 out_of_band: token 写入 Redis 但**不返回响应**, 等邮件/外带渠道接入
+ # dev_return_token: 仅 dev 环境允许响应中回 token, 供 e2e / 手动验证
+ # (字段名故意宽松, 未来可挂 "smtp" / "webhook" 等真实通道)
     forgot_password_delivery: str = Field(
         default="out_of_band",
         description="forgot-password 令牌投递方式: out_of_band (默认, 仅写 Redis) / dev_return_token (响应回 token, 仅 dev)",
     )
 
-    # P1-AUDIT-FIX (2026-08-13): 原方法每次请求都 split + ip_network × N
-    # （限流中间件/审计每请求调用一次）。trusted_proxy_cidrs 非运行时可变，
-    # 缓存为 cached_property 只解析一次。
+ # P1-AUDIT-FIX (2026-08-13): 原方法每次请求都 split + ip_network × N
+ # （限流中间件/审计每请求调用一次）。trusted_proxy_cidrs 非运行时可变，
+ # 缓存为 cached_property 只解析一次。
     @cached_property
     def trusted_proxy_networks(self) -> list:
         """PLAN-015①: 解析 trusted_proxy_cidrs 为 ipaddress 网列表 (惰性, 只解析一次)。"""
@@ -344,7 +344,7 @@ class Settings(BaseSettings):
                 logger.warning("trusted_proxy_cidrs 忽略非法 CIDR: {!r}", cidr)
         return nets
 
-    # ── Runtime-mutable config whitelist (SEC-06) ──
+ # ── Runtime-mutable config whitelist () ──
     _mutable_config_keys: ClassVar[set[str]] = {
         "pipeline_stage_timeout",
         "pipeline_worker_concurrency",
@@ -379,10 +379,10 @@ class Settings(BaseSettings):
             if value is None:
                 continue
 
-            # Validate using the field's own constraints
-            # P1-AUDIT-FIX (2026-08-13): 原实现用 `model_validate({key, app_env})`
-            # 校验单字段——整模型重建开销大，且一旦 Settings 未来加必填字段
-            # 就会误失败。TypeAdapter 只校验该字段类型，语义一致、开销更小。
+ # Validate using the field's own constraints
+ # P1-AUDIT-FIX (2026-08-13): 原实现用 `model_validate({key, app_env})`
+ # 校验单字段——整模型重建开销大，且一旦 Settings 未来加必填字段
+ # 就会误失败。TypeAdapter 只校验该字段类型，语义一致、开销更小。
             field_info = type(self).model_fields.get(key)
             validated_value: Any
             if field_info is not None:
@@ -412,34 +412,34 @@ class Settings(BaseSettings):
 
         return changes
 
-    # ------------------------------------------------------------------
-    # 校验：合成 postgres_uri & 检测未配置密码
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # 校验：合成 postgres_uri & 检测未配置密码
+ # ------------------------------------------------------------------
     @model_validator(mode="after")
     def _resolve_postgres_uri_and_warn(self) -> "Settings":
-        # 若未通过 POSTGRES_URI 环境变量传入完整 URI，则由组件拼接
+ # 若未通过 POSTGRES_URI 环境变量传入完整 URI，则由组件拼接
         if self.postgres_uri is None:
-            # W1-T7 fix (DATA-03): asyncpg 的 connect() 只接受 libpq 风格的 SSLMode
-            # 字符串（disable/allow/prefer/require/verify_ca/verify_full），
-            # 而不接受 libpq 旧的 `sslmode=` 或非布尔 `ssl=false/true`。
-            # 直白塞 `?sslmode=...` 会让 asyncpg 抛 `unexpected keyword
-            # argument 'sslmode'`（alembic 立即触发；FastAPI 的连接池懒加载
-            # 偶尔能掩盖）。asyncpg 0.27+ 还会在 `ssl=` 接收到无效字符串时
-            # 抛 `AttributeError: type object 'SSLMode' has no attribute ...`。
+ # W1-T7 fix (DATA-03): asyncpg 的 connect() 只接受 libpq 风格的 SSLMode
+ # 字符串（disable/allow/prefer/require/verify_ca/verify_full），
+ # 而不接受 libpq 旧的 `sslmode=` 或非布尔 `ssl=false/true`。
+ # 直白塞 `?sslmode=...` 会让 asyncpg 抛 `unexpected keyword
+ # argument 'sslmode'`（alembic 立即触发；FastAPI 的连接池懒加载
+ # 偶尔能掩盖）。asyncpg 0.27+ 还会在 `ssl=` 接收到无效字符串时
+ # 抛 `AttributeError: type object 'SSLMode' has no attribute ...`。
             #
-            # P1-AUDIT-FIX (2026-08-13): 此前注释声称 "prefer/allow/disable
-            # 直接省略 SSL 参数"，但实际实现对所有合法 mode（含 prefer/allow/
-            # disable）都显式传 `?ssl=<asyncpg_mode>`——功能正确（asyncpg 原生
-            # 接受这些字符串），注释与实现不符。现按实现如实描述：
-            # 把 libpq 风格 mode（可带连字符）统一转成 asyncpg 的 underscore
-            # 形式透传；未知值保守回落 `?ssl=prefer`（asyncpg 默认行为）。
+ # P1-AUDIT-FIX (2026-08-13): 此前注释声称 "prefer/allow/disable
+ # 直接省略 SSL 参数"，但实际实现对所有合法 mode（含 prefer/allow/
+ # disable）都显式传 `?ssl=<asyncpg_mode>`——功能正确（asyncpg 原生
+ # 接受这些字符串），注释与实现不符。现按实现如实描述：
+ # 把 libpq 风格 mode（可带连字符）统一转成 asyncpg 的 underscore
+ # 形式透传；未知值保守回落 `?ssl=prefer`（asyncpg 默认行为）。
             sslmode = (self.postgres_sslmode or "prefer").lower()
             if sslmode in {"require", "verify-ca", "verify-full", "allow", "prefer", "disable"}:
-                # asyncpg SSLMode 名称：用 underscore 形式（verify_ca / verify_full）
+ # asyncpg SSLMode 名称：用 underscore 形式（verify_ca / verify_full）
                 asyncpg_ssl_mode = sslmode.replace("-", "_")
                 ssl_query = f"?ssl={asyncpg_ssl_mode}"
             else:
-                # 未知值：保守走 prefer（asyncpg 默认 = 优先加密、失败回退明文）
+ # 未知值：保守走 prefer（asyncpg 默认 = 优先加密、失败回退明文）
                 ssl_query = "?ssl=prefer"
             object.__setattr__(
                 self,
@@ -451,35 +451,35 @@ class Settings(BaseSettings):
                 ),
             )
 
-        # 检测仍为占位值的密码字段
+ # 检测仍为占位值的密码字段
         sensitive_fields = {
             "secret_key": self.secret_key,
             "neo4j_password": self.neo4j_password,
             "postgres_password": self.postgres_password,
         }
-        # P0-2 fix: 若 bootstrap 开启，admin 密码也算敏感字段
+ # 若 bootstrap 开启，admin 密码也算敏感字段
         if self.bootstrap_seed_admin:
             sensitive_fields["bootstrap_admin_password"] = self.bootstrap_admin_password
         unconfigured = [name for name, value in sensitive_fields.items() if value == _UNCONFIGURED]
         if unconfigured:
             msg = f"⚠️  以下配置仍为默认占位值 {_UNCONFIGURED!r}，请在 .env 中设置真实值：{', '.join(unconfigured)}"
             if self.app_env == "production":
-                # P1 修复 (SEC-02/SEC-03): 生产环境必须配置真实密钥/密码
+ # P1 修复 (/): 生产环境必须配置真实密钥/密码
                 raise RuntimeError(msg + "（生产环境必须修改！）")
             else:
                 logger.warning(msg)
 
-        # P1 fix: production environment must have debug mode disabled
+ # P1 fix: production environment must have debug mode disabled
         if self.app_env == "production" and self.app_debug:
             raise RuntimeError("Debug mode (APP_DEBUG=True) must be disabled in production environment")
 
-        # P1 修复 (DATA-04): 生产环境 Redis 必须有密码
+ # P1 修复 (DATA-04): 生产环境 Redis 必须有密码
         if self.app_env == "production" and "@" not in self.redis_uri:
             raise RuntimeError(
                 "Redis URI 缺少密码认证（生产环境必须配置 REDIS_URL 含密码），格式：redis://:password@host:port/db"
             )
 
-        # P1 修复 (SEC-02): 生产环境 SECRET_KEY 必须足够长
+ # P1 修复 (): 生产环境 SECRET_KEY 必须足够长
         if self.app_env == "production" and len(self.secret_key) < 32:
             raise RuntimeError(
                 f"SECRET_KEY 长度不足（当前 {len(self.secret_key)} 字符），"
@@ -487,13 +487,13 @@ class Settings(BaseSettings):
                 f'生成方式：python -c "import secrets; print(secrets.token_urlsafe(32))"'
             )
 
-        # P0-2 fix: 生产环境必须配置独立的 bootstrap_admin_password
+ # 生产环境必须配置独立的 bootstrap_admin_password
         if self.app_env == "production" and self.bootstrap_admin_password == _UNCONFIGURED:
             raise RuntimeError("BOOTSTRAP_ADMIN_PASSWORD 未配置。生产环境必须在 .env.production 中设置强密码。")
 
-        # NEW-P1a (AUDIT_VERIFICATION §1.4 C5): 生产严禁自动播种弱管理员。
-        # 即便运维误把 .env.production 的 BOOTSTRAP_SEED_ADMIN 设回 true，
-        # 启动期也必须 fail-fast，不允许 admin:starmap2024 进入生产库。
+ # NEW-P1a (AUDIT_VERIFICATION C5): 生产严禁自动播种弱管理员。
+ # 即便运维误把 .env.production 的 BOOTSTRAP_SEED_ADMIN 设回 true，
+ # 启动期也必须 fail-fast，不允许 admin:starmap2024 进入生产库。
         if self.app_env == "production" and self.bootstrap_seed_admin:
             raise RuntimeError(
                 "BOOTSTRAP_SEED_ADMIN=true 在生产环境被拒绝。"
@@ -501,14 +501,14 @@ class Settings(BaseSettings):
                 "请通过 /api/v1/admin/users 显式创建。"
             )
 
-        # W1-T2 (PLAN §W1-T2): dev 匿名 admin 旁路仅允许在 dev 且显式 opt-in。
-        # 生产部署绝不允许启用——它会让匿名请求获得 admin 角色。
+ # W1-T2 (PLAN §W1-T2): dev 匿名 admin 旁路仅允许在 dev 且显式 opt-in。
+ # 生产部署绝不允许启用——它会让匿名请求获得 admin 角色。
         if self.app_env == "production" and self.dev_anon_admin:
             raise RuntimeError("DEV_ANON_ADMIN=true 在生产环境被拒绝。生产部署必须强制 JWT 鉴权。")
 
-        # W1-T7 fix (DATA-03): 生产 Postgres 必须强制 SSL。
-        # 仅 `require`/`verify-ca`/`verify-full` 三档视为合规。
-        # `disable`/`prefer`/`allow` 在生产等同裸奔——拒绝启动。
+ # W1-T7 fix (DATA-03): 生产 Postgres 必须强制 SSL。
+ # 仅 `require`/`verify-ca`/`verify-full` 三档视为合规。
+ # `disable`/`prefer`/`allow` 在生产等同裸奔——拒绝启动。
         if self.app_env == "production":
             sslmode = (self.postgres_sslmode or "").lower()
             if sslmode not in {"require", "verify-ca", "verify-full"}:
@@ -517,15 +517,15 @@ class Settings(BaseSettings):
                     f"生产必须使用 require / verify-ca / verify-full 之一。"
                 )
 
-        # W1-T7 fix (DATA-02): 生产 Neo4j 必须走 bolt+s://。
-        # 否则 Bolt 协议明文传输，节点凭据与查询内容均裸奔。
+ # W1-T7 fix (DATA-02): 生产 Neo4j 必须走 bolt+s://。
+ # 否则 Bolt 协议明文传输，节点凭据与查询内容均裸奔。
         if self.app_env == "production" and not self.neo4j_uri.startswith(("bolt+s://", "neo4j+s://", "bolt+ssc://")):
             raise RuntimeError(f"NEO4J_URI={self.neo4j_uri!r} 在生产环境被拒绝。生产必须使用 bolt+s:// 启用 TLS。")
 
-        # AUTH-04 fix: 生产 CORS 白名单校验
-        # 默认 cors_origins 仅含 localhost dev 端口，生产必须通过
-        # CORS_ALLOWED_ORIGINS 环境变量显式覆盖为真实域名。
-        # 任何 dev-only origin 出现即拒绝（混合配置也拦截）
+ # AUTH-04 fix: 生产 CORS 白名单校验
+ # 默认 cors_origins 仅含 localhost dev 端口，生产必须通过
+ # CORS_ALLOWED_ORIGINS 环境变量显式覆盖为真实域名。
+ # 任何 dev-only origin 出现即拒绝（混合配置也拦截）
         if self.app_env == "production":
             _dev_only_origins = {
                 "http://localhost:5173",
@@ -543,11 +543,11 @@ class Settings(BaseSettings):
                     f"如需添加生产域名，请设置 CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://api.yourdomain.com"
                 )
 
-        # Phase DB-AUTH: 密码策略由 PostgreSQL users 表的 bcrypt hash 保证
-        # 这里不再做 AUTH_USERS plaintext 校验（该 env 已废弃）
+ # Phase DB-AUTH: 密码策略由 PostgreSQL users 表的 bcrypt hash 保证
+ # 这里不再做 AUTH_USERS plaintext 校验（该 env 已废弃）
 
-        # D-04/D-08: LLM key 启动校验 — 仅 WARNING 不阻止启动
-        # Ollama 本地模型始终可作降级（docker-compose 已含），无云端 key 不致命
+ # D-04/D-08: LLM key 启动校验 — 仅 WARNING 不阻止启动
+ # Ollama 本地模型始终可作降级（docker-compose 已含），无云端 key 不致命
         llm_keys = {
             "MIMO_API_KEY": self.mimo_api_key,
             "DEEPSEEK_API_KEY": self.deepseek_api_key,

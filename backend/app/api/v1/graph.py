@@ -58,8 +58,8 @@ async def get_graph_overview(
 ) -> DomainOverviewResponse:
     import time
 
-    # PLAN-006④: 服务端响应时间戳注入；前端据此显示"截至 X"诚实信号
-    # （Neo4j 节点无内置 updated_at，不编造节点级 freshness）
+ # PLAN-006④: 服务端响应时间戳注入；前端据此显示"截至 X"诚实信号
+ # （Neo4j 节点无内置 updated_at，不编造节点级 freshness）
     generated_at = time.time()
     if driver is None:
         return DomainOverviewResponse(
@@ -68,7 +68,7 @@ async def get_graph_overview(
             independent_edges=0,
             generated_at=generated_at,
         )
-    # Dispatch to specialized queries
+ # Dispatch to specialized queries
     from app.services.graph_service import (
         fetch_overview_by_domain,
         fetch_overview_by_level,
@@ -103,19 +103,19 @@ async def get_ka_positions(
         return KAPositionsResponse(ka_id=ka_id)
     from app.services.graph_service import serialize_node, serialize_relationship
 
-    # ── Dispatch by ID prefix ──
-    # domain mode: ka_id is Neo4j elementId (e.g. "4:xxx:123")
-    # tech_stack mode: ka_id is literal like "ts-ai", "ts-bigdata"
-    # level mode: ka_id is literal like "lv-junior", "lv-mid"
+ # ── Dispatch by ID prefix ──
+ # domain mode: ka_id is Neo4j elementId (e.g. "4:xxx:123")
+ # tech_stack mode: ka_id is literal like "ts-ai", "ts-bigdata"
+ # level mode: ka_id is literal like "lv-junior", "lv-mid"
     if ka_id.startswith("ts-") or ka_id.startswith("lv-"):
-        # Build a synthetic category filter — reuse the same classifiers
-        # from graph_overview.py to find matching positions.
+ # Build a synthetic category filter — reuse the same classifiers
+ # from graph_overview.py to find matching positions.
         from app.services.graph_overview import (
             _classify_level,
             _classify_tech_stack,
         )
 
-        # Reverse-lookup the category name from the literal ID
+ # Reverse-lookup the category name from the literal ID
         stack_id_prefix = {
             "人工智能": "ts-ai",
             "大数据": "ts-bigdata",
@@ -146,7 +146,7 @@ async def get_ka_positions(
                     break
 
         async with driver.session() as session:
-            # Phase 1: fetch all Positions and filter in-application
+ # fetch all Positions and filter in-application
             result = await session.run("MATCH (p:Position) RETURN p")
             matched_element_ids: list[str] = []
             positions: dict[str, dict[str, Any]] = {}
@@ -168,7 +168,7 @@ async def get_ka_positions(
                     positions[pos_data["id"]] = pos_data
                     matched_element_ids.append(p_node.element_id)
 
-            # Phase 2: batch-fetch REQUIRES edges + Skill nodes for all matched positions
+ # batch-fetch REQUIRES edges + Skill nodes for all matched positions
             skills: dict[str, dict[str, Any]] = {}
             edges: list[dict[str, Any]] = []
             if matched_element_ids:
@@ -192,7 +192,7 @@ async def get_ka_positions(
             skills=list(skills.values()),
         )
 
-    # ── heat mode: ka_id is "heat-skill-{skillName}" ──
+ # ── heat mode: ka_id is "heat-skill-{skillName}" ──
     if ka_id.startswith("heat-skill-"):
         skill_name = ka_id[len("heat-skill-"):]
         async with driver.session() as session:
@@ -224,10 +224,10 @@ async def get_ka_positions(
                 skills=list(skills_dict.values()),
             )
 
-    # ── industry mode: ka_id is "ind-{industryKey}" ──
+ # ── industry mode: ka_id is "ind-{industryKey}" ──
     if ka_id.startswith("ind-"):
         from app.services.graph_overview import INDUSTRY_ID_PREFIX, _classify_industry
-        # Reverse-lookup the industry name from the literal ID
+ # Reverse-lookup the industry name from the literal ID
         industry_name = ""
         for name, prefix in INDUSTRY_ID_PREFIX.items():
             if prefix == ka_id:
@@ -278,9 +278,9 @@ async def get_ka_positions(
             skills=list(skills_dict.values()),
         )
 
-    # ── domain mode: match by Neo4j elementId ──
+ # ── domain mode: match by Neo4j elementId ──
     async with driver.session() as session:
-        # Find KA name first
+ # Find KA name first
         ka_query = """
         MATCH (ka:KnowledgeArea)
         WHERE elementId(ka) = $ka_id
@@ -291,7 +291,7 @@ async def get_ka_positions(
         ka_record = await ka_result.single()
         ka_name = ka_record["name"] if ka_record and ka_record["name"] else ""
 
-        # Get positions under this KA via Skill BELONGS_TO
+ # Get positions under this KA via Skill BELONGS_TO
         query = """
         MATCH (ka:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[r:REQUIRES]-(p:Position)
         WHERE elementId(ka) = $ka_id

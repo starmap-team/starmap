@@ -18,8 +18,8 @@ from app.config import get_settings
 from app.schemas.admin import SeedResetResponse
 
 # backend/app/services/admin_seed_service.py
-#   host:  repo_root/backend/app/services → _BACKEND_DIR = repo_root/backend
-#   容器:  repo_root/backend 挂载为 /app   → _BACKEND_DIR = /app
+# host: repo_root/backend/app/services → _BACKEND_DIR = repo_root/backend
+# 容器: repo_root/backend 挂载为 /app → _BACKEND_DIR = /app
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 # scripts/ 位置：容器内 compose 挂载于 /app/scripts（=_BACKEND_DIR/scripts）；
 # 宿主机上为仓库根的兄弟目录（=_BACKEND_DIR.parent/scripts）。
@@ -45,9 +45,9 @@ async def _run_one(script: str) -> tuple[bool, str]:
         logger.warning("seed script not found: %s", script)
         return False, f"skip {script}: not found"
 
-    # 种子脚本按容器约定从 POSTGRES_URI 取连接串；无则 fallback 到 localhost（主机端口），
-    # 容器内会连错。显式注入应用已解析的正确 URI（settings.postgres_uri）。
-    # 注意：asyncpg 不接受 SQLAlchemy 风格的 `?ssl=` 查询参数，须剥离后再注入。
+ # 种子脚本按容器约定从 POSTGRES_URI 取连接串；无则 fallback 到 localhost（主机端口），
+ # 容器内会连错。显式注入应用已解析的正确 URI（settings.postgres_uri）。
+ # 注意：asyncpg 不接受 SQLAlchemy 风格的 `?ssl=` 查询参数，须剥离后再注入。
     env = dict(os.environ)
     try:
         uri = getattr(get_settings(), "postgres_uri", None)
@@ -55,7 +55,7 @@ async def _run_one(script: str) -> tuple[bool, str]:
             env["POSTGRES_URI"] = uri.split("?")[0]
     except Exception:  # noqa: BLE001 — 配置不可用时让种子走自己的默认值
         pass
-    # 子脚本 import `app.*`（config / db.session），把 backend 目录加进 PYTHONPATH。
+ # 子脚本 import `app.*`（config / db.session），把 backend 目录加进 PYTHONPATH。
     env["PYTHONPATH"] = str(_BACKEND_DIR) + os.pathsep + env.get("PYTHONPATH", "")
 
     try:

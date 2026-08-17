@@ -45,7 +45,7 @@ def pydantic_errors_to_field_errors(exc: ValidationError | RequestValidationErro
     Returns:
         FieldError 列表，每条对应一个校验失败字段
     """
-    # 统一获取 errors() 列表
+ # 统一获取 errors() 列表
     errors = exc.errors() if isinstance(exc, ValidationError) else exc.errors()
     field_errors: list[FieldError] = []
 
@@ -55,7 +55,7 @@ def pydantic_errors_to_field_errors(exc: ValidationError | RequestValidationErro
         error_type = err.get("type", "value_error")
         error_msg = err.get("msg", "校验失败")
 
-        # 构建用户友好的错误消息
+ # 构建用户友好的错误消息
         user_msg = _error_type_to_user_message(error_type, error_msg, field_path)
 
         field_errors.append(

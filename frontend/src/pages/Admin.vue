@@ -122,7 +122,7 @@ const {
   paged: pagedGraphNodes,
 } = useGraphNodeList(computed(() => graphNode.graphNodes as GraphNodeItem[]))
 
-// P1-4 fix (functional-review 2026-08-13): 图谱节点管理改为服务端分页。
+// fix (functional-review 2026-08-13): 图谱节点管理改为服务端分页。
 // 此前 fetchGraphNodes() 无参调用默认 limit=20，el-pagination :total 用客户端
 // 已取回列表长度 → 节点 >20 时后端节点完全不可见不可操作。现在翻页/改页大小
 // 时按 offset/limit 重拉后端，:total 用后端 total。
@@ -135,7 +135,7 @@ async function onNodePageChange() {
   )
 }
 
-// P1-4 fix: 搜索/类型过滤变化时服务端重拉（客户端过滤只是当前页内增强），
+// fix: 搜索/类型过滤变化时服务端重拉（客户端过滤只是当前页内增强），
 // 避免服务端分页下跨页搜索漏匹配。
 watch([nodeSearchKeyword, nodeTypeFilter], () => {
   nodeCurrentPage.value = 1

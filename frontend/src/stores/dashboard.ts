@@ -36,7 +36,7 @@ export interface DashboardOverview {
   stale: boolean
   stale_since: number | null
   timestamp: number
-  // Phase 4 (2026-08-17): IndustryClassifier 第四层监测 — 行业质量 KPI
+  // (2026-08-17): IndustryClassifier 第四层监测 — 行业质量 KPI
   // 后端 services/industry_quality_monitor.py 写入 dashboard_service.py
   unclassified_count?: number
   unclassified_ratio?: number
@@ -207,7 +207,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         stale: (raw.stale as boolean) ?? false,
         stale_since: (raw.stale_since as number | null) ?? null,
         timestamp: (raw.timestamp as number) ?? 0,
-        // Phase 4 (2026-08-17): IndustryClassifier 第四层监测 KPI
+        // (2026-08-17): IndustryClassifier 第四层监测 KPI
         unclassified_count: (raw.unclassified_count as number) ?? 0,
         unclassified_ratio: (raw.unclassified_ratio as number) ?? 0,
         new_24h_unclassified_count: (raw.new_24h_unclassified_count as number) ?? 0,
@@ -350,7 +350,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   /** Add a real-time event from SSE stream */
   function addRealtimeEvent(event: RealtimeEvent) {
-    // P1-2 fix (functional-review 2026-08-13): 轮询兜底 when lastEventId 为空时
+    // fix (functional-review 2026-08-13): 轮询兜底 when lastEventId 为空时
     // since=0 → 每次返回窗口内全部事件。此前直接 unshift 无去重 → 每 5 秒
     // 重复叠加同一批事件刷屏，且 normalizeRealtimeEvent 无 raw.id 时 id 恒为
     // `${type}-${ts}-0`，v-for :key 冲突。改为按 id 去重后再插入。

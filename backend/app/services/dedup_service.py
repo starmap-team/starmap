@@ -137,7 +137,7 @@ async def _redis_exact_dedup(
         if exists:
             duplicates.append(rec)
         else:
-            # Mark as seen with a 7-day TTL
+ # Mark as seen with a 7-day TTL
             await redis_client.setex(key, 7 * 86400, "1")
             unique.append(rec)
 
@@ -224,7 +224,7 @@ async def dedup_jd_records(
     if not records:
         return [], []
 
-    # --- Pass 1: Exact dedup (Redis) ---
+ # --- Pass 1: Exact dedup (Redis) ---
     after_exact, exact_dups = await _redis_exact_dedup(
         records, text_getter, redis_client,
     )
@@ -233,7 +233,7 @@ async def dedup_jd_records(
         len(records), len(after_exact), len(exact_dups),
     )
 
-    # --- Pass 2: Fuzzy dedup (SimHash) ---
+ # --- Pass 2: Fuzzy dedup (SimHash) ---
     unique, fuzzy_dups = _simhash_fuzzy_dedup(
         after_exact, text_getter, threshold=threshold,
     )

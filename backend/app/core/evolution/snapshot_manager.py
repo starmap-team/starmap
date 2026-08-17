@@ -87,7 +87,7 @@ class SnapshotManager:
             )
             return None
 
-        # Idempotency: same (position, month) → replace existing snapshot.
+ # Idempotency: same (position, month) → replace existing snapshot.
         await session.execute(
             sa.delete(EvolutionSnapshot).where(
                 EvolutionSnapshot.position_name == position_name,
@@ -137,7 +137,7 @@ class SnapshotManager:
         result = await session.execute(stmt)
         return list(result.scalars().all())
 
-    # ── helpers ──
+ # ── helpers ──
 
     @staticmethod
     def _month_window(snapshot_date: datetime) -> tuple[datetime, datetime]:
@@ -228,14 +228,14 @@ async def list_positions_with_records(
 
     Used by orchestrator to decide which positions need snapshotting.
     """
-    # First: get positions with any completed extraction
-    # P0-AUDIT-FIX (2026-08-13): the previous implementation declared
-    # `min_monthly_jds=30` but never used it — sparse-data positions produced
-    # noisy changelogs and contaminated PSR/Neo4j writes. Apply the threshold
-    # via HAVING on a per-position count subquery.
+ # First: get positions with any completed extraction
+ # P0-AUDIT-FIX (2026-08-13): the previous implementation declared
+ # `min_monthly_jds=30` but never used it — sparse-data positions produced
+ # noisy changelogs and contaminated PSR/Neo4j writes. Apply the threshold
+ # via HAVING on a per-position count subquery.
     if min_monthly_jds > 0:
         from sqlalchemy import func
-        # Subquery: distinct job_titles whose completed-record count >= threshold
+ # Subquery: distinct job_titles whose completed-record count >= threshold
         stmt = (
             sa.select(JDExtractionRecord.job_title)
             .where(JDExtractionRecord.status == "completed")

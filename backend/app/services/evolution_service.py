@@ -43,7 +43,7 @@ async def _cached_load_timeseries(session: AsyncSession, days: int | None = None
             return cached_data
     data = await load_skill_timeseries_data(session, days=days)
     _timeseries_cache[cache_key] = (now, data)
-    # 清理过期条目
+ # 清理过期条目
     expired = [k for k, (t, _) in _timeseries_cache.items() if now - t >= _CACHE_TTL]
     for k in expired:
         del _timeseries_cache[k]
@@ -88,12 +88,12 @@ async def build_evolution_trends(
         logger.info("No timeseries data found for trends in the last {} days", days)
         return []
 
-    # Run emergence detection (使用缓存的 skill_data)
+ # Run emergence detection (使用缓存的 skill_data)
     finder = EmergenceFinder()
     report = finder.scan(skill_data)
     signals_by_name = _build_signals_by_name(report)
 
-    # Load position relations
+ # Load position relations
     rel_stmt = (
         sa.select(SkillRecord.name, PositionRecord.name)
         .select_from(SkillRecord)
@@ -108,13 +108,13 @@ async def build_evolution_trends(
             if pos_name and pos_name not in skill_positions[skill_name]:
                 skill_positions[skill_name].append(pos_name)
 
-    # Build trend items — ALL skills (no [:20] silent truncation: the overview
-    # table + CII chart must reflect the full trend set the user sees in KPI)
+ # Build trend items — ALL skills (no [:20] silent truncation: the overview
+ # table + CII chart must reflect the full trend set the user sees in KPI)
     items: list[dict[str, Any]] = []
     for name, data in skill_data.items():
         signal = signals_by_name.get(name)
         trend = signal.level.value if signal else "stable"
-        # 修复 Pydantic ge=0 校验：负 z_score 会使 confidence 越界，正确 clamp 到 [0, 1]
+ # 修复 Pydantic ge=0 校验：负 z_score 会使 confidence 越界，正确 clamp 到 [0, 1]
         if signal:
             confidence = max(0.0, min(1.0, 0.5 + signal.z_score / 10))
         else:
@@ -154,7 +154,7 @@ async def build_evolution_kpi(
     """
     from app.models.evolution_models import EvolutionChangelog
 
-    # 1/4. Emergence-derived KPIs — full-history scan (same as emerging-alerts)
+ # 1/4. Emergence-derived KPIs — full-history scan (same as emerging-alerts)
     full_skill_data = await _cached_load_timeseries(session)  # 无 days 参数 = 全量
     emerging_count = 0
     alert_count = 0
@@ -164,14 +164,14 @@ async def build_evolution_kpi(
         emerging_count = len(report.emerging) + len(report.rising)
         alert_count = len(report.emerging) + len(report.rising) + len(report.declining)
 
-    # 2. Trust mean — real aggregate over the changelog table (D-12: no placeholder)
+ # 2. Trust mean — real aggregate over the changelog table (D-12: no placeholder)
     trust_result = await session.execute(
         sa.select(sa.func.avg(EvolutionChangelog.trust_score))
     )
     trust_value = trust_result.scalar_one()
     trust_mean = round(float(trust_value), 3) if trust_value is not None else 0.0
 
-    # 3. CII mean — days window (matches the 趋势概览 chart), avg of last points
+ # 3. CII mean — days window (matches the 趋势概览 chart), avg of last points
     skill_data = await _cached_load_timeseries(session, days=days)
     cii_last_points: list[float] = []
     for data in skill_data.values():
@@ -180,13 +180,13 @@ async def build_evolution_kpi(
             cii_last_points.append(points[-1])
     cii_mean = round(sum(cii_last_points) / len(cii_last_points), 1) if cii_last_points else 0.0
 
-    # Phase 11 D-cross: 与 /quality 平均信任度对照口径（Neo4j Skill.trust_score 实时均值）
-    # 复用 quality_service.avg_skill_trust 共享指标模块，避免两处口径漂移
+ # Phase 11 D-cross: 与 /quality 平均信任度对照口径（Neo4j Skill.trust_score 实时均值）
+ # 复用 quality_service.avg_skill_trust 共享指标模块，避免两处口径漂移
     from app.services.quality_service import avg_skill_trust
     try:
         trust_neo4j_skill = round(float(await avg_skill_trust()), 3)
     except Exception:
-        # 返回 None 而非 0.0，让前端显示"不可用"而非误导性的"零信任"
+ # 返回 None 而非 0.0，让前端显示"不可用"而非误导性的"零信任"
         trust_neo4j_skill = None
 
     return {
@@ -297,7 +297,7 @@ async def discover_emerging_positions(
     report = finder.scan(skill_data)
     emerging_names = {s.skill_name for s in report.emerging + report.rising}
 
-    # 岗位 → required 技能名
+ # 岗位 → required 技能名
     rows = (
         await session.execute(
             sa.select(

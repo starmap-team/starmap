@@ -102,9 +102,9 @@ class GraphProjector:
     def __init__(self, driver: Any) -> None:
         self._driver = driver
 
-    # ------------------------------------------------------------------
-    # Single-entity projection
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # Single-entity projection
+ # ------------------------------------------------------------------
 
     async def apply_change(
         self,
@@ -119,11 +119,11 @@ class GraphProjector:
         cid = str(canonical_id)
         props = dict(properties or {})
         props[PK_FIELD] = cid
-        # Architect review (PRD US-003 B): DB「未分类」字面量同步到 Neo4j 会污染
-        # _classify_industry 聚类 —— 归一化为 None，让现有 None-drop 逻辑丢弃。
+ # Architect review (PRD B): DB「未分类」字面量同步到 Neo4j 会污染
+ # _classify_industry 聚类 —— 归一化为 None，让现有 None-drop 逻辑丢弃。
         if "industry" in props and is_unclassified(props.get("industry")):
             props["industry"] = None
-        # Drop None values to avoid Neo4j complaints
+ # Drop None values to avoid Neo4j complaints
         props = {k: v for k, v in props.items() if v is not None}
         try:
             async with self._driver.session() as session:
@@ -143,9 +143,9 @@ class GraphProjector:
             logger.exception("Unexpected error in graph projection: %s %s", label, cid)
             raise GraphProjectionError(str(exc)) from exc
 
-    # ------------------------------------------------------------------
-    # Batch projection (called after pipeline graph_sync stage)
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # Batch projection (called after pipeline graph_sync stage)
+ # ------------------------------------------------------------------
 
     async def apply_batch(
         self,
@@ -162,7 +162,7 @@ class GraphProjector:
 
         try:
             async with self._driver.session() as session:
-                # Position nodes
+ # Position nodes
                 for pos in positions or ():
                     cid = pos.get("canonical_id") or pos.get("id")
                     if not cid:
@@ -178,7 +178,7 @@ class GraphProjector:
                     )
                     result.nodes_upserted += 1
 
-                # Skill nodes
+ # Skill nodes
                 for sk in skills or ():
                     cid = sk.get("canonical_id") or sk.get("id")
                     if not cid:
@@ -192,11 +192,11 @@ class GraphProjector:
                         cid=str(cid),
                         props=props,
                     )
-                    # Phase 23 Task 3: Skill 分支单独累加 skills_upserted（修 admin
-                    # skills_synced 复制粘贴 bug——Position/Skill 不再共用 nodes_upserted）
+ # Phase 23 Task 3: Skill 分支单独累加 skills_upserted（修 admin
+ # skills_synced 复制粘贴 bug——Position/Skill 不再共用 nodes_upserted）
                     result.skills_upserted += 1
 
-                # REQUIRES relations (position_cid -> skill_cid)
+ # REQUIRES relations (position_cid -> skill_cid)
                 for rel in relations or ():
                     p_cid = rel.get("position_canonical_id")
                     s_cid = rel.get("skill_canonical_id")
@@ -230,9 +230,9 @@ class GraphProjector:
             logger.exception("Unexpected error in graph projection: apply_batch")
             raise GraphProjectionError(str(exc)) from exc
 
-    # ------------------------------------------------------------------
-    # Single-entity delete projection
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # Single-entity delete projection
+ # ------------------------------------------------------------------
 
     async def apply_delete(
         self,
@@ -251,7 +251,7 @@ class GraphProjector:
                     "DETACH DELETE n RETURN count(n) AS deleted",
                     cid=cid,
                 )
-                # Modern neo4j driver returns an EagerResult; .single() works.
+ # Modern neo4j driver returns an EagerResult; .single() works.
                 try:
                     record = await result.single()
                     deleted = int(record["deleted"]) if record else 0
@@ -267,9 +267,9 @@ class GraphProjector:
             logger.exception("Unexpected error in graph projection: apply_delete {} {}", label, cid)
             raise GraphProjectionError(str(exc)) from exc
 
-    # ------------------------------------------------------------------
-    # Full reconciliation — diff PG vs Neo4j and prune orphans
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # Full reconciliation — diff PG vs Neo4j and prune orphans
+ # ------------------------------------------------------------------
 
     async def reconcile_all(self, pg_session: Any) -> ProjectionResult:
         """Reconcile the entire PG → Neo4j graph.
@@ -293,7 +293,7 @@ class GraphProjector:
 
             from app.models.extraction_models import PositionRecord, SkillRecord
 
-            # 1. Snapshot Neo4j IDs by label
+ # 1. Snapshot Neo4j IDs by label
             neo4j_ids: dict[str, set[str]] = {}
             async with self._driver.session() as session:
                 for label in ("Position", "Skill"):
@@ -308,10 +308,10 @@ class GraphProjector:
                             ids.add(str(cid))
                     neo4j_ids[label] = ids
 
-            # 2. Snapshot PG IDs
-            # Phase 23 核验修复 (M1b 闭环): 节点快照必须限定 approved——与边层
-            # (line ~440) 及 run_build_graph_from_extractions 口径一致。否则每次
-            # reconcile 都会把 pending_review 岗位回灌图谱（孤儿剪枝后又被回填）。
+ # 2. Snapshot PG IDs
+ # Phase 23 核验修复 (M1b 闭环): 节点快照必须限定 approved——与边层
+ # (line ~440) 及 run_build_graph_from_extractions 口径一致。否则每次
+ # reconcile 都会把 pending_review 岗位回灌图谱（孤儿剪枝后又被回填）。
             pg_pos_ids = {
                 str(row[0])
                 for row in (
@@ -330,7 +330,7 @@ class GraphProjector:
             }
             pg_ids = {"Position": pg_pos_ids, "Skill": pg_skill_ids}
 
-            # 3+4. Prune orphans
+ # 3+4. Prune orphans
             async with self._driver.session() as session:
                 for label, neo_ids in neo4j_ids.items():
                     orphans = neo_ids - pg_ids[label]
@@ -348,12 +348,12 @@ class GraphProjector:
                         )
                         result.orphans_pruned += 1
 
-            # Phase 24 根治④: 清理 canonical_id IS NULL 的 Position 孤儿。
-            # Phase 23 Task 2 切键后，无 canonical_id 的旧节点既不被上方 set-diff
-            # 剪枝（只查 canonical_id IS NOT NULL）也不被投影回填，永久残留——
-            # reconcile 曾报 positions_in_neo4j=189 vs PG=185 差 4 且孤儿清理无效。
-            # 这里按 name 对比 PG approved 岗位名：图中有 name 但 PG 无对应
-            # approved 岗位 → 孤儿，DETACH DELETE。
+ # Phase 24 根治④: 清理 canonical_id IS NULL 的 Position 孤儿。
+ # Phase 23 Task 2 切键后，无 canonical_id 的旧节点既不被上方 set-diff
+ # 剪枝（只查 canonical_id IS NOT NULL）也不被投影回填，永久残留——
+ # reconcile 曾报 positions_in_neo4j=189 vs PG=185 差 4 且孤儿清理无效。
+ # 这里按 name 对比 PG approved 岗位名：图中有 name 但 PG 无对应
+ # approved 岗位 → 孤儿，DETACH DELETE。
             try:
                 pg_approved_names = {
                     str(row[0])
@@ -373,7 +373,7 @@ class GraphProjector:
                     async for rec in null_cid_positions:
                         name = rec["name"]
                         if name not in pg_approved_names:
-                            # 图内无主键孤儿：从 PG 侧找不到 → 删除（级联边）
+ # 图内无主键孤儿：从 PG 侧找不到 → 删除（级联边）
                             await session.run(
                                 "MATCH (p:Position {name: $name}) "
                                 "WHERE p.canonical_id IS NULL DETACH DELETE p",
@@ -384,7 +384,7 @@ class GraphProjector:
             except Exception as exc:  # 兜底清理 fail-soft，不阻断主对账
                 logger.warning("reconcile: null-cid orphan prune skipped: {}", exc)
 
-            # 5. Backfill PG → Neo4j for missing nodes (best-effort)
+ # 5. Backfill PG → Neo4j for missing nodes (best-effort)
             missing_pos = pg_pos_ids - neo4j_ids["Position"]
             missing_skill = pg_skill_ids - neo4j_ids["Skill"]
 
@@ -400,10 +400,10 @@ class GraphProjector:
                     )
                 ).scalars().all() if missing_skill else []
 
-                # D5 fix (2026-08-12): 抽取图写入路径（graph_writer merge_position/merge_skill）
-                # 按 name MERGE 时不设 canonical_id → 产生"同名孤儿节点"；此处先按名链接
-                # （MATCH name + SET canonical_id），使 apply_batch 的 canonical MERGE 命中
-                # 同一节点而非创建重复。幂等：已链接节点后续只更新属性。
+ # D5 fix (2026-08-12): 抽取图写入路径（graph_writer merge_position/merge_skill）
+ # 按 name MERGE 时不设 canonical_id → 产生"同名孤儿节点"；此处先按名链接
+ # （MATCH name + SET canonical_id），使 apply_batch 的 canonical MERGE 命中
+ # 同一节点而非创建重复。幂等：已链接节点后续只更新属性。
                 async with self._driver.session() as session:
                     for row, label in (
                         *((p, "Position") for p in positions),
@@ -420,8 +420,8 @@ class GraphProjector:
                         "canonical_id": str(p.id),
                         "name": p.name,
                         "name_cn": p.name_cn,
-                        # Architect review (PRD US-003 B): 归一化为 None 避免 Neo4j
-                        # _classify_industry 把「未分类」聚成假行业桶。
+ # Architect review (PRD B): 归一化为 None 避免 Neo4j
+ # _classify_industry 把「未分类」聚成假行业桶。
                         "industry": None if is_unclassified(p.industry) else p.industry,
                         "description": p.description,
                     }
@@ -441,14 +441,14 @@ class GraphProjector:
                     skills=skill_dicts,
                 )
                 result.nodes_upserted += backfill.nodes_upserted
-                # Phase 23 Task 3: Skill 分支计数单独累加（修 admin skills_synced bug）
+ # Phase 23 Task 3: Skill 分支计数单独累加（修 admin skills_synced bug）
                 result.skills_upserted += backfill.skills_upserted
                 result.errors.extend(backfill.errors)
 
-            # 6. 边层补缺（Phase 23 Task 3，IC-05）：PG approved 岗位 PSR 边按
-            # canonical_id 对账补缺（复用 apply_batch relations 分支）。多余边只记
-            # drift（admin/daily 对账 audit diff 暴露）不自动删——抽取/演化双写路径
-            # 都可能合法建边，误删风险大（phase prohibition）。
+ # 6. 边层补缺（Phase 23 Task 3，）：PG approved 岗位 PSR 边按
+ # canonical_id 对账补缺（复用 apply_batch relations 分支）。多余边只记
+ # drift（admin/daily 对账 audit diff 暴露）不自动删——抽取/演化双写路径
+ # 都可能合法建边，误删风险大（phase prohibition）。
             edge_backfill = await self._reconcile_requires_edges(pg_session)
             result.edges_upserted += edge_backfill.edges_upserted
             result.errors.extend(edge_backfill.errors)

@@ -78,7 +78,7 @@ async def reconcile_neo4j_endpoint(
     result = await projector.reconcile_all(session)
     duration_ms = int((time.time() - start) * 1000)
 
-    # 验证对齐（节点 + REQUIRES 边）
+ # 验证对齐（节点 + REQUIRES 边）
     async with driver.session() as s:
         r1 = await s.run("MATCH (p:Position) RETURN count(p) AS c")
         neo4j_pos = int((await r1.single())["c"])
@@ -87,8 +87,8 @@ async def reconcile_neo4j_endpoint(
         r3 = await s.run("MATCH (:Position)-[r:REQUIRES]->(:Skill) RETURN count(r) AS c")
         neo4j_requires = int((await r3.single())["c"])
 
-    # Phase 23 核验修复 (M1b 闭环): PG 计数必须限定 approved——Neo4j 只投影
-    # approved 岗位，否则全量计数 (359) vs 图节点 (184) 误报 critical。
+ # Phase 23 核验修复 (M1b 闭环): PG 计数必须限定 approved——Neo4j 只投影
+ # approved 岗位，否则全量计数 (359) vs 图节点 (184) 误报 critical。
     pg_pos = (
         await session.execute(
             select(func.count(PositionRecord.id)).where(
@@ -97,7 +97,7 @@ async def reconcile_neo4j_endpoint(
         )
     ).scalar() or 0
     pg_skl = (await session.execute(select(func.count(SkillRecord.id)))).scalar() or 0
-    # IC-05: PG 侧只统计 approved 岗位的 PSR（Neo4j 只投影 approved）
+ # : PG 侧只统计 approved 岗位的 PSR（Neo4j 只投影 approved）
     pg_requires = (
         await session.execute(
             select(func.count(PositionSkillRelation.id))
@@ -107,20 +107,20 @@ async def reconcile_neo4j_endpoint(
     ).scalar() or 0
     requires_diff = abs(int(neo4j_requires) - int(pg_requires))
 
-    # Phase 24 根治③: 幽灵边明细检测——Neo4j 有但 PG approved 无的 REQUIRES 边对。
-    # 演化 removed 写回若未同步删边，会在此暴露具体 (position, skill) 供审计定位
-    # （修复后 normal 路径 removed 已同步删边，此处是兜底防线）。
+ # Phase 24 根治③: 幽灵边明细检测——Neo4j 有但 PG approved 无的 REQUIRES 边对。
+ # 演化 removed 写回若未同步删边，会在此暴露具体 (position, skill) 供审计定位
+ # （修复后 normal 路径 removed 已同步删边，此处是兜底防线）。
     ghost_edges: list[dict[str, str]] = []
     try:
         async with driver.session() as s:
-            # 导出 Neo4j 全部 REQUIRES 边（canonical_id 对）
+ # 导出 Neo4j 全部 REQUIRES 边（canonical_id 对）
             r4 = await s.run(
                 "MATCH (p:Position)-[r:REQUIRES]->(sk:Skill) "
                 "WHERE p.canonical_id IS NOT NULL AND sk.canonical_id IS NOT NULL "
                 "RETURN p.canonical_id AS pid, sk.canonical_id AS sid"
             )
             neo_edges = [(str(rec["pid"]), str(rec["sid"])) async for rec in r4]
-        # PG approved PSR 的 (position_id, skill_id) 集合
+ # PG approved PSR 的 (position_id, skill_id) 集合
         pg_psr_pairs = set()
         pg_rows = await session.execute(
             select(PositionSkillRelation.position_id, PositionSkillRelation.skill_id)
@@ -140,7 +140,7 @@ async def reconcile_neo4j_endpoint(
     except Exception as exc:  # 兜底检测 fail-soft，不阻断对账
         logger.warning("reconcile: ghost-edge detection skipped: {}", exc)
 
-    # 健康度（Phase 23 Task 3 扩展：边 ±0.5% 容差纳入三档）
+ # 健康度（Phase 23 Task 3 扩展：边 ±0.5% 容差纳入三档）
     edge_tolerance = max(1, int(pg_requires * 0.005))
     nodes_equal = neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0
     if nodes_equal and requires_diff <= edge_tolerance:
@@ -152,7 +152,7 @@ async def reconcile_neo4j_endpoint(
     else:
         health = "critical"
 
-    # Phase 5 Step 4: 写 audit_events 记录
+ # 写 audit_events 记录
     try:
         import uuid as _uuid
         from datetime import UTC
@@ -177,8 +177,8 @@ async def reconcile_neo4j_endpoint(
                     f"ghost_edges={len(ghost_edges)}"
                 ),
                 "now": _dt.now(UTC),
-                # BUG-18 fix: tag reconcile events with their scope so
-                # admin audit log can filter by entity (graph).
+ # BUG-18 fix: tag reconcile events with their scope so
+ # admin audit log can filter by entity (graph).
                 "entity_type": "graph",
                 "entity_id": "all",
             },
@@ -196,7 +196,7 @@ async def reconcile_neo4j_endpoint(
 
     return ReconcileResult(
         positions_synced=result.nodes_upserted,
-        # Phase 23 Task 3: 修 skills_synced 复制粘贴 bug（此前误用 nodes_upserted）
+ # Phase 23 Task 3: 修 skills_synced 复制粘贴 bug（此前误用 nodes_upserted）
         skills_synced=result.skills_upserted,
         orphans_pruned=result.orphans_pruned,
         positions_in_neo4j=neo4j_pos,
@@ -206,14 +206,14 @@ async def reconcile_neo4j_endpoint(
         requires_in_neo4j=neo4j_requires,
         requires_in_pg=pg_requires,
         requires_diff=requires_diff,
-        # Phase 24 根治③: 幽灵边明细兜底防线（removed 若未同步删边在此暴露）
+ # Phase 24 根治③: 幽灵边明细兜底防线（removed 若未同步删边在此暴露）
         ghost_edges=ghost_edges,
         duration_ms=duration_ms,
         health=health,
     )
 
 
-# Review workflow endpoints (Phase 23 — D-tier redesign)
+# Review workflow endpoints (D-tier redesign)
 # ══════════════════════════════════════════════════════════════
 
 
@@ -301,9 +301,9 @@ async def approve_review_item_endpoint(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except review_service.InvalidStateTransition as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    # D8f 闭环: 岗位审核通过 → 立即入图 + LLM 补中文名（不等下一轮流水线）
+ # 岗位审核通过 → 立即入图 + LLM 补中文名（不等下一轮流水线）
     item_dict = item.to_dict()
-    # to_dict 键是 review_status（非 status）
+ # to_dict 键是 review_status（非 status）
     if entity_type == "position" and item_dict.get("review_status") == "approved":
         position_name = item_dict.get("name", "")
         if position_name:
@@ -313,9 +313,9 @@ async def approve_review_item_endpoint(
                 await sync_approved_position_to_graph(position_name)
             except Exception as exc:  # noqa: BLE001 — 入图失败不阻断审核响应
                 logger.warning("approve-then-graph failed for {!r}: {}", position_name, exc)
-    # P1-14 fix (functional-review 2026-08-13): 技能审核通过此前只改 PG 状态，
-    # 不写 Neo4j Skill.trust_score → avg_skill_trust（数据大屏信任评分）滞后。
-    # 复用 _sync_neo4j_on_audit（MERGE canonical_id + trust_score=1.0）。
+ # 技能审核通过此前只改 PG 状态，
+ # 不写 Neo4j Skill.trust_score → avg_skill_trust（数据大屏信任评分）滞后。
+ # 复用 _sync_neo4j_on_audit（MERGE canonical_id + trust_score=1.0）。
     elif entity_type == "skill" and item_dict.get("review_status") == "approved":
         skill_name = item_dict.get("name", "")
         if skill_name:
@@ -358,8 +358,8 @@ async def reject_review_item_endpoint(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except review_service.MissingRejectionReason as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    # P1-14 fix (functional-review 2026-08-13): 技能驳回同样同步 Neo4j
-    # （trust_score=0.0），保持图/PG 审核态一致。
+ # 技能驳回同样同步 Neo4j
+ # （trust_score=0.0），保持图/PG 审核态一致。
     item_dict = item.to_dict()
     if entity_type == "skill":
         skill_name = item_dict.get("name", "")
@@ -403,7 +403,7 @@ async def update_name_cn_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # 同步 Neo4j 节点 name_cn（图谱展示跟随 PG 权威）
+ # 同步 Neo4j 节点 name_cn（图谱展示跟随 PG 权威）
     if neo4j_driver is not None:
         try:
             from app.services.graph_projector import GraphProjector
@@ -477,7 +477,7 @@ async def get_pipeline_status(
     )
     from app.models.pipeline_models import PipelineRun as PR  # noqa: N817
 
-    # Recent 5 runs
+ # Recent 5 runs
     runs_result = await session.execute(
         sa.select(PR).order_by(PR.started_at.desc()).limit(5)
     )
@@ -492,7 +492,7 @@ async def get_pipeline_status(
         for r in runs_result.scalars().all()
     ]
 
-    # Data stats
+ # Data stats
     jd_count = int((await session.execute(
         sa.select(sa.func.count()).select_from(JDExtractionRecord)
     )).scalar() or 0)

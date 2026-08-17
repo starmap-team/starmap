@@ -32,7 +32,7 @@ async def recompute_skill_trust(session: Any, driver: Any) -> dict[str, Any]:
     if driver is None:
         return {"skills": 0, "updated": 0}
 
-    # 1. 全部技能 + 其最近一条抽取置信度（按技能名匹配，取最新）
+ # 1. 全部技能 + 其最近一条抽取置信度（按技能名匹配，取最新）
     skill_rows = (
         await session.execute(
             select(SkillRecord.id, SkillRecord.name, SkillRecord.source_count, SkillRecord.last_detected_at)
@@ -75,11 +75,11 @@ async def sync_from_pipeline(
     extraction_data: dict[str, Any] | None = None,
     target_position: str = "",
 ) -> dict[str, Any]:
-    # 业务说明：将 Pipeline（如 JD 解析流水线）提取出的职位、技能及关系数据同步写入 Neo4j 图谱，
-    # 采用 MERGE 语义保证幂等性，支持两种写入模式：
-    #   1. Inline 模式（遗留）：直接传入 new_skills / new_edges / new_positions 进行逐条 MERGE；
-    #   2. DB-Query 模式（推荐）：传入 extraction_data，函数会查询 PostgreSQL 中的 JDExtractionRecord，
-    #      并通过 graph_writer.batch_write_extractions 使用完整的本体（7 节点类型、8 关系类型）批量写入。
+ # 业务说明：将 Pipeline（如 JD 解析流水线）提取出的职位、技能及关系数据同步写入 Neo4j 图谱，
+ # 采用 MERGE 语义保证幂等性，支持两种写入模式：
+ # 1. Inline 模式（遗留）：直接传入 new_skills / new_edges / new_positions 进行逐条 MERGE；
+ # 2. DB-Query 模式（推荐）：传入 extraction_data，函数会查询 PostgreSQL 中的 JDExtractionRecord，
+ # 并通过 graph_writer.batch_write_extractions 使用完整的本体（7 节点类型、8 关系类型）批量写入。
     """将 pipeline 提取结果写入 Neo4j 图谱（MERGE 幂等）。
 
     Supports two modes:
@@ -98,11 +98,11 @@ async def sync_from_pipeline(
     if driver is None:
         return {"synced": False, "error": "neo4j_driver_unavailable", "count": 0}
 
-    # ── DB-query mode: use graph_writer.batch_write_extractions ──
+ # ── DB-query mode: use graph_writer.batch_write_extractions ──
     if extraction_data is not None:
         return await _sync_via_graph_writer(run_id, driver, app_resources, extraction_data, target_position=target_position)
 
-    # ── Inline mode (legacy): direct MERGE of skills / edges / positions ──
+ # ── Inline mode (legacy): direct MERGE of skills / edges / positions ──
     total_nodes = 0
     total_edges = 0
     errors: list[str] = []
@@ -111,8 +111,8 @@ async def sync_from_pipeline(
         async with driver.session() as session:
             for pos in (new_positions or []):
                 try:
-                    # Architect review (PRD US-003 B): DB「未分类」字面量同步到 Neo4j
-                    # 会污染 _classify_industry 聚类 —— 归一化为 null，不写「未分类」节点属性。
+ # Architect review (PRD B): DB「未分类」字面量同步到 Neo4j
+ # 会污染 _classify_industry 聚类 —— 归一化为 null，不写「未分类」节点属性。
                     raw_industry = pos.get("industry", "")
                     industry_value = None if is_unclassified(raw_industry) else raw_industry
                     await session.run(
@@ -171,12 +171,12 @@ async def _sync_via_graph_writer(
     extraction_data: dict[str, Any],
     target_position: str = "",
 ) -> dict[str, Any]:
-    # 业务说明：DB-Query 模式的核心实现，通过 graph_writer 批量将提取结果写入 Neo4j。
-    # 技术说明：
-    #   1. 先从当前 pipeline 的 extraction_data 构建提取字典；
-    #   2. 再查询近 5 分钟内的 JDExtractionRecord 补充更多数据；
-    #   3. 最后调用 batch_write_extractions 使用完整本体（7 节点 + 8 关系）批量写入，
-    #      内置 MERGE + 重试机制，避免重复写入。
+ # 业务说明：DB-Query 模式的核心实现，通过 graph_writer 批量将提取结果写入 Neo4j。
+ # 技术说明：
+ # 1. 先从当前 pipeline 的 extraction_data 构建提取字典；
+ # 2. 再查询近 5 分钟内的 JDExtractionRecord 补充更多数据；
+ # 3. 最后调用 batch_write_extractions 使用完整本体（7 节点 + 8 关系）批量写入，
+ # 内置 MERGE + 重试机制，避免重复写入。
     """Query JDExtractionRecord from PostgreSQL and write to Neo4j via graph_writer.
 
     Strategy:
@@ -197,7 +197,7 @@ async def _sync_via_graph_writer(
     edges_written = 0
 
     try:
-        # ── 1. Build extraction from the current pipeline run's Step 2 data ──
+ # ── 1. Build extraction from the current pipeline run's Step 2 data ──
         position_name = extraction_data.get("position_name", "")
         skills = extraction_data.get("skills", [])
 
@@ -231,8 +231,8 @@ async def _sync_via_graph_writer(
             }
             extractions.append(current_extraction)
 
-        # If target_position differs from position_name, also create a Position node
-        # with the target_position name so Step 4 match diagnosis can find it.
+ # If target_position differs from position_name, also create a Position node
+ # with the target_position name so Step 4 match diagnosis can find it.
         if target_position and target_position != position_name and skills:
             required_skills_alt = []
             preferred_skills_alt = []
@@ -262,13 +262,13 @@ async def _sync_via_graph_writer(
             }
             extractions.append(target_extraction)
 
-        # ── 2. Query JDExtractionRecords from PostgreSQL ──
+ # ── 2. Query JDExtractionRecords from PostgreSQL ──
         pg_sessionmaker = app_resources.pg_sessionmaker
         if pg_sessionmaker is not None:
             try:
                 import sqlalchemy as sa
 
-                # Look for records created within the pipeline run timeframe
+ # Look for records created within the pipeline run timeframe
                 since = datetime.now(UTC) - timedelta(minutes=5)
                 async with pg_sessionmaker() as session:
                     rows = (
@@ -285,9 +285,9 @@ async def _sync_via_graph_writer(
 
                 for record in rows:
                     payload = record.to_extraction_payload()
-                    # Avoid duplicating the current run's extraction
+ # Avoid duplicating the current run's extraction
                     if position_name and payload.get("position_name") == position_name:
-                        # Check if skills overlap significantly — skip if same extraction
+ # Check if skills overlap significantly — skip if same extraction
                         existing_names = {s.get("name") for s in current_extraction.get("required_skills", []) if s.get("name")}
                         existing_names |= {s.get("name") for s in current_extraction.get("preferred_skills", []) if s.get("name")}
                         payload_names = set()
@@ -315,13 +315,13 @@ async def _sync_via_graph_writer(
         else:
             logger.debug("sync_from_pipeline: pg_sessionmaker not available, using inline data only")
 
-        # ── 3. Write all extractions to Neo4j via graph_writer ──
+ # ── 3. Write all extractions to Neo4j via graph_writer ──
         if not extractions:
             return {"synced": True, "nodes_written": 0, "edges_written": 0, "extractions_processed": 0}
 
         summaries = await batch_write_extractions(extractions, driver)
 
-        # Aggregate counts from all summaries
+ # Aggregate counts from all summaries
         for summary in summaries:
             nodes_written += int(summary.get("nodes_touched", 0))
             edges_written += int(summary.get("relationships_touched", 0))

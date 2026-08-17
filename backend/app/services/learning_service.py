@@ -54,7 +54,7 @@ async def create_plan_from_match(
         msg = f"No skill gaps in match result for '{target_position}'"
         raise ValueError(msg)
 
-    # Filter to only gap skills (not already mastered)
+ # Filter to only gap skills (not already mastered)
     skill_gaps = [
         {
             "skill": g["skill"],
@@ -76,24 +76,24 @@ async def create_plan_from_match(
             "message": "所有技能已掌握，无需学习计划",
         }
 
-    # NEW-03: 确保前置关系已从 Neo4j 加载（不可用时降级为空）
+ # : 确保前置关系已从 Neo4j 加载（不可用时降级为空）
     await ensure_prerequisite_map()
 
-    # Generate structured learning path with time estimates
+ # Generate structured learning path with time estimates
     learning_path = await generate_learning_path(
         match_gaps=skill_gaps,
         prerequisites=PREREQUISITE_MAP,
         available_time=available_hours_per_week,
     )
 
-    # Enrich skill data with estimated hours
+ # Enrich skill data with estimated hours
     enriched_skills = []
     path_hours_map = {s.name: s.estimated_hours for s in learning_path.skills}
     for gap in skill_gaps:
         gap["estimated_hours"] = path_hours_map.get(gap["skill"], 0.0)
         enriched_skills.append(gap)
 
-    # Persist as a LearningPlan
+ # Persist as a LearningPlan
     match_score = match_result.get("match_score", 0.0)
     plan = await create_plan(
         session,
@@ -194,7 +194,7 @@ async def create_plan_from_diagnosis(
     available_hours_per_week: float = 10.0,
 ) -> dict[str, Any]:
     """从技能差距创建学习计划,返回完整视图。"""
-    # NEW-03: 确保前置关系已从 Neo4j 加载（不可用时降级为空）
+ # : 确保前置关系已从 Neo4j 加载（不可用时降级为空）
     await ensure_prerequisite_map()
 
     learning_path = await generate_learning_path(
@@ -203,7 +203,7 @@ async def create_plan_from_diagnosis(
         available_time=available_hours_per_week,
     )
 
-    # 用路径引擎的小时数富化技能数据
+ # 用路径引擎的小时数富化技能数据
     enriched_skills = []
     path_hours_map = {s.name: s.estimated_hours for s in learning_path.skills}
     for gap in skill_gaps:
@@ -247,7 +247,7 @@ async def get_plan_for_user(
     plan = (await session.execute(plan_stmt)).scalar_one_or_none()
     if plan is None:
         raise PlanNotFoundError(plan_id=str(plan_id))
-    # AUTHZ-02: IDOR 校验 — 用户只能访问自己的计划
+ # AUTHZ-02: IDOR 校验 — 用户只能访问自己的计划
     if plan.user_id != user_id:
         raise PlanOwnershipError(plan_id=str(plan_id), user_id=user_id)
 

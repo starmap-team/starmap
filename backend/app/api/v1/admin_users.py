@@ -164,7 +164,7 @@ async def delete_user(
         user_id, session, actor=actor, reason=reason
     )
     if not deleted:
-        # Could be not found OR already disabled — disambiguate
+ # Could be not found OR already disabled — disambiguate
         existing = await auth_service.get_user_by_id(session, user_id)
         if existing is None:
             raise HTTPException(status_code=404, detail="用户不存在")

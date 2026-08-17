@@ -27,7 +27,7 @@ from app.schemas.admin import (
     TruthRow,
 )
 
-# PLAN-007a (NEW-01): /admin/* 端点必须叠加 require_admin，
+# PLAN-007a (): /admin/* 端点必须叠加 require_admin，
 # 此前仅挂在 api_router 的 get_current_user 上，任意登录用户可读三口径对账数据。
 router = APIRouter(
     prefix="/admin",
@@ -61,10 +61,10 @@ async def get_data_truth(
     """返回每个 KPI 的三层数据源对比报告。"""
     from datetime import UTC, datetime
 
-    # ── PostgreSQL 直接查询 ──
-    # Phase 24 核验修复 (approved 口径): 岗位总数/关系边数 PG 侧必须限定 approved——
-    # Neo4j 只投影 approved 岗位（审核门控），PG 全量（含 pending）与之比较会产生
-    # 假 critical（如 362 vs 185 报 48.9%）。口径统一后三源一致。
+ # ── PostgreSQL 直接查询 ──
+ # Phase 24 核验修复 (approved 口径): 岗位总数/关系边数 PG 侧必须限定 approved——
+ # Neo4j 只投影 approved 岗位（审核门控），PG 全量（含 pending）与之比较会产生
+ # 假 critical（如 362 vs 185 报 48.9%）。口径统一后三源一致。
     pg_total_positions = int(
         (await session.execute(
             select(func.count()).select_from(PositionRecord)
@@ -87,9 +87,9 @@ async def get_data_truth(
             .where(SkillRecord.review_status == "approved")
         )).scalar() or 0
     )
-    # P3c: PSR 关系行数（关系边指标口径 = PositionSkillRelation 表，与 admin/stats 对齐）。
-    # Phase 24 核验修复: 限定 approved 岗位的 PSR——Neo4j REQUIRES 只投影 approved
-    # 岗位的关系，PG 全量 PSR（含 pending）与之比较同样产生假 critical（1560 vs 1001）。
+ # P3c: PSR 关系行数（关系边指标口径 = PositionSkillRelation 表，与 admin/stats 对齐）。
+ # Phase 24 核验修复: 限定 approved 岗位的 PSR——Neo4j REQUIRES 只投影 approved
+ # 岗位的关系，PG 全量 PSR（含 pending）与之比较同样产生假 critical（1560 vs 1001）。
     pg_psr_count = int(
         (await session.execute(
             select(func.count(PositionSkillRelation.id))
@@ -98,7 +98,7 @@ async def get_data_truth(
         )).scalar() or 0
     )
 
-    # ── Neo4j 直接查询 ──
+ # ── Neo4j 直接查询 ──
     neo4j_positions = 0
     neo4j_skills = 0
     neo4j_relations = 0
@@ -112,24 +112,24 @@ async def get_data_truth(
             record = await result.single()
             neo4j_skills = int(record["c"]) if record else 0
 
-            # P3c: 关系边指标改为 REQUIRES 子集（Position→Skill），与 PSR 表口径一致
+ # P3c: 关系边指标改为 REQUIRES 子集（Position→Skill），与 PSR 表口径一致
             result = await session_neo.run(
                 "MATCH (:Position)-[r:REQUIRES]->(:Skill) RETURN count(r) AS c"
             )
             record = await result.single()
             neo4j_relations = int(record["c"]) if record else 0
 
-    # ── API 返回值（与前端 store 实际拿到的一致） ──
-    # BUG-15 fix: actually invoke the dashboard aggregation service instead of
-    # aliasing PG. The whole point of three-layer audit is API ≠ PG ≠ Neo4j;
-    # aliasing defeats the purpose and silently makes diff=0 for positions.
+ # ── API 返回值（与前端 store 实际拿到的一致） ──
+ # BUG-15 fix: actually invoke the dashboard aggregation service instead of
+ # aliasing PG. The whole point of three-layer audit is API ≠ PG ≠ Neo4j;
+ # aliasing defeats the purpose and silently makes diff=0 for positions.
     api_dashboard_positions = pg_total_positions
     api_dashboard_skills = pg_total_skills
     try:
-        # BUG-15 fix: 实际调用看板聚合服务 get_overview（原误引 build_overview_payload 不存在）
+ # BUG-15 fix: 实际调用看板聚合服务 get_overview（原误引 build_overview_payload 不存在）
         from app.services.dashboard_service import get_overview  # noqa: PLC0415
         payload = await get_overview(session, driver, None)
-        # get_overview 返回图/质量/流水线合并统计（Neo4j 优先、失败回退 PG），作为 API 口径
+ # get_overview 返回图/质量/流水线合并统计（Neo4j 优先、失败回退 PG），作为 API 口径
         api_dashboard_positions = int(
             payload.get("total_positions", pg_total_positions)
         )
@@ -141,10 +141,10 @@ async def get_data_truth(
 
     rows = []
 
-    # 指标 1: 岗位总数（三口径）
-    # 2026-08-12 (admin 联调修复): 原 `[neo4j, pg_total, pg_approved]` 把"总数(233)"与
-    # "已发布(179)"混作跨源比较 → 23.2% 假 critical（三源其实一致）。差异应只比较同一
-    # 指标（总数）的三个来源：API / PostgreSQL / Neo4j。已发布数是独立指标（见指标 5）。
+ # 指标 1: 岗位总数（三口径）
+ # 2026-08-12 (admin 联调修复): 原 `[neo4j, pg_total, pg_approved]` 把"总数(233)"与
+ # "已发布(179)"混作跨源比较 → 23.2% 假 critical（三源其实一致）。差异应只比较同一
+ # 指标（总数）的三个来源：API / PostgreSQL / Neo4j。已发布数是独立指标（见指标 5）。
     diff, status = _calc_status([api_dashboard_positions, pg_total_positions, neo4j_positions])
     rows.append(TruthRow(
         metric="岗位总数",
@@ -157,7 +157,7 @@ async def get_data_truth(
         explanation=f"Neo4j {neo4j_positions} = 图谱节点总数（含历史/孤儿）。PostgreSQL {pg_total_positions} = position_records 总行数。Approved {pg_approved_positions} = 用户可见岗位。差额 {(neo4j_positions - pg_total_positions) if neo4j_positions > pg_total_positions else 0} 个孤儿节点需要在 Neo4j 中清理。",
     ))
 
-    # 指标 2: 技能总数
+ # 指标 2: 技能总数
     diff, status = _calc_status([api_dashboard_skills, neo4j_skills, pg_total_skills])
     rows.append(TruthRow(
         metric="技能总数",
@@ -170,7 +170,7 @@ async def get_data_truth(
         explanation=f"差额 {(neo4j_skills - pg_total_skills) if neo4j_skills > pg_total_skills else 0} 个孤儿 Skill 节点在 Neo4j 中不在 PG 中。Approved {pg_approved_skills} 个技能可被用户检索。",
     ))
 
-    # 指标 3: 关系边数（P3c 口径统一: Neo4j REQUIRES 边 == PG PositionSkillRelation 行数）
+ # 指标 3: 关系边数（P3c 口径统一: Neo4j REQUIRES 边 == PG PositionSkillRelation 行数）
     diff, status = _calc_status([neo4j_relations, pg_psr_count])
     rows.append(TruthRow(
         metric="关系边数",
@@ -187,7 +187,7 @@ async def get_data_truth(
         ),
     ))
 
-    # 指标 4: 待审核岗位
+ # 指标 4: 待审核岗位
     diff, status = _calc_status([pg_pending_positions])
     rows.append(TruthRow(
         metric="待审核岗位",
@@ -200,7 +200,7 @@ async def get_data_truth(
         explanation=f"这 {pg_pending_positions} 个岗位需要 admin 审核才能发布到公开图谱。",
     ))
 
-    # 指标 5: 已发布岗位
+ # 指标 5: 已发布岗位
     diff, status = _calc_status([pg_approved_positions])
     rows.append(TruthRow(
         metric="已发布岗位",
@@ -213,10 +213,10 @@ async def get_data_truth(
         explanation=f"这 {pg_approved_positions} 个岗位已发布到公开图谱，普通用户可检索。",
     ))
 
-    # Phase 5 Step 4: 计算同步健康度
-    # P2 修复 (R2/R3): 旧口径只对齐 canonical_id 非空节点 → 漏掉无 canonical_id 的
-    # 历史孤儿（正是 346-311=35 / 843-752=91 差额的来源），健康卡与总数表自相矛盾。
-    # 统一走 RepairEngine.detect_orphans 严格口径（含 no_canonical_id 节点）。
+ # 计算同步健康度
+ # P2 修复 (R2/R3): 旧口径只对齐 canonical_id 非空节点 → 漏掉无 canonical_id 的
+ # 历史孤儿（正是 346-311=35 / 843-752=91 差额的来源），健康卡与总数表自相矛盾。
+ # 统一走 RepairEngine.detect_orphans 严格口径（含 no_canonical_id 节点）。
     from app.services.repair_engine import RepairEngine
 
     repair = RepairEngine(driver)
@@ -224,13 +224,13 @@ async def get_data_truth(
     orphan_positions = orphan_scan.orphan_positions
     orphan_skills = orphan_scan.orphan_skills
 
-    # P2: 报告生成即同步审批队列（自愈式报告：每次查看数据源诊断都会刷新孤儿清单）
+ # P2: 报告生成即同步审批队列（自愈式报告：每次查看数据源诊断都会刷新孤儿清单）
     try:
         await repair.sync_orphan_queue(session)
     except Exception as exc:  # noqa: BLE001 — 队列同步失败不阻断报告
         logger.warning("orphan queue sync failed (non-fatal): {}", exc)
 
-    # 2. 最近 reconcile 时间：从 PG 查（cron_scanner 写表）
+ # 2. 最近 reconcile 时间：从 PG 查（cron_scanner 写表）
     from sqlalchemy import text
     last_reconcile_at = None
     try:
@@ -247,7 +247,7 @@ async def get_data_truth(
     except Exception:
         pass
 
-    # 3. 健康度评估
+ # 3. 健康度评估
     if orphan_positions == 0 and orphan_skills == 0:
         sync_health = "ok"
     elif orphan_positions <= 1 and orphan_skills <= 1:
@@ -255,7 +255,7 @@ async def get_data_truth(
     else:
         sync_health = "critical"
 
-    # 4. reconcile 状态（基于 last_reconcile_at）
+ # 4. reconcile 状态（基于 last_reconcile_at）
     if last_reconcile_at is None:
         reconcile_status = "unknown"
     else:
@@ -415,7 +415,7 @@ async def orphan_queue_action_endpoint(
     if "error" in result:
         raise HTTPException(status_code=409, detail=result["error"])
 
-    # 返回最新条目状态
+ # 返回最新条目状态
     from app.models.orphan_cleanup import OrphanCleanupQueue
 
     item = (await session.execute(

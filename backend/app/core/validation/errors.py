@@ -19,7 +19,7 @@ class ErrorCode(StrEnum):
     统一蛇形大写命名，前端可根据 code 做粒度错误处理。
     """
 
-    # ── 认证 (AUTH_*) ──
+ # ── 认证 (AUTH_*) ──
     AUTH_INVALID_CREDENTIALS = "AUTH_INVALID_CREDENTIALS"
     AUTH_TOKEN_EXPIRED = "AUTH_TOKEN_EXPIRED"
     AUTH_TOKEN_INVALID = "AUTH_TOKEN_INVALID"
@@ -32,18 +32,18 @@ class ErrorCode(StrEnum):
     AUTH_FORBIDDEN = "AUTH_FORBIDDEN"
     AUTH_IP_BLOCKED = "AUTH_IP_BLOCKED"
 
-    # ── 校验 (VAL_*) ──
+ # ── 校验 (VAL_*) ──
     VALIDATION_ERROR = "VALIDATION_ERROR"
     VALIDATION_BODY_PARSE_ERROR = "VALIDATION_BODY_PARSE_ERROR"
     VALIDATION_TYPE_ERROR = "VALIDATION_TYPE_ERROR"
 
-    # ── 资源 (RES_*) ──
+ # ── 资源 (RES_*) ──
     RES_NOT_FOUND = "RES_NOT_FOUND"
     RES_ALREADY_EXISTS = "RES_ALREADY_EXISTS"
     RES_CONFLICT = "RES_CONFLICT"
     RES_STALE = "RES_STALE"
 
-    # ── 业务 (BIZ_*) ──
+ # ── 业务 (BIZ_*) ──
     BIZ_POSITION_NOT_FOUND = "POSITION_NOT_FOUND"
     BIZ_PLAN_NOT_FOUND = "PLAN_NOT_FOUND"
     BIZ_PLAN_OWNERSHIP = "PLAN_OWNERSHIP"
@@ -62,7 +62,7 @@ class ErrorCode(StrEnum):
     BIZ_DASHBOARD_ERROR = "DASHBOARD_ERROR"
     BIZ_GRAPH_PROJECTION_FAILED = "GRAPH_PROJECTION_FAILED"
 
-    # ── 系统 (SYS_*) ──
+ # ── 系统 (SYS_*) ──
     SYS_INTERNAL_ERROR = "INTERNAL_ERROR"
     SYS_RATE_LIMITED = "RATE_LIMITED"
     SYS_SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE"
@@ -71,7 +71,7 @@ class ErrorCode(StrEnum):
 
 # 错误码 → HTTP 状态码映射
 _ERROR_CODE_STATUS: dict[ErrorCode, int] = {
-    # Auth
+ # Auth
     ErrorCode.AUTH_INVALID_CREDENTIALS: status.HTTP_401_UNAUTHORIZED,
     ErrorCode.AUTH_TOKEN_EXPIRED: status.HTTP_401_UNAUTHORIZED,
     ErrorCode.AUTH_TOKEN_INVALID: status.HTTP_401_UNAUTHORIZED,
@@ -83,16 +83,16 @@ _ERROR_CODE_STATUS: dict[ErrorCode, int] = {
     ErrorCode.AUTH_USER_NOT_FOUND: status.HTTP_404_NOT_FOUND,
     ErrorCode.AUTH_FORBIDDEN: status.HTTP_403_FORBIDDEN,
     ErrorCode.AUTH_IP_BLOCKED: status.HTTP_403_FORBIDDEN,
-    # Validation
+ # Validation
     ErrorCode.VALIDATION_ERROR: status.HTTP_422_UNPROCESSABLE_ENTITY,
     ErrorCode.VALIDATION_BODY_PARSE_ERROR: status.HTTP_400_BAD_REQUEST,
     ErrorCode.VALIDATION_TYPE_ERROR: status.HTTP_422_UNPROCESSABLE_ENTITY,
-    # Resource
+ # Resource
     ErrorCode.RES_NOT_FOUND: status.HTTP_404_NOT_FOUND,
     ErrorCode.RES_ALREADY_EXISTS: status.HTTP_409_CONFLICT,
     ErrorCode.RES_CONFLICT: status.HTTP_409_CONFLICT,
     ErrorCode.RES_STALE: status.HTTP_409_CONFLICT,
-    # Business
+ # Business
     ErrorCode.BIZ_POSITION_NOT_FOUND: status.HTTP_404_NOT_FOUND,
     ErrorCode.BIZ_PLAN_NOT_FOUND: status.HTTP_404_NOT_FOUND,
     ErrorCode.BIZ_PLAN_OWNERSHIP: status.HTTP_403_FORBIDDEN,
@@ -110,7 +110,7 @@ _ERROR_CODE_STATUS: dict[ErrorCode, int] = {
     ErrorCode.BIZ_QUALITY_CHECK_FAILED: status.HTTP_500_INTERNAL_SERVER_ERROR,
     ErrorCode.BIZ_DASHBOARD_ERROR: status.HTTP_500_INTERNAL_SERVER_ERROR,
     ErrorCode.BIZ_GRAPH_PROJECTION_FAILED: status.HTTP_502_BAD_GATEWAY,
-    # System
+ # System
     ErrorCode.SYS_INTERNAL_ERROR: status.HTTP_500_INTERNAL_SERVER_ERROR,
     ErrorCode.SYS_RATE_LIMITED: status.HTTP_429_TOO_MANY_REQUESTS,
     ErrorCode.SYS_SERVICE_UNAVAILABLE: status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -151,10 +151,10 @@ def build_error_response(
         fields=fields,
     )
 
-    # 序列化为 dict 以便附加内部诊断信息
+ # 序列化为 dict 以便附加内部诊断信息
     body = response.model_dump(mode="json")
 
-    # 非生产环境追加内部诊断（帮助调试）
+ # 非生产环境追加内部诊断（帮助调试）
     from app.config import settings
 
     if settings.app_env != "production" and include_internal_detail:

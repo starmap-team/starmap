@@ -7,13 +7,13 @@ Typical usage::
 
     from app.core.extraction.prompt import get_prompt, list_prompt_versions
 
-    # Get active version of a prompt
+ # Get active version of a prompt
     prompt = get_prompt("jd_extraction", jd_content="...")
 
-    # List all versions
+ # List all versions
     versions = list_prompt_versions("llm_judge")
 
-    # Use a specific version
+ # Use a specific version
     prompt = get_prompt("jd_extraction", version="v2", jd_content="...")
 """
 
@@ -204,7 +204,7 @@ JD_EXTRACTION_PROMPT_V2 = """你是一个专业的技能提取专家。请从以
 ## 职位描述
 $jd_content
 
-    ## 提取要求
+ ## 提取要求
     请提取以下信息并以严格的JSON格式返回（不要包含任何其他文字或代码块标记）：
 
     1. position_name: 职位名称（如"高级Python后端工程师"）
@@ -222,7 +222,7 @@ $jd_content
     13. learning_resources: 推荐学习资源列表。每项包含title、type（可选值"book"/"course"/"tutorial"/"docs"/"other"）和for_skill
     14. evolves_to: 该岗位可能演进的目标岗位列表（无法确定则返回空列表[]）
 
-    ## 示例输出
+ ## 示例输出
     {
         "position_name": "高级Python后端工程师",
         "required_skills": [
@@ -242,11 +242,11 @@ $jd_content
         "evolves_to": ["架构师", "技术总监"]
     }
 
-    ## 分类规则
+ ## 分类规则
     - **required_skills**: "任职要求"中的"精通"、"掌握"、"熟练"、"熟悉"的技能
     - **preferred_skills**: "加分项"、"优先"、"bonus"分类下的技能
 
-    ## 重要规则
+ ## 重要规则
     1. 技能名称标准化：python3→Python, k8s→Kubernetes, js→JavaScript
     2. 仅提取信息技术相关技能
     3. 无法确认的字段返回null，禁止编造
@@ -258,7 +258,7 @@ JD_EXTRACTION_PROMPT_V3 = """你是一个专业的技能提取专家。请**完�
 ## 职位描述
 $jd_content
 
-    ## 提取字段
+ ## 提取字段
     1. position_name: 职位名称
     2. required_skills: 必需/必备技能列表。每项包含 name / level / category
     3. preferred_skills: 加分/优先技能列表（格式同上）
@@ -274,15 +274,15 @@ $jd_content
     13. learning_resources: 推荐学习资源列表。每项包含title、type（可选值"book"/"course"/"tutorial"/"docs"/"other"）和for_skill
     14. evolves_to: 该岗位可能演进的目标岗位列表（无法确定则返回空列表[]）
 
-    ## 分类规则
+ ## 分类规则
     - **required_skills**: "任职要求""岗位职责"中出现，配合"精通""掌握""熟练""熟悉""了解"的技能
     - **preferred_skills**: "加分项""优先""plus""bonus""nice to have"分类下的技能
 
-    ## 输出格式
+ ## 输出格式
     - 纯 JSON，以 { 开头、} 结尾，无 markdown 代码块、无说明文字
     - 可直接 json.loads() 解析，无尾逗号、无注释
 
-    ## 技能名称规范
+ ## 技能名称规范
     1. 使用标准英文名称，首字母大写：python3→Python, reactjs→React, golang→Go, k8s→Kubernetes
     2. 同时提取中文名和英文名，保留中英文两种表达（例如 "Python" 和 "Python" 都会被归一化）
     3. 带版本号的归入主技能名："C++11"→"C++", "Python3"→"Python", "ES6"→"JavaScript"
@@ -293,14 +293,14 @@ $jd_content
        - "Linux系统" → "Linux"
     5. 无法确认的字段返回 null，禁止编造
 
-    ## 完整性要求（极其重要）
+ ## 完整性要求（极其重要）
     - **请完整提取职位描述中提到的所有技能和技术要求，不遗漏任何一项**
     - 同时也提取**非信息技术相关的技能**（如项目管理、产品设计、团队管理、沟通能力等）
     - 包括但不限于：编程语言、框架、工具、平台、方法论、领域知识、证书、软技能
     - 隐式技能也要提取（例如提到"构建CI/CD流水线" → 提取 CI/CD; "使用Git进行版本控制" → 提取 Git）
     - 提取后请做一次覆盖检查，确认没有遗漏
 
-    ## 覆盖检查（在输出前逐项确认）
+ ## 覆盖检查（在输出前逐项确认）
     提取完成后，请检查是否覆盖了以下常见类别：
     - [ ] 编程语言（Python, Java, Go, Rust, C++ 等）
     - [ ] Web框架（React, Vue, Django, Spring 等）
@@ -411,7 +411,7 @@ $resume_content
 
 
 # ───────────────────────────────────────────────────────────────────
-# 多层防御 Phase 1 (2026-08-17): jd_extraction v5 — 扩展行业字典注入
+# 多层防御 jd_extraction v5 — 扩展行业字典注入
 # ───────────────────────────────────────────────────────────────────
 # PRD 验证: jd_extraction v1-v4 只给 4 个行业示例，LLM 在面对销售/营销/
 # 教育/制造/服务等真实行业时倾向返回「通用」→ 归一化为「未分类」→
@@ -648,12 +648,12 @@ def get_prompt_version(name: str, version: str, **kwargs: Any) -> str:
 
 def _get_prompt_versioned(name: str, version: str | None = None, **kwargs: Any) -> str:
     """Internal: resolve version, fill placeholders."""
-    # Check A/B test first if no explicit version requested
+ # Check A/B test first if no explicit version requested
     if version is None and name in _AB_TESTS:
         version = _AB_TESTS[name].select_version()
         logger.info("A/B test '{}' selected version '{}'", name, version)
 
-    # Resolve version
+ # Resolve version
     if version is None:
         version = _ACTIVE_VERSIONS.get(name, "v1")
 
@@ -667,15 +667,15 @@ def _get_prompt_versioned(name: str, version: str | None = None, **kwargs: Any) 
         msg = f"Unknown version '{version}' for prompt '{name}'. Available: {list(versions.keys())}"
         raise KeyError(msg)
 
-    # 多层防御 Phase 1 (2026-08-17): 自动注入 industry_hint + industry_count，
-    # 让 v5 (以及未来版本) 不需要调用方手动传 taxonomy。Template.safe_substitute
-    # 找不到的占位符会保持原样（防老 v1-v4 漏注入挂掉）。
+ # 多层防御 自动注入 industry_hint + industry_count，
+ # 让 v5 (以及未来版本) 不需要调用方手动传 taxonomy。Template.safe_substitute
+ # 找不到的占位符会保持原样（防老 v1-v4 漏注入挂掉）。
     if "industry_hint" not in kwargs and re.search(r"\$industry_hint\b", template):
         kwargs["industry_hint"] = _get_industry_hint()
     if "industry_count" not in kwargs and re.search(r"\$industry_count\b", template):
         kwargs["industry_count"] = str(len(get_canonical_industries()))
 
-    # Fill placeholders (using $-style Template; literal braces { } are safe)
+ # Fill placeholders (using $-style Template; literal braces { } are safe)
     placeholders = re.findall(r"\$(\w+)", template)
     missing = [p for p in placeholders if p not in kwargs]
     if missing:

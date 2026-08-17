@@ -11,25 +11,25 @@ from typing import Any
 
 # 默认字段映射：中英文列名都支持
 DEFAULT_CSV_MAPPING = {
-    # job_title
+ # job_title
     "职位名称": "job_title",
     "title": "job_title",
     "岗位": "job_title",
     "招聘岗位": "job_title",
-    # company
+ # company
     "公司名称": "company",
     "company": "company",
     "公司": "company",
-    # clean_text
+ # clean_text
     "职位描述": "clean_text",
     "description": "clean_text",
     "jd": "clean_text",
     "描述": "clean_text",
-    # source_url
+ # source_url
     "链接": "source_url",
     "url": "source_url",
     "link": "source_url",
-    # location
+ # location
     "地点": "location",
     "location": "location",
     "城市": "location",
@@ -50,7 +50,7 @@ def parse_csv(content: bytes, mapping: dict[str, str] | None = None) -> list[dic
     """
     mapping = mapping or DEFAULT_CSV_MAPPING
 
-    # 尝试多种编码 (Fix M3: 显式记录，不静默)
+ # 尝试多种编码 (Fix M3: 显式记录，不静默)
     text = None
     for enc in ENCODING_CHAIN:
         try:
@@ -71,12 +71,12 @@ def parse_csv(content: bytes, mapping: dict[str, str] | None = None) -> list[dic
                 field = mapping.get(csv_col)
                 if field and value:
                     mapped[field] = value
-            # 必须有 job_title 和 clean_text 才视为有效
+ # 必须有 job_title 和 clean_text 才视为有效
             if mapped.get("job_title") and mapped.get("clean_text"):
                 items.append(mapped)
-            # Fix M3: per-row error显式记录
+ # Fix M3: per-row error显式记录
         except Exception:
-            # 跳过有问题的行但不阻断整批
+ # 跳过有问题的行但不阻断整批
             continue
 
     return items

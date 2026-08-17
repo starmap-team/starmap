@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{
 })
 
 const elRef = ref<HTMLElement | null>(null)
-// D8e fix: displayValue 初始值直接取 target（>0 时）——数据大屏 8 张 KPI 曾全 0：
+// fix: displayValue 初始值直接取 target（>0 时）——数据大屏 8 张 KPI 曾全 0：
 // 动画依赖 IntersectionObserver + rAF，在嵌套滚动容器/后台 tab 永不触发，值卡 0。
 // 现在 mount 即显示真实值，动画仅作视觉增强（值变化时）。
 const displayValue = ref(props.target > 0 ? props.target : 0)
@@ -103,7 +103,7 @@ let observer: IntersectionObserver | null = null
 onMounted(() => {
   if (!elRef.value) return
 
-  // D8e fix: 初始值已直接显示 target（>0），无需 rAF/observer。
+  // fix: 初始值已直接显示 target（>0），无需 rAF/observer。
   // observer 仅兜底 target 从 0 变为 >0 的场景（异步数据）。
   if (props.target > 0) {
     return
@@ -141,7 +141,7 @@ onUnmounted(() => {
 
 /** Re-animate when target changes */
 watch(() => props.target, (newVal, oldVal) => {
-  // D8e fix: 数据异步到达时 observer 可能尚未触发（hasTriggered=false）→
+  // fix: 数据异步到达时 observer 可能尚未触发（hasTriggered=false）→
   // 之前直接 return 导致 displayValue 永远卡在 0（数据大屏 8 张 KPI 全 0 bug）。
   // 未触发但 target 已有真实值 → 立即显示，不依赖滚动可见的 observer。
   if (!hasTriggered) {

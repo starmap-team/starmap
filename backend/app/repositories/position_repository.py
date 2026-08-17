@@ -82,7 +82,7 @@ class PositionRepository:
             for s in p.required_skills + p.bonus_skills:
                 total_skills_set.add(s["name"])
 
-        # 查询 PREREQUISITE 关系数
+ # 查询 PREREQUISITE 关系数
         prerequisite_count = 0
         try:
             async with self._driver.session() as session:

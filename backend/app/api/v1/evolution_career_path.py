@@ -30,7 +30,7 @@ async def get_career_path(
     including direct transitions and multi-step paths. Classifies each
     transition as forward (promotion), lateral, or up (senior).
     """
-    # Fetch direct evolution paths (depth 1)
+ # Fetch direct evolution paths (depth 1)
     stmt = (
         sa.select(EvolutionPath)
         .where(
@@ -47,7 +47,7 @@ async def get_career_path(
     seen_positions: set[str] = set()
 
     for r in records:
-        # Determine direction: from source → target
+ # Determine direction: from source → target
         if r.source_position == position:
             target = r.target_position
             direction = "forward"
@@ -59,7 +59,7 @@ async def get_career_path(
             continue
         seen_positions.add(target)
 
-        # Classify direction heuristically based on title keywords
+ # Classify direction heuristically based on title keywords
         from app.services.evolution_service import SENIOR_KEYWORDS  # noqa: PLC0415
         target_lower = target.lower()
         if any(kw in target_lower for kw in SENIOR_KEYWORDS):
@@ -74,7 +74,7 @@ async def get_career_path(
             direction=direction,
         ))
 
-    # Depth 2: follow the best forward paths for multi-step discovery
+ # Depth 2: follow the best forward paths for multi-step discovery
     if depth >= 2:
         second_hop_nodes: list[CareerPathNode] = []
         for first_hop in nodes[:5]:  # Top 5 first-hop positions
@@ -106,7 +106,7 @@ async def get_career_path(
 
         nodes.extend(second_hop_nodes)
 
-    # Sort by similarity descending
+ # Sort by similarity descending
     nodes.sort(key=lambda n: n.similarity, reverse=True)
 
     return CareerPathResponse(

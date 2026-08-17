@@ -204,7 +204,7 @@ async function handleUnpublish(item: ReviewItem) {
   }
 }
 
-// Phase 3 IndustryClassifier (2026-08-17): admin 手动重新分类 industry。
+// IndustryClassifier (2026-08-17): admin 手动重新分类 industry。
 // 多层防御第三层 — 当 LLM 抽取 / backfill / alias 字典把某岗位归到错误
 // canonical 桶时，运营可在审核面板一键修正。端点：
 // POST /api/v1/admin/positions/{position_id}/reclassify-industry
@@ -278,7 +278,7 @@ function sourceLabel(createdBy: string | null): { label: string; isSystem: boole
   return { label: `管理员（${createdBy}）`, isSystem: false }
 }
 
-// ── 中文名调整 (D8i/D8j 手工校准): 复用内容审核模块，审核时直接修正 name_cn ──
+// ── 中文名调整 (D8i/手工校准): 复用内容审核模块，审核时直接修正 name_cn ──
 const nameCnEditor = ref<ReviewItem | null>(null)
 const nameCnValue = ref('')
 const nameCnSaving = ref(false)
@@ -646,7 +646,7 @@ async function saveNameCn() {
       />
     </div>
 
-    <!-- 中文名调整弹窗 (D8i/D8j 手工校准): 审核队列中直接修正 name_cn -->
+    <!-- 中文名调整弹窗 (D8i/手工校准): 审核队列中直接修正 name_cn -->
     <el-dialog
       :model-value="nameCnEditor !== null"
       :title="nameCnEditor ? `调整中文名 — ${nameCnEditor.entity_type === 'position' ? '岗位' : '技能'}「${nameCnEditor.name}」` : ''"

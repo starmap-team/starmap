@@ -159,7 +159,7 @@ async def batch_match(
     items = body.entries
     results = []
     for item in items[:20]:
-        # 兼容前端 {position} 与历史契约 {position_name} 两种字段命名
+ # 兼容前端 {position} 与历史契约 {position_name} 两种字段命名
         position = item.position_name or item.position or ""
         skills = [s.model_dump() if isinstance(s, PersonSkillInput) else s for s in item.skills]
         try:
@@ -171,8 +171,8 @@ async def batch_match(
             )
             results.append({"position_name": position, "result": result})
         except Exception as exc:
-            # 批量匹配逐条隔离:任何单条失败(含 PositionNotFoundError 等 StarMapError 子类)
-            # 记为 error 条目,不中断整批。契约:test_batch_partial_failure_isolation。
+ # 批量匹配逐条隔离:任何单条失败(含 PositionNotFoundError 等 StarMapError 子类)
+ # 记为 error 条目,不中断整批。契约:test_batch_partial_failure_isolation。
             results.append({"position_name": position, "error": str(exc)})
     success_count = sum(1 for r in results if "result" in r)
     return {
@@ -198,7 +198,7 @@ async def recommend_positions(
     Scans available positions, computes match score for each,
     and returns the top-k positions ranked by match score.
     """
-    # Get distinct position names from the database
+ # Get distinct position names from the database
     try:
         result = await session.execute(
             sa_select(PositionRecord.name).distinct().limit(200)
@@ -214,7 +214,7 @@ async def recommend_positions(
         raise HTTPException(status_code=500, detail="匹配处理异常") from exc
 
     if not position_names:
-        # Fallback: try Neo4j
+ # Fallback: try Neo4j
         if driver is not None:
             try:
                 async with driver.session() as neo_session:
@@ -241,7 +241,7 @@ async def recommend_positions(
             skills_provided=len(body.person_skills),
         )
 
-    # Run match for each position and collect scores
+ # Run match for each position and collect scores
     match_svc = MatchService()
     person_skills_dicts = [s.model_dump() for s in body.person_skills]
 
@@ -259,7 +259,7 @@ async def recommend_positions(
             if score >= body.min_score:
                 matched = result.get("matched_skills", [])
                 gap = result.get("gap_skills", [])
-                # Compute skill coverage: what fraction of position's total skills does user cover?
+ # Compute skill coverage: what fraction of position's total skills does user cover?
                 total_position_skills = len(matched) + len(gap)
                 coverage = len(matched) / total_position_skills if total_position_skills > 0 else 1.0
                 recommendations.append(PositionRecommendation(
@@ -276,7 +276,7 @@ async def recommend_positions(
         except Exception:
             continue  # skip positions that fail
 
-    # Sort by match_score descending, take top_k
+ # Sort by match_score descending, take top_k
     recommendations.sort(key=lambda r: r.match_score, reverse=True)
     recommendations = recommendations[: body.top_k]
 

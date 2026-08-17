@@ -156,7 +156,7 @@ function sourceTypeColor(t?: string): string {
 }
 
 // 状态徽章
-// D8c fix: 优先读生命周期状态 status（数据源页/后端统一口径）——inactive=已停用、
+// fix: 优先读生命周期状态 status（数据源页/后端统一口径）——inactive=已停用、
 // paused=已暂停；config.disabled 仅作流水线运行开关的兜底显示。修复 DELETE 停用
 // 后流水线页仍显示「待机」的跨页不同步。
 function statusBadge(ds: DataSourceWithStatus) {

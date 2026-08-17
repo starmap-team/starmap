@@ -23,63 +23,63 @@ class PipelineRun(Base):
 
     __tablename__ = "pipeline_runs"
 
-    # 业务说明：流水线运行记录唯一标识
+ # 业务说明：流水线运行记录唯一标识
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
     )
-    # 业务说明：流水线运行类型，标识数据处理的粒度
-    # 技术说明：默认"full"，可选值：
-    #   full（全量重跑）| incremental（增量更新）| source_sync（单源同步）
+ # 业务说明：流水线运行类型，标识数据处理的粒度
+ # 技术说明：默认"full"，可选值：
+ # full（全量重跑）| incremental（增量更新）| source_sync（单源同步）
     run_type: Mapped[str] = mapped_column(
         String(20), nullable=False, default="full",
         comment="'full' | 'incremental' | 'source_sync'",
     )
-    # 业务说明：流水线整体运行状态
-    # 技术说明：默认"running"，状态流转：running -> completed/failed/cancelled
+ # 业务说明：流水线整体运行状态
+ # 技术说明：默认"running"，状态流转：running -> completed/failed/cancelled
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="running",
         comment="'running' | 'completed' | 'failed' | 'cancelled'",
     )
-    # 业务说明：流水线启动时间，用于计算总执行时长
-    # 技术说明：默认当前UTC时间，精确记录任务调度时间
+ # 业务说明：流水线启动时间，用于计算总执行时长
+ # 技术说明：默认当前UTC时间，精确记录任务调度时间
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
     )
-    # 业务说明：流水线完成时间，null表示尚未完成或仍在运行中
+ # 业务说明：流水线完成时间，null表示尚未完成或仍在运行中
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
-    # 业务说明：各阶段的详细执行信息，包括阶段名称、状态、耗时、处理记录数、错误等
-    # 技术说明：JSON数组格式，结构：[{name, status, duration_ms, records_processed, errors}]
+ # 业务说明：各阶段的详细执行信息，包括阶段名称、状态、耗时、处理记录数、错误等
+ # 技术说明：JSON数组格式，结构：[{name, status, duration_ms, records_processed, errors}]
     stages: Mapped[dict | list | None] = mapped_column(
         JSON, nullable=True, default=list,
         comment="[{name, status, duration_ms, records_processed, errors}]",
     )
-    # 业务说明：本次运行处理的总记录数，包含新增和更新
-    # 技术说明：默认0，用于评估数据吞吐量和流水线负载
+ # 业务说明：本次运行处理的总记录数，包含新增和更新
+ # 技术说明：默认0，用于评估数据吞吐量和流水线负载
     total_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    # 业务说明：本次运行新增的记录数
-    # 技术说明：默认0，与total_records对比可计算更新比例
+ # 业务说明：本次运行新增的记录数
+ # 技术说明：默认0，与total_records对比可计算更新比例
     new_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    # 业务说明：本次运行更新的记录数
-    # 技术说明：默认0，反映数据变化的活跃程度
+ # 业务说明：本次运行更新的记录数
+ # 技术说明：默认0，反映数据变化的活跃程度
     updated_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    # 业务说明：数据质量评分，综合评估本次运行产出数据的质量
-    # 技术说明：默认0.0，基于完整性、准确性、一致性等多维度计算
+ # 业务说明：数据质量评分，综合评估本次运行产出数据的质量
+ # 技术说明：默认0.0，基于完整性、准确性、一致性等多维度计算
     quality_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    # 业务说明：错误日志，记录流水线运行中的异常和错误详情
-    # 技术说明：Text类型支持长文本，null表示无错误或尚未记录
+ # 业务说明：错误日志，记录流水线运行中的异常和错误详情
+ # 技术说明：Text类型支持长文本，null表示无错误或尚未记录
     error_log: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # 业务说明：指定执行的特定阶段列表，用于部分重跑或调试
-    # 技术说明：JSON数组格式，null表示执行所有阶段
+ # 业务说明：指定执行的特定阶段列表，用于部分重跑或调试
+ # 技术说明：JSON数组格式，null表示执行所有阶段
     selected_stages: Mapped[list | None] = mapped_column(
         JSON, nullable=True,
         comment="List of stage names to execute; null = all stages",
     )
-    # D8: 指定爬取的特定数据源列表（null/空 = 全部源）
-    # 技术说明：JSON数组格式，元素为 data_sources.name；空/None = 全部 active 源
+ # D8: 指定爬取的特定数据源列表（null/空 = 全部源）
+ # 技术说明：JSON数组格式，元素为 data_sources.name；空/None = 全部 active 源
     selected_sources: Mapped[list | None] = mapped_column(
         JSON, nullable=True,
         comment="List of source names to crawl; null/empty = all sources",
@@ -104,39 +104,39 @@ class PipelineSchedule(Base):
 
     __tablename__ = "pipeline_schedules"
 
-    # 业务说明：调度配置唯一标识
+ # 业务说明：调度配置唯一标识
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
-    # 业务说明：调度任务名称，便于识别和管理
+ # 业务说明：调度任务名称，便于识别和管理
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    # 业务说明：Cron表达式，定义调度触发时间规则
-    # 技术说明：标准Cron格式，例如"0 2 * * *"表示每天凌晨2点执行
+ # 业务说明：Cron表达式，定义调度触发时间规则
+ # 技术说明：标准Cron格式，例如"0 2 * * *"表示每天凌晨2点执行
     cron_expression: Mapped[str] = mapped_column(
         String(50), nullable=False,
         comment="cron expression, e.g. '0 2 * * *'",
     )
-    # 业务说明：调度触发的流水线运行类型
-    # 技术说明：默认"incremental"，增量更新减少资源消耗，适合定时调度
+ # 业务说明：调度触发的流水线运行类型
+ # 技术说明：默认"incremental"，增量更新减少资源消耗，适合定时调度
     run_type: Mapped[str] = mapped_column(
         String(20), nullable=False, default="incremental",
     )
-    # 业务说明：指定调度触发的特定阶段列表
-    # 技术说明：JSON数组格式，null表示执行所有阶段
+ # 业务说明：指定调度触发的特定阶段列表
+ # 技术说明：JSON数组格式，null表示执行所有阶段
     selected_stages: Mapped[list | None] = mapped_column(JSON, nullable=True)
-    # D8: 指定调度爬取的特定数据源列表（null/空 = 全部源）
+ # D8: 指定调度爬取的特定数据源列表（null/空 = 全部源）
     selected_sources: Mapped[list | None] = mapped_column(JSON, nullable=True)
-    # 业务说明：调度任务是否启用，用于临时暂停而不删除配置
-    # 技术说明：默认True，设置为False时调度器跳过该任务
+ # 业务说明：调度任务是否启用，用于临时暂停而不删除配置
+ # 技术说明：默认True，设置为False时调度器跳过该任务
     enabled: Mapped[bool] = mapped_column(
         default=True, nullable=False,
     )
-    # 业务说明：调度任务最近一次执行时间，null表示尚未执行
+ # 业务说明：调度任务最近一次执行时间，null表示尚未执行
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    # 业务说明：调度任务预计下次执行时间，由调度器计算
-    # 技术说明：null表示无法计算或调度已暂停，用于调度状态展示
+ # 业务说明：调度任务预计下次执行时间，由调度器计算
+ # 技术说明：null表示无法计算或调度已暂停，用于调度状态展示
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    # 业务说明：调度配置创建时间
+ # 业务说明：调度配置创建时间
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
     )
@@ -153,69 +153,69 @@ class DataSourceRecord(Base):
 
     __tablename__ = "data_sources"
 
-    # 业务说明：数据源唯一标识
+ # 业务说明：数据源唯一标识
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
     )
-    # 业务说明：数据源名称，如"BOSS直聘"、"拉勾网"、"51Job"、"GitHub"、"ESCO"等
-    # 技术说明：unique=True确保名称唯一，index加速数据源查询
+ # 业务说明：数据源名称，如"BOSS直聘"、"拉勾网"、"51Job"、"GitHub"、"ESCO"等
+ # 技术说明：unique=True确保名称唯一，index加速数据源查询
     name: Mapped[str] = mapped_column(
         String(100), nullable=False, unique=True, index=True,
         comment="'BOSS直聘' | '拉勾网' | '51Job' | 'GitHub' | 'ESCO'",
     )
-    # 业务说明：数据源接入类型，标识数据获取方式
-    # 技术说明：默认"crawler"，可选值：crawler（爬虫）| api（接口）| manual（手动）| import（导入）
+ # 业务说明：数据源接入类型，标识数据获取方式
+ # 技术说明：默认"crawler"，可选值：crawler（爬虫）| api（接口）| manual（手动）| import（导入）
     source_type: Mapped[str] = mapped_column(
         String(20), nullable=False, default="crawler",
         comment="'crawler' | 'api' | 'manual' | 'import'",
     )
-    # 业务说明：数据源权威度评分，影响数据融合权重
-    # 技术说明：默认0.5，范围0.0-1.0，权威度越高，该源数据在冲突时权重越大
+ # 业务说明：数据源权威度评分，影响数据融合权重
+ # 技术说明：默认0.5，范围0.0-1.0，权威度越高，该源数据在冲突时权重越大
     authority_score: Mapped[float] = mapped_column(
         Float, nullable=False, default=0.5,
         comment="Source authority weight 0.0-1.0",
     )
-    # 业务说明：数据源运行状态，用于监控和告警
-    # 技术说明：默认"active"，可选值：active（正常）| paused（暂停）| error（异常）| inactive（软删除停用）。
-    #          枚举唯一事实源见 app.core.constants.DataSourceStatus（IC-01/DC-04 收敛），
-    #          DELETE 软删除（datasource.py:240）会写 status='inactive'。
+ # 业务说明：数据源运行状态，用于监控和告警
+ # 技术说明：默认"active"，可选值：active（正常）| paused（暂停）| error（异常）| inactive（软删除停用）。
+ # 枚举唯一事实源见 app.core.constants.DataSourceStatus（/收敛），
+ # DELETE 软删除（datasource.py:240）会写 status='inactive'。
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="active",
         comment="'active' | 'paused' | 'error' | 'inactive' (见 DataSourceStatus)",
     )
-    # 业务说明：最近一次爬取/同步时间，评估数据新鲜度
-    # 技术说明：null表示尚未执行过爬取
+ # 业务说明：最近一次爬取/同步时间，评估数据新鲜度
+ # 技术说明：null表示尚未执行过爬取
     last_crawl_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
-    # 业务说明：最近一次成功爬取时间（迁移 024 新增，NEW-14 补 ORM 映射）
-    # 技术说明：null表示从未成功爬取；health_monitor 依赖此字段序列化
+ # 业务说明：最近一次成功爬取时间（迁移 024 新增，补 ORM 映射）
+ # 技术说明：null表示从未成功爬取；health_monitor 依赖此字段序列化
     last_successful_crawl_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
-    # 业务说明：该数据源累计爬取的总记录数
-    # 技术说明：默认0，用于评估数据源的数据丰富度
+ # 业务说明：该数据源累计爬取的总记录数
+ # 技术说明：默认0，用于评估数据源的数据丰富度
     total_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    # 业务说明：该数据源有效的记录数（经过去重和质量过滤后）
-    # 技术说明：默认0，与total_records对比可计算数据有效率
+ # 业务说明：该数据源有效的记录数（经过去重和质量过滤后）
+ # 技术说明：默认0，与total_records对比可计算数据有效率
     valid_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    # 业务说明：该数据源的重复率，评估数据质量
-    # 技术说明：默认0.0，计算公式：重复记录数 / total_records，越低越好
+ # 业务说明：该数据源的重复率，评估数据质量
+ # 技术说明：默认0.0，计算公式：重复记录数 / total_records，越低越好
     duplicate_rate: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    # 业务说明：该数据源的平均数据质量评分
-    # 技术说明：默认0.0，综合评估数据完整性、准确性、时效性等维度
+ # 业务说明：该数据源的平均数据质量评分
+ # 技术说明：默认0.0，综合评估数据完整性、准确性、时效性等维度
     avg_quality_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    # 业务说明：数据源的详细配置参数，如爬取规则、API密钥、请求频率等
-    # 技术说明：JSON格式存储，结构灵活，支持不同类型数据源的配置差异
+ # 业务说明：数据源的详细配置参数，如爬取规则、API密钥、请求频率等
+ # 技术说明：JSON格式存储，结构灵活，支持不同类型数据源的配置差异
     config: Mapped[dict | None] = mapped_column(
         JSON, nullable=True, default=dict,
         comment="Crawler / API configuration parameters",
     )
 
 
-# ── Phase 7: Graph write outbox (P0-1 fix: prevent PG/Neo4j data drift) ──
+# ── Graph write outbox (prevent PG/Neo4j data drift) ──
 
 
 class GraphWriteOutbox(Base):
@@ -288,16 +288,16 @@ class LoopResultRecord(Base):
 
     __tablename__ = "loop_results"
 
-    # 业务说明：闭环结果记录ID，使用自增整数
-    # 技术说明：使用Integer自增主键，便于顺序查询和分页
+ # 业务说明：闭环结果记录ID，使用自增整数
+ # 技术说明：使用Integer自增主键，便于顺序查询和分页
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # 业务说明：闭环运行的业务标识，全局唯一
-    # 技术说明：unique=True确保标识唯一，index加速结果查询
+ # 业务说明：闭环运行的业务标识，全局唯一
+ # 技术说明：unique=True确保标识唯一，index加速结果查询
     run_id: Mapped[str] = mapped_column(
         String(100), unique=True, index=True, nullable=False,
     )
-    # 业务说明：触发此闭环运行的用户标识 (SEC-04)
-    # 技术说明：nullable=True 兼容历史数据，server_default='system' 用于迁移回填
+ # 业务说明：触发此闭环运行的用户标识 ()
+ # 技术说明：nullable=True 兼容历史数据，server_default='system' 用于迁移回填
     user_id: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
@@ -305,27 +305,27 @@ class LoopResultRecord(Base):
         server_default="system",
         comment="User who triggered this loop run (null for legacy data)",
     )
-    # 业务说明：各步骤的序列化结果，以JSONB格式存储
-    # 技术说明：使用JSONB类型支持高效查询和索引，默认空字典
+ # 业务说明：各步骤的序列化结果，以JSONB格式存储
+ # 技术说明：使用JSONB类型支持高效查询和索引，默认空字典
     steps_json: Mapped[dict | None] = mapped_column(
         JSONB, nullable=True, default=dict,
         comment="Serialized list of step results",
     )
-    # 业务说明：闭环运行整体状态
-    # 技术说明：默认"running"，状态流转：running -> completed/failed
+ # 业务说明：闭环运行整体状态
+ # 技术说明：默认"running"，状态流转：running -> completed/failed
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="running",
         comment="'running' | 'completed' | 'failed'",
     )
-    # 业务说明：错误日志，记录闭环运行中的异常信息
-    # 技术说明：Text类型支持长文本，null表示无错误
+ # 业务说明：错误日志，记录闭环运行中的异常信息
+ # 技术说明：Text类型支持长文本，null表示无错误
     error_log: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # 业务说明：闭环结果记录创建时间
-    # 技术说明：使用_utcnow函数确保UTC时间一致性
+ # 业务说明：闭环结果记录创建时间
+ # 技术说明：使用_utcnow函数确保UTC时间一致性
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow,
     )
-    # 业务说明：闭环运行完成时间，null表示尚未完成
+ # 业务说明：闭环运行完成时间，null表示尚未完成
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )

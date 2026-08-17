@@ -61,23 +61,23 @@ async def list_positions(
         Query(description="admin 用：true 时不强制 status=approved"),
     ] = False,
 ) -> PositionListResponse:
-    # P1-9 fix (functional-review 2026-08-13): 可见性策略此前只读 query 参数、
-    # 无角色校验 —— 任何登录用户传 ?status=pending_review 或 include_all=true
-    # 即可查看未发布/已驳回岗位，注释声称的"admin 用户可传 include_all"形同
-    # 虚设。现强制：非 admin 忽略 include_all 并锁定 status=approved。
+ # 可见性策略此前只读 query 参数、
+ # 无角色校验 —— 任何登录用户传 ?status=pending_review 或 include_all=true
+ # 即可查看未发布/已驳回岗位，注释声称的"admin 用户可传 include_all"形同
+ # 虚设。现强制：非 admin 忽略 include_all 并锁定 status=approved。
     is_admin = user.get("role") == "admin"
     if not is_admin:
         include_all = False
         status = "approved"
-    # Count total
+ # Count total
     count_stmt = sa.select(sa.func.count()).select_from(PositionRecord)
     if industry:
         count_stmt = count_stmt.where(PositionRecord.industry.ilike(f"%{_escape_like(industry)}%", escape="\\"))
     if search:
-        # Phase 13 一致性审计：search 同时匹配 name、name_cn 与 industry（与前端 placeholder/客户端筛选及 Neo4j 路径一致）
+ # Phase 13 一致性审计：search 同时匹配 name、name_cn 与 industry（与前端 placeholder/客户端筛选及 Neo4j 路径一致）
         like = f"%{_escape_like(search)}%"
-        # Fix D (Architect review): industry 搜索排除「未分类」字面量，避免 admin
-        # 输入「未分类」搜出全部岗位。
+ # Fix D (Architect review): industry 搜索排除「未分类」字面量，避免 admin
+ # 输入「未分类」搜出全部岗位。
         count_stmt = count_stmt.where(
             sa.or_(
                 PositionRecord.name.ilike(like, escape="\\"),
@@ -88,7 +88,7 @@ async def list_positions(
                 ),
             )
         )
-    # Default visibility policy: only approved is public. Admin can override.
+ # Default visibility policy: only approved is public. Admin can override.
     effective_status = status
     if not include_all and effective_status is None:
         effective_status = "approved"
@@ -96,20 +96,20 @@ async def list_positions(
         count_stmt = count_stmt.where(PositionRecord.review_status == effective_status)
     total = (await session.execute(count_stmt)).scalar() or 0
 
-    # ── Neo4j fallback: when filtered PG count is 0, try Neo4j ──
-    # This handles the case where PG has records but none match the status filter
-    # (e.g., all PG positions are "pending_review" but user wants "approved").
-    # Neo4j positions without explicit review_status default to "approved".
+ # ── Neo4j fallback: when filtered PG count is 0, try Neo4j ──
+ # This handles the case where PG has records but none match the status filter
+ # (e.g., all PG positions are "pending_review" but user wants "approved").
+ # Neo4j positions without explicit review_status default to "approved".
     if total == 0 and driver is not None:
         return await _list_positions_neo4j(driver, page, page_size, industry, search, effective_status)
 
-    # Fetch page
+ # Fetch page
     stmt = sa.select(PositionRecord).order_by(PositionRecord.name)
     if industry:
         stmt = stmt.where(PositionRecord.industry.ilike(f"%{_escape_like(industry)}%", escape="\\"))
     if search:
         like = f"%{_escape_like(search)}%"
-        # Fix D: search 排除「未分类」字面量（避免 admin 搜「未分类」命中全部）
+ # Fix D: search 排除「未分类」字面量（避免 admin 搜「未分类」命中全部）
         stmt = stmt.where(
             sa.or_(
                 PositionRecord.name.ilike(like, escape="\\"),
@@ -125,7 +125,7 @@ async def list_positions(
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     rows = (await session.execute(stmt)).scalars().all()
 
-    # Batch-fetch skills for all positions on this page (avoids N+1)
+ # Batch-fetch skills for all positions on this page (avoids N+1)
     position_ids = [r.id for r in rows]
     skill_map: dict[Any, list[SkillNode]] = {}
     if position_ids:
@@ -178,7 +178,7 @@ async def list_industries(
     「未分类」字面量（DB 兜底桶）始终追加在返回列表末尾（仅在存在时），
     不参与字母排序，确保用户可筛 87% 的「未分类」岗位。
     """
-    # 真实行业（不含「未分类」），按字母排序
+ # 真实行业（不含「未分类」），按字母排序
     real_stmt = (
         sa.select(PositionRecord.industry)
         .where(PositionRecord.industry.isnot(None))
@@ -189,7 +189,7 @@ async def list_industries(
     )
     real_rows = (await session.execute(real_stmt)).scalars().all()
 
-    # 「未分类」字面量行存在性检查（避免出现「未分类」chip 但筛不出结果的 UX 撕裂）
+ # 「未分类」字面量行存在性检查（避免出现「未分类」chip 但筛不出结果的 UX 撕裂）
     has_unclassified_stmt = (
         sa.select(sa.func.count())
         .select_from(PositionRecord)
@@ -218,14 +218,14 @@ async def get_position(
 
     from fastapi import HTTPException
 
-    # P1-9 fix: 详情同样遵守可见性策略 —— 非 admin 只能查看已发布岗位
-    # （list_positions 已锁定 status=approved，详情端点此前完全不按
-    # review_status 过滤 → 通过 /positions/{id} 直接访问未发布岗位）。
+ # 详情同样遵守可见性策略 —— 非 admin 只能查看已发布岗位
+ # （list_positions 已锁定 status=approved，详情端点此前完全不按
+ # review_status 过滤 → 通过 /positions/{id} 直接访问未发布岗位）。
     is_admin = user.get("role") == "admin"
 
     r = None
 
-    # 尝试按 UUID 查询（仅当 ID 包含连字符的 UUID 或纯 hex 格式时）
+ # 尝试按 UUID 查询（仅当 ID 包含连字符的 UUID 或纯 hex 格式时）
     if len(position_id) >= 32 and (len(position_id) <= 36):
         try:
             uuid_val = uuid_mod.UUID(position_id)
@@ -236,14 +236,14 @@ async def get_position(
         except (ValueError, Exception):
             pass  # 非 UUID 格式，跳过
 
-    # 尝试按名称查询
+ # 尝试按名称查询
     if r is None:
         stmt = sa.select(PositionRecord).where(PositionRecord.name == position_id)
         if not is_admin:
             stmt = stmt.where(PositionRecord.review_status == "approved")
         r = (await session.execute(stmt)).scalar_one_or_none()
 
-    # PostgreSQL hit — return with skills
+ # PostgreSQL hit — return with skills
     if r is not None:
         skill_stmt = (
             sa.select(SkillRecord, PositionSkillRelation)
@@ -262,11 +262,11 @@ async def get_position(
             }
             for sk, rel in skill_rows
         ]
-        # 契约 (industry.py): DB industry 永远是非空字符串 — 后端兜底归一化，
-        # 前端 PositionList.vue:302 / PositionDetail.vue 都不需要 `|| '未分类'` 兜底。
-        # 同时防止后续写入路径绕过 normalize_industry() 时的回归。
-        # 用 normalize_industry 而非简单的 `or` 兜底，是为了让「  」(纯空白)、
-        # 「通用」/「其他」等历史脏数据也能被归一化（详见 industry.py）。
+ # 契约 (industry.py): DB industry 永远是非空字符串 — 后端兜底归一化，
+ # 前端 PositionList.vue:302 / PositionDetail.vue 都不需要 `|| '未分类'` 兜底。
+ # 同时防止后续写入路径绕过 normalize_industry() 时的回归。
+ # 用 normalize_industry 而非简单的 `or` 兜底，是为了让「 」(纯空白)、
+ # 「通用」/「其他」等历史脏数据也能被归一化（详见 industry.py）。
         industry_value = normalize_industry(r.industry)
         return {
             "position_id": str(r.id),
@@ -278,7 +278,7 @@ async def get_position(
             "discovered_at": r.created_at.isoformat() if r.created_at else None,
         }
 
-    # ── Neo4j fallback: query Position node by name ──
+ # ── Neo4j fallback: query Position node by name ──
     if driver is not None:
         try:
             from app.services.graph_service import fetch_position_graph
@@ -300,9 +300,9 @@ async def get_position(
                     "position_id": pos.get("position_id", ""),
                     "name": pos.get("name", ""),
                     "name_cn": pos.get("name_cn", pos.get("name", "")),
-                    # 契约 (industry.py): industry 永远是非空字面量。
-                    # Neo4j 节点 industry 属性可能存 NULL（_POSITION_MERGE_CYPHER
-                    # 不走归一化），必须 normalize_industry 兜底。
+ # 契约 (industry.py): industry 永远是非空字面量。
+ # Neo4j 节点 industry 属性可能存 NULL（_POSITION_MERGE_CYPHER
+ # 不走归一化），必须 normalize_industry 兜底。
                     "industry": normalize_industry(pos.get("industry")),
                     "description": pos.get("description", ""),
                     "skills_required": skills,
@@ -332,7 +332,7 @@ async def discover_position(
     from app.services.evolution_service import EmergenceFinder
 
     try:
-        # Step 1: Load timeseries data for frequency history
+ # Step 1: Load timeseries data for frequency history
         from app.services.evolution_service import load_skill_timeseries_data
 
         skill_data = await load_skill_timeseries_data(db)
@@ -346,7 +346,7 @@ async def discover_position(
                 "message": "时序数据不足，请先执行管线以生成技能频率统计",
             }
 
-        # Step 2: Run emergence detection
+ # Step 2: Run emergence detection
         finder = EmergenceFinder()
         report = finder.scan(skill_data)
 
@@ -365,7 +365,7 @@ async def discover_position(
             "emerging_skills": emerging,
             "count": len(emerging),
             "skills_analyzed": len(skill_data),
-            # P1-4: 岗位级发现 —— 涌现技能反查岗位画像，标记新兴演化候选
+ # P1-4: 岗位级发现 —— 涌现技能反查岗位画像，标记新兴演化候选
             "emerging_positions": await _discover_position_candidates(db, report),
         }
     except PositionNotFoundError as exc:
@@ -491,7 +491,7 @@ async def reclassify_industry(
         normalize_industry,
     )
 
-    # 1. 校验 industry 是 canonical 桶之一（防 admin 误输入污染）
+ # 1. 校验 industry 是 canonical 桶之一（防 admin 误输入污染）
     canonical = set(get_canonical_industries())
     normalized = normalize_industry(body.industry)
     if normalized == UNCLASSIFIED_INDUSTRY_LITERAL:
@@ -510,7 +510,7 @@ async def reclassify_industry(
             detail=f"industry '{body.industry}' 是模糊词，请选真实行业",
         )
 
-    # 2. 校验 position 存在且可访问
+ # 2. 校验 position 存在且可访问
     import uuid as _uuid
     canonical_id: str | None = None
     try:
@@ -519,7 +519,7 @@ async def reclassify_industry(
             sa.select(PositionRecord).where(PositionRecord.id == _uuid.UUID(position_id))
         )).scalar_one_or_none()
     except (ValueError, Exception):
-        # 非 UUID，按名称查询
+ # 非 UUID，按名称查询
         r = (await session.execute(
             sa.select(PositionRecord).where(PositionRecord.name == position_id)
         )).scalar_one_or_none()
@@ -532,7 +532,7 @@ async def reclassify_industry(
     await session.commit()
     await session.refresh(r)
 
-    # 3. 同步 Neo4j Position 节点 industry 属性
+ # 3. 同步 Neo4j Position 节点 industry 属性
     neo4j_synced = False
     if driver is not None:
         try:
@@ -548,7 +548,7 @@ async def reclassify_industry(
             logger.warning("reclassify_industry: Neo4j sync failed: {}", exc)
             neo4j_synced = False
 
-    # 4. 写 ReviewAuditLog（让 admin 可查「谁、什么时候、为什么」改了 industry）
+ # 4. 写 ReviewAuditLog（让 admin 可查「谁、什么时候、为什么」改了 industry）
     from app.models.review_audit_log import ReviewAuditLog
     audit_log = ReviewAuditLog(
         entity_type="position",
@@ -589,15 +589,15 @@ async def _list_positions_neo4j(
     """
     try:
         async with driver.session() as session:
-            # Build dynamic WHERE clauses
+ # Build dynamic WHERE clauses
             where_clauses: list[str] = []
             params: dict[str, Any] = {}
 
             if search:
-                # Phase 13 一致性审计：search 同时匹配 name 与 industry，与 PG 路径及前端契约一致
-                # Fix D (Architect review): industry CONTAINS 排除「未分类」字面量，
-                # 避免 admin 搜「未分类」命中所有岗位。Neo4j 侧 industry=null 时
-                # coalesce('', '') 不命中。
+ # Phase 13 一致性审计：search 同时匹配 name 与 industry，与 PG 路径及前端契约一致
+ # Fix D (Architect review): industry CONTAINS 排除「未分类」字面量，
+ # 避免 admin 搜「未分类」命中所有岗位。Neo4j 侧 industry=null 时
+ # coalesce('', '') 不命中。
                 where_clauses.append(
                     "(toLower(p.name) CONTAINS toLower($search) OR "
                     "(p.industry IS NOT NULL AND p.industry <> $unclassified_lit AND "
@@ -608,7 +608,7 @@ async def _list_positions_neo4j(
             if industry:
                 where_clauses.append("toLower(p.industry) CONTAINS toLower($industry)")
                 params["industry"] = industry
-            # Status filter: Neo4j positions without review_status default to 'approved'
+ # Status filter: Neo4j positions without review_status default to 'approved'
             if status_filter and status_filter != "all":
                 if status_filter == "approved":
                     where_clauses.append("(p.review_status IS NULL OR p.review_status = $status)")
@@ -618,7 +618,7 @@ async def _list_positions_neo4j(
 
             where_str = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
-            # Count total
+ # Count total
             count_query = f"MATCH (p:Position){where_str} RETURN count(p) AS cnt"
             count_result = await session.run(count_query, params)
             count_record = await count_result.single()
@@ -627,7 +627,7 @@ async def _list_positions_neo4j(
             if total == 0:
                 return PositionListResponse(items=[], total=0, page=page, page_size=page_size)
 
-            # Fetch page with skills
+ # Fetch page with skills
             page_query = f"""
                 MATCH (p:Position){where_str}
                 WITH p ORDER BY p.name
@@ -667,7 +667,7 @@ async def _list_positions_neo4j(
                     description=props.get("description", ""),
                     skills_required=skill_nodes,
                     discovered_at=None,
-                    # fix: 回写 review_status，与 PG 路径字段对齐（OPEN-LOW 修复）
+ # fix: 回写 review_status，与 PG 路径字段对齐（OPEN-LOW 修复）
                     review_status=props.get("review_status", None),
                 ))
 

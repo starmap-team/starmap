@@ -91,7 +91,7 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
     """
     from app.core.pipeline.executor import STAGE_EXECUTORS, advance_pipeline
 
-    # Phase 1 D-04: Check STOP flag at the START of each stage execution
+ # Phase 1 D-04: Check STOP flag at the START of each stage execution
     try:
         from app.core.pipeline.orchestrator import is_run_cancelled
         from app.services.resources import resources as app_resources
@@ -118,15 +118,15 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
 
     start = time.monotonic()
     try:
-        # ponytail: only crawl accepts run_type; others take run_id only
+ # ponytail: only crawl accepts run_type; others take run_id only
         if stage_name == StageName.CRAWL.value:
             result = executor(run_id, run_type="full")  # type: ignore[operator]
         else:
             result = executor(run_id)  # type: ignore[operator]
         duration_ms = int((time.monotonic() - start) * 1000)
 
-        # Update stage status AND advance DAG in ONE async call
-        # (avoids "different loop" error when running two separate run_async calls)
+ # Update stage status AND advance DAG in ONE async call
+ # (avoids "different loop" error when running two separate run_async calls)
         async def _complete_and_advance():
             await _mark_stage_completed(
                 run_id, stage_name,
@@ -151,23 +151,23 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
         raise
     except Exception as exc:
         logger.exception("Celery task error: {}", exc)
-        # P0-AUDIT-FIX (2026-08-13): when `self.retry()` exhausts
-        # `max_retries`, Celery raises `MaxRetriesExceededError` and the task
-        # fails — but `_mark_stage_failed` was never called, so the stage
-        # record stays at status='running' until the watchdog sweep runs
-        # `pipeline_stage_timeout * 2` later (≥30 min). The DAG also stops
-        # advancing because advance_pipeline is only called on success.
-        # Detect exhaustion via `self.request.retries` and explicitly mark
-        # the stage failed BEFORE raising — so admins see the root cause
-        # immediately and DAG downstream can cascade-fail.
+ # P0-AUDIT-FIX (2026-08-13): when `self.retry()` exhausts
+ # `max_retries`, Celery raises `MaxRetriesExceededError` and the task
+ # fails — but `_mark_stage_failed` was never called, so the stage
+ # record stays at status='running' until the watchdog sweep runs
+ # `pipeline_stage_timeout * 2` later (≥30 min). The DAG also stops
+ # advancing because advance_pipeline is only called on success.
+ # Detect exhaustion via `self.request.retries` and explicitly mark
+ # the stage failed BEFORE raising — so admins see the root cause
+ # immediately and DAG downstream can cascade-fail.
         if self.request.retries >= settings.pipeline_retry_max:
             try:
                 run_async(_mark_stage_failed(run_id, stage_name, [str(exc)]))
             except Exception as mark_exc:
                 logger.exception("Failed to mark stage {} failed: {}", stage_name, mark_exc)
-            # Do NOT re-raise after marking failed — let the task end normally
-            # so Celery records the failure correctly and the watchdog sweep
-            # isn't triggered prematurely. Returning a failure dict is enough.
+ # Do NOT re-raise after marking failed — let the task end normally
+ # so Celery records the failure correctly and the watchdog sweep
+ # isn't triggered prematurely. Returning a failure dict is enough.
             return {"status": "failed", "stage": stage_name, "error": str(exc), "exhausted": True}
         retry_delay = settings.pipeline_retry_backoff * (2 ** self.request.retries)
         raise self.retry(exc=exc, countdown=retry_delay) from exc
@@ -247,8 +247,8 @@ def reconcile_graph_task(self, schedule_id: str) -> None:
             async with sm() as session:
                 async with session.begin():
                     await _run_daily_reconcile(session)
-                # P4b 漂移告警: reconcile 后检测残留孤儿（被引用无标识节点/缺 PG 记录），
-                # 非零即告警——让每日 cron 把漂移暴露为可观测信号，而非静默。
+ # P4b 漂移告警: reconcile 后检测残留孤儿（被引用无标识节点/缺 PG 记录），
+ # 非零即告警——让每日 cron 把漂移暴露为可观测信号，而非静默。
                 try:
                     from app.services.repair_engine import RepairEngine
                     from app.services.resources import resources as app_resources
@@ -352,9 +352,9 @@ async def _sweep_orphan_runs_async() -> dict[str, Any]:
         )
         orphans = []
         for run in result.scalars().all():
-            # P0-AUDIT-FIX (2026-08-13): started_at 可能为 naive（timezone=True 规范化
-            # 前的历史行，或 SQLite 测试库）——naive 与 aware 比较会抛 TypeError。
-            # 假定 naive = UTC，统一后做 Python 侧过滤（RUNNING 记录数少，可接受）。
+ # P0-AUDIT-FIX (2026-08-13): started_at 可能为 naive（timezone=True 规范化
+ # 前的历史行，或 SQLite 测试库）——naive 与 aware 比较会抛 TypeError。
+ # 假定 naive = UTC，统一后做 Python 侧过滤（RUNNING 记录数少，可接受）。
             started_at = run.started_at
             if started_at is not None and started_at.tzinfo is None:
                 started_at = started_at.replace(tzinfo=UTC)
@@ -391,7 +391,7 @@ async def _mark_stage_completed(
     from app.core.pipeline.orchestrator import update_stage_status
     from app.db.session import get_session_factory
     error_list = errors or []
-    # Phase 3.8.7: 0 记录 + 有错误 = 失败, 不是完成
+ # Phase 3.8.7: 0 记录 + 有错误 = 失败, 不是完成
     if records_processed == 0 and error_list:
         actual_status = "failed"
     else:
@@ -441,19 +441,19 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour="*/6", minute=0),  # 每6小时
         "kwargs": {"days": 90},
     },
-    # Phase 7: auto-recover orphaned pipeline runs stuck in RUNNING > 30min
+ # auto-recover orphaned pipeline runs stuck in RUNNING > 30min
     "sweep-orphan-runs": {
         "task": "app.tasks.celery_app.sweep_orphan_runs",
         "schedule": crontab(minute="*/5"),  # 每5分钟
     },
-    # Phase 23 Task 1 (DC-02/DF-01): 重放 graph_write_outbox 失败行 + sweep 超龄
-    # pending 行——每 30 分钟，幂等（MERGE），source_count max 语义不放大漂移
+ # 重放 graph_write_outbox 失败行 + sweep 超龄
+ # pending 行——每 30 分钟，幂等（MERGE），source_count max 语义不放大漂移
     "retry-failed-outbox-writes": {
         "task": "app.tasks.outbox_retry.retry_failed_outbox_writes",
         "schedule": crontab(minute="*/30"),  # 每30分钟
     },
-    # Phase 2 (accuracy gate): 每周一 02:30 跑赛项三项 ≥90% 指标门禁，
-    # 劣化自动写审计告警（prevention 之外的 detection 防线）
+ # 每周一 02:30 跑赛项三项 ≥90% 指标门禁，
+ # 劣化自动写审计告警（prevention 之外的 detection 防线）
     "accuracy-gate-weekly": {
         "task": "app.tasks.celery_app.run_accuracy_gate",
         "schedule": crontab(hour=2, minute=30, day_of_week=1),  # 每周一 02:30
@@ -521,7 +521,7 @@ def run_accuracy_gate_task(self) -> dict[str, Any]:
     gate_script = root / "evaluation" / "accuracy_gate.py"
     output_lines: list[str] = []
     try:
-        # Phase 2026-08-17: Popen 流式写入，避免 capture_output 截断
+ # Phase 2026-08-17: Popen 流式写入，避免 capture_output 截断
         proc = subprocess.Popen(
             [sys.executable, str(gate_script), "--with-resume-real-llm"],
             cwd=str(root),
@@ -538,7 +538,7 @@ def run_accuracy_gate_task(self) -> dict[str, Any]:
         proc.wait(timeout=3600)
         output = "\n".join(output_lines)
         if proc.returncode != 0:
-            # 指标劣化 → 写审计告警
+ # 指标劣化 → 写审计告警
             try:
                 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
@@ -556,7 +556,7 @@ def run_accuracy_gate_task(self) -> dict[str, Any]:
             logger.error("赛项指标门禁未达标（≥90%），需人工核查: {}", output[-800:])
             return {"passed": False, "exit_code": proc.returncode}
 
-        # G1: 门禁通过后自动扩展 golden set + 覆盖率报告
+ # G1: 门禁通过后自动扩展 golden set + 覆盖率报告
         try:
             expand_script = root / "scripts" / "auto_expand_match_golden.py"
             expand_proc = subprocess.run(

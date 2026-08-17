@@ -32,9 +32,9 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-# ── 数据源运行状态（IC-01/DC-04 共享枚举）──
+# ── 数据源运行状态（/共享枚举）──
 # 唯一事实源：模型默认值 / schema Literal / 前端类型共用。软删除（DELETE）产出的
-# 'inactive' 必须在此收敛，否则文档与校验双重错位（RESEARCH §2.8）。
+# 'inactive' 必须在此收敛，否则文档与校验双重错位（RESEARCH ）。
 class DataSourceStatus(StrEnum):
     """数据源运行状态（'active' | 'paused' | 'error' | 'inactive'）。
 

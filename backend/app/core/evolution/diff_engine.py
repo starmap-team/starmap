@@ -94,9 +94,9 @@ class DiffEngine:
         new_req = _skill_to_meta(new.required_skills)
         new_pref = _skill_to_meta(new.preferred_skills)
 
-        # E21: skip if new snapshot is empty (would otherwise mark all
-        # old skills as removed). This filters out spider failures that
-        # produce empty snapshots.
+ # E21: skip if new snapshot is empty (would otherwise mark all
+ # old skills as removed). This filters out spider failures that
+ # produce empty snapshots.
         if not new_req and not new_pref:
             return []
 
@@ -120,7 +120,7 @@ class DiffEngine:
 
         return changes
 
-    # ── internal ──
+ # ── internal ──
 
     @staticmethod
     def _cold_start_changes(
@@ -139,7 +139,7 @@ class DiffEngine:
                 mention_count_new=meta["mention_count"],
             ))
         for name, meta in new_pref.items():
-            # Skip if already added as required (de-dup)
+ # Skip if already added as required (de-dup)
             if name in new_req:
                 continue
             out.append(EvolutionChange(
@@ -172,7 +172,7 @@ class DiffEngine:
         if not old_present and not new_present:
             return None  # shouldn't happen, defensive
 
-        # Removed
+ # Removed
         if old_present and not new_present:
             old_meta = old_req_meta or old_pref_meta
             return EvolutionChange(
@@ -185,7 +185,7 @@ class DiffEngine:
                 mention_count_old=(old_meta or {}).get("mention_count", 0),
             )
 
-        # Added (cold-start for this single skill)
+ # Added (cold-start for this single skill)
         if not old_present and new_present:
             if in_new_req:
                 meta = new_req_meta
@@ -205,12 +205,12 @@ class DiffEngine:
                 mention_count_new=(meta or {}).get("mention_count", 0),
             )
 
-        # Both present — detect promotion / demotion / retention
+ # Both present — detect promotion / demotion / retention
         old_in_required = in_old_req
         new_in_required = in_new_req
 
         if old_in_required and not new_in_required:
-            # required → preferred
+ # required → preferred
             return EvolutionChange(
                 skill_name=name,
                 change_type=ChangeType.DEMOTED,
@@ -223,7 +223,7 @@ class DiffEngine:
             )
 
         if not old_in_required and new_in_required:
-            # preferred → required
+ # preferred → required
             return EvolutionChange(
                 skill_name=name,
                 change_type=ChangeType.PROMOTED,
@@ -235,7 +235,7 @@ class DiffEngine:
                 mention_count_new=(new_req_meta or {}).get("mention_count", 0),
             )
 
-        # Same bucket both sides → retained
+ # Same bucket both sides → retained
         meta_old = old_req_meta or old_pref_meta
         meta_new = new_req_meta or new_pref_meta
         return EvolutionChange(

@@ -62,9 +62,9 @@ def _warning_level(f1: float, hallucination_rate: float, total_extractions: int 
 
 
 async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
-    # 2026-08-15 F1 优化: 取"最新一轮评估"而非全史平均 — 每次 /evaluate/resume
-    # 追加记录，全史平均会被旧基线稀释（如 0.857→0.894→0.956 的历史混合）。
-    # 以 max(evaluated_at) 前 5 秒窗口圈定最近一轮（同批记录微秒级差异）。
+ # 2026-08-15 F1 优化: 取"最新一轮评估"而非全史平均 — 每次 /evaluate/resume
+ # 追加记录，全史平均会被旧基线稀释（如 0.857→0.894→0.956 的历史混合）。
+ # 以 max(evaluated_at) 前 5 秒窗口圈定最近一轮（同批记录微秒级差异）。
     _latest_run_ts = sa.select(sa.func.max(ExtractionEvaluationRecord.evaluated_at)).scalar_subquery()
     metrics_stmt = sa.select(
         sa.func.coalesce(sa.func.avg(ExtractionEvaluationRecord.precision), 0.0),
@@ -82,12 +82,12 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
             )
         ),
     )
-    # P1-5 fix (functional-review 2026-08-13): pending_review 原先统计
-    # JDExtractionRecord.status == "pending"，但抽取记录写入恒为 "completed"
-    # （stage3_services.py），该列无 pending 值 → KPI 恒 0，与同仪表盘
-    # audit_queue（position/skill_records 的 pending_review）口径矛盾。
-    # 对齐 review_service 状态机（Phase 23）：pending 队列 = 岗位 + 技能的
-    # pending_review 计数，与 /admin/review-items 同源。
+ # pending_review 原先统计
+ # JDExtractionRecord.status == "pending"，但抽取记录写入恒为 "completed"
+ # （stage3_services.py），该列无 pending 值 → KPI 恒 0，与同仪表盘
+ # audit_queue（position/skill_records 的 pending_review）口径矛盾。
+ # 对齐 review_service 状态机（Phase 23）：pending 队列 = 岗位 + 技能的
+ # pending_review 计数，与 /admin/review-items 同源。
     pending_pos = (
         await session.execute(
             sa.select(sa.func.count())
@@ -139,10 +139,10 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
             ),
         ],
     )
-    # Count positions and skills from the database
+ # Count positions and skills from the database
     from app.models.extraction_models import PositionSkillRelation
-    # M1 (2026-08-15): 岗位规模只计已发布（approved）——待审岗位未对用户可见，
-    # 计入会与 /positions 列表(184) 相差 95%（359 含 175 待审）。
+ # M1 (2026-08-15): 岗位规模只计已发布（approved）——待审岗位未对用户可见，
+ # 计入会与 /positions 列表(184) 相差 95%（359 含 175 待审）。
     pos_count = (await session.execute(
         sa.select(sa.func.count()).select_from(PositionRecord)
         .where(PositionRecord.review_status == "approved")
@@ -150,14 +150,14 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     skill_count = (await session.execute(sa.select(sa.func.count()).select_from(SkillRecord))).scalar() or 0
     edge_count = (await session.execute(sa.select(sa.func.count()).select_from(PositionSkillRelation))).scalar() or 0
 
-    # D2 fix: avg_trust_score now comes from Neo4j Skill.trust_score via the
-    # shared metrics module (routed through services layer). The previous
-    # `max(extraction-conf, source-count/10)` blend was a different metric from
-    # the admin overview's Neo4j avg, so the two pages disagreed.
+ # D2 fix: avg_trust_score now comes from Neo4j Skill.trust_score via the
+ # shared metrics module (routed through services layer). The previous
+ # `max(extraction-conf, source-count/10)` blend was a different metric from
+ # the admin overview's Neo4j avg, so the two pages disagreed.
     from app.services.quality_service import avg_skill_trust  # noqa: PLC0415
     avg_trust = await avg_skill_trust()
 
-    # Compute high trust ratio
+ # Compute high trust ratio
     high_trust_count = 0
     if total_extractions > 0:
         high_trust_count = (
@@ -178,23 +178,23 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     else:
         high_trust_ratio = 0.0
 
-    # Generate trust distribution from skill source_counts
-    # Phase 19 D-03: 直方图改用 §6.2 四因子综合信任度分布（与 KPI avg(n.trust_score) 同口径）。
-    # 修复前用 source_count/10（频次当信任度代理），把"低频=冷门"误判为"低信任"（两极分化失真）。
-    # 现在从 PG 用 EntityTrustScorer 计算每个技能的真实信任度分桶，不依赖 Neo4j 时序。
-    # 层边界修复（2026-08-14）：实现迁至 quality_service.compute_trust_distribution，
-    # 路由不再直连 app.core.trust（api/v1 → services → core）。
+ # Generate trust distribution from skill source_counts
+ # Phase 19 D-03: 直方图改用 四因子综合信任度分布（与 KPI avg(n.trust_score) 同口径）。
+ # 修复前用 source_count/10（频次当信任度代理），把"低频=冷门"误判为"低信任"（两极分化失真）。
+ # 现在从 PG 用 EntityTrustScorer 计算每个技能的真实信任度分桶，不依赖 Neo4j 时序。
+ # 层边界修复（2026-08-14）：实现迁至 quality_service.compute_trust_distribution，
+ # 路由不再直连 app.core.trust（api/v1 → services → core）。
     from app.services.quality_service import compute_trust_distribution  # noqa: PLC0415
 
     trust_distribution = await compute_trust_distribution(session)
 
-    # Build hallucination trend from skill_timeseries data (real data only)
+ # Build hallucination trend from skill_timeseries data (real data only)
     from app.repositories.quality_repo import fetch_hallucination_trend
     hallucination_trend = await fetch_hallucination_trend(session)
 
-    # 数据源贡献分布：真实数据源（jd_raw.source_site，status='extracted' 有效记录，
-    # 排除 fixture_* 测试数据）——与 source_quality_sync 的"真实采集数据源"口径一致。
-    # 修复前按 SkillRecord.category（技能分类）分组，标题"数据源贡献分布"与数据语义错位。
+ # 数据源贡献分布：真实数据源（jd_raw.source_site，status='extracted' 有效记录，
+ # 排除 fixture_* 测试数据）——与 source_quality_sync 的"真实采集数据源"口径一致。
+ # 修复前按 SkillRecord.category（技能分类）分组，标题"数据源贡献分布"与数据语义错位。
     source_dist_stmt = sa.text(
         "SELECT source_site, COUNT(*) AS cnt FROM jd_raw "
         "WHERE status = 'extracted' AND source_site NOT LIKE 'fixture\\_%' "
@@ -206,18 +206,18 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         for site, cnt in source_rows
     ]
 
-    # D1 fix: weekly_new_nodes now routes through the shared metrics module
-    # (via services layer) so the Quality Dashboard and the Admin Overview use
-    # the same SQL/date window. Previously this was trailing-7d while the admin
-    # used week-start, which produced identical values mid-week but diverged at
-    # week boundaries.
+ # D1 fix: weekly_new_nodes now routes through the shared metrics module
+ # (via services layer) so the Quality Dashboard and the Admin Overview use
+ # the same SQL/date window. Previously this was trailing-7d while the admin
+ # used week-start, which produced identical values mid-week but diverged at
+ # week boundaries.
     from app.services.quality_service import weekly_new_nodes as fetch_weekly_new_nodes  # noqa: PLC0415
     weekly_new_nodes = (await fetch_weekly_new_nodes(session)).total
 
-    # H9: audit_pass_rate — ratio of approved vs rejected REVIEW transitions.
-    # ponytail: 原实现把 JDExtractionRecord.status='completed'（抽取完成）当"审核通过"，
-    # pending=0 时恒 100%（假正常）；审核权威数据在 review_audit_log（action: approve/reject）。
-    # 改为从审核日志计算；无审核记录返回 0.0（未评估，诚实）。
+ # H9: audit_pass_rate — ratio of approved vs rejected REVIEW transitions.
+ # ponytail: 原实现把 JDExtractionRecord.status='completed'（抽取完成）当"审核通过"，
+ # pending=0 时恒 100%（假正常）；审核权威数据在 review_audit_log（action: approve/reject）。
+ # 改为从审核日志计算；无审核记录返回 0.0（未评估，诚实）。
     approved_count = (
         await session.execute(
             sa.select(sa.func.count()).select_from(ReviewAuditLog)
@@ -233,9 +233,9 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     total_reviewed = approved_count + rejected_count
     audit_pass_rate = (int(approved_count) / total_reviewed) if total_reviewed > 0 else 0.0
 
-    # H11: audit_queue — 待审核记录（与 admin 内容审核同源：position_records + skill_records 的
-    # pending_review）。修复前查 JDExtractionRecord（全 completed → 队列恒空），与实际审核流
-    # 脱节；现对齐 review_service 状态机（Phase 23），队列内容与 /admin/review-items 一致。
+ # H11: audit_queue — 待审核记录（与 admin 内容审核同源：position_records + skill_records 的
+ # pending_review）。修复前查 JDExtractionRecord（全 completed → 队列恒空），与实际审核流
+ # 脱节；现对齐 review_service 状态机（Phase 23），队列内容与 /admin/review-items 一致。
     pos_rows = (
         await session.execute(
             sa.select(PositionRecord.id, PositionRecord.name)
@@ -276,10 +276,10 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         }
         for r in skill_rows
     ]
-    # 队列上限 20 条（岗位 + 技能合计）
+ # 队列上限 20 条（岗位 + 技能合计）
     audit_queue = audit_queue[:20]
 
-    # Phase 13 一致性审计：评估基线可用性 — 无 golden-set 评估时 0/0/0 表示"未评估"而非"质量差"
+ # Phase 13 一致性审计：评估基线可用性 — 无 golden-set 评估时 0/0/0 表示"未评估"而非"质量差"
     evaluation_count = int(
         (await session.execute(sa.select(sa.func.count()).select_from(ExtractionEvaluationRecord))).scalar() or 0
     )
@@ -288,17 +288,17 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         evaluation_explanation = (
             "尚未运行 golden-set 评估（评估记录 0 条），precision/recall/F1 暂不可信；"
             "红色仅表示「未评估」，不代表抽取质量差。"
-            # 2026-08-14 规范驱动改进 (deep-interview): 文案指向真实写入端点。
-            # /quality/evaluate 仅只读算分，不写 ExtractionEvaluationRecord；
-            # 建立基线需提供 backend/data/resume_golden_set.json 后调用
-            # /quality/evaluate/resume（golden set 缺失时返回 No golden samples found）。
+ # 2026-08-14 规范驱动改进 (deep-interview): 文案指向真实写入端点。
+ # /quality/evaluate 仅只读算分，不写 ExtractionEvaluationRecord；
+ # 建立基线需提供 backend/data/resume_golden_set.json 后调用
+ # /quality/evaluate/resume（golden set 缺失时返回 No golden samples found）。
             "建立基线需提供 resume golden set 后调用 /quality/evaluate/resume。"
         )
         report.warning_level = "gray"  # 顶层告警降级，避免误报红色
     else:
         evaluation_explanation = ""
 
-    # Phase 3 (accuracy gate): 抽取 F1 历史趋势 — 按评估批次聚合，供前端展示指标演进
+ # 抽取 F1 历史趋势 — 按评估批次聚合，供前端展示指标演进
     eval_history_rows = (
         await session.execute(
             sa.select(
@@ -330,7 +330,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         total_extractions=total_extractions,
         pending_review=pending_review,
         hallucination_rate=hallucination_rate,
-        # Phase 11 D-05: 三段式契约（沿 M5/M10 KPI breakdown）
+ # Phase 11 D-05: 三段式契约（沿 M5/M10 KPI breakdown）
         hallucination_numerator=int(hallucinated or 0),
         hallucination_denominator=total_extractions,
         hallucination_window_days=30,
@@ -354,7 +354,7 @@ async def evaluate_quality(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, object]:
     """触发质量评估流程：基于现有数据计算综合质量得分。"""
-    # 1. 计算抽取记录的平均置信度
+ # 1. 计算抽取记录的平均置信度
     avg_confidence = (
         await session.execute(
             sa.select(sa.func.avg(JDExtractionRecord.confidence))
@@ -362,7 +362,7 @@ async def evaluate_quality(
         )
     ).scalar() or 0.0
 
-    # 2. 计算幻觉率
+ # 2. 计算幻觉率
     avg_hallucination = (
         await session.execute(
             sa.select(sa.func.avg(JDExtractionRecord.hallucination_score))
@@ -370,8 +370,8 @@ async def evaluate_quality(
         )
     ).scalar() or 0.0
 
-    # 3. 计算总抽取数（QA B3）：不要只数 'completed'，要把 'pending_review' / 'approved'
-    # 也算进来。Loop 写入路径并不把 status 立刻置为 'completed'，导致此前总被算成 0。
+ # 3. 计算总抽取数（QA B3）：不要只数 'completed'，要把 'pending_review' / 'approved'
+ # 也算进来。Loop 写入路径并不把 status 立刻置为 'completed'，导致此前总被算成 0。
     total_extractions = (
         await session.execute(
             sa.select(sa.func.count()).select_from(JDExtractionRecord)
@@ -379,7 +379,7 @@ async def evaluate_quality(
         )
     ).scalar() or 0
 
-    # 4. 综合质量得分: confidence * (1 - hallucination_rate)
+ # 4. 综合质量得分: confidence * (1 - hallucination_rate)
     score = float(avg_confidence) * (1.0 - float(avg_hallucination))
     score = round(min(1.0, max(0.0, score)), 4)
 
@@ -446,7 +446,7 @@ async def evaluate_resume_extraction(
         f1 = metrics.get("f1", 0.0)
         hallucination_rate = 0.0  # Resume eval doesn't compute hallucination
 
-        # Store evaluation results in DB for historical tracking
+ # Store evaluation results in DB for historical tracking
         try:
             for sample in metrics.get("per_sample", []):
                 record = ExtractionEvaluationRecord(
@@ -491,7 +491,7 @@ async def evaluate_resume_extraction(
     except StarMapError:
         raise
     except Exception as exc:
-        # M3: 简历评估是非关键质检操作,任何失败降级为 success=False 的 200 响应,不抛 500。
+ # M3: 简历评估是非关键质检操作,任何失败降级为 success=False 的 200 响应,不抛 500。
         logger.warning("Resume evaluation failed, degrading to success=False: {}", exc)
         return ResumeEvalResponse(success=False, error=str(exc))
 
@@ -510,11 +510,11 @@ async def get_comprehensive_report(
 
     x-audit-note: L4 — Internal API, no frontend consumer. Used by backend quality pipelines.
     """
-    # 1. Build JD quality report (reuse existing dashboard logic)
+ # 1. Build JD quality report (reuse existing dashboard logic)
     dashboard = await _build_quality_dashboard(session)
     jd_report = dashboard.report
 
-    # 2. Get latest resume evaluation from DB
+ # 2. Get latest resume evaluation from DB
     latest_resume_eval = (
         await session.execute(
             sa.select(ExtractionEvaluationRecord)
@@ -542,7 +542,7 @@ async def get_comprehensive_report(
             error="No resume evaluation data found. Run POST /quality/evaluate/resume first.",
         )
 
-    # 3. Dashboard summary
+ # 3. Dashboard summary
     dashboard_summary = {
         "total_extractions": dashboard.total_extractions,
         "total_positions": dashboard.total_positions,
@@ -554,13 +554,13 @@ async def get_comprehensive_report(
         "pending_review": dashboard.pending_review,
     }
 
-    # 4. Overall score and recommendations
+ # 4. Overall score and recommendations
     scores = [jd_report.f1]
     if resume_response.success:
         scores.append(resume_response.f1)
     overall_score = sum(scores) / len(scores) if scores else 0.0
 
-    # Determine overall status
+ # Determine overall status
     if overall_score >= 0.85:
         overall_status = "pass"
     elif overall_score >= 0.70:
@@ -570,7 +570,7 @@ async def get_comprehensive_report(
     else:
         overall_status = "unknown"
 
-    # Generate recommendations
+ # Generate recommendations
     recommendations: list[str] = []
     if jd_report.precision < 0.80:
         recommendations.append(f"JD 抽取精度偏低 ({round(jd_report.precision, 2)}), 建议优化抽取 prompt 或增加 anti-hallucination 检查")

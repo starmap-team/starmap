@@ -14,9 +14,9 @@ class GraphNodeItem(BaseModel):
     """图谱节点条目（图节点管理表单/列表）。"""
 
     id: str = Field(default="", description="图节点 ID（优先 canonical_id，缺省回退 elementId）")
-    # P1-6 fix (functional-review 2026-08-13): 透传 Neo4j elementId。此前列表只回
-    # canonical_id、写操作按 elementId 匹配 → 前端拿 canonical_id 调更新/删除/审核
-    # 全部 404。前端可优先用 element_id 调写操作（服务端已改为双匹配，两者皆可）。
+ # 透传 Neo4j elementId。此前列表只回
+ # canonical_id、写操作按 elementId 匹配 → 前端拿 canonical_id 调更新/删除/审核
+ # 全部 404。前端可优先用 element_id 调写操作（服务端已改为双匹配，两者皆可）。
     element_id: str = Field(default="", description="Neo4j elementId（写操作首选标识）")
     type: Literal["Position", "Skill", "Tool", "KnowledgeArea", "Domain", "Industry", "Certificate", "LearningResource"] = Field(..., description="Neo4j 节点标签")
     name: str = Field(..., min_length=1, max_length=200, description="节点名称")
@@ -195,11 +195,11 @@ class ReconcileResult(BaseModel):
     skills_in_neo4j: int = Field(default=0, description="Neo4j 当前 Skill 数")
     positions_in_pg: int = Field(default=0, description="PG 当前 Position 数")
     skills_in_pg: int = Field(default=0, description="PG 当前 Skill 数")
-    # Phase 23 Task 3 (IC-05): REQUIRES 边对账字段
+ # REQUIRES 边对账字段
     requires_in_neo4j: int = Field(default=0, ge=0, description="Neo4j REQUIRES 边数")
     requires_in_pg: int = Field(default=0, ge=0, description="PG approved 岗位 PSR 边数")
     requires_diff: int = Field(default=0, ge=0, description="REQUIRES 边数差值（绝对值）")
-    # Phase 24 根治③: 幽灵边明细（Neo4j 有但 PG approved 无的边对）
+ # Phase 24 根治③: 幽灵边明细（Neo4j 有但 PG approved 无的边对）
     ghost_edges: list[dict[str, str]] = Field(
         default_factory=list,
         description="幽灵 REQUIRES 边明细（position_id/skill_id），空=无漂移",

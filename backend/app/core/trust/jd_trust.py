@@ -17,7 +17,7 @@ import math
 from datetime import UTC, datetime
 from typing import Any
 
-# §7.1 默认权重 (校准前的出厂配置, 校准后由 config/外部覆盖)
+# 默认权重 (校准前的出厂配置, 校准后由 config/外部覆盖)
 DEFAULT_WEIGHTS: dict[str, float] = {
     "authority": 0.3,
     "timeliness": 0.2,
@@ -25,7 +25,7 @@ DEFAULT_WEIGHTS: dict[str, float] = {
     "consistency": 0.3,
 }
 
-# §7.1 Authority 来源类型表
+# Authority 来源类型表
 AUTHORITY_BY_SOURCE_TYPE: dict[str, float] = {
     "enterprise": 0.9,   # 企业官方招聘网站
     "platform": 0.7,     # 主流招聘平台 (BOSS/拉勾/猎聘)
@@ -126,7 +126,7 @@ def grid_search_weights(
         {"weights": {...}, "pearson": float, "combos_evaluated": int}
     """
     labels = [max(0.0, min(1.0, label / 100.0)) for label in human_labels]
-    # 样本不足 (<2) 无法计算相关性 → 返回出厂默认权重
+ # 样本不足 (<2) 无法计算相关性 → 返回出厂默认权重
     if len(samples) < 2 or len(labels) < 2 or len(samples) != len(labels):
         return {"weights": dict(DEFAULT_WEIGHTS), "pearson": 0.0, "combos_evaluated": 0}
     best_weights: dict[str, float] = dict(DEFAULT_WEIGHTS)

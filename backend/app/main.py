@@ -49,10 +49,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """应用生命周期：启动时初始化连接，关闭时释放。"""
     logger.info("StarMap 启动中... env={}", settings.app_env)
     app.state.resources = await init_resources()
-    # CONCERN 2.3 (reliability audit 2026-08-15): log the effective rate-limit
-    # knobs at startup so operators can verify staging/prod parity without
-    # inspecting env vars. ``rate_limit_storage`` reports which backend will
-    # serve the counters ("redis" if a Redis client is attached, else "memory").
+ # CONCERN 2.3 (reliability audit 2026-08-15): log the effective rate-limit
+ # knobs at startup so operators can verify staging/prod parity without
+ # inspecting env vars. ``rate_limit_storage`` reports which backend will
+ # serve the counters ("redis" if a Redis client is attached, else "memory").
     _rate_limit_storage = (
         "redis" if getattr(app.state.resources, "redis_client", None) is not None
         else "memory"
@@ -64,8 +64,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         getattr(settings, "rate_limit_window", "n/a"),
         _rate_limit_storage,
     )
-    # 2026-08-08: 启动时把 prompt_versions 表（管理后台注册的自定义版本/活跃选择）
-    # 合并进内存注册表，避免重启丢失（此前仅存进程内存）
+ # 2026-08-08: 启动时把 prompt_versions 表（管理后台注册的自定义版本/活跃选择）
+ # 合并进内存注册表，避免重启丢失（此前仅存进程内存）
     if resources.pg_sessionmaker is not None:
         try:
             from sqlalchemy import select as _sel
@@ -82,12 +82,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 logger.info("Loaded {} custom prompt version(s) from DB", len(rows))
         except Exception as exc:  # noqa: BLE001 — 加载失败不阻断启动（降级为内置版本）
             logger.warning("[lifespan] Prompt versions load failed, using builtin: {}", exc)
-    # Phase 10 PIPE-03 (c) D-03: 启动时若 PIPELINE_BOOTSTRAP=true,30 秒后入队一次 pipeline run
-    # 该调用是 no-op（直接 return）如果环境变量未设置
+ # Phase 10 (c) D-03: 启动时若 PIPELINE_BOOTSTRAP=true,30 秒后入队一次 pipeline run
+ # 该调用是 no-op（直接 return）如果环境变量未设置
     from app.core.pipeline.bootstrap import schedule_bootstrap_if_enabled
 
     schedule_bootstrap_if_enabled()
-    # 2026-08-16: 启动时清一遍 SSE 限流 stale 计数（旧进程卡住的连接数）
+ # 2026-08-16: 启动时清一遍 SSE 限流 stale 计数（旧进程卡住的连接数）
     try:
         from app.dependencies import sweep_stale_sse_counters
 
@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info("[lifespan] swept {} stale SSE per-IP counter(s)", cleaned)
     except Exception as exc:  # noqa: BLE001 — 启动期降级不阻断
         logger.warning("[lifespan] sweep_stale_sse_counters failed: {}", exc)
-    # Phase 2 CRON-03: 启动 cron scanner 后台任务
+ # Phase 2 : 启动 cron scanner 后台任务
     cron_task = None
     try:
         from app.core.pipeline.cron_scheduler import cron_scanner_loop
@@ -105,12 +105,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Cron scanner loop started")
         yield
     finally:
-        # 2026-08-14 门禁修复: shutdown 尽力而为 — 测试 teardown 中 TestClient
-        # 关停时事件循环可能已关闭（resources/task 由早前测试在其他 loop 创建）
-        # → await 抛 `'NoneType' object has no attribute 'send'`（flaky ERROR）。
-        # 任何关闭失败降级为 warning，不阻断 shutdown。
-        # （2026-08-07 起 cron cancel 后必须 await 带超时，否则 uvicorn --reload
-        #   无限等待 → 该语义保留。）
+ # 2026-08-14 门禁修复: shutdown 尽力而为 — 测试 teardown 中 TestClient
+ # 关停时事件循环可能已关闭（resources/task 由早前测试在其他 loop 创建）
+ # → await 抛 `'NoneType' object has no attribute 'send'`（flaky ERROR）。
+ # 任何关闭失败降级为 warning，不阻断 shutdown。
+ # （2026-08-07 起 cron cancel 后必须 await 带超时，否则 uvicorn --reload
+ # 无限等待 → 该语义保留。）
         try:
             if cron_task is not None:
                 cron_task.cancel()
@@ -197,7 +197,7 @@ return count
 """
 _rate_buckets: dict[str, list[float]] = defaultdict(list)
 
-# Phase 3.7: 高频端点白名单 — 这些是只读状态接口，不计入严格限流
+# 高频端点白名单 — 这些是只读状态接口，不计入严格限流
 # 只对 mutation 类（POST/PUT/DELETE）应用严格限制
 _RATE_LIMIT_EXEMPT_PATH_PATTERNS = (
     "/api/v1/auth/me",             # 用户态每次请求都触发
@@ -226,15 +226,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_ip = resolve_client_ip(request)
         path = request.url.path
 
-        # Phase 3.7: 只读查询端点直接放行（不计入限流）
+ # 只读查询端点直接放行（不计入限流）
         if _is_rate_limit_exempt(path):
             return await call_next(request)
 
-        # Try Redis-backed rate limit first (works across workers)
-        # P1-10 fix (functional-review 2026-08-13): 属性名此前写成 "redis"，
-        # 而 AppResources 的属性是 redis_client → getattr 恒 None → Redis 分支
-        # 永不执行，跨 worker 限流失效（多进程下限流阈值放大 N 倍），专门写的
-        # Lua 原子脚本成为死代码。修正为 redis_client。
+ # Try Redis-backed rate limit first (works across workers)
+ # 属性名此前写成 "redis"，
+ # 而 AppResources 的属性是 redis_client → getattr 恒 None → Redis 分支
+ # 永不执行，跨 worker 限流失效（多进程下限流阈值放大 N 倍），专门写的
+ # Lua 原子脚本成为死代码。修正为 redis_client。
         redis = getattr(request.app.state, "resources", None)
         redis_client = getattr(redis, "redis_client", None) if redis else None
         if redis_client:
@@ -244,12 +244,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     _RATE_LIMIT_INCR_SCRIPT, 1, key, settings.rate_limit_window
                 )
                 if count > settings.rate_limit_max:
-                    # CONCERN 1.8 (security audit 2026-08-15): rate-limit
-                    # audit must NEVER break the 429 response. If the
-                    # audit_log sink (loguru/Redis/DB persist) raises for
-                    # any reason — Redis down mid-flight, structured-log
-                    # failure, etc — fall back to a WARNING log and still
-                    # return the rate-limit response to the client.
+ # CONCERN 1.8 (security audit 2026-08-15): rate-limit
+ # audit must NEVER break the 429 response. If the
+ # audit_log sink (loguru/Redis/DB persist) raises for
+ # any reason — Redis down mid-flight, structured-log
+ # failure, etc — fall back to a WARNING log and still
+ # return the rate-limit response to the client.
                     try:
                         audit_log(
                             AuditEntry(
@@ -281,18 +281,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             except Exception:
                 pass  # ponytail: Redis down → fall through to in-memory
 
-        # In-memory fallback (per-process only)
+ # In-memory fallback (per-process only)
         now = time.time()
         bucket = _rate_buckets[client_ip]
         _rate_buckets[client_ip] = [t for t in bucket if now - t < settings.rate_limit_window]
-        # P2-2 fix: 定期清理整个内存限流桶中过期的 IP 条目，防止 dict 无限增长
+ # 定期清理整个内存限流桶中过期的 IP 条目，防止 dict 无限增长
         if len(_rate_buckets) > 10000:
             stale_keys = [k for k, v in _rate_buckets.items() if not v or now - v[-1] > settings.rate_limit_window]
             for k in stale_keys:
                 del _rate_buckets[k]
         if len(_rate_buckets[client_ip]) >= settings.rate_limit_max:
-            # CONCERN 1.8: same defence-in-depth as the Redis path —
-            # audit failure must not block the 429 response.
+ # CONCERN 1.8: same defence-in-depth as the Redis path —
+ # audit failure must not block the 429 response.
             try:
                 audit_log(
                     AuditEntry(
@@ -487,10 +487,10 @@ async def graph_projection_error_handler(request: Request, exc: GraphProjectionE
     return build_error_response(str(exc), ErrorCode.BIZ_GRAPH_PROJECTION_FAILED, include_internal_detail=str(exc))
 
 
-# P0 修复 (SEC-10): 健康检查不暴露版本号和服务详情
+# P0 修复 (): 健康检查不暴露版本号和服务详情
 async def _health_payload() -> dict:
     if _is_prod:
-        # 生产环境：仅返回状态，不暴露内部细节
+ # 生产环境：仅返回状态，不暴露内部细节
         return {"status": "ok"}
     details = await healthcheck_resources()
     return {"status": "ok", "version": "0.1.0", "env": settings.app_env, "services": details}
@@ -514,7 +514,7 @@ async def ready() -> dict[str, Any] | JSONResponse:
     """Readiness probe — returns 200 only when the app is fully bootstrapped."""
     checks: dict[str, str] = {}
 
-    # DB ping
+ # DB ping
     db_ok = False
     try:
         from sqlalchemy import text as _text
@@ -526,7 +526,7 @@ async def ready() -> dict[str, Any] | JSONResponse:
     except Exception as exc:
         checks["postgres"] = f"error: {exc}"
 
-    # users table populated
+ # users table populated
     users_ok = False
     try:
         if resources.pg_engine is not None:
@@ -539,7 +539,7 @@ async def ready() -> dict[str, Any] | JSONResponse:
     except Exception as exc:
         checks["users_seeded"] = f"error: {exc}"
 
-    # alembic migration applied
+ # alembic migration applied
     alembic_ok = False
     try:
         if resources.pg_engine is not None:
@@ -562,7 +562,7 @@ async def ready() -> dict[str, Any] | JSONResponse:
         checks["redis"] = "not initialised"
 
     all_ok = all(v == "ok" for v in checks.values() if v != "not initialised")
-    # LOG-04 fix: 生产环境不暴露内部服务细节和错误消息
+ # LOG-04 fix: 生产环境不暴露内部服务细节和错误消息
     if _is_prod:
         payload: dict[str, object] = {"status": "ready" if all_ok else "not_ready"}
     else:
@@ -584,14 +584,14 @@ async def _detailed_health_payload() -> dict:
     """
     services = await healthcheck_resources()
 
-    # llm_keys: 仅返回布尔，永不返回 key 值（T-08-05 信息泄露防护）
+ # llm_keys: 仅返回布尔，永不返回 key 值（T-08-05 信息泄露防护）
     llm_keys = {
         "mimo": bool(settings.mimo_api_key),
         "deepseek": bool(settings.deepseek_api_key),
         "xunfei": bool(settings.xunfei_api_key),
     }
 
-    # data_stats: 查询业务数据量概览（替代旧的 seed 检测逻辑）
+ # data_stats: 查询业务数据量概览（替代旧的 seed 检测逻辑）
     data_stats: dict[str, Any] = {"positions": 0, "skills": 0, "pipeline_runs": 0}
     if resources.pg_engine is not None:
         try:

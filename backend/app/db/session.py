@@ -60,8 +60,8 @@ async def get_db_session() -> AsyncIterator[AsyncSession]:
 
         async with get_db_session() as session:
             result = await session.execute(...)
-            # session.commit() is called automatically on clean exit
-            # session.rollback() is called automatically on exception
+ # session.commit() is called automatically on clean exit
+ # session.rollback() is called automatically on exception
     """
     session_factory = get_session_factory()
     async with session_factory() as session:

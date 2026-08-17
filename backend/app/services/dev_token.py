@@ -33,7 +33,7 @@ def is_dev_token_allowed(token: str) -> bool:
     env = settings.app_env.lower()
     if env in _HARD_REJECT_ENVS:
         return False
-    # 仅在 development 类环境真正接受 dev-token
+ # 仅在 development 类环境真正接受 dev-token
     return env in {"development", "dev", "local"}
 
 

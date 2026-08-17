@@ -23,7 +23,7 @@ async def import_items(
     Returns:
         dict with total/inserted/duplicate/errors/pii_warnings
     """
-    # Lazy import to avoid circular dependency
+ # Lazy import to avoid circular dependency
     from crawler.persistence import dao
     from crawler.persistence.models import JdStatus
 
@@ -35,7 +35,7 @@ async def import_items(
 
     for idx, item in enumerate(items):
         try:
-            # Fix H3 (Phase 15 review): 全量 hash 而非 [:500] 截断
+ # Fix H3 (Phase 15 review): 全量 hash 而非 [:500] 截断
             content_hash = hashlib.sha256(
                 (
                     item.get("clean_text", "")
@@ -46,7 +46,7 @@ async def import_items(
                 ).encode("utf-8")
             ).hexdigest()
 
-            # Fix H2 (Phase 15 review): PII 检测
+ # Fix H2 (Phase 15 review): PII 检测
             text_for_pii = (
                 item.get("clean_text", "")
                 + " "
@@ -75,7 +75,7 @@ async def import_items(
                 inserted += 1
                 if pii_types:
                     pii_warnings += 1
-                    # 记录 PII 警告到 audit log（不阻断入库）
+ # 记录 PII 警告到 audit log（不阻断入库）
                     audit_log(
                         AuditEntry(
                             event=AuditEvent.PII_DETECTED,
@@ -89,7 +89,7 @@ async def import_items(
         except Exception as e:
             errors.append({"row": idx, "field": "all", "message": str(e)[:200]})
 
-    # Audit log 记录导入操作
+ # Audit log 记录导入操作
     audit_log(
         AuditEntry(
             event=AuditEvent.MANUAL_IMPORT,

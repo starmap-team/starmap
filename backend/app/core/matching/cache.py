@@ -61,7 +61,7 @@ class MatchCache:
         """
         self._ttl = ttl
         self._max_size = max_size
-        # BL-13: per-key TTL for profile cache (avoids cache avalanche)
+ # BL-13: per-key TTL for profile cache (avoids cache avalanche)
         self._profile_cache: dict[str, dict[str, list[dict[str, str]]]] = {}
         self._profile_cache_ts: dict[str, float] = {}  # per-key timestamps
         self._match_results: dict[str, dict[str, Any]] = {}
@@ -88,7 +88,7 @@ class MatchCache:
                 return None
             now = time.monotonic()
             if (now - ts) >= self._ttl:
-                # Per-key TTL expired: remove only this key
+ # Per-key TTL expired: remove only this key
                 self._profile_cache.pop(target_position, None)
                 self._profile_cache_ts.pop(target_position, None)
                 return None
@@ -161,7 +161,7 @@ class MatchCache:
             result: 匹配结果数据字典（任意 JSON 可序列化结构）。
         """
         with self._lock:
-            # FIFO 淘汰：当缓存超过最大大小时，移除最旧的条目
+ # FIFO 淘汰：当缓存超过最大大小时，移除最旧的条目
             if len(self._match_results) >= self._max_size:
                 excess = len(self._match_results) - self._max_size + 1
                 for old_key in list(self._match_results.keys())[:excess]:

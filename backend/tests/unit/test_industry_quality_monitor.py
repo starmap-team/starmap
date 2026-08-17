@@ -10,10 +10,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 
 import pytest
-from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL
+
 from app.services.industry_quality_monitor import (
     NEW_24H_RATIO_WARNING,
     SOURCE_RATIO_WARNING,
@@ -25,7 +24,6 @@ from app.services.industry_quality_monitor import (
     detect_industry_quality,
     report_to_dict,
 )
-
 
 # ──────────────────────────────────────────────────────────────────
 # _compute_alert_level unit tests (no DB needed)

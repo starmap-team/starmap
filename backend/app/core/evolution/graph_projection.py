@@ -66,9 +66,9 @@ async def project_edges_to_neo4j(
                             now=now,
                         )
                         summary = await result.consume()
-                        # W2: 只有 MERGE 真正创建/更新了节点或边才计为投影成功。
-                        # MATCH 未命中 Position 节点时 MERGE 无操作，contains_updates
-                        # 为 False —— 不再虚增 graph_projected_edges，并告警供 D-07 排查。
+ # W2: 只有 MERGE 真正创建/更新了节点或边才计为投影成功。
+ # MATCH 未命中 Position 节点时 MERGE 无操作，contains_updates
+ # 为 False —— 不再虚增 graph_projected_edges，并告警供 D-07 排查。
                         if summary.counters.contains_updates:
                             projected += 1
                         else:

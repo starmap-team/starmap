@@ -78,7 +78,7 @@ def _batch_chroma_match(
     except ImportError:
         return {}
 
-    # Negative-cache fast-fail
+ # Negative-cache fast-fail
     if _is_chroma_marked_unavailable():
         return {}
 
@@ -88,7 +88,7 @@ def _batch_chroma_match(
         _mark_chroma_unavailable("chromadb-not-installed")
         return {}
 
-    # Connect to ChromaDB
+ # Connect to ChromaDB
     try:
         chroma_client = chromadb.HttpClient(
             host=settings.chroma_host, port=settings.chroma_port,
@@ -96,8 +96,8 @@ def _batch_chroma_match(
     except StarMapError:
         raise
     except Exception as exc:
-        # Chroma is an OPTIONAL semantic boost; connection failure must not
-        # break matching — degrade to lexical scoring (Phase 13 conformance).
+ # Chroma is an OPTIONAL semantic boost; connection failure must not
+ # break matching — degrade to lexical scoring (Phase 13 conformance).
         logger.warning("Chroma unavailable (connect), degrading to lexical match: {}", exc)
         _mark_chroma_unavailable(f"chroma-connect:{exc}")
         return {}
@@ -108,13 +108,13 @@ def _batch_chroma_match(
     except StarMapError:
         raise
     except Exception as exc:
-        # 404 here = embedding collection not provisioned; degrade gracefully
-        # and negative-cache so subsequent calls fast-fail to lexical scoring.
+ # 404 here = embedding collection not provisioned; degrade gracefully
+ # and negative-cache so subsequent calls fast-fail to lexical scoring.
         logger.warning("Chroma collection '{}' unavailable, degrading to lexical match: {}", collection_name, exc)
         _mark_chroma_unavailable(f"chroma-collection-missing:{exc}")
         return {}
 
-    # Batch embed all target names
+ # Batch embed all target names
     query_embeddings: list[list[float]] = []
     valid_targets: list[str] = []
     for name in target_names:
@@ -126,7 +126,7 @@ def _batch_chroma_match(
     if not query_embeddings:
         return {}
 
-    # Single batch query
+ # Single batch query
     try:
         results = collection.query(
             query_embeddings=cast("Any", query_embeddings),
@@ -140,7 +140,7 @@ def _batch_chroma_match(
         _mark_chroma_unavailable(f"chroma-query:{exc}")
         return {}
 
-    # Parse batch results
+ # Parse batch results
     matches: dict[str, float] = {}
     distances = results.get("distances")
     metadatas = results.get("metadatas")
@@ -184,8 +184,8 @@ def _chroma_match_against_candidates(
     except StarMapError:
         raise
     except Exception as exc:
-        # Defensive: inner call already degrades; never let an optional
-        # semantic boost abort the whole match (Phase 13 conformance).
+ # Defensive: inner call already degrades; never let an optional
+ # semantic boost abort the whole match (Phase 13 conformance).
         logger.warning("Chroma single-match failed, degrading: {}", exc)
         return None
 
@@ -206,7 +206,7 @@ def score_skill_match(
     Returns:
         Dict with "evaluated" list containing scored skills.
     """
-    # Build person skill indexes
+ # Build person skill indexes
     person_level_map: dict[str, float] = {}
     person_name_map: dict[str, str] = {}
     for item in person_skills:
@@ -221,7 +221,7 @@ def score_skill_match(
 
     candidate_canonical_set = set(person_level_map.keys())
 
-    # Phase 1: compute exact + semantic scores; collect ChromaDB fallback targets
+ # compute exact + semantic scores; collect ChromaDB fallback targets
     intermediate: list[dict[str, Any]] = []
     chroma_targets: list[str] = []
 
@@ -229,16 +229,16 @@ def score_skill_match(
         target_name = _canonical_skill_name(item["skill"])
         target_level = PROFICIENCY_SCORE.get(item.get("proficiency", DEFAULT_PROFICIENCY), PROFICIENCY_SCORE[DEFAULT_PROFICIENCY])
 
-        # Exact match
+ # Exact match
         exact = 1.0 if target_name in person_level_map else 0.0
 
-        # Semantic similarity
+ # Semantic similarity
         best_semantic = max(
             (_semantic_similarity(target_name, candidate) for candidate in person_name_map.values()),
             default=0.0,
         )
 
-        # Track whether ChromaDB fallback is needed
+ # Track whether ChromaDB fallback is needed
         needs_chroma = exact == 0.0 and best_semantic < FUZZY_MATCH_THRESHOLD
         if needs_chroma:
             chroma_targets.append(target_name)
@@ -252,10 +252,10 @@ def score_skill_match(
             "needs_chroma": needs_chroma,
         })
 
-    # Phase 2: single batch ChromaDB query for all fallback targets
+ # single batch ChromaDB query for all fallback targets
     chroma_results = _batch_chroma_match(chroma_targets, candidate_canonical_set)
 
-    # Phase 3: compute final scores with ChromaDB results
+ # compute final scores with ChromaDB results
     evaluated: list[dict[str, Any]] = []
     for entry in intermediate:
         target_name = entry["target_name"]
@@ -264,31 +264,31 @@ def score_skill_match(
         best_semantic = entry["best_semantic"]
         item = entry["item"]
 
-        # ChromaDB match (from batch results)
+ # ChromaDB match (from batch results)
         chroma_match = 0.0
         if entry["needs_chroma"] and target_name in chroma_results:
             chroma_match = chroma_results[target_name]
 
-        # Fuzzy match
+ # Fuzzy match
         fuzzy_match = 1.0 if best_semantic >= FUZZY_MATCH_THRESHOLD else best_semantic
         if chroma_match >= CHROMA_SIMILARITY_THRESHOLD and fuzzy_match < 1.0:
             fuzzy_match = max(fuzzy_match, chroma_match * 0.9)
 
-        # Calculate scores
+ # Calculate scores
         recall_score = (0.5 * exact) + (0.3 * fuzzy_match) + (0.2 * best_semantic)
         user_level = person_level_map.get(target_name, 0.0)
         proficiency_coverage = min(1.0, user_level / target_level) if target_level else 1.0
-        # P0-AUDIT-FIX (2026-08-13): the old formula `recall_score * (0.65 + 0.35*coverage)`
-        # guaranteed final_score >= 0.65 * recall_score even when coverage=0,
-        # so missing skills with any fuzzy/best_semantic signal were inflated
-        # into PARTIAL/MASTERED territory. Make coverage=0 the honest case:
-        # final_score == recall_score (no proficiency bonus).
+ # P0-AUDIT-FIX (2026-08-13): the old formula `recall_score * (0.65 + 0.35*coverage)`
+ # guaranteed final_score >= 0.65 * recall_score even when coverage=0,
+ # so missing skills with any fuzzy/best_semantic signal were inflated
+ # into PARTIAL/MASTERED territory. Make coverage=0 the honest case:
+ # final_score == recall_score (no proficiency bonus).
         if proficiency_coverage <= 0.0:
             final_score = recall_score
         else:
             final_score = min(1.0, recall_score * (0.65 + (0.35 * proficiency_coverage)))
 
-        # Gap level determination
+ # Gap level determination
         if exact == 1.0:
             gap_level = GAP_LEVEL_MASTERED
         elif final_score >= 0.85:

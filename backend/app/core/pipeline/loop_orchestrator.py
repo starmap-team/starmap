@@ -97,7 +97,7 @@ class LoopOrchestrator:
         db_record: Any,
     ) -> LoopResult:
         """(QA-FIX F#10 提取) 5 步闭环实际执行体 — 成功/按步失败路径与原实现一致。"""
-        # Step 1: validation
+ # Step 1: validation
         step1 = self._step1_validate_input(jd_text, target_position)
         result.steps.append(step1)
         await self._update_steps_json(db_record, result, session=session)
@@ -107,7 +107,7 @@ class LoopOrchestrator:
             await self._complete_loop_run(db_record, result, session=session)
             return result
 
-        # Step 2: extraction
+ # Step 2: extraction
         step2 = await self._step2_extract_skills(jd_text)
         result.steps.append(step2)
         extraction_data = step2.data if step2.status == StepStatus.SUCCESS else {}
@@ -118,7 +118,7 @@ class LoopOrchestrator:
         effective_target = self._resolve_target_position(target_position, extraction_data)
         result.target_position = effective_target
 
-        # Step 3: graph update — acquire Neo4j driver
+ # Step 3: graph update — acquire Neo4j driver
         driver = None
         try:
             from app.services.resources import resources as app_resources
@@ -134,7 +134,7 @@ class LoopOrchestrator:
         result.graph_update = step3.data
         await self._update_steps_json(db_record, result, session=session)
 
-        # Step 4: match diagnosis (LOOP-09: skip if no effective target_position)
+ # Step 4: match diagnosis (LOOP-09: skip if no effective target_position)
         if effective_target:
             step4 = await self._step4_match_diagnosis(
                 target_position=effective_target,
@@ -150,7 +150,7 @@ class LoopOrchestrator:
             result.steps.append(step4)
         await self._update_steps_json(db_record, result, session=session)
 
-        # Step 5: learning path (LOOP-09: skip if no target or match skipped)
+ # Step 5: learning path (LOOP-09: skip if no target or match skipped)
         if effective_target and step4.status != StepStatus.SKIPPED:
             step5 = await self._step5_learning_path(
                 match_result=result.match_result, graph_available=graph_ok,
@@ -164,7 +164,7 @@ class LoopOrchestrator:
                 note="Skipped: no target_position or match skipped")
             result.steps.append(step5)
 
-        # Determine overall status (D-03): only path/match failures → COMPLETED; ≥3 failures → FAILED
+ # Determine overall status (D-03): only path/match failures → COMPLETED; ≥3 failures → FAILED
         failed = [s for s in result.steps if s.status == StepStatus.FAILED]
         if failed and all(s.step in (4, 5) for s in failed):
             result.status = LoopRunStatus.COMPLETED
@@ -185,7 +185,7 @@ class LoopOrchestrator:
         )
         return result
 
-    # ---- Step delegates (compat shell — preserve monkeypatch paths) ----
+ # ---- Step delegates (compat shell — preserve monkeypatch paths) ----
 
     def _step1_validate_input(self, jd_text: str, target_position: str | None) -> LoopStepResult:
         """Step 1: compat delegate → ``steps.validate.run_validate_step``."""
@@ -220,7 +220,7 @@ class LoopOrchestrator:
         """Compat shim → ``steps.learning_path.generic_learning_path``."""
         return generic_learning_path()
 
-    # ---- Persistence helper delegates (compat shell) ----
+ # ---- Persistence helper delegates (compat shell) ----
 
     @staticmethod
     async def _insert_loop_run(run_id: str, session: AsyncSession | None = None, user_id: str = "system") -> LoopResultRecord | None:

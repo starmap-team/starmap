@@ -108,7 +108,7 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
         from app.db.session import get_async_engine
         from app.models.extraction_models import PositionRecord, SkillRecord
 
-        # 查 PG 拿到 canonical_id（用 PG 实际字段名）
+ # 查 PG 拿到 canonical_id（用 PG 实际字段名）
         engine = get_async_engine()
         async with engine.begin() as conn:
             session = AsyncSession(bind=conn)
@@ -123,11 +123,11 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
                     return
                 canonical_id = str(row[0])
                 name = row[1]
-                # Architect review (PRD US-003 B): DB「未分类」字面量同步到 Neo4j
-                # 会污染 _classify_industry 聚类 —— 归一化为空字符串写入，Neo4j
-                # 侧空字符串和 None 在 _classify_industry 都不进入聚类。
-                # Phase 1 (2026-08-17): 走 normalize_industry() 全链路（含 alias 映射），
-                # 与 graph_writer / extract_repo 三处写入路径保持口径一致。
+ # Architect review (PRD B): DB「未分类」字面量同步到 Neo4j
+ # 会污染 _classify_industry 聚类 —— 归一化为空字符串写入，Neo4j
+ # 侧空字符串和 None 在 _classify_industry 都不进入聚类。
+ # 走 normalize_industry() 全链路（含 alias 映射），
+ # 与 graph_writer / extract_repo 三处写入路径保持口径一致。
                 raw_industry = row[2] or ""
                 normalized = normalize_industry(raw_industry)
                 industry = "" if is_unclassified(normalized) else normalized
@@ -148,7 +148,7 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
 
         trust = 1.0 if status == "approved" else 0.0
 
-        # 用 canonical_id MERGE，确保幂等
+ # 用 canonical_id MERGE，确保幂等
         async with neo4j_driver.session() as s:
             if label == "Position":
                 await s.run(
@@ -391,15 +391,15 @@ async def approve_audit(
 
     now = datetime.now(UTC)
 
-    # Sync approved data to actual tables
+ # Sync approved data to actual tables
     if row.entity_type in _SKILL_ENTITY_TYPES:
         existing = await session.execute(
             sa.select(SkillRecord).where(SkillRecord.name == row.entity_name)
         )
         if existing.scalar_one_or_none() is None:
-            # Preserve category from payload if the operator set one
-            # (Phase 24 evolution orchestrator stores it under
-            # payload["category"]; legacy path leaves it None).
+ # Preserve category from payload if the operator set one
+ # (Phase 24 evolution orchestrator stores it under
+ # payload["category"]; legacy path leaves it None).
             payload = row.payload or {}
             category = payload.get("category") or "general"
             session.add(SkillRecord(
@@ -424,7 +424,7 @@ async def approve_audit(
 
     await session.commit()
 
-    # Sync to Neo4j (non-blocking)
+ # Sync to Neo4j (non-blocking)
     await _sync_neo4j_on_audit(neo4j_driver, row.entity_type, row.entity_name, "approved")
 
     return _audit_item_from_row(row, status_override="approved")
@@ -442,7 +442,7 @@ async def reject_audit(item_id: int, session: AsyncSession, neo4j_driver: Any | 
     row.status = "rejected"
     await session.commit()
 
-    # Sync to Neo4j (non-blocking)
+ # Sync to Neo4j (non-blocking)
     await _sync_neo4j_on_audit(neo4j_driver, row.entity_type, row.entity_name, "rejected")
 
     return _audit_item_from_row(row, status_override="rejected")
@@ -465,7 +465,7 @@ async def update_review_queue_item(
     if name is not None:
         row.entity_name = name
     if trust is not None:
-        # Reassign dict so SQLAlchemy JSON dirty-tracking fires
+ # Reassign dict so SQLAlchemy JSON dirty-tracking fires
         payload = dict(row.payload or {})
         payload["trust"] = trust
         row.payload = payload

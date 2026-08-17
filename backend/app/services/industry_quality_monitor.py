@@ -87,7 +87,7 @@ async def detect_industry_quality(
     """
     report = IndustryQualityReport(timestamp=datetime.now(UTC).timestamp())
 
-    # ── 1. 总体「未分类」占比（限定 approved，保持 dashboard 口径一致）──
+ # ── 1. 总体「未分类」占比（限定 approved，保持 dashboard 口径一致）──
     total_stmt = sa.select(sa.func.count()).select_from(PositionRecord).where(
         PositionRecord.review_status == "approved"
     )
@@ -102,7 +102,7 @@ async def detect_industry_quality(
         report.unclassified_count / report.total_positions if report.total_positions else 0.0
     )
 
-    # ── 2. 最近 24h 抽取岗位的「未分类」占比 ──
+ # ── 2. 最近 24h 抽取岗位的「未分类」占比 ──
     cutoff_24h = datetime.now(UTC) - timedelta(hours=24)
     new_24h_total_stmt = sa.select(sa.func.count()).select_from(PositionRecord).where(
         PositionRecord.created_at >= cutoff_24h
@@ -116,10 +116,10 @@ async def detect_industry_quality(
         (await session.execute(new_24h_unclass_stmt)).scalar() or 0
     )
 
-    # ── 3. 单源未分类率（admin 排查「哪个爬虫数据脏」）──
-    # Phase 4 (2026-08-17): PositionRecord 没有 source_platform 字段，
-    # 但 created_by 形如 'system:extraction' / 'system:fixture' / 'admin'，
-    # 用 LEFT(industry, 8) 做粗粒度分组（提取来源前缀）。
+ # ── 3. 单源未分类率（admin 排查「哪个爬虫数据脏」）──
+ # PositionRecord 没有 source_platform 字段，
+ # 但 created_by 形如 'system:extraction' / 'system:fixture' / 'admin'，
+ # 用 LEFT(industry, 8) 做粗粒度分组（提取来源前缀）。
     src_stmt = (
         sa.select(
             sa.func.coalesce(
@@ -145,18 +145,18 @@ async def detect_industry_quality(
             )
         )
 
-    # ── 4. Neo4j Industry 节点 vs PG 行业值一致性（可选）──
+ # ── 4. Neo4j Industry 节点 vs PG 行业值一致性（可选）──
     if neo4j_driver is not None:
         try:
             async with neo4j_driver.session() as s:
-                # 计数 Neo4j Industry 节点数
+ # 计数 Neo4j Industry 节点数
                 neo4j_count_result = await s.run(
                     "MATCH (n:Industry) RETURN count(n) AS cnt"
                 )
                 neo4j_count_record = await neo4j_count_result.single()
                 neo4j_industry_count = int(neo4j_count_record["cnt"]) if neo4j_count_record else 0
 
-                # PG distinct industry 数
+ # PG distinct industry 数
                 pg_distinct_stmt = (
                     sa.select(sa.func.count(sa.distinct(PositionRecord.industry)))
                     .where(PositionRecord.industry.isnot(None))
@@ -165,7 +165,7 @@ async def detect_industry_quality(
                 )
                 pg_distinct = int((await session.execute(pg_distinct_stmt)).scalar() or 0)
 
-                # 简单一致性判定：差异不应 > 5（容许有别名/历史残留）
+ # 简单一致性判定：差异不应 > 5（容许有别名/历史残留）
                 report.neo4j_pg_consistency = (
                     neo4j_industry_count >= pg_distinct - 5
                     and neo4j_industry_count <= pg_distinct + 5
@@ -174,7 +174,7 @@ async def detect_industry_quality(
             logger.warning("Neo4j consistency check failed: {}", exc)
             report.neo4j_pg_consistency = True  # fail-open
 
-    # ── 5. 告警等级判定（4 个指标任何一个越界即升级）──
+ # ── 5. 告警等级判定（4 个指标任何一个越界即升级）──
     report.alert_level = _compute_alert_level(report)
 
     return report

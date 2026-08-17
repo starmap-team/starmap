@@ -168,8 +168,8 @@ class SnapshotEntry(BaseModel):
 class ReviewQueueItem(BaseModel):
     """审核队列条目。"""
 
-    # E22 fix: include id so the frontend can dispatch per-row approve/reject
-    # via /evolution/review-queue/{id}/action.
+ # E22 fix: include id so the frontend can dispatch per-row approve/reject
+ # via /evolution/review-queue/{id}/action.
     id: str = Field(..., description="EvolutionChangelog id (UUID)")
     skill_name: str
     position_name: str

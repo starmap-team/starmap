@@ -33,7 +33,7 @@ class OverviewResponse(BaseModel):
     stale: bool = Field(False, description="True if some data came from cache due to source failure")
     stale_since: float | None = Field(None, description="Unix timestamp when staleness began")
     timestamp: float = Field(0.0, description="Response generation time")
-    # Phase 4 (2026-08-17): IndustryClassifier 第四层监测 — 行业质量 KPI
+ # IndustryClassifier 第四层监测 — 行业质量 KPI
     unclassified_count: int = Field(0, description="已发布岗位中 industry='未分类' 字面量的数量")
     unclassified_ratio: float = Field(0.0, ge=0.0, le=1.0, description="未分类占比 0-1")
     new_24h_unclassified_count: int = Field(0, description="最近 24h 新增岗位中未分类数量")

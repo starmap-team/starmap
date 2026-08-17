@@ -43,7 +43,7 @@ async def validate_resume_upload(file: UploadFile, *, max_size: int = MAX_UPLOAD
 
     Raises HTTPException on any validation failure.
     """
-    # 1. Filename + extension
+ # 1. Filename + extension
     if file.filename is None:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -54,14 +54,14 @@ async def validate_resume_upload(file: UploadFile, *, max_size: int = MAX_UPLOAD
             detail=f"Unsupported file type: .{ext}. Supported: .pdf, .docx, .doc",
         )
 
-    # 2. MIME type
+ # 2. MIME type
     if file.content_type and file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=400,
             detail=f"Unsupported MIME type: {file.content_type}",
         )
 
-    # 3. Size limit
+ # 3. Size limit
     content_bytes = await file.read(max_size + 1)
     if len(content_bytes) > max_size:
         raise HTTPException(
@@ -69,26 +69,26 @@ async def validate_resume_upload(file: UploadFile, *, max_size: int = MAX_UPLOAD
             detail=f"File too large (max {max_size // 1024 // 1024} MB)",
         )
 
-    # 4. Magic-byte signature — prevent extension spoofing
-    # P0-AUDIT-FIX (2026-08-13): the previous logic only raised when a
-    # signature MATCHED but did not match the extension. If the extension
-    # itself was unrecognised (e.g. .doc without OLE2 header), `_detected`
-    # stayed None and the upload slipped through. Now: ANY non-PDF/DOCX
-    # extension must hit its registered signature, otherwise reject.
+ # 4. Magic-byte signature — prevent extension spoofing
+ # P0-AUDIT-FIX (2026-08-13): the previous logic only raised when a
+ # signature MATCHED but did not match the extension. If the extension
+ # itself was unrecognised (e.g. .doc without OLE2 header), `_detected`
+ # stayed None and the upload slipped through. Now: ANY non-PDF/DOCX
+ # extension must hit its registered signature, otherwise reject.
     if content_bytes:
         _detected: str | None = None
         for sig, fmt in _FILE_SIGNATURES.items():
             if content_bytes.startswith(sig):
                 _detected = fmt
                 break
-        # Mismatch: detected format != claimed extension -> reject.
+ # Mismatch: detected format != claimed extension -> reject.
         if _detected and _detected != ext:
             raise HTTPException(
                 status_code=400,
                 detail=f"File content ({_detected}) does not match extension (.{ext})",
             )
-        # No signature matched but extension IS in our allow-list and
-        # requires a signature (.doc/.docx/.pdf). Reject unrecognised content.
+ # No signature matched but extension IS in our allow-list and
+ # requires a signature (.doc/.docx/.pdf). Reject unrecognised content.
         if _detected is None and ext in {"pdf", "docx", "doc"}:
             raise HTTPException(
                 status_code=400,
@@ -96,6 +96,6 @@ async def validate_resume_upload(file: UploadFile, *, max_size: int = MAX_UPLOAD
                        f"refusing to process potentially malformed file",
             )
 
-    # Reset file position for downstream reading
+ # Reset file position for downstream reading
     await file.seek(0)
     return content_bytes

@@ -48,7 +48,7 @@ def _validate_cron_field_value(raw: str, min_val: int, max_val: int) -> str | No
     """校验单字段值（含通配符/范围/列表/步长）。返回错误消息或 None。"""
     if raw == "*":
         return None
-    # 步长：*/N 或 a-b/N
+ # 步长：*/N 或 a-b/N
     if "/" in raw:
         range_part, step_str = raw.split("/", 1)
         try:
@@ -60,14 +60,14 @@ def _validate_cron_field_value(raw: str, min_val: int, max_val: int) -> str | No
         if range_part != "*":
             return _validate_cron_field_value(range_part, min_val, max_val)
         return None
-    # 列表：a,b,c
+ # 列表：a,b,c
     if "," in raw:
         for part in raw.split(","):
             err = _validate_cron_field_value(part.strip(), min_val, max_val)
             if err:
                 return err
         return None
-    # 范围：a-b
+ # 范围：a-b
     if "-" in raw:
         try:
             start_str, end_str = raw.split("-", 1)
@@ -80,7 +80,7 @@ def _validate_cron_field_value(raw: str, min_val: int, max_val: int) -> str | No
         if end < min_val or end > max_val:
             return f"结束值越界（{min_val}-{max_val}）"
         return None
-    # 单值
+ # 单值
     try:
         num = int(raw)
     except ValueError:
@@ -127,13 +127,13 @@ def compute_next_cron(cron_expression: str, base: datetime | None = None) -> dat
             logger.warning("Failed to parse cron expression '{}': {}", cron_expression, exc)
             return None
     else:
-        # Fallback: parse "0 */N * * *" or "*/N * * * *" style
+ # Fallback: parse "0 */N * * *" or "*/N * * * *" style
         try:
             base = base or datetime.now(UTC)
             parts = cron_expression.strip().split()
             if len(parts) != 5:
                 return None
-            # Simple fallback: return base + 1 hour
+ # Simple fallback: return base + 1 hour
             return base + timedelta(hours=1)
         except StarMapError:
             raise
@@ -166,21 +166,21 @@ async def trigger_schedule(
     appropriate Celery task.
     """
     try:
-        # BUG-16 fix: name-based dispatch
+ # BUG-16 fix: name-based dispatch
         if schedule.name in ("daily_reconcile", "graph_reconcile"):
             from app.tasks.celery_app import reconcile_graph_task  # type: ignore[attr-defined]
             task = reconcile_graph_task
         elif schedule.name in ("evolution_weekly", "evolution"):
-            # P2-8: 演化自动调度 —— 每周对既有岗位做能力 diff 演化分析
+ # P2-8: 演化自动调度 —— 每周对既有岗位做能力 diff 演化分析
             from app.tasks.celery_app import analyze_evolution_trends  # type: ignore[attr-defined]
             task = analyze_evolution_trends
         else:
             from app.tasks.celery_app import scheduled_pipeline_run as task
 
-        # Dispatch to Celery
+ # Dispatch to Celery
         task.delay(str(schedule.id))
 
-        # Update timestamps
+ # Update timestamps
         schedule.last_run_at = datetime.now(UTC)
         next_run = compute_next_cron(schedule.cron_expression, schedule.last_run_at)
         schedule.next_run_at = next_run or schedule.last_run_at + timedelta(hours=1)
@@ -226,7 +226,7 @@ async def _run_daily_reconcile(session: AsyncSession) -> None:
         result.nodes_upserted, result.skills_upserted, result.edges_upserted, result.orphans_pruned,
     )
 
-    # REQUIRES 边计数对账（IC-05：Neo4j 全边 vs PG approved PSR）
+ # REQUIRES 边计数对账（：Neo4j 全边 vs PG approved PSR）
     neo4j_requires = 0
     try:
         async with resources.neo4j_driver.session() as n4j_session:
@@ -252,8 +252,8 @@ async def _run_daily_reconcile(session: AsyncSession) -> None:
         logger.warning("daily_reconcile edge count (pg) failed (non-fatal): {}", exc)
     requires_diff = abs(int(neo4j_requires) - int(pg_requires))
 
-    # Phase 19 D-02/D-04: reconcile 时全量重算 Skill.trust_score（§6.2 四因子），
-    # 覆盖历史 0.5 脏数据（投影不写 trust_score 时代的默认值）
+ # Phase 19 D-02/D-04: reconcile 时全量重算 Skill.trust_score（四因子），
+ # 覆盖历史 0.5 脏数据（投影不写 trust_score 时代的默认值）
     try:
         from app.services.graph_sync import recompute_skill_trust
 
@@ -262,7 +262,7 @@ async def _run_daily_reconcile(session: AsyncSession) -> None:
     except Exception as exc:  # noqa: BLE001 — 重算失败不阻断 reconcile 主体
         logger.warning("recompute_skill_trust failed (non-blocking): {}", exc)
 
-    # Write audit event for health monitoring（detail 含边 diff）
+ # Write audit event for health monitoring（detail 含边 diff）
     try:
         import uuid as _uuid
 
@@ -357,7 +357,7 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
     engine = get_async_engine()
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
-    # P2-8: 确保每周演化调度存在（幂等 seed，缺则创建）
+ # P2-8: 确保每周演化调度存在（幂等 seed，缺则创建）
     async with session_factory() as session:
         try:
             await _ensure_evolution_schedule(session)
@@ -366,15 +366,15 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
 
     while True:
         try:
-            # Schedule trigger
+ # Schedule trigger
             async with session_factory() as session:
                 triggered = await cron_scanner_once(session)
                 if triggered:
                     logger.info("Cron scanner triggered {} schedule(s)", triggered)
 
-            # D8 fix: watchdog —— 定期清理超时卡死的 running run（import 等阶段 task
-            # 丢失后 run 永不 completed → 前端 current_run 恒 running 与 DAG 矛盾）。
-            # sweep_orphan_runs 此前从未被调度（只定义无调用），卡死 run 无人清理。
+ # D8 fix: watchdog —— 定期清理超时卡死的 running run（import 等阶段 task
+ # 丢失后 run 永不 completed → 前端 current_run 恒 running 与 DAG 矛盾）。
+ # sweep_orphan_runs 此前从未被调度（只定义无调用），卡死 run 无人清理。
             try:
                 from app.tasks.celery_app import _sweep_orphan_runs_async
 

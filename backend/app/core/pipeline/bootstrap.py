@@ -32,10 +32,10 @@ def schedule_bootstrap_if_enabled() -> None:
     def _fire() -> None:
         try:
             from app.core.pipeline.executor import trigger_and_start
-            # P1-8 fix (functional-review 2026-08-13): 此前传 run_type="bootstrap"，
-            # 而 create_run 只校验 {"full","incremental"} → ValueError 被吞掉，
-            # PIPELINE_BOOTSTRAP=true 时首启种子管线永远建不出来。bootstrap 语义
-            # 即全量首灌，改用 "full"。
+ # 此前传 run_type="bootstrap"，
+ # 而 create_run 只校验 {"full","incremental"} → ValueError 被吞掉，
+ # PIPELINE_BOOTSTRAP=true 时首启种子管线永远建不出来。bootstrap 语义
+ # 即全量首灌，改用 "full"。
             run = asyncio.run(
                 trigger_and_start(run_type="full", selected_stages=None)
             )

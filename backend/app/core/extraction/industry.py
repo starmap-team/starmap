@@ -44,7 +44,7 @@ GENERIC_INDUSTRY_TOKENS = frozenset(
 )
 
 # ───────────────────────────────────────────────────────────────────
-# 多层防御 Phase 1: 字典加载 (canonical_industries + alias 映射)
+# 多层防御 字典加载 (canonical_industries + alias 映射)
 # ───────────────────────────────────────────────────────────────────
 
 _TAXONOMY_PATH_CANDIDATES = (
@@ -104,7 +104,7 @@ def _load_industry_taxonomy() -> None:
         if not name:
             continue
         canonical_list.append(name)
-        # 自指映射（大小写归一化）— 与 normalize_by_alias 行为对齐
+ # 自指映射（大小写归一化）— 与 normalize_by_alias 行为对齐
         alias_map[name.lower()] = name
         for alias in entry.get("aliases", []):
             alias_str = str(alias).strip()

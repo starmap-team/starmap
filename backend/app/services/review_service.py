@@ -167,7 +167,7 @@ async def submit_for_review(
     previous = cast(Status, row.review_status)
     row.review_status = "pending_review"
     row.submitted_at = _now()
-    # Clear any previous rejection reason — it's a fresh submission.
+ # Clear any previous rejection reason — it's a fresh submission.
     if row.review_status == "pending_review" and previous == "rejected":
         row.rejection_reason = None
     await _record_transition(
@@ -274,7 +274,7 @@ async def reject(
         raise MissingRejectionReason("Reject requires a non-empty reason")
     row = await _get_entity(session, entity_type, entity_id)
     if row.review_status == "rejected":
-        # Already rejected — return existing state without writing another log.
+ # Already rejected — return existing state without writing another log.
         return _to_item(entity_type, row)
     if row.review_status != "pending_review":
         raise InvalidStateTransition(
@@ -342,7 +342,7 @@ async def unpublish(
 
 
 def _to_item(entity_type: EntityType, row: PositionRecord | SkillRecord) -> ReviewItem:
-    # SkillRecord has no created_at — fall back to first_detected_at.
+ # SkillRecord has no created_at — fall back to first_detected_at.
     created_at = getattr(row, "created_at", None) or getattr(row, "first_detected_at", None)
     return ReviewItem(
         entity_type=entity_type,
@@ -386,7 +386,7 @@ async def list_by_status(
         result = await session.execute(stmt)
         for row in result.scalars().all():
             out.append(_to_item(et, row))
-    # Re-sort merged result by created_at desc (None values go last).
+ # Re-sort merged result by created_at desc (None values go last).
     out.sort(key=lambda r: r.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)
     return out[:limit]
 
@@ -431,8 +431,8 @@ async def count_by_status(session: AsyncSession) -> dict[str, int]:
             out[f"{et}_{status}"] = int(count)
             out[et] += int(count)
 
-    # EvolutionChangelog low-trust pending review (§5.2)
-    # Use the same threshold the evolution endpoint uses (LOW_TRUST_THRESHOLD = 0.5).
+ # EvolutionChangelog low-trust pending review ()
+ # Use the same threshold the evolution endpoint uses (LOW_TRUST_THRESHOLD = 0.5).
     from app.core.evolution.trust_scorer import LOW_TRUST_THRESHOLD  # noqa: PLC0415
     from app.models.evolution_models import EvolutionChangelog  # noqa: PLC0415
 

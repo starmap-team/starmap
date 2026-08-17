@@ -34,14 +34,14 @@ async def get_loop_status(
 ) -> dict[str, Any] | None:
     """Return status of a loop run by ID, querying loop_results first, then pipeline_runs, then in-memory fallback."""
     if session is not None:
-        # Primary: query loop_results table
+ # Primary: query loop_results table
         try:
             from app.models.pipeline_models import LoopResultRecord
 
             query = select(LoopResultRecord).where(
                 LoopResultRecord.run_id == run_id,
             )
-            # SEC-04: IDOR guard — non-admin users only see their own runs
+ # : IDOR guard — non-admin users only see their own runs
             if not is_admin:
                 query = query.where(LoopResultRecord.user_id == user_id)
 
@@ -59,7 +59,7 @@ async def get_loop_status(
         except Exception as exc:
             logger.exception("Failed to read loop status from loop_results, trying pipeline_runs: {}", exc)
 
-        # Secondary: query pipeline_runs table (legacy)
+ # Secondary: query pipeline_runs table (legacy)
         try:
             from app.models.pipeline_models import PipelineRun
 
@@ -84,7 +84,7 @@ async def get_loop_status(
         except Exception as exc:
             logger.exception("Failed to read loop status from pipeline_runs, falling back to in-memory: {}", exc)
 
-    # Fallback: in-memory
+ # Fallback: in-memory
     mem_result: LoopResult | None = _LOOP_RESULTS.get(run_id)
     if mem_result is None:
         return None
@@ -99,14 +99,14 @@ async def get_loop_history(
 ) -> list[dict[str, Any]]:
     """Return recent loop run history, querying loop_results first, then pipeline_runs, then in-memory fallback."""
     if session is not None:
-        # Primary: query loop_results table
+ # Primary: query loop_results table
         try:
             from app.models.pipeline_models import LoopResultRecord
 
             query = select(LoopResultRecord).order_by(
                 LoopResultRecord.created_at.desc()
             )
-            # SEC-04: IDOR guard — non-admin users only see their own runs
+ # : IDOR guard — non-admin users only see their own runs
             if not is_admin:
                 query = query.where(LoopResultRecord.user_id == user_id)
 
@@ -128,7 +128,7 @@ async def get_loop_history(
         except Exception as exc:
             logger.exception("Failed to read loop history from loop_results, trying pipeline_runs: {}", exc)
 
-        # Secondary: query pipeline_runs table (legacy)
+ # Secondary: query pipeline_runs table (legacy)
         try:
             from app.models.pipeline_models import PipelineRun
 
@@ -155,9 +155,9 @@ async def get_loop_history(
         except Exception as exc:
             logger.exception("Failed to read loop history from pipeline_runs, falling back to in-memory: {}", exc)
 
-    # Fallback: in-memory
-    # SEC-04 QA-FIX (F#11): 与 DB 主路径同口径 — 非 admin 仅能看到自己的运行，
-    # system 归属的历史数据对普通用户隐藏。
+ # Fallback: in-memory
+ # QA-FIX (F#11): 与 DB 主路径同口径 — 非 admin 仅能看到自己的运行，
+ # system 归属的历史数据对普通用户隐藏。
     in_memory: list[LoopResult] = list(_LOOP_RESULTS.values())
     if not is_admin:
         in_memory = [r for r in in_memory if getattr(r, "user_id", "system") == user_id]
@@ -166,7 +166,7 @@ async def get_loop_history(
 
 
 # ---------------------------------------------------------------------------
-# Phase 3: 闭环管道逐步核验
+# 闭环管道逐步核验
 # ---------------------------------------------------------------------------
 
 def _build_loop_verification(steps: list[LoopStepResult]) -> dict[str, Any]:
@@ -205,7 +205,7 @@ def _loop_step_checks(step: LoopStepResult) -> list[dict[str, Any]]:
     if step.status == StepStatus.SKIPPED:
         return [{"check": "步骤已跳过", "ok": True, "detail": step.note or "无需执行"}]
 
-    # Step 1: JD输入
+ # Step 1: JD输入
     if step.step == 1:
         jd_len = step.data.get("jd_length", 0)
         checks.append({
@@ -219,7 +219,7 @@ def _loop_step_checks(step: LoopStepResult) -> list[dict[str, Any]]:
             "detail": f"目标: {step.data.get('target_position')}",
         })
 
-    # Step 2: 技能提取
+ # Step 2: 技能提取
     elif step.step == 2:
         skills = step.data.get("skills", [])
         checks.append({
@@ -233,7 +233,7 @@ def _loop_step_checks(step: LoopStepResult) -> list[dict[str, Any]]:
             "detail": f"岗位: {step.data.get('position_name', '未识别')}",
         })
 
-    # Step 3: 图谱更新
+ # Step 3: 图谱更新
     elif step.step == 3:
         synced = step.data.get("synced", False)
         checks.append({
@@ -242,7 +242,7 @@ def _loop_step_checks(step: LoopStepResult) -> list[dict[str, Any]]:
             "detail": f"写入 {step.data.get('nodes_written', 0)} 节点, {step.data.get('edges_written', 0)} 关系",
         })
 
-    # Step 4: 匹配诊断
+ # Step 4: 匹配诊断
     elif step.step == 4:
         match_score = step.data.get("match_score", 0)
         gap_detail = step.data.get("skill_gap_detail", [])
@@ -257,7 +257,7 @@ def _loop_step_checks(step: LoopStepResult) -> list[dict[str, Any]]:
             "detail": f"分析 {len(gap_detail)} 项技能差距",
         })
 
-    # Step 5: 学习路径
+ # Step 5: 学习路径
     elif step.step == 5:
         path_items = step.data.get("path_items", [])
         plan_id = step.data.get("plan_id")

@@ -93,7 +93,7 @@ class PositionRecommender:
             StarMapError: 仓库层或评分层返回的 StarMap 系统错误（透传）。
             MatchingError: 评分层返回的匹配逻辑错误（透传）。
         """
-        # NEW-03: 确保前置关系已从 Neo4j 加载（developability 依赖，不可用时降级为空）
+ # : 确保前置关系已从 Neo4j 加载（developability 依赖，不可用时降级为空）
         await ensure_prerequisite_map()
 
         all_profiles = await self._repo.get_all_position_profiles()
@@ -101,7 +101,7 @@ class PositionRecommender:
             logger.warning("[Recommender] No position profiles available")
             return []
 
-        # 转换为 score_skill_match 期望的格式（key="skill"）
+ # 转换为 score_skill_match 期望的格式（key="skill"）
         person_skill_dicts: list[dict[str, Any]] = [
             {"skill": s.name, "proficiency": s.proficiency} for s in person_skills
         ]
@@ -114,7 +114,7 @@ class PositionRecommender:
                     person_skills=person_skill_dicts,
                     threshold=settings.match_threshold,
                 )
-                # 从 evaluated 列表计算匹配度均值
+ # 从 evaluated 列表计算匹配度均值
                 evaluated = match_result.get("evaluated", [])
                 match_score = sum(e["score"] for e in evaluated) / len(evaluated) if evaluated else 0.0
 
@@ -158,10 +158,10 @@ class PositionRecommender:
         4. 无 PREREQUISITE 数据时降级为 0.5（中性值）
         """
         owned = {s.name for s in person_skills}
-        # P0-AUDIT-FIX (2026-08-13): profile.required_skills elements have key
-        # "skill", NOT "name" — `s["name"]` always KeyError'd, so `missing` was
-        # always [] and developability was always 1.0 (silently biasing the
-        # recommender toward bonus-heavy positions). Use the correct key.
+ # P0-AUDIT-FIX (2026-08-13): profile.required_skills elements have key
+ # "skill", NOT "name" — `s["name"]` always KeyError'd, so `missing` was
+ # always [] and developability was always 1.0 (silently biasing the
+ # recommender toward bonus-heavy positions). Use the correct key.
         missing = [s for s in profile.required_skills if s["skill"] not in owned]
         if not missing:
             return 1.0  # 无缺失，完美可发展性

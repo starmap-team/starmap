@@ -59,7 +59,7 @@ class PipelineEngine:
                         "status": "done",
                     },
                 )
-                # Phase 3: 每步成功后推送详细输出供前端可视化核验
+ # 每步成功后推送详细输出供前端可视化核验
                 step_output = _build_step_output(step.name, ctx)
                 yield _sse_event("step_output", step_output)
             except TimeoutError:
@@ -104,7 +104,7 @@ class PipelineEngine:
                 )
                 logger.error("[Pipeline] Step {} failed: {}", step.name, exc)
 
-        # 构建最终结果
+ # 构建最终结果
         result = _build_result(ctx)
         yield _sse_event("result", result)
         yield _sse_event("progress", {"step": "complete", "status": "done"})
@@ -117,19 +117,19 @@ def _sse_event(event: str, data: Any) -> str:
 
 def _build_result(ctx: PipelineContext) -> dict[str, Any]:
     """从 PipelineContext 构建最终结果字典。"""
-    # 按匹配分数排序的岗位匹配结果
+ # 按匹配分数排序的岗位匹配结果
     sorted_matches = sorted(
         ctx.match_results.items(),
         key=lambda x: x[1].get("match_score", 0),
         reverse=True,
     )
 
-    # 取 top-1 岗位的差距和学习路径
+ # 取 top-1 岗位的差距和学习路径
     top_match = sorted_matches[0][1] if sorted_matches else {}
     skill_gaps = top_match.get("skill_gap_detail", [])
-    # P0 fix (Phase 24 求职者分析): gap.learning_path 可能显式为 None（而非缺省），
-    # gap.get("learning_path", []) 会返回 None → learning_path_summary 含 None 元素
-    # → 前端 `path.length` 渲染崩溃（Cannot read properties of undefined）。
+ # P0 fix (Phase 24 求职者分析): gap.learning_path 可能显式为 None（而非缺省），
+ # gap.get("learning_path", []) 会返回 None → learning_path_summary 含 None 元素
+ # → 前端 `path.length` 渲染崩溃（Cannot read properties of undefined）。
     learning_path = [
         gap.get("learning_path") or []
         for gap in skill_gaps
@@ -149,7 +149,7 @@ def _build_result(ctx: PipelineContext) -> dict[str, Any]:
         ],
         "top_matches": [
             {
-                # P5 fix: 岗位名用 name_cn 优先（_display_name），与详情页口径一致
+ # P5 fix: 岗位名用 name_cn 优先（_display_name），与详情页口径一致
                 "position": result.get("_display_name") or name,
                 "match_score": result.get("match_score", 0),
                 "assessment": result.get("overall_assessment", ""),
@@ -166,7 +166,7 @@ def _build_result(ctx: PipelineContext) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Phase 3: 逐步可视化核验 — 每步的输出摘要和验证检查
+# 逐步可视化核验 — 每步的输出摘要和验证检查
 # ---------------------------------------------------------------------------
 
 
@@ -367,7 +367,7 @@ def _build_match_output(
     for pos_name, result in sorted_matches[:10]:
         top_results.append(
             {
-                # P5 fix: 岗位名用 name_cn 优先（_display_name），与详情页口径一致
+ # P5 fix: 岗位名用 name_cn 优先（_display_name），与详情页口径一致
                 "position": result.get("_display_name") or pos_name,
                 "match_score": result.get("match_score", 0),
                 "assessment": result.get("overall_assessment", ""),
@@ -414,7 +414,7 @@ def _build_learning_path_output(
             },
         }
 
-    # 统计有多少个岗位有学习路径条目
+ # 统计有多少个岗位有学习路径条目
     paths_count = sum(
         1
         for result in ctx.match_results.values()

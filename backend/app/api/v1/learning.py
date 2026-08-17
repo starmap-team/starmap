@@ -88,7 +88,7 @@ async def get_learning_plan(
         pid = uuid.UUID(plan_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
-    # 业务逻辑在 learning_service;PlanNotFoundError→404 / PlanOwnershipError→403 由全局处理器映射。
+ # 业务逻辑在 learning_service;PlanNotFoundError→404 / PlanOwnershipError→403 由全局处理器映射。
     view = await learning_service.get_plan_for_user(session, user_id=user_id, plan_id=pid)
     return PlanResponse(**view)
 
@@ -106,7 +106,7 @@ async def update_skill_progress(
         pid = uuid.UUID(plan_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
-    # PlanNotFoundError→404 / PlanOwnershipError→403 由全局处理器映射;返回 None 表示技能不在计划内。
+ # PlanNotFoundError→404 / PlanOwnershipError→403 由全局处理器映射;返回 None 表示技能不在计划内。
     progress = await learning_service.update_skill_progress_for_user(
         session,
         user_id=user_id,
@@ -138,17 +138,17 @@ async def add_skill_to_plan(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid plan_id format") from exc
 
-    # Fetch the plan
+ # Fetch the plan
     plan_stmt = sa.select(LearningPlan).where(LearningPlan.id == pid)
     plan_result = await session.execute(plan_stmt)
     plan = plan_result.scalar_one_or_none()
     if plan is None:
         raise HTTPException(status_code=404, detail="Plan not found")
-    # IDOR guard: verify plan ownership
+ # IDOR guard: verify plan ownership
     if plan.user_id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized to modify this plan")
 
-    # Check if skill already exists in plan
+ # Check if skill already exists in plan
     existing_stmt = sa.select(LearningProgress).where(
         LearningProgress.plan_id == pid,
         LearningProgress.skill_name == body.skill_name,
@@ -156,7 +156,7 @@ async def add_skill_to_plan(
     existing_result = await session.execute(existing_stmt)
     existing = existing_result.scalar_one_or_none()
     if existing is not None:
-        # Skill already in plan — return existing progress
+ # Skill already in plan — return existing progress
         return SkillProgressItem(
             skill_name=existing.skill_name,
             status=existing.status,
@@ -168,7 +168,7 @@ async def add_skill_to_plan(
             notes=existing.notes,
         )
 
-    # Create new progress record
+ # Create new progress record
     progress = LearningProgress(
         plan_id=pid,
         skill_name=body.skill_name,
@@ -179,7 +179,7 @@ async def add_skill_to_plan(
     )
     session.add(progress)
 
-    # Also add skill to plan's skills JSON
+ # Also add skill to plan's skills JSON
     skills_list: list[Any] = plan.skills if isinstance(plan.skills, list) else []
     skills_list.append({
         "skill": body.skill_name,
@@ -238,7 +238,7 @@ async def get_recommendations(
         if plan_row.user_id != user["sub"]:
             raise HTTPException(status_code=403, detail="Not authorized to view this plan")
 
-        # Get plan's gap skills sorted by priority
+ # Get plan's gap skills sorted by priority
         stmt = (
             sa.select(LearningProgress)
             .where(
@@ -270,7 +270,7 @@ async def get_recommendations(
             ))
 
     elif position:
-        # Generate recommendations based on position requirements from graph
+ # Generate recommendations based on position requirements from graph
         from app.services.graph_service import fetch_position_graph
         from app.services.resources import resources as app_resources
 
@@ -303,7 +303,7 @@ async def get_recommendations(
                 raise HTTPException(status_code=500, detail="学习路径处理异常") from exc
 
         if profile is None:
-            # Fallback: return empty with message
+ # Fallback: return empty with message
             return RecommendationsResponse(items=[], total_items=0)
 
         for skill_name in profile.get("required", []):
@@ -329,7 +329,7 @@ async def get_recommendations(
             ))
 
     else:
-        # General trending recommendations from SkillRecord
+ # General trending recommendations from SkillRecord
         try:
             from app.models.extraction_models import SkillRecord
 

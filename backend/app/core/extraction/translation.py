@@ -79,10 +79,10 @@ async def translate_title_industry(
         name_cn = (data.get("name_cn") or "").strip() or None
         industry_zh = (data.get("industry_zh") or "").strip() or None
         if name_cn and not has_cjk(name_cn):
-            # D8h fix: LLM 对专有名词/品牌岗位名返回原文（如 "Account Executive"）。
-            # 原逻辑丢弃 → 岗位列表仍显示「英文原文」。改为把原文作为 name_cn 兜底，
-            # 至少让岗位有显示名（后续可人工修正），前端不再标「英文原文」。
-            # 仅当原文与 title 相同时才兜底（避免 LLM 返回无关英文被误存）。
+ # LLM 对专有名词/品牌岗位名返回原文（如 "Account Executive"）。
+ # 原逻辑丢弃 → 岗位列表仍显示「英文原文」。改为把原文作为 name_cn 兜底，
+ # 至少让岗位有显示名（后续可人工修正），前端不再标「英文原文」。
+ # 仅当原文与 title 相同时才兜底（避免 LLM 返回无关英文被误存）。
             if name_cn.lower().strip() == (title or "").lower().strip():
                 logger.info("translate_title_industry: LLM returned original name, using as fallback name_cn={!r}", name_cn)
                 return {"name_cn": name_cn, "industry_zh": industry_zh}

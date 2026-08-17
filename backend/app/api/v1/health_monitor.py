@@ -68,7 +68,7 @@ async def resume_source(
         return {"source_id": str(source_id), "status": "active", "message": "already active"}
 
     src.status = "active"
-    # 清除 auto_paused_* 字段
+ # 清除 auto_paused_* 字段
     if src.config:
         src.config = {
             k: v for k, v in src.config.items()

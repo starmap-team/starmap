@@ -87,7 +87,7 @@ async def _load_prerequisites_from_neo4j() -> dict[str, list[str]]:
     """
     global _prereqs_cache
 
-    # Return cached result if still valid
+ # Return cached result if still valid
     if _prereqs_cache is not None:
         cached_at, cached_data = _prereqs_cache
         if time.monotonic() - cached_at < _CACHE_TTL_SECONDS:
@@ -121,8 +121,8 @@ async def _load_prerequisites_from_neo4j() -> dict[str, list[str]]:
     except StarMapError:
         raise
     except Exception as exc:
-        # M3: Neo4j 不可用时降级返回空映射,不阻断学习路径主流程;域异常仍向上抛。
-        # 契约:test_neo4j_error_returns_empty。
+ # M3: Neo4j 不可用时降级返回空映射,不阻断学习路径主流程;域异常仍向上抛。
+ # 契约:test_neo4j_error_returns_empty。
         logger.warning("Learning path Neo4j load failed, degrading to empty: {}", exc)
         return {}
 
@@ -144,7 +144,7 @@ async def _load_skill_hours_from_neo4j(
     """
     global _skill_hours_cache
 
-    # Return cached result if still valid and the skill set matches
+ # Return cached result if still valid and the skill set matches
     cache_key = frozenset(skill_names)
     if _skill_hours_cache is not None:
         cached_at, cached_key, cached_data = _skill_hours_cache
@@ -180,8 +180,8 @@ async def _load_skill_hours_from_neo4j(
     except StarMapError:
         raise
     except Exception as exc:
-        # M3: Neo4j 不可用时降级返回空映射,不阻断学习路径主流程;域异常仍向上抛。
-        # 契约:test_neo4j_error_returns_empty。
+ # M3: Neo4j 不可用时降级返回空映射,不阻断学习路径主流程;域异常仍向上抛。
+ # 契约:test_neo4j_error_returns_empty。
         logger.warning("Learning path Neo4j load failed, degrading to empty: {}", exc)
         return {}
 
@@ -234,19 +234,19 @@ def estimate_learning_time(
     Returns:
         Estimated learning hours.
     """
-    # 1) Per-skill base hours from Neo4j (most accurate)
+ # 1) Per-skill base hours from Neo4j (most accurate)
     if skill_hours_map and skill in skill_hours_map:
         base = skill_hours_map[skill]
-    # 2) Fallback to gap-level-based dict
+ # 2) Fallback to gap-level-based dict
     else:
         base = _BASE_HOURS.get(gap_level, 40.0)
 
-    # Adjust based on proficiency gap
+ # Adjust based on proficiency gap
     current_score = PROFICIENCY_SCORE.get(current_level or LOW_PROFICIENCY, 0.0)
     target_score = PROFICIENCY_SCORE.get(target_level, 0.65)
     proficiency_gap = max(0.0, target_score - current_score)
 
-    # Scale hours by proficiency gap (0-1 range → 0.5x-1.5x multiplier)
+ # Scale hours by proficiency gap (0-1 range → 0.5x-1.5x multiplier)
     multiplier = 0.5 + proficiency_gap
     return round(base * multiplier, 1)
 
@@ -271,20 +271,20 @@ async def build_prerequisite_graph(
     """
     skill_set = set(skills)
 
-    # 1) Try Neo4j first
+ # 1) Try Neo4j first
     neo4j_prereqs = await _load_prerequisites_from_neo4j()
 
-    # 2) Merge: Neo4j as primary, fallback for anything Neo4j doesn't cover
+ # 2) Merge: Neo4j as primary, fallback for anything Neo4j doesn't cover
     all_prereqs: dict[str, list[str]] = (
         neo4j_prereqs if neo4j_prereqs else dict(_FALLBACK_PREREQUISITES)
     )
 
-    # 3) Caller-supplied extras take highest precedence
+ # 3) Caller-supplied extras take highest precedence
     if extra_prerequisites:
         for skill, prereqs in extra_prerequisites.items():
             all_prereqs[skill] = prereqs
 
-    # 4) Filter to only include skills in our set
+ # 4) Filter to only include skills in our set
     graph: dict[str, list[str]] = {}
     for skill in skills:
         prereqs = all_prereqs.get(skill, [])
@@ -302,7 +302,7 @@ def _topological_sort(graph: dict[str, list[str]]) -> list[str]:
     to compress cyclic nodes into super-nodes, then topologically sort
     the compressed DAG instead of falling back to arbitrary order.
     """
-    # Compute in-degrees
+ # Compute in-degrees
     in_degree: dict[str, int] = dict.fromkeys(graph, 0)
     dependents: dict[str, list[str]] = defaultdict(list)
 
@@ -312,7 +312,7 @@ def _topological_sort(graph: dict[str, list[str]]) -> list[str]:
                 dependents[prereq].append(skill)
                 in_degree[skill] = in_degree.get(skill, 0) + 1
 
-    # BFS from zero in-degree nodes
+ # BFS from zero in-degree nodes
     queue: deque[str] = deque(
         skill for skill, deg in in_degree.items() if deg == 0
     )
@@ -329,10 +329,10 @@ def _topological_sort(graph: dict[str, list[str]]) -> list[str]:
     if len(order) == len(graph):
         return order
 
-    # BL-04: Cycle detected — use Tarjan's SCC to compress cycles
+ # BL-04: Cycle detected — use Tarjan's SCC to compress cycles
     logger.warning("Cycle detected in prerequisite graph — using SCC compression")
     sccs = _tarjan_scc(graph)
-    # Build compressed graph: each SCC becomes a single node
+ # Build compressed graph: each SCC becomes a single node
     node_to_scc: dict[str, int] = {}
     for idx, scc in enumerate(sccs):
         for node in scc:
@@ -347,7 +347,7 @@ def _topological_sort(graph: dict[str, list[str]]) -> list[str]:
                 if p != s:
                     compressed[p].add(s)
 
-    # Topological sort of compressed graph (Kahn's algorithm)
+ # Topological sort of compressed graph (Kahn's algorithm)
     comp_in_degree: dict[int, int] = defaultdict(int)
     all_sccs = set(range(len(sccs)))
     for _s, deps in compressed.items():
@@ -366,7 +366,7 @@ def _topological_sort(graph: dict[str, list[str]]) -> list[str]:
             if comp_in_degree[d] == 0:
                 comp_queue.append(d)
 
-    # Flatten SCC order back to skill order
+ # Flatten SCC order back to skill order
     result: list[str] = []
     for scc_idx in scc_order:
         result.extend(sccs[scc_idx])
@@ -449,7 +449,7 @@ def _build_phases(
         current_phase.append(skill_node)
         current_hours += skill_node.estimated_hours
 
-    # Flush remaining
+ # Flush remaining
     if current_phase:
         phases.append({
             "phase": len(phases) + 1,
@@ -488,19 +488,19 @@ async def generate_learning_path(
 
     current_proficiencies = current_proficiencies or {}
 
-    # Step 1: Build skill list with time estimates
+ # Step 1: Build skill list with time estimates
     skill_names = [g["skill"] for g in match_gaps]
 
-    # Step 2: Load per-skill learning hours from Neo4j (best-effort)
+ # Step 2: Load per-skill learning hours from Neo4j (best-effort)
     skill_hours_map = await _load_skill_hours_from_neo4j(set(skill_names))
 
-    # Step 3: Build prerequisite graph (Neo4j → fallback → extras)
+ # Step 3: Build prerequisite graph (Neo4j → fallback → extras)
     prereq_graph = await build_prerequisite_graph(skill_names, prerequisites)
 
-    # Step 4: Topological sort
+ # Step 4: Topological sort
     ordered_names = _topological_sort(prereq_graph)
 
-    # Step 5: Build SkillNodes in topo order
+ # Step 5: Build SkillNodes in topo order
     gap_map = {g["skill"]: g for g in match_gaps}
     skill_nodes: list[SkillNode] = []
 
@@ -531,15 +531,15 @@ async def generate_learning_path(
         )
         skill_nodes.append(node)
 
-    # Assign order indices
+ # Assign order indices
     for i, node in enumerate(skill_nodes):
         node.order = i
 
-    # Step 6: Calculate totals
+ # Step 6: Calculate totals
     total_hours = sum(n.estimated_hours for n in skill_nodes if n.gap_level != GAP_LEVEL_MASTERED)
     total_weeks = ceil(total_hours / available_time) if available_time > 0 else 0
 
-    # Step 6: Build phases
+ # Step 6: Build phases
     phases = _build_phases(skill_nodes, available_time)
 
     path = LearningPath(

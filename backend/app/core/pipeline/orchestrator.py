@@ -100,7 +100,7 @@ def _build_initial_stages(selected: list[str] | None = None) -> list[dict[str, A
             "retry_count": 0,
             "error_type": "",     # Phase 7 fix: classify failures for observability
             "depends_on": STAGE_DEPS.get(stage.value, []),
-            # Phase 3.7: 实时活动字段
+ # 实时活动字段
             "current_activity": "",
             "recent_samples": [],
             "sub_breakdown": {},
@@ -148,7 +148,7 @@ async def create_run(
     selected_sources: list[str] | None = None,
 ) -> PipelineRun:
     """Create a new PipelineRun record with DAG-aware stage initialization."""
-    # Validate run_type
+ # Validate run_type
     _VALID_RUN_TYPES = {"full", "incremental"}  # noqa: N806
     if run_type not in _VALID_RUN_TYPES:
         raise ValueError(f"Invalid run_type: {run_type!r}. Must be one of {sorted(_VALID_RUN_TYPES)}")
@@ -213,7 +213,7 @@ async def update_stage_status(
         stage["started_at"] = _now().isoformat()
     if status in (StageStatus.COMPLETED.value, StageStatus.FAILED.value):
         stage["completed_at"] = _now().isoformat()
-    # Phase 3.8.1: stage 完成/失败时强制 progress=1.0 (避免显示 0%)
+ # Phase 3.8.1: stage 完成/失败时强制 progress=1.0 (避免显示 0%)
     if status == StageStatus.COMPLETED.value and progress is None:
         stage["progress"] = 1.0
     elif progress is not None:
@@ -234,7 +234,7 @@ async def update_stage_status(
         stage["retry_count"] = retry_count
     if error_type:
         stage["error_type"] = error_type
-    # Phase 3.7: 实时活动上下文持久化
+ # 实时活动上下文持久化
     if current_activity:
         stage["current_activity"] = current_activity
     if recent_samples is not None:
@@ -286,7 +286,7 @@ async def complete_run(
     )
     await session.flush()
 
-    # Phase 2 AUTHORITY-01: 更新所有数据源权威分
+ # Phase 2 AUTHORITY-01: 更新所有数据源权威分
     try:
         from app.core.pipeline.source_authority import update_authority_scores
         await update_authority_scores(session)
@@ -295,7 +295,7 @@ async def complete_run(
     except Exception:
         logger.exception("update_authority_scores failed (non-fatal)")
 
-    # Phase 2 AUTHORITY-02: quality < 0.3 的数据源标记 paused
+ # Phase 2 AUTHORITY-02: quality < 0.3 的数据源标记 paused
     try:
         from sqlalchemy import select as sa_select
         ds_result = await session.execute(
@@ -335,11 +335,11 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
     )
     running_run = running_result.scalar_one_or_none()
 
-    # 检测僵尸 run：所有 stage 已结束但 run 还卡在 running > 30 分钟
+ # 检测僵尸 run：所有 stage 已结束但 run 还卡在 running > 30 分钟
     if running_run is not None:
-        # P0-AUDIT-FIX (2026-08-13): started_at 可能为 naive（DateTime(timezone=True)
-        # 规范化前的历史行，或 SQLite 测试库）。aware-now 减 naive 会抛 TypeError。
-        # 假定 naive = UTC，统一后比较。
+ # P0-AUDIT-FIX (2026-08-13): started_at 可能为 naive（DateTime(timezone=True)
+ # 规范化前的历史行，或 SQLite 测试库）。aware-now 减 naive 会抛 TypeError。
+ # 假定 naive = UTC，统一后比较。
         started_at = running_run.started_at
         if started_at is not None and started_at.tzinfo is None:
             started_at = started_at.replace(tzinfo=UTC)
@@ -350,7 +350,7 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
             for s in stages
         )
         if age > ZOMBIE_THRESHOLD and (all_done or not stages):
-            # 直接修正数据库状态（无需等待用户手动 force-reset）
+ # 直接修正数据库状态（无需等待用户手动 force-reset）
             running_run.status = RunStatus.CANCELLED.value
             running_run.completed_at = datetime.now(UTC)
             running_run.error_log = (
@@ -372,7 +372,7 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
     )
     last_run = last_result.scalar_one_or_none()
 
-    # Recent failed run (for resume/retry button — only if nothing currently running)
+ # Recent failed run (for resume/retry button — only if nothing currently running)
     failed_result = await session.execute(
         select(PipelineRun)
         .where(PipelineRun.status == RunStatus.FAILED.value)
@@ -413,11 +413,11 @@ def _normalize_stages(stages: Any) -> list[dict[str, Any]]:
     if stages is None:
         return []
     if isinstance(stages, list):
-        # Pipeline run: list of stage dicts
+ # Pipeline run: list of stage dicts
         return stages
     if isinstance(stages, dict):
-        # Loop run: single dict with result metadata — wrap as a single stage
-        # Check if it looks like a loop result (no 'name' key or has 'run_id' key)
+ # Loop run: single dict with result metadata — wrap as a single stage
+ # Check if it looks like a loop result (no 'name' key or has 'run_id' key)
         if "name" not in stages and "run_id" in stages:
             return []
         return [stages]
@@ -460,7 +460,7 @@ def _serialize_run(run: PipelineRun | None) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
-# Phase 1: Cancel run (D-04: 软取消 + STOP flag + Celery 阶段开始时检查)
+# Cancel run (D-04: 软取消 + STOP flag + Celery 阶段开始时检查)
 # ---------------------------------------------------------------------------
 
 class RunCancelResult:
@@ -511,12 +511,12 @@ async def cancel_run(
 
     cancelled_at = _now()
 
-    # 1. UPDATE pipeline_runs
+ # 1. UPDATE pipeline_runs
     run.status = "cancelled"
     run.completed_at = cancelled_at
     run.error_log = "cancelled by user"
 
-    # 2. UPDATE stages[] - 将所有 status='running' 的 stage 标记为 'cancelled'
+ # 2. UPDATE stages[] - 将所有 status='running' 的 stage 标记为 'cancelled'
     stopped_stage_names: list[str] = []
     if run.stages:
         for stage in run.stages:
@@ -524,12 +524,12 @@ async def cancel_run(
                 stage["status"] = "cancelled"
                 stage["completed_at"] = cancelled_at.isoformat()
                 stopped_stage_names.append(stage.get("name", "unknown"))
-        # SQLAlchemy 需要标记 JSONB 字段变更
+ # SQLAlchemy 需要标记 JSONB 字段变更
         flag_modified(run, "stages")
 
     await session.commit()
 
-    # 3. Redis STOP flag (best-effort, 不影响 cancel 本身)
+ # 3. Redis STOP flag (best-effort, 不影响 cancel 本身)
     if redis_client is not None:
         try:
             await redis_client.setex(f"pipeline:stop:{run_id}", 3600, "1")
@@ -538,7 +538,7 @@ async def cancel_run(
         except Exception:
             logger.exception("Redis STOP flag set failed (non-fatal)")
 
-        # 4. Invalidate status cache
+ # 4. Invalidate status cache
         try:
             from app.core.pipeline.status_aggregator import invalidate_status_cache
             await invalidate_status_cache(redis_client)
@@ -547,7 +547,7 @@ async def cancel_run(
         except Exception:
             logger.exception("Status cache invalidation failed (non-fatal)")
 
-    # 5. Phase 3.8.1 FIX: 通过 SSE 广播 cancel 事件，让前端立即响应
+ # 5. Phase 3.8.1 FIX: 通过 SSE 广播 cancel 事件，让前端立即响应
     try:
         from app.core.dashboard.sse_broadcaster import publish_event
         await publish_event(redis_client, "pipeline_update", {

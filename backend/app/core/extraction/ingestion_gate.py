@@ -95,7 +95,7 @@ def apply_ingestion_gate(
     纯函数设计：不依赖 DB/Neo4j，输入抽取条目 + 岗位上下文，输出治理后的
     (required, preferred) 技能列表 —— 便于单测与未来扩展。
     """
-    # 从 settings 读取可配置阈值，回退到模块级常量
+ # 从 settings 读取可配置阈值，回退到模块级常量
     try:
         from app.config import settings as _settings
         _min_sources = min_sources if min_sources is not None else getattr(_settings, 'ingestion_min_sources_required', DEFAULT_MIN_SOURCES_REQUIRED)
@@ -114,7 +114,7 @@ def apply_ingestion_gate(
             return dict(entry)
         return {"name": str(entry)}
 
-    # 1. 信任度门槛：先过滤低质条目（无论 required/preferred）
+ # 1. 信任度门槛：先过滤低质条目（无论 required/preferred）
     kept_required: list[dict[str, Any]] = []
     for entry in required_skills:
         if _is_trusted(entry, _max_h, _min_c):
@@ -129,9 +129,9 @@ def apply_ingestion_gate(
         else:
             dropped.append({"name": _entry_name(entry), "reason": "low_trust"})
 
-    # 2. 来源门槛 + required 数量上限：不满足的 required → 降级 preferred
-    #    来源判断基于原始条目（str 老格式无来源元数据 → 放行；dict 看 source_count）
-    #    与 kept_required 按下标配对（信任过滤可能已剔除部分条目）
+ # 2. 来源门槛 + required 数量上限：不满足的 required → 降级 preferred
+ # 来源判断基于原始条目（str 老格式无来源元数据 → 放行；dict 看 source_count）
+ # 与 kept_required 按下标配对（信任过滤可能已剔除部分条目）
     promoted_preferred: list[dict[str, Any]] = []
     capped: list[dict[str, Any]] = []
     final_required: list[dict[str, Any]] = []
@@ -143,14 +143,14 @@ def apply_ingestion_gate(
         trusted_index += 1
         src = _entry_source_count(original)
         if src < _min_sources:
-            # 单条 JD 出现 → 降级为 preferred（防单点幻觉污染）
+ # 单条 JD 出现 → 降级为 preferred（防单点幻觉污染）
             demoted = dict(entry)
             demoted["required"] = False
             demoted["demoted_reason"] = "low_source_count"
             promoted_preferred.append(demoted)
             continue
         if len(final_required) >= _required_cap:
-            # 已达上限 → 新技能强制进 preferred（结构性截断膨胀）
+ # 已达上限 → 新技能强制进 preferred（结构性截断膨胀）
             capped_entry = dict(entry)
             capped_entry["required"] = False
             capped_entry["demoted_reason"] = "required_cap"

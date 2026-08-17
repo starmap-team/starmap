@@ -22,39 +22,39 @@ class JDExtractionRecord(Base):
 
     __tablename__ = "jd_extraction_records"
 
-    # 业务说明：记录唯一标识，系统自动生成
-    # 技术说明：使用UUID作为主键，避免分布式环境下的ID冲突
+ # 业务说明：记录唯一标识，系统自动生成
+ # 技术说明：使用UUID作为主键，避免分布式环境下的ID冲突
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
     )
-    # 业务说明：原始JD文本内容，用于回溯和重新提取
+ # 业务说明：原始JD文本内容，用于回溯和重新提取
     jd_content: Mapped[str] = mapped_column(Text, nullable=False)
-    # 业务说明：从JD中提取的职位名称，用于关联职位记录
+ # 业务说明：从JD中提取的职位名称，用于关联职位记录
     job_title: Mapped[str] = mapped_column(String(255), nullable=False)
-    # 业务说明：提取出的技能列表，以JSON格式存储结构化数据
-    # 技术说明：JSON类型支持灵活的技能结构扩展，无需修改表结构
+ # 业务说明：提取出的技能列表，以JSON格式存储结构化数据
+ # 技术说明：JSON类型支持灵活的技能结构扩展，无需修改表结构
     extracted_skills: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    # 业务说明：从JD中提取的所需工作年限，null表示未提取到或JD中未提及
+ # 业务说明：从JD中提取的所需工作年限，null表示未提取到或JD中未提及
     experience_years: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    # 业务说明：从JD中提取的学历要求，如"本科"、"硕士"等
+ # 业务说明：从JD中提取的学历要求，如"本科"、"硕士"等
     education: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    # 业务说明：提取结果的置信度分数，用于质量评估和筛选
-    # 技术说明：默认0.0，低于阈值的结果需人工复核
+ # 业务说明：提取结果的置信度分数，用于质量评估和筛选
+ # 技术说明：默认0.0，低于阈值的结果需人工复核
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    # 业务说明：幻觉检测分数，评估提取结果是否存在编造内容
-    # 技术说明：分数越高幻觉风险越大，null表示未进行幻觉检测
+ # 业务说明：幻觉检测分数，评估提取结果是否存在编造内容
+ # 技术说明：分数越高幻觉风险越大，null表示未进行幻觉检测
     hallucination_score: Mapped[float | None] = mapped_column(Float, nullable=True)
-    # 业务说明：记录创建时间，用于数据时效性分析和按时间窗口聚合
-    # 技术说明：使用UTC时间避免时区问题，支持全球化部署
+ # 业务说明：记录创建时间，用于数据时效性分析和按时间窗口聚合
+ # 技术说明：使用UTC时间避免时区问题，支持全球化部署
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
     )
-    # 业务说明：提取处理状态，用于追踪异步提取流程
-    # 技术说明：状态机流转：pending -> processing -> completed/failed
+ # 业务说明：提取处理状态，用于追踪异步提取流程
+ # 技术说明：状态机流转：pending -> processing -> completed/failed
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
@@ -97,16 +97,16 @@ class SkillAliasRecord(Base):
 
     __tablename__ = "skill_alias_records"
 
-    # 业务说明：映射记录唯一标识
+ # 业务说明：映射记录唯一标识
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
-    # 业务说明：原始别名，用户输入或从JD中提取的非标准技能名称
-    # 技术说明：建立索引支持快速别名查找和去重检测
+ # 业务说明：原始别名，用户输入或从JD中提取的非标准技能名称
+ # 技术说明：建立索引支持快速别名查找和去重检测
     alias: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    # 业务说明：映射后的标准技能名称，用于统一技能表示
+ # 业务说明：映射后的标准技能名称，用于统一技能表示
     standard_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    # 业务说明：映射规则创建时间，用于管理别名规则的时效性
+ # 业务说明：映射规则创建时间，用于管理别名规则的时效性
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
     )
@@ -125,34 +125,34 @@ class ExtractionEvaluationRecord(Base):
 
     __tablename__ = "extraction_evaluation_records"
 
-    # 业务说明：评估记录唯一标识
+ # 业务说明：评估记录唯一标识
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
-    # 业务说明：关联的提取记录ID，建立评估与提取结果的关联
-    # 技术说明：nullable=True允许独立评估，index加速关联查询，FK SET NULL (SEC-05)
+ # 业务说明：关联的提取记录ID，建立评估与提取结果的关联
+ # 技术说明：nullable=True允许独立评估，index加速关联查询，FK SET NULL ()
     extraction_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("jd_extraction_records.id", ondelete="SET NULL"), nullable=True, index=True,
     )
-    # 业务说明：黄金标准样本ID，指向人工标注的参考数据
+ # 业务说明：黄金标准样本ID，指向人工标注的参考数据
     golden_id: Mapped[str] = mapped_column(String(100), nullable=False)
-    # 业务说明：精确率，提取结果中正确技能的比例
-    # 技术说明：默认0.0，计算公式：正确提取数 / 总提取数
+ # 业务说明：精确率，提取结果中正确技能的比例
+ # 技术说明：默认0.0，计算公式：正确提取数 / 总提取数
     precision: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    # 业务说明：召回率，黄金标准中被成功提取的技能比例
-    # 技术说明：默认0.0，计算公式：正确提取数 / 黄金标准总数
+ # 业务说明：召回率，黄金标准中被成功提取的技能比例
+ # 技术说明：默认0.0，计算公式：正确提取数 / 黄金标准总数
     recall: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    # 业务说明：F1分数，精确率和召回率的调和平均数
-    # 技术说明：默认0.0，综合评估提取质量的核心指标
+ # 业务说明：F1分数，精确率和召回率的调和平均数
+ # 技术说明：默认0.0，综合评估提取质量的核心指标
     f1_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    # 业务说明：职位名称是否匹配，评估职位提取准确性
+ # 业务说明：职位名称是否匹配，评估职位提取准确性
     job_title_match: Mapped[bool] = mapped_column(sa.Boolean, nullable=True)
-    # 业务说明：工作年限提取误差，null表示未评估或JD中未提及
-    # 技术说明：以年为单位，正值表示高估，负值表示低估
+ # 业务说明：工作年限提取误差，null表示未评估或JD中未提及
+ # 技术说明：以年为单位，正值表示高估，负值表示低估
     experience_error: Mapped[float | None] = mapped_column(Float, nullable=True)
-    # 业务说明：学历要求是否匹配，评估学历提取准确性
+ # 业务说明：学历要求是否匹配，评估学历提取准确性
     education_match: Mapped[bool | None] = mapped_column(sa.Boolean, nullable=True)
-    # 业务说明：评估执行时间，用于追踪评估流程时效
+ # 业务说明：评估执行时间，用于追踪评估流程时效
     evaluated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
     )
@@ -171,27 +171,27 @@ class PositionSkillRelation(Base):
 
     __tablename__ = "position_skill_relations"
 
-    # 业务说明：关联关系唯一标识
+ # 业务说明：关联关系唯一标识
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
-    # 业务说明：关联的职位ID，指向职位主数据表
-    # 技术说明：建立索引支持按职位快速查询所需技能，FK CASCADE (SEC-05)
+ # 业务说明：关联的职位ID，指向职位主数据表
+ # 技术说明：建立索引支持按职位快速查询所需技能，FK CASCADE ()
     position_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("position_records.id", ondelete="CASCADE"), nullable=False, index=True,
     )
-    # 业务说明：关联的技能ID，指向技能主数据表
-    # 技术说明：建立索引支持按技能快速查询相关职位，FK CASCADE (SEC-05)
+ # 业务说明：关联的技能ID，指向技能主数据表
+ # 技术说明：建立索引支持按技能快速查询相关职位，FK CASCADE ()
     skill_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("skill_records.id", ondelete="CASCADE"), nullable=False, index=True,
     )
-    # 业务说明：技能要求类型，区分必需技能和加分技能
-    # 技术说明：默认"required"，可选值：required | preferred | optional
+ # 业务说明：技能要求类型，区分必需技能和加分技能
+ # 技术说明：默认"required"，可选值：required | preferred | optional
     requirement_type: Mapped[str] = mapped_column(String(20), nullable=False, default="required")
-    # 业务说明：关联置信度，表示该技能-职位关联的可信程度
-    # 技术说明：默认1.0，基于多份JD统计计算得出，值越高关联越可靠
+ # 业务说明：关联置信度，表示该技能-职位关联的可信程度
+ # 技术说明：默认1.0，基于多份JD统计计算得出，值越高关联越可靠
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-    # 业务说明：关联记录创建时间，用于数据新鲜度管理
+ # 业务说明：关联记录创建时间，用于数据新鲜度管理
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
     )
@@ -210,22 +210,22 @@ class SystemConfig(Base):
 
     __tablename__ = "system_config"
 
-    # 业务说明：配置记录唯一标识
+ # 业务说明：配置记录唯一标识
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
-    # 业务说明：配置项键名，全局唯一标识一个配置项
-    # 技术说明：unique=True确保键名唯一，index加速配置查询
+ # 业务说明：配置项键名，全局唯一标识一个配置项
+ # 技术说明：unique=True确保键名唯一，index加速配置查询
     config_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
-    # 业务说明：配置项值，以文本形式存储，根据类型解析
+ # 业务说明：配置项值，以文本形式存储，根据类型解析
     config_value: Mapped[str] = mapped_column(Text, nullable=False)
-    # 业务说明：配置值类型，指导前端如何解析和展示配置值
-    # 技术说明：默认"string"，可选值：string | int | float | bool | json
+ # 业务说明：配置值类型，指导前端如何解析和展示配置值
+ # 技术说明：默认"string"，可选值：string | int | float | bool | json
     config_type: Mapped[str] = mapped_column(String(20), nullable=False, default="string")
-    # 业务说明：配置项描述，帮助运维人员理解配置用途
+ # 业务说明：配置项描述，帮助运维人员理解配置用途
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    # 业务说明：配置最后更新时间，用于配置变更追踪
-    # 技术说明：onupdate自动更新，确保修改时间始终最新
+ # 业务说明：配置最后更新时间，用于配置变更追踪
+ # 技术说明：onupdate自动更新，确保修改时间始终最新
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
@@ -245,54 +245,54 @@ class SkillRecord(Base):
 
     __tablename__ = "skill_records"
 
-    # 业务说明：技能唯一标识
+ # 业务说明：技能唯一标识
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
     )
-    # 业务说明：技能标准名称，全局唯一
-    # 技术说明：unique=True防止重复技能，index加速技能查找
+ # 业务说明：技能标准名称，全局唯一
+ # 技术说明：unique=True防止重复技能，index加速技能查找
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    # D8i: 技能中文名（I18N 中文化）——英文技能翻译后展示，岗位详情/匹配诊断等
+ # D8i: 技能中文名（I18N 中文化）——英文技能翻译后展示，岗位详情/匹配诊断等
     name_cn: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # 业务说明：技能分类，如"编程语言"、"框架"、"工具"等
-    # 技术说明：默认"general"，用于技能分组展示和分类统计
+ # 业务说明：技能分类，如"编程语言"、"框架"、"工具"等
+ # 技术说明：默认"general"，用于技能分组展示和分类统计
     category: Mapped[str] = mapped_column(String(100), nullable=False, default="general")
-    # 业务说明：该技能被检测到的来源数量，反映技能普及度
-    # 技术说明：默认0，随新JD提取自动递增，用于技能热度排序
+ # 业务说明：该技能被检测到的来源数量，反映技能普及度
+ # 技术说明：默认0，随新JD提取自动递增，用于技能热度排序
     source_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    # 业务说明：技能首次被检测到的时间，用于新技能发现追踪
+ # 业务说明：技能首次被检测到的时间，用于新技能发现追踪
     first_detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
     )
-    # 业务说明：技能最近一次被检测到的时间，用于技能活跃度评估
-    # 技术说明：onupdate自动更新，反映技能的最新出现时间
+ # 业务说明：技能最近一次被检测到的时间，用于技能活跃度评估
+ # 技术说明：onupdate自动更新，反映技能的最新出现时间
     last_detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
-    # ── Review workflow (Phase 23 enterprise design) ──
-    # 业务说明：审核状态：draft | pending_review | approved | rejected
-    # 技术说明：默认 'pending_review'（新创建），'approved' 表示可对外发布
+ # ── Review workflow (Phase 23 enterprise design) ──
+ # 业务说明：审核状态：draft | pending_review | approved | rejected
+ # 技术说明：默认 'pending_review'（新创建），'approved' 表示可对外发布
     review_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending_review", server_default="pending_review",
     )
-    # 业务说明：创建人 username（admin 或 system:extraction 等）
+ # 业务说明：创建人 username（admin 或 system:extraction 等）
     created_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    # 业务说明：审核人 username
+ # 业务说明：审核人 username
     reviewed_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    # 业务说明：审核时间
+ # 业务说明：审核时间
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    # 业务说明：拒绝原因（仅 rejected 状态填写）
+ # 业务说明：拒绝原因（仅 rejected 状态填写）
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # 业务说明：提交审核时间（draft → pending_review 时记录）
+ # 业务说明：提交审核时间（draft → pending_review 时记录）
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    # 业务说明：数据来源 Pipeline Run ID，用于追溯"哪次运行产生了这条技能"
+ # 业务说明：数据来源 Pipeline Run ID，用于追溯"哪次运行产生了这条技能"
     source_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
     def __repr__(self) -> str:
@@ -309,44 +309,44 @@ class PositionRecord(Base):
 
     __tablename__ = "position_records"
 
-    # 业务说明：职位唯一标识
+ # 业务说明：职位唯一标识
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
     )
-    # 业务说明：职位标准名称，全局唯一
-    # 技术说明：unique=True确保职位名称唯一性，index加速职位查询
+ # 业务说明：职位标准名称，全局唯一
+ # 技术说明：unique=True确保职位名称唯一性，index加速职位查询
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    # 业务说明：职位中文名称，用于前端中文展示
+ # 业务说明：职位中文名称，用于前端中文展示
     name_cn: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # 业务说明：职位所属行业，如"互联网"、"金融"、"制造业"等
+ # 业务说明：职位所属行业，如"互联网"、"金融"、"制造业"等
     industry: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    # 业务说明：职位描述，存储职位的通用职责和要求说明
+ # 业务说明：职位描述，存储职位的通用职责和要求说明
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # 业务说明：职位记录创建时间，用于数据审计
+ # 业务说明：职位记录创建时间，用于数据审计
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
     )
-    # ── Review workflow (Phase 23 enterprise design) ──
-    # 业务说明：审核状态：draft | pending_review | approved | rejected
-    # 技术说明：默认 'pending_review'（新创建），'approved' 表示可对外发布
+ # ── Review workflow (Phase 23 enterprise design) ──
+ # 业务说明：审核状态：draft | pending_review | approved | rejected
+ # 技术说明：默认 'pending_review'（新创建），'approved' 表示可对外发布
     review_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending_review", server_default="pending_review",
     )
-    # 业务说明：创建人 username（admin 或 system:extraction 等）
+ # 业务说明：创建人 username（admin 或 system:extraction 等）
     created_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    # 业务说明：审核人 username
+ # 业务说明：审核人 username
     reviewed_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    # 业务说明：审核时间
+ # 业务说明：审核时间
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    # 业务说明：拒绝原因（仅 rejected 状态填写）
+ # 业务说明：拒绝原因（仅 rejected 状态填写）
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # 业务说明：提交审核时间
+ # 业务说明：提交审核时间
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    # 业务说明：数据来源 Pipeline Run ID，用于追溯"哪次运行产生了这个岗位"
+ # 业务说明：数据来源 Pipeline Run ID，用于追溯"哪次运行产生了这个岗位"
     source_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
     def __repr__(self) -> str:
@@ -363,48 +363,48 @@ class MatchResult(Base):
 
     __tablename__ = "match_results"
 
-    # 业务说明：匹配结果唯一标识
+ # 业务说明：匹配结果唯一标识
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
     )
-    # 业务说明：匹配结果的业务标识，用于对外分享和查询
-    # 技术说明：unique=True确保标识唯一，index加速结果查询
+ # 业务说明：匹配结果的业务标识，用于对外分享和查询
+ # 技术说明：unique=True确保标识唯一，index加速结果查询
     match_id: Mapped[str] = mapped_column(
         String(64), unique=True, nullable=False, index=True
     )
-    # 业务说明：用户选择的目标职位名称
+ # 业务说明：用户选择的目标职位名称
     target_position: Mapped[str] = mapped_column(String(255), nullable=False)
-    # 业务说明：用户输入的个人技能列表，JSON数组格式
-    # 技术说明：存储原始输入技能，用于结果重现和对比分析
+ # 业务说明：用户输入的个人技能列表，JSON数组格式
+ # 技术说明：存储原始输入技能，用于结果重现和对比分析
     person_skills: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    # 业务说明：总体匹配分数，0-1之间，越高表示越匹配
-    # 技术说明：默认0.0，基于技能覆盖度、重要性加权计算
+ # 业务说明：总体匹配分数，0-1之间，越高表示越匹配
+ # 技术说明：默认0.0，基于技能覆盖度、重要性加权计算
     match_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    # 业务说明：已匹配的技能列表，用户已掌握且职位需要的技能
+ # 业务说明：已匹配的技能列表，用户已掌握且职位需要的技能
     matched_skills: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    # 业务说明：缺失的必需技能列表，用户未掌握但职位必需的技能
+ # 业务说明：缺失的必需技能列表，用户未掌握但职位必需的技能
     missing_required: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    # 业务说明：缺失的加分技能列表，用户未掌握但职位优先的技能
+ # 业务说明：缺失的加分技能列表，用户未掌握但职位优先的技能
     missing_bonus: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    # 业务说明：技能缺口详细报告，包含每个缺失技能的详细信息
-    # 技术说明：JSON格式存储结构化缺口分析数据
+ # 业务说明：技能缺口详细报告，包含每个缺失技能的详细信息
+ # 技术说明：JSON格式存储结构化缺口分析数据
     gap_report: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    # 业务说明：推荐的学习路径，按优先级排序的技能学习序列
-    # 技术说明：JSON数组格式，每个元素包含技能名、学习资源、预计时长
+ # 业务说明：推荐的学习路径，按优先级排序的技能学习序列
+ # 技术说明：JSON数组格式，每个元素包含技能名、学习资源、预计时长
     learning_path: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    # 业务说明：CII（Career Investment Index）职业投资指数
-    # 技术说明：默认1.0，反映达成目标职位所需投入的综合评估指标
+ # 业务说明：CII（Career Investment Index）职业投资指数
+ # 技术说明：默认1.0，反映达成目标职位所需投入的综合评估指标
     cii: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-    # 业务说明：匹配结果创建时间
+ # 业务说明：匹配结果创建时间
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
     )
-    # 业务说明：结果过期时间，过期后结果可能被清理
-    # 技术说明：null表示永不过期，支持TTL自动清理策略
+ # 业务说明：结果过期时间，过期后结果可能被清理
+ # 技术说明：null表示永不过期，支持TTL自动清理策略
     expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -423,20 +423,20 @@ class ReviewQueue(Base):
 
     __tablename__ = "review_queue"
 
-    # 业务说明：审核队列条目自增ID
-    # 技术说明：使用自增整数主键，便于队列顺序管理和分页查询
+ # 业务说明：审核队列条目自增ID
+ # 技术说明：使用自增整数主键，便于队列顺序管理和分页查询
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    # 业务说明：待审核实体类型，如"skill_alias"、"new_skill"、"extraction"等
+ # 业务说明：待审核实体类型，如"skill_alias"、"new_skill"、"extraction"等
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    # 业务说明：待审核实体名称，便于快速识别审核内容
+ # 业务说明：待审核实体名称，便于快速识别审核内容
     entity_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    # 业务说明：审核状态，追踪审核流程
-    # 技术说明：默认"pending"，状态流转：pending -> approved/rejected
+ # 业务说明：审核状态，追踪审核流程
+ # 技术说明：默认"pending"，状态流转：pending -> approved/rejected
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
-    # 业务说明：审核相关的附加数据，以JSON格式存储
-    # 技术说明：null表示无附加数据，存储审核所需的上下文信息
+ # 业务说明：审核相关的附加数据，以JSON格式存储
+ # 技术说明：null表示无附加数据，存储审核所需的上下文信息
     payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    # 业务说明：审核条目创建时间，用于队列优先级和时效管理
+ # 业务说明：审核条目创建时间，用于队列优先级和时效管理
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

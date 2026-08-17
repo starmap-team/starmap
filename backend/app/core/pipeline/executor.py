@@ -52,7 +52,7 @@ __all__ = [
     "resume_run",
     "retry_stage",
     "trigger_and_start",
-    # 私有辅助（tests / stage 模块仍按 executor 路径引用）
+ # 私有辅助（tests / stage 模块仍按 executor 路径引用）
     "_complete_outbox_record",
     "_create_outbox_record",
     "_fail_outbox_record",

@@ -148,14 +148,14 @@ async def probe_sources_at_startup(session: AsyncSession) -> dict[str, str]:
             results[src.name] = "no_url"
             continue
 
-        # 在线程池里跑同步 urllib，避免阻塞 event loop
+ # 在线程池里跑同步 urllib，避免阻塞 event loop
         loop = asyncio.get_running_loop()
         try:
             status = await loop.run_in_executor(None, _probe_sync, url, PROBE_TIMEOUT)
             if status.startswith("ok"):
                 results[src.name] = "ok"
             else:
-                # 4xx/5xx/网络错误 → 自动暂停
+ # 4xx/5xx/网络错误 → 自动暂停
                 src.status = "paused"
                 src.config = {
                     **(src.config or {}),
@@ -233,7 +233,7 @@ async def get_health_dashboard(session: AsyncSession) -> list[dict[str, Any]]:
     cutoff = datetime.now(UTC) - timedelta(hours=24)
 
     for src in sources.scalars():
-        # 最近 24h 的 metrics
+ # 最近 24h 的 metrics
         recent = await session.execute(
             select(DataSourceMetric)
             .where(

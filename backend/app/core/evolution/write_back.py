@@ -100,11 +100,11 @@ async def write_back_changelog_row(
     try:
         if row.change_type not in WRITEBACK_CHANGE_TYPES:
             return None
-        # Phase 23 Task 5 (DF-04/DF-05): 审核态感知闸门——`status='approved'`（含
-        # trust>=LOW_TRUST_THRESHOLD 自动 approved 与管理员手动 approved）直接放行；
-        # 未审核 pending 行仍受 WRITEBACK_TRUST_THRESHOLD(0.6) 保守保护。
-        # 修复「单源新技能手动审核即写回」闭环断裂（D8f）：此前闸门只看 trust，
-        # 单源 added_required≈0.418 / added_preferred≈0.348 永远 <0.6 被静默拦截。
+ # 审核态感知闸门——`status='approved'`（含
+ # trust>=LOW_TRUST_THRESHOLD 自动 approved 与管理员手动 approved）直接放行；
+ # 未审核 pending 行仍受 WRITEBACK_TRUST_THRESHOLD(0.6) 保守保护。
+ # 修复「单源新技能手动审核即写回」闭环断裂（D8f）：此前闸门只看 trust，
+ # 单源 added_required≈0.418 / added_preferred≈0.348 永远 <0.6 被静默拦截。
         if row.status != "approved" and float(row.trust_score or 0.0) < WRITEBACK_TRUST_THRESHOLD:
             return None
 
@@ -120,7 +120,7 @@ async def write_back_changelog_row(
             )
             return None
 
-        # D8f: removed 类型 —— 技能从岗位移除 → 删除 position_skill_relations 关系
+ # D8f: removed 类型 —— 技能从岗位移除 → 删除 position_skill_relations 关系
         if row.change_type == "removed":
             skill_id = await _resolve_skill_id(session, row.skill_name)
             rel = (
@@ -137,12 +137,12 @@ async def write_back_changelog_row(
                     "evolution write_back: removed relation {} ← {} ({})",
                     row.position_name, row.skill_name, row.change_type,
                 )
-            # P0-AUDIT-FIX (2026-08-13): D8f closed the loop on PG side (delete
-            # the PSR row), but returning `row.confidence` here caused the
-            # orchestrator to project that confidence onto Neo4j — producing a
-            # "ghost REQUIRES edge" (PG deleted, Neo4j still present). Return
-            # None to signal "no projection" — same convention used when
-            # _resolve_position_id fails.
+ # P0-AUDIT-FIX (2026-08-13): D8f closed the loop on PG side (delete
+ # the PSR row), but returning `row.confidence` here caused the
+ # orchestrator to project that confidence onto Neo4j — producing a
+ # "ghost REQUIRES edge" (PG deleted, Neo4j still present). Return
+ # None to signal "no projection" — same convention used when
+ # _resolve_position_id fails.
             return None
 
         skill_id = await _resolve_skill_id(session, row.skill_name)
@@ -159,7 +159,7 @@ async def write_back_changelog_row(
             f"write_back: failed for {row.position_name}/{row.skill_name} "
             f"({row.change_type}): {type(exc).__name__}: {exc}"
         )
-        # 非瞬态异常（数据完整性错误）升级为 ERROR，避免 WARNING 被日志过滤器忽略
+ # 非瞬态异常（数据完整性错误）升级为 ERROR，避免 WARNING 被日志过滤器忽略
         from sqlalchemy.exc import IntegrityError, ProgrammingError
         if isinstance(exc, (IntegrityError, ProgrammingError)):
             logger.error("evolution write_back: DATA INTEGRITY ERROR for {}: {}", row, exc)

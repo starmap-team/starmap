@@ -44,30 +44,30 @@ def get_client_ip(
     Returns:
         客户端 IP 字符串; 无法解析时返回 "unknown"。
     """
-    # 防御: 至少要知道 socket 对端是谁
+ # 防御: 至少要知道 socket 对端是谁
     direct_ip = request.client.host if request.client else "unknown"
 
-    # 没有任何可信代理 → 不解析 XFF (避免伪造)
+ # 没有任何可信代理 → 不解析 XFF (避免伪造)
     trusted_list = list(trusted_proxies)
     if not trusted_list:
         return direct_ip
 
-    # XFF 可能含多个 IP: "client, proxy1, proxy2" (左=原始客户端, 右=最近一跳)
+ # XFF 可能含多个 IP: "client, proxy1, proxy2" (左=原始客户端, 右=最近一跳)
     xff = request.headers.get("x-forwarded-for", "")
     if not xff:
         return direct_ip
 
-    # 直连 IP 必须可信 (否则 XFF 头就是被攻击者直接伪造的)
+ # 直连 IP 必须可信 (否则 XFF 头就是被攻击者直接伪造的)
     if not _is_trusted(direct_ip, trusted_list):
         return direct_ip
 
-    # 从右往左: 找到第一个不在白名单的 IP
+ # 从右往左: 找到第一个不在白名单的 IP
     candidates = [seg.strip() for seg in xff.split(",") if seg.strip()]
     for ip_str in reversed(candidates):
         if not _is_trusted(ip_str, trusted_list):
             return ip_str
 
-    # 全部在白名单 → 退化为最左侧 (理论上的原始客户端, 但已被代理覆盖)
+ # 全部在白名单 → 退化为最左侧 (理论上的原始客户端, 但已被代理覆盖)
     return candidates[0] if candidates else direct_ip
 
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * PipelineMonitor KPI 卡片组 — P3-1 拆分
+ * PipelineMonitor KPI 卡片组 — 拆分
  *
  * 纯展示：4 列响应式 KPI 卡片。无事件，无副作用。
  * 从 PipelineMonitor.vue:543-594 抽出。

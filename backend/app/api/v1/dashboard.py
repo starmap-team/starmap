@@ -110,7 +110,7 @@ async def dashboard_realtime(
     If Redis is unavailable, the client should fall back to
     ``GET /dashboard/realtime-poll``.
     """
-    # API-05: 在连接断开时释放 SSE 连接计数
+ # API-05: 在连接断开时释放 SSE 连接计数
     client_ip = resolve_client_ip(request)
 
     async def _stream_with_cleanup():

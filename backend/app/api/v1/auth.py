@@ -193,12 +193,12 @@ async def me(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # P0-AUDIT-FIX (2026-08-13): previously the bypass only checked
-    # `app_env != "production"`. That is fail-OPEN: any environment name
-    # other than "production" (e.g. "staging", "uat", "qa", "internal",
-    # typo'd value) silently accepts `dev-token` and grants admin.
-    # Delegate to the central dev_token helper which only allows
-    # `development` — fail-closed by whitelist.
+ # P0-AUDIT-FIX (2026-08-13): previously the bypass only checked
+ # `app_env != "production"`. That is fail-OPEN: any environment name
+ # other than "production" (e.g. "staging", "uat", "qa", "internal",
+ # typo'd value) silently accepts `dev-token` and grants admin.
+ # Delegate to the central dev_token helper which only allows
+ # `development` — fail-closed by whitelist.
     from app.services.dev_token import dev_token_role, is_dev_token_allowed
 
     if is_dev_token_allowed(credentials.credentials):
@@ -238,7 +238,7 @@ async def change_password(
     if not username:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    # ── Rate limiting: 5 attempts per user per 60s ──
+ # ── Rate limiting: 5 attempts per user per 60s ──
     if redis is not None:
         key = f"rate:change_pwd:{username}"
         tries = await redis.incr(key)
@@ -249,7 +249,7 @@ async def change_password(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="改密请求过于频繁，请 1 分钟后重试",
             )
-    # ── end rate-limit ──
+ # ── end rate-limit ──
 
     db_user = await auth_service.get_user_by_username(session, username)
     if db_user is None:
@@ -285,10 +285,10 @@ async def forgot_password(
             detail="Redis is unavailable",
         )
     token = await auth_service.forgot_password_request(body.email, redis, session)
-    # PLAN-015②: 通道决策 (settings.forgot_password_delivery)
-    # - out_of_band: 默认, 仅写 Redis 不回 token, 等邮件/外带渠道接入
-    # - dev_return_token: 仅 dev 环境回 token, 供 e2e / 手动验证;
-    #   防误用: 非 dev 环境即便配了 dev_return_token 也只回 submitted
+ # PLAN-015②: 通道决策 (settings.forgot_password_delivery)
+ # - out_of_band: 默认, 仅写 Redis 不回 token, 等邮件/外带渠道接入
+ # - dev_return_token: 仅 dev 环境回 token, 供 e2e / 手动验证;
+ # 防误用: 非 dev 环境即便配了 dev_return_token 也只回 submitted
     if (
         settings.forgot_password_delivery == "dev_return_token"
         and token is not None
