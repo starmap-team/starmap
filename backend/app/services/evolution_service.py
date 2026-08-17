@@ -6,7 +6,13 @@ SQL joins, CII calculations) belongs here.
 
 from __future__ import annotations
 
+import time
 from typing import Any
+
+# 请求级缓存：避免同一请求内重复查询 DB + EmergenceFinder.scan()
+# TTL 60s 足以覆盖一次 HTTP 请求的多个端点调用，又不会造成跨请求数据陈旧
+_timeseries_cache: dict[str, tuple[float, Any]] = {}
+_CACHE_TTL = 60.0
 
 import sqlalchemy as sa
 from loguru import logger
@@ -17,6 +23,23 @@ from app.core.evolution.causal_inference import (
 )
 from app.core.evolution.emergence_finder import EmergenceFinder
 from app.core.evolution.timeseries_loader import load_skill_timeseries_data
+
+
+async def _cached_load_timeseries(session: AsyncSession, days: int | None = None) -> dict:
+    """带 TTL 缓存的 timeseries 加载，避免同一请求内重复查询。"""
+    cache_key = f"ts:{days}"
+    now = time.monotonic()
+    if cache_key in _timeseries_cache:
+        cached_time, cached_data = _timeseries_cache[cache_key]
+        if now - cached_time < _CACHE_TTL:
+            return cached_data
+    data = await load_skill_timeseries_data(session, days=days)
+    _timeseries_cache[cache_key] = (now, data)
+    # 清理过期条目
+    expired = [k for k, (t, _) in _timeseries_cache.items() if now - t >= _CACHE_TTL]
+    for k in expired:
+        del _timeseries_cache[k]
+    return data
 from app.core.evolution.trust_scorer import (
     LOW_TRUST_THRESHOLD,  # noqa: F401 — 低信任度阈值 re-export (路由经 service 访问 core)
 )
@@ -59,13 +82,13 @@ async def build_evolution_trends(
 
     Returns a list of dicts ready to be unpacked into EvolutionTrend models.
     """
-    skill_data = await load_skill_timeseries_data(session, days=days)
+    skill_data = await _cached_load_timeseries(session, days=days)
 
     if not skill_data:
         logger.info("No timeseries data found for trends in the last {} days", days)
         return []
 
-    # Run emergence detection
+    # Run emergence detection (使用缓存的 skill_data)
     finder = EmergenceFinder()
     report = finder.scan(skill_data)
     signals_by_name = _build_signals_by_name(report)
@@ -132,7 +155,7 @@ async def build_evolution_kpi(
     from app.models.evolution_models import EvolutionChangelog
 
     # 1/4. Emergence-derived KPIs — full-history scan (same as emerging-alerts)
-    full_skill_data = await load_skill_timeseries_data(session)
+    full_skill_data = await _cached_load_timeseries(session)  # 无 days 参数 = 全量
     emerging_count = 0
     alert_count = 0
     if full_skill_data:
@@ -149,7 +172,7 @@ async def build_evolution_kpi(
     trust_mean = round(float(trust_value), 3) if trust_value is not None else 0.0
 
     # 3. CII mean — days window (matches the 趋势概览 chart), avg of last points
-    skill_data = await load_skill_timeseries_data(session, days=days)
+    skill_data = await _cached_load_timeseries(session, days=days)
     cii_last_points: list[float] = []
     for data in skill_data.values():
         points = _calculate_cii_points(data)
@@ -218,7 +241,7 @@ async def build_emerging_skills(
     level: str | None = None,
 ) -> list[dict[str, Any]]:
     """Build emerging skill items from timeseries data."""
-    skill_data = await load_skill_timeseries_data(session)
+    skill_data = await _cached_load_timeseries(session)
 
     if not skill_data:
         return []
@@ -261,7 +284,7 @@ async def discover_emerging_positions(
     """
     from app.models.extraction_models import PositionRecord, PositionSkillRelation
 
-    skill_data = await load_skill_timeseries_data(session)
+    skill_data = await _cached_load_timeseries(session)
     if not skill_data:
         return {
             "status": "insufficient_data",

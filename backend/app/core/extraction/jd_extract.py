@@ -246,15 +246,20 @@ class JDExtractionPipeline:
             return result
 
         # 记录实际用于抽取的模型（含降级 fallback，如 qwen2.5-7b-fallback），
-        # 供前端展示“本次抽取所用模型/是否降级”，保证降级反馈透明。
-        result["model_used"] = getattr(self.llm_client, "last_extraction_model", None)
-
-        # Step 3: Parse JSON
-        try:
-            parsed = parse_llm_json_response(raw["content"]) if isinstance(raw, dict) and "content" in raw else raw
-        except LLMResponseError as e:
-            result["error"] = f"JSON parse error: {e}"
-            return result
+        # 供前端展示”本次抽取所用模型/是否降级”，保证降级反馈透明。
+        # extract_from_jd 现在返回 {“extraction”: ..., “model”: ...} 而非裸 JSON，
+        # 消除了 self.last_extraction_model 的并发竞态。
+        if isinstance(raw, dict) and “extraction” in raw:
+            result[“model_used”] = raw.get(“model”)
+            parsed = raw[“extraction”]
+        else:
+            result[“model_used”] = None
+            # Step 3: Parse JSON (legacy path for callers returning raw content)
+            try:
+                parsed = parse_llm_json_response(raw[“content”]) if isinstance(raw, dict) and “content” in raw else raw
+            except LLMResponseError as e:
+                result[“error”] = f”JSON parse error: {e}”
+                return result
 
         # Step 4: Pydantic validation
         try:
