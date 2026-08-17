@@ -15,6 +15,7 @@ import { Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import { useJdStore } from '@/stores/jd'
 import { useUserStore } from '@/stores/user'
 import { ALL_OPTION, POSITION_REVIEW_STATUS_LABELS } from '@/constants/labels'
@@ -200,7 +201,10 @@ onMounted(() => {
     <ErrorBoundary>
       <div class="position-list-page animate-fade-in">
         <div class="page-header">
-          <h2>岗位列表</h2>
+          <h2 class="page-title">
+            <PageHeaderIcon kind="position-list" />
+            岗位列表
+          </h2>
           <p class="subtitle">
             选择岗位查看能力雷达图与技能详情
           </p>

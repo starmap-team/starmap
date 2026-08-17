@@ -13,6 +13,7 @@
 import { onMounted, ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 
 interface UserRow {
   id: string
@@ -237,7 +238,10 @@ onMounted(fetchList)
 <template>
   <div class="user-management">
     <header class="um-header">
-      <h2>用户管理</h2>
+      <h2 class="page-title">
+        <PageHeaderIcon kind="users" />
+        用户管理
+      </h2>
       <div class="um-actions">
         <el-input
           v-model="filters.search"

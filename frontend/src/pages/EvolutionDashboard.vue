@@ -13,6 +13,7 @@ import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import { useEvolutionStore } from '@/stores/evolution'
 import type { TrendItem, EmergingAlert } from '@/stores/evolution'
 import { useEvolutionCharts, useEvolutionActions, formatChange, TREND_LABEL, TREND_TAG_TYPE } from '@/composables/useEvolutionDashboard'
@@ -225,6 +226,7 @@ onMounted(() => {
         <div class="page-header">
           <div>
             <h2 class="page-title">
+              <PageHeaderIcon kind="evolution" />
               演化趋势看板
             </h2>
             <p class="page-subtitle">

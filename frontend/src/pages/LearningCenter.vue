@@ -16,6 +16,7 @@ import { Guide, DataAnalysis, Clock, Trophy, RefreshRight } from '@element-plus/
 import { ElMessage } from 'element-plus'
 // 业务说明：主布局组件，提供统一的页面导航和侧边栏
 import MainLayout from '@/layouts/MainLayout.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 // 业务说明：学习路径可视化组件，展示技能之间的依赖关系图
 import LearningPathFlow from '@/components/LearningPathFlow.vue'
 // 业务说明：技能进度卡片组件，展示单个技能的学习状态和进度
@@ -151,6 +152,7 @@ watch(currentPlan, (plan) => {
       <div class="page-header">
         <div>
           <h1 class="page-title">
+            <PageHeaderIcon kind="learning" />
             学习中心
           </h1>
           <p class="page-desc">

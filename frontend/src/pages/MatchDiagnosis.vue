@@ -17,6 +17,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 import MainLayout from '@/layouts/MainLayout.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import ResumeUpload from '@/components/ResumeUpload.vue'
 import PositionSearch from '@/components/PositionSearch.vue'
 import SkillRadar from '@/components/SkillRadar.vue'
@@ -315,6 +316,7 @@ onUnmounted(() => {
       <div class="match-page animate-fade-in">
         <div class="page-header">
           <h1 class="page-title">
+            <PageHeaderIcon kind="match" />
             匹配诊断
           </h1>
           <p class="page-desc">

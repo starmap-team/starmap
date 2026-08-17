@@ -7,6 +7,7 @@ import { ElMessage } from 'element-plus'
 import { RefreshRight, QuestionFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import { useQualityStore } from '@/stores/quality'
 import { useReviewStore, type ReviewEntityType } from '@/stores/review'
 import { chartColors } from '@/utils/chartTheme'
@@ -86,7 +87,10 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
       <div class="quality-page animate-fade-in">
         <div class="page-header">
           <div>
-            <h2>图谱质量仪表盘</h2>
+            <h2 class="page-title">
+              <PageHeaderIcon kind="quality" />
+              图谱质量仪表盘
+            </h2>
             <p class="page-desc">
               实时监控数据质量、信任度分布与幻觉率趋势
             </p>

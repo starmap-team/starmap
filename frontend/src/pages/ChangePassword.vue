@@ -8,7 +8,7 @@
  * 2. Normal mode → simple standalone form with cancel back to /.
  */
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'

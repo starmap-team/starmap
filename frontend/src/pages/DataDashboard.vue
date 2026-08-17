@@ -27,6 +27,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import CountUpNumber from '@/components/CountUpNumber.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import DashboardSkeleton from '@/components/DashboardSkeleton.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useDataDashboard } from '@/composables/useDataDashboard'
 import { STAGE_LABELS } from '@/stores/pipelineConfig'
@@ -85,7 +86,10 @@ const staleLabel = computed(() => {
       <!-- ══════════════ 页面头（对齐 QualityDashboard page-header 模式） ══════════════ -->
       <div class="page-header">
         <div>
-          <h2>数据大屏</h2>
+          <h2 class="page-title">
+            <PageHeaderIcon kind="dashboard" />
+            数据大屏
+          </h2>
           <p class="page-desc">
             实时数据监控与可视化：图谱规模、数据来源、质量趋势与流水线状态
           </p>

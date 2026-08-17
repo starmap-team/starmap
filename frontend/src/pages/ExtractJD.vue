@@ -7,6 +7,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useJdStore } from '@/stores/jd'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 
 const jd = useJdStore()
 
@@ -74,7 +75,10 @@ onUnmounted(() => {
   <MainLayout>
     <div class="extract-page animate-fade-in">
       <div class="page-header">
-        <h2>JD 智能抽取</h2>
+        <h2 class="page-title">
+          <PageHeaderIcon kind="extract" />
+          JD 智能抽取
+        </h2>
         <p class="subtitle">
           粘贴职位描述文本，AI 自动提取技能要求
         </p>

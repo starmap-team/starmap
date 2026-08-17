@@ -2,7 +2,10 @@
   <MainLayout>
     <div class="pipeline-analysis">
       <div class="page-header">
-        <h2>求职者分析</h2>
+        <h2 class="page-title">
+          <PageHeaderIcon kind="analysis" />
+          求职者分析
+        </h2>
         <p class="subtitle">
           上传简历，获得完整的技能评估、岗位匹配和学习路径推荐
         </p>
@@ -192,7 +195,7 @@
         </el-row>
 
         <!-- 问题1: 适合什么岗位 -->
-        <h3>🎯 我适合什么岗位？</h3>
+        <h3><el-icon><Aim /></el-icon> 我适合什么岗位？</h3>
         <el-table
           :data="store.result.top_matches.slice(0, 5)"
           stripe
@@ -227,7 +230,7 @@
         </el-table>
 
         <!-- 问题2: 缺什么技能 -->
-        <h3>📋 我缺什么技能？</h3>
+        <h3><el-icon><Document /></el-icon> 我缺什么技能？</h3>
         <el-table
           :data="store.result.skill_gaps.filter(g => g.gap_level !== '已掌握').slice(0, 10)"
           stripe
@@ -269,7 +272,7 @@
         </el-table>
 
         <!-- 问题3: 该学什么 -->
-        <h3>📚 我该学什么？</h3>
+        <h3><el-icon><Reading /></el-icon> 我该学什么？</h3>
         <div v-if="store.result.learning_path_summary.length">
           <div
             v-for="(path, i) in store.result.learning_path_summary.slice(0, 3)"
@@ -293,7 +296,7 @@
 
         <!-- 学习资源推荐 -->
         <h3 v-if="gapsWithResources.length">
-          📖 推荐学习资源
+          <el-icon><ReadingLamp /></el-icon> 推荐学习资源
         </h3>
         <div
           v-for="gap in gapsWithResources"
@@ -333,7 +336,7 @@
         </div>
 
         <!-- 问题4: 推荐岗位 -->
-        <h3>🚀 推荐岗位</h3>
+        <h3><el-icon><Position /></el-icon> 推荐岗位</h3>
         <el-table
           :data="store.result.recommended_positions.slice(0, 5)"
           stripe
@@ -408,9 +411,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Checked, CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { Checked, CircleCheck, CircleClose, Aim, Document, Reading, ReadingLamp, Position } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ResumeUpload from '@/components/ResumeUpload.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import { useJobseekerStore } from '@/stores/jobseeker'
 
 const router = useRouter()

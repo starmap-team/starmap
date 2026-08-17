@@ -18,6 +18,7 @@ import { ElMessage } from 'element-plus'
 import { RefreshRight, Download } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import LoopTimeline from '@/components/LoopTimeline.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import { useLoopStore } from '@/stores/loop'
 import { useLoopGraph } from '@/composables/useLoopGraph'
 
@@ -154,7 +155,7 @@ const showStep5 = computed(() => loopStore.currentRun != null && loopStore.curre
       <div class="starmap-page-header">
         <div>
           <h2 class="starmap-page-title">
-            <span class="title-icon">🔄</span>
+            <PageHeaderIcon kind="loop" />
             闭环验证演示
           </h2>
           <p class="starmap-page-desc">
@@ -267,9 +268,6 @@ const showStep5 = computed(() => loopStore.currentRun != null && loopStore.curre
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-.title-icon {
-  font-size: 1.1em;
 }
 .starmap-page-desc {
   font-size: var(--font-size-sm);

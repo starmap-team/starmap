@@ -7,6 +7,7 @@
  */
 import { onMounted, ref, reactive } from 'vue'
 import { useAuditStore } from '@/stores/audit'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 
 const auditStore = useAuditStore()
 
@@ -107,7 +108,10 @@ onMounted(fetchList)
 <template>
   <div class="audit-log">
     <header class="al-header">
-      <h2>审计日志</h2>
+      <h2 class="page-title">
+        <PageHeaderIcon kind="audit" />
+        审计日志
+      </h2>
       <div class="al-actions">
         <el-input
           v-model="filters.actor"

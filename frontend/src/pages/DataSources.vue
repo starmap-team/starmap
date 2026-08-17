@@ -13,6 +13,7 @@ import { GaugeChart, BarChart } from 'echarts/charts'
 import { TooltipComponent, GridComponent } from 'echarts/components'
 import MainLayout from '@/layouts/MainLayout.vue'
 import BusinessBanner from '@/components/BusinessBanner.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import { useDataSourceStore } from '@/stores/datasource'
 import { chartColors } from '@/utils/chartTheme'
 import { asTagType } from '@/utils/element'
@@ -146,7 +147,10 @@ onMounted(() => {
       <!-- 页面头部 -->
       <div class="page-header">
         <div>
-          <h2>数据源管理</h2>
+          <h2 class="page-title">
+            <PageHeaderIcon kind="datasources" />
+            数据源管理
+          </h2>
           <p class="page-desc">
             管理多源数据融合：BOSS直聘 / 拉勾 / 51Job / GitHub / ESCO
           </p>

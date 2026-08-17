@@ -24,6 +24,7 @@ import EvolutionReviewPanel from '@/components/EvolutionReviewPanel.vue'
 import ContentReviewPanel from '@/components/ContentReviewPanel.vue'
 import GraphNodeEditor from '@/components/GraphNodeEditor.vue'
 import BusinessBanner from '@/components/BusinessBanner.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import { useDataSourceStore } from '@/stores/datasource'
 import { useGraphNodeStore } from '@/stores/graphNode'
 import { useReviewStore } from '@/stores/review'
@@ -366,7 +367,10 @@ function formatDate(iso: string | null | undefined): string {
       <div class="admin-page animate-fade-in">
         <div class="page-header">
           <div>
-            <h2>管理后台</h2>
+            <h2 class="page-title">
+              <PageHeaderIcon kind="admin" />
+              管理后台
+            </h2>
             <p class="page-desc">
               StarMap 业务闭环的运营控制台 — 6 大功能区覆盖采集 → 抽取 → 图谱 → 审核 → 匹配 → 学习
             </p>

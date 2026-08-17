@@ -9,6 +9,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import SkillRadar, { type RadarItem } from '@/components/SkillRadar.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import { useJdStore } from '@/stores/jd'
 import { chartColors } from '@/utils/chartTheme'
 import { freshnessOf, type FreshnessInfo } from '@/utils/freshness'
@@ -238,7 +239,10 @@ watch(() => route.params.name, loadPosition)
             匹配诊断
           </el-button>
           <div>
-            <h2>{{ position?.name ?? positionName }}</h2>
+            <h2 class="page-title">
+              <PageHeaderIcon kind="position-detail" />
+              {{ position?.name ?? positionName }}
+            </h2>
             <!-- 行业 chip (P0-B 2026-08-17): 与 PositionList.vue 卡片「未分类」chip 样式对齐 -->
             <p class="header-sub">
               <el-tag

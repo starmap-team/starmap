@@ -16,6 +16,7 @@ import { useUserStore } from '@/stores/user'
 import { useGraphStore } from '@/stores/graph'
 import { useGraph3DData } from '@/composables/home/useGraph3DData'
 import Graph3D from '@/components/Graph3D.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import request from '@/api/request'
 
 const router = useRouter()
@@ -123,7 +124,8 @@ async function handleLogin() {
       :class="{ 'login-card--success': loginSuccess }"
     >
       <h2 class="login-title">
-        ⭐ StarMap 星图
+        <PageHeaderIcon kind="login" />
+        StarMap 星图
       </h2>
       <p class="login-subtitle">
         人才能力星云导航系统

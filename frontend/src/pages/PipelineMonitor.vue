@@ -8,6 +8,7 @@ import { ElMessage } from 'element-plus'
 import { QuestionFilled, Refresh, Setting, Timer, VideoPlay, RefreshRight } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import BusinessBanner from '@/components/BusinessBanner.vue'
+import PageHeaderIcon from '@/components/PageHeaderIcon.vue'
 import { ALL_STAGE_NAMES, STAGE_LABELS } from '@/stores/pipelineConfig'
 import PipelineDag from '@/components/PipelineDag.vue'
 import DataSourceManager from '@/components/DataSourceManager.vue'
@@ -293,7 +294,10 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
       <!-- 页面头部 -->
       <div class="page-header">
         <div>
-          <h2>数据流水线监控</h2>
+          <h2 class="page-title">
+            <PageHeaderIcon kind="pipeline" />
+            数据流水线监控
+          </h2>
           <p class="page-desc">
             ETL DAG 全链路：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建
             <el-tag
