@@ -15,6 +15,7 @@ from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.core.extraction.industry import normalize_industry
 from app.core.extraction.normalize import normalize_proficiency
 from app.core.matching.constants import ALLOWED_NODE_LABELS
 from app.exceptions import GraphProjectionError, StarMapError
@@ -228,7 +229,10 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
         {
             "experience_required": extraction.get("experience_required"),
             "education_required": extraction.get("education_required"),
-            "industry": extraction.get("industry"),
+            # Phase 1: industry 字段也走 normalize_industry()，与 Neo4j Industry 节点
+            # 保持一致 — 否则 Position.industry 与 (:Position)-[:IN_INDUSTRY]->(:Industry)
+            # 会指向两个不同的 industry 值（节点路径走 normalize，属性路径走原始值）。
+            "industry": normalize_industry(extraction.get("industry")),
         },
     )
     triples: list[GraphTriple] = []
@@ -287,10 +291,18 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
                 target = _node_ref(NODE_SKILL, skill_name, _skill_node_properties(entry, category, level))
                 _append_unique(triples, GraphTriple(position, REL_REQUIRES, target, rel_props))
 
-    industry_name = extraction.get("industry")
-    if industry_name:
-        industry = _node_ref(NODE_INDUSTRY, str(industry_name))
+    # Phase 1 (2026-08-17): Industry 节点走 normalize_industry() — 把 LLM 输出的
+    # 模糊词（「通用」/「综合」/「其他」/「misc」）归一化为「未分类」字面量，
+    # 把近义词（「信息技术/互联网」/「Tech」/「SaaS」）归一化到 canonical 桶
+    # （「互联网/IT」）。这样 Neo4j Industry 节点不会因同义不同桶而分裂，
+    # 与 PG position_records.industry 列保持严格一致（Defect A 的 contract）。
+    industry_raw = extraction.get("industry")
+    industry_normalized = normalize_industry(industry_raw)
+    if industry_normalized and industry_normalized != "未分类":
+        industry = _node_ref(NODE_INDUSTRY, industry_normalized)
     else:
+        # 「未分类」字面量不创建 Industry 节点（避免污染 Neo4j 节点集），
+        # 但 knowledge_areas 仍可独立存在。
         industry = None
 
     for area_name in extraction.get("knowledge_areas", []) or []:
