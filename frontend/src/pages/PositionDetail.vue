@@ -328,19 +328,19 @@ watch(() => route.params.name, loadPosition)
             <h3 class="section-title">
               技能要求 ({{ skills.length }})
             </h3>
-            <!-- 指标说明 (2026-08-18): 对新用户简洁说明 3 个指标 -->
+            <!-- 指标说明 (2026-08-18): 标准计算方式 + 用户可理解 -->
             <div class="metric-explainer">
               <div class="metric-item">
                 <span class="metric-label">熟练度</span>
-                <span class="metric-desc">岗位对该技能的掌握程度要求：精通 / 熟悉 / 了解</span>
+                <span class="metric-desc">从 JD 文本提取的技能要求级别，分为精通（高要求）/ 熟悉（中要求）/ 了解（基础要求）三级，反映岗位对该技能的掌握深度</span>
               </div>
               <div class="metric-item">
                 <span class="metric-label">置信度</span>
-                <span class="metric-desc">数据可信度：系统对"该技能确实属于该岗位"的判断把握</span>
+                <span class="metric-desc">数据可信度，系统经反幻觉校验后给出的判断把握；100% 表示高置信（技能真实），0% 表示可能存在抽取误差</span>
               </div>
               <div class="metric-item">
                 <span class="metric-label">热度</span>
-                <span class="metric-desc">市场热度：有多少岗位需要该技能，数字越高越通用</span>
+                <span class="metric-desc">市场通用度，需要该技能的岗位数量；数字越高代表该技能越通用，数字越低代表越专项</span>
               </div>
             </div>
             <el-table
