@@ -180,6 +180,9 @@ class Settings(BaseSettings):
     ingestion_min_confidence: float = 0.3
     ingestion_required_cap: int = 7
 
+    # Spark X 长 prompt 跳过阈值（超长 prompt 触发讯飞网关 504）
+    spark_x_max_prompt_chars: int = 1500
+
     # 阿里云百炼 Qwen（2026-08-14 接入，降级链首选）——OpenAI 兼容端点
     dashscope_api_key: str = ""
     dashscope_base_url: str = "https://llm-nire844xse41iz9w.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"

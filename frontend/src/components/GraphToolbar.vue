@@ -57,6 +57,7 @@ function toggleProficiency(level: string) {
     >
       <button
         class="tb-btn"
+        aria-label="放大"
         @click="emit('zoomIn')"
       >
         <el-icon><ZoomIn /></el-icon>
@@ -68,6 +69,7 @@ function toggleProficiency(level: string) {
     >
       <button
         class="tb-btn"
+        aria-label="缩小"
         @click="emit('zoomOut')"
       >
         <el-icon><ZoomOut /></el-icon>
@@ -79,6 +81,7 @@ function toggleProficiency(level: string) {
     >
       <button
         class="tb-btn"
+        aria-label="居中适配"
         @click="emit('zoomFit')"
       >
         <el-icon><Aim /></el-icon>
@@ -93,6 +96,7 @@ function toggleProficiency(level: string) {
     >
       <button
         class="tb-btn"
+        aria-label="切换布局"
         @click="emit('toggleLayout')"
       >
         <span class="tb-label">{{ layoutMode === 'force' ? '力' : layoutMode === 'dagre' ? '层' : '环' }}</span>
@@ -106,6 +110,7 @@ function toggleProficiency(level: string) {
     >
       <button
         class="tb-btn"
+        aria-label="重置高亮"
         @click="emit('resetHighlight')"
       >
         <el-icon><RefreshRight /></el-icon>
@@ -121,6 +126,7 @@ function toggleProficiency(level: string) {
       <button
         class="tb-btn"
         :class="{ 'tb-btn--active': showFilters }"
+        aria-label="筛选器"
         @click="showFilters = !showFilters"
       >
         <el-icon><Filter /></el-icon>
@@ -136,6 +142,7 @@ function toggleProficiency(level: string) {
       >
         <button
           class="tb-btn tb-btn--3d"
+          aria-label="全景俯瞰"
           @click="emit('cameraPreset', 'overview')"
         >
           <el-icon><VideoCamera /></el-icon>
@@ -147,6 +154,7 @@ function toggleProficiency(level: string) {
       >
         <button
           class="tb-btn tb-btn--3d"
+          aria-label="领域聚焦"
           @click="emit('cameraPreset', 'domain')"
         >
           <el-icon><Aim /></el-icon>
@@ -158,6 +166,7 @@ function toggleProficiency(level: string) {
       >
         <button
           class="tb-btn tb-btn--3d"
+          aria-label="岗位网络"
           @click="emit('cameraPreset', 'position')"
         >
           <el-icon><Position /></el-icon>
@@ -169,6 +178,7 @@ function toggleProficiency(level: string) {
       >
         <button
           class="tb-btn"
+          aria-label="重置视角"
           @click="emit('resetCamera')"
         >
           <el-icon><Compass /></el-icon>
@@ -181,6 +191,7 @@ function toggleProficiency(level: string) {
         <button
           class="tb-btn"
           :class="{ 'tb-btn--active': autoRotate }"
+          :aria-label="autoRotate ? '停止旋转' : '自动旋转'"
           @click="emit('toggleAutoRotate')"
         >
           <span class="tb-label">{{ autoRotate ? '⏸' : '🔄' }}</span>

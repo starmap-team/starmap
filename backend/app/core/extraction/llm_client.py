@@ -418,7 +418,7 @@ async def call_dashscope_llm(
 
 # Spark X 深度推理对长 prompt 会触发讯飞网关 60s 504（实测：抽取 prompt ~2582 chars
 # → 504；反幻觉 ~591 chars → 16s OK）。长 prompt 直接跳过 Spark X，避免每次拖 61s 后降级。
-SPARK_X_MAX_PROMPT_CHARS = 1500
+SPARK_X_MAX_PROMPT_CHARS = getattr(settings, 'spark_x_max_prompt_chars', 1500)
 
 
 async def call_llm_with_fallback(

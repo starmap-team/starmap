@@ -328,7 +328,7 @@ async def _execute_scheduled_run(schedule_id: str) -> None:
         await session.commit()
 
 
-@celery_app.task(bind=True, max_retries=0)
+@celery_app.task(bind=True, max_retries=1, default_retry_delay=30)
 def sweep_orphan_runs(self) -> dict[str, Any]:
     """Phase 2 WATCHDOG: 清理超过 stage_timeout*2 仍 running 的任务。"""
     run_async(_sweep_orphan_runs_async())
@@ -519,16 +519,24 @@ def run_accuracy_gate_task(self) -> dict[str, Any]:
 
     root = Path(__file__).resolve().parent.parent.parent.parent
     gate_script = root / "evaluation" / "accuracy_gate.py"
+    output_lines: list[str] = []
     try:
-        proc = subprocess.run(
+        # Phase 2026-08-17: Popen 流式写入，避免 capture_output 截断
+        proc = subprocess.Popen(
             [sys.executable, str(gate_script), "--with-resume-real-llm"],
             cwd=str(root),
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
-            timeout=3600,
+            bufsize=1,
         )
-        output = proc.stdout + proc.stderr
-        logger.info("accuracy_gate output:\n{}", output[-2000:])
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            stripped = line.rstrip("\n")
+            output_lines.append(stripped)
+            logger.info("accuracy_gate: {}", stripped)
+        proc.wait(timeout=3600)
+        output = "\n".join(output_lines)
         if proc.returncode != 0:
             # 指标劣化 → 写审计告警
             try:
