@@ -9,11 +9,6 @@ from __future__ import annotations
 import time
 from typing import Any
 
-# 请求级缓存：避免同一请求内重复查询 DB + EmergenceFinder.scan()
-# TTL 60s 足以覆盖一次 HTTP 请求的多个端点调用，又不会造成跨请求数据陈旧
-_timeseries_cache: dict[str, tuple[float, Any]] = {}
-_CACHE_TTL = 60.0
-
 import sqlalchemy as sa
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +18,19 @@ from app.core.evolution.causal_inference import (
 )
 from app.core.evolution.emergence_finder import EmergenceFinder
 from app.core.evolution.timeseries_loader import load_skill_timeseries_data
+from app.core.evolution.trust_scorer import (
+    LOW_TRUST_THRESHOLD,  # noqa: F401 — 低信任度阈值 re-export (路由经 service 访问 core)
+)
+from app.core.evolution.write_back import (  # noqa: F401 — 审核即生效写回 re-export (路由经 service 访问 core)
+    write_back_changelog_row,
+)
+from app.core.matching.constants import SENIOR_KEYWORDS  # noqa: F401 — 职级关键词 re-export (路由经 service 访问 core)
+from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
+
+# 请求级缓存：避免同一请求内重复查询 DB + EmergenceFinder.scan()
+# TTL 60s 足以覆盖一次 HTTP 请求的多个端点调用，又不会造成跨请求数据陈旧
+_timeseries_cache: dict[str, tuple[float, Any]] = {}
+_CACHE_TTL = 60.0
 
 
 async def _cached_load_timeseries(session: AsyncSession, days: int | None = None) -> dict:
@@ -40,14 +48,6 @@ async def _cached_load_timeseries(session: AsyncSession, days: int | None = None
     for k in expired:
         del _timeseries_cache[k]
     return data
-from app.core.evolution.trust_scorer import (
-    LOW_TRUST_THRESHOLD,  # noqa: F401 — 低信任度阈值 re-export (路由经 service 访问 core)
-)
-from app.core.evolution.write_back import (  # noqa: F401 — 审核即生效写回 re-export (路由经 service 访问 core)
-    write_back_changelog_row,
-)
-from app.core.matching.constants import SENIOR_KEYWORDS  # noqa: F401 — 职级关键词 re-export (路由经 service 访问 core)
-from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
 
 def _build_signals_by_name(report: Any) -> dict[str, Any]:

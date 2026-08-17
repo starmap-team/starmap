@@ -2,7 +2,6 @@
 
 ponytail-audit MEDIUM: _status() 无边界值测试，阈值漂移时静默改变分类。
 """
-import pytest
 from app.api.v1.quality import _status
 
 

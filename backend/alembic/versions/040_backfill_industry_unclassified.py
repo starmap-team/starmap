@@ -22,8 +22,6 @@ Downgrade removes the CHECK and re-NULLs the literal for rollback safety.
 """
 from __future__ import annotations
 
-import sqlalchemy as sa
-
 from alembic import op
 
 # revision identifiers, used by Alembic.
