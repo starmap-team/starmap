@@ -119,6 +119,13 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
     Phase 4 P2: Neo4j 是图谱数据的唯一真理源 (single source of truth)。
     PostgreSQL position_records 表只保存业务审核相关的字段。
     当 Neo4j 不可用时，fallback 到 PostgreSQL 计数。
+
+    口径契约 (2026-08-17 Defect E):
+    - total_positions / total_domains: 只统计 approved 状态的岗位。
+      与 /positions 列表 total（557，包含全部状态）口径不同——
+      大屏是「已发布」视角，列表是 admin 全状态视角。
+      前端 KPI 卡片后缀显示「（已发布）」标明口径，
+      避免用户从列表跳到大屏后数字撕裂。
     """
     # Neo4j 优先：直接查询图谱节点数
     neo4j_pos, neo4j_skill, neo4j_edge = await asyncio.gather(
@@ -524,6 +531,9 @@ async def get_distribution(
         ]
 
     # 2. Domain distribution (by industry)
+    # 2026-08-17 (P1 dashboard 行业域 vs 分布图口径一致): 限定 review_status='approved'
+    # 与 _fetch_graph_stats.total_domains 口径对齐 —— 「已发布」是大屏唯一可见状态。
+    # pending_review 数据不应混入分布图（会与 KPI 「行业域=3」对不上）。
     domain_result = await session.execute(
         sa.select(
             PositionRecord.industry,
@@ -532,6 +542,7 @@ async def get_distribution(
         .where(PositionRecord.industry.isnot(None))
         .where(PositionRecord.industry != "")
         .where(PositionRecord.industry != UNCLASSIFIED_INDUSTRY_LITERAL)
+        .where(PositionRecord.review_status == "approved")
         .group_by(PositionRecord.industry)
         .order_by(sa.func.count().desc())
         .limit(15)

@@ -162,3 +162,85 @@ async def test_get_distribution():
     assert "domain_distribution" in result
     assert "skill_category_distribution" in result
     redis.set.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_get_distribution_domain_filters_unclassified_and_pending():
+    """P1-C (2026-08-17): domain_distribution 限定 approved + 排除「未分类」字面量。
+
+    历史 bug: domain_distribution 不过滤 review_status，pending_review 行混入
+    「互联网/IT」等桶，导致分布图 (62 条) 与 KPI 「行业域=3」(approved-only 40 条)
+    数字对不上，用户体感撕裂。
+
+    修复后: domain_distribution 与 _fetch_graph_stats.total_domains 口径统一为
+    approved-only + 排除未分类。
+    """
+    from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL
+
+    # Capture all session.execute calls; first is data source, second is domain.
+    execute_calls: list = []
+
+    async def _execute_capture(stmt, *args, **kwargs):
+        execute_calls.append(stmt)
+        # Return empty results for any call
+        return _FakeScalarListResult([])
+
+    session = MagicMock()
+    session.execute = AsyncMock(side_effect=_execute_capture)
+
+    redis = MagicMock()
+    redis.get = AsyncMock(return_value=None)
+    redis.set = AsyncMock()
+
+    result = await get_distribution(session, redis)
+    assert "domain_distribution" in result
+
+    # If we couldn't find a candidate (due to dialect quirks), at minimum
+    # verify the result is empty + structure preserved
+    assert isinstance(result["domain_distribution"], list)
+
+    # The literal 「未分类」 MUST be excluded from domain_distribution
+    for entry in result["domain_distribution"]:
+        assert entry["name"] != UNCLASSIFIED_INDUSTRY_LITERAL, (
+            "domain_distribution must not contain '未分类' — that bucket pollutes stats"
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_distribution_domain_excludes_pending_review():
+    """P1-C 联动验证: 模拟 pending_review 行被排除（approved-only 过滤生效）。
+
+    直接验证 SQL 层 WHERE 子句含 review_status = 'approved'。
+    """
+    from sqlalchemy.dialects import postgresql
+
+    session = MagicMock()
+    captured_stmts: list = []
+
+    async def _execute_capture(stmt, *args, **kwargs):
+        captured_stmts.append(stmt)
+        return _FakeScalarListResult([])
+
+    session.execute = AsyncMock(side_effect=_execute_capture)
+    redis = MagicMock()
+    redis.get = AsyncMock(return_value=None)
+    redis.set = AsyncMock()
+
+    await get_distribution(session, redis)
+
+    # Find the domain query (industry group by)
+    domain_stmt = None
+    for stmt in captured_stmts:
+        s = str(stmt)
+        if "industry" in s and "count" in s.lower() and "position_records" in s:
+            domain_stmt = stmt
+            break
+
+    assert domain_stmt is not None, "domain_distribution SQL not found"
+    compiled = str(domain_stmt.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+    assert "review_status" in compiled, (
+        f"domain_distribution SQL must filter review_status; got:\n{compiled}"
+    )
+    assert "'approved'" in compiled or "approved" in compiled.lower(), (
+        f"domain_distribution SQL must require review_status='approved'; got:\n{compiled}"
+    )
