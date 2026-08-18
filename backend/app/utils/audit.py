@@ -93,7 +93,7 @@ def audit_log(entry: AuditEntry) -> None:
 
  # Fire-and-forget DB persist — never blocks the caller
     try:
-        loop = asyncio.get_running_loop
+        loop = asyncio.get_running_loop()
         loop.create_task(_persist_to_db(entry))
     except RuntimeError:
  # No running event loop (e.g. sync context) — skip DB persist silently

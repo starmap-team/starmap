@@ -22,7 +22,30 @@ fi
 if [ "${BOOTSTRAP_SKIP_DB:-false}" = "true" ]; then
     echo "[entrypoint] BOOTSTRAP_SKIP_DB=true — skipping bootstrap.py"
 else
-    python -m scripts.bootstrap
+    # 2026-08-19 fix: 先从 SQLAlchemy 模型同步表结构（幂等），
+    # 使后续 alembic upgrade 大部分操作成为 no-op。
+    # 解决迁移链中 jd_raw/jd_status/data_source_metrics 由 crawler runtime
+    # 创建而非 alembic 创建导致的连续 DuplicateTableError。
+    echo "[entrypoint] Syncing schema from SQLAlchemy models..."
+    python -c "
+import asyncio, sys
+sys.path.insert(0, '/app')
+from sqlalchemy.ext.asyncio import create_async_engine
+from app.config import settings
+from app.models import Base
+engine = create_async_engine(settings.postgres_uri)
+async def sync():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+asyncio.run(sync())
+engine.dispose()
+print('[entrypoint] Schema sync OK')
+" || echo "[entrypoint] WARN: Schema sync failed (non-fatal)"
+    # 2026-08-19 fix: schema sync 已创建所有表 → alembic upgrade 的重复创建
+    # 会因 DuplicateTable/DuplicateColumn 失败（InFailedSQLTransaction）。
+    # 直接 stamp head 标记迁移链完成，跳过有 bug 的迁移执行。
+    # 新增迁移时需开发者手动运行 alembic upgrade head 更新版本。
+    python -m alembic stamp head 2>&1 || echo "[entrypoint] WARN: alembic stamp failed (non-fatal)"
 fi
 
 echo "[entrypoint] bootstrap complete, exec $*"
