@@ -1,188 +1,188 @@
-# =============================================================================
+﻿# =============================================================================
 # StarMap CI 流水线
 # 触发：任何 PR 到 main + 直接 push 到 main
-# 门禁（规范5 §17.6）：CI 全绿 + 1 人 review 才能合并
+# 门禁（ ）：CI 全绿 + 1 人 review 才能合并
 # =============================================================================
 name: CI
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
-  workflow_dispatch:    # 手动触发：跑 Docker 冒烟
-  schedule:
-    # 每天 UTC 02:00（北京时间 10:00）自动跑全量检查
-    # 规范7 §17.8：每日集成 + 演示就绪
-    - cron: '0 2 * * *'
+ pull_request:
+ branches: [main]
+ push:
+ branches: [main]
+ workflow_dispatch: # 手动触发：跑 Docker 冒烟
+ schedule:
+ # 每天 UTC 02:00（北京时间 10:00）自动跑全量检查
+ # ：每日集成 + 演示就绪
+ - cron: '0 2 * * *'
 
 jobs:
-  # ---------- 契约校验（最先跑，契约优先） ----------
-  contracts:
-    name: 契约校验
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true    # 契约是独立 submodule 仓库（§17.2）
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: 安装 pyyaml
-        run: pip install pyyaml
-      - name: 校验契约
-        run: python starmap-contracts/validate.py
+ # ---------- 契约校验（最先跑，契约优先） ----------
+ contracts:
+ name: 契约校验
+ runs-on: ubuntu-latest
+ steps:
+ - uses: actions/checkout@v4
+ with:
+ submodules: true # 契约是独立 submodule 仓库（）
+ - uses: actions/setup-python@v5
+ with:
+ python-version: "3.11"
+ - name: 安装 pyyaml
+ run: pip install pyyaml
+ - name: 校验契约
+ run: python starmap-contracts/validate.py
 
-      # Phase 20: 阻断 .env.production 重新入仓 (security/secret-rotation-playbook.md)
-      - name: 校验 .env.production 未入仓
-        run: python scripts/check_no_env_production_in_git.py
+ #: 阻断 .env.production 重新入仓 (security/secret-rotation-playbook.md)
+ - name: 校验 .env.production 未入仓
+ run: python scripts/check_no_env_production_in_git.py
 
-  # ---------- 后端 ----------
-  backend:
-    name: 后端 lint + typecheck + test
-    runs-on: ubuntu-latest
-    needs: contracts
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true    # 契约一致性校验需要 openapi.yaml
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: 安装 Poetry
-        run: pip install poetry==2.4.1
-      - name: 安装依赖
-        run: poetry install --no-interaction
-      - name: Ruff lint
-        run: poetry run ruff check .
-      - name: Mypy typecheck
-        run: poetry run mypy app
-      # CONCERN 3.1 (correctness audit 2026-08-15): guard against sites that
-      # update PipelineRun.stages without routing through complete_run.
-      # Pre-fix bug: engine.py wrote stages but skipped complete_run, leaving
-      # quality_score at 0. The script fails CI if a new bypass lands.
-      - name: complete_run 旁路检查（CONCERN 3.1）
-        run: bash ../backend/scripts/check_complete_run_bypass.sh
-      - name: bootstrap run_type 禁用（CONCERN 3.4）
-        run: bash ../backend/scripts/check_bootstrap_run_type.sh
-      - name: Pip 安全审计（continue-on-error 以便后续修复）
-        run: |
-          poetry run pip install --quiet pip-audit 2>/dev/null || pip install --quiet pip-audit
-          pip-audit --strict --skip-editable 2>&1 | tail -20 || true
-        continue-on-error: true
-      - name: Pytest（含覆盖率门禁 70%）
-        run: poetry run pytest
-      - name: 契约一致性校验（FastAPI 导出 vs openapi.yaml）
-        run: |
-          poetry run python -c "
-          import yaml
-          from app.main import app
-          exported = app.openapi()
-          with open('../starmap-contracts/openapi.yaml', encoding='utf-8') as f:
-              contract = yaml.safe_load(f)
-          # 剥掉 /api/v1 前缀后比对（契约 servers 里已配 base url）
-          prefix = '/api/v1'
-          exp_paths = {p[len(prefix):] if p.startswith(prefix) else p for p in exported.get('paths', {}).keys()}
-          con_paths = set(contract.get('paths', {}).keys())
-          missing = con_paths - exp_paths
-          extra = exp_paths - con_paths
-          if missing:
-              print(f'FAIL [{len(missing)}]: contract paths not in app: {sorted(missing)}')
-              exit(1)
-          if extra:
-              print(f'WARN [{len(extra)}]: app paths not in contract (ok for now): {sorted(extra)}')
-          print(f'OK: contract consistency passed ({len(exp_paths)} paths)')
-          "
+ # ---------- 后端 ----------
+ backend:
+ name: 后端 lint + typecheck + test
+ runs-on: ubuntu-latest
+ needs: contracts
+ defaults:
+ run:
+ working-directory: backend
+ steps:
+ - uses: actions/checkout@v4
+ with:
+ submodules: true # 契约一致性校验需要 openapi.yaml
+ - uses: actions/setup-python@v5
+ with:
+ python-version: "3.11"
+ - name: 安装 Poetry
+ run: pip install poetry==2.4.1
+ - name: 安装依赖
+ run: poetry install --no-interaction
+ - name: Ruff lint
+ run: poetry run ruff check .
+ - name: Mypy typecheck
+ run: poetry run mypy app
+ #guard against sites that
+ # update PipelineRun.stages without routing through complete_run.
+ # Pre-fix bug: engine.py wrote stages but skipped complete_run, leaving
+ # quality_score at 0. The script fails CI if a new bypass lands.
+ - name: complete_run 旁路检查
+ run: bash ../backend/scripts/check_complete_run_bypass.sh
+ - name: bootstrap run_type 禁用
+ run: bash ../backend/scripts/check_bootstrap_run_type.sh
+ - name: Pip 安全审计（continue-on-error 以便后续修复）
+ run: |
+ poetry run pip install --quiet pip-audit 2>/dev/null || pip install --quiet pip-audit
+ pip-audit --strict --skip-editable 2>&1 | tail -20 || true
+ continue-on-error: true
+ - name: Pytest（含覆盖率门禁 70%）
+ run: poetry run pytest
+ - name: 契约一致性校验（FastAPI 导出 vs openapi.yaml）
+ run: |
+ poetry run python -c "
+ import yaml
+ from app.main import app
+ exported = app.openapi()
+ with open('../starmap-contracts/openapi.yaml', encoding='utf-8') as f:
+ contract = yaml.safe_load(f)
+ # 剥掉 /api/v1 前缀后比对（契约 servers 里已配 base url）
+ prefix = '/api/v1'
+ exp_paths = {p[len(prefix):] if p.startswith(prefix) else p for p in exported.get('paths', {}).keys()}
+ con_paths = set(contract.get('paths', {}).keys())
+ missing = con_paths - exp_paths
+ extra = exp_paths - con_paths
+ if missing:
+ print(f'FAIL [{len(missing)}]: contract paths not in app: {sorted(missing)}')
+ exit(1)
+ if extra:
+ print(f'WARN [{len(extra)}]: app paths not in contract (ok for now): {sorted(extra)}')
+ print(f'OK: contract consistency passed ({len(exp_paths)} paths)')
+ "
 
-  # ---------- 前端 ----------
-  frontend:
-    name: 前端 lint + typecheck + test + build
-    runs-on: ubuntu-latest
-    needs: contracts
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true    # gen:api 需要契约仓库
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: 安装依赖
-        run: npm install
-      - name: 从契约生成 API 类型（规范1 双端一致）
-        run: npm run gen:api
-      - name: ESLint
-        run: npm run lint
-      - name: TypeScript typecheck
-        run: npm run typecheck
-      - name: npm 安全审计（high+ 级别继续通过，超时/网络错误不阻塞）
-        run: npm audit --audit-level=high --omit=dev || true
-        continue-on-error: true
-        timeout-minutes: 5
-      - name: Vitest
-        run: npm run test
-      - name: 构建
-        run: npm run build
+ # ---------- 前端 ----------
+ frontend:
+ name: 前端 lint + typecheck + test + build
+ runs-on: ubuntu-latest
+ needs: contracts
+ defaults:
+ run:
+ working-directory: frontend
+ steps:
+ - uses: actions/checkout@v4
+ with:
+ submodules: true # gen:api 需要契约仓库
+ - uses: actions/setup-node@v4
+ with:
+ node-version: "20"
+ cache: npm
+ cache-dependency-path: frontend/package-lock.json
+ - name: 安装依赖
+ run: npm install
+ - name: 从契约生成 API 类型（ 双端一致）
+ run: npm run gen:api
+ - name: ESLint
+ run: npm run lint
+ - name: TypeScript typecheck
+ run: npm run typecheck
+ - name: npm 安全审计（high+ 级别继续通过，超时/网络错误不阻塞）
+ run: npm audit --audit-level=high --omit=dev || true
+ continue-on-error: true
+ timeout-minutes: 5
+ - name: Vitest
+ run: npm run test
+ - name: 构建
+ run: npm run build
 
-  # ---------- 爬虫 ----------
-  crawler:
-    name: 爬虫 compile + test
-    runs-on: ubuntu-latest
-    needs: contracts
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: 安装依赖
-        run: pip install -r crawler/requirements.txt
-      - name: 编译检查
-        run: python -m compileall crawler -q
-      - name: Pytest（跳过需要 PostgreSQL 的集成测试）
-        run: >-
-          python -m pytest crawler/tests/ -v
-          --ignore=crawler/tests/test_persistence.py
-          --ignore=crawler/tests/test_w3_integration.py
-        env:
-          CI: "true"
+ # ---------- 爬虫 ----------
+ crawler:
+ name: 爬虫 compile + test
+ runs-on: ubuntu-latest
+ needs: contracts
+ steps:
+ - uses: actions/checkout@v4
+ - uses: actions/setup-python@v5
+ with:
+ python-version: "3.11"
+ - name: 安装依赖
+ run: pip install -r crawler/requirements.txt
+ - name: 编译检查
+ run: python -m compileall crawler -q
+ - name: Pytest（跳过需要 PostgreSQL 的集成测试）
+ run: >-
+ python -m pytest crawler/tests/ -v
+ --ignore=crawler/tests/test_persistence.py
+ --ignore=crawler/tests/test_w3_integration.py
+ env:
+ CI: "true"
 
-  # ---------- Docker 集成冒烟（手动触发，规范7 每日集成） ----------
-  # W6 起演示就绪纪律生效后改为定时 + 推送触发
-  # 日常 PR 不跑：GitHub Actions 默认 runner 无 docker daemon 权限
-  docker-smoke:
-    name: Docker 全栈冒烟
-    runs-on: ubuntu-latest
-    needs: [backend, frontend, crawler]
-    # 手动触发 或 定时触发 都跑 Docker 冒烟
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: 生成默认 .env（CI 无此文件，docker compose 要求存在）
-        run: touch .env
-      - name: 构建并启动全栈
-        run: docker compose -f docker-compose.dev.yml up -d
-      - name: 等待后端就绪
-        run: |
-          for i in {1..30}; do
-            curl -sf http://localhost:8000/health && break
-            sleep 2
-          done
-          curl -sf http://localhost:8000/health
-      - name: 等待前端就绪
-        run: |
-          for i in {1..30}; do
-            curl -sf http://localhost:5173 && break
-            sleep 2
-          done
-      - name: 清理
-        if: always()
-        run: docker compose -f docker-compose.dev.yml down -v
+ # ---------- Docker 集成冒烟（手动触发， 每日集成） ----------
+ # W6 起演示就绪纪律生效后改为定时 + 推送触发
+ # 日常 PR 不跑：GitHub Actions 默认 runner 无 docker daemon 权限
+ docker-smoke:
+ name: Docker 全栈冒烟
+ runs-on: ubuntu-latest
+ needs: [backend, frontend, crawler]
+ # 手动触发 或 定时触发 都跑 Docker 冒烟
+ if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+ steps:
+ - uses: actions/checkout@v4
+ with:
+ submodules: true
+ - name: 生成默认 .env（CI 无此文件，docker compose 要求存在）
+ run: touch .env
+ - name: 构建并启动全栈
+ run: docker compose -f docker-compose.dev.yml up -d
+ - name: 等待后端就绪
+ run: |
+ for i in {1..30}; do
+ curl -sf http://localhost:8000/health && break
+ sleep 2
+ done
+ curl -sf http://localhost:8000/health
+ - name: 等待前端就绪
+ run: |
+ for i in {1..30}; do
+ curl -sf http://localhost:5173 && break
+ sleep 2
+ done
+ - name: 清理
+ if: always()
+ run: docker compose -f docker-compose.dev.yml down -v
