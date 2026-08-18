@@ -11,13 +11,13 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-ROOT = Path(__file__).resolve.parents[1]
+ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.config import settings  # noqa: E402
 
-# fix: `from app.models import Base` triggers __init__.py which imports ALL
+# P0-3 fix: `from app.models import Base` triggers __init__.py which imports ALL
 # model modules (including evolution_models and extraction_models), registering
 # them with Base.metadata for Alembic autogenerate. Explicit imports are redundant.
 from app.models import Base  # noqa: E402
@@ -30,6 +30,7 @@ config.set_main_option("sqlalchemy.url", settings.postgres_uri)
 
 target_metadata = Base.metadata
 
+
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
     context.configure(url=url, target_metadata=target_metadata, literal_binds=True)
@@ -37,24 +38,28 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def do_run_migrations(connection) -> None:
     context.configure(connection=connection, target_metadata=target_metadata)
 
     with context.begin_transaction():
         context.run_migrations()
 
+
 async def run_migrations_online() -> None:
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section) or {},
         prefix="sqlalchemy.",
-        poolclass=None)
+        poolclass=None,
+    )
 
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
 
     await connectable.dispose()
 
-if context.is_offline_mode:
+
+if context.is_offline_mode():
     run_migrations_offline()
 else:
     asyncio.run(run_migrations_online())

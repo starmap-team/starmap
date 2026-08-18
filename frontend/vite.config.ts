@@ -4,7 +4,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue],
+  plugins: [vue()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -40,7 +40,7 @@ export default defineConfig({
     },
   },
   build: {
-    // fix: G6 v5 is ~1.4MB minified, which exceeds the default 500KB warning.
+    // P3-5 fix: G6 v5 is ~1.4MB minified, which exceeds the default 500KB warning.
     // G6 is already split into its own chunk (vendor-g6) and lazy-loaded via dynamic import.
     // The size is inherent to the library; raising the limit suppresses the warning.
     chunkSizeWarningLimit: 1500,

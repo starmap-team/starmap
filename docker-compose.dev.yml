@@ -16,7 +16,7 @@ services:
     volumes:
       - ./backend:/app           # 代码挂载，支持热重载
       - ./crawler:/app/crawler   # Phase 15-02: CSV 导入端点需要 crawler.persistence.dao
-      - ./scripts:/app/scripts:ro  # 演示数据重置 /admin/seed/reset 需执行 scripts/seed_*.py
+      - ./scripts:/app/repo-scripts:ro  # 演示数据 seed_*.py（挂载到 /app/repo-scripts，不覆盖 backend/scripts/）
       - ./starmap-contracts:/contracts:ro  # 契约只读挂载，启动校验一致性
       - ./docs:/app/docs:ro      # 文档挂载（ontology/skill_taxonomy.yaml 等）
     ports:

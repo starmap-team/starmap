@@ -49,10 +49,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """应用生命周期：启动时初始化连接，关闭时释放。"""
     logger.info("StarMap 启动中... env={}", settings.app_env)
     app.state.resources = await init_resources()
- # (reliability audit 2026-08-15): log the effective rate-limit
- # knobs at startup so operators can verify staging/prod parity without
- # inspecting env vars. ``rate_limit_storage`` reports which backend will
- # serve the counters ("redis" if a Redis client is attached, else "memory").
+    # (reliability audit 2026-08-15): log the effective rate-limit
+    # knobs at startup so operators can verify staging/prod parity without
+    # inspecting env vars. ``rate_limit_storage`` reports which backend will
+    # serve the counters ("redis" if a Redis client is attached, else "memory").
     _rate_limit_storage = (
         "redis" if getattr(app.state.resources, "redis_client", None) is not None
         else "memory"
@@ -64,8 +64,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         getattr(settings, "rate_limit_window", "n/a"),
         _rate_limit_storage,
     )
- # 2026-08-08: 启动时把 prompt_versions 表（管理后台注册的自定义版本/活跃选择）
- # 合并进内存注册表，避免重启丢失（此前仅存进程内存）
+    # 2026-08-08: 启动时把 prompt_versions 表（管理后台注册的自定义版本/活跃选择）
+    # 合并进内存注册表，避免重启丢失（此前仅存进程内存）
     if resources.pg_sessionmaker is not None:
         try:
             from sqlalchemy import select as _sel
@@ -82,12 +82,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 logger.info("Loaded {} custom prompt version(s) from DB", len(rows))
         except Exception as exc:  # noqa: BLE001 — 加载失败不阻断启动（降级为内置版本）
             logger.warning("[lifespan] Prompt versions load failed, using builtin: {}", exc)
- # (c) : 启动时若 PIPELINE_BOOTSTRAP=true,30 秒后入队一次 pipeline run
- # 该调用是 no-op（直接 return）如果环境变量未设置
+    # (c) : 启动时若 PIPELINE_BOOTSTRAP=true,30 秒后入队一次 pipeline run
+    # 该调用是 no-op（直接 return）如果环境变量未设置
     from app.core.pipeline.bootstrap import schedule_bootstrap_if_enabled
 
     schedule_bootstrap_if_enabled()
- # : 启动 cron scanner 后台任务
+    # : 启动 cron scanner 后台任务
     cron_task = None
     try:
         from app.core.pipeline.cron_scheduler import cron_scanner_loop
@@ -96,12 +96,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Cron scanner loop started")
         yield
     finally:
- # 2026-08-14 门禁修复: shutdown 尽力而为 — 测试 teardown 中 TestClient
- # 关停时事件循环可能已关闭（resources/task 由早前测试在其他 loop 创建）
- # → await 抛 `'NoneType' object has no attribute 'send'`（flaky ERROR）。
- # 任何关闭失败降级为 warning，不阻断 shutdown。
- # （2026-08-07 起 cron cancel 后必须 await 带超时，否则 uvicorn --reload
- # 无限等待 → 该语义保留。）
+    # 2026-08-14 门禁修复: shutdown 尽力而为 — 测试 teardown 中 TestClient
+    # 关停时事件循环可能已关闭（resources/task 由早前测试在其他 loop 创建）
+    # → await 抛 `'NoneType' object has no attribute 'send'`（flaky ERROR）。
+    # 任何关闭失败降级为 warning，不阻断 shutdown。
+    # （2026-08-07 起 cron cancel 后必须 await 带超时，否则 uvicorn --reload
+    # 无限等待 → 该语义保留。）
         try:
             if cron_task is not None:
                 cron_task.cancel()

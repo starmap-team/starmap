@@ -13,50 +13,11 @@ const router = useRouter()
 // Track navigation direction for slide transitions
 const transitionName = ref('page-fade')
 
-// ---------------------------------------------------------------------------
-// Route transition watchdog — rAF/transitionend stall safety.
-//
-// Vue's <transition> advances enter/leave phases on requestAnimationFrame and
-// completes them on transitionend. In environments where the rAF pump stalls
-// (headless CI, backgrounded tab, heavy load) the phase never advances, the
-// page stays at enter-from (opacity 0) and appears blank forever.
-//
-// Fix: if a phase hasn't finished within TRANSITION_FORCE_MS, nudge Vue to
-// finish by dispatching a synthetic transitionend (propertyName === undefined
-// is treated as a finish signal), with a class-level force-settle fallback.
-// ---------------------------------------------------------------------------
-const TRANSITION_FORCE_MS = 600  // > --duration-slow (300ms)
-
-function forceSettleTransition(el: Element) {
-  const cls = el.classList
-  const stuck = Array.from(cls).filter((c) => /-(enter|leave)-(from|active|to)$/.test(c))
-  if (stuck.length === 0) return
-  cls.remove(...stuck)
-  const elm = el as HTMLElement
-  elm.style.transition = 'none'
-  elm.style.opacity = '1'
-  elm.style.transform = 'none'
-  void elm.offsetHeight  // flush so the next transition starts from a clean state
-  elm.style.transition = ''
-}
-
-function armTransitionWatchdog(el: Element) {
-  const timer = window.setTimeout(() => {
-    el.dispatchEvent(new Event('transitionend'))
- // Fallback: if the nudge didn't take effect, force the end state directly.
-    window.setTimeout(() => forceSettleTransition(el), 50)
-  }, TRANSITION_FORCE_MS)
-  el.addEventListener('transitionend', () => window.clearTimeout(timer), { once: true })
-}
-
-function onTransitionEnter(el: Element) { armTransitionWatchdog(el) }
-function onTransitionLeave(el: Element) { armTransitionWatchdog(el) }
-
 router.beforeEach((to, from) => {
   const toPath = to.path
   const fromPath = from.path
 
- // Determine direction based on route depth or custom ordering
+  // Determine direction based on route depth or custom ordering
   const navRoutes = router.getRoutes().map(r => r.path)
   const toIdx = navRoutes.indexOf(toPath)
   const fromIdx = navRoutes.indexOf(fromPath)
@@ -77,8 +38,6 @@ router.beforeEach((to, from) => {
       <transition
         :name="transitionName"
         mode="out-in"
-        @enter="onTransitionEnter"
-        @leave="onTransitionLeave"
       >
         <component
           :is="Component"
@@ -91,7 +50,7 @@ router.beforeEach((to, from) => {
 
 <style>
 :root {
- /* ── Radius ── */
+  /* ── Radius ── */
   --radius: 0.625rem;
   --radius-xs: calc(var(--radius) * 0.4);
   --radius-sm: calc(var(--radius) * 0.6);
@@ -101,7 +60,7 @@ router.beforeEach((to, from) => {
   --radius-2xl: calc(var(--radius) * 2);
   --radius-full: 9999px;
 
- /* ── Surfaces ── */
+  /* ── Surfaces ── */
   --background: #fafbfc;
   --foreground: #0a0a0b;
   --card: #ffffff;
@@ -131,14 +90,14 @@ router.beforeEach((to, from) => {
   --input: #e5e7eb;
   --ring: #4f46e5;
 
- /* ── Chart Palette ── */
+  /* ── Chart Palette ── */
   --chart-1: #6366f1;
   --chart-2: #0891b2;
   --chart-3: #8b5cf6;
   --chart-4: #d97706;
   --chart-5: #059669;
 
- /* ── Typography ── */
+  /* ── Typography ── */
   --font-sans: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
   --font-size-xs: 0.6875rem;
@@ -156,7 +115,7 @@ router.beforeEach((to, from) => {
   --tracking-normal: -0.01em;
   --tracking-wide: 0.025em;
 
- /* ── Spacing ── */
+  /* ── Spacing ── */
   --space-0: 0;
   --space-0-5: 0.125rem;
   --space-1: 0.25rem;
@@ -172,7 +131,7 @@ router.beforeEach((to, from) => {
   --space-12: 3rem;
   --space-16: 4rem;
 
- /* ── Shadows ── */
+  /* ── Shadows ── */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
@@ -182,7 +141,7 @@ router.beforeEach((to, from) => {
   --shadow-glow-success: 0 0 0 3px rgba(5, 150, 105, 0.12);
   --shadow-glow-destructive: 0 0 0 3px rgba(220, 38, 38, 0.12);
 
- /* ── Motion ── */
+  /* ── Motion ── */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -191,7 +150,7 @@ router.beforeEach((to, from) => {
   --duration-slow: 300ms;
   --duration-slower: 500ms;
 
- /* ── Z-Index ── */
+  /* ── Z-Index ── */
   --z-base: 0;
   --z-dropdown: 1000;
   --z-sticky: 1020;
@@ -200,7 +159,7 @@ router.beforeEach((to, from) => {
   --z-popover: 1060;
   --z-tooltip: 1070;
 
- /* ── Layout ── */
+  /* ── Layout ── */
   --sidebar-width: 260px;
   --sidebar-width-collapsed: 64px;
   --header-height: 56px;
@@ -310,9 +269,7 @@ a:hover { color: var(--primary-hover); }
 .el-menu--horizontal { border-bottom: none !important; }
 .glass { background: color-mix(in srgb, var(--card) 80%, transparent); backdrop-filter: blur(16px) saturate(1.8); -webkit-backdrop-filter: blur(12px) saturate(1.5); }
 @keyframes fade-in-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-/* QA-FIX (G#2): fill-mode 用 backwards 而非 both — both 会让 translateY(0) 的恒等
-   transform 永久残留，成为 fixed 弹层(抽屉/对话框)的包含块，页面滚动时弹层错位不可操作 */
-.animate-fade-in { animation: fade-in-up 0.4s var(--ease-out) backwards; }
+.animate-fade-in { animation: fade-in-up 0.4s var(--ease-out) both; }
 @media (max-width: 768px) { html { font-size: 14px; } .el-card__body { padding: var(--space-4) !important; } .el-card__header { padding: var(--space-3) var(--space-4) !important; } }
 
 /* ── Enhanced Element Plus Overrides ── */
@@ -469,7 +426,7 @@ html { transition: background-color var(--duration-slow) var(--ease-in-out), col
   to { opacity: 1; transform: translateY(0); }
 }
 .stagger > * {
-  animation: stagger-in 0.35s var(--ease-out) backwards;
+  animation: stagger-in 0.35s var(--ease-out) both;
 }
 .stagger > *:nth-child(1) { animation-delay: 0ms; }
 .stagger > *:nth-child(2) { animation-delay: 50ms; }
@@ -500,6 +457,8 @@ html { transition: background-color var(--duration-slow) var(--ease-in-out), col
 .border-glow:hover {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent), var(--shadow-sm);
 }
+
+
 
 /* Stat Card Pattern */
 .stat-card {

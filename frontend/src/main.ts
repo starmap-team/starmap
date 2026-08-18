@@ -22,7 +22,7 @@ async function bootstrap() {
   app.use(router)
   app.use(ElementPlus, { locale: zhCn })
 
- // DEBUG: global error handler to capture full stack traces
+  // DEBUG: global error handler to capture full stack traces
   app.config.errorHandler = (err, instance, info) => {
     console.error('[Vue Global Error]', err)
     if (err instanceof Error) console.error('[Vue Global Error Stack]', err.stack)
@@ -30,7 +30,7 @@ async function bootstrap() {
     console.error('[Vue Global Error Info]', info)
   }
 
- // 全局注册 vue-echarts 组件，页面中直接用 <v-chart>
+  // 全局注册 vue-echarts 组件，页面中直接用 <v-chart>
   app.component('VChart', VChart)
 
   app.mount('#app')
