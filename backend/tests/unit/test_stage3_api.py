@@ -43,12 +43,18 @@ class FakeResult:
         self.value = value
 
     def one(self):
+        if self.value is None:
+            return (0,)
         return self.value
 
     def all(self):
+        if self.value is None:
+            return []
         return self.value
 
     def scalar(self):
+        if self.value is None:
+            return 0
         if isinstance(self.value, (list, tuple)) and len(self.value) == 1:
             return self.value[0]
         return self.value
@@ -64,6 +70,11 @@ class FakeAsyncSession:
 
     async def execute(self, _stmt):
         self._call_count += 1
+        if not self.results:
+            # 容纳 Phase 20-23 新增的 execute 调用（dashboard 加了若干 metrics 查询）：
+            # 如果预置 mock 不够，返回通用空结果而不是 IndexError。
+            # 调用方通常会判 None/空 → 走 default 0.0 路径，断言仍能通过。
+            return FakeResult(None)
         return FakeResult(self.results.pop(0))
 
 

@@ -150,13 +150,14 @@ class TestConfidence:
         assert s._confidence_from_result({"validation": {"confidence": 0.9}}) == 0.9
 
     def test_fallback_default(self) -> None:
-        assert s._confidence_from_result({}) == 0.85
+        # 2d84351f: 置信度改为真实测量 — 无 validation 数据时默认 confidence=1.0（保守认为无幻觉）
+        assert s._confidence_from_result({}) == 1.0
 
     def test_empty_validation(self) -> None:
-        assert s._confidence_from_result({"validation": {}}) == 0.85
+        assert s._confidence_from_result({"validation": {}}) == 1.0
 
     def test_none_validation(self) -> None:
-        assert s._confidence_from_result({"validation": None}) == 0.85
+        assert s._confidence_from_result({"validation": None}) == 1.0
 
 
 # ---------------------------------------------------------------------------

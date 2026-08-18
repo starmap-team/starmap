@@ -69,10 +69,10 @@ class TestDeprecatedScripts:
         from pathlib import Path
 
         script = (
-            Path(__file__).resolve().parents[2] / "scripts" / "backfill_graph_to_pg.py"
+            Path(__file__).resolve().parents[2] / "scripts" / "archive" / "backfill_graph_to_pg.py"
         ).read_text(encoding="utf-8")
         assert "DEPRECATED" in script, (
-            "scripts/backfill_graph_to_pg.py must have DEPRECATED banner (D-07)"
+            "scripts/archive/backfill_graph_to_pg.py must have DEPRECATED banner (D-07)"
         )
         assert "pipeline_graph_sync_reconcile_on_sync" in script, (
             "banner must reference the new config switch"
@@ -82,10 +82,10 @@ class TestDeprecatedScripts:
         from pathlib import Path
 
         script = (
-            Path(__file__).resolve().parents[2] / "scripts" / "sync_pg_edges_to_graph.py"
+            Path(__file__).resolve().parents[2] / "scripts" / "archive" / "sync_pg_edges_to_graph.py"
         ).read_text(encoding="utf-8")
         assert "DEPRECATED" in script, (
-            "scripts/sync_pg_edges_to_graph.py must have DEPRECATED banner (D-07)"
+            "scripts/archive/sync_pg_edges_to_graph.py must have DEPRECATED banner (D-07)"
         )
         assert "pipeline_graph_sync_reconcile_on_sync" in script, (
             "banner must reference the new config switch"
