@@ -78,7 +78,7 @@ async def reconcile_neo4j_endpoint(
     result = await projector.reconcile_all(session)
     duration_ms = int((time.time() - start) * 1000)
 
-    # 验证对齐（节点 + REQUIRES 边）
+ # 验证对齐（节点 + REQUIRES 边）
     async with driver.session() as s:
         r1 = await s.run("MATCH (p:Position) RETURN count(p) AS c")
         neo4j_pos = int((await r1.single())["c"])
@@ -95,7 +95,7 @@ async def reconcile_neo4j_endpoint(
         )
     ).scalar() or 0
     pg_skl = (await session.execute(select(func.count(SkillRecord.id)))).scalar() or 0
-    # IC-05: PG 侧只统计 approved 岗位的 PSR（Neo4j 只投影 approved）
+ # : PG 侧只统计 approved 岗位的 PSR（Neo4j 只投影 approved）
     pg_requires = (
         await session.execute(
             select(func.count(PositionSkillRelation.id))
@@ -105,7 +105,7 @@ async def reconcile_neo4j_endpoint(
     ).scalar() or 0
     requires_diff = abs(int(neo4j_requires) - int(pg_requires))
 
-    # 健康度（Phase 23 Task 3 扩展：边 ±0.5% 容差纳入三档）
+ # 健康度（ 扩展：边 ±0.5% 容差纳入三档）
     edge_tolerance = max(1, int(pg_requires * 0.005))
     nodes_equal = neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0
     if nodes_equal and requires_diff <= edge_tolerance:
@@ -117,7 +117,7 @@ async def reconcile_neo4j_endpoint(
     else:
         health = "critical"
 
-    # Phase 5 Step 4: 写 audit_events 记录
+ # Step 4: 写 audit_events 记录
     try:
         import uuid as _uuid
         from datetime import UTC
@@ -141,8 +141,8 @@ async def reconcile_neo4j_endpoint(
                     f"requires_diff={requires_diff}"
                 ),
                 "now": _dt.now(UTC),
-                # BUG-18 fix: tag reconcile events with their scope so
-                # admin audit log can filter by entity (graph).
+ # BUG-18 fix: tag reconcile events with their scope so
+ # admin audit log can filter by entity (graph).
                 "entity_type": "graph",
                 "entity_id": "all",
             },
@@ -174,7 +174,7 @@ async def reconcile_neo4j_endpoint(
     )
 
 
-# Review workflow endpoints (Phase 23 — D-tier redesign)
+# Review workflow endpoints ( — D-tier redesign)
 # ══════════════════════════════════════════════════════════════
 
 
@@ -262,9 +262,9 @@ async def approve_review_item_endpoint(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except review_service.InvalidStateTransition as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    # D8f 闭环: 岗位审核通过 → 立即入图 + LLM 补中文名（不等下一轮流水线）
+ # 闭环: 岗位审核通过 → 立即入图 + LLM 补中文名（不等下一轮流水线）
     item_dict = item.to_dict()
-    # to_dict 键是 review_status（非 status）
+ # to_dict 键是 review_status（非 status）
     if entity_type == "position" and item_dict.get("review_status") == "approved":
         position_name = item_dict.get("name", "")
         if position_name:
@@ -359,7 +359,7 @@ async def update_name_cn_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # 同步 Neo4j 节点 name_cn（图谱展示跟随 PG 权威）
+ # 同步 Neo4j 节点 name_cn（图谱展示跟随 PG 权威）
     if neo4j_driver is not None:
         try:
             from app.services.graph_projector import GraphProjector
@@ -433,7 +433,7 @@ async def get_pipeline_status(
     )
     from app.models.pipeline_models import PipelineRun as PR  # noqa: N817
 
-    # Recent 5 runs
+ # Recent 5 runs
     runs_result = await session.execute(
         sa.select(PR).order_by(PR.started_at.desc()).limit(5)
     )
@@ -448,7 +448,7 @@ async def get_pipeline_status(
         for r in runs_result.scalars().all()
     ]
 
-    # Data stats
+ # Data stats
     jd_count = int((await session.execute(
         sa.select(sa.func.count()).select_from(JDExtractionRecord)
     )).scalar() or 0)
@@ -489,7 +489,7 @@ async def trigger_full_pipeline(
     )
 
 
-# ── Sub-routers (Phase 7 admin domain split) ──
+# ── Sub-routers ( admin domain split) ──
 from app.api.v1.admin_graph_nodes import router as graph_nodes_router  # noqa: E402
 from app.api.v1.admin_prompts import router as prompts_router  # noqa: E402
 

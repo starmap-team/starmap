@@ -34,11 +34,11 @@ class ResumeParseStep:
 
         if ctx.resume_file is not None:
             if hasattr(ctx.resume_file, "read"):
-                # UploadFile 对象
+ # UploadFile 对象
                 content_bytes = await ctx.resume_file.read()  # type: ignore[union-attr]
                 filename = getattr(ctx.resume_file, "filename", "resume.pdf") or "resume.pdf"
             elif isinstance(ctx.resume_file, (bytes, bytearray)):
-                # 已读取的字节内容
+ # 已读取的字节内容
                 content_bytes = bytes(ctx.resume_file)
 
         if not content_bytes:
@@ -59,9 +59,9 @@ class SkillExtractStep:
     """步骤2：技能提取 — LLM 抽取 + 标准化 → ExtractedSkill 列表。"""
 
     name = "skill_extract"
-    # P1 fix (Phase 24 求职者分析): 30s→120s —— LLM 降级链（云端秒级 / 本地
-    # Ollama fallback 40-120s+）下 30s 必超时，导致后续 match/learn/recommend
-    # 级联失败（实测 4 警告全空结果）。对齐 MatchStep.timeout=120。
+ # P1 fix ( 求职者分析): 30s→120s —— LLM 降级链（云端秒级 / 本地
+ # Ollama fallback 40-120s+）下 30s 必超时，导致后续 match/learn/recommend
+ # 级联失败（实测 4 警告全空结果）。对齐 MatchStep.timeout=120。
     timeout = 120
 
     async def execute(self, ctx: PipelineContext) -> PipelineContext:
@@ -78,7 +78,7 @@ class SkillExtractStep:
             data = result.get("data", {})
             normalization = result.get("normalization", [])
 
-            # 构建标准化映射
+ # 构建标准化映射
             norm_map: dict[str, dict[str, Any]] = {}
             for norm in normalization:
                 if norm.get("original"):
@@ -90,7 +90,7 @@ class SkillExtractStep:
                 if not raw_name:
                     continue
 
-                # 查找对应的标准化结果
+ # 查找对应的标准化结果
                 norm_info = norm_map.get(raw_name, {})
                 canonical = norm_info.get("normalized") or raw_name
 
@@ -136,13 +136,13 @@ class MatchStep:
                 ctx.errors.append("match: 无岗位画像数据")
                 return ctx
 
-            # 确定要匹配的岗位列表
+ # 确定要匹配的岗位列表
             target_positions = ctx.target_positions or list(profiles.keys())
 
-            # 转换为 run_match 期望的格式
+ # 转换为 run_match 期望的格式
             person_skills = [{"skill": s.name, "proficiency": s.proficiency} for s in ctx.extracted_skills]
 
-            # 并行匹配（限制并发数，配置项化以便运行时调优）
+ # 并行匹配（限制并发数，配置项化以便运行时调优）
             sem = asyncio.Semaphore(settings.pipeline_match_concurrency)
 
             async def _match_one(pos_name: str) -> tuple[str, dict[str, Any] | None]:
@@ -165,14 +165,14 @@ class MatchStep:
 
             for pos_name, result in results:
                 if result:
-                    # P5 fix: 注入 _display_name（name_cn 优先）——分析报告 top_matches
-                    # 此前显示英文 name（Senior Controller – Reporting & Insights），
-                    # 岗位详情页用 name_cn || name（高级财务控制 — 报告与洞察）不一致。
+ # P5 fix: 注入 _display_name（name_cn 优先）——分析报告 top_matches
+ # 此前显示英文 name（Senior Controller – Reporting & Insights），
+ # 岗位详情页用 name_cn || name（高级财务控制 — 报告与洞察）不一致。
                     profile = profiles.get(pos_name)
                     result["_display_name"] = (profile.name_cn if profile and profile.name_cn else "") or pos_name
                     ctx.match_results[pos_name] = result
 
-            # 设置数据源标记
+ # 设置数据源标记
             data_stats = await self._repo.get_data_quality_stats()
             ctx.data_source = "graph" if data_stats.coverage_ratio >= 0.3 else "hardcoded_fallback"
 
@@ -200,7 +200,7 @@ class LearningPathStep:
 
         from app.services.match_service import enrich_learning_paths
 
-        # 为每个岗位的差距详情附加学习资源
+ # 为每个岗位的差距详情附加学习资源
         for _pos_name, result in ctx.match_results.items():
             gap_details = result.get("skill_gap_detail", [])
             if gap_details:
@@ -229,15 +229,15 @@ class RecommendStep:
 
         try:
             recs = await self._recommender.recommend(ctx.extracted_skills, top_k=10)
-            # P4 fix (Phase 24 求职者分析): 推荐岗位的 match_score 复用 MatchStep
-            # 的 ctx.match_results（graph repo，与 top_matches 口径一致）——此前
-            # PositionRecommender 用 get_all_position_profiles（PG repo）独立计算，
-            # 同岗位 graph=0.82 / PG=0.0，导致前端"匹配度"列误显示 0.0%。
+ # P4 fix ( 求职者分析): 推荐岗位的 match_score 复用 MatchStep
+ # 的 ctx.match_results（graph repo，与 top_matches 口径一致）——此前
+ # PositionRecommender 用 get_all_position_profiles（PG repo）独立计算，
+ # 同岗位 graph=0.82 / PG=0.0，导致前端"匹配度"列误显示 0.0%。
             match_by_position: dict[str, float] = {
                 name: float(res.get("match_score", 0.0))
                 for name, res in ctx.match_results.items()
             }
-            # P5 fix: 推荐岗位名同样用 name_cn（复用 MatchStep 注入的 _display_name）
+ # P5 fix: 推荐岗位名同样用 name_cn（复用 MatchStep 注入的 _display_name）
             display_by_position: dict[str, str] = {
                 name: (res.get("_display_name") or name)
                 for name, res in ctx.match_results.items()

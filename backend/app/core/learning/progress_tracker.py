@@ -57,7 +57,7 @@ async def create_plan(
     session.add(plan)
     await session.flush()  # Get the plan ID
 
-    # Create progress records for each skill
+ # Create progress records for each skill
     for skill_data in skills:
         skill_name = skill_data.get("skill", "")
         if not skill_name:
@@ -67,7 +67,7 @@ async def create_plan(
         importance = skill_data.get("importance", "required")
         hours = skill_data.get("estimated_hours", 0.0)
 
-        # Determine initial status from gap level
+ # Determine initial status from gap level
         if gap_level == GAP_LEVEL_MASTERED:
             initial_status = "mastered"
             initial_pct = 100.0
@@ -120,14 +120,14 @@ async def update_progress(
     Returns:
         Updated LearningProgress, or None if not found.
     """
-    # Validate status against allowed values
+ # Validate status against allowed values
     _VALID_STATUSES = {"not_started", "in_progress", "mastered"}  # noqa: N806
     if status is not None and status not in _VALID_STATUSES:
         raise ValueError(f"Invalid status: {status!r}. Must be one of {sorted(_VALID_STATUSES)}")
-    # P0-AUDIT-FIX (2026-08-13): row lock prevents two concurrent updates from
-    # both passing the auto-complete check and double-marking the plan.
-    # Without `with_for_update`, two parallel `update_progress` calls could
-    # both see `all_mastered = True` and race on `plan.status = "completed"`.
+ # P0-AUDIT-FIX (2026-08-13): row lock prevents two concurrent updates from
+ # both passing the auto-complete check and double-marking the plan.
+ # Without `with_for_update`, two parallel `update_progress` calls could
+ # both see `all_mastered = True` and race on `plan.status = "completed"`.
     stmt = (
         sa.select(LearningProgress)
         .where(
@@ -159,7 +159,7 @@ async def update_progress(
 
     if progress_pct is not None:
         progress.progress_pct = max(0.0, min(100.0, progress_pct))
-        # Auto-update status based on percentage
+ # Auto-update status based on percentage
         if progress_pct >= 100.0:
             progress.status = "mastered"
             if progress.completed_at is None:
@@ -175,11 +175,11 @@ async def update_progress(
 
     progress.updated_at = now
 
-    # Check if all skills are mastered → auto-complete plan
-    # P0-AUDIT-FIX (2026-08-13): `progress_pct >= 100.0` is NOT a valid mastery
-    # signal — a skill with status="not_started" and progress_pct=99.9 was
-    # silently counted as mastered, marking the whole plan completed.
-    # Only explicit status="mastered" counts.
+ # Check if all skills are mastered → auto-complete plan
+ # P0-AUDIT-FIX (2026-08-13): `progress_pct >= 100.0` is NOT a valid mastery
+ # signal — a skill with status="not_started" and progress_pct=99.9 was
+ # silently counted as mastered, marking the whole plan completed.
+ # Only explicit status="mastered" counts.
     all_progress = await get_plan_progress_list(session, plan_id=plan_id)
     all_mastered = bool(all_progress) and all(
         p.status == "mastered"
@@ -234,7 +234,7 @@ async def get_progress(
         - skills: list of per-skill progress dicts
         - stats: summary statistics
     """
-    # Get the plan
+ # Get the plan
     plan_stmt = sa.select(LearningPlan).where(LearningPlan.id == plan_id)
     plan_result = await session.execute(plan_stmt)
     plan = plan_result.scalar_one_or_none()
@@ -242,10 +242,10 @@ async def get_progress(
     if plan is None:
         return {"error": "Plan not found"}
 
-    # Get all progress records
+ # Get all progress records
     progress_list = await get_plan_progress_list(session, plan_id=plan_id)
 
-    # Calculate overall progress (weighted by importance)
+ # Calculate overall progress (weighted by importance)
     weight_map = {"required": 2.0, "bonus": 1.0}
     total_weight = 0.0
     weighted_pct = 0.0
@@ -269,7 +269,7 @@ async def get_progress(
 
     overall_pct = round(weighted_pct / total_weight, 1) if total_weight > 0 else 0.0
 
-    # Stats
+ # Stats
     mastered_count = sum(1 for p in progress_list if p.status == "mastered")
     in_progress_count = sum(1 for p in progress_list if p.status == "in_progress")
     not_started_count = sum(1 for p in progress_list if p.status == "not_started")

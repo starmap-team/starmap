@@ -64,8 +64,8 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
     duplicates_found = 0
     errors: list[str] = []
     start = time.monotonic()
-    # D8 fix: unique_jds/duplicates 在 except 路径（dedup_service 抛错）未定义 →
-    # UnboundLocalError。初始化默认值，失败时返回 0 分解（诚实空态）。
+ # D8 fix: unique_jds/duplicates 在 except 路径（dedup_service 抛错）未定义 →
+ # UnboundLocalError。初始化默认值，失败时返回 0 分解（诚实空态）。
     unique_jds: list[Any] = []
     duplicates = 0
     unique_titles: list[str] = []
@@ -92,9 +92,9 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
                     "records_processed": 0,
                     "errors": errors,
                     "duplicates_found": 0,
-                    # Phase 19: 空分支 return 也补 current_activity（DB 快照持久化）
+ # : 空分支 return 也补 current_activity（DB 快照持久化）
                     "current_activity": "无待去重记录",
-                    # D8: 0 条时也返回分解，详情抽屉/阶段展开不显示空白
+ # D8: 0 条时也返回分解，详情抽屉/阶段展开不显示空白
                     "sub_breakdown": {"原始总数": 0, "唯一数": 0, "重复数": 0},
                     "recent_samples": [],
                 }
@@ -133,8 +133,8 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
 
             duplicates = len(dup_jds)
             duplicates_found = duplicates
-            # D8c: 在 session 内收集唯一记录标题（dedup_jd_records 返回的实例可能
-            # 已脱离 session，commit 后访问 .job_title 触发 DetachedInstanceError）
+ # : 在 session 内收集唯一记录标题（dedup_jd_records 返回的实例可能
+ # 已脱离 session，commit 后访问 .job_title 触发 DetachedInstanceError）
             unique_titles = [
                 (jd.job_title or "未命名")[:60]
                 for jd in unique_jds
@@ -167,7 +167,7 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
             elapsed_ms=int((time.monotonic() - start) * 1000),
         ))
     finally:
-        # Phase 2 SOURCE-02: execute_dedup 后更新 duplicate_rate (UAT 修复)
+ # SOURCE-02: execute_dedup 后更新 duplicate_rate (UAT 修复)
         try:
             _update_source_after_dedup(run_id, duplicates_found, processed)
         except PipelineStageError:
@@ -179,21 +179,21 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
         "records_processed": processed,
         "errors": errors,
         "duplicates_found": duplicates_found,
-        # Phase 19 修复: return 补 current_activity（DB 快照持久化，卡片解释"为何 0/去重结果"）
+ # 修复: return 补 current_activity（DB 快照持久化，卡片解释"为何 0/去重结果"）
         "current_activity": (
             f"去重完成: 总 {processed} → 唯一 {len(unique_jds)} 条"
             f" (剔除 {duplicates} 条重复)"
             if processed
             else "无待去重记录"
         ),
-        # 2026-08-12 (pipeline 联调): 持久化去重分解，详情抽屉可解释"为何入库 0"
+ # 2026-08-12 (pipeline 联调): 持久化去重分解，详情抽屉可解释"为何入库 0"
         "sub_breakdown": {
             "原始总数": processed,
             "唯一数": len(unique_jds),
             "重复数": duplicates,
         },
-        # D8 fix: 补去重后唯一记录标题样本（详情抽屉展示去重结果）——
-        # 用 session 内收集的 unique_titles，避免访问脱绑实例
+ # D8 fix: 补去重后唯一记录标题样本（详情抽屉展示去重结果）——
+ # 用 session 内收集的 unique_titles，避免访问脱绑实例
         "recent_samples": [{"title": t} for t in unique_titles[:5]],
     }
 

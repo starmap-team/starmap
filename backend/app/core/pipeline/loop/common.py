@@ -76,12 +76,12 @@ class LoopResult:
     match_result: dict[str, Any] = field(default_factory=dict)
     learning_path: dict[str, Any] = field(default_factory=dict)
     total_duration_seconds: float = 0.0
-    # SEC-04 QA-FIX (F#11): 携带归属用户，供 in-memory 历史回退路径做 IDOR 过滤。
+ # SEC-04 QA-FIX (F#11): 携带归属用户，供 in-memory 历史回退路径做 IDOR 过滤。
     user_id: str = "system"
 
     def to_dict(self) -> dict[str, Any]:
-        # ponytail: defer the verification build until to_dict time so step-level
-        # modules can stay decoupled from the status/checks helper.
+ # ponytail: defer the verification build until to_dict time so step-level
+ # modules can stay decoupled from the status/checks helper.
         from app.core.pipeline.loop.status import _build_loop_verification
 
         return {
@@ -106,7 +106,7 @@ class LoopResult:
             "match_result": self.match_result,
             "learning_path": self.learning_path,
             "total_duration_seconds": round(self.total_duration_seconds, 2),
-            # Phase 3: 逐步核验摘要
+ # : 逐步核验摘要
             "verification": _build_loop_verification(self.steps),
         }
 
@@ -160,7 +160,7 @@ async def _update_steps_json(
     try:
         from app.models.pipeline_models import LoopResultRecord
 
-        # Re-fetch to avoid detached-instance issues
+ # Re-fetch to avoid detached-instance issues
         db_record = await session.get(LoopResultRecord, db_record.id)
         if db_record is None:
             return
@@ -204,7 +204,7 @@ async def _complete_loop_run(
                 exc,
             )
 
-    # Fallback: in-memory history storage
+ # Fallback: in-memory history storage
     _LOOP_RESULTS[result.run_id] = result
     if len(_LOOP_RESULTS) > _LOOP_HISTORY_MAX:
         excess = len(_LOOP_RESULTS) - _LOOP_HISTORY_MAX

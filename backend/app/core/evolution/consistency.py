@@ -64,8 +64,8 @@ async def check_pg_neo4j_consistency(
                     )
                 )
             ).all()
-        # W4: 键含 requirement_type —— 同一 (position, skill) 的 required 与 preferred
-        # 行/边各自独立比较，互不折叠覆盖。
+ # W4: 键含 requirement_type —— 同一 (position, skill) 的 required 与 preferred
+ # 行/边各自独立比较，互不折叠覆盖。
         pg_rels: dict[tuple[str, str, str], float] = {
             (str(position_id), str(skill_id), requirement_type): float(confidence or 0.0)
             for position_id, skill_id, requirement_type, confidence in rows

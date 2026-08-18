@@ -150,9 +150,9 @@ async def call_xunfei_llm(
     if not api_key:
         raise LLMConnectionError("XUNFEI_API_KEY is not configured")
 
-    # 讯飞 HTTP OpenAI 兼容端点鉴权为 `Bearer {APIKey}:{APISecret}`（OpenAI 兼容，
-    # 非 Spark WebSocket 的三段式 HMAC 签名）。实测仅带 APIKey 会 401
-    # ("HMAC secret key does not match")；带 `APIKey:APISecret` 鉴权通过。
+ # 讯飞 HTTP OpenAI 兼容端点鉴权为 `Bearer {APIKey}:{APISecret}`（OpenAI 兼容，
+ # 非 Spark WebSocket 的三段式 HMAC 签名）。实测仅带 APIKey 会 401
+ # ("HMAC secret key does not match")；带 `APIKey:APISecret` 鉴权通过。
     if api_secret:
         bearer = f"{api_key}:{api_secret}"
     else:
@@ -229,15 +229,15 @@ async def call_spark_x_llm(
         raise LLMConnectionError("XUNFEI_API_KEY is not configured")
 
     bearer = f"{api_key}:{api_secret}" if api_secret else api_key
-    # 兼容两种配置：SPARK_X_URL 可能含 /chat/completions 后缀（如 /x2/chat/completions）
-    # 也可能只到模型根路径（如 /x2/）——统一规范化，避免重复拼接导致 404。
+ # 兼容两种配置：SPARK_X_URL 可能含 /chat/completions 后缀（如 /x2/chat/completions）
+ # 也可能只到模型根路径（如 /x2/）——统一规范化，避免重复拼接导致 404。
     base = settings.spark_x_url.rstrip("/")
     url = base if base.endswith("/chat/completions") else f"{base}/chat/completions"
     headers = {
         "Authorization": f"Bearer {bearer}",
         "Content-Type": "application/json",
     }
-    # 深度推理模型：max_tokens 需覆盖 reasoning + output
+ # 深度推理模型：max_tokens 需覆盖 reasoning + output
     payload = {
         "model": settings.spark_x_model,
         "messages": [{"role": "user", "content": prompt}],
@@ -394,7 +394,7 @@ async def call_dashscope_llm(
                 pool=10.0,
             )
         ) as client:
-            # base_url 指向 OpenAI 兼容根(如 .../compatible-mode/v1)，须拼 /chat/completions
+ # base_url 指向 OpenAI 兼容根(如 .../compatible-mode/v1)，须拼 /chat/completions
             url = settings.dashscope_base_url.rstrip("/") + "/chat/completions"
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
@@ -463,7 +463,7 @@ async def call_llm_with_fallback(
         prefer_spark_x or len(prompt) <= SPARK_X_MAX_PROMPT_CHARS
     )
 
-    # 阿里云百炼 Qwen（2026-08-14 接入，降级链首选）——DeepSeek 余额不足、讯飞 11200 时主链路
+ # 阿里云百炼 Qwen（2026-08-14 接入，降级链首选）——DeepSeek 余额不足、讯飞 11200 时主链路
     if settings.dashscope_api_key:
         try:
             return await _call_and_track(call_dashscope_llm)
@@ -472,7 +472,7 @@ async def call_llm_with_fallback(
             logger.warning(msg)
             errors.append(msg)
 
-    # Try Spark X first (X2/X1.5 深度推理 — 用户首选；仅短 prompt 或显式偏好时)
+ # Try Spark X first (X2/X1.5 深度推理 — 用户首选；仅短 prompt 或显式偏好时)
     if spark_x_candidate:
         try:
             return await _call_and_track(call_spark_x_llm)
@@ -481,7 +481,7 @@ async def call_llm_with_fallback(
             logger.warning(msg)
             errors.append(msg)
 
-    # Try MiMo (secondary reasoning model)
+ # Try MiMo (secondary reasoning model)
     if settings.mimo_api_key:
         try:
             return await _call_and_track(call_mimo_llm)
@@ -490,7 +490,7 @@ async def call_llm_with_fallback(
             logger.warning(msg)
             errors.append(msg)
 
-    # Try DeepSeek (抽取主阶段首选：长 prompt 稳定 4-7s)
+ # Try DeepSeek (抽取主阶段首选：长 prompt 稳定 4-7s)
     if settings.deepseek_api_key:
         try:
             return await _call_and_track(call_deepseek_llm)
@@ -499,7 +499,7 @@ async def call_llm_with_fallback(
             logger.warning(msg)
             errors.append(msg)
 
-    # Try Xunfei Spark 传统模型
+ # Try Xunfei Spark 传统模型
     if settings.xunfei_api_key:
         try:
             return await _call_and_track(call_xunfei_llm)
@@ -508,7 +508,7 @@ async def call_llm_with_fallback(
             logger.warning(msg)
             errors.append(msg)
 
-    # Try local Qwen/Ollama fallback
+ # Try local Qwen/Ollama fallback
     fallback_endpoint = settings.qwen_model_path
     if not fallback_endpoint:
         raise LLMConnectionError(
@@ -516,12 +516,12 @@ async def call_llm_with_fallback(
         )
 
     base = fallback_endpoint.rstrip("/")
-    # Ollama uses /api/chat, not /v1/chat/completions
+ # Ollama uses /api/chat, not /v1/chat/completions
     ollama_url = f"{base}/api/chat"
     logger.info("Calling fallback Qwen/Ollama at {}", ollama_url)
     try:
-        # 本地 Ollama 生成慢（短 JD ~40-120s+），硬编码 120s 常导致真实抽取
-        # 超时。放宽到 300s，让本地降级模型也能完成真实抽取（前端同步放宽）。
+ # 本地 Ollama 生成慢（短 JD ~40-120s+），硬编码 120s 常导致真实抽取
+ # 超时。放宽到 300s，让本地降级模型也能完成真实抽取（前端同步放宽）。
         async with httpx.AsyncClient(timeout=httpx.Timeout(300)) as client:
             resp = await client.post(
                 ollama_url,
@@ -544,14 +544,14 @@ async def call_llm_with_fallback(
     except httpx.TimeoutException as e:
         raise LLMTimeoutError("Fallback LLM timeout") from e
     except httpx.RequestError as e:
-        # Network/HTTP transport errors — wrap as connection failure.
+ # Network/HTTP transport errors — wrap as connection failure.
         raise LLMConnectionError(f"Fallback LLM transport failed: {e}") from e
     except (KeyError, IndexError) as e:
-        # P0-AUDIT-FIX (2026-08-13): response-shape errors must NOT be coerced
-        # into LLMConnectionError. If Ollama/Qwen changes its JSON layout,
-        # the caller treats this as a transient transport failure and retries
-        # forever. Re-raise as LLMResponseError so the orchestrator can decide
-        # whether to retry (no) or fall back further (yes).
+ # P0-AUDIT-FIX (2026-08-13): response-shape errors must NOT be coerced
+ # into LLMConnectionError. If Ollama/Qwen changes its JSON layout,
+ # the caller treats this as a transient transport failure and retries
+ # forever. Re-raise as LLMResponseError so the orchestrator can decide
+ # whether to retry (no) or fall back further (yes).
         raise LLMResponseError(f"Fallback LLM returned unexpected shape: {e}") from e
 
 
@@ -596,8 +596,8 @@ class LLMClient:
 
         prompt = get_prompt("jd_extraction", jd_content=jd_text)
         response = await call_llm_with_fallback(prompt)
-        # 记录实际用于抽取的模型（含降级 fallback，如 qwen2.5-7b-fallback），
-        # 供抽取管线透传给前端做“本次所用模型/是否降级”提示。
+ # 记录实际用于抽取的模型（含降级 fallback，如 qwen2.5-7b-fallback），
+ # 供抽取管线透传给前端做“本次所用模型/是否降级”提示。
         self.last_extraction_model = response.get("model")
         return parse_llm_json_response(response["content"])
 
@@ -630,7 +630,7 @@ class LLMClient:
             system_json=json.dumps(system_output, ensure_ascii=False, indent=2),
             golden_json=json.dumps(golden, ensure_ascii=False, indent=2),
         )
-        # LLM 评测质量敏感且 prompt 较短 → 优先 Spark X 深度推理
+ # LLM 评测质量敏感且 prompt 较短 → 优先 Spark X 深度推理
         response = await call_llm_with_fallback(prompt, prefer_spark_x=True)
         return parse_llm_json_response(response["content"])
 

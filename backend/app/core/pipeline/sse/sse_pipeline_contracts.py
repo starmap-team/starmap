@@ -101,7 +101,7 @@ class PipelineCompletedEvent(TypedDict, total=False):
 # - 所有 event_id 全局唯一（UUID 或 ULID）
 # - 客户端按 last_event_id 去重
 # - EventSource 原生支持 Last-Event-ID header 自续传
-# - 轮询 fallback 用 since=<unix_ts> 参数（D-09）
+# - 轮询 fallback 用 since=<unix_ts> 参数（）
 
 # 重连协议：
 # - 断开：客户端重试用指数退避（baseDelay=1000ms, maxDelay=30000ms）
@@ -116,11 +116,11 @@ class PipelineCompletedEvent(TypedDict, total=False):
 
 # 订阅示例（前端 useSSE storeHandlers）：
 # storeHandlers = {
-#   "stage.sub_step": (data) => { /* D-15 子步骤 */ },
-#   "stage.progress": (data) => { /* 进度 */ },
-#   "stage.completed": (data) => { /* 阶段完成 */ },
-#   "stage.failed": (data) => { /* 阶段失败 */ },
-#   "pipeline.completed": (data) => { /* 流水线完成 */ },
+# "stage.sub_step": (data) => { /* 子步骤 */ },
+# "stage.progress": (data) => { /* 进度 */ },
+# "stage.completed": (data) => { /* 阶段完成 */ },
+# "stage.failed": (data) => { /* 阶段失败 */ },
+# "pipeline.completed": (data) => { /* 流水线完成 */ },
 # }
 
 

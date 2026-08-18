@@ -102,7 +102,7 @@ class DataSourceCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     source_type: Literal["job_board", "blog", "esco", "manual", "rss", "api"] = "job_board"
     authority_score: float = Field(default=0.5, ge=0, le=1)
-    # 新源不能直接建为停用：不含 'inactive'（停用只经 DELETE 软删除 / PATCH）。
-    # 运行值全集见 app.core.constants.DataSourceStatus。
+ # 新源不能直接建为停用：不含 'inactive'（停用只经 DELETE 软删除 / PATCH）。
+ # 运行值全集见 app.core.constants.DataSourceStatus。
     status: Literal["active", "paused", "error"] = "active"
     config: dict[str, Any] = Field(default_factory=dict)

@@ -19,7 +19,7 @@ from app.core.extraction.normalize import normalize_proficiency
 from app.core.matching.constants import ALLOWED_NODE_LABELS
 from app.exceptions import GraphProjectionError, StarMapError
 
-# ---- Node type labels (§2.1: 7类节点) ----
+# ---- Node type labels (: 7类节点) ----
 NODE_POSITION = "Position"
 NODE_SKILL = "Skill"
 NODE_KNOWLEDGE_AREA = "KnowledgeArea"
@@ -28,7 +28,7 @@ NODE_CERTIFICATE = "Certificate"
 NODE_LEARNING_RESOURCE = "LearningResource"
 NODE_INDUSTRY = "Industry"
 
-# ---- Relationship types (§2.2: 8类关系) ----
+# ---- Relationship types (: 8类关系) ----
 REL_REQUIRES = "REQUIRES"           # Position -> Skill (requirement_type:'required'|'preferred' 唯一真值, required:bool 兼容读, weight:float)
 REL_PREREQUISITE = "PREREQUISITE"   # Skill -> Skill (strength:float)
 REL_EVOLVES_TO = "EVOLVES_TO"       # Position -> Position (similarity:float, evidence_count)
@@ -97,8 +97,8 @@ def _node_ref(label: str, name: str, properties: dict[str, Any] | None = None) -
         raise ValueError("Graph node name cannot be empty")
     props = _clean_properties(properties)
     props.setdefault("name", name)
-    # Do NOT set category=label — category is a semantic field (e.g. hard_skill/soft_skill),
-    # not the Neo4j node label. The label is already stored in the node's label set.
+ # Do NOT set category=label — category is a semantic field (e.g. hard_skill/soft_skill),
+ # not the Neo4j node label. The label is already stored in the node's label set.
     return GraphNodeRef(label=label, name=name, properties=props)
 
 
@@ -291,9 +291,9 @@ def build_triples_from_extraction(extraction: dict[str, Any]) -> list[GraphTripl
     for prerequisite in extraction.get("prerequisites", []) or []:
         if not isinstance(prerequisite, dict):
             continue
-        # Prompt schema: skill = prerequisite skill, required_by = skill that depends on it
-        # e.g. {"skill": "Python", "required_by": "Django"} means Django requires Python
-        # Graph relationship: required_by -[PREREQUISITE]-> skill (Django PREREQUISITE Python)
+ # Prompt schema: skill = prerequisite skill, required_by = skill that depends on it
+ # e.g. {"skill": "Python", "required_by": "Django"} means Django requires Python
+ # Graph relationship: required_by -[PREREQUISITE]-> skill (Django PREREQUISITE Python)
         prereq_name = str(prerequisite.get("skill") or prerequisite.get("prerequisite") or "").strip()
         dependent_name = str(prerequisite.get("required_by") or prerequisite.get("skill_name") or "").strip()
         if not prereq_name or not dependent_name:
@@ -470,9 +470,9 @@ async def merge_position(driver: Any, position_data: dict[str, Any], canonical_i
     name = position_data.get("name") or position_data.get("position_name") or position_data.get("job_title") or "未知职位"
     name_cn = position_data.get("name_cn", "")
     if not canonical_id:
-        # Phase 23 Task 2 (checkpoint:decision): MERGE 键从 name 切为 canonical_id。
-        # 无 canonical_id 落图会再次产生孤儿（P4a/R1 历史根因），改为显式 raise
-        # 让写路径缺口可观测——不再静默产生 name-MERGE 孤儿。
+ # (checkpoint:decision): MERGE 键从 name 切为 canonical_id。
+ # 无 canonical_id 落图会再次产生孤儿（P4a/R1 历史根因），改为显式 raise
+ # 让写路径缺口可观测——不再静默产生 name-MERGE 孤儿。
         raise GraphProjectionError(
             f"merge_position requires canonical_id (PG SSOT) for {name!r} — refusing to create orphan node"
         )
@@ -536,14 +536,14 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
     """
     from neo4j.exceptions import Neo4jError
 
-    # Phase 19: 投影落 trust_score（§6.2 四因子公式）——修复"投影不写信任 → 新技能
-    # Neo4j 无 trust_score / 全 0.5 脏数据"根因。metadata 带 confidence（抽取置信度）
-    # 与 last_detected_at；缺失时 scorer 内部兜底（conf→0.5, time→按来源数）。
+ # : 投影落 trust_score（ 四因子公式）——修复"投影不写信任 → 新技能
+ # Neo4j 无 trust_score / 全 0.5 脏数据"根因。metadata 带 confidence（抽取置信度）
+ # 与 last_detected_at；缺失时 scorer 内部兜底（conf→0.5, time→按来源数）。
     from app.core.trust.entity_trust import EntityTrustScorer  # noqa: PLC0415
 
     if not canonical_id:
-        # Phase 23 Task 2 (checkpoint:decision): 同 merge_position——无 canonical_id
-        # 落图会再次产生孤儿（R1/R3 历史根因），改为显式 raise 而非静默 name-MERGE。
+ # (checkpoint:decision): 同 merge_position——无 canonical_id
+ # 落图会再次产生孤儿（R1/R3 历史根因），改为显式 raise 而非静默 name-MERGE。
         raise GraphProjectionError(
             f"merge_skill requires canonical_id (PG SSOT) for {skill_name!r} — refusing to create orphan node"
         )
@@ -642,7 +642,7 @@ async def create_requires_relationship(
         query = """
         MATCH (p:Position {canonical_id: $position_canonical_id})
         MATCH (s:Skill {canonical_id: $skill_canonical_id})
-        // ponytail: 无属性 MERGE + SET —— 属性值变化不产生重复边（REQUIRES 重复 34% 教训）
+ // ponytail: 无属性 MERGE + SET —— 属性值变化不产生重复边（REQUIRES 重复 34% 教训）
         MERGE (p)-[r:REQUIRES]->(s)
         SET r.level = $level, r.required = $required, r.weight = $weight,
             r.requirement_type = $requirement_type, r.updated_at = datetime()
@@ -657,8 +657,8 @@ async def create_requires_relationship(
             "requirement_type": requirement_type,
         }
     else:
-        # 兼容回退：未传 canonical_id 时按 name MATCH（读/补丁路径保留 name 匹配，
-        # RESEARCH §2.2-4 影响面收敛——graph_sync/matching/脚本按 name 读仍可用）。
+ # 兼容回退：未传 canonical_id 时按 name MATCH（读/补丁路径保留 name 匹配，
+ # RESEARCH -4 影响面收敛——graph_sync/matching/脚本按 name 读仍可用）。
         query = """
         MATCH (p:Position {name: $position_name})
         MATCH (s:Skill {name: $skill_name})
@@ -719,7 +719,7 @@ async def write_extraction_to_graph(
         or extraction.get("job_title")
     )
     if not _raw_name or not str(_raw_name).strip():
-        # Phase 17-03 (Fix B3): 缺失 position_name 静默跳过, 不阻塞 batch
+ # -03 (Fix B3): 缺失 position_name 静默跳过, 不阻塞 batch
         logger.warning(
             f"graph_writer: extraction {extraction.get('id') or extraction.get('source_url', '?')[:40]} missing position_name, skipping"
         )
@@ -730,7 +730,7 @@ async def write_extraction_to_graph(
     skill_cids: dict[str, str] = (canonical_ids or {}).get("skills") or {}
 
 
-    # Step 1: Merge Position node using standalone retry-enabled function
+ # Step 1: Merge Position node using standalone retry-enabled function
     try:
         await merge_position(driver, extraction, canonical_id=pos_cid)
         positions_merged = 1
@@ -740,7 +740,7 @@ async def write_extraction_to_graph(
         logger.exception("Graph writer error: {}", exc)
         raise GraphProjectionError(str(exc)) from exc
 
-    # Step 2: Merge Skill nodes and create REQUIRES relationships using standalone functions
+ # Step 2: Merge Skill nodes and create REQUIRES relationships using standalone functions
     skills_merged = 0
     requires_created = 0
     for required_flag, skills_list in (
@@ -757,7 +757,7 @@ async def write_extraction_to_graph(
                 "category": skill_entry_category(entry),
                 "source_count": _skill_entry_source_count(entry),
                 "trend": _skill_entry_trend(entry),
-                # Phase 19: 抽取置信度透传 → merge_skill 计算 trust_score（§6.2）
+ # : 抽取置信度透传 → merge_skill 计算 trust_score（）
                 "confidence": _skill_entry_confidence(entry),
             }
             try:
@@ -773,10 +773,10 @@ async def write_extraction_to_graph(
                     driver, position_name, skill_name,
                     level=level, required=required_flag,
                     weight=1.0 if required_flag else 0.6,
-                    # Phase 23 Task 6 (DC-05): REQUIRES 属性契约唯一真值 —— 与演化
-                    # 投影 graph_projection._PROJECT_QUERY 的 r.requirement_type 对齐。
+ # (): REQUIRES 属性契约唯一真值 —— 与演化
+ # 投影 graph_projection._PROJECT_QUERY 的 r.requirement_type 对齐。
                     requirement_type="required" if required_flag else "preferred",
-                    # Phase 23 Task 2: REQUIRES 端点按 canonical_id MATCH（写路径主键收敛）
+ # : REQUIRES 端点按 canonical_id MATCH（写路径主键收敛）
                     position_canonical_id=pos_cid,
                     skill_canonical_id=skill_cids.get(skill_name),
                 )
@@ -786,11 +786,11 @@ async def write_extraction_to_graph(
             except Exception as exc:
                 logger.exception("Graph writer error: {}", exc)
 
-    # Step 3: Build and write ontology triples for extended relationships
-    # (tools → USES, prerequisites → PREREQUISITE, etc.)
+ # Step 3: Build and write ontology triples for extended relationships
+ # (tools → USES, prerequisites → PREREQUISITE, etc.)
     triples = build_triples_from_extraction(extraction)
 
-    # Deduplicate triples that were already created above (REQUIRES and Position/Skill nodes)
+ # Deduplicate triples that were already created above (REQUIRES and Position/Skill nodes)
     extended_triples = [t for t in triples if t.relationship != REL_REQUIRES]
     extended_summary = await write_triples_to_graph(driver, extended_triples)
 
@@ -833,7 +833,7 @@ async def batch_write_extractions(
     summaries = []
     for idx, extraction in enumerate(extractions):
         canonical_ids = canonical_ids_list[idx] if canonical_ids_list else None
-        # Phase 17-03 (Fix B4): try/except 单条隔离, 一条失败不阻塞整个 batch
+ # -03 (Fix B4): try/except 单条隔离, 一条失败不阻塞整个 batch
         try:
             summary = await write_extraction_to_graph(extraction, driver, canonical_ids=canonical_ids)
         except Exception as exc:
@@ -867,7 +867,7 @@ async def get_position_skills(driver: Any, position_name: str, *, position_canon
         """
         params: dict[str, Any] = {"position_canonical_id": position_canonical_id}
     else:
-        # 兼容回退：读路径保留 name MATCH（RESEARCH §2.2-4 影响面收敛）
+ # 兼容回退：读路径保留 name MATCH（RESEARCH -4 影响面收敛）
         query = """
         MATCH (p:Position {name: $name})-[r:REQUIRES]->(s:Skill)
         RETURN s.name AS skill_name, r.level AS level,
@@ -881,8 +881,8 @@ async def get_position_skills(driver: Any, position_name: str, *, position_canon
         result = await session.run(query, **params)
         async for record in result:
             entry = {"name": record["skill_name"], "level": record.get("level", "intermediate")}
-            # Phase 23 Task 6 (DC-05): requirement_type 是唯一真值，优先读它；
-            # 历史边无 requirement_type 时回退 r.required（缺省 True 兼容）。
+ # (): requirement_type 是唯一真值，优先读它；
+ # 历史边无 requirement_type 时回退 r.required（缺省 True 兼容）。
             req_type = record.get("requirement_type")
             if req_type is not None:
                 is_required = req_type == "required"

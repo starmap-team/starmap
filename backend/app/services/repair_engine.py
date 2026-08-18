@@ -92,17 +92,17 @@ def _suggest_pg_match(
     """
     if not name:
         return None, None, None
-    # 1. 大小写精确
+ # 1. 大小写精确
     low = name.lower()
     for pn, cid in pg_name_to_id.items():
         if pn.lower() == low:
             return cid, pn, "exact"
-    # 2. 归一化相等
+ # 2. 归一化相等
     norm = _normalize_name(name)
     for pn, cid in pg_name_to_id.items():
         if norm and _normalize_name(pn) == norm:
             return cid, pn, "normalized"
-    # 3. token 子集（孤儿 token ⊆ PG token，且 PG 名不长于孤儿名 3 倍，降低误链）
+ # 3. token 子集（孤儿 token ⊆ PG token，且 PG 名不长于孤儿名 3 倍，降低误链）
     tokens = set(re.findall(r"[a-z0-9\u4e00-\u9fff]+", name.lower()))
     if not tokens:
         return None, None, None
@@ -139,9 +139,9 @@ class RepairEngine:
     def __init__(self, driver: Any) -> None:
         self._driver = driver
 
-    # ------------------------------------------------------------------
-    # ① 孤儿严格检测（统一口径，含无 canonical_id 节点）
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # ① 孤儿严格检测（统一口径，含无 canonical_id 节点）
+ # ------------------------------------------------------------------
 
     async def detect_orphans(self, pg_session: Any) -> OrphanScanResult:
         """扫描 Neo4j 全部节点，与 PG 严格对齐。
@@ -156,7 +156,7 @@ class RepairEngine:
             return result
 
         try:
-            # PG 快照: id 集合 + name→id 映射（用于无 canonical_id 节点的 name 匹配）
+ # PG 快照: id 集合 + name→id 映射（用于无 canonical_id 节点的 name 匹配）
             pg_pos_ids = {
                 str(r[0]) for r in (await pg_session.execute(select(PositionRecord.id))).all()
             }
@@ -183,7 +183,7 @@ class RepairEngine:
                     ("Position", pg_pos_ids, pg_name_pos),
                     ("Skill", pg_skill_ids, pg_name_skill),
                 ):
-                    # 拉取全部节点（含无 canonical_id 的）
+ # 拉取全部节点（含无 canonical_id 的）
                     res = await session.run(
                         f"MATCH (n:{label}) "
                         "OPTIONAL MATCH (m)-[r]->(n) "
@@ -201,13 +201,13 @@ class RepairEngine:
                             "in_degree": in_degree,
                         })
 
-                    # 引用检查: 统计被"非孤儿"节点引用的孤儿。先按无引用孤儿处理，
-                    # referenced_by 用 in_degree 近似（被其他节点引用数）。
+ # 引用检查: 统计被"非孤儿"节点引用的孤儿。先按无引用孤儿处理，
+ # referenced_by 用 in_degree 近似（被其他节点引用数）。
                     for node in nodes:
                         cid = node["cid"]
                         name = node["name"]
                         if cid is not None and cid not in pg_ids:
-                            # 孤儿（有 canonical_id 但 PG 无）
+ # 孤儿（有 canonical_id 但 PG 无）
                             item = OrphanItem(
                                 node_type=label.lower(),
                                 name=name or cid,
@@ -221,8 +221,8 @@ class RepairEngine:
                             else:
                                 result.orphan_skills += 1
                         elif cid is None:
-                            # 无 canonical_id: name 匹配 PG → 未链接（自动修复候选）；否则孤儿
-                            # P3a: 精确匹配 → unlinked（不列孤儿）；否则尝试建议链接候选
+ # 无 canonical_id: name 匹配 PG → 未链接（自动修复候选）；否则孤儿
+ # P3a: 精确匹配 → unlinked（不列孤儿）；否则尝试建议链接候选
                             if name and name in pg_name_to_id:
                                 if label == "Position":
                                     result.unlinked_positions += 1
@@ -256,9 +256,9 @@ class RepairEngine:
             logger.exception("RepairEngine detect_orphans unexpected error")
             raise GraphProjectionError(str(exc)) from exc
 
-    # ------------------------------------------------------------------
-    # ② 缺失节点自动投影（无审批，幂等）
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # ② 缺失节点自动投影（无审批，幂等）
+ # ------------------------------------------------------------------
 
     async def ensure_projection(self, pg_session: Any) -> dict[str, Any]:
         """把 PG 中 Neo4j 缺失的节点/边补齐（不含删除）。
@@ -273,7 +273,7 @@ class RepairEngine:
 
         projector = GraphProjector(self._driver)
         try:
-            # PG 全量快照
+ # PG 全量快照
             positions = (await pg_session.execute(
                 select(PositionRecord)
             )).scalars().all()
@@ -281,7 +281,7 @@ class RepairEngine:
                 select(SkillRecord)
             )).scalars().all()
 
-            # Neo4j 已有 canonical_id 集合（跳过已投影的，避免全量重放）
+ # Neo4j 已有 canonical_id 集合（跳过已投影的，避免全量重放）
             async with self._driver.session() as session:
                 existing_pos: set[str] = set()
                 existing_skill: set[str] = set()
@@ -315,7 +315,7 @@ class RepairEngine:
                 for s in skills if str(s.id) not in existing_skill
             ]
 
-            # 关系: PG 全部 PSR → 需两端节点都存在才能 MERGE 边
+ # 关系: PG 全部 PSR → 需两端节点都存在才能 MERGE 边
             relations: list[dict[str, Any]] = []
             if pos_dicts or skill_dicts:
                 psr_rows = (await pg_session.execute(
@@ -354,9 +354,9 @@ class RepairEngine:
             logger.exception("RepairEngine ensure_projection unexpected error")
             raise GraphProjectionError(str(exc)) from exc
 
-    # ------------------------------------------------------------------
-    # ③ 孤儿入审批队列 + 审批执行
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # ③ 孤儿入审批队列 + 审批执行
+ # ------------------------------------------------------------------
 
     async def sync_orphan_queue(self, pg_session: Any) -> int:
         """检测孤儿并把新条目 upsert 进审批队列（pending）。
@@ -378,7 +378,7 @@ class RepairEngine:
                 )
             )).scalars().first()
             if existing is not None:
-                # P3a: 存量 pending 条目刷新引用数 + 链接建议（检测口径升级后）
+ # P3a: 存量 pending 条目刷新引用数 + 链接建议（检测口径升级后）
                 detail = dict(existing.detail or {})
                 detail["referenced_by"] = item.referenced_by
                 if item.suggested_cid:
@@ -397,7 +397,7 @@ class RepairEngine:
                 status=STATUS_PENDING,
                 detail={
                     "referenced_by": item.referenced_by,
-                    # P3a: 链接建议（同实体不同名 → 候选 PG 匹配）
+ # P3a: 链接建议（同实体不同名 → 候选 PG 匹配）
                     "suggested_cid": item.suggested_cid,
                     "suggested_name": item.suggested_name,
                     "suggestion_level": item.suggestion_level,
@@ -463,7 +463,7 @@ class RepairEngine:
                         cid=item.canonical_id,
                     )
                 else:
-                    # 无 canonical_id: 按 name 精确删除（name 为孤儿判定的 key）
+ # 无 canonical_id: 按 name 精确删除（name 为孤儿判定的 key）
                     res = await session.run(
                         f"MATCH (n:{label} {{name: $name}}) WHERE n.canonical_id IS NULL "
                         "DETACH DELETE n RETURN count(n) AS deleted",
@@ -493,9 +493,9 @@ class RepairEngine:
 
         return {"error": f"unknown action: {action}"}
 
-    # ------------------------------------------------------------------
-    # ④ 批量审批（无引用孤儿一键清理）
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # ④ 批量审批（无引用孤儿一键清理）
+ # ------------------------------------------------------------------
 
     async def execute_batch_cleanup(
         self, pg_session: Any, *, action: str, only_no_reference: bool, actor: str,
@@ -526,9 +526,9 @@ class RepairEngine:
                 deleted += int(res.get("deleted", 0))
         return {"processed": processed, "deleted": deleted, "errors": errors}
 
-    # ------------------------------------------------------------------
-    # ⑤ 链接建议执行（P3a: 被引用无标识节点 → SET canonical_id，非破坏、可逆）
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # ⑤ 链接建议执行（P3a: 被引用无标识节点 → SET canonical_id，非破坏、可逆）
+ # ------------------------------------------------------------------
 
     async def link_node(
         self, pg_session: Any, queue_id: Any, *, canonical_id: str | None, actor: str,
@@ -554,7 +554,7 @@ class RepairEngine:
         if not target_cid:
             return {"error": "no canonical_id provided and no suggestion available"}
 
-        # 目标必须是真实 PG 记录（按节点类型校验）
+ # 目标必须是真实 PG 记录（按节点类型校验）
         model = PositionRecord if item.node_type == "position" else SkillRecord
         try:
             from uuid import UUID as _UUID
@@ -571,7 +571,7 @@ class RepairEngine:
 
         label = "Position" if item.node_type == "position" else "Skill"
         async with self._driver.session() as session:
-            # 无 canonical_id 节点按 name 定位（name 是检测 key）；幂等 SET
+ # 无 canonical_id 节点按 name 定位（name 是检测 key）；幂等 SET
             res = await session.run(
                 f"MATCH (n:{label} {{name: $name}}) WHERE n.canonical_id IS NULL "
                 "SET n.canonical_id = $cid "
@@ -605,9 +605,9 @@ class RepairEngine:
         ))
         return {"status": STATUS_LINKED, "name": item.name, "linked_cid": str(target_cid), "linked": linked}
 
-    # ------------------------------------------------------------------
-    # ⑥ 历史技能补录（P3b: 图中有但 PG 无记录 → 回填 skill_records + 链接）
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # ⑥ 历史技能补录（P3b: 图中有但 PG 无记录 → 回填 skill_records + 链接）
+ # ------------------------------------------------------------------
 
     async def backfill_skill_records(self, pg_session: Any, *, review_status: str = "approved") -> dict[str, Any]:
         """把 Neo4j 中无 canonical_id 且 PG 无同名记录的 Skill 回填到 skill_records。
@@ -623,14 +623,14 @@ class RepairEngine:
             return {"backfilled": 0, "linked": 0, "errors": ["neo4j_driver_unavailable"]}
 
         try:
-            # PG 现有技能名（大小写不敏感判定）
+ # PG 现有技能名（大小写不敏感判定）
             pg_skill_lower = {
                 str(r[0]).lower() for r in (
                     await pg_session.execute(select(SkillRecord.name))
                 ).all()
             }
 
-            # 扫描无 canonical_id 的 Skill 节点
+ # 扫描无 canonical_id 的 Skill 节点
             async with self._driver.session() as session:
                 res = await session.run(
                     "MATCH (n:Skill) WHERE n.canonical_id IS NULL "
@@ -658,7 +658,7 @@ class RepairEngine:
                 except Exception as exc:  # noqa: BLE001 — 单条失败不阻断
                     errors.append(f"{name}: {exc}")
                     continue
-                # 新记录 id: 按 name 查回
+ # 新记录 id: 按 name 查回
                 row = (await pg_session.execute(
                     select(SkillRecord.id).where(SkillRecord.name == name)
                 )).scalar_one_or_none()
@@ -688,9 +688,9 @@ class RepairEngine:
             logger.exception("RepairEngine backfill_skill_records unexpected error")
             raise GraphProjectionError(str(exc)) from exc
 
-    # ------------------------------------------------------------------
-    # ⑦ 历史岗位补录（R5: 抽取 evolves_to 后继岗位只写图不落 PG → 回填 + 链接）
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # ⑦ 历史岗位补录（R5: 抽取 evolves_to 后继岗位只写图不落 PG → 回填 + 链接）
+ # ------------------------------------------------------------------
 
     async def backfill_position_records(self, pg_session: Any, *, review_status: str = "pending_review") -> dict[str, Any]:
         """把 Neo4j 中无 canonical_id 且 PG 无同名记录的 Position 回填到 position_records。

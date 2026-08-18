@@ -64,14 +64,14 @@ SOURCE_SATURATION = 10.0
 
 # BUG-6 fix: single threshold for "low trust → needs human review".
 # Used by:
-#   - EvolutionOrchestrator._save_changelog (writes status='pending' when trust < this)
-#   - GET /evolution/review-queue (filters where trust_score < this)
-#   - services/review_service.count_by_status (counts evolution_pending)
+# - EvolutionOrchestrator._save_changelog (writes status='pending' when trust < this)
+# - GET /evolution/review-queue (filters where trust_score < this)
+# - services/review_service.count_by_status (counts evolution_pending)
 # Previously these were three different magic numbers (0.6 / 0.5 / 0.5) which
 # caused pending rows in [0.5, 0.6) to be invisible to /evolution/review-queue.
 LOW_TRUST_THRESHOLD = settings.trust_pending_threshold
 
-# D-05 write-back gate: independent from LOW_TRUST_THRESHOLD (approved/review
+# write-back gate: independent from LOW_TRUST_THRESHOLD (approved/review
 # 口径 stays 0.5). Changes with trust >= this value are eligible for upsert
 # into position_skill_relations (SSOT). Kept as its own constant so the
 # write-back gate can never silently drift with the review threshold.
@@ -105,11 +105,11 @@ class TrustScorer:
         )
         trust = max(0.0, min(1.0, trust))
 
-        # Confidence is a coarser signal: how strong is the evidence envelope?
+ # Confidence is a coarser signal: how strong is the evidence envelope?
         confidence = max(0.0, min(1.0, 0.5 * source_factor + 0.5 * stability_factor))
         return round(trust, 4), round(confidence, 4)
 
-    # ── internal ──
+ # ── internal ──
 
     @staticmethod
     def _source_factor(source_count: int) -> float:
@@ -132,20 +132,20 @@ class TrustScorer:
         ct = change.change_type
 
         if ct in (ChangeType.ADDED_REQUIRED, ChangeType.ADDED_PREFERRED):
-            # New skill — trust grows with mention_count_new but starts low.
+ # New skill — trust grows with mention_count_new but starts low.
             return min(1.0, new_n / 5.0)
 
         if ct == ChangeType.RETAINED:
-            # Continuity: the more mentions, the more we trust it persists.
+ # Continuity: the more mentions, the more we trust it persists.
             return min(1.0, max(old_n, new_n) / 5.0)
 
         if ct in (ChangeType.PROMOTED, ChangeType.DEMOTED):
-            # Transitional: average of both sides, normalized.
+ # Transitional: average of both sides, normalized.
             avg = (old_n + new_n) / 2.0
             return min(1.0, avg / 5.0)
 
         if ct == ChangeType.REMOVED:
-            # Removed skills are often noise — discount heavily.
+ # Removed skills are often noise — discount heavily.
             return min(0.4, old_n / 10.0)
 
         return 0.0

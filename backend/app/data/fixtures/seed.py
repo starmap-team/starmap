@@ -49,7 +49,7 @@ async def seed_positions(session: AsyncSession) -> int:
     if not positions:
         return 0
 
-    # Get existing names
+ # Get existing names
     existing = set(
         (await session.execute(select(PositionRecord.name))).scalars().all()
     )
@@ -76,7 +76,7 @@ async def seed_positions(session: AsyncSession) -> int:
         existing.add(name)
         new_count += 1
 
-        # Auto-approve (triggers graph_writer → Neo4j sync)
+ # Auto-approve (triggers graph_writer → Neo4j sync)
         try:
             await review_service.approve(
                 session,
@@ -87,7 +87,7 @@ async def seed_positions(session: AsyncSession) -> int:
             )
         except Exception as e:
             print(f"[seed]  approve position '{name}' failed (may already be approved): {e}")
-            # If approve fails because it's already approved or wrong state, just continue
+ # If approve fails because it's already approved or wrong state, just continue
 
     await session.commit()
     print(f"[seed]  Positions: {new_count} new (total {len(existing)} in PG)")
@@ -124,7 +124,7 @@ async def seed_skills(session: AsyncSession) -> int:
         existing.add(name)
         new_count += 1
 
-        # Auto-approve
+ # Auto-approve
         try:
             await review_service.approve(
                 session,
@@ -147,13 +147,13 @@ async def seed_position_skill_relations(session: AsyncSession) -> int:
     if not positions:
         return 0
 
-    # Get ID mappings from PG
+ # Get ID mappings from PG
     pos_rows = (await session.execute(select(PositionRecord.id, PositionRecord.name))).all()
     skill_rows = (await session.execute(select(SkillRecord.id, SkillRecord.name))).all()
     pos_map = {name: pid for pid, name in pos_rows}
     skill_map = {name: sid for sid, name in skill_rows}
 
-    # Get existing relations
+ # Get existing relations
     existing_rels = {
         (row[0], row[1])
         for row in (await session.execute(text("SELECT position_id, skill_id FROM position_skill_relations"))).all()
@@ -199,7 +199,7 @@ async def seed_neo4j_graph(session: AsyncSession) -> int:
     driver = app_resources.neo4j_driver
     own_driver = False
     if driver is None:
-        # Standalone mode: create own driver from config
+ # Standalone mode: create own driver from config
         driver = AsyncGraphDatabase.driver(
             settings.neo4j_uri,
             auth=(settings.neo4j_user, settings.neo4j_password),
@@ -209,7 +209,7 @@ async def seed_neo4j_graph(session: AsyncSession) -> int:
 
     positions = _load_json("positions.json")
 
-    # Build extraction-like dicts for graph_writer
+ # Build extraction-like dicts for graph_writer
     extractions = []
     for pos in positions:
         required = pos.get("skills", [])

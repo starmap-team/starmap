@@ -117,7 +117,7 @@ _SHARED_SKILL_WEIGHT_DENOMINATOR = 20.0
 _DEFAULT_EVOLUTION_WEIGHT = 0.8
 
 
-# Phase 13 Step 2: heat 视图（按技能需求频率着色）
+# Step 2: heat 视图（按技能需求频率着色）
 HEAT_COLOR_RAMP = [
     (0,  "#e0f2fe"),
     (1,  "#7dd3fc"),
@@ -163,7 +163,7 @@ def _classify_level(name: str, props: dict[str, Any]) -> str:
         return LEVEL_SENIOR
     if level in ("中级", "mid", "intermediate"):
         return LEVEL_MID
-    # Infer from name
+ # Infer from name
     name_lower = name.lower()
     if any(kw in name_lower for kw in ("高级", "资深", "senior", "专家", "架构师", "首席")):
         return LEVEL_SENIOR
@@ -172,7 +172,7 @@ def _classify_level(name: str, props: dict[str, Any]) -> str:
     return LEVEL_MID
 
 
-# Phase 13 Step 1: 行业归一（13 大行业，对标 spec 5.3）
+# Step 1: 行业归一（13 大行业，对标 spec 5.3）
 INDUSTRY_ID_PREFIX: dict[str, str] = {
     "人工智能": "ind-ai", "大数据": "ind-data", "数据科学": "ind-ds",
     "数据工程": "ind-de", "AI/机器学习": "ind-ml", "前端开发": "ind-fe",
@@ -219,7 +219,7 @@ _INDUSTRY_KEYWORDS = {
 def _classify_industry(name: str, industry: str) -> str:
     """Phase 13 Step 1: 按 Position.name + industry 关键词分类到 13 大行业。"""
     text = f"{industry or ''} {name or ''}".lower()
-    # 按关键词最长优先匹配（"AI/机器学习" 比 "人工智能" 长，先匹配更具体的）
+ # 按关键词最长优先匹配（"AI/机器学习" 比 "人工智能" 长，先匹配更具体的）
     for ind in sorted(_INDUSTRY_KEYWORDS.keys(), key=len, reverse=True):
         for kw in _INDUSTRY_KEYWORDS[ind]:
             if kw.lower() in text:
@@ -237,8 +237,8 @@ async def _fetch_independent_counts(driver: AsyncDriver) -> dict[str, int]:
     """
     try:
         async with driver.session() as session:
-            # 3 separate count queries to avoid Cartesian product
-            # (MATCH (p), (s) OPTIONAL MATCH ()-[r]->() produces |p|*|s|*|r| rows)
+ # 3 separate count queries to avoid Cartesian product
+ # (MATCH (p), (s) OPTIONAL MATCH ()-[r]->() produces |p|*|s|*|r| rows)
             result = await session.run(
                 "MATCH (p:Position) WITH count(p) AS pos_cnt "
                 "MATCH (s:Skill) WITH pos_cnt, count(s) AS skill_cnt "
@@ -255,7 +255,7 @@ async def _fetch_independent_counts(driver: AsyncDriver) -> dict[str, int]:
     except StarMapError:
         raise
     except Exception as exc:
-        # M3: 独立计数是补充指标,失败/列缺失时降级为 0,不拖垮主概览。
+ # : 独立计数是补充指标,失败/列缺失时降级为 0,不拖垮主概览。
         logger.warning("Failed to fetch independent counts, degrading to zeros: {}", exc)
     return {"positions": 0, "skills": 0, "edges": 0}
 
@@ -288,7 +288,7 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
                     }
                 )
 
-            # Count skills per group
+ # Count skills per group
             skill_result = await session.run(
                 "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
                 "RETURN p.name AS pos_name, p.industry AS pos_industry, collect(DISTINCT s.name) AS skills"
@@ -301,7 +301,7 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
                 for s in skills:
                     groups[stack]["skills"].add(s)
 
-            # Build connections between tech stacks (shared skills)
+ # Build connections between tech stacks (shared skills)
             conn_result = await session.run(
                 "MATCH (p1:Position)-[:REQUIRES]->(s:Skill)<-[:REQUIRES]-(p2:Position) "
                 "WHERE p1.name < p2.name "
@@ -318,8 +318,8 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
     except StarMapError:
         raise
     except Exception as exc:
-        # M3: Neo4j 不可用时降级返回空概览(仪表盘显示"暂无数据"),不抛 500。
-        # 契约:test_driver_exception_returns_empty。
+ # : Neo4j 不可用时降级返回空概览(仪表盘显示"暂无数据"),不抛 500。
+ # 契约:test_driver_exception_returns_empty。
         logger.warning("Tech stack overview failed, degrading to empty: {}", exc)
         return {
             "domains": [],
@@ -331,7 +331,7 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
             "independent_edges": 0,
         }
 
-    # Build response
+ # Build response
     stack_id_prefix = {
         "人工智能": "ts-ai",
         "大数据": "ts-bigdata",
@@ -378,7 +378,7 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
             }
         )
 
-    # Fetch independent counts (P1 fix: single query + logging)
+ # Fetch independent counts (P1 fix: single query + logging)
     counts = await _fetch_independent_counts(driver)
 
     return {
@@ -416,7 +416,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
                     }
                 )
 
-            # Count skills per level
+ # Count skills per level
             skill_result = await session.run(
                 "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
                 "RETURN p.name AS pos_name, p.level AS pos_level, collect(DISTINCT s.name) AS skills"
@@ -429,7 +429,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
                 for s in skills:
                     groups[level]["skills"].add(s)
 
-            # Build evolution connections between levels
+ # Build evolution connections between levels
             level_connections = [
                 {"source": "初级", "target": "中级", "weight": _DEFAULT_EVOLUTION_WEIGHT},
                 {"source": "中级", "target": "高级", "weight": _DEFAULT_EVOLUTION_WEIGHT},
@@ -437,7 +437,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
     except StarMapError:
         raise
     except Exception as exc:
-        # M3: Neo4j 不可用时降级返回空概览,不抛 500。契约:test_driver_exception_returns_empty。
+ # : Neo4j 不可用时降级返回空概览,不抛 500。契约:test_driver_exception_returns_empty。
         logger.warning("Level overview failed, degrading to empty: {}", exc)
         return {
             "domains": [],
@@ -454,7 +454,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
     total_pos = 0
     total_skill = 0
     for level, data in groups.items():
-        # Step 5: 3 维泡始终保留(空 level 渲染为 0/0 透明泡),但占位不计入 total 计数。
+ # Step 5: 3 维泡始终保留(空 level 渲染为 0/0 透明泡),但占位不计入 total 计数。
         pc = len(data["positions"])
         sc = len(data["skills"])
         total_pos += pc
@@ -469,7 +469,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
             }
         )
 
-    # Step 5: 兜底维度。PG 中 0 个 lv-junior 岗时，确保 3 维泡全在（0/0 透明），前端不会因缺桶渲染破图。
+ # Step 5: 兜底维度。PG 中 0 个 lv-junior 岗时，确保 3 维泡全在（0/0 透明），前端不会因缺桶渲染破图。
     for required_level in ("初级",):
         if not any(d["name"] == required_level for d in domains):
             domains.append(
@@ -495,7 +495,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
             }
         )
 
-    # Fetch independent counts (P1 fix: single query + logging)
+ # Fetch independent counts (P1 fix: single query + logging)
     counts = await _fetch_independent_counts(driver)
 
     return {
@@ -509,7 +509,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
     }
 
 
-# Phase 13 Step 2: 热度视图（技能需求频次）
+# Step 2: 热度视图（技能需求频次）
 HEAT_BUCKETS: list[tuple[str, int, str]] = [
     ("高 (≥20岗)", 20, "#E74C3C"),
     ("中 (10-19岗)", 10, "#F39C12"),
@@ -544,7 +544,7 @@ async def fetch_overview_by_heat(driver: AsyncDriver) -> dict[str, Any]:
 
     try:
         async with driver.session() as session:
-            # 统计每个技能被多少 Position REQUIRES（需求频率）
+ # 统计每个技能被多少 Position REQUIRES（需求频率）
             result = await session.run(
                 "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
                 "WITH s, count(DISTINCT p) AS demand "
@@ -569,7 +569,7 @@ async def fetch_overview_by_heat(driver: AsyncDriver) -> dict[str, Any]:
                 if demand > top_count:
                     top_count = demand
 
-            # 共享岗位关系（按 heat 排序，取 top 5 之间的 EVOLVES_TO 路径）
+ # 共享岗位关系（按 heat 排序，取 top 5 之间的 EVOLVES_TO 路径）
             if len(domains) >= 2:
                 conn_result = await session.run(
                     "MATCH (s1:Skill)<-[:REQUIRES]-(p:Position)-[:REQUIRES]->(s2:Skill) "

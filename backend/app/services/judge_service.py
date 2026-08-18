@@ -153,17 +153,17 @@ def _safe_resolve_jsonl_path(filepath: str | Path) -> Path:
     """验证文件路径在允许的目录内，防止路径遍历攻击。"""
     path = Path(filepath).resolve()
     allowed_dir = _EVAL_DATA_DIR.resolve()
-    # 也允许 evaluation/ 目录（项目根目录下）
+ # 也允许 evaluation/ 目录（项目根目录下）
     eval_dir = Path(__file__).resolve().parent.parent.parent / "evaluation"
     allowed_dirs = [allowed_dir, eval_dir.resolve()]
 
-    # 开发/测试环境：也允许临时目录 (pytest 使用 tmp_path)
+ # 开发/测试环境：也允许临时目录 (pytest 使用 tmp_path)
     import tempfile
     if settings.app_env != "production":
         allowed_dirs.append(Path(tempfile.gettempdir()).resolve())
 
-    # INJ-01 加固: 使用 is_relative_to() 替代 startswith 防止前缀碰撞
-    # (e.g. /app/data/evaluation-hack/secret 会通过 startswith("/app/data/eval"))
+ # INJ-01 加固: 使用 is_relative_to() 替代 startswith 防止前缀碰撞
+ # (e.g. /app/data/evaluation-hack/secret 会通过 startswith("/app/data/eval"))
     if not any(path.is_relative_to(d) for d in allowed_dirs):
         raise ValueError(
             f"File path must be within allowed directories: "
@@ -230,7 +230,7 @@ async def evaluate_sample_async(
     system_bon_set = {_normalize_skill(s) for s in _skill_names(system_bonus)} - {""}
 
     def _f1(gs: set[str], ss: set[str]) -> tuple[float, float, float]:
-        # BL-01: both empty → skip (return 0 so it doesn't inflate avg)
+ # BL-01: both empty → skip (return 0 so it doesn't inflate avg)
         if not gs and not ss:
             return 0.0, 0.0, 0.0
         if not gs or not ss:
@@ -306,7 +306,7 @@ async def evaluate_batch_async(
         sid = golden.get("id", "")
         system = system_map.get(sid, {})
         if not system:
-            # BL-11: Skip missing samples instead of treating as F1=0
+ # BL-11: Skip missing samples instead of treating as F1=0
             logger.debug("No system output for sample '{}', skipping", sid)
             continue
         eval_result = await evaluate_sample_async(

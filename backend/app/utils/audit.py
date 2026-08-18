@@ -17,7 +17,7 @@ from loguru import logger
 class AuditEvent(StrEnum):
     """审计事件类型。"""
 
-    # ── Celery task lifecycle () ──
+ # ── Celery task lifecycle () ──
     CELERY_TASK_FAILURE = "celery_task_failure"
 
     AUTH_FAILURE = "auth_failure"
@@ -29,7 +29,7 @@ class AuditEvent(StrEnum):
     SENSITIVE_WRITE = "sensitive_write"
     FILE_UPLOAD = "file_upload"
     ADMIN_ACTION = "admin_action"
-    # ── User lifecycle (Phase DB-AUTH) ──
+ # ── User lifecycle (Phase DB-AUTH) ──
     LOGIN_LOCKED = "login_locked"
     LOGIN_SUCCESS = "login_success"
     PASSWORD_CHANGED = "password_changed"
@@ -39,7 +39,7 @@ class AuditEvent(StrEnum):
     USER_DISABLED = "user_disabled"
     USER_UNLOCKED = "user_unlocked"
     ACCOUNT_DELETED = "account_deleted"
-    # ──(multi-source data) ──
+ # ──(multi-source data) ──
     MANUAL_IMPORT = "manual_import"
     PII_DETECTED = "pii_detected"
     DATA_SOURCE_RENAMED = "data_source_renamed"
@@ -74,7 +74,7 @@ async def _persist_to_db(entry: AuditEntry) -> None:
             session.add(record)
             await session.commit
     except Exception as e:
-        # DB failures must NEVER block the caller — log and move on
+ # DB failures must NEVER block the caller — log and move on
         logger.debug("Audit DB persist failed (non-blocking): {}", e)
 
 def audit_log(entry: AuditEntry) -> None:
@@ -91,10 +91,10 @@ def audit_log(entry: AuditEntry) -> None:
         audit_ip=entry.ip,
         **entry.extra).warning("AUDIT: {} actor={} action={} detail={}", entry.event.value, entry.actor, entry.action, entry.detail)
 
-    # Fire-and-forget DB persist — never blocks the caller
+ # Fire-and-forget DB persist — never blocks the caller
     try:
         loop = asyncio.get_running_loop
         loop.create_task(_persist_to_db(entry))
     except RuntimeError:
-        # No running event loop (e.g. sync context) — skip DB persist silently
+ # No running event loop (e.g. sync context) — skip DB persist silently
         pass

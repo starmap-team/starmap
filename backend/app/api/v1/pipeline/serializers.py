@@ -29,8 +29,8 @@ def serialize_run(run: PipelineRun) -> PipelineRunResponse:
 
 
 def serialize_datasource(ds: DataSourceRecord) -> DataSourceResponse:
-    # P0-3/D1 (2026-08-15): 与 /datasources 端点同源——has_adapter/adapter_platform
-    # 由后端 spider 注册表判定（唯一事实源），否则 pipeline 页"可用源"恒 0 与源管理不一致。
+ # /D1 (2026-08-15): 与 /datasources 端点同源——has_adapter/adapter_platform
+ # 由后端 spider 注册表判定（唯一事实源），否则 pipeline 页"可用源"恒 0 与源管理不一致。
     from app.api.v1.datasource import _adapter_capability
 
     has_adapter, adapter_platform = _adapter_capability(ds)

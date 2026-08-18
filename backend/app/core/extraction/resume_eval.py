@@ -112,7 +112,7 @@ def _skill_matches(predicted: str, expected: set[str]) -> bool:
     pred_norm = _normalize_skill_name(predicted)
     if pred_norm in expected:
         return True
-    # Substring matching: predicted contained in expected or vice versa
+ # Substring matching: predicted contained in expected or vice versa
     for exp in expected:
         if pred_norm in exp or exp in pred_norm:
             return True
@@ -176,11 +176,11 @@ def evaluate_f1(
     for _i, (pred_set, sample) in enumerate(zip(predictions, golden, strict=False)):
         expected = sample.expected_skill_names
 
-        # True positives: predicted skills that match expected
+ # True positives: predicted skills that match expected
         tp = sum(1 for p in pred_set if _skill_matches(p, expected))
-        # False positives: predicted skills that don't match any expected
+ # False positives: predicted skills that don't match any expected
         fp = len(pred_set) - tp
-        # False negatives: expected skills not matched by any prediction
+ # False negatives: expected skills not matched by any prediction
         matched_expected: set[str] = set()
         for p in pred_set:
             for e in expected:
@@ -210,7 +210,7 @@ def evaluate_f1(
             "expected_count": len(expected),
         })
 
-    # Micro-averaged metrics
+ # Micro-averaged metrics
     micro_precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
     micro_recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0.0
     micro_f1 = (
@@ -219,7 +219,7 @@ def evaluate_f1(
         else 0.0
     )
 
-    # Macro-averaged F1
+ # Macro-averaged F1
     macro_f1 = sum(f1_values) / len(f1_values) if f1_values else 0.0
 
     return {
@@ -248,7 +248,7 @@ def evaluate_single(
     Returns:
         Dict with precision, recall, f1 for this single sample.
     """
-    # Normalize predictions to name set
+ # Normalize predictions to name set
     pred_names: set[str] = set()
     for s in predicted_skills:
         if isinstance(s, dict):
@@ -331,7 +331,7 @@ async def run_resume_evaluation(
 
     metrics = evaluate_f1(predictions, samples)
 
-    # Summary statistics
+ # Summary statistics
     positions_seen: dict[str, int] = {}
     for s in samples:
         positions_seen[s.position] = positions_seen.get(s.position, 0) + 1

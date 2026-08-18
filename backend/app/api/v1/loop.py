@@ -53,8 +53,8 @@ async def run_loop(
 
     Each step degrades independently on failure.
     """
-    # QA-FIX (F#10): 顶层超时兜底 — run_loop 内部对 CancelledError/未捕获异常
-    # 标记失败；wait_for 超时即取消内层任务，触发该兜底，防止运行永久 running。
+ # QA-FIX (F#10): 顶层超时兜底 — run_loop 内部对 CancelledError/未捕获异常
+ # 标记失败；wait_for 超时即取消内层任务，触发该兜底，防止运行永久 running。
     try:
         result = await asyncio.wait_for(
             _orchestrator.run_loop(
@@ -88,7 +88,7 @@ async def loop_status(
         is_admin=user.get("role") == "admin",
     )
     if status is None:
-        # Could be "not found" or "not authorized" — log the attempt (SEC-04)
+ # Could be "not found" or "not authorized" — log the attempt (SEC-04)
         audit_log(AuditEntry(
             event=AuditEvent.AUTHZ_DENIED,
             actor=user.get("sub", "unknown"),

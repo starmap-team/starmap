@@ -109,10 +109,10 @@ def extract_resume_text(filename: str, content_bytes: bytes) -> str:
     elif ext == "docx":
         text = _extract_docx_text(content_bytes)
     else:
-        # Defensive — ensure_supported_resume() already rejects unsupported
-        # extensions (including legacy ".doc" — see B24). Reaching here means
-        # a future maintainer added an extension to the router without
-        # wiring a parser; fall back to plain text decode rather than guess.
+ # Defensive — ensure_supported_resume() already rejects unsupported
+ # extensions (including legacy ".doc" — see B24). Reaching here means
+ # a future maintainer added an extension to the router without
+ # wiring a parser; fall back to plain text decode rather than guess.
         text = _decode_text(content_bytes).strip()
 
     if not text:

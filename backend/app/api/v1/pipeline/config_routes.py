@@ -36,7 +36,7 @@ async def update_pipeline_config(
     """更新流水线配置（通过 safe_update 防护，不直接修改 settings 单例）。"""
     from app.config import settings
 
-    # Map schema field names to Settings attribute names
+ # Map schema field names to Settings attribute names
     _SCHEMA_TO_SETTINGS = {  # noqa: N806
         "stage_timeout": "pipeline_stage_timeout",
         "worker_concurrency": "pipeline_worker_concurrency",

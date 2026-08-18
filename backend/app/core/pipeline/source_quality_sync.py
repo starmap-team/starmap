@@ -41,7 +41,7 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
 
     Returns: {source_name: {"total_records": n, "valid_records": n, ...}}
     """
-    # 1. jd_raw 按 source_site × status 计数
+ # 1. jd_raw 按 source_site × status 计数
     raw_rows = (await session.execute(
         sa.text("SELECT source_site, status, COUNT(*) FROM jd_raw GROUP BY source_site, status")
     )).all()
@@ -54,13 +54,13 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
         else:
             site_stats[site][status_str] = cnt
 
-    # 2a. jd_raw 每个 source_site 最新 crawled_at —— 真实采集时间（主来源）
+ # 2a. jd_raw 每个 source_site 最新 crawled_at —— 真实采集时间（主来源）
     raw_last = (await session.execute(
         sa.text("SELECT source_site, MAX(crawled_at) FROM jd_raw GROUP BY source_site")
     )).all()
     last_crawl_by_site: dict[str, datetime] = {str(site): at for site, at in raw_last}
 
-    # 2b. data_source_metrics 最新 started_at per source（补充来源）
+ # 2b. data_source_metrics 最新 started_at per source（补充来源）
     metric_rows = (await session.execute(
         sa.text("""
             SELECT m.source_id, MAX(m.started_at) AS last_at
@@ -69,7 +69,7 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
     )).all()
     last_crawl_by_source: dict[str, datetime] = {str(sid): at for sid, at in metric_rows}
 
-    # 3. 回写 data_sources
+ # 3. 回写 data_sources
     updated: dict[str, Any] = {}
     for site, stats in site_stats.items():
         source_name = _SITE_TO_SOURCE.get(site)
@@ -89,11 +89,11 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
         ds.valid_records = extracted
         ds.avg_quality_score = round(quality, 4)
         ds.duplicate_rate = round(dup_rate, 4)
-        # last_crawl_at = 「上次爬取尝试时间」语义：优先 data_source_metrics
-        # （/crawl-source 与 sync 端点每次爬取都写一条，started_at=爬取时刻）——
-        # 这样即使本次全部是 duplicate（平台暂无新职位）卡片也能反映"刚刚爬过"。
-        # jd_raw.MAX(crawled_at) 是「数据新鲜度」（最后一条新数据），不是爬取时刻，
-        # 仅在无 metrics（历史源）时兜底。
+ # last_crawl_at = 「上次爬取尝试时间」语义：优先 data_source_metrics
+ # （/crawl-source 与 sync 端点每次爬取都写一条，started_at=爬取时刻）——
+ # 这样即使本次全部是 duplicate（平台暂无新职位）卡片也能反映"刚刚爬过"。
+ # jd_raw.MAX(crawled_at) 是「数据新鲜度」（最后一条新数据），不是爬取时刻，
+ # 仅在无 metrics（历史源）时兜底。
         metric_last = last_crawl_by_source.get(str(ds.id))
         if metric_last:
             ds.last_crawl_at = metric_last
@@ -105,10 +105,10 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
             "total_records": total, "valid_records": extracted,
             "avg_quality_score": round(quality, 4), "duplicate_rate": round(dup_rate, 4),
         }
-    # P0-2 (2026-08-15): 对 jd_raw 无行的 crawler/api/rss 活动源归零记录数。
-    # 这些源的 total/valid 可能是 seed 合成值（seed_pipeline_data: 50+hash%200），
-    # 不反映真实采集；sync 是唯一回写方，此前因 _SITE_TO_SOURCE 无映射而永不清零。
-    # avg_quality_score 保留（属配置权威度，非测量值）。
+ # (2026-08-15): 对 jd_raw 无行的 crawler/api/rss 活动源归零记录数。
+ # 这些源的 total/valid 可能是 seed 合成值（seed_pipeline_data: 50+hash%200），
+ # 不反映真实采集；sync 是唯一回写方，此前因 _SITE_TO_SOURCE 无映射而永不清零。
+ # avg_quality_score 保留（属配置权威度，非测量值）。
     active_crawlers = (await session.execute(
         sa.select(DataSourceRecord).where(
             DataSourceRecord.status == "active",

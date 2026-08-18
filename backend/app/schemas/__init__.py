@@ -177,12 +177,12 @@ from app.schemas.prompt import (
 )
 
 __all__ = [
-    # common
+ # common
     "ErrorResponse",
     "FieldError",
     "PaginatedResponse",
     "PaginationMeta",
-    # auth
+ # auth
     "ChangePasswordRequest",
     "AdminResetPasswordRequest",
     "AuditEventOut",
@@ -210,7 +210,7 @@ __all__ = [
     "RefreshResponse",
     "ResetPasswordRequest",
     "TokenUser",
-    # dashboard
+ # dashboard
     "DataSourceCreateRequest",
     "DataSourceResponse",
     "DataSourceStatsResponse",
@@ -221,22 +221,22 @@ __all__ = [
     "RealtimePollResponse",
     "TrendPoint",
     "TrendsResponse",
-    # prompt
+ # prompt
     "ABResultRequest",
     "ABTestRequest",
     "RegisterVersionRequest",
     "SetActiveRequest",
-    # quality
+ # quality
     "ComprehensiveReport",
     "QualityDashboard",
     "QualityDetail",
     "QualityReport",
     "ResumeEvalResponse",
-    # position
+ # position
     "PositionListResponse",
     "PositionNode",
     "SkillNode",
-    # graph
+ # graph
     "DomainOverviewItem",
     "DomainOverviewResponse",
     "GraphEdge",
@@ -250,7 +250,7 @@ __all__ = [
     "PipelineStatusResponse",
     "DataQualityResponse",
     "StageInfo",
-    # extract
+ # extract
     "CausalAnalysisResponse",
     "CausalAssociation",
     "CareerPathNode",
@@ -271,23 +271,23 @@ __all__ = [
     "ExtractionResult",
     "NormalizedSkill",
     "SkillItem",
-    # judge
+ # judge
     "BatchJudgeRequest",
     "BatchJudgeResponse",
     "JudgeRequest",
     "JudgeSampleResponse",
     "PairwiseRequest",
     "PairwiseResponse",
-    # import_jd
+ # import_jd
     "ImportItem",
     "ImportRequest",
     "ImportResult",
-    # loop
+ # loop
     "LoopHistoryResponse",
     "LoopRunRequest",
     "LoopRunResponse",
     "LoopStepResponse",
-    # match
+ # match
     "BatchMatchItem",
     "BatchMatchRequest",
     "MatchOptionsInput",
@@ -298,7 +298,7 @@ __all__ = [
     "ReverseMatchRequest",
     "ReverseMatchResponse",
     "SkillGapDetail",
-    # learning
+ # learning
     "AddSkillRequest",
     "CreatePlanRequest",
     "PhaseInfo",

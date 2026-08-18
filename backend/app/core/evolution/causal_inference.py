@@ -37,7 +37,7 @@ def fisher_exact_p(a: int, b: int, c: int, d: int) -> float:
     n = row1 + row2
     if n == 0 or col1 == 0 or col2 == 0:
         return 1.0  # 无变化数据, 无法检验
-    # 边缘固定的所有可能表: 第一行第一格 x 取值范围
+ # 边缘固定的所有可能表: 第一行第一格 x 取值范围
     lo = max(0, col1 - row2)
     hi = min(row1, col1)
     if lo > hi:
@@ -102,7 +102,7 @@ async def skill_position_associations(
     if not skill_records:
         return {"skill": skill, "associations": [], "total_records": 0}
 
-    # 技能记录: positions 列表 (按记录去重计数 — 同记录重复提及只计 1 次)
+ # 技能记录: positions 列表 (按记录去重计数 — 同记录重复提及只计 1 次)
     skill_pos: Counter[str] = Counter()
     for r in skill_records:
         for p in set(r.positions or []):
@@ -110,7 +110,7 @@ async def skill_position_associations(
                 skill_pos[p] += 1
     skill_total = len(skill_records)
 
-    # 对照集: 其他技能全部记录
+ # 对照集: 其他技能全部记录
     other_result = await session.execute(
         select(SkillTimeseries).where(SkillTimeseries.skill_name != skill)
     )

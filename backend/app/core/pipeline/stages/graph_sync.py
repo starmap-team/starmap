@@ -26,7 +26,7 @@ from app.core.pipeline.stages.common import (
     run_async,
 )
 
-# ── Graph Write Outbox helpers (Phase 7 P0-1; 原 executor.py, 随阶段迁入) ──
+# ── Graph Write Outbox helpers ( ; 原 executor.py, 随阶段迁入) ──
 
 
 async def _create_outbox_record(
@@ -47,9 +47,9 @@ async def _create_outbox_record(
             record = GraphWriteOutbox(
                 id=outbox_id,
                 run_id=uuid.UUID(run_id) if isinstance(run_id, str) else run_id,
-                # D5 fix (2026-08-12): extraction_ids 是 JSON 列，UUID 对象无法被驱动
-                # JSON 序列化 → "Object of type UUID is not JSON serializable"，
-                # outbox 创建静默失败（non-fatal）→ 抽取产物审计/重试链路断裂。入库前转 str。
+ # D5 fix (2026-08-12): extraction_ids 是 JSON 列，UUID 对象无法被驱动
+ # JSON 序列化 → "Object of type UUID is not JSON serializable"，
+ # outbox 创建静默失败（non-fatal）→ 抽取产物审计/重试链路断裂。入库前转 str。
                 extraction_ids=[str(eid) for eid in (extraction_ids or [])],
                 status="pending",
                 created_at=datetime.now(UTC),
@@ -101,9 +101,9 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
     from app.tasks.stage3_services import run_build_graph_from_extractions
 
     processed = 0
-    # 2026-08-14 门禁修复: 与 import_.execute_import 同源问题 — 三元组/节点/关系
-    # 仅在 happy path 赋值，DB/Neo4j 失败路径的 return/sub_breakdown 引用它们 →
-    # CI（无 DB）下 UnboundLocalError。提前初始化为 0，失败路径优雅返回。
+ # 2026-08-14 门禁修复: 与 import_.execute_import 同源问题 — 三元组/节点/关系
+ # 仅在 happy path 赋值，DB/Neo4j 失败路径的 return/sub_breakdown 引用它们 →
+ # CI（无 DB）下 UnboundLocalError。提前初始化为 0，失败路径优雅返回。
     triples_merged = 0
     nodes = 0
     edges = 0
@@ -124,9 +124,9 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         logger.warning("graph_sync outbox create failed (non-fatal): {}", o_exc)
 
     try:
-        # D8f: 增量 —— 只处理本次 run 开始后创建的已审核抽取记录。
-        # 原实现全量重放最近 500 条历史记录（本次采集 0 新增也显示处理 226/2473），
-        # 数值与本次流水线无关。改传 run 的 started_at 作为 since 过滤。
+ # : 增量 —— 只处理本次 run 开始后创建的已审核抽取记录。
+ # 原实现全量重放最近 500 条历史记录（本次采集 0 新增也显示处理 226/2473），
+ # 数值与本次流水线无关。改传 run 的 started_at 作为 since 过滤。
         from sqlalchemy import select
 
         from app.models.pipeline_models import PipelineRun
@@ -148,8 +148,8 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         result = run_async(run_build_graph_from_extractions(limit=500, since=_since))
         processed = result.get("processed", 0)
         triples_merged = result.get("triples_merged", 0)
-        # D8c fix: 原读 nodes_written/edges_written —— 该键不存在（run_build_graph_
-        # from_extractions 返回 nodes_touched/relationships_touched），导致死字段恒 0。
+ # fix: 原读 nodes_written/edges_written —— 该键不存在（run_build_graph_
+ # from_extractions 返回 nodes_touched/relationships_touched），导致死字段恒 0。
         nodes = result.get("nodes_touched", 0)
         edges = result.get("relationships_touched", 0)
         run_async(_complete_outbox_record(get_session_factory(), outbox_id, triples_merged))
@@ -171,7 +171,7 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         if result.get("status") != "completed":
             errors.append(f"graph sync incomplete: {result}")
 
-        # D-07: 可选 reconcile 子步骤（默认关闭）
+ # : 可选 reconcile 子步骤（默认关闭）
         from app.config import settings
 
         if settings.pipeline_graph_sync_reconcile_on_sync:
@@ -184,8 +184,8 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
             ))
             _run_reconcile_substep(run_id, errors, start)
 
-        # D-03 (Phase 02): Position PG↔Neo4j 一致性校验（**默认开启**，仅观察不阻断）。
-        # 与 D-07 reconcile 不同：这里只比对计数并告警，不改任何数据。
+ # (): Position PG↔Neo4j 一致性校验（**默认开启**，仅观察不阻断）。
+ # 与 reconcile 不同：这里只比对计数并告警，不改任何数据。
         _run_position_consistency_substep(run_id)
     except PipelineStageError:
         raise
@@ -206,15 +206,15 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         "records_processed": processed,
         "errors": errors,
         "outbox_id": str(outbox_id),
-        # Phase 19 修复: return 补 current_activity（DB 快照持久化，解释"0 条扫描/构建结果"）
+ # 修复: return 补 current_activity（DB 快照持久化，解释"0 条扫描/构建结果"）
         "current_activity": (
             f"图谱构建完成: {triples_merged} 三元组 / {nodes} 节点 / {edges} 关系"
             if processed
             else "无新抽取记录待投影"
         ),
-        # D8 fix: SSE publish 有 sub_breakdown 但 return 缺 → 持久化丢失 →
-        # 图谱构建阶段展开无「节点/关系/triples」详情
-        # D8c: 键名与 publish 一致（扫描抽取记录/三元组操作/触及节点/触及关系）
+ # D8 fix: SSE publish 有 sub_breakdown 但 return 缺 → 持久化丢失 →
+ # 图谱构建阶段展开无「节点/关系/triples」详情
+ # : 键名与 publish 一致（扫描抽取记录/三元组操作/触及节点/触及关系）
         "sub_breakdown": {
             "扫描抽取记录": processed,
             "三元组操作": triples_merged,
@@ -224,7 +224,7 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
     }
 
 
-# ── Position PG↔Neo4j 一致性校验（Phase 02 D-03；沿 M3 D-06 仅观察不阻断）──
+# ── Position PG↔Neo4j 一致性校验（ ；沿 仅观察不阻断）──
 
 #: outbox 告警条目类型标识，写入 GraphWriteOutbox.error 前缀便于检索
 POSITION_DRIFT_ALERT_TYPE = "position_pg_neo4j_drift"
@@ -338,10 +338,10 @@ def _run_reconcile_substep(run_id: str, errors: list[str], start: float) -> None
     已打 DEPRECATED 标记保留可手动跑。失败仅告警不阻断流水线。
     """
     try:
-        # Step 1: PG ← Neo4j (补齐缺失 skill/position)
-        # Step 2: PG → Neo4j (补齐缺失 REQUIRES edges)
-        # 完整实现见 scripts/backfill_graph_to_pg.py + scripts/sync_pg_edges_to_graph.py。
-        # 当前实现调用 services/pipeline_consistency.check_pg_neo4j_consistency 触发告警。
+ # Step 1: PG ← Neo4j (补齐缺失 skill/position)
+ # Step 2: PG → Neo4j (补齐缺失 REQUIRES edges)
+ # 完整实现见 scripts/backfill_graph_to_pg.py + scripts/sync_pg_edges_to_graph.py。
+ # 当前实现调用 services/pipeline_consistency.check_pg_neo4j_consistency 触发告警。
         from app.services.pipeline_consistency import check_pg_neo4j_consistency
 
         run_async(check_pg_neo4j_consistency(run_id))

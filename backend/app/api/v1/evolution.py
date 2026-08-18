@@ -141,7 +141,7 @@ async def get_all_evolution_paths(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[EvolutionPathEntry]:
     """获取所有演化路径（用于图谱页渲染 EVOLVES_TO 边）。"""
-    # Load emergence signals to enrich trend field (graceful degradation)
+ # Load emergence signals to enrich trend field (graceful degradation)
     from app.services.evolution_service import EmergenceFinder
 
     signals_by_name: dict[str, Any] = {}
@@ -157,7 +157,7 @@ async def get_all_evolution_paths(
     except Exception as exc:
         logger.debug("Emergence enrichment skipped for /paths/all: {}", exc)
 
-    # 优先从 Neo4j 读取（真实 EVOLVES_TO 关系 — phase 2 orchestrator 写入）
+ # 优先从 Neo4j 读取（真实 EVOLVES_TO 关系 — phase 2 orchestrator 写入）
     if driver is not None:
         try:
             async with driver.session() as neo4j_session:
@@ -175,7 +175,7 @@ async def get_all_evolution_paths(
                 entries = []
                 async for r in result:
                     raw_trend = r.get("trend", "stable") or "stable"
-                    # If Neo4j trend is default, try enrichment from emergence signals
+ # If Neo4j trend is default, try enrichment from emergence signals
                     if raw_trend == "stable":
                         sig = signals_by_name.get(r["src"] or "")
                         if sig:
@@ -200,7 +200,7 @@ async def get_all_evolution_paths(
         except Exception as e:
             logger.warning("Neo4j EVOLVES_TO read failed, falling back to PG: {}", e)
 
-    # Fallback: PostgreSQL evolution_paths 表
+ # Fallback: PostgreSQL evolution_paths 表
     stmt = sa.select(EvolutionPath).order_by(EvolutionPath.similarity.desc()).limit(limit)
     result = await session.execute(stmt)
     records = result.scalars().all()
@@ -226,7 +226,7 @@ async def get_evolution_paths(
     driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> list[EvolutionPathEntry]:
     """获取指定岗位的演化路径推荐。"""
-    # Load emergence signals to enrich trend field (graceful degradation)
+ # Load emergence signals to enrich trend field (graceful degradation)
     from app.services.evolution_service import EmergenceFinder
 
     signals_by_name: dict[str, Any] = {}
@@ -242,7 +242,7 @@ async def get_evolution_paths(
     except Exception as exc:
         logger.debug("Emergence enrichment skipped for /paths/{{position}}: {}", exc)
 
-    # 优先从 Neo4j 读取
+ # 优先从 Neo4j 读取
     if driver is not None:
         try:
             async with driver.session() as neo4j_session:
@@ -285,7 +285,7 @@ async def get_evolution_paths(
         except Exception as e:
             logger.warning("Neo4j EVOLVES_TO read failed, falling back to PG: {}", e)
 
-    # Fallback: PostgreSQL
+ # Fallback: PostgreSQL
     stmt = (
         sa.select(EvolutionPath)
         .where((EvolutionPath.source_position == position) | (EvolutionPath.target_position == position))
@@ -365,7 +365,7 @@ async def get_review_queue(
     which confused users. Now accept a `limit` query param (default 200)
     and `offset` for pagination.
     """
-    # EV-02: respect the status parameter
+ # EV-02: respect the status parameter
     stmt = (
         sa.select(EvolutionChangelog)
         .where(EvolutionChangelog.status == status)
@@ -449,23 +449,23 @@ async def review_queue_single_action(
     target_status = "approved" if action == "approve" else "rejected"
     row.status = target_status
     await session.commit()
-    # D8f 闭环: 演化变更审核通过 → 立即写回 position_skill_relations（技能/岗位关系
-    # 真实生效 + 后续 graph_sync 投影 Neo4j）。原实现只改 status 无下游动作（断链）。
+ # 闭环: 演化变更审核通过 → 立即写回 position_skill_relations（技能/岗位关系
+ # 真实生效 + 后续 graph_sync 投影 Neo4j）。原实现只改 status 无下游动作（断链）。
     if action == "approve":
         try:
-            # 层边界 (test_layer_boundary): 路由不直连 app.core，经 services 访问
+ # 层边界 (test_layer_boundary): 路由不直连 app.core，经 services 访问
             from app.services.evolution_service import write_back_changelog_row
 
             warnings: list[str] = []
             await write_back_changelog_row(session, row, warnings)
             await session.commit()
         except Exception as exc:  # noqa: BLE001 — 写回失败不阻断审核响应
-            # P0-AUDIT-FIX (2026-08-13): the previous code did a local
-            # `import logging as _logging` and called stdlib `getLogger` —
-            # but the rest of this module uses loguru. Mixed channels made
-            # this write-back failure invisible to the project-level audit
-            # pipeline (which only tails loguru). Use the module-level loguru
-            # logger so monitoring catches the regression.
+ # P0-AUDIT-FIX (2026-08-13): the previous code did a local
+ # `import logging as _logging` and called stdlib `getLogger` —
+ # but the rest of this module uses loguru. Mixed channels made
+ # this write-back failure invisible to the project-level audit
+ # pipeline (which only tails loguru). Use the module-level loguru
+ # logger so monitoring catches the regression.
             logger.warning(
                 "evolution review approve write-back failed (non-fatal): {}", exc
             )
@@ -478,8 +478,8 @@ async def get_cii_history(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, Any]:
     """获取CII通胀指数历史。"""
-    # CII = Count of Inflated skills / Total required skills
-    # Simplified: count skills with source_count > 7.2 (1.2x baseline)
+ # CII = Count of Inflated skills / Total required skills
+ # Simplified: count skills with source_count > 7.2 (1.2x baseline)
     stmt = (
         sa.select(EvolutionSnapshot)
         .where(EvolutionSnapshot.position_name == position)
@@ -520,7 +520,7 @@ async def get_skill_portability(
     """
     from app.services.evolution_service import EmergenceFinder
 
-    # Load timeseries data
+ # Load timeseries data
     skill_data = await load_skill_timeseries_data(session, include_category=True)
 
     if not skill_data:
@@ -545,7 +545,7 @@ async def get_skill_portability(
     )
 
 
-# ── Sub-routers (Phase 7 evolution domain split) ──
+# ── Sub-routers ( evolution domain split) ──
 from app.api.v1.evolution_industry_report import router as industry_report_router  # noqa: E402
 
 router.include_router(industry_report_router, prefix="")

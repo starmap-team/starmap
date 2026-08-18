@@ -66,7 +66,7 @@ async def run_graph_update_step(
                 duration_seconds=time.monotonic() - start,
             )
 
-        # Phase 2 SYNC-02: Pass extraction_data for DB-query + graph_writer mode
+ # SYNC-02: Pass extraction_data for DB-query + graph_writer mode
         try:
             sync_result = await sync_from_pipeline(
                 run_id=run_id,

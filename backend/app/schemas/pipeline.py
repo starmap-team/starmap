@@ -22,7 +22,7 @@ class StageInfo(BaseModel):
     warnings: list[str] = Field(default_factory=list, description="阶段非致命警告（如 crawl 0 条采集），不判 failed")
     retry_count: int = Field(0, ge=0, description="阶段重试次数")
     depends_on: list[str] = Field(default_factory=list, description="前置阶段名列表")
-    # Phase 3.7: 实时活动上下文（来自 executor 的 _publish_stage_progress）
+ # : 实时活动上下文（来自 executor 的 _publish_stage_progress）
     current_activity: str = Field("", description="当前活动描述 (e.g. '正在爬取 BOSS直聘: ...')")
     recent_samples: list[dict] = Field(default_factory=list, description="最近处理的样本 (URL/技能/图节点)")
     sub_breakdown: dict[str, int] = Field(default_factory=dict, description="子项分解 (e.g. {'bosszhipin': 12, '51job': 5})")
@@ -61,7 +61,7 @@ class PipelineStatusResponse(BaseModel):
     success_rate: float = Field(0.0, ge=0.0, le=1.0, description="7-day completed/(completed+failed)")
     avg_quality_score: float = Field(0.0, ge=0.0, le=1.0, description="7-day avg quality_score")
     quality_alerts: list[QualityAlertItem] = Field(default_factory=list)
-    # 跨模块联动 (2026-08-14): 待审岗位/技能数（与 admin 内容审核同口径，数据产出后的去向指示）
+ # 跨模块联动 (2026-08-14): 待审岗位/技能数（与 admin 内容审核同口径，数据产出后的去向指示）
     pending_review_positions: int = Field(0, ge=0, description="待审核岗位数（position_records.review_status=pending_review）")
     pending_review_skills: int = Field(0, ge=0, description="待审核技能数（skill_records.review_status=pending_review）")
 
@@ -105,8 +105,8 @@ class DataSourceResponse(BaseModel):
     duplicate_rate: float = 0.0
     avg_quality_score: float = 0.0
     config: dict[str, Any] = Field(default_factory=dict)
-    # P0-3/D1 (2026-08-15): 与 schemas/datasource.DataSourceResponse 对齐 ——
-    # 爬虫适配器能力由后端注册表判定，pipeline 页"可用源"依赖此字段。
+ # /D1 (2026-08-15): 与 schemas/datasource.DataSourceResponse 对齐 ——
+ # 爬虫适配器能力由后端注册表判定，pipeline 页"可用源"依赖此字段。
     has_adapter: bool = False
     adapter_platform: str | None = None
 
@@ -134,7 +134,7 @@ class DataQualityMetrics(BaseModel):
     consistency: float = Field(0.0, ge=0.0, le=1.0, description="Inverse stddev of source_scores")
     timeliness: float = Field(0.0, ge=0.0, le=1.0, description="1 - min(freshness/48h, 1)")
     trend: list[TrendPoint] = Field(default_factory=list, description="14-day overall_score trend")
-    # M5（Phase 13 强制规范）：无已质检数据时不得报“完美”，须显式标记不可信
+ # （ 强制规范）：无已质检数据时不得报“完美”，须显式标记不可信
     baseline_available: bool = Field(True, description="是否存在可评估的质检数据；False 时各分数不可信")
     quality_explanation: str = Field("", description="无基线/无数据时的口径说明")
 

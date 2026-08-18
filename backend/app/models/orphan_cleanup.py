@@ -23,32 +23,32 @@ class OrphanCleanupQueue(Base):
     __tablename__ = "orphan_cleanup_queue"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    # 节点类型: 'position' | 'skill'（与 GraphProjector.NODE_LABELS 对齐）
+ # 节点类型: 'position' | 'skill'（与 GraphProjector.NODE_LABELS 对齐）
     node_type: Mapped[str] = mapped_column(
         String(20), nullable=False,
         comment="'position' | 'skill'",
     )
-    # 节点显示名（用于审批 UI 预览）
+ # 节点显示名（用于审批 UI 预览）
     name: Mapped[str] = mapped_column(
         String(255), nullable=False,
         comment="Neo4j 节点显示名",
     )
-    # 有 canonical_id 但指向不存在 PG 行的节点记录之；无 canonical_id 的为 NULL
+ # 有 canonical_id 但指向不存在 PG 行的节点记录之；无 canonical_id 的为 NULL
     canonical_id: Mapped[str | None] = mapped_column(
         String(64), nullable=True,
         comment="Neo4j 节点 canonical_id（无则为 NULL）",
     )
-    # 孤儿判定原因
+ # 孤儿判定原因
     reason: Mapped[str] = mapped_column(
         String(32), nullable=False,
         comment="'no_canonical_id' | 'orphan_canonical_id'",
     )
-    # 审批状态机: pending -> approved/rejected/linked -> cleaned
+ # 审批状态机: pending -> approved/rejected/linked -> cleaned
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending",
         comment="'pending' | 'approved' | 'rejected' | 'cleaned' | 'linked'",
     )
-    # 引用检查备注（被非孤儿节点引用时记录）
+ # 引用检查备注（被非孤儿节点引用时记录）
     detail: Mapped[dict | None] = mapped_column(
         JSON, nullable=True,
         comment="引用检查结果等附加信息",

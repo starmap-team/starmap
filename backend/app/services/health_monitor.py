@@ -27,7 +27,7 @@ from app.config import settings
 from app.models.pipeline_models import DataSourceRecord
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
-# Fix M1: 不同错误类型权重不同
+# Fix : 不同错误类型权重不同
 # - rate_limit: 0.0 (不算 consecutive failure，单独 backoff 处理)
 # - timeout: 0.5 (可能是大 payload)
 # - connection: 1.0 (网络瞬时错误)
@@ -148,14 +148,14 @@ async def probe_sources_at_startup(session: AsyncSession) -> dict[str, str]:
             results[src.name] = "no_url"
             continue
 
-        # 在线程池里跑同步 urllib，避免阻塞 event loop
+ # 在线程池里跑同步 urllib，避免阻塞 event loop
         loop = asyncio.get_running_loop()
         try:
             status = await loop.run_in_executor(None, _probe_sync, url, PROBE_TIMEOUT)
             if status.startswith("ok"):
                 results[src.name] = "ok"
             else:
-                # 4xx/5xx/网络错误 → 自动暂停
+ # 4xx/5xx/网络错误 → 自动暂停
                 src.status = "paused"
                 src.config = {
                     **(src.config or {}),
@@ -199,7 +199,7 @@ def _derive_probe_url(source_name: str) -> str | None:
     return settings.source_probe_urls.get(source_name)
 
 
-# Fix M2: Rate limit 指数退避状态 (per source)
+# Fix : Rate limit 指数退避状态 (per source)
 _rate_limit_state: dict[str, int] = {}
 
 
@@ -233,7 +233,7 @@ async def get_health_dashboard(session: AsyncSession) -> list[dict[str, Any]]:
     cutoff = datetime.now(UTC) - timedelta(hours=24)
 
     for src in sources.scalars():
-        # 最近 24h 的 metrics
+ # 最近 24h 的 metrics
         recent = await session.execute(
             select(DataSourceMetric)
             .where(

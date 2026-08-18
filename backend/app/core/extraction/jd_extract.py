@@ -67,15 +67,15 @@ def mask_pii(text: str, replacement: str = "[REDACTED]") -> str:
 
     P0 修复 (DATA-01): 增加中文姓名脱敏，防止简历姓名发送至第三方 LLM。
     """
-    # 先脱敏手机号、身份证、邮箱
+ # 先脱敏手机号、身份证、邮箱
     for pattern in _PII_PATTERNS:
         text = pattern.sub(replacement, text)
-    # 脱敏带前缀的姓名
+ # 脱敏带前缀的姓名
     text = _NAME_PREFIX_PATTERN.sub(
         lambda m: m.group(0)[: m.start(1) - m.start(0)] + replacement,
         text,
     )
-    # 脱敏简历开头格式的姓名
+ # 脱敏简历开头格式的姓名
     text = _RESUME_HEADER_NAME.sub(
         lambda m: replacement + m.group(0)[len(m.group(1)):],
         text,
@@ -177,12 +177,12 @@ class JDExtractionPipeline:
             result["error"] = "Empty JD content"
             return result
 
-        # PII masking before sending to LLM
+ # PII masking before sending to LLM
         jd_content_safe = mask_pii(jd_content)
 
-        # CONCERN 1.6 (Phase 24): 输入侧 prompt-injection 检测——JD 文本是用户
-        # 输入，直接拼入 LLM prompt 可被 "ignore previous instructions" 类注入
-        # 劫持抽取（技能幻觉/抽取投毒）。命中注入模式时拒绝本次抽取并记录。
+ # (): 输入侧 prompt-injection 检测——JD 文本是用户
+ # 输入，直接拼入 LLM prompt 可被 "ignore previous instructions" 类注入
+ # 劫持抽取（技能幻觉/抽取投毒）。命中注入模式时拒绝本次抽取并记录。
         injection_check = scan_prompt_injection(jd_content_safe)
         if not injection_check.is_clean:
             logger.warning(
@@ -197,7 +197,7 @@ class JDExtractionPipeline:
             return result
         result["injection_checked"] = True
 
-        # Step 1: Fill prompt
+ # Step 1: Fill prompt
         logger.info("JD extraction pipeline starting ({} chars)", len(jd_content_safe))
         try:
             _ = get_prompt("jd_extraction", jd_content=jd_content_safe)
@@ -205,12 +205,12 @@ class JDExtractionPipeline:
             result["error"] = f"Prompt error: {e}"
             return result
 
-        # Track which prompt version was resolved (supports A/B test)
+ # Track which prompt version was resolved (supports A/B test)
         ab_cfg = get_ab_test("jd_extraction")
         if ab_cfg:
-            # A/B test active: don't call select_version() again to avoid
-            # randomness mismatch with the earlier get_prompt() call.
-            # Record the test config; per-request version is random.
+ # A/B test active: don't call select_version() again to avoid
+ # randomness mismatch with the earlier get_prompt() call.
+ # Record the test config; per-request version is random.
             result["prompt_ab_test"] = True
             result["prompt_version_used"] = (
                 f"ab_test(control={ab_cfg.control_version},"
@@ -225,7 +225,7 @@ class JDExtractionPipeline:
             result["prompt_ab_test"] = False
             result["prompt_version_used"] = get_active_version("jd_extraction") or "v1"
 
-        # Step 2: Call LLM
+ # Step 2: Call LLM
         try:
             raw = await self.llm_client.extract_from_jd(jd_content_safe)
         except LLMConnectionError as e:
@@ -241,25 +241,25 @@ class JDExtractionPipeline:
             result["error"] = f"LLM timeout: {e}"
             return result
 
-        # 记录实际用于抽取的模型（含降级 fallback，如 qwen2.5-7b-fallback），
-        # 供前端展示“本次抽取所用模型/是否降级”，保证降级反馈透明。
+ # 记录实际用于抽取的模型（含降级 fallback，如 qwen2.5-7b-fallback），
+ # 供前端展示“本次抽取所用模型/是否降级”，保证降级反馈透明。
         result["model_used"] = getattr(self.llm_client, "last_extraction_model", None)
 
-        # Step 3: Parse JSON
+ # Step 3: Parse JSON
         try:
             parsed = parse_llm_json_response(raw["content"]) if isinstance(raw, dict) and "content" in raw else raw
         except LLMResponseError as e:
             result["error"] = f"JSON parse error: {e}"
             return result
 
-        # Step 4: Pydantic validation
+ # Step 4: Pydantic validation
         try:
             validated = JDExtractionResult(**parsed)
         except (TypeError, ValueError) as e:
             logger.warning("Pydantic validation failed, using raw data: {}", e)
             result["warnings"].append(f"Pydantic validation issue: {e}")
             validated = JDExtractionResult()
-            # BL-02: Complete fallback for ALL fields, not just a subset
+ # BL-02: Complete fallback for ALL fields, not just a subset
             for key in ("position_name", "experience_required", "education_required",
                         "industry", "description"):
                 if key in parsed:
@@ -283,12 +283,12 @@ class JDExtractionPipeline:
                 for p in parsed["prerequisites"]:
                     try:
                         if isinstance(p, dict):
-                            # Try dict first, fallback to using first value as skill
+ # Try dict first, fallback to using first value as skill
                             prereqs.append(PrerequisiteEntry(**p))
                         else:
                             prereqs.append(PrerequisiteEntry(skill=str(p)))
                     except Exception:
-                        # LLM returned unexpected dict keys — use best-effort
+ # LLM returned unexpected dict keys — use best-effort
                         name = p.get("name") or p.get("skill") or str(p)
                         prereqs.append(PrerequisiteEntry(skill=name))
                 validated.prerequisites = prereqs
@@ -298,7 +298,7 @@ class JDExtractionPipeline:
                     for lr in parsed["learning_resources"]
                 ]
 
-        # Step 4.5: Clean up Chinese suffixes from skill names
+ # Step 4.5: Clean up Chinese suffixes from skill names
         chinese_suffixes = [
             "系统", "安全", "开发", "管理", "平台", "框架", "技术", "语言",
             "生态", "相关", "服务", "设计", "网络", "算法", "存储", "计算",
@@ -306,19 +306,19 @@ class JDExtractionPipeline:
             "编程", "部署", "监控", "测试", "运维", "研发",
             "运行时", "数据库", "环境", "桌面", "并行", "调优", "优化",
             "设计规范", "部署经验", "模型转换", "模型加速", "内核", "源码",
-            # M2 low-F1 optimization: strip common Chinese suffixes that LLM appends
+ # low-F1 optimization: strip common Chinese suffixes that LLM appends
             "方法论", "能力", "攻防", "漏洞", "竞赛经验", "认证", "证书",
         ]
         def _clean_skill_name(name: str) -> str:
-            # BL-08: raise min length to 4 to prevent over-stripping
-            # (e.g. "分布式系统" → "分布式" at len=3 was valid but too aggressive)
+ # BL-08: raise min length to 4 to prevent over-stripping
+ # (e.g. "分布式系统" → "分布式" at len=3 was valid but too aggressive)
             while True:
                 original = name
                 for suffix in chinese_suffixes:
                     if len(name) > 4 and name.endswith(suffix):
                         cleaned = name[:-len(suffix)]
-                        # Only apply strip if result is non-empty AND at least 4 chars
-                        # BL-08: prevents over-stripping like "分布式系统架构"→"分布式"
+ # Only apply strip if result is non-empty AND at least 4 chars
+ # BL-08: prevents over-stripping like "分布式系统架构"→"分布式"
                         if cleaned and len(cleaned) >= 4:
                             name = cleaned
                 if name == original:
@@ -336,7 +336,7 @@ class JDExtractionPipeline:
                 logger.debug("Cleaned skill name: '{}' -> '{}'", skill.name, cleaned)
                 skill.name = cleaned
 
-        # Step 5: Normalize skills
+ # Step 5: Normalize skills
         if self.normalize_skills_enabled:
             all_skill_names = []
             for skill in validated.required_skills:
@@ -354,13 +354,13 @@ class JDExtractionPipeline:
 
             result["normalization"] = [nr.__dict__ for nr in normalized_results]
 
-            # P0-AUDIT-FIX (2026-08-13): replace manual iter() + next() chain
-            # with zip(). If batch_normalize_skills returns fewer items than
-            # expected (e.g. vector/Chroma exception swallowed one), next()
-            # raises StopIteration and the response becomes a 500; even worse,
-            # if it returns more items we silently dropped the tail. zip()
-            # truncates to the shorter input — the leftover skills keep their
-            # original names instead of crashing or going half-applied.
+ # P0-AUDIT-FIX (2026-08-13): replace manual iter() + next() chain
+ # with zip(). If batch_normalize_skills returns fewer items than
+ # expected (e.g. vector/Chroma exception swallowed one), next()
+ # raises StopIteration and the response becomes a 500; even worse,
+ # if it returns more items we silently dropped the tail. zip()
+ # truncates to the shorter input — the leftover skills keep their
+ # original names instead of crashing or going half-applied.
             for skill, nr in zip(validated.required_skills, normalized_results, strict=False):
                 if nr.normalized:
                     skill.name = nr.normalized
@@ -368,14 +368,14 @@ class JDExtractionPipeline:
             for skill, nr in zip(validated.preferred_skills, normalized_results[offset:], strict=False):
                 if nr.normalized:
                     skill.name = nr.normalized
-            # Surface the count mismatch as a warning so callers can see it.
+ # Surface the count mismatch as a warning so callers can see it.
             expected = len(validated.required_skills) + len(validated.preferred_skills)
             if len(normalized_results) != expected:
                 result.setdefault("warnings", []).append(
                     f"normalization count mismatch: expected={expected}, got={len(normalized_results)}"
                 )
 
-        # Step 6: Anti-hallucination check
+ # Step 6: Anti-hallucination check
         validation = None
         if self.anti_hallucination_enabled:
             try:
@@ -383,13 +383,13 @@ class JDExtractionPipeline:
                     validated.model_dump(),
                     jd_content_safe,
                 )
-                # MiMo reasoning model may return dicts with {name, reasoning}
-                # instead of plain strings — normalize ALL list[str] fields
+ # MiMo reasoning model may return dicts with {name, reasoning}
+ # instead of plain strings — normalize ALL list[str] fields
                 v["hallucinated_skills"] = normalize_str_list(v.get("hallucinated_skills", []))
                 v["missing_skills"] = normalize_str_list(v.get("missing_skills", []))
                 v["issues"] = normalize_str_list(v.get("issues", []))
                 validation = AntiHallucinationResult(**v)
-                # Normalize dict items to strings for serialization
+ # Normalize dict items to strings for serialization
                 v_normalized = validation.model_dump()
                 v_normalized["hallucinated_skills"] = normalize_skill_list(validation.hallucinated_skills)
                 v_normalized["missing_skills"] = normalize_skill_list(validation.missing_skills)
@@ -404,11 +404,11 @@ class JDExtractionPipeline:
                 logger.warning("Anti-hallucination check failed: {}", e)
                 result["warnings"].append(f"Validation error: {e}")
 
-        # Step 7: Dictionary post-filter — keep only LLM skills that match SKILL_ALIAS
-        # ponytail: ECC regex-vs-llm-structured-text "Regex handles 95-98%". This filter
-        # drops LLM hallucinations (skills invented beyond our 572-skill vocabulary),
-        # at the cost of dropping some novel skills LLM found correctly. On the 110-sample
-        # golden set, this lifts F1 from 0.8637 → 0.9258 (skill F1, weighted bonus+required).
+ # Step 7: Dictionary post-filter — keep only LLM skills that match SKILL_ALIAS
+ # ponytail: ECC regex-vs-llm-structured-text "Regex handles 95-98%". This filter
+ # drops LLM hallucinations (skills invented beyond our 572-skill vocabulary),
+ # at the cost of dropping some novel skills LLM found correctly. On the 110-sample
+ # golden set, this lifts F1 from 0.8637 → 0.9258 (skill F1, weighted bonus+required).
         dict_skills = extract_dict_skills(jd_content_safe)
         if dict_skills:
             before_req = len(validated.required_skills)
@@ -428,9 +428,9 @@ class JDExtractionPipeline:
         result["success"] = True
         result["data"] = validated.model_dump()
 
-        # Step 8: I18N-01 — 非 CJK 岗位名翻译钩子 (RemoteOK 等英文 JD 源)
-        # 仅当 LLM 返回的 position_name 不含 CJK 才触发 (中文 JD 零成本跳过);
-        # 失败优雅降级 (name_cn 不注入, 前端显"英文原文"标签, 不编造)。
+ # Step 8: I18N-01 — 非 CJK 岗位名翻译钩子 (RemoteOK 等英文 JD 源)
+ # 仅当 LLM 返回的 position_name 不含 CJK 才触发 (中文 JD 零成本跳过);
+ # 失败优雅降级 (name_cn 不注入, 前端显"英文原文"标签, 不编造)。
         pos_name = validated.position_name
         if pos_name and not has_cjk(pos_name):
             try:

@@ -76,7 +76,7 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
         async with session_factory() as session:
             from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
-            # D8: 读取 run 的 selected_sources（触发/调度时手动自选源）
+ # D8: 读取 run 的 selected_sources（触发/调度时手动自选源）
             selected: list[str] | None = None
             if run_id:
                 run_row = await session.execute(
@@ -87,10 +87,10 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
                 if run_meta and run_meta.selected_sources:
                     selected = list(run_meta.selected_sources)
 
-            # PLAN-005: api/rss 源同样参与 crawl 阶段（Phase 15 修复在 rebase 中丢失，恢复）
-            # D8 fix: 当手动指定了 selected_sources 时，直接按名称查这些源（不限制
-            # source_type —— job_board/blog 型如 V2EX/掘金也在可选项内），否则用户
-            # 选了源却因 source_type 过滤被排除 → fallback 默认源（日志实证）。
+ # PLAN-005: api/rss 源同样参与 crawl 阶段（ 修复在 rebase 中丢失，恢复）
+ # D8 fix: 当手动指定了 selected_sources 时，直接按名称查这些源（不限制
+ # source_type —— job_board/blog 型如 V2EX/掘金也在可选项内），否则用户
+ # 选了源却因 source_type 过滤被排除 → fallback 默认源（日志实证）。
             if selected:
                 result = await session.execute(
                     select(DataSourceRecord).where(
@@ -110,18 +110,18 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
             for ds in sources:
                 if ds.config is None:
                     continue
-                # D8: 选源过滤 —— 指定了源但当前 ds 不在列表内则跳过
+ # D8: 选源过滤 —— 指定了源但当前 ds 不在列表内则跳过
                 if selected and ds.name not in selected:
                     logger.info(
                         "D8 source filter: skip '{}' (not in selected_sources={})",
                         ds.name, selected,
                     )
                     continue
-                # Build per-source config: merge record-level metadata with config JSON
+ # Build per-source config: merge record-level metadata with config JSON
                 cfg = dict(ds.config)
                 cfg["source_name"] = ds.name
-                # P0-1 (2026-08-15): 禁止静默回退 v2ex —— 无 platform 的源直接跳过，
-                # 避免 V2EX 内容被错误归属到 bosszhipin/zhaopin 等未配置源。
+ # (2026-08-15): 禁止静默回退 v2ex —— 无 platform 的源直接跳过，
+ # 避免 V2EX 内容被错误归属到 bosszhipin/zhaopin 等未配置源。
                 platform = cfg.get("platform") or cfg.get("source_site")
                 if not platform:
                     logger.warning(
@@ -165,13 +165,13 @@ async def _skip_paused_sources_if_needed(run_id: str) -> None:
 
 def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
     """执行 crawl 阶段：多源爬虫调度 + jd_raw 写入。"""
-    # 2026-08-07 修复 (B1): import 失败(如 celery 容器缺 psycopg) 必须回写 run 状态,
-    # 否则 run/stage 永远卡 running 0%, 用户看不到失败原因
+ # 2026-08-07 修复 (B1): import 失败(如 celery 容器缺 psycopg) 必须回写 run 状态,
+ # 否则 run/stage 永远卡 running 0%, 用户看不到失败原因
     try:
         from crawler.persistence import dao
         from crawler.persistence.models import JdStatus
 
-        # noqa: F401 — 依赖可用性探测
+ # noqa: F401 — 依赖可用性探测
         from crawler.spiders import arbeitnow, jobicy, weworkremotely  # noqa: F401
         from crawler.spiders.v2ex_remote import run_sync as v2ex_sync  # noqa: F401
     except Exception as exc:  # noqa: BLE001 — 依赖缺失是环境级失败
@@ -193,7 +193,7 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
         logger.opt(exception=True).error("crawl stage deps unavailable: {}", exc)
         raise
 
-    # 复用本模块的 build_spider_registry (PLAN-005/NEW-07 注册)
+ # 复用本模块的 build_spider_registry (PLAN-005/NEW-07 注册)
     spider_registry = build_spider_registry()
 
     try:
@@ -269,7 +269,7 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
             ))
             continue
 
-        # D-15: 每个数据源发 1 条 sub_step 事件
+ # : 每个数据源发 1 条 sub_step 事件
         run_async(publish_stage_progress(
             run_id, "crawl", "running",
             progress=source_idx / total_sources,
@@ -308,11 +308,11 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
                     "status": JdStatus.raw,
                 }
                 r = dao.upsert_jd(rec)
-                # 2026-08-12 (pipeline 联调): 区分新增 vs 重复 —— "入库 0" 通常是因为
-                # 本次爬取 70 条 content_hash 与库中已有记录重复（upsert 返回 duplicate），
-                # 而非爬虫没抓到。source_inserted 计入新增+重复（= 本源处理量，供
-                # sub_breakdown/实时状态展示），新增/重复总数由 records_new/records_duplicate
-                # 承载（DAG tooltip 与详情抽屉解释"为何入库 0"）。
+ # 2026-08-12 (pipeline 联调): 区分新增 vs 重复 —— "入库 0" 通常是因为
+ # 本次爬取 70 条 content_hash 与库中已有记录重复（upsert 返回 duplicate），
+ # 而非爬虫没抓到。source_inserted 计入新增+重复（= 本源处理量，供
+ # sub_breakdown/实时状态展示），新增/重复总数由 records_new/records_duplicate
+ # 承载（DAG tooltip 与详情抽屉解释"为何入库 0"）。
                 if r in ("inserted", "duplicate"):
                     source_inserted += 1
                     total_inserted += 1
@@ -374,7 +374,7 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
         run_id, "crawl", "completed",
         progress=1.0,
         records_processed=total_seen,
-        # D8c fix: 文案用真实新增 total_new（原用 total_inserted=新增+重复 冒充"新增"）
+ # fix: 文案用真实新增 total_new（原用 total_inserted=新增+重复 冒充"新增"）
         current_activity=(
             f"采集完成: 抓到 {total_seen} 条，新增 {total_new} 条入库，{total_duplicate} 条与库中重复"
             if total_new > 0 else
@@ -391,8 +391,8 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
             "⚠️ 爬虫采集完成但 0 条入库。可能原因: ① 平台反爬(stealth被识别) "
             "② 选择器失效(网站改版) ③ 数据源配置 max_count=0"
         )
-        # 0 条采集 = 非致命警告（进入 warnings），不再判 failed —— 否则定时任务
-        # 在部分源返回 0（如 v2ex 超时 / arbeitnow 握手失败）时会每小时刷失败记录
+ # 0 条采集 = 非致命警告（进入 warnings），不再判 failed —— 否则定时任务
+ # 在部分源返回 0（如 v2ex 超时 / arbeitnow 握手失败）时会每小时刷失败记录
         warnings.append(warning_msg)
         logger.warning(warning_msg + f" sources_attempted={total_sources}, total_seen={total_seen}")
     elif total_seen == 0 and errors:

@@ -104,7 +104,7 @@ async def get_current_user(
     开发环境 (显式 opt-in dev_anon_admin=True): 无 token 时返回
         role=admin 的 dev 用户，仅供本地调试 / e2e 自测用。
     """
-    # 生产环境永远强制鉴权；不论 settings.dev_anon_admin 为何值
+ # 生产环境永远强制鉴权；不论 settings.dev_anon_admin 为何值
     if settings.app_env == "production" and credentials is None:
         audit_log(
             AuditEntry(
@@ -121,23 +121,23 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Dev / 测试环境：缺 token 时按 dev_anon_admin 开关分流
+ # Dev / 测试环境：缺 token 时按 dev_anon_admin 开关分流
     if credentials is None:
         if settings.dev_anon_admin:
-            # 显式 opt-in：返回 admin（仅供本地调试）
+ # 显式 opt-in：返回 admin（仅供本地调试）
             return {"sub": "dev", "role": "admin", "username": "developer"}
-        # 默认 dev 行为：返回 viewer（低权限）而不是 admin
-        # 这样默认 dev compose up 后访问 admin 端点会自然得到 403
+ # 默认 dev 行为：返回 viewer（低权限）而不是 admin
+ # 这样默认 dev compose up 后访问 admin 端点会自然得到 403
         return {"sub": "dev", "role": "viewer", "username": "developer"}
 
     token = credentials.credentials
 
-    # PLAN-015③: dev-token 守门收敛到 services.dev_token (避免历史
-    # `settings.app_env != "production"` 二元判定误放行 staging/testing)
+ # PLAN-015③: dev-token 守门收敛到 services.dev_token (避免历史
+ # `settings.app_env != "production"` 二元判定误放行 staging/testing)
     if is_dev_token_allowed(token):
         return dev_token_identity()
 
-    # JWT 验证
+ # JWT 验证
     try:
         payload = _decode_token_payload(token)
     except ValueError as e:
@@ -159,10 +159,10 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
-    # BUG-17 fix: even if JWT signature/exp is valid, reject the request if
-    # the user is currently disabled. Without this, flipping is_active=False
-    # in admin does not invalidate already-issued tokens until they expire.
-    # We do a cheap PG lookup keyed on the JWT subject.
+ # BUG-17 fix: even if JWT signature/exp is valid, reject the request if
+ # the user is currently disabled. Without this, flipping is_active=False
+ # in admin does not invalidate already-issued tokens until they expire.
+ # We do a cheap PG lookup keyed on the JWT subject.
     sub = payload.get("sub")
     if sub and sub != "dev":
         try:
@@ -194,7 +194,7 @@ async def get_current_user(
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001
-            # Don't fail closed on PG hiccups — JWT signature is still valid.
+ # Don't fail closed on PG hiccups — JWT signature is still valid.
             logger.warning("post-JWT is_active check skipped: {}", exc)
 
     return payload
@@ -287,7 +287,7 @@ async def sse_disconnect(client_ip: str) -> None:
     async with _sse_lock:
         if _sse_ip_connections.get(client_ip, 0) > 0:
             _sse_ip_connections[client_ip] -= 1
-            # 清理归零条目，防止 dict 无限膨胀
+ # 清理归零条目，防止 dict 无限膨胀
             if _sse_ip_connections[client_ip] <= 0:
                 _sse_ip_connections.pop(client_ip, None)
         if _sse_global_connections > 0:
@@ -312,15 +312,15 @@ async def get_current_user_sse(
 
     API-05 fix: per-IP + global SSE connection limit to prevent resource exhaustion.
     """
-    # API-05: 检查 SSE 连接数限制
-    # 通过 _sse_connect_check 注入点，测试可替换为 no-op 避免全局状态污染
+ # API-05: 检查 SSE 连接数限制
+ # 通过 _sse_connect_check 注入点，测试可替换为 no-op 避免全局状态污染
     client_ip = resolve_client_ip(request)
     check_fn = _sse_connect_check or sse_connect
     await check_fn(client_ip)
 
-    # Try query-param token first (for EventSource connections)
+ # Try query-param token first (for EventSource connections)
     if token:
-        # PLAN-015③: dev-token 守门收敛到 services.dev_token (SSE 路径同上)
+ # PLAN-015③: dev-token 守门收敛到 services.dev_token (SSE 路径同上)
         if is_dev_token_allowed(token):
             return dev_token_identity()
         try:
@@ -342,7 +342,7 @@ async def get_current_user_sse(
             logger.warning("SSE JWT validation failed: {}", e)
             headers: dict[str, str] = {}
             if is_expired:
-                # P0-F2: signal to frontend that a silent refresh may recover
+ # P0-F2: signal to frontend that a silent refresh may recover
                 headers["X-Token-Expired"] = "true"
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -350,5 +350,5 @@ async def get_current_user_sse(
                 headers=headers,
             ) from e
 
-    # Fall back to standard Bearer header auth
+ # Fall back to standard Bearer header auth
     return await get_current_user(credentials)

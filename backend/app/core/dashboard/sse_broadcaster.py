@@ -92,7 +92,7 @@ async def publish_event(
     try:
         message = json.dumps(payload, default=str)
         await redis.publish(CHANNEL, message)
-        # Append to polling fallback list (LPUSH + LTRIM for capped list)
+ # Append to polling fallback list (LPUSH + LTRIM for capped list)
         await cast(Awaitable[Any], redis.lpush(POLL_LIST_KEY, message))
         await cast(Awaitable[Any], redis.ltrim(POLL_LIST_KEY, 0, 99))  # keep latest 100
         await redis.expire(POLL_LIST_KEY, EVENT_TTL)
@@ -123,11 +123,11 @@ async def event_stream(
     - Gracefully exits if the Redis connection drops.
     """
     if redis is None:
-        # Fallback: send a single error event and close
+ # Fallback: send a single error event and close
         yield _format_sse("error", {"message": "Redis not available"})
         return
 
-    # AP-07: Enforce connection limit
+ # AP-07: Enforce connection limit
     global _active_sse_clients
     if _active_sse_clients >= MAX_SSE_CLIENTS:
         yield _format_sse("error", {"message": f"Max SSE clients ({MAX_SSE_CLIENTS}) reached"})
@@ -148,13 +148,13 @@ async def event_stream(
 
     try:
         while True:
-            # --- heartbeat ---
+ # --- heartbeat ---
             now = time.time()
             if now - last_heartbeat >= HEARTBEAT_INTERVAL:
                 yield f": heartbeat {now}\n\n"
                 last_heartbeat = now
 
-            # --- check for messages ---
+ # --- check for messages ---
             try:
                 message = await asyncio.wait_for(
                     pubsub.get_message(ignore_subscribe_messages=True),
@@ -191,10 +191,10 @@ async def event_stream(
         raise
     except (ConnectionError, OSError):
         logger.exception("SSE subscriber connection error")
-        # Continue — single subscriber failure shouldn't break broadcast
+ # Continue — single subscriber failure shouldn't break broadcast
     except Exception:
         logger.exception("SSE stream error")
-        # Continue — don't break the broadcast loop
+ # Continue — don't break the broadcast loop
     finally:
         _active_sse_clients = max(0, _active_sse_clients - 1)
         try:

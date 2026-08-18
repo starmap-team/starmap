@@ -37,7 +37,7 @@ class InjectionCheckResult(BaseModel):
 # false-positive — a match requires either a high-weight pattern or several
 # low-weight hits.
 _INJECTION_PATTERNS: dict[str, tuple[re.Pattern[str], float]] = {
-    # Classic prompt-override attacks
+ # Classic prompt-override attacks
     "ignore_previous_instructions": (
         re.compile(r"(?i)\b(ignore|disregard|forget|override|bypass)\b[^.\n]{0,60}\b(previous|prior|all|above)\b[^.\n]{0,60}\b(instructions?|prompts?|rules?|context)\b"),
         0.9,
@@ -91,8 +91,8 @@ def scan_prompt_injection(content: str) -> InjectionCheckResult:
     if not content or not content.strip():
         return result
 
-    # Line-oriented scan keeps snippets readable and avoids regex catastrophic
-    # backtracking on very long JD texts (each line scanned independently).
+ # Line-oriented scan keeps snippets readable and avoids regex catastrophic
+ # backtracking on very long JD texts (each line scanned independently).
     total_weight = 0.0
     matched: list[str] = []
     snippet = ""

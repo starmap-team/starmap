@@ -100,7 +100,7 @@ async def healthcheck_resources() -> dict[str, str]:
     else:
         result["redis"] = "not_initialized"
 
-    # Ollama ping (settings.qwen_model_path 为 Ollama 基址，如 http://ollama:11434)
+ # Ollama ping (settings.qwen_model_path 为 Ollama 基址，如 http://ollama:11434)
     ollama_url = settings.qwen_model_path
     if ollama_url:
         try:

@@ -31,21 +31,21 @@ from app.schemas.pipeline import (
 # as import-time errors instead of silent runtime SQL failures.
 #
 # Schema (from crawler/persistence/migrations/versions/0001_init_jd_raw.py):
-#   id            BigInteger PK
-#   source_site   String(32)
-#   source_url    Text UNIQUE
-#   raw_html      Text
-#   clean_text    Text
-#   job_title     String(200)
-#   company       String(200)
-#   salary_min    Integer
-#   salary_max    Integer
-#   location      String(100)
-#   publish_date  Date
-#   crawled_at    DateTime(timezone=True)  ← the column we project MAX on
-#   content_hash  CHAR(64)
-#   status        Enum('raw','extracted','duplicate','failed', name='jd_status')
-#   error_msg     Text
+# id BigInteger PK
+# source_site String(32)
+# source_url Text UNIQUE
+# raw_html Text
+# clean_text Text
+# job_title String(200)
+# company String(200)
+# salary_min Integer
+# salary_max Integer
+# location String(100)
+# publish_date Date
+# crawled_at DateTime(timezone=True) ← the column we project MAX on
+# content_hash CHAR(64)
+# status Enum('raw','extracted','duplicate','failed', name='jd_status')
+# error_msg Text
 _JD_RAW_METADATA = MetaData()
 jd_raw_table = Table(
     "jd_raw",
@@ -144,9 +144,9 @@ async def get_pipeline_status(
     except Exception as exc:
         logger.opt(exception=True).error("Unexpected error in pipeline route: {}", exc)
         quality_alerts = []
-    # end of alerts block — after this we always return a valid response
+ # end of alerts block — after this we always return a valid response
 
-    # 查询最近一次 crawl 时间，让用户看到数据陈旧度
+ # 查询最近一次 crawl 时间，让用户看到数据陈旧度
     try:
         last_crawl_at = (
             await session.execute(
@@ -157,9 +157,9 @@ async def get_pipeline_status(
     except Exception:
         last_crawl_iso = None
 
-    # 跨模块联动 (2026-08-14): 待审岗位/技能计数——与 admin 内容审核同口径
-    # （position_records / skill_records review_status=pending_review），
-    # 数据产出后的去向指示（新抽取内容进入审核队列）。
+ # 跨模块联动 (2026-08-14): 待审岗位/技能计数——与 admin 内容审核同口径
+ # （position_records / skill_records review_status=pending_review），
+ # 数据产出后的去向指示（新抽取内容进入审核队列）。
     try:
         from sqlalchemy import func as _func
 
@@ -210,8 +210,8 @@ async def get_pipeline_stages(
     mirrors the canonical pipeline (crawl → extract → standardize → ingest →
     audit) and is purely informational — none of the stages have run.
     """
-    # 取“最有意义”的最新 run（DAG 与运行历史始终一致）
-    # 优先：running → completed(records>0) → failed → cancelled(records>0) → latest cancelled
+ # 取“最有意义”的最新 run（DAG 与运行历史始终一致）
+ # 优先：running → completed(records>0) → failed → cancelled(records>0) → latest cancelled
     result = await session.execute(
         select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(1)
     )
@@ -220,8 +220,8 @@ async def get_pipeline_stages(
         return StageStatusResponse(stages=_default_stage_skeleton())
 
     stage_list = []
-    # Defensive: some legacy rows store stages as a dict (e.g. {"steps": [...]})
-    # instead of a list. Normalize to a list to keep the API contract stable.
+ # Defensive: some legacy rows store stages as a dict (e.g. {"steps": [...]})
+ # instead of a list. Normalize to a list to keep the API contract stable.
     raw_stages = run.stages
     if isinstance(raw_stages, dict):
         raw_stages = raw_stages.get("steps") or raw_stages.get("stages") or []
@@ -241,15 +241,15 @@ async def get_pipeline_stages(
                 "records_processed": stage.get("records_processed", 0),
                 "records_new": stage.get("records_new"),
                 "records_duplicate": stage.get("records_duplicate"),
-                # D8c: 补 records_seen（crawl 抓到数）——前端 tooltip 口径依赖它
+ # : 补 records_seen（crawl 抓到数）——前端 tooltip 口径依赖它
                 "records_seen": stage.get("records_seen"),
                 "errors": stage.get("errors", []),
                 "errors_count": stage.get("errors_count", len(stage.get("errors", []))),
                 "warnings": stage.get("warnings", []),
                 "retry_count": stage.get("retry_count", 0),
                 "depends_on": stage.get("depends_on", []),
-                # D8 fix: 序列化漏传 recent_samples/sub_breakdown/current_activity →
-                # DAG 卡片展开 + 运行详情 drawer 看不到"爬了哪些岗位/技能"（DB 有但 API 丢弃）
+ # D8 fix: 序列化漏传 recent_samples/sub_breakdown/current_activity →
+ # DAG 卡片展开 + 运行详情 drawer 看不到"爬了哪些岗位/技能"（DB 有但 API 丢弃）
                 "recent_samples": stage.get("recent_samples", []),
                 "sub_breakdown": stage.get("sub_breakdown", {}),
                 "current_activity": stage.get("current_activity", ""),
@@ -306,7 +306,7 @@ async def get_datasources(
     return [serialize_datasource(ds) for ds in sources]
 
 
-# ── Phase 7: Pipeline observability metrics (Prometheus-compatible) ──
+# ── : Pipeline observability metrics (Prometheus-compatible) ──
 
 
 @router.get("/metrics", response_model=dict)
@@ -319,7 +319,7 @@ async def pipeline_metrics(
     Does NOT require admin — designed for scrape access.
     """
 
-    # Recent runs per-stage duration histogram (last 30 days)
+ # Recent runs per-stage duration histogram (last 30 days)
     since = datetime.now(UTC) - timedelta(days=30)
     result = await session.execute(
         select(PipelineRun)
@@ -330,7 +330,7 @@ async def pipeline_metrics(
     )
     runs = result.scalars().all()
 
-    # Per-stage duration aggregation
+ # Per-stage duration aggregation
     stage_durations: dict[str, list[int]] = {}
     error_type_counts: dict[str, int] = {}
     total_runs = len(runs)

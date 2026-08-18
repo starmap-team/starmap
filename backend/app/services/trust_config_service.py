@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.pipeline_models import SourceTrustConfig
 
-# §7.1 来源类型归类 (已知平台映射; 其余默认 aggregator)
+# 来源类型归类 (已知平台映射; 其余默认 aggregator)
 _PLATFORM_SOURCES = {"lagou", "zhaopin", "bosszhipin", "51job", "liepin", "boss"}
 _ENTERPRISE_SOURCES = {"sap", "esco"}
 

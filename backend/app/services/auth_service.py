@@ -161,15 +161,15 @@ def _validate_password_policy(password: str, username: str = "") -> None:
         raise PasswordPolicyError(
             f"密码不能超过 {MAX_PASSWORD_LENGTH} 个字符"
         )
-    # ── ponytail: reject trivial patterns ──
+ # ── ponytail: reject trivial patterns ──
     if password.isdigit():
         raise PasswordPolicyError("密码不能是纯数字")
     if password.isalpha():
         raise PasswordPolicyError("密码不能是纯字母")
-    # ── reject password == username ──
+ # ── reject password == username ──
     if username and password.lower() == username.lower():
         raise PasswordPolicyError("密码不能与用户名相同")
-    # ── common password blocklist (ponytail: inline set, no file dep) ──
+ # ── common password blocklist (ponytail: inline set, no file dep) ──
     _blocklist = frozenset({
         "password", "password1", "admin123", "admin1234",
         "12345678", "123456789", "qwerty123", "abc12345", "11111111",
@@ -277,8 +277,8 @@ def decode_token(token: str) -> dict[str, Any]:
     if token.count(".") != 2:
         raise InvalidTokenError("Invalid JWT format")
 
-    # Extract kid header (unverified) for keyring lookup. PyJWT returns the
-    # unverified header via jwt.get_unverified_header().
+ # Extract kid header (unverified) for keyring lookup. PyJWT returns the
+ # unverified header via jwt.get_unverified_header().
     try:
         header = jwt.get_unverified_header(token)
     except jwt.InvalidTokenError as e:
@@ -336,7 +336,7 @@ async def authenticate(
     user = result.scalar_one_or_none()
 
     if user is None:
-        # Avoid leaking whether the username exists
+ # Avoid leaking whether the username exists
         audit_log(AuditEntry(
             event=AuditEvent.AUTH_FAILURE,
             actor=username,
@@ -359,7 +359,7 @@ async def authenticate(
         )
 
     if user.is_locked:
-        # mypy: is_locked property guarantees locked_until is set + future
+ # mypy: is_locked property guarantees locked_until is set + future
         locked_until = user.locked_until
         assert locked_until is not None  # for type narrowing; guaranteed by is_locked
         audit_log(AuditEntry(
@@ -381,7 +381,7 @@ async def authenticate(
         ))
         raise AccountDisabledError("Account is inactive")
 
-    # ── Password check ──
+ # ── Password check ──
     if not verify_password(password, user.password_hash):
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= MAX_FAILED_LOGIN_ATTEMPTS:
@@ -412,7 +412,7 @@ async def authenticate(
         ))
         raise InvalidCredentialsError("Invalid username or password")
 
-    # ── Success ──
+ # ── Success ──
     await _record_successful_login(user, session, client_ip)
     audit_log(AuditEntry(
         event=AuditEvent.LOGIN_SUCCESS,
@@ -459,7 +459,7 @@ async def create_tokens(
     access_token = create_access_token(user)
     refresh_token = create_refresh_token(user)
 
-    # Decode refresh to get jti for Redis storage
+ # Decode refresh to get jti for Redis storage
     refresh_payload = jwt.decode(
         refresh_token,
         settings.secret_key,
@@ -476,13 +476,13 @@ async def create_tokens(
         try:
             await redis.set(f"refresh:{jti}", str(user.id), ex=ttl_seconds)
         except Exception as exc:  # pragma: no cover - exercised under Redis outage
-            # Downgrade: enqueue and continue. Access token is still valid;
-            # revocation is best-effort until the drain task succeeds.
+ # Downgrade: enqueue and continue. Access token is still valid;
+ # revocation is best-effort until the drain task succeeds.
             _enqueue_revocation(jti, str(user.id), ttl_seconds, exc)
     else:
-        # No Redis client available (e.g. APP_ENV=test with no Redis fixture).
-        # Tokens are issued; revocation is skipped — refresh tokens become
-        # effectively non-revocable until Redis comes back.
+ # No Redis client available (e.g. APP_ENV=test with no Redis fixture).
+ # Tokens are issued; revocation is skipped — refresh tokens become
+ # effectively non-revocable until Redis comes back.
         _enqueue_revocation(jti, str(user.id), ttl_seconds, reason="no_redis_client")
 
     return {
@@ -498,7 +498,7 @@ async def create_tokens(
     }
 
 
-# ── Phase 20 D-03: Revocation queue for Redis-down degradation ──────────
+# ── : Revocation queue for Redis-down degradation ──────────
 # When Redis is unavailable, token issuance must still succeed. The
 # refresh-token revocation entry is enqueued here; a background task
 # (``_drain_revocation_queue``) flushes the queue once Redis recovers.
@@ -522,8 +522,8 @@ class _RevocationQueue:
         async with self._lock:
             cap = self._items.maxlen or 0
             if cap and len(self._items) >= cap:
-                # Drop oldest silently (deque(maxlen=...) auto-drops but we
-                # want to log once per drop).
+ # Drop oldest silently (deque(maxlen=...) auto-drops but we
+ # want to log once per drop).
                 from loguru import logger as _logger
                 _logger.warning(
                     "Revocation queue full ({} items); dropping oldest",
@@ -544,13 +544,13 @@ class _RevocationQueue:
                 await redis.set(f"refresh:{jti}", user_id, ex=ttl)
                 flushed += 1
             except Exception as exc:
-                # Re-enqueue items that still fail; preserve order so we don't
-                # lose earlier issuances.
+ # Re-enqueue items that still fail; preserve order so we don't
+ # lose earlier issuances.
                 async with self._lock:
                     self._items.append((jti, user_id, ttl, str(exc)))
                 _logger.warning("Revocation drain failed for jti={}: {}", jti[:8], exc)
-                # Stop retrying on this drain cycle to avoid a tight loop;
-                # next cycle will try again.
+ # Stop retrying on this drain cycle to avoid a tight loop;
+ # next cycle will try again.
                 break
         if flushed:
             _logger.info("Revocation drain: flushed {} queued items to Redis", flushed)
@@ -580,9 +580,9 @@ def _enqueue_revocation(
         loop = asyncio.get_running_loop()
         loop.create_task(_put())
     except RuntimeError:
-        # No running loop (sync context) — best-effort sync put via asyncio.run
-        # is unsafe here; just log and skip. In practice this only happens in
-        # unit tests that call create_tokens outside an event loop.
+ # No running loop (sync context) — best-effort sync put via asyncio.run
+ # is unsafe here; just log and skip. In practice this only happens in
+ # unit tests that call create_tokens outside an event loop.
         from loguru import logger as _logger
         _logger.warning("No asyncio loop; revocation item dropped: jti={}", jti[:8])
 
@@ -631,7 +631,7 @@ async def refresh_access_token(
         ))
         return None
 
-    # Check Redis for revocation
+ # Check Redis for revocation
     stored_user_id = await redis.get(f"refresh:{jti}")
     if stored_user_id is None:
         audit_log(AuditEntry(
@@ -643,7 +643,7 @@ async def refresh_access_token(
         ))
         return None
 
-    # Look up user to ensure still active
+ # Look up user to ensure still active
     username = payload.get("sub")
     if not username:
         return None
@@ -667,7 +667,7 @@ async def refresh_access_token(
         ))
         return None
 
-    # Issue new access token
+ # Issue new access token
     new_access = create_access_token(user)
     audit_log(AuditEntry(
         event=AuditEvent.SENSITIVE_READ,
@@ -820,7 +820,7 @@ async def reset_password_with_token(
     if raw is None:
         raise InvalidTokenError("Reset token is invalid or expired")
 
-    # redis-py may return bytes or str depending on decode_responses setting
+ # redis-py may return bytes or str depending on decode_responses setting
     user_id_str = raw.decode() if isinstance(raw, bytes) else raw
     user = await get_user_by_id(session, user_id_str)
     if user is None:
@@ -835,7 +835,7 @@ async def reset_password_with_token(
     user.locked_until = None
     await session.commit()
 
-    # Token is single-use
+ # Token is single-use
     await redis.delete(f"forgot_password:{token}")
 
     audit_log(AuditEntry(
@@ -1016,7 +1016,7 @@ async def delete_user(
     user.is_active = False
     user.disabled_at = datetime.now(UTC)
     user.disabled_reason = reason
-    # disabled_by set by caller via update_user(actor); leave null if unknown
+ # disabled_by set by caller via update_user(actor); leave null if unknown
     await session.commit()
 
     audit_log(AuditEntry(
@@ -1027,8 +1027,8 @@ async def delete_user(
         ip="",
     ))
 
-    # DATA-05 fix: 软删除时同时匿名化 PII（邮箱、登录 IP）
-    # 用户名保留用于审计追踪，但标记为已匿名化
+ # DATA-05 fix: 软删除时同时匿名化 PII（邮箱、登录 IP）
+ # 用户名保留用于审计追踪，但标记为已匿名化
     if user.email:
         user.email = None
     if user.last_login_ip:

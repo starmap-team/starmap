@@ -55,9 +55,9 @@ async def cancel_pipeline_run(
     run_id: UUID,
     request: Request,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    # P0-AUDIT-FIX (2026-08-13): previously any authenticated user could
-    # cancel any other user's run (IDOR). PipelineRun has no `owner_id`
-    # field — kill switch is a destructive operation, so restrict to admin.
+ # P0-AUDIT-FIX (2026-08-13): previously any authenticated user could
+ # cancel any other user's run (IDOR). PipelineRun has no `owner_id`
+ # field — kill switch is a destructive operation, so restrict to admin.
     _admin: Annotated[Any, Depends(require_admin)] = None,
 ) -> CancelResponse:
     """Phase 1 D-04: 软取消 + Redis STOP flag + Celery 阶段开始时检查。"""
@@ -130,7 +130,7 @@ async def force_advance_pipeline(run_id: UUID) -> PipelineRunResponse:
 
     sm = get_session_factory()
 
-    # Phase 7 fix: detect and mark stuck stages before advancing
+ # fix: detect and mark stuck stages before advancing
     async with sm() as session:
         async with session.begin():
             result = await session.execute(sa_select(PipelineRun).where(PipelineRun.id == run_id))
@@ -145,7 +145,7 @@ async def force_advance_pipeline(run_id: UUID) -> PipelineRunResponse:
 
             for s in stages:
                 if s["status"] not in terminal and s["status"] != StageStatus.RUNNING.value:
-                    # Stuck stage: mark as failed so downstream can proceed
+ # Stuck stage: mark as failed so downstream can proceed
                     s["status"] = StageStatus.FAILED.value
                     s["completed_at"] = datetime.now(UTC).isoformat()
                     s["error_type"] = "stuck_force_advanced"
@@ -158,10 +158,10 @@ async def force_advance_pipeline(run_id: UUID) -> PipelineRunResponse:
             if stuck:
                 await session.execute(update(PipelineRun).where(PipelineRun.id == run_id).values(stages=stages))
 
-    # Now advance normally (get_ready_stages will find PENDING successors)
+ # Now advance normally (get_ready_stages will find PENDING successors)
     await advance_pipeline(run_id)
 
-    # 返回最新状态
+ # 返回最新状态
     sm = get_session_factory()
     async with sm() as session:
         result = await session.execute(sa_select(PipelineRun).where(PipelineRun.id == run_id))
@@ -251,8 +251,8 @@ def crawl_single_source(  # sync def: 爬取+DB 同步操作放线程池, 避免
     from app.models.pipeline_models import DataSourceRecord
     from app.services.pipeline_service import build_spider_registry
 
-    # sync def: 用 crawler 同步 engine (psycopg) 查数据源 + 写指标
-    # session 内提取所需字段 (detached 实例不可访问属性)
+ # sync def: 用 crawler 同步 engine (psycopg) 查数据源 + 写指标
+ # session 内提取所需字段 (detached 实例不可访问属性)
     with get_jd_raw_session() as s:
         row = s.execute(
             select(DataSourceRecord.id, DataSourceRecord.name, DataSourceRecord.config,
@@ -301,7 +301,7 @@ def crawl_single_source(  # sync def: 爬取+DB 同步操作放线程池, 避免
         else:
             failed += 1
 
-    # 写爬取指标 — fetched=0 记 no_fetch，避免误标 success
+ # 写爬取指标 — fetched=0 记 no_fetch，避免误标 success
     if len(items) == 0:
         metric_status, metric_error = "no_fetch", "network_or_empty"
     elif not failed:
@@ -352,7 +352,7 @@ async def analyze_pipeline(
     session: Annotated[AsyncSession, Depends(get_db_session)] = None,  # type: ignore[assignment]
 ) -> StreamingResponse:
     """上传简历，执行完整的6步求职者分析 Pipeline。"""
-    # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+ # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
     content_bytes = await validate_resume_upload(resume_file)
 
     from loguru import logger as _logger
@@ -399,7 +399,7 @@ async def export_analysis(
     session: Annotated[AsyncSession, Depends(get_db_session)] = None,  # type: ignore[assignment]
 ) -> Any:
     """上传简历并返回 JSON 格式的完整分析结果。"""
-    # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+ # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
     content_bytes = await validate_resume_upload(resume_file)
 
     from fastapi.responses import JSONResponse
@@ -440,7 +440,7 @@ async def export_analysis(
     return JSONResponse(content=_build_result(ctx))
 
 
-# ── Phase 7: Crawler completion Webhook (P0-2 fix) ──
+# ── : Crawler completion Webhook ( fix) ──
 
 
 @router.post("/crawler-complete", response_model=dict)

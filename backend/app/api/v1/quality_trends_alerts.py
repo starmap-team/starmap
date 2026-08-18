@@ -44,7 +44,7 @@ async def get_quality_trends(
     days = days_map.get(period, 30)
     cutoff = datetime.now(UTC) - timedelta(days=days)
 
-    # Fetch completed pipeline runs in the window
+ # Fetch completed pipeline runs in the window
     runs_result = await session.execute(
         sa.select(PipelineRun)
         .where(PipelineRun.started_at >= cutoff)
@@ -53,7 +53,7 @@ async def get_quality_trends(
     )
     runs = list(runs_result.scalars().all())
 
-    # Aggregate by day
+ # Aggregate by day
     daily_quality: dict[str, list[float]] = {}
     daily_records: dict[str, int] = {}
     daily_new: dict[str, int] = {}
@@ -65,7 +65,7 @@ async def get_quality_trends(
         daily_records[day_key] = daily_records.get(day_key, 0) + run.total_records
         daily_new[day_key] = daily_new.get(day_key, 0) + run.new_records
 
-    # Also get source-level duplicate rates for context
+ # Also get source-level duplicate rates for context
     source_result = await session.execute(sa.select(DataSourceRecord))
     sources = list(source_result.scalars().all())
     avg_dup = sum(s.duplicate_rate for s in sources) / len(sources) if sources else 0.0
@@ -77,7 +77,7 @@ async def get_quality_trends(
             hours = (now - last).total_seconds() / 3600.0
             avg_freshness = max(avg_freshness, hours)
 
-    # Also get hallucination rate from extraction records
+ # Also get hallucination rate from extraction records
     from app.models.extraction_models import JDExtractionRecord
 
     ext_result = await session.execute(
@@ -90,7 +90,7 @@ async def get_quality_trends(
         if ext.hallucination_score is not None:
             daily_halluc.setdefault(day_key, []).append(ext.hallucination_score)
 
-    # Build data points with gap filling
+ # Build data points with gap filling
     data_points: list[TrendPoint] = []
     for i in range(days):
         day = (now - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
@@ -109,7 +109,7 @@ async def get_quality_trends(
             hallucination_rate=round(avg_halluc, 4),
         ))
 
-    # Summary
+ # Summary
     all_scores = [dp.quality_score for dp in data_points if dp.quality_score > 0]
     summary = {
         "avg_quality": round(sum(all_scores) / len(all_scores), 4) if all_scores else 0.0,
@@ -142,7 +142,7 @@ async def get_quality_alerts(
 
     raw_alerts = await generate_alerts(session)
 
-    # 读取已处理告警状态（dimension:source → resolved|ignored）
+ # 读取已处理告警状态（dimension:source → resolved|ignored）
     handled_map: dict[str, str] = {}
     redis_client = getattr(request.app.state.resources, "redis_client", None)
     if redis_client:
@@ -153,7 +153,7 @@ async def get_quality_alerts(
         except Exception:  # noqa: BLE001 — Redis 不可用时告警仍可用（仅失去已处理状态）
             handled_map = {}
 
-    # Convert to serializable items
+ # Convert to serializable items
     items: list[AlertItem] = []
     for idx, a in enumerate(raw_alerts):
         if level and a.level != level:
@@ -172,14 +172,14 @@ async def get_quality_alerts(
             created_at=a.timestamp,
             handled=False,
         )
-        # 叠加已处理状态（跨刷新保留）
+ # 叠加已处理状态（跨刷新保留）
         stored = handled_map.get(item.id)
         if stored in ("resolved", "ignored"):
             item.status = stored
             item.handled = True
         items.append(item)
 
-    # Count by level
+ # Count by level
     critical = sum(1 for a in items if a.level == "critical")
     warning = sum(1 for a in items if a.level == "warning")
     info = sum(1 for a in items if a.level == "info")
@@ -206,7 +206,7 @@ async def handle_quality_alert(
 
     redis_client = getattr(request.app.state.resources, "redis_client", None)
     if redis_client is not None:
-        # 存完整词形（resolved/ignored），与 GET /alerts 的 status 判断一致
+ # 存完整词形（resolved/ignored），与 GET /alerts 的 status 判断一致
         stored = "resolved" if body.action == "resolve" else "ignored"
         await redis_client.hset(ALERT_HANDLED_KEY, body.id, stored)
         await redis_client.expire(ALERT_HANDLED_KEY, ALERT_HANDLED_TTL)

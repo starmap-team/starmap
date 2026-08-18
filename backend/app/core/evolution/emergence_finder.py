@@ -167,7 +167,7 @@ def _classify_skill_domains(skill_name: str, positions: list[str] | None = None)
                 matched_domains.append(domain)
                 break
 
-    # Default to IT for general programming skills
+ # Default to IT for general programming skills
     if not matched_domains:
         general_skills = {
             "python", "java", "sql", "git", "linux", "docker",
@@ -218,18 +218,18 @@ class EmergenceFinder:
         Returns:
             EmergenceSignal with classification.
         """
-        # Compute statistics from historical data
+ # Compute statistics from historical data
         if len(frequencies) < 2:
-            # BL-07: Insufficient history — use Wilson score interval
-            # for a more conservative estimate than returning STABLE blindly.
-            # P0-AUDIT-NOTE (2026-08-13): this path can still produce RISING
-            # when Wilson lower-bound exceeds 0.3 — that is the BL-07
-            # contract (validated by test_wilson_rising_when_lower_above_0_3).
-            # Single-point EMERGING requires >5x MIN_SOURCES; this preserves
-            # the audit's intent without breaking the test suite.
+ # BL-07: Insufficient history — use Wilson score interval
+ # for a more conservative estimate than returning STABLE blindly.
+ # P0-AUDIT-NOTE (2026-08-13): this path can still produce RISING
+ # when Wilson lower-bound exceeds 0.3 — that is the BL-07
+ # contract (validated by test_wilson_rising_when_lower_above_0_3).
+ # Single-point EMERGING requires >5x MIN_SOURCES; this preserves
+ # the audit's intent without breaking the test suite.
             if current_frequency > 0 and source_count >= self.MIN_SOURCES:
-                # Wilson score for binomial proportion (observed = current vs baseline 0)
-                # Lower bound of confidence interval
+ # Wilson score for binomial proportion (observed = current vs baseline 0)
+ # Lower bound of confidence interval
                 n = current_frequency + 10  # pseudocount to avoid division by zero
                 p_hat = current_frequency / n
                 z = 1.96  # 95% confidence
@@ -258,14 +258,14 @@ class EmergenceFinder:
         variance = sum((f - mean) ** 2 for f in frequencies) / len(frequencies)
         std = math.sqrt(variance)
 
-        # Compute z-score (handle zero std)
+ # Compute z-score (handle zero std)
         if std < 1e-6:
-            # No variance — if current > mean, it's a jump; otherwise stable
+ # No variance — if current > mean, it's a jump; otherwise stable
             z = 10.0 if current_frequency > mean else 0.0
         else:
             z = (current_frequency - mean) / std
 
-        # Classify
+ # Classify
         level = self._classify(z, current_frequency, source_count)
 
         logger.debug(
@@ -273,7 +273,7 @@ class EmergenceFinder:
             skill_name, z, current_frequency, mean, std, level.value,
         )
 
-        # Enrich with domain metadata
+ # Enrich with domain metadata
         domains = _classify_skill_domains(skill_name, positions)
         metadata: dict[str, Any] = {"domains": domains}
 
@@ -344,7 +344,7 @@ class EmergenceFinder:
             else:
                 stable.append(signal)
 
-        # Sort by z-score descending
+ # Sort by z-score descending
         emerging.sort(key=lambda s: s.z_score, reverse=True)
         rising.sort(key=lambda s: s.z_score, reverse=True)
         declining.sort(key=lambda s: s.z_score)
@@ -363,7 +363,7 @@ class EmergenceFinder:
             total_skills_analyzed=len(skill_data),
         )
 
-    # ─── Sprint 2.3: Cross-domain skill analysis ───
+ # ─── Sprint 2.3: Cross-domain skill analysis ───
 
     def find_cross_domain_skills(
         self,
@@ -385,7 +385,7 @@ class EmergenceFinder:
         Returns:
             List of CrossDomainSkill, sorted by domain_count descending.
         """
-        # Aggregate skills by domain
+ # Aggregate skills by domain
         domain_skill_positions: dict[str, dict[str, list[str]]] = defaultdict(
             lambda: defaultdict(list)
         )
@@ -396,7 +396,7 @@ class EmergenceFinder:
             for domain in domains:
                 domain_skill_positions[domain][skill_name].extend(positions)
 
-        # Find skills appearing in multiple domains
+ # Find skills appearing in multiple domains
         skill_domain_map: dict[str, dict[str, list[str]]] = defaultdict(
             lambda: defaultdict(list)
         )
@@ -410,7 +410,7 @@ class EmergenceFinder:
                 continue  # Skip single-domain skills
 
             domains = sorted(domains_positions.keys())
-            # Deduplicate positions per domain
+ # Deduplicate positions per domain
             positions_by_domain: dict[str, list[str]] = {}
             total_positions = 0
             for domain in domains:
@@ -418,7 +418,7 @@ class EmergenceFinder:
                 positions_by_domain[domain] = unique_positions
                 total_positions += len(unique_positions)
 
-            # Compute portability
+ # Compute portability
             portability = self.portability_score(skill_name, domains_positions)
 
             results.append(CrossDomainSkill(
@@ -431,7 +431,7 @@ class EmergenceFinder:
                 category=skill_data.get(skill_name, {}).get("category", ""),
             ))
 
-        # Sort by portability score then domain count
+ # Sort by portability score then domain count
         results.sort(key=lambda s: (s.portability_score, s.domain_count), reverse=True)
 
         logger.info(
@@ -466,28 +466,28 @@ class EmergenceFinder:
         else:
             domain_count = len(domains_positions)
 
-        # Factor 1: Domain coverage (0.0 – 0.5)
-        # 1 domain → 0.0, 2 domains → 0.25, 3 domains → 0.4, 4+ domains → 0.5
+ # Factor 1: Domain coverage (0.0 – 0.5)
+ # 1 domain → 0.0, 2 domains → 0.25, 3 domains → 0.4, 4+ domains → 0.5
         total_known_domains = len(DOMAIN_KEYWORDS)
         coverage = min(1.0, domain_count / total_known_domains)
         domain_factor = coverage * 0.5
 
-        # Factor 2: Position diversity (0.0 – 0.3)
+ # Factor 2: Position diversity (0.0 – 0.3)
         if domains_positions:
             unique_positions: set[str] = set()
             for positions in domains_positions.values():
                 unique_positions.update(positions)
-            # Scale: 1 position → ~0.05, 5+ positions → 0.3
+ # Scale: 1 position → ~0.05, 5+ positions → 0.3
             position_factor = min(0.3, len(unique_positions) * 0.06)
         else:
             position_factor = 0.0
 
-        # Factor 3: Domain balance (0.0 – 0.2)
-        # Penalize if skill is only marginally present in most domains
+ # Factor 3: Domain balance (0.0 – 0.2)
+ # Penalize if skill is only marginally present in most domains
         if domains_positions and domain_count > 1:
             total_positions = sum(len(v) for v in domains_positions.values())
             if total_positions > 0:
-                # Shannon entropy normalized
+ # Shannon entropy normalized
                 entropy = 0.0
                 for positions in domains_positions.values():
                     p = len(positions) / total_positions
@@ -518,7 +518,7 @@ class EmergenceFinder:
         Returns:
             PortabilityAnalysis or None if skill not found in data.
         """
-        # Find the skill in data (case-insensitive match)
+ # Find the skill in data (case-insensitive match)
         actual_name = skill_name
         data = skill_data.get(skill_name)
         if data is None:
@@ -533,14 +533,14 @@ class EmergenceFinder:
         positions = data.get("positions", [])
         domains = _classify_skill_domains(actual_name, positions)
 
-        # Build positions by domain
+ # Build positions by domain
         domains_positions: dict[str, list[str]] = {}
         for domain in domains:
             domains_positions[domain] = list(positions)
 
         portability = self.portability_score(actual_name, domains_positions)
 
-        # Determine tier
+ # Determine tier
         if portability >= 0.7:
             tier = "universal"
             recommendation = f"{actual_name} is a universal skill applicable across all tracked domains. High career flexibility value."
@@ -563,7 +563,7 @@ class EmergenceFinder:
                 "Consider pairing with cross-domain skills for career flexibility."
             )
 
-        # Find related cross-domain skills
+ # Find related cross-domain skills
         cross_domain = self.find_cross_domain_skills(skill_data)
         related: list[str] = []
         for cds in cross_domain:

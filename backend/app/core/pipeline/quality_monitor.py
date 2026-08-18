@@ -60,9 +60,9 @@ DEFAULT_THRESHOLDS = {
     "max_freshness_hours": 48,
     "min_completeness": 0.80,
     "volume_anomaly_z": 2.0,  # z-score for volume anomaly
-    # 2026-08-14 门禁修复: 失败运行告警窗口 — 此前统计 all-time 失败数，croniter
-    # bug 时代累积的 297 次永久触发 critical 告警，每次轮询/SSE 重发 → 事件流刷屏。
-    # 告警本意是"近期失败爆发"，改为近 N 小时窗口（默认 24h）。
+ # 2026-08-14 门禁修复: 失败运行告警窗口 — 此前统计 all-time 失败数，croniter
+ # bug 时代累积的 297 次永久触发 critical 告警，每次轮询/SSE 重发 → 事件流刷屏。
+ # 告警本意是"近期失败爆发"，改为近 N 小时窗口（默认 24h）。
     "max_failed_runs": 3,
     "max_failed_runs_window_hours": 24,
 }
@@ -101,7 +101,7 @@ async def compute_source_quality(
     completeness = valid_records / total_records if total_records > 0 else 0.0
     avg_dup_rate = statistics.mean(duplicate_rates) if duplicate_rates else 0.0
 
-    # Freshness: hours since last crawl across all sources
+ # Freshness: hours since last crawl across all sources
     freshness_hours = 0.0
     now = datetime.now(UTC)
     latest_crawl = None
@@ -193,11 +193,11 @@ async def generate_alerts(
     """Scan current state and return any active quality alerts."""
     if thresholds is None:
         thresholds = DEFAULT_THRESHOLDS
-    # 2026-08-14: 统一在函数顶部取 now（此前只在"有 last_crawl_at 的源"分支
-    # 赋值，无源/无 last_crawl_at 时后续失败运行检查引用 now → UnboundLocalError）
+ # 2026-08-14: 统一在函数顶部取 now（此前只在"有 last_crawl_at 的源"分支
+ # 赋值，无源/无 last_crawl_at 时后续失败运行检查引用 now → UnboundLocalError）
     now = datetime.now(UTC)
 
-    # 数据源内部标识 → 中文展示名（对齐前端 SOURCE_NAME_LABELS，中文化 message）
+ # 数据源内部标识 → 中文展示名（对齐前端 SOURCE_NAME_LABELS，中文化 message）
     site_labels: dict[str, str] = {
         "boss": "BOSS直聘",
         "bosszhipin": "BOSS直聘",
@@ -225,15 +225,15 @@ async def generate_alerts(
 
     alerts: list[QualityAlert] = []
 
-    # 1. Check each data source
+ # 1. Check each data source
     result = await session.execute(select(DataSourceRecord))
     sources = list(result.scalars().all())
 
     for src in sources:
-        # Low quality score
-        # 2026-08-14 规范驱动改进 (deep-interview): 0 记录源（未接入的 BOSS直聘/
-        # ESCO/拉勾网等 valid_records=0）质量分恒 0.000 会持续误报 low_quality
-        # 噪音；无数据无从评估质量，跳过（freshness/duplicate 等维度不受影响）。
+ # Low quality score
+ # 2026-08-14 规范驱动改进 (deep-interview): 0 记录源（未接入的 BOSS直聘/
+ # ESCO/拉勾网等 valid_records=0）质量分恒 0.000 会持续误报 low_quality
+ # 噪音；无数据无从评估质量，跳过（freshness/duplicate 等维度不受影响）。
         if src.valid_records > 0 and src.avg_quality_score < thresholds["min_quality_score"]:
             alerts.append(QualityAlert(
                 level="warning",
@@ -247,7 +247,7 @@ async def generate_alerts(
                 threshold=thresholds["min_quality_score"],
             ))
 
-        # High duplicate rate
+ # High duplicate rate
         if src.duplicate_rate > thresholds["max_duplicate_rate"]:
             alerts.append(QualityAlert(
                 level="warning",
@@ -261,7 +261,7 @@ async def generate_alerts(
                 threshold=thresholds["max_duplicate_rate"],
             ))
 
-        # Source in error state
+ # Source in error state
         if src.status == "error":
             alerts.append(QualityAlert(
                 level="critical",
@@ -270,7 +270,7 @@ async def generate_alerts(
                 source=src.name,
             ))
 
-        # Stale data
+ # Stale data
         if src.last_crawl_at is not None:
             last = src.last_crawl_at.replace(tzinfo=UTC) if src.last_crawl_at.tzinfo is None else src.last_crawl_at
             hours_since = (now - last).total_seconds() / 3600.0
@@ -287,8 +287,8 @@ async def generate_alerts(
                     threshold=thresholds["max_freshness_hours"],
                 ))
 
-    # 2. Check for failed pipeline runs (近 24h 窗口 — 2026-08-14 修复，见
-    #    DEFAULT_THRESHOLDS.max_failed_runs_window_hours 注释)
+ # 2. Check for failed pipeline runs (近 24h 窗口 — 2026-08-14 修复，见
+ # DEFAULT_THRESHOLDS.max_failed_runs_window_hours 注释)
     _fail_window_h = int(thresholds.get("max_failed_runs_window_hours", 24))
     failed_result = await session.execute(
         select(func.count())

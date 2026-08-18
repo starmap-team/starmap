@@ -265,7 +265,7 @@ const formattedRecords = computed(() => {
   return String(n)
 })
 
-// D8c: 各阶段「处理量」语义口径 —— 普通用户视角，每个数字都要自解释
+// : 各阶段「处理量」语义口径 —— 普通用户视角，每个数字都要自解释
 const STAGE_METRIC_MEANING: Record<string, (s: { records_processed?: number; records_seen?: number; records_new?: number | null; records_duplicate?: number | null }) => string> = {
   crawl: (s) => {
     const fresh = s.records_new

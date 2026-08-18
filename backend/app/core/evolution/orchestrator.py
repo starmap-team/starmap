@@ -85,7 +85,7 @@ def _month_iter(months_back: int, ref: datetime | None = None) -> list[datetime]
         ref = ref.replace(tzinfo=UTC)
     out: list[datetime] = []
     for i in range(months_back, -1, -1):
-        # Subtract i months by walking back to first-of-month, then back i months.
+ # Subtract i months by walking back to first-of-month, then back i months.
         anchor = datetime(ref.year, ref.month, 1, tzinfo=UTC)
         for _ in range(i):
             if anchor.month == 1:
@@ -125,7 +125,7 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
         "warnings": [],
     }
 
-    # ── Steps 1-3: per-position snapshot + diff + changelog ──
+ # ── Steps 1-3: per-position snapshot + diff + changelog ──
     async with session_factory() as session:
         positions = await list_positions_with_records(session)
     summary["positions_found"] = len(positions)
@@ -152,20 +152,20 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
             summary["changelogs_written"] += changelogs_made
             projected_edges.extend(edges_made)
         except EvolutionPipelineError as exc:
-            # Expected pipeline errors: log and continue
+ # Expected pipeline errors: log and continue
             msg = f"position='{position}': {exc}"
             summary["errors"].append(msg)
             logger.warning("evolution_orchestrator: pipeline error for position='{}': {}", position, exc)
         except StarMapError:
             raise
         except Exception as exc:
-            # Unexpected errors: log with full traceback but still continue
+ # Unexpected errors: log with full traceback but still continue
             msg = f"position='{position}': {type(exc).__name__}: {exc}"
             summary["errors"].append(msg)
             logger.exception("evolution_orchestrator: unexpected error for position='{}'", position)
 
-    # ── D-04 tail: incremental Neo4j projection of this run's written-back rows ──
-    # 仅投影本次回写成功的 upsert 行（增量），不触发全量重投影；fail-soft (D-06)。
+ # ── tail: incremental Neo4j projection of this run's written-back rows ──
+ # 仅投影本次回写成功的 upsert 行（增量），不触发全量重投影；fail-soft ()。
     summary["graph_projected_edges"] = 0
     if projected_edges:
         try:
@@ -178,7 +178,7 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
             )
             logger.warning("evolution_orchestrator: graph projection failed (non-fatal): {}", exc)
 
-    # ── Step 4: path recommender (single batch) ──
+ # ── Step 4: path recommender (single batch) ──
     try:
         async with session_factory() as session:
             async with session.begin():
@@ -193,7 +193,7 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
         summary["errors"].append(f"path_recommender: {type(exc).__name__}: {exc}")
         logger.exception("evolution_orchestrator: path recommender unexpected error")
 
-    # ── Step 5: refresh skill timeseries (existing service) ──
+ # ── Step 5: refresh skill timeseries (existing service) ──
     try:
         async with session_factory() as session:
             async with session.begin():
@@ -207,8 +207,8 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
         summary["errors"].append(f"timeseries: {type(exc).__name__}: {exc}")
         logger.exception("evolution_orchestrator: timeseries unexpected error")
 
-    # ── D-07: PG ↔ Neo4j 一致性校验（只读，warn-only，不改数据）──
-    # 校验失败仅告警不阻断管线；consistency 模块自身只读，禁止写 Cypher。
+ # ── : PG ↔ Neo4j 一致性校验（只读，warn-only，不改数据）──
+ # 校验失败仅告警不阻断管线；consistency 模块自身只读，禁止写 Cypher。
     try:
         summary["consistency"] = await check_pg_neo4j_consistency(session_factory)
     except Exception as exc:  # noqa: BLE001 — D-07 fail-soft
@@ -221,8 +221,8 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
             "error": f"{type(exc).__name__}: {exc}",
         }
 
-    # W5: consistency.py docstring 承诺「调用方把 mismatch 降级为 warnings」——
-    # 这里落地：status=="mismatch" 时追加告警，使监控 warnings 列表的运维能看到漂移（D-07 意图）。
+ # W5: consistency.py docstring 承诺「调用方把 mismatch 降级为 warnings」——
+ # 这里落地：status=="mismatch" 时追加告警，使监控 warnings 列表的运维能看到漂移（ 意图）。
     if summary["consistency"].get("status") == "mismatch":
         cons = summary["consistency"]
         summary["warnings"].append(
@@ -264,15 +264,15 @@ async def _process_single_position(
     projected_edges: list[tuple[str, str, str, float]] = []
     prev_snapshot: EvolutionSnapshot | None = None
 
-    # Generate snapshots in chronological order so we can walk adjacencies.
+ # Generate snapshots in chronological order so we can walk adjacencies.
     for month_anchor in months:
         async with session_factory() as session:
             async with session.begin():
                 snap = await snap_mgr.create_snapshot(session, position, month_anchor)
                 if snap is not None:
                     snapshots_created += 1
-                    # Re-load previous snapshot for this position to keep the
-                    # diff anchored to actual DB state (handles re-runs).
+ # Re-load previous snapshot for this position to keep the
+ # diff anchored to actual DB state (handles re-runs).
                     if prev_snapshot is None:
                         prev_snapshot = await _load_previous_snapshot(
                             session,
@@ -339,12 +339,12 @@ async def _diff_and_persist(
     written = 0
     rows: list[EvolutionChangelog] = []
     for change in changes:
-        # 去重 (QA G#3 修复): 同一 (岗位, 技能, 变更类型) 只保留一条记录，跨状态去重。
-        # 此前按快照对 (from_id, to_id) 去重 — 但 create_snapshot 每月 delete+重建快照，
-        # 旧快照被删触发 FK ON DELETE SET NULL 把已存行的 from/to_id 置空 → 去重键
-        # 永远匹配不上 → 每轮运行重复 INSERT（Pandas|Data Analyst removed 已累积 76 条
-        # pending + approved/rejected 各 1 条）。改为按业务键去重：同一条变更
-        # 无论当前是 pending/approved/rejected，都不再重复入队。
+ # 去重 (QA G#3 修复): 同一 (岗位, 技能, 变更类型) 只保留一条记录，跨状态去重。
+ # 此前按快照对 (from_id, to_id) 去重 — 但 create_snapshot 每月 delete+重建快照，
+ # 旧快照被删触发 FK ON DELETE SET NULL 把已存行的 from/to_id 置空 → 去重键
+ # 永远匹配不上 → 每轮运行重复 INSERT（Pandas|Data Analyst removed 已累积 76 条
+ # pending + approved/rejected 各 1 条）。改为按业务键去重：同一条变更
+ # 无论当前是 pending/approved/rejected，都不再重复入队。
         existing = (
             await session.execute(
                 sa.select(EvolutionChangelog.id)
@@ -359,7 +359,7 @@ async def _diff_and_persist(
         if existing is not None:
             continue  # 该变更已记录过（含已审核），跳过
 
-        # source_count: use the newer snapshot's source_count as the strongest signal.
+ # source_count: use the newer snapshot's source_count as the strongest signal.
         source_count = int(new.source_count or 0)
         trust, confidence = scorer.score(change, source_count)
         row = EvolutionChangelog(
@@ -372,9 +372,9 @@ async def _diff_and_persist(
             new_requirement=change.new_requirement,
             snapshot_from_id=old.id,
             snapshot_to_id=new.id,
-            # BUG-6 fix: use shared LOW_TRUST_THRESHOLD (was 0.6 — out of sync
-            # with /evolution/review-queue filter of 0.5; pending rows in
-            # [0.5, 0.6) were orphaned).
+ # BUG-6 fix: use shared LOW_TRUST_THRESHOLD (was 0.6 — out of sync
+ # with /evolution/review-queue filter of 0.5; pending rows in
+ # [0.5, 0.6) were orphaned).
             status="approved" if trust >= LOW_TRUST_THRESHOLD else "pending",
             trust_score=trust,
             confidence=confidence,
@@ -382,7 +382,7 @@ async def _diff_and_persist(
                 "mention_count_old": change.mention_count_old,
                 "mention_count_new": change.mention_count_new,
                 "source_count": source_count,
-                # D-09 证据因子: 与 trust_scorer.score_change 输出口径一致
+ # 证据因子: 与 trust_scorer.score_change 输出口径一致
                 "factors": {
                     "source": round(scorer._source_factor(source_count), 3),
                     "stability": round(scorer._stability_factor(change), 3),
@@ -395,11 +395,11 @@ async def _diff_and_persist(
         written += 1
     await session.flush()
 
-    # D-04/D-06: per-row write-back → position_skill_relations (fail-soft,
-    # warnings thread into the pipeline summary). Collect projected edges for
-    # the incremental Neo4j projection (only THIS run's written-back rows).
-    # W1: 投影使用回写实际落库的有效 confidence（max(existing, new)），
-    # 而不是原始 changelog confidence —— 否则 PG 保持 max 而 Neo4j 写入 raw 值会漂移。
+ # : per-row write-back → position_skill_relations (fail-soft,
+ # warnings thread into the pipeline summary). Collect projected edges for
+ # the incremental Neo4j projection (only THIS run's written-back rows).
+ # W1: 投影使用回写实际落库的有效 confidence（max(existing, new)），
+ # 而不是原始 changelog confidence —— 否则 PG 保持 max 而 Neo4j 写入 raw 值会漂移。
     projected_edges: list[tuple[str, str, str, float]] = []
     for row in rows:
         try:

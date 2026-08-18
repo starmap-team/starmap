@@ -122,7 +122,7 @@ async def create_prompt_version(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, Any]:
     """Register a new prompt version."""
-    # ponytail: 持久化优先 —— 先落 prompt_versions 表（重启不丢），再更新内存注册表
+ # ponytail: 持久化优先 —— 先落 prompt_versions 表（重启不丢），再更新内存注册表
     if req.activate:
         await session.execute(
             update(PromptVersion)
@@ -180,8 +180,8 @@ async def change_active_version(
         set_active_version(name, req.version)
     except KeyError as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
-    # ponytail: 持久化活跃选择 —— 该 (name, version) 若已注册则置 active，
-    # 否则（内置版本）插入快照行
+ # ponytail: 持久化活跃选择 —— 该 (name, version) 若已注册则置 active，
+ # 否则（内置版本）插入快照行
     await session.execute(
         update(PromptVersion)
         .where(PromptVersion.prompt_name == name)
@@ -196,7 +196,7 @@ async def change_active_version(
         )
     ).scalar_one_or_none()
     if row is None:
-        # 内置版本激活：插入空 content 快照（仅记录活跃标记，不覆盖内置模板）
+ # 内置版本激活：插入空 content 快照（仅记录活跃标记，不覆盖内置模板）
         try:
             get_prompt_version_content(name, req.version)
         except KeyError as e:

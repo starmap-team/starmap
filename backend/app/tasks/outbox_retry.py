@@ -72,7 +72,7 @@ async def _list_retryable_outbox(
         .limit(batch_size)
     )
     rows = list(result.scalars.all)
-    # 防御性二次过滤（SQL 已过滤；Python 侧兜底防误捡 drift_warning/completed 等）
+ # 防御性二次过滤（SQL 已过滤；Python 侧兜底防误捡 drift_warning/completed 等）
     return [r for r in rows if r.status == "failed" and (r.retry_count or 0) < MAX_RETRY_COUNT]
 
 async def _sweep_stale_pending(
@@ -97,7 +97,7 @@ async def _sweep_stale_pending(
         .limit(batch_size)
     )
     rows = list(result.scalars.all)
-    # 防御性二次过滤（SQL 已过滤；Python 侧兜底防误捡 drift_warning/completed 等）
+ # 防御性二次过滤（SQL 已过滤；Python 侧兜底防误捡 drift_warning/completed 等）
     return [
         r for r in rows
         if r.status == "pending"
@@ -134,7 +134,7 @@ async def _replay_outbox_row(session_factory: Any, row: Any, driver: Any) -> boo
                 )
             extractions = [rec.to_extraction_payload for rec in records]
 
-            # 从 PG SSOT 重新解析 canonical_id（不信任 outbox 行内旧值，T1 威胁面）
+ # 从 PG SSOT 重新解析 canonical_id（不信任 outbox 行内旧值，T1 威胁面）
             position_names = {
                 str(p.get("position_name") or p.get("job_title") or "").strip
                 for p in extractions
@@ -173,7 +173,7 @@ async def _replay_outbox_row(session_factory: Any, row: Any, driver: Any) -> boo
                 }
 
         if not extractions:
-            # 抽取记录已不存在 → 直接 complete（避免空行无限重试）
+ # 抽取记录已不存在 → 直接 complete（避免空行无限重试）
             await _complete_outbox_record(session_factory, row.id, 0)
             return True
 

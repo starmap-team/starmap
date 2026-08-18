@@ -24,23 +24,23 @@ class ReviewAuditLog(Base):
 
     __tablename__ = "review_audit_log"
 
-    # Auto-incrementing bigint PK for fast inserts + monotonic ordering.
+ # Auto-incrementing bigint PK for fast inserts + monotonic ordering.
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    # 'position' | 'skill' — what kind of entity transitioned.
+ # 'position' | 'skill' — what kind of entity transitioned.
     entity_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    # The UUID of the entity (FK-style reference, but polymorphic so no DB FK).
+ # The UUID of the entity (FK-style reference, but polymorphic so no DB FK).
     entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    # 'submit' | 'approve' | 'reject' | 'unpublish' | 'grandfather'
+ # 'submit' | 'approve' | 'reject' | 'unpublish' | 'grandfather'
     action: Mapped[str] = mapped_column(String(20), nullable=False)
-    # Username of the actor (admin, or 'system:grandfather', 'system:extraction', etc.)
+ # Username of the actor (admin, or 'system:grandfather', 'system:extraction', etc.)
     actor: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    # Status before the transition (NULL for initial grandfather).
+ # Status before the transition (NULL for initial grandfather).
     previous_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    # Status after the transition.
+ # Status after the transition.
     new_status: Mapped[str] = mapped_column(String(20), nullable=False)
-    # Free-form reason / comment (required for reject, optional for approve).
+ # Free-form reason / comment (required for reject, optional for approve).
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Server-side timestamp.
+ # Server-side timestamp.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

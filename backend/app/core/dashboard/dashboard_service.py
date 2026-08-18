@@ -119,7 +119,7 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
     PostgreSQL position_records 表只保存业务审核相关的字段。
     当 Neo4j 不可用时，fallback 到 PostgreSQL 计数。
     """
-    # Neo4j 优先：直接查询图谱节点数
+ # Neo4j 优先：直接查询图谱节点数
     neo4j_pos, neo4j_skill, neo4j_edge = await asyncio.gather(
         count_positions_neo4j(neo4j_driver),
         count_skills_neo4j(neo4j_driver),
@@ -127,7 +127,7 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         return_exceptions=True,
     )
 
-    # Handle return_exceptions=True: values may be int or BaseException
+ # Handle return_exceptions=True: values may be int or BaseException
     neo4j_pos_val = int(neo4j_pos) if isinstance(neo4j_pos, int) else 0
     neo4j_skill_val = int(neo4j_skill) if isinstance(neo4j_skill, int) else 0
     neo4j_edge_val = int(neo4j_edge) if isinstance(neo4j_edge, int) else 0
@@ -137,13 +137,13 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
     )
 
     if use_neo4j:
-        # Neo4j 是真理源
+ # Neo4j 是真理源
         total_nodes = neo4j_pos_val + neo4j_skill_val
         total_edges = neo4j_edge_val
         total_positions = neo4j_pos_val
         total_skills = neo4j_skill_val
     else:
-        # Neo4j 不可用：fallback 到 PostgreSQL
+ # Neo4j 不可用：fallback 到 PostgreSQL
         pos_count = (
             await session.execute(sa.select(sa.func.count()).select_from(PositionRecord))
         ).scalar() or 0
@@ -165,10 +165,10 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         )
     ).scalar() or 0
 
-    # Phase 23 Task 7 (IC-06/IS-01): source_count 漂移探针 —— Neo4j max 语义（去重
-    # 来源数上限，重放/重复写入不放大）vs PG 命中次数（每次抽取 +1）语义不同；差值
-    # >0 记日志告警，不新增端点。asyncio.gather(return_exceptions=True) + int 兜底，
-    # Neo4j 不可用时 fail-soft 不崩。
+ # (/): source_count 漂移探针 —— Neo4j max 语义（去重
+ # 来源数上限，重放/重复写入不放大）vs PG 命中次数（每次抽取 +1）语义不同；差值
+ # >0 记日志告警，不新增端点。asyncio.gather(return_exceptions=True) + int 兜底，
+ # Neo4j 不可用时 fail-soft 不崩。
     neo4j_max_sc, pg_max_sc = await asyncio.gather(
         _max_skill_source_count_neo4j(neo4j_driver),
         _max_skill_source_count_pg(session),
@@ -198,10 +198,10 @@ async def _fetch_quality_stats(session: AsyncSession) -> dict[str, Any]:
     """Fetch quality / trust / hallucination metrics — delegates to quality_monitor for metrics."""
     from app.core.pipeline.quality_monitor import compute_source_quality
 
-    # Use the quality module as single source of truth for quality metrics
+ # Use the quality module as single source of truth for quality metrics
     metrics = await compute_source_quality(session)
 
-    # Extraction-specific stats still need direct queries
+ # Extraction-specific stats still need direct queries
     ext_stmt = sa.select(
         sa.func.count(JDExtractionRecord.id),
         sa.func.count(JDExtractionRecord.id).filter(JDExtractionRecord.status == "completed"),
@@ -217,8 +217,8 @@ async def _fetch_quality_stats(session: AsyncSession) -> dict[str, Any]:
     hallucination_rate = (int(hallucinated or 0) / total_extractions) if total_extractions else 0.0
 
     return {
-        # D2 fix: route through shared metrics module so Quality Dashboard
-        # and Admin Overview cannot drift on the trust value.
+ # D2 fix: route through shared metrics module so Quality Dashboard
+ # and Admin Overview cannot drift on the trust value.
         "trust_score": await _fetch_entity_trust_score(),
         "data_source_quality": round(metrics.overall_score, 4),
         "hallucination_rate": round(hallucination_rate, 4),
@@ -240,14 +240,14 @@ async def _fetch_pipeline_stats(session: AsyncSession) -> dict[str, Any]:
     now = datetime.now(UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # Total data volume (all records across runs)
+ # Total data volume (all records across runs)
     total_volume = (
         await session.execute(
             sa.select(sa.func.coalesce(sa.func.sum(PipelineRun.total_records), 0))
         )
     ).scalar() or 0
 
-    # Today's extractions
+ # Today's extractions
     today_extractions = (
         await session.execute(
             sa.select(sa.func.count()).select_from(JDExtractionRecord)
@@ -255,13 +255,13 @@ async def _fetch_pipeline_stats(session: AsyncSession) -> dict[str, Any]:
         )
     ).scalar() or 0
 
-    # Weekly new nodes — D1 fix: route through shared metrics module so
-    # the Quality Dashboard and the Admin Overview cannot drift apart.
+ # Weekly new nodes — D1 fix: route through shared metrics module so
+ # the Quality Dashboard and the Admin Overview cannot drift apart.
     from app.core.metrics import weekly_new_nodes  # noqa: PLC0415
     weekly = await weekly_new_nodes(session, now=now)
     weekly_new_nodes_value = weekly.total
 
-    # Latest pipeline run status
+ # Latest pipeline run status
     latest_run = (
         await session.execute(
             sa.select(PipelineRun)
@@ -274,7 +274,7 @@ async def _fetch_pipeline_stats(session: AsyncSession) -> dict[str, Any]:
     if latest_run:
         pipeline_status = latest_run.status
 
-    # Active data sources
+ # Active data sources
     active_sources = (
         await session.execute(
             sa.select(sa.func.count()).select_from(DataSourceRecord)
@@ -312,8 +312,8 @@ async def get_overview(
         cached["stale"] = False
         return cached
 
-    # Run data-source fetchers sequentially (SQLAlchemy async sessions
-    # do not support concurrent operations on the same session).
+ # Run data-source fetchers sequentially (SQLAlchemy async sessions
+ # do not support concurrent operations on the same session).
     results: list[Any] = []
     for fn in (
         _fetch_graph_stats(session, neo4j_driver),
@@ -353,11 +353,11 @@ async def get_overview(
         "timestamp": time.time(),
     }
 
-    # Cache successful aggregation
+ # Cache successful aggregation
     if not stale:
         await _set_cached(redis, cache_k, overview, _OVERVIEW_TTL)
     else:
-        # Try returning stale cache from Redis
+ # Try returning stale cache from Redis
         stale_cache = await _get_cached(redis, cache_k)
         if stale_cache is not None:
             stale_cache["stale"] = True
@@ -390,7 +390,7 @@ async def get_trends(
     now = datetime.now(UTC)
     cutoff = now - timedelta(days=days)
 
-    # Pipeline runs in window
+ # Pipeline runs in window
     runs_result = await session.execute(
         sa.select(PipelineRun)
         .where(PipelineRun.started_at >= cutoff)
@@ -398,7 +398,7 @@ async def get_trends(
     )
     runs = list(runs_result.scalars().all())
 
-    # Daily aggregations
+ # Daily aggregations
     daily_records: dict[str, int] = {}
     daily_new: dict[str, int] = {}
     daily_quality: dict[str, list[float]] = {}
@@ -411,7 +411,7 @@ async def get_trends(
         if run.quality_score > 0:
             daily_quality.setdefault(day_key, []).append(run.quality_score)
 
-    # Daily extractions
+ # Daily extractions
     ext_result = await session.execute(
         sa.select(JDExtractionRecord)
         .where(JDExtractionRecord.created_at >= cutoff)
@@ -420,7 +420,7 @@ async def get_trends(
         day_key = ext.created_at.strftime("%Y-%m-%d")
         daily_extractions[day_key] = daily_extractions.get(day_key, 0) + 1
 
-    # Build data points
+ # Build data points
     data_points: list[dict[str, Any]] = []
     for i in range(days):
         dt = now - timedelta(days=days - 1 - i)
@@ -472,7 +472,7 @@ async def get_distribution(
     if cached is not None:
         return cached
 
-    # 1. Data source distribution
+ # 1. Data source distribution
     src_result = await session.execute(
         sa.select(DataSourceRecord)
         .where(DataSourceRecord.status == "active")
@@ -492,7 +492,7 @@ async def get_distribution(
             for s in sources
         ]
     else:
-        # D5: 退化路径聚合真实采集表 jd_raw（raw_jd_records 已废弃为死表，2026-08-12 移除）
+ # D5: 退化路径聚合真实采集表 jd_raw（raw_jd_records 已废弃为死表，2026-08-12 移除）
         fallback_result = await session.execute(
             sa.text(
                 "SELECT source_site, COUNT(*) AS count "
@@ -504,10 +504,10 @@ async def get_distribution(
         platform_names = SOURCE_PLATFORM_NAMES
         source_distribution = [
             {
-                # P1-11 fix (functional-review 2026-08-13): fallback SQL 查的列是
-                # source_site，此前代码读 row.source_platform（不存在）→
-                # AttributeError → data_sources 表为空时 get_distribution 直接 500，
-                # 违背 graceful degradation 承诺。
+ # fix (functional-review 2026-08-13): fallback SQL 查的列是
+ # source_site，此前代码读 row.source_platform（不存在）→
+ # AttributeError → data_sources 表为空时 get_distribution 直接 500，
+ # 违背 graceful degradation 承诺。
                 "name": platform_names.get(row.source_site, row.source_site),
                 "source_type": "crawl",
                 "count": int(cast(int, row.count)),
@@ -520,7 +520,7 @@ async def get_distribution(
             for row in platform_rows
         ]
 
-    # 2. Domain distribution (by industry)
+ # 2. Domain distribution (by industry)
     domain_result = await session.execute(
         sa.select(
             PositionRecord.industry,
@@ -536,7 +536,7 @@ async def get_distribution(
         for row in domain_result.all()
     ]
 
-    # 3. Skill category distribution
+ # 3. Skill category distribution
     cat_result = await session.execute(
         sa.select(
             SkillRecord.category,

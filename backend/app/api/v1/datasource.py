@@ -141,10 +141,10 @@ async def get_datasources_health(
         elif ds.status == "error":
             error_count += 1
 
-        # ponytail: 原实现循环内查 select(PipelineRun).where(run_type=="source_sync")
-        # 未按源过滤（PipelineRun 无 source 外键），所有源返回同一全局最新运行状态——
-        # 伪逐源 + N+1。逐源归属需 PipelineRun 迁移，此处诚实降级为 None（语义见
-        # schemas/datasource.py SourceHealthEntry.recent_run_status description）。
+ # ponytail: 原实现循环内查 select(PipelineRun).where(run_type=="source_sync")
+ # 未按源过滤（PipelineRun 无 source 外键），所有源返回同一全局最新运行状态——
+ # 伪逐源 + N+1。逐源归属需 PipelineRun 迁移，此处诚实降级为 None（语义见
+ # schemas/datasource.py SourceHealthEntry.recent_run_status description）。
         entries.append(SourceHealthEntry(
             id=str(ds.id),
             name=ds.name,
@@ -195,8 +195,8 @@ async def update_datasource(
     if body.authority_score is not None:
         values["authority_score"] = body.authority_score
     if body.status is not None:
-        # Phase 23 Task 8 (DC-04): 校验全集沿 DataSourceStatus（含 inactive，支持
-        # PATCH 恢复/停用语义）；schema Literal 已先兜底，此处防御双写。
+ # (): 校验全集沿 DataSourceStatus（含 inactive，支持
+ # PATCH 恢复/停用语义）；schema Literal 已先兜底，此处防御双写。
         allowed_statuses = {s.value for s in DataSourceStatus}
         if body.status.value not in allowed_statuses:
             raise HTTPException(status_code=400, detail="Invalid status")
@@ -211,7 +211,7 @@ async def update_datasource(
             .values(**values)
         )
         await session.flush()
-        # Re-fetch
+ # Re-fetch
         result = await session.execute(
             select(DataSourceRecord).where(DataSourceRecord.id == source_id)
         )
@@ -237,10 +237,10 @@ async def delete_datasource(
     if ds is None:
         raise HTTPException(status_code=404, detail="数据源不存在")
     if ds.status == "inactive":
-        # 幂等: 停用已停用的源不是错误——返回成功（no-op）。
+ # 幂等: 停用已停用的源不是错误——返回成功（no-op）。
         return {"detail": "数据源已停用", "source_id": str(source_id)}
     ds.status = "inactive"
-    # 双写 config.disabled=true —— 流水线页 DataSourceManager 只读 config.disabled 判断启停
+ # 双写 config.disabled=true —— 流水线页 DataSourceManager 只读 config.disabled 判断启停
     ds.config = {**(ds.config or {}), "disabled": True}
     await session.commit()
     return {"detail": "数据源已停用", "source_id": str(source_id)}
@@ -273,17 +273,17 @@ async def get_datasource_stats(
     if ds is None:
         raise HTTPException(status_code=404, detail="Data source not found")
 
-    # Determine lookback window
+ # Determine lookback window
     days_map = {"7d": 7, "30d": 30, "90d": 90}
     days = days_map.get(period, 30)
     cutoff = datetime.now(UTC) - timedelta(days=days)
 
-    # Build per-source name keys: ["Jobicy (远程)", "Jobicy"]
+ # Build per-source name keys: ["Jobicy (远程)", "Jobicy"]
     ds_name = ds.name
     ds_name_keys = {ds_name.strip().lower(), ds_name.split("(")[0].strip().lower()}
 
-    # Pull the relevant JSON fragment for each run in window.
-    # stages->0 is always the "crawl" stage; we read its sub_breakdown map.
+ # Pull the relevant JSON fragment for each run in window.
+ # stages->0 is always the "crawl" stage; we read its sub_breakdown map.
     runs_result = await session.execute(
         text("""
             SELECT id, started_at, status, total_records, quality_score,
@@ -304,11 +304,11 @@ async def get_datasource_stats(
     total_records = 0
 
     for _run_id, started_at, status, _total_records_run, quality_score, stages in raw_rows:
-        # E20b: try sub_breakdown first (precise), else fall back to
-        # counting raw_jd_records by source_platform within the run window.
-        # Without the fallback, sources like BOSS Zhipin (whose crawls were
-        # recorded in raw_jd_records but never wrote to sub_breakdown) would
-        # always show 0.
+ # E20b: try sub_breakdown first (precise), else fall back to
+ # counting raw_jd_records by source_platform within the run window.
+ # Without the fallback, sources like BOSS Zhipin (whose crawls were
+ # recorded in raw_jd_records but never wrote to sub_breakdown) would
+ # always show 0.
         source_count = 0
         sub_breakdown: dict[str, Any] = {}
         if isinstance(stages, list):
@@ -317,7 +317,7 @@ async def get_datasource_stats(
                     sub_breakdown = stage.get("sub_breakdown") or {}
                     break
         if sub_breakdown:
-            # Sum only the keys that match this DS (case-insensitive, paren-stripped).
+ # Sum only the keys that match this DS (case-insensitive, paren-stripped).
             for src_name, cnt in sub_breakdown.items():
                 if not isinstance(cnt, (int, float)):
                     continue
@@ -326,12 +326,12 @@ async def get_datasource_stats(
                 if key in ds_name_keys or key_stripped in {k.split("(")[0].strip() for k in ds_name_keys}:
                     source_count += int(cnt)
         else:
-            # No sub_breakdown → we cannot attribute this run's records
-            # to a specific source. Count as 0 (under-count rather than
-            # mis-attribute). Historical records that pre-date the
-            # sub_breakdown field are reflected in DataSourceRecord.total_records
-            # (visible in the Tab5 "记录数" column), but they don't show
-            # in this 30-day stats chart because they have no associated run.
+ # No sub_breakdown → we cannot attribute this run's records
+ # to a specific source. Count as 0 (under-count rather than
+ # mis-attribute). Historical records that pre-date the
+ # sub_breakdown field are reflected in DataSourceRecord.total_records
+ # (visible in the Tab5 "记录数" column), but they don't show
+ # in this 30-day stats chart because they have no associated run.
             source_count = 0
 
         day_key = started_at.strftime("%Y-%m-%d")
@@ -345,7 +345,7 @@ async def get_datasource_stats(
         elif status == "failed":
             failed += 1
 
-    # Fill gaps for continuous timeline
+ # Fill gaps for continuous timeline
     crawl_volume: list[CrawlVolumeEntry] = []
     quality_trend: list[QualityTrendEntry] = []
     now = datetime.now(UTC)
@@ -384,7 +384,7 @@ async def trigger_source_sync(
     if ds is None:
         raise HTTPException(status_code=404, detail="Data source not found")
 
-    # P0-4 (2026-08-15): 无适配器源拒绝同步 —— 避免 crawl 阶段错源归属/空转。
+ # (2026-08-15): 无适配器源拒绝同步 —— 避免 crawl 阶段错源归属/空转。
     has_adapter, adapter_platform = _adapter_capability(ds)
     if not has_adapter:
         raise HTTPException(
@@ -395,10 +395,10 @@ async def trigger_source_sync(
             ),
         )
 
-    # Delegate to pipeline executor so stages actually run
-    # E19: trigger_and_start accepts full/incremental only (DB constraint),
-    # so map "source_sync" intent to "incremental" — single-source sync is
-    # by definition an incremental crawl.
+ # Delegate to pipeline executor so stages actually run
+ # E19: trigger_and_start accepts full/incremental only (DB constraint),
+ # so map "source_sync" intent to "incremental" — single-source sync is
+ # by definition an incremental crawl.
     from app.services.pipeline_service import trigger_and_start
 
     run = await trigger_and_start(run_type="incremental", selected_sources=[ds.name])

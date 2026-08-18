@@ -163,11 +163,11 @@ class DomainOverviewResponse(BaseModel):
     connections: list[GraphEdge] = Field(default_factory=list, description="KA 间关联边")
     total_positions: int = Field(default=0, ge=0, description="岗位总数")
     total_skills: int = Field(default=0, ge=0, description="技能总数")
-    # 独立节点计数（去重，与 Neo4j 实际节点数一致）
+ # 独立节点计数（去重，与 Neo4j 实际节点数一致）
     independent_positions: int = Field(default=0, ge=0, description="独立 Position 节点数（去重）")
     independent_skills: int = Field(default=0, ge=0, description="独立 Skill 节点数（去重）")
     independent_edges: int = Field(default=0, ge=0, description="独立 REQUIRES 关系数（去重）")
-    # PLAN-006④: 服务端响应生成时间（Unix 秒），前端可据此显示"截至 X"，避免编造 freshness
+ # PLAN-006④: 服务端响应生成时间（Unix 秒），前端可据此显示"截至 X"，避免编造 freshness
     generated_at: float = Field(default=0.0, ge=0, description="响应生成 Unix 时间戳")
 
 

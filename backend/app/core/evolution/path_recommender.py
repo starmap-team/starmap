@@ -78,7 +78,7 @@ class PathRecommender:
                 "truncating to top-{} by skill_count",
                 len(position_skills), MAX_POSITIONS, MAX_POSITIONS,
             )
-            # Keep the positions with most skills — they have richest overlap signal.
+ # Keep the positions with most skills — they have richest overlap signal.
             position_skills = dict(
                 sorted(
                     position_skills.items(),
@@ -94,7 +94,7 @@ class PathRecommender:
             )
             return []
 
-        # Top-K by similarity, then by overlap size as tiebreaker.
+ # Top-K by similarity, then by overlap size as tiebreaker.
         pairs.sort(
             key=lambda p: (-p.similarity, -len(p.skill_overlap), p.source_position),
         )
@@ -107,7 +107,7 @@ class PathRecommender:
         )
         return rows
 
-    # ── internals ──
+ # ── internals ──
 
     @staticmethod
     async def _load_position_skills(
@@ -159,7 +159,7 @@ class PathRecommender:
                 if len(overlap) < self.min_evidence:
                     continue
 
-                # Symmetric insertion: src→tgt and tgt→src
+ # Symmetric insertion: src→tgt and tgt→src
                 gaps_src_to_tgt = sorted(tgt_skills - src_skills)
                 gaps_tgt_to_src = sorted(src_skills - tgt_skills)
 
@@ -200,8 +200,8 @@ class PathRecommender:
 
         rows: list[EvolutionPath] = []
         for p in pairs:
-            # Trust score for paths: similarity is itself the trust signal,
-            # but cap below 1.0 to leave room for human approval weighting.
+ # Trust score for paths: similarity is itself the trust signal,
+ # but cap below 1.0 to leave room for human approval weighting.
             trust = min(0.95, max(0.1, p.similarity))
             row = EvolutionPath(
                 source_position=p.source_position,

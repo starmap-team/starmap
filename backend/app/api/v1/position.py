@@ -61,12 +61,12 @@ async def list_positions(
     if not is_admin:
         include_all = False
         status = "approved"
-    # Count total
+ # Count total
     count_stmt = sa.select(sa.func.count()).select_from(PositionRecord)
     if industry:
         count_stmt = count_stmt.where(PositionRecord.industry.ilike(f"%{_escape_like(industry)}%", escape="\\"))
     if search:
-        # Phase 13 一致性审计：search 同时匹配 name、name_cn 与 industry（与前端 placeholder/客户端筛选及 Neo4j 路径一致）
+ # 一致性审计：search 同时匹配 name、name_cn 与 industry（与前端 placeholder/客户端筛选及 Neo4j 路径一致）
         like = f"%{_escape_like(search)}%"
         count_stmt = count_stmt.where(
             sa.or_(
@@ -75,7 +75,7 @@ async def list_positions(
                 PositionRecord.industry.ilike(like, escape="\\"),
             )
         )
-    # Default visibility policy: only approved is public. Admin can override.
+ # Default visibility policy: only approved is public. Admin can override.
     effective_status = status
     if not include_all and effective_status is None:
         effective_status = "approved"
@@ -83,14 +83,14 @@ async def list_positions(
         count_stmt = count_stmt.where(PositionRecord.review_status == effective_status)
     total = (await session.execute(count_stmt)).scalar() or 0
 
-    # ── Neo4j fallback: when filtered PG count is 0, try Neo4j ──
-    # This handles the case where PG has records but none match the status filter
-    # (e.g., all PG positions are "pending_review" but user wants "approved").
-    # Neo4j positions without explicit review_status default to "approved".
+ # ── Neo4j fallback: when filtered PG count is 0, try Neo4j ──
+ # This handles the case where PG has records but none match the status filter
+ # (e.g., all PG positions are "pending_review" but user wants "approved").
+ # Neo4j positions without explicit review_status default to "approved".
     if total == 0 and driver is not None:
         return await _list_positions_neo4j(driver, page, page_size, industry, search, effective_status)
 
-    # Fetch page
+ # Fetch page
     stmt = sa.select(PositionRecord).order_by(PositionRecord.name)
     if industry:
         stmt = stmt.where(PositionRecord.industry.ilike(f"%{_escape_like(industry)}%", escape="\\"))
@@ -108,7 +108,7 @@ async def list_positions(
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     rows = (await session.execute(stmt)).scalars().all()
 
-    # Batch-fetch skills for all positions on this page (avoids N+1)
+ # Batch-fetch skills for all positions on this page (avoids N+1)
     position_ids = [r.id for r in rows]
     skill_map: dict[Any, list[SkillNode]] = {}
     if position_ids:
@@ -181,12 +181,12 @@ async def get_position(
 
     from fastapi import HTTPException
 
-    # 详情端点按可见性策略过滤 —— 非 admin 只能查看已发布岗位
+ # 详情端点按可见性策略过滤 —— 非 admin 只能查看已发布岗位
     is_admin = user.get("role") == "admin"
 
     r = None
 
-    # 尝试按 UUID 查询（仅当 ID 包含连字符的 UUID 或纯 hex 格式时）
+ # 尝试按 UUID 查询（仅当 ID 包含连字符的 UUID 或纯 hex 格式时）
     if len(position_id) >= 32 and (len(position_id) <= 36):
         try:
             uuid_val = uuid_mod.UUID(position_id)
@@ -197,14 +197,14 @@ async def get_position(
         except (ValueError, Exception):
             pass  # 非 UUID 格式，跳过
 
-    # 尝试按名称查询
+ # 尝试按名称查询
     if r is None:
         stmt = sa.select(PositionRecord).where(PositionRecord.name == position_id)
         if not is_admin:
             stmt = stmt.where(PositionRecord.review_status == "approved")
         r = (await session.execute(stmt)).scalar_one_or_none()
 
-    # PostgreSQL hit — return with skills
+ # PostgreSQL hit — return with skills
     if r is not None:
         skill_stmt = (
             sa.select(SkillRecord, PositionSkillRelation)
@@ -233,7 +233,7 @@ async def get_position(
             "discovered_at": r.created_at.isoformat() if r.created_at else None,
         }
 
-    # ── Neo4j fallback: query Position node by name ──
+ # ── Neo4j fallback: query Position node by name ──
     if driver is not None:
         try:
             from app.services.graph_service import fetch_position_graph
@@ -284,7 +284,7 @@ async def discover_position(
     from app.services.evolution_service import EmergenceFinder
 
     try:
-        # Step 1: Load timeseries data for frequency history
+ # Step 1: Load timeseries data for frequency history
         from app.services.evolution_service import load_skill_timeseries_data
 
         skill_data = await load_skill_timeseries_data(db)
@@ -298,7 +298,7 @@ async def discover_position(
                 "message": "时序数据不足，请先执行管线以生成技能频率统计",
             }
 
-        # Step 2: Run emergence detection
+ # Step 2: Run emergence detection
         finder = EmergenceFinder()
         report = finder.scan(skill_data)
 
@@ -376,12 +376,12 @@ async def _list_positions_neo4j(
     """
     try:
         async with driver.session() as session:
-            # Build dynamic WHERE clauses
+ # Build dynamic WHERE clauses
             where_clauses: list[str] = []
             params: dict[str, Any] = {}
 
             if search:
-                # Phase 13 一致性审计：search 同时匹配 name 与 industry，与 PG 路径及前端契约一致
+ # 一致性审计：search 同时匹配 name 与 industry，与 PG 路径及前端契约一致
                 where_clauses.append(
                     "(toLower(p.name) CONTAINS toLower($search) OR "
                     "toLower(coalesce(p.industry, '')) CONTAINS toLower($search))"
@@ -390,7 +390,7 @@ async def _list_positions_neo4j(
             if industry:
                 where_clauses.append("toLower(p.industry) CONTAINS toLower($industry)")
                 params["industry"] = industry
-            # Status filter: Neo4j positions without review_status default to 'approved'
+ # Status filter: Neo4j positions without review_status default to 'approved'
             if status_filter and status_filter != "all":
                 if status_filter == "approved":
                     where_clauses.append("(p.review_status IS NULL OR p.review_status = $status)")
@@ -400,7 +400,7 @@ async def _list_positions_neo4j(
 
             where_str = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
-            # Count total
+ # Count total
             count_query = f"MATCH (p:Position){where_str} RETURN count(p) AS cnt"
             count_result = await session.run(count_query, params)
             count_record = await count_result.single()
@@ -409,7 +409,7 @@ async def _list_positions_neo4j(
             if total == 0:
                 return PositionListResponse(items=[], total=0, page=page, page_size=page_size)
 
-            # Fetch page with skills
+ # Fetch page with skills
             page_query = f"""
                 MATCH (p:Position){where_str}
                 WITH p ORDER BY p.name

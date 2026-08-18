@@ -28,7 +28,7 @@ async def check_pg_neo4j_consistency(run_id: str | uuid.UUID) -> dict[str, Any]:
         return {"pg_count": None, "neo4j_count": None, "diff": None, "severity": "unknown", "alerted": False}
 
     diff = abs(pg_count - neo4j_count)
-    # 阈值：差异 > 1% 或绝对值 > 100 视为异常
+ # 阈值：差异 > 1% 或绝对值 > 100 视为异常
     threshold = max(int(pg_count * 0.01), 100) if pg_count > 0 else 0
     severity = "warning" if diff > threshold else "ok"
     alerted = severity == "warning"

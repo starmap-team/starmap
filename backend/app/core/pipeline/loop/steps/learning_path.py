@@ -79,7 +79,7 @@ async def run_learning_path_step(
     """
     start = time.monotonic()
 
-    # If match diagnosis succeeded, derive path from match gaps
+ # If match diagnosis succeeded, derive path from match gaps
     if match_ok and match_result:
         try:
             gap_details = match_result.get("skill_gap_detail", [])
@@ -103,7 +103,7 @@ async def run_learning_path_step(
                 "source": "match_gaps",
             }
 
-            # Auto-create learning plan in DB when session is available
+ # Auto-create learning plan in DB when session is available
             plan_info = None
             if session is not None and target_position and match_result:
                 try:
@@ -144,9 +144,9 @@ async def run_learning_path_step(
         except Exception as exc:
             logger.exception("Step 5 path derivation from match failed: {}", exc)
 
-    # Fallback: generic learning path
+ # Fallback: generic learning path
     fallback = generic_learning_path()
-    # Always include path_length so frontend metric row never has to compute.
+ # Always include path_length so frontend metric row never has to compute.
     fallback.setdefault("path_length", len(fallback.get("path_items", [])))
     return LoopStepResult(
         step=5,

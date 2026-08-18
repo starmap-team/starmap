@@ -29,16 +29,16 @@ async def get_industry_report(
     Aggregates skill frequency data, timeseries trends, and position
     requirements to provide a comprehensive industry overview.
     """
-    # Get skill trends from timeseries data
+ # Get skill trends from timeseries data
     skill_data = await load_skill_timeseries_data(session, category=category)
 
-    # If we have timeseries data, use emergence detection
+ # If we have timeseries data, use emergence detection
     rising: list[SkillTrendItem] = []
     declining: list[SkillTrendItem] = []
     stable: list[SkillTrendItem] = []
 
     if skill_data:
-        # EmergenceFinder 经 services 层 re-export（api → services → core）
+ # EmergenceFinder 经 services 层 re-export（api → services → core）
         finder = EmergenceFinder()
         report = finder.scan(skill_data)
 
@@ -69,11 +69,11 @@ async def get_industry_report(
                 related_positions=signal.positions,
             ))
     else:
-        # No timeseries data — return empty trends rather than fabricating from source_count.
-        # The pipeline's timeseries stage must run first to generate real frequency data.
+ # No timeseries data — return empty trends rather than fabricating from source_count.
+ # The pipeline's timeseries stage must run first to generate real frequency data.
         pass
 
-    # Top positions by skill count
+ # Top positions by skill count
     top_pos_stmt = (
         sa.select(PositionRecord.name, sa.func.count(PositionSkillRelation.skill_id).label("skill_count"))
         .select_from(PositionRecord)
@@ -88,7 +88,7 @@ async def get_industry_report(
         for name, count in top_pos_result.all()
     ]
 
-    # Generate summary
+ # Generate summary
     total = len(rising) + len(declining) + len(stable)
     summary_parts = []
     if rising:

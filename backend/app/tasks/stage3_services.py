@@ -44,8 +44,8 @@ async def _upsert_position(
         await session.execute(sa.select(PositionRecord).where(PositionRecord.name == name))
     ).scalar_one_or_none
     if existing is not None:
-        # fix: 抽取 I18N-01 翻译结果曾丢弃（306 岗位仅 3 中文名根因）——
-        # 已存在岗位若有新翻译结果也回填，避免重复翻译
+ # fix: 抽取 I18N-01 翻译结果曾丢弃（306 岗位仅 3 中文名根因）——
+ # 已存在岗位若有新翻译结果也回填，避免重复翻译
         if name_cn and not (existing.name_cn or "").strip:
             existing.name_cn = name_cn
             await session.flush
@@ -61,10 +61,10 @@ async def _upsert_position(
     return record
 
 async def _upsert_skill(session: AsyncSession, name: str, category: str, *, source_run_id: uuid.UUID | None = None) -> SkillRecord:
-    #/): source_count 口径固化 —— PG 每次抽取 +1（命中次数
-    # 语义），与 Neo4j `graph_writer.merge_skill` 的 max 语义（去重来源数上限）不同；
-    # 差值由 dashboard `_fetch_graph_stats` 只读漂移探针监控（差值>0 告警）。等业务
-    # 确认统一口径（RESEARCH ）后此处与 graph_writer 一起收敛。
+ #/): source_count 口径固化 —— PG 每次抽取 +1（命中次数
+ # 语义），与 Neo4j `graph_writer.merge_skill` 的 max 语义（去重来源数上限）不同；
+ # 差值由 dashboard `_fetch_graph_stats` 只读漂移探针监控（差值>0 告警）。等业务
+ # 确认统一口径（RESEARCH ）后此处与 graph_writer 一起收敛。
     existing = (
         await session.execute(sa.select(SkillRecord).where(SkillRecord.name == name))
     ).scalar_one_or_none
@@ -122,9 +122,9 @@ async def persist_extraction_result(
     write_single_extraction_to_graph 穿线 canonical_id（C-1 根治：图节点写库即带 id）。
     """
     data = extraction_result["data"]
-    # D5 fix (2026-08-12): LLM 未返回 position_name 时回退到 JD 标题（管线 import 已传
-    # job_title），不再落 "Unknown Position" 占位符 —— 该占位符曾产生 103 条幻影关系
-    # 污染 PG SSOT 且无图对应（双库不一致根因之一）。
+ # D5 fix (2026-08-12): LLM 未返回 position_name 时回退到 JD 标题（管线 import 已传
+ # job_title），不再落 "Unknown Position" 占位符 —— 该占位符曾产生 103 条幻影关系
+ # 污染 PG SSOT 且无图对应（双库不一致根因之一）。
     position_name = str(data.get("position_name") or job_title or "").strip
     if not position_name:
         position_name = "Unknown Position"
@@ -164,10 +164,10 @@ async def persist_extraction_result(
                 requirement_type,
                 confidence)
 
-    # R5 根治 (2026-08-13): 抽取 evolves_to 后继岗位（职业演化目标）此前只写 Neo4j 图
-    # （graph_writer name-MERGE 无 canonical_id）不落 PG → 产生被 EVOLVES_TO 引用的
-    # 无记录图节点（孤儿）。现在一并落 PG（pending_review 待审核），graph_sync 的
-    # 岗位自愈会补齐 canonical_id 链接——未来抽取不再产生岗位孤儿。
+ # R5 根治 (2026-08-13): 抽取 evolves_to 后继岗位（职业演化目标）此前只写 Neo4j 图
+ # （graph_writer name-MERGE 无 canonical_id）不落 PG → 产生被 EVOLVES_TO 引用的
+ # 无记录图节点（孤儿）。现在一并落 PG（pending_review 待审核），graph_sync 的
+ # 岗位自愈会补齐 canonical_id 链接——未来抽取不再产生岗位孤儿。
     for successor in data.get("evolves_to", []) or []:
         if isinstance(successor, dict):
             succ_name = str(successor.get("position") or successor.get("name") or "").strip
@@ -240,10 +240,10 @@ async def run_batch_extract_jd(
                     session, jd_text, result, job_title=job_title, source_run_id=source_run_id
                 )
 
-        # H1 fix: outbox run_id=NULL for ad-hoc extraction; extraction_ids links
-        # back to JDExtractionRecord for audit/retry traceability.
-        # executor is imported lazily to avoid circular import (executor imports
-        # stage3_services at function scope — see executor.py:513, 611).
+ # H1 fix: outbox run_id=NULL for ad-hoc extraction; extraction_ids links
+ # back to JDExtractionRecord for audit/retry traceability.
+ # executor is imported lazily to avoid circular import (executor imports
+ # stage3_services at function scope — see executor.py:513, 611).
         from app.core.pipeline import executor as _ex
 
         outbox_id = uuid.uuid4
@@ -256,10 +256,10 @@ async def run_batch_extract_jd(
             logger.warning("run_batch_extract_jd outbox create failed (non-fatal): {}", o_exc)
 
         try:
-            #核验修复  闭环): 抽取即写图路径也必须守 approved 门控。
-            # 设计意图 : 新抽取默认 review_status='pending_review'，需人工审核
-            # 后才进入图谱。run_batch_extract_jd 绕过 run_build_graph_from_extractions
-            # 的 approved 过滤直接写图，是未审核岗位持续入图的根因——此处补查。
+ #核验修复 闭环): 抽取即写图路径也必须守 approved 门控。
+ # 设计意图 : 新抽取默认 review_status='pending_review'，需人工审核
+ # 后才进入图谱。run_batch_extract_jd 绕过 run_build_graph_from_extractions
+ # 的 approved 过滤直接写图，是未审核岗位持续入图的根因——此处补查。
             graph_summary: dict[str, Any] = {"skipped": True, "reason": "position_not_approved"}
             if await _position_is_approved(sessionmaker, position_id):
                 graph_summary = await write_single_extraction_to_graph(
@@ -332,7 +332,7 @@ async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
             extractions = [rec.to_extraction_payload for rec in records]
             position_id = None
             name_cn_value: str | None = None
-            #: 中文化独立于抽取记录 —— 岗位缺中文名时无论有无抽取记录都补
+ #: 中文化独立于抽取记录 —— 岗位缺中文名时无论有无抽取记录都补
             pos = (
                 await session.execute(
                     sa.select(PositionRecord).where(PositionRecord.name == position_name)
@@ -346,19 +346,19 @@ async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
                         pos.name_cn = name_cn
                         name_cn_value = name_cn
                         await session.flush
-                        # fix: session 无 autocommit，flush 后必须 commit 否则回滚
+ # fix: session 无 autocommit，flush 后必须 commit 否则回滚
                         await session.commit
                 else:
                     name_cn_value = pos.name_cn
-            #: 翻译结果回传 extraction payload → Neo4j 节点同步 name_cn
+ #: 翻译结果回传 extraction payload → Neo4j 节点同步 name_cn
             if name_cn_value:
                 for payload in extractions:
                     payload["name_cn"] = name_cn_value
 
         config = GraphConfig
         async with config.get_driver as driver:
-            #MERGE 键切为 canonical_id 后，这里必须解析技能
-            # canonical_id（skills 不再传空 dict）——否则 merge_skill 缺 id 会 raise。
+ #MERGE 键切为 canonical_id 后，这里必须解析技能
+ # canonical_id（skills 不再传空 dict）——否则 merge_skill 缺 id 会 raise。
             skill_map: dict[str, str] = {}
             if position_id and extractions:
                 try:
@@ -391,8 +391,8 @@ async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
             )
             summaries = await batch_write_extractions(
                 extractions, driver, canonical_ids_list=canonical_ids_list)
-            #: 无抽取记录时仍写岗位节点（审核即入图的最小单元），
-            # 保证岗位在图中存在（后续抽取可 merge 补关系）
+ #: 无抽取记录时仍写岗位节点（审核即入图的最小单元），
+ # 保证岗位在图中存在（后续抽取可 merge 补关系）
             if not extractions and position_id:
                 from app.core.extraction.graph_writer import merge_position
 
@@ -440,7 +440,7 @@ async def run_build_graph_from_extractions(
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with sessionmaker as session:
-            # 严格门控: 只同步岗位已审核通过的抽取记录
+ # 严格门控: 只同步岗位已审核通过的抽取记录
             approved_positions = sa.select(PositionRecord.name).where(
                 PositionRecord.review_status == "approved"
             )
@@ -457,8 +457,8 @@ async def run_build_graph_from_extractions(
             rows = (await session.execute(q)).scalars.all
 
         extractions = [record.to_extraction_payload for record in rows]
-        # 2026-08-07 数据一致性: 抽取技能 upsert 到 PG skill_records (PG 为 SSOT)
-        # graph_sync 此前只写 Neo4j → 新抽取技能 PG 缺失 (canonical_id 无法关联)
+ # 2026-08-07 数据一致性: 抽取技能 upsert 到 PG skill_records (PG 为 SSOT)
+ # graph_sync 此前只写 Neo4j → 新抽取技能 PG 缺失 (canonical_id 无法关联)
         try:
             from app.repositories.extract_repo import upsert_skill_record
 
@@ -477,7 +477,7 @@ async def run_build_graph_from_extractions(
                                 "skill_records upsert failed for skill={!r} (non-fatal): {}",
                                 name, single_sk_exc)
             await session.commit
-            # SSOT 可观测化: 失败技能列表写日志告警 (outbox 表 + 一致性告警由 services/pipeline_consistency.py 在阶段末调用)
+ # SSOT 可观测化: 失败技能列表写日志告警 (outbox 表 + 一致性告警由 services/pipeline_consistency.py 在阶段末调用)
             if failed_skills:
                 logger.warning(
                     "stage3 skill_records upsert: {} failed (skills={})",
@@ -486,9 +486,9 @@ async def run_build_graph_from_extractions(
             logger.warning("skill_records upsert failed (non-fatal): {}", sk_exc)
         config = GraphConfig
         async with config.get_driver as driver:
-            #(checkpoint:decision): MERGE 键切为 canonical_id 后，
-            # 这里必须预查 name → PG id 映射并补传 canonical_ids_list——否则
-            # merge_position/merge_skill 缺 canonical_id 会 raise（不再静默孤儿）。
+ #(checkpoint:decision): MERGE 键切为 canonical_id 后，
+ # 这里必须预查 name → PG id 映射并补传 canonical_ids_list——否则
+ # merge_position/merge_skill 缺 canonical_id 会 raise（不再静默孤儿）。
             canonical_ids_list: list[dict[str, Any] | None] | None = None
             try:
                 async with sessionmaker as session:
@@ -542,9 +542,9 @@ async def run_build_graph_from_extractions(
                 canonical_ids_list = None
             summaries = await batch_write_extractions(
                 extractions, driver, canonical_ids_list=canonical_ids_list)
-            # P4a 根治 (R3): 补录覆盖全图谱——把图中存在但 PG 无记录的无标识技能
-            # 回填 skill_records + 链接 canonical_id（幂等，每次 run 自愈历史缺口）。
-            # 此前只回填当次 run 抽取载荷，历史 name-MERGE 技能永不回填（R3 根因）。
+ # P4a 根治 (R3): 补录覆盖全图谱——把图中存在但 PG 无记录的无标识技能
+ # 回填 skill_records + 链接 canonical_id（幂等，每次 run 自愈历史缺口）。
+ # 此前只回填当次 run 抽取载荷，历史 name-MERGE 技能永不回填（R3 根因）。
             try:
                 from app.services.repair_engine import RepairEngine
 
@@ -554,8 +554,8 @@ async def run_build_graph_from_extractions(
                     logger.info(
                         "graph_sync: healed {} historical skills (backfilled={}, linked={})",
                         heal.get("backfilled", 0), heal.get("backfilled", 0), heal.get("linked", 0))
-                # R5 根治: 同样自愈岗位——抽取 evolves_to 后继岗位只写图不落 PG 的
-                # 历史缺口，回填 position_records（pending_review 待审核）+ 链接。
+ # R5 根治: 同样自愈岗位——抽取 evolves_to 后继岗位只写图不落 PG 的
+ # 历史缺口，回填 position_records（pending_review 待审核）+ 链接。
                 pos_heal = await repair.backfill_position_records(session)
                 if pos_heal.get("backfilled") or pos_heal.get("linked"):
                     logger.info(
@@ -569,8 +569,8 @@ async def run_build_graph_from_extractions(
             "processed": len(extractions),
             "triples_merged": sum(int(s.get("triples_merged", 0)) for s in summaries),
             "relationships_touched": sum(int(s.get("relationships_touched", 0)) for s in summaries),
-            # fix: 补 nodes_touched 汇总（graph_sync 读它展示"触及节点"，
-            # 此前不返回 → 阶段卡节点恒 0）
+ # fix: 补 nodes_touched 汇总（graph_sync 读它展示"触及节点"，
+ # 此前不返回 → 阶段卡节点恒 0）
             "nodes_touched": sum(int(s.get("nodes_touched", 0)) for s in summaries),
         }
     finally:
@@ -623,9 +623,9 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
                 )
             await session.commit
 
-        # C-5 入口闭环: POST /evolution/analyze 与 6h beat 共用本入口 (celery_app.py:63-73).
-        # SkillRecord 频次落库后追加完整演化管线 (snapshot → diff → trust → changelog →
-        # 回写 / 一致性校验). 管线自身 fail-soft; 此处再兜一层防入口失败.
+ # C-5 入口闭环: POST /evolution/analyze 与 6h beat 共用本入口 (celery_app.py:63-73).
+ # SkillRecord 频次落库后追加完整演化管线 (snapshot → diff → trust → changelog →
+ # 回写 / 一致性校验). 管线自身 fail-soft; 此处再兜一层防入口失败.
         try:
             from app.core.evolution.orchestrator import run_evolution_pipeline
 

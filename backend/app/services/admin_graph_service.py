@@ -21,9 +21,9 @@ class GraphNodeService:
     def __init__(self, driver: Any) -> None:
         self._driver = driver
 
-    # ------------------------------------------------------------------
-    # Read
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # Read
+ # ------------------------------------------------------------------
 
     async def list_nodes(
         self,
@@ -84,9 +84,9 @@ class GraphNodeService:
                 node_type_label = valid_labels[0]
                 nodes.append(
                     {
-                        # BUG-8 fix: prefer canonical_id (UUID) over Neo4j internal
-                        # elementId (opaque hex like 4:xxx:yyy). Fall back to
-                        # elementId only if canonical_id is missing (e.g. legacy nodes).
+ # BUG-8 fix: prefer canonical_id (UUID) over Neo4j internal
+ # elementId (opaque hex like 4:xxx:yyy). Fall back to
+ # elementId only if canonical_id is missing (e.g. legacy nodes).
                         "id": str(props.get("canonical_id") or node.element_id),
                         "element_id": str(node.element_id),
                         "type": node_type_label,
@@ -98,9 +98,9 @@ class GraphNodeService:
 
         return {"items": nodes, "total": total}
 
-    # ------------------------------------------------------------------
-    # Create
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # Create
+ # ------------------------------------------------------------------
 
     async def create_node(self, *, node_type: str, name: str, properties: dict[str, Any]) -> dict[str, Any]:
         """Create a new graph node and return its metadata."""
@@ -112,14 +112,14 @@ class GraphNodeService:
                 f"Invalid label: {node_type}. Allowed: {sorted(_ALLOWED_LABELS)}"
             )
 
-        # BUG-9 fix: respect caller-provided status if any; otherwise pending.
-        # Previously hard-coded "pending" — admins couldn't create pre-approved nodes.
+ # BUG-9 fix: respect caller-provided status if any; otherwise pending.
+ # Previously hard-coded "pending" — admins couldn't create pre-approved nodes.
         import uuid as _uuid
 
         props = {**properties, "name": name}
         if "review_status" not in props:
             props["review_status"] = "pending"
-        # BUG-8 fix: stamp canonical_id for round-tripping to PG/UI
+ # BUG-8 fix: stamp canonical_id for round-tripping to PG/UI
         if "canonical_id" not in props:
             props["canonical_id"] = str(_uuid.uuid4())
         async with self._driver.session() as session:
@@ -140,9 +140,9 @@ class GraphNodeService:
                 "status": props["review_status"],
             }
 
-    # ------------------------------------------------------------------
-    # Update
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # Update
+ # ------------------------------------------------------------------
 
     async def update_node(
         self, node_id: str, *, node_type: str, name: str, properties: dict[str, Any]
@@ -157,15 +157,15 @@ class GraphNodeService:
             )
 
         props = {**properties, "name": name}
-        # BUG-10 fix: never let `properties` clobber review_status —
-        # that's a workflow state and must go through the proper approve/reject
-        # endpoint, not the generic edit form.
+ # BUG-10 fix: never let `properties` clobber review_status —
+ # that's a workflow state and must go through the proper approve/reject
+ # endpoint, not the generic edit form.
         props.pop("review_status", None)
         async with self._driver.session() as session:
-            # P1-6 fix (functional-review 2026-08-13): 列表返回 id=canonical_id，
-            # 但写操作原先只按 elementId(n) 匹配 → 前端拿 canonical_id 来更新
-            # 永远 404（_item_from_dict 还丢弃了 element_id）。改为双匹配：
-            # elementId(n) = $eid OR n.canonical_id = $eid，兼容新旧两种 id。
+ # fix (functional-review 2026-08-13): 列表返回 id=canonical_id，
+ # 但写操作原先只按 elementId(n) 匹配 → 前端拿 canonical_id 来更新
+ # 永远 404（_item_from_dict 还丢弃了 element_id）。改为双匹配：
+ # elementId(n) = $eid OR n.canonical_id = $eid，兼容新旧两种 id。
             query = (
                 "MATCH (n) WHERE elementId(n) = $eid OR n.canonical_id = $eid "
                 "SET n += $props "
@@ -186,9 +186,9 @@ class GraphNodeService:
                 "status": original_status,
             }
 
-    # ------------------------------------------------------------------
-    # Delete
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # Delete
+ # ------------------------------------------------------------------
 
     async def delete_node(self, node_id: str) -> int:
         """Delete a graph node and its relationships. Returns number of deleted nodes."""
@@ -196,7 +196,7 @@ class GraphNodeService:
             raise RuntimeError("Neo4j driver not available")
 
         async with self._driver.session() as session:
-            # P1-6 fix: 双匹配（elementId OR canonical_id），见 update_node 注释
+ # fix: 双匹配（elementId OR canonical_id），见 update_node 注释
             query = (
                 "MATCH (n) WHERE elementId(n) = $eid OR n.canonical_id = $eid "
                 "DETACH DELETE n RETURN count(n) AS deleted"
@@ -209,9 +209,9 @@ class GraphNodeService:
             logger.info("Deleted graph node: {}", node_id)
             return int(deleted)
 
-    # ------------------------------------------------------------------
-    # Review status
-    # ------------------------------------------------------------------
+ # ------------------------------------------------------------------
+ # Review status
+ # ------------------------------------------------------------------
 
     async def set_review_status(self, node_id: str, status: str) -> dict[str, Any]:
         """Set the review_status of a node to 'approved' or 'rejected'."""
@@ -219,7 +219,7 @@ class GraphNodeService:
             raise RuntimeError("Neo4j driver not available")
 
         async with self._driver.session() as session:
-            # P1-6 fix: 双匹配（elementId OR canonical_id），见 update_node 注释
+ # fix: 双匹配（elementId OR canonical_id），见 update_node 注释
             query = (
                 "MATCH (n) WHERE elementId(n) = $eid OR n.canonical_id = $eid "
                 "SET n.review_status = $status "

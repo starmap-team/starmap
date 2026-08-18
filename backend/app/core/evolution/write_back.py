@@ -33,7 +33,7 @@ from app.core.evolution.trust_scorer import WRITEBACK_TRUST_THRESHOLD
 from app.models.evolution_models import EvolutionChangelog
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
 
-# D-04: change type → PSR requirement_type
+# : change type → PSR requirement_type
 CHANGE_TO_REQUIREMENT_TYPE: dict[str, str] = {
     "added_required": "required",
     "added_preferred": "preferred",
@@ -41,8 +41,8 @@ CHANGE_TO_REQUIREMENT_TYPE: dict[str, str] = {
     "demoted": "preferred",
 }
 
-# D-04: only these change types are eligible for write-back.
-# D8f: removed 纳入 —— 原设计 excluded（"removed only goes to alert"），但审核即
+# : only these change types are eligible for write-back.
+# : removed 纳入 —— 原设计 excluded（"removed only goes to alert"），但审核即
 # 生效闭环要求 removed 审核通过后真实删除 position_skill_relations 关系；
 # 仍受 trust 阈值门槛保护（未审核/low-trust 不删）。
 WRITEBACK_CHANGE_TYPES: set[str] = {"added_required", "added_preferred", "promoted", "demoted", "removed"}
@@ -100,11 +100,11 @@ async def write_back_changelog_row(
     try:
         if row.change_type not in WRITEBACK_CHANGE_TYPES:
             return None
-        # Phase 23 Task 5 (DF-04/DF-05): 审核态感知闸门——`status='approved'`（含
-        # trust>=LOW_TRUST_THRESHOLD 自动 approved 与管理员手动 approved）直接放行；
-        # 未审核 pending 行仍受 WRITEBACK_TRUST_THRESHOLD(0.6) 保守保护。
-        # 修复「单源新技能手动审核即写回」闭环断裂（D8f）：此前闸门只看 trust，
-        # 单源 added_required≈0.418 / added_preferred≈0.348 永远 <0.6 被静默拦截。
+ # (/): 审核态感知闸门——`status='approved'`（含
+ # trust>=LOW_TRUST_THRESHOLD 自动 approved 与管理员手动 approved）直接放行；
+ # 未审核 pending 行仍受 WRITEBACK_TRUST_THRESHOLD(0.6) 保守保护。
+ # 修复「单源新技能手动审核即写回」闭环断裂（）：此前闸门只看 trust，
+ # 单源 added_required≈0.418 / added_preferred≈0.348 永远 <0.6 被静默拦截。
         if row.status != "approved" and float(row.trust_score or 0.0) < WRITEBACK_TRUST_THRESHOLD:
             return None
 
@@ -120,7 +120,7 @@ async def write_back_changelog_row(
             )
             return None
 
-        # D8f: removed 类型 —— 技能从岗位移除 → 删除 position_skill_relations 关系
+ # : removed 类型 —— 技能从岗位移除 → 删除 position_skill_relations 关系
         if row.change_type == "removed":
             skill_id = await _resolve_skill_id(session, row.skill_name)
             rel = (
@@ -137,12 +137,12 @@ async def write_back_changelog_row(
                     "evolution write_back: removed relation {} ← {} ({})",
                     row.position_name, row.skill_name, row.change_type,
                 )
-            # P0-AUDIT-FIX (2026-08-13): D8f closed the loop on PG side (delete
-            # the PSR row), but returning `row.confidence` here caused the
-            # orchestrator to project that confidence onto Neo4j — producing a
-            # "ghost REQUIRES edge" (PG deleted, Neo4j still present). Return
-            # None to signal "no projection" — same convention used when
-            # _resolve_position_id fails.
+ # P0-AUDIT-FIX (2026-08-13): closed the loop on PG side (delete
+ # the PSR row), but returning `row.confidence` here caused the
+ # orchestrator to project that confidence onto Neo4j — producing a
+ # "ghost REQUIRES edge" (PG deleted, Neo4j still present). Return
+ # None to signal "no projection" — same convention used when
+ # _resolve_position_id fails.
             return None
 
         skill_id = await _resolve_skill_id(session, row.skill_name)

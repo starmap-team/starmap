@@ -77,8 +77,8 @@ async def run_extract_step(jd_text: str) -> LoopStepResult:
                 "confidence": s.get("confidence"),
             })
 
-        # D-06: surface the actual model used + aggregate confidence so the
-        # frontend LoopStepSkills card can render a cloud/local explanation.
+ # : surface the actual model used + aggregate confidence so the
+ # frontend LoopStepSkills card can render a cloud/local explanation.
         confidences = [s.get("confidence") for s in skills]
         return LoopStepResult(
             step=2,
@@ -98,7 +98,7 @@ async def run_extract_step(jd_text: str) -> LoopStepResult:
                 "evolves_to": data.get("evolves_to", []),
                 "validation": raw.get("validation"),
                 "prompt_version": raw.get("prompt_version_used"),
-                # D-06 / Phase 07-02 D-05: explicit model + aggregate confidence
+ # / -02 : explicit model + aggregate confidence
                 "model_used": raw.get("model_used"),
                 "skill_count": len(skills),
                 "skill_confidence_avg": _avg(confidences),

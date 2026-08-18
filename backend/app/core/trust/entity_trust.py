@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 
 from app.config import settings
 
-# ── 四因子权重（设计 §6.2 Golden Set 校准，集中在此可审计调优）──
+# ── 四因子权重（设计 Golden Set 校准，集中在此可审计调优）──
 TRUST_WEIGHTS: dict[str, float] = {
     "source_diversity": 0.3,
     "extractor_conf": 0.3,

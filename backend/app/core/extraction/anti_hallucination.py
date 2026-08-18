@@ -81,19 +81,19 @@ class AntiHallucinationChecker:
         """
         name = skill_name.strip()
 
-        # Minimum length check
+ # Minimum length check
         if len(name) < self.MIN_SKILL_LENGTH:
             return False, 0.0
 
-        # Maximum length check
+ # Maximum length check
         if len(name) > self.MAX_SKILL_LENGTH:
             return False, 0.0
 
-        # Garbage character check
+ # Garbage character check
         if self._GARBAGE_PATTERN.search(name):
             return False, 0.0
 
-        # Valid skill name pattern
+ # Valid skill name pattern
         if not self._VALID_SKILL_PATTERN.match(name):
             return False, 0.0
 

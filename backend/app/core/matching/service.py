@@ -46,7 +46,7 @@ class MatchService:
 
     async def _load_prerequisite_map(self, driver: Any) -> dict[str, list[str]]:
         """加载技能前置关系映射。"""
-        # 先检查缓存
+ # 先检查缓存
         cached = self._cache.get_prerequisite_map()
         if cached is not None:
             return cached
@@ -74,7 +74,7 @@ class MatchService:
         except StarMapError:
             raise
         except Exception as exc:
-            # M3: Neo4j 不可用时降级返回空映射,不阻断匹配主流程。
+ # : Neo4j 不可用时降级返回空映射,不阻断匹配主流程。
             logger.warning("[MatchService] Prerequisite map load failed, degrading to empty: {}", exc)
             return {}
 
@@ -88,12 +88,12 @@ class MatchService:
         repo: Any = None,
     ) -> dict[str, list[dict[str, str]]] | None:
         """加载目标岗位技能画像。"""
-        # 检查缓存
+ # 检查缓存
         cached = self._cache.get_profile(target_position)
         if cached is not None:
             return cached
 
-        # 从数据库加载
+ # 从数据库加载
         if repo is not None:
             try:
                 profile = await repo.get_position_profile(target_position)
@@ -126,7 +126,7 @@ class MatchService:
                 logger.exception("Matching service error: {}", exc)
                 raise MatchingError(str(exc)) from exc
 
-        # 从 Neo4j 加载
+ # 从 Neo4j 加载
         if driver is not None:
             try:
                 graph = await fetch_position_graph(driver, target_position, depth=3)
@@ -153,7 +153,7 @@ class MatchService:
             except StarMapError:
                 raise
             except Exception as exc:
-                # M3: Neo4j 不可用时降级返回 None,不阻断匹配主流程。
+ # : Neo4j 不可用时降级返回 None,不阻断匹配主流程。
                 logger.warning("[MatchService] Neo4j profile load failed, degrading to None: {}", exc)
                 return None
 
@@ -166,8 +166,8 @@ class MatchService:
         required = [dict(item, importance="required") for item in profile.get("required", [])]
         bonus = [dict(item, importance="bonus") for item in profile.get("bonus", [])]
         required_count = len(required)
-        # fix (M13): required=0 时 CII=0 表示"无明确必备要求"，
-        # 原逻辑 1.0 会被前端误读为"无通胀→匹配度可信"，实际是"无量化基准"。
+ # fix (): required=0 时 CII=0 表示"无明确必备要求"，
+ # 原逻辑 1.0 会被前端误读为"无通胀→匹配度可信"，实际是"无量化基准"。
         cii = 0.0 if required_count == 0 else (required_count / DEFAULT_REQUIRED_SKILL_BASELINE)
 
         if cii <= 1.2 or required_count <= 6:
@@ -220,8 +220,8 @@ class MatchService:
         prereq_map = await self._load_prerequisite_map(driver)
         target_profile = await self._load_target_profile(driver, target_position, db_session, repo)
         if target_profile is None:
-            # M2（Phase 13 强制规范）：区分“岗位不存在”与“岗位存在但暂无技能画像”。
-            # 后者返回 200 + 0 分 + note，而非 404（not-found 仅用于真不存在）。
+ # （ 强制规范）：区分“岗位不存在”与“岗位存在但暂无技能画像”。
+ # 后者返回 200 + 0 分 + note，而非 404（not-found 仅用于真不存在）。
             if await self._position_exists(driver, target_position, db_session):
                 result: dict[str, Any] = {
                     "match_id": str(uuid4()),
@@ -238,7 +238,7 @@ class MatchService:
                     "estimated_learning_time": "",
                     "note": "岗位存在但无技能画像：请先为该岗位补充技能要求（pipeline 抽取或人工维护），再行匹配。",
                 }
-                # ponytail: 无画像结果也落库，避免 cache 淘汰后 GET /match/result/{id} 404
+ # ponytail: 无画像结果也落库，避免 cache 淘汰后 GET /match/result/{id} 404
                 if db_session is not None:
                     await self._save_match_result(db_session, result["match_id"], result)
                 return result
@@ -257,7 +257,7 @@ class MatchService:
         evaluated_required: list[dict[str, Any]] = required_result["evaluated"]
         evaluated_bonus: list[dict[str, Any]] = bonus_result["evaluated"]
 
-        # Merge and deduplicate
+ # Merge and deduplicate
         required_skill_map: dict[str, dict[str, Any]] = {
             item["skill"]: item for item in evaluated_required
         }
@@ -289,7 +289,7 @@ class MatchService:
             item for skill, item in bonus_skill_map.items() if skill not in required_skill_map
         ]
 
-        # Scoring
+ # Scoring
         required_avg = (
             sum(item["score"] for item in evaluated_required) / len(evaluated_required)
             if evaluated_required else 1.0
@@ -319,8 +319,8 @@ class MatchService:
         )
         gap_skills = [item["skill"] for item in gap_details if item["gap_level"] != GAP_LEVEL_MASTERED]
 
-        # ponytail: 真实先修链 —— path_builder 此前是死代码，prereq_map 已加载但从未被消费；
-        # 这里按"未掌握技能 → 前置依赖"生成学习路径，已掌握技能路径置空
+ # ponytail: 真实先修链 —— path_builder 此前是死代码，prereq_map 已加载但从未被消费；
+ # 这里按"未掌握技能 → 前置依赖"生成学习路径，已掌握技能路径置空
         owned_skills = {s.get("name", "").strip() for s in person_skills if s.get("name")}
         for item in gap_details:
             item["learning_path"] = (
@@ -329,7 +329,7 @@ class MatchService:
                 else build_learning_path(item["skill"], owned_skills, prereq_map)
             )
 
-        # Build recommendations
+ # Build recommendations
         recommendations: list[str] = []
         for item in gap_details[:3]:
             if item["gap_level"] == GAP_LEVEL_MASTERED:
@@ -343,10 +343,10 @@ class MatchService:
         result = {
             "match_id": match_id,
             "target_position": target_position,
-            # fix: 把已计算的 cii 纳入响应体（_save_match_result 第 428 行的 result.get("cii", 1.0) 也会读到真实值）
+ # fix: 把已计算的 cii 纳入响应体（_save_match_result 第 428 行的 result.get("cii", 1.0) 也会读到真实值）
             "cii": round(cii, 3),
             "match_score": match_score,
-            # D-01: 分数拆解 — 暴露评分构成（required_avg×0.7 + bonus_avg×0.3），前端可展示
+ # : 分数拆解 — 暴露评分构成（required_avg×0.7 + bonus_avg×0.3），前端可展示
             "score_breakdown": {
                 "required_avg": round(required_avg, 4),
                 "bonus_avg": round(bonus_avg, 4),
@@ -365,8 +365,8 @@ class MatchService:
                     "importance": item["importance"],
                     "gap_level": item["gap_level"],
                     "learning_path": item["learning_path"],
-                    # P4 fix (Phase 24 求职者分析): 补 score 字段——前端差距表
-                    # Math.round(row.score*100) 依赖它，缺失时显示 "NaN%"。
+ # P4 fix ( 求职者分析): 补 score 字段——前端差距表
+ # Math.round(row.score*100) 依赖它，缺失时显示 "NaN%"。
                     "score": round(item.get("score", 0.0), 4),
                 }
                 for item in gap_details
@@ -375,11 +375,11 @@ class MatchService:
             "estimated_learning_time": self._estimate_learning_time(gap_details),
         }
 
-        # D6 fix: compute trust_score from Neo4j Skill.trust_score over matched_skills
-        # via the shared metrics module. The MIN of matched_skills' trust is the
-        # bottleneck — a single low-trust matched skill degrades the overall
-        # trustworthiness. Routes through app.core.metrics to keep the formula
-        # consistent with anything else computing per-skill trust.
+ # D6 fix: compute trust_score from Neo4j Skill.trust_score over matched_skills
+ # via the shared metrics module. The MIN of matched_skills' trust is the
+ # bottleneck — a single low-trust matched skill degrades the overall
+ # trustworthiness. Routes through app.core.metrics to keep the formula
+ # consistent with anything else computing per-skill trust.
         try:
             from app.core.metrics import match_trust_score  # noqa: PLC0415
             result["trust_score"] = await match_trust_score(matched_skills)
@@ -388,10 +388,10 @@ class MatchService:
             logger.warning("run_match trust_score lookup failed: {}", exc)
             result["trust_score"] = None
 
-        # Cache result
+ # Cache result
         self._cache.set_match_result(match_id, result)
 
-        # Persist to database
+ # Persist to database
         if db_session is not None:
             await self._save_match_result(db_session, match_id, result)
 
@@ -436,7 +436,7 @@ class MatchService:
         """估算学习时长。"""
         weeks = 0.0
         for gap in gaps:
-            # ponytail: .get 兜底 —— gap_report 回读数据（历史/精简记录）可能缺 importance
+ # ponytail: .get 兜底 —— gap_report 回读数据（历史/精简记录）可能缺 importance
             base = 3.0 if gap.get("importance", "required") == "required" else 1.5
             if gap.get("gap_level") == GAP_LEVEL_PARTIAL:
                 base *= 0.5
@@ -492,6 +492,6 @@ class MatchService:
         except StarMapError:
             raise
         except Exception as exc:
-            # M3: 结果持久化是非关键副作用,匹配本身已成功;落库失败只记录,
-            # 不让一次保存失败回滚整次匹配。
+ # : 结果持久化是非关键副作用,匹配本身已成功;落库失败只记录,
+ # 不让一次保存失败回滚整次匹配。
             logger.warning("[MatchService] Failed to persist result {}: {}", match_id, exc)

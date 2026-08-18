@@ -75,7 +75,7 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
         "hallucinated_skills": validation.get("hallucinated_skills", []),
         "missing_skills": validation.get("missing_skills", []),
         "issues": validation.get("issues", []),
-        # 透明化：实际用于抽取的模型（含降级 fallback），供前端“本次所用模型/降级”提示
+ # 透明化：实际用于抽取的模型（含降级 fallback），供前端“本次所用模型/降级”提示
         "model_used": pipeline_result.get("model_used"),
     }
 
@@ -95,9 +95,9 @@ async def _write_extraction_to_graph(
         return None
 
     if neo4j_driver is None:
-        # Extraction succeeded but graph persistence is unavailable; log and
-        # return None rather than raising 502. The caller treats None as
-        # "graph write skipped" and continues to the success response.
+ # Extraction succeeded but graph persistence is unavailable; log and
+ # return None rather than raising 502. The caller treats None as
+ # "graph write skipped" and continues to the success response.
         logger.debug("Skipping graph write: no Neo4j driver available")
         return None
 
@@ -111,9 +111,9 @@ async def _write_extraction_to_graph(
         )
         return summary
     except GraphProjectionError as exc:
-        # Phase 23 Task 2 (checkpoint:decision): MERGE 键已切 canonical_id——API 抽取
-        # 路径此时尚未落 PG（图写先于 PG 写），无 canonical_id 不落图（拒绝孤儿）。
-        # 降级为"仅 PG 写入"，节点待审核通过后由 graph_sync/reconcile 按 canonical_id 补投影。
+ # (checkpoint:decision): MERGE 键已切 canonical_id——API 抽取
+ # 路径此时尚未落 PG（图写先于 PG 写），无 canonical_id 不落图（拒绝孤儿）。
+ # 降级为"仅 PG 写入"，节点待审核通过后由 graph_sync/reconcile 按 canonical_id 补投影。
         logger.warning(
             "Graph write deferred (no canonical_id yet, PG write will follow; reconcile catches up): {}",
             exc,
@@ -125,8 +125,8 @@ async def _write_extraction_to_graph(
     except StarMapError:
         raise
     except Exception as exc:
-        # M3 + docstring 契约("Returns summary or None on failure"):
-        # 图谱写入是非关键副作用,失败降级返回 None,抽取本身已成功,不让整次请求 500。
+ # + docstring 契约("Returns summary or None on failure"):
+ # 图谱写入是非关键副作用,失败降级返回 None,抽取本身已成功,不让整次请求 500。
         logger.warning("Graph write failed, degrading to None: {}", exc)
         return None
 
@@ -194,12 +194,12 @@ async def extract_jd(
         logger.error("Pipeline returned error: {}", error_msg)
         raise HTTPException(status_code=422, detail=error_msg)
 
-    # Write extraction to Neo4j graph (non-blocking: failure won't break the response)
+ # Write extraction to Neo4j graph (non-blocking: failure won't break the response)
     graph_summary = await _write_extraction_to_graph(pipeline_result, neo4j_driver)
     if graph_summary:
         logger.info("Graph integration: {} triples written", graph_summary["triples_merged"])
 
-    # Write extraction to PostgreSQL (non-blocking: failure won't break the response) (LOOP-05)
+ # Write extraction to PostgreSQL (non-blocking: failure won't break the response) (LOOP-05)
     pg_result = await _write_extraction_to_pg(pipeline_result, session)
     if pg_result:
         logger.info("PG integration: PositionRecord created")
@@ -223,7 +223,7 @@ async def extract_resume(
     """
     logger.info("POST /extract/resume - filename={}", file.filename)
 
-    # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+ # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
     content_bytes = await validate_resume_upload(file)
 
     try:
@@ -245,12 +245,12 @@ async def extract_resume(
         error_msg = pipeline_result.get("error", "Unknown extraction error")
         raise HTTPException(status_code=422, detail=error_msg)
 
-    # Write extraction to Neo4j graph
+ # Write extraction to Neo4j graph
     graph_summary = await _write_extraction_to_graph(pipeline_result, neo4j_driver)
     if graph_summary:
         logger.info("Graph integration: {} triples written", graph_summary["triples_merged"])
 
-    # Write extraction to PostgreSQL (LOOP-05)
+ # Write extraction to PostgreSQL (LOOP-05)
     pg_result = await _write_extraction_to_pg(pipeline_result, session)
     if pg_result:
         logger.info("PG integration: PositionRecord created")

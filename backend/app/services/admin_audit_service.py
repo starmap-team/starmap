@@ -55,7 +55,7 @@ class AdminStatsResponse(BaseModel):
 _SKILL_ENTITY_TYPES = frozenset({"skill", "skill_alias", "new_skill"})
 _POSITION_ENTITY_TYPES = frozenset({"position", "new_position"})
 
-# Phase 02 D-01/D-02: single source of the Position MERGE Cypher.
+# : single source of the Position MERGE Cypher.
 # Extracted verbatim from _sync_neo4j_on_audit so the one-off bulk backfill
 # (sync_all_positions_to_neo4j) reuses the exact same idempotent write path
 # instead of introducing a second sync implementation.
@@ -70,7 +70,7 @@ _POSITION_MERGE_CYPHER = """
                     """
 
 
-# Phase 02 D-01: 剪枝早期按 name MERGE 产生的遗留 Position 节点（无 canonical_id，不受 SSOT 管理）。
+# : 剪枝早期按 name MERGE 产生的遗留 Position 节点（无 canonical_id，不受 SSOT 管理）。
 # GraphProjector.reconcile_all 的孤儿剪枝带 `WHERE n.canonical_id IS NOT NULL` 前置条件，够不到这批。
 _POSITION_PRUNE_LEGACY_CYPHER = """
                     MATCH (n:Position)
@@ -107,7 +107,7 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
         from app.db.session import get_async_engine
         from app.models.extraction_models import PositionRecord, SkillRecord
 
-        # 查 PG 拿到 canonical_id（用 PG 实际字段名）
+ # 查 PG 拿到 canonical_id（用 PG 实际字段名）
         engine = get_async_engine()
         async with engine.begin() as conn:
             session = AsyncSession(bind=conn)
@@ -140,7 +140,7 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
 
         trust = 1.0 if status == "approved" else 0.0
 
-        # 用 canonical_id MERGE，确保幂等
+ # 用 canonical_id MERGE，确保幂等
         async with neo4j_driver.session() as s:
             if label == "Position":
                 await s.run(
@@ -383,15 +383,15 @@ async def approve_audit(
 
     now = datetime.now(UTC)
 
-    # Sync approved data to actual tables
+ # Sync approved data to actual tables
     if row.entity_type in _SKILL_ENTITY_TYPES:
         existing = await session.execute(
             sa.select(SkillRecord).where(SkillRecord.name == row.entity_name)
         )
         if existing.scalar_one_or_none() is None:
-            # Preserve category from payload if the operator set one
-            # (Phase 24 evolution orchestrator stores it under
-            # payload["category"]; legacy path leaves it None).
+ # Preserve category from payload if the operator set one
+ # ( evolution orchestrator stores it under
+ # payload["category"]; legacy path leaves it None).
             payload = row.payload or {}
             category = payload.get("category") or "general"
             session.add(SkillRecord(
@@ -416,7 +416,7 @@ async def approve_audit(
 
     await session.commit()
 
-    # Sync to Neo4j (non-blocking)
+ # Sync to Neo4j (non-blocking)
     await _sync_neo4j_on_audit(neo4j_driver, row.entity_type, row.entity_name, "approved")
 
     return _audit_item_from_row(row, status_override="approved")
@@ -434,7 +434,7 @@ async def reject_audit(item_id: int, session: AsyncSession, neo4j_driver: Any | 
     row.status = "rejected"
     await session.commit()
 
-    # Sync to Neo4j (non-blocking)
+ # Sync to Neo4j (non-blocking)
     await _sync_neo4j_on_audit(neo4j_driver, row.entity_type, row.entity_name, "rejected")
 
     return _audit_item_from_row(row, status_override="rejected")
@@ -457,7 +457,7 @@ async def update_review_queue_item(
     if name is not None:
         row.entity_name = name
     if trust is not None:
-        # Reassign dict so SQLAlchemy JSON dirty-tracking fires
+ # Reassign dict so SQLAlchemy JSON dirty-tracking fires
         payload = dict(row.payload or {})
         payload["trust"] = trust
         row.payload = payload

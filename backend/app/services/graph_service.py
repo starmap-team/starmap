@@ -48,8 +48,8 @@ from app.services.graph_serializers import (
 # ── count/serializer 详见 graph_serializers.py ──
 # ── overview 详见 graph_overview.py ──
 async def _resolve_position_name(driver: Any, position_name: str) -> str:
-    # 业务说明：根据用户输入的职位名称，在 Neo4j 中模糊匹配最接近的正式职位名称，
-    # 支持精确匹配、子串匹配和双向包含匹配，提升搜索容错率。
+ # 业务说明：根据用户输入的职位名称，在 Neo4j 中模糊匹配最接近的正式职位名称，
+ # 支持精确匹配、子串匹配和双向包含匹配，提升搜索容错率。
     """Resolve the closest Neo4j Position name."""
     async with driver.session() as session:
         exact = await session.run(
@@ -68,11 +68,11 @@ async def _resolve_position_name(driver: Any, position_name: str) -> str:
 
 
 async def fetch_position_graph(driver: Any, position_name: str, depth: int = 1) -> dict[str, Any]:
-    # 业务说明：以指定职位为中心，按深度（depth）向外抓取子图，包含职位节点、关联技能节点及边关系。
-    # 技术说明：
-    #   - depth=1 时仅抓取直接 REQUIRES 关系；
-    #   - depth>1 时支持可变长度路径（REQUIRES*1..depth），并递归抓取 PREREQUISITE 和 EVOLVES_TO 关系；
-    #   - depth 被限制在 [1, 5] 范围内，防止查询爆炸。
+ # 业务说明：以指定职位为中心，按深度（depth）向外抓取子图，包含职位节点、关联技能节点及边关系。
+ # 技术说明：
+ # - depth=1 时仅抓取直接 REQUIRES 关系；
+ # - depth>1 时支持可变长度路径（REQUIRES*1..depth），并递归抓取 PREREQUISITE 和 EVOLVES_TO 关系；
+ # - depth 被限制在 [1, 5] 范围内，防止查询爆炸。
     """Fetch a position and its required skills as a subgraph."""
     if driver is None:
         return {"position": None, "skills": [], "edges": []}
@@ -115,8 +115,8 @@ async def fetch_position_graph(driver: Any, position_name: str, depth: int = 1) 
                 if record["rel"] is not None:
                     edges.append(serialize_relationship(record["rel"]))
         else:
-            # INJ-04: depth is int, clamped to [1,5] by API validator + max/min guard.
-            # str(int) cannot inject Cypher syntax; assert for defense-in-depth.
+ # INJ-04: depth is int, clamped to [1,5] by API validator + max/min guard.
+ # str(int) cannot inject Cypher syntax; assert for defense-in-depth.
             assert isinstance(depth, int) and 1 <= depth <= 5, f"depth must be int in [1,5], got {depth!r}"
             multi_query = (
                 f"MATCH (position:Position)-[rel:REQUIRES*1..{depth}]->(skill:Skill) "
@@ -235,7 +235,7 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
         "云原生": "#36CFC9",
     }
 
-    # Palette for domains not in the map above — prevents 灰色 flood
+ # Palette for domains not in the map above — prevents 灰色 flood
     _fallback_palette = [
         "#6366F1", "#8B5CF6", "#EC4899", "#F43F5E",
         "#14B8A6", "#06B6D4", "#0EA5E9", "#84CC16",
@@ -243,7 +243,7 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
     ]
 
     async with driver.session() as session:
-        # Get all KA nodes with counts
+ # Get all KA nodes with counts
         ka_query = """
         MATCH (ka:KnowledgeArea)
         OPTIONAL MATCH (ka)<-[:BELONGS_TO]-(s:Skill)
@@ -267,7 +267,7 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
             pc = record["pos_count"]
             total_skill += sc
             total_pos += pc
-            # Color resolution: exact match → palette rotation (no substring fallback)
+ # Color resolution: exact match → palette rotation (no substring fallback)
             color = _domain_colors.get(name)
             if not color:
                 color = _fallback_palette[fallback_idx % len(_fallback_palette)]
@@ -282,7 +282,7 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
                 }
             )
 
-        # Get independent counts (single query, P1-2 fix pattern)
+ # Get independent counts (single query, fix pattern)
         count_result = await session.run(
             "MATCH (p:Position) WITH count(p) AS pos_cnt "
             "MATCH (s:Skill) WITH pos_cnt, count(s) AS skill_cnt "
@@ -299,8 +299,8 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
             independent_skill = 0
             independent_edge = 0
 
-        # ── Fallback: when no KA nodes, classify positions by 行业 (Phase 13 Step 1) ──
-        # 与 tech_stack 视图正交：tech_stack 按技术栈聚类，domain 按行业聚类。
+ # ── Fallback: when no KA nodes, classify positions by 行业 ( Step 1) ──
+ # 与 tech_stack 视图正交：tech_stack 按技术栈聚类，domain 按行业聚类。
         connections: list[dict[str, Any]] = []
         if not domains and independent_pos > 0:
             groups: dict[str, dict[str, Any]] = {}
@@ -318,7 +318,7 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
                 bucket = _classify_industry(name, industry)
                 groups[bucket]["positions"].append({"id": _node_id(node), "name": name})
 
-            # Count skills per industry
+ # Count skills per industry
             skill_result = await session.run(
                 "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
                 "RETURN p.name AS pos_name, p.industry AS pos_industry, collect(DISTINCT s.name) AS skills"
@@ -346,7 +346,7 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
                     "color": gdata["color"],
                 })
 
-            # Build industry-industry connections (shared skills)
+ # Build industry-industry connections (shared skills)
             if len(domains) > 1:
                 conn_result = await session.run(
                     "MATCH (p1:Position)-[:REQUIRES]->(s:Skill)<-[:REQUIRES]-(p2:Position) "
@@ -369,7 +369,7 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
                         "properties": {"weight": min(1.0, weight / 20.0)},
                     })
         else:
-            # Get KA-KA connections via shared positions
+ # Get KA-KA connections via shared positions
             conn_query = """
             MATCH (ka1:KnowledgeArea)<-[:BELONGS_TO]-(s:Skill)<-[:REQUIRES]-(p:Position)-[:REQUIRES]->(s2:Skill)-[:BELONGS_TO]->(ka2:KnowledgeArea)
             WHERE elementId(ka1) < elementId(ka2)
@@ -393,8 +393,8 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
     return {
         "domains": domains,
         "connections": _prune_connections(connections, domains),
-        # M6（Phase 13 强制规范）：total_* 一律用全局去重计数，禁止按域/KA 累加
-        # 导致的重复计数（曾使 total_skills=395 而 distinct=257）。分组视图见 domains[]。
+ # （ 强制规范）：total_* 一律用全局去重计数，禁止按域/KA 累加
+ # 导致的重复计数（曾使 total_skills=395 而 distinct=257）。分组视图见 domains[]。
         "total_positions": independent_pos,
         "total_skills": independent_skill,
         "independent_positions": independent_pos,
