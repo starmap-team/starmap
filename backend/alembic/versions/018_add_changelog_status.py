@@ -17,17 +17,27 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Add status column with default 'pending'
-    op.add_column(
-        "evolution_changelog",
-        sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
+    # 2026-08-18 fix: 用原始 SQL 保证完全幂等——004a 可能已执行过，重复
+    # add_column 会污染事务状态导致后续 UPDATE alembic_version 失败。原始 SQL
+    # 在 PG 事务中安全：若列/索引已存在，IF NOT EXISTS 直接跳过。
+    conn = op.get_bind()
+    conn.execute(
+        sa.text("ALTER TABLE evolution_changelog ADD COLUMN IF NOT EXISTS "
+                "status VARCHAR(20) NOT NULL DEFAULT 'pending'")
+    )
+    conn.execute(
+        sa.text("CREATE INDEX IF NOT EXISTS ix_evolution_changelog_status_trust "
+                "ON evolution_changelog (status, trust_score)")
     )
 
-    # Create composite index for review-queue queries
-    op.create_index(
-        "ix_evolution_changelog_status_trust",
-        "evolution_changelog",
-        ["status", "trust_score"],
+
+def downgrade() -> None:
+    conn = op.get_bind()
+    conn.execute(
+        sa.text("DROP INDEX IF EXISTS ix_evolution_changelog_status_trust")
+    )
+    conn.execute(
+        sa.text("ALTER TABLE evolution_changelog DROP COLUMN IF EXISTS status")
     )
 
 
