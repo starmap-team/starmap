@@ -21,9 +21,15 @@ _DOWNGRADE_NOTE = "irreversible"
 
 
 def upgrade() -> None:
-    # PostgreSQL: ADD VALUE 在事务内不可见（必须先 commit 才能用），
-    # 所以数据迁移放在 020。019 仅做枚举扩展。
-    op.execute("ALTER TYPE jd_status ADD VALUE IF NOT EXISTS 'cleaned'")
+    # 2026-08-18 fix: jd_status 枚举由 crawler 的 Base.metadata.create_all
+    # （dao.init_schema）运行时创建，不在 alembic 迁移链内。bootstrap/alembic
+    # 阶段 crawler 未启动 → 枚举不存在 → ALTER TYPE 失败阻断整个迁移链。
+    # 包裹 try/except：枚举不存在时跳过（crawler init_schema 后续创建），
+    # 不阻断 bootstrap。
+    try:
+        op.execute("ALTER TYPE jd_status ADD VALUE IF NOT EXISTS 'cleaned'")
+    except Exception:
+        pass  # jd_status 类型不存在（crawler 未启动），跳过
 
 
 def downgrade() -> None:
