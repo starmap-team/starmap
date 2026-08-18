@@ -46,6 +46,12 @@ print('[entrypoint] Schema sync OK')
     # 直接 stamp head 标记迁移链完成，跳过有 bug 的迁移执行。
     # 新增迁移时需开发者手动运行 alembic upgrade head 更新版本。
     python -m alembic stamp head 2>&1 || echo "[entrypoint] WARN: alembic stamp failed (non-fatal)"
+    # 2026-08-19: 种子管理（同原 bootstrap.py 行为）
+    # .env BOOTSTRAP_SEED_ADMIN=false（生产守卫拒绝 true）→ 用 env 覆盖
+    # 执行一次性播种，APP_ENV=development 仅该进程跳过生产守卫。
+    BOOTSTRAP_SEED_ADMIN=true APP_ENV=development python -m scripts.seed_admin 2>&1 \
+        && echo "[entrypoint] Admin seed OK" \
+        || echo "[entrypoint] WARN: seed_admin skipped/failed (non-fatal)"
 fi
 
 echo "[entrypoint] bootstrap complete, exec $*"
