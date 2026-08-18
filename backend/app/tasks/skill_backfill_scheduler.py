@@ -24,10 +24,9 @@ Phase 5 设计:
 from __future__ import annotations
 
 import asyncio
-import sys
-from datetime import UTC, datetime
 from typing import Any
 
+import sqlalchemy as sa
 from loguru import logger
 from sqlalchemy import select
 
@@ -39,16 +38,13 @@ from app.models.extraction_models import (
     SkillRecord,
 )
 from app.services.industry_quality_monitor import (
-    UNCLASSIFIED_RATIO_WARNING,
     detect_industry_quality,
 )
 from app.services.skill_data_support import (
-    SCORE_FULL_COVERAGE,
     SCORE_PARTIAL_COVERAGE,
     compute_data_support_report,
 )
 from app.tasks.celery_app import celery_app
-
 
 # ──────────────────────────────────────────────────────────────────
 # Daily task: 翻译未翻译的技能名
@@ -68,10 +64,11 @@ def daily_skill_backfill_task(self, limit: int = 200) -> dict[str, Any]:
 
 async def _async_skill_backfill(limit: int) -> dict[str, Any]:
     """异步 LLM 翻译未翻译技能名。"""
-    from app.core.extraction.llm_client import LLMClient
-    from app.core.extraction.translation import has_cjk
-    from app.core.extraction.normalize import normalize_by_alias
     from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.core.extraction.llm_client import LLMClient
+    from app.core.extraction.normalize import normalize_by_alias
+    from app.core.extraction.translation import has_cjk
 
     engine = get_async_engine()
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
@@ -154,17 +151,17 @@ def weekly_low_data_re_extract_task(self, limit: int = 20) -> dict[str, Any]:
 
 async def _async_low_data_re_extract(limit: int) -> dict[str, Any]:
     """异步补抽取低数据支撑岗位的技能。"""
-    from app.core.extraction.jd_extract import extract_from_jd, mask_pii
-    from app.core.extraction.llm_client import LLMClient
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
-    from app.tasks.stage3_services import (
-        _upsert_skill,
-        _ensure_position_skill_relation,
-        _confidence_from_result,
-        _hallucination_score_from_result,
-    )
+    from app.core.extraction.jd_extract import extract_from_jd, mask_pii
+    from app.core.extraction.llm_client import LLMClient
     from app.models.extraction_models import JDExtractionRecord
+    from app.tasks.stage3_services import (
+        _confidence_from_result,
+        _ensure_position_skill_relation,
+        _hallucination_score_from_result,
+        _upsert_skill,
+    )
 
     engine = get_async_engine()
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
@@ -197,7 +194,7 @@ async def _async_low_data_re_extract(limit: int) -> dict[str, Any]:
                 logger.info("weekly_low_data_re_extract_task: 0 positions to re-extract")
                 return {"re_extracted": 0, "failed": 0}
 
-            llm = LLMClient()
+            llm = LLMClient()  # noqa: F841 - reserved for future per-position override
             for pos in positions:
                 # 优先用 jd_content（如果有），否则 fallback 到 pos.name + pos.name_cn
                 jd_content = pos.name
@@ -285,7 +282,9 @@ def daily_data_quality_check_task(self) -> dict[str, Any]:
 async def _async_data_quality_check() -> dict[str, Any]:
     """异步检测 + 写告警。"""
     import json as _json
+
     from sqlalchemy.ext.asyncio import async_sessionmaker
+
     from app.models.review_audit_log import ReviewAuditLog
 
     engine = get_async_engine()

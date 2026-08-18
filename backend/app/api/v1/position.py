@@ -658,18 +658,17 @@ async def re_extract_skills(
 ) -> ReExtractSkillsResponse:
     """低数据支撑岗位的补抽取端点（fail-soft，LLM 失败不阻塞）。"""
     import uuid as _uuid
-    from app.core.extraction.llm_client import LLMClient
+
     from app.core.extraction.jd_extract import extract_from_jd, mask_pii
-    from app.tasks.stage3_services import (
-        _upsert_position,
-        _upsert_skill,
-        _ensure_position_skill_relation,
-        _confidence_from_result,
-        _hallucination_score_from_result,
-    )
     from app.models.extraction_models import (
         JDExtractionRecord,
         PositionSkillRelation,
+    )
+    from app.tasks.stage3_services import (
+        _confidence_from_result,
+        _ensure_position_skill_relation,
+        _hallucination_score_from_result,
+        _upsert_skill,
     )
 
     # 1. 校验 position 存在
@@ -697,7 +696,7 @@ async def re_extract_skills(
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
             status_code=500, detail=f"LLM 抽取失败: {type(exc).__name__}: {str(exc)[:200]}",
-        )
+        ) from exc
 
     data = llm_result.get("data", {})
     extracted_skills = data.get("required_skills", []) + data.get("preferred_skills", [])

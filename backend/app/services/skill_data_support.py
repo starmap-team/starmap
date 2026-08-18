@@ -26,16 +26,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import sqlalchemy as sa
-from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL
 from app.models.extraction_models import (
     PositionRecord,
     PositionSkillRelation,
     SkillRecord,
 )
-
 
 # 配置常量（与项目数据规模匹配）
 FULL_COVERAGE_THRESHOLD = 5  # 5+ 项技能 = 完整画像
