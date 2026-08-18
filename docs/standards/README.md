@@ -1,4 +1,4 @@
-# StarMap 规范索引
+﻿# StarMap 规范索引
 
 > 状态：活文档
 > 最近核对：2026-08-15
@@ -42,7 +42,7 @@
 ## 其他
 
 - [爬虫](03-crawler/01-爬虫模块规范.md)
-- [AGENTS.md](03-crawler/02-AGENTS-md-规范.md)
+- [AGENTS.md 规范](03-crawler/02-AGENTS-md-规范.md)
 - [API 契约](04-contracts/01-API契约规范.md)
 - [评估](05-evaluation/01-评估套件规范.md)
 - [E2E 与集成测试](06-testing/01-E2E与集成测试规范.md)

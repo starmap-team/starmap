@@ -28,7 +28,7 @@ def _inline_models(module: Any) -> list[str]:
 
 
 class TestPromptsRouteModelCentralization:
-    """路由文件不得内联定义 Pydantic 模型 (AGENTS.md 集中约定)."""
+    """路由文件不得内联定义 Pydantic 模型 (集中约定)."""
 
     def test_prompts_route_has_no_inline_models(self) -> None:
         assert _inline_models(prompts_router) == []

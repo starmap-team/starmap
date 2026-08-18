@@ -115,7 +115,7 @@ poetry run python ../scripts/export_json_schemas.py
 
 从 [文档中心](docs/README.md) 开始。当前事实只来自活文档和代码；阶段报告、审计、旧设计稿与修复计划统一位于 [历史归档](docs/archive/README.md)，不得作为当前行为依据。
 
-开发规则见 [AGENTS.md](AGENTS.md)。文档治理规则见 [docs/governance/documentation.md](docs/governance/documentation.md)。
+开发规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。文档治理规则见 [docs/governance/documentation.md](docs/governance/documentation.md)。
 
 ## 安全
 

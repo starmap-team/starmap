@@ -1,7 +1,7 @@
 """契约形状回归测试（graph 域 Schema 集中管理 + 契约对齐）。
 
 防止三类回归：
-1. 路由文件重新内联 Pydantic 模型（违反 AGENTS.md Schema 集中管理约定）
+1. 路由文件重新内联 Pydantic 模型（违反 Schema 集中管理约定）
 2. PositionSkillDetailResponse 契约与真实 API 漂移（paths vs edges）
 3. 导出的 JSON Schema 出现悬空 $ref（前端运行时校验静默跳过）
 """
@@ -37,7 +37,7 @@ def _inline_models(module: Any) -> list[str]:
 
 
 class TestRouteModelCentralization:
-    """路由文件不得内联定义 Pydantic 模型（AGENTS.md Schema 集中管理）。"""
+    """路由文件不得内联定义 Pydantic 模型（Schema 集中管理）。"""
 
     def test_graph_route_has_no_inline_models(self) -> None:
         assert _inline_models(graph_router) == []

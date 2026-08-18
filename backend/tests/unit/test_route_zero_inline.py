@@ -1,6 +1,6 @@
-"""PLAN-014 批次9: 全路由零内联契约回归 (锁定 + 登记 follow-up)。
+﻿"""PLAN-014 批次9: 全路由零内联契约回归 (锁定 + 登记 follow-up)。
 
-锁定: 路由文件不得内联定义 Pydantic BaseModel (AGENTS.md Schema 集中约定)。
+锁定: 路由文件不得内联定义 Pydantic BaseModel (Schema 集中约定)。
 
 状态 (2026-08-05):
 - 11 个路由已通过 (admin_prompts/position/dashboard/graph/auth/...)
@@ -79,7 +79,7 @@ def _inline_models(module: Any) -> list[str]:
 
 @pytest.mark.parametrize("mod", _collect_route_modules(), ids=lambda m: m.__name__)
 def test_route_has_no_inline_models(mod: Any) -> None:
-    """每个路由文件都不得内联 BaseModel — AGENTS.md 集中约定."""
+    """每个路由文件都不得内联 BaseModel — 集中约定."""
     name = mod.__name__
     inline = _inline_models(mod)
     if name in PASS_ROUTES:

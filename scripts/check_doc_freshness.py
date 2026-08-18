@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DOC_FILES = (
     "README.md",
     "CLAUDE.md",
-    "AGENTS.md",
+    "CONTRIBUTING.md",
     "ONBOARDING.md",
 )
 
@@ -339,7 +339,7 @@ def check_gitignore_consistency(report: Report) -> None:
 
     # 仅检测 markdown 链接形式 — 表格/列表中的纯文字提及不算悬挂引用
     dangling: list[str] = []
-    for f in ("README.md", "AGENTS.md", "ONBOARDING.md"):
+    for f in ("README.md", "CONTRIBUTING.md", "ONBOARDING.md"):
         fp = ROOT / f
         if not fp.exists():
             continue

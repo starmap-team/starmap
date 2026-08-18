@@ -44,7 +44,7 @@ from app.services import auth_service
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 router = APIRouter(prefix="/auth", tags=["认证"])
-# 请求/响应模型统一在 app/schemas/auth.py（AGENTS.md 集中管理约定，
+# 请求/响应模型统一在 app/schemas/auth.py（集中管理约定，
 # 2026-08-05 PLAN-015：消除路由内联重复定义，启用更严格的字段约束）
 
 

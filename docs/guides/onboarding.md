@@ -21,7 +21,7 @@ PostgreSQL/Neo4j -> API -> Pinia/组件 -> 图谱、匹配、演化和质量页�
 2. [系统架构](../architecture/overview.md)：层次与数据流。
 3. [数据存储](../architecture/data-storage.md)：PG、Neo4j、Redis 和 Chroma 的职责。
 4. [规范索引](../standards/README.md)：按任务定位规则。
-5. 目标目录最近的 `AGENTS.md`：模块局部约束。
+5. 目标目录最近的 `CONTRIBUTING.md`：模块局部约束。
 
 ## 关键目录
 

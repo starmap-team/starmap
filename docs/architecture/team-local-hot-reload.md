@@ -210,6 +210,6 @@ docker compose -f docker-compose.dev.yml up -d --force-recreate
 
 - 部署 Spec：`.omc/specs/deep-interview-starmap-deploy.md`
 - 部署脚本：`scripts/deploy-tencent.sh`
-- 项目规约：`AGENTS.md`
-- 测试约定：`tests/e2e/AGENTS.md`
+- 项目规约：`CONTRIBUTING.md`
+- 测试约定：`tests/e2e/README.md`
 - 未决缺陷：`.planning/codebase/CONCERNS.md`（C-1 ~ C-7）

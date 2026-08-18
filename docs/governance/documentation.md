@@ -12,7 +12,7 @@
 | 类型 | 位置 | 维护方式 |
 |---|---|---|
 | 活文档 | `docs/architecture/`、`guides/`、`governance/`、`standards/`、`ontology/`、`reference/` | 随行为、接口或约定变更同步更新 |
-| 模块文档 | 模块旁的 `README.md` / `AGENTS.md` | 只描述本模块边界和操作入口 |
+| 模块文档 | 模块旁的 `README.md` / `CONTRIBUTING.md` | 只描述本模块边界和操作入口 |
 | 契约文档 | `starmap-contracts/` | OpenAPI/Schema 变更流程维护 |
 | 工作流状态 | `.planning/` | 由规划工具维护，不作为产品事实源 |
 | 历史快照 | `docs/archive/` | 只读保留，文件内标注归档性质和日期 |
@@ -22,16 +22,16 @@
 
 - 公共架构说明只在 `docs/architecture/`。
 - 操作型说明只在 `docs/guides/` 或对应模块 README。
-- 强制规则只在根 `AGENTS.md` 和 `docs/standards/`。
+- 强制规则只在`CONTRIBUTING.md` 和 `docs/standards/`。
 - 术语只在 `docs/reference/glossary.md`。
 - 一次性报告只在 `docs/archive/reports/<date>/`。
 - 旧计划、审计和设计稿分别进入 `archive/plans/`、`archive/audits/`、`archive/design/`。
 
-根目录只允许三个 Markdown 入口：`README.md`、`AGENTS.md`、`CLAUDE.md`。`CLAUDE.md` 引用 `AGENTS.md`，不复制规则。
+根目录只允许三个 Markdown 入口：`README.md`、`CONTRIBUTING.md`。
 
 以下文件因工具发现或模块自治必须就地保留，不视为违反集中规则：
 
-- 任意目录的 `AGENTS.md`
+- 任意目录的 `CONTRIBUTING.md`
 - 包、模块或子项目的 `README.md`
 - `.github/pull_request_template.md`
 - `starmap-contracts/CHANGELOG.md` 和联调说明

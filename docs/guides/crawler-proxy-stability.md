@@ -43,7 +43,7 @@ PROXY_LIST=http://user:pass@proxy1.example.com:8080,http://proxy2.example.com:80
 
 - 代理格式：`http://[user:pass@]host:port` 或 `socks5://host:port`。
 - 建议至少 2-3 个代理，`compliance.get_proxy()` 会随机选择分散压力。
-- **凭据不进仓库**（AGENTS.md 爬虫规范：凭据、Cookie、代理不进入仓库）——`.env` 已被 gitignore。
+- **凭据不进仓库**（CONTRIBUTING.md 爬虫规范：凭据、Cookie、代理不进入仓库）——`.env` 已被 gitignore。
 
 **Step 2**：重启 backend 容器（容器启动时读取 `.env`）：
 

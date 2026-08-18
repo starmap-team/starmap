@@ -29,4 +29,4 @@ cd backend
 poetry run pytest tests/unit/test_extraction.py tests/unit/test_normalize.py tests/unit/test_resume_service.py
 ```
 
-涉及 Pydantic API 模型时，遵循根 `AGENTS.md` 的集中 Schema 与 JSON Schema 同步规则。
+涉及 Pydantic API 模型时，遵循`CONTRIBUTING.md` 的集中 Schema 与 JSON Schema 同步规则。
