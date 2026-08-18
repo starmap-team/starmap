@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """check_doc_freshness.py — 文档新鲜度本地校验脚本
 
 目的:在没有 CI 跑 `.github/workflows/doc-lint.yml` 的本地环境下,也能快速发现
@@ -10,7 +10,7 @@
   3. vitest passed 数字:同上(vitest 端)
   4. golden_set 条数:evaluation/README/CLAUDE 自称 vs jsonl 行数
   5. audit/ 目录引用:README/ONBOARDING/standards 是否引用已删除目录
-  6. .gitignore 'docs/archive/' 与 CLAUDE.md 规则的一致性
+  6. .gitignore 'docs/archive/' 与 CONTRIBUTING.md 规则的一致性
 
 用法:
   python scripts/check_doc_freshness.py [--strict] [--skip-pytest]
@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 DOC_FILES = (
     "README.md",
-    "CLAUDE.md",
+    "CONTRIBUTING.md",
     "CONTRIBUTING.md",
     "ONBOARDING.md",
 )
@@ -306,8 +306,8 @@ def check_audit_dir_stale(report: Report) -> None:
 def _md_link_targets(content: str, target_basename: str) -> list[str]:
     """仅返回 markdown 链接中真实指向 target_basename 的命中位置。
 
-    形式:`](CLAUDE.md)` 或 `](CLAUDE.md#...)` 或 `](CLAUDE.md?...)`。
-    文字提及 `CLAUDE.md`(在表格、列表项、纯文本)不算 — 它们没有 404 风险。
+    形式:`](CONTRIBUTING.md)` 或 `](CONTRIBUTING.md#...)` 或 `](CONTRIBUTING.md?...)`。
+    文字提及 `CONTRIBUTING.md`(在表格、列表项、纯文本)不算 — 它们没有 404 风险。
     """
     pat = re.compile(
         r"""\]\(
@@ -321,7 +321,7 @@ def _md_link_targets(content: str, target_basename: str) -> list[str]:
 
 
 def check_gitignore_consistency(report: Report) -> None:
-    """检测 .gitignore 把 CLAUDE.md / docs/archive/ 排除 — 与文档是否真的**链接**到它们。"""
+    """检测 .gitignore 把 CONTRIBUTING.md / docs/archive/ 排除 — 与文档是否真的**链接**到它们。"""
     gi = ROOT / ".gitignore"
     if not gi.exists():
         report.add("INFO", "gitignore_consistency", ".gitignore 不存在")
@@ -331,10 +331,10 @@ def check_gitignore_consistency(report: Report) -> None:
     if re.search(r"^docs/archive/$", text, re.MULTILINE):
         rules.append("docs/archive/")
     if re.search(r"^CLAUDE\.md$", text, re.MULTILINE):
-        rules.append("CLAUDE.md")
+        rules.append("CONTRIBUTING.md")
 
     if not rules:
-        report.add("OK", "gitignore_consistency", "无 docs/archive / CLAUDE.md ignore 规则")
+        report.add("OK", "gitignore_consistency", "无 docs/archive / CONTRIBUTING.md ignore 规则")
         return
 
     # 仅检测 markdown 链接形式 — 表格/列表中的纯文字提及不算悬挂引用
@@ -344,8 +344,8 @@ def check_gitignore_consistency(report: Report) -> None:
         if not fp.exists():
             continue
         content = fp.read_text(encoding="utf-8")
-        if "CLAUDE.md" in rules and _md_link_targets(content, "CLAUDE.md"):
-            dangling.append(f"{f} -> CLAUDE.md (markdown link)")
+        if "CONTRIBUTING.md" in rules and _md_link_targets(content, "CONTRIBUTING.md"):
+            dangling.append(f"{f} -> CONTRIBUTING.md (markdown link)")
         if "docs/archive/" in rules and _md_link_targets(content, "docs/archive/"):
             dangling.append(f"{f} -> docs/archive/ (markdown link)")
 

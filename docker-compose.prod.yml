@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # 星图(StarMap) Production Docker Compose
 # Sprint 4.3: Production-ready deployment for competition submission
 # 启动：docker compose -f docker-compose.prod.yml up -d
@@ -170,7 +170,7 @@ services:
     image: neo4j:5-community
     container_name: starmap-neo4j-prod
     environment:
-      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-starmap123456}
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
       # DEP-03 fix: 生产环境移除 APOC（减少攻击面）。
       # 如需 APOC 功能，显式启用并配合安全设置：
       # NEO4J_PLUGINS=["apoc"]
@@ -216,7 +216,7 @@ services:
     container_name: starmap-postgres-prod
     environment:
       - POSTGRES_USER=starmap
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-starmap123456}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       - POSTGRES_DB=starmap
       - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
     # W1-T7 + W2-F1 fix (DATA-03): 强制 Postgres 启用 SSL。
