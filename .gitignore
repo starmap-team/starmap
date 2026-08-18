@@ -1,4 +1,4 @@
-# ==================== StarMap .gitignore ====================
+﻿# ==================== StarMap .gitignore ====================
 # 全面排除规则 — 按类别分区，每区一个职责
 # 规则：已跟踪的文件不受 gitignore 影响；如需停止跟踪，先 git rm --cached
 # ================================================================
@@ -189,6 +189,7 @@ vitest.config.ts.timestamp-*.mjs
 docs/archive/
 docs/pencil-tools/
 CLAUDE.md
+.github/AGENTS.md
 
 # ---- 评估运行时产物（代码与 golden_set*.jsonl 保留）----
 # DEV-05: baseline/real_eval 报告按计划书裁决提交入库（评估证据），仅排除运行时中间产物
@@ -244,3 +245,19 @@ proxy2.txt
 proxy_check.txt
 .dismiss-alerts.cjs
 m6-e2e-model-used-verified.png
+dashboard-phase*.png
+dashboard-final-closed.png
+dashboard-innovation-section.png
+dashboard-skill-data-support.png
+dashboard-with-innovation.png
+position-detail-ai-pm.png
+position-detail-with-explainer.png
+positions-all-industries.png
+positions-current-state.png
+positions-with-scope.png
+
+# AI 工作产物截图（dashboard-*/match-*/position-*/positions-*）
+dashboard-*.png
+match-*.png
+position-*.png
+positions-*.png
