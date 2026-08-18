@@ -1,10 +1,6 @@
-# StarMap pre-commit hooks
+﻿# StarMap pre-commit hooks
 # Install:  pre-commit install
 # Run all:  pre-commit run --all-files
-# Manual:   pre-commit run <hook-id> --all-files
-#
-# Phase 15: ruff auto-runs on commit; eslint + vue-tsc are manual gates
-# (CI runs them in full — local pre-commit keeps commit latency low).
 
 repos:
   # ── Python: ruff lint + format ──
@@ -37,3 +33,18 @@ repos:
         types_or: [ts, tsx, vue]
         files: ^frontend/src/
         stages: [manual]
+
+  # ── Security: detect secrets in staged files ──
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+
+  # ── Git hygiene ──
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: detect-private-key
