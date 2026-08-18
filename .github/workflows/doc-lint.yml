@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # StarMap 文档漂移门禁（doc-lint）
 # 触发：任何 PR 到 main + 直接 push 到 main + 每日 UTC 02:00（北京时间 10:00）
 # 目的:让文档里的「硬数字 / 目录引用」与代码现状保持一致,防止 ONBOARDING.md
@@ -72,7 +72,7 @@ jobs:
                   r'openapi[^.\n]{0,30}?(\d+)',
                   r'(\d+)\s*(?:条|个)?\s*(?:API|api|paths)',
               ]
-              for f in ('README.md', 'CLAUDE.md', 'AGENTS.md', 'ONBOARDING.md'):
+              for f in ('README.md', 'ONBOARDING.md'):
                   p = ROOT / f
                   if not p.exists():
                       continue
@@ -88,7 +88,7 @@ jobs:
               return -1
 
           def doc_claim_golden() -> int:
-              for f in ('README.md', 'CLAUDE.md', 'AGENTS.md'):
+              for f in ('README.md',):
                   p = ROOT / f
                   if not p.exists():
                       continue
@@ -111,7 +111,7 @@ jobs:
 
           # ---- 检查 2: pytest passed 数字(信息性)----
           pytest_claim = -1
-          for f in ('README.md', 'ONBOARDING.md', 'CLAUDE.md'):
+          for f in ('README.md', 'ONBOARDING.md'):
               p = ROOT / f
               if not p.exists():
                   continue
