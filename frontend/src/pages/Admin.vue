@@ -384,7 +384,7 @@ function formatDate(iso: string | null | undefined): string {
         v-model="activeTab"
         class="admin-tabs"
       >
-        <!-- ════════ Tab 0: 业务总览 (Phase 24 新增 — 第一眼) ════════ -->
+        <!-- ════════ Tab 0: 业务总览 ( 新增 — 第一眼) ════════ -->
         <el-tab-pane
           label="业务总览"
           name="overview"
@@ -392,7 +392,7 @@ function formatDate(iso: string | null | undefined): string {
           <AdminOverview />
         </el-tab-pane>
 
-        <!-- ════════ Tab 1: 内容审核 (Phase 23 主数据生命周期) ════════ -->
+        <!-- ════════ Tab 1: 内容审核 ( 主数据生命周期) ════════ -->
         <el-tab-pane
           label="内容审核"
           name="content-review"
@@ -415,7 +415,7 @@ function formatDate(iso: string | null | undefined): string {
           </el-card>
         </el-tab-pane>
 
-        <!-- ════════ Tab 2: 演化变更 (§5.2 能力演化审核) ════════ -->
+        <!-- ════════ Tab 2: 演化变更 ( 能力演化审核) ════════ -->
         <el-tab-pane
           label="演化变更"
           name="evolution"
@@ -1018,7 +1018,7 @@ function formatDate(iso: string | null | undefined): string {
               </div>
             </el-drawer>
 
-            <!-- 编辑抽屉 (D-12: 统一用 el-drawer) -->
+            <!-- 编辑抽屉 (: 统一用 el-drawer) -->
             <el-drawer
               v-model="editDialogVisible"
               title="编辑数据源"
@@ -1081,7 +1081,7 @@ function formatDate(iso: string | null | undefined): string {
           </el-card>
         </el-tab-pane>
 
-        <!-- ════════ Tab 6: 数据源诊断（Phase 4 P0 — 跨模块 KPI 口径审计） ════════ -->
+        <!-- ════════ Tab 6: 数据源诊断（ P0 — 跨模块 KPI 口径审计） ════════ -->
         <el-tab-pane
           label="数据源诊断"
           name="data-truth"

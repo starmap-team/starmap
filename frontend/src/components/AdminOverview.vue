@@ -152,7 +152,7 @@ const tabCards = [
 
 <template>
   <div class="admin-overview">
-    <!-- Phase 26 / BUG-005: surface load failures with a retry button
+    <!-- / BUG-005: surface load failures with a retry button
          instead of silently rendering all KPIs as 0. -->
     <el-alert
       v-if="loadError"

@@ -1,11 +1,11 @@
 /**
- * PipelineMonitor 视觉回归 baseline — Phase 1
+ * PipelineMonitor 视觉回归 baseline —
  *
  * 策略（置信度优先）：
- *  - 结构断言：关键 DOM 节点存在 + 可交互，直接命中拆分风险面
- *  - 5 状态 fixture：idle / running / completed / failed / cancelled
- *  - 参考截图：每个状态落一张 .png 作为参考，CI 不强制 pixel diff（避免误报）
- *  - API 全 mock：page.route 拦截 /api/v1/pipeline/*，不依赖真实后端
+ * - 结构断言：关键 DOM 节点存在 + 可交互，直接命中拆分风险面
+ * - 5 状态 fixture：idle / running / completed / failed / cancelled
+ * - 参考截图：每个状态落一张 .png 作为参考，CI 不强制 pixel diff（避免误报）
+ * - API 全 mock：page.route 拦截 /api/v1/pipeline/*，不依赖真实后端
  *
  * 拆分前后此 spec 必须保持 GREEN — DOM 节点丢失 / 事件断裂会立即暴露。
  */
@@ -82,13 +82,13 @@ async function mockPipelineApi(page: Page, fixture: RunFixture): Promise<void> {
     const url = route.request().url()
     const method = route.request().method()
 
-    // SSE 直通
+ // SSE 直通
     if (route.request().headers()['accept']?.includes('text/event-stream')) {
       await route.continue()
       return
     }
 
-    // GET /runs → 最近一条 run
+ // GET /runs → 最近一条 run
     if (method === 'GET' && url.includes('/runs')) {
       await route.fulfill({
         status: 200,
@@ -98,7 +98,7 @@ async function mockPipelineApi(page: Page, fixture: RunFixture): Promise<void> {
       return
     }
 
-    // GET /config
+ // GET /config
     if (method === 'GET' && url.includes('/config')) {
       await route.fulfill({
         status: 200,
@@ -114,7 +114,7 @@ async function mockPipelineApi(page: Page, fixture: RunFixture): Promise<void> {
       return
     }
 
-    // POST force-advance / force-reset / trigger → 接受并返回最新 run
+ // POST force-advance / force-reset / trigger → 接受并返回最新 run
     if (method === 'POST') {
       await route.fulfill({
         status: 200,
@@ -131,23 +131,23 @@ async function mockPipelineApi(page: Page, fixture: RunFixture): Promise<void> {
 // ── 关键 DOM 节点断言 ──
 
 async function assertCoreStructure(page: Page): Promise<void> {
-  // Header bar
+ // Header bar
   await expect(
     page.locator('[data-testid="pipeline-header"], .pipeline-header').first()
       .or(page.locator('text=数据流水线').first()),
   ).toBeVisible({ timeout: 8000 })
 
-  // DAG canvas (G6 renders canvas/svg)
+ // DAG canvas (G6 renders canvas/svg)
   await expect(
     page.locator('[data-testid="pipeline-dag"], .pipeline-dag, canvas, svg').first(),
   ).toBeVisible()
 
-  // Status hero card (Phase 3.8.2 hero) — only the card, not the nav item
+ // Status hero card ( hero) — only the card, not the nav item
   await expect(
     page.locator('.status-hero-card, [data-testid="status-hero"]').first(),
   ).toBeVisible()
 
-  // Manual actions 区段（触发/刷新按钮）
+ // Manual actions 区段（触发/刷新按钮）
   await expect(
     page.getByRole('button', { name: /刷新|触发|启动/ }).first(),
   ).toBeVisible()
@@ -176,7 +176,7 @@ test.describe('PipelineMonitor 视觉 baseline', () => {
     test(`状态 ${state} 渲染核心结构`, async ({ page }) => {
       await mockPipelineApi(page, fixture)
       await page.goto('/pipeline')
-      // networkidle 会因 SSE 失败，回退 domcontentloaded
+ // networkidle 会因 SSE 失败，回退 domcontentloaded
       try {
         await page.waitForLoadState('networkidle', { timeout: 5000 })
       } catch {
@@ -187,7 +187,7 @@ test.describe('PipelineMonitor 视觉 baseline', () => {
       await assertCoreStructure(page)
       await assertStatusHeroReflectsState(page, state as keyof typeof FIXTURES)
 
-      // 参考截图（不强制 diff，CI 用于人工 review）
+ // 参考截图（不强制 diff，CI 用于人工 review）
       await page.screenshot({
         path: `e2e/__screenshots__/pipeline-monitor-${state}.png`,
         fullPage: true,
@@ -219,7 +219,7 @@ test.describe('PipelineMonitor 视觉 baseline', () => {
     }
     await page.waitForTimeout(8000)
 
-    // force-advance 按钮仅在 failed/stuck 态可见；尝试点击
+ // force-advance 按钮仅在 failed/stuck 态可见；尝试点击
     const btn = page.getByRole('button', { name: /强制推进|force-advance|推进/i }).first()
     if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await btn.click()

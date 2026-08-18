@@ -1,5 +1,5 @@
 ﻿<!--
-  PipelineMonitor 流水线配置弹窗子组件（Phase 03 Plan 03 从内联模板抽出）。
+  PipelineMonitor 流水线配置弹窗子组件（ Plan 03 从内联模板抽出）。
 -->
 <script setup lang="ts">
 /**

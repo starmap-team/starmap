@@ -419,7 +419,7 @@ async function saveNameCn() {
         show-overflow-tooltip
       >
         <template #default="{ row }">
-          <!-- D8i/D8j: 中文名优先展示（name_cn || name），改中文名后即时生效 -->
+          <!--: 中文名优先展示（name_cn || name），改中文名后即时生效 -->
           <span class="entity-name">{{ row.name_cn || row.name }}</span>
           <el-tag
             v-if="row.name_cn && row.name_cn !== row.name"
@@ -578,7 +578,7 @@ async function saveNameCn() {
       />
     </div>
 
-    <!-- 中文名调整弹窗 (D8i/D8j 手工校准): 审核队列中直接修正 name_cn -->
+    <!-- 中文名调整弹窗 ( 手工校准): 审核队列中直接修正 name_cn -->
     <el-dialog
       :model-value="nameCnEditor !== null"
       :title="nameCnEditor ? `调整中文名 — ${nameCnEditor.entity_type === 'position' ? '岗位' : '技能'}「${nameCnEditor.name}」` : ''"

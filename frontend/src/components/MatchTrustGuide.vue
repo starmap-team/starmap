@@ -82,7 +82,7 @@ const trustUnavailable = computed(() => props.trustScore == null || Number.isNaN
 
 <template>
   <div class="trust-guide">
-    <!-- M2：呈现后端 MatchResponse.note（岗位存在但暂无可用画像/0 关系），避免 0 分被误读为“不会” -->
+    <!--：呈现后端 MatchResponse.note（岗位存在但暂无可用画像/0 关系），避免 0 分被误读为“不会” -->
     <el-alert
       v-if="note"
       type="info"
@@ -160,7 +160,7 @@ const trustUnavailable = computed(() => props.trustScore == null || Number.isNaN
           >
             {{ trustBand.description }}
           </div>
-          <!-- D-02: Neo4j 不可用时的明确降级提示 -->
+          <!--: Neo4j 不可用时的明确降级提示 -->
           <div
             v-if="trustUnavailable"
             class="trust-unavailable"
@@ -171,7 +171,7 @@ const trustUnavailable = computed(() => props.trustScore == null || Number.isNaN
       </div>
     </div>
 
-    <!-- D-01: 分数拆解 — 用户可感知 match_score 的构成 -->
+    <!--: 分数拆解 — 用户可感知 match_score 的构成 -->
     <div
       v-if="breakdownLines.length"
       class="breakdown-card"

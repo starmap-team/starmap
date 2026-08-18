@@ -3,9 +3,9 @@
  * Sprint 4.3: Test all 13 pages at 1920px and 1440px viewports.
  *
  * Verifies:
- *   - Page renders at each viewport without errors
- *   - No horizontal overflow (body scrollWidth <= viewport width)
- *   - Screenshot captured for visual regression
+ * - Page renders at each viewport without errors
+ * - No horizontal overflow (body scrollWidth <= viewport width)
+ * - Screenshot captured for visual regression
  *
  * Run: npx cypress run --spec e2e/responsive.cy.ts
  */
@@ -46,22 +46,22 @@ describe('Responsive — 1920px Desktop', () => {
         timeout: 15000,
       })
 
-      // Wait for page to settle
+ // Wait for page to settle
       cy.wait(1500)
 
-      // Verify page rendered
+ // Verify page rendered
       cy.get('body', { timeout: 10000 }).should('not.be.empty')
 
-      // Check no horizontal overflow
+ // Check no horizontal overflow
       cy.document().then((doc) => {
         const scrollWidth = doc.documentElement.scrollWidth
         const clientWidth = doc.documentElement.clientWidth
         cy.log(`${page.name} at 1920px: scrollWidth=${scrollWidth}, clientWidth=${clientWidth}`)
-        // Allow 5px tolerance for scrollbar
+ // Allow 5px tolerance for scrollbar
         expect(scrollWidth, `${page.name} should not have horizontal overflow at 1920px`).to.be.at.most(clientWidth + 5)
       })
 
-      // Screenshot for visual regression
+ // Screenshot for visual regression
       cy.screenshot(`responsive/1920px/${page.name}`, {
         capture: 'viewport',
         overwrite: true,
@@ -82,13 +82,13 @@ describe('Responsive — 1440px Desktop', () => {
         timeout: 15000,
       })
 
-      // Wait for page to settle
+ // Wait for page to settle
       cy.wait(1500)
 
-      // Verify page rendered
+ // Verify page rendered
       cy.get('body', { timeout: 10000 }).should('not.be.empty')
 
-      // Check no horizontal overflow
+ // Check no horizontal overflow
       cy.document().then((doc) => {
         const scrollWidth = doc.documentElement.scrollWidth
         const clientWidth = doc.documentElement.clientWidth
@@ -96,7 +96,7 @@ describe('Responsive — 1440px Desktop', () => {
         expect(scrollWidth, `${page.name} should not have horizontal overflow at 1440px`).to.be.at.most(clientWidth + 5)
       })
 
-      // Screenshot for visual regression
+ // Screenshot for visual regression
       cy.screenshot(`responsive/1440px/${page.name}`, {
         capture: 'viewport',
         overwrite: true,

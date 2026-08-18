@@ -10,7 +10,7 @@ async function waitForPageReady(page: import('@playwright/test').Page) {
   try {
     await page.waitForLoadState('networkidle', { timeout: 8000 })
   } catch {
-    // SSE/streaming pages never reach networkidle — fall back to domcontentloaded
+ // SSE/streaming pages never reach networkidle — fall back to domcontentloaded
     await page.waitForLoadState('domcontentloaded')
   }
   await page.waitForTimeout(500)
@@ -24,7 +24,7 @@ test.describe('全景图谱 /', () => {
     await page.goto('/')
     await waitForPageReady(page)
     await expect(page.locator('body')).toBeVisible()
-    // 检查页面标题或关键元素
+ // 检查页面标题或关键元素
     const title = await page.title()
     expect(title).toBeTruthy()
   })
@@ -32,7 +32,7 @@ test.describe('全景图谱 /', () => {
   test('2D/3D切换按钮存在', async ({ page }) => {
     await page.goto('/')
     await waitForPageReady(page)
-    // 查找3D切换相关元素
+ // 查找3D切换相关元素
     const toggleBtn = page.locator('button, .el-switch, [class*="toggle"], [class*="3d"]').first()
     await expect(toggleBtn).toBeVisible({ timeout: 10000 })
   })
@@ -105,21 +105,21 @@ test.describe('管理后台 /admin', () => {
 })
 
 // ═══════════════════════════════════════════════
-// 8. 数据流水线 (/pipeline) — Phase 1 新增
+// 8. 数据流水线 (/pipeline) — 新增
 // ═══════════════════════════════════════════════
 test.describe('数据流水线 /pipeline', () => {
   test('页面加载并展示KPI卡片', async ({ page }) => {
     await page.goto('/pipeline')
     await waitForPageReady(page)
     await expect(page.locator('body')).toBeVisible()
-    // 应有KPI卡片展示
+ // 应有KPI卡片展示
     await page.waitForTimeout(1000)
   })
 
   test('流水线时间线可见', async ({ page }) => {
     await page.goto('/pipeline')
     await waitForPageReady(page)
-    // 检查页面有内容
+ // 检查页面有内容
     const bodyText = await page.locator('body').innerText()
     expect(bodyText.length).toBeGreaterThan(100)
   })
@@ -133,13 +133,13 @@ test.describe('数据流水线 /pipeline', () => {
     })
     await page.goto('/pipeline')
     await waitForPageReady(page)
-    // 至少有一个API调用
+ // 至少有一个API调用
     expect(responses.length).toBeGreaterThan(0)
   })
 })
 
 // ═══════════════════════════════════════════════
-// 9. 数据源管理 (/datasources) — Phase 1 新增
+// 9. 数据源管理 (/datasources) — 新增
 // ═══════════════════════════════════════════════
 test.describe('数据源管理 /datasources', () => {
   test('页面加载并展示数据源卡片', async ({ page }) => {
@@ -162,14 +162,14 @@ test.describe('数据源管理 /datasources', () => {
 })
 
 // ═══════════════════════════════════════════════
-// 10. 闭环演示 (/loop) — Phase 1 新增 ⭐核心页面
+// 10. 闭环演示 (/loop) — 新增 ⭐核心页面
 // ═══════════════════════════════════════════════
 test.describe('闭环演示 /loop', () => {
   test('页面加载并展示步骤指示器', async ({ page }) => {
     await page.goto('/loop')
     await waitForPageReady(page)
     await expect(page.locator('body')).toBeVisible()
-    // 应有JD输入区域
+ // 应有JD输入区域
     const bodyText = await page.locator('body').innerText()
     expect(bodyText).toContain('JD')
   })
@@ -177,7 +177,7 @@ test.describe('闭环演示 /loop', () => {
   test('JD输入框可用', async ({ page }) => {
     await page.goto('/loop')
     await waitForPageReady(page)
-    // 查找textarea或输入框
+ // 查找textarea或输入框
     const textarea = page.locator('textarea, [type="text"], .el-textarea').first()
     if (await textarea.isVisible()) {
       await textarea.fill('测试JD：需要Python和机器学习技能')
@@ -195,13 +195,13 @@ test.describe('闭环演示 /loop', () => {
     })
     await page.goto('/loop')
     await waitForPageReady(page)
-    // 页面加载时应有API调用
+ // 页面加载时应有API调用
     expect(apiCalls.length).toBeGreaterThan(0)
   })
 })
 
 // ═══════════════════════════════════════════════
-// 11. 学习中心 (/learning) — Phase 2 新增
+// 11. 学习中心 (/learning) — 新增
 // ═══════════════════════════════════════════════
 test.describe('学习中心 /learning', () => {
   test('页面加载正常', async ({ page }) => {
@@ -226,25 +226,25 @@ test.describe('学习中心 /learning', () => {
 })
 
 // ═══════════════════════════════════════════════
-// 12. 数据大屏 (/dashboard) — Phase 3 新增 ⭐视觉冲击
+// 12. 数据大屏 (/dashboard) — 新增 ⭐视觉冲击
 // ═══════════════════════════════════════════════
 test.describe('数据大屏 /dashboard', () => {
   test('页面加载并使用暗色主题', async ({ page }) => {
     await page.goto('/dashboard')
     await waitForPageReady(page)
     await expect(page.locator('body')).toBeVisible()
-    // 检查暗色背景
+ // 检查暗色背景
     const bgColor = await page.evaluate(() => {
       return window.getComputedStyle(document.body).backgroundColor
     })
-    // 暗色背景应该是深色值
+ // 暗色背景应该是深色值
     expect(bgColor).toBeTruthy()
   })
 
   test('KPI数字动画组件存在', async ({ page }) => {
     await page.goto('/dashboard')
     await waitForPageReady(page)
-    // 应有数字展示区域
+ // 应有数字展示区域
     const bodyText = await page.locator('body').innerText()
     expect(bodyText.length).toBeGreaterThan(50)
   })
@@ -266,7 +266,7 @@ test.describe('数据大屏 /dashboard', () => {
   test('ECharts图表渲染', async ({ page }) => {
     await page.goto('/dashboard')
     await waitForPageReady(page)
-    // 检查canvas元素（ECharts使用canvas）
+ // 检查canvas元素（ECharts使用canvas）
     const canvasCount = await page.locator('canvas').count()
     expect(canvasCount).toBeGreaterThan(0)
   })
@@ -287,7 +287,7 @@ test.describe('求职者分析 /analysis', () => {
   test('上传组件存在', async ({ page }) => {
     await page.goto('/analysis')
     await waitForPageReady(page)
-    // 查找 el-upload 或 file input
+ // 查找 el-upload 或 file input
     const upload = page.locator('.el-upload, input[type="file"], [class*="upload"]').first()
     await expect(upload).toBeVisible({ timeout: 10000 })
   })
@@ -301,10 +301,10 @@ test.describe('侧边栏导航', () => {
     await page.goto('/')
     await waitForPageReady(page)
 
-    // 侧边栏使用 @click="navigateTo()" 和 router-link，查找所有可点击的导航元素
+ // 侧边栏使用 @click="navigateTo" 和 router-link，查找所有可点击的导航元素
     const navItems = page.locator('[class*="menu-item"], [class*="nav-item"], router-link, a[href^="/"], [class*="sidebar"] [class*="item"]')
     const count = await navItems.count()
-    // 如果选择器找不到，也检查页面内所有链接
+ // 如果选择器找不到，也检查页面内所有链接
     const allLinks = page.locator('a[href^="/"]')
     const linkCount = await allLinks.count()
     expect(Math.max(count, linkCount)).toBeGreaterThan(2)
@@ -325,7 +325,7 @@ test.describe('侧边栏导航', () => {
       await page.goto(route)
       await waitForPageReady(page)
 
-      // 页面不应有JS错误
+ // 页面不应有JS错误
       const criticalErrors = errors.filter(e =>
         !e.includes('ResizeObserver') &&
         !e.includes('favicon') &&
@@ -406,7 +406,7 @@ test.describe('Console Error 检查', () => {
       await page.goto(route, { waitUntil: 'domcontentloaded' })
       await page.waitForTimeout(2000)
 
-      // 过滤已知无害错误
+ // 过滤已知无害错误
       const realErrors = errors.filter(e =>
         !e.includes('favicon') &&
         !e.includes('net::ERR') &&
@@ -418,7 +418,7 @@ test.describe('Console Error 检查', () => {
       if (realErrors.length > 0) {
         console.warn(`⚠️ ${route} has ${realErrors.length} console errors:`, realErrors)
       }
-      // 不硬性失败，仅警告
+ // 不硬性失败，仅警告
     })
   }
 })

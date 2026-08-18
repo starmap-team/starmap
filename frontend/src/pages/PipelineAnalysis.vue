@@ -77,7 +77,7 @@
           </div>
         </div>
 
-        <!-- Phase 3: 逐步可视化核验面板 -->
+        <!--: 逐步可视化核验面板 -->
         <div
           v-if="store.stepOutputs.length"
           class="step-verify-section"

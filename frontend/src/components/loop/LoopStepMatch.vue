@@ -130,7 +130,7 @@ defineExpose({ buildRadarData })
             <span class="score-unit">%</span>
           </div>
         </div>
-        <!-- D-05 分数拆解行（M5 口径 — required_avg/bonus_avg/权重/inflated） -->
+        <!-- 分数拆解行（ 口径 — required_avg/bonus_avg/权重/inflated） -->
         <div
           v-if="scoreBreakdown"
           class="score-breakdown-row"

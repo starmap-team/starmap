@@ -28,10 +28,10 @@ function isNoisyError(msg: string): boolean {
 }
 
 test.beforeEach(async ({ page }) => {
-  // Auth bypass strategy (backend in dev mode accepts the fixed `dev-token`):
-  // - Set starmap_token = dev-token so router guard (isAuthed) sees the user as logged in
-  // - Backend dev mode (settings.app_env != "production") accepts this token
-  // - Suppress auth:unauthorized redirect just in case
+ // Auth bypass strategy (backend in dev mode accepts the fixed `dev-token`):
+ // - Set starmap_token = dev-token so router guard (isAuthed) sees the user as logged in
+ // - Backend dev mode (settings.app_env != "production") accepts this token
+ // - Suppress auth:unauthorized redirect just in case
   await page.addInitScript(() => {
     try {
       localStorage.setItem('starmap_token', 'dev-token')
@@ -41,7 +41,7 @@ test.beforeEach(async ({ page }) => {
         e.preventDefault()
       }, true)
     } catch {
-      // ignore
+ // ignore
     }
   })
 
@@ -64,11 +64,11 @@ test.describe('Home — KPI 数据 vs 后端', () => {
     await page.goto('/')
     await waitForApp(page)
 
-    // 等待 API 响应
+ // 等待 API 响应
     const call = await waitForApiCall(collector, '/graph/overview', 15000)
     const apiData = call.body as Record<string, unknown>
 
-    // /graph/overview 返回 total_positions + total_skills + domains
+ // /graph/overview 返回 total_positions + total_skills + domains
     expect(apiData).toHaveProperty('total_positions')
     expect(typeof apiData.total_positions).toBe('number')
     expect(apiData.total_positions as number).toBeGreaterThanOrEqual(0)
@@ -80,12 +80,12 @@ test.describe('Home — KPI 数据 vs 后端', () => {
     await page.goto('/')
     await waitForApp(page)
 
-    // 点击任意导航卡片
+ // 点击任意导航卡片
     const card = page.locator('.home-card, .nav-card, [class*="home"] a, [class*="card"] a').first()
     if (await card.isVisible({ timeout: 5000 }).catch(() => false)) {
       await card.click()
       await page.waitForTimeout(1000)
-      // 应已离开首页
+ // 应已离开首页
       const url = page.url()
       expect(url).not.toBe(new URL('/', 'http://localhost:5173').href)
     }
@@ -108,8 +108,8 @@ test.describe('QualityDashboard — 指标 vs 后端', () => {
     const call = await waitForApiCall(collector, '/quality/dashboard', 15000)
     const apiData = call.body as Record<string, unknown>
 
-    // 校验 API 响应结构
-    // precision/recall/f1/warning_level 在 report 子对象中，hallucination_rate 在顶层
+ // 校验 API 响应结构
+ // precision/recall/f1/warning_level 在 report 子对象中，hallucination_rate 在顶层
     expect(apiData).toHaveProperty('report')
     const report = (apiData as any).report as Record<string, unknown>
     for (const field of ['precision', 'recall', 'f1']) {
@@ -118,13 +118,13 @@ test.describe('QualityDashboard — 指标 vs 后端', () => {
     }
     expect(typeof apiData.hallucination_rate).toBe('number')
 
-    // 校验 warning_level 枚举（在 report 子对象中）
+ // 校验 warning_level 枚举（在 report 子对象中）
     const validLevels = ['green', 'yellow', 'orange', 'red', 'gray']
     expect(validLevels).toContain(report.warning_level)
 
-    // 校验 DOM 中有对应数值显示
+ // 校验 DOM 中有对应数值显示
     const precisionText = await extractTextContent(page, '[class*="precision"], [class*="metric"]')
-    // 页面应显示某些指标数字
+ // 页面应显示某些指标数字
     const hasNumbers = /\d/.test(precisionText)
     expect(hasNumbers || Object.keys(apiData).length > 0).toBeTruthy()
   })
@@ -140,10 +140,10 @@ test.describe('QualityDashboard — 指标 vs 后端', () => {
     const call = await waitForApiCall(collector, '/quality/dashboard', 15000)
     const apiData = call.body as Record<string, unknown>
 
-    // trust_distribution 应为数组
+ // trust_distribution 应为数组
     if (apiData.trust_distribution && Array.isArray(apiData.trust_distribution)) {
       expect(apiData.trust_distribution.length).toBeGreaterThanOrEqual(0)
-      // 每项应有 range + count
+ // 每项应有 range + count
       if (apiData.trust_distribution.length > 0) {
         const first = apiData.trust_distribution[0] as Record<string, unknown>
         expect(first).toHaveProperty('range')
@@ -166,11 +166,11 @@ test.describe('EvolutionDashboard — CII vs 后端', () => {
     await waitForApp(page)
     await waitForLoadingDone(page)
 
-    // 等待任一 evolution API 响应
+ // 等待任一 evolution API 响应
     const call = collector.lastCall('/evolution/')
     if (call) {
       const apiData = call.body as Record<string, unknown>
-      // 校验响应是有效 JSON 对象
+ // 校验响应是有效 JSON 对象
       expect(typeof apiData).toBe('object')
       expect(apiData).not.toBeNull()
     }
@@ -181,10 +181,10 @@ test.describe('EvolutionDashboard — CII vs 后端', () => {
     await waitForApp(page)
     await waitForLoadingDone(page)
 
-    // 页面应有新兴技能区域
+ // 页面应有新兴技能区域
     const emergingSection = page.locator('[class*="emerging"], [class*="alert"], [class*="trend"]')
     const count = await emergingSection.count()
-    // 不强制断言数量（取决于数据），只验证页面不报错
+ // 不强制断言数量（取决于数据），只验证页面不报错
     expect(count).toBeGreaterThanOrEqual(0)
   })
 })
@@ -205,9 +205,9 @@ test.describe('PipelineMonitor — 状态 vs 后端', () => {
     const call = await waitForApiCall(collector, '/pipeline/', 15000)
     const apiData = call.body as Record<string, unknown>
 
-    // 校验响应结构
+ // 校验响应结构
     expect(typeof apiData).toBe('object')
-    // 应有 stages 或 runs 字段
+ // 应有 stages 或 runs 字段
     const hasStages = 'stages' in apiData || 'runs' in apiData || 'current_run' in apiData
     expect(hasStages || Object.keys(apiData).length > 0).toBeTruthy()
   })
@@ -217,7 +217,7 @@ test.describe('PipelineMonitor — 状态 vs 后端', () => {
     await waitForApp(page)
     await waitForLoadingDone(page)
 
-    // 查找阶段卡片
+ // 查找阶段卡片
     const stageCards = page.locator('[class*="stage"], [class*="pipeline-card"]')
     const count = await stageCards.count()
     expect(count).toBeGreaterThanOrEqual(0)
@@ -240,14 +240,14 @@ test.describe('DataSources — 卡片 vs 后端', () => {
     const call = await waitForApiCall(collector, '/datasources', 15000)
     const apiData = call.body as Record<string, unknown>
 
-    // 校验响应结构
+ // 校验响应结构
     expect(typeof apiData).toBe('object')
 
-    // 如果返回的是数组，校验每个数据源的结构
+ // 如果返回的是数组，校验每个数据源的结构
     const sources = Array.isArray(apiData) ? apiData : (apiData.sources || apiData.items || [])
     if (Array.isArray(sources) && sources.length > 0) {
       const first = sources[0] as Record<string, unknown>
-      // 每个数据源应有 name
+ // 每个数据源应有 name
       expect(first).toHaveProperty('name')
     }
   })
@@ -265,12 +265,12 @@ test.describe('DataSources — 卡片 vs 后端', () => {
       const apiData = call.body as Record<string, unknown>
       const sources = Array.isArray(apiData) ? apiData : (apiData.sources || apiData.items || [])
 
-      // DOM 中的卡片数量应与 API 返回数量一致
+ // DOM 中的卡片数量应与 API 返回数量一致
       const cards = page.locator('[class*="datasource-card"], [class*="source-card"], .el-card')
       const cardCount = await cards.count()
 
       if (Array.isArray(sources) && sources.length > 0 && cardCount > 0) {
-        // 允许差异（页面可能有额外装饰卡片），但数量应大致匹配
+ // 允许差异（页面可能有额外装饰卡片），但数量应大致匹配
         expect(cardCount).toBeGreaterThanOrEqual(sources.length)
       }
     }
@@ -290,17 +290,17 @@ test.describe('Admin — 审核队列 vs 后端', () => {
     await waitForApp(page)
     await waitForLoadingDone(page)
 
-    // 等待 admin API 响应
+ // 等待 admin API 响应
     const call = collector.lastCall('/admin/')
     if (call) {
       const apiData = call.body as Record<string, unknown>
       expect(typeof apiData).toBe('object')
 
-      // 如果是 stats 响应，应有 total_nodes
+ // 如果是 stats 响应，应有 total_nodes
       if ('total_nodes' in apiData) {
         expect(typeof apiData.total_nodes).toBe('number')
       }
-      // 如果是 review-queue 响应，应有 items
+ // 如果是 review-queue 响应，应有 items
       if ('items' in apiData) {
         expect(Array.isArray(apiData.items)).toBeTruthy()
       }
@@ -315,13 +315,13 @@ test.describe('Admin — 审核队列 vs 后端', () => {
     await waitForApp(page)
     await waitForLoadingDone(page)
 
-    // 查找审核按钮
+ // 查找审核按钮
     const approveBtn = page.locator('button').filter({ hasText: /通过|approve/i }).first()
     if (await approveBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
       await approveBtn.click()
       await page.waitForTimeout(1000)
 
-      // 应触发 approve API 调用
+ // 应触发 approve API 调用
       const approveCall = collector.lastCall('/approve')
       if (approveCall) {
         expect(approveCall.method).toBe('POST')
@@ -344,21 +344,21 @@ test.describe('LearningCenter — 计划 vs 后端', () => {
     await waitForApp(page)
     await waitForLoadingDone(page)
 
-    // LearningCenter onMounted 调用 fetchRecommendations()，不调用 fetchPlans()
+ // LearningCenter onMounted 调用 fetchRecommendations，不调用 fetchPlans
     const call = await waitForApiCall(collector, '/learning/recommendations', 15000)
     const apiData = call.body as Record<string, unknown>
     expect(typeof apiData).toBe('object')
 
-    // recommendations 响应结构：{ items: RecommendationItem[], total_items: number }
+ // recommendations 响应结构：{ items: RecommendationItem[], total_items: number }
     const items = Array.isArray(apiData)
       ? apiData
       : (apiData.items ?? apiData.recommendations ?? [])
     if (Array.isArray(items) && items.length > 0) {
       const first = items[0] as Record<string, unknown>
-      // RecommendationItem 核心字段：skill + importance + gap_level
+ // RecommendationItem 核心字段：skill + importance + gap_level
       expect('skill' in first || 'importance' in first).toBeTruthy()
     }
-    // total_items 应为数字
+ // total_items 应为数字
     if ('total_items' in apiData) {
       expect(typeof apiData.total_items).toBe('number')
     }
@@ -369,11 +369,11 @@ test.describe('LearningCenter — 计划 vs 后端', () => {
     await waitForApp(page)
     await waitForLoadingDone(page)
 
-    // 查找进度卡片
+ // 查找进度卡片
     const progressCards = page.locator('[class*="skill-card"], [class*="progress-card"]')
     const count = await progressCards.count()
     if (count > 0) {
-      // 卡片内应有进度条
+ // 卡片内应有进度条
       const progressBar = progressCards.first().locator('.el-progress, [class*="progress"]')
       const hasProgress = await progressBar.count()
       expect(hasProgress).toBeGreaterThanOrEqual(0)
@@ -393,42 +393,42 @@ test.describe('MatchDiagnosis — 匹配结果 vs 后端', () => {
     await page.goto('/match')
     await waitForApp(page)
 
-    // Step 0: 输入技能
+ // Step 0: 输入技能
     const skillInput = page.locator('input[placeholder*="技能"], input[placeholder*="输入技能"]').first()
     if (await skillInput.isVisible({ timeout: 8000 })) {
       await skillInput.fill('Python')
       await skillInput.press('Enter')
       await page.waitForTimeout(300)
 
-      // 确认技能
+ // 确认技能
       const confirmBtn = page.locator('button').filter({ hasText: /确认.*技能/ })
       if (await confirmBtn.count() > 0) {
         await confirmBtn.first().click()
         await page.waitForTimeout(500)
 
-        // Step 1: 选择岗位
+ // Step 1: 选择岗位
         const positionInput = page.locator('input[placeholder*="岗位"], input[placeholder*="搜索岗位"]').first()
         if (await positionInput.isVisible({ timeout: 5000 })) {
           await positionInput.fill('后端工程师')
           await page.waitForTimeout(1500)
 
-          // 点击搜索结果
+ // 点击搜索结果
           const dropdownItem = page.locator('.el-autocomplete-suggestion li, .el-select-dropdown__item').first()
           if (await dropdownItem.isVisible({ timeout: 3000 }).catch(() => false)) {
             await dropdownItem.click()
             await page.waitForTimeout(500)
 
-            // 点击"开始匹配"
+ // 点击"开始匹配"
             const matchBtn = page.locator('button').filter({ hasText: /匹配|开始|诊断/ })
             if (await matchBtn.count() > 0) {
               await matchBtn.first().click()
               await waitForLoadingDone(page, 20000)
 
-              // 等待匹配 API 响应
+ // 等待匹配 API 响应
               const call = collector.lastCall('/match/')
               if (call) {
                 const apiData = call.body as Record<string, unknown>
-                // 校验匹配结果结构
+ // 校验匹配结果结构
                 if ('match_score' in apiData) {
                   expect(typeof apiData.match_score).toBe('number')
                   expect(apiData.match_score).toBeGreaterThanOrEqual(0)
@@ -458,27 +458,27 @@ test.describe('ExtractJD — 抽取结果 vs 后端', () => {
     await page.goto('/extract')
     await waitForApp(page)
 
-    // 找 JD 文本输入框
+ // 找 JD 文本输入框
     const jdTextarea = page.locator('textarea, [class*="jd-input"] textarea').first()
     if (await jdTextarea.isVisible({ timeout: 8000 })) {
-      // 粘贴 JD 文本
+ // 粘贴 JD 文本
       await jdTextarea.fill('岗位职责：\n1. 熟练使用 Python 进行后端开发\n2. 熟悉 Docker 容器化部署\n3. 了解 Kubernetes\n任职要求：\n1. 3年以上开发经验\n2. 计算机相关专业')
 
-      // 点击抽取按钮
+ // 点击抽取按钮
       const extractBtn = page.locator('button').filter({ hasText: /抽取|提取|分析/ })
       if (await extractBtn.count() > 0) {
         await extractBtn.first().click()
         await waitForLoadingDone(page, 30000)
 
-        // 等待抽取 API 响应
+ // 等待抽取 API 响应
         const call = collector.lastCall('/extract/')
         if (call && call.body) {
           const apiData = call.body as Record<string, unknown>
-          // 校验抽取结果结构
+ // 校验抽取结果结构
           expect(typeof apiData).toBe('object')
           expect(apiData).not.toBeNull()
 
-          // 应有技能列表（body 已被 axios 消费时为 null，此时跳过字段断言）
+ // 应有技能列表（body 已被 axios 消费时为 null，此时跳过字段断言）
           const hasSkills = 'required_skills' in apiData || 'skills' in apiData || 'data' in apiData
           expect(hasSkills || Object.keys(apiData).length > 0).toBeTruthy()
         }

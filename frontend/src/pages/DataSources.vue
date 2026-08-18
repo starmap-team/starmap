@@ -328,7 +328,7 @@ onMounted(() => {
         v-loading="dsStore.loading"
         :gutter="16"
       >
-        <!-- M5：无数据源时显式空态（避免空 el-row 被误读为"加载中"） -->
+        <!--：无数据源时显式空态（避免空 el-row 被误读为"加载中"） -->
         <el-col
           v-if="!dsStore.loading && dsStore.sources.length === 0"
           :span="24"
@@ -337,7 +337,7 @@ onMounted(() => {
             description="暂无数据源（请检查后端 DataSourceRecord 表）"
           />
         </el-col>
-        <!-- M5：源存在但全部 records=0 时，给出"未采集"提示，避免 KPI 0/0/0 被误读为"质量差" -->
+        <!--：源存在但全部 records=0 时，给出"未采集"提示，避免 KPI 0/0/0 被误读为"质量差" -->
         <el-col
           v-else-if="!dsStore.loading && dsStore.sources.length > 0 && summaryStats.totalRecords === 0"
           :span="24"
@@ -410,7 +410,7 @@ onMounted(() => {
                 >
                   技术博客源 · 非岗位 JD
                 </el-tag>
-                <!-- Phase 13 数据诚实化：零记录须显式标注为空态，避免被误读为数据异常 -->
+                <!-- 数据诚实化：零记录须显式标注为空态，避免被误读为数据异常 -->
                 <el-tag
                   v-if="source.total_records === 0 && !source.last_crawl_at"
                   size="small"

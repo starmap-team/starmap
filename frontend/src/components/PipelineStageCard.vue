@@ -554,7 +554,7 @@ const realProgress = computed(() => {
       </div>
       <div class="metric">
         <span class="metric-label">处理量</span>
-        <!-- D8c: 各阶段处理量 tooltip 口径说明（普通用户视角） -->
+        <!--: 各阶段处理量 tooltip 口径说明（普通用户视角） -->
         <el-tooltip
           v-if="stageMetricTooltip"
           :content="stageMetricTooltip"
@@ -579,7 +579,7 @@ const realProgress = computed(() => {
       </div>
     </div>
 
-    <!-- Phase 3.8.8: 错误按需展开 (不挤爆卡片) -->
+    <!--: 错误按需展开 (不挤爆卡片) -->
     <div
       v-if="stage.status === 'failed' && stage.errors.length > 0"
       class="stage-error-detail"

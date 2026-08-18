@@ -332,7 +332,7 @@ onUnmounted(() => {
         collapsible
       />
 
-      <!-- Phase 25: 业务流程图 — 让新用户秒懂 6 步骤数据流 -->
+      <!--: 业务流程图 — 让新用户秒懂 6 步骤数据流 -->
       <el-card
         shadow="never"
         class="flow-card"
@@ -496,7 +496,7 @@ onUnmounted(() => {
                 :data="radarData"
                 :position-name="targetPositionName"
               />
-              <!-- D-04: 雷达映射口径注记 — 用户知道对比含模糊匹配 -->
+              <!--: 雷达映射口径注记 — 用户知道对比含模糊匹配 -->
               <p class="radar-note">
                 技能对比以精确匹配为主，并含后端归一化与语义模糊匹配补充（雷达上可能显示近似技能名）。
               </p>
@@ -531,7 +531,7 @@ onUnmounted(() => {
 
         <!-- Step 3: Gap analysis report (extracted) -->
         <div v-if="step === 3">
-          <!-- Phase 25: 信任度解读 + §7.4 质量说明 -->
+          <!--: 信任度解读 + 质量说明 -->
           <!-- D6 fix: trust_score now reads from the real backend field
                (matched_skills' minimum Neo4j Skill.trust_score). Previously
                this was bound to match_score, displaying the same number twice -->

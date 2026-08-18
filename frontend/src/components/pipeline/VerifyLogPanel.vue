@@ -1,5 +1,5 @@
 <!--
-  PipelineMonitor 闭环验证日志面板（Phase 03 Plan 03 从内联模板抽出）。
+  PipelineMonitor 闭环验证日志面板（ Plan 03 从内联模板抽出）。
   按钮 → API → 状态变化 → 验证 的完整闭环展示。
 -->
 <script setup lang="ts">
@@ -31,7 +31,7 @@ function logTime(ts: number) {
         <span>
           <el-icon style="vertical-align: middle"><Check /></el-icon>
           闭环验证 (按钮 → API → 状态变化 → 验证)
-          <!-- Phase 3.8.2: 持久化指示器 -->
+          <!--: 持久化指示器 -->
           <el-tag
             v-if="logs.length > 0"
             type="info"

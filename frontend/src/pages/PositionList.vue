@@ -291,7 +291,7 @@ onMounted(() => {
                 </el-tag>
               </h3>
               <div class="card-meta">
-                <!-- D-04: 行业 chip（M10 数据透明）。行业缺失时诚实标注「未分类」而非渲染空 chip -->
+                <!--: 行业 chip（ 数据透明）。行业缺失时诚实标注「未分类」而非渲染空 chip -->
                 <el-tag
                   size="small"
                   :type="pos.industry ? 'info' : 'warning'"

@@ -227,7 +227,7 @@ onMounted(() => {
           <p class="page-subtitle">
             CII 时序曲线 — 技能需求通胀指数（基准 100 = 2024-Q1）
           </p>
-          <!-- Phase 11 新手友好引导（沿 ui-ux-pro-max 数据密集 dashboard）-->
+          <!-- 新手友好引导（沿 ui-ux-pro-max 数据密集 dashboard）-->
           <el-alert
             class="kpi-help-alert"
             type="info"
@@ -253,7 +253,7 @@ onMounted(() => {
               :value="item.skill_name"
             />
           </el-select>
-          <!-- 10-03 (D-13): 手动刷新按钮 — 无 SSE/轮询 -->
+          <!-- 10-03 (): 手动刷新按钮 — 无 SSE/轮询 -->
           <el-button
             size="small"
             @click="refresh"
@@ -263,7 +263,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- EVOLVE-FE-04/D-10: 快照时间线滑块 -->
+      <!-- EVOLVE-FE-04/: 快照时间线滑块 -->
       <el-card
         v-if="snapshots.length"
         class="timeline-card"
@@ -347,7 +347,7 @@ onMounted(() => {
           title="暂无快照数据"
           description="演化快照生成后将显示时间线滑块"
         >
-          <!-- 10-03 (D-12): 诚实空态 + 引导按钮 -->
+          <!-- 10-03 (): 诚实空态 + 引导按钮 -->
           <el-button
             size="small"
             type="primary"
@@ -367,7 +367,7 @@ onMounted(() => {
         </EmptyState>
       </el-card>
 
-      <!-- 10-03 (D-11): KPI 数字行 — 涌现数/信任均值/CII 均值/预警数 -->
+      <!-- 10-03 (): KPI 数字行 — 涌现数/信任均值/CII 均值/预警数 -->
       <div
         v-loading="evo.kpiLoading"
         class="kpi-number-row"
@@ -604,7 +604,7 @@ onMounted(() => {
           title="演化数据待生成"
           description="CII 时序分析运行后将自动填充"
         >
-          <!-- 10-03 (D-12): 诚实空态 + 引导按钮（Celery 异步，已排队反馈，无 SSE） -->
+          <!-- 10-03 (): 诚实空态 + 引导按钮（Celery 异步，已排队反馈，无 SSE） -->
           <el-button
             size="small"
             type="primary"
@@ -773,7 +773,7 @@ onMounted(() => {
         </el-table>
       </el-card>
 
-      <!-- 10-03 (D-11): 次区 — 演化路径/CII 历史/迁移性（复用已有数据源，无虚构估算） -->
+      <!-- 10-03 (): 次区 — 演化路径/CII 历史/迁移性（复用已有数据源，无虚构估算） -->
       <el-card
         class="secondary-card"
         shadow="hover"

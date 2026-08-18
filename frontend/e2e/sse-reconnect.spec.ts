@@ -1,7 +1,7 @@
 /**
- * Phase 16 残留闭环: SSE 重连 e2e 测试
+ * 残留闭环: SSE 重连 e2e 测试
  *
- * 验证 Fix M1: SSE 断连后重连成功时显示 "实时推送已恢复" toast
+ * 验证 Fix: SSE 断连后重连成功时显示 "实时推送已恢复" toast
  *
  * 策略:
  * 1. 首次加载 SSE 端点返回 500 → 触发 onerror → consecutiveFailures++
@@ -12,7 +12,7 @@ import { test, expect, type Page } from '@playwright/test'
 const API_BASE = '/api/v1/pipeline'
 
 async function mockPipelineApis(page: Page): Promise<void> {
-  // 基础 API mock — 让页面正常渲染
+ // 基础 API mock — 让页面正常渲染
   await page.route(`${API_BASE}/status`, async (route) => {
     await route.fulfill({
       status: 200,
@@ -72,14 +72,14 @@ test.describe('SSE Reconnect (Fix M1)', () => {
 
     let sseRequestCount = 0
 
-    // SSE 端点: 前 2 次返回 500 (模拟断连), 之后返回正常 event-stream
+ // SSE 端点: 前 2 次返回 500 (模拟断连), 之后返回正常 event-stream
     await page.route(`${API_BASE}/events**`, async (route) => {
       sseRequestCount++
       if (sseRequestCount <= 2) {
-        // 模拟服务器错误 → EventSource 触发 onerror
+ // 模拟服务器错误 → EventSource 触发 onerror
         await route.fulfill({ status: 500, body: 'Internal Server Error' })
       } else {
-        // 重连成功 → EventSource 触发 onopen
+ // 重连成功 → EventSource 触发 onopen
         await route.fulfill({
           status: 200,
           contentType: 'text/event-stream',
@@ -94,7 +94,7 @@ test.describe('SSE Reconnect (Fix M1)', () => {
 
     await page.goto('/pipeline', { waitUntil: 'commit' })
 
-    // 等待重连 toast 出现 (useSSE 使用指数退避, baseDelay 通常 1-3s)
+ // 等待重连 toast 出现 (useSSE 使用指数退避, baseDelay 通常 1-3s)
     const toast = page.locator('.el-message--success')
     await expect(toast).toBeVisible({ timeout: 15000 })
     await expect(toast).toContainText('实时推送已恢复')
@@ -103,7 +103,7 @@ test.describe('SSE Reconnect (Fix M1)', () => {
   test('首次连接成功不显示 toast (无误报)', async ({ page }) => {
     await mockPipelineApis(page)
 
-    // SSE 端点始终正常
+ // SSE 端点始终正常
     await page.route(`${API_BASE}/events**`, async (route) => {
       await route.fulfill({
         status: 200,
@@ -116,7 +116,7 @@ test.describe('SSE Reconnect (Fix M1)', () => {
     await page.goto('/pipeline', { waitUntil: 'commit' })
     await page.waitForTimeout(3000)
 
-    // 不应出现 "实时推送已恢复" toast
+ // 不应出现 "实时推送已恢复" toast
     const toast = page.locator('.el-message--success:has-text("实时推送已恢复")')
     await expect(toast).not.toBeVisible()
   })

@@ -48,7 +48,7 @@ withDefaults(defineProps<{
     >
       {{ description }}
     </p>
-    <!-- 10-03 (D-12): 引导 slot — 空态可放 CTA 按钮（触发演化分析/查看文档），
+    <!-- 10-03 (): 引导 slot — 空态可放 CTA 按钮（触发演化分析/查看文档），
          无 slot 时保持既有纯文本空态，向后兼容 -->
     <div
       v-if="$slots.default"

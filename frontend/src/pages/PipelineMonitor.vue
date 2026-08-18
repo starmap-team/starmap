@@ -325,7 +325,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
             </el-tag>
           </p>
         </div>
-        <!-- Phase 3 Plan 02: SSE 断开时用户可见提示 -->
+        <!-- Plan 02: SSE 断开时用户可见提示 -->
         <el-alert
           v-if="!sseConnected"
           type="warning"
@@ -418,7 +418,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
         </div>
       </div>
 
-      <!-- Phase 3.8.2: 状态摘要 Hero 卡片 -->
+      <!--: 状态摘要 Hero 卡片 -->
       <PipelineStatusHero
         :is-running="pipeline.pipelineStatus?.is_running ?? false"
         :summary="stageSummary"
@@ -427,7 +427,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
       <!-- 4 个 KPI 卡片 -->
       <PipelineKpiCards :cards="kpiCards" />
 
-      <!-- Phase 16 数据审核闭环: 待审核提示 -->
+      <!-- 数据审核闭环: 待审核提示 -->
       <el-alert
         v-if="pendingReviewCount > 0"
         type="warning"
@@ -440,7 +440,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
         </template>
       </el-alert>
 
-      <!-- Phase 3.8.5: 卡死检测横幅 + 强制操作 -->
+      <!--: 卡死检测横幅 + 强制操作 -->
       <StuckAlert
         v-if="isStuck"
         :reason="stuckReason"
@@ -461,7 +461,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
         @retry="handleRetryStage"
       />
 
-      <!-- Phase 3.8: 闭环验证日志面板 -->
+      <!--: 闭环验证日志面板 -->
       <VerifyLogPanel
         :logs="actionLogs"
         :is-verifying="isVerifying"
@@ -551,7 +551,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
       />
     </div>
 
-    <!-- Phase 3.8.5: 术语词典 (新手指引) -->
+    <!--: 术语词典 (新手指引) -->
     <PipelineGlossary v-model="glossaryVisible" />
   </MainLayout>
 </template>

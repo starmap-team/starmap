@@ -134,7 +134,7 @@ const hasEvidence = (evidence?: Record<string, unknown>): boolean => evidenceFie
               >
                 置信度 {{ (item.confidence * 100).toFixed(0) }}%
               </span>
-              <!-- 10-03 (D-06 透传): 回写状态小标签（镜像 ExtractJD model_used 透传样式） -->
+              <!-- 10-03 ( 透传): 回写状态小标签（镜像 ExtractJD model_used 透传样式） -->
               <el-tag
                 v-if="item.written_back"
                 type="info"
@@ -145,7 +145,7 @@ const hasEvidence = (evidence?: Record<string, unknown>): boolean => evidenceFie
                 已回写
               </el-tag>
             </div>
-            <!-- 10-03 (D-09): 可折叠证据区 — 默认折叠不打扰 -->
+            <!-- 10-03 (): 可折叠证据区 — 默认折叠不打扰 -->
             <el-collapse
               :model-value="evidenceActive"
               class="evidence-collapse"

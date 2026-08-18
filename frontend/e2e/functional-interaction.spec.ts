@@ -22,15 +22,15 @@ test.describe('全景图谱 — 节点点击交互', () => {
   test('点击图谱节点触发详情面板更新', async ({ page }) => {
     await page.goto('/')
     await waitForReady(page)
-    // 等待图谱 canvas 渲染
+ // 等待图谱 canvas 渲染
     const canvas = page.locator('canvas, [class*="graph-canvas"]').first()
     await expect(canvas).toBeVisible({ timeout: 10000 })
-    // 点击 canvas 中心区域（模拟点击节点）
+ // 点击 canvas 中心区域（模拟点击节点）
     const box = await canvas.boundingBox()
     if (box) {
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
       await page.waitForTimeout(500)
-      // 详情面板应有响应（文本变化或显示节点信息）
+ // 详情面板应有响应（文本变化或显示节点信息）
       const panelText = await page.locator('[class*="detail-panel"]').first().innerText()
       expect(panelText).toBeTruthy()
     }
@@ -43,12 +43,12 @@ test.describe('全景图谱 — 节点点击交互', () => {
     if (await searchInput.isVisible()) {
       await searchInput.fill('Python')
       await page.waitForTimeout(1500)
-      // 检查搜索结果下拉
+ // 检查搜索结果下拉
       const results = page.locator('[class*="search-result"], [class*="dropdown"], [class*="autocomplete"]')
       const count = await results.count()
-      // 搜索应产生反馈（结果或提示）
+ // 搜索应产生反馈（结果或提示）
       expect(count).toBeGreaterThanOrEqual(0) // TODO: strengthen to count > 0 once search is stable
-      // 清空搜索
+ // 清空搜索
       await searchInput.clear()
       await page.waitForTimeout(500)
     }
@@ -62,17 +62,17 @@ test.describe('全景图谱 — 节点点击交互', () => {
     await page.goto('/')
     await waitForReady(page)
     const initialCalls = apiResponses.length
-    // 尝试切换概览模式（查找 select 或按钮组）
+ // 尝试切换概览模式（查找 select 或按钮组）
     const modeSelector = page.locator('.el-select, [class*="overview"], [class*="mode"]').first()
     if (await modeSelector.isVisible()) {
       await modeSelector.click()
       await page.waitForTimeout(500)
-      // 点击一个选项
+ // 点击一个选项
       const option = page.locator('.el-select-dropdown__item, [class*="option"]').first()
       if (await option.isVisible()) {
         await option.click()
         await page.waitForTimeout(1000)
-        // 应该触发新的 API 调用
+ // 应该触发新的 API 调用
         expect(apiResponses.length).toBeGreaterThanOrEqual(initialCalls)
       }
     }
@@ -90,7 +90,7 @@ test.describe('岗位列表 — 搜索筛选', () => {
     if (await searchInput.isVisible()) {
       await searchInput.fill('前端')
       await page.waitForTimeout(1000)
-      // 列表应有反馈（loading 或结果变化）
+ // 列表应有反馈（loading 或结果变化）
       const bodyText = await page.locator('body').innerText()
       expect(bodyText).toBeTruthy()
     }
@@ -99,12 +99,12 @@ test.describe('岗位列表 — 搜索筛选', () => {
   test('点击岗位卡片进入详情页', async ({ page }) => {
     await page.goto('/positions')
     await waitForReady(page)
-    // 查找可点击的岗位项
+ // 查找可点击的岗位项
     const positionItem = page.locator('[class*="position"], [class*="item"], tr, .el-card').first()
     if (await positionItem.isVisible()) {
       await positionItem.click()
       await waitForReady(page)
-      // 应跳转到详情页或显示详情
+ // 应跳转到详情页或显示详情
       const url = page.url()
       const bodyText = await page.locator('body').innerText()
       expect(url.includes('/position') || bodyText.length > 200).toBeTruthy()
@@ -120,7 +120,7 @@ test.describe('匹配诊断 — 向导交互', () => {
     await page.goto('/match')
     await waitForReady(page)
     const bodyText = await page.locator('body').innerText()
-    // 应该有步骤指示或匹配相关文字
+ // 应该有步骤指示或匹配相关文字
     expect(bodyText).toMatch(/匹配|诊断|简历|岗位|技能/)
   })
 
@@ -132,19 +132,19 @@ test.describe('匹配诊断 — 向导交互', () => {
     })
     await page.goto('/match')
     await waitForReady(page)
-    // 查找输入框并输入
+ // 查找输入框并输入
     const input = page.locator('input[type="text"], .el-input__inner').first()
     if (await input.isVisible()) {
       await input.fill('后端开发工程师')
       await page.waitForTimeout(1000)
-      // 查找提交按钮
+ // 查找提交按钮
       const submitBtn = page.locator('button').filter({ hasText: /匹配|诊断|提交|开始/ })
       if (await submitBtn.count() > 0) {
         await submitBtn.first().click()
         await page.waitForTimeout(2000)
       }
     }
-    // 验证匹配 API 请求已被触发
+ // 验证匹配 API 请求已被触发
     const matchTriggered = matchResponses.length > 0
     expect(matchTriggered).toBeTruthy()
   })
@@ -200,12 +200,12 @@ test.describe('求职者分析 — 简历上传', () => {
   test('点击开始分析按钮有反馈', async ({ page }) => {
     await page.goto('/analysis')
     await waitForReady(page)
-    // 查找开始分析按钮
+ // 查找开始分析按钮
     const startBtn = page.locator('button').filter({ hasText: /开始|分析|上传/ })
     if (await startBtn.count() > 0) {
-      // 按钮应该存在（未上传文件时可能禁用）
+ // 按钮应该存在（未上传文件时可能禁用）
       const isDisabled = await startBtn.first().getAttribute('disabled')
-      // 未上传文件时按钮应禁用
+ // 未上传文件时按钮应禁用
       expect(isDisabled).not.toBeNull()
     }
   })
@@ -335,7 +335,7 @@ test.describe('API 响应数据验证', () => {
     expect(resp.status()).toBe(200)
     const data = await resp.json()
     expect(data).toBeTruthy()
-    // 应有领域列表
+ // 应有领域列表
     expect(data.domains || data.items).toBeTruthy()
   })
 
@@ -399,7 +399,7 @@ test.describe('错误处理 — 无效输入', () => {
     if (await searchInput.isVisible()) {
       await searchInput.fill('xyznonexistent99999')
       await page.waitForTimeout(1500)
-      // 页面应显示空状态或无结果提示
+ // 页面应显示空状态或无结果提示
       const bodyText = await page.locator('body').innerText()
       expect(bodyText).toBeTruthy()
     }
@@ -413,7 +413,7 @@ test.describe('页面间导航 — 实际路由跳转', () => {
   test('从首页点击导航到岗位列表', async ({ page }) => {
     await page.goto('/')
     await waitForReady(page)
-    // 查找岗位列表导航链接
+ // 查找岗位列表导航链接
     const navLink = page.locator('a[href*="position"], [class*="nav"] a, [class*="menu"] a').first()
     if (await navLink.isVisible()) {
       await navLink.click()

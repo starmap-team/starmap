@@ -1,10 +1,10 @@
 /**
- * Phase 17 端到端审计
+ * 端到端审计
  * 验证 4 个 BUG 修复:
- *   B1: DAG 只显示 5 个核心 stage (无 timeseries)
- *   B2: 重试按钮在 failed 状态下可用
- *   B3: import 兜底 (无需验证, 跨端一致)
- *   B4: graph_sync 部分成功 (UI 错误消息人类可读)
+ * B1: DAG 只显示 5 个核心 stage (无 timeseries)
+ * B2: 重试按钮在 failed 状态下可用
+ * B3: import 兜底 (无需验证, 跨端一致)
+ * B4: graph_sync 部分成功 (UI 错误消息人类可读)
  */
 import { test, expect, type Page } from '@playwright/test'
 
@@ -115,7 +115,7 @@ test.describe('Phase 17 修复验证', () => {
     await page.goto('/pipeline?_=' + Date.now())
     await page.waitForTimeout(2000)
     const text = await page.evaluate(() => document.body.innerText)
-    // 触发对话框有 checkbox 5 个 (不显示 timeseries)
+ // 触发对话框有 checkbox 5 个 (不显示 timeseries)
     const triggerBtn = page.locator('button:has-text("触发")').first()
     if (await triggerBtn.count() > 0) {
       await triggerBtn.click()

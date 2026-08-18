@@ -1,5 +1,5 @@
 <!--
-  PipelineMonitor 触发对话框子组件（Phase 03 Plan 03 Task 8 实际迁移）。
+  PipelineMonitor 触发对话框子组件（ Plan 03 Task 8 实际迁移）。
   T7 引导：顶部说明 + selectedStages 多选 tooltip + 前置条件提示。
   D8: 新增「数据源选择」—— 手动触发时可自选要爬取的源（空 = 全部源）。
 -->

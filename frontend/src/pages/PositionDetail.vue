@@ -255,14 +255,14 @@ watch(() => route.params.name, loadPosition)
         </div>
 
         <div class="detail-body">
-          <!-- 左侧：雷达图 / D-05 缺技能降级 -->
+          <!-- 左侧：雷达图 / 缺技能降级 -->
           <section class="radar-section">
             <SkillRadar
               v-if="hasSkillProfile"
               :data="radarData"
               :position-name="position?.name ?? positionName"
             />
-            <!-- D-05: 岗位存在但无技能画像 → 诚实空态 + 引导，不返回 404 -->
+            <!--: 岗位存在但无技能画像 → 诚实空态 + 引导，不返回 404 -->
             <el-card
               v-else
               class="no-profile-card"
@@ -328,7 +328,7 @@ watch(() => route.params.name, loadPosition)
                 label="技能"
                 min-width="120"
               >
-                <!-- D8i: 技能中文名优先展示 -->
+                <!--: 技能中文名优先展示 -->
                 <template #default="{ row }">
                   {{ row.name_cn || row.name }}
                 </template>

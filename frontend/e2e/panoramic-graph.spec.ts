@@ -24,7 +24,7 @@ test.describe('全景图谱 — 页面加载', () => {
   test('KPI 指标卡片可见', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // 检查页面有数字展示（领域数、岗位数、技能数）
+ // 检查页面有数字展示（领域数、岗位数、技能数）
     const bodyText = await page.locator('body').innerText()
     expect(bodyText).toMatch(/\d+/) // 至少有一个数字
   })
@@ -32,7 +32,7 @@ test.describe('全景图谱 — 页面加载', () => {
   test('侧边栏导航可见', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // 检查侧边栏有导航项
+ // 检查侧边栏有导航项
     const navLinks = page.locator('a[href], [class*="menu-item"], [class*="nav"]')
     const count = await navLinks.count()
     expect(count).toBeGreaterThan(3)
@@ -46,7 +46,7 @@ test.describe('全景图谱 — 2D/3D 切换', () => {
   test('2D/3D 切换按钮存在', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // 查找包含 "2D" 或 "3D" 文字的按钮
+ // 查找包含 "2D" 或 "3D" 文字的按钮
     const toggleBtn = page.locator('button').filter({ hasText: /2D|3D/ })
     const count = await toggleBtn.count()
     expect(count).toBeGreaterThanOrEqual(2)
@@ -55,12 +55,12 @@ test.describe('全景图谱 — 2D/3D 切换', () => {
   test('点击 2D 按钮切换到 2D 视图', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // 点击 2D 按钮
+ // 点击 2D 按钮
     const btn2D = page.locator('button').filter({ hasText: '2D' })
     if (await btn2D.count() > 0) {
       await btn2D.first().click()
       await page.waitForTimeout(1000)
-      // 验证 2D canvas 或 Graph3DPanel 状态变化
+ // 验证 2D canvas 或 Graph3DPanel 状态变化
       const bodyText = await page.locator('body').innerText()
       expect(bodyText).toBeTruthy()
     }
@@ -69,12 +69,12 @@ test.describe('全景图谱 — 2D/3D 切换', () => {
   test('点击 3D 按钮切换到 3D 视图', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // 点击 3D 按钮
+ // 点击 3D 按钮
     const btn3D = page.locator('button').filter({ hasText: '3D' })
     if (await btn3D.count() > 0) {
       await btn3D.first().click()
       await page.waitForTimeout(2000) // 3D 加载需要更长时间
-      // 验证页面无报错
+ // 验证页面无报错
       const errors: string[] = []
       page.on('pageerror', (err) => errors.push(err.message))
       await page.waitForTimeout(1000)
@@ -89,10 +89,10 @@ test.describe('全景图谱 — 2D/3D 切换', () => {
     const btn3D = page.locator('button').filter({ hasText: '3D' })
     if (await btn3D.count() > 0) {
       await btn3D.first().click()
-      // 检查是否有 loading 相关元素
+ // 检查是否有 loading 相关元素
       await page.waitForTimeout(500)
       const bodyText = await page.locator('body').innerText()
-      // loading 指示器或力仿真加载提示
+ // loading 指示器或力仿真加载提示
       expect(bodyText).toBeTruthy()
     }
   })
@@ -105,7 +105,7 @@ test.describe('全景图谱 — 工具栏', () => {
   test('工具栏可见', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // 工具栏应包含缩放、布局等按钮
+ // 工具栏应包含缩放、布局等按钮
     const toolbar = page.locator('[class*="toolbar"], [class*="graph-toolbar"]')
     await expect(toolbar.first()).toBeVisible({ timeout: 10000 })
   })
@@ -113,23 +113,23 @@ test.describe('全景图谱 — 工具栏', () => {
   test('布局切换按钮可用', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // 查找布局切换按钮（力/层/环）
+ // 查找布局切换按钮（力/层/环）
     const layoutBtn = page.locator('button').filter({ hasText: /力|层|环|layout/i })
     if (await layoutBtn.count() > 0) {
       await layoutBtn.first().click()
       await page.waitForTimeout(500)
-      // 切换后页面应无报错
+ // 切换后页面应无报错
     }
   })
 
   test('节点数量滑块存在', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // 查找 slider 或 el-slider
+ // 查找 slider 或 el-slider
     const slider = page.locator('.el-slider, input[type="range"], [class*="slider"]')
-    // 滑块可能在展开面板中
+ // 滑块可能在展开面板中
     const count = await slider.count()
-    // 至少检查页面有相关控件
+ // 至少检查页面有相关控件
     expect(count).toBeGreaterThanOrEqual(0)
   })
 })
@@ -152,10 +152,10 @@ test.describe('全景图谱 — 搜索', () => {
     if (await searchInput.isVisible()) {
       await searchInput.fill('Python')
       await page.waitForTimeout(1000)
-      // 搜索结果下拉框应出现
+ // 搜索结果下拉框应出现
       const dropdown = page.locator('[class*="dropdown"], [class*="search-result"], [class*="autocomplete"]')
       const count = await dropdown.count()
-      // 可能有结果
+ // 可能有结果
       expect(count).toBeGreaterThanOrEqual(0)
     }
   })
@@ -182,19 +182,19 @@ test.describe('全景图谱 — 概览模式', () => {
   test('概览模式选择器存在', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // 查找 select/dropdown 用于切换 domain/tech_stack/level
+ // 查找 select/dropdown 用于切换 domain/tech_stack/level
     const select = page.locator('.el-select, select, [class*="overview-mode"]')
     const count = await select.count()
-    // 可能是按钮组或下拉框
+ // 可能是按钮组或下拉框
     expect(count).toBeGreaterThanOrEqual(0)
   })
 
   test('面包屑或导航路径可见', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // 面包屑应显示"领域概览"或类似导航文本
+ // 面包屑应显示"领域概览"或类似导航文本
     const bodyText = await page.locator('body').innerText()
-    // 页面应包含导航相关的中文文本
+ // 页面应包含导航相关的中文文本
     expect(bodyText).toMatch(/领域|概览|全景|图谱|首页/)
   })
 })
@@ -206,7 +206,7 @@ test.describe('全景图谱 — 详情面板', () => {
   test('详情面板区域存在', async ({ page }) => {
     await page.goto('/')
     await waitForGraphReady(page)
-    // DetailPanel 应该在右侧
+ // DetailPanel 应该在右侧
     const panel = page.locator('[class*="detail-panel"], [class*="detail"]')
     const count = await panel.count()
     expect(count).toBeGreaterThan(0)
@@ -243,7 +243,7 @@ test.describe('全景图谱 — 响应式', () => {
     await page.goto('/')
     await waitForGraphReady(page)
     await expect(page.locator('body')).toBeVisible()
-    // canvas 或 3D 容器应存在
+ // canvas 或 3D 容器应存在
     const canvas = page.locator('canvas, [class*="graph-container"], [class*="graph3d"]')
     const count = await canvas.count()
     expect(count).toBeGreaterThan(0)
@@ -263,7 +263,7 @@ test.describe('全景图谱 — 响应式', () => {
     await page.setViewportSize({ width: 1024, height: 768 })
     await page.goto('/')
     await waitForGraphReady(page)
-    // 检查页面无水平滚动条
+ // 检查页面无水平滚动条
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth)
     const clientWidth = await page.evaluate(() => document.documentElement.clientWidth)
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 20) // 允许少量误差
@@ -293,7 +293,7 @@ test.describe('全景图谱 — 无 JS 错误', () => {
     if (realErrors.length > 0) {
       console.warn(`⚠️ 首页有 ${realErrors.length} 个 console.error:`, realErrors)
     }
-    // 不硬性失败，但记录
+ // 不硬性失败，但记录
     expect(true).toBeTruthy()
   })
 
@@ -339,7 +339,7 @@ test.describe('全景图谱 — API 调用', () => {
     expect(resp.status()).toBe(200)
     const data = await resp.json()
     expect(data).toBeTruthy()
-    // 应有 domains 或 nodes
+ // 应有 domains 或 nodes
     expect(data.domains || data.nodes || data.items).toBeTruthy()
   })
 

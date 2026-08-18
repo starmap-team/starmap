@@ -313,7 +313,7 @@ function formatRecords(n: number) {
             <div class="ds-name-cell">
               <span class="ds-icon">{{ platformInfo(row).icon }}</span>
               <span class="ds-name">{{ getSourceNameLabel(row.name) }}</span>
-              <!-- Phase 15-01: 显示数据源类型 -->
+              <!---01: 显示数据源类型 -->
               <el-tag
                 :type="sourceTypeColor(row.source_type)"
                 size="small"
@@ -422,7 +422,7 @@ function formatRecords(n: number) {
           align="center"
         >
           <template #default="{ row }">
-            <!-- D8c: inactive/paused 生命周期终态 → 按钮禁用显示终态文案，不可误操作 -->
+            <!--: inactive/paused 生命周期终态 → 按钮禁用显示终态文案，不可误操作 -->
             <el-button
               v-if="row.status === 'inactive' || row.status === 'paused'"
               size="small"
@@ -452,7 +452,7 @@ function formatRecords(n: number) {
       </el-table>
     </div>
 
-    <!-- Phase 3.8.5: 执行详情面板 (当前爬取活动的可读翻译) -->
+    <!--: 执行详情面板 (当前爬取活动的可读翻译) -->
     <div
       v-if="isRunning && currentActivityDetails"
       class="execution-detail mt-3"

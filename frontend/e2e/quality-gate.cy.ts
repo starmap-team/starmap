@@ -33,17 +33,17 @@ describe('Quality Gate — Page Rendering', () => {
 
       cy.on('window:console', (msg) => {
         if (msg.type === 'error') {
-          // Filter out expected/harmless errors
+ // Filter out expected/harmless errors
           const text = msg.text || msg.message || ''
-          // Ignore network errors from missing backend
+ // Ignore network errors from missing backend
           if (text.includes('NetworkError') || text.includes('Failed to fetch') || text.includes('ERR_CONNECTION_REFUSED')) {
             return
           }
-          // Ignore favicon 404
+ // Ignore favicon 404
           if (text.includes('favicon')) {
             return
           }
-          // Ignore Vite HMR WebSocket errors
+ // Ignore Vite HMR WebSocket errors
           if (text.includes('WebSocket') || text.includes('[vite]')) {
             return
           }
@@ -51,7 +51,7 @@ describe('Quality Gate — Page Rendering', () => {
         }
       })
 
-      // Also catch uncaught exceptions
+ // Also catch uncaught exceptions
       cy.on('window:before:unload', () => {})
 
       cy.visit(`${BASE_URL}${page.path}`, {
@@ -59,12 +59,12 @@ describe('Quality Gate — Page Rendering', () => {
         timeout: 15000,
       })
 
-      // Wait for page to settle — use conditional wait instead of fixed delay
+ // Wait for page to settle — use conditional wait instead of fixed delay
       cy.get('body', { timeout: 10000 }).should('not.be.empty')
-      // Give Vue a brief moment to fully render after body appears
+ // Give Vue a brief moment to fully render after body appears
       cy.wait(500)
 
-      // Verify no console errors
+ // Verify no console errors
       cy.then(() => {
         if (consoleErrors.length > 0) {
           cy.log(`Console errors on ${page.name}: ${JSON.stringify(consoleErrors)}`)
@@ -72,10 +72,10 @@ describe('Quality Gate — Page Rendering', () => {
         expect(consoleErrors, `${page.name} should have 0 console errors`).to.have.length(0)
       })
 
-      // Verify the page has meaningful content (not just a loading spinner forever)
+ // Verify the page has meaningful content (not just a loading spinner forever)
       cy.get('body').then(($body) => {
         const text = $body.text()
-        // Page should have some content beyond just whitespace
+ // Page should have some content beyond just whitespace
         expect(text.trim().length, `${page.name} should render content`).to.be.greaterThan(50)
       })
     })
@@ -84,7 +84,7 @@ describe('Quality Gate — Page Rendering', () => {
 
 describe('Quality Gate — Full Summary', () => {
   it('All pages listed and verified', () => {
-    // This test just ensures all pages were defined
+ // This test just ensures all pages were defined
     const totalPages = QUALITY_GATE_PAGES.length
     cy.log(`Quality gate verified ${totalPages} pages`)
     expect(totalPages).to.be.greaterThan(0)

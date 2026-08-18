@@ -1,10 +1,10 @@
 /**
- * Phase 16-02 端到端测试 - 前端状态延迟 + 渲染审计
+ *-02 端到端测试 - 前端状态延迟 + 渲染审计
  *
  * 验证:
- * 1. progress=null + status=completed → 显示 100% (Fix M3)
+ * 1. progress=null + status=completed → 显示 100% (Fix)
  * 2. timeseries stage 在 DAG 中显示 (Issue H)
- * 3. SSE reconnect 显示 toast (Fix M1)
+ * 3. SSE reconnect 显示 toast (Fix)
  * 4. 数据源 0 records 区分 (Issue G)
  * 5. 错误消息用户友好 (Issue D)
  */
@@ -72,7 +72,7 @@ async function mockPipelineStages(page: Page, fixture: RunFixture): Promise<void
       body: JSON.stringify(fixture),
     })
   })
-  // SSE: no-op
+ // SSE: no-op
   await page.route(`${API_BASE}/events**`, async (route) => {
     await route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'data: ' })
   })
@@ -89,7 +89,7 @@ test.describe('Phase 16-02 Frontend Audit', () => {
     await mockPipelineStages(page, fixture)
     await gotoPipeline(page)
 
-    // 应该看到 6 个 stage 卡片
+ // 应该看到 6 个 stage 卡片
     const stageNodes = await page.locator('.timeline-node').count()
     expect(stageNodes).toBe(6)
   })
@@ -100,7 +100,7 @@ test.describe('Phase 16-02 Frontend Audit', () => {
     await mockPipelineStages(page, fixture)
     await gotoPipeline(page)
 
-    // 第 1 个 stage (crawl) 的进度条应该是 100% (fallback)
+ // 第 1 个 stage (crawl) 的进度条应该是 100% (fallback)
     const firstStageProgress = await page.locator('.stage-progress .progress-text').first().textContent()
     expect(firstStageProgress).toContain('100')
   })
@@ -111,8 +111,8 @@ test.describe('Phase 16-02 Frontend Audit', () => {
     await mockPipelineStages(page, fixture)
     await gotoPipeline(page)
 
-    // timeseries 是 skipped, 进度条应该隐藏
-    // (整个 .stage-progress 只显示非 skipped 的)
+ // timeseries 是 skipped, 进度条应该隐藏
+ // (整个 .stage-progress 只显示非 skipped 的)
     const progressBars = await page.locator('.stage-progress').count()
     expect(progressBars).toBe(5)  // 只有 5 个进度条 (5 个 completed)
   })
@@ -124,7 +124,7 @@ test.describe('Phase 16-02 Frontend Audit', () => {
 
     const text = await page.evaluate(() => document.body.innerText)
     const kpiMatches = text.match(/今日累计入库|今日采集量/g) || []
-    // 应该 ≤ 2 次 (1 KPI 卡 + 可能的 tooltip)
+ // 应该 ≤ 2 次 (1 KPI 卡 + 可能的 tooltip)
     expect(kpiMatches.length).toBeLessThanOrEqual(2)
   })
 
@@ -136,7 +136,7 @@ test.describe('Phase 16-02 Frontend Audit', () => {
     const statuses = await page.locator('.timeline-node').evaluateAll((nodes) =>
       nodes.map((n) => n.textContent || '')
     )
-    // 6 个 stage 都有 status 标签
+ // 6 个 stage 都有 status 标签
     expect(statuses).toHaveLength(6)
     for (const text of statuses) {
       expect(text).toMatch(/(已完成|运行中|待执行|失败|跳过)/)

@@ -72,7 +72,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
             <Connection />
           </el-icon>
           <span>流水线时间线 (DAG)</span>
-          <!-- Phase 3.8.2: 阶段完成计数 (解决"17% 看不出含义") -->
+          <!--: 阶段完成计数 (解决"17% 看不出含义") -->
           <span class="stage-count">
             {{ completedCount }}/{{ totalCount }} 阶段已完成
             <span
@@ -90,7 +90,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
           </span>
         </div>
         <div class="header-right">
-          <!-- Phase 3.8.2: 始终显示进度条 + 文字说明 -->
+          <!--: 始终显示进度条 + 文字说明 -->
           <div class="overall-progress">
             <span class="overall-label">{{ isRunning ? '执行中' : (anyFailed ? '异常' : (anyCompleted ? '已完成' : '待机')) }}</span>
             <el-progress
@@ -179,7 +179,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
           />
         </div>
       </div>
-      <!-- Arrow: dedup → clean (Phase 3 Plan 02 Task 2: clean 依赖 dedup，串行) -->
+      <!-- Arrow: dedup → clean ( Plan 02 Task 2: clean 依赖 dedup，串行) -->
       <div class="dag-row dag-row-center">
         <div class="dag-arrow-down">
           <span class="arrow-line" />
@@ -236,7 +236,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
           />
         </div>
       </div>
-      <!-- Phase 17-01: timeseries 移出核心 DAG, Row 6 删除 -->
+      <!---01: timeseries 移出核心 DAG, Row 6 删除 -->
     </div>
   </el-card>
 </template>
