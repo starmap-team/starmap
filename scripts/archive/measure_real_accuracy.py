@@ -1,4 +1,4 @@
-﻿"""Real LLM Accuracy Measurement - runs extraction via live API and measures F1."""
+"""Real LLM Accuracy Measurement - runs extraction via live API and measures F1."""
 import json
 import sys
 import time

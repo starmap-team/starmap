@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Evolution types — shared across dashboard and evolution stores
  */
 

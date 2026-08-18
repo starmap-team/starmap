@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * Evolution changelog drawer — extracted from EvolutionDashboard.vue (audit)
  */

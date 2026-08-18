@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 岗位列表页 — 从后端 /positions 获取岗位数据
  *

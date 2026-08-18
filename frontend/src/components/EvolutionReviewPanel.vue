@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * EvolutionReviewPanel — BUG-5 + E21 + E22 fix.
  *

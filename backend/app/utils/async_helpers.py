@@ -1,4 +1,4 @@
-﻿"""Unified async helper for running async coroutines from Celery workers.
+"""Unified async helper for running async coroutines from Celery workers.
 
 Both celery_app.py and stage3_services.py had identical copies of _run_async / run_async.DEDUP-01 consolidates them here.C-W7: also dispose the shared async SQLAlchemy engine after each Celery task
 to avoid "attached to a different loop" errors when the worker reuses the same engine

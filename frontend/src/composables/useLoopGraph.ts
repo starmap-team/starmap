@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useLoopGraph — G6 mini-graph rendering logic for LoopDemo Step 3
  *
  * Extracted from LoopDemo.vue lines 156-389 (~230 lines).

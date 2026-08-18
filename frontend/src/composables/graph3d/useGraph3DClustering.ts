@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useGraph3DClustering — overflow-based node grouping for 3D graphs
  *
  * 镜像 useGraphClustering.ts (graph2d) 但输出 3d-force-graph 兼容节点 schema:

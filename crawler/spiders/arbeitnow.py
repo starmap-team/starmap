@@ -1,4 +1,4 @@
-﻿"""Arbeitnow API spider — 免费无需 key ( https://arbeitnow.com/api/job-board-api
+"""Arbeitnow API spider — 免费无需 key ( https://arbeitnow.com/api/job-board-api
 字段映射: title→job_title, company_name→company, description→clean_text,
           url→source_url, slug→content_hash
 实测: HTTP 200, 110 jobs/page
@@ -16,7 +16,7 @@ ARBEITNOW_URL = "https://arbeitnow.com/api/job-board-api"
 
 def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
-    # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log），
+    # 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log），
     # 不再裸 urllib（无 robots/限速/合规日志）。
     result = fetch(ARBEITNOW_URL, "arbeitnow", respect_robots=False)
     if result.status_code != 200 or not result.text:

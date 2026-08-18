@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 术语词典
  * 帮助非技术用户理解流水线监控页面的专业术语

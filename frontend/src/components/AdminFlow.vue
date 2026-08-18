@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * AdminFlow — visual business-flow diagram for the AdminOverview tab.
  *

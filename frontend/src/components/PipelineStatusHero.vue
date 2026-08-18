@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * PipelineMonitor 状态 Hero 卡片 — 拆分
  *

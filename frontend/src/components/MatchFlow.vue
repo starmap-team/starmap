@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * MatchFlow — business-flow diagram for MatchDiagnosis page .
  *

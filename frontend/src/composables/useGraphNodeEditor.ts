@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Admin graph node editor state + CRUD actions — extracted from Admin.vue ( D round 6).
  * Owns: editorVisible + editingNode refs and 6 handlers (create/edit/submit/delete/approve/reject).
  * Toast messages owned by ElMessage — kept inline for ops visibility.

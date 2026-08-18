@@ -1,4 +1,4 @@
-"""Phase 15 — BOSS 直聘 (zhilian-style) fetch adapter.
+"""BOSS 直聘 (zhilian-style) fetch adapter.
 
 Lightweight HTTP fetcher for BOSS直聘's city/job list page. Returns a list
 of dicts shaped like `jd_raw` rows.

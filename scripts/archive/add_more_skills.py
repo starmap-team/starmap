@@ -1,4 +1,4 @@
-﻿"""Add additional skills to reach ≥500 target."""
+"""Add additional skills to reach ≥500 target."""
 import asyncio
 
 from neo4j import AsyncGraphDatabase

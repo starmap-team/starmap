@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useNodeThreeObject — Three.js custom node rendering pipeline for 3D force graph.
  *
  * Creates sphere + glow + text sprites for KnowledgeArea, Position, Skill node types.

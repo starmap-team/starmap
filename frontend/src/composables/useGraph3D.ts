@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Unified Graph3D composable — merges 6 single-caller composables:
  * useForceConfig (167L) + useZoomControls (44L) + useNodeTooltip (90L)
  * + useCameraPresets (144L) + useEvolutionEdges (74L) + useGlowTexture (49L)

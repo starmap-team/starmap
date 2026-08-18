@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Admin.vue graph node list state + filters — extracted from Admin.vue ( D)
  * Pure composable: search keyword, type filter, status filter, pagination.
  */

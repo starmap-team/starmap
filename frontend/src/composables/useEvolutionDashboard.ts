@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Unified EvolutionDashboard composable — merges 3 single-caller composables:
  * useEvolutionFormatters (27L) + useEvolutionActions (82L) + useEvolutionCharts (122L)
  * All 3 served only by EvolutionDashboard.vue.

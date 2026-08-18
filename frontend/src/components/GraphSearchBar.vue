@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, onUnmounted } from "vue"
 import { Search } from "@element-plus/icons-vue"
 import { useGraphStore } from "@/stores/graph"

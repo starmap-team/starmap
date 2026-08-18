@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 演化看板页 — CII 时序曲线（技能需求通胀指数）
  * Task 3 增强: 技能趋势时间线、新兴技能卡片、CII仪表盘、技能对比

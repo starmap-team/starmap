@@ -1,4 +1,4 @@
-﻿"""WeWorkRemotely RSS spider — 免费无需 key ( https://weworkremotely.com/categories/remote-programming-jobs.rss
+"""WeWorkRemotely RSS spider — 免费无需 key ( https://weworkremotely.com/categories/remote-programming-jobs.rss
 字段映射: title→job_title (格式 "Company: Position"), link→source_url,
           description→clean_text, pubDate→publish_date
 实测: HTTP 200, RSS XML 格式
@@ -16,7 +16,7 @@ WWR_RSS = "https://weworkremotely.com/categories/remote-programming-jobs.rss"
 
 def run_sync(keyword: str = "", max_count: int = 20) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
-    # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log）。
+    # 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log）。
     result = fetch(WWR_RSS, "weworkremotely", respect_robots=False)
     if result.status_code != 200 or not result.text:
         return items

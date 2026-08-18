@@ -1,4 +1,4 @@
-﻿"""Celery task entrypoints for extraction, graph building, evolution analysis, and pipeline stages."""
+"""Celery task entrypoints for extraction, graph building, evolution analysis, and pipeline stages."""
 from __future__ import annotations
 
 import time

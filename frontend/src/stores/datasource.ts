@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 数据源管理 Store — Sprint 1.2
  * 管理多源数据融合：BOSS/拉勾/51Job/GitHub/ESCO
  * 提供数据源 CRUD、统计查询、同步触发

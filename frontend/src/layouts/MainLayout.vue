@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { DataAnalysis, DataLine, Connection, TrendCharts, Document, Setting, User, Sunny, MoonNight, Fold, Expand, Coin, Refresh, Odometer, Reading } from '@element-plus/icons-vue'

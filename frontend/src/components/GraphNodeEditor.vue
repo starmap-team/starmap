@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 图谱节点编辑器
  * 支持创建/编辑 Skill / Tool / Position / KnowledgeArea / Industry /

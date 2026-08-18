@@ -1,4 +1,4 @@
-"""SSE 流水线事件契约（D-09 Phase 03 Task 10）。
+"""SSE 流水线事件契约（ ）。
 
 文档化 SSE 事件 schema（事件名/字段/幂等语义），不重构协议。
 前端 useSSE 显式订阅子步骤事件。
@@ -12,90 +12,83 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-
 class StageStartedEvent(TypedDict, total=False):
-    """阶段开始事件。"""
+ """阶段开始事件。"""
 
-    run_id: str
-    stage: str  # crawl / dedup / clean / import / graph_sync / timeseries
-    status: str  # "started" / "running"
-    event_id: str  # 全局唯一；客户端按 last_event_id 去重
-    ts: str  # ISO 8601
-
+ run_id: str
+ stage: str # crawl / dedup / clean / import / graph_sync / timeseries
+ status: str # "started" / "running"
+ event_id: str # 全局唯一；客户端按 last_event_id 去重
+ ts: str # ISO 8601
 
 class StageProgressEvent(TypedDict, total=False):
-    """阶段进度事件（每阶段 1 条 / 60s 或每 10 条记录）。"""
+ """阶段进度事件（每阶段 1 条 / 60s 或每 10 条记录）。"""
 
-    run_id: str
-    stage: str
-    status: str  # "running"
-    progress: float  # [0.0, 1.0]
-    records_processed: int
-    current_activity: str
-    recent_samples: list[dict[str, Any]]
-    sub_breakdown: dict[str, int]
-    elapsed_ms: int
-    event_id: str
-    ts: str
-
+ run_id: str
+ stage: str
+ status: str # "running"
+ progress: float # [0.0, 1.0]
+ records_processed: int
+ current_activity: str
+ recent_samples: list[dict[str, Any]]
+ sub_breakdown: dict[str, int]
+ elapsed_ms: int
+ event_id: str
+ ts: str
 
 class StageSubStepEvent(TypedDict, total=False):
-    """阶段内子步骤事件（D-15 引入，区分逻辑子阶段）。
+ """阶段内子步骤事件（ 引入，区分逻辑子阶段）。
 
-    sub_step 取值约定：
-    - import: "extract" / "normalize" / "persist"
-    - crawl: "crawl:<source_name>"（每数据源一条）
-    - graph_sync: "reconcile"（D-07 对账子步骤，仅 reconcile_on_sync=True 时）
-    """
+ sub_step 取值约定：
+ - import: "extract" / "normalize" / "persist"
+ - crawl: "crawl:<source_name>"（每数据源一条）
+ - graph_sync: "reconcile"（ 对账子步骤，仅 reconcile_on_sync=True 时）
+ """
 
-    run_id: str
-    stage: str
-    status: str  # "running"
-    progress: float
-    current_activity: str
-    sub_step: str  # 见上约定
-    elapsed_ms: int
-    event_id: str
-    ts: str
-
+ run_id: str
+ stage: str
+ status: str # "running"
+ progress: float
+ current_activity: str
+ sub_step: str # 见上约定
+ elapsed_ms: int
+ event_id: str
+ ts: str
 
 class StageCompletedEvent(TypedDict, total=False):
-    """阶段完成事件。"""
+ """阶段完成事件。"""
 
-    run_id: str
-    stage: str
-    status: str  # "completed"
-    progress: float  # 1.0
-    records_processed: int
-    current_activity: str
-    sub_breakdown: dict[str, int]
-    elapsed_ms: int
-    event_id: str
-    ts: str
-
+ run_id: str
+ stage: str
+ status: str # "completed"
+ progress: float # 1.0
+ records_processed: int
+ current_activity: str
+ sub_breakdown: dict[str, int]
+ elapsed_ms: int
+ event_id: str
+ ts: str
 
 class StageFailedEvent(TypedDict, total=False):
-    """阶段失败事件。"""
+ """阶段失败事件。"""
 
-    run_id: str
-    stage: str
-    status: str  # "failed"
-    current_activity: str
-    error: str  # 错误详情
-    event_id: str
-    ts: str
-
+ run_id: str
+ stage: str
+ status: str # "failed"
+ current_activity: str
+ error: str # 错误详情
+ event_id: str
+ ts: str
 
 class PipelineCompletedEvent(TypedDict, total=False):
-    """流水线完成事件。"""
+ """流水线完成事件。"""
 
-    run_id: str
-    status: str  # "completed"
-    total_records: int
-    duration_ms: int
-    event_id: str
-    ts: str
-
+ run_id: str
+ status: str # "completed"
+ total_records: int
+ duration_ms: int
+ event_id: str
+ ts: str
 
 # 幂等语义：
 # - 所有 event_id 全局唯一（UUID 或 ULID）
@@ -113,7 +106,6 @@ class PipelineCompletedEvent(TypedDict, total=False):
 # - 返回 JSON 数组，每项 {type, data, event_id, ts}
 # - 客户端维护 lastEventId；下次轮询 since=lastEventId 时间戳
 
-
 # 订阅示例（前端 useSSE storeHandlers）：
 # storeHandlers = {
 # "stage.sub_step": (data) => { /* 子步骤 */ },
@@ -123,12 +115,11 @@ class PipelineCompletedEvent(TypedDict, total=False):
 # "pipeline.completed": (data) => { /* 流水线完成 */ },
 # }
 
-
 __all__ = [
-    "StageStartedEvent",
-    "StageProgressEvent",
-    "StageSubStepEvent",
-    "StageCompletedEvent",
-    "StageFailedEvent",
-    "PipelineCompletedEvent",
+ "StageStartedEvent",
+ "StageProgressEvent",
+ "StageSubStepEvent",
+ "StageCompletedEvent",
+ "StageFailedEvent",
+ "PipelineCompletedEvent",
 ]

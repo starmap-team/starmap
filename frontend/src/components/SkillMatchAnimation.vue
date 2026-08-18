@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * SkillMatchAnimation — Animated skill matching sequence
  * Shows skills one by one with match/no-match icons, progress bar,

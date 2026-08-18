@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * ContentReviewPanel — review workflow for position + skill entities.
  *

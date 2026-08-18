@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useGraphAnimation — Node entrance growth animation (G6 v5 compatible)
  *
  * Animates nodes from small scale (scale:0.1) → full size (scale:1).

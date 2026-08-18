@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ECharts lazy-loading plugin — defers ECharts module registration until first use.
  *
  * Instead of eagerly importing and registering all ECharts modules at app startup

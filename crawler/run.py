@@ -1,4 +1,4 @@
-﻿"""R1 CLI 入口。
+"""R1 CLI 入口。
 
 用法:
     python run.py init              # 建表

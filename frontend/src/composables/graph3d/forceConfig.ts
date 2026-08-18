@@ -1,4 +1,4 @@
-﻿/**
+/**
  * forceConfig — 3d-force-graph 力导参数常量
  *
  * 2026-08-13: ( 全景图谱) Plan 01-04 Task 2 — 抽 Graph3D.vue:240-280

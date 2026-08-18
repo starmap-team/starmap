@@ -1,4 +1,4 @@
-﻿/** 求职者业务闭环分析 Store。 */
+/** 求职者业务闭环分析 Store。 */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 

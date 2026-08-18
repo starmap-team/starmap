@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Unified Graph2D layer renderers — merges 3 single-caller composables:
  * useDomainLayer (100L) + usePositionLayer (157L) + useDetailLayer (137L)
  * All 3 served only by Graph2D.vue.

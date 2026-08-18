@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useTextSprite — Canvas-based text label sprite generator with caching.
  *
  * Extracted from Graph3D.vue to decouple the text rendering pipeline

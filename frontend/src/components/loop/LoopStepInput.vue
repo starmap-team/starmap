@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * LoopStepInput — Step 1: JD Input
  * Textarea, example JD buttons, target position input, and run button.

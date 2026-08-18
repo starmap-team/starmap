@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 数据流水线 Store — barrel re-export
  * 拆分为 pipelineRun (运行状态) + pipelineConfig (调度/配置)
  * 本文件保持向后兼容：所有原有 import 路径继续有效

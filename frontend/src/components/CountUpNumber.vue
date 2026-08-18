@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * CountUpNumber — Animated number counter with visibility trigger
  * Uses IntersectionObserver + requestAnimationFrame for performant animation.

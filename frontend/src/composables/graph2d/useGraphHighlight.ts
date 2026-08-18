@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useGraphHighlight — Node highlight/clearHighlight logic
  *
  * Highlights a target node + its 1-hop neighbors while fading the rest.

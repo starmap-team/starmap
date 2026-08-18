@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useG6Lifecycle — G6 instance lifecycle management
  *
  * Encapsulates: dynamic G6 import (with module-level cache), instance creation,

@@ -1,4 +1,4 @@
-﻿"""jd_raw 入库：单条 upsert + 批量。"""
+"""jd_raw 入库：单条 upsert + 批量。"""
 from __future__ import annotations
 
 import logging

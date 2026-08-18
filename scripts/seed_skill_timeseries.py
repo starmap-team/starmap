@@ -1,4 +1,4 @@
-﻿"""Seed skill_timeseries for emergence detection (Z-score based).
+"""Seed skill_timeseries for emergence detection (Z-score based).
 
 Creates 6 monthly windows of frequency data for key skills,
 enabling EmergenceFinder.detect() to produce meaningful Z-scores.

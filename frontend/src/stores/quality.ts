@@ -1,4 +1,4 @@
-﻿import { defineStore } from 'pinia'
+import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import request from '@/api/request'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'

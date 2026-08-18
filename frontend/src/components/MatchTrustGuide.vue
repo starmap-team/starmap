@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * MatchTrustGuide — explains what the match_score and trust_score mean
  * to a non-technical user. enhancement for module D.

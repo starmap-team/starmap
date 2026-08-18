@@ -1,4 +1,4 @@
-﻿"""PLAN-014 批次9: 全路由零内联契约回归 (锁定 + 登记 follow-up)。
+"""PLAN-014 批次9: 全路由零内联契约回归 (锁定 + 登记 follow-up)。
 
 锁定: 路由文件不得内联定义 Pydantic BaseModel (Schema 集中约定)。
 

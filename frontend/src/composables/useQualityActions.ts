@@ -1,4 +1,4 @@
-﻿/**
+/**
  * QualityDashboard user actions — trend period, alert resolve/ignore, auto-refresh toggle.
  * Extracted from QualityDashboard.vue ( D round 4).
  * Toast messages owned by ElMessage — kept inline for ops visibility.

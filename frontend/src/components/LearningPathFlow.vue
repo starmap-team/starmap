@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 学习路径流程图组件 — DAG 可视化
  * 展示技能前置关系和学习进度

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, ref, onUnmounted } from "vue"
 import VChart from "vue-echarts"
 import { Aim } from "@element-plus/icons-vue"

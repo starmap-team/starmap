@@ -1,4 +1,4 @@
-﻿"""Jobicy API spider — 免费无需 key ( https://jobicy.com/api/v2/remote-jobs?count=N&tag=python
+"""Jobicy API spider — 免费无需 key ( https://jobicy.com/api/v2/remote-jobs?count=N&tag=python
 字段映射: jobTitle→job_title, companyName→company, jobExcerpt→clean_text,
           url→source_url, id→content_hash
 实测: HTTP 200
@@ -16,7 +16,7 @@ JOBICY_URL = "https://jobicy.com/api/v2/remote-jobs"
 
 def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
-    # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log）。
+    # 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log）。
     url = f"{JOBICY_URL}?count={max_count}&tag={keyword}"
     result = fetch(url, "jobicy", respect_robots=False)
     if result.status_code != 200 or not result.text:
@@ -31,7 +31,7 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
     jobs = data.get("jobs") or data.get("jobList", [])
     for j in jobs[:max_count]:
         excerpt = j.get("jobExcerpt", "") or j.get("jobDescription", "")[:5000]
-        # D5: pubDate 可能为 ''/None → PG DATE 拒绝空串，转 None（让 DEFAULT NULL 生效）
+        # pubDate 可能为 ''/None → PG DATE 拒绝空串，转 None（让 DEFAULT NULL 生效）
         pub_date_raw = str(j.get("pubDate") or "").strip[:10]
         items.append({
             "source_site": "jobicy",

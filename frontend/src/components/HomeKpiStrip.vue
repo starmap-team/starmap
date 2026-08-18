@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed } from "vue"
 import { Collection, DataAnalysis, Upload, Document, TrendCharts, Connection } from "@element-plus/icons-vue"
 

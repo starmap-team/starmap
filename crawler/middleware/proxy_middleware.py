@@ -1,4 +1,4 @@
-﻿"""PIPE-02: PROXY_LIST 代理池 + 失败熔断中间件 )
+"""PIPE-02: PROXY_LIST 代理池 + 失败熔断中间件 )
 
 行为契约：
 1. 解析 PROXY_LIST (逗号分隔 http://[user:pass@]host:port)
@@ -72,7 +72,7 @@ def _parse_proxy(raw: str) -> ProxyEntry | None:
     except Exception:
         return None
 
-def load_proxies -> list[ProxyEntry]:
+def load_proxies() -> list[ProxyEntry]:
     """读 PROXY_LIST 环境变量并缓存到模块级变量。"""
     global _PROXY_ENTRIES
     raw = os.getenv("PROXY_LIST", "")

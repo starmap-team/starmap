@@ -1,4 +1,4 @@
-﻿"""Batch JD extraction script for R1 (罗智峰) - Day 1 task.
+"""Batch JD extraction script for R1 (罗智峰) - Day 1 task.
 
 This script simulates starting the 881 JD batch extraction using Celery tasks.
 It reads sample JD data and processes them through the extraction pipeline.

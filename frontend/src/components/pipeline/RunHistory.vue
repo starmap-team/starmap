@@ -1,4 +1,4 @@
-﻿<!--
+<!--
   PipelineMonitor 运行历史列表子组件（ Plan 03 Task 8 实际实现）。
   渲染 /pipeline/runs 历史运行记录 + 每行操作（详情/重试/续跑/取消）。
 

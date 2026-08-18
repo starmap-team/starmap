@@ -1,4 +1,4 @@
-﻿/**
+/**
  * StarMap Graph Color System — unified palette for 2D + 3D rendering.
  *
  * All graph color constants and helpers live here as pure exports.

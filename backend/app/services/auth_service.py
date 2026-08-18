@@ -6,11 +6,11 @@ to this module. This keeps auth logic testable without HTTP concerns.
 Public surface:
 - Password: hash_password / verify_password
 - Tokens: create_access_token / create_refresh_token / decode_token /
-          create_tokens / refresh_access_token / revoke_refresh_token
+ create_tokens / refresh_access_token / revoke_refresh_token
 - Authentication: authenticate / change_password / forgot_password_request
-                  / reset_password_with_token
+ / reset_password_with_token
 - User CRUD (admin): list_users / create_user / update_user / delete_user
-                     / reset_password / unlock_user
+ / reset_password / unlock_user
 - Helpers: get_user_by_username / get_user_by_id / update_login_tracking
 """
 from __future__ import annotations
@@ -35,11 +35,10 @@ from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 # ═══════════════════════════════════════════════════════════════
 
-
 # INJ-03 fix: 转义 SQL LIKE 通配符，防止通配符注入
 def _escape_like(value: str) -> str:
-    """Escape SQL LIKE wildcards (% and _) in user input."""
-    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+ """Escape SQL LIKE wildcards (% and _) in user input."""
+ return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 # Configuration
 # ═══════════════════════════════════════════════════════════════
 
@@ -55,1040 +54,995 @@ LOCKOUT_DURATION_MINUTES = 15
 # Forgot-password token TTL
 FORGOT_PASSWORD_TOKEN_TTL_MINUTES = 30
 
-
 # ═══════════════════════════════════════════════════════════════
 # Custom exceptions — caught by the FastAPI layer
 # ═══════════════════════════════════════════════════════════════
 
-
 class AuthError(Exception):
-    """Base class for authentication-service errors."""
+ """Base class for authentication-service errors."""
 
-    http_status = 400
-
+ http_status = 400
 
 class InvalidCredentialsError(AuthError):
-    """Username or password is wrong."""
+ """Username or password is wrong."""
 
-    http_status = 401
-
+ http_status = 401
 
 class AccountLockedError(AuthError):
-    """Account is temporarily locked after too many failed attempts."""
+ """Account is temporarily locked after too many failed attempts."""
 
-    http_status = 423  # Locked (WebDAV) — well-understood status code
+ http_status = 423 # Locked (WebDAV) — well-understood status code
 
-    def __init__(self, locked_until: datetime):
-        self.locked_until = locked_until
-        super().__init__(
-            f"Account locked until {locked_until.isoformat()} (UTC)"
-        )
-
+ def __init__(self, locked_until: datetime):
+ self.locked_until = locked_until
+ super.__init__(
+ f"Account locked until {locked_until.isoformat} (UTC)"
+ )
 
 class AccountDisabledError(AuthError):
-    """Account has been soft-disabled by an admin."""
+ """Account has been soft-disabled by an admin."""
 
-    http_status = 403
-
+ http_status = 403
 
 class PasswordPolicyError(AuthError):
-    """Password does not meet policy requirements."""
+ """Password does not meet policy requirements."""
 
-    http_status = 422
-
+ http_status = 422
 
 class UserNotFoundError(AuthError):
-    """User does not exist."""
+ """User does not exist."""
 
-    http_status = 404
-
+ http_status = 404
 
 class UsernameTakenError(AuthError):
-    """Username already in use."""
+ """Username already in use."""
 
-    http_status = 409
-
+ http_status = 409
 
 class InvalidTokenError(AuthError, ValueError):
-    """Token is invalid, expired, or revoked.
+ """Token is invalid, expired, or revoked.
 
-    Inherits from ValueError so existing `pytest.raises(ValueError)`
-    assertions in legacy tests keep working. This is intentional —
-    token-decoding failures are semantically a ValueError, not a
-    domain exception that needs HTTP-mapping at the auth-service
-    boundary (the HTTP layer maps to 401 explicitly).
-    """
+ Inherits from ValueError so existing `pytest.raises(ValueError)`
+ assertions in legacy tests keep working. This is intentional —
+ token-decoding failures are semantically a ValueError, not a
+ domain exception that needs HTTP-mapping at the auth-service
+ boundary (the HTTP layer maps to 401 explicitly).
+ """
 
-    http_status = 401
-
+ http_status = 401
 
 # ═══════════════════════════════════════════════════════════════
 # Password utilities
 # ═══════════════════════════════════════════════════════════════
 
-
 def hash_password(plain: str) -> str:
-    """Hash a password with bcrypt (cost factor 12)."""
-    if len(plain) < MIN_PASSWORD_LENGTH:
-        raise PasswordPolicyError(
-            f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
-        )
-    if len(plain) > MAX_PASSWORD_LENGTH:
-        raise PasswordPolicyError(
-            f"Password too long (max {MAX_PASSWORD_LENGTH} characters)"
-        )
-    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(rounds=12)).decode()
-
+ """Hash a password with bcrypt (cost factor 12)."""
+ if len(plain) < MIN_PASSWORD_LENGTH:
+ raise PasswordPolicyError(
+ f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
+ )
+ if len(plain) > MAX_PASSWORD_LENGTH:
+ raise PasswordPolicyError(
+ f"Password too long (max {MAX_PASSWORD_LENGTH} characters)"
+ )
+ return bcrypt.hashpw(plain.encode, bcrypt.gensalt(rounds=12)).decode
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Verify a password against a bcrypt hash.
+ """Verify a password against a bcrypt hash.
 
-    The legacy plaintext fallback has been removed — only bcrypt is accepted.
-    """
-    try:
-        return bcrypt.checkpw(plain.encode(), hashed.encode())
-    except (ValueError, TypeError):
-        return False
-
+ The legacy plaintext fallback has been removed — only bcrypt is accepted.
+ """
+ try:
+ return bcrypt.checkpw(plain.encode, hashed.encode)
+ except (ValueError, TypeError):
+ return False
 
 def _validate_password_policy(password: str, username: str = "") -> None:
-    """Enforce password policy. Raises PasswordPolicyError if violated."""
-    if len(password) < MIN_PASSWORD_LENGTH:
-        raise PasswordPolicyError(
-            f"密码至少需要 {MIN_PASSWORD_LENGTH} 个字符"
-        )
-    if len(password) > MAX_PASSWORD_LENGTH:
-        raise PasswordPolicyError(
-            f"密码不能超过 {MAX_PASSWORD_LENGTH} 个字符"
-        )
+ """Enforce password policy. Raises PasswordPolicyError if violated."""
+ if len(password) < MIN_PASSWORD_LENGTH:
+ raise PasswordPolicyError(
+ f"密码至少需要 {MIN_PASSWORD_LENGTH} 个字符"
+ )
+ if len(password) > MAX_PASSWORD_LENGTH:
+ raise PasswordPolicyError(
+ f"密码不能超过 {MAX_PASSWORD_LENGTH} 个字符"
+ )
  # ── ponytail: reject trivial patterns ──
-    if password.isdigit():
-        raise PasswordPolicyError("密码不能是纯数字")
-    if password.isalpha():
-        raise PasswordPolicyError("密码不能是纯字母")
+ if password.isdigit:
+ raise PasswordPolicyError("密码不能是纯数字")
+ if password.isalpha:
+ raise PasswordPolicyError("密码不能是纯字母")
  # ── reject password == username ──
-    if username and password.lower() == username.lower():
-        raise PasswordPolicyError("密码不能与用户名相同")
+ if username and password.lower == username.lower:
+ raise PasswordPolicyError("密码不能与用户名相同")
  # ── common password blocklist (ponytail: inline set, no file dep) ──
-    _blocklist = frozenset({
-        "password", "password1", "admin123", "admin1234",
-        "12345678", "123456789", "qwerty123", "abc12345", "11111111",
-        "changeme", "welcome1", "iloveyou", "sunshine", "monkey123",
-    })
-    if password.lower() in _blocklist:
-        raise PasswordPolicyError("该密码过于常见，请使用更安全的密码")
-
+ _blocklist = frozenset({
+ "password", "password1", "admin123", "admin1234",
+ "12345678", "123456789", "qwerty123", "abc12345", "11111111",
+ "changeme", "welcome1", "iloveyou", "sunshine", "monkey123",
+ })
+ if password.lower in _blocklist:
+ raise PasswordPolicyError("该密码过于常见，请使用更安全的密码")
 
 # ═══════════════════════════════════════════════════════════════
 # JWT utilities
 # ═══════════════════════════════════════════════════════════════
 
-
 def _build_jwt_payload(
-    user: User,
-    exp_seconds: int,
-    token_type: str = "access",
+ user: User,
+ exp_seconds: int,
+ token_type: str = "access",
 ) -> dict[str, Any]:
-    """Build a JWT payload dict for the given user."""
-    now = time.time()
-    return {
-        "sub": user.username,
-        "role": user.role,
-        "username": user.username,
-        "uid": str(user.id),  # user id — distinct from username
-        "type": token_type,
-        "exp": now + exp_seconds,
-        "iat": now,
-        "nbf": now,
-        "iss": settings.jwt_issuer,
-        "aud": settings.jwt_audience,
-        "jti": str(uuid.uuid4()),
-    }
+ """Build a JWT payload dict for the given user."""
+ now = time.time
+ return {
+ "sub": user.username,
+ "role": user.role,
+ "username": user.username,
+ "uid": str(user.id), # user id — distinct from username
+ "type": token_type,
+ "exp": now + exp_seconds,
+ "iat": now,
+ "nbf": now,
+ "iss": settings.jwt_issuer,
+ "aud": settings.jwt_audience,
+ "jti": str(uuid.uuid4),
+ }
 
+def _resolve_jwt_keyring -> dict[str, str]:
+ """Resolve effective kid -> secret mapping for verification.
 
-def _resolve_jwt_keyring() -> dict[str, str]:
-    """Resolve effective kid -> secret mapping for verification.
-
-    Defaults to {"<jwt_kid>": <secret_key>} when no explicit keyring is
-    configured. Operators can override via JWT_SECRET_KEYRING env (JSON dict)
-    during rotation to accept tokens signed by both old and new secrets.
-    """
-    explicit = settings.jwt_secret_keyring
-    if explicit:
-        return dict(explicit)
-    return {settings.jwt_kid: settings.secret_key}
-
+ Defaults to {"<jwt_kid>": <secret_key>} when no explicit keyring is
+ configured. Operators can override via JWT_SECRET_KEYRING env (JSON dict)
+ during rotation to accept tokens signed by both old and new secrets.
+ """
+ explicit = settings.jwt_secret_keyring
+ if explicit:
+ return dict(explicit)
+ return {settings.jwt_kid: settings.secret_key}
 
 def _secret_for_kid(kid: str | None) -> str:
-    """Pick the secret for a given kid; raise if kid is unknown."""
-    keyring = _resolve_jwt_keyring()
-    resolved_kid = kid or settings.jwt_kid
-    if resolved_kid not in keyring:
-        raise InvalidTokenError(f"Unknown JWT kid: {resolved_kid!r}")
-    return keyring[resolved_kid]
-
+ """Pick the secret for a given kid; raise if kid is unknown."""
+ keyring = _resolve_jwt_keyring
+ resolved_kid = kid or settings.jwt_kid
+ if resolved_kid not in keyring:
+ raise InvalidTokenError(f"Unknown JWT kid: {resolved_kid!r}")
+ return keyring[resolved_kid]
 
 def create_access_token(user: User) -> str:
-    """Sign an access token (short-lived, 15 min).
+ """Sign an access token (short-lived, 15 min).
 
-    The active `settings.jwt_kid` is embedded as the JOSE `kid` header so
-    verifiers can pick the matching secret during rotation (Phase 20 D-02).
-    """
-    payload = _build_jwt_payload(
-        user,
-        exp_seconds=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        token_type="access",
-    )
-    return jwt.encode(
-        payload,
-        _secret_for_kid(settings.jwt_kid),
-        algorithm="HS256",
-        headers={"kid": settings.jwt_kid},
-    )
-
+ The active `settings.jwt_kid` is embedded as the JOSE `kid` header so
+ verifiers can pick the matching secret during rotation .
+ """
+ payload = _build_jwt_payload(
+ user,
+ exp_seconds=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+ token_type="access",
+ )
+ return jwt.encode(
+ payload,
+ _secret_for_kid(settings.jwt_kid),
+ algorithm="HS256",
+ headers={"kid": settings.jwt_kid},
+ )
 
 def create_refresh_token(user: User) -> str:
-    """Sign a refresh token (long-lived, 7 days)."""
-    payload = _build_jwt_payload(
-        user,
-        exp_seconds=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-        token_type="refresh",
-    )
-    return jwt.encode(
-        payload,
-        _secret_for_kid(settings.jwt_kid),
-        algorithm="HS256",
-        headers={"kid": settings.jwt_kid},
-    )
-
+ """Sign a refresh token (long-lived, 7 days)."""
+ payload = _build_jwt_payload(
+ user,
+ exp_seconds=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+ token_type="refresh",
+ )
+ return jwt.encode(
+ payload,
+ _secret_for_kid(settings.jwt_kid),
+ algorithm="HS256",
+ headers={"kid": settings.jwt_kid},
+ )
 
 def decode_token(token: str) -> dict[str, Any]:
-    """Decode and validate a JWT token.
+ """Decode and validate a JWT token.
 
-    Selects the verification secret from the JWT_SECRET_KEYRING via the JOSE
-    `kid` header (Phase 20 D-02). Unknown kid → InvalidTokenError. Backward
-    compatible: tokens without a kid header fall back to settings.jwt_kid.
+ Selects the verification secret from the JWT_SECRET_KEYRING via the JOSE
+ `kid` header . Unknown kid → InvalidTokenError. Backward
+ compatible: tokens without a kid header fall back to settings.jwt_kid.
 
-    Raises InvalidTokenError on invalid/expired/wrong-audience/wrong-issuer.
-    Enforces aud/iss claims (SEC-03).
-    """
-    from datetime import timedelta as _td
+ Raises InvalidTokenError on invalid/expired/wrong-audience/wrong-issuer.
+ Enforces aud/iss claims (SEC-03).
+ """
+ from datetime import timedelta as _td
 
-    if token.count(".") != 2:
-        raise InvalidTokenError("Invalid JWT format")
+ if token.count(".") != 2:
+ raise InvalidTokenError("Invalid JWT format")
 
  # Extract kid header (unverified) for keyring lookup. PyJWT returns the
- # unverified header via jwt.get_unverified_header().
-    try:
-        header = jwt.get_unverified_header(token)
-    except jwt.InvalidTokenError as e:
-        raise InvalidTokenError(f"Invalid JWT header: {e}") from e
-    kid = header.get("kid") if isinstance(header, dict) else None
-    secret = _secret_for_kid(kid)
+ # unverified header via jwt.get_unverified_header.
+ try:
+ header = jwt.get_unverified_header(token)
+ except jwt.InvalidTokenError as e:
+ raise InvalidTokenError(f"Invalid JWT header: {e}") from e
+ kid = header.get("kid") if isinstance(header, dict) else None
+ secret = _secret_for_kid(kid)
 
-    try:
-        payload = jwt.decode(
-            token,
-            secret,
-            algorithms=["HS256"],
-            leeway=_td(seconds=int(settings.jwt_leeway_seconds)),
-            audience=settings.jwt_audience,
-            issuer=settings.jwt_issuer,
-            options={
-                "require": ["iat", "sub", "exp"],
-                "verify_aud": bool(settings.jwt_audience),
-            },
-        )
-    except jwt.ExpiredSignatureError as e:
-        raise InvalidTokenError("JWT expired") from e
-    except jwt.InvalidSignatureError as e:
-        raise InvalidTokenError("Invalid JWT signature") from e
-    except jwt.InvalidTokenError as e:
-        raise InvalidTokenError(f"Invalid JWT: {e}") from e
-    return payload
-
+ try:
+ payload = jwt.decode(
+ token,
+ secret,
+ algorithms=["HS256"],
+ leeway=_td(seconds=int(settings.jwt_leeway_seconds)),
+ audience=settings.jwt_audience,
+ issuer=settings.jwt_issuer,
+ options={
+ "require": ["iat", "sub", "exp"],
+ "verify_aud": bool(settings.jwt_audience),
+ },
+ )
+ except jwt.ExpiredSignatureError as e:
+ raise InvalidTokenError("JWT expired") from e
+ except jwt.InvalidSignatureError as e:
+ raise InvalidTokenError("Invalid JWT signature") from e
+ except jwt.InvalidTokenError as e:
+ raise InvalidTokenError(f"Invalid JWT: {e}") from e
+ return payload
 
 # ═══════════════════════════════════════════════════════════════
 # Authentication (with lockout, audit, tracking)
 # ═══════════════════════════════════════════════════════════════
 
-
 async def authenticate(
-    username: str,
-    password: str,
-    session: AsyncSession,
-    client_ip: str | None = None,
+ username: str,
+ password: str,
+ session: AsyncSession,
+ client_ip: str | None = None,
 ) -> User:
-    """Authenticate a user by username + password.
+ """Authenticate a user by username + password.
 
-    Behaviour:
-    - Increments failed_login_attempts on each failure; locks the account
-      for LOCKOUT_DURATION_MINUTES after MAX_FAILED_LOGIN_ATTEMPTS bad tries
-      (AccountLockedError)
-    - Resets the counter and updates last_login_at / last_login_ip on success
-    - Writes audit events for AUTH_FAILURE / LOGIN_LOCKED / LOGIN_SUCCESS
-    - Raises AccountDisabledError if the user is soft-deleted
-    - Raises UserNotFoundError / InvalidCredentialsError otherwise
+ Behaviour:
+ - Increments failed_login_attempts on each failure; locks the account
+ for LOCKOUT_DURATION_MINUTES after MAX_FAILED_LOGIN_ATTEMPTS bad tries
+ (AccountLockedError)
+ - Resets the counter and updates last_login_at / last_login_ip on success
+ - Writes audit events for AUTH_FAILURE / LOGIN_LOCKED / LOGIN_SUCCESS
+ - Raises AccountDisabledError if the user is soft-deleted
+ - Raises UserNotFoundError / InvalidCredentialsError otherwise
 
-    Returns the authenticated User (caller may inspect must_change_password).
-    """
-    result = await session.execute(select(User).where(User.username == username))
-    user = result.scalar_one_or_none()
+ Returns the authenticated User (caller may inspect must_change_password).
+ """
+ result = await session.execute(select(User).where(User.username == username))
+ user = result.scalar_one_or_none
 
-    if user is None:
+ if user is None:
  # Avoid leaking whether the username exists
-        audit_log(AuditEntry(
-            event=AuditEvent.AUTH_FAILURE,
-            actor=username,
-            action="login",
-            detail=f"Unknown user (ip={client_ip or ''})",
-            ip=client_ip or "",
-        ))
-        raise InvalidCredentialsError("Invalid username or password")
+ audit_log(AuditEntry(
+ event=AuditEvent.AUTH_FAILURE,
+ actor=username,
+ action="login",
+ detail=f"Unknown user (ip={client_ip or ''})",
+ ip=client_ip or "",
+ ))
+ raise InvalidCredentialsError("Invalid username or password")
 
-    if user.is_disabled:
-        audit_log(AuditEntry(
-            event=AuditEvent.AUTHZ_DENIED,
-            actor=username,
-            action="login",
-            detail=f"Account disabled (reason={user.disabled_reason or 'unspecified'})",
-            ip=client_ip or "",
-        ))
-        raise AccountDisabledError(
-            f"Account has been disabled: {user.disabled_reason or 'contact admin'}"
-        )
+ if user.is_disabled:
+ audit_log(AuditEntry(
+ event=AuditEvent.AUTHZ_DENIED,
+ actor=username,
+ action="login",
+ detail=f"Account disabled (reason={user.disabled_reason or 'unspecified'})",
+ ip=client_ip or "",
+ ))
+ raise AccountDisabledError(
+ f"Account has been disabled: {user.disabled_reason or 'contact admin'}"
+ )
 
-    if user.is_locked:
+ if user.is_locked:
  # mypy: is_locked property guarantees locked_until is set + future
-        locked_until = user.locked_until
-        assert locked_until is not None  # for type narrowing; guaranteed by is_locked
-        audit_log(AuditEntry(
-            event=AuditEvent.LOGIN_LOCKED,
-            actor=username,
-            action="login",
-            detail=f"Locked until {locked_until.isoformat()} (ip={client_ip or ''})",
-            ip=client_ip or "",
-        ))
-        raise AccountLockedError(locked_until=locked_until)
+ locked_until = user.locked_until
+ assert locked_until is not None # for type narrowing; guaranteed by is_locked
+ audit_log(AuditEntry(
+ event=AuditEvent.LOGIN_LOCKED,
+ actor=username,
+ action="login",
+ detail=f"Locked until {locked_until.isoformat} (ip={client_ip or ''})",
+ ip=client_ip or "",
+ ))
+ raise AccountLockedError(locked_until=locked_until)
 
-    if not user.is_active:
-        audit_log(AuditEntry(
-            event=AuditEvent.AUTHZ_DENIED,
-            actor=username,
-            action="login",
-            detail="Account inactive",
-            ip=client_ip or "",
-        ))
-        raise AccountDisabledError("Account is inactive")
+ if not user.is_active:
+ audit_log(AuditEntry(
+ event=AuditEvent.AUTHZ_DENIED,
+ actor=username,
+ action="login",
+ detail="Account inactive",
+ ip=client_ip or "",
+ ))
+ raise AccountDisabledError("Account is inactive")
 
  # ── Password check ──
-    if not verify_password(password, user.password_hash):
-        user.failed_login_attempts += 1
-        if user.failed_login_attempts >= MAX_FAILED_LOGIN_ATTEMPTS:
-            user.locked_until = datetime.now(UTC) + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
-            await session.commit()
-            audit_log(AuditEntry(
-                event=AuditEvent.LOGIN_LOCKED,
-                actor=username,
-                action="login",
-                detail=(
-                    f"Account locked after {user.failed_login_attempts} failed attempts "
-                    f"(ip={client_ip or ''})"
-                ),
-                ip=client_ip or "",
-            ))
-            raise AccountLockedError(locked_until=user.locked_until)
+ if not verify_password(password, user.password_hash):
+ user.failed_login_attempts += 1
+ if user.failed_login_attempts >= MAX_FAILED_LOGIN_ATTEMPTS:
+ user.locked_until = datetime.now(UTC) + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
+ await session.commit
+ audit_log(AuditEntry(
+ event=AuditEvent.LOGIN_LOCKED,
+ actor=username,
+ action="login",
+ detail=(
+ f"Account locked after {user.failed_login_attempts} failed attempts "
+ f"(ip={client_ip or ''})"
+ ),
+ ip=client_ip or "",
+ ))
+ raise AccountLockedError(locked_until=user.locked_until)
 
-        await session.commit()
-        audit_log(AuditEntry(
-            event=AuditEvent.AUTH_FAILURE,
-            actor=username,
-            action="login",
-            detail=(
-                f"Bad password (attempt {user.failed_login_attempts}/"
-                f"{MAX_FAILED_LOGIN_ATTEMPTS}, ip={client_ip or ''})"
-            ),
-            ip=client_ip or "",
-        ))
-        raise InvalidCredentialsError("Invalid username or password")
+ await session.commit
+ audit_log(AuditEntry(
+ event=AuditEvent.AUTH_FAILURE,
+ actor=username,
+ action="login",
+ detail=(
+ f"Bad password (attempt {user.failed_login_attempts}/"
+ f"{MAX_FAILED_LOGIN_ATTEMPTS}, ip={client_ip or ''})"
+ ),
+ ip=client_ip or "",
+ ))
+ raise InvalidCredentialsError("Invalid username or password")
 
  # ── Success ──
-    await _record_successful_login(user, session, client_ip)
-    audit_log(AuditEntry(
-        event=AuditEvent.LOGIN_SUCCESS,
-        actor=username,
-        action="login",
-        detail=f"User logged in (ip={client_ip or ''})",
-        ip=client_ip or "",
-    ))
-    return user
-
+ await _record_successful_login(user, session, client_ip)
+ audit_log(AuditEntry(
+ event=AuditEvent.LOGIN_SUCCESS,
+ actor=username,
+ action="login",
+ detail=f"User logged in (ip={client_ip or ''})",
+ ip=client_ip or "",
+ ))
+ return user
 
 async def _record_successful_login(
-    user: User,
-    session: AsyncSession,
-    client_ip: str | None,
+ user: User,
+ session: AsyncSession,
+ client_ip: str | None,
 ) -> None:
-    """Reset failure counters and write audit metadata on successful login."""
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    user.last_login_at = datetime.now(UTC)
-    if client_ip:
-        user.last_login_ip = client_ip[:45]  # IPv6 max length
-    await session.commit()
-
+ """Reset failure counters and write audit metadata on successful login."""
+ user.failed_login_attempts = 0
+ user.locked_until = None
+ user.last_login_at = datetime.now(UTC)
+ if client_ip:
+ user.last_login_ip = client_ip[:45] # IPv6 max length
+ await session.commit
 
 # ═══════════════════════════════════════════════════════════════
 # Token issuance (access + refresh with Redis revocation)
 # ═══════════════════════════════════════════════════════════════
 
-
 async def create_tokens(
-    user: User,
-    redis: Redis | None = None,
+ user: User,
+ redis: Redis | None = None,
 ) -> dict[str, Any]:
-    """Create access + refresh token pair. Store refresh jti in Redis.
+ """Create access + refresh token pair. Store refresh jti in Redis.
 
-    Phase 20 D-03: Redis is no longer a hard dependency. If ``redis`` is None
-    or the Redis SET fails, the access + refresh tokens are still issued;
-    the revocation-list write is enqueued to ``_revocation_queue`` for the
-    background drain task to retry once Redis recovers.
+ Redis is no longer a hard dependency. If ``redis`` is None
+ or the Redis SET fails, the access + refresh tokens are still issued;
+ the revocation-list write is enqueued to ``_revocation_queue`` for the
+ background drain task to retry once Redis recovers.
 
-    Returns: {access_token, refresh_token, expires_in, user: {username, role}}
-    """
-    access_token = create_access_token(user)
-    refresh_token = create_refresh_token(user)
+ Returns: {access_token, refresh_token, expires_in, user: {username, role}}
+ """
+ access_token = create_access_token(user)
+ refresh_token = create_refresh_token(user)
 
  # Decode refresh to get jti for Redis storage
-    refresh_payload = jwt.decode(
-        refresh_token,
-        settings.secret_key,
-        algorithms=["HS256"],
-        audience=settings.jwt_audience,
-        issuer=settings.jwt_issuer,
-        options={"verify_exp": False},
-    )
-    jti = refresh_payload["jti"]
+ refresh_payload = jwt.decode(
+ refresh_token,
+ settings.secret_key,
+ algorithms=["HS256"],
+ audience=settings.jwt_audience,
+ issuer=settings.jwt_issuer,
+ options={"verify_exp": False},
+ )
+ jti = refresh_payload["jti"]
 
-    ttl_seconds = REFRESH_TOKEN_EXPIRE_DAYS * 86400
+ ttl_seconds = REFRESH_TOKEN_EXPIRE_DAYS * 86400
 
-    if redis is not None:
-        try:
-            await redis.set(f"refresh:{jti}", str(user.id), ex=ttl_seconds)
-        except Exception as exc:  # pragma: no cover - exercised under Redis outage
+ if redis is not None:
+ try:
+ await redis.set(f"refresh:{jti}", str(user.id), ex=ttl_seconds)
+ except Exception as exc: # pragma: no cover - exercised under Redis outage
  # Downgrade: enqueue and continue. Access token is still valid;
  # revocation is best-effort until the drain task succeeds.
-            _enqueue_revocation(jti, str(user.id), ttl_seconds, exc)
-    else:
+ _enqueue_revocation(jti, str(user.id), ttl_seconds, exc)
+ else:
  # No Redis client available (e.g. APP_ENV=test with no Redis fixture).
  # Tokens are issued; revocation is skipped — refresh tokens become
  # effectively non-revocable until Redis comes back.
-        _enqueue_revocation(jti, str(user.id), ttl_seconds, reason="no_redis_client")
+ _enqueue_revocation(jti, str(user.id), ttl_seconds, reason="no_redis_client")
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "user": {
-            "id": str(user.id),
-            "username": user.username,
-            "role": user.role,
-            "must_change_password": user.must_change_password,
-        },
-    }
-
+ return {
+ "access_token": access_token,
+ "refresh_token": refresh_token,
+ "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+ "user": {
+ "id": str(user.id),
+ "username": user.username,
+ "role": user.role,
+ "must_change_password": user.must_change_password,
+ },
+ }
 
 # ── : Revocation queue for Redis-down degradation ──────────
 # When Redis is unavailable, token issuance must still succeed. The
 # refresh-token revocation entry is enqueued here; a background task
 # (``_drain_revocation_queue``) flushes the queue once Redis recovers.
 
-_RevocationItem = tuple[str, str, int, str | None]  # (jti, user_id, ttl, last_error)
-
+_RevocationItem = tuple[str, str, int, str | None] # (jti, user_id, ttl, last_error)
 
 class _RevocationQueue:
-    """Bounded in-memory queue for deferred Redis revocation writes.
+ """Bounded in-memory queue for deferred Redis revocation writes.
 
-    Bounded (10k items) to prevent unbounded growth under a sustained Redis
-    outage. When full, oldest items are dropped and a warning is logged.
-    """
+ Bounded (10k items) to prevent unbounded growth under a sustained Redis
+ outage. When full, oldest items are dropped and a warning is logged.
+ """
 
-    def __init__(self, maxsize: int = 10000) -> None:
-        self._items: collections.deque[_RevocationItem] = collections.deque(maxlen=maxsize)
-        self._lock = asyncio.Lock()
+ def __init__(self, maxsize: int = 10000) -> None:
+ self._items: collections.deque[_RevocationItem] = collections.deque(maxlen=maxsize)
+ self._lock = asyncio.Lock
 
-    async def put(self, item: _RevocationItem) -> bool:
-        """Append an item; returns True if accepted, False if dropped (queue full)."""
-        async with self._lock:
-            cap = self._items.maxlen or 0
-            if cap and len(self._items) >= cap:
+ async def put(self, item: _RevocationItem) -> bool:
+ """Append an item; returns True if accepted, False if dropped (queue full)."""
+ async with self._lock:
+ cap = self._items.maxlen or 0
+ if cap and len(self._items) >= cap:
  # Drop oldest silently (deque(maxlen=...) auto-drops but we
  # want to log once per drop).
-                from loguru import logger as _logger
-                _logger.warning(
-                    "Revocation queue full ({} items); dropping oldest",
-                    cap,
-                )
-            self._items.append(item)
-            return True
+ from loguru import logger as _logger
+ _logger.warning(
+ "Revocation queue full ({} items); dropping oldest",
+ cap,
+ )
+ self._items.append(item)
+ return True
 
-    async def drain_to_redis(self, redis: Redis) -> int:
-        """Flush queued items to Redis. Returns the number successfully written."""
-        from loguru import logger as _logger
-        flushed = 0
-        async with self._lock:
-            pending = list(self._items)
-            self._items.clear()
-        for jti, user_id, ttl, _err in pending:
-            try:
-                await redis.set(f"refresh:{jti}", user_id, ex=ttl)
-                flushed += 1
-            except Exception as exc:
+ async def drain_to_redis(self, redis: Redis) -> int:
+ """Flush queued items to Redis. Returns the number successfully written."""
+ from loguru import logger as _logger
+ flushed = 0
+ async with self._lock:
+ pending = list(self._items)
+ self._items.clear
+ for jti, user_id, ttl, _err in pending:
+ try:
+ await redis.set(f"refresh:{jti}", user_id, ex=ttl)
+ flushed += 1
+ except Exception as exc:
  # Re-enqueue items that still fail; preserve order so we don't
  # lose earlier issuances.
-                async with self._lock:
-                    self._items.append((jti, user_id, ttl, str(exc)))
-                _logger.warning("Revocation drain failed for jti={}: {}", jti[:8], exc)
+ async with self._lock:
+ self._items.append((jti, user_id, ttl, str(exc)))
+ _logger.warning("Revocation drain failed for jti={}: {}", jti[:8], exc)
  # Stop retrying on this drain cycle to avoid a tight loop;
  # next cycle will try again.
-                break
-        if flushed:
-            _logger.info("Revocation drain: flushed {} queued items to Redis", flushed)
-        return flushed
+ break
+ if flushed:
+ _logger.info("Revocation drain: flushed {} queued items to Redis", flushed)
+ return flushed
 
-    def qsize(self) -> int:
-        return len(self._items)
+ def qsize(self) -> int:
+ return len(self._items)
 
-
-_revocation_queue = _RevocationQueue()
-
+_revocation_queue = _RevocationQueue
 
 def _enqueue_revocation(
-    jti: str,
-    user_id: str,
-    ttl_seconds: int,
-    reason: Exception | str | None = None,
+ jti: str,
+ user_id: str,
+ ttl_seconds: int,
+ reason: Exception | str | None = None,
 ) -> None:
-    """Schedule a deferred Redis write. Fire-and-forget (asyncio task)."""
-    err_str = str(reason) if reason else None
-    item = (jti, user_id, ttl_seconds, err_str)
+ """Schedule a deferred Redis write. Fire-and-forget (asyncio task)."""
+ err_str = str(reason) if reason else None
+ item = (jti, user_id, ttl_seconds, err_str)
 
-    async def _put() -> None:
-        await _revocation_queue.put(item)
+ async def _put -> None:
+ await _revocation_queue.put(item)
 
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(_put())
-    except RuntimeError:
+ try:
+ loop = asyncio.get_running_loop
+ loop.create_task(_put)
+ except RuntimeError:
  # No running loop (sync context) — best-effort sync put via asyncio.run
  # is unsafe here; just log and skip. In practice this only happens in
  # unit tests that call create_tokens outside an event loop.
-        from loguru import logger as _logger
-        _logger.warning("No asyncio loop; revocation item dropped: jti={}", jti[:8])
-
+ from loguru import logger as _logger
+ _logger.warning("No asyncio loop; revocation item dropped: jti={}", jti[:8])
 
 async def refresh_access_token(
-    refresh_token: str,
-    redis: Redis,
-    session: AsyncSession,
+ refresh_token: str,
+ redis: Redis,
+ session: AsyncSession,
 ) -> dict[str, Any] | None:
-    """Use a refresh token to get a new access token.
+ """Use a refresh token to get a new access token.
 
-    Validates: refresh not expired + jti exists in Redis + user still active.
-    Does NOT rotate the refresh token (simpler; jti revocation list is the
-    primary revocation mechanism).
-    """
-    try:
-        payload = decode_token(refresh_token)
-    except InvalidTokenError:
-        audit_log(AuditEntry(
-            event=AuditEvent.TOKEN_INVALID,
-            actor="unknown",
-            action="refresh_token",
-            detail="Refresh token decode failed",
-            ip="",
-        ))
-        return None
+ Validates: refresh not expired + jti exists in Redis + user still active.
+ Does NOT rotate the refresh token (simpler; jti revocation list is the
+ primary revocation mechanism).
+ """
+ try:
+ payload = decode_token(refresh_token)
+ except InvalidTokenError:
+ audit_log(AuditEntry(
+ event=AuditEvent.TOKEN_INVALID,
+ actor="unknown",
+ action="refresh_token",
+ detail="Refresh token decode failed",
+ ip="",
+ ))
+ return None
 
-    if payload.get("type") != "refresh":
-        audit_log(AuditEntry(
-            event=AuditEvent.TOKEN_INVALID,
-            actor=payload.get("sub", "unknown"),
-            action="refresh_token",
-            detail="Token is not a refresh token",
-            ip="",
-        ))
-        return None
+ if payload.get("type") != "refresh":
+ audit_log(AuditEntry(
+ event=AuditEvent.TOKEN_INVALID,
+ actor=payload.get("sub", "unknown"),
+ action="refresh_token",
+ detail="Token is not a refresh token",
+ ip="",
+ ))
+ return None
 
-    jti = payload.get("jti")
-    if not jti:
-        audit_log(AuditEntry(
-            event=AuditEvent.TOKEN_INVALID,
-            actor=payload.get("sub", "unknown"),
-            action="refresh_token",
-            detail="Refresh token missing jti",
-            ip="",
-        ))
-        return None
+ jti = payload.get("jti")
+ if not jti:
+ audit_log(AuditEntry(
+ event=AuditEvent.TOKEN_INVALID,
+ actor=payload.get("sub", "unknown"),
+ action="refresh_token",
+ detail="Refresh token missing jti",
+ ip="",
+ ))
+ return None
 
  # Check Redis for revocation
-    stored_user_id = await redis.get(f"refresh:{jti}")
-    if stored_user_id is None:
-        audit_log(AuditEntry(
-            event=AuditEvent.TOKEN_INVALID,
-            actor=payload.get("sub", "unknown"),
-            action="refresh_token",
-            detail="Refresh token revoked or expired",
-            ip="",
-        ))
-        return None
+ stored_user_id = await redis.get(f"refresh:{jti}")
+ if stored_user_id is None:
+ audit_log(AuditEntry(
+ event=AuditEvent.TOKEN_INVALID,
+ actor=payload.get("sub", "unknown"),
+ action="refresh_token",
+ detail="Refresh token revoked or expired",
+ ip="",
+ ))
+ return None
 
  # Look up user to ensure still active
-    username = payload.get("sub")
-    if not username:
-        return None
-    user = await get_user_by_username(session, username)
-    if user is None:
-        audit_log(AuditEntry(
-            event=AuditEvent.AUTHZ_DENIED,
-            actor=username,
-            action="refresh_token",
-            detail="User not found during token refresh",
-            ip="",
-        ))
-        return None
-    if user.is_login_blocked:
-        audit_log(AuditEntry(
-            event=AuditEvent.AUTHZ_DENIED,
-            actor=username,
-            action="refresh_token",
-            detail="User is blocked during token refresh",
-            ip="",
-        ))
-        return None
+ username = payload.get("sub")
+ if not username:
+ return None
+ user = await get_user_by_username(session, username)
+ if user is None:
+ audit_log(AuditEntry(
+ event=AuditEvent.AUTHZ_DENIED,
+ actor=username,
+ action="refresh_token",
+ detail="User not found during token refresh",
+ ip="",
+ ))
+ return None
+ if user.is_login_blocked:
+ audit_log(AuditEntry(
+ event=AuditEvent.AUTHZ_DENIED,
+ actor=username,
+ action="refresh_token",
+ detail="User is blocked during token refresh",
+ ip="",
+ ))
+ return None
 
  # Issue new access token
-    new_access = create_access_token(user)
-    audit_log(AuditEntry(
-        event=AuditEvent.SENSITIVE_READ,
-        actor=username,
-        action="refresh_token",
-        detail="Access token refreshed",
-        ip="",
-    ))
-    return {
-        "access_token": new_access,
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    }
-
+ new_access = create_access_token(user)
+ audit_log(AuditEntry(
+ event=AuditEvent.SENSITIVE_READ,
+ actor=username,
+ action="refresh_token",
+ detail="Access token refreshed",
+ ip="",
+ ))
+ return {
+ "access_token": new_access,
+ "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+ }
 
 async def revoke_refresh_token(refresh_token: str, redis: Redis) -> bool:
-    """Revoke a refresh token by deleting its jti from Redis.
+ """Revoke a refresh token by deleting its jti from Redis.
 
-    Returns True if the jti was found and deleted, False otherwise.
-    """
-    actor = "unknown"
-    try:
-        payload = jwt.decode(
-            refresh_token,
-            settings.secret_key,
-            algorithms=["HS256"],
-            audience=settings.jwt_audience,
-            issuer=settings.jwt_issuer,
-            options={"verify_exp": False},
-        )
-        actor = payload.get("sub", "unknown")
-    except jwt.InvalidTokenError:
-        audit_log(AuditEntry(
-            event=AuditEvent.TOKEN_INVALID,
-            actor=actor,
-            action="revoke_refresh_token",
-            detail="Invalid token for revocation",
-            ip="",
-        ))
-        return False
+ Returns True if the jti was found and deleted, False otherwise.
+ """
+ actor = "unknown"
+ try:
+ payload = jwt.decode(
+ refresh_token,
+ settings.secret_key,
+ algorithms=["HS256"],
+ audience=settings.jwt_audience,
+ issuer=settings.jwt_issuer,
+ options={"verify_exp": False},
+ )
+ actor = payload.get("sub", "unknown")
+ except jwt.InvalidTokenError:
+ audit_log(AuditEntry(
+ event=AuditEvent.TOKEN_INVALID,
+ actor=actor,
+ action="revoke_refresh_token",
+ detail="Invalid token for revocation",
+ ip="",
+ ))
+ return False
 
-    jti = payload.get("jti")
-    if not jti:
-        return False
+ jti = payload.get("jti")
+ if not jti:
+ return False
 
-    deleted = await redis.delete(f"refresh:{jti}")
-    if deleted > 0:
-        audit_log(AuditEntry(
-            event=AuditEvent.SENSITIVE_WRITE,
-            actor=actor,
-            action="revoke_refresh_token",
-            detail="Refresh token revoked",
-            ip="",
-        ))
-    return deleted > 0
-
+ deleted = await redis.delete(f"refresh:{jti}")
+ if deleted > 0:
+ audit_log(AuditEntry(
+ event=AuditEvent.SENSITIVE_WRITE,
+ actor=actor,
+ action="revoke_refresh_token",
+ detail="Refresh token revoked",
+ ip="",
+ ))
+ return deleted > 0
 
 # ═══════════════════════════════════════════════════════════════
 # Password management
 # ═══════════════════════════════════════════════════════════════
 
-
 async def change_password(
-    user: User,
-    old_password: str,
-    new_password: str,
-    session: AsyncSession,
-    actor: str | None = None,
+ user: User,
+ old_password: str,
+ new_password: str,
+ session: AsyncSession,
+ actor: str | None = None,
 ) -> bool:
-    """Change a user's password (self-service).
+ """Change a user's password (self-service).
 
-    Returns True on success, False if old password wrong.
-    Raises PasswordPolicyError if new password fails policy.
-    """
-    if not verify_password(old_password, user.password_hash):
-        return False
-    if verify_password(new_password, user.password_hash):
-        raise PasswordPolicyError("新密码不能与原密码相同")
-    _validate_password_policy(new_password, username=user.username)
+ Returns True on success, False if old password wrong.
+ Raises PasswordPolicyError if new password fails policy.
+ """
+ if not verify_password(old_password, user.password_hash):
+ return False
+ if verify_password(new_password, user.password_hash):
+ raise PasswordPolicyError("新密码不能与原密码相同")
+ _validate_password_policy(new_password, username=user.username)
 
-    user.password_hash = hash_password(new_password)
-    user.password_changed_at = datetime.now(UTC)
-    user.must_change_password = False
-    await session.commit()
+ user.password_hash = hash_password(new_password)
+ user.password_changed_at = datetime.now(UTC)
+ user.must_change_password = False
+ await session.commit
 
-    audit_log(AuditEntry(
-        event=AuditEvent.PASSWORD_CHANGED,
-        actor=actor or user.username,
-        action="change_password",
-        detail=f"User '{user.username}' changed own password",
-        ip="",
-    ))
-    return True
-
+ audit_log(AuditEntry(
+ event=AuditEvent.PASSWORD_CHANGED,
+ actor=actor or user.username,
+ action="change_password",
+ detail=f"User '{user.username}' changed own password",
+ ip="",
+ ))
+ return True
 
 async def forgot_password_request(
-    email: str,
-    redis: Redis,
-    session: AsyncSession,
-    base_url: str = "",
+ email: str,
+ redis: Redis,
+ session: AsyncSession,
+ base_url: str = "",
 ) -> str | None:
-    """Initiate a password reset.
+ """Initiate a password reset.
 
-    Generates a one-time token stored in Redis. Returns the token so the
-    caller (e.g. an API endpoint) can email it (email integration is left
-    to the caller — see plan §I).
+ Generates a one-time token stored in Redis. Returns the token so the
+ caller (e.g. an API endpoint) can email it (email integration is left
+ to the caller — see plan §I).
 
-    Always returns None if the email is not registered (avoids leaking
-    which addresses have accounts) but the audit event is still written.
-    """
-    result = await session.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
-    if user is None:
-        audit_log(AuditEntry(
-            event=AuditEvent.PASSWORD_RESET,
-            actor=email,
-            action="forgot_password",
-            detail="Email not registered (response suppressed)",
-            ip="",
-        ))
-        return None
+ Always returns None if the email is not registered (avoids leaking
+ which addresses have accounts) but the audit event is still written.
+ """
+ result = await session.execute(select(User).where(User.email == email))
+ user = result.scalar_one_or_none
+ if user is None:
+ audit_log(AuditEntry(
+ event=AuditEvent.PASSWORD_RESET,
+ actor=email,
+ action="forgot_password",
+ detail="Email not registered (response suppressed)",
+ ip="",
+ ))
+ return None
 
-    token = secrets.token_urlsafe(32)
-    await redis.set(
-        f"forgot_password:{token}",
-        str(user.id),
-        ex=FORGOT_PASSWORD_TOKEN_TTL_MINUTES * 60,
-    )
+ token = secrets.token_urlsafe(32)
+ await redis.set(
+ f"forgot_password:{token}",
+ str(user.id),
+ ex=FORGOT_PASSWORD_TOKEN_TTL_MINUTES * 60,
+ )
 
-    audit_log(AuditEntry(
-        event=AuditEvent.PASSWORD_RESET,
-        actor=user.username,
-        action="forgot_password",
-        detail=f"Reset token issued (ttl={FORGOT_PASSWORD_TOKEN_TTL_MINUTES}min)",
-        ip="",
-    ))
-    return token
-
+ audit_log(AuditEntry(
+ event=AuditEvent.PASSWORD_RESET,
+ actor=user.username,
+ action="forgot_password",
+ detail=f"Reset token issued (ttl={FORGOT_PASSWORD_TOKEN_TTL_MINUTES}min)",
+ ip="",
+ ))
+ return token
 
 async def reset_password_with_token(
-    token: str,
-    new_password: str,
-    redis: Redis,
-    session: AsyncSession,
+ token: str,
+ new_password: str,
+ redis: Redis,
+ session: AsyncSession,
 ) -> User:
-    """Reset password using a forgot-password token.
+ """Reset password using a forgot-password token.
 
-    Raises InvalidTokenError / PasswordPolicyError / UserNotFoundError.
-    """
-    raw = await redis.get(f"forgot_password:{token}")
-    if raw is None:
-        raise InvalidTokenError("Reset token is invalid or expired")
+ Raises InvalidTokenError / PasswordPolicyError / UserNotFoundError.
+ """
+ raw = await redis.get(f"forgot_password:{token}")
+ if raw is None:
+ raise InvalidTokenError("Reset token is invalid or expired")
 
  # redis-py may return bytes or str depending on decode_responses setting
-    user_id_str = raw.decode() if isinstance(raw, bytes) else raw
-    user = await get_user_by_id(session, user_id_str)
-    if user is None:
-        raise UserNotFoundError("User no longer exists")
+ user_id_str = raw.decode if isinstance(raw, bytes) else raw
+ user = await get_user_by_id(session, user_id_str)
+ if user is None:
+ raise UserNotFoundError("User no longer exists")
 
-    _validate_password_policy(new_password, username=user.username)
+ _validate_password_policy(new_password, username=user.username)
 
-    user.password_hash = hash_password(new_password)
-    user.password_changed_at = datetime.now(UTC)
-    user.must_change_password = False
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    await session.commit()
+ user.password_hash = hash_password(new_password)
+ user.password_changed_at = datetime.now(UTC)
+ user.must_change_password = False
+ user.failed_login_attempts = 0
+ user.locked_until = None
+ await session.commit
 
  # Token is single-use
-    await redis.delete(f"forgot_password:{token}")
+ await redis.delete(f"forgot_password:{token}")
 
-    audit_log(AuditEntry(
-        event=AuditEvent.PASSWORD_RESET,
-        actor=user.username,
-        action="reset_password",
-        detail="Password reset via token",
-        ip="",
-    ))
-    return user
-
+ audit_log(AuditEntry(
+ event=AuditEvent.PASSWORD_RESET,
+ actor=user.username,
+ action="reset_password",
+ detail="Password reset via token",
+ ip="",
+ ))
+ return user
 
 # ═══════════════════════════════════════════════════════════════
 # Helpers (read-only queries)
 # ═══════════════════════════════════════════════════════════════
 
-
 async def get_user_by_username(session: AsyncSession, username: str) -> User | None:
-    result = await session.execute(select(User).where(User.username == username))
-    return result.scalar_one_or_none()
-
+ result = await session.execute(select(User).where(User.username == username))
+ return result.scalar_one_or_none
 
 async def get_user_by_id(session: AsyncSession, user_id: str) -> User | None:
-    try:
-        uid = uuid.UUID(user_id)
-    except (ValueError, TypeError):
-        return None
-    result = await session.execute(select(User).where(User.id == uid))
-    return result.scalar_one_or_none()
-
+ try:
+ uid = uuid.UUID(user_id)
+ except (ValueError, TypeError):
+ return None
+ result = await session.execute(select(User).where(User.id == uid))
+ return result.scalar_one_or_none
 
 # ═══════════════════════════════════════════════════════════════
 # User CRUD (admin only)
 # ═══════════════════════════════════════════════════════════════
 
-
 async def list_users(
-    session: AsyncSession,
-    search: str | None = None,
-    role: str | None = None,
-    is_active: bool | None = None,
-    page: int = 1,
-    page_size: int = 50,
+ session: AsyncSession,
+ search: str | None = None,
+ role: str | None = None,
+ is_active: bool | None = None,
+ page: int = 1,
+ page_size: int = 50,
 ) -> tuple[list[User], int]:
-    """Paginated user listing with optional filters.
+ """Paginated user listing with optional filters.
 
-    Returns (rows, total_count).
-    """
-    stmt = select(User)
-    count_stmt = select(func.count()).select_from(User)
+ Returns (rows, total_count).
+ """
+ stmt = select(User)
+ count_stmt = select(func.count).select_from(User)
 
-    if search:
-        like = f"%{_escape_like(search)}%"
-        stmt = stmt.where(User.username.ilike(like, escape="\\"))
-        count_stmt = count_stmt.where(User.username.ilike(like, escape="\\"))
-    if role is not None:
-        stmt = stmt.where(User.role == role)
-        count_stmt = count_stmt.where(User.role == role)
-    if is_active is not None:
-        stmt = stmt.where(User.is_active == is_active)
-        count_stmt = count_stmt.where(User.is_active == is_active)
+ if search:
+ like = f"%{_escape_like(search)}%"
+ stmt = stmt.where(User.username.ilike(like, escape="\\"))
+ count_stmt = count_stmt.where(User.username.ilike(like, escape="\\"))
+ if role is not None:
+ stmt = stmt.where(User.role == role)
+ count_stmt = count_stmt.where(User.role == role)
+ if is_active is not None:
+ stmt = stmt.where(User.is_active == is_active)
+ count_stmt = count_stmt.where(User.is_active == is_active)
 
-    total = (await session.execute(count_stmt)).scalar_one()
-    stmt = stmt.order_by(User.created_at).offset((page - 1) * page_size).limit(page_size)
-    rows = list((await session.execute(stmt)).scalars().all())
-    return rows, total
-
+ total = (await session.execute(count_stmt)).scalar_one
+ stmt = stmt.order_by(User.created_at).offset((page - 1) * page_size).limit(page_size)
+ rows = list((await session.execute(stmt)).scalars.all)
+ return rows, total
 
 async def create_user(
-    username: str,
-    password: str,
-    role: str,
-    session: AsyncSession,
-    email: str | None = None,
-    actor: str | None = None,
+ username: str,
+ password: str,
+ role: str,
+ session: AsyncSession,
+ email: str | None = None,
+ actor: str | None = None,
 ) -> User:
-    """Create a new user. Raises PasswordPolicyError / UsernameTakenError."""
-    _validate_password_policy(password)
-    if role not in ALLOWED_ROLES:
-        raise PasswordPolicyError(f"Role must be one of: {sorted(ALLOWED_ROLES)}")
+ """Create a new user. Raises PasswordPolicyError / UsernameTakenError."""
+ _validate_password_policy(password)
+ if role not in ALLOWED_ROLES:
+ raise PasswordPolicyError(f"Role must be one of: {sorted(ALLOWED_ROLES)}")
 
-    existing = await session.execute(select(User).where(User.username == username))
-    if existing.scalar_one_or_none() is not None:
-        raise UsernameTakenError(f"Username '{username}' already exists")
+ existing = await session.execute(select(User).where(User.username == username))
+ if existing.scalar_one_or_none is not None:
+ raise UsernameTakenError(f"Username '{username}' already exists")
 
-    if email:
-        existing_email = await session.execute(select(User).where(User.email == email))
-        if existing_email.scalar_one_or_none() is not None:
-            raise UsernameTakenError(f"Email '{email}' already in use")
+ if email:
+ existing_email = await session.execute(select(User).where(User.email == email))
+ if existing_email.scalar_one_or_none is not None:
+ raise UsernameTakenError(f"Email '{email}' already in use")
 
-    user = User(
-        username=username,
-        email=email,
-        password_hash=hash_password(password),
-        role=role,
-        password_changed_at=datetime.now(UTC),
-    )
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
+ user = User(
+ username=username,
+ email=email,
+ password_hash=hash_password(password),
+ role=role,
+ password_changed_at=datetime.now(UTC),
+ )
+ session.add(user)
+ await session.commit
+ await session.refresh(user)
 
-    audit_log(AuditEntry(
-        event=AuditEvent.USER_CREATED,
-        actor=actor or "system",
-        action="create_user",
-        detail=f"Created user '{username}' (role={role})",
-        ip="",
-    ))
-    return user
-
+ audit_log(AuditEntry(
+ event=AuditEvent.USER_CREATED,
+ actor=actor or "system",
+ action="create_user",
+ detail=f"Created user '{username}' (role={role})",
+ ip="",
+ ))
+ return user
 
 async def update_user(
-    user_id: str,
-    session: AsyncSession,
-    role: str | None = None,
-    is_active: bool | None = None,
-    must_change_password: bool | None = None,
-    email: str | None = None,
-    actor: str | None = None,
+ user_id: str,
+ session: AsyncSession,
+ role: str | None = None,
+ is_active: bool | None = None,
+ must_change_password: bool | None = None,
+ email: str | None = None,
+ actor: str | None = None,
 ) -> User | None:
-    """Update user role and/or active status. Returns updated User or None."""
-    user = await get_user_by_id(session, user_id)
-    if user is None:
-        return None
+ """Update user role and/or active status. Returns updated User or None."""
+ user = await get_user_by_id(session, user_id)
+ if user is None:
+ return None
 
-    changes: list[str] = []
-    if role is not None:
-        if role not in ALLOWED_ROLES:
-            raise PasswordPolicyError(f"Role must be one of: {sorted(ALLOWED_ROLES)}")
-        if role != user.role:
-            changes.append(f"role {user.role} -> {role}")
-            user.role = role
-    if is_active is not None and is_active != user.is_active:
-        changes.append(f"is_active {user.is_active} -> {is_active}")
-        user.is_active = is_active
-        if not is_active:
-            user.disabled_at = datetime.now(UTC)
-        else:
-            user.disabled_at = None
-            user.disabled_by = None
-            user.disabled_reason = None
-    if must_change_password is not None and must_change_password != user.must_change_password:
-        changes.append(
-            f"must_change_password {user.must_change_password} -> {must_change_password}"
-        )
-        user.must_change_password = must_change_password
-    if email is not None and email != user.email:
-        changes.append("email updated")
-        user.email = email or None
+ changes: list[str] = []
+ if role is not None:
+ if role not in ALLOWED_ROLES:
+ raise PasswordPolicyError(f"Role must be one of: {sorted(ALLOWED_ROLES)}")
+ if role != user.role:
+ changes.append(f"role {user.role} -> {role}")
+ user.role = role
+ if is_active is not None and is_active != user.is_active:
+ changes.append(f"is_active {user.is_active} -> {is_active}")
+ user.is_active = is_active
+ if not is_active:
+ user.disabled_at = datetime.now(UTC)
+ else:
+ user.disabled_at = None
+ user.disabled_by = None
+ user.disabled_reason = None
+ if must_change_password is not None and must_change_password != user.must_change_password:
+ changes.append(
+ f"must_change_password {user.must_change_password} -> {must_change_password}"
+ )
+ user.must_change_password = must_change_password
+ if email is not None and email != user.email:
+ changes.append("email updated")
+ user.email = email or None
 
-    if changes:
-        await session.commit()
-        await session.refresh(user)
-        audit_log(AuditEntry(
-            event=AuditEvent.USER_UPDATED,
-            actor=actor or "system",
-            action="update_user",
-            detail=f"User '{user.username}': {'; '.join(changes)}",
-            ip="",
-        ))
-    return user
-
+ if changes:
+ await session.commit
+ await session.refresh(user)
+ audit_log(AuditEntry(
+ event=AuditEvent.USER_UPDATED,
+ actor=actor or "system",
+ action="update_user",
+ detail=f"User '{user.username}': {'; '.join(changes)}",
+ ip="",
+ ))
+ return user
 
 async def delete_user(
-    user_id: str,
-    session: AsyncSession,
-    actor: str | None = None,
-    reason: str | None = None,
+ user_id: str,
+ session: AsyncSession,
+ actor: str | None = None,
+ reason: str | None = None,
 ) -> bool:
-    """Soft-delete a user by setting disabled_at. Returns True if changed."""
-    user = await get_user_by_id(session, user_id)
-    if user is None:
-        return False
+ """Soft-delete a user by setting disabled_at. Returns True if changed."""
+ user = await get_user_by_id(session, user_id)
+ if user is None:
+ return False
 
-    if user.is_disabled:
-        return False  # already deleted
+ if user.is_disabled:
+ return False # already deleted
 
-    user.is_active = False
-    user.disabled_at = datetime.now(UTC)
-    user.disabled_reason = reason
+ user.is_active = False
+ user.disabled_at = datetime.now(UTC)
+ user.disabled_reason = reason
  # disabled_by set by caller via update_user(actor); leave null if unknown
-    await session.commit()
+ await session.commit
 
-    audit_log(AuditEntry(
-        event=AuditEvent.USER_DISABLED,
-        actor=actor or "system",
-        action="delete_user",
-        detail=f"Disabled user '{user.username}' (reason={reason or 'unspecified'})",
-        ip="",
-    ))
+ audit_log(AuditEntry(
+ event=AuditEvent.USER_DISABLED,
+ actor=actor or "system",
+ action="delete_user",
+ detail=f"Disabled user '{user.username}' (reason={reason or 'unspecified'})",
+ ip="",
+ ))
 
  # DATA-05 fix: 软删除时同时匿名化 PII（邮箱、登录 IP）
  # 用户名保留用于审计追踪，但标记为已匿名化
-    if user.email:
-        user.email = None
-    if user.last_login_ip:
-        user.last_login_ip = None
-    await session.commit()
+ if user.email:
+ user.email = None
+ if user.last_login_ip:
+ user.last_login_ip = None
+ await session.commit
 
-    return True
-
+ return True
 
 async def unlock_user(
-    user_id: str,
-    session: AsyncSession,
-    actor: str | None = None,
+ user_id: str,
+ session: AsyncSession,
+ actor: str | None = None,
 ) -> User | None:
-    """Clear a user's lockout window and failed-attempt counter."""
-    user = await get_user_by_id(session, user_id)
-    if user is None:
-        return None
+ """Clear a user's lockout window and failed-attempt counter."""
+ user = await get_user_by_id(session, user_id)
+ if user is None:
+ return None
 
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    await session.commit()
-    await session.refresh(user)
+ user.failed_login_attempts = 0
+ user.locked_until = None
+ await session.commit
+ await session.refresh(user)
 
-    audit_log(AuditEntry(
-        event=AuditEvent.USER_UNLOCKED,
-        actor=actor or "system",
-        action="unlock_user",
-        detail=f"Unlocked user '{user.username}'",
-        ip="",
-    ))
-    return user
-
+ audit_log(AuditEntry(
+ event=AuditEvent.USER_UNLOCKED,
+ actor=actor or "system",
+ action="unlock_user",
+ detail=f"Unlocked user '{user.username}'",
+ ip="",
+ ))
+ return user
 
 async def reset_password(
-    user_id: str,
-    new_password: str,
-    session: AsyncSession,
-    actor: str | None = None,
+ user_id: str,
+ new_password: str,
+ session: AsyncSession,
+ actor: str | None = None,
 ) -> User | None:
-    """Admin-initiated password reset. Returns updated User or None."""
-    user = await get_user_by_id(session, user_id)
-    if user is None:
-        return None
+ """Admin-initiated password reset. Returns updated User or None."""
+ user = await get_user_by_id(session, user_id)
+ if user is None:
+ return None
 
-    _validate_password_policy(new_password, username=user.username)
+ _validate_password_policy(new_password, username=user.username)
 
-    user.password_hash = hash_password(new_password)
-    user.password_changed_at = datetime.now(UTC)
-    user.must_change_password = False
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    await session.commit()
-    await session.refresh(user)
+ user.password_hash = hash_password(new_password)
+ user.password_changed_at = datetime.now(UTC)
+ user.must_change_password = False
+ user.failed_login_attempts = 0
+ user.locked_until = None
+ await session.commit
+ await session.refresh(user)
 
-    audit_log(AuditEntry(
-        event=AuditEvent.PASSWORD_RESET,
-        actor=actor or "system",
-        action="reset_password",
-        detail=f"Admin reset password for '{user.username}'",
-        ip="",
-    ))
-    return user
+ audit_log(AuditEntry(
+ event=AuditEvent.PASSWORD_RESET,
+ actor=actor or "system",
+ action="reset_password",
+ detail=f"Admin reset password for '{user.username}'",
+ ip="",
+ ))
+ return user

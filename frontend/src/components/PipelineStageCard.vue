@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 流水线阶段卡片 — 增强版
  * 集成实时活动数据：current_activity / recent_samples / sub_breakdown

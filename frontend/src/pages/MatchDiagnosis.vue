@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 匹配诊断页 — 5步向导
  * Step 0: 上传简历 / 手动输入技能

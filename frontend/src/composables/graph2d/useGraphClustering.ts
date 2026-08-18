@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useGraphClustering — overflow-based node grouping
  *
  * When visible nodes exceed clusterThreshold, surplus nodes are merged

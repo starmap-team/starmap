@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * JD 抽取页 — 粘贴 JD 文本，触发 LLM 抽取
  * 路由：/extract

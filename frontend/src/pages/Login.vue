@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 登录页面 — Phase DB-AUTH 双 token 登录 + UX-02 3D 背景
  *

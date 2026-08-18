@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * GraphFilterPanel — 左侧可折叠筛选面板
  *

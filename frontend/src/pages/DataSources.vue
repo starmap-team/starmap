@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 数据源管理页 — Sprint 1.2
  * 网格卡片布局展示5个数据源（BOSS/拉勾/51Job/GitHub/ESCO）

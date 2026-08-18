@@ -1,4 +1,4 @@
-﻿"""Outbox retry worker — 自动重放失败的 graph_write_outbox 行（）。 /: 采集写入不可退——`run_batch_extract_jd` / `execute_graph_sync` 写 Neo4j
+"""Outbox retry worker — 自动重放失败的 graph_write_outbox 行（）。 /: 采集写入不可退——`run_batch_extract_jd` / `execute_graph_sync` 写 Neo4j
 失败后留下 `status='failed'` 行；本 worker 由 Celery beat 每 30 分钟派发，重放这些
 行 + sweep 进程崩溃残留的超龄 `pending` 行，终结失败行无限堆积（旧行为只增
 retry_count 无消费者）。

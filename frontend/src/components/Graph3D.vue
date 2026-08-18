@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /** Graph3D — 3D force-directed graph visualization (3d-force-graph)
  * 2026-08-13: ( 全景图谱) Plan 01-03 + 01-04:
  * 01-03 Task 3: 接入 useGraph3DLOD + useGraph3DClustering (镜像 2D

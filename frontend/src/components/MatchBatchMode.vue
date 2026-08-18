@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 批量匹配模式 — extracted from MatchDiagnosis.vue (audit)
  */

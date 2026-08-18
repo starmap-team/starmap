@@ -4,7 +4,7 @@
 
     T = 0.3·source_diversity + 0.3·extractor_conf + 0.25·cross_verify + 0.15·time_decay
 
-本模块解决信任度体系统一（Phase 19）：此前系统存在三套互相脱节的口径——
+本模块解决信任度体系统一：此前系统存在三套互相脱节的口径——
 ① quality 直方图用 source_count/10 代理（频次当信任，把冷门误判为不可信）
 ② KPI 平均信任度读 Neo4j Skill.trust_score（历史 0.5 脏数据，无流程更新）
 ③ evolution trust_scorer（演化变更信任，独立第三套算法）

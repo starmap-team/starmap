@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 差距分析报告 — Step 3 子组件
  * 展示匹配分数、已匹配技能、技能差距明细和诊断历史

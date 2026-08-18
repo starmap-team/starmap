@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 岗位详情页 — 能力雷达图 + 技能列表
  * 路由：/position/:name

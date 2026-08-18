@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useAuthBootstrap — silent token refresh on app boot.
  *
  * If we have a refresh token but no valid access token (or the access

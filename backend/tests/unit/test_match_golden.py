@@ -1,4 +1,4 @@
-﻿"""Match service Golden Set tests.
+"""Match service Golden Set tests.
 
 Validates that the match engine produces correct match/no-match decisions
 for the golden_set_match.jsonl fixture.

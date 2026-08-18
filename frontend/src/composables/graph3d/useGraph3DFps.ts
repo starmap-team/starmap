@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useGraph3DFps — 3D 渲染 FPS 监控 composable
  *
  * 2026-08-13: ( 全景图谱) Plan 01-04 Task 2 — 抽 Graph3D.vue:324-331

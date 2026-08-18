@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 流水线 DAG 时间线视图 ( 增强)
  * DAG 节点本身集成实时活动数据 - 不再需要单独的实时面板

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 双层技能雷达图组件 — 岗位要求 vs 我的技能
  * 对应任务文档：匹配诊断第3步

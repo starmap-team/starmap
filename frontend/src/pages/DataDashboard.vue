@@ -359,8 +359,7 @@ const staleLabel = computed(() => {
 
 <style scoped>
 /* ═══════════════════════════════════════════
-   2026-08-13 (deep-interview C4): 回归普通页面风格 —
-   弃用 --dash-* 沉浸式令牌,改用项目统一 --card/--border/--space 体系,
+      弃用 --dash-* 沉浸式令牌,改用项目统一 --card/--border/--space 体系,
    亮暗主题自动适配
    ═══════════════════════════════════════════ */
 .dashboard-page {

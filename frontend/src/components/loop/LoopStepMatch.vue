@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * LoopStepMatch — Step 4: Match Diagnosis
  * Radar chart + gap analysis + skill tags.

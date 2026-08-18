@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * Graph2D — G6 v5 force-directed graph visualization (2D counterpart to Graph3D).
  *

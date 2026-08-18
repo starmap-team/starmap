@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Quality alert types — shared across pipeline and quality stores
  * Merged from pipeline.ts (SSE alert) and quality.ts (persistent alert)
  */

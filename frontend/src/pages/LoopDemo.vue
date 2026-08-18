@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 闭环演示页 — THE CORE SHOWCASE PAGE (Refactored)
  * 5 步端到端闭环：JD 输入 → 技能提取 → 图谱更新 → 匹配诊断 → 学习路径

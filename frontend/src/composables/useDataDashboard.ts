@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Unified DataDashboard composable — merges 4 single-caller composables:
  * useDashboardDisplay (97L) + useDashboardKpiCards (118L)
  * + useDashboardRealtimeSync (147L) + useDashboardCharts (284L)

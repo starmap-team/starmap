@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * ProfileMenu — top-right user dropdown in MainLayout.
  * Shows the current user, a "change password" dialog, and "logout".

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 学习中心页 — 个性化学习计划管理
  * 顶部：学习计划概览（岗位、总进度、预计完成时间）

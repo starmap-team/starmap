@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SSE composable with exponential backoff and polling fallback.
  *
  * Usage:

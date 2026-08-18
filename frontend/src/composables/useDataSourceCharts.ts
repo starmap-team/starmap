@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DataSources chart options + format helpers — extracted from DataSources.vue ( D)
  * Pure functions over chartColors — no store dependency.
  */

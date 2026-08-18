@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useGraphRenderQueue — Debounced + batched render dispatcher
  *
  * Replaces ad-hoc setTimeout debouncing with a requestAnimationFrame-based

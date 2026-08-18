@@ -1,4 +1,4 @@
-﻿"""Expand golden_set.jsonl from 50 to 100+ entries."""
+"""Expand golden_set.jsonl from 50 to 100+ entries."""
 import json
 import os
 import random

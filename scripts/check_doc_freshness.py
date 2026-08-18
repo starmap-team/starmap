@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """check_doc_freshness.py — 文档新鲜度本地校验脚本
 
 目的:在没有 CI 跑 `.github/workflows/doc-lint.yml` 的本地环境下,也能快速发现

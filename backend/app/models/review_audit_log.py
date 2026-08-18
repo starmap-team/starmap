@@ -5,7 +5,7 @@ recorded here with the actor, previous status, new status, reason, and
 timestamp. This table is the canonical history of who approved what and
 when, supporting both operational debugging and compliance audits.
 
-Phase 23 enterprise review-workflow redesign.
+Enterprise review-workflow redesign.
 """
 from __future__ import annotations
 

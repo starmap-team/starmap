@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 数据流水线监控页 composable（ Plan 03 Task 8 拆分后瘦身 < 400 行）。
  * 保留核心：pipeline 兼容对象 / SSE / 自动刷新 / KPI / 阶段摘要 / 卡死检测 /
  * DAG 时间线 / 配置弹窗 / 待审核计数。触发/取消/重试 → useTriggerPipeline；调度 → useSchedules。

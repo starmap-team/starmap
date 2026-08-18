@@ -95,16 +95,14 @@ async def write_back_changelog_row(
     eligible and written back (idempotent upsert — also returned when it
     already existed and was updated). Returns ``None`` for non-eligible change
     types, sub-threshold trust, unresolved positions, and any exception
-    (appended to ``warnings``). Never raises (D-06 fail-soft).
+    (appended to ``warnings``). Never raises (fail-soft).
     """
     try:
         if row.change_type not in WRITEBACK_CHANGE_TYPES:
             return None
- # (/): 审核态感知闸门——`status='approved'`（含
- # trust>=LOW_TRUST_THRESHOLD 自动 approved 与管理员手动 approved）直接放行；
- # 未审核 pending 行仍受 WRITEBACK_TRUST_THRESHOLD(0.6) 保守保护。
- # 修复「单源新技能手动审核即写回」闭环断裂（）：此前闸门只看 trust，
- # 单源 added_required≈0.418 / added_preferred≈0.348 永远 <0.6 被静默拦截。
+ # Review-status-aware gate: status='approved' (auto-approved when
+ # trust>=LOW_TRUST_THRESHOLD, or admin-approved) passes directly;
+ # unreviewed pending rows are still protected by WRITEBACK_TRUST_THRESHOLD(0.6).
         if row.status != "approved" and float(row.trust_score or 0.0) < WRITEBACK_TRUST_THRESHOLD:
             return None
 
@@ -120,7 +118,7 @@ async def write_back_changelog_row(
             )
             return None
 
- # : removed 类型 —— 技能从岗位移除 → 删除 position_skill_relations 关系
+ # removed type -- skill removed from position -> delete PSR relation
         if row.change_type == "removed":
             skill_id = await _resolve_skill_id(session, row.skill_name)
             rel = (

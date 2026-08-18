@@ -1,4 +1,4 @@
-﻿"""Expand Neo4j graph and PostgreSQL with comprehensive IT position data.
+"""Expand Neo4j graph and PostgreSQL with comprehensive IT position data.
 
 Targets (design doc §1.4.1):
 - ≥30 positions

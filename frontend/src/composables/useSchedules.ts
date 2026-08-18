@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 定时调度 CRUD composable（ Plan 03 Task 8 实际迁移）。
  *
  * 从 usePipelineMonitor.ts 抽出调度相关状态与操作：

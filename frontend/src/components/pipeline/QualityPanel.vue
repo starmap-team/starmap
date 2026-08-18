@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * PipelineMonitor 数据质量面板（ Plan 03 Task 8 实际迁移）。
  *

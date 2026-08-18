@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # 星图(StarMap) Production Docker Compose
 # Sprint 4.3: Production-ready deployment for competition submission
 # 启动：docker compose -f docker-compose.prod.yml up -d

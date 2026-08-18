@@ -1,4 +1,4 @@
-﻿/**
+/**
  * graph3d barrel — 3D 图谱 composables 统一导出
  *
  * 2026-08-13: Plan 01-03 + 01-04 创建

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 共享业务标签常量 — 跨组件复用的中文标签/选项的唯一事实源。
  *
  * 消除 Admin/DetailPanel/PositionList/GraphFilterPanel 等组件内联重复

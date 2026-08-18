@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Data source types — shared across pipeline and datasource stores
  * DataSourceDetail is the canonical type (superset of the old DataSource)
  */

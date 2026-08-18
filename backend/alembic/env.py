@@ -1,4 +1,4 @@
-﻿"""Alembic 迁移环境。"""
+"""Alembic 迁移环境。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-﻿# StarMap pre-commit hooks
+# StarMap pre-commit hooks
 # Install:  pre-commit install
 # Run all:  pre-commit run --all-files
 

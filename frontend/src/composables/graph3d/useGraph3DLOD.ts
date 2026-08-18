@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useGraph3DLOD — Level-of-Detail adapter for 3D graphs (mirror of useGraphLOD)
  *
  * Hides labels and simplifies node styles when node count exceeds threshold.

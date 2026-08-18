@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Graph node management store — extracted from datasource.ts ( admin domain split).
  * Manages Neo4j graph node CRUD for admin panel.
  */

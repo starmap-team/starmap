@@ -1,4 +1,4 @@
-﻿/** Evolution panel: show/hide toggle + focus-position fetch + drawer state. */
+/** Evolution panel: show/hide toggle + focus-position fetch + drawer state. */
 import { ref, computed } from 'vue'
 import { useGraphStore } from '@/stores/graph'
 

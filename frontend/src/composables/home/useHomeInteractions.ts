@@ -1,4 +1,4 @@
-﻿import { ref, computed, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useGraphStore, type GraphNode, type GraphEdge, type ViewLayer, type OverviewMode } from '@/stores/graph'
 import { displayName } from '@/utils/graphColors'

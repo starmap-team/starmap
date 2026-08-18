@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Review store — review-workflow state machine on the client.
  *
  * Wraps the unified admin review queue:

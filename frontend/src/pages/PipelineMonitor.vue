@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * 数据流水线监控页 — Plan 03 Task 8 拆子组件后瘦身 < 600 行。
  * 仅保留顶层布局 + KPI 卡片 + DAG 区 + 子组件挂载点 + 闭环验证编排。

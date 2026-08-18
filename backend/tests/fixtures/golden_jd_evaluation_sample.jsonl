@@ -1,4 +1,4 @@
-﻿{"id":"golden-1","job_title":"AI 应用工程师","required_skills":["Python","PyTorch","RAG","Prompt Engineering","Docker","Kubernetes"],"bonus_skills":["LangChain","FastAPI"]}
+{"id":"golden-1","job_title":"AI 应用工程师","required_skills":["Python","PyTorch","RAG","Prompt Engineering","Docker","Kubernetes"],"bonus_skills":["LangChain","FastAPI"]}
 {"id":"golden-2","job_title":"数据分析师","required_skills":["Python","SQL","Pandas","统计学","数据可视化"],"bonus_skills":["Tableau","机器学习"]}
 {"id":"golden-3","job_title":"前端开发工程师","required_skills":["JavaScript","Vue.js","CSS3","HTML5","TypeScript"],"bonus_skills":["Node.js","Webpack"]}
 {"id":"golden-4","job_title":"后端开发工程师","required_skills":["Python","FastAPI","PostgreSQL","Redis","Docker"],"bonus_skills":["Kubernetes","Microservices"]}

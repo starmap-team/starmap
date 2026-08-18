@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 触发/取消/重试/续跑/强制操作 composable（ Plan 03 Task 8 实际迁移）。
  *
  * 从 usePipelineMonitor.ts 抽出触发流水线相关状态与操作：

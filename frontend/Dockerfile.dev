@@ -1,4 +1,4 @@
-﻿# 前端 Dockerfile（开发，HMR）
+# 前端 Dockerfile（开发，HMR）
 FROM node:20-alpine
 
 # 设置 UTF-8 locale，确保中文正确处理

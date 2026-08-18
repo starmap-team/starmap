@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <MainLayout>
     <div class="pipeline-analysis">
       <div class="page-header">

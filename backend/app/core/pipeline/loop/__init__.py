@@ -1,6 +1,6 @@
-"""Closed-loop orchestration package — Phase 07 (M7 闭环演示).
+"""Closed-loop orchestration package — Closed-loop demonstration.
 
-Phase 07-02 split: 5-step loop logic moved out of `loop_orchestrator.py`
+split: 5-step loop logic moved out of `loop_orchestrator.py`
 into ``loop.common`` (shared types + persistence helpers) and ``loop.steps``
 (one module per step). The original ``loop_orchestrator.py`` remains as a
 thin compatibility / re-export shell so legacy imports keep working.

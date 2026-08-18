@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Typed API client — wraps `request` with OpenAPI schema types.
  *
  * Usage:

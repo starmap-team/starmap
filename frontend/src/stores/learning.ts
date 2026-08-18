@@ -1,4 +1,4 @@
-﻿// Barrel re-export — backward-compatible combined store
+// Barrel re-export — backward-compatible combined store
 export { useLearningPlanStore } from './learningPlan'
 export { useLearningRecommendationStore } from './learningRecommendation'
 export { useLearningAnalyticsStore } from './learningAnalytics'

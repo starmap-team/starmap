@@ -1,4 +1,4 @@
-﻿"""V2EX + Remotive API spider — 真实 JD 数据源 (
+"""V2EX + Remotive API spider — 真实 JD 数据源 (
     python -m crawler.spiders.v2ex_remote --max 5
     或
     from crawler.spiders.v2ex_remote import run_sync; items = run_sync(max_count=5)

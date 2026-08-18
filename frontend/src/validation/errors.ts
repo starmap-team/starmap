@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API 错误响应解析工具。
  *
  * 从 Axios 错误中提取结构化的 ErrorResponse，

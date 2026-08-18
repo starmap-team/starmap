@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Evolution store — shared fetch logic for evolution-related pages
  * Replaces direct `request` calls in EvolutionDashboard.vue (audit B5)
  */

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * LoopStepGraph — Step 3: Graph Update
  * Mini G6 graph container + legend.

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * QualityDashboard chart options + KPI cards + auto-refresh — extracted from QualityDashboard.vue ( D)
  * Pure computeds reading from the quality store.
  */

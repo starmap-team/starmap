@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * PipelineMonitor KPI 卡片组 — 拆分
  *

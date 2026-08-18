@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * LoopStepSkills — Step 2: Skill Extraction Results
  * Displays skill chips with is_new indicators, confidence, hallucination score.

@@ -1,4 +1,4 @@
-﻿"""Stage 3 task services for extraction, graph ingestion, and evolution analysis."""
+"""Stage 3 task services for extraction, graph ingestion, and evolution analysis."""
 from __future__ import annotations
 
 import uuid
