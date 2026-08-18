@@ -1,14 +1,14 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * User Management page — admin-only.
  *
  * Uses the new Phase DB-AUTH endpoints:
- *   GET    /admin/users          — paginated list with filters
- *   POST   /admin/users          — create
- *   PATCH  /admin/users/{id}     — role / is_active / must_change_password
- *   DELETE /admin/users/{id}     — soft-delete (disable)
- *   POST   /admin/users/{id}/unlock — clear lockout
- *   POST   /admin/users/{id}/reset-password — admin-set password
+ * GET /admin/users — paginated list with filters
+ * POST /admin/users — create
+ * PATCH /admin/users/{id} — role / is_active / must_change_password
+ * DELETE /admin/users/{id} — soft-delete (disable)
+ * POST /admin/users/{id}/unlock — clear lockout
+ * POST /admin/users/{id}/reset-password — admin-set password
  */
 import { onMounted, ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -72,10 +72,10 @@ async function fetchList() {
     items.value = data.items
     total.value = data.total
   } catch {
-    // fetchList is called from onMounted + event handlers; failures are
-    // non-fatal here — loading is reset in finally, and store/UI stays
-    // empty. The Vitest unhandled-rejection guard requires a catch even
-    // when the caller doesn't await the promise.
+ // fetchList is called from onMounted + event handlers; failures are
+ // non-fatal here — loading is reset in finally, and store/UI stays
+ // empty. The Vitest unhandled-rejection guard requires a catch even
+ // when the caller doesn't await the promise.
   } finally {
     loading.value = false
   }
@@ -143,8 +143,8 @@ async function submitResetPassword() {
     })
     ElMessage.success('密码已重置')
     showReset.value = false
-    // QA D6: refresh the table so last_login_at / password_changed_at reflect
-    // the new state. Without this the row looks unchanged until full reload.
+ // QA D6: refresh the table so last_login_at / password_changed_at reflect
+ // the new state. Without this the row looks unchanged until full reload.
     fetchList()
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } }

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 演化看板页 — CII 时序曲线（技能需求通胀指数）
  * Task 3 增强: 技能趋势时间线、新兴技能卡片、CII仪表盘、技能对比
@@ -57,7 +57,7 @@ const { chartOption, ciiGaugeOption, compareOption } = useEvolutionCharts(
 
 // C1: 新兴技能卡片渲染 items 中 rising/emerging 子集（原误把 ECharts option 当列表迭代）
 // E4: 改与下方「新兴技能预警」表同源 —— 用 /evolution/emerging-alerts 的 emerging+rising，
-//     避免与预警表/涌现数 KPI 三个数据源各说各话
+// 避免与预警表/涌现数 KPI 三个数据源各说各话
 const emergingItems = computed<EmergingAlert[]>(() =>
   evo.emergingAlerts.filter(a => a.level === 'emerging' || a.level === 'rising')
 )
@@ -70,7 +70,7 @@ const ALERT_LEVEL_TAG: Record<string, string> = {
   emerging: 'danger', rising: 'warning', declining: 'info', stable: 'success',
 }
 
-// Drawer / fetch handlers / snapshot state (extracted — Phase 7 D round 8)
+// Drawer / fetch handlers / snapshot state (extracted — D round 8)
 const {
   drawerVisible,
   evidenceDrawerOpen,
@@ -84,7 +84,7 @@ const {
   refresh,
 } = useEvolutionActions(evo)
 
-// 10-03 (D-12): 空态引导 — 触发演化分析（Celery 异步，已排队反馈，无 SSE）
+// 10-03 : 空态引导 — 触发演化分析（Celery 异步，已排队反馈，无 SSE）
 const analyzing = ref(false)
 async function triggerAnalyze() {
   if (analyzing.value) return
@@ -153,8 +153,8 @@ function skillDisplayName(skill: unknown): string {
   return ''
 }
 
-// 10-03 (D-11): 次区 — 演化路径/CII 历史/迁移性，数据源全部复用已有 store 数据，
-// 不得造前端估算数据（RESEARCH §3 D-11）。
+// 10-03 : 次区 — 演化路径/CII 历史/迁移性，数据源全部复用已有 store 数据，
+// 不得造前端估算数据（RESEARCH）。
 const trackedPositions = computed<string[]>(() =>
   [...new Set(snapshots.value.map(s => s.position_name).filter(Boolean))]
 )
@@ -880,8 +880,7 @@ onMounted(() => {
   min-height: 400px;
 }
 
-/* Phase 26: 业务说明横幅 — 已迁移到 BusinessBanner.vue */
-
+/*: 业务说明横幅 — 已迁移到 BusinessBanner.vue */
 
 .page-title {
   font-size: var(--font-size-3xl);
@@ -911,7 +910,7 @@ onMounted(() => {
   gap: 8px;
 }
 
-/* ── KPI Number Row (D-11) ── */
+/* ── KPI Number Row ── */
 .kpi-number-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1002,7 +1001,7 @@ onMounted(() => {
   margin: 0;
 }
 
-/* ── Secondary zone (D-11) ── */
+/* ── Secondary zone ── */
 .secondary-card { margin-top: 16px; }
 .secondary-grid {
   display: grid;
@@ -1027,7 +1026,7 @@ onMounted(() => {
 .portability-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .portability-score { font-weight: 600; color: var(--primary, #409eff); }
 
-/* ── Empty state guide (D-12) ── */
+/* ── Empty state guide ── */
 .guide-doc-link {
   font-size: 13px;
   color: var(--primary, #409eff);

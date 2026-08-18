@@ -1,5 +1,5 @@
-/**
- * 数据流水线监控页 composable（Phase 03 Plan 03 Task 8 拆分后瘦身 < 400 行）。
+﻿/**
+ * 数据流水线监控页 composable（ Plan 03 Task 8 拆分后瘦身 < 400 行）。
  * 保留核心：pipeline 兼容对象 / SSE / 自动刷新 / KPI / 阶段摘要 / 卡死检测 /
  * DAG 时间线 / 配置弹窗 / 待审核计数。触发/取消/重试 → useTriggerPipeline；调度 → useSchedules。
  */
@@ -21,14 +21,14 @@ import type { PipelineConfig } from '@/stores/pipelineConfig'
 // Default auto-refresh interval in seconds
 const DEFAULT_REFRESH_INTERVAL_SEC = 10
 
-// Phase 3.8.8: 内联 deps（串行 DAG，不含 timeseries）
+//: 内联 deps（串行 DAG，不含 timeseries）
 const _DEPS: Record<string, string[]> = { crawl: [], dedup: ['crawl'], clean: ['dedup'], import: ['clean'], graph_sync: ['import'] }
 
 export function usePipelineMonitor() {
   const runStore = usePipelineRunStore()
   const configStore = usePipelineConfigStore()
   const userStore = useUserStore()
-  // pipeline 兼容对象（用于模板中的 pipeline.xxx 访问）
+ // pipeline 兼容对象（用于模板中的 pipeline.xxx 访问）
   const pipeline = {
     get pipelineStatus() { return runStore.pipelineStatus },
     get is_running() { return runStore.pipelineStatus?.is_running ?? false },
@@ -50,22 +50,22 @@ export function usePipelineMonitor() {
     handleQualityAlert: runStore.handleQualityAlert,
     handleMilestone: runStore.handleMilestone,
     handleExtractionComplete: runStore.handleExtractionComplete,
-    // Phase 3.7: 实时活动
+ //: 实时活动
     liveActivity: runStore.liveActivity,
     resetLiveActivity: runStore.resetLiveActivity,
   }
 
-  // ── 独立操作加载状态（配置保存） ──
+ // ── 独立操作加载状态（配置保存） ──
   const configSaving = ref(false)
 
-  // ── 自动刷新 ──
+ // ── 自动刷新 ──
   const autoRefresh = ref(true)
   const refreshInterval = ref(DEFAULT_REFRESH_INTERVAL_SEC)
   let timer: ReturnType<typeof setInterval> | null = null
   const lastRefresh = ref('')
 
-  // 2026-08-11: 自动刷新属于后台轮询, 失败时静默降级不弹"请求超时"toast 刷屏
-  // (request.ts 的 setBackgroundPollMode 在请求前置位; 手动刷新按钮仍走正常 toast)
+ // 2026-08-11: 自动刷新属于后台轮询, 失败时静默降级不弹"请求超时"toast 刷屏
+ // (request.ts 的 setBackgroundPollMode 在请求前置位; 手动刷新按钮仍走正常 toast)
   async function loadAll({ background = false }: { background?: boolean } = {}) {
     if (background) setBackgroundPollMode(true)
     try {
@@ -74,7 +74,7 @@ export function usePipelineMonitor() {
         pipeline.fetchStages(),
         pipeline.fetchDataQuality(),
         pipeline.fetchDataSources(),
-        // fix: 加载历史运行记录，否则刷新后 runs 列表为空
+ // fix: 加载历史运行记录，否则刷新后 runs 列表为空
         pipeline.fetchRuns(),
       ])
       lastRefresh.value = new Date().toLocaleTimeString()
@@ -101,9 +101,9 @@ export function usePipelineMonitor() {
     }
   }
 
-  // ── SSE 实时进度 ──
-  // Phase 1 D-09: 多事件类型分发到 pipeline store actions
-  // SSE-05: Use API_BASE from apiBase.ts SSoT
+ // ── SSE 实时进度 ──
+ //: 多事件类型分发到 pipeline store actions
+ // SSE-05: Use API_BASE from apiBase.ts SSoT
   const sseBase = API_BASE
   const { connected: sseConnected, mode: sseMode, disconnect: sseDisconnect } = useSSE(
     `${sseBase}/pipeline/events`,
@@ -115,7 +115,7 @@ export function usePipelineMonitor() {
         extraction_complete: (data) => pipeline.handleExtractionComplete(data as ExtractionComplete),
       },
       onMessage: (event: MessageEvent) => {
-        // SSE events from sse_broadcaster come as named events
+ // SSE events from sse_broadcaster come as named events
         try {
           const data = JSON.parse(event.data)
           if (data.type === 'pipeline_update' && data.data) {
@@ -126,7 +126,7 @@ export function usePipelineMonitor() {
     },
   )
 
-  // ── 阶段进度摘要 (Phase 3.8.2: 解决"17% 看不出含义"问题) ──
+ // ── 阶段进度摘要 (: 解决"17% 看不出含义"问题) ──
   const stageSummary = computed(() => {
     const coreNames = new Set(ALL_STAGE_NAMES)
     const stages = pipeline.stages.filter(s => coreNames.has(s.name))
@@ -144,7 +144,7 @@ export function usePipelineMonitor() {
       const rp = s.records_processed || 0
       totalRecords += rp
       totalDuration += s.duration_ms || 0
-      // 按阶段名识别输入/输出口径
+ // 按阶段名识别输入/输出口径
       if (s.name === 'crawl' || s.name.startsWith('crawl')) crawlRecords = Math.max(crawlRecords, rp)
       if (s.name === 'import' || s.name.startsWith('import')) importRecords = Math.max(importRecords, rp)
       switch (s.status) {
@@ -157,8 +157,8 @@ export function usePipelineMonitor() {
     }
     const processed = completed + running + failed + cancelled
     const remaining = total - processed - skipped
-    // 2026-08-12 (pipeline 联调): 当采集>0 但入库=0 时，说明本批与库中内容重复，
-    // 追加解释（crawl 阶段持久化 records_new/records_duplicate）。
+ // 2026-08-12 (pipeline 联调): 当采集>0 但入库=0 时，说明本批与库中内容重复，
+ // 追加解释（crawl 阶段持久化 records_new/records_duplicate）。
     let importNote = ''
     let progressMessage = `${completed}已完成 / ${total}总阶段, 采集${crawlRecords.toLocaleString()}条/入库${importRecords.toLocaleString()}条, 累计 ${(totalDuration / 1000).toFixed(0)}s`
     if (crawlRecords > 0 && importRecords === 0) {
@@ -192,7 +192,7 @@ export function usePipelineMonitor() {
     }
   })
 
-  // ── Phase 3.8.5: 卡死检测 (is_running=true 但唯一 running 阶段无进展) ──
+ // ──: 卡死检测 (is_running=true 但唯一 running 阶段无进展) ──
   const isStuck = computed(() => {
     const ps = runStore.pipelineStatus
     if (!ps?.is_running) return false
@@ -230,29 +230,29 @@ export function usePipelineMonitor() {
     return '检测到卡死状态'
   })
 
-  // ── KPI 卡片 ──
+ // ── KPI 卡片 ──
   const kpiCards = computed(() => {
     const s = pipeline.pipelineStatus
     const colors = chartColors()
-    // 2026-08-12 (pipeline 联调): 今日采集量 = 今日各 run crawl 处理量之和（含重复）；
-    // 今日新增 = jd_raw 今日新行；历史累计 = jd_raw 全表行数。三者口径在 status
-    // 聚合器统一，避免"DAG 显示采集 70 但今日 0"的矛盾。
-    // Phase 23 (IC-07): 三段 KPI 口径的唯一事实源为 backend/app/core/pipeline/
-    // status_aggregator.py，SQL 级定义见 docs/ingestion-kpi-calibers.md。此处必须
-    // 直接从 pipeline.pipelineStatus 派生，禁止前端本地重新聚合。
+ // 2026-08-12 (pipeline 联调): 今日采集量 = 今日各 run crawl 处理量之和（含重复）；
+ // 今日新增 = jd_raw 今日新行；历史累计 = jd_raw 全表行数。三者口径在 status
+ // 聚合器统一，避免"DAG 显示采集 70 但今日 0"的矛盾。
+ //: 三段 KPI 口径的唯一事实源为 backend/app/core/pipeline/
+ // status_aggregator.py，SQL 级定义见 docs/ingestion-kpi-calibers.md。此处必须
+ // 直接从 pipeline.pipelineStatus 派生，禁止前端本地重新聚合。
     const todayVolume = s && typeof s.today_crawl_volume === 'number' ? s.today_crawl_volume : null
     const todayNew = s?.today_crawl_new ?? 0
     const totalJdRaw = s?.total_jd_raw ?? 0
-    // Phase 4 P3: 显示最近采集时间，让用户知道数据是否陈旧
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // P3: 显示最近采集时间，让用户知道数据是否陈旧
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lastCrawlAt = (s as any)?.last_crawl_at as string | undefined
     const lastCrawlLabel = lastCrawlAt
       ? new Date(lastCrawlAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
       : null
     const successRate = typeof s?.success_rate === 'number' ? s.success_rate : null
-    // D1/O3 (2026-08-15): 可用源 = has_adapter(后端注册表判定, 任意类型) + config 未禁用 + active。
-    // 与"活跃(DB active)"区分——未配置/禁用的源虽 active 但实际不参与采集。
-    // 任意类型：V2EX/掘金 等 job_board/blog 源有适配器时也可被单源同步/选源采集。
+ // D1/O3 (2026-08-15): 可用源 = has_adapter(后端注册表判定, 任意类型) + config 未禁用 + active。
+ // 与"活跃(DB active)"区分——未配置/禁用的源虽 active 但实际不参与采集。
+ // 任意类型：V2EX/掘金 等 job_board/blog 源有适配器时也可被单源同步/选源采集。
     const crawlableEnabled = pipeline.dataSources.filter(
       (ds) => ds.has_adapter && !ds.config?.disabled && ds.status === 'active',
     ).length
@@ -269,7 +269,7 @@ export function usePipelineMonitor() {
       },
       {
         label: '采集成功率',
-        // 2026-08-12: 恒显近 7 天成功率（原逻辑要求今日采集量>0 才显示，导致 "--"）
+ // 2026-08-12: 恒显近 7 天成功率（原逻辑要求今日采集量>0 才显示，导致 "--"）
         value: successRate !== null ? `${(successRate * 100).toFixed(1)}%` : '--',
         sub: `近7天成功/运行总数${todayNew === 0 ? ' · 今日无新增' : ` · 今日新增 ${todayNew}`}`,
         color: successRate !== null && successRate > 0 ? colors.primary : colors.muted,
@@ -277,8 +277,8 @@ export function usePipelineMonitor() {
         trend: 'stable',
       },
       {
-        // D1 (2026-08-15): 双值 KPI —— 可用(真实爬取能力) / 活跃(DB active)。
-        // 此前只显示"活跃 16"，与下方"1 个可用数据源"相差 16 倍且无解释。
+ // D1 (2026-08-15): 双值 KPI —— 可用(真实爬取能力) / 活跃(DB active)。
+ // 此前只显示"活跃 16"，与下方"1 个可用数据源"相差 16 倍且无解释。
         label: '可用 / 活跃',
         value: `${crawlableEnabled} / ${activeCount ?? '--'}`,
         sub: `可用 ${crawlableEnabled}（有适配器且启用）· 活跃 ${activeCount ?? '--'}（DB active，共 ${pipeline.dataSources.length} 个）`,
@@ -287,12 +287,12 @@ export function usePipelineMonitor() {
         trend: 'stable',
       },
       {
-        // 2026-08-14: 跨模块联动——数据产出后的去向（与 admin 内容审核同口径）
+ // 2026-08-14: 跨模块联动——数据产出后的去向（与 admin 内容审核同口径）
         label: '待审内容',
         value: typeof s?.pending_review_positions === 'number'
           ? `${s.pending_review_positions} 岗位`
           : '--',
-        // D3 (2026-08-15): 与页面 alert"438 条"同源——sub 注明总数关系，消除双显混淆
+ // D3 (2026-08-15): 与页面 alert"438 条"同源——sub 注明总数关系，消除双显混淆
         sub: typeof s?.pending_review_skills === 'number'
           ? `${s.pending_review_skills} 技能待审核 · 共 ${(s.pending_review_positions ?? 0) + s.pending_review_skills} 条（岗位+技能）`
           : '加载中...',
@@ -303,9 +303,9 @@ export function usePipelineMonitor() {
     ]
   })
 
-  // ── 流水线阶段时间线 (DAG) ──
+ // ── 流水线阶段时间线 (DAG) ──
   const timelineStages = computed<PipelineStage[]>(() => {
-    // 将 API 返回的阶段映射到 5 个标准阶段名，缺失的用 pending 补齐
+ // 将 API 返回的阶段映射到 5 个标准阶段名，缺失的用 pending 补齐
     const stageMap = new Map<string, PipelineStage>()
     for (const s of pipeline.stages) {
       stageMap.set(s.name, s)
@@ -345,7 +345,7 @@ export function usePipelineMonitor() {
     })
   })
 
-  // Phase 3.8.8: 阻塞于上游失败 (不显示重试)
+ //: 阻塞于上游失败 (不显示重试)
   const blockedStages = computed<Set<string>>(() => {
     const blocked = new Set<string>()
     const statusMap = Object.fromEntries(timelineStages.value.map(s => [s.name, s.status]))
@@ -357,7 +357,7 @@ export function usePipelineMonitor() {
     return blocked
   })
 
-  // ── 配置弹窗 ──
+ // ── 配置弹窗 ──
   const configDialogVisible = ref(false)
 
   function openConfigDialog() {
@@ -381,7 +381,7 @@ export function usePipelineMonitor() {
     }
   }
 
-  // ── Phase 16 数据审核闭环: 待审核计数 ──
+ // ── 数据审核闭环: 待审核计数 ──
   const pendingReviewCount = ref(0)
   async function fetchPendingReview() {
     try {
@@ -394,7 +394,7 @@ export function usePipelineMonitor() {
     } catch { /* non-fatal */ }
   }
 
-  // ── 生命周期 ──
+ // ── 生命周期 ──
   onMounted(() => {
     loadAll()
     startAutoRefresh()
@@ -409,38 +409,38 @@ export function usePipelineMonitor() {
   })
 
   return {
-    // Store 兼容对象
+ // Store 兼容对象
     pipeline,
-    // User role (LOOP-08: admin check for Pipeline management controls)
+ // User role (LOOP-08: admin check for Pipeline management controls)
     isAdmin: userStore.isAdmin,
-    // 配置保存 loading
+ // 配置保存 loading
     configSaving,
-    // 自动刷新
+ // 自动刷新
     autoRefresh,
     refreshInterval,
     lastRefresh,
     loadAll,
     toggleAutoRefresh,
     startAutoRefresh,
-    // SSE
+ // SSE
     sseConnected,
     sseMode,
-    // KPI
+ // KPI
     kpiCards,
-    // 阶段摘要
+ // 阶段摘要
     stageSummary,
     isStuck,
     stuckReason,
-    // DAG 时间线
+ // DAG 时间线
     timelineStages,
     blockedStages,
-    // 配置
+ // 配置
     configDialogVisible,
     openConfigDialog,
     handleSaveConfig,
-    // Phase 16 数据审核闭环
+ // 数据审核闭环
     pendingReviewCount,
-    // Phase 3.7: 实时活动上下文
+ //: 实时活动上下文
     liveActivity: pipeline.liveActivity,
   }
 }

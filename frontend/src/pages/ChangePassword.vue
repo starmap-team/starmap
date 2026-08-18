@@ -1,10 +1,10 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * ChangePassword — dedicated forced password-change page.
  *
  * Rendered at /change-password. Two modes:
  * 1. forced=1 query param or userStore.mustChangePassword=true → full-page
- *    forced mode: cancel button hidden, cannot navigate away.
+ * forced mode: cancel button hidden, cannot navigate away.
  * 2. Normal mode → simple standalone form with cancel back to /.
  */
 import { ref, computed, onMounted } from 'vue'
@@ -40,7 +40,7 @@ function validate(): string | null {
     return '新密码不能与原密码相同'
   if (/^\d+$/.test(form.value.new_password))
     return '新密码不能是纯数字'
-  // ponytail: basic check — backend enforces stronger rules
+ // ponytail: basic check — backend enforces stronger rules
   return null
 }
 
@@ -56,7 +56,7 @@ async function submit() {
       new_password: form.value.new_password,
     })
 
-    // Verify server state
+ // Verify server state
     try {
       const me = await request.get('/auth/me') as {
         must_change_password: boolean
@@ -68,7 +68,7 @@ async function submit() {
         })
       }
     } catch {
-      // ponytail: /auth/me best-effort, fall back to local flag
+ // ponytail: /auth/me best-effort, fall back to local flag
       if (userStore.user) {
         userStore.setUser({ ...userStore.user, must_change_password: false })
       }
@@ -77,7 +77,7 @@ async function submit() {
     ElMessage.success('密码修改成功')
     form.value = { old_password: '', new_password: '', confirm_password: '' }
 
-    // Redirect back or home
+ // Redirect back or home
     const target = (route.query.redirect as string) || '/'
     router.push(target)
   } catch (e: unknown) {

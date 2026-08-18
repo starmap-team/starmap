@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 学习路径流程图组件 — DAG 可视化
  * 展示技能前置关系和学习进度
@@ -158,7 +158,7 @@ async function initGraph() {
   const graphData = buildGraphData()
   g.setData(graphData)
   g.render()
-  // Ensure dagre layout fits viewport (defensive: small graphs may not trigger autoFit)
+ // Ensure dagre layout fits viewport (defensive: small graphs may not trigger autoFit)
   if (typeof g.fitView === 'function') {
     try { await g.fitView() } catch (_) { /* ignore */ }
   }

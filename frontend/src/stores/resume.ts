@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 import { useResponseValidation } from '@/validation'
@@ -20,8 +20,8 @@ export interface ResumeParseResult {
   confidence: number
   hallucination_score: number | null
   normalized_skills: { original: string; normalized: string; method: string; confidence: number }[]
-  // 本次抽取实际使用的模型（deepseek-chat / generalv3.5 / qwen2.5-7b-fallback 等）
-  // 降级链：MiMo → DeepSeek → 讯飞 → 本地 Ollama；本地模型耗时 40-120s+，云端秒级
+ // 本次抽取实际使用的模型（deepseek-chat / generalv3.5 / qwen2.5-7b-fallback 等）
+ // 降级链：MiMo → DeepSeek → 讯飞 → 本地 Ollama；本地模型耗时 40-120s+，云端秒级
   model_used?: string | null
 }
 
@@ -29,7 +29,7 @@ export const useResumeStore = defineStore('resume', () => {
   const result = ref<ResumeParseResult | null>(null)
   const loading = ref(false)
 
-  // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
+ // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
   const { validateResponse } = useResponseValidation()
 
   async function parseResume(file: File) {
@@ -37,11 +37,11 @@ export const useResumeStore = defineStore('resume', () => {
     const formData = new FormData()
     formData.append('file', file)
     try {
-      // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
+ // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
       result.value = validateResponse(
         await request.post<ResumeParseResult>('/resume/upload', formData, {
-          // LLM 抽取（本地 Ollama 可能 40-120s+）需与后端 300s 超时对齐，
-          // 否则前端 60s 提前掐断导致 PDF 简历解析必然失败（DEF-001）。
+ // LLM 抽取（本地 Ollama 可能 40-120s+）需与后端 300s 超时对齐，
+ // 否则前端 60s 提前掐断导致 PDF 简历解析必然失败（DEF-001）。
           timeout: 300000,
         }),
         extractSchema, '/resume/upload', 'ExtractionResult',

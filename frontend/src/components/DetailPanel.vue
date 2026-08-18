@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, ref, onUnmounted } from "vue"
 import VChart from "vue-echarts"
 import { Aim } from "@element-plus/icons-vue"
@@ -132,7 +132,7 @@ const kaRelatedPositions = computed(() => {
   const kaId = props.selectedNode.id
   return graphStore.allNodes.filter(n => {
     if (!n.labels.includes("Position")) return false
-    // Check both BELONGS_TO and CONTAINS edge types
+ // Check both BELONGS_TO and CONTAINS edge types
     return graphStore.allEdges.some(e => 
       (e.source_id === n.id && e.target_id === kaId && (e.type === "BELONGS_TO" || e.type === "CONTAINS")) ||
       (e.source_id === kaId && e.target_id === n.id && (e.type === "CONTAINS"))

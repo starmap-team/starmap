@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 学习中心页 — 个性化学习计划管理
  * 顶部：学习计划概览（岗位、总进度、预计完成时间）
@@ -95,7 +95,7 @@ async function handleRematch() {
     ElMessage.warning('当前学习计划无目标岗位')
     return
   }
-  // FLOW-03: extract skill names from structured parsedSkills
+ // FLOW-03: extract skill names from structured parsedSkills
   const skillNames = userStore.parsedSkills.map(s => s.skill)
   if (!skillNames.length) {
     ElMessage.warning('技能列表为空，请先上传简历或标记已掌握的技能')
@@ -104,7 +104,7 @@ async function handleRematch() {
   rematchLoading.value = true
   try {
     await matchStore.runMatch(currentPlan.value.position, skillNames)
-    // 携带匹配结果跳转到 MatchDiagnosis 第4步（差距分析/学习路径）
+ // 携带匹配结果跳转到 MatchDiagnosis 第4步（差距分析/学习路径）
     router.push({ path: '/match', query: { rematch: '1', position: currentPlan.value.position } })
   } catch {
     ElMessage.error('重新匹配失败，请重试')
@@ -119,21 +119,21 @@ const hasMasteredSkills = computed(() =>
 )
 
 // 业务说明：页面初始化 —— 恢复 localStorage 计划 + 并行加载推荐
-// D-07: 每次打开 LearningCenter 验证 plan_id 有效性
+//: 每次打开 LearningCenter 验证 plan_id 有效性
 // P1 fix (functional-review 2026-08-13): 先恢复计划，再带 plan_id 拉取
 // 个性化推荐（此前并行调用无 plan_id → 恒为市场热门，个性化失效）。
 onMounted(async () => {
   try {
     await learningStore.restorePlanFromLocalStorage()
-    // QA-FIX: 后端已有学习计划但 localStorage 无记录（换设备/清缓存）时，
-    // 从后端同步最近计划，避免页面误显示「暂无学习计划」。
+ // QA-FIX: 后端已有学习计划但 localStorage 无记录（换设备/清缓存）时，
+ // 从后端同步最近计划，避免页面误显示「暂无学习计划」。
     if (!currentPlan.value) {
       await learningStore.fetchPlans()
     }
     const plan = currentPlan.value
     await learningStore.fetchRecommendations(plan?.plan_id, plan?.position)
   } catch {
-    // errors handled by store
+ // errors handled by store
   }
 })
 

@@ -1,8 +1,8 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * ErrorBoundary — catches child component errors and displays a fallback UI.
  *
- * Uses Vue 3's onErrorCaptured() to intercept errors from descendant components.
+ * Uses Vue 3's onErrorCaptured to intercept errors from descendant components.
  * The "retry" button resets the error state so the slot re-renders.
  */
 import { ref, onErrorCaptured } from 'vue'

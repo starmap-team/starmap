@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 数据流水线监控页 — Phase 03 Plan 03 Task 8 拆子组件后瘦身 < 600 行。
+ * 数据流水线监控页 — Plan 03 Task 8 拆子组件后瘦身 < 600 行。
  * 仅保留顶层布局 + KPI 卡片 + DAG 区 + 子组件挂载点 + 闭环验证编排。
  */
 import { computed, ref } from 'vue'
@@ -99,10 +99,10 @@ const {
   handleToggleSchedule,
 } = useSchedules({ onAfterTrigger: loadAll })
 
-// ── Phase 3.8.5: 术语词典对话框 ──
+// ──: 术语词典对话框 ──
 const glossaryVisible = ref(false)
 
-// ── Phase 3.8.9: 触发后无需 verifyState — triggerPipeline 内部已 fetchStatus/fetchStages ──
+// ──: 触发后无需 verifyState — triggerPipeline 内部已 fetchStatus/fetchStages ──
 async function handleTriggerWithVerify() {
   pipeline.resetLiveActivity()
   const ok = await trigger(selectedStages.value, triggerRunType.value, selectedSources.value)
@@ -250,7 +250,7 @@ async function verifyNow() {
   }
 }
 
-/** Phase 3.8.4: 切换数据源启用/禁用 (真实调用 PUT /datasources/{id} 持久化) */
+/**: 切换数据源启用/禁用 (真实调用 PUT /datasources/{id} 持久化) */
 async function onToggleSource(sourceId: string, willDisable: boolean) {
   const startTime = Date.now()
   const source = pipeline.dataSources.find(s => s.id === sourceId)

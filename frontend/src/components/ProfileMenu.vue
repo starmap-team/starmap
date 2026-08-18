@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * ProfileMenu — top-right user dropdown in MainLayout.
  * Shows the current user, a "change password" dialog, and "logout".
@@ -43,7 +43,7 @@ async function submitChangePassword() {
     ElMessage.success('密码修改成功')
     showChangePwd.value = false
     pwdForm.value = { old_password: '', new_password: '', confirm_password: '' }
-    // Clear must_change_password flag locally
+ // Clear must_change_password flag locally
     if (userStore.user) {
       userStore.setUser({ ...userStore.user, must_change_password: false })
     }
@@ -72,7 +72,7 @@ async function handleLogout() {
 
 function handleCommand(cmd: string) {
   if (cmd === 'change-password') {
-    // Route to dedicated page so the forced=1 flag is picked up
+ // Route to dedicated page so the forced=1 flag is picked up
     const forced = userStore.mustChangePassword ? { forced: '1' } : undefined
     router.push({ path: '/change-password', query: forced })
     return

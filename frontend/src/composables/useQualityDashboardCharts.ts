@@ -1,5 +1,5 @@
-/**
- * QualityDashboard chart options + KPI cards + auto-refresh — extracted from QualityDashboard.vue (Phase 7 D)
+﻿/**
+ * QualityDashboard chart options + KPI cards + auto-refresh — extracted from QualityDashboard.vue ( D)
  * Pure computeds reading from the quality store.
  */
 import { computed, onUnmounted, ref, watch } from 'vue'
@@ -15,9 +15,9 @@ export interface KpiCardEnhanced {
   label: string
   value: string
   sub: string
-  /** Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown）*/
+ /**: 口径拆解行（沿 KPI breakdown）*/
   caption: string
-  /** Phase 11 新手友好 tooltip：完整说明这个数是什么 + 怎么算 + 解读阈值 */
+ /** 新手友好 tooltip：完整说明这个数是什么 + 怎么算 + 解读阈值 */
   tooltip: string
   trend: KpiTrend
   color: string
@@ -30,14 +30,14 @@ export function useQualityDashboardCharts(store: QualityStore) {
   const kpiCardsEnhanced: ComputedRef<KpiCardEnhanced[]> = computed(() => {
     const m = store.metrics
     if (!m) return []
-    // QA P3-C: when the audit queue is empty, the static "0%" subtitle is
-    // misleading — render an honest "— 暂无审核" placeholders instead.
+ // QA P3-C: when the audit queue is empty, the static "0%" subtitle is
+ // misleading — render an honest "— 暂无审核" placeholders instead.
     const auditRateLabel =
       m.pending_review === 0
         ? '— 暂无审核'
         : `审核通过率 ${(m.audit_pass_rate * 100).toFixed(0)}%`
-    // Phase 11 D-03: 口径拆解行（沿 M10 KPI breakdown 原则——计算依据可感知）
-    // 幻觉率三段式（D-05）：X / Y = Z%——前端不再重新算率，避免口径漂移
+ //: 口径拆解行（沿 KPI breakdown 原则——计算依据可感知）
+ // 幻觉率三段式（）：X / Y = Z%——前端不再重新算率，避免口径漂移
     const hallucinationCaption =
       m.hallucination_denominator === 0
         ? '— 未评估'
@@ -94,8 +94,8 @@ export function useQualityDashboardCharts(store: QualityStore) {
         label: '待审核',
         value: m.pending_review === 0 ? '—' : String(m.pending_review),
         sub: m.pending_review === 0 ? '暂无记录' : '条记录待处理',
-        // 2026-08-14: 口径对齐 admin 内容审核（review_service 状态机）——pending_review
-        // 计数 = position_records + skill_records。修复前文案误标 JDExtractionRecord.confidence
+ // 2026-08-14: 口径对齐 admin 内容审核（review_service 状态机）——pending_review
+ // 计数 = position_records + skill_records。修复前文案误标 JDExtractionRecord.confidence
         caption: `岗位 + 技能 pending_review 计数（与 admin 内容审核同源）`,
         tooltip: `👥 人工监督：待人工审核的岗位 + 技能记录数（review_status = pending_review）。\n\n` +
           `• 0 = 无需人工干预（绿）\n` +
@@ -135,8 +135,8 @@ export function useQualityDashboardCharts(store: QualityStore) {
   const trendChartOption: ComputedRef<Record<string, unknown>> = computed(() => {
     const trend = store.metrics?.hallucination_trend
     if (!trend) return {}
-    // Y 轴上限动态: 保底 20%(维持 10% 预警线的健康分级视觉), 但容纳真实数据峰值
-    // (修复前硬编码 max:20 —— 一旦某天幻觉率 >20% 会被裁剪成"顶格", 掩盖真实告警)
+ // Y 轴上限动态: 保底 20%(维持 10% 预警线的健康分级视觉), 但容纳真实数据峰值
+ // (修复前硬编码 max:20 —— 一旦某天幻觉率 >20% 会被裁剪成"顶格", 掩盖真实告警)
     const peak = Math.max(...trend.map(t => t.rate * 100), 0)
     const yMax = Math.max(20, Math.ceil(peak * 1.2 / 5) * 5)
     return {
@@ -216,7 +216,7 @@ export function useQualityAutoRefresh(
     }
   }
 
-  // ponytail: caller must invoke start() on mount; watch handles toggle changes.
+ // ponytail: caller must invoke start on mount; watch handles toggle changes.
   watch(enabled, () => {
     if (enabled.value) start()
     else stop()

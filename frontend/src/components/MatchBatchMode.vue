@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 批量匹配模式 — extracted from MatchDiagnosis.vue (audit M14)
+ * 批量匹配模式 — extracted from MatchDiagnosis.vue (audit)
  */
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -29,7 +29,7 @@ async function handleBatchMatch() {
     )
     ElMessage.success(`批量匹配完成，共 ${learningStore.batchResults.length} 条结果`)
   } catch {
-    // error handled by store
+ // error handled by store
   }
 }
 
@@ -42,7 +42,7 @@ async function handleCompetitiveness() {
   try {
     await learningStore.fetchCompetitiveness(pos)
   } catch {
-    // error handled by store
+ // error handled by store
   }
 }
 </script>

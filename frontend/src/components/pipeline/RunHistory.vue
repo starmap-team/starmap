@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   PipelineMonitor 运行历史列表子组件（Phase 03 Plan 03 Task 8 实际实现）。
   渲染 /pipeline/runs 历史运行记录 + 每行操作（详情/重试/续跑/取消）。
 
@@ -92,7 +92,7 @@ function openDetail(row: PipelineRun) {
 function stageRecordLabel(s: PipelineStage): string {
   const seen = s.records_seen || 0
   const inserted = s.records_processed || 0
-  // 2026-08-12 (pipeline 联调): crawl 展示"处理(新增/重复)"，解释"为何入库 0"
+ // 2026-08-12 (pipeline 联调): crawl 展示"处理(新增/重复)"，解释"为何入库 0"
   if (typeof s.records_new === 'number' && typeof s.records_duplicate === 'number') {
     return `${inserted}（新增 ${s.records_new} / 重复 ${s.records_duplicate}）`
   }

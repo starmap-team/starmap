@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * PipelineMonitor 数据质量面板（Phase 03 Plan 03 Task 8 实际迁移）。
+ * PipelineMonitor 数据质量面板（ Plan 03 Task 8 实际迁移）。
  *
  * 原 PipelineQualityPanel.vue 迁入 components/pipeline/ 目录（仅 PipelineMonitor 使用）。
  * 展示综合质量仪表盘、质量趋势折线图、质量维度进度条。
@@ -23,7 +23,7 @@ const props = defineProps<{
   loading: boolean
 }>()
 
-// 维度说明 (Phase 3.8.4: 让用户理解每个指标)
+// 维度说明 (: 让用户理解每个指标)
 const DIMENSION_HINTS: Record<string, { label: string; hint: string; threshold: number }> = {
   completeness: { label: '完整性', hint: '必填字段是否填写 (职位/公司/薪资/描述)', threshold: 0.8 },
   accuracy: { label: '准确性', hint: '数据是否符合预期格式 (URL/手机号/邮箱)', threshold: 0.8 },

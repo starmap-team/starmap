@@ -1,9 +1,6 @@
-"""Unified async helper for running async coroutines from Celery workers.
+﻿"""Unified async helper for running async coroutines from Celery workers.
 
-Both celery_app.py and stage3_services.py had identical copies of _run_async / run_async.
-Phase 6 DEDUP-01 consolidates them here.
-
-Phase 7 C-W7: also dispose the shared async SQLAlchemy engine after each Celery task
+Both celery_app.py and stage3_services.py had identical copies of _run_async / run_async.DEDUP-01 consolidates them here.C-W7: also dispose the shared async SQLAlchemy engine after each Celery task
 to avoid "attached to a different loop" errors when the worker reuses the same engine
 across multiple event loops. The next call will re-create the engine lazily.
 """
@@ -16,16 +13,13 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
 def run_async(coro: Any) -> Any:
-    """Run an async coroutine from a synchronous context (e.g. Celery worker).
-
-    Phase 3.8.6 FIX: Always use a NEW event loop + hard-dispose the async engine
+    """Run an async coroutine from a synchronous context (e.g. Celery worker).FIX: Always use a NEW event loop + hard-dispose the async engine
     pool before running. This ensures the SQLAlchemy connection pool is clean and
     bound to the current loop, avoiding "Task got Future attached to a different loop".
 
     Detects whether a running event loop exists:
-    - If no loop: creates one via asyncio.run()
+    - If no loop: creates one via asyncio.run
     - If loop exists (eg inside FastAPI): uses ThreadPoolExecutor to run in separate thread
     """
     # Dispose the cached engine + session factory BEFORE starting
@@ -40,11 +34,10 @@ def run_async(coro: Any) -> Any:
 
     # A loop IS running (likely FastAPI) — use a separate thread
     with ThreadPoolExecutor(max_workers=1) as executor:
-        return executor.submit(asyncio.run, coro).result()
-
+        return executor.submit(asyncio.run, coro).result
 
 def _dispose_engine() -> None:
-    """Phase 3.8.7 FIX: 清 engine + session factory 缓存。
+    """Dispose cached engine + session factory.
 
     `get_async_engine` 和 `get_session_factory` 都被 @lru_cache(maxsize=1) 缓存。
     每次 run_async 创建新 event loop 时必须清掉这两个缓存, 否则新 loop 会复用旧的
@@ -53,7 +46,7 @@ def _dispose_engine() -> None:
     try:
         from app.db.session import get_async_engine, get_session_factory
         # 关键: 必须先 cache_clear get_async_engine, 再 clear session factory
-        # 然后 run_async 内部 asyncio.run() 创建新 loop, 新 engine 绑定到新 loop
+        # 然后 run_async 内部 asyncio.run 创建新 loop, 新 engine 绑定到新 loop
         get_async_engine.cache_clear()
         get_session_factory.cache_clear()
     except Exception as exc:

@@ -1,8 +1,8 @@
-/**
+﻿/**
  * useGraph3DLOD — Level-of-Detail adapter for 3D graphs (mirror of useGraphLOD)
  *
  * Hides labels and simplifies node styles when node count exceeds threshold.
- * 2026-08-13: Phase 1 (M1 全景图谱) Plan 01-03 Task 1 — 镜像 useGraphLOD.ts
+ * 2026-08-13: ( 全景图谱) Plan 01-03 Task 1 — 镜像 useGraphLOD.ts
  * 模式,为 Graph3D 提供 3D 渲染下的 LOD 阈值判断,节省 GPU 开销。
  */
 import { ref, watch, type Ref } from 'vue'

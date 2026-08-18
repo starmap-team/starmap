@@ -1,9 +1,9 @@
-/**
- * Review store — Phase 23 review-workflow state machine on the client.
+﻿/**
+ * Review store — review-workflow state machine on the client.
  *
  * Wraps the unified admin review queue:
- * - GET  /admin/review-items       list pending positions + skills
- * - POST /admin/review/{t}/{id}/{action}  submit/approve/reject/unpublish
+ * - GET /admin/review-items list pending positions + skills
+ * - POST /admin/review/{t}/{id}/{action} submit/approve/reject/unpublish
  *
  * Admin only — store does not enforce auth (caller's responsibility).
  */
@@ -32,9 +32,9 @@ export interface ReviewItem {
 export interface ReviewStats {
   position: number
   skill: number
-  // P2 fix (functional-review 2026-08-13): 显式声明后端 review_service 实际
-  // 返回的扁平键（此前仅有 index signature，类型隐藏漂移 —— 模板用
-  // position_approved/skill_pending_review/evolution_pending 等键而类型不感知）。
+ // P2 fix (functional-review 2026-08-13): 显式声明后端 review_service 实际
+ // 返回的扁平键（此前仅有 index signature，类型隐藏漂移 —— 模板用
+ // position_approved/skill_pending_review/evolution_pending 等键而类型不感知）。
   position_pending_review: number
   position_approved: number
   position_rejected: number
@@ -139,7 +139,7 @@ export const useReviewStore = defineStore('review', () => {
     })
   }
 
-  /** Optimistically remove an item from the local list (after admin action). */
+ /** Optimistically remove an item from the local list (after admin action). */
   function removeLocal(entityId: string) {
     items.value = items.value.filter((i) => i.entity_id !== entityId)
   }

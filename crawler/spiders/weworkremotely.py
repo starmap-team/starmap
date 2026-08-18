@@ -1,6 +1,4 @@
-"""WeWorkRemotely RSS spider — 免费无需 key (Phase 15-01).
-
-端点: https://weworkremotely.com/categories/remote-programming-jobs.rss
+﻿"""WeWorkRemotely RSS spider — 免费无需 key ( https://weworkremotely.com/categories/remote-programming-jobs.rss
 字段映射: title→job_title (格式 "Company: Position"), link→source_url,
           description→clean_text, pubDate→publish_date
 实测: HTTP 200, RSS XML 格式
@@ -16,7 +14,6 @@ from crawler.compliance import fetch
 
 WWR_RSS = "https://weworkremotely.com/categories/remote-programming-jobs.rss"
 
-
 def run_sync(keyword: str = "", max_count: int = 20) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log）。
@@ -29,7 +26,7 @@ def run_sync(keyword: str = "", max_count: int = 20) -> list[dict[str, Any]]:
     except ET.ParseError:
         return items
 
-    now = datetime.now(UTC).isoformat()
+    now = datetime.now(UTC).isoformat
     for item in root.findall(".//item")[:max_count]:
         title_text = item.findtext("title", "") or ""
         link = item.findtext("link", "") or ""
@@ -39,11 +36,11 @@ def run_sync(keyword: str = "", max_count: int = 20) -> list[dict[str, Any]]:
         # WWR title 格式: "Company: Position" 或 "Company: Position (Category)"
         if ":" in title_text:
             parts = title_text.split(":", 1)
-            company = parts[0].strip()
-            position = parts[1].strip()
+            company = parts[0].strip
+            position = parts[1].strip
         else:
             company = ""
-            position = title_text.strip()
+            position = title_text.strip
 
         items.append({
             "source_site": "weworkremotely",
@@ -59,7 +56,7 @@ def run_sync(keyword: str = "", max_count: int = 20) -> list[dict[str, Any]]:
             "crawled_at": now,
             "content_hash": hashlib.sha256(
                 (link + title_text).encode("utf-8")
-            ).hexdigest(),
+            ).hexdigest,
             "detail_html": "",
         })
     return items

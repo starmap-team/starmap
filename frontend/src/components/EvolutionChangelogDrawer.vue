@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * Evolution changelog drawer — extracted from EvolutionDashboard.vue (audit M16)
+ * Evolution changelog drawer — extracted from EvolutionDashboard.vue (audit)
  */
 import { computed } from 'vue'
 import type { ChangelogEntry } from '@/stores/evolution'
@@ -11,7 +11,7 @@ const props = withDefaults(defineProps<{
   skillName: string
   data: ChangelogEntry[]
   loading: boolean
-  // 10-03 (D-09): 证据区展开开关 — 默认 false 折叠不打扰
+ // 10-03 : 证据区展开开关 — 默认 false 折叠不打扰
   evidenceOpen?: boolean
 }>(), {
   evidenceOpen: false,
@@ -21,10 +21,10 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
 }>()
 
-// D-09: el-collapse active names derived from the evidence drawer switch
+//: el-collapse active names derived from the evidence drawer switch
 const evidenceActive = computed(() => (props.evidenceOpen ? ['evidence'] : []))
 
-// ALIGN-04: ChangeType labels — matches backend diff_engine.py enum values
+//: ChangeType labels — matches backend diff_engine.py enum values
 const changeTypeLabel: Record<ChangeType, string> = {
   added_required: '新增必需',
   added_preferred: '新增优先',
@@ -34,7 +34,7 @@ const changeTypeLabel: Record<ChangeType, string> = {
   retained: '保留',
 }
 
-// 10-03 (D-09): trust badge color tiers — >=0.8 success / >=0.6 warning / <0.6 danger
+// 10-03 : trust badge color tiers — >=0.8 success / >=0.6 warning / <0.6 danger
 function trustTagType(score?: number): 'success' | 'warning' | 'danger' | 'info' {
   if (score == null) return 'info'
   if (score >= 0.8) return 'success'
@@ -42,7 +42,7 @@ function trustTagType(score?: number): 'success' | 'warning' | 'danger' | 'info'
   return 'danger'
 }
 
-// 10-03 (D-09): evidence_json → displayable {label, value} list (fixed keys only,
+// 10-03 : evidence_json → displayable {label, value} list (fixed keys only,
 // no raw JSON export). Evidence written by the pipeline (orchestrator + factors),
 // not user-controllable (T-10-11).
 interface EvidenceField { label: string; value: string }

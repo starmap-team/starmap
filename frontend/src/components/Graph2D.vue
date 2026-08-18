@@ -1,13 +1,13 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * Graph2D — G6 v5 force-directed graph visualization (2D counterpart to Graph3D).
  *
- * Architecture (Phase 7 refactor):
- *   - useG6Lifecycle   → G6 instance init/destroy/resize (lifecycle)
- *   - useGraphAnimation → Node entrance growth animation
- *   - useGraphHighlight → Highlight + 1-hop neighbor fade
- *   - useGraph2DLayers  → Layer-specific renderers (domain/position/detail)
- *   - useGraphRenderQueue → Debounced rAF-based render dispatcher
+ * Architecture ( refactor):
+ * - useG6Lifecycle → G6 instance init/destroy/resize (lifecycle)
+ * - useGraphAnimation → Node entrance growth animation
+ * - useGraphHighlight → Highlight + 1-hop neighbor fade
+ * - useGraph2DLayers → Layer-specific renderers (domain/position/detail)
+ * - useGraphRenderQueue → Debounced rAF-based render dispatcher
  *
  * Data flow: props (UI state) + graphStore (domain data) → render queue → G6.
  * State changes are batched in a 16ms window to prevent render storms.
@@ -85,7 +85,7 @@ renderQueue.register({
   name: 'layer-dispatch',
   priority: 10,
   fn: async (_g) => {
-    // Update LOD based on current node count
+ // Update LOD based on current node count
     const nodeCount = graphStore.currentLayer === 'position' ? (graphStore.positionsByKA.get(graphStore.expandedKAId ?? '')?.length ?? 0) : graphStore.visibleNodes.length
     lod.setNodeCount(nodeCount)
     if (graphStore.currentLayer === 'domain') {

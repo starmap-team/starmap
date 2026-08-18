@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 术语词典 (Phase 3.8.5)
+ * 术语词典
  * 帮助非技术用户理解流水线监控页面的专业术语
  */
 import { Document, QuestionFilled } from '@element-plus/icons-vue'

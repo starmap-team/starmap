@@ -1,4 +1,4 @@
-"""安全审计日志 (LOG-05 修复)。
+﻿"""安全审计日志 (LOG-05 修复)。
 
 记录关键安全事件：认证失败、权限拒绝、速率限制触发、敏感操作。
 使用 loguru 结构化日志，生产环境 JSON 输出可直接接入 ELK/Loki。
@@ -17,7 +17,7 @@ from loguru import logger
 class AuditEvent(StrEnum):
     """审计事件类型。"""
 
-    # ── Celery task lifecycle (Phase 24, CONCERN 2.4) ──
+    # ── Celery task lifecycle () ──
     CELERY_TASK_FAILURE = "celery_task_failure"
 
     AUTH_FAILURE = "auth_failure"
@@ -39,12 +39,11 @@ class AuditEvent(StrEnum):
     USER_DISABLED = "user_disabled"
     USER_UNLOCKED = "user_unlocked"
     ACCOUNT_DELETED = "account_deleted"
-    # ── Phase 15 (multi-source data) ──
+    # ──(multi-source data) ──
     MANUAL_IMPORT = "manual_import"
     PII_DETECTED = "pii_detected"
     DATA_SOURCE_RENAMED = "data_source_renamed"
     AUTO_PAUSE = "auto_pause"
-
 
 @dataclass(frozen=True)
 class AuditEntry:
@@ -57,14 +56,13 @@ class AuditEntry:
     ip: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
 
-
 async def _persist_to_db(entry: AuditEntry) -> None:
     """Fire-and-forget async DB persist. Silently catches all errors."""
     try:
         from app.db.session import get_session_factory
 
-        session_factory = get_session_factory()
-        async with session_factory() as session:
+        session_factory = get_session_factory
+        async with session_factory as session:
             from app.models.audit_models import AuditEventRecord
 
             record = AuditEventRecord(
@@ -72,14 +70,12 @@ async def _persist_to_db(entry: AuditEntry) -> None:
                 actor=entry.actor,
                 action=entry.action,
                 detail=entry.detail[:500] if entry.detail else "",
-                ip=entry.ip,
-            )
+                ip=entry.ip)
             session.add(record)
-            await session.commit()
+            await session.commit
     except Exception as e:
         # DB failures must NEVER block the caller — log and move on
         logger.debug("Audit DB persist failed (non-blocking): {}", e)
-
 
 def audit_log(entry: AuditEntry) -> None:
     """写入审计日志。
@@ -93,12 +89,11 @@ def audit_log(entry: AuditEntry) -> None:
         audit_action=entry.action,
         audit_detail=entry.detail,
         audit_ip=entry.ip,
-        **entry.extra,
-    ).warning("AUDIT: {} actor={} action={} detail={}", entry.event.value, entry.actor, entry.action, entry.detail)
+        **entry.extra).warning("AUDIT: {} actor={} action={} detail={}", entry.event.value, entry.actor, entry.action, entry.detail)
 
     # Fire-and-forget DB persist — never blocks the caller
     try:
-        loop = asyncio.get_running_loop()
+        loop = asyncio.get_running_loop
         loop.create_task(_persist_to_db(entry))
     except RuntimeError:
         # No running event loop (e.g. sync context) — skip DB persist silently

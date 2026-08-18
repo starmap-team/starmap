@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 流水线阶段卡片 — Phase 3.8 增强版
+ * 流水线阶段卡片 — 增强版
  * 集成实时活动数据：current_activity / recent_samples / sub_breakdown
  * 让 DAG 节点本身就能看到"从采集什么 URL 到提取什么技能"的完整过程
  */
@@ -11,8 +11,8 @@ import { STAGE_LABELS } from '@/stores/pipelineConfig'
 import { SOURCE_NAME_LABELS } from '@/constants/labels'
 import type { LiveActivityEvent } from '@/stores/pipelineRun'
 
-// Phase 3 Plan 02: 阶段描述，供 hover tooltip 引导新用户
-// Phase 03 Plan 03 Task 9 (D-13 T6): 阶段描述 — 含作用 + 依赖 + 状态含义三要素
+// Plan 02: 阶段描述，供 hover tooltip 引导新用户
+// Plan 03 Task 9 ( T6): 阶段描述 — 含作用 + 依赖 + 状态含义三要素
 const STAGE_DESCRIPTIONS: Record<string, { role: string; deps: string[]; status_meaning: Record<string, string> }> = {
   crawl: {
     role: '从启用的数据源采集原始 JD 记录，写入 jd_raw 表',
@@ -102,7 +102,7 @@ export interface StageData {
   started_at?: string | null
   completed_at?: string | null
   errors_count?: number
-  // Phase 3.8 实时活动
+ // 实时活动
   current_activity?: string
   recent_samples?: Array<Record<string, unknown>>
   sub_breakdown?: Record<string, number>
@@ -149,7 +149,7 @@ const statusConfig = computed(() => {
 })
 
 const stageLabel = computed(() => STAGE_LABELS[props.stage.name] || props.stage.name)
-// Phase 03 Plan 03 Task 9 (D-13 T6): 拼装三要素 hover 文本
+// Plan 03 Task 9 ( T6): 拼装三要素 hover 文本
 const stageDesc = computed(() => {
   const desc = STAGE_DESCRIPTIONS[props.stage.name]
   if (!desc) return ''
@@ -183,7 +183,7 @@ const subBreakdown = computed(() => {
   return (isLiveStage.value ? props.liveActivity?.sub_breakdown : null) || props.stage.sub_breakdown || {}
 })
 
-// Phase 3.8.2: 增强子项分解 — 包含 disabled (-1) 和 无蜘蛛 (-2) 的源
+//: 增强子项分解 — 包含 disabled (-1) 和 无蜘蛛 (-2) 的源
 // D8 fix: 不再过滤 v===0 —— dedup/clean/import 的 0 条分解（诚实空态）也应展示，
 // 否则"无待去重/0 条"时卡片无任何分解信息，用户以为详情丢失
 const breakdownItems = computed(() => {
@@ -216,7 +216,7 @@ const fullBreakdownItems = computed(() => {
     .map(([key, value]) => ({ key, value: Number(value) }))
 })
 const fullRecentSamples = computed(() => recentSamples.value)
-// Phase 19 修复: hasMoreDetails 门槛从 ">6项 || >3样本" 降为 "有 breakdown 或样本即可点开"。
+// 修复: hasMoreDetails 门槛从 ">6项 || >3样本" 降为 "有 breakdown 或样本即可点开"。
 // 此前 dedup/clean/import/graph_sync 的 breakdown 仅 2-4 项且无样本 → 永远不显示"查看全部"，
 // 用户无法点开看完整分解(4 卡片"已完成但 0 数据"无解释入口)。
 const hasMoreDetails = computed(() =>
@@ -245,7 +245,7 @@ const dedupedWarnings = computed(() => {
   return Array.from(counts.entries()).map(([msg, count]) => ({ msg, count }))
 })
 
-// Phase 16 残留闭环: 错误去重 + 计数，避免同一错误重复罗列 20 次
+// 残留闭环: 错误去重 + 计数，避免同一错误重复罗列 20 次
 const dedupedErrors = computed(() => {
   const counts = new Map<string, number>()
   for (const err of props.stage.errors) {
@@ -254,7 +254,7 @@ const dedupedErrors = computed(() => {
   return Array.from(counts.entries()).map(([msg, count]) => ({ msg, count }))
 })
 
-// Phase 3.8.11: 显示 "X / Y" (入库 / 抓到) 让用户区分 dedup
+//: 显示 "X / Y" (入库 / 抓到) 让用户区分 dedup
 const formattedRecords = computed(() => {
   const seen = props.stage.records_seen || 0
   const inserted = props.stage.records_processed || 0
@@ -290,10 +290,10 @@ const stageMetricTooltip = computed(() => {
 // 实际进度：仅 running 阶段取 liveActivity.progress，终态阶段取持久化 stage.progress
 // 2026-08-12 (pipeline 修复): 原 `liveActivity?.progress ?? stage.progress` 会被残留的
 // SSE 事件覆盖终态 progress（crawl completed 显示 0%）；终态阶段一律用 stage.progress。
-// Phase 16-02 (Fix M3): 防御性 fallback — progress 为 null/undefined 时:
-//   - status=completed → 100% (避免"已完成 0%"矛盾显示)
-//   - 其他 → 0%
-//   - console.warn 提示后端问题 (避免静默掩盖 bug)
+//-02 (Fix): 防御性 fallback — progress 为 null/undefined 时:
+// - status=completed → 100% (避免"已完成 0%"矛盾显示)
+// - 其他 → 0%
+// - console.warn 提示后端问题 (避免静默掩盖 bug)
 const realProgress = computed(() => {
   const raw = isLiveStage.value ? (props.liveActivity?.progress ?? props.stage.progress) : props.stage.progress
   if (raw === null || raw === undefined) {

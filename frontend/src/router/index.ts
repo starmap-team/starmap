@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+﻿import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ensureBootstrapped } from '@/composables/useAuthBootstrap'
 
@@ -125,14 +125,14 @@ function hasTokens(): boolean {
 }
 
 router.beforeEach(async (to) => {
-  // Skip guard for public paths
+ // Skip guard for public paths
   if (PUBLIC_PATHS.has(to.path)) {
     return true
   }
   const requiresAuth = (to.meta as { requiresAuth?: boolean }).requiresAuth === true
   const requiresAdmin = (to.meta as { requiresAdmin?: boolean }).requiresAdmin === true
 
-  // No tokens at all — redirect to login for auth-required pages.
+ // No tokens at all — redirect to login for auth-required pages.
   if (!hasTokens()) {
     if (requiresAuth) {
       return { path: '/login', query: { redirect: to.fullPath } }
@@ -140,9 +140,9 @@ router.beforeEach(async (to) => {
     return true
   }
 
-  // Tokens exist — wait for silent-refresh bootstrap to settle before
-  // checking auth state, so we don't race between localStorage read and
-  // the async /auth/refresh call.
+ // Tokens exist — wait for silent-refresh bootstrap to settle before
+ // checking auth state, so we don't race between localStorage read and
+ // the async /auth/refresh call.
   const booted = await ensureBootstrapped()
   if (!booted) {
     const userStore = useUserStore()
@@ -153,7 +153,7 @@ router.beforeEach(async (to) => {
     return true
   }
 
-  // ── must_change_password enforcement ──
+ // ── must_change_password enforcement ──
   if (requiresAuth) {
     const userStore = useUserStore()
     if (userStore.mustChangePassword) {
@@ -164,7 +164,7 @@ router.beforeEach(async (to) => {
     }
   }
 
-  // ── Admin guard ──
+ // ── Admin guard ──
   if (requiresAdmin) {
     const userStore = useUserStore()
     if (!userStore.isAdmin) {
@@ -177,9 +177,9 @@ router.beforeEach(async (to) => {
 
 // Listen for 401 events emitted by api/request.ts and route to /login.
 window.addEventListener('auth:unauthorized', () => {
-  // Clear user state on 401. We use clearUser (local-only) instead of logout
-  // because refresh-token revocation requires an extra round-trip and the user
-  // is being redirected away anyway.
+ // Clear user state on 401. We use clearUser (local-only) instead of logout
+ // because refresh-token revocation requires an extra round-trip and the user
+ // is being redirected away anyway.
   const userStore = useUserStore()
   userStore.clearUser()
   if (router.currentRoute.value.path !== '/login') {

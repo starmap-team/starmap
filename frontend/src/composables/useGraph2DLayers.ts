@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Unified Graph2D layer renderers — merges 3 single-caller composables:
- *   useDomainLayer (100L) + usePositionLayer (157L) + useDetailLayer (137L)
+ * useDomainLayer (100L) + usePositionLayer (157L) + useDetailLayer (137L)
  * All 3 served only by Graph2D.vue.
  */
 import type { Graph, NodeData, EdgeData } from '@/types/g6'
@@ -40,7 +40,7 @@ export function renderDomainLayer(deps: DomainLayerDeps): void {
     const importance = skillCount + posCount * 2
     const size = minSize + (skillCount / maxSkill) * (maxSize - minSize)
     const color = deps.kaColorMap().get(n.id) ?? KA_FALLBACK_COLORS[i % KA_FALLBACK_COLORS.length]
-    // When animating, start with small scale but keep labels visible
+ // When animating, start with small scale but keep labels visible
     const nodeScale = isAnimating ? 0.1 : 1
     return { id: n.id, style: { size, fill: color, fillOpacity: 0.9, scale: nodeScale, stroke: color, lineWidth: importance > 100 ? 3 : 2, labelText: n.properties.name + '\n' + posCount + '岗 ' + skillCount + '技', labelFill: cv('--primary-foreground'), labelFontSize: importance > 100 ? 15 : 13, labelFontWeight: 'bold' as const, labelPlacement: 'center' as const, shadowColor: 'rgba(0,0,0,0.2)', shadowBlur: importance > 100 ? 20 : 12, cursor: 'pointer' as const } }
   })
@@ -90,8 +90,8 @@ export async function renderPositionLayer(deps: PositionLayerDeps): Promise<void
   const graphEdges: EdgeData[] = []
 
   if (kaId) {
-    // G6 v5 label config: labelText is top-level, but placement/fontSize/fill are nested under `label`
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // G6 v5 label config: labelText is top-level, but placement/fontSize/fill are nested under `label`
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
     graphNodes.push({ id: kaId, style: { size: 100, fill: kaColor, fillOpacity: 0.95, stroke: kaColor, lineWidth: 4, labelText: graphStore.expandedKAName, label: { placement: 'center', fill: cv('--primary-foreground'), fontSize: 14, fontWeight: 'bold', maxWidth: 90 }, shadowColor: kaColor, shadowBlur: 32 } as any })
   }
 
@@ -115,7 +115,7 @@ export async function renderPositionLayer(deps: PositionLayerDeps): Promise<void
     const nodeScale = isAnimating ? 0.1 : 1
     const displayName_ = displayName(p.properties)
     const truncated = displayName_.length > 8 ? displayName_.slice(0, 7) + '…' : displayName_
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
     graphNodes.push({ id: p.id, style: { size, fill: kaColor, fillOpacity: nodeOpacity, scale: nodeScale, stroke: NODE_TYPE_COLORS.Position, lineWidth: 1.5, labelText: showLabels ? truncated : '', label: { placement: 'bottom', fill: cv('--foreground'), fontSize: labelFontSize, fontWeight: 'normal', offsetY: 6 } } as any })
     if (kaId) graphEdges.push({ id: `${kaId}-${p.id}-CONTAINS`, source: kaId, target: p.id, style: { stroke: kaColor, lineWidth: 1, opacity: 0.2, lineDash: [6, 4], endArrow: false } })
   }

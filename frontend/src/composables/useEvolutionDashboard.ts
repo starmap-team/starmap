@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Unified EvolutionDashboard composable — merges 3 single-caller composables:
- *   useEvolutionFormatters (27L) + useEvolutionActions (82L) + useEvolutionCharts (122L)
+ * useEvolutionFormatters (27L) + useEvolutionActions (82L) + useEvolutionCharts (122L)
  * All 3 served only by EvolutionDashboard.vue.
  */
 import { computed, ref, type Ref, type ComputedRef } from 'vue'
@@ -70,7 +70,7 @@ export function useEvolutionActions(store: EvolutionStore): EvolutionActionsApi 
     const snap: SnapshotEntry | undefined = store.snapshots[i ?? 0]
     if (snap) {
       selectedSnapshotDate.value = snap.snapshot_date
-      // E1: 快照时间线联动次区 —— 拉取该岗位真实 CII 历史（非装饰滑块）
+ // E1: 快照时间线联动次区 —— 拉取该岗位真实 CII 历史（非装饰滑块）
       void store.fetchCiiHistory(snap.position_name)
       ElMessage.info(`已切换到快照 ${snap.snapshot_date}（${snap.position_name}）`)
     }
@@ -83,7 +83,7 @@ export function useEvolutionActions(store: EvolutionStore): EvolutionActionsApi 
     }
   }
 
-  // 10-03 (D-13): 手动刷新 — 复用同一 fetch 集合，并发触发
+ // 10-03 : 手动刷新 — 复用同一 fetch 集合，并发触发
   async function refresh(): Promise<void> {
     try {
       await store.refreshAll()
@@ -106,8 +106,8 @@ export function useEvolutionCharts(
 
   const chartOption = computed(() => {
     if (!items.value.length) return {}
-    // E7: 全量技能（不再截断 [:20]）后，306 项单折线不可读 → 改为 CII 当前值分布直方图，
-    // 任意技能规模均可读；逐技能明细见下方「趋势概览」表，逐技能时序见「技能对比」。
+ // E7: 全量技能（不再截断 [:20]）后，306 项单折线不可读 → 改为 CII 当前值分布直方图，
+ // 任意技能规模均可读；逐技能明细见下方「趋势概览」表，逐技能时序见「技能对比」。
     const BUCKETS = [
       { label: '<60', min: -Infinity, max: 60 },
       { label: '60-80', min: 60, max: 80 },
@@ -132,7 +132,7 @@ export function useEvolutionCharts(
 
   const ciiGaugeOption = computed(() => {
     if (!items.value.length) return {}
-    // E3: 「全部技能」模式下不渲染空白仪表盘 —— 改为全技能末点均值（与 KPI cii_mean 同口径）
+ // E3: 「全部技能」模式下不渲染空白仪表盘 —— 改为全技能末点均值（与 KPI cii_mean 同口径）
     const sel = selectedSkill.value ? items.value.find(i => i.skill_name === selectedSkill.value) : undefined
     const points = sel?.points?.length
       ? sel.points
@@ -168,7 +168,7 @@ export function useEvolutionCharts(
     }
   })
 
-  // C1: 新兴技能卡片的渲染数据源是 items 的 rising/emerging 子集（在页面 computed 中过滤），
-  // 不再在此暴露 ECharts option —— 避免被模板当技能列表迭代（误渲染 garbage cards）。
+ // C1: 新兴技能卡片的渲染数据源是 items 的 rising/emerging 子集（在页面 computed 中过滤），
+ // 不再在此暴露 ECharts option —— 避免被模板当技能列表迭代（误渲染 garbage cards）。
   return { chartOption, ciiGaugeOption, compareOption }
 }

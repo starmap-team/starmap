@@ -1,9 +1,9 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * AdminFlow — visual business-flow diagram for the AdminOverview tab.
  *
  * Renders the StarMap 6-stage business loop as a connected pipeline:
- *   数据采集 → 智能抽取 → 图谱更新 → 人工审核 → 匹配诊断 → 学习路径
+ * 数据采集 → 智能抽取 → 图谱更新 → 人工审核 → 匹配诊断 → 学习路径
  *
  * Each stage is clickable and jumps to the corresponding page (or admin
  * tab via a window event). The aim is that a brand-new admin can land

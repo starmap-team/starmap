@@ -1,5 +1,5 @@
-/**
- * Audit queue store — extracted from datasource.ts (Phase 7 admin domain split).
+﻿/**
+ * Audit queue store — extracted from datasource.ts ( admin domain split).
  * Manages the review/audit queue for admin panel.
  */
 import { defineStore } from 'pinia'
@@ -71,14 +71,14 @@ export const useAuditStore = defineStore('audit', () => {
         await request.post('/admin/audit/batch', { item_ids: ids, action }) as AuditItem[],
         adminSchema, '/admin/audit/batch', 'AuditItem',
       ) as AuditItem[]
-    // Remove processed items from queue
+ // Remove processed items from queue
     const processedIds = new Set(ids)
     auditQueue.value = auditQueue.value.filter((i) => !processedIds.has(i.id))
     return data
   }
 
-  // 审计事件日志分页查询（原 AuditLog.vue 直调 /admin/audit-events）
-  // 审计事件行与 review 队列 AuditItem 是不同实体，此处返回宽松结构由页面断言
+ // 审计事件日志分页查询（原 AuditLog.vue 直调 /admin/audit-events）
+ // 审计事件行与 review 队列 AuditItem 是不同实体，此处返回宽松结构由页面断言
   async function fetchAuditEvents(params: Record<string, string | number>): Promise<{ total: number; items: Record<string, unknown>[] }> {
     const data = (await request.get('/admin/audit-events', { params })) as { total: number; items: Record<string, unknown>[] }
     return data

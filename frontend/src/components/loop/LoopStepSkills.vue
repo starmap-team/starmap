@@ -1,8 +1,8 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * LoopStepSkills — Step 2: Skill Extraction Results
  * Displays skill chips with is_new indicators, confidence, hallucination score.
- * Phase 07-02 D-05/D-06: also surfaces 技能数 / 信任度均值 / 实际 model_used
+ *-02: also surfaces 技能数 / 信任度均值 / 实际 model_used
  * (云端秒级 vs 本地 fallback 解释).
  */
 import { computed } from 'vue'
@@ -14,7 +14,7 @@ const props = defineProps<{
   skills: { skill: string; is_new: boolean; confidence?: number }[]
 }>()
 
-// D-05: 口径拆解行 — 技能数 + 信任度均值
+//: 口径拆解行 — 技能数 + 信任度均值
 const skillCount = computed<number | null>(() => {
   const v = (props.step?.data as { skill_count?: number } | undefined)?.skill_count
   if (typeof v === 'number') return v
@@ -30,7 +30,7 @@ const skillConfidencePct = computed(() =>
   skillConfidenceAvg.value == null ? '未评估' : `${(skillConfidenceAvg.value * 100).toFixed(0)}%`,
 )
 
-// D-06: model_used 透传 — 云端 vs 本地 fallback 标签
+//: model_used 透传 — 云端 vs 本地 fallback 标签
 const modelUsed = computed<string | null>(() => {
   const v = (props.step?.data as { model_used?: string | null } | undefined)?.model_used
   return typeof v === 'string' && v.length > 0 ? v : null
@@ -38,7 +38,7 @@ const modelUsed = computed<string | null>(() => {
 
 const isLocalFallback = computed(() => {
   if (!modelUsed.value) return false
-  // Convention from M6: local fallback models include '-fallback' suffix
+ // Convention from: local fallback models include '-fallback' suffix
   return modelUsed.value.toLowerCase().includes('fallback')
 })
 

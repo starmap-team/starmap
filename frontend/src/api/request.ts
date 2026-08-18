@@ -1,11 +1,11 @@
-/**
+﻿/**
  * axios 实例封装
  * - 全局 loading 条
  * - 友好错误提示（ElMessage）
  * - 网络断开重连提示
  * - Phase DB-AUTH: 双 token + 401 静默 refresh
  *
- * W1-T3 fix (P0-10): `baseURL` now comes from the central
+ * fix : `baseURL` now comes from the central
  * `@/config/apiBase` (SSoT). No more `import.meta.env.VITE_API_BASE_URL`
  * fallback that previously masked the production path mismatch
  * (browser → /api/auth/login → backend 404).
@@ -67,8 +67,8 @@ function hideLoading() {
 request.interceptors.request.use(
   (config) => {
     showLoading()
-    // Attach access token (Phase DB-AUTH): stored under starmap_access_token.
-    // Falls back to the legacy keys for backward compat with old localStorage data.
+ // Attach access token (Phase DB-AUTH): stored under starmap_access_token.
+ // Falls back to the legacy keys for backward compat with old localStorage data.
     const token = localStorage.getItem(ACCESS_KEY)
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
@@ -102,7 +102,7 @@ async function refreshAccessToken(): Promise<string | null> {
         return data.access_token
       }
     } catch {
-      // fall through — refresh failed
+ // fall through — refresh failed
     } finally {
       refreshInFlight = null
     }
@@ -184,17 +184,17 @@ request.interceptors.response.use(
       | (typeof error.config & { _retried?: boolean })
       | undefined
     const requestUrl = originalRequest?.url ?? ''
-    // 调用方可通过 config.silent=true 抑制全局错误 toast，改由页面自行渲染友好空/缺失态
-    // （避免“一次报错弹多条”：详情页缺失时不再叠加全局 404 toast）
+ // 调用方可通过 config.silent=true 抑制全局错误 toast，改由页面自行渲染友好空/缺失态
+ // （避免“一次报错弹多条”：详情页缺失时不再叠加全局 404 toast）
     const silent = (originalRequest as unknown as { silent?: boolean })?.silent === true
-    // 2026-08-11: 后台自动刷新/轮询请求 (setBackgroundPollMode 或 config.poll=true)
-    // 失败时只静默降级不弹 toast，避免后端不可用时刷屏
+ // 2026-08-11: 后台自动刷新/轮询请求 (setBackgroundPollMode 或 config.poll=true)
+ // 失败时只静默降级不弹 toast，避免后端不可用时刷屏
     const isBackground = backgroundPollMode
       || (originalRequest as unknown as { poll?: boolean })?.poll === true
     const isLogin = requestUrl.includes('/auth/login')
     const isRefresh = requestUrl.includes('/auth/refresh')
 
-    // ── Silent refresh attempt on 401 ──
+ // ── Silent refresh attempt on 401 ──
     if (status === 401 && !originalRequest?._retried && !isLogin && !isRefresh) {
       const newAccess = await refreshAccessToken()
       if (newAccess && originalRequest) {
@@ -204,7 +204,7 @@ request.interceptors.response.use(
           `Bearer ${newAccess}`
         return request(originalRequest)
       }
-      // Refresh failed → clear and force re-login
+ // Refresh failed → clear and force re-login
       localStorage.removeItem(ACCESS_KEY)
       localStorage.removeItem('starmap_refresh_token')
       localStorage.removeItem('starmap_user')
@@ -223,22 +223,22 @@ request.interceptors.response.use(
         error.code === 'ECONNABORTED' ||
         /timeout/i.test(error.message || '')
       ) {
-        // 请求超时 ≠ 连不上服务器（如 AI 抽取/大屏等长耗时接口）。
-        // 服务可达但处理过慢时给出准确提示，避免误报“无法连接”。
+ // 请求超时 ≠ 连不上服务器（如 AI 抽取/大屏等长耗时接口）。
+ // 服务可达但处理过慢时给出准确提示，避免误报“无法连接”。
         message = '请求超时，处理时间过长，请稍后重试或减少输入内容'
       } else {
         message = '无法连接到服务器，请稍后重试'
       }
     } else if (status) {
-      // D5 UX: 后端返回具体 detail 时优先展示（如"未配置爬虫平台"），
-      // 而非笼统的"请求参数有误"（400 全局映射掩盖了真实原因）
+ // D5 UX: 后端返回具体 detail 时优先展示（如"未配置爬虫平台"），
+ // 而非笼统的"请求参数有误"（400 全局映射掩盖了真实原因）
       const backendDetail = (
         (error.response?.data as { detail?: string } | undefined)?.detail
       )
       message = backendDetail || (ERROR_MESSAGES[status] ?? `请求失败 (${status})`)
     }
 
-    // 后台轮询失败不弹 toast（避免自动刷新刷屏），仅记录 console
+ // 后台轮询失败不弹 toast（避免自动刷新刷屏），仅记录 console
     if (isBackground && !isLogin) {
       if (import.meta.env.DEV) {
         console.warn(`[API] background poll failed (silent): ${status ?? 'Network'} ${message}`)

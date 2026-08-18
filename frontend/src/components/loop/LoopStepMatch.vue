@@ -1,8 +1,8 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * LoopStepMatch — Step 4: Match Diagnosis
  * Radar chart + gap analysis + skill tags.
- * Phase 07-02 D-05: also surfaces M5 分数拆解行（required_avg / bonus_avg /
+ *-02: also surfaces 分数拆解行（required_avg / bonus_avg /
  * weight_required / weight_bonus / inflated）。
  */
 import { ref, computed, watch } from 'vue'
@@ -23,7 +23,7 @@ const props = defineProps<{
   celebrated: boolean
 }>()
 
-// D-05 口径拆解 — M5 分数拆解（沿用 app.core.matching.service.py:349-354
+// 口径拆解 — 分数拆解（沿用 app.core.matching.service.py:349-354
 // 现有 key: required_avg / bonus_avg / weight_required / weight_bonus / inflated）
 interface ScoreBreakdown {
   required_avg?: number
@@ -59,7 +59,7 @@ function buildRadarData() {
   if (step4Data.radar_data && step4Data.radar_data.length > 0) {
     radarData.value = step4Data.radar_data
   } else {
-    // Build from matched + missing
+ // Build from matched + missing
     const matched = (step4Data.matched_skills ?? []).map((s: string) => ({ skill: s, required: 0.8, matched: 0.7 + Math.random() * 0.25 }))
     const missing = (step4Data.missing_skills ?? []).map((s: string) => ({ skill: s, required: 0.7, matched: Math.random() * 0.3 }))
     radarData.value = [...matched, ...missing].slice(0, 8)

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 匹配诊断页 — 5步向导
  * Step 0: 上传简历 / 手动输入技能
@@ -70,7 +70,7 @@ async function handleUpload(file: File) {
   }
   userStore.setResume(file.name, resumeStore.result.required_skills ?? [])
   await new Promise(resolve => setTimeout(resolve, 600))
-  // 展示实际抽取模型：云端（deepseek-chat/generalv3.5）秒级，本地（*-fallback）40-120s+
+ // 展示实际抽取模型：云端（deepseek-chat/generalv3.5）秒级，本地（*-fallback）40-120s+
   const model = resumeStore.result.model_used
   const modelNote = model ? `（${model}）` : ''
   ElMessage.success(`简历解析完成，识别 ${userStore.parsedSkills.length} 项技能${modelNote}`)
@@ -81,15 +81,15 @@ onMounted(async () => {
   await nextTick()
   setAsyncUploader()
 
-  // FLOW-02-S2: 重新匹配跳转 —— 从 LearningCenter 携带 rematch 查询参数
-  // 直接跳到差距分析步骤（step 3），使用已有匹配结果
+ // FLOW-02-S2: 重新匹配跳转 —— 从 LearningCenter 携带 rematch 查询参数
+ // 直接跳到差距分析步骤（step 3），使用已有匹配结果
   if (route.query.rematch === '1') {
     if (matchStore.result) {
       targetPositionName.value = (route.query.position as string) || ''
       step.value = 3  // 跳到差距分析报告
       matchStore.fetchHistory()
     } else {
-      // ponytail: result 是跨页内存态，直输 URL/刷新后为空 → 提示并停留在 step 0，不再静默卡住
+ // ponytail: result 是跨页内存态，直输 URL/刷新后为空 → 提示并停留在 step 0，不再静默卡住
       ElMessage.warning('重新匹配结果已失效（页面刷新或直连链接），请重新诊断')
       step.value = 0
     }
@@ -132,10 +132,10 @@ function removeManualSkill(skill: string) {
 }
 function confirmManualSkills() {
   if (!manualSkills.value.length) { ElMessage.warning('请至少添加一个技能'); return }
-  // FLOW-03: store structured skills with default proficiency
+ // FLOW-03: store structured skills with default proficiency
   userStore.parsedSkills = manualSkills.value.map(s => ({ skill: s, category: 'hard_skill' as const, proficiency: '熟悉' as const }))
   ElMessage.success('已录入 ' + manualSkills.value.length + ' 项技能')
-  // QA 优化: 从岗位详情「匹配诊断」CTA 进入时（?position=），确认技能后直接选中目标岗位
+ // QA 优化: 从岗位详情「匹配诊断」CTA 进入时（?position=），确认技能后直接选中目标岗位
   const qPos = route.query.position as string | undefined
   if (qPos) {
     targetPositionName.value = qPos
@@ -163,7 +163,7 @@ async function handlePositionSelect(pos: { position_id: string; name: string }) 
       required: PROFICIENCY_MAP[s.proficiency] ?? 0.5,
       user: 0,
     }))
-    // FLOW-03: parsedSkills is now ParsedSkill[] with real proficiency
+ // FLOW-03: parsedSkills is now ParsedSkill[] with real proficiency
     const userSkillSource = resumeStore.result?.required_skills ?? userStore.parsedSkills
     if (userSkillSource.length) {
       const userSkills = new Map(userSkillSource.map((s: { skill: string; proficiency: string }) => [s.skill, PROFICIENCY_MAP[s.proficiency] ?? 0.5]))
@@ -190,10 +190,10 @@ async function handleStartDiagnosis() {
   }, 300)
 
   try {
-    // FLOW-03: extract skill names from structured parsedSkills
+ // FLOW-03: extract skill names from structured parsedSkills
     const skillNames = userStore.parsedSkills.map(s => s.skill)
     const profMap: Record<string, string> = {}
-    // Prefer resumeStore proficiency, fallback to parsedSkills proficiency
+ // Prefer resumeStore proficiency, fallback to parsedSkills proficiency
     if (resumeStore.result?.required_skills) {
       for (const s of resumeStore.result.required_skills) {
         profMap[s.skill] = s.proficiency ?? '熟悉'
@@ -213,14 +213,14 @@ async function handleStartDiagnosis() {
         ...skillNames.map((s: string) => ({
           name: s,
           matched: matchedSet.has(s),
-          // PLAN-006③ 红线: 后端无 match_score 时不再编造 0.85;
-          // SkillMatchAnimation 对 score===undefined 会隐藏百分比展示
+ // PLAN-006③ 红线: 后端无 match_score 时不再编造 0.85;
+ // SkillMatchAnimation 对 score===undefined 会隐藏百分比展示
           score: matchedSet.has(s) ? result.match_score : 0,
         })),
       ]
       for (const g of (result.skill_gap_detail ?? [])) {
-        // ponytail: 后端 gap_detail 含"已掌握"条目（语义匹配成功），
-        // 若仅按"不在用户输入里"判定，会把已掌握技能误标为未匹配
+ // ponytail: 后端 gap_detail 含"已掌握"条目（语义匹配成功），
+ // 若仅按"不在用户输入里"判定，会把已掌握技能误标为未匹配
         if (!skillNames.includes(g.skill) && !matchedSet.has(g.skill)) {
           allSkills.push({ name: g.skill, matched: false, score: 0 })
         }
@@ -228,10 +228,10 @@ async function handleStartDiagnosis() {
       matchAnimSkills.value = allSkills
     }
 
-    // Phase 26 / BUG-006: don't advance to step 3 (gap analysis) when
-    // the match result is empty — that would leave the wizard stuck on
-    // a blank GapAnalysisReport with no recovery path. Stay on step 2,
-    // show a warning, and let the user retry with a different position.
+ // / BUG-006: don't advance to step 3 (gap analysis) when
+ // the match result is empty — that would leave the wizard stuck on
+ // a blank GapAnalysisReport with no recovery path. Stay on step 2,
+ // show a warning, and let the user retry with a different position.
     if (!result || (result.matched_skills?.length === 0 && (result.skill_gap_detail?.length ?? 0) === 0)) {
       ElMessage.warning('诊断未产生结果，请检查简历技能或尝试其他岗位')
       matchAnimating.value = false
@@ -245,7 +245,7 @@ async function handleStartDiagnosis() {
     matchAnimating.value = false
     matchAnimComplete.value = false
     matchProgress.value = 0
-    // P0 fix: clear stale result on failure so step 3/4 don't render with null
+ // P0 fix: clear stale result on failure so step 3/4 don't render with null
     matchStore.clearResult()
   } finally {
     if (matchProgressTimer.value) {
@@ -274,12 +274,12 @@ function resetAll() {
   userStore.clearResume()
 }
 
-// Phase 25: MatchFlow navigation handler — jumps the wizard to the
+//: MatchFlow navigation handler — jumps the wizard to the
 // step associated with the business concept the user clicked.
 function onFlowNavigate(targetStep: number) {
   step.value = targetStep
-  // Reset transient state that wouldn't make sense when jumping
-  // backwards / forwards across the wizard.
+ // Reset transient state that wouldn't make sense when jumping
+ // backwards / forwards across the wizard.
   if (targetStep === 0) {
     userStore.clearResume()
     manualSkills.value = []
@@ -571,7 +571,7 @@ onUnmounted(() => {
   margin: 0 auto;
 }
 
-/* ── Phase 25: 业务说明横幅 + 流程图 ── */
+/* ──: 业务说明横幅 + 流程图 ── */
 .tab-description {
   margin-bottom: var(--space-4);
   border-radius: var(--radius-lg);
@@ -675,7 +675,7 @@ onUnmounted(() => {
 .step-actions { display: flex; gap: var(--space-3); justify-content: center; margin-top: var(--space-6); }
 .skill-confirm-action { margin-top: var(--space-4); }
 
-/* D-04: 雷达口径注记 */
+/*: 雷达口径注记 */
 .radar-note {
   font-size: 12px;
   color: var(--muted-foreground);

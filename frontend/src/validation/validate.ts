@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 轻量级 JSON Schema 运行时校验器。
  *
  * 零外部依赖，支持：
@@ -61,7 +61,7 @@ function validateValue(
     return // required 检查在 validateObject 中处理
   }
 
-  // $ref 引用：先解析再递归校验（悬空引用跳过该字段，不阻断）
+ // $ref 引用：先解析再递归校验（悬空引用跳过该字段，不阻断）
   if (schema.$ref) {
     const resolved = resolveRef(schema.$ref, root)
     if (!resolved) return
@@ -166,7 +166,7 @@ function validateObject(
   const properties = schema.properties ?? {}
   const required = schema.required ?? []
 
-  // 检查必填字段
+ // 检查必填字段
   for (const key of required) {
     if (obj[key] === undefined || obj[key] === null) {
       const fieldPath = path ? `${path}.${key}` : key
@@ -174,7 +174,7 @@ function validateObject(
     }
   }
 
-  // 校验每个字段
+ // 校验每个字段
   for (const [key, propSchema] of Object.entries(properties)) {
     if (obj[key] === undefined || obj[key] === null) {
       continue // 已由 required 检查处理
@@ -199,7 +199,7 @@ function validateObject(
  *
  * const result = validate({ username: '', password: '123' }, loginRequestSchema.definitions.LoginRequest)
  * if (!result.valid) {
- *   result.errors.forEach(e => console.log(e.field, e.message))
+ * result.errors.forEach(e => console.log(e.field, e.message))
  * }
  * ```
  */
@@ -214,21 +214,21 @@ export function validate(
     return { valid: false, errors: [fail('body', '请求数据不能为空', 'value_error.null', data)] }
   }
 
-  // 入口即 $ref：先解析再校验
+ // 入口即 $ref：先解析再校验
   if ((schema as JSONSchemaProperty).$ref) {
     const resolved = resolveRef((schema as JSONSchemaProperty).$ref as string, root)
     if (!resolved) return { valid: true, errors }
     return validate(data, resolved, root)
   }
 
-  // 检查 schema 类型
+ // 检查 schema 类型
   const resolvedType = schema.type
   if (resolvedType && resolvedType !== 'object') {
     validateValue(data, schema as JSONSchemaProperty, '', errors, root)
     return { valid: errors.length === 0, errors }
   }
 
-  // 对象类型：提取 properties
+ // 对象类型：提取 properties
   const props =
     (schema as JSONSchema).properties ??
     (schema as JSONSchemaProperty).properties ??
@@ -238,7 +238,7 @@ export function validate(
     (schema as JSONSchemaProperty).required ??
     []
 
-  // 构建虚拟 schema 进行校验
+ // 构建虚拟 schema 进行校验
   const virtualSchema: JSONSchemaProperty = { type: 'object', properties: props, required: req }
   validateObject(data as Record<string, unknown>, virtualSchema, '', errors, root)
 

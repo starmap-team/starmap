@@ -1,13 +1,13 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 岗位列表页 — 从后端 /positions 获取岗位数据
  *
- * Phase 23: review-workflow awareness —
+ *: review-workflow awareness —
  * - Default view shows only approved positions (public).
  * - Admin can switch to "All" or specific status (pending_review, etc.)
- *   to see positions awaiting review.
+ * to see positions awaiting review.
  * - Each card displays a status badge so the workflow state is visible
- *   at a glance.
+ * at a glance.
  */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -33,7 +33,7 @@ interface PositionRow {
   review_status?: 'draft' | 'pending_review' | 'approved' | 'rejected'
   reviewed_by?: string | null
   rejection_reason?: string | null
-  // PLAN-006④: 岗位入库时间, 用于卡片"数据时效"指示; null = 演示/无采集
+ // PLAN-006④: 岗位入库时间, 用于卡片"数据时效"指示; null = 演示/无采集
   discovered_at?: string | null
 }
 
@@ -45,7 +45,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(24)
 
-// Phase 23: status filter.
+//: status filter.
 // Default to 'all' so the list is never empty on first load.
 // Admin and regular users both see all positions; status badges distinguish visibility.
 const statusFilter = ref<'approved' | 'pending_review' | 'rejected' | 'all'>('all')
@@ -57,7 +57,7 @@ async function loadIndustries() {
   try {
     industries.value = await jdStore.fetchIndustries()
   } catch {
-    // 静默降级：API 不可用时从当前页提取
+ // 静默降级：API 不可用时从当前页提取
     const set = new Set(positions.value.map(p => p.industry).filter(Boolean))
     industries.value = Array.from(set).sort()
   }
@@ -109,12 +109,12 @@ function statusLabel(status: PositionRow['review_status'] | undefined) {
         page: page.value,
         page_size: pageSize.value,
       }
-      // fix: 传递搜索关键字和行业筛选到后端，确保分页与筛选协同
+ // fix: 传递搜索关键字和行业筛选到后端，确保分页与筛选协同
       const q = searchQuery.value.trim()
       if (q) params.search = q
       if (selectedIndustry.value) params.industry = selectedIndustry.value
-      // 审核状态过滤：公开契约 = 仅 approved；include_all 仅 admin 可用
-      // 非 admin 不传 include_all/status → 后端默认 approved（与全景图谱“已发布”口径一致）
+ // 审核状态过滤：公开契约 = 仅 approved；include_all 仅 admin 可用
+ // 非 admin 不传 include_all/status → 后端默认 approved（与全景图谱“已发布”口径一致）
       if (isAdmin.value) {
         if (statusFilter.value === 'all') {
           params.include_all = true
@@ -154,8 +154,8 @@ function onStatusFilterChange() {
 }
 
 function goDetail(id: string) {
-  // 按 UUID 跳转：名称可能含 `/` 等路径不安全字符（如 "UI/UX设计师"），
-  // 用名称做路径段会让详情路由 404；UUID 无特殊字符，且后端 get_position 已支持 UUID。
+ // 按 UUID 跳转：名称可能含 `/` 等路径不安全字符（如 "UI/UX设计师"），
+ // 用名称做路径段会让详情路由 404；UUID 无特殊字符，且后端 get_position 已支持 UUID。
   router.push(`/position/${id}`)
 }
 

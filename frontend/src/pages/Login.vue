@@ -1,12 +1,12 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 登录页面 — Phase DB-AUTH 双 token 登录 + UX-02 3D 背景
  *
  * POST /auth/login → { access_token, refresh_token, expires_in, user }
- *  - access_token 短期 (15 min)，refresh_token 长期 (7 d)
- *  - 401 = 用户名/密码错误；423 = 锁定；403 = 禁用
- *  - UX-02: Graph3D auto-rotate 背景 (opacity=0.25, maxNodes=150)
- *           登录成功后 opacity 0.25→1.0 过渡动画
+ * - access_token 短期 (15 min)，refresh_token 长期 (7 d)
+ * - 401 = 用户名/密码错误；423 = 锁定；403 = 禁用
+ * - UX-02: Graph3D auto-rotate 背景 (opacity=0.25, maxNodes=150)
+ * 登录成功后 opacity 0.25→1.0 过渡动画
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -77,10 +77,10 @@ async function handleLogin() {
     })
     ElMessage.success('登录成功')
 
-    // UX-02: transition animation — opacity 0.25→1.0 (300ms)
+ // UX-02: transition animation — opacity 0.25→1.0 (300ms)
     loginSuccess.value = true
 
-    // Delay navigation to show the transition
+ // Delay navigation to show the transition
     setTimeout(() => {
       if (data.user.must_change_password) {
         router.push('/change-password?forced=1')

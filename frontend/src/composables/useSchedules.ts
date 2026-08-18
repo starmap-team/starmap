@@ -1,5 +1,5 @@
-/**
- * 定时调度 CRUD composable（Phase 03 Plan 03 Task 8 实际迁移）。
+﻿/**
+ * 定时调度 CRUD composable（ Plan 03 Task 8 实际迁移）。
  *
  * 从 usePipelineMonitor.ts 抽出调度相关状态与操作：
  * 调度对话框状态、scheduleForm、create/delete/toggle/trigger。
@@ -10,7 +10,7 @@ import { usePipelineConfigStore } from '@/stores/pipelineConfig'
 import type { PipelineSchedule } from '@/stores/pipelineConfig'
 
 export interface SchedulesOptions {
-  /** 调度触发成功后刷新全页面（loadAll） */
+ /** 调度触发成功后刷新全页面（loadAll） */
   onAfterTrigger?: () => Promise<void> | void
 }
 
@@ -53,7 +53,7 @@ export function useSchedules(options: SchedulesOptions = {}) {
       await configStore.deleteSchedule(id)
       ElMessage.success('已删除')
     } catch {
-      /* cancelled — schedules list already refreshed by store */
+ /* cancelled — schedules list already refreshed by store */
     } finally {
       scheduleLoading.value = false
     }
@@ -63,7 +63,7 @@ export function useSchedules(options: SchedulesOptions = {}) {
     scheduleLoading.value = true
     try {
       await configStore.triggerSchedule(schedule.id)
-      // 调度触发了 pipeline run，需要刷新全页面状态
+ // 调度触发了 pipeline run，需要刷新全页面状态
       await options.onAfterTrigger?.()
       ElMessage.success(`调度「${schedule.name}」已触发执行`)
     } catch (e: unknown) {

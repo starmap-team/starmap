@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * LoopStepInput — Step 1: JD Input
  * Textarea, example JD buttons, target position input, and run button.
@@ -36,9 +36,9 @@ function loadExampleJD(idx: number) {
 }
 
 function onRunClick() {
-  // Guard: empty JD or empty target_position. Backend now infers position_name
-  // from extraction, but we still want the user to declare intent up front —
-  // see QA P1-A: backend inference is a fallback, not a UX replacement.
+ // Guard: empty JD or empty target_position. Backend now infers position_name
+ // from extraction, but we still want the user to declare intent up front —
+ // see QA P1-A: backend inference is a fallback, not a UX replacement.
   if (!jdText.value.trim()) {
     ElMessage.warning('请输入 JD 文本')
     return

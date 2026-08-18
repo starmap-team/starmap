@@ -1,6 +1,6 @@
-/**
- * DataSources chart options + format helpers — extracted from DataSources.vue (Phase 7 D)
- * Pure functions over chartColors() — no store dependency.
+﻿/**
+ * DataSources chart options + format helpers — extracted from DataSources.vue ( D)
+ * Pure functions over chartColors — no store dependency.
  */
 import { chartColors, tooltipStyle, splitLineStyle, axisLabelStyle } from '@/utils/chartTheme'
 import { SOURCE_NAME_LABELS } from '@/constants/labels'
@@ -99,7 +99,7 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   import: '数据导入',
   reference: '参考数据',
   internal: '内部数据',
-  // 后端 Literal 枚举补齐（datasource 优化设计需求 D）：job_board/blog/esco/rss
+ // 后端 Literal 枚举补齐（datasource 优化设计需求 D）：job_board/blog/esco/rss
   job_board: '招聘网站',
   blog: '技术博客',
   esco: 'ESCO 标准库',

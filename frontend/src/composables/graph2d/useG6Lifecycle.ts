@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useG6Lifecycle — G6 instance lifecycle management
  *
  * Encapsulates: dynamic G6 import (with module-level cache), instance creation,
@@ -52,21 +52,21 @@ export function useG6Lifecycle(): UseG6LifecycleApi {
         container: containerRef.value,
         width: opts.width,
         height: opts.height,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
         layout: (opts.layout ?? { type: 'force', preventOverlap: true, nodeSize: 40, nodeSpacing: 20, animate: false }) as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        // G6 v5 label config must be nested under `label`
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // G6 v5 label config must be nested under `label`
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
         node: { style: { label: { placement: 'bottom' as const, offsetY: 8, fill: cv('--foreground'), fontSize: 12, fontFamily: "'PingFang SC', 'Microsoft YaHei', sans-serif" } } } as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
         edge: { style: { stroke: cv('--border'), lineWidth: 1.5, opacity: 0.5, endArrow: true } } as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
         behaviors: (opts.behaviors ?? ['drag-canvas', 'zoom-canvas', 'drag-element', { type: 'hover-activate', degree: 1, direction: 'both' }]) as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
         plugins: (opts.plugins ?? [
           { type: 'minimap', size: [140, 90], position: 'bottom-right', padding: 8 },
           { type: 'tooltip', enable: true, trigger: 'pointerenter', offset: [10, 10], style: { ...g6TooltipStyle(), borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 14px' } },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ]) as any,
       })
     } catch (err) {

@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import request from '@/api/request'
 import { ECHARTS_PALETTE } from '@/utils/graphColors'
@@ -18,7 +18,7 @@ export interface QualityMetrics {
   recall: number
   f1: number
   warning_level: 'green' | 'yellow' | 'orange' | 'red' | 'gray'
-  // Phase 13 数据诚实化：无 golden-set 基线时前端须显“未评估”而非红/失败态
+ // 数据诚实化：无 golden-set 基线时前端须显“未评估”而非红/失败态
   baseline_available?: boolean
   evaluation_count?: number
   evaluation_explanation?: string
@@ -29,7 +29,7 @@ export interface QualityMetrics {
   total_skills: number
   total_extractions: number
   hallucination_rate: number
-  // Phase 11 D-05: 幻觉率三段式契约
+ //: 幻觉率三段式契约
   hallucination_numerator: number
   hallucination_denominator: number
   hallucination_window_days: number
@@ -67,7 +67,7 @@ function defaultMetrics(): QualityMetrics {
     avg_trust_score: 0,
     high_trust_ratio: 0,
     weekly_new_nodes: 0,
-    // ponytail: 原默认 1.0 会在后端未返回时显示"审核通过率 100%"（假正常）；改 0 诚实表示未统计
+ // ponytail: 原默认 1.0 会在后端未返回时显示"审核通过率 100%"（假正常）；改 0 诚实表示未统计
     audit_pass_rate: 0.0,
     source_distribution: [],
     hallucination_trend: [],
@@ -126,7 +126,7 @@ export const useQualityStore = defineStore('quality', () => {
           (merged as Record<string, unknown>)[key] = data[key]
         }
       }
-      // 中文化数据源名称
+ // 中文化数据源名称
       if (merged.source_distribution && Array.isArray(merged.source_distribution)) {
         merged.source_distribution = (merged.source_distribution as Array<{ name: string; count: number; trust: number }>).map(s => ({
           ...s,
@@ -139,9 +139,9 @@ export const useQualityStore = defineStore('quality', () => {
     }
   }
 
-  // P2 fix (functional-review 2026-08-13): 此 kpiCards 目前无页面消费（页面用
-  // useQualityDashboardCharts 的 kpiCardsEnhanced），但保留以防未来接线 ——
-  // 修正 avg_trust_score 未 ×100 的伪数值缺陷（0.0~1.0 显示为"0.4"而非"40%"）。
+ // P2 fix (functional-review 2026-08-13): 此 kpiCards 目前无页面消费（页面用
+ // useQualityDashboardCharts 的 kpiCardsEnhanced），但保留以防未来接线 ——
+ // 修正 avg_trust_score 未 ×100 的伪数值缺陷（0.0~1.0 显示为"0.4"而非"40%"）。
   const kpiCards = computed(() => {
     if (!metrics.value) return []
     const m = metrics.value
@@ -157,8 +157,8 @@ export const useQualityStore = defineStore('quality', () => {
     trendsPeriod.value = period
     loading.value = true
     try {
-      // Backend returns { period, data_points, summary }
-      // data_points use { date, quality_score, ... } not { date, trust_score, ... }
+ // Backend returns { period, data_points, summary }
+ // data_points use { date, quality_score, ... } not { date, trust_score, ... }
       const data = validateQuality(
         await request.get('/quality/trends', { params: { period } }) as {
         period: string
@@ -206,7 +206,7 @@ export const useQualityStore = defineStore('quality', () => {
       ) as QualityAlertsResponse
       alerts.value = resp?.alerts ?? []
     } catch (e: unknown) {
-      // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail
+ // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       if (detail) console.error('[Quality] Alerts detail:', detail)
       alerts.value = []

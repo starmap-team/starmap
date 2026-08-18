@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Evolution store — shared fetch logic for evolution-related pages
  * Replaces direct `request` calls in EvolutionDashboard.vue (audit B5)
  */
@@ -34,11 +34,11 @@ export interface ChangelogEntry {
   id: string
   skill_name: string
   change_type: ChangeType
-  // 字段对齐后端 ChangelogEntry schema（Pydantic ↔ openapi.yaml ↔ evolution.schema.json）
+ // 字段对齐后端 ChangelogEntry schema（Pydantic ↔ openapi.yaml ↔ evolution.schema.json）
   trust_score: number
   confidence: number
   created_at: string
-  // Optional fields returned by the backend schema / used in UI
+ // Optional fields returned by the backend schema / used in UI
   position_name?: string
   old_proficiency?: string | null
   new_proficiency?: string | null
@@ -46,17 +46,17 @@ export interface ChangelogEntry {
   new_requirement?: string | null
   date?: string
   description?: string
-  // 10-03 contract sync: status/written_back/evidence_json (D-09 证据链路)
+ // 10-03 contract sync: status/written_back/evidence_json ( 证据链路)
   status?: 'pending' | 'approved' | 'rejected'
   written_back?: boolean
   evidence_json?: Record<string, unknown>
 }
 
-// 10-03: KPI row state (D-11) — zeros by default, filled by fetchKpi()
+// 10-03: KPI row state — zeros by default, filled by fetchKpi
 export interface EvolutionKpi {
   emerging_count: number
   trust_mean: number
-  /** Phase 11 D-cross: 与 /quality 共享 avg_skill_trust 对照口径（Neo4j Skill.trust_score 实时均值）*/
+ /** D-cross: 与 /quality 共享 avg_skill_trust 对照口径（Neo4j Skill.trust_score 实时均值）*/
   trust_mean_neo4j_skill?: number
   cii_mean: number
   alert_count: number
@@ -73,7 +73,7 @@ export const DEFAULT_KPI: EvolutionKpi = {
 }
 
 // LOOP-06: Emerging alert type for evolution alerts
-// ALIGN-05: Added missing fields from backend (source_count, trend, portability_score)
+//: Added missing fields from backend (source_count, trend, portability_score)
 export interface EmergingAlert {
   skill_name: string
   category: string
@@ -91,8 +91,8 @@ export interface EmergingAlert {
 
 // BUG-5 fix: review-queue item shape returned by /evolution/review-queue
 export interface ReviewQueueItem {
-  // E22 fix: include id so the frontend can dispatch per-row approve/reject
-  // via /evolution/review-queue/{id}/action.
+ // E22 fix: include id so the frontend can dispatch per-row approve/reject
+ // via /evolution/review-queue/{id}/action.
   id: string
   skill_name: string | null
   position_name: string | null
@@ -120,11 +120,11 @@ export const useEvolutionStore = defineStore('evolution', () => {
   const changelogLoading = ref(false)
   const changelogData = ref<ChangelogEntry[]>([])
 
-  // LOOP-06: Emerging alerts state
+ // LOOP-06: Emerging alerts state
   const emergingAlerts = ref<EmergingAlert[]>([])
   const alertsLoading = ref(false)
 
-  // 10-03 (D-11): KPI row state — zeros until fetchKpi resolves
+ // 10-03 : KPI row state — zeros until fetchKpi resolves
   const kpi = ref<EvolutionKpi>({ ...DEFAULT_KPI })
   const kpiLoading = ref(false)
 
@@ -143,7 +143,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return { items: trendItems.value }
   }
 
-  // 10-03 (D-11): KPI row fetch — mirrors fetchTrends pattern
+ // 10-03 : KPI row fetch — mirrors fetchTrends pattern
   async function fetchKpi(days?: number) {
     kpiLoading.value = true
     try {
@@ -168,7 +168,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return kpi.value
   }
 
-  // 触发演化分析（原 EvolutionDashboard.vue 直调 request.post('/evolution/analyze')）
+ // 触发演化分析（原 EvolutionDashboard.vue 直调 request.post('/evolution/analyze')）
   async function analyze(days?: number): Promise<{ message?: string; task_id?: string; days?: number }> {
     const res = await request.post<{ message?: string; task_id?: string; days?: number }>(
       '/evolution/analyze', undefined, { params: days ? { days } : undefined },
@@ -179,9 +179,9 @@ export const useEvolutionStore = defineStore('evolution', () => {
   async function fetchSnapshots(limit = 50) {
     snapshotsLoading.value = true
     try {
-      // P2 fix (functional-review 2026-08-13): 后端 /evolution/snapshots 返回
-      // SnapshotEntry 数组，此前把整数组当单条 SnapshotEntry 校验 → schema 名
-      // 错位，校验实际未生效（DEV warn 不报）。改为逐条校验。
+ // P2 fix (functional-review 2026-08-13): 后端 /evolution/snapshots 返回
+ // SnapshotEntry 数组，此前把整数组当单条 SnapshotEntry 校验 → schema 名
+ // 错位，校验实际未生效（DEV warn 不报）。改为逐条校验。
       const data = await request.get(`/evolution/snapshots?limit=${limit}`) as SnapshotEntry[]
       const list = Array.isArray(data)
         ? data.map((item) => validateEvolution(item, evolutionSchema, '/evolution/snapshots', 'SnapshotEntry') as SnapshotEntry)
@@ -197,7 +197,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return snapshots.value
   }
 
-  // UX-04: Renamed parameter — backend 'identifier' accepts both position and skill names
+ // UX-04: Renamed parameter — backend 'identifier' accepts both position and skill names
   async function fetchChangelog(identifier: string) {
     changelogLoading.value = true
     try {
@@ -219,7 +219,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return changelogData.value
   }
 
-  // LOOP-06: Fetch emerging skill alerts
+ // LOOP-06: Fetch emerging skill alerts
   async function fetchEmergingAlerts(level?: string) {
     alertsLoading.value = true
     try {
@@ -231,7 +231,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
       emergingAlerts.value = data.alerts ?? []
     } catch (e: unknown) {
       if (import.meta.env.DEV) console.error('[Evolution] Failed to fetch alerts:', e)
-      // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail
+ // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       if (detail) console.error('[Evolution] Detail:', detail)
       emergingAlerts.value = []
@@ -240,7 +240,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     }
   }
 
-  // BUG-5 fix: low-trust EvolutionChangelog review queue (Phase 24 §5.2)
+ // BUG-5 fix: low-trust EvolutionChangelog review queue
   const reviewQueue = ref<ReviewQueueItem[]>([])
   const reviewQueueLoading = ref(false)
   async function fetchReviewQueue(status: string = 'pending') {
@@ -260,7 +260,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return reviewQueue.value
   }
 
-  // 快照联动 (E1): 指定岗位的 CII 历史（真实快照数据，非估算）
+ // 快照联动 (E1): 指定岗位的 CII 历史（真实快照数据，非估算）
   const ciiHistory = ref<CiiHistoryEntry[]>([])
   const ciiHistoryLoading = ref(false)
   const ciiHistoryPosition = ref('')
@@ -282,7 +282,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return ciiHistory.value
   }
 
-  // 10-03 (D-13): manual refresh — fire all dashboard fetches concurrently
+ // 10-03 : manual refresh — fire all dashboard fetches concurrently
   async function refreshAll() {
     await Promise.all([
       fetchTrends(),

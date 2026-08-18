@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 用户状态管理 — 存储当前用户信息和权限。
  *
  * Phase DB-AUTH:
@@ -33,10 +33,10 @@ export const useUserStore = defineStore('user', () => {
     () => user.value?.must_change_password === true
   )
 
-  /**
-   * Decode a JWT token payload (client-side; signature is verified server-side).
-   * Returns null if token is malformed or expired.
-   */
+ /**
+ * Decode a JWT token payload (client-side; signature is verified server-side).
+ * Returns null if token is malformed or expired.
+ */
   function decodeToken(token: string): { exp?: number } | null {
     try {
       const parts = token.split('.')
@@ -67,14 +67,14 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  /**
-   * Initialise from localStorage. Returns true if a usable session was found.
-   */
+ /**
+ * Initialise from localStorage. Returns true if a usable session was found.
+ */
   function initUser(): boolean {
     const access = localStorage.getItem(ACCESS_KEY)
     const refresh = localStorage.getItem(REFRESH_KEY)
     const cached = localStorage.getItem(USER_KEY)
-    // ponytail: dev-token bypasses JWT decode (backend dev mode accepts it as-is)
+ // ponytail: dev-token bypasses JWT decode (backend dev mode accepts it as-is)
     if (access && (access === 'dev-token' || decodeToken(access))) {
       accessToken.value = access
       refreshToken.value = refresh
@@ -87,7 +87,7 @@ export const useUserStore = defineStore('user', () => {
       }
       return true
     }
-    // access expired but refresh present → caller should run silent refresh
+ // access expired but refresh present → caller should run silent refresh
     if (refresh) {
       refreshToken.value = refresh
       accessToken.value = access
@@ -131,15 +131,15 @@ export const useUserStore = defineStore('user', () => {
         const api = (await import('@/api/request')).default
         await api.post('/auth/logout', { refresh_token: rt })
       } catch {
-        /* ignore — best-effort revoke */
+ /* ignore — best-effort revoke */
       }
     }
     clearUser()
     clearResume()
-    // Phase 26 / BUG-003: clear cached per-user data in every store so
-    // the next user logging in on the same browser cannot see the
-    // previous user's skill gaps, match results, or extracted positions.
-    // Lazy-load to avoid a circular-import at module-evaluation time.
+ // / BUG-003: clear cached per-user data in every store so
+ // the next user logging in on the same browser cannot see the
+ // previous user's skill gaps, match results, or extracted positions.
+ // Lazy-load to avoid a circular-import at module-evaluation time.
     try {
       const { useMatchStore } = await import('@/stores/match')
       const { useJdStore } = await import('@/stores/jd')
@@ -150,12 +150,12 @@ export const useUserStore = defineStore('user', () => {
       useJobseekerStore().reset()
       useLoopStore().resetRun()
     } catch {
-      // best-effort — if any store fails to import we still want logout
-      // to complete; stale data is preferable to a stuck session.
+ // best-effort — if any store fails to import we still want logout
+ // to complete; stale data is preferable to a stuck session.
     }
   }
 
-  // ── Resume-related state — FLOW-03: structured skills with proficiency ──
+ // ── Resume-related state — FLOW-03: structured skills with proficiency ──
   const resumeName = ref('')
   const parsedSkills = ref<ParsedSkill[]>([])
 

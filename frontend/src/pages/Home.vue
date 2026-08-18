@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import { Aim, TrendCharts } from "@element-plus/icons-vue"
@@ -40,7 +40,7 @@ const totalSkills = computed(() => {
   return is !== null && is !== undefined ? is : graphStore.domains.reduce((s: number, d) => s + d.skill_count, 0)
 })
 const totalDomains = computed(() => graphStore.domains.length)
-// M6：关系边 KPI 统一用 REQUIRES 去重总数（=数据大屏/Neo4j/PG 口径），不再随视图模式在 11/582 间跳变
+//：关系边 KPI 统一用 REQUIRES 去重总数（=数据大屏/Neo4j/PG 口径），不再随视图模式在 11/582 间跳变
 const totalRelations = computed(() => graphStore.independentEdges ?? graphStore.allEdges?.length ?? 0)
 const { layoutMode, maxNodesLimit, proficiencyFilter, toggleLayout, onMaxNodesChange, onProficiencyFilter } = useGraphToolbarState()
 const { viewMode, autoRotate3D } = useHomeLayout()

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useTextSprite — Canvas-based text label sprite generator with caching.
  *
  * Extracted from Graph3D.vue to decouple the text rendering pipeline
@@ -19,10 +19,10 @@ export function disposeTextCache() {
  * Create a Three.js Sprite with a canvas-rendered text label.
  * Results are cached by `text|nodeType` key — same label reuses the same texture.
  *
- * @param text       Label text to render
+ * @param text Label text to render
  * @param nodeRadius Radius of the parent node (used for sprite scaling)
- * @param nodeType   'domain' | 'position' | 'skill' — controls font size & layout
- * @param THREE_NS   The THREE namespace (loaded dynamically)
+ * @param nodeType 'domain' | 'position' | 'skill' — controls font size & layout
+ * @param THREE_NS The THREE namespace (loaded dynamically)
  */
 export function createTextSprite(
   text: string,
@@ -37,7 +37,7 @@ export function createTextSprite(
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')!
 
-    // Font sizing based on node type
+ // Font sizing based on node type
     const fontSize = nodeType === 'domain' ? 28 : nodeType === 'position' ? 22 : 18
     const lineHeight = fontSize * 1.4
     const maxWidth = nodeType === 'domain' ? 280 : nodeType === 'position' ? 220 : 180
@@ -46,7 +46,7 @@ export function createTextSprite(
 
     ctx.font = `700 ${fontSize}px 'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif`
 
-    // Word-wrap long text
+ // Word-wrap long text
     const words = text.split('')
     const lines: string[] = []
     let currentLine = ''
@@ -68,24 +68,24 @@ export function createTextSprite(
     canvas.width = canvasWidth
     canvas.height = canvasHeight
 
-    // Re-apply font after resize
+ // Re-apply font after resize
     ctx.font = `700 ${fontSize}px 'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
 
-    // Draw background pill
+ // Draw background pill
     const cornerRadius = 10
     ctx.fillStyle = 'rgba(10, 14, 26, 0.85)'
     roundRect(ctx, 0, 0, canvasWidth, canvasHeight, cornerRadius)
     ctx.fill()
 
-    // Draw border
+ // Draw border
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)'
     ctx.lineWidth = 1.5
     roundRect(ctx, 0.5, 0.5, canvasWidth - 1, canvasHeight - 1, cornerRadius)
     ctx.stroke()
 
-    // Draw text with shadow for readability
+ // Draw text with shadow for readability
     ctx.fillStyle = '#e2e8f0'
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)'
     ctx.shadowBlur = 4
@@ -110,10 +110,10 @@ export function createTextSprite(
   })
   const sprite = new THREE_NS.Sprite(spriteMaterial)
 
-  // Mark as text sprite so hover handler can toggle visibility
+ // Mark as text sprite so hover handler can toggle visibility
   sprite.userData.isTextSprite = true
 
-  // Scale sprite to match node size — larger nodes get proportionally larger labels
+ // Scale sprite to match node size — larger nodes get proportionally larger labels
   const scaleFactor = nodeType === 'domain' ? 0.18 : nodeType === 'position' ? 0.14 : 0.1
   const img = texture.image as HTMLCanvasElement | undefined
   const aspect = img ? img.width / img.height : 2

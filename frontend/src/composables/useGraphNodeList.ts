@@ -1,13 +1,13 @@
-/**
- * Admin.vue graph node list state + filters — extracted from Admin.vue (Phase 7 D)
+﻿/**
+ * Admin.vue graph node list state + filters — extracted from Admin.vue ( D)
  * Pure composable: search keyword, type filter, status filter, pagination.
  */
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 
 export interface GraphNodeItem {
   id: string
-  // P1-6 fix (functional-review 2026-08-13): Neo4j elementId，写操作首选标识
-  // （服务端已改为 elementId OR canonical_id 双匹配，两者皆可）
+ // fix (functional-review 2026-08-13): Neo4j elementId，写操作首选标识
+ // （服务端已改为 elementId OR canonical_id 双匹配，两者皆可）
   element_id?: string
   type: string
   name: string
@@ -56,8 +56,8 @@ export function useGraphNodeList(source: ComputedRef<GraphNodeItem[]>): GraphNod
     return filtered.value.slice(start, start + pageSize.value)
   })
 
-  // Reset to page 1 when any filter changes (otherwise user lands on an
-  // empty page after narrowing the filter set).
+ // Reset to page 1 when any filter changes (otherwise user lands on an
+ // empty page after narrowing the filter set).
   watch([searchKeyword, typeFilter, statusFilter], () => {
     currentPage.value = 1
   })

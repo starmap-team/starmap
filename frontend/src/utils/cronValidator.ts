@@ -1,4 +1,4 @@
-// Cron 表达式完整校验工具 (D-16 Phase 03 Plan 03 Task 11).
+﻿// Cron 表达式完整校验工具 ( Plan 03 Task 11).
 //
 // 5 字段值域 + 范围校验：
 // - 分 (minute): 0-59
@@ -23,7 +23,7 @@ export interface CronValidationError {
 export interface CronValidationResult {
   valid: boolean
   errors: CronValidationError[]
-  /** 5 字段解析结果（trim 后） */
+ /** 5 字段解析结果（trim 后） */
   parsed?: {
     minute: string
     hour: string
@@ -38,7 +38,7 @@ const FIELD_BOUNDS = {
   hour: { min: 0, max: 23, label: '时' },
   day: { min: 1, max: 31, label: '日' },
   month: { min: 1, max: 12, label: '月' },
-  // 周允许 0-7（0 和 7 都表示周日）
+ // 周允许 0-7（0 和 7 都表示周日）
   week: { min: 0, max: 7, label: '周' },
 } as const
 
@@ -48,10 +48,10 @@ const FIELD_ORDER: Array<keyof typeof FIELD_BOUNDS> = ['minute', 'hour', 'day', 
 function validateFieldValue(raw: string, min: number, max: number, field: CronValidationError['field']): CronValidationError[] {
   const errors: CronValidationError[] = []
 
-  // 通配符
+ // 通配符
   if (raw === '*') return errors
 
-  // 步长：*/N 或 a-b/N
+ // 步长：*/N 或 a-b/N
   if (raw.includes('/')) {
     const [range, stepStr] = raw.split('/', 2)
     const step = Number(stepStr)
@@ -63,14 +63,14 @@ function validateFieldValue(raw: string, min: number, max: number, field: CronVa
       })
       return errors
     }
-    // range 可以是 * 或 a-b
+ // range 可以是 * 或 a-b
     if (range !== '*') {
       errors.push(...validateFieldValue(range, min, max, field))
     }
     return errors
   }
 
-  // 列表：a,b,c
+ // 列表：a,b,c
   if (raw.includes(',')) {
     for (const part of raw.split(',')) {
       errors.push(...validateFieldValue(part.trim(), min, max, field))
@@ -78,7 +78,7 @@ function validateFieldValue(raw: string, min: number, max: number, field: CronVa
     return errors
   }
 
-  // 范围：a-b
+ // 范围：a-b
   if (raw.includes('-')) {
     const [startStr, endStr] = raw.split('-', 2)
     const start = Number(startStr)
@@ -96,7 +96,7 @@ function validateFieldValue(raw: string, min: number, max: number, field: CronVa
     return errors
   }
 
-  // 单值
+ // 单值
   const num = Number(raw)
   if (!Number.isInteger(num)) {
     errors.push({ field, value: raw, message: `${FIELD_BOUNDS[field].label} 必须为整数` })
@@ -142,7 +142,7 @@ export function validateCron(cron: string): CronValidationResult {
   }
 }
 
-/** 5 字段 cron 常用示例（D-16 tooltip） */
+/** 5 字段 cron 常用示例（ tooltip） */
 export const CRON_EXAMPLES = [
   { expression: '0 2 * * *', description: '每天凌晨 2 点' },
   { expression: '*/15 * * * *', description: '每 15 分钟' },

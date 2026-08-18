@@ -1,4 +1,4 @@
-/** 求职者业务闭环分析 Store。 */
+﻿/** 求职者业务闭环分析 Store。 */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
@@ -66,11 +66,11 @@ export interface VerificationCheck {
   detail: string
 }
 
-/** 步骤输出摘要（Phase 3: 逐步可视化核验） */
+/** 步骤输出摘要（: 逐步可视化核验） */
 export interface StepOutputSample {
   label?: string
   value?: unknown
-  /** 后端多样样本结构（name/category/confidence / text_preview / position 等） */
+ /** 后端多样样本结构（name/category/confidence / text_preview / position 等） */
   name?: string
   position?: string
   [key: string]: unknown
@@ -96,18 +96,18 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
   const currentStep = ref('')
   const result = ref<PipelineResult | null>(null)
   const error = ref<string | null>(null)
-  /** Phase 3: 逐步可视化核验 — 每步的输出详情 */
+ /**: 逐步可视化核验 — 每步的输出详情 */
   const stepOutputs = ref<StepOutput[]>([])
 
-  /** 上传简历并执行 Pipeline 分析（SSE 模式）。 */
+ /** 上传简历并执行 Pipeline 分析（SSE 模式）。 */
   async function analyzeResume(file: File, targetPositions?: string[]) {
     loading.value = true
     progress.value = []
     stepOutputs.value = []
     result.value = null
     error.value = null
-    // P3 fix (Phase 24 求职者分析): AbortController 支持组件卸载/超时中止，
-    // 避免请求悬挂时 loading 永远 true。超时 300s 对齐后端 LLM 降级链。
+ // P3 fix ( 求职者分析): AbortController 支持组件卸载/超时中止，
+ // 避免请求悬挂时 loading 永远 true。超时 300s 对齐后端 LLM 降级链。
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => controller.abort(), 300_000)
     try {
@@ -117,7 +117,7 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
         formData.append('target_positions', targetPositions.join(','))
       }
 
-      // LOOP-02: Add Authorization header + fix hardcoded URL
+ // LOOP-02: Add Authorization header + fix hardcoded URL
       const baseUrl = API_BASE
       const token = localStorage.getItem('starmap_access_token')
       const headers: Record<string, string> = {}
@@ -141,7 +141,7 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
       const decoder = new TextDecoder()
       let buffer = ''
 
-      // eslint-disable-next-line no-constant-condition
+ // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -162,14 +162,14 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
                 progress.value.push(data)
                 currentStep.value = data.step
               } else if (currentEvent === 'result') {
-                // P2 fix (functional-review 2026-08-13): SSE result 事件直接赋给
-                // result.value 无字段归一化 —— PipelineAnalysis.vue 模板访问
-                // result.extracted_skills.length 等，后端若缺任一数组字段即抛
-                // TypeError（页面异常）。统一补齐数组字段默认值。
+ // P2 fix (functional-review 2026-08-13): SSE result 事件直接赋给
+ // result.value 无字段归一化 —— PipelineAnalysis.vue 模板访问
+ // result.extracted_skills.length 等，后端若缺任一数组字段即抛
+ // TypeError（页面异常）。统一补齐数组字段默认值。
                 const rawResult = (data ?? {}) as Record<string, unknown>
-                // P0 fix (Phase 24 求职者分析): learning_path_summary 元素可能为
-                // None（后端 gap.learning_path 显式 null）——模板 v-for path.length
-                // 崩溃。统一过滤非数组元素；skill_gaps 同兜底。
+ // P0 fix ( 求职者分析): learning_path_summary 元素可能为
+ // None（后端 gap.learning_path 显式 null）——模板 v-for path.length
+ // 崩溃。统一过滤非数组元素；skill_gaps 同兜底。
                 const rawPaths = Array.isArray(rawResult.learning_path_summary)
                   ? rawResult.learning_path_summary
                   : []
@@ -188,11 +188,11 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
                   errors: Array.isArray(rawResult.errors) ? rawResult.errors : [],
                 } as PipelineResult
               } else if (currentEvent === 'step_output') {
-                // Phase 3: 接收步骤输出详情供可视化核验
+ //: 接收步骤输出详情供可视化核验
                 stepOutputs.value.push(data as StepOutput)
               }
             } catch {
-              // 忽略非 JSON 数据
+ // 忽略非 JSON 数据
             }
           }
         }

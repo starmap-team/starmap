@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API 错误响应解析工具。
  *
  * 从 Axios 错误中提取结构化的 ErrorResponse，
@@ -21,12 +21,12 @@ export function parseErrorResponse(error: AxiosError): ErrorResponse | null {
 
   const resp = data as Record<string, unknown>
 
-  // 新格式：已有 detail + code
+ // 新格式：已有 detail + code
   if (typeof resp.detail === 'string' && typeof resp.code === 'string') {
     return resp as unknown as ErrorResponse
   }
 
-  // 旧格式兼容：{detail: "..."}
+ // 旧格式兼容：{detail: "..."}
   if (typeof resp.detail === 'string') {
     return {
       detail: resp.detail,
@@ -55,7 +55,7 @@ export function extractFieldErrors(error: AxiosError): FieldErrorsMap {
   if (!errResp?.fields) return map
 
   for (const fe of errResp.fields) {
-    // 合并同一字段的多条错误（取第一条，或拼接）
+ // 合并同一字段的多条错误（取第一条，或拼接）
     map.set(fe.field, { message: fe.message, code: fe.code })
   }
 
@@ -70,12 +70,12 @@ export function extractFieldErrors(error: AxiosError): FieldErrorsMap {
 export function buildErrorMessage(error: AxiosError, defaultMsg = '操作失败，请稍后重试'): string {
   const errResp = parseErrorResponse(error)
 
-  // 优先使用服务端 detail
+ // 优先使用服务端 detail
   if (errResp?.detail && errResp.detail !== '请求数据校验失败') {
     return errResp.detail
   }
 
-  // 校验错误：汇总字段级错误
+ // 校验错误：汇总字段级错误
   if (errResp?.fields?.length) {
     const first = errResp.fields[0]
     const remaining = errResp.fields.length - 1
@@ -85,7 +85,7 @@ export function buildErrorMessage(error: AxiosError, defaultMsg = '操作失败�
     return first.message
   }
 
-  // 降级：HTTP 状态码
+ // 降级：HTTP 状态码
   const status = error.response?.status
   const STATUS_MESSAGES: Record<number, string> = {
     400: '请求参数有误，请检查后重试',

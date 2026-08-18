@@ -1,4 +1,4 @@
-import { ref, computed, type Ref, type ComputedRef } from 'vue'
+﻿import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useGraphStore, type GraphNode, type GraphEdge, type ViewLayer, type OverviewMode } from '@/stores/graph'
 import { displayName } from '@/utils/graphColors'
@@ -45,18 +45,18 @@ interface Graph3DExposed {
 }
 
 export interface UseHomeInteractions {
-  // refs
+ // refs
   graph2DRef: Ref<Graph2DExposed | null>
   graph3DRef: Ref<Graph3DExposed | null>
   evolutionDrawerVisible: Ref<boolean>
   selectedEvolutionEdge: Ref<GraphEdge | null>
-  // constants
+ // constants
   evolutionTrendLabel: Record<string, string>
   evolutionTrendType: Record<string, string>
-  // computed
+ // computed
   breadcrumb: ComputedRef<BreadcrumbItem[]>
   positionRadarOption: ComputedRef<RadarChartOption | null>
-  // handlers
+ // handlers
   onOverviewModeChange: (mode: string) => void
   onCameraPreset: (preset: 'overview' | 'domain' | 'position') => void
   onResetCamera: () => void
@@ -95,11 +95,11 @@ export function useHomeInteractions(
 ): UseHomeInteractions {
   const graphStore = getGraphStore()
 
-  // Template refs
+ // Template refs
   const graph2DRef = ref<Graph2DExposed | null>(null)
   const graph3DRef = ref<Graph3DExposed | null>(null)
 
-  // Evolution drawer state
+ // Evolution drawer state
   const evolutionDrawerVisible = ref(false)
   const selectedEvolutionEdge = ref<GraphEdge | null>(null)
 
@@ -129,7 +129,7 @@ export function useHomeInteractions(
     selectedEvolutionEdge.value = null
   }
 
-  // Breadcrumb
+ // Breadcrumb
   const breadcrumb = computed<BreadcrumbItem[]>(() => {
     const items: BreadcrumbItem[] = [
       {
@@ -143,7 +143,7 @@ export function useHomeInteractions(
         label: graphStore.expandedKAName,
         layer: 'position',
         action: () => {
-          // 使用 store 方法保持状态一致性，而非直接赋值
+ // 使用 store 方法保持状态一致性，而非直接赋值
           if (graphStore.expandedKAId) {
             graphStore.goToPositionLayer(graphStore.expandedKAId, graphStore.expandedKAName)
           } else {
@@ -159,12 +159,12 @@ export function useHomeInteractions(
     return items
   })
 
-  // Overview mode / view mode
+ // Overview mode / view mode
   function onOverviewModeChange(mode: string) {
     graphStore.fetchOverview(mode as OverviewMode)
   }
 
-  // 3D camera controls
+ // 3D camera controls
   function onCameraPreset(preset: 'overview' | 'domain' | 'position') {
     graph3DRef.value?.setCameraPreset(preset)
   }
@@ -173,15 +173,15 @@ export function useHomeInteractions(
   }
   function onToggleAutoRotate(_autoRotate3DRef: Ref<boolean>) {
     graph3DRef.value?.toggleAutoRotate()
-    // Do NOT manually flip autoRotate3DRef here —
-    // Graph3D emits 'autoRotateChange' which Home.vue uses to sync autoRotate3D.
-    // Double-flipping would invert the logic.
+ // Do NOT manually flip autoRotate3DRef here —
+ // Graph3D emits 'autoRotateChange' which Home.vue uses to sync autoRotate3D.
+ // Double-flipping would invert the logic.
   }
 
-  // Node click / dblclick
+ // Node click / dblclick
   function onNodeDblClick(nodeId: string) {
-    // 先查 synthetic cluster nodes（domain/tech_stack/level/heat 视图的集群节点，
-    // 不在 allNodes 中，所以 nodeMap.get 会返回 undefined）
+ // 先查 synthetic cluster nodes（domain/tech_stack/level/heat 视图的集群节点，
+ // 不在 allNodes 中，所以 nodeMap.get 会返回 undefined）
     const domain = graphStore.domains.find(d => d.id === nodeId)
     if (domain) {
       graphStore.goToPositionLayer(nodeId, domain.name)
@@ -319,8 +319,8 @@ export function useHomeInteractions(
           selectedNodeRef.value = node
         }).catch((err: unknown) => console.error('[useHomeInteractions] goToPositionLayer failed', err))
       } else {
-        // ponytail: positionsByKA 缓存被回退/模式切换清空后，allNodes 里残留的岗位
-        // 仍可搜到但无法反查领域 → 原实现静默 return，用户点击无任何反应
+ // ponytail: positionsByKA 缓存被回退/模式切换清空后，allNodes 里残留的岗位
+ // 仍可搜到但无法反查领域 → 原实现静默 return，用户点击无任何反应
         ElMessage.warning('未找到该岗位的领域上下文，请先在图谱中展开对应领域')
       }
       return
@@ -347,13 +347,13 @@ export function useHomeInteractions(
     }
   }
 
-  // Radar chart option for the selected Position node
+ // Radar chart option for the selected Position node
   const positionRadarOption = computed<RadarChartOption | null>(() => {
-    // selectedNodeRef is read via the closed-over Home.vue binding; we re-derive via
-    // graphStore.expandedPositionId since this composable is consumed by Home.vue and
-    // it always sets selectedNode before reaching this point.
-    // ponytail: detail 层点 Skill 时 expandedPositionId 仍是岗位 → 雷达会错位显示；
-    // 展示守卫放在 DetailPanel 模板（它有 selectedNode prop）
+ // selectedNodeRef is read via the closed-over Home.vue binding; we re-derive via
+ // graphStore.expandedPositionId since this composable is consumed by Home.vue and
+ // it always sets selectedNode before reaching this point.
+ // ponytail: detail 层点 Skill 时 expandedPositionId 仍是岗位 → 雷达会错位显示；
+ // 展示守卫放在 DetailPanel 模板（它有 selectedNode prop）
     const posId = graphStore.expandedPositionId
     if (!posId) return null
     const skills: { name: string; value: number }[] = []

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * EvolutionReviewPanel — BUG-5 + E21 + E22 fix.
  *
@@ -50,8 +50,8 @@ async function handleBatchReject() {
     duration: 0,
   })
   try {
-    // E22 fix: use the shared request lib (auto-handles auth + 401).
-    // response interceptor returns response.data, not the raw axios response.
+ // E22 fix: use the shared request lib (auto-handles auth + 401).
+ // response interceptor returns response.data, not the raw axios response.
     const data = await request.post('/evolution/review-queue/batch-action', { action: 'reject' }) as { updated: number; matched: number }
     progressMsg.close()
     ElMessage.success(`已批量拒绝 ${data.updated ?? 0} 个变更 (匹配 ${data.matched ?? 0} 条)`)
@@ -69,7 +69,7 @@ async function handleSingleAction(row: { id: string; skill_name: string; positio
     ElMessage.error('该行缺少 changelog id,无法执行单项操作')
     return
   }
-  // Mark this row as "acting" so the buttons show loading per-row.
+ // Mark this row as "acting" so the buttons show loading per-row.
   actioningIds.value.add(row.id)
   try {
     await request.post(

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 差距分析报告 — Step 3 子组件
  * 展示匹配分数、已匹配技能、技能差距明细和诊断历史
@@ -28,7 +28,7 @@ const matchScore = computed(() => matchResult.value?.match_score ?? 0)
 const previousScore = computed(() => {
   const currentPosition = props.targetPosition
   const currentId = matchResult.value?.match_id
-  // Find the most recent history entry for the same position, excluding current
+ // Find the most recent history entry for the same position, excluding current
   const prev = matchStore.historyList.find(
     (h) => h.target_position === currentPosition && h.match_id !== currentId,
   )

@@ -1,6 +1,6 @@
-/**
+﻿/**
  * QualityDashboard page-level orchestration — extracted from QualityDashboard.vue
- * (Phase 7 D round 11). Owns: activeTab ref + onMounted initial data fetch +
+ * ( D round 11). Owns: activeTab ref + onMounted initial data fetch +
  * toggleAutoRefresh wrapper that bridges UI value to composable API.
  */
 import { onMounted, ref, type Ref } from 'vue'
@@ -20,9 +20,9 @@ export interface QualityDashboardApi {
 }
 
 export function useQualityDashboard(store: QualityStore): QualityDashboardApi {
-  // P2 fix (functional-review 2026-08-13): 默认 activeTab 此前为 'overview'，
-  // 而 QualityDashboard.vue 的 el-tab-pane 只有 'trend'/'alert' 两个 → 首屏
-  // 无激活 pane，质量趋势/异常告警区域空白，需用户点击后才显示。改为 'trend'。
+ // P2 fix (functional-review 2026-08-13): 默认 activeTab 此前为 'overview'，
+ // 而 QualityDashboard.vue 的 el-tab-pane 只有 'trend'/'alert' 两个 → 首屏
+ // 无激活 pane，质量趋势/异常告警区域空白，需用户点击后才显示。改为 'trend'。
   const activeTab: Ref<string> = ref('trend')
   const autoRefresh: Ref<boolean> = ref(true)
   const refreshInterval: Ref<number> = ref(30) // seconds

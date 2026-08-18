@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Unified Graph3D composable — merges 6 single-caller composables:
- *   useForceConfig (167L) + useZoomControls (44L) + useNodeTooltip (90L)
- *   + useCameraPresets (144L) + useEvolutionEdges (74L) + useGlowTexture (49L)
+ * useForceConfig (167L) + useZoomControls (44L) + useNodeTooltip (90L)
+ * + useCameraPresets (144L) + useEvolutionEdges (74L) + useGlowTexture (49L)
  *
  * All 6 were served only by Graph3D.vue. Merging removes 5 files + 5 import chains
  * with zero logic change (ponytail: single-caller abstractions → co-locate).
@@ -30,8 +30,8 @@ export interface ForceConfig {
 
 /** Calculate force configuration parameters based on node count and link density. */
 export function calcForceConfig(nodeCount: number, linkCount?: number): ForceConfig {
-  // Sparse graph (few links relative to nodes) — reduce charge strength
-  // so unconnected nodes don't fly apart (heat view, bug #2)
+ // Sparse graph (few links relative to nodes) — reduce charge strength
+ // so unconnected nodes don't fly apart (heat view, bug #2)
   const sparse = linkCount !== undefined && linkCount < nodeCount * 0.3
   if (nodeCount <= 3) {
     if (sparse) return { chargeStrength: -200, linkDist: 200, linkStrength: 0.02, alphaDecay: 0.02, velocityDecay: 0.4, warmupTicks: 200, cooldownTicks: 600 }
@@ -126,7 +126,7 @@ export function useZoomControls(
   graphInstance: ShallowRef<any>,
   calcFitDistance: (padding?: number) => number,
 ) {
-  /* eslint-enable @typescript-eslint/no-explicit-any */
+ /* eslint-enable @typescript-eslint/no-explicit-any */
   function zoomBy(factor: number) {
     const graph = graphInstance.value
     if (!graph) return
@@ -170,7 +170,7 @@ export function useNodeTooltip() {
       if (!threeObj) return
       threeObj.traverse((child) => { if (child.type === 'Sprite' && child.userData.isTextSprite) child.visible = visible })
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (node: any) => {
       const typed = node as GraphNode3D | null
       if (_prevHoveredNode) { _setTextSpriteVisible(_prevHoveredNode, true); _prevHoveredNode = null }
@@ -205,7 +205,7 @@ export function useCameraPresets(
   graphInstance: ShallowRef<any>,
   nodes: () => GraphNode3D[],
 ) {
-  /* eslint-enable @typescript-eslint/no-explicit-any */
+ /* eslint-enable @typescript-eslint/no-explicit-any */
   const autoRotate = ref(false)
   let _autoRotateTimer: ReturnType<typeof setTimeout> | null = null
 

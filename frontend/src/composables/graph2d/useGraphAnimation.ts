@@ -1,11 +1,11 @@
-/**
+﻿/**
  * useGraphAnimation — Node entrance growth animation (G6 v5 compatible)
  *
  * Animates nodes from small scale (scale:0.1) → full size (scale:1).
  * Assumes the caller (layer renderer) has already set initial small scale
- * via setData/updateNodeData before calling animate().
+ * via setData/updateNodeData before calling animate.
  *
- * Uses setTimeout-based staggered reveal with graph.draw() after each update.
+ * Uses setTimeout-based staggered reveal with graph.draw after each update.
  * Cancels any in-flight animation before starting a new one.
  */
 import { shallowRef } from 'vue'
@@ -40,7 +40,7 @@ export function useGraphAnimation(defaultIntervalMs: number = 220): UseGraphAnim
         if (!nodeId) { resolve(); return }
 
         try {
-          // Phase 1: overshoot for elastic feel
+ //: overshoot for elastic feel
           graph.updateNodeData([{
             id: nodeId,
             style: {
@@ -51,7 +51,7 @@ export function useGraphAnimation(defaultIntervalMs: number = 220): UseGraphAnim
           }])
           graph.draw()
 
-          // Phase 2: settle to normal size
+ //: settle to normal size
           timer.value = setTimeout(() => {
             if (!graph) return
             graph.updateNodeData([{

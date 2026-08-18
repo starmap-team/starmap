@@ -1,10 +1,10 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * MatchTrustGuide — explains what the match_score and trust_score mean
- * to a non-technical user. Phase 25 enhancement for §5.2 module D.
+ * to a non-technical user. enhancement for module D.
  *
- *   match_score (0-100): 你的技能对该岗位的覆盖度
- *   trust_score (0-100): 系统对该匹配结果的置信度
+ * match_score (0-100): 你的技能对该岗位的覆盖度
+ * trust_score (0-100): 系统对该匹配结果的置信度
  *
  * Why both? A high match_score alone doesn't tell you whether the
  * comparison is reliable. A low-trust result might be missing key
@@ -16,7 +16,7 @@ import { CircleCheck, WarningFilled, QuestionFilled } from '@element-plus/icons-
 const props = defineProps<{
   matchScore?: number | null
   trustScore?: number | null
-  // D-01: 分数拆解（required_avg/bonus_avg/权重/inflated）— 用户可感知 match_score 构成
+ //: 分数拆解（required_avg/bonus_avg/权重/inflated）— 用户可感知 match_score 构成
   scoreBreakdown?: {
     required_avg?: number
     bonus_avg?: number
@@ -24,7 +24,7 @@ const props = defineProps<{
     weight_bonus?: number
     inflated?: boolean
   } | null
-  // M2（Phase 13 强制规范）：后端 MatchResponse.note（如“岗位存在但暂无可用画像”）的呈现
+ //（ 强制规范）：后端 MatchResponse.note（如“岗位存在但暂无可用画像”）的呈现
   note?: string | null
 }>()
 
@@ -66,7 +66,7 @@ const trustBands: ScoreBand[] = [
 const matchBand = computed(() => bandFor(props.matchScore != null ? Math.round((props.matchScore ?? 0) * 100) : null, matchBands))
 const trustBand = computed(() => bandFor(props.trustScore != null ? Math.round((props.trustScore ?? 0) * 100) : null, trustBands))
 
-// D-01: 分数拆解计算 — 必备均值×权重 + 加分均值×权重
+//: 分数拆解计算 — 必备均值×权重 + 加分均值×权重
 const pct = (v?: number) => v != null ? `${Math.round(v * 100)}%` : '—'
 const breakdownLines = computed(() => {
   const b = props.scoreBreakdown
@@ -76,7 +76,7 @@ const breakdownLines = computed(() => {
     { label: '加分技能均值', value: pct(b.bonus_avg), weight: b.weight_bonus },
   ]
 })
-// D-02: trust_score 为空（Neo4j 不可用）时给出明确降级文案，而非裸「—」
+//: trust_score 为空（Neo4j 不可用）时给出明确降级文案，而非裸「—」
 const trustUnavailable = computed(() => props.trustScore == null || Number.isNaN(props.trustScore))
 </script>
 
@@ -256,14 +256,14 @@ const trustUnavailable = computed(() => props.trustScore == null || Number.isNaN
   font-weight: 500;
 }
 
-/* D-02: 信任度降级提示 */
+/*: 信任度降级提示 */
 .trust-unavailable {
   margin-top: 6px;
   font-size: 12px;
   color: var(--warning, #e6a23c);
 }
 
-/* D-01: 分数拆解 */
+/*: 分数拆解 */
 .breakdown-card {
   margin-top: 12px;
   padding: 10px 12px;

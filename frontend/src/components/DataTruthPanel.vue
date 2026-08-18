@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 数据源真理面板 — Phase 4 P0
+ * 数据源真理面板 — P0
  *
  * 显示每个 KPI 数字的三层来源对比：API / PostgreSQL / Neo4j
  * 让管理员看到 70/56/39 这三个数字的真实含义
@@ -70,10 +70,10 @@ async function loadReport(silent = false) {
   errorMsg.value = null
   try {
     report.value = (await request.get('/admin/data-truth')) as TruthReport
-    // E7 fix: surface real-time data status. The numbers, the diffs, the
-    // "explanation" column, and the "生成时间" are all generated server-side
-    // per request (60s Redis cache). Make the freshness visible by
-    // stamping the load time and the cache status into the report header.
+ // E7 fix: surface real-time data status. The numbers, the diffs, the
+ // "explanation" column, and the "生成时间" are all generated server-side
+ // per request (60s Redis cache). Make the freshness visible by
+ // stamping the load time and the cache status into the report header.
     if (report.value) {
       (report.value as any).__clientLoadedAt = new Date().toISOString()
     }
@@ -92,9 +92,9 @@ async function loadReport(silent = false) {
 async function triggerReconcile() {
   reconcileLoading.value = true
   const start = Date.now()
-  // E6 fix: provide immediate feedback so the admin knows the action was
-  // registered. A 30-60s reconcile that appears silent makes the user
-  // think the button is broken.
+ // E6 fix: provide immediate feedback so the admin knows the action was
+ // registered. A 30-60s reconcile that appears silent makes the user
+ // think the button is broken.
   const progressMsg = ElMessage({
     message: 'Reconcile 任务已提交，正在同步 PG ↔ Neo4j...',
     type: 'info',

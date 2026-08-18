@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 岗位详情页 — 能力雷达图 + 技能列表
  * 路由：/position/:name
@@ -36,7 +36,7 @@ interface PositionInfo {
   name: string
   industry: string
   description: string
-  // PLAN-006④: 岗位入库时间, 用于"数据时效"指示; null = 演示/无采集
+ // PLAN-006④: 岗位入库时间, 用于"数据时效"指示; null = 演示/无采集
   discovered_at: string | null
 }
 
@@ -57,8 +57,8 @@ const radarData = computed<RadarItem[]>(() =>
   }))
 )
 
-// D-05: 技能画像缺失降级判定。岗位存在但无技能关系时不走 404，
-// 改为渲染「暂无技能画像」引导卡片（沿 M5 D-04：无画像岗位 → 200 + 诚实空态）。
+//: 技能画像缺失降级判定。岗位存在但无技能关系时不走 404，
+// 改为渲染「暂无技能画像」引导卡片（沿：无画像岗位 → 200 + 诚实空态）。
 const hasSkillProfile = computed(() => skills.value.length > 0)
 
 const PROFICIENCY_TAG: Record<string, string> = {
@@ -91,7 +91,7 @@ function goMatch() {
 // 改用列表传入的 id（UUID，路径安全）；silent=true 使真正缺失时不弹全局 404 toast，改渲染友好态。
 let fetchToken = 0
 
-// M2-AUDIT-FIX (02-01 M3): `/position/A` ↔ `/position/B` 复用同一组件实例时
+//-AUDIT-FIX (02-01): `/position/A` ↔ `/position/B` 复用同一组件实例时
 // onMounted 不会重跑，旧岗位的 skills/radar 会残留。提取为函数并 watch
 // route.params.name 触发重拉（fetchToken 竞态防护沿用）。
 async function loadPosition() {
@@ -117,7 +117,7 @@ async function loadPosition() {
       name: d.name_cn || d.name || id,
       industry: d.industry ?? '',
       description: d.description ?? '',
-      // PLAN-006④: 岗位入库时间, 用于"数据时效"指示
+ // PLAN-006④: 岗位入库时间, 用于"数据时效"指示
       discovered_at: d.discovered_at ?? null,
     }
     skills.value = (d.skills_required ?? []).map((s) => ({
@@ -126,7 +126,7 @@ async function loadPosition() {
       name_cn: s.name_cn ?? '',  // D8i: 技能中文名
       category: s.category ?? 'hard_skill',
       proficiency: s.proficiency ?? '熟悉',
-      // PLAN-006③ 红线: 后端无置信度时不再编造 1.0, 显示"未评估"
+ // PLAN-006③ 红线: 后端无置信度时不再编造 1.0, 显示"未评估"
       confidence: s.confidence ?? null,
       source_count: s.source_count ?? 0,
     }))
@@ -441,7 +441,7 @@ watch(() => route.params.name, loadPosition)
   margin: 0 0 var(--space-3);
 }
 
-/* ── D-05: 无技能画像降级卡片 ── */
+/* ──: 无技能画像降级卡片 ── */
 .no-profile-card {
   border: 1px dashed var(--border);
   border-radius: var(--radius-xl);

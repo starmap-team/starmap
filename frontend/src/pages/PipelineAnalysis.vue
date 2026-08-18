@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="pipeline-analysis">
       <div class="page-header">
@@ -479,7 +479,7 @@ function handleFileChange(file: { raw: File }) {
   selectedFile.value = file.raw
 }
 
-/** P3 fix (Phase 24 求职者分析): 前端文件校验 + 防重复点击。 */
+/** P3 fix ( 求职者分析): 前端文件校验 + 防重复点击。 */
 function startAnalysis() {
   if (!selectedFile.value) {
     ElMessage.warning('请先选择简历文件')
@@ -503,8 +503,8 @@ function startAnalysis() {
 function viewInGraph() {
   if (!store.result?.top_matches?.length) return
   const topPosition = store.result.top_matches[0].position
-  // ponytail: 原实现跳 '/' 带 highlight 参数，但 Home.vue 从不消费该参数（点击无任何效果）；
-  // 直接跳转真实存在的岗位详情页，展示该岗位技能画像
+ // ponytail: 原实现跳 '/' 带 highlight 参数，但 Home.vue 从不消费该参数（点击无任何效果）；
+ // 直接跳转真实存在的岗位详情页，展示该岗位技能画像
   router.push(`/position/${encodeURIComponent(topPosition)}`)
 }
 
@@ -533,11 +533,11 @@ function statusText(status: string) {
   return status
 }
 
-/** Phase 3: 格式化样本数据为可读文本（兼容后端多样样本结构） */
+/**: 格式化样本数据为可读文本（兼容后端多样样本结构） */
 function formatSample(value: unknown): string {
   if (typeof value === 'string') return value
   if (Array.isArray(value)) {
-    // 如果是对象数组，格式化为表格形式
+ // 如果是对象数组，格式化为表格形式
     if (value.length > 0 && typeof value[0] === 'object') {
       return JSON.stringify(value, null, 2)
     }
@@ -639,7 +639,7 @@ h4 {
   gap: var(--space-2);
   padding: var(--space-2) 0;
   flex-wrap: wrap;
-  /* P4 fix: 多条路径间留视觉分隔，避免标签平铺误读为一条长路径 */
+ /* P4 fix: 多条路径间留视觉分隔，避免标签平铺误读为一条长路径 */
   border-bottom: 1px dashed var(--border);
 }
 .learning-path:last-child {
@@ -682,7 +682,7 @@ h4 {
   margin-left: var(--space-2);
 }
 
-/* Phase 3: 步骤核验面板 */
+/*: 步骤核验面板 */
 .step-verify-section {
   margin-top: var(--space-6);
   text-align: left;

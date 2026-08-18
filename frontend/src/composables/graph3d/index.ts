@@ -1,9 +1,9 @@
-/**
+﻿/**
  * graph3d barrel — 3D 图谱 composables 统一导出
  *
- * 2026-08-13: Phase 1 (M1) Plan 01-03 + 01-04 创建
- *  - 01-03: useGraph3DLOD + useGraph3DClustering (LOD + cluster 折叠)
- *  - 01-04: useGraph3DLifecycle + useGraph3DFps + forceConfig (单文件拆分 C-3)
+ * 2026-08-13: Plan 01-03 + 01-04 创建
+ * - 01-03: useGraph3DLOD + useGraph3DClustering (LOD + cluster 折叠)
+ * - 01-04: useGraph3DLifecycle + useGraph3DFps + forceConfig (单文件拆分 C-3)
  */
 export { useGraph3DLOD } from './useGraph3DLOD'
 export type { LODConfig3D, UseGraph3DLODApi } from './useGraph3DLOD'

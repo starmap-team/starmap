@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, onUnmounted } from "vue"
 import { Search } from "@element-plus/icons-vue"
 import { useGraphStore } from "@/stores/graph"
@@ -12,7 +12,7 @@ const graphStore = useGraphStore()
 const searchKeyword = ref("")
 const showSearchDropdown = ref(false)
 const searchHighlightIndex = ref(-1)
-// Phase 26 / BUG-007: capture the blur-hide timer so we can cancel
+// / BUG-007: capture the blur-hide timer so we can cancel
 // it on unmount. Without this, a fast unmount during the 200ms
 // grace window would fire the callback into a dead ref.
 let blurHideTimer: ReturnType<typeof setTimeout> | null = null
@@ -29,7 +29,7 @@ const searchResults = computed(() => {
   const seen = new Set<string>()
   const results: { id: string; name: string; type: string }[] = []
 
-  // 1. 搜索已加载的领域
+ // 1. 搜索已加载的领域
   for (const d of graphStore.domains) {
     if (d.name.toLowerCase().includes(kw) && !seen.has(d.id)) {
       seen.add(d.id)
@@ -37,7 +37,7 @@ const searchResults = computed(() => {
     }
   }
 
-  // 2. 搜索已加载的节点（allNodes 已通过 fetchKAPositions 逐步加载）
+ // 2. 搜索已加载的节点（allNodes 已通过 fetchKAPositions 逐步加载）
   for (const n of graphStore.allNodes) {
     const display = displayName(n.properties)
     if ((n.properties.name.toLowerCase() + ' ' + display.toLowerCase()).includes(kw) && !seen.has(n.id)) {
@@ -71,7 +71,7 @@ function selectResult(r: { id: string; name: string; type: string }) {
   emit("nodeSelected", r.id, r.name, r.type)
 }
 function onSearchBlur() {
-  // BUG-007: store the timer id so onUnmounted can cancel it.
+ // BUG-007: store the timer id so onUnmounted can cancel it.
   if (blurHideTimer) clearTimeout(blurHideTimer)
   blurHideTimer = setTimeout(() => {
     showSearchDropdown.value = false

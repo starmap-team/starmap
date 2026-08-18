@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 图谱节点编辑器
  * 支持创建/编辑 Skill / Tool / Position / KnowledgeArea / Industry /
@@ -329,7 +329,7 @@ function handleClose() {
   }
 }
 .node-editor-dialog .el-dialog__footer {
-  /* footer 始终钉在 dialog 底部 */
+ /* footer 始终钉在 dialog 底部 */
   flex-shrink: 0;
   border-top: 1px solid var(--el-border-color-lighter);
   padding: 12px 16px;

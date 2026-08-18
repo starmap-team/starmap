@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 import { useResponseValidation } from '@/validation/useResponseValidation'
@@ -41,11 +41,11 @@ export interface MatchResult {
   overall_assessment?: string
   estimated_learning_time?: string
   cii?: number | null
-  // M2（Phase 13 强制规范）：后端 MatchResponse.note 同步，前端运行时校验依赖
+ //（ 强制规范）：后端 MatchResponse.note 同步，前端运行时校验依赖
   note?: string | null
-  // D6: 后端匹配结果含 trust_score（matched_skills 的 Neo4j Skill.trust_score 最小值）
+ // D6: 后端匹配结果含 trust_score（matched_skills 的 Neo4j Skill.trust_score 最小值）
   trust_score?: number | null
-  // D-01: 分数拆解（required_avg/bonus_avg/权重/inflated）— 后端 MatchScoreBreakdown
+ //: 分数拆解（required_avg/bonus_avg/权重/inflated）— 后端 MatchScoreBreakdown
   score_breakdown?: {
     required_avg?: number
     bonus_avg?: number
@@ -78,10 +78,10 @@ export const useMatchStore = defineStore('match', () => {
         person_skills,
         target_position: targetPosition,
       })
-      // PLAN-014 批次5: 契约运行时校验 (MatchResponse 入口) — DEV 仅 warn, 不阻断
+ // PLAN-014 批次5: 契约运行时校验 (MatchResponse 入口) — DEV 仅 warn, 不阻断
       const matchResult = validateMatch(raw, matchSchema, '/match/position', 'MatchResponse')
       result.value = matchResult
-      // 缓存到历史记录
+ // 缓存到历史记录
       if (matchResult.match_id) {
         history.value.set(matchResult.match_id, matchResult)
       }
@@ -91,11 +91,11 @@ export const useMatchStore = defineStore('match', () => {
   }
 
   async function fetchMatchResult(matchId: string): Promise<MatchResult | null> {
-    // 先查本地缓存
+ // 先查本地缓存
     if (history.value.has(matchId)) {
       return history.value.get(matchId) ?? null
     }
-    // 再查后端
+ // 再查后端
     try {
       const matchResult = await request.get<MatchResult>(`/match/result/${matchId}`)
       history.value.set(matchId, matchResult)
@@ -108,7 +108,7 @@ export const useMatchStore = defineStore('match', () => {
   async function fetchPositionSkills(positionId: string): Promise<PositionSkills | null> {
     try {
       const data = await request.get(`/graph/position/${positionId}/skills`) as PositionSkillDetailResponse
-      // Backend returns PositionSkillDetailResponse {position, skills, edges}
+ // Backend returns PositionSkillDetailResponse {position, skills, edges}
       if (data.skills && Array.isArray(data.skills)) {
         const positionName = data.position?.name ?? positionId
         const required = data.skills.filter((s: SkillNodeRaw) => s.importance === 'required')

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 前端校验类型定义 — 与后端 app/schemas/common.py 完全一致。
  *
  * 这些类型同时用于：
@@ -9,27 +9,27 @@
 
 /** 字段级校验错误 */
 export interface FieldError {
-  /** 出错字段路径，嵌套用 '.' 分隔，数组用 '[n]' 索引 */
+ /** 出错字段路径，嵌套用 '.' 分隔，数组用 '[n]' 索引 */
   field: string
-  /** 接收到的问题值（生产环境为 null） */
+ /** 接收到的问题值（生产环境为 null） */
   value: unknown
-  /** 面向用户的错误描述 */
+ /** 面向用户的错误描述 */
   message: string
-  /** 机器可读错误码 */
+ /** 机器可读错误码 */
   code: string
 }
 
 /** 统一 API 错误响应 */
 export interface ErrorResponse {
-  /** 面向用户的错误摘要 */
+ /** 面向用户的错误摘要 */
   detail: string
-  /** 机器可读错误码 */
+ /** 机器可读错误码 */
   code: string
-  /** 错误发生时间 (ISO 8601 UTC) */
+ /** 错误发生时间 (ISO 8601 UTC) */
   timestamp: string
-  /** 字段级错误详情（仅校验错误时存在） */
+ /** 字段级错误详情（仅校验错误时存在） */
   fields?: FieldError[]
-  /** 内部诊断（仅 DEV 环境返回） */
+ /** 内部诊断（仅 DEV 环境返回） */
   _internal_detail?: string
 }
 
@@ -65,7 +65,7 @@ export interface JSONSchemaProperty {
   required?: string[]
   additionalProperties?: boolean
   default?: unknown
-  /** 文档内引用，如 "#/$defs/SkillNode"（按根文档 $defs/definitions 解析） */
+ /** 文档内引用，如 "#/$defs/SkillNode"（按根文档 $defs/definitions 解析） */
   $ref?: string
 }
 
@@ -77,6 +77,6 @@ export interface JSONSchema {
   properties?: Record<string, JSONSchemaProperty>
   required?: string[]
   definitions?: Record<string, JSONSchemaProperty>
-  /** Pydantic v2 导出的引用定义表（refs 指向 "#/$defs/X"） */
+ /** Pydantic v2 导出的引用定义表（refs 指向 "#/$defs/X"） */
   $defs?: Record<string, JSONSchemaProperty>
 }

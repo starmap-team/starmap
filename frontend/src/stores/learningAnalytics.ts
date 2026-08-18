@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 
@@ -49,7 +49,7 @@ function asArray(data: unknown): unknown[] {
 export const useLearningAnalyticsStore = defineStore('learningAnalytics', () => {
   const analyticsError = ref<string | null>(null)
 
-  // ── Competitiveness ──
+ // ── Competitiveness ──
   const competitiveness = ref<CompetitivenessData[]>([])
   const competitivenessLoading = ref(false)
 
@@ -58,7 +58,7 @@ export const useLearningAnalyticsStore = defineStore('learningAnalytics', () => 
     analyticsError.value = null
     try {
       const data = asRecord(await request.get(`/match/competitiveness/${encodeURIComponent(position)}`))
-      // fix: 后端返回扁平字典（非数组），提取 bottleneck_skills/skill_details 等真实字段
+ // fix: 后端返回扁平字典（非数组），提取 bottleneck_skills/skill_details 等真实字段
       const bottleneckSkills = (asArray((data as { bottleneck_skills?: unknown }).bottleneck_skills)) as CompetitivenessData[]
       competitiveness.value = bottleneckSkills
       return competitiveness.value
@@ -70,7 +70,7 @@ export const useLearningAnalyticsStore = defineStore('learningAnalytics', () => 
     }
   }
 
-  // ── Career path ──
+ // ── Career path ──
   const careerPath = ref<CareerPathStep[]>([])
   const careerPathLoading = ref(false)
 
@@ -92,7 +92,7 @@ export const useLearningAnalyticsStore = defineStore('learningAnalytics', () => 
     }
   }
 
-  // ── Industry trends ──
+ // ── Industry trends ──
   const industryTrends = ref<IndustryTrendItem[]>([])
   const industryTrendsLoading = ref(false)
 

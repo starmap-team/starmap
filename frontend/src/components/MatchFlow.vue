@@ -1,22 +1,22 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * MatchFlow — business-flow diagram for MatchDiagnosis page (Phase 25).
+ * MatchFlow — business-flow diagram for MatchDiagnosis page .
  *
- * Phase 25: makes the §5.2 module-D pipeline visible so a new user
+ *: makes the module-D pipeline visible so a new user
  * immediately sees how the 5-step match wizard fits into the broader
  * StarMap architecture.
  *
- *   用户上传简历(PDF/Word)
- *       ↓
- *   文档解析 (pdfplumber / python-docx)
- *       ↓
- *   LLM 结构化抽取 (星火 / Qwen 双模型交叉验证)
- *       ↓
- *   技能归一化 (别名映射 + 向量相似度)
- *       ↓
- *   与目标岗位对比 (Neo4j REQUIRES 关系)
- *       ↓
- *   差距分析 + 学习路径 (§7.5 通胀指数参考)
+ * 用户上传简历(PDF/Word)
+ * ↓
+ * 文档解析 (pdfplumber / python-docx)
+ * ↓
+ * LLM 结构化抽取 (星火 / Qwen 双模型交叉验证)
+ * ↓
+ * 技能归一化 (别名映射 + 向量相似度)
+ * ↓
+ * 与目标岗位对比 (Neo4j REQUIRES 关系)
+ * ↓
+ * 差距分析 + 学习路径 ( 通胀指数参考)
  *
  * Each step is clickable: it jumps the wizard to the corresponding step
  * (upload / position / radar / gap / learn) so the user can navigate

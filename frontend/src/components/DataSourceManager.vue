@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 数据源管理面板 (Phase 3.8.4 增强版)
+ * 数据源管理面板 ( 增强版)
  *
  * 核心功能:
  * 1. 实时执行状态 — 通过 SSE 事件流显示每源当前在做什么
@@ -18,7 +18,7 @@ import type { LiveActivityEvent } from '@/stores/pipelineRun'
 import type { DataSourceDetail } from '@/types/datasource'
 
 // Spider 注册表 (与后端 executor.py 一致)
-// Phase 15-01: 新增 5 个免费 API/Feed 适配器
+//-01: 新增 5 个免费 API/Feed 适配器
 // D8: 补 remoteok/juejin（D6 迁移 034 新增源，缺此映射 → 适配器显示红色 unavailable 叹号）
 const SUPPORTED_SPIDERS = {
   bosszhipin: { label: 'BOSS直聘 (实验性)', icon: '📋' },
@@ -56,12 +56,12 @@ const emit = defineEmits<{
 // === 计算属性 ===
 const enhancedSources = computed<DataSourceWithStatus[]>(() => {
   return props.dataSources.map((ds: DataSourceWithStatus) => {
-    // 实时状态判断
+ // 实时状态判断
     let liveStatus: DataSourceWithStatus['liveStatus'] = 'idle'
     let liveMessage = ''
     let liveRecords = 0
     if (props.isRunning) {
-      // 从当前 stage 活动推算该源状态
+ // 从当前 stage 活动推算该源状态
       const currentActivity = Object.values(props.liveActivity)[0]
       if (currentActivity) {
         const subBreakdown = currentActivity.sub_breakdown || {}
@@ -108,12 +108,12 @@ const enabledCrawlers = computed(() =>
 
 const totalEnabled = computed(() => enabledCrawlers.value.length)
 
-// Phase 3.8.5: 当前活动详情 (从 liveActivity 中提取最新一条)
+//: 当前活动详情 (从 liveActivity 中提取最新一条)
 const currentActivityDetails = computed(() => {
   if (!props.liveActivity) return null
   const entries = Object.values(props.liveActivity)
   if (!entries.length) return null
-  // 取最新一条 (有 progress 最高或最近的)
+ // 取最新一条 (有 progress 最高或最近的)
   return entries.sort((a, b) => (b.progress || 0) - (a.progress || 0))[0]
 })
 
@@ -132,7 +132,7 @@ function platformInfo(ds: DataSourceDetail) {
   return { available: false, label: platform || '未配置', icon: '⚠️' }
 }
 
-// Phase 15-01: 数据源类型标签 (api/rss/crawler/manual)
+//-01: 数据源类型标签 (api/rss/crawler/manual)
 function sourceTypeLabel(t?: string): string {
   const map: Record<string, string> = {
     api: 'API 实时',
@@ -172,7 +172,7 @@ function statusBadge(ds: DataSourceWithStatus) {
   if (ds.liveStatus === 'failed') {
     return { class: 'status-failed', label: '失败', color: '#dc2626' }
   }
-  // D8c: 生命周期状态优先（与数据源页 getStatusBadge 对齐）
+ // D8c: 生命周期状态优先（与数据源页 getStatusBadge 对齐）
   if (ds.status === 'inactive') {
     return { class: 'status-paused', label: '已停用', color: '#94a3b8' }
   }
@@ -205,7 +205,7 @@ async function onToggle(ds: DataSourceWithStatus) {
     emit('toggleSource', ds.id, willDisable)
     ElMessage.success(`${sourceLabel} 已${action}`)
   } catch {
-    // 用户取消
+ // 用户取消
   }
 }
 
@@ -829,7 +829,7 @@ function formatRecords(n: number) {
   font-size: 13px;
 }
 
-/* Phase 3.8.5: 执行详情面板 */
+/*: 执行详情面板 */
 .execution-detail {
   background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
   border: 1px solid #93c5fd;

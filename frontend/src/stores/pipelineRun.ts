@@ -1,6 +1,6 @@
-/**
+﻿/**
  * 数据流水线运行 Store — 运行状态、阶段、数据质量、SSE 实时进度
- * 管理 ETL 运行链路：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建（Phase 3 串行化）
+ * 管理 ETL 运行链路：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建（ 串行化）
  * 支持：DAG 串行调度、阶段选择、失败重试/断点续跑、SSE实时进度
  */
 import { defineStore } from 'pinia'
@@ -37,14 +37,14 @@ export interface PipelineStage {
   errors_count: number
   retry_count: number
   depends_on: string[]
-  // Phase 3.7: 实时活动上下文
+ //: 实时活动上下文
   current_activity?: string
   recent_samples?: Array<Record<string, unknown>>
   sub_breakdown?: Record<string, number>
   elapsed_ms?: number
 }
 
-/** Phase 3.7: 实时活动事件 (来自 SSE pipeline_update) */
+/**: 实时活动事件 (来自 SSE pipeline_update) */
 export interface LiveActivityEvent {
   stage: string
   status: string
@@ -87,7 +87,7 @@ export interface PipelineStatus {
   total_jd_raw?: number      // jd_raw 全表行数（历史累计）
   success_rate: number
   avg_quality_score: number
-  // 跨模块联动 (2026-08-14): 待审岗位/技能数（与 admin 内容审核同口径）
+ // 跨模块联动 (2026-08-14): 待审岗位/技能数（与 admin 内容审核同口径）
   pending_review_positions?: number
   pending_review_skills?: number
 }
@@ -112,7 +112,7 @@ interface DataQualityResponse {
   [key: string]: unknown
 }
 
-// ── Phase 1 SSE 事件类型 (D-10) ──
+// ── SSE 事件类型 ──
 
 // ponytail: QualityAlert removed — canonical type in types/quality.ts
 
@@ -144,19 +144,19 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // SSE 实时进度事件
+ // SSE 实时进度事件
   const liveEvents = ref<Array<{ stage: string; status: string; progress: number; message: string }>>([])
 
-  // Phase 3.7: 实时活动 (current_activity + recent_samples + sub_breakdown)
+ //: 实时活动 (current_activity + recent_samples + sub_breakdown)
   const liveActivity = ref<Record<string, LiveActivityEvent>>({})
-  // 阶段活动历史（最近 50 条）
+ // 阶段活动历史（最近 50 条）
   const activityHistory = ref<LiveActivityEvent[]>([])
 
-  // Phase 03 Plan 03 Task 10 (D-15): 子步骤事件订阅 state
-  // key = `<stage>:<sub_step>`，value = 最新子步骤活动
+ // Plan 03 Task 10 : 子步骤事件订阅 state
+ // key = `<stage>:<sub_step>`，value = 最新子步骤活动
   const subSteps = ref<Record<string, { stage: string; sub_step: string; current_activity: string; progress: number; timestamp: number }>>({})
 
-  // Phase 1 SSE-04 / SSE-05: 3 个新事件类型 state（D-07）
+ // SSE-04 / SSE-05: 3 个新事件类型 state（）
   const qualityAlerts = ref<QualityAlert[]>([])
   const milestones = ref<DataMilestone[]>([])
   const recentExtractions = ref<ExtractionComplete[]>([])
@@ -220,7 +220,7 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     try {
       const body: Record<string, unknown> = { run_type: runType }
       if (selectedStages?.length) body.selected_stages = selectedStages
-      // D8: 手动触发支持自选源（空/未选 = 全部源）
+ // D8: 手动触发支持自选源（空/未选 = 全部源）
       if (selectedSources?.length) body.selected_sources = selectedSources
       await request.post('/pipeline/trigger', body)
       await fetchStatus()
@@ -281,8 +281,8 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
         await request.get('/pipeline/data-quality') as DataQualityResponse,
         pipelineSchema, '/pipeline/data-quality', 'DataQualityResponse',
       ) as DataQualityResponse
-      // Phase 1: API 返回嵌套 { metrics: {...}, alerts: [...] } 结构
-      // 需要解包 metrics + 合并 alerts 到顶层
+ //: API 返回嵌套 { metrics: {...}, alerts: [...] } 结构
+ // 需要解包 metrics + 合并 alerts 到顶层
       const metrics = (raw && raw.metrics) ? raw.metrics : raw
       const alerts = (raw && raw.alerts) ? raw.alerts : []
       const result = { ...metrics, alerts } as DataQualityMetrics
@@ -307,13 +307,13 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     }
   }
 
-  // 处理 SSE pipeline_update 事件
+ // 处理 SSE pipeline_update 事件
   function handlePipelineEvent(event: { stage: string; status: string; progress: number; message: string; current_activity?: string; recent_samples?: Array<Record<string, unknown>>; sub_breakdown?: Record<string, number>; elapsed_ms?: number; records_processed?: number; sub_step?: string }) {
     liveEvents.value.push(event)
     if (liveEvents.value.length > 50) liveEvents.value = liveEvents.value.slice(-50)
 
-    // Phase 03 Plan 03 Task 10 (D-15): 订阅 sub_step 子步骤事件
-    // 子步骤事件 key = `<stage>:<sub_step>`，便于前端按子阶段渲染
+ // Plan 03 Task 10 : 订阅 sub_step 子步骤事件
+ // 子步骤事件 key = `<stage>:<sub_step>`，便于前端按子阶段渲染
     if (event.sub_step) {
       const subKey = `${event.stage}:${event.sub_step}`
       subSteps.value[subKey] = {
@@ -325,7 +325,7 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
       }
     }
 
-    // Phase 3.7: 捕获每个阶段的实时活动 + 样本 + 子项分解
+ //: 捕获每个阶段的实时活动 + 样本 + 子项分解
     const liveEvent: LiveActivityEvent = {
       ...event,
       records_processed: event.records_processed ?? 0,
@@ -339,27 +339,27 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
       }
     }
 
-    // Auto-refresh stages on stage status change
+ // Auto-refresh stages on stage status change
     if (['running', 'completed', 'failed'].includes(event.status)) {
       fetchStages()
       fetchStatus()
     }
   }
 
-  /** Phase 3.7: 重置实时活动 (开始新 run 时调用) */
+ /**: 重置实时活动 (开始新 run 时调用) */
   function resetLiveActivity() {
     liveActivity.value = {}
     activityHistory.value = []
   }
 
-  // Phase 1 SSE-04 / SSE-05: 3 个新事件 handler（D-07）
+ // SSE-04 / SSE-05: 3 个新事件 handler（）
   function handleQualityAlert(data: QualityAlert) {
-    // Ensure created_at is populated from timestamp if missing
+ // Ensure created_at is populated from timestamp if missing
     if (!data.created_at && data.timestamp) {
       data.created_at = data.timestamp
     }
     qualityAlerts.value.push(data)
-    // Keep only last 50 (FIFO)
+ // Keep only last 50 (FIFO)
     if (qualityAlerts.value.length > 50) {
       qualityAlerts.value = qualityAlerts.value.slice(-50)
     }
@@ -379,13 +379,13 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     }
   }
 
-  // Phase 1 CANCEL-02: cancelRun action
+ // CANCEL-02: cancelRun action
   async function cancelRun(runId: string): Promise<boolean> {
     loading.value = true
     error.value = null
     try {
       await request.post(`/pipeline/runs/${runId}/cancel`)
-      // Refresh status + stages after successful cancel
+ // Refresh status + stages after successful cancel
       await fetchStatus()
       await fetchStages()
       return true
@@ -397,7 +397,7 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     }
   }
 
-  // Phase 3.8.5: forceAdvance — 强制推进卡死的 run
+ //: forceAdvance — 强制推进卡死的 run
   async function forceAdvance(runId: string): Promise<boolean> {
     loading.value = true
     try {
@@ -413,7 +413,7 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     }
   }
 
-  // Phase 3.8.5: forceReset — 强制重置卡死的 run
+ //: forceReset — 强制重置卡死的 run
   async function forceReset(runId: string): Promise<boolean> {
     loading.value = true
     try {
@@ -438,13 +438,13 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     loading,
     error,
     liveEvents,
-    // Phase 3.7: 实时活动上下文
+ //: 实时活动上下文
     liveActivity,
     activityHistory,
-    // Phase 03 Plan 03 Task 10 (D-15): 子步骤事件订阅 state
+ // Plan 03 Task 10 : 子步骤事件订阅 state
     subSteps,
     resetLiveActivity,
-    // Phase 1 SSE-04/05 新增 state
+ // SSE-04/05 新增 state
     qualityAlerts,
     milestones,
     recentExtractions,
@@ -458,11 +458,11 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     fetchDataQuality,
     fetchDataSources,
     handlePipelineEvent,
-    // Phase 1 SSE-04/05 新增 actions
+ // SSE-04/05 新增 actions
     handleQualityAlert,
     handleMilestone,
     handleExtractionComplete,
-    // Phase 1 CANCEL-02
+ // CANCEL-02
     cancelRun,
     forceAdvance,
     forceReset,

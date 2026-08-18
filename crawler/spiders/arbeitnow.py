@@ -1,6 +1,4 @@
-"""Arbeitnow API spider — 免费无需 key (Phase 15-01).
-
-端点: https://arbeitnow.com/api/job-board-api
+﻿"""Arbeitnow API spider — 免费无需 key ( https://arbeitnow.com/api/job-board-api
 字段映射: title→job_title, company_name→company, description→clean_text,
           url→source_url, slug→content_hash
 实测: HTTP 200, 110 jobs/page
@@ -16,7 +14,6 @@ from crawler.compliance import fetch
 
 ARBEITNOW_URL = "https://arbeitnow.com/api/job-board-api"
 
-
 def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     # CR-06 / PLAN-004: 走 compliance.fetch（robots 检查 + QPS≤1 + compliance_log），
@@ -29,7 +26,7 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
     except json.JSONDecodeError:
         return items
 
-    now = datetime.now(UTC).isoformat()
+    now = datetime.now(UTC).isoformat
     for j in data.get("data", [])[:max_count]:
         text = j.get("description", "")[:5000]
         # created_at is Unix timestamp (int)
@@ -50,7 +47,7 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
             "location": j.get("location", "") + (" (远程)" if j.get("remote") else ""),
             "publish_date": publish_date,
             "crawled_at": now,
-            "content_hash": hashlib.sha256((j.get("slug", "") + text[:200]).encode("utf-8")).hexdigest(),
+            "content_hash": hashlib.sha256((j.get("slug", "") + text[:200]).encode("utf-8")).hexdigest,
             "detail_html": "",
         })
     return items

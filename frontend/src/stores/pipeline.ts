@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 数据流水线 Store — barrel re-export
  * 拆分为 pipelineRun (运行状态) + pipelineConfig (调度/配置)
  * 本文件保持向后兼容：所有原有 import 路径继续有效
@@ -27,7 +27,7 @@ export type { PipelineSchedule, PipelineConfig } from './pipelineConfig'
 export { STAGE_LABELS, ALL_STAGE_NAMES } from './pipelineConfig'
 
 // ── Backward-compatible combined store ──
-// Merges both sub-stores so existing consumers using usePipelineStore() continue to work
+// Merges both sub-stores so existing consumers using usePipelineStore continue to work
 import { usePipelineRunStore } from './pipelineRun'
 import { usePipelineConfigStore } from './pipelineConfig'
 
@@ -36,7 +36,7 @@ export const usePipelineStore = () => {
   const config = usePipelineConfigStore()
 
   return {
-    // Run store
+ // Run store
     runs: run.runs,
     pipelineStatus: run.pipelineStatus,
     currentRun: run.pipelineStatus?.current_run ?? null,
@@ -58,7 +58,7 @@ export const usePipelineStore = () => {
     handleQualityAlert: run.handleQualityAlert,
     handleMilestone: run.handleMilestone,
     handleExtractionComplete: run.handleExtractionComplete,
-    // Config store
+ // Config store
     schedules: config.schedules,
     config: config.config,
     configLoading: config.configLoading,
@@ -70,7 +70,7 @@ export const usePipelineStore = () => {
     triggerSchedule: config.triggerSchedule,
     fetchConfig: config.fetchConfig,
     updateConfig: config.updateConfig,
-    // Combined loading/error (unwrapped to plain boolean/string for template binding)
+ // Combined loading/error (unwrapped to plain boolean/string for template binding)
     loading: run.loading || config.configLoading,
     error: run.error || config.error,
   }

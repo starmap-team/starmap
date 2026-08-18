@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useResponseValidation } from '@/validation'
 // PLAN-014: 契约 schema（后端 Pydantic 导出，脚本生成；供 DEV 响应校验）
@@ -8,9 +8,9 @@ import { ElMessage } from 'element-plus'
 
 /**
  * 全景图谱 store — 三层视图架构
- * 第 1 层: domain  — 只显示 KnowledgeArea "岛屿"
+ * 第 1 层: domain — 只显示 KnowledgeArea "岛屿"
  * 第 2 层: position — 点击 KA 展开其下的 Position
- * 第 3 层: detail   — 点击 Position 展开其 Skill
+ * 第 3 层: detail — 点击 Position 展开其 Skill
  */
 
 // ── 节点类型 ──
@@ -99,54 +99,54 @@ export interface DomainConnection {
 }
 
 export const useGraphStore = defineStore('graph', () => {
-  // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
+ // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
   const { validateResponse } = useResponseValidation()
 
-  // ── 原始数据 ──
+ // ── 原始数据 ──
   const allNodes = ref<GraphNode[]>([])
   const allEdges = ref<GraphEdge[]>([])
   const loading = ref(false)
 
-  // ── 三层导航状态 ──
+ // ── 三层导航状态 ──
   const currentLayer = ref<ViewLayer>('domain')
   const expandedKAId = ref<string | null>(null)
   const expandedKAName = ref<string>( '')
   const expandedPositionId = ref<string | null>(null)
 
-  // ── 领域概览数据 ──
+ // ── 领域概览数据 ──
   const domains = ref<DomainOverviewItem[]>([])
   const domainConnections = ref<DomainConnection[]>([])
 
-  // ── 独立节点计数（来自后端 /graph/overview 的独立统计，避免重复计数） ──
+ // ── 独立节点计数（来自后端 /graph/overview 的独立统计，避免重复计数） ──
   const independentPositions = ref<number>(0)
   const independentSkills = ref<number>(0)
   const independentEdges = ref<number>(0)
-  // PLAN-006④: 后端响应时间戳（Unix 秒），前端用来显示"截至 X"诚实时效
+ // PLAN-006④: 后端响应时间戳（Unix 秒），前端用来显示"截至 X"诚实时效
   const overviewGeneratedAt = ref<number>(0)
 
-  // ── 概览视图模式 ──
+ // ── 概览视图模式 ──
   const overviewMode = ref<OverviewMode>('domain')
 
-  // ── 演化关系边 ──
+ // ── 演化关系边 ──
   const evolutionEdges = ref<GraphEdge[]>([])
 
-  // ── 演化图层状态（D-02 聚焦当前岗位） ──
+ // ── 演化图层状态（ 聚焦当前岗位） ──
   const focusedPositionId = ref<string | null>(null)
   const focusedPositionName = ref<string>('')
   const evolutionPaths = ref<GraphEdge[]>([])
   const evolutionPathsLoading = ref(false)
 
-  // ── KA 下的 Position 缓存 ──
+ // ── KA 下的 Position 缓存 ──
   const positionsByKA = ref<Map<string, GraphNode[]>>(new Map())
 
-  // ── 节点/边索引（O(1) 查找） ──
+ // ── 节点/边索引（O(1) 查找） ──
   const nodeMap = computed(() => {
     const map = new Map<string, GraphNode>()
     for (const n of allNodes.value) map.set(n.id, n)
     return map
   })
 
-  // ── 当前可见节点 & 边（根据层级） ──
+ // ── 当前可见节点 & 边（根据层级） ──
   const visibleNodes = computed(() => {
     if (currentLayer.value === 'domain') {
       return domains.value.map(d => ({
@@ -157,7 +157,7 @@ export const useGraphStore = defineStore('graph', () => {
     }
     if (currentLayer.value === 'position' && expandedKAId.value) {
       const positions = positionsByKA.value.get(expandedKAId.value) ?? []
-      // KA 节点 + 下属 Position
+ // KA 节点 + 下属 Position
       const kaNode: GraphNode = {
         id: expandedKAId.value,
         labels: ['KnowledgeArea' as NodeLabel],
@@ -168,7 +168,7 @@ export const useGraphStore = defineStore('graph', () => {
     if (currentLayer.value === 'detail' && expandedPositionId.value) {
       const posNode = nodeMap.value.get(expandedPositionId.value)
       if (!posNode) return []
-      // 找到该 Position 所属的 KA
+ // 找到该 Position 所属的 KA
       const kaNode = expandedKAId.value
         ? [{
             id: expandedKAId.value,
@@ -176,7 +176,7 @@ export const useGraphStore = defineStore('graph', () => {
             properties: { name: expandedKAName.value, color: domains.value.find(d => d.id === expandedKAId.value)?.color },
           }]
         : []
-      // 找到该 Position 的 Skill
+ // 找到该 Position 的 Skill
       const skillIds = new Set<string>()
       const skills: GraphNode[] = []
       for (const e of allEdges.value) {
@@ -192,8 +192,8 @@ export const useGraphStore = defineStore('graph', () => {
 
   const visibleEdges = computed(() => {
     if (currentLayer.value === 'domain') {
-      // M2 + R4：剔除任一端点不在当前 domains.id 集合的悬空连接，
-      // 避免空组（如 lv-junior）残留的 incident 边传入 3d-force-graph 触发 "node not found"。
+ // + R4：剔除任一端点不在当前 domains.id 集合的悬空连接，
+ // 避免空组（如 lv-junior）残留的 incident 边传入 3d-force-graph 触发 "node not found"。
       const validIds = new Set(domains.value.map(d => d.id))
       return domainConnections.value
         .filter(c => validIds.has(c.source_id) && validIds.has(c.target_id))
@@ -205,7 +205,7 @@ export const useGraphStore = defineStore('graph', () => {
         }))
     }
     if (currentLayer.value === 'position' && expandedKAId.value) {
-      // 显示 KA → Position 关联边（虚拟边，通过 BELONGS_TO 推导）
+ // 显示 KA → Position 关联边（虚拟边，通过 BELONGS_TO 推导）
       const positions = positionsByKA.value.get(expandedKAId.value) ?? []
       return positions.map(p => ({
         source_id: expandedKAId.value!,
@@ -215,7 +215,7 @@ export const useGraphStore = defineStore('graph', () => {
       }))
     }
     if (currentLayer.value === 'detail' && expandedPositionId.value) {
-      // 显示 Position → Skill 的 REQUIRES 边
+ // 显示 Position → Skill 的 REQUIRES 边
       return allEdges.value.filter(e =>
         e.source_id === expandedPositionId.value && e.type === 'REQUIRES',
       )
@@ -223,9 +223,9 @@ export const useGraphStore = defineStore('graph', () => {
     return []
   })
 
-  // ── API 调用 ──
+ // ── API 调用 ──
 
-  /** 第 1 层：获取领域概览 */
+ /** 第 1 层：获取领域概览 */
   async function fetchOverview(mode: OverviewMode = 'domain') {
     loading.value = true
     try {
@@ -242,20 +242,20 @@ export const useGraphStore = defineStore('graph', () => {
       )
       domains.value = data.domains ?? []
       domainConnections.value = data.connections ?? []
-      // 独立节点计数（去重，与 Neo4j 实际节点数一致）
+ // 独立节点计数（去重，与 Neo4j 实际节点数一致）
       independentPositions.value = data.independent_positions ?? 0
       independentSkills.value = data.independent_skills ?? 0
       independentEdges.value = data.independent_edges ?? 0
       overviewGeneratedAt.value = data.generated_at ?? 0
       overviewMode.value = mode
-      // 切换视图模式 = 重新从顶层导航，必须重置层级状态
-      // 否则 expandedKAId/expandedPositionId 指向旧数据，导致图谱混乱
+ // 切换视图模式 = 重新从顶层导航，必须重置层级状态
+ // 否则 expandedKAId/expandedPositionId 指向旧数据，导致图谱混乱
       currentLayer.value = 'domain'
       expandedKAId.value = null
       expandedKAName.value = ''
       expandedPositionId.value = null
       positionsByKA.value = new Map()
-      // ponytail: 演化聚焦状态不随模式切换重置会指向旧岗位（演化开关开着时残留）
+ // ponytail: 演化聚焦状态不随模式切换重置会指向旧岗位（演化开关开着时残留）
       focusedPositionId.value = null
       focusedPositionName.value = ''
       evolutionPaths.value = []
@@ -272,7 +272,7 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
-  /** 第 2 层：获取 KA 下的 Position */
+ /** 第 2 层：获取 KA 下的 Position */
   async function fetchKAPositions(kaId: string) {
     loading.value = true
     try {
@@ -285,9 +285,9 @@ export const useGraphStore = defineStore('graph', () => {
       const positions: GraphNode[] = data.positions ?? []
       const psEdges: GraphEdge[] = data.position_skill_edges ?? []
       const skillsData: GraphNode[] = data.skills ?? []
-      // 缓存 — fix: 整体替换 Map 以触发 Vue 响应式
+ // 缓存 — fix: 整体替换 Map 以触发 Vue 响应式
       positionsByKA.value = new Map(positionsByKA.value).set(kaId, positions)
-      // 合并到全局节点池（O(1) 查重）
+ // 合并到全局节点池（O(1) 查重）
       const existingNodeIds = new Set(allNodes.value.map(n => n.id))
       for (const p of positions) {
         if (!existingNodeIds.has(p.id)) {
@@ -317,7 +317,7 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
-  /** 加载演化关系边（含趋势、技能重叠、差距等详情） */
+ /** 加载演化关系边（含趋势、技能重叠、差距等详情） */
   async function fetchEvolutionEdges() {
     try {
       const data = await request.get<RawEvolutionPath[]>('/evolution/paths/all')
@@ -329,10 +329,10 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
-  /**
-   * D-02: 获取聚焦岗位的演化路径（仅当前岗位的上下游）。
-   * Returns a promise so callers can await before reading evolutionPaths.
-   */
+ /**
+ *: 获取聚焦岗位的演化路径（仅当前岗位的上下游）。
+ * Returns a promise so callers can await before reading evolutionPaths.
+ */
   async function fetchEvolutionPathsForPosition(positionName: string) {
     if (!positionName) {
       evolutionPaths.value = []
@@ -351,14 +351,14 @@ export const useGraphStore = defineStore('graph', () => {
     }
   }
 
-  // ── 导航 ──
+ // ── 导航 ──
 
   function goToDomainLayer() {
     currentLayer.value = 'domain'
     expandedKAId.value = null
     expandedKAName.value = ''
     expandedPositionId.value = null
-    // 清空缓存，防止残留旧 overviewMode 下的分组数据导致回退混乱
+ // 清空缓存，防止残留旧 overviewMode 下的分组数据导致回退混乱
     positionsByKA.value = new Map()
   }
 
@@ -367,7 +367,7 @@ export const useGraphStore = defineStore('graph', () => {
     expandedKAName.value = kaName
     expandedPositionId.value = null
     currentLayer.value = 'position'
-    // 如果缓存中没有，先加载
+ // 如果缓存中没有，先加载
     if (!positionsByKA.value.has(kaId)) {
       await fetchKAPositions(kaId)
     }
@@ -376,11 +376,11 @@ export const useGraphStore = defineStore('graph', () => {
   function goToDetailLayer(positionId: string) {
     expandedPositionId.value = positionId
     currentLayer.value = 'detail'
-    // 防御：若 Position 不在当前 KA 下，自动修正 KA 上下文
+ // 防御：若 Position 不在当前 KA 下，自动修正 KA 上下文
     if (expandedKAId.value) {
       const positions = positionsByKA.value.get(expandedKAId.value) ?? []
       if (!positions.some(p => p.id === positionId)) {
-        // 遍历缓存找到该 Position 所属的 KA
+ // 遍历缓存找到该 Position 所属的 KA
         for (const [kaId, posList] of positionsByKA.value) {
           if (posList.some(p => p.id === positionId)) {
             const kaDomain = domains.value.find(d => d.id === kaId)
@@ -394,47 +394,46 @@ export const useGraphStore = defineStore('graph', () => {
   }
 
   return {
-    // 数据
+ // 数据
     allNodes,
     allEdges,
     domains,
     domainConnections,
     positionsByKA,
     nodeMap,
-    // 层级状态
+ // 层级状态
     currentLayer,
     expandedKAId,
     expandedKAName,
     expandedPositionId,
-    // 计算
+ // 计算
     visibleNodes,
     visibleEdges,
-    // 加载
+ // 加载
     loading,
-    // 独立节点计数
+ // 独立节点计数
     independentPositions,
     overviewGeneratedAt,
     independentSkills,
     independentEdges,
-    // API
+ // API
     fetchOverview,
     fetchKAPositions,
-    // 概览视图模式
+ // 概览视图模式
     overviewMode,
-    // 演化
+ // 演化
     evolutionEdges,
     fetchEvolutionEdges,
-    // 演化图层聚焦（D-02）
+ // 演化图层聚焦（）
     focusedPositionId,
     focusedPositionName,
     evolutionPaths,
     evolutionPathsLoading,
     fetchEvolutionPathsForPosition,
-    // 导航
+ // 导航
     goToDomainLayer,
     goToPositionLayer,
     goToDetailLayer,
   }
 })
-
 

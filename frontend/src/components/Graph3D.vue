@@ -1,13 +1,13 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /** Graph3D — 3D force-directed graph visualization (3d-force-graph)
- *  2026-08-13: Phase 1 (M1 全景图谱) Plan 01-03 + 01-04:
- *    01-03 Task 3: 接入 useGraph3DLOD + useGraph3DClustering (镜像 2D
- *                useGraphLOD + useGraphClustering)。节点数 > 50 时自动折叠
- *                为 cluster meta-node,节省 GPU 开销。
- *    01-04 Task 3: 接入 useGraph3DLifecycle + useGraph3DFps + DEFAULT_FORCE_CONFIG
- *                (沿 Phase 17 loop_orchestrator 兼容壳模式,保 monkeypatch)。
- *                既有所需符号 (initGraph / destroyGraph / _destructor / _lastNamespace
- *                / fps / force config) 不删除 — composable 代理调用。
+ * 2026-08-13: ( 全景图谱) Plan 01-03 + 01-04:
+ * 01-03 Task 3: 接入 useGraph3DLOD + useGraph3DClustering (镜像 2D
+ * useGraphLOD + useGraphClustering)。节点数 > 50 时自动折叠
+ * 为 cluster meta-node,节省 GPU 开销。
+ * 01-04 Task 3: 接入 useGraph3DLifecycle + useGraph3DFps + DEFAULT_FORCE_CONFIG
+ * (沿 loop_orchestrator 兼容壳模式,保 monkeypatch)。
+ * 既有所需符号 (initGraph / destroyGraph / _destructor / _lastNamespace
+ * / fps / force config) 不删除 — composable 代理调用。
  */
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, shallowRef } from 'vue'
 import { nodeColor, edgeColor, withAlpha, SCENE_PALETTE } from '@/utils/graphColors'
@@ -76,8 +76,8 @@ function endpointId(endpoint: GraphLink3D['source']): string {
 }
 
 function linksForNodes(links: GraphLink3D[], nodes: GraphNode3D[]): GraphLink3D[] {
-  // R4 防御性：始终按可见节点 id 过滤，避免 maxNodes=0 路径直接 return props.links 漏过滤
-  // 造成悬空边传入 3d-force-graph。
+ // R4 防御性：始终按可见节点 id 过滤，避免 maxNodes=0 路径直接 return props.links 漏过滤
+ // 造成悬空边传入 3d-force-graph。
   const nodeIds = new Set(nodes.map(node => String(node.id)))
   return links.filter(link => nodeIds.has(endpointId(link.source)) && nodeIds.has(endpointId(link.target)))
 }
@@ -95,21 +95,21 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
     return
   }
 
-  // Growth animation: reveal nodes one by one with biological feel
+ // Growth animation: reveal nodes one by one with biological feel
   growthAnimating = true
   let visibleCount = 0
 
-  // Pre-calculate all node positions using a single force simulation
+ // Pre-calculate all node positions using a single force simulation
   const allNodes = nodes.map(n => ({ ...n }))
   const allLinks = links.map(l => ({ ...l }))
 
-  // Run simulation to get stable positions
+ // Run simulation to get stable positions
   graph.graphData({ nodes: allNodes, links: allLinks })
   applyForceConfig(graph, allNodes.length, NODE_COLLISION_PADDING, getNodeRadius, true, limitedLinks.value.length)
 
-  // Wait for simulation to stabilize before storing positions
+ // Wait for simulation to stabilize before storing positions
   setTimeout(() => {
-    // Store final positions
+ // Store final positions
     const finalPositions = new Map<string, { x: number; y: number; z: number }>()
     allNodes.forEach(n => {
       if (n.x !== undefined && n.y !== undefined && n.z !== undefined) {
@@ -117,11 +117,11 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
       }
     })
 
-    // Now start with empty and reveal one by one
+ // Now start with empty and reveal one by one
     graph.graphData({ nodes: [], links: [] })
 
     const applyVisibleData = (visibleNodes: GraphNode3D[]) => {
-      // Use pre-calculated positions for smooth transitions
+ // Use pre-calculated positions for smooth transitions
       const positionedNodes = visibleNodes.map(n => {
         const pos = finalPositions.get(String(n.id))
         if (pos) {
@@ -130,7 +130,7 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
         return n
       })
       graph.graphData({ nodes: positionedNodes, links: linksForNodes(links, positionedNodes) })
-      // Don't reheat - nodes already have positions
+ // Don't reheat - nodes already have positions
       if (visibleNodes.length <= 1) {
         applyForceConfig(graph, positionedNodes.length, NODE_COLLISION_PADDING, getNodeRadius, false, limitedLinks.value.length)
       }
@@ -173,7 +173,7 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
   }, 800)
 }
 
-// UX-02 + Phase 1 Plan 01-03: 节点降噪 LOD + cluster 折叠 — 镜像 2D useGraphLOD + useGraphClustering
+// UX-02 + Plan 01-03: 节点降噪 LOD + cluster 折叠 — 镜像 2D useGraphLOD + useGraphClustering
 // 节点数 ≤ 30: 全展开;> 50: 折叠为 1 个 cluster meta-node
 const CLUSTER_LIMIT = 30
 const lod = useGraph3DLOD({ hideLabelsAbove: 30, simplifyAbove: 100, defaultLabelsVisible: true })
@@ -185,11 +185,11 @@ const clustering = useGraph3DClustering(
 )
 
 const limitedNodes = computed(() => {
-  // UX-02 maxNodes 优先 (background mode);否则 Phase 1 Plan 01-03 cluster 折叠
+ // UX-02 maxNodes 优先 (background mode);否则 Plan 01-03 cluster 折叠
   if (props.maxNodes > 0 && props.nodes.length > props.maxNodes) {
     return props.nodes.slice(0, props.maxNodes)
   }
-  // cluster 折叠结果可能含 1 个 cluster meta-node;保持原数组元素形态兼容下游
+ // cluster 折叠结果可能含 1 个 cluster meta-node;保持原数组元素形态兼容下游
   return clustering.value.visible as unknown as typeof props.nodes
 })
 const limitedLinks = computed(() => {
@@ -202,7 +202,7 @@ const limitedLinks = computed(() => {
 watch(limitedNodes, (nodes) => lod.setNodeCount(nodes.length), { immediate: true })
 
 // 01-04: 抽 lifecycle / FPS / force config 到 composables (C-3 单文件拆分)
-// 沿 Phase 17 loop_orchestrator 兼容壳模式 — composable 暴露统一接口,
+// 沿 loop_orchestrator 兼容壳模式 — composable 暴露统一接口,
 // 既有 initGraph / destroyGraph / FPS loop 保留在 Graph3D.vue 内(保 monkeypatch)
 const fpsMonitor = useGraph3DFps()
 // 既有 fps ref 替换为 composable proxy (line 46 替换)
@@ -224,7 +224,7 @@ const { tooltipNode, tooltipX, tooltipY, tooltipVisible, createHoverHandler, att
 async function initGraph() {
   if (!containerRef.value || !webglSupported.value) return
 
-  // 销毁旧实例，防止回调丢失或重复绑定
+ // 销毁旧实例，防止回调丢失或重复绑定
   if (graphInstance.value) {
     graphInstance.value._destructor?.()
     graphInstance.value = null
@@ -232,10 +232,10 @@ async function initGraph() {
 
   if (props.nodes.length === 0) { isReady.value = false; return }
 
-  // Dynamic import to keep 3d-force-graph out of the main bundle
+ // Dynamic import to keep 3d-force-graph out of the main bundle
   const ForceGraphModule = await import('3d-force-graph')
   const ForceGraph3D = ForceGraphModule.default
-  // Attach THREE to window for nodeThreeObject custom rendering
+ // Attach THREE to window for nodeThreeObject custom rendering
   if (!(window as unknown as Record<string, unknown>).__THREE) {
     const THREE_MOD = await import('three')
     ;(window as unknown as Record<string, unknown>).__THREE = THREE_MOD
@@ -251,7 +251,7 @@ async function initGraph() {
     .width(w).height(h)
     .backgroundColor(SCENE_PALETTE.background)
     .showNavInfo(false)
-    // ── Node configuration ──
+ // ── Node configuration ──
     .nodeVal((node) => getNodeRadius(node as GraphNode3D))
     .nodeColor((node) => {
       const n = node as GraphNode3D
@@ -260,9 +260,9 @@ async function initGraph() {
     .nodeResolution(16)
     .nodeOpacity(0.75)
     .nodeThreeObject(buildNodeThreeObject)
-    // Disable default HTML tooltip — textSprite + NodeTooltip3D handle labels
+ // Disable default HTML tooltip — textSprite + NodeTooltip3D handle labels
     .nodeLabel(() => '')
-    // ── Edge configuration ──
+ // ── Edge configuration ──
     .linkColor((link) => {
       const l = link as GraphLink3D
       if (l.type === 'EVOLVES_TO') return evolutionColor(l)
@@ -281,21 +281,21 @@ async function initGraph() {
     .linkDirectionalArrowLength(3.5)
     .linkDirectionalArrowRelPos(1)
     .linkCurvature(0.1)
-    // ── Force tuning ──
+ // ── Force tuning ──
     .d3AlphaDecay(cfg.alphaDecay)
     .d3VelocityDecay(cfg.velocityDecay)
     .warmupTicks(cfg.warmupTicks)
     .cooldownTicks(cfg.cooldownTicks)
 
-  // Apply charge/link/center/collision forces
+ // Apply charge/link/center/collision forces
   applyForceConfig(graph, nodeCount, NODE_COLLISION_PADDING, getNodeRadius, true, limitedLinks.value.length)
 
-  // ── Interactions ──
+ // ── Interactions ──
   graph.onNodeHover(createHoverHandler())
 
   attachMouseMoveListener(container)
 
-  // Double-click detection via onNodeClick + timestamp
+ // Double-click detection via onNodeClick + timestamp
   let lastClickTime = 0
   let lastClickId = ''
   graph.onNodeClick((node) => {
@@ -314,11 +314,11 @@ async function initGraph() {
     if ((link as GraphLink3D).type === 'EVOLVES_TO') emit('evolutionEdgeClick', link as GraphLink3D)
   })
 
-  // 力模拟稳定后自动适配相机，确保用户看到全局
+ // 力模拟稳定后自动适配相机，确保用户看到全局
   graph.onEngineStop(() => {
-    // Skip camera preset if growth animation is still in progress
+ // Skip camera preset if growth animation is still in progress
     if (growthAnimating) return
-    // Skip if we've already handled this stop event
+ // Skip if we've already handled this stop event
     if (_engineStopHandled) return
     _engineStopHandled = true
     const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
@@ -326,7 +326,7 @@ async function initGraph() {
   })
 
   graphInstance.value = graph
-  // UX-03: Set initial z-coordinates for Skill nodes by proficiency tier
+ // UX-03: Set initial z-coordinates for Skill nodes by proficiency tier
   applyZLayering(limitedNodes.value)
   const composedLinks = composeEvolutionLinks(limitedLinks.value, props.evolutionPaths, limitedNodes.value, props.showEvolution)
   renderEvolutionGraph(graph, composedLinks)
@@ -341,7 +341,7 @@ function measureFPS() {
   fpsFrames++
   const now = performance.now()
   if (now - fpsLastTime >= 1000) {
-    // 01-04: 通过 fpsMonitor.set() 替代直接 fps.value 赋值 (ReadonlyRef)
+ // 01-04: 通过 fpsMonitor.set 替代直接 fps.value 赋值 (ReadonlyRef)
     fpsMonitor.set(fpsFrames)
     fpsFrames = 0
     fpsLastTime = now
@@ -354,7 +354,7 @@ let _engineStopHandled = false
 
 // R3：维度（domain/tech_stack/level 命名空间 ts-/ka-/lv-）改变时，
 // 图实例的 d3 内部状态与位置继承会污染 3D 渲染，必须销毁重建。
-// 仅数据增/减但维度一致时，复用 graph.graphData() + 位置继承。
+// 仅数据增/减但维度一致时，复用 graph.graphData + 位置继承。
 const _DIM_NAMESPACES = ['ts-', 'ka-', 'lv-']
 function _currentNamespace(ids: ReadonlyArray<unknown>): string | null {
   let ns: string | null = null
@@ -377,7 +377,7 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
 
   const composedLinks = composeEvolutionLinks(limitedLinks.value, props.evolutionPaths, limitedNodes.value, props.showEvolution)
 
-  // R3：维度（命名空间）变化 → 重建实例，避免悬空边或位置污染
+ // R3：维度（命名空间）变化 → 重建实例，避免悬空边或位置污染
   const ns = _currentNamespace(props.nodes.map(n => n.id))
   if (ns !== _lastNamespace && _lastNamespace !== null && ns !== null) {
     cancelGrowthAnimation()
@@ -389,7 +389,7 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   }
   _lastNamespace = ns
 
-  // 保存旧节点的位置映射，用于为相同 ID 的新节点提供初始位置
+ // 保存旧节点的位置映射，用于为相同 ID 的新节点提供初始位置
   const oldNodes: GraphNode3D[] = graph.graphData().nodes
   const posMap = new Map<string, { x: number; y: number; z: number }>()
   for (const n of oldNodes) {
@@ -397,7 +397,7 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
       posMap.set(String(n.id), { x: n.x, y: n.y, z: n.z })
     }
   }
-  // 为新数据中没有位置信息的节点，从旧位置映射中继承位置
+ // 为新数据中没有位置信息的节点，从旧位置映射中继承位置
   for (const n of limitedNodes.value) {
     if (n.x === undefined || n.y === undefined || n.z === undefined) {
       const oldPos = posMap.get(String(n.id))
@@ -408,22 +408,22 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
       }
     }
   }
-  // UX-03: Set initial z for new Skill nodes (those without inherited positions)
+ // UX-03: Set initial z for new Skill nodes (those without inherited positions)
   applyZLayering(limitedNodes.value)
 
   const shouldAnimate = props.showEvolution && limitedNodes.value.length > 1
   renderEvolutionGraph(graph, composedLinks)
 
-  // 重置标志位，让 onEngineStop 接管相机定位
+ // 重置标志位，让 onEngineStop 接管相机定位
   _engineStopHandled = false
   if (shouldAnimate) return
 
-  // 轻量 reheat：只给少量 alpha 让新节点微调，不会导致全局抽动
+ // 轻量 reheat：只给少量 alpha 让新节点微调，不会导致全局抽动
   graph.d3ReheatSimulation()
-  // 快速冷却，避免已稳定节点剧烈跳动
+ // 快速冷却，避免已稳定节点剧烈跳动
   graph.d3AlphaDecay(0.1)
 
-  // 兜底：如果 onEngineStop 未触发（极短冷却），setTimeout 仍可定位相机
+ // 兜底：如果 onEngineStop 未触发（极短冷却），setTimeout 仍可定位相机
   const cfg = calcForceConfig(limitedNodes.value.length, limitedLinks.value.length)
   const settleMs = Math.min(cfg.warmupTicks * 16 + 200, 800)
   setTimeout(() => {
@@ -445,7 +445,7 @@ function handleResize() {
 onMounted(async () => {
   await nextTick()
   try { await initGraph() } catch { webglSupported.value = false; return }
-  // UX-02: start autoRotate if prop is set (e.g. Login background)
+ // UX-02: start autoRotate if prop is set (e.g. Login background)
   if (props.startAutoRotate) {
     autoRotate.value = true
     const controls = graphInstance.value?.controls() as { autoRotate: boolean; autoRotateSpeed: number; enableDamping: boolean } | undefined

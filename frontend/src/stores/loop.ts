@@ -1,14 +1,14 @@
-/**
+﻿/**
  * 闭环演示 Pinia Store
  * 管理闭环运行状态、步骤结果、历史记录
  *
- * Phase 6 D-13 disposition: this store stays as its own file rather than being
+ * disposition: this store stays as its own file rather than being
  * mechanically merged into `pipeline.ts`. The two stores cover different state domains
  * (DAG scheduling vs 闭环 5-step pipeline) and the only overlap is the underlying
  * axios `request` import. A mechanical merge would couple unrelated domains and force
  * store-level refactor of every consumer (`pages/LoopDemo.vue`, `pages/PipelineMonitor.vue`).
  * When pipeline orchestration and closed-loop orchestration actually share state
- * (Phase 7+), revisit — until then this is the cheaper cut.
+ * (+), revisit — until then this is the cheaper cut.
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
@@ -35,11 +35,11 @@ export interface StepResult {
   name: string
   status: StepStatus
   duration_ms?: number
-  // ponytail: data shape varies by step; Record<string,unknown> breaks template
-  // arithmetic/method calls in LoopDemo.vue. Discriminated union won't work
-  // because consumers access via steps[N].data without narrowing. Revisit when
-  // LoopDemo.vue adds step-indexed type guards.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // ponytail: data shape varies by step; Record<string,unknown> breaks template
+ // arithmetic/method calls in LoopDemo.vue. Discriminated union won't work
+ // because consumers access via steps[N].data without narrowing. Revisit when
+ // LoopDemo.vue adds step-indexed type guards.
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any
   error?: string
   warning?: string
@@ -93,7 +93,7 @@ export interface LoopRun {
   created_at?: string
 }
 
-// /loop/history returns full LoopResult dicts (from LoopResult.to_dict()),
+// /loop/history returns full LoopResult dicts (from LoopResult.to_dict),
 // not a slim summary. We keep just the fields the table template needs;
 // everything else is present on the item and ignored by el-table.
 export interface LoopHistoryItem {
@@ -113,13 +113,13 @@ export const useLoopStore = defineStore('loop', () => {
   const error = ref<string | null>(null)
   const history = ref<LoopHistoryItem[]>([])
 
-  // ── 计算属性 ──
+ // ── 计算属性 ──
 
   const currentStepIndex = computed(() => {
     if (!currentRun.value) return -1
     const running = currentRun.value.steps.findIndex(s => s.status === 'running')
     if (running >= 0) return running
-    // 找最后一个完成的步骤
+ // 找最后一个完成的步骤
     for (let i = currentRun.value.steps.length - 1; i >= 0; i--) {
       if (currentRun.value.steps[i].status !== 'waiting') return i
     }
@@ -138,7 +138,7 @@ export const useLoopStore = defineStore('loop', () => {
     return currentRun.value.steps.reduce((sum, s) => sum + (s.duration_ms ?? 0), 0)
   })
 
-  // ── 步骤名称 ──
+ // ── 步骤名称 ──
 
   const STEP_NAMES = ['JD 输入', '技能提取', '图谱更新', '匹配诊断', '学习路径']
 
@@ -150,9 +150,9 @@ export const useLoopStore = defineStore('loop', () => {
     }))
   }
 
-  // ── Actions ──
+ // ── Actions ──
 
-  /** 触发端到端闭环 */
+ /** 触发端到端闭环 */
   async function runLoop(jdText: string, targetPosition?: string) {
     loading.value = true
     error.value = null
@@ -166,11 +166,11 @@ export const useLoopStore = defineStore('loop', () => {
     }
 
     try {
-      // Step 1: JD 输入 (immediate success)
+ // Step 1: JD 输入 (immediate success)
       currentRun.value.steps[0].status = 'success'
       currentRun.value.steps[0].duration_ms = 50
 
-      // Step 2-5: 调用后端闭环 API
+ // Step 2-5: 调用后端闭环 API
       const startTime = Date.now()
       const data = await request.post('/loop/run', {
         jd_text: jdText,
@@ -179,15 +179,15 @@ export const useLoopStore = defineStore('loop', () => {
 
       const totalTime = Date.now() - startTime
 
-      // 解析后端返回的步骤结果
+ // 解析后端返回的步骤结果
       if (data.steps && Array.isArray(data.steps)) {
         for (const stepData of data.steps) {
           const idx = stepData.step - 1
           if (idx >= 0 && idx < currentRun.value.steps.length) {
             currentRun.value.steps[idx].status = stepData.status ?? 'success'
-            // Backend returns `duration_seconds`; convert to ms for the UI.
-            // (Backwards-compat: fall back to `duration_ms` if some other
-            // payload still uses the old field name.)
+ // Backend returns `duration_seconds`; convert to ms for the UI.
+ // (Backwards-compat: fall back to `duration_ms` if some other
+ // payload still uses the old field name.)
             const durSec = (stepData as { duration_seconds?: number }).duration_seconds
             const durMs = (stepData as { duration_ms?: number }).duration_ms
             currentRun.value.steps[idx].duration_ms =
@@ -198,7 +198,7 @@ export const useLoopStore = defineStore('loop', () => {
           }
         }
       } else {
-        // 兼容：如果没有 steps 数组，把整体结果放到各步骤
+ // 兼容：如果没有 steps 数组，把整体结果放到各步骤
         parseFlatResult(data, totalTime)
       }
 
@@ -206,10 +206,10 @@ export const useLoopStore = defineStore('loop', () => {
       currentRun.value.total_duration_ms = totalTime
       currentRun.value.run_id = data.run_id ?? currentRun.value.run_id
     } catch (e: unknown) {
-      // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案
+ // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       error.value = detail ?? (e instanceof Error ? e.message : '闭环执行失败')
-      // 标记当前运行的步骤为失败
+ // 标记当前运行的步骤为失败
       if (currentRun.value) {
         const runningStep = currentRun.value.steps.find(s => s.status === 'running')
         if (runningStep) {
@@ -223,8 +223,8 @@ export const useLoopStore = defineStore('loop', () => {
     }
   }
 
-  /** 兼容解析：后端返回扁平结果时分配到各步骤 */
-  // ponytail: response shape from /loop/run; expand if contract changes
+ /** 兼容解析：后端返回扁平结果时分配到各步骤 */
+ // ponytail: response shape from /loop/run; expand if contract changes
   interface LoopRunResponse {
     steps?: { step: number; status?: StepStatus; duration_ms?: number; duration_seconds?: number; data?: Record<string, unknown>; error?: string; warning?: string }[]
     status?: 'running' | 'completed' | 'partial'
@@ -251,7 +251,7 @@ export const useLoopStore = defineStore('loop', () => {
     learning_degraded?: boolean
   }
 
-  // ponytail: single interface for the flat backend response shape; expand if contract changes
+ // ponytail: single interface for the flat backend response shape; expand if contract changes
   interface FlatLoopResult {
     extracted_skills?: unknown[]
     required_skills?: unknown[]
@@ -279,19 +279,19 @@ export const useLoopStore = defineStore('loop', () => {
     if (!currentRun.value) return
     const steps = currentRun.value.steps
 
-    // Step 2: 技能提取
+ // Step 2: 技能提取
     if (data.extracted_skills || data.required_skills) {
       steps[1].status = 'success'
       steps[1].duration_ms = Math.round(totalTime * 0.25)
       steps[1].data = {
         skills: data.extracted_skills ?? data.required_skills ?? [],
-        // PLAN-006③ 红线: 后端无值时不再编造 0.85/0.1, 交 undefined 由展示层显"未评估"
+ // PLAN-006③ 红线: 后端无值时不再编造 0.85/0.1, 交 undefined 由展示层显"未评估"
         confidence: data.confidence ?? undefined,
         hallucination_score: data.hallucination_score ?? undefined,
       }
     }
 
-    // Step 3: 图谱更新
+ // Step 3: 图谱更新
     if (data.graph_update || data.new_nodes) {
       steps[2].status = data.graph_degraded ? 'degraded' : 'success'
       steps[2].duration_ms = Math.round(totalTime * 0.2)
@@ -305,7 +305,7 @@ export const useLoopStore = defineStore('loop', () => {
       }
     }
 
-    // Step 4: 匹配诊断
+ // Step 4: 匹配诊断
     if (data.match_result || data.match_score !== undefined) {
       steps[3].status = data.match_degraded ? 'degraded' : 'success'
       steps[3].duration_ms = Math.round(totalTime * 0.3)
@@ -318,7 +318,7 @@ export const useLoopStore = defineStore('loop', () => {
       }
     }
 
-    // Step 5: 学习路径
+ // Step 5: 学习路径
     if (data.learning_path || data.learning_paths) {
       steps[4].status = data.learning_degraded ? 'degraded' : 'success'
       steps[4].duration_ms = Math.round(totalTime * 0.2)
@@ -329,7 +329,7 @@ export const useLoopStore = defineStore('loop', () => {
     }
   }
 
-  /** 获取运行状态 */
+ /** 获取运行状态 */
   async function getStatus(runId: string) {
     try {
       const data = validateLoop(
@@ -342,7 +342,7 @@ export const useLoopStore = defineStore('loop', () => {
     }
   }
 
-  /** 获取历史记录 */
+ /** 获取历史记录 */
   async function fetchHistory() {
     try {
       const data = validateLoop(
@@ -355,26 +355,26 @@ export const useLoopStore = defineStore('loop', () => {
     }
   }
 
-  /** 重置当前运行 */
+ /** 重置当前运行 */
   function resetRun() {
     currentRun.value = null
     error.value = null
   }
 
   return {
-    // State
+ // State
     currentRun,
     loading,
     error,
     history,
-    // Computed
+ // Computed
     currentStepIndex,
     completedSteps,
     isRunning,
     totalDuration,
-    // Constants
+ // Constants
     STEP_NAMES,
-    // Actions
+ // Actions
     runLoop,
     getStatus,
     fetchHistory,

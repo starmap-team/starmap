@@ -1,36 +1,36 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * BusinessBanner — 业务说明横幅
  *
  * 设计目标（参考 Linear / Vercel Docs / Stripe Docs / GitHub Primer 2024 模式）：
  * 1. 视觉层级清晰：4px 左侧强调色边 + 类型图标 + 章节徽章 + 类型标签
- *    + 标题 + 描述 + 结构化元数据芯片（替代旧的纯文本 + <code> 行）
+ * + 标题 + 描述 + 结构化元数据芯片（替代旧的纯文本 + <code> 行）
  * 2. 信息密度可控：紧凑模式 + 可选折叠，避免长描述压垮首屏
  * 3. 键盘可达 + ARIA：role=note/alert、键盘聚焦、所有交互元素焦点环
  * 4. 暗色模式原生支持：复用 App.vue 既有 --success/-warning/-info/-destructive/-ghost token
  * 5. 零 v-html：meta 数组化 + 自动从旧字符串解析 <code> 片段，零 XSS 风险
  *
  * Usage (推荐):
- *   <BusinessBanner
- *     type="info"
- *     title="L2 数据融合层 — ETL 流水线监控"
- *     description="全链路 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → LLM 抽取 → 入库 → 图谱构建"
- *     :meta="[
- *       { category: '后端', label: '/pipeline/*', code: true, copyable: true },
- *       { category: '数据源', label: 'pipeline_runs', code: true, copyable: true },
- *       { label: 'Neo4j' },
- *       { label: 'SSE 实时推送', copyable: false },
- *     ]"
- *     collapsible
- *   />
+ * <BusinessBanner
+ * type="info"
+ * title="L2 数据融合层 — ETL 流水线监控"
+ * description="全链路 ETL DAG：爬虫采集 → (去重 ∥ 清洗) → LLM 抽取 → 入库 → 图谱构建"
+ * :meta="[
+ * { category: '后端', label: '/pipeline/*', code: true, copyable: true },
+ * { category: '数据源', label: 'pipeline_runs', code: true, copyable: true },
+ * { label: 'Neo4j' },
+ * { label: 'SSE 实时推送', copyable: false },
+ * ]"
+ * collapsible
+ * />
  *
  * Usage (向后兼容 — 旧 meta 字符串 + <code>):
- *   <BusinessBanner
- *     type="success"
- *     title="L2 数据融合层 — ETL 流水线监控"
- *     description="全链路 ETL DAG..."
- *     meta="后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送"
- *   />
+ * <BusinessBanner
+ * type="success"
+ * title="L2 数据融合层 — ETL 流水线监控"
+ * description="全链路 ETL DAG..."
+ * meta="后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送"
+ * />
  */
 import { computed, ref } from 'vue'
 import {
@@ -46,39 +46,39 @@ import { ElMessage } from 'element-plus'
 export type BannerType = 'info' | 'success' | 'warning' | 'error' | 'note'
 
 export interface BannerMetaItem {
-  /** Displayed text. When `code` is true, rendered in monospace. */
+ /** Displayed text. When `code` is true, rendered in monospace. */
   label: string
-  /** Render label in monospace chip (legacy <code> behavior). */
+ /** Render label in monospace chip (legacy <code> behavior). */
   code?: boolean
-  /** Optional category label rendered as a muted prefix (e.g. "后端:"). */
+ /** Optional category label rendered as a muted prefix (e.g. "后端:"). */
   category?: string
-  /** Show copy-to-clipboard icon on hover. Defaults to true when code=true. */
+ /** Show copy-to-clipboard icon on hover. Defaults to true when code=true. */
   copyable?: boolean
-  /** Optional tooltip text shown on hover. */
+ /** Optional tooltip text shown on hover. */
   hint?: string
 }
 
 const props = withDefaults(defineProps<{
-  /** Element Plus alert-style type, extended with 'note' for neutral callouts. */
+ /** Element Plus alert-style type, extended with 'note' for neutral callouts. */
   type?: BannerType
-  /** Plain-text title (NOT v-html — XSS-safe). */
+ /** Plain-text title (NOT v-html — XSS-safe). */
   title: string
-  /** Plain-text description (NOT v-html). */
+ /** Plain-text description (NOT v-html). */
   description?: string
-  /** Section reference, e.g. "§3.2". Rendered as a monospace pill. */
+ /** Section reference, e.g. "". Rendered as a monospace pill. */
   section?: string
-  /**
-   * Structured meta tags (preferred) OR legacy HTML string with `<code>...</code>`
-   * segments separated by ` · `. Strings are auto-parsed for back-compat.
-   */
+ /**
+ * Structured meta tags (preferred) OR legacy HTML string with `<code>...</code>`
+ * segments separated by ` · `. Strings are auto-parsed for back-compat.
+ */
   meta?: BannerMetaItem[] | string
-  /** Allow collapsing long descriptions. Default: false. */
+ /** Allow collapsing long descriptions. Default: false. */
   collapsible?: boolean
-  /** Initial collapsed state when collapsible=true. Default: false. */
+ /** Initial collapsed state when collapsible=true. Default: false. */
   defaultCollapsed?: boolean
-  /** Reduce padding for use in dense layouts. Default: false. */
+ /** Reduce padding for use in dense layouts. Default: false. */
   compact?: boolean
-  /** Override default aria-label. */
+ /** Override default aria-label. */
   ariaLabel?: string
 }>(), {
   type: 'info',
@@ -96,15 +96,15 @@ const collapsed = ref(props.defaultCollapsed)
 /* ─── Per-type design tokens (mapped to existing App.vue CSS variables) ── */
 
 interface TypeTokens {
-  /** Top/left accent color (used for border, icon color, label chip). */
+ /** Top/left accent color (used for border, icon color, label chip). */
   accent: string
-  /** Tinted background color (uses 6-10% opacity ghost tokens). */
+ /** Tinted background color (uses 6-10% opacity ghost tokens). */
   bg: string
-  /** Type label text (uppercase chip). */
+ /** Type label text (uppercase chip). */
   label: string
-  /** Element Plus icon component. */
+ /** Element Plus icon component. */
   icon: typeof CircleCheckFilled
-  /** ARIA role for the banner. */
+ /** ARIA role for the banner. */
   role: 'note' | 'alert'
 }
 
@@ -154,12 +154,12 @@ const parsedMeta = computed<BannerMetaItem[]>(() => {
   if (Array.isArray(props.meta)) return props.meta
   if (typeof props.meta !== 'string' || !props.meta.trim()) return []
 
-  // Legacy strings look like:  后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j
-  // Strategy: split by ` · `, then for each segment extract leading "Category:" + <code>...</code> tokens.
+ // Legacy strings look like: 后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j
+ // Strategy: split by ` · `, then for each segment extract leading "Category:" + <code>...</code> tokens.
   const segments = props.meta.split(/\s*·\s*/)
   const items: BannerMetaItem[] = []
   for (const segment of segments) {
-    // Pull out all <code>...</code> spans (in case of multiple per segment)
+ // Pull out all <code>...</code> spans (in case of multiple per segment)
     const codeRegex = /<code>([^<]+)<\/code>/g
     const codeLabels: string[] = []
     let match: RegExpExecArray | null
@@ -172,15 +172,15 @@ const parsedMeta = computed<BannerMetaItem[]>(() => {
     }
     prefixText += segment.slice(lastIndex)
 
-    // If there are code tokens, emit one item per code; otherwise emit the plain text.
+ // If there are code tokens, emit one item per code; otherwise emit the plain text.
     if (codeLabels.length > 0) {
-      // Pull out a leading "Category:" (e.g. "后端:") from the prefix before the first code
+ // Pull out a leading "Category:" (e.g. "后端:") from the prefix before the first code
       const catMatch = prefixText.match(/^([\u4e00-\u9fa5A-Za-z]+)\s*[:：]\s*/)
       const category = catMatch ? catMatch[1] : undefined
       for (const label of codeLabels) {
         items.push({ label, code: true, copyable: true, category })
       }
-      // Trailing text after the last code (e.g. "+ Neo4j")
+ // Trailing text after the last code (e.g. "+ Neo4j")
       const trailing = prefixText.replace(/^([\u4e00-\u9fa5A-Za-z]+)\s*[:：]\s*/, '').trim()
       if (trailing) {
         items.push({ label: trailing.startsWith('+') ? trailing.slice(1).trim() : trailing, code: false })
@@ -202,7 +202,7 @@ async function copyValue(item: BannerMetaItem) {
     await navigator.clipboard.writeText(item.label)
     ElMessage.success(`已复制: ${item.label}`)
   } catch {
-    // Clipboard API blocked (e.g. insecure context) — fall back to selection
+ // Clipboard API blocked (e.g. insecure context) — fall back to selection
     const ta = document.createElement('textarea')
     ta.value = item.label
     ta.style.position = 'fixed'
@@ -392,7 +392,7 @@ const computedAriaLabel = computed(() => {
   margin-bottom: 2px;
 }
 
-/* §3.2 chapter badge — monospace pill */
+/* chapter badge — monospace pill */
 .biz-banner__section {
   display: inline-flex;
   align-items: center;

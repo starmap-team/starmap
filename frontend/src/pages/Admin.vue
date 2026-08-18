@@ -1,15 +1,15 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 管理后台 — Phase 24 重设计
+ * 管理后台 — 重设计
  *
  * Tabs (按用户视角的业务环节排序):
- *  0. 业务总览   - 系统健康 KPI + 业务流图谱
- *  1. 内容审核   - Phase 23 主数据生命周期（position/skill）
- *  2. 演化变更   - §5.2 能力演化（trust_score < 0.6 的变更提案）
- *  3. 图谱节点   - Neo4j 节点 CRUD
- *  4. 数据采集   - 爬虫源 + 同步
- *  5. Prompt     - LLM 抽取提示词版本
- *  6. 系统       - 用户管理 + 审计日志
+ * 0. 业务总览 - 系统健康 KPI + 业务流图谱
+ * 1. 内容审核 - 主数据生命周期（position/skill）
+ * 2. 演化变更 - 能力演化（trust_score < 0.6 的变更提案）
+ * 3. 图谱节点 - Neo4j 节点 CRUD
+ * 4. 数据采集 - 爬虫源 + 同步
+ * 5. Prompt - LLM 抽取提示词版本
+ * 6. 系统 - 用户管理 + 审计日志
  *
  * 每个 Tab 顶部都有 BusinessBanner 横幅说明业务含义，让新用户秒懂。
  */
@@ -61,9 +61,9 @@ const graphNode = useGraphNodeStore()
 const review = useReviewStore()
 
 // ── Tab 导航 ──
-// Phase 24: 业务总览为默认 tab，让新用户第一眼理解系统。
+//: 业务总览为默认 tab，让新用户第一眼理解系统。
 const activeTab = ref('overview')
-// Phase 24: 系统 tab 内部的子 tab（用户管理 / 审计日志）
+//: 系统 tab 内部的子 tab（用户管理 / 审计日志）
 const systemSubTab = ref('users-list')
 // 2026-08-12 (admin 联调): 数据源诊断 banner 类型随报告状态动态化
 const dataTruthBannerType = ref<'success' | 'warning' | 'error'>('error')
@@ -87,17 +87,17 @@ function onAdminNavigate(e: Event) {
   if (typeof detail === 'string' && (_ALLOWED_ADMIN_TABS as Set<string>).has(detail)) {
     activeTab.value = detail as AdminTab
   } else {
-    // Reject payload — log loudly so silent hijack attempts are visible.
+ // Reject payload — log loudly so silent hijack attempts are visible.
     console.warn('[Admin] rejected admin:navigate with non-allow-listed detail:', detail)
   }
 }
 
 onMounted(() => {
   window.addEventListener('admin:navigate', onAdminNavigate)
-  // Pre-fetch all stores in the background so tab switches feel instant.
+ // Pre-fetch all stores in the background so tab switches feel instant.
   datasource.fetchSources()
-  // D8h: 移除旧 ReviewQueue 空队列拉取 —— review_queue 表 0 行且无写入方，
-  // fetchAuditQueue 返回空徒增请求；审核走 Phase 23 review-status 状态机
+ // D8h: 移除旧 ReviewQueue 空队列拉取 —— review_queue 表 0 行且无写入方，
+ // fetchAuditQueue 返回空徒增请求；审核走 review-status 状态机
   graphNode.fetchGraphNodes(0, nodePageSize.value)
   review.fetchStats().catch(() => null)
 })
@@ -121,8 +121,8 @@ const {
   paged: pagedGraphNodes,
 } = useGraphNodeList(computed(() => graphNode.graphNodes as GraphNodeItem[]))
 
-// P1-4 fix (functional-review 2026-08-13): 图谱节点管理改为服务端分页。
-// 此前 fetchGraphNodes() 无参调用默认 limit=20，el-pagination :total 用客户端
+// fix (functional-review 2026-08-13): 图谱节点管理改为服务端分页。
+// 此前 fetchGraphNodes 无参调用默认 limit=20，el-pagination :total 用客户端
 // 已取回列表长度 → 节点 >20 时后端节点完全不可见不可操作。现在翻页/改页大小
 // 时按 offset/limit 重拉后端，:total 用后端 total。
 async function onNodePageChange() {
@@ -134,14 +134,14 @@ async function onNodePageChange() {
   )
 }
 
-// P1-4 fix: 搜索/类型过滤变化时服务端重拉（客户端过滤只是当前页内增强），
+// fix: 搜索/类型过滤变化时服务端重拉（客户端过滤只是当前页内增强），
 // 避免服务端分页下跨页搜索漏匹配。
 watch([nodeSearchKeyword, nodeTypeFilter], () => {
   nodeCurrentPage.value = 1
   void onNodePageChange()
 })
 
-// Node editor + CRUD actions (extracted — Phase 7 D round 6)
+// Node editor + CRUD actions (extracted — D round 6)
 const {
   editorVisible,
   editingNode,
@@ -154,7 +154,7 @@ const {
 } = useGraphNodeEditor(graphNode)
 
 // ════════════════════════════════════════════════
-// 数据源编辑 (D-12: el-drawer; state + handlers stay inline — coupled to template refs)
+// 数据源编辑 (: el-drawer; state + handlers stay inline — coupled to template refs)
 // ════════════════════════════════════════════════
 
 const editDialogVisible = ref(false)
@@ -168,7 +168,7 @@ async function handleSaveSource() {
   if (!editingSource.value) return
   editSaving.value = true
   try {
-    // authority_score slider is 0-100, backend stores 0-1
+ // authority_score slider is 0-100, backend stores 0-1
     const payload = { authority_score: editingSource.value.authority_score / 100 }
     await datasource.updateSource(editingSource.value.id, payload)
     editDialogVisible.value = false
@@ -224,7 +224,7 @@ async function handleTriggerSync(row: { id: string; name: string }) {
   }
 }
 
-// 演示数据重置 (设计文档 §2.3.3.2 管理角色刚需) — POST /admin/seed/reset。
+// 演示数据重置 (设计文档 管理角色刚需) — POST /admin/seed/reset。
 // 生产环境后端直接 refused，不做任何写入。
 const seedingDemo = ref(false)
 async function handleResetDemoData() {
@@ -306,14 +306,14 @@ async function handleShowStats(row: { id: string; name: string }) {
   statsDrawerVisible.value = true
   statsMeta.value = null
   await datasource.fetchStats(row.id)
-  // E20b fix: load both /stats meta (runs) and /datasources/{id} meta
-  // (all-time total + last_crawl + status) so the drawer shows
-  // 30-day pipeline runs AND historical accumulated totals.
+ // E20b fix: load both /stats meta (runs) and /datasources/{id} meta
+ // (all-time total + last_crawl + status) so the drawer shows
+ // 30-day pipeline runs AND historical accumulated totals.
   try {
-    // E20b fix: load both /stats meta (runs) and /datasources/{id} meta
-    // (all-time total + last_crawl + status) so the drawer shows
-    // 30-day pipeline runs AND historical accumulated totals.
-    // 统一走 request 客户端（拦截器自动附加鉴权），替代裸 fetch + 手工 Bearer
+ // E20b fix: load both /stats meta (runs) and /datasources/{id} meta
+ // (all-time total + last_crawl + status) so the drawer shows
+ // 30-day pipeline runs AND historical accumulated totals.
+ // 统一走 request 客户端（拦截器自动附加鉴权），替代裸 fetch + 手工 Bearer
     const [statsRaw, srcRaw] = await Promise.all([
       request.get<{ total_runs?: number; successful_runs?: number; failed_runs?: number; avg_records_per_run?: number }>(
         `/datasources/${row.id}/stats`, { params: { period: '30d' } },
@@ -1244,7 +1244,7 @@ function formatDate(iso: string | null | undefined): string {
   align-items: center;
 }
 
-/* ── Business description banner — migrated to BusinessBanner component (Phase 26+) ── */
+/* ── Business description banner — migrated to BusinessBanner component (+) ── */
 
 .sub-tabs {
   margin-top: var(--space-2);

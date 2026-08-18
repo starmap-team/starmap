@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * JD 抽取页 — 粘贴 JD 文本，触发 LLM 抽取
  * 路由：/extract
@@ -32,10 +32,10 @@ async function handleExtract() {
     ElMessage.warning('请输入 JD 文本')
     return
   }
-  // Phase 26 / BUG-004: clear any prior progress interval before
-  // starting a new one. Without this, double-clicking "抽取" left
-  // two intervals racing — the second one would advance the bar past
-  // 85% and the random increments produced visually-jumpy progress.
+ // / BUG-004: clear any prior progress interval before
+ // starting a new one. Without this, double-clicking "抽取" left
+ // two intervals racing — the second one would advance the bar past
+ // 85% and the random increments produced visually-jumpy progress.
   if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
   extractProgress.value = 0
   extractPhase.value = '正在调用 AI 分析 JD 文本...'
@@ -441,7 +441,6 @@ onUnmounted(() => {
 .hc-issues-list { margin: 0; padding-left: var(--space-5); color: var(--muted-foreground); font-size: var(--font-size-sm); }
 .hc-issues-list li { margin-bottom: var(--space-1); }
 .learning-resource { margin-bottom: var(--space-1); }
-
 
 /* ── Custom Empty State ── */
 .custom-empty {

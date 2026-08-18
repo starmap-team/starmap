@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 图谱质量仪表盘 — R6 曾洋涛
  * 4 指标卡（含趋势箭头）+ 信任度直方图 + 幻觉率趋势 + 数据源饼图 + 审核队列
@@ -26,7 +26,7 @@ const {
   sourceChartOption,
 } = useQualityDashboardCharts(quality)
 
-// Page-level orchestration (activeTab + auto-refresh + initial fetch — Phase 7 D round 11)
+// Page-level orchestration (activeTab + auto-refresh + initial fetch — D round 11)
 const {
   activeTab,
   autoRefresh,
@@ -42,7 +42,7 @@ const {
   handleIgnoreAlert,
 } = useQualityActions(quality)
 
-// ponytail: 原模板内联 `quality.fetchQuality(); lastRefresh=...` 未 await，
+// ponytail: 原模板内联 `quality.fetchQuality; lastRefresh=...` 未 await，
 // 请求失败也显示"已刷新"；改为 await 后成功才置位，失败提示
 async function handleRefresh() {
   try {
@@ -692,7 +692,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
   font-style: italic;
 }
 .kpi-card {
-  /* Phase 11 ui-ux-pro-max: 4 卡片高度统一（消除 147/163/167/224 高度差）*/
+ /* ui-ux-pro-max: 4 卡片高度统一（消除 147/163/167/224 高度差）*/
   min-height: 180px;
 }
 /* 2026-08-14: 待审核队列 header — 总数说明 + 跳转管理后台按钮（联动 admin 内容审核）*/
@@ -707,7 +707,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
   color: var(--muted-foreground);
 }
 .kpi-help-icon {
-  /* Phase 11 新手友好：问号图标——hover 触发 tooltip 展示完整说明 */
+ /* 新手友好：问号图标——hover 触发 tooltip 展示完整说明 */
   margin-left: 4px;
   font-size: 12px;
   color: var(--muted-foreground);
@@ -723,7 +723,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
   align-items: center;
 }
 .kpi-tooltip-content pre {
-  /* tooltip 内容保留换行（沿 ui-ux-pro-max：新手友好 + 易读）*/
+ /* tooltip 内容保留换行（沿 ui-ux-pro-max：新手友好 + 易读）*/
   margin: 0;
   padding: 0;
   font-family: inherit;
@@ -733,7 +733,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
   max-width: 280px;
 }
 .kpi-help-alert {
-  /* 顶部新手引导块（沿 ui-ux-pro-max 数据密集 + 新手友好）*/
+ /* 顶部新手引导块（沿 ui-ux-pro-max 数据密集 + 新手友好）*/
   margin-top: var(--space-2);
   font-size: 13px;
   line-height: 1.6;

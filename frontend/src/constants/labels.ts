@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 共享业务标签常量 — 跨组件复用的中文标签/选项的唯一事实源。
  *
  * 消除 Admin/DetailPanel/PositionList/GraphFilterPanel 等组件内联重复
@@ -27,7 +27,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   language: '语言',
   certification: '认证',
   methodology: '方法论',
-  // Neo4j label fallbacks — 后端修复后不应出现，但做兜底
+ // Neo4j label fallbacks — 后端修复后不应出现，但做兜底
   Skill: '硬技能',
   Position: '—',
   Tool: '工具',
@@ -96,7 +96,7 @@ export const TREND_TYPES: Record<string, string> = {
 
 // ── 数据源名称中文化映射（覆盖爬虫平台、标准库、API 等常见数据源）──
 export const SOURCE_NAME_LABELS: Record<string, string> = {
-  // 国内招聘平台
+ // 国内招聘平台
   boss: 'BOSS直聘',
   bosszhipin: 'BOSS直聘',
   'BOSS直聘': 'BOSS直聘',
@@ -107,25 +107,25 @@ export const SOURCE_NAME_LABELS: Record<string, string> = {
   zhaopin: '智联招聘',
   liepin: '猎聘',
   talent: '猎聘',
-  // 国际平台
+ // 国际平台
   github: 'GitHub',
   GitHub: 'GitHub',
   indeed: 'Indeed',
   linkedin: 'LinkedIn',
   freelancer: 'Freelancer',
-  // 标准库
+ // 标准库
   esco: 'ESCO 标准库',
   ESCO: 'ESCO 标准库',
-  // 其他
+ // 其他
   manual: '手动录入',
   import: '数据导入',
   api: 'API 接入',
   test_real_crawl: '测试数据',
-  // 内部数据源标识
+ // 内部数据源标识
   jd_extract: 'JD 抽取',
   jd_extraction: 'JD 抽取',
   user_upload: '用户上传',
-  // D5: 真实 DB 名称（混合大小写 + (远程) 后缀）→ 中文显示名
+ // D5: 真实 DB 名称（混合大小写 + (远程) 后缀）→ 中文显示名
   'Boss Zhipin': 'BOSS直聘',
   'Lagou': '拉勾网',
   'ESCO Skills': 'ESCO 职业技能标准',
@@ -133,11 +133,11 @@ export const SOURCE_NAME_LABELS: Record<string, string> = {
   'Arbeitnow (远程)': 'Arbeitnow（远程招聘）',
   'Jobicy (远程)': 'Jobicy（远程招聘）',
   'WeWorkRemotely (远程)': 'WeWorkRemotely（远程招聘）',
-  // D6: 补齐 7 爬虫域 —— V2EX/Juejin/RemoteOK（迁移 034 新增）
+ // D6: 补齐 7 爬虫域 —— V2EX/Juejin/RemoteOK（迁移 034 新增）
   'V2EX 酷工作': 'V2EX 酷工作',
   '掘金技术社区': '掘金技术社区',
   'RemoteOK': 'RemoteOK',
-  // 2026-08-13: 补齐 jd_raw.source_site 原始键（数据源贡献分布 / 样本来源映射）
+ // 2026-08-13: 补齐 jd_raw.source_site 原始键（数据源贡献分布 / 样本来源映射）
   v2ex: 'V2EX 酷工作',
   juejin: '掘金技术社区',
   remoteok: 'RemoteOK',
@@ -156,7 +156,7 @@ export const SOURCE_DESCRIPTIONS: Record<string, string> = {
   'Arbeitnow (远程)': '德国远程岗位聚合平台，经 API 抓取',
   'Jobicy (远程)': '海外远程岗位聚合平台，经 API 抓取',
   'WeWorkRemotely (远程)': '全球远程岗位聚合站，经 RSS 订阅抓取',
-  // D6: 补齐 7 爬虫域描述（迁移 034 新增）
+ // D6: 补齐 7 爬虫域描述（迁移 034 新增）
   'V2EX 酷工作': 'V2EX 社区「酷工作」节点招聘帖，中文技术岗位',
   '掘金技术社区': '掘金技术博客文章，作为非结构化技能知识源（非岗位 JD）',
   'RemoteOK': '海外远程岗位聚合平台，经 API 抓取',

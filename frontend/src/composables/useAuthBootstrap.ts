@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useAuthBootstrap — silent token refresh on app boot.
  *
  * If we have a refresh token but no valid access token (or the access
@@ -10,11 +10,11 @@
  * redirect to /login.
  *
  * Race-condition fix (2026-07-23):
- *   The previous fire-and-forget call in App.vue created a window where
- *   the router guard checked localStorage synchronously before the
- *   bootstrap had finished its silent refresh. Now the guard calls
- *   `await ensureBootstrapped()` before routing decisions, which waits
- *   for the singleton bootstrap promise to settle.
+ * The previous fire-and-forget call in App.vue created a window where
+ * the router guard checked localStorage synchronously before the
+ * bootstrap had finished its silent refresh. Now the guard calls
+ * `await ensureBootstrapped` before routing decisions, which waits
+ * for the singleton bootstrap promise to settle.
  */
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
@@ -26,10 +26,10 @@ async function _doBootstrap(): Promise<boolean> {
   const store = useUserStore()
   store.initUser()
 
-  // 2026-08-14 规范驱动改进 (deep-interview): dev-token 不再信任缓存用户。
-  // 后端 get_current_user 对 dev-token 走 is_dev_token_allowed → dev_token_identity()
-  // （role=viewer，除非 dev_anon_admin=true）。直接调 /auth/me 拉服务端真实角色，
-  // 消除"前端缓存 admin、后端 viewer"的 403 不一致（strict viewer 语义）。
+ // 2026-08-14 规范驱动改进 (deep-interview): dev-token 不再信任缓存用户。
+ // 后端 get_current_user 对 dev-token 走 is_dev_token_allowed → dev_token_identity
+ // （role=viewer，除非 dev_anon_admin=true）。直接调 /auth/me 拉服务端真实角色，
+ // 消除"前端缓存 admin、后端 viewer"的 403 不一致（strict viewer 语义）。
   if (store.accessToken === 'dev-token') {
     try {
       const me = (await request.get('/auth/me')) as {
@@ -49,7 +49,7 @@ async function _doBootstrap(): Promise<boolean> {
   const rt = store.refreshToken
   const at = store.accessToken
 
-  // Case 1: access still valid → fetch fresh user state from server.
+ // Case 1: access still valid → fetch fresh user state from server.
   if (at && store.user) {
     try {
       const me = (await request.get('/auth/me')) as {
@@ -61,11 +61,11 @@ async function _doBootstrap(): Promise<boolean> {
       })
       return true
     } catch {
-      // fall through to refresh attempt
+ // fall through to refresh attempt
     }
   }
 
-  // Case 2: refresh token present, access expired/missing → try silent refresh
+ // Case 2: refresh token present, access expired/missing → try silent refresh
   if (rt) {
     try {
       const data = (await request.post('/auth/refresh', {

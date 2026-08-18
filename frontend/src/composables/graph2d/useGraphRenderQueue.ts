@@ -1,8 +1,8 @@
-/**
+﻿/**
  * useGraphRenderQueue — Debounced + batched render dispatcher
  *
  * Replaces ad-hoc setTimeout debouncing with a requestAnimationFrame-based
- * scheduler. Multiple render() calls within the same frame collapse to one.
+ * scheduler. Multiple render calls within the same frame collapse to one.
  * Avoids React-style "double render" and prevents render storms when multiple
  * data sources change simultaneously.
  */
@@ -34,7 +34,7 @@ export function useGraphRenderQueue(
   }
 
   async function executeAll(graph: Graph): Promise<void> {
-    // Sort by priority descending, then run
+ // Sort by priority descending, then run
     const sorted = Array.from(tasks.values()).sort((a, b) => b.priority - a.priority)
     for (const task of sorted) {
       try {
@@ -47,7 +47,7 @@ export function useGraphRenderQueue(
 
   function schedule(graph: Graph | null): void {
     if (!graph) return
-    // Dedupe within debounce window
+ // Dedupe within debounce window
     if (debounceTimer) clearTimeout(debounceTimer)
     debounceTimer = setTimeout(() => {
       debounceTimer = null
@@ -65,12 +65,12 @@ export function useGraphRenderQueue(
     if (graph) executeAll(graph)
   }
 
-  // Auto-schedule when any of the watch sources change
-  // (Caller wires this to graph.value after init)
+ // Auto-schedule when any of the watch sources change
+ // (Caller wires this to graph.value after init)
   if (watchSources.length > 0) {
     watch(watchSources, () => {
-      // Defer to caller for graph access; emit a custom event-like signal
-      // The component should call schedule() from its own watchers
+ // Defer to caller for graph access; emit a custom event-like signal
+ // The component should call schedule from its own watchers
     })
   }
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useNodeThreeObject — Three.js custom node rendering pipeline for 3D force graph.
  *
  * Creates sphere + glow + text sprites for KnowledgeArea, Position, Skill node types.
@@ -51,8 +51,8 @@ export function applyZLayering(nodes: GraphNode3D[]): void {
   for (const n of nodes) {
     if (getNodeLabel(n) === 'Skill') {
       const targetZ = proficiencyToZ(n.properties.proficiency)
-      // Only set z if node doesn't already have a position (new nodes)
-      // or if the node hasn't been positioned by force simulation yet
+ // Only set z if node doesn't already have a position (new nodes)
+ // or if the node hasn't been positioned by force simulation yet
       if (n.x === undefined || n.z === undefined) {
         n.z = targetZ
       }
@@ -68,7 +68,7 @@ export function getNodeRadius(node: GraphNode3D): number {
   switch (label) {
     case 'KnowledgeArea': {
       const skills = node.properties.skill_count ?? 1
-      // Cap radius growth to prevent oversized nodes that overlap and stick together
+ // Cap radius growth to prevent oversized nodes that overlap and stick together
       return 6 + Math.min(Math.sqrt(skills) * 2, 14)
     }
     case 'Position':
@@ -92,7 +92,7 @@ export function buildNodeThreeObject(node: NodeObject): import('three').Object3D
 
   const THREE = (window as unknown as Record<string, unknown>).__THREE as typeof import('three') | undefined
   if (!THREE) {
-    // Fallback: return undefined to use default sphere rendering
+ // Fallback: return undefined to use default sphere rendering
     return undefined as unknown as import('three').Object3D
   }
 
@@ -204,6 +204,6 @@ export function buildNodeThreeObject(node: NodeObject): import('three').Object3D
     return mesh as unknown as import('three').Object3D
   }
 
-  // Default fallback for unknown node types
+ // Default fallback for unknown node types
   return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color })) as unknown as import('three').Object3D
 }

@@ -1,9 +1,9 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * LoopStepGraph — Step 3: Graph Update
  * Mini G6 graph container + legend.
  * The graph container ref is exposed so the parent (via useLoopGraph) can render into it.
- * Phase 07-02 D-05: also surfaces 新增节点/关系数 口径行.
+ *-02: also surfaces 新增节点/关系数 口径行.
  */
 import { computed } from 'vue'
 import type { StepResult } from '@/stores/loop'
@@ -17,7 +17,7 @@ const emit = defineEmits<{
   (e: 'graph-ref', el: HTMLElement | null): void
 }>()
 
-// D-05 口径拆解 — graph_sync 返回 nodes_written / edges_written
+// 口径拆解 — graph_sync 返回 nodes_written / edges_written
 // (来自 graph_sync.py:140, 279-280 既有契约 key，不重命名)
 const nodesWritten = computed<number | null>(() => {
   const d = props.step?.data as { nodes_written?: number; nodes?: number } | undefined

@@ -1,9 +1,9 @@
-/**
+﻿/**
  * Typed API client — wraps `request` with OpenAPI schema types.
  *
  * Usage:
- *   import { api } from '@/api/client'
- *   const data = await api.extractJd({ body: { jd_text: "..." } })
+ * import { api } from '@/api/client'
+ * const data = await api.extractJd({ body: { jd_text: "..." } })
  *
  * New code should use `api.*` instead of `request.get/post` + manual casts.
  * All endpoints are now fully typed via OpenAPI schema types.
@@ -51,39 +51,39 @@ async function typedPost<P extends string>(
 
 // ── Convenience methods for most-used endpoints ──
 export const api = {
-  // Health
+ // Health
   health: () => typedGet('/health'),
 
-  // Extract
+ // Extract
   extractJd: (body: RequestBody<'/extract/jd', 'post'>) =>
     typedPost('/extract/jd', body),
   extractResume: (body: RequestBody<'/extract/resume', 'post'>) =>
     typedPost('/extract/resume', body),
 
-  // Positions
+ // Positions
   listPositions: (params?: Record<string, unknown>) =>
     typedGet('/positions', params),
   getPositionDetail: (positionId: string) =>
     typedGet(`/positions/${positionId}`),
 
-  // Match — typed with OpenAPI schema; stores that pass varying shapes
-  // should normalize before calling, or use typedPost directly.
+ // Match — typed with OpenAPI schema; stores that pass varying shapes
+ // should normalize before calling, or use typedPost directly.
   runMatch: (body: RequestBody<'/match/position', 'post'>) =>
     typedPost('/match/position', body),
 
-  // Evolution
+ // Evolution
   getEvolutionTrends: (params?: Record<string, unknown>) =>
     typedGet('/evolution/trends', params),
   getEvolutionPaths: (positionId: string) =>
     typedGet(`/evolution/paths/${positionId}`),
 
-  // Quality
+ // Quality
   getQualityDashboard: () => typedGet('/quality/dashboard'),
 
-  // Graph
+ // Graph
   getGraphOverview: () => typedGet('/graph/overview'),
 
-  // Pipeline
+ // Pipeline
   getPipelineStatus: (runId: string) =>
     typedGet(`/pipeline/runs/${runId}`),
 } as const

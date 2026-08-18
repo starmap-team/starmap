@@ -1,4 +1,4 @@
-"""R1 CLI 入口。
+﻿"""R1 CLI 入口。
 
 用法:
     python run.py init              # 建表
@@ -25,7 +25,7 @@ from pathlib import Path
 # 让脚本可独立运行
 # 业务说明：将项目根目录加入 Python 路径，使脚本可以直接运行而不依赖包安装。
 # 技术说明：sys.path.insert 确保导入 crawler 包时能找到正确的位置。
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve.parent.parent))
 
 from crawler.persistence import dao
 from crawler.pipeline_bridge import trigger_pipeline_run
@@ -34,27 +34,23 @@ from crawler.pipeline_bridge import trigger_pipeline_run
 # 技术说明：format 包含时间戳、日志级别、记录器名称和消息内容。
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 log = logging.getLogger("r1")
-
 
 def cmd_init(_args):
     # 业务说明：初始化数据库表结构，创建 jd_raw 和 compliance_log 等必要表。
     # 首次部署或数据库 schema 变更后需要执行。
     log.info("建表...")
-    dao.init_schema()
+    dao.init_schema
     log.info("OK")
-
 
 def cmd_stats(_args):
     # 业务说明：统计数据库中职位数据的总量和按状态分布情况。
     # 输出 JSON 格式结果，便于脚本化处理和监控。
     log.info("统计 jd_raw ...")
-    total = dao.count_jd()
-    by_status = dao.count_by_status()
+    total = dao.count_jd
+    by_status = dao.count_by_status
     print(json.dumps({"total": total, "by_status": by_status}, ensure_ascii=False, indent=2))
-
 
 def cmd_apify_lagou(args):
     # 业务说明：使用 Apify 云平台抓取拉勾网职位数据。
@@ -63,10 +59,8 @@ def cmd_apify_lagou(args):
     from crawler.scripts.apify_lagou import run_apify_lagou
     summary = run_apify_lagou(
         max_items=args.max,
-        dry_run=args.dry_run,
-    )
+        dry_run=args.dry_run)
     log.info("Apify 拉勾: total=%d inserted=%d", summary.get("total", 0), summary.get("inserted", 0))
-
 
 def cmd_apify_liepin(args):
     # 业务说明：使用 Apify 云平台抓取猎聘网职位数据（付费功能）。
@@ -74,16 +68,14 @@ def cmd_apify_liepin(args):
     summary = run_apify_liepin(max_items=args.max, dry_run=args.dry_run, force_paid=args.force_paid)
     log.info('Apify liepin: total=%d inserted=%d', summary.get('total', 0), summary.get('inserted', 0))
 
-
 def cmd_apify_zhaopin(args):
     # 业务说明：使用 Apify 云平台抓取智联招聘职位数据（付费功能）。
     from crawler.scripts.apify_zhaopin import run_apify_zhaopin
     summary = run_apify_zhaopin(max_items=args.max, dry_run=args.dry_run, force_paid=args.force_paid)
     log.info('Apify zhaopin: total=%d inserted=%d', summary.get('total', 0), summary.get('inserted', 0))
 
-
 def cmd_run_pipeline(args):
-    """PIPE-03 (b) D-03: CLI 子命令触发一次完整 pipeline run."""
+    """PIPE-03 (b): CLI 子命令触发一次完整 pipeline run."""
     # 业务说明：通过 pipeline_bridge 调用后端 executor.trigger_and_start，
     # 与 main API 等价的调用路径（CLI 与后端同进程内）。
     # 技术说明：trigger_pipeline_run 内部用 asyncio.run 跑异步 trigger_and_start，
@@ -94,8 +86,7 @@ def cmd_run_pipeline(args):
         log.error("Pipeline trigger 退出码 %d", rc)
     return rc
 
-
-def main():
+def main:
     # 业务说明：构建命令行参数解析器，注册所有子命令。
     # 技术说明：使用 argparse 的 subparsers 机制实现子命令路由。
     p = argparse.ArgumentParser(prog="r1-crawler")
@@ -127,27 +118,24 @@ def main():
     sp_zhaopin.add_argument('--force-paid', action='store_true')
     sp_zhaopin.set_defaults(func=cmd_apify_zhaopin)
 
-    # Phase 10 PIPE-03 (b) D-03: CLI 触发完整 pipeline run
+    #PIPE-03 (b): CLI 触发完整 pipeline run
     # 业务说明：注册 run-pipeline 子命令，触发一次完整流水线
     # (crawl → dedup → clean → extract → graph_sync)。
     # crawl 阶段按 DataSourceRecord 配置跑真实开放源（v2ex/arbeitnow/jobicy/weworkremotely）。
     sp_pipeline = sub.add_parser(
         "run-pipeline",
-        help="触发一次完整 pipeline run（与 POST /api/v1/pipeline/trigger 等价）",
-    )
+        help="触发一次完整 pipeline run（与 POST /api/v1/pipeline/trigger 等价）")
     sp_pipeline.add_argument(
         "--source", default="auto",
         choices=["auto", "v2ex", "arbeitnow", "jobicy", "weworkremotely"],
-        help="爬取源标识（仅用于 run_type 标记；实际源由数据源配置决定）",
-    )
+        help="爬取源标识（仅用于 run_type 标记；实际源由数据源配置决定）")
     sp_pipeline.add_argument(
         "--limit", type=int, default=20,
-        help="最大抓取条数（信息性，调用透传给 trigger_and_start）",
-    )
+        help="最大抓取条数（信息性，调用透传给 trigger_and_start）")
     sp_pipeline.set_defaults(func=cmd_run_pipeline)
 
     # 业务说明：解析命令行参数并执行对应的处理函数。
-    args = p.parse_args()
+    args = p.parse_args
     if args.cmd == "init":
         cmd_init(args)
     elif args.cmd == "stats":
@@ -155,8 +143,7 @@ def main():
     elif hasattr(args, "func"):
         args.func(args)
     else:
-        p.print_help()
-
+        p.print_help
 
 if __name__ == "__main__":
-    main()
+    main

@@ -1,7 +1,7 @@
-/**
+﻿/**
  * useGraph3DFps — 3D 渲染 FPS 监控 composable
  *
- * 2026-08-13: Phase 1 (M1 全景图谱) Plan 01-04 Task 2 — 抽 Graph3D.vue:324-331
+ * 2026-08-13: ( 全景图谱) Plan 01-04 Task 2 — 抽 Graph3D.vue:324-331
  * FPS 监控逻辑(原 line 46 fps ref + line 302+ fpsFrames/fpsLastTime/fpsRafId)。
  *
  * 与 Graph3D.vue 既有实现保持一致 (rafId-based loop,每秒计算 fps,onUnmounted 取消)。

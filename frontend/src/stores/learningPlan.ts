@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 import { useUserStore } from '@/stores/user'
@@ -24,7 +24,7 @@ function writeStoredPlanId(planId: string | null): void {
     if (planId) localStorage.setItem(LOCAL_STORAGE_KEY, planId)
     else localStorage.removeItem(LOCAL_STORAGE_KEY)
   } catch {
-    // localStorage unavailable — silent
+ // localStorage unavailable — silent
   }
 }
 
@@ -49,7 +49,7 @@ export interface LearningPathItem {
 export interface LearningPlan {
   plan_id: string
   position: string
-  /** Mapped from backend overall_pct (0-100, importance-weighted) */
+ /** Mapped from backend overall_pct (0-100, importance-weighted) */
   overall_progress: number
   estimated_completion: string
   skills: SkillProgress[]
@@ -86,7 +86,7 @@ interface PlanResponseRaw {
 
 /** Extract error message from unknown catch value */
 function getErrorMsg(e: unknown): string {
-  // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案
+ // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案
   const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
   if (detail) return detail
   if (e instanceof Error) return e.message
@@ -105,8 +105,8 @@ function mapPlanResponse(data: PlanResponseRaw): LearningPlan {
       progress_pct,
       estimated_hours: s.estimated_hours ?? 0,
       prerequisites: s.prerequisites ?? [],
-      // PLAN-006③ 红线: current_level 不再按 importance 编造(2/1)，
-      // 改由真实学习进度 progress_pct 派生（0% → 0 级，100% → target 级）
+ // PLAN-006③ 红线: current_level 不再按 importance 编造(2/1)，
+ // 改由真实学习进度 progress_pct 派生（0% → 0 级，100% → target 级）
       current_level: Math.round((progress_pct / 100) * target_level),
       target_level,
     }
@@ -164,11 +164,11 @@ export interface CreatePlanRequestBody {
 }
 
 /** 从匹配结果构造 CreatePlanRequest 请求体 (LOOP-03)
- *  Accepts either a raw MatchResult from the match store or a pre-built
- *  CreatePlanRequestBody (idempotent — returns as-is if already shaped).
+ * Accepts either a raw MatchResult from the match store or a pre-built
+ * CreatePlanRequestBody (idempotent — returns as-is if already shaped).
  */
 export function buildCreatePlanRequest(matchResult: Record<string, unknown>): CreatePlanRequestBody {
-  // Idempotent: if the caller already built a proper request, pass it through
+ // Idempotent: if the caller already built a proper request, pass it through
   if (
     typeof matchResult.position === 'string' &&
     typeof matchResult.match_score === 'number' &&
@@ -177,7 +177,7 @@ export function buildCreatePlanRequest(matchResult: Record<string, unknown>): Cr
     return matchResult as unknown as CreatePlanRequestBody
   }
 
-  // MatchResult uses `target_position`; also accept `position_name` / `position`
+ // MatchResult uses `target_position`; also accept `position_name` / `position`
   const position = (matchResult.target_position ?? matchResult.position_name ?? matchResult.position ?? '') as string
   const matchScore = (matchResult.match_score ?? 0) as number
   const gapDetail = (matchResult.skill_gap_detail ?? []) as Array<Record<string, unknown>>
@@ -240,9 +240,9 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
     }
   }
 
-  /** D-06/D-07: restore plan from localStorage on page open.
-   * Validates stored plan_id by fetching; clears on 404/invalid.
-   */
+ /**: restore plan from localStorage on page open.
+ * Validates stored plan_id by fetching; clears on 404/invalid.
+ */
   async function restorePlanFromLocalStorage(): Promise<LearningPlan | null> {
     const storedId = readStoredPlanId()
     if (!storedId) return null
@@ -260,13 +260,13 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
     planError.value = null
     try {
       await request.put(`/learning/plan/${planId}/progress`, { skill_name: skill, status })
-      // FLOW-03: 同步已掌握技能到用户技能列表，重新匹配可反映进步
+ // FLOW-03: 同步已掌握技能到用户技能列表，重新匹配可反映进步
       if (status === 'mastered') {
         const userStore = useUserStore()
         userStore.addParsedSkill(skill)
       }
-      // Re-fetch plan to get authoritative overall_pct from backend
-      // (avoid local drift — backend uses importance-weighted calculation)
+ // Re-fetch plan to get authoritative overall_pct from backend
+ // (avoid local drift — backend uses importance-weighted calculation)
       if (currentPlan.value?.plan_id === planId) {
         await fetchPlan(planId)
       }
@@ -282,7 +282,7 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
     planLoading.value = true
     planError.value = null
     try {
-      // Backend returns list[PlanResponse] — a plain JSON array
+ // Backend returns list[PlanResponse] — a plain JSON array
       const data = await request.get('/learning/plans')
       const items = asArray(data)
       plans.value = items.map((p) => mapPlanResponse(p as PlanResponseRaw))

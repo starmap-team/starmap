@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * GraphFilterPanel — 左侧可折叠筛选面板
  *
@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<{
   proficiencyFilter: string[]
   showEvolution: boolean
   currentLayer: ViewLayer
-  /** KA color legend: { name, color, count } */
+ /** KA color legend: { name, color, count } */
   legend?: { name: string; color: string; count: number }[]
   nodeCount?: number
 }>(), {

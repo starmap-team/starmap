@@ -1,9 +1,9 @@
-/**
+﻿/**
  * 数据源管理 Store — Sprint 1.2
  * 管理多源数据融合：BOSS/拉勾/51Job/GitHub/ESCO
  * 提供数据源 CRUD、统计查询、同步触发
  *
- * Phase 7 refactor: audit queue and graph node management have been
+ * refactor: audit queue and graph node management have been
  * extracted to useAuditStore and useGraphNodeStore respectively.
  * This store now focuses solely on data source operations.
  */
@@ -105,9 +105,9 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      // fix: 后端 PUT 端点在公共 router（/datasources/{id}），非 admin_router；该端点自带 require_admin，权限不降级
+ // fix: 后端 PUT 端点在公共 router（/datasources/{id}），非 admin_router；该端点自带 require_admin，权限不降级
       const data = await request.put(`/datasources/${id}`, config) as DataSourceDetail
-      // 更新列表中的对应项
+ // 更新列表中的对应项
       const idx = sources.value.findIndex(s => s.id === id)
       if (idx !== -1) sources.value[idx] = data
       if (selectedSource.value?.id === id) selectedSource.value = data
@@ -120,7 +120,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
-  // D5: 软删除（停用）数据源 —— DELETE /datasources/{id} → status='inactive'，保留采集历史
+ // D5: 软删除（停用）数据源 —— DELETE /datasources/{id} → status='inactive'，保留采集历史
   async function deactivateSource(id: string): Promise<boolean> {
     loading.value = true
     error.value = null
@@ -136,13 +136,13 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
-  // 2026-08-14: 重新启用停用/暂停的数据源（功能缺口修复——此前停用后 UI 无法再启用）
+ // 2026-08-14: 重新启用停用/暂停的数据源（功能缺口修复——此前停用后 UI 无法再启用）
   async function activateSource(id: string): Promise<boolean> {
     loading.value = true
     error.value = null
     try {
       const src = sources.value.find(s => s.id === id)
-      // 保留现有 config（platform/max_count 等），仅把 disabled 置 false + status=active
+ // 保留现有 config（platform/max_count 等），仅把 disabled 置 false + status=active
       const config = { ...(src?.config || {}), disabled: false }
       const data = await request.put(`/datasources/${id}`, { status: 'active', config }) as DataSourceDetail
       const idx = sources.value.findIndex(s => s.id === id)
@@ -160,9 +160,9 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      // E20 fix: backend returns `crawl_volume` / `quality_trend` / `avg_records_per_run`
-      // while the DataSourceStats type expects `daily_volume` / `quality_trend` / `avg_daily_count`.
-      // Map field names so the stats drawer renders the bar chart instead of empty.
+ // E20 fix: backend returns `crawl_volume` / `quality_trend` / `avg_records_per_run`
+ // while the DataSourceStats type expects `daily_volume` / `quality_trend` / `avg_daily_count`.
+ // Map field names so the stats drawer renders the bar chart instead of empty.
       const raw = await request.get(`/datasources/${id}/stats?period=30d`) as {
         crawl_volume?: Array<{ date: string; count: number }>
         quality_trend?: Array<{ date: string; score: number }>
@@ -197,10 +197,10 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      // fix: 后端 sync 端点在公共 router（/datasources/{id}/sync），非 admin_router；该端点自带 require_admin，权限不降级
-      // 返回后端 SyncTriggerResponse（run_id/source_name/status/message），供 Admin 页展示真实任务信息
+ // fix: 后端 sync 端点在公共 router（/datasources/{id}/sync），非 admin_router；该端点自带 require_admin，权限不降级
+ // 返回后端 SyncTriggerResponse（run_id/source_name/status/message），供 Admin 页展示真实任务信息
       const data = await request.post(`/datasources/${id}/sync`) as SyncTriggerResponse
-      // 同步后刷新该数据源详情
+ // 同步后刷新该数据源详情
       await fetchSourceDetail(id)
       return data
     } catch (e: unknown) {
@@ -226,10 +226,10 @@ export const useDataSourceStore = defineStore('datasource', () => {
     }
   }
 
-  /** Phase 15 / T2.3: 按需触发单源采集 */
+ /** / T2.3: 按需触发单源采集 */
   async function triggerCrawl(source: string) {
-    // D5: /crawl-source 是同步爬取（spider 全程 + 限速 2s/请求），沙盒网络差时可达 30-60s。
-    // 默认 axios 30s 会先超时误报，这里单独给 90s 超时（仅此请求，不污染全局）。
+ // D5: /crawl-source 是同步爬取（spider 全程 + 限速 2s/请求），沙盒网络差时可达 30-60s。
+ // 默认 axios 30s 会先超时误报，这里单独给 90s 超时（仅此请求，不污染全局）。
     return request.post(
       `/pipeline/crawl-source?source=${encodeURIComponent(source)}`,
       undefined,

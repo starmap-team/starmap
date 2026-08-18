@@ -1,15 +1,15 @@
-/**
+﻿/**
  * useGraph3DClustering — overflow-based node grouping for 3D graphs
  *
  * 镜像 useGraphClustering.ts (graph2d) 但输出 3d-force-graph 兼容节点 schema:
- *   { id, labels, color, position_count, properties }
+ * { id, labels, color, position_count, properties }
  *
  * 节点数 > effectiveLimit * clusterThreshold 时,超出部分折叠为 1 个 cluster
  * meta-node (id='cluster-overflow', color='#999999', properties.name='{N} more nodes')。
  *
- * 2026-08-13: Phase 1 (M1 全景图谱) Plan 01-03 Task 2 — 镜像 2D useGraphClustering
+ * 2026-08-13: ( 全景图谱) Plan 01-03 Task 2 — 镜像 2D useGraphClustering
  * 但 3D 暂不实现"点击展开 cluster"(避免引入 watch + _destructor 重建复杂度;沿
- * Phase 13 R3 防御路径)。后续 phase 增强。
+ * R3 防御路径)。后续 phase 增强。
  */
 import { computed, type Ref } from 'vue'
 
@@ -38,7 +38,7 @@ export function clusterNodes3D(
   effectiveLimit: number = 30,
   clusterThreshold: number = 0.8,
 ): { visible: GraphNode3D[]; cluster: GraphNode3DCluster | null } {
-  // 按 position_count 降序排序,top effectiveLimit 保留
+ // 按 position_count 降序排序,top effectiveLimit 保留
   const sorted = [...nodes].sort((a, b) => (b.position_count ?? 0) - (a.position_count ?? 0))
   const shouldCluster = nodes.length > effectiveLimit * clusterThreshold
   if (!shouldCluster) return { visible: nodes, cluster: null }

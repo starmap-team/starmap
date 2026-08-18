@@ -303,8 +303,7 @@ watch(() => route.path, () => { mobileMenuOpen.value = false })
 </template>
 
 <style>
-/* P3-1 fix: extract scoped styles to external file */
+/* fix: extract scoped styles to external file */
 @import './MainLayout.css';
 </style>
-
 

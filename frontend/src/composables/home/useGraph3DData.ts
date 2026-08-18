@@ -1,4 +1,4 @@
-/** 3D graph data derivation (graph3DNodes / graph3DLinks) using precomputed KA colors. */
+﻿/** 3D graph data derivation (graph3DNodes / graph3DLinks) using precomputed KA colors. */
 import { computed } from 'vue'
 import { useGraphStore, type GraphNode } from '@/stores/graph'
 import { KA_FALLBACK_COLORS, nodeColor } from '@/utils/graphColors'
@@ -19,7 +19,7 @@ export function useGraph3DData() {
         id: n.id,
         labels: n.labels,
         color,
-        // 保留所有原始属性，让 displayName() 能读取 name_cn
+ // 保留所有原始属性，让 displayName 能读取 name_cn
         properties: { ...props },
       }
     }),

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed } from "vue"
 import { Collection, DataAnalysis, Upload, Document, TrendCharts, Connection } from "@element-plus/icons-vue"
 
@@ -6,12 +6,12 @@ const props = defineProps<{
   totalDomains: number
   totalPositions: number
   totalSkills: number
-  // M6：关系边 KPI 统一用 REQUIRES 总数（=大屏/Neo4j/PG 口径），不随视图模式变化，避免跨页面"同名异值"
+ //：关系边 KPI 统一用 REQUIRES 总数（=大屏/Neo4j/PG 口径），不随视图模式变化，避免跨页面"同名异值"
   totalRelations: number
-  // 动态分组维度标签（随 overviewMode 切换：技术领域/技术栈/职级分组）
+ // 动态分组维度标签（随 overviewMode 切换：技术领域/技术栈/职级分组）
   groupLabel?: string
   groupTrend?: string
-  // PLAN-006④: 后端响应时间戳（Unix 秒），用于在 KPI 条上显示"截至 X"诚实时效
+ // PLAN-006④: 后端响应时间戳（Unix 秒），用于在 KPI 条上显示"截至 X"诚实时效
   generatedAt?: number
 }>()
 
@@ -28,7 +28,7 @@ const emit = defineEmits<{
   navigate: [path: string]
 }>()
 
-// M5/M6：每个 KPI 数字的口径说明，避免跨页面"同名异值"误导
+//：每个 KPI 数字的口径说明，避免跨页面"同名异值"误导
 function kpiTooltip(field: string): string {
   const map: Record<string, string> = {
     totalDomains: '知识图谱核心分类数（domain）。',

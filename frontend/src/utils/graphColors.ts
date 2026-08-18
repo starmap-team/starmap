@@ -1,4 +1,4 @@
-/**
+﻿/**
  * StarMap Graph Color System — unified palette for 2D + 3D rendering.
  *
  * All graph color constants and helpers live here as pure exports.
@@ -72,7 +72,7 @@ export const TYPE_INFO: Record<string, { label: string; color: string }> = {
 /**
  * Returns the base color for a non-KA node type.
  * KA coloring is precomputed by the caller (Home.vue builds KA_COLOR_MAP from store).
- * The _categoryOrId parameter is retained for backward compatibility (Phase 5 removes callers).
+ * The _categoryOrId parameter is retained for backward compatibility ( removes callers).
  */
 export function nodeColor(type: string, _categoryOrId?: string): string {
   return NODE_TYPE_COLORS[type] ?? '#64748b'
@@ -90,13 +90,13 @@ export function edgeColor(type: string): string {
  * Boosts brightness by ~30% and returns as CSS color string.
  */
 export function glowColor(baseColor: string): string {
-  // Parse hex color
+ // Parse hex color
   const hex = baseColor.replace('#', '')
   const r = parseInt(hex.substring(0, 2), 16)
   const g = parseInt(hex.substring(2, 4), 16)
   const b = parseInt(hex.substring(4, 6), 16)
 
-  // Boost brightness (mix toward white by 35%)
+ // Boost brightness (mix toward white by 35%)
   const boost = 0.35
   const nr = Math.min(255, Math.round(r + (255 - r) * boost))
   const ng = Math.min(255, Math.round(g + (255 - g) * boost))

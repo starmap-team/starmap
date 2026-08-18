@@ -1,39 +1,39 @@
-/**
+﻿/**
  * SSE composable with exponential backoff and polling fallback.
  *
  * Usage:
- *   const { connected, disconnect } = useSSE('/api/v1/dashboard/realtime', {
- *     onMessage: (event) => { ... },
- *     onError: (err) => { ... },
- *   })
+ * const { connected, disconnect } = useSSE('/api/v1/dashboard/realtime', {
+ * onMessage: (event) => { ... },
+ * onError: (err) => { ... },
+ * })
  */
 import { ref, onUnmounted } from 'vue'
 import { API_BASE } from '@/config/apiBase'
 
 export interface UseSSEOptions {
-  /** Called for each SSE message (named events dispatch by event type) */
+ /** Called for each SSE message (named events dispatch by event type) */
   onMessage: (event: MessageEvent) => void
-  /** Called on connection errors after all retries exhausted or on fatal errors */
+ /** Called on connection errors after all retries exhausted or on fatal errors */
   onError?: (err: Event) => void
-  /** Base delay in ms for exponential backoff (default: 1000) */
+ /** Base delay in ms for exponential backoff (default: 1000) */
   baseDelay?: number
-  /** Maximum delay cap in ms (default: 30000) */
+ /** Maximum delay cap in ms (default: 30000) */
   maxDelay?: number
-  /** Maximum retry attempts before giving up (default: 10) */
+ /** Maximum retry attempts before giving up (default: 10) */
   maxRetries?: number
-  /** Consecutive failures before switching to polling fallback (default: 3) */
+ /** Consecutive failures before switching to polling fallback (default: 3) */
   pollThreshold?: number
-  /** Polling interval in ms when SSE is unavailable (default: 5000) */
+ /** Polling interval in ms when SSE is unavailable (default: 5000) */
   pollInterval?: number
-  /** URL for polling fallback (defaults to url + '-poll') */
+ /** URL for polling fallback (defaults to url + '-poll') */
   pollUrl?: string
-  /**
-   * Phase 1 D-09: Optional event-type-specific handlers map.
-   * If provided, useSSE will dispatch event to matching handler based on event.type
-   * before falling back to onMessage.
-   */
+ /**
+ *: Optional event-type-specific handlers map.
+ * If provided, useSSE will dispatch event to matching handler based on event.type
+ * before falling back to onMessage.
+ */
   storeHandlers?: Record<string, (data: unknown) => void>
-  /** Interval in ms to retry SSE connection while in polling mode (default: 60000) */
+ /** Interval in ms to retry SSE connection while in polling mode (default: 60000) */
   sseRetryInterval?: number
 }
 
@@ -62,7 +62,7 @@ async function silentRefreshForSSE(): Promise<string | null> {
       return newAccess
     }
   } catch {
-    // Network error or parse failure — cannot refresh
+ // Network error or parse failure — cannot refresh
   }
   return null
 }
@@ -92,35 +92,35 @@ export function useSSE(url: string, options: UseSSEOptions) {
   let sseRetryTimer: ReturnType<typeof setInterval> | null = null
   let disposed = false
   let refreshingToken = false  // P0-F2: guard against parallel refreshes
-  // P1-2 fix (functional-review 2026-08-13): 轮询游标改用最后一次事件时间戳
-  // （lastEventTs）。此前依赖 SSE lastEventId（后端 _format_sse 不发送 id: 行，
-  // onmessage 也不触发 → 恒为空 → 轮询恒 since=0 重复拉全量）。
+ // fix (functional-review 2026-08-13): 轮询游标改用最后一次事件时间戳
+ // （lastEventTs）。此前依赖 SSE lastEventId（后端 _format_sse 不发送 id: 行，
+ // onmessage 也不触发 → 恒为空 → 轮询恒 since=0 重复拉全量）。
 
-  // ── SSE connection ──
+ // ── SSE connection ──
 
   function connectSSE() {
     if (disposed) return
 
-    // Close existing connection
+ // Close existing connection
     if (eventSource) {
       eventSource.close()
       eventSource = null
     }
 
     function handleSSEError() {
-      // Switch to polling after consecutive failures
+ // Switch to polling after consecutive failures
       if (consecutiveFailures >= pollThreshold) {
-        // keep: records SSE→polling fallback for ops debugging
+ // keep: records SSE→polling fallback for ops debugging
         if (import.meta.env.DEV) console.warn(`[useSSE] ${consecutiveFailures} consecutive failures, switching to polling`)
         startPolling()
         return
       }
 
-      // Exponential backoff reconnect
+ // Exponential backoff reconnect
       if (retryCount < maxRetries) {
         const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay)
         retryCount++
-        // keep: records reconnection attempt for ops debugging
+ // keep: records reconnection attempt for ops debugging
         if (import.meta.env.DEV) console.warn(`[useSSE] Reconnecting in ${delay}ms (attempt ${retryCount}/${maxRetries})`)
         retryTimer = setTimeout(connectSSE, delay)
       } else {
@@ -131,8 +131,8 @@ export function useSSE(url: string, options: UseSSEOptions) {
     }
 
     try {
-      // LOOP-02: Append JWT token as query parameter for SSE auth
-      // EventSource API doesn't support custom headers, so token goes in URL
+ // LOOP-02: Append JWT token as query parameter for SSE auth
+ // EventSource API doesn't support custom headers, so token goes in URL
       const token = localStorage.getItem('starmap_access_token')
       const separator = url.includes('?') ? '&' : '?'
       const authedUrl = token ? `${url}${separator}token=${encodeURIComponent(token)}` : url
@@ -144,7 +144,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
         const wasDisconnected = consecutiveFailures > 0
         retryCount = 0
         consecutiveFailures = 0
-        // If we were polling, stop polling and switch back to SSE mode
+ // If we were polling, stop polling and switch back to SSE mode
         if (pollTimer) {
           clearInterval(pollTimer)
           pollTimer = null
@@ -154,7 +154,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
           sseRetryTimer = null
         }
         mode.value = 'sse'
-        // Phase 16-02 (Fix M1): 重连成功后显示 toast 提示用户
+ //-02 (Fix): 重连成功后显示 toast 提示用户
         if (wasDisconnected) {
           try {
             import('element-plus').then(({ ElMessage }) => {
@@ -167,7 +167,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
       eventSource.onmessage = (event: MessageEvent) => {
         connected.value = true
         consecutiveFailures = 0
-        // Phase 1 D-09: dispatch to storeHandlers if event has type field
+ //: dispatch to storeHandlers if event has type field
         if (storeHandlers) {
           try {
             const data = JSON.parse(event.data)
@@ -180,17 +180,17 @@ export function useSSE(url: string, options: UseSSEOptions) {
         onMessage(event)
       }
 
-      // Also listen for named events (heartbeat, skill_update, etc.)
+ // Also listen for named events (heartbeat, skill_update, etc.)
       eventSource.addEventListener('skill_update', onMessage)
       eventSource.addEventListener('match_event', onMessage)
       eventSource.addEventListener('graph_update', onMessage)
 
-      // P1-1 fix (functional-review 2026-08-13): 后端真实事件类型无条件注册。
-      // 此前 4 种事件监听写在 `if (storeHandlers)` 内，而 useDataDashboard
-      // 未传 storeHandlers → 监听器未注册；且后端恒发命名事件（_format_sse
-      // 恒带 `event: {type}`），EventSource 默认 onmessage 不触发命名事件，
-      // 导致实时事件流 + 定向刷新整体失效。统一走 onMessage（onMessage 内
-      // 已含 storeHandlers 分发逻辑），与 skill_update 等历史类型对称。
+ // fix (functional-review 2026-08-13): 后端真实事件类型无条件注册。
+ // 此前 4 种事件监听写在 `if (storeHandlers)` 内，而 useDataDashboard
+ // 未传 storeHandlers → 监听器未注册；且后端恒发命名事件（_format_sse
+ // 恒带 `event: {type}`），EventSource 默认 onmessage 不触发命名事件，
+ // 导致实时事件流 + 定向刷新整体失效。统一走 onMessage（onMessage 内
+ // 已含 storeHandlers 分发逻辑），与 skill_update 等历史类型对称。
       eventSource.addEventListener('pipeline_update', onMessage)
       eventSource.addEventListener('quality_alert', onMessage)
       eventSource.addEventListener('data_milestone', onMessage)
@@ -203,10 +203,10 @@ export function useSSE(url: string, options: UseSSEOptions) {
 
         consecutiveFailures++
 
-        // P0-F2 fix: on first failure, attempt silent token refresh.
-        // EventSource.onerror doesn't expose HTTP status/headers, so we
-        // proactively refresh when a refresh token exists. If refresh
-        // succeeds, reconnect immediately with the new access token.
+ // P0-F2 fix: on first failure, attempt silent token refresh.
+ // EventSource.onerror doesn't expose HTTP status/headers, so we
+ // proactively refresh when a refresh token exists. If refresh
+ // succeeds, reconnect immediately with the new access token.
         if (consecutiveFailures === 1 && !refreshingToken) {
           const hasRefreshToken = !!localStorage.getItem('starmap_refresh_token')
           if (hasRefreshToken) {
@@ -220,7 +220,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
                 connectSSE()
                 return
               }
-              // Refresh failed — fall through to normal backoff
+ // Refresh failed — fall through to normal backoff
               handleSSEError()
             })
             return
@@ -230,23 +230,23 @@ export function useSSE(url: string, options: UseSSEOptions) {
         handleSSEError()
       }
     } catch {
-      // EventSource constructor failed (e.g., invalid URL)
+ // EventSource constructor failed (e.g., invalid URL)
       startPolling()
     }
   }
 
-  // ── Polling fallback ──
+ // ── Polling fallback ──
 
-  // P1-2 fix (functional-review 2026-08-13): 轮询游标。此前依赖 lastEventId
-  // （SSE onmessage 才更新，且后端 _format_sse 不发送 id: 行 → 恒为空）→
-  // 恒 since=0 每次拉全部事件重复叠加。改为跟踪最后一次事件时间戳，作为
-  // 下次 since，实现断点续传 + 天然去重。
+ // fix (functional-review 2026-08-13): 轮询游标。此前依赖 lastEventId
+ // （SSE onmessage 才更新，且后端 _format_sse 不发送 id: 行 → 恒为空）→
+ // 恒 since=0 每次拉全部事件重复叠加。改为跟踪最后一次事件时间戳，作为
+ // 下次 since，实现断点续传 + 天然去重。
   let lastEventTs = 0
 
   async function pollOnce() {
     if (disposed) return
     try {
-      // LOOP-02: Add Authorization header for polling fetch auth
+ // LOOP-02: Add Authorization header for polling fetch auth
       const token = localStorage.getItem('starmap_access_token')
       const headers: Record<string, string> = {
         'Accept': 'application/json',
@@ -266,9 +266,9 @@ export function useSSE(url: string, options: UseSSEOptions) {
         const data = await response.json()
         connected.value = true
         consecutiveFailures = 0
-        // P1-2 fix: 后端 /realtime-poll 返回 { events: [...], poll_interval_ms } 包装，
-        // 此前只处理裸数组/裸对象 → 包装结构走 else 分支，item 无 type → 事件
-        // 全部静默丢弃（轮询兜底完全失效）。统一解包 events 数组。
+ // fix: 后端 /realtime-poll 返回 { events: [...], poll_interval_ms } 包装，
+ // 此前只处理裸数组/裸对象 → 包装结构走 else 分支，item 无 type → 事件
+ // 全部静默丢弃（轮询兜底完全失效）。统一解包 events 数组。
         const items: unknown[] = Array.isArray(data)
           ? data
           : Array.isArray((data as { events?: unknown[] })?.events)
@@ -276,11 +276,11 @@ export function useSSE(url: string, options: UseSSEOptions) {
             : data && typeof data === 'object' ? [data] : []
         for (const item of items) {
           const typed = item as { type?: string; data?: unknown; timestamp?: number }
-          // 推进断点续传游标（后端 timestamp 为 unix float）
+ // 推进断点续传游标（后端 timestamp 为 unix float）
           if (typeof typed?.timestamp === 'number' && typed.timestamp > lastEventTs) {
             lastEventTs = typed.timestamp
           }
-          // Dispatch to storeHandlers by item.type (mimics SSE named event behavior)
+ // Dispatch to storeHandlers by item.type (mimics SSE named event behavior)
           if (storeHandlers && typed?.type && storeHandlers[typed.type]) {
             storeHandlers[typed.type](typed?.data ?? typed)
           }
@@ -289,10 +289,10 @@ export function useSSE(url: string, options: UseSSEOptions) {
           }))
         }
       } else if (response.status === 401) {
-        // P0-F2: polling also gets 401 — try silent refresh
+ // P0-F2: polling also gets 401 — try silent refresh
         const newToken = await silentRefreshForSSE()
         if (newToken) {
-          // Retry this poll immediately with new token
+ // Retry this poll immediately with new token
           headers['Authorization'] = `Bearer ${newToken}`
           const retryResp = await fetch(pollUrlWithCursor, { headers })
           if (retryResp.ok) {
@@ -325,25 +325,25 @@ export function useSSE(url: string, options: UseSSEOptions) {
   function startPolling() {
     if (disposed || pollTimer) return
     mode.value = 'polling'
-    // keep: records SSE→polling fallback for ops debugging
+ // keep: records SSE→polling fallback for ops debugging
     if (import.meta.env.DEV) console.warn(`[useSSE] Polling every ${pollInterval}ms`)
 
-    // Close SSE if still open
+ // Close SSE if still open
     if (eventSource) {
       eventSource.close()
       eventSource = null
     }
 
-    // Immediate first poll
+ // Immediate first poll
     pollOnce()
     pollTimer = setInterval(pollOnce, pollInterval)
 
-    // Periodically attempt to reconnect to SSE while polling
+ // Periodically attempt to reconnect to SSE while polling
     if (!sseRetryTimer) {
       sseRetryTimer = setInterval(() => {
         if (disposed || mode.value === 'sse') return
         if (import.meta.env.DEV) console.warn('[useSSE] Attempting SSE reconnection from polling mode')
-        // Reset retry state so connectSSE starts fresh
+ // Reset retry state so connectSSE starts fresh
         retryCount = 0
         consecutiveFailures = 0
         connectSSE()
@@ -351,7 +351,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
     }
   }
 
-  // ── Cleanup ──
+ // ── Cleanup ──
 
   function disconnect() {
     disposed = true
@@ -380,10 +380,10 @@ export function useSSE(url: string, options: UseSSEOptions) {
     mode.value = 'disconnected'
   }
 
-  // Auto-cleanup on component unmount
+ // Auto-cleanup on component unmount
   onUnmounted(disconnect)
 
-  // Start connection
+ // Start connection
   connectSSE()
 
   return {

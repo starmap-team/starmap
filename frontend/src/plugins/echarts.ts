@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ECharts lazy-loading plugin — defers ECharts module registration until first use.
  *
  * Instead of eagerly importing and registering all ECharts modules at app startup
@@ -8,8 +8,8 @@
  * 3. Replaces the stub with the real vue-echarts VChart component
  *
  * Usage in main.ts:
- *   import { useEChartsLazy } from '@/plugins/echarts'
- *   app.use(useEChartsLazy())
+ * import { useEChartsLazy } from '@/plugins/echarts'
+ * app.use(useEChartsLazy)
  *
  * Pages that need additional chart types (e.g. TreemapChart, GaugeChart) can
  * still call `use([...])` directly — those modules will be loaded eagerly by

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useGraphHighlight — Node highlight/clearHighlight logic
  *
  * Highlights a target node + its 1-hop neighbors while fading the rest.
@@ -25,14 +25,14 @@ export function useGraphHighlight(graphRef: { value: Graph | null }, visibleNode
       relatedLineWidth = 2,
     } = opts
 
-    // 1-hop neighbor lookup
+ // 1-hop neighbor lookup
     const relatedIds = new Set<string>([nodeId])
     for (const e of visibleEdges()) {
       if (e.source_id === nodeId) relatedIds.add(e.target_id)
       else if (e.target_id === nodeId) relatedIds.add(e.source_id)
     }
 
-    // Batch style update in a single G6 call (faster than per-node)
+ // Batch style update in a single G6 call (faster than per-node)
     const updateNodes = visibleNodes().map((n) => {
       const isCenter = n.id === nodeId
       const isRelated = relatedIds.has(n.id)
@@ -52,8 +52,8 @@ export function useGraphHighlight(graphRef: { value: Graph | null }, visibleNode
   }
 
   function clearHighlight(): void {
-    // Caller should re-render the current layer to restore default styles
-    // (component-level concern; this composable just signals intent)
+ // Caller should re-render the current layer to restore default styles
+ // (component-level concern; this composable just signals intent)
   }
 
   return { highlightNode, clearHighlight }

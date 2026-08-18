@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * ContentReviewPanel — Phase 23 review workflow for position + skill entities.
+ * ContentReviewPanel — review workflow for position + skill entities.
  *
  * Replaces the legacy "review_queue" workflow (which only stored evolution
  * changelog items) with a unified admin queue that shows ALL pending
@@ -28,8 +28,8 @@ const selection = ref<ReviewItem[]>([])
 
 async function batchApprove() {
   if (selection.value.length === 0) return
-  // 2026-08-12 (admin 联调修复): 原实现 `.catch(() => null)` 吞掉取消后无条件执行批准
-  // —— 用户点"取消"也会批准。改为 catch 后 return（仅在确认后执行）。
+ // 2026-08-12 (admin 联调修复): 原实现 `.catch( => null)` 吞掉取消后无条件执行批准
+ // —— 用户点"取消"也会批准。改为 catch 后 return（仅在确认后执行）。
   try {
     await ElMessageBox.confirm(
       `确认批量批准 ${selection.value.length} 项？批准后将出现在公开图谱中。`,
@@ -59,7 +59,7 @@ async function batchReject() {
     '批量拒绝',
     { confirmButtonText: '确认拒绝', cancelButtonText: '取消', inputPlaceholder: '例如：与项目无关 / 数据质量差' },
   ).catch(() => ({ value: null }))
-  // 2026-08-12: 用 null 区分"用户取消"与"确认但空原因"；取消不执行，空原因也拦截（拒绝原因必填）
+ // 2026-08-12: 用 null 区分"用户取消"与"确认但空原因"；取消不执行，空原因也拦截（拒绝原因必填）
   if (reason === null || !reason?.trim()) return
   let ok = 0; let fail = 0
   for (const item of selection.value) {
@@ -173,7 +173,7 @@ async function handleReject(item: ReviewItem) {
     reviewStore.removeLocal(item.entity_id)
     await reviewStore.fetchStats()
   } catch (e) {
-    // ElMessageBox.prompt throws when cancelled — suppress that.
+ // ElMessageBox.prompt throws when cancelled — suppress that.
     if (e instanceof Error && !e.message.includes('cancel')) {
       ElMessage.error('拒绝失败: ' + e.message)
     }
@@ -224,7 +224,7 @@ function sourceLabel(createdBy: string | null): { label: string; isSystem: boole
   return { label: `管理员（${createdBy}）`, isSystem: false }
 }
 
-// ── 中文名调整 (D8i/D8j 手工校准): 复用内容审核模块，审核时直接修正 name_cn ──
+// ── 中文名调整手工校准): 复用内容审核模块，审核时直接修正 name_cn ──
 const nameCnEditor = ref<ReviewItem | null>(null)
 const nameCnValue = ref('')
 const nameCnSaving = ref(false)

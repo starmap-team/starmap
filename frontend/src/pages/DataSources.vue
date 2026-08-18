@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 数据源管理页 — Sprint 1.2
  * 网格卡片布局展示5个数据源（BOSS/拉勾/51Job/GitHub/ESCO）
@@ -40,22 +40,22 @@ async function handleSync(source: typeof dsStore.sources[number]) {
   try {
     const ok = await dsStore.triggerSync(source.id)
     ElMessage[ok ? 'success' : 'error'](`${getSourceNameLabel(source.name)} ${ok ? '同步已触发' : '同步失败'}`)
-    // fix: 同步成功后刷新列表（triggerSync 只刷 detail），使卡片"最后同步"时间可见更新
+ // fix: 同步成功后刷新列表（triggerSync 只刷 detail），使卡片"最后同步"时间可见更新
     if (ok) void dsStore.fetchSources()
   } catch {
     ElMessage.error(`${getSourceNameLabel(source.name)} 同步失败`)
   } finally { syncingIds.value.delete(source.id) }
 }
-// Phase 15 / T2.3: 按需触发单源采集 → raw_jd_records
+// / T2.3: 按需触发单源采集 → raw_jd_records
 async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
   if (syncingIds.value.has(source.id)) return
   syncingIds.value.add(source.id)
   try {
-    // ponytail: 原实现把 Boss 特判为 'BOSS'，其余源传显示名；
-    // 后端 /pipeline/crawl-source 按 DataSourceRecord.name 精确匹配（routes.py:475），
-    // 特判会导致 DB 名称非 'BOSS' 时 404 —— 直接传 source.name 即可
+ // ponytail: 原实现把 Boss 特判为 'BOSS'，其余源传显示名；
+ // 后端 /pipeline/crawl-source 按 DataSourceRecord.name 精确匹配（routes.py:475），
+ // 特判会导致 DB 名称非 'BOSS' 时 404 —— 直接传 source.name 即可
     const key = source.name
-    // D5: 点击即提示"正在在线爬取"，避免 30-60s 等待期看起来无响应
+ // D5: 点击即提示"正在在线爬取"，避免 30-60s 等待期看起来无响应
     const crawlingMsg = ElMessage.info({ message: `${getSourceNameLabel(source.name)} 正在在线爬取最新职位（约 30-90 秒）...`, duration: 4000 })
     const out = await dsStore.triggerCrawl(key) as { fetched?: number; inserted?: number; duplicate?: number; failed?: number; error_samples?: Array<{ source: string; hash_prefix: string; error: string }> }
     crawlingMsg.close()
@@ -63,7 +63,7 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
     const inserted = out?.inserted ?? 0
     const duplicate = out?.duplicate ?? 0
     if (out?.error_samples?.length) {
-      // D5: 错误穿透 —— 展示 dao 层真实异常，不再沉默
+ // D5: 错误穿透 —— 展示 dao 层真实异常，不再沉默
       const first = out.error_samples[0]
       ElMessage.error(`${getSourceNameLabel(source.name)} 采集 ${inserted} 条，${duplicate} 条已存在；写入失败: ${first.error}`)
     } else if (fetched === 0) {
@@ -74,29 +74,29 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
         `${duplicate ? `，${duplicate} 条已存在` : ''}。新增岗位/技能将进入管理后台「内容审核」待审队列。`,
       )
     } else {
-      // 全重复 = 已在线确认平台最新职位均已在库（非失败）
+ // 全重复 = 已在线确认平台最新职位均已在库（非失败）
       ElMessage.success(`${getSourceNameLabel(source.name)} 已在线确认最新 ${fetched} 条职位均已在库（平台暂无新职位），最后同步时间已刷新`)
     }
     dsStore.fetchSources()  // refresh last_crawl_at
   } catch (e: unknown) {
-    // 展示后端具体原因（如"未配置爬虫平台"），而非笼统失败
+ // 展示后端具体原因（如"未配置爬虫平台"），而非笼统失败
     const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     ElMessage.error(detail ? `${getSourceNameLabel(source.name)} 立即采集失败：${detail}` : `${getSourceNameLabel(source.name)} 立即采集失败`)
   } finally {
     syncingIds.value.delete(source.id)
   }
 }
-// M2/M3 (2026-08-15): 软删除源（inactive）不展示——避免"同名不同状态"卡与
+// (2026-08-15): 软删除源（inactive）不展示——避免"同名不同状态"卡与
 // KPI 虚高（数据源总数 19 含 3 个已归档占位 → 应 16）。
-// Phase 23 Task 8 (DC-04): status 全集与后端共享枚举
+//: status 全集与后端共享枚举
 // app.core.constants.DataSourceStatus（active/paused/error/inactive）对齐——
 // 'inactive' 由 DELETE 软删除 / PATCH 产出，UI 过滤属展示层约定，非校验兜底。
 const visibleSources = computed(() => dsStore.sources.filter((s) => s.status !== 'inactive'))
 const summaryStats = computed(() => {
   const src = visibleSources.value
-  // fix: 异常口径只计 error（paused 为人为主观停用，非异常）—— datasource 优化设计需求 C
-  // fix: 平均质量分只对"已评估"(avg_quality_score>0) 源求均值；全未评估 → null（诚实"未评估"）
-  //      而非把 0 计入平均 → 假"0.0% ▼ 有提升空间"（2026-08-12 D4 多端语义验证）
+ // fix: 异常口径只计 error（paused 为人为主观停用，非异常）—— datasource 优化设计需求 C
+ // fix: 平均质量分只对"已评估"(avg_quality_score>0) 源求均值；全未评估 → null（诚实"未评估"）
+ // 而非把 0 计入平均 → 假"0.0% ▼ 有提升空间"（2026-08-12 D4 多端语义验证）
   const evaluated = src.filter((s) => s.avg_quality_score > 0)
   const avgQuality = evaluated.length
     ? evaluated.reduce((sum: number, s) => sum + s.avg_quality_score, 0) / evaluated.length
@@ -576,8 +576,7 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-/* Phase 26: 业务说明横幅 — 已迁移到 BusinessBanner.vue */
-
+/*: 业务说明横幅 — 已迁移到 BusinessBanner.vue */
 
 /* 页面头部 */
 .page-header {
@@ -825,5 +824,4 @@ onMounted(() => {
   .card-stats { width: 100%; }
 }
 </style>
-
 

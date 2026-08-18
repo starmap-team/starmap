@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 数据大屏 Pinia store — Sprint 3.1
  * 聚合所有系统指标：图谱统计 + 来源分布 + 质量指标 + 实时处理量
  */
@@ -58,7 +58,7 @@ export interface QualityTrend {
   quality_score: number
   trust_score: number | null
   crawl_volume: number
-  /** 每日新增记录数（TrendPoint.new_records，2026-08-13 补展示） */
+ /** 每日新增记录数（TrendPoint.new_records，2026-08-13 补展示） */
   new_records: number
   match_success_rate: number | null
   hallucination_rate: number | null
@@ -74,7 +74,7 @@ export interface RealtimeEvent {
   type: RealtimeEventType
   title: string
   detail: string
-  /** ISO 字符串（normalizeRealtimeEvent 已将后端 unix float 转换） */
+ /** ISO 字符串（normalizeRealtimeEvent 已将后端 unix float 转换） */
   timestamp: string
   icon?: string
   severity?: 'info' | 'success' | 'warning' | 'error'
@@ -94,7 +94,7 @@ export function normalizeRealtimeEvent(raw: Record<string, unknown>, idx = 0): R
     ? new Date(rawTs * 1000).toISOString()
     : typeof rawTs === 'string' ? rawTs : new Date().toISOString()
 
-  // 按事件类型从 data 载荷提取标题/详情（后端不传 title/detail）
+ // 按事件类型从 data 载荷提取标题/详情（后端不传 title/detail）
   let title = ''
   let detail = ''
   let severity: RealtimeEvent['severity'] = 'info'
@@ -144,7 +144,7 @@ export interface PipelineTimelineItem {
   started_at: string
   completed_at: string | null
   records_processed: number
-  /** 0.0-1.0 小数（后端 schema 约束 ge=0 le=1），渲染需 ×100 */
+ /** 0.0-1.0 小数（后端 schema 约束 ge=0 le=1），渲染需 ×100 */
   progress: number
 }
 
@@ -164,7 +164,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // ── Actions ──
+ // ── Actions ──
 
   async function fetchOverview() {
     loading.value = true
@@ -174,7 +174,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         await request.get('/dashboard/overview') as Record<string, unknown>,
         dashboardSchema, '/dashboard/overview', 'OverviewResponse',
       ) as Record<string, unknown>
-      // Direct mapping — frontend DashboardOverview matches backend OverviewResponse 1:1
+ // Direct mapping — frontend DashboardOverview matches backend OverviewResponse 1:1
       overview.value = {
         total_nodes: (raw.total_nodes as number) ?? 0,
         total_edges: (raw.total_edges as number) ?? 0,
@@ -194,7 +194,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         timestamp: (raw.timestamp as number) ?? 0,
       }
     } catch (e: unknown) {
-      // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案
+ // fix: HTTPException.detail 在 axios 错误对象里位于 response.data.detail，message 字段是 axios 默认文案
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       error.value = detail ?? (e instanceof Error ? e.message : '获取概览数据失败')
     } finally {
@@ -221,7 +221,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         }>
         summary: Record<string, unknown>
       }
-      // Map backend TrendPoint to frontend QualityTrend
+ // Map backend TrendPoint to frontend QualityTrend
       qualityTrends.value = (resp.data_points || []).map(dp => ({
         date: dp.date,
         quality_score: dp.quality_score,
@@ -238,10 +238,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   async function fetchDistribution() {
     try {
-      // Backend source_distribution: {name, source_type, total_records, valid_records, authority_score, duplicate_rate}
-      // Backend domain_distribution: {name, count}
-      // Frontend SourceDistribution: {name, count, percentage, trust, color?}
-      // Frontend SkillDomain: {name, value, children?, trend?}
+ // Backend source_distribution: {name, source_type, total_records, valid_records, authority_score, duplicate_rate}
+ // Backend domain_distribution: {name, count}
+ // Frontend SourceDistribution: {name, count, percentage, trust, color?}
+ // Frontend SkillDomain: {name, value, children?, trend?}
       const data = validateDashboard(
         await request.get('/dashboard/distribution') as Record<string, unknown>,
         dashboardSchema, '/dashboard/distribution', 'DistributionResponse',
@@ -281,9 +281,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   async function fetchEmergingSkills() {
     try {
-      // P2 fix (functional-review 2026-08-13): EmergingSkill 模型在 evolution
-      // schema 而非 dashboard schema，且此前用 'ChangelogEntry' 名校验整个数组
-      // → schema 名错位，校验实际未生效。改用 evolutionSchema 逐条校验。
+ // P2 fix (functional-review 2026-08-13): EmergingSkill 模型在 evolution
+ // schema 而非 dashboard schema，且此前用 'ChangelogEntry' 名校验整个数组
+ // → schema 名错位，校验实际未生效。改用 evolutionSchema 逐条校验。
       const raw = await request.get('/evolution/emerging-skills') as EmergingSkill[]
       emergingSkills.value = Array.isArray(raw)
         ? raw.map((item) => validateDashboard(item, evolutionSchema, '/evolution/emerging-skills', 'EmergingSkill') as EmergingSkill)
@@ -302,10 +302,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  /**
-   * 页面加载时用轮询接口回填最近事件（Redis list 保留 300s 内最多 100 条）。
-   * SSE 只在流水线运行时发事件，不回填则事件流 95% 时间为空。
-   */
+ /**
+ * 页面加载时用轮询接口回填最近事件（Redis list 保留 300s 内最多 100 条）。
+ * SSE 只在流水线运行时发事件，不回填则事件流 95% 时间为空。
+ */
   async function fetchRecentEvents() {
     try {
       const data = await request.get('/dashboard/realtime-poll', { params: { since: 0 } }) as {
@@ -313,7 +313,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       }
       const events = (data.events || []).map((e, i) => normalizeRealtimeEvent(e, i))
       if (events.length) {
-        // 去重：仅补充尚未存在的事件（按 id）
+ // 去重：仅补充尚未存在的事件（按 id）
         const existing = new Set(realtimeEvents.value.map(e => e.id))
         const fresh = events.filter(e => !existing.has(e.id))
         if (fresh.length) {
@@ -321,27 +321,27 @@ export const useDashboardStore = defineStore('dashboard', () => {
         }
       }
     } catch {
-      // 回填失败不阻断 — SSE 仍可接收新事件
+ // 回填失败不阻断 — SSE 仍可接收新事件
     }
   }
 
-  /** Add a real-time event from SSE stream */
+ /** Add a real-time event from SSE stream */
   function addRealtimeEvent(event: RealtimeEvent) {
-    // P1-2 fix (functional-review 2026-08-13): 轮询兜底 when lastEventId 为空时
-    // since=0 → 每次返回窗口内全部事件。此前直接 unshift 无去重 → 每 5 秒
-    // 重复叠加同一批事件刷屏，且 normalizeRealtimeEvent 无 raw.id 时 id 恒为
-    // `${type}-${ts}-0`，v-for :key 冲突。改为按 id 去重后再插入。
+ // fix (functional-review 2026-08-13): 轮询兜底 when lastEventId 为空时
+ // since=0 → 每次返回窗口内全部事件。此前直接 unshift 无去重 → 每 5 秒
+ // 重复叠加同一批事件刷屏，且 normalizeRealtimeEvent 无 raw.id 时 id 恒为
+ // `${type}-${ts}-0`，v-for :key 冲突。改为按 id 去重后再插入。
     if (realtimeEvents.value.some(e => e.id === event.id)) {
       return
     }
     realtimeEvents.value.unshift(event)
-    // Keep last 100 events
+ // Keep last 100 events
     if (realtimeEvents.value.length > 100) {
       realtimeEvents.value = realtimeEvents.value.slice(0, 100)
     }
   }
 
-  /** Load all dashboard data in parallel */
+ /** Load all dashboard data in parallel */
   async function fetchAll() {
     loading.value = true
     try {
@@ -359,7 +359,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   return {
-    // State
+ // State
     overview,
     sourceDistribution,
     skillDomains,
@@ -370,7 +370,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     sseConnected,
     loading,
     error,
-    // Actions
+ // Actions
     fetchOverview,
     fetchTrends,
     fetchDistribution,

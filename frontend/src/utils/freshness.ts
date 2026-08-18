@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 数据时效指示（PLAN-006④）。
  *
  * 由岗位/技能入库时间 discovered_at 推导 3 档友好标签 + tag 类型。
@@ -6,7 +6,7 @@
  */
 export interface FreshnessInfo {
   label: string
-  /** Element Plus el-tag type */
+ /** Element Plus el-tag type */
   type: string
 }
 

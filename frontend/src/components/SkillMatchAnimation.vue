@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * SkillMatchAnimation — Animated skill matching sequence
  * Shows skills one by one with match/no-match icons, progress bar,
@@ -103,7 +103,7 @@ function play() {
   revealedCount.value = 0
   particleBursts.value = []
 
-  // Reveal first immediately
+ // Reveal first immediately
   revealNext()
 
   playTimer = setInterval(() => {

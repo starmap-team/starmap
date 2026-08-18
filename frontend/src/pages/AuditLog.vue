@@ -1,9 +1,9 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * Audit Log viewer — admin-only.
  *
  * Reads from `audit_events` table via:
- *   GET /admin/audit-events?actor=&event=&from=&to=&page=&page_size=
+ * GET /admin/audit-events?actor=&event=&from=&to=&page=&page_size=
  */
 import { onMounted, ref, reactive } from 'vue'
 import { useAuditStore } from '@/stores/audit'
@@ -65,7 +65,7 @@ async function fetchList() {
     if (filters.event) params.event = filters.event
     if (filters.from) params.from_ts = new Date(filters.from).toISOString()
     if (filters.to) {
-      // Allow selecting "to the end of the day" by adding 24h if only date provided
+ // Allow selecting "to the end of the day" by adding 24h if only date provided
       const toDate = new Date(filters.to)
       if (filters.to.length <= 10) toDate.setHours(23, 59, 59, 999)
       params.to_ts = toDate.toISOString()
@@ -74,10 +74,10 @@ async function fetchList() {
     items.value = data.items as unknown as AuditRow[]
     total.value = data.total
   } catch {
-    // fetchList is called from onMounted; failures are non-fatal here —
-    // loading is reset in finally, and store/UI stays empty. The Vitest
-    // unhandled-rejection guard requires a catch even when the caller
-    // doesn't await the promise.
+ // fetchList is called from onMounted; failures are non-fatal here —
+ // loading is reset in finally, and store/UI stays empty. The Vitest
+ // unhandled-rejection guard requires a catch even when the caller
+ // doesn't await the promise.
   } finally {
     loading.value = false
   }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useLoopGraph — G6 mini-graph rendering logic for LoopDemo Step 3
  *
  * Extracted from LoopDemo.vue lines 156-389 (~230 lines).
@@ -17,7 +17,7 @@ export function useLoopGraph() {
   const loopStore = useLoopStore()
   const cc = chartColors()
 
-  // Local types for G6 graph data (avoid leaking G6 internals)
+ // Local types for G6 graph data (avoid leaking G6 internals)
   interface GraphNodeData { id: string; name?: string }
   interface GraphEdgeData { source: string; target: string }
   interface GraphRenderNode { id: string; style: Record<string, unknown> }
@@ -41,7 +41,7 @@ export function useLoopGraph() {
   let _enterIntervalId: ReturnType<typeof setInterval> | null = null
   let _blinkIntervalId: ReturnType<typeof setInterval> | null = null
 
-  /** Extract skills from the current run's step 2 data */
+ /** Extract skills from the current run's step 2 data */
   function extractSkillsFromRun(): { skill: string; is_new: boolean; confidence?: number }[] {
     const step2Data = loopStore.currentRun?.steps[1]?.data as Step2Data | undefined
     if (!step2Data) return []
@@ -53,7 +53,7 @@ export function useLoopGraph() {
     }))
   }
 
-  /** Render the G6 mini-graph from step 3 data */
+ /** Render the G6 mini-graph from step 3 data */
   async function renderMiniGraph(_targetPosition?: string) {
     if (!graphContainerRef.value) return
     const step3Data = loopStore.currentRun?.steps[2]?.data
@@ -111,7 +111,7 @@ export function useLoopGraph() {
       draw: () => void
     }
 
-    // Build nodes and edges from step3 data
+ // Build nodes and edges from step3 data
     const step3 = step3Data as Step3Data
     const newNodes: GraphRenderNode[] = (step3.new_nodes ?? []).map((n) => ({
       id: n.id ?? n.name ?? '',
@@ -170,11 +170,11 @@ export function useLoopGraph() {
       })),
     ]
 
-    // ponytail: 原 mock 分支在无结构化数据时生成假节点/假 position_node 图，演示非真实数据；
-    // 删除，无数据时下方直接 return，由页面渲染空态
+ // ponytail: 原 mock 分支在无结构化数据时生成假节点/假 position_node 图，演示非真实数据；
+ // 删除，无数据时下方直接 return，由页面渲染空态
     if (allGraphNodes.length === 0) return
 
-    // Set initial opacity to 0 for entrance animation
+ // Set initial opacity to 0 for entrance animation
     for (const node of allGraphNodes) {
       node.style.fillOpacity = 0
       node.style.labelOpacity = 0
@@ -182,7 +182,7 @@ export function useLoopGraph() {
     graphInstance.setData({ nodes: allGraphNodes, edges: allGraphEdges })
     graphInstance.render()
 
-    // Staggered node entrance animation
+ // Staggered node entrance animation
     let enterIdx = 0
     _enterIntervalId = setInterval(() => {
       if (!graphInstance || enterIdx >= allGraphNodes.length) {
@@ -202,7 +202,7 @@ export function useLoopGraph() {
       enterIdx++
     }, 80)
 
-    // Blink animation for new nodes (starts after entrance completes)
+ // Blink animation for new nodes (starts after entrance completes)
     if (newNodes.length > 0) {
       let blinkOn = true
       _blinkIntervalId = setInterval(() => {
@@ -222,7 +222,7 @@ export function useLoopGraph() {
     }
   }
 
-  /** Destroy the graph instance and clear intervals */
+ /** Destroy the graph instance and clear intervals */
   function destroyGraph() {
     if (graphInstance) {
       graphInstance.destroy()
