@@ -1,0 +1,28 @@
+# StarMap CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Each line is a file pattern followed by one or more owners.
+# Order matters — later patterns take precedence over earlier ones.
+
+# Default: all PRs require at least one review from a code owner
+* @Li3379
+
+# Backend
+/backend/ @Li3379
+
+# Frontend
+/frontend/ @Li3379
+
+# CI/CD & Infrastructure
+/.github/ @Li3379
+/docker-compose*.yml @Li3379
+/alembic.ini @Li3379
+
+# API Contracts (cross-team)
+/starmap-contracts/ @Li3379
+
+# Crawler
+/crawler/ @Li3379
+
+# Evaluation
+/evaluation/ @Li3379
