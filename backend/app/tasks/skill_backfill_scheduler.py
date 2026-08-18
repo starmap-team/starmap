@@ -52,7 +52,7 @@ from app.tasks.celery_app import celery_app
 
 
 @celery_app.task(bind=True, max_retries=2, default_retry_delay=300, name="daily_skill_backfill_task")
-def daily_skill_backfill_task(self, limit: int = 200) -> dict[str, Any]:
+def daily_skill_backfill_task(self, limit: int = 200) -> dict[str, Any]:  # type: ignore[no-untyped-def]
     """每天凌晨跑未翻译技能名（name_cn 缺失/=name）。
 
     重用 backfill_skill_name_cn_full 的 LLM batch 逻辑。
@@ -84,7 +84,7 @@ async def _async_skill_backfill(limit: int) -> dict[str, Any]:
                     | (SkillRecord.name_cn == "")
                     | (SkillRecord.name_cn == SkillRecord.name),
                 )
-                .where(~has_cjk(SkillRecord.name))  # 只翻译英文
+                .where(SkillRecord.name.op("REGEXP")(r"^[^\u4e00-\u9fff]+$").is_(True))  # SQL 端过滤纯英文名
                 .order_by(SkillRecord.source_count.desc())
                 .limit(limit)
             )).scalars().all()
@@ -139,7 +139,7 @@ async def _async_skill_backfill(limit: int) -> dict[str, Any]:
 
 
 @celery_app.task(bind=True, max_retries=1, default_retry_delay=600, name="weekly_low_data_re_extract_task")
-def weekly_low_data_re_extract_task(self, limit: int = 20) -> dict[str, Any]:
+def weekly_low_data_re_extract_task(self, limit: int = 20) -> dict[str, Any]:  # type: ignore[no-untyped-def]
     """每周一凌晨跑 re_extract 低数据支撑岗位（skill_count < 3）。
 
     复用 admin re-extract-skills 端点的业务逻辑（但用 pos.name 触发
@@ -263,7 +263,7 @@ async def _async_low_data_re_extract(limit: int) -> dict[str, Any]:
 
 
 @celery_app.task(bind=True, max_retries=1, default_retry_delay=60, name="daily_data_quality_check_task")
-def daily_data_quality_check_task(self) -> dict[str, Any]:
+def daily_data_quality_check_task(self) -> dict[str, Any]:  # type: ignore[no-untyped-def]
     """每天凌晨跑数据质量检测，触发告警到 admin dashboard。
 
     检查项:
