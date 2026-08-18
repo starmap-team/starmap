@@ -18,29 +18,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # 2026-08-18 fix: 019 已创建 jd_raw 表含 simhash 列+索引 →
-    # add_column / create_index 可能因已存在而失败。
-    # 幂等检查：列/索引已存在则跳过。
+    # 2026-08-18 fix: 019 已创建 jd_raw 表含 simhash 列+索引。
+    # 用原始 SQL 保证完全幂等——alembic op.create_index 在 PG 事务中
+    # 即使被 try/except 捕获，事务也会标记为 FAILED → UPDATE alembic_version
+    # 报 InFailedSQLTransactionError。原始 SQL + IF NOT EXISTS 无此问题。
     conn = op.get_bind()
-    simhash_exists = conn.execute(
-        sa.text("SELECT 1 FROM information_schema.columns "
-                "WHERE table_name='jd_raw' AND column_name='simhash'")
-    ).scalar() is not None
-    if not simhash_exists:
-        op.add_column(
-            "jd_raw",
-            sa.Column("simhash", sa.BigInteger, nullable=True),
-        )
-    # 近似去重查询路径是 get_existing_hashes → 大表上线性扫描。
-    # 为按 simhash 精确匹配先建索引，后续若再近一步的"小于阈值扫描"再视负载评估。
-    try:
-        op.create_index(
-            "ix_jd_raw_simhash",
-            "jd_raw",
-            ["simhash"],
-        )
-    except Exception:
-        pass  # Index already exists
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_jd_raw_simhash ON jd_raw (simhash)"
+    ))
 
 
 def downgrade() -> None:
