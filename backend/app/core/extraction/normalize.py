@@ -422,7 +422,7 @@ class SkillNormalizer:
 
 
 # Pre-compile alias list at import time for fast dictionary extraction.
-# ponytail: aliases sorted by length DESC so "Apache Kafka" matches before "Kafka"
+# aliases sorted by length DESC so "Apache Kafka" matches before "Kafka"
 # and "PostgreSQL" matches before "SQL". The earlier regex-with-named-groups
 # approach blew Python's 100-group limit (2066 aliases > 100), so we fall back
 # to a sorted alias list + simple substring scan. With ~3000 aliases per JD,

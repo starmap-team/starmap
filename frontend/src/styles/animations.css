@@ -1,6 +1,5 @@
 /**
  * StarMap — Global Animation System
- * Sprint 4.2: Animation system and page transitions
  *
  * Performance: uses transform + opacity only (GPU-composited)
  * Accessibility: respects prefers-reduced-motion
@@ -326,7 +325,6 @@
 
 /* ---------------------------------------------------------------------------
  * Global request loading bar (emitted by frontend/src/api/request.ts)
- * Phase 8 — frontend UX fix 5: previously created without CSS, so the
  * element existed in DOM but was invisible. The animation/positioning
  * below gives the global progress bar proper z-index and a clear
  * indeterminate loading animation.

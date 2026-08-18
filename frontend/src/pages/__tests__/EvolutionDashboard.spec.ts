@@ -1,5 +1,4 @@
 /**
- * Phase 11 演化看板组件综合测试（沿 M11 UX 重构）。
  * 覆盖:
  *  - 4 KPI 数字响应（kpiCards computed）
  *  - mount 时 4 个 fetch 并行触发（fetchTrends / fetchSnapshots / fetchEmergingAlerts / fetchKpi）

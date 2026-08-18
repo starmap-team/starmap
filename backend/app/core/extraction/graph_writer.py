@@ -633,7 +633,7 @@ async def create_requires_relationship(
  }
  else:
  # 兼容回退：未传 canonical_id 时按 name MATCH（读/补丁路径保留 name 匹配，
- # RESEARCH -4 影响面收敛——graph_sync/matching/脚本按 name 读仍可用）。
+ # -4 影响面收敛——graph_sync/matching/脚本按 name 读仍可用）。
  query = """
  MATCH (p:Position {name: $position_name})
  MATCH (s:Skill {name: $skill_name})
@@ -838,7 +838,7 @@ async def get_position_skills(driver: Any, position_name: str, *, position_canon
  """
  params: dict[str, Any] = {"position_canonical_id": position_canonical_id}
  else:
- # 兼容回退：读路径保留 name MATCH（RESEARCH -4 影响面收敛）
+ # 兼容回退：读路径保留 name MATCH（-4 影响面收敛）
  query = """
  MATCH (p:Position {name: $name})-[r:REQUIRES]->(s:Skill)
  RETURN s.name AS skill_name, r.level AS level,

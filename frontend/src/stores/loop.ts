@@ -17,7 +17,6 @@ import type { GapLevel } from '@/stores/match'
 import { useResponseValidation } from '@/validation/useResponseValidation'
 import loopSchema from '@contracts/schemas/loop.schema.json'
 
-// PLAN-014: 契约响应校验 (DEV warn 不阻断)
 const { validateResponse: validateLoop } = useResponseValidation()
 
 /** Timeout for the loop run API call (LLM extraction can take ~3 minutes) */
@@ -35,7 +34,6 @@ export interface StepResult {
   name: string
   status: StepStatus
   duration_ms?: number
- // ponytail: data shape varies by step; Record<string,unknown> breaks template
  // arithmetic/method calls in LoopDemo.vue. Discriminated union won't work
  // because consumers access via steps[N].data without narrowing. Revisit when
  // LoopDemo.vue adds step-indexed type guards.
@@ -166,11 +164,9 @@ export const useLoopStore = defineStore('loop', () => {
     }
 
     try {
- // Step 1: JD 输入 (immediate success)
       currentRun.value.steps[0].status = 'success'
       currentRun.value.steps[0].duration_ms = 50
 
- // Step 2-5: 调用后端闭环 API
       const startTime = Date.now()
       const data = await request.post('/loop/run', {
         jd_text: jdText,
@@ -224,7 +220,6 @@ export const useLoopStore = defineStore('loop', () => {
   }
 
  /** 兼容解析：后端返回扁平结果时分配到各步骤 */
- // ponytail: response shape from /loop/run; expand if contract changes
   interface LoopRunResponse {
     steps?: { step: number; status?: StepStatus; duration_ms?: number; duration_seconds?: number; data?: Record<string, unknown>; error?: string; warning?: string }[]
     status?: 'running' | 'completed' | 'partial'
@@ -251,7 +246,6 @@ export const useLoopStore = defineStore('loop', () => {
     learning_degraded?: boolean
   }
 
- // ponytail: single interface for the flat backend response shape; expand if contract changes
   interface FlatLoopResult {
     extracted_skills?: unknown[]
     required_skills?: unknown[]
@@ -279,19 +273,16 @@ export const useLoopStore = defineStore('loop', () => {
     if (!currentRun.value) return
     const steps = currentRun.value.steps
 
- // Step 2: 技能提取
     if (data.extracted_skills || data.required_skills) {
       steps[1].status = 'success'
       steps[1].duration_ms = Math.round(totalTime * 0.25)
       steps[1].data = {
         skills: data.extracted_skills ?? data.required_skills ?? [],
- // PLAN-006③ 红线: 后端无值时不再编造 0.85/0.1, 交 undefined 由展示层显"未评估"
         confidence: data.confidence ?? undefined,
         hallucination_score: data.hallucination_score ?? undefined,
       }
     }
 
- // Step 3: 图谱更新
     if (data.graph_update || data.new_nodes) {
       steps[2].status = data.graph_degraded ? 'degraded' : 'success'
       steps[2].duration_ms = Math.round(totalTime * 0.2)
@@ -305,7 +296,6 @@ export const useLoopStore = defineStore('loop', () => {
       }
     }
 
- // Step 4: 匹配诊断
     if (data.match_result || data.match_score !== undefined) {
       steps[3].status = data.match_degraded ? 'degraded' : 'success'
       steps[3].duration_ms = Math.round(totalTime * 0.3)
@@ -318,7 +308,6 @@ export const useLoopStore = defineStore('loop', () => {
       }
     }
 
- // Step 5: 学习路径
     if (data.learning_path || data.learning_paths) {
       steps[4].status = data.learning_degraded ? 'degraded' : 'success'
       steps[4].duration_ms = Math.round(totalTime * 0.2)

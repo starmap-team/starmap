@@ -184,7 +184,6 @@ const subBreakdown = computed(() => {
 })
 
 //: 增强子项分解 — 包含 disabled (-1) 和 无蜘蛛 (-2) 的源
-// D8 fix: 不再过滤 v===0 —— dedup/clean/import 的 0 条分解（诚实空态）也应展示，
 // 否则"无待去重/0 条"时卡片无任何分解信息，用户以为详情丢失
 const breakdownItems = computed(() => {
   const items = Object.entries(subBreakdown.value)

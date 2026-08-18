@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     app_log_level: str = "INFO"
     secret_key: str = _UNCONFIGURED
 
- # 限流 (API-02): Redis 固定窗口计数（多 worker 共享），内存兜底（单进程）
+ # 限流 (): Redis 固定窗口计数（多 worker 共享），内存兜底（单进程）
     rate_limit_window: int = Field(
         default=60,
         description="速率限制窗口（秒）；每窗口每 IP 的最大请求数由 rate_limit_max 定义",
@@ -39,11 +39,10 @@ class Settings(BaseSettings):
     )
 
  # CORS
- # fix (AUTH-04 + NEW-P2): 浏览器跨域请求的 Origin 永远是人类可
+ # fix (+ NEW-P2): 浏览器跨域请求的 Origin 永远是人类可
  # 解析的 http(s)://host[:port] 形式；不会以 `http://starmap-frontend:5173`
  # 这种容器 hostname 形式出现。把容器内部名放进白名单等于把 CORS 当
  # "内部全开"——一旦网络隔离失守就立刻被利用。
- #
  # 生产通过环境变量 `CORS_ALLOWED_ORIGINS`（逗号分隔）覆盖默认值；
  # 默认仅含本地 dev 端口。
     cors_origins: list[str] = [
@@ -153,7 +152,7 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_db: str = "starmap"
- # fix (DATA-03): 生产强制 SSL。开发可设 POSTGRES_SSLMODE=disable
+ # fix (): 生产强制 SSL。开发可设 POSTGRES_SSLMODE=disable
  # 跳过（asyncpg 默认会尝试 SSL）。生产应设 require / verify-full。
     postgres_sslmode: str = "prefer"
  # 完整 URI：若通过环境变量 POSTGRES_URI 传入则优先使用，否则由组件拼接
@@ -208,7 +207,7 @@ class Settings(BaseSettings):
     extraction_vector_threshold: float = 0.85
     extraction_min_sources: int = 3
 
- # 评估质量门禁（NEW-11 唯一常量， 验收口径 F1 >= 90%）
+ # 评估质量门禁（唯一常量， 验收口径 F1 >= 90%）
  # judge API 默认阈值 + evaluation/ 脚本门禁统一引用此值
     eval_f1_gate: float = 0.90
 
@@ -298,14 +297,14 @@ class Settings(BaseSettings):
  # ── Pipeline match 并发（替代 pipeline/steps.py 内的 Semaphore(50)）──
     pipeline_match_concurrency: int = 50
 
- # ── PLAN-015①: X-Forwarded-For 可信代理白名单 (CIDR 列表, 逗号分隔)
+ # ── ①: X-Forwarded-For 可信代理白名单 (CIDR 列表, 逗号分隔)
  # 空 = 不可信, 拒绝伪造的 XFF 头 (默认最保守)
  # 生产示例: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" (k8s 内部 + RFC1918)
     trusted_proxy_cidrs: str = Field(
         default="", description="XFF 可信代理 CIDR 白名单 (逗号分隔); 空=拒绝伪造"
     )
 
- # ── PLAN-015②: forgot-password 通道决策
+ # ── ②: forgot-password 通道决策
  # 默认 out_of_band: token 写入 Redis 但**不返回响应**, 等邮件/外带渠道接入
  # dev_return_token: 仅 dev 环境允许响应中回 token, 供 e2e / 手动验证
  # (字段名故意宽松, 未来可挂 "smtp" / "webhook" 等真实通道)
@@ -334,7 +333,7 @@ class Settings(BaseSettings):
                 logger.warning("trusted_proxy_cidrs 忽略非法 CIDR: {!r}", cidr)
         return nets
 
- # ── Runtime-mutable config whitelist (SEC-06) ──
+ # ── Runtime-mutable config whitelist () ──
     _mutable_config_keys: ClassVar[set[str]] = {
         "pipeline_stage_timeout",
         "pipeline_worker_concurrency",
@@ -409,14 +408,13 @@ class Settings(BaseSettings):
     def _resolve_postgres_uri_and_warn(self) -> "Settings":
  # 若未通过 POSTGRES_URI 环境变量传入完整 URI，则由组件拼接
         if self.postgres_uri is None:
- # fix (DATA-03): asyncpg 的 connect() 只接受 libpq 风格的 SSLMode
+ # fix (): asyncpg 的 connect() 只接受 libpq 风格的 SSLMode
  # 字符串（disable/allow/prefer/require/verify_ca/verify_full），
  # 而不接受 libpq 旧的 `sslmode=` 或非布尔 `ssl=false/true`。
  # 直白塞 `?sslmode=...` 会让 asyncpg 抛 `unexpected keyword
  # argument 'sslmode'`（alembic 立即触发；FastAPI 的连接池懒加载
  # 偶尔能掩盖）。asyncpg 0.27+ 还会在 `ssl=` 接收到无效字符串时
  # 抛 `AttributeError: type object 'SSLMode' has no attribute ...`。
- #
  # P1-AUDIT-FIX (2026-08-13): 此前注释声称 "prefer/allow/disable
  # 直接省略 SSL 参数"，但实际实现对所有合法 mode（含 prefer/allow/
  # disable）都显式传 `?ssl=<asyncpg_mode>`——功能正确（asyncpg 原生
@@ -454,7 +452,7 @@ class Settings(BaseSettings):
         if unconfigured:
             msg = f"⚠️  以下配置仍为默认占位值 {_UNCONFIGURED!r}，请在 .env 中设置真实值：{', '.join(unconfigured)}"
             if self.app_env == "production":
- # P1 修复 (SEC-02/SEC-03): 生产环境必须配置真实密钥/密码
+ # P1 修复 (/): 生产环境必须配置真实密钥/密码
                 raise RuntimeError(msg + "（生产环境必须修改！）")
             else:
                 logger.warning(msg)
@@ -463,13 +461,13 @@ class Settings(BaseSettings):
         if self.app_env == "production" and self.app_debug:
             raise RuntimeError("Debug mode (APP_DEBUG=True) must be disabled in production environment")
 
- # P1 修复 (DATA-04): 生产环境 Redis 必须有密码
+ # P1 修复 (): 生产环境 Redis 必须有密码
         if self.app_env == "production" and "@" not in self.redis_uri:
             raise RuntimeError(
                 "Redis URI 缺少密码认证（生产环境必须配置 REDIS_URL 含密码），格式：redis://:password@host:port/db"
             )
 
- # P1 修复 (SEC-02): 生产环境 SECRET_KEY 必须足够长
+ # P1 修复 (): 生产环境 SECRET_KEY 必须足够长
         if self.app_env == "production" and len(self.secret_key) < 32:
             raise RuntimeError(
                 f"SECRET_KEY 长度不足（当前 {len(self.secret_key)} 字符），"
@@ -496,7 +494,7 @@ class Settings(BaseSettings):
         if self.app_env == "production" and self.dev_anon_admin:
             raise RuntimeError("DEV_ANON_ADMIN=true 在生产环境被拒绝。生产部署必须强制 JWT 鉴权。")
 
- # fix (DATA-03): 生产 Postgres 必须强制 SSL。
+ # fix (): 生产 Postgres 必须强制 SSL。
  # 仅 `require`/`verify-ca`/`verify-full` 三档视为合规。
  # `disable`/`prefer`/`allow` 在生产等同裸奔——拒绝启动。
         if self.app_env == "production":
@@ -507,12 +505,12 @@ class Settings(BaseSettings):
                     f"生产必须使用 require / verify-ca / verify-full 之一。"
                 )
 
- # fix (DATA-02): 生产 Neo4j 必须走 bolt+s://。
+ # fix (): 生产 Neo4j 必须走 bolt+s://。
  # 否则 Bolt 协议明文传输，节点凭据与查询内容均裸奔。
         if self.app_env == "production" and not self.neo4j_uri.startswith(("bolt+s://", "neo4j+s://", "bolt+ssc://")):
             raise RuntimeError(f"NEO4J_URI={self.neo4j_uri!r} 在生产环境被拒绝。生产必须使用 bolt+s:// 启用 TLS。")
 
- # AUTH-04 fix: 生产 CORS 白名单校验
+ # fix: 生产 CORS 白名单校验
  # 默认 cors_origins 仅含 localhost dev 端口，生产必须通过
  # CORS_ALLOWED_ORIGINS 环境变量显式覆盖为真实域名。
  # 任何 dev-only origin 出现即拒绝（混合配置也拦截）

@@ -93,7 +93,7 @@ class PositionRecommender:
             StarMapError: 仓库层或评分层返回的 StarMap 系统错误（透传）。
             MatchingError: 评分层返回的匹配逻辑错误（透传）。
         """
- # NEW-03: 确保前置关系已从 Neo4j 加载（developability 依赖，不可用时降级为空）
+ # : 确保前置关系已从 Neo4j 加载（developability 依赖，不可用时降级为空）
         await ensure_prerequisite_map()
 
         all_profiles = await self._repo.get_all_position_profiles()

@@ -45,7 +45,7 @@ from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 # 请求/响应模型统一在 app/schemas/auth.py（集中管理约定，
-# 2026-08-05 PLAN-015：消除路由内联重复定义，启用更严格的字段约束）
+# 2026-08-05 ：消除路由内联重复定义，启用更严格的字段约束）
 
 # ═══════════════════════════════════════════════════════════════
 # Internal helpers
@@ -275,7 +275,7 @@ async def forgot_password(
  detail="Redis is unavailable",
  )
  token = await auth_service.forgot_password_request(body.email, redis, session)
- # PLAN-015②: 通道决策 (settings.forgot_password_delivery)
+ # ②: 通道决策 (settings.forgot_password_delivery)
  # - out_of_band: 默认, 仅写 Redis 不回 token, 等邮件/外带渠道接入
  # - dev_return_token: 仅 dev 环境回 token, 供 e2e / 手动验证;
  # 防误用: 非 dev 环境即便配了 dev_return_token 也只回 submitted

@@ -142,7 +142,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     skill_count = (await session.execute(sa.select(sa.func.count()).select_from(SkillRecord))).scalar() or 0
     edge_count = (await session.execute(sa.select(sa.func.count()).select_from(PositionSkillRelation))).scalar() or 0
 
- # D2 fix: avg_trust_score now comes from Neo4j Skill.trust_score via the
+ # avg_trust_score now comes from Neo4j Skill.trust_score via the
  # shared metrics module (routed through services layer). The previous
  # `max(extraction-conf, source-count/10)` blend was a different metric from
  # the admin overview's Neo4j avg, so the two pages disagreed.
@@ -192,7 +192,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         for site, cnt in source_rows
     ]
 
- # D1 fix: weekly_new_nodes now routes through the shared metrics module
+ # weekly_new_nodes now routes through the shared metrics module
  # (via services layer) so the Quality Dashboard and the Admin Overview use
  # the same SQL/date window. Previously this was trailing-7d while the admin
  # used week-start, which produced identical values mid-week but diverged at
@@ -201,7 +201,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     weekly_new_nodes = (await fetch_weekly_new_nodes(session)).total
 
  # H9: audit_pass_rate — ratio of approved vs rejected REVIEW transitions.
- # ponytail: 原实现把 JDExtractionRecord.status='completed'（抽取完成）当"审核通过"，
+ # 原实现把 JDExtractionRecord.status='completed'（抽取完成）当"审核通过"，
  # pending=0 时恒 100%（假正常）；审核权威数据在 review_audit_log（action: approve/reject）。
  # 改为从审核日志计算；无审核记录返回 0.0（未评估，诚实）。
     approved_count = (
@@ -273,7 +273,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
         evaluation_explanation = (
             "尚未运行 golden-set 评估（评估记录 0 条），precision/recall/F1 暂不可信；"
             "红色仅表示“未评估”，不代表抽取质量差。"
- # 2026-08-14 规范驱动改进 (deep-interview): 文案指向真实写入端点。
+ # 2026-08-14 规范驱动改进 : 文案指向真实写入端点。
  # /quality/evaluate 仅只读算分，不写 ExtractionEvaluationRecord；
  # 建立基线需提供 backend/data/resume_golden_set.json 后调用
  # /quality/evaluate/resume（golden set 缺失时返回 No golden samples found）。
@@ -370,11 +370,11 @@ async def get_quality_dashboard(
 
 
 # ---------------------------------------------------------------------------
-# Sprint 1.2 新增: 质量趋势时间线 + 异常告警
+# 新增: 质量趋势时间线 + 异常告警
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# Sprint 2.2: 简历抽取评估 + 综合质量报告
+# : 简历抽取评估 + 综合质量报告
 # ---------------------------------------------------------------------------
 
 

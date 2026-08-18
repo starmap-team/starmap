@@ -76,7 +76,7 @@ async def create_plan_from_match(
             "message": "所有技能已掌握，无需学习计划",
         }
 
- # NEW-03: 确保前置关系已从 Neo4j 加载（不可用时降级为空）
+ # : 确保前置关系已从 Neo4j 加载（不可用时降级为空）
     await ensure_prerequisite_map()
 
  # Generate structured learning path with time estimates
@@ -194,7 +194,7 @@ async def create_plan_from_diagnosis(
     available_hours_per_week: float = 10.0,
 ) -> dict[str, Any]:
     """从技能差距创建学习计划,返回完整视图。"""
- # NEW-03: 确保前置关系已从 Neo4j 加载（不可用时降级为空）
+ # : 确保前置关系已从 Neo4j 加载（不可用时降级为空）
     await ensure_prerequisite_map()
 
     learning_path = await generate_learning_path(
@@ -247,7 +247,7 @@ async def get_plan_for_user(
     plan = (await session.execute(plan_stmt)).scalar_one_or_none()
     if plan is None:
         raise PlanNotFoundError(plan_id=str(plan_id))
- # AUTHZ-02: IDOR 校验 — 用户只能访问自己的计划
+ # : IDOR 校验 — 用户只能访问自己的计划
     if plan.user_id != user_id:
         raise PlanOwnershipError(plan_id=str(plan_id), user_id=user_id)
 

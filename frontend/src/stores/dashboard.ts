@@ -14,7 +14,6 @@ import evolutionSchema from '@contracts/schemas/evolution.schema.json'
 // Re-export for backward compatibility
 export type { EmergingSkill } from '@/types/evolution'
 
-// PLAN-014: 契约响应校验 (DEV warn 不阻断)
 const { validateResponse: validateDashboard } = useResponseValidation()
 
 // ── 类型定义 ──
@@ -148,7 +147,6 @@ export interface PipelineTimelineItem {
   progress: number
 }
 
-// ponytail: EmergingSkill removed — canonical type in types/evolution.ts
 
 // ── Store 定义 ──
 

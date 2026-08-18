@@ -60,7 +60,7 @@ async def get_db_session() -> AsyncIterator[AsyncSession]:
 
 
 # ══════════════════════════════════════════════════════════
-# 认证依赖 (AUTH-01 修复)
+# 认证依赖 (修复)
 # ══════════════════════════════════════════════════════════
 
 
@@ -132,7 +132,7 @@ async def get_current_user(
 
     token = credentials.credentials
 
- # PLAN-015③: dev-token 守门收敛到 services.dev_token (避免历史
+ # ③: dev-token 守门收敛到 services.dev_token (避免历史
  # `settings.app_env != "production"` 二元判定误放行 staging/testing)
     if is_dev_token_allowed(token):
         return dev_token_identity()
@@ -159,7 +159,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
- # BUG-17 fix: even if JWT signature/exp is valid, reject the request if
+ # : even if JWT signature/exp is valid, reject the request if
  # the user is currently disabled. Without this, flipping is_active=False
  # in admin does not invalidate already-issued tokens until they expire.
  # We do a cheap PG lookup keyed on the JWT subject.
@@ -226,7 +226,7 @@ async def require_admin(
 
 
 # ══════════════════════════════════════════════════════════
-# SSE 连接数限制 (API-05 修复)
+# SSE 连接数限制 (修复)
 # ══════════════════════════════════════════════════════════
 
 # Per-IP SSE 连接计数 — 防止单 IP 开大量 EventSource 耗尽资源
@@ -312,7 +312,7 @@ async def get_current_user_sse(
 
     API-05 fix: per-IP + global SSE connection limit to prevent resource exhaustion.
     """
- # API-05: 检查 SSE 连接数限制
+ # : 检查 SSE 连接数限制
  # 通过 _sse_connect_check 注入点，测试可替换为 no-op 避免全局状态污染
     client_ip = resolve_client_ip(request)
     check_fn = _sse_connect_check or sse_connect
@@ -320,7 +320,7 @@ async def get_current_user_sse(
 
  # Try query-param token first (for EventSource connections)
     if token:
- # PLAN-015③: dev-token 守门收敛到 services.dev_token (SSE 路径同上)
+ # ③: dev-token 守门收敛到 services.dev_token (SSE 路径同上)
         if is_dev_token_allowed(token):
             return dev_token_identity()
         try:

@@ -130,7 +130,6 @@ describe('PositionDetail.vue', () => {
     expect(props.positionName).toBe('后端工程师')
   })
 
-  // PLAN-006④: 数据时效指示 (discovered_at → freshness 标签)
   it('shows recent-update badge when discovered_at is recent', async () => {
     const recent = new Date(Date.now() - 3 * 86400000).toISOString()
     mockGet.mockResolvedValue(makeDetailResponse({ discovered_at: recent }))

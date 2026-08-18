@@ -40,7 +40,6 @@ function validate(): string | null {
     return '新密码不能与原密码相同'
   if (/^\d+$/.test(form.value.new_password))
     return '新密码不能是纯数字'
- // ponytail: basic check — backend enforces stronger rules
   return null
 }
 
@@ -68,7 +67,6 @@ async function submit() {
         })
       }
     } catch {
- // ponytail: /auth/me best-effort, fall back to local flag
       if (userStore.user) {
         userStore.setUser({ ...userStore.user, must_change_password: false })
       }
@@ -99,7 +97,6 @@ function goBack() {
   router.push('/')
 }
 
-// ponytail: race-condition guard moved into router beforeEach (see
 // router/index.ts). Leaving this hook empty avoids the empty-paint flash the
 // QA harness reported when localStorage was cleared mid-session.
 onMounted(() => { /* no-op */ })

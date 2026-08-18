@@ -7,46 +7,46 @@ from urllib.request import Request, urlopen
 
 BASE = "http://localhost:8000/api/v1"
 LOGIN_URL = f"{BASE}/auth/login"
-# PLAN-007 / NEW-20: 凭据单一来源=环境变量（默认 dev 引导账号）
+# / : 凭据单一来源=环境变量（默认 dev 引导账号）
 ADMIN_USER = os.environ.get("STARMAP_TEST_ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.environ.get("STARMAP_TEST_ADMIN_PASSWORD", "starmap2024")
-CREDS = json.dumps({"username": ADMIN_USER, "password": ADMIN_PASSWORD}).encode()
+CREDS = json.dumps({"username": ADMIN_USER, "password": ADMIN_PASSWORD}).encode
 
 def api(method, path, body=None, headers=None):
-    h = {"Content-Type": "application/json"}
-    if headers: h.update(headers)
-    data = json.dumps(body).encode() if body else None
-    req = Request(f"{BASE}{path}", data=data, headers=h, method=method)
-    try:
-        with urlopen(req, timeout=15) as resp:
-            return resp.status, json.loads(resp.read())
-    except HTTPError as e:
-        body = e.read().decode()
-        try: detail = json.loads(body)
-        except: detail = body
-        return e.code, detail
-    except URLError as e:
-        return 0, str(e)
+ h = {"Content-Type": "application/json"}
+ if headers: h.update(headers)
+ data = json.dumps(body).encode if body else None
+ req = Request(f"{BASE}{path}", data=data, headers=h, method=method)
+ try:
+ with urlopen(req, timeout=15) as resp:
+ return resp.status, json.loads(resp.read)
+ except HTTPError as e:
+ body = e.read.decode
+ try: detail = json.loads(body)
+ except: detail = body
+ return e.code, detail
+ except URLError as e:
+ return 0, str(e)
 
-def login():
-    code, data = api("POST", "/auth/login", {"username": ADMIN_USER, "password": ADMIN_PASSWORD})
-    return data.get("access_token","") if code==200 else ""
+def login:
+ code, data = api("POST", "/auth/login", {"username": ADMIN_USER, "password": ADMIN_PASSWORD})
+ return data.get("access_token","") if code==200 else ""
 
 def auth_headers(token):
-    return {"Authorization": f"Bearer {token}"}
+ return {"Authorization": f"Bearer {token}"}
 
 results = []
 def test(name, condition, detail=""):
-    status = "PASS" if condition else "FAIL"
-    results.append((status, name, detail))
-    print(f"  [{status}] {name} {detail if not condition else ''}")
+ status = "PASS" if condition else "FAIL"
+ results.append((status, name, detail))
+ print(f" [{status}] {name} {detail if not condition else ''}")
 
 def _items(d):
-    """Extract items count from API response (handles both list and dict)."""
-    if isinstance(d, list): return len(d)
-    return len(d.get("items", d.get("results", [])))
+ """Extract items count from API response (handles both list and dict)."""
+ if isinstance(d, list): return len(d)
+ return len(d.get("items", d.get("results", [])))
 
-token = login()
+token = login
 admin_h = auth_headers(token) if token else {}
 
 # ━━━━━ 1. AUTH ━━━━━
@@ -64,8 +64,8 @@ code, data = api("POST", "/auth/refresh", {"refresh_token":"invalid"})
 test("1.4 Invalid refresh → error", code in (401, 422), f"HTTP {code}")
 
 if token:
-    code, data = api("GET", "/auth/me", headers=admin_h)
-    test("1.5 Auth me returns user", code == 200 and "username" in data, f"user={data.get('username','?')}")
+ code, data = api("GET", "/auth/me", headers=admin_h)
+ test("1.5 Auth me returns user", code == 200 and "username" in data, f"user={data.get('username','?')}")
 
 # ━━━━━ 2. POSITIONS ━━━━━
 print("\n=== 2. Positions ===")
@@ -173,8 +173,8 @@ test("9.7 Prompts list", code == 200, f"prompts={_items(data)}")
 # ━━━━━ 10. MATCH ━━━━━
 print("\n=== 10. Match ===")
 code, data = api("POST", "/match/diagnose", 
-    {"target_position":"Python","person_skills":[{"skill":"Python","proficiency":"expert"}],"options":{"threshold":0.5}},
-    headers=admin_h)
+ {"target_position":"Python","person_skills":[{"skill":"Python","proficiency":"expert"}],"options":{"threshold":0.5}},
+ headers=admin_h)
 test("10.1 Diagnose match", code == 200 and "gap_analysis" in data or "score" in data, f"HTTP {code}")
 
 code, data = api("GET", "/match/results?limit=5", headers=admin_h)
@@ -201,7 +201,7 @@ test("12.1 Health check", code == 200 and data.get("status") == "ok", f"status={
 
 # ━━━━━ 13. ERROR CASES ━━━━━
 print("\n=== 13. Error Cases ===")
-code, data = api("GET", "/positions", headers={})  # no auth
+code, data = api("GET", "/positions", headers={}) # no auth
 msg = data.get("detail","") if isinstance(data, dict) else str(data)
 test("13.1 No auth → 401/403", code in (401, 403), f"HTTP {code}")
 
@@ -221,7 +221,7 @@ failed = sum(1 for r in results if r[0]=="FAIL")
 print(f"RESULTS: {passed} passed, {failed} failed, {len(results)} total")
 
 if failed:
-    print("\nFAILURES:")
-    for s, n, d in results:
-        if s == "FAIL":
-            print(f"  ✗ {n}: {d}")
+ print("\nFAILURES:")
+ for s, n, d in results:
+ if s == "FAIL":
+ print(f" ✗ {n}: {d}")

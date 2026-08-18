@@ -22,7 +22,6 @@ function positionSkillCount(positionId: string): number {
 }
 
 /** Find the parent KnowledgeArea name for a Position.
- * ponytail: allEdges 只加载 REQUIRES 边（fetchKAPositions），BELONGS_TO/CONTAINS 归属边
  * 从不进入前端 → 原实现恒返回"其他"。改为优先从当前展开上下文反查：
  * 用户从哪个领域展开该岗位，就显示哪个领域（真实导航上下文）。
  */
@@ -180,7 +179,6 @@ function navigateToDetail(node: GraphNode) {
           ×
         </button>
       </div>
-      <!-- ponytail: 雷达基于 expandedPositionId，点 Skill 时岗位未变 → 仅当选中 Position 才展示 -->
       <div
         v-if="positionRadarOption && selectedNode?.labels?.includes('Position')"
         class="dp-section"

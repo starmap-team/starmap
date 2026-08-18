@@ -1,5 +1,4 @@
 /**
- * Phase 11 D-07: admin 一键审核接入 M10 endpoint 契约测试。
  *
  * 验证 QualityDashboard 调用的 audit.approveAudit/rejectAudit 经由
  * ``@/stores/audit`` 打 ``/admin/audit/${id}/approve`` / ``reject``（M10 既有）。

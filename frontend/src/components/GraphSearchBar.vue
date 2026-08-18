@@ -71,7 +71,6 @@ function selectResult(r: { id: string; name: string; type: string }) {
   emit("nodeSelected", r.id, r.name, r.type)
 }
 function onSearchBlur() {
- // BUG-007: store the timer id so onUnmounted can cancel it.
   if (blurHideTimer) clearTimeout(blurHideTimer)
   blurHideTimer = setTimeout(() => {
     showSearchDropdown.value = false

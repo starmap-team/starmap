@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useResponseValidation } from '@/validation'
-// PLAN-014: 契约 schema（后端 Pydantic 导出，脚本生成；供 DEV 响应校验）
 import graphSchema from '@contracts/schemas/graph.schema.json'
 import request from '@/api/request'
 import { ElMessage } from 'element-plus'
@@ -99,7 +98,6 @@ export interface DomainConnection {
 }
 
 export const useGraphStore = defineStore('graph', () => {
- // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
   const { validateResponse } = useResponseValidation()
 
  // ── 原始数据 ──
@@ -121,7 +119,6 @@ export const useGraphStore = defineStore('graph', () => {
   const independentPositions = ref<number>(0)
   const independentSkills = ref<number>(0)
   const independentEdges = ref<number>(0)
- // PLAN-006④: 后端响应时间戳（Unix 秒），前端用来显示"截至 X"诚实时效
   const overviewGeneratedAt = ref<number>(0)
 
  // ── 概览视图模式 ──
@@ -255,7 +252,6 @@ export const useGraphStore = defineStore('graph', () => {
       expandedKAName.value = ''
       expandedPositionId.value = null
       positionsByKA.value = new Map()
- // ponytail: 演化聚焦状态不随模式切换重置会指向旧岗位（演化开关开着时残留）
       focusedPositionId.value = null
       focusedPositionName.value = ''
       evolutionPaths.value = []

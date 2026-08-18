@@ -15,7 +15,7 @@ from app.db.session import get_session_factory
 from app.exceptions import PipelineStageError
 from app.services.resources import resources as app_resources
 
-# ponytail: 与 executor 中原本的 _run_async 同源（utils.async_helpers）
+# 与 executor 中原本的 _run_async 同源（utils.async_helpers）
 from app.utils.async_helpers import run_async as _run_async  # noqa: F401
 
 

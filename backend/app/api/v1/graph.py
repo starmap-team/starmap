@@ -58,7 +58,7 @@ async def get_graph_overview(
 ) -> DomainOverviewResponse:
     import time
 
- # PLAN-006④: 服务端响应时间戳注入；前端据此显示"截至 X"诚实信号
+ # ④: 服务端响应时间戳注入；前端据此显示"截至 X"诚实信号
  # （Neo4j 节点无内置 updated_at，不编造节点级 freshness）
     generated_at = time.time()
     if driver is None:

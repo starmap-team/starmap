@@ -8,7 +8,6 @@
         </p>
       </div>
 
-      <!-- Step 1: 上传区域 -->
       <el-card
         v-if="!store.loading && !store.result"
         class="upload-card"
@@ -44,7 +43,6 @@
         </div>
       </el-card>
 
-      <!-- Step 2: 进度 -->
       <el-card
         v-if="store.loading"
         class="progress-card"
@@ -148,7 +146,6 @@
         </div>
       </el-card>
 
-      <!-- Step 3: 结果 -->
       <el-card
         v-if="store.result"
         class="result-card"
@@ -503,7 +500,6 @@ function startAnalysis() {
 function viewInGraph() {
   if (!store.result?.top_matches?.length) return
   const topPosition = store.result.top_matches[0].position
- // ponytail: 原实现跳 '/' 带 highlight 参数，但 Home.vue 从不消费该参数（点击无任何效果）；
  // 直接跳转真实存在的岗位详情页，展示该岗位技能画像
   router.push(`/position/${encodeURIComponent(topPosition)}`)
 }

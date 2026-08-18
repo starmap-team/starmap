@@ -72,7 +72,6 @@ async function handleUpdateStatus(skill: string, status: string) {
     if (status === 'mastered') ElMessage.success({ message: '技能已掌握！可前往匹配诊断查看提升效果', duration: 5000 })
   } catch { /* store handles errors */ }
 }
-// ponytail: 原实现把推荐技能当 position 创建新计划（岗位名=技能名，语义错位），
 // 且已有计划时用技能"覆盖"整个计划（破坏性）。
 // 正确语义：推荐技能加入现有计划的技能列表；无计划时提示先创建。
 async function handleAddToPlan(rec: { skill: string; priority: string }) {

@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import request from '@/api/request'
 import { useUserStore } from '@/stores/user'
 import { useResponseValidation } from '@/validation/useResponseValidation'
-// PLAN-014 批次6: learning 契约接入 (5 模型: SkillGapInput/CreatePlanRequest/
 // SkillProgressItem/PhaseInfo/PlanResponse)
 import learningSchema from '@contracts/schemas/learning.schema.json'
 
@@ -105,7 +104,6 @@ function mapPlanResponse(data: PlanResponseRaw): LearningPlan {
       progress_pct,
       estimated_hours: s.estimated_hours ?? 0,
       prerequisites: s.prerequisites ?? [],
- // PLAN-006③ 红线: current_level 不再按 importance 编造(2/1)，
  // 改由真实学习进度 progress_pct 派生（0% → 0 级，100% → target 级）
       current_level: Math.round((progress_pct / 100) * target_level),
       target_level,

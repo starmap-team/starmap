@@ -10,7 +10,6 @@ import type { ChangeType } from '@/types/evolution'
 import { useResponseValidation } from '@/validation/useResponseValidation'
 import evolutionSchema from '@contracts/schemas/evolution.schema.json'
 
-// PLAN-014: 契约响应校验 (DEV warn 不阻断)
 const { validateResponse: validateEvolution } = useResponseValidation()
 
 export interface TrendItem {
@@ -89,7 +88,6 @@ export interface EmergingAlert {
   alert_message: string
 }
 
-// BUG-5 fix: review-queue item shape returned by /evolution/review-queue
 export interface ReviewQueueItem {
  // E22 fix: include id so the frontend can dispatch per-row approve/reject
  // via /evolution/review-queue/{id}/action.
@@ -240,7 +238,6 @@ export const useEvolutionStore = defineStore('evolution', () => {
     }
   }
 
- // BUG-5 fix: low-trust EvolutionChangelog review queue
   const reviewQueue = ref<ReviewQueueItem[]>([])
   const reviewQueueLoading = ref(false)
   async function fetchReviewQueue(status: string = 'pending') {

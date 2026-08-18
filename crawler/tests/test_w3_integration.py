@@ -13,52 +13,51 @@ import pytest
 
 # 强制 UTF-8
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve.parents[2]))
 
 # 设置环境变量
 os.environ.setdefault("POSTGRES_PORT", "5433")
 
 from crawler.persistence import extraction_dao
 
-
 # ---------------- extraction_dao 端到端测试 ----------------
 class TestExtractionDao:
-    """extraction_dao 写入 + 查询集成测试。"""
+ """extraction_dao 写入 + 查询集成测试。"""
 
-    @pytest.mark.skip(
-        reason="NEW-22: live-DB 测试与 conftest 全局 persistence mock 冲突，需测试基建改造后启用"
-    )
-    def test_roundtrip(self):
-        """完整测试：写一条 → 读计数。"""
-        from sqlalchemy import text
+ @pytest.mark.skip(
+ reason=": live-DB 测试与 conftest 全局 persistence mock 冲突，需测试基建改造后启用"
+ )
+ def test_roundtrip(self):
+ """完整测试：写一条 → 读计数。"""
+ from sqlalchemy import text
 
-        from crawler.persistence.database import engine
+ from crawler.persistence.database import engine
 
-        # 清理
-        with engine.connect() as c:
-            c.execute(text("DELETE FROM jd_extraction_records WHERE job_title LIKE 'pytest_%'"))
-            c.commit()
+ # 清理
+ with engine.connect as c:
+ c.execute(text("DELETE FROM jd_extraction_records WHERE job_title LIKE 'pytest_%'"))
+ c.commit
 
-        # 写
-        r = extraction_dao.upsert_extraction(
-            jd_content="测试 JD 内容，要求 Python 经验 3 年",
-            job_title="pytest_test_engineer",
-            extracted_skills={
-                "required_skills": [{"name": "Python", "level": "expert"}],
-                "preferred_skills": [],
-            },
-            experience_years=3,
-            education="本科",
-            confidence=0.9,
-            status="completed",
-        )
-        assert r == "inserted"
+ # 写
+ r = extraction_dao.upsert_extraction(
+ jd_content="测试 JD 内容，要求 Python 经验 3 年",
+ job_title="pytest_test_engineer",
+ extracted_skills={
+ "required_skills": [{"name": "Python", "level": "expert"}],
+ "preferred_skills": [],
+ },
+ experience_years=3,
+ education="本科",
+ confidence=0.9,
+ status="completed",
+ )
+ assert r == "inserted"
 
-        # 读
-        cnt = extraction_dao.count_extractions()
-        assert cnt >= 1
+ # 读
+ cnt = extraction_dao.count_extractions
+ assert cnt >= 1
 
-        by_status = extraction_dao.count_by_status()
-        assert "completed" in by_status
+ by_status = extraction_dao.count_by_status
+ assert "completed" in by_status

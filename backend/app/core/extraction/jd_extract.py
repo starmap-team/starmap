@@ -40,7 +40,7 @@ _PII_PATTERNS: list[re.Pattern] = [
     re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"),  # Email
 ]
 
-# P0 修复 (DATA-01): 中文姓名脱敏模式
+# P0 修复 (): 中文姓名脱敏模式
 # 匹配 "姓名：张三" / "联系人：李四" / "name：王五" 等常见格式
 # 以及独立的中文名（2-4个中文字符，前面有常见前缀词）
 _NAME_PREFIX_PATTERN = re.compile(
@@ -405,7 +405,7 @@ class JDExtractionPipeline:
                 result["warnings"].append(f"Validation error: {e}")
 
  # Step 7: Dictionary post-filter — keep only LLM skills that match SKILL_ALIAS
- # ponytail: ECC regex-vs-llm-structured-text "Regex handles 95-98%". This filter
+ # ECC regex-vs-llm-structured-text "Regex handles 95-98%". This filter
  # drops LLM hallucinations (skills invented beyond our 572-skill vocabulary),
  # at the cost of dropping some novel skills LLM found correctly. On the 110-sample
  # golden set, this lifts F1 from 0.8637 → 0.9258 (skill F1, weighted bonus+required).
@@ -428,7 +428,7 @@ class JDExtractionPipeline:
         result["success"] = True
         result["data"] = validated.model_dump()
 
- # Step 8: I18N-01 — 非 CJK 岗位名翻译钩子 (RemoteOK 等英文 JD 源)
+ # Step 8: — 非 CJK 岗位名翻译钩子 (RemoteOK 等英文 JD 源)
  # 仅当 LLM 返回的 position_name 不含 CJK 才触发 (中文 JD 零成本跳过);
  # 失败优雅降级 (name_cn 不注入, 前端显"英文原文"标签, 不编造)。
         pos_name = validated.position_name

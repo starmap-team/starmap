@@ -54,7 +54,6 @@ describe('useMatchStore', () => {
   })
 })
 
-// PLAN-014 批次5: 契约接入回归 — runMatch 后端响应在契约不一致时仍可用 (DEV 仅 warn)
 describe('useMatchStore.runMatch with contract validation', () => {
   beforeEach(() => {
     vi.clearAllMocks()

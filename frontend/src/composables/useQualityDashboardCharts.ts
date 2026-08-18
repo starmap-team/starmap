@@ -216,7 +216,6 @@ export function useQualityAutoRefresh(
     }
   }
 
- // ponytail: caller must invoke start on mount; watch handles toggle changes.
   watch(enabled, () => {
     if (enabled.value) start()
     else stop()

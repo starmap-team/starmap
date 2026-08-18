@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 import { useResponseValidation } from '@/validation'
-// PLAN-014: 契约 schema（后端 Pydantic 导出，脚本生成；供 DEV 响应校验）
 import extractSchema from '@contracts/schemas/extract.schema.json'
 
 export interface ParsedSkill {
@@ -29,7 +28,6 @@ export const useResumeStore = defineStore('resume', () => {
   const result = ref<ResumeParseResult | null>(null)
   const loading = ref(false)
 
- // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
   const { validateResponse } = useResponseValidation()
 
   async function parseResume(file: File) {
@@ -37,7 +35,6 @@ export const useResumeStore = defineStore('resume', () => {
     const formData = new FormData()
     formData.append('file', file)
     try {
- // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
       result.value = validateResponse(
         await request.post<ResumeParseResult>('/resume/upload', formData, {
  // LLM 抽取（本地 Ollama 可能 40-120s+）需与后端 300s 超时对齐，

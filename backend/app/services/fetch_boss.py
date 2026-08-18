@@ -146,8 +146,8 @@ async def fetch_boss_jobs(
         if not extracted:
             extracted = _fallback_from_html(html, source_site="BOSS Zhipin")
     if not extracted:
- # 真实性红线（PLAN-006a / NEW-08）：抓取失败诚实返回空列表，
- # 不得以 fixture 冒充真实 JD。BOSS 真链路见计划书 D17/PLAN-001。
+ # 真实性红线（a / ）：抓取失败诚实返回空列表，
+ # 不得以 fixture 冒充真实 JD。BOSS 真链路见计划书 D17/。
         logger.info(
             "BOSS fetch returned no JDs (empty shell/blocked); returning [] honestly"
         )

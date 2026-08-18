@@ -29,7 +29,6 @@ import { SOURCE_DESCRIPTIONS, isCrawlableSource } from '@/constants/labels'
 use([GaugeChart, BarChart, TooltipComponent, GridComponent])
 
 const dsStore = useDataSourceStore()
-// ponytail: chartColors re-exported for template KPI card :style bindings
 const cc = chartColors()
 
 // DataSource sync + summary (inlined from useDataSourceActions + useDataSourceSummary)
@@ -51,7 +50,6 @@ async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
   if (syncingIds.value.has(source.id)) return
   syncingIds.value.add(source.id)
   try {
- // ponytail: 原实现把 Boss 特判为 'BOSS'，其余源传显示名；
  // 后端 /pipeline/crawl-source 按 DataSourceRecord.name 精确匹配（routes.py:475），
  // 特判会导致 DB 名称非 'BOSS' 时 404 —— 直接传 source.name 即可
     const key = source.name

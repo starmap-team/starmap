@@ -84,7 +84,7 @@ class GraphNodeService:
                 node_type_label = valid_labels[0]
                 nodes.append(
                     {
- # BUG-8 fix: prefer canonical_id (UUID) over Neo4j internal
+ # : prefer canonical_id (UUID) over Neo4j internal
  # elementId (opaque hex like 4:xxx:yyy). Fall back to
  # elementId only if canonical_id is missing (e.g. legacy nodes).
                         "id": str(props.get("canonical_id") or node.element_id),
@@ -112,14 +112,14 @@ class GraphNodeService:
                 f"Invalid label: {node_type}. Allowed: {sorted(_ALLOWED_LABELS)}"
             )
 
- # BUG-9 fix: respect caller-provided status if any; otherwise pending.
+ # : respect caller-provided status if any; otherwise pending.
  # Previously hard-coded "pending" — admins couldn't create pre-approved nodes.
         import uuid as _uuid
 
         props = {**properties, "name": name}
         if "review_status" not in props:
             props["review_status"] = "pending"
- # BUG-8 fix: stamp canonical_id for round-tripping to PG/UI
+ # : stamp canonical_id for round-tripping to PG/UI
         if "canonical_id" not in props:
             props["canonical_id"] = str(_uuid.uuid4())
         async with self._driver.session() as session:
@@ -157,7 +157,7 @@ class GraphNodeService:
             )
 
         props = {**properties, "name": name}
- # BUG-10 fix: never let `properties` clobber review_status —
+ # : never let `properties` clobber review_status —
  # that's a workflow state and must go through the proper approve/reject
  # endpoint, not the generic edit form.
         props.pop("review_status", None)

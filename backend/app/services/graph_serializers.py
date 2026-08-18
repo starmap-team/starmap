@@ -77,7 +77,7 @@ async def count_edges_neo4j(driver: Any) -> int:
 def _safe_properties(value: Any) -> dict[str, Any]:
  # 技术说明：Neo4j 节点/关系的属性字典化辅助函数，兼容 Neo4j ≥5.x 的 temporal 类型（如 DateTime），
  # 通过 iso_format() 将时间对象转为字符串，避免 JSON 序列化异常。
- # ponytail: dict() works for Neo4j ≥5.x; iso_format guard for temporal types
+ # dict() works for Neo4j ≥5.x; iso_format guard for temporal types
     try:
         return {k: (v.iso_format() if hasattr(v, 'iso_format') else v) for k, v in dict(value).items()}
     except (ValueError, TypeError, AttributeError):

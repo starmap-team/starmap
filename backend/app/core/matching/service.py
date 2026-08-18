@@ -238,7 +238,7 @@ class MatchService:
                     "estimated_learning_time": "",
                     "note": "岗位存在但无技能画像：请先为该岗位补充技能要求（pipeline 抽取或人工维护），再行匹配。",
                 }
- # ponytail: 无画像结果也落库，避免 cache 淘汰后 GET /match/result/{id} 404
+ # 无画像结果也落库，避免 cache 淘汰后 GET /match/result/{id} 404
                 if db_session is not None:
                     await self._save_match_result(db_session, result["match_id"], result)
                 return result
@@ -319,7 +319,7 @@ class MatchService:
         )
         gap_skills = [item["skill"] for item in gap_details if item["gap_level"] != GAP_LEVEL_MASTERED]
 
- # ponytail: 真实先修链 —— path_builder 此前是死代码，prereq_map 已加载但从未被消费；
+ # 真实先修链 —— path_builder 此前是死代码，prereq_map 已加载但从未被消费；
  # 这里按"未掌握技能 → 前置依赖"生成学习路径，已掌握技能路径置空
         owned_skills = {s.get("name", "").strip() for s in person_skills if s.get("name")}
         for item in gap_details:
@@ -375,7 +375,7 @@ class MatchService:
             "estimated_learning_time": self._estimate_learning_time(gap_details),
         }
 
- # D6 fix: compute trust_score from Neo4j Skill.trust_score over matched_skills
+ # compute trust_score from Neo4j Skill.trust_score over matched_skills
  # via the shared metrics module. The MIN of matched_skills' trust is the
  # bottleneck — a single low-trust matched skill degrades the overall
  # trustworthiness. Routes through app.core.metrics to keep the formula
@@ -436,7 +436,7 @@ class MatchService:
         """估算学习时长。"""
         weeks = 0.0
         for gap in gaps:
- # ponytail: .get 兜底 —— gap_report 回读数据（历史/精简记录）可能缺 importance
+ # .get 兜底 —— gap_report 回读数据（历史/精简记录）可能缺 importance
             base = 3.0 if gap.get("importance", "required") == "required" else 1.5
             if gap.get("gap_level") == GAP_LEVEL_PARTIAL:
                 base *= 0.5

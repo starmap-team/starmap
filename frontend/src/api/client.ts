@@ -33,7 +33,6 @@ type ResponseBody<
   : unknown
 
 // ── Generic typed request ──
-// ponytail: constrain P to `keyof paths` when available, fall back to string
 // for template-literal URLs that openapi-typescript can't resolve statically.
 async function typedGet<P extends string>(
   url: P,

@@ -35,7 +35,7 @@ from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
 # ═══════════════════════════════════════════════════════════════
 
-# INJ-03 fix: 转义 SQL LIKE 通配符，防止通配符注入
+# fix: 转义 SQL LIKE 通配符，防止通配符注入
 def _escape_like(value: str) -> str:
  """Escape SQL LIKE wildcards (% and _) in user input."""
  return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -147,7 +147,7 @@ def _validate_password_policy(password: str, username: str = "") -> None:
  raise PasswordPolicyError(
  f"密码不能超过 {MAX_PASSWORD_LENGTH} 个字符"
  )
- # ── ponytail: reject trivial patterns ──
+ # ── reject trivial patterns ──
  if password.isdigit:
  raise PasswordPolicyError("密码不能是纯数字")
  if password.isalpha:
@@ -155,7 +155,7 @@ def _validate_password_policy(password: str, username: str = "") -> None:
  # ── reject password == username ──
  if username and password.lower == username.lower:
  raise PasswordPolicyError("密码不能与用户名相同")
- # ── common password blocklist (ponytail: inline set, no file dep) ──
+ # ── common password blocklist ──
  _blocklist = frozenset({
  "password", "password1", "admin123", "admin1234",
  "12345678", "123456789", "qwerty123", "abc12345", "11111111",
@@ -983,7 +983,7 @@ async def delete_user(
  ip="",
  ))
 
- # DATA-05 fix: 软删除时同时匿名化 PII（邮箱、登录 IP）
+ # fix: 软删除时同时匿名化 PII（邮箱、登录 IP）
  # 用户名保留用于审计追踪，但标记为已匿名化
  if user.email:
  user.email = None

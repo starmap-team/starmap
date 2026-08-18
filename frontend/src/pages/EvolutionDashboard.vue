@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
  * 演化看板页 — CII 时序曲线（技能需求通胀指数）
- * Task 3 增强: 技能趋势时间线、新兴技能卡片、CII仪表盘、技能对比
  */
 import { ref, onMounted, computed } from 'vue'
 import { use } from 'echarts/core'
@@ -15,7 +14,6 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import { useEvolutionStore } from '@/stores/evolution'
 import type { TrendItem, EmergingAlert } from '@/stores/evolution'
 import { useEvolutionCharts, useEvolutionActions, formatChange, TREND_LABEL, TREND_TAG_TYPE } from '@/composables/useEvolutionDashboard'
-// ponytail: alias uppercase constants to camelCase for template binding without renaming template
 const trendLabel = TREND_LABEL
 const trendTagType = TREND_TAG_TYPE
 import EvolutionChangelogDrawer from '@/components/EvolutionChangelogDrawer.vue'

@@ -147,7 +147,7 @@ async def trigger_schedule(
  selected_stages=schedule.selected_stages,
  selected_sources=schedule.selected_sources,
  )
- # ponytail: update last_run_at on the schedule row
+ # update last_run_at on the schedule row
  schedule.last_run_at = run.started_at
  await session.flush
  await session.commit

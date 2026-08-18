@@ -141,7 +141,7 @@ async def get_datasources_health(
         elif ds.status == "error":
             error_count += 1
 
- # ponytail: 原实现循环内查 select(PipelineRun).where(run_type=="source_sync")
+ # 原实现循环内查 select(PipelineRun).where(run_type=="source_sync")
  # 未按源过滤（PipelineRun 无 source 外键），所有源返回同一全局最新运行状态——
  # 伪逐源 + N+1。逐源归属需 PipelineRun 迁移，此处诚实降级为 None（语义见
  # schemas/datasource.py SourceHealthEntry.recent_run_status description）。

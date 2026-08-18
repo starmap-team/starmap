@@ -109,13 +109,13 @@ async def get_data_truth(
  neo4j_relations = int(record["c"]) if record else 0
 
  # ── API 返回值（与前端 store 实际拿到的一致） ──
- # BUG-15 fix: actually invoke the dashboard aggregation service instead of
+ # : actually invoke the dashboard aggregation service instead of
  # aliasing PG. The whole point of three-layer audit is API ≠ PG ≠ Neo4j;
  # aliasing defeats the purpose and silently makes diff=0 for positions.
  api_dashboard_positions = pg_total_positions
  api_dashboard_skills = pg_total_skills
  try:
- # BUG-15 fix: 实际调用看板聚合服务 get_overview（原误引 build_overview_payload 不存在）
+ # : 实际调用看板聚合服务 get_overview（原误引 build_overview_payload 不存在）
  from app.services.dashboard_service import get_overview # noqa: PLC0415
  payload = await get_overview(session, driver, None)
  # get_overview 返回图/质量/流水线合并统计（Neo4j 优先、失败回退 PG），作为 API 口径

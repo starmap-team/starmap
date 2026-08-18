@@ -243,7 +243,6 @@ const staleLabel = computed(() => {
                   >{{ formatTime(evt.timestamp) }}</span>
                 </div>
               </TransitionGroup>
-              <!-- deep-interview A4：诚实空态 — SSE 事件仅在流水线运行时产生 -->
               <div
                 v-if="!store.realtimeEvents.length"
                 class="event-empty"
@@ -289,7 +288,6 @@ const staleLabel = computed(() => {
                         :class="`stage-icon-${stage.status}`"
                       >{{ stageIcon(stage.status) }}</span>
                     </div>
-                    <!-- deep-interview D2：标签移至节点下方（原塞在 overflow:hidden 圆内被裁剪） -->
                     <span class="stage-label">{{ stageLabel(stage.name) }}</span>
                   </div>
                   <div
@@ -302,7 +300,6 @@ const staleLabel = computed(() => {
                   </div>
                 </div>
               </div>
-              <!-- ponytail: 无流水线数据时显示空态而非假阶段 -->
               <div
                 v-else
                 class="pipeline-empty"
@@ -320,7 +317,6 @@ const staleLabel = computed(() => {
                 <span class="stat-label">数据总量</span>
               </div>
               <div class="stat-item">
-                <!-- deep-interview A6：pipeline_status 汉化（原显示原始英文 completed） -->
                 <span
                   class="stat-value"
                   :class="`status-${store.overview?.pipeline_status ?? 'idle'}`"

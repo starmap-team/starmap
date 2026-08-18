@@ -36,7 +36,6 @@ interface PositionInfo {
   name: string
   industry: string
   description: string
- // PLAN-006④: 岗位入库时间, 用于"数据时效"指示; null = 演示/无采集
   discovered_at: string | null
 }
 
@@ -67,7 +66,6 @@ const PROFICIENCY_TAG: Record<string, string> = {
   '了解': 'info',
 }
 
-// PLAN-006④: 数据时效指示 (discovered_at → 友好标签 + tag 类型, 逻辑收敛于 utils/freshness)
 const freshness = computed<FreshnessInfo>(() => freshnessOf(position.value?.discovered_at))
 
 // ── Hotness color: higher = greener, lower = grayer ──
@@ -117,7 +115,6 @@ async function loadPosition() {
       name: d.name_cn || d.name || id,
       industry: d.industry ?? '',
       description: d.description ?? '',
- // PLAN-006④: 岗位入库时间, 用于"数据时效"指示
       discovered_at: d.discovered_at ?? null,
     }
     skills.value = (d.skills_required ?? []).map((s) => ({
@@ -126,7 +123,6 @@ async function loadPosition() {
       name_cn: s.name_cn ?? '',  // D8i: 技能中文名
       category: s.category ?? 'hard_skill',
       proficiency: s.proficiency ?? '熟悉',
- // PLAN-006③ 红线: 后端无置信度时不再编造 1.0, 显示"未评估"
       confidence: s.confidence ?? null,
       source_count: s.source_count ?? 0,
     }))
@@ -242,7 +238,6 @@ watch(() => route.params.name, loadPosition)
             <p class="header-sub">
               {{ position?.industry ?? '' }}
             </p>
-            <!-- PLAN-006④: 数据时效指示 (演示数据 / 数据更新于 X / 较旧) -->
             <el-tag
               :type="freshness.type"
               size="small"

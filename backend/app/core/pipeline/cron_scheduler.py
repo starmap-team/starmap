@@ -31,7 +31,7 @@ except ImportError:
 
 # Module-level constants
 
-# Plan 03 Task 11 : 5 字段值域常量
+# Plan 03 5 字段值域常量
 CRON_FIELD_BOUNDS = {
  "minute": (0, 59), # 分
  "hour": (0, 23), # 时
@@ -159,7 +159,7 @@ async def trigger_schedule(
  appropriate Celery task.
  """
  try:
- # BUG-16 fix: name-based dispatch
+ # : name-based dispatch
  if schedule.name in ("daily_reconcile", "graph_reconcile"):
  from app.tasks.celery_app import reconcile_graph_task # type: ignore[attr-defined]
  task = reconcile_graph_task
@@ -319,7 +319,7 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
  if triggered:
  logger.info("Cron scanner triggered {} schedule(s)", triggered)
 
- # D8 fix: watchdog —— 定期清理超时卡死的 running run（import 等阶段 task
+ # watchdog —— 定期清理超时卡死的 running run（import 等阶段 task
  # 丢失后 run 永不 completed → 前端 current_run 恒 running 与 DAG 矛盾）。
  # sweep_orphan_runs 此前从未被调度（只定义无调用），卡死 run 无人清理。
  try:

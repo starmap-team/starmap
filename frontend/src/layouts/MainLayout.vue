@@ -48,7 +48,6 @@ const navGroups = [
   { key: 'insight', label: '洞察' },
   { key: 'system', label: '系统' },
 ]
-// ponytail: 原精确匹配 route.path === item.path 导致详情页 /position/:name 丢菜单高亮与标题；
 // 详情页归位到"岗位列表"
 function isActiveItem(item: { path: string }): boolean {
   if (route.path === item.path) return true

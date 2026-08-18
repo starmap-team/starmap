@@ -33,7 +33,6 @@ interface PositionRow {
   review_status?: 'draft' | 'pending_review' | 'approved' | 'rejected'
   reviewed_by?: string | null
   rejection_reason?: string | null
- // PLAN-006④: 岗位入库时间, 用于卡片"数据时效"指示; null = 演示/无采集
   discovered_at?: string | null
 }
 
@@ -301,7 +300,6 @@ onMounted(() => {
                 >
                   {{ pos.industry || '未分类' }}
                 </el-tag>
-                <!-- PLAN-006④: 数据时效指示 (演示数据 / 数据更新于 X / 较旧) -->
                 <el-tag
                   size="small"
                   :type="freshnessOf(pos.discovered_at).type"

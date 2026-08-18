@@ -74,7 +74,6 @@ export const useUserStore = defineStore('user', () => {
     const access = localStorage.getItem(ACCESS_KEY)
     const refresh = localStorage.getItem(REFRESH_KEY)
     const cached = localStorage.getItem(USER_KEY)
- // ponytail: dev-token bypasses JWT decode (backend dev mode accepts it as-is)
     if (access && (access === 'dev-token' || decodeToken(access))) {
       accessToken.value = access
       refreshToken.value = refresh

@@ -116,7 +116,6 @@ describe('PositionList.vue', () => {
     expect(wrapper.text()).toContain('数据分析师')
   })
 
-  // PLAN-006④: 卡片数据时效指示 (discovered_at → freshness 标签)
   it('shows freshness badge on cards', async () => {
     const recent = new Date(Date.now() - 3 * 86400000).toISOString()
     setupMockGet([

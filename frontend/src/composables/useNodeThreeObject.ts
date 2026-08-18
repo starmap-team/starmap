@@ -10,7 +10,6 @@ import { createGlowTexture } from './useGraph3D'
 import { createTextSprite } from './useTextSprite'
 
 // ── Types ──
-// ponytail: extend 3d-force-graph's NodeObject to carry our domain fields
 export interface GraphNode3D extends NodeObject {
   labels?: string[]
   color?: string

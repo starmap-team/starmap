@@ -170,7 +170,6 @@ export function useLoopGraph() {
       })),
     ]
 
- // ponytail: 原 mock 分支在无结构化数据时生成假节点/假 position_node 图，演示非真实数据；
  // 删除，无数据时下方直接 return，由页面渲染空态
     if (allGraphNodes.length === 0) return
 

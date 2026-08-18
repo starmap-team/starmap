@@ -10,7 +10,6 @@ import qualitySchema from '@contracts/schemas/quality.schema.json'
 // Re-export for backward compatibility
 export type { QualityAlert } from '@/types/quality'
 
-// PLAN-014: 契约响应校验 (DEV warn 不阻断)
 const { validateResponse: validateQuality } = useResponseValidation()
 
 export interface QualityMetrics {
@@ -67,7 +66,6 @@ function defaultMetrics(): QualityMetrics {
     avg_trust_score: 0,
     high_trust_ratio: 0,
     weekly_new_nodes: 0,
- // ponytail: 原默认 1.0 会在后端未返回时显示"审核通过率 100%"（假正常）；改 0 诚实表示未统计
     audit_pass_rate: 0.0,
     source_distribution: [],
     hallucination_trend: [],
@@ -83,7 +81,6 @@ export interface QualityTrendPoint {
   review_count: number
 }
 
-// ponytail: QualityAlert removed — canonical type in types/quality.ts
 
 interface QualityAlertsResponse {
   alerts?: QualityAlert[]

@@ -506,7 +506,7 @@ async def get_cii_history(
     return {"position": position, "history": history}
 
 
-# ─── Sprint 2.3: Emerging Skill Alerts & Portability ───
+# ─── : Emerging Skill Alerts & Portability ───
 
 
 @router.get("/portability/{skill}", response_model=PortabilityDetail)

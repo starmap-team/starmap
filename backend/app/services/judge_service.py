@@ -145,7 +145,7 @@ async def _call_llm_judge_async(
     return (float(score) if score is not None else None, str(reasoning))
 
 
-# P0 修复 (INJ-01): 限制 JSONL 文件读取目录，防止路径遍历
+# P0 修复 (): 限制 JSONL 文件读取目录，防止路径遍历
 _EVAL_DATA_DIR = Path(_BACKEND_DIR) / "data" / "evaluation"
 
 
@@ -162,7 +162,7 @@ def _safe_resolve_jsonl_path(filepath: str | Path) -> Path:
     if settings.app_env != "production":
         allowed_dirs.append(Path(tempfile.gettempdir()).resolve())
 
- # INJ-01 加固: 使用 is_relative_to() 替代 startswith 防止前缀碰撞
+ # 加固: 使用 is_relative_to() 替代 startswith 防止前缀碰撞
  # (e.g. /app/data/evaluation-hack/secret 会通过 startswith("/app/data/eval"))
     if not any(path.is_relative_to(d) for d in allowed_dirs):
         raise ValueError(

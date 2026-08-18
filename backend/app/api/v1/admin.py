@@ -135,7 +135,7 @@ async def reconcile_neo4j_endpoint(
  f"requires_diff={requires_diff}"
  ),
  "now": _dt.now(UTC),
- # BUG-18 fix: tag reconcile events with their scope so
+ # : tag reconcile events with their scope so
  # admin audit log can filter by entity (graph).
  "entity_type": "graph",
  "entity_id": "all",

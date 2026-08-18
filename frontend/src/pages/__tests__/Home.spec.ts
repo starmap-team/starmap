@@ -150,7 +150,6 @@ describe('Home.vue', () => {
     expect(wrapper.exists()).toBe(true)
   })
 
-  // Phase 1 Task 4 新增测试 — verify-first methodology
   it('KPI 总计在 independentPositions=0 时正确显示', () => {
     // 验证 [HIGH] KPI 零值 bug 修复 — 0 不被 ?? 运算符吞噬
     const pinia = createPinia()

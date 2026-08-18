@@ -372,7 +372,7 @@ async def _diff_and_persist(
             new_requirement=change.new_requirement,
             snapshot_from_id=old.id,
             snapshot_to_id=new.id,
- # BUG-6 fix: use shared LOW_TRUST_THRESHOLD (was 0.6 — out of sync
+ # : use shared LOW_TRUST_THRESHOLD (was 0.6 — out of sync
  # with /evolution/review-queue filter of 0.5; pending rows in
  # [0.5, 0.6) were orphaned).
             status="approved" if trust >= LOW_TRUST_THRESHOLD else "pending",

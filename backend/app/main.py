@@ -26,7 +26,7 @@ from app.dependencies import get_current_user
 from app.services.resources import healthcheck_resources, init_resources, resources
 from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
-# AP-10: Structured JSON logging for production (enables ELK/Loki querying)
+# : Structured JSON logging for production (enables ELK/Loki querying)
 # Remove loguru's default handler and add JSON-serialized sink in production
 logger.remove()
 if _is_prod := (settings.app_env == "production"):
@@ -82,12 +82,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 logger.info("Loaded {} custom prompt version(s) from DB", len(rows))
         except Exception as exc:  # noqa: BLE001 — 加载失败不阻断启动（降级为内置版本）
             logger.warning("[lifespan] Prompt versions load failed, using builtin: {}", exc)
- # PIPE-03 (c) : 启动时若 PIPELINE_BOOTSTRAP=true,30 秒后入队一次 pipeline run
+ # (c) : 启动时若 PIPELINE_BOOTSTRAP=true,30 秒后入队一次 pipeline run
  # 该调用是 no-op（直接 return）如果环境变量未设置
     from app.core.pipeline.bootstrap import schedule_bootstrap_if_enabled
 
     schedule_bootstrap_if_enabled()
- # CRON-03: 启动 cron scanner 后台任务
+ # : 启动 cron scanner 后台任务
     cron_task = None
     try:
         from app.core.pipeline.cron_scheduler import cron_scanner_loop
@@ -119,7 +119,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.warning("StarMap shutdown 异常(非致命): {}", exc)
 
 
-# P0 修复 (API-03): 生产环境禁用 Swagger/ReDoc/OpenAPI
+# P0 修复 (): 生产环境禁用 Swagger/ReDoc/OpenAPI
 _is_prod = settings.app_env == "production"
 
 app = FastAPI(
@@ -132,7 +132,7 @@ app = FastAPI(
     openapi_url=None if _is_prod else "/openapi.json",
 )
 
-# P0 修复 (AUTH-04): CORS 收紧 methods/headers
+# P0 修复 (): CORS 收紧 methods/headers
 # (security audit 2026-08-15): refuse startup if `cors_origins`
 # is the wildcard `["*"]` while credentials are enabled — that combination
 # is a CSRF-grade hole that Starlette does NOT silently reject for FastAPI's
@@ -159,7 +159,7 @@ app.add_middleware(
 )
 
 
-# P1 修复 (API-04): 安全响应头中间件
+# P1 修复 (): 安全响应头中间件
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> Response:
         response = await call_next(request)
@@ -172,8 +172,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-# P1 修复 (API-02): 速率限制中间件
-# ponytail: Redis-backed fixed-window counter when available, in-memory fallback.
+# P1 修复 (): 速率限制中间件
+# Redis-backed fixed-window counter when available, in-memory fallback.
 # In-memory is per-process only — Redis makes it work across workers.
 # 窗口/阈值来自 settings（rate_limit_window / rate_limit_max），支持运行时调整。
 # P0-AUDIT-FIX (2026-08-13): INCR + EXPIRE 两条命令间进程崩溃会留下无过期
@@ -478,7 +478,7 @@ async def graph_projection_error_handler(request: Request, exc: GraphProjectionE
     return build_error_response(str(exc), ErrorCode.BIZ_GRAPH_PROJECTION_FAILED, include_internal_detail=str(exc))
 
 
-# P0 修复 (SEC-10): 健康检查不暴露版本号和服务详情
+# P0 修复 (): 健康检查不暴露版本号和服务详情
 async def _health_payload() -> dict:
     if _is_prod:
  # 生产环境：仅返回状态，不暴露内部细节
@@ -553,7 +553,7 @@ async def ready() -> dict[str, Any] | JSONResponse:
         checks["redis"] = "not initialised"
 
     all_ok = all(v == "ok" for v in checks.values() if v != "not initialised")
- # LOG-04 fix: 生产环境不暴露内部服务细节和错误消息
+ # fix: 生产环境不暴露内部服务细节和错误消息
     if _is_prod:
         payload: dict[str, object] = {"status": "ready" if all_ok else "not_ready"}
     else:
@@ -565,7 +565,7 @@ async def ready() -> dict[str, Any] | JSONResponse:
     return payload
 
 
-# /CFG-04: 详细健康检查 — 4 服务 ping + 3 LLM key 布尔（不泄露值）+ data stats
+# /: 详细健康检查 — 4 服务 ping + 3 LLM key 布尔（不泄露值）+ data stats
 
 
 async def _detailed_health_payload() -> dict:

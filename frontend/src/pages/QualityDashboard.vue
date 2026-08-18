@@ -17,7 +17,6 @@ import { useQualityDashboard } from '@/composables/useQualityDashboard'
 
 const quality = useQualityStore()
 const review = useReviewStore()
-// ponytail: chartColors re-exported for template el-progress :color binding
 const cc = chartColors()
 const {
   kpiCardsEnhanced,
@@ -42,7 +41,6 @@ const {
   handleIgnoreAlert,
 } = useQualityActions(quality)
 
-// ponytail: 原模板内联 `quality.fetchQuality; lastRefresh=...` 未 await，
 // 请求失败也显示"已刷新"；改为 await 后成功才置位，失败提示
 async function handleRefresh() {
   try {
@@ -513,7 +511,6 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
         </el-col>
       </el-row>
 
-      <!-- Sprint 1.2: 质量趋势 + 异常告警 Tabs -->
       <el-card
         shadow="never"
         class="mb-4 tabs-card"

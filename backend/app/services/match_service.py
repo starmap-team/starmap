@@ -140,7 +140,7 @@ async def get_match_result(match_id: str, db_session: Any = None) -> dict[str, A
                     "skill_gap_detail": gap_report,
                     "cii": row.cii,
                 }
- # D6 fix: compute trust_score from Neo4j Skill.trust_score over matched_skills.
+ # compute trust_score from Neo4j Skill.trust_score over matched_skills.
  # Routes through the shared metrics module so the formula is identical
  # to anything else computing per-skill trust.
                 from app.core.metrics import match_trust_score  # noqa: PLC0415
@@ -148,7 +148,7 @@ async def get_match_result(match_id: str, db_session: Any = None) -> dict[str, A
  # : 分数组件（required_avg/bonus_avg）未持久化，PG 兜底无法重建 →
  # 显式 None（与 live POST 响应区分：cache/实时命中才带 score_breakdown）
                 result["score_breakdown"] = None
- # ponytail: PG 兜底与 POST 响应字段对齐 —— 缺失字段在此重建/派生，
+ # PG 兜底与 POST 响应字段对齐 —— 缺失字段在此重建/派生，
  # 避免同一 match_id 因 cache 状态返回不同结构
                 result["gap_skills"] = [
                     g["skill"] for g in gap_report if g.get("gap_level") != GAP_LEVEL_MASTERED
@@ -252,7 +252,7 @@ async def compute_competitiveness(
     ]
     avg_proficiency = sum(proficiency_scores) / len(proficiency_scores) if proficiency_scores else 0.5
 
- # ponytail: 真实先修链 —— 原实现 depth 恒 1、learning_path 恒 [skill]（虚构）；
+ # 真实先修链 —— 原实现 depth 恒 1、learning_path 恒 [skill]（虚构）；
  # 复用 ensure_prerequisite_map + build_learning_path 计算真实前置深度
     prereq_map = await ensure_prerequisite_map(driver)
     total_prereq_depth = 0

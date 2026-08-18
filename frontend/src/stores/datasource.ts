@@ -15,7 +15,6 @@ import type { DataSourceDetail } from '@/types/datasource'
 import { useResponseValidation } from '@/validation/useResponseValidation'
 import datasourceSchema from '@contracts/schemas/datasource.schema.json'
 
-// PLAN-014: 契约响应校验 (DEV warn 不阻断)
 const { validateResponse: validateDatasource } = useResponseValidation()
 
 // Re-export for backward compatibility

@@ -12,7 +12,6 @@ import type { DataSourceDetail } from '@/types/datasource'
 import { useResponseValidation } from '@/validation/useResponseValidation'
 import pipelineSchema from '@contracts/schemas/pipeline.schema.json'
 
-// PLAN-014: 契约响应校验 (DEV warn 不阻断)
 const { validateResponse: validatePipeline } = useResponseValidation()
 
 // Re-export for backward compatibility
@@ -73,7 +72,6 @@ export interface PipelineRun {
   selected_stages: string[] | null
 }
 
-// ponytail: DataSource removed — canonical type is DataSourceDetail in types/datasource.ts
 
 export interface PipelineStatus {
   is_running: boolean
@@ -114,7 +112,6 @@ interface DataQualityResponse {
 
 // ── SSE 事件类型 ──
 
-// ponytail: QualityAlert removed — canonical type in types/quality.ts
 
 export interface DataMilestone {
   type: string

@@ -108,7 +108,7 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
 
     start = time.monotonic
     try:
- # ponytail: only crawl accepts run_type; others take run_id only
+ # only crawl accepts run_type; others take run_id only
         if stage_name == StageName.CRAWL.value:
             result = executor(run_id, run_type="full")  # type: ignore[operator]
         else:
@@ -402,7 +402,7 @@ async def _mark_stage_failed(
                 status="failed",
                 errors=errors)
 
-# ── Beat schedule (LOOP-06: 定时演化分析) ──
+# ── Beat schedule (: 定时演化分析) ──
 
 from celery.schedules import crontab  # noqa: E402
 

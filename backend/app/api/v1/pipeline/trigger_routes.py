@@ -342,7 +342,7 @@ async def analyze_pipeline(
  session: Annotated[AsyncSession, Depends(get_db_session)] = None, # type: ignore[assignment]
 ) -> StreamingResponse:
  """上传简历，执行完整的6步求职者分析 Pipeline。"""
- # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+ # / : 统一校验（扩展名 + MIME + 大小 + 魔术字节）
  content_bytes = await validate_resume_upload(resume_file)
 
  from loguru import logger as _logger
@@ -388,7 +388,7 @@ async def export_analysis(
  session: Annotated[AsyncSession, Depends(get_db_session)] = None, # type: ignore[assignment]
 ) -> Any:
  """上传简历并返回 JSON 格式的完整分析结果。"""
- # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+ # / : 统一校验（扩展名 + MIME + 大小 + 魔术字节）
  content_bytes = await validate_resume_upload(resume_file)
 
  from fastapi.responses import JSONResponse

@@ -43,7 +43,7 @@ _ab_results: dict[str, list[dict[str, Any]]] = defaultdict(list)
 _MAX_RESULTS_PER_PROMPT = 10000
 
 
-# 4 个 Request 类已迁入 schemas/prompt.py 集中管理 (PLAN-014 批次7)
+# 4 个 Request 类已迁入 schemas/prompt.py 集中管理 (批次7)
 
 router = APIRouter(tags=["prompts"])
 
@@ -122,7 +122,7 @@ async def create_prompt_version(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, Any]:
     """Register a new prompt version."""
- # ponytail: 持久化优先 —— 先落 prompt_versions 表（重启不丢），再更新内存注册表
+ # 持久化优先 —— 先落 prompt_versions 表（重启不丢），再更新内存注册表
     if req.activate:
         await session.execute(
             update(PromptVersion)
@@ -180,7 +180,7 @@ async def change_active_version(
         set_active_version(name, req.version)
     except KeyError as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
- # ponytail: 持久化活跃选择 —— 该 (name, version) 若已注册则置 active，
+ # 持久化活跃选择 —— 该 (name, version) 若已注册则置 active，
  # 否则（内置版本）插入快照行
     await session.execute(
         update(PromptVersion)

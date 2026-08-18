@@ -67,7 +67,7 @@ class EmergenceReport:
         return self.emerging + self.rising + self.stable + self.declining
 
 
-# ─── Sprint 2.3: Cross-domain analysis data structures ───
+# ─── : Cross-domain analysis data structures ───
 
 
 @dataclass
@@ -363,7 +363,7 @@ class EmergenceFinder:
             total_skills_analyzed=len(skill_data),
         )
 
- # ─── Sprint 2.3: Cross-domain skill analysis ───
+ # ─── : Cross-domain skill analysis ───
 
     def find_cross_domain_skills(
         self,

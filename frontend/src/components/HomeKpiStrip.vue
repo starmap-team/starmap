@@ -11,11 +11,9 @@ const props = defineProps<{
  // 动态分组维度标签（随 overviewMode 切换：技术领域/技术栈/职级分组）
   groupLabel?: string
   groupTrend?: string
- // PLAN-006④: 后端响应时间戳（Unix 秒），用于在 KPI 条上显示"截至 X"诚实时效
   generatedAt?: number
 }>()
 
-// PLAN-006④: 把后端响应时间格式化为本地"YYYY-MM-DD HH:MM"
 // 无时间戳 = 后端尚未注入（防御性，理论不应发生）→ 不显示
 const snapshotLabel = computed(() => {
   if (!props.generatedAt) return ''
@@ -91,7 +89,6 @@ function kpiTooltip(field: string): string {
         >岗位-技能关系</span>
       </div>
     </div>
-    <!-- PLAN-006④: 快照时间标签（服务端正直信号，无则不渲染避免编造） -->
     <div
       v-if="snapshotLabel"
       class="kpi-snapshot"

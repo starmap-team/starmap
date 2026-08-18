@@ -1,11 +1,6 @@
 <script setup lang="ts">
 /**
  * 匹配诊断页 — 5步向导
- * Step 0: 上传简历 / 手动输入技能
- * Step 1: 选择目标岗位
- * Step 2: 技能雷达对比
- * Step 3: 差距分析报告 → GapAnalysisReport.vue
- * Step 4: 学习路径规划 → LearningPathPlan.vue
  */
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -89,7 +84,6 @@ onMounted(async () => {
       step.value = 3  // 跳到差距分析报告
       matchStore.fetchHistory()
     } else {
- // ponytail: result 是跨页内存态，直输 URL/刷新后为空 → 提示并停留在 step 0，不再静默卡住
       ElMessage.warning('重新匹配结果已失效（页面刷新或直连链接），请重新诊断')
       step.value = 0
     }
@@ -213,13 +207,11 @@ async function handleStartDiagnosis() {
         ...skillNames.map((s: string) => ({
           name: s,
           matched: matchedSet.has(s),
- // PLAN-006③ 红线: 后端无 match_score 时不再编造 0.85;
  // SkillMatchAnimation 对 score===undefined 会隐藏百分比展示
           score: matchedSet.has(s) ? result.match_score : 0,
         })),
       ]
       for (const g of (result.skill_gap_detail ?? [])) {
- // ponytail: 后端 gap_detail 含"已掌握"条目（语义匹配成功），
  // 若仅按"不在用户输入里"判定，会把已掌握技能误标为未匹配
         if (!skillNames.includes(g.skill) && !matchedSet.has(g.skill)) {
           allSkills.push({ name: g.skill, matched: false, score: 0 })
@@ -373,7 +365,6 @@ onUnmounted(() => {
           />
         </el-steps>
 
-        <!-- Step 0: Upload/Input -->
         <div
           v-if="step === 0"
           class="step-content"
@@ -449,7 +440,6 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Step 1: Select position -->
         <div
           v-if="step === 1"
           class="step-content"
@@ -467,7 +457,6 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Step 2: Radar comparison -->
         <div
           v-if="step === 2"
           class="step-content"
@@ -529,7 +518,6 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Step 3: Gap analysis report (extracted) -->
         <div v-if="step === 3">
           <!--: 信任度解读 + 质量说明 -->
           <!-- D6 fix: trust_score now reads from the real backend field
@@ -549,7 +537,6 @@ onUnmounted(() => {
           />
         </div>
 
-        <!-- Step 4: Learning path (extracted) -->
         <LearningPathPlan
           v-if="step === 4"
           :gap-skills="gapSkills"

@@ -22,7 +22,7 @@ from app.core.pipeline.stages.common import (
 )
 
 # 2026-08-07 (B2 修复): 共享 spider 注册表 — 提取为模块常量,
-# executor 与单源调度端点共用; 补入 juejin/remoteok (PLAN-002/003 落地后遗漏注册)
+# executor 与单源调度端点共用; 补入 juejin/remoteok (/003 落地后遗漏注册)
 SPIDER_REGISTRY: dict[str, Any] = {
  "v2ex": None, # 延迟导入避免循环
 }
@@ -73,7 +73,7 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
  async with session_factory as session:
  from app.models.pipeline_models import DataSourceRecord, PipelineRun
 
- # D8: 读取 run 的 selected_sources（触发/调度时手动自选源）
+ # 读取 run 的 selected_sources（触发/调度时手动自选源）
  selected: list[str] | None = None
  if run_id:
  run_row = await session.execute(
@@ -84,8 +84,8 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
  if run_meta and run_meta.selected_sources:
  selected = list(run_meta.selected_sources)
 
- # PLAN-005: api/rss 源同样参与 crawl 阶段（ 修复在 rebase 中丢失，恢复）
- # D8 fix: 当手动指定了 selected_sources 时，直接按名称查这些源（不限制
+ # : api/rss 源同样参与 crawl 阶段（ 修复在 rebase 中丢失，恢复）
+ # 当手动指定了 selected_sources 时，直接按名称查这些源（不限制
  # source_type —— job_board/blog 型如 V2EX/掘金也在可选项内），否则用户
  # 选了源却因 source_type 过滤被排除 → fallback 默认源（日志实证）。
  if selected:
@@ -107,7 +107,7 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
  for ds in sources:
  if ds.config is None:
  continue
- # D8: 选源过滤 —— 指定了源但当前 ds 不在列表内则跳过
+ # 选源过滤 —— 指定了源但当前 ds 不在列表内则跳过
  if selected and ds.name not in selected:
  logger.info(
  "D8 source filter: skip '{}' (not in selected_sources={})",
@@ -188,7 +188,7 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
  logger.opt(exception=True).error("crawl stage deps unavailable: {}", exc)
  raise
 
- # 复用本模块的 build_spider_registry (PLAN-005/NEW-07 注册)
+ # 复用本模块的 build_spider_registry (/注册)
  spider_registry = build_spider_registry
 
  try:

@@ -4,7 +4,6 @@ let G6Graph: typeof G6GraphType | null = null
 
 /**
  * Lazy-load @antv/g6 Graph class (shared across CareerPathGraph, LearningPathFlow, LoopDemo).
- * ponytail: single canonical loader, replaces 3 inline copies.
  */
 export async function ensureG6Loaded(): Promise<typeof G6GraphType> {
   if (!G6Graph) {

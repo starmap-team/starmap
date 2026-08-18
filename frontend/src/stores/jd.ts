@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 import { useResponseValidation } from '@/validation'
-// PLAN-014: 契约 schema（后端 Pydantic 导出，脚本生成；供 DEV 响应校验）
 import positionSchema from '@contracts/schemas/position.schema.json'
 import extractSchema from '@contracts/schemas/extract.schema.json'
 import graphSchema from '@contracts/schemas/graph.schema.json'
@@ -78,7 +77,6 @@ export const useJdStore = defineStore('jd', () => {
   const list = ref<JdRaw[]>([])
   const loading = ref(false)
 
- // PLAN-014: DEV 响应结构校验（失败仅 warn，不阻断业务）
   const { validateResponse } = useResponseValidation()
 
   async function fetchList() {

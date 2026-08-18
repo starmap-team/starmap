@@ -4,7 +4,6 @@
  * + useDashboardRealtimeSync (147L) + useDashboardCharts (284L)
  * into a single file (646L → ~550L after import dedup).
  *
- * ponytail: all 4 were single-caller abstractions served only by DataDashboard.vue.
  * Merging removes 3 files + 3 import chains with zero logic change.
  */
 import { computed, onMounted, onUnmounted, ref, watch, type Component, type ComputedRef, type Ref } from 'vue'
@@ -25,7 +24,6 @@ type DashboardStore = ReturnType<typeof useDashboardStore>
 // 1. Dashboard Display — pipeline stages, status colors, time formatting
 // =============================================================================
 
-// ponytail: 原 DEFAULT_PIPELINE_STAGES 硬编码 5 个 waiting 阶段，接口空时大屏展示假阶段；
 // 删除兜底，无数据时由模板渲染空态
 
 export function stageIcon(status: string): string {
