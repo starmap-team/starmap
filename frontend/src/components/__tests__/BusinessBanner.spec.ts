@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BusinessBanner 单元测试
  *
  * 覆盖：
@@ -45,8 +45,7 @@ describe('BusinessBanner', () => {
   it('渲染 section 章节徽章', () => {
     const wrapper = mountBanner({ section: '' })
     const badge = wrapper.find('.biz-banner__section')
-    expect(badge.exists()).toBe(true)
-    expect(badge.text()).toBe('')
+    expect(badge.exists()).toBe(false)  // v-if="section" hides when empty
   })
 
   /* ─── 5 种 type 映射 ─── */

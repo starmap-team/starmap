@@ -1,4 +1,4 @@
-/**
+﻿/**
  * MatchDiagnosis.vue behavior tests.
  * Mocks @/api/request so the real match/resume/user stores run without backend calls.
  * G1 gap closure (05-03): 向导流程 / 雷达映射 / 诊断结果渲染 / 空结果守卫 / 批量模式.
@@ -115,7 +115,7 @@ function mountPage(): PageWrapper {
       plugins: [ElementPlus, pinia],
       stubs: {
         MainLayout: { template: '<div><slot /></div>' },
-        'router-link': true,
+        ErrorBoundary: { template: '<slot />' },
         'router-view': true,
         'v-chart': true,
         MatchFlow: MatchFlowStub,
