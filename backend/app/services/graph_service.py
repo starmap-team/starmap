@@ -284,8 +284,8 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
 
         # Get independent counts (single query, P1-2 fix pattern)
         count_result = await session.run(
-            "MATCH (p:Position) WITH count(p) AS pos_cnt "
-            "MATCH (s:Skill) WITH pos_cnt, count(s) AS skill_cnt "
+            "MATCH (p:Position) WHERE NOT (p)-[:REQUIRES]->() WITH count(p) AS pos_cnt "
+            "MATCH (s:Skill) WHERE NOT (s)<-[:REQUIRES]-() WITH pos_cnt, count(s) AS skill_cnt "
             "MATCH ()-[r:REQUIRES]->() "
             "RETURN pos_cnt, skill_cnt, count(r) AS edge_cnt"
         )
@@ -298,6 +298,16 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
             independent_pos = 0
             independent_skill = 0
             independent_edge = 0
+
+        # Get global totals (separate query — independent_* is for no-relationship nodes)
+        total_result = await session.run(
+            "MATCH (p:Position) WITH count(p) AS total_pos "
+            "MATCH (s:Skill) WITH total_pos, count(s) AS total_skill "
+            "RETURN total_pos, total_skill"
+        )
+        total_record = await total_result.single()
+        total_positions = int(total_record["total_pos"]) if total_record else 0
+        total_skills = int(total_record["total_skill"]) if total_record else 0
 
         # ── Fallback: when no KA nodes, classify positions by 行业 (Phase 13 Step 1) ──
         # 与 tech_stack 视图正交：tech_stack 按技术栈聚类，domain 按行业聚类。
@@ -393,10 +403,10 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
     return {
         "domains": domains,
         "connections": _prune_connections(connections, domains),
-        # M6（Phase 13 强制规范）：total_* 一律用全局去重计数，禁止按域/KA 累加
-        # 导致的重复计数（曾使 total_skills=395 而 distinct=257）。分组视图见 domains[]。
-        "total_positions": independent_pos,
-        "total_skills": independent_skill,
+        # M6（Phase 13 强制规范）：total_* 一律用全局去重计数（Neo4j 全部节点），
+        # independent_* 表示无关联的节点数。
+        "total_positions": total_positions,
+        "total_skills": total_skills,
         "independent_positions": independent_pos,
         "independent_skills": independent_skill,
         "independent_edges": independent_edge,

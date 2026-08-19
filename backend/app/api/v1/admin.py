@@ -228,7 +228,7 @@ _REVIEW_TYPE_MAP = {
 async def list_review_items(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     entity_type: Annotated[Literal["position", "skill"] | None, "过滤实体类型"] = None,
-    status: Annotated[Literal["draft", "pending_review", "approved", "rejected"] | None, "审核状态"] = None,
+    status: Annotated[Literal["draft", "pending_review", "approved", "rejected"] | None, "审核状态（默认 pending_review）"] = "pending_review",
     limit: Annotated[int, "返回数量上限"] = 50,
 ) -> ReviewListResponse:
     """Unified review queue combining position + skill entities.

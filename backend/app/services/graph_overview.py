@@ -240,8 +240,8 @@ async def _fetch_independent_counts(driver: AsyncDriver) -> dict[str, int]:
             # 3 separate count queries to avoid Cartesian product
             # (MATCH (p), (s) OPTIONAL MATCH ()-[r]->() produces |p|*|s|*|r| rows)
             result = await session.run(
-                "MATCH (p:Position) WITH count(p) AS pos_cnt "
-                "MATCH (s:Skill) WITH pos_cnt, count(s) AS skill_cnt "
+                "MATCH (p:Position) WHERE NOT (p)-[:REQUIRES]->() WITH count(p) AS pos_cnt "
+                "MATCH (s:Skill) WHERE NOT (s)<-[:REQUIRES]-() WITH pos_cnt, count(s) AS skill_cnt "
                 "MATCH ()-[r:REQUIRES]->() "
                 "RETURN pos_cnt, skill_cnt, count(r) AS edge_cnt"
             )

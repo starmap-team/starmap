@@ -149,7 +149,7 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
                 # 表达"本轮采集入库了多少"。现在 failed run 的总记录 = 本轮采集量。
                 crawl_records = next(
                     (
-                        int(s.get("records_processed", 0))
+                        int(s.get("records_new", 0))
                         for s in stages
                         if s.get("name") == StageName.CRAWL.value
                     ),

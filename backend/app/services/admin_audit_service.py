@@ -324,6 +324,13 @@ async def build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
                 .where(ReviewQueue.status == "pending")
             )).scalar() or 0
         )
+        # 合并 position/skill 的 pending_review（统一审核流）
+        from app.services.review_service import count_by_status as _review_counts
+        review_status_counts = await _review_counts(session)
+        pending_count += (
+            review_status_counts.get("position_pending_review", 0)
+            + review_status_counts.get("skill_pending_review", 0)
+        )
     except (SQLAlchemyError, StarMapError):
         total_positions = 0
         total_skills = 0
