@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * ProfileMenu — top-right user dropdown in MainLayout.
+ * ProfileMenu 鈥?top-right user dropdown in MainLayout.
  * Shows the current user, a "change password" dialog, and "logout".
  */
 import { ref } from 'vue'
@@ -21,18 +21,18 @@ const pwdForm = ref({
 })
 
 const errorMessages: Record<number, string> = {
-  400: '原密码错误',
-  401: '登录已过期，请重新登录',
-  422: '新密码不符合要求',
+  400: '鍘熷瘑鐮侀敊璇?,
+  401: '鐧诲綍宸茶繃鏈燂紝璇烽噸鏂扮櫥褰?,
+  422: '鏂板瘑鐮佷笉绗﹀悎瑕佹眰',
 }
 
 async function submitChangePassword() {
   if (pwdForm.value.new_password.length < 8) {
-    ElMessage.warning('新密码至少 8 位')
+    ElMessage.warning('鏂板瘑鐮佽嚦灏?8 浣?)
     return
   }
   if (pwdForm.value.new_password !== pwdForm.value.confirm_password) {
-    ElMessage.warning('两次输入的新密码不一致')
+    ElMessage.warning('涓ゆ杈撳叆鐨勬柊瀵嗙爜涓嶄竴鑷?)
     return
   }
   try {
@@ -40,7 +40,7 @@ async function submitChangePassword() {
       old_password: pwdForm.value.old_password,
       new_password: pwdForm.value.new_password,
     })
-    ElMessage.success('密码修改成功')
+    ElMessage.success('瀵嗙爜淇敼鎴愬姛')
     showChangePwd.value = false
     pwdForm.value = { old_password: '', new_password: '', confirm_password: '' }
     // Clear must_change_password flag locally
@@ -51,22 +51,22 @@ async function submitChangePassword() {
     const err = e as { response?: { status?: number; data?: { detail?: string } } }
     const status = err?.response?.status
     const detail = err?.response?.data?.detail
-    ElMessage.error(detail || errorMessages[status ?? 0] || '密码修改失败')
+    ElMessage.error(detail || errorMessages[status ?? 0] || '瀵嗙爜淇敼澶辫触')
   }
 }
 
 async function handleLogout() {
   try {
-    await ElMessageBox.confirm('确认登出？', '登出', {
+    await ElMessageBox.confirm('纭鐧诲嚭锛?, '鐧诲嚭', {
       type: 'warning',
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
+      confirmButtonText: '纭',
+      cancelButtonText: '鍙栨秷',
     })
   } catch {
     return
   }
   await userStore.logout()
-  ElMessage.success('已登出')
+  ElMessage.success('宸茬櫥鍑?)
   router.push('/login')
 }
 
@@ -94,7 +94,7 @@ const userInitial = (username?: string | null) => {
     <span class="profile-trigger">
       <span class="avatar">{{ userInitial(userStore.user?.username) }}</span>
       <span class="profile-name">
-        {{ userStore.user?.username ?? '未登录' }}
+        {{ userStore.user?.username ?? '鏈櫥褰? }}
         <el-tag
           v-if="userStore.isAdmin"
           size="small"
@@ -110,24 +110,22 @@ const userInitial = (username?: string | null) => {
           v-if="userStore.mustChangePassword"
           command="change-password"
         >
-          <el-icon><Lock /></el-icon> 必须先修改密码
-        </el-dropdown-item>
+          <el-icon><Lock /></el-icon> 蹇呴』鍏堜慨鏀瑰瘑鐮?        </el-dropdown-item>
         <el-dropdown-item command="change-password">
-          <el-icon><Lock /></el-icon> 修改密码
+          <el-icon><Lock /></el-icon> 淇敼瀵嗙爜
         </el-dropdown-item>
         <el-dropdown-item
           command="logout"
           divided
         >
-          <el-icon><SwitchButton /></el-icon> 退出登录
-        </el-dropdown-item>
+          <el-icon><SwitchButton /></el-icon> 閫€鍑虹櫥褰?        </el-dropdown-item>
       </el-dropdown-menu>
     </template>
   </el-dropdown>
 
   <el-dialog
     v-model="showChangePwd"
-    title="修改密码"
+    title="淇敼瀵嗙爜"
     width="440px"
     :close-on-click-modal="!userStore.mustChangePassword"
     :close-on-press-escape="!userStore.mustChangePassword"
@@ -138,11 +136,10 @@ const userInitial = (username?: string | null) => {
       v-if="userStore.mustChangePassword"
       class="pwd-hint"
     >
-      ⚠️ 管理员要求您首次登录后修改密码后才能继续使用系统。
-    </p>
+      鈿狅笍 绠＄悊鍛樿姹傛偍棣栨鐧诲綍鍚庝慨鏀瑰瘑鐮佸悗鎵嶈兘缁х画浣跨敤绯荤粺銆?    </p>
     <el-form label-width="100px">
       <el-form-item
-        label="原密码"
+        label="鍘熷瘑鐮?
         required
       >
         <el-input
@@ -153,19 +150,19 @@ const userInitial = (username?: string | null) => {
         />
       </el-form-item>
       <el-form-item
-        label="新密码"
+        label="鏂板瘑鐮?
         required
       >
         <el-input
           v-model="pwdForm.new_password"
           type="password"
           show-password
-          placeholder="至少 8 位"
+          placeholder="鑷冲皯 8 浣?
           autocomplete="new-password"
         />
       </el-form-item>
       <el-form-item
-        label="确认密码"
+        label="纭瀵嗙爜"
         required
       >
         <el-input
@@ -181,13 +178,13 @@ const userInitial = (username?: string | null) => {
         v-if="!userStore.mustChangePassword"
         @click="showChangePwd = false"
       >
-        取消
+        鍙栨秷
       </el-button>
       <el-button
         type="primary"
         @click="submitChangePassword"
       >
-        提交
+        鎻愪氦
       </el-button>
     </template>
   </el-dialog>

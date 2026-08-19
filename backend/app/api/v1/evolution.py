@@ -102,7 +102,7 @@ async def analyze_evolution(
 async def get_changelog(
     identifier: str,
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> list[ChangelogEntry]:
     """获取指定技能或岗位的演化变更记录 (LOOP-12)。
 
@@ -331,7 +331,7 @@ async def get_emerging_skills(
 async def get_snapshots(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     position: Annotated[str | None, Query(description="岗位名称筛选")] = None,
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> list[SnapshotEntry]:
     """获取演化快照列表。"""
     stmt = sa.select(EvolutionSnapshot).order_by(EvolutionSnapshot.snapshot_date.desc())

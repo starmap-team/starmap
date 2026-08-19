@@ -95,6 +95,8 @@ def _build_initial_stages(selected: list[str] | None = None) -> list[dict[str, A
             "completed_at": None,
             "duration_ms": 0,
             "records_processed": 0,
+            "records_new": 0,
+            "records_duplicate": 0,
             "errors": [],
             "warnings": [],            # 非致命提示（如 crawl 0 条入库），不触发 failed
             "retry_count": 0,

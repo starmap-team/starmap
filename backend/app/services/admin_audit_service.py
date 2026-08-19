@@ -286,6 +286,36 @@ def _audit_item_from_row(row: ReviewQueue, *, status_override: str | None = None
     )
 
 
+async def _count_neo4j_edges() -> int:
+    """Count dedup REQUIRES edges in Neo4j (single source of truth).
+
+    PG position_skill_relations may contain duplicate (position_id, skill_id)
+    rows from historical backfills. Neo4j graph uses MERGE so the count
+    there is canonical.
+    """
+    try:
+        from app.dependencies import get_neo4j_driver
+        driver = get_neo4j_driver()
+    except TypeError:
+        # get_neo4j_driver requires a Request — fall back to ad-hoc connection.
+        from neo4j import AsyncGraphDatabase
+        from app.config import settings as _settings
+        neo4j_uri = getattr(_settings, "neo4j_uri", "bolt://neo4j:7687")
+        neo4j_user = getattr(_settings, "neo4j_user", "neo4j")
+        neo4j_password = getattr(_settings, "neo4j_password", "starmap123456")
+        driver = AsyncGraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
+    try:
+        async with driver.session() as session:
+            result = await session.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS c")
+            record = await result.single()
+            return int(record["c"]) if record else 0
+    except Exception:
+        return 0
+    finally:
+        if hasattr(driver, "close"):
+            await driver.close()
+
+
 # ── Service functions ──
 
 
@@ -304,11 +334,7 @@ async def build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
                 sa.select(sa.func.count()).select_from(SkillRecord)
             )).scalar() or 0
         )
-        total_edges = int(
-            (await session.execute(
-                sa.select(sa.func.count()).select_from(PositionSkillRelation)
-            )).scalar() or 0
-        )
+        total_edges = await _count_neo4j_edges()
         avg_value = float(
             (await session.execute(
                 sa.select(
