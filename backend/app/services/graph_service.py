@@ -299,10 +299,10 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
             independent_skill = 0
             independent_edge = 0
 
-        # Get global totals (separate query — independent_* is for no-relationship nodes)
+        # Get global totals — only count approved positions/skills (match PG public view policy)
         total_result = await session.run(
-            "MATCH (p:Position) WITH count(p) AS total_pos "
-            "MATCH (s:Skill) WITH total_pos, count(s) AS total_skill "
+            "MATCH (p:Position) WHERE p.review_status = 'approved' OR p.review_status IS NULL WITH count(p) AS total_pos "
+            "MATCH (s:Skill) WHERE s.review_status = 'approved' OR s.review_status IS NULL WITH total_pos, count(s) AS total_skill "
             "RETURN total_pos, total_skill"
         )
         total_record = await total_result.single()

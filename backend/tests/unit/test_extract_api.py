@@ -518,6 +518,92 @@ class TestExtractJDEndpoint:
         finally:
             self._cleanup()
 
+    def test_extract_jd_content_at_max_boundary(self):
+        """Content at exactly 100,000 chars should be accepted (boundary value)."""
+        client, mock_session = self._get_client()
+        try:
+            pipeline_result = {
+                "success": True,
+                "data": {"position_name": "Test", "required_skills": []},
+                "validation": {"is_valid": True, "confidence": 0.8},
+                "normalization": [],
+            }
+            with patch("app.api.v1.extract.extract_from_jd", new_callable=AsyncMock) as mock_extract, \
+                 patch("app.api.v1.extract._write_extraction_to_graph", new_callable=AsyncMock), \
+                 patch("app.api.v1.extract._write_extraction_to_pg", new_callable=AsyncMock):
+                mock_extract.return_value = pipeline_result
+                # 100,000 chars — exactly at max_length boundary
+                response = client.post(
+                    "/api/v1/extract/jd",
+                    json={"jd_content": "x" * 100_000},
+                )
+            assert response.status_code == 200
+        finally:
+            self._cleanup()
+
+    def test_extract_jd_content_exceeds_max_422(self):
+        """Content exceeding 100,000 chars should be rejected (boundary value)."""
+        client, mock_session = self._get_client()
+        try:
+            response = client.post(
+                "/api/v1/extract/jd",
+                json={"jd_content": "x" * 100_001},
+            )
+            assert response.status_code == 422
+        finally:
+            self._cleanup()
+
+    def test_extract_jd_graph_write_failure_still_returns_200(self):
+        """Graph write failure is non-blocking — extraction result still returned."""
+        client, mock_session = self._get_client()
+        try:
+            pipeline_result = {
+                "success": True,
+                "data": {"position_name": "Python Dev", "required_skills": []},
+                "validation": {"is_valid": True, "confidence": 0.9},
+                "normalization": [],
+            }
+            with patch("app.api.v1.extract.extract_from_jd", new_callable=AsyncMock) as mock_extract, \
+                 patch("app.api.v1.extract._write_extraction_to_graph", new_callable=AsyncMock) as mock_graph, \
+                 patch("app.api.v1.extract._write_extraction_to_pg", new_callable=AsyncMock) as mock_pg:
+                mock_extract.return_value = pipeline_result
+                mock_graph.side_effect = Exception("Neo4j down")
+                mock_pg.return_value = True
+                response = client.post(
+                    "/api/v1/extract/jd",
+                    json={"jd_content": "Python developer needed"},
+                )
+            # Graph failure is non-blocking — still returns 200
+            assert response.status_code == 200
+            assert response.json()["position_name"] == "Python Dev"
+        finally:
+            self._cleanup()
+
+    def test_extract_jd_pg_write_failure_still_returns_200(self):
+        """PG write failure is non-blocking — extraction result still returned."""
+        client, mock_session = self._get_client()
+        try:
+            pipeline_result = {
+                "success": True,
+                "data": {"position_name": "Java Dev", "required_skills": []},
+                "validation": {"is_valid": True, "confidence": 0.85},
+                "normalization": [],
+            }
+            with patch("app.api.v1.extract.extract_from_jd", new_callable=AsyncMock) as mock_extract, \
+                 patch("app.api.v1.extract._write_extraction_to_graph", new_callable=AsyncMock), \
+                 patch("app.api.v1.extract._write_extraction_to_pg", new_callable=AsyncMock) as mock_pg:
+                mock_extract.return_value = pipeline_result
+                mock_pg.side_effect = Exception("DB connection lost")
+                response = client.post(
+                    "/api/v1/extract/jd",
+                    json={"jd_content": "Java developer needed"},
+                )
+            # PG failure is non-blocking — still returns 200
+            assert response.status_code == 200
+            assert response.json()["position_name"] == "Java Dev"
+        finally:
+            self._cleanup()
+
 
 # ═══════════════════════════════════════════════════════════════
 # TestExtractResumeEndpoint — TestClient with mocked dependencies

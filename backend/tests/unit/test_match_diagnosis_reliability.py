@@ -313,6 +313,19 @@ class TestRunMatchIntegration:
                     db_session=None,
                 )
 
+    @pytest.mark.asyncio
+    async def test_empty_person_skills_returns_400(self):
+        """Empty person_skills list should raise HTTP 400 (boundary value)."""
+        from fastapi import HTTPException
+        from app.api.v1.match import match_position
+        from app.schemas.match import MatchRequestInput
+
+        body = MatchRequestInput(person_skills=[], target_position="Python Dev")
+        with pytest.raises(HTTPException) as exc_info:
+            await match_position(body, driver=None, session=None)
+        assert exc_info.value.status_code == 400
+        assert "person_skills cannot be empty" in exc_info.value.detail
+
 
 # ---------------------------------------------------------------------------
 # CHROMA-PERF: ChromaDB 不可用时的性能与负缓存回归

@@ -1,7 +1,7 @@
 ﻿"""岗位管理 API — 接入 PostgreSQL position_records，Neo4j fallback。"""
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -52,7 +52,7 @@ async def list_positions(
     industry: Annotated[str | None, Query(description="行业筛选")] = None,
     search: Annotated[str | None, Query(description="搜索关键词")] = None,
     status: Annotated[
-        str | None,
+        Literal["draft", "pending_review", "approved", "rejected"] | None,
         Query(description="审核状态（默认 approved；admin + include_all=true 可查全部）"),
     ] = None,
     include_all: Annotated[

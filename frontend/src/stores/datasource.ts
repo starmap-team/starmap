@@ -106,7 +106,10 @@ export const useDataSourceStore = defineStore('datasource', () => {
     error.value = null
     try {
       // fix: 后端 PUT 端点在公共 router（/datasources/{id}），非 admin_router；该端点自带 require_admin，权限不降级
-      const data = await request.put(`/datasources/${id}`, config) as DataSourceDetail
+      const data = validateDatasource(
+        await request.put(`/datasources/${id}`, config) as DataSourceDetail,
+        datasourceSchema, `/datasources/${id}`, 'DataSourceResponse',
+      ) as DataSourceDetail
       // 更新列表中的对应项
       const idx = sources.value.findIndex(s => s.id === id)
       if (idx !== -1) sources.value[idx] = data
@@ -199,7 +202,10 @@ export const useDataSourceStore = defineStore('datasource', () => {
     try {
       // fix: 后端 sync 端点在公共 router（/datasources/{id}/sync），非 admin_router；该端点自带 require_admin，权限不降级
       // 返回后端 SyncTriggerResponse（run_id/source_name/status/message），供 Admin 页展示真实任务信息
-      const data = await request.post(`/datasources/${id}/sync`) as SyncTriggerResponse
+      const data = validateDatasource(
+        await request.post(`/datasources/${id}/sync`) as SyncTriggerResponse,
+        datasourceSchema, `/datasources/${id}/sync`, 'SyncTriggerResponse',
+      ) as SyncTriggerResponse
       // 同步后刷新该数据源详情
       await fetchSourceDetail(id)
       return data
@@ -215,7 +221,10 @@ export const useDataSourceStore = defineStore('datasource', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await request.get('/datasources/health') as DatasourcesHealthResponse
+      const data = validateDatasource(
+        await request.get('/datasources/health') as DatasourcesHealthResponse,
+        datasourceSchema, '/datasources/health', 'DatasourcesHealthResponse',
+      ) as DatasourcesHealthResponse
       health.value = data
       return data
     } catch (e: unknown) {

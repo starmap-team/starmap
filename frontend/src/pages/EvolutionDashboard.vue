@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 演化看板页 — CII 时序曲线（技能需求通胀指数）
  * Task 3 增强: 技能趋势时间线、新兴技能卡片、CII仪表盘、技能对比
@@ -179,784 +179,786 @@ onMounted(() => {
 <template>
   <MainLayout>
     <ErrorBoundary>
-    <div class="evolution-page animate-fade-in">
-      <BusinessBanner
-        type="warning"
-        title="能力演化与技能通胀"
-        description="看岗位要求随时间怎么变：哪些技能在新兴、哪些技能被淘汰、技能要求的整体膨胀速度。CII 通胀指数 100 = 2024 年第一季度基准，越高说明企业要求涨得越多。"
-        meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> 表 · 信任度驱动"
-      />
+      <div class="evolution-page animate-fade-in">
+        <BusinessBanner
+          type="warning"
+          title="能力演化与技能通胀"
+          description="看岗位要求随时间怎么变：哪些技能在新兴、哪些技能被淘汰、技能要求的整体膨胀速度。CII 通胀指数 100 = 2024 年第一季度基准，越高说明企业要求涨得越多。"
+          meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> 表 · 信任度驱动"
+        />
 
-      <!-- E2/E7: 数据口径说明 — 让用户可感知每个数值的计算依据与来源 -->
-      <el-card
-        class="explainer-card"
-        shadow="never"
-      >
-        <el-collapse>
-          <el-collapse-item
-            title="📐 数据口径说明 — 每个数值怎么算的、来自哪里"
-            name="explainer"
-          >
-            <el-table
-              :data="dataSourceExplainer"
-              size="small"
-              stripe
-            >
-              <el-table-column
-                prop="metric"
-                label="指标"
-                width="220"
-              />
-              <el-table-column
-                prop="source"
-                label="数据来源"
-                width="260"
-              />
-              <el-table-column
-                prop="formula"
-                label="计算口径"
-              />
-            </el-table>
-          </el-collapse-item>
-        </el-collapse>
-      </el-card>
-
-      <!-- 标题 -->
-      <div class="page-header">
-        <div>
-          <h2 class="page-title">
-            演化趋势看板
-          </h2>
-          <p class="page-subtitle">
-            CII 时序曲线 — 技能需求通胀指数（基准 100 = 2024-Q1）
-          </p>
-          <!-- 新手友好引导（沿 ui-ux-pro-max 数据密集 dashboard）-->
-          <el-alert
-            class="kpi-help-alert"
-            type="info"
-            :closable="false"
-            show-icon
-          >
-            <strong>什么是技能演化看板？</strong>
-            4 张卡片展示 StarMap 图谱中技能随时间的演化趋势：新涌现的技能（Z-score 检测）、历史变更日志的可信度均值（与 /quality 平均信任度 50% 不同口径，详见「信任均值」卡 hover）、技能需求通胀指数（CII 100 = 历史基准，> 100 表示需求膨胀）、非平稳信号总数。hover 每张卡问号图标看完整解读。
-          </el-alert>
-        </div>
-        <div class="header-actions">
-          <el-select
-            v-model="selectedSkill"
-            placeholder="全部技能"
-            clearable
-            size="small"
-            class="select-sm"
-          >
-            <el-option
-              v-for="item in items"
-              :key="item.skill_name"
-              :label="item.skill_name"
-              :value="item.skill_name"
-            />
-          </el-select>
-          <!-- 10-03 (D-13): 手动刷新按钮 — 无 SSE/轮询 -->
-          <el-button
-            size="small"
-            @click="refresh"
-          >
-            刷新
-          </el-button>
-        </div>
-      </div>
-
-      <!-- EVOLVE-FE-04/D-10: 快照时间线滑块 -->
-      <el-card
-        v-if="snapshots.length"
-        class="timeline-card"
-        shadow="hover"
-      >
-        <template #header>
-          <div class="card-header-row">
-            <span>快照时间线</span>
-            <el-tag
-              v-if="selectedSnapshotDate"
-              size="small"
-              effect="plain"
-              type="primary"
-              class="ml-2"
-            >
-              {{ formatSnapshotDate(selectedSnapshotDate) }}
-            </el-tag>
-          </div>
-        </template>
-        <div class="timeline-row">
-          <span class="timeline-label">快照</span>
-          <el-slider
-            v-model="snapshotIndex"
-            :min="0"
-            :max="Math.max(0, snapshots.length - 1)"
-            :marks="sliderMarks"
-            :show-tooltip="true"
-            :format-tooltip="(idx: number) => formatSnapshotDate(snapshots[idx]?.snapshot_date ?? '')"
-            class="timeline-slider"
-            @change="onSnapshotChange"
-          />
-          <span class="timeline-current">{{ formatSnapshotDate(selectedSnapshotDate) || '—' }}</span>
-        </div>
-        <!-- E1-2: 切换快照后详情即时显示在交互处（不再藏到页面底部），并说明其用途 -->
-        <div
-          v-if="selectedSnapshot"
-          class="snapshot-inline"
+        <!-- E2/E7: 数据口径说明 — 让用户可感知每个数值的计算依据与来源 -->
+        <el-card
+          class="explainer-card"
+          shadow="never"
         >
-          <div class="snapshot-inline-head">
-            <el-tag
-              size="small"
-              type="primary"
-              effect="plain"
+          <el-collapse>
+            <el-collapse-item
+              title="📐 数据口径说明 — 每个数值怎么算的、来自哪里"
+              name="explainer"
             >
-              当前快照
-            </el-tag>
-            <span class="snapshot-inline-title">{{ selectedSnapshot.position_name }}</span>
-            <span class="snapshot-inline-date">{{ formatSnapshotDate(selectedSnapshot.snapshot_date) }}</span>
-          </div>
-          <div class="snapshot-skill-chips">
-            <template v-if="snapshotSkills.length">
-              <el-tag
-                v-for="(skill, index) in snapshotSkills"
-                :key="skillDisplayName(skill) || index"
+              <el-table
+                :data="dataSourceExplainer"
                 size="small"
-                effect="plain"
-                class="related-tag"
+                stripe
               >
-                {{ skillDisplayName(skill) }}
-              </el-tag>
-            </template>
-            <span
-              v-else
-              class="snapshot-meta"
-            >该快照暂无技能要求</span>
-          </div>
-          <p class="snapshot-meta">
-            数据源: 演化快照（source_count={{ selectedSnapshot.source_count }}）· 拖动滑块查看不同岗位当时的技能要求
-            <template v-if="snapshotCiiHistory.length">
-              · CII 历史: {{ snapshotCiiHistory.slice(-5).map(h => `${formatSnapshotDate(h.snapshot_date)}=${h.cii}`).join(' → ') }}
-            </template>
-          </p>
-        </div>
-      </el-card>
-      <el-card
-        v-else-if="!snapshotsLoading"
-        class="timeline-card"
-        shadow="never"
-      >
-        <EmptyState
-          title="暂无快照数据"
-          description="演化快照生成后将显示时间线滑块"
-        >
-          <!-- 10-03 (D-12): 诚实空态 + 引导按钮 -->
-          <el-button
-            size="small"
-            type="primary"
-            :loading="analyzing"
-            @click="triggerAnalyze"
-          >
-            触发演化分析
-          </el-button>
-          <a
-            class="guide-doc-link"
-            href="docs/design/星图StarMap-项目设计文档（含配图）v3.0.docx"
-            target="_blank"
-            rel="noopener"
-          >
-            查看文档
-          </a>
-        </EmptyState>
-      </el-card>
-
-      <!-- 10-03 (D-11): KPI 数字行 — 涌现数/信任均值/CII 均值/预警数 -->
-      <div
-        v-loading="evo.kpiLoading"
-        class="kpi-number-row"
-      >
-        <el-card
-          v-for="card in kpiCards"
-          :key="card.label"
-          class="kpi-number-card"
-          shadow="hover"
-        >
-          <el-tooltip
-            placement="top-start"
-            :show-after="300"
-            popper-class="kpi-tooltip"
-          >
-            <template #content>
-              <div class="kpi-tooltip-content">
-                <pre>{{ card.tooltip }}</pre>
-              </div>
-            </template>
-            <!-- ponytail: el-tooltip 默认插槽只渲染首个子元素当 trigger；
-                 必须包一层 wrapper div，否则 value/breakdown 被吞 -->
-            <div class="kpi-number-body">
-              <div
-                class="kpi-number-label"
-                :title="card.tip"
-              >
-                <span>{{ card.label }}</span>
-                <el-icon class="kpi-help-icon"><QuestionFilled /></el-icon>
-              </div>
-              <div class="kpi-number-value">
-                {{ card.value }}
-              </div>
-              <!-- E2: 口径拆解行 — 数值从何而来可见 -->
-              <div
-                class="kpi-number-breakdown"
-                :title="card.tip"
-              >
-                {{ card.breakdown }}
-              </div>
-            </div>
-          </el-tooltip>
+                <el-table-column
+                  prop="metric"
+                  label="指标"
+                  width="220"
+                />
+                <el-table-column
+                  prop="source"
+                  label="数据来源"
+                  width="260"
+                />
+                <el-table-column
+                  prop="formula"
+                  label="计算口径"
+                />
+              </el-table>
+            </el-collapse-item>
+          </el-collapse>
         </el-card>
-      </div>
 
-      <!-- KPI 区域: CII 仪表盘 + 新兴技能卡片 -->
-      <div class="kpi-row">
-        <!-- CII 仪表盘 -->
+        <!-- 标题 -->
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">
+              演化趋势看板
+            </h2>
+            <p class="page-subtitle">
+              CII 时序曲线 — 技能需求通胀指数（基准 100 = 2024-Q1）
+            </p>
+            <!-- 新手友好引导（沿 ui-ux-pro-max 数据密集 dashboard）-->
+            <el-alert
+              class="kpi-help-alert"
+              type="info"
+              :closable="false"
+              show-icon
+            >
+              <strong>什么是技能演化看板？</strong>
+              4 张卡片展示 StarMap 图谱中技能随时间的演化趋势：新涌现的技能（Z-score 检测）、历史变更日志的可信度均值（与 /quality 平均信任度 50% 不同口径，详见「信任均值」卡 hover）、技能需求通胀指数（CII 100 = 历史基准，> 100 表示需求膨胀）、非平稳信号总数。hover 每张卡问号图标看完整解读。
+            </el-alert>
+          </div>
+          <div class="header-actions">
+            <el-select
+              v-model="selectedSkill"
+              placeholder="全部技能"
+              clearable
+              size="small"
+              class="select-sm"
+            >
+              <el-option
+                v-for="item in items"
+                :key="item.skill_name"
+                :label="item.skill_name"
+                :value="item.skill_name"
+              />
+            </el-select>
+            <!-- 10-03 (D-13): 手动刷新按钮 — 无 SSE/轮询 -->
+            <el-button
+              size="small"
+              @click="refresh"
+            >
+              刷新
+            </el-button>
+          </div>
+        </div>
+
+        <!-- EVOLVE-FE-04/D-10: 快照时间线滑块 -->
         <el-card
-          class="gauge-card"
+          v-if="snapshots.length"
+          class="timeline-card"
           shadow="hover"
         >
           <template #header>
             <div class="card-header-row">
-              <span>CII 仪表盘</span><span class="card-header-badge">实时</span>
+              <span>快照时间线</span>
+              <el-tag
+                v-if="selectedSnapshotDate"
+                size="small"
+                effect="plain"
+                type="primary"
+                class="ml-2"
+              >
+                {{ formatSnapshotDate(selectedSnapshotDate) }}
+              </el-tag>
             </div>
+          </template>
+          <div class="timeline-row">
+            <span class="timeline-label">快照</span>
+            <el-slider
+              v-model="snapshotIndex"
+              :min="0"
+              :max="Math.max(0, snapshots.length - 1)"
+              :marks="sliderMarks"
+              :show-tooltip="true"
+              :format-tooltip="(idx: number) => formatSnapshotDate(snapshots[idx]?.snapshot_date ?? '')"
+              class="timeline-slider"
+              @change="onSnapshotChange"
+            />
+            <span class="timeline-current">{{ formatSnapshotDate(selectedSnapshotDate) || '—' }}</span>
+          </div>
+          <!-- E1-2: 切换快照后详情即时显示在交互处（不再藏到页面底部），并说明其用途 -->
+          <div
+            v-if="selectedSnapshot"
+            class="snapshot-inline"
+          >
+            <div class="snapshot-inline-head">
+              <el-tag
+                size="small"
+                type="primary"
+                effect="plain"
+              >
+                当前快照
+              </el-tag>
+              <span class="snapshot-inline-title">{{ selectedSnapshot.position_name }}</span>
+              <span class="snapshot-inline-date">{{ formatSnapshotDate(selectedSnapshot.snapshot_date) }}</span>
+            </div>
+            <div class="snapshot-skill-chips">
+              <template v-if="snapshotSkills.length">
+                <el-tag
+                  v-for="(skill, index) in snapshotSkills"
+                  :key="skillDisplayName(skill) || index"
+                  size="small"
+                  effect="plain"
+                  class="related-tag"
+                >
+                  {{ skillDisplayName(skill) }}
+                </el-tag>
+              </template>
+              <span
+                v-else
+                class="snapshot-meta"
+              >该快照暂无技能要求</span>
+            </div>
+            <p class="snapshot-meta">
+              数据源: 演化快照（source_count={{ selectedSnapshot.source_count }}）· 拖动滑块查看不同岗位当时的技能要求
+              <template v-if="snapshotCiiHistory.length">
+                · CII 历史: {{ snapshotCiiHistory.slice(-5).map(h => `${formatSnapshotDate(h.snapshot_date)}=${h.cii}`).join(' → ') }}
+              </template>
+            </p>
+          </div>
+        </el-card>
+        <el-card
+          v-else-if="!snapshotsLoading"
+          class="timeline-card"
+          shadow="never"
+        >
+          <EmptyState
+            title="暂无快照数据"
+            description="演化快照生成后将显示时间线滑块"
+          >
+            <!-- 10-03 (D-12): 诚实空态 + 引导按钮 -->
+            <el-button
+              size="small"
+              type="primary"
+              :loading="analyzing"
+              @click="triggerAnalyze"
+            >
+              触发演化分析
+            </el-button>
+            <a
+              class="guide-doc-link"
+              href="docs/design/星图StarMap-项目设计文档（含配图）v3.0.docx"
+              target="_blank"
+              rel="noopener"
+            >
+              查看文档
+            </a>
+          </EmptyState>
+        </el-card>
+
+        <!-- 10-03 (D-11): KPI 数字行 — 涌现数/信任均值/CII 均值/预警数 -->
+        <div
+          v-loading="evo.kpiLoading"
+          class="kpi-number-row"
+        >
+          <el-card
+            v-for="card in kpiCards"
+            :key="card.label"
+            class="kpi-number-card"
+            shadow="hover"
+          >
+            <el-tooltip
+              placement="top-start"
+              :show-after="300"
+              popper-class="kpi-tooltip"
+            >
+              <template #content>
+                <div class="kpi-tooltip-content">
+                  <pre>{{ card.tooltip }}</pre>
+                </div>
+              </template>
+              <!-- ponytail: el-tooltip 默认插槽只渲染首个子元素当 trigger；
+                 必须包一层 wrapper div，否则 value/breakdown 被吞 -->
+              <div class="kpi-number-body">
+                <div
+                  class="kpi-number-label"
+                  :title="card.tip"
+                >
+                  <span>{{ card.label }}</span>
+                  <el-icon class="kpi-help-icon">
+                    <QuestionFilled />
+                  </el-icon>
+                </div>
+                <div class="kpi-number-value">
+                  {{ card.value }}
+                </div>
+                <!-- E2: 口径拆解行 — 数值从何而来可见 -->
+                <div
+                  class="kpi-number-breakdown"
+                  :title="card.tip"
+                >
+                  {{ card.breakdown }}
+                </div>
+              </div>
+            </el-tooltip>
+          </el-card>
+        </div>
+
+        <!-- KPI 区域: CII 仪表盘 + 新兴技能卡片 -->
+        <div class="kpi-row">
+          <!-- CII 仪表盘 -->
+          <el-card
+            class="gauge-card"
+            shadow="hover"
+          >
+            <template #header>
+              <div class="card-header-row">
+                <span>CII 仪表盘</span><span class="card-header-badge">实时</span>
+              </div>
+            </template>
+            <VChart
+              v-if="items.length"
+              :option="ciiGaugeOption"
+              autoresize
+              class="chart-h-gauge"
+            />
+            <EmptyState
+              v-else
+              title="图表数据为空"
+              description="技能 CII 数据将在分析完成后展示"
+            />
+            <!-- E3: 全部技能模式下展示聚合均值（不再空白）；选择具体技能查看其 CII -->
+            <p
+              v-if="items.length"
+              class="gauge-note"
+            >
+              {{ selectedSkill ? `当前展示「${selectedSkill}」的 CII` : `未选择技能时展示全部 ${items.length} 项技能的 CII 末点均值` }}
+            </p>
+          </el-card>
+
+          <!-- 新兴技能卡片 -->
+          <el-card
+            class="emerging-card"
+            shadow="hover"
+          >
+            <template #header>
+              <div class="card-header-row">
+                <span>新兴技能</span><el-tag
+                  type="success"
+                  size="small"
+                  effect="plain"
+                  class="ml-2"
+                >
+                  Z-score 检测
+                </el-tag>
+              </div>
+            </template>
+            <!-- E4: 与下方「新兴技能预警」表同源（emerging+rising），消除口径分叉 -->
+            <div class="emerging-grid">
+              <template v-if="emergingItems.length">
+                <div
+                  v-for="skill in emergingItems"
+                  :key="skill.skill_name"
+                  class="emerging-item"
+                  :title="skill.alert_message"
+                  @click="fetchChangelog(skill.skill_name)"
+                >
+                  <div class="emerging-name">
+                    {{ skill.skill_name }}
+                  </div>
+                  <div class="emerging-meta">
+                    <el-tag
+                      size="small"
+                      :type="skill.level === 'emerging' ? 'danger' : 'warning'"
+                      effect="light"
+                    >
+                      {{ ALERT_LEVEL_LABEL[skill.level] ?? skill.level }}
+                    </el-tag>
+                    <span class="emerging-z">Z {{ skill.z_score.toFixed(1) }}</span>
+                    <el-tag
+                      size="small"
+                      type="success"
+                      effect="plain"
+                      class="pulse-tag"
+                    >
+                      ↑
+                    </el-tag>
+                  </div>
+                </div>
+              </template>
+              <EmptyState
+                v-else
+                title="暂未检测到新兴技能"
+                description="当技能出现显著 Z-score 上升信号时会在此显示"
+              />
+            </div>
+          </el-card>
+        </div>
+
+        <!-- LOOP-06: 新兴技能预警 -->
+        <el-card
+          v-if="evo.emergingAlerts.length > 0"
+          v-loading="evo.alertsLoading"
+          class="alerts-card"
+        >
+          <template #header>
+            <div class="card-header">
+              <span>新兴技能预警</span>
+              <el-tag type="danger">
+                {{ evo.emergingAlerts.length }}
+              </el-tag>
+            </div>
+          </template>
+          <!-- E5: 口径说明 — Z-score/可迁移性/预警信息的数据来源 -->
+          <p class="alerts-note">
+            依据技能时序 Z-score 检测（全量历史窗口），与上方「新兴技能」卡及 KPI「涌现技能数/预警数」同源。
+          </p>
+          <el-table
+            :data="evo.emergingAlerts"
+            size="small"
+            stripe
+          >
+            <el-table-column
+              prop="skill_name"
+              label="技能"
+            />
+            <el-table-column
+              label="级别"
+              width="100"
+            >
+              <template #header>
+                <span title="Z-score 分级：z>2.0 且频次≥3 且源≥3 → 涌现；z>1.5 → 上升；z<-1.5 → 下降">级别</span>
+              </template>
+              <template #default="{ row }">
+                <el-tag
+                  :type="ALERT_LEVEL_TAG[row.level] ?? 'info'"
+                  size="small"
+                >
+                  {{ ALERT_LEVEL_LABEL[row.level] ?? row.level }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="trend"
+              label="趋势"
+              width="80"
+            >
+              <template #default="{ row }">
+                <span>{{ row.trend === 'rising' ? '↑' : row.trend === 'declining' ? '↓' : '→' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="z_score"
+              label="Z-score"
+              width="80"
+            >
+              <template #header>
+                <span title="当前频次相对历史均值的标准差倍数（|z| 越大信号越强）">Z-score</span>
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="portability_score"
+              label="可迁移性"
+              width="90"
+            >
+              <template #header>
+                <span title="技能跨领域岗位覆盖比例（EmergenceFinder.portability_score）">可迁移性</span>
+              </template>
+              <template #default="{ row }">
+                <span>{{ row.portability_score != null ? Math.round(row.portability_score * 100) + '%' : '—' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="alert_message"
+              label="预警信息"
+              show-overflow-tooltip
+            />
+          </el-table>
+        </el-card>
+
+        <!-- P1-4: 岗位级新岗位发现候选（涌现技能 → 岗位画像交叉） -->
+        <el-card
+          v-if="evo.emergingPositions.length > 0"
+          v-loading="evo.positionsLoading"
+          class="emerging-positions-card"
+        >
+          <template #header>
+            <div class="card-header">
+              <span>新兴岗位候选（新岗位发现）</span>
+              <el-tag type="warning">
+                {{ evo.emergingPositions.length }}
+              </el-tag>
+            </div>
+          </template>
+          <p class="alerts-note">
+            基于涌现技能 Z-score 检测结果，反查岗位技能画像中涌现技能占比 ≥50% 的岗位 —— 可能是新兴岗位或正在演化的岗位（赛项模块A：新岗位发现与定义）。
+          </p>
+          <el-table
+            :data="evo.emergingPositions"
+            size="small"
+            stripe
+          >
+            <el-table-column
+              prop="position"
+              label="候选岗位"
+              min-width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="涌现技能占比"
+              width="120"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.emerging_ratio >= 0.8 ? 'danger' : 'warning'"
+                  size="small"
+                >
+                  {{ Math.round(row.emerging_ratio * 100) }}%
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="涌现技能"
+              min-width="220"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  v-for="s in row.emerging_skills"
+                  :key="s"
+                  size="small"
+                  effect="plain"
+                  class="pos-skill-tag"
+                >
+                  {{ s }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="岗位定义（必备技能）"
+              min-width="200"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ (row.definition?.required_skills ?? []).join('、') }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+        <el-card
+          v-else-if="!evo.positionsLoading"
+          class="emerging-positions-card empty-state-card"
+        >
+          <template #header>
+            <div class="card-header">
+              <span>新兴岗位候选（新岗位发现）</span>
+            </div>
+          </template>
+          <p class="alerts-note">
+            当前无候选：时序数据不足或所有已审核岗位的涌现技能占比 &lt; 50%。先运行流水线积累时序数据后刷新。
+          </p>
+        </el-card>
+
+        <!-- 曲线图 -->
+        <el-card
+          v-loading="loading"
+          class="chart-card"
+        >
+          <template #header>
+            CII 分布（当前值）— 全部技能通胀指数分布
           </template>
           <VChart
             v-if="items.length"
-            :option="ciiGaugeOption"
+            :option="chartOption"
             autoresize
-            class="chart-h-gauge"
+            class="chart-h-lg"
           />
           <EmptyState
             v-else
-            title="图表数据为空"
-            description="技能 CII 数据将在分析完成后展示"
-          />
-          <!-- E3: 全部技能模式下展示聚合均值（不再空白）；选择具体技能查看其 CII -->
-          <p
-            v-if="items.length"
-            class="gauge-note"
+            title="演化数据待生成"
+            description="CII 时序分析运行后将自动填充"
           >
-            {{ selectedSkill ? `当前展示「${selectedSkill}」的 CII` : `未选择技能时展示全部 ${items.length} 项技能的 CII 末点均值` }}
-          </p>
+            <!-- 10-03 (D-12): 诚实空态 + 引导按钮（Celery 异步，已排队反馈，无 SSE） -->
+            <el-button
+              size="small"
+              type="primary"
+              :loading="analyzing"
+              @click="triggerAnalyze"
+            >
+              触发演化分析
+            </el-button>
+            <a
+              class="guide-doc-link"
+              href="docs/design/星图StarMap-项目设计文档（含配图）v3.0.docx"
+              target="_blank"
+              rel="noopener"
+            >
+              查看文档
+            </a>
+          </EmptyState>
         </el-card>
 
-        <!-- 新兴技能卡片 -->
+        <!-- 技能对比 -->
         <el-card
-          class="emerging-card"
+          class="compare-card"
+          shadow="hover"
+        >
+          <template #header>
+            技能对比
+          </template>
+          <div class="compare-selectors">
+            <el-select
+              v-model="compareSkillA"
+              placeholder="选择技能 A"
+              clearable
+              size="small"
+              class="select-md"
+            >
+              <el-option
+                v-for="item in items"
+                :key="'A_' + item.skill_name"
+                :label="item.skill_name"
+                :value="item.skill_name"
+              />
+            </el-select>
+            <span class="compare-vs">VS</span>
+            <el-select
+              v-model="compareSkillB"
+              placeholder="选择技能 B"
+              clearable
+              size="small"
+              class="select-md"
+            >
+              <el-option
+                v-for="item in items"
+                :key="'B_' + item.skill_name"
+                :label="item.skill_name"
+                :value="item.skill_name"
+              />
+            </el-select>
+          </div>
+          <VChart
+            v-if="compareOption"
+            :option="compareOption"
+            autoresize
+            class="chart-h-md mt-3"
+          />
+          <div
+            v-else
+            class="compare-placeholder"
+          >
+            选择两个技能进行对比分析
+          </div>
+        </el-card>
+
+        <!-- 趋势概览表 -->
+        <el-card class="table-card">
+          <template #header>
+            趋势概览
+          </template>
+          <el-table
+            :data="items"
+            size="small"
+            stripe
+            empty-text="暂无数据"
+            @row-click="(row: TrendItem) => fetchChangelog(row.skill_name)"
+          >
+            <el-table-column
+              prop="skill_name"
+              label="技能"
+              min-width="120"
+            >
+              <template #default="{ row }">
+                <el-link type="primary">
+                  {{ row.skill_name }}
+                </el-link>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="趋势"
+              width="100"
+            >
+              <template #header>
+                <span title="Z-score 检测分级：涌现/上升/平稳/下降">趋势</span>
+              </template>
+              <template #default="{ row }">
+                <el-tag
+                  :type="trendTagType[row.trend]"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ trendLabel[row.trend] ?? row.trend }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="当前 CII"
+              width="100"
+            >
+              <template #header>
+                <span title="能力通胀指数：基准 100 = 频次前半段均值，>100 表示需求膨胀">当前 CII</span>
+              </template>
+              <template #default="{ row }">
+                <b>{{ row.points?.[row.points.length - 1] ?? '-' }}</b>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="变化"
+              width="100"
+            >
+              <template #header>
+                <span title="CII 末点相对基准 100 的涨跌幅">变化</span>
+              </template>
+              <template #default="{ row }">
+                <span
+                  v-if="row.points?.length"
+                  :class="row.points.at(-1)! >= 100 ? 'cii-up' : 'cii-down'"
+                >
+                  {{ formatChange(row.points) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="置信度"
+              width="90"
+            >
+              <template #header>
+                <span title="由 Z-score 映射：clamp(0.5 + z/10, 0, 1)">置信度</span>
+              </template>
+              <template #default="{ row }">
+                {{ ((row.confidence ?? 0) * 100).toFixed(0) }}%
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="关联岗位"
+              min-width="200"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  v-for="pos in row.related_positions"
+                  :key="pos"
+                  size="small"
+                  class="related-tag"
+                >
+                  {{ pos }}
+                </el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+
+        <!-- 10-03 (D-11): 次区 — 演化路径/CII 历史/迁移性（复用已有数据源，无虚构估算） -->
+        <el-card
+          class="secondary-card"
           shadow="hover"
         >
           <template #header>
             <div class="card-header-row">
-              <span>新兴技能</span><el-tag
-                type="success"
-                size="small"
-                effect="plain"
-                class="ml-2"
-              >
-                Z-score 检测
-              </el-tag>
+              <span>演化洞察</span><span class="card-header-badge">次区</span>
             </div>
           </template>
-          <!-- E4: 与下方「新兴技能预警」表同源（emerging+rising），消除口径分叉 -->
-          <div class="emerging-grid">
-            <template v-if="emergingItems.length">
-              <div
-                v-for="skill in emergingItems"
-                :key="skill.skill_name"
-                class="emerging-item"
-                :title="skill.alert_message"
-                @click="fetchChangelog(skill.skill_name)"
-              >
-                <div class="emerging-name">
-                  {{ skill.skill_name }}
-                </div>
-                <div class="emerging-meta">
-                  <el-tag
-                    size="small"
-                    :type="skill.level === 'emerging' ? 'danger' : 'warning'"
-                    effect="light"
+          <div class="secondary-grid">
+            <!-- 演化路径：已有快照覆盖的岗位 -->
+            <div class="secondary-block">
+              <h4 class="secondary-title">
+                演化路径
+              </h4>
+              <template v-if="trackedPositions.length">
+                <el-tag
+                  v-for="pos in trackedPositions"
+                  :key="pos"
+                  size="small"
+                  effect="plain"
+                  class="related-tag"
+                >
+                  {{ pos }}
+                </el-tag>
+              </template>
+              <EmptyState
+                v-else
+                title="暂无演化路径"
+                description="快照生成后将显示已覆盖岗位"
+              />
+            </div>
+            <!-- CII 历史：全部技能当前 CII 概览（Top 10）— 快照级 CII 已在时间线卡内联展示 -->
+            <div class="secondary-block">
+              <h4 class="secondary-title">
+                CII 历史
+              </h4>
+              <template v-if="ciiOverviewList.length">
+                <el-table
+                  :data="ciiOverviewList.slice(0, 10)"
+                  size="small"
+                  stripe
+                  empty-text="暂无数据"
+                >
+                  <el-table-column
+                    prop="skill_name"
+                    label="技能"
+                    min-width="120"
+                  />
+                  <el-table-column
+                    label="当前 CII"
+                    width="90"
                   >
-                    {{ ALERT_LEVEL_LABEL[skill.level] ?? skill.level }}
-                  </el-tag>
-                  <span class="emerging-z">Z {{ skill.z_score.toFixed(1) }}</span>
-                  <el-tag
-                    size="small"
-                    type="success"
-                    effect="plain"
-                    class="pulse-tag"
-                  >
-                    ↑
-                  </el-tag>
+                    <template #default="{ row }">
+                      <span :class="row.last >= 100 ? 'cii-up' : 'cii-down'">{{ row.last }}</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </template>
+              <EmptyState
+                v-else
+                title="暂无 CII 历史"
+                description="CII 时序分析运行后将自动填充"
+              />
+            </div>
+            <!-- 迁移性：复用 emerging alerts 的 portability_score -->
+            <div class="secondary-block">
+              <h4 class="secondary-title">
+                迁移性
+              </h4>
+              <template v-if="portabilityAlerts.length">
+                <div
+                  v-for="a in portabilityAlerts.slice(0, 8)"
+                  :key="a.skill_name"
+                  class="portability-row"
+                >
+                  <span class="portability-name">{{ a.skill_name }}</span>
+                  <span class="portability-score">{{ Math.round((a.portability_score ?? 0) * 100) }}%</span>
                 </div>
-              </div>
-            </template>
-            <EmptyState
-              v-else
-              title="暂未检测到新兴技能"
-              description="当技能出现显著 Z-score 上升信号时会在此显示"
-            />
+              </template>
+              <EmptyState
+                v-else
+                title="暂无迁移性数据"
+                description="涌现技能预警生成后将显示可迁移性得分"
+              />
+            </div>
           </div>
         </el-card>
+
+        <!-- 演化详情抽屉 — extracted to EvolutionChangelogDrawer.vue -->
+        <EvolutionChangelogDrawer
+          v-model="drawerVisible"
+          :skill-name="selectedSkillForDetail"
+          :data="changelogData"
+          :loading="changelogLoading"
+          :evidence-open="evidenceDrawerOpen"
+        />
       </div>
-
-      <!-- LOOP-06: 新兴技能预警 -->
-      <el-card
-        v-if="evo.emergingAlerts.length > 0"
-        v-loading="evo.alertsLoading"
-        class="alerts-card"
-      >
-        <template #header>
-          <div class="card-header">
-            <span>新兴技能预警</span>
-            <el-tag type="danger">
-              {{ evo.emergingAlerts.length }}
-            </el-tag>
-          </div>
-        </template>
-        <!-- E5: 口径说明 — Z-score/可迁移性/预警信息的数据来源 -->
-        <p class="alerts-note">
-          依据技能时序 Z-score 检测（全量历史窗口），与上方「新兴技能」卡及 KPI「涌现技能数/预警数」同源。
-        </p>
-        <el-table
-          :data="evo.emergingAlerts"
-          size="small"
-          stripe
-        >
-          <el-table-column
-            prop="skill_name"
-            label="技能"
-          />
-          <el-table-column
-            label="级别"
-            width="100"
-          >
-            <template #header>
-              <span title="Z-score 分级：z>2.0 且频次≥3 且源≥3 → 涌现；z>1.5 → 上升；z<-1.5 → 下降">级别</span>
-            </template>
-            <template #default="{ row }">
-              <el-tag
-                :type="ALERT_LEVEL_TAG[row.level] ?? 'info'"
-                size="small"
-              >
-                {{ ALERT_LEVEL_LABEL[row.level] ?? row.level }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="trend"
-            label="趋势"
-            width="80"
-          >
-            <template #default="{ row }">
-              <span>{{ row.trend === 'rising' ? '↑' : row.trend === 'declining' ? '↓' : '→' }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="z_score"
-            label="Z-score"
-            width="80"
-          >
-            <template #header>
-              <span title="当前频次相对历史均值的标准差倍数（|z| 越大信号越强）">Z-score</span>
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="portability_score"
-            label="可迁移性"
-            width="90"
-          >
-            <template #header>
-              <span title="技能跨领域岗位覆盖比例（EmergenceFinder.portability_score）">可迁移性</span>
-            </template>
-            <template #default="{ row }">
-              <span>{{ row.portability_score != null ? Math.round(row.portability_score * 100) + '%' : '—' }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="alert_message"
-            label="预警信息"
-            show-overflow-tooltip
-          />
-        </el-table>
-      </el-card>
-
-      <!-- P1-4: 岗位级新岗位发现候选（涌现技能 → 岗位画像交叉） -->
-      <el-card
-        v-if="evo.emergingPositions.length > 0"
-        v-loading="evo.positionsLoading"
-        class="emerging-positions-card"
-      >
-        <template #header>
-          <div class="card-header">
-            <span>新兴岗位候选（新岗位发现）</span>
-            <el-tag type="warning">
-              {{ evo.emergingPositions.length }}
-            </el-tag>
-          </div>
-        </template>
-        <p class="alerts-note">
-          基于涌现技能 Z-score 检测结果，反查岗位技能画像中涌现技能占比 ≥50% 的岗位 —— 可能是新兴岗位或正在演化的岗位（赛项模块A：新岗位发现与定义）。
-        </p>
-        <el-table
-          :data="evo.emergingPositions"
-          size="small"
-          stripe
-        >
-          <el-table-column
-            prop="position"
-            label="候选岗位"
-            min-width="200"
-            show-overflow-tooltip
-          />
-          <el-table-column
-            label="涌现技能占比"
-            width="120"
-          >
-            <template #default="{ row }">
-              <el-tag
-                :type="row.emerging_ratio >= 0.8 ? 'danger' : 'warning'"
-                size="small"
-              >
-                {{ Math.round(row.emerging_ratio * 100) }}%
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="涌现技能"
-            min-width="220"
-          >
-            <template #default="{ row }">
-              <el-tag
-                v-for="s in row.emerging_skills"
-                :key="s"
-                size="small"
-                effect="plain"
-                class="pos-skill-tag"
-              >
-                {{ s }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="岗位定义（必备技能）"
-            min-width="200"
-            show-overflow-tooltip
-          >
-            <template #default="{ row }">
-              {{ (row.definition?.required_skills ?? []).join('、') }}
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
-      <el-card
-        v-else-if="!evo.positionsLoading"
-        class="emerging-positions-card empty-state-card"
-      >
-        <template #header>
-          <div class="card-header">
-            <span>新兴岗位候选（新岗位发现）</span>
-          </div>
-        </template>
-        <p class="alerts-note">
-          当前无候选：时序数据不足或所有已审核岗位的涌现技能占比 < 50%。先运行流水线积累时序数据后刷新。
-        </p>
-      </el-card>
-
-      <!-- 曲线图 -->
-      <el-card
-        v-loading="loading"
-        class="chart-card"
-      >
-        <template #header>
-          CII 分布（当前值）— 全部技能通胀指数分布
-        </template>
-        <VChart
-          v-if="items.length"
-          :option="chartOption"
-          autoresize
-          class="chart-h-lg"
-        />
-        <EmptyState
-          v-else
-          title="演化数据待生成"
-          description="CII 时序分析运行后将自动填充"
-        >
-          <!-- 10-03 (D-12): 诚实空态 + 引导按钮（Celery 异步，已排队反馈，无 SSE） -->
-          <el-button
-            size="small"
-            type="primary"
-            :loading="analyzing"
-            @click="triggerAnalyze"
-          >
-            触发演化分析
-          </el-button>
-          <a
-            class="guide-doc-link"
-            href="docs/design/星图StarMap-项目设计文档（含配图）v3.0.docx"
-            target="_blank"
-            rel="noopener"
-          >
-            查看文档
-          </a>
-        </EmptyState>
-      </el-card>
-
-      <!-- 技能对比 -->
-      <el-card
-        class="compare-card"
-        shadow="hover"
-      >
-        <template #header>
-          技能对比
-        </template>
-        <div class="compare-selectors">
-          <el-select
-            v-model="compareSkillA"
-            placeholder="选择技能 A"
-            clearable
-            size="small"
-            class="select-md"
-          >
-            <el-option
-              v-for="item in items"
-              :key="'A_' + item.skill_name"
-              :label="item.skill_name"
-              :value="item.skill_name"
-            />
-          </el-select>
-          <span class="compare-vs">VS</span>
-          <el-select
-            v-model="compareSkillB"
-            placeholder="选择技能 B"
-            clearable
-            size="small"
-            class="select-md"
-          >
-            <el-option
-              v-for="item in items"
-              :key="'B_' + item.skill_name"
-              :label="item.skill_name"
-              :value="item.skill_name"
-            />
-          </el-select>
-        </div>
-        <VChart
-          v-if="compareOption"
-          :option="compareOption"
-          autoresize
-          class="chart-h-md mt-3"
-        />
-        <div
-          v-else
-          class="compare-placeholder"
-        >
-          选择两个技能进行对比分析
-        </div>
-      </el-card>
-
-      <!-- 趋势概览表 -->
-      <el-card class="table-card">
-        <template #header>
-          趋势概览
-        </template>
-        <el-table
-          :data="items"
-          size="small"
-          stripe
-          empty-text="暂无数据"
-          @row-click="(row: TrendItem) => fetchChangelog(row.skill_name)"
-        >
-          <el-table-column
-            prop="skill_name"
-            label="技能"
-            min-width="120"
-          >
-            <template #default="{ row }">
-              <el-link type="primary">
-                {{ row.skill_name }}
-              </el-link>
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="趋势"
-            width="100"
-          >
-            <template #header>
-              <span title="Z-score 检测分级：涌现/上升/平稳/下降">趋势</span>
-            </template>
-            <template #default="{ row }">
-              <el-tag
-                :type="trendTagType[row.trend]"
-                size="small"
-                effect="plain"
-              >
-                {{ trendLabel[row.trend] ?? row.trend }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="当前 CII"
-            width="100"
-          >
-            <template #header>
-              <span title="能力通胀指数：基准 100 = 频次前半段均值，>100 表示需求膨胀">当前 CII</span>
-            </template>
-            <template #default="{ row }">
-              <b>{{ row.points?.[row.points.length - 1] ?? '-' }}</b>
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="变化"
-            width="100"
-          >
-            <template #header>
-              <span title="CII 末点相对基准 100 的涨跌幅">变化</span>
-            </template>
-            <template #default="{ row }">
-              <span
-                v-if="row.points?.length"
-                :class="row.points.at(-1)! >= 100 ? 'cii-up' : 'cii-down'"
-              >
-                {{ formatChange(row.points) }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="置信度"
-            width="90"
-          >
-            <template #header>
-              <span title="由 Z-score 映射：clamp(0.5 + z/10, 0, 1)">置信度</span>
-            </template>
-            <template #default="{ row }">
-              {{ ((row.confidence ?? 0) * 100).toFixed(0) }}%
-            </template>
-          </el-table-column>
-          <el-table-column
-            label="关联岗位"
-            min-width="200"
-          >
-            <template #default="{ row }">
-              <el-tag
-                v-for="pos in row.related_positions"
-                :key="pos"
-                size="small"
-                class="related-tag"
-              >
-                {{ pos }}
-              </el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
-
-      <!-- 10-03 (D-11): 次区 — 演化路径/CII 历史/迁移性（复用已有数据源，无虚构估算） -->
-      <el-card
-        class="secondary-card"
-        shadow="hover"
-      >
-        <template #header>
-          <div class="card-header-row">
-            <span>演化洞察</span><span class="card-header-badge">次区</span>
-          </div>
-        </template>
-        <div class="secondary-grid">
-          <!-- 演化路径：已有快照覆盖的岗位 -->
-          <div class="secondary-block">
-            <h4 class="secondary-title">
-              演化路径
-            </h4>
-            <template v-if="trackedPositions.length">
-              <el-tag
-                v-for="pos in trackedPositions"
-                :key="pos"
-                size="small"
-                effect="plain"
-                class="related-tag"
-              >
-                {{ pos }}
-              </el-tag>
-            </template>
-            <EmptyState
-              v-else
-              title="暂无演化路径"
-              description="快照生成后将显示已覆盖岗位"
-            />
-          </div>
-          <!-- CII 历史：全部技能当前 CII 概览（Top 10）— 快照级 CII 已在时间线卡内联展示 -->
-          <div class="secondary-block">
-            <h4 class="secondary-title">
-              CII 历史
-            </h4>
-            <template v-if="ciiOverviewList.length">
-              <el-table
-                :data="ciiOverviewList.slice(0, 10)"
-                size="small"
-                stripe
-                empty-text="暂无数据"
-              >
-                <el-table-column
-                  prop="skill_name"
-                  label="技能"
-                  min-width="120"
-                />
-                <el-table-column
-                  label="当前 CII"
-                  width="90"
-                >
-                  <template #default="{ row }">
-                    <span :class="row.last >= 100 ? 'cii-up' : 'cii-down'">{{ row.last }}</span>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </template>
-            <EmptyState
-              v-else
-              title="暂无 CII 历史"
-              description="CII 时序分析运行后将自动填充"
-            />
-          </div>
-          <!-- 迁移性：复用 emerging alerts 的 portability_score -->
-          <div class="secondary-block">
-            <h4 class="secondary-title">
-              迁移性
-            </h4>
-            <template v-if="portabilityAlerts.length">
-              <div
-                v-for="a in portabilityAlerts.slice(0, 8)"
-                :key="a.skill_name"
-                class="portability-row"
-              >
-                <span class="portability-name">{{ a.skill_name }}</span>
-                <span class="portability-score">{{ Math.round((a.portability_score ?? 0) * 100) }}%</span>
-              </div>
-            </template>
-            <EmptyState
-              v-else
-              title="暂无迁移性数据"
-              description="涌现技能预警生成后将显示可迁移性得分"
-            />
-          </div>
-        </div>
-      </el-card>
-
-      <!-- 演化详情抽屉 — extracted to EvolutionChangelogDrawer.vue -->
-      <EvolutionChangelogDrawer
-        v-model="drawerVisible"
-        :skill-name="selectedSkillForDetail"
-        :data="changelogData"
-        :loading="changelogLoading"
-        :evidence-open="evidenceDrawerOpen"
-      />
-    </div>
     </ErrorBoundary>
   </MainLayout>
 </template>

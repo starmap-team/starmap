@@ -349,7 +349,8 @@ export const useLoopStore = defineStore('loop', () => {
         loopSchema, '/loop/history', 'LoopHistoryResponse',
       ) as { items?: LoopHistoryItem[] }
       history.value = data.items ?? []
-    } catch {
+    } catch (e: unknown) {
+      if (import.meta.env.DEV) console.warn('[LoopStore] fetchHistory failed:', e)
       history.value = []
     }
   }

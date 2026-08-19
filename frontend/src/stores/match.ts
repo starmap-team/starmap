@@ -69,6 +69,12 @@ export const useMatchStore = defineStore('match', () => {
   async function runMatch(targetPosition: string, skillNames: string[], skillProficiencies?: Record<string, string>) {
     loading.value = true
     try {
+      if (!skillNames.length) {
+        throw new Error('简历技能为空，无法执行匹配')
+      }
+      if (!targetPosition?.trim()) {
+        throw new Error('请选择目标岗位')
+      }
       const person_skills: PersonSkill[] = skillNames.map((name) => ({
         skill_id: `skill_${name}`,
         name,
@@ -100,7 +106,8 @@ export const useMatchStore = defineStore('match', () => {
       const matchResult = await request.get<MatchResult>(`/match/result/${matchId}`)
       history.value.set(matchId, matchResult)
       return matchResult
-    } catch {
+    } catch (e: unknown) {
+      if (import.meta.env.DEV) console.warn('[MatchStore] fetchMatchResult failed:', e)
       return null
     }
   }
@@ -120,7 +127,8 @@ export const useMatchStore = defineStore('match', () => {
         }
       }
       return null
-    } catch {
+    } catch (e: unknown) {
+      if (import.meta.env.DEV) console.warn('[MatchStore] fetchPositionSkills failed:', e)
       return null
     }
   }
@@ -160,7 +168,8 @@ export const useMatchStore = defineStore('match', () => {
     try {
       const data = await request.get('/match/history', { params: { limit: 10 } }) as MatchHistoryResponse
       historyList.value = data.items ?? []
-    } catch {
+    } catch (e: unknown) {
+      if (import.meta.env.DEV) console.warn('[MatchStore] fetchHistory failed:', e)
       historyList.value = []
     }
   }

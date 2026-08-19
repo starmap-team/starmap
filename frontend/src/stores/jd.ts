@@ -9,7 +9,7 @@ import graphSchema from '@contracts/schemas/graph.schema.json'
 
 /** JD 原始数据 store */
 export interface JdRaw {
-  id: number
+  id: string | number
   source: string
   title: string
   company: string
@@ -89,7 +89,7 @@ export const useJdStore = defineStore('jd', () => {
         positionSchema, '/positions', 'PositionListResponse',
       )
       list.value = data.items.map(p => ({
-        id: 0, // position_id is a UUID string, not a numeric id
+        id: p.position_id ?? '',
         source: 'database',
         title: p.name ?? '',
         company: p.industry ?? '',
@@ -189,7 +189,7 @@ export const useJdStore = defineStore('jd', () => {
   }
 
   // ── Cost summary ──
-  async function fetchCostSummary(): Promise<unknown> {
+  async function fetchCostSummary() {
     return await request.get('/extract/cost-summary')
   }
 

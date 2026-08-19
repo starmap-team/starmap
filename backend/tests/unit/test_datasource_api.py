@@ -598,6 +598,17 @@ class TestTriggerSourceSync:
             run_type="incremental", selected_sources=["51Job"],
         )
 
+    def test_sync_no_adapter_returns_400(self, client, auth_headers, db_override):
+        """POST /sync on source without adapter returns 400 (P0-4 guard)."""
+        ds_id = uuid.uuid4()
+        # config has no 'platform' key → _adapter_capability returns (False, None)
+        ds = FakeDataSourceRecord(id=ds_id, name="ESCO", config={})
+        session = FakeAsyncSession([FakeResult(ds)])
+        db_override(session)
+        resp = client.post(f"/api/v1/datasources/{ds_id}/sync", headers=auth_headers)
+        assert resp.status_code == 400
+        assert "未配置爬虫适配器" in resp.json()["detail"]
+
 
 # ══════════════════════════════════════════════════════════════
 # GET /api/v1/datasources/health — health check
@@ -705,3 +716,28 @@ class TestDeleteDatasource:
         db_override(session)
         resp = client.delete(f"/api/v1/datasources/{uuid.uuid4()}", headers=auth_headers)
         assert resp.status_code == 404
+
+    def test_delete_idempotent_already_inactive(self, client, auth_headers, db_override):
+        """DELETE on already-inactive source returns 200 (idempotent, no-op)."""
+        ds_id = uuid.uuid4()
+        ds = FakeDataSourceRecord(id=ds_id, status="inactive")
+        session = FakeAsyncSession([FakeResult(ds)])
+        db_override(session)
+        resp = client.delete(f"/api/v1/datasources/{ds_id}", headers=auth_headers)
+        assert resp.status_code == 200
+        assert resp.json()["detail"] == "数据源已停用"
+        # Status unchanged — already inactive
+        assert ds.status == "inactive"
+
+    def test_delete_sets_config_disabled(self, client, auth_headers, db_override):
+        """DELETE sets config.disabled=True alongside status=inactive (D8c fix)."""
+        ds_id = uuid.uuid4()
+        ds = FakeDataSourceRecord(id=ds_id, status="active", config={"platform": "remoteok", "max_count": 100})
+        session = FakeAsyncSession([FakeResult(ds)])
+        db_override(session)
+        resp = client.delete(f"/api/v1/datasources/{ds_id}", headers=auth_headers)
+        assert resp.status_code == 200
+        assert ds.status == "inactive"
+        assert ds.config.get("disabled") is True
+        # Original config preserved
+        assert ds.config.get("platform") == "remoteok"
