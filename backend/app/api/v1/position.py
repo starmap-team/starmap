@@ -49,8 +49,13 @@ async def list_positions(
     user: Annotated[dict[str, Any], Depends(get_current_user)],
     page: Annotated[int, Query(ge=1, description="页码")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 20,
-    industry: Annotated[str | None, Query(description="行业筛选")] = None,
-    search: Annotated[str | None, Query(description="搜索关键词")] = None,
+    industry: Annotated[
+        str | None, Query(alias="industry", description="行业筛选")
+    ] = None,
+    search: Annotated[
+        str | None,
+        Query(alias="q", description="搜索关键词（同时匹配 name/name_cn/industry）"),
+    ] = None,
     status: Annotated[
         Literal["draft", "pending_review", "approved", "rejected"] | None,
         Query(description="审核状态（默认 approved；admin + include_all=true 可查全部）"),
@@ -450,12 +455,13 @@ async def _list_positions_neo4j(
             params: dict[str, Any] = {}
 
             if search:
-                # Phase 13 一致性审计：search 同时匹配 name 与 industry，与 PG 路径及前端契约一致
+                # Phase 13 一致性审计：search 同时匹配 name、name_cn、industry（与 PG 路径及前端契约一致）
                 # Fix D (Architect review): industry CONTAINS 排除「未分类」字面量，
                 # 避免 admin 搜「未分类」命中所有岗位。Neo4j 侧 industry=null 时
                 # coalesce('', '') 不命中。
                 where_clauses.append(
                     "(toLower(p.name) CONTAINS toLower($search) OR "
+                    "toLower(coalesce(p.name_cn, '')) CONTAINS toLower($search) OR "
                     "(p.industry IS NOT NULL AND p.industry <> $unclassified_lit AND "
                     "toLower(p.industry) CONTAINS toLower($search)))"
                 )
