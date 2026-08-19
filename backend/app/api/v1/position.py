@@ -1,4 +1,4 @@
-"""岗位管理 API — 接入 PostgreSQL position_records，Neo4j fallback。"""
+﻿"""岗位管理 API — 接入 PostgreSQL position_records，Neo4j fallback。"""
 from __future__ import annotations
 
 from typing import Annotated, Any
@@ -522,7 +522,7 @@ async def _list_positions_neo4j(
                     industry=props.get("industry", ""),
                     description=props.get("description", ""),
                     skills_required=skill_nodes,
-                    discovered_at=None,
+                    discovered_at=props.get('discovered_at'),
                     # fix: 回写 review_status，与 PG 路径字段对齐（OPEN-LOW 修复）
                     review_status=props.get("review_status", None),
                 ))

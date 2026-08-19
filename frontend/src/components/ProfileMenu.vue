@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 /**
- * ProfileMenu 鈥?top-right user dropdown in MainLayout.
+ * ProfileMenu — top-right user dropdown in MainLayout.
  * Shows the current user, a "change password" dialog, and "logout".
  */
 import { ref } from 'vue'
@@ -21,18 +21,18 @@ const pwdForm = ref({
 })
 
 const errorMessages: Record<number, string> = {
-  400: '鍘熷瘑鐮侀敊璇?,
-  401: '鐧诲綍宸茶繃鏈燂紝璇烽噸鏂扮櫥褰?,
-  422: '鏂板瘑鐮佷笉绗﹀悎瑕佹眰',
+  400: '原密码错误',
+  401: '登录已过期，请重新登录',
+  422: '新密码不符合要求',
 }
 
 async function submitChangePassword() {
   if (pwdForm.value.new_password.length < 8) {
-    ElMessage.warning('鏂板瘑鐮佽嚦灏?8 浣?)
+    ElMessage.warning('新密码至少 8 位')
     return
   }
   if (pwdForm.value.new_password !== pwdForm.value.confirm_password) {
-    ElMessage.warning('涓ゆ杈撳叆鐨勬柊瀵嗙爜涓嶄竴鑷?)
+    ElMessage.warning('两次输入的新密码不一致')
     return
   }
   try {
@@ -57,16 +57,16 @@ async function submitChangePassword() {
 
 async function handleLogout() {
   try {
-    await ElMessageBox.confirm('纭鐧诲嚭锛?, '鐧诲嚭', {
+    await ElMessageBox.confirm('确认退出？', '退出', {
       type: 'warning',
       confirmButtonText: '纭',
-      cancelButtonText: '鍙栨秷',
+      cancelButtonText: '取消',
     })
   } catch {
     return
   }
   await userStore.logout()
-  ElMessage.success('宸茬櫥鍑?)
+  ElMessage.success('已登出')
   router.push('/login')
 }
 
@@ -94,7 +94,7 @@ const userInitial = (username?: string | null) => {
     <span class="profile-trigger">
       <span class="avatar">{{ userInitial(userStore.user?.username) }}</span>
       <span class="profile-name">
-        {{ userStore.user?.username ?? '鏈櫥褰? }}
+        {{ userStore.user?.username ?? '未登录' }}
         <el-tag
           v-if="userStore.isAdmin"
           size="small"
@@ -110,7 +110,7 @@ const userInitial = (username?: string | null) => {
           v-if="userStore.mustChangePassword"
           command="change-password"
         >
-          <el-icon><Lock /></el-icon> 蹇呴』鍏堜慨鏀瑰瘑鐮?        </el-dropdown-item>
+          <el-icon><Lock /></el-icon> 必须先修改密码        </el-dropdown-item>
         <el-dropdown-item command="change-password">
           <el-icon><Lock /></el-icon> 淇敼瀵嗙爜
         </el-dropdown-item>
@@ -118,7 +118,7 @@ const userInitial = (username?: string | null) => {
           command="logout"
           divided
         >
-          <el-icon><SwitchButton /></el-icon> 閫€鍑虹櫥褰?        </el-dropdown-item>
+          <el-icon><SwitchButton /></el-icon> 退出登录        </el-dropdown-item>
       </el-dropdown-menu>
     </template>
   </el-dropdown>
@@ -139,7 +139,7 @@ const userInitial = (username?: string | null) => {
       鈿狅笍 绠＄悊鍛樿姹傛偍棣栨鐧诲綍鍚庝慨鏀瑰瘑鐮佸悗鎵嶈兘缁х画浣跨敤绯荤粺銆?    </p>
     <el-form label-width="100px">
       <el-form-item
-        label="鍘熷瘑鐮?
+        label="原密码"
         required
       >
         <el-input
@@ -150,19 +150,19 @@ const userInitial = (username?: string | null) => {
         />
       </el-form-item>
       <el-form-item
-        label="鏂板瘑鐮?
+        label="新密码"
         required
       >
         <el-input
           v-model="pwdForm.new_password"
           type="password"
           show-password
-          placeholder="鑷冲皯 8 浣?
+          placeholder="至少 8 位"
           autocomplete="new-password"
         />
       </el-form-item>
       <el-form-item
-        label="纭瀵嗙爜"
+        label="确认密码"
         required
       >
         <el-input
@@ -178,13 +178,13 @@ const userInitial = (username?: string | null) => {
         v-if="!userStore.mustChangePassword"
         @click="showChangePwd = false"
       >
-        鍙栨秷
+        取消
       </el-button>
       <el-button
         type="primary"
         @click="submitChangePassword"
       >
-        鎻愪氦
+        提交
       </el-button>
     </template>
   </el-dialog>

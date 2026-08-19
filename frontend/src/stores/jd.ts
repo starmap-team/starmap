@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import request from '@/api/request'
 import { useResponseValidation } from '@/validation'
@@ -148,7 +148,7 @@ export const useJdStore = defineStore('jd', () => {
 
   /** Search positions by keyword, returns dropdown-ready items */
   async function searchPositions(keyword?: string) {
-    const params: Record<string, string | number> = { page_size: DEFAULT_PAGE_SIZE }
+    const params: Record<string, string | number> = { page_size: 10 }  // 下拉搜索只需少量结果
     if (keyword?.trim()) {
       params.search = keyword.trim()
     }

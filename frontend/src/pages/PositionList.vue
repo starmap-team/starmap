@@ -192,224 +192,224 @@ onMounted(() => {
 <template>
   <MainLayout>
     <ErrorBoundary>
-    <div class="position-list-page animate-fade-in">
-      <div class="page-header">
-        <h2>岗位列表</h2>
-        <p class="subtitle">
-          选择岗位查看能力雷达图与技能详情
-        </p>
-      </div>
+      <div class="position-list-page animate-fade-in">
+        <div class="page-header">
+          <h2>岗位列表</h2>
+          <p class="subtitle">
+            选择岗位查看能力雷达图与技能详情
+          </p>
+        </div>
 
-      <el-input
-        v-model="searchQuery"
-        placeholder="搜索岗位名称或行业..."
-        clearable
-        size="large"
-        class="search-input-wrapper"
-        :prefix-icon="Search"
-      />
+        <el-input
+          v-model="searchQuery"
+          placeholder="搜索岗位名称或行业..."
+          clearable
+          size="large"
+          class="search-input-wrapper"
+          :prefix-icon="Search"
+        />
 
-      <!-- Admin: review-status filter chips -->
-      <div
-        v-if="showAdminFilters"
-        class="status-filter-row"
-      >
-        <span class="filter-label">审核状态:</span>
-        <el-tag
-          v-for="opt in statusOptions"
-          :key="opt.value"
-          :type="statusFilter === opt.value ? 'primary' : 'info'"
-          :effect="statusFilter === opt.value ? 'dark' : 'plain'"
-          class="clickable-tag"
-          role="button"
-          tabindex="0"
-          @click="statusFilter = opt.value; onStatusFilterChange()"
+        <!-- Admin: review-status filter chips -->
+        <div
+          v-if="showAdminFilters"
+          class="status-filter-row"
         >
-          {{ opt.label }}
-        </el-tag>
-      </div>
-
-      <div class="industry-tags">
-        <el-tag
-          :type="selectedIndustry === '' ? 'primary' : 'info'"
-          :effect="selectedIndustry === '' ? 'dark' : 'plain'"
-          class="clickable-tag"
-          role="button"
-          tabindex="0"
-          aria-label="筛选全部行业"
-          @click="selectedIndustry = ''"
-        >
-          全部
-        </el-tag>
-        <!-- 真实行业 + 「未分类」字面量（后端 list_industries 已在末尾追加） -->
-        <!-- 「未分类」使用 warning 样式提示它是兜底桶，与卡片上的 chip 风格一致 -->
-        <el-tag
-          v-for="ind in industries"
-          :key="ind"
-          :type="selectedIndustry === ind
-            ? (ind === '未分类' ? 'warning' : 'primary')
-            : (ind === '未分类' ? 'warning' : 'info')"
-          :effect="selectedIndustry === ind ? 'dark' : 'plain'"
-          class="clickable-tag"
-          role="button"
-          tabindex="0"
-          :aria-label="`筛选行业: ${ind}`"
-          :title="ind === '未分类' ? '尚未标注行业的岗位（兜底桶，可筛）' : `行业: ${ind}`"
-          @click="selectedIndustry = selectedIndustry === ind ? '' : ind"
-        >
-          {{ ind }}
-        </el-tag>
-      </div>
-      <div class="result-count">
-        共 {{ total }} 个岗位
-      </div>
-
-      <!-- 有数据时 -->
-      <el-row
-        v-if="filteredPositions.length || loading"
-        v-loading="loading"
-        :gutter="20"
-      >
-        <el-col
-          v-for="pos in filteredPositions"
-          :key="pos.id"
-          :xs="24"
-          :sm="12"
-          :md="8"
-          :lg="6"
-        >
-          <el-card
-            class="position-card card-interactive"
-            shadow="hover"
-            @click="goDetail(pos.id)"
+          <span class="filter-label">审核状态:</span>
+          <el-tag
+            v-for="opt in statusOptions"
+            :key="opt.value"
+            :type="statusFilter === opt.value ? 'primary' : 'info'"
+            :effect="statusFilter === opt.value ? 'dark' : 'plain'"
+            class="clickable-tag"
+            role="button"
+            tabindex="0"
+            @click="statusFilter = opt.value; onStatusFilterChange()"
           >
-            <div class="card-content">
-              <h3>
-                {{ pos.name_cn || pos.name }}
-                <el-tag
-                  v-if="!hasCJK(pos.name_cn) && !hasCJK(pos.name)"
-                  size="small"
-                  type="warning"
-                  effect="plain"
-                  class="lang-badge"
-                  title="该岗位源自英文 JD，暂无中文名（非数据缺失）"
+            {{ opt.label }}
+          </el-tag>
+        </div>
+
+        <div class="industry-tags">
+          <el-tag
+            :type="selectedIndustry === '' ? 'primary' : 'info'"
+            :effect="selectedIndustry === '' ? 'dark' : 'plain'"
+            class="clickable-tag"
+            role="button"
+            tabindex="0"
+            aria-label="筛选全部行业"
+            @click="selectedIndustry = ''"
+          >
+            全部
+          </el-tag>
+          <!-- 真实行业 + 「未分类」字面量（后端 list_industries 已在末尾追加） -->
+          <!-- 「未分类」使用 warning 样式提示它是兜底桶，与卡片上的 chip 风格一致 -->
+          <el-tag
+            v-for="ind in industries"
+            :key="ind"
+            :type="selectedIndustry === ind
+              ? (ind === '未分类' ? 'warning' : 'primary')
+              : (ind === '未分类' ? 'warning' : 'info')"
+            :effect="selectedIndustry === ind ? 'dark' : 'plain'"
+            class="clickable-tag"
+            role="button"
+            tabindex="0"
+            :aria-label="`筛选行业: ${ind}`"
+            :title="ind === '未分类' ? '尚未标注行业的岗位（兜底桶，可筛）' : `行业: ${ind}`"
+            @click="selectedIndustry = selectedIndustry === ind ? '' : ind"
+          >
+            {{ ind }}
+          </el-tag>
+        </div>
+        <div class="result-count">
+          共 {{ total }} 个岗位
+        </div>
+
+        <!-- 有数据时 -->
+        <el-row
+          v-if="filteredPositions.length || loading"
+          v-loading="loading"
+          :gutter="20"
+        >
+          <el-col
+            v-for="pos in filteredPositions"
+            :key="pos.id"
+            :xs="24"
+            :sm="12"
+            :md="8"
+            :lg="6"
+          >
+            <el-card
+              class="position-card card-interactive"
+              shadow="hover"
+              @click="goDetail(pos.id)"
+            >
+              <div class="card-content">
+                <h3>
+                  {{ pos.name_cn || pos.name }}
+                  <el-tag
+                    v-if="!hasCJK(pos.name_cn) && !hasCJK(pos.name)"
+                    size="small"
+                    type="warning"
+                    effect="plain"
+                    class="lang-badge"
+                    title="该岗位源自英文 JD，暂无中文名（非数据缺失）"
+                  >
+                    英文原文
+                  </el-tag>
+                </h3>
+                <div class="card-meta">
+                  <!-- D-04: 行业 chip（M10 数据透明）。行业缺失时诚实标注「未分类」而非渲染空 chip -->
+                  <el-tag
+                    size="small"
+                    :type="pos.industry ? 'info' : 'warning'"
+                    :effect="pos.industry ? 'light' : 'plain'"
+                    class="industry-chip"
+                    :title="pos.industry ? `行业: ${pos.industry}` : '该岗位尚未标注行业'"
+                  >
+                    {{ pos.industry || '未分类' }}
+                  </el-tag>
+                  <!-- PLAN-006④: 数据时效指示 (演示数据 / 数据更新于 X / 较旧) -->
+                  <el-tag
+                    size="small"
+                    :type="freshnessOf(pos.discovered_at).type"
+                    effect="plain"
+                    class="freshness-tag"
+                  >
+                    {{ freshnessOf(pos.discovered_at).label }}
+                  </el-tag>
+                  <el-tag
+                    v-if="showAdminFilters"
+                    :type="statusBadgeType(pos.review_status)"
+                    size="small"
+                    effect="plain"
+                    class="status-badge"
+                    :title="`审核人: ${pos.reviewed_by ?? '—'}`"
+                  >
+                    {{ statusLabel(pos.review_status) }}
+                  </el-tag>
+                </div>
+                <p
+                  v-if="pos.review_status === 'rejected' && pos.rejection_reason"
+                  class="rejection-reason"
                 >
-                  英文原文
-                </el-tag>
-              </h3>
-              <div class="card-meta">
-                <!-- D-04: 行业 chip（M10 数据透明）。行业缺失时诚实标注「未分类」而非渲染空 chip -->
-                <el-tag
-                  size="small"
-                  :type="pos.industry ? 'info' : 'warning'"
-                  :effect="pos.industry ? 'light' : 'plain'"
-                  class="industry-chip"
-                  :title="pos.industry ? `行业: ${pos.industry}` : '该岗位尚未标注行业'"
-                >
-                  {{ pos.industry || '未分类' }}
-                </el-tag>
-                <!-- PLAN-006④: 数据时效指示 (演示数据 / 数据更新于 X / 较旧) -->
-                <el-tag
-                  size="small"
-                  :type="freshnessOf(pos.discovered_at).type"
-                  effect="plain"
-                  class="freshness-tag"
-                >
-                  {{ freshnessOf(pos.discovered_at).label }}
-                </el-tag>
-                <el-tag
-                  v-if="showAdminFilters"
-                  :type="statusBadgeType(pos.review_status)"
-                  size="small"
-                  effect="plain"
-                  class="status-badge"
-                  :title="`审核人: ${pos.reviewed_by ?? '—'}`"
-                >
-                  {{ statusLabel(pos.review_status) }}
-                </el-tag>
+                  拒绝原因: {{ pos.rejection_reason }}
+                </p>
               </div>
-              <p
-                v-if="pos.review_status === 'rejected' && pos.rejection_reason"
-                class="rejection-reason"
-              >
-                拒绝原因: {{ pos.rejection_reason }}
-              </p>
+              <template #footer>
+                <el-button
+                  type="primary"
+                  size="small"
+                  link
+                >
+                  查看详情 →
+                </el-button>
+              </template>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <!-- 空状态引导 -->
+        <div
+          v-else
+          class="empty-guide"
+        >
+          <div class="custom-empty">
+            <div class="empty-icon-wrapper">
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ><circle
+                cx="11"
+                cy="11"
+                r="8"
+              /><path d="m21 21-4.35-4.35" /></svg>
             </div>
-            <template #footer>
+            <p class="starmap-empty">
+              未找到匹配的岗位
+            </p>
+            <p class="starmap-empty--hint">
+              {{ statusFilter === 'pending_review'
+                ? '没有待审核的岗位'
+                : '尝试调整筛选条件或关键词' }}
+            </p>
+            <div
+              v-if="statusFilter === 'pending_review'"
+              class="empty-actions"
+            >
+              <p class="starmap-empty--hint">
+                请到管理后台审核，或从 JD 中抽取新岗位
+              </p>
               <el-button
                 type="primary"
-                size="small"
-                link
+                :icon="Plus"
+                @click="goExtract"
               >
-                查看详情 →
+                前往 JD 抽取
               </el-button>
-            </template>
-          </el-card>
-        </el-col>
-      </el-row>
-
-      <!-- 空状态引导 -->
-      <div
-        v-else
-        class="empty-guide"
-      >
-        <div class="custom-empty">
-          <div class="empty-icon-wrapper">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            ><circle
-              cx="11"
-              cy="11"
-              r="8"
-            /><path d="m21 21-4.35-4.35" /></svg>
-          </div>
-          <p class="starmap-empty">
-            未找到匹配的岗位
-          </p>
-          <p class="starmap-empty--hint">
-            {{ statusFilter === 'pending_review'
-              ? '没有待审核的岗位'
-              : '尝试调整筛选条件或关键词' }}
-          </p>
-          <div
-            v-if="statusFilter === 'pending_review'"
-            class="empty-actions"
-          >
-            <p class="starmap-empty--hint">
-              请到管理后台审核，或从 JD 中抽取新岗位
-            </p>
-            <el-button
-              type="primary"
-              :icon="Plus"
-              @click="goExtract"
-            >
-              前往 JD 抽取
-            </el-button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- 分页 -->
-      <div
-        v-if="total > pageSize"
-        class="pagination-wrapper"
-      >
-        <el-pagination
-          v-model:current-page="page"
-          :page-size="pageSize"
-          :total="total"
-          layout="prev, pager, next"
-          @current-change="onPageChange"
-        />
+        <!-- 分页 -->
+        <div
+          v-if="total > pageSize"
+          class="pagination-wrapper"
+        >
+          <el-pagination
+            v-model:current-page="page"
+            :page-size="pageSize"
+            :total="total"
+            layout="prev, pager, next"
+            @current-change="onPageChange"
+          />
+        </div>
       </div>
-    </div>
     </ErrorBoundary>
   </MainLayout>
 </template>

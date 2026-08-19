@@ -17,7 +17,13 @@ def serialize_run(run: PipelineRun) -> PipelineRunResponse:
         status=run.status,
         started_at=run.started_at.isoformat() if run.started_at else None,
         completed_at=run.completed_at.isoformat() if run.completed_at else None,
-        stages=[StageInfo(**s) for s in (run.stages if isinstance(run.stages, list) else ([run.stages] if run.stages else []))],
+                stages=[
+            StageInfo(**s)
+            for s in (
+                run.stages if isinstance(run.stages, list)
+                else ([run.stages] if run.stages else [])
+            )
+        ],
         total_records=run.total_records,
         new_records=run.new_records,
         updated_records=run.updated_records,
