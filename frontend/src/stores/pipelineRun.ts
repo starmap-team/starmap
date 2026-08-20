@@ -32,6 +32,8 @@ export interface PipelineStage {
   records_new?: number          // crawl 真正新增行
   records_duplicate?: number    // crawl 重复行
   errors: string[]
+  // 2026-08-21: 错误原文（未翻译，技术详情展开用）
+  errors_raw?: string[]
   warnings?: string[]           // 非致命警告（如 crawl 0 条采集）— 不判 failed
   errors_count: number
   retry_count: number
@@ -73,6 +75,8 @@ export interface PipelineRun {
   updated_records: number
   quality_score: number
   error_log: string | null
+  // 2026-08-21: error_log 原文（未翻译，技术详情展开用）
+  error_log_raw?: string | null
   selected_stages: string[] | null
 }
 

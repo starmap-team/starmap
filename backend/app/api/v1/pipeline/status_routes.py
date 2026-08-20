@@ -14,6 +14,7 @@ from sqlalchemy import BigInteger, Column, DateTime, MetaData, Table, func, sele
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.pipeline.serializers import serialize_datasource
+from app.core.pipeline.humanize_error import humanize_errors
 from app.dependencies import get_db_session
 from app.exceptions import StarMapError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
@@ -262,7 +263,9 @@ async def get_pipeline_stages(
                 "records_duplicate": stage.get("records_duplicate"),
  # : 补 records_seen（crawl 抓到数）——前端 tooltip 口径依赖它
                 "records_seen": stage.get("records_seen"),
-                "errors": stage.get("errors", []),
+                # 2026-08-21: errors 翻译为中文可读；原文保留在 errors_raw 供展开
+                "errors": humanize_errors(stage.get("errors", [])),
+                "errors_raw": stage.get("errors", []),
                 "errors_count": stage.get("errors_count", len(stage.get("errors", []))),
                 "warnings": stage.get("warnings", []),
                 "retry_count": stage.get("retry_count", 0),
