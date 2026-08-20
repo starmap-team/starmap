@@ -4,6 +4,7 @@ GET 类端点：/status /stages /data-quality /datasources /metrics。
 """
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
@@ -126,19 +127,37 @@ async def get_pipeline_status(
         if quality_alerts_raw and redis_client:
             from app.services.pipeline_service import publish_event
 
+            # 2026-08-21 (告警去重): 前端每 10s 轮询 /pipeline/status，此前每次
+            # 都重新推送全部 error/critical 告警 → 大屏事件流同一条告警刷屏。
+            # 用 Redis SETNX 按 (dimension:source:message) 指纹去重，TTL 1h：
+            # 告警首次出现推一次，持续期间不再重复推；告警消失后重现则再推。
             for alert in quality_alerts_raw:
-                if alert.level == "error" or alert.level == "critical":
-                    await publish_event(
-                        redis_client,
-                        "quality_alert",
-                        {
-                            "level": alert.level,
-                            "dimension": alert.dimension,
-                            "message": alert.message,
-                            "source": alert.source,
-                            "timestamp": alert.timestamp,
-                        },
+                if alert.level not in ("error", "critical"):
+                    continue
+                fingerprint = hashlib.sha256(
+                    f"{alert.dimension}:{alert.source}:{alert.message}".encode()
+                ).hexdigest()
+                dedup_key = f"quality-alert:dedup:{fingerprint}"
+                try:
+                    already_pushed = await redis_client.set(
+                        dedup_key, "1", ex=3600, nx=True
                     )
+                except Exception:
+                    # Redis 故障时退化为总是推送（不丢告警）
+                    already_pushed = False
+                if already_pushed:
+                    continue
+                await publish_event(
+                    redis_client,
+                    "quality_alert",
+                    {
+                        "level": alert.level,
+                        "dimension": alert.dimension,
+                        "message": alert.message,
+                        "source": alert.source,
+                        "timestamp": alert.timestamp,
+                    },
+                )
     except StarMapError:
         raise
     except Exception as exc:
