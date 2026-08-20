@@ -159,11 +159,13 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
     except PipelineStageError:
         raise
     except Exception as exc:
-        errors.append(f"dedup failed: {exc}")
+        from app.core.pipeline.error_translator import translate_psycopg_error
+        translated = translate_psycopg_error(exc)
+        errors.append(f"dedup failed: {translated['short']}")
         logger.opt(exception=True).error("Dedup stage failed: {}", exc)
         run_async(publish_stage_progress(
             run_id, "dedup", "failed",
-            current_activity=f"去重失败: {exc}",
+            current_activity=f"去重失败: {translated['short']}",
             elapsed_ms=int((time.monotonic() - start) * 1000),
         ))
     finally:
