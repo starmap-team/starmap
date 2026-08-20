@@ -5,6 +5,55 @@
 
 ---
 
+## 0. 2026-08-20 晚复核执行结果（增量，覆盖上文阻断项状态）
+
+> 本轮已在当前分支 `feat/public-deploy-preflight`（HEAD=`3d72555`）实跑验证，并提交 B1 证据恢复。
+
+### 0.1 B1 匹配评测 = ✅ 已解除（当前分支复现 98.84%）
+
+- **实跑**：`run_match_baseline.py` 432 对 → **427/432 = 98.84% PASS**（216 should_match + 216 not，方向判定用 golden 区间语义）。
+- **关键结论**：匹配引擎 depth=1 修复**已在当前分支**（uc 分支与之仅注释缩进差异），无需 cherry-pick。证据链已随 commit 入库。
+- ⚠️ 运行中观察到 `_save_match_result` 抛 `match_results.id` NOT NULL（只是历史记录持久化失败，不参与准确率指标；匹配本身照常返回分数）。
+
+### 0.2 B1 JD 评测 = ✅ PASS（规则基线，无需 LLM）
+
+- `run_baseline.py` 110 样本 → **F1=0.9340**，`quality_gate.json` = green（PASS 已入库）。
+- ✅ 恢复 4 个被 d26078c 缩进事故损坏的评测脚本（judge_eval / ingestion_consistency / run_real_eval / expand_golden_sets，从 origin/ui/upload-ux-polish 取回干净版），均通过语法+导入校验，已提交。
+
+### 0.3 B1 简历评测 = ⚠️ 阻塞（外部依赖：LLM 全部不可用）
+
+- **2026-08-20 23:04 实测**：DashScope `400 Arrearage`（账户欠费）+ DeepSeek `402 Insufficient Balance` + Xunfei `500 AppIdNoAuthError` → 真实 LLM 链路全挂。
+- 重跑 `run_resume_eval.py` 50 样本因 LLM 失效退化 **F1=0.7569（FAIL）**，磁盘报告被覆盖（gitignored）。
+- **合格证据**：已提交的 `docs/competition-indicators-2026-08-17.md` F1=0.9316（历史 25 样本真实 LLM）。**充值任意 LLM 后必须重跑**生成新鲜 ≥90% 证据，否则实用价值"简历≥90%"项存疑。
+
+### 0.4 ⚠️ 新增发现（提交前必读）
+
+1. **入库完整性门禁动态 FAIL**：运行期间 PG↔Neo4j 边/节点漂移（REQUIRES PG 979 vs N4 973、Position PG 708 vs N4 703）。根因=**宿主机 172.18.0.1 持续 POST `/api/v1/pipeline/trigger` 触发 full run → 前端又 cancel 的循环**（与 08-18 记忆"外部自动化已停止"矛盾，当前复活），run 未走到 graph_sync 阶段即被取消 → Neo4j 落后。
+2. **数据质量风险**：LLM 欠费期间跑流水线，近 15 分钟 48 个新岗位中 **44 个（92%）零技能**（raw-data 兜底灌入空岗位）。**清除空岗位应纳入提交前清理**。
+3. 已一次性回填 **73 条缺失 REQUIRES 边 + 6 个缺失技能节点**（canonical_id 键、幂等 MERGE、requirement_type/confidence 与现有边同构），瓶颈在 run 结束后跑 reconcile（节点同步）+ 再验门禁。
+4. `evaluation/baseline_report/*`、`real_eval_report/*` 均被 `.gitignore` 忽略 → **打包云盘时若整目录拷贝会带上旧/失败报告，必须只拷贝指标汇总文档 + 本轮 PASS 报告，或打包前重跑生成**。
+
+### 0.5 B2 / B3 / B4 现状（复核无变化）
+
+- **B2 模块 A**：`responsibilities` LLM 已抽取、`JDExtractionResult` 有字段，但 `PositionRecord` 未持久化、前端 0 渲染；**典型行业应用场景字段全系统不存在**（schema/prompt/模型均无）。→ 提交策略见 §三 B2。
+- **B3 PPT**：全仓库确认 0 个 `.ppt*` 文件，必须制作。
+- **B4 数据源模块**：backend 4 个改动文件 ruff 全过；crawler 单测上个会话 11 passed；CI 规范 `pip install -r crawler/requirements.txt && pytest crawler/tests/`。**仍未 commit，提交包不含 → 必须提交**。
+
+### 0.6 提交前硬性动作（更新版，按序）
+
+1. **充值任一 LLM**（DashScope 优先）→ 重跑 `run_resume_eval.py` + `run_real_eval.py` 生成 ≥90% 新证据，覆盖/替换 FAIL 报告。
+2. **停止宿主机外部自动化**（POST /pipeline/trigger 循环）→ 清空零技能空岗位 → 跑 reconcile → 重验入库门禁全绿。
+3. 提交 B4 数据源模块 + 全量测试（backend pytest / crawler pytest / frontend vue-tsc+eslint）。
+4. B2 至少按路径 2 兜底（fixtures 大模型应用工程师五项齐备入设计文档/视频）；时间允许走路径 1。
+5. 制作 PPT（B3）+ 重录 ≥10 分钟内含"新岗位 + 既有岗位能力更新"两段图谱的演示视频。
+6. 整理测试数据目录（1 新 + 1 既有岗位图谱 JSON + 源 JD 输入输出示例）→ 打包（gitignored 报告目录勿整拷）。
+
+---
+
+## 一、比赛要求清单（官方 PDF 五、答题要求 原文摘录）
+
+---
+
 ## 一、比赛要求清单（官方 PDF 五、答题要求 原文摘录）
 
 ### 1. 岗位选择范围
