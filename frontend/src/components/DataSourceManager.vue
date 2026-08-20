@@ -452,6 +452,22 @@ function formatRecords(n: number) {
       </el-table>
     </div>
 
+    <!-- 无适配器空态引导：解释为何"采集源"为空 -->
+    <div v-if="adapterSources.length === 0" class="ds-empty-guide">
+      <div class="empty-guide-card">
+        <div class="guide-title">📥 当前没有可采集的数据源</div>
+        <div class="guide-desc">
+          「<strong>采集源</strong>」指已注册爬虫适配器（如 v2ex、remoteok、juejin、remotive、arbeitnow、jobicy、weworkremotely）的数据源，
+          流水线/DAG 真正能从这些源拉取 JD。<br>
+          下方「其他数据源（无适配器）」9 个均为占位记录（BOSS直聘、LinkedIn、智联招聘等），
+          需要在 <code>spider_registry.py</code> 中注册适配器后才会出现在采集源分组中。
+        </div>
+        <div class="guide-hint">
+          💡 可用的 7 个采集源：v2ex、remoteok、arbeitnow、jobicy、weworkremotely、juejin、remotive
+        </div>
+      </div>
+    </div>
+
     <!-- 执行详情面板 (当前爬取活动的可读翻译) -->
     <div
       v-if="isRunning && currentActivityDetails"
