@@ -124,6 +124,16 @@ class Settings(BaseSettings):
         description="If true (dev only), missing Bearer token returns role=admin",
     )
 
+ # ── Pipeline bootstrap (one-shot full pipeline run 30s after worker start) ──
+ # Reads PIPELINE_BOOTSTRAP env. Used by app/core/pipeline/bootstrap.py.
+ # Production must be False — accidentally enabling this on a fresh prod
+ # deployment would burn LLM tokens and seed dirty data before operators
+ # can intervene.
+    pipeline_bootstrap: bool = Field(
+        default=False,
+        description="If true, fire a one-shot full pipeline run 30s after startup (dev/empty-data only)",
+    )
+
  # 数据来源权威度评分 (admin.py source management)
     authority_scores: dict[str, float] = {
         "lagou": 0.75,
@@ -493,6 +503,23 @@ class Settings(BaseSettings):
  # 生产部署绝不允许启用——它会让匿名请求获得 admin 角色。
         if self.app_env == "production" and self.dev_anon_admin:
             raise RuntimeError("DEV_ANON_ADMIN=true 在生产环境被拒绝。生产部署必须强制 JWT 鉴权。")
+
+ # public-deploy-preflight 2026-08-20 (P0): 生产严禁开启一次性全量 bootstrap run。
+ # 误开会在首启 30s 后自动跑全量管线，烧光 LLM token 且写脏数据。
+        if self.app_env == "production" and self.pipeline_bootstrap:
+            raise RuntimeError(
+                "PIPELINE_BOOTSTRAP=true 在生产环境被拒绝。"
+                "生产部署严禁首启自动跑全量管线；"
+                "请通过 /admin/seed/reset 或 admin API 显式触发。"
+            )
+
+ # public-deploy-preflight 2026-08-20 (P0): 生产严禁 forgot-password token 直接返回响应。
+ # 误开会让任何 email 拿到 reset token 接管账户——高危账户接管风险。
+        if self.app_env == "production" and self.forgot_password_delivery == "dev_return_token":
+            raise RuntimeError(
+                "FORGOT_PASSWORD_DELIVERY=dev_return_token 在生产环境被拒绝。"
+                "生产部署必须使用 out_of_band（仅写 Redis，由邮件渠道投递 token）。"
+            )
 
  # fix (): 生产 Postgres 必须强制 SSL。
  # 仅 `require`/`verify-ca`/`verify-full` 三档视为合规。
