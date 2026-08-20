@@ -262,6 +262,10 @@ async def list_review_items(
     Default: returns all `pending_review` items (the active admin queue).
     Use `?entity_type=position|skill` to narrow; use `?status=...` to view
     a different lifecycle state.
+
+    2026-08-21 (debug 优化): total 改为真实筛选总数（此前 = len(items) 即
+    limit 截断后的条数，前端「当前筛选 200 项」误导用户以为只有 200 条，
+    实际待审 1300+）。total 现在反映当前 entity_type+status 过滤下的全量计数。
     """
     items = await review_service.list_by_status(
         session,
@@ -269,9 +273,23 @@ async def list_review_items(
         status=status,  # type: ignore[arg-type]
         limit=limit,
     )
+    # 真实总数：按过滤条件单独 count（复用 count_by_status 的模型映射）
+    from sqlalchemy import func  # noqa: PLC0415
+    from sqlalchemy import select as sa_select
+
+    from app.services.review_service import _model_for  # noqa: PLC0415
+
+    total = 0
+    types: tuple[str, ...] = ("position", "skill") if entity_type is None else (entity_type,)
+    for et in types:
+        model = _model_for(et)  # type: ignore[arg-type]
+        stmt = sa_select(func.count()).select_from(model)
+        if status is not None:
+            stmt = stmt.where(model.review_status == status)
+        total += int((await session.execute(stmt)).scalar() or 0)
     return ReviewListResponse(
         items=[i.to_dict() for i in items],
-        total=len(items),
+        total=total,
     )
 
 

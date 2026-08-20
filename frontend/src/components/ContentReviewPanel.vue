@@ -408,7 +408,8 @@ async function saveNameCn() {
       v-if="filteredItems.length > 0 && selection.length === 0"
       class="batch-toolbar select-all-bar"
     >
-      <span class="batch-count">当前筛选 {{ filteredItems.length }} 项待审</span>
+      <!-- 2026-08-21: 语义修正 —— 区分「已加载」与「全部待审」真实总数 -->
+      <span class="batch-count">已加载 {{ filteredItems.length }} / 全部待审 {{ reviewStore.filterTotal || filteredItems.length }} 项</span>
       <el-button
         size="small"
         plain
@@ -649,7 +650,7 @@ async function saveNameCn() {
       <el-pagination
         v-model:current-page="currentPage"
         :page-size="pageSize"
-        :total="totalFiltered"
+        :total="reviewStore.filterTotal || totalFiltered"
         :disabled="totalFiltered <= pageSize"
         layout="prev, pager, next, total"
       />

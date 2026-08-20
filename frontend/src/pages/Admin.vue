@@ -156,6 +156,46 @@ const {
 // 2026-08-21 (debug 优化): 图谱节点批量操作 —— 勾选列 + 批量通过/批量删除
 const nodeSelection = ref<GraphNodeItem[]>([])
 const nodeBatchAction = ref(false)
+const nodeSelectingAll = ref(false)
+
+// 2026-08-21: 「全选全部待审节点」—— 分批拉取当前状态过滤下的全部 pending
+// 节点（每批 100，直到 total），塞入 selection 供批量通过。
+// 安全设计：仅提供全选待审（批量通过用）；批量删除保持勾选范围，避免误删。
+async function selectAllPendingNodes() {
+  if (nodeSelectingAll.value) return
+  nodeSelectingAll.value = true
+  try {
+    const pageSize = 100
+    const collected: GraphNodeItem[] = []
+    let offset = 0
+    let total = 0
+    do {
+      await graphNode.fetchGraphNodes(
+        offset, pageSize, nodeSearchKeyword.value, nodeTypeFilter.value,
+      )
+      const batch = graphNode.graphNodes ?? []
+      collected.push(...batch)
+      total = graphNode.total ?? collected.length
+      offset += pageSize
+      if (batch.length === 0) break
+      // 防死循环保护
+      if (offset > 10000) break
+    } while (offset < total)
+    // 只保留 pending 节点（全选全部待审的语义）
+    const pending = collected.filter(n => n.status === 'pending')
+    if (pending.length === 0) {
+      ElMessage.info('没有待审核节点')
+      return
+    }
+    nodeSelection.value = pending
+    ElMessage.success(`已全选全部待审节点 ${pending.length} 个`)
+  } catch (e) {
+    ElMessage.error('获取全部待审节点失败: ' + (e instanceof Error ? e.message : '未知错误'))
+  } finally {
+    nodeSelectingAll.value = false
+    await onNodePageChange() // 恢复当前页视图
+  }
+}
 
 async function handleBatchApproveNodes() {
   if (nodeSelection.value.length === 0) return
@@ -614,6 +654,20 @@ function formatDate(iso: string | null | undefined): string {
                 @click="nodeSelection = []"
               >
                 清除选择
+              </el-button>
+            </div>
+            <!-- 2026-08-21: 全选全部待审节点（一键批量通过） -->
+            <div
+              v-if="nodeSelection.length === 0 && !graphNodesLoading"
+              class="node-batch-toolbar"
+            >
+              <el-button
+                size="small"
+                plain
+                :loading="nodeSelectingAll"
+                @click="selectAllPendingNodes"
+              >
+                全选全部待审节点
               </el-button>
             </div>
 
