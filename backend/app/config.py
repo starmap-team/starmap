@@ -66,6 +66,21 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
+ # ── public-deploy-preflight 2026-08-20 (P0): TrustedHostMiddleware allow list ──
+ # 防止 Host header 注入。默认 ["*"] 仅在 dev 接受；生产必须 ALLOWED_HOSTS=starmap.example.com,api.example.com。
+    allowed_hosts: list[str] = Field(
+        default_factory=lambda: ["*"],
+        description="TrustedHostMiddleware allow list; empty/wildcard OK in dev, must be explicit in prod",
+    )
+
+    @field_validator("allowed_hosts", mode="before")
+    @classmethod
+    def _parse_allowed_hosts_env(cls, v: object) -> object:
+        """ALLOWED_HOSTS=a.com,b.com 逗号分隔。"""
+        if isinstance(v, str):
+            return [h.strip() for h in v.split(",") if h.strip()]
+        return v
+
  # 认证（仅保留 token 寿命；用户表已迁移至 PostgreSQL）
     token_expire_hours: int = Field(
         default=24,
@@ -557,6 +572,15 @@ class Settings(BaseSettings):
                     f"生产环境必须通过 CORS_ALLOWED_ORIGINS 环境变量移除所有 dev localhost 值。"
                     f"如需添加生产域名，请设置 CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://api.yourdomain.com"
                 )
+
+ # public-deploy-preflight 2026-08-20 (P0): TrustedHostMiddleware 必须显式允许。
+ # 默认 ["*"] 在 dev OK；生产必须 ALLOWED_HOSTS=starmap.example.com,api.example.com 防止 Host header 注入。
+        if self.app_env == "production" and (not self.allowed_hosts or self.allowed_hosts == ["*"]):
+            raise RuntimeError(
+                "ALLOWED_HOSTS 未配置或仍为通配符 ['*']。"
+                "生产环境必须显式列出 TrustedHostMiddleware 允许的 Host 头（逗号分隔）。"
+                "例如 ALLOWED_HOSTS=starmap.example.com,api.example.com"
+            )
 
  # Phase DB-AUTH: 密码策略由 PostgreSQL users 表的 bcrypt hash 保证
  # 这里不再做 AUTH_USERS plaintext 校验（该 env 已废弃）

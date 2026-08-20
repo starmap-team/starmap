@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import Response
 
 from app.api.v1.router import api_router, auth_router
@@ -158,6 +159,15 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
 )
 
+# public-deploy-preflight 2026-08-20 (P0): TrustedHostMiddleware 防止 Host header 注入
+# 必须在 CORSMiddleware 之后注册（中间件顺序后注册先执行；TrustedHost 拦截最早）。
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+logger.info(
+    "TrustedHostMiddleware in effect ({} entries): {}",
+    len(settings.allowed_hosts),
+    settings.allowed_hosts,
+)
+
 
 # P1 修复 (): 安全响应头中间件
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -167,6 +177,23 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        # public-deploy-preflight 2026-08-20 (P0): 生产环境追加 HSTS + CSP + COOP/COEP/CORP
+        if _is_prod:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; "
+                "font-src 'self' data:; "
+                "connect-src 'self'; "
+                "frame-ancestors 'none'; "
+                "base-uri 'self'; "
+                "form-action 'self'"
+            )
+            response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+            response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+            response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         return response
 
 
@@ -412,7 +439,7 @@ async def starmap_error_handler(request: Request, exc: StarMapError) -> JSONResp
     return build_error_response(
         "内部处理异常，请稍后重试",
         ErrorCode.SYS_INTERNAL_ERROR,
-        include_internal_detail=str(exc),
+        include_internal_detail=None if _is_prod else str(exc),
     )
 
 
@@ -424,7 +451,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     return build_error_response(
         "服务器内部错误，请稍后重试",
         ErrorCode.SYS_INTERNAL_ERROR,
-        include_internal_detail=str(exc),
+        include_internal_detail=None if _is_prod else str(exc),
     )
 
 
@@ -571,8 +598,13 @@ async def ready() -> dict[str, Any] | JSONResponse:
 async def _detailed_health_payload() -> dict:
     """详细健康检查：服务 ping + LLM key 配置布尔 + data stats。
 
-    生产环境也返回完整详情（per D-05；与现有 /health 一致无 auth 保护）。
+    public-deploy-preflight 2026-08-20 (P0): 生产环境仅返回 status，
+    不暴露 LLM 矩阵 / 服务错误细节 / 业务量。任意登录用户都不应推断出
+    后端 LLM 供应商或服务故障堆栈。
     """
+    if _is_prod:
+        return {"status": "ok", "env": "production"}
+
     services = await healthcheck_resources()
 
  # llm_keys: 仅返回布尔，永不返回 key 值（T-08-05 信息泄露防护）
@@ -580,6 +612,8 @@ async def _detailed_health_payload() -> dict:
         "mimo": bool(settings.mimo_api_key),
         "deepseek": bool(settings.deepseek_api_key),
         "xunfei": bool(settings.xunfei_api_key),
+        # public-deploy-preflight 2026-08-20: 补齐 dashscope 布尔以利运维排查
+        "dashscope": bool(settings.dashscope_api_key),
     }
 
  # data_stats: 查询业务数据量概览（替代旧的 seed 检测逻辑）
@@ -614,7 +648,10 @@ async def _detailed_health_payload() -> dict:
 
 @app.get("/health/detail", tags=["系统"], dependencies=[Depends(get_current_user)])
 async def health_detail() -> dict:
-    """详细健康检查端点：服务状态 + LLM key 配置布尔 + demo 数据指示。"""
+    """详细健康检查端点：服务状态 + LLM key 配置布尔 + demo 数据指示。
+
+    生产环境仅返回 status（详见 _detailed_health_payload 守卫）。
+    """
     return await _detailed_health_payload()
 
 
