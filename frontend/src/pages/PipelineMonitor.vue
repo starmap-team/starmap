@@ -74,8 +74,18 @@ const {
   forceReset,
 } = useTriggerPipeline({
   onAfterTrigger: () => { refreshInterval.value = 5; startAutoRefresh() },
-  onAfterMutation: loadAll,
-})
+  onAfterMutation: loadAll,})
+
+// 2026-08-21 (P0-2): DAG「继续处理剩余 N 条」→ 断点续跑当前 run
+// （从 timelineStages 取当前 run_id，避免误续跑其他 run）
+function handleResumeFromDag() {
+  const runId = timelineStages.value[0]?.run_id
+  if (!runId) {
+    ElMessage.warning('未找到当前运行记录')
+    return
+  }
+  return handleResume(runId)
+}
 
 // D8: 触发/调度对话框可选数据源 —— 全部 active 的爬虫源（有 config.platform 的）
 // 用 pipeline store 的 dataSources（loadAll 已加载），而非 datasource store
@@ -285,8 +295,8 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
     <div class="pipeline-page animate-fade-in">
       <BusinessBanner
         type="success"
-        title="L2 数据融合层 — ETL 流水线监控"
-        description="全链路 ETL DAG：爬虫采集 → 去重 → 清洗 → LLM 抽取 → 入库 → 图谱构建（Phase 3 串行化）。每个阶段独立降级，失败不阻塞后续流程。数据源质量影响 §7.1 信任度评分。"
+        title="数据流水线监控"
+        description="全链路 ETL DAG：爬虫采集 → 去重 → 清洗 → LLM 抽取 → 入库 → 图谱构建。每个阶段独立降级，失败不阻塞后续流程。数据源质量影响信任度评分。"
         meta="后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送"
       />
 
@@ -459,6 +469,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
         :action-loading="actionLoading"
         :live-activity="liveActivity"
         @retry="handleRetryStage"
+        @resume="handleResumeFromDag"
       />
 
       <!--: 闭环验证日志面板 -->

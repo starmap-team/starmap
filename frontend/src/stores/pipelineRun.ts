@@ -41,6 +41,10 @@ export interface PipelineStage {
   recent_samples?: Array<Record<string, unknown>>
   sub_breakdown?: Record<string, number>
   elapsed_ms?: number
+  // 2026-08-21 (P0-2): 作业身份 —— 后端 /stages 返回当前 run 标识，
+  // DAG 用它展示"这是哪一次运行"，避免不同 run 混淆
+  run_id?: string
+  run_status?: string
 }
 
 /**: 实时活动事件 (来自 SSE pipeline_update) */
