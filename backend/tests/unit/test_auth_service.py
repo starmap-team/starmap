@@ -150,10 +150,16 @@ class TestJWTKeyring:
         assert decoded["sub"] == "k1"
 
     def test_decode_with_unknown_kid_rejected(self, monkeypatch):
-        """Token signed by a kid not in keyring → InvalidTokenError."""
+        """Token signed by a kid not in keyring + secret mismatch → InvalidTokenError.
+
+        public-deploy-preflight 2026-08-20 (P0): The verifier falls back to
+        ``settings.secret_key`` when ``kid`` is missing from the keyring
+        (backward-compat with legacy tokens that pre-date the keyring).
+        A rogue token signed by a different secret is therefore rejected
+        on signature mismatch, not on kid lookup.
+        """
         from app.services.auth_service import InvalidTokenError
 
-        # Sign a token with an unknown kid
         unknown_secret = "x" * 64
         unknown_token = jwt.encode(
             {"sub": "rogue", "role": "admin", "exp": time.time() + 60, "iat": time.time()},
@@ -162,7 +168,7 @@ class TestJWTKeyring:
             headers={"kid": "v999-does-not-exist"},
         )
         monkeypatch.setattr(settings, "jwt_secret_keyring", {})
-        with pytest.raises(InvalidTokenError, match="Unknown JWT kid"):
+        with pytest.raises(InvalidTokenError, match="Invalid JWT"):
             decode_token(unknown_token)
 
     def test_keyring_supports_multiple_kids(self, monkeypatch):
