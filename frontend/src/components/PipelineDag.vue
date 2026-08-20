@@ -36,12 +36,13 @@ const overallProgress = computed(() => {
   return Math.round((completedWeight / active.length) * 100)
 })
 
-// 阶段状态计数 (解决"17% 看不出含义")
+// 阶段状态计数 (解决"17% 看不出含义") — 仅算 active（未跳过）阶段
 const completedCount = computed(() => props.timelineStages.filter(s => s.status === 'completed').length)
 const runningCount = computed(() => props.timelineStages.filter(s => s.status === 'running').length)
 const failedCount = computed(() => props.timelineStages.filter(s => s.status === 'failed').length)
 const cancelledCount = computed(() => props.timelineStages.filter(s => s.status === 'cancelled').length)
-const totalCount = computed(() => props.timelineStages.filter(s => s.status !== 'skipped').length)
+const activeCount = computed(() => props.timelineStages.filter(s => s.status !== 'skipped').length)
+const totalCount = activeCount  // alias 保持兼容
 const anyCompleted = computed(() => completedCount.value > 0)
 const anyFailed = computed(() => failedCount.value > 0)
 

@@ -246,6 +246,14 @@ async def update_stage_status(
     if elapsed_ms:
         stage["elapsed_ms"] = elapsed_ms
 
+    # P-21 修复: JSONB 嵌套 dict 修改必须显式 flag_modified,
+    # 否则 records_new/records_duplicate 等字段写入丢失为 NULL。
+    # 否则 engine._derive_run_record_counts 会回退到 records_processed,
+    # 导致 total_records/new_records 显示错误数字(实际未入库)。
+    run = await session.get(PipelineRun, run_id)
+    if run is not None:
+        flag_modified(run, "stages")
+
     await session.execute(
         update(PipelineRun).where(PipelineRun.id == run_id).values(stages=stages)
     )

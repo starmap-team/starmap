@@ -155,6 +155,9 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
                     ),
                     0,
                 )
+                # P-21 修复: 真实抓回 vs 真正入库要分两个 KPI
+                # 之前 total_records=45 是 records_processed（抓到45），但入库 0
+                # 现在按"真正入库"计算（crawl.records_new）
                 total_records = crawl_records
                 run_status = RunStatus.FAILED.value if failed else RunStatus.COMPLETED.value
                 error_log = f"Failed stages: {failed}" if failed else None

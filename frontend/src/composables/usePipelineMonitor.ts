@@ -138,15 +138,16 @@ export function usePipelineMonitor() {
     let skipped = 0
     let totalRecords = 0
     let totalDuration = 0
-    let crawlRecords = 0
-    let importRecords = 0
+    let crawlRecords = 0  // 抓到的总数（含重复）
+    let importRecords = 0  // 真正新增入库数
     for (const s of stages) {
       const rp = s.records_processed || 0
-      totalRecords += rp
+      const fresh = s.records_new ?? 0
+      totalRecords += fresh  // KPI 累加真正新增
       totalDuration += s.duration_ms || 0
       // 按阶段名识别输入/输出口径
       if (s.name === 'crawl' || s.name.startsWith('crawl')) crawlRecords = Math.max(crawlRecords, rp)
-      if (s.name === 'import' || s.name.startsWith('import')) importRecords = Math.max(importRecords, rp)
+      if (s.name === 'import' || s.name.startsWith('import')) importRecords = Math.max(importRecords, fresh)
       switch (s.status) {
         case 'completed': completed++; break
         case 'running': running++; break
