@@ -87,6 +87,12 @@ function handleResumeFromDag() {
   return handleResume(runId)
 }
 
+// 2026-08-21 (debug 修复): DAG「重新触发完整流水线」→ 打开触发对话框
+// （用户可选择阶段/数据源，多种处理方式）
+function handleRetriggerFromDag() {
+  openTriggerDialog()
+}
+
 // D8: 触发/调度对话框可选数据源 —— 全部 active 的爬虫源（有 config.platform 的）
 // 用 pipeline store 的 dataSources（loadAll 已加载），而非 datasource store
 const triggerSourceOptions = computed(() =>
@@ -470,6 +476,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
         :live-activity="liveActivity"
         @retry="handleRetryStage"
         @resume="handleResumeFromDag"
+        @retrigger="handleRetriggerFromDag"
       />
 
       <!--: 闭环验证日志面板 -->

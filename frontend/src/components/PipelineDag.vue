@@ -23,6 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   retry: [stageName: string]
   resume: []
+  retrigger: []
 }>()
 
 // 整体进度（按 stages 加权平均）
@@ -73,10 +74,13 @@ const importRemainingText = computed(() => {
   return ''
 })
 
-// import 失败且有剩余待续 → 显示「继续处理剩余 N 条」按钮（断点续跑）
+// import 失败/部分完成且有剩余待续 → 显示「继续处理剩余 N 条」按钮（断点续跑）。
+// 2026-08-21 (debug 修复): completed 但 activity 含「剩余 N 条待续跑」也显示
+// （预算截断续跑最常见的形态——run 标 completed 但存量没跑完，此前无入口）。
 const showResumeRemaining = computed(() => {
   const importStage = props.timelineStages.find(s => s.name === 'import')
-  return importStage?.status === 'failed' && importRemainingText.value !== ''
+  if (!importStage || importRemainingText.value === '') return false
+  return importStage.status === 'failed' || importStage.status === 'completed'
 })
 </script>
 
@@ -244,13 +248,13 @@ const showResumeRemaining = computed(() => {
           />
         </div>
       </div>
-      <!-- 2026-08-21 (P0-2): import 剩余待续提示 + 一键继续（断点续跑显性化） -->
+      <!-- 2026-08-21 (P0-2): import 剩余待续提示 + 多种处理方式 -->
       <div
         v-if="importRemainingText || showResumeRemaining"
         class="dag-row dag-row-center"
       >
         <div class="import-remaining-bar">
-          <span class="remaining-text">📋 {{ importRemainingText }}</span>
+          <span class="remaining-text">📋 还有 {{ importRemainingText.replace('剩余 ', '') }} 未处理</span>
           <el-button
             v-if="showResumeRemaining"
             type="primary"
@@ -258,6 +262,13 @@ const showResumeRemaining = computed(() => {
             @click="emit('resume')"
           >
             继续处理剩余 {{ importRemainingText.replace('剩余 ', '').replace(' 条待续跑', '') }} 条
+          </el-button>
+          <el-button
+            size="small"
+            plain
+            @click="emit('retrigger')"
+          >
+            重新触发完整流水线
           </el-button>
         </div>
       </div>

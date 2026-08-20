@@ -292,7 +292,14 @@ async def retry_stage(run_id: uuid.UUID, stage_name: str) -> PipelineRun | None:
 
 
 async def resume_run(run_id: uuid.UUID) -> PipelineRun | None:
-    """Resume a failed pipeline run by resetting all failed stages and advancing."""
+    """Resume a pipeline run by resetting unfinished stages and advancing.
+
+    2026-08-21 (debug 修复): 支持两种续跑场景——
+    1. failed stage → pending（原行为）
+    2. import=completed 但 activity 含「剩余 N 条待续跑」（预算截断续跑）→
+       重置 import 为 pending，重新从 cleaned 队列抽取剩余存量。
+       此前只重置 failed stage，completed 的 run 调用 resume 会空转卡死。
+    """
     session_factory = get_session_factory()
     async with session_factory() as session:
         # 2026-08-12 (pipeline 修复): 必须显式 begin —— 无 begin 时 stages 重置在
@@ -307,6 +314,7 @@ async def resume_run(run_id: uuid.UUID) -> PipelineRun | None:
                 return None
 
             stages = list(run.stages or [])
+            reset_any = False
             for s in stages:
                 if s["status"] == StageStatus.FAILED.value:
                     s["status"] = StageStatus.PENDING.value
@@ -314,6 +322,24 @@ async def resume_run(run_id: uuid.UUID) -> PipelineRun | None:
                     s["retry_count"] = 0
                     s["started_at"] = None
                     s["completed_at"] = None
+                    reset_any = True
+                # 预算截断续跑: import completed 但还剩存量 → 重置 pending 续抽
+                elif (
+                    s.get("name") == "import"
+                    and s["status"] == StageStatus.COMPLETED.value
+                    and "剩余" in str(s.get("current_activity", ""))
+                    and "条待续跑" in str(s.get("current_activity", ""))
+                ):
+                    s["status"] = StageStatus.PENDING.value
+                    s["started_at"] = None
+                    s["completed_at"] = None
+                    # 保留 records_processed 供展示，但清 activity 标记避免重复识别
+                    s["current_activity"] = "等待续跑: 重新抽取剩余存量"
+                    reset_any = True
+
+            if not reset_any:
+                # 没有任何可续跑的 stage（全 completed 且无剩余）→ 不空转
+                return run
 
             # Reset run status to running
             run.status = RunStatus.RUNNING.value
