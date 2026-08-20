@@ -147,6 +147,9 @@ services:
       - ./secrets/ssl:/etc/nginx/ssl:ro
     environment:
       VITE_API_BASE_URL: /api/v1
+      # public-deploy-preflight 2026-08-20 (P0): PUBLIC_DOMAIN 由 deploy-public.sh 注入到 .env.production
+      # 启动时 docker-compose 透传至容器，nginx entrypoint 用 envsubst 替换 server_name 占位符
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?PUBLIC_DOMAIN required (set in .env.production or pass via shell)}
     depends_on:
       backend:
         condition: service_healthy

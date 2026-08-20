@@ -45,7 +45,10 @@ echo "==> Substituting \${PUBLIC_DOMAIN} -> ${PUBLIC_DOMAIN}"
 TMP_ENV="$(mktemp)"
 # 仅替换 CORS_ALLOWED_ORIGINS 行的占位；避免误改其它 ${VAR}
 sed -E "s|^(CORS_ALLOWED_ORIGINS=.*)\\\$\{PUBLIC_DOMAIN\}(.*)|\1${PUBLIC_DOMAIN}\2|" "${ENV_FILE}" > "${TMP_ENV}"
-# nginx server_name 占位在 frontend nginx.conf.template（部署脚本同步替换）
+# public-deploy-preflight 2026-08-20 (P0): nginx server_name 由 frontend container
+# 的 envsubst entrypoint 注入，需要把 PUBLIC_DOMAIN export 给 docker compose。
+# 后续 docker compose --env-file 调用自动透传至所有 service 的 environment 段。
+export PUBLIC_DOMAIN="${PUBLIC_DOMAIN}"
 
 # 2. 校验 5 个核心密钥非空
 echo "==> Validating 5 core secrets are non-empty"
