@@ -77,10 +77,12 @@ def execute_clean(run_id: str) -> dict[str, Any]:
     except PipelineStageError:
         raise
     except Exception as exc:
-        errors.append(f"clean failed: {exc}")
+        from app.core.pipeline.error_translator import translate_psycopg_error
+        translated = translate_psycopg_error(exc)
+        errors.append(f"clean failed: {translated['short']}")
         logger.opt(exception=True).error("Clean stage failed: {}", exc)
         run_async(publish_stage_progress(
-            run_id, "clean", "failed", current_activity=f"清洗失败: {exc}",
+            run_id, "clean", "failed", current_activity=f"清洗失败: {translated['short']}",
         ))
 
     return {
