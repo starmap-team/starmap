@@ -106,14 +106,14 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
         run_async(_mark_stage_failed(run_id, stage_name, [f"Unknown stage: {stage_name}"]))
         return {"status": "failed", "error": f"Unknown stage: {stage_name}"}
 
-    start = time.monotonic
+    start = time.monotonic()
     try:
- # only crawl accepts run_type; others take run_id only
+        # only crawl accepts run_type; others take run_id only
         if stage_name == StageName.CRAWL.value:
             result = executor(run_id, run_type="full")  # type: ignore[operator]
         else:
             result = executor(run_id)  # type: ignore[operator]
-        duration_ms = int((time.monotonic - start) * 1000)
+        duration_ms = int((time.monotonic() - start) * 1000)
 
  # Update stage status AND advance DAG in ONE async call
  # (avoids "different loop" error when running two separate run_async calls)
@@ -132,7 +132,7 @@ def execute_pipeline_stage(self, run_id: str, stage_name: str) -> dict[str, Any]
                 sub_breakdown=result.get("sub_breakdown", {}))
             await advance_pipeline(uuid.UUID(run_id))
 
-        run_async(_complete_and_advance)
+        run_async(_complete_and_advance())
 
         return {"status": "completed", "stage": stage_name, **result}
 
@@ -179,7 +179,7 @@ async def _mark_stage_cancelled(run_id: str, stage_name: str) -> None:
         result = await session.execute(
             select(PipelineRun).where(PipelineRun.id == uuid.UUID(run_id))
         )
-        run = result.scalar_one_or_none
+        run = result.scalar_one_or_none()
         if run is None or not run.stages:
             return
         for stage in run.stages:
@@ -190,7 +190,7 @@ async def _mark_stage_cancelled(run_id: str, stage_name: str) -> None:
                 stage["completed_at"] = datetime.now(UTC).isoformat
                 flag_modified(run, "stages")
                 break
-        await session.commit
+        await session.commit()
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
 def advance_pipeline_task(self, run_id: str) -> None:
@@ -228,9 +228,9 @@ def reconcile_graph_task(self, schedule_id: str) -> None:
             from app.core.pipeline.cron_scheduler import _run_daily_reconcile
             from app.db.session import get_session_factory
 
-            sm = get_session_factory
-            async with sm as session:
-                async with session.begin:
+            sm = get_session_factory()
+            async with sm() as session:
+                async with session.begin():
                     await _run_daily_reconcile(session)
  # P4b 漂移告警: reconcile 后检测残留孤儿（被引用无标识节点/缺 PG 记录），
  # 非零即告警——让每日 cron 把漂移暴露为可观测信号，而非静默。
@@ -251,7 +251,7 @@ def reconcile_graph_task(self, schedule_id: str) -> None:
                 except Exception as drift_exc:  # noqa: BLE001 — 告警失败不阻断
                     logger.warning("reconcile drift check failed (non-fatal): {}", drift_exc)
 
-        run_async(_run)
+        run_async(_run())
     except StarMapError:
         raise
     except Exception as exc:
@@ -282,12 +282,12 @@ async def _execute_scheduled_run(schedule_id: str) -> None:
     from app.db.session import get_session_factory
     from app.models.pipeline_models import PipelineSchedule
 
-    sm = get_session_factory
-    async with sm as session:
+    sm = get_session_factory()
+    async with sm() as session:
         result = await session.execute(
             select(PipelineSchedule).where(PipelineSchedule.id == uuid.UUID(schedule_id))
         )
-        schedule = result.scalar_one_or_none
+        schedule = result.scalar_one_or_none()
         if schedule is None:
             logger.warning("Schedule {} not found", schedule_id)
             return
@@ -306,12 +306,12 @@ async def _execute_scheduled_run(schedule_id: str) -> None:
             raise
         except Exception:
             schedule.next_run_at = schedule.last_run_at + timedelta(hours=1)
-        await session.commit
+        await session.commit()
 
 @celery_app.task(bind=True, max_retries=0)
 def sweep_orphan_runs(self) -> dict[str, Any]:
     """WATCHDOG: 清理超过 stage_timeout*2 仍 running 的任务。"""
-    run_async(_sweep_orphan_runs_async)
+    run_async(_sweep_orphan_runs_async())
     return {"status": "completed"}
 
 async def _sweep_orphan_runs_async() -> dict[str, Any]:
@@ -323,14 +323,14 @@ async def _sweep_orphan_runs_async() -> dict[str, Any]:
     from app.db.session import get_session_factory
     from app.models.pipeline_models import PipelineRun
 
-    sm = get_session_factory
-    async with sm as session:
+    sm = get_session_factory()
+    async with sm() as session:
         threshold = datetime.now(UTC) - timedelta(seconds=settings.pipeline_stage_timeout * 2)
         result = await session.execute(
             select(PipelineRun).where(PipelineRun.status == RunStatus.RUNNING.value)
         )
         orphans = []
-        for run in result.scalars.all:
+        for run in result.scalars().all():
  # P0-AUDIT-FIX (2026-08-13): started_at 可能为 naive（timezone=True 规范化
  # 前的历史行，或 SQLite 测试库）——naive 与 aware 比较会抛 TypeError。
  # 假定 naive = UTC，统一后做 Python 侧过滤（RUNNING 记录数少，可接受）。
@@ -343,8 +343,21 @@ async def _sweep_orphan_runs_async() -> dict[str, Any]:
             run.status = RunStatus.FAILED.value
             run.completed_at = datetime.now(UTC)
             run.error_log = "orphaned by watchdog"
+            # 2026-08-21: 同步把卡在 running 的 stage 标 failed —— 此前只标 run，
+            # pipeline_runs.stages 快照里 import 永远 running，/pipeline/stages
+            # 与运行历史长期矛盾（DAG「运行中 0%」vs 历史「失败」）。
+            stages = list(run.stages or [])
+            changed = False
+            for stage in stages:
+                if isinstance(stage, dict) and stage.get("status") == "running":
+                    stage["status"] = "failed"
+                    stage["completed_at"] = datetime.now(UTC).isoformat()
+                    stage.setdefault("errors", []).append("stage orphaned by watchdog")
+                    changed = True
+            if changed:
+                run.stages = stages
             logger.warning("Watchdog: orphaned run {} (started={})", run.id, run.started_at)
-        await session.commit
+        await session.commit()
         return {"orphans_found": len(orphans)}
 
 # ── Helpers ──
@@ -373,9 +386,9 @@ async def _mark_stage_completed(
         actual_status = "failed"
     else:
         actual_status = "completed"
-    sm = get_session_factory
-    async with sm as session:
-        async with session.begin:
+    sm = get_session_factory()
+    async with sm() as session:
+        async with session.begin():
             await update_stage_status(
                 session, uuid.UUID(run_id), stage_name,
                 status=actual_status,
@@ -394,9 +407,9 @@ async def _mark_stage_failed(
     run_id: str, stage_name: str, errors: list[str]) -> None:
     from app.core.pipeline.orchestrator import update_stage_status
     from app.db.session import get_session_factory
-    sm = get_session_factory
-    async with sm as session:
-        async with session.begin:
+    sm = get_session_factory()
+    async with sm() as session:
+        async with session.begin():
             await update_stage_status(
                 session, uuid.UUID(run_id), stage_name,
                 status="failed",
@@ -435,11 +448,21 @@ from celery import signals  # noqa: E402
 
 
 def _on_task_failure(
-    task_id: str,
-    task_name: str,
-    exception: BaseException,
+    task_id: str | None = None,
+    exception: BaseException | None = None,
     **kwargs: Any) -> None:
-    """Celery task failure handler — surface to audit_events + logger."""
+    """Celery task failure handler — surface to audit_events + logger.
+
+    2026-08-21 修复: celery 5.6 的 task_failure 信号发送的命名参数是
+    (task_id, exception, args, kwargs, traceback, einfo) —— 没有 task_name。
+    此前签名 (task_id, task_name, exception) 导致每次任务失败 handler 自身
+    抛 TypeError（日志可见 "missing 1 required positional argument"），
+    审计与告警从未真正写入。sender 是 task 实例，可取其 name。
+    """
+    sender = kwargs.get("sender")
+    task_name = getattr(sender, "name", "unknown") if sender is not None else "unknown"
+    exc = exception if exception is not None else kwargs.get("einfo")
+    detail = f"task_id={task_id} error={exc!r}" if exc is not None else f"task_id={task_id}"
     try:
         from app.utils.audit import AuditEntry, AuditEvent, audit_log
 
@@ -448,7 +471,7 @@ def _on_task_failure(
                 event=AuditEvent.CELERY_TASK_FAILURE,
                 actor="celery",
                 action=f"task_failure:{task_name}",
-                detail=f"task_id={task_id} error={exception!r}",
+                detail=detail,
                 extra={"task_id": task_id, "task_name": task_name})
         )
     except Exception:
@@ -457,8 +480,35 @@ def _on_task_failure(
             task_name, task_id)
     logger.error(
         "Celery task FAILED: name={} id={} exc={!r}",
-        task_name, task_id, exception)
+        task_name, task_id, exc)
 
 if getattr(celery_app, "task_failure_handler_registered", False) is False:
     signals.task_failure.connect(_on_task_failure)
     celery_app.task_failure_handler_registered = True
+
+
+# 2026-08-20 (debug 修复): worker 进程初始化 resources —— 此前 worker 从未调用
+# init_resources()，进程内 redis_client=None → publish_event 静默 no-op →
+# 所有 SSE 进度事件未发出 → 前端 import 阶段永远 0%（实时进度全靠 SSE）。
+# 注意: 不能用 asyncio.run() —— 它会创建并关闭临时事件循环，redis 异步客户端
+# 绑定该 loop，后续 celery task 的 loop 不同 → "Event loop is closed"。
+# 改用 worker 进程级 loop（保持存活）run_until_complete。
+def _on_worker_process_init(**kwargs: Any) -> None:
+    try:
+        import asyncio
+
+        from app.services.resources import init_resources
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(init_resources())
+        logger.info("[celery] resources initialized (redis/neo4j/pg) in worker process")
+    except Exception:
+        logger.opt(exception=True).warning(
+            "[celery] init_resources failed in worker process (SSE publish will no-op)"
+        )
+
+
+if getattr(celery_app, "worker_init_registered", False) is False:
+    signals.worker_process_init.connect(_on_worker_process_init)
+    celery_app.worker_init_registered = True

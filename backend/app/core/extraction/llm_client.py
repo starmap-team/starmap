@@ -25,6 +25,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
 from app.core.llm.cost_tracker import tracker
+from app.core.llm.response_cache import response_cache
 
 
 class LLMConnectionError(Exception):
@@ -37,6 +38,14 @@ class LLMResponseError(Exception):
 
 class LLMTimeoutError(Exception):
     """Raised when the LLM API request times out."""
+
+
+class LLMBlockedError(Exception):
+    """Raised when LLM call is blocked by hard guard (cost cap, 128K gate, kill switch).
+
+    Phase 27: 与 LLMConnectionError 不同,此异常**绝不重试** —— 重试也不会成功,
+    上层应该记录 + 跳过(避免按量计费)。
+    """
 
 
 # Model mappings（端点 URL 由 settings.spark_http_url / settings.deepseek_http_url 提供）
@@ -380,7 +389,10 @@ async def call_dashscope_llm(
         "model": settings.dashscope_model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.5,
-        "max_tokens": 4096,
+        # Phase 27 (qwen-plus 资源包优化): 实测抽取 JSON ~1500 tokens,
+        # 从 4096 降至 2048 截断长尾输出浪费(余量 ~35%)。截断会被 parse_llm_json_response
+        # 抛 LLMResponseError,自动走 fallback chain。
+        "max_tokens": 2048,
     }
 
     logger.info("Calling Aliyun Bailian Qwen ({})", settings.dashscope_model)
@@ -443,6 +455,59 @@ async def call_llm_with_fallback(
     fallback_budget_seconds = 180.0
     fallback_start = time.monotonic()
 
+    # Phase 27 (qwen-plus 资源包优化): 优先按 model + prompt 查 Redis 缓存,
+    # 命中时记账但不计入 fallback budget、不再尝试任何 provider。
+    # 缓存键设计: `llm:resp:{model}:{sha256(prompt)}`,见 response_cache.py。
+    # 2026-08-21: 改用 await aget —— 同步 get() 在 loop 内 run_coroutine_threadsafe
+    # 会死锁(loop 被当前协程占用) → 每次白等 2s 且永远 miss。
+    cached = await response_cache.aget(settings.dashscope_model, prompt)
+    if cached:
+        tracker.record(
+            model=cached.get("model", settings.dashscope_model),
+            prompt=prompt,
+            content=str(cached.get("content", "")),
+        )
+        logger.info("LLM cache hit: prompt_len={}", len(prompt))
+        return cached
+
+    # Phase 27: 每日成本 cap 检查 —— 防止意外情况下累积成本爆表
+    if tracker.is_blocked(settings.dashscope_model):
+        logger.warning(
+            "LLM call blocked by cost cap: model={} cap=¥{:.2f}",
+            settings.dashscope_model,
+            tracker.get_model_cap(settings.dashscope_model),
+        )
+        raise LLMBlockedError(
+            f"LLM cost cap exceeded: model={settings.dashscope_model} "
+            f"cap=¥{tracker.get_model_cap(settings.dashscope_model):.2f}/day"
+        )
+
+    # Phase 27 资源包严格保护: 全局启用开关。紧急止血用,
+    # .env 设 LLM_ENABLED=false 重启即可立即阻断所有 LLM 调用。
+    # 容错:settings 可能被测试替换为 MagicMock(返回 MagicMock 而非 bool),
+    # 此时按"启用"处理,避免误阻断既有测试。
+    llm_enabled_flag = getattr(settings, "llm_enabled", True)
+    if isinstance(llm_enabled_flag, bool) and not llm_enabled_flag:
+        logger.warning("LLM call blocked by global kill switch (llm_enabled=false)")
+        raise LLMBlockedError("LLM globally disabled (llm_enabled=false)")
+
+    # Phase 27 资源包严格保护: 单次请求 input token 128K 闸门。
+    # 资源包规则:单次请求输入 >128K 的费用不抵扣(按量计费)。
+    # 即使在 cap 之内,单次超 128K 也会扣费 → 必须阻断。
+    # 估算用 chars/4 (OpenAI 启发式);超阈值直接阻断,绝不发送请求。
+    # 容错:settings 可能为 MagicMock → 仅在值为 int 时启用。
+    _raw_limit = getattr(settings, "llm_max_input_chars_per_request", 0)
+    max_chars = int(_raw_limit) if isinstance(_raw_limit, (int, float)) else 0
+    if max_chars > 0 and len(prompt) > max_chars:
+        logger.warning(
+            "LLM call blocked: prompt exceeds 128K token limit "
+            "(chars={} > limit={}, ~{}K tokens)",
+            len(prompt), max_chars, len(prompt) // 4 // 1000,
+        )
+        raise LLMBlockedError(
+            f"prompt exceeds 128K token limit: {len(prompt)} chars > {max_chars} chars"
+        )
+
     async def _call_and_track(coro_factory):  # type: ignore[no-untyped-def]
         """Run a provider call and record its cost before returning."""
         elapsed = time.monotonic() - fallback_start
@@ -452,6 +517,8 @@ async def call_llm_with_fallback(
                 f"tried: {'; '.join(errors) if errors else 'no providers'}"
             )
         resp = await coro_factory(prompt)
+        # 写入 Redis 缓存(以响应中实际使用的 model 命名,后续跨 provider 命中更安全)
+        await response_cache.aset(resp.get("model", settings.dashscope_model), prompt, resp)
         tracker.record(
             model=resp.get("model", "unknown"),
             prompt=prompt,
@@ -531,7 +598,8 @@ async def call_llm_with_fallback(
                     "stream": False,
                     "options": {
                         "temperature": 0.5,
-                        "num_predict": 4096,
+                        # Phase 27: 与 DashScope 路径一致,收敛到 2048
+                        "num_predict": 2048,
                     },
                 },
             )

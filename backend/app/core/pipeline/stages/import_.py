@@ -6,6 +6,7 @@ Phase 03 Plan 03 拆分：`_update_source_after_import` 辅助随阶段迁入本
 """
 from __future__ import annotations
 
+import hashlib
 import time
 from typing import Any
 
@@ -63,6 +64,10 @@ def execute_import(run_id: str) -> dict[str, Any]:
         from crawler.persistence.database import get_jd_raw_session
         from crawler.persistence.models import JdRaw, JdStatus
 
+        # 2026-08-20 (修复 B2): 抽取前不标记 extracted —— 此前在 LLM 抽取前就把
+        # status 置为 extracted，LLM 失败（不可用/超时）时记录永远停在 extracted 且
+        # 无抽取结果，永不重试（103 条 extracted 但 jd_extraction_records 仅 6 条根因）。
+        # 改为：先收集 cleaned 记录，抽取成功后按 id 后置标记 extracted。
         with get_jd_raw_session() as s:
             from app.config import settings
 
@@ -74,17 +79,26 @@ def execute_import(run_id: str) -> dict[str, Any]:
             )
             jd_texts = []
             jd_titles = []
+            pending_ids: list[int] = []
             for jd in clean_jds:
                 if jd.clean_text:
                     jd_texts.append(jd.clean_text)
                     jd_titles.append(jd.job_title)
-                    jd.status = JdStatus.extracted
+                    pending_ids.append(jd.id)
+            # 2026-08-20 (debug 修复): 全局待处理总数 —— 进度口径改为
+            # "已抽取/全局待处理"，而非每轮 batch 的局部进度（每轮 200 条从 0 开始，
+            # run 跑 8 小时仍显示 0% 的根因）。
+            global_pending = s.query(JdRaw).filter(JdRaw.status == JdStatus.cleaned).count()
             s.commit()
 
             total = len(jd_texts)
+            total_global = max(global_pending, total)
             run_async(publish_stage_progress(
                 run_id, "import", "running", progress=0.1,
-                current_activity=f"待提取: {total} 条 (LLM: 技能识别 + 标准化 + 验证)",
+                current_activity=(
+                    f"待提取: 本轮 {total} 条 / 全局待处理 {total_global} 条 "
+                    f"(LLM: 技能识别 + 标准化 + 验证)"
+                ),
                 records_processed=0,
                 elapsed_ms=int((time.monotonic() - start) * 1000),
                 sub_step="extract",
@@ -99,13 +113,76 @@ def execute_import(run_id: str) -> dict[str, Any]:
             sub_step="normalize",
         ))
 
+        # 2026-08-21 (阶段预算修复): celery hard_time_limit=1800s，而单条 JD 抽取
+        # 最坏可达 ~180s+（fallback 链）+ anti-hallucination 二次 LLM。盲目循环
+        # 200 条必然撞 hard limit 被 SIGKILL → 阶段永远卡 running、本批 0 成功。
+        # 按"阶段剩余时间预算"提前截断：处理到接近 soft limit 就停止本轮，
+        # 剩余 cleaned 记录留给下一次 run（幂等，不丢不重）。
+        # 预算 = soft_time_limit - 启动损耗 - 收尾余量；至少允许处理 1 条。
+        from app.config import settings
+
+        soft_limit = getattr(settings, "pipeline_stage_timeout", 1800) - 30
+        budget_seconds = max(soft_limit - 20, 30)
+        batch_start_wall = time.monotonic()
+        planned = total
+        if total > 1:
+            per_item_budget = max(
+                (budget_seconds - 30) / total,  # 均摊预算
+                25.0,  # 单条最低 25s（qwen-plus 实测 ~25s/条，避免 0 条可跑）
+            )
+            planned = max(1, min(total, int(budget_seconds / per_item_budget)))
+        if planned < total:
+            logger.warning(
+                "Import stage budget: {}s stage budget → 本轮只处理 {}/{} 条，"
+                "其余留待后续 run（避免撞 hard limit 被 SIGKILL）",
+                budget_seconds, planned, total,
+            )
+
+        success_ids: list[int] = []
+        # Phase 27 (qwen-plus 资源包优化): 同批内 content_hash 重复的 JD 复用首次抽取结果,
+        # 避免同一 source 抓回完全相同内容时重复调 LLM。
+        # 注意:仅去重本批 (in-memory dict),不跨批/不跨 run,保留跨批独立去重走 PG content_hash 唯一索引。
+        def _extract_one(idx: int, text: str, title: str) -> dict[str, Any]:
+            content_hash = hashlib.sha256(
+                (text or "").encode("utf-8", errors="ignore"),
+            ).hexdigest()
+            if content_hash in _cached_results:
+                # 同批内重复 → 复用首次抽取结果
+                reused = dict(_cached_results[content_hash])
+                reused.setdefault("warnings", []).append(
+                    "in-batch dedup: same content as a prior JD in this batch",
+                )
+                return reused
+            # D-15: persist 子步骤事件 (LLM 抽取完成 = 持久化就绪)
+            # D5 fix: 传 JD 标题作为 position_name 回退（LLM 未返回岗位名时不再落 Unknown Position）
+            result = run_async(run_batch_extract_jd(text, job_title=title))
+            # 缓存"成功完成"的抽取结果,避免批内再次重复调 LLM。
+            # 失败/错误结果不缓存(让下一条同 hash 仍能尝试 LLM)。
+            if result.get("status") == "completed":
+                _cached_results[content_hash] = result
+            return result
+
+        _cached_results: dict[str, dict] = {}
         for idx, (text, title) in enumerate(zip(jd_texts, jd_titles, strict=False)):
+            if idx >= planned:
+                break
+            # 单条前检查剩余预算：若所剩时间不足以完成一条抽取（含 fallback），
+            # 提前结束本轮，避免在循环中途被 hard limit 杀（阶段状态永远 running）。
+            elapsed_here = time.monotonic() - batch_start_wall
+            remaining = budget_seconds - elapsed_here
+            if remaining < 30 and idx > 0:
+                logger.warning(
+                    "Import stage budget exhausted at {}/{} (remaining={:.0f}s) — "
+                    "stop this round, {} JD(s) kept as cleaned for next run",
+                    idx, total, remaining, total - idx,
+                )
+                break
             try:
-                # D-15: persist 子步骤事件 (LLM 抽取完成 = 持久化就绪)
-                # D5 fix: 传 JD 标题作为 position_name 回退（LLM 未返回岗位名时不再落 Unknown Position）
-                result = run_async(run_batch_extract_jd(text, job_title=title))
+                result = _extract_one(idx, text, title)
                 if result.get("status") == "completed":
                     processed += 1
+                    if idx < len(pending_ids):
+                        success_ids.append(pending_ids[idx])
                     if result.get("data", {}).get("required_skills"):
                         for sk in result["data"]["required_skills"][:3]:
                             extracted_skills_sample.append({
@@ -116,29 +193,47 @@ def execute_import(run_id: str) -> dict[str, Any]:
                 else:
                     errors.append(f"extraction failed: {result.get('error', 'unknown')}")
 
-                if idx > 0 and idx % 3 == 0:
-                    run_async(publish_stage_progress(
-                        run_id, "import", "running",
-                        progress=0.15 + 0.8 * (idx / max(total, 1)),
-                        records_processed=processed,
-                        current_activity=f"LLM 提取 {idx}/{total} 条 - 当前: {title[:30] if title else '...'}",
-                        recent_samples=extracted_skills_sample[-5:],
-                        elapsed_ms=int((time.monotonic() - start) * 1000),
-                        sub_step="persist",  # D-15: persist 期间
-                    ))
+                # 2026-08-20 (debug 修复): 每条都推送进度 —— 此前每 3 条才发一次
+                # （45-90s 间隔），LLM 逐条抽取 15-30s/条时前端感知为卡死。
+                # 进度用全局口径：已抽取(processed) / 全局待处理(total_global)。
+                run_async(publish_stage_progress(
+                    run_id, "import", "running",
+                    progress=0.15 + 0.8 * ((processed + 1) / max(total_global, 1)),
+                    records_processed=processed,
+                    current_activity=(
+                        f"LLM 提取 {idx + 1}/{total} 条(本轮) - 当前: {title[:30] if title else '...'}"
+                        f"（全局已成功 {processed}/{total_global} 条）"
+                    ),
+                    recent_samples=extracted_skills_sample[-5:],
+                    elapsed_ms=int((time.monotonic() - start) * 1000),
+                    sub_step="persist",  # D-15: persist 期间
+                ))
             except PipelineStageError:
                 raise
             except Exception as exc:
                 errors.append(f"extraction error: {exc}")
                 logger.opt(exception=True).warning("JD extraction failed in import stage: {}", exc)
 
+        # 后置标记：仅抽取成功的记录置 extracted（失败保留 cleaned 可重试）
+        if success_ids:
+            with get_jd_raw_session() as s:
+                s.query(JdRaw).filter(JdRaw.id.in_(success_ids)).update(
+                    {JdRaw.status: JdStatus.extracted},
+                    synchronize_session=False,
+                )
+                s.commit()
+            logger.info(
+                "Import stage: marked {} JD(s) as extracted ({} failed kept as cleaned)",
+                len(success_ids), total - len(success_ids),
+            )
+
         run_async(publish_stage_progress(
             run_id, "import", "completed", progress=1.0,
             records_processed=processed,
-            current_activity=f"提取完成: {processed}/{total} 条 JD 成功提取技能",
+            current_activity=f"提取完成: 本轮 {processed}/{total} 条 JD 成功提取技能",
             recent_samples=extracted_skills_sample[-5:],
             elapsed_ms=int((time.monotonic() - start) * 1000),
-            message=f"LLM 提取完成: {processed}/{total} 成功",
+            message=f"LLM 提取完成: 本轮 {processed}/{total} 成功",
         ))
     except PipelineStageError:
         raise

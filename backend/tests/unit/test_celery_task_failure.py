@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from celery import signals
 
@@ -31,18 +31,23 @@ class TestTaskFailureSignal:
         )
 
     def test_handler_writes_audit_on_failure(self) -> None:
-        """_on_task_failure 触发时写 audit_events (CELERY_TASK_FAILURE)。"""
-        from unittest.mock import patch
+        """_on_task_failure 触发时写 audit_events (CELERY_TASK_FAILURE)。
 
+        2026-08-21: celery 5.6 信号只传 (task_id, exception, sender, ...)，
+        无 task_name —— handler 从 sender.name 解析。这里按真实信号形状调用。
+        """
         from app.tasks.celery_app import _on_task_failure
+
+        class _FakeSender:
+            name = "app.tasks.celery_app.batch_extract_jd"
 
         # handler 内部 lazy import `from app.utils.audit import audit_log`——
         # patch 源模块目标（`from X import y` 在 import 时读取 X.y，patch 生效）
         with patch("app.utils.audit.audit_log") as mock_audit:
             _on_task_failure(
                 task_id="test-task-1",
-                task_name="app.tasks.celery_app.batch_extract_jd",
                 exception=RuntimeError("boom"),
+                sender=_FakeSender(),
             )
             assert mock_audit.called, "audit_log 必须被调用"
             entry = mock_audit.call_args.args[0]
@@ -60,5 +65,7 @@ class TestTaskFailureSignal:
             # 由于 handler 内部 lazy import 会重新绑定，这里 patch 真实目标后
             # 通过模块级 reimport 强制走真实路径不可行；直接调用确认不抛。
             _on_task_failure(
-                task_id="x", task_name="t", exception=ValueError("e"),
+                task_id="x",
+                exception=ValueError("e"),
+                sender=MagicMock(name="fake-sender"),
             )
