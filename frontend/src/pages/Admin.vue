@@ -153,6 +153,60 @@ const {
   handleRejectNode,
 } = useGraphNodeEditor(graphNode)
 
+// 2026-08-21 (debug 优化): 图谱节点批量操作 —— 勾选列 + 批量通过/批量删除
+const nodeSelection = ref<GraphNodeItem[]>([])
+const nodeBatchAction = ref(false)
+
+async function handleBatchApproveNodes() {
+  if (nodeSelection.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(
+      `确认批量通过 ${nodeSelection.value.length} 个待审节点？通过后将出现在公开图谱中。`,
+      '批量通过',
+      { type: 'warning', confirmButtonText: '确认通过', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  nodeBatchAction.value = true
+  let ok = 0; let fail = 0
+  for (const node of nodeSelection.value) {
+    try {
+      await graphNode.approveGraphNode(node.id)
+      ok++
+    } catch { fail++ }
+  }
+  nodeSelection.value = []
+  await onNodePageChange()
+  ElMessage[fail === 0 ? 'success' : 'warning'](`批量通过完成: ${ok} 成功, ${fail} 失败`)
+  nodeBatchAction.value = false
+}
+
+async function handleBatchDeleteNodes() {
+  if (nodeSelection.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(
+      `确认删除选中的 ${nodeSelection.value.length} 个节点？此操作不可恢复。`,
+      '批量删除',
+      { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  nodeBatchAction.value = true
+  let ok = 0; let fail = 0
+  for (const node of nodeSelection.value) {
+    try {
+      await graphNode.deleteGraphNode(node.id)
+      ok++
+    } catch { fail++ }
+  }
+  nodeSelection.value = []
+  await onNodePageChange()
+  ElMessage[fail === 0 ? 'success' : 'warning'](`批量删除完成: ${ok} 成功, ${fail} 失败`)
+  nodeBatchAction.value = false
+}
+
 // ════════════════════════════════════════════════
 // 数据源编辑 (: el-drawer; state + handlers stay inline — coupled to template refs)
 // ════════════════════════════════════════════════
@@ -260,8 +314,10 @@ async function handleResetDemoData() {
 }
 
 // 数据源状态语义化 (2026-08-14): inactive 曾误显示为「异常」——现独立为「已停用」
+// 2026-08-20 (debug 修复 A3): active 统一为「运行中」——此前 Admin=「活跃」、
+// DataSources 页=「运行中」、DataSourceManager=「待机」三套文案。统一与数据源页一致。
 const DATASOURCE_STATUS_LABEL: Record<string, string> = {
-  active: '活跃',
+  active: '运行中',
   paused: '暂停',
   inactive: '已停用',
   error: '异常',
@@ -400,11 +456,10 @@ function formatDate(iso: string | null | undefined): string {
           <BusinessBanner
             type="info"
             title="主数据生命周期 — 新发现的内容审核"
-            description="当系统从数据源抽取新岗位/技能、或在 /extract/jd 提取新内容时，这些实体进入“待审核”状态。审核通过后才会出现在公开图谱中。"
+            description="当系统从数据源抽取新岗位或技能时，这些内容会先进入待审核状态。审核通过后才会出现在公开图谱中。"
             :meta="[
-              { category: '后端', label: '/admin/review-items', code: true, copyable: true },
-              { category: '数据源', label: 'position_records.review_status', code: true, copyable: true },
-              { label: 'skill_records.review_status', code: true, copyable: true },
+              { label: '审核对象：岗位、技能' },
+              { label: '来源：自动抽取、人工提交' },
             ]"
           />
           <el-card
@@ -423,10 +478,10 @@ function formatDate(iso: string | null | undefined): string {
           <BusinessBanner
             type="warning"
             title="能力演化审核 — 低信任变更需要人工裁决"
-            description="系统每周自动分析岗位能力图谱的演化（§5.2）。对于信任度低于 0.6 的变更提案，会自动写入此队列等待人工确认是否更新图谱。信任度 ≥ 0.6 的变更直接入图谱。"
+            description="系统每周自动分析岗位能力图谱的演化。信任度较低的变更会进入此队列等待人工确认；信任度较高的变更自动更新到图谱。"
             :meta="[
-              { category: '后端', label: '/admin/review-queue', code: true, copyable: true },
-              { category: '触发', label: 'EvolutionOrchestrator._save_changelog', code: true, copyable: true, hint: 'trust_score < 0.6 时入队' },
+              { label: '审核对象：低信任度演化变更' },
+              { label: '频率：每周自动分析' },
             ]"
           />
           <el-card
@@ -444,11 +499,11 @@ function formatDate(iso: string | null | undefined): string {
         >
           <BusinessBanner
             type="info"
-            title="Neo4j 图谱节点直接管理"
-            description="直接对 Neo4j 知识图谱中的节点进行 CRUD 操作。修改会立即影响图谱查询。注意：此 tab 绕过审核流程，请谨慎操作。"
+            title="知识图谱节点直接管理"
+            description="直接对知识图谱中的节点进行增删改查操作。修改会立即影响图谱查询。注意：此操作绕过审核流程，请谨慎使用。"
             :meta="[
-              { category: '后端', label: '/admin/graph/nodes', code: true, copyable: true },
-              { label: 'Neo4j', copyable: false },
+              { label: '操作：增、删、改、查' },
+              { label: '提示：绕过审核流程' },
             ]"
           />
           <el-card
@@ -531,14 +586,53 @@ function formatDate(iso: string | null | undefined): string {
               </el-select>
             </div>
 
+            <!-- 2026-08-21: 节点批量操作工具栏 -->
+            <div
+              v-if="nodeSelection.length > 0"
+              class="node-batch-toolbar"
+            >
+              <span class="batch-count">已选 {{ nodeSelection.length }} 个节点</span>
+              <el-button
+                size="small"
+                type="success"
+                :disabled="nodeBatchAction"
+                @click="handleBatchApproveNodes"
+              >
+                批量通过
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                :disabled="nodeBatchAction"
+                @click="handleBatchDeleteNodes"
+              >
+                批量删除
+              </el-button>
+              <el-button
+                size="small"
+                text
+                @click="nodeSelection = []"
+              >
+                清除选择
+              </el-button>
+            </div>
+
             <!-- 节点表格 -->
             <el-table
               v-loading="graphNodesLoading"
               :data="pagedGraphNodes"
               stripe
               size="default"
+              row-key="id"
               empty-text="暂无数据"
+              @selection-change="(rows: any[]) => nodeSelection = rows"
             >
+              <!-- 2026-08-21: 批量操作勾选列 -->
+              <el-table-column
+                type="selection"
+                width="48"
+                align="center"
+              />
               <el-table-column
                 prop="id"
                 label="ID"
@@ -686,11 +780,10 @@ function formatDate(iso: string | null | undefined): string {
           <BusinessBanner
             type="success"
             title="数据输入 — 爬虫源配置"
-            description="管理爬虫数据源（SAP、LinkedIn、Boss直聘等），配置权威性评分、启用状态。权威性评分直接影响信任度驱动的图谱构建策略（§7.1）。"
+            description="管理爬虫数据源（如 SAP、LinkedIn、Boss直聘等），配置权威性评分与启用状态。权威性评分越高，对岗位和技能信任度的影响越大。"
             :meta="[
-              { category: '后端', label: '/datasources', code: true, copyable: true },
-              { category: '数据源', label: 'datasources', code: true, copyable: true },
-              { label: '表' },
+              { label: '支持类型：官方标准、招聘 JD、技术博客' },
+              { label: '可配置：权威性、启用状态' },
             ]"
           />
           <el-card
@@ -895,11 +988,13 @@ function formatDate(iso: string | null | undefined): string {
             </el-table>
 
             <!-- 统计抽屉 (E19: 显示 /datasources/{id}/stats 真实聚合结果) -->
+            <!-- 2026-08-21 (debug 修复): append-to-body 防滚动容器内偏移 -->
             <el-drawer
               v-model="statsDrawerVisible"
               :title="statsDrawerTitle"
               direction="rtl"
               size="520px"
+              append-to-body
             >
               <div
                 v-if="datasource.loading"
@@ -986,11 +1081,13 @@ function formatDate(iso: string | null | undefined): string {
                     >
                       <el-tag
                         v-if="statsMeta?.status"
-                        :type="statsMeta.status === 'active' ? 'success' : 'warning'"
+                        :type="statsMeta.status === 'active' ? 'success' : statsMeta.status === 'inactive' ? 'info' : 'warning'"
                         size="small"
                         effect="plain"
                       >
-                        {{ statsMeta.status === 'active' ? '活跃' : statsMeta.status === 'paused' ? '暂停' : '异常' }}
+                        <!-- 2026-08-20 (debug 修复 A2): inactive 曾落入兜底"异常"（红色），
+                             与表格"已停用"矛盾。现独立为"已停用"。 -->
+                        {{ statsMeta.status === 'active' ? '运行中' : statsMeta.status === 'paused' ? '暂停' : statsMeta.status === 'inactive' ? '已停用' : '异常' }}
                       </el-tag>
                       <span v-else>—</span>
                     </div>
@@ -1019,11 +1116,15 @@ function formatDate(iso: string | null | undefined): string {
             </el-drawer>
 
             <!-- 编辑抽屉 (: 统一用 el-drawer) -->
+            <!-- 2026-08-21 (debug 修复): append-to-body —— 列表偏下方打开抽屉时，
+                 默认渲染在组件内跟随滚动容器偏移，导致窗口上方无法操作 -->
             <el-drawer
               v-model="editDialogVisible"
               title="编辑数据源"
               direction="rtl"
               size="400px"
+              append-to-body
+              :modal-class="'drawer-edit-modal'"
             >
               <el-form
                 v-if="editingSource"
@@ -1067,10 +1168,10 @@ function formatDate(iso: string | null | undefined): string {
         >
           <BusinessBanner
             type="info"
-            title="幻觉防控 — LLM 抽取提示词管理"
-            description="管理 LLM 抽取技能的提示词模板，支持版本控制和 A/B 测试。提示词质量直接影响信任度评分和幻觉率。"
+            title="抽取质量控制 — 提示词管理"
+            description="管理技能抽取所用的提示词模板，支持版本管理与方案对比。提示词质量直接影响抽取结果的可信度。"
             :meta="[
-              { category: '后端', label: '/admin/prompts', code: true, copyable: true },
+              { label: '功能：版本管理、A/B 测试' },
             ]"
           />
           <el-card
@@ -1088,11 +1189,11 @@ function formatDate(iso: string | null | undefined): string {
         >
           <BusinessBanner
             :type="dataTruthBannerType"
-            title="数据源真理报告 — 跨模块 KPI 口径审计"
-            description="每个 KPI 数字都有三层来源：API 返回值 / PostgreSQL 直查 / Neo4j 直查。当数字不一致时，说明底层数据存在孤儿节点或同步缺失。Phase 4 修复重点。"
+            title="数据一致性诊断 — 跨模块 KPI 口径审计"
+            description="每个统计数字都有多层来源相互校验。当数字不一致时，说明底层数据存在孤儿节点或同步缺失。"
             :meta="[
-              { category: '后端', label: '/admin/data-truth', code: true, copyable: true },
-              { category: '诊断标准', label: '<1% ok / 1-10% warn / >10% critical', code: true, copyable: true },
+              { label: '健康标准：差异 < 1% 良好，1–10% 警告，> 10% 严重' },
+              { label: '覆盖：岗位数、技能数、关系数' },
             ]"
           />
           <el-card
@@ -1113,10 +1214,9 @@ function formatDate(iso: string | null | undefined): string {
           <BusinessBanner
             type="warning"
             title="系统运维 — 用户管理与安全审计"
-            description="用户权限管理（admin / 普通用户）和系统级安全审计日志（登录、授权、敏感操作）。审计日志与“内容审核”无关，是独立的安全追溯机制。"
+            description="管理用户权限（管理员与普通用户）与系统安全审计日志（登录、授权、敏感操作）。审计日志独立于内容审核，是安全追溯机制。"
             :meta="[
-              { category: '后端', label: '/admin/users', code: true, copyable: true },
-              { label: '/admin/audit-events', code: true, copyable: true },
+              { label: '功能：用户管理、审计日志、演示数据' },
             ]"
           />
           <el-tabs
@@ -1142,9 +1242,10 @@ function formatDate(iso: string | null | undefined): string {
               <BusinessBanner
                 type="info"
                 title="演示数据一键重置"
-                description="设计文档 §2.3.3.2 管理角色刚需：一键加载演示数据（数据源 / 流水线阶段 / 演化快照 / 技能时序）。生产环境后端直接拒绝。"
+                description="一键加载演示数据（数据源、流水线阶段、演化快照、技能时序）。生产环境后端直接拒绝。"
                 :meta="[
-                  { category: '后端', label: 'POST /admin/seed/reset', code: true, copyable: true },
+                  { label: '仅演示环境可用' },
+                  { label: '影响：覆盖现有数据' },
                 ]"
               />
               <el-card
@@ -1177,6 +1278,22 @@ function formatDate(iso: string | null | undefined): string {
 </template>
 
 <style scoped>
+/* 2026-08-21: 节点批量操作工具栏 */
+.node-batch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: var(--bg-muted, #f1f5f9);
+  border-radius: 6px;
+}
+.node-batch-toolbar .batch-count {
+  font-size: 12px;
+  color: #475569;
+  margin-right: 4px;
+}
+
 .admin-page {
   max-width: 1200px;
   margin: 0 auto;

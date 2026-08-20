@@ -23,6 +23,7 @@ import { useEvolutionStore } from '@/stores/evolution'
 
 const evo = useEvolutionStore()
 const batchRejecting = ref(false)
+const batchApproving = ref(false)
 const actioningIds = ref<Set<string>>(new Set())
 
 onMounted(() => {
@@ -32,7 +33,7 @@ onMounted(() => {
 async function handleBatchReject() {
   try {
     await ElMessageBox.confirm(
-      `确认批量拒绝当前所有「低信任度」待审演化变更？\n\n此操作将拒绝队列中全部 EvolutionChangelog WHERE status='pending' AND trust_score<0.5。\n通常用于清理 diff_engine 在 snapshot 重建时产生的误报「removed」事件。`,
+      `确认批量拒绝当前所有低信任度的待审演化变更？\n\n此操作将拒绝队列中全部信任度低于 0.5 的变更提案。\n通常用于清理在快照重建时产生的误报「已移除」事件。`,
       '批量拒绝确认',
       {
         confirmButtonText: '确认全部拒绝',
@@ -61,6 +62,41 @@ async function handleBatchReject() {
     ElMessage.error('批量拒绝失败: ' + (e instanceof Error ? e.message : '未知错误'))
   } finally {
     batchRejecting.value = false
+  }
+}
+
+// 2026-08-21 (debug 优化): 批量批准 —— 后端 batch-action 已支持 approve，
+// 前端补上「批量批准」按钮（此前只有批量拒绝），一键批准全部低信任度变更。
+async function handleBatchApprove() {
+  try {
+    await ElMessageBox.confirm(
+      `确认批量批准当前所有待审演化变更？\n\n此操作将批准队列中全部信任度低于 0.5 的变更提案并纳入图谱。\n请确认这些变更是可信的。`,
+      '批量批准确认',
+      {
+        confirmButtonText: '确认全部批准',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+  batchApproving.value = true
+  const progressMsg = ElMessage({
+    message: '正在批量批准...',
+    type: 'info',
+    duration: 0,
+  })
+  try {
+    const data = await request.post('/evolution/review-queue/batch-action', { action: 'approve' }) as { updated: number; matched: number }
+    progressMsg.close()
+    ElMessage.success(`已批量批准 ${data.updated ?? 0} 个变更 (匹配 ${data.matched ?? 0} 条)`)
+    await evo.fetchReviewQueue('pending')
+  } catch (e) {
+    progressMsg.close()
+    ElMessage.error('批量批准失败: ' + (e instanceof Error ? e.message : '未知错误'))
+  } finally {
+    batchApproving.value = false
   }
 }
 
@@ -123,6 +159,14 @@ function changeTypeLabel(t: string): string {
         共 <strong>{{ evo.reviewQueue.length }}</strong> 个低信任度变更待审
       </span>
       <el-button
+        type="success"
+        size="small"
+        :loading="batchApproving"
+        @click="handleBatchApprove"
+      >
+        批量批准
+      </el-button>
+      <el-button
         type="danger"
         size="small"
         :loading="batchRejecting"
@@ -142,7 +186,7 @@ function changeTypeLabel(t: string): string {
       <template #title>
         当前没有待审核的低信任度演化变更
       </template>
-      <p>演化 orchestrator 每周自动运行；只有 trust_score &lt; 0.5 的变更会进入此队列等待人工裁决。</p>
+      <p>演化分析器每周自动运行；只有信任度低于 0.5 的变更会进入此队列等待人工裁决。</p>
     </el-alert>
 
     <el-table
@@ -236,8 +280,7 @@ function changeTypeLabel(t: string): string {
     </el-table>
 
     <p class="data-source">
-      数据源: <code>GET /evolution/review-queue?status=pending</code>
-      （EvolutionChangelog WHERE status='pending' AND trust_score &lt; 0.5）
+      数据源：低信任度的演化变更提案（信任度低于 0.5 的变更会自动进入待审队列）
     </p>
   </div>
 </template>

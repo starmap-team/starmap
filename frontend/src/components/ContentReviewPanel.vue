@@ -83,9 +83,44 @@ async function batchReject() {
   await callBatch('reject', reason)
 }
 
-// 2026-08-21: 全选当前筛选结果（一键审核全部待审项）
+// 2026-08-21: 全选当前筛选（一键审核全部待审项）
+// 修复1: 用 el-table toggleAllSelection() 触发 UI 勾选（此前直接赋值 selection
+// 数组不触发表格复选框，用户看到"已选 200 项"但复选框不亮）
+// 修复2: 文案区分「当前已加载 N 项」—— 后端 limit=200 只拉前 200 条，
+// 全部待审可能更多（743 岗位 + 524 技能），单独提供「全选全部待审」按钮
+const tableRef = ref<{ toggleAllSelection: () => void; clearSelection: () => void } | null>(null)
+
 function selectAllFiltered() {
-  selection.value = [...filteredItems.value]
+  // 全选当前表格可见页（20 条）—— toggleAllSelection 只作用于当前渲染数据
+  tableRef.value?.toggleAllSelection()
+}
+
+// 全选全部待审（不分页拉全部 ID，走批量审核端点）
+const selectingAll = ref(false)
+async function selectAllPending() {
+  if (selectingAll.value) return
+  selectingAll.value = true
+  try {
+    const limit = 2000
+    const [posRes, skillRes] = await Promise.all([
+      request.get('/admin/review-items', { params: { entity_type: 'position', status: 'pending_review', limit } }),
+      request.get('/admin/review-items', { params: { entity_type: 'skill', status: 'pending_review', limit } }),
+    ])
+    const posItems = (posRes as { items?: ReviewItem[] }).items ?? []
+    const skillItems = (skillRes as { items?: ReviewItem[] }).items ?? []
+    const all: ReviewItem[] = [...posItems, ...skillItems]
+    if (all.length === 0) {
+      ElMessage.info('没有待审核内容')
+      return
+    }
+    // 直接设置 selection（含未渲染项）—— 批量端点按 ID 审核，无需表格勾选态
+    selection.value = all
+    ElMessage.success(`已全选全部待审 ${all.length} 项（岗位 ${posItems.length} + 技能 ${skillItems.length}）`)
+  } catch (e) {
+    ElMessage.error('获取全部待审失败: ' + (e instanceof Error ? e.message : '未知错误'))
+  } finally {
+    selectingAll.value = false
+  }
 }
 
 const filteredItems = computed<ReviewItem[]>(() => {
@@ -380,7 +415,17 @@ async function saveNameCn() {
         :disabled="reviewStore.loading"
         @click="selectAllFiltered"
       >
-        全选当前筛选
+        全选当前页
+      </el-button>
+      <el-button
+        size="small"
+        type="primary"
+        plain
+        :loading="selectingAll"
+        :disabled="reviewStore.loading"
+        @click="selectAllPending"
+      >
+        全选全部待审
       </el-button>
     </div>
 
@@ -417,10 +462,12 @@ async function saveNameCn() {
 
     <!-- Table -->
     <el-table
+      ref="tableRef"
       v-loading="reviewStore.loading"
       :data="pagedItems"
       stripe
       size="default"
+      row-key="entity_id"
       empty-text="暂无审核项"
       class="review-table"
       @selection-change="(rows: any[]) => selection = rows"
