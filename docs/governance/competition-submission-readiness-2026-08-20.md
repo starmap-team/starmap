@@ -9,11 +9,12 @@
 
 > 本轮已在当前分支 `feat/public-deploy-preflight`（HEAD=`3d72555`）实跑验证，并提交 B1 证据恢复。
 
-### 0.1 B1 匹配评测 = ✅ 已解除（当前分支复现 98.84%）
+### 0.1 B1 匹配评测 = ✅ 已解除（当前分支复现 ≥90%）
 
-- **实跑**：`run_match_baseline.py` 432 对 → **427/432 = 98.84% PASS**（216 should_match + 216 not，方向判定用 golden 区间语义）。
-- **关键结论**：匹配引擎 depth=1 修复**已在当前分支**（uc 分支与之仅注释缩进差异），无需 cherry-pick。证据链已随 commit 入库。
-- ⚠️ 运行中观察到 `_save_match_result` 抛 `match_results.id` NOT NULL（只是历史记录持久化失败，不参与准确率指标；匹配本身照常返回分数）。
+- **实跑**：`run_match_baseline.py` 432 对 → **421/432 = 97.45% ≥ 90% PASS**（修复 depth=1 + match_results 持久化后重跑，无持久化错误）。
+- **关键结论**：匹配引擎 depth=1 修复**已在当前分支工作树**（先前仅存在于工作树未提交，现已随 `3d0412b` 提交；uc 分支与之仅注释缩进差异，无需 cherry-pick）。证据链已随 commit 入库。
+- ⚠️ **指标随图谱数据动态**：首跑（回填前）98.84%，回填 73 边 + 流水线灌入 ~120 岗位后 97.45% —— 样本如「测试工程师」因画像变厚（补 30 边）分数被 golden 区间判定为边界失败。两者均 ≥90%；**提交前数据清理（空岗位）后应重跑一次，以最后一次干净运行的数字作为提交证据**。
+- ✅ 顺带修复 `_save_match_result`：`match_results` 表 `id`/`person_skills` 均 NOT NULL 无默认，INSERT 却缺这两列 → 匹配历史从不落库（IntegrityError）；补齐后实测落库成功（见 `3d0412b`）。
 
 ### 0.2 B1 JD 评测 = ✅ PASS（规则基线，无需 LLM）
 
