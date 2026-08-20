@@ -24,6 +24,8 @@ from app.schemas.admin import (
     PipelineTriggerResponse,
     ReconcileResult,
     ReviewActionRequest,
+    ReviewBatchRequest,
+    ReviewBatchResponse,
     ReviewListResponse,
 )
 from app.services import review_service
@@ -271,6 +273,56 @@ async def list_review_items(
         items=[i.to_dict() for i in items],
         total=len(items),
     )
+
+
+@router.post("/review/batch", response_model=ReviewBatchResponse)
+async def batch_review_endpoint(
+    body: ReviewBatchRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> ReviewBatchResponse:
+    """2026-08-21: 批量审核/一键审核（新状态机）。
+
+    批量 approve/reject 多个 position/skill 待审项。逐条调 review_service
+    （幂等：已 approved 的 no-op），单条失败不阻断其余（返回 failed_ids）。
+    """
+    import uuid as _uuid
+
+    actor = user.get("sub") or user.get("username") or "admin"
+    ok = 0
+    fail = 0
+    failed_ids: list[str] = []
+    for entity_id in body.entity_ids:
+        try:
+            uid = _uuid.UUID(entity_id)
+        except (ValueError, TypeError):
+            fail += 1
+            failed_ids.append(entity_id)
+            continue
+        try:
+            if body.action == "approve":
+                await review_service.approve(
+                    session, entity_type=body.entity_type, entity_id=uid, actor=actor,
+                )
+            else:
+                if not body.reason or not body.reason.strip():
+                    fail += 1
+                    failed_ids.append(entity_id)
+                    continue
+                await review_service.reject(
+                    session, entity_type=body.entity_type, entity_id=uid,
+                    actor=actor, reason=body.reason,
+                )
+            ok += 1
+        except Exception as exc:  # noqa: BLE001 — 单条失败不阻断批量
+            logger.warning(
+                "Batch {} failed for {} {}: {}",
+                body.action, body.entity_type, entity_id, exc,
+            )
+            fail += 1
+            failed_ids.append(entity_id)
+    await session.commit()
+    return ReviewBatchResponse(ok=ok, fail=fail, failed_ids=failed_ids)
 
 
 @router.post("/review/{entity_type}/{entity_id}/submit")

@@ -213,6 +213,27 @@ class ReviewActionRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=2000)
 
 
+class ReviewBatchRequest(BaseModel):
+    """2026-08-21: 批量审核请求（一键审核）—— 新状态机批量端点。
+
+    与旧 /audit/batch（ReviewQueue 表，已废弃）不同，本端点基于
+    review_service 新状态机（position/skill 的 review_status 字段）。
+    """
+
+    entity_type: Literal["position", "skill"]
+    entity_ids: list[str] = Field(..., min_length=1, max_length=200, description="实体 UUID 列表")
+    action: Literal["approve", "reject"]
+    reason: str | None = Field(default=None, max_length=2000, description="拒绝原因（reject 必填）")
+
+
+class ReviewBatchResponse(BaseModel):
+    """批量审核结果。"""
+
+    ok: int = Field(default=0, ge=0, description="成功数")
+    fail: int = Field(default=0, ge=0, description="失败数")
+    failed_ids: list[str] = Field(default_factory=list, description="失败的实体 ID")
+
+
 class NameCnUpdateRequest(BaseModel):
     """调整岗位/技能中文名（name_cn）。"""
 

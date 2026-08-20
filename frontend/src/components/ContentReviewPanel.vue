@@ -26,6 +26,35 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const selection = ref<ReviewItem[]>([])
 
+// 2026-08-21: 批量操作改调后端批量端点（一次请求替代逐条循环），
+// 按 entity_type 分组（position/skill 分开调）
+async function callBatch(action: 'approve' | 'reject', reason?: string) {
+  const byType = new Map<ReviewEntityType, string[]>()
+  for (const item of selection.value) {
+    const t = item.entity_type as ReviewEntityType
+    if (!byType.has(t)) byType.set(t, [])
+    byType.get(t)!.push(item.entity_id)
+  }
+  let ok = 0; let fail = 0
+  for (const [type, ids] of byType) {
+    try {
+      const res = await request.post('/admin/review/batch', {
+        entity_type: type,
+        entity_ids: ids,
+        action,
+        reason: reason || null,
+      }) as { ok: number; fail: number }
+      ok += res.ok ?? 0
+      fail += res.fail ?? 0
+    } catch { fail += ids.length }
+  }
+  selection.value = []
+  await reviewStore.fetchItems()
+  await reviewStore.fetchStats()
+  const label = action === 'approve' ? '批准' : '拒绝'
+  ElMessage[fail === 0 ? 'success' : 'warning'](`${label}完成: ${ok} 成功, ${fail} 失败`)
+}
+
 async function batchApprove() {
   if (selection.value.length === 0) return
  // 2026-08-12 (admin 联调修复): 原实现 `.catch( => null)` 吞掉取消后无条件执行批准
@@ -39,17 +68,7 @@ async function batchApprove() {
   } catch {
     return  // 用户取消 — 不执行批准
   }
-  let ok = 0; let fail = 0
-  for (const item of selection.value) {
-    try {
-      await reviewStore.approve(item.entity_type as ReviewEntityType, item.entity_id)
-      ok++
-    } catch { fail++ }
-  }
-  selection.value = []
-  await reviewStore.fetchItems()
-  await reviewStore.fetchStats()
-  ElMessage[fail === 0 ? 'success' : 'warning'](`批准完成: ${ok} 成功, ${fail} 失败`)
+  await callBatch('approve')
 }
 
 async function batchReject() {
@@ -61,17 +80,12 @@ async function batchReject() {
   ).catch(() => ({ value: null }))
  // 2026-08-12: 用 null 区分"用户取消"与"确认但空原因"；取消不执行，空原因也拦截（拒绝原因必填）
   if (reason === null || !reason?.trim()) return
-  let ok = 0; let fail = 0
-  for (const item of selection.value) {
-    try {
-      await reviewStore.reject(item.entity_type as ReviewEntityType, item.entity_id, reason)
-      ok++
-    } catch { fail++ }
-  }
-  selection.value = []
-  await reviewStore.fetchItems()
-  await reviewStore.fetchStats()
-  ElMessage[fail === 0 ? 'success' : 'warning'](`拒绝完成: ${ok} 成功, ${fail} 失败`)
+  await callBatch('reject', reason)
+}
+
+// 2026-08-21: 全选当前筛选结果（一键审核全部待审项）
+function selectAllFiltered() {
+  selection.value = [...filteredItems.value]
 }
 
 const filteredItems = computed<ReviewItem[]>(() => {
@@ -264,7 +278,7 @@ async function saveNameCn() {
     <!-- Stats row -->
     <div class="stats-row">
       <el-tooltip
-        content="PostgreSQL position_records 表中 review_status='approved' 的岗位（用户可见、可检索）。"
+        content="审核通过、对外可见、可被检索的岗位数量。"
         placement="top"
       >
         <div class="stat-item">
@@ -273,7 +287,7 @@ async function saveNameCn() {
         </div>
       </el-tooltip>
       <el-tooltip
-        content="PostgreSQL position_records 表中 review_status='pending_review' 的岗位（需人工审核才能发布）。"
+        content="已抽取、尚未完成审核的岗位数量。"
         placement="top"
       >
         <div class="stat-item">
@@ -282,7 +296,7 @@ async function saveNameCn() {
         </div>
       </el-tooltip>
       <el-tooltip
-        content="PostgreSQL position_records 表中 review_status='rejected' 的岗位。"
+        content="审核未通过、未对外发布的岗位数量。"
         placement="top"
       >
         <div class="stat-item">
@@ -291,7 +305,7 @@ async function saveNameCn() {
         </div>
       </el-tooltip>
       <el-tooltip
-        content="PostgreSQL skill_records 表中 review_status='approved' 的技能。"
+        content="审核通过、可对外引用的技能数量。"
         placement="top"
       >
         <div class="stat-item">
@@ -300,7 +314,7 @@ async function saveNameCn() {
         </div>
       </el-tooltip>
       <el-tooltip
-        content="PostgreSQL skill_records 表中 review_status='pending_review' 的技能。"
+        content="已抽取、尚未完成审核的技能数量。"
         placement="top"
       >
         <div class="stat-item">
@@ -352,6 +366,22 @@ async function saveNameCn() {
           :value="opt.value"
         />
       </el-select>
+    </div>
+
+    <!-- 2026-08-21: 全选当前筛选（一键审核全部待审项） -->
+    <div
+      v-if="filteredItems.length > 0 && selection.length === 0"
+      class="batch-toolbar select-all-bar"
+    >
+      <span class="batch-count">当前筛选 {{ filteredItems.length }} 项待审</span>
+      <el-button
+        size="small"
+        plain
+        :disabled="reviewStore.loading"
+        @click="selectAllFiltered"
+      >
+        全选当前筛选
+      </el-button>
     </div>
 
     <!-- 批量操作工具栏 -->
