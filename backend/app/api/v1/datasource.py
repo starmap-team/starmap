@@ -461,3 +461,146 @@ async def create_datasource(
     session.add(new)
     await session.flush()
     return _serialize(new)
+
+
+
+
+
+@router.post("/{source_id}/manual-import", dependencies=[Depends(require_admin)])
+async def manual_import_jds(
+    source_id: UUID,
+    body: dict[str, Any],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, Any]:
+    """手动导入 JD 到指定数据源（无需爬虫适配器）。
+
+    Body 格式: {"jds": [{"source_url": str, "raw_text": str, "title": str,
+                    "company": str, "location": str, ...}]}
+    """
+    result = await session.execute(
+        select(DataSourceRecord).where(DataSourceRecord.id == source_id)
+    )
+    ds = result.scalar_one_or_none()
+    if ds is None:
+        raise HTTPException(status_code=404, detail="数据源不存在")
+
+    jds = body.get("jds", [])
+    if not isinstance(jds, list) or not jds:
+        raise HTTPException(status_code=400, detail="jds 必须是非空数组")
+
+    from crawler.persistence.models import JdRaw, JdStatus
+    from datetime import datetime as _dt
+    import hashlib
+
+    inserted = 0
+    duplicates = 0
+    errors = []
+    for i, jd in enumerate(jds):
+        try:
+            if not all(k in jd for k in ("source_url", "raw_text", "title")):
+                errors.append(f"第 {i+1} 条缺少必填字段 (source_url, raw_text, title)")
+                continue
+            content_hash = hashlib.sha256(
+                (jd.get("source_url", "") + jd.get("raw_text", "")).encode("utf-8")
+            ).hexdigest()
+            new_jd = JdRaw(
+                source_site=ds.name,
+                source_url=jd["source_url"],
+                raw_text=jd["raw_text"],
+                clean_text=jd.get("clean_text") or jd.get("raw_text", ""),
+                job_title=jd.get("job_title") or jd.get("title", "未命名"),
+                title=jd.get("title", ""),
+                company=jd.get("company"),
+                location=jd.get("location"),
+                salary=jd.get("salary"),
+                salary_min=jd.get("salary_min"),
+                salary_max=jd.get("salary_max"),
+                publish_date=jd.get("publish_date"),
+                crawled_at=_dt.utcnow(),
+                content_hash=content_hash,
+                simhash=jd.get("simhash"),
+                status=JdStatus.raw,
+            )
+            session.add(new_jd)
+            try:
+                await session.flush()
+                inserted += 1
+            except Exception:
+                await session.rollback()
+                duplicates += 1
+        except Exception as exc:
+            errors.append(f"第 {i+1} 条: {exc}")
+
+    ds.total_records = (ds.total_records or 0) + inserted
+    ds.valid_records = (ds.valid_records or 0) + inserted
+    await session.flush()
+
+    return {
+        "inserted": inserted,
+        "duplicates": duplicates,
+        "errors": errors[:10],
+        "source_id": str(source_id),
+        "source_name": ds.name,
+    }
+
+
+@router.get("/{source_id}/capability")
+async def get_source_capability(
+    source_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, Any]:
+    """返回数据源采集能力详情（前端用来决定按钮行为和展示引导）。
+
+    返回字段:
+      has_adapter: 是否有注册的爬虫适配器
+      adapter_platform: 已注册的适配器 platform 名（如 v2ex/remoteok）
+      can_sync: 是否可触发自动同步（有 adapter 且未禁用）
+      can_manual: 是否可手动导入（type 允许 manual/internal/crawler）
+      action_label: 推荐用户操作文本
+    """
+    from app.services.spider_registry import has_adapter as _has_adapter
+
+    result = await session.execute(
+        select(DataSourceRecord).where(DataSourceRecord.id == source_id)
+    )
+    ds = result.scalar_one_or_none()
+    if ds is None:
+        raise HTTPException(status_code=404, detail="数据源不存在")
+
+    platform = (ds.config or {}).get("platform") or ds.name.lower()
+    is_active = ds.status == "active"
+    is_disabled = (ds.config or {}).get("disabled", False)
+    has_adapt = _has_adapter(platform)
+
+    if has_adapt and is_active and not is_disabled:
+        action = "触发同步"
+        can_sync = True
+        can_manual = False
+    elif ds.source_type in ("manual", "internal", "reference"):
+        action = "手动导入" if ds.source_type == "manual" else "系统生成"
+        can_sync = False
+        can_manual = True
+    else:
+        action = "需配置爬虫适配器"
+        can_sync = False
+        can_manual = False
+
+    return {
+        "source_id": str(source_id),
+        "name": ds.name,
+        "source_type": ds.source_type,
+        "status": ds.status,
+        "platform": platform,
+        "has_adapter": has_adapt,
+        "can_sync": can_sync,
+        "can_manual": can_manual,
+        "action_label": action,
+        "guide": (
+            "已配置爬虫适配器，可触发自动同步"
+            if has_adapt and is_active and not is_disabled
+            else f"未配置适配器（platform={platform}）。"
+                 f"参考 spider_registry.py 注册该平台 adapter 后即可自动采集。"
+                 if ds.source_type == "crawler"
+            else f"类型 {ds.source_type}，使用 {action} 方式。"
+        ),
+    }

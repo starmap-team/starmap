@@ -6,7 +6,7 @@
  */
 import { onMounted, ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Connection, Coin, DataLine, RefreshRight, WarningFilled } from '@element-plus/icons-vue'
+import { Connection, Coin, DataLine, RefreshRight, WarningFilled, Upload } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { GaugeChart, BarChart } from 'echarts/charts'
@@ -45,6 +45,32 @@ async function handleSync(source: typeof dsStore.sources[number]) {
   } catch {
     ElMessage.error(`${getSourceNameLabel(source.name)} 同步失败`)
   } finally { syncingIds.value.delete(source.id) }
+}
+// T2.5: 手动导入 JD（无爬虫适配器时的兜底入口）
+async function handleManualImport(source: typeof dsStore.sources[number]) {
+  const raw = window.prompt(
+    `手动导入到「${source.name}」,每行一个 JD JSON (必填 source_url/raw_text/title):`,
+    '[{"source_url":"https://example.com/j1","raw_text":"...","title":"前端开发工程师","company":"ACME"}]'
+  )
+  if (!raw) return
+  let jds: unknown[] = []
+  try { jds = JSON.parse(raw) } catch (e) {
+    ElMessage.error('JSON 解析失败: ' + (e as Error).message); return
+  }
+  if (!Array.isArray(jds) || jds.length === 0) { ElMessage.error('请提供非空 JD 数组'); return }
+  try {
+    const out = await (dsStore as any).api.post(`/datasources/${source.id}/manual-import`, { jds }) as {
+      inserted: number; duplicates: number; errors: string[]
+    }
+    if (out.errors && out.errors.length) {
+      ElMessage.warning(`已导入 ${out.inserted} 条, ${out.duplicates} 条重复, 错误 ${out.errors.length} 条`)
+    } else {
+      ElMessage.success(`✅ 已导入 ${out.inserted} 条到「${source.name}」`)
+    }
+    void dsStore.fetchSources()
+  } catch (e) {
+    ElMessage.error('手动导入失败: ' + ((e as any)?.response?.data?.detail || (e as Error).message))
+  }
 }
 // / T2.3: 按需触发单源采集 → raw_jd_records
 async function handleImmediateCrawl(source: typeof dsStore.sources[number]) {
@@ -500,6 +526,17 @@ onMounted(() => {
                     <RefreshRight />
                   </el-icon>
                   {{ syncingIds.has(source.id) ? '同步中...' : '一键同步' }}
+                </el-button>
+                <!-- D6 新增：手动导入按钮 (类型=manual 时可用) -->
+                <el-button
+                  v-if="source.source_type === 'manual'"
+                  size="small"
+                  type="success"
+                  plain
+                  @click="handleManualImport(source)"
+                >
+                  <el-icon class="el-icon--left"><Upload /></el-icon>
+                  手动导入
                 </el-button>
               </el-tooltip>
               <!-- D5 UX: 立即采集仅对可爬取源启用；未配置平台禁用并说明原因；ESCO 标准库已在上方标签标注不展示 -->
