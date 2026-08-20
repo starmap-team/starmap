@@ -54,6 +54,20 @@ STAGE_EXECUTORS: dict[str, Any] = {
 # DAG advance logic (async, updates DB + dispatches next Celery tasks)
 # ---------------------------------------------------------------------------
 
+def _has_recoverable_stage(stages: list[dict]) -> bool:
+    """2026-08-21 (R1): run 失败后是否可自动续跑 —— import 阶段失败（LLM 抖动等
+    可恢复原因）且非级联失败（依赖也失败说明根因在上游，自动续跑无意义）。"""
+    failed_names = {s.get("name") for s in stages if s.get("status") == "failed"}
+    if not failed_names:
+        return False
+    # import 失败且其依赖（crawl/dedup/clean）未失败 → 可恢复
+    if "import" in failed_names:
+        deps_ok = not ({"crawl", "dedup", "clean"} & failed_names)
+        if deps_ok:
+            return True
+    return False
+
+
 async def advance_pipeline(run_id: uuid.UUID) -> None:
     """Check stage statuses and dispatch the next ready stages.
 
@@ -196,6 +210,44 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
                     progress=1.0 if run_status == RunStatus.COMPLETED.value else 0.0,
                     message=f"Pipeline {run_status}",
                 )
+                # 2026-08-21 (debug 修复 R1): 自动断电续跑 —— run 失败但可恢复
+                # （import 失败且还有 cleaned 存量待抽）时，延迟 60s 自动 resume 一次。
+                # 用 error_log 标记「auto-retried」避免无限循环（最多自动续跑 1 次，
+                # 之后仍需人工介入）。手动 resume 不受影响。
+                if run_status == RunStatus.FAILED.value:
+                    auto_retried = error_log and "auto-retried" in error_log
+                    if not auto_retried and _has_recoverable_stage(stages):
+                        auto_retry_marker = (error_log or "") + " [auto-retried]"
+                        await session.execute(
+                            update(PipelineRun)
+                            .where(PipelineRun.id == run_id)
+                            .values(error_log=auto_retry_marker)
+                        )
+                        logger.warning(
+                            "Auto-resume: run {} failed but has recoverable stage(s) — "
+                            "scheduling auto-resume in 60s (1 attempt only)",
+                            run_id,
+                        )
+                        # 独立线程延迟 60s 执行 resume（不碰当前 event loop）
+                        import threading
+
+                        from app.core.pipeline.engine import resume_run as _resume
+
+                        def _delayed_resume() -> None:
+                            import time as _time
+
+                            _time.sleep(60)
+                            try:
+                                import asyncio as _aio
+
+                                _aio.run(_resume(run_id))
+                            except Exception as _exc:  # noqa: BLE001
+                                logger.warning(
+                                    "Auto-resume failed for run {}: {}",
+                                    run_id, _exc,
+                                )
+
+                        threading.Thread(target=_delayed_resume, daemon=True).start()
                 return
 
             # Write back any skipped stage updates

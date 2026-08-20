@@ -258,9 +258,44 @@ async def cron_scanner_once(session: AsyncSession) -> int:
     """Single scan iteration: find and trigger due schedules.
 
     Returns count of triggered schedules.
+
+    2026-08-21 (debug 修复 R2): 熔断 —— 近 1 小时 pipeline run 失败 ≥3 次时
+    跳过调度触发，防止 LLM/数据源连续不可用导致 cron 反复失败刷屏（此前
+    每轮 cron 都触发 run → 每轮 3 次重试全失败 → 「近 24h 9 次失败」）。
+    手动触发不受影响（只拦调度器）。
     """
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import func, select
+
+    from app.models.pipeline_models import PipelineRun
+
     due = await scan_due_schedules(session)
     triggered = 0
+
+    # 熔断检查：近 1h 失败数（仅对 pipeline 调度生效，reconcile 不受影响）
+    pipeline_due = [s for s in due if s.name not in ("daily_reconcile", "graph_reconcile")]
+    if pipeline_due:
+        one_hour_ago = datetime.now(UTC) - timedelta(hours=1)
+        fail_count = (
+            await session.execute(
+                select(func.count())
+                .select_from(PipelineRun)
+                .where(
+                    PipelineRun.status == "failed",
+                    PipelineRun.started_at >= one_hour_ago,
+                )
+            )
+        ).scalar() or 0
+        if fail_count >= 3:
+            logger.warning(
+                "CIRCUIT BREAKER: {} pipeline run(s) failed in last 1h — "
+                "skipping {} scheduled trigger(s). Manual trigger unaffected.",
+                fail_count, len(pipeline_due),
+            )
+            # 仍触发非 pipeline 调度（reconcile）
+            due = [s for s in due if s.name in ("daily_reconcile", "graph_reconcile")]
+
     for schedule in due:
         ok = await trigger_schedule(session, schedule)
         if ok:
