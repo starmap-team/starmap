@@ -17,8 +17,11 @@ services:
       dockerfile: Dockerfile
     image: starmap-backend:2026.07
     container_name: starmap-backend-prod
-    ports:
-      - "8000:8000"
+    # public-deploy-preflight 2026-08-20 (P0): backend:8000 改为仅内网可达
+    # 之前直接 expose 8000 到宿主机 → 任何人可绕过 nginx 直连后端，绕过 HSTS/CSP/反代日志。
+    # 现仅 frontend:80/443 对外；backend 跨容器走 starmap-net。
+    expose:
+      - "8000"
     # NEW-P0 fix (AUDIT_VERIFICATION §1.4 C1): use a dedicated production env file
     # so APP_ENV=production + strong SECRET_KEY + REDIS_URI with password actually
     # reach the runtime. Previously `env_file: .env` loaded dev defaults and every
