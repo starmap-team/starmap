@@ -597,9 +597,11 @@ async def get_source_capability(
         can_sync = False
         can_manual = False
     else:
-        action = "需配置爬虫适配器"
+        # crawler 类型但未配置适配器（如 BOSS直聘/拉勾等 ToS 限制源）：
+        # 仍可手动导入 JD JSON，保证可操作可用。
+        action = "需配置适配器·可手动导入"
         can_sync = False
-        can_manual = False
+        can_manual = True
 
     return {
         "source_id": str(source_id),

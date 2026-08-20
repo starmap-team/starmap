@@ -230,12 +230,16 @@ class JDExtractionPipeline:
             result["prompt_version_used"] = get_active_version("jd_extraction") or "v1"
 
         # Step 2: Call LLM
+        parsed: dict[str, Any] | None = None
         try:
             raw = await self.llm_client.extract_from_jd(jd_content_safe)
         except LLMConnectionError as e:
-            logger.error("LLM connection failed: {}", e)
-            result["error"] = f"LLM connection error: {e}"
-            return result
+            # LLM 不可达（无 key/断网）时降级为规则抽取，保证管线可操作。
+            logger.warning("LLM connection failed, using rule-based fallback: {}", e)
+            result["warnings"].append(f"LLM 不可达，已降级为规则抽取: {e}")
+            result["model_used"] = "rule-based-fallback"
+            parsed = _rule_based_extract(jd_content_safe)
+            raw = None
         except LLMResponseError as e:
             logger.error("LLM response error: {}", e)
             result["error"] = f"LLM response error: {e}"
@@ -249,17 +253,18 @@ class JDExtractionPipeline:
         # 供前端展示"本次抽取所用模型/是否降级"，保证降级反馈透明。
         # extract_from_jd 现在返回 {"extraction": ..., "model": ...} 而非裸 JSON，
         # 消除了 self.last_extraction_model 的并发竞态。
-        if isinstance(raw, dict) and "extraction" in raw:
-            result["model_used"] = raw.get("model")
-            parsed = raw["extraction"]
-        else:
-            result["model_used"] = None
-            # Step 3: Parse JSON (legacy path for callers returning raw content)
-            try:
-                parsed = parse_llm_json_response(raw["content"]) if isinstance(raw, dict) and "content" in raw else raw
-            except LLMResponseError as e:
-                result["error"] = f"JSON parse error: {e}"
-                return result
+        if parsed is None:
+            if isinstance(raw, dict) and "extraction" in raw:
+                result["model_used"] = raw.get("model")
+                parsed = raw["extraction"]
+            else:
+                result["model_used"] = None
+                # Step 3: Parse JSON (legacy path for callers returning raw content)
+                try:
+                    parsed = parse_llm_json_response(raw["content"]) if isinstance(raw, dict) and "content" in raw else raw
+                except LLMResponseError as e:
+                    result["error"] = f"JSON parse error: {e}"
+                    return result
 
         # Step 4: Pydantic validation
         try:
@@ -472,6 +477,46 @@ class JDExtractionPipeline:
         logger.info("JD extraction pipeline complete: {} required, {} preferred skills",
                      len(validated.required_skills), len(validated.preferred_skills))
         return result
+
+
+def _rule_based_extract(jd_content: str) -> dict[str, Any]:
+    """Rule-based fallback when LLM is unreachable.
+
+    Scans the JD text against the skill dictionary (SKILL_ALIAS) to extract
+    canonical skills, producing the same shape the LLM path yields so the
+    downstream persist/normalize/anti-hallucination stages run unchanged.
+    Skills are marked low-confidence so they're clearly degraded.
+    """
+    from app.core.extraction.normalize import extract_dict_skills
+
+    text_lower = (jd_content or "").lower()
+    skills = sorted(extract_dict_skills(jd_content or ""))
+
+    required = [
+        {"name": s, "confidence": 0.5, "evidence": "rule-based dictionary match"}
+        for s in skills[:8]
+    ]
+    preferred = [
+        {"name": s, "confidence": 0.4, "evidence": "rule-based dictionary match"}
+        for s in skills[8:14]
+    ]
+
+    # 粗略岗位名：取第一行非空文本作为标题回退
+    first_line = next((ln.strip() for ln in (jd_content or "").splitlines() if ln.strip()), "未命名岗位")
+
+    return {
+        "position_name": first_line[:80],
+        "experience_required": None,
+        "education_required": None,
+        "industry": "",
+        "industry_scenario": "",
+        "description": (jd_content or "")[:500],
+        "required_skills": required,
+        "preferred_skills": preferred,
+        "responsibilities": [],
+        "knowledge_areas": [],
+        "evolves_to": [],
+    }
 
 
 async def extract_from_jd(
