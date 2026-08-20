@@ -41,11 +41,12 @@ asyncio.run(sync())
 engine.dispose()
 print('[entrypoint] Schema sync OK')
 " || echo "[entrypoint] WARN: Schema sync failed (non-fatal)"
-    # 2026-08-19 fix: schema sync 已创建所有表 → alembic upgrade 的重复创建
-    # 会因 DuplicateTable/DuplicateColumn 失败（InFailedSQLTransaction）。
-    # 直接 stamp head 标记迁移链完成，跳过有 bug 的迁移执行。
-    # 新增迁移时需开发者手动运行 alembic upgrade head 更新版本。
-    python -m alembic stamp head 2>&1 || echo "[entrypoint] WARN: alembic stamp failed (non-fatal)"
+    # public-deploy-preflight 2026-08-20: 改 stamp head → upgrade head。
+    # 之前 stamp head 让迁移链从未真正执行，仅标记版本号，未来新增迁移易漂移。
+    # 改后真实应用 001-039 链；016/018/019/022/023/025/027/033/039 全部用
+    # 原始 SQL IF NOT EXISTS 幂等化，重入也安全。schema sync 在前是为了让
+    # 大部分迁移操作降级为 no-op（仅补列/补索引）。
+    python -m alembic upgrade head 2>&1 || echo "[entrypoint] WARN: alembic upgrade head failed (non-fatal)"
     # 2026-08-19: 种子管理（同原 bootstrap.py 行为）
     # .env BOOTSTRAP_SEED_ADMIN=false（生产守卫拒绝 true）→ 用 env 覆盖
     # 执行一次性播种，APP_ENV=development 仅该进程跳过生产守卫。
