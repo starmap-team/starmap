@@ -14,10 +14,11 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Grid, Connection, DataLine, Clock, Promotion } from '@element-plus/icons-vue'
+import { Grid, Connection, DataLine, Clock, Promotion, DataAnalysis } from '@element-plus/icons-vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useReviewStore } from '@/stores/review'
 import AdminFlow from '@/components/AdminFlow.vue'
+import request from '@/api/request'
 
 const router = useRouter()
 const dashboard = useDashboardStore()
@@ -27,12 +28,30 @@ const review = useReviewStore()
 const loadError = ref<string | null>(null)
 const loading = ref(false)
 
+// Data health metrics
+interface DataHealth {
+  total_positions: number
+  approved_positions: number
+  positions_no_skills: number
+  positions_no_skills_pct: number
+  positions_unclassified: number
+  positions_unclassified_pct: number
+  positions_no_name_cn: number
+  positions_no_name_cn_pct: number
+  total_skills: number
+  skills_no_name_cn: number
+  skills_no_name_cn_pct: number
+  health_status: string
+}
+const dataHealth = ref<DataHealth | null>(null)
+
 async function refresh() {
   loading.value = true
   loadError.value = null
   const results = await Promise.allSettled([
     dashboard.fetchOverview(),
     review.fetchStats(),
+    request.get('/admin/data-health').then((r: any) => { dataHealth.value = r.data }),
   ])
   const failures = results
     .map((r, i) => ({ r, i }))
@@ -224,6 +243,73 @@ const tabCards = [
       </el-card>
     </div>
 
+    <!-- ─── 数据健康度 ─── -->
+    <el-card
+      v-if="dataHealth"
+      shadow="never"
+      class="data-health-card"
+    >
+      <template #header>
+        <div class="flow-card-header">
+          <DataAnalysis class="flow-header-icon" />
+          <div>
+            <h3 class="flow-title">
+              数据健康度
+            </h3>
+            <p class="flow-subtitle">
+              岗位完整性全览 — 无技能/未分类/无翻译等关键指标
+            </p>
+          </div>
+          <el-tag
+            :type="dataHealth.health_status === 'ok' ? 'success' : dataHealth.health_status === 'warn' ? 'warning' : 'danger'"
+            size="small"
+            effect="dark"
+            class="health-badge"
+          >
+            {{ dataHealth.health_status === 'ok' ? '健康' : dataHealth.health_status === 'warn' ? '需关注' : '需修复' }}
+          </el-tag>
+        </div>
+      </template>
+      <el-row :gutter="16">
+        <el-col :xs="12" :sm="8" :md="6">
+          <div class="health-metric">
+            <div class="health-value" :class="{ 'danger': dataHealth.positions_no_skills_pct > 30 }">
+              {{ dataHealth.positions_no_skills }}
+            </div>
+            <div class="health-label">无技能岗位</div>
+            <div class="health-pct">{{ dataHealth.positions_no_skills_pct }}%</div>
+          </div>
+        </el-col>
+        <el-col :xs="12" :sm="8" :md="6">
+          <div class="health-metric">
+            <div class="health-value" :class="{ 'danger': dataHealth.positions_unclassified_pct > 30 }">
+              {{ dataHealth.positions_unclassified }}
+            </div>
+            <div class="health-label">未分类行业</div>
+            <div class="health-pct">{{ dataHealth.positions_unclassified_pct }}%</div>
+          </div>
+        </el-col>
+        <el-col :xs="12" :sm="8" :md="6">
+          <div class="health-metric">
+            <div class="health-value" :class="{ 'warning': dataHealth.positions_no_name_cn_pct > 50 }">
+              {{ dataHealth.positions_no_name_cn }}
+            </div>
+            <div class="health-label">无中文名</div>
+            <div class="health-pct">{{ dataHealth.positions_no_name_cn_pct }}%</div>
+          </div>
+        </el-col>
+        <el-col :xs="12" :sm="8" :md="6">
+          <div class="health-metric">
+            <div class="health-value" :class="{ 'warning': dataHealth.skills_no_name_cn_pct > 50 }">
+              {{ dataHealth.skills_no_name_cn }}
+            </div>
+            <div class="health-label">技能无中文名</div>
+            <div class="health-pct">{{ dataHealth.skills_no_name_cn_pct }}%</div>
+          </div>
+        </el-col>
+      </el-row>
+    </el-card>
+
     <!-- ─── 各 Tab 一句话说明 ─── -->
     <el-card
       shadow="never"
@@ -414,5 +500,39 @@ const tabCards = [
   font-size: var(--font-size-sm);
   color: var(--muted-foreground);
   line-height: 1.5;
+}
+
+/* Data Health Card */
+.data-health-card {
+  border: 1px solid var(--border);
+}
+.health-badge {
+  margin-left: auto;
+}
+.health-metric {
+  text-align: center;
+  padding: var(--space-3);
+}
+.health-value {
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.health-value.danger {
+  color: var(--destructive);
+}
+.health-value.warning {
+  color: #f59e0b;
+}
+.health-label {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}
+.health-pct {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  margin-top: 1px;
 }
 </style>

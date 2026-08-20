@@ -261,6 +261,37 @@ async def update_name_cn(
     return _to_item(entity_type, row)
 
 
+async def update_industry(
+    session: AsyncSession,
+    *,
+    entity_type: EntityType,
+    entity_id: uuid.UUID,
+    industry: str,
+    actor: str,
+) -> ReviewItem:
+    """Update the industry classification of a position/skill.
+
+    Admin manual reclassification entry. Non-destructive, idempotent.
+    """
+    row = await _get_entity(session, entity_type, entity_id)
+    old_value = getattr(row, "industry", None)
+    row.industry = industry
+    if old_value != industry:
+        await _record_transition(
+            session,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action="update_industry",
+            actor=actor,
+            previous_status=cast(Status, row.review_status),
+            new_status=cast(Status, row.review_status),
+            reason=f"industry: {old_value or '(none)'} -> {industry}",
+        )
+    await session.commit()
+    await session.refresh(row)
+    return _to_item(entity_type, row)
+
+
 async def reject(
     session: AsyncSession,
     *,

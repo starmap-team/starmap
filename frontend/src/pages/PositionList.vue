@@ -31,6 +31,7 @@ interface PositionRow {
   name: string
   name_cn?: string
   industry: string
+  skills_required?: Array<{ skill_id?: string; name: string; name_cn?: string }>
   review_status?: 'draft' | 'pending_review' | 'approved' | 'rejected'
   reviewed_by?: string | null
   rejection_reason?: string | null
@@ -308,6 +309,16 @@ onMounted(() => {
                   >
                     {{ pos.industry || '未分类' }}
                   </el-tag>
+                  <!-- 技能数量指示 -->
+                  <el-tag
+                    size="small"
+                    :type="(pos.skills_required?.length ?? 0) > 0 ? 'success' : 'danger'"
+                    effect="plain"
+                    class="skill-count-tag"
+                    :title="(pos.skills_required?.length ?? 0) > 0 ? `包含 ${pos.skills_required!.length} 项技能` : '该岗位暂无技能数据'"
+                  >
+                    技能 {{ pos.skills_required?.length ?? 0 }}
+                  </el-tag>
                   <!-- PLAN-006④: 数据时效指示 (演示数据 / 数据更新于 X / 较旧) -->
                   <el-tag
                     size="small"
@@ -471,6 +482,10 @@ onMounted(() => {
 }
 .industry-chip {
   font-weight: 500;
+}
+.skill-count-tag {
+  font-weight: 500;
+  font-size: 11px;
 }
 .lang-badge {
   vertical-align: middle;

@@ -227,6 +227,32 @@ class NameCnUpdateRequest(BaseModel):
     name_cn: str = Field(..., min_length=1, max_length=255, description="中文显示名（非空）")
 
 
+class IndustryUpdateRequest(BaseModel):
+    """调整岗位行业分类（industry）。"""
+
+    industry: str = Field(..., min_length=1, max_length=100, description="行业分类（非空）")
+
+
+class DataHealthResponse(BaseModel):
+    """数据健康度报告——岗位完整性全览。"""
+
+    total_positions: int = Field(default=0, ge=0, description="岗位总数")
+    approved_positions: int = Field(default=0, ge=0, description="已批准岗位数")
+    pending_positions: int = Field(default=0, ge=0, description="待审岗位数")
+    positions_no_skills: int = Field(default=0, ge=0, description="无技能岗位数")
+    positions_no_skills_pct: float = Field(default=0.0, ge=0.0, le=100.0, description="无技能岗位占比%")
+    positions_unclassified: int = Field(default=0, ge=0, description="未分类行业岗位数")
+    positions_unclassified_pct: float = Field(default=0.0, ge=0.0, le=100.0, description="未分类行业占比%")
+    positions_no_name_cn: int = Field(default=0, ge=0, description="无中文名岗位数")
+    positions_no_name_cn_pct: float = Field(default=0.0, ge=0.0, le=100.0, description="无中文名占比%")
+    positions_no_description: int = Field(default=0, ge=0, description="无描述岗位数")
+    total_skills: int = Field(default=0, ge=0, description="技能总数")
+    skills_no_name_cn: int = Field(default=0, ge=0, description="无中文名技能数")
+    skills_no_name_cn_pct: float = Field(default=0.0, ge=0.0, le=100.0, description="技能无中文名占比%")
+    industry_distribution: dict[str, int] = Field(default_factory=dict, description="行业分布")
+    health_status: str = Field(default="ok", description="综合健康度: ok/warn/critical")
+
+
 class PipelineStatusResponse(BaseModel):
     """Pipeline status + data health summary."""
 

@@ -45,6 +45,8 @@ class JdRaw(Base):
     source_url: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     raw_html: Mapped[str | None] = mapped_column(Text, nullable=True)
     clean_text: Mapped[str] = mapped_column(Text, nullable=False)
+    # DB 原始列（旧 schema）：raw_text NOT NULL。模型需映射以通过 NOT NULL 约束。
+    raw_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
     job_title: Mapped[str] = mapped_column(String(200), nullable=False)
     company: Mapped[str | None] = mapped_column(String(200), nullable=True)
     salary_min: Mapped[int | None] = mapped_column(Integer, nullable=True)

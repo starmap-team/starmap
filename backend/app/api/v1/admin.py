@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver, require_admin
 from app.schemas.admin import (
+    DataHealthResponse,
+    IndustryUpdateRequest,
     NameCnUpdateRequest,
     PipelineStatusResponse,
     PipelineTriggerResponse,
@@ -306,6 +308,26 @@ async def approve_review_item_endpoint(
     # to_dict 键是 review_status（非 status）
     if entity_type == "position" and item_dict.get("review_status") == "approved":
         position_name = item_dict.get("name", "")
+        # 审核门控: 检查岗位完整性并返回警告
+        warnings = []
+        uid = uuid_mod.UUID(entity_id)
+        from sqlalchemy import func, select as sa_select
+        from app.models.extraction_models import PositionSkillRelation
+        skill_count = (
+            await session.execute(
+                sa_select(func.count(PositionSkillRelation.id)).where(
+                    PositionSkillRelation.position_id == uid
+                )
+            )
+        ).scalar() or 0
+        if skill_count == 0:
+            warnings.append("该岗位无技能数据，建议先完成 JD 抽取再审批")
+        if not item_dict.get("name_cn"):
+            warnings.append("该岗位缺少中文名 (name_cn)")
+        if item_dict.get("industry") == "未分类":
+            warnings.append("该岗位行业分类为「未分类」，建议手动归类")
+        if warnings:
+            item_dict["_completeness_warnings"] = warnings
         if position_name:
             from app.tasks.stage3_services import sync_approved_position_to_graph
 
@@ -417,6 +439,179 @@ async def update_name_cn_endpoint(
         except Exception as exc:  # noqa: BLE001 — 图同步失败不阻断 PG 更新
             logger.warning("name_cn graph sync failed for {} {}: {}", entity_type, entity_id, exc)
     return item.to_dict()
+
+
+@router.patch("/review/{entity_type}/{entity_id}/industry")
+async def update_industry_endpoint(
+    entity_type: Literal["position", "skill"],
+    entity_id: str,
+    body: IndustryUpdateRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> dict[str, Any]:
+    """调整岗位/技能行业分类（industry）— 管理员手动归类入口。
+
+    更新 PG 行 + 同步 Neo4j 节点属性，非破坏、幂等。
+    """
+    try:
+        uid = uuid_mod.UUID(entity_id)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="entity_id must be a UUID") from exc
+    try:
+        item = await review_service.update_industry(
+            session,
+            entity_type=entity_type,  # type: ignore[arg-type]
+            entity_id=uid,
+            industry=body.industry.strip(),
+            actor=user.get("sub", "admin"),
+        )
+    except review_service.ReviewNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # 同步 Neo4j 节点 industry（图谱展示跟随 PG 权威）
+    if neo4j_driver is not None:
+        try:
+            from app.core.extraction.industry import is_unclassified
+            from app.services.graph_projector import GraphProjector
+
+            projector = GraphProjector(neo4j_driver)
+            neo4j_industry = None if is_unclassified(body.industry) else body.industry
+            await projector.apply_change(
+                label="Position" if entity_type == "position" else "Skill",
+                canonical_id=uid,
+                properties={"industry": neo4j_industry},
+            )
+        except Exception as exc:  # noqa: BLE001 — 图同步失败不阻断 PG 更新
+            logger.warning("industry graph sync failed for {} {}: {}", entity_type, entity_id, exc)
+    return item.to_dict()
+
+
+@router.get("/data-health", response_model=DataHealthResponse)
+async def data_health_endpoint(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> DataHealthResponse:
+    """数据健康度报告——岗位完整性全览。
+
+    返回未分类/无技能/无翻译等关键指标，供 Admin 仪表盘和自动化门控使用。
+    """
+    from sqlalchemy import func, select
+
+    from app.core.extraction.industry import UNCLASSIFIED_INDUSTRY_LITERAL
+    from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
+
+    # 岗位总数 + 审核态分布
+    total = (await session.execute(select(func.count(PositionRecord.id)))).scalar() or 0
+    approved = (
+        await session.execute(
+            select(func.count(PositionRecord.id)).where(
+                PositionRecord.review_status == "approved"
+            )
+        )
+    ).scalar() or 0
+    pending = (
+        await session.execute(
+            select(func.count(PositionRecord.id)).where(
+                PositionRecord.review_status == "pending_review"
+            )
+        )
+    ).scalar() or 0
+
+    # 无技能岗位数（approved only，与前端口径一致）
+    approved_no_skills = (
+        await session.execute(
+            select(func.count(PositionRecord.id)).where(
+                PositionRecord.review_status == "approved",
+                ~PositionRecord.id.in_(
+                    select(PositionSkillRelation.position_id).distinct()
+                ),
+            )
+        )
+    ).scalar() or 0
+
+    # 未分类行业岗位数（approved only）
+    unclassified = (
+        await session.execute(
+            select(func.count(PositionRecord.id)).where(
+                PositionRecord.review_status == "approved",
+                PositionRecord.industry == UNCLASSIFIED_INDUSTRY_LITERAL,
+            )
+        )
+    ).scalar() or 0
+
+    # 无中文名岗位数（approved only）
+    no_name_cn = (
+        await session.execute(
+            select(func.count(PositionRecord.id)).where(
+                PositionRecord.review_status == "approved",
+                (PositionRecord.name_cn.is_(None)) | (PositionRecord.name_cn == ""),
+            )
+        )
+    ).scalar() or 0
+
+    # 无描述岗位数（approved only）
+    no_desc = (
+        await session.execute(
+            select(func.count(PositionRecord.id)).where(
+                PositionRecord.review_status == "approved",
+                (PositionRecord.description.is_(None)) | (PositionRecord.description == ""),
+            )
+        )
+    ).scalar() or 0
+
+    # 技能统计
+    total_skills = (await session.execute(select(func.count(SkillRecord.id)))).scalar() or 0
+    skills_no_cn = (
+        await session.execute(
+            select(func.count(SkillRecord.id)).where(
+                (SkillRecord.name_cn.is_(None)) | (SkillRecord.name_cn == ""),
+            )
+        )
+    ).scalar() or 0
+
+    # 行业分布（approved only）
+    ind_rows = (
+        await session.execute(
+            select(PositionRecord.industry, func.count(PositionRecord.id))
+            .where(PositionRecord.review_status == "approved")
+            .group_by(PositionRecord.industry)
+            .order_by(func.count(PositionRecord.id).desc())
+        )
+    ).all()
+    industry_dist = {row[0] or "(NULL)": row[1] for row in ind_rows}
+
+    # 百分比计算
+    no_skills_pct = (approved_no_skills / approved * 100) if approved else 0.0
+    unclass_pct = (unclassified / approved * 100) if approved else 0.0
+    no_cn_pct = (no_name_cn / approved * 100) if approved else 0.0
+    skills_cn_pct = (skills_no_cn / total_skills * 100) if total_skills else 0.0
+
+    # 综合健康度
+    health = "ok"
+    if no_skills_pct > 30 or unclass_pct > 30:
+        health = "critical"
+    elif no_skills_pct > 10 or unclass_pct > 10 or no_cn_pct > 50:
+        health = "warn"
+
+    return DataHealthResponse(
+        total_positions=total,
+        approved_positions=approved,
+        pending_positions=pending,
+        positions_no_skills=approved_no_skills,
+        positions_no_skills_pct=round(no_skills_pct, 1),
+        positions_unclassified=unclassified,
+        positions_unclassified_pct=round(unclass_pct, 1),
+        positions_no_name_cn=no_name_cn,
+        positions_no_name_cn_pct=round(no_cn_pct, 1),
+        positions_no_description=no_desc,
+        total_skills=total_skills,
+        skills_no_name_cn=skills_no_cn,
+        skills_no_name_cn_pct=round(skills_cn_pct, 1),
+        industry_distribution=industry_dist,
+        health_status=health,
+    )
 
 
 @router.post("/review/{entity_type}/{entity_id}/unpublish")

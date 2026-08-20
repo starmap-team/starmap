@@ -29,6 +29,7 @@ from app.schemas.datasource import (
     DatasourcesHealthResponse,
     DataSourceStatsResponse,
     DataSourceUpdateRequest,
+    ManualImportRequest,
     QualityTrendEntry,
     SourceHealthEntry,
     SyncTriggerResponse,
@@ -469,7 +470,7 @@ async def create_datasource(
 @router.post("/{source_id}/manual-import", dependencies=[Depends(require_admin)])
 async def manual_import_jds(
     source_id: UUID,
-    body: dict[str, Any],
+    body: ManualImportRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, Any]:
     """手动导入 JD 到指定数据源（无需爬虫适配器）。
@@ -484,7 +485,7 @@ async def manual_import_jds(
     if ds is None:
         raise HTTPException(status_code=404, detail="数据源不存在")
 
-    jds = body.get("jds", [])
+    jds = [jd.model_dump() for jd in body.jds]
     if not isinstance(jds, list) or not jds:
         raise HTTPException(status_code=400, detail="jds 必须是非空数组")
 
@@ -492,27 +493,38 @@ async def manual_import_jds(
     from datetime import datetime as _dt
     import hashlib
 
+    # 捕获标量，避免 rollback 后访问 detached ORM 对象 (greenlet 错误)
+    ds_name = ds.name
+
     inserted = 0
     duplicates = 0
     errors = []
     for i, jd in enumerate(jds):
+        if not all(k in jd and jd[k] for k in ("source_url", "raw_text", "title")):
+            errors.append(f"第 {i+1} 条缺少必填字段 (source_url, raw_text, title)")
+            continue
+        raw_text = jd.get("raw_text", "")
+        job_title = jd.get("job_title") or jd.get("title", "未命名")
+        content_hash = hashlib.sha256(
+            (jd.get("source_url", "") + raw_text).encode("utf-8")
+        ).hexdigest()
+        # 去重：content_hash 已存在则跳过
+        dup = await session.execute(
+            select(JdRaw.id).where(JdRaw.content_hash == content_hash)
+        )
+        if dup.scalar_one_or_none() is not None:
+            duplicates += 1
+            continue
         try:
-            if not all(k in jd for k in ("source_url", "raw_text", "title")):
-                errors.append(f"第 {i+1} 条缺少必填字段 (source_url, raw_text, title)")
-                continue
-            content_hash = hashlib.sha256(
-                (jd.get("source_url", "") + jd.get("raw_text", "")).encode("utf-8")
-            ).hexdigest()
             new_jd = JdRaw(
-                source_site=ds.name,
+                source_site=ds_name,
                 source_url=jd["source_url"],
-                raw_text=jd["raw_text"],
-                clean_text=jd.get("clean_text") or jd.get("raw_text", ""),
-                job_title=jd.get("job_title") or jd.get("title", "未命名"),
-                title=jd.get("title", ""),
+                raw_html=jd.get("raw_html"),
+                raw_text=raw_text,
+                clean_text=jd.get("clean_text") or raw_text,
+                job_title=job_title[:200],
                 company=jd.get("company"),
                 location=jd.get("location"),
-                salary=jd.get("salary"),
                 salary_min=jd.get("salary_min"),
                 salary_max=jd.get("salary_max"),
                 publish_date=jd.get("publish_date"),
@@ -522,25 +534,23 @@ async def manual_import_jds(
                 status=JdStatus.raw,
             )
             session.add(new_jd)
-            try:
-                await session.flush()
-                inserted += 1
-            except Exception:
-                await session.rollback()
-                duplicates += 1
-        except Exception as exc:
+            await session.flush()
+            inserted += 1
+        except Exception as exc:  # noqa: BLE001
+            await session.rollback()
             errors.append(f"第 {i+1} 条: {exc}")
 
-    ds.total_records = (ds.total_records or 0) + inserted
-    ds.valid_records = (ds.valid_records or 0) + inserted
-    await session.flush()
+    if inserted:
+        ds.total_records = (ds.total_records or 0) + inserted
+        ds.valid_records = (ds.valid_records or 0) + inserted
+        await session.flush()
 
     return {
         "inserted": inserted,
         "duplicates": duplicates,
         "errors": errors[:10],
         "source_id": str(source_id),
-        "source_name": ds.name,
+        "source_name": ds_name,
     }
 
 
@@ -576,10 +586,16 @@ async def get_source_capability(
         action = "触发同步"
         can_sync = True
         can_manual = False
-    elif ds.source_type in ("manual", "internal", "reference"):
-        action = "手动导入" if ds.source_type == "manual" else "系统生成"
+    elif ds.source_type == "manual":
+        action = "手动导入"
         can_sync = False
         can_manual = True
+    elif ds.source_type in ("internal", "reference"):
+        # reference 库(ESCO)/internal 系统数据(jd_extract)
+        # 不需要爬虫,系统自动维护,前端可只读
+        action = "已就绪（只读）"
+        can_sync = False
+        can_manual = False
     else:
         action = "需配置爬虫适配器"
         can_sync = False

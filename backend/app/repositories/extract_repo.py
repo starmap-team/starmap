@@ -89,11 +89,13 @@ async def write_extraction_to_pg(
     created_by: str | None = "system:extraction",
     review_status: str = "pending_review",
 ) -> bool | None:
-    """Write extraction result to PostgreSQL PositionRecord + SkillRecord (LOOP-05).
+    """Write extraction result to PostgreSQL PositionRecord + SkillRecord + PSR (LOOP-05).
 
     Returns True on success, None on failure (non-blocking).
     Phase 23: defaults to 'pending_review' so extracted positions/skills
     require admin approval before becoming publicly visible.
+    Phase 24 FIX: now also writes position_skill_relations so positions
+    don't end up with 0 visible skills.
     """
     if not pipeline_data or not pipeline_data.get("position_name"):
         logger.debug("Skipping PG write: no extraction data or position_name")
@@ -112,23 +114,68 @@ async def write_extraction_to_pg(
         )
 
         # Collect all skill names from required + preferred
-        all_skills: list[str] = []
+        required_skills: list[str] = []
         for s in pipeline_data.get("required_skills", []):
             skill_name = s.get("skill") or s.get("name") if isinstance(s, dict) else str(s)
             if skill_name:
-                all_skills.append(skill_name)
+                required_skills.append(skill_name)
+        preferred_skills: list[str] = []
         for s in pipeline_data.get("preferred_skills", []):
             skill_name = s.get("skill") or s.get("name") if isinstance(s, dict) else str(s)
             if skill_name:
-                all_skills.append(skill_name)
+                preferred_skills.append(skill_name)
 
-        for skill_name in set(all_skills):
+        all_skill_names = set(required_skills + preferred_skills)
+        for skill_name in all_skill_names:
             await upsert_skill_record(
                 session,
                 name=skill_name,
                 review_status=review_status,
                 created_by=created_by,
             )
+
+        # Phase 24 FIX: Write position_skill_relations so positions have visible skills.
+        # Query back position_id and skill_ids, then create junction table rows.
+        pos_row = (
+            await session.execute(
+                sa.text("SELECT id FROM position_records WHERE name = :name"),
+                {"name": position_name},
+            )
+        ).mappings().first()
+        if pos_row:
+            pos_id = pos_row["id"]
+            for skill_name in required_skills:
+                sk_row = (
+                    await session.execute(
+                        sa.text("SELECT id FROM skill_records WHERE name = :name"),
+                        {"name": skill_name},
+                    )
+                ).mappings().first()
+                if sk_row:
+                    await session.execute(
+                        sa.text("""
+                            INSERT INTO position_skill_relations (id, position_id, skill_id, requirement_type, confidence, created_at)
+                            VALUES (gen_random_uuid(), :pid, :sid, :rtype, :conf, NOW())
+                            ON CONFLICT DO NOTHING
+                        """),
+                        {"pid": pos_id, "sid": sk_row["id"], "rtype": "required", "conf": 0.8},
+                    )
+            for skill_name in preferred_skills:
+                sk_row = (
+                    await session.execute(
+                        sa.text("SELECT id FROM skill_records WHERE name = :name"),
+                        {"name": skill_name},
+                    )
+                ).mappings().first()
+                if sk_row:
+                    await session.execute(
+                        sa.text("""
+                            INSERT INTO position_skill_relations (id, position_id, skill_id, requirement_type, confidence, created_at)
+                            VALUES (gen_random_uuid(), :pid, :sid, :rtype, :conf, NOW())
+                            ON CONFLICT DO NOTHING
+                        """),
+                        {"pid": pos_id, "sid": sk_row["id"], "rtype": "preferred", "conf": 0.6},
+                    )
 
         # R5 根治 (2026-08-13): 抽取的 evolves_to 后继岗位（职业演化目标）此前只写
         # Neo4j 图（graph_writer name-MERGE 无 canonical_id）不落 PG → 产生被
@@ -154,9 +201,9 @@ async def write_extraction_to_pg(
 
         await session.commit()
         logger.info(
-            "PG write complete: PositionRecord '{}' + {} skills upserted (+{} evolves_to successors)",
+            "PG write complete: PositionRecord '{}' + {} skills upserted + PSR linked (+{} evolves_to successors)",
             position_name,
-            len(set(all_skills)),
+            len(all_skill_names),
             len(pipeline_data.get("evolves_to", []) or []),
         )
         return True

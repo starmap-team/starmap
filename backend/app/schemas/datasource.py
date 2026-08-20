@@ -106,3 +106,22 @@ class DataSourceCreateRequest(BaseModel):
     # 运行值全集见 app.core.constants.DataSourceStatus。
     status: Literal["active", "paused", "error"] = "active"
     config: dict[str, Any] = Field(default_factory=dict)
+
+
+class ManualImportJdItem(BaseModel):
+    """单条手动导入的 JD。"""
+
+    source_url: str = Field(..., min_length=1, description="JD 原始 URL")
+    raw_text: str = Field(..., min_length=1, description="JD 原文")
+    title: str = Field(..., min_length=1, description="职位名称")
+    company: str | None = Field(default=None, description="公司名")
+    location: str | None = Field(default=None, description="工作地点")
+    salary: str | None = Field(default=None, description="薪资")
+    clean_text: str | None = Field(default=None, description="清洗后正文")
+    job_title: str | None = Field(default=None, description="职位标题")
+
+
+class ManualImportRequest(BaseModel):
+    """手动导入 JD 请求（无需爬虫适配器的兜底入口）。"""
+
+    jds: list[ManualImportJdItem] = Field(..., min_length=1, description="JD 数组（非空）")

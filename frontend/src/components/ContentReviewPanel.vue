@@ -257,6 +257,47 @@ async function saveNameCn() {
     nameCnSaving.value = false
   }
 }
+
+// ── 行业归类调整: 管理员手动修正岗位行业分类 ──
+const industryEditor = ref<ReviewItem | null>(null)
+const industryValue = ref('')
+const industrySaving = ref(false)
+
+const INDUSTRY_OPTIONS = [
+  '信息技术/互联网', '互联网/IT', '金融', '教育', '医疗健康',
+  '制造', '零售/电商', '游戏', '人工智能', '数据科学',
+  '区块链', '物联网', '安全', '通信', '汽车', '能源',
+  '未分类',
+]
+
+function openIndustryEditor(item: ReviewItem) {
+  industryEditor.value = item
+  industryValue.value = item.industry || '未分类'
+}
+
+async function saveIndustry() {
+  if (!industryEditor.value) return
+  const industry = (industryValue.value ?? '').trim()
+  if (!industry) {
+    ElMessage.warning('行业分类不能为空')
+    return
+  }
+  industrySaving.value = true
+  try {
+    const item = industryEditor.value
+    await request.patch(
+      `/admin/review/${item.entity_type}/${item.entity_id}/industry`,
+      { industry },
+    )
+    ElMessage.success(`已更新「${item.name}」行业: ${industry}`)
+    industryEditor.value = null
+    await refresh()
+  } catch (e) {
+    ElMessage.error(`更新行业失败: ${e instanceof Error ? e.message : '未知错误'}`)
+  } finally {
+    industrySaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -530,6 +571,15 @@ async function saveNameCn() {
             改中文名
           </el-button>
           <el-button
+            v-if="row.entity_type === 'position'"
+            size="small"
+            plain
+            :icon="EditPen"
+            @click="openIndustryEditor(row)"
+          >
+            改行业
+          </el-button>
+          <el-button
             v-if="row.review_status === 'pending_review'"
             type="success"
             size="small"
@@ -619,6 +669,65 @@ async function saveNameCn() {
           @click="saveNameCn"
         >
           保存中文名
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 行业归类编辑对话框 -->
+    <el-dialog
+      v-model="industryEditor"
+      title="调整行业分类"
+      width="420"
+      append-to-body
+      :close-on-click-modal="false"
+      @update:model-value="(v: boolean) => { if (!v) industryEditor = null }"
+    >
+      <el-form
+        v-if="industryEditor"
+        label-position="top"
+        @submit.prevent="saveIndustry"
+      >
+        <el-form-item label="岗位名称">
+          <el-input
+            :model-value="industryEditor.name_cn || industryEditor.name"
+            disabled
+          />
+        </el-form-item>
+        <el-form-item label="当前行业">
+          <el-tag
+            :type="industryEditor.industry ? 'info' : 'warning'"
+            size="small"
+          >
+            {{ industryEditor.industry || '未分类' }}
+          </el-tag>
+        </el-form-item>
+        <el-form-item label="行业分类">
+          <el-select
+            v-model="industryValue"
+            filterable
+            allow-create
+            placeholder="选择或输入行业分类"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="opt in INDUSTRY_OPTIONS"
+              :key="opt"
+              :label="opt"
+              :value="opt"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="industryEditor = null">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="industrySaving"
+          @click="saveIndustry"
+        >
+          保存行业
         </el-button>
       </template>
     </el-dialog>
