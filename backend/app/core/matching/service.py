@@ -129,7 +129,7 @@ class MatchService:
  # 从 Neo4j 加载
         if driver is not None:
             try:
-                graph = await fetch_position_graph(driver, target_position, depth=3)
+                graph = await fetch_position_graph(driver, target_position, depth=1)
                 if graph.get("skills"):
                     required: list[dict[str, str]] = []
                     bonus: list[dict[str, str]] = []
@@ -458,11 +458,11 @@ class MatchService:
             await session.execute(
                 sa_text("""
                     INSERT INTO match_results (
-                        match_id, target_position, match_score,
+                        id, match_id, target_position, match_score, person_skills,
                         matched_skills, missing_required, missing_bonus,
                         gap_report, learning_path, cii, created_at
                     ) VALUES (
-                        :match_id, :target_position, :match_score,
+                        :id, :match_id, :target_position, :match_score, CAST(:person_skills AS jsonb),
                         CAST(:matched_skills AS jsonb),
                         CAST(:missing_required AS jsonb),
                         CAST(:missing_bonus AS jsonb),
@@ -473,7 +473,12 @@ class MatchService:
                     ON CONFLICT (match_id) DO NOTHING
                 """),
                 {
+                    "id": str(uuid4()),
                     "match_id": match_id,
+                    "person_skills": json.dumps([
+                        {"name": s.get("name", s) if isinstance(s, dict) else s}
+                        for s in (result.get("person_skills") or [])
+                    ]),
                     "target_position": result.get("target_position", ""),
                     "match_score": result.get("match_score", 0.0),
                     "matched_skills": json.dumps(result.get("matched_skills", [])),
