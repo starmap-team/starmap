@@ -296,6 +296,10 @@ async def complete_run(
         logger.exception("update_authority_scores failed (non-fatal)")
 
     # Phase 2 AUTHORITY-02: quality < 0.3 的数据源标记 paused
+    # 2026-08-20 修复 (A1): 从未采集成功的源 authority_score 恒为 0.25（无数据默认分），
+    # 无条件按 <0.3 暂停会把所有新接入的源打成 paused → paused→不采集→0.25→再暂停死锁。
+    # 增加前置条件：仅当该源有历史数据（total_records>0）或最近 24h 有采集 metrics
+    # （即"曾经工作过但质量下滑"）时才允许自动暂停；全新源只降权不暂停。
     try:
         from sqlalchemy import select as sa_select
         ds_result = await session.execute(
@@ -305,8 +309,24 @@ async def complete_run(
         )
         low_quality_sources = ds_result.scalars().all()
         for ds in low_quality_sources:
+            has_history = (ds.total_records or 0) > 0
+            if not has_history:
+                # 无历史数据：可能是新接入源/爬虫暂不可用，不自动暂停（只降权）
+                logger.info(
+                    "Skip auto-pause for source '{}' (authority={}, no history — new/unverified source)",
+                    ds.name, ds.authority_score,
+                )
+                continue
             ds.status = "paused"
-            logger.warning("Auto-paused source '{}' (authority_score={})", ds.name, ds.authority_score)
+            # 与 health_monitor 的自动暂停一致：写审计字段供前端/对账追溯
+            cfg = dict(ds.config or {})
+            cfg["auto_paused_reason"] = f"authority_score={ds.authority_score:.2f} < 0.3"
+            cfg["auto_paused_at"] = _now().isoformat()
+            ds.config = cfg
+            logger.warning(
+                "Auto-paused source '{}' (authority_score={}, has {} records)",
+                ds.name, ds.authority_score, ds.total_records,
+            )
         if low_quality_sources:
             await session.flush()
     except StarMapError:
@@ -349,7 +369,29 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
             s.get("status") in {"completed", "cancelled", "failed", "skipped"}
             for s in stages
         )
-        if age > ZOMBIE_THRESHOLD and (all_done or not stages):
+        # 2026-08-21 (debug 修复): 除"所有 stage 已结束"外，还清理"有 stage 卡
+        # running 超过阈值"的僵尸 —— Celery worker 重启打断的 run 其 stage 永远
+        # running（如 import 被打断），此前只能等 watchdog(60min)，期间前端
+        # is_running=true 与 DAG「已完成」长期矛盾（用户看到"正在执行中"）。
+        stage_stuck = False
+        for s in stages:
+            if s.get("status") != "running":
+                continue
+            s_started = s.get("started_at")
+            if not s_started:
+                stage_stuck = True
+                break
+            try:
+                s_dt = datetime.fromisoformat(str(s_started))
+                if s_dt.tzinfo is None:
+                    s_dt = s_dt.replace(tzinfo=UTC)
+                if datetime.now(UTC) - s_dt > ZOMBIE_THRESHOLD:
+                    stage_stuck = True
+                    break
+            except (ValueError, TypeError):
+                stage_stuck = True
+                break
+        if age > ZOMBIE_THRESHOLD and (all_done or not stages or stage_stuck):
             # 直接修正数据库状态（无需等待用户手动 force-reset）
             running_run.status = RunStatus.CANCELLED.value
             running_run.completed_at = datetime.now(UTC)
@@ -357,6 +399,11 @@ async def get_status(session: AsyncSession) -> dict[str, Any]:
                 f"[system] Auto-cleaned: stuck running for {age.total_seconds() / 60:.0f} min, "
                 "no active stages. Likely Celery worker restart."
             )
+            # 同步把卡 running 的 stage 标 cancelled（避免 stages 快照矛盾）
+            for s in running_run.stages or []:
+                if isinstance(s, dict) and s.get("status") == "running":
+                    s["status"] = "cancelled"
+                    s["completed_at"] = datetime.now(UTC).isoformat()
             await session.flush()
             logger.warning(
                 "Auto-cleaned zombie pipeline run {} (age={:.0f}min)",
