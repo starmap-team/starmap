@@ -4,9 +4,16 @@
 本模块从 executor.execute_crawl 迁出；executor.py 保留兼容重导出，存量调用方零改动（D-11）。
 同时收纳 crawl 相关辅助（spider 注册表、crawl 配置加载、DataSourceRecord 更新）——
 Phase 03 Plan 03 拆分：这些辅助原在 executor.py，随阶段迁入本模块。
+
+A1 fix (2026-08-20): source_site 从 spider_registry 唯一映射读取。
+P1/P2 fix (2026-08-20): 单源超时保护 + 失败重试。
+- spider_fn 调用包裹 asyncio.wait_for (默认 120s，可通过 config.crawl_timeout 配置)
+- 单源失败最多重试 2 次，指数退避 (2s, 4s)
+- 超时/重试耗尽才记为 error，不阻塞其他源
 """
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from typing import Any
@@ -87,6 +94,8 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
         {"keyword": "python", "max_count": 50, "platform": "bosszhipin"}
     """
     try:
+        from app.services.spider_registry import PLATFORM_TO_SOURCE_NAME
+
         session_factory = get_session_factory()
         async with session_factory() as session:
             from app.models.pipeline_models import DataSourceRecord, PipelineRun
@@ -136,6 +145,10 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
                 cfg = dict(ds.config)
                 cfg["source_name"] = ds.name
                 cfg.setdefault("platform", cfg.get("source_site", "v2ex"))
+                # A1 fix: source_site 从 registry 查，确保与 jd_raw.source_site 一致
+                source_site = PLATFORM_TO_SOURCE_NAME.get(cfg["platform"])
+                if source_site:
+                    cfg["source_site"] = source_site
                 configs.append(cfg)
             if configs:
                 logger.debug(
@@ -288,79 +301,148 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
             sub_step=f"crawl:{source_name}",  # D-15
         ))
 
-        try:
-            logger.info(
-                "Crawling source '{}' (platform={}, keyword={}, max_count={})",
-                source_name, platform, keyword, max_count,
-            )
-            items = spider_fn(keyword=keyword, max_count=max_count)
-            source_inserted = 0
-            source_seen = 0
-            for item_idx, it in enumerate(items):
-                source_seen += 1
-                total_seen += 1
-                rec = {
-                    "source_site": it["source_site"],
-                    "source_url": it["source_url"],
-                    "raw_html": it["raw_html"],
-                    "clean_text": it["clean_text"],
-                    "job_title": it["job_title"],
-                    "company": it["company"],
-                    "salary_min": it["salary_min"],
-                    "salary_max": it["salary_max"],
-                    "location": it["location"],
-                    "publish_date": it["publish_date"],
-                    "content_hash": it["content_hash"],
-                    "status": JdStatus.raw,
-                }
-                r = dao.upsert_jd(rec)
-                # 2026-08-12 (pipeline 联调): 区分新增 vs 重复 —— "入库 0" 通常是因为
-                # 本次爬取 70 条 content_hash 与库中已有记录重复（upsert 返回 duplicate），
-                # 而非爬虫没抓到。source_inserted 计入新增+重复（= 本源处理量，供
-                # sub_breakdown/实时状态展示），新增/重复总数由 records_new/records_duplicate
-                # 承载（DAG tooltip 与详情抽屉解释"为何入库 0"）。
-                if r in ("inserted", "duplicate"):
-                    source_inserted += 1
-                    total_inserted += 1
-                    if r == "inserted":
-                        total_new += 1
-                    else:
-                        total_duplicate += 1
-                    if len(recent_samples) >= 10:
-                        recent_samples.pop(0)
-                    recent_samples.append({
-                        "title": it.get("job_title", "未命名"),
-                        "company": it.get("company", ""),
-                        "url": it.get("source_url", ""),
-                        "source": it.get("source_site", platform),
-                    })
+        # P1/P2 fix: 单源超时保护 + 失败重试
+        # 默认 120s 超时，可通过 DataSourceRecord.config.crawl_timeout 自定义
+        crawl_timeout = cfg.get("crawl_timeout", 120)
+        max_retries = 2
+        items: list[dict[str, Any]] = []
+        last_error: Exception | None = None
 
-                if item_idx > 0 and item_idx % 5 == 0:
-                    sub_breakdown[source_name] = source_inserted
-                    run_async(publish_stage_progress(
-                        run_id, "crawl", "running",
-                        progress=(source_idx + (item_idx + 1) / max(source_seen + (max_count - source_seen), max_count)) / total_sources,
-                        records_processed=total_inserted,
-                        current_activity=f"{source_name}: 正在处理第 {item_idx + 1} 条 - {it.get('job_title', '未命名')[:30]}",
-                        recent_samples=recent_samples[-5:],
-                        sub_breakdown=sub_breakdown,
-                        elapsed_ms=int((time.monotonic() - crawl_start) * 1000),
-                        message=f"{source_name} 已采集 {source_seen} 条",
-                        sub_step=f"crawl:{source_name}",  # D-15
-                    ))
+        for attempt in range(max_retries + 1):
+            try:
+                logger.info(
+                    "Crawling source '{}' (platform={}, keyword={}, max_count={}, attempt={}/{})",
+                    source_name, platform, keyword, max_count, attempt + 1, max_retries + 1,
+                )
+                # 同步 spider_fn → asyncio.to_thread 包裹 → wait_for 超时
+                # execute_crawl 是同步函数，通过 run_async 桥接 async 超时
+                # B023 fix: 绑定循环变量避免闭包捕获问题
+                _fn = spider_fn
+                _kw = keyword
+                _mc = max_count
+                _to = crawl_timeout
 
-            per_source_stats[source_name] = source_inserted
-            sub_breakdown[source_name] = source_inserted
-            logger.info(
-                "Source '{}' crawl complete: {} items, {} inserted",
-                source_name, len(items), source_inserted,
-            )
-        except PipelineStageError:
-            raise
-        except Exception as exc:
-            err_msg = f"{source_name} ({platform}) crawl failed: {exc}"
+                async def _crawl_with_timeout(
+                    fn: Any = _fn, kw: str = _kw, mc: int = _mc, timeout: float = _to,
+                ) -> list[dict[str, Any]]:
+                    return await asyncio.wait_for(
+                        asyncio.to_thread(fn, keyword=kw, max_count=mc),
+                        timeout=timeout,
+                    )
+                items = run_async(_crawl_with_timeout())
+                last_error = None
+                break  # 成功，退出重试循环
+            except TimeoutError:
+                last_error = TimeoutError(
+                    f"{source_name} 爬取超时 ({crawl_timeout}s)"
+                )
+                if attempt < max_retries:
+                    backoff = 2 ** (attempt + 1)  # 2s, 4s
+                    logger.warning(
+                        "Source '{}' timed out ({}s), retrying in {}s ({}/{})",
+                        source_name, crawl_timeout, backoff, attempt + 1, max_retries,
+                    )
+                    time.sleep(backoff)
+                else:
+                    logger.error(
+                        "Source '{}' timed out after {} retries ({}s each)",
+                        source_name, max_retries, crawl_timeout,
+                    )
+            except PipelineStageError:
+                raise
+            except Exception as exc:
+                last_error = exc
+                if attempt < max_retries:
+                    backoff = 2 ** (attempt + 1)  # 2s, 4s
+                    logger.warning(
+                        "Source '{}' failed ({}), retrying in {}s ({}/{})",
+                        source_name, exc, backoff, attempt + 1, max_retries,
+                    )
+                    time.sleep(backoff)
+                else:
+                    logger.opt(exception=True).error(
+                        "Source '{}' failed after {} retries", source_name, max_retries,
+                    )
+
+        # 重试耗尽仍失败 → 记录 error，跳过此源
+        if last_error is not None:
+            err_msg = f"{source_name} ({platform}) crawl failed: {last_error}"
             errors.append(err_msg)
-            logger.opt(exception=True).error("Crawl stage {} failed: {}", source_name, exc)
+            sub_breakdown[source_name] = -3  # -3 = 重试耗尽失败
+            run_async(publish_stage_progress(
+                run_id, "crawl", "running",
+                progress=(source_idx + 1) / total_sources,
+                records_processed=total_inserted,
+                current_activity=f"✗ {source_name} 采集失败: {last_error}",
+                sub_breakdown=sub_breakdown,
+                recent_samples=recent_samples[-5:],
+                elapsed_ms=int((time.monotonic() - crawl_start) * 1000),
+                message=f"{source_name} 采集失败（已重试 {max_retries} 次）",
+                sub_step=f"crawl:{source_name}",
+            ))
+            continue
+
+        source_inserted = 0
+        source_seen = 0
+        for item_idx, it in enumerate(items):
+            source_seen += 1
+            total_seen += 1
+            rec = {
+                "source_site": it["source_site"],
+                "source_url": it["source_url"],
+                "raw_html": it["raw_html"],
+                "clean_text": it["clean_text"],
+                "job_title": it["job_title"],
+                "company": it["company"],
+                "salary_min": it["salary_min"],
+                "salary_max": it["salary_max"],
+                "location": it["location"],
+                "publish_date": it["publish_date"],
+                "content_hash": it["content_hash"],
+                "status": JdStatus.raw,
+            }
+            r = dao.upsert_jd(rec)
+            # 2026-08-12 (pipeline 联调): 区分新增 vs 重复 —— "入库 0" 通常是因为
+            # 本次爬取 70 条 content_hash 与库中已有记录重复（upsert 返回 duplicate），
+            # 而非爬虫没抓到。source_inserted 计入新增+重复（= 本源处理量，供
+            # sub_breakdown/实时状态展示），新增/重复总数由 records_new/records_duplicate
+            # 承载（DAG tooltip 与详情抽屉解释"为何入库 0"）。
+            if r in ("inserted", "duplicate"):
+                source_inserted += 1
+                total_inserted += 1
+                if r == "inserted":
+                    total_new += 1
+                else:
+                    total_duplicate += 1
+                if len(recent_samples) >= 10:
+                    recent_samples.pop(0)
+                recent_samples.append({
+                    "title": it.get("job_title", "未命名"),
+                    "company": it.get("company", ""),
+                    "url": it.get("source_url", ""),
+                    "source": it.get("source_site", platform),
+                })
+
+            if item_idx > 0 and item_idx % 5 == 0:
+                sub_breakdown[source_name] = source_inserted
+                run_async(publish_stage_progress(
+                    run_id, "crawl", "running",
+                    progress=(source_idx + (item_idx + 1) / max(source_seen + (max_count - source_seen), max_count)) / total_sources,
+                    records_processed=total_inserted,
+                    current_activity=f"{source_name}: 正在处理第 {item_idx + 1} 条 - {it.get('job_title', '未命名')[:30]}",
+                    recent_samples=recent_samples[-5:],
+                    sub_breakdown=sub_breakdown,
+                    elapsed_ms=int((time.monotonic() - crawl_start) * 1000),
+                    message=f"{source_name} 已采集 {source_seen} 条",
+                    sub_step=f"crawl:{source_name}",  # D-15
+                ))
+
+        per_source_stats[source_name] = source_inserted
+        sub_breakdown[source_name] = source_inserted
+        logger.info(
+            "Source '{}' crawl complete: {} items, {} inserted",
+            source_name, len(items), source_inserted,
+        )
 
     per_source_summary = []
     for name, count in sorted(sub_breakdown.items(), key=lambda x: (
@@ -371,6 +453,8 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
             per_source_summary.append(f"{name}: 已禁用")
         elif count == -2:
             per_source_summary.append(f"{name}: 无蜘蛛")
+        elif count == -3:
+            per_source_summary.append(f"{name}: 采集失败(重试耗尽)")
         elif count == 0:
             per_source_summary.append(f"{name}: 0 条")
         else:

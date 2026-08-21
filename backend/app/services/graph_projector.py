@@ -377,6 +377,9 @@ class GraphProjector:
                     {
                         "canonical_id": str(s.id),
                         "name": s.name,
+                        # 2026-08-20 (修复 B): 投影带 name_cn —— 每日 reconcile 自动补齐
+                        # Neo4j 缺失的中文技能名（存量 358 节点缺名根因）
+                        "name_cn": s.name_cn or "",
                         "category": s.category,
                         "source_count": s.source_count,
                     }
@@ -388,6 +391,52 @@ class GraphProjector:
                 )
                 result.nodes_upserted += backfill.nodes_upserted
                 result.errors.extend(backfill.errors)
+
+            # 2026-08-21 (debug 修复): reconcile 补建 approved 岗位的全部 REQUIRES 边 ——
+            # 此前 reconcile_all 从不传 relations → 只补节点不建边 → PG PSR 1549 vs
+            # Neo4j 973 差异 576 条（37.2% 严重差异）无法靠 reconcile 收敛。
+            # 幂等：MERGE 已存在的边不重复创建。
+            try:
+                from sqlalchemy import select as sa_select
+
+                from app.models.extraction_models import PositionSkillRelation
+
+                rel_rows = (
+                    await pg_session.execute(
+                        sa_select(
+                            PositionSkillRelation.position_id,
+                            PositionSkillRelation.skill_id,
+                            PositionSkillRelation.confidence,
+                            PositionSkillRelation.requirement_type,
+                        )
+                        .join(
+                            PositionRecord,
+                            PositionRecord.id == PositionSkillRelation.position_id,
+                        )
+                        .where(PositionRecord.review_status == "approved")
+                    )
+                ).all()
+                relations = [
+                    {
+                        "position_canonical_id": str(r.position_id),
+                        "skill_canonical_id": str(r.skill_id),
+                        "confidence": float(r.confidence or 1.0),
+                        "level": r.requirement_type or "required",
+                    }
+                    for r in rel_rows
+                ]
+                if relations:
+                    edge_batch = await self.apply_batch(positions=[], skills=[], relations=relations)
+                    result.edges_upserted += edge_batch.edges_upserted
+                    result.errors.extend(edge_batch.errors)
+                    logger.info(
+                        "reconcile_all: upserted {} REQUIRES edges (approved positions)",
+                        edge_batch.edges_upserted,
+                    )
+            except StarMapError:
+                raise
+            except Exception as exc:
+                logger.warning("reconcile_all edge backfill failed (non-fatal): {}", exc)
 
             return result
         except StarMapError:

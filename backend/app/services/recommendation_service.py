@@ -13,6 +13,7 @@ from typing import Any
 from loguru import logger
 
 from app.config import settings
+from app.core.matching.scorer import DEFAULT_PROFICIENCY
 from app.core.pipeline.sse.contracts import ExtractedSkill, PositionProfile
 from app.exceptions import MatchingError, StarMapError
 from app.repositories.position_repository import PositionRepository
@@ -109,8 +110,18 @@ class PositionRecommender:
         scores: list[Recommendation] = []
         for name, profile in all_profiles.items():
             try:
+ # repo 画像技能元素键为 name；scorer 期望 skill 键，此处归一，避免 KeyError 导致推荐为空
+                target_skills = [
+                    {
+                        "skill": s["name"],
+                        "category": s.get("category", "hard_skill"),
+                        "proficiency": s.get("proficiency", DEFAULT_PROFICIENCY),
+                        "importance": s.get("is_required", True) and "required" or "bonus",
+                    }
+                    for s in (profile.required_skills or [])
+                ]
                 match_result = self._scorer(
-                    target_skills=profile.required_skills,
+                    target_skills=target_skills,
                     person_skills=person_skill_dicts,
                     threshold=settings.match_threshold,
                 )
@@ -158,14 +169,12 @@ class PositionRecommender:
         4. 无 PREREQUISITE 数据时降级为 0.5（中性值）
         """
         owned = {s.name for s in person_skills}
- # P0-AUDIT-FIX (2026-08-13): profile.required_skills elements have key
- # "skill", NOT "name" — `s["name"]` always KeyError'd, so `missing` was
- # always [] and developability was always 1.0 (silently biasing the
- # recommender toward bonus-heavy positions). Use the correct key.
-        missing = [s for s in profile.required_skills if s["skill"] not in owned]
+ # repo 画像技能元素键为 name（user_position_repository Cypher collect 用 name），
+ # 用 s["skill"] 会 KeyError 导致整个 recommended 抛异常；此处统一取 name。
+        missing = [s for s in profile.required_skills if s["name"] not in owned]
         if not missing:
             return 1.0  # 无缺失，完美可发展性
         if not PREREQUISITE_MAP:
             return 0.5  # 无前置知识图数据，降级为中性值
-        reachable = sum(1 for s in missing if any(prereq in owned for prereq in PREREQUISITE_MAP.get(s["skill"], [])))
+        reachable = sum(1 for s in missing if any(prereq in owned for prereq in PREREQUISITE_MAP.get(s["name"], [])))
         return reachable / len(missing)

@@ -309,6 +309,8 @@ class RepairEngine:
                 {
                     "canonical_id": str(s.id),
                     "name": s.name,
+                    # 2026-08-20 (修复 B): 与 graph_projector 一致带 name_cn
+                    "name_cn": s.name_cn or "",
                     "category": s.category,
                     "source_count": s.source_count,
                 }

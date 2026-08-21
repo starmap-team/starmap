@@ -13,6 +13,7 @@ from loguru import logger
 from app.config import settings
 from app.core.extraction.jd_extract import extract_from_jd
 from app.core.pipeline.sse.contracts import ExtractedSkill, PipelineContext
+from app.exceptions import PositionNotFoundError
 from app.repositories.position_repository import PositionRepository
 from app.services.match_service import run_match
 from app.services.recommendation_service import PositionRecommender
@@ -156,6 +157,11 @@ class MatchStep:
                             repo=self._repo,
                         )
                         return pos_name, result
+                    except PositionNotFoundError:
+                        # 岗位真不存在（PG/Neo4j 均无），明确提示而非静默丢结果
+                        ctx.errors.append(f"match: 岗位不存在：{pos_name}")
+                        logger.warning("[Pipeline] Target position not found: '{}'", pos_name)
+                        return pos_name, None
                     except Exception as exc:
                         logger.error("[Pipeline] Match failed for '{}': {}", pos_name, exc)
                         return pos_name, None

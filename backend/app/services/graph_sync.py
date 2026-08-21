@@ -26,35 +26,54 @@ async def recompute_skill_trust(session: Any, driver: Any) -> dict[str, Any]:
     from sqlalchemy import select
 
     from app.core.trust.entity_trust import EntityTrustScorer
-    from app.models.extraction_models import JDExtractionRecord, SkillRecord
+    from app.models.extraction_models import PositionSkillRelation, SkillRecord
 
     if driver is None:
         return {"skills": 0, "updated": 0}
 
-    # 1. 全部技能 + 其最近一条抽取置信度（按技能名匹配，取最新）
+    # 1. 全部技能 + 审核状态（approved 技能重算时保底 0.8，避免每日重算覆盖审核高值）
     skill_rows = (
         await session.execute(
-            select(SkillRecord.id, SkillRecord.name, SkillRecord.source_count, SkillRecord.last_detected_at)
+            select(
+                SkillRecord.id,
+                SkillRecord.name,
+                SkillRecord.source_count,
+                SkillRecord.last_detected_at,
+                SkillRecord.review_status,
+            )
         )
     ).all()
+
+    # 2026-08-21 (debug 修复): confidence 从 PSR 按技能聚合 —— 原实现用
+    # JDExtractionRecord.job_title 建 dict 却用 SkillRecord.name（技能名）查，
+    # 0/1229 命中 → 所有技能 confidence 走 0.5 兜底。PSR 有真实 confidence。
+    from sqlalchemy import func
+
     conf_stmt = (
-        select(JDExtractionRecord.job_title, JDExtractionRecord.confidence)
-        .order_by(JDExtractionRecord.created_at.desc())
+        select(
+            PositionSkillRelation.skill_id,
+            func.avg(PositionSkillRelation.confidence),
+        )
+        .where(PositionSkillRelation.confidence.isnot(None))
+        .group_by(PositionSkillRelation.skill_id)
     )
     conf_rows = (await session.execute(conf_stmt)).all()
-    conf_by_title: dict[str, float | None] = {}
-    for title, conf in conf_rows:
-        conf_by_title.setdefault(title or "", conf)
+    conf_by_skill: dict[str, float] = {str(sid): float(avg) for sid, avg in conf_rows}
 
     scorer = EntityTrustScorer()
     updated = 0
     async with driver.session() as neo4j_session:
         for row in skill_rows:
+            confidence = conf_by_skill.get(str(row.id))
             trust = scorer.score(
                 source_count=int(row.source_count or 0),
-                confidence=conf_by_title.get(row.name),
+                confidence=confidence,
                 last_detected_at=row.last_detected_at,
             )
+            # 审核补偿：approved 技能保底 0.8 —— 审核通过 = 人工确认可信，
+            # 不因单源/置信缺失被四因子拉低（原实现次日重算把审核 1.0 拉回 0.39）
+            if row.review_status == "approved":
+                trust = max(trust, 0.8)
             await neo4j_session.run(
                 "MATCH (s:Skill {canonical_id: $cid}) "
                 "SET s.trust_score = $trust, s.trust_updated_at = datetime()",

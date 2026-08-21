@@ -19,6 +19,7 @@ from app.core.extraction.anti_hallucination import (
     normalize_str_list,
 )
 from app.core.extraction.llm_client import (
+    LLMBlockedError,
     LLMClient,
     LLMConnectionError,
     LLMResponseError,
@@ -228,6 +229,17 @@ class JDExtractionPipeline:
  # Step 2: Call LLM
         try:
             raw = await self.llm_client.extract_from_jd(jd_content_safe)
+        except LLMBlockedError as e:
+            # Phase 27 资源包严格保护: blocked = 严格不调用(不重试,不消耗任何 token)
+            # 上层用 fallback / 跳过 / 显式提示,不污染业务流。
+            logger.warning("LLM blocked (Phase 27): {}", e)
+            result["status"] = "blocked"
+            result["error"] = f"LLM blocked: {e}"
+            result["warnings"].append(
+                "LLM 调用被资源包保护阻断(成本 cap / 128K 闸门 / 全局开关),"
+                "本次抽取跳过,请检查 settings 与累计成本",
+            )
+            return result
         except LLMConnectionError as e:
             logger.error("LLM connection failed: {}", e)
             result["error"] = f"LLM connection error: {e}"
@@ -400,7 +412,7 @@ class JDExtractionPipeline:
                     result["warnings"].append(msg)
                     logger.warning(msg)
 
-            except (LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
+            except (LLMBlockedError, LLMConnectionError, LLMResponseError, LLMTimeoutError) as e:
                 logger.warning("Anti-hallucination check failed: {}", e)
                 result["warnings"].append(f"Validation error: {e}")
 

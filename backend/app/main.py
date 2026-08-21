@@ -83,6 +83,27 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 logger.info("Loaded {} custom prompt version(s) from DB", len(rows))
         except Exception as exc:  # noqa: BLE001 — 加载失败不阻断启动（降级为内置版本）
             logger.warning("[lifespan] Prompt versions load failed, using builtin: {}", exc)
+    # Phase 27 (qwen-plus 资源包优化): 启动时按 settings 注入每 model 每日成本 cap,
+    # 超 cap 时 call_llm_with_fallback 直接返回 blocked(防意外累积)。
+    try:
+        from app.core.llm.cost_tracker import tracker
+
+        cap = float(getattr(settings, "llm_cost_cap_cny_per_day", 0.0) or 0.0)
+        if cap > 0:
+            tracker.set_model_cap(settings.dashscope_model, cap)
+            logger.info("LLM cost cap active: model={} cap=¥{:.2f}/day",
+                        settings.dashscope_model, cap)
+    except Exception as exc:  # noqa: BLE001 — cap 注入失败不应阻断启动
+        logger.warning("[lifespan] LLM cost cap setup failed (non-fatal): {}", exc)
+    # Phase 27: 把 settings.llm_response_cache_ttl_seconds 注入到 response_cache 单例
+    try:
+        from app.core.llm import response_cache as _rc
+
+        _rc.response_cache.configure_ttl(
+            int(getattr(settings, "llm_response_cache_ttl_seconds", 0) or 0),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[lifespan] LLM cache TTL setup failed (non-fatal): {}", exc)
     # (c) : 启动时若 PIPELINE_BOOTSTRAP=true,30 秒后入队一次 pipeline run
     # 该调用是 no-op（直接 return）如果环境变量未设置
     from app.core.pipeline.bootstrap import schedule_bootstrap_if_enabled

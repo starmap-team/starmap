@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_neo4j_driver
+from app.dependencies import get_db_session, get_neo4j_driver
 from app.schemas.graph import (
     DomainOverviewResponse,
     GraphEdge,
@@ -23,6 +24,37 @@ def _graph_edges(items: list[dict[str, Any]]) -> list[GraphEdge]:
     return [GraphEdge(**item) for item in items]
 
 
+async def _resolve_position_name_pg(session: AsyncSession, name: str) -> str | None:
+    """PG SSOT: 按 name 或 name_cn 解析回 canonical PositionRecord.name。
+
+    契约统一（name_cn→name）：前端可能传中文显示名 name_cn；PG 全量覆盖
+    name_cn，Neo4j 稀疏（仅 9/226），故在进 Neo4j 前先经 PG 解析，
+    修复 `Position 'AI智能体工程师' not found`。
+    """
+    stripped = (name or "").strip()
+    if not stripped or session is None:
+        return None
+    try:
+        from sqlalchemy import or_ as _or
+        from sqlalchemy import select as _sel
+
+        from app.models.extraction_models import PositionRecord as _PR  # noqa: N814
+
+        row = (
+            await session.execute(
+                _sel(_PR.name)
+                .where(_or(_PR.name == stripped, _PR.name_cn == stripped))
+                .limit(1)
+            )
+        ).first()
+        if row is None:
+            return None
+        canonical = (row[0] or "").strip()
+        return canonical or None
+    except Exception:
+        return None
+
+
 @router.get(
     "/position/{position_id}/skills",
     summary="岗位技能图谱",
@@ -32,9 +64,14 @@ def _graph_edges(items: list[dict[str, Any]]) -> list[GraphEdge]:
 async def get_position_skills(
     position_id: str,
     driver: Annotated[Any, Depends(get_neo4j_driver)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
     depth: Annotated[int, Query(description="递归查询深度（含技能先修关系）", ge=1, le=5)] = 1,
 ) -> PositionSkillDetailResponse:
-    graph = await fetch_position_graph(driver, position_id, depth)
+    # 契约统一（name_cn→name）：前端可能按中文显示名 name_cn 深链/回查，
+    # PG 是 SSOT（226 approved 全有 name_cn），先按 name/name_cn 解析回 canonical name，
+    # 解决"Position 'AI智能体工程师' not found"（Neo4j name_cn 稀疏仅 9/226）。
+    resolved = await _resolve_position_name_pg(session, position_id)
+    graph = await fetch_position_graph(driver, resolved or position_id, depth)
     if graph["position"] is None:
         raise HTTPException(status_code=404, detail=f"Position '{position_id}' not found")
     return PositionSkillDetailResponse(

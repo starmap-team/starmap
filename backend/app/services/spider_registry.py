@@ -14,6 +14,40 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+# ---------------------------------------------------------------------------
+# Platform → data_sources.name mapping (single source of truth)
+# ---------------------------------------------------------------------------
+# A1 fix (2026-08-20): spider_registry 注册的 platform key 与
+# data_sources.name 的唯一映射。source_quality_sync / crawl / datasource API
+# 统一从此处读取，不再各自维护硬编码映射。
+
+PLATFORM_TO_SOURCE_NAME: dict[str, str] = {
+    # 2026-08-20: 值对齐 data_sources.name 实际值（全小写 platform 名）。
+    # 此前用显示名（'RemoteOK'/'Jobicy (远程)'）与 DB 不匹配 → sync_source_quality 跳统计。
+    "arbeitnow": "arbeitnow",
+    "jobicy": "jobicy",
+    "remotive": "remotive",
+    "v2ex": "v2ex",
+    "weworkremotely": "weworkremotely",
+    "juejin": "juejin",
+    "remoteok": "remoteok",
+    "manual": "手动导入",
+    "boss": "Boss Zhipin",
+}
+
+# Reverse lookup: data_sources.name → platform key
+_SOURCE_NAME_TO_PLATFORM: dict[str, str] = {v: k for k, v in PLATFORM_TO_SOURCE_NAME.items()}
+
+
+def source_name_to_platform(source_name: str) -> str | None:
+    """Return the platform key for a given data_sources.name, or None."""
+    return _SOURCE_NAME_TO_PLATFORM.get(source_name)
+
+
+def platform_to_source_name(platform: str) -> str | None:
+    """Return the data_sources.name for a given platform key, or None."""
+    return PLATFORM_TO_SOURCE_NAME.get(platform)
+
 
 def build_spider_registry() -> dict[str, Callable[..., Any]]:
     """Build the live spider registry.

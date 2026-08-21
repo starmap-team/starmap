@@ -4,14 +4,18 @@ Phase 4: emit per-call cost events for Loki aggregation; expose a REST summary
 endpoint for the UI. No new dependencies — uses loguru (already AP-10 JSON sink)
 and threading.Lock for thread-safe accumulation.
 
-Design notes:
+Phase 27 (qwen-plus 资源包优化): 加每日成本预算守卫(`_caps`),
+超过 0.8*cap 提示 WARNING,超过 1.0*cap 时本调用返回 `blocked` 标记,
+由 `_call_and_track` 检测后跳过实际 provider 调用(防止意外情况下
+自动化脚本/循环 bug 累积成本爆表)。
+
+设计:
   - In-memory only; resets on restart. Loki is the durable record.
   - Token estimation: 1 token ≈ 4 chars (OpenAI heuristic, good enough for
     budgeting; real usage comes from provider `usage` field when available).
-  - Price: ¥1 / 1M tokens (uniform for input + output, per team decision 2026-07-22).
-
-Ponytail: single-process counter; if we add Celery multi-worker this becomes
-per-worker — switch to Redis atomic counter then.
+  - Price: ¥1 / 1M tokens (uniform input + output, per team decision 2026-07-22).
+  - Cap 默认 ¥50/天 (settings.llm_cost_cap_cny_per_day)。 1.1 亿 tokens ≈ ¥114.4,
+    设 50 防意外,正常业务不应触发。
 """
 from __future__ import annotations
 
@@ -27,6 +31,12 @@ PRICE_CNY_PER_1M = 1.0
 # Char-per-token heuristic (OpenAI convention)
 _CHARS_PER_TOKEN = 4.0
 
+# 阻断时使用的特殊 model 标记 (response_cache.py 跳过该标记以免污染)
+BLOCKED_MODEL_TAG = "blocked"
+
+# 软警告阈值(占 cap 比例)
+_WARN_RATIO = 0.8
+
 
 class _CostTracker:
     """Thread-safe in-process LLM cost accumulator."""
@@ -34,6 +44,32 @@ class _CostTracker:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._by_model: dict[str, dict[str, float]] = {}
+        self._caps: dict[str, float] = {}
+
+    def set_model_cap(self, model: str, cny_per_day: float) -> None:
+        """Configure daily cost cap for a model. ¥0 = disabled.
+
+        Phase 27: 由 lifespan / settings 在启动时注入。
+        """
+        with self._lock:
+            if cny_per_day <= 0:
+                self._caps.pop(model, None)
+            else:
+                self._caps[model] = float(cny_per_day)
+
+    def get_model_cap(self, model: str) -> float:
+        with self._lock:
+            return self._caps.get(model, 0.0)
+
+    def is_blocked(self, model: str) -> bool:
+        """判断给定 model 是否已超过 cap(返回 True 时调用方应跳过 LLM 调用)。"""
+        cap = self.get_model_cap(model)
+        if cap <= 0:
+            return False
+        with self._lock:
+            bucket = self._by_model.get(model, {})
+            cost = bucket.get("cost_cny", 0.0)
+        return cost >= cap
 
     def record(
         self,
@@ -65,6 +101,22 @@ class _CostTracker:
             bucket["output_tokens"] += out_t
             bucket["cost_cny"] += cost_cny
             bucket["calls"] += 1
+
+            # Phase 27: cap 检查 (软警告 + 硬阻断)
+            cap = self._caps.get(model, 0.0)
+            if cap > 0:
+                cumulative = bucket["cost_cny"]
+                if cumulative >= cap:
+                    logger.warning(
+                        "LLM cost cap exceeded: model={} cumulative=¥{:.4f} cap=¥{:.2f}",
+                        model, cumulative, cap,
+                    )
+                elif cumulative >= cap * _WARN_RATIO:
+                    logger.warning(
+                        "LLM cost cap approaching: model={} cumulative=¥{:.4f} cap=¥{:.2f} ({:.0%})",
+                        model, cumulative, cap, cumulative / cap,
+                    )
+
         return {
             "type": "llm_cost",
             "model": model,
@@ -79,6 +131,7 @@ class _CostTracker:
         """Snapshot for the REST endpoint."""
         with self._lock:
             models = {m: dict(v) for m, v in self._by_model.items()}
+            caps = dict(self._caps)
         total_cost = round(sum(v["cost_cny"] for v in models.values()), 6)
         total_tokens = int(sum(v["input_tokens"] + v["output_tokens"] for v in models.values()))
         return {
@@ -86,6 +139,7 @@ class _CostTracker:
             "total_cost_cny": total_cost,
             "total_tokens": total_tokens,
             "by_model": models,
+            "caps": caps,
         }
 
 

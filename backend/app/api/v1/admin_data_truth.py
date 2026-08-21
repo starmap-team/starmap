@@ -87,9 +87,15 @@ async def get_data_truth(
         )).scalar() or 0
     )
     # P3c: PSR 关系行数（关系边指标口径 = PositionSkillRelation 表，与 admin/stats 对齐）
+    # 2026-08-21 (debug 修复): 改为 approved 岗位口径 —— 图投影只投影 approved 岗位的
+    # REQUIRES 边（未审核岗位不入图是正确门控），此前全量 PSR 1549 vs Neo4j 985 恒报
+    # 36% critical 误导用户。approved 口径才是可收敛的正确对比。
     pg_psr_count = int(
         (await session.execute(
-            select(func.count()).select_from(PositionSkillRelation)
+            select(func.count())
+            .select_from(PositionSkillRelation)
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .where(PositionRecord.review_status == "approved")
         )).scalar() or 0
     )
 

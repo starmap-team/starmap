@@ -53,7 +53,7 @@ class _FakeDriver:
 
 
 class _FakeSession:
-    """PG session: 第一次 execute 返回技能行, 第二次返回置信度行。"""
+    """PG session: 第一次 execute 返回技能行, 第二次返回技能级置信度行。"""
 
     def __init__(self, skills: list[Any], confs: list[Any]) -> None:
         self._skills = skills
@@ -67,13 +67,19 @@ class _FakeSession:
         return SimpleNamespace(all=lambda: self._confs)
 
 
-def _skill(name: str, source_count: int, last: Any) -> SimpleNamespace:
-    return SimpleNamespace(id="cid-1" if name == "Python" else "cid-2", name=name, source_count=source_count, last_detected_at=last)
+def _skill(name: str, source_count: int, last: Any, review_status: str = "pending_review") -> SimpleNamespace:
+    return SimpleNamespace(
+        id="cid-1" if name == "Python" else "cid-2",
+        name=name,
+        source_count=source_count,
+        last_detected_at=last,
+        review_status=review_status,
+    )
 
 
-def _conf(title: str, confidence: float) -> tuple[str, float | None]:
-    # SQLAlchemy Row 可按位置解包 (title, confidence)
-    return (title, confidence)
+def _conf(skill_id: str, confidence: float) -> tuple[str, float | None]:
+    # SQLAlchemy Row 可按位置解包 (skill_id, avg_confidence)
+    return (skill_id, confidence)
 
 
 class TestRecomputeSkillTrust:
@@ -87,7 +93,7 @@ class TestRecomputeSkillTrust:
             _skill("Python", 10, NOW),     # 高频 + 有置信度
             _skill("Go", 1, NOW),          # 低频
         ]
-        confs = [_conf("Python", 0.9)]
+        confs = [_conf("cid-1", 0.9)]
         out = await recompute_skill_trust(_FakeSession(skills, confs), driver)
         assert out["skills"] == 2
         assert out["updated"] == 2
@@ -102,10 +108,21 @@ class TestRecomputeSkillTrust:
         assert go_run[1]["cid"] == "cid-2"
         assert 0.3 < go_run[1]["trust"] < 0.5
 
+    async def test_approved_gets_floor_08(self) -> None:
+        """审核补偿：approved 技能保底 0.8，即使四因子算出来低。"""
+        driver = _FakeDriver()
+        skills = [
+            _skill("Go", 1, NOW, review_status="approved"),  # 单源但已审核
+        ]
+        out = await recompute_skill_trust(_FakeSession(skills, []), driver)
+        assert out["updated"] == 1
+        # 单源: 0.095+0.15+0+0.15=0.395 → 但 approved 保底 0.8
+        assert driver.session_obj.runs[0][1]["trust"] == pytest.approx(0.8, abs=0.001)
+
     async def test_idempotent_same_inputs(self) -> None:
         driver1, driver2 = _FakeDriver(), _FakeDriver()
         skills = [_skill("Python", 5, NOW)]
-        confs = [_conf("Python", 0.8)]
+        confs = [_conf("cid-1", 0.8)]
         out1 = await recompute_skill_trust(_FakeSession(skills, confs), driver1)
         out2 = await recompute_skill_trust(_FakeSession(skills, confs), driver2)
         assert out1 == out2

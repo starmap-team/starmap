@@ -157,7 +157,7 @@ def _jwt_verify(token: str, *, audience: str | None, issuer: str | None, leeway:
         algorithms=["HS256"],
         audience=audience,
         issuer=issuer,
-        leeway=_td(seconds=leeway) if leeway else None,
+        leeway=_td(seconds=leeway) if leeway is not None else None,
         options=options or {},
     )
 

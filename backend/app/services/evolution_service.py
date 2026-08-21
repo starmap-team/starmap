@@ -146,7 +146,9 @@ async def build_evolution_kpi(
         sa.select(sa.func.avg(EvolutionChangelog.trust_score))
     )
     trust_value = trust_result.scalar_one()
-    trust_mean = round(float(trust_value), 3) if trust_value is not None else 0.0
+    # 2026-08-21 (debug 修复): 空表时返回 None（前端显示"—"）而非 0.0 ——
+    # 用户看到"信任均值 0%"误以为评分全为 0，实为 changelog 无记录。
+    trust_mean = round(float(trust_value), 3) if trust_value is not None else None
 
  # 3. CII mean — days window (matches the 趋势概览 chart), avg of last points
     skill_data = await load_skill_timeseries_data(session, days=days)

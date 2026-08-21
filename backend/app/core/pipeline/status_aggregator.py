@@ -23,7 +23,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 CACHE_KEY = "pipeline:status:agg"
-CACHE_TTL_SECONDS = 600  # 10 分钟
+# 2026-08-21 (debug 修复): 10 分钟 TTL 太长 —— total_jd_raw/today_crawl_new 等
+# 采集指标随流水线实时变化，缓存 10 分钟导致页面"历史累计 0 条"与真实 320 条矛盾。
+# 改 60 秒平衡性能与准确性。
+CACHE_TTL_SECONDS = 60
 
 
 async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
@@ -59,9 +62,13 @@ async def compute_status_aggregates(session: AsyncSession) -> dict[str, Any]:
     try:
         # 2) today_crawl_new: 今日 jd_raw 实际新增行数（新增 vs 重复的诚实区分）
         from sqlalchemy import text as _text
+        # 2026-08-21 (debug 修复): jd_raw.crawled_at 是 naive 列（crawler 独立库），
+        # 传 aware datetime 报 "can't subtract offset-naive and offset-aware" →
+        # total_jd_raw 走 fallback 0。对 jd_raw 查询用 naive UTC。
+        naive_today_start = today_start.replace(tzinfo=None)
         new_result = await session.execute(
             _text("SELECT COUNT(*) FROM jd_raw WHERE crawled_at >= :start"),
-            {"start": today_start},
+            {"start": naive_today_start},
         )
         today_new = int(new_result.scalar() or 0)
         total_result = await session.execute(_text("SELECT COUNT(*) FROM jd_raw"))

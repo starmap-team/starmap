@@ -216,6 +216,7 @@ async def get_position(
             {
                 "skill_id": str(sk.id),
                 "name": sk.name,
+                "name_cn": getattr(sk, "name_cn", "") or "",
                 "category": sk.category,
                 "proficiency": "精通" if rel.requirement_type == "required" else "了解" if rel.requirement_type == "preferred" else "熟悉",
                 "confidence": float(rel.confidence or 1.0),
@@ -231,6 +232,14 @@ async def get_position(
             "description": r.description,
             "skills_required": skills,
             "discovered_at": r.created_at.isoformat() if r.created_at else None,
+            # 2026-08-20 (修复 C): 数据来源追溯 —— 让用户知根知底
+            "provenance": {
+                "source_run_id": str(r.source_run_id) if r.source_run_id else None,
+                "created_by": r.created_by,
+                "reviewed_by": r.reviewed_by,
+                "review_status": r.review_status,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            },
         }
 
  # ── Neo4j fallback: query Position node by name ──
@@ -245,6 +254,7 @@ async def get_position(
                     {
                         "skill_id": s.get("skill_id", ""),
                         "name": s.get("name", ""),
+                        "name_cn": s.get("name_cn") or "",
                         "category": s.get("category", "hard_skill"),
                         "confidence": float(s.get("confidence", 1.0)),
                         "source_count": int(s.get("source_count", 0) or 0),
@@ -259,6 +269,13 @@ async def get_position(
                     "description": pos.get("description", ""),
                     "skills_required": skills,
                     "discovered_at": None,
+                    "provenance": {
+                        "source_run_id": pos.get("source_run_id"),
+                        "created_by": pos.get("created_by"),
+                        "reviewed_by": pos.get("reviewed_by"),
+                        "review_status": pos.get("review_status"),
+                        "created_at": None,
+                    },
                 }
         except PositionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -381,9 +398,10 @@ async def _list_positions_neo4j(
             params: dict[str, Any] = {}
 
             if search:
- # 一致性审计：search 同时匹配 name 与 industry，与 PG 路径及前端契约一致
+ # 一致性审计：search 同时匹配 name / name_cn / industry，与 PG 路径及前端契约一致
                 where_clauses.append(
                     "(toLower(p.name) CONTAINS toLower($search) OR "
+                    "toLower(coalesce(p.name_cn, '')) CONTAINS toLower($search) OR "
                     "toLower(coalesce(p.industry, '')) CONTAINS toLower($search))"
                 )
                 params["search"] = search

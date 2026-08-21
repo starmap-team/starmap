@@ -124,7 +124,7 @@ async def call_mimo_llm(
     content = message.get("content", "")
     reasoning = message.get("reasoning_content", "")
     logger.debug("MiMo response: {} output chars, {} reasoning chars", len(content), len(reasoning))
-    return {"role": "assistant", "content": content, "model": settings.mimo_model}
+    return {"role": "assistant", "content": content, "model": settings.mimo_model, "finish_reason": choices[0].get("finish_reason")}
 
 
 @retry(
@@ -206,7 +206,7 @@ async def call_xunfei_llm(
     message = choices[0].get("message", {})
     content = message.get("content", "")
     logger.debug("Xunfei response received ({} chars)", len(content))
-    return {"role": "assistant", "content": content, "model": model_version}
+    return {"role": "assistant", "content": content, "model": model_version, "finish_reason": choices[0].get("finish_reason")}
 
 
 async def call_spark_x_llm(
@@ -282,7 +282,7 @@ async def call_spark_x_llm(
     content = message.get("content", "")
     reasoning = message.get("reasoning_content", "")
     logger.debug("Spark X response: {} output chars, {} reasoning chars", len(content), len(reasoning))
-    return {"role": "assistant", "content": content, "model": settings.spark_x_model}
+    return {"role": "assistant", "content": content, "model": settings.spark_x_model, "finish_reason": choices[0].get("finish_reason")}
 
 
 @retry(
@@ -352,7 +352,7 @@ async def call_deepseek_llm(
     message = choices[0].get("message", {})
     content = message.get("content", "")
     logger.debug("DeepSeek response received ({} chars)", len(content))
-    return {"role": "assistant", "content": content, "model": settings.deepseek_model}
+    return {"role": "assistant", "content": content, "model": settings.deepseek_model, "finish_reason": choices[0].get("finish_reason")}
 
 
 async def call_dashscope_llm(
@@ -389,10 +389,14 @@ async def call_dashscope_llm(
         "model": settings.dashscope_model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.5,
-        # Phase 27 (qwen-plus 资源包优化): 实测抽取 JSON ~1500 tokens,
-        # 从 4096 降至 2048 截断长尾输出浪费(余量 ~35%)。截断会被 parse_llm_json_response
-        # 抛 LLMResponseError,自动走 fallback chain。
-        "max_tokens": 2048,
+        # FIX (resume-analysis-llm-parse-errors 2026-08-21): 2048 → 4096.
+        # Phase 27 曾按"实测抽取 JSON ~1500 tokens"把 4096 降到 2048 以节省
+        # 长尾输出;但复杂简历(技能多/项目经历详实)的 jd_extraction 真实输出
+        # 会超过 2048 tokens(实测 2886 tokens / 9723 chars),此时 finish_reason=
+        # length 截断,JSON 字符串被拦腰截断 → parse_llm_json_response 抛
+        # "Unterminated string",/resume/upload 422、/pipeline/analyze 技能为空。
+        # 恢复 4096 提供充足余量(2886 → 41% 余量),最大单次成本增量有限。
+        "max_tokens": 4096,
     }
 
     logger.info("Calling Aliyun Bailian Qwen ({})", settings.dashscope_model)
@@ -425,7 +429,16 @@ async def call_dashscope_llm(
     message = choices[0].get("message", {})
     content = message.get("content", "")
     logger.debug("DashScope response received ({} chars)", len(content))
-    return {"role": "assistant", "content": content, "model": settings.dashscope_model}
+    # FIX (resume-analysis-llm-parse-errors): 透传 finish_reason,便于
+    # _call_and_track 识别 "length"(max_tokens 截断)并**不缓存**截断响应
+    # (否则 7 天 TTL 的 Redis 缓存会保存解析失败的脏响应,修好 max_tokens
+    #  后同一 prompt 仍持续命中旧截断 → 症状不消失)。
+    return {
+        "role": "assistant",
+        "content": content,
+        "model": settings.dashscope_model,
+        "finish_reason": choices[0].get("finish_reason"),
+    }
 
 
 # Spark X 深度推理对长 prompt 会触发讯飞网关 60s 504（实测：抽取 prompt ~2582 chars
@@ -517,8 +530,17 @@ async def call_llm_with_fallback(
                 f"tried: {'; '.join(errors) if errors else 'no providers'}"
             )
         resp = await coro_factory(prompt)
-        # 写入 Redis 缓存(以响应中实际使用的 model 命名,后续跨 provider 命中更安全)
-        await response_cache.aset(resp.get("model", settings.dashscope_model), prompt, resp)
+        # 写入 Redis 缓存(以响应中实际使用的 model 命名,后续跨 provider 命中更安全)。
+        # FIX (resume-analysis-llm-parse-errors): finish_reason=="length"(max_tokens
+        # 截断)的响应**绝不缓存**——否则解析失败的脏响应会以 7 天 TTL 留在 Redis,
+        # 即使后续调大 max_tokens,相同 prompt 仍持续命中旧截断,症状无法消失。
+        if resp.get("finish_reason") != "length":
+            await response_cache.aset(resp.get("model", settings.dashscope_model), prompt, resp)
+        else:
+            logger.warning(
+                "LLM response truncated (finish_reason=length) — skipped cache write: model={} chars={}",
+                resp.get("model"), len(str(resp.get("content", ""))),
+            )
         tracker.record(
             model=resp.get("model", "unknown"),
             prompt=prompt,
@@ -589,24 +611,30 @@ async def call_llm_with_fallback(
     try:
  # 本地 Ollama 生成慢（短 JD ~40-120s+），硬编码 120s 常导致真实抽取
  # 超时。放宽到 300s，让本地降级模型也能完成真实抽取（前端同步放宽）。
-        async with httpx.AsyncClient(timeout=httpx.Timeout(300)) as client:
-            resp = await client.post(
-                ollama_url,
-                json={
-                    "model": settings.qwen_model_name,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.5,
-                        # Phase 27: 与 DashScope 路径一致,收敛到 2048
-                        "num_predict": 2048,
+            async with httpx.AsyncClient(timeout=httpx.Timeout(300)) as client:
+                resp = await client.post(
+                    ollama_url,
+                    json={
+                        "model": settings.qwen_model_name,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.5,
+                            # FIX (resume-analysis-llm-parse-errors): 2048 → 4096,
+                            # 与 DashScope 路径一致 —— 复杂简历输出可超 2048 tokens,
+                            # 截断会导致 JSON 解析失败/技能为空。
+                            "num_predict": 4096,
+                        },
                     },
-                },
-            )
+                )
             resp.raise_for_status()
             data = resp.json()
             content = data["message"]["content"]
-            result = {"role": "assistant", "content": content, "model": f"{settings.qwen_model_name.replace(':', '-')}-fallback"}
+            # Ollama 非流式响应用 done_reason 表示停止原因("stop"/"length"),
+            # 映射为 finish_reason 供 _call_and_track 判定截断(不缓存)。
+            done_reason = data.get("done_reason")
+            finish_reason = "length" if done_reason == "length" else ("stop" if done_reason else None)
+            result = {"role": "assistant", "content": content, "model": f"{settings.qwen_model_name.replace(':', '-')}-fallback", "finish_reason": finish_reason}
             tracker.record(model=result["model"], prompt=prompt, content=content)
             return result
     except httpx.TimeoutException as e:

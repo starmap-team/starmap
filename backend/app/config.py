@@ -194,7 +194,12 @@ class Settings(BaseSettings):
     deepseek_model: str = "deepseek-chat"
     qwen_model_path: str = ""
     qwen_model_name: str = "qwen2.5:7b"
-    llm_timeout: int = 60
+    # FIX (resume-analysis-llm-parse-errors 2026-08-21): 60 → 120s.
+    # DashScope qwen-plus 在复杂简历(技能多/项目详实)下的 jd_extraction 输出可达
+    # ~2886 tokens,60s 读超时不够 —— max_tokens 2048→4096 修复后,完整生成耗时
+    # 突破 60s,触发 LLMTimeoutError 直接降级直到全部失败 → /resume/upload 422。
+    # 120s 与 SkillExtractStep/MatchStep.timeout=120 对齐(流水线单步上限即 120s)。
+    llm_timeout: int = 120
     llm_max_retries: int = 3
 
  # 阿里云百炼 Qwen（2026-08-14 接入，降级链首选）——OpenAI 兼容端点
@@ -216,6 +221,27 @@ class Settings(BaseSettings):
  # X1.5 端点 /v2/chat/completions（2026-08-11 实测均可用，X2 12s / X1.5 7s）
     spark_x_url: str = "https://spark-api-open.xf-yun.com/x2/chat/completions"
     spark_x_model: str = "spark-x"
+
+    # Phase 27 (qwen-plus 资源包优化): LLM 响应 Redis 缓存与翻译缓存
+    # 关闭 = false 时 call_llm_with_fallback 不查 Redis,直接走 fallback chain。
+    llm_response_cache_enabled: bool = True
+    llm_response_cache_ttl_seconds: int = 7 * 24 * 3600  # 7 天
+    translation_cache_enabled: bool = True
+    # 每日成本 cap:累计 cost_cny 达到此值时 call_llm_with_fallback 返回 blocked,
+    # 防意外(自动化脚本/循环 bug)累积成本爆表。¥0 = 不限。
+    # 默认 ¥5/天,远低于 1.1 亿 tokens 的 ¥114.4 上限,留 95% 余量给正常业务;
+    # 真实业务日耗应在 ¥1-3,cap 调到 ¥5 后即便突发流量也只到 ¥5 阻断,不会
+    # 触发资源包外的按量计费。如需调高(例如批量 backfill),临时改 .env 重启即可。
+    llm_cost_cap_cny_per_day: float = 5.0
+    # Phase 27 资源包严格保护: 单次请求 input token 上限。资源包规则要求
+    # 单次请求输入 ≤128K 才抵扣(超 128K 的费用不抵扣 → 触发按量计费)。
+    # 本开关在 call_llm_with_fallback 入口处硬性估算并阻断超限请求。
+    # 默认 120K(留 8K 余量给服务侧拼接);调小更严格,设为 0 = 不限。
+    llm_max_input_chars_per_request: int = 120_000 * 4  # 120K tokens ≈ 480K chars
+    # Phase 27 资源包严格保护: 全局启用开关。True = 正常调用 qwen-plus,
+    # False = 严格阻断所有 LLM 调用(完全靠缓存/降级模型)。
+    # 紧急止血:发现费用异常时 .env 设 LLM_ENABLED=false 重启即可立即阻断。
+    llm_enabled: bool = True
 
  # 数据源抓取与健康探测端点
     zhipin_base_url: str = "https://www.zhipin.com"
