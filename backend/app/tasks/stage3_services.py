@@ -413,7 +413,7 @@ async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
                                             SkillRecord.name.in_(skill_names)
                                         )
                                     )
-                                ).all
+                                ).all()
                             }
                 except Exception as sk_exc:  # noqa: BLE001 — 技能 id 解析失败不阻断
                     logger.warning(
@@ -543,7 +543,7 @@ async def run_build_graph_from_extractions(
                                         PositionRecord.name.in_(position_names)
                                     )
                                 )
-                            ).all
+                            ).all()
                         }
                     skill_names: set[str] = set()
                     for payload in extractions:
@@ -561,7 +561,7 @@ async def run_build_graph_from_extractions(
                                         SkillRecord.name.in_(skill_names)
                                     )
                                 )
-                            ).all
+                            ).all()
                         }
                 canonical_ids_list = []
                 for payload in extractions:
@@ -629,7 +629,7 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
                 )
             ).scalars().all()
 
-            skill_counts: Counter[str] = Counter
+            skill_counts: Counter[str] = Counter()
             skill_categories: dict[str, str] = {}
             related_positions: dict[str, set[str]] = defaultdict(set)
 
@@ -645,7 +645,7 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
                         skill_categories.setdefault(skill_name, skill_entry_category(entry, default="general"))
                         related_positions[skill_name].add(position_name)
 
-            for skill_name, count in skill_counts.items:
+            for skill_name, count in skill_counts.items():
                 await session.execute(
                     insert(SkillRecord)
                     .values(name=skill_name, category=skill_categories.get(skill_name, "general"), source_count=count)

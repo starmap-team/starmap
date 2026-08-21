@@ -256,7 +256,7 @@ async def _run() -> dict[str, Any]:
     }
     if not rows:
         return stats
-    async with GraphConfig.get_driver as driver:
+    async with GraphConfig().get_driver() as driver:
         for row in rows:
             stats["replayed"] += 1
             ok = await _replay_outbox_row(sm, row, driver)

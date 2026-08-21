@@ -158,7 +158,7 @@ def _jwt_verify(token: str, *, audience: str | None, issuer: str | None, leeway:
         audience=audience,
         issuer=issuer,
         leeway=_td(seconds=leeway) if leeway is not None else None,
-        options=options or {},
+        options=options,  # type: ignore[arg-type]  # PyJWT 运行时接受 dict；mypy stub 仅认 Options TypedDict
     )
 
 

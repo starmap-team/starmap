@@ -54,7 +54,7 @@ def _trans_cache_key(title: str, industry: str | None) -> str:
     return f"{_TRANS_CACHE_PREFIX}{h}"
 
 
-def _trans_cache_get(title: str, industry: str | None) -> dict[str, str | None] | None:
+async def _trans_cache_get(title: str, industry: str | None) -> dict[str, str | None] | None:
     """读 Redis 缓存;Redis 故障或未启用时返回 None(调用方继续走 LLM)。"""
     try:
         from app.config import settings
@@ -65,7 +65,7 @@ def _trans_cache_get(title: str, industry: str | None) -> dict[str, str | None] 
         redis = resources.redis_client
         if redis is None:
             return None
-        raw = redis.get(_trans_cache_key(title, industry))
+        raw = await redis.get(_trans_cache_key(title, industry))
         if not raw:
             return None
         data = json.loads(raw)
@@ -80,7 +80,7 @@ def _trans_cache_get(title: str, industry: str | None) -> dict[str, str | None] 
         return None
 
 
-def _trans_cache_set(
+async def _trans_cache_set(
     title: str,
     industry: str | None,
     result: dict[str, str | None],
@@ -98,7 +98,7 @@ def _trans_cache_set(
         redis = resources.redis_client
         if redis is None:
             return
-        redis.set(
+        await redis.set(
             _trans_cache_key(title, industry),
             json.dumps(result, ensure_ascii=False),
             ex=_TRANS_CACHE_TTL_SECONDS,
@@ -129,7 +129,7 @@ async def translate_title_industry(
         return {"name_cn": title, "industry_zh": industry}
 
     # Phase 27: 先查 Redis 缓存(覆盖同 title 多次翻译)
-    cached = _trans_cache_get(title, industry)
+    cached = await _trans_cache_get(title, industry)
     if cached is not None:
         logger.debug("translation cache hit: title={!r}", title[:40])
         return cached
@@ -162,12 +162,12 @@ async def translate_title_industry(
             if name_cn.lower().strip() == (title or "").lower().strip():
                 logger.info("translate_title_industry: LLM returned original name, using as fallback name_cn={!r}", name_cn)
                 result_payload: dict[str, str | None] = {"name_cn": name_cn, "industry_zh": industry_zh}
-                _trans_cache_set(title, industry, result_payload)
+                await _trans_cache_set(title, industry, result_payload)
                 return result_payload
             logger.warning("translate_title_industry: LLM returned non-CJK name_cn={!r}", name_cn)
             return {"name_cn": None, "industry_zh": None}
         result_payload = {"name_cn": name_cn, "industry_zh": industry_zh}
-        _trans_cache_set(title, industry, result_payload)
+        await _trans_cache_set(title, industry, result_payload)
         return result_payload
     except Exception as exc:  # noqa: BLE001 — fall back gracefully
         logger.warning("translate_title_industry failed: {}", exc)
