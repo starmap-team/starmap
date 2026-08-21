@@ -266,7 +266,8 @@ class TestProjectionResultSkillsUpserted:
             async def run(self, query: str, **kwargs):
                 if "DELETE" in str(query):
                     deletes.append(str(query))
-                return SimpleNamespace()
+                # apply_batch 关系分支用 single() 判端点存在（A5 修复）
+                return SimpleNamespace(single=AsyncMock(return_value={"r": {}}))
 
         class _Driver:
             def session(self) -> _Neo4jSession:

@@ -155,7 +155,9 @@ async def reconcile_neo4j_endpoint(
 
     # 健康度（Phase 23 Task 3 扩展：边 ±0.5% 容差纳入三档）
     edge_tolerance = max(1, int(pg_requires * 0.005))
-    nodes_equal = neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0
+    # 修剪孤儿是成功修复：post-reconcile 计数已对齐（neo4j_pos 等读于 reconcile_all 之后），
+    # orphans_pruned>0 不再使本次修复后的对齐状态标 warn。
+    nodes_equal = neo4j_pos == pg_pos and neo4j_skl == pg_skl
     if nodes_equal and requires_diff <= edge_tolerance:
         health = "ok"
     elif requires_diff > edge_tolerance or (

@@ -207,16 +207,24 @@ class GraphProjector:
                         if v is not None
                         and k not in {"position_canonical_id", "skill_canonical_id"}
                     }
-                    await session.run(
+                    edge_result = await session.run(
                         "MATCH (p:Position {canonical_id: $p_cid}) "
                         "MATCH (s:Skill {canonical_id: $s_cid}) "
                         "MERGE (p)-[r:REQUIRES]->(s) "
-                        "SET r += $props, r.updated_at = datetime()",
+                        "SET r += $props, r.updated_at = datetime() "
+                        "RETURN r",
                         p_cid=str(p_cid),
                         s_cid=str(s_cid),
                         props=rel_props,
                     )
-                    result.edges_upserted += 1
+                    # 端点（p/s）缺失时 MATCH 无结果 → MERGE 不创建边 → r 为 None。
+                    # 此时不计 edges_upserted（避免虚增），记 error 暴露缺口。
+                    if await edge_result.single() is not None:
+                        result.edges_upserted += 1
+                    else:
+                        result.errors.append(
+                            f"edge endpoints missing: {p_cid} -> {s_cid}"
+                        )
 
             return result
         except StarMapError:
@@ -552,7 +560,13 @@ class GraphProjector:
                 {
                     "position_canonical_id": str(position_id),
                     "skill_canonical_id": str(skill_id),
-                    "requirement_type": requirement_type,
+                    # 规范化 requirement_type：仅 required/preferred 合法，
+                    # 非法值（空/变体/optional）保守落 required（读路径同样按此判定）
+                    "requirement_type": (
+                        requirement_type
+                        if requirement_type in ("required", "preferred")
+                        else "required"
+                    ),
                     "confidence": float(confidence or 0.0),
                 }
                 for position_id, skill_id, requirement_type, confidence in rel_rows

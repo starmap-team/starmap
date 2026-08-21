@@ -478,8 +478,8 @@ async def merge_position(driver: Any, position_data: dict[str, Any], canonical_i
         )
     query = """
     MERGE (p:Position {canonical_id: $canonical_id})
+    ON CREATE SET p.name = $name
     SET p.updated_at = datetime(),
-        p.name = $name,
         p.name_cn = $name_cn,
         p.experience_required = $experience_required,
         p.education_required = $education_required
@@ -518,12 +518,14 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
         driver: Neo4j async driver.
         skill_name: Standardized skill name.
         metadata: Optional extra properties.
-        canonical_id: PG SkillRecord.id — SET on the node so graph_sync's
-            canonical MERGE hits the SAME node (no duplicate); coalesce keeps
-            existing (idempotent). None = ad-hoc extraction.
+        canonical_id: PG SkillRecord.id — **MERGE 键**（Phase 23 Task 2）。
+            缺失时 raise ``GraphProjectionError`` 拒绝产生孤儿节点。
 
     Returns:
         The created/merged node properties dict.
+
+    Raises:
+        GraphProjectionError: canonical_id 缺失（PG 是 SSOT，不允许无主键落图）。
     """
     from neo4j.exceptions import Neo4jError
 
@@ -555,10 +557,11 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
         }
     )
     merge_props = {key: value for key, value in props.items() if key != "source_count"}
+    merge_props.pop("name", None)  # name 是 MERGE 键属性，走 ON CREATE，不随 props 覆盖
     query = """
     MERGE (s:Skill {canonical_id: $canonical_id})
+    ON CREATE SET s.name = $name
     SET s += $props,
-        s.name = $name,
         s.source_count = max(coalesce(s.source_count, 0), $source_count),
         s.updated_at = datetime()
     RETURN s
@@ -576,13 +579,6 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
             if record is None:
                 raise ValueError(f"Failed to merge Skill: {skill_name}")
             props = dict(record["s"])
-            if canonical_id is None:
-                # P4a 根治 (R1/R3): 见 merge_position 同款告警——无 id 技能节点是
-                # R3 (PG 回填不覆盖) 的直接入口，必须暴露而非静默。
-                logger.warning(
-                    "merge_skill: no canonical_id for {!r} — node will be unlinked "
-                    "(repair engine will catch up; root cause R1/R3)", skill_name,
-                )
             logger.debug("Merged Skill: {}", skill_name)
             return props
     except Neo4jError as e:

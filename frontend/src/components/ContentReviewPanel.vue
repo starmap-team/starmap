@@ -650,7 +650,7 @@ async function saveNameCn() {
       <el-pagination
         v-model:current-page="currentPage"
         :page-size="pageSize"
-        :total="reviewStore.filterTotal || totalFiltered"
+        :total="Math.min(reviewStore.filterTotal ?? Infinity, totalFiltered)"
         :disabled="totalFiltered <= pageSize"
         layout="prev, pager, next, total"
       />

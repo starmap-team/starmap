@@ -40,11 +40,11 @@ const parsedJds = ref<JdItem[]>([])
 const parseError = ref('')
 const isValid = computed(() => parsedJds.value.length > 0 && !parseError.value)
 
-// 实时校验
+// 实时校验（text 与 file 模式都读 textInput——文件内容已写入 textInput）
 function validateInput() {
   parseError.value = ''
   parsedJds.value = []
-  const raw = inputMode.value === 'text' ? textInput.value : ''
+  const raw = textInput.value || ''
   if (!raw.trim()) return
   let data: unknown
   try {

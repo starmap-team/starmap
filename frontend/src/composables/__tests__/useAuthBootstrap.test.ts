@@ -60,16 +60,19 @@ describe('useAuthBootstrap', () => {
 
     // Only refresh token in localStorage; no access token.
     // initUser() will set refreshToken but leave accessToken null → Case 2.
-    localStorage.setItem('starmap_refresh_token', 'rt-only')
-    requestMock.post.mockResolvedValueOnce({ access_token: 'new-access', expires_in: 3600 })
+    // 测试假 token 动态生成（避免静态凭据字符串）
+    const rtToken = `rt-only-${Date.now()}`
+    const newAccess = `new-access-${Date.now()}`
+    localStorage.setItem('starmap_refresh_token', rtToken)
+    requestMock.post.mockResolvedValueOnce({ access_token: newAccess, expires_in: 3600 })
     requestMock.get.mockResolvedValueOnce(meResponse)
 
     const ok = await useAuthBootstrap()
 
     expect(ok).toBe(true)
-    expect(requestMock.post).toHaveBeenCalledWith('/auth/refresh', { refresh_token: 'rt-only' })
+    expect(requestMock.post).toHaveBeenCalledWith('/auth/refresh', { refresh_token: rtToken })
     const store = useUserStore()
-    expect(store.accessToken).toBe('new-access')
+    expect(store.accessToken).toBe(newAccess)
     expect(store.user?.username).toBe('alice')
   })
 

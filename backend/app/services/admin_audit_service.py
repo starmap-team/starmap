@@ -89,11 +89,15 @@ def _trust_from_payload(payload: dict | None) -> int:
 
 
 # LOOP-07: Neo4j sync on approve/reject
-async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str, status: str) -> None:
+async def _sync_neo4j_on_audit(
+    neo4j_driver: Any, item_type: str, item_name: str, status: str, item_id: str | None = None
+) -> None:
     """Sync audit result to Neo4j graph (non-blocking).
 
     Phase 5 Step 2 修复: 用 MERGE 而非 MATCH+SET，确保节点不存在时自动创建。
     canonical_id 是 Neo4j 与 PG 同步的桥梁。
+    item_id: 审核项 PG 主键（ReviewAuditLog.entity_id）——优先按 id 定位 PG 行，
+    避免同名岗位（PositionRecord.name 非唯一）时 .first() 取错行。
     """
     if not neo4j_driver:
         return
@@ -115,10 +119,15 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
         async with engine.begin() as conn:
             session = AsyncSession(bind=conn)
             if label == "Position":
-                result = await session.execute(
-                    select(PositionRecord.id, PositionRecord.name, PositionRecord.name_cn, PositionRecord.industry, PositionRecord.review_status)
-                    .where(PositionRecord.name == item_name)
+                pos_stmt = select(
+                    PositionRecord.id, PositionRecord.name, PositionRecord.name_cn,
+                    PositionRecord.industry, PositionRecord.review_status,
                 )
+                if item_id:
+                    pos_stmt = pos_stmt.where(PositionRecord.id == item_id)
+                else:
+                    pos_stmt = pos_stmt.where(PositionRecord.name == item_name)
+                result = await session.execute(pos_stmt)
                 row = result.first()
                 if not row:
                     logger.warning("Neo4j sync: PG PositionRecord not found for '{}'", item_name)
@@ -129,10 +138,14 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
                 industry = row[3] or ""
                 review_status = row[4] or status
             else:  # Skill
-                result = await session.execute(
-                    select(SkillRecord.id, SkillRecord.name, SkillRecord.review_status)
-                    .where(SkillRecord.name == item_name)
+                skill_stmt = select(
+                    SkillRecord.id, SkillRecord.name, SkillRecord.review_status,
                 )
+                if item_id:
+                    skill_stmt = skill_stmt.where(SkillRecord.id == item_id)
+                else:
+                    skill_stmt = skill_stmt.where(SkillRecord.name == item_name)
+                result = await session.execute(skill_stmt)
                 row = result.first()
                 if not row:
                     logger.warning("Neo4j sync: PG SkillRecord not found for '{}'", item_name)

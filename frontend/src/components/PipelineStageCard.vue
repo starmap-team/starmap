@@ -247,11 +247,16 @@ const dedupedWarnings = computed(() => {
 
 // 残留闭环: 错误去重 + 计数，避免同一错误重复罗列 20 次
 const dedupedErrors = computed(() => {
-  const counts = new Map<string, number>()
-  for (const err of props.stage.errors) {
-    counts.set(err, (counts.get(err) || 0) + 1)
-  }
-  return Array.from(counts.entries()).map(([msg, count]) => ({ msg, count }))
+  const counts = new Map<string, { count: number; rawIdx: number }>()
+  props.stage.errors.forEach((err, idx) => {
+    const entry = counts.get(err)
+    if (entry) {
+      entry.count += 1
+    } else {
+      counts.set(err, { count: 1, rawIdx: idx })
+    }
+  })
+  return Array.from(counts.entries()).map(([msg, { count, rawIdx }]) => ({ msg, count, rawIdx }))
 })
 
 //: 显示 "X / Y" (入库 / 抓到) 让用户区分 dedup
@@ -613,11 +618,11 @@ const realProgress = computed(() => {
               > ×{{ item.count }}</span>
               <!-- 2026-08-21: 技术原文折叠展示（普通用户看中文，运维看原文） -->
               <div
-                v-if="stage.errors_raw?.[i] && stage.errors_raw[i] !== item.msg"
+                v-if="stage.errors_raw?.[item.rawIdx] && stage.errors_raw[item.rawIdx] !== item.msg"
                 class="error-raw"
               >
                 <span class="error-raw-label">技术详情</span>
-                <code>{{ stage.errors_raw[i] }}</code>
+                <code>{{ stage.errors_raw[item.rawIdx] }}</code>
               </div>
             </div>
           </div>
