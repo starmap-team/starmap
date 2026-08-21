@@ -203,6 +203,12 @@ class ReconcileResult(BaseModel):
     requires_diff: int = Field(default=0, ge=0, description="REQUIRES 边数差值（绝对值）")
     duration_ms: int = Field(default=0, description="执行耗时（毫秒）")
     health: str = Field(default="ok", description="健康度: ok/warn/critical")
+    # 2026-08-21 (debug 修复): 半孤立节点被自动链接数（Neo4j 有 + PG approved 有
+    # + 缺 canonical_id → SET canonical_id 链接）。让「立即对账并修复」按钮
+    # 报告实际修复效果（修了 X 孤儿 + 链接 Y 半孤立）→ operator 能看到三端是否
+    # 一致，而不是只看到 orphan_pruned=0 误以为"没事"。
+    unlinked_linked: int = Field(default=0, ge=0, description="半孤立节点自动链接数")
+    edges_backfilled: int = Field(default=0, ge=0, description="REQUIRES 边补建数")
 
 
 class ReviewListResponse(BaseModel):
