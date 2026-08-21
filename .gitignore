@@ -211,6 +211,18 @@ scripts/fix_graph_data.py
 scripts/fix_graph_*.py
 backend/scripts/seed_changelog.py
 
+# ---- 本地保留、仅远程移除的归档/一次性工具（禁止再次入库）----
+scripts/archive/
+scripts/browser_e2e.js
+scripts/browser_e2e_test.py
+scripts/check_pw.bat
+crawler/scripts/pr_description.md
+docs/archive/audits/CONTRACT_AUDIT.md
+docs/archive/deployment-guide.en.md
+docs/architecture/loop-e2e-verify.md
+docs/architecture/position-e2e-verify.md
+docs/architecture/quality-e2e-verify.md
+
 # ---- 截图 / 图片产物 ----
 _*.png
 _*.jpg
