@@ -14,7 +14,6 @@ from sqlalchemy import BigInteger, Column, DateTime, MetaData, Table, func, sele
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.pipeline.serializers import serialize_datasource
-from app.services.pipeline_service import humanize_errors
 from app.dependencies import get_db_session
 from app.exceptions import StarMapError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun
@@ -27,6 +26,7 @@ from app.schemas.pipeline import (
     QualityAlertItem,
     StageStatusResponse,
 )
+from app.services.pipeline_service import humanize_errors
 
 # typed SQLAlchemy Core `Table` for `jd_raw` (no ORM model — owned by
 # crawler alembic). Declaring columns locally lets schema renames surface

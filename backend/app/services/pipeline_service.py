@@ -21,6 +21,11 @@ from app.core.pipeline.executor import (  # noqa: F401
     retry_stage,
     trigger_and_start,
 )
+from app.core.pipeline.humanize_error import (  # noqa: F401
+    humanize_error,
+    humanize_error_log,
+    humanize_errors,
+)
 from app.core.pipeline.orchestrator import (  # noqa: F401
     RunAlreadyTerminalError,
     RunNotFoundError,
@@ -34,11 +39,6 @@ from app.core.pipeline.quality_monitor import (  # noqa: F401
     get_quality_snapshot,
 )
 from app.core.pipeline.source_quality_sync import sync_source_quality  # noqa: F401
-from app.core.pipeline.humanize_error import (  # noqa: F401
-    humanize_error,
-    humanize_errors,
-    humanize_error_log,
-)
 from app.core.pipeline.sse.contracts import PipelineContext  # noqa: F401
 from app.core.pipeline.sse.engine import PipelineEngine, _build_result  # noqa: F401
 from app.core.pipeline.sse.steps import (  # noqa: F401
