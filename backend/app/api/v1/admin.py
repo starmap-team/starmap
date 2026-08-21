@@ -101,8 +101,20 @@ async def reconcile_neo4j_endpoint(
         r2 = await s.run("MATCH (s:Skill) RETURN count(s) AS c")
         neo4j_skl = int((await r2.single())["c"])
 
-    pg_pos = (await session.execute(select(func.count(PositionRecord.id)))).scalar() or 0
-    pg_skl = (await session.execute(select(func.count(SkillRecord.id)))).scalar() or 0
+    pg_pos = (
+        await session.execute(
+            select(func.count(PositionRecord.id)).where(
+                PositionRecord.review_status == "approved"
+            )
+        )
+    ).scalar() or 0
+    pg_skl = (
+        await session.execute(
+            select(func.count(SkillRecord.id)).where(
+                SkillRecord.review_status == "approved"
+            )
+        )
+    ).scalar() or 0
 
     # 健康度：以 reconcile 结果为准（approved-only 对账由 GraphProjector 保证）。
     # 孤儿=双库漂移指标；errors=投影失败。skills 图内仅存 approved/被引用技能，PG 全量天然不等，

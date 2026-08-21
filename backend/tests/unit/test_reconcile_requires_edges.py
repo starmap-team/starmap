@@ -101,6 +101,7 @@ def _patch_projector(monkeypatch: pytest.MonkeyPatch, **result_kwargs) -> None:
         "skills_upserted": 0,
         "orphans_pruned": 0,
         "edges_upserted": 0,
+        "errors": [],
         **result_kwargs,
     })
     mock_cls = MagicMock()

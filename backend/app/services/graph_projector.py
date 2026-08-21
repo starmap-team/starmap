@@ -57,8 +57,14 @@ class ProjectionResult:
     """Outcome of a single projection operation."""
 
     nodes_upserted: int = 0
+    skills_upserted: int = 0
     edges_upserted: int = 0
     orphans_pruned: int = 0
+    # 2026-08-21 (debug 修复): 半孤立节点被自动链接（Neo4j 有 + PG approved 有 +
+    # 缺 canonical_id → SET canonical_id）数。让「立即对账并修复」按钮能向
+    # operator 报告实际修复效果（修了 X 个孤儿 + 链接了 Y 个半孤立）。
+    unlinked_linked: int = 0
+    edges_backfilled: int = 0
     errors: list[str] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
@@ -72,6 +78,7 @@ class ProjectionResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "nodes_upserted": self.nodes_upserted,
+            "skills_upserted": self.skills_upserted,
             "edges_upserted": self.edges_upserted,
             "orphans_pruned": self.orphans_pruned,
             "errors": self.errors,
@@ -185,7 +192,7 @@ class GraphProjector:
                         cid=str(cid),
                         props=props,
                     )
-                    result.nodes_upserted += 1
+                    result.skills_upserted += 1
 
                 # REQUIRES relations (position_cid -> skill_cid)
                 for rel in relations or ():
