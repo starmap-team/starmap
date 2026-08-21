@@ -593,6 +593,7 @@ async def create_requires_relationship(
     level: str = "intermediate",
     required: bool = True,
     weight: float = 1.0,
+    requirement_type: str | None = None,
 ) -> dict[str, Any]:
     """Create a REQUIRES relationship between Position and Skill (§2.2).
 
@@ -609,13 +610,18 @@ async def create_requires_relationship(
     """
     from neo4j.exceptions import Neo4jError
 
+    # requirement_type 未显式传时从 required 派生（双写路径契约一致）
+    if requirement_type is None:
+        requirement_type = "required" if required else "preferred"
+
     query = """
     MATCH (p:Position {name: $position_name})
     MATCH (s:Skill {name: $skill_name})
     // ponytail: 原 MERGE 带属性 {level: $level} —— 属性值变化时（如 schema 升级 level→requirement_type）
     // 会新建第二条边 → 全库 REQUIRES 重复 34%（1772 vs 去重 1160）。改为无属性 MERGE + SET。
     MERGE (p)-[r:REQUIRES]->(s)
-    SET r.level = $level, r.required = $required, r.weight = $weight, r.updated_at = datetime()
+    SET r.level = $level, r.required = $required, r.weight = $weight,
+        r.requirement_type = $requirement_type, r.updated_at = datetime()
     RETURN r
     """
     try:
@@ -627,6 +633,7 @@ async def create_requires_relationship(
                 level=level,
                 required=required,
                 weight=weight,
+                requirement_type=requirement_type,
             )
             record = await result.single()
             if record is None:
@@ -803,7 +810,8 @@ async def get_position_skills(driver: Any, position_name: str) -> dict[str, list
     """
     query = """
     MATCH (p:Position {name: $name})-[r:REQUIRES]->(s:Skill)
-    RETURN s.name AS skill_name, r.level AS level, r.required AS required
+    RETURN s.name AS skill_name, r.level AS level, r.required AS required,
+           r.requirement_type AS requirement_type
     """
     required = []
     preferred = []
@@ -812,11 +820,15 @@ async def get_position_skills(driver: Any, position_name: str) -> dict[str, list
         result = await session.run(query, name=position_name)
         async for record in result:
             entry = {"name": record["skill_name"], "level": record.get("level", "intermediate")}
-            is_required = record.get("required", True)
-            if is_required is not False:
-                required.append(entry)
-            else:
+            # requirement_type 优先（新契约）；旧数据无该字段时回退 required bool
+            rt = record.get("requirement_type")
+            if rt is None:
+                is_required = record.get("required", True)
+                rt = "required" if is_required is not False else "preferred"
+            if rt == "preferred":
                 preferred.append(entry)
+            else:
+                required.append(entry)
 
     return {"required": required, "preferred": preferred}
 
