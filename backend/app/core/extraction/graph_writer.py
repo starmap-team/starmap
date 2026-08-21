@@ -549,7 +549,7 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
     query = """
     MERGE (s:Skill {name: $name})
     SET s += $props,
-        s.source_count = coalesce(s.source_count, 0) + $source_count,
+        s.source_count = max(coalesce(s.source_count, 0), $source_count),
         s.updated_at = datetime(),
         s.canonical_id = coalesce(s.canonical_id, $canonical_id)
     RETURN s

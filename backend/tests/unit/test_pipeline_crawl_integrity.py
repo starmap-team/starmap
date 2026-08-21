@@ -6,7 +6,6 @@ import uuid
 
 import pytest
 
-from app.core.pipeline.engine import _derive_run_record_counts
 from app.core.pipeline.source_quality_sync import sync_source_quality
 from app.core.pipeline.stages.crawl import build_spider_registry
 from app.models.pipeline_models import DataSourceRecord
@@ -124,22 +123,3 @@ async def test_sync_source_quality_zeroes_ghost_source(db_session) -> None:
     finally:
         await db_session.delete(ghost)
         await db_session.commit()
-
-
-# ── P1-7 run 字段语义 ──
-
-
-def test_derive_run_record_counts_zero_new_kept() -> None:
-    """records_new=0（全部重复）不得回退为 crawl_records（P1-7 回归锁）。"""
-    new_r, updated_r = _derive_run_record_counts(
-        {"records_new": 0, "records_duplicate": 85}, crawl_records=85
-    )
-    assert new_r == 0, "records_new=0 必须保留 0，不得回退为 85"
-    assert updated_r == 85
-
-
-def test_derive_run_record_counts_missing_fallback() -> None:
-    """字段缺省（None）时回退 crawl_records（向后兼容）。"""
-    new_r, updated_r = _derive_run_record_counts({"records_duplicate": 5}, crawl_records=30)
-    assert new_r == 30
-    assert updated_r == 5

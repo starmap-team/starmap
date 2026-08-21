@@ -144,7 +144,15 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
                 # Build per-source config: merge record-level metadata with config JSON
                 cfg = dict(ds.config)
                 cfg["source_name"] = ds.name
-                cfg.setdefault("platform", cfg.get("source_site", "v2ex"))
+                # P0-1: 无 platform/source_site 的源跳过（不得回退 v2ex 错源归属）
+                platform = cfg.get("platform") or cfg.get("source_site")
+                if not platform:
+                    logger.info(
+                        "P0-1: skip source '{}' (no platform/source_site)",
+                        ds.name,
+                    )
+                    continue
+                cfg["platform"] = platform
                 # A1 fix: source_site 从 registry 查，确保与 jd_raw.source_site 一致
                 source_site = PLATFORM_TO_SOURCE_NAME.get(cfg["platform"])
                 if source_site:
