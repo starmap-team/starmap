@@ -95,6 +95,7 @@ export interface StageData {
   records_processed: number
   records_seen?: number          // Phase 3.8.11
   errors: string[]
+  errors_raw?: string[]
   warnings?: string[]            // 非致命警告（如 crawl 0 条采集），不判 failed
   progress: number
   retry_count?: number

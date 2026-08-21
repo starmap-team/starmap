@@ -249,7 +249,6 @@ async def test_call_llm_with_fallback_redis_failure_still_calls_providers(
 
 def test_run_in_loop_sync_context() -> None:
     """无 event loop 的同步上下文: asyncio.run 路径。"""
-    import asyncio
 
     async def _coro() -> str:
         return "ok"
@@ -264,7 +263,6 @@ def test_run_in_loop_non_coroutine_passthrough() -> None:
 
 def test_run_in_loop_coroutine_raising_returns_none() -> None:
     """协程抛异常 → 降级为 None,不传播。"""
-    import asyncio
 
     async def _bad() -> str:
         raise RuntimeError("boom")
@@ -275,9 +273,7 @@ def test_run_in_loop_coroutine_raising_returns_none() -> None:
 @pytest.mark.asyncio
 async def test_aget_hits_real_async_client() -> None:
     """aget 在 async 上下文 await 真实异步客户端(此前同步 get 死锁/永不命中)。"""
-    import asyncio
 
-    from app.services.resources import resources
 
     payload = '{"role": "assistant", "content": "cached", "model": "qwen-plus"}'
     fake_redis = MagicMock()
@@ -298,7 +294,6 @@ async def test_aget_hits_real_async_client() -> None:
 @pytest.mark.asyncio
 async def test_aset_awaits_real_async_client() -> None:
     """aset 在 async 上下文 await 真实异步客户端(同步 set 会泄漏协程)。"""
-    from app.services.resources import resources
 
     fake_redis = MagicMock()
 

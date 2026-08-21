@@ -17,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.pipeline_models import Base
 
+
 class DataSourceMetric(Base):
  """每个数据源每次爬取的指标。"""
 

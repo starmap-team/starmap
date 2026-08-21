@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.v1.pipeline.config_routes import router as _config_router
-from app.api.v1.pipeline.events_routes import router as _events_router # noqa: E402,F401
+from app.api.v1.pipeline.events_routes import router as _events_router  # noqa: E402,F401
 from app.api.v1.pipeline.runs_routes import router as _runs_router
 from app.api.v1.pipeline.schedule_routes import router as _schedule_router
 from app.api.v1.pipeline.status_routes import router as _status_router
