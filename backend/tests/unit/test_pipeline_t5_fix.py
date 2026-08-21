@@ -106,8 +106,9 @@ class TestImportBatchSizeConfigurable:
         assert hasattr(settings, "pipeline_import_batch_size"), (
             "settings.pipeline_import_batch_size missing"
         )
-        assert settings.pipeline_import_batch_size == 500, (
-            "default batch_size must be 500"
+        # 2026-08-16 从 500 调至 200（import 阶段批量上限，内存友好）
+        assert settings.pipeline_import_batch_size == 200, (
+            "default batch_size must be 200"
         )
 
     def test_import_uses_settings_batch_size(self):

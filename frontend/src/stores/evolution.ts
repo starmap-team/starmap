@@ -54,8 +54,9 @@ export interface ChangelogEntry {
 // 10-03: KPI row state — zeros by default, filled by fetchKpi
 export interface EvolutionKpi {
   emerging_count: number
-  trust_mean: number
- /** D-cross: 与 /quality 共享 avg_skill_trust 对照口径（Neo4j Skill.trust_score 实时均值）*/
+  // 2026-08-21 (debug 修复): null = changelog 空表（前端显示"—"）
+  trust_mean: number | null
+  /** D-cross: 与 /quality 共享 avg_skill_trust 对照口径（Neo4j Skill.trust_score 实时均值）*/
   trust_mean_neo4j_skill?: number
   cii_mean: number
   alert_count: number
@@ -64,7 +65,7 @@ export interface EvolutionKpi {
 
 export const DEFAULT_KPI: EvolutionKpi = {
   emerging_count: 0,
-  trust_mean: 0,
+  trust_mean: null,
   trust_mean_neo4j_skill: 0,
   cii_mean: 0,
   alert_count: 0,
@@ -154,7 +155,9 @@ export const useEvolutionStore = defineStore('evolution', () => {
       ) as { emerging_count?: number; trust_mean?: number; trust_mean_neo4j_skill?: number; cii_mean?: number; alert_count?: number; days?: number }
       kpi.value = {
         emerging_count: data.emerging_count ?? DEFAULT_KPI.emerging_count,
-        trust_mean: data.trust_mean ?? DEFAULT_KPI.trust_mean,
+        // 2026-08-21 (debug 修复): trust_mean 用 null 判断 —— 后端空表返回 null，
+        // 原 `?? DEFAULT` 把 null 兜底成 0 → 页面显示"0%"误导。null 保留让前端显示"—"。
+        trust_mean: data.trust_mean === undefined ? DEFAULT_KPI.trust_mean : (data.trust_mean ?? null),
         trust_mean_neo4j_skill: data.trust_mean_neo4j_skill ?? DEFAULT_KPI.trust_mean_neo4j_skill,
         cii_mean: data.cii_mean ?? DEFAULT_KPI.cii_mean,
         alert_count: data.alert_count ?? DEFAULT_KPI.alert_count,

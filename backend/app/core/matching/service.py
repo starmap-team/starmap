@@ -80,6 +80,38 @@ class MatchService:
 
         return prereq_map
 
+    async def _resolve_canonical_name(self, name: str, db_session: Any) -> str | None:
+        """PG SSOT: 把 name 或 name_cn 解析回 canonical PositionRecord.name。
+
+        契约统一（name_cn→name）：前端下拉/深链可能传中文显示名 name_cn，
+        PG 是全量 SSOT（226 approved 全有 name_cn），无需依赖 Neo4j name_cn 稀疏覆盖。
+        解析成功则返回 canonical name；找不到/无 session 返回 None（调用方原样回退）。
+        """
+        if db_session is None:
+            return None
+        stripped = (name or "").strip()
+        if not stripped:
+            return None
+        try:
+            from sqlalchemy import or_ as _or
+            from sqlalchemy import select as _sel
+
+            from app.models.extraction_models import PositionRecord as _PR  # noqa: N814
+
+            row = (
+                await db_session.execute(
+                    _sel(_PR.name, _PR.name_cn)
+                    .where(_or(_PR.name == stripped, _PR.name_cn == stripped))
+                    .limit(1)
+                )
+            ).first()
+            if row is None:
+                return None
+            canonical = (row[0] or "").strip()
+            return canonical or None
+        except Exception:
+            return None
+
     async def _load_target_profile(
         self,
         driver: Any,
@@ -87,7 +119,15 @@ class MatchService:
         db_session: Any = None,
         repo: Any = None,
     ) -> dict[str, list[dict[str, str]]] | None:
-        """加载目标岗位技能画像。"""
+        """加载目标岗位技能画像。
+
+        契约统一（name_cn→name）：target_position 可能是中文显示名 name_cn
+        （前端下拉/深链传入）。PG 是 SSOT 且 226 approved 全有 name_cn，先经 PG
+        解析回 canonical name，再走 cache/repo/Neo4j，避免 Neo4j name_cn 稀疏
+        （仅 9/226）导致的 404。
+        """
+        resolved = await self._resolve_canonical_name(target_position, db_session)
+        target_position = resolved or target_position
  # 检查缓存
         cached = self._cache.get_profile(target_position)
         if cached is not None:
@@ -129,7 +169,7 @@ class MatchService:
  # 从 Neo4j 加载
         if driver is not None:
             try:
-                graph = await fetch_position_graph(driver, target_position, depth=3)
+                graph = await fetch_position_graph(driver, target_position, depth=1)
                 if graph.get("skills"):
                     required: list[dict[str, str]] = []
                     bonus: list[dict[str, str]] = []
@@ -218,6 +258,11 @@ class MatchService:
     ) -> dict[str, Any]:
         """运行匹配引擎。"""
         prereq_map = await self._load_prerequisite_map(driver)
+        # 契约统一（name_cn→name）：入口统一解析一次，profile/exists/落库/响应
+        # 的全部 target_position 与键一致，避免中文名与 canonical 名混用导致 404/结果错位。
+        resolved_position = await self._resolve_canonical_name(target_position, db_session)
+        if resolved_position:
+            target_position = resolved_position
         target_profile = await self._load_target_profile(driver, target_position, db_session, repo)
         if target_profile is None:
  # （ 强制规范）：区分“岗位不存在”与“岗位存在但暂无技能画像”。
@@ -398,15 +443,29 @@ class MatchService:
         return result
 
     async def _position_exists(self, driver: Any, name: str, db_session: Any) -> bool:
-        """M2 辅助：判断岗位是否“存在”（PG 或 Neo4j 有节点），与“有技能画像”区分。"""
+        """M2 辅助：判断岗位是否“存在”（PG 或 Neo4j 有节点），与“有技能画像”区分。
+
+        契约统一（name_cn→name）：用户选中的可能是中文显示名 name_cn，
+        PG/Neo4j 任一按 `name` 或 `name_cn` 命中即视为存在（PG 为 SSOT）。
+        """
         if db_session is not None:
             try:
+                from sqlalchemy import or_ as _or
                 from sqlalchemy import select as _sel
 
                 from app.models.extraction_models import PositionRecord as _PR  # noqa: N814
 
                 row = (
-                    await db_session.execute(_sel(_PR.id).where(_PR.name == name).limit(1))
+                    await db_session.execute(
+                        _sel(_PR.id)
+                        .where(
+                            _or(
+                                _PR.name == name,
+                                _PR.name_cn == name,
+                            )
+                        )
+                        .limit(1)
+                    )
                 ).scalar_one_or_none()
                 if row is not None:
                     return True
@@ -416,7 +475,9 @@ class MatchService:
             try:
                 async with driver.session() as _s:
                     _r = await _s.run(
-                        "MATCH (p:Position {name:$n}) RETURN 1 AS x LIMIT 1", n=name
+                        "MATCH (p:Position) WHERE p.name = $n OR coalesce(p.name_cn, '') = $n "
+                        "RETURN 1 AS x LIMIT 1",
+                        n=name,
                     )
                     if (await _r.single()) is not None:
                         return True
@@ -458,11 +519,11 @@ class MatchService:
             await session.execute(
                 sa_text("""
                     INSERT INTO match_results (
-                        match_id, target_position, match_score,
+                        id, match_id, target_position, match_score, person_skills,
                         matched_skills, missing_required, missing_bonus,
                         gap_report, learning_path, cii, created_at
                     ) VALUES (
-                        :match_id, :target_position, :match_score,
+                        :id, :match_id, :target_position, :match_score, CAST(:person_skills AS jsonb),
                         CAST(:matched_skills AS jsonb),
                         CAST(:missing_required AS jsonb),
                         CAST(:missing_bonus AS jsonb),
@@ -473,7 +534,12 @@ class MatchService:
                     ON CONFLICT (match_id) DO NOTHING
                 """),
                 {
+                    "id": str(uuid4()),
                     "match_id": match_id,
+                    "person_skills": json.dumps([
+                        {"name": s.get("name", s) if isinstance(s, dict) else s}
+                        for s in (result.get("person_skills") or [])
+                    ]),
                     "target_position": result.get("target_position", ""),
                     "match_score": result.get("match_score", 0.0),
                     "matched_skills": json.dumps(result.get("matched_skills", [])),

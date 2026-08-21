@@ -61,8 +61,8 @@ async def _persist_to_db(entry: AuditEntry) -> None:
     try:
         from app.db.session import get_session_factory
 
-        session_factory = get_session_factory
-        async with session_factory as session:
+        session_factory = get_session_factory()
+        async with session_factory() as session:
             from app.models.audit_models import AuditEventRecord
 
             record = AuditEventRecord(
@@ -72,7 +72,7 @@ async def _persist_to_db(entry: AuditEntry) -> None:
                 detail=entry.detail[:500] if entry.detail else "",
                 ip=entry.ip)
             session.add(record)
-            await session.commit
+            await session.commit()
     except Exception as e:
  # DB failures must NEVER block the caller — log and move on
         logger.debug("Audit DB persist failed (non-blocking): {}", e)

@@ -413,51 +413,56 @@ async def get_distribution(
         return cached
 
     # 1. Data source distribution
+    # 2026-08-21 (口径统一): 原实现读 data_sources.total_records —— 该列由
+    # sync_source_quality 回写，含种子/内部源脏值（user_upload=244 但 jd_raw 仅 4 条、
+    # jd_extract 内部源 234 条），且 crawl 源 valid_records=0（未抽取）。数据大屏
+    # 与图谱质量页同名分布图长期不一致。统一为与质量页相同的真实口径：
+    # jd_raw WHERE status='extracted' GROUP BY source_site —— 只有真实有效数据。
     src_result = await session.execute(
-        sa.select(DataSourceRecord)
-        .where(DataSourceRecord.status == "active")
-        .order_by(DataSourceRecord.total_records.desc())
+        sa.text(
+            "SELECT source_site, COUNT(*) AS cnt FROM jd_raw "
+            "WHERE status = 'extracted' AND source_site NOT LIKE 'fixture\\_%' "
+            "GROUP BY source_site ORDER BY cnt DESC LIMIT 8"
+        )
     )
-    sources = list(src_result.scalars().all())
-    if sources:
+    platform_rows = src_result.all()
+    if platform_rows:
+        total_raw = sum(int(cast(int, r.cnt)) for r in platform_rows) or 1
+        source_distribution = [
+            {
+                "name": SOURCE_PLATFORM_NAMES.get(r.source_site, r.source_site or "unknown"),
+                "source_type": "crawl",
+                "count": int(cast(int, r.cnt)),
+                "total_records": int(cast(int, r.cnt)),
+                "valid_records": int(cast(int, r.cnt)),
+                "percentage": round(int(cast(int, r.cnt)) / total_raw * 100, 1),
+                "authority_score": 0.8,
+                "duplicate_rate": 0.0,
+            }
+            for r in platform_rows
+        ]
+    else:
+        # 无任何有效数据时的退化路径：仍展示 data_sources 采集规模（诚实标注），
+        # 避免图表空白。字段语义与上方一致（count=total_records）。
+        srcs = await session.execute(
+            sa.select(DataSourceRecord)
+            .where(DataSourceRecord.status == "active")
+            .order_by(DataSourceRecord.total_records.desc())
+        )
+        sources = list(srcs.scalars().all())
+        total_raw = sum(s.total_records or 0 for s in sources) or 1
         source_distribution = [
             {
                 "name": s.name,
                 "source_type": s.source_type,
-                "total_records": s.total_records,
-                "valid_records": s.valid_records,
+                "count": s.total_records or 0,
+                "total_records": s.total_records or 0,
+                "valid_records": s.valid_records or 0,
+                "percentage": round((s.total_records or 0) / total_raw * 100, 1),
                 "authority_score": round(s.authority_score, 2),
                 "duplicate_rate": round(s.duplicate_rate, 4),
             }
             for s in sources
-        ]
-    else:
-        # D5: 退化路径聚合真实采集表 jd_raw（raw_jd_records 已废弃为死表，2026-08-12 移除）
-        fallback_result = await session.execute(
-            sa.text(
-                "SELECT source_site, COUNT(*) AS count "
-                "FROM jd_raw GROUP BY source_site ORDER BY count DESC"
-            )
-        )
-        platform_rows = fallback_result.all()
-        total_raw = sum(int(cast(int, r.count)) for r in platform_rows) or 1
-        platform_names = SOURCE_PLATFORM_NAMES
-        source_distribution = [
-            {
-                # P1-11 fix (functional-review 2026-08-13): fallback SQL 查的列是
-                # source_site，此前代码读 row.source_platform（不存在）→
-                # AttributeError → data_sources 表为空时 get_distribution 直接 500，
-                # 违背 graceful degradation 承诺。
-                "name": platform_names.get(row.source_site, row.source_site),
-                "source_type": "crawl",
-                "count": int(cast(int, row.count)),
-                "total_records": int(cast(int, row.count)),
-                "valid_records": int(cast(int, row.count)),
-                "percentage": round(int(cast(int, row.count)) / total_raw * 100, 1),
-                "authority_score": 0.8,
-                "duplicate_rate": 0.0,
-            }
-            for row in platform_rows
         ]
 
     # 2. Domain distribution (by industry)

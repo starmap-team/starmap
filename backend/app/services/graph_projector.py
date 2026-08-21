@@ -57,8 +57,14 @@ class ProjectionResult:
     """Outcome of a single projection operation."""
 
     nodes_upserted: int = 0
+    skills_upserted: int = 0
     edges_upserted: int = 0
     orphans_pruned: int = 0
+    # 2026-08-21 (debug 修复): 半孤立节点被自动链接（Neo4j 有 + PG approved 有 +
+    # 缺 canonical_id → SET canonical_id）数。让「立即对账并修复」按钮能向
+    # operator 报告实际修复效果（修了 X 个孤儿 + 链接了 Y 个半孤立）。
+    unlinked_linked: int = 0
+    edges_backfilled: int = 0
     errors: list[str] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
@@ -72,6 +78,7 @@ class ProjectionResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "nodes_upserted": self.nodes_upserted,
+            "skills_upserted": self.skills_upserted,
             "edges_upserted": self.edges_upserted,
             "orphans_pruned": self.orphans_pruned,
             "errors": self.errors,
@@ -185,7 +192,7 @@ class GraphProjector:
                         cid=str(cid),
                         props=props,
                     )
-                    result.nodes_upserted += 1
+                    result.skills_upserted += 1
 
                 # REQUIRES relations (position_cid -> skill_cid)
                 for rel in relations or ():
@@ -200,16 +207,24 @@ class GraphProjector:
                         if v is not None
                         and k not in {"position_canonical_id", "skill_canonical_id"}
                     }
-                    await session.run(
+                    edge_result = await session.run(
                         "MATCH (p:Position {canonical_id: $p_cid}) "
                         "MATCH (s:Skill {canonical_id: $s_cid}) "
                         "MERGE (p)-[r:REQUIRES]->(s) "
-                        "SET r += $props, r.updated_at = datetime()",
+                        "SET r += $props, r.updated_at = datetime() "
+                        "RETURN r",
                         p_cid=str(p_cid),
                         s_cid=str(s_cid),
                         props=rel_props,
                     )
-                    result.edges_upserted += 1
+                    # 端点（p/s）缺失时 MATCH 无结果 → MERGE 不创建边 → r 为 None。
+                    # 此时不计 edges_upserted（避免虚增），记 error 暴露缺口。
+                    if await edge_result.single() is not None:
+                        result.edges_upserted += 1
+                    else:
+                        result.errors.append(
+                            f"edge endpoints missing: {p_cid} -> {s_cid}"
+                        )
 
             return result
         except StarMapError:
@@ -299,20 +314,47 @@ class GraphProjector:
                             ids.add(str(cid))
                     neo4j_ids[label] = ids
 
-            # 2. Snapshot PG IDs
+            # 2. Snapshot PG IDs（approved-only 语义：图=已发布图谱；pending 不入图属预期，
+            #    否则 reconcile 会把清理的 pending 重新回灌进图“复活”）
             pg_pos_ids = {
                 str(row[0])
                 for row in (
-                    await pg_session.execute(select(PositionRecord.id))
+                    await pg_session.execute(
+                        select(PositionRecord.id).where(PositionRecord.review_status == "approved")
+                    )
                 ).all()
             }
             pg_skill_ids = {
                 str(row[0])
                 for row in (
-                    await pg_session.execute(select(SkillRecord.id))
+                    await pg_session.execute(
+                        select(SkillRecord.id).where(SkillRecord.review_status == "approved")
+                    )
                 ).all()
             }
             pg_ids = {"Position": pg_pos_ids, "Skill": pg_skill_ids}
+            # 2026-08-21 (debug 修复): PG approved name→id 映射 —— 半孤立自动链接
+            # （Neo4j 节点缺 canonical_id 时按 name 匹配 PG 设 cid）需要它。
+            pg_name_pos = {
+                str(name): str(cid)
+                for cid, name in (
+                    await pg_session.execute(
+                        select(PositionRecord.id, PositionRecord.name)
+                        .where(PositionRecord.review_status == "approved")
+                    )
+                ).all()
+                if name
+            }
+            pg_name_skill = {
+                str(name): str(cid)
+                for cid, name in (
+                    await pg_session.execute(
+                        select(SkillRecord.id, SkillRecord.name)
+                        .where(SkillRecord.review_status == "approved")
+                    )
+                ).all()
+                if name
+            }
 
             # 3+4. Prune orphans
             async with self._driver.session() as session:
@@ -377,6 +419,9 @@ class GraphProjector:
                     {
                         "canonical_id": str(s.id),
                         "name": s.name,
+                        # 2026-08-20 (修复 B): 投影带 name_cn —— 每日 reconcile 自动补齐
+                        # Neo4j 缺失的中文技能名（存量 358 节点缺名根因）
+                        "name_cn": s.name_cn or "",
                         "category": s.category,
                         "source_count": s.source_count,
                     }
@@ -389,6 +434,76 @@ class GraphProjector:
                 result.nodes_upserted += backfill.nodes_upserted
                 result.errors.extend(backfill.errors)
 
+            # 2026-08-21 (debug 修复): reconcile 补建 approved 岗位的全部 REQUIRES 边 ——
+            # 此前 reconcile_all 从不传 relations → 只补节点不建边 → PG PSR 1549 vs
+            # Neo4j 973 差异 576 条（37.2% 严重差异）无法靠 reconcile 收敛。
+            # 幂等：MERGE 已存在的边不重复创建。
+            edge_backfill = await self._reconcile_requires_edges(pg_session)
+            result.edges_upserted += edge_backfill.edges_upserted
+            result.errors.extend(edge_backfill.errors)
+
+            # 2026-08-21 (debug 修复): 半孤立处理 —— Neo4j 有节点但缺 canonical_id：
+            #   * name 匹配 PG approved → SET canonical_id 链接（unlinked_linked）
+            #   * name 匹配 PG 非 approved（pending/rejected）→ 误入图的违规节点，
+            #     按 approved-only 架构 DETACH DELETE 剪枝（orphans_pruned）
+            # 此前只有 missing（PG 有 Neo4j 无）分支补节点，半孤立从不被处理，
+            # 「立即对账并修复」对半孤立无效果。
+            try:
+                # pending/rejected 的 PG name 集合（用于剪枝误入图节点）
+                pg_nonapproved_pos = {
+                    str(name) for name, in (
+                        await pg_session.execute(
+                            select(PositionRecord.name).where(
+                                PositionRecord.review_status != "approved"
+                            )
+                        )
+                    ).all() if name
+                }
+                pg_nonapproved_skill = {
+                    str(name) for name, in (
+                        await pg_session.execute(
+                            select(SkillRecord.name).where(
+                                SkillRecord.review_status != "approved"
+                            )
+                        )
+                    ).all() if name
+                }
+                async with self._driver.session() as session:
+                    for label, pg_name_to_id, pg_nonapproved in (
+                        ("Position", pg_name_pos, pg_nonapproved_pos),
+                        ("Skill", pg_name_skill, pg_nonapproved_skill),
+                    ):
+                        res = await session.run(
+                            f"MATCH (n:{label}) WHERE n.canonical_id IS NULL "
+                            "RETURN n.name AS name"
+                        )
+                        async for record in res:
+                            name = record.get("name") if hasattr(record, "get") else record["name"]
+                            if not name:
+                                continue
+                            if name in pg_name_to_id:
+                                await session.run(
+                                    f"MATCH (n:{label} {{name: $name}}) WHERE n.canonical_id IS NULL "
+                                    "SET n.canonical_id = $cid",
+                                    name=name, cid=pg_name_to_id[name],
+                                )
+                                result.unlinked_linked += 1
+                            elif name in pg_nonapproved:
+                                # 误入图的未审核节点 → 剪枝（审核通过后重新投影）
+                                await session.run(
+                                    f"MATCH (n:{label} {{name: $name}}) WHERE n.canonical_id IS NULL "
+                                    "DETACH DELETE n",
+                                    name=name,
+                                )
+                                result.orphans_pruned += 1
+                if result.unlinked_linked or result.orphans_pruned:
+                    logger.info(
+                        "reconcile_all: linked {} semi-orphans, pruned {} non-approved graph nodes",
+                        result.unlinked_linked, result.orphans_pruned,
+                    )
+            except Exception as exc:  # noqa: BLE001 — 半孤立处理失败不阻断 reconcile
+                logger.warning("reconcile_all: semi-orphan handling failed (non-fatal): {}", exc)
+
             return result
         except StarMapError:
             raise
@@ -397,6 +512,81 @@ class GraphProjector:
             raise GraphProjectionError(str(exc)) from exc
         except Exception as exc:
             logger.exception("Unexpected error in graph projection: reconcile_all")
+            raise GraphProjectionError(str(exc)) from exc
+
+    async def _reconcile_requires_edges(self, pg_session: Any) -> ProjectionResult:
+        """Phase 23 Task 3: 按 canonical_id 补缺 REQUIRES 边（PG approved PSR）。
+
+        只补缺不自动删——多余 REQUIRES 边由 admin/daily 对账的 audit diff 暴露
+        （drift 告警），避免误删抽取/演化双写路径合法建边。幂等：MERGE 已存在
+        的边不重复创建。
+        """
+        result = ProjectionResult()
+        if self._driver is None:
+            result.errors.append("neo4j_driver_unavailable")
+            return result
+        try:
+            from sqlalchemy import select as sa_select
+
+            from app.models.extraction_models import (
+                PositionRecord,
+                PositionSkillRelation,
+                SkillRecord,
+            )
+
+            rel_rows = (
+                await pg_session.execute(
+                    sa_select(
+                        PositionSkillRelation.position_id,
+                        PositionSkillRelation.skill_id,
+                        PositionSkillRelation.requirement_type,
+                        PositionSkillRelation.confidence,
+                    )
+                    .join(
+                        PositionRecord,
+                        PositionRecord.id == PositionSkillRelation.position_id,
+                    )
+                    .join(
+                        SkillRecord,
+                        SkillRecord.id == PositionSkillRelation.skill_id,
+                    )
+                    .where(
+                        PositionRecord.review_status == "approved",
+                        SkillRecord.review_status == "approved",
+                    )
+                )
+            ).all()
+            relations = [
+                {
+                    "position_canonical_id": str(position_id),
+                    "skill_canonical_id": str(skill_id),
+                    # 规范化 requirement_type：仅 required/preferred 合法，
+                    # 非法值（空/变体/optional）保守落 required（读路径同样按此判定）
+                    "requirement_type": (
+                        requirement_type
+                        if requirement_type in ("required", "preferred")
+                        else "required"
+                    ),
+                    "confidence": float(confidence or 0.0),
+                }
+                for position_id, skill_id, requirement_type, confidence in rel_rows
+            ]
+            if relations:
+                edge_batch = await self.apply_batch(positions=[], skills=[], relations=relations)
+                result.edges_upserted += edge_batch.edges_upserted
+                result.errors.extend(edge_batch.errors)
+                logger.info(
+                    "reconcile_requires_edges: upserted {} REQUIRES edges (approved positions)",
+                    edge_batch.edges_upserted,
+                )
+            return result
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("Graph projection DB error: reconcile_requires_edges")
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("Unexpected error in graph projection: reconcile_requires_edges")
             raise GraphProjectionError(str(exc)) from exc
 
 

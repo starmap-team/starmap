@@ -21,6 +21,7 @@ async def upsert_position_record(
     description: str | None = None,
     review_status: str = "pending_review",
     created_by: str | None = None,
+    name_cn: str | None = None,
 ) -> None:
     """Upsert a PositionRecord row by name.
 
@@ -28,15 +29,20 @@ async def upsert_position_record(
     position is human-curated before publication. On conflict (duplicate
     name), the existing row is left untouched — review_status and other
     review metadata are preserved (admin may have already approved it).
+    name_cn (I18N): 抽取管线的翻译钩子产出的中文名一并落库;冲突时保留
+    已有值(may have been admin-approved / 更有信息量的翻译), 不覆盖。
     """
     await session.execute(
         sa.text("""
-            INSERT INTO position_records (id, name, industry, description, created_at, review_status, created_by)
-            VALUES (gen_random_uuid(), :name, :industry, :description, NOW(), :review_status, :created_by)
-            ON CONFLICT (name) DO UPDATE SET industry = COALESCE(EXCLUDED.industry, position_records.industry)
+            INSERT INTO position_records (id, name, name_cn, industry, description, created_at, review_status, created_by)
+            VALUES (gen_random_uuid(), :name, :name_cn, :industry, :description, NOW(), :review_status, :created_by)
+            ON CONFLICT (name) DO UPDATE SET
+                industry = COALESCE(EXCLUDED.industry, position_records.industry),
+                name_cn = COALESCE(position_records.name_cn, EXCLUDED.name_cn)
         """),
         {
             "name": name,
+            "name_cn": name_cn,
             "industry": industry,
             "description": description,
             "review_status": review_status,
@@ -98,6 +104,7 @@ async def write_extraction_to_pg(
         await upsert_position_record(
             session,
             name=position_name,
+            name_cn=pipeline_data.get("name_cn"),
             industry=pipeline_data.get("industry"),
             description=pipeline_data.get("description") or pipeline_data.get("responsibilities_text"),
             review_status=review_status,

@@ -95,9 +95,17 @@ const props = defineProps<{
             class="hero-pill skipped"
           >{{ props.summary.skipped }} 跳过</span>
           <span class="hero-meta">
-            采集 <strong>{{ props.summary.crawlRecords.toLocaleString() }}</strong> 条 →
-            入库 <strong>{{ props.summary.importRecords.toLocaleString() }}</strong> 条,
-            累计耗时 <strong>{{ (props.summary.totalDurationMs / 1000).toFixed(0) }}</strong> 秒
+            <!-- 2026-08-21 (debug 修复): crawl=0 但 import>0 = 跨 run 续跑存量，
+                 不再显示误导性的「采集 0 条 → 入库 N 条」 -->
+            <template v-if="props.summary.crawlRecords === 0 && props.summary.importRecords > 0">
+              续跑处理存量 <strong>{{ props.summary.importRecords.toLocaleString() }}</strong> 条,
+              累计耗时 <strong>{{ (props.summary.totalDurationMs / 1000).toFixed(0) }}</strong> 秒
+            </template>
+            <template v-else>
+              采集 <strong>{{ props.summary.crawlRecords.toLocaleString() }}</strong> 条 →
+              入库 <strong>{{ props.summary.importRecords.toLocaleString() }}</strong> 条,
+              累计耗时 <strong>{{ (props.summary.totalDurationMs / 1000).toFixed(0) }}</strong> 秒
+            </template>
             <span
               v-if="props.summary.importNote"
               class="hero-note"

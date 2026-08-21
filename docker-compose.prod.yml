@@ -1,28 +1,23 @@
 # =============================================================================
-# 星图(StarMap) Production Docker Compose
-# Sprint 4.3: Production-ready deployment for competition submission
+# 星图(StarMap) Production Docker Compose — 2c4G 阿里云适配版
+# 目标资源：2 vCPU / 4 GB RAM
 # 启动：docker compose -f docker-compose.prod.yml up -d
 # =============================================================================
 
 name: starmap-prod
 
 services:
-  # ---------- Backend API ----------
+  # ---------- Backend API + Celery Worker (单容器双进程) ----------
+  # 2c4G 适配：合并 celery-worker 与 backend 到同一镜像，用 supervisord
+  # 拉起 uvicorn (1 worker) + celery worker (1 concurrency)，节省一个容器的开销。
   backend:
-    # DEPLOY-FIX (2026-08-14): 部署前查验补齐 — 原仅有 image 无 build，
-    # 服务器 `up -d` 会尝试拉取不存在的 `starmap-backend:2026.07`。补 build
-    # 段（context=backend/，镜像 dev compose），fresh clone 可直接构建。
     build:
       context: ./backend
       dockerfile: Dockerfile
     image: starmap-backend:2026.07
     container_name: starmap-backend-prod
-    ports:
-      - "8000:8000"
-    # NEW-P0 fix (AUDIT_VERIFICATION §1.4 C1): use a dedicated production env file
-    # so APP_ENV=production + strong SECRET_KEY + REDIS_URI with password actually
-    # reach the runtime. Previously `env_file: .env` loaded dev defaults and every
-    # `if app_env == "production"` guard was dormant.
+    expose:
+      - "8000"
     env_file:
       - .env.production
     environment:
@@ -32,7 +27,6 @@ services:
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
       CHROMA_HOST: chroma
       CHROMA_PORT: "8000"
-      OLLAMA_BASE_URL: http://ollama:11434
     depends_on:
       neo4j:
         condition: service_healthy
@@ -44,16 +38,9 @@ services:
         condition: service_started
     command:
       - ./entrypoint.sh
-      - uvicorn
-      - app.main:app
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
-      - --workers
-      - "4"
-      - --access-log
-      - --no-use-colors
+      - supervisord
+      - -c
+      - /etc/supervisor/conf.d/starmap.conf
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 15s
@@ -63,8 +50,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2.0"
-          memory: 2G
+          cpus: "1.0"
+          memory: 1.5G
         reservations:
           cpus: "0.5"
           memory: 512M
@@ -72,68 +59,10 @@ services:
     networks:
       - starmap-net
 
-  # ---------- Celery Worker ----------
-  celery-worker:
-    # DEPLOY-FIX (2026-08-14): 补 build 段（context=仓库根，Dockerfile.celery
-    # 按仓库根 COPY backend/... crawler/...），fresh clone 可直接构建。
-    build:
-      context: .
-      dockerfile: backend/Dockerfile.celery
-    image: starmap-celery-worker:2026.07
-    container_name: starmap-celery-worker-prod
-    env_file:
-      - .env.production
-    environment:
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      NEO4J_URI: ${NEO4J_URI}
-      NEO4J_USER: ${NEO4J_USER}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-      CHROMA_HOST: chroma
-      CHROMA_PORT: "8000"
-      OLLAMA_BASE_URL: http://ollama:11434
-    depends_on:
-      redis:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-    command:
-      - ./entrypoint.sh
-      - celery
-      - -A
-      - app.tasks.celery_app.celery_app
-      - worker
-      - --loglevel=warning
-      - --concurrency=4
-      - --max-tasks-per-child=200
-      - -Q
-      - default,extraction,matching,graph
-    healthcheck:
-      test: ["CMD-SHELL", "celery -A app.tasks.celery_app.celery_app inspect ping --timeout 5 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          cpus: "1.5"
-          memory: 1G
-        reservations:
-          cpus: "0.25"
-          memory: 256M
-    restart: unless-stopped
-    networks:
-      - starmap-net
-
   # ---------- Frontend (Nginx + TLS) ----------
-  # API-01 fix: 生产使用 Dockerfile 构建的 nginx 镜像，
-  # 挂载 SSL 证书，暴露 80(HTTP→301→HTTPS) + 443(HTTPS)。
-  # 自签名证书在 secrets/ssl/，生产应替换为 Let's Encrypt。
   frontend:
     build:
-      context: .  # PLAN-014 批次17: 仓库根 context, 使 @contracts alias 在构建期可达
+      context: .
       dockerfile: frontend/Dockerfile
     image: starmap-frontend:prod
     container_name: starmap-frontend-prod
@@ -144,6 +73,7 @@ services:
       - ./secrets/ssl:/etc/nginx/ssl:ro
     environment:
       VITE_API_BASE_URL: /api/v1
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?PUBLIC_DOMAIN required (set in .env.production or pass via shell)}
     depends_on:
       backend:
         condition: service_healthy
@@ -156,8 +86,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 256M
+          cpus: "0.25"
+          memory: 128M
         reservations:
           cpus: "0.1"
           memory: 64M
@@ -166,25 +96,15 @@ services:
       - starmap-net
 
   # ---------- Neo4j (Graph Database) ----------
+  # 2c4G 适配：heap 256M，pagecache 128M，禁用 APOC
   neo4j:
     image: neo4j:5-community
     container_name: starmap-neo4j-prod
     environment:
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
-      # DEP-03 fix: 生产环境移除 APOC（减少攻击面）。
-      # 如需 APOC 功能，显式启用并配合安全设置：
-      # NEO4J_PLUGINS=["apoc"]
-      # NEO4J_apoc_export_file_enabled=false
-      # NEO4J_apoc_import_file_enabled=false
-      # NEO4J_apoc_trigger_enabled=false
-      - NEO4J_server_memory_heap_initial__size=512m
-      - NEO4J_server_memory_heap_max__size=1G
-      - NEO4J_server_memory_pagecache_size=512m
-      # W1-T7 + P0-F3 fix (DATA-02): Neo4j Bolt TLS enforcement.
-      # Neo4j 5 community requires TLS certs in /ssl/ with specific naming.
-      # The cert/key are mounted from ./secrets/neo4j/ as neo4j.cert.pem / neo4j.key.pem.
-      # NEO4J_server_bolt_tls__level=REQUIRED forces all Bolt connections over TLS.
-      # NEO4J_server_bolt_tls__certificate__name / key_name reference filenames under /ssl/.
+      - NEO4J_server_memory_heap_initial__size=256m
+      - NEO4J_server_memory_heap_max__size=512m
+      - NEO4J_server_memory_pagecache_size=128m
       - NEO4J_server_bolt_tls__level=REQUIRED
       - NEO4J_server_bolt_tls__certificate__name=neo4j.cert.pem
       - NEO4J_server_bolt_tls__key_name=neo4j.key.pem
@@ -201,28 +121,33 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2.0"
-          memory: 2G
-        reservations:
           cpus: "0.5"
-          memory: 1G
+          memory: 800M
+        reservations:
+          cpus: "0.25"
+          memory: 512M
     restart: unless-stopped
     networks:
       - starmap-net
 
   # ---------- PostgreSQL (Relational Database) ----------
+  # 2c4G 适配：shared_buffers 256M
   postgres:
     image: postgres:16
     container_name: starmap-postgres-prod
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - max_connections=100
+      - -c
+      - effective_cache_size=768MB
     environment:
       - POSTGRES_USER=starmap
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       - POSTGRES_DB=starmap
       - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
-    # W1-T7 + W2-F1 fix (DATA-03): 强制 Postgres 启用 SSL。
-    # 自签名证书用 `./secrets/postgres/server.crt` + `server.key`。
-    # 通过覆盖 entrypoint，在 initdb 完成后执行 enable-ssl.sh。
-    # docker-entrypoint.sh 会在 initdb 后自动执行 /docker-entrypoint-initdb.d/ 中的脚本。
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
       - ./secrets/postgres:/etc/postgresql/certs:ro
@@ -231,13 +156,11 @@ services:
       - -c
       - |
         set -e
-        # Copy SSL setup script to initdb.d so it runs AFTER initdb completes
         if [ -f /etc/postgresql/certs/enable-ssl.sh ]; then
           mkdir -p /docker-entrypoint-initdb.d
           cp /etc/postgresql/certs/enable-ssl.sh /docker-entrypoint-initdb.d/00-enable-ssl.sh
           chmod +x /docker-entrypoint-initdb.d/00-enable-ssl.sh
         fi
-        # Now run the original Postgres entrypoint which handles initdb + init scripts
         exec /usr/local/bin/docker-entrypoint.sh postgres
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U starmap -d starmap"]
@@ -248,8 +171,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.5"
-          memory: 1G
+          cpus: "0.75"
+          memory: 768M
         reservations:
           cpus: "0.25"
           memory: 256M
@@ -264,7 +187,7 @@ services:
     command: >
       redis-server
       --requirepass ${REDIS_PASSWORD:-starmap_redis_2024}
-      --maxmemory 256mb
+      --maxmemory 128mb
       --maxmemory-policy allkeys-lru
       --appendonly yes
       --appendfsync everysec
@@ -279,8 +202,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 512M
+          cpus: "0.25"
+          memory: 256M
         reservations:
           cpus: "0.1"
           memory: 128M
@@ -289,6 +212,7 @@ services:
       - starmap-net
 
   # ---------- ChromaDB (Vector Database) ----------
+  # 2c4G 适配：保留但压低 limit
   chroma:
     image: chromadb/chroma:0.5.3
     container_name: starmap-chroma-prod
@@ -307,59 +231,12 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
           cpus: "0.25"
           memory: 256M
-    restart: unless-stopped
-    networks:
-      - starmap-net
-
-  # ---------- Ollama (Local LLM) ----------
-  ollama:
-    image: ollama/ollama:0.5
-    container_name: starmap-ollama-prod
-    environment:
-      - OLLAMA_HOST=0.0.0.0:11434
-      - HTTP_PROXY=
-      - HTTPS_PROXY=
-      - http_proxy=
-      - https_proxy=
-      - NO_PROXY=*
-      - no_proxy=*
-    volumes:
-      - ollama_data_prod:/root/.ollama
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
-    deploy:
-      resources:
-        limits:
-          cpus: "4.0"
-          memory: 8G
         reservations:
-          cpus: "1.0"
-          memory: 2G
+          cpus: "0.1"
+          memory: 128M
     restart: unless-stopped
-    networks:
-      - starmap-net
-
-  # ---------- Model Init (one-shot pull) ----------
-  ollama-pull:
-    image: ollama/ollama:0.5
-    container_name: starmap-ollama-pull-prod
-    depends_on:
-      ollama:
-        condition: service_healthy
-    volumes:
-      - ollama_data_prod:/root/.ollama
-    entrypoint: >
-      sh -c "sleep 5 && ollama pull qwen2.5:7b && echo 'Model ready'"
-    restart: "no"
     networks:
       - starmap-net
 
@@ -376,8 +253,6 @@ volumes:
   redis_data_prod:
     driver: local
   chroma_data_prod:
-    driver: local
-  ollama_data_prod:
     driver: local
 
 # ═══════════════════════════════════════════════

@@ -115,7 +115,9 @@ class EvolutionKpiResponse(BaseModel):
     """演化看板 KPI 行响应。"""
 
     emerging_count: int = Field(..., ge=0, description="涌现技能数（emerging + rising）")
-    trust_mean: float = Field(..., ge=0, le=1, description="变更日志信任度均值（0-1，真实聚合）")
+    # 2026-08-21 (debug 修复): Optional —— changelog 空表时返回 None（前端显示"—"），
+    # 而非 0.0（用户误读为"信任度全 0"）
+    trust_mean: float | None = Field(default=None, ge=0, le=1, description="变更日志信任度均值（0-1，真实聚合；空表为 None）")
     trust_mean_neo4j_skill: float = Field(
         default=0.0, ge=0, le=1, description="Neo4j Skill.trust_score 实时均值（与 /quality 共享 avg_skill_trust 指标）"
     )

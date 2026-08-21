@@ -29,11 +29,18 @@ RUN npm run build
 # ── 阶段 2：Nginx 静态服务 ───────────────────────────────────────────────────
 FROM nginx:alpine AS production
 
+# 安装 envsubst (gettext 包) 用于 PUBLIC_DOMAIN 占位符替换
+RUN apk add --no-cache gettext
+
 # 复制构建产物到 Nginx 默认目录
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# 复制 Nginx 配置 (context=仓库根)
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# 复制 Nginx 模板配置（context=仓库根）— 注意命名为 .template 以免 nginx 自动加载
+COPY frontend/nginx.conf /etc/nginx/templates/default.conf.template
+
+# 复制 entrypoint 脚本用于 envsubst 替换 PUBLIC_DOMAIN
+COPY frontend/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # 非 root 运行 (DEP-04 修复)
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
@@ -41,7 +48,9 @@ RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/log/nginx && \
     mkdir -p /etc/nginx/ssl && \
     touch /var/run/nginx.pid && \
-    chown nginx:nginx /var/run/nginx.pid
+    chown nginx:nginx /var/run/nginx.pid && \
+    mkdir -p /etc/nginx/conf.d && \
+    chown -R nginx:nginx /etc/nginx/conf.d /etc/nginx/templates
 
 USER nginx
 
@@ -51,4 +60,5 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
 
 EXPOSE 80 443
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

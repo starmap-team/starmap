@@ -87,9 +87,21 @@ async def get_data_truth(
         )).scalar() or 0
     )
     # P3c: PSR 关系行数（关系边指标口径 = PositionSkillRelation 表，与 admin/stats 对齐）
+    # 2026-08-21 (debug 修复): 改为 approved 岗位 + approved 技能双口径 —— 图投影只投影
+    # approved 岗位→approved 技能的 REQUIRES 边（未审核岗位/技能不入图是正确门控），
+    # 此前 approved 岗位口径仍含 96 条「approved岗位→pending技能」边（技能待审核不入图
+    # → 边建不出来）→ Neo4j 949 vs PG 1042 恒报 8.9% 误导用户。双 approved 才是可收敛
+    # 的正确对比。
     pg_psr_count = int(
         (await session.execute(
-            select(func.count()).select_from(PositionSkillRelation)
+            select(func.count())
+            .select_from(PositionSkillRelation)
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .join(SkillRecord, SkillRecord.id == PositionSkillRelation.skill_id)
+            .where(
+                PositionRecord.review_status == "approved",
+                SkillRecord.review_status == "approved",
+            )
         )).scalar() or 0
     )
 
@@ -140,7 +152,10 @@ async def get_data_truth(
     # 2026-08-12 (admin 联调修复): 原 `[neo4j, pg_total, pg_approved]` 把"总数(233)"与
     # "已发布(179)"混作跨源比较 → 23.2% 假 critical（三源其实一致）。差异应只比较同一
     # 指标（总数）的三个来源：API / PostgreSQL / Neo4j。已发布数是独立指标（见指标 5）。
-    diff, status = _calc_status([api_dashboard_positions, pg_total_positions, neo4j_positions])
+    # 2026-08-21 (debug 修复): 全量含 pending（pending 按 approved-only 架构不入图），
+    # 全量 vs Neo4j 永远不等 → 83.4% 假「严重差异」让 operator 不知所措。
+    # diff/status 改为比较「PG approved vs Neo4j」（真正可对齐口径）；全量仅作参考展示。
+    diff, status = _calc_status([api_dashboard_positions, pg_approved_positions, neo4j_positions])
     rows.append(TruthRow(
         metric="岗位总数",
         description="不同数据源给出的岗位总数（口径不同）",
@@ -149,11 +164,17 @@ async def get_data_truth(
         neo4j_value=neo4j_positions,
         diff_pct=diff,
         status=status,
-        explanation=f"Neo4j {neo4j_positions} = 图谱节点总数（含历史/孤儿）。PostgreSQL {pg_total_positions} = position_records 总行数。Approved {pg_approved_positions} = 用户可见岗位。差额 {(neo4j_positions - pg_total_positions) if neo4j_positions > pg_total_positions else 0} 个孤儿节点需要在 Neo4j 中清理。",
+        explanation=(
+            f"Neo4j {neo4j_positions} = 图谱节点总数（含历史/孤儿）。"
+            f"PostgreSQL {pg_total_positions} = position_records 总行数"
+            f"（含 {pg_total_positions - pg_approved_positions} 条待审核，待审核不入图属设计）。"
+            f"Approved {pg_approved_positions} = 用户可见岗位。"
+            f"差异率 {diff}% 按 approved({pg_approved_positions}) vs Neo4j({neo4j_positions}) 计算。"
+        ),
     ))
 
     # 指标 2: 技能总数
-    diff, status = _calc_status([api_dashboard_skills, neo4j_skills, pg_total_skills])
+    diff, status = _calc_status([api_dashboard_skills, pg_approved_skills, neo4j_skills])
     rows.append(TruthRow(
         metric="技能总数",
         description="Neo4j Skill 节点 vs PostgreSQL skill_records",
@@ -162,7 +183,12 @@ async def get_data_truth(
         neo4j_value=neo4j_skills,
         diff_pct=diff,
         status=status,
-        explanation=f"差额 {(neo4j_skills - pg_total_skills) if neo4j_skills > pg_total_skills else 0} 个孤儿 Skill 节点在 Neo4j 中不在 PG 中。Approved {pg_approved_skills} 个技能可被用户检索。",
+        explanation=(
+            f"PostgreSQL {pg_total_skills} = skill_records 总行数"
+            f"（含 {pg_total_skills - pg_approved_skills} 条待审核，待审核不入图属设计）。"
+            f"Approved {pg_approved_skills} = 用户可见技能。"
+            f"差异率 {diff}% 按 approved({pg_approved_skills}) vs Neo4j({neo4j_skills}) 计算。"
+        ),
     ))
 
     # 指标 3: 关系边数（P3c 口径统一: Neo4j REQUIRES 边 == PG PositionSkillRelation 行数）
@@ -177,7 +203,8 @@ async def get_data_truth(
         status=status,
         explanation=(
             f"Neo4j REQUIRES 边 {neo4j_relations} = 岗位-技能要求关系投影。"
-            f"PostgreSQL position_skill_relations {pg_psr_count} = 关系表行数（SSOT）。"
+            f"PostgreSQL {pg_psr_count} = approved岗位→approved技能 的 PSR 边数（SSOT）。"
+            "待审核岗位/技能的边不入图属设计（审核通过后自动投影）。"
             "两口径一致表示岗位-技能关系投影无漂移；学习路径 PREREQUISITE 等其他关系类型不在此指标内。"
         ),
     ))
@@ -243,9 +270,16 @@ async def get_data_truth(
         pass
 
     # 3. 健康度评估
-    if orphan_positions == 0 and orphan_skills == 0:
+    # 2026-08-21 (debug 修复): 涵盖 unlinked 半孤立 —— 此前只算 orphan_*
+    # (Neo4j 有 PG 无的真孤儿)，unlinked_* (Neo4j 有 + PG 有 + 缺 canonical_id)
+    # 不计入健康度 → 用户看到「孤立 0 同步健康度 正常」实际队列 23 pending
+    # 标 stale 不一致。修复：unlinked_* 也参与健康度分级，半孤立多说明
+    # 「补链接」链路未及时跟随 reconcile。
+    total_orphan = orphan_positions + orphan_skills
+    total_unlinked = orphan_scan.unlinked_positions + orphan_scan.unlinked_skills
+    if total_orphan == 0 and total_unlinked < 10:
         sync_health = "ok"
-    elif orphan_positions <= 1 and orphan_skills <= 1:
+    elif total_orphan <= 1 and total_unlinked < 50:
         sync_health = "warn"
     else:
         sync_health = "critical"
@@ -270,13 +304,19 @@ async def get_data_truth(
 
     return TruthReport(
         rows=rows,
-        health=HealthMetrics(
-            orphan_positions=orphan_positions,
-            orphan_skills=orphan_skills,
-            last_reconcile_at=last_reconcile_at,
-            reconcile_status=reconcile_status,
-            sync_health=sync_health,
-        ),
+            health=HealthMetrics(
+                orphan_positions=orphan_positions,
+                orphan_skills=orphan_skills,
+                # 2026-08-21 (debug 修复): unlinked_* 维度补全 —— Neo4j 有 + PG 有但
+                # 缺 canonical_id 的"半孤儿"（不是真孤儿但需自动补链接）。不加这
+                # 个维度，operator 看到「孤立 0/0 正常」会误以为无问题，实际队列里
+                # 还有 23 pending 待 sync_orphan_queue 标记 linked。
+                unlinked_positions=orphan_scan.unlinked_positions,
+                unlinked_skills=orphan_scan.unlinked_skills,
+                last_reconcile_at=last_reconcile_at,
+                reconcile_status=reconcile_status,
+                sync_health=sync_health,
+            ),
         generated_at=datetime.now(UTC).isoformat(),
     )
 

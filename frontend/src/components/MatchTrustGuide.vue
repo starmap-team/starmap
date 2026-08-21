@@ -152,7 +152,7 @@ const trustUnavailable = computed(() => props.trustScore == null || Number.isNaN
             </el-tag>
           </div>
           <div class="trust-desc">
-            系统对本次匹配结果的置信度 — 命中技能的最小 Neo4j 信任度（瓶颈口径）
+            系统对本次匹配结果的置信度 — 命中技能中的最低信任度（瓶颈口径）
           </div>
           <div
             class="trust-band-desc"

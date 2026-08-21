@@ -245,7 +245,10 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
             "entity_id": str(r.id),
             "position": r.name or "",
             "skill": "",
-            "trust": 0,
+            # 2026-08-20 (debug 修复 Q3): 原硬编码 trust=0 → 前端渲染红色 0% 进度条，
+            # 所有待审岗位像"全被标红"。岗位无信任度概念（信任度属于技能），置 null
+            # 前端显示"未评估"。
+            "trust": None,
             "review_status": "pending_review",
         }
         for r in pos_rows
@@ -257,7 +260,10 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
             "entity_id": str(r.id),
             "position": "",
             "skill": r.name or "",
-            "trust": int((r.source_count or 0) / 10 * 100),
+            # 2026-08-20 (debug 修复 Q3): 原 source_count/10*100 把"来源数"当"信任度"
+            # （两个不同概念）。信任度应查 Neo4j trust_score；待审技能可能未投影，
+            # 诚实置 null 前端显示"未评估"。
+            "trust": None,
             "review_status": "pending_review",
         }
         for r in skill_rows

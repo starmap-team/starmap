@@ -90,13 +90,15 @@ class TestBuildAdminStats:
             report=MagicMock(precision=0.9, recall=0.8, f1=0.85, warning_level="green", details=[]),
         )
         session = AsyncMock()
-        # 5 sequential execute calls: positions, skills, edges, avg_confidence, pending_review
+        # 6 sequential execute calls: positions, skills, edges, avg_confidence,
+        # pending_pos, pending_skill（2026-08-20 后 pending_review 拆 position+skill 两查询）
         session.execute = AsyncMock(side_effect=[
             MagicMock(scalar=MagicMock(return_value=10)),
             MagicMock(scalar=MagicMock(return_value=25)),
             MagicMock(scalar=MagicMock(return_value=40)),
             MagicMock(scalar=MagicMock(return_value=0.75)),
-            MagicMock(scalar=MagicMock(return_value=3)),
+            MagicMock(scalar=MagicMock(return_value=1)),
+            MagicMock(scalar=MagicMock(return_value=2)),
         ])
         with patch("app.services.admin_audit_service._build_quality_dashboard", new_callable=AsyncMock, return_value=dashboard_mock):
             result = await build_admin_stats(session)
@@ -107,9 +109,9 @@ class TestBuildAdminStats:
         assert result.total_positions == 10
         assert result.total_skills == 25
         assert result.hallucination_rate == 0.05
-        assert result.pending_review == 3
-        # Verify session.execute was called 5 times (5 separate count queries)
-        assert session.execute.call_count == 5
+        assert result.pending_review == 3  # 1 + 2
+        # Verify session.execute was called 6 times (6 separate count queries)
+        assert session.execute.call_count == 6
 
     async def test_returns_zeros_on_db_error(self):
         """When DB queries raise, stats degrade to zeros gracefully."""
@@ -910,19 +912,24 @@ class TestAdminAuthGuards:
             mock_settings.jwt_leeway_seconds = 0
             mock_settings.jwt_audience = None
             mock_settings.jwt_issuer = None
+            mock_settings.jwt_kid = "v1"
+            mock_settings.jwt_secret_keyring = {}  # 空 keyring → 回退 secret_key
             with pytest.raises(ValueError, match="expired"):
                 decode_token(expired_token)
 
     def test_decode_token_rejects_invalid_signature(self):
         """decode_token should raise ValueError for tokens with wrong signatures."""
+        from app.config import settings
         from app.services.auth_service import decode_token
 
         fake_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0Iiwicm9sZSI6ImFkbWluIn0.invalidsig"
         with patch("app.services.auth_service.settings") as mock_settings:
-            mock_settings.secret_key = "test-secret-key"
+            mock_settings.secret_key = settings.secret_key
             mock_settings.jwt_leeway_seconds = 0
             mock_settings.jwt_audience = None
             mock_settings.jwt_issuer = None
+            mock_settings.jwt_kid = "v1"
+            mock_settings.jwt_secret_keyring = {}  # 空 keyring → 回退 secret_key
             with pytest.raises(ValueError, match="signature"):
                 decode_token(fake_token)
 

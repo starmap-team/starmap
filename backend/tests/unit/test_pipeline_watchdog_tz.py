@@ -43,6 +43,10 @@ class _FakeRun:
         self.status = "running"
         self.completed_at = None
         self.error_log = None
+        # 2026-08-21: watchdog stage-sync 会遍历 stages —— fake 必须提供该属性
+        self.stages = [
+            {"name": "import", "status": "running", "completed_at": None, "errors": []},
+        ]
 
 
 class _FakeSession:

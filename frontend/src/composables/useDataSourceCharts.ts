@@ -84,7 +84,9 @@ export interface StatusBadge {
 
 export function getStatusBadge(status: string): StatusBadge {
   switch (status) {
-    case 'active':   return { type: 'success', label: '运行中' }
+    // 2026-08-21: active 是生命周期状态（启用），非运行状态——此前显示「运行中」
+    // 在无 run 在跑时全站误导（数据源页/流水线页全部"运行中"）
+    case 'active':   return { type: 'success', label: '已启用' }
     case 'paused':   return { type: 'warning', label: '已暂停' }
     case 'inactive': return { type: 'info',    label: '已停用' }
     case 'error':    return { type: 'danger',  label: '异常' }

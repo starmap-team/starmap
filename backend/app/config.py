@@ -66,6 +66,23 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
+ # ── public-deploy-preflight 2026-08-20 (P0): TrustedHostMiddleware allow list ──
+ # 防止 Host header 注入。默认 ["*"] 仅在 dev 接受；生产必须显式设置。
+ # 注意：pydantic-settings 对 list 字段的 env 值先按 JSON 解析，因此
+ # ALLOWED_HOSTS 必须写 JSON 数组格式：ALLOWED_HOSTS=["starmap.example.com"]。
+    allowed_hosts: list[str] = Field(
+        default_factory=lambda: ["*"],
+        description="TrustedHostMiddleware allow list; empty/wildcard OK in dev, must be explicit in prod",
+    )
+
+    @field_validator("allowed_hosts", mode="before")
+    @classmethod
+    def _parse_allowed_hosts_env(cls, v: object) -> object:
+        """ALLOWED_HOSTS=a.com,b.com 逗号分隔。"""
+        if isinstance(v, str):
+            return [h.strip() for h in v.split(",") if h.strip()]
+        return v
+
  # 认证（仅保留 token 寿命；用户表已迁移至 PostgreSQL）
     token_expire_hours: int = Field(
         default=24,
@@ -124,6 +141,16 @@ class Settings(BaseSettings):
         description="If true (dev only), missing Bearer token returns role=admin",
     )
 
+ # ── Pipeline bootstrap (one-shot full pipeline run 30s after worker start) ──
+ # Reads PIPELINE_BOOTSTRAP env. Used by app/core/pipeline/bootstrap.py.
+ # Production must be False — accidentally enabling this on a fresh prod
+ # deployment would burn LLM tokens and seed dirty data before operators
+ # can intervene.
+    pipeline_bootstrap: bool = Field(
+        default=False,
+        description="If true, fire a one-shot full pipeline run 30s after startup (dev/empty-data only)",
+    )
+
  # 数据来源权威度评分 (admin.py source management)
     authority_scores: dict[str, float] = {
         "lagou": 0.75,
@@ -169,7 +196,12 @@ class Settings(BaseSettings):
     deepseek_model: str = "deepseek-chat"
     qwen_model_path: str = ""
     qwen_model_name: str = "qwen2.5:7b"
-    llm_timeout: int = 60
+    # FIX (resume-analysis-llm-parse-errors 2026-08-21): 60 → 120s.
+    # DashScope qwen-plus 在复杂简历(技能多/项目详实)下的 jd_extraction 输出可达
+    # ~2886 tokens,60s 读超时不够 —— max_tokens 2048→4096 修复后,完整生成耗时
+    # 突破 60s,触发 LLMTimeoutError 直接降级直到全部失败 → /resume/upload 422。
+    # 120s 与 SkillExtractStep/MatchStep.timeout=120 对齐(流水线单步上限即 120s)。
+    llm_timeout: int = 120
     llm_max_retries: int = 3
 
  # 阿里云百炼 Qwen（2026-08-14 接入，降级链首选）——OpenAI 兼容端点
@@ -191,6 +223,27 @@ class Settings(BaseSettings):
  # X1.5 端点 /v2/chat/completions（2026-08-11 实测均可用，X2 12s / X1.5 7s）
     spark_x_url: str = "https://spark-api-open.xf-yun.com/x2/chat/completions"
     spark_x_model: str = "spark-x"
+
+    # Phase 27 (qwen-plus 资源包优化): LLM 响应 Redis 缓存与翻译缓存
+    # 关闭 = false 时 call_llm_with_fallback 不查 Redis,直接走 fallback chain。
+    llm_response_cache_enabled: bool = True
+    llm_response_cache_ttl_seconds: int = 7 * 24 * 3600  # 7 天
+    translation_cache_enabled: bool = True
+    # 每日成本 cap:累计 cost_cny 达到此值时 call_llm_with_fallback 返回 blocked,
+    # 防意外(自动化脚本/循环 bug)累积成本爆表。¥0 = 不限。
+    # 默认 ¥5/天,远低于 1.1 亿 tokens 的 ¥114.4 上限,留 95% 余量给正常业务;
+    # 真实业务日耗应在 ¥1-3,cap 调到 ¥5 后即便突发流量也只到 ¥5 阻断,不会
+    # 触发资源包外的按量计费。如需调高(例如批量 backfill),临时改 .env 重启即可。
+    llm_cost_cap_cny_per_day: float = 5.0
+    # Phase 27 资源包严格保护: 单次请求 input token 上限。资源包规则要求
+    # 单次请求输入 ≤128K 才抵扣(超 128K 的费用不抵扣 → 触发按量计费)。
+    # 本开关在 call_llm_with_fallback 入口处硬性估算并阻断超限请求。
+    # 默认 120K(留 8K 余量给服务侧拼接);调小更严格,设为 0 = 不限。
+    llm_max_input_chars_per_request: int = 120_000 * 4  # 120K tokens ≈ 480K chars
+    # Phase 27 资源包严格保护: 全局启用开关。True = 正常调用 qwen-plus,
+    # False = 严格阻断所有 LLM 调用(完全靠缓存/降级模型)。
+    # 紧急止血:发现费用异常时 .env 设 LLM_ENABLED=false 重启即可立即阻断。
+    llm_enabled: bool = True
 
  # 数据源抓取与健康探测端点
     zhipin_base_url: str = "https://www.zhipin.com"
@@ -290,6 +343,10 @@ class Settings(BaseSettings):
     pipeline_retry_backoff: int = 10  # 秒, 指数递增基数
     pipeline_import_batch_size: int = 200  # 阶段 import 每次读取已清洗 JD 的批量上限 (2026-08-16: 500 -> 200)
     pipeline_graph_sync_reconcile_on_sync: bool = False  # graph_sync 阶段可选对账开关
+    # 2026-08-21 (debug: 抽取质量门禁): 入库前对 jd 内容做“是否真岗位”判定，
+    # 非岗位（论坛问答/教程/新闻标题/法规名称）跳过 Position/Skill 入库，
+    # 只留 JDExtractionRecord 审计痕迹，避免审核队列与图谱被垃圾灌满。
+    extraction_skip_non_job: bool = True
 
  # ── 资源探测超时 ──
     httpx_health_check_timeout: float = 3.0  # 健康探测（Ollama / Redis / Neo4j 等）
@@ -494,6 +551,23 @@ class Settings(BaseSettings):
         if self.app_env == "production" and self.dev_anon_admin:
             raise RuntimeError("DEV_ANON_ADMIN=true 在生产环境被拒绝。生产部署必须强制 JWT 鉴权。")
 
+ # public-deploy-preflight 2026-08-20 (P0): 生产严禁开启一次性全量 bootstrap run。
+ # 误开会在首启 30s 后自动跑全量管线，烧光 LLM token 且写脏数据。
+        if self.app_env == "production" and self.pipeline_bootstrap:
+            raise RuntimeError(
+                "PIPELINE_BOOTSTRAP=true 在生产环境被拒绝。"
+                "生产部署严禁首启自动跑全量管线；"
+                "请通过 /admin/seed/reset 或 admin API 显式触发。"
+            )
+
+ # public-deploy-preflight 2026-08-20 (P0): 生产严禁 forgot-password token 直接返回响应。
+ # 误开会让任何 email 拿到 reset token 接管账户——高危账户接管风险。
+        if self.app_env == "production" and self.forgot_password_delivery == "dev_return_token":
+            raise RuntimeError(
+                "FORGOT_PASSWORD_DELIVERY=dev_return_token 在生产环境被拒绝。"
+                "生产部署必须使用 out_of_band（仅写 Redis，由邮件渠道投递 token）。"
+            )
+
  # fix (): 生产 Postgres 必须强制 SSL。
  # 仅 `require`/`verify-ca`/`verify-full` 三档视为合规。
  # `disable`/`prefer`/`allow` 在生产等同裸奔——拒绝启动。
@@ -530,6 +604,15 @@ class Settings(BaseSettings):
                     f"生产环境必须通过 CORS_ALLOWED_ORIGINS 环境变量移除所有 dev localhost 值。"
                     f"如需添加生产域名，请设置 CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://api.yourdomain.com"
                 )
+
+ # public-deploy-preflight 2026-08-20 (P0): TrustedHostMiddleware 必须显式允许。
+ # 默认 ["*"] 在 dev OK；生产必须 ALLOWED_HOSTS=starmap.example.com,api.example.com 防止 Host header 注入。
+        if self.app_env == "production" and (not self.allowed_hosts or self.allowed_hosts == ["*"]):
+            raise RuntimeError(
+                "ALLOWED_HOSTS 未配置或仍为通配符 ['*']。"
+                "生产环境必须显式列出 TrustedHostMiddleware 允许的 Host 头（逗号分隔）。"
+                "例如 ALLOWED_HOSTS=starmap.example.com,api.example.com"
+            )
 
  # Phase DB-AUTH: 密码策略由 PostgreSQL users 表的 bcrypt hash 保证
  # 这里不再做 AUTH_USERS plaintext 校验（该 env 已废弃）

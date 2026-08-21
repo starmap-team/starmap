@@ -161,7 +161,13 @@ export function usePipelineMonitor() {
  // 追加解释（crawl 阶段持久化 records_new/records_duplicate）。
     let importNote = ''
     let progressMessage = `${completed}已完成 / ${total}总阶段, 采集${crawlRecords.toLocaleString()}条/入库${importRecords.toLocaleString()}条, 累计 ${(totalDuration / 1000).toFixed(0)}s`
-    if (crawlRecords > 0 && importRecords === 0) {
+    // 2026-08-21 (debug 修复): 跨 run 续跑语义 —— crawl=0 但 import>0 时，
+    // 本次 run 只处理了之前 run 采集的存量 cleaned（预算截断续跑模式），
+    // 显示「续跑处理存量」避免"没采集却入库"的矛盾观感。
+    if (crawlRecords === 0 && importRecords > 0) {
+      importNote = `（本轮为续跑：处理之前采集的存量 ${importRecords.toLocaleString()} 条）`
+      progressMessage += importNote
+    } else if (crawlRecords > 0 && importRecords === 0) {
       const crawlStage = stages.find(s => s.name === 'crawl')
       const dup = crawlStage?.records_duplicate ?? 0
       const fresh = crawlStage?.records_new ?? 0

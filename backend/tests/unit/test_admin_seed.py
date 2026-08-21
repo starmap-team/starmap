@@ -92,11 +92,15 @@ def test_schema_roundtrip() -> None:
     assert SeedResetResponse(refused=True, message="x").refused is True
 
 
-def test_seed_reset_route_registered() -> None:
-    """POST /admin/seed/reset 已注册在 admin 路由上。"""
+def test_seed_reset_route_removed() -> None:
+    """POST /admin/seed/reset 已按 DEMO-01/02 移除（生产拒绝自动播种）。
+
+    04f4f31 有意删除 demo reset 端点；service 层保留（admin_seed_service），
+    由 admin API 显式触发（config.py 生产守卫拒绝）。
+    """
     from fastapi.routing import APIRoute
 
     from app.api.v1.admin import router
 
     paths = [r.path for r in router.routes if isinstance(r, APIRoute)]
-    assert "/admin/seed/reset" in paths
+    assert "/admin/seed/reset" not in paths

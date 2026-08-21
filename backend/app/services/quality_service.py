@@ -34,23 +34,43 @@ async def compute_trust_distribution(session: Any) -> list[dict[str, Any]]:
     违规导入迁至此 service 层，路由经 service 访问 core。
     """
     import sqlalchemy as sa
+    from sqlalchemy import func
 
     from app.core.trust.entity_trust import EntityTrustScorer  # noqa: PLC0415
-    from app.models.extraction_models import SkillRecord
+    from app.models.extraction_models import PositionSkillRelation, SkillRecord
 
     _trust_scorer = EntityTrustScorer()
     _trust_scores: list[float] = []
     _skill_trust_rows = (
         await session.execute(
-            sa.select(SkillRecord.source_count, SkillRecord.last_detected_at)
+            sa.select(SkillRecord.id, SkillRecord.source_count, SkillRecord.last_detected_at, SkillRecord.review_status)
         )
     ).all()
+    # 2026-08-21 (debug 修复): 与 recompute_skill_trust 同口径 —— 从 PSR 按技能聚合
+    # confidence，此前硬编码 None（0.5 兜底）导致 PG 直方图与 Neo4j 均值不一致
+    # （直方图 51.6% vs 均值 40.2% 的根因）。
+    _conf_rows = (
+        await session.execute(
+            sa.select(
+                PositionSkillRelation.skill_id,
+                func.avg(PositionSkillRelation.confidence),
+            )
+            .where(PositionSkillRelation.confidence.isnot(None))
+            .group_by(PositionSkillRelation.skill_id)
+        )
+    ).all()
+    _conf_by_skill: dict[str, float] = {str(sid): float(avg) for sid, avg in _conf_rows}
+
     for _row in _skill_trust_rows:
-        _trust_scores.append(_trust_scorer.score(
+        _trust = _trust_scorer.score(
             source_count=int(_row.source_count or 0),
-            confidence=None,  # PG 侧置信度在抽取记录表，逐技能关联成本高；source+time 已够分桶
+            confidence=_conf_by_skill.get(str(_row.id)),
             last_detected_at=_row.last_detected_at,
-        ))
+        )
+        # 审核补偿：与 recompute_skill_trust 一致，approved 技能保底 0.8
+        if _row.review_status == "approved":
+            _trust = max(_trust, 0.8)
+        _trust_scores.append(_trust)
     trust_ranges = [
         ("0-20%", 0, 0.2), ("20-40%", 0.2, 0.4), ("40-60%", 0.4, 0.6),
         ("60-80%", 0.6, 0.8), ("80-100%", 0.8, 1.01),

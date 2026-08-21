@@ -44,11 +44,11 @@ async def fetch_hallucination_trend(session: AsyncSession) -> list[dict[str, Any
     rows = (await session.execute(stmt)).all()
     result: list[dict[str, Any]] = []
     for row in rows:
-        total = int(row.total)
-        hallucinated = int(row.hallucinated)
+        total = int(row[1])
+        hallucinated = int(row[2])
         rate = hallucinated / total if total > 0 else 0.0
         result.append({
-            "date": str(row.day)[:10],
+            "date": str(row[0])[:10],
             "rate": round(rate, 3),
         })
     return result

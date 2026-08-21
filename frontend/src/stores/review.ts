@@ -66,6 +66,8 @@ export const useReviewStore = defineStore('review', () => {
   })
   const loading = ref(false)
   const error = ref<string | null>(null)
+  // 2026-08-21: 当前筛选条件下的真实总数（后端 count，非 limit 截断值）
+  const filterTotal = ref(0)
 
   async function fetchItems(
     entityType?: ReviewEntityType,
@@ -83,6 +85,8 @@ export const useReviewStore = defineStore('review', () => {
         total: number
       }
       items.value = data.items ?? []
+      // 2026-08-21: 保存真实筛选总数（后端已改为 count，非 limit 截断值）
+      filterTotal.value = data.total ?? items.value.length
       return items.value
     } catch (e) {
       error.value = e instanceof Error ? e.message : '获取审核队列失败'
@@ -149,6 +153,7 @@ export const useReviewStore = defineStore('review', () => {
     stats,
     loading,
     error,
+    filterTotal,
     fetchItems,
     fetchStats,
     submit,

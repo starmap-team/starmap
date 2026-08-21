@@ -11,6 +11,9 @@
 - avg_quality_score = extracted / (extracted + duplicate) (真实质量代理)
 - duplicate_rate  = duplicate / (extracted + duplicate)
 - last_crawl_at   = data_source_metrics 最新 started_at
+
+A1 fix (2026-08-20): _SITE_TO_SOURCE 映射统一从 spider_registry.PLATFORM_TO_SOURCE_NAME
+导入，不再独立维护 — 新增数据源只需在 spider_registry.py 注册一次。
 """
 from __future__ import annotations
 
@@ -22,18 +25,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.pipeline_models import DataSourceRecord
 
-# jd_raw.source_site → data_sources.name 映射 (缺失映射的源跳过)
-_SITE_TO_SOURCE: dict[str, str] = {
-    "arbeitnow": "Arbeitnow (远程)",
-    "jobicy": "Jobicy (远程)",
-    "remotive": "Remotive (远程)",
-    "v2ex": "V2EX 酷工作",        # D6: 迁移 034 名称对齐 (原 "V2EX (远程)" 无匹配)
-    "weworkremotely": "WeWorkRemotely (远程)",
-    "juejin": "掘金技术社区",     # D6: 迁移 034 名称对齐 (原 "掘金" 无匹配)
-    "remoteok": "RemoteOK",       # D6: 迁移 034 名称对齐 (原 "RemoteOK (远程)" 无匹配)
-    "manual": "手动导入",
-    "boss": "Boss Zhipin",
-}
+# A1 fix: 从 spider_registry 导入唯一真相源，消除重复维护
+from app.services.spider_registry import PLATFORM_TO_SOURCE_NAME
 
 
 async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
@@ -72,7 +65,7 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
  # 3. 回写 data_sources
     updated: dict[str, Any] = {}
     for site, stats in site_stats.items():
-        source_name = _SITE_TO_SOURCE.get(site)
+        source_name = PLATFORM_TO_SOURCE_NAME.get(site)
         if not source_name:
             continue
         ds = (await session.execute(
@@ -82,7 +75,11 @@ async def sync_source_quality(session: AsyncSession) -> dict[str, Any]:
             continue
         extracted = stats.get("extracted", 0)
         duplicate = stats.get("duplicate", 0)
-        total = extracted + duplicate + stats.get("raw", 0)
+        # 2026-08-20 (debug 修复): total 统计全部状态 —— 此前漏了 cleaned
+        # （LLM 抽取中/待抽取数据），313 条 cleaned 被忽略导致数据源页显示 total=0。
+        raw = stats.get("raw", 0)
+        cleaned = stats.get("cleaned", 0)
+        total = extracted + duplicate + raw + cleaned
         quality = extracted / (extracted + duplicate) if (extracted + duplicate) > 0 else 0.0
         dup_rate = duplicate / (extracted + duplicate) if (extracted + duplicate) > 0 else 0.0
         ds.total_records = total

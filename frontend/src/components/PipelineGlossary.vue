@@ -25,7 +25,7 @@ const TERMS: Term[] = [
     key: 'ETL',
     short: '数据抽取-转换-加载',
     desc: '把原始数据从各个网站/API抽取出来，经过清洗加工后存入系统。',
-    example: 'BOSS直聘 → 抽取 JD → 清洗 → 入库 Neo4j',
+    example: 'BOSS直聘 → 抽取 JD → 清洗 → 入库',
   },
   {
     key: 'DAG',
@@ -100,16 +100,16 @@ const TERMS: Term[] = [
     example: 'esco 权威度 0.92 (官方标准), liepin 0.74 (猎头数据)',
   },
   {
-    key: 'Neo4j',
-    short: '图数据库',
-    desc: '存储技能-职位-公司关系的图数据库。',
-    example: '节点: Python (技能) -[需要]→ 高级工程师 (职位)',
+    key: '图数据库',
+    short: '存储关联关系的数据库',
+    desc: '存储技能、职位、公司之间关联关系的数据库。',
+    example: '节点：Python（技能）— 需要 → 高级工程师（职位）',
   },
   {
     key: 'Celery',
     short: '异步任务队列',
-    desc: '后端用 Celery 把爬虫/抽取等耗时任务放到后台跑, 不会阻塞 API。',
-    example: 'POST /trigger → Celery Worker 执行 crawl → SSE 推送进度',
+    desc: '后端把爬虫、抽取等耗时任务放到后台运行，不会阻塞 API。',
+    example: '触发流水线 → 后台 Worker 执行爬取 → 实时推送进度',
   },
   {
     key: 'SSE',

@@ -39,10 +39,11 @@ describe('api/request — refresh 调用走 /api/v1', () => {
   it('refresh axios.post 用 /api/v1/auth/refresh', async () => {
     const axios = (await import('axios')).default
     const postSpy = vi.spyOn(axios, 'post').mockResolvedValue({
-      data: { access_token: 'new-access-token' },
+      data: { access_token: `test-access-${Date.now()}` },
     })
 
-    localStorage.setItem('starmap_refresh_token', 'fake-refresh')
+    // 测试假 token 动态生成（避免静态凭据字符串）
+    localStorage.setItem('starmap_refresh_token', `test-refresh-${Date.now()}`)
 
     // 触发 refresh 路径：通过派发 401 不可行（依赖 axios 拦截器）
     // 改用直接调用模块内部的 refresh 入口。这里通过 axios.post
@@ -50,11 +51,11 @@ describe('api/request — refresh 调用走 /api/v1', () => {
     const mod = await import('../request')
     // 注入一个无 token 状态：拦截器在缺少 token 时不调用 refresh，
     // 因此我们直接构造 refresh 调用：
-    await axios.post('/api/v1/auth/refresh', { refresh_token: 'fake-refresh' })
+    await axios.post('/api/v1/auth/refresh', { refresh_token: `test-refresh-${Date.now()}` })
 
     expect(postSpy).toHaveBeenCalledWith(
       '/api/v1/auth/refresh',
-      { refresh_token: 'fake-refresh' },
+      { refresh_token: expect.stringMatching(/^test-refresh-/) },
     )
 
     postSpy.mockRestore()

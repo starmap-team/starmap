@@ -1,6 +1,11 @@
 # =============================================================================
-# 星图(StarMap) 后端 生产镜像
+# 星图(StarMap) 后端 生产镜像 — 2c4G 适配版（单容器跑 uvicorn + celery）
 # 多阶段构建：依赖安装 → 应用打包
+#
+# NOTE (2c4G-2026-08-21):
+#   2c4G 阿里云适配：取消独立 celery-worker 容器，
+#   在同一镜像内用 supervisord 拉起 uvicorn (1 worker) + celery worker (1 concurrency)。
+#   节省一个容器的运行时开销（~150-250 MB）。
 #
 # NOTE (NEW-P0 fix, AUDIT_VERIFICATION §1.4 C7):
 #   The previous build had `ARG ENVIRONMENT=production` (passed by
@@ -36,9 +41,9 @@ RUN poetry install --no-root --only main && rm -rf $POETRY_CACHE_DIR
 # ── 阶段 2：生产镜像 ─────────────────────────────────────────────────────────
 FROM python:3.11-slim AS production
 
-# 仅保留运行时依赖
+# 2c4G 适配：装 supervisord 让单容器同时跑 uvicorn + celery
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 curl \
+    libpq5 curl supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -56,13 +61,19 @@ COPY entrypoint.sh ./
 # Phase 15-02: CSV 导入端点需要 crawler.persistence.dao.upsert_jd
 COPY crawler/ ./crawler/
 
+# 2c4G 适配：supervisord 配置（uvicorn + celery worker）
+COPY deploy/supervisord.conf /etc/supervisor/conf.d/starmap.conf
+
 # 创建非 root 用户运行应用
-RUN useradd -m -s /bin/bash starmap && chown -R starmap:starmap /app && chmod +x entrypoint.sh
+RUN useradd -m -s /bin/bash starmap && \
+    mkdir -p /var/log/supervisor && \
+    chown -R starmap:starmap /app /var/log/supervisor && \
+    chmod +x entrypoint.sh
 USER starmap
 
 EXPOSE 8000
 
 # Bootstrap runs alembic upgrade + admin seed; docker-compose overrides CMD.
 ENTRYPOINT ["./entrypoint.sh"]
-# 生产环境使用 4 个 worker，禁用热重载
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--access-log", "--no-use-colors"]
+# 2c4G 默认：supervisord 拉起 uvicorn + celery（可被 docker-compose 覆盖）
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/starmap.conf"]

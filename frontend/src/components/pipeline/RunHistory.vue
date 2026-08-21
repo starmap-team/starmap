@@ -428,6 +428,14 @@ function stageRecordLabel(s: PipelineStage): string {
         错误日志
       </h4>
       <pre class="error-log-box">{{ detailRun.error_log || '（无）' }}</pre>
+      <!-- 2026-08-21: 技术原文折叠展示（普通用户看中文，运维看原文） -->
+      <div
+        v-if="detailRun.error_log_raw && detailRun.error_log_raw !== detailRun.error_log"
+        class="error-log-raw"
+      >
+        <span class="error-log-raw-label">技术详情</span>
+        <pre class="error-log-box raw">{{ detailRun.error_log_raw }}</pre>
+      </div>
     </template>
   </el-drawer>
 </template>
@@ -504,5 +512,22 @@ function stageRecordLabel(s: PipelineStage): string {
   white-space: pre-wrap;
   word-break: break-all;
   margin: 0;
+}
+/* 2026-08-21: 技术原文（灰底小字，与中文摘要区分） */
+.error-log-raw {
+  margin-top: 6px;
+}
+.error-log-raw-label {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+.error-log-box.raw {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #64748b;
+  background: var(--bg-muted, #f8fafc);
 }
 </style>

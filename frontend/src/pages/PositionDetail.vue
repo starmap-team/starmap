@@ -32,11 +32,20 @@ interface SkillItem {
   source_count: number
 }
 
+interface PositionProvenance {
+  source_run_id?: string | null
+  created_by?: string | null
+  reviewed_by?: string | null
+  review_status?: string | null
+  created_at?: string | null
+}
+
 interface PositionInfo {
   name: string
   industry: string
   description: string
   discovered_at: string | null
+  provenance?: PositionProvenance | null
 }
 
 const position = ref<PositionInfo | null>(null)
@@ -105,6 +114,7 @@ async function loadPosition() {
       description?: string
       skills_required?: SkillItem[]
       discovered_at?: string | null
+      provenance?: PositionProvenance | null
     }
     if (myToken !== fetchToken) return
     if (!d || (!d.name && !d.name_cn)) {
@@ -116,6 +126,7 @@ async function loadPosition() {
       industry: d.industry ?? '',
       description: d.description ?? '',
       discovered_at: d.discovered_at ?? null,
+      provenance: d.provenance ?? null,
     }
     skills.value = (d.skills_required ?? []).map((s) => ({
       skill_id: s.skill_id ?? '',
@@ -308,6 +319,48 @@ watch(() => route.params.name, loadPosition)
 
           <!-- 右侧：技能列表 -->
           <section class="skills-section">
+            <!-- 2026-08-20 (修复 C): 数据来源追溯 —— 让用户知根知底 -->
+            <el-card
+              v-if="position?.provenance"
+              class="provenance-card"
+              shadow="never"
+            >
+              <template #header>
+                <span class="section-title">数据来源</span>
+              </template>
+              <div class="provenance-grid">
+                <div class="provenance-item">
+                  <span class="provenance-label">审核状态</span>
+                  <el-tag
+                    :type="position.provenance.review_status === 'approved' ? 'success' : position.provenance.review_status === 'pending_review' ? 'warning' : 'info'"
+                    size="small"
+                    effect="plain"
+                  >
+                    {{ { approved: '已审核', pending_review: '待审核', draft: '草稿', rejected: '已驳回' }[position.provenance.review_status ?? ''] ?? position.provenance.review_status ?? '未知' }}
+                  </el-tag>
+                </div>
+                <div class="provenance-item">
+                  <span class="provenance-label">创建人</span>
+                  <span class="provenance-value">{{ position.provenance.created_by || '系统' }}</span>
+                </div>
+                <div class="provenance-item">
+                  <span class="provenance-label">审核人</span>
+                  <span class="provenance-value">{{ position.provenance.reviewed_by || '—' }}</span>
+                </div>
+                <div class="provenance-item">
+                  <span class="provenance-label">采集/创建时间</span>
+                  <span class="provenance-value">{{ position.provenance.created_at ? new Date(position.provenance.created_at).toLocaleString('zh-CN') : '—' }}</span>
+                </div>
+                <div
+                  v-if="position.provenance.source_run_id"
+                  class="provenance-item"
+                >
+                  <span class="provenance-label">来源流水线</span>
+                  <span class="provenance-value mono">{{ position.provenance.source_run_id.slice(0, 8) }}</span>
+                </div>
+              </div>
+            </el-card>
+
             <h3 class="section-title">
               技能要求 ({{ skills.length }})
             </h3>
@@ -427,6 +480,33 @@ watch(() => route.params.name, loadPosition)
 .skills-section {
   flex: 1;
   min-width: 0;
+}
+
+/* 2026-08-20 (修复 C): 数据来源追溯卡片 */
+.provenance-card {
+  margin-bottom: var(--space-3);
+}
+.provenance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+.provenance-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.provenance-label {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+}
+.provenance-value {
+  font-size: var(--font-size-sm);
+  color: var(--foreground);
+}
+.provenance-value.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--font-size-xs);
 }
 
 .section-title {

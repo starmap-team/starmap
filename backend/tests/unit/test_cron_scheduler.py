@@ -33,6 +33,10 @@ class FakeResult:
     def scalars(self):
         return self._scalars
 
+    def scalar(self):
+        rows = self._scalars.all()
+        return rows[0] if rows else None
+
 
 class FakeAsyncSession:
     def __init__(self, results: list | None = None):

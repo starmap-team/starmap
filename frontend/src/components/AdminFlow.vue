@@ -52,7 +52,7 @@ const stages: FlowStage[] = [
   {
     key: 'graph',
     label: '图谱更新',
-    description: 'Neo4j 节点 + 关系',
+    description: '更新知识图谱中的节点与关联',
     icon: Connection,
     color: '#06b6d4',
     route: '/',

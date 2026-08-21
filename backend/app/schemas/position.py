@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -123,6 +124,14 @@ class PositionNode(BaseModel):
     review_status: ReviewStatus | None = Field(
         default=None,
         description="审核状态",
+    )
+    # 2026-08-20 (修复 C): 数据来源追溯 —— 让用户知根知底
+    provenance: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "数据来源追溯信息：source_run_id（来源流水线）/created_by（创建人）/"
+            "reviewed_by（审核人）/review_status（审核状态）/created_at（创建时间）"
+        ),
     )
 
 

@@ -89,14 +89,33 @@ async def publish_event(
         "data": data,
         "timestamp": time.time(),
     }
+    message = json.dumps(payload, default=str)
     try:
-        message = json.dumps(payload, default=str)
         await redis.publish(CHANNEL, message)
- # Append to polling fallback list (LPUSH + LTRIM for capped list)
+        # Append to polling fallback list (LPUSH + LTRIM for capped list)
         await cast(Awaitable[Any], redis.lpush(POLL_LIST_KEY, message))
         await cast(Awaitable[Any], redis.ltrim(POLL_LIST_KEY, 0, 99))  # keep latest 100
         await redis.expire(POLL_LIST_KEY, EVENT_TTL)
         return True
+    except RuntimeError as exc:
+        # 2026-08-20 (debug 修复): celery worker 进程的 async redis 客户端可能绑定
+        # 在已关闭的临时事件循环上（asyncio.run 创建）→ "Event loop is closed"。
+        # 降级用同步 redis 客户端发布（不绑定 loop，绝对可靠），保证 SSE 事件必达。
+        logger.warning("SSE publish async failed ({}), falling back to sync redis", exc)
+        try:
+            from redis import Redis as SyncRedis
+
+            from app.config import settings
+
+            with SyncRedis.from_url(settings.redis_uri, decode_responses=True) as sync_redis:
+                sync_redis.publish(CHANNEL, message)
+                sync_redis.lpush(POLL_LIST_KEY, message)
+                sync_redis.ltrim(POLL_LIST_KEY, 0, 99)
+                sync_redis.expire(POLL_LIST_KEY, EVENT_TTL)
+            return True
+        except Exception:
+            logger.exception("SSE publish sync fallback failed for {}", event_type)
+            return False
     except StarMapError:
         raise
     except Exception:

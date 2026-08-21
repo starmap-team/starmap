@@ -185,7 +185,10 @@ function statusBadge(ds: DataSourceWithStatus) {
   if (ds.config?.disabled) {
     return { class: 'status-paused', label: '已禁用', color: '#94a3b8' }
   }
-  return { class: 'status-idle', label: '待机', color: '#94a3b8' }
+  // 2026-08-21 (语义修复): active 是生命周期状态（启用），非运行状态。
+  // 此前显示「运行中」误导用户（无 run 在跑时 7 个源全"运行中"）。
+  // 真正运行态由上方 liveStatus==='crawling' →「采集中」表达。
+  return { class: 'status-idle', label: '已启用', color: '#16a34a' }
 }
 
 // 切换启用
@@ -386,12 +389,21 @@ function formatRecords(n: number) {
         </el-table-column>
         <el-table-column
           label="关键词 / 目标"
-          min-width="120"
+          min-width="130"
         >
+          <!-- 2026-08-20 (debug 修复): 此前只显示 config.keyword/max_count —— 各源
+               config 只有 platform，恒显 "-/0 条" 无意义。改为显示实际采集配置：
+               platform 有则显示平台 + 目标条数（默认 50/200），无则"未配置"。 -->
           <template #default="{ row }">
-            <span class="config-text">{{ row.config?.keyword || '-' }}</span>
-            <span class="config-divider">/</span>
-            <span class="config-num">{{ row.config?.max_count || 0 }} 条</span>
+            <template v-if="row.config?.platform">
+              <span class="config-text">{{ row.config?.keyword || row.config.platform }}</span>
+              <span class="config-divider">/</span>
+              <span class="config-num">{{ row.config?.max_count || (row.source_type === 'blog' ? 200 : 50) }} 条</span>
+            </template>
+            <span
+              v-else
+              class="config-text config-missing"
+            >未配置</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -407,9 +419,22 @@ function formatRecords(n: number) {
         </el-table-column>
         <el-table-column
           label="记录/有效"
-          min-width="100"
+          min-width="110"
           align="right"
         >
+          <!-- 2026-08-20 (debug 修复): 列头 tooltip 说明口径，与数据源页卡片一致 -->
+          <template #header>
+            <el-tooltip
+              placement="top"
+              :show-after="200"
+            >
+              <template #content>
+                记录总量 / 有效记录。记录总量 = 该源累计采集入库总数（含待抽取/已抽取/重复）；
+                有效记录 = 已通过 LLM 抽取进入岗位/技能体系的职位数。与数据源管理页口径一致。
+              </template>
+              <span class="cursor-help">记录/有效</span>
+            </el-tooltip>
+          </template>
           <template #default="{ row }">
             <span class="config-text">{{ formatRecords(row.total_records) }}</span>
             <span class="config-divider">/</span>
@@ -618,6 +643,17 @@ function formatRecords(n: number) {
                   <span class="cursor-help">招聘网站：配置适配器后参与 DAG 采集</span>
                 </el-tooltip>
               </template>
+              <!-- 2026-08-20 (debug 修复): crawler 类型无适配器 → 明确"待配置适配器"
+                   而非笼统"爬虫 类型数据源"（误导用户以为可用） -->
+              <template v-else-if="row.source_type === 'crawler'">
+                <el-tooltip
+                  content="该源类型为爬虫但尚未配置爬虫平台适配器（platform），当前无法采集。在 spider_registry.py 注册适配器并配置 platform 后即可参与采集"
+                  placement="top"
+                  effect="dark"
+                >
+                  <span class="cursor-help config-missing">待配置适配器</span>
+                </el-tooltip>
+              </template>
               <template v-else>
                 {{ getSourceTypeLabel(row.source_type) }} 类型数据源
               </template>
@@ -794,6 +830,10 @@ function formatRecords(n: number) {
   font-size: 11px;
   color: var(--foreground);
   font-family: var(--font-mono, monospace);
+}
+.config-missing {
+  color: var(--muted-foreground);
+  opacity: 0.7;
 }
 .config-valid {
   color: #16a34a;

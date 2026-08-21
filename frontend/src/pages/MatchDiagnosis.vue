@@ -44,6 +44,7 @@ const resumeUploadRef = ref<InstanceType<typeof ResumeUpload> | null>(null)
 
 const step = ref(0)
 const targetPositionName = ref('')
+const targetPositionKey = ref('')  // D8i-fix: canonical name，用于 /match/position 与 /graph/position/{name}
 const radarData = ref<RadarItem[]>([])
 const radarLoading = ref(false)
 
@@ -140,14 +141,27 @@ function confirmManualSkills() {
 }
 
 // ── Step 1: 选岗 ──
-async function handlePositionSelect(pos: { position_id: string; name: string }) {
-  targetPositionName.value = pos.name
+async function handlePositionSelect(pos: { position_id: string; name: string; name_cn?: string | null }) {
+  // D8i-fix 契约统一（name_cn→name）：显示名用 name_cn，API 键用 canonical name，
+  // 避免把中文显示名当匹配键传给后端导致 `Position not found`。
+  targetPositionKey.value = pos.name
+  targetPositionName.value = pos.name_cn || pos.name || pos.name
   radarLoading.value = true
   try {
     const skillData = await matchStore.fetchPositionSkills(pos.name)
     const skills: { name: string; name_cn?: string; proficiency: string }[] = skillData?.required_skills ?? []
+    if (skillData === null) {
+      // D8i-fix：岗位技能接口 404/失败（岗位可能是挂名但无节点/画像）——不再静默"仍可继续"，
+      // 明确引导换岗或联系维护，避免空雷达误导。
+      ElMessage.warning(`岗位「${pos.name_cn || pos.name}」未能获取技能画像（可能未同步或不存在），请更换目标岗位`)
+      targetPositionKey.value = ''
+      targetPositionName.value = ''
+      step.value = 1
+      return
+    }
     if (skills.length === 0) {
-      ElMessage.warning('未获取到岗位技能数据，仍可继续但雷达图将为空')
+      // D8i-fix：岗位存在但无技能画像（C 类）——给出可操作提示，仍可选继续但如实标注
+      ElMessage.warning(`岗位「${pos.name_cn || pos.name}」存在但暂无技能画像，将无法计算差距；请可尝试更换岗位后重试`)
       radarData.value = []
       step.value = 2
       return
@@ -197,7 +211,7 @@ async function handleStartDiagnosis() {
         profMap[s.skill] = s.proficiency
       }
     }
-    await matchStore.runMatch(targetPositionName.value, skillNames, profMap)
+    await matchStore.runMatch(targetPositionKey.value || targetPositionName.value, skillNames, profMap)
     matchProgress.value = 100
 
     const result = matchStore.result
@@ -314,12 +328,11 @@ onUnmounted(() => {
 
       <BusinessBanner
         type="info"
-        title="模块D — 人岗匹配度诊断与差距分析"
-        description="本流程对应设计文档的“匹配诊断全流程”：上传简历 → 文档解析 → LLM 技能提取 → 技能归一化 → 与目标岗位技能对比 → 差距分析报告 → 学习路径生成。"
+        title="人岗匹配度诊断与差距分析"
+        description="上传简历 → 文档解析 → LLM 技能提取 → 技能归一化 → 与目标岗位技能对比 → 差距分析报告 → 学习路径生成。"
         :meta="[
-          { category: '后端', label: '/match/*', code: true, copyable: true },
-          { label: '信任度驱动 (§7.1)' },
-          { label: '通胀指数参考 (§7.5)' },
+          { label: '结果考虑技能命中率和信任度' },
+          { label: '提供差距清单与学习路径' },
         ]"
         collapsible
       />

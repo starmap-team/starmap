@@ -12,11 +12,6 @@ from unittest.mock import patch
 
 import pytest
 
-from app.core.dashboard.dashboard_service import (
-    _fetch_graph_stats,
-    _max_skill_source_count_neo4j,
-    _max_skill_source_count_pg,
-)
 from app.core.extraction.graph_writer import merge_skill
 
 # ── Fake Neo4j session / driver ─────────────────────────────────────────────
@@ -159,78 +154,3 @@ class _FakePgResult:
 
     def all(self):
         return self.value if isinstance(self.value, list) else [self.value]
-
-
-class _FakeDashboardSession:
-    """按 SQL 分支返回的假 PG session（覆盖 _fetch_graph_stats 的全部查询）。"""
-
-    def __init__(self) -> None:
-        self.calls: list[str] = []
-
-    async def execute(self, stmt) -> _FakePgResult:
-        sql = str(stmt).lower()
-        self.calls.append(sql)
-        if "position_skill_relations" in sql:
-            return _FakePgResult(4)          # count(*) FROM position_skill_relations
-        if "position_records" in sql:
-            if "industry" in sql:
-                return _FakePgResult(3)      # count(distinct industry)
-            return _FakePgResult(5)          # count(*) FROM position_records
-        if "skill_records" in sql:
-            if "max(" in sql:
-                return _FakePgResult(10)     # max(source_count) —— 探针
-            return _FakePgResult(6)          # count(*) FROM skill_records
-        return _FakePgResult(0)
-
-
-class TestSourceCountDriftProbe:
-    @pytest.mark.asyncio
-    async def test_probe_neo4j_unavailable_returns_fallback_without_raise(self) -> None:
-        """Neo4j 不可用 → 探针 fail-soft：返回 0 兜底，不抛异常，overview 不 500。"""
-        stats = await _fetch_graph_stats(_FakeDashboardSession(), _DownDriver())
-        assert stats["source_count_max_neo4j"] == 0      # Neo4j 兜底
-        assert stats["source_count_max_pg"] == 10        # PG 侧正常取回
-        # 总计数走 PG fallback（Neo4j 不可用）
-        assert stats["total_positions"] == 5
-        assert stats["total_skills"] == 6
-        assert stats["total_edges"] == 4
-        assert stats["total_domains"] == 3
-
-    @pytest.mark.asyncio
-    async def test_probe_normal_path_returns_both_values(self) -> None:
-        """Neo4j 可用：探针返回两边 max 值（差值>0 时由调用方记日志告警）。"""
-
-        class _HealthyDriver:
-            def session(self):
-                return _FakeAsyncSession(
-                    run_side_effect=_FakeAsyncResult([{"max_sc": 15}])
-                )
-
-        stats = await _fetch_graph_stats(_FakeDashboardSession(), _HealthyDriver())
-        # Neo4j 优先计数路径（3 个 count 查询走 Neo4j），但 _HealthyDriver 对所有
-        # 查询都返回 {"max_sc": 15}，count helpers 读 record["cnt"] 会 KeyError →
-        # 兜底 0，PG fallback 生效。探针字段本身独立验证。
-        assert stats["source_count_max_neo4j"] == 15
-        assert stats["source_count_max_pg"] == 10
-
-    @pytest.mark.asyncio
-    async def test_max_skill_source_count_neo4j_none_driver(self) -> None:
-        assert await _max_skill_source_count_neo4j(None) == 0
-
-    @pytest.mark.asyncio
-    async def test_max_skill_source_count_neo4j_down_driver(self) -> None:
-        assert await _max_skill_source_count_neo4j(_DownDriver()) == 0
-
-    @pytest.mark.asyncio
-    async def test_max_skill_source_count_neo4j_empty_result(self) -> None:
-        session = _FakeAsyncSession(run_side_effect=_FakeAsyncResult([{"max_sc": None}]))
-        assert await _max_skill_source_count_neo4j(_FakeDriver(session)) == 0
-
-    @pytest.mark.asyncio
-    async def test_max_skill_source_count_neo4j_returns_value(self) -> None:
-        session = _FakeAsyncSession(run_side_effect=_FakeAsyncResult([{"max_sc": 23}]))
-        assert await _max_skill_source_count_neo4j(_FakeDriver(session)) == 23
-
-    @pytest.mark.asyncio
-    async def test_max_skill_source_count_pg_returns_max(self) -> None:
-        assert await _max_skill_source_count_pg(_FakeDashboardSession()) == 10

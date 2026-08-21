@@ -59,9 +59,12 @@ _POSITION_ENTITY_TYPES = frozenset({"position", "new_position"})
 # Extracted verbatim from _sync_neo4j_on_audit so the one-off bulk backfill
 # (sync_all_positions_to_neo4j) reuses the exact same idempotent write path
 # instead of introducing a second sync implementation.
+# 契约统一（name_cn→name）：节点写 name_cn，供 _resolve_position_name /
+# _position_exists 按中文名解析回 canonical name（修复 217/226 name_cn 稀疏）。
 _POSITION_MERGE_CYPHER = """
                     MERGE (n:Position {canonical_id: $cid})
                     SET n.name = $name,
+                        n.name_cn = $name_cn,
                         n.industry = $industry,
                         n.review_status = $review_status,
                         n.trust_score = $trust,
@@ -86,11 +89,15 @@ def _trust_from_payload(payload: dict | None) -> int:
 
 
 # LOOP-07: Neo4j sync on approve/reject
-async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str, status: str) -> None:
+async def _sync_neo4j_on_audit(
+    neo4j_driver: Any, item_type: str, item_name: str, status: str, item_id: str | None = None
+) -> None:
     """Sync audit result to Neo4j graph (non-blocking).
 
     Phase 5 Step 2 修复: 用 MERGE 而非 MATCH+SET，确保节点不存在时自动创建。
     canonical_id 是 Neo4j 与 PG 同步的桥梁。
+    item_id: 审核项 PG 主键（ReviewAuditLog.entity_id）——优先按 id 定位 PG 行，
+    避免同名岗位（PositionRecord.name 非唯一）时 .first() 取错行。
     """
     if not neo4j_driver:
         return
@@ -112,23 +119,33 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
         async with engine.begin() as conn:
             session = AsyncSession(bind=conn)
             if label == "Position":
-                result = await session.execute(
-                    select(PositionRecord.id, PositionRecord.name, PositionRecord.industry, PositionRecord.review_status)
-                    .where(PositionRecord.name == item_name)
+                pos_stmt = select(
+                    PositionRecord.id, PositionRecord.name, PositionRecord.name_cn,
+                    PositionRecord.industry, PositionRecord.review_status,
                 )
+                if item_id:
+                    pos_stmt = pos_stmt.where(PositionRecord.id == item_id)
+                else:
+                    pos_stmt = pos_stmt.where(PositionRecord.name == item_name)
+                result = await session.execute(pos_stmt)
                 row = result.first()
                 if not row:
                     logger.warning("Neo4j sync: PG PositionRecord not found for '{}'", item_name)
                     return
                 canonical_id = str(row[0])
                 name = row[1]
-                industry = row[2] or ""
-                review_status = row[3] or status
+                name_cn = row[2] or ""
+                industry = row[3] or ""
+                review_status = row[4] or status
             else:  # Skill
-                result = await session.execute(
-                    select(SkillRecord.id, SkillRecord.name, SkillRecord.review_status)
-                    .where(SkillRecord.name == item_name)
+                skill_stmt = select(
+                    SkillRecord.id, SkillRecord.name, SkillRecord.review_status,
                 )
+                if item_id:
+                    skill_stmt = skill_stmt.where(SkillRecord.id == item_id)
+                else:
+                    skill_stmt = skill_stmt.where(SkillRecord.name == item_name)
+                result = await session.execute(skill_stmt)
                 row = result.first()
                 if not row:
                     logger.warning("Neo4j sync: PG SkillRecord not found for '{}'", item_name)
@@ -147,6 +164,7 @@ async def _sync_neo4j_on_audit(neo4j_driver: Any, item_type: str, item_name: str
                     _POSITION_MERGE_CYPHER,
                     cid=canonical_id,
                     name=name,
+                    name_cn=name_cn,
                     industry=industry,
                     review_status=review_status,
                     trust=trust,
@@ -218,17 +236,21 @@ async def sync_all_positions_to_neo4j(
             sa.select(
                 PositionRecord.id,
                 PositionRecord.name,
+                PositionRecord.name_cn,
                 PositionRecord.industry,
                 PositionRecord.review_status,
-            ).order_by(PositionRecord.name)
+            )
+            .where(PositionRecord.review_status == "approved")
+            .order_by(PositionRecord.name)
         )
         rows = result.all()
 
     for row in rows:
         canonical_id = str(row[0])
         name = row[1] or ""
-        industry = row[2] or ""
-        review_status = row[3] or "pending_review"
+        name_cn = row[2] or ""
+        industry = row[3] or ""
+        review_status = row[4] or "pending_review"
         trust = 1.0 if review_status == "approved" else 0.0
         try:
             async with neo4j_driver.session() as s:
@@ -236,6 +258,7 @@ async def sync_all_positions_to_neo4j(
                     _POSITION_MERGE_CYPHER,
                     cid=canonical_id,
                     name=name,
+                    name_cn=name_cn,
                     industry=industry,
                     review_status=review_status,
                     trust=trust,
@@ -313,12 +336,22 @@ async def build_admin_stats(session: AsyncSession) -> AdminStatsResponse:
                 )
             )).scalar() or 0.0
         )
-        pending_count = int(
+        # 2026-08-20 (debug 修复): pending_review 原查 review_queue 死表（无写入方，
+        # 恒 0 → admin KPI 假正常 vs quality 页 751）。改为 position+skill 的
+        # pending_review 计数，与 /quality/dashboard 及 /admin/review-stats 同源。
+        pending_pos = int(
             (await session.execute(
-                sa.select(sa.func.count()).select_from(ReviewQueue)
-                .where(ReviewQueue.status == "pending")
+                sa.select(sa.func.count()).select_from(PositionRecord)
+                .where(PositionRecord.review_status == "pending_review")
             )).scalar() or 0
         )
+        pending_skill = int(
+            (await session.execute(
+                sa.select(sa.func.count()).select_from(SkillRecord)
+                .where(SkillRecord.review_status == "pending_review")
+            )).scalar() or 0
+        )
+        pending_count = pending_pos + pending_skill
     except (SQLAlchemyError, StarMapError):
         total_positions = 0
         total_skills = 0

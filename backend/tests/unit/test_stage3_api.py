@@ -86,17 +86,17 @@ async def test_quality_dashboard_builder_aggregates_metrics():
             # executes are gone.
             (5,),              # 8. high_trust_count
             (10,),             # 9. high_source_count
-            # 2026-08-14 门禁修复: Phase 19 §6.2 信任度分桶改为查询 skill 行
-            # （.source_count/.last_detected_at 属性访问）→ 原 5 个标量 mock
-            # 与代码错位。改用 FakeRow 提供属性行。
+            # compute_trust_distribution 先查 skill_trust_rows（属性行）再查 conf_rows
             [
-                FakeRow((8, None), labels=["source_count", "last_detected_at"]),
-                FakeRow((2, None), labels=["source_count", "last_detected_at"]),
+                FakeRow(("sk-1", 8, None, "pending_review"), labels=["id", "source_count", "last_detected_at", "review_status"]),
+                FakeRow(("sk-2", 2, None, "approved"), labels=["id", "source_count", "last_detected_at", "review_status"]),
             ],                 # 10. skill_trust_rows (.all)
-            [],                # 11. ts_rows (hallucination trend — empty)
-            [("general", 100), ("hard_skill", 80)],  # 12. source_distribution
-            (5,),              # 13. weekly_new_nodes: skill count
-            (3,),              # 14. weekly_new_nodes: position count
+            [],                # 11. conf_rows (skill_id, avg_confidence) — empty
+            # fetch_hallucination_trend 返回 (day, total, hallucinated) 3 列行
+            [("2026-08-01", 10, 1)],  # 12. ts_rows (hallucination trend)
+            [("general", 100), ("hard_skill", 80)],  # 13. source_distribution
+            (5,),              # 14. weekly_new_nodes: skill count
+            (3,),              # 15. weekly_new_nodes: position count
             (8,),              # 15. approved_count (review_audit_log approve)
             (0,),              # 16. rejected_count (review_audit_log reject)
             [],                # 17. audit_queue pos_rows (pending positions — empty)
@@ -143,17 +143,18 @@ def test_quality_dashboard_endpoint_contract(client):
             (0,),             # 7. edge_count
             # total_extractions=0 → high_trust_count 查询被跳过（见 L153 条件）
             (0,),             # 8. high_source_count
-            # 2026-08-14 门禁修复: 信任度分桶查询属性行（同 aggregates 测试）
-            [FakeRow((0, None), labels=["source_count", "last_detected_at"])],  # 9. skill_trust_rows
-            [],               # 10. ts_rows (hallucination trend — empty)
-            [("general", 0)], # 11. source_distribution
-            (0,),             # 12. weekly_new_nodes: skill count
-            (0,),             # 13. weekly_new_nodes: position count
-            (0,),             # 14. approved_count
-            (0,),             # 15. rejected_count
-            [],               # 16. audit_queue pos_rows
-            [],               # 17. audit_queue skill_rows
-            (0,),             # 18. evaluation_count
+            # compute_trust_distribution 先查 skill_trust_rows 再查 conf_rows
+            [FakeRow(("sk-1", 0, None, "pending_review"), labels=["id", "source_count", "last_detected_at", "review_status"])],  # 9. skill_trust_rows
+            [],               # 10. conf_rows (skill_id, avg_confidence) — empty
+            [("2026-08-01", 0, 0)],  # 11. ts_rows (hallucination trend, 3 列)
+            [("general", 0)], # 12. source_distribution
+            (0,),             # 13. weekly_new_nodes: skill count
+            (0,),             # 14. weekly_new_nodes: position count
+            (0,),             # 15. approved_count
+            (0,),             # 16. rejected_count
+            [],               # 17. audit_queue pos_rows
+            [],               # 18. audit_queue skill_rows
+            (0,),             # 19. evaluation_count
         ])
 
     app.dependency_overrides[get_db_session] = override_session

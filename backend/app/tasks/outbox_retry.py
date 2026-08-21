@@ -68,10 +68,10 @@ async def _list_retryable_outbox(
         select(GraphWriteOutbox)
         .where(GraphWriteOutbox.status == "failed")
         .where(GraphWriteOutbox.retry_count < MAX_RETRY_COUNT)
-        .order_by(GraphWriteOutbox.updated_at.asc)
+        .order_by(GraphWriteOutbox.updated_at.asc())
         .limit(batch_size)
     )
-    rows = list(result.scalars.all)
+    rows = list(result.scalars().all())
  # 防御性二次过滤（SQL 已过滤；Python 侧兜底防误捡 drift_warning/completed 等）
     return [r for r in rows if r.status == "failed" and (r.retry_count or 0) < MAX_RETRY_COUNT]
 
@@ -93,10 +93,10 @@ async def _sweep_stale_pending(
         select(GraphWriteOutbox)
         .where(GraphWriteOutbox.status == "pending")
         .where(GraphWriteOutbox.created_at < cutoff)
-        .order_by(GraphWriteOutbox.updated_at.asc)
+        .order_by(GraphWriteOutbox.updated_at.asc())
         .limit(batch_size)
     )
-    rows = list(result.scalars.all)
+    rows = list(result.scalars().all())
  # 防御性二次过滤（SQL 已过滤；Python 侧兜底防误捡 drift_warning/completed 等）
     return [
         r for r in rows
@@ -120,7 +120,7 @@ async def _replay_outbox_row(session_factory: Any, row: Any, driver: Any) -> boo
 
     extraction_ids = [uuid.UUID(str(eid)) for eid in (row.extraction_ids or [])]
     try:
-        async with session_factory as session:
+        async with session_factory() as session:
             records: list[Any] = []
             if extraction_ids:
                 records = list(
@@ -130,17 +130,17 @@ async def _replay_outbox_row(session_factory: Any, row: Any, driver: Any) -> boo
                                 JDExtractionRecord.id.in_(extraction_ids)
                             )
                         )
-                    ).scalars.all
+                    ).scalars().all()
                 )
-            extractions = [rec.to_extraction_payload for rec in records]
+            extractions = [rec.to_extraction_payload() for rec in records]
 
  # 从 PG SSOT 重新解析 canonical_id（不信任 outbox 行内旧值，T1 威胁面）
             position_names = {
-                str(p.get("position_name") or p.get("job_title") or "").strip
+                str(p.get("position_name") or p.get("job_title") or "").strip()
                 for p in extractions
                 if p
             } - {""}
-            skill_names: set[str] = set
+            skill_names: set[str] = set()
             for p in extractions:
                 for entry in (p.get("required_skills") or []) + (p.get("preferred_skills") or []):
                     name = skill_entry_name(entry)
@@ -157,7 +157,7 @@ async def _replay_outbox_row(session_factory: Any, row: Any, driver: Any) -> boo
                                 PositionRecord.name.in_(position_names)
                             )
                         )
-                    ).all
+                    ).all()
                 }
             skill_map: dict[str, str] = {}
             if skill_names:
@@ -169,7 +169,7 @@ async def _replay_outbox_row(session_factory: Any, row: Any, driver: Any) -> boo
                                 SkillRecord.name.in_(skill_names)
                             )
                         )
-                    ).all
+                    ).all()
                 }
 
         if not extractions:
@@ -179,7 +179,7 @@ async def _replay_outbox_row(session_factory: Any, row: Any, driver: Any) -> boo
 
         canonical_ids_list: list[dict[str, Any] | None] = []
         for p in extractions:
-            pname = str(p.get("position_name") or p.get("job_title") or "").strip
+            pname = str(p.get("position_name") or p.get("job_title") or "").strip()
             cids: dict[str, Any] = {"position_id": position_map.get(pname), "skills": {}}
             for entry in (p.get("required_skills") or []) + (p.get("preferred_skills") or []):
                 name = skill_entry_name(entry)
@@ -214,7 +214,7 @@ async def _alert_max_retry(session_factory: Any, row: Any, error: str) -> None:
     try:
         from sqlalchemy import text as _text
 
-        async with session_factory as session:
+        async with session_factory() as session:
             await session.execute(
                 _text("""
                     INSERT INTO audit_events
@@ -223,7 +223,7 @@ async def _alert_max_retry(session_factory: Any, row: Any, error: str) -> None:
                             :detail, '', 'graph', :entity_id, :now)
                 """),
                 {
-                    "id": str(uuid.uuid4),
+                    "id": str(uuid.uuid4()),
                     "detail": (
                         f"outbox_id={row.id},retry_count={getattr(row, 'retry_count', 0)},"
                         f"error={error[:300]}"
@@ -231,7 +231,7 @@ async def _alert_max_retry(session_factory: Any, row: Any, error: str) -> None:
                     "entity_id": str(row.id),
                     "now": datetime.now(UTC),
                 })
-            await session.commit
+            await session.commit()
     except Exception as exc:  # noqa: BLE001 — 审计写入失败不阻断重放
         logger.warning("outbox retry audit write failed (non-fatal): {}", exc)
 
@@ -240,8 +240,8 @@ async def _run() -> dict[str, Any]:
     from app.core.extraction.graph_writer import GraphConfig
     from app.db.session import get_session_factory
 
-    sm = get_session_factory
-    async with sm as session:
+    sm = get_session_factory()
+    async with sm() as session:
         failed_rows = await _list_retryable_outbox(session)
         stale_rows = await _sweep_stale_pending(session)
     rows = failed_rows + stale_rows
@@ -256,7 +256,7 @@ async def _run() -> dict[str, Any]:
     }
     if not rows:
         return stats
-    async with GraphConfig.get_driver as driver:
+    async with GraphConfig().get_driver() as driver:
         for row in rows:
             stats["replayed"] += 1
             ok = await _replay_outbox_row(sm, row, driver)

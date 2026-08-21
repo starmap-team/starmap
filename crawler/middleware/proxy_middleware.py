@@ -55,7 +55,7 @@ FAIL_THRESHOLD = 3  # 窗口内 ≥3 失败 → 冷却
 
 def _parse_proxy(raw: str) -> ProxyEntry | None:
     """解析 http://[user:pass@]host:port / socks5://host:port"""
-    raw = raw.strip
+    raw = raw.strip()
     if not raw:
         return None
     try:
@@ -84,17 +84,17 @@ def load_proxies() -> list[ProxyEntry]:
     _PROXY_ENTRIES = out
     return out
 
-def pick_proxy -> str | None:
+def pick_proxy() -> str | None:
     """轮询选择 — 跳过冷却中的代理；池空 / 全部冷却 → 返回 None（直连）。
 
     返回的是原始 URL（proxy_user / proxy_pass 解析由调用方做，与现有
     boss.py 行为一致）。
     """
     if not _PROXY_ENTRIES:
-        load_proxies
+        load_proxies()
     if not _PROXY_ENTRIES:
         return None
-    now = time.monotonic
+    now = time.monotonic()
     # 至少轮询一圈找到第一个非冷却的代理
     global _LAST_PROXY_INDEX
     for _ in range(len(_PROXY_ENTRIES)):
@@ -110,7 +110,7 @@ def record_proxy_failure(proxy_raw: str) -> None:
     """记录一次失败。同一代理 5 分钟内累计 ≥3 → 触发 5 分钟冷却。"""
     global _BREAKER_STATE
     breaker = _BREAKER_STATE.get(proxy_raw)
-    now = time.monotonic
+    now = time.monotonic()
     if breaker is None:
         _BREAKER_STATE[proxy_raw] = _Breaker(
             fail_window_start=now, fail_count=1, cooldown_until=0)
@@ -132,17 +132,17 @@ def record_proxy_success(proxy_raw: str) -> None:
     breaker = _BREAKER_STATE.get(proxy_raw)
     if breaker is not None:
         breaker.fail_count = 0
-        breaker.fail_window_start = time.monotonic
+        breaker.fail_window_start = time.monotonic()
 
-def reset_for_tests -> None:
+def reset_for_tests() -> None:
     """仅测试用 — 清空模块级熔断状态。
 
     使用 .clear 而非 `= []`/`= {}` 重绑，避免与 `from ... import _BREAKER_STATE`
     的本地引用脱钩 — 后者会在 import 时定下对象身份，后续重绑不会更新本地引用。
     """
     global _BREAKER_STATE, _PROXY_ENTRIES, _LAST_PROXY_INDEX
-    _BREAKER_STATE.clear
-    _PROXY_ENTRIES.clear
+    _BREAKER_STATE.clear()
+    _PROXY_ENTRIES.clear()
     _LAST_PROXY_INDEX = 0
 
 __all__ = [

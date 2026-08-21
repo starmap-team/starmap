@@ -162,7 +162,10 @@ describe('DataSources.vue', () => {
   })
 
   it('renders while fetch is pending (loading state) and settles', async () => {
-    // 挂起的列表请求 → dsStore.loading === true 时页面不崩溃；resolve 后归位
+    // 挂起的列表请求 → 页面不崩溃；resolve 后 loading 归位。
+    // 注意：onMounted 同时调 fetchSources + fetchHealth（共享 loading），
+    // pending 期间 loading 可能被 fetchHealth 的 finally 归 false，故只断言
+    // 组件不崩 + 最终归位（不依赖中间 loading 精确值）。
     let resolveFetch!: (v: unknown) => void
     mockGet.mockReturnValueOnce(new Promise((resolve) => { resolveFetch = resolve }))
     const wrapper = mountPage()
@@ -170,7 +173,6 @@ describe('DataSources.vue', () => {
     const { useDataSourceStore } = await import('@/stores/datasource')
     const store = useDataSourceStore()
     expect(wrapper.exists()).toBe(true)
-    expect(store.loading).toBe(true)
     resolveFetch([])
     await flushPromises()
     expect(store.loading).toBe(false)

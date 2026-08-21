@@ -93,6 +93,36 @@ class TestWriteExtractionToPg:
         assert await write_extraction_to_pg(session, {"position_name": "X"}) is None
         assert session.rolled_back == 1
 
+    @pytest.mark.asyncio
+    async def test_name_cn_passed_through_to_position_record(self) -> None:
+        """I18N (遗留①): write_extraction_to_pg 必须把管线翻译出的 name_cn 透传落库。"""
+        session = _FakeSession()
+        ok = await write_extraction_to_pg(session, {
+            "position_name": "Lead Data Platform Engineer",
+            "name_cn": "首席数据平台工程师",
+            "industry": "互联网/IT",
+            "required_skills": [{"skill": "AWS"}],
+        })
+        assert ok is True
+        _, params = session.executed[0]
+        assert params["name_cn"] == "首席数据平台工程师"
+
+
+class TestUpsertPositionRecordNameCn:
+    @pytest.mark.asyncio
+    async def test_sql_writes_name_cn_column_and_keeps_existing_on_conflict(self) -> None:
+        """upsert_position_record: INSERT 含 name_cn 列；冲突时保留已有 name_cn 不覆盖。"""
+        session = _FakeSession()
+        await upsert_position_record(
+            session, name="Lead Data Platform Engineer", name_cn="首席数据平台工程师",
+            industry="IT",
+        )
+        sql, params = session.executed[0]
+        assert "name_cn" in sql.split("VALUES")[0]
+        assert params["name_cn"] == "首席数据平台工程师"
+        update_clause = sql.split("DO UPDATE")[1]
+        assert "name_cn = COALESCE(position_records.name_cn, EXCLUDED.name_cn)" in update_clause
+
 
 async def _raise(*_: Any) -> None:
     raise RuntimeError("pg down")

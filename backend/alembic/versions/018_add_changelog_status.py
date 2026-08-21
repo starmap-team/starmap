@@ -39,8 +39,3 @@ def downgrade() -> None:
     conn.execute(
         sa.text("ALTER TABLE evolution_changelog DROP COLUMN IF EXISTS status")
     )
-
-
-def downgrade() -> None:
-    op.drop_index("ix_evolution_changelog_status_trust", table_name="evolution_changelog")
-    op.drop_column("evolution_changelog", "status")

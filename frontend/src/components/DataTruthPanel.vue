@@ -30,6 +30,9 @@ interface TruthRow {
 interface HealthMetrics {
   orphan_positions: number
   orphan_skills: number
+  // 2026-08-21 (debug 修复): unlinked 半孤立（Neo4j 有 + PG 有 + 缺 canonical_id）
+  unlinked_positions: number
+  unlinked_skills: number
   last_reconcile_at: string | null
   reconcile_status: 'ok' | 'warn' | 'critical' | 'unknown'
   sync_health: 'ok' | 'warn' | 'critical'
@@ -96,7 +99,7 @@ async function triggerReconcile() {
  // registered. A 30-60s reconcile that appears silent makes the user
  // think the button is broken.
   const progressMsg = ElMessage({
-    message: 'Reconcile 任务已提交，正在同步 PG ↔ Neo4j...',
+    message: '对账任务已提交，正在同步主数据与图谱...',
     type: 'info',
     duration: 0,  // 永驻, 完成后手动关闭
   })
@@ -108,16 +111,17 @@ async function triggerReconcile() {
       positions_in_pg?: number
       skills_in_pg?: number
       orphans_pruned?: number
+      unlinked_linked?: number
       duration_ms?: number
     }
     await loadReport()
     const elapsed = ((Date.now() - start) / 1000).toFixed(1)
     ElMessage.success(
-      `Reconcile 完成 (${elapsed}s) · Neo4j 节点=${result.positions_in_neo4j ?? '?'}/${result.skills_in_neo4j ?? '?'} · PG 节点=${result.positions_in_pg ?? '?'}/${result.skills_in_pg ?? '?'} · 孤儿清理=${result.orphans_pruned ?? 0} · 健康度=${result.health ?? '?'}`,
+      `对账完成（${elapsed} 秒）· 图谱岗位/技能节点 ${result.positions_in_neo4j ?? '?'}/${result.skills_in_neo4j ?? '?'} · 主数据岗位/技能 ${result.positions_in_pg ?? '?'}/${result.skills_in_pg ?? '?'} · 清理孤立节点 ${result.orphans_pruned ?? 0} · 链接半孤立 ${result.unlinked_linked ?? 0} · 健康度 ${result.health ?? '?'}`,
     )
   } catch (e: unknown) {
-    errorMsg.value = e instanceof Error ? e.message : 'Reconcile 失败'
-    ElMessage.error(`Reconcile 失败: ${errorMsg.value}`)
+    errorMsg.value = e instanceof Error ? e.message : '对账失败'
+    ElMessage.error(`对账失败：${errorMsg.value}`)
   } finally {
     progressMsg.close()
     reconcileLoading.value = false
@@ -168,14 +172,14 @@ async function actOnOrphan(item: OrphanQueueItem, action: 'approve' | 'reject') 
     await request.post(`/admin/orphan-queue/${item.id}/action`, { action })
     ElMessage.success(
       action === 'approve'
-        ? `已清理孤儿 ${item.node_type === 'position' ? '岗位' : '技能'}「${item.name}」`
+        ? `已清理孤立${item.node_type === 'position' ? '岗位' : '技能'}「${item.name}」`
         : `已拒绝清理「${item.name}」`,
     )
     await loadOrphanQueue()
     await loadReport(true)  // 清理后刷新报告（总数差异应归 0）
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '操作失败'
-    ElMessage.error(`孤儿审批失败: ${msg}`)
+    ElMessage.error(`孤立节点处理失败: ${msg}`)
   } finally {
     approvingId.value = null
   }
@@ -232,7 +236,7 @@ async function batchApproveSafe() {
       only_no_reference: true,
     }) as { processed: number; deleted: number; errors?: string[] }
     ElMessage.success(
-      `批量清理完成：处理 ${result.processed} 项，删除 ${result.deleted} 个孤儿节点` +
+      `批量清理完成：处理 ${result.processed} 项，删除 ${result.deleted} 个孤立节点` +
       (result.errors?.length ? `（${result.errors.length} 项失败）` : ''),
     )
     await loadOrphanQueue()
@@ -318,18 +322,18 @@ function statusIcon(status: string): unknown {
       </div>
 
       <p class="truth-intro">
-        每个 KPI 数字都有三层来源：API 返回值、PostgreSQL 直查、Neo4j 直查。
+        每个统计数字都有多层来源相互校验。
         差异超过 1% 标记为 <el-tag
           type="warning"
           size="small"
         >
-          warn
+          警告
         </el-tag>，
         差异超过 10% 标记为 <el-tag
           type="danger"
           size="small"
         >
-          critical
+          严重
         </el-tag>。
       </p>
 
@@ -337,10 +341,10 @@ function statusIcon(status: string): unknown {
         v-if="report.health"
         class="health-card"
       >
-        <h4>同步健康度（Phase 5 Step 4）</h4>
+        <h4>同步健康度</h4>
         <div class="health-row">
           <div class="health-item">
-            <span class="health-label">孤儿 Position</span>
+            <span class="health-label">孤立岗位</span>
             <el-tag
               :type="report.health.orphan_positions === 0 ? 'success' : 'danger'"
               size="small"
@@ -349,12 +353,38 @@ function statusIcon(status: string): unknown {
             </el-tag>
           </div>
           <div class="health-item">
-            <span class="health-label">孤儿 Skill</span>
+            <span class="health-label">孤立技能</span>
             <el-tag
               :type="report.health.orphan_skills === 0 ? 'success' : 'danger'"
               size="small"
             >
               {{ report.health.orphan_skills }}
+            </el-tag>
+          </div>
+          <!-- 2026-08-21 (debug 修复): 半孤立（Neo4j 有 + PG 有 + 缺 canonical_id）
+               此前不显示导致「孤立 0」与「队列 23 pending」看似矛盾。 -->
+          <div class="health-item">
+            <span
+              class="health-label"
+              title="半孤立：Neo4j 已有节点但缺 canonical_id 未链接到 PG"
+            >半孤立岗位</span>
+            <el-tag
+              :type="report.health.unlinked_positions === 0 ? 'success' : 'warning'"
+              size="small"
+            >
+              {{ report.health.unlinked_positions }}
+            </el-tag>
+          </div>
+          <div class="health-item">
+            <span
+              class="health-label"
+              title="半孤立：Neo4j 已有节点但缺 canonical_id 未链接到 PG"
+            >半孤立技能</span>
+            <el-tag
+              :type="report.health.unlinked_skills === 0 ? 'success' : 'warning'"
+              size="small"
+            >
+              {{ report.health.unlinked_skills }}
             </el-tag>
           </div>
           <div class="health-item">
@@ -386,10 +416,10 @@ function statusIcon(status: string): unknown {
             :show-after="200"
           >
             <template #content>
-              立即执行一次 PG ↔ Neo4j 双向对账：<br>
-              • 把 position_records / skill_records 投影到 Neo4j<br>
-              • 清理 Neo4j 中的孤儿节点<br>
-              • 重新计算三层口径 KPI 差异<br>
+              立即执行一次双向数据对账：<br>
+              • 把岗位、技能同步到图谱<br>
+              • 清理图谱中的孤立节点<br>
+              • 重新计算多层口径 KPI 差异<br>
               <br>
               通常 30-60 秒。系统每天凌晨 3 点也会自动跑。
             </template>
@@ -399,18 +429,18 @@ function statusIcon(status: string): unknown {
               :loading="reconcileLoading"
               @click="triggerReconcile"
             >
-              手动触发 reconcile
+              立即对账并修复
             </el-button>
           </el-tooltip>
         </div>
       </div>
 
-      <!-- P2 数据统一: 孤儿节点审批队列（删除是破坏性操作，必须经审批门控） -->
+      <!-- 孤立节点审批队列（删除是破坏性操作，必须经审批门控） -->
       <div class="orphan-card">
         <div class="orphan-header">
-          <h4>孤儿节点清理队列</h4>
+          <h4>孤立节点清理队列</h4>
           <span class="orphan-hint">
-            孤儿 = Neo4j 中存在但 PostgreSQL 无对应记录（无唯一标识或已删除）。
+            孤立节点 = 图谱中存在但主数据中没有对应记录。
             批准后执行删除（级联边），操作记入审计日志。
           </span>
           <el-tooltip
@@ -418,8 +448,8 @@ function statusIcon(status: string): unknown {
             :show-after="200"
           >
             <template #content>
-              一键批准清理所有「无被引用边」的孤儿（删除安全、可审计）。<br>
-              被其他节点引用的孤儿保持待处理，需先人工处理引用关系。
+              一键批准清理所有「无被引用关系」的孤立节点（删除安全、可审计）。<br>
+              被其他节点引用的孤立节点保持待处理，需先人工处理引用关系。
             </template>
             <el-button
               size="small"
@@ -598,7 +628,7 @@ function statusIcon(status: string): unknown {
         </el-table-column>
 
         <el-table-column
-          label="PostgreSQL"
+          label="主数据库"
           width="110"
         >
           <template #default="{ row }">
@@ -607,7 +637,7 @@ function statusIcon(status: string): unknown {
         </el-table-column>
 
         <el-table-column
-          label="Neo4j"
+          label="图谱"
           width="100"
         >
           <template #default="{ row }">

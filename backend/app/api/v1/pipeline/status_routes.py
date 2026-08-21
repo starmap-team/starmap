@@ -4,6 +4,7 @@ GET 类端点：/status /stages /data-quality /datasources /metrics。
 """
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
@@ -25,6 +26,7 @@ from app.schemas.pipeline import (
     QualityAlertItem,
     StageStatusResponse,
 )
+from app.services.pipeline_service import humanize_errors
 
 # typed SQLAlchemy Core `Table` for `jd_raw` (no ORM model — owned by
 # crawler alembic). Declaring columns locally lets schema renames surface
@@ -126,19 +128,37 @@ async def get_pipeline_status(
         if quality_alerts_raw and redis_client:
             from app.services.pipeline_service import publish_event
 
+            # 2026-08-21 (告警去重): 前端每 10s 轮询 /pipeline/status，此前每次
+            # 都重新推送全部 error/critical 告警 → 大屏事件流同一条告警刷屏。
+            # 用 Redis SETNX 按 (dimension:source:message) 指纹去重，TTL 1h：
+            # 告警首次出现推一次，持续期间不再重复推；告警消失后重现则再推。
             for alert in quality_alerts_raw:
-                if alert.level == "error" or alert.level == "critical":
-                    await publish_event(
-                        redis_client,
-                        "quality_alert",
-                        {
-                            "level": alert.level,
-                            "dimension": alert.dimension,
-                            "message": alert.message,
-                            "source": alert.source,
-                            "timestamp": alert.timestamp,
-                        },
+                if alert.level not in ("error", "critical"):
+                    continue
+                fingerprint = hashlib.sha256(
+                    f"{alert.dimension}:{alert.source}:{alert.message}".encode()
+                ).hexdigest()
+                dedup_key = f"quality-alert:dedup:{fingerprint}"
+                try:
+                    already_pushed = await redis_client.set(
+                        dedup_key, "1", ex=3600, nx=True
                     )
+                except Exception:
+                    # Redis 故障时退化为总是推送（不丢告警）
+                    already_pushed = False
+                if already_pushed:
+                    continue
+                await publish_event(
+                    redis_client,
+                    "quality_alert",
+                    {
+                        "level": alert.level,
+                        "dimension": alert.dimension,
+                        "message": alert.message,
+                        "source": alert.source,
+                        "timestamp": alert.timestamp,
+                    },
+                )
     except StarMapError:
         raise
     except Exception as exc:
@@ -243,7 +263,9 @@ async def get_pipeline_stages(
                 "records_duplicate": stage.get("records_duplicate"),
  # : 补 records_seen（crawl 抓到数）——前端 tooltip 口径依赖它
                 "records_seen": stage.get("records_seen"),
-                "errors": stage.get("errors", []),
+                # 2026-08-21: errors 翻译为中文可读；原文保留在 errors_raw 供展开
+                "errors": humanize_errors(stage.get("errors", [])),
+                "errors_raw": stage.get("errors", []),
                 "errors_count": stage.get("errors_count", len(stage.get("errors", []))),
                 "warnings": stage.get("warnings", []),
                 "retry_count": stage.get("retry_count", 0),

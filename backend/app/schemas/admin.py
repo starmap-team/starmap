@@ -49,6 +49,11 @@ class HealthMetrics(BaseModel):
     """同步健康度指标。"""
     orphan_positions: int = Field(0, description="Neo4j 中 PG 找不到的 Position 节点数")
     orphan_skills: int = Field(0, description="Neo4j 中 PG 找不到的 Skill 节点数")
+    # 2026-08-21 (debug 修复): 新增 unlinked_* 维度 —— Neo4j 有但缺 canonical_id
+    # 且 PG 有 name 匹配的节点（"半孤儿"）。operator 视角：0 个孤儿 ≠ 0 个问题，
+    # unlinked 节点仍待系统自动补 canonical_id 链接到 PG。
+    unlinked_positions: int = Field(0, description="Neo4j 有但缺 canonical_id 且 PG 有 name 匹配的 Position 节点数")
+    unlinked_skills: int = Field(0, description="Neo4j 有但缺 canonical_id 且 PG 有 name 匹配的 Skill 节点数")
     last_reconcile_at: str | None = Field(None, description="最近一次 reconcile 时间（ISO）")
     reconcile_status: str = Field("unknown", description="ok | warn | critical | unknown")
     sync_health: str = Field("ok", description="ok | warn | critical")
@@ -198,6 +203,12 @@ class ReconcileResult(BaseModel):
     requires_diff: int = Field(default=0, ge=0, description="REQUIRES 边数差值（绝对值）")
     duration_ms: int = Field(default=0, description="执行耗时（毫秒）")
     health: str = Field(default="ok", description="健康度: ok/warn/critical")
+    # 2026-08-21 (debug 修复): 半孤立节点被自动链接数（Neo4j 有 + PG approved 有
+    # + 缺 canonical_id → SET canonical_id 链接）。让「立即对账并修复」按钮
+    # 报告实际修复效果（修了 X 孤儿 + 链接 Y 半孤立）→ operator 能看到三端是否
+    # 一致，而不是只看到 orphan_pruned=0 误以为"没事"。
+    unlinked_linked: int = Field(default=0, ge=0, description="半孤立节点自动链接数")
+    edges_backfilled: int = Field(default=0, ge=0, description="REQUIRES 边补建数")
 
 
 class ReviewListResponse(BaseModel):
@@ -211,6 +222,27 @@ class ReviewActionRequest(BaseModel):
     """Body for submit/approve/reject/unpublish actions."""
 
     reason: str | None = Field(default=None, max_length=2000)
+
+
+class ReviewBatchRequest(BaseModel):
+    """2026-08-21: 批量审核请求（一键审核）—— 新状态机批量端点。
+
+    与旧 /audit/batch（ReviewQueue 表，已废弃）不同，本端点基于
+    review_service 新状态机（position/skill 的 review_status 字段）。
+    """
+
+    entity_type: Literal["position", "skill"]
+    entity_ids: list[str] = Field(..., min_length=1, max_length=200, description="实体 UUID 列表")
+    action: Literal["approve", "reject"]
+    reason: str | None = Field(default=None, max_length=2000, description="拒绝原因（reject 必填）")
+
+
+class ReviewBatchResponse(BaseModel):
+    """批量审核结果。"""
+
+    ok: int = Field(default=0, ge=0, description="成功数")
+    fail: int = Field(default=0, ge=0, description="失败数")
+    failed_ids: list[str] = Field(default_factory=list, description="失败的实体 ID")
 
 
 class NameCnUpdateRequest(BaseModel):

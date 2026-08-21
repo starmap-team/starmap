@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,7 +25,13 @@ def client(mock_admin_user):
     from app.main import app
 
     async def _mock_session():
-        return AsyncMock()
+        session = AsyncMock()
+        # 真实 SQLAlchemy AsyncSession.execute().scalar() 是同步的；
+        # AsyncMock 默认 scalar() 返回 coroutine，需显式转同步
+        result = MagicMock()
+        result.scalar.return_value = 0
+        session.execute.return_value = result
+        return session
 
     app.dependency_overrides[get_db_session] = _mock_session
     app.dependency_overrides[get_current_user] = lambda: mock_admin_user

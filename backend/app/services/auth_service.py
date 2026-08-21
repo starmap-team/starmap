@@ -19,6 +19,7 @@ import secrets
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
+from datetime import timedelta as _td  # JWT leeway helper (public keyring API uses _td alias)
 from typing import Any
 
 import bcrypt
@@ -99,6 +100,66 @@ class UserNotFoundError(AuthError):
     """User does not exist."""
 
     http_status = 404
+
+
+# public-deploy-preflight 2026-08-20 (P0): JWT keyring 真消费。
+# 此前 config.py 声明 jwt_kid / jwt_secret_keyring 但代码未读取，
+# 改 SECRET_KEY 即全员强制下线。改为：
+# - 签发：写入 JOSE `kid` header
+# - 验签：先解 header 取 kid → 从 keyring 找对应 secret；找不到则用 settings.secret_key 兜底
+# 这样轮换密钥时把旧 kid 加进 jwt_secret_keyring 字典即可无缝切换。
+def _resolve_signing_key(kid: str) -> str:
+    """Return the signing secret for ``kid`` from the configured keyring.
+
+    Empty keyring falls back to ``{settings.jwt_kid: settings.secret_key}``
+    for backward compatibility with tokens signed before keyring was added.
+    """
+    if settings.jwt_secret_keyring:
+        return settings.jwt_secret_keyring.get(kid, settings.secret_key)
+    return settings.secret_key
+
+
+def _resolve_verification_key(token: str) -> tuple[str, str]:
+    """Return ``(kid, secret)`` for verification, reading the JOSE header.
+
+    Unknown kid falls back to ``settings.secret_key`` (legacy / dev tokens).
+    """
+    try:
+        unverified_header = jwt.get_unverified_header(token)
+    except jwt.InvalidTokenError:
+        return settings.jwt_kid, settings.secret_key
+    kid = unverified_header.get("kid") or settings.jwt_kid
+    return kid, _resolve_signing_key(kid)
+
+
+def _jwt_sign(payload: dict[str, Any], kid: str | None = None) -> str:
+    """Sign ``payload`` with HS256 + write the active ``kid`` header.
+
+    Falls back to ``settings.jwt_kid`` if ``kid`` is omitted.
+    """
+    headers = {"kid": kid or settings.jwt_kid}
+    secret = _resolve_signing_key(headers["kid"])
+    return jwt.encode(payload, secret, algorithm="HS256", headers=headers)
+
+
+def _jwt_verify(token: str, *, audience: str | None, issuer: str | None, leeway: int = 0,
+                options: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Verify ``token`` using the key chosen by its JOSE ``kid`` header.
+
+    ``audience`` / ``issuer`` / ``leeway`` / ``options`` are passed straight
+    to PyJWT — this helper only differs from raw ``jwt.decode`` in that it
+    selects the verification key from ``settings.jwt_secret_keyring``.
+    """
+    kid, secret = _resolve_verification_key(token)
+    return jwt.decode(
+        token,
+        secret,
+        algorithms=["HS256"],
+        audience=audience,
+        issuer=issuer,
+        leeway=_td(seconds=leeway) if leeway is not None else None,
+        options=options,  # type: ignore[arg-type]  # PyJWT 运行时接受 dict；mypy stub 仅认 Options TypedDict
+    )
 
 
 class UsernameTakenError(AuthError):
@@ -211,7 +272,7 @@ def create_access_token(user: User) -> str:
         exp_seconds=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         token_type="access",
     )
-    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
+    return _jwt_sign(payload)
 
 
 def create_refresh_token(user: User) -> str:
@@ -221,7 +282,7 @@ def create_refresh_token(user: User) -> str:
         exp_seconds=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         token_type="refresh",
     )
-    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
+    return _jwt_sign(payload)
 
 
 def decode_token(token: str) -> dict[str, Any]:
@@ -230,19 +291,17 @@ def decode_token(token: str) -> dict[str, Any]:
     Raises InvalidTokenError on invalid/expired/wrong-audience/wrong-issuer.
     Enforces aud/iss claims (SEC-03).
     """
-    from datetime import timedelta as _td
+    from datetime import timedelta as _td  # noqa: F401  kept for backward import compat
 
     if token.count(".") != 2:
         raise InvalidTokenError("Invalid JWT format")
 
     try:
-        payload = jwt.decode(
+        payload = _jwt_verify(
             token,
-            settings.secret_key,
-            algorithms=["HS256"],
-            leeway=_td(seconds=int(settings.jwt_leeway_seconds)),
             audience=settings.jwt_audience,
             issuer=settings.jwt_issuer,
+            leeway=int(settings.jwt_leeway_seconds),
             options={
                 "require": ["iat", "sub", "exp"],
                 "verify_aud": bool(settings.jwt_audience),
@@ -401,10 +460,8 @@ async def create_tokens(user: User, redis: Redis) -> dict[str, Any]:
     refresh_token = create_refresh_token(user)
 
     # Decode refresh to get jti for Redis storage
-    refresh_payload = jwt.decode(
+    refresh_payload = _jwt_verify(
         refresh_token,
-        settings.secret_key,
-        algorithms=["HS256"],
         audience=settings.jwt_audience,
         issuer=settings.jwt_issuer,
         options={"verify_exp": False},
@@ -533,10 +590,8 @@ async def revoke_refresh_token(refresh_token: str, redis: Redis) -> bool:
     """
     actor = "unknown"
     try:
-        payload = jwt.decode(
+        payload = _jwt_verify(
             refresh_token,
-            settings.secret_key,
-            algorithms=["HS256"],
             audience=settings.jwt_audience,
             issuer=settings.jwt_issuer,
             options={"verify_exp": False},

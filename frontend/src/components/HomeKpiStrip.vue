@@ -29,10 +29,10 @@ const emit = defineEmits<{
 //：每个 KPI 数字的口径说明，避免跨页面"同名异值"误导
 function kpiTooltip(field: string): string {
   const map: Record<string, string> = {
-    totalDomains: '知识图谱核心分类数（domain）。',
-    totalPositions: '图谱 Position 节点数，与 PostgreSQL position_records 同步（单一真理源，可在 管理后台/数据源诊断 核对）。',
-    totalSkills: '图谱 Skill 节点数（去重）。',
-    totalRelations: '岗位-技能 REQUIRES 关系边总数（与数据大屏口径一致，=Neo4j/PG）。领域视图中的连线是按领域聚合后的跨领域连接，数量较少，故与该 KPI 不同。',
+    totalDomains: '知识图谱核心分类数。',
+    totalPositions: '图谱中已发布的岗位总数，与主数据同步（可在「管理后台 → 数据源诊断」中核对）。',
+    totalSkills: '图谱中已发布的技能总数（去重）。',
+    totalRelations: '岗位与技能之间的关联数（与数据大屏口径一致）。领域视图中的连线是按领域聚合后的跨领域连接，数量较少，故与该 KPI 不同。',
   }
   return map[field] ?? ''
 }

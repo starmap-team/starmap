@@ -78,6 +78,7 @@ async def backfill(batch_size: int, limit: int, dry_run: bool) -> None:
                 print(f"  [dry] {n!r} -> (待翻译)")
                 done += 1
             continue
+        assert llm is not None  # dry_run 分支已 continue，此处必非空
         translated = await _translate_batch(llm, names)
         for sk in batch:
             name_cn = translated.get(sk.name)

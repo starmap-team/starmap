@@ -50,19 +50,41 @@ from app.services.graph_serializers import (
 async def _resolve_position_name(driver: Any, position_name: str) -> str:
  # 业务说明：根据用户输入的职位名称，在 Neo4j 中模糊匹配最接近的正式职位名称，
  # 支持精确匹配、子串匹配和双向包含匹配，提升搜索容错率。
-    """Resolve the closest Neo4j Position name."""
+ # 契约统一（name_cn→name）：前端下拉/深链可能传中文显示名 name_cn，这里先按
+ # name_cn 精确/包含解析回 canonical name，再回退 name 精确/包含，保证两类键都能命中。
+    """Resolve the closest Neo4j Position name (supports name & name_cn)."""
     async with driver.session() as session:
+        # 1) 精确: p.name = $name 或 p.name_cn = $name
         exact = await session.run(
-            "MATCH (p:Position) WHERE p.name = $name RETURN p.name AS name LIMIT 1", name=position_name
+            "MATCH (p:Position) WHERE p.name = $name OR coalesce(p.name_cn, '') = $name "
+            "RETURN p.name AS name LIMIT 1",
+            name=position_name,
         )
         rec = await exact.single()
         if rec and rec["name"]:
             return rec["name"]
-        rows = await session.run("MATCH (p:Position) RETURN p.name AS name")
+        rows = await session.run(
+            "MATCH (p:Position) RETURN p.name AS name, coalesce(p.name_cn, '') AS name_cn"
+        )
         target = position_name.strip().lower()
         async for row in rows:
-            candidate = str(row["name"] or "").strip()
-            if candidate.lower() == target or target in candidate.lower() or candidate.lower() in target:
+            candidate = str(row.get("name") or "").strip()
+            candidate_cn = str(row.get("name_cn") or "").strip()
+            cand_lower = candidate.lower()
+            cand_cn_lower = candidate_cn.lower()
+            # name_cn 为空时跳过包含匹配（`"" in target` 恒真会误命中）
+            cn_hit = bool(candidate_cn) and (
+                cand_cn_lower == target
+                or target in cand_cn_lower
+                or cand_cn_lower in target
+            )
+            # 2) 包含匹配: name 或 name_cn 任一命中即返回 canonical name
+            if (
+                cand_lower == target
+                or target in cand_lower
+                or cand_lower in target
+                or cn_hit
+            ):
                 return candidate
     return position_name
 

@@ -146,7 +146,7 @@ tmp_*.py
 backend/test_*.py
 /check_*.py
 
-# ---- Agent / AI 工具运行时目录 ----
+# ---- 插件运行时目录 ----
 .claude/
 .claude-flow/
 .playwright-mcp/
@@ -159,6 +159,9 @@ graphify-out/
 screenshots/
 .zcode/
 .workbuddy/
+.mimosa/
+backend/.mimosa/
+frontend/.mimosa/
 # .planning 整体忽略（开发过程产物，不进版本库）
 .planning/
 backend/.planning/
@@ -208,6 +211,18 @@ scripts/fix_graph_data.py
 scripts/fix_graph_*.py
 backend/scripts/seed_changelog.py
 
+# ---- 本地保留、仅远程移除的归档/一次性工具（禁止再次入库）----
+scripts/archive/
+scripts/browser_e2e.js
+scripts/browser_e2e_test.py
+scripts/check_pw.bat
+crawler/scripts/pr_description.md
+docs/archive/audits/CONTRACT_AUDIT.md
+docs/archive/deployment-guide.en.md
+docs/architecture/loop-e2e-verify.md
+docs/architecture/position-e2e-verify.md
+docs/architecture/quality-e2e-verify.md
+
 # ---- 截图 / 图片产物 ----
 _*.png
 _*.jpg
@@ -256,7 +271,6 @@ positions-all-industries.png
 positions-current-state.png
 positions-with-scope.png
 
-# AI 工作产物截图（dashboard-*/match-*/position-*/positions-*）
 dashboard-*.png
 match-*.png
 position-*.png

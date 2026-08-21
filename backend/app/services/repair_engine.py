@@ -309,6 +309,8 @@ class RepairEngine:
                 {
                     "canonical_id": str(s.id),
                     "name": s.name,
+                    # 2026-08-20 (修复 B): 与 graph_projector 一致带 name_cn
+                    "name_cn": s.name_cn or "",
                     "category": s.category,
                     "source_count": s.source_count,
                 }
@@ -404,9 +406,81 @@ class RepairEngine:
                 },
             ))
             new_items += 1
-        if new_items or updated_items:
+
+        # 2026-08-21 (debug 修复): stale 队列清理 —— 此前 sync 只检测"当前孤儿"
+        # 写入队列；不刷新已有 pending 条目的 canonical_id。后果：Neo4j 节点后
+        # 续通过 reconcile 补了 canonical_id（已链接到 PG），但队列条目还停在
+        # pending + canonical_id=NULL → 数据源诊断面板显示「孤立岗位 0/孤立技能 0
+        # 同步健康度 正常」与「队列 23 pending」看似矛盾（口径不同，实际是 stale）。
+        # 修复：sync 时扫描所有 pending 条目，按 name 查 Neo4j 当前 canonical_id；
+        # 若节点已链接（cid 非空且 PG 匹配）→ 队列条目标 STATUS_LINKED；
+        # 若节点已不存在（被前面 reconcile 剪枝）→ 标 STATUS_CLEANED。
+        reconciled = await self._reconcile_orphan_queue_status(pg_session)
+
+        if new_items or updated_items or reconciled:
             await pg_session.commit()
-        return new_items + updated_items
+        return new_items + updated_items + reconciled
+
+    async def _reconcile_orphan_queue_status(self, pg_session: Any) -> int:
+        """2026-08-21: 扫描 pending 队列条目，匹配 Neo4j 节点当前状态自动标
+        linked/cleaned，避免「健康度 0」与「队列 pending」的口径不一致。
+
+        容错：driver 不可用或 Neo4j 调用异常 → 直接返回 0（不阻断 sync_orphan_queue
+        主流程）。旧 pending 条目保留为 stale 但不阻塞其它修复。
+        """
+        if self._driver is None:
+            return 0
+        pending = (await pg_session.execute(
+            select(OrphanCleanupQueue).where(OrphanCleanupQueue.status == STATUS_PENDING)
+        )).scalars().all()
+        if not pending:
+            return 0
+        updated = 0
+        try:
+            async with self._driver.session() as session:
+                for item in pending:
+                    try:
+                        # 按 node_type + name 查 Neo4j 当前节点
+                        res = await session.run(
+                            f"MATCH (n:{item.node_type}) WHERE n.name = $name "
+                            "RETURN n.canonical_id AS cid, n.name AS name LIMIT 1",
+                            name=item.name,
+                        )
+                        rec = await res.single()
+                    except Exception as inner_exc:
+                        # 单条 Neo4j 调用失败 → 跳过本条（不阻断整批）
+                        logger.debug("reconcile_orphan_queue: skip %s: %s",
+                                     item.name, inner_exc)
+                        continue
+                    if rec is None:
+                        # Neo4j 节点已不存在（被 reconcile 剪枝）→ 队列条目作废
+                        item.status = STATUS_CLEANED
+                        item.reviewed_at = datetime.now(UTC)
+                        item.detail = dict(item.detail or {}) | {"auto_cleaned": "node removed from Neo4j"}
+                        updated += 1
+                        continue
+                    neo4j_cid = rec.get("cid") if hasattr(rec, "get") else rec["cid"]
+                    if neo4j_cid and item.canonical_id != neo4j_cid:
+                        # Neo4j 节点已建立 canonical_id（此前为 NULL）→ 队列条目同步
+                        item.canonical_id = neo4j_cid
+                        detail = dict(item.detail or {})
+                        detail["auto_linked_cid"] = neo4j_cid
+                        item.detail = detail
+                    # Neo4j.canonical_id 非空且在 PG（脱链 PG 端验证见 detect_orphans）：
+                    # 此节点已链接 → 队列条目标 linked
+                    if neo4j_cid:
+                        item.status = STATUS_LINKED
+                        item.reviewed_at = datetime.now(UTC)
+                        item.detail = dict(item.detail or {}) | {"auto_linked": True}
+                        updated += 1
+        except Exception as outer_exc:
+            # Neo4j 会话整体失败（driver 不可用/mock 测试）→ 不阻断 sync
+            logger.warning("reconcile_orphan_queue skipped (driver unavailable): {}",
+                           outer_exc)
+            return 0
+        if updated:
+            logger.info("orphan queue stale reconciliation: {} items updated", updated)
+        return updated
 
     async def get_orphan_queue(
         self, pg_session: Any, *, status: str | None = None, limit: int = 200,

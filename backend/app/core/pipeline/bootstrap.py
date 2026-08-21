@@ -2,14 +2,18 @@
 
 检测 PIPELINE_BOOTSTRAP=true → 延迟 30s 后入队一次完整 pipeline run。
 仅一次性（不循环）。在 worker 进程内同步触发 executor.trigger_and_start。
+
+读取走 settings.pipeline_bootstrap（受 config.py 生产 fail-fast 守卫保护）：
+生产环境下即使 .env.production 误开 PIPELINE_BOOTSTRAP=true，进程启动即拒。
 """
 from __future__ import annotations
 
 import asyncio
-import os
 import threading
 
 from loguru import logger
+
+from app.config import settings
 
 BOOTSTRAP_DELAY_SECONDS = 30
 
@@ -20,13 +24,12 @@ def schedule_bootstrap_if_enabled() -> None:
     使用 threading.Timer 而非 asyncio，避免在 worker 主循环阻塞 30 秒。
     错误吞掉并 logger.exception（不影响 worker 启动）。
     """
-    flag = os.getenv("PIPELINE_BOOTSTRAP", "").strip().lower()
-    if flag not in ("1", "true", "yes"):
+    if not settings.pipeline_bootstrap:
         return
 
     logger.info(
-        "PIPELINE_BOOTSTRAP={}; will enqueue a single pipeline run in {}s",
-        flag, BOOTSTRAP_DELAY_SECONDS,
+        "PIPELINE_BOOTSTRAP=true (env); will enqueue a single pipeline run in {}s",
+        BOOTSTRAP_DELAY_SECONDS,
     )
 
     def _fire() -> None:

@@ -9,10 +9,10 @@ import { useJdStore } from '@/stores/jd'
 const jdStore = useJdStore()
 
 const emit = defineEmits<{
-  select: [position: { position_id: string; name: string }]
+  select: [position: { position_id: string; name: string; name_cn?: string | null }]
 }>()
 
-const options = ref<{ label: string; value: string; position_id: string }[]>([])
+const options = ref<{ label: string; value: string; position_id: string; name?: string; name_cn?: string | null }[]>([])
 const selected = ref('')
 const loading = ref(false)
 
@@ -38,7 +38,7 @@ async function remoteMethod(q: string) {
 function handleChange(val: string) {
   if (val) {
     const opt = options.value.find(o => o.value === val)
-    if (opt) emit('select', { position_id: opt.position_id, name: opt.label })
+    if (opt) emit('select', { position_id: opt.position_id, name: opt.name ?? opt.label, name_cn: opt.name_cn })
   }
 }
 </script>

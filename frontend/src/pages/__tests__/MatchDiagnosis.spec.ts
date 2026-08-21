@@ -229,6 +229,10 @@ describe('MatchDiagnosis.vue', () => {
   })
 
   it('空结果守卫：无匹配结果时停留在 step 2 并提示，不进入差距报告', async () => {
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/graph/position/')) return Promise.resolve(SAMPLE_POSITION_SKILLS)
+      return Promise.resolve({ items: [] })
+    })
     mockPost.mockResolvedValue(EMPTY_RESULT)
     const warnSpy = vi.spyOn(ElMessage, 'warning')
     const wrapper = mountPage()

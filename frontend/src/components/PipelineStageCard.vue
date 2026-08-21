@@ -51,25 +51,25 @@ const STAGE_DESCRIPTIONS: Record<string, { role: string; deps: string[]; status_
     },
   },
   import: {
-    role: 'LLM 技能识别 + 标准化 + 验证，持久化到 PostgreSQL',
+    role: '智能识别技能、标准化命名、验证结果，持久化到主数据库',
     deps: ['clean'],
     status_meaning: {
       pending: '等待 clean 完成',
-      running: 'LLM 抽取技能（extract/normalize/persist 子步骤）',
-      completed: 'LLM 抽取完成（PG skill_records 已落库）',
-      failed: 'LLM 失败 — 重试或检查 API 配额',
+      running: '正在抽取技能（识别 / 标准化 / 保存）',
+      completed: '技能抽取完成，已写入主数据',
+      failed: '抽取失败 — 可重试或检查 API 配额',
       skipped: '上游失败导致跳过',
       cancelled: '用户取消',
     },
   },
   graph_sync: {
-    role: '将 PG 数据同步到 Neo4j 图谱（outbox 模式防漂移）',
+    role: '将主数据同步到图谱（事务队列模式保证一致性）',
     deps: ['import'],
     status_meaning: {
       pending: '等待 import 完成',
-      running: 'Neo4j 图投影（outbox 模式 + 可选 reconcile）',
-      completed: '图谱同步完成（triples 已 MERGE）',
-      failed: 'Neo4j 写入失败 — outbox 记录待重试',
+      running: '正在同步到图谱（含事务队列 + 可选对账）',
+      completed: '图谱同步完成',
+      failed: '图谱写入失败 — 事务队列记录待重试',
       skipped: '上游失败导致跳过',
       cancelled: '用户取消',
     },
@@ -95,6 +95,7 @@ export interface StageData {
   records_processed: number
   records_seen?: number          // Phase 3.8.11
   errors: string[]
+  errors_raw?: string[]
   warnings?: string[]            // 非致命警告（如 crawl 0 条采集），不判 failed
   progress: number
   retry_count?: number
@@ -246,11 +247,16 @@ const dedupedWarnings = computed(() => {
 
 // 残留闭环: 错误去重 + 计数，避免同一错误重复罗列 20 次
 const dedupedErrors = computed(() => {
-  const counts = new Map<string, number>()
-  for (const err of props.stage.errors) {
-    counts.set(err, (counts.get(err) || 0) + 1)
-  }
-  return Array.from(counts.entries()).map(([msg, count]) => ({ msg, count }))
+  const counts = new Map<string, { count: number; rawIdx: number }>()
+  props.stage.errors.forEach((err, idx) => {
+    const entry = counts.get(err)
+    if (entry) {
+      entry.count += 1
+    } else {
+      counts.set(err, { count: 1, rawIdx: idx })
+    }
+  })
+  return Array.from(counts.entries()).map(([msg, { count, rawIdx }]) => ({ msg, count, rawIdx }))
 })
 
 //: 显示 "X / Y" (入库 / 抓到) 让用户区分 dedup
@@ -610,6 +616,14 @@ const realProgress = computed(() => {
                 v-if="item.count > 1"
                 class="error-repeat-badge"
               > ×{{ item.count }}</span>
+              <!-- 2026-08-21: 技术原文折叠展示（普通用户看中文，运维看原文） -->
+              <div
+                v-if="stage.errors_raw?.[item.rawIdx] && stage.errors_raw[item.rawIdx] !== item.msg"
+                class="error-raw"
+              >
+                <span class="error-raw-label">技术详情</span>
+                <code>{{ stage.errors_raw[item.rawIdx] }}</code>
+              </div>
             </div>
           </div>
         </template>
@@ -960,6 +974,28 @@ const realProgress = computed(() => {
   background: color-mix(in srgb, var(--destructive) 15%, transparent);
   border-radius: 3px;
   color: var(--destructive);
+}
+
+/* 2026-08-21: 错误技术原文（折叠展示） */
+.error-raw {
+  margin-top: 2px;
+  padding: 3px 6px;
+  font-size: 10px;
+  background: var(--bg-muted, #f8fafc);
+  border-radius: 3px;
+  color: #64748b;
+  word-break: break-all;
+}
+.error-raw-label {
+  display: inline-block;
+  margin-right: 6px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+.error-raw code {
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  color: #475569;
 }
 
 /* 非致命警告（crawl 0 条采集等） */

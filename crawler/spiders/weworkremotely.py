@@ -26,7 +26,7 @@ def run_sync(keyword: str = "", max_count: int = 20) -> list[dict[str, Any]]:
     except ET.ParseError:
         return items
 
-    now = datetime.now(UTC).isoformat
+    now = datetime.now(UTC).isoformat()
     for item in root.findall(".//item")[:max_count]:
         title_text = item.findtext("title", "") or ""
         link = item.findtext("link", "") or ""
@@ -36,11 +36,11 @@ def run_sync(keyword: str = "", max_count: int = 20) -> list[dict[str, Any]]:
         # WWR title 格式: "Company: Position" 或 "Company: Position (Category)"
         if ":" in title_text:
             parts = title_text.split(":", 1)
-            company = parts[0].strip
-            position = parts[1].strip
+            company = parts[0].strip()
+            position = parts[1].strip()
         else:
             company = ""
-            position = title_text.strip
+            position = title_text.strip()
 
         items.append({
             "source_site": "weworkremotely",
@@ -56,7 +56,7 @@ def run_sync(keyword: str = "", max_count: int = 20) -> list[dict[str, Any]]:
             "crawled_at": now,
             "content_hash": hashlib.sha256(
                 (link + title_text).encode("utf-8")
-            ).hexdigest,
+            ).hexdigest(),
             "detail_html": "",
         })
     return items

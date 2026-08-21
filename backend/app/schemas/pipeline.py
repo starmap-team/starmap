@@ -18,6 +18,8 @@ class StageInfo(BaseModel):
     records_new: int | None = Field(None, ge=0, description="crawl 真正新增行数")
     records_duplicate: int | None = Field(None, ge=0, description="crawl 重复行数")
     errors: list[str] = Field(default_factory=list, description="阶段错误信息列表")
+    # 2026-08-21: 中文可读错误 + 技术原文（前端展开用）
+    errors_raw: list[str] = Field(default_factory=list, description="阶段错误原文（未翻译）")
     errors_count: int = Field(0, ge=0, description="Count of errors (alias for len(errors))")
     warnings: list[str] = Field(default_factory=list, description="阶段非致命警告（如 crawl 0 条采集），不判 failed")
     retry_count: int = Field(0, ge=0, description="阶段重试次数")
@@ -42,6 +44,8 @@ class PipelineRunResponse(BaseModel):
     updated_records: int = Field(default=0, ge=0, description="更新记录数")
     quality_score: float = 0.0
     error_log: str | None = None
+    # 2026-08-21: error_log 原文（未翻译，前端技术详情展开用）
+    error_log_raw: str | None = None
     selected_stages: list[str] | None = None
     selected_sources: list[str] | None = None
 

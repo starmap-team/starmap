@@ -127,7 +127,12 @@ def _build_result(ctx: PipelineContext) -> dict[str, Any]:
     # 取 top-1 岗位的差距和学习路径
     top_match = sorted_matches[0][1] if sorted_matches else {}
     skill_gaps = top_match.get("skill_gap_detail", [])
-    learning_path = [gap.get("learning_path", []) for gap in skill_gaps if gap.get("gap_level") != GAP_LEVEL_MASTERED]
+    # 兼容 gap.learning_path 为显式 None 的历史数据（P0 场景，[] 可安全渲染）
+    learning_path = [
+        gap.get("learning_path") or []
+        for gap in skill_gaps
+        if gap.get("gap_level") != GAP_LEVEL_MASTERED
+    ]
 
     return {
         "extracted_skills": [
@@ -142,7 +147,9 @@ def _build_result(ctx: PipelineContext) -> dict[str, Any]:
         ],
         "top_matches": [
             {
-                "position": name,
+                # P5: MatchStep 注入的 _display_name（name_cn 优先）在此消费，
+                # 避免 top_matches 与岗位详情页中文名口径不一致
+                "position": result.get("_display_name") or name,
                 "match_score": result.get("match_score", 0),
                 "assessment": result.get("overall_assessment", ""),
                 "gap_count": len(result.get("missing_required", [])),

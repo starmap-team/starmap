@@ -25,6 +25,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
 from app.core.llm.cost_tracker import tracker
+from app.core.llm.response_cache import response_cache
 
 
 class LLMConnectionError(Exception):
@@ -37,6 +38,14 @@ class LLMResponseError(Exception):
 
 class LLMTimeoutError(Exception):
     """Raised when the LLM API request times out."""
+
+
+class LLMBlockedError(Exception):
+    """Raised when LLM call is blocked by hard guard (cost cap, 128K gate, kill switch).
+
+    Phase 27: 与 LLMConnectionError 不同,此异常**绝不重试** —— 重试也不会成功,
+    上层应该记录 + 跳过(避免按量计费)。
+    """
 
 
 # Model mappings（端点 URL 由 settings.spark_http_url / settings.deepseek_http_url 提供）
@@ -115,7 +124,7 @@ async def call_mimo_llm(
     content = message.get("content", "")
     reasoning = message.get("reasoning_content", "")
     logger.debug("MiMo response: {} output chars, {} reasoning chars", len(content), len(reasoning))
-    return {"role": "assistant", "content": content, "model": settings.mimo_model}
+    return {"role": "assistant", "content": content, "model": settings.mimo_model, "finish_reason": choices[0].get("finish_reason")}
 
 
 @retry(
@@ -197,7 +206,7 @@ async def call_xunfei_llm(
     message = choices[0].get("message", {})
     content = message.get("content", "")
     logger.debug("Xunfei response received ({} chars)", len(content))
-    return {"role": "assistant", "content": content, "model": model_version}
+    return {"role": "assistant", "content": content, "model": model_version, "finish_reason": choices[0].get("finish_reason")}
 
 
 async def call_spark_x_llm(
@@ -273,7 +282,7 @@ async def call_spark_x_llm(
     content = message.get("content", "")
     reasoning = message.get("reasoning_content", "")
     logger.debug("Spark X response: {} output chars, {} reasoning chars", len(content), len(reasoning))
-    return {"role": "assistant", "content": content, "model": settings.spark_x_model}
+    return {"role": "assistant", "content": content, "model": settings.spark_x_model, "finish_reason": choices[0].get("finish_reason")}
 
 
 @retry(
@@ -343,7 +352,7 @@ async def call_deepseek_llm(
     message = choices[0].get("message", {})
     content = message.get("content", "")
     logger.debug("DeepSeek response received ({} chars)", len(content))
-    return {"role": "assistant", "content": content, "model": settings.deepseek_model}
+    return {"role": "assistant", "content": content, "model": settings.deepseek_model, "finish_reason": choices[0].get("finish_reason")}
 
 
 async def call_dashscope_llm(
@@ -380,6 +389,13 @@ async def call_dashscope_llm(
         "model": settings.dashscope_model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.5,
+        # FIX (resume-analysis-llm-parse-errors 2026-08-21): 2048 → 4096.
+        # Phase 27 曾按"实测抽取 JSON ~1500 tokens"把 4096 降到 2048 以节省
+        # 长尾输出;但复杂简历(技能多/项目经历详实)的 jd_extraction 真实输出
+        # 会超过 2048 tokens(实测 2886 tokens / 9723 chars),此时 finish_reason=
+        # length 截断,JSON 字符串被拦腰截断 → parse_llm_json_response 抛
+        # "Unterminated string",/resume/upload 422、/pipeline/analyze 技能为空。
+        # 恢复 4096 提供充足余量(2886 → 41% 余量),最大单次成本增量有限。
         "max_tokens": 4096,
     }
 
@@ -413,7 +429,16 @@ async def call_dashscope_llm(
     message = choices[0].get("message", {})
     content = message.get("content", "")
     logger.debug("DashScope response received ({} chars)", len(content))
-    return {"role": "assistant", "content": content, "model": settings.dashscope_model}
+    # FIX (resume-analysis-llm-parse-errors): 透传 finish_reason,便于
+    # _call_and_track 识别 "length"(max_tokens 截断)并**不缓存**截断响应
+    # (否则 7 天 TTL 的 Redis 缓存会保存解析失败的脏响应,修好 max_tokens
+    #  后同一 prompt 仍持续命中旧截断 → 症状不消失)。
+    return {
+        "role": "assistant",
+        "content": content,
+        "model": settings.dashscope_model,
+        "finish_reason": choices[0].get("finish_reason"),
+    }
 
 
 # Spark X 深度推理对长 prompt 会触发讯飞网关 60s 504（实测：抽取 prompt ~2582 chars
@@ -443,6 +468,59 @@ async def call_llm_with_fallback(
     fallback_budget_seconds = 180.0
     fallback_start = time.monotonic()
 
+    # Phase 27 (qwen-plus 资源包优化): 优先按 model + prompt 查 Redis 缓存,
+    # 命中时记账但不计入 fallback budget、不再尝试任何 provider。
+    # 缓存键设计: `llm:resp:{model}:{sha256(prompt)}`,见 response_cache.py。
+    # 2026-08-21: 改用 await aget —— 同步 get() 在 loop 内 run_coroutine_threadsafe
+    # 会死锁(loop 被当前协程占用) → 每次白等 2s 且永远 miss。
+    cached = await response_cache.aget(settings.dashscope_model, prompt)
+    if cached:
+        tracker.record(
+            model=cached.get("model", settings.dashscope_model),
+            prompt=prompt,
+            content=str(cached.get("content", "")),
+        )
+        logger.info("LLM cache hit: prompt_len={}", len(prompt))
+        return cached
+
+    # Phase 27: 每日成本 cap 检查 —— 防止意外情况下累积成本爆表
+    if tracker.is_blocked(settings.dashscope_model):
+        logger.warning(
+            "LLM call blocked by cost cap: model={} cap=¥{:.2f}",
+            settings.dashscope_model,
+            tracker.get_model_cap(settings.dashscope_model),
+        )
+        raise LLMBlockedError(
+            f"LLM cost cap exceeded: model={settings.dashscope_model} "
+            f"cap=¥{tracker.get_model_cap(settings.dashscope_model):.2f}/day"
+        )
+
+    # Phase 27 资源包严格保护: 全局启用开关。紧急止血用,
+    # .env 设 LLM_ENABLED=false 重启即可立即阻断所有 LLM 调用。
+    # 容错:settings 可能被测试替换为 MagicMock(返回 MagicMock 而非 bool),
+    # 此时按"启用"处理,避免误阻断既有测试。
+    llm_enabled_flag = getattr(settings, "llm_enabled", True)
+    if isinstance(llm_enabled_flag, bool) and not llm_enabled_flag:
+        logger.warning("LLM call blocked by global kill switch (llm_enabled=false)")
+        raise LLMBlockedError("LLM globally disabled (llm_enabled=false)")
+
+    # Phase 27 资源包严格保护: 单次请求 input token 128K 闸门。
+    # 资源包规则:单次请求输入 >128K 的费用不抵扣(按量计费)。
+    # 即使在 cap 之内,单次超 128K 也会扣费 → 必须阻断。
+    # 估算用 chars/4 (OpenAI 启发式);超阈值直接阻断,绝不发送请求。
+    # 容错:settings 可能为 MagicMock → 仅在值为 int 时启用。
+    _raw_limit = getattr(settings, "llm_max_input_chars_per_request", 0)
+    max_chars = int(_raw_limit) if isinstance(_raw_limit, (int, float)) else 0
+    if max_chars > 0 and len(prompt) > max_chars:
+        logger.warning(
+            "LLM call blocked: prompt exceeds 128K token limit "
+            "(chars={} > limit={}, ~{}K tokens)",
+            len(prompt), max_chars, len(prompt) // 4 // 1000,
+        )
+        raise LLMBlockedError(
+            f"prompt exceeds 128K token limit: {len(prompt)} chars > {max_chars} chars"
+        )
+
     async def _call_and_track(coro_factory):  # type: ignore[no-untyped-def]
         """Run a provider call and record its cost before returning."""
         elapsed = time.monotonic() - fallback_start
@@ -452,6 +530,17 @@ async def call_llm_with_fallback(
                 f"tried: {'; '.join(errors) if errors else 'no providers'}"
             )
         resp = await coro_factory(prompt)
+        # 写入 Redis 缓存(以响应中实际使用的 model 命名,后续跨 provider 命中更安全)。
+        # FIX (resume-analysis-llm-parse-errors): finish_reason=="length"(max_tokens
+        # 截断)的响应**绝不缓存**——否则解析失败的脏响应会以 7 天 TTL 留在 Redis,
+        # 即使后续调大 max_tokens,相同 prompt 仍持续命中旧截断,症状无法消失。
+        if resp.get("finish_reason") != "length":
+            await response_cache.aset(resp.get("model", settings.dashscope_model), prompt, resp)
+        else:
+            logger.warning(
+                "LLM response truncated (finish_reason=length) — skipped cache write: model={} chars={}",
+                resp.get("model"), len(str(resp.get("content", ""))),
+            )
         tracker.record(
             model=resp.get("model", "unknown"),
             prompt=prompt,
@@ -522,23 +611,30 @@ async def call_llm_with_fallback(
     try:
  # 本地 Ollama 生成慢（短 JD ~40-120s+），硬编码 120s 常导致真实抽取
  # 超时。放宽到 300s，让本地降级模型也能完成真实抽取（前端同步放宽）。
-        async with httpx.AsyncClient(timeout=httpx.Timeout(300)) as client:
-            resp = await client.post(
-                ollama_url,
-                json={
-                    "model": settings.qwen_model_name,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.5,
-                        "num_predict": 4096,
+            async with httpx.AsyncClient(timeout=httpx.Timeout(300)) as client:
+                resp = await client.post(
+                    ollama_url,
+                    json={
+                        "model": settings.qwen_model_name,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.5,
+                            # FIX (resume-analysis-llm-parse-errors): 2048 → 4096,
+                            # 与 DashScope 路径一致 —— 复杂简历输出可超 2048 tokens,
+                            # 截断会导致 JSON 解析失败/技能为空。
+                            "num_predict": 4096,
+                        },
                     },
-                },
-            )
+                )
             resp.raise_for_status()
             data = resp.json()
             content = data["message"]["content"]
-            result = {"role": "assistant", "content": content, "model": f"{settings.qwen_model_name.replace(':', '-')}-fallback"}
+            # Ollama 非流式响应用 done_reason 表示停止原因("stop"/"length"),
+            # 映射为 finish_reason 供 _call_and_track 判定截断(不缓存)。
+            done_reason = data.get("done_reason")
+            finish_reason = "length" if done_reason == "length" else ("stop" if done_reason else None)
+            result = {"role": "assistant", "content": content, "model": f"{settings.qwen_model_name.replace(':', '-')}-fallback", "finish_reason": finish_reason}
             tracker.record(model=result["model"], prompt=prompt, content=content)
             return result
     except httpx.TimeoutException as e:

@@ -409,7 +409,7 @@ describe('useEvolutionStore', () => {
     await expect(store.fetchKpi()).rejects.toThrow('Server error')
 
     expect(store.kpi.emerging_count).toBe(0)
-    expect(store.kpi.trust_mean).toBe(0)
+    expect(store.kpi.trust_mean).toBeNull()  // 空表后端返回 null → 显示"—"而非误导 0%
     expect(store.kpi.cii_mean).toBe(0)
     expect(store.kpi.alert_count).toBe(0)
     expect(store.kpiLoading).toBe(false)

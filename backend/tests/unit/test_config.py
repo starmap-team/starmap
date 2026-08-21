@@ -46,6 +46,9 @@ def _isolate_from_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     monkeypatch.setenv("BOOTSTRAP_SEED_ADMIN", "false")
     monkeypatch.setenv("DEV_ANON_ADMIN", "false")
+    # public-deploy-preflight 守卫：生产环境必须显式 ALLOWED_HOSTS（config.py:608）
+    # pydantic-settings 对 list 字段优先按 JSON 解析，必须用 JSON 数组格式
+    monkeypatch.setenv("ALLOWED_HOSTS", '["starmap.example.com"]')
 
 
 def test_llm_keys_all_empty_warns():

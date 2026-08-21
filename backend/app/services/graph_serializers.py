@@ -191,14 +191,25 @@ def skill_item(node: dict[str, Any], rel: dict[str, Any] | None = None) -> dict[
     props = dict(node.get("properties") or {})
     rel_props = dict((rel or {}).get("properties") or {})
     level = rel_props.get("level")
- # Default to False (bonus) when no explicit required property exists
-    required = rel_props.get("required", False)
+    # 关系属性命名有两种来源（历史演进）：
+    # - 旧写路径（graph_writer.create_requires_relationship）写 `required: bool`
+    # - 现写路径（graph_projection / graph_projector）写 `requirement_type: "required|preferred"`
+    # 二者语义一致，读側统一兼容；缺省按 bonus 处理（保持原默认）。
+    raw_required = rel_props.get("requirement_type") if "requirement_type" in rel_props else rel_props.get("required")
+    if raw_required is None:
+        required = False
+    elif isinstance(raw_required, bool):
+        required = raw_required
+    else:
+        required = str(raw_required).lower() == "required"
     category = props.get("category") or props.get("source_category") or "hard_skill"
     if category == "Skill":
         category = props.get("source_category") or "hard_skill"
     return {
         "skill_id": str(props.get("skill_id") or node.get("id") or props.get("name") or ""),
         "name": props.get("name") or node.get("id") or "",
+        # 2026-08-20 (修复 B): 透传 name_cn —— Neo4j 节点有中文名时前端直接可用
+        "name_cn": props.get("name_cn") or "",
         "category": category,
         "proficiency": props.get("proficiency") or normalize_proficiency(level),
         "confidence": float(props.get("confidence") or rel_props.get("confidence") or 1.0),
