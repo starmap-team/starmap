@@ -14,7 +14,7 @@ from sqlalchemy import BigInteger, Column, DateTime, MetaData, Table, func, sele
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.pipeline.serializers import serialize_datasource
-from app.core.pipeline.humanize_error import humanize_errors
+from app.services.pipeline_service import humanize_errors
 from app.dependencies import get_db_session
 from app.exceptions import StarMapError
 from app.models.pipeline_models import DataSourceRecord, PipelineRun

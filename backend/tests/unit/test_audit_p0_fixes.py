@@ -229,7 +229,7 @@ class TestSweepOrphanRunsTimezone:
             def __call__(self) -> FakeSession:
                 return FakeSession()
 
-        run = type("Run", (), {"started_at": naive_old, "status": "running", "id": uuid.uuid4()})()
+        run = type("Run", (), {"started_at": naive_old, "status": "running", "id": uuid.uuid4(), "stages": []})()
         captured_run["run"] = run
 
         # get_session_factory() 必须返回可调用对象（真实实现返回 async_sessionmaker），

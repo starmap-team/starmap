@@ -90,8 +90,8 @@ async def test_quality_dashboard_builder_aggregates_metrics():
             # （.source_count/.last_detected_at 属性访问）→ 原 5 个标量 mock
             # 与代码错位。改用 FakeRow 提供属性行。
             [
-                FakeRow((8, None), labels=["source_count", "last_detected_at"]),
-                FakeRow((2, None), labels=["source_count", "last_detected_at"]),
+                FakeRow(("sk-1", 8, None, "pending_review"), labels=["id", "source_count", "last_detected_at", "review_status"]),
+                FakeRow(("sk-2", 2, None, "approved"), labels=["id", "source_count", "last_detected_at", "review_status"]),
             ],                 # 10. skill_trust_rows (.all)
             [],                # 11. ts_rows (hallucination trend — empty)
             [("general", 100), ("hard_skill", 80)],  # 12. source_distribution
@@ -144,7 +144,7 @@ def test_quality_dashboard_endpoint_contract(client):
             # total_extractions=0 → high_trust_count 查询被跳过（见 L153 条件）
             (0,),             # 8. high_source_count
             # 2026-08-14 门禁修复: 信任度分桶查询属性行（同 aggregates 测试）
-            [FakeRow((0, None), labels=["source_count", "last_detected_at"])],  # 9. skill_trust_rows
+            [FakeRow(("sk-1", 0, None, "pending_review"), labels=["id", "source_count", "last_detected_at", "review_status"])],  # 9. skill_trust_rows
             [],               # 10. ts_rows (hallucination trend — empty)
             [("general", 0)], # 11. source_distribution
             (0,),             # 12. weekly_new_nodes: skill count

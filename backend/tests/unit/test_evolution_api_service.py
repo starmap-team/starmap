@@ -286,7 +286,7 @@ class TestKpi:
 
         result = await build_evolution_kpi(_FakeSession(None))
         assert result["emerging_count"] == 0
-        assert result["trust_mean"] == 0
+        assert result["trust_mean"] is None  # 空数据无均值（实现用 None 表示无数据）
         assert result["cii_mean"] == 0
         assert result["alert_count"] == 0
 

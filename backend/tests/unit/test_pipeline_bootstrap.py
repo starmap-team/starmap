@@ -35,8 +35,12 @@ def test_disabled_by_default(monkeypatch):
 
 def test_enabled_true(monkeypatch):
     """PIPELINE_BOOTSTRAP=true — 应调度 1 个 Timer,30s 延迟。"""
-    monkeypatch.setenv("PIPELINE_BOOTSTRAP", "true")
     _FakeTimer.instances.clear()
+    monkeypatch.setattr(
+        "app.core.pipeline.bootstrap.settings.pipeline_bootstrap",
+        True,
+        raising=False,
+    )
     monkeypatch.setattr(
         "app.core.pipeline.bootstrap.threading.Timer",
         lambda interval, fn, *a, **k: _FakeTimer(interval, fn),
@@ -48,8 +52,12 @@ def test_enabled_true(monkeypatch):
 
 def test_enabled_1(monkeypatch):
     """PIPELINE_BOOTSTRAP=1 — 也应调度 Timer。"""
-    monkeypatch.setenv("PIPELINE_BOOTSTRAP", "1")
     _FakeTimer.instances.clear()
+    monkeypatch.setattr(
+        "app.core.pipeline.bootstrap.settings.pipeline_bootstrap",
+        True,
+        raising=False,
+    )
     monkeypatch.setattr(
         "app.core.pipeline.bootstrap.threading.Timer",
         lambda interval, fn, *a, **k: _FakeTimer(interval, fn),

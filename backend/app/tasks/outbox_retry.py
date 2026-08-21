@@ -157,7 +157,7 @@ async def _replay_outbox_row(session_factory: Any, row: Any, driver: Any) -> boo
                                 PositionRecord.name.in_(position_names)
                             )
                         )
-                    ).all
+                    ).all()
                 }
             skill_map: dict[str, str] = {}
             if skill_names:
@@ -169,7 +169,7 @@ async def _replay_outbox_row(session_factory: Any, row: Any, driver: Any) -> boo
                                 SkillRecord.name.in_(skill_names)
                             )
                         )
-                    ).all
+                    ).all()
                 }
 
         if not extractions:
