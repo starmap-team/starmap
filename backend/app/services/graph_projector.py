@@ -520,7 +520,11 @@ class GraphProjector:
         try:
             from sqlalchemy import select as sa_select
 
-            from app.models.extraction_models import PositionRecord, PositionSkillRelation
+            from app.models.extraction_models import (
+                PositionRecord,
+                PositionSkillRelation,
+                SkillRecord,
+            )
 
             rel_rows = (
                 await pg_session.execute(
@@ -534,7 +538,14 @@ class GraphProjector:
                         PositionRecord,
                         PositionRecord.id == PositionSkillRelation.position_id,
                     )
-                    .where(PositionRecord.review_status == "approved")
+                    .join(
+                        SkillRecord,
+                        SkillRecord.id == PositionSkillRelation.skill_id,
+                    )
+                    .where(
+                        PositionRecord.review_status == "approved",
+                        SkillRecord.review_status == "approved",
+                    )
                 )
             ).all()
             relations = [

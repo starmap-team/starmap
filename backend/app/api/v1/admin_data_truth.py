@@ -87,15 +87,21 @@ async def get_data_truth(
         )).scalar() or 0
     )
     # P3c: PSR 关系行数（关系边指标口径 = PositionSkillRelation 表，与 admin/stats 对齐）
-    # 2026-08-21 (debug 修复): 改为 approved 岗位口径 —— 图投影只投影 approved 岗位的
-    # REQUIRES 边（未审核岗位不入图是正确门控），此前全量 PSR 1549 vs Neo4j 985 恒报
-    # 36% critical 误导用户。approved 口径才是可收敛的正确对比。
+    # 2026-08-21 (debug 修复): 改为 approved 岗位 + approved 技能双口径 —— 图投影只投影
+    # approved 岗位→approved 技能的 REQUIRES 边（未审核岗位/技能不入图是正确门控），
+    # 此前 approved 岗位口径仍含 96 条「approved岗位→pending技能」边（技能待审核不入图
+    # → 边建不出来）→ Neo4j 949 vs PG 1042 恒报 8.9% 误导用户。双 approved 才是可收敛
+    # 的正确对比。
     pg_psr_count = int(
         (await session.execute(
             select(func.count())
             .select_from(PositionSkillRelation)
             .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
-            .where(PositionRecord.review_status == "approved")
+            .join(SkillRecord, SkillRecord.id == PositionSkillRelation.skill_id)
+            .where(
+                PositionRecord.review_status == "approved",
+                SkillRecord.review_status == "approved",
+            )
         )).scalar() or 0
     )
 
@@ -197,7 +203,8 @@ async def get_data_truth(
         status=status,
         explanation=(
             f"Neo4j REQUIRES 边 {neo4j_relations} = 岗位-技能要求关系投影。"
-            f"PostgreSQL position_skill_relations {pg_psr_count} = 关系表行数（SSOT）。"
+            f"PostgreSQL {pg_psr_count} = approved岗位→approved技能 的 PSR 边数（SSOT）。"
+            "待审核岗位/技能的边不入图属设计（审核通过后自动投影）。"
             "两口径一致表示岗位-技能关系投影无漂移；学习路径 PREREQUISITE 等其他关系类型不在此指标内。"
         ),
     ))
