@@ -104,17 +104,17 @@ async function triggerAnalyze() {
 // KPI 卡格式化 — E2: 每项带口径拆解行 + D-ui: 新手友好 tooltip 完整说明
 const kpiCards = computed(() => [
   { label: '涌现技能数', value: evo.kpi.emerging_count, unit: '', tip: 'emerging + rising 技能数（Z-score 检测，全量时序）', breakdown: `= ${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 · 与下方预警表同源`, tooltip: `🌱 图谱新生力量：近期 Z-score 显著高于历史均值的技能。\n\n` + `• 涌现 (Z>2)：频次突增 2 个标准差以上\n` + `• 上升 (Z>1.5)：频次稳定增长\n` + `• 0 = 当前无明显新技能信号\n\n` + `公式：Z-score = (当前频次 - 历史均值) / 标准差` },
-  { label: '信任均值', value: `${Math.round((evo.kpi.trust_mean ?? 0) * 100)}%`, unit: '', tip: '变更日志 trust_score 真实均值', breakdown: `evolution_changelog 全部记录 avg(trust_score)；对照：/quality 平均信任度 ${Math.round((evo.kpi.trust_mean_neo4j_skill ?? 0) * 100)}%（Neo4j Skill.trust_score 实时均值）`, tooltip: `🎯 变更日志视角的可信度：所有技能变更事件的 trust_score 算术平均。\n\n` + `• 这是历史变更事件的均值，不等于"当前图谱状态"\n` + `• /quality 的平均信任度 50% 是当前图谱实时均值\n` + `• 两个数字差异 = 变更事件覆盖 ≠ 当前节点总数\n\n` + `⚠️ 此数仅用于跟踪变更质量，不应与 /quality 50% 直接比较` },
+  { label: '信任均值', value: evo.kpi.trust_mean == null ? '—' : `${Math.round(evo.kpi.trust_mean * 100)}%`, unit: '', tip: '变更日志 trust_score 真实均值', breakdown: `evolution_changelog 全部记录 avg(trust_score)；对照：/quality 平均信任度 ${Math.round((evo.kpi.trust_mean_neo4j_skill ?? 0) * 100)}%（Neo4j Skill.trust_score 实时均值）`, tooltip: `🎯 变更日志视角的可信度：所有技能变更事件的 trust_score 算术平均。\n\n` + `• 这是历史变更事件的均值，不等于"当前图谱状态"\n` + `• 当前 /quality 平均信任度 = ${Math.round((evo.kpi.trust_mean_neo4j_skill ?? 0) * 100)}%（Neo4j 实时均值，见上方对照）\n` + `• 两个数字差异 = 变更事件覆盖 ≠ 当前节点总数\n\n` + `⚠️ 显示「—」表示 evolution_changelog 暂无变更记录（尚未运行演化分析），非 0 分` },
   { label: 'CII 均值', value: evo.kpi.cii_mean, unit: '', tip: '技能 CII 时序末点均值（基准 100，近 90 天窗口）', breakdown: `${items.value.length} 项技能 CII 末点算术平均`, tooltip: `📈 技能需求通胀指数：基准 100 = 2024-Q1 历史均值。\n\n` + `• ≈ 100 = 需求无显著变化\n` + `• > 100 = 需求膨胀（企业越来越看重这些技能）\n` + `• < 100 = 需求收缩\n\n` + `公式：CII = 当期频次 ÷ 历史基准 × 100` },
   { label: '预警数', value: evo.kpi.alert_count, unit: '', tip: 'emerging/rising/declining 非平稳信号数', breakdown: `=${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 + ${evo.emergingAlerts.filter(a => a.level === 'declining').length} 下降`, tooltip: `⚠️ 非平稳信号总数：emerging + rising + declining 全部合并。\n\n` + `• 0 = 图谱平稳\n` + `• 1-5 = 正常范围\n` + `• > 5 = 较多异常，建议逐条排查\n\n` + `下方「新兴技能预警」表格可看明细 + Z-score + 关联岗位` },
 ])
 
 // E2/E7: 全局数据口径说明 —— 让用户能感知每个数值的计算依据与数据来源
 const dataSourceExplainer = computed(() => [
-  { metric: '涌现技能数 / 新兴技能 / 预警数', source: 'GET /evolution/emerging-alerts · skill_timeseries（全量时序）', formula: 'Z-score 检测：z>2.0 且频次≥3 且源≥3 → 涌现(emerging)；z>1.5 → 上升(rising)；z<-1.5 → 下降(declining)' },
-  { metric: 'CII（能力通胀指数）', source: 'GET /evolution/trends · skill_timeseries（近 90 天窗口）', formula: '基准 100 = 频次前半段均值；CII = 当期频次 ÷ 基准 × 100（>100 表示需求膨胀）' },
-  { metric: '变化', source: '同 /evolution/trends', formula: 'CII 末点相对基准 100 的涨跌幅 %' },
-  { metric: '置信度', source: '同 /evolution/trends', formula: 'clamp(0.5 + z_score/10, 0, 1) — 由 Z-score 映射的检测置信度' },
+  { metric: '涌现技能数 / 新兴技能 / 预警数', source: '技能时序数据（全量历史）', formula: 'Z-score 检测：Z 分数 > 2.0 且频次 ≥ 3 且来源 ≥ 3 → 涌现；> 1.5 → 上升；< -1.5 → 下降' },
+  { metric: 'CII（能力通胀指数）', source: '技能时序数据（近 90 天窗口）', formula: '基准 100 = 频次前半段均值；CII = 当期频次 ÷ 基准 × 100（> 100 表示需求膨胀）' },
+  { metric: '变化', source: '同上', formula: 'CII 末点相对基准 100 的涨跌幅（%）' },
+  { metric: '置信度', source: '同上', formula: '由 Z-score 映射的检测置信度（0-1 之间）' },
   { metric: '信任均值', source: 'GET /evolution/kpi · evolution_changelog', formula: '全部变更记录 trust_score 的算术平均（0~1）' },
   { metric: 'Z-score', source: '同上', formula: '当前频次相对历史均值的标准差倍数，|z| 越大信号越强' },
   { metric: '可迁移性', source: '同 /evolution/emerging-alerts', formula: '技能跨领域岗位覆盖比例（EmergenceFinder.portability_score）' },
@@ -178,8 +178,8 @@ onMounted(() => {
       <BusinessBanner
         type="warning"
         title="演化分析 + 能力通胀指数 (CII)"
-        description="本看板展示岗位技能图谱的演化趋势：新兴技能涌现（Z-score 检测）、技能变更日志、以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。"
-        meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code> · §7.1 信任度驱动"
+        description="查看岗位技能图谱的演化趋势：新兴技能涌现（基于 Z-score 检测）、技能变更日志、以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。"
+        meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code>"
       />
 
       <!-- E2/E7: 数据口径说明 — 让用户可感知每个数值的计算依据与来源 -->
@@ -394,7 +394,9 @@ onMounted(() => {
                 :title="card.tip"
               >
                 <span>{{ card.label }}</span>
-                <el-icon class="kpi-help-icon"><QuestionFilled /></el-icon>
+                <el-icon class="kpi-help-icon">
+                  <QuestionFilled />
+                </el-icon>
               </div>
               <div class="kpi-number-value">
                 {{ card.value }}

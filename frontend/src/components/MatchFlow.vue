@@ -45,7 +45,7 @@ const nodes: FlowNode[] = [
   {
     key: 'parse',
     label: '文档解析',
-    detail: 'pdfplumber + python-docx → 纯文本',
+    detail: '自动识别 PDF、DOCX 等格式 → 提取纯文本',
     icon: Document,
     step: 0,
     color: '#3b82f6',
@@ -69,7 +69,7 @@ const nodes: FlowNode[] = [
   {
     key: 'compare',
     label: '岗位对比',
-    detail: 'Neo4j REQUIRES 关系查询',
+    detail: '查询岗位与技能的关联关系',
     icon: Connection,
     step: 2,
     color: '#10b981',

@@ -92,7 +92,9 @@ function _useDashboardDisplay(store: DashboardStore) {
 
   const eventTypeColor = computed<Record<string, string>>(() => ({
     pipeline_update: 'var(--info)',
-    quality_alert: 'var(--success)',
+    // 2026-08-20 (debug 修复 B2): quality_alert severity 恒为 warning（黄），
+    // 原绿色边框与黄色时间戳冲突。改黄保持一致。
+    quality_alert: 'var(--warning)',
     data_milestone: 'var(--warning)',
     extraction_complete: 'var(--chart-3)',
     skill_update: 'var(--chart-2)',

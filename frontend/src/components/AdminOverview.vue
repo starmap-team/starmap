@@ -55,7 +55,7 @@ const kpiCards = computed(() => {
   return [
     {
       key: 'pending-content',
-      label: '待审内容 (Phase 23)',
+      label: '待审内容',
  // (was only position_pending_review, silently dropping skills)
       value: (review.stats.position_pending_review ?? 0) + (review.stats.skill_pending_review ?? 0),
       suffix: '岗位 / 技能',
@@ -65,7 +65,7 @@ const kpiCards = computed(() => {
     },
     {
       key: 'pending-evolution',
-      label: '待审演化 (Phase 24 §5.2)',
+      label: '待审演化',
  // EvolutionChangelog entries) instead of skill_pending_review
  // (which was skill records — wrong semantic).
       value: review.stats.evolution_pending ?? 0,
@@ -110,23 +110,25 @@ const tabCards = [
   {
     key: 'content-review',
     title: '内容审核',
-    desc: '审核新发现的岗位和技能。Phase 23 主数据生命周期入口。',
+    desc: '审核新发现的岗位和技能，通过后自动纳入图谱。',
     color: 'warning',
   },
   {
     key: 'evolution',
     title: '演化变更',
-    desc: '每周自动分析发现的能力变更。§5.2 演化工作流。',
+    desc: '每周自动分析发现的能力变更。',
     color: 'info',
   },
   {
     key: 'nodes',
     title: '图谱与质量',
-    desc: '直接管理 Neo4j 节点、查看质量数据。',
+    desc: '直接管理图谱节点、查看质量数据。',
     color: 'primary',
   },
   {
-    key: 'datasources',
+    // 2026-08-20 (debug 修复 A1): key 原为 'datasources' 但 Admin.vue 白名单是
+    // 'sources' → dispatch 被拒，点击卡片无响应。对齐真实 pane 名。
+    key: 'sources',
     title: '数据采集',
     desc: '管理爬虫数据源、配置同步策略。',
     color: 'success',

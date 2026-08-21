@@ -65,13 +65,12 @@ export function useQualityDashboardCharts(store: QualityStore) {
         sub: m.total_extractions === 0
           ? '— 待评估'
           : `高信任占比 ${(m.high_trust_ratio * 100).toFixed(0)}%`,
-        caption: `§6.2 四因子综合信任度均值（来源多样性/抽取置信/多源验证/时间衰减）`,
-        tooltip: `🎯 数据可信度：所有技能节点 trust_score 的平均值（0-100%）。\n\n` +
+        caption: `四因子综合信任度均值（来源多样性 / 抽取置信 / 多源验证 / 时间衰减）`,
+        tooltip: `🎯 数据可信度：所有技能节点信任度的平均值（0-100%）。\n\n` +
           `• ≥ 75% = 健康（绿）\n` +
           `• 50-75% = 中等（黄）\n` +
           `• < 50% = 需关注（红）\n\n` +
-          `⚠️ /evolution 菜单的「信任均值 75%」是另一套口径（历史变更事件均值），不是同一指标\n` +
-          `对照：/evolution 信任均值 75%（Neo4j 实时均值 vs EvolutionChangelog 变更事件均值）`,
+          `⚠️ 本页与「演化分析」页中的信任均值口径不同：此处为技能节点的实时均值，「演化分析」为变更事件的均值。`,
         trend: m.avg_trust_score >= 0.75 ? 'up' : 'down',
         color: cc.success,
         icon: 'DataLine',
@@ -81,12 +80,15 @@ export function useQualityDashboardCharts(store: QualityStore) {
         value: (m.hallucination_rate * 100).toFixed(1) + '%',
         sub: auditRateLabel,
         caption: hallucinationCaption,
-        tooltip: `🌀 抽取可靠性：LLM 抽取结果中「幻觉技能」占比。\n\n` +
+        tooltip: `🌀 抽取可靠性：抽取结果中"幻觉技能"的占比。\n\n` +
           `• ≤ 8% = 健康\n` +
           `• 8-15% = 需关注\n` +
-          `• > 15% = 严重，建议触发 /quality/evaluate 重新校准\n\n` +
-          `公式：hallucinated / total_extractions（近 30 天窗口）`,
-        trend: m.hallucination_rate <= 0.08 ? 'down' : 'up',
+          `• > 15% = 严重，建议触发质量评估重新校准\n\n` +
+          `公式：近 30 天窗口内，幻觉技能数 ÷ 总抽取数`,
+        // 2026-08-20 (debug 修复 Q1): 原 `<=0.08 ? 'down'` 被模板渲染为红色 ▼，
+        // 低幻觉率(好事)显示红↓、高幻觉率(坏事)显示绿↑ —— 好坏与红绿完全反转。
+        // 改为 up=好(绿▲)、down=坏(红▼)，与 avg_trust_score 卡语义一致。
+        trend: m.hallucination_rate <= 0.08 ? 'up' : 'down',
         color: cc.warning,
         icon: 'WarningFilled',
       },
@@ -96,13 +98,15 @@ export function useQualityDashboardCharts(store: QualityStore) {
         sub: m.pending_review === 0 ? '暂无记录' : '条记录待处理',
  // 2026-08-14: 口径对齐 admin 内容审核（review_service 状态机）——pending_review
  // 计数 = position_records + skill_records。修复前文案误标 JDExtractionRecord.confidence
-        caption: `岗位 + 技能 pending_review 计数（与 admin 内容审核同源）`,
-        tooltip: `👥 人工监督：待人工审核的岗位 + 技能记录数（review_status = pending_review）。\n\n` +
+        caption: `岗位与技能待审核计数（与管理后台的内容审核同源）`,
+        tooltip: `👥 人工监督：等待人工审核的岗位与技能记录数。\n\n` +
           `• 0 = 无需人工干预（绿）\n` +
           `• 1-5 = 可逐条审核（黄）\n` +
           `• > 5 = 队列拥堵，建议批量审核或调整抽取策略\n\n` +
           `下方队列展示最近 20 条，完整队列请在「管理后台 → 内容审核」处理`,
-        trend: m.pending_review > 5 ? 'up' : 'down',
+        // 2026-08-20 (debug 修复 Q1): 原 `>5 ? 'up'` 使队列拥堵(坏事)显示绿↑、
+        // 队列清空(好事)显示红↓ —— 反转。改为 up=好(绿▲)、down=坏(红▼)。
+        trend: m.pending_review > 5 ? 'down' : 'up',
         color: cc.danger,
         icon: 'Clock',
       },

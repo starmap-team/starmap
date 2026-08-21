@@ -158,7 +158,9 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
                   <div class="kpi-label">
                     <span>{{ card.label }}</span>
                     <!-- 新手友好：问号图标引导 hover tooltip -->
-                    <el-icon class="kpi-help-icon"><QuestionFilled /></el-icon>
+                    <el-icon class="kpi-help-icon">
+                      <QuestionFilled />
+                    </el-icon>
                   </div>
                   <div
                     class="kpi-value"
@@ -173,7 +175,10 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
                     {{ card.sub }}
                   </div>
                   <!--: 口径拆解行（沿 KPI breakdown）-->
-                  <div class="kpi-caption" data-testid="kpi-caption">
+                  <div
+                    class="kpi-caption"
+                    data-testid="kpi-caption"
+                  >
                     {{ card.caption }}
                   </div>
                 </div>
@@ -445,7 +450,13 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
                 align="center"
               >
                 <template #default="{ row }">
+                  <!-- 2026-08-20 (debug 修复 Q3): trust=null 显示"未评估"而非红色 0% -->
+                  <span
+                    v-if="row.trust == null || row.trust === undefined"
+                    class="trust-na"
+                  >未评估</span>
                   <el-progress
+                    v-else
                     :percentage="row.trust"
                     :stroke-width="8"
                     :color="row.trust >= 70 ? cc.success : row.trust >= 50 ? cc.warning : cc.danger"
@@ -779,5 +790,10 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
+}
+/* 2026-08-20 (debug 修复 Q3): 信任度未评估态 */
+.trust-na {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
 }
 </style>

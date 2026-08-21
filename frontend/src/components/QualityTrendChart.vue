@@ -45,7 +45,7 @@ const chartOption = computed(() => {
       axisPointer: { type: 'cross', crossStyle: { color: colors.muted } },
     },
     legend: {
-      data: ['信任度', '幻觉率', '审核量'],
+      data: ['质量分', '幻觉率', '审核量'],
       ...legendStyle(),
       top: 0,
     },
@@ -59,7 +59,7 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
-        name: '信任度',
+        name: '质量分',
         position: 'left',
         min: 0,
         max: 100,
@@ -78,7 +78,7 @@ const chartOption = computed(() => {
     ],
     series: [
       {
-        name: '信任度',
+        name: '质量分',
         type: 'line',
         yAxisIndex: 0,
         data: props.data.map(d => +(d.trust_score * 100).toFixed(1)),

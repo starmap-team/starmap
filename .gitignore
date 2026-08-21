@@ -159,6 +159,9 @@ graphify-out/
 screenshots/
 .zcode/
 .workbuddy/
+.mimosa/
+backend/.mimosa/
+frontend/.mimosa/
 # .planning 整体忽略（开发过程产物，不进版本库）
 .planning/
 backend/.planning/

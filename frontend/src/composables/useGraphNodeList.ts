@@ -52,8 +52,11 @@ export function useGraphNodeList(source: ComputedRef<GraphNodeItem[]>): GraphNod
   })
 
   const paged: ComputedRef<GraphNodeItem[]> = computed(() => {
-    const start = (currentPage.value - 1) * pageSize.value
-    return filtered.value.slice(start, start + pageSize.value)
+    // 2026-08-21 (debug 修复): 服务端分页 + 客户端再切片冲突 —— Admin 图谱节点
+    // 已改为服务端分页（fetchGraphNodes 按 offset/limit 重拉），nodes 本身即当前页
+    // 数据。此前对 10 条当前页再 slice(currentPage) → 第 2 页 slice(10,20) 为空 → 翻页无数据。
+    // 直接返回 filtered（客户端过滤仅当前页内增强），不再二次切片。
+    return filtered.value
   })
 
  // Reset to page 1 when any filter changes (otherwise user lands on an

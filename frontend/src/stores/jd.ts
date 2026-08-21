@@ -158,6 +158,8 @@ export const useJdStore = defineStore('jd', () => {
       label: p.name_cn || p.name,
       value: p.name_cn || p.name,
       position_id: p.position_id,
+      name: p.name,        // D8i-fix: canonical name（后端匹配键）——契约统一 name_cn→name
+      name_cn: p.name_cn,  // 中文显示名（可能为空，回退用 name）
     }))
   }
 

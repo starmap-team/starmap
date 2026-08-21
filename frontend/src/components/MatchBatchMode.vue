@@ -67,7 +67,7 @@ async function handleCompetitiveness() {
             v-model="batchResumes"
             type="textarea"
             :rows="4"
-            placeholder="Python, Django, PostgreSQL&#10;Vue, TypeScript, CSS&#10;SQL, Python, Tableau"
+            placeholder="Python、Django、MySQL&#10;Vue、TypeScript、CSS&#10;SQL、Python、Tableau"
           />
         </el-form-item>
         <el-button

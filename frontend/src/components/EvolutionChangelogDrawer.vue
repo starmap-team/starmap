@@ -67,6 +67,7 @@ const hasEvidence = (evidence?: Record<string, unknown>): boolean => evidenceFie
     :model-value="modelValue"
     :title="`${skillName} 演化历史`"
     size="400px"
+    append-to-body
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div v-loading="loading">
@@ -120,12 +121,9 @@ const hasEvidence = (evidence?: Record<string, unknown>): boolean => evidenceFie
                 :type="trustTagType(item.trust_score)"
                 size="small"
                 effect="light"
-                :title="`演化变更的 TrustScorer 评分（与 Neo4j Skill.trust_score 是不同维度）`"
+                :title="`本次演化变更的置信度评分（与技能节点的信任度是不同维度）`"
               >
-                <!-- D5 fix: rename to "变更置信度" — this value comes from
-                     TrustScorer (source/stability/type factors blended for a
-                     single change), NOT Neo4j Skill.trust_score (the per-skill
-                     admin "平均信任度" KPI). Same name was misleading users. -->
+                <!-- 变更置信度评分，反映本次变更的可信程度，与技能节点的信任度是不同维度 -->
                 变更置信度 {{ (item.trust_score * 100).toFixed(0) }}%
               </el-tag>
               <span
