@@ -249,9 +249,16 @@ async def get_data_truth(
         pass
 
     # 3. 健康度评估
-    if orphan_positions == 0 and orphan_skills == 0:
+    # 2026-08-21 (debug 修复): 涵盖 unlinked 半孤立 —— 此前只算 orphan_*
+    # (Neo4j 有 PG 无的真孤儿)，unlinked_* (Neo4j 有 + PG 有 + 缺 canonical_id)
+    # 不计入健康度 → 用户看到「孤立 0 同步健康度 正常」实际队列 23 pending
+    # 标 stale 不一致。修复：unlinked_* 也参与健康度分级，半孤立多说明
+    # 「补链接」链路未及时跟随 reconcile。
+    total_orphan = orphan_positions + orphan_skills
+    total_unlinked = orphan_scan.unlinked_positions + orphan_scan.unlinked_skills
+    if total_orphan == 0 and total_unlinked < 10:
         sync_health = "ok"
-    elif orphan_positions <= 1 and orphan_skills <= 1:
+    elif total_orphan <= 1 and total_unlinked < 50:
         sync_health = "warn"
     else:
         sync_health = "critical"
@@ -276,13 +283,19 @@ async def get_data_truth(
 
     return TruthReport(
         rows=rows,
-        health=HealthMetrics(
-            orphan_positions=orphan_positions,
-            orphan_skills=orphan_skills,
-            last_reconcile_at=last_reconcile_at,
-            reconcile_status=reconcile_status,
-            sync_health=sync_health,
-        ),
+            health=HealthMetrics(
+                orphan_positions=orphan_positions,
+                orphan_skills=orphan_skills,
+                # 2026-08-21 (debug 修复): unlinked_* 维度补全 —— Neo4j 有 + PG 有但
+                # 缺 canonical_id 的"半孤儿"（不是真孤儿但需自动补链接）。不加这
+                # 个维度，operator 看到「孤立 0/0 正常」会误以为无问题，实际队列里
+                # 还有 23 pending 待 sync_orphan_queue 标记 linked。
+                unlinked_positions=orphan_scan.unlinked_positions,
+                unlinked_skills=orphan_scan.unlinked_skills,
+                last_reconcile_at=last_reconcile_at,
+                reconcile_status=reconcile_status,
+                sync_health=sync_health,
+            ),
         generated_at=datetime.now(UTC).isoformat(),
     )
 

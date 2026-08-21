@@ -49,6 +49,11 @@ class HealthMetrics(BaseModel):
     """同步健康度指标。"""
     orphan_positions: int = Field(0, description="Neo4j 中 PG 找不到的 Position 节点数")
     orphan_skills: int = Field(0, description="Neo4j 中 PG 找不到的 Skill 节点数")
+    # 2026-08-21 (debug 修复): 新增 unlinked_* 维度 —— Neo4j 有但缺 canonical_id
+    # 且 PG 有 name 匹配的节点（"半孤儿"）。operator 视角：0 个孤儿 ≠ 0 个问题，
+    # unlinked 节点仍待系统自动补 canonical_id 链接到 PG。
+    unlinked_positions: int = Field(0, description="Neo4j 有但缺 canonical_id 且 PG 有 name 匹配的 Position 节点数")
+    unlinked_skills: int = Field(0, description="Neo4j 有但缺 canonical_id 且 PG 有 name 匹配的 Skill 节点数")
     last_reconcile_at: str | None = Field(None, description="最近一次 reconcile 时间（ISO）")
     reconcile_status: str = Field("unknown", description="ok | warn | critical | unknown")
     sync_health: str = Field("ok", description="ok | warn | critical")

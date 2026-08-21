@@ -30,6 +30,9 @@ interface TruthRow {
 interface HealthMetrics {
   orphan_positions: number
   orphan_skills: number
+  // 2026-08-21 (debug 修复): unlinked 半孤立（Neo4j 有 + PG 有 + 缺 canonical_id）
+  unlinked_positions: number
+  unlinked_skills: number
   last_reconcile_at: string | null
   reconcile_status: 'ok' | 'warn' | 'critical' | 'unknown'
   sync_health: 'ok' | 'warn' | 'critical'
@@ -355,6 +358,32 @@ function statusIcon(status: string): unknown {
               size="small"
             >
               {{ report.health.orphan_skills }}
+            </el-tag>
+          </div>
+          <!-- 2026-08-21 (debug 修复): 半孤立（Neo4j 有 + PG 有 + 缺 canonical_id）
+               此前不显示导致「孤立 0」与「队列 23 pending」看似矛盾。 -->
+          <div class="health-item">
+            <span
+              class="health-label"
+              title="半孤立：Neo4j 已有节点但缺 canonical_id 未链接到 PG"
+            >半孤立岗位</span>
+            <el-tag
+              :type="report.health.unlinked_positions === 0 ? 'success' : 'warning'"
+              size="small"
+            >
+              {{ report.health.unlinked_positions }}
+            </el-tag>
+          </div>
+          <div class="health-item">
+            <span
+              class="health-label"
+              title="半孤立：Neo4j 已有节点但缺 canonical_id 未链接到 PG"
+            >半孤立技能</span>
+            <el-tag
+              :type="report.health.unlinked_skills === 0 ? 'success' : 'warning'"
+              size="small"
+            >
+              {{ report.health.unlinked_skills }}
             </el-tag>
           </div>
           <div class="health-item">
