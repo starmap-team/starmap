@@ -146,7 +146,7 @@ tmp_*.py
 backend/test_*.py
 /check_*.py
 
-# ---- Agent / AI 工具运行时目录 ----
+# ---- 插件运行时目录 ----
 .claude/
 .claude-flow/
 .playwright-mcp/
@@ -256,7 +256,6 @@ positions-all-industries.png
 positions-current-state.png
 positions-with-scope.png
 
-# AI 工作产物截图（dashboard-*/match-*/position-*/positions-*）
 dashboard-*.png
 match-*.png
 position-*.png
