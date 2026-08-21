@@ -30,8 +30,8 @@ def _reset_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def fake_redis(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     fake = MagicMock(name="fake_redis_client")
-    fake.get.return_value = None
-    fake.set.return_value = True
+    fake.get = AsyncMock(return_value=None)
+    fake.set = AsyncMock(return_value=True)
     monkeypatch.setattr(
         "app.services.resources.resources",
         MagicMock(redis_client=fake),
