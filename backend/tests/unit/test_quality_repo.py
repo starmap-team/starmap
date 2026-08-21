@@ -8,11 +8,19 @@ rate=hallucinated/total 舍入 3 位（2026-08-14 统一口径，与 KPI/质量�
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, NamedTuple
 
 import pytest
 
 from app.repositories.quality_repo import fetch_hallucination_trend
+
+
+class _TrendRow(NamedTuple):
+    """SQLAlchemy Row 兼容：quality_repo 用下标 row[0]/row[1]/row[2]。"""
+
+    day: str
+    total: int
+    hallucinated: int
 
 
 class _FakeSession:
@@ -23,8 +31,8 @@ class _FakeSession:
         return SimpleNamespace(all=lambda: self._rows)
 
 
-def _row(total: int, hallucinated: int, day: str) -> SimpleNamespace:
-    return SimpleNamespace(total=total, hallucinated=hallucinated, day=day)
+def _row(total: int, hallucinated: int, day: str) -> _TrendRow:
+    return _TrendRow(day=day, total=total, hallucinated=hallucinated)
 
 
 class TestFetchHallucinationTrend:

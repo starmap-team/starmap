@@ -21,13 +21,20 @@ from app.core.llm.cost_tracker import tracker
 
 
 @pytest.fixture(autouse=True)
-def _reset(monkeypatch: pytest.MonkeyPatch) -> None:
-    """每个用例前清 cap / 累计 cost / 开关。"""
+def _reset(monkeypatch: pytest.MonkeyPatch):
+    """每个用例前清 cap / 累计 cost / 开关；用例后恢复原 cap。
+
+    tracker 是模块级单例 —— 本文件把 cap 设 0 后若不恢复，同进程后续
+    测试文件（如 test_llm_response_cache）会读到 cap=0 → LLMBlockedError。
+    """
+    original_cap = tracker.get_model_cap(settings.dashscope_model)
     tracker.set_model_cap(settings.dashscope_model, 0.0)
     with tracker._lock:
         tracker._by_model.clear()
     monkeypatch.setattr(settings, "llm_enabled", True, raising=False)
     monkeypatch.setattr(settings, "llm_response_cache_enabled", False, raising=False)
+    yield
+    tracker.set_model_cap(settings.dashscope_model, original_cap)
 
 
 # ─────────────────────────────────────────────────────────────────
