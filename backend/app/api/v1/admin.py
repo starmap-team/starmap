@@ -86,12 +86,35 @@ async def reconcile_neo4j_endpoint(
 
     from sqlalchemy import func, select, text
 
-    from app.models.extraction_models import PositionRecord, SkillRecord
+    from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord
     from app.services.graph_projector import GraphProjector
 
+    # 2026-08-21 (debug 修复): reconcile 后追加孤儿队列同步 —— 此前只调
+    # reconcile_all（剪枝 + 补缺失节点），半孤立（Neo4j 有 + PG 有 + 缺
+    # canonical_id）从不被链接，按钮「立即对账并修复」对半孤立无效果。
+    from app.services.repair_engine import RepairEngine
+
     start = time.time()
+    # 2026-08-21: 修复前 unlinked 基线（reconcile_all step5 会 SET canonical_id
+    # 链接半孤立 → 修复后 unlinked 减少 = 实际链接数）
+    try:
+        before_scan = await RepairEngine(driver).detect_orphans(session)
+        before_unlinked = (
+            before_scan.unlinked_positions + before_scan.unlinked_skills
+        )
+    except Exception:  # noqa: BLE001
+        before_unlinked = 0
     projector = GraphProjector(driver)
     result = await projector.reconcile_all(session)
+
+    # 2026-08-21: 追加 sync_orphan_queue —— 检测新孤儿入队 + 半孤立自动
+    # 链接（_reconcile_orphan_queue_status 把已链接节点标 linked）+ stale 清理。
+    repair = RepairEngine(driver)
+    try:
+        await repair.sync_orphan_queue(session)
+    except Exception as exc:  # noqa: BLE001 — 队列同步失败不阻断 reconcile 主流程
+        logger.warning("reconcile: orphan queue sync failed (non-fatal): {}", exc)
+
     duration_ms = int((time.time() - start) * 1000)
 
     # 验证对齐
@@ -116,15 +139,31 @@ async def reconcile_neo4j_endpoint(
         )
     ).scalar() or 0
 
-    # 健康度：以 reconcile 结果为准（approved-only 对账由 GraphProjector 保证）。
-    # 孤儿=双库漂移指标；errors=投影失败。skills 图内仅存 approved/被引用技能，PG 全量天然不等，
-    # 不再纳入关键判定（消除 pending 不入图导致的 critical 误报）。
-    if result.errors:
-        health = "critical"
-    elif result.orphans_pruned == 0:
+    # IC-05: PG 侧只统计 approved 岗位的 PSR（Neo4j 只投影 approved）
+    pg_requires = (
+        await session.execute(
+            select(func.count(PositionSkillRelation.id))
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .where(PositionRecord.review_status == "approved")
+        )
+    ).scalar() or 0
+    neo4j_requires = 0
+    async with driver.session() as s:
+        r3 = await s.run("MATCH ()-[r:REQUIRES]->() RETURN count(r) AS c")
+        neo4j_requires = int((await r3.single())["c"])
+    requires_diff = abs(int(neo4j_requires) - int(pg_requires))
+
+    # 健康度（Phase 23 Task 3 扩展：边 ±0.5% 容差纳入三档）
+    edge_tolerance = max(1, int(pg_requires * 0.005))
+    nodes_equal = neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0
+    if nodes_equal and requires_diff <= edge_tolerance:
         health = "ok"
-    else:
+    elif requires_diff > edge_tolerance or (
+        abs(neo4j_pos - pg_pos) <= 1 and abs(neo4j_skl - pg_skl) <= 1
+    ):
         health = "warn"
+    else:
+        health = "critical"
 
     # Phase 5 Step 4: 写 audit_events 记录
     try:
@@ -160,16 +199,34 @@ async def reconcile_neo4j_endpoint(
         health, neo4j_pos, pg_pos, neo4j_skl, pg_skl, result.orphans_pruned, duration_ms,
     )
 
+    # 2026-08-21 (debug 修复): 计算半孤立被链接数（reconcile 后 detect_orphans
+    # 的 unlinked_* 减 reconcile 前的 unlinked_*）。让按钮报告「链接了 Y 个半孤立」，
+    # operator 能确认三端（PG/Neo4j/队列）已一致。
+    unlinked_linked = 0
+    try:
+        after_scan = await RepairEngine(driver).detect_orphans(session)
+        after_unlinked = (
+            after_scan.unlinked_positions + after_scan.unlinked_skills
+        )
+        unlinked_linked = max(before_unlinked - after_unlinked, 0)
+    except Exception as exc:  # noqa: BLE001 — 统计失败不影响 reconcile 主流程
+        logger.warning("reconcile: unlinked_linked compute failed (non-fatal): {}", exc)
+
     return ReconcileResult(
         positions_synced=result.nodes_upserted,
-        skills_synced=result.nodes_upserted,
+        skills_synced=result.skills_upserted,
         orphans_pruned=result.orphans_pruned,
         positions_in_neo4j=neo4j_pos,
         skills_in_neo4j=neo4j_skl,
         positions_in_pg=pg_pos,
         skills_in_pg=pg_skl,
+        requires_in_neo4j=neo4j_requires,
+        requires_in_pg=pg_requires,
+        requires_diff=requires_diff,
         duration_ms=duration_ms,
         health=health,
+        unlinked_linked=unlinked_linked,
+        edges_backfilled=result.edges_upserted,
     )
 
 

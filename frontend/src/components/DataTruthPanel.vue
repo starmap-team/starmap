@@ -111,12 +111,13 @@ async function triggerReconcile() {
       positions_in_pg?: number
       skills_in_pg?: number
       orphans_pruned?: number
+      unlinked_linked?: number
       duration_ms?: number
     }
     await loadReport()
     const elapsed = ((Date.now() - start) / 1000).toFixed(1)
     ElMessage.success(
-      `对账完成（${elapsed} 秒）· 图谱岗位/技能节点 ${result.positions_in_neo4j ?? '?'}/${result.skills_in_neo4j ?? '?'} · 主数据岗位/技能 ${result.positions_in_pg ?? '?'}/${result.skills_in_pg ?? '?'} · 清理孤立节点 ${result.orphans_pruned ?? 0} · 健康度 ${result.health ?? '?'}`,
+      `对账完成（${elapsed} 秒）· 图谱岗位/技能节点 ${result.positions_in_neo4j ?? '?'}/${result.skills_in_neo4j ?? '?'} · 主数据岗位/技能 ${result.positions_in_pg ?? '?'}/${result.skills_in_pg ?? '?'} · 清理孤立节点 ${result.orphans_pruned ?? 0} · 链接半孤立 ${result.unlinked_linked ?? 0} · 健康度 ${result.health ?? '?'}`,
     )
   } catch (e: unknown) {
     errorMsg.value = e instanceof Error ? e.message : '对账失败'

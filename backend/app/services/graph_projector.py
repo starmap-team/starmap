@@ -325,6 +325,28 @@ class GraphProjector:
                 ).all()
             }
             pg_ids = {"Position": pg_pos_ids, "Skill": pg_skill_ids}
+            # 2026-08-21 (debug 修复): PG approved name→id 映射 —— 半孤立自动链接
+            # （Neo4j 节点缺 canonical_id 时按 name 匹配 PG 设 cid）需要它。
+            pg_name_pos = {
+                str(name): str(cid)
+                for cid, name in (
+                    await pg_session.execute(
+                        select(PositionRecord.id, PositionRecord.name)
+                        .where(PositionRecord.review_status == "approved")
+                    )
+                ).all()
+                if name
+            }
+            pg_name_skill = {
+                str(name): str(cid)
+                for cid, name in (
+                    await pg_session.execute(
+                        select(SkillRecord.id, SkillRecord.name)
+                        .where(SkillRecord.review_status == "approved")
+                    )
+                ).all()
+                if name
+            }
 
             # 3+4. Prune orphans
             async with self._driver.session() as session:
@@ -408,47 +430,71 @@ class GraphProjector:
             # 此前 reconcile_all 从不传 relations → 只补节点不建边 → PG PSR 1549 vs
             # Neo4j 973 差异 576 条（37.2% 严重差异）无法靠 reconcile 收敛。
             # 幂等：MERGE 已存在的边不重复创建。
+            edge_backfill = await self._reconcile_requires_edges(pg_session)
+            result.edges_upserted += edge_backfill.edges_upserted
+            result.errors.extend(edge_backfill.errors)
+
+            # 2026-08-21 (debug 修复): 半孤立处理 —— Neo4j 有节点但缺 canonical_id：
+            #   * name 匹配 PG approved → SET canonical_id 链接（unlinked_linked）
+            #   * name 匹配 PG 非 approved（pending/rejected）→ 误入图的违规节点，
+            #     按 approved-only 架构 DETACH DELETE 剪枝（orphans_pruned）
+            # 此前只有 missing（PG 有 Neo4j 无）分支补节点，半孤立从不被处理，
+            # 「立即对账并修复」对半孤立无效果。
             try:
-                from sqlalchemy import select as sa_select
-
-                from app.models.extraction_models import PositionSkillRelation
-
-                rel_rows = (
-                    await pg_session.execute(
-                        sa_select(
-                            PositionSkillRelation.position_id,
-                            PositionSkillRelation.skill_id,
-                            PositionSkillRelation.confidence,
-                            PositionSkillRelation.requirement_type,
+                # pending/rejected 的 PG name 集合（用于剪枝误入图节点）
+                pg_nonapproved_pos = {
+                    str(name) for name, in (
+                        await pg_session.execute(
+                            select(PositionRecord.name).where(
+                                PositionRecord.review_status != "approved"
+                            )
                         )
-                        .join(
-                            PositionRecord,
-                            PositionRecord.id == PositionSkillRelation.position_id,
+                    ).all() if name
+                }
+                pg_nonapproved_skill = {
+                    str(name) for name, in (
+                        await pg_session.execute(
+                            select(SkillRecord.name).where(
+                                SkillRecord.review_status != "approved"
+                            )
                         )
-                        .where(PositionRecord.review_status == "approved")
-                    )
-                ).all()
-                relations = [
-                    {
-                        "position_canonical_id": str(r.position_id),
-                        "skill_canonical_id": str(r.skill_id),
-                        "confidence": float(r.confidence or 1.0),
-                        "level": r.requirement_type or "required",
-                    }
-                    for r in rel_rows
-                ]
-                if relations:
-                    edge_batch = await self.apply_batch(positions=[], skills=[], relations=relations)
-                    result.edges_upserted += edge_batch.edges_upserted
-                    result.errors.extend(edge_batch.errors)
+                    ).all() if name
+                }
+                async with self._driver.session() as session:
+                    for label, pg_name_to_id, pg_nonapproved in (
+                        ("Position", pg_name_pos, pg_nonapproved_pos),
+                        ("Skill", pg_name_skill, pg_nonapproved_skill),
+                    ):
+                        res = await session.run(
+                            f"MATCH (n:{label}) WHERE n.canonical_id IS NULL "
+                            "RETURN n.name AS name"
+                        )
+                        async for record in res:
+                            name = record.get("name") if hasattr(record, "get") else record["name"]
+                            if not name:
+                                continue
+                            if name in pg_name_to_id:
+                                await session.run(
+                                    f"MATCH (n:{label} {{name: $name}}) WHERE n.canonical_id IS NULL "
+                                    "SET n.canonical_id = $cid",
+                                    name=name, cid=pg_name_to_id[name],
+                                )
+                                result.unlinked_linked += 1
+                            elif name in pg_nonapproved:
+                                # 误入图的未审核节点 → 剪枝（审核通过后重新投影）
+                                await session.run(
+                                    f"MATCH (n:{label} {{name: $name}}) WHERE n.canonical_id IS NULL "
+                                    "DETACH DELETE n",
+                                    name=name,
+                                )
+                                result.orphans_pruned += 1
+                if result.unlinked_linked or result.orphans_pruned:
                     logger.info(
-                        "reconcile_all: upserted {} REQUIRES edges (approved positions)",
-                        edge_batch.edges_upserted,
+                        "reconcile_all: linked {} semi-orphans, pruned {} non-approved graph nodes",
+                        result.unlinked_linked, result.orphans_pruned,
                     )
-            except StarMapError:
-                raise
-            except Exception as exc:
-                logger.warning("reconcile_all edge backfill failed (non-fatal): {}", exc)
+            except Exception as exc:  # noqa: BLE001 — 半孤立处理失败不阻断 reconcile
+                logger.warning("reconcile_all: semi-orphan handling failed (non-fatal): {}", exc)
 
             return result
         except StarMapError:
@@ -458,6 +504,64 @@ class GraphProjector:
             raise GraphProjectionError(str(exc)) from exc
         except Exception as exc:
             logger.exception("Unexpected error in graph projection: reconcile_all")
+            raise GraphProjectionError(str(exc)) from exc
+
+    async def _reconcile_requires_edges(self, pg_session: Any) -> ProjectionResult:
+        """Phase 23 Task 3: 按 canonical_id 补缺 REQUIRES 边（PG approved PSR）。
+
+        只补缺不自动删——多余 REQUIRES 边由 admin/daily 对账的 audit diff 暴露
+        （drift 告警），避免误删抽取/演化双写路径合法建边。幂等：MERGE 已存在
+        的边不重复创建。
+        """
+        result = ProjectionResult()
+        if self._driver is None:
+            result.errors.append("neo4j_driver_unavailable")
+            return result
+        try:
+            from sqlalchemy import select as sa_select
+
+            from app.models.extraction_models import PositionRecord, PositionSkillRelation
+
+            rel_rows = (
+                await pg_session.execute(
+                    sa_select(
+                        PositionSkillRelation.position_id,
+                        PositionSkillRelation.skill_id,
+                        PositionSkillRelation.requirement_type,
+                        PositionSkillRelation.confidence,
+                    )
+                    .join(
+                        PositionRecord,
+                        PositionRecord.id == PositionSkillRelation.position_id,
+                    )
+                    .where(PositionRecord.review_status == "approved")
+                )
+            ).all()
+            relations = [
+                {
+                    "position_canonical_id": str(position_id),
+                    "skill_canonical_id": str(skill_id),
+                    "requirement_type": requirement_type,
+                    "confidence": float(confidence or 0.0),
+                }
+                for position_id, skill_id, requirement_type, confidence in rel_rows
+            ]
+            if relations:
+                edge_batch = await self.apply_batch(positions=[], skills=[], relations=relations)
+                result.edges_upserted += edge_batch.edges_upserted
+                result.errors.extend(edge_batch.errors)
+                logger.info(
+                    "reconcile_requires_edges: upserted {} REQUIRES edges (approved positions)",
+                    edge_batch.edges_upserted,
+                )
+            return result
+        except StarMapError:
+            raise
+        except (Neo4jError, SQLAlchemyError) as exc:
+            logger.exception("Graph projection DB error: reconcile_requires_edges")
+            raise GraphProjectionError(str(exc)) from exc
+        except Exception as exc:
+            logger.exception("Unexpected error in graph projection: reconcile_requires_edges")
             raise GraphProjectionError(str(exc)) from exc
 
 
