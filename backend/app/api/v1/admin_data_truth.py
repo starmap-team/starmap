@@ -146,7 +146,10 @@ async def get_data_truth(
     # 2026-08-12 (admin 联调修复): 原 `[neo4j, pg_total, pg_approved]` 把"总数(233)"与
     # "已发布(179)"混作跨源比较 → 23.2% 假 critical（三源其实一致）。差异应只比较同一
     # 指标（总数）的三个来源：API / PostgreSQL / Neo4j。已发布数是独立指标（见指标 5）。
-    diff, status = _calc_status([api_dashboard_positions, pg_total_positions, neo4j_positions])
+    # 2026-08-21 (debug 修复): 全量含 pending（pending 按 approved-only 架构不入图），
+    # 全量 vs Neo4j 永远不等 → 83.4% 假「严重差异」让 operator 不知所措。
+    # diff/status 改为比较「PG approved vs Neo4j」（真正可对齐口径）；全量仅作参考展示。
+    diff, status = _calc_status([api_dashboard_positions, pg_approved_positions, neo4j_positions])
     rows.append(TruthRow(
         metric="岗位总数",
         description="不同数据源给出的岗位总数（口径不同）",
@@ -155,11 +158,17 @@ async def get_data_truth(
         neo4j_value=neo4j_positions,
         diff_pct=diff,
         status=status,
-        explanation=f"Neo4j {neo4j_positions} = 图谱节点总数（含历史/孤儿）。PostgreSQL {pg_total_positions} = position_records 总行数。Approved {pg_approved_positions} = 用户可见岗位。差额 {(neo4j_positions - pg_total_positions) if neo4j_positions > pg_total_positions else 0} 个孤儿节点需要在 Neo4j 中清理。",
+        explanation=(
+            f"Neo4j {neo4j_positions} = 图谱节点总数（含历史/孤儿）。"
+            f"PostgreSQL {pg_total_positions} = position_records 总行数"
+            f"（含 {pg_total_positions - pg_approved_positions} 条待审核，待审核不入图属设计）。"
+            f"Approved {pg_approved_positions} = 用户可见岗位。"
+            f"差异率 {diff}% 按 approved({pg_approved_positions}) vs Neo4j({neo4j_positions}) 计算。"
+        ),
     ))
 
     # 指标 2: 技能总数
-    diff, status = _calc_status([api_dashboard_skills, neo4j_skills, pg_total_skills])
+    diff, status = _calc_status([api_dashboard_skills, pg_approved_skills, neo4j_skills])
     rows.append(TruthRow(
         metric="技能总数",
         description="Neo4j Skill 节点 vs PostgreSQL skill_records",
@@ -168,7 +177,12 @@ async def get_data_truth(
         neo4j_value=neo4j_skills,
         diff_pct=diff,
         status=status,
-        explanation=f"差额 {(neo4j_skills - pg_total_skills) if neo4j_skills > pg_total_skills else 0} 个孤儿 Skill 节点在 Neo4j 中不在 PG 中。Approved {pg_approved_skills} 个技能可被用户检索。",
+        explanation=(
+            f"PostgreSQL {pg_total_skills} = skill_records 总行数"
+            f"（含 {pg_total_skills - pg_approved_skills} 条待审核，待审核不入图属设计）。"
+            f"Approved {pg_approved_skills} = 用户可见技能。"
+            f"差异率 {diff}% 按 approved({pg_approved_skills}) vs Neo4j({neo4j_skills}) 计算。"
+        ),
     ))
 
     # 指标 3: 关系边数（P3c 口径统一: Neo4j REQUIRES 边 == PG PositionSkillRelation 行数）
