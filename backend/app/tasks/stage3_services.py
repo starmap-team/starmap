@@ -156,6 +156,27 @@ async def persist_extraction_result(
     session.add(record)
     await session.flush()
 
+ # 2026-08-21 (debug: 抽取质量门禁): 非岗位内容不落 Position/Skill。
+ # 论坛问答/教程/新闻标题被爬虫以 job_title 入库，原实现直接抽成岗位 →
+ # 审核队列与图谱被垃圾灌满（本 debug session 根因 A）。门禁只在
+ # 内容明显非岗位时拦截（零 LLM 成本启发式），真 JD 不受影响。
+    from app.config import settings as _settings
+    from app.core.extraction.job_content_guard import job_reject_reason
+
+    if getattr(_settings, "extraction_skip_non_job", True):
+        reason = job_reject_reason(jd_content, job_title)
+        if reason:
+            logger.warning(
+                "job-content gate: skip non-job extraction title={!r} reason={}",
+                position_name[:60], reason,
+            )
+            # 保留审计痕迹（JDExtractionRecord 已建）；不建 PositionRecord/SkillRecord
+            data = dict(data or {})
+            data["skipped_reason"] = f"non_job:{reason}"
+            record.extracted_skills = data
+            await session.flush()
+            return record, "NON_JOB", {}
+
     position = await _upsert_position(
         session,
         position_name,

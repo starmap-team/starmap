@@ -269,7 +269,12 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
 
     try:
         async with driver.session() as session:
-            result = await session.run("MATCH (p:Position) RETURN p")
+            # 2026-08-21 (debug 修复): 公开图谱概览只显示已审核通过的岗位 —
+            # 此前 MATCH (p:Position) 全量返回（含 pending_review/NULL 垃圾），
+            # 普通用户首页图谱可见非岗位内容（本 debug session 根因 B）。
+            result = await session.run(
+                "MATCH (p:Position) WHERE p.review_status = 'approved' RETURN p"
+            )
             async for record in result:
                 node = record["p"]
                 if node is None:
@@ -289,6 +294,7 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
             # Count skills per group
             skill_result = await session.run(
                 "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
+                "WHERE p.review_status = 'approved' "
                 "RETURN p.name AS pos_name, p.industry AS pos_industry, collect(DISTINCT s.name) AS skills"
             )
             async for record in skill_result:
@@ -302,7 +308,8 @@ async def fetch_overview_by_tech_stack(driver: AsyncDriver) -> dict[str, Any]:
             # Build connections between tech stacks (shared skills)
             conn_result = await session.run(
                 "MATCH (p1:Position)-[:REQUIRES]->(s:Skill)<-[:REQUIRES]-(p2:Position) "
-                "WHERE p1.name < p2.name "
+                "WHERE p1.review_status = 'approved' AND p2.review_status = 'approved' "
+                "AND p1.name < p2.name "
                 "RETURN p1.name AS n1, p1.industry AS i1, p2.name AS n2, p2.industry AS i2, count(s) AS shared "
                 "ORDER BY shared DESC LIMIT 100"
             )
@@ -398,7 +405,10 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
 
     try:
         async with driver.session() as session:
-            result = await session.run("MATCH (p:Position) RETURN p")
+            # 2026-08-21 (debug 修复): 公开概览只显示已审核岗位（对齐 approved 门禁）。
+            result = await session.run(
+                "MATCH (p:Position) WHERE p.review_status = 'approved' RETURN p"
+            )
             async for record in result:
                 node = record["p"]
                 if node is None:
@@ -417,6 +427,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
             # Count skills per level
             skill_result = await session.run(
                 "MATCH (p:Position)-[:REQUIRES]->(s:Skill) "
+                "WHERE p.review_status = 'approved' "
                 "RETURN p.name AS pos_name, p.level AS pos_level, collect(DISTINCT s.name) AS skills"
             )
             async for record in skill_result:

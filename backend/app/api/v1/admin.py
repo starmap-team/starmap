@@ -104,13 +104,15 @@ async def reconcile_neo4j_endpoint(
     pg_pos = (await session.execute(select(func.count(PositionRecord.id)))).scalar() or 0
     pg_skl = (await session.execute(select(func.count(SkillRecord.id)))).scalar() or 0
 
-    # 健康度
-    if neo4j_pos == pg_pos and neo4j_skl == pg_skl and result.orphans_pruned == 0:
-        health = "ok"
-    elif abs(neo4j_pos - pg_pos) <= 1 and abs(neo4j_skl - pg_skl) <= 1:
-        health = "warn"
-    else:
+    # 健康度：以 reconcile 结果为准（approved-only 对账由 GraphProjector 保证）。
+    # 孤儿=双库漂移指标；errors=投影失败。skills 图内仅存 approved/被引用技能，PG 全量天然不等，
+    # 不再纳入关键判定（消除 pending 不入图导致的 critical 误报）。
+    if result.errors:
         health = "critical"
+    elif result.orphans_pruned == 0:
+        health = "ok"
+    else:
+        health = "warn"
 
     # Phase 5 Step 4: 写 audit_events 记录
     try:
@@ -452,18 +454,22 @@ async def reject_review_item_endpoint(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except review_service.MissingRejectionReason as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    # P1-14 fix (functional-review 2026-08-13): 技能驳回同样同步 Neo4j
+    # P1-14 fix (functional-review 2026-08-13): 技能驳回同步 Neo4j
     # （trust_score=0.0），保持图/PG 审核态一致。
+    # 2026-08-21 (debug: 拒绝可见性断点)：岗位驳回同样同步 Neo4j —— 此前
+    # position 分支无任何图操作，Neo4j 节点 review_status 停留 NULL/approved，
+    # 被 /positions Neo4j fallback 当作 approved 公开展示（用户报告的
+    # “审核拒绝没效果”根因 B）。
     item_dict = item.to_dict()
-    if entity_type == "skill":
-        skill_name = item_dict.get("name", "")
-        if skill_name:
+    if entity_type in ("position", "skill"):
+        entity_name = item_dict.get("name", "")
+        if entity_name:
             from app.services.admin_audit_service import _sync_neo4j_on_audit
 
             try:
-                await _sync_neo4j_on_audit(neo4j_driver, "skill", skill_name, "rejected")
+                await _sync_neo4j_on_audit(neo4j_driver, entity_type, entity_name, "rejected")
             except Exception as exc:  # noqa: BLE001 — Neo4j 同步失败不阻断审核响应
-                logger.warning("skill reject Neo4j sync failed for {!r}: {}", skill_name, exc)
+                logger.warning("{} reject Neo4j sync failed for {!r}: {}", entity_type, entity_name, exc)
     return item_dict
 
 

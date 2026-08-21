@@ -226,7 +226,9 @@ async def sync_all_positions_to_neo4j(
                 PositionRecord.name_cn,
                 PositionRecord.industry,
                 PositionRecord.review_status,
-            ).order_by(PositionRecord.name)
+            )
+            .where(PositionRecord.review_status == "approved")
+            .order_by(PositionRecord.name)
         )
         rows = result.all()
 

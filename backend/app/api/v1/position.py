@@ -388,8 +388,10 @@ async def _list_positions_neo4j(
 ) -> PositionListResponse:
     """Fallback: query Position nodes from Neo4j when PostgreSQL has no matching records.
 
-    Positions without explicit review_status default to 'approved' for public view.
-    Supports status filtering (default: only show approved for public).
+    Visibility policy (fixed 2026-08-21): only explicit `approved` is public.
+    Historical nodes without `review_status` (NULL) are legacy name-MERGE junk
+    and MUST NOT be surfaced as approved — that was the "rejected still visible"
+    leak. NULL-review_status nodes are now excluded from public query results.
     """
     try:
         async with driver.session() as session:
@@ -408,12 +410,11 @@ async def _list_positions_neo4j(
             if industry:
                 where_clauses.append("toLower(p.industry) CONTAINS toLower($industry)")
                 params["industry"] = industry
- # Status filter: Neo4j positions without review_status default to 'approved'
+ # Status filter: only explicit 'approved' is publicly visible.
+ # (Historical NULL review_status nodes are legacy junk — do not default them
+ #  to approved. Previously `NULL OR =` surfaced rejected/pending junk publicly.)
             if status_filter and status_filter != "all":
-                if status_filter == "approved":
-                    where_clauses.append("(p.review_status IS NULL OR p.review_status = $status)")
-                else:
-                    where_clauses.append("p.review_status = $status")
+                where_clauses.append("(p.review_status = $status)")
                 params["status"] = status_filter
 
             where_str = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""

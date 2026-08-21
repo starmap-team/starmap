@@ -184,7 +184,11 @@ async def get_ka_positions(
 
         async with driver.session() as session:
  # : fetch all Positions and filter in-application
-            result = await session.run("MATCH (p:Position) RETURN p")
+            # 2026-08-21 (debug 修复): 公开图谱只显示已审核岗位 — 此前全量返回
+            # pending_review/NULL 垃圾，普通用户图谱可见非岗位内容。
+            result = await session.run(
+                "MATCH (p:Position) WHERE p.review_status = 'approved' RETURN p"
+            )
             matched_element_ids: list[str] = []
             positions: dict[str, dict[str, Any]] = {}
             async for record in result:
@@ -233,8 +237,10 @@ async def get_ka_positions(
     if ka_id.startswith("heat-skill-"):
         skill_name = ka_id[len("heat-skill-"):]
         async with driver.session() as session:
+            # heat mode 岗位也限 approved（2026-08-21 debug 修复，与 overview 对齐）
             result = await session.run(
                 "MATCH (p:Position)-[:REQUIRES]->(s:Skill {name: $sname}) "
+                "WHERE p.review_status = 'approved' "
                 "RETURN p, collect(DISTINCT s) AS skills",
                 sname=skill_name,
             )
@@ -274,7 +280,10 @@ async def get_ka_positions(
             industry_name = ka_id[len("ind-"):]
 
         async with driver.session() as session:
-            result = await session.run("MATCH (p:Position) RETURN p")
+            # industry mode 岗位也限 approved（2026-08-21 debug 修复）
+            result = await session.run(
+                "MATCH (p:Position) WHERE p.review_status = 'approved' RETURN p"
+            )
             matched_element_ids: list[str] = []
             positions_dict: dict[str, dict[str, Any]] = {}
             async for record in result:

@@ -299,17 +299,22 @@ class GraphProjector:
                             ids.add(str(cid))
                     neo4j_ids[label] = ids
 
-            # 2. Snapshot PG IDs
+            # 2. Snapshot PG IDs（approved-only 语义：图=已发布图谱；pending 不入图属预期，
+            #    否则 reconcile 会把清理的 pending 重新回灌进图“复活”）
             pg_pos_ids = {
                 str(row[0])
                 for row in (
-                    await pg_session.execute(select(PositionRecord.id))
+                    await pg_session.execute(
+                        select(PositionRecord.id).where(PositionRecord.review_status == "approved")
+                    )
                 ).all()
             }
             pg_skill_ids = {
                 str(row[0])
                 for row in (
-                    await pg_session.execute(select(SkillRecord.id))
+                    await pg_session.execute(
+                        select(SkillRecord.id).where(SkillRecord.review_status == "approved")
+                    )
                 ).all()
             }
             pg_ids = {"Position": pg_pos_ids, "Skill": pg_skill_ids}

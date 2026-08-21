@@ -45,9 +45,8 @@ const page = ref(1)
 const pageSize = ref(24)
 
 //: status filter.
-// Default to 'all' so the list is never empty on first load.
-// Admin and regular users both see all positions; status badges distinguish visibility.
-const statusFilter = ref<'approved' | 'pending_review' | 'rejected' | 'all'>('all')
+// 默认 approved：岗位列表=已发布岗位（求职者浏览面），不因首屏而切到 all 暴露未审核/已拒绝内容。
+const statusFilter = ref<'approved' | 'pending_review' | 'rejected' | 'all'>('approved')
 
 // US-3: 行业列表从后端 /positions/industries 获取全量，而非仅当前页
 const industries = ref<string[]>([])
@@ -62,15 +61,18 @@ async function loadIndustries() {
   }
 }
 
-// 后端已统一处理搜索/行业筛选/分页，前端直接展示即可
-const filteredPositions = computed(() => positions.value)
+// 后端已统一处理搜索/行业筛选/分页，前端直接展示即可。
+// 无论后端参数如何（含 include_all），列表一律过滤 rejected —— 已拒绝内容只在 /admin 审核队列，
+// 不出现在求职者岗位列表，避免“错误数据/垃圾条目”回到列表。
+const filteredPositions = computed(() =>
+  positions.value.filter((p) => p.review_status !== 'rejected'),
+)
 
 const showAdminFilters = computed(() => isAdmin.value)
 
 const statusOptions: { value: typeof statusFilter.value; label: string }[] = [
   { value: 'approved', label: POSITION_REVIEW_STATUS_LABELS.approved },
   { value: 'pending_review', label: POSITION_REVIEW_STATUS_LABELS.pending_review },
-  { value: 'rejected', label: POSITION_REVIEW_STATUS_LABELS.rejected },
   { value: 'all', label: ALL_OPTION },
 ]
 

@@ -341,6 +341,10 @@ class Settings(BaseSettings):
     pipeline_retry_backoff: int = 10  # 秒, 指数递增基数
     pipeline_import_batch_size: int = 200  # 阶段 import 每次读取已清洗 JD 的批量上限 (2026-08-16: 500 -> 200)
     pipeline_graph_sync_reconcile_on_sync: bool = False  # graph_sync 阶段可选对账开关
+    # 2026-08-21 (debug: 抽取质量门禁): 入库前对 jd 内容做“是否真岗位”判定，
+    # 非岗位（论坛问答/教程/新闻标题/法规名称）跳过 Position/Skill 入库，
+    # 只留 JDExtractionRecord 审计痕迹，避免审核队列与图谱被垃圾灌满。
+    extraction_skip_non_job: bool = True
 
  # ── 资源探测超时 ──
     httpx_health_check_timeout: float = 3.0  # 健康探测（Ollama / Redis / Neo4j 等）
