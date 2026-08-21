@@ -63,6 +63,10 @@ class _ScalarResult:
     def scalar(self) -> int:
         return self._value
 
+    def all(self) -> list:
+        # repair_engine 对 select(PositionRecord.id) 用 .all()，每行按 r[0] 取值
+        return [(self._value,)] if self._value else []
+
 
 class _FakePgSession:
     def __init__(self, pos: int, skl: int, pg_requires: int) -> None:
@@ -346,7 +350,14 @@ class TestReconcileAllApprovedGate:
 
         class _FakeDriver:
             def __init__(self) -> None:
-                self._sessions = [_FakeNeo4jSession(), _FakeNeo4jSession()]
+                # reconcile_all 有 4 个 Neo4j session 使用点（快照/剪枝/半孤立链接/边对账）
+                self._sessions = [
+                    _FakeNeo4jSession(),
+                    _FakeNeo4jSession(),
+                    _FakeNeo4jSession(),
+                    _FakeNeo4jSession(),
+                    _FakeNeo4jSession(),
+                ]
 
             def session(self):
                 return self._sessions.pop(0)

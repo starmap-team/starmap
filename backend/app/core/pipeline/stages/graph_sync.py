@@ -117,6 +117,13 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
     except Exception as o_exc:
         logger.warning("graph_sync outbox create failed (non-fatal): {}", o_exc)
 
+    # 异常路径兜底：run_build_graph_from_extractions 抛错时这些变量仍须有值
+    # （否则 except 后的 return 引用未定义局部变量 → UnboundLocalError）。
+    processed = 0
+    triples_merged = 0
+    nodes = 0
+    edges = 0
+
     try:
         # D8f: 增量 —— 只处理本次 run 开始后创建的已审核抽取记录。
         # 原实现全量重放最近 500 条历史记录（本次采集 0 新增也显示处理 226/2473），

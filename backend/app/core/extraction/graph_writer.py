@@ -455,48 +455,50 @@ async def merge_position(driver: Any, position_data: dict[str, Any], canonical_i
     Args:
         driver: Neo4j async driver.
         position_data: Dict with 'name' (required) and optional fields.
-        canonical_id: PG PositionRecord.id — SET on the node so graph_sync's
-            canonical MERGE hits the SAME node (no duplicate). coalesce keeps
-            an existing id (idempotent). None = ad-hoc extraction (reconcile
-            catches up later).
+        canonical_id: PG PositionRecord.id — **MERGE 键**（Phase 23 Task 2）。PG 是
+            SSOT，正常路径必有 id；缺失时 raise ``GraphProjectionError`` 拒绝产生
+            孤儿节点（不再静默 name-MERGE）。
 
     Returns:
         The created/merged node properties dict.
+
+    Raises:
+        GraphProjectionError: canonical_id 缺失（PG 是 SSOT，不允许无主键落图）。
     """
     from neo4j.exceptions import Neo4jError
 
     name = position_data.get("name") or position_data.get("position_name") or position_data.get("job_title") or "未知职位"
     name_cn = position_data.get("name_cn", "")
+    if not canonical_id:
+        # Phase 23 Task 2: MERGE 键从 name 切为 canonical_id。
+        # 无 canonical_id 落图会再次产生孤儿（P4a/R1 历史根因），改为显式 raise
+        # 让写路径缺口可观测——不再静默产生 name-MERGE 孤儿。
+        raise GraphProjectionError(
+            f"merge_position requires canonical_id (PG SSOT) for {name!r} — refusing to create orphan node"
+        )
     query = """
-    MERGE (p:Position {name: $name})
+    MERGE (p:Position {canonical_id: $canonical_id})
     SET p.updated_at = datetime(),
+        p.name = $name,
         p.name_cn = $name_cn,
         p.experience_required = $experience_required,
-        p.education_required = $education_required,
-        p.canonical_id = coalesce(p.canonical_id, $canonical_id)
+        p.education_required = $education_required
     RETURN p
     """
     try:
         async with driver.session() as session:
             result = await session.run(
                 query,
+                canonical_id=canonical_id,
                 name=name,
                 name_cn=name_cn,
                 experience_required=position_data.get("experience_required"),
                 education_required=position_data.get("education_required"),
-                canonical_id=canonical_id,
             )
             record = await result.single()
             if record is None:
                 raise ValueError(f"Failed to merge Position: {name}")
             props = dict(record["p"])
-            if canonical_id is None:
-                # P4a 根治 (R1): 无 canonical_id 落图会再次产生孤儿（name-MERGE 历史
-                # 根因）。响亮告警让写路径缺口可观测——repair 引擎后续补齐，但必须暴露。
-                logger.warning(
-                    "merge_position: no canonical_id for {!r} — node will be unlinked "
-                    "(repair engine will catch up; root cause R1)", name,
-                )
             logger.debug("Merged Position: {}", name)
             return props
     except Neo4jError as e:
@@ -530,6 +532,13 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
     # 与 last_detected_at；缺失时 scorer 内部兜底（conf→0.5, time→按来源数）。
     from app.core.trust.entity_trust import EntityTrustScorer  # noqa: PLC0415
 
+    if not canonical_id:
+        # Phase 23 Task 2: 同 merge_position——无 canonical_id 落图会再次产生孤儿
+        # （R1/R3 历史根因），改为显式 raise 而非静默 name-MERGE。
+        raise GraphProjectionError(
+            f"merge_skill requires canonical_id (PG SSOT) for {skill_name!r} — refusing to create orphan node"
+        )
+
     _meta = metadata or {}
     _trust = EntityTrustScorer().score(
         source_count=int(_meta.get("source_count") or 1),
@@ -547,21 +556,21 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
     )
     merge_props = {key: value for key, value in props.items() if key != "source_count"}
     query = """
-    MERGE (s:Skill {name: $name})
+    MERGE (s:Skill {canonical_id: $canonical_id})
     SET s += $props,
+        s.name = $name,
         s.source_count = max(coalesce(s.source_count, 0), $source_count),
-        s.updated_at = datetime(),
-        s.canonical_id = coalesce(s.canonical_id, $canonical_id)
+        s.updated_at = datetime()
     RETURN s
     """
     try:
         async with driver.session() as session:
             result = await session.run(
                 query,
+                canonical_id=canonical_id,
                 name=skill_name,
                 props=merge_props,
                 source_count=props["source_count"],
-                canonical_id=canonical_id,
             )
             record = await result.single()
             if record is None:
@@ -594,6 +603,8 @@ async def create_requires_relationship(
     required: bool = True,
     weight: float = 1.0,
     requirement_type: str | None = None,
+    position_canonical_id: str | None = None,
+    skill_canonical_id: str | None = None,
 ) -> dict[str, Any]:
     """Create a REQUIRES relationship between Position and Skill (§2.2).
 
@@ -604,6 +615,9 @@ async def create_requires_relationship(
         level: Required proficiency level.
         required: Whether this skill is strictly required.
         weight: Weight/importance of this skill for the position.
+        requirement_type: required/preferred（未传时从 required 派生）。
+        position_canonical_id / skill_canonical_id: 双模式 MATCH —— 传入时按
+            canonical_id 定位（Phase 23 契约），否则回退 name 定位（兼容）。
 
     Returns:
         Relationship properties dict.
@@ -614,22 +628,35 @@ async def create_requires_relationship(
     if requirement_type is None:
         requirement_type = "required" if required else "preferred"
 
-    query = """
-    MATCH (p:Position {name: $position_name})
-    MATCH (s:Skill {name: $skill_name})
-    // ponytail: 原 MERGE 带属性 {level: $level} —— 属性值变化时（如 schema 升级 level→requirement_type）
-    // 会新建第二条边 → 全库 REQUIRES 重复 34%（1772 vs 去重 1160）。改为无属性 MERGE + SET。
-    MERGE (p)-[r:REQUIRES]->(s)
-    SET r.level = $level, r.required = $required, r.weight = $weight,
-        r.requirement_type = $requirement_type, r.updated_at = datetime()
-    RETURN r
-    """
+    # 双模式：canonical_id 优先（Phase 23），否则 name 回退
+    if position_canonical_id and skill_canonical_id:
+        query = """
+        MATCH (p:Position {canonical_id: $position_canonical_id})
+        MATCH (s:Skill {canonical_id: $skill_canonical_id})
+        MERGE (p)-[r:REQUIRES]->(s)
+        SET r.level = $level, r.required = $required, r.weight = $weight,
+            r.requirement_type = $requirement_type, r.updated_at = datetime()
+        RETURN r
+        """
+    else:
+        query = """
+        MATCH (p:Position {name: $position_name})
+        MATCH (s:Skill {name: $skill_name})
+        // ponytail: 原 MERGE 带属性 {level: $level} —— 属性值变化时（如 schema 升级 level→requirement_type）
+        // 会新建第二条边 → 全库 REQUIRES 重复 34%（1772 vs 去重 1160）。改为无属性 MERGE + SET。
+        MERGE (p)-[r:REQUIRES]->(s)
+        SET r.level = $level, r.required = $required, r.weight = $weight,
+            r.requirement_type = $requirement_type, r.updated_at = datetime()
+        RETURN r
+        """
     try:
         async with driver.session() as session:
             result = await session.run(
                 query,
                 position_name=position_name,
                 skill_name=skill_name,
+                position_canonical_id=position_canonical_id,
+                skill_canonical_id=skill_canonical_id,
                 level=level,
                 required=required,
                 weight=weight,
@@ -798,26 +825,35 @@ async def batch_write_extractions(
     return summaries
 
 
-async def get_position_skills(driver: Any, position_name: str) -> dict[str, list[dict[str, Any]]]:
+async def get_position_skills(driver: Any, position_name: str, position_canonical_id: str | None = None) -> dict[str, list[dict[str, Any]]]:
     """Get all skills associated with a position.
 
     Args:
         driver: Neo4j async driver.
         position_name: Position node name.
+        position_canonical_id: 传入时按 canonical_id 定位（Phase 23 契约），
+            否则回退 name 定位（兼容）。
 
     Returns:
         Dict with 'required' and 'preferred' skill lists.
     """
-    query = """
-    MATCH (p:Position {name: $name})-[r:REQUIRES]->(s:Skill)
-    RETURN s.name AS skill_name, r.level AS level, r.required AS required,
-           r.requirement_type AS requirement_type
-    """
+    if position_canonical_id:
+        query = """
+        MATCH (p:Position {canonical_id: $position_canonical_id})-[r:REQUIRES]->(s:Skill)
+        RETURN s.name AS skill_name, r.level AS level, r.required AS required,
+               r.requirement_type AS requirement_type
+        """
+    else:
+        query = """
+        MATCH (p:Position {name: $name})-[r:REQUIRES]->(s:Skill)
+        RETURN s.name AS skill_name, r.level AS level, r.required AS required,
+               r.requirement_type AS requirement_type
+        """
     required = []
     preferred = []
 
     async with driver.session() as session:
-        result = await session.run(query, name=position_name)
+        result = await session.run(query, name=position_name, position_canonical_id=position_canonical_id)
         async for record in result:
             entry = {"name": record["skill_name"], "level": record.get("level", "intermediate")}
             # requirement_type 优先（新契约）；旧数据无该字段时回退 required bool
