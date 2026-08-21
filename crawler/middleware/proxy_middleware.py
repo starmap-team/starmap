@@ -55,7 +55,7 @@ FAIL_THRESHOLD = 3  # 窗口内 ≥3 失败 → 冷却
 
 def _parse_proxy(raw: str) -> ProxyEntry | None:
     """解析 http://[user:pass@]host:port / socks5://host:port"""
-    raw = raw.strip
+    raw = raw.strip()
     if not raw:
         return None
     try:
@@ -110,7 +110,7 @@ def record_proxy_failure(proxy_raw: str) -> None:
     """记录一次失败。同一代理 5 分钟内累计 ≥3 → 触发 5 分钟冷却。"""
     global _BREAKER_STATE
     breaker = _BREAKER_STATE.get(proxy_raw)
-    now = time.monotonic
+    now = time.monotonic()
     if breaker is None:
         _BREAKER_STATE[proxy_raw] = _Breaker(
             fail_window_start=now, fail_count=1, cooldown_until=0)
@@ -132,7 +132,7 @@ def record_proxy_success(proxy_raw: str) -> None:
     breaker = _BREAKER_STATE.get(proxy_raw)
     if breaker is not None:
         breaker.fail_count = 0
-        breaker.fail_window_start = time.monotonic
+        breaker.fail_window_start = time.monotonic()
 
 def reset_for_tests() -> None:
     """仅测试用 — 清空模块级熔断状态。

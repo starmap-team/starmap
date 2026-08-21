@@ -47,7 +47,7 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
             "location": j.get("location", "") + (" (远程)" if j.get("remote") else ""),
             "publish_date": publish_date,
             "crawled_at": now,
-            "content_hash": hashlib.sha256((j.get("slug", "") + text[:200]).encode("utf-8")).hexdigest,
+            "content_hash": hashlib.sha256((j.get("slug", "") + text[:200]).encode("utf-8")).hexdigest(),
             "detail_html": "",
         })
     return items

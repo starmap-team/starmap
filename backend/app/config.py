@@ -67,7 +67,9 @@ class Settings(BaseSettings):
         return v
 
  # ── public-deploy-preflight 2026-08-20 (P0): TrustedHostMiddleware allow list ──
- # 防止 Host header 注入。默认 ["*"] 仅在 dev 接受；生产必须 ALLOWED_HOSTS=starmap.example.com,api.example.com。
+ # 防止 Host header 注入。默认 ["*"] 仅在 dev 接受；生产必须显式设置。
+ # 注意：pydantic-settings 对 list 字段的 env 值先按 JSON 解析，因此
+ # ALLOWED_HOSTS 必须写 JSON 数组格式：ALLOWED_HOSTS=["starmap.example.com"]。
     allowed_hosts: list[str] = Field(
         default_factory=lambda: ["*"],
         description="TrustedHostMiddleware allow list; empty/wildcard OK in dev, must be explicit in prod",

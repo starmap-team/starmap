@@ -32,7 +32,7 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
     for j in jobs[:max_count]:
         excerpt = j.get("jobExcerpt", "") or j.get("jobDescription", "")[:5000]
         # pubDate 可能为 ''/None → PG DATE 拒绝空串，转 None（让 DEFAULT NULL 生效）
-        pub_date_raw = str(j.get("pubDate") or "").strip[:10]
+        pub_date_raw = str(j.get("pubDate") or "").strip()[:10]
         items.append({
             "source_site": "jobicy",
             "job_title": j.get("jobTitle", "")[:200],
@@ -47,7 +47,7 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
             "crawled_at": now,
             "content_hash": hashlib.sha256(
                 (str(j.get("id", "")) + excerpt[:200]).encode("utf-8")
-            ).hexdigest,
+            ).hexdigest(),
             "detail_html": "",
         })
     return items
