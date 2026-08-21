@@ -360,7 +360,7 @@ describe('Phase 11 Evolution 错误降级', () => {
     await expect(store.fetchKpi()).rejects.toThrow('Network Error')
     // kpi 赋值在 try 内未执行 → 保持默认
     expect(store.kpi.emerging_count).toBe(0)
-    expect(store.kpi.trust_mean).toBe(0)
+    expect(store.kpi.trust_mean).toBeNull()  // 空表后端返回 null → 显示"—"而非误导 0%
   })
 
   it('fetchEmergingAlerts 失败 → alerts 保持空数组', async () => {
