@@ -82,8 +82,13 @@ class TestWriteExtractionToPg:
             "preferred_skills": [{"skill": "Docker"}],
         })
         assert ok is True
-        skill_names = [p["name"] for _, p in session.executed if "skill_records" in str(_) or p.get("name")]
+        skill_names = [
+            p["name"] for _, p in session.executed
+            if "position_skill_relations" not in str(_) and ("skill_records" in str(_) or p.get("name"))
+        ]
         assert set(skill_names) == {"后端工程师", "Python", "SQL", "Docker"}
+        # PSR 关系写入(2026-08-22 fix): 岗位技能关系必须落库
+        assert any("position_skill_relations" in str(sql) for sql, _ in session.executed)
         assert session.committed == 1
 
     @pytest.mark.asyncio
