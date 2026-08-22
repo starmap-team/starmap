@@ -152,6 +152,25 @@ async def write_extraction_to_pg(
                 except Exception as succ_exc:  # noqa: BLE001 — 单条后继失败不阻断主写入
                     logger.warning("evolves_to successor PG upsert failed for {!r}: {}", succ_name, succ_exc)
 
+        # PSR 关系写入(2026-08-22 fix): 抽取技能必须关联到岗位,
+        # 否则岗位无 REQUIRES 边 → 匹配诊断"暂无技能画像" → 差距分析空白。
+        # 幂等: 已存在的关系跳过。
+        if all_skills:
+            await session.execute(
+                sa.text("""
+                    INSERT INTO position_skill_relations (id, position_id, skill_id, requirement_type, confidence, created_at)
+                    SELECT gen_random_uuid(), pr.id, sr.id, 'required', 0.9, NOW()
+                    FROM position_records pr
+                    JOIN skill_records sr ON sr.name = ANY(:skill_names)
+                    WHERE pr.name = :position_name
+                      AND NOT EXISTS (
+                          SELECT 1 FROM position_skill_relations psr
+                          WHERE psr.position_id = pr.id AND psr.skill_id = sr.id
+                      )
+                """),
+                {"position_name": position_name, "skill_names": list(set(all_skills))},
+            )
+
         await session.commit()
         logger.info(
             "PG write complete: PositionRecord '{}' + {} skills upserted (+{} evolves_to successors)",
