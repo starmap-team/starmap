@@ -283,6 +283,11 @@ function resetAll() {
 //: MatchFlow navigation handler — jumps the wizard to the
 // step associated with the business concept the user clicked.
 function onFlowNavigate(targetStep: number) {
+ // 差距分析/学习路径依赖匹配结果 — 未匹配时提示引导,避免跳到空页面
+  if (targetStep >= 3 && !matchStore.result) {
+    ElMessage.warning('请先完成「技能雷达对比」中的开始诊断，再查看差距分析与学习路径')
+    return
+  }
   step.value = targetStep
  // Reset transient state that wouldn't make sense when jumping
  // backwards / forwards across the wizard.
