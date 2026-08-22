@@ -518,7 +518,8 @@ function exportJSON() {
 function statusType(status: string) {
   if (status === 'done') return 'success'
   if (status === 'error' || status === 'timeout') return 'danger'
-  return ''
+  if (status === 'running') return 'warning'
+  return 'info'
 }
 
 function statusText(status: string) {
