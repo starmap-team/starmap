@@ -117,12 +117,28 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
             def _get_clean_text(jd: Any) -> str:
                 return jd.clean_text or ""
 
+            # 2026-08-23: 新源首次抓取跳过 simhash 模糊去重 — 该源无历史记录时,
+            # 同批次岗位描述常含相同公司模板开头("About Flexport: At Flexport..."),
+            # simhash 高度相似 → 全部判 duplicate → import 跳过 → valid=0 死循环。
+            # 首次抓取只做 Redis 精确去重(内容完全相同才判重), 模糊去重从
+            # 第二次抓取起生效(此时有历史可比)。
+            source_site = getattr(raw_jds[0], "source_site", None) if raw_jds else None
+            has_history = False
+            if source_site:
+                from crawler.persistence.models import JdRaw as _JdRaw
+                hist = s.query(_JdRaw).filter(
+                    _JdRaw.source_site == source_site,
+                    _JdRaw.status.in_([JdStatus.extracted, JdStatus.cleaned]),
+                ).first()
+                has_history = hist is not None
+
             unique_jds, dup_jds = run_async(
                 dedup_jd_records(
                     raw_jds,
                     text_getter=_get_clean_text,
                     redis_client=redis_client,
                     threshold=3,
+                    skip_fuzzy=not has_history,
                 ),
             )
 

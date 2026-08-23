@@ -68,7 +68,7 @@ def test_dedup_count_propagates(monkeypatch):
     monkeypatch.setattr(crawler_models, "JdStatus", SimpleNamespace(raw="raw", duplicate="duplicate"))
 
     # dedup 服务：3 条中判 1 条重复
-    async def _fake_dedup(records, *, text_getter, redis_client, threshold):
+    async def _fake_dedup(records, *, text_getter, redis_client, threshold, skip_fuzzy=False):
         unique = [records[0], records[2]]
         dups = [records[1]]
         return unique, dups

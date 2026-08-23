@@ -194,6 +194,7 @@ async def dedup_jd_records(
     text_getter: Any = None,
     redis_client: Any = None,
     threshold: int = 3,
+    skip_fuzzy: bool = False,
 ) -> tuple[list[Any], list[Any]]:
     """Deduplicate JD records using exact-then-fuzzy two-pass strategy.
 
@@ -208,6 +209,9 @@ async def dedup_jd_records(
         Optional async Redis client for exact dedup persistence.
     threshold:
         SimHash Hamming distance threshold for fuzzy dedup.
+    skip_fuzzy:
+        2026-08-23: 新源首次抓取时跳过模糊去重 — 同批次岗位描述含相同
+        公司模板开头, simhash 高度相似会误判全部重复。仅做精确去重。
 
     Returns
     -------
@@ -233,7 +237,10 @@ async def dedup_jd_records(
         len(records), len(after_exact), len(exact_dups),
     )
 
- # --- Pass 2: Fuzzy dedup (SimHash) ---
+ # --- Pass 2: Fuzzy dedup (SimHash) — 首次抓取跳过 ---
+    if skip_fuzzy:
+        logger.info("Fuzzy dedup skipped (first crawl, no history to compare)")
+        return after_exact, exact_dups
     unique, fuzzy_dups = _simhash_fuzzy_dedup(
         after_exact, text_getter, threshold=threshold,
     )
