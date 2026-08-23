@@ -188,13 +188,16 @@ class TestResolvePositionName:
 
     @pytest.mark.asyncio
     async def test_substring_candidate_in_target(self):
-        # candidate.lower() is a substring of target ("py" in "python")
+        # 2026-08-23 fix: 候选名是输入子串不再误命中。
+        # 原行为 "Py" in "Python" → 命中 "Py" 岗位,导致 "Python" 匹配到错误的
+        # "Py" 画像(同款 bug: "E2E Data Engineer" 误命中 "Data Engineer")。
+        # 现在仅"输入是候选子串"才命中,反向不命中 → 返回原输入。
         routes = [
             (_is_resolve_exact, FakeAsyncResult([])),
             (_is_resolve_fuzzy, FakeAsyncResult([{"name": "Py"}])),
         ]
         result = await _resolve_position_name(FakeDriver(RoutingSession(routes)), "Python")
-        assert result == "Py"
+        assert result == "Python"
 
     @pytest.mark.asyncio
     async def test_no_match_returns_original(self):

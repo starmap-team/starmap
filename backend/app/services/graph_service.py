@@ -78,11 +78,13 @@ async def _resolve_position_name(driver: Any, position_name: str) -> str:
                 or target in cand_cn_lower
                 or cand_cn_lower in target
             )
-            # 2) 包含匹配: name 或 name_cn 任一命中即返回 canonical name
+            # 2) 包含匹配: 保留"用户输入是候选名子串"(backend → Backend Engineer)，
+            #    去掉"候选名是用户输入子串"——后者会让 "E2E Data Engineer" 误命中
+            #    "Data Engineer"(候选名是输入的子串)，导致新岗位匹配到错误画像。
+            #    name_cn 保留双向包含(中文容错)。
             if (
                 cand_lower == target
                 or target in cand_lower
-                or cand_lower in target
                 or cn_hit
             ):
                 return candidate
