@@ -309,12 +309,18 @@ async def complete_run(
         )
         low_quality_sources = ds_result.scalars().all()
         for ds in low_quality_sources:
-            has_history = (ds.total_records or 0) > 0
-            if not has_history:
-                # 无历史数据：可能是新接入源/爬虫暂不可用，不自动暂停（只降权）
+            # 2026-08-23 fix: has_history 基于 valid_records(有效抽取)而非
+            # total_records(含 raw/cleaned 未抽取) — 新源首次抓取后 total>0
+            # 但 valid=0(raw 待抽取), 被判"有历史"→ auto-pause → 数据链断裂。
+            # 仅当源有有效抽取记录(valid_records>0)或最近 24h 有采集 metrics
+            # (即"曾经工作过但质量下滑")时才允许自动暂停。
+            has_valid_history = (ds.valid_records or 0) > 0
+            if not has_valid_history:
+                # 无有效抽取历史：新接入源首次抓取(raw 待抽取)或爬虫暂不可用，
+                # 不自动暂停（只降权），给数据链抽取留出时间。
                 logger.info(
-                    "Skip auto-pause for source '{}' (authority={}, no history — new/unverified source)",
-                    ds.name, ds.authority_score,
+                    "Skip auto-pause for source '{}' (authority={}, valid={}, no valid history — new/unverified source)",
+                    ds.name, ds.authority_score, ds.valid_records,
                 )
                 continue
             ds.status = "paused"
