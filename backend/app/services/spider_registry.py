@@ -31,8 +31,25 @@ PLATFORM_TO_SOURCE_NAME: dict[str, str] = {
     "weworkremotely": "weworkremotely",
     "juejin": "juejin",
     "remoteok": "remoteok",
+    "themuse": "themuse",
+    "landingjobs": "landingjobs",
     "manual": "手动导入",
     "boss": "Boss Zhipin",
+}
+
+# 平台中文显示名（数据源卡片/下拉用，2026-08-23 新增）
+PLATFORM_DISPLAY_NAME: dict[str, str] = {
+    "arbeitnow": "德国 Arbeitnow",
+    "jobicy": "Jobicy 远程",
+    "remotive": "Remotive 远程",
+    "v2ex": "V2EX 酷工作",
+    "weworkremotely": "WeWorkRemotely 远程",
+    "juejin": "掘金技术社区",
+    "remoteok": "RemoteOK 远程",
+    "themuse": "The Muse 求职",
+    "landingjobs": "Landing.jobs 欧洲",
+    "manual": "手动导入",
+    "boss": "BOSS 直聘",
 }
 
 # Reverse lookup: data_sources.name → platform key
@@ -56,7 +73,15 @@ def build_spider_registry() -> dict[str, Callable[..., Any]]:
     隔离 — 包一层闭包固定 source 参数，页面 V2EX 卡只写 v2ex、Remotive 卡只写
     remotive，不再一次调用混写两源。
     """
-    from crawler.spiders import arbeitnow, jobicy, juejin, remoteok, weworkremotely
+    from crawler.spiders import (
+        arbeitnow,
+        jobicy,
+        juejin,
+        landingjobs,
+        remoteok,
+        themuse,
+        weworkremotely,
+    )
     from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
 
     def _v2ex_only(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any]]:
@@ -73,6 +98,8 @@ def build_spider_registry() -> dict[str, Callable[..., Any]]:
         "weworkremotely": weworkremotely.run_sync,
         "juejin": juejin.run_sync,    # PLAN-002: D5 非结构化源 (技术博客)
         "remoteok": remoteok.run_sync,  # PLAN-003: 英文 JD 源
+        "themuse": themuse.run_sync,   # 2026-08-23: The Muse 免费 API
+        "landingjobs": landingjobs.run_sync,  # 2026-08-23: Landing.jobs 欧洲
     }
 
 

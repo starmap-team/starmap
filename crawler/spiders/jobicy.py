@@ -29,14 +29,23 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
     now = datetime.now(UTC).isoformat
     # Jobicy API key changed: response is {"jobs": [...]} (verified 2026-07-29)
     jobs = data.get("jobs") or data.get("jobList", [])
+    seen: set[str] = set()  # 2026-08-23: 适配器内去重(同标题+公司跳过)
     for j in jobs[:max_count]:
+        job_title = (j.get("jobTitle", "") or "").strip()
+        if not job_title:
+            continue
+        company = (j.get("companyName", "") or "").strip()
+        dedup_key = f"{job_title.lower()}|{company.lower()}"
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
         excerpt = j.get("jobExcerpt", "") or j.get("jobDescription", "")[:5000]
         # pubDate 可能为 ''/None → PG DATE 拒绝空串，转 None（让 DEFAULT NULL 生效）
         pub_date_raw = str(j.get("pubDate") or "").strip()[:10]
         items.append({
             "source_site": "jobicy",
-            "job_title": j.get("jobTitle", "")[:200],
-            "company": j.get("companyName", ""),
+            "job_title": job_title[:200],
+            "company": company[:200],
             "clean_text": excerpt[:5000],
             "source_url": j.get("url", ""),
             "raw_html": excerpt[:10000],

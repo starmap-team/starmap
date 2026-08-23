@@ -14,6 +14,7 @@ class DataSourceResponse(BaseModel):
 
     id: str = Field(..., description="数据源 ID")
     name: str = Field(..., min_length=1, max_length=200, description="数据源名称")
+    display_name: str | None = Field(default=None, description="中文适配器显示名（2026-08-23）")
     source_type: str = Field(..., description="数据源类型（api/rss/spider/manual 等）")
     authority_score: float = Field(default=0.6, ge=0, le=1, description="权威度评分 0~1")
     status: str = Field(default="active", description="数据源状态 active/paused/error")

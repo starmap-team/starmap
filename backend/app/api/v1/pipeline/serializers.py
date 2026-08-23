@@ -47,11 +47,15 @@ def serialize_datasource(ds: DataSourceRecord) -> DataSourceResponse:
  # /D1 (2026-08-15): 与 /datasources 端点同源——has_adapter/adapter_platform
  # 由后端 spider 注册表判定（唯一事实源），否则 pipeline 页"可用源"恒 0 与源管理不一致。
     from app.api.v1.datasource import _adapter_capability
+    from app.services.spider_registry import PLATFORM_DISPLAY_NAME
 
     has_adapter, adapter_platform = _adapter_capability(ds)
+    # 2026-08-23: 中文适配器名 — 数据源卡片显示中文(如 "Jobicy 远程" 而非 "jobicy")
+    display_name = PLATFORM_DISPLAY_NAME.get(ds.name) or ds.name
     return DataSourceResponse(
         id=str(ds.id),
         name=ds.name,
+        display_name=display_name,
         source_type=ds.source_type,
         authority_score=ds.authority_score,
         status=ds.status,

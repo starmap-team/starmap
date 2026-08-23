@@ -76,10 +76,13 @@ def _adapter_capability(ds: DataSourceRecord) -> tuple[bool, str | None]:
 
 
 def _serialize(ds: DataSourceRecord) -> DataSourceResponse:
+    from app.services.spider_registry import PLATFORM_DISPLAY_NAME
+
     has_adapter, adapter_platform = _adapter_capability(ds)
     return DataSourceResponse(
         id=str(ds.id),
         name=ds.name,
+        display_name=PLATFORM_DISPLAY_NAME.get(ds.name) or ds.name,
         source_type=ds.source_type,
         authority_score=ds.authority_score,
         status=ds.status,

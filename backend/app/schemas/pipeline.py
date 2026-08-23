@@ -100,6 +100,7 @@ class DataSourceResponse(BaseModel):
     """Data source information."""
     id: str
     name: str
+    display_name: str | None = None  # 2026-08-23: 中文适配器显示名
     source_type: str
     authority_score: float
     status: str

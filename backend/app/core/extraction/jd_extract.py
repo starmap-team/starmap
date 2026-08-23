@@ -416,6 +416,28 @@ class JDExtractionPipeline:
                 logger.warning("Anti-hallucination check failed: {}", e)
                 result["warnings"].append(f"Validation error: {e}")
 
+ # Step 6.5: 规则过滤 — 非技能词黑名单(职责/软词/行业词)
+ # 2026-08-23: LLM 常把 Hiring/Customer Success/Leadership 等当技能提取,
+ # 在词典过滤前先用黑名单剔除, 避免非技能进入技能库。
+        try:
+            from app.core.extraction.anti_hallucination import AntiHallucinationChecker as _AHC
+            _checker = _AHC()
+            _before_r = len(validated.required_skills)
+            _before_p = len(validated.preferred_skills)
+            validated.required_skills = [
+                s for s in validated.required_skills
+                if _checker.check_skill(s.name, s.name, 1.0)[0]
+            ]
+            validated.preferred_skills = [
+                s for s in validated.preferred_skills
+                if _checker.check_skill(s.name, s.name, 1.0)[0]
+            ]
+            _dropped = (_before_r - len(validated.required_skills)) + (_before_p - len(validated.preferred_skills))
+            if _dropped:
+                result["warnings"].append(f"Rule filter dropped {_dropped} non-skill items")
+        except Exception as _e:  # noqa: BLE001 — 过滤失败不阻断主流程
+            logger.warning("Rule skill filter failed: {}", _e)
+
  # Step 7: Dictionary post-filter — keep only LLM skills that match SKILL_ALIAS
  # ECC regex-vs-llm-structured-text "Regex handles 95-98%". This filter
  # drops LLM hallucinations (skills invented beyond our 572-skill vocabulary),

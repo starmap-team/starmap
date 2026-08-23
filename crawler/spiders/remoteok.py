@@ -23,6 +23,8 @@ from crawler.compliance import fetch
 REMOTEOK_URL = "https://remoteok.com/api"
 _HTML_TAG = re.compile(r"<[^>]+>")
 _WS = re.compile(r"\s+")
+# 2026-08-23: 非英语岗位过滤 — RemoteOK 偶有西语/法语岗位,抽取质量差。
+_NON_EN_TITLE = re.compile(r"[^\x00-\x7F]")
 
 
 def _strip_html(html: str) -> str:
@@ -48,6 +50,9 @@ def run_sync(keyword: str = "python", max_count: int = 20) -> list[dict[str, Any
     for j in jobs[:max_count]:
         position = (j.get("position") or "").strip()
         if not position:
+            continue
+        # 2026-08-23: 非英语标题过滤(西语/法语等),避免低质量抽取
+        if _NON_EN_TITLE.search(position):
             continue
         description = _strip_html(j.get("description"))[:5000]
         if len(description) < 20:
