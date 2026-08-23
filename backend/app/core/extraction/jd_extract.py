@@ -420,8 +420,8 @@ class JDExtractionPipeline:
  # 2026-08-23: LLM 常把 Hiring/Customer Success/Leadership 等当技能提取,
  # 在词典过滤前先用黑名单剔除, 避免非技能进入技能库。
         try:
-            from app.core.extraction.anti_hallucination import AntiHallucinationChecker as _AHC
-            _checker = _AHC()
+            from app.core.extraction import anti_hallucination as _ah
+            _checker = _ah.AntiHallucinationChecker()
             _before_r = len(validated.required_skills)
             _before_p = len(validated.preferred_skills)
             validated.required_skills = [
