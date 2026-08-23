@@ -10,7 +10,7 @@
  * fallback that previously masked the production path mismatch
  * (browser → /api/auth/login → backend 404).
  */
-import axios, { type AxiosError } from 'axios'
+import axios, { type AxiosError, type AxiosRequestConfig } from 'axios'
 import { ElMessage, ElNotification } from 'element-plus'
 import { API_BASE } from '@/config/apiBase'
 
@@ -270,11 +270,11 @@ request.interceptors.response.use(
 type RequestInstance = typeof request
 
 interface TypedRequest extends RequestInstance {
-  get<T = unknown>(url: string, config?: any): Promise<T>
-  post<T = unknown>(url: string, data?: unknown, config?: any): Promise<T>
-  put<T = unknown>(url: string, data?: unknown, config?: any): Promise<T>
-  delete<T = unknown>(url: string, config?: any): Promise<T>
-  patch<T = unknown>(url: string, data?: unknown, config?: any): Promise<T>
+  get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>
+  post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
+  put<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
+  delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>
+  patch<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
 }
 
 // The interceptor already unwraps `resp.data`, so a simple cast is safe.
