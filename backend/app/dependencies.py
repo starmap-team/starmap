@@ -319,7 +319,10 @@ async def get_current_user_sse(
     await check_fn(client_ip)
 
  # Try query-param token first (for EventSource connections)
-    if token:
+ # 2026-08-23 fix: 显式校验 token 是字符串。FastAPI 依赖嵌套时 Query(None)
+ # 默认值可能是 Query 对象本身而非 None, `if token:` 对 Query 对象为 True →
+ # decode 一个 Query 对象抛 ValueError → SSE query token 恒 401。
+    if isinstance(token, str) and token:
  # ③: dev-token 守门收敛到 services.dev_token (SSE 路径同上)
         if is_dev_token_allowed(token):
             return dev_token_identity()
