@@ -156,6 +156,7 @@ function handleExport() {
           技能差距明细
         </h3>
         <el-table
+          v-if="gapSkills.length"
           :data="gapSkills"
           stripe
           class="full-width-table"
@@ -220,6 +221,19 @@ function handleExport() {
             </template>
           </el-table-column>
         </el-table>
+
+        <!-- 无差距明细时的空态引导(岗位无画像或全部匹配) -->
+        <div
+          v-else
+          class="gap-empty"
+        >
+          <p class="gap-empty-title">
+            {{ matchResult?.note || (matchedSkills.length ? '技能已全部覆盖' : '暂无差距数据') }}
+          </p>
+          <p class="gap-empty-desc">
+            {{ matchedSkills.length ? '你的技能已覆盖该岗位要求，可直接投递简历' : '该岗位可能暂无技能画像，请尝试更换目标岗位' }}
+          </p>
+        </div>
 
         <div class="step-actions">
           <el-button
@@ -457,4 +471,24 @@ function handleExport() {
 .lp-cell-text { font-size: var(--font-size-xs); color: var(--foreground); white-space: nowrap; }
 .lp-cell-arrow { color: var(--muted-foreground); font-size: 10px; margin: 0 2px; }
 .lp-cell-empty { color: var(--muted-foreground); font-size: var(--font-size-sm); }
+
+/* 无差距明细空态 */
+.gap-empty {
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--muted, #f5f5f5);
+}
+.gap-empty-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 var(--space-2);
+}
+.gap-empty-desc {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  margin: 0;
+}
 </style>

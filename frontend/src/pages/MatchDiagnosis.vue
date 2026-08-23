@@ -187,6 +187,18 @@ async function handlePositionSelect(pos: { position_id: string; name: string; na
 
 // ── Step 2: 开始诊断 ──
 async function handleStartDiagnosis() {
+ // 前置校验: 技能与目标岗位都必须就绪,否则直接提示,避免向后端发空请求(422)
+  const skillNames = userStore.parsedSkills.map(s => s.skill)
+  if (!skillNames.length) {
+    ElMessage.warning('请先录入技能（上传简历解析或手动输入）')
+    return
+  }
+  const target = targetPositionKey.value || targetPositionName.value
+  if (!target) {
+    ElMessage.warning('请先选择目标岗位')
+    return
+  }
+
   matchProgress.value = 0
   matchAnimating.value = true
   matchAnimComplete.value = false
@@ -199,7 +211,6 @@ async function handleStartDiagnosis() {
 
   try {
  // FLOW-03: extract skill names from structured parsedSkills
-    const skillNames = userStore.parsedSkills.map(s => s.skill)
     const profMap: Record<string, string> = {}
  // Prefer resumeStore proficiency, fallback to parsedSkills proficiency
     if (resumeStore.result?.required_skills) {
@@ -211,7 +222,7 @@ async function handleStartDiagnosis() {
         profMap[s.skill] = s.proficiency
       }
     }
-    await matchStore.runMatch(targetPositionKey.value || targetPositionName.value, skillNames, profMap)
+    await matchStore.runMatch(target, skillNames, profMap)
     matchProgress.value = 100
 
     const result = matchStore.result
@@ -234,11 +245,9 @@ async function handleStartDiagnosis() {
       matchAnimSkills.value = allSkills
     }
 
- // / BUG-006: don't advance to step 3 (gap analysis) when
- // the match result is empty — that would leave the wizard stuck on
- // a blank GapAnalysisReport with no recovery path. Stay on step 2,
- // show a warning, and let the user retry with a different position.
-    if (!result || (result.matched_skills?.length === 0 && (result.skill_gap_detail?.length ?? 0) === 0)) {
+ // BUG-006 优化: 请求失败(result 为 null)才拦截;岗位无画像(空结果但带
+ // note)应跳转 step 3 展示空态引导,而不是停在 step 2 造成"空白页"错觉。
+    if (!result) {
       ElMessage.warning('诊断未产生结果，请检查简历技能或尝试其他岗位')
       matchAnimating.value = false
       matchAnimComplete.value = false
@@ -282,8 +291,14 @@ function resetAll() {
 
 //: MatchFlow navigation handler — jumps the wizard to the
 // step associated with the business concept the user clicked.
+// 按业务流顺序做前置校验,防止跳转到空步骤。
 function onFlowNavigate(targetStep: number) {
- // 差距分析/学习路径依赖匹配结果 — 未匹配时提示引导,避免跳到空页面
+ // step 2 岗位对比/雷达: 需要技能
+  if (targetStep === 2 && !userStore.parsedSkills.length) {
+    ElMessage.warning('请先录入技能（上传简历解析或手动输入）')
+    return
+  }
+ // step 3/4 差距分析/学习路径: 需要匹配结果
   if (targetStep >= 3 && !matchStore.result) {
     ElMessage.warning('请先完成「技能雷达对比」中的开始诊断，再查看差距分析与学习路径')
     return
