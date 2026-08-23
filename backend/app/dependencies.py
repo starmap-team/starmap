@@ -318,16 +318,21 @@ async def get_current_user_sse(
     check_fn = _sse_connect_check or sse_connect
     await check_fn(client_ip)
 
+ # 2026-08-23 fix: FastAPI 在依赖嵌套时可能不注入 Query 参数(token 为
+ # None 或 Query 对象), 导致 SSE query token 恒 401。改为从 request
+ # query_params 手动读取, 不依赖 FastAPI 注入。
+    query_token = request.query_params.get("token")
+    if not isinstance(query_token, str) or not query_token:
+        # 回退到 FastAPI 注入的 token(显式传参场景/测试)
+        query_token = token if isinstance(token, str) else None
+
  # Try query-param token first (for EventSource connections)
- # 2026-08-23 fix: 显式校验 token 是字符串。FastAPI 依赖嵌套时 Query(None)
- # 默认值可能是 Query 对象本身而非 None, `if token:` 对 Query 对象为 True →
- # decode 一个 Query 对象抛 ValueError → SSE query token 恒 401。
-    if isinstance(token, str) and token:
+    if query_token:
  # ③: dev-token 守门收敛到 services.dev_token (SSE 路径同上)
-        if is_dev_token_allowed(token):
+        if is_dev_token_allowed(query_token):
             return dev_token_identity()
         try:
-            payload = _decode_token_payload(token)
+            payload = _decode_token_payload(query_token)
             return payload
         except ValueError as e:
             err_msg = str(e)
