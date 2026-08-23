@@ -146,22 +146,30 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
         const { done, value } = await reader.read()
         if (done) break
 
+ // SSE 事件以空行(\n\n)分隔;data 行内的换行不能拆行,
+ // 否则 JSON.parse 失败导致 result 事件丢失(用户见"回上传页")。
         buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
+        const blocks = buffer.split('\n\n')
+        buffer = blocks.pop() || ''
 
-        let currentEvent = ''
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.slice(7).trim()
-          } else if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6)
-            try {
-              const data = JSON.parse(dataStr)
-              if (currentEvent === 'progress') {
-                progress.value.push(data)
-                currentStep.value = data.step
-              } else if (currentEvent === 'result') {
+        for (const block of blocks) {
+          const lines = block.split('\n')
+          let currentEvent = ''
+          let dataStr = ''
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.slice(7).trim()
+            } else if (line.startsWith('data: ')) {
+              dataStr += (dataStr ? '\n' : '') + line.slice(6)
+            }
+          }
+          if (!dataStr) continue
+          try {
+            const data = JSON.parse(dataStr)
+            if (currentEvent === 'progress') {
+              progress.value.push(data)
+              currentStep.value = data.step
+            } else if (currentEvent === 'result') {
  // P2 fix (functional-review 2026-08-13): SSE result 事件直接赋给
  // result.value 无字段归一化 —— PipelineAnalysis.vue 模板访问
  // result.extracted_skills.length 等，后端若缺任一数组字段即抛
@@ -200,7 +208,6 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
             }
           }
         }
-      }
     } catch (e: unknown) {
       window.clearTimeout(timeoutId)
       error.value = e instanceof Error
