@@ -99,6 +99,11 @@ const routes = [
     component: () => import('@/pages/LearningCenter.vue'),
     meta: { title: '学习中心', icon: 'Reading', breadcrumb: ['首页', '学习中心'], transition: 'page-slide', requiresAuth: true },
   },
+  // 无效路径兜底:重定向首页(避免白屏)
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/',
+  },
 ]
 
 const router = createRouter({

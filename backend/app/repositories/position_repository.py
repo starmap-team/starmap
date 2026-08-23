@@ -41,6 +41,7 @@ class PositionRepository:
                    proficiency: COALESCE(rel.level, '熟悉'),
                    is_required: COALESCE(rel.required, true)
                }) AS skills
+        ORDER BY pos_name
         """
         try:
             async with self._driver.session() as session:
