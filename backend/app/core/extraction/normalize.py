@@ -573,12 +573,13 @@ def normalize_by_vector(
     if chroma_client is None and _is_chroma_marked_unavailable():
         return None
 
-    try:
-        import chromadb
-    except ImportError:
-        logger.warning("chromadb not installed, skipping vector normalization")
-        _mark_chroma_unavailable("chromadb-not-installed")
-        return None
+    if chroma_client is None:
+        try:
+            import chromadb
+        except ImportError:
+            logger.warning("chromadb not installed, skipping vector normalization")
+            _mark_chroma_unavailable("chromadb-not-installed")
+            return None
 
     if chroma_client is None:
         try:
