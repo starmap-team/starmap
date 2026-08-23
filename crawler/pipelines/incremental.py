@@ -81,6 +81,11 @@ def check_incremental(
 
     filtered: list[dict] = []
     batch_hashes: list[int] = []
+    # 2026-08-23: 新源首次抓取(库中无该源历史 simhash)时, 同批次内岗位
+    # 描述常含相同公司模板开头("About Flexport: At Flexport..."), simhash
+    # 高度相似 → 后抓的岗位全被判近似重复。首次抓取只做 URL 精确去重,
+    # 近似去重从第二次抓取起生效(此时有真实历史可比)。
+    first_crawl = not existing_hashes
 
     for rec in records:
         stats.total += 1
@@ -92,30 +97,32 @@ def check_incremental(
             stats.skipped_urls.append(url)
             continue
 
-        # SimHash 近似去重
+        # SimHash 近似去重(首次抓取跳过比较 — 无历史可比, 同批次模板相似会误判;
+        # 但 content_hash/simhash 仍需计算, 供精确去重与后续批次近似比较)
         text = rec.get("clean_text", "")
         if text:
             new_hash = simhash(text)
-            # 对比已入库
-            is_dup = False
-            for old_hash in existing_hashes.values():
-                if is_near_duplicate(new_hash, old_hash, threshold=simhash_threshold):
-                    stats.content_near_duplicate += 1
-                    stats.skipped_urls.append(url)
-                    is_dup = True
-                    break
-            if is_dup:
-                continue
-            # 对比本批次内
-            for bh in batch_hashes:
-                if is_near_duplicate(new_hash, bh, threshold=simhash_threshold):
-                    stats.content_near_duplicate += 1
-                    stats.skipped_urls.append(url)
-                    is_dup = True
-                    break
-            if is_dup:
-                continue
-            batch_hashes.append(new_hash)
+            if not first_crawl:
+                # 对比已入库
+                is_dup = False
+                for old_hash in existing_hashes.values():
+                    if is_near_duplicate(new_hash, old_hash, threshold=simhash_threshold):
+                        stats.content_near_duplicate += 1
+                        stats.skipped_urls.append(url)
+                        is_dup = True
+                        break
+                if is_dup:
+                    continue
+                # 对比本批次内
+                for bh in batch_hashes:
+                    if is_near_duplicate(new_hash, bh, threshold=simhash_threshold):
+                        stats.content_near_duplicate += 1
+                        stats.skipped_urls.append(url)
+                        is_dup = True
+                        break
+                if is_dup:
+                    continue
+                batch_hashes.append(new_hash)
             # NEW-06 拆列: content_hash 用 sha256 守精确去重(UNIQUE),
             # simhash 存 64-bit 整数供近似去重(独立列); 旧行为(content_hash=hex64(simhash))保留兼容
             rec["content_hash"] = hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()

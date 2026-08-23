@@ -55,10 +55,10 @@ class TestCheckIncremental:
         assert len(filtered) == 1
         assert filtered[0]["source_url"] == "https://b.com/2"
 
-    @patch("crawler.pipelines.incremental.get_existing_hashes", return_value={})
+    @patch("crawler.pipelines.incremental.get_existing_hashes", return_value={"https://old.com/1": 1})
     @patch("crawler.pipelines.incremental.get_existing_urls", return_value=set())
     def test_batch_internal_dedup(self, _mock_urls, _mock_hashes) -> None:
-        # 两条几乎一样的内容
+        # 两条几乎一样的内容; 已有历史 hash(非首次抓取) → 批次内近似去重生效
         records = [
             {"source_url": "https://a.com/1", "clean_text": "Python 后端工程师 招聘 要求三年经验"},
             {"source_url": "https://a.com/2", "clean_text": "Python 后端工程师 招聘 要求三年经验"},
@@ -67,6 +67,24 @@ class TestCheckIncremental:
         assert stats.total == 2
         assert stats.content_near_duplicate == 1
         assert len(filtered) == 1
+
+    @patch("crawler.pipelines.incremental.get_existing_hashes", return_value={})
+    @patch("crawler.pipelines.incremental.get_existing_urls", return_value=set())
+    def test_first_crawl_skips_simhash_dedup(self, _mock_urls, _mock_hashes) -> None:
+        # 2026-08-23: 首次抓取(无历史 hash)跳过 simhash 近似去重 —
+        # 同批次岗位描述含相同公司模板开头会误判重复。两条相同内容也
+        # 都通过(simhash 层), 精确去重由 content_hash 唯一索引兜底。
+        records = [
+            {"source_url": "https://a.com/1", "clean_text": "Python 后端工程师 招聘 要求三年经验"},
+            {"source_url": "https://a.com/2", "clean_text": "Python 后端工程师 招聘 要求三年经验"},
+        ]
+        filtered, stats = check_incremental(records)
+        assert stats.total == 2
+        assert stats.content_near_duplicate == 0
+        assert len(filtered) == 2
+        # hash 仍被计算(供 DB 精确去重 + 下次近似比较)
+        assert "content_hash" in filtered[0]
+        assert "simhash" in filtered[0]
 
     @patch("crawler.pipelines.incremental.get_existing_hashes", return_value={})
     @patch("crawler.pipelines.incremental.get_existing_urls", return_value=set())
