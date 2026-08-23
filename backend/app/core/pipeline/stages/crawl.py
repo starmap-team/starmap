@@ -41,25 +41,12 @@ def build_spider_registry() -> dict[str, Any]:
     D6 (2026-08-12): v2ex 与 remotive 共用 v2ex_remote.run_sync 但需严格逐源
     隔离 — 包一层闭包固定 source 参数，页面 V2EX 卡只写 v2ex、Remotive 卡只写
     remotive，不再一次调用混写两源。
+
+    2026-08-23: 委托 services.spider_registry.build_spider_registry ——
+    消除双注册表漂移(此前 crawl.py 本地副本漏注册 themuse/landingjobs)。
     """
-    from crawler.spiders import arbeitnow, jobicy, juejin, remoteok, weworkremotely
-    from crawler.spiders.v2ex_remote import run_sync as v2ex_sync
-
-    def _v2ex_only(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any]]:
-        return v2ex_sync(keyword=keyword, max_count=max_count, source="v2ex")
-
-    def _remotive_only(keyword: str = "python", max_count: int = 10) -> list[dict[str, Any]]:
-        return v2ex_sync(keyword=keyword, max_count=max_count, source="remotive")
-
-    return {
-        "v2ex": _v2ex_only,
-        "remotive": _remotive_only,  # D6: 逐源隔离, 不再共享双源混写
-        "arbeitnow": arbeitnow.run_sync,
-        "jobicy": jobicy.run_sync,
-        "weworkremotely": weworkremotely.run_sync,
-        "juejin": juejin.run_sync,    # PLAN-002: D5 非结构化源 (技术博客)
-        "remoteok": remoteok.run_sync,  # PLAN-003: 英文 JD 源
-    }
+    from app.services.spider_registry import build_spider_registry as _build
+    return _build()
 
 
 def _update_source_after_crawl(run_id: str, records_count: int) -> None:
