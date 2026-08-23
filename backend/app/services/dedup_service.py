@@ -132,7 +132,11 @@ async def _redis_exact_dedup(
     for rec in records:
         text = text_getter(rec)
         chash = _content_hash(text)
-        key = f"{redis_key_prefix}{chash}"
+        # 2026-08-23 fix: key 含 source_site — 不同源的相同内容不算重复。
+        # 此前 key 是全局 "dedup:exact:{hash}", The Muse 首次抓取写入的 hash
+        # 残留(7 天 TTL), 后续重新抓取(即使 DB 已清理)命中 Redis → 全判重复。
+        source_site = getattr(rec, "source_site", "unknown") or "unknown"
+        key = f"{redis_key_prefix}{source_site}:{chash}"
         exists = await redis_client.exists(key)
         if exists:
             duplicates.append(rec)
