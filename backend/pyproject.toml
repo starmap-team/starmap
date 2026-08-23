@@ -21,7 +21,7 @@ dependencies = [
     "psycopg[binary] (>=3.1,<4.0)",      # crawler 同步 DB 驱动 (compliance_log/jd_raw, CI 测试依赖)
     "alembic (>=1.13,<1.15)",            # 迁移（规范2：模型变更必走迁移）
     "neo4j (>=5.17,<6.0)",               # Neo4j Python driver
-    "chromadb (>=0.5,<0.6)",             # 向量库
+    # "chromadb (>=0.5,<0.6)",          # 向量库（生产移除）
     "redis (>=5.0,<6.0)",
     # 任务队列
     "celery[redis] (>=5.3,<5.5)",
@@ -49,6 +49,12 @@ ruff = ">=0.3"            # lint + format
 mypy = ">=1.9"           # type check
 
 # 应用项目（不发布到 PyPI），关闭打包模式
+
+[[tool.poetry.source]]
+name = "tuna"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+priority = "primary"
+
 [tool.poetry]
 package-mode = false
 
