@@ -382,7 +382,7 @@
             width="100"
           >
             <template #default="{ row }">
-              {{ (row.score * 100).toFixed(1) }}%
+              {{ typeof row.score === 'number' && Number.isFinite(row.score) ? (row.score * 100).toFixed(1) + '%' : '—' }}
             </template>
           </el-table-column>
           <el-table-column
@@ -391,7 +391,7 @@
             width="100"
           >
             <template #default="{ row }">
-              {{ (row.match_score * 100).toFixed(1) }}%
+              {{ typeof row.match_score === 'number' && Number.isFinite(row.match_score) ? (row.match_score * 100).toFixed(1) + '%' : '—' }}
             </template>
           </el-table-column>
           <el-table-column
@@ -400,7 +400,7 @@
             width="100"
           >
             <template #default="{ row }">
-              {{ (row.developability * 100).toFixed(1) }}%
+              {{ typeof row.developability === 'number' && Number.isFinite(row.developability) ? (row.developability * 100).toFixed(1) + '%' : '—' }}
             </template>
           </el-table-column>
         </el-table>

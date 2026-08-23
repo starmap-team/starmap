@@ -179,17 +179,21 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
                   extracted_skills: Array.isArray(rawResult.extracted_skills) ? rawResult.extracted_skills : [],
                   top_matches: Array.isArray(rawResult.top_matches) ? rawResult.top_matches : [],
                   recommended_positions: Array.isArray(rawResult.recommended_positions) ? rawResult.recommended_positions : [],
-                  skill_gaps: rawGaps.map((g: Record<string, unknown>) => ({
-                    ...g,
-                    learning_path: Array.isArray(g.learning_path) ? g.learning_path : [],
-                    learning_resources: Array.isArray(g.learning_resources) ? g.learning_resources : [],
-                  })),
+                  skill_gaps: rawGaps
+                    .filter((g): g is Record<string, unknown> => g !== null && typeof g === 'object')
+                    .map((g) => ({
+                      ...g,
+                      learning_path: Array.isArray(g.learning_path) ? g.learning_path : [],
+                      learning_resources: Array.isArray(g.learning_resources) ? g.learning_resources : [],
+                    })),
                   learning_path_summary: rawPaths.filter(p => Array.isArray(p)),
                   errors: Array.isArray(rawResult.errors) ? rawResult.errors : [],
                 } as PipelineResult
               } else if (currentEvent === 'step_output') {
  //: 接收步骤输出详情供可视化核验
-                stepOutputs.value.push(data as StepOutput)
+                if (data && typeof data === 'object') {
+                  stepOutputs.value.push(data as StepOutput)
+                }
               }
             } catch {
  // 忽略非 JSON 数据
