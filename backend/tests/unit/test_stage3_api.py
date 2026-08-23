@@ -1,6 +1,7 @@
 """Stage 3 API contract tests."""
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -71,6 +72,8 @@ class FakeAsyncSession:
 async def test_quality_dashboard_builder_aggregates_metrics():
     session = FakeAsyncSession(
         [
+            # 2026-08-23 fix: 先查 max(evaluated_at) 再查 metrics(原 scalar_subquery 在 asyncpg 手动事务下抛错)
+            (datetime(2026, 8, 22, 10, 0, 0),),  # 0. latest_evaluated_at
             (0.9, 0.8, 0.85),  # 1. precision, recall, f1
             # P1-5 fix (functional-review 2026-08-13): pending_review 改从
             # position/skill_records 的 pending_review 计数（原 JDExtractionRecord
@@ -134,6 +137,7 @@ def test_quality_dashboard_endpoint_contract(client):
         # D2 fix: 少了 avg_confidence / avg_source 两次 execute（trust 来自 metrics 模块），
         # 且 total_extractions=0 时 high_trust_count 查询被跳过；weekly_new_nodes 仍为 2 次 execute
         yield FakeAsyncSession([
+            (datetime(2026, 8, 22, 10, 0, 0),),  # 0. latest_evaluated_at (2026-08-23 fix)
             (0.0, 0.0, 0.0),  # 1. precision, recall, f1
             (0,),             # 2. pending_pos count
             (0,),             # 3. pending_skill count

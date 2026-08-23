@@ -65,13 +65,21 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
  # 2026-08-15 F1 优化: 取"最新一轮评估"而非全史平均 — 每次 /evaluate/resume
  # 追加记录，全史平均会被旧基线稀释（如 0.857→0.894→0.956 的历史混合）。
  # 以 max(evaluated_at) 前 5 秒窗口圈定最近一轮（同批记录微秒级差异）。
-    _latest_run_ts = sa.select(sa.func.max(ExtractionEvaluationRecord.evaluated_at)).scalar_subquery()
-    metrics_stmt = sa.select(
-        sa.func.coalesce(sa.func.avg(ExtractionEvaluationRecord.precision), 0.0),
-        sa.func.coalesce(sa.func.avg(ExtractionEvaluationRecord.recall), 0.0),
-        sa.func.coalesce(sa.func.avg(ExtractionEvaluationRecord.f1_score), 0.0),
-    ).where(ExtractionEvaluationRecord.evaluated_at >= _latest_run_ts - timedelta(seconds=5))
-    precision, recall, f1 = (await session.execute(metrics_stmt)).one()
+ # 2026-08-23 fix: scalar_subquery 在 asyncpg 手动事务下抛 InterfaceError，
+ # 且表为空时 max() 返回 NULL → 比较恒 false。改为先查 max 再普通查询。
+    _latest_ts = (await session.execute(
+        sa.select(sa.func.max(ExtractionEvaluationRecord.evaluated_at))
+    )).scalar()
+    if _latest_ts is None:
+        # 无任何评估记录: 指标归零,不抛错
+        precision = recall = f1 = 0.0
+    else:
+        metrics_stmt = sa.select(
+            sa.func.coalesce(sa.func.avg(ExtractionEvaluationRecord.precision), 0.0),
+            sa.func.coalesce(sa.func.avg(ExtractionEvaluationRecord.recall), 0.0),
+            sa.func.coalesce(sa.func.avg(ExtractionEvaluationRecord.f1_score), 0.0),
+        ).where(ExtractionEvaluationRecord.evaluated_at >= _latest_ts - timedelta(seconds=5))
+        precision, recall, f1 = (await session.execute(metrics_stmt)).one()
 
     extraction_counts_stmt = sa.select(
         sa.func.count(JDExtractionRecord.id),
