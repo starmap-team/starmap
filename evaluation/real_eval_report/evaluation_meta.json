@@ -1,0 +1,23 @@
+{
+  "eval_timestamp": "2026-08-22T13:33:14.231079+00:00",
+  "llm_provider": "aliyun-dashscope",
+  "llm_model": "qwen-plus",
+  "llm_api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "golden_set": "50 entries with raw_jd (PR#18 version)",
+  "normalize_source": "hardcoded SKILL_ALIAS (191 groups in normalize.py)",
+  "pipeline_config": {
+    "anti_hallucination_enabled": true,
+    "normalize_skills_enabled": true,
+    "use_vector_normalization": false
+  },
+  "total_samples": 110,
+  "successful_extractions": 110,
+  "failed_extractions": 0,
+  "failures": [],
+  "results_summary": {
+    "avg_f1": 0.9622,
+    "avg_precision": 0.9725,
+    "avg_recall": 0.9568,
+    "weighted_score": 0.9727
+  }
+}
