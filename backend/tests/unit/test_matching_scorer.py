@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import importlib
 
+import pytest
+
 
 def _reset_chroma_negative_cache():
     """Reload the scorer module to clear the _is_chroma_marked_unavailable flag."""
@@ -19,7 +21,9 @@ def test_chroma_unavailable_degradation():
 
     from unittest.mock import patch
 
-    import chromadb as _real_chromadb
+    # 2026-08-23: 生产移除 chromadb 依赖后, 此测试在部署分支无 chromadb 可导入。
+    # importorskip 让"Chroma 缺失"场景直接跳过(该测试本就验证 Chroma 不可用时降级)。
+    _real_chromadb = pytest.importorskip("chromadb")
 
     from app.core.matching.scorer import score_skill_match
 
@@ -47,7 +51,8 @@ def test_chroma_collection_missing_graceful():
 
     from unittest.mock import MagicMock, patch
 
-    import chromadb as _real_chromadb
+    # 2026-08-23: 同上前 — 生产移除 chromadb 后跳过
+    _real_chromadb = pytest.importorskip("chromadb")
 
     from app.core.matching.scorer import score_skill_match
 
