@@ -334,6 +334,8 @@ async def discover_position(
             "emerging_skills": emerging,
             "count": len(emerging),
             "skills_analyzed": len(skill_data),
+            # 模块A（赛项）：岗位级发现 —— 涌现技能反查岗位画像，标记新兴演化候选
+            "emerging_positions": await _discover_position_candidates(db, report),
         }
     except PositionNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -342,6 +344,23 @@ async def discover_position(
     except Exception as exc:
         logger.exception("Unexpected error in position: {}", exc)
         raise HTTPException(status_code=500, detail="岗位处理异常") from exc
+
+
+async def _discover_position_candidates(
+    session: AsyncSession,
+    report: Any,
+) -> list[dict[str, Any]]:
+    """模块A 岗位级发现：涌现技能 → 岗位画像交叉 → 新兴演化候选岗位。
+
+    赛项要求"识别萌芽/兴起的新岗位并生成岗位定义"。技能级 z-score 只回答
+    "哪些技能在涌现"，本函数进一步回答"哪些岗位因涌现技能而可能是新岗位
+    或正在演化"——对每个已审核岗位统计其 required 技能中属于涌现/上升
+    技能的比例，占比 ≥50% 标记为候选，附带岗位定义字段。
+    """
+    from app.services.evolution_service import discover_emerging_positions
+
+    result = await discover_emerging_positions(session)
+    return result.get("candidates", [])
 
 
 @admin_router.post(

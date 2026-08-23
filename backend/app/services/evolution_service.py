@@ -243,3 +243,113 @@ async def build_emerging_skills(
         }
         for s in signals
     ]
+
+
+async def discover_emerging_positions(
+    session: AsyncSession,
+    threshold: float = 0.5,
+) -> dict[str, Any]:
+    """模块A 新岗位发现：涌现技能 → 岗位画像交叉 → 候选新兴岗位。
+
+    赛项要求"识别市场上萌芽/兴起的新岗位并生成岗位定义"。EmergenceFinder
+    只做技能级发现（z-score），本函数在其之上做岗位级聚合：对每个已审核
+    岗位统计其 required 技能中属于涌现/上升技能的比例，占比 >= threshold
+    的岗位标记为"新兴演化候选"，附带岗位定义字段。
+
+    返回:
+        {"status", "candidates": [{position, industry_scenario, emerging_skills,
+           emerging_ratio, definition}], "analyzed_positions"}
+    """
+    skill_data = await load_skill_timeseries_data(session)
+    if not skill_data:
+        return {
+            "status": "insufficient_data",
+            "candidates": [],
+            "analyzed_positions": 0,
+            "message": "时序数据不足，请先执行管线以生成技能频率统计",
+        }
+
+    finder = EmergenceFinder()
+    report = finder.scan(skill_data)
+    emerging_names = {s.skill_name for s in report.emerging + report.rising}
+
+    # 岗位 → required 技能名
+    rows = (
+        await session.execute(
+            sa.select(
+                PositionRecord.name,
+                SkillRecord.name.label("skill_name"),
+            )
+            .select_from(PositionSkillRelation)
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .join(SkillRecord, SkillRecord.id == PositionSkillRelation.skill_id)
+            .where(PositionSkillRelation.requirement_type == "required")
+            .where(PositionRecord.review_status == "approved")
+        )
+    ).all()
+    pos_skills: dict[str, set[str]] = {}
+    for name, skill_name in rows:
+        pos_skills.setdefault(name, set()).add(skill_name)
+
+    candidates = []
+    for pos, skills in pos_skills.items():
+        hit = skills & emerging_names
+        if not hit:
+            continue
+        ratio = round(len(hit) / len(skills), 3) if skills else 0.0
+        if ratio >= threshold:
+            candidates.append({
+                "position": pos,
+                "industry_scenario": None,  # 典型行业应用场景（抽取阶段补全）
+                "emerging_skills": sorted(hit),
+                "emerging_ratio": ratio,
+                "definition": {
+                    "position_name": pos,
+                    "required_skills": sorted(skills),
+                    "emerging_required": sorted(hit),
+                },
+            })
+
+    candidates.sort(key=lambda c: -c["emerging_ratio"])
+    return {
+        "status": "completed" if candidates else "no_candidates",
+        "candidates": candidates,
+        "analyzed_positions": len(pos_skills),
+        "threshold": threshold,
+        "message": f"扫描 {len(pos_skills)} 个已审核岗位，发现 {len(candidates)} 个新兴演化候选",
+    }
+
+
+def build_change_explanation(record: Any) -> str:
+    """模块B 更新说明：规则模板派生自然语言变更说明（不依赖 LLM）。
+
+    赛项要求能力变更"提供更新说明及数据源"。根据 change_type 与
+    evidence_json（mention_count_old/new、source_count、factors）生成
+    可读的中文说明，数据源引用 mention_count/source_count 统计依据。
+    """
+    evidence = getattr(record, "evidence_json", None) or {}
+    mention_old = evidence.get("mention_count_old")
+    mention_new = evidence.get("mention_count_new")
+    source_count = evidence.get("source_count")
+    ctype = getattr(record, "change_type", "") or ""
+    skill = getattr(record, "skill_name", "") or ""
+    position = getattr(record, "position_name", "") or "该岗位"
+
+    source_ref = ""
+    if source_count:
+        source_ref = f"（数据源：{source_count} 个独立 JD 来源"
+        if mention_old is not None and mention_new is not None:
+            source_ref += f"，提及次数 {mention_old}→{mention_new}"
+        source_ref += "）"
+
+    if ctype == "added_required":
+        return f"「{position}」新增必备技能「{skill}」{source_ref}：市场 JD 对该技能的需求占比上升，已提升为核心要求。"
+    if ctype == "added_preferred":
+        return f"「{position}」新增加分技能「{skill}」{source_ref}：更多 JD 将其列为优先项。"
+    if ctype == "removed":
+        return f"「{position}」移除技能「{skill}」{source_ref}：JD 提及显著下降或已不再要求。"
+    if ctype == "promoted":
+        return f"「{position}」技能「{skill}」由加分项提升为必备项{source_ref}：需求增长使其成为硬性要求。"
+    if ctype == "demoted":
+        return f"「{position}」技能「{skill}」由必备项降为加分项{source_ref}：需求减弱或竞争性下降。"
+    return f"「{position}」技能「{skill}」状态更新（{ctype}）{source_ref}。"
