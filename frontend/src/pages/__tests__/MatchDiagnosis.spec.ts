@@ -33,6 +33,7 @@ vi.mock('@/composables/useAuthBootstrap', () => ({
 import MatchDiagnosis from '../MatchDiagnosis.vue'
 import { useResumeStore } from '@/stores/resume'
 import { useUserStore } from '@/stores/user'
+import { useMatchStore } from '@/stores/match'
 import { PROFICIENCY_MAP } from '@/constants/labels'
 
 // ── explicit interaction stubs (findComponent matches by definition) ──
@@ -165,6 +166,11 @@ describe('MatchDiagnosis.vue', () => {
 
   it('向导流程：step 0 初始渲染，导航可推进各步骤内容', async () => {
     const wrapper = mountPage()
+    // 2026-08-23: onFlowNavigate 守卫要求 step 2 需技能, step 3/4 需匹配结果
+    const userStore = useUserStore()
+    userStore.parsedSkills = [{ skill: 'Python', category: 'hard_skill', proficiency: '熟悉' }]
+    const matchStore = useMatchStore()
+    matchStore.result = SAMPLE_RESULT as unknown as typeof matchStore.result
     // step 0: 录入技能
     expect(wrapper.find('.step-content .sc-title').text()).toContain('录入你的技能')
     await navigate(wrapper, 1)
@@ -228,23 +234,22 @@ describe('MatchDiagnosis.vue', () => {
     expect(wrapper.findComponent({ name: 'GapAnalysisReport' }).exists()).toBe(true)
   })
 
-  it('空结果守卫：无匹配结果时停留在 step 2 并提示，不进入差距报告', async () => {
+  it('空结果守卫：请求成功但无差距(岗位无画像)时跳转 step 3 展示空态引导', async () => {
     mockGet.mockImplementation((url: string) => {
       if (url.includes('/graph/position/')) return Promise.resolve(SAMPLE_POSITION_SKILLS)
       return Promise.resolve({ items: [] })
     })
     mockPost.mockResolvedValue(EMPTY_RESULT)
-    const warnSpy = vi.spyOn(ElMessage, 'warning')
     const wrapper = mountPage()
     const userStore = useUserStore()
     userStore.parsedSkills = [{ skill: 'Python', category: 'hard_skill', proficiency: '熟悉' }]
     await navigate(wrapper, 1)
     await selectPosition(wrapper)
     await clickStartDiagnosis(wrapper)
-    expect(wrapper.find('.step-content .sc-title').text()).toContain('技能雷达对比')
-    expect(wrapper.findComponent({ name: 'GapAnalysisReport' }).exists()).toBe(false)
-    expect(warnSpy).toHaveBeenCalledWith('诊断未产生结果，请检查简历技能或尝试其他岗位')
-    warnSpy.mockRestore()
+    // 2026-08-23 BUG-006 优化: 请求成功(非 null)即使结果为空也跳 step 3,
+    // GapAnalysisReport 展示"岗位暂无画像"空态, 而非停在 step 2 造成"空白页"错觉。
+    expect(wrapper.findComponent(MatchTrustGuideStub).exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'GapAnalysisReport' }).exists()).toBe(true)
   })
 
   it('批量模式：切换到 batch 时渲染 MatchBatchMode', async () => {
