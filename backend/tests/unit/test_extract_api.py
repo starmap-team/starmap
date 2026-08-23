@@ -370,8 +370,8 @@ class TestWriteExtractionToPg:
         assert result is True
         # Should have 3 unique skills (Python deduped)
         execute_calls = mock_session.execute.call_args_list
-        # 1 position upsert + 3 skill upserts
-        assert len(execute_calls) == 4
+        # 1 position upsert + 3 skill upserts + 1 PSR 关系写入(2026-08-22 fix)
+        assert len(execute_calls) == 5
 
     @pytest.mark.asyncio
     async def test_string_skills_handled(self):
