@@ -285,7 +285,11 @@ async function initGraph() {
       return 0.5 + w * 1.5
     })
     .linkOpacity(0.7)
-    .linkDirectionalArrowLength(3.5)
+ // CONTAINS edges are hub→leaf (parent→child). Showing arrows on those would
+ // visually clutter the graph (148 leaves × 1 arrow = a dense cone toward the
+ // hub). Only EVOLVES_TO (skill transition) gets directional arrows to convey
+ // directionality.
+    .linkDirectionalArrowLength((link) => (link as GraphLink3D).type === 'EVOLVES_TO' ? 3.5 : 0)
     .linkDirectionalArrowRelPos(1)
     .linkCurvature(0.1)
  // ── Force tuning ──
