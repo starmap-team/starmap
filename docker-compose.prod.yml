@@ -12,8 +12,8 @@ services:
   # 拉起 uvicorn (1 worker) + celery worker (1 concurrency)，节省一个容器的开销。
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     image: starmap-backend:2026.07
     container_name: starmap-backend-prod
     expose:

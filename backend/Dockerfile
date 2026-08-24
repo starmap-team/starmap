@@ -35,7 +35,7 @@ ENV POETRY_VIRTUALENVS_CREATE=false \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
 # 先拷依赖文件，利用 Docker 层缓存
-COPY pyproject.toml poetry.lock* ./
+COPY backend/pyproject.toml backend/poetry.lock* ./
 RUN poetry install --no-root --only main && rm -rf $POETRY_CACHE_DIR
 
 # ── 阶段 2：生产镜像 ─────────────────────────────────────────────────────────
@@ -52,17 +52,17 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# 复制应用源码
-COPY app/ ./app/
-COPY alembic/ ./alembic/
-COPY alembic.ini ./
-COPY scripts/ ./scripts/
-COPY entrypoint.sh ./
+# 复制应用源码 (context=仓库根)
+COPY backend/app/ ./app/
+COPY backend/alembic/ ./alembic/
+COPY backend/alembic.ini ./
+COPY backend/scripts/ ./scripts/
+COPY backend/entrypoint.sh ./
 # Phase 15-02: CSV 导入端点需要 crawler.persistence.dao.upsert_jd
 COPY crawler/ ./crawler/
 
 # 2c4G 适配：supervisord 配置（uvicorn + celery worker）
-COPY deploy/supervisord.conf /etc/supervisor/conf.d/starmap.conf
+COPY backend/deploy/supervisord.conf /etc/supervisor/conf.d/starmap.conf
 
 # 创建非 root 用户运行应用
 RUN useradd -m -s /bin/bash starmap && \
