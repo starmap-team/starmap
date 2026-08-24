@@ -15,7 +15,7 @@ import NodeTooltip3D from './NodeTooltip3D.vue'
 import { Loading } from '@element-plus/icons-vue'
 import {
   type GraphNode3D, getNodeLabel, getNodeRadius,
-  NODE_COLLISION_PADDING, applyZLayering, buildNodeThreeObject, setLODState,
+  NODE_COLLISION_PADDING, applyZLayering, applyInitialSpreading, buildNodeThreeObject, setLODState,
 } from '@/composables/useNodeThreeObject'
 import {
   type GraphLink3D, evolutionColor, composeEvolutionLinks,
@@ -338,6 +338,9 @@ async function initGraph() {
   graphInstance.value = graph
  // UX-03: Set initial z-coordinates for Skill nodes by proficiency tier
   applyZLayering(limitedNodes.value)
+ // Iteration 4 (2026-08-24): seed Position nodes on a Fibonacci sphere so
+ // 148 leaves don't collapse / explode while the force simulator settles.
+  applyInitialSpreading(limitedNodes.value)
   const composedLinks = composeEvolutionLinks(limitedLinks.value, props.evolutionPaths, limitedNodes.value, props.showEvolution)
   renderEvolutionGraph(graph, composedLinks)
   isReady.value = true
@@ -424,6 +427,9 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
       }
     }
   }
+ // Iteration 4: seed any still-unpositioned Position nodes on a Fibonacci
+ // sphere so the star topology doesn't start collapsed.
+  applyInitialSpreading(limitedNodes.value)
  // UX-03: Set initial z for new Skill nodes (those without inherited positions)
   applyZLayering(limitedNodes.value)
 

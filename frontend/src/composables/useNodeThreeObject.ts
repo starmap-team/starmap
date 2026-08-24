@@ -59,6 +59,46 @@ export function applyZLayering(nodes: GraphNode3D[]): void {
   }
 }
 
+/**
+ * Iteration 4 (2026-08-24): Seed initial positions for Position nodes so the
+ * star topology doesn't collapse / explode while the force layout settles.
+ *
+ * Uses Fibonacci sphere distribution: even angular distribution on a sphere
+ * of radius `radius`. Hub (KnowledgeArea) nodes stay at origin. Skill nodes
+ * are unaffected (use proficiency z-layering).
+ *
+ * Without this, 148 Position nodes start at (0,0,0) and the force simulator
+ * has to push them apart from the hub — which either collapses them onto the
+ * hub (charge too weak) or throws them out of the camera frustum (charge too
+ * strong). Seeding removes the need to "escape" the singularity.
+ */
+export function applyInitialSpreading(nodes: GraphNode3D[], radius: number = 220): void {
+  // Separate by label so we can place each group independently.
+  const positions: GraphNode3D[] = []
+  for (const n of nodes) {
+    if (getNodeLabel(n) === 'Position') positions.push(n)
+  }
+  const N = positions.length
+  if (N === 0) return
+  if (N === 1) {
+    const n = positions[0]
+    if (n.x === undefined) n.x = radius
+    return
+  }
+  // Fibonacci sphere: y goes -1 → 1, theta sweeps around.
+  const phi = Math.PI * (3 - Math.sqrt(5))
+  for (let i = 0; i < N; i++) {
+    const n = positions[i]
+    if (n.x !== undefined && n.y !== undefined && n.z !== undefined) continue
+    const y = 1 - (i / (N - 1)) * 2
+    const r = Math.sqrt(1 - y * y)
+    const theta = phi * i
+    n.x = Math.cos(theta) * r * radius
+    n.y = y * radius
+    n.z = Math.sin(theta) * r * radius
+  }
+}
+
 /** Node collision padding factor for force simulation */
 export const NODE_COLLISION_PADDING = 1.6
 
