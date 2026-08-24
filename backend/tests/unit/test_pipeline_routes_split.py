@@ -35,27 +35,32 @@ class TestRouterStructure:
         assert "/events" in paths, "missing /events endpoint"
         assert "/events-poll" in paths, "missing /events-poll endpoint"
 
-    def test_parent_router_includes_events_router(self):
-        """routes.py 父 router 必须 include_router events_routes。"""
+    def test_parent_router_excludes_events_router(self):
+        """routes.py 父 router 不再 include events_routes(已移到独立 events_router,
+        避免被 api_router 全局 get_current_user 拦截 — SSE 用 query token 鉴权)。"""
 
         routes_src = Path("app/api/v1/pipeline/routes.py").read_text(encoding="utf-8")
-        assert "from app.api.v1.pipeline.events_routes import" in routes_src, (
-            "routes.py must import events_routes"
+        assert "include_router(_events_router)" not in routes_src, (
+            "routes.py must NOT include events_router (moved to events_router)"
         )
-        assert "router.include_router(_events_router)" in routes_src, (
-            "routes.py must include_router events_router"
-        )
+
+    def test_events_router_registered_separately(self):
+        """events_routes 挂到独立的 events_router(无全局 get_current_user 依赖)。"""
+        from app.api.v1.router import events_router
+
+        paths = {r.path for r in events_router.routes}
+        assert "/pipeline/events" in paths, "events endpoint missing from events_router"
+        assert "/pipeline/events-poll" in paths, "events-poll endpoint missing from events_router"
 
     def test_external_router_import_path_unchanged(self):
         """外部 import 路径必须保持：from app.api.v1.pipeline import router。"""
         from app.api.v1.pipeline import router
 
         assert router is not None
-        # 至少含 /events + /events-poll + 父 routes.py 中的 status 等
+        # 父 router 含 status 等; events 已移到独立 events_router
         paths = {r.path for r in router.routes}
-        assert "/pipeline/events" in paths, "events endpoint missing from final router"
-        assert "/pipeline/events-poll" in paths, "events-poll endpoint missing"
         assert "/pipeline/status" in paths, "status endpoint missing (parent routes.py)"
+        assert "/pipeline/events" not in paths, "events should be in events_router, not pipeline router"
 
 
 class TestRouterSurface:

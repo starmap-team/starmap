@@ -19,7 +19,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import Response
 
-from app.api.v1.router import api_router, auth_router
+from app.api.v1.router import api_router, auth_router, events_router
 from app.config import settings
 from app.core.security.client_ip import resolve_client_ip
 from app.core.validation.errors import ErrorCode
@@ -365,6 +365,8 @@ app.add_middleware(RateLimitMiddleware)
 app.include_router(api_router, prefix="/api/v1")
 # Auth routes don't require authentication (login endpoint)
 app.include_router(auth_router, prefix="/api/v1")
+# SSE 事件流(无全局 get_current_user, 走端点自身 get_current_user_sse query token 鉴权)
+app.include_router(events_router, prefix="/api/v1")
 
 
 # ── 统一错误处理：域异常 + 校验异常 → 结构化 ErrorResponse ──

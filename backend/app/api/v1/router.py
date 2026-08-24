@@ -37,6 +37,14 @@ from app.dependencies import get_current_user
 auth_router = APIRouter()
 auth_router.include_router(auth.router)
 
+# SSE 事件流 router：不受 api_router 全局 get_current_user 拦截。
+# SSE 端点用 query token 鉴权（EventSource 无法设 header），由端点自身
+# 的 get_current_user_sse 处理；若挂在 api_router 下，router 级
+# get_current_user(只认 Bearer) 会在 production 先抛 401，query token 永不生效。
+events_router = APIRouter(prefix="/pipeline")
+from app.api.v1.pipeline.events_routes import router as _events_router  # noqa: E402
+events_router.include_router(_events_router)
+
 api_router = APIRouter(dependencies=[Depends(get_current_user)])
 api_router.include_router(graph.router, tags=["图谱查询"])
 api_router.include_router(position.router, tags=["岗位管理"])
