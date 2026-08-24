@@ -266,6 +266,16 @@ export function useCameraPresets(
       const starFloor = Math.max(280, ns.length * 2.0)
       if (radius < starFloor) radius = starFloor
     }
+ // Iteration 6 (2026-08-24): with all 148 Position nodes visible (CLUSTER_LIMIT=200),
+ // leaves expand up to ±1400 from force simulation. Auto-fit the camera
+ // to the actual node extent so all nodes fit even when nodes spread further
+ // than the seeded Fibonacci radius. Iter 3 used a floor=280 but actual extent
+ // is much larger; use the bbox radius directly when nodes are positioned.
+    if (positionedRatio > 0.6 && ns.length > 50) {
+      // Use the actual computed radius (from bbox) — it already reflects the
+      // force-spread extent. Multiplied by padding to give some margin.
+      return Math.max(radius * padding, 400)
+    }
     return radius * padding
   }
 

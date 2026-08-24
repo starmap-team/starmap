@@ -173,7 +173,10 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
 
 // UX-02 + Plan 01-03: 节点降噪 LOD + cluster 折叠 — 镜像 2D useGraphLOD + useGraphClustering
 // 节点数 ≤ 30: 全展开;> 50: 折叠为 1 个 cluster meta-node
-const CLUSTER_LIMIT = 30
+// Iteration 6 (2026-08-24): raise to 200 so 148 Position nodes in ind-it are
+// all visible instead of being collapsed into a single "+119" cluster node
+// that the user mistakes for "missing".
+const CLUSTER_LIMIT = 200
 const lod = useGraph3DLOD({ hideLabelsAbove: 30, simplifyAbove: 100, defaultLabelsVisible: true })
 // useGraph3DClustering 接受 GraphNode3D (本地定义),与 GraphNode3D (useNodeThreeObject) 是同名异构;
 // 我们仅使用 position_count + id 字段 — cast 为 unknown 简化类型
@@ -336,6 +339,9 @@ async function initGraph() {
   })
 
   graphInstance.value = graph
+ // Iteration 5 (2026-08-24) diagnostic: expose graph instance on window for
+ // Playwright inspection. Remove after debugging complete.
+  ;(window as unknown as { __starmap_graph?: unknown }).__starmap_graph = graph
  // UX-03: Set initial z-coordinates for Skill nodes by proficiency tier
   applyZLayering(limitedNodes.value)
  // Iteration 4 (2026-08-24): seed Position nodes on a Fibonacci sphere so
