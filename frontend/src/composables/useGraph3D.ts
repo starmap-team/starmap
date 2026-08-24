@@ -53,10 +53,14 @@ export function calcForceConfig(nodeCount: number, linkCount?: number): ForceCon
   }
   if (star) {
  // Star/hub-spoke: spread leaves around hub, leave hub near origin.
+ // Iteration 2 (2026-08-24): with charge=-1200 + linkDist=280 the 148 leaves
+ // still partially collapsed toward the hub. Bump charge strength further so
+ // charge dominates link pull, and use a larger linkDist so the cone around
+ // the hub has more room.
     return {
-      chargeStrength: -1200,
-      linkDist: 280,
-      linkStrength: 0.005,
+      chargeStrength: nodeCount > 100 ? -1800 : -1400,
+      linkDist: nodeCount > 100 ? 360 : 280,
+      linkStrength: 0.003,
       alphaDecay: 0.04,
       velocityDecay: 0.35,
       warmupTicks: 120,
@@ -92,7 +96,7 @@ export function applyForceConfig(
   if (chargeForce) {
     chargeForce.strength(cfg.chargeStrength)
  // Star topology needs charge to reach further out so leaves spread, not collapse.
-    chargeForce.distanceMax(isInit ? (isStar ? 1800 : 1200) : (isStar ? 900 : 600))
+    chargeForce.distanceMax(isInit ? (isStar ? 2400 : 1200) : (isStar ? 1200 : 600))
   }
 
   const linkForce = graph.d3Force('link') as unknown as { distance(v: number): unknown; strength(v: number): unknown } | null
@@ -257,7 +261,7 @@ export function useCameraPresets(
  // the eventual spread.
     const positionedRatio = definedCount / ns.length
     if (positionedRatio < 0.6 && ns.length > 20) {
-      const starFloor = Math.max(280, ns.length * 2.2)
+      const starFloor = Math.max(380, ns.length * 2.8)
       if (radius < starFloor) radius = starFloor
     }
     return radius * padding
