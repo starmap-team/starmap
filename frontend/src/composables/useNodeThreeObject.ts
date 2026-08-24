@@ -62,6 +62,21 @@ export function applyZLayering(nodes: GraphNode3D[]): void {
 /** Node collision padding factor for force simulation */
 export const NODE_COLLISION_PADDING = 1.6
 
+// ── LOD setters consumed by `buildNodeThreeObject` ──
+// Module-scope so `useNodeThreeObject` (no Vue ref dependency) can read the
+// current level-of-detail set by Graph3D.vue. Defaults match the existing
+// behaviour (always full detail) so other callers (Login background, etc.)
+// are unaffected until Graph3D sets them.
+let _shouldShowLabels = true
+let _shouldSimplify = false
+export function setLODState(shouldShowLabels: boolean, shouldSimplify: boolean): void {
+  _shouldShowLabels = shouldShowLabels
+  _shouldSimplify = shouldSimplify
+}
+export function getLODState(): { shouldShowLabels: boolean; shouldSimplify: boolean } {
+  return { shouldShowLabels: _shouldShowLabels, shouldSimplify: _shouldSimplify }
+}
+
 export function getNodeRadius(node: GraphNode3D): number {
   const label = getNodeLabel(node)
   switch (label) {
@@ -82,12 +97,17 @@ export function getNodeRadius(node: GraphNode3D): number {
 /**
  * Build a custom Three.js Object3D for a graph node.
  * Creates sphere + halo + glow sprite + text label based on node type.
+ *
+ * Respects LOD state from `setLODState`:
+ * - shouldSimplify (set when nodeCount > 100): skip halo + glow sprite.
+ * - shouldShowLabels=false (set when nodeCount > 30): skip text sprite.
  */
 export function buildNodeThreeObject(node: NodeObject): import('three').Object3D {
   const n = node as GraphNode3D
   const label = getNodeLabel(n)
   const radius = getNodeRadius(n)
   const color = toThreeHex(n.color ?? nodeColor(label))
+  const { shouldShowLabels, shouldSimplify } = getLODState()
 
   const THREE = (window as unknown as Record<string, unknown>).__THREE as typeof import('three') | undefined
   if (!THREE) {
@@ -95,7 +115,9 @@ export function buildNodeThreeObject(node: NodeObject): import('three').Object3D
     return undefined as unknown as import('three').Object3D
   }
 
-  const geometry = new THREE.SphereGeometry(radius, 32, 32)
+  // LOD simplify > 100 nodes: cheaper geometry + no halo/glow
+  const segments = shouldSimplify ? 16 : 32
+  const geometry = new THREE.SphereGeometry(radius, segments, segments)
 
   if (label === 'KnowledgeArea') {
     const material = new THREE.MeshPhysicalMaterial({
@@ -111,30 +133,34 @@ export function buildNodeThreeObject(node: NodeObject): import('three').Object3D
     })
     const mesh = new THREE.Mesh(geometry, material)
 
-    const haloGeometry = new THREE.SphereGeometry(radius * 1.4, 24, 24)
-    const haloMaterial = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.12,
-      depthWrite: false,
-      side: THREE.BackSide,
-    })
-    mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
+    if (!shouldSimplify) {
+      const haloGeometry = new THREE.SphereGeometry(radius * 1.4, 24, 24)
+      const haloMaterial = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.12,
+        depthWrite: false,
+        side: THREE.BackSide,
+      })
+      mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
 
-    const spriteMaterial = new THREE.SpriteMaterial({
-      map: createGlowTexture(color, THREE),
-      transparent: true,
-      opacity: 0.25,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    })
-    const sprite = new THREE.Sprite(spriteMaterial)
-    sprite.scale.set(radius * 5, radius * 5, 1)
-    mesh.add(sprite)
+      const spriteMaterial = new THREE.SpriteMaterial({
+        map: createGlowTexture(color, THREE),
+        transparent: true,
+        opacity: 0.25,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      })
+      const sprite = new THREE.Sprite(spriteMaterial)
+      sprite.scale.set(radius * 5, radius * 5, 1)
+      mesh.add(sprite)
+    }
 
-    const textSprite = createTextSprite(displayName(n.properties), radius, 'domain', THREE)
-    textSprite.position.y = radius + 2
-    mesh.add(textSprite)
+    if (shouldShowLabels) {
+      const textSprite = createTextSprite(displayName(n.properties), radius, 'domain', THREE)
+      textSprite.position.y = radius + 2
+      mesh.add(textSprite)
+    }
 
     return mesh as unknown as import('three').Object3D
   }
@@ -153,19 +179,23 @@ export function buildNodeThreeObject(node: NodeObject): import('three').Object3D
     })
     const mesh = new THREE.Mesh(geometry, material)
 
-    const haloGeometry = new THREE.SphereGeometry(radius * 1.3, 24, 24)
-    const haloMaterial = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.08,
-      depthWrite: false,
-      side: THREE.BackSide,
-    })
-    mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
+    if (!shouldSimplify) {
+      const haloGeometry = new THREE.SphereGeometry(radius * 1.3, 24, 24)
+      const haloMaterial = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.08,
+        depthWrite: false,
+        side: THREE.BackSide,
+      })
+      mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
+    }
 
-    const textSprite = createTextSprite(displayName(n.properties), radius, 'position', THREE)
-    textSprite.position.y = radius + 1.5
-    mesh.add(textSprite)
+    if (shouldShowLabels) {
+      const textSprite = createTextSprite(displayName(n.properties), radius, 'position', THREE)
+      textSprite.position.y = radius + 1.5
+      mesh.add(textSprite)
+    }
 
     return mesh as unknown as import('three').Object3D
   }
@@ -184,17 +214,19 @@ export function buildNodeThreeObject(node: NodeObject): import('three').Object3D
     })
     const mesh = new THREE.Mesh(geometry, material)
 
-    const haloGeometry = new THREE.SphereGeometry(radius * 1.2, 24, 24)
-    const haloMaterial = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.05,
-      depthWrite: false,
-      side: THREE.BackSide,
-    })
-    mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
+    if (!shouldSimplify) {
+      const haloGeometry = new THREE.SphereGeometry(radius * 1.2, 24, 24)
+      const haloMaterial = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.05,
+        depthWrite: false,
+        side: THREE.BackSide,
+      })
+      mesh.add(new THREE.Mesh(haloGeometry, haloMaterial))
+    }
 
-    if (radius >= 3) {
+    if (shouldShowLabels && radius >= 3) {
       const textSprite = createTextSprite(displayName(n.properties), radius, 'skill', THREE)
       textSprite.position.y = radius + 1.2
       mesh.add(textSprite)

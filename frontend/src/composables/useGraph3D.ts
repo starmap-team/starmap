@@ -33,6 +33,13 @@ export function calcForceConfig(nodeCount: number, linkCount?: number): ForceCon
  // Sparse graph (few links relative to nodes) — reduce charge strength
  // so unconnected nodes don't fly apart (heat view, bug #2)
   const sparse = linkCount !== undefined && linkCount < nodeCount * 0.3
+ // Star / hub-spoke topology: very few links per node (one hub + many leaves).
+ // The CONTAINS layer (1 KA + N positions) is exactly this shape. Without
+ // detection, the default config collapsed 148 leaves onto the single hub at
+ // linkDist=180 with linkStrength=0.03, while centerForce=0.008 dragged them
+ // all to (0,0,0). Fix: weak link, large linkDist, very strong charge, near-zero
+ // center force — let charge dominate the spread.
+  const star = linkCount !== undefined && nodeCount > 20 && linkCount < nodeCount * 1.5
   if (nodeCount <= 3) {
     if (sparse) return { chargeStrength: -200, linkDist: 200, linkStrength: 0.02, alphaDecay: 0.02, velocityDecay: 0.4, warmupTicks: 200, cooldownTicks: 600 }
     return { chargeStrength: -600, linkDist: 200, linkStrength: 0.02, alphaDecay: 0.02, velocityDecay: 0.4, warmupTicks: 200, cooldownTicks: 600 }
@@ -43,6 +50,18 @@ export function calcForceConfig(nodeCount: number, linkCount?: number): ForceCon
   }
   if (sparse) {
     return { chargeStrength: -80, linkDist: 120, linkStrength: 0.08, alphaDecay: 0.04, velocityDecay: 0.5, warmupTicks: 80, cooldownTicks: 300 }
+  }
+  if (star) {
+ // Star/hub-spoke: spread leaves around hub, leave hub near origin.
+    return {
+      chargeStrength: -1200,
+      linkDist: 280,
+      linkStrength: 0.005,
+      alphaDecay: 0.04,
+      velocityDecay: 0.35,
+      warmupTicks: 120,
+      cooldownTicks: 400,
+    }
   }
   return {
     chargeStrength: nodeCount > 200 ? -400 : -250,
@@ -65,15 +84,24 @@ export function applyForceConfig(
   linkCount?: number,
 ): void {
   const cfg = calcForceConfig(nodeCount, linkCount)
+ // Star/hub-spoke: detect by the same condition used in calcForceConfig so
+ // charge/center force stay consistent.
+  const isStar = linkCount !== undefined && nodeCount > 20 && linkCount < nodeCount * 1.5
 
   const chargeForce = graph.d3Force('charge') as unknown as { strength(v: number): unknown; distanceMax(v: number): unknown } | null
-  if (chargeForce) { chargeForce.strength(cfg.chargeStrength); chargeForce.distanceMax(isInit ? 1200 : 600) }
+  if (chargeForce) {
+    chargeForce.strength(cfg.chargeStrength)
+ // Star topology needs charge to reach further out so leaves spread, not collapse.
+    chargeForce.distanceMax(isInit ? (isStar ? 1800 : 1200) : (isStar ? 900 : 600))
+  }
 
   const linkForce = graph.d3Force('link') as unknown as { distance(v: number): unknown; strength(v: number): unknown } | null
   if (linkForce) { linkForce.distance(cfg.linkDist); linkForce.strength(cfg.linkStrength) }
 
   const centerForce = graph.d3Force('center') as unknown as { strength(v: number): unknown } | null
-  if (centerForce) centerForce.strength(isInit ? 0.008 : 0.02)
+ // For star graphs, dampen the center force so it doesn't drag all leaves to origin;
+ // hub sits at origin naturally (its lone position is at (0,0,0) by default).
+  if (centerForce) centerForce.strength(isStar ? 0.002 : (isInit ? 0.008 : 0.02))
 
   const collisionForce = graph.d3Force('collision') as unknown as {
     strength(v: number): unknown; radius(v: (node: unknown) => number): unknown; iterations(v: number): unknown
@@ -213,8 +241,9 @@ export function useCameraPresets(
     const ns = nodes()
     if (ns.length === 0) return 400
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity
+    let definedCount = 0
     for (const n of ns) {
-      if (n.x !== undefined) { minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x) }
+      if (n.x !== undefined) { minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x); definedCount++ }
       if (n.y !== undefined) { minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y) }
       if (n.z !== undefined) { minZ = Math.min(minZ, n.z); maxZ = Math.max(maxZ, n.z) }
     }
@@ -222,6 +251,15 @@ export function useCameraPresets(
     const extentX = (maxX - minX) / 2, extentY = (maxY - minY) / 2, extentZ = (maxZ - minZ) / 2
     let radius = Math.max(extentX, extentY, extentZ, 50)
     if (ns.length <= 5 && radius < 180) radius = 180
+ // If most nodes haven't been positioned yet (e.g. star with leaves still
+ // collapsing toward hub), the bbox extent is unrepresentative. Use a
+ // node-count-based heuristic so the camera still pulls back enough to see
+ // the eventual spread.
+    const positionedRatio = definedCount / ns.length
+    if (positionedRatio < 0.6 && ns.length > 20) {
+      const starFloor = Math.max(280, ns.length * 2.2)
+      if (radius < starFloor) radius = starFloor
+    }
     return radius * padding
   }
 

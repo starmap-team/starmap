@@ -15,7 +15,7 @@ import NodeTooltip3D from './NodeTooltip3D.vue'
 import { Loading } from '@element-plus/icons-vue'
 import {
   type GraphNode3D, getNodeLabel, getNodeRadius,
-  NODE_COLLISION_PADDING, applyZLayering, buildNodeThreeObject,
+  NODE_COLLISION_PADDING, applyZLayering, buildNodeThreeObject, setLODState,
 } from '@/composables/useNodeThreeObject'
 import {
   type GraphLink3D, evolutionColor, composeEvolutionLinks,
@@ -144,7 +144,6 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
           graph.d3AlphaDecay(0.1)
           requestAnimationFrame(() => {
             if (!growthAnimating) {
-              const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
               setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
             }
           })
@@ -162,7 +161,6 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
         graph.d3AlphaDecay(0.1)
         requestAnimationFrame(() => {
           if (!growthAnimating) {
-            const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
             setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
           }
         })
@@ -198,8 +196,13 @@ const limitedLinks = computed(() => {
   return props.links.filter(l => nodeIds.has(l.source as string) && nodeIds.has(l.target as string))
 })
 
-// 同步 nodeCount 到 LOD watch
-watch(limitedNodes, (nodes) => lod.setNodeCount(nodes.length), { immediate: true })
+// 同步 nodeCount 到 LOD watch + 推送给 buildNodeThreeObject
+watch(limitedNodes, (nodes) => {
+  lod.setNodeCount(nodes.length)
+  const shouldShowLabels = nodes.length <= 30
+  const shouldSimplify = nodes.length > 100
+  setLODState(shouldShowLabels, shouldSimplify)
+}, { immediate: true })
 
 // 01-04: 抽 lifecycle / FPS / force config 到 composables (C-3 单文件拆分)
 // 沿 loop_orchestrator 兼容壳模式 — composable 暴露统一接口,
@@ -210,9 +213,11 @@ const fps = fpsMonitor.fps
 // FORCE_CFG + LOD_3D 通过 import 即可消费(常量导出),无需本地 proxy
 
 // ── Camera presets composable ──
+// Camera fit must use the post-cluster (limitedNodes) count, not the raw
+// `props.nodes` which may include 100+ leaves that haven't positioned yet.
 const { autoRotate, setCameraPreset, resetCamera, toggleAutoRotate, clearAutoRotateTimer, calcFitDistance } = useCameraPresets(
   graphInstance,
-  () => props.nodes,
+  () => limitedNodes.value,
 )
 
 // ── Zoom controls composable ──
@@ -266,7 +271,9 @@ async function initGraph() {
     .linkColor((link) => {
       const l = link as GraphLink3D
       if (l.type === 'EVOLVES_TO') return evolutionColor(l)
-      return withAlpha(edgeColor(l.type ?? 'DEFAULT'), 0.35)
+ // Return hex only — `3d-force-graph`'s WebGL material does NOT honor
+ // CSS rgba() alpha; use `.linkOpacity()` below for transparency.
+      return edgeColor(l.type ?? 'DEFAULT')
     })
     .linkWidth((link) => {
       const l = link as GraphLink3D
@@ -277,7 +284,7 @@ async function initGraph() {
       const w = l.properties?.weight ?? 0.5
       return 0.5 + w * 1.5
     })
-    .linkOpacity(0.4)
+    .linkOpacity(0.7)
     .linkDirectionalArrowLength(3.5)
     .linkDirectionalArrowRelPos(1)
     .linkCurvature(0.1)
@@ -321,7 +328,6 @@ async function initGraph() {
  // Skip if we've already handled this stop event
     if (_engineStopHandled) return
     _engineStopHandled = true
-    const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
     setCameraPreset(presetMap[props.currentLayer] ?? 'overview')
   })
 
@@ -352,10 +358,16 @@ function measureFPS() {
 // 标志位：onEngineStop 触发后置 true，避免 watch setTimeout 重复定位相机
 let _engineStopHandled = false
 
-// R3：维度（domain/tech_stack/level 命名空间 ts-/ka-/lv-）改变时，
-// 图实例的 d3 内部状态与位置继承会污染 3D 渲染，必须销毁重建。
-// 仅数据增/减但维度一致时，复用 graph.graphData + 位置继承。
-const _DIM_NAMESPACES = ['ts-', 'ka-', 'lv-']
+ // 每个 layer 用同名的 camera preset（之前用 `position: 'domain'` 是错位
+ // 映射，导致展开 KA 进入 position layer 时相机仍在 domain 视角）。
+const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'position', detail: 'position' }
+
+ // R3：维度（domain/tech_stack/level/heat/ind- 命名空间）改变时，
+ // 图实例的 d3 内部状态与位置继承会污染 3D 渲染，必须销毁重建。
+ // 仅数据增/减但维度一致时，复用 graph.graphData + 位置继承。
+ // 必须包含所有可能的 id 前缀，否则从 domain→heat/ind 切回时检测不到
+ // 命名空间变化，会继承旧位置导致图谱错乱。
+const _DIM_NAMESPACES = ['ts-', 'ka-', 'lv-', 'heat-', 'ind-']
 function _currentNamespace(ids: ReadonlyArray<unknown>): string | null {
   let ns: string | null = null
   for (const raw of ids) {
@@ -428,7 +440,6 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
   const settleMs = Math.min(cfg.warmupTicks * 16 + 200, 800)
   setTimeout(() => {
     if (!_engineStopHandled && graphInstance.value) {
-      const presetMap: Record<string, CameraPreset> = { domain: 'overview', position: 'domain', detail: 'position' }
       setCameraPreset(presetMap[newLayer] ?? 'overview')
     }
   }, settleMs)
