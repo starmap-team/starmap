@@ -53,14 +53,14 @@ export function calcForceConfig(nodeCount: number, linkCount?: number): ForceCon
   }
   if (star) {
  // Star/hub-spoke: spread leaves around hub, leave hub near origin.
- // Iteration 2 (2026-08-24): with charge=-1200 + linkDist=280 the 148 leaves
- // still partially collapsed toward the hub. Bump charge strength further so
- // charge dominates link pull, and use a larger linkDist so the cone around
- // the hub has more room.
+ // Iteration 3 (2026-08-24): iter 2 (-1800) was too strong — leaves got
+ // pushed beyond the camera frustum and looked invisible. Iter 1 (-1200)
+ // was too weak — leaves collapsed toward the hub. Use -1500 as a middle
+ // ground + bump linkDist a bit more so the spread cone has room.
     return {
-      chargeStrength: nodeCount > 100 ? -1800 : -1400,
-      linkDist: nodeCount > 100 ? 360 : 280,
-      linkStrength: 0.003,
+      chargeStrength: nodeCount > 100 ? -1500 : -1200,
+      linkDist: nodeCount > 100 ? 420 : 320,
+      linkStrength: 0.004,
       alphaDecay: 0.04,
       velocityDecay: 0.35,
       warmupTicks: 120,
@@ -96,7 +96,7 @@ export function applyForceConfig(
   if (chargeForce) {
     chargeForce.strength(cfg.chargeStrength)
  // Star topology needs charge to reach further out so leaves spread, not collapse.
-    chargeForce.distanceMax(isInit ? (isStar ? 2400 : 1200) : (isStar ? 1200 : 600))
+    chargeForce.distanceMax(isInit ? (isStar ? 2000 : 1200) : (isStar ? 1000 : 600))
   }
 
   const linkForce = graph.d3Force('link') as unknown as { distance(v: number): unknown; strength(v: number): unknown } | null
@@ -261,7 +261,9 @@ export function useCameraPresets(
  // the eventual spread.
     const positionedRatio = definedCount / ns.length
     if (positionedRatio < 0.6 && ns.length > 20) {
-      const starFloor = Math.max(380, ns.length * 2.8)
+ // Iteration 3: charge=2000 max distance, so leaf spread ≈ charge radius.
+ // Floor the camera distance so all leaves fit in the viewport.
+      const starFloor = Math.max(280, ns.length * 2.0)
       if (radius < starFloor) radius = starFloor
     }
     return radius * padding
