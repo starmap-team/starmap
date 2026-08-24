@@ -196,6 +196,14 @@ request.interceptors.response.use(
 
  // ── Silent refresh attempt on 401 ──
     if (status === 401 && !originalRequest?._retried && !isLogin && !isRefresh) {
+ // 无 refresh token = 从未登录/已登出, 401 属预期(如登录页公共请求),
+ // 不弹「登录已过期」, 仅静默清除残留状态
+      if (!localStorage.getItem('starmap_refresh_token')) {
+        localStorage.removeItem(ACCESS_KEY)
+        localStorage.removeItem('starmap_refresh_token')
+        localStorage.removeItem('starmap_user')
+        return Promise.reject(error)
+      }
       const newAccess = await refreshAccessToken()
       if (newAccess && originalRequest) {
         originalRequest._retried = true
@@ -246,7 +254,12 @@ request.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    if (status === 401 && !isLogin) {
+ // 401 且无 refresh token = 未登录状态, 静默处理(登录页等公共请求属预期)
+    if (status === 401 && !isLogin && !localStorage.getItem('starmap_refresh_token')) {
+      if (import.meta.env.DEV) {
+        console.warn(`[API] 401 without refresh token (silent): ${message}`)
+      }
+    } else if (status === 401 && !isLogin) {
       showDedupedToast('登录已过期，请重新登录', { type: 'warning', duration: 5000 })
       window.dispatchEvent(new CustomEvent('auth:unauthorized'))
     } else if (status === 403 && !silent) {
@@ -268,6 +281,14 @@ request.interceptors.response.use(
 // so stores can drop `as unknown as` casts entirely.
 
 type RequestInstance = typeof request
+
+// 扩展类型: AxiosRequestConfig 增加 silent 字段(透传给响应拦截器,
+// 用于抑制全局错误 toast)。module augmentation 使所有调用点类型安全。
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    silent?: boolean
+  }
+}
 
 interface TypedRequest extends RequestInstance {
   get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>

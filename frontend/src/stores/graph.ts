@@ -223,11 +223,11 @@ export const useGraphStore = defineStore('graph', () => {
  // ── API 调用 ──
 
  /** 第 1 层：获取领域概览 */
-  async function fetchOverview(mode: OverviewMode = 'domain') {
+  async function fetchOverview(mode: OverviewMode = 'domain', opts?: { silent?: boolean }) {
     loading.value = true
     try {
       const data = validateResponse(
-        await request.get(`/graph/overview?group_by=${mode}`) as {
+        await request.get(`/graph/overview?group_by=${mode}`, opts) as {
           domains?: DomainOverviewItem[]
           connections?: DomainConnection[]
           independent_positions?: number
@@ -257,7 +257,9 @@ export const useGraphStore = defineStore('graph', () => {
       evolutionPaths.value = []
     } catch (e) {
       if (import.meta.env.DEV) console.error('[Graph] Failed to fetch overview:', e)
-      ElMessage.error('加载图谱数据失败，请检查后端服务')
+ // 静默模式（如登录页 3D 背景预取）不弹全局错误 toast，
+ // 由调用方决定是否降级展示；正式页面仍保留提示
+      if (!opts?.silent) ElMessage.error('加载图谱数据失败，请检查后端服务')
       domains.value = []
       domainConnections.value = []
       independentPositions.value = 0

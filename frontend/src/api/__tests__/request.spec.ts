@@ -62,4 +62,38 @@ describe('api/request — refresh 调用走 /api/v1', () => {
     // mod 已被引用（防止 import 优化丢弃），断言 mod 存在即可
     expect(mod).toBeDefined()
   })
+
+  it('401 且无 refresh token 时静默拒绝(不触发 refresh 调用)', async () => {
+    // 无任何 localStorage 残留( beforeEach 已 clear )
+    const axios = (await import('axios')).default
+    const postSpy = vi.spyOn(axios, 'post').mockResolvedValue({
+      data: { access_token: 'should-not-be-called' },
+    })
+
+    const mod = await import('../request')
+    const request = (mod as { default: { get: (url: string, cfg?: unknown) => Promise<unknown> } }).default
+
+    // 模拟 401 响应走拦截器: 直接调用 request.get 会被 axios mock 拦截,
+    // 因此这里只验证"无 refresh token 时 refreshAccessToken 不产生 POST"。
+    // 通过一个会返回 401 的 mock adapter 触发完整拦截器链路:
+    const { AxiosError, AxiosHeaders } = await import('axios')
+    ;(request as unknown as { defaults: { adapter?: (c: unknown) => Promise<unknown> } }).defaults.adapter = async () => {
+      const headers = new AxiosHeaders()
+      throw new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', undefined as never, undefined, {
+        status: 401,
+        statusText: 'Unauthorized',
+        headers,
+        config: { url: '/graph/overview' } as never,
+        data: { detail: 'Not authenticated' },
+      } as never)
+    }
+
+    await expect(request.get('/graph/overview')).rejects.toBeDefined()
+    // 无 refresh token → 不调用 /auth/refresh
+    expect(postSpy).not.toHaveBeenCalled()
+
+    // 恢复默认 adapter, 避免污染其他测试
+    delete (request as unknown as { defaults: { adapter?: unknown } }).defaults.adapter
+    postSpy.mockRestore()
+  })
 })

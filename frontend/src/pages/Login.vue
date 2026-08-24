@@ -32,8 +32,12 @@ const loginSuccess = ref(false)
 const bgOpacity = computed(() => loginSuccess.value ? 1 : 0.25)
 
 // Load graph overview data for 3D background
+// 登录页是公共页: 未认证时 overview 必然 401, 属预期降级,
+// 静默处理(不触发全局错误 toast), 登录成功后由首页重新加载
 onMounted(() => {
-  graphStore.fetchOverview().catch(() => { /* best-effort; background is decorative */ })
+  if (userStore.isLoggedIn) {
+    graphStore.fetchOverview('domain', { silent: true }).catch(() => { /* best-effort; background is decorative */ })
+  }
 })
 
 const isDev = import.meta.env.DEV
