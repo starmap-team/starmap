@@ -42,6 +42,11 @@ from app.services.dashboard_service import (
 )
 
 router = APIRouter(prefix="/dashboard", tags=["数据大屏"])
+# 2026-08-25 (BUG#D1): SSE 端点单独 router —— 若挂在 api_router 下，
+# 全局 get_current_user(只认 Bearer) 会在 get_current_user_sse 前抛 401，
+# EventSource 的 ?token= 永不生效 → dashboard/realtime 恒 401。
+# 该 router 由 main.py 的 events_router 挂载（不经 api_router 全局认证）。
+sse_router = APIRouter(prefix="/dashboard", tags=["数据大屏·SSE"])
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +97,7 @@ async def dashboard_distribution(
     )
 
 
-@router.get("/realtime")
+@sse_router.get("/realtime")
 async def dashboard_realtime(
     request: Request,
     redis: Annotated[Redis | None, Depends(get_redis_client)],
@@ -131,7 +136,7 @@ async def dashboard_realtime(
     )
 
 
-@router.get("/realtime-poll", response_model=RealtimePollResponse)
+@sse_router.get("/realtime-poll", response_model=RealtimePollResponse)
 async def dashboard_realtime_poll(
     redis: Annotated[Redis | None, Depends(get_redis_client)],
     _user: Annotated[dict[str, Any], Depends(get_current_user_sse)],
