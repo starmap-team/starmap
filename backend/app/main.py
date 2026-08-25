@@ -19,7 +19,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import Response
 
-from app.api.v1.router import api_router, auth_router, events_router, dashboard_sse_router
+from app.api.v1.router import api_router, auth_router, dashboard_sse_router, events_router
 from app.config import settings
 from app.core.security.client_ip import resolve_client_ip
 from app.core.validation.errors import ErrorCode

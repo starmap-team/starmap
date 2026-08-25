@@ -43,6 +43,7 @@ auth_router.include_router(auth.router)
 # get_current_user(只认 Bearer) 会在 production 先抛 401，query token 永不生效。
 events_router = APIRouter(prefix="/pipeline")
 from app.api.v1.pipeline.events_routes import router as _events_router  # noqa: E402
+
 events_router.include_router(_events_router)
 # 2026-08-25 (BUG#D1): dashboard SSE 端点（/dashboard/realtime + /realtime-poll）
 # 从 api_router 移出 —— 全局 get_current_user(只认 Bearer) 会先于
@@ -51,6 +52,7 @@ events_router.include_router(_events_router)
 # 由端点自身的 get_current_user_sse 处理 query token / Bearer。
 dashboard_sse_router = APIRouter()
 from app.api.v1.dashboard import sse_router as _dashboard_sse_router  # noqa: E402
+
 dashboard_sse_router.include_router(_dashboard_sse_router)
 
 api_router = APIRouter(dependencies=[Depends(get_current_user)])
