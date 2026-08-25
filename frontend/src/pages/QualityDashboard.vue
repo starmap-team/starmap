@@ -203,27 +203,39 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
         v-else-if="quality.metrics"
         shadow="never"
         class="mb-4"
-        :header="'抽取质量（golden-set 评估） · ' + (quality.metrics.warning_level || '')"
+        header="抽取质量评估"
       >
-        <div style="display: flex; gap: 24px; flex-wrap: wrap">
-          <div>
-            <strong style="font-size: 20px">{{ (quality.metrics.precision * 100).toFixed(1) }}%</strong>
-            <div style="color: var(--muted-foreground); font-size: 12px">
-              Precision
-            </div>
-          </div>
-          <div>
-            <strong style="font-size: 20px">{{ (quality.metrics.recall * 100).toFixed(1) }}%</strong>
-            <div style="color: var(--muted-foreground); font-size: 12px">
-              Recall
-            </div>
-          </div>
-          <div>
-            <strong style="font-size: 20px">{{ (quality.metrics.f1 * 100).toFixed(1) }}%</strong>
-            <div style="color: var(--muted-foreground); font-size: 12px">
-              F1
-            </div>
-          </div>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center">
+          <el-tag
+            :type="quality.metrics.warning_level === 'green' ? 'success'
+              : quality.metrics.warning_level === 'yellow' ? 'warning'
+              : quality.metrics.warning_level === 'red' ? 'danger' : 'info'"
+            effect="light"
+          >
+            {{
+              quality.metrics.warning_level === 'green' ? '优秀'
+              : quality.metrics.warning_level === 'yellow' ? '良好'
+              : quality.metrics.warning_level === 'red' ? '需关注'
+              : '未评估'
+            }}
+          </el-tag>
+          <span style="color: var(--muted-foreground); font-size: 13px">
+            系统抽取技能与标准答案的匹配程度（基于 {{ quality.metrics.total_extractions || 0 }} 条样本评估）
+          </span>
+          <el-tooltip placement="top">
+            <template #content>
+              <div style="max-width: 320px; line-height: 1.6">
+                <div>精确率（Precision）：抽取的技能中正确命中的比例</div>
+                <div>召回率（Recall）：标准答案中技能被正确抽取的比例</div>
+                <div>综合分（F1）：精确率与召回率的综合指标</div>
+                <div style="margin-top: 6px">来源：golden-set 标准样本集逐条评估</div>
+              </div>
+            </template>
+            <span style="color: var(--primary); font-size: 12px; cursor: help">
+              <el-icon style="vertical-align: -2px"><QuestionFilled /></el-icon>
+              如何计算？
+            </span>
+          </el-tooltip>
         </div>
       </el-card>
 
