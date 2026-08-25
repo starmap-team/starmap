@@ -19,7 +19,9 @@ ENV POETRY_VIRTUALENVS_CREATE=false \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
 # 先拷依赖文件，利用 Docker 层缓存
-COPY pyproject.toml poetry.lock* ./
+# 2026-08-25 (CI 修复): context=仓库根 (docker-compose.dev.yml) 时路径需 backend/ 前缀，
+# 否则 "/pyproject.toml: not found" 导致 Docker 冒烟 CI 失败
+COPY backend/pyproject.toml backend/poetry.lock* ./
 RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
 
 # Crawler sync DB 驱动 — 显式安装（pyproject/lock 已含，但 poetry install 层缓存
@@ -28,7 +30,9 @@ RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
 RUN pip install --no-cache-dir 'psycopg[binary]>=3.0'
 
 # 再拷源码（挂载会覆盖，这里仅为镜像构建）
-COPY . .
+# 2026-08-25 (CI 修复): context=仓库根 → backend/ 前缀
+COPY backend/ .
+COPY backend/entrypoint.sh entrypoint.sh
 
 # entrypoint: bootstrap.py (alembic upgrade + seed) then exec CMD
 RUN chmod +x entrypoint.sh
