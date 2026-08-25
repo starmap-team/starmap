@@ -51,3 +51,10 @@ def _dispose_engine() -> None:
         get_session_factory.cache_clear()
     except Exception as exc:
         logger.debug("engine/factory cache clear skipped: %s", exc)
+ # Neo4j driver 同样绑定创建时的 loop(Celery run_async 每次新 loop 复用全局
+ # driver → "Future attached to a different loop")。同步弃用, 下次懒重建到当前 loop。
+    try:
+        from app.services.resources import resources as _resources
+        _resources.dispose_neo4j_driver()
+    except Exception as exc:
+        logger.debug("neo4j driver dispose skipped: %s", exc)

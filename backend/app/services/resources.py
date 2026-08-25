@@ -30,12 +30,30 @@ class AppResources:
             await self.redis_client.aclose()
             self.redis_client = None
         if self.neo4j_driver is not None:
-            await self.neo4j_driver.close()
+            # AsyncDriver.close 在 neo4j 6.x 是同步方法; 兼容旧版 async 语义
+            close_ret = self.neo4j_driver.close()
+            if hasattr(close_ret, "__await__"):
+                await close_ret
             self.neo4j_driver = None
         if self.pg_engine is not None:
             await self.pg_engine.dispose()
             self.pg_engine = None
             self.pg_sessionmaker = None
+
+    def dispose_neo4j_driver(self) -> None:
+        """同步弃用当前 Neo4j driver(置 None 由 init_resources 懒重建)。
+
+        Celery 的 run_async 每次创建新 event loop, 全局单例 driver 绑定首 loop
+        后跨 loop 复用 → "Future attached to a different loop"。每次新 loop 前
+        调用本方法弃旧 driver, 下次使用即在当前 loop 重建。API 层(FastAPI
+        长驻 loop)的 driver 不受影响。AsyncDriver.close 是同步方法(neo4j 6.x)。
+        """
+        if self.neo4j_driver is not None:
+            try:
+                self.neo4j_driver.close()
+            except Exception as exc:  # noqa: BLE001 — 弃用失败不阻断
+                logger.debug("neo4j driver dispose skipped: %s", exc)
+            self.neo4j_driver = None
 
 
 resources = AppResources()

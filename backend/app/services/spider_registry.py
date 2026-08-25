@@ -52,6 +52,19 @@ PLATFORM_DISPLAY_NAME: dict[str, str] = {
     "boss": "BOSS 直聘",
 }
 
+# 非平台数据源中文显示名（系统源/占位源不匹配 platform key 时回退，2026-08-25）
+SOURCE_DISPLAY_NAME: dict[str, str] = {
+    "jd-manual": "手动 JD 导入",
+    "manual-import": "手动导入",
+    "seed-demo": "演示数据",
+    "api-pipeline": "API 流水线",
+    "llm-extract": "LLM 抽取",
+    "csv-import": "CSV 导入",
+    "test-source": "测试数据源",
+    "bosszhipin": "BOSS 直聘",
+    "v2ex-remote": "V2EX 远程",
+}
+
 # Reverse lookup: data_sources.name → platform key
 _SOURCE_NAME_TO_PLATFORM: dict[str, str] = {v: k for k, v in PLATFORM_TO_SOURCE_NAME.items()}
 
