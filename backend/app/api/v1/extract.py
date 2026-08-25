@@ -11,6 +11,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.upload_validation import validate_resume_upload
+from app.core.extraction.anti_hallucination import normalize_skill_list
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.exceptions import ExtractionError, ExtractionLLMError, GraphProjectionError, StarMapError
 from app.schemas.extract import ExtractionRequest, ExtractionResult
@@ -59,6 +60,16 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
     data = pipeline_result.get("data") or {}
     validation = pipeline_result.get("validation") or {}
 
+    # 2026-08-25 (BUG#E1 final): hallucination_score 用真实幻觉技能占比
+    # (hallucinated_skills / 总技能数), 而非 confidence 反转。LLM 的 confidence
+    # 表达"对整体提取的把握度", 低 confidence 不等于高幻觉 —— 用实际被标记为
+    # 幻觉的技能比例才是最准确的幻觉率。
+    _halluc_skills = normalize_skill_list(validation.get("hallucinated_skills", []))
+    _n_total = len(data.get("required_skills", [])) + len(data.get("preferred_skills", []))
+    _halluc_score = None
+    if not validation.get("is_valid", True):
+        _halluc_score = round(len(_halluc_skills) / _n_total, 3) if _n_total else 0.0
+
     return {
         "position_name": data.get("position_name") or "",
         "required_skills": [_map_skill_item(s) for s in data.get("required_skills", [])],
@@ -67,11 +78,7 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
         "education_required": data.get("education_required"),
         "responsibilities": data.get("responsibilities", []),
         "confidence": validation.get("confidence", 0.85),
-        # 2026-08-25 (BUG#E1): hallucination_score 语义修正 —— 之前把 LLM 返回的
-        # confidence(置信度, 越高越好) 直接当 hallucination_score(幻觉率, 越高越差),
-        # 导致 confidence=0.65 被算成 65% 幻觉 → 公网幻觉率虚高 61%(实际幻觉技能
-        # 占比远低)。改为 1 - confidence (置信度反转), 更符合语义。
-        "hallucination_score": None if validation.get("is_valid", True) else round(1.0 - float(validation.get("confidence", 0.85)), 3),
+        "hallucination_score": _halluc_score,
         "normalized_skills": pipeline_result.get("normalization", []),
         "tools": data.get("tools", []),
         "learning_resources": data.get("learning_resources", []),

@@ -194,15 +194,19 @@ class TestBuildResult:
         assert result["hallucination_score"] is None
 
     def test_hallucination_detected(self):
-        """When validation.is_valid is False, hallucination_score is 1 - confidence."""
+        """When validation.is_valid is False, hallucination_score = hallucinated/total."""
         pipeline_result = {
-            "data": {"position_name": "Test"},
-            "validation": {"is_valid": False, "confidence": 0.3},
+            "data": {
+                "position_name": "Test",
+                "required_skills": [{"name": "Python"}, {"name": "Docker"}],
+                "preferred_skills": [],
+            },
+            "validation": {"is_valid": False, "confidence": 0.3, "hallucinated_skills": ["Docker"]},
         }
         result = _build_result(pipeline_result)
 
-        # 2026-08-25 (BUG#E1): confidence(置信度) 反转后才是幻觉率
-        assert result["hallucination_score"] == 0.7
+        # 2026-08-25 (BUG#E1): 真实幻觉占比 = 1 hallucinated / 2 total = 0.5
+        assert result["hallucination_score"] == 0.5
 
     def test_no_data_key(self):
         """Missing data key uses empty dict."""
@@ -220,6 +224,8 @@ class TestBuildResult:
         pipeline_result = {
             "data": {
                 "position_name": "Backend Dev",
+                "required_skills": [{"name": "Python"}, {"name": "Go"}],
+                "preferred_skills": [{"name": "Kubernetes"}],
                 "tools": [{"name": "Docker", "category": "devops"}],
                 "learning_resources": [{"title": "Python 官方文档", "type": "docs"}],
                 "evolves_to": ["技术架构师"],
@@ -235,8 +241,8 @@ class TestBuildResult:
         }
         result = _build_result(pipeline_result)
 
-        # 幻觉防控信号 (2026-08-25 BUG#E1: 1 - confidence)
-        assert result["hallucination_score"] == 0.65
+        # 幻觉防控信号 (2026-08-25 BUG#E1 final: 1 hallucinated / 3 total = 0.333)
+        assert result["hallucination_score"] == 0.333
         assert result["hallucinated_skills"] == ["量子编程"]
         assert result["missing_skills"] == ["RESTful API"]
         assert result["issues"] == ["技能超出本体白名单"]

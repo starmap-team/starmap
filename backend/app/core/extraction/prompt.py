@@ -361,6 +361,45 @@ $resume_content
 
 纯 JSON，不要 markdown 代码块，不要附加文字。"""
 
+# 2026-08-25 (RECALL-01): resume v2 — 对齐 JD v4 的完整性要求。
+# 评估实测 recall 0.60-0.78 (resume-data-001 / resume-test-001), LLM 漏掉
+# Jupyter/Matplotlib/Seaborn/Statistics 等库/工具类技能。v2 增加
+# "完整无遗漏" + 覆盖检查, 提升召回。
+RESUME_EXTRACTION_PROMPT_V2 = """你是一个专业的简历解析专家。请**完整且无遗漏**地从以下简历内容中提取技能信息。
+
+简历内容：
+$resume_content
+
+请提取以下信息并以严格的JSON格式返回（不要包含任何其他文字或代码块标记）：
+
+1. candidate_name: 候选人姓名（如能找到）
+2. skills: 技能列表。每项包含：
+   - name: 技能标准化名称（仅英文，首字母大写，如 python→Python, pandas→Pandas）
+   - level: 熟练度，可选值"精通"、"熟练"、"熟悉"、"了解"
+   - years_of_experience: 经验年数（无法确定返回 null）
+3. work_experience: 工作经验列表（每项包含 company, position, duration, responsibilities）
+4. education: 教育背景列表
+5. certifications: 证书列表
+
+## 技能提取规则
+- **完整提取简历中出现的所有技能**，包括：编程语言、库/框架（Pandas、NumPy、React、Django 等）、工具（Tableau、Power BI、Jupyter、Excel 等）、平台、方法论、领域知识
+- **库和工具也是技能**：不要因为它是"工具"就不放进 skills
+- 中文技能名可原样保留（如"数据分析"、"项目管理"）
+- 标准英文名：pandas→Pandas, numpy→NumPy, matplotlib→Matplotlib, seaborn→Seaborn, postgresql→PostgreSQL
+
+## 覆盖检查（输出前逐项确认）
+- 编程语言（Python, SQL, Java 等）
+- 数据处理库（Pandas, NumPy, Matplotlib, Seaborn, SciPy 等）
+- BI/可视化工具（Tableau, Power BI, Excel, Jupyter 等）
+- 数据库（PostgreSQL, MySQL, MongoDB 等）
+- 云/DevOps（AWS, Docker, K8s 等）
+- 软技能（沟通、团队协作、项目管理 等）
+
+## 输出格式（严格遵循）
+- 仅返回纯 JSON，不要包含 markdown 代码块标记、不要包含任何说明文字
+- 输出必须以 { 开头，以 } 结尾
+- 必须是可以直接通过 json.loads() 解析的合法 JSON，无尾逗号、无注释"""
+
 # ──────────────────────────────────────────────
 # Default active versions (maps prompt name -> version tag)
 # ──────────────────────────────────────────────
@@ -369,7 +408,7 @@ _ACTIVE_VERSIONS: dict[str, str] = {
     "jd_extraction": "v4",  # BL-16/FE-01: v4 recall-optimized, +0.02~0.03 F1
     "anti_hallucination": "v1",
     "llm_judge": "v1",
-    "resume_extraction": "v1",
+    "resume_extraction": "v2",  # 2026-08-25 (RECALL-01): v2 recall-optimized
 }
 
 # ──────────────────────────────────────────────
@@ -392,6 +431,7 @@ _PROMPT_VERSIONS: dict[str, dict[str, str]] = {
     },
     "resume_extraction": {
         "v1": RESUME_EXTRACTION_PROMPT_V1,
+        "v2": RESUME_EXTRACTION_PROMPT_V2,
     },
 }
 
