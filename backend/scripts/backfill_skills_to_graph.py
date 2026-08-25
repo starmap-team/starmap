@@ -1,11 +1,16 @@
-"""One-shot: 补齐 PG 有而 Neo4j 缺失的 Skill 节点(幂等, 不动 PG/已有节点)。
+"""One-shot: 补齐 PG approved 有而 Neo4j 缺失的 Skill 节点(幂等, 不动 PG/已有节点)。
 
 2026-08-25: 公网调研发现 PG skill_records=713 vs Neo4j :Skill=601, diff=112。
 根因: graph_sync 一致性校验的 neo4j_driver 跨 event loop(Future attached to
-different loop), 对账从未真正执行; 新抓取技能只进 PG。
+different loop), 对账从未真正执行。
+
+注意(2026-08-25 审计确认): Neo4j 只投影 **approved** 技能(PG 600 approved +
+1 dbt 手动修复 = 601, 精确一致)。pending/rejected 不入图是 graph_projector
+reconcile 的设计语义(审核通过后由正常流水线入图)。本脚本只补 approved,
+避免补 pending 后被 projector reconcile 当孤儿 DETACH DELETE 反复删除。
 
 本脚本:
-- 只补缺失 Skill 节点(无属性 MERGE, 与 graph_writer 幂等写法一致)
+- 只补 PG approved 缺失 Skill 节点(无属性 MERGE, 与 graph_writer 幂等写法一致)
 - 不删/不改 Neo4j 已有节点, 不动 PG 任何数据
 - 可重复执行(幂等)
 
@@ -37,7 +42,7 @@ async def main() -> None:
                     SkillRecord.name_cn,
                     SkillRecord.category,
                     SkillRecord.source_count,
-                )
+                ).where(SkillRecord.review_status == "approved")
             )
         ).all()
     pg_skills = [
