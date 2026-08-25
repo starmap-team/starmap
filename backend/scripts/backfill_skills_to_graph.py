@@ -72,6 +72,17 @@ async def main() -> None:
                     id=s["id"], name=s["name"], name_cn=s["name_cn"],
                     category=s["category"], source_count=s["source_count"], now=now,
                 )
+            # 同一 driver/session 验证写入后计数
+            ck = await session.run("MATCH (s:Skill) RETURN count(s) AS c")
+            rec = await ck.single()
+            print(f"count after write (same session): {rec['c'] if rec else '?'}")
+
+    # 新 driver 连接(同进程)再验证 — 确认提交持久化
+    async with config.get_driver() as driver2:
+        async with driver2.session() as session2:
+            ck2 = await session2.run("MATCH (s:Skill) RETURN count(s) AS c")
+            rec2 = await ck2.single()
+            print(f"count after write (new connection): {rec2['c'] if rec2 else '?'}")
     print(f"补齐缺失 Skill: {len(missing)}")
 
 

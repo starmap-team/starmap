@@ -37,6 +37,16 @@ def get_neo4j_driver(request: Request) -> Any:
     res = getattr(request.app.state, "resources", None)
     if res is None:
         return None
+    if res.neo4j_driver is None:
+        # Celery run_async 弃用过 driver(跨 loop 防护)后, 此处懒重建,
+        # 确保当前(FastAPI)loop 持有可用 driver。AsyncGraphDatabase.driver
+        # 是同步构造, 绑定调用时所在 event loop。(与 init_resources 同参数)
+        from app.config import settings
+        from neo4j import AsyncGraphDatabase
+        res.neo4j_driver = AsyncGraphDatabase.driver(
+            settings.neo4j_uri,
+            auth=(settings.neo4j_user, settings.neo4j_password),
+        )
     return res.neo4j_driver
 
 
