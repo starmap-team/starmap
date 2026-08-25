@@ -291,7 +291,7 @@ async def discover_emerging_positions(
     for name, skill_name in rows:
         pos_skills.setdefault(name, set()).add(skill_name)
 
-    candidates = []
+    candidates: list[dict[str, Any]] = []
     for pos, skills in pos_skills.items():
         hit = skills & emerging_names
         if not hit:
@@ -310,7 +310,9 @@ async def discover_emerging_positions(
                 },
             })
 
-    candidates.sort(key=lambda c: -c["emerging_ratio"])
+    # 2026-08-25: mypy 修复 —— dict 值类型不确定时显式 float()，避免
+    # "Unsupported operand type for unary -" (CI 门禁)
+    candidates.sort(key=lambda c: -float(c["emerging_ratio"]))
     return {
         "status": "completed" if candidates else "no_candidates",
         "candidates": candidates,
