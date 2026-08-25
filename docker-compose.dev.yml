@@ -10,8 +10,11 @@ services:
   # ---------- 后端 API（热重载） ----------
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
+      # 2026-08-25 (CI 修复): context 统一为仓库根 —— Dockerfile.dev 的 COPY 用
+      # backend/ 前缀 (与 celery-worker/生产 Dockerfile 一致), 否则 Docker 冒烟
+      # CI 报 "/backend/entrypoint.sh: not found"
+      context: .
+      dockerfile: backend/Dockerfile.dev
     container_name: starmap-backend
     volumes:
       - ./backend:/app           # 代码挂载，支持热重载
