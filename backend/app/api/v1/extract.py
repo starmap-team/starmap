@@ -11,7 +11,6 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.upload_validation import validate_resume_upload
-from app.core.extraction.anti_hallucination import normalize_skill_list
 from app.dependencies import get_db_session, get_neo4j_driver
 from app.exceptions import ExtractionError, ExtractionLLMError, GraphProjectionError, StarMapError
 from app.schemas.extract import ExtractionRequest, ExtractionResult
@@ -55,6 +54,22 @@ def _map_skill_item(item: Any) -> dict[str, Any]:
     }
 
 
+def _normalize_skill_list(skills: list[Any]) -> list[str]:
+    """Normalize hallucinated_skills items to strings (extract 'name' key if dict).
+
+    层边界: API 层不直接 import app.core.* (test_layer_boundary 门禁),
+    此处本地实现与 app.core.extraction.anti_hallucination.normalize_skill_list
+    等价的最小版本。
+    """
+    result: list[str] = []
+    for s in skills or []:
+        if isinstance(s, dict):
+            result.append(str(s.get("name", str(s))))
+        else:
+            result.append(str(s))
+    return result
+
+
 def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
     """Transform pipeline result dict into ExtractionResult-compatible dict."""
     data = pipeline_result.get("data") or {}
@@ -64,7 +79,7 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
     # (hallucinated_skills / 总技能数), 而非 confidence 反转。LLM 的 confidence
     # 表达"对整体提取的把握度", 低 confidence 不等于高幻觉 —— 用实际被标记为
     # 幻觉的技能比例才是最准确的幻觉率。
-    _halluc_skills = normalize_skill_list(validation.get("hallucinated_skills", []))
+    _halluc_skills = _normalize_skill_list(validation.get("hallucinated_skills", []))
     _n_total = len(data.get("required_skills", [])) + len(data.get("preferred_skills", []))
     _halluc_score = None
     if not validation.get("is_valid", True):
