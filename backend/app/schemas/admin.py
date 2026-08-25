@@ -57,6 +57,9 @@ class HealthMetrics(BaseModel):
     last_reconcile_at: str | None = Field(None, description="最近一次 reconcile 时间（ISO）")
     reconcile_status: str = Field("unknown", description="ok | warn | critical | unknown")
     sync_health: str = Field("ok", description="ok | warn | critical")
+    # 2026-08-25 (BUG#2): warn/critical 时给出具体原因（孤儿/半孤立实体名），
+    # 让「5 KPI 全绿但同步健康度 warn」不再自相矛盾。
+    notes: list[str] = Field(default_factory=list, description="健康度告警的具体原因列表")
 
 
 class TruthReport(BaseModel):

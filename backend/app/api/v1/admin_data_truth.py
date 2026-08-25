@@ -275,6 +275,9 @@ async def get_data_truth(
     # 不计入健康度 → 用户看到「孤立 0 同步健康度 正常」实际队列 23 pending
     # 标 stale 不一致。修复：unlinked_* 也参与健康度分级，半孤立多说明
     # 「补链接」链路未及时跟随 reconcile。
+    # 2026-08-25 (BUG#2): warn 时把具体原因（孤儿/半孤立名）写进
+    # HealthMetrics.notes，避免「5 KPI 全 ok 但同步健康度 warn」的自相矛盾
+    # 观感——operator 应能看到是哪个实体在告警。
     total_orphan = orphan_positions + orphan_skills
     total_unlinked = orphan_scan.unlinked_positions + orphan_scan.unlinked_skills
     if total_orphan == 0 and total_unlinked < 10:
@@ -302,6 +305,26 @@ async def get_data_truth(
         else:
             reconcile_status = "critical"
 
+    # 2026-08-25 (BUG#2): 收集具体告警原因（孤儿/半孤立实体名），
+    # 让健康度 warn 不显得与「5 KPI 全 ok」矛盾。
+    health_notes: list[str] = []
+    if orphan_positions > 0:
+        orphan_pos_names = [
+            it.name for it in orphan_scan.items
+            if it.node_type == "position" and it.reason == "orphan_canonical_id"
+        ][:5]
+        health_notes.append(f"{orphan_positions} 个孤立岗位: {', '.join(orphan_pos_names) or '未知'}")
+    if orphan_skills > 0:
+        orphan_sk_names = [
+            it.name for it in orphan_scan.items
+            if it.node_type == "skill"
+        ][:5]
+        health_notes.append(f"{orphan_skills} 个孤立技能: {', '.join(orphan_sk_names) or '未知'}")
+    if orphan_scan.unlinked_positions > 0:
+        health_notes.append(f"{orphan_scan.unlinked_positions} 个半孤立岗位（缺 canonical_id）")
+    if orphan_scan.unlinked_skills > 0:
+        health_notes.append(f"{orphan_scan.unlinked_skills} 个半孤立技能（缺 canonical_id）")
+
     return TruthReport(
         rows=rows,
             health=HealthMetrics(
@@ -316,6 +339,7 @@ async def get_data_truth(
                 last_reconcile_at=last_reconcile_at,
                 reconcile_status=reconcile_status,
                 sync_health=sync_health,
+                notes=health_notes,
             ),
         generated_at=datetime.now(UTC).isoformat(),
     )

@@ -364,7 +364,14 @@ class RepairEngine:
         """检测孤儿并把新条目 upsert 进审批队列（pending）。
 
         去重键: 有 canonical_id 用 (node_type, canonical_id)；无 canonical_id 用
-        (node_type, name)。已 approved/cleaned 的条目不重复入队。
+        (node_type, name)。已 approved/cleaned/linked 的条目不重复入队。
+
+        2026-08-25 (BUG#1): 去重条件只含 PENDING/APPROVED，漏 CLEANED/LINKED。
+        Neo4j 中已删除的孤儿 (如 DBT, canonical_id=NULL) 每次 detect_orphans
+        都重新命中 → sync 时插入一条新 CLEANED 行 → 下次 sync 又插一条 →
+        orphan_cleanup_queue 表无限累积重复行（生产实测 57+ 条 DBT）。
+        修复: 去重条件扩展为 [PENDING, APPROVED, CLEANED, LINKED]，
+        使同一孤儿只有一条历史记录。
         """
         scan = await self.detect_orphans(pg_session)
         new_items = 0
@@ -376,7 +383,9 @@ class RepairEngine:
                     OrphanCleanupQueue.canonical_id == item.canonical_id
                     if item.canonical_id
                     else OrphanCleanupQueue.name == item.name,
-                    OrphanCleanupQueue.status.in_([STATUS_PENDING, STATUS_APPROVED]),
+                    OrphanCleanupQueue.status.in_(
+                        [STATUS_PENDING, STATUS_APPROVED, STATUS_CLEANED, STATUS_LINKED]
+                    ),
                 )
             )).scalars().first()
             if existing is not None:
