@@ -71,6 +71,11 @@ RUN useradd -m -s /bin/bash starmap && \
     chmod +x entrypoint.sh
 USER starmap
 
+# PYTHONPATH=/app: celery prefork 子进程的 sys.path 不包含 cwd (/app)，
+# 导致 from crawler.persistence import dao 报 ModuleNotFoundError
+# (2026-08-25 生产事故: pipeline crawl/import 阶段全失败)
+ENV PYTHONPATH=/app
+
 EXPOSE 8000
 
 # Bootstrap runs alembic upgrade + admin seed; docker-compose overrides CMD.
