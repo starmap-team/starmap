@@ -44,12 +44,23 @@ def _update_source_after_dedup(run_id: str, duplicates: int, total: int) -> None
                 logger.warning("_update_source_after_dedup: no active crawler sources found for run_id={}", run_id)
                 return
             dup_rate = round(duplicates / total, 4) if total > 0 else 0.0
+            updated_count = 0
             for ds in sources:
+                # 2026-08-25 (BUG#E2): 只更新有记录的源 —— 此前把全局 dedup 率
+                # 应用到所有 active crawler 源(含 0 记录源), 导致 arbeitnow/v2ex/
+                # weworkremotely 等从未采集的源被标 36% 重复率, 数据源管理页
+                # "重复率" 列误导。0 记录源应保持 0.0。
+                if (ds.total_records or 0) == 0:
+                    if ds.duplicate_rate != 0.0:
+                        ds.duplicate_rate = 0.0
+                        updated_count += 1
+                    continue
                 ds.duplicate_rate = dup_rate
+                updated_count += 1
             await session.commit()
             logger.info(
                 "_update_source_after_dedup: duplicate_rate={} for {} source(s), run_id={}",
-                dup_rate, len(sources), run_id,
+                dup_rate, updated_count, run_id,
             )
     run_async(_update())
 
