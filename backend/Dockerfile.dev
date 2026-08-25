@@ -30,9 +30,9 @@ RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
 RUN pip install --no-cache-dir 'psycopg[binary]>=3.0'
 
 # 再拷源码（挂载会覆盖，这里仅为镜像构建）
-# 2026-08-25 (CI 修复): context=仓库根 → backend/ 前缀
+# 2026-08-25 (CI 修复): context=仓库根 → backend/ 前缀；
+# entrypoint.sh 在 git 中已设 100755 执行位，COPY 保留权限。
 COPY backend/ .
-COPY backend/entrypoint.sh entrypoint.sh
 
 # entrypoint: bootstrap.py (alembic upgrade + seed) then exec CMD
 RUN chmod +x entrypoint.sh
