@@ -194,14 +194,15 @@ class TestBuildResult:
         assert result["hallucination_score"] is None
 
     def test_hallucination_detected(self):
-        """When validation.is_valid is False, hallucination_score is set."""
+        """When validation.is_valid is False, hallucination_score is 1 - confidence."""
         pipeline_result = {
             "data": {"position_name": "Test"},
             "validation": {"is_valid": False, "confidence": 0.3},
         }
         result = _build_result(pipeline_result)
 
-        assert result["hallucination_score"] == 0.3
+        # 2026-08-25 (BUG#E1): confidence(置信度) 反转后才是幻觉率
+        assert result["hallucination_score"] == 0.7
 
     def test_no_data_key(self):
         """Missing data key uses empty dict."""
@@ -234,8 +235,8 @@ class TestBuildResult:
         }
         result = _build_result(pipeline_result)
 
-        # 幻觉防控信号
-        assert result["hallucination_score"] == 0.35
+        # 幻觉防控信号 (2026-08-25 BUG#E1: 1 - confidence)
+        assert result["hallucination_score"] == 0.65
         assert result["hallucinated_skills"] == ["量子编程"]
         assert result["missing_skills"] == ["RESTful API"]
         assert result["issues"] == ["技能超出本体白名单"]
