@@ -266,7 +266,7 @@ class MatchService:
         target_profile = await self._load_target_profile(driver, target_position, db_session, repo)
         if target_profile is None:
  # （ 强制规范）：区分“岗位不存在”与“岗位存在但暂无技能画像”。
- # 后者返回 200 + 0 分 + note，而非 404（not-found 仅用于真不存在）。
+ # 两者均返回 200 + 0 分 + note（不抛 404），保证闭环验证等上游流程不中断。
             if await self._position_exists(driver, target_position, db_session):
                 result: dict[str, Any] = {
                     "match_id": str(uuid4()),
@@ -287,8 +287,39 @@ class MatchService:
                 if db_session is not None:
                     await self._save_match_result(db_session, result["match_id"], result)
                 return result
-            from app.exceptions import PositionNotFoundError
-            raise PositionNotFoundError(target_position)
+ # 岗位不在图谱（PG/Neo4j 均无）：降级返回而非抛异常 —— 闭环验证等流程的
+ # 目标岗位可能来自 LLM 抽取（天然不在已审核图谱），中断会破坏端到端闭环。
+ # 用抽取技能给出基础评估 + 建议在岗位列表搜索相近岗位。
+            result = {
+                "match_id": str(uuid4()),
+                "target_position": target_position,
+                "cii": None,
+                "match_score": 0.0,
+                "matched_skills": [],
+                "gap_skills": [],
+                "recommendations": ["该岗位暂未收录图谱，可在岗位列表搜索相近岗位后重新匹配"],
+                "missing_required": [],
+                "missing_bonus": [],
+                "skill_gap_detail": [
+                    {
+                        "skill": s.get("name") or s.get("skill", ""),
+                        "importance": "required",
+                        "gap_level": "待评估",
+                        "learning_path": [],
+                    }
+                    for s in person_skills
+                    if s.get("name") or s.get("skill")
+                ],
+                "overall_assessment": (
+                    f"目标岗位「{target_position}」暂未收录知识图谱，无法给出精确匹配度。"
+                    "已按你的技能清单生成基础评估与学习路径参考。"
+                ),
+                "estimated_learning_time": "",
+                "note": "岗位未收录图谱：匹配结果为降级评估，可在岗位列表搜索相近岗位后重新匹配以获得精确结果。",
+            }
+            if db_session is not None:
+                await self._save_match_result(db_session, result["match_id"], result)
+            return result
 
         required_skills, bonus_skills, cii = self._apply_inflation_correction(target_profile)
 

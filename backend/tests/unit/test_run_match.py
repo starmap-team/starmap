@@ -142,14 +142,16 @@ async def test_run_match_no_skills():
 
 @pytest.mark.asyncio
 async def test_run_match_unknown_position():
+    """岗位不在图谱时降级返回(200 语义)而非抛异常 — 闭环验证等流程不中断。"""
     with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
-        from app.exceptions import PositionNotFoundError
-
-        with pytest.raises(PositionNotFoundError):
-            await run_match(
-                target_position="UnknownXYZ Position",
-                person_skills=[{"skill": "Python", "proficiency": "熟悉"}],
-            )
+        result = await run_match(
+            target_position="UnknownXYZ Position",
+            person_skills=[{"skill": "Python", "proficiency": "熟悉"}],
+        )
+        assert result["match_score"] == 0.0
+        assert "未收录" in result["note"] or "未收录" in result["overall_assessment"]
+        # 降级结果也带技能 gap 供学习路径使用
+        assert result["skill_gap_detail"]
 
 
 @pytest.mark.asyncio
