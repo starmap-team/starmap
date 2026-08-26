@@ -14,7 +14,8 @@ const props = defineProps<{
 const learningPaths = computed(() => {
   const step5Data = props.step?.data
   if (!step5Data) return []
-  return step5Data.paths ?? step5Data.learning_paths ?? []
+  // 后端契约 key 为 path_items; 兼容 paths/learning_paths 别名(2026-08-26 修复空态)
+  return step5Data.path_items ?? step5Data.paths ?? step5Data.learning_paths ?? []
 })
 </script>
 

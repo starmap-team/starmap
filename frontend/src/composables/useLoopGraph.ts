@@ -22,7 +22,10 @@ export function useLoopGraph() {
   interface GraphEdgeData { source: string; target: string }
   interface GraphRenderNode { id: string; style: Record<string, unknown> }
   interface GraphRenderEdge { id: string; source: string; target: string; style: Record<string, unknown> }
-  interface Step2Data { skills?: Array<{ skill?: string; name?: string; is_new?: boolean; confidence?: number }> }
+  interface Step2Data {
+    skills?: Array<{ skill?: string; name?: string; is_new?: boolean; confidence?: number }>
+    position_name?: string
+  }
   interface Step3Data {
     new_nodes?: GraphNodeData[]
     existing_nodes?: GraphNodeData[]
@@ -170,8 +173,56 @@ export function useLoopGraph() {
       })),
     ]
 
- // 删除，无数据时下方直接 return，由页面渲染空态
-    if (allGraphNodes.length === 0) return
+ // 无图谱写入数据时, 用 step2 抽取技能构造「岗位 → 技能」迷你图,
+    // 让图谱更新步骤有可视化内容而非空容器(2026-08-26 UX)。
+    if (allGraphNodes.length === 0) {
+      const step2Data = loopStore.currentRun?.steps[1]?.data as Step2Data | undefined
+      const skills = (step2Data?.skills ?? []).filter((s) => s.skill || s.name)
+      if (skills.length === 0) return
+      const centerName = _targetPosition || step2Data?.position_name || '目标岗位'
+      allGraphNodes.push({
+        id: 'center-position',
+        style: {
+          size: 34,
+          fill: cc.primary,
+          fillOpacity: 0.9,
+          stroke: cc.primary,
+          lineWidth: 2,
+          labelText: centerName,
+          labelFill: cv('--foreground'),
+          labelFontSize: 12,
+          cursor: 'pointer' as const,
+        },
+      })
+      skills.forEach((s, i) => {
+        const label = s.skill ?? s.name ?? `技能${i + 1}`
+        allGraphNodes.push({
+          id: `skill-${i}`,
+          style: {
+            size: 20,
+            fill: cc.success,
+            fillOpacity: 0.85,
+            stroke: cc.success,
+            lineWidth: 1.5,
+            labelText: label,
+            labelFill: cv('--foreground'),
+            labelFontSize: 10,
+            cursor: 'pointer' as const,
+          },
+        })
+        allGraphEdges.push({
+          id: `center-skill-${i}`,
+          source: 'center-position',
+          target: `skill-${i}`,
+          style: {
+            stroke: cv('--border'),
+            lineWidth: 1.5,
+            opacity: 0.6,
+            endArrow: true,
+          },
+        })
+      })
+    }
 
  // Set initial opacity to 0 for entrance animation
     for (const node of allGraphNodes) {

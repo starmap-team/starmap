@@ -292,10 +292,8 @@ class TestRunMatchIntegration:
         assert "Kafka" not in result["missing_required"], "bonus 缺失不应计入 missing_required"
 
     @pytest.mark.asyncio
-    async def test_position_not_found_raises_404(self):
-        """岗位画像不存在时应抛 PositionNotFoundError（B05 相关：明确错误而非静默）。"""
-        from app.exceptions import PositionNotFoundError
-
+    async def test_position_not_found_degrades_gracefully(self):
+        """岗位不存在时降级返回(0 分 + note)而非抛异常 — 闭环验证等流程不中断。"""
         # 模拟 Neo4j 查询成功但查无此岗位:_position_exists 内 `.single()` 返回 None → 判定不存在。
         # 裸 MagicMock 会让 `.single()` 返回非 None 的假对象,误判岗位存在,故显式置 None。
         neo_session = AsyncMock()
@@ -305,13 +303,15 @@ class TestRunMatchIntegration:
         driver = MagicMock()
         driver.session.return_value = neo_cm
         with patch.object(matching_service, "fetch_position_graph", new=AsyncMock(return_value={"position": None, "skills": [], "edges": []})):
-            with pytest.raises(PositionNotFoundError):
-                await run_match(
-                    target_position="不存在的岗位",
-                    person_skills=[{"name": "Python"}],
-                    driver=driver,
-                    db_session=None,
-                )
+            result = await run_match(
+                target_position="不存在的岗位",
+                person_skills=[{"name": "Python"}],
+                driver=driver,
+                db_session=None,
+            )
+            assert result["match_score"] == 0.0
+            assert "未收录" in (result["note"] or "")
+            assert result["skill_gap_detail"], "降级结果应带技能 gap 供学习路径使用"
 
 
 # ---------------------------------------------------------------------------

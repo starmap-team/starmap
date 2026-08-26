@@ -50,7 +50,7 @@ async def main() -> None:
                 "RETURN n.name AS nm, count(n) AS c",
                 name=ORPHAN_NAME,
             )
-            recs = [rec for rec in await r.data()]
+            recs = list(await r.data())
             print(f"孤儿节点数: {len(recs)}")
             if not recs:
                 print("无孤儿节点, 已处理过")

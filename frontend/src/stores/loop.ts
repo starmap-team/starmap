@@ -177,9 +177,15 @@ export const useLoopStore = defineStore('loop', () => {
 
  // 解析后端返回的步骤结果
       if (data.steps && Array.isArray(data.steps)) {
+ // 2026-08-26 UX: 逐步填充而非一次性 — 每步至少展示 600ms,
+ // 否则快步骤(LLM 缓存 10ms/降级匹配 70ms)一闪而过看不到过程。
+        const MIN_STEP_SHOW_MS = 600
         for (const stepData of data.steps) {
           const idx = stepData.step - 1
           if (idx >= 0 && idx < currentRun.value.steps.length) {
+            // 先标记 running(等待过渡)
+            currentRun.value.steps[idx].status = 'running'
+            await new Promise(r => setTimeout(r, MIN_STEP_SHOW_MS))
             currentRun.value.steps[idx].status = stepData.status ?? 'success'
  // Backend returns `duration_seconds`; convert to ms for the UI.
  // (Backwards-compat: fall back to `duration_ms` if some other

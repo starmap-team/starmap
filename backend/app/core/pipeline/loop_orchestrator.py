@@ -57,6 +57,48 @@ class LoopOrchestrator:
         )
         db_record = await self._insert_loop_run(run_id, session=session, user_id=user_id)
 
+        try:
+            return await self._run_loop_steps(
+                run_id, start, result, db_record,
+                jd_text=jd_text, target_position=target_position,
+                session=session,
+            )
+        except BaseException as exc:  # noqa: BLE001 — CancelledError 也须落库失败
+            # QA-FIX (F#10 补强): 请求断开/超时取消协程或会话异常时, 状态必须落库为
+            # 失败而非传播 500(前端拿到明确失败态), 否则 loop_results 永久 running。
+            logger.warning(
+                "Loop {} interrupted: {} — marking FAILED", run_id, type(exc).__name__,
+            )
+            result.status = LoopRunStatus.FAILED
+            result.total_duration_seconds = time.monotonic() - start
+            failed_step = LoopStepResult(
+                step=len(result.steps) + 1,
+                name="Interrupted",
+                status=StepStatus.FAILED,
+                error=f"Loop interrupted by {type(exc).__name__}",
+                duration_seconds=0.0,
+            )
+            result.steps.append(failed_step)
+            try:
+                await self._complete_loop_run(db_record, result, session=session)
+            except BaseException as exc2:  # noqa: BLE001 — 落库失败不掩盖原异常
+                logger.warning("Loop {} failure persist also failed: {}", run_id, exc2)
+            # 不重新 raise: 异常已降级为 FAILED 结果, 避免 API 500(PendingRollbackError 等)
+            return result
+
+    async def _run_loop_steps(
+        self,
+        run_id: str,
+        start: float,
+        result: LoopResult,
+        db_record: Any,
+        *,
+        jd_text: str,
+        target_position: str | None,
+        session: AsyncSession | None,
+    ) -> LoopResult:
+        """执行 5 步闭环主体(供 run_loop 的取消兜底包装)。"""
+
         # Step 1: validation
         step1 = self._step1_validate_input(jd_text, target_position)
         result.steps.append(step1)

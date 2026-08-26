@@ -118,6 +118,62 @@ _LOOP_HISTORY_MAX = 200
 # PostgreSQL persistence helpers
 # ---------------------------------------------------------------------------
 
+
+async def _persist_loop_row(
+    *,
+    record_id: int,
+    result: LoopResult,
+    session: AsyncSession | None,
+    status: str | None,
+) -> None:
+    """落库 loop_results 行(steps_json + 可选 status/completed_at/error_log)。
+
+    session 为 None 时用独立 session_factory(隔离调用方 session 的连接池污染)。
+    """
+    from app.models.pipeline_models import LoopResultRecord
+
+    if session is not None:
+        row = await session.get(LoopResultRecord, record_id)
+        if row is not None:
+            row.steps_json = result.to_dict()
+            if status is not None:
+                row.status = status
+                row.completed_at = datetime.now(UTC)
+                if status == LoopRunStatus.FAILED.value:
+                    errors = [s.error for s in result.steps if s.error]
+                    row.error_log = "; ".join(errors) if errors else None
+            await session.commit()
+            return
+        raise LookupError(f"loop_results row {record_id} not found")
+
+    # 独立 session 落库: 用全新 engine(不共享污染连接池), 用完 dispose。
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from app.config import settings
+
+    if not settings.postgres_uri:
+        raise LookupError("postgres_uri is not configured")
+    own_engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    try:
+        from sqlalchemy.ext.asyncio import async_sessionmaker as _asm
+
+        own_factory = _asm(own_engine, expire_on_commit=False)
+        async with own_factory() as own:
+            row = await own.get(LoopResultRecord, record_id)
+            if row is None:
+                raise LookupError(f"loop_results row {record_id} not found")
+            row.steps_json = result.to_dict()
+            if status is not None:
+                row.status = status
+                row.completed_at = datetime.now(UTC)
+                if status == LoopRunStatus.FAILED.value:
+                    errors = [s.error for s in result.steps if s.error]
+                    row.error_log = "; ".join(errors) if errors else None
+            await own.commit()
+    finally:
+        await own_engine.dispose()
+
+
 async def _insert_loop_run(
     run_id: str,
     session: AsyncSession | None = None,
@@ -153,23 +209,20 @@ async def _update_steps_json(
     session: AsyncSession | None = None,
 ) -> None:
     """UPDATE steps_json after each step completes."""
-    if db_record is None or session is None:
+    if db_record is None:
         return
     try:
-        from app.models.pipeline_models import LoopResultRecord
-
-        # Re-fetch to avoid detached-instance issues
-        db_record = await session.get(LoopResultRecord, db_record.id)
-        if db_record is None:
-            return
-        db_record.steps_json = result.to_dict()
-        await session.commit()
+        await _persist_loop_row(record_id=db_record.id, result=result, session=session, status=None)
     except PipelineStageError:
         raise
     except StarMapError:
         raise
     except Exception as exc:
-        logger.exception("Failed to update loop steps_json in DB: {}", exc)
+        # 调用方 session 事务 aborted 时改走独立 session 重试, 保证步骤进度可落库。
+        try:
+            await _persist_loop_row(record_id=db_record.id, result=result, session=None, status=None)
+        except BaseException:  # noqa: BLE001
+            logger.exception("Failed to update loop steps_json in DB (retry): {}", exc)
 
 
 async def _complete_loop_run(
@@ -178,29 +231,29 @@ async def _complete_loop_run(
     session: AsyncSession | None = None,
 ) -> None:
     """UPDATE status and completed_at when the loop finishes; fall back to in-memory."""
-    if db_record is not None and session is not None:
+    if db_record is not None:
         try:
-            from app.models.pipeline_models import LoopResultRecord
-
-            db_record = await session.get(LoopResultRecord, db_record.id)
-            if db_record is not None:
-                db_record.status = result.status.value
-                db_record.steps_json = result.to_dict()
-                db_record.completed_at = datetime.now(UTC)
-                if result.status == LoopRunStatus.FAILED:
-                    errors = [s.error for s in result.steps if s.error]
-                    db_record.error_log = "; ".join(errors) if errors else None
-                await session.commit()
-                return
+            status_val = result.status.value
+            await _persist_loop_row(
+                record_id=db_record.id, result=result, session=session, status=status_val,
+            )
+            return
         except PipelineStageError:
             raise
         except StarMapError:
             raise
         except Exception as exc:
-            logger.exception(
-                "Failed to complete loop run in DB, falling back to in-memory: {}",
-                exc,
-            )
+            # 调用方 session 事务 aborted 时改走独立 session 重试, 保证完成状态落库。
+            try:
+                await _persist_loop_row(
+                    record_id=db_record.id, result=result, session=None, status=status_val,
+                )
+                return
+            except BaseException:  # noqa: BLE001
+                logger.exception(
+                    "Failed to complete loop run in DB, falling back to in-memory: {}",
+                    exc,
+                )
 
     # Fallback: in-memory history storage
     _LOOP_RESULTS[result.run_id] = result
