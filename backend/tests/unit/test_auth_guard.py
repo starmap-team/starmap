@@ -247,13 +247,17 @@ class TestDevTokenAccepted:
     def test_dev_mode_auto_issues_jwt(self):
         """In dev mode, no token auto-issues a dev_admin JWT (returns 200 for protected endpoints)."""
         app = _make_app()
-        from app.dependencies import get_current_user, get_db_session
+        from app.dependencies import get_current_user, get_db_session, get_neo4j_driver
 
         # Override get_current_user to return a valid admin user (simulating dev mode)
         mock_user = {"sub": "dev_admin", "role": "admin", "username": "dev_admin"}
         mock_session = AsyncMock()
         app.dependency_overrides[get_db_session] = lambda: mock_session
         app.dependency_overrides[get_current_user] = lambda: mock_user
+        # B2 修复 flaky：全量运行时前面用例的 lifespan 会留下 app.state.resources，
+        # get_neo4j_driver 会懒建真实 driver 连 localhost:7687 → 500。override 为
+        # None 走路由的优雅降级分支（空概览 200），测试不再依赖 Neo4j 可达性。
+        app.dependency_overrides[get_neo4j_driver] = lambda: None
         client = TestClient(app)
         try:
             # Access a protected endpoint without explicit token
@@ -265,13 +269,15 @@ class TestDevTokenAccepted:
     def test_dev_token_accepted_in_dev(self):
         """In dev mode, 'dev-token' Bearer is accepted."""
         app = _make_app()
-        from app.dependencies import get_current_user, get_db_session
+        from app.dependencies import get_current_user, get_db_session, get_neo4j_driver
 
         # Simulate dev mode accepting dev-token
         mock_user = {"sub": "dev_admin", "role": "admin", "username": "dev_admin"}
         mock_session = AsyncMock()
         app.dependency_overrides[get_db_session] = lambda: mock_session
         app.dependency_overrides[get_current_user] = lambda: mock_user
+        # B2 修复 flaky：同 test_dev_mode_auto_issues_jwt —— 隔离 Neo4j 可达性
+        app.dependency_overrides[get_neo4j_driver] = lambda: None
         client = TestClient(app)
         try:
             response = client.get(
