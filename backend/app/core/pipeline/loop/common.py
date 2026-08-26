@@ -151,6 +151,8 @@ async def _persist_loop_row(
 
     from app.config import settings
 
+    if not settings.postgres_uri:
+        raise LookupError("postgres_uri is not configured")
     own_engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, pool_size=1, max_overflow=0)
     try:
         from sqlalchemy.ext.asyncio import async_sessionmaker as _asm
