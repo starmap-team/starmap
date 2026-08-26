@@ -22,7 +22,13 @@ const skillCount = computed<number | null>(() => {
 })
 
 const skillConfidenceAvg = computed<number | null>(() => {
-  const v = (props.step?.data as { skill_confidence_avg?: number | null } | undefined)?.skill_confidence_avg
+  // 2026-08-26: 信任度均值优先读后端 trust_score_avg(anti_hallucination 校验置信度),
+  // fallback 到抽取技能 confidence 均值(兼容旧数据)。
+  const d = props.step?.data as {
+    trust_score_avg?: number | null
+    skill_confidence_avg?: number | null
+  } | undefined
+  const v = d?.trust_score_avg ?? d?.skill_confidence_avg
   return typeof v === 'number' ? v : null
 })
 
