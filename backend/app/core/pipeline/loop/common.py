@@ -210,8 +210,6 @@ async def _update_steps_json(
     if db_record is None:
         return
     try:
-        from app.models.pipeline_models import LoopResultRecord
-
         await _persist_loop_row(record_id=db_record.id, result=result, session=session, status=None)
     except PipelineStageError:
         raise
@@ -233,8 +231,6 @@ async def _complete_loop_run(
     """UPDATE status and completed_at when the loop finishes; fall back to in-memory."""
     if db_record is not None:
         try:
-            from app.models.pipeline_models import LoopResultRecord
-
             status_val = result.status.value
             await _persist_loop_row(
                 record_id=db_record.id, result=result, session=session, status=status_val,
