@@ -169,6 +169,12 @@ async def _update_steps_json(
     except StarMapError:
         raise
     except Exception as exc:
+        # 步骤中前序 DB 异常可能使 session 事务进入 aborted 状态,
+        # 不 rollback 会导致后续 commit 全部失败 → 运行完成状态无法落库(卡 running)。
+        try:
+            await session.rollback()
+        except BaseException:  # noqa: BLE001 — rollback 失败不掩盖原异常
+            pass
         logger.exception("Failed to update loop steps_json in DB: {}", exc)
 
 
@@ -197,6 +203,11 @@ async def _complete_loop_run(
         except StarMapError:
             raise
         except Exception as exc:
+            # 同样需 rollback aborted 事务, 否则后续(重试/其它请求复用 session)全失败
+            try:
+                await session.rollback()
+            except BaseException:  # noqa: BLE001 — rollback 失败不掩盖原异常
+                pass
             logger.exception(
                 "Failed to complete loop run in DB, falling back to in-memory: {}",
                 exc,
