@@ -64,8 +64,8 @@ class LoopOrchestrator:
                 session=session,
             )
         except BaseException as exc:  # noqa: BLE001 — CancelledError 也须落库失败
-            # QA-FIX (F#10 补强): 请求断开/超时取消协程时, 状态必须落库为失败,
-            # 否则 loop_results 永久 running(前端历史记录卡「执行中」)。
+            # QA-FIX (F#10 补强): 请求断开/超时取消协程或会话异常时, 状态必须落库为
+            # 失败而非传播 500(前端拿到明确失败态), 否则 loop_results 永久 running。
             logger.warning(
                 "Loop {} interrupted: {} — marking FAILED", run_id, type(exc).__name__,
             )
@@ -83,7 +83,8 @@ class LoopOrchestrator:
                 await self._complete_loop_run(db_record, result, session=session)
             except BaseException as exc2:  # noqa: BLE001 — 落库失败不掩盖原异常
                 logger.warning("Loop {} failure persist also failed: {}", run_id, exc2)
-            raise
+            # 不重新 raise: 异常已降级为 FAILED 结果, 避免 API 500(PendingRollbackError 等)
+            return result
 
     async def _run_loop_steps(
         self,

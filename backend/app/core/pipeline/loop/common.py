@@ -146,22 +146,30 @@ async def _persist_loop_row(
             return
         raise LookupError(f"loop_results row {record_id} not found")
 
-    # 独立 session 落库(不受调用方 session 事务状态影响)
-    from app.db.session import get_session_factory
+    # 独立 session 落库: 用全新 engine(不共享污染连接池), 用完 dispose。
+    from sqlalchemy.ext.asyncio import create_async_engine
 
-    factory = get_session_factory()
-    async with factory() as own:
-        row = await own.get(LoopResultRecord, record_id)
-        if row is None:
-            raise LookupError(f"loop_results row {record_id} not found")
-        row.steps_json = result.to_dict()
-        if status is not None:
-            row.status = status
-            row.completed_at = datetime.now(UTC)
-            if status == LoopRunStatus.FAILED.value:
-                errors = [s.error for s in result.steps if s.error]
-                row.error_log = "; ".join(errors) if errors else None
-        await own.commit()
+    from app.config import settings
+
+    own_engine = create_async_engine(settings.postgres_uri, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    try:
+        from sqlalchemy.ext.asyncio import async_sessionmaker as _asm
+
+        own_factory = _asm(own_engine, expire_on_commit=False)
+        async with own_factory() as own:
+            row = await own.get(LoopResultRecord, record_id)
+            if row is None:
+                raise LookupError(f"loop_results row {record_id} not found")
+            row.steps_json = result.to_dict()
+            if status is not None:
+                row.status = status
+                row.completed_at = datetime.now(UTC)
+                if status == LoopRunStatus.FAILED.value:
+                    errors = [s.error for s in result.steps if s.error]
+                    row.error_log = "; ".join(errors) if errors else None
+            await own.commit()
+    finally:
+        await own_engine.dispose()
 
 
 async def _insert_loop_run(
