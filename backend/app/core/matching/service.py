@@ -290,6 +290,16 @@ class MatchService:
  # 岗位不在图谱（PG/Neo4j 均无）：降级返回而非抛异常 —— 闭环验证等流程的
  # 目标岗位可能来自 LLM 抽取（天然不在已审核图谱），中断会破坏端到端闭环。
  # 用抽取技能给出基础评估 + 建议在岗位列表搜索相近岗位。
+            skill_gap_detail = [
+                {
+                    "skill": s.get("name") or s.get("skill", ""),
+                    "importance": "required",
+                    "gap_level": "待评估",
+                    "learning_path": [],
+                }
+                for s in person_skills
+                if s.get("name") or s.get("skill")
+            ]
             result = {
                 "match_id": str(uuid4()),
                 "target_position": target_position,
@@ -300,16 +310,11 @@ class MatchService:
                 "recommendations": ["该岗位暂未收录图谱，可在岗位列表搜索相近岗位后重新匹配"],
                 "missing_required": [],
                 "missing_bonus": [],
-                "skill_gap_detail": [
-                    {
-                        "skill": s.get("name") or s.get("skill", ""),
-                        "importance": "required",
-                        "gap_level": "待评估",
-                        "learning_path": [],
-                    }
-                    for s in person_skills
-                    if s.get("name") or s.get("skill")
-                ],
+                "skill_gap_detail": skill_gap_detail,
+                # 2026-08-26: 对齐前端 LoopStepMatch 消费 key —
+                # 降级评估的抽取技能以「待评估缺口」呈现, 而非空数组(用户看不到任何数据)
+                "missing_skills": [g["skill"] for g in skill_gap_detail],
+                "gap_analysis": skill_gap_detail,
                 "overall_assessment": (
                     f"目标岗位「{target_position}」暂未收录知识图谱，无法给出精确匹配度。"
                     "已按你的技能清单生成基础评估与学习路径参考。"

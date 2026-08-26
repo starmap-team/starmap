@@ -80,6 +80,16 @@ async def run_extract_step(jd_text: str) -> LoopStepResult:
         # D-06: surface the actual model used + aggregate confidence so the
         # frontend LoopStepSkills card can render a cloud/local explanation.
         confidences = [s.get("confidence") for s in skills]
+        # 2026-08-26: 补全 trust/hallucination 聚合 — 供前端 LoopStepSkills 卡片展示。
+        # hallucination_score = 1 - 幻觉占比(anti_hallucination 校验的 hallucinated_skills);
+        # trust_score_avg 取 validation.confidence(模型对抽取的置信度)。
+        validation = raw.get("validation") or {}
+        hallucinated = validation.get("hallucinated_skills") or []
+        total_skills = len(skills) or 1
+        hallucination_score = round(1.0 - len(hallucinated) / total_skills, 4)
+        trust_score_avg = validation.get("confidence")
+        if not isinstance(trust_score_avg, (int, float)):
+            trust_score_avg = None
         return LoopStepResult(
             step=2,
             name=STEP_NAMES[2],
@@ -102,6 +112,11 @@ async def run_extract_step(jd_text: str) -> LoopStepResult:
                 "model_used": raw.get("model_used"),
                 "skill_count": len(skills),
                 "skill_confidence_avg": _avg(confidences),
+                # 2026-08-26: 信任度/幻觉评分(前端 LoopStepSkills 卡片)
+                "trust_score_avg": trust_score_avg,
+                "hallucination_score": hallucination_score,
+                "hallucinated_skills": hallucinated,
+                "missing_skills": validation.get("missing_skills") or [],
             },
             duration_seconds=time.monotonic() - start,
         )
