@@ -296,6 +296,9 @@ async def _sync_via_graph_writer(
                             .limit(200)
                         )
                     ).scalars().all()
+                    # 只读查询也须显式结束事务, 否则连接池归还带未提交事务的连接,
+                    # 同 engine 的其他 session(如闭环 loop)拿到脏连接 → InFailedSQLTransaction。
+                    await session.rollback()
 
                 for record in rows:
                     payload = record.to_extraction_payload()
