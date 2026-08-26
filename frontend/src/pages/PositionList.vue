@@ -411,6 +411,13 @@ onMounted(() => {
   min-height: 400px;
 }
 
+/* 同行卡片等高：el-row 为 flex，让 el-col 可撑满、卡片占满列高，
+   配合 .position-card 的 flex column + .card-content flex:1，
+   实现「同行等高 + 查看详情按钮底部对齐」 */
+.position-list-page :deep(.el-col) {
+  display: flex;
+}
+
 .page-header {
   margin-bottom: var(--space-6);
 }
@@ -433,6 +440,11 @@ onMounted(() => {
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
   margin-bottom: var(--space-5);
+  /* 同行等高 + footer 沉底：用 flex:1 拉伸填满列高（替代 height:100%，
+     避免百分比高度与 margin 叠加导致行间距丢失），margin-bottom 负责行间距 */
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .position-card:hover {
@@ -442,6 +454,8 @@ onMounted(() => {
 .card-content {
   text-align: center;
   padding: var(--space-3) 0;
+  /* 内容区弹性撑开：把 footer「查看详情」按钮压到卡片底部对齐 */
+  flex: 1;
 }
 
 .card-content h3 {

@@ -1,9 +1,12 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Vite 的 .env 文件不会自动注入 process.env，需用 loadEnv 显式读取
+  const env = loadEnv(mode, process.cwd(), '')
+  return {
   plugins: [vue()],
   resolve: {
     alias: {
@@ -25,10 +28,13 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        // Docker 网络: VITE_API_PROXY_TARGET=http://starmap-backend:8000
-        // 本地开发: 回退到 http://localhost:8000
-        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
+        // 读取 .env/.env.local 的 VITE_API_PROXY_TARGET（loadEnv，dev 本地可用）
+        // 支持: Docker 网络 http://starmap-backend:8000 / 本地后端 http://localhost:8000 / 公网 https://47.120.72.196
+        target: env.VITE_API_PROXY_TARGET || process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
         changeOrigin: true,
+        // 公网 47.120.72.196 使用自签名证书（等价 curl -k），dev 代理跳过证书校验；
+        // 生产构建走 nginx 反代，不经过此代理，无安全影响
+        secure: false,
         // ponytail: forward client IP so audit logs are traceable
         configure: (proxy) => {
           proxy.on('proxyReq', (proxyReq, req) => {
@@ -62,4 +68,5 @@ export default defineConfig({
   optimizeDeps: {
     include: ['three', '3d-force-graph'],
   },
+  }
 })

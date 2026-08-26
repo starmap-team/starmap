@@ -19,6 +19,7 @@ const trendTagType = TREND_TAG_TYPE
 import EvolutionChangelogDrawer from '@/components/EvolutionChangelogDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import BusinessBanner from '@/components/BusinessBanner.vue'
+import EmergingCandidates from '@/components/EmergingCandidates.vue'
 
 use([CanvasRenderer, LineChart, BarChart, GaugeChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
 
@@ -181,6 +182,9 @@ onMounted(() => {
         description="查看岗位技能图谱的演化趋势：新兴技能涌现（基于 Z-score 检测）、技能变更日志、以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。"
         meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code>"
       />
+
+      <!-- A4.1: 新兴岗位候选面板（模块A 新岗位发现，页面顶部） -->
+      <EmergingCandidates />
 
       <!-- E2/E7: 数据口径说明 — 让用户可感知每个数值的计算依据与来源 -->
       <el-card

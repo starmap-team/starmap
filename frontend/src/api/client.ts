@@ -48,6 +48,34 @@ async function typedPost<P extends string>(
   return request.post(url, body) as ReturnType<typeof typedPost<P>>
 }
 
+// 模块A 新岗位发现类型（契约未收录 emerging_positions，按实际返回定义）
+export interface DiscoverCandidate {
+  position: string
+  industry_scenario: string | null
+  emerging_skills: string[]
+  emerging_ratio: number
+  definition: {
+    position_name: string
+    required_skills: string[]
+    emerging_required: string[]
+  }
+}
+
+export interface DiscoverResponse {
+  status: string
+  emerging_skills: Array<{
+    skill: string
+    z_score: number
+    level: string
+    sources: number
+    positions: string[]
+  }>
+  count: number
+  skills_analyzed: number
+  emerging_positions: DiscoverCandidate[]
+  message?: string
+}
+
 // ── Convenience methods for most-used endpoints ──
 export const api = {
  // Health
@@ -64,6 +92,8 @@ export const api = {
     typedGet('/positions', params),
   getPositionDetail: (positionId: string) =>
     typedGet(`/positions/${positionId}`),
+  discoverPositions: () =>
+    request.post<DiscoverResponse>('/positions/discover'),
 
  // Match — typed with OpenAPI schema; stores that pass varying shapes
  // should normalize before calling, or use typedPost directly.
