@@ -28,7 +28,8 @@ describe('LoopStepSkills.vue', () => {
     })
     const html = wrapper.html()
     expect(html).toContain('技能数: 8')
-    expect(html).toContain('信任度均值: 86%')
+    // 2026-08-27: 文案从"信任度均值"改为"提取置信度"（用户可理解）
+    expect(html).toContain('提取置信度: 86%')
   })
 
   it('shows cloud model tag for non-fallback model_used (D-06)', () => {
