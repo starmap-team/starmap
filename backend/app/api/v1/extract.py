@@ -83,7 +83,19 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
     _n_total = len(data.get("required_skills", [])) + len(data.get("preferred_skills", []))
     _halluc_score = None
     if not validation.get("is_valid", True):
-        _halluc_score = round(len(_halluc_skills) / _n_total, 3) if _n_total else 0.0
+        # 2026-08-27 (BUG 修复): 幻觉技能数可能大于抽取技能总数(LLM 标记的
+        # 幻觉含答复中额外项) → 比例可 >1 → Pydantic le=1.0 校验 500。
+        # 分母取 max(总数, 幻觉数) 保证 [0,1]; 再 min(1.0) 兜底。
+        _denominator = max(_n_total, len(_halluc_skills))
+        _halluc_score = round(len(_halluc_skills) / _denominator, 3) if _denominator else 0.0
+        _halluc_score = min(_halluc_score, 1.0)
+
+    # 2026-08-27 (BUG 修复): LLM 返回的 confidence 可能越界(实测 5.5)
+    # → 响应模型 ge=0.0/le=1.0 校验失败 → 整请求 500。服务端输入不可信,
+    # 响应前 clamp 到 [0,1]。
+    _raw_conf = validation.get("confidence", 0.85)
+    _conf = _raw_conf if isinstance(_raw_conf, (int, float)) else 0.85
+    _conf = min(max(float(_conf), 0.0), 1.0)
 
     return {
         "position_name": data.get("position_name") or "",
@@ -92,7 +104,7 @@ def _build_result(pipeline_result: dict[str, Any]) -> dict[str, Any]:
         "experience_required": data.get("experience_required"),
         "education_required": data.get("education_required"),
         "responsibilities": data.get("responsibilities", []),
-        "confidence": validation.get("confidence", 0.85),
+        "confidence": _conf,
         "hallucination_score": _halluc_score,
         "normalized_skills": pipeline_result.get("normalization", []),
         "tools": data.get("tools", []),
