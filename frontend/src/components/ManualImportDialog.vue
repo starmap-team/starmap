@@ -154,6 +154,8 @@ function handleClose() {
     title="手动导入 JD"
     width="640px"
     :close-on-click-modal="false"
+    append-to-body
+    modal-class="manual-import-modal"
     @close="handleClose"
   >
     <div class="import-dialog">
