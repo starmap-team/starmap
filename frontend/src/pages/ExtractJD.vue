@@ -5,6 +5,7 @@
  */
 import { ref, computed, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Upload } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useJdStore } from '@/stores/jd'
 
@@ -25,7 +26,57 @@ const isDegradedModel = computed(() => {
 
 const extractProgress = ref(0)
 const extractPhase = ref('')
+const savingToSource = ref(false)
 let progressTimer: ReturnType<typeof setInterval> | null = null
+
+// 2026-08-27: JD 抽取闭环入库 — 把抽取结果作为 jd-manual 源的一条记录写入
+// jd_raw, 复用数据源采集→导入→图谱的完整管线(与手动导入对话框同端点)。
+async function handleSaveToSource() {
+  const r = result.value
+  if (!r) return
+  const rawText = jdText.value.trim()
+  if (!rawText) {
+    ElMessage.warning('请先粘贴 JD 原文')
+    return
+  }
+  savingToSource.value = true
+  try {
+    const { default: request } = await import('@/api/request')
+    // 查找 jd-manual 数据源(id 动态获取, 不硬编码)
+    const sources = await request.get('/datasources') as Array<{ id: string; name: string }>
+    const target = sources.find((s) => s.name === 'jd-manual')
+    if (!target) {
+      ElMessage.error('未找到 jd-manual 手动导入数据源')
+      return
+    }
+    const title = r.position_name || r.job_title || '未命名岗位'
+    const payload = {
+      jds: [{
+        source_url: `manual://extract/${Date.now()}`,
+        raw_text: rawText,
+        title,
+        job_title: title,
+        company: '',
+        location: '',
+      }],
+    }
+    const out = await request.post(`/datasources/${target.id}/manual-import`, payload) as {
+      inserted: number
+      duplicates: number
+      errors: string[]
+    }
+    if (out.errors?.length) {
+      ElMessage.warning(`已入库 ${out.inserted} 条, ${out.duplicates} 条重复, 错误 ${out.errors.length} 条`)
+    } else {
+      ElMessage.success(`✅ 已保存到「手动 JD 导入」数据源(${out.inserted} 条), 将进入采集→抽取→图谱管线`)
+    }
+  } catch (e) {
+    const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    ElMessage.error('保存失败: ' + (detail || (e instanceof Error ? e.message : '未知错误')))
+  } finally {
+    savingToSource.value = false
+  }
+}
 
 async function handleExtract() {
   if (!jdText.value.trim()) {
@@ -373,6 +424,22 @@ onUnmounted(() => {
                   </template>
                 </el-table-column>
               </el-table>
+
+              <!-- 2026-08-27: JD 抽取闭环入库 — 保存到手动导入数据源 -->
+              <div class="extract-action">
+                <el-button
+                  type="success"
+                  plain
+                  :loading="savingToSource"
+                  @click="handleSaveToSource"
+                >
+                  <el-icon class="el-icon--left">
+                    <Upload />
+                  </el-icon>
+                  保存到数据源
+                </el-button>
+                <span class="save-hint">保存后进入「手动 JD 导入」数据源，自动参与采集→抽取→图谱管线</span>
+              </div>
             </div>
             <div
               v-else
@@ -423,6 +490,7 @@ onUnmounted(() => {
 
 .card-header-row { display: flex; justify-content: space-between; align-items: center; }
 .extract-action { margin-top: var(--space-3); text-align: right; }
+.save-hint { display: block; margin-top: var(--space-1); font-size: var(--font-size-xs); color: var(--muted-foreground); }
 .extract-progress { margin-top: var(--space-4); }
 .extract-phase { text-align: center; color: var(--muted-foreground); font-size: var(--font-size-sm); margin-top: var(--space-2); }
 .result-section-title { font-size: var(--font-size-xs); font-weight: 600; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.06em; margin: var(--space-5) 0 var(--space-3); }
