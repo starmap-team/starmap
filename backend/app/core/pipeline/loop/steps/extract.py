@@ -83,10 +83,15 @@ async def run_extract_step(jd_text: str) -> LoopStepResult:
         # 2026-08-26: 补全 trust/hallucination 聚合 — 供前端 LoopStepSkills 卡片展示。
         # hallucination_score = 1 - 幻觉占比(anti_hallucination 校验的 hallucinated_skills);
         # trust_score_avg 取 validation.confidence(模型对抽取的置信度)。
+        # 2026-08-27 (BUG#L1): hallucination_score 曾为负数 (如 -700%) ——
+        # hallucinated 数量可能超过 total_skills (LLM 把未提取技能也算入),
+        # 1 - 8/1 = -7。修复: 分母取 max(total, hallucinated), 结果 clamp [0,1]。
         validation = raw.get("validation") or {}
         hallucinated = validation.get("hallucinated_skills") or []
-        total_skills = len(skills) or 1
-        hallucination_score = round(1.0 - len(hallucinated) / total_skills, 4)
+        total_skills = len(skills)
+        _denom = max(total_skills, len(hallucinated))
+        hallucination_score = round(1.0 - len(hallucinated) / _denom, 4) if _denom else 1.0
+        hallucination_score = max(0.0, min(1.0, hallucination_score))
         trust_score_avg = validation.get("confidence")
         if not isinstance(trust_score_avg, (int, float)):
             trust_score_avg = None

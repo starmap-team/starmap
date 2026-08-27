@@ -11,7 +11,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db_session, get_neo4j_driver, require_admin
@@ -573,6 +573,16 @@ async def update_name_cn_endpoint(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        # 审计日志 action 白名单/其他约束冲突：DB 侧状态与代码不一致时
+        # 返回可读错误而非 500（如 038 迁移未生效导致 ck_review_audit_log_action 缺 update_name_cn）。
+        logger.error(
+            "update_name_cn integrity error for {} {}: {}", entity_type, entity_id, exc
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="中文名更新失败：数据库约束冲突（审计日志白名单未同步），请联系管理员",
+        ) from exc
 
     # 同步 Neo4j 节点 name_cn（图谱展示跟随 PG 权威）
     if neo4j_driver is not None:

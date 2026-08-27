@@ -22,6 +22,7 @@ from app.services.review_service import (
     reject,
     submit_for_review,
     unpublish,
+    update_name_cn,
 )
 
 
@@ -394,3 +395,94 @@ async def test_count_by_status_aggregates_both_types():
     assert counts["position"] == 40
     assert counts["skill"] == 269
     assert counts["evolution_pending"] == 3
+
+
+# ══════════════════════════════════════════════════════════════
+# update_name_cn (改中文名 — 内容审核手工校准 D8i/D8j)
+# ══════════════════════════════════════════════════════════════
+
+
+def _fake_row_with_name_cn(*, review_status: str = "pending_review", name: str = "UX Designer",
+                           name_cn: str | None = None, entity_id: uuid.UUID | None = None):
+    row = _fake_row(review_status=review_status, name=name, entity_id=entity_id)
+    row.name_cn = name_cn
+    row.reviewed_by = None
+    row.reviewed_at = None
+    return row
+
+
+@pytest.mark.asyncio
+async def test_update_name_cn_sets_value_and_records_audit():
+    uid = uuid.uuid4()
+    row = _fake_row_with_name_cn(entity_id=uid, name_cn=None)
+    session = _fake_session_with_entity(row)
+
+    item = await update_name_cn(
+        session,
+        entity_type="position",
+        entity_id=uid,
+        name_cn="UX 设计师",
+        actor="admin",
+    )
+
+    assert item.name_cn == "UX 设计师"
+    assert row.name_cn == "UX 设计师"
+    # audit log row appended with the new action value
+    added = session.add.call_args[0][0]
+    assert added.action == "update_name_cn"
+    assert added.entity_id == uid
+    assert added.reason == "name_cn: (none) -> UX 设计师"
+    assert item.entity_type == "position"
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_update_name_cn_empty_raises_value_error():
+    row = _fake_row_with_name_cn()
+    session = _fake_session_with_entity(row)
+
+    with pytest.raises(ValueError, match="name_cn cannot be empty"):
+        await update_name_cn(
+            session,
+            entity_type="position",
+            entity_id=uuid.uuid4(),
+            name_cn="   ",
+            actor="admin",
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_name_cn_missing_entity_raises_not_found():
+    session = AsyncMock()
+    result = MagicMock()
+    result.scalar_one_or_none = MagicMock(return_value=None)
+    session.execute = AsyncMock(return_value=result)
+
+    with pytest.raises(ReviewNotFound):
+        await update_name_cn(
+            session,
+            entity_type="skill",
+            entity_id=uuid.uuid4(),
+            name_cn="Python",
+            actor="admin",
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_name_cn_same_value_is_idempotent_no_audit():
+    row = _fake_row_with_name_cn(name_cn="UX 设计师")
+    session = _fake_session_with_entity(row)
+
+    item = await update_name_cn(
+        session,
+        entity_type="position",
+        entity_id=row.id,
+        name_cn="UX 设计师",
+        actor="admin",
+    )
+
+    assert item.name_cn == "UX 设计师"
+    assert row.name_cn == "UX 设计师"
+    # identical value → no audit log row
+    session.add.assert_not_called()
+    session.commit.assert_awaited_once()

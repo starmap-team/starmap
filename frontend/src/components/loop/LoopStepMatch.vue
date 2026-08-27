@@ -225,7 +225,7 @@ defineExpose({ buildRadarData })
               </h4>
               <div class="skill-tags-row">
                 <el-tag
-                  v-for="s in (step.data.missing_skills ?? step.data.gap_analysis?.map((g: any) => g.skill) ?? [])"
+                  v-for="s in (step.data.missing_skills ?? step.data.missing_required ?? step.data.skill_gap_detail?.map((g: any) => g.skill) ?? step.data.gap_analysis?.map((g: any) => g.skill) ?? [])"
                   :key="s"
                   type="danger"
                   size="small"
@@ -234,21 +234,21 @@ defineExpose({ buildRadarData })
                   {{ s }}
                 </el-tag>
                 <span
-                  v-if="!(step.data.missing_skills?.length) && !(step.data.gap_analysis?.length)"
+                  v-if="!(step.data.missing_skills?.length) && !(step.data.missing_required?.length) && !(step.data.skill_gap_detail?.length) && !(step.data.gap_analysis?.length)"
                   class="empty-text"
                 >无</span>
               </div>
 
               <!-- Gap detail table -->
               <div
-                v-if="step.data.gap_analysis?.length"
+                v-if="step.data.gap_analysis?.length || step.data.skill_gap_detail?.length"
                 class="gap-table-wrapper"
               >
                 <h4 class="gap-section-title">
                   差距明细
                 </h4>
                 <el-table
-                  :data="step.data.gap_analysis"
+                  :data="step.data.gap_analysis ?? step.data.skill_gap_detail"
                   size="small"
                   stripe
                   max-height="200"

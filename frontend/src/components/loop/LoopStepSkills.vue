@@ -60,9 +60,11 @@ const legacyHallucination = computed<number | null>(() => {
 })
 
 const legacyHallucinationType = computed<'info' | 'warning' | 'success'>(() => {
+  // 2026-08-27: 语义修正 —— hallucination_score = 提取准确度(1-幻觉占比),
+  // 越高越好。≥80% success, ≥50% warning, 其余 info。
   const v = legacyHallucination.value
   if (v == null) return 'info'
-  return v > 0.3 ? 'warning' : 'success'
+  return v >= 0.8 ? 'success' : v >= 0.5 ? 'warning' : 'info'
 })
 
 const legacyHallucinationLabel = computed(() => {
@@ -97,13 +99,22 @@ const legacyHallucinationLabel = computed(() => {
             >
               技能数: {{ skillCount ?? '—' }}
             </el-tag>
-            <el-tag
-              type="info"
-              size="small"
-              effect="plain"
-            >
-              信任度均值: {{ skillConfidencePct }}
-            </el-tag>
+            <el-tooltip placement="top">
+              <template #content>
+                <div style="max-width: 260px; line-height: 1.6">
+                  <div>模型对本次技能提取的置信度均值（0-100%）</div>
+                  <div>来源：LLM 抽取校验（anti-hallucination）返回的 confidence</div>
+                  <div style="margin-top: 4px">较低表示模型认为本次提取可能不完整，建议检查 JD 文本或重试</div>
+                </div>
+              </template>
+              <el-tag
+                type="info"
+                size="small"
+                effect="plain"
+              >
+                提取置信度: {{ skillConfidencePct }}
+              </el-tag>
+            </el-tooltip>
             <el-tag
               v-if="modelUsed"
               :type="isLocalFallback ? 'warning' : 'success'"
@@ -120,13 +131,22 @@ const legacyHallucinationLabel = computed(() => {
             >
               置信度: {{ ((legacyConfidence as number) * 100).toFixed(0) }}%
             </el-tag>
-            <el-tag
-              :type="legacyHallucinationType"
-              size="small"
-              effect="plain"
-            >
-              幻觉评分: {{ legacyHallucinationLabel }}
-            </el-tag>
+            <el-tooltip placement="top">
+              <template #content>
+                <div style="max-width: 260px; line-height: 1.6">
+                  <div>提取准确度 = 1 - 幻觉技能占比（0-100%，越高越准确）</div>
+                  <div>来源：LLM 校验标记的 hallucinated_skills 数量 / 总技能数</div>
+                  <div style="margin-top: 4px">100% 表示提取的技能全部可信，无幻觉</div>
+                </div>
+              </template>
+              <el-tag
+                :type="legacyHallucinationType"
+                size="small"
+                effect="plain"
+              >
+                提取准确度: {{ legacyHallucinationLabel }}
+              </el-tag>
+            </el-tooltip>
           </div>
         </div>
       </template>
