@@ -131,10 +131,13 @@ function runStatusLabel(status: string): string {
         empty-text="暂无数据"
       >
         <el-table-column
-          prop="run_id"
           label="运行 ID"
-          min-width="160"
-        />
+          min-width="110"
+        >
+          <template #default="{ row }">
+            <span class="run-id-cell">{{ (row.run_id ?? '').slice(0, 8) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column
           prop="target_position"
           label="目标岗位"
@@ -146,12 +149,18 @@ function runStatusLabel(status: string): string {
           align="center"
         >
           <template #default="{ row }">
-            <el-tag
-              :type="row.status === 'completed' ? 'success' : row.status === 'partial' ? 'warning' : 'info'"
-              size="small"
+            <el-tooltip
+              :content="row.status === 'running' ? '运行中断（服务重启等），可重新发起' : row.status === 'failed' ? '运行失败，可重新发起' : ''"
+              :disabled="!['running','failed'].includes(row.status)"
+              placement="top"
             >
-              {{ runStatusLabel(row.status) }}
-            </el-tag>
+              <el-tag
+                :type="row.status === 'completed' ? 'success' : row.status === 'partial' ? 'warning' : row.status === 'failed' ? 'danger' : 'info'"
+                size="small"
+              >
+                {{ runStatusLabel(row.status) }}
+              </el-tag>
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column
@@ -160,7 +169,12 @@ function runStatusLabel(status: string): string {
           align="center"
         >
           <template #default="{ row }">
-            {{ (row.steps ?? []).filter((s: any) => s.status === 'success').length }}/{{ (row.steps ?? []).length }}
+            <el-tooltip
+              :content="row.status === 'failed' ? '失败前完成的步骤数 / 总步骤数' : '成功步骤数 / 总步骤数'"
+              placement="top"
+            >
+              <span>{{ (row.steps ?? []).filter((s: any) => s.status === 'success').length }}/{{ (row.steps ?? []).length }}</span>
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column
@@ -186,6 +200,13 @@ function runStatusLabel(status: string): string {
 </template>
 
 <style scoped>
+/* ── Run ID cell ── */
+.run-id-cell {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
 /* ── Step Section ── */
 .step-section {
   margin-bottom: var(--space-5);

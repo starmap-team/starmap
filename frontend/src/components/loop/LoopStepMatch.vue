@@ -12,6 +12,7 @@ import { RadarChart } from 'echarts/charts'
 import { TooltipComponent, LegendComponent, RadarComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { StepResult } from '@/stores/loop'
+import { InfoFilled } from '@element-plus/icons-vue'
 import { chartColors, legendStyle } from '@/utils/chartTheme'
 
 use([RadarChart, TooltipComponent, LegendComponent, RadarComponent, CanvasRenderer])
@@ -218,6 +219,15 @@ defineExpose({ buildRadarData })
                   class="empty-text"
                 >无</span>
               </div>
+              <!-- 2026-08-27: 0 匹配的用户解释 —— 提取技能与目标岗位要求无交集时
+                   说明原因, 避免用户困惑"为什么全是 0" -->
+              <div
+                v-if="!(step.data.matched_skills?.length) && (step.data.missing_required?.length || step.data.skill_gap_detail?.length)"
+                class="zero-match-hint"
+              >
+                <el-icon :size="13"><InfoFilled /></el-icon>
+                提取的技能与「{{ step.data.target_position ?? '目标岗位' }}」的要求暂无重合 —— 该岗位需要不同的技能组合（见右侧缺失技能）。
+              </div>
 
               <!-- Missing skills -->
               <h4 class="gap-section-title">
@@ -306,6 +316,20 @@ defineExpose({ buildRadarData })
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 0 匹配时的用户解释 ── */
+.zero-match-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--muted-foreground) 8%, transparent);
+  border-radius: var(--radius-lg, 8px);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
 }
 
 /* ── Step Card ── */

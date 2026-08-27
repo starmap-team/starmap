@@ -86,11 +86,21 @@ async def run_extract_step(jd_text: str) -> LoopStepResult:
         # 2026-08-27 (BUG#L1): hallucination_score 曾为负数 (如 -700%) ——
         # hallucinated 数量可能超过 total_skills (LLM 把未提取技能也算入),
         # 1 - 8/1 = -7。修复: 分母取 max(total, hallucinated), 结果 clamp [0,1]。
+        # 2026-08-27 (BUG#L2 final): LLM 的 hallucinated_skills 语义是
+        # "JD 中提及但提取遗漏/多提的技能"(含漏提取, 实测 24 项全是未提取的),
+        # 真幻觉应只统计"提取了但 JD 中无依据"的 —— 即 hallucinated ∩ extracted。
+        # 漏提取的属于 missing(已有 missing_skills 承载), 不应拉低提取准确度。
         validation = raw.get("validation") or {}
-        hallucinated = validation.get("hallucinated_skills") or []
+        hallucinated_all = validation.get("hallucinated_skills") or []
+        extracted_names = {s.get("name", "").strip().lower() for s in skills if s.get("name")}
+        hallucinated = [
+            h for h in hallucinated_all
+            if str(h).strip().lower() in extracted_names
+        ]
         total_skills = len(skills)
-        _denom = max(total_skills, len(hallucinated))
-        hallucination_score = round(1.0 - len(hallucinated) / _denom, 4) if _denom else 1.0
+        hallucination_score = (
+            round(1.0 - len(hallucinated) / total_skills, 4) if total_skills else 1.0
+        )
         hallucination_score = max(0.0, min(1.0, hallucination_score))
         trust_score_avg = validation.get("confidence")
         if not isinstance(trust_score_avg, (int, float)):

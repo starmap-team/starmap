@@ -119,6 +119,12 @@ async def get_loop_history(
                     data = dict(row.steps_json) if row.steps_json else {}
                     data["run_id"] = row.run_id
                     data["status"] = row.status
+                    # 2026-08-27 (BUG#L3): 历史记录时间列全 "—" —— 序列化漏掉
+                    # created_at/completed_at, 前端无时间可显示。
+                    if row.created_at:
+                        data["created_at"] = row.created_at.isoformat()
+                    if row.completed_at:
+                        data["completed_at"] = row.completed_at.isoformat()
                     items.append(data)
                 return items
         except PipelineStageError:
