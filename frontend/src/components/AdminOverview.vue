@@ -135,8 +135,8 @@ const tabCards = [
   },
   {
     key: 'prompts',
-    title: 'Prompt 工程',
-    desc: 'LLM 抽取提示词版本与 A/B 测试。',
+    title: '提示词工程',
+    desc: '智能抽取提示词版本与效果对比测试。',
     color: 'info',
   },
   {

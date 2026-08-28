@@ -368,7 +368,7 @@ function statusIcon(status: string): unknown {
           <div class="health-item">
             <span
               class="health-label"
-              title="半孤立：Neo4j 已有节点但缺 canonical_id 未链接到 PG"
+              title="半孤立：知识图谱中已有节点但缺少唯一标识，未关联到数据库"
             >半孤立岗位</span>
             <el-tag
               :type="report.health.unlinked_positions === 0 ? 'success' : 'warning'"
@@ -380,7 +380,7 @@ function statusIcon(status: string): unknown {
           <div class="health-item">
             <span
               class="health-label"
-              title="半孤立：Neo4j 已有节点但缺 canonical_id 未链接到 PG"
+              title="半孤立：知识图谱中已有节点但缺少唯一标识，未关联到数据库"
             >半孤立技能</span>
             <el-tag
               :type="report.health.unlinked_skills === 0 ? 'success' : 'warning'"
@@ -599,8 +599,8 @@ function statusIcon(status: string): unknown {
           class="orphan-note"
         >
           ⚠ 被引用边的孤儿已禁用「批准删除」：它们很可能是<b>同一实体的不同写法</b>
-          （如 React.js↔React）或<b>历史抽取未回填 PG 的技能</b>——应核对 PG 记录后
-          「链接 canonical_id」或补录，而非删除（删除会破坏学习路径 PREREQUISITE 关系）。
+          （如 React.js↔React）或<b>历史抽取未同步到数据库的技能</b>——应核对数据库记录后
+          「关联唯一标识」或补录，而非删除（删除会破坏学习路径的技能前置关系）。
         </div>
       </div>
 
