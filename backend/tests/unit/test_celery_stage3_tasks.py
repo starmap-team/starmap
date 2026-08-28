@@ -90,7 +90,7 @@ def test_retry_no_skill_positions_lock_held_skips(monkeypatch):
 
     result = retry_no_skill_positions.run(limit=10)
 
-    assert result == {"skipped": "lock_held"}
+    assert result == {"skipped": 1}
     inner.assert_not_called()
 
 

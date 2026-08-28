@@ -652,8 +652,20 @@ async def get_data_quality(
         ).scalar()
         or 0
     )
-    # 图内岗位数 = PG 全量 - 隐藏（Neo4j 投影 = approved 且非隐藏）
-    graph_total = max(pg_total - hidden_total, 0)
+    # 图内岗位数 = approved + IT白名单 + 非 no_skills（与 reconcile 快照口径一致）
+    graph_total = int(
+        (
+            await session.execute(
+                sa.select(func.count()).select_from(PositionRecord).where(
+                    PositionRecord.review_status == "approved",
+                    PositionRecord.industry.in_(IT_INDUSTRY_WHITELIST),
+                    (PositionRecord.quality_hint.is_(None))
+                    | (PositionRecord.quality_hint != "no_skills"),
+                )
+            )
+        ).scalar()
+        or 0
+    )
     return {
         "graph_positions": graph_total,
         "pg_positions": pg_total,

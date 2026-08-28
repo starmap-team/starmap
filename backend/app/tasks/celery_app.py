@@ -539,7 +539,7 @@ def retry_no_skill_positions(self: Any, limit: int = 50) -> dict[str, int]:
         redis_client = Redis.from_url(settings.redis_uri, socket_connect_timeout=3)
         if not redis_client.set(lock_key, "1", nx=True, ex=3600):
             logger.info("retry_no_skill_positions: lock held, skip")
-            return {"skipped": "lock_held"}
+            return {"skipped": 1}
     except Exception:  # noqa: BLE001 — Redis 不可用不阻断（单 worker 场景无并发）
         redis_client = None
 
