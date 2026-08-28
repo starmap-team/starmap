@@ -594,7 +594,7 @@ class GraphProjector:
                         async for rec in res:
                             existing_edges.add((str(rec["p"]), str(rec["s"])))
                 except Exception as exc:  # noqa: BLE001 — 查询失败则保守全量
-                    logger.warning("reconcile_requires_edges: existing-edge scan failed, full replay: {}", exc)
+                    logger.warning("reconcile_requires_edges: existing-edge scan failed, full replay: %s", exc)
                     existing_edges = set()
                 missing = [
                     r for r in relations
