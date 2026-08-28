@@ -437,6 +437,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.outbox_retry.retry_failed_outbox_writes",
         "schedule": crontab(minute="*/30"),  # 每30分钟
     },
+ # 2026-08-28 (批2 可持续): 每日重试空技能岗位抽取（last_retry_at 幂等 + Redis 锁防并发）
+    "retry-no-skill-positions": {
+        "task": "app.tasks.celery_app.retry_no_skill_positions",
+        "schedule": crontab(hour=3, minute=30),  # 每日 03:30 UTC
+    },
 }
 
 # ──: Celery task_failure 信号接线 ──
@@ -512,3 +517,120 @@ def _on_worker_process_init(**kwargs: Any) -> None:
 if getattr(celery_app, "worker_init_registered", False) is False:
     signals.worker_process_init.connect(_on_worker_process_init)
     celery_app.worker_init_registered = True
+
+
+@celery_app.task(bind=True, max_retries=0)
+def retry_no_skill_positions(self: Any, limit: int = 50) -> dict[str, int]:
+    """每日重试空技能岗位抽取（批2 可持续, 2026-08-28）。
+
+    从 JDExtractionRecord.jd_content 重抽取 quality_hint='no_skills' 的岗位；
+    成功（persist_extraction_result 建出 PSR）→ 清 quality_hint + 更新 last_retry_at；
+    失败/无 JD 记录 → 仅更新 last_retry_at（幂等，明日再试）。
+    Redis 锁防多 worker 并发；每日限次 limit（默认 50）。
+    """
+    import asyncio
+
+    from redis import Redis
+
+    from app.config import settings
+
+    lock_key = "starmap:lock:retry_no_skill"
+    try:
+        redis_client = Redis.from_url(settings.redis_uri, socket_connect_timeout=3)
+        if not redis_client.set(lock_key, "1", nx=True, ex=3600):
+            logger.info("retry_no_skill_positions: lock held, skip")
+            return {"skipped": "lock_held"}
+    except Exception:  # noqa: BLE001 — Redis 不可用不阻断（单 worker 场景无并发）
+        redis_client = None
+
+    try:
+        return asyncio.run(_run_no_skill_retry(limit))
+    finally:
+        if redis_client is not None:
+            try:
+                redis_client.delete(lock_key)
+            except Exception:  # noqa: BLE001
+                pass
+
+
+async def _run_no_skill_retry(limit: int) -> dict[str, int]:
+    """实际重试逻辑（可单测）。"""
+    from datetime import UTC, datetime
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.db.session import get_async_engine
+    from app.models.extraction_models import (
+        JDExtractionRecord,
+        PositionRecord,
+        PositionSkillRelation,
+    )
+    from app.tasks.stage3_services import run_batch_extract_jd
+
+    engine = get_async_engine()
+    sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    stats = {"retried": 0, "success": 0, "failed": 0, "no_jd": 0}
+    now = datetime.now(UTC)
+
+    async with sessionmaker() as session:
+        # 找 no_skills 且今天未重试过的岗位（last_retry_at IS NULL 或 < 今天 00:00）
+        rows = (
+            await session.execute(
+                select(PositionRecord)
+                .where(
+                    PositionRecord.quality_hint == "no_skills",
+                    (PositionRecord.last_retry_at.is_(None))
+                    | (PositionRecord.last_retry_at < now.replace(hour=0, minute=0, second=0, microsecond=0)),
+                )
+                .limit(limit)
+            )
+        ).scalars().all()
+
+        for pos in rows:
+            stats["retried"] += 1
+            # 取该岗位最近一条 completed JD 抽取记录原文
+            jd = (
+                await session.execute(
+                    select(JDExtractionRecord)
+                    .where(
+                        JDExtractionRecord.status == "completed",
+                        JDExtractionRecord.job_title == pos.name,
+                    )
+                    .order_by(JDExtractionRecord.created_at.desc())
+                    .limit(1)
+                )
+            ).scalars().first()
+            if jd is None or not (jd.jd_content or "").strip():
+                stats["no_jd"] += 1
+                pos.last_retry_at = now
+                await session.flush()
+                continue
+            try:
+                await run_batch_extract_jd(
+                    jd.jd_content,
+                    job_title=pos.name,
+                    source_run_id=pos.source_run_id,
+                )
+                # 成功判定：persist 后岗位有 PSR 关联
+                has_psr = (
+                    await session.execute(
+                        select(PositionSkillRelation.id).where(
+                            PositionSkillRelation.position_id == pos.id
+                        ).limit(1)
+                    )
+                ).first()
+                if has_psr is not None:
+                    pos.quality_hint = None  # 清标记 → 下次 reconcile 可入图
+                    stats["success"] += 1
+                else:
+                    stats["failed"] += 1
+            except Exception as exc:  # noqa: BLE001 — 单条失败不阻断批量
+                logger.warning("retry_no_skill extract failed for '{}': {}", pos.name[:50], exc)
+                stats["failed"] += 1
+            pos.last_retry_at = now
+            await session.flush()
+        await session.commit()
+    await engine.dispose()
+    logger.info("retry_no_skill_positions done: {}", stats)
+    return stats

@@ -416,6 +416,14 @@ async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
             ).scalars().first()
             if pos is not None:
                 position_id = str(pos.id)
+                # 2026-08-28 (批0 真相源): 隐藏岗位（no_skills/non_it）审核通过也不入图，
+                # 与「空技能/非IT不进图」契约一致（六入口收敛 is_graph_eligible 语义）。
+                if pos.quality_hint in ("no_skills", "non_it"):
+                    logger.info(
+                        "sync_approved_position_to_graph skip (hidden): '{}' quality_hint={}",
+                        position_name[:60], pos.quality_hint,
+                    )
+                    return {}
                 if not (pos.name_cn or "").strip():
                     name_cn = await _translate_position_name(position_name)
                     if name_cn:

@@ -46,6 +46,7 @@ export function useQualityDashboard(store: QualityStore): QualityDashboardApi {
     }).catch((err: unknown) => console.error('[useQualityDashboard] fetchQuality failed', err))
     void store.fetchTrends('7d')
     void store.fetchAlerts()
+    void store.fetchDataQuality()
     startAutoRefresh()
   })
 

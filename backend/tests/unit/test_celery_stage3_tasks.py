@@ -46,3 +46,69 @@ def test_analyze_evolution_trends_runs_real_service_entrypoint(monkeypatch, days
     service.assert_called_once_with(days)
     runner.assert_called_once_with(service.return_value)
     assert result["days"] == days
+
+
+# ══════════════════════════════════════════════════════════════
+# retry_no_skill_positions (批2 可持续, 2026-08-28)
+# ══════════════════════════════════════════════════════════════
+
+
+def test_retry_no_skill_positions_runs(monkeypatch):
+    from app.tasks.celery_app import retry_no_skill_positions
+
+    redis_mock = Mock()
+    redis_mock.set = Mock(return_value=True)  # lock acquired
+    redis_mock.delete = Mock()
+    redis_cls = Mock()
+    redis_cls.from_url = Mock(return_value=redis_mock)
+    monkeypatch.setattr("redis.Redis", redis_cls)
+
+    async def _inner(limit):
+        return {"retried": 2, "success": 1, "failed": 1, "no_jd": 0}
+
+    inner = Mock(side_effect=_inner)
+    monkeypatch.setattr("app.tasks.celery_app._run_no_skill_retry", inner)
+
+    result = retry_no_skill_positions.run(limit=10)
+
+    assert result == {"retried": 2, "success": 1, "failed": 1, "no_jd": 0}
+    inner.assert_called_once_with(10)
+    redis_mock.delete.assert_called_once()
+
+
+def test_retry_no_skill_positions_lock_held_skips(monkeypatch):
+    from app.tasks.celery_app import retry_no_skill_positions
+
+    redis_mock = Mock()
+    redis_mock.set = Mock(return_value=False)  # lock already held
+    redis_cls = Mock()
+    redis_cls.from_url = Mock(return_value=redis_mock)
+    monkeypatch.setattr("redis.Redis", redis_cls)
+
+    inner = Mock()
+    monkeypatch.setattr("app.tasks.celery_app._run_no_skill_retry", inner)
+
+    result = retry_no_skill_positions.run(limit=10)
+
+    assert result == {"skipped": "lock_held"}
+    inner.assert_not_called()
+
+
+def test_retry_no_skill_positions_redis_unavailable_still_runs(monkeypatch):
+    from app.tasks.celery_app import retry_no_skill_positions
+
+    def _raise(*args, **kwargs):
+        raise RuntimeError("redis down")
+
+    monkeypatch.setattr("redis.Redis", Mock(side_effect=_raise))
+
+    async def _inner(limit):
+        return {"retried": 0, "success": 0, "failed": 0, "no_jd": 0}
+
+    inner = Mock(side_effect=_inner)
+    monkeypatch.setattr("app.tasks.celery_app._run_no_skill_retry", inner)
+
+    result = retry_no_skill_positions.run(limit=5)
+
+    assert result == {"retried": 0, "success": 0, "failed": 0, "no_jd": 0}
+    inner.assert_called_once()

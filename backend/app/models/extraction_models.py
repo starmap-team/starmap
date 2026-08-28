@@ -348,6 +348,11 @@ class PositionRecord(Base):
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
  # 业务说明：数据来源 Pipeline Run ID，用于追溯“哪次运行产生了这个岗位”
     source_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+ # 2026-08-28 (批0 真相源): 岗位质量标记（no_skills/unclassified/non_it/NULL=ok），
+ # 供 reconcile 快照排除隐藏岗位（防振荡）与审核队列 category 筛选
+    quality_hint: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+ # 2026-08-28 (批0 真相源): 定时重试时间戳（幂等，每日只重试一次）
+    last_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self) -> str:
         return f"<PositionRecord {self.name} status={self.review_status}>"

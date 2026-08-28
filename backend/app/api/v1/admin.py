@@ -328,13 +328,15 @@ async def list_review_items(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     entity_type: Annotated[Literal["position", "skill"] | None, "过滤实体类型"] = None,
     status: Annotated[Literal["draft", "pending_review", "approved", "rejected"] | None, "审核状态"] = None,
+    category: Annotated[Literal["no_skill", "unclassified", "duplicate"] | None, "数据质量类别(批0): no_skill空技能/unclassified未分类/duplicate重名"] = None,
     limit: Annotated[int, "返回数量上限"] = 50,
 ) -> ReviewListResponse:
     """Unified review queue combining position + skill entities.
 
     Default: returns all `pending_review` items (the active admin queue).
     Use `?entity_type=position|skill` to narrow; use `?status=...` to view
-    a different lifecycle state.
+    a different lifecycle state. Use `?category=no_skill|unclassified|duplicate`
+    to filter fuzzy positions (批0 真相源).
 
     2026-08-21 (debug 优化): total 改为真实筛选总数（此前 = len(items) 即
     limit 截断后的条数，前端「当前筛选 200 项」误导用户以为只有 200 条，
@@ -344,6 +346,7 @@ async def list_review_items(
         session,
         entity_type=entity_type,  # type: ignore[arg-type]
         status=status,  # type: ignore[arg-type]
+        category=category,  # type: ignore[arg-type]
         limit=limit,
     )
     # 真实总数：按过滤条件单独 count（复用 count_by_status 的模型映射）
@@ -359,6 +362,26 @@ async def list_review_items(
         stmt = sa_select(func.count()).select_from(model)
         if status is not None:
             stmt = stmt.where(model.review_status == status)
+        if category and et == "position":
+            from app.models.extraction_models import PositionRecord, PositionSkillRelation
+
+            if category == "no_skill":
+                stmt = stmt.where(
+                    ~sa_select(PositionSkillRelation.id).where(
+                        PositionSkillRelation.position_id == PositionRecord.id
+                    ).exists()
+                )
+            elif category == "unclassified":
+                stmt = stmt.where(PositionRecord.industry.in_((None, "", "未分类")))
+            elif category == "duplicate":
+                dup = (
+                    sa_select(PositionRecord.name_cn)
+                    .where(PositionRecord.name_cn.is_not(None), PositionRecord.name_cn != "")
+                    .group_by(PositionRecord.name_cn)
+                    .having(func.count() > 1)
+                    .subquery()
+                )
+                stmt = stmt.where(PositionRecord.name_cn.in_(sa_select(dup.c.name_cn)))
         total += int((await session.execute(stmt)).scalar() or 0)
     return ReviewListResponse(
         items=[i.to_dict() for i in items],

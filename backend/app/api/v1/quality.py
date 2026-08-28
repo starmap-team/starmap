@@ -571,6 +571,99 @@ async def get_comprehensive_report(
         recommendations=recommendations,
     )
 
+
+# ── 数据质量区 (批2 可持续, 2026-08-28) ──
+# 共识计划 AC4: 图内岗位数(Neo4j) / PG全量 / 隐藏数(no_skills+非IT) / 未分类 / 重名组。
+# 口径: 隐藏按 quality_hint∈{no_skills}+industry非IT 计; 未分类按 industry 三态;
+#       两者正交可重叠, 不违反「图内+隐藏=PG全量」恒等。
+@router.get("/data-quality")
+async def get_data_quality(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, int]:
+    """岗位数据质量计数（图内/PG全量/隐藏/未分类/重名组）。"""
+    from sqlalchemy import func
+
+    from app.core.extraction.industry_gate import IT_INDUSTRY_WHITELIST
+
+    # PG 全量 approved 岗位
+    pg_total = int(
+        (
+            await session.execute(
+                sa.select(func.count()).select_from(PositionRecord).where(
+                    PositionRecord.review_status == "approved"
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    # 隐藏数: quality_hint=no_skills 或 industry 非 IT（approved 内）
+    hidden_no_skill = int(
+        (
+            await session.execute(
+                sa.select(func.count()).select_from(PositionRecord).where(
+                    PositionRecord.review_status == "approved",
+                    PositionRecord.quality_hint == "no_skills",
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    hidden_non_it = int(
+        (
+            await session.execute(
+                sa.select(func.count()).select_from(PositionRecord).where(
+                    PositionRecord.review_status == "approved",
+                    PositionRecord.industry.is_not(None),
+                    PositionRecord.industry.not_in(IT_INDUSTRY_WHITELIST),
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    hidden_total = hidden_no_skill + hidden_non_it
+    # 未分类: industry 三态（approved 内）
+    unclassified = int(
+        (
+            await session.execute(
+                sa.select(func.count()).select_from(PositionRecord).where(
+                    PositionRecord.review_status == "approved",
+                    PositionRecord.industry.in_((None, "", "未分类")),
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    # 重名组: name_cn 分组 count>1
+    dup_groups = int(
+        (
+            await session.execute(
+                sa.select(func.count())
+                .select_from(
+                    sa.select(PositionRecord.name_cn)
+                    .where(
+                        PositionRecord.name_cn.is_not(None),
+                        PositionRecord.name_cn != "",
+                    )
+                    .group_by(PositionRecord.name_cn)
+                    .having(func.count() > 1)
+                    .subquery()
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    # 图内岗位数 = PG 全量 - 隐藏（Neo4j 投影 = approved 且非隐藏）
+    graph_total = max(pg_total - hidden_total, 0)
+    return {
+        "graph_positions": graph_total,
+        "pg_positions": pg_total,
+        "hidden_positions": hidden_total,
+        "hidden_no_skill": hidden_no_skill,
+        "hidden_non_it": hidden_non_it,
+        "unclassified": unclassified,
+        "duplicate_groups": dup_groups,
+    }
+
 # ── Sub-routers ( quality domain split) ──
 from app.api.v1.quality_trends_alerts import router as trends_alerts_router  # noqa: E402
 

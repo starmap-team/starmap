@@ -365,12 +365,16 @@ async def list_by_status(
     *,
     entity_type: EntityType | None = None,
     status: Status | None = None,
+    category: str | None = None,
     limit: int = 50,
 ) -> list[ReviewItem]:
-    """List entities by review status, optionally filtered by type.
+    """List entities by review status, optionally filtered by type/category.
 
-    Returns most-recently-created first. SkillRecord has no created_at,
-    so we fall back to first_detected_at for skills.
+    category (批0 真相源, 2026-08-28): no_skill / unclassified / duplicate / None=all
+    - no_skill: 岗位无任何 PSR 关联（空技能）
+    - unclassified: industry 三态未分类（NULL/空/'未分类'）
+    - duplicate: name_cn 重复分组（>1）
+    仅对 position 生效；skill 忽略 category。
     """
     out: list[ReviewItem] = []
     types: tuple[EntityType, ...] = ("position", "skill") if entity_type is None else (entity_type,)
@@ -380,9 +384,33 @@ async def list_by_status(
         stmt: sa.Select[tuple[PositionRecord | SkillRecord]] = sa.select(model)
         if sort_col is not None:
             stmt = stmt.order_by(sort_col.desc())
-        stmt = stmt.limit(limit)
         if status is not None:
             stmt = stmt.where(model.review_status == status)
+        if category and et == "position":
+            if category == "no_skill":
+                from app.models.extraction_models import PositionSkillRelation
+
+                stmt = stmt.where(
+                    ~sa.exists(
+                        sa.select(PositionSkillRelation.id).where(
+                            PositionSkillRelation.position_id == PositionRecord.id
+                        )
+                    )
+                )
+            elif category == "unclassified":
+                stmt = stmt.where(PositionRecord.industry.in_((None, "", "未分类")))
+            elif category == "duplicate":
+                from app.models.extraction_models import PositionRecord as PRModel
+
+                dup = (
+                    sa.select(PRModel.name_cn)
+                    .where(PRModel.name_cn.is_not(None), PRModel.name_cn != "")
+                    .group_by(PRModel.name_cn)
+                    .having(sa.func.count() > 1)
+                    .subquery()
+                )
+                stmt = stmt.where(model.name_cn.in_(sa.select(dup.c.name_cn)))  # type: ignore[attr-defined]
+        stmt = stmt.limit(limit)
         result = await session.execute(stmt)
         for row in result.scalars().all():
             out.append(_to_item(et, row))

@@ -128,6 +128,10 @@ async def sync_from_pipeline(
     try:
         async with driver.session() as session:
             for pos in (new_positions or []):
+                # 2026-08-28 (批0 真相源): 隐藏岗位（no_skills/non_it）不建 Position 节点，
+                # 否则与「空技能/非IT不进图」契约矛盾（审核/流水线路径均收敛到同一判定）。
+                if pos.get("quality_hint") in ("no_skills", "non_it"):
+                    continue
                 try:
                     await session.run(
                         "MERGE (p:Position {name: $name}) SET p.industry = $industry, p.updated_at = datetime()",

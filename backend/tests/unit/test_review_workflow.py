@@ -486,3 +486,81 @@ async def test_update_name_cn_same_value_is_idempotent_no_audit():
     # identical value → no audit log row
     session.add.assert_not_called()
     session.commit.assert_awaited_once()
+
+
+# ══════════════════════════════════════════════════════════════
+# position_filter (批0 真相源: is_graph_eligible / has_approved_skill)
+# ══════════════════════════════════════════════════════════════
+
+
+class _FakeScalarResult:
+    def __init__(self, value: bool) -> None:
+        self._value = value
+
+    def scalar(self) -> bool:
+        return self._value
+
+
+def _fake_psr_session(approved: bool | None) -> AsyncMock:
+    session = AsyncMock()
+    result = MagicMock()
+    result.scalar = MagicMock(return_value=approved is True)
+    session.execute = AsyncMock(return_value=result)
+    return session
+
+
+@pytest.mark.asyncio
+async def test_has_approved_skill_true_when_skill_approved():
+    from app.services.position_filter import has_approved_skill
+
+    assert await has_approved_skill(_fake_psr_session(True), uuid.uuid4()) is True
+
+
+@pytest.mark.asyncio
+async def test_has_approved_skill_false_when_skill_pending():
+    from app.services.position_filter import has_approved_skill
+
+    assert await has_approved_skill(_fake_psr_session(False), uuid.uuid4()) is False
+
+
+@pytest.mark.asyncio
+async def test_has_approved_skill_false_when_no_psr():
+    from app.services.position_filter import has_approved_skill
+
+    assert await has_approved_skill(_fake_psr_session(None), uuid.uuid4()) is False
+
+
+@pytest.mark.asyncio
+async def test_is_graph_eligible_approved_it():
+    from app.models.extraction_models import PositionRecord
+    from app.services.position_filter import is_graph_eligible
+
+    pos = PositionRecord(id=uuid.uuid4(), name="后端工程师", review_status="approved", industry="互联网/IT")
+    assert await is_graph_eligible(_fake_psr_session(True), pos, check_skill=False) is True
+
+
+@pytest.mark.asyncio
+async def test_is_graph_eligible_pending_rejected():
+    from app.models.extraction_models import PositionRecord
+    from app.services.position_filter import is_graph_eligible
+
+    pos = PositionRecord(id=uuid.uuid4(), name="后端工程师", review_status="pending_review", industry="互联网/IT")
+    assert await is_graph_eligible(_fake_psr_session(True), pos, check_skill=False) is False
+
+
+@pytest.mark.asyncio
+async def test_is_graph_eligible_non_it_excluded():
+    from app.models.extraction_models import PositionRecord
+    from app.services.position_filter import is_graph_eligible
+
+    pos = PositionRecord(id=uuid.uuid4(), name="销售代表", review_status="approved", industry="非IT岗位")
+    assert await is_graph_eligible(_fake_psr_session(True), pos, check_skill=False) is False
+
+
+@pytest.mark.asyncio
+async def test_is_graph_eligible_unclassified_excluded():
+    from app.models.extraction_models import PositionRecord
+    from app.services.position_filter import is_graph_eligible
+
+    pos = PositionRecord(id=uuid.uuid4(), name="某某岗位", review_status="approved", industry="未分类")
+    assert await is_graph_eligible(_fake_psr_session(True), pos, check_skill=False) is False

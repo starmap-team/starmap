@@ -81,6 +81,17 @@ export interface QualityTrendPoint {
   review_count: number
 }
 
+/** 岗位数据质量计数（GET /quality/data-quality，批2 2026-08-28） */
+export interface DataQualityCounts {
+  graph_positions: number
+  pg_positions: number
+  hidden_positions: number
+  hidden_no_skill: number
+  hidden_non_it: number
+  unclassified: number
+  duplicate_groups: number
+}
+
 
 interface QualityAlertsResponse {
   alerts?: QualityAlert[]
@@ -94,6 +105,8 @@ export const useQualityStore = defineStore('quality', () => {
   const trendsPeriod = ref<'7d' | '30d' | '90d'>('7d')
   const alerts = ref<QualityAlert[]>([])
   const alertsLoading = ref(false)
+  const dataQuality = ref<DataQualityCounts | null>(null)
+  const dataQualityLoading = ref(false)
 
   async function fetchQuality() {
     loading.value = true
@@ -212,9 +225,36 @@ export const useQualityStore = defineStore('quality', () => {
     }
   }
 
+ // ── 岗位数据质量计数（批2 2026-08-28）──
+ // 图内岗位数(Neo4j投影) / PG全量 / 隐藏数(no_skills+非IT) / 未分类 / 重名组。
+ // 失败时静默降级为 null（页面显示加载中/暂无数据），不打断仪表盘其余部分。
+  async function fetchDataQuality() {
+    dataQualityLoading.value = true
+    try {
+      const data = await request.get<Partial<DataQualityCounts>>('/quality/data-quality', {
+        silent: true,
+      })
+      const counts: DataQualityCounts = {
+        graph_positions: Number(data.graph_positions ?? 0),
+        pg_positions: Number(data.pg_positions ?? 0),
+        hidden_positions: Number(data.hidden_positions ?? 0),
+        hidden_no_skill: Number(data.hidden_no_skill ?? 0),
+        hidden_non_it: Number(data.hidden_non_it ?? 0),
+        unclassified: Number(data.unclassified ?? 0),
+        duplicate_groups: Number(data.duplicate_groups ?? 0),
+      }
+      dataQuality.value = counts
+    } catch {
+      dataQuality.value = null
+    } finally {
+      dataQualityLoading.value = false
+    }
+  }
+
   return {
     metrics, loading, kpiCards, fetchQuality,
     trends, trendsPeriod, alerts, alertsLoading,
     fetchTrends, fetchAlerts,
+    dataQuality, dataQualityLoading, fetchDataQuality,
   }
 })

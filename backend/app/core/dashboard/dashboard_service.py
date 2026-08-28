@@ -102,6 +102,16 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         total_edges = neo4j_edge_val
         total_positions = neo4j_pos_val
         total_skills = neo4j_skill_val
+        pg_pos_count = (
+            await session.execute(
+                sa.select(sa.func.count())
+                .select_from(PositionRecord)
+                .where(PositionRecord.review_status == "approved")
+            )
+        ).scalar() or 0
+        graph_positions = neo4j_pos_val
+        pg_positions = int(pg_pos_count)
+        hidden_positions = max(pg_positions - graph_positions, 0)
     else:
         # Neo4j 不可用：fallback 到 PostgreSQL
         pos_count = (
@@ -117,6 +127,9 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         total_edges = int(edge_count)
         total_positions = int(pos_count)
         total_skills = int(skill_count)
+        graph_positions = int(pos_count)
+        pg_positions = int(pos_count)
+        hidden_positions = 0
 
     total_domains = (
         await session.execute(
@@ -131,6 +144,10 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         "total_positions": total_positions,
         "total_skills": total_skills,
         "total_domains": int(total_domains),
+        # 2026-08-28 (批3 三列口径, 共识计划 AC7): 图内+隐藏=PG全量
+        "graph_positions": graph_positions,
+        "pg_positions": pg_positions,
+        "hidden_positions": hidden_positions,
     }
 
 

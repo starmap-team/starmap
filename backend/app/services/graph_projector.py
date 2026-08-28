@@ -325,6 +325,11 @@ class GraphProjector:
                         .where(PositionRecord.review_status == "approved")
                         # 2026-08-28 (debug: 非IT岗位混入图谱): 只投影 IT 领域岗位
                         .where(PositionRecord.industry.in_(_IT_INDUSTRY_WHITELIST))
+                        # 2026-08-28 (批0 真相源): 空技能岗位不投影（防剪枝→回填振荡）
+                        .where(
+                            (PositionRecord.quality_hint.is_(None))
+                            | (PositionRecord.quality_hint != "no_skills")
+                        )
                     )
                 ).all()
             }

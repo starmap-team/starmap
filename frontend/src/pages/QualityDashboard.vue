@@ -239,6 +239,100 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
         </div>
       </el-card>
 
+      <!-- 岗位数据质量（批2 2026-08-28）：图内岗位数 / PG全量 / 隐藏数 + 细分标签。
+           口径：图内岗位数(Neo4j投影) = PG approved 全量 - 隐藏数(no_skills+非IT) -->
+      <el-card
+        v-loading="quality.dataQualityLoading"
+        shadow="never"
+        class="mb-4"
+        header="岗位数据质量"
+      >
+        <div
+          v-if="quality.dataQualityLoading || !quality.dataQuality"
+          class="custom-empty"
+        >
+          <div class="empty-icon-wrapper">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ><ellipse
+              cx="12"
+              cy="5"
+              rx="9"
+              ry="3"
+            /><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" /><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" /></svg>
+          </div>
+          <p class="starmap-empty">
+            {{ quality.dataQualityLoading ? '数据加载中' : '暂无数据' }}
+          </p>
+          <p class="starmap-empty--hint">
+            岗位数据质量计数将在评估完成后展示
+          </p>
+        </div>
+        <div
+          v-else
+          class="data-quality-body"
+        >
+          <div class="dq-main-cols">
+            <div class="dq-main-col">
+              <div class="dq-label">图内岗位数</div>
+              <div class="dq-value">{{ quality.dataQuality.graph_positions.toLocaleString() }}</div>
+              <div class="dq-hint">Neo4j 投影</div>
+            </div>
+            <div class="dq-main-col">
+              <div class="dq-label">PG 全量</div>
+              <div class="dq-value">{{ quality.dataQuality.pg_positions.toLocaleString() }}</div>
+              <div class="dq-hint">approved 全量</div>
+            </div>
+            <div class="dq-main-col">
+              <div class="dq-label">隐藏数</div>
+              <div class="dq-value">{{ quality.dataQuality.hidden_positions.toLocaleString() }}</div>
+              <div class="dq-hint">no_skills + 非IT</div>
+            </div>
+          </div>
+          <div class="dq-identity-hint">
+            图内岗位数 + 隐藏数 = PG 全量（{{ quality.dataQuality.graph_positions.toLocaleString() }} + {{ quality.dataQuality.hidden_positions.toLocaleString() }} = {{ quality.dataQuality.pg_positions.toLocaleString() }}）
+          </div>
+          <el-divider class="dq-divider" />
+          <div class="dq-tags">
+            <el-tag
+              type="info"
+              effect="plain"
+              size="small"
+            >
+              空技能 {{ quality.dataQuality.hidden_no_skill.toLocaleString() }}
+            </el-tag>
+            <el-tag
+              type="warning"
+              effect="plain"
+              size="small"
+            >
+              非IT {{ quality.dataQuality.hidden_non_it.toLocaleString() }}
+            </el-tag>
+            <el-tag
+              type="danger"
+              effect="plain"
+              size="small"
+            >
+              未分类 {{ quality.dataQuality.unclassified.toLocaleString() }}
+            </el-tag>
+            <el-tag
+              type="primary"
+              effect="plain"
+              size="small"
+            >
+              重名组 {{ quality.dataQuality.duplicate_groups.toLocaleString() }}
+            </el-tag>
+          </div>
+        </div>
+      </el-card>
+
       <!-- 直方图 + 趋势 -->
       <el-row
         :gutter="16"
@@ -807,5 +901,57 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
 .trust-na {
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
+}
+/* 岗位数据质量（批2 2026-08-28） */
+.data-quality-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.dq-main-cols {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.dq-main-col {
+  flex: 1;
+  min-width: 120px;
+  background: var(--card-muted, rgba(127, 127, 127, 0.06));
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+}
+.dq-label {
+  font-size: var(--font-size-sm);
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+.dq-value {
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+.dq-hint {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  opacity: 0.75;
+}
+.dq-identity-hint {
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+.dq-divider {
+  margin: var(--space-2) 0;
+}
+.dq-tags {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+@media (max-width: 768px) {
+  .dq-main-cols { flex-direction: column; }
+  .dq-value { font-size: var(--font-size-2xl); }
 }
 </style>

@@ -89,6 +89,24 @@ def _trust_from_payload(payload: dict | None) -> int:
 
 
 # LOOP-07: Neo4j sync on approve/reject
+async def _fetch_position_quality_hint(engine: Any, position_id: str) -> str | None:
+    """查岗位 quality_hint（批0 真相源辅助）。"""
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.extraction_models import PositionRecord
+
+    try:
+        async with engine.begin() as conn:
+            session = AsyncSession(bind=conn)
+            row = await session.execute(
+                select(PositionRecord.quality_hint).where(PositionRecord.id == position_id)
+            )
+            return row.scalar()
+    except Exception:  # noqa: BLE001 — 查询失败不阻断审核主流程
+        return None
+
+
 async def _sync_neo4j_on_audit(
     neo4j_driver: Any, item_type: str, item_name: str, status: str, item_id: str | None = None
 ) -> None:
@@ -156,6 +174,20 @@ async def _sync_neo4j_on_audit(
                 industry = ""
 
         trust = 1.0 if status == "approved" else 0.0
+
+        # 2026-08-28 (批0 真相源, Critic MAJOR-A): 审核动作不复活隐藏岗位。
+        # 隐藏岗位（quality_hint=no_skills 或 industry 非 IT）approved 审核通过也不写图，
+        # 仅记审计日志——否则 hidden 岗位经审核路径重入图谱，与「空技能不进图」矛盾。
+        if label == "Position" and status == "approved":
+            from app.core.extraction.industry_gate import is_it_industry
+
+            qh = await _fetch_position_quality_hint(engine, canonical_id)
+            if not is_it_industry(industry) or qh == "no_skills":
+                logger.info(
+                    "Neo4j sync skip (hidden position): '{}' status=approved quality_hint={} industry={!r}",
+                    name, qh, industry,
+                )
+                return
 
         # 用 canonical_id MERGE，确保幂等
         async with neo4j_driver.session() as s:
