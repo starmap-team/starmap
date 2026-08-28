@@ -52,6 +52,12 @@ import { useGraphNodeEditor } from '@/composables/useGraphNodeEditor'
 function nodeTypeLabel(type: string): string { return NODE_TYPE_LABELS[type] ?? type }
 function nodeStatusType(status: string): string { return NODE_REVIEW_STATUS_TAGS[status] ?? 'info' }
 function nodeStatusLabel(status: string): string { return NODE_REVIEW_STATUS_LABELS[status] ?? status }
+// 中文名优先展示：Neo4j 节点 name_cn 存放在 properties 中（与内容审核
+// /admin/review-queue/{id}/name_cn 同步），展示时「name_cn || name」。
+function nodeDisplayName(row: GraphNodeItem): string {
+  const cn = typeof row.properties?.name_cn === 'string' ? row.properties.name_cn : ''
+  return cn || row.name
+}
 
 const cc = chartColors()
 const router = useRouter()
@@ -717,7 +723,11 @@ function formatDate(iso: string | null | undefined): string {
                 label="名称"
                 min-width="140"
                 sortable
-              />
+              >
+                <template #default="{ row }">
+                  {{ nodeDisplayName(row) }}
+                </template>
+              </el-table-column>
               <el-table-column
                 label="状态"
                 width="90"

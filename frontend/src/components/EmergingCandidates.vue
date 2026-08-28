@@ -40,6 +40,11 @@ onMounted(() => {
   void fetchCandidates(false) // 进页面自动加载，失败静默显示空态
 })
 
+// 候选岗位显示名：中文名优先（name_cn），后端未返回时保留 position
+function candidateName(c: DiscoverCandidate): string {
+  return c.name_cn || c.position_name_cn || c.position
+}
+
 // 涌现技能占比 → 百分比
 function ratioPct(ratio: number): number {
   return Math.max(0, Math.min(100, Math.round(ratio * 100)))
@@ -116,7 +121,7 @@ const emptyDescription = (): string => {
         :key="c.position"
         class="candidate-card"
       >
-        <div class="candidate-name">{{ c.position }}</div>
+        <div class="candidate-name">{{ candidateName(c) }}</div>
 
         <!-- 涌现技能 -->
         <div class="candidate-skills">

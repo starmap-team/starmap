@@ -23,6 +23,9 @@ export interface TrendItem {
 export interface SnapshotEntry {
   id: string
   position_name: string
+  // 中文名兼容：后端暂未返回（可选字段），前端展示时 name_cn || position_name
+  name_cn?: string | null
+  position_name_cn?: string | null
   snapshot_date: string
   required_skills: unknown[]
   preferred_skills?: unknown[]

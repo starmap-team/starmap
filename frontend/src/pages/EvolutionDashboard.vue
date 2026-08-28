@@ -12,7 +12,7 @@ import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useEvolutionStore } from '@/stores/evolution'
-import type { TrendItem, EmergingAlert } from '@/stores/evolution'
+import type { TrendItem, EmergingAlert, SnapshotEntry } from '@/stores/evolution'
 import { useEvolutionCharts, useEvolutionActions, formatChange, TREND_LABEL, TREND_TAG_TYPE } from '@/composables/useEvolutionDashboard'
 const trendLabel = TREND_LABEL
 const trendTagType = TREND_TAG_TYPE
@@ -135,6 +135,12 @@ function formatSnapshotDate(date?: string): string {
   return date.slice(0, 10)
 }
 
+// 快照显示名：中文名优先（name_cn / position_name_cn），后端未返回时保留 position_name
+function snapshotName(snap: SnapshotEntry | null): string {
+  if (!snap) return ''
+  return snap.name_cn || snap.position_name_cn || snap.position_name
+}
+
 // E1-2: 当前快照的技能清单（string 或 {name} 对象统一取显示名）
 const snapshotSkills = computed<unknown[]>(() => {
   const snap = selectedSnapshot.value
@@ -157,6 +163,16 @@ function skillDisplayName(skill: unknown): string {
 const trackedPositions = computed<string[]>(() =>
   [...new Set(snapshots.value.map(s => s.position_name).filter(Boolean))]
 )
+// 演化路径标签中文名映射：position_name → 中文显示名（name_cn），无则保留原名
+const trackedPositionLabels = computed<Record<string, string>>(() => {
+  const labels: Record<string, string> = {}
+  for (const s of snapshots.value) {
+    if (s.position_name && !labels[s.position_name]) {
+      labels[s.position_name] = snapshotName(s) || s.position_name
+    }
+  }
+  return labels
+})
 // 未选快照时的默认 CII 列表（趋势概览末点）；选中快照后由 snapshotCiiHistory 替换（E1）
 const ciiOverviewList = computed(() =>
   items.value.map(i => ({ skill_name: i.skill_name, last: i.points?.length ? i.points[i.points.length - 1] : 100 }))
@@ -312,7 +328,7 @@ onMounted(() => {
             >
               当前快照
             </el-tag>
-            <span class="snapshot-inline-title">{{ selectedSnapshot.position_name }}</span>
+            <span class="snapshot-inline-title">{{ snapshotName(selectedSnapshot) }}</span>
             <span class="snapshot-inline-date">{{ formatSnapshotDate(selectedSnapshot.snapshot_date) }}</span>
           </div>
           <div class="snapshot-skill-chips">
@@ -801,7 +817,7 @@ onMounted(() => {
                 effect="plain"
                 class="related-tag"
               >
-                {{ pos }}
+                {{ trackedPositionLabels[pos] || pos }}
               </el-tag>
             </template>
             <EmptyState

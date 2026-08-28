@@ -51,6 +51,9 @@ async function typedPost<P extends string>(
 // 模块A 新岗位发现类型（契约未收录 emerging_positions，按实际返回定义）
 export interface DiscoverCandidate {
   position: string
+  // 中文名兼容：后端暂未返回，前端展示时可选（name_cn || position_name_cn || position）
+  name_cn?: string | null
+  position_name_cn?: string | null
   industry_scenario: string | null
   emerging_skills: string[]
   emerging_ratio: number

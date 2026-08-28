@@ -360,7 +360,7 @@ export function useHomeInteractions(
         const skillNode = graphStore.nodeMap.get(e.target_id)
         if (!skillNode) continue
         skills.push({
-          name: skillNode.properties.name,
+          name: displayName(skillNode.properties),
           value: Math.min(e.properties?.weight ?? 0.5, 1),
         })
       }

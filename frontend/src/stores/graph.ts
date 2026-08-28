@@ -53,8 +53,10 @@ export interface GraphNode {
   labels: NodeLabel[]
   properties: {
     name: string
+    name_cn?: string
     category?: string
     proficiency?: string
+    industry?: string
     source_count?: number
     trend?: 'rising' | 'stable' | 'declining'
     knowledge_points?: string[]

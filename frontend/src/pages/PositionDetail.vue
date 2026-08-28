@@ -42,6 +42,7 @@ interface PositionProvenance {
 
 interface PositionInfo {
   name: string
+  name_cn?: string | null
   industry: string
   description: string
   discovered_at: string | null
@@ -245,9 +246,9 @@ watch(() => route.params.name, loadPosition)
             匹配诊断
           </el-button>
           <div>
-            <h2>{{ position?.name ?? positionName }}</h2>
+            <h2>{{ position?.name_cn || position?.name || positionName }}</h2>
             <p class="header-sub">
-              {{ position?.industry ?? '' }}
+              {{ position?.industry || '未分类' }}
             </p>
             <el-tag
               :type="freshness.type"

@@ -178,6 +178,7 @@ INDUSTRY_ID_PREFIX: dict[str, str] = {
     "移动开发": "ind-mobile", "测试": "ind-qa", "嵌入式与物联网": "ind-iot",
     "游戏开发": "ind-game", "区块链与Web3": "ind-bc", "数据库与存储": "ind-db",
     "互联网/IT": "ind-it", "项目管理与协作": "ind-pm", "其他": "ind-other",
+    "非IT岗位": "ind-nonit",
 }
 INDUSTRY_COLORS = {
     "人工智能": "#9B59B6",
@@ -195,6 +196,7 @@ INDUSTRY_COLORS = {
     "区块链与Web3": "#FF9800",
     "互联网/IT": "#3498DB",
     "其他": "#F39C12",
+    "非IT岗位": "#95A5A6",
 }
 _INDUSTRY_KEYWORDS = {
     "人工智能": ["人工智能", "ai工程师", "算法工程师", "机器学习", "深度学习", "nlp", "大模型"],
@@ -210,18 +212,30 @@ _INDUSTRY_KEYWORDS = {
     "嵌入式与物联网": ["嵌入式", "iot", "单片机", "嵌入式软件"],
     "游戏开发": ["游戏", "unity", "unreal", "游戏开发"],
     "区块链与Web3": ["区块链", "web3", "solidity"],
-    "互联网/IT": ["互联网", "it "],
+    "互联网/IT": ["互联网", "it企业", "it行业", "信息技术", "计算机", "软件", "信息系统"],
 }
 
 
 def _classify_industry(name: str, industry: str) -> str:
-    """Phase 13 Step 1: 按 Position.name + industry 关键词分类到 13 大行业。"""
+    """Phase 13 Step 1: 按 Position.name + industry 关键词分类到 14 大行业。
+
+    2026-08-28 (debug: 非 IT 岗位被误分互联网/IT): 保留原「按桶名长度降序 + 关键词」语义
+    （旧测试锁定），仅做两点强化：
+    - "it " 裸词不再命中（改为明确 IT 词：it企业/it行业/信息技术/计算机/软件等）→ 英文 JD
+      里 "it" 代词不再把销售/HR 岗误分互联网/IT
+    - 关键词无一命中时，明确非 IT 岗位（销售/HR/财务/行政等）→ 「非IT岗位」桶（不入 IT 图谱）
+    """
+    from app.core.extraction.industry_gate import is_non_it_position
+
     text = f"{industry or ''} {name or ''}".lower()
     # 按关键词最长优先匹配（"AI/机器学习" 比 "人工智能" 长，先匹配更具体的）
     for ind in sorted(_INDUSTRY_KEYWORDS.keys(), key=len, reverse=True):
         for kw in _INDUSTRY_KEYWORDS[ind]:
             if kw.lower() in text:
                 return ind
+    # 无任何技术关键词命中：明确非 IT 岗位 → 非IT岗位桶（不入 IT 图谱）
+    if is_non_it_position(name, industry):
+        return "非IT岗位"
     return "其他"
 
 

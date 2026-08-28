@@ -39,7 +39,26 @@ async def _upsert_position(
     name: str,
     *,
     source_run_id: uuid.UUID | None = None,
-    name_cn: str | None = None) -> PositionRecord:
+    name_cn: str | None = None,
+    industry: str | None = None) -> PositionRecord | None:
+    """Upsert a position record, classifying industry and rejecting non-IT roles.
+
+    2026-08-28 (debug: non-IT roles mixed into IT graph): 新建岗位时：
+    - 用 LLM industry + 关键词兜底分类写 industry 字段（此前恒 NULL → 79% 岗位无分类）
+    - 明确非 IT 岗位（销售/HR/财务等）不建岗位，返回 None（不污染 IT 图谱）
+    """
+    # 非 IT 岗位门禁：明确销售/HR/财务/行政等不建岗位（无 LLM 成本，零副作用）
+    from app.core.extraction.industry_gate import (
+        classify_industry_fallback,
+        is_non_it_position,
+    )
+
+    if is_non_it_position(name, industry):
+        logger.info("industry gate: skip non-IT position {!r} industry={!r}", name[:60], industry)
+        return None
+
+    clean_industry = classify_industry_fallback(name, industry)
+
     existing = (
         await session.execute(sa.select(PositionRecord).where(PositionRecord.name == name))
     ).scalar_one_or_none()
@@ -49,11 +68,16 @@ async def _upsert_position(
         if name_cn and not (existing.name_cn or "").strip():
             existing.name_cn = name_cn
             await session.flush()
+        # 2026-08-28: 已存在岗位若 industry 为空则回填分类（幂等，仅当缺失）
+        if not (existing.industry or "").strip() and clean_industry:
+            existing.industry = clean_industry
+            await session.flush()
         return existing
 
     record = PositionRecord(
         name=name,
         name_cn=name_cn,  #: 抽取时持久化 I18N-01 翻译结果
+        industry=clean_industry,  #: 2026-08-28: industry 分类入库（修复 79% 未分类）
         source_run_id=source_run_id,
         created_by="system:pipeline")
     session.add(record)
@@ -182,7 +206,15 @@ async def persist_extraction_result(
         position_name,
         source_run_id=source_run_id,
         name_cn=data.get("name_cn"),  #: I18N-01 翻译结果持久化
+        industry=data.get("industry") or data.get("industry_zh"),  #: 2026-08-28 行业分类入库
     )
+    if position is None:
+        # 非 IT 岗位门禁拦截（销售/HR/财务等）— 保留抽取记录审计，不建岗位
+        data = dict(data or {})
+        data["skipped_reason"] = "non_it"
+        record.extracted_skills = data
+        await session.flush()
+        return record, "NON_IT", {}
     skill_ids: dict[str, str] = {}
     for requirement_type, entries in (
         ("required", data.get("required_skills", [])),
@@ -199,6 +231,14 @@ async def persist_extraction_result(
                 skill.id,
                 requirement_type,
                 confidence)
+
+ # 2026-08-28 (debug: 空技能岗位): 首轮抽取无技能时标记 quality_hint 供后续重试，
+    # 但岗位仍正常建（不删数据/不阻断其他字段）。
+    if not skill_ids:
+        quality = dict(data)
+        quality["quality_hint"] = "no_skills"
+        record.extracted_skills = quality
+        await session.flush()
 
  # R5 根治 (2026-08-13): 抽取 evolves_to 后继岗位（职业演化目标）此前只写 Neo4j 图
  # （graph_writer name-MERGE 无 canonical_id）不落 PG → 产生被 EVOLVES_TO 引用的

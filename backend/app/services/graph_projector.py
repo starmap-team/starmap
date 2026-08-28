@@ -27,6 +27,7 @@ from uuid import UUID
 from neo4j.exceptions import Neo4jError
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.extraction.industry_gate import IT_INDUSTRY_WHITELIST as _IT_INDUSTRY_WHITELIST
 from app.exceptions import GraphProjectionError, StarMapError
 
 logger = logging.getLogger(__name__)
@@ -320,7 +321,10 @@ class GraphProjector:
                 str(row[0])
                 for row in (
                     await pg_session.execute(
-                        select(PositionRecord.id).where(PositionRecord.review_status == "approved")
+                        select(PositionRecord.id)
+                        .where(PositionRecord.review_status == "approved")
+                        # 2026-08-28 (debug: 非IT岗位混入图谱): 只投影 IT 领域岗位
+                        .where(PositionRecord.industry.in_(_IT_INDUSTRY_WHITELIST))
                     )
                 ).all()
             }

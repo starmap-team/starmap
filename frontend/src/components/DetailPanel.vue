@@ -242,6 +242,10 @@ function navigateToDetail(node: GraphNode) {
               <span class="dp-prop-label">所属知识域</span>
               <span class="dp-prop-value">{{ parentKAName(selectedNode.id) }}</span>
             </div>
+            <div class="dp-prop-row">
+              <span class="dp-prop-label">行业</span>
+              <span class="dp-prop-value">{{ selectedNode.properties.industry || "未分类" }}</span>
+            </div>
           </template>
           <template v-else>
             <div class="dp-prop-row">

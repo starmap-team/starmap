@@ -14,6 +14,7 @@ import { useRouter } from 'vue-router'
 // 技术说明：引入 Element Plus 图标组件
 import { Guide, DataAnalysis, Clock, Trophy, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import request from '@/api/request'
 // 业务说明：主布局组件，提供统一的页面导航和侧边栏
 import MainLayout from '@/layouts/MainLayout.vue'
 // 业务说明：学习路径可视化组件，展示技能之间的依赖关系图
@@ -87,6 +88,28 @@ async function handleAddToPlan(rec: { skill: string; priority: string }) {
   }
 }
 
+// 中文名兼容：若 currentPlan.position 是中文显示名而非 canonical name，
+// 先 GET /positions?search=<position> 找匹配岗位并取其 name（canonical）作为
+// POST /match/position 的 target_position；找不到/出错则保留原值（不破坏现有流程）。
+async function resolveCanonicalPosition(position: string): Promise<string> {
+  try {
+    const data = await request.get<{ items?: { name: string; name_cn?: string; position_id: string }[] }>(
+      '/positions', { params: { search: position, page_size: 50 } },
+    )
+    const items = data?.items ?? []
+    // 优先精确匹配中文名；其次精确匹配 name；再取首个结果（模糊匹配兜底）
+    const exactNameCn = items.find(p => p.name_cn === position)
+    if (exactNameCn?.name) return exactNameCn.name
+    const exactName = items.find(p => p.name === position)
+    if (exactName?.name) return exactName.name
+    if (items[0]?.name) return items[0].name
+    return position
+  } catch {
+    // 查询失败保留原值——后端 search 本身支持 name/name_cn 模糊匹配
+    return position
+  }
+}
+
 // FLOW-02-S2: 一键重新匹配 —— 使用更新后的 parsedSkills 对当前岗位重新执行匹配
 const rematchLoading = ref(false)
 async function handleRematch() {
@@ -102,9 +125,10 @@ async function handleRematch() {
   }
   rematchLoading.value = true
   try {
-    await matchStore.runMatch(currentPlan.value.position, skillNames)
+    const targetPosition = await resolveCanonicalPosition(currentPlan.value.position)
+    await matchStore.runMatch(targetPosition, skillNames)
  // 携带匹配结果跳转到 MatchDiagnosis 第4步（差距分析/学习路径）
-    router.push({ path: '/match', query: { rematch: '1', position: currentPlan.value.position } })
+    router.push({ path: '/match', query: { rematch: '1', position: targetPosition } })
   } catch {
     ElMessage.error('重新匹配失败，请重试')
   } finally {

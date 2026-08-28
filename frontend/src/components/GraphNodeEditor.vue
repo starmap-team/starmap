@@ -23,7 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:visible', val: boolean): void
   (e: 'update:modelValue', val: boolean): void
-  (e: 'submit', data: { id?: string; type: string; name: string; properties: Record<string, unknown> }): void
+  (e: 'submit', data: { id?: string; type: string; name: string; name_cn?: string; properties: Record<string, unknown> }): void
   (e: 'close'): void
 }>()
 
@@ -39,6 +39,7 @@ const isEditing = computed(() => !!props.editData?.id)
 const form = reactive({
   type: 'Skill' as string,
   name: '',
+  name_cn: '',
   category: '',
   proficiency: '',
   level: '',
@@ -73,6 +74,7 @@ watch(() => props.visible, (val) => {
     const p = props.editData.properties as Record<string, string | undefined>
     form.type = props.editData.type || 'Skill'
     form.name = props.editData.name || ''
+    form.name_cn = p?.name_cn || ''
     form.category = p?.category || ''
     form.proficiency = p?.proficiency || ''
     form.level = p?.level || ''
@@ -85,6 +87,7 @@ watch(() => props.visible, (val) => {
 function resetForm() {
   form.type = 'Skill'
   form.name = ''
+  form.name_cn = ''
   form.category = ''
   form.proficiency = ''
   form.level = ''
@@ -101,7 +104,9 @@ function handleSubmit() {
     id: props.editData?.id,
     type: form.type,
     name: form.name.trim(),
+    name_cn: form.name_cn.trim() || undefined,
     properties: {
+      name_cn: form.name_cn.trim() || undefined,
       category: form.category || undefined,
       proficiency: form.proficiency || undefined,
       level: form.level || undefined,
@@ -171,6 +176,16 @@ function handleClose() {
         <el-input
           v-model="form.name"
           :placeholder="form.type === 'Skill' ? '如：Python' : form.type === 'Position' ? '如：前端工程师' : '如：人工智能'"
+          maxlength="100"
+          show-word-limit
+        />
+      </el-form-item>
+
+      <!-- 中文名（name_cn）：优先展示字段，存于节点 properties.name_cn -->
+      <el-form-item label="中文名">
+        <el-input
+          v-model="form.name_cn"
+          placeholder="如：Python（可选，展示时优先于英文名）"
           maxlength="100"
           show-word-limit
         />

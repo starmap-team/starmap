@@ -181,3 +181,77 @@ async def test_persist_evolves_to_successors(monkeypatch: pytest.MonkeyPatch) ->
     assert upserted_positions[0] == "Backend Engineer"
     assert "Data Engineer" in upserted_positions
     assert "Data Scientist" in upserted_positions
+
+
+@pytest.mark.asyncio
+async def test_persist_non_it_position_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+    """非 IT 岗位（销售/HR 等）被 industry gate 拦截 → 不建岗位，返回 NON_IT。"""
+    session = FakeSession()
+
+    async def fake_upsert_position(_s: object, name: str, **_kwargs: object) -> object:
+        return None  # gate 拦截
+
+    async def fake_upsert_skill(_s: object, name: str, cat: str, **_kwargs: object) -> object:
+        raise AssertionError("非 IT 岗位不应建 skill")
+
+    monkeypatch.setattr(s, "_upsert_position", fake_upsert_position)
+    monkeypatch.setattr(s, "_upsert_skill", fake_upsert_skill)
+
+    result = _make_extraction_result(position_name="销售代表")
+    record, pos_id, skills = await s.persist_extraction_result(session, "JD", result)
+    assert pos_id == "NON_IT"
+    assert skills == {}
+    assert record.job_title == "销售代表"
+    assert "non_it" in record.extracted_skills.get("skipped_reason", "")
+
+
+@pytest.mark.asyncio
+async def test_persist_passes_industry_to_position(monkeypatch: pytest.MonkeyPatch) -> None:
+    """persist 把 LLM industry 传给 _upsert_position（入库分类，修复 79% 未分类）。"""
+    session = FakeSession()
+    captured: dict = {}
+
+    async def fake_upsert_position(_s: object, name: str, **_kwargs: object) -> object:
+        captured.update(_kwargs)
+        return types.SimpleNamespace(id=1, name=name)
+
+    async def fake_upsert_skill(_s: object, name: str, cat: str, **_kwargs: object) -> object:
+        return types.SimpleNamespace(id=10, name=name, category=cat)
+
+    async def fake_ensure(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(s, "_upsert_position", fake_upsert_position)
+    monkeypatch.setattr(s, "_upsert_skill", fake_upsert_skill)
+    monkeypatch.setattr(s, "_ensure_position_skill_relation", fake_ensure)
+
+    result = _make_extraction_result()
+    result["data"]["industry"] = "互联网/IT"
+    record, _pos_id, _skills = await s.persist_extraction_result(session, "JD", result)
+    assert captured.get("industry") == "互联网/IT"
+
+
+@pytest.mark.asyncio
+async def test_persist_empty_skills_marks_quality_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """空技能岗位：仍建岗位，但 extracted_skills 标记 quality_hint=no_skills（待重试，不删数据）。"""
+    session = FakeSession()
+
+    async def fake_upsert_position(_s: object, name: str, **_kwargs: object) -> object:
+        return types.SimpleNamespace(id=1, name=name)
+
+    async def fake_upsert_skill(_s: object, name: str, cat: str, **_kwargs: object) -> object:
+        return types.SimpleNamespace(id=10, name=name, category=cat)
+
+    async def fake_ensure(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(s, "_upsert_position", fake_upsert_position)
+    monkeypatch.setattr(s, "_upsert_skill", fake_upsert_skill)
+    monkeypatch.setattr(s, "_ensure_position_skill_relation", fake_ensure)
+
+    result = _make_extraction_result()
+    result["data"]["required_skills"] = []
+    result["data"]["preferred_skills"] = []
+    record, _pos_id, skills = await s.persist_extraction_result(session, "JD", result)
+    assert skills == {}
+    assert record.extracted_skills.get("quality_hint") == "no_skills"
