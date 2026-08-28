@@ -581,13 +581,33 @@ class GraphProjector:
                 for position_id, skill_id, requirement_type, confidence in rel_rows
             ]
             if relations:
-                edge_batch = await self.apply_batch(positions=[], skills=[], relations=relations)
-                result.edges_upserted += edge_batch.edges_upserted
-                result.errors.extend(edge_batch.errors)
+                # 2026-08-28 (数据源诊断超时根治): 增量对账 —— 先查 Neo4j 现有 REQUIRES 边
+                # （canonical_id 对），只补缺。此前全量重放 2438 条 PSR 每次 30s+ 超时。
+                existing_edges: set[tuple[str, str]] = set()
+                try:
+                    async with self._driver.session() as session:
+                        res = await session.run(
+                            "MATCH (p:Position)-[r:REQUIRES]->(s:Skill) "
+                            "WHERE p.canonical_id IS NOT NULL AND s.canonical_id IS NOT NULL "
+                            "RETURN p.canonical_id AS p, s.canonical_id AS s"
+                        )
+                        async for rec in res:
+                            existing_edges.add((str(rec["p"]), str(rec["s"])))
+                except Exception as exc:  # noqa: BLE001 — 查询失败则保守全量
+                    logger.warning("reconcile_requires_edges: existing-edge scan failed, full replay: {}", exc)
+                    existing_edges = set()
+                missing = [
+                    r for r in relations
+                    if (r["position_canonical_id"], r["skill_canonical_id"]) not in existing_edges
+                ]
                 logger.info(
-                    "reconcile_requires_edges: upserted {} REQUIRES edges (approved positions)",
-                    edge_batch.edges_upserted,
+                    "reconcile_requires_edges: {} total, {} missing (incremental)",
+                    len(relations), len(missing),
                 )
+                if missing:
+                    edge_batch = await self.apply_batch(positions=[], skills=[], relations=missing)
+                    result.edges_upserted += edge_batch.edges_upserted
+                    result.errors.extend(edge_batch.errors)
             return result
         except StarMapError:
             raise

@@ -104,7 +104,9 @@ async function triggerReconcile() {
     duration: 0,  // 永驻, 完成后手动关闭
   })
   try {
-    const result = await request.post('/admin/reconcile-neo4j') as {
+    // 2026-08-28 (数据源诊断超时根治): reconcile 全量对账 30s 前端默认超时不够,
+    // 覆盖为 90s（后端已改增量边对账，正常 <10s；极端情况留余量）。
+    const result = await request.post('/admin/reconcile-neo4j', undefined, { timeout: 90000 }) as {
       health?: string
       positions_in_neo4j?: number
       skills_in_neo4j?: number
