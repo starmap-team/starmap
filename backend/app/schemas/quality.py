@@ -97,6 +97,7 @@ class TrendPoint(BaseModel):
     new_records: int = 0
     quality_score: float = 0.0
     hallucination_rate: float = 0.0
+    review_count: int = 0
 
 
 class QualityTrendsResponse(BaseModel):

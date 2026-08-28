@@ -318,8 +318,10 @@ function _useDashboardCharts(store: DashboardStore) {
     if (!trends?.length) return undefined
     return {
       tooltip: { trigger: 'axis', backgroundColor: cc.card + 'E6', borderColor: cc.chart[0] + '4D', textStyle: { color: cc.foreground, fontSize: 12 } },
-      legend: { top: 0, right: 0, itemGap: 12, textStyle: { color: cc.muted, fontSize: 10 }, itemWidth: 12, itemHeight: 2 },
-      grid: { top: 30, bottom: 24, left: 40, right: 40 },
+      // 2026-08-28 (UI 重叠修复): legend top:0,right:0 与 panel-header 标题/「近7天」
+      // badge 在右端挤叠 → 移至 bottom 4（与其他面板一致），grid bottom 留空间。
+      legend: { bottom: 4, right: 4, itemGap: 12, textStyle: { color: cc.muted, fontSize: 10 }, itemWidth: 12, itemHeight: 2 },
+      grid: { top: 10, bottom: 28, left: 40, right: 40 },
       xAxis: { type: 'category', data: trends.map((t: QualityTrend) => t.date.slice(5)), axisLine: { lineStyle: { color: cc.foreground + '26' } }, axisLabel: { color: cc.muted, fontSize: 10 }, axisTick: { show: false } },
       yAxis: [
         { type: 'value', name: '分值', nameTextStyle: { color: cc.muted, fontSize: 10 }, axisLabel: { color: cc.muted, fontSize: 10 }, splitLine: { lineStyle: { color: cc.foreground + '0F' } } },

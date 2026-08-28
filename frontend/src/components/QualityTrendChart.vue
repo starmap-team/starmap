@@ -30,11 +30,6 @@ const props = defineProps<{
   period: '7d' | '30d' | '90d'
 }>()
 
-const periodLabel = computed(() => {
-  const map: Record<string, string> = { '7d': '近7天', '30d': '近30天', '90d': '近90天' }
-  return map[props.period] ?? props.period
-})
-
 const chartOption = computed(() => {
   if (!props.data?.length) return {}
   const colors = chartColors()
@@ -71,8 +66,19 @@ const chartOption = computed(() => {
         name: '幻觉率',
         position: 'right',
         min: 0,
-        max: 20,
+        // 2026-08-28 (质量趋势根因修复): max 20 硬编码会在数据 > 20% 时把线画出轴
+        // (44.6% 显示在 100% 处看起来爆表)。改为动态: max(数据最大值*1.2, 20)。
+        max: Math.max(20, ...props.data.map(d => +(d.hallucination_rate * 100).toFixed(1) * 1.2)),
         axisLabel: { ...axisLabelStyle(), formatter: '{value}%' },
+        splitLine: { show: false },
+      },
+      {
+        type: 'value',
+        name: '审核量',
+        position: 'right',
+        offset: 52,
+        min: 0,
+        axisLabel: { ...axisLabelStyle(), formatter: '{value}' },
         splitLine: { show: false },
       },
     ],
@@ -120,7 +126,9 @@ const chartOption = computed(() => {
       {
         name: '审核量',
         type: 'line',
-        yAxisIndex: 0,
+        // 2026-08-28 (质量趋势根因修复): 独立右轴(yAxisIndex:2) —— 审核量是
+        // 0-1000s 的计数, 原绘于 0-100% 左轴导致数值贴底 ≈0 误导。
+        yAxisIndex: 2,
         data: props.data.map(d => d.review_count),
         smooth: true,
         lineStyle: { color: colors.info, width: 1.5, type: 'dashed' },
@@ -134,16 +142,9 @@ const chartOption = computed(() => {
 
 <template>
   <div class="quality-trend-chart">
-    <div class="trend-header">
-      <span class="trend-title">质量趋势</span>
-      <el-tag
-        size="small"
-        effect="plain"
-        round
-      >
-        {{ periodLabel }}
-      </el-tag>
-    </div>
+    <!-- 2026-08-28 (UI 重叠修复): 移除组件内 trend-header —— "质量趋势"标题与
+         周期 tag 由父级 QualityDashboard 的 .trend-controls(radio 7/30/90天) 承担,
+         两层右端控件垂直挤叠。组件只渲染图表。 -->
     <VChart
       v-if="data?.length"
       :option="chartOption"

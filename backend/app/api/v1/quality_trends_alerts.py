@@ -77,18 +77,31 @@ async def get_quality_trends(
             hours = (now - last).total_seconds() / 3600.0
             avg_freshness = max(avg_freshness, hours)
 
-    # Also get hallucination rate from extraction records
-    from app.models.extraction_models import JDExtractionRecord
+    # 2026-08-28 (质量趋势根因修复): 审核量用真实审核动作数（review_audit_log
+    # approve+reject 计数），非 PipelineRun.total_records（处理记录数，误标审核量）。
+    from app.models.review_audit_log import ReviewAuditLog
 
-    ext_result = await session.execute(
-        sa.select(JDExtractionRecord)
-        .where(JDExtractionRecord.created_at >= cutoff)
+    daily_reviews: dict[str, int] = {}
+    review_result = await session.execute(
+        sa.select(ReviewAuditLog.created_at, ReviewAuditLog.action)
+        .where(ReviewAuditLog.created_at >= cutoff)
+        .where(ReviewAuditLog.action.in_(["approve", "reject"]))
     )
+    for rcreated_at, _raction in review_result.all():
+        day_key = rcreated_at.strftime("%Y-%m-%d")
+        daily_reviews[day_key] = daily_reviews.get(day_key, 0) + 1
+
+    # 2026-08-28 (质量趋势根因修复): 幻觉率改「score>0.5 占比」而非 score 均值。
+    # 原实现 avg(hallucination_score) 语义混淆: 该字段两个写入方语义相反
+    # (extract valid→0.0 无幻觉, stage3 invalid→1-confidence 高=严重), 混合均值
+    # 08-24 后飙至 ~0.45+ 假预警。统一复用 fetch_hallucination_trend 的
+    # >0.5 计数占比口径 (与 KPI 卡一致) —— 高复用率。
+    from app.repositories.quality_repo import fetch_hallucination_trend
+
     daily_halluc: dict[str, list[float]] = {}
-    for ext in ext_result.scalars().all():
-        day_key = ext.created_at.strftime("%Y-%m-%d")
-        if ext.hallucination_score is not None:
-            daily_halluc.setdefault(day_key, []).append(ext.hallucination_score)
+    halluc_trends = await fetch_hallucination_trend(session)
+    for hp in halluc_trends:
+        daily_halluc[hp["date"]] = [hp["rate"]]
 
     # Build data points with gap filling
     data_points: list[TrendPoint] = []
@@ -107,6 +120,7 @@ async def get_quality_trends(
             new_records=daily_new.get(day, 0),
             quality_score=round(avg_score, 4),
             hallucination_rate=round(avg_halluc, 4),
+            review_count=daily_reviews.get(day, 0),
         ))
 
     # Summary
