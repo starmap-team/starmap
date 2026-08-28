@@ -583,7 +583,7 @@ async def get_data_quality(
     """岗位数据质量计数（图内/PG全量/隐藏/未分类/重名组）。"""
     from sqlalchemy import func
 
-    from app.core.extraction.industry_gate import IT_INDUSTRY_WHITELIST
+    from app.services.position_filter import IT_INDUSTRY_WHITELIST
 
     # PG 全量 approved 岗位
     pg_total = int(
