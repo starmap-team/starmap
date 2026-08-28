@@ -4,8 +4,6 @@
 """
 from __future__ import annotations
 
-import pytest
-
 from app.core.extraction.industry_gate import IT_INDUSTRY_WHITELIST
 
 
