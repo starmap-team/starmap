@@ -157,7 +157,7 @@ async def get_data_truth(
     # （approved + IT 白名单 + 非 no_skills）vs Neo4j。此前把 api(Neo4j 423) 与
     # pg_approved(789) 混比——789 含 366 个设计性隐藏岗位（非IT/空技能/待审），
     # 46.4% 假 critical。可入图数才是与图谱真正可对齐的基线。
-    from app.core.extraction.industry_gate import IT_INDUSTRY_WHITELIST
+    from app.services.position_filter import IT_INDUSTRY_WHITELIST
 
     pg_eligible_positions = int(
         (await session.execute(
