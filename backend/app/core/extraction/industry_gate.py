@@ -53,6 +53,16 @@ NON_IT_KEYWORDS = frozenset(
         "法务", "法律", "律师", "知识产权", "专利", "版权",
         "翻译", "口译", "笔译", "同传", "涉外",
         "人事", "hrbp", "绩效", "薪酬", "福利",
+        # 2026-08-28 (治理推进): 补充未分类岗位暴露的明显非 IT 词
+        "assistant", "shop assistant", "concierge", "tutor", "mentor", "clerk",
+        "attendant", "receptionist", "secretary", "caretaker", "housekeeper",
+        "manager（非技术）", "regional manager", "store manager", "post office",
+        "director of", "director（非技术）", "private tutor", "counselor", "advisor（非技术）",
+        "mechanic", "machinist", "technician（非IT）", "cnc", "welder", "electrician",
+        "plumber", "carpenter", "driver", "delivery", "warehouse", "inventory",
+        "teacher", "instructor", "professor（非技术）", "trainer（非IT）",
+        "美容", "美发", "健身", "教练（非IT）", "保姆", "月嫂", "育儿",
+        "餐饮", "酒店", "前台接待", "礼宾", "门童", "行李员",
     }
 )
 
