@@ -620,7 +620,23 @@ async def get_data_quality(
         ).scalar()
         or 0
     )
-    hidden_total = hidden_no_skill + hidden_non_it
+    hidden_total = int(
+        (
+            await session.execute(
+                sa.select(func.count()).select_from(PositionRecord).where(
+                    PositionRecord.review_status == "approved",
+                    sa.or_(
+                        PositionRecord.quality_hint == "no_skills",
+                        sa.and_(
+                            PositionRecord.industry.is_not(None),
+                            PositionRecord.industry.not_in(IT_INDUSTRY_WHITELIST),
+                        ),
+                    ),
+                )
+            )
+        ).scalar()
+        or 0
+    )
     # 未分类: industry 三态（approved 内）
     unclassified = int(
         (

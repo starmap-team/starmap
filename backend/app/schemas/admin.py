@@ -236,7 +236,7 @@ class ReviewBatchRequest(BaseModel):
 
     entity_type: Literal["position", "skill"]
     entity_ids: list[str] = Field(..., min_length=1, max_length=200, description="实体 UUID 列表")
-    action: Literal["approve", "reject"]
+    action: Literal["approve", "reject", "retry_extract"]
     reason: str | None = Field(default=None, max_length=2000, description="拒绝原因（reject 必填）")
 
 

@@ -389,6 +389,63 @@ async def list_review_items(
     )
 
 
+async def _batch_retry_extract(session: AsyncSession, position_id: uuid_mod.UUID) -> None:
+    """批0/批1 (MAJOR-3): 单岗位重抽取（审核队列批量动作）。
+
+    从 JDExtractionRecord.jd_content 重抽取该岗位；成功建出 PSR 则清
+    quality_hint（下次 reconcile 可入图）。复用 celery retry 任务语义。
+    """
+    from sqlalchemy import select as _sel
+
+    from app.models.extraction_models import JDExtractionRecord, PositionRecord
+
+    pos = (
+        await session.execute(_sel(PositionRecord).where(PositionRecord.id == position_id))
+    ).scalars().first()
+    if pos is None:
+        raise review_service.ReviewNotFound(f"position {position_id} not found")
+    jd = (
+        await session.execute(
+            _sel(JDExtractionRecord)
+            .where(
+                JDExtractionRecord.status == "completed",
+                JDExtractionRecord.job_title == pos.name,
+            )
+            .order_by(JDExtractionRecord.created_at.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    if jd is None or not (jd.jd_content or "").strip():
+        logger.warning("retry_extract: no JD content for '{}'", pos.name[:50])
+        return
+    await _run_no_skill_retry_single(session, pos, jd.jd_content)
+
+
+async def _run_no_skill_retry_single(session: AsyncSession, pos: Any, jd_content: str) -> None:
+    """单岗位重抽取（与 celery _run_no_skill_retry 同语义, 事务内复用 session）。"""
+    from datetime import UTC, datetime
+
+    from app.tasks.stage3_services import run_batch_extract_jd
+
+    try:
+        await run_batch_extract_jd(jd_content, job_title=pos.name, source_run_id=pos.source_run_id)
+        from sqlalchemy import select as _sel
+
+        from app.models.extraction_models import PositionSkillRelation as PSRModel
+
+        has_psr = (
+            await session.execute(
+                _sel(PSRModel.id).where(PSRModel.position_id == pos.id).limit(1)
+            )
+        ).first()
+        if has_psr is not None:
+            pos.quality_hint = None
+            pos.last_retry_at = datetime.now(UTC)
+            await session.flush()
+    except Exception as exc:  # noqa: BLE001 — 单条重抽取失败不阻断批量
+        logger.warning("retry_extract failed for '{}': {}", pos.name[:50], exc)
+
+
 @router.post("/review/batch", response_model=ReviewBatchResponse)
 async def batch_review_endpoint(
     body: ReviewBatchRequest,
@@ -418,6 +475,14 @@ async def batch_review_endpoint(
                 await review_service.approve(
                     session, entity_type=body.entity_type, entity_id=uid, actor=actor,
                 )
+            elif body.action == "retry_extract":
+                # 2026-08-28 (批1 批量重抽取, MAJOR-3): 管理员在审核队列批量触发
+                # 空技能岗位重抽取（复用 celery 任务的单岗位逻辑）。仅 position 有效。
+                if body.entity_type != "position":
+                    fail += 1
+                    failed_ids.append(entity_id)
+                    continue
+                await _batch_retry_extract(session, uid)
             else:
                 if not body.reason or not body.reason.strip():
                     fail += 1
