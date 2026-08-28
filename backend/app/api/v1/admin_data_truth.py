@@ -130,16 +130,14 @@ async def get_data_truth(
     # BUG-15 fix: actually invoke the dashboard aggregation service instead of
     # aliasing PG. The whole point of three-layer audit is API ≠ PG ≠ Neo4j;
     # aliasing defeats the purpose and silently makes diff=0 for positions.
-    api_dashboard_positions = pg_total_positions
+    # 2026-08-28 (对账全面优化): 岗位总数行改用 PG 可入图口径（见下），
+    # 此处仅保留 skills 的 API 口径。
     api_dashboard_skills = pg_total_skills
     try:
         # BUG-15 fix: 实际调用看板聚合服务 get_overview（原误引 build_overview_payload 不存在）
         from app.services.dashboard_service import get_overview  # noqa: PLC0415
         payload = await get_overview(session, driver, None)
         # get_overview 返回图/质量/流水线合并统计（Neo4j 优先、失败回退 PG），作为 API 口径
-        api_dashboard_positions = int(
-            payload.get("total_positions", pg_total_positions)
-        )
         api_dashboard_skills = int(
             payload.get("total_skills", pg_total_skills)
         )
@@ -155,21 +153,39 @@ async def get_data_truth(
     # 2026-08-21 (debug 修复): 全量含 pending（pending 按 approved-only 架构不入图），
     # 全量 vs Neo4j 永远不等 → 83.4% 假「严重差异」让 operator 不知所措。
     # diff/status 改为比较「PG approved vs Neo4j」（真正可对齐口径）；全量仅作参考展示。
-    diff, status = _calc_status([api_dashboard_positions, pg_approved_positions, neo4j_positions])
+    # 2026-08-28 (对账全面优化): 岗位总数可对齐口径 = PG「可入图岗位」
+    # （approved + IT 白名单 + 非 no_skills）vs Neo4j。此前把 api(Neo4j 423) 与
+    # pg_approved(789) 混比——789 含 366 个设计性隐藏岗位（非IT/空技能/待审），
+    # 46.4% 假 critical。可入图数才是与图谱真正可对齐的基线。
+    from app.core.extraction.industry_gate import IT_INDUSTRY_WHITELIST
+
+    pg_eligible_positions = int(
+        (await session.execute(
+            select(func.count()).select_from(PositionRecord).where(
+                PositionRecord.review_status == "approved",
+                PositionRecord.industry.in_(IT_INDUSTRY_WHITELIST),
+                (PositionRecord.quality_hint.is_(None))
+                | (PositionRecord.quality_hint != "no_skills"),
+            )
+        )).scalar() or 0
+    )
+    diff, status = _calc_status([pg_eligible_positions, neo4j_positions])
     rows.append(TruthRow(
         metric="岗位总数",
         description="不同数据源给出的岗位总数（口径不同）",
-        api_value=api_dashboard_positions,
+        api_value=pg_eligible_positions,
         postgres_value=pg_total_positions,
         neo4j_value=neo4j_positions,
         diff_pct=diff,
         status=status,
         explanation=(
-            f"Neo4j {neo4j_positions} = 图谱节点总数（含历史/孤儿）。"
+            f"Neo4j {neo4j_positions} = 图谱节点总数。"
             f"PostgreSQL {pg_total_positions} = position_records 总行数"
-            f"（含 {pg_total_positions - pg_approved_positions} 条待审核，待审核不入图属设计）。"
-            f"Approved {pg_approved_positions} = 用户可见岗位。"
-            f"差异率 {diff}% 按 approved({pg_approved_positions}) vs Neo4j({neo4j_positions}) 计算。"
+            f"（含 {pg_total_positions - pg_approved_positions} 条待审核 + "
+            f"{pg_approved_positions - pg_eligible_positions} 条设计性隐藏"
+            f"（非IT/空技能/未分类），均不入图属设计）。"
+            f"可入图 {pg_eligible_positions} = approved + IT 域 + 有技能。"
+            f"差异率 {diff}% 按 可入图({pg_eligible_positions}) vs Neo4j({neo4j_positions}) 计算。"
         ),
     ))
 
@@ -192,10 +208,28 @@ async def get_data_truth(
     ))
 
     # 指标 3: 关系边数（P3c 口径统一: Neo4j REQUIRES 边 == PG PositionSkillRelation 行数）
-    diff, status = _calc_status([neo4j_relations, pg_psr_count])
+    # 2026-08-28 (对账全面优化): 可对齐口径 = 仅「可入图岗位」的边。此前 pg_psr_count
+    # 含 31 个非IT/未分类岗位的 275 条边（这些岗位不入图 → 边自然不在 Neo4j），
+    # 11.3% 假 critical。排除设计性隐藏岗位的边后才是真实漂移。
+    pg_eligible_edges = int(
+        (await session.execute(
+            select(func.count())
+            .select_from(PositionSkillRelation)
+            .join(PositionRecord, PositionRecord.id == PositionSkillRelation.position_id)
+            .join(SkillRecord, SkillRecord.id == PositionSkillRelation.skill_id)
+            .where(
+                PositionRecord.review_status == "approved",
+                SkillRecord.review_status == "approved",
+                PositionRecord.industry.in_(IT_INDUSTRY_WHITELIST),
+                (PositionRecord.quality_hint.is_(None))
+                | (PositionRecord.quality_hint != "no_skills"),
+            )
+        )).scalar() or 0
+    )
+    diff, status = _calc_status([neo4j_relations, pg_eligible_edges])
     rows.append(TruthRow(
         metric="关系边数",
-        description="Neo4j Position→Skill REQUIRES 边 vs PostgreSQL position_skill_relations",
+        description="Neo4j Position→Skill REQUIRES 边 vs PostgreSQL 可入图岗位的 PSR 边",
         api_value=neo4j_relations,
         postgres_value=pg_psr_count,
         neo4j_value=neo4j_relations,
@@ -203,9 +237,11 @@ async def get_data_truth(
         status=status,
         explanation=(
             f"Neo4j REQUIRES 边 {neo4j_relations} = 岗位-技能要求关系投影。"
-            f"PostgreSQL {pg_psr_count} = approved岗位→approved技能 的 PSR 边数（SSOT）。"
-            "待审核岗位/技能的边不入图属设计（审核通过后自动投影）。"
-            "两口径一致表示岗位-技能关系投影无漂移；学习路径 PREREQUISITE 等其他关系类型不在此指标内。"
+            f"PostgreSQL {pg_psr_count} = approved岗位→approved技能 的 PSR 边数（SSOT），"
+            f"含 {pg_psr_count - pg_eligible_edges} 条设计性隐藏岗位的边"
+            f"（非IT/未分类岗位不入图，其边不在 Neo4j 属设计）。"
+            f"可对齐 {pg_eligible_edges} 条（可入图岗位）。"
+            f"差异率 {diff}% 按 可对齐({pg_eligible_edges}) vs Neo4j({neo4j_relations}) 计算。"
         ),
     ))
 
