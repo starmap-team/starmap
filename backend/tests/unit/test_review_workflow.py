@@ -564,3 +564,73 @@ async def test_is_graph_eligible_unclassified_excluded():
 
     pos = PositionRecord(id=uuid.uuid4(), name="某某岗位", review_status="approved", industry="未分类")
     assert await is_graph_eligible(_fake_psr_session(True), pos, check_skill=False) is False
+
+
+# ══════════════════════════════════════════════════════════════
+# auto_review (待审队列闭环, 2026-08-28)
+# ══════════════════════════════════════════════════════════════
+
+
+def test_looks_technical_positive():
+    from app.services.review_service import _looks_technical
+
+    assert _looks_technical("后端开发工程师") is True
+    assert _looks_technical("AI 算法工程师") is True
+    assert _looks_technical("Python Developer") is True
+
+
+def test_looks_technical_negative():
+    from app.services.review_service import _looks_technical
+
+    assert _looks_technical("Shop Assistant") is False
+    assert _looks_technical("Concierge") is False
+    assert _looks_technical("Regional Manager") is False
+
+
+@pytest.mark.asyncio
+async def test_auto_review_positions_rules(monkeypatch):
+    """自动审核: 非IT→reject, IT→approve, 模糊→保留。"""
+    from app.services import review_service
+    from app.services.review_service import auto_review_positions
+
+    calls: list[tuple[str, str]] = []
+
+    async def fake_reject(session, *, entity_type, entity_id, actor, reason):
+        calls.append(("reject", reason))
+
+    async def fake_approve(session, *, entity_type, entity_id, actor, reason):
+        calls.append(("approve", reason))
+
+    monkeypatch.setattr(review_service, "reject", fake_reject)
+    monkeypatch.setattr(review_service, "approve", fake_approve)
+    monkeypatch.setattr(review_service, "_translate_position_name_auto", _fake_translate)
+
+    class _FakeRow:
+        def __init__(self, name, industry):
+            self.id = uuid.uuid4()
+            self.name = name
+            self.industry = industry
+            self.name_cn = None
+            self.review_status = "pending_review"
+
+    rows = [
+        _FakeRow("Sales Representative", "互联网/IT"),   # 非IT词 → reject
+        _FakeRow("后端开发工程师", "互联网/IT"),          # IT → approve
+        _FakeRow("神秘岗位", "未分类"),                   # 模糊 → 保留
+    ]
+    session = AsyncMock()
+    result = MagicMock()
+    result.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=rows)))
+    session.execute = AsyncMock(return_value=result)
+
+    stats = await auto_review_positions(session, limit=10)
+
+    assert stats["rejected"] == 1
+    assert stats["approved"] == 1
+    assert stats["ambiguous"] == 1
+    assert ("reject", "auto: 非IT岗位(关键词命中)") in calls
+    assert ("approve", "auto: 明确IT岗位") in calls
+
+
+async def _fake_translate(name: str) -> str | None:
+    return "测试翻译" if name else None

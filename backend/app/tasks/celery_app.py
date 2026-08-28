@@ -442,6 +442,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.celery_app.retry_no_skill_positions",
         "schedule": crontab(hour=3, minute=30),  # 每日 03:30 UTC
     },
+ # 2026-08-28 (待审队列闭环): 每日自动审核 pending 岗位/技能（明确IT批准+非IT拒绝+中文化）
+    "auto-review-queue": {
+        "task": "app.tasks.celery_app.auto_review_queue",
+        "schedule": crontab(hour=4, minute=0),  # 每日 04:00 UTC
+    },
 }
 
 # ──: Celery task_failure 信号接线 ──
@@ -517,6 +522,35 @@ def _on_worker_process_init(**kwargs: Any) -> None:
 if getattr(celery_app, "worker_init_registered", False) is False:
     signals.worker_process_init.connect(_on_worker_process_init)
     celery_app.worker_init_registered = True
+
+
+@celery_app.task(bind=True, max_retries=0)
+def auto_review_queue(self: Any) -> dict[str, Any]:
+    """每日自动审核 pending 岗位/技能（待审队列闭环, 2026-08-28）。
+
+    明确IT岗位/标准技能 → 自动批准 + LLM 中文化;
+    明确非IT岗位/非技能项 → 自动拒绝;
+    真模糊项保留 pending（人工兜底）。
+    """
+    import asyncio
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.db.session import get_async_engine
+    from app.services.review_service import auto_review_positions, auto_review_skills
+
+    async def _run() -> dict[str, Any]:
+        engine = get_async_engine()
+        sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with sessionmaker() as session:
+                pos_stats = await auto_review_positions(session, limit=500)
+                skill_stats = await auto_review_skills(session, limit=500)
+                return {"positions": pos_stats, "skills": skill_stats}
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(_run())
 
 
 @celery_app.task(bind=True, max_retries=0)

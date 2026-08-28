@@ -476,3 +476,174 @@ async def count_by_status(session: AsyncSession) -> dict[str, int]:
     )
     out["evolution_pending"] = int(ev_result.scalar() or 0)
     return out
+
+
+# ══════════════════════════════════════════════════════════════
+# 自动审核流水线 (2026-08-28, 待审队列根本性闭环)
+# ══════════════════════════════════════════════════════════════
+# 背景: 管理后台 1238 条待审（576 岗位 + 662 技能）人工逐条审核不可持续。
+# 方案: 明确非IT/非技能自动拒绝 + 明确IT自动批准 + LLM 批量中文化,
+#       只留真模糊项（无法判定岗位名/技能名）给人工。
+# 安全: 只处理 pending_review; approve/reject 复用幂等状态机;
+#       auto_reject 仅命中明确非IT关键词; auto_approve 仅命中明确IT技术词。
+
+
+async def auto_review_positions(
+    session: AsyncSession,
+    *,
+    actor: str = "system:auto-review",
+    limit: int = 500,
+) -> dict[str, int]:
+    """自动审核 pending 岗位：明确IT→approve+中文化, 明确非IT→reject。
+
+    返回统计 {approved, rejected, ambiguous, translated}。只处理前 limit 条。
+    """
+    from app.core.extraction.industry_gate import (
+        IT_INDUSTRY_WHITELIST,
+        is_non_it_position,
+    )
+
+    stats = {"approved": 0, "rejected": 0, "ambiguous": 0, "translated": 0}
+    rows = (
+        await session.execute(
+            sa.select(PositionRecord)
+            .where(PositionRecord.review_status == "pending_review")
+            .limit(limit)
+        )
+    ).scalars().all()
+    for row in rows:
+        name = row.name or ""
+        # 1. 明确非 IT → 自动拒绝
+        if is_non_it_position(name, row.industry):
+            try:
+                await reject(
+                    session, entity_type="position", entity_id=row.id,
+                    actor=actor, reason="auto: 非IT岗位(关键词命中)",
+                )
+                stats["rejected"] += 1
+            except InvalidStateTransition:
+                stats["ambiguous"] += 1
+            continue
+        # 2. 明确 IT（industry 白名单 或 名含技术词）→ 自动批准 + 中文化
+        is_it = (row.industry in IT_INDUSTRY_WHITELIST) or _looks_technical(name)
+        if is_it:
+            # 中文化: name_cn 空则翻译（失败不阻断批准）
+            if not (row.name_cn or "").strip():
+                translated = await _translate_position_name_auto(name)
+                if translated:
+                    row.name_cn = translated
+                    stats["translated"] += 1
+                    await session.flush()
+            try:
+                await approve(
+                    session, entity_type="position", entity_id=row.id,
+                    actor=actor, reason="auto: 明确IT岗位",
+                )
+                stats["approved"] += 1
+            except InvalidStateTransition:
+                stats["ambiguous"] += 1
+            continue
+        # 3. 真模糊 → 保留 pending
+        stats["ambiguous"] += 1
+    return stats
+
+
+async def auto_review_skills(
+    session: AsyncSession,
+    *,
+    actor: str = "system:auto-review",
+    limit: int = 500,
+) -> dict[str, int]:
+    """自动审核 pending 技能：标准技能→approve+中文化, 非技能项→reject。"""
+    from app.core.extraction.job_content_guard import is_skill_content
+
+    stats = {"approved": 0, "rejected": 0, "ambiguous": 0, "translated": 0}
+    rows = (
+        await session.execute(
+            sa.select(SkillRecord)
+            .where(SkillRecord.review_status == "pending_review")
+            .limit(limit)
+        )
+    ).scalars().all()
+    for row in rows:
+        name = row.name or ""
+        # 非技能项（法规条目/超长/领域词）→ 自动拒绝
+        if not is_skill_content(name):
+            try:
+                await reject(
+                    session, entity_type="skill", entity_id=row.id,
+                    actor=actor, reason="auto: 非技能项",
+                )
+                stats["rejected"] += 1
+            except InvalidStateTransition:
+                stats["ambiguous"] += 1
+            continue
+        # 标准技能 → 批准 + 中文化
+        if not (row.name_cn or "").strip():
+            translated = await _translate_skill_name_auto(name)
+            if translated:
+                row.name_cn = translated
+                stats["translated"] += 1
+                await session.flush()
+        try:
+            await approve(
+                session, entity_type="skill", entity_id=row.id,
+                actor=actor, reason="auto: 标准技能",
+            )
+            stats["approved"] += 1
+        except InvalidStateTransition:
+            stats["ambiguous"] += 1
+    return stats
+
+
+def _looks_technical(name: str) -> bool:
+    """岗位名是否含明确 IT 技术词（与 industry_gate IT_KEYWORDS 一致启发式）。"""
+    from app.core.extraction.industry_gate import IT_KEYWORDS
+
+    lower = (name or "").lower()
+    for kw in IT_KEYWORDS:
+        if kw in ("go ", "it ", "bi "):
+            continue
+        if kw in lower:
+            return True
+    return False
+
+
+async def _translate_position_name_auto(position_name: str) -> str | None:
+    """岗位名中文化（qwen-plus 驱动，失败返回 None 不阻断）。"""
+    try:
+        from app.core.extraction.translation import has_cjk
+
+        if has_cjk(position_name):
+            return position_name
+        from app.core.extraction.llm_client import call_llm_with_fallback
+
+        resp = await call_llm_with_fallback(
+            f"把岗位名翻译成中文,只返回中文岗位名: {position_name}"
+        )
+        content = str(resp.get("content", "")).strip()
+        if content and has_cjk(content):
+            return content[:60]
+        return None
+    except Exception:  # noqa: BLE001 — 翻译失败不阻断自动审核
+        return None
+
+
+async def _translate_skill_name_auto(skill_name: str) -> str | None:
+    """技能名中文化（批量翻译复用的单条封装）。"""
+    try:
+        from app.core.extraction.translation import has_cjk
+
+        if has_cjk(skill_name):
+            return skill_name
+        from app.core.extraction.llm_client import LLMClient
+        from scripts.backfill_skill_name_cn_batch import _translate_batch
+
+        llm = LLMClient()
+        translated = await _translate_batch(llm, [skill_name])
+        cn = translated.get(skill_name)
+        if cn and has_cjk(cn):
+            return cn[:60]
+        return None
+    except Exception:  # noqa: BLE001
+        return None
