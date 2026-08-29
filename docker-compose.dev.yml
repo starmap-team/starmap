@@ -56,8 +56,8 @@ services:
 
   celery-worker:
     build:
-      context: .  # CI 修复 (2026-08-06): Dockerfile.celery 按仓库根写 COPY backend/... crawler/...
-      dockerfile: backend/Dockerfile.dev  # 2026-08-23: Dockerfile.celery 已不存在(2c4G 合并进生产 Dockerfile), dev 用 Dockerfile.dev
+      context: ./backend  # 2026-08-30 CI 修复: 与 backend 服务同 context —— Dockerfile.dev 的 COPY 相对 backend/, 仓库根无 pyproject.toml 导致冒烟 /pyproject.toml not found; crawler/docs 由 volumes 挂载
+      dockerfile: Dockerfile.dev
     container_name: starmap-celery-worker
     volumes:
       - ./backend:/app
