@@ -477,18 +477,15 @@ async def test_compute_competitiveness_inflation_guard():
 
 @pytest.mark.asyncio
 async def test_compute_competitiveness_unknown_position():
-    """compute_competitiveness raises PositionNotFoundError when position not found.
-
-    Coverage target: match_service.py:203-204 (PositionNotFoundError raise path).
-    """
-    from app.exceptions import PositionNotFoundError
-
+    """2026-08-30 (匹配诊断闭环): 图外岗位（含真不存在）一律降级返回 note 结构，
+    不再抛 PositionNotFoundError —— 消除前端英文原始错误 toast。"""
     with patch(
         "app.core.matching.service.MatchService._load_target_profile",
         new=AsyncMock(return_value=None),
     ):
-        with pytest.raises(PositionNotFoundError):
-            await compute_competitiveness(target_position="不存在的岗位")
+        result = await compute_competitiveness(target_position="不存在的岗位")
+    assert result["competitiveness"] == 0.0
+    assert "暂无技能画像" in result["note"]
 
 
 # ===========================================================================
@@ -580,3 +577,23 @@ async def test_get_match_result_db_fallback_preferred_bonus():
         assert result["missing_bonus"] == ["Docker"]
     finally:
         _match_service._cache._match_results.pop("db-bonus-id", None)
+
+
+# ===========================================================================
+# 15. compute_competitiveness graceful degradation (2026-08-30 匹配诊断闭环)
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_compute_competitiveness_degrades_for_offgraph_position():
+    """岗位在主数据存在但图外（空技能/非IT）→ 返回 note 降级结构，不再抛英文异常。"""
+    with patch(
+        "app.core.matching.service.MatchService._load_target_profile",
+        new=AsyncMock(return_value=None),
+    ):
+        result = await compute_competitiveness(
+            target_position="AI架构负责人", driver=MagicMock(), db_session=None
+        )
+    assert result["competitiveness"] == 0.0
+    assert "暂无技能画像" in result["note"]
+    assert "difficulty" in result

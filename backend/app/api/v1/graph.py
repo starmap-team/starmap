@@ -73,6 +73,18 @@ async def get_position_skills(
     resolved = await _resolve_position_name_pg(session, position_id)
     graph = await fetch_position_graph(driver, resolved or position_id, depth)
     if graph["position"] is None:
+        # 2026-08-30 (匹配诊断闭环): PG 存在但图内无节点（空技能 quality_hint=no_skills
+        # 或非IT，reconcile 设计性不投影）→ 降级 200 + 空画像 + note，不再 404。
+        # 此前 404 触发前端全局错误 toast（英文原始错误）+ 组件警告双弹。
+        # _resolve_position_name_pg 返回 non-None 即 PG(SSOT) 命中该岗位。
+        if resolved is not None:
+            display = resolved
+            return PositionSkillDetailResponse(
+                position=None,
+                skills=[],
+                edges=[],
+                note=f"岗位「{display}」在主数据中存在，但暂无图谱技能画像（空技能或非IT岗位，抽取补全后自动入图）。",
+            )
         raise HTTPException(status_code=404, detail=f"Position '{position_id}' not found")
     return PositionSkillDetailResponse(
         position=graph["position"],

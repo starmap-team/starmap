@@ -238,8 +238,23 @@ async def compute_competitiveness(
 
     profile = await _match_service._load_target_profile(driver, target_position, db_session)
     if profile is None:
-        from app.exceptions import PositionNotFoundError
-        raise PositionNotFoundError(target_position)
+        # 2026-08-30 (匹配诊断闭环): 岗位在主数据存在但图外（空技能/非IT）时降级，
+        # 不再抛英文 PositionNotFoundError。返回与正常结构同形的空画像结果 +
+        # note，由前端展示友好说明。真不存在的岗位仍由调用方/404 语义处理。
+        from app.core.matching.service import DEFAULT_REQUIRED_SKILL_BASELINE as _BASE
+        return {
+            "target_position": target_position,
+            "competitiveness": 0.0,
+            "difficulty": DIFFICULTY_LOW,
+            "description": "该岗位暂无图谱技能画像，无法评估竞争力",
+            "note": f"岗位「{target_position}」暂无技能画像（空技能或非IT岗位），请先为其补全技能或更换目标岗位。",
+            "required_skill_count": 0,
+            "avg_proficiency": 0.0,
+            "prerequisite_depth": 0,
+            "cii": 0.0,
+            "bottleneck_skills": [],
+            "baseline_required_skills": _BASE,
+        }
 
     required_skills = profile.get("required", [])
     bonus_skills = profile.get("bonus", [])

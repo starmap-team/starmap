@@ -58,6 +58,7 @@ export interface PositionSkills {
   position_name: string
   required_skills: { name: string; proficiency: string; importance: Importance }[]
   bonus_skills: { name: string; proficiency: string }[]
+  note?: string
 }
 
 export const useMatchStore = defineStore('match', () => {
@@ -106,7 +107,7 @@ export const useMatchStore = defineStore('match', () => {
   async function fetchPositionSkills(positionId: string): Promise<PositionSkills | null> {
     try {
       const data = await request.get(`/graph/position/${positionId}/skills`) as PositionSkillDetailResponse
- // Backend returns PositionSkillDetailResponse {position, skills, edges}
+ // Backend returns PositionSkillDetailResponse {position, skills, edges, note?}
       if (data.skills && Array.isArray(data.skills)) {
         const positionName = data.position?.name ?? positionId
         const required = data.skills.filter((s: SkillNodeRaw) => s.importance === 'required')
@@ -115,7 +116,12 @@ export const useMatchStore = defineStore('match', () => {
           position_name: positionName,
           required_skills: required.map((s: SkillNodeRaw) => ({ name: s.name, proficiency: s.proficiency, importance: s.importance })),
           bonus_skills: bonus.map((s: SkillNodeRaw) => ({ name: s.name, proficiency: s.proficiency })),
+          note: data.note ?? undefined,
         }
+      }
+      // 2026-08-30: 图外岗位降级 200+note（不再 404）——透传 note 供页面展示准确原因
+      if (data.note) {
+        return { position_name: positionId, required_skills: [], bonus_skills: [], note: data.note }
       }
       return null
     } catch {
@@ -146,6 +152,7 @@ export const useMatchStore = defineStore('match', () => {
     position: { position_id: string; name: string; industry: string; description: string; skills_required: unknown[] } | null
     skills: SkillNodeRaw[]
     edges: { source_id: string; target_id: string; type: string; properties: Record<string, unknown> }[]
+    note?: string
   }
 
   interface MatchHistoryResponse {

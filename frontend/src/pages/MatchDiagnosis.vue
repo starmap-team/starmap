@@ -151,19 +151,20 @@ async function handlePositionSelect(pos: { position_id: string; name: string; na
     const skillData = await matchStore.fetchPositionSkills(pos.name)
     const skills: { name: string; name_cn?: string; proficiency: string }[] = skillData?.required_skills ?? []
     if (skillData === null) {
-      // D8i-fix：岗位技能接口 404/失败（岗位可能是挂名但无节点/画像）——不再静默"仍可继续"，
-      // 明确引导换岗或联系维护，避免空雷达误导。
-      ElMessage.warning(`岗位「${pos.name_cn || pos.name}」未能获取技能画像（可能未同步或不存在），请更换目标岗位`)
+      // D8i-fix：接口失败（网络/真不存在）——明确引导换岗，避免空雷达误导。
+      ElMessage.warning(`岗位「${pos.name_cn || pos.name}」暂无技能画像信息，请更换目标岗位`)
       targetPositionKey.value = ''
       targetPositionName.value = ''
       step.value = 1
       return
     }
     if (skills.length === 0) {
-      // D8i-fix：岗位存在但无技能画像（C 类）——给出可操作提示，仍可选继续但如实标注
-      ElMessage.warning(`岗位「${pos.name_cn || pos.name}」存在但暂无技能画像，将无法计算差距；请可尝试更换岗位后重试`)
-      radarData.value = []
-      step.value = 2
+      // 2026-08-30 (匹配诊断闭环): 图外岗位（空技能/非IT）降级为 200+note ——
+      // 展示后端准确原因，清空选择阻止提交（可选 ≠ 可匹配一致性收口）。
+      ElMessage.warning(skillData.note || `岗位「${pos.name_cn || pos.name}」存在但暂无技能画像，无法计算匹配差距，请更换目标岗位`)
+      targetPositionKey.value = ''
+      targetPositionName.value = ''
+      step.value = 1
       return
     }
     radarData.value = skills.map((s) => ({

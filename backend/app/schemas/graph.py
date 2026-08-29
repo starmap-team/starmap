@@ -124,6 +124,7 @@ class PositionSkillDetailResponse(BaseModel):
     """
 
     position: GraphPositionNode | None = Field(default=None, description="岗位信息")
+    note: str | None = Field(default=None, description="降级说明（岗位在主数据存在但暂无图谱技能画像时返回）")
     skills: list[GraphSkillNode] = Field(default_factory=list, description="技能节点列表")
     edges: list[GraphEdge] = Field(default_factory=list, description="技能关系边列表")
 
