@@ -285,7 +285,7 @@ function formatRecords(n: number) {
         <Loading />
       </el-icon>
       <span class="live-text">
-        流水线执行中 — 实时显示每个数据源的状态变化 (实时推送)
+        流水线执行中 — 实时显示每个数据源的状态变化 (SSE 推送)
       </span>
     </div>
 
@@ -430,7 +430,7 @@ function formatRecords(n: number) {
             >
               <template #content>
                 记录总量 / 有效记录。记录总量 = 该源累计采集入库总数（含待抽取/已抽取/重复）；
-                有效记录 = 已通过智能抽取进入岗位/技能体系的职位数。与数据源管理页口径一致。
+                有效记录 = 已通过 LLM 抽取进入岗位/技能体系的职位数。与数据源管理页口径一致。
               </template>
               <span class="cursor-help">记录/有效</span>
             </el-tooltip>
@@ -636,11 +636,11 @@ function formatRecords(n: number) {
               </template>
               <template v-else-if="row.source_type === 'job_board'">
                 <el-tooltip
-                  content="招聘网站源 — 配置爬虫适配器后可参与自动采集（如 V2EX 酷工作）；未配置适配器则为占位记录"
+                  content="招聘网站源 — 配置爬虫适配器后可参与自动 DAG 采集（如 V2EX 酷工作）；未配置适配器则为占位记录"
                   placement="top"
                   effect="dark"
                 >
-                  <span class="cursor-help">招聘网站：配置适配器后参与自动采集</span>
+                  <span class="cursor-help">招聘网站：配置适配器后参与 DAG 采集</span>
                 </el-tooltip>
               </template>
               <!-- 2026-08-20 (debug 修复): crawler 类型无适配器 → 明确"待配置适配器"

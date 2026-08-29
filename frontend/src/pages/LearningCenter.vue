@@ -334,7 +334,7 @@ watch(currentPlan, (plan) => {
                     effect="plain"
                     type="info"
                   >
-                    技能依赖图
+                    DAG
                   </el-tag>
                 </div>
               </template>

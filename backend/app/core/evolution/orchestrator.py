@@ -126,13 +126,8 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
     }
 
  # ── Steps 1-3: per-position snapshot + diff + changelog ──
-    # 2026-08-29 (A2 P0, issue #86/#99): 系统上线不足 2 个月，单岗位单月 completed
-    # 抽取量普遍 <30 条（仅 Python开发工程师 33 条达标），min_monthly_jds=30 会
-    # 把所有岗位过滤掉 → changelog 恒为 0。放宽为 5：让已有双月快照的岗位参与
-    # diff，同时仍过滤 <5 条的噪声岗位；SnapshotManager 内部 MIN_MENTIONS=2 与
-    # "无记录返回 None"仍保证不会产生脏快照。
     async with session_factory() as session:
-        positions = await list_positions_with_records(session, min_monthly_jds=5)
+        positions = await list_positions_with_records(session)
     summary["positions_found"] = len(positions)
 
     if not positions:

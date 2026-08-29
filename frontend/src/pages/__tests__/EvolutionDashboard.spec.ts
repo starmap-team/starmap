@@ -188,13 +188,13 @@ describe('Phase 11 Evolution KPI 数字响应', () => {
     expect(store.kpi.trust_mean_neo4j_skill).toBe(0.5)
   })
 
-  it('kpiCards computed 渲染对照口径文案（含质量页引用）', async () => {
+  it('kpiCards computed 渲染对照口径文案（含 /quality 引用）', async () => {
     // kpiCards 是组件级 computed；通过 mount + 断言组件内 trust-mean breakdown
     const wrapper = mountPage()
     await flushPromises()
     const breakdowns = wrapper.findAll('.kpi-number-breakdown')
-    // 信任均值卡 breakdown 含 "对照：质量页平均信任度"
-    const trustBreakdown = breakdowns.map(b => b.text()).find(t => t.includes('对照：质量页平均信任度'))
+    // 信任均值卡 breakdown 含 "对照：/quality"
+    const trustBreakdown = breakdowns.map(b => b.text()).find(t => t.includes('对照：/quality'))
     expect(trustBreakdown).toBeTruthy()
     expect(trustBreakdown).toContain('平均信任度')
   })

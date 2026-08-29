@@ -44,7 +44,7 @@ const stages: FlowStage[] = [
   {
     key: 'extract',
     label: '智能抽取',
-    description: '智能抽取技能 / 岗位',
+    description: 'LLM 提取技能 / 岗位',
     icon: Document,
     color: '#8b5cf6',
     route: '/extract',

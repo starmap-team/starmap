@@ -291,31 +291,14 @@ async def get_position(
 @router.post("/discover", summary="触发岗位发现流程")
 async def discover_position(
     db: Annotated[AsyncSession, Depends(get_db_session)],
-    user: Annotated[dict[str, Any], Depends(get_current_user)],
-    with_definitions: Annotated[
-        bool,
-        Query(description="A3: 为 Top-N 候选岗位 LLM 生成五要素定义（行业场景/核心职责/加分技能）。仅 admin，消耗 LLM 配额"),
-    ] = False,
-    definition_top_n: Annotated[
-        int,
-        Query(ge=1, le=50, description="生成定义的岗位数上限（按 emerging_ratio 取 Top-N）"),
-    ] = 10,
 ) -> dict[str, Any]:
     """触发新兴岗位发现：基于技能频率 Z-score 检测。
 
     从 skill_timeseries 表加载历史频率数据，
     然后运行 EmergenceFinder 进行 Z-score 分析。
     若无时序数据则返回"数据不足"提示。
-
-    with_definitions=true（A3，仅 admin）：对 emerging_ratio Top-N 候选岗位
-    调 LLM 补齐行业场景/核心职责/加分技能/岗位简述，凑齐赛项要求的
-    "岗位名称、核心职责、必备技能、加分技能、典型行业应用场景"五要素。
-    fail-soft：单个岗位生成失败不影响其余候选。
     """
     from app.services.evolution_service import EmergenceFinder
-
-    if with_definitions and user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="with_definitions 仅 admin 可用（消耗 LLM 配额）")
 
     try:
  # Step 1: Load timeseries data for frequency history
@@ -346,24 +329,13 @@ async def discover_position(
                 "positions": signal.positions,
             })
 
-        emerging_positions = await _discover_position_candidates(db, report)
-        definitions_meta: dict[str, Any] | None = None
-        if with_definitions and emerging_positions:
-            from app.services.evolution_service import generate_position_definitions
-
-            definitions_meta = await generate_position_definitions(emerging_positions, top_n=definition_top_n)
-            if definitions_meta.get("warnings"):
-                logger.warning("A3 definition generation warnings: {}", definitions_meta["warnings"])
-
         return {
             "status": "completed",
             "emerging_skills": emerging,
             "count": len(emerging),
             "skills_analyzed": len(skill_data),
             # 模块A（赛项）：岗位级发现 —— 涌现技能反查岗位画像，标记新兴演化候选
-            "emerging_positions": emerging_positions,
-            # A3（赛项）：五要素定义生成结果摘要（仅 with_definitions=true 时返回）
-            **({"definitions": {k: definitions_meta[k] for k in ("generated", "failed", "warnings")}} if definitions_meta else {}),
+            "emerging_positions": await _discover_position_candidates(db, report),
         }
     except PositionNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

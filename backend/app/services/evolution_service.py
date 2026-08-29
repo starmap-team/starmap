@@ -6,7 +6,6 @@ SQL joins, CII calculations) belongs here.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import sqlalchemy as sa
@@ -321,81 +320,6 @@ async def discover_emerging_positions(
         "threshold": threshold,
         "message": f"扫描 {len(pos_skills)} 个已审核岗位，发现 {len(candidates)} 个新兴演化候选",
     }
-
-
-async def generate_position_definitions(
-    candidates: list[dict[str, Any]],
-    top_n: int = 10,
-) -> dict[str, Any]:
-    """A3（issue #87/#99）: 为新兴候选岗位生成五要素定义的缺失字段。
-
-    赛项要求岗位定义包含"岗位名称、核心职责、必备技能、加分技能、典型行业
-    应用场景"。discover_emerging_positions 已产出名称/必备技能/涌现技能
-    骨架；本函数取 emerging_ratio Top-N 候选，经 LLM（默认 qwen-plus，
-    走 call_llm_with_fallback 统一入口：Redis 7 天响应缓存 + 成本闸门 +
-    128K 输入闸门）补齐 industry_scenario / core_responsibilities /
-    bonus_skills / summary 四个字段。
-
-    fail-soft（沿 D-06）：单岗位 LLM 失败/解析失败仅记 warning，该岗位
-    字段保持 None，绝不阻断 discover 主流程。
-
-    Args:
-        candidates: discover_emerging_positions().candidates（已按 ratio 降序）。
-        top_n: 最多生成的岗位数（成本护栏，默认 10）。
-
-    Returns:
-        {"generated": int, "failed": int, "warnings": list[str], "candidates": candidates}
-    """
-    warnings: list[str] = []
-    generated = 0
-    failed = 0
-    targets = candidates[: max(1, int(top_n))]
-
-    # 延迟 import：与模块其他 LLM 调用点一致，避免服务层加载即拉起客户端依赖链
-    from app.core.extraction.llm_client import call_llm_with_fallback, parse_llm_json_response
-    from app.core.extraction.prompt import get_prompt
-
-    for cand in targets:
-        pos = str(cand.get("position") or "")
-        if not pos:
-            continue
-        definition = cand.setdefault("definition", {})
-        prompt = get_prompt(
-            "position_definition",
-            position_name=pos,
-            required_skills=json.dumps(cand.get("definition", {}).get("required_skills", []), ensure_ascii=False),
-            emerging_skills=json.dumps(cand.get("emerging_skills", []), ensure_ascii=False),
-        )
-        try:
-            resp = await call_llm_with_fallback(prompt)
-            payload = parse_llm_json_response(resp.get("content", ""))
-
-            scenario = payload.get("industry_scenario")
-            responsibilities = payload.get("core_responsibilities")
-            bonus = payload.get("bonus_skills")
-            summary = payload.get("summary")
-
-            # 字段校验：类型不符视为失败，不回填脏数据
-            if not isinstance(scenario, str) or not scenario.strip():
-                raise ValueError(f"industry_scenario invalid for {pos!r}")
-            if not isinstance(responsibilities, list) or not responsibilities:
-                raise ValueError(f"core_responsibilities invalid for {pos!r}")
-            if not isinstance(bonus, list):
-                raise ValueError(f"bonus_skills invalid for {pos!r}")
-
-            cand["industry_scenario"] = scenario.strip()
-            definition["industry_scenario"] = scenario.strip()
-            definition["core_responsibilities"] = [str(x).strip() for x in responsibilities if str(x).strip()]
-            definition["bonus_skills"] = [str(x).strip() for x in bonus if str(x).strip()]
-            if isinstance(summary, str) and summary.strip():
-                definition["summary"] = summary.strip()
-            generated += 1
-        except Exception as exc:  # noqa: BLE001 — fail-soft（D-06）
-            failed += 1
-            warnings.append(f"definition_generation: {pos}: {type(exc).__name__}: {exc}")
-            logger.warning("A3 definition generation failed for {!r}: {}", pos, exc)
-
-    return {"generated": generated, "failed": failed, "warnings": warnings, "candidates": candidates}
 
 
 def build_change_explanation(record: Any) -> str:

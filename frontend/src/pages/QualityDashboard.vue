@@ -94,7 +94,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
             show-icon
           >
             <strong>什么是图谱健康度？</strong>
-            4 张卡片展示 StarMap 图谱的整体质量：节点规模（总节点/周新增）、数据可信度（平均信任度）、抽取可靠性（幻觉率）、人工监督（待审核）。每张卡片 hover <strong>口径</strong> 行可看"这个数怎么算 + 数据源"。两个菜单（图谱质量 vs 演化分析）的口径差异在「平均信任度」卡 caption 已说明。
+            4 张卡片展示 StarMap 图谱的整体质量：节点规模（总节点/周新增）、数据可信度（平均信任度）、抽取可靠性（幻觉率）、人工监督（待审核）。每张卡片 hover <strong>口径</strong> 行可看"这个数怎么算 + 数据源"。两个菜单（/quality vs /evolution）的口径差异在「平均信任度」卡 caption 已说明。
           </el-alert>
         </div>
         <div class="header-actions">
@@ -197,7 +197,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
         show-icon
         class="mb-4"
         title="抽取质量（precision / recall / F1）暂未评估"
-        :description="quality.metrics.evaluation_explanation || '尚未运行 golden-set 评估，质量指标暂不可信；此处不显示红色/失败态以免误导。请运行质量评估以建立基线。'"
+        :description="quality.metrics.evaluation_explanation || '尚未运行 golden-set 评估，质量指标暂不可信；此处不显示红色/失败态以免误导。请调用 /quality/evaluate 建立基线。'"
       />
       <el-card
         v-else-if="quality.metrics"
@@ -283,12 +283,12 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
             <div class="dq-main-col">
               <div class="dq-label">图内岗位数</div>
               <div class="dq-value">{{ quality.dataQuality.graph_positions.toLocaleString() }}</div>
-              <div class="dq-hint">图谱投影</div>
+              <div class="dq-hint">Neo4j 投影</div>
             </div>
             <div class="dq-main-col">
-              <div class="dq-label">数据库全量</div>
+              <div class="dq-label">PG 全量</div>
               <div class="dq-value">{{ quality.dataQuality.pg_positions.toLocaleString() }}</div>
-              <div class="dq-hint">审核通过全量</div>
+              <div class="dq-hint">approved 全量</div>
             </div>
             <div class="dq-main-col">
               <div class="dq-label">隐藏数</div>

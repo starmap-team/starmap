@@ -174,7 +174,7 @@ function qualityColor(s: DataSourceDetail) {
             :show-after="200"
           >
             <template #content>
-              该源累计采集入库的记录总数（含待抽取/已抽取/重复），来自原始岗位数据按源统计。
+              该源累计采集入库的记录总数（含待抽取/已抽取/重复），来自 jd_raw 表按源统计。
             </template>
             <span class="stat-value stat-link">{{ formatRecords(source.total_records) }}</span>
           </el-tooltip>
@@ -186,7 +186,7 @@ function qualityColor(s: DataSourceDetail) {
             :show-after="200"
           >
             <template #content>
-              已成功通过智能抽取的记录数 = 真正进入岗位/技能体系的职位数。
+              已成功通过 LLM 抽取（extracted）的记录数 = 真正进入岗位/技能体系的职位数。
               记录总量高但有效记录低 = 多数还在抽取队列或重复。
             </template>
             <span class="stat-value stat-link">{{ source.valid_records.toLocaleString() }}</span>

@@ -104,22 +104,22 @@ async function triggerAnalyze() {
 
 // KPI 卡格式化 — E2: 每项带口径拆解行 + D-ui: 新手友好 tooltip 完整说明
 const kpiCards = computed(() => [
-  { label: '涌现技能数', value: evo.kpi.emerging_count, unit: '', tip: '涌现 + 上升技能数（异常波动检测，全量历史数据）', breakdown: `= ${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 · 与下方预警表同源`, tooltip: `🌱 图谱新生力量：近期需求显著高于历史平均的技能。\n\n` + `• 强涌现：频次突增 2 个标准差以上\n` + `• 上升：频次稳定增长\n` + `• 0 = 当前无明显新技能信号\n\n` + `公式：波动指数 = (当前频次 - 历史均值) / 标准差` },
-  { label: '信任均值', value: evo.kpi.trust_mean == null ? '—' : `${Math.round(evo.kpi.trust_mean * 100)}%`, unit: '', tip: '变更记录的真实信任度均值', breakdown: `全部变更记录的平均信任度；对照：质量页平均信任度 ${Math.round((evo.kpi.trust_mean_neo4j_skill ?? 0) * 100)}%（图谱实时均值）`, tooltip: `🎯 变更记录视角的可信度：所有技能变更事件的信任度算术平均。\n\n` + `• 这是历史变更事件的均值，不等于"当前图谱状态"\n` + `• 当前质量页平均信任度 = ${Math.round((evo.kpi.trust_mean_neo4j_skill ?? 0) * 100)}%（图谱实时均值，见上方对照）\n` + `• 两个数字差异 = 变更事件覆盖 ≠ 当前节点总数\n\n` + `⚠️ 显示「—」表示暂无变更记录（尚未运行演化分析），非 0 分` },
-  { label: '需求指数', value: evo.kpi.cii_mean, unit: '', tip: '技能需求指数时序末点均值（基准 100，近 90 天窗口）', breakdown: `${items.value.length} 项技能需求指数末点算术平均`, tooltip: `📈 技能需求通胀指数：基准 100 = 2024-Q1 历史均值。\n\n` + `• ≈ 100 = 需求无显著变化\n` + `• > 100 = 需求膨胀（企业越来越看重这些技能）\n` + `• < 100 = 需求收缩\n\n` + `公式：需求指数 = 当期频次 ÷ 历史基准 × 100` },
-  { label: '预警数', value: evo.kpi.alert_count, unit: '', tip: '涌现/上升/下降波动信号数', breakdown: `=${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 + ${evo.emergingAlerts.filter(a => a.level === 'declining').length} 下降`, tooltip: `⚠️ 波动信号总数：涌现 + 上升 + 下降全部合并。\n\n` + `• 0 = 图谱平稳\n` + `• 1-5 = 正常范围\n` + `• > 5 = 较多异常，建议逐条排查\n\n` + `下方「新兴技能预警」表格可看明细 + 波动指数 + 关联岗位` },
+  { label: '涌现技能数', value: evo.kpi.emerging_count, unit: '', tip: 'emerging + rising 技能数（Z-score 检测，全量时序）', breakdown: `= ${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 · 与下方预警表同源`, tooltip: `🌱 图谱新生力量：近期 Z-score 显著高于历史均值的技能。\n\n` + `• 涌现 (Z>2)：频次突增 2 个标准差以上\n` + `• 上升 (Z>1.5)：频次稳定增长\n` + `• 0 = 当前无明显新技能信号\n\n` + `公式：Z-score = (当前频次 - 历史均值) / 标准差` },
+  { label: '信任均值', value: evo.kpi.trust_mean == null ? '—' : `${Math.round(evo.kpi.trust_mean * 100)}%`, unit: '', tip: '变更日志 trust_score 真实均值', breakdown: `evolution_changelog 全部记录 avg(trust_score)；对照：/quality 平均信任度 ${Math.round((evo.kpi.trust_mean_neo4j_skill ?? 0) * 100)}%（Neo4j Skill.trust_score 实时均值）`, tooltip: `🎯 变更日志视角的可信度：所有技能变更事件的 trust_score 算术平均。\n\n` + `• 这是历史变更事件的均值，不等于"当前图谱状态"\n` + `• 当前 /quality 平均信任度 = ${Math.round((evo.kpi.trust_mean_neo4j_skill ?? 0) * 100)}%（Neo4j 实时均值，见上方对照）\n` + `• 两个数字差异 = 变更事件覆盖 ≠ 当前节点总数\n\n` + `⚠️ 显示「—」表示 evolution_changelog 暂无变更记录（尚未运行演化分析），非 0 分` },
+  { label: 'CII 均值', value: evo.kpi.cii_mean, unit: '', tip: '技能 CII 时序末点均值（基准 100，近 90 天窗口）', breakdown: `${items.value.length} 项技能 CII 末点算术平均`, tooltip: `📈 技能需求通胀指数：基准 100 = 2024-Q1 历史均值。\n\n` + `• ≈ 100 = 需求无显著变化\n` + `• > 100 = 需求膨胀（企业越来越看重这些技能）\n` + `• < 100 = 需求收缩\n\n` + `公式：CII = 当期频次 ÷ 历史基准 × 100` },
+  { label: '预警数', value: evo.kpi.alert_count, unit: '', tip: 'emerging/rising/declining 非平稳信号数', breakdown: `=${evo.emergingAlerts.filter(a => a.level === 'emerging').length} 涌现 + ${evo.emergingAlerts.filter(a => a.level === 'rising').length} 上升 + ${evo.emergingAlerts.filter(a => a.level === 'declining').length} 下降`, tooltip: `⚠️ 非平稳信号总数：emerging + rising + declining 全部合并。\n\n` + `• 0 = 图谱平稳\n` + `• 1-5 = 正常范围\n` + `• > 5 = 较多异常，建议逐条排查\n\n` + `下方「新兴技能预警」表格可看明细 + Z-score + 关联岗位` },
 ])
 
 // E2/E7: 全局数据口径说明 —— 让用户能感知每个数值的计算依据与数据来源
 const dataSourceExplainer = computed(() => [
-  { metric: '涌现技能数 / 新兴技能 / 预警数', source: '技能时序数据（全量历史）', formula: '波动检测：波动指数 > 2.0 且频次 ≥ 3 且来源 ≥ 3 → 涌现；> 1.5 → 上升；< -1.5 → 下降' },
-  { metric: '需求指数（能力通胀指数）', source: '技能时序数据（近 90 天窗口）', formula: '基准 100 = 频次前半段均值；需求指数 = 当期频次 ÷ 基准 × 100（> 100 表示需求膨胀）' },
-  { metric: '变化', source: '同上', formula: '需求指数末点相对基准 100 的涨跌幅（%）' },
-  { metric: '置信度', source: '同上', formula: '由波动指数映射的检测置信度（0-1 之间）' },
-  { metric: '信任均值', source: '演化分析记录', formula: '全部变更记录的信任度算术平均（0~1）' },
-  { metric: '波动指数', source: '同上', formula: '当前频次相对历史平均的波动倍数，数值越大信号越强' },
-  { metric: '可迁移性', source: '演化分析数据', formula: '技能跨领域岗位覆盖比例' },
-  { metric: '快照时间线', source: '演化分析记录', formula: '每次演化分析生成的岗位能力快照；选择快照查看该岗位对应的需求指数历史' },
+  { metric: '涌现技能数 / 新兴技能 / 预警数', source: '技能时序数据（全量历史）', formula: 'Z-score 检测：Z 分数 > 2.0 且频次 ≥ 3 且来源 ≥ 3 → 涌现；> 1.5 → 上升；< -1.5 → 下降' },
+  { metric: 'CII（能力通胀指数）', source: '技能时序数据（近 90 天窗口）', formula: '基准 100 = 频次前半段均值；CII = 当期频次 ÷ 基准 × 100（> 100 表示需求膨胀）' },
+  { metric: '变化', source: '同上', formula: 'CII 末点相对基准 100 的涨跌幅（%）' },
+  { metric: '置信度', source: '同上', formula: '由 Z-score 映射的检测置信度（0-1 之间）' },
+  { metric: '信任均值', source: 'GET /evolution/kpi · evolution_changelog', formula: '全部变更记录 trust_score 的算术平均（0~1）' },
+  { metric: 'Z-score', source: '同上', formula: '当前频次相对历史均值的标准差倍数，|z| 越大信号越强' },
+  { metric: '可迁移性', source: '同 /evolution/emerging-alerts', formula: '技能跨领域岗位覆盖比例（EmergenceFinder.portability_score）' },
+  { metric: '快照时间线', source: 'GET /evolution/snapshots · evolution_snapshots', formula: '每次演化分析生成的岗位能力快照；选择快照查看该岗位对应 CII 历史' },
 ])
 
 // E1: 快照滑块当前选中的快照（联动次区展示岗位技能清单 + CII 历史）
@@ -194,9 +194,9 @@ onMounted(() => {
     <div class="evolution-page animate-fade-in">
       <BusinessBanner
         type="warning"
-        title="演化分析 + 需求指数"
-        description="查看岗位技能图谱的演化趋势：新兴技能涌现（基于波动检测）、技能变更日志、以及需求指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。"
-        meta="基于全量历史数据自动计算，结果实时更新"
+        title="演化分析 + 能力通胀指数 (CII)"
+        description="查看岗位技能图谱的演化趋势：新兴技能涌现（基于 Z-score 检测）、技能变更日志、以及 CII 通胀指数（基准 100 = 2024-Q1，反映企业技能要求膨胀程度）。"
+        meta="后端: <code>/evolution/*</code> · 数据源: <code>evolution_changelog</code> + <code>skill_timeseries</code>"
       />
 
       <!-- A4.1: 新兴岗位候选面板（模块A 新岗位发现，页面顶部） -->
@@ -243,7 +243,7 @@ onMounted(() => {
             演化趋势看板
           </h2>
           <p class="page-subtitle">
-            需求指数时序曲线（基准 100 = 2024-Q1）
+            CII 时序曲线 — 技能需求通胀指数（基准 100 = 2024-Q1）
           </p>
           <!-- 新手友好引导（沿 ui-ux-pro-max 数据密集 dashboard）-->
           <el-alert
@@ -253,7 +253,7 @@ onMounted(() => {
             show-icon
           >
             <strong>什么是技能演化看板？</strong>
-            4 张卡片展示 StarMap 图谱中技能随时间的演化趋势：新涌现的技能（波动检测）、历史变更日志的可信度均值（与质量页平均信任度不同口径，详见「信任均值」卡 hover）、技能需求指数（100 = 历史基准，> 100 表示需求膨胀）、波动信号总数。hover 每张卡问号图标看完整解读。
+            4 张卡片展示 StarMap 图谱中技能随时间的演化趋势：新涌现的技能（Z-score 检测）、历史变更日志的可信度均值（与 /quality 平均信任度 50% 不同口径，详见「信任均值」卡 hover）、技能需求通胀指数（CII 100 = 历史基准，> 100 表示需求膨胀）、非平稳信号总数。hover 每张卡问号图标看完整解读。
           </el-alert>
         </div>
         <div class="header-actions">
@@ -351,7 +351,7 @@ onMounted(() => {
           <p class="snapshot-meta">
             数据源: 演化快照（source_count={{ selectedSnapshot.source_count }}）· 拖动滑块查看不同岗位当时的技能要求
             <template v-if="snapshotCiiHistory.length">
-              · 需求指数历史: {{ snapshotCiiHistory.slice(-5).map(h => `${formatSnapshotDate(h.snapshot_date)}=${h.cii}`).join(' → ') }}
+              · CII 历史: {{ snapshotCiiHistory.slice(-5).map(h => `${formatSnapshotDate(h.snapshot_date)}=${h.cii}`).join(' → ') }}
             </template>
           </p>
         </div>
@@ -442,7 +442,7 @@ onMounted(() => {
         >
           <template #header>
             <div class="card-header-row">
-              <span>需求指数仪表盘</span><span class="card-header-badge">实时</span>
+              <span>CII 仪表盘</span><span class="card-header-badge">实时</span>
             </div>
           </template>
           <VChart
@@ -454,14 +454,14 @@ onMounted(() => {
           <EmptyState
             v-else
             title="图表数据为空"
-            description="技能需求指数数据将在分析完成后展示"
+            description="技能 CII 数据将在分析完成后展示"
           />
           <!-- E3: 全部技能模式下展示聚合均值（不再空白）；选择具体技能查看其 CII -->
           <p
             v-if="items.length"
             class="gauge-note"
           >
-            {{ selectedSkill ? `当前展示「${selectedSkill}」的需求指数` : `未选择技能时展示全部 ${items.length} 项技能的需求指数末点均值` }}
+            {{ selectedSkill ? `当前展示「${selectedSkill}」的 CII` : `未选择技能时展示全部 ${items.length} 项技能的 CII 末点均值` }}
           </p>
         </el-card>
 
@@ -478,7 +478,7 @@ onMounted(() => {
                 effect="plain"
                 class="ml-2"
               >
-                波动检测
+                Z-score 检测
               </el-tag>
             </div>
           </template>
@@ -518,7 +518,7 @@ onMounted(() => {
             <EmptyState
               v-else
               title="暂未检测到新兴技能"
-              description="当技能出现显著波动上升信号时会在此显示"
+              description="当技能出现显著 Z-score 上升信号时会在此显示"
             />
           </div>
         </el-card>
@@ -540,7 +540,7 @@ onMounted(() => {
         </template>
         <!-- E5: 口径说明 — Z-score/可迁移性/预警信息的数据来源 -->
         <p class="alerts-note">
-          依据技能时序波动检测（全量历史窗口），与上方「新兴技能」卡及 KPI「涌现技能数/预警数」同源。
+          依据技能时序 Z-score 检测（全量历史窗口），与上方「新兴技能」卡及 KPI「涌现技能数/预警数」同源。
         </p>
         <el-table
           :data="evo.emergingAlerts"
@@ -556,7 +556,7 @@ onMounted(() => {
             width="100"
           >
             <template #header>
-              <span title="波动分级：指数>2.0 且频次≥3 且来源≥3 → 涌现；>1.5 → 上升；<-1.5 → 下降">级别</span>
+              <span title="Z-score 分级：z>2.0 且频次≥3 且源≥3 → 涌现；z>1.5 → 上升；z<-1.5 → 下降">级别</span>
             </template>
             <template #default="{ row }">
               <el-tag
@@ -578,11 +578,11 @@ onMounted(() => {
           </el-table-column>
           <el-table-column
             prop="z_score"
-            label="波动指数"
+            label="Z-score"
             width="80"
           >
             <template #header>
-              <span title="当前频次相对历史平均的波动倍数（数值越大信号越强）">波动指数</span>
+              <span title="当前频次相对历史均值的标准差倍数（|z| 越大信号越强）">Z-score</span>
             </template>
           </el-table-column>
           <el-table-column
@@ -611,7 +611,7 @@ onMounted(() => {
         class="chart-card"
       >
         <template #header>
-          需求指数分布（当前值）— 全部技能通胀指数分布
+          CII 分布（当前值）— 全部技能通胀指数分布
         </template>
         <VChart
           v-if="items.length"
@@ -622,7 +622,7 @@ onMounted(() => {
         <EmptyState
           v-else
           title="演化数据待生成"
-          description="需求指数分析运行后将自动填充"
+          description="CII 时序分析运行后将自动填充"
         >
           <!-- 10-03 (): 诚实空态 + 引导按钮（Celery 异步，已排队反馈，无 SSE） -->
           <el-button
@@ -725,7 +725,7 @@ onMounted(() => {
             width="100"
           >
             <template #header>
-              <span title="波动检测分级：涌现/上升/平稳/下降">趋势</span>
+              <span title="Z-score 检测分级：涌现/上升/平稳/下降">趋势</span>
             </template>
             <template #default="{ row }">
               <el-tag
@@ -738,11 +738,11 @@ onMounted(() => {
             </template>
           </el-table-column>
           <el-table-column
-            label="当前需求指数"
+            label="当前 CII"
             width="100"
           >
             <template #header>
-              <span title="需求指数：基准 100 = 频次前半段均值，>100 表示需求膨胀">当前需求指数</span>
+              <span title="能力通胀指数：基准 100 = 频次前半段均值，>100 表示需求膨胀">当前 CII</span>
             </template>
             <template #default="{ row }">
               <b>{{ row.points?.[row.points.length - 1] ?? '-' }}</b>
@@ -753,7 +753,7 @@ onMounted(() => {
             width="100"
           >
             <template #header>
-              <span title="需求指数末点相对基准 100 的涨跌幅">变化</span>
+              <span title="CII 末点相对基准 100 的涨跌幅">变化</span>
             </template>
             <template #default="{ row }">
               <span
@@ -769,7 +769,7 @@ onMounted(() => {
             width="90"
           >
             <template #header>
-              <span title="由波动指数映射计算">置信度</span>
+              <span title="由 Z-score 映射：clamp(0.5 + z/10, 0, 1)">置信度</span>
             </template>
             <template #default="{ row }">
               {{ ((row.confidence ?? 0) * 100).toFixed(0) }}%
@@ -829,7 +829,7 @@ onMounted(() => {
           <!-- CII 历史：全部技能当前 CII 概览（Top 10）— 快照级 CII 已在时间线卡内联展示 -->
           <div class="secondary-block">
             <h4 class="secondary-title">
-              需求指数历史
+              CII 历史
             </h4>
             <template v-if="ciiOverviewList.length">
               <el-table
@@ -844,7 +844,7 @@ onMounted(() => {
                   min-width="120"
                 />
                 <el-table-column
-                  label="当前需求指数"
+                  label="当前 CII"
                   width="90"
                 >
                   <template #default="{ row }">
@@ -855,8 +855,8 @@ onMounted(() => {
             </template>
             <EmptyState
               v-else
-              title="暂无需求指数历史"
-              description="需求指数分析运行后将自动填充"
+              title="暂无 CII 历史"
+              description="CII 时序分析运行后将自动填充"
             />
           </div>
           <!-- 迁移性：复用 emerging alerts 的 portability_score -->

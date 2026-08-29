@@ -52,7 +52,7 @@ const nodes: FlowNode[] = [
   },
   {
     key: 'extract',
-    label: '智能抽取',
+    label: 'LLM 抽取',
     detail: '双模型交叉验证 (星火 + Qwen)',
     icon: MagicStick,
     step: 0,
