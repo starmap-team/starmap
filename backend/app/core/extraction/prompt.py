@@ -400,6 +400,29 @@ $resume_content
 - 输出必须以 { 开头，以 } 结尾
 - 必须是可以直接通过 json.loads() 解析的合法 JSON，无尾逗号、无注释"""
 
+# A3 (2026-08-29, issue #87/#99): 岗位定义五要素生成 —— 赛项要求生成的岗位
+# 定义需包含"岗位名称、核心职责、必备技能、加分技能、典型行业应用场景"。
+# discover_emerging_positions 已产出名称/必备技能/涌现技能骨架，本 prompt
+# 为候选岗位补齐剩余三要素（行业场景 / 核心职责 / 加分技能）+ 一句话岗位简述。
+POSITION_DEFINITION_PROMPT_V1 = """你是一位资深的数字经济与新一代信息技术行业分析师。请基于给定的岗位技能画像，生成该岗位的标准定义。
+
+## 岗位信息
+- 岗位名称：$position_name
+- 必备技能（required_skills）：$required_skills
+- 涌现/上升技能（emerging_skills，表明该岗位正在演化）：$emerging_skills
+
+## 生成要求
+1. industry_scenario（典型行业应用场景）：一段 80-150 字的中文描述，说明该岗位典型服务于哪些行业/业务场景（如智能制造、金融科技、电商等），以及其在这些场景中解决什么问题。必须与给定技能画像一致，不得虚构岗位不具备的能力。
+2. core_responsibilities（核心职责）：4-6 条中文短语列表，每条 ≤25 字，覆盖该岗位最核心的日常工作内容。
+3. bonus_skills（加分技能）：3-8 个该岗位的加分/进阶技能名，可以是给定必备技能之外的相邻技能（如相关框架、云平台、方法论），但必须与该岗位真实相关，禁止堆砌无关热门词。
+4. summary（岗位简述）：一句 ≤60 字的中文岗位定义（"XX是……的岗位"句式）。
+
+## 输出格式（严格遵循）
+- 仅返回纯 JSON，不要包含 markdown 代码块标记、不要包含任何说明文字
+- 输出必须以 { 开头，以 } 结尾
+- JSON 结构：{"industry_scenario": "…", "core_responsibilities": ["…"], "bonus_skills": ["…"], "summary": "…"}
+- 必须是可以直接通过 json.loads() 解析的合法 JSON，无尾逗号、无注释"""
+
 # ──────────────────────────────────────────────
 # Default active versions (maps prompt name -> version tag)
 # ──────────────────────────────────────────────
@@ -409,6 +432,7 @@ _ACTIVE_VERSIONS: dict[str, str] = {
     "anti_hallucination": "v1",
     "llm_judge": "v1",
     "resume_extraction": "v2",  # 2026-08-25 (RECALL-01): v2 recall-optimized
+    "position_definition": "v1",  # A3 (2026-08-29): 岗位定义五要素生成（issue #87）
 }
 
 # ──────────────────────────────────────────────
@@ -432,6 +456,9 @@ _PROMPT_VERSIONS: dict[str, dict[str, str]] = {
     "resume_extraction": {
         "v1": RESUME_EXTRACTION_PROMPT_V1,
         "v2": RESUME_EXTRACTION_PROMPT_V2,
+    },
+    "position_definition": {
+        "v1": POSITION_DEFINITION_PROMPT_V1,
     },
 }
 
