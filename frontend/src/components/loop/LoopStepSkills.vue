@@ -103,7 +103,7 @@ const legacyHallucinationLabel = computed(() => {
               <template #content>
                 <div style="max-width: 260px; line-height: 1.6">
                   <div>模型对本次技能提取的置信度均值（0-100%）</div>
-                  <div>来源：LLM 抽取校验（anti-hallucination）返回的 confidence</div>
+                  <div>来源：智能抽取校验返回的置信度</div>
                   <div style="margin-top: 4px">较低表示模型认为本次提取可能不完整，建议检查 JD 文本或重试</div>
                 </div>
               </template>
@@ -135,7 +135,7 @@ const legacyHallucinationLabel = computed(() => {
               <template #content>
                 <div style="max-width: 260px; line-height: 1.6">
                   <div>提取准确度 = 1 - 幻觉技能占比（0-100%，越高越准确）</div>
-                  <div>来源：LLM 校验标记的 hallucinated_skills 数量 / 总技能数</div>
+                  <div>来源：智能校验标记的可疑技能数量 / 总技能数</div>
                   <div style="margin-top: 4px">100% 表示提取的技能全部可信，无幻觉</div>
                 </div>
               </template>

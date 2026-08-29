@@ -1227,7 +1227,7 @@ function formatDate(iso: string | null | undefined): string {
 
         <!-- ════════ Tab 5: Prompt 管理 ════════ -->
         <el-tab-pane
-          label="Prompt 工程"
+          label="提示词工程"
           name="prompts"
         >
           <BusinessBanner
@@ -1235,7 +1235,7 @@ function formatDate(iso: string | null | undefined): string {
             title="抽取质量控制 — 提示词管理"
             description="管理技能抽取所用的提示词模板，支持版本管理与方案对比。提示词质量直接影响抽取结果的可信度。"
             :meta="[
-              { label: '功能：版本管理、A/B 测试' },
+              { label: '功能：版本管理、效果对比测试' },
             ]"
           />
           <el-card

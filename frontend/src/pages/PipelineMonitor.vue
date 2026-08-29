@@ -302,8 +302,8 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
       <BusinessBanner
         type="success"
         title="数据流水线监控"
-        description="全链路 ETL DAG：爬虫采集 → 去重 → 清洗 → LLM 抽取 → 入库 → 图谱构建。每个阶段独立降级，失败不阻塞后续流程。数据源质量影响信任度评分。"
-        meta="后端: <code>/pipeline/*</code> · 数据源: <code>pipeline_runs</code> + Neo4j · SSE 实时推送"
+        description="全链路数据处理：爬虫采集 → 去重 → 清洗 → 智能抽取 → 入库 → 图谱构建。每个阶段独立处理，失败不阻塞后续流程。数据源质量影响信任度评分。"
+        meta="数据来自实时更新的数据流水线，全流程自动执行"
       />
 
       <!-- 页面头部 -->
@@ -311,7 +311,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
         <div>
           <h2>数据流水线监控</h2>
           <p class="page-desc">
-            ETL DAG 全链路：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建
+            全链路数据处理：爬虫采集 → 去重 → 清洗 → 入库 → 图谱构建
             <el-tag
               v-if="sseConnected"
               size="small"
@@ -319,7 +319,7 @@ async function onToggleSource(sourceId: string, willDisable: boolean) {
               effect="plain"
               class="ml-2"
             >
-              SSE 实时
+              实时更新
             </el-tag>
             <el-tag
               v-else-if="sseMode === 'polling'"

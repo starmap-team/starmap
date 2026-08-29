@@ -94,7 +94,7 @@ const staleLabel = computed(() => {
           <span
             class="freshness-badge"
             :class="isStale ? 'stale' : 'fresh'"
-            :title="isStale ? staleLabel : '数据每 30 秒自动刷新，SSE 实时推送'"
+            :title="isStale ? staleLabel : '数据每 30 秒自动刷新，实时推送'"
           >
             <span class="freshness-dot" />
             {{ isStale ? staleLabel : '数据实时' }}
