@@ -281,3 +281,51 @@ def _has_it_keyword(text_lower: str) -> bool:
         if kw in text_lower:
             return True
     return False
+
+
+# ── LLM 重判（2026-08-30 岗位业务闭环: 未分类岗位的分类归属确定） ──
+
+TECH_DOMAIN_ENUM: tuple[str, ...] = (
+    "互联网/IT", "人工智能", "数据科学", "数据工程", "前端开发", "后端开发",
+    "云计算/DevOps", "网络安全", "移动开发", "测试", "嵌入式与物联网",
+    "游戏开发", "区块链与Web3", "数据库与存储",
+)
+
+_LLM_CLASSIFY_PROMPT = """你是人才图谱的分类专家。判断以下岗位属于哪个**技术领域**。
+岗位名称: {name}
+{hint}
+从以下枚举中选择一个（注意是岗位的技术方向，不是雇主所在行业）:
+{enum}
+如果该岗位明确不属于信息技术领域（销售/行政/财务/体力劳动等），返回: 非IT岗位
+如果信息不足无法判断，返回: unknown
+只返回枚举值或"非IT岗位"或"unknown"，不要任何解释。"""
+
+
+async def llm_classify_position(name: str, jd_hint: str = "") -> str | None:
+    """LLM 重判未分类岗位的技术领域（受控词表输出）。
+
+    返回: 白名单技术领域值 / "非IT岗位" / None(unknown 或失败 —— 调用方保留人工兜底)。
+    失败静默降级，不阻断调用方。
+    """
+    if not name:
+        return None
+    try:
+        from app.core.extraction.llm_client import call_llm_with_fallback
+
+        hint = f"JD 片段: {jd_hint[:300]}" if jd_hint else ""
+        prompt = _LLM_CLASSIFY_PROMPT.format(
+            name=name, hint=hint, enum="\n".join(f"- {v}" for v in TECH_DOMAIN_ENUM),
+        )
+        resp = await call_llm_with_fallback(prompt)
+        content = str(resp.get("content", "")).strip()
+        # 解析: 精确匹配枚举 / 非IT / unknown
+        if "非IT" in content:
+            return "非IT岗位"
+        if "unknown" in content.lower():
+            return None
+        for domain in TECH_DOMAIN_ENUM:
+            if domain in content:
+                return domain
+        return None
+    except Exception:  # noqa: BLE001 — LLM 失败静默降级
+        return None

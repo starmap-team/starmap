@@ -634,3 +634,94 @@ async def test_auto_review_positions_rules(monkeypatch):
 
 async def _fake_translate(name: str) -> str | None:
     return "测试翻译" if name else None
+
+
+# ══════════════════════════════════════════════════════════════
+# auto_review LLM 重判（2026-08-30 岗位业务闭环）
+# ══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_auto_review_llm_rejudge_three_branches(monkeypatch):
+    """未分类岗位 LLM 重判三分支: IT→approve / 非IT→reject / unknown→保留。"""
+    from app.services import review_service
+    from app.services.review_service import auto_review_positions
+
+    calls: list[tuple[str, str]] = []
+
+    async def fake_reject(session, *, entity_type, entity_id, actor, reason):
+        calls.append(("reject", reason))
+
+    async def fake_approve(session, *, entity_type, entity_id, actor, reason):
+        calls.append(("approve", reason))
+
+    monkeypatch.setattr(review_service, "reject", fake_reject)
+    monkeypatch.setattr(review_service, "approve", fake_approve)
+    monkeypatch.setattr(review_service, "_translate_position_name_auto", _fake_translate)
+
+    async def fake_llm(name, jd_hint=""):
+        if name == "神秘技术岗":
+            return "人工智能"
+        if name == "模糊体力岗":
+            return "非IT岗位"
+        return None  # unknown
+
+    monkeypatch.setattr(
+        "app.core.extraction.industry_gate.llm_classify_position", fake_llm
+    )
+
+    class _FakeRow:
+        def __init__(self, name, industry):
+            self.id = uuid.uuid4()
+            self.name = name
+            self.industry = industry
+            self.name_cn = None
+            self.review_status = "pending_review"
+
+    rows = [
+        _FakeRow("神秘技术岗", "未分类"),
+        _FakeRow("模糊体力岗", "未分类"),
+        _FakeRow("完全未知岗", "未分类"),
+    ]
+    session = AsyncMock()
+    result = MagicMock()
+    result.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=rows)))
+    session.execute = AsyncMock(return_value=result)
+
+    stats = await auto_review_positions(session, limit=10)
+
+    assert stats["approved"] == 1
+    assert stats["rejected"] == 1
+    assert stats["ambiguous"] == 1
+    assert ("approve", "auto: LLM重判技术领域 人工智能") in calls
+    assert ("reject", "auto: LLM重判非IT岗位") in calls
+
+
+@pytest.mark.asyncio
+async def test_auto_review_llm_failure_degrades_to_pending(monkeypatch):
+    """LLM 异常时静默降级 → 岗位保留 pending（鲁棒性）。"""
+    from app.services.review_service import auto_review_positions
+
+    async def fake_llm(name, jd_hint=""):
+        raise RuntimeError("llm down")
+
+    monkeypatch.setattr(
+        "app.core.extraction.industry_gate.llm_classify_position", fake_llm
+    )
+
+    class _FakeRow:
+        def __init__(self, name):
+            self.id = uuid.uuid4()
+            self.name = name
+            self.industry = "未分类"
+            self.name_cn = None
+            self.review_status = "pending_review"
+
+    rows = [_FakeRow("某岗位")]
+    session = AsyncMock()
+    result = MagicMock()
+    result.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=rows)))
+    session.execute = AsyncMock(return_value=result)
+
+    stats = await auto_review_positions(session, limit=10)
+    assert stats["ambiguous"] == 1

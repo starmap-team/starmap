@@ -543,7 +543,49 @@ async def auto_review_positions(
             except InvalidStateTransition:
                 stats["ambiguous"] += 1
             continue
-        # 3. 真模糊 → 保留 pending
+        # 3. 真模糊 → LLM 重判（2026-08-30 岗位业务闭环）: 技术领域枚举输出
+        #    → IT 白名单 → approve；非IT → reject；unknown/失败 → 保留 pending 人工兜底
+        from app.core.extraction.industry_gate import llm_classify_position
+
+        try:
+            llm_verdict = await llm_classify_position(name)
+        except Exception as llm_exc:  # noqa: BLE001 — 重判失败保留人工兜底（双保险）
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "LLM re-judge failed for %s: %s", name[:50], llm_exc
+            )
+            llm_verdict = None
+        if llm_verdict == "非IT岗位":
+            try:
+                await reject(
+                    session, entity_type="position", entity_id=row.id,
+                    actor=actor, reason="auto: LLM重判非IT岗位",
+                )
+                stats["rejected"] += 1
+            except InvalidStateTransition:
+                stats["ambiguous"] += 1
+            continue
+        if llm_verdict is not None:
+            # 白名单技术领域 → 写回 industry + approve + 中文化
+            row.industry = llm_verdict
+            await session.flush()
+            if not (row.name_cn or "").strip():
+                translated = await _translate_position_name_auto(name)
+                if translated:
+                    row.name_cn = translated
+                    stats["translated"] += 1
+                    await session.flush()
+            try:
+                await approve(
+                    session, entity_type="position", entity_id=row.id,
+                    actor=actor, reason=f"auto: LLM重判技术领域 {llm_verdict}",
+                )
+                stats["approved"] += 1
+            except InvalidStateTransition:
+                stats["ambiguous"] += 1
+            continue
+        # LLM 也无法判断（unknown/失败）→ 保留 pending 人工兜底
         stats["ambiguous"] += 1
     return stats
 
