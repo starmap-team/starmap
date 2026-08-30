@@ -1,0 +1,18 @@
+{
+  "position": "首席自主卡车工程师",
+  "input_type": "emerging_skill_signal",
+  "note": "该岗位为新发现(emerging)岗位，由系统技能涌现检测合成，无单条 jd_raw 原文；其输入为触发发现的真实技能涌现信号（来自多源真实 JD 交叉统计）。",
+  "emerging_skill": "System Design",
+  "emerging_ratio": 1.0,
+  "source_api": "POST /api/v1/positions/discover",
+  "evidence": {
+    "z_score": 31.25,
+    "sources": 12,
+    "contributing_positions": [
+      "大模型应用工程师",
+      "高级后端工程师",
+      "AI算法工程师",
+      "数据工程师"
+    ]
+  }
+}
