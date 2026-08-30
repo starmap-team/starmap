@@ -97,6 +97,32 @@ IT_KEYWORDS = frozenset(
 
 # ── LLM 返回的 industry 规范映射（去重/对齐） ──
 _INDUSTRY_ALIASES: dict[str, str] = {
+    # 2026-08-30 (taxonomy 收口): LLM 自由文本/英文行业 → 受控词表。
+    # 雇主应用行业(智能制造/金融科技/医疗健康等)不作为主分类 —— 主分类是
+    # 岗位的「技术领域」(赛题: 新一代信息技术领域), 应用行业由岗位名技术词判定。
+    "geospatial/mapping": "地理信息/测绘/自然资源",
+    "geospatial": "地理信息/测绘/自然资源",
+    "logistics/transportation technology": "非IT岗位",
+    "logistics": "非IT岗位",
+    "transportation": "非IT岗位",
+    "technology": "互联网/IT",
+    "information technology": "互联网/IT",
+    "software": "互联网/IT",
+    "internet": "互联网/IT",
+    "ai": "人工智能",
+    "artificial intelligence": "人工智能",
+    "machine learning": "人工智能",
+    "data science": "数据科学",
+    "big data": "数据科学",
+    "cloud": "云计算/DevOps",
+    "cybersecurity": "网络安全",
+    "security": "网络安全",
+    "gaming": "游戏开发",
+    "blockchain": "区块链与Web3",
+    "web3": "区块链与Web3",
+    "iot": "嵌入式与物联网",
+    " telecommunications": "互联网/IT",
+    # 保留: 雇主行业语义的既有映射(判定用)
     "互联网/IT": "互联网/IT",
     "互联网": "互联网/IT",
     "it": "互联网/IT",
@@ -106,7 +132,6 @@ _INDUSTRY_ALIASES: dict[str, str] = {
     "计算机": "互联网/IT",
     "软件": "互联网/IT",
     "人工智能": "人工智能",
-    "ai": "人工智能",
     "机器学习": "人工智能",
     "大数据": "数据科学",
     "数据科学": "数据科学",
@@ -163,20 +188,62 @@ def classify_industry_fallback(name: str, llm_industry: str | None = None) -> st
     llm_norm = _normalize_industry(llm_industry)
     name_lower = (name or "").lower()
 
+    # 2026-08-30 (taxonomy 收口, Lane1 根因修复): 分类优先级反转 —— 岗位名技术词
+    # 优先于 LLM 雇主行业。此前「LLM 值优先」把 AI算法工程师(制造业 JD)判成
+    # 智能制造 → 不在 IT 白名单 → 批准后也不入图(赛题核心岗位被误杀)。
+    # 正确语义: industry = 岗位的「技术领域」; 雇主应用行业不决定分类。
+    if _has_it_keyword(name_lower):
+        # 岗位名有明确技术词 → 技术分类(细粒度桶优先, 否则互联网/IT)
+        for bucket, kws in _TECH_BUCKETS.items():
+            if any(kw in name_lower for kw in kws):
+                return bucket
+        return "互联网/IT"
+
+    # 岗位名无技术词 → LLM 行业映射到受控词表
     if llm_norm in IT_INDUSTRY_WHITELIST:
         return llm_norm
-
-    # LLM 给了明确的非 IT 行业（金融/医疗/教育/销售等），且岗位名也看不出技术 → 尊重 LLM
     if llm_norm and llm_norm not in ("未分类", "其他", ""):
-        if not _has_it_keyword(name_lower):
-            return llm_norm if llm_norm != "地理信息/测绘/自然资源" else "非IT岗位"
-        # 岗位名有技术词但 LLM 说金融/医疗 → 以 LLM 为准（数据可靠性优先），但保留技术可能
-        return llm_norm
+        # LLM 给了雇主行业(制造/金融/医疗等)且岗位名无技术词 → 非 IT
+        return "非IT岗位"
 
-    # LLM 为空或无法识别 → 关键词兜底
     if _has_it_keyword(name_lower):
         return "互联网/IT"
     return "未分类"
+
+
+# 2026-08-30: 细粒度技术桶（岗位名技术词 → 白名单内的具体分类）
+_TECH_BUCKETS: dict[str, tuple[str, ...]] = {
+    "前端开发": ("前端", "frontend", "web前端"),
+    "后端开发": ("后端", "backend", "服务端"),
+    "人工智能": ("算法", "机器学习", "深度学习", "nlp", "大模型", "llm", "ai ", "ai工程", "cv "),
+    "数据科学": ("数据科学", "数据挖掘", "数据分析"),
+    "数据工程": ("数据工程", "etl", "数仓"),
+    "云计算/DevOps": ("devops", "sre", "运维"),
+    "网络安全": ("安全工程师", "渗透", "网络安全"),
+    "移动开发": ("ios", "android", "移动开发", "flutter"),
+    "测试": ("测试", "qa", "测开"),
+    "嵌入式与物联网": ("嵌入式", "单片机", "物联网"),
+    "游戏开发": ("游戏", "unity", "unreal"),
+    "区块链与Web3": ("区块链", "web3", "solidity"),
+    "数据库与存储": ("dba", "数据库工程师"),
+}
+
+
+def normalize_position_name(name: str | None) -> str:
+    """入库名称清洗（Lane2 根因修复）: 去前导标点/符号、首尾空白、控制字符。
+
+    LLM 抽取的 position_name 可能携带 JD 头部符号残留（如 ".AI开发实习生"）,
+    ASCII 排序后置顶放大显眼度。清洗幂等。
+    """
+    if not name:
+        return ""
+    cleaned = name.strip()
+    # 去控制字符
+    cleaned = "".join(ch for ch in cleaned if ch.isprintable())
+    # 反复剥离前导标点/符号（. - • · * # / 空格等）
+    while cleaned and not (cleaned[0].isalnum() or "一" <= cleaned[0] <= "鿿"):
+        cleaned = cleaned[1:].lstrip()
+    return cleaned.strip()
 
 
 def is_it_industry(industry: str | None) -> bool:

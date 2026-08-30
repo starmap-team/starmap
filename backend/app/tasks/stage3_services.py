@@ -165,6 +165,11 @@ async def persist_extraction_result(
  # job_title），不再落 "Unknown Position" 占位符 —— 该占位符曾产生 103 条幻影关系
  # 污染 PG SSOT 且无图对应（双库不一致根因之一）。
     position_name = str(data.get("position_name") or job_title or "").strip()
+    # 2026-08-30 (Lane2 根因修复): 入库名清洗 —— LLM 抽取名可能携带 JD 头部
+    # 符号残留(如 ".AI开发实习生"), ASCII 排序置顶放大显眼度。
+    from app.core.extraction.industry_gate import normalize_position_name
+
+    position_name = normalize_position_name(position_name) or position_name.strip()
     if not position_name:
         position_name = "Unknown Position"
     confidence = _confidence_from_result(extraction_result)
