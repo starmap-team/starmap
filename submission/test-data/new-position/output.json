@@ -1,0 +1,19 @@
+{
+  "position": "首席自主卡车工程师",
+  "definition": {
+    "position_name": "首席自主卡车工程师",
+    "required_skills": [
+      "System Design"
+    ],
+    "emerging_required": [
+      "System Design"
+    ]
+  },
+  "emerging_skills": [
+    "System Design"
+  ],
+  "emerging_ratio": 1.0,
+  "industry_scenario": null,
+  "source": "discover 候选（Z-score 涌现检测，实时 API 返回）",
+  "extracted_at": "2026-08-30"
+}
