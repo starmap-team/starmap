@@ -121,7 +121,9 @@ const emptyDescription = (): string => {
         :key="c.position"
         class="candidate-card"
       >
-        <div class="candidate-name">{{ candidateName(c) }}</div>
+        <div class="candidate-name">
+          {{ candidateName(c) }}
+        </div>
 
         <!-- 涌现技能 -->
         <div class="candidate-skills">
@@ -181,7 +183,9 @@ const emptyDescription = (): string => {
               class="def-block"
             >
               <span class="def-label">典型行业应用场景：</span>
-              <p class="def-text">{{ c.definition.industry_scenario }}</p>
+              <p class="def-text">
+                {{ c.definition.industry_scenario }}
+              </p>
             </div>
             <div
               v-if="c.definition.core_responsibilities?.length"
@@ -220,7 +224,9 @@ const emptyDescription = (): string => {
               class="def-block"
             >
               <span class="def-label">岗位简述：</span>
-              <p class="def-text">{{ c.definition.summary }}</p>
+              <p class="def-text">
+                {{ c.definition.summary }}
+              </p>
             </div>
           </el-collapse-item>
         </el-collapse>
