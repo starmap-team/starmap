@@ -32,6 +32,8 @@ async def backfill(limit: int, dry_run: bool, industry: str | None) -> None:
             .where(
                 PositionRecord.review_status == "approved",
                 PositionRecord.industry_scenario.is_(None),
+                # 图内岗位口径：quality_hint IS NULL（非隐藏），评委可见 465/446
+                PositionRecord.quality_hint.is_(None),
             )
         )
         if industry:
