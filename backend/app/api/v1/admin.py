@@ -568,6 +568,44 @@ async def approve_review_item_endpoint(
                 await sync_approved_position_to_graph(position_name)
             except Exception as exc:  # noqa: BLE001 — 入图失败不阻断审核响应
                 logger.warning("approve-then-graph failed for {!r}: {}", position_name, exc)
+
+            # Phase 38: 审核通过 → 若岗位缺五要素则 LLM 生成（fail-soft，失败仅记 warning）
+            try:
+                import sqlalchemy as _sa
+
+                from app.models.extraction_models import PositionRecord as _PositionRecord
+                from app.services.evolution_service import generate_position_definitions
+
+                result = await generate_position_definitions(
+                    [{
+                        "position": position_name,
+                        "definition": {
+                            "position_name": position_name,
+                            "required_skills": [],
+                            "emerging_required": [],
+                        },
+                        "emerging_skills": [],
+                    }],
+                    top_n=1,
+                )
+                if result["generated"]:
+                    cand = result["candidates"][0]
+                    row = (
+                        await session.execute(
+                            _sa.select(_PositionRecord).where(_PositionRecord.name == position_name)
+                        )
+                    ).scalar_one_or_none()
+                    if row is not None:
+                        d = cand["definition"]
+                        row.industry_scenario = cand.get("industry_scenario")
+                        row.core_responsibilities = d.get("core_responsibilities") or []
+                        row.bonus_skills = d.get("bonus_skills") or []
+                        row.summary = d.get("summary")
+                        await session.commit()
+                else:
+                    logger.warning("position definition generation skipped for {!r}: {}", position_name, result["warnings"])
+            except Exception as exc:  # noqa: BLE001 — 五要素生成失败不阻断审核响应
+                logger.warning("approve-then-define failed for {!r}: {}", position_name, exc)
     # P1-14 fix (functional-review 2026-08-13): 技能审核通过此前只改 PG 状态，
     # 不写 Neo4j Skill.trust_score → avg_skill_trust（数据大屏信任评分）滞后。
     # 复用 _sync_neo4j_on_audit（MERGE canonical_id + trust_score=1.0）。

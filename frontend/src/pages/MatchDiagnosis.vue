@@ -504,6 +504,15 @@ onUnmounted(() => {
                   </h2>
                   <p class="sc-desc">
                     你的技能 vs {{ targetPositionName }} 岗位要求
+                    <el-link
+                      v-if="targetPositionKey || targetPositionName"
+                      type="primary"
+                      :underline="false"
+                      style="margin-left: 8px; font-size: 12px"
+                      @click="router.push({ path: `/position/${encodeURIComponent(targetPositionKey || targetPositionName)}` })"
+                    >
+                      查看岗位定义
+                    </el-link>
                   </p>
                 </div>
                 <el-button

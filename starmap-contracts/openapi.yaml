@@ -4376,6 +4376,26 @@ components:
           type: string
           format: date-time
           description: 发现时间
+        # Phase 38: A3 五要素（可选，缺省 null/空列表）
+        industry_scenario:
+          type: string
+          nullable: true
+          description: 典型行业应用场景（LLM 生成）
+          example: 智能制造、金融科技
+        core_responsibilities:
+          type: array
+          items:
+            type: string
+          description: 核心职责列表（LLM 生成）
+        bonus_skills:
+          type: array
+          items:
+            type: string
+          description: 加分技能列表（LLM 生成）
+        summary:
+          type: string
+          nullable: true
+          description: 岗位简述（LLM 生成）
     GraphNode:
       type: object
       required:

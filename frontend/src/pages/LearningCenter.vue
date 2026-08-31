@@ -215,7 +215,12 @@ watch(currentPlan, (plan) => {
             <!-- 业务说明：概览左侧 —— 岗位信息、总进度条和预计完成时间 -->
             <div class="summary-main">
               <div class="summary-position">
-                <h2 class="position-name">
+                <h2
+                  class="position-name"
+                  :title="`查看「${currentPlan.position}」岗位详情（含五要素定义）`"
+                  style="cursor: pointer"
+                  @click="router.push({ path: `/position/${encodeURIComponent(currentPlan.position)}` })"
+                >
                   {{ currentPlan.position }}
                 </h2>
                 <el-tag

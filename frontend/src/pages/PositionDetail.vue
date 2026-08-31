@@ -47,6 +47,11 @@ interface PositionInfo {
   description: string
   discovered_at: string | null
   provenance?: PositionProvenance | null
+  // Phase 38: A3 五要素
+  industry_scenario?: string | null
+  core_responsibilities?: string[]
+  bonus_skills?: string[]
+  summary?: string | null
 }
 
 const position = ref<PositionInfo | null>(null)
@@ -116,6 +121,10 @@ async function loadPosition() {
       skills_required?: SkillItem[]
       discovered_at?: string | null
       provenance?: PositionProvenance | null
+      industry_scenario?: string | null
+      core_responsibilities?: string[]
+      bonus_skills?: string[]
+      summary?: string | null
     }
     if (myToken !== fetchToken) return
     if (!d || (!d.name && !d.name_cn)) {
@@ -128,6 +137,10 @@ async function loadPosition() {
       description: d.description ?? '',
       discovered_at: d.discovered_at ?? null,
       provenance: d.provenance ?? null,
+      industry_scenario: d.industry_scenario ?? null,
+      core_responsibilities: d.core_responsibilities ?? [],
+      bonus_skills: d.bonus_skills ?? [],
+      summary: d.summary ?? null,
     }
     skills.value = (d.skills_required ?? []).map((s) => ({
       skill_id: s.skill_id ?? '',
@@ -320,6 +333,63 @@ watch(() => route.params.name, loadPosition)
 
           <!-- 右侧：技能列表 -->
           <section class="skills-section">
+            <!-- Phase 38: A3 五要素（行业场景/核心职责/加分技能/简述，缺字段隐藏） -->
+            <el-card
+              v-if="position?.industry_scenario || position?.core_responsibilities?.length || position?.bonus_skills?.length || position?.summary"
+              class="definition-card"
+              shadow="never"
+            >
+              <template #header>
+                <span class="section-title">岗位定义（五要素）</span>
+              </template>
+              <div
+                v-if="position.industry_scenario"
+                class="def-block"
+              >
+                <span class="def-label">典型行业应用场景</span>
+                <p class="def-text">{{ position.industry_scenario }}</p>
+              </div>
+              <div
+                v-if="position.core_responsibilities?.length"
+                class="def-block"
+              >
+                <span class="def-label">核心职责</span>
+                <ul class="def-list">
+                  <li
+                    v-for="(r, i) in position.core_responsibilities"
+                    :key="i"
+                  >
+                    {{ r }}
+                  </li>
+                </ul>
+              </div>
+              <div
+                v-if="position.bonus_skills?.length"
+                class="def-block"
+              >
+                <span class="def-label">加分技能</span>
+                <div class="def-tags">
+                  <el-tag
+                    v-for="s in position.bonus_skills"
+                    :key="s"
+                    size="small"
+                    effect="plain"
+                    type="success"
+                    class="def-tag"
+                  >
+                    {{ s }}
+                  </el-tag>
+                </div>
+              </div>
+              <div
+                v-if="position.summary"
+                class="def-block"
+              >
+                <span class="def-label">岗位简述</span>
+                <p class="def-text">{{ position.summary }}</p>
+              </div>
+            </el-card>
+
             <!-- 2026-08-20 (修复 C): 数据来源追溯 —— 让用户知根知底 -->
             <el-card
               v-if="position?.provenance"
@@ -481,6 +551,41 @@ watch(() => route.params.name, loadPosition)
 .skills-section {
   flex: 1;
   min-width: 0;
+}
+
+/* Phase 38: 岗位定义（五要素）卡片 */
+.definition-card {
+  margin-bottom: var(--space-3);
+}
+.def-block {
+  margin-bottom: var(--space-3);
+}
+.def-block:last-child {
+  margin-bottom: 0;
+}
+.def-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--muted-foreground);
+  margin-bottom: 4px;
+}
+.def-text {
+  font-size: var(--font-size-sm);
+  color: var(--foreground);
+  line-height: 1.7;
+  margin: 0;
+}
+.def-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: var(--font-size-sm);
+  color: var(--foreground);
+  line-height: 1.8;
+}
+.def-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 /* 2026-08-20 (修复 C): 数据来源追溯卡片 */

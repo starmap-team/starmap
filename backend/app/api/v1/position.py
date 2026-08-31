@@ -232,6 +232,11 @@ async def get_position(
             "description": r.description,
             "skills_required": skills,
             "discovered_at": r.created_at.isoformat() if r.created_at else None,
+            # Phase 38: A3 五要素（持久化列，缺省返回 null/空列表）
+            "industry_scenario": r.industry_scenario,
+            "core_responsibilities": r.core_responsibilities or [],
+            "bonus_skills": r.bonus_skills or [],
+            "summary": r.summary,
             # 2026-08-20 (修复 C): 数据来源追溯 —— 让用户知根知底
             "provenance": {
                 "source_run_id": str(r.source_run_id) if r.source_run_id else None,

@@ -6,7 +6,7 @@ from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSON, UUID
+from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base
@@ -353,6 +353,15 @@ class PositionRecord(Base):
     quality_hint: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
  # 2026-08-28 (批0 真相源): 定时重试时间戳（幂等，每日只重试一次）
     last_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+ # ── A3 岗位定义五要素（Phase 38：全岗位持久化）──
+ # 业务说明：典型行业应用场景（如"智能制造、金融科技"），LLM 生成，可空
+    industry_scenario: Mapped[str | None] = mapped_column(Text, nullable=True)
+ # 业务说明：核心职责列表（JSON 数组，如 ["主导系统架构设计", ...]），LLM 生成，可空
+    core_responsibilities: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+ # 业务说明：加分技能列表（JSON 数组，如 ["Kubernetes", "AWS", ...]），LLM 生成，可空
+    bonus_skills: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+ # 业务说明：岗位简述（一句话），LLM 生成，可空
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
         return f"<PositionRecord {self.name} status={self.review_status}>"
