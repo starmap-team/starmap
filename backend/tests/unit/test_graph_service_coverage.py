@@ -122,7 +122,9 @@ def _is_resolve_exact(q):
 
 
 def _is_resolve_fuzzy(q):
-    return "MATCH (p:Position) RETURN p.name AS name" in q
+    # 2026-08-31 (PERF-02): _resolve_position_name 从全图扫描改为
+    # Neo4j 侧 CONTAINS 过滤 + LIMIT 5, Cypher 已变化 — 匹配新查询。
+    return "toLower(p.name) CONTAINS" in q
 
 
 def _is_position_lookup(q):

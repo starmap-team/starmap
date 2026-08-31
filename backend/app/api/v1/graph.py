@@ -122,10 +122,10 @@ async def get_graph_overview(
         )
  # 2026-08-29 (PERF-03): overview 每次请求全量重查 Neo4j(实测 domain 2.7s)。
  # 图谱数据只在 pipeline run 后变化 → Redis TTL 缓存 5 分钟, 复用 dashboard_service 模式。
-    from app.core.dashboard.dashboard_service import _cache_key, _get_cached, _set_cached
+    from app.services.redis_cache import cache_key, get_cached, set_cached
 
-    cache_key = _cache_key(f"graph_overview:{group_by}")
-    cached = await _get_cached(redis, cache_key)
+    cache_key_str = cache_key(f"graph_overview:{group_by}")
+    cached = await get_cached(redis, cache_key_str)
     if cached is not None:
         return DomainOverviewResponse(**cached, generated_at=generated_at)
 
@@ -137,20 +137,20 @@ async def get_graph_overview(
     )
     if group_by == "tech_stack":
         data = await fetch_overview_by_tech_stack(driver)
-        await _set_cached(redis, cache_key, data, 300)
+        await set_cached(redis, cache_key_str, data, 300)
         return DomainOverviewResponse(**data, generated_at=generated_at)
     if group_by == "domain":
         data = await fetch_overview_by_domain(driver)
-        await _set_cached(redis, cache_key, data, 300)
+        await set_cached(redis, cache_key_str, data, 300)
         return DomainOverviewResponse(**data, generated_at=generated_at)
     if group_by == "level":
         data = await fetch_overview_by_level(driver)
-        await _set_cached(redis, cache_key, data, 300)
+        await set_cached(redis, cache_key_str, data, 300)
         return DomainOverviewResponse(**data, generated_at=generated_at)
     if group_by == "heat":
         from app.services.graph_overview import fetch_overview_by_heat
         data = await fetch_overview_by_heat(driver)
-        await _set_cached(redis, cache_key, data, 300)
+        await set_cached(redis, cache_key_str, data, 300)
         return DomainOverviewResponse(**data, generated_at=generated_at)
 
 

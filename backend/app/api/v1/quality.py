@@ -334,17 +334,17 @@ async def _get_quality_dashboard_cached(
     session: AsyncSession, redis: Redis | None,
 ) -> QualityDashboard:
     """带 Redis 缓存的 quality dashboard 构建（缓存 miss 才全量计算）。"""
-    from app.core.dashboard.dashboard_service import _cache_key, _get_cached, _set_cached
+    from app.services.redis_cache import cache_key, get_cached, set_cached
 
-    key = _cache_key("quality_dashboard")
-    cached = await _get_cached(redis, key)
+    key = cache_key("quality_dashboard")
+    cached = await get_cached(redis, key)
     if cached is not None:
         try:
             return QualityDashboard.model_validate(cached)
         except Exception as exc:  # noqa: BLE001 — 缓存反序列化失败走重算
             logger.warning("quality dashboard cache deserialize failed: {}", exc)
     dashboard = await _build_quality_dashboard(session)
-    await _set_cached(redis, key, dashboard.model_dump(), _QUALITY_DASHBOARD_TTL)
+    await set_cached(redis, key, dashboard.model_dump(), _QUALITY_DASHBOARD_TTL)
     return dashboard
 
 
