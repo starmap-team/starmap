@@ -174,6 +174,54 @@ const emptyDescription = (): string => {
                 <span class="def-note-highlight">黄色</span> = 涌现/上升技能（该岗位成为新兴候选的关键）
               </p>
             </div>
+
+            <!-- A3 五要素：行业场景 / 核心职责 / 加分技能 / 岗位简述（with_definitions 补齐，缺字段优雅隐藏） -->
+            <div
+              v-if="c.definition.industry_scenario"
+              class="def-block"
+            >
+              <span class="def-label">典型行业应用场景：</span>
+              <p class="def-text">{{ c.definition.industry_scenario }}</p>
+            </div>
+            <div
+              v-if="c.definition.core_responsibilities?.length"
+              class="def-block"
+            >
+              <span class="def-label">核心职责：</span>
+              <ul class="def-list">
+                <li
+                  v-for="(r, i) in c.definition.core_responsibilities"
+                  :key="i"
+                >
+                  {{ r }}
+                </li>
+              </ul>
+            </div>
+            <div
+              v-if="c.definition.bonus_skills?.length"
+              class="def-block"
+            >
+              <span class="def-label">加分技能：</span>
+              <div class="def-tags">
+                <el-tag
+                  v-for="s in c.definition.bonus_skills"
+                  :key="s"
+                  size="small"
+                  effect="plain"
+                  type="success"
+                  class="def-tag"
+                >
+                  {{ s }}
+                </el-tag>
+              </div>
+            </div>
+            <div
+              v-if="c.definition.summary"
+              class="def-block"
+            >
+              <span class="def-label">岗位简述：</span>
+              <p class="def-text">{{ c.definition.summary }}</p>
+            </div>
           </el-collapse-item>
         </el-collapse>
       </div>
@@ -296,5 +344,18 @@ const emptyDescription = (): string => {
 .def-note-highlight {
   color: var(--warning, #e6a23c);
   font-weight: 600;
+}
+.def-text {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.7;
+  margin: 4px 0 0;
+}
+.def-list {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.8;
 }
 </style>

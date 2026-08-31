@@ -61,6 +61,11 @@ export interface DiscoverCandidate {
     position_name: string
     required_skills: string[]
     emerging_required: string[]
+    // A3 五要素（with_definitions=true 时后端补齐；默认 discover 不带参时不存在）
+    industry_scenario?: string | null
+    core_responsibilities?: string[]
+    bonus_skills?: string[]
+    summary?: string | null
   }
 }
 
@@ -95,8 +100,12 @@ export const api = {
     typedGet('/positions', params),
   getPositionDetail: (positionId: string) =>
     typedGet(`/positions/${positionId}`),
-  discoverPositions: () =>
-    request.post<DiscoverResponse>('/positions/discover'),
+  // A3 五要素：admin 登录态下带 with_definitions=true，由后端 LLM 补齐
+  // 行业场景/核心职责/加分技能/岗位简述（fail-soft，单岗位失败不阻断）
+  discoverPositions: (withDefinitions = true) =>
+    request.post<DiscoverResponse>('/positions/discover', undefined, {
+      params: { with_definitions: withDefinitions },
+    }),
 
  // Match — typed with OpenAPI schema; stores that pass varying shapes
  // should normalize before calling, or use typedPost directly.
