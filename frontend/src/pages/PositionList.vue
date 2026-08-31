@@ -18,6 +18,7 @@ import { useJdStore } from '@/stores/jd'
 import { useUserStore } from '@/stores/user'
 import { ALL_OPTION, POSITION_REVIEW_STATUS_LABELS } from '@/constants/labels'
 import { freshnessOf } from '@/utils/freshness'
+import request from '@/api/request'
 
 const jdStore = useJdStore()
 const userStore = useUserStore()
@@ -169,6 +170,39 @@ function goExtract() {
   router.push('/extract')
 }
 
+// ── 全景图谱联动口径标注 ──
+// 岗位列表（PG 全量已发布）与全景图谱（Neo4j 入图合格岗位）数字不同的原因：
+// 图谱只展示 approved + IT 行业 + 有技能关联的岗位，其余岗位被数据质量门禁隐藏。
+// 后端 /quality/data-quality 已给出精确构成（graph_positions + hidden_positions = pg_positions）。
+interface DataQualityCounts {
+  graph_positions?: number
+  pg_positions?: number
+  hidden_positions?: number
+  hidden_no_skill?: number
+  hidden_non_it?: number
+  unclassified?: number
+  duplicate_groups?: number
+}
+const qualityCounts = ref<DataQualityCounts | null>(null)
+
+async function loadQualityCounts() {
+  try {
+    const data = await request.get('/quality/data-quality', { silent: true } as never) as DataQualityCounts
+    qualityCounts.value = data
+  } catch {
+    // 口径标注是增强信息，加载失败静默降级（不影响列表主体）
+    qualityCounts.value = null
+  }
+}
+
+// 仅在全量已发布视图（无搜索/行业筛选、且非待审/全部态）展示口径标注，避免筛选时误导
+const showConsistencyNote = computed(() =>
+  !searchQuery.value.trim()
+  && !selectedIndustry.value
+  && qualityCounts.value != null
+  && (statusFilter.value === 'approved' || !isAdmin.value),
+)
+
 // ── 搜索/筛选变更时重新查询后端（修复: 此前缺少 watcher 导致仅客户端过滤当前页） ──
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 watch(searchQuery, () => {
@@ -186,6 +220,7 @@ watch(selectedIndustry, () => {
 onMounted(() => {
   fetchPositions()
   loadIndustries()
+  loadQualityCounts()
 })
 </script>
 
@@ -256,6 +291,13 @@ onMounted(() => {
       </div>
       <div class="result-count">
         共 {{ total }} 个岗位
+        <span
+          v-if="showConsistencyNote && qualityCounts"
+          class="consistency-note"
+          :title="`口径说明：图谱仅展示已发布且属 IT 行业、有技能关联的岗位（${qualityCounts.graph_positions ?? '—'} 个）；其余 ${qualityCounts.hidden_positions ?? '—'} 个（非IT ${qualityCounts.hidden_non_it ?? '—'} + 无技能 ${qualityCounts.hidden_no_skill ?? '—'} 等）已通过数据质量门禁隐藏。`"
+        >
+          图谱视角 {{ qualityCounts.graph_positions ?? '—' }} 个（含隐藏 {{ qualityCounts.hidden_positions ?? '—' }}）
+        </span>
       </div>
 
       <!-- 有数据时 -->
@@ -534,6 +576,18 @@ onMounted(() => {
 .industry-tags { margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .clickable-tag { cursor: pointer; }
 .result-count { margin-bottom: var(--space-4); color: var(--muted-foreground); font-size: var(--font-size-sm); }
+
+/* 全景图谱联动口径标注：弱化显示，hover 提供完整解释 */
+.consistency-note {
+  margin-left: var(--space-3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-secondary, rgba(148, 163, 184, 0.12));
+  color: var(--muted-foreground);
+  font-size: 0.85em;
+  cursor: help;
+  white-space: nowrap;
+}
 
 /* ── Custom Empty State ── */
 .custom-empty {
