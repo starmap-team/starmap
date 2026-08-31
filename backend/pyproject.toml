@@ -49,11 +49,9 @@ ruff = ">=0.3"            # lint + format
 mypy = ">=1.9"           # type check
 
 # 应用项目（不发布到 PyPI），关闭打包模式
-
-[[tool.poetry.source]]
-name = "tuna"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-priority = "primary"
+# 2026-08-31 (CI 修复): 移除 tuna 清华源 (primary) — GitHub Actions runner
+# 无法访问 pypi.tuna.tsinghua.edu.cn (Authorization error), 导致 Docker 冒烟
+# 构建失败。poetry 自动回退官方 PyPI (CI 可访问)。
 
 [tool.poetry]
 package-mode = false
