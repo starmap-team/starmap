@@ -5,12 +5,13 @@ from datetime import timedelta
 from typing import Annotated
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.dependencies import get_db_session
+from app.dependencies import get_db_session, get_redis_client
 from app.exceptions import QualityError, StarMapError
 from app.models.extraction_models import (
     ExtractionEvaluationRecord,
@@ -62,7 +63,7 @@ def _warning_level(f1: float, hallucination_rate: float, total_extractions: int 
 
 
 async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
- # 2026-08-15 F1 优化: 取"最新一轮评估"而非全史平均 — 每次 /evaluate/resume
+    # 2026-08-15 F1 优化: 取"最新一轮评估"而非全史平均 — 每次 /evaluate/resume
  # 追加记录，全史平均会被旧基线稀释（如 0.857→0.894→0.956 的历史混合）。
  # 以 max(evaluated_at) 前 5 秒窗口圈定最近一轮（同批记录微秒级差异）。
  # 2026-08-23 fix: scalar_subquery 在 asyncpg 手动事务下抛 InterfaceError，
@@ -323,6 +324,30 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     )
 
 
+# 2026-08-29 (PERF-01): quality dashboard 无缓存 —— 每次请求 27 次串行 DB 往返
+# (实测 329-545ms, 数据只在 pipeline run/审核后变化)。加 Redis TTL 缓存
+# (30s), 复用 dashboard_service 的 _get_cached/_set_cached 模式。
+_QUALITY_DASHBOARD_TTL = 30  # 秒
+
+
+async def _get_quality_dashboard_cached(
+    session: AsyncSession, redis: Redis | None,
+) -> QualityDashboard:
+    """带 Redis 缓存的 quality dashboard 构建（缓存 miss 才全量计算）。"""
+    from app.core.dashboard.dashboard_service import _cache_key, _get_cached, _set_cached
+
+    key = _cache_key("quality_dashboard")
+    cached = await _get_cached(redis, key)
+    if cached is not None:
+        try:
+            return QualityDashboard.model_validate(cached)
+        except Exception as exc:  # noqa: BLE001 — 缓存反序列化失败走重算
+            logger.warning("quality dashboard cache deserialize failed: {}", exc)
+    dashboard = await _build_quality_dashboard(session)
+    await _set_cached(redis, key, dashboard.model_dump(), _QUALITY_DASHBOARD_TTL)
+    return dashboard
+
+
 @router.post("/evaluate")
 async def evaluate_quality(
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -369,18 +394,20 @@ async def evaluate_quality(
 @router.get("/report", response_model=QualityReport)
 async def get_quality_report(
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    redis: Annotated[Redis | None, Depends(get_redis_client)],
 ) -> QualityReport:
     """质量报告：总节点数、平均信任度、幻觉率、待审核数。"""
-    dashboard = await _build_quality_dashboard(session)
+    dashboard = await _get_quality_dashboard_cached(session, redis)
     return dashboard.report
 
 
 @router.get("/dashboard", response_model=QualityDashboard)
 async def get_quality_dashboard(
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    redis: Annotated[Redis | None, Depends(get_redis_client)],
 ) -> QualityDashboard:
     """前端质量仪表盘：报告摘要 + 抽取/审核/幻觉统计。"""
-    return await _build_quality_dashboard(session)
+    return await _get_quality_dashboard_cached(session, redis)
 
 
 # ---------------------------------------------------------------------------

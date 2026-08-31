@@ -63,11 +63,18 @@ async def _resolve_position_name(driver: Any, position_name: str) -> str:
         rec = await exact.single()
         if rec and rec["name"]:
             return rec["name"]
-        rows = await session.run(
-            "MATCH (p:Position) RETURN p.name AS name, coalesce(p.name_cn, '') AS name_cn"
-        )
+        # 2026-08-29 (PERF-02): 原实现 MATCH 全量拉取所有 Position 到 Python 做
+        # 子串模糊匹配 → O(N) 全图扫描(实测 graph/overview 2.7s 的主因之一)。
+        # 改为 Neo4j 侧 CONTAINS 过滤 + LIMIT 5, 只拉候选集做精度匹配。
         target = position_name.strip().lower()
-        async for row in rows:
+        fuzzy = await session.run(
+            "MATCH (p:Position) "
+            "WHERE toLower(p.name) CONTAINS $kw "
+            "   OR (coalesce(p.name_cn, '') <> '' AND toLower(p.name_cn) CONTAINS $kw) "
+            "RETURN p.name AS name, coalesce(p.name_cn, '') AS name_cn LIMIT 5",
+            kw=target,
+        )
+        async for row in fuzzy:
             candidate = str(row.get("name") or "").strip()
             candidate_cn = str(row.get("name_cn") or "").strip()
             cand_lower = candidate.lower()

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db_session, get_neo4j_driver
+from app.dependencies import get_db_session, get_neo4j_driver, get_redis_client
 from app.schemas.graph import (
     DomainOverviewResponse,
     GraphEdge,
@@ -100,7 +101,9 @@ async def get_position_skills(
     response_model=DomainOverviewResponse,
 )
 async def get_graph_overview(
+    request: Request,
     driver: Annotated[Any, Depends(get_neo4j_driver)],
+    redis: Annotated[Redis | None, Depends(get_redis_client)],
     group_by: Annotated[
         Literal["domain", "tech_stack", "level", "heat"], Query(description="分组方式: domain(默认)/tech_stack/level/heat(技能需求频次)")
     ] = "domain",
@@ -117,6 +120,15 @@ async def get_graph_overview(
             independent_edges=0,
             generated_at=generated_at,
         )
+ # 2026-08-29 (PERF-03): overview 每次请求全量重查 Neo4j(实测 domain 2.7s)。
+ # 图谱数据只在 pipeline run 后变化 → Redis TTL 缓存 5 分钟, 复用 dashboard_service 模式。
+    from app.core.dashboard.dashboard_service import _cache_key, _get_cached, _set_cached
+
+    cache_key = _cache_key(f"graph_overview:{group_by}")
+    cached = await _get_cached(redis, cache_key)
+    if cached is not None:
+        return DomainOverviewResponse(**cached, generated_at=generated_at)
+
  # Dispatch to specialized queries
     from app.services.graph_service import (
         fetch_overview_by_domain,
@@ -125,16 +137,20 @@ async def get_graph_overview(
     )
     if group_by == "tech_stack":
         data = await fetch_overview_by_tech_stack(driver)
+        await _set_cached(redis, cache_key, data, 300)
         return DomainOverviewResponse(**data, generated_at=generated_at)
     if group_by == "domain":
         data = await fetch_overview_by_domain(driver)
+        await _set_cached(redis, cache_key, data, 300)
         return DomainOverviewResponse(**data, generated_at=generated_at)
     if group_by == "level":
         data = await fetch_overview_by_level(driver)
+        await _set_cached(redis, cache_key, data, 300)
         return DomainOverviewResponse(**data, generated_at=generated_at)
     if group_by == "heat":
         from app.services.graph_overview import fetch_overview_by_heat
         data = await fetch_overview_by_heat(driver)
+        await _set_cached(redis, cache_key, data, 300)
         return DomainOverviewResponse(**data, generated_at=generated_at)
 
 
