@@ -7,13 +7,31 @@
     ],
     "emerging_required": [
       "System Design"
-    ]
+    ],
+    "industry_scenario": "该岗位主要服务于智能物流、干线货运及港口/矿山等封闭场景的自动驾驶运输业务，聚焦于端到端自主卡车系统的整体架构设计与技术路线决策，解决多传感器融合、车规级系统可靠性、功能安全（ISO 26262）与预期功能安全（SOTIF）协同落地等系统性工程难题。",
+    "core_responsibilities": [
+      "主导自主卡车整车级系统架构设计",
+      "定义感知-决策-控制-执行全栈技术接口规范",
+      "统筹功能安全与预期功能安全（SOTIF）系统集成",
+      "推动车规级硬件选型与软硬协同验证方案",
+      "评审关键子系统（如线控底盘、域控制器）设计合规性",
+      "牵头跨团队（算法、测试、供应链）系统级问题根因分析"
+    ],
+    "bonus_skills": [
+      "ISO 26262 ASIL-D开发流程",
+      "AUTOSAR Adaptive Platform",
+      "ROS 2 Automotive",
+      "Cybersecurity Engineering (ISO/SAE 21434)",
+      "Model-Based Systems Engineering (MBSE)",
+      "Functional Safety Analysis (FTA, FMEA)"
+    ],
+    "summary": "首席自主卡车工程师是负责自主卡车整车级系统架构设计、安全合规集成与跨域技术协同决策的高端技术领导岗位。"
   },
   "emerging_skills": [
     "System Design"
   ],
   "emerging_ratio": 1.0,
-  "industry_scenario": null,
-  "source": "discover 候选（Z-score 涌现检测，实时 API 返回）",
-  "extracted_at": "2026-08-30"
+  "industry_scenario": "该岗位主要服务于智能物流、干线货运及港口/矿山等封闭场景的自动驾驶运输业务，聚焦于端到端自主卡车系统的整体架构设计与技术路线决策，解决多传感器融合、车规级系统可靠性、功能安全（ISO 26262）与预期功能安全（SOTIF）协同落地等系统性工程难题。",
+  "source": "discover 候选（Z-score 涌现检测 + A3 五要素 LLM 生成，公网实时 API 返回）",
+  "extracted_at": "2026-08-31"
 }

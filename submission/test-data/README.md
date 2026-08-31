@@ -22,11 +22,14 @@ submission/test-data/
 ```
 
 ## 数据真实性声明
-- 所有 output 数据来自公网实时 API（https://47.120.60.10），提取时间 2026-08-30
+- 所有 output 数据来自公网实时 API（https://47.120.60.10），提取时间 2026-08-30/08-31
 - 当前系统数据规模：1014 岗位 / 594 JD / 1352 技能（李帅 08-30 实机复核）
 - 5 条 AI 模拟 JD 已于 08-30 清理（#122 决策执行确认），本包不含任何编造数据
 - 唯一限制：jd_raw 完整正文未通过公网 API 暴露，input.json 提供真实 JD 摘要 + source_url 可追溯；
   新岗位本身为涌现合成岗位，无单条 jd_raw，input 为真实技能涌现信号
+- **五要素定义**（08-31 更新）：`new-position/output.json` 的 industry_scenario /
+  core_responsibilities / bonus_skills 由公网 `POST /positions/discover?with_definitions=true`
+  （A3 五要素生成器，qwen-plus LLM）实时生成，与演示视频/方案文档口径一致，可复现
 
 ## 复现方式
 见各子目录 README.md（含 curl 命令）。登录 admin / starmap2024。
