@@ -1,0 +1,178 @@
+{
+  "position": "前端开发工程师",
+  "industry": "前端开发",
+  "skills_required": [
+    {
+      "skill": "Vue.js",
+      "proficiency": "精通",
+      "source_count": 12,
+      "confidence": 0.65
+    },
+    {
+      "skill": "React",
+      "proficiency": "精通",
+      "source_count": 12,
+      "confidence": 0.65
+    },
+    {
+      "skill": "TypeScript",
+      "proficiency": "精通",
+      "source_count": 14,
+      "confidence": 0.65
+    },
+    {
+      "skill": "Webpack",
+      "proficiency": "精通",
+      "source_count": 2,
+      "confidence": 0.6743
+    },
+    {
+      "skill": "Vite",
+      "proficiency": "精通",
+      "source_count": 2,
+      "confidence": 0.65
+    },
+    {
+      "skill": "JavaScript",
+      "proficiency": "精通",
+      "source_count": 21,
+      "confidence": 0.2
+    },
+    {
+      "skill": "HTML5",
+      "proficiency": "精通",
+      "source_count": 7,
+      "confidence": 0.2
+    },
+    {
+      "skill": "CSS3",
+      "proficiency": "精通",
+      "source_count": 4,
+      "confidence": 0.2
+    }
+  ],
+  "changes": [
+    {
+      "skill": "Webpack",
+      "change_type": "added_required",
+      "old_requirement": null,
+      "new_requirement": "required",
+      "trust_score": 0.7943,
+      "source_count": 9,
+      "mention_count_old": 0,
+      "mention_count_new": 2,
+      "status": "approved",
+      "created_at": "2026-08-29T10:11:04.240388Z"
+    },
+    {
+      "skill": "Vite",
+      "change_type": "promoted",
+      "old_requirement": "preferred",
+      "new_requirement": "required",
+      "trust_score": 0.7143,
+      "source_count": 9,
+      "mention_count_old": 0,
+      "mention_count_new": 2,
+      "status": "approved",
+      "created_at": "2026-08-29T10:11:04.205510Z"
+    },
+    {
+      "skill": "TypeScript",
+      "change_type": "retained",
+      "old_requirement": "required",
+      "new_requirement": "required",
+      "trust_score": 0.6943,
+      "source_count": 9,
+      "mention_count_old": 0,
+      "mention_count_new": 2,
+      "status": "approved",
+      "created_at": "2026-08-29T10:11:04.187406Z"
+    },
+    {
+      "skill": "HTML5",
+      "change_type": "added_required",
+      "old_requirement": null,
+      "new_requirement": "required",
+      "trust_score": 0.7073,
+      "source_count": 6,
+      "mention_count_old": 0,
+      "mention_count_new": 2,
+      "status": "approved",
+      "created_at": "2026-08-29T03:00:53.037414Z"
+    },
+    {
+      "skill": "CSS3",
+      "change_type": "added_required",
+      "old_requirement": null,
+      "new_requirement": "required",
+      "trust_score": 0.7073,
+      "source_count": 6,
+      "mention_count_old": 0,
+      "mention_count_new": 2,
+      "status": "approved",
+      "created_at": "2026-08-29T03:00:53.031832Z"
+    },
+    {
+      "skill": "Vite",
+      "change_type": "removed",
+      "old_requirement": "preferred",
+      "new_requirement": null,
+      "trust_score": 0.4673,
+      "source_count": 6,
+      "mention_count_old": 0,
+      "mention_count_new": 0,
+      "status": "pending",
+      "created_at": "2026-08-29T03:00:53.027060Z"
+    },
+    {
+      "skill": "React",
+      "change_type": "promoted",
+      "old_requirement": "preferred",
+      "new_requirement": "required",
+      "trust_score": 0.6273,
+      "source_count": 6,
+      "mention_count_old": 0,
+      "mention_count_new": 2,
+      "status": "approved",
+      "created_at": "2026-08-29T03:00:53.022557Z"
+    },
+    {
+      "skill": "Vue.js",
+      "change_type": "retained",
+      "old_requirement": "required",
+      "new_requirement": "required",
+      "trust_score": 0.6073,
+      "source_count": 6,
+      "mention_count_old": 0,
+      "mention_count_new": 2,
+      "status": "approved",
+      "created_at": "2026-08-29T03:00:53.017957Z"
+    },
+    {
+      "skill": "TypeScript",
+      "change_type": "removed",
+      "old_requirement": "required",
+      "new_requirement": null,
+      "trust_score": 0.4673,
+      "source_count": 6,
+      "mention_count_old": 0,
+      "mention_count_new": 0,
+      "status": "pending",
+      "created_at": "2026-08-29T03:00:53.013104Z"
+    },
+    {
+      "skill": "JavaScript",
+      "change_type": "retained",
+      "old_requirement": "required",
+      "new_requirement": "required",
+      "trust_score": 0.6073,
+      "source_count": 6,
+      "mention_count_old": 0,
+      "mention_count_new": 2,
+      "status": "approved",
+      "created_at": "2026-08-29T03:00:53.004889Z"
+    }
+  ],
+  "source": "evolution_changelog 真实记录（POST /api/v1/evolution/changelog/前端开发工程师）+ position detail",
+  "extracted_at": "2026-08-30"
+}

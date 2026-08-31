@@ -1,0 +1,9 @@
+{
+  "position": "前端开发工程师",
+  "input_type": "raw_jd_snippet",
+  "raw_jd": "职位：前端开发工程师\n公司：天爱共益（四川）科技有限公司\n地点：成都\n薪资：5k-6k\n学历：大专\n经验：1-3年",
+  "source_platform": "apify-lagou（与服务器 apify-lagou 源同源，导入自真实拉勾数据）",
+  "source_url": "https://www.lagou.com/wn/jobs/12858374.html",
+  "fetched_at": "2026-08-27",
+  "note": "真实 JD 列表摘要（拉勾原文片段）。完整 JD 正文存于数据库 jd_raw 表，公网 API 未暴露逐条 JD 读取接口，故此处提供真实摘要 + 可追溯 source_url；能力图谱输出来自服务器实时接口，保证真实。"
+}
