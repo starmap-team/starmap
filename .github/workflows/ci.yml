@@ -73,24 +73,6 @@ jobs:
           poetry run pip install --quiet pip-audit 2>/dev/null || pip install --quiet pip-audit
           pip-audit --strict --skip-editable 2>&1 | tail -20 || true
         continue-on-error: true
-      - name: 诊断 fastapi 路由结构（临时）
-        run: |
-          poetry run python - <<'EOF'
-          import fastapi
-          print("fastapi version:", fastapi.__version__)
-          from app.api.v1 import router as api_router
-          print("api_router type:", type(api_router))
-          print("api_router.routes len:", len(getattr(api_router, "routes", [])))
-          for r in getattr(api_router, "routes", []):
-              print("  -", type(r).__name__, "| path:", getattr(r, "path", None), "| has routes:", bool(getattr(r, "routes", None)), "| dir:", [a for a in dir(r) if "route" in a.lower() or "path" in a.lower()][:8])
-          try:
-              from app.api.v1.pipeline import router as p_router
-              print("pipeline router routes len:", len(getattr(p_router, "routes", [])))
-              for r in getattr(p_router, "routes", []):
-                  print("  -", type(r).__name__, "| path:", getattr(r, "path", None), "| has routes:", bool(getattr(r, "routes", None)))
-          except Exception as e:
-              print("pipeline import error:", e)
-          EOF
       - name: Pytest（含覆盖率门禁 70%）
         run: poetry run pytest
       - name: 契约一致性校验（FastAPI 导出 vs openapi.yaml）

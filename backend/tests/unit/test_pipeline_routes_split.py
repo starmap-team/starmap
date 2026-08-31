@@ -7,16 +7,22 @@ from __future__ import annotations
 from pathlib import Path
 
 
-def _flatten_routes(routes):
-    """FastAPI 0.139 把 include_router 包装成 _IncludedRouter(无 .path) —
-    递归展开其 subroutes, 返回所有叶子路由的 path 集合。"""
+def _flatten_routes(routes, prefix: str = ""):
+    """FastAPI 0.139 把 include_router 包装成 _IncludedRouter(无 .path/.routes) —
+    经 .original_router 拿到被 include 的真实 APIRouter, 并把 include_context.prefix
+    拼到子路由 path 前, 递归展开所有叶子路由的完整 path。"""
     paths: set[str] = set()
     for r in routes:
+        original = getattr(r, "original_router", None)
+        if original is not None:
+            sub_prefix = getattr(getattr(r, "include_context", None), "prefix", "") or ""
+            paths |= _flatten_routes(original.routes, prefix + sub_prefix)
+            continue
         sub = getattr(r, "routes", None)
         if sub:
-            paths |= _flatten_routes(sub)
+            paths |= _flatten_routes(sub, prefix)
         elif getattr(r, "path", None):
-            paths.add(r.path)
+            paths.add(prefix + r.path)
     return paths
 
 
