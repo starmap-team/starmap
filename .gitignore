@@ -229,6 +229,11 @@ _*.jpg
 test-screenshots/
 screenshots/
 
+# ---- 演示视频（体积大不入库，提交材料由云盘单独提供）----
+docs/competition/video/
+*.mp4
+*.webm
+
 # ---- Windows NUL 设备误生成 ----
 nul
 
