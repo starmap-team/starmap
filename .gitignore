@@ -234,6 +234,12 @@ docs/competition/video/
 *.mp4
 *.webm
 
+# ---- 答辩交付物（不入库，提交材料由云盘单独提供）----
+docs/competition/pdf/
+docs/competition/ppt/
+*.pdf
+*.pptx
+
 # ---- Windows NUL 设备误生成 ----
 nul
 
