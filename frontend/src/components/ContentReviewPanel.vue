@@ -748,7 +748,7 @@ async function saveDefEditor() {
       width="460px"
       append-to-body
       destroy-on-close
-      @update:model-value="(v: boolean) => { if (!v) nameCnEditor = null }"
+      @close="nameCnEditor = null"
     >
       <el-form
         v-if="nameCnEditor"
@@ -791,7 +791,7 @@ async function saveDefEditor() {
       width="620px"
       append-to-body
       destroy-on-close
-      @update:model-value="(v: boolean) => { if (!v) defEditor = null }"
+      @close="defEditor = null"
     >
       <el-form
         v-if="defEditor"
