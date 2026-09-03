@@ -10,7 +10,7 @@
  * State machine: draft → pending_review → approved | rejected
  * (see app.services.review_service on the backend)
  */
-import { onMounted, ref, computed, watch } from 'vue'
+import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Close, EditPen, RefreshRight } from '@element-plus/icons-vue'
 import request from '@/api/request'
@@ -306,6 +306,81 @@ async function saveNameCn() {
     nameCnSaving.value = false
   }
 }
+
+// ── A3 人工优化：编辑岗位定义五要素（行业场景/核心职责/加分技能/简述）──
+const defEditor = ref<ReviewItem | null>(null)
+const defForm = reactive({
+  industry_scenario: '',
+  core_responsibilities: [] as string[],
+  bonus_skills: [] as string[],
+  summary: '',
+})
+const defSaving = ref(false)
+const defSkillInput = ref('')
+const defBonusInput = ref('')
+
+function openDefEditor(item: ReviewItem) {
+  defEditor.value = item
+  defForm.industry_scenario = ''
+  defForm.core_responsibilities = []
+  defForm.bonus_skills = []
+  defForm.summary = ''
+  defSkillInput.value = ''
+  defBonusInput.value = ''
+}
+
+function addDefSkill() {
+  const v = defSkillInput.value.trim()
+  if (v && !defForm.core_responsibilities.includes(v)) {
+    defForm.core_responsibilities.push(v)
+  }
+  defSkillInput.value = ''
+}
+
+function addDefBonus() {
+  const v = defBonusInput.value.trim()
+  if (v && !defForm.bonus_skills.includes(v)) {
+    defForm.bonus_skills.push(v)
+  }
+  defBonusInput.value = ''
+}
+
+async function saveDefEditor() {
+  if (!defEditor.value) return
+  const payload: Record<string, unknown> = {}
+  if (defForm.industry_scenario.trim()) {
+    payload.industry_scenario = defForm.industry_scenario.trim()
+  }
+  if (defForm.core_responsibilities.length > 0) {
+    payload.core_responsibilities = defForm.core_responsibilities
+  }
+  if (defForm.bonus_skills.length > 0) {
+    payload.bonus_skills = defForm.bonus_skills
+  }
+  if (defForm.summary.trim()) {
+    payload.summary = defForm.summary.trim()
+  }
+  if (Object.keys(payload).length === 0) {
+    ElMessage.warning('请至少填写一项内容')
+    return
+  }
+  defSaving.value = true
+  try {
+    const item = defEditor.value
+    await request.patch(
+      `/admin/review/${item.entity_type}/${item.entity_id}/definition`,
+      payload,
+    )
+    ElMessage.success(`已更新「${item.name}」岗位定义`)
+    defEditor.value = null
+    await refresh()
+  } catch (e) {
+    const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    ElMessage.error(detail ?? `更新岗位定义失败: ${e instanceof Error ? e.message : '未知错误'}`)
+  } finally {
+    defSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -592,7 +667,7 @@ async function saveNameCn() {
       </el-table-column>
       <el-table-column
         label="操作"
-        width="280"
+        width="360"
         fixed="right"
       >
         <template #default="{ row }">
@@ -603,6 +678,16 @@ async function saveNameCn() {
             @click="openNameCnEditor(row)"
           >
             改中文名
+          </el-button>
+          <el-button
+            v-if="row.entity_type === 'position'"
+            size="small"
+            plain
+            type="primary"
+            :icon="EditPen"
+            @click="openDefEditor(row)"
+          >
+            编辑定义
           </el-button>
           <el-button
             v-if="row.review_status === 'pending_review'"
@@ -694,6 +779,98 @@ async function saveNameCn() {
           @click="saveNameCn"
         >
           保存中文名
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- A3 人工优化：岗位定义五要素编辑弹窗（行业场景/核心职责/加分技能/简述） -->
+    <el-dialog
+      :model-value="defEditor !== null"
+      :title="defEditor ? `编辑岗位定义 — 「${defEditor.name}」` : ''"
+      width="620px"
+      append-to-body
+      @update:model-value="(v: boolean) => { if (!v) defEditor = null }"
+    >
+      <el-form
+        v-if="defEditor"
+        label-position="top"
+      >
+        <el-form-item label="典型行业应用场景">
+          <el-input
+            v-model="defForm.industry_scenario"
+            type="textarea"
+            :rows="2"
+            placeholder="如：自动驾驶 · 车路协同；金融风控 · 实时决策"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+        <el-form-item label="核心职责（逐条添加）">
+          <div class="def-tag-row">
+            <el-tag
+              v-for="(r, i) in defForm.core_responsibilities"
+              :key="`cr-${i}`"
+              closable
+              @close="defForm.core_responsibilities.splice(i, 1)"
+            >
+              {{ r }}
+            </el-tag>
+          </div>
+          <div class="def-input-row">
+            <el-input
+              v-model="defSkillInput"
+              placeholder="输入职责后回车添加，如：负责系统架构设计"
+              @keyup.enter="addDefSkill"
+            />
+            <el-button @click="addDefSkill">
+              添加
+            </el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="加分技能（逐条添加）">
+          <div class="def-tag-row">
+            <el-tag
+              v-for="(b, i) in defForm.bonus_skills"
+              :key="`bn-${i}`"
+              type="warning"
+              closable
+              @close="defForm.bonus_skills.splice(i, 1)"
+            >
+              {{ b }}
+            </el-tag>
+          </div>
+          <div class="def-input-row">
+            <el-input
+              v-model="defBonusInput"
+              placeholder="输入技能后回车添加，如：Kubernetes"
+              @keyup.enter="addDefBonus"
+            />
+            <el-button @click="addDefBonus">
+              添加
+            </el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="岗位简述">
+          <el-input
+            v-model="defForm.summary"
+            type="textarea"
+            :rows="2"
+            placeholder="一句话概述该岗位的定位与价值"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="defEditor = null">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="defSaving"
+          @click="saveDefEditor"
+        >
+          保存定义
         </el-button>
       </template>
     </el-dialog>
@@ -805,5 +982,19 @@ async function saveNameCn() {
   display: flex;
   justify-content: center;
   padding: var(--space-3) 0;
+}
+
+.def-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  min-height: 24px;
+}
+
+.def-input-row {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
 }
 </style>

@@ -16,15 +16,27 @@ const candidates = ref<DiscoverCandidate[]>([])
 const loading = ref(false)
 const status = ref('') // completed / insufficient_data / no_candidates / error
 const backendMessage = ref('')
+// A3 异步五要素生成状态
+const defining = ref(false)
+const defineTaskId = ref('')
+const defineMsg = ref('')
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
-async function fetchCandidates(showErrorToast = false) {
+async function fetchCandidates(showErrorToast = false, asyncDefine = false) {
   if (loading.value) return
   loading.value = true
   try {
-    const res = await api.discoverPositions()
+    const res = await api.discoverPositions(false, asyncDefine)
     candidates.value = res.emerging_positions ?? []
     status.value = res.status
     backendMessage.value = res.message ?? ''
+    // 异步模式：返回 task_id 则启动轮询
+    if (asyncDefine && res.definitions?.mode === 'async' && res.definitions.task_id) {
+      defineTaskId.value = res.definitions.task_id
+      defining.value = true
+      defineMsg.value = '五要素后台生成中，完成后自动刷新…'
+      startPolling(res.definitions.task_id)
+    }
   } catch (e: unknown) {
     status.value = 'error'
     const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -36,8 +48,40 @@ async function fetchCandidates(showErrorToast = false) {
   }
 }
 
+function startPolling(taskId: string) {
+  stopPolling()
+  pollTimer = setInterval(async () => {
+    try {
+      const st = await api.discoverDefinitionStatus(taskId)
+      if (st.status === 'SUCCESS') {
+        defineMsg.value = `五要素生成完成：成功 ${st.generated ?? 0}，失败 ${st.failed ?? 0}`
+        defining.value = false
+        stopPolling()
+        await fetchCandidates(false) // 生成后自动刷新候选（含五要素）
+      } else if (st.status === 'FAILURE') {
+        defineMsg.value = `生成失败：${st.message ?? '未知错误'}`
+        defining.value = false
+        stopPolling()
+      } else {
+        defineMsg.value = `五要素后台生成中（${st.status}），完成后自动刷新…`
+      }
+    } catch {
+      // 轮询失败静默，下次重试
+    }
+  }, 10000)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
 onMounted(() => {
   void fetchCandidates(false) // 进页面自动加载，失败静默显示空态
+  // 组件卸载时清理轮询
+  return () => stopPolling()
 })
 
 // 候选岗位显示名：中文名优先（name_cn），后端未返回时保留 position
@@ -108,8 +152,30 @@ const emptyDescription = (): string => {
         >
           重新发现
         </el-button>
+        <el-button
+          v-if="!defining"
+          class="define-btn"
+          size="small"
+          type="primary"
+          plain
+          :loading="loading"
+          @click="fetchCandidates(true, true)"
+        >
+          生成五要素
+        </el-button>
       </div>
     </template>
+
+    <!-- A3 异步生成状态提示 -->
+    <el-alert
+      v-if="defining || defineMsg"
+      :type="defining ? 'info' : 'success'"
+      :closable="false"
+      show-icon
+      class="define-status"
+    >
+      {{ defineMsg }}
+    </el-alert>
 
     <!-- 候选卡片网格（与页面 emerging-grid 一致的 auto-fill 风格） -->
     <div

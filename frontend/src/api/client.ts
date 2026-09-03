@@ -82,6 +82,24 @@ export interface DiscoverResponse {
   skills_analyzed: number
   emerging_positions: DiscoverCandidate[]
   message?: string
+  // A3 异步模式（async_define=true）：返回 task_id 供轮询
+  definitions?: {
+    mode: 'async' | 'sync'
+    task_id?: string
+    generated?: number
+    failed?: number
+    warnings?: string[]
+    message?: string
+  }
+}
+
+export interface DiscoverStatusResponse {
+  task_id: string
+  status: string // PENDING / STARTED / SUCCESS / FAILURE / RETRY
+  generated?: number
+  failed?: number
+  queried?: number
+  message?: string
 }
 
 // ── Convenience methods for most-used endpoints ──
@@ -102,10 +120,17 @@ export const api = {
     typedGet(`/positions/${positionId}`),
   // A3 五要素：admin 登录态下带 with_definitions=true，由后端 LLM 补齐
   // 行业场景/核心职责/加分技能/岗位简述（fail-soft，单岗位失败不阻断）
-  discoverPositions: (withDefinitions = true) =>
+  // asyncDefine=true 时后端触发 celery 异步全量生成，返回 task_id 供轮询
+  discoverPositions: (withDefinitions = true, asyncDefine = false) =>
     request.post<DiscoverResponse>('/positions/discover', undefined, {
-      params: { with_definitions: withDefinitions },
+      params: {
+        with_definitions: withDefinitions,
+        async_define: asyncDefine || undefined,
+      },
     }),
+  // A3 异步生成状态查询（discover?async_define=true 返回的 task_id）
+  discoverDefinitionStatus: (taskId: string) =>
+    request.get<DiscoverStatusResponse>(`/positions/discover/status/${taskId}`),
 
  // Match — typed with OpenAPI schema; stores that pass varying shapes
  // should normalize before calling, or use typedPost directly.
