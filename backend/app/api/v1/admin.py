@@ -794,6 +794,7 @@ async def update_definition_endpoint(
             action="update_definition",
             actor=user.get("sub", "admin"),
             detail=f"五要素人工优化: {', '.join(updates.keys())}",
+            new_status=row.review_status,  # NOT NULL 约束（044 迁移前经验：缺必填字段致 IntegrityError）
             created_at=datetime.now(UTC),
         )
         session.add(audit)
