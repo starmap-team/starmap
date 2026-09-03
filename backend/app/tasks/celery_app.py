@@ -276,6 +276,25 @@ def daily_fill_missing_definitions_task(self, schedule_id: str | None = None) ->
         logger.exception("daily_fill_missing_definitions_task error: {}", exc)
         raise self.retry(exc=exc, countdown=300) from exc
 
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=300, acks_late=True)
+def generate_candidates_definitions_task(self, limit: int = 300) -> dict:
+    """① A3 discover 异步全量生成：discover 触发后后台补齐缺五要素候选岗位。
+
+    与 daily_fill_missing_definitions_task 同逻辑（缺五要素 approved 岗位），
+    但由 discover 端点带 async_define=true 触发，limit 覆盖全部候选（默认 300
+    覆盖 208 候选 + 余量），前端轮询 task_id 状态。
+    """
+    try:
+        from app.tasks.stage3_services import run_backfill_missing_definitions
+
+        return run_async(run_backfill_missing_definitions(limit=limit, include_hidden=True))
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("generate_candidates_definitions_task error: {}", exc)
+        raise self.retry(exc=exc, countdown=300) from exc
+
 @celery_app.task(bind=True, max_retries=2, default_retry_delay=60)
 def scheduled_pipeline_run(self, schedule_id: str) -> None:
     """CRON-04: 读取 schedule 并触发 pipeline。

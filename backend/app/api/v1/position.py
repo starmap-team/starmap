@@ -305,6 +305,10 @@ async def discover_position(
         int,
         Query(ge=1, le=50, description="生成定义的岗位数上限（按 emerging_ratio 取 Top-N）"),
     ] = 10,
+    async_define: Annotated[
+        bool,
+        Query(description="A3: 异步全量生成五要素——触发 celery 后台任务补齐全部缺五要素候选（非阻塞，返回 task_id 供轮询）。仅 admin"),
+    ] = False,
 ) -> dict[str, Any]:
     """触发新兴岗位发现：基于技能频率 Z-score 检测。
 
@@ -313,14 +317,16 @@ async def discover_position(
     若无时序数据则返回"数据不足"提示。
 
     with_definitions=true（A3，仅 admin）：对 emerging_ratio Top-N 候选岗位
-    调 LLM 补齐行业场景/核心职责/加分技能/岗位简述，凑齐赛项要求的
-    "岗位名称、核心职责、必备技能、加分技能、典型行业应用场景"五要素。
+    同步调 LLM 补齐五要素（≤50，避免请求超时）。
+    async_define=true（A3，仅 admin）：异步全量生成——触发 celery 后台任务
+    补齐全部缺五要素岗位（默认 300 覆盖 208 候选），立即返回 task_id，
+    前端轮询 GET /positions/discover/status/{task_id} 查看进度。
     fail-soft：单个岗位生成失败不影响其余候选。
     """
     from app.services.evolution_service import EmergenceFinder
 
-    if with_definitions and user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="with_definitions 仅 admin 可用（消耗 LLM 配额）")
+    if (with_definitions or async_define) and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="with_definitions/async_define 仅 admin 可用（消耗 LLM 配额）")
 
     try:
  # Step 1: Load timeseries data for frequency history
@@ -353,6 +359,25 @@ async def discover_position(
 
         emerging_positions = await _discover_position_candidates(db, report)
         definitions_meta: dict[str, Any] | None = None
+
+        # A3 异步全量生成（优先于 with_definitions）：触发 celery 后台任务
+        if async_define and emerging_positions:
+            from app.tasks.celery_app import generate_candidates_definitions_task
+
+            task = generate_candidates_definitions_task.delay(limit=300)
+            return {
+                "status": "completed",
+                "emerging_skills": emerging,
+                "count": len(emerging),
+                "skills_analyzed": len(skill_data),
+                "emerging_positions": emerging_positions,
+                "definitions": {
+                    "mode": "async",
+                    "task_id": task.id,
+                    "message": "五要素异步生成已排队，轮询 GET /positions/discover/status/{task_id}",
+                },
+            }
+
         if with_definitions and emerging_positions:
             from app.services.evolution_service import generate_position_definitions
 
@@ -394,6 +419,50 @@ async def _discover_position_candidates(
 
     result = await discover_emerging_positions(session)
     return result.get("candidates", [])
+
+
+@router.get("/discover/status/{task_id}", summary="查询五要素异步生成任务状态")
+async def discover_definition_status(
+    task_id: str,
+    user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> dict[str, Any]:
+    """A3 异步生成状态轮询端点（配合 discover?async_define=true）。
+
+    经 celery AsyncResult 读取后台任务状态：
+      PENDING/STARTED → 生成中
+      SUCCESS → 完成（含 generated/failed 统计）
+      FAILURE → 失败（含错误信息）
+    """
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="仅 admin 可查询")
+
+    from celery.result import AsyncResult
+
+    from app.tasks.celery_app import celery_app
+
+    result = AsyncResult(task_id, app=celery_app)
+    state = result.state
+    payload: dict[str, Any] = {"task_id": task_id, "status": state}
+
+    if state == "SUCCESS":
+        info = result.result or {}
+        payload.update(
+            {
+                "generated": info.get("generated", info.get("done", 0)),
+                "failed": info.get("failed", 0),
+                "queried": info.get("queried", info.get("total", 0)),
+                "message": "五要素生成完成",
+            }
+        )
+    elif state == "FAILURE":
+        exc = result.result
+        payload["message"] = f"生成失败: {type(exc).__name__}: {exc}" if exc else "生成失败"
+    elif state in ("PENDING", "STARTED", "RETRY"):
+        payload["message"] = "五要素生成中，请稍后刷新"
+    else:
+        payload["message"] = f"未知任务状态: {state}"
+
+    return payload
 
 
 @admin_router.post(
