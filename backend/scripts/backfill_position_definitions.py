@@ -22,7 +22,7 @@ from app.models.extraction_models import PositionRecord, PositionSkillRelation, 
 from app.services.evolution_service import generate_position_definitions
 
 
-async def backfill(limit: int, dry_run: bool, industry: str | None) -> None:
+async def backfill(limit: int, dry_run: bool, industry: str | None, include_hidden: bool = True) -> None:
     engine = get_async_engine()
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -32,17 +32,19 @@ async def backfill(limit: int, dry_run: bool, industry: str | None) -> None:
             .where(
                 PositionRecord.review_status == "approved",
                 PositionRecord.industry_scenario.is_(None),
-                # 图内岗位口径：quality_hint IS NULL（非隐藏），评委可见 465/446
-                PositionRecord.quality_hint.is_(None),
             )
         )
+        # 图内岗位口径：quality_hint IS NULL（非隐藏），评委可见 465/446
+        # include_hidden=False 时仅图内；True（默认）含图外 → 全量 938 口径
+        if not include_hidden:
+            stmt = stmt.where(PositionRecord.quality_hint.is_(None))
         if industry:
             # 参数化：ilike 模式值由 SQLAlchemy 绑定为占位符（无字符串插值注入面）
             pattern = industry if "%" in industry else "%" + industry + "%"
             stmt = stmt.where(PositionRecord.industry.ilike(pattern))
         stmt = stmt.order_by(PositionRecord.created_at).limit(limit)
         rows = (await session.execute(stmt)).scalars().all()
-    print(f"[backfill-defs] {len(rows)} 个岗位缺五要素" + ("（dry-run）" if dry_run else ""))
+    print(f"[backfill-defs] {len(rows)} 个岗位缺五要素" + ("（dry-run）" if dry_run else "") + f"（include_hidden={include_hidden}）")
 
     # 构造 candidate dict（generate_position_definitions 所需结构）
     candidates = []
