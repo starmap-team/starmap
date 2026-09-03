@@ -743,3 +743,17 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
         }
     finally:
         await engine.dispose()
+
+
+async def run_backfill_missing_definitions(limit: int = 200, include_hidden: bool = True) -> dict:
+    """A3 闭环：批量补齐缺五要素岗位（含图外，全量 938 口径）。
+
+    供 celery 任务（每日 beat 扫描 + API 手动触发）调用。
+    复用 scripts.backfill_position_definitions.backfill 的批量生成逻辑，
+    但以可编程方式调用（非 CLI），返回结构化结果。
+    """
+    from scripts.backfill_position_definitions import backfill
+
+    # backfill() 打印进度到 stdout（celery 日志可见），dry_run=False 实际回填
+    await backfill(limit=limit, dry_run=False, industry=None, include_hidden=include_hidden)
+    return {"status": "completed", "limit": limit, "include_hidden": include_hidden}

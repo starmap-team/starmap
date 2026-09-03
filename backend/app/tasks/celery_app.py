@@ -258,6 +258,24 @@ def reconcile_graph_task(self, schedule_id: str) -> None:
         logger.exception("reconcile_graph_task error: {}", exc)
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries)) from exc
 
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=300, acks_late=True)
+def daily_fill_missing_definitions_task(self, schedule_id: str | None = None) -> dict:
+    """④ A3 可持续闭环：每日扫描缺五要素岗位并 LLM 补齐（成本护栏 200/日）。
+
+    Triggered by cron_scanner when a `daily_fill_definitions` schedule comes due
+    （seed 迁移 043 注册），或手动经 API 触发（schedule_id=None）。
+    复用 scripts.backfill_position_definitions 的批量逻辑（10/批 + fail-soft）。
+    """
+    try:
+        from app.tasks.stage3_services import run_backfill_missing_definitions
+
+        return run_async(run_backfill_missing_definitions(limit=200, include_hidden=True))
+    except StarMapError:
+        raise
+    except Exception as exc:
+        logger.exception("daily_fill_missing_definitions_task error: {}", exc)
+        raise self.retry(exc=exc, countdown=300) from exc
+
 @celery_app.task(bind=True, max_retries=2, default_retry_delay=60)
 def scheduled_pipeline_run(self, schedule_id: str) -> None:
     """CRON-04: 读取 schedule 并触发 pipeline。

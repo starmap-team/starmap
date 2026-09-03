@@ -171,6 +171,10 @@ async def trigger_schedule(
         if schedule.name in ("daily_reconcile", "graph_reconcile"):
             from app.tasks.celery_app import reconcile_graph_task  # type: ignore[attr-defined]
             task = reconcile_graph_task
+        elif schedule.name == "daily_fill_definitions":
+            # A3 可持续闭环：每日扫描补空五要素（见 celery_app.daily_fill_missing_definitions_task）
+            from app.tasks.celery_app import daily_fill_missing_definitions_task  # type: ignore[attr-defined]
+            task = daily_fill_missing_definitions_task
         else:
             from app.tasks.celery_app import scheduled_pipeline_run as task
 

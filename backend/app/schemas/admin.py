@@ -254,6 +254,27 @@ class NameCnUpdateRequest(BaseModel):
     name_cn: str = Field(..., min_length=1, max_length=255, description="中文显示名（非空）")
 
 
+class DefinitionUpdateRequest(BaseModel):
+    """A3 人工优化：编辑岗位定义五要素（核心职责/加分技能/行业场景/简述）。
+
+    仅岗位（position）支持；技能实体无五要素概念。
+    字段均可选——只更新传入的非 None 字段（PATCH 语义），None 表示不修改。
+    """
+
+    industry_scenario: str | None = Field(
+        default=None, max_length=500, description="典型行业应用场景（如：自动驾驶 · 车路协同）"
+    )
+    core_responsibilities: list[str] | None = Field(
+        default=None, description="核心职责列表（每项 ≤100 字）"
+    )
+    bonus_skills: list[str] | None = Field(
+        default=None, description="加分技能列表"
+    )
+    summary: str | None = Field(
+        default=None, max_length=500, description="岗位简述"
+    )
+
+
 class PipelineStatusResponse(BaseModel):
     """Pipeline status + data health summary."""
 

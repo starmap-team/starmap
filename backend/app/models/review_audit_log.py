@@ -54,7 +54,8 @@ class ReviewAuditLog(Base):
             name="ck_review_audit_log_entity_type",
         ),
         CheckConstraint(
-            "action IN ('submit', 'approve', 'reject', 'unpublish', 'grandfather')",
+            "action IN ('submit', 'approve', 'reject', 'unpublish', 'grandfather', "
+            "'update_name_cn', 'update_definition')",
             name="ck_review_audit_log_action",
         ),
         Index("ix_review_audit_log_entity", "entity_type", "entity_id"),

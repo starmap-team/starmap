@@ -37,7 +37,9 @@ async def backfill(limit: int, dry_run: bool, industry: str | None) -> None:
             )
         )
         if industry:
-            stmt = stmt.where(PositionRecord.industry.ilike(f"%{industry}%"))
+            # 参数化：ilike 模式值由 SQLAlchemy 绑定为占位符（无字符串插值注入面）
+            pattern = industry if "%" in industry else "%" + industry + "%"
+            stmt = stmt.where(PositionRecord.industry.ilike(pattern))
         stmt = stmt.order_by(PositionRecord.created_at).limit(limit)
         rows = (await session.execute(stmt)).scalars().all()
     print(f"[backfill-defs] {len(rows)} 个岗位缺五要素" + ("（dry-run）" if dry_run else ""))
@@ -111,9 +113,10 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=500, help="最多处理条数")
     parser.add_argument("--dry-run", action="store_true", help="只列出不生成")
     parser.add_argument("--only", type=str, default=None, help="仅处理指定行业（ilike）")
+    parser.add_argument("--graph-only", action="store_true", help="仅图内岗位（quality_hint IS NULL）")
     args = parser.parse_args()
     try:
-        asyncio.run(backfill(args.limit, args.dry_run, args.only))
+        asyncio.run(backfill(args.limit, args.dry_run, args.only, include_hidden=not args.graph_only))
     except KeyboardInterrupt:
         print("\n[backfill-defs] 中断")
         sys.exit(130)

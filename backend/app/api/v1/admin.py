@@ -19,6 +19,7 @@ from app.schemas.admin import (
     AuditQueueResponse,
     AuditUpdateRequest,
     BatchAuditRequest,
+    DefinitionUpdateRequest,
     NameCnUpdateRequest,
     PipelineStatusResponse,
     PipelineTriggerResponse,
@@ -724,6 +725,108 @@ async def update_name_cn_endpoint(
         except Exception as exc:  # noqa: BLE001 — 图同步失败不阻断 PG 更新
             logger.warning("name_cn graph sync failed for {} {}: {}", entity_type, entity_id, exc)
     return item.to_dict()
+
+
+@router.patch("/review/{entity_type}/{entity_id}/definition")
+async def update_definition_endpoint(
+    entity_type: Literal["position", "skill"],
+    entity_id: str,
+    body: DefinitionUpdateRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
+    user: Annotated[dict[str, Any], Depends(require_admin)],
+) -> dict[str, Any]:
+    """A3 人工优化：编辑岗位定义五要素（核心职责/加分技能/行业场景/简述）。
+
+    赛项要求「岗位定义支持人工优化与动态更新」。审核员/管理员可对任意
+    approved 岗位修正 LLM 生成的五要素（PATCH 语义——仅更新传入字段）。
+    写 PG（SSOT）→ 同步 Neo4j Position 节点属性；非破坏、幂等、可审计。
+    """
+    if entity_type != "position":
+        raise HTTPException(status_code=422, detail="仅岗位（position）支持五要素编辑")
+
+    try:
+        uid = uuid_mod.UUID(entity_id)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="entity_id must be a UUID") from exc
+
+    # 读取岗位（不存在 → 404）
+    from sqlalchemy import select as sa_select
+
+    from app.models.extraction_models import PositionRecord
+
+    row = (
+        await session.execute(
+            sa_select(PositionRecord).where(PositionRecord.id == uid)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"position {entity_id} not found")
+
+    # PATCH 语义：仅更新传入的非 None 字段；空列表视为清空（显式传 []）
+    updates: dict[str, Any] = {}
+    if body.industry_scenario is not None:
+        row.industry_scenario = body.industry_scenario.strip() or None
+        updates["industry_scenario"] = row.industry_scenario
+    if body.core_responsibilities is not None:
+        cleaned = [str(x).strip() for x in body.core_responsibilities if str(x).strip()]
+        row.core_responsibilities = cleaned
+        updates["core_responsibilities"] = cleaned
+    if body.bonus_skills is not None:
+        cleaned = [str(x).strip() for x in body.bonus_skills if str(x).strip()]
+        row.bonus_skills = cleaned
+        updates["bonus_skills"] = cleaned
+    if body.summary is not None:
+        row.summary = body.summary.strip() or None
+        updates["summary"] = row.summary
+
+    if not updates:
+        raise HTTPException(status_code=422, detail="无更新字段（至少传一个五要素字段）")
+
+    # 审计日志（人工优化可追溯）
+    try:
+        from app.models.review_audit_log import ReviewAuditLog
+        from datetime import UTC, datetime
+
+        audit = ReviewAuditLog(
+            entity_type="position",
+            entity_id=uid,
+            action="update_definition",
+            actor=user.get("sub", "admin"),
+            detail=f"五要素人工优化: {', '.join(updates.keys())}",
+            created_at=datetime.now(UTC),
+        )
+        session.add(audit)
+    except Exception as exc:  # noqa: BLE001 — 审计失败不阻断主更新
+        logger.warning("definition audit log failed (non-fatal): {}", exc)
+
+    await session.commit()
+
+    # 同步 Neo4j Position 节点（图谱展示跟随 PG 权威）
+    if neo4j_driver is not None:
+        try:
+            from app.services.graph_projector import GraphProjector
+
+            projector = GraphProjector(neo4j_driver)
+            await projector.apply_change(
+                label="Position",
+                canonical_id=uid,
+                properties={k: v for k, v in updates.items() if v is not None},
+            )
+        except Exception as exc:  # noqa: BLE001 — 图同步失败不阻断 PG 更新
+            logger.warning("definition graph sync failed for {}: {}", entity_id, exc)
+
+    return {
+        "id": str(uid),
+        "name": row.name,
+        "updated_fields": list(updates.keys()),
+        "definition": {
+            "industry_scenario": row.industry_scenario,
+            "core_responsibilities": row.core_responsibilities or [],
+            "bonus_skills": row.bonus_skills or [],
+            "summary": row.summary,
+        },
+    }
 
 
 @router.post("/review/{entity_type}/{entity_id}/unpublish")
