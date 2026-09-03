@@ -747,6 +747,7 @@ async function saveDefEditor() {
       :title="nameCnEditor ? `调整中文名 — ${nameCnEditor.entity_type === 'position' ? '岗位' : '技能'}「${nameCnEditor.name}」` : ''"
       width="460px"
       append-to-body
+      destroy-on-close
       @update:model-value="(v: boolean) => { if (!v) nameCnEditor = null }"
     >
       <el-form
@@ -789,6 +790,7 @@ async function saveDefEditor() {
       :title="defEditor ? `编辑岗位定义 — 「${defEditor.name}」` : ''"
       width="620px"
       append-to-body
+      destroy-on-close
       @update:model-value="(v: boolean) => { if (!v) defEditor = null }"
     >
       <el-form
