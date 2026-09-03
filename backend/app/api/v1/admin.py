@@ -783,7 +783,7 @@ async def update_definition_endpoint(
     if not updates:
         raise HTTPException(status_code=422, detail="无更新字段（至少传一个五要素字段）")
 
-    # 审计日志（人工优化可追溯）
+    # 审计日志（人工优化可追溯）— ReviewAuditLog 无 detail 列，用 reason 存说明
     try:
         from app.models.review_audit_log import ReviewAuditLog
         from datetime import UTC, datetime
@@ -793,7 +793,7 @@ async def update_definition_endpoint(
             entity_id=uid,
             action="update_definition",
             actor=user.get("sub", "admin"),
-            detail=f"五要素人工优化: {', '.join(updates.keys())}",
+            reason=f"五要素人工优化: {', '.join(updates.keys())}",
             new_status=row.review_status,  # NOT NULL 约束（044 迁移前经验：缺必填字段致 IntegrityError）
             created_at=datetime.now(UTC),
         )
