@@ -1,0 +1,216 @@
+{
+  "position": "Data Engineer",
+  "position_id": "d192b882-2543-4d50-89f5-0c26b223aa84",
+  "industry": "未分类",
+  "domain_tag": "数字经济/泛IT",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "Data Engineer广泛服务于金融科技、电商、SaaS及智能营销等行业，支撑实时风控、用户行为分析、个性化推荐与经营决策看板等场景，通过构建高可靠、低延迟的数据管道与可复用的数据产品，解决多源异构数据集成、规模化批流一体处理及云原生数据平台稳定交付等核心问题。",
+    "core_responsibilities": [
+      "设计并实现端到端批流一体数据管道",
+      "开发与维护云原生数据平台基础设施",
+      "构建可测试、可复用的数据模型与转换逻辑",
+      "协同MLOps流程支持模型训练数据供给",
+      "实施CI/CD驱动的数据工程自动化部署",
+      "保障数据质量、可观测性与平台SLA"
+    ],
+    "bonus_skills": [
+      "Airflow",
+      "Docker",
+      "Kubernetes",
+      "Delta Lake",
+      "Great Expectations",
+      "MLflow",
+      "Domain-Driven Design",
+      "Data Mesh"
+    ],
+    "summary": "Data Engineer是负责设计、构建和运维企业级可扩展数据基础设施与生产级数据产品的技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Data Engineering",
+        "name_cn": "数据工程",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 1
+      },
+      {
+        "skill": "Data Deployment",
+        "name_cn": "数据部署",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 1
+      },
+      {
+        "skill": "Model Training",
+        "name_cn": "模型训练",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 1
+      },
+      {
+        "skill": "Solution Development",
+        "name_cn": "解决方案开发",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 1
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 142
+      },
+      {
+        "skill": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 50
+      },
+      {
+        "skill": "C#",
+        "name_cn": "C#",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.32,
+        "source_count": 15
+      },
+      {
+        "skill": "System Design",
+        "name_cn": "系统设计",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 11
+      },
+      {
+        "skill": "CI/CD",
+        "name_cn": "CI/CD",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 22
+      },
+      {
+        "skill": "AWS",
+        "name_cn": "AWS",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 19
+      },
+      {
+        "skill": "Azure",
+        "name_cn": "Azure",
+        "category": "platform",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 22
+      },
+      {
+        "skill": "GCP",
+        "name_cn": "",
+        "category": "platform",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 11
+      },
+      {
+        "skill": "Kafka",
+        "name_cn": "Kafka",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 6
+      },
+      {
+        "skill": "Flink",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 5
+      },
+      {
+        "skill": "dbt",
+        "name_cn": "",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 5
+      },
+      {
+        "skill": "Snowflake",
+        "name_cn": "Snowflake",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 6
+      },
+      {
+        "skill": "Terraform",
+        "name_cn": "Terraform",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 7
+      },
+      {
+        "skill": "Scala",
+        "name_cn": "Scala",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 7
+      },
+      {
+        "skill": "Spark",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 8
+      },
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 40
+      },
+      {
+        "skill": "NoSQL",
+        "name_cn": "",
+        "category": "database",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 4
+      }
+    ],
+    "bonus_skills": [
+      "Airflow",
+      "Docker",
+      "Kubernetes",
+      "Delta Lake",
+      "Great Expectations",
+      "MLflow",
+      "Domain-Driven Design",
+      "Data Mesh"
+    ],
+    "skill_count": 21,
+    "total_source_count": 384
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

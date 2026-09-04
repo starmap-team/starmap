@@ -1,0 +1,61 @@
+{
+  "position": "数据分析师",
+  "position_id": "c57addd7-236f-4af9-9376-7e669a6c3f8b",
+  "industry": "数据科学",
+  "domain_tag": "大数据",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "数据分析师广泛服务于金融科技、电商、互联网平台及数字营销等行业，聚焦于从业务数据库中提取结构化数据，通过SQL完成高效查询与清洗，利用Python进行统计分析、可视化及基础建模，支撑用户行为分析、运营效果评估、销售趋势研判等决策场景。",
+    "core_responsibilities": [
+      "编写SQL语句提取和清洗业务数据库数据",
+      "使用Python进行数据探索性分析（EDA）",
+      "构建业务指标体系并定期产出分析报告",
+      "制作可视化图表辅助业务部门理解数据洞察",
+      "支持A/B测试结果分析与归因验证"
+    ],
+    "bonus_skills": [
+      "Pandas",
+      "Matplotlib/Seaborn",
+      "Tableau/Power BI",
+      "统计学基础",
+      "ETL流程理解",
+      "Git",
+      "云数据库（如AWS Redshift、阿里云MaxCompute）"
+    ],
+    "summary": "数据分析师是熟练运用SQL和Python开展数据提取、清洗、分析与可视化的岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 40
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 142
+      }
+    ],
+    "bonus_skills": [
+      "Pandas",
+      "Matplotlib/Seaborn",
+      "Tableau/Power BI",
+      "统计学基础",
+      "ETL流程理解",
+      "Git",
+      "云数据库（如AWS Redshift、阿里云MaxCompute）"
+    ],
+    "skill_count": 2,
+    "total_source_count": 182
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

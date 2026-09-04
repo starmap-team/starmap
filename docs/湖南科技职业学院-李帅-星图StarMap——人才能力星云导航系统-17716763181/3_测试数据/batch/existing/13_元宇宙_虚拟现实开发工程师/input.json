@@ -1,0 +1,29 @@
+{
+  "position": "元宇宙/虚拟现实开发工程师",
+  "input_type": "position_source_reference",
+  "industry": "游戏开发",
+  "domain_tag": "数字内容",
+  "source_platforms_note": "该岗位技能由系统多源采集的真实 JD 汇聚（source_count 为汇聚该技能的 JD 源数）；数据源分布见总 README datasources 表",
+  "skill_aggregation": {
+    "skills_count": 6,
+    "total_source_count": 81,
+    "top_skills": [
+      {
+        "skill": "C++",
+        "source_count": 32,
+        "confidence": 0.35
+      },
+      {
+        "skill": "JavaScript",
+        "source_count": 22,
+        "confidence": 0.35
+      },
+      {
+        "skill": "C#",
+        "source_count": 15,
+        "confidence": 0.35
+      }
+    ]
+  },
+  "fetched_at": "2026-09-03"
+}

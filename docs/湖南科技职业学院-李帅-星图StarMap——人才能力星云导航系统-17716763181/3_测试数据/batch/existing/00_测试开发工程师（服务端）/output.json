@@ -1,0 +1,200 @@
+{
+  "position": "测试开发工程师（服务端）",
+  "position_id": "4b24bb11-4bab-4399-9fab-45988dc9723a",
+  "industry": "后端开发",
+  "domain_tag": "后端工程",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位广泛服务于金融科技、电商、SaaS及云服务等高并发、强可靠性的服务端系统场景，聚焦于保障后端API与微服务接口的功能正确性、性能稳定性及持续交付质量，通过自动化测试与CI/CD集成快速发现并拦截服务端逻辑缺陷、协议异常与数据一致性问题。",
+    "core_responsibilities": [
+      "设计并实现服务端接口自动化测试用例",
+      "搭建和维护测试框架与持续集成流水线",
+      "编写高效SQL验证数据库操作逻辑",
+      "基于HTTP/TCP协议开展接口与契约测试",
+      "使用Git协同管理测试代码与版本",
+      "在Linux环境部署、调试与监控测试执行过程"
+    ],
+    "bonus_skills": [
+      "Docker",
+      "Kubernetes",
+      "Postman/Newman",
+      "JUnit/TestNG",
+      "Prometheus/Grafana",
+      "OpenAPI/Swagger",
+      "gRPC",
+      "Jenkins/GitLab CI"
+    ],
+    "summary": "测试开发工程师（服务端）是负责服务端接口质量保障、自动化测试体系构建与CI/CD深度集成的工程化质量岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 142
+      },
+      {
+        "skill": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 50
+      },
+      {
+        "skill": "Go",
+        "name_cn": "Go",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 29
+      },
+      {
+        "skill": "Linux",
+        "name_cn": "Linux",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 28
+      },
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 40
+      },
+      {
+        "skill": "HTTP",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 1
+      },
+      {
+        "skill": "TCP/IP",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 4
+      },
+      {
+        "skill": "API Testing",
+        "name_cn": "API测试",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 1
+      },
+      {
+        "skill": "Test Automation",
+        "name_cn": "测试自动化",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 3
+      },
+      {
+        "skill": "CI/CD",
+        "name_cn": "CI/CD",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 22
+      },
+      {
+        "skill": "Git",
+        "name_cn": "Git",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 11
+      },
+      {
+        "skill": "Kubernetes",
+        "name_cn": "Kubernetes",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.65,
+        "source_count": 21
+      },
+      {
+        "skill": "Docker",
+        "name_cn": "Docker",
+        "category": "tool",
+        "proficiency": "了解",
+        "confidence": 0.65,
+        "source_count": 12
+      },
+      {
+        "skill": "CI/CD",
+        "name_cn": "CI/CD",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.65,
+        "source_count": 22
+      },
+      {
+        "skill": "Prometheus",
+        "name_cn": "",
+        "category": "tool",
+        "proficiency": "了解",
+        "confidence": 0.65,
+        "source_count": 3
+      },
+      {
+        "skill": "Grafana",
+        "name_cn": "Grafana",
+        "category": "tool",
+        "proficiency": "了解",
+        "confidence": 0.65,
+        "source_count": 3
+      },
+      {
+        "skill": "Service Mesh",
+        "name_cn": "服务网格",
+        "category": "platform",
+        "proficiency": "了解",
+        "confidence": 0.65,
+        "source_count": 1
+      },
+      {
+        "skill": "微服务",
+        "name_cn": "微服务",
+        "category": "knowledge_areas",
+        "proficiency": "了解",
+        "confidence": 0.65,
+        "source_count": 2
+      },
+      {
+        "skill": "分布式系统",
+        "name_cn": "分布式系统",
+        "category": "knowledge_areas",
+        "proficiency": "了解",
+        "confidence": 0.65,
+        "source_count": 2
+      }
+    ],
+    "bonus_skills": [
+      "Docker",
+      "Kubernetes",
+      "Postman/Newman",
+      "JUnit/TestNG",
+      "Prometheus/Grafana",
+      "OpenAPI/Swagger",
+      "gRPC",
+      "Jenkins/GitLab CI"
+    ],
+    "skill_count": 19,
+    "total_source_count": 397
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

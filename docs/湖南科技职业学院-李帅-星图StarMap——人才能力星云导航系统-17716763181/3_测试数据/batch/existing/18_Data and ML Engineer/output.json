@@ -1,0 +1,93 @@
+{
+  "position": "Data and ML Engineer",
+  "position_id": "2e3c58cb-20ab-4dc2-8d41-1dbc847899de",
+  "industry": "数据工程",
+  "domain_tag": "大数据",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位广泛服务于金融科技、智能零售与医疗健康等行业，聚焦于构建稳定可复现的机器学习数据管道与模型交付流水线；利用Python/SQL/Spark处理多源异构数据，依托Azure云平台实现模型训练、部署及CI/CD自动化，通过MLflow统一管理实验、模型版本与生命周期。",
+    "core_responsibilities": [
+      "设计与维护高吞吐数据ETL流水线",
+      "开发可复现的机器学习训练与评估脚本",
+      "在Azure上部署和监控ML模型服务",
+      "配置并维护CI/CD流水线以支持模型迭代",
+      "使用MLflow进行实验跟踪与模型注册管理"
+    ],
+    "bonus_skills": [
+      "Docker",
+      "Kubernetes",
+      "Delta Lake",
+      "Azure ML",
+      "Great Expectations",
+      "PySpark MLlib",
+      "Feature Store（如Feast）"
+    ],
+    "summary": "Data and ML Engineer是负责构建、部署与运维端到端机器学习数据基础设施与模型交付流水线的工程岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 142
+      },
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 40
+      },
+      {
+        "skill": "Spark",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 8
+      },
+      {
+        "skill": "Azure",
+        "name_cn": "Azure",
+        "category": "platform",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 22
+      },
+      {
+        "skill": "CI/CD",
+        "name_cn": "CI/CD",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 22
+      },
+      {
+        "skill": "MLflow",
+        "name_cn": "",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 2
+      }
+    ],
+    "bonus_skills": [
+      "Docker",
+      "Kubernetes",
+      "Delta Lake",
+      "Azure ML",
+      "Great Expectations",
+      "PySpark MLlib",
+      "Feature Store（如Feast）"
+    ],
+    "skill_count": 6,
+    "total_source_count": 236
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

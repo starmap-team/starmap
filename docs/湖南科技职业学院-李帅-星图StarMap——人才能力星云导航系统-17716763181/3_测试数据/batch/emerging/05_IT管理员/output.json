@@ -1,0 +1,71 @@
+{
+  "position": "IT管理员",
+  "emerging_ratio": 1,
+  "definition_from_discover": {
+    "industry_scenario": "IT管理员广泛服务于政务云、教育信息化、中小型企业IT基础设施及开源软件服务商等场景，负责基于Linux系统的服务器部署、日常运维与基础安全加固，支撑业务系统稳定运行，解决系统可用性低、配置不一致、权限管理粗放等共性运维问题。",
+    "core_responsibilities": [
+      "Linux服务器安装与基础配置",
+      "用户与权限管理",
+      "日志监控与故障初步排查",
+      "软件包安装与服务启停维护",
+      "Shell脚本编写实现自动化运维",
+      "备份策略执行与基础数据恢复"
+    ],
+    "bonus_skills": [
+      "Shell脚本",
+      "Ansible",
+      "Docker",
+      "Nginx/Apache",
+      "Zabbix/Prometheus",
+      "TCP/IP网络基础",
+      "SELinux/AppArmor",
+      "Git"
+    ],
+    "summary": "IT管理员是负责Linux系统部署、日常运维、权限管理与基础自动化支持的IT基础设施保障岗位。",
+    "required_skills": [
+      "Linux"
+    ],
+    "note": "discover?with_definitions=true 实时生成（LLM），不落库；每次调用可能略有差异"
+  },
+  "in_graph_detail": {
+    "position_id": "2ef9a295-ba22-ed86-f2b6-a8a8b500e131",
+    "industry": "互联网/IT",
+    "review_status": "approved",
+    "skills_required": [
+      {
+        "skill_id": "66953f53-c492-bcd5-76f7-a1bd32afb4e4",
+        "name": "Linux",
+        "name_cn": "Linux",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 28
+      }
+    ],
+    "persisted_definition": {
+      "industry_scenario": "IT管理员主要服务于中小型企业、教育机构、政府基层单位及传统行业数字化转型初期场景，负责本地化IT基础设施的稳定运行。在这些场景中，其核心任务是基于Linux系统部署与维护服务器、网络设备及基础应用服务，保障办公系统、内部网站和数据存储等关键业务连续性。",
+      "core_responsibilities": [
+        "Linux服务器安装与基础配置",
+        "用户账户与权限管理",
+        "系统日志监控与故障排查",
+        "软件包更新与安全补丁维护",
+        "基础网络服务（DNS/DHCP/SSH）运维",
+        "本地文件系统与存储空间管理"
+      ],
+      "bonus_skills": [
+        "Shell脚本编写",
+        "Ansible基础运维自动化",
+        "Nginx/Apache Web服务配置",
+        "MySQL基础管理",
+        "Zabbix/Prometheus监控工具",
+        "TCP/IP网络原理",
+        "Syslog日志分析",
+        "备份策略与rsync/borgbackup实践"
+      ],
+      "summary": "IT管理员是负责Linux系统部署、日常运维、安全加固与基础服务保障的本地化IT基础设施运维岗位。"
+    },
+    "note": "岗位已审核入图，GET /api/v1/positions/{name} 返回持久化五要素（与 discover 临时生成版本可略有差异，属系统真实行为）"
+  },
+  "source": "POST /api/v1/positions/discover?with_definitions=true + GET /api/v1/positions/{name}（2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

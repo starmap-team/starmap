@@ -1,0 +1,101 @@
+{
+  "position": "高级产品工程师 (前端)",
+  "position_id": "38843313-fea3-ac5a-8c47-96bdb831f9ea",
+  "industry": "前端开发",
+  "domain_tag": "前端工程",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位主要服务于金融科技、SaaS企业服务、在线教育及电商等数字化程度高的行业，聚焦于构建高性能、可维护的Web前端应用；依托TypeScript与React保障代码健壮性与组件复用性，通过Webpack实现模块化构建与资源优化，支撑复杂业务逻辑的快速迭代与跨端一致性。",
+    "core_responsibilities": [
+      "设计并开发高可用React前端应用",
+      "使用TypeScript编写类型安全的业务逻辑",
+      "配置与优化Webpack构建流程",
+      "维护前端工程化规范与CI/CD集成",
+      "协同后端与UI完成接口对接与交互实现"
+    ],
+    "bonus_skills": [
+      "Next.js",
+      "Jest",
+      "Cypress",
+      "Redux Toolkit",
+      "ESLint/Prettier",
+      "Git Workflow",
+      "Figma基础协作能力"
+    ],
+    "summary": "高级产品工程师（前端）是专注于基于React与TypeScript构建高质量、可扩展Web应用，并通过Webpack实现专业化前端工程交付的岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "AWS",
+        "name_cn": "AWS",
+        "category": "tool",
+        "proficiency": "了解",
+        "confidence": 0.6,
+        "source_count": 19
+      },
+      {
+        "skill": "Node.js",
+        "name_cn": "Node.js",
+        "category": "通用",
+        "proficiency": "了解",
+        "confidence": 0.6,
+        "source_count": 4
+      },
+      {
+        "skill": "GraphQL",
+        "name_cn": "GraphQL",
+        "category": "通用",
+        "proficiency": "了解",
+        "confidence": 0.6,
+        "source_count": 2
+      },
+      {
+        "skill": "Webpack",
+        "name_cn": "Webpack",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 2
+      },
+      {
+        "skill": "TypeScript",
+        "name_cn": "TypeScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 15
+      },
+      {
+        "skill": "React",
+        "name_cn": "React",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 13
+      },
+      {
+        "skill": "JavaScript",
+        "name_cn": "JavaScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 22
+      }
+    ],
+    "bonus_skills": [
+      "Next.js",
+      "Jest",
+      "Cypress",
+      "Redux Toolkit",
+      "ESLint/Prettier",
+      "Git Workflow",
+      "Figma基础协作能力"
+    ],
+    "skill_count": 7,
+    "total_source_count": 77
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

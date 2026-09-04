@@ -1,0 +1,70 @@
+{
+  "position": "Applied Data Scientist or Machine Learning Engineer",
+  "emerging_ratio": 1,
+  "definition_from_discover": {
+    "industry_scenario": "该岗位广泛服务于金融科技（如信贷风控、反欺诈建模）、智能零售（如销量预测、用户分群）、医疗健康（如疾病风险预测、医学影像辅助分析）等场景，聚焦于将机器学习算法落地为可部署、可维护的数据驱动解决方案，解决业务中的预测、分类、异常检测等核心问题。",
+    "core_responsibilities": [
+      "构建和调优机器学习模型",
+      "设计并实现端到端ML流水线",
+      "与业务方协作定义建模目标与评估指标",
+      "将模型集成至生产环境并监控性能",
+      "清洗与特征工程化结构化/半结构化数据",
+      "撰写技术文档与模型可解释性报告"
+    ],
+    "bonus_skills": [
+      "Scikit-learn",
+      "TensorFlow/PyTorch",
+      "MLflow",
+      "Docker",
+      "AWS SageMaker/GCP Vertex AI",
+      "Feature Store",
+      "MLOps",
+      "A/B Testing"
+    ],
+    "summary": "Applied Data Scientist or Machine Learning Engineer是将机器学习算法工程化落地、构建可部署可维护数据智能系统的岗位。",
+    "required_skills": [
+      "Machine Learning"
+    ],
+    "note": "discover?with_definitions=true 实时生成（LLM），不落库；每次调用可能略有差异"
+  },
+  "in_graph_detail": {
+    "position_id": "1726806a-8b03-fe49-e81d-5fb526d99e3b",
+    "industry": "互联网/IT",
+    "review_status": "approved",
+    "skills_required": [
+      {
+        "skill_id": "7cc28f24-0f8b-38dc-6c7a-3e9482a5dd5a",
+        "name": "Machine Learning",
+        "name_cn": "机器学习",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 12
+      }
+    ],
+    "persisted_definition": {
+      "industry_scenario": "该岗位广泛服务于金融科技（如信贷风控、反欺诈建模）、电商（如推荐系统、销量预测）、医疗健康（如疾病风险预测、医学影像辅助分析）及智能制造（如设备故障预测、质量缺陷识别）等领域，聚焦于将机器学习算法应用于真实业务数据，构建可部署、可解释、具备业务价值的预测与决策模型。",
+      "core_responsibilities": [
+        "设计并实现机器学习建模流程",
+        "清洗与特征工程化业务数据",
+        "训练、调优及验证预测模型",
+        "将模型集成至生产环境并监控性能",
+        "与业务方协作定义问题与评估指标"
+      ],
+      "bonus_skills": [
+        "Scikit-learn",
+        "TensorFlow/PyTorch",
+        "MLflow",
+        "Docker",
+        "AWS SageMaker/GCP Vertex AI",
+        "MLOps",
+        "Feature Store",
+        "Model Interpretability (SHAP/LIME)"
+      ],
+      "summary": "Applied Data Scientist or Machine Learning Engineer是面向业务场景，以机器学习为核心能力，负责端到端模型开发、部署与迭代的工程化岗位。"
+    },
+    "note": "岗位已审核入图，GET /api/v1/positions/{name} 返回持久化五要素（与 discover 临时生成版本可略有差异，属系统真实行为）"
+  },
+  "source": "POST /api/v1/positions/discover?with_definitions=true + GET /api/v1/positions/{name}（2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

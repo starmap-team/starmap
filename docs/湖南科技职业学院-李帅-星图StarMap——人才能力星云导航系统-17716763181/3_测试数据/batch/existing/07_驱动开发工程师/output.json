@@ -1,0 +1,95 @@
+{
+  "position": "驱动开发工程师",
+  "position_id": "e27ca941-d6bf-45ec-bf4c-551b1d683cdb",
+  "industry": "嵌入式与物联网",
+  "domain_tag": "物联网/嵌入式",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "驱动开发工程师主要服务于智能硬件、工业物联网、汽车电子及边缘计算设备等嵌入式领域，负责在Linux平台上为定制化硬件（如传感器、通信模组、AI加速芯片）开发稳定可靠的底层驱动，解决硬件功能不可用、实时性不足、功耗异常及多设备协同兼容等关键问题。",
+    "core_responsibilities": [
+      "编写和维护Linux内核/用户态设备驱动",
+      "完成驱动与硬件的联调与功能验证",
+      "定位并修复驱动层死锁、内存泄漏等稳定性问题",
+      "配合硬件工程师进行板级bring-up和信号调试",
+      "使用Git管理驱动代码版本并遵循内核提交规范"
+    ],
+    "bonus_skills": [
+      "Linux内核机制",
+      "Device Tree",
+      "PCIe/USB/MIPI协议",
+      "RTOS",
+      "Yocto构建系统",
+      "Shell脚本",
+      "JTAG调试工具",
+      "Kernel Trace分析（ftrace/perf）"
+    ],
+    "summary": "驱动开发工程师是专注于Linux嵌入式平台下硬件驱动设计、开发、调试与优化的底层软件研发岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "C++",
+        "name_cn": "C++",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 32
+      },
+      {
+        "skill": "Linux",
+        "name_cn": "Linux",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 28
+      },
+      {
+        "skill": "嵌入式系统",
+        "name_cn": "嵌入式系统",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 2
+      },
+      {
+        "skill": "驱动开发",
+        "name_cn": "驱动开发",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 1
+      },
+      {
+        "skill": "硬件调试",
+        "name_cn": "硬件调试",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 1
+      },
+      {
+        "skill": "Git",
+        "name_cn": "Git",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 11
+      }
+    ],
+    "bonus_skills": [
+      "Linux内核机制",
+      "Device Tree",
+      "PCIe/USB/MIPI协议",
+      "RTOS",
+      "Yocto构建系统",
+      "Shell脚本",
+      "JTAG调试工具",
+      "Kernel Trace分析（ftrace/perf）"
+    ],
+    "skill_count": 6,
+    "total_source_count": 75
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

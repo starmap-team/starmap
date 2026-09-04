@@ -1,0 +1,70 @@
+{
+  "position": "Salesforce Technical Architect",
+  "emerging_ratio": 1,
+  "definition_from_discover": {
+    "industry_scenario": "Salesforce Technical Architect 主要服务于金融、零售、医疗和制造等高度依赖客户关系管理（CRM）的行业，聚焦于基于Salesforce平台构建可扩展、安全、集成的企业级CRM解决方案，解决多系统数据互通、业务流程自动化与定制化功能开发等核心问题。",
+    "core_responsibilities": [
+      "设计端到端Salesforce技术架构",
+      "主导复杂集成方案（如ERP/Marketing Cloud）",
+      "编写和审查JavaScript/Apex自定义代码",
+      "确保架构符合安全、性能与可维护性标准",
+      "指导开发团队遵循Salesforce最佳实践",
+      "支持技术选型与平台升级路径规划"
+    ],
+    "bonus_skills": [
+      "Apex",
+      "LWC (Lightning Web Components)",
+      "Salesforce Integration Cloud",
+      "SOQL/SOSL",
+      "CI/CD for Salesforce (e.g., Copado, Gearset)",
+      "Salesforce Identity & Security Model",
+      "Agile/SAFe方法论",
+      "REST/SOAP API设计"
+    ],
+    "summary": "Salesforce Technical Architect是负责设计、评审与治理企业级Salesforce技术架构，保障CRM系统可扩展性、集成性与长期演进能力的技术领导岗位。",
+    "required_skills": [
+      "JavaScript"
+    ],
+    "note": "discover?with_definitions=true 实时生成（LLM），不落库；每次调用可能略有差异"
+  },
+  "in_graph_detail": {
+    "position_id": "da99aabf-1d7c-2987-e739-6f6a4e1c8afc",
+    "industry": "互联网/IT",
+    "review_status": "approved",
+    "skills_required": [
+      {
+        "skill_id": "e55fc1bd-19b4-c053-a9f6-79677819e8d4",
+        "name": "JavaScript",
+        "name_cn": "JavaScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 22
+      }
+    ],
+    "persisted_definition": {
+      "industry_scenario": "Salesforce Technical Architect 主要服务于金融、零售、医疗和制造等高度依赖客户关系管理（CRM）的行业，聚焦于基于Salesforce平台构建可扩展、安全、集成的企业级CRM解决方案，解决多系统数据互通、业务流程自动化与定制化功能开发等核心问题。",
+      "core_responsibilities": [
+        "设计端到端Salesforce技术架构",
+        "定义集成策略与API治理规范",
+        "评审定制开发方案与技术可行性",
+        "确保架构符合安全与合规要求",
+        "指导开发团队遵循最佳实践",
+        "优化平台性能与可维护性"
+      ],
+      "bonus_skills": [
+        "Apex",
+        "Salesforce LWC",
+        "REST/SOAP API",
+        "MuleSoft",
+        "CI/CD for Salesforce",
+        "Salesforce Identity",
+        "GDPR/CCPA合规设计"
+      ],
+      "summary": "Salesforce Technical Architect是负责规划、设计与治理企业级Salesforce技术架构，保障其可扩展性、集成性与安全性的专业技术岗位。"
+    },
+    "note": "岗位已审核入图，GET /api/v1/positions/{name} 返回持久化五要素（与 discover 临时生成版本可略有差异，属系统真实行为）"
+  },
+  "source": "POST /api/v1/positions/discover?with_definitions=true + GET /api/v1/positions/{name}（2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

@@ -1,0 +1,312 @@
+{
+  "position": "Senior DevOps Engineer",
+  "position_id": "3d2b6015-cf0a-4f61-a821-95754f69fbf3",
+  "industry": "云计算/DevOps",
+  "domain_tag": "云计算/DevOps",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "Senior DevOps Engineer 主要服务于云原生转型中的中大型互联网企业、SaaS服务商及数字化程度较高的金融科技与电商企业，聚焦于构建高可用、可扩展的混合云基础设施与全链路CI/CD体系，支撑PHP/Nuxt.js前端与Go/Python后端服务的自动化部署、弹性伸缩与可观测性治理。",
+    "core_responsibilities": [
+      "设计并维护跨云（AWS/GCP/Azure）基础设施即代码（Terraform）",
+      "管理Kubernetes集群及容器化应用生命周期",
+      "开发和优化Ansible自动化运维流程与脚本",
+      "保障Linux系统稳定性、安全加固与性能调优",
+      "构建与维护CI/CD流水线，集成Nuxt.js/PHP/Go/Python应用",
+      "编写SQL实现运维数据采集、监控告警与审计分析"
+    ],
+    "bonus_skills": [
+      "Prometheus",
+      "Grafana",
+      "Argo CD",
+      "Helm",
+      "OpenTelemetry",
+      "Shell Scripting",
+      "GitOps",
+      "PostgreSQL"
+    ],
+    "summary": "Senior DevOps Engineer是负责混合云基础设施自动化、Kubernetes平台治理与多语言应用CI/CD全链路交付的复合型技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Go",
+        "name_cn": "Go",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.32,
+        "source_count": 29
+      },
+      {
+        "skill": "Ansible",
+        "name_cn": "Ansible",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.32,
+        "source_count": 1
+      },
+      {
+        "skill": "React",
+        "name_cn": "React",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 13
+      },
+      {
+        "skill": "Vue.js",
+        "name_cn": "Vue.js",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 13
+      },
+      {
+        "skill": "JavaScript",
+        "name_cn": "JavaScript",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 22
+      },
+      {
+        "skill": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 50
+      },
+      {
+        "skill": "Ruby",
+        "name_cn": "Ruby",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 7
+      },
+      {
+        "skill": "PHP",
+        "name_cn": "PHP",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 6
+      },
+      {
+        "skill": "Swift",
+        "name_cn": "Swift",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 8
+      },
+      {
+        "skill": "Dart",
+        "name_cn": "Dart",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 3
+      },
+      {
+        "skill": "Ethereum",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 4
+      },
+      {
+        "skill": "Angular",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 8
+      },
+      {
+        "skill": "Data Science",
+        "name_cn": "数据科学",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 12
+      },
+      {
+        "skill": "数据分析",
+        "name_cn": "数据分析",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 17
+      },
+      {
+        "skill": "项目管理",
+        "name_cn": "项目管理",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 14
+      },
+      {
+        "skill": "Flutter",
+        "name_cn": "Flutter",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 6
+      },
+      {
+        "skill": "Scala",
+        "name_cn": "Scala",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 7
+      },
+      {
+        "skill": "C++",
+        "name_cn": "C++",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 32
+      },
+      {
+        "skill": "Unreal",
+        "name_cn": "",
+        "category": "platform",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 6
+      },
+      {
+        "skill": "Nuxt.js",
+        "name_cn": "",
+        "category": "framework",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 5
+      },
+      {
+        "skill": "Next.js",
+        "name_cn": "Next.js",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 4
+      },
+      {
+        "skill": "TypeScript",
+        "name_cn": "TypeScript",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 15
+      },
+      {
+        "skill": "C#",
+        "name_cn": "C#",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.32,
+        "source_count": 15
+      },
+      {
+        "skill": "Linux",
+        "name_cn": "Linux",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 28
+      },
+      {
+        "skill": "PHP",
+        "name_cn": "PHP",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 6
+      },
+      {
+        "skill": "Nuxt.js",
+        "name_cn": "",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 5
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 142
+      },
+      {
+        "skill": "AWS",
+        "name_cn": "AWS",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 19
+      },
+      {
+        "skill": "GCP",
+        "name_cn": "",
+        "category": "platform",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 11
+      },
+      {
+        "skill": "Azure",
+        "name_cn": "Azure",
+        "category": "platform",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 22
+      },
+      {
+        "skill": "Terraform",
+        "name_cn": "Terraform",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 7
+      },
+      {
+        "skill": "Kubernetes",
+        "name_cn": "Kubernetes",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 21
+      },
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 40
+      }
+    ],
+    "bonus_skills": [
+      "Prometheus",
+      "Grafana",
+      "Argo CD",
+      "Helm",
+      "OpenTelemetry",
+      "Shell Scripting",
+      "GitOps",
+      "PostgreSQL"
+    ],
+    "skill_count": 33,
+    "total_source_count": 598
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

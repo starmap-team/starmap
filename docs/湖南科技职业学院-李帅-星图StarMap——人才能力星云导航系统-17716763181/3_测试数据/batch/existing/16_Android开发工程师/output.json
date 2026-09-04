@@ -1,0 +1,64 @@
+{
+  "position": "Android开发工程师",
+  "position_id": "8145fe80-42e2-42ec-83ba-b06162a40a70",
+  "industry": "移动开发",
+  "domain_tag": "移动开发",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "Android开发工程师主要服务于移动互联网、电商、金融科技、在线教育及生活服务等依赖原生移动应用的行业。在这些场景中，他们基于Java/Kotlin构建稳定、高性能的Android客户端，支撑用户注册登录、交易支付、课程学习、即时通信等核心业务流程，确保跨设备兼容性与用户体验一致性。",
+    "core_responsibilities": [
+      "设计与实现Android原生应用功能模块",
+      "使用Java/Kotlin进行高质量代码开发与维护",
+      "适配多版本Android系统及主流机型",
+      "集成第三方SDK（如推送、地图、支付）",
+      "配合测试团队定位并修复崩溃与性能问题",
+      "参与App发布流程与线上问题应急响应"
+    ],
+    "bonus_skills": [
+      "Jetpack Compose",
+      "Retrofit",
+      "Room",
+      "Gradle构建优化",
+      "Android Architecture Components",
+      "Firebase",
+      "CI/CD（如GitHub Actions、Jenkins）",
+      "单元测试（JUnit, Mockito）"
+    ],
+    "summary": "Android开发工程师是基于Java/Kotlin语言从事Android平台原生应用设计、开发、测试与维护的软件工程岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.92,
+        "source_count": 50
+      },
+      {
+        "skill": "Kotlin",
+        "name_cn": "Kotlin",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.92,
+        "source_count": 3
+      }
+    ],
+    "bonus_skills": [
+      "Jetpack Compose",
+      "Retrofit",
+      "Room",
+      "Gradle构建优化",
+      "Android Architecture Components",
+      "Firebase",
+      "CI/CD（如GitHub Actions、Jenkins）",
+      "单元测试（JUnit, Mockito）"
+    ],
+    "skill_count": 2,
+    "total_source_count": 53
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

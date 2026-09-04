@@ -1,0 +1,61 @@
+{
+  "position": "网络安全工程师",
+  "position_id": "d8565342-a192-4763-96de-ed147a712067",
+  "industry": "网络安全",
+  "domain_tag": "网络安全",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "网络安全工程师主要服务于金融、政务、能源及大型互联网企业等对数据安全与系统稳定性要求极高的行业，聚焦于开发自动化安全工具、构建高并发网络防护组件、实现漏洞扫描与日志分析系统的后端逻辑，支撑实时威胁检测与响应。",
+    "core_responsibilities": [
+      "设计并开发安全自动化检测脚本与工具",
+      "编写高性能网络协议解析与流量分析模块",
+      "维护和优化WAF、IDS/IPS等安全中间件后端",
+      "参与零信任架构中身份鉴权与策略执行模块开发",
+      "开展代码级安全审计与安全SDK集成"
+    ],
+    "bonus_skills": [
+      "Rust",
+      "eBPF",
+      "Kubernetes安全机制",
+      "OpenSSF Scorecard",
+      "MITRE ATT&CK框架应用",
+      "Terraform",
+      "OWASP ASVS"
+    ],
+    "summary": "网络安全工程师是依托Python与Go语言能力，从事安全工具研发、网络协议分析及高可靠安全系统后端构建的岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 142
+      },
+      {
+        "skill": "Go",
+        "name_cn": "Go",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 29
+      }
+    ],
+    "bonus_skills": [
+      "Rust",
+      "eBPF",
+      "Kubernetes安全机制",
+      "OpenSSF Scorecard",
+      "MITRE ATT&CK框架应用",
+      "Terraform",
+      "OWASP ASVS"
+    ],
+    "skill_count": 2,
+    "total_source_count": 171
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

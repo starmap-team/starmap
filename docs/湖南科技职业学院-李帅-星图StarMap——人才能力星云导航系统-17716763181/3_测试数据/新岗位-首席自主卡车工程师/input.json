@@ -1,0 +1,26 @@
+{
+  "position": "首席自主卡车工程师",
+  "input_type": "emerging_skill_signal",
+  "note": "该岗位由系统技能涌现检测从多源真实 JD 中合成发现（无单条 jd_raw 原文）。input 为触发发现的真实技能涌现信号（跨源交叉统计）。下文的 evidence 为 2026-08-30 该岗位首次被识别为'完全新兴'（emerging_ratio=1.0）时刻的系统真实快照；current_status 为 2026-09-03 公网实时状态——System Design 已从'涌现'进入'上升'阶段（Z-score 随其在更多 JD 中普及而回落，属系统动态演化的真实行为），该岗位随后已审核入图。",
+  "emerging_skill": "System Design",
+  "emerging_ratio": 1.0,
+  "source_api": "POST /api/v1/positions/discover",
+  "evidence": {
+    "captured_at": "2026-08-30",
+    "z_score": 31.25,
+    "sources": 12,
+    "contributing_positions": [
+      "大模型应用工程师",
+      "高级后端工程师",
+      "AI算法工程师",
+      "数据工程师"
+    ]
+  },
+  "current_status": {
+    "captured_at": "2026-09-03",
+    "skill_level": "rising",
+    "sources": 558,
+    "z_score": 0.0,
+    "note": "System Design 已广泛普及（558 源），由涌现转入上升期；岗位已审核入图（见 output.json graph 字段）"
+  }
+}

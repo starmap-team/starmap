@@ -1,0 +1,112 @@
+{
+  "position": "AI Experimentation Lab Manager",
+  "position_id": "2b264129-a00b-4f17-945a-92ea4f68202b",
+  "industry": "人工智能",
+  "domain_tag": "人工智能",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位主要服务于金融科技、智能客服、广告推荐及企业级SaaS等需高频A/B测试与模型迭代的数字化业务场景，聚焦于构建稳定、可复现的AI实验基础设施，支撑算法团队快速验证模型效果、优化数据管道与云上部署策略。",
+    "core_responsibilities": [
+      "搭建和维护AI实验平台基础环境",
+      "管理跨云（Azure/AWS）实验资源调度",
+      "编写Python脚本实现自动化实验流程",
+      "利用SQL/NoSQL进行实验数据提取与清洗",
+      "诊断并修复实验管道中的系统与数据问题",
+      "协同算法团队完成实验指标分析与归因"
+    ],
+    "bonus_skills": [
+      "Docker",
+      "Kubernetes",
+      "Airflow",
+      "MLflow",
+      "PySpark",
+      "GitOps",
+      "Statistical Experimentation Design",
+      "Prometheus/Grafana"
+    ],
+    "summary": "AI Experimentation Lab Manager是负责构建、运维与优化AI实验基础设施，支撑算法快速、可靠开展模型验证与数据驱动决策的工程管理岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 142
+      },
+      {
+        "skill": "Linux",
+        "name_cn": "Linux",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 28
+      },
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 40
+      },
+      {
+        "skill": "NoSQL",
+        "name_cn": "",
+        "category": "database",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 4
+      },
+      {
+        "skill": "Azure",
+        "name_cn": "Azure",
+        "category": "platform",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 22
+      },
+      {
+        "skill": "AWS",
+        "name_cn": "AWS",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 19
+      },
+      {
+        "skill": "Debugging",
+        "name_cn": "调试",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 3
+      },
+      {
+        "skill": "数据分析",
+        "name_cn": "数据分析",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 17
+      }
+    ],
+    "bonus_skills": [
+      "Docker",
+      "Kubernetes",
+      "Airflow",
+      "MLflow",
+      "PySpark",
+      "GitOps",
+      "Statistical Experimentation Design",
+      "Prometheus/Grafana"
+    ],
+    "skill_count": 8,
+    "total_source_count": 275
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

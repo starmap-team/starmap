@@ -1,0 +1,109 @@
+{
+  "position": "Staff DevOps Engineer",
+  "position_id": "94dc454d-d048-4565-8e85-5732332d3744",
+  "industry": "云计算/DevOps",
+  "domain_tag": "云计算/DevOps",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "Staff DevOps Engineer 主要服务于云计算原生程度高、系统规模大且迭代频繁的行业，如互联网平台、金融科技与SaaS服务企业。其通过构建高可用基础设施、自动化交付流水线与可观测性体系，解决多环境一致性、发布稳定性与故障响应时效等核心运维挑战。",
+    "core_responsibilities": [
+      "设计并维护云原生基础设施即代码（IaC）体系",
+      "构建与优化跨环境CI/CD流水线",
+      "保障Kubernetes集群高可用与安全合规运行",
+      "实施全栈可观测性（指标、日志、链路）落地",
+      "推动DevOps流程标准化与工程效能度量"
+    ],
+    "bonus_skills": [
+      "Argo CD",
+      "Grafana",
+      "OpenTelemetry",
+      "GitOps",
+      "AWS EKS",
+      "Shell Scripting",
+      "Security Scanning Tools (Trivy, Checkov)"
+    ],
+    "summary": "Staff DevOps Engineer是负责云原生基础设施自动化、高可靠CI/CD体系构建与全栈可观测性落地的技术专家岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Linux",
+        "name_cn": "Linux",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 28
+      },
+      {
+        "skill": "Kubernetes",
+        "name_cn": "Kubernetes",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 21
+      },
+      {
+        "skill": "Terraform",
+        "name_cn": "Terraform",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 7
+      },
+      {
+        "skill": "Docker",
+        "name_cn": "Docker",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 12
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 142
+      },
+      {
+        "skill": "CI/CD",
+        "name_cn": "CI/CD",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 22
+      },
+      {
+        "skill": "AWS",
+        "name_cn": "AWS",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 19
+      },
+      {
+        "skill": "Prometheus",
+        "name_cn": "",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 3
+      }
+    ],
+    "bonus_skills": [
+      "Argo CD",
+      "Grafana",
+      "OpenTelemetry",
+      "GitOps",
+      "AWS EKS",
+      "Shell Scripting",
+      "Security Scanning Tools (Trivy, Checkov)"
+    ],
+    "skill_count": 8,
+    "total_source_count": 254
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

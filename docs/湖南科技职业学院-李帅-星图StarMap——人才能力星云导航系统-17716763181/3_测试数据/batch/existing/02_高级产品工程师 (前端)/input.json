@@ -1,0 +1,29 @@
+{
+  "position": "高级产品工程师 (前端)",
+  "input_type": "position_source_reference",
+  "industry": "前端开发",
+  "domain_tag": "前端工程",
+  "source_platforms_note": "该岗位技能由系统多源采集的真实 JD 汇聚（source_count 为汇聚该技能的 JD 源数）；数据源分布见总 README datasources 表",
+  "skill_aggregation": {
+    "skills_count": 7,
+    "total_source_count": 77,
+    "top_skills": [
+      {
+        "skill": "JavaScript",
+        "source_count": 22,
+        "confidence": 1
+      },
+      {
+        "skill": "AWS",
+        "source_count": 19,
+        "confidence": 0.6
+      },
+      {
+        "skill": "TypeScript",
+        "source_count": 15,
+        "confidence": 1
+      }
+    ]
+  },
+  "fetched_at": "2026-09-03"
+}

@@ -1,0 +1,128 @@
+{
+  "position": "Senior AI Engineer",
+  "position_id": "1499530b-efaf-4c31-a342-789b5b64cd0d",
+  "industry": "人工智能",
+  "domain_tag": "人工智能",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "Senior AI Engineer 主要服务于金融科技、智能客服、企业知识管理及SaaS平台等场景，聚焦于构建可交付的AI应用系统；利用RAG与Prompt Engineering优化大模型在垂直领域问答与文档理解效果，通过Docker容器化、CI/CD流水线和REST API实现模型服务的稳定部署与迭代，依托SQL与Python/PyTorch支撑数据处理、模型训练及线上推理闭环。",
+    "core_responsibilities": [
+      "设计并实现基于RAG架构的AI应用系统",
+      "开发与维护高可用RESTful AI服务接口",
+      "构建端到端CI/CD流水线支持模型持续部署",
+      "运用Prompt Engineering优化大模型任务表现",
+      "使用PyTorch训练、调优及部署机器学习模型",
+      "编写高效SQL完成特征工程与结果分析"
+    ],
+    "bonus_skills": [
+      "LangChain",
+      "FastAPI",
+      "Kubernetes",
+      "AWS/GCP/Azure AI服务",
+      "LLM fine-tuning（LoRA/Qlora）",
+      "Observability（Prometheus+Grafana）",
+      "Vector Database（Milvus/Pinecone）",
+      "Agile/ML Ops方法论"
+    ],
+    "summary": "Senior AI Engineer是负责AI模型研发、RAG系统构建、容器化部署及生产级API交付的复合型工程技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "CI/CD",
+        "name_cn": "CI/CD",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 22
+      },
+      {
+        "skill": "REST API",
+        "name_cn": "REST API",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 1
+      },
+      {
+        "skill": "Docker",
+        "name_cn": "Docker",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 12
+      },
+      {
+        "skill": "Prompt Engineering",
+        "name_cn": "提示工程",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 3
+      },
+      {
+        "skill": "RAG",
+        "name_cn": "RAG",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 5
+      },
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 40
+      },
+      {
+        "skill": "AI/ML",
+        "name_cn": "人工智能/机器学习",
+        "category": "通用",
+        "proficiency": "精通",
+        "confidence": 0.8,
+        "source_count": 0
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.8,
+        "source_count": 142
+      },
+      {
+        "skill": "PyTorch",
+        "name_cn": "PyTorch",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.8,
+        "source_count": 8
+      },
+      {
+        "skill": "Machine Learning",
+        "name_cn": "机器学习",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.8,
+        "source_count": 12
+      }
+    ],
+    "bonus_skills": [
+      "LangChain",
+      "FastAPI",
+      "Kubernetes",
+      "AWS/GCP/Azure AI服务",
+      "LLM fine-tuning（LoRA/Qlora）",
+      "Observability（Prometheus+Grafana）",
+      "Vector Database（Milvus/Pinecone）",
+      "Agile/ML Ops方法论"
+    ],
+    "skill_count": 10,
+    "total_source_count": 245
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

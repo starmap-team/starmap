@@ -1,0 +1,11 @@
+{
+  "position": "IT管理员",
+  "input_type": "emerging_skill_signal",
+  "emerging_skills": [
+    "Linux"
+  ],
+  "emerging_ratio": 1,
+  "source_api": "POST /api/v1/positions/discover",
+  "note": "系统 discover 从真实多源 JD 中检测到该岗位技能命中涌现/上升信号，判定为新兴候选（候选均已审核入图；'新'体现在技能组合正在兴起）",
+  "fetched_at": "2026-09-03"
+}

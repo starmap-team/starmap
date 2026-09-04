@@ -1,0 +1,247 @@
+{
+  "position": "Senior Software Engineer",
+  "position_id": "e6301b1e-e078-42c9-9be3-e60b0325e3e4",
+  "industry": "互联网/IT",
+  "domain_tag": "数字经济/泛IT",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位典型服务于云原生基础设施密集型行业，如互联网平台、SaaS服务提供商及大型企业数字化中台建设场景，聚焦于构建高可用、可弹性伸缩的后端服务系统，利用Python开发核心业务逻辑与运维工具链，并通过Kubernetes实现容器化应用的自动化部署、扩缩容与生命周期管理。",
+    "core_responsibilities": [
+      "设计并实现基于Python的微服务后端模块",
+      "编写和维护Kubernetes YAML配置及CI/CD流水线",
+      "保障生产环境容器化服务的稳定性与可观测性",
+      "协同DevOps团队完成集群资源规划与策略治理",
+      "优化服务在K8s环境下的性能与资源利用率"
+    ],
+    "bonus_skills": [
+      "Docker",
+      "Prometheus",
+      "Helm",
+      "GitOps",
+      "gRPC",
+      "FastAPI",
+      "Terraform",
+      "OpenTelemetry"
+    ],
+    "summary": "Senior Software Engineer是面向云原生架构，以Python开发与Kubernetes编排为核心能力，负责高可靠分布式系统设计、交付与运维的高级工程岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 142
+      },
+      {
+        "skill": "Snowflake",
+        "name_cn": "Snowflake",
+        "category": "tool",
+        "proficiency": "了解",
+        "confidence": 0.62,
+        "source_count": 6
+      },
+      {
+        "skill": "dbt",
+        "name_cn": "",
+        "category": "tool",
+        "proficiency": "了解",
+        "confidence": 0.62,
+        "source_count": 5
+      },
+      {
+        "skill": "Kubernetes",
+        "name_cn": "Kubernetes",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 21
+      },
+      {
+        "skill": "React",
+        "name_cn": "React",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 13
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 142
+      },
+      {
+        "skill": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 50
+      },
+      {
+        "skill": "Ruby",
+        "name_cn": "Ruby",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 7
+      },
+      {
+        "skill": "PHP",
+        "name_cn": "PHP",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 6
+      },
+      {
+        "skill": "Vue.js",
+        "name_cn": "Vue.js",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 13
+      },
+      {
+        "skill": "JavaScript",
+        "name_cn": "JavaScript",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 22
+      },
+      {
+        "skill": "Flutter",
+        "name_cn": "Flutter",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 6
+      },
+      {
+        "skill": "Dart",
+        "name_cn": "Dart",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 3
+      },
+      {
+        "skill": "Ethereum",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 4
+      },
+      {
+        "skill": "Angular",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 8
+      },
+      {
+        "skill": "Next.js",
+        "name_cn": "Next.js",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 4
+      },
+      {
+        "skill": "TypeScript",
+        "name_cn": "TypeScript",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 15
+      },
+      {
+        "skill": "数据分析",
+        "name_cn": "数据分析",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 17
+      },
+      {
+        "skill": "项目管理",
+        "name_cn": "项目管理",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 14
+      },
+      {
+        "skill": "Swift",
+        "name_cn": "Swift",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 8
+      },
+      {
+        "skill": "C#",
+        "name_cn": "C#",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 15
+      },
+      {
+        "skill": "Scala",
+        "name_cn": "Scala",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 7
+      },
+      {
+        "skill": "C++",
+        "name_cn": "C++",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 32
+      },
+      {
+        "skill": "Unreal",
+        "name_cn": "",
+        "category": "platform",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 6
+      },
+      {
+        "skill": "Data Science",
+        "name_cn": "数据科学",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 12
+      }
+    ],
+    "bonus_skills": [
+      "Docker",
+      "Prometheus",
+      "Helm",
+      "GitOps",
+      "gRPC",
+      "FastAPI",
+      "Terraform",
+      "OpenTelemetry"
+    ],
+    "skill_count": 25,
+    "total_source_count": 578
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}
