@@ -1,0 +1,144 @@
+{
+  "position": "Data Analyst",
+  "position_id": "ff2d8e39-dce0-0936-d3d1-97c73fb6295e",
+  "industry": "互联网/IT",
+  "domain_tag": "数字经济/泛IT",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位广泛服务于金融科技、电商、电信及互联网平台等行业，聚焦于用户行为分析、运营效果评估、销售漏斗优化与基础风险指标监控等场景；依托SQL/Python/Pandas完成数据清洗与统计建模，通过Power BI/Tableau交付可视化看板，支撑业务决策，不涉及深度模型研发或生产级系统开发。",
+    "core_responsibilities": [
+      "使用SQL和Python/Pandas提取清洗多源业务数据",
+      "构建核心业务指标体系并定期产出分析报告",
+      "设计并维护Power BI/Tableau交互式数据看板",
+      "开展A/B测试结果分析与归因诊断",
+      "支持营销、产品、运营团队的数据需求响应",
+      "编写可复用的数据处理脚本与文档"
+    ],
+    "bonus_skills": [
+      "Docker",
+      "AWS Redshift",
+      "dbt",
+      "Statistics",
+      "A/B Testing Methodology",
+      "Git",
+      "Data Modeling",
+      "Snowflake"
+    ],
+    "summary": "Data Analyst是运用SQL、Python及BI工具进行数据获取、清洗、分析与可视化，支撑业务决策的数据赋能型岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Tableau",
+        "name_cn": "Tableau",
+        "category": "tool",
+        "proficiency": "了解",
+        "confidence": 0.6,
+        "source_count": 4
+      },
+      {
+        "skill": "Pandas",
+        "name_cn": "Pandas",
+        "category": "通用",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 1
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 142
+      },
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 40
+      },
+      {
+        "skill": "Excel",
+        "name_cn": "Excel",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 10
+      },
+      {
+        "skill": "Power BI",
+        "name_cn": "Power BI",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 4
+      },
+      {
+        "skill": "Tableau",
+        "name_cn": "Tableau",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 4
+      },
+      {
+        "skill": "数据分析",
+        "name_cn": "数据分析",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.62,
+        "source_count": 17
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.62,
+        "source_count": 142
+      },
+      {
+        "skill": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 50
+      },
+      {
+        "skill": "Scala",
+        "name_cn": "Scala",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 7
+      },
+      {
+        "skill": "Machine Learning",
+        "name_cn": "机器学习",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 12
+      }
+    ],
+    "bonus_skills": [
+      "Docker",
+      "AWS Redshift",
+      "dbt",
+      "Statistics",
+      "A/B Testing Methodology",
+      "Git",
+      "Data Modeling",
+      "Snowflake"
+    ],
+    "skill_count": 12,
+    "total_source_count": 433
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

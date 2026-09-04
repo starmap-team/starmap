@@ -1,0 +1,58 @@
+{
+  "position": "首席自主卡车工程师",
+  "input_summary": "系统 discover 涌现检测信号：emerging_skill=System Design, z_score=31.25, 跨 12 个数据源, 由 4 类真实岗位贡献（详见 input.json）",
+  "definition": {
+    "position_name": "首席自主卡车工程师",
+    "required_skills": [
+      "System Design"
+    ],
+    "emerging_required": [
+      "System Design"
+    ],
+    "industry_scenario": "该岗位主要服务于智能物流、干线货运及港口/矿山等封闭场景的自动驾驶运输业务，聚焦于端到端自主卡车系统的整体架构设计与技术路线决策，解决多传感器融合、车规级系统可靠性、功能安全（ISO 26262）与预期功能安全（SOTIF）协同落地等系统性工程难题。",
+    "core_responsibilities": [
+      "主导自主卡车整车级系统架构设计",
+      "定义感知-决策-控制-执行全栈技术接口规范",
+      "统筹功能安全与预期功能安全（SOTIF）系统集成",
+      "推动车规级硬件选型与软硬协同验证方案",
+      "评审关键子系统（如线控底盘、域控制器）设计合规性",
+      "牵头跨团队（算法、测试、供应链）系统级问题根因分析"
+    ],
+    "bonus_skills": [
+      "ISO 26262 ASIL-D开发流程",
+      "AUTOSAR Adaptive Platform",
+      "ROS 2 Automotive",
+      "Cybersecurity Engineering (ISO/SAE 21434)",
+      "Model-Based Systems Engineering (MBSE)",
+      "Functional Safety Analysis (FTA, FMEA)"
+    ],
+    "summary": "首席自主卡车工程师是负责自主卡车整车级系统架构设计、安全合规集成与跨域技术协同决策的高端技术领导岗位。"
+  },
+  "graph": {
+    "note": "岗位入图能力图谱（2026-09-03 GET /api/v1/positions/首席自主卡车工程师 实测，已审核入图）",
+    "position_id": "12de6d44-f501-6438-ba7e-f006321a0b12",
+    "industry": "互联网/IT",
+    "review_status": "approved",
+    "discovered_at": "2026-08-05T06:44:58Z",
+    "skills_required": [
+      {
+        "skill": "System Design",
+        "name_cn": "系统设计",
+        "proficiency": "精通",
+        "confidence": 1.0,
+        "source_count": 11
+      }
+    ],
+    "bonus_skills": [
+      "ISO 26262 ASIL-D系统开发",
+      "AUTOSAR Adaptive Platform",
+      "ROS2/DDS通信中间件",
+      "ASPICE过程体系",
+      "车规级功能安全分析（FMEA/FMEDA）",
+      "嵌入式实时操作系统（QNX/VxWorks）"
+    ]
+  },
+  "emerging_ratio": 1.0,
+  "source": "discover 候选（Z-score 涌现检测 + 五要素 LLM 生成）→ 审核入图（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

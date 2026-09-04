@@ -1,0 +1,80 @@
+{
+  "position": "嵌入式软件工程师",
+  "position_id": "dc6a0686-67f7-4d96-9366-9033412c7d2e",
+  "industry": "嵌入式与物联网",
+  "domain_tag": "物联网/嵌入式",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "嵌入式软件工程师主要服务于工业自动化、智能硬件、车载电子及物联网终端等领域，负责在资源受限的ARM架构设备上开发高可靠性固件；依托RTOS或Linux系统实现传感器驱动、实时控制、低功耗管理与边缘数据处理，支撑设备稳定运行与本地智能决策。",
+    "core_responsibilities": [
+      "基于ARM平台开发和优化C++嵌入式应用",
+      "移植与定制RTOS或嵌入式Linux系统",
+      "编写和调试外设驱动及底层硬件接口代码",
+      "实现多任务调度、内存管理与实时性保障",
+      "参与嵌入式系统启动流程（Bootloader/Kernel）开发",
+      "配合硬件团队完成软硬协同调试与性能调优"
+    ],
+    "bonus_skills": [
+      "FreeRTOS",
+      "Zephyr",
+      "Yocto Project",
+      "CAN/LIN总线协议",
+      "ARM Cortex-M/A系列汇编",
+      "CI/CD for Embedded (e.g., Jenkins + QEMU)",
+      "Secure Boot & Trusted Firmware",
+      "Python（用于嵌入式测试与脚本开发）"
+    ],
+    "summary": "嵌入式软件工程师是面向ARM架构硬件平台，基于C++语言在RTOS或Linux环境下开发高可靠、实时性嵌入式系统的岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "C++",
+        "name_cn": "C++",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.72,
+        "source_count": 32
+      },
+      {
+        "skill": "ARM",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.72,
+        "source_count": 1
+      },
+      {
+        "skill": "RTOS",
+        "name_cn": "实时操作系统",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.72,
+        "source_count": 2
+      },
+      {
+        "skill": "Linux",
+        "name_cn": "Linux",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.72,
+        "source_count": 28
+      }
+    ],
+    "bonus_skills": [
+      "FreeRTOS",
+      "Zephyr",
+      "Yocto Project",
+      "CAN/LIN总线协议",
+      "ARM Cortex-M/A系列汇编",
+      "CI/CD for Embedded (e.g., Jenkins + QEMU)",
+      "Secure Boot & Trusted Firmware",
+      "Python（用于嵌入式测试与脚本开发）"
+    ],
+    "skill_count": 4,
+    "total_source_count": 63
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

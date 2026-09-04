@@ -1,0 +1,112 @@
+{
+  "position": "前端开发工程师",
+  "position_id": "1400d160-53db-4239-b51c-2b9099f76a7f",
+  "industry": "前端开发",
+  "domain_tag": "前端工程",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "前端开发工程师广泛服务于互联网平台、金融科技、在线教育、企业SaaS及政务数字化等场景，负责构建高性能、跨终端的用户交互界面；依托Vue.js/React等框架与TypeScript保障代码健壮性，通过Webpack/Vite优化构建效率，支撑高并发业务下的快速迭代与响应式体验。",
+    "core_responsibilities": [
+      "开发并维护Web应用前端功能模块",
+      "基于Vue.js或React实现组件化UI架构",
+      "使用TypeScript编写可维护、强类型前端逻辑",
+      "配置与优化Webpack或Vite构建流程",
+      "适配多端（PC/移动端）及主流浏览器",
+      "协同后端完成API联调与数据可视化呈现"
+    ],
+    "bonus_skills": [
+      "Pinia",
+      "Vue Router",
+      "React Router",
+      "ESLint/Prettier工程化规范",
+      "Jest/Cypress前端测试",
+      "CI/CD基础（如GitHub Actions）",
+      "微前端架构（qiankun）",
+      "HTTP/HTTPS与Web安全基础"
+    ],
+    "summary": "前端开发工程师是基于现代JavaScript框架与工程化工具构建高性能、可维护Web用户界面的专业技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Vue.js",
+        "name_cn": "Vue.js",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 13
+      },
+      {
+        "skill": "React",
+        "name_cn": "React",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 13
+      },
+      {
+        "skill": "TypeScript",
+        "name_cn": "TypeScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 15
+      },
+      {
+        "skill": "Webpack",
+        "name_cn": "Webpack",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.6743,
+        "source_count": 2
+      },
+      {
+        "skill": "Vite",
+        "name_cn": "Vite",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.65,
+        "source_count": 2
+      },
+      {
+        "skill": "JavaScript",
+        "name_cn": "JavaScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.2,
+        "source_count": 22
+      },
+      {
+        "skill": "HTML5",
+        "name_cn": "HTML5",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.2,
+        "source_count": 7
+      },
+      {
+        "skill": "CSS3",
+        "name_cn": "CSS3",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.2,
+        "source_count": 4
+      }
+    ],
+    "bonus_skills": [
+      "Pinia",
+      "Vue Router",
+      "React Router",
+      "ESLint/Prettier工程化规范",
+      "Jest/Cypress前端测试",
+      "CI/CD基础（如GitHub Actions）",
+      "微前端架构（qiankun）",
+      "HTTP/HTTPS与Web安全基础"
+    ],
+    "skill_count": 8,
+    "total_source_count": 78
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

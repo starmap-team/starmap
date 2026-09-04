@@ -1,0 +1,224 @@
+{
+  "position": "全栈开发工程师",
+  "position_id": "f2f82655-6c99-4141-83d9-4e2e7080a9a2",
+  "industry": "互联网/IT",
+  "domain_tag": "数字经济/泛IT",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位主要服务于金融科技、智能政务、企业级SaaS及AI原生应用等对系统可靠性、安全合规与智能能力要求高的行业场景，负责构建端到端可演进的云原生应用，支撑高并发交易处理、多源异构数据融合、LLM增强型业务逻辑（如智能客服、知识助手）及跨云环境的弹性部署与治理。",
+    "core_responsibilities": [
+      "设计并实现前后端分离的全栈应用架构",
+      "基于领域驱动设计拆解复杂业务模型",
+      "开发与集成RAG/LangChain驱动的AI功能模块",
+      "容器化部署微服务并运维Kubernetes/Docker Swarm集群",
+      "管理关系型与缓存数据库（PostgreSQL/Redis）的高性能访问",
+      "协同DevOps流程实现CI/CD与多云（AWS/Azure）资源编排"
+    ],
+    "bonus_skills": [
+      "gRPC",
+      "OpenTelemetry",
+      "Terraform",
+      "Event Sourcing",
+      "OAuth 2.0 / OIDC",
+      "GraphQL",
+      "Prometheus+Grafana",
+      "Azure DevOps"
+    ],
+    "summary": "全栈开发工程师是具备云原生架构能力、精通多语言全栈技术栈并能融合AI工程化实践，交付高可靠、可扩展、智能化企业级应用的复合型技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "C#",
+        "name_cn": "C#",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 15
+      },
+      {
+        "skill": "领域驱动设计",
+        "name_cn": "领域驱动设计",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 2
+      },
+      {
+        "skill": "Angular",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 8
+      },
+      {
+        "skill": "TypeScript",
+        "name_cn": "TypeScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 15
+      },
+      {
+        "skill": "AWS",
+        "name_cn": "AWS",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 19
+      },
+      {
+        "skill": "Azure",
+        "name_cn": "Azure",
+        "category": "platform",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 22
+      },
+      {
+        "skill": "Docker",
+        "name_cn": "Docker",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 12
+      },
+      {
+        "skill": "Docker Swarm",
+        "name_cn": "",
+        "category": "devops",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 1
+      },
+      {
+        "skill": "Kubernetes",
+        "name_cn": "Kubernetes",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 21
+      },
+      {
+        "skill": "FastAPI",
+        "name_cn": "",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 8
+      },
+      {
+        "skill": "Flask",
+        "name_cn": "",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 1
+      },
+      {
+        "skill": "Django",
+        "name_cn": "",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 2
+      },
+      {
+        "skill": "LangChain",
+        "name_cn": "LangChain",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 4
+      },
+      {
+        "skill": "RAG",
+        "name_cn": "RAG",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 5
+      },
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 40
+      },
+      {
+        "skill": "PostgreSQL",
+        "name_cn": "PostgreSQL",
+        "category": "database",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 7
+      },
+      {
+        "skill": "Redis",
+        "name_cn": "Redis",
+        "category": "database",
+        "proficiency": "精通",
+        "confidence": 0.42,
+        "source_count": 6
+      },
+      {
+        "skill": "React",
+        "name_cn": "React",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 13
+      },
+      {
+        "skill": "Vue.js",
+        "name_cn": "Vue.js",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 13
+      },
+      {
+        "skill": "JavaScript",
+        "name_cn": "JavaScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 22
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 142
+      },
+      {
+        "skill": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 50
+      }
+    ],
+    "bonus_skills": [
+      "gRPC",
+      "OpenTelemetry",
+      "Terraform",
+      "Event Sourcing",
+      "OAuth 2.0 / OIDC",
+      "GraphQL",
+      "Prometheus+Grafana",
+      "Azure DevOps"
+    ],
+    "skill_count": 22,
+    "total_source_count": 428
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

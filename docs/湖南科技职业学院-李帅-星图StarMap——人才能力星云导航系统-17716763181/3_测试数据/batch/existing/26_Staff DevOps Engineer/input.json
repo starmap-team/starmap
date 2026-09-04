@@ -1,0 +1,29 @@
+{
+  "position": "Staff DevOps Engineer",
+  "input_type": "position_source_reference",
+  "industry": "云计算/DevOps",
+  "domain_tag": "云计算/DevOps",
+  "source_platforms_note": "该岗位技能由系统多源采集的真实 JD 汇聚（source_count 为汇聚该技能的 JD 源数）；数据源分布见总 README datasources 表",
+  "skill_aggregation": {
+    "skills_count": 8,
+    "total_source_count": 254,
+    "top_skills": [
+      {
+        "skill": "Python",
+        "source_count": 142,
+        "confidence": 0.9
+      },
+      {
+        "skill": "Linux",
+        "source_count": 28,
+        "confidence": 0.9
+      },
+      {
+        "skill": "CI/CD",
+        "source_count": 22,
+        "confidence": 0.9
+      }
+    ]
+  },
+  "fetched_at": "2026-09-03"
+}

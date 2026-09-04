@@ -1,0 +1,79 @@
+{
+  "position": "软件测试工程师",
+  "position_id": "63755e4e-d1e3-8e8b-9478-b3205ed4dc67",
+  "industry": "测试",
+  "domain_tag": "软件测试",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "软件测试工程师广泛服务于金融科技、电商、企业服务等依赖高可靠性软件系统的行业，聚焦于保障核心业务系统（如支付网关、订单引擎、SaaS平台）的功能正确性、接口稳定性和迭代交付质量；依托Scrum敏捷框架协同开发团队，使用Python或Java编写可维护的自动化测试脚本，支撑持续集成与快速回归验证。",
+    "core_responsibilities": [
+      "设计并执行功能/接口/回归测试用例",
+      "基于Scrum参与迭代计划与缺陷闭环管理",
+      "使用Python或Java开发和维护自动化测试脚本",
+      "定位并跟踪软件缺陷，推动问题修复与验证",
+      "编写测试报告，评估版本质量与发布风险"
+    ],
+    "bonus_skills": [
+      "Selenium",
+      "JUnit/TestNG",
+      "Postman",
+      "Jenkins",
+      "Docker",
+      "REST Assured",
+      "SQL",
+      "Git"
+    ],
+    "summary": "软件测试工程师是依托Scrum敏捷流程，运用Python或Java开展功能验证与自动化测试，保障软件交付质量与稳定性的专业技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.6,
+        "source_count": 40
+      },
+      {
+        "skill": "Scrum",
+        "name_cn": "Scrum",
+        "category": "通用",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 1
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 142
+      },
+      {
+        "skill": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 50
+      }
+    ],
+    "bonus_skills": [
+      "Selenium",
+      "JUnit/TestNG",
+      "Postman",
+      "Jenkins",
+      "Docker",
+      "REST Assured",
+      "SQL",
+      "Git"
+    ],
+    "skill_count": 4,
+    "total_source_count": 233
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

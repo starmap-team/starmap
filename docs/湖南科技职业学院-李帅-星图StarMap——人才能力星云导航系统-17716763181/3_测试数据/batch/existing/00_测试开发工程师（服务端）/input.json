@@ -1,0 +1,29 @@
+{
+  "position": "测试开发工程师（服务端）",
+  "input_type": "position_source_reference",
+  "industry": "后端开发",
+  "domain_tag": "后端工程",
+  "source_platforms_note": "该岗位技能由系统多源采集的真实 JD 汇聚（source_count 为汇聚该技能的 JD 源数）；数据源分布见总 README datasources 表",
+  "skill_aggregation": {
+    "skills_count": 19,
+    "total_source_count": 397,
+    "top_skills": [
+      {
+        "skill": "Python",
+        "source_count": 142,
+        "confidence": 0.65
+      },
+      {
+        "skill": "Java",
+        "source_count": 50,
+        "confidence": 0.65
+      },
+      {
+        "skill": "SQL",
+        "source_count": 40,
+        "confidence": 0.65
+      }
+    ]
+  },
+  "fetched_at": "2026-09-03"
+}

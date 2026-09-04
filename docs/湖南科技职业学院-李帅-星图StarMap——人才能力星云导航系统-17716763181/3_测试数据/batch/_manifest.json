@@ -1,0 +1,301 @@
+{
+  "existing": [
+    {
+      "dir": "00_测试开发工程师（服务端）",
+      "position": "测试开发工程师（服务端）",
+      "industry": "后端开发",
+      "domain_tag": "后端工程",
+      "skills": 19,
+      "sources": 397,
+      "five_elements": true
+    },
+    {
+      "dir": "01_大数据工程师",
+      "position": "大数据工程师",
+      "industry": "数据工程",
+      "domain_tag": "大数据",
+      "skills": 8,
+      "sources": 208,
+      "five_elements": true
+    },
+    {
+      "dir": "02_高级产品工程师 (前端)",
+      "position": "高级产品工程师 (前端)",
+      "industry": "前端开发",
+      "domain_tag": "前端工程",
+      "skills": 7,
+      "sources": 77,
+      "five_elements": true
+    },
+    {
+      "dir": "03_具身智能算法工程师",
+      "position": "具身智能算法工程师",
+      "industry": "人工智能",
+      "domain_tag": "人工智能",
+      "skills": 17,
+      "sources": 263,
+      "five_elements": true
+    },
+    {
+      "dir": "04_前端工程师",
+      "position": "前端工程师",
+      "industry": "前端开发",
+      "domain_tag": "前端工程",
+      "skills": 14,
+      "sources": 125,
+      "five_elements": true
+    },
+    {
+      "dir": "05_前端开发工程师",
+      "position": "前端开发工程师",
+      "industry": "前端开发",
+      "domain_tag": "前端工程",
+      "skills": 8,
+      "sources": 78,
+      "five_elements": true
+    },
+    {
+      "dir": "06_嵌入式软件工程师",
+      "position": "嵌入式软件工程师",
+      "industry": "嵌入式与物联网",
+      "domain_tag": "物联网/嵌入式",
+      "skills": 4,
+      "sources": 63,
+      "five_elements": true
+    },
+    {
+      "dir": "07_驱动开发工程师",
+      "position": "驱动开发工程师",
+      "industry": "嵌入式与物联网",
+      "domain_tag": "物联网/嵌入式",
+      "skills": 6,
+      "sources": 75,
+      "five_elements": true
+    },
+    {
+      "dir": "08_全栈开发工程师",
+      "position": "全栈开发工程师",
+      "industry": "互联网/IT",
+      "domain_tag": "数字经济/泛IT",
+      "skills": 22,
+      "sources": 428,
+      "five_elements": true
+    },
+    {
+      "dir": "09_软件测试工程师",
+      "position": "软件测试工程师",
+      "industry": "测试",
+      "domain_tag": "软件测试",
+      "skills": 4,
+      "sources": 233,
+      "five_elements": true
+    },
+    {
+      "dir": "10_数据分析师",
+      "position": "数据分析师",
+      "industry": "数据科学",
+      "domain_tag": "大数据",
+      "skills": 2,
+      "sources": 182,
+      "five_elements": true
+    },
+    {
+      "dir": "11_网络安全工程师",
+      "position": "网络安全工程师",
+      "industry": "网络安全",
+      "domain_tag": "网络安全",
+      "skills": 2,
+      "sources": 171,
+      "five_elements": true
+    },
+    {
+      "dir": "12_物联网平台开发工程师",
+      "position": "物联网平台开发工程师",
+      "industry": "嵌入式与物联网",
+      "domain_tag": "物联网/嵌入式",
+      "skills": 3,
+      "sources": 221,
+      "five_elements": true
+    },
+    {
+      "dir": "13_元宇宙_虚拟现实开发工程师",
+      "position": "元宇宙/虚拟现实开发工程师",
+      "industry": "游戏开发",
+      "domain_tag": "数字内容",
+      "skills": 6,
+      "sources": 81,
+      "five_elements": true
+    },
+    {
+      "dir": "14_AI Engineer",
+      "position": "AI Engineer",
+      "industry": "人工智能",
+      "domain_tag": "人工智能",
+      "skills": 10,
+      "sources": 240,
+      "five_elements": true
+    },
+    {
+      "dir": "15_AI Experimentation Lab Manager",
+      "position": "AI Experimentation Lab Manager",
+      "industry": "人工智能",
+      "domain_tag": "人工智能",
+      "skills": 8,
+      "sources": 275,
+      "five_elements": true
+    },
+    {
+      "dir": "16_Android开发工程师",
+      "position": "Android开发工程师",
+      "industry": "移动开发",
+      "domain_tag": "移动开发",
+      "skills": 2,
+      "sources": 53,
+      "five_elements": true
+    },
+    {
+      "dir": "17_Data Analyst",
+      "position": "Data Analyst",
+      "industry": "互联网/IT",
+      "domain_tag": "数字经济/泛IT",
+      "skills": 12,
+      "sources": 433,
+      "five_elements": true
+    },
+    {
+      "dir": "18_Data and ML Engineer",
+      "position": "Data and ML Engineer",
+      "industry": "数据工程",
+      "domain_tag": "大数据",
+      "skills": 6,
+      "sources": 236,
+      "five_elements": true
+    },
+    {
+      "dir": "19_Data Engineer",
+      "position": "Data Engineer",
+      "industry": "未分类",
+      "domain_tag": "数字经济/泛IT",
+      "skills": 21,
+      "sources": 384,
+      "five_elements": true
+    },
+    {
+      "dir": "20_Principal SRE",
+      "position": "Principal SRE",
+      "industry": "云计算/DevOps",
+      "domain_tag": "云计算/DevOps",
+      "skills": 7,
+      "sources": 204,
+      "five_elements": true
+    },
+    {
+      "dir": "21_Python后端工程师",
+      "position": "Python后端工程师",
+      "industry": "后端开发",
+      "domain_tag": "后端工程",
+      "skills": 13,
+      "sources": 279,
+      "five_elements": true
+    },
+    {
+      "dir": "22_Senior AI Engineer",
+      "position": "Senior AI Engineer",
+      "industry": "人工智能",
+      "domain_tag": "人工智能",
+      "skills": 10,
+      "sources": 245,
+      "five_elements": true
+    },
+    {
+      "dir": "23_Senior DevOps Engineer",
+      "position": "Senior DevOps Engineer",
+      "industry": "云计算/DevOps",
+      "domain_tag": "云计算/DevOps",
+      "skills": 33,
+      "sources": 598,
+      "five_elements": true
+    },
+    {
+      "dir": "24_Senior Full-Stack React.js Developer",
+      "position": "Senior Full-Stack React.js Developer",
+      "industry": "互联网/IT",
+      "domain_tag": "数字经济/泛IT",
+      "skills": 26,
+      "sources": 490,
+      "five_elements": true
+    },
+    {
+      "dir": "25_Senior Software Engineer",
+      "position": "Senior Software Engineer",
+      "industry": "互联网/IT",
+      "domain_tag": "数字经济/泛IT",
+      "skills": 25,
+      "sources": 578,
+      "five_elements": true
+    },
+    {
+      "dir": "26_Staff DevOps Engineer",
+      "position": "Staff DevOps Engineer",
+      "industry": "云计算/DevOps",
+      "domain_tag": "云计算/DevOps",
+      "skills": 8,
+      "sources": 254,
+      "five_elements": true
+    }
+  ],
+  "emerging": [
+    {
+      "dir": "00_首席自主卡车工程师",
+      "position": "首席自主卡车工程师",
+      "ratio": 1,
+      "emerging_skills": [
+        "System Design"
+      ]
+    },
+    {
+      "dir": "01_Applied Data Scientist or Machine Learning Engineer",
+      "position": "Applied Data Scientist or Machine Learning Engineer",
+      "ratio": 1,
+      "emerging_skills": [
+        "Machine Learning"
+      ]
+    },
+    {
+      "dir": "02_算法应用平台工程师",
+      "position": "算法应用平台工程师",
+      "ratio": 1,
+      "emerging_skills": [
+        "Java",
+        "Python"
+      ]
+    },
+    {
+      "dir": "03_软件工程师",
+      "position": "软件工程师",
+      "ratio": 1,
+      "emerging_skills": [
+        "Git",
+        "Java",
+        "JavaScript",
+        "Python"
+      ]
+    },
+    {
+      "dir": "04_Salesforce Technical Architect",
+      "position": "Salesforce Technical Architect",
+      "ratio": 1,
+      "emerging_skills": [
+        "JavaScript"
+      ]
+    },
+    {
+      "dir": "05_IT管理员",
+      "position": "IT管理员",
+      "ratio": 1,
+      "emerging_skills": [
+        "Linux"
+      ]
+    }
+  ]
+}

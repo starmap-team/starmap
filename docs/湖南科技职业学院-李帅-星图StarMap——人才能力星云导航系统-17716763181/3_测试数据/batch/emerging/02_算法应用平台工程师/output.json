@@ -1,0 +1,99 @@
+{
+  "position": "算法应用平台工程师",
+  "emerging_ratio": 1,
+  "definition_from_discover": {
+    "industry_scenario": "算法应用平台工程师主要服务于金融科技、智能客服、电商推荐和工业智能等需规模化部署AI模型的行业场景，负责将训练好的算法模型封装为高可用、可监控的服务接口，支撑业务系统低延迟调用与AB测试，解决模型工程化落地难、运维成本高、版本管理混乱等问题。",
+    "core_responsibilities": [
+      "设计并开发算法服务API网关",
+      "构建模型容器化部署流水线",
+      "实现服务性能监控与日志追踪",
+      "维护多版本模型灰度发布机制",
+      "对接特征平台与实时数据管道",
+      "编写Python/Java双语言SDK供业务方集成"
+    ],
+    "bonus_skills": [
+      "Spring Boot",
+      "Docker",
+      "Kubernetes",
+      "Prometheus",
+      "Feign",
+      "MLflow",
+      "Apache Flink",
+      "OpenAPI规范"
+    ],
+    "summary": "算法应用平台工程师是负责将AI模型工程化封装、部署、监控与持续交付，支撑业务系统高效调用算法能力的复合型技术岗位。",
+    "required_skills": [
+      "Java",
+      "Python"
+    ],
+    "note": "discover?with_definitions=true 实时生成（LLM），不落库；每次调用可能略有差异"
+  },
+  "in_graph_detail": {
+    "position_id": "575707cb-6b6b-59cd-6f23-580b649148aa",
+    "industry": "人工智能",
+    "review_status": "approved",
+    "skills_required": [
+      {
+        "skill_id": "f3b28994-bf01-8d63-8cc3-6115a1eb9ace",
+        "name": "C++",
+        "name_cn": "C++",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.6,
+        "source_count": 32
+      },
+      {
+        "skill_id": "9ab58b82-1eb3-beab-771c-2ce7d6f526f2",
+        "name": "Go",
+        "name_cn": "Go",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.6,
+        "source_count": 29
+      },
+      {
+        "skill_id": "8d69048e-82bc-0a56-74c7-680f26912298",
+        "name": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 50
+      },
+      {
+        "skill_id": "bb50d6d6-2586-2abb-5cf3-7bbec9a6cf83",
+        "name": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 142
+      }
+    ],
+    "persisted_definition": {
+      "industry_scenario": "算法应用平台工程师主要服务于金融科技、智能客服、电商推荐和工业智能等需规模化部署AI模型的行业场景，负责构建稳定、可扩展的算法服务化平台，解决模型从研发到生产环境的工程化落地、版本管理、性能监控与资源调度等关键问题。",
+      "core_responsibilities": [
+        "设计与开发算法服务API网关",
+        "集成Python训练模型为Java微服务",
+        "实现模型版本管理与灰度发布机制",
+        "构建模型推理性能监控与日志体系",
+        "优化服务端高并发低延迟响应能力",
+        "协同算法工程师完成模型容器化封装"
+      ],
+      "bonus_skills": [
+        "Spring Boot",
+        "Docker",
+        "Kubernetes",
+        "Prometheus",
+        "gRPC",
+        "MLflow",
+        "Apache Kafka",
+        "OpenTelemetry"
+      ],
+      "summary": "算法应用平台工程师是负责将机器学习模型工程化封装、部署与运维，支撑算法在生产环境高效稳定运行的平台型技术岗位。"
+    },
+    "note": "岗位已审核入图，GET /api/v1/positions/{name} 返回持久化五要素（与 discover 临时生成版本可略有差异，属系统真实行为）"
+  },
+  "source": "POST /api/v1/positions/discover?with_definitions=true + GET /api/v1/positions/{name}（2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

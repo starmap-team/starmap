@@ -1,0 +1,66 @@
+{
+  "position": "首席自主卡车工程师",
+  "emerging_ratio": 1,
+  "definition_from_discover": {
+    "industry_scenario": "该岗位主要服务于智能物流、干线货运及港口/矿山等封闭场景的自动驾驶运输业务，聚焦于端到端自主卡车系统的整体架构设计与技术路线决策，解决多传感器融合、车规级系统可靠性、功能安全（ISO 26262）与预期功能安全（SOTIF）协同落地等系统性工程难题。",
+    "core_responsibilities": [
+      "主导自主卡车整车级系统架构设计",
+      "定义感知-决策-控制-执行全栈技术接口规范",
+      "统筹功能安全与预期功能安全（SOTIF）系统集成",
+      "推动车规级硬件选型与软硬协同验证方案",
+      "评审关键子系统（如线控底盘、域控制器）设计合规性",
+      "牵头跨团队（算法、测试、供应链）系统级问题根因分析"
+    ],
+    "bonus_skills": [
+      "ISO 26262 ASIL-D开发流程",
+      "AUTOSAR Adaptive Platform",
+      "ROS 2 Automotive",
+      "Cybersecurity Engineering (ISO/SAE 21434)",
+      "Model-Based Systems Engineering (MBSE)",
+      "Functional Safety Analysis (FTA, FMEA)"
+    ],
+    "summary": "首席自主卡车工程师是负责自主卡车整车级系统架构设计、安全合规集成与跨域技术协同决策的高端技术领导岗位。",
+    "required_skills": [
+      "System Design"
+    ],
+    "note": "discover?with_definitions=true 实时生成（LLM），不落库；每次调用可能略有差异"
+  },
+  "in_graph_detail": {
+    "position_id": "12de6d44-f501-6438-ba7e-f006321a0b12",
+    "industry": "互联网/IT",
+    "review_status": "approved",
+    "skills_required": [
+      {
+        "skill_id": "61b1083c-7317-b209-d1c8-239572c6dfab",
+        "name": "System Design",
+        "name_cn": "系统设计",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 11
+      }
+    ],
+    "persisted_definition": {
+      "industry_scenario": "该岗位主要服务于智能物流、干线货运及港口/矿区等封闭场景的自动驾驶商业化落地，聚焦于自主卡车系统的端到端架构设计与技术整合，解决多传感器融合感知、高可靠决策规划、车规级系统冗余与功能安全协同等核心工程问题。",
+      "core_responsibilities": [
+        "主导自主卡车整车级系统架构设计",
+        "定义感知-决策-控制-执行模块接口规范",
+        "统筹功能安全（ISO 26262）与预期功能安全（SOTIF）系统实现",
+        "推动跨域软硬件集成与系统级验证闭环",
+        "制定系统可测试性、可维护性与OTA升级架构方案"
+      ],
+      "bonus_skills": [
+        "ISO 26262 ASIL-D系统开发",
+        "AUTOSAR Adaptive Platform",
+        "ROS2/DDS通信中间件",
+        "ASPICE过程体系",
+        "车规级功能安全分析（FMEA/FMEDA）",
+        "嵌入式实时操作系统（QNX/VxWorks）"
+      ],
+      "summary": "首席自主卡车工程师是负责自主卡车整车级系统架构设计与安全可靠集成的技术领导者岗位。"
+    },
+    "note": "岗位已审核入图，GET /api/v1/positions/{name} 返回持久化五要素（与 discover 临时生成版本可略有差异，属系统真实行为）"
+  },
+  "source": "POST /api/v1/positions/discover?with_definitions=true + GET /api/v1/positions/{name}（2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

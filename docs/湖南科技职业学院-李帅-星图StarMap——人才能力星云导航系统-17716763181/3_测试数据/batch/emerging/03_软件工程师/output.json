@@ -1,0 +1,108 @@
+{
+  "position": "软件工程师",
+  "emerging_ratio": 1,
+  "definition_from_discover": {
+    "industry_scenario": "软件工程师广泛服务于金融科技、电商、企业服务及政务数字化等领域，依托Java、Python、JavaScript等语言开发高可用后端服务、前端交互界面及自动化工具，支撑交易系统稳定性、用户界面响应性与数据处理效率，满足合规、高并发与快速迭代的业务需求。",
+    "core_responsibilities": [
+      "编写和维护Java/Python后端服务代码",
+      "开发和优化Web前端功能模块",
+      "使用Git进行团队协同开发与版本管理",
+      "编写单元测试并参与代码评审",
+      "调试定位跨语言环境下的系统问题",
+      "配合产品与测试完成需求交付与迭代上线"
+    ],
+    "bonus_skills": [
+      "Spring Boot",
+      "React",
+      "Docker",
+      "SQL",
+      "RESTful API设计",
+      "JUnit",
+      "Linux系统基础",
+      "CI/CD流程"
+    ],
+    "summary": "软件工程师是运用Java、Python、JavaScript和Git等技术开展全栈或模块化软件开发、测试与协作的岗位。",
+    "required_skills": [
+      "Git",
+      "Java",
+      "JavaScript",
+      "Python"
+    ],
+    "note": "discover?with_definitions=true 实时生成（LLM），不落库；每次调用可能略有差异"
+  },
+  "in_graph_detail": {
+    "position_id": "551342dc-0510-73be-432d-0fbeead1655b",
+    "industry": "互联网/IT",
+    "review_status": "approved",
+    "skills_required": [
+      {
+        "skill_id": "e55fc1bd-19b4-c053-a9f6-79677819e8d4",
+        "name": "JavaScript",
+        "name_cn": "JavaScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 22
+      },
+      {
+        "skill_id": "8d69048e-82bc-0a56-74c7-680f26912298",
+        "name": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 50
+      },
+      {
+        "skill_id": "bb50d6d6-2586-2abb-5cf3-7bbec9a6cf83",
+        "name": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 142
+      },
+      {
+        "skill_id": "1fbbf838-939b-2db6-4d80-606aec6c15eb",
+        "name": "CI/CD",
+        "name_cn": "CI/CD",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.6,
+        "source_count": 22
+      },
+      {
+        "skill_id": "e4d21690-6d04-2194-f3cd-ab8d1aef18c4",
+        "name": "Git",
+        "name_cn": "Git",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 11
+      }
+    ],
+    "persisted_definition": {
+      "industry_scenario": "软件工程师广泛服务于金融科技、电商、企业服务及互联网平台等行业，负责开发和维护Web应用、后端服务与数据处理系统；依托JavaScript实现交互式前端功能，用Java或Python构建高并发、可扩展的后端逻辑，并通过Git保障协作开发的质量与可追溯性。",
+      "core_responsibilities": [
+        "编写和维护Web前端与后端功能代码",
+        "参与需求分析与模块化软件设计",
+        "使用Git进行版本控制与团队协同开发",
+        "编写单元测试并配合完成集成测试",
+        "定位与修复生产环境中的软件缺陷"
+      ],
+      "bonus_skills": [
+        "Spring Boot",
+        "React",
+        "Docker",
+        "SQL",
+        "RESTful API设计",
+        "Linux系统基础",
+        "CI/CD基础"
+      ],
+      "summary": "软件工程师是运用JavaScript、Java、Python等语言及Git工具进行全栈或模块化软件开发、测试与协作的岗位。"
+    },
+    "note": "岗位已审核入图，GET /api/v1/positions/{name} 返回持久化五要素（与 discover 临时生成版本可略有差异，属系统真实行为）"
+  },
+  "source": "POST /api/v1/positions/discover?with_definitions=true + GET /api/v1/positions/{name}（2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

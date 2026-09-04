@@ -1,0 +1,150 @@
+{
+  "position": "Python后端工程师",
+  "position_id": "436b3fc4-e052-422c-8388-6cf6d8f1463c",
+  "industry": "后端开发",
+  "domain_tag": "后端工程",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位主要服务于金融科技、智能风控、AI SaaS平台及高并发数据服务类企业，支撑实时交易系统、模型推理API服务、用户行为分析微服务架构等场景，解决高性能API交付、异步任务调度、容器化部署与弹性扩缩容、多源数据协同处理等关键问题。",
+    "core_responsibilities": [
+      "设计并开发高可用FastAPI微服务接口",
+      "构建Docker镜像并管理K8s集群部署",
+      "集成Redis缓存与PostgreSQL事务数据层",
+      "实现Celery异步任务与定时作业调度",
+      "协同前端完成React+TypeScript全栈功能联调",
+      "搭建AWS云环境CI/CD流水线并保障交付质量"
+    ],
+    "bonus_skills": [
+      "Prometheus+Grafana监控体系",
+      "OpenTelemetry分布式追踪",
+      "SQLAlchemy ORM深度优化",
+      "Terraform基础设施即代码",
+      "OAuth2/JWT安全认证集成",
+      "Pydantic V2高级数据验证",
+      "EventBridge/SQS事件驱动架构"
+    ],
+    "summary": "Python后端工程师是聚焦于FastAPI微服务开发、云原生部署（Docker/K8s/AWS）与AI能力集成（PyTorch）的全栈型后端技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 142
+      },
+      {
+        "skill": "FastAPI",
+        "name_cn": "",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 8
+      },
+      {
+        "skill": "Docker",
+        "name_cn": "Docker",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 12
+      },
+      {
+        "skill": "Kubernetes",
+        "name_cn": "Kubernetes",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 21
+      },
+      {
+        "skill": "PostgreSQL",
+        "name_cn": "PostgreSQL",
+        "category": "database",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 7
+      },
+      {
+        "skill": "Redis",
+        "name_cn": "Redis",
+        "category": "database",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 6
+      },
+      {
+        "skill": "Celery",
+        "name_cn": "",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 2
+      },
+      {
+        "skill": "React",
+        "name_cn": "React",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 13
+      },
+      {
+        "skill": "TypeScript",
+        "name_cn": "TypeScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 15
+      },
+      {
+        "skill": "AWS",
+        "name_cn": "AWS",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 19
+      },
+      {
+        "skill": "CI/CD",
+        "name_cn": "CI/CD",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 22
+      },
+      {
+        "skill": "PyTorch",
+        "name_cn": "PyTorch",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 8
+      },
+      {
+        "skill": "Microservices",
+        "name_cn": "微服务",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 4
+      }
+    ],
+    "bonus_skills": [
+      "Prometheus+Grafana监控体系",
+      "OpenTelemetry分布式追踪",
+      "SQLAlchemy ORM深度优化",
+      "Terraform基础设施即代码",
+      "OAuth2/JWT安全认证集成",
+      "Pydantic V2高级数据验证",
+      "EventBridge/SQS事件驱动架构"
+    ],
+    "skill_count": 13,
+    "total_source_count": 279
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

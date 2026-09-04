@@ -1,0 +1,112 @@
+{
+  "position": "大数据工程师",
+  "position_id": "75b6852b-52f5-4717-9c8e-a8199ea57841",
+  "industry": "数据工程",
+  "domain_tag": "大数据",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "大数据工程师广泛服务于金融科技（实时风控与用户画像）、电商（个性化推荐与交易行为分析）、电信（话单处理与网络日志分析）及政务大数据平台等场景，依托Hadoop、Spark、Flink等技术构建高吞吐、低延迟的数据处理流水线，支撑海量结构化与半结构化数据的采集、清洗、建模与服务化。",
+    "core_responsibilities": [
+      "设计与开发分布式批流一体数据处理管道",
+      "维护和优化Hive/Spark/Flink作业性能与稳定性",
+      "实现Kafka消息接入、解析与实时计算逻辑",
+      "编写高效SQL与Python/Scala脚本完成数据ETL与质量校验",
+      "管理Hadoop生态组件集群配置与资源调度",
+      "协同数据产品与算法团队交付可复用的数据资产"
+    ],
+    "bonus_skills": [
+      "AWS EMR",
+      "Azure Databricks",
+      "Airflow",
+      "Delta Lake",
+      "Trino",
+      "Docker",
+      "Data Mesh架构",
+      "Apache Iceberg"
+    ],
+    "summary": "大数据工程师是负责构建、运维和优化企业级分布式数据处理平台与流水线，支撑规模化数据采集、计算、治理与服务交付的技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Apache Spark",
+        "name_cn": "",
+        "category": "general",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 2
+      },
+      {
+        "skill": "Hadoop",
+        "name_cn": "",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 5
+      },
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 40
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 142
+      },
+      {
+        "skill": "Scala",
+        "name_cn": "Scala",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 7
+      },
+      {
+        "skill": "Apache Kafka",
+        "name_cn": "",
+        "category": "general",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 3
+      },
+      {
+        "skill": "Hive",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 4
+      },
+      {
+        "skill": "Flink",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 5
+      }
+    ],
+    "bonus_skills": [
+      "AWS EMR",
+      "Azure Databricks",
+      "Airflow",
+      "Delta Lake",
+      "Trino",
+      "Docker",
+      "Data Mesh架构",
+      "Apache Iceberg"
+    ],
+    "skill_count": 8,
+    "total_source_count": 208
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

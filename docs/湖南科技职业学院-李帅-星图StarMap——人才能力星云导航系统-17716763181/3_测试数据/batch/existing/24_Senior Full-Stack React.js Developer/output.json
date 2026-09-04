@@ -1,0 +1,256 @@
+{
+  "position": "Senior Full-Stack React.js Developer",
+  "position_id": "0e38b294-b0cf-4aa5-b700-0352ec023d8e",
+  "industry": "互联网/IT",
+  "domain_tag": "数字经济/泛IT",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位主要服务于金融科技、SaaS平台、企业级数字中台及云原生应用开发场景，支撑高并发、多租户、跨云部署的Web应用构建，解决前后端协同开发、全栈类型安全保障、混合云基础设施集成与服务可扩展性等核心问题。",
+    "core_responsibilities": [
+      "设计并实现React/Next.js前端架构",
+      "开发TypeScript强类型前端组件与逻辑",
+      "用Python/Ruby构建后端API与业务服务",
+      "配置与优化AWS/GCP/Azure云资源与CI/CD流水线",
+      "保障全栈代码质量、性能与跨云兼容性",
+      "协同产品与DevOps团队推进端到端交付"
+    ],
+    "bonus_skills": [
+      "GraphQL",
+      "Terraform",
+      "Docker",
+      "Kubernetes",
+      "Jest/React Testing Library",
+      "Serverless Framework",
+      "PostgreSQL",
+      "OAuth2/JWT"
+    ],
+    "summary": "Senior Full-Stack React.js Developer是具备React/Next.js与Python/Ruby双栈能力，并能主导跨云（AWS/GCP/Azure）全栈交付的高级技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "React",
+        "name_cn": "React",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 13
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 142
+      },
+      {
+        "skill": "Ruby",
+        "name_cn": "Ruby",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 7
+      },
+      {
+        "skill": "JavaScript",
+        "name_cn": "JavaScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 22
+      },
+      {
+        "skill": "Next.js",
+        "name_cn": "Next.js",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 4
+      },
+      {
+        "skill": "AWS",
+        "name_cn": "AWS",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 19
+      },
+      {
+        "skill": "GCP",
+        "name_cn": "",
+        "category": "platform",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 11
+      },
+      {
+        "skill": "Azure",
+        "name_cn": "Azure",
+        "category": "platform",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 22
+      },
+      {
+        "skill": "TypeScript",
+        "name_cn": "TypeScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.25,
+        "source_count": 15
+      },
+      {
+        "skill": "Go",
+        "name_cn": "Go",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 29
+      },
+      {
+        "skill": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 50
+      },
+      {
+        "skill": "PHP",
+        "name_cn": "PHP",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 6
+      },
+      {
+        "skill": "Vue.js",
+        "name_cn": "Vue.js",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 13
+      },
+      {
+        "skill": "Angular",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 8
+      },
+      {
+        "skill": "C#",
+        "name_cn": "C#",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 15
+      },
+      {
+        "skill": "Swift",
+        "name_cn": "Swift",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 8
+      },
+      {
+        "skill": "Flutter",
+        "name_cn": "Flutter",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 6
+      },
+      {
+        "skill": "Dart",
+        "name_cn": "Dart",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 3
+      },
+      {
+        "skill": "Ethereum",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 4
+      },
+      {
+        "skill": "Data Science",
+        "name_cn": "数据科学",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 12
+      },
+      {
+        "skill": "数据分析",
+        "name_cn": "数据分析",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 17
+      },
+      {
+        "skill": "项目管理",
+        "name_cn": "项目管理",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 14
+      },
+      {
+        "skill": "Nuxt.js",
+        "name_cn": "",
+        "category": "framework",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 5
+      },
+      {
+        "skill": "Scala",
+        "name_cn": "Scala",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 7
+      },
+      {
+        "skill": "C++",
+        "name_cn": "C++",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 32
+      },
+      {
+        "skill": "Unreal",
+        "name_cn": "",
+        "category": "platform",
+        "proficiency": "了解",
+        "confidence": 0.25,
+        "source_count": 6
+      }
+    ],
+    "bonus_skills": [
+      "GraphQL",
+      "Terraform",
+      "Docker",
+      "Kubernetes",
+      "Jest/React Testing Library",
+      "Serverless Framework",
+      "PostgreSQL",
+      "OAuth2/JWT"
+    ],
+    "skill_count": 26,
+    "total_source_count": 490
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

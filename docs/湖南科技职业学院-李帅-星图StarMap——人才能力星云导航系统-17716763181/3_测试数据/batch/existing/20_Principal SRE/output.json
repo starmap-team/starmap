@@ -1,0 +1,103 @@
+{
+  "position": "Principal SRE",
+  "position_id": "5226a60f-652e-482e-ae30-fe4f38f86b8a",
+  "industry": "云计算/DevOps",
+  "domain_tag": "云计算/DevOps",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "Principal SRE 主要服务于高并发、强可靠要求的数字经济核心场景，如云计算平台、大型互联网服务、金融科技（支付与交易系统）及SaaS企业级平台。在这些场景中，其聚焦于构建可扩展、自愈性强的云原生基础设施底座，保障分布式系统在复杂流量与故障扰动下的持续可用与性能确定性。",
+    "core_responsibilities": [
+      "主导SRE工程体系架构设计与技术演进路线",
+      "定义并落地SLI/SLO驱动的可靠性治理机制",
+      "构建跨集群、多云环境的自动化运维与可观测性平台",
+      "指导团队实施混沌工程与容量建模实践",
+      "评审关键系统分布式设计，规避单点故障与级联失效"
+    ],
+    "bonus_skills": [
+      "eBPF",
+      "OpenTelemetry",
+      "Service Mesh（Istio/Linkerd）",
+      "AWS/GCP/Azure云原生服务深度集成",
+      "SRE方法论（Google SRE Handbook）",
+      "Chaos Engineering（Chaos Mesh/Gremlin）",
+      "gRPC",
+      "CI/CD安全与可靠性增强（如Spacelift、Atlantis）"
+    ],
+    "summary": "Principal SRE是负责云原生环境下大规模分布式系统可靠性架构设计、SRE工程体系战略规划与技术领导的高级工程岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 142
+      },
+      {
+        "skill": "Go",
+        "name_cn": "Go",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 29
+      },
+      {
+        "skill": "Kubernetes",
+        "name_cn": "Kubernetes",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 21
+      },
+      {
+        "skill": "Terraform",
+        "name_cn": "Terraform",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 7
+      },
+      {
+        "skill": "Prometheus",
+        "name_cn": "",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 3
+      },
+      {
+        "skill": "Linux Systems Engineering",
+        "name_cn": "Linux系统工程",
+        "category": "general",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 1
+      },
+      {
+        "skill": "Distributed Systems Design",
+        "name_cn": "分布式系统设计",
+        "category": "general",
+        "proficiency": "精通",
+        "confidence": 0.9,
+        "source_count": 1
+      }
+    ],
+    "bonus_skills": [
+      "eBPF",
+      "OpenTelemetry",
+      "Service Mesh（Istio/Linkerd）",
+      "AWS/GCP/Azure云原生服务深度集成",
+      "SRE方法论（Google SRE Handbook）",
+      "Chaos Engineering（Chaos Mesh/Gremlin）",
+      "gRPC",
+      "CI/CD安全与可靠性增强（如Spacelift、Atlantis）"
+    ],
+    "skill_count": 7,
+    "total_source_count": 204
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

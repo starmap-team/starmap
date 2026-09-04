@@ -1,0 +1,152 @@
+{
+  "position": "前端开发工程师",
+  "position_id": "1400d160-53db-4239-b51c-2b9099f76a7f",
+  "industry": "前端开发",
+  "review_status": "approved",
+  "discovered_at": "2026-08-29T09:46:24.868648+00:00",
+  "definition": {
+    "industry_scenario": "前端开发工程师广泛服务于互联网平台、金融科技、在线教育、企业SaaS及政务数字化等场景，负责构建高性能、跨终端的用户交互界面；依托Vue.js/React等框架与TypeScript保障代码健壮性，通过Webpack/Vite优化构建效率，支撑高并发业务下的快速迭代与响应式体验。",
+    "core_responsibilities": [
+      "开发并维护Web应用前端功能模块",
+      "基于Vue.js或React实现组件化UI架构",
+      "使用TypeScript编写可维护、强类型前端逻辑",
+      "配置与优化Webpack或Vite构建流程",
+      "适配多端（PC/移动端）及主流浏览器",
+      "协同后端完成API联调与数据可视化呈现"
+    ],
+    "summary": "前端开发工程师是基于现代JavaScript框架与工程化工具构建高性能、可维护Web用户界面的专业技术岗位。"
+  },
+  "capability_graph": {
+    "note": "能力图谱（2026-09-03 GET /api/v1/positions/前端开发工程师 实测）：岗位节点→技能节点，必备(required)/加分(bonus) 分组，技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      { "skill": "Vue.js", "name_cn": "Vue.js", "category": "hard_skill", "proficiency": "精通", "confidence": 0.65, "source_count": 13 },
+      { "skill": "React", "name_cn": "React", "category": "hard_skill", "proficiency": "精通", "confidence": 0.65, "source_count": 13 },
+      { "skill": "TypeScript", "name_cn": "TypeScript", "category": "hard_skill", "proficiency": "精通", "confidence": 0.65, "source_count": 15 },
+      { "skill": "Webpack", "name_cn": "Webpack", "category": "tool", "proficiency": "精通", "confidence": 0.6743, "source_count": 2 },
+      { "skill": "Vite", "name_cn": "Vite", "category": "tool", "proficiency": "精通", "confidence": 0.65, "source_count": 2 },
+      { "skill": "JavaScript", "name_cn": "JavaScript", "category": "hard_skill", "proficiency": "精通", "confidence": 0.2, "source_count": 22 },
+      { "skill": "HTML5", "name_cn": "HTML5", "category": "hard_skill", "proficiency": "精通", "confidence": 0.2, "source_count": 7 },
+      { "skill": "CSS3", "name_cn": "CSS3", "category": "hard_skill", "proficiency": "精通", "confidence": 0.2, "source_count": 4 }
+    ],
+    "bonus_skills": [
+      "Pinia", "Vue Router", "React Router", "ESLint/Prettier工程化规范",
+      "Jest/Cypress前端测试", "CI/CD基础（如GitHub Actions）", "微前端架构（qiankun）", "HTTP/HTTPS与Web安全基础"
+    ]
+  },
+  "changes": [
+    {
+      "skill": "Webpack",
+      "change_type": "added_required",
+      "old_requirement": null,
+      "new_requirement": "required",
+      "trust_score": 0.7943,
+      "source_count": 9,
+      "status": "approved",
+      "written_back": true,
+      "created_at": "2026-08-29T10:11:04Z"
+    },
+    {
+      "skill": "Vite",
+      "change_type": "promoted",
+      "old_requirement": "preferred",
+      "new_requirement": "required",
+      "trust_score": 0.7143,
+      "source_count": 9,
+      "status": "approved",
+      "written_back": true,
+      "created_at": "2026-08-29T10:11:04Z"
+    },
+    {
+      "skill": "TypeScript",
+      "change_type": "retained",
+      "old_requirement": "required",
+      "new_requirement": "required",
+      "trust_score": 0.6943,
+      "source_count": 9,
+      "status": "approved",
+      "written_back": false,
+      "created_at": "2026-08-29T10:11:04Z"
+    },
+    {
+      "skill": "HTML5",
+      "change_type": "added_required",
+      "old_requirement": null,
+      "new_requirement": "required",
+      "trust_score": 0.7073,
+      "source_count": 6,
+      "status": "approved",
+      "written_back": false,
+      "created_at": "2026-08-29T03:00:53Z"
+    },
+    {
+      "skill": "CSS3",
+      "change_type": "added_required",
+      "old_requirement": null,
+      "new_requirement": "required",
+      "trust_score": 0.7073,
+      "source_count": 6,
+      "status": "approved",
+      "written_back": false,
+      "created_at": "2026-08-29T03:00:53Z"
+    },
+    {
+      "skill": "React",
+      "change_type": "promoted",
+      "old_requirement": "preferred",
+      "new_requirement": "required",
+      "trust_score": 0.6273,
+      "source_count": 6,
+      "status": "approved",
+      "written_back": false,
+      "created_at": "2026-08-29T03:00:53Z"
+    },
+    {
+      "skill": "Vue.js",
+      "change_type": "retained",
+      "old_requirement": "required",
+      "new_requirement": "required",
+      "trust_score": 0.6073,
+      "source_count": 6,
+      "status": "approved",
+      "written_back": false,
+      "created_at": "2026-08-29T03:00:53Z"
+    },
+    {
+      "skill": "JavaScript",
+      "change_type": "retained",
+      "old_requirement": "required",
+      "new_requirement": "required",
+      "trust_score": 0.6073,
+      "source_count": 6,
+      "status": "approved",
+      "written_back": false,
+      "created_at": "2026-08-29T03:00:53Z"
+    },
+    {
+      "skill": "TypeScript",
+      "change_type": "removed",
+      "old_requirement": "required",
+      "new_requirement": null,
+      "trust_score": 0.4673,
+      "source_count": 6,
+      "status": "pending",
+      "written_back": false,
+      "created_at": "2026-08-29T03:00:53Z",
+      "note": "低信任(0.4673)变更，未获批准，TypeScript 仍为必备技能（见 capability_graph）"
+    },
+    {
+      "skill": "Vite",
+      "change_type": "removed",
+      "old_requirement": "preferred",
+      "new_requirement": null,
+      "trust_score": 0.4673,
+      "source_count": 6,
+      "status": "pending",
+      "written_back": false,
+      "created_at": "2026-08-29T03:00:53Z",
+      "note": "早期低信任移除提案，后被 promoted(approved, written_back=true) 覆盖，Vite 现为必备"
+    }
+  ],
+  "source": "GET /api/v1/positions/前端开发工程师 + GET /api/v1/evolution/changelog/前端开发工程师（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

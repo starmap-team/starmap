@@ -1,0 +1,72 @@
+{
+  "position": "物联网平台开发工程师",
+  "position_id": "1b2e023c-d9c0-4e3d-bf01-74d83504fd15",
+  "industry": "嵌入式与物联网",
+  "domain_tag": "物联网/嵌入式",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "物联网平台开发工程师主要服务于智能制造、智慧城市、能源管理及智慧物流等行业，负责构建高并发、低延迟的设备接入与数据处理平台，支撑海量传感器设备的连接管理、数据采集、规则引擎触发与远程指令下发，解决异构设备协议兼容性、平台可扩展性及实时数据流处理等核心问题。",
+    "core_responsibilities": [
+      "设计并开发物联网平台核心服务模块",
+      "实现设备接入协议适配（如MQTT/CoAP/LwM2M）",
+      "构建设备管理、数据路由与规则引擎功能",
+      "优化平台高可用性、水平扩展与消息吞吐能力",
+      "编写自动化测试用例并参与CI/CD流程集成",
+      "协同前端与算法团队完成数据可视化与智能分析对接"
+    ],
+    "bonus_skills": [
+      "Spring Boot",
+      "Kubernetes",
+      "EMQX",
+      "Apache Kafka",
+      "Prometheus",
+      "Grafana",
+      "OPC UA",
+      "AWS IoT Core"
+    ],
+    "summary": "物联网平台开发工程师是负责设计、开发和运维高可靠物联网PaaS平台，支撑海量设备接入、数据治理与业务逻辑编排的技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Java",
+        "name_cn": "Java",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 50
+      },
+      {
+        "skill": "Go",
+        "name_cn": "Go",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 29
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 142
+      }
+    ],
+    "bonus_skills": [
+      "Spring Boot",
+      "Kubernetes",
+      "EMQX",
+      "Apache Kafka",
+      "Prometheus",
+      "Grafana",
+      "OPC UA",
+      "AWS IoT Core"
+    ],
+    "skill_count": 3,
+    "total_source_count": 221
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

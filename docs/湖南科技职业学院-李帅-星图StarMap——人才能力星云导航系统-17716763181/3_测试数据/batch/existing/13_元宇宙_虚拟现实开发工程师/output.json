@@ -1,0 +1,95 @@
+{
+  "position": "元宇宙/虚拟现实开发工程师",
+  "position_id": "7c883bd9-bc85-4a23-9ccb-be64761e7cae",
+  "industry": "游戏开发",
+  "domain_tag": "数字内容",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位主要服务于数字文旅、在线教育、工业仿真、虚拟会展及游戏娱乐等行业，基于Unity、Unreal和Three.js构建跨终端（PC/VR/网页）沉浸式交互场景，解决三维内容实时渲染、多端适配、低延迟交互与轻量化部署等核心问题。",
+    "core_responsibilities": [
+      "开发并优化3D虚拟场景的交互逻辑与物理效果",
+      "使用C#或C++实现Unity/Unreal引擎底层功能扩展",
+      "基于Three.js构建Web端轻量级VR/AR体验",
+      "集成空间音频、手势识别、动作捕捉等XR接口",
+      "协同美术与策划完成跨平台资源管线与性能调优"
+    ],
+    "bonus_skills": [
+      "WebGL",
+      "OpenXR",
+      "Shader Graph/HLSL",
+      "AWS Sumerian",
+      "ROS2",
+      "gRPC",
+      "Git LFS",
+      "Agile/Scrum"
+    ],
+    "summary": "元宇宙/虚拟现实开发工程师是负责使用Unity、Unreal及Three.js等工具开发跨平台沉浸式三维交互应用的岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Unity",
+        "name_cn": "",
+        "category": "tool",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 5
+      },
+      {
+        "skill": "Unreal",
+        "name_cn": "",
+        "category": "platform",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 6
+      },
+      {
+        "skill": "Three.js",
+        "name_cn": "",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 1
+      },
+      {
+        "skill": "C++",
+        "name_cn": "C++",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 32
+      },
+      {
+        "skill": "C#",
+        "name_cn": "C#",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 15
+      },
+      {
+        "skill": "JavaScript",
+        "name_cn": "JavaScript",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.35,
+        "source_count": 22
+      }
+    ],
+    "bonus_skills": [
+      "WebGL",
+      "OpenXR",
+      "Shader Graph/HLSL",
+      "AWS Sumerian",
+      "ROS2",
+      "gRPC",
+      "Git LFS",
+      "Agile/Scrum"
+    ],
+    "skill_count": 6,
+    "total_source_count": 81
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

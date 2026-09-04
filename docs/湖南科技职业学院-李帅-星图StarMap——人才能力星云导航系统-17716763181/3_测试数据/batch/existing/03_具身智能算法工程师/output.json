@@ -1,0 +1,184 @@
+{
+  "position": "具身智能算法工程师",
+  "position_id": "9ab2d6c0-15b3-4865-ac7d-39b6dfabc82c",
+  "industry": "人工智能",
+  "domain_tag": "人工智能",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "该岗位主要服务于智能机器人、服务机器人、工业自动化及特种机器人等领域，聚焦于研发具备感知-决策-行动闭环能力的具身智能系统；在制造业柔性产线、仓储物流自主调度、家庭/医疗陪护机器人等场景中，解决物理世界实时交互、多模态环境理解与长时序任务执行等核心问题。",
+    "core_responsibilities": [
+      "设计并实现具身智能体的感知-决策-控制联合算法",
+      "构建基于强化学习的机器人任务规划与策略优化模型",
+      "集成计算机视觉与自然语言处理模块实现多模态交互",
+      "在ROS框架下完成算法模块开发、仿真验证与真机部署",
+      "使用PyTorch/TensorFlow训练端到端具身推理模型",
+      "维护与优化Linux环境下C++/Python混合系统的实时性与鲁棒性"
+    ],
+    "bonus_skills": [
+      "CUDA",
+      "Isaac ROS",
+      "Docker",
+      "OpenAI Gym / RoboSuite",
+      "Behavior Trees",
+      "SLAM",
+      "Model-Based RL",
+      "Real-time OS (e.g., RT-Linux)"
+    ],
+    "summary": "具身智能算法工程师是专注于研发具备物理世界交互能力的智能体算法，覆盖感知、决策、控制全栈技术的复合型AI工程岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Robotics",
+        "name_cn": "机器人技术",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 1
+      },
+      {
+        "skill": "Embodied AI",
+        "name_cn": "具身人工智能",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 1
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 142
+      },
+      {
+        "skill": "C++",
+        "name_cn": "C++",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 32
+      },
+      {
+        "skill": "PyTorch",
+        "name_cn": "PyTorch",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 8
+      },
+      {
+        "skill": "TensorFlow",
+        "name_cn": "",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 2
+      },
+      {
+        "skill": "Reinforcement Learning",
+        "name_cn": "强化学习",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 1
+      },
+      {
+        "skill": "Computer Vision",
+        "name_cn": "计算机视觉",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 5
+      },
+      {
+        "skill": "Natural Language Processing",
+        "name_cn": "自然语言处理",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 4
+      },
+      {
+        "skill": "ROS",
+        "name_cn": "同步定位与建图（ROS）",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 1
+      },
+      {
+        "skill": "Linux",
+        "name_cn": "Linux",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.45,
+        "source_count": 28
+      },
+      {
+        "skill": "Sim2Real",
+        "name_cn": "仿真到现实",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.45,
+        "source_count": 1
+      },
+      {
+        "skill": "Motion Planning",
+        "name_cn": "运动规划",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.45,
+        "source_count": 1
+      },
+      {
+        "skill": "SLAM",
+        "name_cn": "同步定位与建图（SLAM）",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.45,
+        "source_count": 1
+      },
+      {
+        "skill": "CUDA",
+        "name_cn": "",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.45,
+        "source_count": 2
+      },
+      {
+        "skill": "Docker",
+        "name_cn": "Docker",
+        "category": "tool",
+        "proficiency": "了解",
+        "confidence": 0.45,
+        "source_count": 12
+      },
+      {
+        "skill": "Kubernetes",
+        "name_cn": "Kubernetes",
+        "category": "hard_skill",
+        "proficiency": "了解",
+        "confidence": 0.45,
+        "source_count": 21
+      }
+    ],
+    "bonus_skills": [
+      "CUDA",
+      "Isaac ROS",
+      "Docker",
+      "OpenAI Gym / RoboSuite",
+      "Behavior Trees",
+      "SLAM",
+      "Model-Based RL",
+      "Real-time OS (e.g., RT-Linux)"
+    ],
+    "skill_count": 17,
+    "total_source_count": 263
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

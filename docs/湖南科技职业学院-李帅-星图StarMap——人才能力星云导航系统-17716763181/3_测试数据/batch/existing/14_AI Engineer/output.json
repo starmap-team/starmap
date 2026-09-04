@@ -1,0 +1,128 @@
+{
+  "position": "AI Engineer",
+  "position_id": "b5285bda-f8d0-16c5-681a-604e704c5546",
+  "industry": "人工智能",
+  "domain_tag": "人工智能",
+  "review_status": "approved",
+  "definition": {
+    "industry_scenario": "AI Engineer 主要服务于金融科技、智能客服、企业知识管理及内容生成等场景，聚焦于构建基于大语言模型的生产级AI应用。典型任务包括设计RAG增强的智能问答系统、优化LLM推理性能、实现Prompt工程与模型微调闭环，并通过CI/CD保障AI服务持续交付与SQL数据层集成。",
+    "core_responsibilities": [
+      "开发与维护基于LangChain和RAG的LLM应用",
+      "使用PyTorch进行LLM微调与推理优化",
+      "设计高可用、可扩展的AI系统架构",
+      "编写高质量Python代码并集成SQL数据访问层",
+      "构建自动化CI/CD流水线支持AI模型迭代",
+      "开展Prompt Engineering以提升模型输出准确性与可控性"
+    ],
+    "bonus_skills": [
+      "Hugging Face Transformers",
+      "Docker",
+      "Kubernetes",
+      "AWS/GCP AI服务（如SageMaker/Vertex AI）",
+      "Vector Database（如Milvus、Pinecone）",
+      "Evaluation Frameworks（如RAGAS、TruLens）",
+      "MLflow",
+      "OpenTelemetry"
+    ],
+    "summary": "AI Engineer是面向大语言模型应用落地，负责RAG系统开发、Prompt工程、模型微调及AI服务工程化交付的技术岗位。"
+  },
+  "capability_graph": {
+    "note": "岗位→技能点图谱（required 必备 / bonus 加分），技能点含熟练度/置信度/来源数",
+    "required_skills": [
+      {
+        "skill": "Milvus",
+        "name_cn": "Milvus",
+        "category": "通用",
+        "proficiency": "了解",
+        "confidence": 0.6,
+        "source_count": 1
+      },
+      {
+        "skill": "LangChain",
+        "name_cn": "LangChain",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 4
+      },
+      {
+        "skill": "PyTorch",
+        "name_cn": "PyTorch",
+        "category": "framework",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 8
+      },
+      {
+        "skill": "Python",
+        "name_cn": "Python",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 1,
+        "source_count": 142
+      },
+      {
+        "skill": "LLM",
+        "name_cn": "大语言模型",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 4
+      },
+      {
+        "skill": "RAG",
+        "name_cn": "RAG",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 5
+      },
+      {
+        "skill": "Prompt Engineering",
+        "name_cn": "提示工程",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 3
+      },
+      {
+        "skill": "System Design",
+        "name_cn": "系统设计",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 11
+      },
+      {
+        "skill": "CI/CD",
+        "name_cn": "CI/CD",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 22
+      },
+      {
+        "skill": "SQL",
+        "name_cn": "SQL",
+        "category": "hard_skill",
+        "proficiency": "精通",
+        "confidence": 0.98,
+        "source_count": 40
+      }
+    ],
+    "bonus_skills": [
+      "Hugging Face Transformers",
+      "Docker",
+      "Kubernetes",
+      "AWS/GCP AI服务（如SageMaker/Vertex AI）",
+      "Vector Database（如Milvus、Pinecone）",
+      "Evaluation Frameworks（如RAGAS、TruLens）",
+      "MLflow",
+      "OpenTelemetry"
+    ],
+    "skill_count": 10,
+    "total_source_count": 240
+  },
+  "source": "GET /api/v1/positions/{name}（公网实时 API 2026-09-03 实测）",
+  "extracted_at": "2026-09-03"
+}

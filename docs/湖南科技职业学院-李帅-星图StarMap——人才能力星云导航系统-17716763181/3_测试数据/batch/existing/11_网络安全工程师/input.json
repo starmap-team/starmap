@@ -1,0 +1,24 @@
+{
+  "position": "网络安全工程师",
+  "input_type": "position_source_reference",
+  "industry": "网络安全",
+  "domain_tag": "网络安全",
+  "source_platforms_note": "该岗位技能由系统多源采集的真实 JD 汇聚（source_count 为汇聚该技能的 JD 源数）；数据源分布见总 README datasources 表",
+  "skill_aggregation": {
+    "skills_count": 2,
+    "total_source_count": 171,
+    "top_skills": [
+      {
+        "skill": "Python",
+        "source_count": 142,
+        "confidence": 0.35
+      },
+      {
+        "skill": "Go",
+        "source_count": 29,
+        "confidence": 0.35
+      }
+    ]
+  },
+  "fetched_at": "2026-09-03"
+}
