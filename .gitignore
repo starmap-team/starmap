@@ -12,7 +12,7 @@
 !.env.production.example
 .env.docker
 *.env.docker
-.env.bak
+.env.bak*
 secrets/
 
 # ---- Python 编译/发布产物 ----
@@ -228,6 +228,7 @@ _*.png
 _*.jpg
 test-screenshots/
 screenshots/
+gui-test-screenshots/
 
 # ---- 演示视频（体积大不入库，提交材料由云盘单独提供）----
 docs/competition/video/
@@ -237,8 +238,33 @@ docs/competition/video/
 # ---- 答辩交付物（不入库，提交材料由云盘单独提供）----
 docs/competition/pdf/
 docs/competition/ppt/
+docs/competition/软件模块/
 *.pdf
 *.pptx
+
+# ---- 竞赛材料生产层（仅终稿 docx 入库；草稿/截图/生成脚本/表格不入库）----
+# 注意：终稿恰为带版本号的 系统说明书-v4.docx / 系统测试方案-v2.docx，
+#       因此草稿必须逐个精确排除，不可用 *-v*.docx 通配。
+docs/competition/*/shots/
+docs/competition/*/images/
+docs/competition/test-plan/charts/
+docs/competition/*/*.js
+docs/competition/*/*.py
+docs/competition/testcase/
+docs/competition/系统方案说明书/星图StarMap-系统方案说明书.docx
+docs/competition/系统方案说明书/星图StarMap-系统说明书.docx
+docs/competition/系统方案说明书/星图StarMap-系统说明书-v2.docx
+docs/competition/系统方案说明书/星图StarMap-系统说明书-v3.docx
+docs/competition/test-plan/星图StarMap-系统测试方案.docx
+
+# ---- 提交包压缩产物与工作副本 ----
+# 正式提交包为 docs/湖南科技职业学院-…-17716763181/；同名 .zip 为可再生的打包产物
+docs/湖南科技职业学院-*.zip
+submission/test-data/
+
+# ---- 调试快照与未被引用的中间数据 ----
+snap-*.md
+evaluation/golden_set_match_calibrated.jsonl
 
 # ---- Windows NUL 设备误生成 ----
 nul
