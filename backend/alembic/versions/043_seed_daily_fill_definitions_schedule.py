@@ -20,17 +20,19 @@ depends_on = None
 
 def upgrade() -> None:
     # 1. INSERT（fresh 环境）——幂等守卫（name 无唯一约束，不能 ON CONFLICT）
+    #    created_at NOT NULL 无默认值 → 必须显式 now()（039 遗漏此列致其在此库从未成功）
     op.execute(
         sa.text(
             """
             INSERT INTO pipeline_schedules
-                (id, name, cron_expression, run_type, enabled, selected_stages, next_run_at)
+                (id, name, cron_expression, run_type, enabled, selected_stages, next_run_at, created_at)
             SELECT gen_random_uuid(), 'daily_fill_definitions', '0 4 * * *', 'manual', true, NULL,
                    -- 下个 04:00 UTC
                    date_trunc('day', now() AT TIME ZONE 'UTC')
                      + CASE WHEN (now() AT TIME ZONE 'UTC')::time >= '04:00:00'
                             THEN interval '1 day' ELSE interval '0 day' END
-                     + interval '4 hours'
+                     + interval '4 hours',
+                   now()
             WHERE NOT EXISTS (SELECT 1 FROM pipeline_schedules WHERE name = 'daily_fill_definitions')
             """
         )
