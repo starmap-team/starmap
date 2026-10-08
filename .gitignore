@@ -265,6 +265,9 @@ submission/test-data/
 # ---- 调试快照与未被引用的中间数据 ----
 snap-*.md
 evaluation/golden_set_match_calibrated.jsonl
+# 已移出跟踪：rebuilt 与 golden_set_match.jsonl 同一 blob（字节相同），bak-* 为备份变体
+evaluation/golden_set_match_rebuilt.jsonl
+evaluation/golden_set_match.jsonl.bak*
 
 # ---- Windows NUL 设备误生成 ----
 nul
