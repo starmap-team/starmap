@@ -1,12 +1,12 @@
 {
   "total_samples": 110,
-  "avg_precision": 0.9725,
-  "avg_recall": 0.9568,
-  "avg_f1": 0.9622,
-  "weighted_score": 0.9727,
+  "avg_precision": 0.9766,
+  "avg_recall": 0.9551,
+  "avg_f1": 0.9635,
+  "weighted_score": 0.9682,
   "f1_distribution": {
-    "excellent": 99,
-    "good": 10,
+    "excellent": 97,
+    "good": 12,
     "fair": 1,
     "poor": 0
   },
@@ -49,9 +49,9 @@
     },
     {
       "sample_id": "jd-005",
-      "precision": 0.9271,
+      "precision": 0.825,
       "recall": 1.0,
-      "f1": 0.9611,
+      "f1": 0.8971,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -67,9 +67,9 @@
     },
     {
       "sample_id": "jd-007",
-      "precision": 0.9259,
-      "recall": 0.9167,
-      "f1": 0.9132,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -149,8 +149,8 @@
     {
       "sample_id": "jd-016",
       "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0,
+      "recall": 0.9231,
+      "f1": 0.9593,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -212,8 +212,8 @@
     {
       "sample_id": "jd-023",
       "precision": 1.0,
-      "recall": 0.6667,
-      "f1": 0.7937,
+      "recall": 0.5833,
+      "f1": 0.735,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -373,9 +373,9 @@
     },
     {
       "sample_id": "jd-041",
-      "precision": 1.0,
+      "precision": 0.9091,
       "recall": 0.8182,
-      "f1": 0.8939,
+      "f1": 0.8571,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -499,36 +499,36 @@
     },
     {
       "sample_id": "jd-055",
-      "precision": 0.9143,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.9538,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-056",
-      "precision": 0.9143,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.9538,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-057",
-      "precision": 0.9143,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.9538,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-058",
-      "precision": 0.9143,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.9538,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -580,15 +580,6 @@
     },
     {
       "sample_id": "jd-064",
-      "precision": 1.0,
-      "recall": 0.9,
-      "f1": 0.9455,
-      "llm_score": null,
-      "llm_reasoning": null,
-      "errors": []
-    },
-    {
-      "sample_id": "jd-065",
       "precision": 0.88,
       "recall": 0.8,
       "f1": 0.8364,
@@ -597,10 +588,19 @@
       "errors": []
     },
     {
-      "sample_id": "jd-066",
+      "sample_id": "jd-065",
       "precision": 1.0,
       "recall": 0.9,
       "f1": 0.9455,
+      "llm_score": null,
+      "llm_reasoning": null,
+      "errors": []
+    },
+    {
+      "sample_id": "jd-066",
+      "precision": 0.88,
+      "recall": 0.8,
+      "f1": 0.8364,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -751,36 +751,36 @@
     },
     {
       "sample_id": "jd-083",
-      "precision": 0.9143,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.9538,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-084",
-      "precision": 0.9143,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.9538,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-085",
-      "precision": 0.9143,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.9538,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-086",
-      "precision": 0.9143,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.9538,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -967,24 +967,15 @@
     },
     {
       "sample_id": "jd-107",
-      "precision": 0.9,
-      "recall": 0.9,
-      "f1": 0.9,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
     },
     {
       "sample_id": "jd-108",
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0,
-      "llm_score": null,
-      "llm_reasoning": null,
-      "errors": []
-    },
-    {
-      "sample_id": "jd-109",
       "precision": 0.9,
       "recall": 0.9,
       "f1": 0.9,
@@ -993,10 +984,19 @@
       "errors": []
     },
     {
-      "sample_id": "jd-110",
+      "sample_id": "jd-109",
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0,
+      "llm_score": null,
+      "llm_reasoning": null,
+      "errors": []
+    },
+    {
+      "sample_id": "jd-110",
+      "precision": 0.9,
+      "recall": 0.9,
+      "f1": 0.9,
       "llm_score": null,
       "llm_reasoning": null,
       "errors": []
@@ -1004,23 +1004,23 @@
   ],
   "ci_95": {
     "f1": {
-      "lower": 0.9516,
-      "upper": 0.9713,
-      "mean": 0.9622,
+      "lower": 0.9523,
+      "upper": 0.9735,
+      "mean": 0.9635,
       "n": 110.0,
       "n_resamples": 1000.0
     },
     "precision": {
-      "lower": 0.9639,
-      "upper": 0.9815,
-      "mean": 0.9725,
+      "lower": 0.968,
+      "upper": 0.9849,
+      "mean": 0.9766,
       "n": 110.0,
       "n_resamples": 1000.0
     },
     "recall": {
-      "lower": 0.9421,
-      "upper": 0.9698,
-      "mean": 0.9568,
+      "lower": 0.9385,
+      "upper": 0.9685,
+      "mean": 0.9551,
       "n": 110.0,
       "n_resamples": 1000.0
     }
