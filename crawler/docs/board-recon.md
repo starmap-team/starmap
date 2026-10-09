@@ -24,8 +24,8 @@
 
 ## 后续
 
-- T1.2 统一适配器写入 `crawler/scripts/fetch_chinese_board.py`（BOSS 真 + 拉勾/猎聘 占位）。
-- T1.6 tracer 走 BOSS 直连跑通；remotive 走既有 Apify 路径。
+- 统一适配器已落地为 `crawler/scripts/apify_*.py`（拉勾 / 猎聘 / 智联 / 51job 各一）。
+- tracer 走 BOSS 直连跑通；remotive 走既有 Apify 路径。
 
 ---
 

@@ -97,7 +97,7 @@ print('v2ex:', r.status_code, r.bytes_count)
 # ③ 页面「立即采集」V2EX → fetched=10 inserted=10（此前永远 0 条）
 ```
 
-**注意**：`host.docker.internal` 需要 Docker Desktop（Windows/Mac 自动支持）。Linux 原生 Docker 需在 `docker-compose.yml` backend 加 `extra_hosts: - "host.docker.internal:host-gateway"`。改 `.env` 后**必须 `up -d` 重建容器**（`restart` 不重读 env_file）。
+**注意**：`host.docker.internal` 需要 Docker Desktop（Windows/Mac 自动支持）。Linux 原生 Docker 需在 `docker-compose.dev.yml` 的 backend 服务加 `extra_hosts: - "host.docker.internal:host-gateway"`。改 `.env` 后**必须 `up -d` 重建容器**（`restart` 不重读 env_file）。
 
 ---
 

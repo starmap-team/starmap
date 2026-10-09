@@ -68,7 +68,7 @@ openssl pkcs12 -export -out secrets/ssl/cert.pfx \
   -inkey secrets/ssl/key.pem -in secrets/ssl/cert.pem -passout pass:
 ```
 
-注意：`secrets/postgres/enable-ssl.sh` 是配置脚本（非密钥），仍被 Git 追踪。`.env` 需从 `.env.example` 复制并填入真实值。
+注意：`.env` 需从 `.env.example` 复制并填入真实值；`secrets/`（数据库 TLS 材料）已被 Git 忽略，不随仓库分发。
 
 ### API 变更
 

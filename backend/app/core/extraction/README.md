@@ -7,12 +7,16 @@
 | 文件 | 职责 |
 |---|---|
 | `jd_extract.py` | JD 抽取编排和结构化解析 |
-| `resume_extract.py` | 简历专用抽取流程 |
-| `resume_eval.py` | 简历抽取评估辅助 |
+| `resume_eval.py` | 简历抽取评估（对 golden set 计算 F1/precision/recall） |
 | `llm_client.py` | MiMo、DeepSeek、星火和 Qwen 调用/降级 |
 | `prompt.py` | prompt 注册、版本与 A/B 配置 |
 | `normalize.py` | 别名和字符串归一化；向量能力为可选增强 |
 | `graph_writer.py` | 将已验证结果写入图投影 |
+| `anti_hallucination.py` | 抽取结果幻觉检测（自 `jd_extract.py` 抽出） |
+| `industry_gate.py` | 岗位行业分类门禁（限定新一代信息技术领域） |
+| `job_content_guard.py` | 岗位内容相关性门禁 |
+| `prompt_injection.py` | 输入侧提示注入检测 |
+| `translation.py` | 非中文 JD 的英译中钩子 |
 
 ## 不变量
 
