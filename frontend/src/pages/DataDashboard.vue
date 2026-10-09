@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 数据大屏 — StarMap 实时数据大盘
- * 2026-08-13 (deep-interview): 从沉浸式大屏壳回归 MainLayout 普通页面风格。
+ * 2026-08-13: 从沉浸式大屏壳回归 MainLayout 普通页面风格。
  * 保留 8 KPI + 6 面板（来源饼图 / 行业 Treemap / 质量趋势 / 实时事件流 /
  * 流水线状态 / 新兴技能雷达），但采用项目统一的卡片/令牌体系，随亮暗主题自适应。
  */
@@ -63,13 +63,13 @@ function stageLabel(name: string): string {
   return STAGE_LABELS[name] || name
 }
 
-// 阶段进度：后端 progress 为 0-1 小数，渲染需 ×100（deep-interview A2）
+// 阶段进度：后端 progress 为 0-1 小数，渲染需 ×100
 function stageProgressPct(progress: number): number {
   if (progress === null || progress === undefined) return 0
   return Math.round(progress * 100)
 }
 
-// 数据新鲜度徽标（deep-interview R6：保留徽标，时钟随壳移除）
+// 数据新鲜度徽标（保留徽标，时钟随壳移除）
 const isStale = computed(() => store.overview?.stale ?? false)
 const staleLabel = computed(() => {
   const since = store.overview?.stale_since
@@ -159,7 +159,7 @@ const staleLabel = computed(() => {
             </div>
           </div>
 
-          <!-- Center: Industry domain treemap（deep-interview B1：原"技能域分布"实际统计行业） -->
+          <!-- Center: Industry domain treemap（原"技能域分布"实际统计行业） -->
           <div class="panel middle-center">
             <div class="panel-header">
               <span class="panel-title">行业分布</span>
@@ -394,7 +394,7 @@ const staleLabel = computed(() => {
   gap: var(--space-3);
 }
 
-/* ── 新鲜度徽标（deep-interview R6） ── */
+/* ── 新鲜度徽标 ── */
 .freshness-badge {
   display: inline-flex;
   align-items: center;
@@ -435,7 +435,7 @@ const staleLabel = computed(() => {
   50% { opacity: 0.4; }
 }
 
-/* ── KPI Row（deep-interview C3：8 卡 4 列 ×2 行，消除孤儿行） ── */
+/* ── KPI Row（8 卡 4 列 ×2 行，消除孤儿行） ── */
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -653,7 +653,7 @@ const staleLabel = computed(() => {
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
 }
 
-/* 诚实空态（deep-interview A4） */
+/* 诚实空态 */
 .event-empty {
   display: flex;
   flex-direction: column;
@@ -710,7 +710,7 @@ const staleLabel = computed(() => {
   align-items: flex-start;
 }
 
-/* deep-interview D2：节点 + 标签纵向排列，标签不再被圆裁剪 */
+/* 节点 + 标签纵向排列，标签不再被圆裁剪 */
 .stage-column {
   display: flex;
   flex-direction: column;

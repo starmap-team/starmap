@@ -1,6 +1,5 @@
 # StarMap 本地团队热重载手册
 
-> **配套文档**：`.omc/specs/deep-interview-starmap-deploy.md`（双轨布 Round 7 决策）
 > **适用场景**：团队 3-5 人本地 dev stack / 公网联调前的开发期
 > **目标**：每个团队成员本机代码改动 → 2-3 秒自动 reload；改前端 → 1 秒 HMR
 
@@ -208,8 +207,6 @@ docker compose -f docker-compose.dev.yml up -d --force-recreate
 
 ## 九、关联文档
 
-- 部署 Spec：`.omc/specs/deep-interview-starmap-deploy.md`
 - 部署脚本：`scripts/deploy-tencent.sh`
 - 项目规约：`CONTRIBUTING.md`
 - 测试约定：`tests/e2e/README.md`
-- 未决缺陷：`.planning/codebase/CONCERNS.md`（C-1 ~ C-7）

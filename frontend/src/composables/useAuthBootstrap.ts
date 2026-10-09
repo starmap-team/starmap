@@ -26,7 +26,7 @@ async function _doBootstrap(): Promise<boolean> {
   const store = useUserStore()
   store.initUser()
 
- // 2026-08-14 规范驱动改进 (deep-interview): dev-token 不再信任缓存用户。
+ // 2026-08-14 规范驱动改进: dev-token 不再信任缓存用户。
  // 后端 get_current_user 对 dev-token 走 is_dev_token_allowed → dev_token_identity
  // （role=viewer，除非 dev_anon_admin=true）。直接调 /auth/me 拉服务端真实角色，
  // 消除"前端缓存 admin、后端 viewer"的 403 不一致（strict viewer 语义）。

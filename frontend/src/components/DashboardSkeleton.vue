@@ -2,7 +2,7 @@
 /**
  * DashboardSkeleton — Loading skeleton for the data dashboard.
  * Shown while initial data is loading.
- * 2026-08-13 (deep-interview): 回归普通页面风格 — 用 --card/--border 令牌
+ * 2026-08-13: 回归普通页面风格 — 用 --card/--border 令牌
  * 替代 --dash-* 沉浸式令牌，随亮暗主题自适应。
  */
 </script>

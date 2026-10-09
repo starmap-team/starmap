@@ -57,7 +57,7 @@ function _useDashboardDisplay(store: DashboardStore) {
     store.pipelineTimeline as PipelineTimelineItem[],
   )
 
- // 2026-08-13 (deep-interview A3): 补齐后端 PipelineStage 全部状态
+ // 2026-08-13: 补齐后端 PipelineStage 全部状态
  // （原缺 pending/skipped/cancelled → statusColor[status] undefined）
   const statusColor = computed<Record<string, string>>(() => ({
     running: colors.info,
@@ -138,7 +138,7 @@ export interface KpiCardDef {
 function _useDashboardKpiCards(store: DashboardStore): ComputedRef<KpiCardDef[]> {
   return computed(() => {
     const cc = chartColors()
- // 2026-08-13 (deep-interview B1/D3): "技能域"实际统计 industry 去重数 → 改名"行业域"；
+ // 2026-08-13: "技能域"实际统计 industry 去重数 → 改名"行业域"；
  // 路由按语义校准（原 技能域→/learning 与该数据无关）；glow 霓虹随沉浸式风格移除
     return [
       { label: '总节点数', target: store.overview?.total_nodes ?? 0, suffix: '', decimals: 0, icon: Connection, color: cc.chart[0], route: '/' },
@@ -161,7 +161,7 @@ const REFRESH_DEBOUNCE_MS = 500
 const OVERVIEW_REFRESH_MS = 30_000
 const CLOCK_TICK_MS = 1_000
 
-// 2026-08-13 (deep-interview A4): 键名对齐后端 sse_broadcaster 实际发布的类型
+// 2026-08-13: 键名对齐后端 sse_broadcaster 实际发布的类型
 // （原 skill_update/match_event 等从未被后端发布 → 定向刷新从未触发）
 const EVENT_REFRESH_MAP: Readonly<Partial<Record<RealtimeEventType, (keyof DashboardStore)[]>>> = {
   pipeline_update:     ['fetchPipelineTimeline', 'fetchOverview'],
@@ -230,7 +230,7 @@ function _useDashboardRealtimeSync(store: DashboardStore, sseUrl: string, pollUr
         try {
           const raw = JSON.parse(event.data) as Record<string, unknown>
           if (raw?.type) {
- // 2026-08-13 (deep-interview A4): 后端 payload 为 {type, data, timestamp}，
+ // 2026-08-13: 后端 payload 为 {type, data, timestamp}，
  // 经 normalizeRealtimeEvent 适配为前端 RealtimeEvent（提取 title/detail）
             const data = normalizeRealtimeEvent(raw)
             store.addRealtimeEvent(data)
@@ -310,7 +310,7 @@ function _useDashboardCharts(store: DashboardStore) {
   })
 
  // -- Quality trend dual-axis line chart --
- // 2026-08-13 (deep-interview A5/R8): 移除永不渲染的"信任分"系列
+ // 2026-08-13: 移除永不渲染的"信任分"系列
  // （TrendPoint 无 trust_score 字段且无每日信任数据源，不造假数据）；
  // 补上后端已返回但从未展示的 new_records「新增记录」系列
   const trendOption = computed(() => {
