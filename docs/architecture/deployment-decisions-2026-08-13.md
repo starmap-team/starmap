@@ -1,6 +1,6 @@
 # StarMap 部署决策索引（2026-08-13）
 
-> **本文件是双轨布决策的索引页**，Deep-Interview 9 轮 / Ambiguity 7% 收敛
+> **本文件是双轨部署决策的索引页**
 > 任何团队成员打开仓库即可看到当前部署策略和入口文档
 
 ---
@@ -21,7 +21,6 @@
 
 | 路径 | 角色 | 何时读 |
 |---|---|---|
-| [`.omc/specs/deep-interview-starmap-deploy.md`](../../.omc/specs/deep-interview-starmap-deploy.md) | Spec 全本 | 想了解 9 轮决策细节 |
 | [`scripts/deploy-tencent.sh`](../../scripts/deploy-tencent.sh) | 腾讯云部署脚本 | 准备上公网 |
 | [`team-local-hot-reload.md`](team-local-hot-reload.md) | 本地开发手册 | 每天开发 / 改前端后端 |
 | [`/opt/starmap/scripts/server-daily.sh`](../../scripts/server-daily.sh) | 每日集成 | 部署后配置 cron |

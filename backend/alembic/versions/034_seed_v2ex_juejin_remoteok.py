@@ -1,6 +1,6 @@
 """Seed V2EX / Juejin / RemoteOK data sources + fix Remotive platform (D6, 2026-08-12).
 
-背景 (deep-interview 7crawler-jd 收敛):
+背景:
 - 爬虫适配器注册表 (crawl.py build_spider_registry) 已含 7 平台: v2ex/remotive/arbeitnow/
   jobicy/weworkremotely/juejin/remoteok，但 DB 仅 seed 了 4 个远程源 (迁移 021)。
 - 页面缺 V2EX / Juejin / RemoteOK 三个数据源卡片，补齐使 7 域全部可「立即采集」。

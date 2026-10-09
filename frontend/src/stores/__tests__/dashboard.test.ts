@@ -281,7 +281,7 @@ describe('useDashboardStore', () => {
 
   it('should fetch pipeline timeline', async () => {
     const request = (await import('@/api/request')).default
-    // 2026-08-13 (deep-interview A1): 契约对齐后端 /pipeline/stages — 字段为 name（原误用 stage）
+    // 2026-08-13: 契约对齐后端 /pipeline/stages — 字段为 name（原误用 stage）
     const mockTimeline = {
       stages: [
         { name: 'crawl', status: 'completed', started_at: '2024-01-01', completed_at: '2024-01-01', records_processed: 100, progress: 1.0 },
@@ -306,7 +306,7 @@ describe('useDashboardStore', () => {
     expect(store.pipelineTimeline).toEqual([])
   })
 
-  // ── normalizeRealtimeEvent（deep-interview A4：后端 {type,data,timestamp} → 前端 RealtimeEvent） ──
+  // ── normalizeRealtimeEvent（后端 {type,data,timestamp} → 前端 RealtimeEvent） ──
 
   describe('normalizeRealtimeEvent', () => {
     it('maps pipeline_update payload to title/detail/severity', async () => {
@@ -356,7 +356,7 @@ describe('useDashboardStore', () => {
     })
   })
 
-  // ── fetchRecentEvents（deep-interview A4：页面加载回填最近事件） ──
+  // ── fetchRecentEvents（页面加载回填最近事件） ──
 
   it('should seed realtimeEvents from realtime-poll endpoint', async () => {
     const request = (await import('@/api/request')).default

@@ -37,11 +37,5 @@ Playwright 加载前端任意页面 → 浏览器控制台报 `504 Outdated Dep:
 
 ## Phase 1 当前应对
 
-- verify-first 方法论改为后端 curl 为主 + 必要时手动浏览器截图 (沿 `01-01-TASK3-VERIFICATION.md`)
+- verify-first 方法论改为后端 curl 为主 + 必要时手动浏览器截图
 - Playwright 截图作为 P3 项 backlog,环境修复后补
-
-## 相关
-
-- `.planning/phases/01-home-module/01-UI-REVIEW.md` §"已知环境问题"
-- `.planning/phases/01-home-module/01-RESEARCH-AFTER.md` §"2.1 基础设施层"
-- Phase 1 Plan 01-04 Task 4 (2026-08-13 落盘)
