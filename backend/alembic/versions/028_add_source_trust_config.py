@@ -1,4 +1,4 @@
-"""Add source_trust_config table (§4.2 / PLAN-012 / DEV-14).
+"""Add source_trust_config table (§4.2).
 
 数据源信任度配置表 — §7.1 Authority 因子的按源配置载体。
 与 data_sources 职责分离: 本表只存信任度分类 (official/platform/aggregator/social)。

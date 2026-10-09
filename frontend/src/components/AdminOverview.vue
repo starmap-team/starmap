@@ -24,7 +24,7 @@ const router = useRouter()
 const dashboard = useDashboardStore()
 const review = useReviewStore()
 
-// / BUG-005: surface load failures so the user can retry
+// surface load failures so the user can retry
 // instead of staring at a row of "0" KPIs.
 const loadError = ref<string | null>(null)
 const loading = ref(false)

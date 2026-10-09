@@ -1,4 +1,4 @@
-"""持久化/启动合并单测 —— C-4: PromptVersion 表 + apply_custom_prompt_versions。
+"""持久化/启动合并单测 ——: PromptVersion 表 + apply_custom_prompt_versions。
 
 覆盖此前零测试的 C-4 修复核心：
 1. apply_custom_prompt_versions：lifespan 启动时把 DB 行合并进内存注册表

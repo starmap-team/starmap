@@ -1,4 +1,4 @@
-"""Loop orchestration shared types & persistence helpers (Phase 07-02 D-10).
+"""Loop orchestration shared types & persistence helpers.
 
 Contains:
   - StepStatus / LoopRunStatus enums
@@ -104,7 +104,7 @@ class LoopResult:
             "match_result": self.match_result,
             "learning_path": self.learning_path,
             "total_duration_seconds": round(self.total_duration_seconds, 2),
-            # Phase 3: 逐步核验摘要
+            # 逐步核验摘要
             "verification": _build_loop_verification(self.steps),
         }
 

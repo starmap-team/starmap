@@ -356,7 +356,7 @@ class TestUpdateDatasource:
         assert resp.status_code == 422
 
     def test_update_status_inactive_returns_200(self, client, auth_headers, db_override):
-        """Phase 23 Task 8 (DC-04): PATCH status='inactive' 被接受（替代 DELETE 独占软删）。"""
+        """PATCH status='inactive' 被接受（替代 DELETE 独占软删）。"""
         ds_id = uuid.uuid4()
         ds = FakeDataSourceRecord(id=ds_id, status="active")
         updated_ds = FakeDataSourceRecord(id=ds_id, status="inactive")
@@ -592,7 +592,7 @@ class TestTriggerSourceSync:
         assert resp.status_code == 200
         # E19 fix: single-source sync is mapped to "incremental" because
         # trigger_and_start only accepts full/incremental (DB constraint).
-        # P1-7 fix (functional-review 2026-08-13): 单源同步必须透传 selected_sources，
+        # fix (functional-review 2026-08-13): 单源同步必须透传 selected_sources，
         # 否则新 run selected_sources=None → crawl 爬全部 active 源（单源语义失效）。
         mock_trigger.assert_awaited_once_with(
             run_type="incremental", selected_sources=["51Job"],
@@ -639,7 +639,7 @@ class TestCreateDatasource:
     """POST /api/v1/admin/datasources — 管理员注册新数据源。"""
 
     def test_create_rejects_inactive_422(self, client, auth_headers, db_override):
-        """Phase 23 Task 8 (DC-04): 新源不能直接建为停用 → Literal 拒绝 (422)。"""
+        """新源不能直接建为停用 → Literal 拒绝 (422)。"""
         session = FakeAsyncSession()
         db_override(session)
         resp = client.post(
@@ -661,7 +661,7 @@ class TestCreateDatasource:
 
 
 class TestDataSourceStatusEnum:
-    """Phase 23 Task 8 (DC-04): 共享 DataSourceStatus 覆盖 'inactive' 且被 schema 引用。"""
+    """共享 DataSourceStatus 覆盖 'inactive' 且被 schema 引用。"""
 
     def test_shared_enum_covers_inactive(self):
         from app.core.constants import DataSourceStatus

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * EvolutionReviewPanel — BUG-5 + E21 + E22 fix.
+ * EvolutionReviewPanel — + E21 + E22 fix.
  *
  * Replaces the old ReviewQueuePanel (which read /admin/review-queue —
  * a dead legacy `review_queue` table with 0 rows).

@@ -1,4 +1,4 @@
-"""CONCERN 2.4 (Phase 24): Celery task_failure signal wiring tests."""
+"""CONCERN 2.4 : Celery task_failure signal wiring tests."""
 
 from __future__ import annotations
 

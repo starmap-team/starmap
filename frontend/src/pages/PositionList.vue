@@ -49,7 +49,7 @@ const pageSize = ref(24)
 // 默认 approved：岗位列表=已发布岗位（求职者浏览面），不因首屏而切到 all 暴露未审核/已拒绝内容。
 const statusFilter = ref<'approved' | 'pending_review' | 'rejected' | 'all'>('approved')
 
-// US-3: 行业列表从后端 /positions/industries 获取全量，而非仅当前页
+// 行业列表从后端 /positions/industries 获取全量，而非仅当前页
 const industries = ref<string[]>([])
 
 async function loadIndustries() {

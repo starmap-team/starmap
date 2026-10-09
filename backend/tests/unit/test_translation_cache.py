@@ -1,4 +1,4 @@
-"""Translation cache unit tests (Phase 27).
+"""Translation cache unit tests.
 
 覆盖:
 - CJK 输入短路(CJK 不发请求不写缓存)

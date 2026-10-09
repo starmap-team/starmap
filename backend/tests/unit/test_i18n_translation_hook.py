@@ -1,4 +1,4 @@
-"""PLAN-003/I18N-01: jd_extract 管线翻译钩子接线测试。
+"""/I18N-01: jd_extract 管线翻译钩子接线测试。
 
 - 中文岗位名: 零成本跳过 (不调用 LLM.generate)
 - 英文岗位名: 触发 translate_title_industry, name_cn/industry_zh 注入 data

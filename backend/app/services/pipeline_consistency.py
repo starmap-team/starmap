@@ -1,4 +1,4 @@
-"""Pipeline PG↔Neo4j 一致性告警服务（D-06）。
+"""Pipeline PG↔Neo4j 一致性告警服务。
 
 阶段末调用 `check_pg_neo4j_consistency(run_id)`，比对 PG skill 数 vs Neo4j 节点数。
 差异超阈值记录告警日志 + 阶段末 metrics（D-06：告警不阻断，不改数据）。

@@ -138,7 +138,7 @@ export const useJdStore = defineStore('jd', () => {
     return validateResponse(data, positionSchema, '/positions', 'PositionListResponse')
   }
 
- /** Fetch all distinct industries from backend (US-3: 完整行业列表) */
+ /** Fetch all distinct industries from backend (: 完整行业列表) */
   async function fetchIndustries(): Promise<string[]> {
     const data = await request.get('/positions/industries') as { industries: string[] }
     return data.industries

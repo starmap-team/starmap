@@ -1,4 +1,4 @@
-"""Phase 23 Task 4 — 每日对账 cron 集成测试（DC-01/DC-03/IS-03）。
+"""— 每日对账 cron 集成测试。
 
 依赖真实 PostgreSQL（`db_session` fixture 在无 PG 时 skip）+ Neo4j（全量对账段在
 Neo4j 不可用时 skip）。
@@ -107,7 +107,7 @@ class TestDailyReconcileFull:
             )
         ).scalar_one_or_none()
         assert detail is not None, "daily_reconcile 必须写 audit_events"
-        # DC-03：audit detail 含节点 + 边 diff
+        # audit detail 含节点 + 边 diff
         assert "requires_neo4j=" in detail
         assert "requires_pg=" in detail
         assert "requires_diff=" in detail

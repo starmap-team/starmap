@@ -1,7 +1,7 @@
 /**
  * Combined learning store (useLearningStore) reactivity tests.
  *
- * DEF-002 regression guard: the combined store previously returned a plain
+ * regression guard: the combined store previously returned a plain
  * object with one-time snapshots of sub-store refs (`batchResults: rec.batchResults`),
  * so later `batchResults.value = [...]` replacements never propagated to consumers.
  * This made batch match results / competitiveness charts render stale data.

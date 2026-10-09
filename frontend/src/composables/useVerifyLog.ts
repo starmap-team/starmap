@@ -1,5 +1,5 @@
 /**
- * 闭环验证日志 composable（ Plan 03 从 PipelineMonitor.vue 抽出）。
+ * 闭环验证日志 composable（ 从 PipelineMonitor.vue 抽出）。
  *
  * 每个操作记录: action, result, verification, timestamp；持久化到 localStorage。
  */

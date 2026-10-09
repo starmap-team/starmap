@@ -17,7 +17,7 @@ if str(ROOT) not in sys.path:
 
 from app.config import settings  # noqa: E402
 
-# P0-3 fix: `from app.models import Base` triggers __init__.py which imports ALL
+# fix: `from app.models import Base` triggers __init__.py which imports ALL
 # model modules (including evolution_models and extraction_models), registering
 # them with Base.metadata for Alembic autogenerate. Explicit imports are redundant.
 from app.models import Base  # noqa: E402

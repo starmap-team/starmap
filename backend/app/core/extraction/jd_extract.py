@@ -198,7 +198,7 @@ class JDExtractionPipeline:
             return result
         result["injection_checked"] = True
 
- # Step 1: Fill prompt
+ # Fill prompt
         logger.info("JD extraction pipeline starting ({} chars)", len(jd_content_safe))
         try:
             _ = get_prompt("jd_extraction", jd_content=jd_content_safe)
@@ -226,11 +226,11 @@ class JDExtractionPipeline:
             result["prompt_ab_test"] = False
             result["prompt_version_used"] = get_active_version("jd_extraction") or "v1"
 
- # Step 2: Call LLM
+ # Call LLM
         try:
             raw = await self.llm_client.extract_from_jd(jd_content_safe)
         except LLMBlockedError as e:
-            # Phase 27 资源包严格保护: blocked = 严格不调用(不重试,不消耗任何 token)
+            # 资源包严格保护: blocked = 严格不调用(不重试,不消耗任何 token)
             # 上层用 fallback / 跳过 / 显式提示,不污染业务流。
             logger.warning("LLM blocked (Phase 27): {}", e)
             result["status"] = "blocked"
@@ -257,21 +257,21 @@ class JDExtractionPipeline:
  # 供前端展示“本次抽取所用模型/是否降级”，保证降级反馈透明。
         result["model_used"] = getattr(self.llm_client, "last_extraction_model", None)
 
- # Step 3: Parse JSON
+ # Parse JSON
         try:
             parsed = parse_llm_json_response(raw["content"]) if isinstance(raw, dict) and "content" in raw else raw
         except LLMResponseError as e:
             result["error"] = f"JSON parse error: {e}"
             return result
 
- # Step 4: Pydantic validation
+ # Pydantic validation
         try:
             validated = JDExtractionResult(**parsed)
         except (TypeError, ValueError) as e:
             logger.warning("Pydantic validation failed, using raw data: {}", e)
             result["warnings"].append(f"Pydantic validation issue: {e}")
             validated = JDExtractionResult()
- # BL-02: Complete fallback for ALL fields, not just a subset
+ # Complete fallback for ALL fields, not just a subset
             for key in ("position_name", "experience_required", "education_required",
                         "industry", "description"):
                 if key in parsed:
@@ -310,7 +310,7 @@ class JDExtractionPipeline:
                     for lr in parsed["learning_resources"]
                 ]
 
- # Step 4.5: Clean up Chinese suffixes from skill names
+ # Clean up Chinese suffixes from skill names
         chinese_suffixes = [
             "系统", "安全", "开发", "管理", "平台", "框架", "技术", "语言",
             "生态", "相关", "服务", "设计", "网络", "算法", "存储", "计算",
@@ -322,7 +322,7 @@ class JDExtractionPipeline:
             "方法论", "能力", "攻防", "漏洞", "竞赛经验", "认证", "证书",
         ]
         def _clean_skill_name(name: str) -> str:
- # BL-08: raise min length to 4 to prevent over-stripping
+ # raise min length to 4 to prevent over-stripping
  # (e.g. "分布式系统" → "分布式" at len=3 was valid but too aggressive)
             while True:
                 original = name
@@ -330,7 +330,7 @@ class JDExtractionPipeline:
                     if len(name) > 4 and name.endswith(suffix):
                         cleaned = name[:-len(suffix)]
  # Only apply strip if result is non-empty AND at least 4 chars
- # BL-08: prevents over-stripping like "分布式系统架构"→"分布式"
+ # prevents over-stripping like "分布式系统架构"→"分布式"
                         if cleaned and len(cleaned) >= 4:
                             name = cleaned
                 if name == original:
@@ -348,7 +348,7 @@ class JDExtractionPipeline:
                 logger.debug("Cleaned skill name: '{}' -> '{}'", skill.name, cleaned)
                 skill.name = cleaned
 
- # Step 5: Normalize skills
+ # Normalize skills
         if self.normalize_skills_enabled:
             all_skill_names = []
             for skill in validated.required_skills:
@@ -387,7 +387,7 @@ class JDExtractionPipeline:
                     f"normalization count mismatch: expected={expected}, got={len(normalized_results)}"
                 )
 
- # Step 6: Anti-hallucination check
+ # Anti-hallucination check
         validation = None
         if self.anti_hallucination_enabled:
             try:
@@ -416,7 +416,7 @@ class JDExtractionPipeline:
                 logger.warning("Anti-hallucination check failed: {}", e)
                 result["warnings"].append(f"Validation error: {e}")
 
- # Step 6.5: 规则过滤 — 非技能词黑名单(职责/软词/行业词)
+ # 规则过滤 — 非技能词黑名单(职责/软词/行业词)
  # 2026-08-23: LLM 常把 Hiring/Customer Success/Leadership 等当技能提取,
  # 在词典过滤前先用黑名单剔除, 避免非技能进入技能库。
         try:
@@ -438,7 +438,7 @@ class JDExtractionPipeline:
         except Exception as _e:  # noqa: BLE001 — 过滤失败不阻断主流程
             logger.warning("Rule skill filter failed: {}", _e)
 
- # Step 7: Dictionary post-filter — keep only LLM skills that match SKILL_ALIAS
+ # Dictionary post-filter — keep only LLM skills that match SKILL_ALIAS
  # ECC regex-vs-llm-structured-text "Regex handles 95-98%". This filter
  # drops LLM hallucinations (skills invented beyond our 572-skill vocabulary),
  # at the cost of dropping some novel skills LLM found correctly. On the 110-sample
@@ -462,7 +462,7 @@ class JDExtractionPipeline:
         result["success"] = True
         result["data"] = validated.model_dump()
 
- # Step 8: — 非 CJK 岗位名翻译钩子 (RemoteOK 等英文 JD 源)
+ # — 非 CJK 岗位名翻译钩子 (RemoteOK 等英文 JD 源)
  # 仅当 LLM 返回的 position_name 不含 CJK 才触发 (中文 JD 零成本跳过);
  # 失败优雅降级 (name_cn 不注入, 前端显"英文原文"标签, 不编造)。
         pos_name = validated.position_name

@@ -127,7 +127,7 @@ class TestModelInstantiation:
 
 
 class TestModelRegistryCompleteness:
-    """NEW-14: 全部 ORM 模型必须在 models/__init__ 注册（Alembic metadata 完整性）。"""
+    """全部 ORM 模型必须在 models/__init__ 注册（Alembic metadata 完整性）。"""
 
     def test_previously_unregistered_models_importable(self):
         """此前遗漏的 5 个模型可从 app.models 导入."""

@@ -43,7 +43,7 @@ export interface PipelineStage {
   recent_samples?: Array<Record<string, unknown>>
   sub_breakdown?: Record<string, number>
   elapsed_ms?: number
-  // 2026-08-21 (P0-2): 作业身份 —— 后端 /stages 返回当前 run 标识，
+  // 2026-08-21 : 作业身份 —— 后端 /stages 返回当前 run 标识，
   // DAG 用它展示"这是哪一次运行"，避免不同 run 混淆
   run_id?: string
   run_status?: string
@@ -157,11 +157,11 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
  // 阶段活动历史（最近 50 条）
   const activityHistory = ref<LiveActivityEvent[]>([])
 
- // Plan 03 Task 10 : 子步骤事件订阅 state
+ // 子步骤事件订阅 state
  // key = `<stage>:<sub_step>`，value = 最新子步骤活动
   const subSteps = ref<Record<string, { stage: string; sub_step: string; current_activity: string; progress: number; timestamp: number }>>({})
 
- // SSE-04 / SSE-05: 3 个新事件类型 state（）
+ // 3 个新事件类型 state
   const qualityAlerts = ref<QualityAlert[]>([])
   const milestones = ref<DataMilestone[]>([])
   const recentExtractions = ref<ExtractionComplete[]>([])
@@ -317,7 +317,7 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     liveEvents.value.push(event)
     if (liveEvents.value.length > 50) liveEvents.value = liveEvents.value.slice(-50)
 
- // Plan 03 Task 10 : 订阅 sub_step 子步骤事件
+ // 订阅 sub_step 子步骤事件
  // 子步骤事件 key = `<stage>:<sub_step>`，便于前端按子阶段渲染
     if (event.sub_step) {
       const subKey = `${event.stage}:${event.sub_step}`
@@ -357,7 +357,7 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     activityHistory.value = []
   }
 
- // SSE-04 / SSE-05: 3 个新事件 handler（）
+ // 3 个新事件 handler
   function handleQualityAlert(data: QualityAlert) {
  // Ensure created_at is populated from timestamp if missing
     if (!data.created_at && data.timestamp) {
@@ -384,7 +384,7 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     }
   }
 
- // CANCEL-02: cancelRun action
+ // cancelRun action
   async function cancelRun(runId: string): Promise<boolean> {
     loading.value = true
     error.value = null
@@ -446,10 +446,10 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
  //: 实时活动上下文
     liveActivity,
     activityHistory,
- // Plan 03 Task 10 : 子步骤事件订阅 state
+ // 子步骤事件订阅 state
     subSteps,
     resetLiveActivity,
- // SSE-04/05 新增 state
+ // /05 新增 state
     qualityAlerts,
     milestones,
     recentExtractions,
@@ -463,11 +463,11 @@ export const usePipelineRunStore = defineStore('pipelineRun', () => {
     fetchDataQuality,
     fetchDataSources,
     handlePipelineEvent,
- // SSE-04/05 新增 actions
+ // /05 新增 actions
     handleQualityAlert,
     handleMilestone,
     handleExtractionComplete,
- // CANCEL-02
+ // 
     cancelRun,
     forceAdvance,
     forceReset,

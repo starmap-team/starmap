@@ -1,4 +1,4 @@
-"""Add data_source_metrics table + last_successful_crawl_at column (Phase 15-04).
+"""Add data_source_metrics table + last_successful_crawl_at column.
 
 Revision ID: 024
 Revises: 023
@@ -17,7 +17,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # 1. data_source_metrics 表 (Task 1)
+    # 1. data_source_metrics 表 
     op.create_table(
         "data_source_metrics",
         sa.Column("id", PGUUID(as_uuid=True), primary_key=True),
@@ -45,7 +45,7 @@ def upgrade() -> None:
     op.create_index("idx_dsm_source_started", "data_source_metrics", ["source_id", "started_at"])
     op.create_index("idx_dsm_status", "data_source_metrics", ["status"])
 
-    # 2. data_sources.last_successful_crawl_at (Task 4 - Fix M4)
+    # 2. data_sources.last_successful_crawl_at (Fix M4)
     op.add_column(
         "data_sources",
         sa.Column("last_successful_crawl_at", sa.DateTime(timezone=True), nullable=True),

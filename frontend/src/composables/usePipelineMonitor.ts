@@ -1,5 +1,5 @@
 /**
- * 数据流水线监控页 composable（ Plan 03 Task 8 拆分后瘦身 < 400 行）。
+ * 数据流水线监控页 composable（ 拆分后瘦身 < 400 行）。
  * 保留核心：pipeline 兼容对象 / SSE / 自动刷新 / KPI / 阶段摘要 / 卡死检测 /
  * DAG 时间线 / 配置弹窗 / 待审核计数。触发/取消/重试 → useTriggerPipeline；调度 → useSchedules。
  */
@@ -103,7 +103,7 @@ export function usePipelineMonitor() {
 
  // ── SSE 实时进度 ──
  //: 多事件类型分发到 pipeline store actions
- // SSE-05: Use API_BASE from apiBase.ts SSoT
+ // Use API_BASE from apiBase.ts SSoT
   const sseBase = API_BASE
   const { connected: sseConnected, mode: sseMode, disconnect: sseDisconnect } = useSSE(
     `${sseBase}/pipeline/events`,
@@ -417,7 +417,7 @@ export function usePipelineMonitor() {
   return {
  // Store 兼容对象
     pipeline,
- // User role (LOOP-08: admin check for Pipeline management controls)
+ // User role (: admin check for Pipeline management controls)
     isAdmin: userStore.isAdmin,
  // 配置保存 loading
     configSaving,

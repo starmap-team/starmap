@@ -1,4 +1,4 @@
-"""Phase 22 爬虫多源数据完整性回归测试（P0-1/P0-2/P0-4/P1-7）。"""
+"""爬虫多源数据完整性回归测试。"""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from app.core.pipeline.source_quality_sync import sync_source_quality
 from app.core.pipeline.stages.crawl import build_spider_registry
 from app.models.pipeline_models import DataSourceRecord
 
-# ── P0-1 / P0-3 辅助：适配器能力与注册表 ──
+# ── / 辅助：适配器能力与注册表 ──
 
 
 def test_spider_registry_has_no_chinese_placeholder_platforms() -> None:
@@ -21,7 +21,7 @@ def test_spider_registry_has_no_chinese_placeholder_platforms() -> None:
 
 
 def test_adapter_capability() -> None:
-    """_adapter_capability：无 platform → 无适配器；已注册 platform → 有适配器（P0-3）。"""
+    """_adapter_capability：无 platform → 无适配器；已注册 platform → 有适配器。"""
     from app.api.v1.datasource import _adapter_capability
 
     class _DS:
@@ -35,7 +35,7 @@ def test_adapter_capability() -> None:
 
 
 def test_crawl_config_builder_skips_platformless(monkeypatch) -> None:
-    """P0-1 核心：无 platform/source_site 的源在 _get_crawl_configs 被跳过而非回退 v2ex。"""
+    """核心：无 platform/source_site 的源在 _get_crawl_configs 被跳过而非回退 v2ex。"""
     import app.core.pipeline.stages.crawl as crawl_mod
     from app.core.pipeline.stages.crawl import _get_crawl_configs
 
@@ -89,12 +89,12 @@ def test_crawl_config_builder_skips_platformless(monkeypatch) -> None:
     assert configs[0]["platform"] == "arbeitnow"
 
 
-# ── P0-2 归零 ──
+# ── 归零 ──
 
 
 @pytest.mark.asyncio
 async def test_sync_source_quality_zeroes_ghost_source(db_session) -> None:
-    """jd_raw 无行的 crawler 活动源记录数归零（P0-2）；有行源保持聚合值。"""
+    """jd_raw 无行的 crawler 活动源记录数归零；有行源保持聚合值。"""
     ghost_name = f"zz_test_ghost_{uuid.uuid4().hex[:6]}"
     ghost = DataSourceRecord(
         id=uuid.uuid4(),

@@ -91,7 +91,7 @@ class TestStep1ValidateInput:
         assert result.error == "JD text is empty"
 
     def test_empty_target_position_is_optional(self):
-        # QA B1: target_position 按 OpenAPI 契约可选,空值不拒绝(Step 2 从 JD 推断岗位)。
+        # QA B1: target_position 按 OpenAPI 契约可选,空值不拒绝(从 JD 推断岗位)。
         result = self.orch._step1_validate_input("Python developer", "")
         assert result.status == StepStatus.SUCCESS
         assert result.data["target_position"] == ""
@@ -264,7 +264,7 @@ class TestLoopRunRequestValidation:
             LoopRunRequest(jd_text="", target_position="Backend")
 
     def test_empty_target_fails_validation(self):
-        # API-03: empty target_position is coerced to None (optional), not rejected
+        # empty target_position is coerced to None (optional), not rejected
         from app.api.v1.loop import LoopRunRequest
         req = LoopRunRequest(jd_text="Python dev", target_position="")
         assert req.target_position is None  # empty string coerced to None

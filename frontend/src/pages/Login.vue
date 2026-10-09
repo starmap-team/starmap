@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * 登录页面 — Phase DB-AUTH 双 token 登录 + UX-02 3D 背景
+ * 登录页面 — Phase DB-AUTH 双 token 登录 + 3D 背景
  *
  * POST /auth/login → { access_token, refresh_token, expires_in, user }
  * - access_token 短期 (15 min)，refresh_token 长期 (7 d)
  * - 401 = 用户名/密码错误；423 = 锁定；403 = 禁用
- * - UX-02: Graph3D auto-rotate 背景 (opacity=0.25, maxNodes=150)
+ * - : Graph3D auto-rotate 背景 (opacity=0.25, maxNodes=150)
  * 登录成功后 opacity 0.25→1.0 过渡动画
  */
 import { ref, computed, onMounted } from 'vue'
@@ -28,7 +28,7 @@ const password = ref('')
 const loading = ref(false)
 const loginSuccess = ref(false)
 
-// UX-02: 3D background data — use useGraph3DData for proper color/label mapping
+// 3D background data — use useGraph3DData for proper color/label mapping
 const bgOpacity = computed(() => loginSuccess.value ? 1 : 0.25)
 
 // Load graph overview data for 3D background
@@ -81,7 +81,7 @@ async function handleLogin() {
     })
     ElMessage.success('登录成功')
 
- // UX-02: transition animation — opacity 0.25→1.0 (300ms)
+ // transition animation — opacity 0.25→1.0 (300ms)
     loginSuccess.value = true
 
  // Delay navigation to show the transition
@@ -192,7 +192,7 @@ async function handleLogin() {
   overflow: hidden;
 }
 
-/* UX-02: 3D background layer */
+/*3D background layer */
 .login-bg-3d {
   position: absolute;
   top: 0;

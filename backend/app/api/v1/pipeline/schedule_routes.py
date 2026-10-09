@@ -1,4 +1,4 @@
-"""Pipeline 定时调度子路由（D-02 Task 7 拆分）。
+"""Pipeline 定时调度子路由（拆分）。
 
 /schedules CRUD + /schedules/{id}/trigger。
 """
@@ -35,7 +35,7 @@ async def create_schedule(
     body: ScheduleCreateRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ScheduleResponse:
-    """创建定时调度（Phase 2 CRON-02: 创建时计算 next_run_at）。"""
+    """创建定时调度（: 创建时计算 next_run_at）。"""
     schedule = PipelineSchedule(
         name=body.name,
         cron_expression=body.cron_expression,

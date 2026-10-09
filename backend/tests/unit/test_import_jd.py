@@ -1,4 +1,4 @@
-"""Tests for Phase 15-02 import service + PII detector + CSV parser."""
+"""Tests for import service + PII detector + CSV parser."""
 from __future__ import annotations
 
 import pytest

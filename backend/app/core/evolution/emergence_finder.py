@@ -98,7 +98,7 @@ class PortabilityAnalysis:
     recommendation: str = ""
 
 
-# BL-15: Domain keywords loaded from YAML config for runtime updates.
+# Domain keywords loaded from YAML config for runtime updates.
 # Fallback to hardcoded defaults if config file is missing.
 def _load_domain_keywords() -> dict[str, list[str]]:
     """Load domain keywords from YAML config file with fallback to defaults."""
@@ -220,10 +220,10 @@ class EmergenceFinder:
         """
  # Compute statistics from historical data
         if len(frequencies) < 2:
- # BL-07: Insufficient history — use Wilson score interval
+ # Insufficient history — use Wilson score interval
  # for a more conservative estimate than returning STABLE blindly.
  # P0-AUDIT-NOTE (2026-08-13): this path can still produce RISING
- # when Wilson lower-bound exceeds 0.3 — that is the BL-07
+ # when Wilson lower-bound exceeds 0.3 — that is the
  # contract (validated by test_wilson_rising_when_lower_above_0_3).
  # Single-point EMERGING requires >5x MIN_SOURCES; this preserves
  # the audit's intent without breaking the test suite.

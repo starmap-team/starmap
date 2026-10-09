@@ -1,4 +1,4 @@
-"""Coverage boost: repositories/quality_repo.py — 幻觉趋势聚合 (PLAN-013)。
+"""Coverage boost: repositories/quality_repo.py — 幻觉趋势聚合。
 
 fetch_hallucination_trend 使用假 AsyncSession（execute → all() 返回假行），
 验证聚合口径：JDExtractionRecord.hallucination_score > 0.5 计为幻觉，

@@ -1,4 +1,4 @@
-"""source_trust_config 幂等播种 (PLAN-012 / DEV-14)。
+"""source_trust_config 幂等播种。
 
 config.authority_scores (dict[source_name -> score]) 为出厂配置源,
 ensure_source_trust_config 将其幂等写入 source_trust_config 表 —

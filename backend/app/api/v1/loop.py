@@ -88,7 +88,7 @@ async def loop_status(
         is_admin=user.get("role") == "admin",
     )
     if status is None:
- # Could be "not found" or "not authorized" — log the attempt (SEC-04)
+ # Could be "not found" or "not authorized" — log the attempt 
         audit_log(AuditEntry(
             event=AuditEvent.AUTHZ_DENIED,
             actor=user.get("sub", "unknown"),

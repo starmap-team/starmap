@@ -391,7 +391,7 @@ class TestRetryFunctions:
         drv = FakeDriver(FakeAsyncSession(run_side_effect=FakeAsyncResult([{"s": {"name": "Python"}}])))
         assert (await merge_skill(drv, "Python", {"proficiency": "advanced", "source_count": 2}, canonical_id="sk-1"))["name"] == "Python"
 
-    # Phase 19: 投影落 trust_score（§6.2 四因子）——断言 Cypher props 含 trust_score
+    # 投影落 trust_score（§6.2 四因子）——断言 Cypher props 含 trust_score
     @pytest.mark.asyncio
     async def test_merge_skill_writes_trust_score(self):
         fake = FakeAsyncSession(run_side_effect=FakeAsyncResult([{"s": {"name": "Python"}}]))
@@ -471,7 +471,7 @@ class TestWriteExtraction:
 
     @pytest.mark.asyncio
     async def test_missing_position_skips(self):
-        # Phase 17-03 (Fix B3): 缺失 position_name 静默跳过(不阻塞 batch),返回 skipped 标记。
+        # (Fix B3): 缺失 position_name 静默跳过(不阻塞 batch),返回 skipped 标记。
         result = await write_extraction_to_graph({}, FakeDriver(FakeAsyncSession()))
         assert result["skipped"] is True
         assert result["reason"] == "missing_position_name"
@@ -551,7 +551,7 @@ class TestBatchAndQueries:
 
     @pytest.mark.asyncio
     async def test_batch_write_without_canonical_ids_skips(self):
-        """Phase 23 Task 2: 无 canonical_ids_list 时 batch 逐条跳过（不产生孤儿）。"""
+        """无 canonical_ids_list 时 batch 逐条跳过（不产生孤儿）。"""
         drv = FakeDriver(_universal_session())
         results = await batch_write_extractions(
             [{"position_name": "Dev", "required_skills": [{"name": "Python"}]}], drv,

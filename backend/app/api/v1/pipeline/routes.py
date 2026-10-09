@@ -1,4 +1,4 @@
-"""数据流水线监控 API — 子路由聚合入口（ Task 7）。
+"""数据流水线监控 API — 子路由聚合入口。
 
 ：routes.py 瘦身为聚合入口（< 300 行），按领域拆 6 个子路由：
 status / runs / trigger / schedule / config / events。

@@ -1,4 +1,4 @@
-"""Add written_back column to evolution_changelog (D-06 write-back marker).
+"""Add written_back column to evolution_changelog (write-back marker).
 
 D-06: changelog rows that were successfully upserted into
 position_skill_relations are marked written_back=true so the dashboard /

@@ -111,7 +111,7 @@ test.describe('匹配诊断 — 5步向导', () => {
     await page.goto('/match')
     await waitForApp(page)
 
- // 确认在 Step 0 — 应有"录入你的技能"标题
+ // 确认在 — 应有"录入你的技能"标题
     const step0Title = page.locator('text=录入你的技能')
     await expect(step0Title).toBeVisible({ timeout: 10000 })
 
@@ -132,7 +132,7 @@ test.describe('匹配诊断 — 5步向导', () => {
         await confirmBtn.first().click()
         await page.waitForTimeout(500)
 
- // 应进入 Step 1 — 应有"选择目标岗位"标题 (用 heading role 避免匹配到步骤条)
+ // 应进入 — 应有"选择目标岗位"标题 (用 heading role 避免匹配到步骤条)
         const step1Title = page.getByRole('heading', { name: '选择目标岗位' })
         await expect(step1Title).toBeVisible({ timeout: 5000 })
       }

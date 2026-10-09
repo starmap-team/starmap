@@ -1,4 +1,4 @@
-"""Pipeline events 子路由（D-02 Task 7 拆分起步）。
+"""Pipeline events 子路由（拆分起步）。
 
 包含 SSE 实时事件流 + 轮询降级 2 个端点。后续可继续扩展其他子路由模块。
 """
@@ -53,7 +53,7 @@ async def poll_pipeline_events(
     _user: Annotated[dict[str, Any], Depends(get_current_user_sse)],
     since: float = Query(0.0, description="Unix timestamp filter"),
 ) -> list[dict[str, Any]]:
-    """Phase 2 POLL-01: SSE polling fallback — 返回最近事件数组。
+    """SSE polling fallback — 返回最近事件数组。
 
     Auth: accepts JWT via query param or Authorization header.
     """

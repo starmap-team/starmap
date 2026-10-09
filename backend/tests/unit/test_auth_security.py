@@ -1,4 +1,4 @@
-"""Tests for SEC-01 (PyJWT), SEC-02 (bcrypt), SEC-03 (JWT claims)."""
+"""Tests for (PyJWT), (bcrypt), (JWT claims)."""
 from __future__ import annotations
 
 import time
@@ -31,11 +31,11 @@ def _encode_jwt(payload: dict) -> str:
     return _jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 
-# ── SEC-01: PyJWT encode/decode ──
+# ──: PyJWT encode/decode ──
 
 
 class TestPyJWTEncodeDecode:
-    """SEC-01: Replace hand-written HMAC+base64 with PyJWT."""
+    """Replace hand-written HMAC+base64 with PyJWT."""
 
     def test_encode_decode_roundtrip(self) -> None:
         """Encode a payload, decode it, verify all fields match."""
@@ -77,11 +77,11 @@ class TestPyJWTEncodeDecode:
             _decode_token(tampered_token)
 
 
-# ── SEC-02: bcrypt password verification ──
+# ──: bcrypt password verification ──
 
 
 class TestBcryptPasswordVerification:
-    """SEC-02: Replace plaintext password comparison with bcrypt.checkpw()."""
+    """Replace plaintext password comparison with bcrypt.checkpw."""
 
     def test_bcrypt_verification(self) -> None:
         """Test _verify_password with a known bcrypt hash."""
@@ -90,7 +90,7 @@ class TestBcryptPasswordVerification:
         assert verify_password(plain, hashed) is True
 
     def test_plaintext_fallback_removed(self) -> None:
-        """SEC-02 evolution: plaintext password fallback was REMOVED in Phase DB-AUTH.
+        """evolution: plaintext password fallback was REMOVED in Phase DB-AUTH.
 
         Legacy login allowed plaintext equality; the new service REJECTS it.
         Only bcrypt hashes are accepted. This test documents the policy change.
@@ -113,11 +113,11 @@ class TestBcryptPasswordVerification:
         assert verify_password(plain, hashed_2a) is True
 
 
-# ── SEC-03: JWT claims (aud/iss/nbf/jti) ──
+# ──: JWT claims (aud/iss/nbf/jti) ──
 
 
 class TestJWTClaims:
-    """SEC-03: Add aud/iss/nbf/jti claims to token issuance."""
+    """Add aud/iss/nbf/jti claims to token issuance."""
 
     def test_new_claims_present(self) -> None:
         """Encode a token with new claims, decode it, verify aud/iss/nbf/jti are present."""

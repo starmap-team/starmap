@@ -27,7 +27,7 @@ from neo4j import AsyncGraphDatabase
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-# Phase 23 Task 10: 改走 Pydantic/settings（不硬编码环境变量）。
+# 改走 Pydantic/settings（不硬编码环境变量）。
 # 连接参数从 app.config.settings 单一来源读取（backend 包加入 import 路径）。
 _BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
 if str(_BACKEND_DIR) not in sys.path:

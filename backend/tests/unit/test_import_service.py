@@ -1,4 +1,4 @@
-"""Coverage boost: services/import_service.py — JD 导入计数/PII/审计回归 (PLAN-013)。
+"""Coverage boost: services/import_service.py — JD 导入计数/PII/审计回归。
 
 import_items 的 dao/detect_pii/audit_log 全部 patch，验证:
 - H3 回归: content_hash 为全量 sha256（非 [:500] 截断）

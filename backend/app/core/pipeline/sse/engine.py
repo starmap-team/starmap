@@ -59,7 +59,7 @@ class PipelineEngine:
                         "status": "done",
                     },
                 )
-                # Phase 3: 每步成功后推送详细输出供前端可视化核验
+                # 每步成功后推送详细输出供前端可视化核验
                 step_output = _build_step_output(step.name, ctx)
                 yield _sse_event("step_output", step_output)
             except TimeoutError:
@@ -165,7 +165,7 @@ def _build_result(ctx: PipelineContext) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Phase 3: 逐步可视化核验 — 每步的输出摘要和验证检查
+# 逐步可视化核验 — 每步的输出摘要和验证检查
 # ---------------------------------------------------------------------------
 
 

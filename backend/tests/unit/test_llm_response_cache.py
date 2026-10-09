@@ -1,4 +1,4 @@
-"""LLM response cache unit tests (Phase 27).
+"""LLM response cache unit tests.
 
 覆盖:
 - Redis 命中:不调用 provider,直接返回缓存响应,且计入 cost tracker。

@@ -1,4 +1,4 @@
-"""Phase 23 Task 10 — ingestion_consistency 6 项入库完整性指标单测（IS-04/DF-03）。
+"""— ingestion_consistency 6 项入库完整性指标单测。
 
 覆盖:
   1. 6 项指标判定函数在 fixture 数据下值正确（纯函数，不连库）
@@ -158,7 +158,7 @@ def test_evaluate_gate_any_over_threshold_fails_and_exit_nonzero() -> None:
 
 
 def test_evaluate_gate_caliber_findings_fail_also_fails() -> None:
-    """KPI 口径运行时断言失败 → 门禁同样 FAIL（IC-07 并入 ingestion gate）。"""
+    """KPI 口径运行时断言失败 → 门禁同样 FAIL（并入 ingestion gate）。"""
     gate = evaluate_gate(_passing_metrics(), caliber_findings=[{"id": "A1", "passed": False}])
     assert gate["passed"] is False
     assert "A1" in gate["failed"]

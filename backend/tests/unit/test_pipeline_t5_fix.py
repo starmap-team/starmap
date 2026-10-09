@@ -1,4 +1,4 @@
-"""Phase 03 Plan 03 Task 0: T5 bug 修复 — execute_clean→cleaned + import reads cleaned + batch_size 可配。
+"""T5 bug 修复 — execute_clean→cleaned + import reads cleaned + batch_size 可配。
 
 锁定 T5 行为契约：
 - execute_clean 成功后设 jd.status = JdStatus.cleaned
@@ -40,7 +40,7 @@ class TestExecuteCleanSetsCleaned:
         from pathlib import Path
 
         base = Path(__file__).resolve().parents[2] / "app" / "core" / "pipeline"
-        # Task 0-2: executor.py 含 execute_clean；Task 3+: stages/clean.py 含 execute_clean
+        # executor.py 含 execute_clean；+: stages/clean.py 含 execute_clean
         for candidate in [base / "executor.py", base / "stages" / "clean.py"]:
             if candidate.exists():
                 src = candidate.read_text(encoding="utf-8")
@@ -142,7 +142,7 @@ class TestImportBatchSizeConfigurable:
 
 
 class TestReconcileOnSyncConfig:
-    """Task 6 预备：reconcile_on_sync 配置已存在（Task 0 一起落地以减少提交次数）。"""
+    """预备：reconcile_on_sync 配置已存在（一起落地以减少提交次数）。"""
 
     def test_reconcile_config_exists(self):
         from app.config import settings

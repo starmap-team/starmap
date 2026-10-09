@@ -1,4 +1,4 @@
-"""契约: import_jd 路由零内联 + 3 模型可达 (PLAN-014 批次8)。
+"""契约: import_jd 路由零内联 + 3 模型可达 (批次8)。
 
 backend/app/schemas/import_jd.py 3 个模型 (ImportItem/ImportRequest/
 ImportResult) 已写入 schemas 包, 路由文件 api/v1/import_jd.py 已 zero

@@ -1,4 +1,4 @@
-"""PLAN-014 批次9: 全路由零内联契约回归 (锁定 + 登记 follow-up)。
+"""批次9: 全路由零内联契约回归 (锁定 + 登记 follow-up)。
 
 锁定: 路由文件不得内联定义 Pydantic BaseModel (Schema 集中约定)。
 
@@ -26,7 +26,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-# 已零内联 (PLAN-014 批次 2-8 已闭环) — 直接 PASS
+# 已零内联 (批次 2-8 已闭环) — 直接 PASS
 PASS_ROUTES = {
     "app.api.v1.graph",
     "app.api.v1.position",

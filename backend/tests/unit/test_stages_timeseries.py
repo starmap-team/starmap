@@ -1,4 +1,4 @@
-"""Phase 03 Plan 03 Task 1: stages/timeseries.py 阶段测试。
+"""stages/timeseries.py 阶段测试。
 
 锁定 timeseries 阶段行为契约（成功/失败路径）。
 """

@@ -1,4 +1,4 @@
-"""Drop source_url UNIQUE constraint, keep content_hash UNIQUE (Phase 15-02).
+"""Drop source_url UNIQUE constraint, keep content_hash UNIQUE.
 
 Phase 15-02: 改用 content_hash 作为 dedup key。
 - 添加 content_hash UNIQUE 索引 (迁移 022)

@@ -46,7 +46,7 @@ from app.models.extraction_models import JDExtractionRecord, RawJDRecord
 async def main():
     sf = get_session_factory()
 
-    # ─── Step 1: live internet crawl (already proven, reconfirm) ───
+    # ───: live internet crawl (already proven, reconfirm) ───
     print("=" * 70)
     print("STEP 1: real internet crawl (v2ex + remotive)")
     print("=" * 70)
@@ -58,7 +58,7 @@ async def main():
     for i, it in enumerate(items[:3]):
         print(f"    [{i}] {it['source_site']:8} | {it['job_title'][:50]}")
 
-    # ─── Step 2: persist to raw_jd_records ───
+    # ───: persist to raw_jd_records ───
     print("\n" + "=" * 70)
     print("STEP 2: persist to raw_jd_records (live v2ex data)")
     print("=" * 70)
@@ -90,7 +90,7 @@ async def main():
         n_post_raw = (await s.execute(select(func.count(RawJDRecord.id)))).scalar() or 0
         print(f"  inserted={inserted_raw}, post-count={n_post_raw}")
 
-    # ─── Step 3: real LLM extraction with qwen2.5:7b ───
+    # ───: real LLM extraction with qwen2.5:7b ───
     print("\n" + "=" * 70)
     print("STEP 3: real LLM extract via qwen2.5:7b (no MiMo)")
     print("=" * 70)
@@ -141,7 +141,7 @@ async def main():
 
     print(f"\n  total real-LLM-driven extractions persisted: {n_real_extractions}")
 
-    # ─── Step 4: orchestrator (uses both fixture + real data) ───
+    # ───: orchestrator (uses both fixture + real data) ───
     print("\n" + "=" * 70)
     print("STEP 4: orchestrator run_evolution_pipeline")
     print("=" * 70)
@@ -153,7 +153,7 @@ async def main():
     print(f"  timeseries: {result.get('timeseries')}")
     print(f"  errors: {result.get('errors')}")
 
-    # ─── Step 5: verify evolution API endpoints ───
+    # ───: verify evolution API endpoints ───
     print("\n" + "=" * 70)
     print("STEP 5: final API state via :8001")
     print("=" * 70)

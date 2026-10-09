@@ -27,7 +27,7 @@ from app.main import app
 
 class _FakeDataSourceRecord:
     # Map test-only fixture names to real registered crawler platforms so the
-    # _adapter_capability guard (added in commit 0456371b, P0-3/P0-4) accepts
+    # _adapter_capability guard (added in commit 0456371b) accepts
     # the source. The fixture name only exists in test scope; production
     # names are matched against build_spider_registry() in real code paths.
     _PLATFORM_FIXTURE_MAP = {

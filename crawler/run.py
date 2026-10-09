@@ -83,7 +83,7 @@ def cmd_apify_zhaopin(args):
 
 
 def cmd_run_pipeline(args):
-    """PIPE-03 (b) D-03: CLI 子命令触发一次完整 pipeline run."""
+    """(b): CLI 子命令触发一次完整 pipeline run."""
     # 业务说明：通过 pipeline_bridge 调用后端 executor.trigger_and_start，
     # 与 main API 等价的调用路径（CLI 与后端同进程内）。
     # 技术说明：trigger_pipeline_run 内部用 asyncio.run 跑异步 trigger_and_start，
@@ -127,7 +127,7 @@ def main():
     sp_zhaopin.add_argument('--force-paid', action='store_true')
     sp_zhaopin.set_defaults(func=cmd_apify_zhaopin)
 
-    # Phase 10 PIPE-03 (b) D-03: CLI 触发完整 pipeline run
+    # (b): CLI 触发完整 pipeline run
     # 业务说明：注册 run-pipeline 子命令，触发一次完整流水线
     # (crawl → dedup → clean → extract → graph_sync)。
     # crawl 阶段按 DataSourceRecord 配置跑真实开放源（v2ex/arbeitnow/jobicy/weworkremotely）。

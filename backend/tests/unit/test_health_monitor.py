@@ -1,4 +1,4 @@
-"""Coverage boost: services/health_monitor.py — 加权熔断/启动探针/退避 (PLAN-013)。
+"""Coverage boost: services/health_monitor.py — 加权熔断/启动探针/退避。
 
 覆盖:
 - M1 回归: 错误类型加权熔断 (rate_limit 权重 0; 2×auth 触发; 未达阈值不触发)

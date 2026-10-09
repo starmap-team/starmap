@@ -1,4 +1,4 @@
-"""Prompt 管理域 Schema (PLAN-014 批次7)。
+"""Prompt 管理域 Schema (批次7)。
 
 从 api/v1/admin_prompts.py 内联 4 个 Request 类迁入集中管理。
 Response 形状 (PromptVersionInfo / ABResultSummary) 仍为 dict — 后续

@@ -90,7 +90,7 @@ class _CostTracker:
         total = in_t + out_t
         cost_cny = round(total / 1_000_000 * PRICE_CNY_PER_1M, 6)
 
-        # AP-10: prod env serializes to JSON; dev env prints pretty.
+        # prod env serializes to JSON; dev env prints pretty.
         logger.info("LLM cost: model={} tokens={} cost=¥{}", model, total, cost_cny)
 
         with self._lock:
@@ -102,7 +102,7 @@ class _CostTracker:
             bucket["cost_cny"] += cost_cny
             bucket["calls"] += 1
 
-            # Phase 27: cap 检查 (软警告 + 硬阻断)
+            # cap 检查 (软警告 + 硬阻断)
             cap = self._caps.get(model, 0.0)
             if cap > 0:
                 cumulative = bucket["cost_cny"]

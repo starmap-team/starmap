@@ -335,7 +335,7 @@ class LoopResultRecord(Base):
 
 
 class SourceTrustConfig(Base):
-    """数据源信任度配置 (§4.2 / PLAN-012 / DEV-14)。
+    """数据源信任度配置 (§4.2)。
 
     与 data_sources 的职责区分:
     - data_sources: 数据源接入配置 + 运行状态 (source_type = 接入方式)

@@ -47,7 +47,7 @@ interface PositionInfo {
   description: string
   discovered_at: string | null
   provenance?: PositionProvenance | null
-  // Phase 38: A3 五要素
+  // A3 五要素
   industry_scenario?: string | null
   core_responsibilities?: string[]
   bonus_skills?: string[]
@@ -553,7 +553,7 @@ watch(() => route.params.name, loadPosition)
   min-width: 0;
 }
 
-/* Phase 38: 岗位定义（五要素）卡片 */
+/*岗位定义（五要素）卡片 */
 .definition-card {
   margin-bottom: var(--space-3);
 }

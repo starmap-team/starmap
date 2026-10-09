@@ -55,7 +55,7 @@ class AdminStatsResponse(BaseModel):
 _SKILL_ENTITY_TYPES = frozenset({"skill", "skill_alias", "new_skill"})
 _POSITION_ENTITY_TYPES = frozenset({"position", "new_position"})
 
-# Phase 02 D-01/D-02: single source of the Position MERGE Cypher.
+# single source of the Position MERGE Cypher.
 # Extracted verbatim from _sync_neo4j_on_audit so the one-off bulk backfill
 # (sync_all_positions_to_neo4j) reuses the exact same idempotent write path
 # instead of introducing a second sync implementation.
@@ -73,7 +73,7 @@ _POSITION_MERGE_CYPHER = """
                     """
 
 
-# Phase 02 D-01: 剪枝早期按 name MERGE 产生的遗留 Position 节点（无 canonical_id，不受 SSOT 管理）。
+# 剪枝早期按 name MERGE 产生的遗留 Position 节点（无 canonical_id，不受 SSOT 管理）。
 # GraphProjector.reconcile_all 的孤儿剪枝带 `WHERE n.canonical_id IS NOT NULL` 前置条件，够不到这批。
 _POSITION_PRUNE_LEGACY_CYPHER = """
                     MATCH (n:Position)
@@ -88,9 +88,9 @@ def _trust_from_payload(payload: dict | None) -> int:
     return int((payload or {}).get("trust", 50))
 
 
-# LOOP-07: Neo4j sync on approve/reject
+# Neo4j sync on approve/reject
 async def _fetch_position_quality_hint(engine: Any, position_id: str) -> str | None:
-    """查岗位 quality_hint（批0 真相源辅助）。"""
+    """查岗位 quality_hint（真相源辅助）。"""
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -175,7 +175,7 @@ async def _sync_neo4j_on_audit(
 
         trust = 1.0 if status == "approved" else 0.0
 
-        # 2026-08-28 (批0 真相源, Critic MAJOR-A): 审核动作不复活隐藏岗位。
+        # 2026-08-28 (真相源, Critic MAJOR-A): 审核动作不复活隐藏岗位。
         # 隐藏岗位（quality_hint=no_skills 或 industry 非 IT）approved 审核通过也不写图，
         # 仅记审计日志——否则 hidden 岗位经审核路径重入图谱，与「空技能不进图」矛盾。
         if label == "Position" and status == "approved":
@@ -228,7 +228,7 @@ async def _sync_neo4j_on_audit(
 async def sync_all_positions_to_neo4j(
     session_factory: Any, neo4j_driver: Any, *, prune_legacy: bool = False,
 ) -> dict[str, Any]:
-    """D-01/D-02: 全量补跑 PG PositionRecord → Neo4j Position 节点（幂等 MERGE）。
+    """全量补跑 PG PositionRecord → Neo4j Position 节点（幂等 MERGE）。
 
     复用 `_sync_neo4j_on_audit` 的 `_POSITION_MERGE_CYPHER`（同一 MERGE 路径，不新建 sync 逻辑）。
     `canonical_id = str(PositionRecord.id)`，与 `_sync_neo4j_on_audit` 一致（D-06 canonical_id 复用）。
@@ -428,7 +428,7 @@ async def approve_audit(
     neo4j_driver: Any | None = None,
     actor: str = "admin:review_queue",
 ) -> AuditItem:
-    """Approve a review-queue item and sync to skill/position tables + Neo4j (LOOP-07).
+    """Approve a review-queue item and sync to skill/position tables + Neo4j.
 
     Phase 24 fix: when a new SkillRecord / PositionRecord is created
     from an approved ReviewQueue row, set review_status='approved' so
@@ -455,7 +455,7 @@ async def approve_audit(
         )
         if existing.scalar_one_or_none() is None:
             # Preserve category from payload if the operator set one
-            # (Phase 24 evolution orchestrator stores it under
+            # (evolution orchestrator stores it under
             # payload["category"]; legacy path leaves it None).
             payload = row.payload or {}
             category = payload.get("category") or "general"
@@ -488,7 +488,7 @@ async def approve_audit(
 
 
 async def reject_audit(item_id: int, session: AsyncSession, neo4j_driver: Any | None = None) -> AuditItem:
-    """Reject a review-queue item and sync to Neo4j (LOOP-07)."""
+    """Reject a review-queue item and sync to Neo4j."""
     result = await session.execute(
         sa.select(ReviewQueue).where(ReviewQueue.id == item_id)
     )

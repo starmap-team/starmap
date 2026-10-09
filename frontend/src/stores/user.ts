@@ -135,7 +135,7 @@ export const useUserStore = defineStore('user', () => {
     }
     clearUser()
     clearResume()
- // / BUG-003: clear cached per-user data in every store so
+ // clear cached per-user data in every store so
  // the next user logging in on the same browser cannot see the
  // previous user's skill gaps, match results, or extracted positions.
  // Lazy-load to avoid a circular-import at module-evaluation time.
@@ -154,7 +154,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
- // ── Resume-related state — FLOW-03: structured skills with proficiency ──
+ // ── Resume-related state —: structured skills with proficiency ──
   const resumeName = ref('')
   const parsedSkills = ref<ParsedSkill[]>([])
 

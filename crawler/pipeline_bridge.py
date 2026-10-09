@@ -1,4 +1,4 @@
-"""PIPE-03 (b): CLI 触发 pipeline 的薄包装。
+"""(b): CLI 触发 pipeline 的薄包装。
 
 调用方: crawler/run.py 中的 run-pipeline 子命令.
 """

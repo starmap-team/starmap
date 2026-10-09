@@ -5,11 +5,11 @@
  * 路由：/loop
  *
  *-01: Refactored from 1677 lines into orchestrator + 6 sub-components + 1 composable.
- * - LoopStepInput.vue — Step 1: JD Input
- * - LoopStepSkills.vue — Step 2: Skill Extraction
- * - LoopStepGraph.vue — Step 3: Graph Update (uses useLoopGraph)
- * - LoopStepMatch.vue — Step 4: Match Diagnosis (radar chart + gap analysis)
- * - LoopStepLearning.vue — Step 5: Learning Path
+ * - LoopStepInput.vue —: JD Input
+ * - LoopStepSkills.vue —: Skill Extraction
+ * - LoopStepGraph.vue —: Graph Update (uses useLoopGraph)
+ * - LoopStepMatch.vue —: Match Diagnosis (radar chart + gap analysis)
+ * - LoopStepLearning.vue —: Learning Path
  * - LoopRunLog.vue — Run Log + History
  * - useLoopGraph.ts — G6 mini-graph rendering composable
  */
@@ -44,11 +44,11 @@ watch(() => loopStore.currentRun?.steps?.map(s => s.status), (statuses) => {
   })
 }, { deep: true })
 
-// ── Step 1 state ──
+// ── state ──
 const jdText = ref('')
 const targetPosition = ref('')
 
-// ── Step 4 ref (for buildRadarData) ──
+// ── ref (for buildRadarData) ──
 const stepMatchRef = ref<InstanceType<typeof LoopStepMatch> | null>(null)
 
 // ── Run loop ──
@@ -72,12 +72,12 @@ async function handleRunLoop() {
     ElMessage.success('闭环执行完成')
   }
 
- // Step 3 完成后渲染 G6 图谱
+ // 完成后渲染 G6 图谱
   await nextTick()
   if (loopStore.currentRun?.steps[2]?.status !== 'waiting') {
     renderMiniGraph(targetPosition.value)
   }
- // Step 4 完成后渲染雷达图
+ // 完成后渲染雷达图
   if (loopStore.currentRun?.steps[3]?.status !== 'waiting') {
     stepMatchRef.value?.buildRadarData()
   }

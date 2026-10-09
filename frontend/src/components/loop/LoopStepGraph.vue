@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * LoopStepGraph — Step 3: Graph Update
+ * LoopStepGraph —: Graph Update
  * Mini G6 graph container + legend.
  * The graph container ref is exposed so the parent (via useLoopGraph) can render into it.
  *-02: also surfaces 新增节点/关系数 口径行.
@@ -172,7 +172,7 @@ const edgesWritten = computed<number | null>(() => {
   flex-shrink: 0;
 }
 
-/* ── Step 3: Graph ── */
+/* ──: Graph ── */
 .graph-legend {
   display: flex;
   gap: var(--space-4);

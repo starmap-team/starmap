@@ -298,7 +298,7 @@ describe('useSSE', () => {
     expect(result.connected.value).toBe(true)
   })
 
-  // ── 10. Polling unwraps { events: [...] } envelope (P1-2 fix) ──
+  // ── 10. Polling unwraps { events: [...] } envelope (fix) ──
 
   it('should unwrap { events: [...] } envelope from polling fallback', async () => {
     const onMessage = vi.fn()

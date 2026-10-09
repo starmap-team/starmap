@@ -49,7 +49,7 @@ VALID_EVENT_TYPES = frozenset({
     "extraction_complete",
 })
 
-# AP-07: Active SSE connection counter (process-local)
+# Active SSE connection counter (process-local)
 _active_sse_clients = 0
 
 
@@ -146,7 +146,7 @@ async def event_stream(
         yield _format_sse("error", {"message": "Redis not available"})
         return
 
- # AP-07: Enforce connection limit
+ # Enforce connection limit
     global _active_sse_clients
     if _active_sse_clients >= MAX_SSE_CLIENTS:
         yield _format_sse("error", {"message": f"Max SSE clients ({MAX_SSE_CLIENTS}) reached"})

@@ -29,7 +29,7 @@ export function getNodeLabel(node: GraphNode3D): string {
   return node.labels?.[0] ?? 'Unknown'
 }
 
-// ── UX-03: Proficiency → z-axis layer mapping ──
+// ──: Proficiency → z-axis layer mapping ──
 // Three-tier stratification: 了解=bottom, 熟悉=middle, 精通=top
 // Only applies to Skill nodes; KA/Position stay at z=0
 const PROFICIENCY_Z: Record<string, number> = {

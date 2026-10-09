@@ -88,7 +88,7 @@ async def write_extraction_to_pg(
     created_by: str | None = "system:extraction",
     review_status: str = "pending_review",
 ) -> bool | None:
-    """Write extraction result to PostgreSQL PositionRecord + SkillRecord (LOOP-05).
+    """Write extraction result to PostgreSQL PositionRecord + SkillRecord.
 
     Returns True on success, None on failure (non-blocking).
     Phase 23: defaults to 'pending_review' so extracted positions/skills

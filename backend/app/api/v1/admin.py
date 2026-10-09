@@ -79,7 +79,7 @@ async def reconcile_neo4j_endpoint(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> ReconcileResult:
-    """Phase 5 Step 3: 手动触发 PG → Neo4j 同步 + 孤儿节点剪枝。
+    """手动触发 PG → Neo4j 同步 + 孤儿节点剪枝。
 
     由 admin 手动调用，或由 cron job 定期调用。
     """
@@ -140,7 +140,7 @@ async def reconcile_neo4j_endpoint(
         )
     ).scalar() or 0
 
-    # IC-05: PG 侧只统计 approved 岗位的 PSR（Neo4j 只投影 approved）
+    # PG 侧只统计 approved 岗位的 PSR（Neo4j 只投影 approved）
     pg_requires = (
         await session.execute(
             select(func.count(PositionSkillRelation.id))
@@ -154,7 +154,7 @@ async def reconcile_neo4j_endpoint(
         neo4j_requires = int((await r3.single())["c"])
     requires_diff = abs(int(neo4j_requires) - int(pg_requires))
 
-    # 健康度（Phase 23 Task 3 扩展：边 ±0.5% 容差纳入三档）
+    # 健康度（扩展：边 ±0.5% 容差纳入三档）
     edge_tolerance = max(1, int(pg_requires * 0.005))
     # 修剪孤儿是成功修复：post-reconcile 计数已对齐（neo4j_pos 等读于 reconcile_all 之后），
     # orphans_pruned>0 不再使本次修复后的对齐状态标 warn。
@@ -168,7 +168,7 @@ async def reconcile_neo4j_endpoint(
     else:
         health = "critical"
 
-    # Phase 5 Step 4: 写 audit_events 记录
+    # 写 audit_events 记录
     try:
         import uuid as _uuid
         from datetime import UTC
@@ -187,7 +187,7 @@ async def reconcile_neo4j_endpoint(
                 "action": "manual_reconcile",
                 "detail": f"health={health},upserted={result.nodes_upserted},orphans={result.orphans_pruned}",
                 "now": _dt.now(UTC),
-                # BUG-18 fix: tag reconcile events with their scope so
+                # fix: tag reconcile events with their scope so
                 # admin audit log can filter by entity (graph).
                 "entity_type": "graph",
                 "entity_id": "all",
@@ -259,7 +259,7 @@ async def approve_audit_endpoint(
     neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
     user: Annotated[dict[str, Any], Depends(require_admin)],
 ) -> AuditItem:
-    """Approve a review queue item and sync to Neo4j (LOOP-07)."""
+    """Approve a review queue item and sync to Neo4j."""
     try:
         actor = user.get("sub") or user.get("username") or "admin"
         return await svc_approve_audit(
@@ -275,7 +275,7 @@ async def reject_audit_endpoint(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     neo4j_driver: Annotated[Any, Depends(get_neo4j_driver)],
 ) -> AuditItem:
-    """Reject a review queue item and sync to Neo4j (LOOP-07)."""
+    """Reject a review queue item and sync to Neo4j."""
     try:
         return await svc_reject_audit(item_id, session, neo4j_driver=neo4j_driver)
     except AuditItemNotFound as exc:
@@ -289,7 +289,7 @@ async def update_review_queue_item_endpoint(
     body: AuditUpdateRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuditItem:
-    """Update name and/or trust of a review queue item (ADMIN-02 save loop)."""
+    """Update name and/or trust of a review queue item (save loop)."""
     try:
         return await svc_update_review_queue_item(
             item_id, name=body.name, trust=body.trust, session=session,
@@ -313,7 +313,7 @@ async def batch_audit_endpoint(
 
 
 # ══════════════════════════════════════════════════════════════
-# Review workflow endpoints (Phase 23 — D-tier redesign)
+# Review workflow endpoints (D-tier redesign)
 # ══════════════════════════════════════════════════════════════
 
 
@@ -391,7 +391,7 @@ async def list_review_items(
 
 
 async def _batch_retry_extract(session: AsyncSession, position_id: uuid_mod.UUID) -> None:
-    """批0/批1 (MAJOR-3): 单岗位重抽取（审核队列批量动作）。
+    """单岗位重抽取（审核队列批量动作）。
 
     从 JDExtractionRecord.jd_content 重抽取该岗位；成功建出 PSR 则清
     quality_hint（下次 reconcile 可入图）。复用 celery retry 任务语义。
@@ -477,7 +477,7 @@ async def batch_review_endpoint(
                     session, entity_type=body.entity_type, entity_id=uid, actor=actor,
                 )
             elif body.action == "retry_extract":
-                # 2026-08-28 (批1 批量重抽取, MAJOR-3): 管理员在审核队列批量触发
+                # 2026-08-28 (批量重抽取): 管理员在审核队列批量触发
                 # 空技能岗位重抽取（复用 celery 任务的单岗位逻辑）。仅 position 有效。
                 if body.entity_type != "position":
                     fail += 1
@@ -570,7 +570,7 @@ async def approve_review_item_endpoint(
             except Exception as exc:  # noqa: BLE001 — 入图失败不阻断审核响应
                 logger.warning("approve-then-graph failed for {!r}: {}", position_name, exc)
 
-            # Phase 38: 审核通过 → 若岗位缺五要素则 LLM 生成（fail-soft，失败仅记 warning）
+            # 审核通过 → 若岗位缺五要素则 LLM 生成（fail-soft，失败仅记 warning）
             try:
                 import sqlalchemy as _sa
 
@@ -607,7 +607,7 @@ async def approve_review_item_endpoint(
                     logger.warning("position definition generation skipped for {!r}: {}", position_name, result["warnings"])
             except Exception as exc:  # noqa: BLE001 — 五要素生成失败不阻断审核响应
                 logger.warning("approve-then-define failed for {!r}: {}", position_name, exc)
-    # P1-14 fix (functional-review 2026-08-13): 技能审核通过此前只改 PG 状态，
+    # fix (functional-review 2026-08-13): 技能审核通过此前只改 PG 状态，
     # 不写 Neo4j Skill.trust_score → avg_skill_trust（数据大屏信任评分）滞后。
     # 复用 _sync_neo4j_on_audit（MERGE canonical_id + trust_score=1.0）。
     elif entity_type == "skill" and item_dict.get("review_status") == "approved":
@@ -652,7 +652,7 @@ async def reject_review_item_endpoint(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except review_service.MissingRejectionReason as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    # P1-14 fix (functional-review 2026-08-13): 技能驳回同步 Neo4j
+    # fix (functional-review 2026-08-13): 技能驳回同步 Neo4j
     # （trust_score=0.0），保持图/PG 审核态一致。
     # 2026-08-21 (debug: 拒绝可见性断点)：岗位驳回同样同步 Neo4j —— 此前
     # position 分支无任何图操作，Neo4j 节点 review_status 停留 NULL/approved，
@@ -944,7 +944,7 @@ async def trigger_full_pipeline(
     )
 
 
-# ── Sub-routers (Phase 7 admin domain split) ──
+# ── Sub-routers (admin domain split) ──
 from app.api.v1.admin_graph_nodes import router as graph_nodes_router  # noqa: E402
 from app.api.v1.admin_prompts import router as prompts_router  # noqa: E402
 

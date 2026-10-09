@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * LoopStepLearning — Step 5: Learning Path
+ * LoopStepLearning —: Learning Path
  * Path flow items + prerequisite graph.
  */
 import { computed } from 'vue'
@@ -180,7 +180,7 @@ const learningPaths = computed(() => {
   flex-shrink: 0;
 }
 
-/* ── Step 5: Learning Path ── */
+/* ──: Learning Path ── */
 .path-flow {
   display: flex;
   align-items: center;

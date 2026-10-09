@@ -1,4 +1,4 @@
-"""Outbox retry worker tests (Phase 23 Task 1 — DC-02/DF-01).
+"""Outbox retry worker tests.
 
 Covers:
 - worker 只捡 `status='failed' AND retry_count<3`，跳过 completed/drift_warning
@@ -204,7 +204,7 @@ class TestReplayOutboxRow:
         assert ok is True
         assert captured["complete"][1] == row.id
         assert captured["complete"][2] == 5
-        # canonical_ids_list 从 PG 重新解析并传入（Task 2 前置：canonical_id 必传）
+        # canonical_ids_list 从 PG 重新解析并传入（前置：canonical_id 必传）
         cids = calls["canonical_ids_list"][0]
         assert cids["position_id"] == str(pos_id)
         assert cids["skills"]["FastAPI"] == str(skill_id)
@@ -382,8 +382,8 @@ class TestRun:
         assert stats["replayed"] == 0 and stats["completed"] == 0
 
 
-# ── 幂等性: source_count max 语义（graph_writer 侧，Task 1 波序前置落地）─────
-# 断言 merge_skill 查询含 max 语义，重复 merge 不累加（IC-06 不膨胀）。
+# ── 幂等性: source_count max 语义（graph_writer 侧，波序前置落地）─────
+# 断言 merge_skill 查询含 max 语义，重复 merge 不累加（不膨胀）。
 
 
 class TestSourceCountMaxSemantics:

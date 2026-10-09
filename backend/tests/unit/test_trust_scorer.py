@@ -85,7 +85,7 @@ class TestStabilityFactor:
 
 
 class TestSingleSourceColdStart:
-    """Phase 23 Task 5 (DF-04): 单源 cold-start trust 数值固化（文档锚点）。
+    """单源 cold-start trust 数值固化（文档锚点）。
 
     权重 source 0.5 / stability 0.3 / type 0.2（trust_scorer.py docstring 已固化）：
     source_count=1 → source_factor=√(1/10)≈0.316；mention_count_new=1 →

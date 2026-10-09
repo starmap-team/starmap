@@ -1,4 +1,4 @@
-"""Tests for bug fixes from depth-analysis-report (BL-01, BL-02, BL-08, BL-11, BL-13, BL-16)."""
+"""Tests for bug fixes from depth-analysis-report."""
 from __future__ import annotations
 
 import time
@@ -10,28 +10,28 @@ from app.core.extraction.prompt import _ACTIVE_VERSIONS, get_active_version
 from app.core.matching.cache import MatchCache
 from app.services.judge_service import evaluate_batch_async, evaluate_sample_async
 
-# ── BL-01: Judge F1 empty-set returns 0.0 not 1.0 ──
+# ──: Judge F1 empty-set returns 0.0 not 1.0 ──
 
 
 class TestBL01EmptySetF1:
-    """BL-01: Both golden and system having no skills should return F1=0, not F1=1."""
+    """Both golden and system having no skills should return F1=0, not F1=1."""
 
     @pytest.mark.asyncio
     async def test_both_empty_skills_returns_zero_f1(self):
         golden = {"id": "e1", "required_skills": [], "bonus_skills": []}
         system = {"id": "e1", "required_skills": [], "bonus_skills": []}
         result = await evaluate_sample_async(golden, system)
-        # BL-01 fix: empty vs empty should be F1=0.0, not 1.0
+        # fix: empty vs empty should be F1=0.0, not 1.0
         assert result.f1 == 0.0
         assert result.precision == 0.0
         assert result.recall == 0.0
 
 
-# ── BL-11: Batch eval skips missing system samples ──
+# ──: Batch eval skips missing system samples ──
 
 
 class TestBL11MissingSystemSamples:
-    """BL-11: Missing system samples should be skipped, not counted as F1=0."""
+    """Missing system samples should be skipped, not counted as F1=0."""
 
     @pytest.mark.asyncio
     async def test_missing_system_skipped(self, tmp_path):
@@ -50,16 +50,16 @@ class TestBL11MissingSystemSamples:
         )
 
         metrics = await evaluate_batch_async(golden_file, system_file, threshold=0.5)
-        # BL-11: g2 is skipped (not in system), so only g1 is evaluated
+        # g2 is skipped (not in system), so only g1 is evaluated
         assert metrics.evaluated_samples == 1
         assert metrics.avg_f1 == 1.0  # g1 is perfect match
 
 
-# ── BL-08: Chinese suffix cleaning min length ──
+# ──: Chinese suffix cleaning min length ──
 
 
 class TestBL08ChineseSuffixCleaning:
-    """BL-08: _clean_skill_name should not over-strip to < 4 chars."""
+    """_clean_skill_name should not over-strip to < 4 chars."""
 
     def test_short_name_not_stripped(self):
         """Names that would become < 4 chars after stripping should be preserved."""
@@ -84,11 +84,11 @@ class TestBL08ChineseSuffixCleaning:
         assert len(result) >= 4  # won't over-strip to "分布式" (3 chars)
 
 
-# ── BL-13: Per-key TTL for profile cache ──
+# ──: Per-key TTL for profile cache ──
 
 
 class TestBL13PerKeyTTL:
-    """BL-13: Profile cache should use per-key TTL, not global expiry."""
+    """Profile cache should use per-key TTL, not global expiry."""
 
     def test_per_key_expiry(self):
         cache = MatchCache(ttl=1, max_size=100)
@@ -116,11 +116,11 @@ class TestBL13PerKeyTTL:
         assert cache.get_profile("pos-x") is None
 
 
-# ── BL-16/FE-01: v4 Prompt is active ──
+# ── v4 Prompt is active ──
 
 
 class TestBL16PromptVersion:
-    """BL-16: jd_extraction should default to v4 (recall-optimized)."""
+    """jd_extraction should default to v4 (recall-optimized)."""
 
     def test_jd_extraction_active_version_is_v4(self):
         assert get_active_version("jd_extraction") == "v4"
@@ -129,14 +129,14 @@ class TestBL16PromptVersion:
         assert _ACTIVE_VERSIONS["jd_extraction"] == "v4"
 
 
-# ── BL-02: Pydantic fallback completeness ──
+# ──: Pydantic fallback completeness ──
 
 
 class TestBL02PydanticFallback:
-    """BL-02: When Pydantic validation fails, fallback should cover ALL fields."""
+    """When Pydantic validation fails, fallback should cover ALL fields."""
 
     def test_mask_pii_chinese_name(self):
-        """P0 DATA-01: Chinese name patterns should be redacted."""
+        """P0: Chinese name patterns should be redacted."""
         text = "姓名：张三 | 男 | 5年经验"
         masked = mask_pii(text)
         assert "张三" not in masked

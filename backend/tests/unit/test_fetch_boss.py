@@ -1,4 +1,4 @@
-"""Coverage boost: services/fetch_boss.py — BOSS 适配器 (PLAN-013)。
+"""Coverage boost: services/fetch_boss.py — BOSS 适配器。
 
 覆盖 HTML 清理 / INITIAL_STATE 提取 / HTML 兜底 / 诚实空列表红线。
 真实性红线回归：抓取失败必须返回 []，不得以 fixture 冒充。

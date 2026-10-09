@@ -1,4 +1,4 @@
-"""P1-9 (functional-review 2026-08-13): 岗位可见性策略 —— 非 admin 无法查看未发布岗位。
+"""(functional-review 2026-08-13): 岗位可见性策略 —— 非 admin 无法查看未发布岗位。
 
 list_positions 此前只读 query 参数、无角色校验：任何登录用户传
 ?status=pending_review 或 include_all=true 即可看到未发布/已驳回岗位。

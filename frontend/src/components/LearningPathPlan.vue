@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 学习路径规划 — Step 4 子组件
+ * 学习路径规划 — 子组件
  * 基于技能差距生成个性化学习路径和时间线
  */
 import { computed } from 'vue'

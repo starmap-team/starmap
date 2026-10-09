@@ -120,7 +120,7 @@ async def get_graph_overview(
             independent_edges=0,
             generated_at=generated_at,
         )
- # 2026-08-29 (PERF-03): overview 每次请求全量重查 Neo4j(实测 domain 2.7s)。
+ # 2026-08-29 : overview 每次请求全量重查 Neo4j(实测 domain 2.7s)。
  # 图谱数据只在 pipeline run 后变化 → Redis TTL 缓存 5 分钟, 复用 dashboard_service 模式。
     from app.services.redis_cache import cache_key, get_cached, set_cached
 

@@ -59,7 +59,7 @@ def _mask_config(config: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def _adapter_capability(ds: DataSourceRecord) -> tuple[bool, str | None]:
-    """数据源是否有可用爬虫适配器 —— 后端 spider 注册表为唯一事实源（P0-3）。
+    """数据源是否有可用爬虫适配器 —— 后端 spider 注册表为唯一事实源。
 
     返回 (has_adapter, adapter_platform)。platform 取自 config.platform（或
     config.source_site 兜底）；缺 platform 或不在注册表 → 无适配器。

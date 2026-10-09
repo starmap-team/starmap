@@ -123,7 +123,7 @@ def check_incremental(
                 if is_dup:
                     continue
                 batch_hashes.append(new_hash)
-            # NEW-06 拆列: content_hash 用 sha256 守精确去重(UNIQUE),
+            # 拆列: content_hash 用 sha256 守精确去重(UNIQUE),
             # simhash 存 64-bit 整数供近似去重(独立列); 旧行为(content_hash=hex64(simhash))保留兼容
             rec["content_hash"] = hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
             rec["simhash"] = new_hash

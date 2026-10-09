@@ -361,8 +361,8 @@ $resume_content
 
 纯 JSON，不要 markdown 代码块，不要附加文字。"""
 
-# 2026-08-25 (RECALL-01): resume v2 — 对齐 JD v4 的完整性要求。
-# 评估实测 recall 0.60-0.78 (resume-data-001 / resume-test-001), LLM 漏掉
+# 2026-08-25 : resume v2 — 对齐 JD v4 的完整性要求。
+# 评估实测 recall 0.60-0.78 (resume-/ resume-test-001), LLM 漏掉
 # Jupyter/Matplotlib/Seaborn/Statistics 等库/工具类技能。v2 增加
 # "完整无遗漏" + 覆盖检查, 提升召回。
 RESUME_EXTRACTION_PROMPT_V2 = """你是一个专业的简历解析专家。请**完整且无遗漏**地从以下简历内容中提取技能信息。

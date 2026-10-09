@@ -186,7 +186,7 @@ async def test_create_node_success():
         node_type="Skill", name="Rust", properties={"category": "language"}
     )
 
-    # BUG-8 fix: `id` is the stamped canonical_id (UUID) — the Neo4j
+    # fix: `id` is the stamped canonical_id (UUID) — the Neo4j
     # elementId is exposed separately as `element_id`.
     assert result["element_id"] == "new-node-1"
     assert result["id"] != "new-node-1"
@@ -400,9 +400,9 @@ async def test_create_node_cypher_uses_label_and_name_param():
     assert params["name"] == "Rust"
     assert params["props"]["name"] == "Rust"
     assert params["props"]["category"] == "hard_skill"
-    # BUG-9 fix: create_node stamps default review_status=pending
+    # fix: create_node stamps default review_status=pending
     assert params["props"]["review_status"] == "pending"
-    # BUG-8 fix: create_node stamps a fresh canonical_id UUID
+    # fix: create_node stamps a fresh canonical_id UUID
     assert params["props"]["canonical_id"]
 
 

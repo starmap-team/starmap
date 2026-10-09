@@ -1,4 +1,4 @@
-"""Cron scheduler module (Phase 2 CRON-01 ~ CRON-05).
+"""Cron scheduler module.
 
 Provides:
 - compute_next_cron: Parse cron expression and compute next trigger time
@@ -34,7 +34,7 @@ except ImportError:
 RECONCILE_INTERVAL = timedelta(hours=24)
 
 
-# Phase 03 Plan 03 Task 11 (D-16): 5 字段值域常量
+# 5 字段值域常量
 CRON_FIELD_BOUNDS = {
     "minute": (0, 59),  # 分
     "hour": (0, 23),  # 时
@@ -92,7 +92,7 @@ def _validate_cron_field_value(raw: str, min_val: int, max_val: int) -> str | No
 
 
 def validate_cron_expression(cron: str) -> dict[str, Any]:
-    """完整校验 cron 表达式（D-16），返回 {valid: bool, errors: [{field, value, message}]}。
+    """完整校验 cron 表达式，返回 {valid: bool, errors: [{field, value, message}]}。
 
     服务端二次校验（防绕过）；与前端 cronValidator 行为一致。
     """
@@ -167,7 +167,7 @@ async def trigger_schedule(
     appropriate Celery task.
     """
     try:
-        # BUG-16 fix: name-based dispatch
+        # fix: name-based dispatch
         if schedule.name in ("daily_reconcile", "graph_reconcile"):
             from app.tasks.celery_app import reconcile_graph_task  # type: ignore[attr-defined]
             task = reconcile_graph_task
@@ -200,7 +200,7 @@ async def trigger_schedule(
 
 
 async def _run_daily_reconcile(session: AsyncSession) -> None:
-    """BUG-16 fix: extract reconcile logic so both cron and the manual endpoint
+    """fix: extract reconcile logic so both cron and the manual endpoint
     share one implementation. Runs GraphProjector.reconcile_all and writes an
     audit event so Tab 7 数据源诊断 reports an accurate "last reconcile" time.
     """
@@ -220,7 +220,7 @@ async def _run_daily_reconcile(session: AsyncSession) -> None:
         result.orphans_pruned,
     )
 
-    # Phase 19 D-02/D-04: reconcile 时全量重算 Skill.trust_score（§6.2 四因子），
+    # reconcile 时全量重算 Skill.trust_score（§6.2 四因子），
     # 覆盖历史 0.5 脏数据（投影不写 trust_score 时代的默认值）
     try:
         from app.services.graph_sync import recompute_skill_trust
@@ -321,7 +321,7 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
     engine = get_async_engine()
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
-    # Phase 5 Step 3: 定时 reconcile 状态
+    # 定时 reconcile 状态
     last_reconcile_at: datetime | None = None
     next_reconcile_at = datetime.now(UTC).replace(hour=3, minute=0, second=0, microsecond=0)
     if next_reconcile_at < datetime.now(UTC):
@@ -335,7 +335,7 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
                 if triggered:
                     logger.info("Cron scanner triggered {} schedule(s)", triggered)
 
-            # Phase 5 Step 3: 定时 reconcile
+            # 定时 reconcile
             now = datetime.now(UTC)
             if last_reconcile_at is None or now >= next_reconcile_at:
                 try:
@@ -351,7 +351,7 @@ async def cron_scanner_loop(interval_seconds: int = 60) -> None:
                                 "Daily reconcile: positions={}, skills={}, orphans={}",
                                 result.nodes_upserted, result.nodes_upserted, result.orphans_pruned,
                             )
-                            # Phase 5 Step 4: 写 audit_events 供健康度监控查询
+                            # 写 audit_events 供健康度监控查询
                             try:
                                 import uuid as _uuid
 

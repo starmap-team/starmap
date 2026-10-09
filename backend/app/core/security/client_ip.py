@@ -1,4 +1,4 @@
-"""客户端真实 IP 提取 (PLAN-015①)。
+"""客户端真实 IP 提取。
 
 背景: FastAPI `request.client.host` 是直连 socket 的对端 IP。在反向代理
 (nginx/ALB/cloud LB) 后面它会变成代理的 IP, 既不能反映真实攻击者,
@@ -72,7 +72,7 @@ def get_client_ip(
 
 
 def resolve_client_ip(request: Request) -> str:
-    """settings-aware 客户端 IP (集中守门, PLAN-015① follow-up)。
+    """settings-aware 客户端 IP (集中守门, follow-up)。
 
     包装 get_client_ip: trusted_proxies 来自 settings.trusted_proxy_cidrs。
     供所有路由/中间件统一调用, 消灭散落的 request.client.host 直取。

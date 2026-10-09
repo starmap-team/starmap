@@ -1,4 +1,4 @@
-"""Import service — 复用 dao.upsert_jd 路径 (Phase 15-02 Task 2)."""
+"""Import service — 复用 dao.upsert_jd 路径."""
 from __future__ import annotations
 
 import hashlib
@@ -35,7 +35,7 @@ async def import_items(
 
     for idx, item in enumerate(items):
         try:
-            # Fix H3 (Phase 15 review): 全量 hash 而非 [:500] 截断
+            # Fix H3 (review): 全量 hash 而非 [:500] 截断
             content_hash = hashlib.sha256(
                 (
                     item.get("clean_text", "")
@@ -46,7 +46,7 @@ async def import_items(
                 ).encode("utf-8")
             ).hexdigest()
 
-            # Fix H2 (Phase 15 review): PII 检测
+            # Fix H2 (review): PII 检测
             text_for_pii = (
                 item.get("clean_text", "")
                 + " "

@@ -1,4 +1,4 @@
-"""ALIGN-09 §10.1 落地：简历格式异常样本测试（加密/损坏/超长/扩展名/MIME/空）。
+"""§10.1 落地：简历格式异常样本测试（加密/损坏/超长/扩展名/MIME/空）。
 
 §10.1 要求 10 份格式异常简历覆盖扫描件/加密/超长，本测试覆盖 API 上传
 校验层（upload_validation）和 service 层（ensure_supported_resume），
@@ -150,7 +150,7 @@ async def test_upload_accepts_docx_zip_header() -> None:
 
 
 # ──────────────────────────────────────────────────────────────
-# ALIGNE-09 缺口"加密/损坏简历"覆盖说明：
+# 缺口"加密/损坏简历"覆盖说明：
 # - PDF 加密文件以 `/Encrypt` 对象存在，但 python-pdfplumber 需密码
 #   才能打开。service 层 _extract_pdf_text 的 try/except 会 swallow 该错误
 #   并回退到 raw decode；§5.4 §10.1 设计的"加密 → 解析失败引导手动输入"

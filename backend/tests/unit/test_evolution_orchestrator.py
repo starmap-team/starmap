@@ -100,7 +100,7 @@ class TestDiffAndPersist:
 
     @pytest.mark.asyncio
     async def test_write_back_failure_does_not_block(self):
-        """D-06: write-back raising → warning appended, _diff_and_persist still returns."""
+        """write-back raising → warning appended, _diff_and_persist still returns."""
         from app.core.evolution.diff_engine import DiffEngine
         from app.core.evolution.trust_scorer import TrustScorer
 
@@ -123,7 +123,7 @@ class TestDiffAndPersist:
 
     @pytest.mark.asyncio
     async def test_evidence_json_has_factors(self):
-        """D-09: evidence_json includes factors {source, stability, type}."""
+        """evidence_json includes factors {source, stability, type}."""
         from app.core.evolution.diff_engine import DiffEngine
         from app.core.evolution.trust_scorer import TrustScorer
 
@@ -167,7 +167,7 @@ class TestRunEvolutionPipelineSummary:
 
     @pytest.mark.asyncio
     async def test_summary_contains_consistency(self):
-        """D-07: summary carries the consistency dict even when check succeeds."""
+        """summary carries the consistency dict even when check succeeds."""
         from app.core.evolution.orchestrator import run_evolution_pipeline
 
         factory = self._make_factory()
@@ -206,7 +206,7 @@ class TestRunEvolutionPipelineSummary:
 
     @pytest.mark.asyncio
     async def test_graph_projection_failure_only_warns(self):
-        """D-06: graph_projection raising → warning appended, pipeline continues."""
+        """graph_projection raising → warning appended, pipeline continues."""
         from app.core.evolution.orchestrator import run_evolution_pipeline
 
         factory = self._make_factory()
@@ -238,7 +238,7 @@ class TestRunEvolutionPipelineSummary:
 
     @pytest.mark.asyncio
     async def test_consistency_check_failure_only_warns(self):
-        """D-07: consistency check raising → warning + summary error dict, no abort."""
+        """consistency check raising → warning + summary error dict, no abort."""
         from app.core.evolution.orchestrator import run_evolution_pipeline
 
         factory = self._make_factory()

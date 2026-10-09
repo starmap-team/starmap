@@ -291,7 +291,7 @@ class TestListPlans:
         assert resp.status_code == 200
 
     def test_list_user_id_matches_create_caliber(self, client, db_override):
-        """NEW-02 回归：list 与 create 必须同口径取 user_id（sub=username）。
+        """回归：list 与 create 必须同口径取 user_id（sub=username）。
 
         真实 JWT 同时携带 sub(username) 与 uid(DB UUID)。此前 list 优先 uid、
         create 存 sub，真实用户查不到自己的计划。现统一为 sub。
@@ -648,7 +648,7 @@ class TestGetRecommendations:
         progress = FakeProgressRow(
             plan_id=plan_id, skill_name="Python", status="not_started", progress_pct=0.0, importance="required"
         )
-        # NEW-21: 先属主查询（plan.user_id=_MOCK_USER['sub']='dev'），再 progress 查询
+        # 先属主查询（plan.user_id=_MOCK_USER['sub']='dev'），再 progress 查询
         session = FakeAsyncSession([
             FakeResult(FakePlanRow(plan_id=plan_id)),
             FakeResult([progress]),
@@ -723,7 +723,7 @@ class TestGetRecommendations:
         assert "SQL" not in skill_names
 
     def test_recommendations_plan_id_other_user_returns_403(self, client, auth_headers, db_override):
-        """NEW-21 回归：他人 plan_id 必须 403（IDOR 防护）。"""
+        """回归：他人 plan_id 必须 403（IDOR 防护）。"""
         plan_id = uuid.uuid4()
         session = FakeAsyncSession([
             FakeResult(FakePlanRow(plan_id=plan_id, user_id="someone-else")),

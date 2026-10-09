@@ -49,7 +49,7 @@ def test_analyze_evolution_trends_runs_real_service_entrypoint(monkeypatch, days
 
 
 # ══════════════════════════════════════════════════════════════
-# retry_no_skill_positions (批2 可持续, 2026-08-28)
+# retry_no_skill_positions (可持续, 2026-08-28)
 # ══════════════════════════════════════════════════════════════
 
 

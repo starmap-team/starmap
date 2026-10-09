@@ -128,12 +128,12 @@ class EvolutionChangelog(Base):
         comment="required | preferred | null (if removed)",
     )
  # 业务说明：变更前快照ID，指向演化前的技能画像
- # 技术说明：nullable=True兼容首次快照，index加速关联查询，FK SET NULL (SEC-05)
+ # 技术说明：nullable=True兼容首次快照，index加速关联查询，FK SET NULL 
     snapshot_from_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("evolution_snapshots.id", ondelete="SET NULL"), nullable=True, index=True,
     )
  # 业务说明：变更后快照ID，指向演化后的技能画像
- # 技术说明：nullable=True兼容最新快照，index加速关联查询，FK SET NULL (SEC-05)
+ # 技术说明：nullable=True兼容最新快照，index加速关联查询，FK SET NULL 
     snapshot_to_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("evolution_snapshots.id", ondelete="SET NULL"), nullable=True, index=True,
     )

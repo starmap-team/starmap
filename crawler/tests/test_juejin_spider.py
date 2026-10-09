@@ -1,4 +1,4 @@
-"""PLAN-002: 掘金 sitemap spider 测试。
+"""掘金 sitemap spider 测试。
 
 mock crawler.compliance.fetch, 验证:
 - sitemap 索引 → 子图 → 文章 URL 解析

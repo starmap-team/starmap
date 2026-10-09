@@ -1,4 +1,4 @@
-"""Phase 03 Plan 03 Task 6: stages/graph_sync.py 阶段测试。
+"""stages/graph_sync.py 阶段测试。
 
 锁定 graph_sync 阶段行为契约（outbox + 可选 reconcile + 模块表面）。
 """
@@ -22,7 +22,7 @@ class TestExecuteGraphSyncStructure:
         assert callable(graph_sync.execute_graph_sync)
 
     def test_reconcile_sub_step_event(self):
-        """D-07 reconcile 子步骤事件存在（sub_step="reconcile"）。"""
+        """reconcile 子步骤事件存在（sub_step="reconcile"）。"""
         source = _graph_sync_source()
         assert 'sub_step="reconcile"' in source, (
             "graph_sync must emit sub_step='reconcile' when reconcile_on_sync=True (D-15)"
@@ -49,7 +49,7 @@ class TestExecuteGraphSyncStructure:
 
 
 class TestGraphSyncModuleSurface:
-    """stages.execute_graph_sync 必须是真实现（Task 6 完成标志）。"""
+    """stages.execute_graph_sync 必须是真实现（完成标志）。"""
 
     def test_graph_sync_is_real_not_stub(self):
         from app.core.pipeline import stages
@@ -63,7 +63,7 @@ class TestGraphSyncModuleSurface:
 
 
 class TestDeprecatedScripts:
-    """D-07: 原对账脚本打 DEPRECATED banner。"""
+    """原对账脚本打 DEPRECATED banner。"""
 
     def test_backfill_graph_to_pg_deprecated(self):
         from pathlib import Path
@@ -96,7 +96,7 @@ class TestStagesModuleSurface:
     """所有 6 阶段已迁出 — 未迁出 stub 列表应为空。"""
 
     def test_unmigrated_stages_empty(self):
-        """D-01 进度完成标志：未迁出 stub 列表为空。"""
+        """进度完成标志：未迁出 stub 列表为空。"""
         from app.core.pipeline import stages
 
         # 所有 6 个 execute_* 必须返回 dict（真实现）而非抛 NotImplementedError

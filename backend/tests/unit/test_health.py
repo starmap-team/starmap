@@ -64,7 +64,7 @@ def test_health_v1_ok(client):
 
 
 def test_health_detail_ok(client):
-    """D-09: /health/detail 返回 200 含 services(4) + llm_keys(3 bool) + demo_data。"""
+    """/health/detail 返回 200 含 services(4) + llm_keys(3 bool) + demo_data。"""
     resp = client.get("/health/detail")
     assert resp.status_code == 200
     body = resp.json()

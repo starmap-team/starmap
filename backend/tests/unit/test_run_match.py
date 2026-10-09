@@ -108,7 +108,7 @@ async def test_run_match_simple():
 
 @pytest.mark.asyncio
 async def test_run_match_score_breakdown_shape():
-    """D-01: 响应携带 score_breakdown（分数组件可感知，前端可展示拆解）。"""
+    """响应携带 score_breakdown（分数组件可感知，前端可展示拆解）。"""
     with patch("app.core.matching.service.MatchService._load_target_profile", new=AsyncMock(side_effect=_mock_load_target_profile)):
         result = await run_match(
             target_position="数据分析师",
@@ -530,7 +530,7 @@ class TestApplyInflationCorrection:
         assert cii > 1.2
 
     def test_empty_required(self):
-        """Empty required list returns cii=0.0 (M13 fix: no explicit requirements → no quantifiable inflation)."""
+        """Empty required list returns cii=0.0 (fix: no explicit requirements → no quantifiable inflation)."""
         profile = {"required": [], "bonus": []}
         req, bon, cii = _match_service._apply_inflation_correction(profile)
         assert cii == 0.0

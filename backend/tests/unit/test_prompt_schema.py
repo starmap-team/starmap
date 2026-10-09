@@ -1,4 +1,4 @@
-"""契约回归: admin_prompts 路由零内联模型 (PLAN-014 批次7)。
+"""契约回归: admin_prompts 路由零内联模型 (批次7)。
 
 锁定 4 个 Request 模型已迁入 schemas/prompt.py, 路由文件不再内联。
 契约防御: ABResultRequest.success 默认 True, 约定与原路由一致。

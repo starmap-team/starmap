@@ -1,4 +1,4 @@
-"""人岗匹配准确率评测 runner — P0-1 赛项实用价值指标。
+"""人岗匹配准确率评测 runner — 赛项实用价值指标。
 
 消费 `evaluation/golden_set_match.jsonl`（100 对：position + person_skills +
 expected 区间），逐条调用真实匹配引擎 `run_match`（服务层，走真实 Neo4j

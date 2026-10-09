@@ -1,4 +1,4 @@
-"""Pipeline crawl 阶段（D-01 + D-15 + D-18 Task 4）。
+"""Pipeline crawl 阶段。
 
 按数据源/平台调度爬虫，写入 jd_raw。每启用的数据源发送 1 条 sub_step 事件（D-15）。
 本模块从 executor.execute_crawl 迁出；executor.py 保留兼容重导出，存量调用方零改动（D-11）。
@@ -29,7 +29,7 @@ from app.core.pipeline.stages.common import (
 )
 
 # 2026-08-07 (B2 修复): 共享 spider 注册表 — 提取为模块常量,
-# executor 与单源调度端点共用; 补入 juejin/remoteok (PLAN-002/003 落地后遗漏注册)
+# executor 与单源调度端点共用; 补入 juejin/remoteok (003 落地后遗漏注册)
 SPIDER_REGISTRY: dict[str, Any] = {
     "v2ex": None,  # 延迟导入避免循环
 }
@@ -98,7 +98,7 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
                 if run_meta and run_meta.selected_sources:
                     selected = list(run_meta.selected_sources)
 
-            # PLAN-005: api/rss 源同样参与 crawl 阶段（Phase 15 修复在 rebase 中丢失，恢复）
+            # api/rss 源同样参与 crawl 阶段（修复在 rebase 中丢失，恢复）
             # D8 fix: 当手动指定了 selected_sources 时，直接按名称查这些源（不限制
             # source_type —— job_board/blog 型如 V2EX/掘金也在可选项内），否则用户
             # 选了源却因 source_type 过滤被排除 → fallback 默认源（日志实证）。
@@ -159,7 +159,7 @@ async def _get_crawl_configs(run_id: str) -> list[dict[str, Any]]:
 
 
 async def _skip_paused_sources_if_needed(run_id: str) -> None:
-    """Phase 2 AUTHORITY-03: Log paused sources (the actual skip happens in the spider call)."""
+    """AUTHORITY-03: Log paused sources (the actual skip happens in the spider call)."""
     try:
         session_factory = get_session_factory()
         async with session_factory() as session:
@@ -207,7 +207,7 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
         logger.opt(exception=True).error("crawl stage deps unavailable: {}", exc)
         raise
 
-    # 复用本模块的 build_spider_registry (PLAN-005/NEW-07 注册)
+    # 复用本模块的 build_spider_registry (注册)
     spider_registry = build_spider_registry()
 
     try:
@@ -283,7 +283,7 @@ def execute_crawl(run_id: str, run_type: str) -> dict[str, Any]:
             ))
             continue
 
-        # D-15: 每个数据源发 1 条 sub_step 事件
+        # 每个数据源发 1 条 sub_step 事件
         run_async(publish_stage_progress(
             run_id, "crawl", "running",
             progress=source_idx / total_sources,

@@ -1,4 +1,4 @@
-"""P1-13 (functional-review 2026-08-13): pipeline_consistency 一致性计数非占位。
+"""(functional-review 2026-08-13): pipeline_consistency 一致性计数非占位。
 
 此前 _fetch_counts 恒返回 (0, 0) → check_pg_neo4j_consistency 永远
 severity="ok"，D-06 告警是 no-op。现实现真实 PG/Neo4j 计数。

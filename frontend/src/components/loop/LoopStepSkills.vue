@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * LoopStepSkills — Step 2: Skill Extraction Results
+ * LoopStepSkills —: Skill Extraction Results
  * Displays skill chips with is_new indicators, confidence, hallucination score.
  *-02: also surfaces 技能数 / 信任度均值 / 实际 model_used
  * (云端秒级 vs 本地 fallback 解释).
@@ -252,7 +252,7 @@ const legacyHallucinationLabel = computed(() => {
   align-items: center;
 }
 
-/* ── Step 2: Extracted Skills ── */
+/* ──: Extracted Skills ── */
 .extracted-skills {
   display: flex;
   flex-wrap: wrap;

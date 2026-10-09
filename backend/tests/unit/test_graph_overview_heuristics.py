@@ -1,4 +1,4 @@
-"""Phase 11 D-01 + Phase 1 (M1) C-5 closure: graph_overview / dashboard 启发式补测（C-5 债务消除）。
+"""+ (M1) closure: graph_overview / dashboard 启发式补测（债务消除）。
 
 ponytail 调整（避免深度 mock SQLAlchemy + service + repo 三层）：
 - ``_build_quality_dashboard`` 高度耦合（直接 SQL + 内部 helper + 外部 service + repo），
@@ -190,13 +190,13 @@ class TestBaselineAvailable:
 #   TestAuditPassRate: 5
 #   TestHallucinationRate: 4
 #   TestBaselineAvailable: 2
-#   合计 13 ≥ 5 启发式用例（C-5 债务消除）✅
+#   合计 13 ≥ 5 启发式用例（债务消除）✅
 
 
 # ─────────────────────────────────────────────────────────────────
-# 6. Phase 1 (M1) Plan 01-02 Task 1: _classify_industry 纯函数测试
+# 6. (M1): _classify_industry 纯函数测试
 # 2026-08-13: graph_overview.py:217 按 Position.name + industry 关键词最长优先匹配
-# 14 大行业桶；C-5 债务消除 — 此前 0 测试覆盖。
+# 14 大行业桶；债务消除 — 此前 0 测试覆盖。
 # ─────────────────────────────────────────────────────────────────
 
 

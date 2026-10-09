@@ -1,4 +1,4 @@
-"""契约: judge 路由零内联 + 6 模型可达 (PLAN-014 批次10)。
+"""契约: judge 路由零内联 + 6 模型可达 (批次10)。
 
 api/v1/judge.py 6 个 BaseModel (JudgeRequest/PairwiseRequest/
 BatchJudgeRequest/JudgeSampleResponse/PairwiseResponse/BatchJudgeResponse)
@@ -78,7 +78,7 @@ class TestJudgeSchemasExported:
 
 
 class TestF1GateSingleSource:
-    """NEW-11: F1 质量门禁唯一常量 — settings.eval_f1_gate，全链引用."""
+    """F1 质量门禁唯一常量 — settings.eval_f1_gate，全链引用."""
 
     def test_settings_defines_eval_f1_gate(self) -> None:
         from app.config import settings

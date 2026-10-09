@@ -1,4 +1,4 @@
-"""Phase 23 Task 10 — 入库完整性指标评估（ingestion gate）。
+"""— 入库完整性指标评估（ingestion gate）。
 
 连 PG/Neo4j 实时库输出 6 项入库完整性指标，作为 ``run_baseline.py`` 的第二道门禁
 （quality gate 通过 + ingestion gate 通过才 PASS；任一超阈 FAIL 且 exit code 非 0）。
@@ -227,7 +227,7 @@ async def compute_ingestion_metrics(
     """
     gates = gates or load_gates()
 
-    # 1) KPI 口径运行时断言（唯一事实源 status_aggregator.py，IC-07）
+    # 1) KPI 口径运行时断言（唯一事实源 status_aggregator.py)
     from kpi_audit import assert_status_aggregator_caliber
 
     from app.core.pipeline.status_aggregator import compute_status_aggregates
@@ -235,7 +235,7 @@ async def compute_ingestion_metrics(
     async with async_sessionmaker(pg_engine, expire_on_commit=False)() as session:
         aggregates = await compute_status_aggregates(session)
 
-        # 指标 1: PG approved PSR 边数（复用 /admin/reconcile-neo4j 同款 SQL，Task 3）
+        # 指标 1: PG approved PSR 边数（复用 /admin/reconcile-neo4j 同款 SQL)
         pg_psr = await _scalar_int(
             session,
             "SELECT count(*) FROM position_skill_relations psr "

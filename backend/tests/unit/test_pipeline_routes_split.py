@@ -1,4 +1,4 @@
-"""Phase 03 Plan 03 Task 7: APIRouter 子路由分片验证。
+"""APIRouter 子路由分片验证。
 
 锁定 D-02 + 外部 import 兼容性 + 端点可达性契约。
 """
@@ -30,7 +30,7 @@ class TestRouterStructure:
     """routes.py 与 events_routes.py 结构契约。"""
 
     def test_events_routes_module_exists(self):
-        """events_routes 子模块必须存在（D-02 拆分起步）。"""
+        """events_routes 子模块必须存在（拆分起步）。"""
         from app.api.v1.pipeline import events_routes
 
         assert hasattr(events_routes, "router")

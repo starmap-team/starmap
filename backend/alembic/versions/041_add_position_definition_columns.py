@@ -1,4 +1,4 @@
-"""Add A3 five-element definition columns to position_records (Phase 38, 2026-08-31).
+"""Add A3 five-element definition columns to position_records (2026-08-31).
 
 全岗位五要素闭环：将 A3 生成器产出的岗位定义五要素（行业场景/核心职责/
 加分技能/简述）持久化到 position_records，供岗位详情/匹配/学习复用。

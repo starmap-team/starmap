@@ -1,4 +1,4 @@
-"""Pipeline DAG 执行引擎（Phase 03 Plan 03 拆分：从 executor.py 迁出）。
+"""Pipeline DAG 执行引擎（拆分：从 executor.py 迁出）。
 
 包含 DAG 推进 / 触发 / 重试 / 续跑逻辑与 STAGE_EXECUTORS 映射。
 executor.py 保留兼容重导出（D-11），存量调用方零改动；新代码请直接
@@ -79,7 +79,7 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
     Phase 1 D-04: STOP flag 检查 — if Redis flag `pipeline:stop:{run_id}` is set,
     skip all stage dispatch and don't complete the run (cancel_run 已经标记 cancelled).
     """
-    # Phase 1 D-04: STOP flag 检查
+    # STOP flag 检查
     try:
         from app.core.pipeline.orchestrator import is_run_cancelled
         redis_client = app_resources.redis_client
@@ -108,7 +108,7 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
             stages: list[dict[str, Any]] = raw_stages if isinstance(raw_stages, list) else []
 
             # Skip or fail stages whose deps failed
-            # Phase 3.8.7: also fail required stages (not just skip optional ones)
+            # also fail required stages (not just skip optional ones)
             for s in stages:
                 if s["status"] != StageStatus.PENDING.value:
                     continue
@@ -121,7 +121,7 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
                     if s["name"] in OPTIONAL_STAGES:
                         s["status"] = StageStatus.SKIPPED.value
                     else:
-                        # Phase 3.8.7 FIX: Required dep failed -> 标记下游 stage 为 failed
+                        # FIX: Required dep failed -> 标记下游 stage 为 failed
                         s["status"] = StageStatus.FAILED.value
                     s["completed_at"] = datetime.now(UTC).isoformat()
                     if s["name"] not in OPTIONAL_STAGES:
@@ -159,7 +159,7 @@ async def advance_pipeline(run_id: uuid.UUID) -> None:
                 total_records = crawl_records
                 run_status = RunStatus.FAILED.value if failed else RunStatus.COMPLETED.value
                 error_log = f"Failed stages: {failed}" if failed else None
-                # P1-3 fix (functional-review 2026-08-13): 完成分支此前内联
+                # fix (functional-review 2026-08-13): 完成分支此前内联
                 # update(PipelineRun) 只写 stages/status/completed_at/total_records/
                 # error_log，从不写 new_records/updated_records/quality_score ——
                 # 导致 /quality/trends、/dashboard/trends、/datasources/{id}/stats

@@ -1,4 +1,4 @@
-"""Coverage boost: services/extraction_service.py — service 边界 re-export 防回归 (PLAN-013)。
+"""Coverage boost: services/extraction_service.py — service 边界 re-export 防回归。
 
 路由层应经 service 边界访问抽取能力，而非直连 core。
 锁定三个导出符号的来源，防止误改 import 导致分层被破坏。

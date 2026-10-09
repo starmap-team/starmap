@@ -382,7 +382,7 @@ async def test_count_by_status_aggregates_both_types():
     # Skill GROUP BY result
     skl_result = MagicMock()
     skl_result.all = MagicMock(return_value=[("approved", 269)])
-    # BUG-2 fix: EvolutionChangelog low-trust pending count (§5.2)
+    # fix: EvolutionChangelog low-trust pending count (§5.2)
     ev_result = MagicMock()
     ev_result.scalar = MagicMock(return_value=3)
     session.execute = AsyncMock(side_effect=[pos_result, skl_result, ev_result])
@@ -489,7 +489,7 @@ async def test_update_name_cn_same_value_is_idempotent_no_audit():
 
 
 # ══════════════════════════════════════════════════════════════
-# position_filter (批0 真相源: is_graph_eligible / has_approved_skill)
+# position_filter (真相源: is_graph_eligible / has_approved_skill)
 # ══════════════════════════════════════════════════════════════
 
 

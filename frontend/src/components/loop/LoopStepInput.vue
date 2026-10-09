@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * LoopStepInput — Step 1: JD Input
+ * LoopStepInput —: JD Input
  * Textarea, example JD buttons, target position input, and run button.
  *
  * QA P1-A: target_position is treated as required on the frontend even though
@@ -195,7 +195,7 @@ function onRunClick() {
   margin: var(--space-1) 0 0;
 }
 
-/* ── Step 1: JD Input ── */
+/* ──: JD Input ── */
 .example-jd-group {
   display: flex;
   align-items: center;

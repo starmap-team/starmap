@@ -160,7 +160,7 @@ describe('PositionList.vue', () => {
     expect(wrapper.find('.result-count').text()).toContain('42')
   })
 
-  // ── D-04: 行业 chip（M10 数据透明）+ created_at 相对时间 ──
+  // ──: 行业 chip（M10 数据透明）+ created_at 相对时间 ──
   it('renders an industry chip on every card', async () => {
     setupMockGet([
       makePosition({ position_id: 'p1', industry: '互联网' }),

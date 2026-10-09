@@ -3,7 +3,7 @@
 -->
 <script setup lang="ts">
 /**
- * PipelineMonitor 流水线配置弹窗子组件（ Plan 03 从内联模板抽出）。
+ * PipelineMonitor 流水线配置弹窗子组件（ 从内联模板抽出）。
  * 使用本地 reactive 副本编辑，避免直接变更 prop；保存时回传副本。
  */
 import { reactive, watch } from 'vue'

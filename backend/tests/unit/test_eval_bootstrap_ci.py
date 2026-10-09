@@ -1,4 +1,4 @@
-"""ALIGN-08 §14.5 落地：bootstrap 95% CI（§14.5）正确性 + 守卫。
+"""§14.5 落地：bootstrap 95% CI（§14.5）正确性 + 守卫。
 
 纯 stdlib 实现；CI 含 lower/upper/mean/n/n_resamples 五字段；
 样本数 < 2 返回 None（避免单样本假 CI）。

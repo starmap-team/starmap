@@ -1,4 +1,4 @@
-"""PIPE-02 D-02 验收：熔断行为契约。"""
+"""验收：熔断行为契约。"""
 import time
 
 from crawler.middleware.proxy_middleware import (

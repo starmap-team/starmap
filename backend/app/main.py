@@ -83,7 +83,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 logger.info("Loaded {} custom prompt version(s) from DB", len(rows))
         except Exception as exc:  # noqa: BLE001 — 加载失败不阻断启动（降级为内置版本）
             logger.warning("[lifespan] Prompt versions load failed, using builtin: {}", exc)
-    # Phase 27 (qwen-plus 资源包优化): 启动时按 settings 注入每 model 每日成本 cap,
+    # (qwen-plus 资源包优化): 启动时按 settings 注入每 model 每日成本 cap,
     # 超 cap 时 call_llm_with_fallback 直接返回 blocked(防意外累积)。
     try:
         from app.core.llm.cost_tracker import tracker
@@ -95,7 +95,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                         settings.dashscope_model, cap)
     except Exception as exc:  # noqa: BLE001 — cap 注入失败不应阻断启动
         logger.warning("[lifespan] LLM cost cap setup failed (non-fatal): {}", exc)
-    # Phase 27: 把 settings.llm_response_cache_ttl_seconds 注入到 response_cache 单例
+    # 把 settings.llm_response_cache_ttl_seconds 注入到 response_cache 单例
     try:
         from app.core.llm import response_cache as _rc
 
@@ -633,7 +633,7 @@ async def _detailed_health_payload() -> dict:
 
     services = await healthcheck_resources()
 
- # llm_keys: 仅返回布尔，永不返回 key 值（T-08-05 信息泄露防护）
+ # llm_keys: 仅返回布尔，永不返回 key 值（信息泄露防护）
     llm_keys = {
         "mimo": bool(settings.mimo_api_key),
         "deepseek": bool(settings.deepseek_api_key),

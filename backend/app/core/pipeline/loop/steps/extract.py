@@ -1,4 +1,4 @@
-"""Step 2 — Skill Extraction (Phase 07-02 D-01/D-06).
+"""— Skill Extraction.
 
 Extracted from ``loop_orchestrator.py._step2_extract_skills``. Behaviour is
 unchanged; this module adds explicit ``model_used`` propagation in the
@@ -29,7 +29,7 @@ def _avg(values: list[float | int | None]) -> float | None:
 
 
 async def run_extract_step(jd_text: str) -> LoopStepResult:
-    """Step 2: Extract skills from JD using LLM pipeline.
+    """Extract skills from JD using LLM pipeline.
 
     Args:
         jd_text: Raw job description text.
@@ -77,7 +77,7 @@ async def run_extract_step(jd_text: str) -> LoopStepResult:
                 "confidence": s.get("confidence"),
             })
 
-        # D-06: surface the actual model used + aggregate confidence so the
+        # surface the actual model used + aggregate confidence so the
         # frontend LoopStepSkills card can render a cloud/local explanation.
         confidences = [s.get("confidence") for s in skills]
         # 2026-08-26: 补全 trust/hallucination 聚合 — 供前端 LoopStepSkills 卡片展示。
@@ -123,7 +123,7 @@ async def run_extract_step(jd_text: str) -> LoopStepResult:
                 "evolves_to": data.get("evolves_to", []),
                 "validation": raw.get("validation"),
                 "prompt_version": raw.get("prompt_version_used"),
-                # D-06 / Phase 07-02 D-05: explicit model + aggregate confidence
+                # explicit model + aggregate confidence
                 "model_used": raw.get("model_used"),
                 "skill_count": len(skills),
                 "skill_confidence_avg": _avg(confidences),

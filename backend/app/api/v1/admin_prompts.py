@@ -49,7 +49,7 @@ router = APIRouter(tags=["prompts"])
 
 
 def _build_serving_version(active: str | None, ab: Any) -> tuple[str | None, str]:
-    """BUG-14 fix: compute `serving_version` and `serving_source`.
+    """fix: compute `serving_version` and `serving_source`.
 
     When an A/B test is configured with a canary_version, real traffic
     splits between active (control) and canary. Surface that distinction so

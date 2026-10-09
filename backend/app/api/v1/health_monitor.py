@@ -1,4 +1,4 @@
-"""Health monitor API endpoints (Phase 15-04).
+"""Health monitor API endpoints.
 
 GET /api/v1/health/sources — 返回每个 data source 的健康度摘要
 POST /api/v1/health/probe — 手动触发 startup probe

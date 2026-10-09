@@ -1,4 +1,4 @@
-"""Pipeline dedup 阶段（D-01 + D-18 Task 2）。
+"""Pipeline dedup 阶段。
 
 两遍去重（精确哈希 + SimHash 模糊），将重复 JD 标记为 duplicate。
 本模块从 executor.execute_dedup 迁出；executor.py 保留兼容重导出，存量调用方零改动（D-11）。
@@ -103,7 +103,7 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
                     "records_processed": 0,
                     "errors": errors,
                     "duplicates_found": 0,
-                    # Phase 19: 空分支 return 也补 current_activity（DB 快照持久化）
+                    # 空分支 return 也补 current_activity（DB 快照持久化）
                     "current_activity": "无待去重记录",
                     # D8: 0 条时也返回分解，详情抽屉/阶段展开不显示空白
                     "sub_breakdown": {"原始总数": 0, "唯一数": 0, "重复数": 0},
@@ -194,7 +194,7 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
             elapsed_ms=int((time.monotonic() - start) * 1000),
         ))
     finally:
-        # Phase 2 SOURCE-02: execute_dedup 后更新 duplicate_rate (UAT 修复)
+        # execute_dedup 后更新 duplicate_rate (UAT 修复)
         try:
             _update_source_after_dedup(run_id, duplicates_found, processed)
         except PipelineStageError:
@@ -206,7 +206,7 @@ def execute_dedup(run_id: str) -> dict[str, Any]:
         "records_processed": processed,
         "errors": errors,
         "duplicates_found": duplicates_found,
-        # Phase 19 修复: return 补 current_activity（DB 快照持久化，卡片解释"为何 0/去重结果"）
+        # 修复: return 补 current_activity（DB 快照持久化，卡片解释"为何 0/去重结果"）
         "current_activity": (
             f"去重完成: 总 {processed} → 唯一 {len(unique_jds)} 条"
             f" (剔除 {duplicates} 条重复)"

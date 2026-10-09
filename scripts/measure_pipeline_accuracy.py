@@ -1,4 +1,4 @@
-"""Pipeline 推荐准确率测量脚本 (AC-6)。
+"""Pipeline 推荐准确率测量脚本。
 
 使用 golden_set_pipeline.jsonl 验证推荐引擎 Top-5 准确率≥60%。
 

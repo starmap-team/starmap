@@ -1,4 +1,4 @@
-"""Coverage boost: core/extraction/translation.py — CJK 检测与翻译回退 (PLAN-013)。"""
+"""Coverage boost: core/extraction/translation.py — CJK 检测与翻译回退。"""
 
 from __future__ import annotations
 

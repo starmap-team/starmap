@@ -15,7 +15,7 @@ BACKEND_DIR = BASE_DIR / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 sys.path.insert(0, str(BASE_DIR))
 
-# Phase 23 Task 10: 第二道门禁 — 入库完整性指标（连实时库，阈值集中 config.py）
+# 第二道门禁 — 入库完整性指标（连实时库，阈值集中 config.py）
 from ingestion_consistency import run_ingestion_gate  # noqa: E402
 from judge_eval import evaluate_batch, generate_evaluation_report  # noqa: E402
 
@@ -246,7 +246,7 @@ def main():
     print(f"  Report: {report['report_path']}")
     print(f"{'=' * 60}")
 
-    # Phase 23 Task 10: 第二道门禁 — ingestion gate（入库完整性，IC-01..07 回归守护）。
+    # 第二道门禁 — ingestion gate（入库完整性，..07 回归守护）。
     # 连实时库失败时 fail-closed（passed=False），保证「无法验证完整性 ≠ PASS」。
     ingestion_gate = run_ingestion_gate()
 

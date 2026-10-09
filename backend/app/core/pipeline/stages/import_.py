@@ -1,4 +1,4 @@
-"""Pipeline import 阶段（D-01 + D-15 + D-18 Task 5）。
+"""Pipeline import 阶段。
 
 LLM 技能抽取 + PG 持久化。按 D-15 发 3 子步骤事件：extract / normalize / persist。
 本模块从 executor.execute_import 迁出；executor.py 保留兼容重导出（D-11）。
@@ -117,7 +117,7 @@ def execute_import(run_id: str) -> dict[str, Any]:
     extracted_skills_sample: list[dict[str, Any]] = []
     start = time.monotonic()
 
-    # P0-1: 进度事件同时写 Redis(SSE) + DB 快照 —— 轮询/刷新也能看到实时进度
+    # 进度事件同时写 Redis(SSE) + DB 快照 —— 轮询/刷新也能看到实时进度
     _persist_progress(
         run_id, status="running", progress=0.0,
         current_activity="正在加载已清洗的JD...", elapsed_ms=0,
@@ -181,7 +181,7 @@ def execute_import(run_id: str) -> dict[str, Any]:
                 sub_step="extract",
             ))
 
-        # D-15: normalize 子步骤事件
+        # normalize 子步骤事件
         _persist_progress(
             run_id, status="running", progress=0.15,
             current_activity=f"技能归一化中: {total} 条记录",
@@ -198,7 +198,7 @@ def execute_import(run_id: str) -> dict[str, Any]:
 
         # 2026-08-21 (阶段预算修复): celery hard_time_limit=1800s，而单条 JD 抽取
         # 最坏可达 ~180s+（fallback 链）+ anti-hallucination 二次 LLM。盲目循环
-        # 200 条必然撞 hard limit 被 SIGKILL → 阶段永远卡 running、本批 0 成功。
+        # 200 条必然撞 hard limit 被 SIGKILL → 阶段永远卡 running、本成功。
         # 按"阶段剩余时间预算"提前截断：处理到接近 soft limit 就停止本轮，
         # 剩余 cleaned 记录留给下一次 run（幂等，不丢不重）。
         # 预算 = soft_time_limit - 启动损耗 - 收尾余量；至少允许处理 1 条。
@@ -222,7 +222,7 @@ def execute_import(run_id: str) -> dict[str, Any]:
             )
 
         success_ids: list[int] = []
-        # Phase 27 (qwen-plus 资源包优化): 同批内 content_hash 重复的 JD 复用首次抽取结果,
+        # (qwen-plus 资源包优化): 同批内 content_hash 重复的 JD 复用首次抽取结果,
         # 避免同一 source 抓回完全相同内容时重复调 LLM。
         # 注意:仅去重本批 (in-memory dict),不跨批/不跨 run,保留跨批独立去重走 PG content_hash 唯一索引。
         def _extract_one(idx: int, text: str, title: str) -> dict[str, Any]:
@@ -236,7 +236,7 @@ def execute_import(run_id: str) -> dict[str, Any]:
                     "in-batch dedup: same content as a prior JD in this batch",
                 )
                 return reused
-            # D-15: persist 子步骤事件 (LLM 抽取完成 = 持久化就绪)
+            # persist 子步骤事件 (LLM 抽取完成 = 持久化就绪)
             # D5 fix: 传 JD 标题作为 position_name 回退（LLM 未返回岗位名时不再落 Unknown Position）
             result = run_async(run_batch_extract_jd(text, job_title=title))
             # 缓存"成功完成"的抽取结果,避免批内再次重复调 LLM。
@@ -279,7 +279,7 @@ def execute_import(run_id: str) -> dict[str, Any]:
                 # 2026-08-20 (debug 修复): 每条都推送进度 —— 此前每 3 条才发一次
                 # （45-90s 间隔），LLM 逐条抽取 15-30s/条时前端感知为卡死。
                 # 进度用全局口径：已抽取(processed) / 全局待处理(total_global)。
-                # P0-1: 同事件写 DB 快照，轮询/刷新也可见实时进度。
+                # 同事件写 DB 快照，轮询/刷新也可见实时进度。
                 _persist_progress(
                     run_id, status="running",
                     progress=0.15 + 0.8 * ((processed + 1) / max(total_global, 1)),
@@ -322,7 +322,7 @@ def execute_import(run_id: str) -> dict[str, Any]:
                 len(success_ids), total - len(success_ids),
             )
 
-        # P0-1 + P1-4: 完成事件写 DB 快照 + 报告"本次 X / 剩余 Z 待续"
+        # 完成事件写 DB 快照 + 报告"本次 X / 剩余 Z 待续"
         remaining = max(total_global - processed, 0)
         completion_activity = (
             f"本轮完成: 成功 {processed}/{total} 条"
@@ -353,7 +353,7 @@ def execute_import(run_id: str) -> dict[str, Any]:
             run_id, "import", "failed", current_activity=f"提取失败: {exc}",
         ))
     finally:
-        # Phase 2 SOURCE-03: execute_import 后更新 valid_records (UAT 修复)
+        # execute_import 后更新 valid_records (UAT 修复)
         try:
             _update_source_after_import(run_id, processed)
         except PipelineStageError:
@@ -361,7 +361,7 @@ def execute_import(run_id: str) -> dict[str, Any]:
         except Exception as exc:
             logger.warning("_update_source_after_import failed (non-fatal): {}", exc)
 
-        # D-06: 阶段末 PG↔Neo4j 一致性告警（仅日志，不阻断不改数据）
+        # 阶段末 PG↔Neo4j 一致性告警（仅日志，不阻断不改数据）
         try:
             from app.services.pipeline_consistency import check_pg_neo4j_consistency
 
@@ -373,8 +373,8 @@ def execute_import(run_id: str) -> dict[str, Any]:
         "records_processed": processed,
         "errors": errors,
         "extracted_samples": extracted_skills_sample[-5:],
-        # Phase 19 修复: return 补 current_activity（DB 快照持久化）
-        # P1-4: 报告剩余待续数，让"完成但没做完"一目了然
+        # 修复: return 补 current_activity（DB 快照持久化）
+        # 报告剩余待续数，让"完成但没做完"一目了然
         "current_activity": (
             f"本轮完成: 成功 {processed}/{total} 条"
             + (f"，剩余 {max(total_global - processed, 0)} 条待续跑" if total else "")

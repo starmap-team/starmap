@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   server: {
-    // PLAN-014: 允许导入仓库根下 starmap-contracts/ 的契约 JSON Schema
+    // 允许导入仓库根下 starmap-contracts/ 的契约 JSON Schema
     fs: { allow: ['..'] },
   },
   test: {

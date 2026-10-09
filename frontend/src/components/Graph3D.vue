@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /** Graph3D — 3D force-directed graph visualization (3d-force-graph)
- * 2026-08-13: ( 全景图谱) Plan 01-03 + 01-04:
- * 01-03 Task 3: 接入 useGraph3DLOD + useGraph3DClustering (镜像 2D
+ * 2026-08-13: ( 全景图谱) + 01-04:
+ * 01-03: 接入 useGraph3DLOD + useGraph3DClustering (镜像 2D
  * useGraphLOD + useGraphClustering)。节点数 > 50 时自动折叠
  * 为 cluster meta-node,节省 GPU 开销。
- * 01-04 Task 3: 接入 useGraph3DLifecycle + useGraph3DFps + DEFAULT_FORCE_CONFIG
+ * 01-04: 接入 useGraph3DLifecycle + useGraph3DFps + DEFAULT_FORCE_CONFIG
  * (沿 loop_orchestrator 兼容壳模式,保 monkeypatch)。
  * 既有所需符号 (initGraph / destroyGraph / _destructor / _lastNamespace
  * / fps / force config) 不删除 — composable 代理调用。
@@ -171,7 +171,7 @@ function renderEvolutionGraph(graph: NonNullable<typeof graphInstance.value>, li
   }, 800)
 }
 
-// UX-02 + Plan 01-03: 节点降噪 LOD + cluster 折叠 — 镜像 2D useGraphLOD + useGraphClustering
+// 节点降噪 LOD + cluster 折叠 — 镜像 2D useGraphLOD + useGraphClustering
 // 节点数 ≤ 30: 全展开;> 50: 折叠为 1 个 cluster meta-node
 // Iteration 6 (2026-08-24): raise to 200 so 148 Position nodes in ind-it are
 // all visible instead of being collapsed into a single "+119" cluster node
@@ -186,7 +186,7 @@ const clustering = useGraph3DClustering(
 )
 
 const limitedNodes = computed(() => {
- // UX-02 maxNodes 优先 (background mode);否则 Plan 01-03 cluster 折叠
+ // maxNodes 优先 (background mode);否则 cluster 折叠
   if (props.maxNodes > 0 && props.nodes.length > props.maxNodes) {
     return props.nodes.slice(0, props.maxNodes)
   }
@@ -207,7 +207,7 @@ watch(limitedNodes, (nodes) => {
   setLODState(shouldShowLabels, shouldSimplify)
 }, { immediate: true })
 
-// 01-04: 抽 lifecycle / FPS / force config 到 composables (C-3 单文件拆分)
+// 01-04: 抽 lifecycle / FPS / force config 到 composables (单文件拆分)
 // 沿 loop_orchestrator 兼容壳模式 — composable 暴露统一接口,
 // 既有 initGraph / destroyGraph / FPS loop 保留在 Graph3D.vue 内(保 monkeypatch)
 const fpsMonitor = useGraph3DFps()
@@ -342,7 +342,7 @@ async function initGraph() {
  // Iteration 5 (2026-08-24) diagnostic: expose graph instance on window for
  // Playwright inspection. Remove after debugging complete.
   ;(window as unknown as { __starmap_graph?: unknown }).__starmap_graph = graph
- // UX-03: Set initial z-coordinates for Skill nodes by proficiency tier
+ // Set initial z-coordinates for Skill nodes by proficiency tier
   applyZLayering(limitedNodes.value)
  // Iteration 4 (2026-08-24): seed Position nodes on a Fibonacci sphere so
  // 148 leaves don't collapse / explode while the force simulator settles.
@@ -436,7 +436,7 @@ watch(() => [props.nodes, props.links, props.showEvolution, props.evolutionPaths
  // Iteration 4: seed any still-unpositioned Position nodes on a Fibonacci
  // sphere so the star topology doesn't start collapsed.
   applyInitialSpreading(limitedNodes.value)
- // UX-03: Set initial z for new Skill nodes (those without inherited positions)
+ // Set initial z for new Skill nodes (those without inherited positions)
   applyZLayering(limitedNodes.value)
 
   const shouldAnimate = props.showEvolution && limitedNodes.value.length > 1
@@ -472,7 +472,7 @@ function handleResize() {
 onMounted(async () => {
   await nextTick()
   try { await initGraph() } catch { webglSupported.value = false; return }
- // UX-02: start autoRotate if prop is set (e.g. Login background)
+ // start autoRotate if prop is set (e.g. Login background)
   if (props.startAutoRotate) {
     autoRotate.value = true
     const controls = graphInstance.value?.controls() as { autoRotate: boolean; autoRotateSpeed: number; enableDamping: boolean } | undefined

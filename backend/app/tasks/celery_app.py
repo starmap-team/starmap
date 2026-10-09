@@ -212,7 +212,7 @@ def advance_pipeline_task(self, run_id: str) -> None:
 
 @celery_app.task(bind=True, max_retries=2, default_retry_delay=60)
 def reconcile_graph_task(self, schedule_id: str) -> None:
-    """BUG-16 fix: Celery task for daily PG↔Neo4j reconcile.
+    """fix: Celery task for daily PG↔Neo4j reconcile.
 
     Triggered by the cron_scanner when a `daily_reconcile` schedule comes due.
     Runs the same reconciliation logic the manual `/admin/reconcile-neo4j`
@@ -297,7 +297,7 @@ def generate_candidates_definitions_task(self, limit: int = 300) -> dict:
 
 @celery_app.task(bind=True, max_retries=2, default_retry_delay=60)
 def scheduled_pipeline_run(self, schedule_id: str) -> None:
-    """CRON-04: 读取 schedule 并触发 pipeline。
+    """读取 schedule 并触发 pipeline。
 
     Retries once at 60s delay. If the schedule fetch fails (transient DB issue),
     the retry gives PostgreSQL time to recover.
@@ -474,7 +474,7 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.outbox_retry.retry_failed_outbox_writes",
         "schedule": crontab(minute="*/30"),  # 每30分钟
     },
- # 2026-08-28 (批2 可持续): 每日重试空技能岗位抽取（last_retry_at 幂等 + Redis 锁防并发）
+ # 2026-08-28 (可持续): 每日重试空技能岗位抽取（last_retry_at 幂等 + Redis 锁防并发）
     "retry-no-skill-positions": {
         "task": "app.tasks.celery_app.retry_no_skill_positions",
         "schedule": crontab(hour=3, minute=30),  # 每日 03:30 UTC
@@ -592,7 +592,7 @@ def auto_review_queue(self: Any) -> dict[str, Any]:
 
 @celery_app.task(bind=True, max_retries=0)
 def retry_no_skill_positions(self: Any, limit: int = 50) -> dict[str, int]:
-    """每日重试空技能岗位抽取（批2 可持续, 2026-08-28）。
+    """每日重试空技能岗位抽取（可持续, 2026-08-28）。
 
     从 JDExtractionRecord.jd_content 重抽取 quality_hint='no_skills' 的岗位；
     成功（persist_extraction_result 建出 PSR）→ 清 quality_hint + 更新 last_retry_at；

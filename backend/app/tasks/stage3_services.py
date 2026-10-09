@@ -421,7 +421,7 @@ async def sync_approved_position_to_graph(position_name: str) -> dict[str, Any]:
             ).scalars().first()
             if pos is not None:
                 position_id = str(pos.id)
-                # 2026-08-28 (批0 真相源): 隐藏岗位（no_skills/non_it）审核通过也不入图，
+                # 2026-08-28 (真相源): 隐藏岗位（no_skills/non_it）审核通过也不入图，
                 # 与「空技能/非IT不进图」契约一致（六入口收敛 is_graph_eligible 语义）。
                 if pos.quality_hint in ("no_skills", "non_it"):
                     logger.info(
@@ -712,7 +712,7 @@ async def run_analyze_evolution_trends(days: int = 90) -> dict[str, Any]:
                 )
             await session.commit()
 
- # C-5 入口闭环: POST /evolution/analyze 与 6h beat 共用本入口 (celery_app.py:63-73).
+ # 入口闭环: POST /evolution/analyze 与 6h beat 共用本入口 (celery_app.py:63-73).
  # SkillRecord 频次落库后追加完整演化管线 (snapshot → diff → trust → changelog →
  # 回写 / 一致性校验). 管线自身 fail-soft; 此处再兜一层防入口失败.
         try:

@@ -76,7 +76,7 @@ async def pipeline_env():
     new_skill_id: uuid.UUID | None = None
     try:
         async with sessionmaker() as session:
-            # PositionRecord so write-back can resolve position_id (D-08: real row, not fabricated)
+            # PositionRecord so write-back can resolve position_id (: real row, not fabricated)
             pos_row = PositionRecord(name=TEST_POSITION, created_by="system:itest")
             session.add(pos_row)
             await session.flush()
@@ -185,7 +185,7 @@ async def test_pipeline_full_chain_write_back_and_projection(pipeline_env):
         assert psr is not None, "expected a position_skill_relations row after write-back"
         assert psr.requirement_type == "required"
 
-    # 3) REQUIRES edge must be visible in Neo4j after projection (D-04 尾句闭环)
+    # 3) REQUIRES edge must be visible in Neo4j after projection (尾句闭环)
     config = GraphConfig()
     async with config.get_driver() as driver:
         async with driver.session() as session:
@@ -199,7 +199,7 @@ async def test_pipeline_full_chain_write_back_and_projection(pipeline_env):
     assert record is not None, "REQUIRES edge must exist in Neo4j after projection"
     assert record["rt"] == "required"
 
-    # 4) summary must carry the consistency key (D-07)
+    # 4) summary must carry the consistency key 
     assert "consistency" in summary, "summary must contain the consistency key"
     assert summary["consistency"]["status"] in ("ok", "mismatch", "error")
     assert "checked_at" in summary["consistency"]

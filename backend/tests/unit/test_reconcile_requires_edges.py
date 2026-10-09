@@ -1,4 +1,4 @@
-"""Phase 23 Task 3 — /admin/reconcile-neo4j REQUIRES 边对账 (IC-05) + skills_synced bug.
+"""— /admin/reconcile-neo4j REQUIRES 边对账  + skills_synced bug.
 
 Covers:
 - 边计数（Neo4j REQUIRES vs PG approved PSR）
@@ -310,7 +310,7 @@ class TestReconcileResultSchema:
 
 
 class TestReconcileAllApprovedGate:
-    """Phase 23 核验修复 (M1b 闭环): reconcile_all 节点快照必须限定 approved。
+    """核验修复 (M1b 闭环): reconcile_all 节点快照必须限定 approved。
 
     Bug: reconcile_all 的 pg_pos_ids 快照曾取全量岗位（含 pending_review），导致
     每次 reconcile 把待审岗位回灌图谱（孤儿剪枝后又被回填，Neo4j 184→359）。
@@ -382,7 +382,7 @@ class TestReconcileAllApprovedGate:
 
 
 class TestReconcileEndpointPgPosApproved:
-    """Phase 23 核验修复 (M1b 闭环): reconcile 端点 PG 计数必须限定 approved。
+    """核验修复 (M1b 闭环): reconcile 端点 PG 计数必须限定 approved。
 
     Bug: admin.py pg_pos 曾取全量岗位计数 (359) vs Neo4j 184 → nodes_equal False
     → 健康度误报 critical。修复后 count 查询必须含 review_status 过滤。

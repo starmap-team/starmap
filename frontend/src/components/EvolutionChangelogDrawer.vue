@@ -44,7 +44,7 @@ function trustTagType(score?: number): 'success' | 'warning' | 'danger' | 'info'
 
 // 10-03 : evidence_json → displayable {label, value} list (fixed keys only,
 // no raw JSON export). Evidence written by the pipeline (orchestrator + factors),
-// not user-controllable (T-10-11).
+// not user-controllable.
 interface EvidenceField { label: string; value: string }
 
 function evidenceFields(evidence?: Record<string, unknown>): EvidenceField[] {

@@ -1,4 +1,4 @@
-"""Coverage boost: api/v1/dashboard.py — 路由层组装 (PLAN-013)。
+"""Coverage boost: api/v1/dashboard.py — 路由层组装。
 
 直测 handler（mock service 层），验证:
 - overview: 未知字段过滤（仅保留 OverviewResponse 声明字段）

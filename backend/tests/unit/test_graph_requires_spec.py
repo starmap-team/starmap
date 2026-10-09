@@ -1,4 +1,4 @@
-"""Phase 23 Task 6 — REQUIRES 边属性契约收敛（DC-05）tests.
+"""— REQUIRES 边属性契约收敛tests.
 
 以 ``r.requirement_type ∈ {'required','preferred'}`` 为唯一真值：
 - ``create_requires_relationship`` SET 写 ``r.requirement_type``（与演化投影

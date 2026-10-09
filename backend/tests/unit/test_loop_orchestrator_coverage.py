@@ -183,7 +183,7 @@ class TestRunLoopEarlyExit:
 
     @pytest.mark.asyncio
     async def test_empty_target_proceeds_past_step1(self):
-        """QA B1: 空 target_position 不在 step1 拒绝,继续后续步骤(Step 2 从 JD 推断岗位)。"""
+        """QA B1: 空 target_position 不在 step1 拒绝,继续后续步骤(从 JD 推断岗位)。"""
         orch = LoopOrchestrator()
         with _patch_full_loop():
             result = await orch.run_loop(jd_text="valid jd", target_position="")
@@ -502,7 +502,7 @@ class TestGetLoopHistoryWithSession:
 
 
 # ---------------------------------------------------------------------------
-# Step5 with auto plan creation (session path)
+# with auto plan creation (session path)
 # ---------------------------------------------------------------------------
 class TestStep5WithSession:
     @pytest.mark.asyncio
@@ -569,6 +569,6 @@ class TestRunLoopDriverAcquisition:
                 with patch("app.services.graph_sync.sync_from_pipeline",
                            new=AsyncMock(return_value=sync_fail_no_driver)):
                     result = await orch.run_loop("jd", "dev")
-        # Step3 should have failed because driver acquisition failed
+        # should have failed because driver acquisition failed
         step3 = result.steps[2]
         assert step3.status == StepStatus.FAILED

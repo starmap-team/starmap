@@ -52,7 +52,7 @@ def _isolate_from_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_llm_keys_all_empty_warns():
-    """D-04/D-08: 所有 LLM key 为空时输出 WARNING，含 MIMO_API_KEY 和 DEEPSEEK_API_KEY。"""
+    """所有 LLM key 为空时输出 WARNING，含 MIMO_API_KEY 和 DEEPSEEK_API_KEY。"""
     messages, handler_id = _capture_warnings()
     try:
         _make_settings(
@@ -87,7 +87,7 @@ def test_llm_keys_partial_config_no_llm_warning():
 
 
 def test_db_password_placeholder_dev_warns():
-    """CFG-02: 开发环境 DB 密码为占位值时输出 WARNING（含字段名）。"""
+    """开发环境 DB 密码为占位值时输出 WARNING（含字段名）。"""
     messages, handler_id = _capture_warnings()
     try:
         Settings(
@@ -108,7 +108,7 @@ def test_db_password_placeholder_dev_warns():
 
 
 def test_db_password_placeholder_prod_raises():
-    """CFG-02: 生产环境 DB 密码为占位值时 raise RuntimeError。"""
+    """生产环境 DB 密码为占位值时 raise RuntimeError。"""
     with pytest.raises(RuntimeError) as exc:
         Settings(
             app_env="production",
@@ -126,7 +126,7 @@ def test_db_password_placeholder_prod_raises():
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# NEW-P0 (AUDIT_VERIFICATION §1.4 C2–C4) regression coverage.
+# (AUDIT_VERIFICATION §1.4 C2–C4) regression coverage.
 # Without these assertions, a misconfigured prod deployment would
 # silently fall back to defaults and every `if app_env == "production"`
 # guard would be dormant. The 4 tests below pin the startup contract.
@@ -134,7 +134,7 @@ def test_db_password_placeholder_prod_raises():
 
 
 def test_prod_weak_secret_key_raises():
-    """C3: SECRET_KEY < 32 chars in production must RuntimeError (SEC-02 fix)."""
+    """C3: SECRET_KEY < 32 chars in production must RuntimeError (fix)."""
     with pytest.raises(RuntimeError) as exc:
         Settings(
             app_env="production",
@@ -151,7 +151,7 @@ def test_prod_weak_secret_key_raises():
 
 
 def test_prod_debug_true_raises():
-    """C2: APP_DEBUG=true in production must RuntimeError (SEC-04 fix)."""
+    """C2: APP_DEBUG=true in production must RuntimeError (fix)."""
     with pytest.raises(RuntimeError) as exc:
         Settings(
             app_env="production",
@@ -167,7 +167,7 @@ def test_prod_debug_true_raises():
 
 
 def test_prod_redis_no_password_raises():
-    """C4: REDIS_URI without `:password@` in production must RuntimeError (DATA-04 fix).
+    """C4: REDIS_URI without `:password@` in production must RuntimeError (fix).
 
     Previously the prod compose container forced `--requirepass`, but the app
     still tried to connect with the passwordless REDIS_URI from `.env`,
@@ -189,7 +189,7 @@ def test_prod_redis_no_password_raises():
 
 
 def test_prod_bootstrap_seed_admin_blocked():
-    """C5: BOOTSTRAP_SEED_ADMIN=true in production must RuntimeError (NEW-P1a).
+    """C5: BOOTSTRAP_SEED_ADMIN=true in production must RuntimeError.
 
     Even though config.py defaults BOOTSTRAP_SEED_ADMIN=False, a misconfigured
     `.env.production` re-enabling it would seed `admin:starmap2024` into a
@@ -230,7 +230,7 @@ def test_prod_all_valid_passes():
         neo4j_uri="bolt+s://neo4j:7687",
         postgres_sslmode="require",
         mimo_api_key="configured",
-        # AUTH-04: 生产 CORS 必须覆盖默认值
+        # 生产 CORS 必须覆盖默认值
         cors_origins=["https://starmap.example.com"],
             bootstrap_admin_password="real-bootstrap-pw-12345",
     )
@@ -241,7 +241,7 @@ def test_prod_all_valid_passes():
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# W1-T7 regression (DATA-02/03): prod must enforce transport encryption
+# W1-T7 regression (03): prod must enforce transport encryption
 # for both Postgres (SSL) and Neo4j (bolt+s). Pinning the contract here
 # so a future regression re-enabling plaintext doesn't slip through CI.
 # ═══════════════════════════════════════════════════════════════════════
@@ -249,7 +249,7 @@ def test_prod_all_valid_passes():
 
 @pytest.mark.parametrize("sslmode", ["disable", "prefer", "allow"])
 def test_prod_postgres_plaintext_sslmode_rejected(sslmode):
-    """DATA-03: prod rejects Postgres sslmode < require (allow/prefer/disable)."""
+    """prod rejects Postgres sslmode < require (allow/prefer/disable)."""
     with pytest.raises(RuntimeError) as exc:
         Settings(
             app_env="production",
@@ -261,7 +261,7 @@ def test_prod_postgres_plaintext_sslmode_rejected(sslmode):
             neo4j_uri="bolt+s://neo4j:7687",
             postgres_sslmode=sslmode,
             mimo_api_key="configured",
-            # AUTH-04: 提供 CORS 避免提前被 CORS 断言拦截
+            # 提供 CORS 避免提前被 CORS 断言拦截
             cors_origins=["https://starmap.example.com"],
             bootstrap_admin_password="real-bootstrap-pw-12345",
         )
@@ -270,7 +270,7 @@ def test_prod_postgres_plaintext_sslmode_rejected(sslmode):
 
 @pytest.mark.parametrize("sslmode", ["require", "verify-ca", "verify-full"])
 def test_prod_postgres_strong_sslmode_accepted(sslmode):
-    """DATA-03: prod accepts require/verify-ca/verify-full."""
+    """prod accepts require/verify-ca/verify-full."""
     s = Settings(
         app_env="production",
         app_debug=False,
@@ -281,7 +281,7 @@ def test_prod_postgres_strong_sslmode_accepted(sslmode):
         neo4j_uri="bolt+s://neo4j:7687",
         postgres_sslmode=sslmode,
         mimo_api_key="configured",
-        # AUTH-04: 生产 CORS 必须覆盖默认值
+        # 生产 CORS 必须覆盖默认值
         cors_origins=["https://starmap.example.com"],
             bootstrap_admin_password="real-bootstrap-pw-12345",
     )
@@ -294,7 +294,7 @@ def test_prod_postgres_strong_sslmode_accepted(sslmode):
     ["bolt://neo4j:7687", "neo4j://neo4j:7687", "http://neo4j:7474"],
 )
 def test_prod_neo4j_plaintext_uri_rejected(uri):
-    """DATA-02: prod rejects Neo4j URIs without TLS scheme."""
+    """prod rejects Neo4j URIs without TLS scheme."""
     with pytest.raises(RuntimeError) as exc:
         Settings(
             app_env="production",
@@ -306,7 +306,7 @@ def test_prod_neo4j_plaintext_uri_rejected(uri):
             neo4j_uri=uri,
             postgres_sslmode="require",
             mimo_api_key="configured",
-            # AUTH-04: 提供 CORS 避免提前被 CORS 断言拦截
+            # 提供 CORS 避免提前被 CORS 断言拦截
             cors_origins=["https://starmap.example.com"],
             bootstrap_admin_password="real-bootstrap-pw-12345",
         )
@@ -318,7 +318,7 @@ def test_prod_neo4j_plaintext_uri_rejected(uri):
     ["bolt+s://neo4j:7687", "neo4j+s://neo4j:7687", "bolt+ssc://neo4j:7687"],
 )
 def test_prod_neo4j_tls_uri_accepted(uri):
-    """DATA-02: prod accepts any bolt+s / neo4j+s / bolt+ssc scheme."""
+    """prod accepts any bolt+s / neo4j+s / bolt+ssc scheme."""
     s = Settings(
         app_env="production",
         app_debug=False,
@@ -329,7 +329,7 @@ def test_prod_neo4j_tls_uri_accepted(uri):
         neo4j_uri=uri,
         postgres_sslmode="require",
         mimo_api_key="configured",
-        # AUTH-04: 生产 CORS 必须覆盖默认值
+        # 生产 CORS 必须覆盖默认值
         cors_origins=["https://starmap.example.com"],
             bootstrap_admin_password="real-bootstrap-pw-12345",
     )

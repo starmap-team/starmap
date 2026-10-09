@@ -1,4 +1,4 @@
-"""Phase 13 Step 4: 验证 4 个 overview 端点（domain/tech_stack/level/heat）：
+"""验证 4 个 overview 端点（domain/tech_stack/level/heat）：
 
 - 端点互不重复（域集合 distinct 命名空间前缀）
 - 无悬空边（M2：所有 connection 端点都在该端点 domains 里）
@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-# PLAN-007b: 凭据单一来源 = 环境变量（默认值为 dev/demo 引导账号，
+# 凭据单一来源 = 环境变量（默认值为 dev/demo 引导账号，
 # 生产被 config.py fail-fast 阻断）。
 _ADMIN_USER = os.environ.get("STARMAP_TEST_ADMIN_USER", "admin")
 _ADMIN_PASSWORD = os.environ.get("STARMAP_TEST_ADMIN_PASSWORD", "starmap2024")
@@ -45,7 +45,7 @@ def test_overview_endpoint_returns_200_and_domains(client, group_by):
     assert "connections" in d
     assert "total_positions" in d
     assert "total_skills" in d
-    # Phase 13 Step 5: level 端点必须 3 维泡保满（含 junior 兜底）
+    # level 端点必须 3 维泡保满（含 junior 兜底）
     if group_by == "level":
         ids = {d["id"] for d in d["domains"]}
         assert ids == {"lv-junior", "lv-mid", "lv-senior"}, (

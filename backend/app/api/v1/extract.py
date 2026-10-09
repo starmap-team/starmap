@@ -173,7 +173,7 @@ async def _write_extraction_to_pg(
     pipeline_result: dict[str, Any],
     session: AsyncSession,
 ) -> bool | None:
-    """Write extraction result to PostgreSQL PositionRecord + SkillRecord (LOOP-05).
+    """Write extraction result to PostgreSQL PositionRecord + SkillRecord.
 
     Delegates to the extract repository — no raw SQL in the API layer.
     Returns True on success, None on failure (non-blocking).
@@ -237,7 +237,7 @@ async def extract_jd(
     if graph_summary:
         logger.info("Graph integration: {} triples written", graph_summary["triples_merged"])
 
- # Write extraction to PostgreSQL (non-blocking: failure won't break the response) (LOOP-05)
+ # Write extraction to PostgreSQL (non-blocking: failure won't break the response) 
     pg_result = await _write_extraction_to_pg(pipeline_result, session)
     if pg_result:
         logger.info("PG integration: PositionRecord created")
@@ -261,7 +261,7 @@ async def extract_resume(
     """
     logger.info("POST /extract/resume - filename={}", file.filename)
 
- # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+ # 统一校验（扩展名 + MIME + 大小 + 魔术字节）
     content_bytes = await validate_resume_upload(file)
 
     try:
@@ -288,7 +288,7 @@ async def extract_resume(
     if graph_summary:
         logger.info("Graph integration: {} triples written", graph_summary["triples_merged"])
 
- # Write extraction to PostgreSQL (LOOP-05)
+ # Write extraction to PostgreSQL 
     pg_result = await _write_extraction_to_pg(pipeline_result, session)
     if pg_result:
         logger.info("PG integration: PositionRecord created")

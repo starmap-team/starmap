@@ -23,7 +23,7 @@ import { storeToRefs } from 'pinia'
  * `loading` and `error` are computed from the sub-stores to preserve the
  * original "any loading / any error" semantics.
  *
- * DEF-002 fix: 此前直接 `batchResults: rec.batchResults` 会把 Pinia ref 解包成
+ * fix: 此前直接 `batchResults: rec.batchResults` 会把 Pinia ref 解包成
  * 一次性值快照（setup 时取值），后续子 store `.value = [...]` 替换不传导，
  * 导致批量匹配结果/竞争力图表恒显示旧数据。现改用 `storeToRefs` 保留 ref，
  * 并用 `reactive` 包装返回对象（深度解包 ref + 保持响应式），模板

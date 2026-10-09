@@ -165,7 +165,7 @@ const nodeBatchAction = ref(false)
 const nodeSelectingAll = ref(false)
 
 // 2026-08-21: 「全选全部待审节点」—— 分批拉取当前状态过滤下的全部 pending
-// 节点（每批 100，直到 total），塞入 selection 供批量通过。
+// 节点（每，直到 total），塞入 selection 供批量通过。
 // 安全设计：仅提供全选待审（批量通过用）；批量删除保持勾选范围，避免误删。
 async function selectAllPendingNodes() {
   if (nodeSelectingAll.value) return

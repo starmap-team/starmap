@@ -470,7 +470,7 @@ async def merge_position(driver: Any, position_data: dict[str, Any], canonical_i
     name = position_data.get("name") or position_data.get("position_name") or position_data.get("job_title") or "未知职位"
     name_cn = position_data.get("name_cn", "")
     if not canonical_id:
-        # Phase 23 Task 2: MERGE 键从 name 切为 canonical_id。
+        # MERGE 键从 name 切为 canonical_id。
         # 无 canonical_id 落图会再次产生孤儿（P4a/R1 历史根因），改为显式 raise
         # 让写路径缺口可观测——不再静默产生 name-MERGE 孤儿。
         raise GraphProjectionError(
@@ -529,13 +529,13 @@ async def merge_skill(driver: Any, skill_name: str, metadata: dict[str, Any] | N
     """
     from neo4j.exceptions import Neo4jError
 
-    # Phase 19: 投影落 trust_score（§6.2 四因子公式）——修复"投影不写信任 → 新技能
+    # 投影落 trust_score（§6.2 四因子公式）——修复"投影不写信任 → 新技能
     # Neo4j 无 trust_score / 全 0.5 脏数据"根因。metadata 带 confidence（抽取置信度）
     # 与 last_detected_at；缺失时 scorer 内部兜底（conf→0.5, time→按来源数）。
     from app.core.trust.entity_trust import EntityTrustScorer  # noqa: PLC0415
 
     if not canonical_id:
-        # Phase 23 Task 2: 同 merge_position——无 canonical_id 落图会再次产生孤儿
+        # 同 merge_position——无 canonical_id 落图会再次产生孤儿
         # （R1/R3 历史根因），改为显式 raise 而非静默 name-MERGE。
         raise GraphProjectionError(
             f"merge_skill requires canonical_id (PG SSOT) for {skill_name!r} — refusing to create orphan node"
@@ -624,7 +624,7 @@ async def create_requires_relationship(
     if requirement_type is None:
         requirement_type = "required" if required else "preferred"
 
-    # 双模式：canonical_id 优先（Phase 23），否则 name 回退
+    # 双模式：canonical_id 优先，否则 name 回退
     if position_canonical_id and skill_canonical_id:
         query = """
         MATCH (p:Position {canonical_id: $position_canonical_id})
@@ -699,7 +699,7 @@ async def write_extraction_to_graph(
         or extraction.get("job_title")
     )
     if not _raw_name or not str(_raw_name).strip():
-        # Phase 17-03 (Fix B3): 缺失 position_name 静默跳过, 不阻塞 batch
+        # (Fix B3): 缺失 position_name 静默跳过, 不阻塞 batch
         logger.warning(
             f"graph_writer: extraction {extraction.get('id') or extraction.get('source_url', '?')[:40]} missing position_name, skipping"
         )
@@ -710,7 +710,7 @@ async def write_extraction_to_graph(
     skill_cids: dict[str, str] = (canonical_ids or {}).get("skills") or {}
 
 
-    # Step 1: Merge Position node using standalone retry-enabled function
+    # Merge Position node using standalone retry-enabled function
     try:
         await merge_position(driver, extraction, canonical_id=pos_cid)
         positions_merged = 1
@@ -720,7 +720,7 @@ async def write_extraction_to_graph(
         logger.exception("Graph writer error: {}", exc)
         raise GraphProjectionError(str(exc)) from exc
 
-    # Step 2: Merge Skill nodes and create REQUIRES relationships using standalone functions
+    # Merge Skill nodes and create REQUIRES relationships using standalone functions
     skills_merged = 0
     requires_created = 0
     for required_flag, skills_list in (
@@ -737,7 +737,7 @@ async def write_extraction_to_graph(
                 "category": skill_entry_category(entry),
                 "source_count": _skill_entry_source_count(entry),
                 "trend": _skill_entry_trend(entry),
-                # Phase 19: 抽取置信度透传 → merge_skill 计算 trust_score（§6.2）
+                # 抽取置信度透传 → merge_skill 计算 trust_score（§6.2）
                 "confidence": _skill_entry_confidence(entry),
             }
             try:
@@ -760,7 +760,7 @@ async def write_extraction_to_graph(
             except Exception as exc:
                 logger.exception("Graph writer error: {}", exc)
 
-    # Step 3: Build and write ontology triples for extended relationships
+    # Build and write ontology triples for extended relationships
     # (tools → USES, prerequisites → PREREQUISITE, etc.)
     triples = build_triples_from_extraction(extraction)
 
@@ -807,7 +807,7 @@ async def batch_write_extractions(
     summaries = []
     for idx, extraction in enumerate(extractions):
         canonical_ids = canonical_ids_list[idx] if canonical_ids_list else None
-        # Phase 17-03 (Fix B4): try/except 单条隔离, 一条失败不阻塞整个 batch
+        # (Fix B4): try/except 单条隔离, 一条失败不阻塞整个 batch
         try:
             summary = await write_extraction_to_graph(extraction, driver, canonical_ids=canonical_ids)
         except Exception as exc:

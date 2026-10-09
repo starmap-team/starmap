@@ -390,7 +390,7 @@ async def call_dashscope_llm(
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.5,
         # FIX (resume-analysis-llm-parse-errors 2026-08-21): 2048 → 4096.
-        # Phase 27 曾按"实测抽取 JSON ~1500 tokens"把 4096 降到 2048 以节省
+        # 曾按"实测抽取 JSON ~1500 tokens"把 4096 降到 2048 以节省
         # 长尾输出;但复杂简历(技能多/项目经历详实)的 jd_extraction 真实输出
         # 会超过 2048 tokens(实测 2886 tokens / 9723 chars),此时 finish_reason=
         # length 截断,JSON 字符串被拦腰截断 → parse_llm_json_response 抛
@@ -468,7 +468,7 @@ async def call_llm_with_fallback(
     fallback_budget_seconds = 180.0
     fallback_start = time.monotonic()
 
-    # Phase 27 (qwen-plus 资源包优化): 优先按 model + prompt 查 Redis 缓存,
+    # (qwen-plus 资源包优化): 优先按 model + prompt 查 Redis 缓存,
     # 命中时记账但不计入 fallback budget、不再尝试任何 provider。
     # 缓存键设计: `llm:resp:{model}:{sha256(prompt)}`,见 response_cache.py。
     # 2026-08-21: 改用 await aget —— 同步 get() 在 loop 内 run_coroutine_threadsafe
@@ -483,7 +483,7 @@ async def call_llm_with_fallback(
         logger.info("LLM cache hit: prompt_len={}", len(prompt))
         return cached
 
-    # Phase 27: 每日成本 cap 检查 —— 防止意外情况下累积成本爆表
+    # 每日成本 cap 检查 —— 防止意外情况下累积成本爆表
     if tracker.is_blocked(settings.dashscope_model):
         logger.warning(
             "LLM call blocked by cost cap: model={} cap=¥{:.2f}",
@@ -495,7 +495,7 @@ async def call_llm_with_fallback(
             f"cap=¥{tracker.get_model_cap(settings.dashscope_model):.2f}/day"
         )
 
-    # Phase 27 资源包严格保护: 全局启用开关。紧急止血用,
+    # 资源包严格保护: 全局启用开关。紧急止血用,
     # .env 设 LLM_ENABLED=false 重启即可立即阻断所有 LLM 调用。
     # 容错:settings 可能被测试替换为 MagicMock(返回 MagicMock 而非 bool),
     # 此时按"启用"处理,避免误阻断既有测试。
@@ -504,7 +504,7 @@ async def call_llm_with_fallback(
         logger.warning("LLM call blocked by global kill switch (llm_enabled=false)")
         raise LLMBlockedError("LLM globally disabled (llm_enabled=false)")
 
-    # Phase 27 资源包严格保护: 单次请求 input token 128K 闸门。
+    # 资源包严格保护: 单次请求 input token 128K 闸门。
     # 资源包规则:单次请求输入 >128K 的费用不抵扣(按量计费)。
     # 即使在 cap 之内,单次超 128K 也会扣费 → 必须阻断。
     # 估算用 chars/4 (OpenAI 启发式);超阈值直接阻断,绝不发送请求。

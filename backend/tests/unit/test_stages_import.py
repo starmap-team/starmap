@@ -1,4 +1,4 @@
-"""Phase 03 Plan 03 Task 5: stages/import_.py 阶段测试 + SSOT 可观测化测试。
+"""stages/import_.py 阶段测试 + SSOT 可观测化测试。
 
 锁定 import 阶段行为契约（D-15 三子步骤事件 + D-06 一致性告警调用）。
 """
@@ -13,7 +13,7 @@ def _import_source() -> str:
 
 
 class TestExecuteImportSubSteps:
-    """D-15: import 阶段发 3 子步骤事件（extract/normalize/persist）。"""
+    """import 阶段发 3 子步骤事件（extract/normalize/persist）。"""
 
     def test_sub_step_extract_in_source(self):
         source = _import_source()
@@ -35,7 +35,7 @@ class TestExecuteImportSubSteps:
 
 
 class TestImportModuleSurface:
-    """stages.execute_import 必须是真实现（Task 5 完成标志）。"""
+    """stages.execute_import 必须是真实现（完成标志）。"""
 
     def test_import_is_real_not_stub(self):
         from app.core.pipeline import stages
@@ -49,7 +49,7 @@ class TestImportModuleSurface:
 
 
 class TestConsistencyService:
-    """D-06: pipeline_consistency 服务提供仅日志告警（不改数据）。"""
+    """pipeline_consistency 服务提供仅日志告警（不改数据）。"""
 
     def test_consistency_module_importable(self):
         from app.services import pipeline_consistency

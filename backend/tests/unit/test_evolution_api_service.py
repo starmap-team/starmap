@@ -223,7 +223,7 @@ class TestCIIHistory:
 
 
 # ══════════════════════════════════════════════════════════════
-# KPI aggregation — build_evolution_kpi (D-11/D-12)
+# KPI aggregation — build_evolution_kpi 
 # ══════════════════════════════════════════════════════════════
 
 
@@ -253,7 +253,7 @@ async def _async_empty_timeseries(_session: object, **_: object) -> dict:
 
 
 class TestKpi:
-    """build_evolution_kpi — real trust aggregate + empty→zeros (D-12)."""
+    """build_evolution_kpi — real trust aggregate + empty→zeros."""
 
     @pytest.mark.asyncio
     async def test_trust_mean_is_real_aggregate(self, monkeypatch):
@@ -277,7 +277,7 @@ class TestKpi:
     @pytest.mark.asyncio
     async def test_empty_data_returns_zeros(self, monkeypatch):
         # No changelog (avg → None) and no timeseries data → all KPI zeros,
-        # never fabricated estimates (D-12).
+        # never fabricated estimates.
         monkeypatch.setattr(
             "app.services.evolution_service.load_skill_timeseries_data",
             _async_empty_timeseries,

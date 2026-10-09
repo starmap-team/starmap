@@ -81,7 +81,7 @@ export interface QualityTrendPoint {
   review_count: number
 }
 
-/** 岗位数据质量计数（GET /quality/data-quality，批2 2026-08-28） */
+/** 岗位数据质量计数（GET /quality/data-quality，2026-08-28） */
 export interface DataQualityCounts {
   graph_positions: number
   pg_positions: number
@@ -225,7 +225,7 @@ export const useQualityStore = defineStore('quality', () => {
     }
   }
 
- // ── 岗位数据质量计数（批2 2026-08-28）──
+ // ── 岗位数据质量计数（2026-08-28）──
  // 图内岗位数(Neo4j投影) / PG全量 / 隐藏数(no_skills+非IT) / 未分类 / 重名组。
  // 失败时静默降级为 null（页面显示加载中/暂无数据），不打断仪表盘其余部分。
   async function fetchDataQuality() {

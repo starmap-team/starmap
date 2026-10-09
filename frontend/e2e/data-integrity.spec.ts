@@ -393,7 +393,7 @@ test.describe('MatchDiagnosis — 匹配结果 vs 后端', () => {
     await page.goto('/match')
     await waitForApp(page)
 
- // Step 0: 输入技能
+ // 输入技能
     const skillInput = page.locator('input[placeholder*="技能"], input[placeholder*="输入技能"]').first()
     if (await skillInput.isVisible({ timeout: 8000 })) {
       await skillInput.fill('Python')
@@ -406,7 +406,7 @@ test.describe('MatchDiagnosis — 匹配结果 vs 后端', () => {
         await confirmBtn.first().click()
         await page.waitForTimeout(500)
 
- // Step 1: 选择岗位
+ // 选择岗位
         const positionInput = page.locator('input[placeholder*="岗位"], input[placeholder*="搜索岗位"]').first()
         if (await positionInput.isVisible({ timeout: 5000 })) {
           await positionInput.fill('后端工程师')

@@ -1,5 +1,5 @@
 /**
- * MatchTrustGuide.spec.ts — D-01/D-02 分数拆解 + 信任度降级文案测试。
+ * MatchTrustGuide.spec.ts —/分数拆解 + 信任度降级文案测试。
  */
 import { describe, it, expect } from 'vitest'
 import { shallowMount } from '@vue/test-utils'

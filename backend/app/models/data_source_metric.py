@@ -1,4 +1,4 @@
-"""DataSourceMetric model — tracks each source's crawl results (Task 1).
+"""DataSourceMetric model — tracks each source's crawl results.
 
 Used by health_monitor for:
 - 24h success_rate per source

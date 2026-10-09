@@ -110,14 +110,14 @@ async function resolveCanonicalPosition(position: string): Promise<string> {
   }
 }
 
-// FLOW-02-S2: 一键重新匹配 —— 使用更新后的 parsedSkills 对当前岗位重新执行匹配
+// 一键重新匹配 —— 使用更新后的 parsedSkills 对当前岗位重新执行匹配
 const rematchLoading = ref(false)
 async function handleRematch() {
   if (!currentPlan.value?.position) {
     ElMessage.warning('当前学习计划无目标岗位')
     return
   }
- // FLOW-03: extract skill names from structured parsedSkills
+ // extract skill names from structured parsedSkills
   const skillNames = userStore.parsedSkills.map(s => s.skill)
   if (!skillNames.length) {
     ElMessage.warning('技能列表为空，请先上传简历或标记已掌握的技能')

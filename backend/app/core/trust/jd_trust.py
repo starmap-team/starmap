@@ -1,4 +1,4 @@
-"""§7.1 多源交叉验证的数据信任度模型 (PLAN-012).
+"""§7.1 多源交叉验证的数据信任度模型.
 
 TrustScore(D) = w1*Authority(D) + w2*Timeliness(D) + w3*Independence(D) + w4*Consistency(D)
 

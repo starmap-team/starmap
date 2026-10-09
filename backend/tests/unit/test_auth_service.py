@@ -117,7 +117,7 @@ class TestCreateAccessToken:
         assert abs((decoded["exp"] - decoded["iat"]) - 900) < 5
 
     def test_token_contains_kid_header(self):
-        """Phase 20 D-02: JOSE header carries `kid` for rotation keyring lookup."""
+        """JOSE header carries `kid` for rotation keyring lookup."""
         import jwt as _jwt
 
         user = User(username="kiduser", password_hash=hash_password("testX123"), role="user")
@@ -128,12 +128,12 @@ class TestCreateAccessToken:
 
 
 # ══════════════════════════════════════════════════════════════
-# Phase 20 D-02: JWT rotation — kid keyring
+# JWT rotation — kid keyring
 # ══════════════════════════════════════════════════════════════
 
 
 class TestJWTKeyring:
-    """JWT kid + keyring rotation — Phase 20 D-02.
+    """JWT kid + keyring rotation —.
 
     Backward-compatible fallback: when jwt_secret_keyring is empty,
     `{jwt_kid: secret_key}` is used. When set explicitly, multiple kids

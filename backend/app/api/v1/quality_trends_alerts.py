@@ -1,4 +1,4 @@
-"""Quality trends + alerts endpoints — extracted from quality.py (Phase 7 quality domain split).
+"""Quality trends + alerts endpoints — extracted from quality.py (quality domain split).
 
 业务说明：质量趋势时间线 + 异常告警 API。
 注册到 quality.py 的主 router（prefix="/quality"），最终路径 /quality/trends、/quality/alerts。

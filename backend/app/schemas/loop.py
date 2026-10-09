@@ -1,4 +1,4 @@
-"""Loop 域 Schema (PLAN-014 批次12).
+"""Loop 域 Schema (批次12).
 
 从 api/v1/loop.py 内联 4 个 BaseModel 迁入集中管理.
 """

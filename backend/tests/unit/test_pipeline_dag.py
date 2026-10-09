@@ -1,4 +1,4 @@
-"""Phase 3 Plan 02: DAG 串行调度 + JdStatus.cleaned 状态机测试。"""
+"""DAG 串行调度 + JdStatus.cleaned 状态机测试。"""
 from __future__ import annotations
 
 import pytest

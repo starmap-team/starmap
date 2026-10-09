@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { API_BASE, apiUrl } from '../apiBase'
 
 /**
- * W1-T3 regression (P0-10 path mismatch).
+ * W1-T3 regression (path mismatch).
  *
  * 历史 bug: 生产 Dockerfile 注入 VITE_API_BASE_URL=/api，但 request.ts
  * fallback 是 /api/v1。生产浏览器请求 `/auth/login` 拼成

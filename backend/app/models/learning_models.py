@@ -96,7 +96,7 @@ class LearningProgress(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
  # 业务说明：关联的学习计划ID，指向LearningPlan
- # 技术说明：建立索引支持按计划快速查询所有技能进度，FK CASCADE (SEC-05)
+ # 技术说明：建立索引支持按计划快速查询所有技能进度，FK CASCADE 
     plan_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("learning_plans.id", ondelete="CASCADE"), nullable=False, index=True,
     )

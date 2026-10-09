@@ -34,7 +34,7 @@ REQUIRED_AGGREGATE_KEYS: tuple[str, ...] = (
 
 
 def assert_status_aggregator_caliber(aggregates: dict[str, Any]) -> list[dict[str, Any]]:
-    """对 status_aggregator 聚合输出做运行时口径断言（IC-07 防跨页漂移）。
+    """对 status_aggregator 聚合输出做运行时口径断言（防跨页漂移）。
 
     Args:
         aggregates: ``status_aggregator.compute_status_aggregates`` 的返回值 dict。
@@ -115,7 +115,7 @@ def caliber_audit_passed(findings: list[dict[str, Any]]) -> bool:
     return all(item["passed"] for item in findings)
 
 
-# 静态 KPI 审计（Phase 4 保留，用于输出页面级口径来源清单）
+# 静态 KPI 审计（保留，用于输出页面级口径来源清单）
 KPI_AUDIT = {
     "pages": [
         {
@@ -151,7 +151,7 @@ KPI_AUDIT = {
         {
             "page": "PipelineMonitor.vue",
             "kpis": [
-                # Phase 23 (IC-07): 三段 KPI 唯一事实源 status_aggregator.py
+                # 三段 KPI 唯一事实源 status_aggregator.py
                 {"name": "今日采集量", "data_source": "status_aggregator.compute_status_aggregates", "code_path": "status_aggregator.py + usePipelineMonitor.ts kpiCards"},
                 {"name": "今日新增", "data_source": "status_aggregator.compute_status_aggregates", "code_path": "status_aggregator.py + usePipelineMonitor.ts kpiCards"},
                 {"name": "历史累计", "data_source": "status_aggregator.compute_status_aggregates", "code_path": "status_aggregator.py + usePipelineMonitor.ts kpiCards"},
@@ -196,7 +196,7 @@ KPI_AUDIT = {
 
 
 if __name__ == "__main__":
-    # Phase 4 静态审计产物保留（页面级 KPI 口径来源清单）
+    # 静态审计产物保留（页面级 KPI 口径来源清单）
     output_path = Path(__file__).parents[2] / ".planning" / "phase-4-kpi-audit.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     print(f"扫描 {len(KPI_AUDIT['pages'])} 个页面")
     print(f"发现 {len(KPI_AUDIT['findings'])} 个问题")
 
-    # Phase 23 运行时断言：接受 --aggregates <json-file> 输入（无输入则打印跳过提示，
+    # 运行时断言：接受 --aggregates <json-file> 输入（无输入则打印跳过提示，
     # 真实运行由 evaluation/ingestion_consistency.py 连库后调用 assert_status_aggregator_caliber）
     if len(sys.argv) > 2 and sys.argv[1] == "--aggregates":
         with open(sys.argv[2], encoding="utf-8") as f:

@@ -232,7 +232,7 @@ async def get_position(
             "description": r.description,
             "skills_required": skills,
             "discovered_at": r.created_at.isoformat() if r.created_at else None,
-            # Phase 38: A3 五要素（持久化列，缺省返回 null/空列表）
+            # A3 五要素（持久化列，缺省返回 null/空列表）
             "industry_scenario": r.industry_scenario,
             "core_responsibilities": r.core_responsibilities or [],
             "bonus_skills": r.bonus_skills or [],
@@ -329,7 +329,7 @@ async def discover_position(
         raise HTTPException(status_code=403, detail="with_definitions/async_define 仅 admin 可用（消耗 LLM 配额）")
 
     try:
- # Step 1: Load timeseries data for frequency history
+ # Load timeseries data for frequency history
         from app.services.evolution_service import load_skill_timeseries_data
 
         skill_data = await load_skill_timeseries_data(db)
@@ -343,7 +343,7 @@ async def discover_position(
                 "message": "时序数据不足，请先执行管线以生成技能频率统计",
             }
 
- # Step 2: Run emergence detection
+ # Run emergence detection
         finder = EmergenceFinder()
         report = finder.scan(skill_data)
 

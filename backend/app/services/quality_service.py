@@ -27,7 +27,7 @@ __all__ = [
 
 
 async def compute_trust_distribution(session: Any) -> list[dict[str, Any]]:
-    """Phase 19 §6.2 四因子综合信任度分布（与 KPI avg(n.trust_score) 同口径）。
+    """§6.2 四因子综合信任度分布（与 KPI avg(n.trust_score) 同口径）。
 
     从 PG 用 EntityTrustScorer 计算每个技能的真实信任度分桶，不依赖 Neo4j 时序。
     层边界修复（2026-08-14）：原 quality.py 直连 app.core.trust.entity_trust 的

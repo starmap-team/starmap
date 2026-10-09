@@ -1,4 +1,4 @@
-"""Step 3 — Neo4j graph sync (Phase 07-02 D-01/D-05).
+"""— Neo4j graph sync.
 
 Extracted from ``loop_orchestrator.py._step3_graph_update``.
 
@@ -29,7 +29,7 @@ async def run_graph_update_step(
     extraction_data: dict[str, Any],
     target_position: str = "",
 ) -> LoopStepResult:
-    """Step 3: Sync extracted skills/positions into Neo4j graph.
+    """Sync extracted skills/positions into Neo4j graph.
 
     Args:
         run_id: Closed-loop run identifier (used for outbox correlation).
@@ -66,7 +66,7 @@ async def run_graph_update_step(
                 duration_seconds=time.monotonic() - start,
             )
 
-        # Phase 2 SYNC-02: Pass extraction_data for DB-query + graph_writer mode
+        # Pass extraction_data for DB-query + graph_writer mode
         try:
             sync_result = await sync_from_pipeline(
                 run_id=run_id,

@@ -1,4 +1,4 @@
-"""Coverage boost: services/dev_token.py — dev-token 集中守门 (PLAN-015③).
+"""Coverage boost: services/dev_token.py — dev-token 集中守门.
 
 历史问题: `settings.app_env != "production"` 二元判定把 staging/testing 与
 development 等同, 任何中间环境都接受 dev-token (即 admin 凭据).

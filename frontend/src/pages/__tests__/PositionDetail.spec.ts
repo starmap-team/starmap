@@ -145,7 +145,7 @@ describe('PositionDetail.vue', () => {
     expect(wrapper.text()).toContain('演示数据')
   })
 
-  // ── D-05: 雷达图缺数据降级（沿 M5 D-04：无画像岗位不返回 404）──
+  // ──: 雷达图缺数据降级（沿 M5：无画像岗位不返回 404）──
   it('degrades radar to "暂无技能画像" card when skills are empty', async () => {
     mockGet.mockResolvedValue(makeDetailResponse({ skills_required: [] }))
     const wrapper = mountPage()

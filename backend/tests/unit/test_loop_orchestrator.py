@@ -61,7 +61,7 @@ class TestStep1Validate:
         assert result.status == StepStatus.FAILED
 
     def test_empty_target_is_optional(self):
-        # QA B1: target_position 可选,空值不拒绝(Step 2 从 JD 推断)。
+        # QA B1: target_position 可选,空值不拒绝(从 JD 推断)。
         orch = LoopOrchestrator()
         result = orch._step1_validate_input("text", "")
         assert result.status == StepStatus.SUCCESS
@@ -169,7 +169,7 @@ class TestStep5LearningPath:
 class TestStep2ExtractSkills:
     @pytest.mark.asyncio
     async def test_extraction_failure(self):
-        """Step 2 returns FAILED when extraction raises an exception."""
+        """returns FAILED when extraction raises an exception."""
         from unittest.mock import AsyncMock, patch
 
         orch = LoopOrchestrator()
@@ -182,7 +182,7 @@ class TestStep2ExtractSkills:
 class TestStep4MatchDiagnosis:
     @pytest.mark.asyncio
     async def test_no_skills_returns_failed(self):
-        """Step 4 returns FAILED when no skills are available."""
+        """returns FAILED when no skills are available."""
         orch = LoopOrchestrator()
         result = await orch._step4_match_diagnosis(
             target_position="Backend",
@@ -194,7 +194,7 @@ class TestStep4MatchDiagnosis:
 
     @pytest.mark.asyncio
     async def test_match_exception_returns_failed(self):
-        """Step 4 returns FAILED when match raises an exception."""
+        """returns FAILED when match raises an exception."""
         from unittest.mock import AsyncMock, patch
 
         orch = LoopOrchestrator()
@@ -208,7 +208,7 @@ class TestStep4MatchDiagnosis:
 
     @pytest.mark.asyncio
     async def test_match_success(self):
-        """Step 4 returns SUCCESS when match works."""
+        """returns SUCCESS when match works."""
         from unittest.mock import AsyncMock, patch
 
         orch = LoopOrchestrator()
@@ -226,7 +226,7 @@ class TestStep4MatchDiagnosis:
 class TestStep3GraphUpdate:
     @pytest.mark.asyncio
     async def test_no_driver_returns_failed(self):
-        """Step 3 returns FAILED when Neo4j driver is unavailable."""
+        """returns FAILED when Neo4j driver is unavailable."""
         from unittest.mock import patch
 
         orch = LoopOrchestrator()
@@ -242,7 +242,7 @@ class TestStep3GraphUpdate:
 class TestStep3GraphUpdateWithDriver:
     @pytest.mark.asyncio
     async def test_sync_failure_returns_failed(self):
-        """Step 3 returns FAILED when sync_from_pipeline fails."""
+        """returns FAILED when sync_from_pipeline fails."""
         from unittest.mock import AsyncMock, patch
 
         orch = LoopOrchestrator()
@@ -254,7 +254,7 @@ class TestStep3GraphUpdateWithDriver:
 
     @pytest.mark.asyncio
     async def test_sync_success(self):
-        """Step 3 returns SUCCESS when sync works."""
+        """returns SUCCESS when sync works."""
         from unittest.mock import AsyncMock, patch
 
         orch = LoopOrchestrator()
@@ -268,7 +268,7 @@ class TestStep3GraphUpdateWithDriver:
 class TestStep2ExtractSkillsSuccess:
     @pytest.mark.asyncio
     async def test_extraction_success(self):
-        """Step 2 returns SUCCESS when extraction works."""
+        """returns SUCCESS when extraction works."""
         from unittest.mock import AsyncMock, patch
 
         orch = LoopOrchestrator()
@@ -287,7 +287,7 @@ class TestStep2ExtractSkillsSuccess:
 
     @pytest.mark.asyncio
     async def test_extraction_returns_false(self):
-        """Step 2 returns FAILED when extraction returns success=false."""
+        """returns FAILED when extraction returns success=false."""
         from unittest.mock import AsyncMock, patch
 
         orch = LoopOrchestrator()
@@ -298,10 +298,10 @@ class TestStep2ExtractSkillsSuccess:
 
 
 # ---------------------------------------------------------------------------
-# Phase 07-02 D-03 / D-06: degradation判定 + model_used 透传 (T7)
+# degradation判定 + model_used 透传 (T7)
 # ---------------------------------------------------------------------------
 class TestModelUsedPropagation:
-    """Step 2 (extract) must surface the actual LLM model name in data so the
+    """(extract) must surface the actual LLM model name in data so the
     frontend LoopStepSkills card can render cloud vs local fallback (D-06)."""
 
     @pytest.mark.asyncio
@@ -324,7 +324,7 @@ class TestModelUsedPropagation:
                    new=AsyncMock(return_value=mock_result)):
             result = await orch._step2_extract_skills("some jd")
         assert result.data["model_used"] == "deepseek-chat"
-        # D-05 metric row fields also surfaced
+        # metric row fields also surfaced
         assert result.data["skill_count"] == 1
         assert result.data["skill_confidence_avg"] == 0.92
 
@@ -417,13 +417,13 @@ class TestStepLevelDirectInvocation:
             match_result={}, match_ok=False, target_position="Backend",
         )
         assert result.status == StepStatus.FAILED
-        # Fallback path still has path_length key (D-05 metric row contract)
+        # Fallback path still has path_length key (metric row contract)
         assert "path_length" in result.data
         assert len(result.data["path_items"]) >= 1
 
 
 class TestDegradationJudgment:
-    """D-03 fail-fast + 降级判定:
+    """fail-fast + 降级判定:
     - step3 失败 → 整体仍 COMPLETED（degraded）
     - step4 失败 + step5 失败 → 整体仍 COMPLETED
     - ≥3 步失败 → 整体 FAILED
@@ -431,7 +431,7 @@ class TestDegradationJudgment:
 
     @staticmethod
     def _patches(sync_return=None, match_return=None, plan_return=None, driver=object()):
-        """Stack of patches used by D-03 degradation tests."""
+        """Stack of patches used by degradation tests."""
         from contextlib import ExitStack
         sync = sync_return if sync_return is not None else {"synced": True, "nodes": 1, "edges": 0}
         match = match_return if match_return is not None else {
@@ -464,7 +464,7 @@ class TestDegradationJudgment:
             result = await orch.run_loop("jd", "Backend")
         step3_status = next(s.status for s in result.steps if s.step == 3)
         assert step3_status == StepStatus.FAILED
-        # D-03: only 1 failure (step3) → overall COMPLETED
+        # only 1 failure (step3) → overall COMPLETED
         assert result.status == LoopRunStatus.COMPLETED
 
     @pytest.mark.asyncio
@@ -478,7 +478,7 @@ class TestDegradationJudgment:
         step5 = next(s for s in result.steps if s.step == 5)
         assert step4.status == StepStatus.FAILED
         assert step5.status == StepStatus.FAILED
-        # D-03: only step 4/5 failed → overall COMPLETED
+        # only step 4/5 failed → overall COMPLETED
         assert result.status == LoopRunStatus.COMPLETED
 
     @pytest.mark.asyncio

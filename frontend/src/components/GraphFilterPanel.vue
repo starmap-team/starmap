@@ -2,7 +2,7 @@
 /**
  * GraphFilterPanel — 左侧可折叠筛选面板
  *
- * Sprint C-3: 集中 domain/tech_stack/level radio、layout toggle、
+ * Sprint: 集中 domain/tech_stack/level radio、layout toggle、
  * 节点上限 slider、熟练度 chips、演化开关、图例。
  * 默认 240px 宽，可通过 4px 握手柄折叠到 0。
  */
