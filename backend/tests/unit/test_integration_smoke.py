@@ -149,6 +149,7 @@ def test_call_llm_with_fallback_tracks_costs_per_provider() -> None:
 
     # Enable all 4 paths by stubbing settings + provider functions
     with (
+        patch.object(llm_client.settings, "dashscope_api_key", "", create=True),
         patch.object(llm_client.settings, "mimo_api_key", "stub", create=True),
         patch.object(llm_client.settings, "deepseek_api_key", "stub", create=True),
         patch.object(llm_client.settings, "xunfei_api_key", "stub", create=True),

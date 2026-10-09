@@ -69,25 +69,41 @@ class TestConsistency:
 class TestTrustScore:
     def test_default_weights_blend(self) -> None:
         # enterprise + 近期 + 独立 + 全交叉 → 接近满分
+        from datetime import UTC, datetime
+        now = datetime(2026, 8, 1, tzinfo=UTC)
         out = trust_score({
             "source_type": "enterprise",
             "publish_date": "2026-08-01T00:00:00+00:00",
             "sim_scores": [0.05],
             "cross_validated_skills": 10,
             "total_skills": 10,
-        })
+        }, now=now)
         assert out["trust_score"] > 0.9
         assert out["factors"]["authority"] == 0.9
 
+    def test_default_weights_blend_dynamic_now(self) -> None:
+        # 验证未显式传 now 时，动态当前时间的近期 JD 亦能正常评分
+        from datetime import UTC, datetime
+        out = trust_score({
+            "source_type": "enterprise",
+            "publish_date": datetime.now(UTC).isoformat(),
+            "sim_scores": [0.05],
+            "cross_validated_skills": 10,
+            "total_skills": 10,
+        })
+        assert out["trust_score"] > 0.9
+
     def test_low_evidence_scores_low(self) -> None:
         # social + 过期 + 高抄袭 + 零交叉 → 低分
+        from datetime import UTC, datetime
+        now = datetime(2026, 8, 1, tzinfo=UTC)
         out = trust_score({
             "source_type": "social",
             "publish_date": "2025-01-01T00:00:00+00:00",
             "sim_scores": [0.95],
             "cross_validated_skills": 0,
             "total_skills": 8,
-        })
+        }, now=now)
         assert out["trust_score"] < 0.5
 
     def test_missing_fields_graceful(self) -> None:
@@ -106,6 +122,8 @@ class TestTrustScore:
 class TestGridSearchWeights:
     def test_finds_weight_combo_matching_human_labels(self) -> None:
         """合成数据: 高信任 JD 全部高因子 → 各权重组合都相关, 网格必须返回合法组合。"""
+        from datetime import UTC, datetime
+        now = datetime(2026, 8, 1, tzinfo=UTC)
         samples = [
             {"source_type": "enterprise", "publish_date": "2026-08-01T00:00:00+00:00",
              "sim_scores": [0.1], "cross_validated_skills": 8, "total_skills": 8},
@@ -115,7 +133,7 @@ class TestGridSearchWeights:
              "sim_scores": [0.4], "cross_validated_skills": 5, "total_skills": 10},
         ]
         labels = [95.0, 20.0, 60.0]
-        out = grid_search_weights(samples, labels)
+        out = grid_search_weights(samples, labels, now=now)
         assert out["pearson"] > 0.9  # 单调对应
         assert sum(out["weights"].values()) == pytest.approx(1.0)
         assert out["combos_evaluated"] > 0

@@ -70,7 +70,11 @@ def consistency_score(cross_validated: int, total: int) -> float:
     return round(min(cross_validated, total) / total, 4)
 
 
-def trust_score(jd: dict[str, Any], weights: dict[str, float] | None = None) -> dict[str, Any]:
+def trust_score(
+    jd: dict[str, Any],
+    weights: dict[str, float] | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
     """§7.1 综合信任度计算.
 
     jd 输入字段: source_type / publish_date / sim_scores / cross_validated_skills / total_skills
@@ -79,7 +83,7 @@ def trust_score(jd: dict[str, Any], weights: dict[str, float] | None = None) -> 
     w = {**DEFAULT_WEIGHTS, **(weights or {})}
     factors = {
         "authority": authority_score(jd.get("source_type") or ""),
-        "timeliness": timeliness_score(jd.get("publish_date")),
+        "timeliness": timeliness_score(jd.get("publish_date"), now=now),
         "independence": independence_score(jd.get("sim_scores")),
         "consistency": consistency_score(
             int(jd.get("cross_validated_skills") or 0),
@@ -115,18 +119,20 @@ def _pearson(x: list[float], y: list[float]) -> float:
 def grid_search_weights(
     samples: list[dict[str, Any]],
     human_labels: list[float],
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """§7.1 网格校准: 权重空间 {0.1..0.4}^4 (sum=1), 选 Pearson 相关最高的组合.
 
     Args:
         samples: JD 特征 dict 列表 (source_type/publish_date/sim_scores/...)
         human_labels: 人工标注的真实可信度 (0-100, 归一化到 0-1)
+        now: 计算时效性衰减的基准时间, 默认当前时间
 
     Returns:
         {"weights": {...}, "pearson": float, "combos_evaluated": int}
     """
     labels = [max(0.0, min(1.0, label / 100.0)) for label in human_labels]
- # 样本不足 (<2) 无法计算相关性 → 返回出厂默认权重
+    # 样本不足 (<2) 无法计算相关性 → 返回出厂默认权重
     if len(samples) < 2 or len(labels) < 2 or len(samples) != len(labels):
         return {"weights": dict(DEFAULT_WEIGHTS), "pearson": 0.0, "combos_evaluated": 0}
     best_weights: dict[str, float] = dict(DEFAULT_WEIGHTS)
@@ -141,7 +147,7 @@ def grid_search_weights(
                     continue
                 combos += 1
                 weights = {"authority": w1, "timeliness": w2, "independence": w3, "consistency": w4}
-                preds = [trust_score(s, weights)["trust_score"] for s in samples]
+                preds = [trust_score(s, weights, now=now)["trust_score"] for s in samples]
                 p = _pearson(preds, labels)
                 if p > best_pearson:
                     best_pearson, best_weights = p, weights
