@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 数据流水线监控页 — Plan 03 Task 8 拆子组件后瘦身 < 600 行。
+ * 数据流水线监控页 — 拆子组件后瘦身 < 600 行。
  * 仅保留顶层布局 + KPI 卡片 + DAG 区 + 子组件挂载点 + 闭环验证编排。
  */
 import { computed, ref } from 'vue'
@@ -76,7 +76,7 @@ const {
   onAfterTrigger: () => { refreshInterval.value = 5; startAutoRefresh() },
   onAfterMutation: loadAll,})
 
-// 2026-08-21 (P0-2): DAG「继续处理剩余 N 条」→ 断点续跑当前 run
+// 2026-08-21 : DAG「继续处理剩余 N 条」→ 断点续跑当前 run
 // （从 timelineStages 取当前 run_id，避免误续跑其他 run）
 function handleResumeFromDag() {
   const runId = timelineStages.value[0]?.run_id

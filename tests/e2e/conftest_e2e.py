@@ -1,4 +1,4 @@
-"""PIPE-04 E2E 测试 fixtures。
+"""E2E 测试 fixtures。
 
 提供：
 - backend_url / frontend_url: dev server URL（默认 http://localhost:8000 / :5173）

@@ -71,7 +71,7 @@ function mountPage() {
 }
 
 // full mount：真实渲染 el-card/el-button 等，用于断言按钮 disabled 等 DOM 属性
-// （shallowMount + stub 会吞掉按钮树，见 11-04 quality 计划 T3/D-03 偏差教训）
+// （shallowMount + stub 会吞掉按钮树，见 11-04 quality 计划 T3/偏差教训）
 function mountFull() {
   const pinia = createPinia()
   setActivePinia(pinia)

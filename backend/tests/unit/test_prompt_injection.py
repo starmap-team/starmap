@@ -1,4 +1,4 @@
-"""Unit tests for input-side prompt-injection detector (CONCERN 1.6, Phase 24)."""
+"""Unit tests for input-side prompt-injection detector (CONCERN 1.6)."""
 
 from __future__ import annotations
 

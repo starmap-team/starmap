@@ -1,4 +1,4 @@
-"""Pipeline 运行历史子路由（D-02 Task 7 拆分）。
+"""Pipeline 运行历史子路由（拆分）。
 
 GET 类端点：/runs /runs/{run_id}。
 """

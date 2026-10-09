@@ -1,4 +1,4 @@
-"""Evolution industry-report endpoint — extracted from evolution.py (Phase 7 evolution domain split).
+"""Evolution industry-report endpoint — extracted from evolution.py (evolution domain split).
 
 业务说明：行业趋势报告 API，聚合技能需求数据、时序趋势和岗位要求，提供行业总览。
 注册到 evolution.py 的主 router（prefix="/evolution"），最终路径 /evolution/industry-report。

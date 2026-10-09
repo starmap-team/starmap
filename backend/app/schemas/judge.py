@@ -1,4 +1,4 @@
-"""Judge 域 Schema (PLAN-014 批次10)。
+"""Judge 域 Schema (批次10)。
 
 从 api/v1/judge.py 内联 6 个 BaseModel 迁入集中管理。
 """

@@ -1,4 +1,4 @@
-"""Coverage: core/trust/entity_trust.py — 实体信任四因子评分器 (Phase 19)。
+"""Coverage: core/trust/entity_trust.py — 实体信任四因子评分器。
 
 验证 §6.2 四因子公式: T = 0.3·source + 0.3·extractor + 0.25·cross + 0.15·time
 """
@@ -105,7 +105,7 @@ def test_trust_weights_match_design_doc() -> None:
 
 
 class TestWriteBackThresholdSeparation:
-    """Phase 23 Task 5 (DF-05) 回归锁定：EntityTrustScorer 不参与写回闸门。
+    """ 回归锁定：EntityTrustScorer 不参与写回闸门。
 
     EntityTrustScorer（图节点四因子）单源最高 ≈0.545 < 写回阈值 0.6——但它用于
     图节点信任，**不用于** evolution 写回 PSR 的闸门（写回只认 TrustScorer 的

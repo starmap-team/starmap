@@ -717,7 +717,7 @@ class TestFetchOverviewByLevel:
         assert len(result["connections"]) == 2
 
 
-# ── graph_overview: fetch_overview_by_heat (Phase 13 Step 2, M1 C-5 closure) ─
+# ── graph_overview: fetch_overview_by_heat (M1 closure) ─
 
 
 class TestFetchOverviewByHeat:
@@ -817,11 +817,11 @@ class TestFetchOverviewByHeat:
         assert result["connections"] == []
 
 
-# ── graph_service: fetch_overview_by_domain (Phase 13 Step 1, M1 C-5 closure) ─
+# ── graph_service: fetch_overview_by_domain (M1 closure) ─
 
 
 class TestFetchOverviewByDomain:
-    """fetch_overview_by_domain — Phase 13 Step 1: 行业归一(13 大行业)视图。
+    """fetch_overview_by_domain —: 行业归一(13 大行业)视图。
 
     函数位于 graph_service.py:188,内部混合 _classify_industry + Neo4j cypher。
     本测试聚焦纯逻辑可验证部分: INDUSTRY_ID_PREFIX dict 完整性 +

@@ -1,4 +1,4 @@
-"""Tests for SEC-05 (FK constraints) and SEC-06 (Settings runtime guard)."""
+"""Tests for (FK constraints) and (Settings runtime guard)."""
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -6,11 +6,11 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-# ── SEC-05: FK constraints (ORM-level verification) ──
+# ──: FK constraints (ORM-level verification) ──
 
 
 class TestFKDeclarations:
-    """SEC-05: Verify ForeignKey declarations exist in ORM models."""
+    """Verify ForeignKey declarations exist in ORM models."""
 
     def test_position_skill_relation_has_two_fks(self) -> None:
         """PositionSkillRelation has FK on position_id and skill_id."""
@@ -66,11 +66,11 @@ class TestFKDeclarations:
             assert fk.ondelete == "SET NULL"
 
 
-# ── SEC-06: Settings safe_update guard ──
+# ──: Settings safe_update guard ──
 
 
 class TestSafeUpdate:
-    """SEC-06: Settings.safe_update() whitelist + validation + audit."""
+    """Settings.safe_update whitelist + validation + audit."""
 
     def test_whitelisted_field_succeeds(self) -> None:
         """safe_update with a whitelisted field succeeds."""
@@ -146,11 +146,11 @@ class TestSafeUpdate:
             mock_audit.assert_not_called()
 
 
-# ── SEC-06: PipelineConfigUpdateRequest constraints ──
+# ──: PipelineConfigUpdateRequest constraints ──
 
 
 class TestPipelineConfigConstraints:
-    """SEC-06: PipelineConfigUpdateRequest Field constraints."""
+    """PipelineConfigUpdateRequest Field constraints."""
 
     def test_stage_timeout_below_minimum(self) -> None:
         """stage_timeout < 60 raises ValidationError."""
@@ -203,11 +203,11 @@ class TestPipelineConfigConstraints:
         assert req.worker_concurrency is None
 
 
-# ── SEC-06: _SCHEMA_TO_SETTINGS mapping ──
+# ──: _SCHEMA_TO_SETTINGS mapping ──
 
 
 class TestSchemaToSettingsMapping:
-    """SEC-06: Schema field names map correctly to Settings attribute names."""
+    """Schema field names map correctly to Settings attribute names."""
 
     def test_mapping_dict(self) -> None:
         """Verify the _SCHEMA_TO_SETTINGS mapping in routes.py."""

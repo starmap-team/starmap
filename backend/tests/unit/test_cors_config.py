@@ -80,7 +80,7 @@ class TestCorsOriginsEnvOverride:
 
 # ═══════════════════════════════════════════════════════════════════════
 # HTTP-level smoke: confirm CORSMiddleware rejects internal-hostname Origin.
-# This is the test the audit originally implied (AUTH-04 CORS smell):
+# This is the test the audit originally implied (CORS smell):
 # a browser claiming `Origin: http://starmap-frontend-prod:80` should
 # be refused by Starlette's CORSMiddleware since the Origin is not in
 # `allow_origins`. We exercise this with a real FastAPI request.

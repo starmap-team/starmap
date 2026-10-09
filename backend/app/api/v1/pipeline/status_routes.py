@@ -1,4 +1,4 @@
-"""Pipeline 状态/概览子路由（D-02 Task 7 拆分）。
+"""Pipeline 状态/概览子路由（拆分）。
 
 GET 类端点：/status /stages /data-quality /datasources /metrics。
 """

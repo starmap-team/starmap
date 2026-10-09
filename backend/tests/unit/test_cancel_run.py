@@ -1,4 +1,4 @@
-"""Unit tests for Phase 1 cancel_run feature.
+"""Unit tests for cancel_run feature.
 
 Covers D-04, D-05, D-06:
 - Cancel a running run -> status='cancelled'
@@ -20,7 +20,7 @@ from app.exceptions import RunAlreadyTerminalError, RunNotFoundError
 
 @pytest.mark.asyncio
 async def test_cancel_running_run_returns_cancelled_status():
-    """Test D-04: cancelling a running run sets status='cancelled'."""
+    """Test: cancelling a running run sets status='cancelled'."""
     run_id = uuid.uuid4()
     mock_run = MagicMock()
     mock_run.id = run_id
@@ -64,7 +64,7 @@ async def test_cancel_running_run_returns_cancelled_status():
 
 @pytest.mark.asyncio
 async def test_cancel_completed_run_returns_409():
-    """Test D-06: cancelling a completed run raises RunAlreadyTerminalError."""
+    """Test: cancelling a completed run raises RunAlreadyTerminalError."""
     run_id = uuid.uuid4()
     mock_run = MagicMock()
     mock_run.id = run_id
@@ -84,7 +84,7 @@ async def test_cancel_completed_run_returns_409():
 
 @pytest.mark.asyncio
 async def test_cancel_nonexistent_run_returns_404():
-    """Test D-06: cancelling a non-existent run raises RunNotFoundError."""
+    """Test: cancelling a non-existent run raises RunNotFoundError."""
     run_id = uuid.uuid4()
     mock_session = AsyncMock()
     mock_result = MagicMock()
@@ -99,7 +99,7 @@ async def test_cancel_nonexistent_run_returns_404():
 
 @pytest.mark.asyncio
 async def test_cancel_already_cancelled_run_returns_409():
-    """Test D-06: re-cancelling raises RunAlreadyTerminalError."""
+    """Test: re-cancelling raises RunAlreadyTerminalError."""
     run_id = uuid.uuid4()
     mock_run = MagicMock()
     mock_run.id = run_id

@@ -31,7 +31,7 @@ async def refresh_skill_timeseries(session: AsyncSession) -> dict[str, Any]:
     Returns:
         {"skills_updated": int, "windows_created": int}
     """
- # ── Step 1: Find the date range of extraction records ──
+ # ──: Find the date range of extraction records ──
     range_stmt = sa.select(
         sa.func.min(JDExtractionRecord.created_at),
         sa.func.max(JDExtractionRecord.created_at),
@@ -44,15 +44,15 @@ async def refresh_skill_timeseries(session: AsyncSession) -> dict[str, Any]:
         logger.info("refresh_skill_timeseries: no completed extraction records, skipping")
         return {"skills_updated": 0, "windows_created": 0}
 
- # ── Step 2: Build monthly windows covering the date range ──
+ # ──: Build monthly windows covering the date range ──
     windows = _build_monthly_windows(min_date, max_date)
 
- # ── Step 3: Load skill→category mapping from skill_records ──
+ # ──: Load skill→category mapping from skill_records ──
     cat_result = await session.execute(sa.select(SkillRecord.name, SkillRecord.category))
  # cat_result.all() returns Sequence[Row[tuple[str, str]]], cast to Iterable[tuple[str, str]]
     skill_categories: dict[str, str] = dict(cat_result.all())  # type: ignore[arg-type]
 
- # ── Step 4: Aggregate per (skill, month) ──
+ # ──: Aggregate per (skill, month) ──
  # Extracted_skills is JSON — can be list[dict] or dict with required/preferred keys.
  # We use PostgreSQL jsonb_array_elements to unnest skill names.
  # Fallback: Python-side aggregation for databases that don't support the function.
@@ -88,7 +88,7 @@ async def refresh_skill_timeseries(session: AsyncSession) -> dict[str, Any]:
         if not skill_counts:
             continue
 
- # ── Step 5: Upsert into skill_timeseries ──
+ # ──: Upsert into skill_timeseries ──
  # Delete existing records for this window, then insert fresh ones.
         await session.execute(
             sa.delete(SkillTimeseries).where(

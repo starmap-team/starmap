@@ -1,4 +1,4 @@
-"""掘金 sitemap spider — D5 非结构化源 (PLAN-002)。
+"""掘金 sitemap spider — D5 非结构化源。
 
 侦察 (board-recon 2026-08-05): juejin.cn 返回 200, robots.txt 允许
 文章/tag 路径 (仅禁 /search /s/ /spost /editor 等), 提供 sitemap:

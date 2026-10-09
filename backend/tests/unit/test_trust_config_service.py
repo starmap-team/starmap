@@ -1,4 +1,4 @@
-"""PLAN-012: source_trust_config 幂等播种测试。"""
+"""source_trust_config 幂等播种测试。"""
 
 from __future__ import annotations
 

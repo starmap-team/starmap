@@ -1,4 +1,4 @@
-"""Phase 7 P0-1 fix: outbox regression test for run_batch_extract_jd.
+"""fix: outbox regression test for run_batch_extract_jd.
 
 When Neo4j write fails after Postgres commit, the outbox record must be
 marked 'failed' so it can be retried later (preventing PG/Neo4j drift).
@@ -71,7 +71,7 @@ def _patch_common_deps(
     monkeypatch.setattr(s, "_load_source_counts", fake_load_counts)
     monkeypatch.setattr(s, "get_async_engine", lambda: _FakeEngine())
     monkeypatch.setattr(s, "async_sessionmaker", fake_sessionmaker)
-    # Phase 23 M1b 门控: 默认 approved（保持既有 outbox 测试语义），
+    # 门控: 默认 approved（保持既有 outbox 测试语义），
     # 未审核跳过写图的用例在下面单独覆盖为 False。
     async def fake_approved(sm: Any, position_id: str) -> bool:
         return True
@@ -137,7 +137,7 @@ async def test_outbox_completed_when_graph_write_succeeds(monkeypatch: pytest.Mo
 
 @pytest.mark.asyncio
 async def test_retry_worker_does_not_swallow_completed_rows(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Phase 23 Task 1: retry worker 只消费 failed 行，completed/drift_warning 不误捡。
+    """retry worker 只消费 failed 行，completed/drift_warning 不误捡。
 
     沿 `_list_retryable_outbox` 的 SQL 过滤 + Python 兜底过滤——completed 行已落库
     成功，重放会重复写图（即使 MERGE 幂等也造成 source_count 语义噪音），必须跳过。

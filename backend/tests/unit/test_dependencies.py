@@ -204,7 +204,7 @@ class TestSSETokenExpired:
 
 
 class TestSSEConnectionLimit:
-    """API-05: SSE per-IP and global connection limits.
+    """SSE per-IP and global connection limits.
 
     These tests exercise sse_connect/sse_disconnect directly (not via
     get_current_user_sse) to avoid the _sse_connect_check bypass.

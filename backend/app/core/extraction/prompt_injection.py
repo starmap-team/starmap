@@ -1,4 +1,4 @@
-"""Input-side prompt-injection detector (CONCERN 1.6, Phase 24).
+"""Input-side prompt-injection detector (CONCERN 1.6).
 
 JD / resume text is user-supplied and concatenated into LLM prompts. Without
 input sanitization, an injected "Ignore previous instructions" line can steer

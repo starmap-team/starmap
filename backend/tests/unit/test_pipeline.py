@@ -322,7 +322,7 @@ class TestBuildResultLearningPathNone:
 
 
 class TestBuildResultScoreField:
-    """Phase 24 P4 fix: skill_gap_detail 必须含 score 字段（前端 Math.round(row.score*100) 依赖）。
+    """P4 fix: skill_gap_detail 必须含 score 字段（前端 Math.round(row.score*100) 依赖）。
 
     缺失时前端显示 "NaN%"。同时验证 learning_path_summary 与 score 并存。
     """
@@ -362,7 +362,7 @@ class TestBuildResultScoreField:
 
 
 class TestBuildResultDisplayName:
-    """Phase 24 P5 fix: top_matches 岗位名必须用 name_cn（_display_name）优先。
+    """P5 fix: top_matches 岗位名必须用 name_cn（_display_name）优先。
 
     分析报告此前显示英文 name（Senior Controller – Reporting & Insights），
     岗位详情页用 name_cn || name（高级财务控制 — 报告与洞察）——中文化未贯穿。

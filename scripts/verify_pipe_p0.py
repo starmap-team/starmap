@@ -1,4 +1,4 @@
-"""verify_pipe_p0.py — PIPE-P0 修复验证脚本
+"""verify_pipe_p0.py — 修复验证脚本
 
 适用场景:WIP branch `feat/frontend-type-migration` 合并到 main 后,跑这个脚本
         验证 PIPE-P0-1/2/3 是否真的修复了。
@@ -30,7 +30,7 @@ def check(label: str, ok: bool, detail: str = "") -> bool:
 
 
 def check_p1_celery_event_loop() -> tuple[bool, list[str]]:
-    """PIPE-P0-1: Celery event loop 错(stage 完成 + DAG 推进必须在同一 async 上下文)。"""
+    """Celery event loop 错(stage 完成 + DAG 推进必须在同一 async 上下文)。"""
     warnings: list[str] = []
     p = ROOT / "backend/app/tasks/celery_app.py"
     if not p.exists():
@@ -82,7 +82,7 @@ def check_p1_celery_event_loop() -> tuple[bool, list[str]]:
 
 
 def check_p2_jd_raw_migration() -> tuple[bool, list[str]]:
-    """PIPE-P0-2: jd_raw 表已通过 Alembic 迁移定义。"""
+    """jd_raw 表已通过 Alembic 迁移定义。"""
     warnings: list[str] = []
     p = ROOT / "crawler/persistence/migrations/versions/0001_init_jd_raw.py"
     if not p.exists():
@@ -110,7 +110,7 @@ def check_p2_jd_raw_migration() -> tuple[bool, list[str]]:
 
 
 def check_p3_graph_sync_referenced() -> tuple[bool, list[str]]:
-    """PIPE-P0-3: graph_sync 阶段在 orchestrator 中已定义。"""
+    """graph_sync 阶段在 orchestrator 中已定义。"""
     warnings: list[str] = []
     p = ROOT / "backend/app/core/pipeline/orchestrator.py"
     if not p.exists():
@@ -130,7 +130,7 @@ def check_p3_graph_sync_referenced() -> tuple[bool, list[str]]:
 
 
 def check_p4_postgres_uri() -> tuple[bool, list[str]]:
-    """PIPE-P0-2 辅助验证: crawler/persistence/database.py 应连 starmap PostgreSQL(非 SQLite)。"""
+    """辅助验证: crawler/persistence/database.py 应连 starmap PostgreSQL(非 SQLite)。"""
     warnings: list[str] = []
     p = ROOT / "crawler/persistence/database.py"
     if not p.exists():

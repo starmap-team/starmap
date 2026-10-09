@@ -1,4 +1,4 @@
-"""Coverage: services/graph_sync.py recompute_skill_trust — 全量重算 Skill.trust_score (Phase 19)。
+"""Coverage: services/graph_sync.py recompute_skill_trust — 全量重算 Skill.trust_score。
 
 验证 §6.2 四因子重算写回 Neo4j：幂等、正确传 trust、driver None 降级。
 """

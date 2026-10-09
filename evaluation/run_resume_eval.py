@@ -1,4 +1,4 @@
-"""简历提取准确率评测 runner — P0-2 赛项实用价值指标。
+"""简历提取准确率评测 runner — 赛项实用价值指标。
 
 调用真实 LLM 抽取管线（app.core.extraction.jd_extract.extract_from_jd，与
 线上 /resume/upload 同路径）对 golden_set_resume.jsonl（50 份简历）做

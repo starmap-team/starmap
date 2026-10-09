@@ -1,4 +1,4 @@
-"""Redis 缓存助手 (PERF-06, 2026-08-31).
+"""Redis 缓存助手 (2026-08-31).
 
 层边界: API 层 (api/v1/*) 不能直接 import app.core.* (test_layer_boundary 门禁),
 故将 Redis 缓存读写抽到 services 层, 供 quality/graph 等 API 复用。

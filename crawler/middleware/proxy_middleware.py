@@ -1,4 +1,4 @@
-"""PIPE-02: PROXY_LIST 代理池 + 失败熔断中间件 )
+"""PROXY_LIST 代理池 + 失败熔断中间件 )
 
 行为契约：
 1. 解析 PROXY_LIST (逗号分隔 http://[user:pass@]host:port)

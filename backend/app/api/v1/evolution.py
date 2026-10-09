@@ -79,7 +79,7 @@ async def get_kpi(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     days: Annotated[int, Query(ge=7, le=730, description="分析时间窗口（天）")] = 90,
 ) -> EvolutionKpiResponse:
-    """演化看板 KPI 行（涌现数/信任均值/CII 均值/预警数，D-11）。"""
+    """演化看板 KPI 行（涌现数/信任均值/CII 均值/预警数)。"""
     from app.services.evolution_service import build_evolution_kpi
 
     return EvolutionKpiResponse(**await build_evolution_kpi(session, days=days))
@@ -100,7 +100,7 @@ async def get_changelog(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[ChangelogEntry]:
-    """获取指定技能或岗位的演化变更记录 (LOOP-12)。
+    """获取指定技能或岗位的演化变更记录。
 
     identifier 可以是技能名或岗位名，同时查询两种匹配。
     """
@@ -365,7 +365,7 @@ async def get_review_queue(
     which confused users. Now accept a `limit` query param (default 200)
     and `offset` for pagination.
     """
- # EV-02: respect the status parameter
+ # respect the status parameter
     stmt = (
         sa.select(EvolutionChangelog)
         .where(EvolutionChangelog.status == status)
@@ -562,7 +562,7 @@ async def get_skill_causal_analysis(
     skill: str,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CausalAnalysisResponse:
-    """§7.6 因果推理轻量版: 技能-岗位关联显著性 (Fisher 精确检验, DEV-01)。"""
+    """§7.6 因果推理轻量版: 技能-岗位关联显著性 (Fisher 精确检验)。"""
     from app.services.evolution_service import skill_position_associations
 
     data = await skill_position_associations(skill, session)

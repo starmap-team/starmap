@@ -58,7 +58,7 @@ const matchAnimComplete = ref(false)
 import { PROFICIENCY_MAP } from '@/utils/proficiency'
 const stepTitles = ['上传简历', '选择目标岗位', '技能雷达对比', '差距分析报告', '学习路径规划']
 
-// ── Step 0: 上传简历 ──
+// ──: 上传简历 ──
 async function handleUpload(file: File) {
   await resumeStore.parseResume(file)
   if (!resumeStore.result) {
@@ -77,7 +77,7 @@ onMounted(async () => {
   await nextTick()
   setAsyncUploader()
 
- // FLOW-02-S2: 重新匹配跳转 —— 从 LearningCenter 携带 rematch 查询参数
+ // 重新匹配跳转 —— 从 LearningCenter 携带 rematch 查询参数
  // 直接跳到差距分析步骤（step 3），使用已有匹配结果
   if (route.query.rematch === '1') {
     if (matchStore.result) {
@@ -127,7 +127,7 @@ function removeManualSkill(skill: string) {
 }
 function confirmManualSkills() {
   if (!manualSkills.value.length) { ElMessage.warning('请至少添加一个技能'); return }
- // FLOW-03: store structured skills with default proficiency
+ // store structured skills with default proficiency
   userStore.parsedSkills = manualSkills.value.map(s => ({ skill: s, category: 'hard_skill' as const, proficiency: '熟悉' as const }))
   ElMessage.success('已录入 ' + manualSkills.value.length + ' 项技能')
  // QA 优化: 从岗位详情「匹配诊断」CTA 进入时（?position=），确认技能后直接选中目标岗位
@@ -140,7 +140,7 @@ function confirmManualSkills() {
   step.value = 1
 }
 
-// ── Step 1: 选岗 ──
+// ──: 选岗 ──
 async function handlePositionSelect(pos: { position_id: string; name: string; name_cn?: string | null }) {
   // D8i-fix 契约统一（name_cn→name）：显示名用 name_cn，API 键用 canonical name，
   // 避免把中文显示名当匹配键传给后端导致 `Position not found`。
@@ -172,7 +172,7 @@ async function handlePositionSelect(pos: { position_id: string; name: string; na
       required: PROFICIENCY_MAP[s.proficiency] ?? 0.5,
       user: 0,
     }))
- // FLOW-03: parsedSkills is now ParsedSkill[] with real proficiency
+ // parsedSkills is now ParsedSkill[] with real proficiency
     const userSkillSource = resumeStore.result?.required_skills ?? userStore.parsedSkills
     if (userSkillSource.length) {
       const userSkills = new Map(userSkillSource.map((s: { skill: string; proficiency: string }) => [s.skill, PROFICIENCY_MAP[s.proficiency] ?? 0.5]))
@@ -186,7 +186,7 @@ async function handlePositionSelect(pos: { position_id: string; name: string; na
   }
 }
 
-// ── Step 2: 开始诊断 ──
+// ──: 开始诊断 ──
 async function handleStartDiagnosis() {
  // 前置校验: 技能与目标岗位都必须就绪,否则直接提示,避免向后端发空请求(422)
   const skillNames = userStore.parsedSkills.map(s => s.skill)
@@ -211,7 +211,7 @@ async function handleStartDiagnosis() {
   }, 300)
 
   try {
- // FLOW-03: extract skill names from structured parsedSkills
+ // extract skill names from structured parsedSkills
     const profMap: Record<string, string> = {}
  // Prefer resumeStore proficiency, fallback to parsedSkills proficiency
     if (resumeStore.result?.required_skills) {
@@ -246,7 +246,7 @@ async function handleStartDiagnosis() {
       matchAnimSkills.value = allSkills
     }
 
- // BUG-006 优化: 请求失败(result 为 null)才拦截;岗位无画像(空结果但带
+ // 优化: 请求失败(result 为 null)才拦截;岗位无画像(空结果但带
  // note)应跳转 step 3 展示空态引导,而不是停在 step 2 造成"空白页"错觉。
     if (!result) {
       ElMessage.warning('诊断未产生结果，请检查简历技能或尝试其他岗位')
@@ -271,7 +271,7 @@ async function handleStartDiagnosis() {
   }
 }
 
-// ── Step 3/4: computed for sub-components ──
+// ──/4: computed for sub-components ──
 const gapSkills = computed(() => matchStore.result?.skill_gap_detail ?? [])
 
 function goBack() {
@@ -313,7 +313,7 @@ function onFlowNavigate(targetStep: number) {
   }
 }
 
-// LOOP-04: 创建学习计划并跳转学习中心
+// 创建学习计划并跳转学习中心
 async function handleCreatePlan() {
   if (!matchStore.result) {
     ElMessage.warning('暂无匹配结果，无法创建学习计划')

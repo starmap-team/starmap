@@ -178,7 +178,7 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
             )
             logger.warning("evolution_orchestrator: graph projection failed (non-fatal): {}", exc)
 
- # ── Step 4: path recommender (single batch) ──
+ # ──: path recommender (single batch) ──
     try:
         async with session_factory() as session:
             async with session.begin():
@@ -193,7 +193,7 @@ async def run_evolution_pipeline(months_back: int = 6) -> dict[str, Any]:
         summary["errors"].append(f"path_recommender: {type(exc).__name__}: {exc}")
         logger.exception("evolution_orchestrator: path recommender unexpected error")
 
- # ── Step 5: refresh skill timeseries (existing service) ──
+ # ──: refresh skill timeseries (existing service) ──
     try:
         async with session_factory() as session:
             async with session.begin():

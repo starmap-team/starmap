@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 差距分析报告 — Step 3 子组件
+ * 差距分析报告 — 子组件
  * 展示匹配分数、已匹配技能、技能差距明细和诊断历史
  */
 import { computed } from 'vue'
@@ -24,7 +24,7 @@ const gapSkills = computed(() => matchResult.value?.skill_gap_detail ?? [])
 const matchedSkills = computed(() => matchResult.value?.matched_skills ?? [])
 const matchScore = computed(() => matchResult.value?.match_score ?? 0)
 
-// FLOW-02-S3: 分数差值卡片 —— 对比当前匹配分数与历史最近一次同岗位匹配分数
+// 分数差值卡片 —— 对比当前匹配分数与历史最近一次同岗位匹配分数
 const previousScore = computed(() => {
   const currentPosition = props.targetPosition
   const currentId = matchResult.value?.match_id
@@ -416,7 +416,7 @@ function handleExport() {
   margin-left: var(--space-1);
   font-weight: 600;
 }
-/* FLOW-02-S3: 分数差值卡片 */
+/*分数差值卡片 */
 .rs-delta {
   display: flex;
   align-items: center;

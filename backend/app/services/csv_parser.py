@@ -1,4 +1,4 @@
-"""CSV parser with multi-encoding support (Phase 15-02 Task 3, Fix M3).
+"""CSV parser with multi-encoding support (Fix M3).
 
 支持 UTF-8 (with/without BOM) 和 GBK 编码自动检测。
 per-row 编码错误显式返回，不静默丢失。

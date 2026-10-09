@@ -1,4 +1,4 @@
-"""Integration tests for POST /api/v1/admin/sync/all-positions-to-neo4j (Phase 02 D-02).
+"""Integration tests for POST /api/v1/admin/sync/all-positions-to-neo4j.
 
 C-1 SSOT 修复：PG position_records 全量幂等 MERGE 到 Neo4j Position 节点。
 沿 Phase 18 测试协议：只 mock Neo4j driver 与 session_factory，不起真实图库。

@@ -329,7 +329,7 @@ def _topological_sort(graph: dict[str, list[str]]) -> list[str]:
     if len(order) == len(graph):
         return order
 
- # BL-04: Cycle detected — use Tarjan's SCC to compress cycles
+ # Cycle detected — use Tarjan's SCC to compress cycles
     logger.warning("Cycle detected in prerequisite graph — using SCC compression")
     sccs = _tarjan_scc(graph)
  # Build compressed graph: each SCC becomes a single node
@@ -488,19 +488,19 @@ async def generate_learning_path(
 
     current_proficiencies = current_proficiencies or {}
 
- # Step 1: Build skill list with time estimates
+ # Build skill list with time estimates
     skill_names = [g["skill"] for g in match_gaps]
 
- # Step 2: Load per-skill learning hours from Neo4j (best-effort)
+ # Load per-skill learning hours from Neo4j (best-effort)
     skill_hours_map = await _load_skill_hours_from_neo4j(set(skill_names))
 
- # Step 3: Build prerequisite graph (Neo4j → fallback → extras)
+ # Build prerequisite graph (Neo4j → fallback → extras)
     prereq_graph = await build_prerequisite_graph(skill_names, prerequisites)
 
- # Step 4: Topological sort
+ # Topological sort
     ordered_names = _topological_sort(prereq_graph)
 
- # Step 5: Build SkillNodes in topo order
+ # Build SkillNodes in topo order
     gap_map = {g["skill"]: g for g in match_gaps}
     skill_nodes: list[SkillNode] = []
 
@@ -535,11 +535,11 @@ async def generate_learning_path(
     for i, node in enumerate(skill_nodes):
         node.order = i
 
- # Step 6: Calculate totals
+ # Calculate totals
     total_hours = sum(n.estimated_hours for n in skill_nodes if n.gap_level != GAP_LEVEL_MASTERED)
     total_weeks = ceil(total_hours / available_time) if available_time > 0 else 0
 
- # Step 6: Build phases
+ # Build phases
     phases = _build_phases(skill_nodes, available_time)
 
     path = LearningPath(

@@ -1,4 +1,4 @@
-"""position_filter — 岗位是否入图/展示的唯一判定（批0 真相源, 2026-08-28）。
+"""position_filter — 岗位是否入图/展示的唯一判定（真相源, 2026-08-28）。
 
 共识计划 ADR 决策：13 模块展示一致性收敛到单一过滤函数，防 reconcile 振荡。
 - is_graph_eligible: 岗位是否可入图（approved + IT 域 + 有 approved 技能）

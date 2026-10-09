@@ -1,4 +1,4 @@
-"""Coverage boost: core/security/client_ip.py — XFF 可信代理提取 (PLAN-015①)。
+"""Coverage boost: core/security/client_ip.py — XFF 可信代理提取。
 
 固定假 Request, 验证 get_client_ip 在以下场景的行为:
 - 空可信代理 → 永不解析 XFF (拒绝伪造, 默认最保守)

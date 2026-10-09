@@ -853,7 +853,7 @@ class TestAdminAuthGuards:
     """Verify that admin endpoints enforce authentication and admin role checks."""
 
     def test_reconcile_result_schema_has_edge_fields(self) -> None:
-        """Phase 23 Task 3: ReconcileResult 含 REQUIRES 边对账字段（IC-05 可观测）。"""
+        """ReconcileResult 含 REQUIRES 边对账字段（可观测）。"""
         from app.schemas.admin import ReconcileResult
 
         fields = ReconcileResult.model_fields

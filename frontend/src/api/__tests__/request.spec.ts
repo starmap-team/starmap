@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 /**
- * W1-T3 regression (P0-10 path mismatch).
+ * W1-T3 regression (path mismatch).
  *
  * 这些测试只校验 baseURL 的拼接是否正确，不真正发请求。
  * 通过 mock element-plus 让 request 模块在导入时不抛错。

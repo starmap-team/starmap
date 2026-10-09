@@ -11,8 +11,8 @@ import { STAGE_LABELS } from '@/stores/pipelineConfig'
 import { SOURCE_NAME_LABELS } from '@/constants/labels'
 import type { LiveActivityEvent } from '@/stores/pipelineRun'
 
-// Plan 02: 阶段描述，供 hover tooltip 引导新用户
-// Plan 03 Task 9 ( T6): 阶段描述 — 含作用 + 依赖 + 状态含义三要素
+// 阶段描述，供 hover tooltip 引导新用户
+// ( T6): 阶段描述 — 含作用 + 依赖 + 状态含义三要素
 const STAGE_DESCRIPTIONS: Record<string, { role: string; deps: string[]; status_meaning: Record<string, string> }> = {
   crawl: {
     role: '从启用的数据源采集原始 JD 记录，写入 jd_raw 表',
@@ -150,7 +150,7 @@ const statusConfig = computed(() => {
 })
 
 const stageLabel = computed(() => STAGE_LABELS[props.stage.name] || props.stage.name)
-// Plan 03 Task 9 ( T6): 拼装三要素 hover 文本
+// ( T6): 拼装三要素 hover 文本
 const stageDesc = computed(() => {
   const desc = STAGE_DESCRIPTIONS[props.stage.name]
   if (!desc) return ''

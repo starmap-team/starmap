@@ -1,4 +1,4 @@
-"""PIPE-03 (c) D-03: bootstrap 行为契约测试。"""
+"""(c): bootstrap 行为契约测试。"""
 from app.core.pipeline.bootstrap import (
     BOOTSTRAP_DELAY_SECONDS,
     schedule_bootstrap_if_enabled,

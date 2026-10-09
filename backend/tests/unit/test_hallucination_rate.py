@@ -1,4 +1,4 @@
-"""Phase 11 D-02/D-05: hallucination_rate 补测 + schema 三段式契约。
+"""hallucination_rate 补测 + schema 三段式契约。
 
 - D-02: 4 用例覆盖 hallucination_rate 计算 + Neo4j 不可用降级
 - D-05: ``HallucinationRateResponse`` 三段式契约（numerator/denominator/window_days）
@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from app.api.v1.quality import QualityDashboard, QualityReport, _build_quality_dashboard
 
 # ─────────────────────────────────────────────────────────────────
-# 1. QualityDashboard schema 契约（D-05 三段式）
+# 1. QualityDashboard schema 契约（三段式）
 # ─────────────────────────────────────────────────────────────────
 
 

@@ -1,4 +1,4 @@
-"""Unit tests for evolution write-back (D-04/D-05/D-06).
+"""Unit tests for evolution write-back.
 
 Uses the AsyncMock / fake-result pattern from test_dashboard_service.py —
 the DB session is fully mocked, no real PG required.
@@ -93,7 +93,7 @@ class TestWriteBackGate:
 
     @pytest.mark.asyncio
     async def test_pending_low_trust_still_blocked(self):
-        """Phase 23 Task 5: pending 行 trust<0.6 仍被拦（0.6 保守闸门保留）。"""
+        """pending 行 trust<0.6 仍被拦（0.6 保守闸门保留）。"""
         row = _make_row(trust=WRITEBACK_TRUST_THRESHOLD - 0.01, status="pending")
         session = _make_session()
         warnings: list[str] = []
@@ -105,7 +105,7 @@ class TestWriteBackGate:
 
     @pytest.mark.asyncio
     async def test_approved_low_trust_writes_back(self, position_id, skill_record):
-        """Phase 23 Task 5 (DF-04): approved 行 trust<0.6 直接放行写回 PSR。"""
+        """approved 行 trust<0.6 直接放行写回 PSR。"""
         row = _make_row(change_type="added_required", trust=0.4, status="approved")
         session = _make_session(
             _FakeScalarResult(position_id),
@@ -173,7 +173,7 @@ class TestWriteBackGate:
 
     @pytest.mark.asyncio
     async def test_retained_change_type_skipped(self):
-        """retained is a no-op (D-04)."""
+        """retained is a no-op."""
         row = _make_row(change_type="retained", trust=0.95)
         session = _make_session()
         warnings: list[str] = []
@@ -209,7 +209,7 @@ class TestAddedWriteBack:
 
     @pytest.mark.asyncio
     async def test_added_preferred_uses_mapping(self, position_id, skill_record):
-        """added_preferred maps to requirement_type='preferred' (D-04 mapping)."""
+        """added_preferred maps to requirement_type='preferred' (mapping)."""
         row = _make_row(change_type="added_preferred")
         session = _make_session(
             _FakeScalarResult(position_id),
@@ -297,7 +297,7 @@ class TestPromotedDemotedWriteBack:
 
     @pytest.mark.asyncio
     async def test_demoted_updates_existing_row(self, position_id, skill_record):
-        """demoted → SET requirement_type='preferred' (D-04 mapping)."""
+        """demoted → SET requirement_type='preferred' (mapping)."""
         row = _make_row(change_type="demoted")
         existing_psr = PositionSkillRelation(
             position_id=position_id,
@@ -401,7 +401,7 @@ class TestPromotedDemotedWriteBack:
 class TestUnresolvedAndFailures:
     @pytest.mark.asyncio
     async def test_unresolved_position_skips_with_warning_no_fabrication(self, skill_record):
-        """D-08: unresolvable position → skip + warning, never fabricate."""
+        """unresolvable position → skip + warning, never fabricate."""
         row = _make_row(position_name="算法专家")
         session = _make_session(_FakeScalarResult(None))  # position lookup → None
         warnings: list[str] = []
@@ -415,7 +415,7 @@ class TestUnresolvedAndFailures:
 
     @pytest.mark.asyncio
     async def test_exception_appends_warning_and_does_not_raise(self):
-        """D-06 fail-soft: any exception → warning appended, no raise."""
+        """fail-soft: any exception → warning appended, no raise."""
         row = _make_row()
         session = MagicMock()
         session.execute = AsyncMock(side_effect=RuntimeError("db blew up"))

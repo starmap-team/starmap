@@ -161,7 +161,7 @@ export interface CreatePlanRequestBody {
   available_hours_per_week?: number
 }
 
-/** 从匹配结果构造 CreatePlanRequest 请求体 (LOOP-03)
+/** 从匹配结果构造 CreatePlanRequest 请求体 
  * Accepts either a raw MatchResult from the match store or a pre-built
  * CreatePlanRequestBody (idempotent — returns as-is if already shaped).
  */
@@ -258,7 +258,7 @@ export const useLearningPlanStore = defineStore('learningPlan', () => {
     planError.value = null
     try {
       await request.put(`/learning/plan/${planId}/progress`, { skill_name: skill, status })
- // FLOW-03: 同步已掌握技能到用户技能列表，重新匹配可反映进步
+ // 同步已掌握技能到用户技能列表，重新匹配可反映进步
       if (status === 'mastered') {
         const userStore = useUserStore()
         userStore.addParsedSkill(skill)

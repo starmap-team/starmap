@@ -1,4 +1,4 @@
-"""Phase 27 import stage in-batch dedup tests.
+"""import stage in-batch dedup tests.
 
 import_.run() 涉及 DB + Celery + SSE,完整集成需要 docker;
 本测试聚焦 dedup 算法本身的正确性,直接复制 import_.py 中

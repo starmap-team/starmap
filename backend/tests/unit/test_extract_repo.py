@@ -1,4 +1,4 @@
-"""Coverage boost: repositories/extract_repo.py — PG 抽取持久化 (PLAN-013)。
+"""Coverage boost: repositories/extract_repo.py — PG 抽取持久化。
 
 假 session 记录 execute 的 SQL 文本与参数，验证:
 - upsert_position_record: ON CONFLICT 保留原行（review_status 不覆盖）

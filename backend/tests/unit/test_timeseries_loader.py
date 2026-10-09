@@ -1,4 +1,4 @@
-"""Coverage boost: core/evolution/timeseries_loader.py — 时序加载与分组 (PLAN-013)。
+"""Coverage boost: core/evolution/timeseries_loader.py — 时序加载与分组。
 
 使用假 AsyncSession（execute → scalars().all()），不触 DB。
 """

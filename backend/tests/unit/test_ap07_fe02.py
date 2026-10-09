@@ -1,4 +1,4 @@
-"""Tests for AP-07 (SSE client limit) and FE-02 (A/B test results)."""
+"""Tests for (SSE client limit) and (A/B test results)."""
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
@@ -9,11 +9,11 @@ from app.core.dashboard.sse_broadcaster import (
     MAX_SSE_CLIENTS,
 )
 
-# ── AP-07: SSE connection limit ──
+# ──: SSE connection limit ──
 
 
 class TestAP07SSEClientLimit:
-    """AP-07: SSE event_stream should enforce MAX_SSE_CLIENTS limit."""
+    """SSE event_stream should enforce MAX_SSE_CLIENTS limit."""
 
     def test_max_clients_is_configured(self):
         assert MAX_SSE_CLIENTS > 0
@@ -50,11 +50,11 @@ class TestAP07SSEClientLimit:
             sse_mod._active_sse_clients = original
 
 
-# ── FE-02: A/B test results endpoint ──
+# ──: A/B test results endpoint ──
 
 
 class TestFE02ABTestResults:
-    """FE-02: A/B test result recording and aggregation."""
+    """A/B test result recording and aggregation."""
 
     @pytest.mark.asyncio
     async def test_record_and_retrieve_results(self):

@@ -1,4 +1,4 @@
-"""Seed daily_reconcile schedule row (Phase 23 Task 4, DC-01/IS-03).
+"""Seed daily_reconcile schedule row.
 
 `pipeline_schedules` 此前没有任何 `daily_reconcile` 种子行 → cron_scanner 的
 `scan_due_schedules`（`next_run_at <= now` 过滤）永远不会选中该行，Celery 的

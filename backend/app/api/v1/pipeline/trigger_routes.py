@@ -1,4 +1,4 @@
-"""Pipeline 操作类子路由（D-02 Task 7 拆分）。
+"""Pipeline 操作类子路由（拆分）。
 
 POST 操作类端点：/trigger /runs/{id}/cancel|retry|resume|force-advance|force-reset
 /crawl-source /analyze /export /crawler-complete。
@@ -60,7 +60,7 @@ async def cancel_pipeline_run(
     # field — kill switch is a destructive operation, so restrict to admin.
     _admin: Annotated[Any, Depends(require_admin)] = None,
 ) -> CancelResponse:
-    """Phase 1 D-04: 软取消 + Redis STOP flag + Celery 阶段开始时检查。"""
+    """软取消 + Redis STOP flag + Celery 阶段开始时检查。"""
     from app.services.pipeline_service import RunAlreadyTerminalError, RunNotFoundError, cancel_run
 
     redis_client = getattr(request.app.state.resources, "redis_client", None)
@@ -130,7 +130,7 @@ async def force_advance_pipeline(run_id: UUID) -> PipelineRunResponse:
 
     sm = get_session_factory()
 
-    # Phase 7 fix: detect and mark stuck stages before advancing
+    # fix: detect and mark stuck stages before advancing
     async with sm() as session:
         async with session.begin():
             result = await session.execute(sa_select(PipelineRun).where(PipelineRun.id == run_id))
@@ -173,7 +173,7 @@ async def force_advance_pipeline(run_id: UUID) -> PipelineRunResponse:
 
 @router.post("/runs/{run_id}/force-reset", response_model=PipelineRunResponse, dependencies=[Depends(require_admin)])
 async def force_reset_pipeline(run_id: UUID) -> PipelineRunResponse:
-    """Phase 3.8.5: 强制重置卡死的 run (is_running=true 但无 stage running).
+    """强制重置卡死的 run (is_running=true 但无 stage running).
 
     适用场景: advance_pipeline 失败, run 处于幽灵 running 状态。
     操作: 取消这个 run, 但不清空 stage 数据, 方便用户查看发生了什么。
@@ -354,7 +354,7 @@ async def analyze_pipeline(
     session: Annotated[AsyncSession, Depends(get_db_session)] = None,  # type: ignore[assignment]
 ) -> StreamingResponse:
     """上传简历，执行完整的6步求职者分析 Pipeline。"""
-    # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+    # 统一校验（扩展名 + MIME + 大小 + 魔术字节）
     content_bytes = await validate_resume_upload(resume_file)
 
     from loguru import logger as _logger
@@ -401,7 +401,7 @@ async def export_analysis(
     session: Annotated[AsyncSession, Depends(get_db_session)] = None,  # type: ignore[assignment]
 ) -> Any:
     """上传简历并返回 JSON 格式的完整分析结果。"""
-    # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+    # 统一校验（扩展名 + MIME + 大小 + 魔术字节）
     content_bytes = await validate_resume_upload(resume_file)
 
     from fastapi.responses import JSONResponse
@@ -442,7 +442,7 @@ async def export_analysis(
     return JSONResponse(content=_build_result(ctx))
 
 
-# ── Phase 7: Crawler completion Webhook (P0-2 fix) ──
+# ──: Crawler completion Webhook (fix) ──
 
 
 @router.post("/crawler-complete", response_model=dict)

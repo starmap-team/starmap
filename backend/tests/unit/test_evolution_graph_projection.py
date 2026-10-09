@@ -1,4 +1,4 @@
-"""Unit tests for incremental Neo4j projection counting (W2, D-04 tail).
+"""Unit tests for incremental Neo4j projection counting (W2, tail).
 
 Uses fake result summaries to verify that only edges whose MERGE actually
 created/updated nodes or relationships (``counters.contains_updates``) count

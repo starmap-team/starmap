@@ -1,4 +1,4 @@
-"""PG ↔ Neo4j REQUIRES-edge consistency check (D-07).
+"""PG ↔ Neo4j REQUIRES-edge consistency check.
 
 Compares ``position_skill_relations`` in PG with REQUIRES edges in Neo4j keyed
 by canonical_id pair, including attribute-level comparison of

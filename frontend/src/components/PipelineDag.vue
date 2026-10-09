@@ -60,7 +60,7 @@ function getStageLive(stageName: string): LiveActivityEvent | null {
   return props.liveActivity?.[stageName] || null
 }
 
-// 2026-08-21 (P0-2): 作业身份 —— 从任一 stage 取当前 run 标识（后端 /stages
+// 2026-08-21 : 作业身份 —— 从任一 stage 取当前 run 标识（后端 /stages
 // 每个 stage 都带 run_id/run_status）。展示"这是哪一次运行"，避免不同 run 混淆。
 const currentRunId = computed(() => props.timelineStages[0]?.run_id || '')
 const currentRunStatus = computed(() => props.timelineStages[0]?.run_status || '')
@@ -323,7 +323,7 @@ const showResumeRemaining = computed(() => {
 }
 .running-tag { color: #3b82f6; font-weight: 600; }
 
-/* 2026-08-21 (P0-2): 作业身份 + 剩余待续 */
+/* 2026-08-21 : 作业身份 + 剩余待续 */
 .run-id-tag {
   font-size: 11px;
   color: #64748b;
@@ -405,7 +405,7 @@ const showResumeRemaining = computed(() => {
   position: relative;
 }
 
-/* DAG 串行箭头（ Plan 02 Task 2: clean 依赖 dedup，取消 fork/merge） */
+/* DAG 串行箭头（: clean 依赖 dedup，取消 fork/merge） */
 .dag-arrow-down {
   display: flex;
   flex-direction: column;

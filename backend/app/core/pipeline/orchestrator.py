@@ -100,7 +100,7 @@ def _build_initial_stages(selected: list[str] | None = None) -> list[dict[str, A
             "retry_count": 0,
             "error_type": "",     # Phase 7 fix: classify failures for observability
             "depends_on": STAGE_DEPS.get(stage.value, []),
-            # Phase 3.7: 实时活动字段
+            # 实时活动字段
             "current_activity": "",
             "recent_samples": [],
             "sub_breakdown": {},
@@ -213,7 +213,7 @@ async def update_stage_status(
         stage["started_at"] = _now().isoformat()
     if status in (StageStatus.COMPLETED.value, StageStatus.FAILED.value):
         stage["completed_at"] = _now().isoformat()
-    # Phase 3.8.1: stage 完成/失败时强制 progress=1.0 (避免显示 0%)
+    # stage 完成/失败时强制 progress=1.0 (避免显示 0%)
     if status == StageStatus.COMPLETED.value and progress is None:
         stage["progress"] = 1.0
     elif progress is not None:
@@ -234,7 +234,7 @@ async def update_stage_status(
         stage["retry_count"] = retry_count
     if error_type:
         stage["error_type"] = error_type
-    # Phase 3.7: 实时活动上下文持久化
+    # 实时活动上下文持久化
     if current_activity:
         stage["current_activity"] = current_activity
     if recent_samples is not None:
@@ -286,7 +286,7 @@ async def complete_run(
     )
     await session.flush()
 
-    # Phase 2 AUTHORITY-01: 更新所有数据源权威分
+    # AUTHORITY-01: 更新所有数据源权威分
     try:
         from app.core.pipeline.source_authority import update_authority_scores
         await update_authority_scores(session)
@@ -295,7 +295,7 @@ async def complete_run(
     except Exception:
         logger.exception("update_authority_scores failed (non-fatal)")
 
-    # Phase 2 AUTHORITY-02: quality < 0.3 的数据源标记 paused
+    # AUTHORITY-02: quality < 0.3 的数据源标记 paused
     # 2026-08-20 修复 (A1): 从未采集成功的源 authority_score 恒为 0.25（无数据默认分），
     # 无条件按 <0.3 暂停会把所有新接入的源打成 paused → paused→不采集→0.25→再暂停死锁。
     # 增加前置条件：仅当该源有历史数据（total_records>0）或最近 24h 有采集 metrics
@@ -513,7 +513,7 @@ def _serialize_run(run: PipelineRun | None) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
-# Phase 1: Cancel run (D-04: 软取消 + STOP flag + Celery 阶段开始时检查)
+# Cancel run (: 软取消 + STOP flag + Celery 阶段开始时检查)
 # ---------------------------------------------------------------------------
 
 class RunCancelResult:
@@ -537,7 +537,7 @@ async def cancel_run(
     redis_client: Any | None,
     run_id: uuid.UUID,
 ) -> RunCancelResult:
-    """Cancel a running pipeline (D-04).
+    """Cancel a running pipeline.
 
     Steps in a single transaction:
     1. UPDATE pipeline_runs SET status='cancelled', completed_at=now(), error_log='cancelled by user'
@@ -600,7 +600,7 @@ async def cancel_run(
         except Exception:
             logger.exception("Status cache invalidation failed (non-fatal)")
 
-    # 5. Phase 3.8.1 FIX: 通过 SSE 广播 cancel 事件，让前端立即响应
+    # 5. FIX: 通过 SSE 广播 cancel 事件，让前端立即响应
     try:
         from app.core.dashboard.sse_broadcaster import publish_event
         await publish_event(redis_client, "pipeline_update", {

@@ -324,7 +324,7 @@ async def _build_quality_dashboard(session: AsyncSession) -> QualityDashboard:
     )
 
 
-# 2026-08-29 (PERF-01): quality dashboard 无缓存 —— 每次请求 27 次串行 DB 往返
+# 2026-08-29 : quality dashboard 无缓存 —— 每次请求 27 次串行 DB 往返
 # (实测 329-545ms, 数据只在 pipeline run/审核后变化)。加 Redis TTL 缓存
 # (30s), 复用 dashboard_service 的 _get_cached/_set_cached 模式。
 _QUALITY_DASHBOARD_TTL = 30  # 秒
@@ -599,7 +599,7 @@ async def get_comprehensive_report(
     )
 
 
-# ── 数据质量区 (批2 可持续, 2026-08-28) ──
+# ── 数据质量区 (可持续, 2026-08-28) ──
 # 共识计划 AC4: 图内岗位数(Neo4j) / PG全量 / 隐藏数(no_skills+非IT) / 未分类 / 重名组。
 # 口径: 隐藏按 quality_hint∈{no_skills}+industry非IT 计; 未分类按 industry 三态;
 #       两者正交可重叠, 不违反「图内+隐藏=PG全量」恒等。

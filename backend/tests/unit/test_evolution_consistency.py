@@ -1,4 +1,4 @@
-"""Unit tests for PG ↔ Neo4j consistency check (D-07, read-only).
+"""Unit tests for PG ↔ Neo4j consistency check (read-only).
 
 Constructs mismatch fixtures for the PG rows (mocked session) and Neo4j edges
 (mocked driver), asserts the mismatch report structure, and asserts no write
@@ -220,7 +220,7 @@ async def test_duplicate_pair_missing_one_edge_reports_pg_only():
 
 @pytest.mark.asyncio
 async def test_no_write_cypher_issued():
-    """D-07: only read Cypher — no MERGE/SET/CREATE/DELETE ever issued."""
+    """only read Cypher — no MERGE/SET/CREATE/DELETE ever issued."""
     factory = _make_session_factory(PG_ROWS)
     patcher, driver = _patch_graph_config(NEO_ROWS)
     with patcher:

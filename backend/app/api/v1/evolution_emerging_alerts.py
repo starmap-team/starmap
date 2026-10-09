@@ -1,4 +1,4 @@
-"""Evolution emerging-skill alerts endpoint — extracted from evolution.py (Phase 7 evolution domain split).
+"""Evolution emerging-skill alerts endpoint — extracted from evolution.py (evolution domain split).
 
 业务说明：新兴技能预警 API，基于 Z-score 检测 emerging/rising/declining 信号并生成预警。
 注册到 evolution.py 的主 router（prefix="/evolution"），最终路径 /evolution/emerging-alerts。

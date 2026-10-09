@@ -1,4 +1,4 @@
-"""Cost tracker Phase 27 cap tests.
+"""Cost tracker cap tests.
 
 覆盖:
 - 默认无 cap 时 is_blocked 始终 False。

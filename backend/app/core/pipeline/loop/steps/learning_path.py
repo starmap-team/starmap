@@ -1,4 +1,4 @@
-"""Step 5 — Learning path derivation (Phase 07-02 D-01).
+"""— Learning path derivation.
 
 Extracted from ``loop_orchestrator.py._step5_learning_path`` and
 ``_generic_learning_path``.
@@ -63,7 +63,7 @@ async def run_learning_path_step(
     session: AsyncSession | None = None,
     graph_available: bool = False,
 ) -> LoopStepResult:
-    """Step 5: Derive learning path from match gaps and auto-create plan.
+    """Derive learning path from match gaps and auto-create plan.
 
     Args:
         match_result: Step 4 output (or empty dict if match skipped/failed).

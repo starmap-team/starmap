@@ -1,5 +1,5 @@
 /**
- * 契约 JSON Schema 导入声明（PLAN-014）。
+ * 契约 JSON Schema 导入声明。
  *
  * schema 文件由 scripts/export_json_schemas.py 从后端 Pydantic 生成，
  * 位于仓库根 starmap-contracts/schemas/（frontend 目录外）。

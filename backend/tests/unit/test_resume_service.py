@@ -347,7 +347,7 @@ class TestRunResumeExtraction:
         assert _call_args is not None
         assert _call_args[1]["options"]["source"] == "custom_source"
 
-    # ── DEF-001: Redis 内容哈希缓存 ──
+    # ──: Redis 内容哈希缓存 ──
 
     @pytest.mark.asyncio
     async def test_cache_hit_skips_llm(self):

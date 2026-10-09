@@ -1,4 +1,4 @@
-"""全量回填岗位五要素（Phase 38，A3 持久化）。
+"""全量回填岗位五要素(A3 持久化）。
 
 对 position_records 中缺五要素（industry_scenario 为空）的已审核岗位，
 复用 evolution_service.generate_position_definitions 的 LLM 生成逻辑

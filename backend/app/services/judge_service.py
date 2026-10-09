@@ -230,7 +230,7 @@ async def evaluate_sample_async(
     system_bon_set = {_normalize_skill(s) for s in _skill_names(system_bonus)} - {""}
 
     def _f1(gs: set[str], ss: set[str]) -> tuple[float, float, float]:
- # BL-01: both empty → skip (return 0 so it doesn't inflate avg)
+ # both empty → skip (return 0 so it doesn't inflate avg)
         if not gs and not ss:
             return 0.0, 0.0, 0.0
         if not gs or not ss:
@@ -306,7 +306,7 @@ async def evaluate_batch_async(
         sid = golden.get("id", "")
         system = system_map.get(sid, {})
         if not system:
- # BL-11: Skip missing samples instead of treating as F1=0
+ # Skip missing samples instead of treating as F1=0
             logger.debug("No system output for sample '{}', skipping", sid)
             continue
         eval_result = await evaluate_sample_async(

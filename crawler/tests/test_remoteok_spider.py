@@ -1,4 +1,4 @@
-"""PLAN-003: RemoteOK spider 测试 (mock compliance.fetch)。"""
+"""RemoteOK spider 测试 (mock compliance.fetch)。"""
 
 from __future__ import annotations
 

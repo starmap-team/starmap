@@ -1,4 +1,4 @@
-"""Phase 03 Plan 03 Task 1: stages/common.py 公共层测试。
+"""stages/common.py 公共层测试。
 
 锁定公共层契约：
 - publish_stage_progress / run_async / PipelineStageError / get_session_factory / select 可从 stages.common 导入
@@ -44,7 +44,7 @@ class TestStagesCommonImports:
             assert field in annotations, f"StageProgress missing {field}"
 
     def test_publish_stage_progress_sub_step_field(self):
-        """publish_stage_progress 必须支持 sub_step 参数（D-15）。"""
+        """publish_stage_progress 必须支持 sub_step 参数。"""
         import inspect
 
         from app.core.pipeline.stages.common import publish_stage_progress
@@ -71,7 +71,7 @@ class TestStagesModuleSurface:
             assert callable(getattr(stages, name)), f"stages.{name} not callable"
 
     def test_timeseries_is_real_not_stub(self):
-        """timeseries 已迁出 — 不应是 _not_migrated 占位（Task 1 完成标志）。"""
+        """timeseries 已迁出 — 不应是 _not_migrated 占位（完成标志）。"""
         from app.core.pipeline import stages
 
         fn = stages.execute_timeseries
@@ -88,7 +88,7 @@ class TestStagesModuleSurface:
         assert "records_processed" in result
 
     def test_unmigrated_stages_raise(self):
-        """未迁出的 stage 调用应抛 NotImplementedError（D-01 进度标识）。
+        """未迁出的 stage 调用应抛 NotImplementedError（进度标识）。
 
         当前已迁出全部 6 阶段（Tasks 1-6），故未迁出列表为空。
         该测试作为回归守护：未来若新增阶段且未迁出，应失败。
@@ -98,7 +98,7 @@ class TestStagesModuleSurface:
         assert unmigrated == [], "all 6 stages must be migrated (D-01 完成)"
 
     def test_dedup_is_real_not_stub(self):
-        """dedup 已迁出 — Task 2 完成标志。"""
+        """dedup 已迁出 — 完成标志。"""
         from app.core.pipeline import stages
 
         fn = stages.execute_dedup
@@ -109,7 +109,7 @@ class TestStagesModuleSurface:
         assert isinstance(result, dict)
 
     def test_clean_is_real_not_stub(self):
-        """clean 已迁出 — Task 3 完成标志。"""
+        """clean 已迁出 — 完成标志。"""
         from app.core.pipeline import stages
 
         fn = stages.execute_clean
@@ -120,7 +120,7 @@ class TestStagesModuleSurface:
         assert isinstance(result, dict)
 
     def test_crawl_is_real_not_stub(self):
-        """crawl 已迁出 — Task 4 完成标志（签名带 run_type）。
+        """crawl 已迁出 — 完成标志（签名带 run_type）。
 
         Phase 03 Plan 03 补完：原实现会真实执行 crawl（连 DB + 爬虫网络请求），
         在全量测试中会因连接池/网络而卡住。本测试改为 patch crawl 内部依赖
@@ -144,7 +144,7 @@ class TestStagesModuleSurface:
         assert isinstance(result, dict)
 
     def test_import_is_real_not_stub(self):
-        """import 已迁出 — Task 5 完成标志。"""
+        """import 已迁出 — 完成标志。"""
         from app.core.pipeline import stages
 
         fn = stages.execute_import

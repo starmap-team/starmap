@@ -1,4 +1,4 @@
-"""ensure_prerequisite_map 单元测试（NEW-03）。
+"""ensure_prerequisite_map 单元测试。
 
 锁定：共享 PREREQUISITE_MAP 必须能从 Neo4j 幂等加载、
 driver 缺失时降级为空且不抛错。

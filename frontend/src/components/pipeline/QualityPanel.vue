@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * PipelineMonitor 数据质量面板（ Plan 03 Task 8 实际迁移）。
+ * PipelineMonitor 数据质量面板（ 实际迁移）。
  *
  * 原 PipelineQualityPanel.vue 迁入 components/pipeline/ 目录（仅 PipelineMonitor 使用）。
  * 展示综合质量仪表盘、质量趋势折线图、质量维度进度条。

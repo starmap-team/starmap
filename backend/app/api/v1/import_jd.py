@@ -1,4 +1,4 @@
-"""Import JD API endpoints (Phase 15-02 Task 4).
+"""Import JD API endpoints.
 
 POST /api/v1/import/jd       - CSV 上传导入
 POST /api/v1/import/jd/json  - JSON 直接导入

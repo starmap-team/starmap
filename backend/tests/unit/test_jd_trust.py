@@ -1,4 +1,4 @@
-"""PLAN-012: §7.1 JD 级 4 因子信任度模型测试。"""
+"""§7.1 JD 级 4 因子信任度模型测试。"""
 
 from __future__ import annotations
 

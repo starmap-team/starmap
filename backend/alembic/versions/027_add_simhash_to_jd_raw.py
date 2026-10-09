@@ -1,4 +1,4 @@
-"""Add simhash column to jd_raw for near-duplicate detection (NEW-06 / PLAN-006③ / PLAN-009).
+"""Add simhash column to jd_raw for near-duplicate detection.
 
 NEW-06 content_hash 决策：拆列方案 — content_hash 继续守精确去重（UNIQUE），新增
 simhash 列（BIGINT, nullable）存 64-bit SimHash 指纹供 get_existing_hashes 近似去重。

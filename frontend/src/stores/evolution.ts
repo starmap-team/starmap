@@ -75,7 +75,7 @@ export const DEFAULT_KPI: EvolutionKpi = {
   days: 90,
 }
 
-// LOOP-06: Emerging alert type for evolution alerts
+// Emerging alert type for evolution alerts
 //: Added missing fields from backend (source_count, trend, portability_score)
 export interface EmergingAlert {
   skill_name: string
@@ -122,7 +122,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
   const changelogLoading = ref(false)
   const changelogData = ref<ChangelogEntry[]>([])
 
- // LOOP-06: Emerging alerts state
+ // Emerging alerts state
   const emergingAlerts = ref<EmergingAlert[]>([])
   const alertsLoading = ref(false)
 
@@ -201,7 +201,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return snapshots.value
   }
 
- // UX-04: Renamed parameter — backend 'identifier' accepts both position and skill names
+ // Renamed parameter — backend 'identifier' accepts both position and skill names
   async function fetchChangelog(identifier: string) {
     changelogLoading.value = true
     try {
@@ -223,7 +223,7 @@ export const useEvolutionStore = defineStore('evolution', () => {
     return changelogData.value
   }
 
- // LOOP-06: Fetch emerging skill alerts
+ // Fetch emerging skill alerts
   async function fetchEmergingAlerts(level?: string) {
     alertsLoading.value = true
     try {

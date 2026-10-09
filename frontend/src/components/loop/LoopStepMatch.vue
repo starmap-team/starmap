@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * LoopStepMatch — Step 4: Match Diagnosis
+ * LoopStepMatch —: Match Diagnosis
  * Radar chart + gap analysis + skill tags.
  *-02: also surfaces 分数拆解行（required_avg / bonus_avg /
  * weight_required / weight_bonus / inflated）。
@@ -382,7 +382,7 @@ defineExpose({ buildRadarData })
   flex-shrink: 0;
 }
 
-/* ── Step 4: Match Diagnosis ── */
+/* ──: Match Diagnosis ── */
 .match-score-badge {
   display: flex;
   align-items: baseline;

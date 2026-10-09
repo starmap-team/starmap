@@ -1,4 +1,4 @@
-"""Seed 4 free API/Feed data sources (Phase 15-01 Task 6).
+"""Seed 4 free API/Feed data sources.
 
 Insert 4 DataSource rows: Arbeitnow, Jobicy, WeWorkRemotely, Remotive
 source_type='api' 表示这些是真实 API 调用而非爬虫。

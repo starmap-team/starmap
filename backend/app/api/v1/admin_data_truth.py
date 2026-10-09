@@ -27,7 +27,7 @@ from app.schemas.admin import (
     TruthRow,
 )
 
-# PLAN-007a (NEW-01): /admin/* 端点必须叠加 require_admin，
+# /admin/* 端点必须叠加 require_admin，
 # 此前仅挂在 api_router 的 get_current_user 上，任意登录用户可读三口径对账数据。
 router = APIRouter(
     prefix="/admin",
@@ -127,7 +127,7 @@ async def get_data_truth(
             neo4j_relations = int(record["c"]) if record else 0
 
     # ── API 返回值（与前端 store 实际拿到的一致） ──
-    # BUG-15 fix: actually invoke the dashboard aggregation service instead of
+    # fix: actually invoke the dashboard aggregation service instead of
     # aliasing PG. The whole point of three-layer audit is API ≠ PG ≠ Neo4j;
     # aliasing defeats the purpose and silently makes diff=0 for positions.
     # 2026-08-28 (对账全面优化): 岗位总数行改用 PG 可入图口径（见下），
@@ -271,7 +271,7 @@ async def get_data_truth(
         explanation=f"这 {pg_approved_positions} 个岗位已发布到公开图谱，普通用户可检索。",
     ))
 
-    # Phase 5 Step 4: 计算同步健康度
+    # 计算同步健康度
     # P2 修复 (R2/R3): 旧口径只对齐 canonical_id 非空节点 → 漏掉无 canonical_id 的
     # 历史孤儿（正是 346-311=35 / 843-752=91 差额的来源），健康卡与总数表自相矛盾。
     # 统一走 RepairEngine.detect_orphans 严格口径（含 no_canonical_id 节点）。

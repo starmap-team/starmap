@@ -1,4 +1,4 @@
-"""execute_dedup 回归测试（NEW-05）。
+"""execute_dedup 回归测试。
 
 Bug：exact/fuzzy 计数器从不递增 → duplicates_found 恒 0、
 _update_source_after_dedup 收到 0 → 数据源 duplicate_rate 失真（权威分失真）。

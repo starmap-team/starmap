@@ -10,7 +10,7 @@ import os
 import urllib.error
 import urllib.request
 
-# PLAN-007b: 凭据单一来源 = 环境变量（默认值为 dev/demo 引导账号）。
+# 凭据单一来源 = 环境变量（默认值为 dev/demo 引导账号）。
 _ADMIN_USER = os.environ.get("STARMAP_TEST_ADMIN_USER", "admin")
 _ADMIN_PASSWORD = os.environ.get("STARMAP_TEST_ADMIN_PASSWORD", "starmap2024")
 

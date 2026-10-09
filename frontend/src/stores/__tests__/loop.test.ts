@@ -166,16 +166,16 @@ describe('useLoopStore', () => {
     await store.runLoop('JD text', 'Dev')
 
     expect(store.currentRun).toBeTruthy()
-    // Step 1 is always set to success immediately
+    // is always set to success immediately
     expect(store.currentRun!.steps[0].status).toBe('success')
-    // Step 2: skill extraction
+    // skill extraction
     expect(store.currentRun!.steps[1].status).toBe('success')
     expect(store.currentRun!.steps[1].data).toBeTruthy()
-    // Step 3: graph update
+    // graph update
     expect(store.currentRun!.steps[2].status).toBe('success')
-    // Step 4: match diagnosis
+    // match diagnosis
     expect(store.currentRun!.steps[3].status).toBe('success')
-    // Step 5: learning path
+    // learning path
     expect(store.currentRun!.steps[4].status).toBe('success')
   })
 
@@ -199,11 +199,11 @@ describe('useLoopStore', () => {
     const store = useLoopStore()
     await store.runLoop('JD text')
 
-    // Step 3: graph update should be degraded
+    // graph update should be degraded
     expect(store.currentRun!.steps[2].status).toBe('degraded')
-    // Step 4: match should be degraded
+    // match should be degraded
     expect(store.currentRun!.steps[3].status).toBe('degraded')
-    // Step 5: learning path should be degraded
+    // learning path should be degraded
     expect(store.currentRun!.steps[4].status).toBe('degraded')
   })
 
@@ -219,7 +219,7 @@ describe('useLoopStore', () => {
     expect(store.error).toBe('Loop execution failed')
     expect(store.currentRun).toBeTruthy()
     expect(store.currentRun!.status).toBe('partial')
-    // Step 1 is set to success before the API call, so no running step to mark failed
+    // is set to success before the API call, so no running step to mark failed
     // But the run should be marked as partial
     expect(store.loading).toBe(false)
   })

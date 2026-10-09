@@ -215,7 +215,7 @@ async def get_current_user(
 async def require_admin(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """要求 admin 角色 (AUTHZ-01 修复)。
+    """要求 admin 角色 (修复)。
 
     开发环境: 默认 dev 用户即为 admin。
     生产环境: JWT payload 中 role 必须为 "admin"。
@@ -311,7 +311,7 @@ async def get_current_user_sse(
     token: str | None = Query(None, description="JWT token (EventSource fallback)"),
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> dict[str, Any]:
-    """SSE-friendly auth: accept token via query param OR Authorization header (LOOP-02).
+    """SSE-friendly auth: accept token via query param OR Authorization header.
 
     EventSource API doesn't support custom headers, so the frontend passes
     the JWT token as a ``?token=xxx`` query parameter. This dependency checks

@@ -61,7 +61,7 @@ class MatchCache:
         """
         self._ttl = ttl
         self._max_size = max_size
- # BL-13: per-key TTL for profile cache (avoids cache avalanche)
+ # per-key TTL for profile cache (avoids cache avalanche)
         self._profile_cache: dict[str, dict[str, list[dict[str, str]]]] = {}
         self._profile_cache_ts: dict[str, float] = {}  # per-key timestamps
         self._match_results: dict[str, dict[str, Any]] = {}
@@ -97,7 +97,7 @@ class MatchCache:
     def set_profile(
         self, target_position: str, profile: dict[str, list[dict[str, str]]]
     ) -> None:
-        """设置岗位技能画像缓存（BL-13: per-key TTL）。
+        """设置岗位技能画像缓存（: per-key TTL）。
 
         写入时刷新该 key 的时间戳，过期由 get_profile 按需惰性删除。
 

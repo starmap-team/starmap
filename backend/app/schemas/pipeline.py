@@ -204,7 +204,7 @@ class PipelineConfigResponse(BaseModel):
 
 
 class PipelineConfigUpdateRequest(BaseModel):
-    """Update pipeline configuration (SEC-06: all fields have range constraints)."""
+    """Update pipeline configuration (: all fields have range constraints)."""
 
     stage_timeout: int | None = Field(
         None,

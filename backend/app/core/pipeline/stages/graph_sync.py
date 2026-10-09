@@ -1,4 +1,4 @@
-"""Pipeline graph_sync 阶段（D-01 + D-07 + D-11 + D-18 Task 6）。
+"""Pipeline graph_sync 阶段。
 
 将 PG 数据投影到 Neo4j 图谱（outbox 模式防漂移）。可选 reconcile 子步骤（D-07）：
 读取 `pipeline_graph_sync_reconcile_on_sync` 配置（默认 False），开启时执行 PG↔Neo4j 对账。
@@ -26,7 +26,7 @@ from app.core.pipeline.stages.common import (
     run_async,
 )
 
-# ── Graph Write Outbox helpers (Phase 7 P0-1; 原 executor.py, 随阶段迁入) ──
+# ── Graph Write Outbox helpers (; 原 executor.py, 随阶段迁入) ──
 
 
 async def _create_outbox_record(
@@ -172,7 +172,7 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         if result.get("status") != "completed":
             errors.append(f"graph sync incomplete: {result}")
 
-        # D-07: 可选 reconcile 子步骤（默认关闭）
+        # 可选 reconcile 子步骤（默认关闭）
         from app.config import settings
 
         if settings.pipeline_graph_sync_reconcile_on_sync:
@@ -185,8 +185,8 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
             ))
             _run_reconcile_substep(run_id, errors, start)
 
-        # D-03 (Phase 02): Position PG↔Neo4j 一致性校验（**默认开启**，仅观察不阻断）。
-        # 与 D-07 reconcile 不同：这里只比对计数并告警，不改任何数据。
+        # Position PG↔Neo4j 一致性校验（**默认开启**，仅观察不阻断）。
+        # 与 reconcile 不同：这里只比对计数并告警，不改任何数据。
         _run_position_consistency_substep(run_id)
     except PipelineStageError:
         raise
@@ -207,7 +207,7 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
         "records_processed": processed,
         "errors": errors,
         "outbox_id": str(outbox_id),
-        # Phase 19 修复: return 补 current_activity（DB 快照持久化，解释"0 条扫描/构建结果"）
+        # 修复: return 补 current_activity（DB 快照持久化，解释"0 条扫描/构建结果"）
         "current_activity": (
             f"图谱构建完成: {triples_merged} 三元组 / {nodes} 节点 / {edges} 关系"
             if processed
@@ -225,7 +225,7 @@ def execute_graph_sync(run_id: str) -> dict[str, Any]:
     }
 
 
-# ── Position PG↔Neo4j 一致性校验（Phase 02 D-03；沿 M3 D-06 仅观察不阻断）──
+# ── Position PG↔Neo4j 一致性校验（；沿 M3 仅观察不阻断）──
 
 #: outbox 告警条目类型标识，写入 GraphWriteOutbox.error 前缀便于检索
 POSITION_DRIFT_ALERT_TYPE = "position_pg_neo4j_drift"
@@ -283,10 +283,10 @@ async def _write_position_drift_outbox(
 async def _check_position_consistency(
     session_factory: Any, neo4j_driver: Any, run_id: str | None = None,
 ) -> int:
-    """D-03: Neo4j Position 节点数 vs PG PositionRecord 行数一致性校验。
+    """Neo4j Position 节点数 vs PG PositionRecord 行数一致性校验。
 
     差值 != 0 时写入 outbox `position_pg_neo4j_drift` 告警条目（severity=warning）。
-    **仅观察不阻断**：任何异常都被吞掉并记日志，不影响 graph_sync 阶段结果（沿 M3 D-06）。
+    **仅观察不阻断**：任何异常都被吞掉并记日志，不影响 graph_sync 阶段结果（沿 M3）。
 
     Returns:
         `neo4j_total - pg_count` 差值；无法取数时返回 0。
@@ -333,14 +333,14 @@ def _run_position_consistency_substep(run_id: str) -> int:
 
 
 def _run_reconcile_substep(run_id: str, errors: list[str], start: float) -> None:
-    """D-07: 对账子步骤 — 执行 PG↔Neo4j 一致性补齐。
+    """对账子步骤 — 执行 PG↔Neo4j 一致性补齐。
 
     对账逻辑折入此处；原 `scripts/backfill_graph_to_pg.py` 与 `scripts/sync_pg_edges_to_graph.py`
     已打 DEPRECATED 标记保留可手动跑。失败仅告警不阻断流水线。
     """
     try:
-        # Step 1: PG ← Neo4j (补齐缺失 skill/position)
-        # Step 2: PG → Neo4j (补齐缺失 REQUIRES edges)
+        # PG ← Neo4j (补齐缺失 skill/position)
+        # PG → Neo4j (补齐缺失 REQUIRES edges)
         # 完整实现见 scripts/backfill_graph_to_pg.py + scripts/sync_pg_edges_to_graph.py。
         # 当前实现调用 services/pipeline_consistency.check_pg_neo4j_consistency 触发告警。
         from app.services.pipeline_consistency import check_pg_neo4j_consistency

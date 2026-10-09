@@ -16,7 +16,7 @@ from app.exceptions import GraphProjectionError
 
 
 async def recompute_skill_trust(session: Any, driver: Any) -> dict[str, Any]:
-    """全量重算 Skill 节点 trust_score（Phase 19 D-02/D-04）。
+    """全量重算 Skill 节点 trust_score。
 
     用 §6.2 四因子公式(EntityTrustScorer)对全部 SkillRecord 重算信任度并写回 Neo4j，
     覆盖历史 0.5 脏数据（投影不写 trust_score 时代的默认值）。幂等：重复调用结果一致。
@@ -128,7 +128,7 @@ async def sync_from_pipeline(
     try:
         async with driver.session() as session:
             for pos in (new_positions or []):
-                # 2026-08-28 (批0 真相源): 隐藏岗位（no_skills/non_it）不建 Position 节点，
+                # 2026-08-28 (真相源): 隐藏岗位（no_skills/non_it）不建 Position 节点，
                 # 否则与「空技能/非IT不进图」契约矛盾（审核/流水线路径均收敛到同一判定）。
                 if pos.get("quality_hint") in ("no_skills", "non_it"):
                     continue
@@ -215,7 +215,7 @@ async def _sync_via_graph_writer(
     edges_written = 0
 
     try:
-        # ── 1. Build extraction from the current pipeline run's Step 2 data ──
+        # ── 1. Build extraction from the current pipeline run's data ──
         position_name = extraction_data.get("position_name", "")
         skills = extraction_data.get("skills", [])
 
@@ -250,7 +250,7 @@ async def _sync_via_graph_writer(
             extractions.append(current_extraction)
 
         # If target_position differs from position_name, also create a Position node
-        # with the target_position name so Step 4 match diagnosis can find it.
+        # with the target_position name so match diagnosis can find it.
         if target_position and target_position != position_name and skills:
             required_skills_alt = []
             preferred_skills_alt = []

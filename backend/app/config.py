@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     )
 
  # CORS
- # fix (+ NEW-P2): 浏览器跨域请求的 Origin 永远是人类可
+ # fix : 浏览器跨域请求的 Origin 永远是人类可
  # 解析的 http(s)://host[:port] 形式；不会以 `http://starmap-frontend:5173`
  # 这种容器 hostname 形式出现。把容器内部名放进白名单等于把 CORS 当
  # "内部全开"——一旦网络隔离失守就立刻被利用。
@@ -133,7 +133,7 @@ class Settings(BaseSettings):
  # fix (PLAN §): dev convenience "no token = admin" must be
  # opt-in, not default. The previous behaviour — anonymous dev request
  # returning role=admin — was a real residual risk once prod guards were
- # dormant (NEW-P0). Defaulting this to False means fresh dev clones
+ # dormant. Defaulting this to False means fresh dev clones
  # behave like real users; CI / shared dev environments must explicitly
  # opt in via DEV_ANON_ADMIN=true in their .env.
     dev_anon_admin: bool = Field(
@@ -224,7 +224,7 @@ class Settings(BaseSettings):
     spark_x_url: str = "https://spark-api-open.xf-yun.com/x2/chat/completions"
     spark_x_model: str = "spark-x"
 
-    # Phase 27 (qwen-plus 资源包优化): LLM 响应 Redis 缓存与翻译缓存
+    # (qwen-plus 资源包优化): LLM 响应 Redis 缓存与翻译缓存
     # 关闭 = false 时 call_llm_with_fallback 不查 Redis,直接走 fallback chain。
     llm_response_cache_enabled: bool = True
     llm_response_cache_ttl_seconds: int = 7 * 24 * 3600  # 7 天
@@ -235,12 +235,12 @@ class Settings(BaseSettings):
     # 真实业务日耗应在 ¥1-3,cap 调到 ¥5 后即便突发流量也只到 ¥5 阻断,不会
     # 触发资源包外的按量计费。如需调高(例如批量 backfill),临时改 .env 重启即可。
     llm_cost_cap_cny_per_day: float = 5.0
-    # Phase 27 资源包严格保护: 单次请求 input token 上限。资源包规则要求
+    # 资源包严格保护: 单次请求 input token 上限。资源包规则要求
     # 单次请求输入 ≤128K 才抵扣(超 128K 的费用不抵扣 → 触发按量计费)。
     # 本开关在 call_llm_with_fallback 入口处硬性估算并阻断超限请求。
     # 默认 120K(留 8K 余量给服务侧拼接);调小更严格,设为 0 = 不限。
     llm_max_input_chars_per_request: int = 120_000 * 4  # 120K tokens ≈ 480K chars
-    # Phase 27 资源包严格保护: 全局启用开关。True = 正常调用 qwen-plus,
+    # 资源包严格保护: 全局启用开关。True = 正常调用 qwen-plus,
     # False = 严格阻断所有 LLM 调用(完全靠缓存/降级模型)。
     # 紧急止血:发现费用异常时 .env 设 LLM_ENABLED=false 重启即可立即阻断。
     llm_enabled: bool = True
@@ -375,7 +375,7 @@ class Settings(BaseSettings):
  # 缓存为 cached_property 只解析一次。
     @cached_property
     def trusted_proxy_networks(self) -> list:
-        """PLAN-015①: 解析 trusted_proxy_cidrs 为 ipaddress 网列表 (惰性, 只解析一次)。"""
+        """解析 trusted_proxy_cidrs 为 ipaddress 网列表 (惰性, 只解析一次)。"""
         import ipaddress
         if not self.trusted_proxy_cidrs:
             return []
@@ -536,7 +536,7 @@ class Settings(BaseSettings):
         if self.app_env == "production" and self.bootstrap_admin_password == _UNCONFIGURED:
             raise RuntimeError("BOOTSTRAP_ADMIN_PASSWORD 未配置。生产环境必须在 .env.production 中设置强密码。")
 
- # NEW-P1a (AUDIT_VERIFICATION C5): 生产严禁自动播种弱管理员。
+ # (AUDIT_VERIFICATION C5): 生产严禁自动播种弱管理员。
  # 即便运维误把 .env.production 的 BOOTSTRAP_SEED_ADMIN 设回 true，
  # 启动期也必须 fail-fast，不允许 admin:starmap2024 进入生产库。
         if self.app_env == "production" and self.bootstrap_seed_admin:

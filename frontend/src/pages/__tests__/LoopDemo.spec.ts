@@ -143,7 +143,7 @@ describe('LoopDemo.vue', () => {
     expect(mockGet).toHaveBeenCalledWith('/loop/history', expect.any(Object))
   })
 
-  // ---- Phase 07-02 T10: 错误透传 + 重新开始新 run_id + 状态映射 ----
+  // ---- T10: 错误透传 + 重新开始新 run_id + 状态映射 ----
 
   it('preserves backend detail on 422 validation error (D-04 错误透传)', async () => {
     mockPost.mockRejectedValueOnce({

@@ -7,7 +7,7 @@ from crawler.scripts.run_incremental import _OPEN_SOURCES, _crawl_site, _spider_
 
 
 class TestCrawlSite:
-    """PLAN-005: _crawl_site 路由到真实开放源，未知源诚实返回空。"""
+    """_crawl_site 路由到真实开放源，未知源诚实返回空。"""
 
     def test_known_source_routes_to_spider(self) -> None:
         with patch(

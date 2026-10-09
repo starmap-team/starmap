@@ -1,4 +1,4 @@
-"""P1.3 smoke: datasource CRUD 路由契约锁定（C-5 覆盖缺口）。
+"""P1.3 smoke: datasource CRUD 路由契约锁定（覆盖缺口）。
 
 锁定 ``app.api.v1.datasource`` 当前真实契约（2026-08-11 实测）：
 - ``router`` (prefix=/datasources)：list / detail / update / stats / sync / health

@@ -1,4 +1,4 @@
-"""Incremental Neo4j projection of evolution write-back edges (D-04 tail).
+"""Incremental Neo4j projection of evolution write-back edges (tail).
 
 D-04 尾句「回写后 graph_sync 投影到 Neo4j」：演化回写成功的 upsert 行经
 MERGE + SET 投影到图谱 REQUIRES 边。仅投影本次回写成功的行（增量），不做

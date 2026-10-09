@@ -1,4 +1,4 @@
-"""Evolution career-path endpoint — extracted from evolution.py (Phase 7 evolution domain split).
+"""Evolution career-path endpoint — extracted from evolution.py (evolution domain split).
 
 业务说明：职业路径规划 API，基于 EVOLVES_TO 关系发现潜在职业转换路径，含多步路径和方向分类。
 注册到 evolution.py 的主 router（prefix="/evolution"），最终路径 /evolution/career-path/{position}。

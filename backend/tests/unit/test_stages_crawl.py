@@ -1,4 +1,4 @@
-"""Phase 03 Plan 03 Task 4: stages/crawl.py 阶段测试。
+"""stages/crawl.py 阶段测试。
 
 锁定 crawl 阶段行为契约（结构 + 子步骤事件）。
 """
@@ -32,7 +32,7 @@ class TestExecuteCrawlStructure:
         assert params == ["run_id", "run_type"], f"signature changed: {params}"
 
     def test_sub_step_events_in_source(self):
-        """每数据源/平台发 sub_step=crawl:<source_name> 事件（D-15）。"""
+        """每数据源/平台发 sub_step=crawl:<source_name> 事件。"""
         source = _crawl_source()
         assert 'sub_step=f"crawl:' in source, (
             "execute_crawl must emit sub_step events for each data source (D-15)"
@@ -45,7 +45,7 @@ class TestExecuteCrawlStructure:
 
 
 class TestExecuteCrawlModuleSurface:
-    """stages.execute_crawl 必须是真实现（Task 4 完成标志）。"""
+    """stages.execute_crawl 必须是真实现（完成标志）。"""
 
     def test_crawl_is_real_not_stub(self):
         from app.core.pipeline import stages

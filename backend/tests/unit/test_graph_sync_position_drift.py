@@ -1,4 +1,4 @@
-"""Phase 02 D-03: graph_sync 阶段末 Position PG↔Neo4j 一致性校验单元测试。
+"""graph_sync 阶段末 Position PG↔Neo4j 一致性校验单元测试。
 
 沿 M3 D-06「一致性告警仅观察不阻断」口径：
 - 计数一致 → 不写 outbox
@@ -128,7 +128,7 @@ class TestPositionConsistencyCheck:
 
     @pytest.mark.asyncio
     async def test_query_failure_is_non_blocking(self) -> None:
-        """取数抛异常 → 吞掉并返回 0，绝不向上抛（M3 D-06 仅观察不阻断）。"""
+        """取数抛异常 → 吞掉并返回 0，绝不向上抛（M3 仅观察不阻断）。"""
         added: list[Any] = []
         diff = await _check_position_consistency(
             _make_session_factory(212, added), _make_driver(0, raise_on_run=True), RUN_ID,

@@ -1,4 +1,4 @@
-"""Coverage boost: services/admin_ab_service.py — A/B 聚合纯逻辑 (PLAN-013 收尾)。"""
+"""Coverage boost: services/admin_ab_service.py — A/B 聚合纯逻辑 (收尾)。"""
 
 from __future__ import annotations
 

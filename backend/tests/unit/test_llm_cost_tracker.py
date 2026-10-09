@@ -1,4 +1,4 @@
-"""Phase 4: LLM cost tracker unit tests.
+"""LLM cost tracker unit tests.
 
 Ponytail: covers accumulation + char/4 token estimation + per-model bucketing.
 Restart-reset and concurrency are exercised via fresh tracker instances.

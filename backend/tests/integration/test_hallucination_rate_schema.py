@@ -1,4 +1,4 @@
-"""Phase 11 D-05: hallucination_rate 三段式契约 schema 集成测试。"""
+"""hallucination_rate 三段式契约 schema 集成测试。"""
 from __future__ import annotations
 
 from app.api.v1.quality import QualityDashboard, QualityReport
@@ -33,7 +33,7 @@ class TestHallucinationContractRoundTrip:
         assert hasattr(exported, "hallucination_window_days")
 
     def test_default_window_days_is_30(self):
-        """窗口默认 30 天，匹配 CONTEXT D-05 统计窗口。"""
+        """窗口默认 30 天，匹配 CONTEXT 统计窗口。"""
         dashboard = QualityDashboard(
             report=QualityReport(
                 precision=0.85, recall=0.80, f1=0.82, warning_level="green", details=[]

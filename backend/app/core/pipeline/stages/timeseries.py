@@ -1,4 +1,4 @@
-"""Pipeline timeseries 阶段（D-01 + D-18）。
+"""Pipeline timeseries 阶段。
 
 聚合技能频率时间序列，供演化分析使用。本模块从 executor.execute_timeseries 迁出；
 executor.py 保留兼容重导出，存量调用方零改动（D-11）。

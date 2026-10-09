@@ -1,4 +1,4 @@
-"""Pipeline 配置子路由（D-02 Task 7 拆分）。
+"""Pipeline 配置子路由（拆分）。
 
 /config GET/PUT。
 """

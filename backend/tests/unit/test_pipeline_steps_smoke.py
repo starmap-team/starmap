@@ -47,7 +47,7 @@ class TestStepTimeouts:
 
     def test_skill_extract_timeout(self):
         step = SkillExtractStep()
-        # P1 fix (Phase 24 求职者分析): 30s→120s 对齐 LLM 降级链（本地 fallback 40-120s+）
+        # P1 fix (求职者分析): 30s→120s 对齐 LLM 降级链（本地 fallback 40-120s)
         assert step.timeout == 120
 
     def test_match_step_timeout(self):

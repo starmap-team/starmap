@@ -77,14 +77,14 @@ class TestEmergenceFinder:
         assert signal.level == EmergenceLevel.DECLINING
 
     def test_insufficient_history(self) -> None:
-        """Too few data points → stable with note (BL-07: Wilson fallback)."""
+        """Too few data points → stable with note (: Wilson fallback)."""
         signal = self.finder.detect(
             skill_name="NewSkill",
             frequencies=[1],
             current_frequency=3,
         )
         assert signal.level == EmergenceLevel.STABLE
-        # BL-07: note changed from "insufficient_history" to "insufficient_history_wilson_fallback"
+        # note changed from "insufficient_history" to "insufficient_history_wilson_fallback"
         assert "insufficient_history" in signal.metadata.get("note", "")
 
     def test_emerging_needs_min_frequency(self) -> None:
@@ -252,7 +252,7 @@ class TestDomainKeywords:
 
 
 class TestEmergenceTripleConditionBoundary:
-    """D-02: 三重条件边界锁定（z>2.0 且 频次>=3 且 源>=3 → EMERGING）。"""
+    """三重条件边界锁定（z>2.0 且 频次>=3 且 源>=3 → EMERGING）。"""
 
     def setup_method(self) -> None:
         self.finder = EmergenceFinder()
@@ -315,7 +315,7 @@ class TestZeroVarianceBranch:
 
 
 class TestWilsonFallback:
-    """D-03: 历史窗口 len(frequencies) < 2 时 Wilson 下界 > 0.3 → RISING 兜底。"""
+    """历史窗口 len(frequencies) < 2 时 Wilson 下界 > 0.3 → RISING 兜底。"""
 
     def setup_method(self) -> None:
         self.finder = EmergenceFinder()
@@ -342,7 +342,7 @@ class TestWilsonFallback:
         assert signal.level == EmergenceLevel.STABLE
 
     def test_wilson_requires_min_sources(self) -> None:
-        """兜底比 D-03 文字更严格：source_count < MIN_SOURCES 则 STABLE（保持现状不放宽）。"""
+        """兜底比 文字更严格：source_count < MIN_SOURCES 则 STABLE（保持现状不放宽）。"""
         signal = self.finder.detect(
             skill_name="WilsonNoSources",
             frequencies=[1],
@@ -363,7 +363,7 @@ class TestWilsonFallback:
 
 
 class TestThresholdSource:
-    """D-02: 阈值来自配置（emergence_z_emerging=2.0 / emergence_z_rising=1.5），非硬编码。"""
+    """阈值来自配置（emergence_z_emerging=2.0 / emergence_z_rising=1.5），非硬编码。"""
 
     def test_finder_thresholds_match_config(self) -> None:
         cfg = get_settings()
@@ -376,7 +376,7 @@ class TestThresholdSource:
 
 
 class TestTrustScorerFormulaLock:
-    """D-10: 信任度权重常量锁定（保持现状、不配置化）。"""
+    """信任度权重常量锁定（保持现状、不配置化）。"""
 
     def test_weight_constants_locked(self) -> None:
         assert WEIGHT_SOURCE == 0.5

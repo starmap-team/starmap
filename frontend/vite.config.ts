@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      // PLAN-014 批次17: 契约路径 alias (容器/本地一致, 修复容器内 ../../../ 不可达白屏)
+      // 批次17: 契约路径 alias (容器/本地一致, 修复容器内../../../ 不可达白屏)
       '@contracts': fileURLToPath(new URL('../starmap-contracts', import.meta.url)),
     },
   },
@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
     host: '0.0.0.0',
     port: 5173,
     hmr: { overlay: false },
-    // PLAN-014: 允许导入仓库根下 starmap-contracts/ 的契约 JSON Schema
+    // 允许导入仓库根下 starmap-contracts/ 的契约 JSON Schema
     fs: { allow: ['..'] },
     // 永久防护：dev 下禁止浏览器缓存模块，避免缓存到 optimizeDeps 重跑期的
     // 504 中间态导致"容器已起、页面空白"。强制每次重新拉取模块。
@@ -46,7 +46,7 @@ export default defineConfig(({ mode }) => {
     },
   },
   build: {
-    // P3-5 fix: G6 v5 is ~1.4MB minified, which exceeds the default 500KB warning.
+    // fix: G6 v5 is ~1.4MB minified, which exceeds the default 500KB warning.
     // G6 is already split into its own chunk (vendor-g6) and lazy-loaded via dynamic import.
     // The size is inherent to the library; raising the limit suppresses the warning.
     chunkSizeWarningLimit: 1500,

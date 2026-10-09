@@ -1,4 +1,4 @@
-"""Add data_source_metrics table (Phase 15-04 Task 1, 2026-08-07 补建).
+"""Add data_source_metrics table (2026-08-07 补建).
 
 health_monitor.record_metric 依赖此表记录每次爬取指标 (24h success_rate/
 错误加权熔断/自动恢复), 但基线迁移遗漏 → 表从未建 → data_sources 的

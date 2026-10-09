@@ -1,4 +1,4 @@
-"""CR-06 / PLAN-004 回归：本地 spider 必须经由 crawler.compliance.fetch。
+"""/ 回归：本地 spider 必须经由 crawler.compliance.fetch。
 
 锁定合规接线——robots 检查 + QPS 限速 + compliance_log 全部在 compliance.fetch
 内完成；spider 若绕过它直连（裸 urllib/httpx）即破坏 §15.3 合规承诺。
@@ -68,7 +68,7 @@ def test_non_200_returns_empty(monkeypatch, mod):
 
 
 def test_juejin_routes_through_compliance(monkeypatch):
-    """PLAN-002: 掘金 sitemap spider 必须经 compliance.fetch."""
+    """掘金 sitemap spider 必须经 compliance.fetch."""
     calls: list[str] = []
     from crawler.spiders import juejin
 
@@ -96,7 +96,7 @@ def test_juejin_routes_through_compliance(monkeypatch):
 
 
 def test_remoteok_routes_through_compliance(monkeypatch):
-    """PLAN-003: RemoteOK spider 必须经 compliance.fetch."""
+    """RemoteOK spider 必须经 compliance.fetch."""
     calls: list[str] = []
     from crawler.spiders import remoteok
 

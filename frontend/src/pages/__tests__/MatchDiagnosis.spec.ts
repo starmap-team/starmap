@@ -210,7 +210,7 @@ describe('MatchDiagnosis.vue', () => {
       { skill: 'Python', required: PROFICIENCY_MAP['精通'], user: PROFICIENCY_MAP['熟悉'] },
       { skill: 'SQL', required: PROFICIENCY_MAP['熟悉'], user: 0 },
     ])
-    // D-04 口径注记
+    // 口径注记
     expect(wrapper.find('.radar-note').text()).toContain('模糊匹配')
   })
 
@@ -246,7 +246,7 @@ describe('MatchDiagnosis.vue', () => {
     await navigate(wrapper, 1)
     await selectPosition(wrapper)
     await clickStartDiagnosis(wrapper)
-    // 2026-08-23 BUG-006 优化: 请求成功(非 null)即使结果为空也跳 step 3,
+    // 2026-08-23 优化: 请求成功(非 null)即使结果为空也跳 step 3,
     // GapAnalysisReport 展示"岗位暂无画像"空态, 而非停在 step 2 造成"空白页"错觉。
     expect(wrapper.findComponent(MatchTrustGuideStub).exists()).toBe(true)
     expect(wrapper.findComponent({ name: 'GapAnalysisReport' }).exists()).toBe(true)

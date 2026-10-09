@@ -212,7 +212,7 @@ def client():
 
 @pytest.fixture
 def admin_headers():
-    # AUTHZ-05 fix: dev-token 返回 admin 需要 dev_anon_admin=True
+    # fix: dev-token 返回 admin 需要 dev_anon_admin=True
     from app.config import settings
     original = settings.dev_anon_admin
     settings.dev_anon_admin = True

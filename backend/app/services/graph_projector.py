@@ -325,7 +325,7 @@ class GraphProjector:
                         .where(PositionRecord.review_status == "approved")
                         # 2026-08-28 (debug: 非IT岗位混入图谱): 只投影 IT 领域岗位
                         .where(PositionRecord.industry.in_(_IT_INDUSTRY_WHITELIST))
-                        # 2026-08-28 (批0 真相源): 空技能岗位不投影（防剪枝→回填振荡）
+                        # 2026-08-28 (真相源): 空技能岗位不投影（防剪枝→回填振荡）
                         .where(
                             (PositionRecord.quality_hint.is_(None))
                             | (PositionRecord.quality_hint != "no_skills")
@@ -524,7 +524,7 @@ class GraphProjector:
             raise GraphProjectionError(str(exc)) from exc
 
     async def _reconcile_requires_edges(self, pg_session: Any) -> ProjectionResult:
-        """Phase 23 Task 3: 按 canonical_id 补缺 REQUIRES 边（PG approved PSR）。
+        """按 canonical_id 补缺 REQUIRES 边（PG approved PSR）。
 
         只补缺不自动删——多余 REQUIRES 边由 admin/daily 对账的 audit diff 暴露
         （drift 告警），避免误删抽取/演化双写路径合法建边。幂等：MERGE 已存在

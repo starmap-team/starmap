@@ -75,7 +75,7 @@ async def test_quality_dashboard_builder_aggregates_metrics():
             # 2026-08-23 fix: 先查 max(evaluated_at) 再查 metrics(原 scalar_subquery 在 asyncpg 手动事务下抛错)
             (datetime(2026, 8, 22, 10, 0, 0),),  # 0. latest_evaluated_at
             (0.9, 0.8, 0.85),  # 1. precision, recall, f1
-            # P1-5 fix (functional-review 2026-08-13): pending_review 改从
+            # fix (functional-review 2026-08-13): pending_review 改从
             # position/skill_records 的 pending_review 计数（原 JDExtractionRecord
             # status=pending 恒 0）。新增 2 个查询，extraction_counts 从 3 列变 2 列。
             (1,),              # 2. pending_pos count (PositionRecord pending_review)

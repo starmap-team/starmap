@@ -38,7 +38,7 @@ export const useResumeStore = defineStore('resume', () => {
       result.value = validateResponse(
         await request.post<ResumeParseResult>('/resume/upload', formData, {
  // LLM 抽取（本地 Ollama 可能 40-120s+）需与后端 300s 超时对齐，
- // 否则前端 60s 提前掐断导致 PDF 简历解析必然失败（DEF-001）。
+ // 否则前端 60s 提前掐断导致 PDF 简历解析必然失败。
           timeout: 300000,
         }),
         extractSchema, '/resume/upload', 'ExtractionResult',

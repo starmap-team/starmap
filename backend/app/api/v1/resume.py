@@ -25,7 +25,7 @@ async def upload_resume(
     """阶段 4 兼容端点：上传简历并返回结构化抽取结果。"""
     logger.info("POST /resume/upload - filename={}", file.filename)
 
- # INJ-05 / API-06: 统一校验（扩展名 + MIME + 大小 + 魔术字节）
+ # 统一校验（扩展名 + MIME + 大小 + 魔术字节）
     content_bytes = await validate_resume_upload(file)
 
  # P0-AUDIT-FIX (2026-08-13): PII detection was defined but never called

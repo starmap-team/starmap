@@ -130,7 +130,7 @@ class ExtractionEvaluationRecord(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
  # 业务说明：关联的提取记录ID，建立评估与提取结果的关联
- # 技术说明：nullable=True允许独立评估，index加速关联查询，FK SET NULL (SEC-05)
+ # 技术说明：nullable=True允许独立评估，index加速关联查询，FK SET NULL 
     extraction_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("jd_extraction_records.id", ondelete="SET NULL"), nullable=True, index=True,
     )
@@ -176,12 +176,12 @@ class PositionSkillRelation(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
     )
  # 业务说明：关联的职位ID，指向职位主数据表
- # 技术说明：建立索引支持按职位快速查询所需技能，FK CASCADE (SEC-05)
+ # 技术说明：建立索引支持按职位快速查询所需技能，FK CASCADE 
     position_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("position_records.id", ondelete="CASCADE"), nullable=False, index=True,
     )
  # 业务说明：关联的技能ID，指向技能主数据表
- # 技术说明：建立索引支持按技能快速查询相关职位，FK CASCADE (SEC-05)
+ # 技术说明：建立索引支持按技能快速查询相关职位，FK CASCADE 
     skill_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("skill_records.id", ondelete="CASCADE"), nullable=False, index=True,
     )
@@ -348,12 +348,12 @@ class PositionRecord(Base):
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
  # 业务说明：数据来源 Pipeline Run ID，用于追溯“哪次运行产生了这个岗位”
     source_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
- # 2026-08-28 (批0 真相源): 岗位质量标记（no_skills/unclassified/non_it/NULL=ok），
+ # 2026-08-28 (真相源): 岗位质量标记（no_skills/unclassified/non_it/NULL=ok），
  # 供 reconcile 快照排除隐藏岗位（防振荡）与审核队列 category 筛选
     quality_hint: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
- # 2026-08-28 (批0 真相源): 定时重试时间戳（幂等，每日只重试一次）
+ # 2026-08-28 (真相源): 定时重试时间戳（幂等，每日只重试一次）
     last_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
- # ── A3 岗位定义五要素（Phase 38：全岗位持久化）──
+ # ── A3 岗位定义五要素（：全岗位持久化）──
  # 业务说明：典型行业应用场景（如"智能制造、金融科技"），LLM 生成，可空
     industry_scenario: Mapped[str | None] = mapped_column(Text, nullable=True)
  # 业务说明：核心职责列表（JSON 数组，如 ["主导系统架构设计", ...]），LLM 生成，可空

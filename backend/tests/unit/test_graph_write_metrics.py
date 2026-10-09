@@ -1,4 +1,4 @@
-"""Phase 23 Task 7 — source_count max 语义探针与回归测试 (IC-06/IS-01).
+"""— source_count max 语义探针与回归测试.
 
 断言：
 - ``merge_skill`` 的 Cypher 使用 **max 语义**（``max(coalesce(s.source_count, 0),
@@ -100,7 +100,7 @@ class TestMergeSkillMaxSemantics:
             await merge_skill(_FakeDriver(session), "Python", {"source_count": 5}, canonical_id="sk-1")
 
         q = captured["query"]
-        # max 语义（Task 1 落地，Task 7 回归锁定）——不允许回归为累加
+        # max 语义（落地，回归锁定）——不允许回归为累加
         assert "max(coalesce(s.source_count, 0), $source_count)" in q
         assert "coalesce(s.source_count, 0) + $source_count" not in q
         assert captured["kwargs"]["source_count"] == 5

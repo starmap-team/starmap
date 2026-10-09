@@ -1,4 +1,4 @@
-"""Coverage boost: api/v1/auth.py — forgot-password 通道决策 (PLAN-015②)。
+"""Coverage boost: api/v1/auth.py — forgot-password 通道决策。
 
 settings.forgot_password_delivery 决定是否回 token:
 - out_of_band (默认): 仅写 Redis, 响应不回 token

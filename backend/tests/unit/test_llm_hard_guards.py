@@ -1,4 +1,4 @@
-"""Phase 27 hard guard tests.
+"""hard guard tests.
 
 覆盖 qwen-plus 资源包严格保护的 3 道闸门:
 1. **成本 cap** (llm_cost_cap_cny_per_day) — 防累积成本爆表

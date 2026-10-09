@@ -56,7 +56,7 @@ def test_loop_run_validation_empty_jd():
 
 
 def test_loop_run_validation_empty_target():
-    # API-03: empty target_position is coerced to None (optional), not rejected
+    # empty target_position is coerced to None (optional), not rejected
     response = client.post("/loop/run", json={"jd_text": "text", "target_position": ""})
     # The request is now valid (empty string → None), but the loop may fail
     # due to LLM/backend unavailability in test environment

@@ -1,4 +1,4 @@
-"""Closed-Loop Orchestrator — compat / re-export shell (Phase 07-02 D-02).
+"""Closed-Loop Orchestrator — compat / re-export shell.
 
 All real logic lives in ``app.core.pipeline.loop.{common,status,steps.*}``.
 This module re-exports ``LoopOrchestrator`` + ``get_loop_status`` +
@@ -39,7 +39,7 @@ from app.exceptions import PipelineStageError, StarMapError
 
 
 class LoopOrchestrator:
-    """5-step closed-loop pipeline (compat shell — D-02)."""
+    """5-step closed-loop pipeline (compat shell)."""
 
     async def run_loop(
         self,
@@ -48,7 +48,7 @@ class LoopOrchestrator:
         session: AsyncSession | None = None,
         user_id: str = "system",  # SEC-04
     ) -> LoopResult:
-        """Execute the full 5-step closed-loop pipeline (D-03 fail-fast + degrade)."""
+        """Execute the full 5-step closed-loop pipeline (fail-fast + degrade)."""
         run_id = str(uuid.uuid4())
         start = time.monotonic()
         result = LoopResult(
@@ -99,7 +99,7 @@ class LoopOrchestrator:
     ) -> LoopResult:
         """执行 5 步闭环主体(供 run_loop 的取消兜底包装)。"""
 
-        # Step 1: validation
+        # validation
         step1 = self._step1_validate_input(jd_text, target_position)
         result.steps.append(step1)
         await self._update_steps_json(db_record, result, session=session)
@@ -109,7 +109,7 @@ class LoopOrchestrator:
             await self._complete_loop_run(db_record, result, session=session)
             return result
 
-        # Step 2: extraction
+        # extraction
         step2 = await self._step2_extract_skills(jd_text)
         result.steps.append(step2)
         extraction_data = step2.data if step2.status == StepStatus.SUCCESS else {}
@@ -120,7 +120,7 @@ class LoopOrchestrator:
         effective_target = self._resolve_target_position(target_position, extraction_data)
         result.target_position = effective_target
 
-        # Step 3: graph update — acquire Neo4j driver
+        # graph update — acquire Neo4j driver
         driver = None
         try:
             from app.services.resources import resources as app_resources
@@ -136,7 +136,7 @@ class LoopOrchestrator:
         result.graph_update = step3.data
         await self._update_steps_json(db_record, result, session=session)
 
-        # Step 4: match diagnosis (LOOP-09: skip if no effective target_position)
+        # match diagnosis (: skip if no effective target_position)
         if effective_target:
             step4 = await self._step4_match_diagnosis(
                 target_position=effective_target,
@@ -152,7 +152,7 @@ class LoopOrchestrator:
             result.steps.append(step4)
         await self._update_steps_json(db_record, result, session=session)
 
-        # Step 5: learning path (LOOP-09: skip if no target or match skipped)
+        # learning path (: skip if no target or match skipped)
         if effective_target and step4.status != StepStatus.SKIPPED:
             step5 = await self._step5_learning_path(
                 match_result=result.match_result, graph_available=graph_ok,
@@ -166,7 +166,7 @@ class LoopOrchestrator:
                 note="Skipped: no target_position or match skipped")
             result.steps.append(step5)
 
-        # Determine overall status (D-03): only path/match failures → COMPLETED; ≥3 failures → FAILED
+        # Determine overall status : only path/match failures → COMPLETED; ≥3 failures → FAILED
         failed = [s for s in result.steps if s.status == StepStatus.FAILED]
         if failed and all(s.step in (4, 5) for s in failed):
             result.status = LoopRunStatus.COMPLETED
@@ -190,7 +190,7 @@ class LoopOrchestrator:
     # ---- Step delegates (compat shell — preserve monkeypatch paths) ----
 
     def _step1_validate_input(self, jd_text: str, target_position: str | None) -> LoopStepResult:
-        """Step 1: compat delegate → ``steps.validate.run_validate_step``."""
+        """compat delegate → ``steps.validate.run_validate_step``."""
         step_result, _ = run_validate_step(jd_text, target_position)
         return step_result
 
@@ -199,21 +199,21 @@ class LoopOrchestrator:
         return resolve_target_position(requested, extraction_data)
 
     async def _step2_extract_skills(self, jd_text: str) -> LoopStepResult:
-        """Compat delegate → ``steps.extract.run_extract_step`` (D-06 model_used)."""
+        """Compat delegate → ``steps.extract.run_extract_step`` (model_used)."""
         return await run_extract_step(jd_text)
 
     async def _step3_graph_update(self, run_id: str, extraction_data: dict[str, Any], target_position: str = "") -> LoopStepResult:
-        """Compat delegate → ``steps.graph_update.run_graph_update_step`` (D-05)."""
+        """Compat delegate → ``steps.graph_update.run_graph_update_step``."""
         return await run_graph_update_step(run_id=run_id, extraction_data=extraction_data, target_position=target_position)
 
     async def _step4_match_diagnosis(self, target_position: str, extracted_skills: list[dict[str, Any]], graph_available: bool, driver: Any = None, db_session: Any = None) -> LoopStepResult:
-        """Compat delegate → ``steps.match.run_match_step`` (D-05 score_breakdown)."""
+        """Compat delegate → ``steps.match.run_match_step`` (score_breakdown)."""
         return await run_match_step(target_position=target_position, extracted_skills=extracted_skills,
                                       graph_available=graph_available, driver=driver, db_session=db_session)
 
     async def _step5_learning_path(self, match_result: dict[str, Any], graph_available: bool, match_ok: bool,
                                     session: AsyncSession | None = None, target_position: str = "") -> LoopStepResult:
-        """Compat delegate → ``steps.learning_path.run_learning_path_step`` (D-05)."""
+        """Compat delegate → ``steps.learning_path.run_learning_path_step``."""
         return await run_learning_path_step(match_result=match_result, match_ok=match_ok,
                                              target_position=target_position, session=session, graph_available=graph_available)
 
@@ -237,5 +237,5 @@ class LoopOrchestrator:
         await _complete_loop_run(db_record, result, session=session)
 
 
-# ---- Module-level helpers re-export (compat shim — D-02) ----
+# ---- Module-level helpers re-export (compat shim) ----
 from app.core.pipeline.loop.status import get_loop_history, get_loop_status, _build_loop_verification, _loop_step_checks  # noqa: E402, F401, I001

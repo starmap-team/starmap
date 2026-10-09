@@ -1,4 +1,4 @@
-"""admin_data_truth 端点门禁测试（PLAN-007a / NEW-01）。
+"""admin_data_truth 端点门禁测试。
 
 回归保护：/admin/data-truth 曾仅挂 api_router 的 get_current_user，
 任意登录用户可读取三口径对账数据。现必须 require_admin。
@@ -71,7 +71,7 @@ def _fake_storage():
 
 class TestDataTruthAdminGuard:
     def test_non_admin_rejected_403(self, client, _fake_storage):
-        """普通登录用户访问 /admin/data-truth 必须 403（NEW-01 回归）。"""
+        """普通登录用户访问 /admin/data-truth 必须 403（回归）。"""
         app.dependency_overrides[get_current_user] = lambda: {
             "sub": "viewer", "role": "user", "username": "viewer",
         }
@@ -92,7 +92,7 @@ class TestDataTruthAdminGuard:
 
 
 class TestDataTruthApprovedCaliber:
-    """Phase 24 核验修复: data-truth PG 计数必须限定 approved 口径。
+    """核验修复: data-truth PG 计数必须限定 approved 口径。
 
     岗位总数/关系边数曾取 PG 全量（含 pending），与 Neo4j 投影后的 approved
     计数比较产生假 critical（362 vs 185 = 48.9%）。修复后计数查询必须含

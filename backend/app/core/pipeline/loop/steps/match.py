@@ -1,4 +1,4 @@
-"""Step 4 — Match diagnosis (Phase 07-02 D-01/D-05).
+"""— Match diagnosis.
 
 Extracted from ``loop_orchestrator.py._step4_match_diagnosis``.
 
@@ -39,7 +39,7 @@ async def run_match_step(
     driver: Any = None,
     db_session: Any = None,
 ) -> LoopStepResult:
-    """Step 4: Run match diagnosis with extracted skills vs target position.
+    """Run match diagnosis with extracted skills vs target position.
 
     Args:
         target_position: Resolved target position name.

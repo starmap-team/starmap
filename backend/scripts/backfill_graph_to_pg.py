@@ -30,7 +30,7 @@ from app.core.extraction.graph_writer import GraphConfig  # noqa: E402
 from app.db.session import get_async_engine  # noqa: E402
 from app.models.extraction_models import PositionRecord, PositionSkillRelation, SkillRecord  # noqa: E402
 
-# D-08: 4 个无 canonical_id 的 Position（无法参与演化回写解析，静默跳过）。
+# 4 个无 canonical_id 的 Position（无法参与演化回写解析，静默跳过）。
 # Brandschutztechniker 在 Neo4j 中的实际节点名为 "Brandschutztechniker/-in"
 # （精确名节点不存在；其中一条已带 canonical_id，一条为 NULL），此处用实际节点名。
 D08_POSITION_NAMES = ["算法专家", "技术总监", "架构师", "Brandschutztechniker/-in"]
@@ -101,7 +101,7 @@ async def main() -> None:
 
     print(f"backfilled_skills={len(new_skills)} backfilled_edges={len(new_rels)}")
 
-    # 3) D-08：4 个无 canonical_id 岗位补齐（PG 建行 + Neo4j SET canonical_id）
+    # 3)：4 个无 canonical_id 岗位补齐（PG 建行 + Neo4j SET canonical_id）
     d08 = await backfill_position_canonical_ids()
     print(
         "d08_created_pg={} d08_set_neo4j={} d08_skipped={}".format(
@@ -109,13 +109,13 @@ async def main() -> None:
         )
     )
     if d08["set_neo4j"]:
-        # D-07: 一次性对账脚本不作自动调度，仅提示手动重投影
+        # 一次性对账脚本不作自动调度，仅提示手动重投影
         print("D-08 hint: canonical_id 已补齐，如需从 PG 全量重投影请手动运行 phase5_rebuild_neo4j.py")
     await engine.dispose()
 
 
 async def backfill_position_canonical_ids() -> dict[str, list[str]]:
-    """D-08: 为 4 个无 canonical_id 的岗位补齐 PG PositionRecord + Neo4j canonical_id。
+    """为 4 个无 canonical_id 的岗位补齐 PG PositionRecord + Neo4j canonical_id。
 
     PG 侧按 ``_upsert_position`` 同款模式建行（name, created_by="system:backfill"）取 id；
     Neo4j 侧 ``MATCH (p:Position {name: $name}) WHERE p.canonical_id IS NULL SET`` —

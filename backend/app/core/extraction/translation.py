@@ -1,4 +1,4 @@
-"""English → Chinese translation hook for non-CJK JD sources (Phase 15 / I18N-01).
+"""English → Chinese translation hook for non-CJK JD sources (I18N-01).
 
 When a JD's title/industry is detected as non-CJK (English), we ask the LLM to
 provide a Chinese version that is then stored in `position_records.name_cn` and
@@ -25,7 +25,7 @@ from loguru import logger
 _CJK_PATTERN = re.compile(r"[一-鿿]")
 _JP_KO_HANGUL = re.compile(r"[぀-ヿ가-힯]")
 
-# Phase 27: 翻译缓存命名空间与 TTL
+# 翻译缓存命名空间与 TTL
 _TRANS_CACHE_PREFIX = "llm:trans:"
 _TRANS_CACHE_TTL_SECONDS = 30 * 24 * 3600  # 30 天
 
@@ -128,7 +128,7 @@ async def translate_title_industry(
     if has_cjk(title):
         return {"name_cn": title, "industry_zh": industry}
 
-    # Phase 27: 先查 Redis 缓存(覆盖同 title 多次翻译)
+    # 先查 Redis 缓存(覆盖同 title 多次翻译)
     cached = await _trans_cache_get(title, industry)
     if cached is not None:
         logger.debug("translation cache hit: title={!r}", title[:40])

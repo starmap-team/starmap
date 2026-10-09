@@ -1,4 +1,4 @@
-"""管理域 Schema：图谱节点管理/数据真相对账 (PLAN-014 批次13 迁入集中管理)。"""
+"""管理域 Schema：图谱节点管理/数据真相对账 (批次13 迁入集中管理)。"""
 
 from __future__ import annotations
 

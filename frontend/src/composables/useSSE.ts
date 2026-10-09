@@ -131,7 +131,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
     }
 
     try {
- // LOOP-02: Append JWT token as query parameter for SSE auth
+ // Append JWT token as query parameter for SSE auth
  // EventSource API doesn't support custom headers, so token goes in URL
       const token = localStorage.getItem('starmap_access_token')
       const separator = url.includes('?') ? '&' : '?'
@@ -246,7 +246,7 @@ export function useSSE(url: string, options: UseSSEOptions) {
   async function pollOnce() {
     if (disposed) return
     try {
- // LOOP-02: Add Authorization header for polling fetch auth
+ // Add Authorization header for polling fetch auth
       const token = localStorage.getItem('starmap_access_token')
       const headers: Record<string, string> = {
         'Accept': 'application/json',

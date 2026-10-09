@@ -144,7 +144,7 @@ async def _fetch_graph_stats(session: AsyncSession, neo4j_driver: Any) -> dict[s
         "total_positions": total_positions,
         "total_skills": total_skills,
         "total_domains": int(total_domains),
-        # 2026-08-28 (批3 三列口径, 共识计划 AC7): 图内+隐藏=PG全量
+        # 2026-08-28 (三列口径, 共识计划 AC7): 图内+隐藏=PG全量
         "graph_positions": graph_positions,
         "pg_positions": pg_positions,
         "hidden_positions": hidden_positions,

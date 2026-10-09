@@ -1,4 +1,4 @@
-"""Phase 5 Step 1: 修复 Neo4j 字段映射 + 清空 + 从 PG 重建
+"""修复 Neo4j 字段映射 + 清空 + 从 PG 重建
 
 策略（方案 B 全量版本）：
   1. 备份 Neo4j 全部节点到 .planning/phase-5-backups/
@@ -139,7 +139,7 @@ async def rebuild_skills_from_pg(driver, session) -> int:
 
 
 async def main() -> None:
-    """执行 Phase 5 Step 1：备份 → 清空 → 从 PG 重建。"""
+    """执行：备份 → 清空 → 从 PG 重建。"""
     from app.services.resources import init_resources
 
     resources = await init_resources()
@@ -151,15 +151,15 @@ async def main() -> None:
             await result.single()
             print("Neo4j 连接成功")
 
-        # Step 1: 备份
+        # 备份
         print("\n=== Step 1: 备份 Neo4j ===")
         await backup_neo4j(driver)
 
-        # Step 2: 清空
+        # 清空
         print("\n=== Step 2: 清空 Neo4j 全部节点 ===")
         await clear_neo4j(driver)
 
-        # Step 3: 从 PG 重建
+        # 从 PG 重建
         print("\n=== Step 3: 从 PG 重建 Neo4j ===")
         engine = get_async_engine()
         async with engine.begin() as conn:
@@ -172,7 +172,7 @@ async def main() -> None:
             skills_count = await rebuild_skills_from_pg(driver, session)
             print(f"Skill 重建完成: {skills_count} 个节点")
 
-        # Step 4: 验证
+        # 验证
         print("\n=== Step 4: 验证 ===")
         async with driver.session() as s:
             result = await s.run("MATCH (p:Position) RETURN count(p) AS pos")

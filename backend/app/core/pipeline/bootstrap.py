@@ -1,4 +1,4 @@
-"""PIPE-03 (c): celery-worker 启动一次性 bootstrap。
+"""(c): celery-worker 启动一次性 bootstrap。
 
 检测 PIPELINE_BOOTSTRAP=true → 延迟 30s 后入队一次完整 pipeline run。
 仅一次性（不循环）。在 worker 进程内同步触发 executor.trigger_and_start。

@@ -1,4 +1,4 @@
-"""Quality 域 Schema (PLAN-014 批次11).
+"""Quality 域 Schema (批次11).
 
 从 api/v1/quality.py 内联 5 个 BaseModel 迁入集中管理.
 """

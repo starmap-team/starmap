@@ -117,7 +117,7 @@ async def build_evolution_kpi(
     *,
     days: int = 90,
 ) -> dict[str, Any]:
-    """Build the 4-KPI row for the evolution dashboard (D-11).
+    """Build the 4-KPI row for the evolution dashboard.
 
     - emerging_count: number of emerging+rising skills — SAME full-history
       emergence scan as /evolution/emerging-alerts, so the KPI matches the

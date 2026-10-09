@@ -1,4 +1,4 @@
-"""Pipeline clean 阶段（D-01 + D-18 Task 3）。
+"""Pipeline clean 阶段。
 
 HTML 剥离 + 规范化 + 标题提取，并在成功后设 jd.status = JdStatus.cleaned（Task 0 T5 修复）。
 本模块从 executor.execute_clean 迁出；executor.py 保留兼容重导出，存量调用方零改动（D-11）。

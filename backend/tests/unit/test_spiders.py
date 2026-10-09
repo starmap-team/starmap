@@ -1,4 +1,4 @@
-"""Tests for Phase 15-01 spider integrations.
+"""Tests for spider integrations.
 
 Tests 4 spiders: arbeitnow, jobicy, weworkremotely, himalayas.
 

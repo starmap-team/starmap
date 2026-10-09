@@ -1,4 +1,4 @@
-"""Phase 16-01 Task 4: Add pipeline_runs + data_source_metrics indexes.
+"""Add pipeline_runs + data_source_metrics indexes.
 
 使用 IF NOT EXISTS 避免冲突 (Fix M2 from review).
 """

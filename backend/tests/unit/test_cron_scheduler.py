@@ -178,7 +178,7 @@ class TestTriggerSchedule:
 
     @pytest.mark.asyncio
     async def test_daily_reconcile_dispatches_reconcile_graph_task(self):
-        """Phase 23 Task 4 (DC-01): daily_reconcile name 分发到 reconcile_graph_task.delay。
+        """daily_reconcile name 分发到 reconcile_graph_task.delay。
 
         迁移 039 种子行 name='daily_reconcile' → trigger_schedule 按 name 派发
         `reconcile_graph_task`（而非 scheduled_pipeline_run）→ 每日自动全量对账。

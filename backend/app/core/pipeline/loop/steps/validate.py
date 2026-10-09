@@ -1,4 +1,4 @@
-"""Step 1 — JD input validation + target_position resolution (Phase 07-02 D-01).
+"""— JD input validation + target_position resolution.
 
 Extracted from ``loop_orchestrator.py._step1_validate_input`` and
 ``_resolve_target_position``.
@@ -26,7 +26,7 @@ from app.core.pipeline.loop.common import (
 def run_validate_step(
     jd_text: str, target_position: str | None,
 ) -> tuple[LoopStepResult, str | None]:
-    """Step 1: Validate JD input and resolve effective target_position.
+    """Validate JD input and resolve effective target_position.
 
     Args:
         jd_text: Raw job description text.

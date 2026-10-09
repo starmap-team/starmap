@@ -63,7 +63,7 @@ async def _resolve_position_name(driver: Any, position_name: str) -> str:
         rec = await exact.single()
         if rec and rec["name"]:
             return rec["name"]
-        # 2026-08-29 (PERF-02): 原实现 MATCH 全量拉取所有 Position 到 Python 做
+        # 2026-08-29 : 原实现 MATCH 全量拉取所有 Position 到 Python 做
         # 子串模糊匹配 → O(N) 全图扫描(实测 graph/overview 2.7s 的主因之一)。
         # 改为 Neo4j 侧 CONTAINS 过滤 + LIMIT 5, 只拉候选集做精度匹配。
         target = position_name.strip().lower()
@@ -146,7 +146,7 @@ async def fetch_position_graph(driver: Any, position_name: str, depth: int = 1) 
                 if record["rel"] is not None:
                     edges.append(serialize_relationship(record["rel"]))
         else:
- # INJ-04: depth is int, clamped to [1,5] by API validator + max/min guard.
+ # depth is int, clamped to [1,5] by API validator + max/min guard.
  # str(int) cannot inject Cypher syntax; assert for defense-in-depth.
             assert isinstance(depth, int) and 1 <= depth <= 5, f"depth must be int in [1,5], got {depth!r}"
             multi_query = (
@@ -330,7 +330,7 @@ async def fetch_overview_by_domain(driver: Any) -> dict[str, Any]:
             independent_skill = 0
             independent_edge = 0
 
- # ── Fallback: when no KA nodes, classify positions by 行业 ( Step 1) ──
+ # ── Fallback: when no KA nodes, classify positions by 行业  ──
  # 与 tech_stack 视图正交：tech_stack 按技术栈聚类，domain 按行业聚类。
         connections: list[dict[str, Any]] = []
         if not domains and independent_pos > 0:

@@ -1,4 +1,4 @@
-"""RemoteOK API spider — 英文 JD 源 (PLAN-003)。
+"""RemoteOK API spider — 英文 JD 源。
 
 端点: https://remoteok.com/api?tag={keyword} (免费, 无需 key)
 返回: JSON 数组, [0] 为占位说明, 之后为职位条目:

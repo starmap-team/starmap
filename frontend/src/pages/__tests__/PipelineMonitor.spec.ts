@@ -1,5 +1,5 @@
 /**
- * PipelineMonitor.vue 测试套件（Phase 03 Plan 03 Task 12）。
+ * PipelineMonitor.vue 测试套件。
  *
  * 覆盖：渲染/DAG 阶段卡片/触发按钮/空态/失败阶段提示/SSE 断连/Cron 校验。
  */
@@ -50,26 +50,26 @@ function mountPage() {
 }
 
 describe('PipelineMonitor.vue', () => {
-  // TC-1: 渲染 (smoke)
+  // 渲染 (smoke)
   it('renders without crashing', () => {
     const wrapper = mountPage()
     expect(wrapper.exists()).toBe(true)
   })
 
-  // TC-2: 触发按钮可见
+  // 触发按钮可见
   it('exposes trigger button via component', () => {
     const wrapper = mountPage()
     expect(wrapper.findComponent({ name: 'ElButton' }).exists() || wrapper.element).toBeTruthy()
   })
 
-  // TC-3: 空态文案（无数据时）由 DAG 区渲染
+  // 空态文案（无数据时）由 DAG 区渲染
   it('renders DAG section in template', () => {
     const wrapper = mountPage()
     expect(wrapper.vm).toBeDefined()
     expect(wrapper.vm.$el).toBeDefined()
   })
 
-  // TC-4: Cron 校验工具契约
+  // Cron 校验工具契约
   describe('Cron validation integration', () => {
     it('accepts valid cron expressions', () => {
       const valid = validateCron('0 2 * * *')
@@ -103,13 +103,13 @@ describe('PipelineMonitor.vue', () => {
     })
   })
 
-  // TC-5: 失败阶段处理
+  // 失败阶段处理
   it('exposes retry/handle methods for failed stages', () => {
     const wrapper = mountPage()
     expect(wrapper.vm).toBeDefined()
   })
 
-  // TC-6: SSE 断连时 UI 降级
+  // SSE 断连时 UI 降级
   it('handles SSE connection state via composable', () => {
     const wrapper = mountPage()
     expect(wrapper.vm).toBeDefined()

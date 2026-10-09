@@ -35,7 +35,7 @@ from app.utils.audit import AuditEntry, AuditEvent, audit_log
 # ═══════════════════════════════════════════════════════════════
 
 
-# INJ-03 fix: 转义 SQL LIKE 通配符，防止通配符注入
+# fix: 转义 SQL LIKE 通配符，防止通配符注入
 def _escape_like(value: str) -> str:
     """Escape SQL LIKE wildcards (% and _) in user input."""
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -926,7 +926,7 @@ async def delete_user(
         ip="",
     ))
 
-    # DATA-05 fix: 软删除时同时匿名化 PII（邮箱、登录 IP）
+    # fix: 软删除时同时匿名化 PII（邮箱、登录 IP）
     # 用户名保留用于审计追踪，但标记为已匿名化
     if user.email:
         user.email = None

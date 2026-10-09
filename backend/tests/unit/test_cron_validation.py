@@ -1,4 +1,4 @@
-"""Phase 03 Plan 03 Task 11: Cron 校验完整测试 (D-16)。
+"""Cron 校验完整测试。
 
 锁定 5 字段值域 + 范围 + 错误格式契约。
 """
@@ -105,7 +105,7 @@ class TestValidateCronWeekBounds:
 
 
 class TestValidateCronErrorFormat:
-    """错误返回格式契约（D-16 错误格式 CRON_INVALID）。"""
+    """错误返回格式契约（错误格式 CRON_INVALID）。"""
 
     def test_error_structure_has_field_value_message(self):
         result = validate_cron_expression("60 * * * *")

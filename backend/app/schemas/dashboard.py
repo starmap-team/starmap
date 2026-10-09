@@ -30,7 +30,7 @@ class OverviewResponse(BaseModel):
     pipeline_status: str = Field("idle", description="Latest pipeline run status")
     active_data_sources: int = Field(0, description="Number of active data sources")
     weekly_new_nodes: int = Field(0, description="New nodes this week")
-    # 2026-08-28 (批3 三列口径, MINOR-4): 图内/全量/隐藏岗位数（图内+隐藏=全量）
+    # 2026-08-28 (三列口径): 图内/全量/隐藏岗位数（图内+隐藏=全量）
     graph_positions: int = Field(0, description="Graph-projected positions (Neo4j)")
     pg_positions: int = Field(0, description="PG approved positions")
     hidden_positions: int = Field(0, description="Hidden positions (no_skills + non-IT)")

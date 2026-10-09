@@ -1,4 +1,4 @@
-"""Phase 23 Task 2 — MERGE key name→canonical_id (checkpoint:decision) tests.
+"""— MERGE key name→canonical_id (checkpoint:decision) tests.
 
 断言：
 - merge_position / merge_skill 的 MERGE 键含 canonical_id（query 嗅探）

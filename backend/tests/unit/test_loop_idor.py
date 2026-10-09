@@ -1,4 +1,4 @@
-"""Tests for SEC-04: loop_results IDOR complete fix."""
+"""Tests for: loop_results IDOR complete fix."""
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -22,7 +22,7 @@ def _make_record(run_id: str, user_id: str = "system", status: str = "completed"
 
 
 class TestRunLoopUserId:
-    """SEC-04: run_loop creates record with user_id."""
+    """run_loop creates record with user_id."""
 
     @pytest.mark.asyncio
     async def test_run_loop_passes_user_id(self) -> None:
@@ -61,7 +61,7 @@ class TestRunLoopUserId:
 
 
 class TestLoopStatusIDOR:
-    """SEC-04: loop_status ownership check."""
+    """loop_status ownership check."""
 
     @pytest.mark.asyncio
     async def test_own_run_visible(self) -> None:
@@ -119,7 +119,7 @@ class TestLoopStatusIDOR:
 
 
 class TestLoopHistoryIDOR:
-    """SEC-04: loop_history filters by user_id."""
+    """loop_history filters by user_id."""
 
     @pytest.mark.asyncio
     async def test_non_admin_sees_own_runs(self) -> None:
@@ -177,7 +177,7 @@ class TestLoopHistoryIDOR:
 
 
 class TestLoopIDORBackwardCompat:
-    """SEC-04: Backward compatibility with default params."""
+    """Backward compatibility with default params."""
 
     @pytest.mark.asyncio
     async def test_no_user_id_param_uses_default(self) -> None:

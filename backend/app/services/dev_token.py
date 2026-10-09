@@ -1,4 +1,4 @@
-"""PLAN-015③: dev-token 集中守门。
+"""dev-token 集中守门。
 
 背景: `dependencies.get_current_user` 与 `get_current_user_sse` (SSE)
 历史上各自内联 `settings.app_env != "production"` 判定。只用

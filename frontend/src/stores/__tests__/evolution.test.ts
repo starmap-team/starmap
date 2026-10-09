@@ -157,7 +157,7 @@ describe('useEvolutionStore', () => {
     expect(store.changelogData[0].skill_name).toBe('Go')
   })
 
-  // UX-04: fetchChangelog identifier parameter tests
+  // fetchChangelog identifier parameter tests
   it('should handle fetchChangelog with identifier containing special characters', async () => {
     const request = (await import('@/api/request')).default
     vi.mocked(request.get).mockResolvedValueOnce([
@@ -363,7 +363,7 @@ describe('useEvolutionStore', () => {
     expect(request.get).toHaveBeenCalledWith('/evolution/emerging-alerts', { params: {} })
   })
 
-  // ── 10. fetchKpi action (D-11) ──
+  // ── 10. fetchKpi action  ──
 
   it('should fetch KPI and populate kpi state', async () => {
     const request = (await import('@/api/request')).default
@@ -415,7 +415,7 @@ describe('useEvolutionStore', () => {
     expect(store.kpiLoading).toBe(false)
   })
 
-  // ── 11. refreshAll action (D-13) ──
+  // ── 11. refreshAll action  ──
 
   it('should call all four fetches via refreshAll', async () => {
     const request = (await import('@/api/request')).default

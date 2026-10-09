@@ -115,7 +115,7 @@ _SHARED_SKILL_WEIGHT_DENOMINATOR = 20.0
 _DEFAULT_EVOLUTION_WEIGHT = 0.8
 
 
-# Phase 13 Step 2: heat 视图（按技能需求频率着色）
+# heat 视图（按技能需求频率着色）
 HEAT_COLOR_RAMP = [
     (0,  "#e0f2fe"),
     (1,  "#7dd3fc"),
@@ -170,7 +170,7 @@ def _classify_level(name: str, props: dict[str, Any]) -> str:
     return LEVEL_MID
 
 
-# Phase 13 Step 1: 行业归一（13 大行业，对标 spec 5.3）
+# 行业归一（13 大行业，对标 spec 5.3）
 INDUSTRY_ID_PREFIX: dict[str, str] = {
     "人工智能": "ind-ai", "大数据": "ind-data", "数据科学": "ind-ds",
     "数据工程": "ind-de", "AI/机器学习": "ind-ml", "前端开发": "ind-fe",
@@ -217,7 +217,7 @@ _INDUSTRY_KEYWORDS = {
 
 
 def _classify_industry(name: str, industry: str) -> str:
-    """Phase 13 Step 1: 按 Position.name + industry 关键词分类到 14 大行业。
+    """按 Position.name + industry 关键词分类到 14 大行业。
 
     2026-08-28 (debug: 非 IT 岗位被误分互联网/IT): 保留原「按桶名长度降序 + 关键词」语义
     （旧测试锁定），仅做两点强化：
@@ -477,7 +477,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
     total_pos = 0
     total_skill = 0
     for level, data in groups.items():
-        # Step 5: 3 维泡始终保留(空 level 渲染为 0/0 透明泡),但占位不计入 total 计数。
+        # 3 维泡始终保留(空 level 渲染为 0/0 透明泡),但占位不计入 total 计数。
         pc = len(data["positions"])
         sc = len(data["skills"])
         total_pos += pc
@@ -492,7 +492,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
             }
         )
 
-    # Step 5: 兜底维度。PG 中 0 个 lv-junior 岗时，确保 3 维泡全在（0/0 透明），前端不会因缺桶渲染破图。
+    # 兜底维度。PG 中 0 个 lv-junior 岗时，确保 3 维泡全在（0/0 透明），前端不会因缺桶渲染破图。
     for required_level in ("初级",):
         if not any(d["name"] == required_level for d in domains):
             domains.append(
@@ -532,7 +532,7 @@ async def fetch_overview_by_level(driver: AsyncDriver) -> dict[str, Any]:
     }
 
 
-# Phase 13 Step 2: 热度视图（技能需求频次）
+# 热度视图（技能需求频次）
 HEAT_BUCKETS: list[tuple[str, int, str]] = [
     ("高 (≥20岗)", 20, "#E74C3C"),
     ("中 (10-19岗)", 10, "#F39C12"),
@@ -541,7 +541,7 @@ HEAT_BUCKETS: list[tuple[str, int, str]] = [
 ]
 
 async def fetch_overview_by_heat(driver: AsyncDriver) -> dict[str, Any]:
-    """Phase 13 Step 2: 按技能需求频率排序的"热度视图"。
+    """按技能需求频率排序的"热度视图"。
 
     节点：需求 ≥ 1 的技能；按需求数量降序；前 30 个。
     边：REQUIRES 关联（直接展示"技能与技能"的共享岗位关系）。

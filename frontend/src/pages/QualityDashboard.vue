@@ -902,7 +902,7 @@ async function handleQueueReject(row: { entity_type?: string; entity_id?: string
   font-size: var(--font-size-xs);
   color: var(--muted-foreground);
 }
-/* 岗位数据质量（批2 2026-08-28） */
+/* 岗位数据质量（2026-08-28） */
 .data-quality-body {
   display: flex;
   flex-direction: column;

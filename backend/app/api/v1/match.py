@@ -193,7 +193,7 @@ async def recommend_positions(
     driver: Annotated[Any, Depends(get_neo4j_driver)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ReverseMatchResponse:
-    """FE-04: Reverse match — given user skills, recommend suitable positions.
+    """Reverse match — given user skills, recommend suitable positions.
 
     Scans available positions, computes match score for each,
     and returns the top-k positions ranked by match score.

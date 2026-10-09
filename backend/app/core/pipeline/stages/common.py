@@ -1,4 +1,4 @@
-"""Pipeline 阶段公共层（D-10）。
+"""Pipeline 阶段公共层。
 
 提供 6 个阶段模块共用的辅助：SSE 进度发布、异步执行桥、错误类型、DB session、
 进度结构 TypedDict。新代码请直接 from app.core.pipeline.stages import execute_*。
@@ -20,7 +20,7 @@ from app.utils.async_helpers import run_async as _run_async  # noqa: F401
 
 
 class StageProgress(TypedDict, total=False):
-    """SSE 阶段进度事件结构（Task 10 契约文档化将基于此扩展）。"""
+    """SSE 阶段进度事件结构（契约文档化将基于此扩展）。"""
 
     run_id: str
     stage: str

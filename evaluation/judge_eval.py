@@ -42,12 +42,12 @@ def _normalize_skill_for_eval(skill: str) -> str:
     s = skill.strip()
     if not s:
         return ""
-    # Step 1: alias normalization (Kafka <-> Apache Kafka etc.)
+    # alias normalization (Kafka <-> Apache Kafka etc.)
     if _HAS_NORMALIZE:
         norm = normalize_by_alias(s)
         if norm is not None:
             return norm.lower()
-    # Step 2: basic normalization (remove non-alphanumeric, lowercase)
+    # basic normalization (remove non-alphanumeric, lowercase)
     return re.sub(r'[^a-z0-9+#.]', '', s.lower())
 
 
@@ -69,7 +69,7 @@ class ExtractionMetrics(BaseModel):
     weighted_score: float = 0.0
     f1_distribution: dict[str, int] = Field(default_factory=lambda: {"excellent": 0, "good": 0, "fair": 0, "poor": 0})
     per_sample: list[SampleEvaluation] = Field(default_factory=list)
-    # 95% bootstrap CI（n=1000 重采样，纯 stdlib，无依赖）。ALIGN-08：§14.5 置信区间报告落地。
+    # 95% bootstrap CI（n=1000 重采样，纯 stdlib，无依赖）。：§14.5 置信区间报告落地。
     # 缺失时表示样本数 < 2 或不启用。
     ci_95: dict[str, dict[str, float]] | None = None
 
@@ -276,7 +276,7 @@ async def evaluate_batch(golden_file: str, system_file: str, output_file: str | 
     )
     metrics.weighted_score = compute_weighted_score(metrics)
 
-    # ALIGN-08: §14.5 bootstrap 95% CI（per-sample 重采样，1000 次）
+    # §14.5 bootstrap 95% CI（per-sample 重采样，1000 次）
     f1_values = [e.f1 for e in evaluations]
     p_values = [e.precision for e in evaluations]
     r_values = [e.recall for e in evaluations]
@@ -310,7 +310,7 @@ def generate_evaluation_report(metrics: ExtractionMetrics, output_dir: str) -> d
         "",
     ]
 
-    # ALIGN-08 §14.5 置信区间报告（bootstrap 1000 次 95% CI）
+    # §14.5 置信区间报告（bootstrap 1000 次 95% CI）
     if metrics.ci_95:
         md.append("## 95% Bootstrap CI (ALIGN-08, §14.5)\n")
         md.append("| 指标 | 下限 | 均值 | 上限 | 样本 |")

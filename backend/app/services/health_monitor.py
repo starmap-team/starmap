@@ -1,4 +1,4 @@
-"""Health monitor for data sources (Phase 15-04).
+"""Health monitor for data sources.
 
 三个关键修复:
 - Fix H1: 启动探针自动 disable 404/5xx 源 (probe_sources_at_startup)

@@ -1,4 +1,4 @@
-"""Phase 03 Plan 03 Task 3: stages/clean.py 阶段测试。
+"""stages/clean.py 阶段测试。
 
 锁定 clean 阶段行为契约（成功/失败/状态置 cleaned）。
 """

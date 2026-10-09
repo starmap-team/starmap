@@ -117,7 +117,7 @@ export const useJobseekerStore = defineStore('jobseeker', () => {
         formData.append('target_positions', targetPositions.join(','))
       }
 
- // LOOP-02: Add Authorization header + fix hardcoded URL
+ // Add Authorization header + fix hardcoded URL
       const baseUrl = API_BASE
       const token = localStorage.getItem('starmap_access_token')
       const headers: Record<string, string> = {}
