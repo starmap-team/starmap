@@ -42,4 +42,4 @@ cd ../frontend && npm run gen:api && npm run typecheck
 - Store/client 使用生成类型，DEV 响应校验已接入。
 - 单元/契约测试覆盖成功和错误路径。
 
-历史契约审计已移至 `docs/archive/audits/contract-audit-2026-07-10.md`，仅用于追溯当时问题。
+历史契约审计快照已随仓库清理移除；契约变更历史以 `starmap-contracts/CHANGELOG.md` 为准。

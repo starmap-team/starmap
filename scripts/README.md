@@ -7,12 +7,11 @@
 | 类别 | 入口示例 |
 |---|---|
 | 契约/Schema | `export_json_schemas.py`、`check-contract-sync.js`、`verify-contract.ts` |
-| 数据库/图谱初始化 | `init_neo4j_schema.py`、`import_esco_skill.py` |
-| PG/Neo4j 同步 | `rebuild_graph.py`、`reconcile_graph.py`、`sync_extractions_to_graph.py` |
+| 图谱构建/初始化 | `rebuild_graph.py`、`expand_graph_data.py` |
+| PG/Neo4j 同步 | `reconcile_graph.py`、`sync_name_cn_from_neo4j.py`（另有 `backend/scripts/sync_pg_edges_to_graph.py`、`backfill_pg_from_neo4j.py`） |
 | 数据一致性 | `ensure_data_consistency.py`、`validate_graph_data.py` |
 | 评估与质量 | `measure_*.py`、`quality_report.py` |
 | 离线 fixture | `offline/`；不得混入生产数据 |
-| 已废弃 | `deprecated/`；只用于历史参考 |
 | 运维 | `daily-integration.sh`、`server-*.sh`、`deploy-lightweight.sh` |
 
 ## 使用规则

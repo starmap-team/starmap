@@ -108,7 +108,7 @@ curl -s -X POST https://starmap.example.com/api/v1/auth/login \
 
 ## 4. 验证脚本
 
-`scripts/verify_env_production_safety.py`(本期未实现,建议 Phase 21 落地):
+`scripts/verify_env_production_safety.py`（尚未实现，建议后续落地）:
 ```python
 """Verify host .env.production is safe (outside git tree, perms 600)."""
 import os
